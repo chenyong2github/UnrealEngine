@@ -94,11 +94,11 @@ void VirtualMemoryRange::FreePages(const void* addressStart, const void* address
 			const bool success = ::VirtualFreeEx(+m_processHandle, data.address, 0u, MEM_RELEASE);
 			if (success)
 			{
-				LC_LOG_DEV("Freeing virtual memory region at 0x%p", data.address);
+				LC_LOG_DEV("Freeing virtual memory region at 0x%p", data.address); //-V774
 			}
 			else
 			{
-				LC_WARNING_DEV("Cannot free virtual memory region at 0x%p", data.address);
+				LC_WARNING_DEV("Cannot free virtual memory region at 0x%p", data.address); //-V774
 			}
 
 			it = m_pageData.erase(it);

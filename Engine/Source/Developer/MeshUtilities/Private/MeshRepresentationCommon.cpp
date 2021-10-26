@@ -70,7 +70,7 @@ void EmbreeFilterFunc(const struct RTCFilterFunctionNArguments* args)
 void EmbreeErrorFunc(void* userPtr, RTCError code, const char* str)
 {
 	FString ErrorString;
-	TArray<TCHAR>& ErrorStringArray = ErrorString.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& ErrorStringArray = ErrorString.GetCharArray();
 	ErrorStringArray.Empty();
 
 	int32 StrLen = FCStringAnsi::Strlen(str);

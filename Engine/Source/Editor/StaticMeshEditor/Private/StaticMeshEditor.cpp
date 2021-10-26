@@ -262,6 +262,13 @@ void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, con
 		)
 	);
 
+
+	// Add any extenders specified by the UStaticMeshEditorUISubsystem
+	IStaticMeshEditorModule* StaticMeshEditorModule = &FModuleManager::LoadModuleChecked<IStaticMeshEditorModule>("StaticMeshEditor");
+	FLayoutExtender LayoutExtender;
+	StaticMeshEditorModule->OnRegisterLayoutExtensions().Broadcast(LayoutExtender);
+	StandaloneDefaultLayout->ProcessExtensions(LayoutExtender);
+
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, StaticMeshEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultToolbar, bCreateDefaultStandaloneMenu, ObjectToEdit );
@@ -2377,6 +2384,12 @@ bool FStaticMeshEditor::OnRequestClose()
 			bAllowClose = false;
 			break;
 		}
+	}
+
+	// Give any active modes a chance to shutdown while the toolkit host is still alive
+	if (bAllowClose)
+	{
+		GetEditorModeManager().ActivateDefaultMode();
 	}
 
 	return bAllowClose;

@@ -383,7 +383,7 @@ namespace Audio
 	/************************************************************************/
 	/* FSoundFileReader														*/
 	/************************************************************************/
-	class FSoundFileReader : public ISoundFileParser, public ISoundFileReader
+	class FSoundFileReader final : public ISoundFileParser, public ISoundFileReader
 	{
 	public:
 		FSoundFileReader()

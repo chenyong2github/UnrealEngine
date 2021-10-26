@@ -12,7 +12,7 @@
 #include "CADKernel/Utils/ArrayUtils.h"
 
 //#define DEBUG_GRID
-
+//#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace CADKernel
 {
 	FGrid::FGrid(TSharedRef<FTopologicalFace>& InFace, TSharedRef<FModelMesh>& InMeshModel)
@@ -23,11 +23,11 @@ namespace CADKernel
 		, CuttingCoordinates(Face->GetCuttingPointCoordinates())
 	{
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
-	if (Face->GetId() == FaceToDebug)
-#endif
+		if (Face->GetId() == FaceToDebug)
 		{
 			bDisplay = true;
 		}
+#endif
 	}
 
 	void FGrid::PrintTimeElapse() const
@@ -40,7 +40,7 @@ namespace CADKernel
 		EGridSpace DisplaySpace = EGridSpace::UniformScaled;
 		FTimePoint StartTime = FChrono::Now();
 
-		if(!GetMeshOfLoops())
+		if (!GetMeshOfLoops())
 		{
 			return;
 		}
@@ -48,22 +48,31 @@ namespace CADKernel
 		ScaleLoops();
 
 #ifdef DEBUG_GRID
+		DisplayLoop(TEXT("FGrid::Loop 2D"), GetLoops2D(EGridSpace::Default2D), true, false);
+		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D"), GetInner2DPoints(EGridSpace::Default2D));
+
 		DisplayLoop(TEXT("FGrid::Loop 2D Scaled"), GetLoops2D(EGridSpace::Scaled), true, false);
 		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D Scaled"), GetInner2DPoints(EGridSpace::Scaled));
 
 		DisplayLoop(TEXT("FGrid::Loop 2D UniformScaled"), GetLoops2D(EGridSpace::UniformScaled), true, false);
 		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D UniformScaled"), GetInner2DPoints(EGridSpace::UniformScaled));
-#endif
 
-#ifdef DEBUG_GRID
-		//Wait(bDisplay);
+		DisplayLoop(TEXT("FGrid::Loop 3D"), GetLoops3D(), true, false);
+		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 3D"), GetInner3DPoints());
+
+		DisplayLoop(TEXT("FGrid::Loop 3D"), GetLoops3D(), true, false);
+		DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 3D"), GetInner3DPoints());
+
+		DisplayGridNormal();
+
+		Wait(bDisplay);
 #endif
 
 		FindInnerFacePoints();
 
 #ifdef DEBUG_GRID
 		DisplayGridPoints(DisplaySpace);
-		//Wait(bDisplay);
+		Wait(bDisplay);
 #endif
 		FindPointsCloseToLoop();
 #ifdef DEBUG_GRID
@@ -117,8 +126,8 @@ namespace CADKernel
 #ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 			TArray<FCuttingPoint> Extremities;
 			Extremities.Reserve(2);
-			Extremities.Emplace(Boundary.UVBoundaries[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
-			Extremities.Emplace(Boundary.UVBoundaries[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
+			Extremities.Emplace(Boundary[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
+			Extremities.Emplace(Boundary[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
 			FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Extremities, CuttingPointTmp);
 #endif
 			FMesherTools::ComputeFinalCuttingPointsWithPreferredCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Neighbors[Iso], Boundary[Iso], Face->GetCuttingCoordinatesAlongIso(Iso));
@@ -127,34 +136,56 @@ namespace CADKernel
 		{
 			TArray<FCuttingPoint> Extremities;
 			Extremities.Reserve(2);
-			Extremities.Emplace(Boundary.UVBoundaries[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
-			Extremities.Emplace(Boundary.UVBoundaries[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
+			Extremities.Emplace(Boundary[Iso].Min, ECoordinateType::VertexCoordinate, -1, 0.001);
+			Extremities.Emplace(Boundary[Iso].Max, ECoordinateType::VertexCoordinate, -1, 0.001);
 			FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(Face->GetCrossingPointCoordinates(Iso), Face->GetCrossingPointDeltaMaxs(Iso), Extremities, Face->GetCuttingCoordinatesAlongIso(Iso));
 		}
 
 #ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 		if (bDisplay)
 		{
+			EIso OtherIso = Other(Iso);
 			F3DDebugSession _(TEXT("GetPreferredUVCoordinatesFromNeighbours"));
 			{
 				F3DDebugSession _(FString::Printf(TEXT("%s From Neighbours"), IsoNames[Iso]));
 				for (FCuttingPoint CuttingU : Neighbors[Iso])
 				{
-					DisplayPoint(FPoint(CuttingU.Coordinate, 0.0));
+					if (Iso == EIso::IsoU)
+					{
+						DisplayPoint(FPoint(CuttingU.Coordinate, Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 20), EVisuProperty::GreenPoint);
+					}
+					else
+					{
+						DisplayPoint(FPoint(Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 20, CuttingU.Coordinate), EVisuProperty::GreenPoint);
+					}
 				}
 			}
 			{
 				F3DDebugSession _(FString::Printf(TEXT("%s From Criteria"), IsoNames[Iso]));
 				for (double CuttingU : CuttingPointTmp)
 				{
-					DisplayPoint(FPoint(CuttingU, Boundary.UVBoundaries[Iso].Length() * 1/80), EVisuProperty::YellowPoint);
+					if (Iso == EIso::IsoU)
+					{
+						DisplayPoint(FPoint(CuttingU, Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 40), EVisuProperty::YellowPoint);
+					}
+					else
+					{
+						DisplayPoint(FPoint(Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 40, CuttingU), EVisuProperty::YellowPoint);
+					}
 				}
 			}
 			{
 				F3DDebugSession _(FString::Printf(TEXT("%s From Neighbours"), IsoNames[Iso]));
 				for (double CuttingU : Face->GetCuttingCoordinatesAlongIso(Iso))
 				{
-					DisplayPoint(FPoint(CuttingU, Boundary.UVBoundaries[Iso].Length() * 1/40), EVisuProperty::GreenPoint);
+					if (Iso == EIso::IsoU)
+					{
+						DisplayPoint(FPoint(CuttingU, Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 60), EVisuProperty::BluePoint);
+					}
+					else
+					{
+						DisplayPoint(FPoint(Boundary[OtherIso].GetMin() - Boundary[OtherIso].Length() * 1 / 60, CuttingU), EVisuProperty::BluePoint);
+					}
 				}
 			}
 			//Wait();
@@ -217,7 +248,7 @@ namespace CADKernel
 					}
 
 					ProjectedPointCoords.Reserve(CuttingPoints.Num());
-					for(const FCuttingPoint& Cutting : CuttingPoints)
+					for (const FCuttingPoint& Cutting : CuttingPoints)
 					{
 						ProjectedPointCoords.Emplace(Cutting.Coordinate);
 					}
@@ -231,9 +262,9 @@ namespace CADKernel
 					{
 						continue;
 					}
-	
+
 					ProjectedPointCoords.Reserve(EdgeMeshNodes.Num() + 2);
-					bool bSameDirection = Edge->IsSameDirection(ActiveEdge) ? true : false;
+					bool bSameDirection = Edge->IsSameDirection(*ActiveEdge);
 
 					Edge->ProjectTwinEdgePoints(EdgeMeshNodes, bSameDirection, ProjectedPointCoords);
 					ProjectedPointCoords.Insert(Edge->GetStartCurvilinearCoordinates(), 0);
@@ -325,7 +356,7 @@ namespace CADKernel
 		FTimePoint StartTime = FChrono::Now();
 
 		ComputeMaxDeltaUV();
-		if(MaxDeltaUV[EIso::IsoU] < FaceTolerance[EIso::IsoU] || MaxDeltaUV[EIso::IsoV] < FaceTolerance[EIso::IsoV])
+		if (MaxDeltaUV[EIso::IsoU] < FaceTolerance[EIso::IsoU] || MaxDeltaUV[EIso::IsoV] < FaceTolerance[EIso::IsoV])
 		{
 			SetAsDegenerated();
 			return false;
@@ -393,396 +424,272 @@ namespace CADKernel
 		FTimePoint StartTime = FChrono::Now();
 
 		int32 IndexLoop = 0;
-		int32 IndexU = 1;
-		int32 IndexV = 1;
-		int32 Index = 1;
+		int32 Index[2] = {1, 1};
+		int32 GlobalIndex = 1;
+
+		const FPoint2D* PointA = nullptr;
+		const FPoint2D* PointB = nullptr;
+
+#ifdef DEBUG_FINDPOINTSCLOSETOLOOP
+		if (bDisplay) 
+		{
+			Open3DDebugSession(TEXT("FGrid::FindPointsClosedToLoop result"));
+		}
+
+		int32 CellIndex = 0;
+		bool bWaitCell = false;
+		TFunction<void()> DisplayCell = [&]()
+		{
+			if (bDisplay)
+			{
+				F3DDebugSession _(*FString::Printf(TEXT("Cell %d"), CellIndex++));
+				DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex]);
+				DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1]);
+				DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]]);
+				DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]]);
+				Wait(bWaitCell);
+			}
+		};
+#endif
+
+		// Find start index
+		TFunction<void(EIso)> FindPointAIndex = [&](EIso Iso)
+		{
+			Index[Iso] = 1;
+			for (; Index[Iso] < CuttingCount[Iso] - 1; ++Index[Iso])
+			{
+				if (UniformCuttingCoordinates[Iso][Index[Iso]] + SMALL_NUMBER > (*PointA)[Iso])
+				{
+					break;
+				}
+			}
+		};
+
+		TFunction<void()> SetCellCloseToLoop = [&]()
+		{
+			IsCloseToLoop[GlobalIndex] = 1;
+			IsCloseToLoop[GlobalIndex - 1] = 1;
+			IsCloseToLoop[GlobalIndex - 1 - CuttingCount[EIso::IsoU]] = 1;
+			IsCloseToLoop[GlobalIndex - CuttingCount[EIso::IsoU]] = 1;
+#ifdef DEBUG_FINDPOINTSCLOSETOLOOP
+			DisplayCell();
+#endif
+		};
+
+		TFunction<void(EIso)> Increase = [&](EIso Iso)
+		{
+			if (Index[Iso] < CuttingCount[Iso] - 1)
+			{
+				Index[Iso]++;
+				GlobalIndex += Iso == EIso::IsoU ? 1 : CuttingCount[EIso::IsoU];
+			}
+		};
+
+		TFunction<void(EIso)> Decrease = [&](EIso Iso)
+		{
+			if (Index[Iso] > 1)
+			{
+				Index[Iso]--;
+				GlobalIndex -= Iso == EIso::IsoU ? 1 : CuttingCount[EIso::IsoU];
+			}
+		};
 
 		TFunction<void()> IncreaseU = [&]()
 		{
-			if (IndexU < CuttingCount[EIso::IsoU] - 1)
-			{
-				IndexU++;
-				Index++;
-			}
+			Increase(EIso::IsoU);
 		};
 
 		TFunction<void()> IncreaseV = [&]()
 		{
-			if (IndexV < CuttingCount[EIso::IsoV] - 1)
-			{
-				IndexV++;
-				Index += CuttingCount[EIso::IsoU];
-			}
+			Increase(EIso::IsoV);
 		};
 
 		TFunction<void()> DecreaseU = [&]()
 		{
-			if (IndexU > 1)
-			{
-				IndexU--;
-				Index--;
-			}
+			Decrease(EIso::IsoU);
 		};
 
 		TFunction<void()> DecreaseV = [&]()
 		{
-			if (IndexV > 1)
+			Decrease(EIso::IsoV);
+		};
+
+		TFunction<bool(const double, const double)> IsReallyBigger = [](const double FirstValue, const double SecondValue) ->bool
+		{
+			return FirstValue - SMALL_NUMBER > SecondValue;
+		};
+
+		TFunction<bool(const double, const double)> IsReallySmaller = [](const double FirstValue, const double SecondValue) ->bool
+		{
+			return FirstValue + SMALL_NUMBER < SecondValue;
+		};
+
+		double Slop;
+		double Origin;
+
+		TFunction<void(EIso, const int32, const int32, TFunction<void()>, TFunction<void()>)> FindIntersection = [&](EIso MainIso, const int32 DeltaIso, const int32 DeltaOther, TFunction<void()> OffsetIndexIfBigger, TFunction<void()> OffsetIndexIfSmaller)
+		{
+			TFunction<bool(const double, const double)> TestAlongIso = DeltaIso ? IsReallyBigger : IsReallySmaller;
+			TFunction<bool(const double, const double)> TestAlongOther = DeltaOther ? IsReallyBigger : IsReallySmaller;
+			
+			EIso OtherIso = Other(MainIso);
+			while (TestAlongIso(UniformCuttingCoordinates[MainIso][Index[MainIso] - DeltaIso], (*PointB)[MainIso]) || TestAlongOther(UniformCuttingCoordinates[OtherIso][Index[OtherIso] - DeltaOther], (*PointB)[OtherIso]))
 			{
-				IndexV--;
-				Index -= CuttingCount[EIso::IsoU];
+				double CoordinateOther = Slop * UniformCuttingCoordinates[MainIso][Index[MainIso] - DeltaIso] + Origin;
+				if (IsReallyBigger(CoordinateOther, UniformCuttingCoordinates[OtherIso][Index[OtherIso] - DeltaOther]))
+				{
+					OffsetIndexIfBigger();
+				}
+				else if (IsReallySmaller(CoordinateOther, UniformCuttingCoordinates[OtherIso][Index[OtherIso] - DeltaOther]))
+				{
+					OffsetIndexIfSmaller();
+				}
+				else // IsNearlyEqual
+				{
+					OffsetIndexIfBigger();
+					OffsetIndexIfSmaller();
+				}
+				SetCellCloseToLoop();
 			}
 		};
 
-		for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
+		TFunction<bool(EIso)> FindIntersectionIsoStrip = [&](EIso MainIso) -> bool
 		{
-			const FPoint2D* PointA = &Loop.Last();
-
-			IndexU = 1;
-			for (; IndexU < CuttingCount[EIso::IsoU] - 1; ++IndexU)
+			EIso OtherIso = Other(MainIso);
+			if ((UniformCuttingCoordinates[OtherIso][Index[OtherIso] - 1] < (*PointB)[OtherIso]) && ((*PointB)[OtherIso] < UniformCuttingCoordinates[OtherIso][Index[OtherIso]]))
 			{
-				if (UniformCuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE > PointA->U)
+				if ((UniformCuttingCoordinates[MainIso][Index[MainIso] - 1] < (*PointB)[MainIso]) && ((*PointB)[MainIso] < UniformCuttingCoordinates[MainIso][Index[MainIso]]))
 				{
-					break;
-				}
-			}
-
-			IndexV = 1;
-			for (; IndexV < CuttingCount[EIso::IsoV] - 1; ++IndexV)
-			{
-				if (UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE > PointA->V)
-				{
-					break;
-				}
-			}
-
-			Index = IndexV * CuttingCount[EIso::IsoU] + IndexU;
-
-			IsCloseToLoop[Index] = 1;
-			IsCloseToLoop[Index - 1] = 1;
-			IsCloseToLoop[Index - 1 - CuttingCount[EIso::IsoU]] = 1;
-			IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-
-
-			for (int32 BIndex = 0; BIndex < Loop.Num(); ++BIndex)
-			{
-				const FPoint2D* PointB = &Loop[BIndex];
-
-				if ((UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE < PointB->V) && (PointB->V < UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE))
-				{
-					if ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < UniformCuttingCoordinates[EIso::IsoU][IndexU]))
-					{
-						PointA = PointB;
-						continue;
-					}
-
-					if (PointA->U < PointB->U)
-					{
-						while ((UniformCuttingCoordinates[EIso::IsoU][IndexU] < PointB->U) && (IndexU < CuttingCount[EIso::IsoU] - 1))
-						{
-							IncreaseU();
-							IsCloseToLoop[Index] = 1;
-							IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-						}
-					}
-					else
-					{
-						while ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] > PointB->U) && (IndexU > 1))
-						{
-							DecreaseU();
-							IsCloseToLoop[Index - 1] = 1;
-							IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-						}
-					}
 					PointA = PointB;
-					continue;
+					return true;
 				}
 
-				if ((UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U) && (PointB->U < UniformCuttingCoordinates[EIso::IsoU][IndexU]))
+				if ((*PointA)[MainIso] < (*PointB)[MainIso])
 				{
-					if (PointA->V < PointB->V)
+					while (UniformCuttingCoordinates[MainIso][Index[MainIso]] < (*PointB)[MainIso])
 					{
-						while ((UniformCuttingCoordinates[EIso::IsoV][IndexV] < PointB->V) && (IndexV < CuttingCount[EIso::IsoV] - 1))
-						{
-							IncreaseV();
-							IsCloseToLoop[Index] = 1;
-							IsCloseToLoop[Index - 1] = 1;
-						}
-					}
-					else
-					{
-						while ((UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] > PointB->V) && (IndexV > 1))
-						{
-							DecreaseV();
-							IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-						}
-					}
-					PointA = PointB;
-					continue;
-				}
-
-				double ABv = PointB->V - PointA->V;
-				double ABu = PointB->U - PointA->U;
-
-				if (FMath::Abs(ABu) > FMath::Abs(ABv))
-				{
-					// Py = ABy/ABx*Px + (Ay - ABy/ABx*Ax)
-					// Py = ABy_ABx*Px + (Ay_ABy_ABx_Ax)
-					double ABy_ABx = ABv / ABu;
-					double Ay_ABy_ABx_Ax = PointA->V - ABy_ABx * PointA->U;
-
-					if (ABu > 0)
-					{
-						while (UniformCuttingCoordinates[EIso::IsoU][IndexU] + SMALL_NUMBER_SQUARE < PointB->U)
-						{
-							IncreaseU();
-
-							double CoordinateV_IndexU = 0;
-							if (UniformCuttingCoordinates[EIso::IsoU][IndexU] > PointB->U)
-							{
-								CoordinateV_IndexU = PointB->V;
-							}
-							else
-							{
-								CoordinateV_IndexU = ABy_ABx * UniformCuttingCoordinates[EIso::IsoU][IndexU] + Ay_ABy_ABx_Ax;
-								if (ABv < 0)
-								{
-									if (IndexV > 2)
-									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 2])
-										{
-											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
-											DecreaseU();
-										}
-									}
-								}
-								else
-								{
-									if (IndexV < CuttingCount[EIso::IsoV] - 1)
-									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV + 1])
-										{
-											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
-											DecreaseU();
-										}
-									}
-								}
-							}
-
-							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV])
-							{
-								IncreaseV();
-
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							}
-							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 1])
-							{
-								DecreaseV();
-
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-							}
-							else
-							{
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							}
-						}
-					}
-					else
-					{
-						do
-						{
-							DecreaseU();
-
-							double CoordinateV_IndexU = 0; //= ABy_ABx * CoordinateU[IndexU - 1] + Ay_ABy_ABx_Ax;
-							if (UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] < PointB->U)
-							{
-								CoordinateV_IndexU = PointB->V;
-							}
-							else
-							{
-								CoordinateV_IndexU = ABy_ABx * UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] + Ay_ABy_ABx_Ax;
-								if (ABv < 0)
-								{
-									if (IndexV > 2)
-									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 2])
-										{
-											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV - 2] + SMALL_NUMBER_SQUARE;
-											IncreaseU();
-										}
-									}
-								}
-								else
-								{
-									if (IndexV < CuttingCount[EIso::IsoV] - 1)
-									{
-										if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV + 1])
-										{
-											CoordinateV_IndexU = UniformCuttingCoordinates[EIso::IsoV][IndexV + 1] - SMALL_NUMBER_SQUARE;
-											IncreaseU();
-										}
-									}
-								}
-							}
-
-							if (CoordinateV_IndexU - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoV][IndexV])
-							{
-								IsCloseToLoop[Index - 1] = 1;
-
-								IncreaseV();
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index] = 1;
-							}
-							else if (CoordinateV_IndexU + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoV][IndexV - 1])
-							{
-								DecreaseV();
-
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-							}
-							else
-							{
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-							}
-						} while (UniformCuttingCoordinates[EIso::IsoU][IndexU - 1] - SMALL_NUMBER_SQUARE > PointB->U);
+						Increase(MainIso);
+						SetCellCloseToLoop();
 					}
 				}
 				else
 				{
-					// Px = ABx/ABy*Xy + Ax-ABx/ABy*Ay
-					// Px = ABx_ABy*Xy + Ax_ABx_ABy_Ay
-					double ABu_ABv = ABu / ABv;
-					double Au_ABu_ABv_Av = PointA->U - ABu_ABv * PointA->V;
-
-					if (ABv > 0)
+					while (UniformCuttingCoordinates[MainIso][Index[MainIso] - 1] > (*PointB)[MainIso])
 					{
-						while (UniformCuttingCoordinates[EIso::IsoV][IndexV] + SMALL_NUMBER_SQUARE < PointB->V)
+						Decrease(MainIso);
+						SetCellCloseToLoop();
+					}
+				}
+				PointA = PointB;
+				return true;
+			}
+			return false;
+		};
+
+		double ABv = 0.;
+		double ABu = 0.;
+		for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
+		{
+			PointA = &Loop.Last();
+
+			// Find start index
+			FindPointAIndex(EIso::IsoU);
+			FindPointAIndex(EIso::IsoV);
+
+			GlobalIndex = Index[EIso::IsoV] * CuttingCount[EIso::IsoU] + Index[EIso::IsoU];
+			SetCellCloseToLoop();
+
+			for (int32 BIndex = 0; BIndex < Loop.Num(); ++BIndex)
+			{
+				PointB = &Loop[BIndex];
+
+#ifdef DEBUG_FINDPOINTSCLOSETOLOOP
+				if (bDisplay)
+				{
+					F3DDebugSession _(TEXT("SEG"));
+					DisplaySegment(*PointB, *PointA);
+				}
+#endif
+
+				// Horizontal case
+				if (FindIntersectionIsoStrip(EIso::IsoU))          
+				{												   
+					continue;									   
+				}												   
+																   
+				if (FindIntersectionIsoStrip(EIso::IsoV))		   
+				{												   
+					continue;									   
+				}												   
+																   
+				ABv = PointB->V - PointA->V;					   
+				ABu = PointB->U - PointA->U;
+				if (fabs(ABu) > fabs(ABv))
+				{
+					Slop = ABv / ABu;
+					Origin = PointA->V - Slop * PointA->U;
+					if (ABu > 0)
+					{
+						if (ABv > 0)
 						{
-							IncreaseV();
-							double CoordinateU_IndexV = 0;// = ABx_ABy * CoordinateV[IndexV - 1] + Ax_ABx_ABy_Ay;
-							if (UniformCuttingCoordinates[EIso::IsoV][IndexV] > PointB->V)
-							{
-								CoordinateU_IndexV = PointB->U;
-							}
-							else
-							{
-								CoordinateU_IndexV = ABu_ABv * UniformCuttingCoordinates[EIso::IsoV][IndexV] + Au_ABu_ABv_Av;
-								if (ABu < 0)
-								{
-									if (IndexU > 2)
-									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 2])
-										{
-											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
-											DecreaseV();
-										}
-									}
-								}
-								else
-								{
-									if (IndexU < CuttingCount[EIso::IsoU] - 1)
-									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU + 1])
-										{
-											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
-											DecreaseV();
-										}
-									}
-								}
-							}
-
-							if ((IndexU < CuttingCount[EIso::IsoU] - 1) && CoordinateU_IndexV - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU])
-							{
-								IncreaseU();
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							}
-							else if ((IndexU > 1) && CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 1])
-							{
-								DecreaseU();
-
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - 1 - CuttingCount[EIso::IsoU]] = 1;
-							}
-							else
-							{
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - 1] = 1;
-							}
+							FindIntersection(EIso::IsoU, 0, 0, IncreaseV, IncreaseU);
+						}
+						else
+						{
+							FindIntersection(EIso::IsoU, 0, 1, IncreaseU, DecreaseV);
 						}
 					}
 					else
 					{
-						do
+						if (ABv > 0)
 						{
-							DecreaseV();
-
-							double CoordinateU_IndexV = 0;// = ABx_ABy * CoordinateV[IndexV - 1] + Ax_ABx_ABy_Ay;
-							if (UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] < PointB->V)
-							{
-								CoordinateU_IndexV = PointB->U;
-							}
-							else
-							{
-								CoordinateU_IndexV = ABu_ABv * UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] + Au_ABu_ABv_Av;
-								if (ABu < 0)
-								{
-									if (IndexU > 2)
-									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 2])
-										{
-											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU - 2] + SMALL_NUMBER_SQUARE;
-											IncreaseV();
-										}
-									}
-								}
-								else
-								{
-									if (IndexU < CuttingCount[EIso::IsoU] - 1)
-									{
-										if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU + 1])
-										{
-											CoordinateU_IndexV = UniformCuttingCoordinates[EIso::IsoU][IndexU + 1] - SMALL_NUMBER_SQUARE;
-											IncreaseV();
-										}
-									}
-								}
-							}
-
-							if (CoordinateU_IndexV - SMALL_NUMBER_SQUARE > UniformCuttingCoordinates[EIso::IsoU][IndexU])
-							{
-								IncreaseU();
-								IsCloseToLoop[Index] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							}
-							else if (CoordinateU_IndexV + SMALL_NUMBER_SQUARE < UniformCuttingCoordinates[EIso::IsoU][IndexU - 1])
-							{
-								DecreaseU();
-								IsCloseToLoop[Index - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-							}
-							else
-							{
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU]] = 1;
-								IsCloseToLoop[Index - CuttingCount[EIso::IsoU] - 1] = 1;
-							}
-						} while (UniformCuttingCoordinates[EIso::IsoV][IndexV - 1] - SMALL_NUMBER_SQUARE > PointB->V);
+							FindIntersection(EIso::IsoU, 1, 0, IncreaseV, DecreaseU);
+						}
+						else
+						{
+							FindIntersection(EIso::IsoU, 1, 1, DecreaseU, DecreaseV);
+						}
+					}
+				}
+				else
+				{
+					Slop = ABu / ABv;
+					Origin = PointA->U - Slop * PointA->V;
+					if (ABu > 0)
+					{
+						if (ABv > 0)
+						{
+							FindIntersection(EIso::IsoV, 0, 0, IncreaseU, IncreaseV);
+						}
+						else
+						{
+							FindIntersection(EIso::IsoV, 1, 0, IncreaseU, DecreaseV);
+						}
+					}
+					else
+					{
+						if (ABv > 0)
+						{
+							FindIntersection(EIso::IsoV, 0, 1, IncreaseV, DecreaseU);
+						}
+						else
+						{
+							FindIntersection(EIso::IsoV, 1, 1, DecreaseV, DecreaseU);
+						}
 					}
 				}
 				PointA = PointB;
 			}
 		}
+
+#ifdef DEBUG_FINDPOINTSCLOSETOLOOP
+		if (bDisplay)
+		{
+			Close3DDebugSession();
+			Wait();
+		}
+#endif
+
 		Chronos.FindPointsCloseToLoopDuration += FChrono::Elapse(StartTime);
 	}
 
@@ -988,7 +895,7 @@ namespace CADKernel
 				// If Projected point is in the oval center on Point2D => the node is too close
 				FPoint2D ProjectionToPoint = Abs(Point2D - Projection);
 
-				if (ProjectionToPoint.U > DeltaU * 0.05  || ProjectionToPoint.V > DeltaV * 0.05)
+				if (ProjectionToPoint.U > DeltaU * 0.05 || ProjectionToPoint.V > DeltaV * 0.05)
 				{
 					continue;
 				}
@@ -1004,7 +911,7 @@ namespace CADKernel
 	}
 
 	/**
-	 * For the surfacic normal at a StartPoint of the 3D degenerated curve (Not degenerated in 2d) 
+	 * For the surfacic normal at a StartPoint of the 3D degenerated curve (Not degenerated in 2d)
 	 * The normal is swap if StartPoint is too close to the Boundary
 	 * The norm of the normal is defined as 1/20 of the parallel boundary Length
 	 */
@@ -1106,22 +1013,25 @@ namespace CADKernel
 				const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
 				const TSharedRef<FTopologicalEdge>& ActiveEdge = Edge->GetLinkActiveEdge();
 
-				bool bSameDirection = Edge->IsSameDirection(ActiveEdge);
+				bool bSameDirection = Edge->IsSameDirection(*ActiveEdge);
 
-				TArray<double> ActiveEdgeCuttingPointCoordinates;
+				TArray<double> EdgeCuttingPointCoordinates;
 				{
-					TArray<FCuttingPoint>& CuttingPoints = ActiveEdge->GetCuttingPoints();
-					GetCuttingPointCoordinates(CuttingPoints, ActiveEdgeCuttingPointCoordinates);
+					TArray<FCuttingPoint>& CuttingPoints = Edge->GetCuttingPoints();
+					if (!CuttingPoints.IsEmpty())
+					{
+						GetCuttingPointCoordinates(CuttingPoints, EdgeCuttingPointCoordinates);
+					}
 				}
 
 				FSurfacicPolyline CuttingPolyline(true);
 
 				if (Edge->IsDegenerated())
 				{
-					ensureCADKernel(ActiveEdge == Edge);
+					ensureCADKernel(!Edge->GetCuttingPoints().IsEmpty());
 					// else converts CuttingPoint2D form ActiveEdge to Edge (with Linear conversion)
 
-					Swap(CuttingPolyline.Coordinates, ActiveEdgeCuttingPointCoordinates);
+					Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
 					Edge->Approximate2DPoints(CuttingPolyline.Coordinates, CuttingPolyline.Points2D);
 
 					CuttingPolyline.Points3D.Init(ActiveEdge->GetStartBarycenter(), CuttingPolyline.Coordinates.Num());
@@ -1134,29 +1044,19 @@ namespace CADKernel
 				}
 				else
 				{
-					if (ActiveEdge != Edge)
+					if (EdgeCuttingPointCoordinates.IsEmpty())
 					{
-						ensureCADKernel(ActiveEdgeCuttingPointCoordinates.Num() > 1);
-						TArray<FPoint> CuttingPoint3D;
-						ActiveEdge->ApproximatePoints(ActiveEdgeCuttingPointCoordinates, CuttingPoint3D);
-
-#ifdef DEBUG_GET_BOUNDARY_MESH
-						{
-							F3DDebugSession _(FString::Printf(TEXT("Edge Cutting 3d points %d"), ActiveEdge->GetId()));
-							for (const FPoint& Point : CuttingPoint3D)
-							{
-								DisplayPoint(Point);
-							}
-						}
-#endif
+						TArray<FPoint>& MeshVertex3D = ActiveEdge->GetMesh()->GetNodeCoordinates();
 						TArray<double> ProjectedPointCoords;
 
-						CuttingPolyline.Coordinates.Reserve(CuttingPoint3D.Num());
-						Edge->ProjectTwinEdgePoints(CuttingPoint3D, bSameDirection, CuttingPolyline.Coordinates);
+						CuttingPolyline.Coordinates.Reserve(MeshVertex3D.Num() + 2);
+						Edge->ProjectTwinEdgePoints(MeshVertex3D, bSameDirection, CuttingPolyline.Coordinates);
+						CuttingPolyline.Coordinates.Insert(Edge->GetBoundary().GetMin(), 0);
+						CuttingPolyline.Coordinates.Add(Edge->GetBoundary().GetMax());
 					}
 					else
 					{
-						Swap(CuttingPolyline.Coordinates, ActiveEdgeCuttingPointCoordinates);
+						Swap(CuttingPolyline.Coordinates, EdgeCuttingPointCoordinates);
 					}
 
 					Edge->ApproximatePolyline(CuttingPolyline);
@@ -1811,7 +1711,7 @@ namespace CADKernel
 			{
 				IsInside++;
 			}
-			if (NbIntersectVBackward[Index]  > 0)
+			if (NbIntersectVBackward[Index] > 0)
 			{
 				IsInside++;
 			}
@@ -1862,6 +1762,46 @@ namespace CADKernel
 		}
 		Close3DDebugSession();
 	}
+
+	void FGrid::DisplayGridNormal() const
+	{
+		if (!bDisplay)
+		{
+			return;
+		}
+
+		Open3DDebugSession(TEXT("FGrid::Inner Normal"));
+		double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
+
+		for (int32 Index = 0; Index < CuttingSize; ++Index)
+		{
+			F3DDebugSegment GraphicSegment(Index);
+			FVector Normal = Normals[Index];
+			Normal.Normalize();
+			Normal *= NormalLength;
+			DrawSegment(Points3D[Index], Points3D[Index] + Normal, EVisuProperty::GreenCurve);
+		}
+
+		Close3DDebugSession();
+
+		Open3DDebugSession(TEXT("FGrid::Loop Normal"));
+		for (int32 LoopIndex = 0; LoopIndex < FaceLoops3D.Num(); ++LoopIndex)
+		{
+			const TArray<FPoint>& LoopPoints = FaceLoops3D[LoopIndex];
+			const TArray<FVector>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
+
+			for (int32 Index = 0; Index < LoopPoints.Num(); ++Index)
+			{
+				F3DDebugSegment GraphicSegment(Index);
+				FVector Normal = LoopNormals[Index];
+				Normal.Normalize();
+				Normal *= NormalLength;
+				DrawSegment(LoopPoints[Index], LoopPoints[Index] + Normal, EVisuProperty::YellowCurve);
+			}
+		}
+		Close3DDebugSession();
+	}
+
 
 	void FGrid::DisplayFindPointsCloseToLoop(EGridSpace DisplaySpace) const
 	{
@@ -1927,6 +1867,6 @@ namespace CADKernel
 		return false;
 	}
 
-}
+	}
 
 

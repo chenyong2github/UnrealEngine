@@ -56,7 +56,7 @@ void UInputSettings::RemoveInvalidKeys()
 			}
 			//if there were any indices to remove, save the new values
 			SaveConfig();
-			UpdateDefaultConfigFile();
+			TryUpdateDefaultConfigFile();
 		}
 		else
 		{

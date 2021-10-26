@@ -66,7 +66,8 @@ public class PropertyEditor : ModuleRules
                 "SceneOutliner",
 				"DesktopPlatform",
 				"PropertyPath",
-            }
+				"ToolWidgets",
+			}
         );
 
 		DynamicallyLoadedModuleNames.AddRange(

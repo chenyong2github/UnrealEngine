@@ -97,7 +97,7 @@ namespace AudioModulation
 		}
 
 		float OutValue = MixValue;
-		MixFunction(&OutValue, &ValueA, 1);
+		MixFunction(OutValue, ValueA);
 		return OutValue;
 	}
 

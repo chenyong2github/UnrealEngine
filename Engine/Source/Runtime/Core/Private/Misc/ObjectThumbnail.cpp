@@ -96,43 +96,69 @@ void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 void FObjectThumbnail::CompressImageData()
 {
 	CompressedImageData.Reset();
+	bIsJPEG = false;
 
-	if ( ImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
+	if (ImageData.Num() > 0)
 	{
-		#if USE_JPEG_FOR_THUMBNAILS
-		// prefer JPEG except on images that are trivially tiny or 1d
-		if( JPEGThumbnailCompressor != NULL && ImageWidth >= 8 && ImageHeight >= 8 )
+		if (FThumbnailCompressionInterface* Compressor = ChooseNewCompressor())
 		{
-			JPEGThumbnailCompressor->CompressImage( ImageData, ImageWidth, ImageHeight, CompressedImageData );
-			bIsJPEG = true;
-		}
-		#endif
+			Compressor->CompressImage(ImageData, ImageWidth, ImageHeight, CompressedImageData);
 
-		if( PNGThumbnailCompressor != NULL && CompressedImageData.Num() == 0 )
-		{
-			PNGThumbnailCompressor->CompressImage( ImageData, ImageWidth, ImageHeight, CompressedImageData );
-			bIsJPEG = false;
+			if (Compressor == JPEGThumbnailCompressor)
+			{
+				bIsJPEG = true;
+			}
 		}
 	}
 }
-
 
 void FObjectThumbnail::DecompressImageData()
 {
 	ImageData.Reset();
-	if( CompressedImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
+
+	if (FThumbnailCompressionInterface* Compressor = GetCompressor())
 	{
-		if ( bIsJPEG && JPEGThumbnailCompressor != nullptr )
-		{
-			JPEGThumbnailCompressor->DecompressImage( CompressedImageData, ImageWidth, ImageHeight, ImageData );
-		}
-		else if ( !bIsJPEG && PNGThumbnailCompressor != nullptr )
-		{
-			PNGThumbnailCompressor->DecompressImage( CompressedImageData, ImageWidth, ImageHeight, ImageData );
-		}
+		Compressor->DecompressImage(CompressedImageData, ImageWidth, ImageHeight, ImageData);
 	}
 }
 
+FThumbnailCompressionInterface* FObjectThumbnail::GetCompressor() const
+{
+	if (!CompressedImageData.IsEmpty() && ImageWidth > 0 && ImageHeight > 0)
+	{
+		if (bIsJPEG)
+		{
+			return JPEGThumbnailCompressor;
+		}
+		else
+		{
+			return PNGThumbnailCompressor;
+		}
+	}
+
+	return nullptr;
+}
+
+FThumbnailCompressionInterface* FObjectThumbnail::ChooseNewCompressor() const
+{
+	if (ImageWidth > 0 && ImageHeight > 0)
+	{
+		#if USE_JPEG_FOR_THUMBNAILS
+		// prefer JPEG except on images that are trivially tiny or 1d
+		if (JPEGThumbnailCompressor && ImageWidth >= 8 && ImageHeight >= 8)
+		{
+			return JPEGThumbnailCompressor;
+		}
+		#endif
+
+		if (PNGThumbnailCompressor)
+		{
+			return PNGThumbnailCompressor;
+		}
+	}
+
+	return nullptr;
+}
 
 void FObjectThumbnail::CountBytes( FArchive& Ar ) const
 {

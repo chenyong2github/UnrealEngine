@@ -121,6 +121,8 @@ namespace DatasmithRevitExporter
 		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
 		private string													SceneName;
 
+		private Dictionary<string, int>									ExportedActorNames = new Dictionary<string, int>();
+
 		// The number of times this document was synced (sent to receiver)
 		public int														SyncCount { get; private set; } = 0;
 
@@ -365,6 +367,21 @@ namespace DatasmithRevitExporter
 			return Actor;
 		}
 
+		public string EnsureUniqueActorName(string InActorName)
+		{
+			string UniqueName = InActorName;
+			if (ExportedActorNames.ContainsKey(InActorName))
+			{
+				UniqueName = $"{InActorName}_{ExportedActorNames[InActorName]++}";
+			}
+			else
+			{
+				ExportedActorNames[InActorName] = 0;
+			}
+
+			return UniqueName;
+		}
+
 		public bool IsElementCached(Element InElement)
 		{
 			return CurrentCache.CachedElements.ContainsKey(InElement.Id);
@@ -437,7 +454,7 @@ namespace DatasmithRevitExporter
 			// Check for old section boxes that were disabled since last sync.
 			foreach (SectionBoxInfo PrevSectionBoxInfo in PrevSectionBoxes)
 			{
-				bool bSectionBoxWasDisabled = !CurrentSectionBoxes.Any(Info => Info.SectionBox == PrevSectionBoxInfo.SectionBox);
+				bool bSectionBoxWasDisabled = !CurrentSectionBoxes.Any(Info => Info.SectionBox.Id == PrevSectionBoxInfo.SectionBox.Id);
 
 				if (bSectionBoxWasDisabled)
 				{
@@ -490,7 +507,7 @@ namespace DatasmithRevitExporter
 			{
 				IntersectedElements.Remove(InsideElement);
 			}
-			
+
 			foreach (var ElemId in IntersectedElements)
 			{
 				if (!InData.ModifiedElements.Contains(ElemId))

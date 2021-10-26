@@ -723,6 +723,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	FScopeRootObject S(CookOnTheFlyServer);
 
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	ECookInitializationFlags IterateFlags = ECookInitializationFlags::Iterative;
 
 	if (Switches.Contains(TEXT("IterateSharedCookedbuild")))
@@ -884,9 +885,12 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	}
 	else
 	{
-		UProjectPackagingSettings* const PackagingSettings = Cast<UProjectPackagingSettings>(UProjectPackagingSettings::StaticClass()->GetDefaultObject());
 		CookCultures = PackagingSettings->CulturesToStage;
 	}
+
+	const bool bUseZenStore =
+		!Switches.Contains(TEXT("SkipZenStore")) &&
+		(Switches.Contains(TEXT("ZenStore")) || PackagingSettings->bUseZenStore);
 
 	//////////////////////////////////////////////////////////////////////////
 	// start cook by the book 
@@ -896,7 +900,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	CookOptions |= Switches.Contains(TEXT("MAPSONLY")) ? ECookByTheBookOptions::MapsOnly : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NODEV")) ? ECookByTheBookOptions::NoDevContent : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("FullLoadAndSave")) ? ECookByTheBookOptions::FullLoadAndSave : ECookByTheBookOptions::None;
-	CookOptions |= Switches.Contains(TEXT("ZenStore")) ? ECookByTheBookOptions::ZenStore : ECookByTheBookOptions::None;
+	CookOptions |= bUseZenStore ? ECookByTheBookOptions::ZenStore : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoGameAlwaysCook")) ? ECookByTheBookOptions::NoGameAlwaysCookPackages : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("DisableUnsolicitedPackages")) ? (ECookByTheBookOptions::SkipHardReferences | ECookByTheBookOptions::SkipSoftReferences) : ECookByTheBookOptions::None;
 	CookOptions |= Switches.Contains(TEXT("NoDefaultMaps")) ? ECookByTheBookOptions::NoDefaultMaps : ECookByTheBookOptions::None;
@@ -916,7 +920,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	// Also append any cookdirs from the project ini files; these dirs are relative to the game content directory or start with a / root
 	if (!(CookOptions & ECookByTheBookOptions::NoGameAlwaysCookPackages))
 	{
-		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 		for (const FDirectoryPath& DirToCook : PackagingSettings->DirectoriesToAlwaysCook)
 		{
 			FString LocalPath;

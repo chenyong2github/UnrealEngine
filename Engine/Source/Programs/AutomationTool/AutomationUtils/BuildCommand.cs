@@ -39,9 +39,29 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Param">Param to read its value.</param>
 		/// <returns>Returns the value or Default if the parameter was not found.</returns>
-		public string ParseParamValue(string Param, string Default = null)
+		public string ParseParamValue(string Param, string Default = null, string ObsoleteParam = null)
 		{
-			return ParseParamValue(Params, Param, Default);
+			string ParamValue = ParseParamValue(Params, Param, null);
+
+			if (ObsoleteParam != null)
+			{
+				string ObsoleteParamValue = ParseParamValue(Params, ObsoleteParam, null);
+
+				if (ObsoleteParamValue != null)
+				{
+					if (ParamValue == null)
+					{
+						Log.TraceWarning($"Param name \"{ObsoleteParam}\" is deprecated, use \"{Param}\" instead.");
+					}
+					else
+					{
+						Log.TraceWarning($"Deprecated param name \"{ObsoleteParam}\" was ignored because \"{Param}\" was set.");
+					}
+				}
+
+			}
+
+			return ParamValue ?? Default;
 		}
 
 		/// <summary>

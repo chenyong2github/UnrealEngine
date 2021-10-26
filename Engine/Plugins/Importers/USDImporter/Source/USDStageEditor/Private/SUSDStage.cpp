@@ -415,9 +415,11 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			EUserInterfaceActionType::Button
 		);
 
+		MenuBuilder.AddSeparator();
+
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Reload", "Reload"),
-			LOCTEXT("Reload_ToolTip", "Reloads the stage from disk"),
+			LOCTEXT("Reload_ToolTip", "Reloads the stage from disk, keeping aspects of the session intact"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnReloadStage ),
@@ -426,6 +428,20 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT( "ResetState", "Reset state" ),
+			LOCTEXT( "ResetState_ToolTip", "Resets the session layer and other options like edit target and muted layers" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStage::OnResetStage ),
+				FCanExecuteAction()
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddSeparator();
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Close", "Close"),
@@ -785,6 +801,16 @@ void SUsdStage::OnReloadStage()
 	}
 }
 
+void SUsdStage::OnResetStage()
+{
+	ViewModel.ResetStage();
+
+	if ( UsdLayersTreeView )
+	{
+		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), true );
+	}
+}
+
 void SUsdStage::OnClose()
 {
 	FScopedTransaction Transaction(LOCTEXT("CloseTransaction", "Close USD stage"));
@@ -837,11 +863,6 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
 		SetActor( &UsdStageModule.GetUsdStageActor( GWorld ) );
 	}
-
-	// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
-	// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
-	// and would otherwise end up writing all of the data we just loaded back to the USD stage
-	ViewModel.UsdStageActor->BlockMonitoringLevelSequenceForThisTransaction();
 
 	ViewModel.OpenStage( FilePath );
 }

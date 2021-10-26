@@ -10,7 +10,7 @@ void FPIELoginSettingsInternal::Encrypt()
 {
 	if (Token.Len() > 0)
 	{
-		TArray<TCHAR> SrcCharArray = Token.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType> SrcCharArray = Token.GetCharArray();
 		int32 SrcSize = SrcCharArray.Num() * sizeof(TCHAR);
 		const int64 PaddedEncryptedFileSize = Align(SrcSize + 1, FAES::AESBlockSize);
 

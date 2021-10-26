@@ -29,6 +29,7 @@
 #include "SWorldTraceFilteringWidget.h"
 #include "SClassTraceFilteringWidget.h"
 #include "SUserTraceFilteringWidget.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 #define LOCTEXT_NAMESPACE "STraceSourceFilteringWidget"
 
@@ -184,12 +185,11 @@ void STraceSourceFilteringWidget::Tick(const FGeometry& AllottedGeometry, const 
 		if (AnalysisSession.IsValid())
 		{
 			UE::Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
-			const int32 SessionCount = StoreClient->GetSessionCount();
 
-			if (SessionCount > 0)
+			if (StoreClient)
 			{
-				const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-				if (SessionInfo)
+				const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(AnalysisSession->GetTraceId());
+				if (SessionInfo && !AnalysisSession->IsAnalysisComplete())
 				{
 					SetCurrentAnalysisSession(SessionInfo->GetTraceId(), AnalysisSession.ToSharedRef());
 				}

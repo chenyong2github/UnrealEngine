@@ -34,6 +34,7 @@ public class ClothPainter : ModuleRules
                 "AdvancedPreviewScene",
 				"ToolMenus",
 				"EditorWidgets",
+				"ToolWidgets",
 			}
 		);
     }

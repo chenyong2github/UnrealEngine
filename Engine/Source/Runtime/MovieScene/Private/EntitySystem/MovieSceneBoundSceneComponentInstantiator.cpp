@@ -47,7 +47,7 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 			TArrayView<TWeakObjectPtr<>> BoundObjects = SequenceInstance.GetPlayer()->FindBoundObjects(ObjectBinding, SequenceInstance.GetSequenceID());
 			if (BoundObjects.Num() == 0)
 			{
-				UE_LOG(LogMovieSceneECS, Warning, TEXT("FBoundSceneComponentBatch::ResolveObjects: No bound objects returned for FGuid: %s"), *ObjectBinding.ToString());
+				UE_LOG(LogMovieSceneECS, Verbose, TEXT("FBoundSceneComponentBatch::ResolveObjects: No bound objects returned for FGuid: %s"), *ObjectBinding.ToString());
 				return Result;
 			}
 
@@ -75,7 +75,7 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 				}
 				else
 				{
-					UE_LOG(LogMovieSceneECS, Warning, TEXT("FBoundSceneComponentBatch::ResolveObjects: Invalid weak object returned for FGuid: %s"), *ObjectBinding.ToString());
+					UE_LOG(LogMovieSceneECS, Verbose, TEXT("FBoundSceneComponentBatch::ResolveObjects: Invalid weak object returned for FGuid: %s"), *ObjectBinding.ToString());
 				}
 			}
 

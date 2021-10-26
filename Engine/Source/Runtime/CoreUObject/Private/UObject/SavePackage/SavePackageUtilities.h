@@ -26,8 +26,6 @@ template<typename StateType> class TAsyncWorkSequence;
 
 enum class ESavePackageResult;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);
-
 // Save Time trace
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 UE_TRACE_CHANNEL_EXTERN(SaveTimeChannel)
@@ -51,8 +49,7 @@ typedef TUniquePtr<uint8, FLargeMemoryDelete> FLargeMemoryPtr;
 enum class EAsyncWriteOptions
 {
 	None = 0,
-	WriteFileToDisk = 0x01,
-	ComputeHash = 0x02
+	ComputeHash = 0x01,
 };
 ENUM_CLASS_FLAGS(EAsyncWriteOptions)
 
@@ -66,14 +63,6 @@ struct FScopedSavingFlag
 private:
 	// The package being saved
 	UPackage* SavedPackage = nullptr;
-};
-
-struct FSavePackageDiffSettings
-{
-	int32 MaxDiffsToLog;
-	bool bIgnoreHeaderDiffs;
-	bool bSaveForDiff;
-	FSavePackageDiffSettings(bool bDiffing);
 };
 
 struct FCanSkipEditorReferencedPackagesWhenCooking
@@ -383,9 +372,6 @@ namespace SavePackageUtilities
 
 	void GetBlueprintNativeCodeGenReplacement(UObject* InObj, UClass*& ObjClass, UObject*& ObjOuter, FName& ObjName, const ITargetPlatform* TargetPlatform);
 
-	void IncrementOutstandingAsyncWrites();
-	void DecrementOutstandingAsyncWrites();
-
 	void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 
 	/**
@@ -407,9 +393,10 @@ namespace SavePackageUtilities
 	 * @param AsyncWriteAndHashSequence Output: Collects the writes of the bulkdata to disk for async writing.
 	 * @param TotalPackageSizeUncompressed Output: Bulkdata sizes are added to it.
 	 */
-	ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-		FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
-		const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
+	ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter,
+		const TCHAR* Filename, const ITargetPlatform* TargetPlatform, FSavePackageContext* SavePackageContext,
+		uint32 SaveFlags, const bool bTextFormat, const bool bComputeHash,
+		TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
 	
 	/**
 	 * Used to append additional data to the end of the package file by invoking callbacks stored in the linker.
@@ -426,7 +413,7 @@ namespace SavePackageUtilities
 	
 	/** Used to create the sidecar file (.upayload) from payloads that have been added to the linker */
 	ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveToMemory,
-		const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles, FSavePackageContext* SavePackageContext);
+		FSavePackageOutputFileArray& AdditionalPackageFiles, FSavePackageContext* SavePackageContext);
 	
 	void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 	EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform);
@@ -447,7 +434,6 @@ namespace SavePackageUtilities
 	void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize);
 	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
 	void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncWriteOptions Options, FSavePackageOutputFile& File);
-	void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
 }

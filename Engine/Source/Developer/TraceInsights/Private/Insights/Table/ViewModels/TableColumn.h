@@ -174,6 +174,8 @@ public:
 	FText GetValueAsText(const FBaseTreeNode& InNode) const;
 	FText GetValueAsTooltipText(const FBaseTreeNode& InNode) const;
 
+	FString GetValueAsSerializableString(const FBaseTreeNode& InNode) const;
+
 	//////////////////////////////////////////////////
 	// Value Sorter (can be nullptr)
 

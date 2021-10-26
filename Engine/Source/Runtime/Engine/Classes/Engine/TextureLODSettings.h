@@ -128,6 +128,8 @@ struct ENGINE_API FTextureLODGroup
 	TEnumAsByte<enum ETextureLossyCompressionAmount> LossyCompressionAmount;
 
 	void SetupGroup();
+
+	bool operator==(const FTextureLODGroup& Other) const;
 };
 
 /**

@@ -16,7 +16,7 @@ UClass* FDisplayClusterConfigurationDataSerializer::GetSupportedClass()
 	return ClassPath.ResolveClass();
 }
 
-void FDisplayClusterConfigurationDataSerializer::BlacklistCustomProperties(ILevelSnapshotsModule& Module)
+void FDisplayClusterConfigurationDataSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
 {
 	const FName ExportedObjectsPropertyName("ExportedObjects");
 	
@@ -28,13 +28,13 @@ void FDisplayClusterConfigurationDataSerializer::BlacklistCustomProperties(ILeve
 	const FProperty* ClusterProperty = GetSupportedClass()->FindPropertyByName(ClusterPropertyName);
 	if (ensure(ClusterProperty && ExportedObjectsProperty))
 	{
-		Module.AddBlacklistedProperties( { ClusterProperty, ExportedObjectsProperty} );
+		Module.AddExplicitlyUnsupportedProperties( { ClusterProperty, ExportedObjectsProperty} );
 	}
 }
 
 void FDisplayClusterConfigurationDataSerializer::Register(ILevelSnapshotsModule& Module)
 {
-	BlacklistCustomProperties(Module);
+	MarkPropertiesAsExplicitlyUnsupported(Module);
 	Module.RegisterCustomObjectSerializer(GetSupportedClass(), MakeShared<FDisplayClusterConfigurationDataSerializer>());
 }
 

@@ -2013,15 +2013,11 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	bool FWindowsMixedRealityHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
-	{
-		return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
-	}
 
 #if WITH_WINDOWS_MIXED_REALITY
 	FWindowsMixedRealityHMD::FWindowsMixedRealityHMD(const FAutoRegister& AutoRegister, IARSystemSupport* InARSystem, MixedRealityInterop* InHMD)
 		: FHeadMountedDisplayBase(InARSystem)
-		, FSceneViewExtensionBase(AutoRegister)
+		, FHMDSceneViewExtension(AutoRegister)
 		, HMD(InHMD)
 		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)

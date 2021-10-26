@@ -110,6 +110,7 @@ private:
 	/** When specified, ignore the content's desired size and report the.HeightOverride as the Box's desired height. */
 	TSlateAttribute<TOptional<FVector2D>> DesiredSizeOverrideAttribute;
 
+protected:
 	/** Flips the image if the localization's flow direction is RightToLeft */
 	bool bFlipForRightToLeftFlowDirection;
 };

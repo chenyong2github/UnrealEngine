@@ -2899,8 +2899,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderFog);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
-		const FIntPoint LightShaftOcclusionTextureValidExtent = GetDownscaledExtent(SceneTextures.Config.Extent, GetLightShaftDownsampleFactor());
-		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture, LightShaftOcclusionTextureValidExtent);
+		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
 	}
 
 	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,
@@ -2921,13 +2920,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneTextures);
 
 	RenderOpaqueFX(GraphBuilder, Views, FXSystem, SceneTextures.UniformBuffer);
-
-	if (!bHasRayTracedOverlay && bShouldRenderSkyAtmosphere)
-	{
-		// Debug the sky atmosphere. Critically rendered before translucency to avoid emissive leaking over visualization by writing depth. 
-		// Alternative: render in post process chain as VisualizeHDR.
-		RenderDebugSkyAtmosphere(GraphBuilder, SceneTextures.Color.Target, SceneTextures.Depth.Target);
-	}
 
 	if (GetHairStrandsComposition() == EHairStrandsCompositionType::BeforeTranslucent)
 	{
@@ -3018,11 +3010,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			RenderHairStrandsDebugInfo(GraphBuilder, Scene, Views, HairStrandsBookmarkParameters.HairClusterData, SceneTextures.Color.Target);
 		}
-	}
-
-	if (bStrataEnabled)
-	{
-		Strata::AddStrataDebugPasses(GraphBuilder, Views, SceneTextures.Color.Target, Scene->GetShaderPlatform());
 	}
 
 	if (!bHasRayTracedOverlay && ViewFamily.EngineShowFlags.LightShafts)

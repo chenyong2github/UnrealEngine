@@ -70,6 +70,7 @@ public:
 	void ImplSafeRelease();
 
 	void ImplRenderFrame(FViewport* InViewport);
+	void ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 private:
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;

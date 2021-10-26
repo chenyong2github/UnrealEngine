@@ -584,6 +584,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script)
 	FText CollapsedViewFormat;
 
+	/* If used as a dynamic input with exactly one input and output of different types, setting this to true will auto-insert this script to convert from one type to another when dragging and dropping parameters in the stack.
+	   For example, a script with a bool as input and a float as output will be automatically inserted in the stack when dropping a bool parameter into the float input of a module in the stack. */
+	UPROPERTY(EditAnywhere, Category = Script)
+	uint32 bCanBeUsedForTypeConversions : 1;
+
 	UPROPERTY(EditAnywhere, Category = Script)
 	TArray<FNiagaraScriptHighlight> Highlights;
 

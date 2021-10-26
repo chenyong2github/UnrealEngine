@@ -80,6 +80,8 @@ private:
 	 */
 	FText GetDisplayValue() const;
 
+	bool CanEdit() const;
+
 private:
 	/** The property editor we were constructed for, or null if we're editing using the construction arguments */
 	TSharedPtr<class FPropertyEditor> PropertyEditor;

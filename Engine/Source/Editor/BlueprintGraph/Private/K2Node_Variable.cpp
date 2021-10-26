@@ -650,6 +650,21 @@ void UK2Node_Variable::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* In
 	}
 }
 
+void UK2Node_Variable::ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement)
+{
+	if (VariableReference.IsLocalScope() || VariableReference.IsSelfContext())
+	{
+		VariableReference = InReplacement;
+	}
+	else
+	{
+		// Make a copy because ResolveMember is non-const
+		FMemberReference Replacement = InReplacement;
+		const FProperty* ResolvedProperty = Replacement.ResolveMember<FProperty>(InReplacementBlueprint);
+		VariableReference.SetFromField<FProperty>(ResolvedProperty, InBlueprint->GeneratedClass);
+	}
+}
+
 bool UK2Node_Variable::ReferencesVariable(const FName& InVarName, const UStruct* InScope) const
 {
 	if (InVarName == GetVarName())

@@ -584,7 +584,10 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 					TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
 					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
 					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings.bUseFullPrecisionUVs);
-					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.Init(ProxyMeshData.Vertices, NumTextureCoord);
+					FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
+					StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
+					StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = LODBuildSettings.bUseBackwardsCompatibleF16TruncUVs;
+					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.Init(ProxyMeshData.Vertices, NumTextureCoord, StaticMeshVertexBufferFlags);
 					ProxyLOD.VertexBuffers.PositionVertexBuffer.Init(ProxyMeshData.Vertices);
 					ProxyLOD.VertexBuffers.ColorVertexBuffer.Init(ProxyMeshData.Vertices);
 
@@ -609,7 +612,10 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings.bUseFullPrecisionUVs);
-			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, NumTextureCoord);
+			FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
+			StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
+			StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = LODBuildSettings.bUseBackwardsCompatibleF16TruncUVs;
+			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, NumTextureCoord, StaticMeshVertexBufferFlags);
 			StaticMeshLOD.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
 			StaticMeshLOD.VertexBuffers.ColorVertexBuffer.Init(StaticMeshBuildVertices);
 

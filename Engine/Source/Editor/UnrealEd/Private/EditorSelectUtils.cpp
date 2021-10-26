@@ -396,8 +396,6 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	// Clear active editing visualizer on selection change
 	ComponentVisManager.ClearActiveComponentVis();
 
-	GLevelEditorModeTools().ActorSelectionChangeNotify();
-
 	const bool bComponentSelectionChanged = GetSelectedComponentCount() > 0;
 	if (bNotify)
 	{

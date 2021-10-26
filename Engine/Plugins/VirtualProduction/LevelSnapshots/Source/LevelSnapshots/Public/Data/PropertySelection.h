@@ -26,6 +26,10 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 	FLevelSnapshotPropertyChain MakeAppended(const FProperty* Property) const;
 	void AppendInline(const FProperty* Property);
 
+	/** Returns an FLevelSnapshotPropertyChain given a leaf property and a UScriptStruct or UClass. */
+	static TOptional<FLevelSnapshotPropertyChain> FindPathToProperty(
+		const FProperty* InLeafProperty, const UStruct* InStructToSearch, const bool bIncludeLeafPropertyInChain = true);
+
 	FString ToString() const;
 
 	/**

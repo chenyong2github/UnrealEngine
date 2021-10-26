@@ -796,6 +796,37 @@ void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 	}
 }
 
+void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR* Name)
+{
+#if NAME_OBJECTS
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+
+	FD3D12Buffer::FLinkedObjectIterator BufferIt(Buffer);
+
+	if (GNumExplicitGPUsForRendering > 1)
+	{
+		for (; BufferIt; ++BufferIt)
+		{
+			FD3D12Resource* Resource = BufferIt->GetResource();
+
+			TArray<FStringFormatArg> Args;
+			Args.Add(Name);
+			Args.Add(LexToString(BufferIt->GetParentDevice()->GetGPUIndex()));
+
+			FString DebugName = FString::Format(TEXT("{0} (GPU {1})"), Args);
+			SetName(Resource, DebugName.GetCharArray().GetData());
+		}
+	}
+	else
+	{
+		SetName(Buffer->GetResource(), Name);
+	}
+#endif
+
+	// Also set on RHI object
+	BufferRHI->SetName(Name);
+}
+
 #if D3D12_RHI_RAYTRACING
 void FD3D12CommandContext::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64 DstOffset, FRHIBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {

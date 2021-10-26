@@ -58,6 +58,7 @@ void UUnrealEditorSubsystem::SetLevelViewportCameraInfo(FVector CameraLocation, 
 	{
 		if (LevelVC && LevelVC->IsPerspective())
 		{
+			LevelVC->SetViewLocationForOrbiting(CameraLocation);
 			LevelVC->SetViewLocation(CameraLocation);
 			LevelVC->SetViewRotation(CameraRotation);
 

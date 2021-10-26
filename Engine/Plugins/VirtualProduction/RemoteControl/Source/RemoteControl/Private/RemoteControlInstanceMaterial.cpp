@@ -3,9 +3,9 @@
 #include "RemoteControlInstanceMaterial.h"
 
 #include "IRemoteControlModule.h"
-#include "RemoteControlPreset.h"
-
 #include "Materials/MaterialInstanceConstant.h"
+#include "RemoteControlPreset.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "MaterialEditor/DEditorFontParameterValue.h"

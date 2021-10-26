@@ -14,7 +14,7 @@ namespace SlateInsights
 
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 
-class FSlateInsightsStyle : public FSlateStyleSet
+class FSlateInsightsStyle final : public FSlateStyleSet
 {
 public:
 	FSlateInsightsStyle()

@@ -306,17 +306,9 @@ void FMaterialPropertyHelpers::CopyMaterialToInstance(UMaterialInstanceConstant*
 						{
 							UpdateContext.SetParameterValueEditorOnly(Parameter->ParameterInfo, ParameterResult);
 						}
-						else
+						else if (UDEditorMaterialLayersParameterValue* LayersParameter = Cast<UDEditorMaterialLayersParameterValue>(Parameter))
 						{
-							UDEditorMaterialLayersParameterValue* LayersParameterValue = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
-							if (LayersParameterValue)
-							{
-								FMaterialLayersFunctions LayerValue = LayersParameterValue->ParameterValue;
-								FGuid ExpressionIdValue = LayersParameterValue->ExpressionId;
-
-								FStaticMaterialLayersParameter* NewParameter =
-									new(UpdateContext.GetStaticParameters().MaterialLayersParameters) FStaticMaterialLayersParameter(LayersParameterValue->ParameterInfo, LayerValue, LayersParameterValue->bOverride, ExpressionIdValue);
-							}
+							UpdateContext.SetMaterialLayers(LayersParameter->ParameterValue);
 						}
 					}
 				}
@@ -653,22 +645,20 @@ void FMaterialPropertyHelpers::ResetLayerAssetToDefault(UDEditorParameterValue* 
 {
 	const FScopedTransaction Transaction(LOCTEXT("ResetToDefault", "Reset To Default"));
 	InParameter->Modify();
-	
-	const FMaterialParameterInfo& ParameterInfo = InParameter->ParameterInfo;
-	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(InParameter);
 
+	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(InParameter);
 	if (LayersParam)
 	{
-		FMaterialLayersFunctions LayersValue;
-		FGuid TempGuid(0, 0, 0, 0);
-		if (MaterialEditorInstance->Parent->GetMaterialLayersParameterValue(ParameterInfo, LayersValue, TempGuid))
+		const FMaterialLayersFunctions* LayersValue = MaterialEditorInstance->Parent->GetMaterialLayers();
+		if (LayersValue)
 		{
 			FMaterialLayersFunctions StoredValue = LayersParam->ParameterValue;
+
 			if (InAssociation == EMaterialParameterAssociation::BlendParameter)
 			{
-				if (Index < LayersValue.Blends.Num())
+				if (Index < LayersValue->Blends.Num())
 				{
-					StoredValue.Blends[Index] = LayersValue.Blends[Index];
+					StoredValue.Blends[Index] = LayersValue->Blends[Index];
 				}
 				else
 				{
@@ -678,9 +668,9 @@ void FMaterialPropertyHelpers::ResetLayerAssetToDefault(UDEditorParameterValue* 
 			}
 			else if (InAssociation == EMaterialParameterAssociation::LayerParameter)
 			{
-				if (Index < LayersValue.Layers.Num())
+				if (Index < LayersValue->Layers.Num())
 				{
-					StoredValue.Layers[Index] = LayersValue.Layers[Index];
+					StoredValue.Layers[Index] = LayersValue->Layers[Index];
 				}
 				else
 				{
@@ -709,26 +699,25 @@ bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSo
 	TArray<class UMaterialFunctionInterface*> StoredAssets;
 	TArray<class UMaterialFunctionInterface*> ParentAssets;
 
-	const FMaterialParameterInfo& ParameterInfo = InParameterData->Parameter->ParameterInfo;
 	int32 Index = InParameterData->ParameterInfo.Index;
 	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(InParameterData->Parameter);
 	if (LayersParam)
 	{
-		FMaterialLayersFunctions LayersValue;
-		FGuid TempGuid(0, 0, 0, 0);
-		if (InMaterial->GetMaterialLayersParameterValue(ParameterInfo, LayersValue, TempGuid))
+		const FMaterialLayersFunctions* LayersValue = InMaterial->GetMaterialLayers();
+		if (LayersValue)
 		{
 			FMaterialLayersFunctions StoredValue = LayersParam->ParameterValue;
+
 			if (InParameterData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
 			{
 				StoredAssets = StoredValue.Blends;
-				ParentAssets = LayersValue.Blends;
-	
+				ParentAssets = LayersValue->Blends;
+
 			}
 			else if (InParameterData->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
 			{
 				StoredAssets = StoredValue.Layers;
-				ParentAssets = LayersValue.Layers;
+				ParentAssets = LayersValue->Layers;
 			}
 
 			// Compare to the parent MaterialFunctionInterface array
@@ -749,6 +738,7 @@ bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSo
 			}
 		}
 	}
+
 	return false;
 }
 

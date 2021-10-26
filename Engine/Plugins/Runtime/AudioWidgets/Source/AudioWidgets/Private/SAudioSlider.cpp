@@ -12,7 +12,6 @@
 
 // SAudioSliderBase
 const FVector2D SAudioSliderBase::LinearRange = FVector2D(0.0f, 1.0f);
-const FVariablePrecisionNumericInterface SAudioSliderBase::NumericInterface = FVariablePrecisionNumericInterface();
 
 SAudioSliderBase::SAudioSliderBase()
 {
@@ -22,10 +21,8 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 {
 	OnValueChanged = InArgs._OnValueChanged;
 	ValueAttribute = InArgs._Value;
-	AlwaysShowLabel = InArgs._AlwaysShowLabel;
-	ShowUnitsText = InArgs._ShowUnitsText;
-	LabelBackgroundColor = InArgs._LabelBackgroundColor;
 	SliderBackgroundColor = InArgs._SliderBackgroundColor;
+	LabelBackgroundColor = InArgs._LabelBackgroundColor;
 	SliderBarColor = InArgs._SliderBarColor;
 	SliderThumbColor = InArgs._SliderThumbColor;
 	WidgetBackgroundColor = InArgs._WidgetBackgroundColor;
@@ -33,96 +30,73 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 	DesiredSizeOverride = InArgs._DesiredSizeOverride;
 
 	// Get style
-	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	if (AudioSliderStyle)
+	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+	if (AudioWidgetsStyle)
 	{
 		// Create components
 		// Images 
 		SAssignNew(WidgetBackgroundImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.WidgetBackground"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.WidgetBackground"))
 			.ColorAndOpacity(WidgetBackgroundColor);
 
 		SAssignNew(SliderBackgroundTopCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundCap"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundCap"))
 			.ColorAndOpacity(SliderBackgroundColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f));
 		SAssignNew(SliderBackgroundLeftCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundCapHorizontal"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundCapHorizontal"))
 			.ColorAndOpacity(SliderBackgroundColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f));
 		SAssignNew(SliderBackgroundRectangleImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundRectangle"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundRectangle"))
 			.ColorAndOpacity(SliderBackgroundColor);
 		SAssignNew(SliderBackgroundBottomCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundCap"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundCap"))
 			.ColorAndOpacity(SliderBackgroundColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f))
 			.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(180.0f))));
 		SAssignNew(SliderBackgroundRightCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundCapHorizontal"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundCapHorizontal"))
 			.ColorAndOpacity(SliderBackgroundColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f))
 			.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(180.0f))));
 
 		SAssignNew(SliderBarTopCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBarCap"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarCap"))
 			.ColorAndOpacity(SliderBarColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f));
 		SAssignNew(SliderBarRectangleImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBarRectangle"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarRectangle"))
 			.ColorAndOpacity(SliderBarColor);
 		SAssignNew(SliderBarBottomCapImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.SliderBarCap"))
+			.Image(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarCap"))
 			.ColorAndOpacity(SliderBarColor)
 			.RenderTransformPivot(FVector2D(0.5f, 0.5f));
 
 		// Underlying slider widget
 		SAssignNew(Slider, SSlider)
 			.Value(ValueAttribute.Get())
-			.Style(&AudioSliderStyle->GetWidgetStyle<FSliderStyle>("AudioSlider.Slider"))
+			.Style(&AudioWidgetsStyle->GetWidgetStyle<FSliderStyle>("AudioSlider.Slider"))
 			.Orientation(Orientation.Get())
 			.OnValueChanged_Lambda([this](float Value)
 			{
 				ValueAttribute.Set(Value);
 				OnValueChanged.ExecuteIfBound(Value);
 				const float OutputValue = GetOutputValue(Value);
-				ValueText->SetText(FText::FromString(NumericInterface.ToString(OutputValue)));
+				Label->SetValueText(OutputValue);
 			});
 
 		// Text label
-		SAssignNew(LabelBackgroundImage, SImage)
-			.Image(AudioSliderStyle->GetBrush("AudioSlider.LabelBackground"))
-			.ColorAndOpacity(LabelBackgroundColor);
-		SAssignNew(ValueText, SEditableText)
-			.Text(FText::AsNumber(GetOutputValue(ValueAttribute.Get())))
-			.Justification(ETextJustify::Right)
-			.OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
-				{
-					const float OutputValue = FCString::Atof(*Text.ToString());
-					const float LinValue = GetLinValue(OutputValue);
-					ValueAttribute.Set(LinValue);
-					Slider->SetValue(ValueAttribute);
-					OnValueChanged.ExecuteIfBound(LinValue);
-				})
-			.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
-		SAssignNew(UnitsText, SEditableText)
-			.Text(FText::FromString("units"))
-			.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
-
-		TextWidgetSwitcher = CreateTextWidgetSwitcher();
-		SAssignNew(TextLabel, SOverlay)
-			.Visibility_Lambda([this]()
+		SAssignNew(Label, SAudioTextBox)
+			.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
 			{
-				return (AlwaysShowLabel.Get() || this->IsHovered()) ? EVisibility::Visible : EVisibility::Hidden;
-			})
-			+ SOverlay::Slot()
-			[
-				LabelBackgroundImage.ToSharedRef()
-			]
-			+ SOverlay::Slot()
-			[
-				TextWidgetSwitcher.ToSharedRef()
-			];
+				const float OutputValue = FCString::Atof(*Text.ToString());
+				const float LinValue = GetLinValue(OutputValue);
+				ValueAttribute.Set(LinValue);
+				Slider->SetValue(LinValue);
+				OnValueChanged.ExecuteIfBound(LinValue);
+				})
+			.LabelBackgroundColor(LabelBackgroundColor);
 	}
 
 	ChildSlot
@@ -135,7 +109,7 @@ void SAudioSliderBase::SetValue(float LinValue)
 {
 	ValueAttribute.Set(LinValue);
 	const float OutputValue = GetOutputValue(LinValue);
-	ValueText->SetText(FText::FromString(NumericInterface.ToString(OutputValue)));
+	Label->SetValueText(OutputValue);
 	Slider->SetValue(LinValue);
 }
 
@@ -146,16 +120,16 @@ void SAudioSliderBase::SetOrientation(EOrientation InOrientation)
 	LayoutWidgetSwitcher->SetActiveWidgetIndex(Orientation.Get());
 
 	// Set widget component orientations
-	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	if (AudioSliderStyle)
+	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+	if (AudioWidgetsStyle)
 	{
 		if (Orientation.Get() == Orient_Horizontal)
 		{
-			WidgetBackgroundImage->SetDesiredSizeOverride(AudioSliderStyle->GetVector("AudioSlider.DesiredWidgetSizeHorizontal"));
-			SliderBackgroundRectangleImage->SetDesiredSizeOverride(FVector2D(AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundRectangle")->ImageSize.Y, AudioSliderStyle->GetBrush("AudioSlider.SliderBackgroundRectangle")->ImageSize.X));
-			SliderBarTopCapImage->SetRenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(-90.0f)), FVector2D(AudioSliderStyle->GetBrush("AudioSlider.SliderBarCap")->ImageSize.Y / 2.0f, 0.0f)));
-			SliderBarRectangleImage->SetDesiredSizeOverride(FVector2D(AudioSliderStyle->GetBrush("AudioSlider.SliderBarRectangle")->ImageSize.Y, AudioSliderStyle->GetBrush("AudioSlider.SliderBarRectangle")->ImageSize.X));
-			SliderBarBottomCapImage->SetRenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(90.0f)), FVector2D(-AudioSliderStyle->GetBrush("AudioSlider.SliderBarCap")->ImageSize.Y / 2.0f, 0.0f)));
+			WidgetBackgroundImage->SetDesiredSizeOverride(AudioWidgetsStyle->GetVector("AudioSlider.DesiredWidgetSizeHorizontal"));
+			SliderBackgroundRectangleImage->SetDesiredSizeOverride(FVector2D(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundRectangle")->ImageSize.Y, AudioWidgetsStyle->GetBrush("AudioSlider.SliderBackgroundRectangle")->ImageSize.X));
+			SliderBarTopCapImage->SetRenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(-90.0f)), FVector2D(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarCap")->ImageSize.Y / 2.0f, 0.0f)));
+			SliderBarRectangleImage->SetDesiredSizeOverride(FVector2D(AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarRectangle")->ImageSize.Y, AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarRectangle")->ImageSize.X));
+			SliderBarBottomCapImage->SetRenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(90.0f)), FVector2D(-AudioWidgetsStyle->GetBrush("AudioSlider.SliderBarCap")->ImageSize.Y / 2.0f, 0.0f)));
 
 		}
 		else if (Orientation.Get() == Orient_Vertical)
@@ -175,13 +149,13 @@ FVector2D SAudioSliderBase::ComputeDesiredSize(float) const
 	{
 		return DesiredSizeOverride.Get().GetValue();
 	}
-	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	if (ensure(AudioSliderStyle))
+	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+	if (ensure(AudioWidgetsStyle))
 	{
 		const FName DesiredSizeName = Orientation.Get() == Orient_Vertical
 			? "AudioSlider.DesiredWidgetSizeVertical"
 			: "AudioSlider.DesiredWidgetSizeHorizontal";
-		return AudioSliderStyle->GetVector(DesiredSizeName);
+		return AudioWidgetsStyle->GetVector(DesiredSizeName);
 	}
 	else
 	{
@@ -193,44 +167,6 @@ FVector2D SAudioSliderBase::ComputeDesiredSize(float) const
 void SAudioSliderBase::SetDesiredSizeOverride(const FVector2D Size)
 {
 	SetAttribute(DesiredSizeOverride, TAttribute<TOptional<FVector2D>>(Size), EInvalidateWidgetReason::Layout);
-}
-
-void SAudioSliderBase::SetUnitsText(const FText Units)
-{
-	UnitsText->SetText(Units);
-}
-
-void SAudioSliderBase::SetAllTextReadOnly(const bool bIsReadOnly)
-{
-	UnitsText->SetIsReadOnly(bIsReadOnly);
-	ValueText->SetIsReadOnly(bIsReadOnly);
-}
-
-void SAudioSliderBase::SetUnitsTextReadOnly(const bool bIsReadOnly)
-{
-	UnitsText->SetIsReadOnly(bIsReadOnly);
-}
-
-void SAudioSliderBase::SetAlwaysShowLabel(const bool bAlwaysShowLabel)
-{
-	AlwaysShowLabel = bAlwaysShowLabel;
-}
-
-void SAudioSliderBase::SetShowUnitsText(const bool bShowUnitsText)
-{
-	SetAttribute(ShowUnitsText, TAttribute<bool>(bShowUnitsText), EInvalidateWidgetReason::Layout);
-
-	if (bShowUnitsText)
-	{
-		TextWidgetSwitcher->SetActiveWidgetIndex(0);
-		ValueText->SetJustification(ETextJustify::Right);
-	}
-	else
-	{
-		TextWidgetSwitcher->SetActiveWidgetIndex(1);
-		ValueText->SetJustification(ETextJustify::Center);
-	}
-	UpdateValueTextWidth();
 }
 
 const float SAudioSliderBase::GetOutputValue(const float LinValue)
@@ -267,44 +203,10 @@ void SAudioSliderBase::SetSliderThumbColor(FSlateColor InSliderThumbColor)
 	Slider->SetSliderHandleColor(SliderThumbColor.Get());
 }
 
-void SAudioSliderBase::SetLabelBackgroundColor(FSlateColor InLabelBackgroundColor)
-{
-	SetAttribute(LabelBackgroundColor, TAttribute<FSlateColor>(InLabelBackgroundColor), EInvalidateWidgetReason::Paint);
-	LabelBackgroundImage->SetColorAndOpacity(LabelBackgroundColor);
-}
-
 void SAudioSliderBase::SetWidgetBackgroundColor(FSlateColor InWidgetBackgroundColor)
 {
 	SetAttribute(WidgetBackgroundColor, TAttribute<FSlateColor>(InWidgetBackgroundColor), EInvalidateWidgetReason::Paint);
 	WidgetBackgroundImage->SetColorAndOpacity(WidgetBackgroundColor);
-}
-
-// Update value text size to accommodate the largest numbers possible within the output range
-void SAudioSliderBase::UpdateValueTextWidth()
-{
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const FText OutputRangeXText = FText::FromString(SAudioSliderBase::NumericInterface.ToString(OutputRange.X));
-	const FText OutputRangeYText = FText::FromString(SAudioSliderBase::NumericInterface.ToString(OutputRange.Y));
-	const FSlateFontInfo Font = FTextBlockStyle::GetDefault().Font;
-	const float OutputRangeXTextWidth = FontMeasureService->Measure(OutputRangeXText, Font).X;
-	const float OutputRangeYTextWidth = FontMeasureService->Measure(OutputRangeYText, Font).X;
-	// add 1 digit of padding
-	const float Padding = FontMeasureService->Measure(FText::FromString("-"), Font).X;
-	float MaxValueLabelWidth = FMath::Max(OutputRangeXTextWidth, OutputRangeYTextWidth) + Padding;
-
-	if (!ShowUnitsText.Get())
-	{
-		// set to max of label background width and calculated max width
-		const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-		if (AudioSliderStyle)
-		{
-			MaxValueLabelWidth = FMath::Max(MaxValueLabelWidth, AudioSliderStyle->GetVector("AudioSlider.LabelBackgroundSize").X);
-		}
-	}
-	ValueText->SetMinDesiredWidth(MaxValueLabelWidth);
-	// slot index 0 is value text
-	TSharedPtr<SHorizontalBox> HorizontalTextBox = StaticCastSharedPtr<SHorizontalBox>(TextWidgetSwitcher->GetActiveWidget());
-	HorizontalTextBox->GetSlot(0).SetMaxWidth(MaxValueLabelWidth);
 }
 
 void SAudioSliderBase::SetOutputRange(const FVector2D Range)
@@ -313,53 +215,44 @@ void SAudioSliderBase::SetOutputRange(const FVector2D Range)
 	{
 		OutputRange = Range;
 		SetValue(FMath::Clamp(ValueAttribute.Get(), Range.X, Range.Y));
-		UpdateValueTextWidth();
+		Label->UpdateValueTextWidth(Range);
 	}
 }
 
-TSharedRef<SWidgetSwitcher> SAudioSliderBase::CreateTextWidgetSwitcher()
+void SAudioSliderBase::SetLabelBackgroundColor(FSlateColor InColor)
 {
-	SAssignNew(TextWidgetSwitcher, SWidgetSwitcher);
-	// Slot 0 is show both value and units text
-	TextWidgetSwitcher->AddSlot(0)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		[
-			ValueText.ToSharedRef()
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2.0f, 0.0f, 4.0f, 0.0f)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		[
-			UnitsText.ToSharedRef()
-		]
-	];
-	// Slot 1 is show only value, not units text
-	TextWidgetSwitcher->AddSlot(1)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()	
-		.AutoWidth()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		[
-			ValueText.ToSharedRef()
-		]
-	];
-	SetShowUnitsText(ShowUnitsText.Get());
-	return TextWidgetSwitcher.ToSharedRef();
+	Label->SetLabelBackgroundColor(InColor);
+}
+
+void SAudioSliderBase::SetUnitsText(const FText Units)
+{
+	Label->SetUnitsText(Units);
+}
+
+void SAudioSliderBase::SetUnitsTextReadOnly(const bool bIsReadOnly)
+{
+	Label->SetUnitsTextReadOnly(bIsReadOnly);
+}
+
+void SAudioSliderBase::SetValueTextReadOnly(const bool bIsReadOnly)
+{
+	Label->SetValueTextReadOnly(bIsReadOnly);
+}
+
+void SAudioSliderBase::SetShowLabelOnlyOnHover(const bool bShowLabelOnlyOnHover)
+{
+	Label->SetShowLabelOnlyOnHover(bShowLabelOnlyOnHover);
+}
+
+void SAudioSliderBase::SetShowUnitsText(const bool bShowUnitsText)
+{
+	Label->SetShowUnitsText(bShowUnitsText);
 }
 
 TSharedRef<SWidgetSwitcher> SAudioSliderBase::CreateWidgetLayout()
 {
-	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	if (AudioSliderStyle)
+	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+	if (AudioWidgetsStyle)
 	{
 		SAssignNew(LayoutWidgetSwitcher, SWidgetSwitcher);
 		// Create overall layout
@@ -458,7 +351,7 @@ TSharedRef<SWidgetSwitcher> SAudioSliderBase::CreateWidgetLayout()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
-					TextLabel.ToSharedRef()
+					Label.ToSharedRef()
 				]
 			]	
 		];
@@ -480,12 +373,12 @@ TSharedRef<SWidgetSwitcher> SAudioSliderBase::CreateWidgetLayout()
 				SNew(SVerticalBox)
 				// Text Label
 				+ SVerticalBox::Slot()
-				.Padding(0.0f, AudioSliderStyle->GetFloat("AudioSlider.LabelVerticalPadding"))
+				.Padding(0.0f, AudioWidgetsStyle->GetFloat("AudioSlider.LabelVerticalPadding"))
 				.AutoHeight()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
-					TextLabel.ToSharedRef()
+					Label.ToSharedRef()
 				]
 				// Slider
 				+ SVerticalBox::Slot()
@@ -579,7 +472,7 @@ void SAudioSlider::Construct(const SAudioSliderBase::FArguments& InArgs)
 void SAudioSlider::SetLinToOutputCurve(const TWeakObjectPtr<const UCurveFloat> InLinToOutputCurve)
 {
 	LinToOutputCurve = InLinToOutputCurve;
-	ValueText->SetText(FText::FromString(SAudioSliderBase::NumericInterface.ToString(GetOutputValue(ValueAttribute.Get()))));
+	Label->SetValueText(GetOutputValue(ValueAttribute.Get()));
 }
 
 void SAudioSlider::SetOutputToLinCurve(const TWeakObjectPtr<const UCurveFloat> InOutputToLinCurve)
@@ -627,7 +520,7 @@ void SAudioVolumeSlider::Construct(const SAudioSlider::FArguments& InArgs)
 	SetOutputRange(FVector2D(-100.0f, 12.0f));
 	SetLinToOutputCurve(LoadObject<UCurveFloat>(NULL, TEXT("/AudioWidgets/AudioControlCurves/AudioControl_LinDbCurveDefault"), NULL, LOAD_None, NULL));
 	SetOutputToLinCurve(LoadObject<UCurveFloat>(NULL, TEXT("/AudioWidgets/AudioControlCurves/AudioControl_DbLinCurveDefault"), NULL, LOAD_None, NULL));
-	SetUnitsText(FText::FromString("dB"));
+	Label->SetUnitsText(FText::FromString("dB"));
 }
 
 // SAudioFrequencySlider
@@ -639,7 +532,7 @@ void SAudioFrequencySlider::Construct(const SAudioSlider::FArguments& InArgs)
 {
 	SAudioSliderBase::Construct(InArgs);
 	SetOutputRange(FVector2D(20.0f, 20000.0f));
-	SetUnitsText(FText::FromString("Hz"));
+	Label->SetUnitsText(FText::FromString("Hz"));
 }
 
 const float SAudioFrequencySlider::GetOutputValue(const float LinValue)

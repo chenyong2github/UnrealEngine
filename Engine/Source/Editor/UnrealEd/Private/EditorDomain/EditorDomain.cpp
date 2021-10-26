@@ -162,15 +162,15 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
-	bool bEditorDomainEnabledForPackage;
-	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, bEditorDomainEnabledForPackage, ErrorMessage);
+	EDomainUse EditorDomainUseForPackage;
+	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, EditorDomainUseForPackage, ErrorMessage);
 	switch (Result)
 	{
 	case EPackageDigestResult::Success:
 		PackageSource = new FPackageSource();
 		PackageSource->Digest = PackageDigest;
 		OutSource = PackageSource;
-		if (!bEditorDomainReadEnabled || !bEditorDomainEnabledForPackage)
+		if (!bEditorDomainReadEnabled || !EnumHasAnyFlags(EditorDomainUseForPackage, EDomainUse::LoadEnabled))
 		{
 			PackageSource->Source = EPackageSource::Workspace;
 		}

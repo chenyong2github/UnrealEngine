@@ -85,12 +85,11 @@ private:
 	bool IsFavorite() const;
 
 	/** UIActions to help populate the PropertyEditorPermissionList, which must first be turned on through FPropertyEditorPermissionList::Get().SetShouldShowMenuEntries */
-	void CopyWhitelistText() const;
-	void OnToggleWhitelist() const;
-	bool IsWhitelistChecked() const;
-	void OnToggleBlacklist() const;
-	bool IsBlacklistChecked() const;
-
+	void CopyRowNameText() const;
+	void OnToggleAllowList() const;
+	bool IsAllowListChecked() const;
+	void OnToggleDenyList() const;
+	bool IsDenyListChecked() const;
 
 	void OnArrayOrCustomDragLeave(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);

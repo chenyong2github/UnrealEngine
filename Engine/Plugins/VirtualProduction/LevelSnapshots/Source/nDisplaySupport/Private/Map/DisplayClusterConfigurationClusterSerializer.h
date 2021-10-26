@@ -10,7 +10,7 @@ class ILevelSnapshotsModule;
 class FDisplayClusterConfigurationClusterSerializer : public TMapSubobjectSerializer<FDisplayClusterConfigurationClusterSerializer>
 {
 	static UClass* GetSupportedClass(); 
-	static void BlacklistCustomProperties(ILevelSnapshotsModule& Module);
+	static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
 public:
 	
 	static void Register(ILevelSnapshotsModule& Module);

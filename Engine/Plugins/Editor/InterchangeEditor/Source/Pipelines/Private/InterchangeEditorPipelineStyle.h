@@ -10,7 +10,7 @@
 /**
  * Implements the visual style of the text asset editor UI.
  */
-class FInterchangeEditorPipelineStyle
+class FInterchangeEditorPipelineStyle final
 	: public FSlateStyleSet
 {
 public:

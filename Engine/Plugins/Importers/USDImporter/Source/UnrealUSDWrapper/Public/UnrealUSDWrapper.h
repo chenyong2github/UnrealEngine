@@ -322,6 +322,40 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;
 	extern UNREALUSDWRAPPER_API const TCHAR* Inherited;
 	extern UNREALUSDWRAPPER_API const TCHAR* IdentifierPrefix;
+
+	// USceneComponent properties
+	extern UNREALUSDWRAPPER_API FName TransformPropertyName;
+	extern UNREALUSDWRAPPER_API FName HiddenInGamePropertyName;
+	extern UNREALUSDWRAPPER_API FName HiddenPropertyName;
+
+	// UCineCameraComponent properties
+	extern UNREALUSDWRAPPER_API FName CurrentFocalLengthPropertyName;
+	extern UNREALUSDWRAPPER_API FName ManualFocusDistancePropertyName;
+	extern UNREALUSDWRAPPER_API FName CurrentAperturePropertyName;
+	extern UNREALUSDWRAPPER_API FName SensorWidthPropertyName;
+	extern UNREALUSDWRAPPER_API FName SensorHeightPropertyName;
+
+	// LightComponentBase properties
+	extern UNREALUSDWRAPPER_API FName IntensityPropertyName;
+	extern UNREALUSDWRAPPER_API FName LightColorPropertyName;
+
+	// LightComponent properties
+	extern UNREALUSDWRAPPER_API FName UseTemperaturePropertyName;
+	extern UNREALUSDWRAPPER_API FName TemperaturePropertyName;
+
+	// URectLightComponent properties
+	extern UNREALUSDWRAPPER_API FName SourceWidthPropertyName;
+	extern UNREALUSDWRAPPER_API FName SourceHeightPropertyName;
+
+	// UPointLightComponent properties
+	extern UNREALUSDWRAPPER_API FName SourceRadiusPropertyName;
+
+	// USpotLightComponent properties
+	extern UNREALUSDWRAPPER_API FName OuterConeAnglePropertyName;
+	extern UNREALUSDWRAPPER_API FName InnerConeAnglePropertyName;
+
+	// UDirectionalLightComponent properties
+	extern UNREALUSDWRAPPER_API FName LightSourceAnglePropertyName;
 }
 
 struct UNREALUSDWRAPPER_API FUsdDelegates

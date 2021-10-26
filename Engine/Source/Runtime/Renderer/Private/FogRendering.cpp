@@ -6,6 +6,7 @@
 #include "Engine/TextureCube.h"
 #include "PipelineStateCache.h"
 #include "SingleLayerWaterRendering.h"
+#include "ScreenPass.h"
 
 DECLARE_GPU_STAT(Fog);
 
@@ -482,7 +483,7 @@ END_SHADER_PARAMETER_STRUCT()
 void FDeferredShadingSceneRenderer::RenderFog(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	FRDGTextureRef LightShaftOcclusionTexture, const FIntPoint& LightShaftOcclusionTextureExtent)
+	FRDGTextureRef LightShaftOcclusionTexture)
 {
 	if (Scene->ExponentialFogs.Num() > 0 
 		// Fog must be done in the base pass for MSAA to work
@@ -510,7 +511,9 @@ void FDeferredShadingSceneRenderer::RenderFog(
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
-				GraphBuilder.AddPass(RDG_EVENT_NAME("Fog"), PassParameters, ERDGPassFlags::Raster, [this, &View, bShouldRenderVolumetricFog, LightShaftOcclusionTexture, LightShaftOcclusionTextureExtent, FogUniformBuffer](FRHICommandList& RHICmdList)
+				FIntPoint SceneTexturesExtent = SceneTextures.Config.Extent;
+
+				GraphBuilder.AddPass(RDG_EVENT_NAME("Fog"), PassParameters, ERDGPassFlags::Raster, [this, &View, SceneTexturesExtent, bShouldRenderVolumetricFog, LightShaftOcclusionTexture, FogUniformBuffer](FRHICommandList& RHICmdList)
 				{
 					FHeightFogRenderingParameters Parameters;
 					Parameters.ViewRect = View.ViewRect;
@@ -518,15 +521,10 @@ void FDeferredShadingSceneRenderer::RenderFog(
 					{
 						Parameters.LightShaftOcclusionRHI = LightShaftOcclusionTexture->GetRHI();
 
-						{
-							const float InvLightShaftOcclusionTextureExtentX = 1.0f / LightShaftOcclusionTextureExtent.X;
-							const float InvLightShaftOcclusionTextureExtentY = 1.0f / LightShaftOcclusionTextureExtent.Y;
-							Parameters.LightShaftOcclusionMinMaxUV = FVector4f(
-								0.5f * InvLightShaftOcclusionTextureExtentX,
-								0.5f * InvLightShaftOcclusionTextureExtentY,
-								(LightShaftOcclusionTextureExtent.X - 0.5f) * InvLightShaftOcclusionTextureExtentX,
-								(LightShaftOcclusionTextureExtent.Y - 0.5f) * InvLightShaftOcclusionTextureExtentY);
-						}
+						const FScreenPassTextureViewport SceneViewport(SceneTexturesExtent, View.ViewRect);
+						const FScreenPassTextureViewport OutputViewport(GetDownscaledViewport(SceneViewport, GetLightShaftDownsampleFactor()));
+						const FScreenPassTextureViewportParameters LightShaftParameters = GetScreenPassTextureViewportParameters(OutputViewport);
+						Parameters.LightShaftOcclusionMinMaxUV = FVector4f(LightShaftParameters.UVViewportBilinearMin, LightShaftParameters.UVViewportBilinearMax);
 					}
 					RenderViewFog(RHICmdList, View, bShouldRenderVolumetricFog, Parameters, FogUniformBuffer->GetRHI());
 				});

@@ -101,6 +101,7 @@ private:
 
 	bool                               bGenerateLightmapUVs = false;
 	float                              ImportScale = 100.f;
+	bool                               bAnimationFrameRateFromFile = false;
 	TSet<int32>                        ImportedMeshes;
 
 	TMap<IDatasmithMeshElement*, int32> MeshElementToGLTFMeshIndex; // track where Datasmith element originated from to extract data later

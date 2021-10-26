@@ -10,6 +10,7 @@
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
 
@@ -35,13 +36,22 @@ enum class EPackageDigestResult
 	MissingClass,
 };
 
+enum class EDomainUse : uint8
+{
+	None = 0x0,
+	LoadEnabled = 0x1,
+	SaveEnabled = 0x2,
+};
+ENUM_CLASS_FLAGS(EDomainUse);
+
 /** A UClass's data that is used in the EditorDomain Digest, and holds other information about Classes the EditorDomain needs. */
 struct FClassDigestData
 {
 	FBlake3Hash SchemaHash;
 	bool bNative = false;
-	/** EditorDomainEnabled allows everything and uses only a blocklist, so defaults to true. */
-	bool bEditorDomainEnabled = true;
+	/** EditorDomainEnabled allows everything and uses only a blocklist, so DomainUse by default is enabled. */
+	EDomainUse EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
+
 	/** bTargetIterativeEnabled uses an allowlist (with a blocklist override), so defaults to false. */
 	bool bTargetIterativeEnabled = false;
 };
@@ -58,10 +68,10 @@ struct FClassDigestMap
  * Reads information from the AssetRegistry to compute the digest.
  */
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest, bool& bOutEditorDomainEnabled, FString& OutErrorMessage);
+	FPackageDigest& OutPackageDigest, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage);
 /** Appends the fields to calculate the packagedigest; call Builder.Save().GetRangeHash() to get digest. */
 EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FCbWriter& Builder, bool& bOutEditorDomainEnabled, FString& OutErrorMessage);
+	FCbWriter& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage);
 
 /** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
 void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassDigestData>* OutDatas = nullptr);

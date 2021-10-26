@@ -286,10 +286,12 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 		LauncherProfile->SetLaunchMode(ELauncherProfileLaunchModes::DefaultRole);
 	}
 
-	if (LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFlyInEditor || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFly)
+	const bool bUseZenStore = GetDefault<UProjectPackagingSettings>()->bUseZenStore;
+	LauncherProfile->SetUseZenStore(bUseZenStore);
+
+	if (bUseZenStore || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFlyInEditor || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFly)
 	{
 		LauncherProfile->SetDeploymentMode(ELauncherProfileDeploymentModes::FileServer);
-		LauncherProfile->SetUseZenStore(EditorPlaySettings->EnableZenCookOnTheFlyMode);
 	}
 
 	switch(EditorPlaySettings->PackFilesForLaunch)

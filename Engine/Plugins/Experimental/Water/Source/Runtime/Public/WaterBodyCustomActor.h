@@ -29,7 +29,6 @@ class WATER_API AWaterBodyCustom : public AWaterBody
 	GENERATED_UCLASS_BODY()
 protected:
 	virtual void PostLoad() override;
-	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Transition; }
 
 #if WITH_EDITOR
 	virtual bool IsIconVisible() const override;

@@ -204,6 +204,7 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 			UCookOnTheFlyServer::FCookOnTheFlyOptions CookOnTheFlyStartupOptions;
 			CookOnTheFlyStartupOptions.bBindAnyPort = false;
+			CookOnTheFlyStartupOptions.bZenStore = GetDefault<UProjectPackagingSettings>()->bUseZenStore;
 			CookServer->StartCookOnTheFly(CookOnTheFlyStartupOptions);
 		}
 		else if (!ExperimentalSettings->bDisableCookInEditor)
@@ -313,6 +314,10 @@ void UUnrealEdEngine::StartCookByTheBookInEditor( const TArray<ITargetPlatform*>
 	StartupOptions.CookDirectories = CookDirectories;
 	StartupOptions.CookCultures = CookCultures;
 	StartupOptions.IniMapSections = IniMapSections;
+	if (GetDefault<UProjectPackagingSettings>()->bUseZenStore)
+	{
+		StartupOptions.CookOptions |= ECookByTheBookOptions::ZenStore;
+	}
 
 	CookServer->StartCookByTheBook( StartupOptions );
 }

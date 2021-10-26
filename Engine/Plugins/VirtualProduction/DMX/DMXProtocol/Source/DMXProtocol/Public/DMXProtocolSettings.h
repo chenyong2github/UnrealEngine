@@ -99,11 +99,11 @@ public:
 	void OverrideReceiveDMXEnabled(bool bEnabled);
 
 private:
-	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
+	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
 	bool bDefaultSendDMXEnabled;
 
-	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
+	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
 	bool bDefaultReceiveDMXEnabled;
 

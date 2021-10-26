@@ -10,11 +10,25 @@ namespace UE::Online {
 
 class FOnlineError;
 
+enum class ELoginStatus
+{
+	/** Player has not logged in or chosen a local profile */
+	NotLoggedIn,
+	/** Player is using a local profile but is not logged in */
+	UsingLocalProfile,
+	/** Player has been validated by the platform specific authentication service */
+	LoggedIn
+};
+
 class FAccountInfo
 {
 public:
+	/** Local user num */
 	int32 LocalUserNum;
+	/** Account id */
 	FAccountId UserId;
+	/** Login status */
+	ELoginStatus LoginStatus;
 	// TODO: Other fields
 };
 
@@ -98,8 +112,15 @@ struct FAuthGetAccountByAccountId
 	};
 };
 
+/** Struct for LoginStatusChanged event */
 struct FLoginStatusChanged
 {
+	/** User id whose status has changed */
+	FAccountId LocalUserId;
+	/** Previous login status */
+	ELoginStatus PreviousStatus;
+	/** Current login status */
+	ELoginStatus CurrentStatus;
 };
 
 class IAuth
@@ -142,7 +163,8 @@ namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FAccountInfo)
 	ONLINE_STRUCT_FIELD(FAccountInfo, LocalUserNum),
-	ONLINE_STRUCT_FIELD(FAccountInfo, UserId)
+	ONLINE_STRUCT_FIELD(FAccountInfo, UserId),
+	ONLINE_STRUCT_FIELD(FAccountInfo, LoginStatus)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthLogin::Params)

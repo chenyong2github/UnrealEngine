@@ -27,11 +27,6 @@ static FAutoConsoleVariableRef CVarUMGAnimationsAtEndOfFrame(
 
 extern TAutoConsoleVariable<bool> CVarUserWidgetUseParallelAnimation;
 
-FSequenceTickManagerWidgetData::FSequenceTickManagerWidgetData()
-	: bIsTicking(true)
-	, bLastKnownTickState(true)
-{}
-
 UUMGSequenceTickManager::UUMGSequenceTickManager(const FObjectInitializer& Init)
 	: Super(Init)
 	, bIsTicking(false)
@@ -102,6 +97,8 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 	// will queue evaluations on the global sequencer ECS linker. In some specific cases, though (pausing,
 	// stopping, etc.), we might see some blocking (immediate) evaluations running here.
 	//
+	// The WidgetData have one frame delay (they are updated at the end of the frame).
+	// This may delay the animation update by one frame.
 
 	{
 	#if STATS || ENABLE_STATNAMEDEVENTS
@@ -115,6 +112,7 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 		{
 			UUserWidget* UserWidget = WidgetIter.Key().Get();
 			FSequenceTickManagerWidgetData& WidgetData = WidgetIter.Value();
+			WidgetData.bActionsAndAnimationTicked = false;
 
 			if (!UserWidget)
 			{
@@ -157,10 +155,12 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 				if (bTickAnimations && UserWidget->IsVisible())
 				{
 					UserWidget->TickActionsAndAnimation(DeltaSeconds);
+					WidgetData.bActionsAndAnimationTicked = true;
 				}
 
 				// Assume this widget will no longer tick, until we're told otherwise by way of OnWidgetTicked
 				WidgetData.bIsTicking = false;
+				WidgetData.bLastKnownTickState = true;
 			}
 		}
 	}
@@ -174,7 +174,10 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 
 		if (UserWidget)
 		{
-			UserWidget->PostTickActionsAndAnimation(DeltaSeconds);
+			if (WidgetIter.Value().bActionsAndAnimationTicked)
+			{
+				UserWidget->PostTickActionsAndAnimation(DeltaSeconds);
+			}
 
 			// If this widget no longer has any animations playing, it doesn't need to be ticked any more
 			if (UserWidget->ActiveSequencePlayers.Num() == 0)

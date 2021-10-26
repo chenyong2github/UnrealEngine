@@ -599,6 +599,9 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 	{
 		UWorld* World = GetWorld();
 
+#if WITH_EDITOR
+		const bool bNeedsEditorHeightField = !World->IsGameWorld() && !GetOutermost()->bIsCookedForEditor;
+#endif
 		FHeightfieldGeometryRef* ExistingHeightfieldRef = nullptr;
 		bool bCheckDDC = true;
 
@@ -613,7 +616,16 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 			ExistingHeightfieldRef = GSharedHeightfieldRefs.FindRef(HeightfieldGuid);
 		}
 
+#if WITH_EDITOR
+		// Use existing heightfield except if it is missing its editor heightfield and the component needs it.
+		if (ExistingHeightfieldRef && (!bNeedsEditorHeightField
+#if WITH_CHAOS
+			|| ExistingHeightfieldRef->EditorHeightfield != nullptr
+#endif
+			))
+#else
 		if (ExistingHeightfieldRef)
+#endif
 		{
 			HeightfieldRef = ExistingHeightfieldRef;
 		}
@@ -710,7 +722,7 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 
 #if WITH_EDITOR
 				// Create heightfield for the landscape editor (no holes in it)
-				if(!World->IsGameWorld() && !GetOutermost()->bIsCookedForEditor)
+				if(bNeedsEditorHeightField)
 				{
 					TArray<UPhysicalMaterial*> CookedMaterialsEd;
 					if(CookCollisionData(PhysicsFormatName, true, bCheckDDC, CookedCollisionDataEd, CookedMaterialsEd))

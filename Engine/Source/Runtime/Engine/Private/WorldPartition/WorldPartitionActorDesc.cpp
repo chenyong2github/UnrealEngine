@@ -252,11 +252,6 @@ UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
 {
-	if (!Container)
-	{
-		return false;
-	}
-
 #if WITH_DEV_AUTOMATION_TESTS
 	if (GIsAutomationTesting)
 	{
@@ -274,7 +269,6 @@ AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIf
 
 AActor* FWorldPartitionActorDesc::Load() const
 {
-	check(Container);
 	if (ActorPtr.IsExplicitlyNull())
 	{
 		// First, try to find the existing actor which could have been loaded by another actor (through standard serialization)
@@ -354,18 +348,18 @@ void FWorldPartitionActorDesc::Unload()
 
 void FWorldPartitionActorDesc::RegisterActor()
 {
-	check(Container);
 	if (AActor* Actor = GetActor())
 	{
+		check(Container);
 		Container->OnActorDescRegistered(*this);
 	}
 }
 
 void FWorldPartitionActorDesc::UnregisterActor()
 {
-	check(Container);
 	if (AActor* Actor = GetActor())
 	{
+		check(Container);
 		Container->OnActorDescUnregistered(*this);
 	}
 }

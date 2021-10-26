@@ -37,7 +37,7 @@ void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport
 		FTrajectoryDrawInfo* CurDrawInfo = GuidTrailPair.Value->GetDrawInfo();
 		if (CurDrawInfo && OwningHierarchy->GetVisibilityManager().IsTrailVisible(GuidTrailPair.Key, GuidTrailPair.Value.Get()))
 		{
-			FTrajectoryDrawInfo::FDisplayContext DisplayContext = {
+			FDisplayContext DisplayContext = {
 				GuidTrailPair.Key,
 				FTrailScreenSpaceTransform(View, Viewport),
 				UMotionTrailToolOptions::GetTrailOptions()->SecondsPerTick,
@@ -48,7 +48,7 @@ void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport
 			const bool bHitTesting = PDI && PDI->IsHitTesting();
 			TArray<FVector> PointsToDraw;
 			TArray<double> TrajectoryTimes;
-			CurDrawInfo->GetTrajectoryPointsForDisplay(DisplayContext, PointsToDraw, TrajectoryTimes);
+			GuidTrailPair.Value->GetTrajectoryPointsForDisplay(DisplayContext, PointsToDraw, TrajectoryTimes);
 			FLinearColor Color = OwningHierarchy->GetVisibilityManager().IsTrailAlwaysVisible(GuidTrailPair.Key) ? CurDrawInfo->GetColor() : UMotionTrailToolOptions::GetTrailOptions()->TrailColor;
 			Color = GuidTrailPair.Value->IsTrailSelected() ? FLinearColor(1.0f, 1.0f, 0.0f) : Color;
 			if (PointsToDraw.Num() > 1)
@@ -111,7 +111,7 @@ void FTrailHierarchyRenderer::DrawHUD(FEditorViewportClient* ViewportClient, FVi
 		FTrajectoryDrawInfo* CurDrawInfo = GuidTrailPair.Value->GetDrawInfo();
 		if (CurDrawInfo && OwningHierarchy->GetVisibilityManager().IsTrailVisible(GuidTrailPair.Key, GuidTrailPair.Value.Get()))
 		{
-			FTrajectoryDrawInfo::FDisplayContext DisplayContext = {
+			FDisplayContext DisplayContext = {
 				GuidTrailPair.Key,
 				FTrailScreenSpaceTransform(View, Viewport, ViewportClient->GetDPIScale()),
 				SecondsPerTick,
@@ -121,7 +121,7 @@ void FTrailHierarchyRenderer::DrawHUD(FEditorViewportClient* ViewportClient, FVi
 			};
 
 			TArray<FVector2D> Ticks, TickNormals;
-			CurDrawInfo->GetTickPointsForDisplay(DisplayContext, Ticks, TickNormals);
+			GuidTrailPair.Value->GetTickPointsForDisplay(DisplayContext, Ticks, TickNormals);
 			const FLinearColor Color = OwningHierarchy->GetVisibilityManager().IsTrailAlwaysVisible(GuidTrailPair.Key) ? CurDrawInfo->GetColor() : UMotionTrailToolOptions::GetTrailOptions()->TickColor;
 			for (int32 Idx = 0; Idx < Ticks.Num(); Idx++)
 			{

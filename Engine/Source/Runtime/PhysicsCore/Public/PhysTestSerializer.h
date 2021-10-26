@@ -118,8 +118,10 @@ public:
 
 	physx::PxBase* FindObject(uint64 Id);
 
+#if WITH_CHAOS
 	Chaos::FGeometryParticle* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
 	Chaos::FPerShapeData* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
+#endif
 #endif
 
 private:

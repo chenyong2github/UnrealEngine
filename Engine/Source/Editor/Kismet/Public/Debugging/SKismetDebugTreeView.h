@@ -38,6 +38,7 @@ public:
 		DLT_TraceStackParent,
 		DLT_TraceStackChild,
 		DLT_Parent,
+		DLT_SelfWatch,
 		DLT_Watch,
 		DLT_WatchChild,
 		DLT_LatentAction,
@@ -61,8 +62,10 @@ public:
 	virtual TSharedRef<SWidget> GenerateValueWidget(TSharedPtr<FString> InSearchString);
 
 	// Add any context menu items that can act on this node
-	// If you override, make sure FDebugLineItem::MakeMenu still gets called
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder);
+	void MakeMenu(class FMenuBuilder& MenuBuilder);
+
+	// Add any context menu items that can act on this node
+	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder);
 
 	// Gather all of the children
 	virtual void GatherChildrenBase(TArray<FDebugTreeItemPtr>& OutChildren, const FString& InSearchString, bool bRespectSearch = true) {}
@@ -142,6 +145,7 @@ protected:
 	bool HasValue() const;
 	void CopyNameToClipboard() const;
 	void CopyValueToClipboard() const;
+
 protected:
 	// Type of action (poor mans RTTI for the tree, really only used to accelerate Compare checks)
 	EDebugLineType Type;
@@ -162,12 +166,10 @@ class KISMET_API SKismetDebugTreeView : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SKismetDebugTreeView)
 		: _SelectionMode(ESelectionMode::Single)
-		, _OnContextMenuOpening()
 		, _OnExpansionChanged()
 	{}
 
 	SLATE_ATTRIBUTE(ESelectionMode::Type, SelectionMode)
-	SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	SLATE_EVENT(STreeView<FDebugTreeItemPtr>::FOnExpansionChanged, OnExpansionChanged)
 	SLATE_ARGUMENT(TSharedPtr<SHeaderRow>, HeaderRow)
 
@@ -208,6 +210,7 @@ private:
 
 	TSharedRef<ITableRow> OnGenerateRow(FDebugTreeItemPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildren(FDebugTreeItemPtr InParent, TArray<FDebugTreeItemPtr>& OutChildren);
+	TSharedPtr<SWidget> OnMakeContextMenu() const;
 
 	TSharedPtr< STreeView< FDebugTreeItemPtr > > TreeView;
 	TArray<FDebugTreeItemPtr> FilteredTreeRoots;
@@ -223,7 +226,7 @@ public:
 	static FDebugTreeItemPtr MakeBreakpointParentItem(TWeakObjectPtr<UBlueprint> InBlueprint);
 	static FDebugTreeItemPtr MakeMessageItem(const FString& InMessage);
 	static FDebugTreeItemPtr MakeParentItem(UObject* InObject);
-	static FDebugTreeItemPtr MakeWatchChildItem(TSharedPtr<struct FPropertyInstanceInfo> InPropertyInfo);
+	static FDebugTreeItemPtr MakeWatchLineItem(const UEdGraphPin* InPinRef, UObject* InDebugObject);
 	
 	/** Column Id's for custom header rows */
 	static const FName ColumnId_Name;

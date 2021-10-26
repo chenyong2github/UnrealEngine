@@ -215,7 +215,7 @@ private:
 	void ReferenceWindowClosed(const TSharedRef<SWindow>& Window);
 
 	/** The skeleton we are currently editing */
-	TWeakPtr<class IEditableSkeleton> EditableSkeletonPtr;
+	TSharedPtr<class IEditableSkeleton> EditableSkeleton;
 
 	/** Delegate call to select an object & display its details */
 	FOnObjectSelected OnObjectSelected;

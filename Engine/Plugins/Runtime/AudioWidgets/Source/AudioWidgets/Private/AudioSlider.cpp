@@ -12,14 +12,17 @@ UAudioSliderBase::UAudioSliderBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Value = 0.0f;
-	AlwaysShowLabel = true;
+	UnitsText = FText::FromString("units");
+	ShowLabelOnlyOnHover = false;
 	ShowUnitsText = true;
+	IsUnitsTextReadOnly = true;
+	IsValueTextReadOnly = false;
 	Orientation = Orient_Vertical;
-	LabelBackgroundColor = FLinearColor(0.01033f, 0.01033f, 0.01033f);
-	SliderBackgroundColor = FLinearColor(0.01033f, 0.01033f, 0.01033f);
-	SliderBarColor = FLinearColor::Black;
-	SliderThumbColor = FLinearColor::Gray;
-	WidgetBackgroundColor = FLinearColor::Transparent;
+	TextLabelBackgroundColor = FStyleColors::Recessed.GetSpecifiedColor();
+	SliderBackgroundColor = FStyleColors::Recessed.GetSpecifiedColor();
+	SliderBarColor = FStyleColors::Black.GetSpecifiedColor();
+	SliderThumbColor = FStyleColors::AccentGray.GetSpecifiedColor();
+	WidgetBackgroundColor = FStyleColors::Transparent.GetSpecifiedColor();
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::NotAccessible;
@@ -31,9 +34,12 @@ void UAudioSliderBase::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 	
-	MyAudioSlider->SetAlwaysShowLabel(AlwaysShowLabel);
+	MyAudioSlider->SetLabelBackgroundColor(TextLabelBackgroundColor);
+	MyAudioSlider->SetUnitsText(UnitsText);
+	MyAudioSlider->SetUnitsTextReadOnly(IsUnitsTextReadOnly);
+	MyAudioSlider->SetValueTextReadOnly(IsValueTextReadOnly);
+	MyAudioSlider->SetShowLabelOnlyOnHover(ShowLabelOnlyOnHover);
 	MyAudioSlider->SetShowUnitsText(ShowUnitsText);
-	MyAudioSlider->SetLabelBackgroundColor(LabelBackgroundColor);
 	MyAudioSlider->SetOrientation(Orientation);
 	MyAudioSlider->SetSliderBackgroundColor(SliderBackgroundColor);
 	MyAudioSlider->SetSliderBarColor(SliderBarColor);
@@ -53,26 +59,58 @@ void UAudioSliderBase::HandleOnValueChanged(float InValue)
 	OnValueChanged.Broadcast(InValue);
 }
 
-void UAudioSliderBase::SetAllTextReadOnly(const bool bIsReadOnly)
+void UAudioSliderBase::SetTextLabelBackgroundColor(FSlateColor InColor)
 {
-	MyAudioSlider->SetAllTextReadOnly(bIsReadOnly);
+	TextLabelBackgroundColor = InColor.GetSpecifiedColor();
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetLabelBackgroundColor(InColor);
+	}
 }
 
-void UAudioSliderBase::SetAlwaysShowLabel(const bool bSetAlwaysShowLabel)
+void UAudioSliderBase::SetUnitsText(const FText Units)
 {
-	AlwaysShowLabel = bSetAlwaysShowLabel;
-	MyAudioSlider->SetAlwaysShowLabel(bSetAlwaysShowLabel);
+	UnitsText = Units;
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetUnitsText(Units);
+	}
+}
+
+void UAudioSliderBase::SetUnitsTextReadOnly(const bool bIsReadOnly)
+{
+	IsUnitsTextReadOnly = bIsReadOnly;
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetUnitsTextReadOnly(bIsReadOnly);
+	}
+}
+
+void UAudioSliderBase::SetValueTextReadOnly(const bool bIsReadOnly)
+{
+	IsValueTextReadOnly = bIsReadOnly;
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetValueTextReadOnly(bIsReadOnly);
+	}
+}
+
+void UAudioSliderBase::SetShowLabelOnlyOnHover(const bool bShowLabelOnlyOnHover)
+{
+	ShowLabelOnlyOnHover = bShowLabelOnlyOnHover;
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetShowLabelOnlyOnHover(bShowLabelOnlyOnHover);
+	}
 }
 
 void UAudioSliderBase::SetShowUnitsText(const bool bShowUnitsText)
 {
 	ShowUnitsText = bShowUnitsText;
-	MyAudioSlider->SetShowUnitsText(bShowUnitsText);
-}
-
-void UAudioSliderBase::SetUnitsText(const FText Units)
-{
-	MyAudioSlider->SetUnitsText(Units);
+	if (MyAudioSlider.IsValid())
+	{
+		MyAudioSlider->SetShowUnitsText(bShowUnitsText);
+	}
 }
 
 float UAudioSliderBase::GetOutputValue(const float LinValue)
@@ -83,15 +121,6 @@ float UAudioSliderBase::GetOutputValue(const float LinValue)
 float UAudioSliderBase::GetLinValue(const float OutputValue)
 {
 	return MyAudioSlider->GetLinValue(OutputValue);
-}
-
-void UAudioSliderBase::SetLabelBackgroundColor(FLinearColor InValue)
-{
-	SliderBackgroundColor = InValue;
-	if (MyAudioSlider.IsValid())
-	{
-		MyAudioSlider->SetLabelBackgroundColor(InValue);
-	}
 }
 
 void UAudioSliderBase::SetSliderBackgroundColor(FLinearColor InValue)
@@ -173,6 +202,7 @@ TSharedRef<SWidget> UAudioSlider::RebuildWidget()
 UAudioVolumeSlider::UAudioVolumeSlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	Super::SetUnitsText(FText::FromString("dB"));
 }
 
 TSharedRef<SWidget> UAudioVolumeSlider::RebuildWidget()
@@ -190,6 +220,7 @@ UAudioFrequencySlider::UAudioFrequencySlider(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 	, OutputRange(FVector2D(20.0f, 20000.0f))
 {
+	Super::SetUnitsText(FText::FromString("Hz"));
 }
 
 TSharedRef<SWidget> UAudioFrequencySlider::RebuildWidget()

@@ -245,8 +245,8 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 		verify(Wait(Tasks, FTimespan::FromSeconds(5)));
 	}
 
-	UE_BENCHMARK(5, TickerPerfTest<200, 200>);
-	UE_BENCHMARK(5, TSTickerPerfTest<200, 200>);
+	UE_BENCHMARK(5, TickerPerfTest<100, 100>);
+	UE_BENCHMARK(5, TSTickerPerfTest<100, 100>);
 
 	return true;
 }

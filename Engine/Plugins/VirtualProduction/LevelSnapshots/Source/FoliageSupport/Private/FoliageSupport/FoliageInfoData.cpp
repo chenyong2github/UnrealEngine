@@ -23,12 +23,9 @@ void FFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersi
 	FMemoryReader MemoryReader(SerializedData, true);
 	FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, false);
 	RootArchive.SetCustomVersions(VersionInfo);
-
+	
 	// Avoid foliage internal checks
-	if (DataToWriteInto.IsInitialized())
-	{
-		DataToWriteInto.Implementation.Reset();
-	}
+	DataToWriteInto.Implementation.Reset();
 	
 	RootArchive << DataToWriteInto;
 	DataToWriteInto.RecomputeHash();

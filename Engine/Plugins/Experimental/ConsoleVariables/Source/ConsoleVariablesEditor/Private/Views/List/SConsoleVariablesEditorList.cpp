@@ -6,8 +6,10 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 

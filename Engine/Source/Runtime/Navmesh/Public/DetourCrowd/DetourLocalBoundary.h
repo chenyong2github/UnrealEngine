@@ -24,6 +24,7 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourNavMesh.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 
 class dtNavMeshQuery;
 class dtQueryFilter;
@@ -36,19 +37,19 @@ class NAVMESH_API dtLocalBoundary
 	
 	struct Segment
 	{
-		float s[6];	///< Segment start/end
-		float d;	///< Distance for pruning.
+		dtReal s[6];	///< Segment start/end
+		dtReal d;	///< Distance for pruning.
 		int flags;
 	};
 	
-	float m_center[3];
+	dtReal m_center[3];
 	Segment m_segs[MAX_LOCAL_SEGS];
 	int m_nsegs;
 	
 	dtPolyRef m_polys[MAX_LOCAL_POLYS];
 	int m_npolys;
 
-	void addSegment(const float dist, const float* seg, int flags = 0);
+	void addSegment(const dtReal dist, const dtReal* seg, int flags = 0);
 	
 public:
 	dtLocalBoundary();
@@ -57,23 +58,23 @@ public:
 	void reset();
 
 	// [UE: new sections: link removal, path corridor, direction]
-	void update(dtPolyRef ref, const float* pos, const float collisionQueryRange,
-		const bool bIgnoreAtEnd, const float* endPos,
+	void update(dtPolyRef ref, const dtReal* pos, const dtReal collisionQueryRange,
+		const bool bIgnoreAtEnd, const dtReal* endPos,
 		const dtPolyRef* path, const int npath,
-		const float* moveDir,
+		const dtReal* moveDir,
 		dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 
 	void update(const dtSharedBoundary* sharedData, const int sharedIdx,
-		const float* pos, const float collisionQueryRange,
-		const bool bIgnoreAtEnd, const float* endPos,
-		const dtPolyRef* path, const int npath, const float* moveDir,
+		const dtReal* pos, const dtReal collisionQueryRange,
+		const bool bIgnoreAtEnd, const dtReal* endPos,
+		const dtPolyRef* path, const int npath, const dtReal* moveDir,
 		dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	bool isValid(dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
-	inline const float* getCenter() const { return m_center; }
+	inline const dtReal* getCenter() const { return m_center; }
 	inline int getSegmentCount() const { return m_nsegs; }
-	inline const float* getSegment(int i) const { return m_segs[i].s; }
+	inline const dtReal* getSegment(int i) const { return m_segs[i].s; }
 	inline const int getSegmentFlags(int i) const { return m_segs[i].flags; }
 };
 

@@ -59,7 +59,7 @@ SDetailsViewBase::SDetailsViewBase() :
 SDetailsViewBase::~SDetailsViewBase()
 {
 	FPropertyEditorPermissionList::Get().PermissionListUpdatedDelegate.Remove(PropertyPermissionListChangedDelegate);
-	FPropertyEditorPermissionList::Get().PermissionListUpdatedDelegate.Remove(PropertyPermissionListEnabledDelegate);
+	FPropertyEditorPermissionList::Get().PermissionListEnabledDelegate.Remove(PropertyPermissionListEnabledDelegate);
 }
 
 void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, TArray< TSharedRef<FDetailTreeNode> >& OutChildren)
@@ -965,21 +965,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 			}
 		} while (DeferredActions.Num() > 0);
 
-		for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
-		{
-			check(RootPropertyNode.IsValid());
-			RestoreExpandedItems(RootPropertyNode.ToSharedRef());
-		}
-
-		for (FDetailLayoutData& LayoutData : DetailLayouts)
-		{
-			FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
-			for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
-			{
-				check(ExternalRootPropertyNode.IsValid());
-				RestoreExpandedItems(ExternalRootPropertyNode.ToSharedRef());
-			}
-		}
+		RestoreAllExpandedItems();
 	}
 
 	TSharedPtr<FComplexPropertyNode> LastRootPendingKill;
@@ -1065,13 +1051,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	{
 		UpdateFilteredDetails();
 
-		for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
-		{
-			if (RootPropertyNode.IsValid())
-			{
-				RestoreExpandedItems(RootPropertyNode.ToSharedRef());
-			}
-		}
+		RestoreAllExpandedItems();
 	}
 
 	for(FDetailLayoutData& LayoutData : DetailLayouts)
@@ -1289,6 +1269,25 @@ void SDetailsViewBase::SaveExpandedItems(TSharedRef<FPropertyNode> StartNode)
 	}
 }
 
+void SDetailsViewBase::RestoreAllExpandedItems()
+{
+	for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : GetRootNodes())
+	{
+		check(RootPropertyNode.IsValid());
+		RestoreExpandedItems(RootPropertyNode.ToSharedRef());
+	}
+
+	for (FDetailLayoutData& LayoutData : DetailLayouts)
+	{
+		FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
+		for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
+		{
+			check(ExternalRootPropertyNode.IsValid());
+			RestoreExpandedItems(ExternalRootPropertyNode.ToSharedRef());
+		}
+	}
+}
+
 void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 {
 	FString ExpandedCustomItems;
@@ -1345,6 +1344,8 @@ void SDetailsViewBase::UpdateFilteredDetails()
 					{
 						ExternalRootNode->FilterNodes(CurrentFilter.FilterStrings);
 						ExternalRootNode->ProcessSeenFlags(true);
+
+						RestoreExpandedItems(ExternalRootNode.ToSharedRef());
 					}
 				}
 
@@ -1361,7 +1362,6 @@ void SDetailsViewBase::UpdateFilteredDetails()
 			}
 		}
 	}
-
 
 	// for multiple top level object we need to do a secondary pass on top level object nodes after we have determined if there is any nodes visible at all.  If there are then we ask the details panel if it wants to show childen
 	for(TSharedRef<class FDetailTreeNode> RootNode : InitialRootNodeList)

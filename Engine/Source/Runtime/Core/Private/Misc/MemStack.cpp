@@ -5,8 +5,11 @@
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/CoreDelegates.h"
 #include <atomic>
+
+LLM_DEFINE_TAG(MemStack);
 
 DECLARE_MEMORY_STAT(TEXT("MemStack Large Block"), STAT_MemStackLargeBLock,STATGROUP_Memory);
 DECLARE_MEMORY_STAT(TEXT("PageAllocator Free"), STAT_PageAllocatorFree, STATGROUP_Memory);
@@ -232,6 +235,7 @@ uint64 FPageAllocator::BytesFree()
 
 void *FPageAllocator::Alloc()
 {
+	LLM_SCOPE_BYTAG(MemStack); 
 	void *Result = TheAllocator.Allocate();
 	STAT(UpdateStats());
 	return Result;

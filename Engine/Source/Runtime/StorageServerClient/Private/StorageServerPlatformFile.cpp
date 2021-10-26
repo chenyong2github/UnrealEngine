@@ -691,10 +691,9 @@ int64 FStorageServerPlatformFile::SendReadMessage(uint8* Destination, const FIoC
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerPlatformFileRead);
 	int64 BytesRead = 0;
-	Connection->ReadChunkRequest(FileChunkId, Offset, BytesToRead, [Destination, &BytesRead](FStorageServerResponse& Response)
+	Connection->ReadChunkRequest(FileChunkId, Offset, BytesToRead, [Destination, BytesToRead, &BytesRead](FStorageServerResponse& Response)
 	{
-		BytesRead = Response.TotalSize();
-		Response.Serialize(Destination, Response.TotalSize());
+		BytesRead = Response.SerializeChunkTo(MakeMemoryView(Destination, BytesToRead));
 	});
 	return BytesRead;
 }

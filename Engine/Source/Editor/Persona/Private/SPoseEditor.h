@@ -302,6 +302,7 @@ public:
 	bool IsBasePose(FName PoseName) const;
 
 private:
+	void UpdateSelectedPoseWithCurrent();
 
 	void BindCommands();
 	void RestartPreviewComponent();

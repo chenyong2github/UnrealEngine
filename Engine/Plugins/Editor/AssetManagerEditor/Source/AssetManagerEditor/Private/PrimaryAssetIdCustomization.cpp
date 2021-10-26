@@ -74,11 +74,28 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 		.VAlign(VAlign_Center)
 		.Padding(0, 0, 4, 0)
 		[
-			SNew(SBox)
-			.WidthOverride(ThumbnailSize)
-			.HeightOverride(ThumbnailSize)
+			SNew(SOverlay)
+			+SOverlay::Slot()
+			.Padding(1)
 			[
-				AssetThumbnail->MakeThumbnailWidget()
+				SAssignNew(ThumbnailBorder, SBorder)
+				.Padding(0)
+				.BorderImage(FStyleDefaults::GetNoBrush())
+				.OnMouseDoubleClick(this, &FPrimaryAssetIdCustomization::OnAssetThumbnailDoubleClick)
+				[
+					SNew(SBox)
+					.WidthOverride(ThumbnailSize)
+					.HeightOverride(ThumbnailSize)
+					[
+						AssetThumbnail->MakeThumbnailWidget()
+					]
+				]
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Image(this, &FPrimaryAssetIdCustomization::GetThumbnailBorder)
+				.Visibility(EVisibility::SelfHitTestInvisible)
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -109,6 +126,14 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnClear))
 		]
 	];
+}
+
+const FSlateBrush* FPrimaryAssetIdCustomization::GetThumbnailBorder() const
+{
+	static const FName HoveredBorderName("PropertyEditor.AssetThumbnailBorderHovered");
+	static const FName RegularBorderName("PropertyEditor.AssetThumbnailBorder");
+
+	return ThumbnailBorder->IsHovered() ? FAppStyle::Get().GetBrush(HoveredBorderName) : FAppStyle::Get().GetBrush(RegularBorderName);
 }
 
 void FPrimaryAssetIdCustomization::OnIdSelected(FPrimaryAssetId AssetId)
@@ -197,9 +222,28 @@ void FPrimaryAssetIdCustomization::OnUseSelected()
 	}
 }
 
+void FPrimaryAssetIdCustomization::OnOpenAssetEditor()
+{
+	FAssetData AssetData;
+	FPrimaryAssetId PrimaryAssetId = GetCurrentPrimaryAssetId();
+	if (PrimaryAssetId.IsValid())
+	{
+		if (UAssetManager::Get().GetPrimaryAssetData(PrimaryAssetId, AssetData))
+		{
+			GEditor->EditObject(AssetData.GetAsset());
+		}
+	}
+}
+
 void FPrimaryAssetIdCustomization::OnClear()
 {
 	OnIdSelected(FPrimaryAssetId());
+}
+
+FReply FPrimaryAssetIdCustomization::OnAssetThumbnailDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	OnOpenAssetEditor();
+	return FReply::Handled();
 }
 
 void SPrimaryAssetIdGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)

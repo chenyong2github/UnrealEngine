@@ -18,9 +18,9 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
 #include "Tasks/Task.h"
+#include "TextureBuildFunction.h"
 
 #include "oodle2tex.h"
 
@@ -516,22 +516,29 @@ public:
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
 		//  it's more about cook mode (fast vs final bake)	
+		
+		// Note InBuildSettings.OodleEncodeEffort is an ETextureEncodeEffort
+		//  we cast directly to OodleTex_EncodeEffortLevel
+		//  the enum values must match exactly
+
 		OodleTex_EncodeEffortLevel EffortLevel = (OodleTex_EncodeEffortLevel)InBuildSettings.OodleEncodeEffort;
 		if (EffortLevel != OodleTex_EncodeEffortLevel_Default &&
 			EffortLevel != OodleTex_EncodeEffortLevel_Low &&
 			EffortLevel != OodleTex_EncodeEffortLevel_Normal &&
 			EffortLevel != OodleTex_EncodeEffortLevel_High)
 		{
-			UE_LOG(LogTextureFormatOodle, Error, TEXT("Invalid effort level passed to texture format oodle: %d is invalid, using default"), (uint32)EffortLevel);
+			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid effort level passed to texture format oodle: %d is invalid, using default"), (uint32)EffortLevel);
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
 		}
 
+		// map Unreal ETextureUniversalTiling to OodleTex_RDO_UniversalTiling
+		//  enum values must match exactly
 		OodleTex_RDO_UniversalTiling UniversalTiling = (OodleTex_RDO_UniversalTiling)InBuildSettings.OodleUniversalTiling;
-		if (UniversalTiling != OodleTex_RDO_UniversalTiling_Disable &&
+		if ( UniversalTiling != OodleTex_RDO_UniversalTiling_Disable &&
 			UniversalTiling != OodleTex_RDO_UniversalTiling_256KB &&
-			UniversalTiling != OodleTex_RDO_UniversalTiling_64KB)
+			UniversalTiling != OodleTex_RDO_UniversalTiling_64KB )
 		{
-			UE_LOG(LogTextureFormatOodle, Error, TEXT("Invalid universal tiling value passed to texture format oodle: %d is invalid, disabling"), (uint32)UniversalTiling);
+			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid universal tiling value passed to texture format oodle: %d is invalid, disabling"), (uint32)UniversalTiling);
 			UniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
 		}
 
@@ -616,7 +623,7 @@ public:
 	
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 12
+	#define DDC_OODLE_TEXTURE_VERSION 13
 
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{

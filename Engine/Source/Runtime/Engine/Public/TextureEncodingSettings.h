@@ -18,13 +18,13 @@ enum class ETextureEncodeEffort : uint8
 	High = 30		UMETA(ToolTip = "More time, better quality - good for nightlies / unattended cooks.")
 };
 
-// Maps to OodleTex_RDO_UniversalTiling
+// enum values must match exactly with OodleTex_RDO_UniversalTiling
 UENUM()
 enum class ETextureUniversalTiling : uint8
 {
-	Disabled,
-	Enabled_256KB_Blocks,
-	Enabled_64KB_Blocks
+	Disabled = 0,
+	Enabled_256KB = 1,
+	Enabled_64KB = 2
 };
 
 

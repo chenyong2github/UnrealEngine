@@ -18,9 +18,9 @@ public:
 		EncodeSettings_Med = TEXT("-crf 23");
 		EncodeSettings_High = TEXT("-crf 20");
 		EncodeSettings_Epic = TEXT("-crf 16");
-		CommandLineFormat = TEXT("-hide_banner -y -loglevel error {AdditionalLocalArgs} {VideoInputs} {AudioInputs} -acodec {AudioCodec} -vcodec {VideoCodec} {Quality} {OutputPath}");
-		VideoInputStringFormat = TEXT("-f concat -safe 0 -i {InputFile} -r {FrameRate}");
-		AudioInputStringFormat = TEXT("-f concat -safe 0 -i {InputFile}");
+		CommandLineFormat = TEXT("-hide_banner -y -loglevel error {AdditionalLocalArgs} {VideoInputs} {AudioInputs} -acodec {AudioCodec} -vcodec {VideoCodec} {Quality} \"{OutputPath}\"");
+		VideoInputStringFormat = TEXT("-f concat -safe 0 -i \"{InputFile}\" -r {FrameRate}");
+		AudioInputStringFormat = TEXT("-f concat -safe 0 -i \"{InputFile}\"");
 	}
 
 	/** Gets the settings container name for the settings, either Project or Editor */

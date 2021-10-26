@@ -4,13 +4,13 @@
 #include "MeshAttributes.h"
 #include "Algo/Copy.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/BulkData.h"
 #include "Serialization/NameAsStringProxyArchive.h"
-#include "Serialization/BulkDataReader.h"
-#include "Serialization/BulkDataWriter.h"
+#include "Serialization/VirtualizedBulkDataReader.h"
+#include "Serialization/VirtualizedBulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UE5CookerObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "Virtualization/VirtualizationUtilities.h"
 
 #if WITH_EDITOR
 #include "Misc/ScopeRWLock.h"

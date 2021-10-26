@@ -4,6 +4,7 @@
 
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
+#include "MovieSceneFwd.h"
 #include "TrackRecorders/IMovieSceneTrackRecorderHost.h"
 #include "TakeRecorderParameters.generated.h"
 
@@ -84,6 +85,12 @@ struct FTakeRecorderProjectParameters
 	 */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
 	FString DefaultSlate;
+
+	/**
+	 * The clock source to use when recording
+	 */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
+	EUpdateClockSource RecordingClockSource;
 
 	/**
 	 * If enabled, track sections will start at the current timecode. Otherwise, 0.

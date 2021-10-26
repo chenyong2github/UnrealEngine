@@ -59,7 +59,8 @@ void SCommentBubble::Construct( const FArguments& InArgs )
 	ToggleButtonCheck		= InArgs._ToggleButtonCheck.IsBound() ?	InArgs._ToggleButtonCheck : 
 																	TAttribute<ECheckBoxState>( this, &SCommentBubble::GetToggleButtonCheck );
 	// Ensue this value is set to something sensible
-	ForegroundColor = FStyleColors::Foreground;
+	CalculatedForegroundColor = FStyleColors::Foreground;
+	BubbleLuminance = 0.0f;
 
 	// Cache the comment
 	CachedComment = CommentAttribute.Get();
@@ -93,8 +94,8 @@ void SCommentBubble::Tick( const FGeometry& AllottedGeometry, const double InCur
 	if( bTitleBarBubbleVisible || IsBubbleVisible() )
 	{
 		const FLinearColor BubbleColor = GetBubbleColor().GetSpecifiedColor() * SCommentBubbleDefs::LuminanceCoEff;
-		const float BubbleLuminance = BubbleColor.R + BubbleColor.G + BubbleColor.B;
-		ForegroundColor = BubbleLuminance < 0.5f ? FStyleColors::Foreground : FStyleColors::Background;
+		BubbleLuminance = BubbleColor.R + BubbleColor.G + BubbleColor.B;
+		CalculatedForegroundColor = BubbleLuminance < 0.5f ? FStyleColors::Foreground : FStyleColors::Background;
 	}
 
 	TickVisibility(InCurrentTime, InDeltaTime);
@@ -414,7 +415,14 @@ FSlateColor SCommentBubble::GetTextBackgroundColor() const
 
 FSlateColor SCommentBubble::GetTextForegroundColor() const
 {
-	return FSlateColor::UseStyle();
+	if (TextBlock->HasKeyboardFocus())
+	{
+		return BubbleLuminance < 0.5f ? FStyleColors::Background : FStyleColors::Foreground;
+	}
+	else
+	{
+		return BubbleLuminance < 0.5f ? FStyleColors::Foreground : FStyleColors::Background;
+	}
 }
 
 FSlateColor SCommentBubble::GetReadOnlyTextForegroundColor() const

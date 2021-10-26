@@ -141,7 +141,7 @@ ENGINE_API void DrawDebugCanvasWireCone(UCanvas* Canvas, const FTransform& Trans
 #elif !defined(SHIPPING_DRAW_DEBUG_ERROR) || !SHIPPING_DRAW_DEBUG_ERROR
 
 // Empty versions of above functions
-
+// LWC_TODO: A lot of the floats here should really be FVector::FReals as they will often be calculated using FReals. e.g. Radius, Length etc
 FORCEINLINE void FlushPersistentDebugLines(const UWorld* InWorld) {}
 FORCEINLINE void DrawDebugLine(const UWorld* InWorld, FVector const& LineStart, FVector const& LineEnd, FColor const& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f) {}
 FORCEINLINE void DrawDebugPoint(const UWorld* InWorld, FVector const& Position, float Size, FColor const& PointColor, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0) {}

@@ -5,6 +5,8 @@
 #include "SDerivedDataStatusBar.h"
 #include "SDerivedDataDialogs.h"
 #include "SDerivedDataCacheSettings.h"
+#include "SZenCacheStatistics.h"
+#include "ZenServerInterface.h"
 #include "DerivedDataCacheNotifications.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
@@ -91,7 +93,16 @@ TSharedPtr<SWidget> FDerivedDataEditorModule::CreateResourceUsageDialog()
 
 TSharedPtr<SWidget> FDerivedDataEditorModule::CreateCacheStatisticsDialog()
 {
-	return SNew(SDerivedDataCacheStatisticsDialog);
+#if UE_WITH_ZEN
+	if (UE::Zen::GetDefaultServiceInstance().IsServiceRunning())
+	{
+		return SNew(SZenCacheStatisticsDialog);
+	}
+	else
+#endif
+	{
+		return SNew(SDerivedDataCacheStatisticsDialog);
+	}
 }
 
 void FDerivedDataEditorModule::ShowResourceUsageTab()

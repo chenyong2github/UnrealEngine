@@ -288,7 +288,6 @@ public:
 
 		if (V == Delete)
 		{
-			curl_easy_setopt(Curl, CURLOPT_POST, 1L);
 			curl_easy_setopt(Curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 		}
 		else if (V == Head)

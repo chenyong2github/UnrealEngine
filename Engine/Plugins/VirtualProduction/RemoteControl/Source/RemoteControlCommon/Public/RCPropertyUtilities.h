@@ -382,7 +382,7 @@ namespace RemoteControlPropertyUtilities
 
 		const ValueType* SrcCurrentValue = InSrc.GetPropertyValue<ValueType>();
 		ValueType* DstCurrentValue = OutDst.GetPropertyValue<ValueType>();
-		*DstCurrentValue = *SrcCurrentValue;
+		OutDst.GetProperty<FBoolProperty>()->SetPropertyValue(DstCurrentValue, *SrcCurrentValue);
 
 		return true;
 	}

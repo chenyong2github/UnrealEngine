@@ -2,13 +2,16 @@
 
 #pragma once
 
+#include "ContentBrowserDelegates.h"
 #include "Views/SnapshotEditorViewData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 struct FAssetData;
+struct FAssetViewCustomColumn;
 class UWorld;
 struct FSnapshotEditorViewData;
+class SToolTip;
 
 class SLevelSnapshotsEditorBrowser : public SCompoundWidget
 {
@@ -25,6 +28,8 @@ public:
 	void SelectAsset(const FAssetData& InAssetData) const;
 
 private:
+	TSharedRef<SToolTip> CreateCustomTooltip(FAssetData& AssetData);
+	TArray<FAssetViewCustomColumn> GetCustomColumns() const;
 	void OnAssetDoubleClicked(const FAssetData& InAssetData) const;
 	bool OnShouldFilterAsset(const FAssetData& InAssetData) const;
 	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets);

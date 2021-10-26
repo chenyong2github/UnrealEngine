@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneViewExtension.h"
-#include "Engine/Engine.h"
 #include "RenderGraphUtils.h"
 
 //
@@ -88,6 +87,14 @@ bool FWorldSceneViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtens
 	return World == Context.GetWorld();
 }
 
+//
+// FHMDSceneViewExtension
+//
+
+bool FHMDSceneViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
+{
+	return Context.IsStereoSupported();
+}
 
 //
 // FSceneViewExtensions

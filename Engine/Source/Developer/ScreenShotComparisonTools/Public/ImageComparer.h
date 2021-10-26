@@ -134,7 +134,7 @@ public:
 
 	static float GetHue(const FColor& Color);
 
-	static bool IsAntialiased(const FColor& SourcePixel, FComparableImage* Image, int32 X, int32 Y, const FImageTolerance& Tolerance);
+	static bool IsAntialiased(const FColor& SourcePixel, const FComparableImage* Image, int32 X, int32 Y, const FImageTolerance& Tolerance);
 };
 
 /**
@@ -161,12 +161,12 @@ public:
 	{
 	}
 
-	FORCEINLINE bool CanGetPixel(int32 X, int32 Y)
+	FORCEINLINE bool CanGetPixel(int32 X, int32 Y) const
 	{
 		return X >= 0 && Y >= 0 && X < Width && Y < Height;
 	}
 
-	FORCEINLINE FColor GetPixel(int32 X, int32 Y)
+	FORCEINLINE FColor GetPixel(int32 X, int32 Y) const
 	{
 		int64 Offset = ( (int64)Y * Width + X ) * 4;
 		check(Offset < ( (int64)Width * Height * 4 ));
@@ -433,6 +433,7 @@ class SCREENSHOTCOMPARISONTOOLS_API FImageComparer
 public:
 	
 	FImageComparisonResult Compare(const FString& ImagePathA, const FString& ImagePathB, FImageTolerance Tolerance, const FString& OutDeltaPath);
+	FImageComparisonResult Compare(const FComparableImage* ImageA, const FComparableImage* ImageB, FImageTolerance Tolerance, const FString& OutDeltaPath);
 
 	enum class EStructuralSimilarityComponent : uint8
 	{
@@ -444,6 +445,7 @@ public:
 	 * https://en.wikipedia.org/wiki/Structural_similarity
 	 */
 	double CompareStructuralSimilarity(const FString& ImagePathA, const FString& ImagePathB, EStructuralSimilarityComponent InCompareComponent, const FString& OutDeltaPath);
+	double CompareStructuralSimilarity(const FComparableImage* ImageA, const FComparableImage* ImageB, EStructuralSimilarityComponent InCompareComponent, const FString& OutDeltaPath);
 
 private:
 	TSharedPtr<FComparableImage> Open(const FString& ImagePath, FText& OutError);

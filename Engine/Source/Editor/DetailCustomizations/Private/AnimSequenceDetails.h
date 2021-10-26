@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AdvancedPreviewScene.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
@@ -122,9 +123,9 @@ private:
 
 	/** Skeleton */
 	USkeleton* TargetSkeleton;
-	UAnimSequence* AnimRef;
+	UAnimSequence* PreviewAnimationSequence;
 
-	FPreviewScene PreviewScene;
+	FAdvancedPreviewScene PreviewScene;
 	class FFXSystemInterface* FXSystem;
 
 	TSharedPtr<STextBlock> Description;

@@ -17,7 +17,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Styling/ToolBarStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -472,7 +472,7 @@ void FUserDefinedEnumEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		.VAlign(VAlign_Fill)
 		.Padding(ToolBarStyle.ButtonPadding)
 		[
-			SNew(SEditorHeaderButton)
+			SNew(SPositiveActionButton)
 			.Text(LOCTEXT("AddEnumeratorButtonText", "Add Enumerator"))
 			.OnClicked(this, &FUserDefinedEnumEditor::OnAddNewEnumerator)
 		]);

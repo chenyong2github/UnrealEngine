@@ -11,7 +11,7 @@
 /**
  * 
  */
-UCLASS(NotPlaceable)
+UCLASS(Hidden)
 class UOptimusNode_DataInterface
 	: public UOptimusNode
 {

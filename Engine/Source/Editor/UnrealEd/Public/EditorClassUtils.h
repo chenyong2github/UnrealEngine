@@ -53,7 +53,6 @@ namespace FEditorClassUtils
 	 */
 	UNREALED_API FString GetDocumentationLink(const UClass* Class, const FString& OverrideExcerpt = FString());
 
-
 	/**
 	 * Return link path from a specified excerpt
 	 */
@@ -66,6 +65,12 @@ namespace FEditorClassUtils
 	 * @return				Shared pointer to the constructed tooltip
 	 */
 	UNREALED_API TSharedRef<SWidget> GetDocumentationLinkWidget(const UClass* Class);
+
+	/**
+	 * Create a link widget to the documentation for a potentially dynamic link widget.
+	 * @param	Class		The attribute of the class to show documentation for.
+	 */
+	UNREALED_API TSharedRef<SWidget> GetDynamicDocumentationLinkWidget(const TAttribute<const UClass*>& ClassAttribute);
 
 	/**
 	 * Creates a link to the source code or blueprint for a given class

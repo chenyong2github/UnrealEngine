@@ -1,0 +1,39 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Online/PresenceCommon.h"
+
+#include "Online/OnlineServicesCommon.h"
+
+namespace UE::Online {
+
+FPresenceCommon::FPresenceCommon(FOnlineServicesCommon& InServices)
+	: TOnlineComponent(TEXT("Presence"), InServices)
+	, Services(InServices)
+{
+}
+
+TOnlineAsyncOpHandle<FQueryPresence> FPresenceCommon::QueryPresence(FQueryPresence::Params&& Params)
+{
+	TOnlineAsyncOp<FQueryPresence>& Operation = GetOp<FQueryPresence>(MoveTemp(Params));
+	Operation.SetError(Errors::Unimplemented());
+	return Operation.GetHandle();
+}
+
+TOnlineResult<FGetPresence::Result> FPresenceCommon::GetPresence(FGetPresence::Params&& Params)
+{
+	return TOnlineResult<FGetPresence::Result>(Errors::Unimplemented());
+}
+
+TOnlineAsyncOpHandle<FUpdatePresence> FPresenceCommon::UpdatePresence(FUpdatePresence::Params&& Params)
+{
+	TOnlineAsyncOp<FUpdatePresence>& Operation = GetMergeableOp<FUpdatePresence>(MoveTemp(Params));
+	Operation.SetError(Errors::Unimplemented());
+	return Operation.GetHandle();
+}
+
+TOnlineEvent<void(const FPresenceUpdated&)> FPresenceCommon::OnPresenceUpdated()
+{
+	return OnPresenceUpdatedEvent;
+}
+
+/* UE::Online */ }

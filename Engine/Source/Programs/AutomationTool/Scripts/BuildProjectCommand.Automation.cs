@@ -71,8 +71,8 @@ namespace AutomationScripts
 
 			LogInformation("********** BUILD COMMAND STARTED **********");
 
-			var UE4Build = new UE4Build(Command);
-			var Agenda = new UE4Build.BuildAgenda();
+			var UnrealBuild = new UnrealBuild(Command);
+			var Agenda = new UnrealBuild.BuildAgenda();
 			var CrashReportPlatforms = new HashSet<UnrealTargetPlatform>();
 
 			// Setup editor targets
@@ -214,24 +214,24 @@ namespace AutomationScripts
 			UniquePlatforms.UnionWith(Params.ServerTargetPlatforms.Select(x => x.Type));
 			foreach (UnrealTargetPlatform TargetPlatform in UniquePlatforms)
 			{
-				Platform.GetPlatform(TargetPlatform).PreBuildAgenda(UE4Build, Agenda, Params);
+				Platform.GetPlatform(TargetPlatform).PreBuildAgenda(UnrealBuild, Agenda, Params);
 			}
 
-			UE4Build.Build(Agenda, InDeleteBuildProducts: Params.Clean, InUpdateVersionFiles: WorkingCL > 0);
+			UnrealBuild.Build(Agenda, InDeleteBuildProducts: Params.Clean, InUpdateVersionFiles: WorkingCL > 0);
 
 			if (WorkingCL > 0) // only move UAT files if we intend to check in some build products
 			{
-				UE4Build.AddUATFilesToBuildProducts();
+				UnrealBuild.AddUATFilesToBuildProducts();
 			}
-			UE4Build.CheckBuildProducts(UE4Build.BuildProductFiles);
+			UnrealBuild.CheckBuildProducts(UnrealBuild.BuildProductFiles);
 
 			if (WorkingCL > 0)
 			{
 				// Sign everything we built
-				CodeSign.SignMultipleIfEXEOrDLL(Command, UE4Build.BuildProductFiles);
+				CodeSign.SignMultipleIfEXEOrDLL(Command, UnrealBuild.BuildProductFiles);
 
 				// Open files for add or edit
-				UE4Build.AddBuildProductsToChangelist(WorkingCL, UE4Build.BuildProductFiles);
+				UnrealBuild.AddBuildProductsToChangelist(WorkingCL, UnrealBuild.BuildProductFiles);
 			}
 
 			LogInformation("********** BUILD COMMAND COMPLETED **********");

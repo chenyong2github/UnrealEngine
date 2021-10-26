@@ -1,66 +1,47 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDocumentationAnchor.h"
+
+#include "EditorClassUtils.h"
+#include "EditorStyleSet.h"
+#include "IDocumentation.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SToolTip.h"
-#include "IDocumentation.h"
+#include "SSimpleButton.h"
 
 void SDocumentationAnchor::Construct(const FArguments& InArgs )
 {
 	Link = InArgs._Link;
-	
+
+	SetVisibility(TAttribute<EVisibility>::CreateLambda([this]()
+		{
+			return Link.Get(FString()).IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+		}));
+
 	TAttribute<FText> ToolTipText = InArgs._ToolTipText;
-	if ( !ToolTipText.IsBound() && ToolTipText.Get().IsEmpty() )
+	if (!ToolTipText.IsBound() && ToolTipText.Get().IsEmpty())
 	{
 		ToolTipText = NSLOCTEXT("DocumentationAnchor", "DefaultToolTip", "Click to open documentation");
 	}
 
-	Default = FEditorStyle::GetBrush( "HelpIcon" );
-	Hovered = FEditorStyle::GetBrush( "HelpIcon.Hovered" );
-	Pressed = FEditorStyle::GetBrush( "HelpIcon.Pressed" );
-
-	FString PreviewLink = InArgs._PreviewLink;
-	if (!PreviewLink.IsEmpty())
-	{
-		// All in-editor udn documents must live under the Shared/ folder
-		ensure(PreviewLink.StartsWith(TEXT("Shared/")));
-	}
+	const FString PreviewLink = InArgs._PreviewLink;
+	// All in-editor UDN documents must live under the Shared/ folder
+	ensure(PreviewLink.IsEmpty() || PreviewLink.StartsWith(TEXT("Shared/")));
 
 	ChildSlot
 	[
-		SAssignNew( Button, SButton )
-		.ContentPadding( 0 )
-		.ButtonStyle( FEditorStyle::Get(), "HelpButton" )
-		.OnClicked( this, &SDocumentationAnchor::OnClicked )
-		.HAlign( HAlign_Center )
-		.VAlign( VAlign_Center )
-		.ToolTip( IDocumentation::Get()->CreateToolTip( ToolTipText, NULL, PreviewLink, InArgs._PreviewExcerptName ) )
-		[
-			SAssignNew(ButtonImage, SImage)
-			.Image( this, &SDocumentationAnchor::GetButtonImage )
-		]
+		SAssignNew(Button, SSimpleButton)
+		.OnClicked(this, &SDocumentationAnchor::OnClicked)
+		.Icon(FAppStyle::Get().GetBrush("Icons.Help"))
+		.ToolTip(IDocumentation::Get()->CreateToolTip(ToolTipText, nullptr, PreviewLink, InArgs._PreviewExcerptName))
 	];
 }
 
-const FSlateBrush* SDocumentationAnchor::GetButtonImage() const
-{
-	if ( Button->IsPressed() )
-	{
-		return Pressed;
-	}
-
-	if ( ButtonImage->IsHovered() )
-	{
-		return Hovered;
-	}
-
-	return Default;
-}
 
 FReply SDocumentationAnchor::OnClicked() const
 {
-	IDocumentation::Get()->Open(Link.Get(), FDocumentationSourceInfo(TEXT("doc_anchors")));
+	IDocumentation::Get()->Open(Link.Get(FString()), FDocumentationSourceInfo(TEXT("doc_anchors")));
 	return FReply::Handled();
 }

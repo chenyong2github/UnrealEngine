@@ -1581,6 +1581,24 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 			.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
 		];
 	}
+	
+	{
+		ChildrenBuilder.AddCustomRow( LOCTEXT("UseBackwardsCompatibleF16TruncUVs", "UE4 Compatible UVs") )
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font( IDetailLayoutBuilder::GetDetailFont() )
+			.Text(LOCTEXT("UseBackwardsCompatibleF16TruncUVs", "UE4 Compatible UVs"))
+			.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FSkeletalMeshBuildSettingsLayout::ShouldUseBackwardsCompatibleF16TruncUVs)
+			.OnCheckStateChanged(this, &FSkeletalMeshBuildSettingsLayout::OnUseBackwardsCompatibleF16TruncUVsChanged)
+			.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+		];
+	}
 
 	{
 		FDetailWidgetRow& PositionThreshold = AddFloatRow(ChildrenBuilder,
@@ -1795,6 +1813,10 @@ ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseFullPrecisionUVs() con
 {
 	return BuildSettings.bUseFullPrecisionUVs ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
+ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseBackwardsCompatibleF16TruncUVs() const
+{
+	return BuildSettings.bUseBackwardsCompatibleF16TruncUVs ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
 
 void FSkeletalMeshBuildSettingsLayout::OnRecomputeNormalsChanged(ECheckBoxState NewState)
 {
@@ -1886,6 +1908,18 @@ void FSkeletalMeshBuildSettingsLayout::OnUseFullPrecisionUVsChanged(ECheckBoxSta
 
 			BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs;
 		}
+	}
+}
+void FSkeletalMeshBuildSettingsLayout::OnUseBackwardsCompatibleF16TruncUVsChanged(ECheckBoxState NewState)
+{
+	const bool bUseBackwardsCompatibleF16TruncUVs = (NewState == ECheckBoxState::Checked) ? true : false;
+	if (BuildSettings.bUseBackwardsCompatibleF16TruncUVs != bUseBackwardsCompatibleF16TruncUVs)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaChangedUseBackwardsCompatibleF16TruncUVsLOD", "LOD{0} build settings: bUseBackwardsCompatibleF16TruncUVs changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.bUseBackwardsCompatibleF16TruncUVs = bUseBackwardsCompatibleF16TruncUVs;
 	}
 }
 

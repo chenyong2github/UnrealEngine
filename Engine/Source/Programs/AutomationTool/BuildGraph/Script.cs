@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -1590,9 +1591,11 @@ namespace AutomationTool
 					return CustomTask.ResolveDirectory(ValueText);
 				}
 			}
-			else if (ValueType == typeof(UnrealTargetPlatform))
+
+			var Converter = TypeDescriptor.GetConverter(ValueType);
+			if (Converter.CanConvertFrom(typeof(string)))
 			{
-				return UnrealTargetPlatform.Parse(ValueText);
+				return Converter.ConvertFromString(ValueText);
 			}
 			else
 			{

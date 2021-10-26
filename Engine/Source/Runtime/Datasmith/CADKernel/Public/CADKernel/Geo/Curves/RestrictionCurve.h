@@ -158,7 +158,7 @@ namespace CADKernel
 			Polyline.CheckIfDegenerated(Tolerance, Tolerances2D, InBoundary, bDegeneration2D, bDegeneration3D, Length3D);
 		}
 
-		void GetExtremities(const FLinearBoundary& InBoundary, FSurfacicCurveExtremity& Extremities) const
+		void GetExtremities(const FLinearBoundary& InBoundary, FSurfacicCurveExtremities& Extremities) const
 		{
 			double Tolerance = GetCarrierSurface()->Get3DTolerance();
 			const FSurfacicTolerance& Tolerances2D = GetCarrierSurface()->GetIsoTolerances();

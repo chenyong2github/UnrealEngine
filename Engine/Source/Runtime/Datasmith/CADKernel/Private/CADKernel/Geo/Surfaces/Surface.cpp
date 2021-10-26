@@ -19,7 +19,8 @@ namespace CADKernel
 	{
 		return FEntityGeom::GetInfo(Info)
 			.Add(TEXT("Surface type"), SurfacesTypesNames[(uint8)GetSurfaceType()])
-			.Add(TEXT("Boundary"), Boundary);
+			.Add(TEXT("Boundary"), Boundary)
+			.Add(TEXT("MinToleranceIso"), (FPoint2D) *MinToleranceIso);
 	}
 #endif
 
@@ -200,8 +201,8 @@ namespace CADKernel
 		const FCoordinateGrid& CoordinateGrid = Grid.GetCuttingCoordinates();
 		EvaluatePointGrid(CoordinateGrid, OutPoints, true);
 
-		Swap(OutPoints.Points3D, Grid.GetInner3DPoints());
-		Swap(OutPoints.Normals, Grid.GetNormals());
+		Grid.GetInner3DPoints() = MoveTemp(OutPoints.Points3D);
+		Grid.GetNormals() = MoveTemp(OutPoints.Normals);
 	}
 
 } // namespace CADKernel

@@ -1502,8 +1502,8 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 		FStructuredArchive::FRecord PropertiesRecord = Slot.EnterRecord();
 
-		check(UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory());
-		checkf(!UnderlyingArchive.ArUseCustomPropertyList, 
+		check(UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory() || UnderlyingArchive.IsObjectReferenceCollector());
+		checkf(!UnderlyingArchive.ArUseCustomPropertyList,
 				TEXT("Custom property lists only work with binary serialization, not tagged property serialization. "
 					 "Attempted for struct '%s' and archive '%s'. "), *GetFName().ToString(), *UnderlyingArchive.GetArchiveName());
 

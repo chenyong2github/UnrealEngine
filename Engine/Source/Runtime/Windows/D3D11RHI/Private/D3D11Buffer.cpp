@@ -268,3 +268,14 @@ void FD3D11DynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 		Dest->Swap(*Src);
 	}
 }
+
+void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR* Name)
+{
+	check(BufferRHI);
+	FName DebugName(Name);
+	BufferRHI->SetName(DebugName);
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	FD3D11Buffer* BufferD3D = ResourceCast(BufferRHI);
+	BufferD3D->Resource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
+#endif
+}

@@ -34,12 +34,12 @@ void UHoloLensTargetSettings::PostInitProperties()
 			TileBackgroundColor = FColor::FromHex(OldTileBackgroundColorHex);
 			SplashScreenBackgroundColor = FColor::FromHex(OldSplashScreenBackgroundColorHex);
 
-			UpdateDefaultConfigFile();
+			TryUpdateDefaultConfigFile();
 		}
 		GConfig->EmptySection(TEXT("/Script/HoloLensTargetPlatform.HoloLensTargetSettings"), DefaultConfigFile);
 		if (!GConfig->DoesSectionExist(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), DefaultConfigFile))
 		{
-			UpdateDefaultConfigFile();
+			TryUpdateDefaultConfigFile();
 		}
 	}
 

@@ -959,6 +959,15 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	const TArray< TSharedRef< const FMultiBlock > >& Blocks = MultiBox->GetBlocks();
 	if ( Blocks.Num() == 0 )
 	{
+		// Clear content if there was any
+		if (ChildSlot.Num() > 0 && ChildSlot.GetWidget() != SNullWidget::NullWidget)
+		{
+			ChildSlot
+			[
+				SNullWidget::NullWidget
+			];
+		}
+
 		return;
 	}
 
@@ -1735,4 +1744,15 @@ bool SMultiBoxWidget::OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipConte
 	// tooltips on multibox widgets are not supported outside of the editor or programs
 	return !GIsEditor && !FGenericPlatformProperties::IsProgram();
 }
+
+void SMultiBoxWidget::SetSummonedMenuTime(double InSummonedMenuTime)
+{
+	SummonedMenuTime = InSummonedMenuTime;
+}
+
+double SMultiBoxWidget::GetSummonedMenuTime() const
+{
+	return SummonedMenuTime;
+}
+
 #undef LOCTEXT_NAMESPACE

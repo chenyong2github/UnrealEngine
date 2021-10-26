@@ -737,7 +737,7 @@ struct NETCODEUNITTEST_API NUTDebug
 	 */
 	static inline void StringToBytes(const FString& InString, TArray<uint8>& OutBytes)
 	{
-		TArray<TCHAR> InStrCharArray = InString.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType> InStrCharArray = InString.GetCharArray();
 
 		for (int i=0; i<InString.Len(); i++)
 		{

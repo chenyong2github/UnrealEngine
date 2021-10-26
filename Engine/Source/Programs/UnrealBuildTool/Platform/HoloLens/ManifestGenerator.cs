@@ -1029,8 +1029,8 @@ namespace UnrealBuildTool
 					Node.ParentNode.RemoveChild(Node);
 				}
 
-				// The Xbox One approach to limiting the indexer causes files to have dodgy uris in the 
-				// generated pri e.g. ms-resource://PackageIdentityName/Files/Logo.png instead of ms-resource://PackageIdentityName/Files/Resources/Logo.png
+				// The approach to limiting the indexer causes files to have dodgy uris in the generated pri e.g.
+				// ms-resource://PackageIdentityName/Files/Logo.png instead of ms-resource://PackageIdentityName/Files/Resources/Logo.png
 				// This appears to affect Windows's ability to locate a valid image in some scenarios such as a
 				// desktop shortcut.  So on HoloLens we start from the root and add exclusions.
 				XmlNodeList ConfigNodes = PriConfig.SelectNodes("/resources/index/indexer-config");
@@ -2237,7 +2237,6 @@ namespace UnrealBuildTool
 			return SplashScreen;
 		}
 
-        // for ease of integration with mainline, allow Epic's implementation for XboxOne to flow through unchanged
         private XmlNode GetCapabilities(UnrealTargetPlatform TargetPlatform)
         {
             XmlElement Capabilities = AppxManifestXmlDocument.CreateElement("Capabilities");
@@ -2354,8 +2353,7 @@ namespace UnrealBuildTool
 		{
 			System.Xml.Schema.XmlSchemaSet AppxSchema = new System.Xml.Schema.XmlSchemaSet();
 
-			// Validate against VS2017 schemas if possible
-			DirectoryReference VSInstallDir;
+			// Validate against VS schemas if possible
 			DirectoryReference SdkSchemaFolder = null;
 			DirectoryReference VSSchemaFolder = null;
 			DirectoryReference PhoneSchemaFolder = null;
@@ -2373,13 +2371,14 @@ namespace UnrealBuildTool
 			SdkSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Include", SDKVersion.ToString(), "winrt");
 			PhoneSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Extension SDKs", "WindowsMobile", SDKVersion.ToString(), "Include", "WinRT");
 
-			if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
+			IEnumerable<DirectoryReference> VSInstallDirs;
+			if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019)))
 			{
-				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
+				VSSchemaFolder = DirectoryReference.Combine(VSInstallDirs.First(), "Xml", "Schemas");
 			}
-			else if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2022, out VSInstallDir))
+			else if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022)))
 			{
-				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
+				VSSchemaFolder = DirectoryReference.Combine(VSInstallDirs.First(), "Xml", "Schemas");
 			}
 
 			string[] RequiredSchemas =

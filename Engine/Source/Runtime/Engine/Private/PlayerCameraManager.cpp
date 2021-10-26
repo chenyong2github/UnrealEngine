@@ -3,11 +3,13 @@
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Pawn.h"
 #include "CollisionQueryParams.h"
+#include "UObject/ObjectMacros.h"
 #include "WorldCollision.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Camera/CameraActor.h"
 #include "Engine/Canvas.h"
+#include "Features/IModularFeatures.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "AudioDevice.h"
@@ -17,6 +19,7 @@
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraModifier.h"
 #include "Camera/CameraModifier_CameraShake.h"
+#include "Camera/CameraModularFeature.h"
 #include "Camera/CameraPhotography.h"
 #include "Camera/CameraShakeBase.h"
 #include "GameFramework/PlayerState.h"
@@ -766,9 +769,20 @@ void APlayerCameraManager::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
  	// Setup default camera modifiers
-	if (DefaultModifiers.Num() > 0)
+	TArray<TSubclassOf<UCameraModifier>> AllDefaultModifiers(DefaultModifiers);
+	TArray<ICameraModularFeature*> CameraModularFeatures = IModularFeatures::Get()
+		.GetModularFeatureImplementations<ICameraModularFeature>(ICameraModularFeature::GetModularFeatureName());
+	for (const ICameraModularFeature* CameraModularFeature : CameraModularFeatures)
 	{
-		for (auto ModifierClass : DefaultModifiers)
+		if (ensure(CameraModularFeature))
+		{
+			CameraModularFeature->GetDefaultModifiers(AllDefaultModifiers);
+		}
+	}
+
+	if (AllDefaultModifiers.Num() > 0)
+	{
+		for (auto ModifierClass : AllDefaultModifiers)
 		{
 			// empty entries are not valid here, do work only for actual classes
 			if (ModifierClass)

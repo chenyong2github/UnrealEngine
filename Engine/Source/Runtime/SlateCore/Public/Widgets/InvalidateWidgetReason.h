@@ -27,7 +27,7 @@ enum class EInvalidateWidgetReason : uint8
 	Volatility = 1 << 2,
 
 	/**
-	 * A child was added or removed.   (this implies layout)
+	 * A child was added or removed.   (this implies prepass and layout)
 	 */
 	ChildOrder = 1 << 3,
 

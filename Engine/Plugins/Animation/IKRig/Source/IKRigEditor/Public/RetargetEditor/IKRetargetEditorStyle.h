@@ -8,7 +8,7 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
 
-class FIKRetargetEditorStyle	: public FSlateStyleSet
+class FIKRetargetEditorStyle final	: public FSlateStyleSet
 {
 public:
 	

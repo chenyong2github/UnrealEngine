@@ -13,6 +13,7 @@ using System.Xml.Schema;
 using System.Xml.Serialization;
 using EpicGames.Core;
 using UnrealBuildTool;
+using EpicGames.MCP.Automation;
 
 namespace AutomationTool
 {
@@ -288,6 +289,7 @@ namespace AutomationTool
 			TypeToSchemaTypeName.Add(typeof(FileReference), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
 			TypeToSchemaTypeName.Add(typeof(DirectoryReference), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
 			TypeToSchemaTypeName.Add(typeof(UnrealTargetPlatform), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
+			TypeToSchemaTypeName.Add(typeof(MCPPlatform), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
 
 			// Create all the custom user types, and add them to the qualified name lookup
 			List<XmlSchemaType> UserTypes = new List<XmlSchemaType>();

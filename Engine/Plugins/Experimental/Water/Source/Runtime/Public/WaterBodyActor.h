@@ -77,7 +77,7 @@ public:
 	
 	/** Returns the type of body */
 	UFUNCTION(BlueprintCallable, Category=Water)
-	virtual EWaterBodyType GetWaterBodyType() const { return WaterBodyType; }
+	virtual EWaterBodyType GetWaterBodyType() const { return IsTemplate() ? WaterBodyType : GetClass()->GetDefaultObject<AWaterBody>()->WaterBodyType; }
 	
 	/** Returns water spline component */
 	UFUNCTION(BlueprintCallable, Category=Water)
@@ -297,6 +297,7 @@ protected:
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth) const final { return WaterBodyComponent->GetWaveAttenuationFactor(InPosition, InWaterDepth); }
 
+	friend class UWaterBodyComponent;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UPhysicalMaterial* PhysicalMaterial_DEPRECATED;

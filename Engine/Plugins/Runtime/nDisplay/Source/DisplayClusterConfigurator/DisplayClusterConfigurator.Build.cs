@@ -45,7 +45,8 @@ public class DisplayClusterConfigurator : ModuleRules
 				"ToolMenus",
 				"UnrealEd",
 				"SubobjectEditor",
-				"SubobjectDataInterface"
+				"SubobjectDataInterface",
+				"ToolWidgets",
 			});
 	}
 }

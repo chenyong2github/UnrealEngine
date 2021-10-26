@@ -53,11 +53,15 @@ void FSessionTraceFilterService::OnApplyChannelChanges()
 	ISocketSubsystem* Sockets = ISocketSubsystem::Get();
 	TSharedRef<FInternetAddr> ClientAddr(Sockets->CreateInternetAddr());
 	ClientAddr->SetIp(SessionInfo->GetIpAddress());
-	ClientAddr->SetPort(1985);
+	ClientAddr->SetPort(SessionInfo->GetControlPort());
+
+	
+	UE_LOG(LogTemp, Display, TEXT("CONNECTING TO %u:%u (handle: %llu"), SessionInfo->GetIpAddress(), SessionInfo->GetControlPort(), Handle);
 
 	UE::Trace::FControlClient ControlClient;
 	if (!ControlClient.Connect(ClientAddr.Get()))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("FAILED TO CONNECT TO %u:%u"), SessionInfo->GetIpAddress(), SessionInfo->GetControlPort());
 		return;
 	}
 

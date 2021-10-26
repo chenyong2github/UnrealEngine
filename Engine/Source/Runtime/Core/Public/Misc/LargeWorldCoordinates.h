@@ -38,3 +38,18 @@ namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */
 
 // Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range
 #define UE_REAL_TO_FLOAT(argument) static_cast<float>(argument)
+
+// Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to max float.
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) argument
+#else
+#define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) static_cast<float>(FMath::Min(argument, TNumericLimits<float>::Max()))
+#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
+
+// Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to min / max float.
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#define UE_REAL_TO_FLOAT_CLAMPED(argument) argument
+#else
+#define UE_REAL_TO_FLOAT_CLAMPED(argument) static_cast<float>(FMath::Clamp(argument, TNumericLimits<float>::Lowest(), TNumericLimits<float>::Max()))
+#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
+

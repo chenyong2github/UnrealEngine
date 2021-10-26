@@ -122,10 +122,10 @@ FColor FLinearColor::ToRGBE() const
 		
 		FColor	Color;
 		// no clamp needed, should always fit in uint8 :
-		Color.R = TCheckValueCast<uint8>( (int)(NonNegativeR * Scale) );
-		Color.G = TCheckValueCast<uint8>( (int)(NonNegativeG * Scale) );
-		Color.B = TCheckValueCast<uint8>( (int)(NonNegativeB * Scale) );
-		Color.A = TCheckValueCast<uint8>( Exponent + 128 );
+		Color.R = CheckValueCast<uint8>( (int)(NonNegativeR * Scale) );
+		Color.G = CheckValueCast<uint8>( (int)(NonNegativeG * Scale) );
+		Color.B = CheckValueCast<uint8>( (int)(NonNegativeB * Scale) );
+		Color.A = CheckValueCast<uint8>( Exponent + 128 );
 		return Color;
 	}
 }

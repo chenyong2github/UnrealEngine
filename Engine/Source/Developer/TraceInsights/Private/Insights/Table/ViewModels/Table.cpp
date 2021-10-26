@@ -20,7 +20,7 @@ namespace Insights
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTable::FTable()
-	: Name()
+	: DisplayName()
 	, Description()
 	, Columns()
 	, ColumnIdToPtrMapping()
@@ -130,29 +130,48 @@ void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
 
 void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, const FName& LogListingName, TCHAR Separator, bool bIncludeHeaders, FString& OutData) const
 {
+	constexpr TCHAR LineEnd = TEXT('\n');
+	constexpr TCHAR QuotationMarkBegin = TEXT('\"');
+	constexpr TCHAR QuotationMarkEnd = TEXT('\"');
+
 	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
 	GetVisibleColumns(VisibleColumns);
 
 	// Table headers
 	if (bIncludeHeaders)
 	{
+		bool bIsFirstColumn = true;
 		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
 		{
-			OutData += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				OutData += Separator;
+			}
+			FString Value = ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				OutData += QuotationMarkBegin;
+				OutData += Value;
+				OutData += QuotationMarkEnd;
+			}
+			else
+			{
+				OutData += Value;
+			}
 		}
+		OutData += LineEnd;
 	}
 
-	if (OutData.Len() > 0)
-	{
-		OutData.RemoveAt(OutData.Len() - 1, 1, false);
-		OutData.AppendChar(TEXT('\n'));
-	}
-
-	static int32 Max_Rows = 100000;
+	constexpr int32 MaxRows = 100000;
 	int32 NumItems = InNodes.Num();
-	if (NumItems > Max_Rows)
+	if (NumItems > MaxRows)
 	{
-		NumItems = Max_Rows;
+		NumItems = MaxRows;
 
 		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
 		ReportMessageLog.Warning(FText::Format(LOCTEXT("TooManyRows", "Too many rows selected. Only the first {0} will be copied."), NumItems));
@@ -163,17 +182,32 @@ void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InN
 	for (int Index = 0; Index < NumItems; Index++)
 	{
 		const Insights::FBaseTreeNodePtr& Node = InNodes[Index];
+
+		bool bIsFirstColumn = true;
 		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
 		{
-			FText NodeText = ColumnRef->GetValueAsText(*Node);
-			OutData += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				OutData += Separator;
+			}
+			FString Value = ColumnRef->GetValueAsText(*Node).ToString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				OutData += QuotationMarkBegin;
+				OutData += Value;
+				OutData += QuotationMarkEnd;
+			}
+			else
+			{
+				OutData += Value;
+			}
 		}
-
-		if (OutData.Len() > 0)
-		{
-			OutData.RemoveAt(OutData.Len() - 1, 1, false);
-			OutData.AppendChar(TEXT('\n'));
-		}
+		OutData += LineEnd;
 	}
 }
 

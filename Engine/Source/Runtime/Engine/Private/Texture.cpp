@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/ScopeExit.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ObjectSaveContext.h"
@@ -31,6 +32,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Compression/OodleDataCompression.h"
 #include "Engine/TextureCube.h"
+#include "Engine/RendererSettings.h"
+#include "ColorSpace.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -95,10 +98,10 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 {
 	SRGB = true;
-	SourceEncodingOverride = ETextureSourceEncoding::TSE_None;
 	Filter = TF_Default;
 	MipLoadOptions = ETextureMipLoadOptions::Default;
 #if WITH_EDITORONLY_DATA
+	SourceColorSettings = FTextureSourceColorSettings();
 	AdjustBrightness = 1.0f;
 	AdjustBrightnessCurve = 1.0f;
 	AdjustVibrance = 0.0f;
@@ -112,6 +115,8 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	CompositeTextureMode = CTM_NormalRoughnessToAlpha;
 	CompositePower = 1.0f;
 	bUseLegacyGamma = false;
+	bIsImporting = false;
+	bCustomPropertiesImported = false;
 	AlphaCoverageThresholds = FVector4(0, 0, 0, 0);
 	PaddingColor = FColor::Black;
 	ChromaKeyColor = FColorList::Magenta;
@@ -236,6 +241,46 @@ void UTexture::UpdateResource()
 	}
 }
 
+void UTexture::ExportCustomProperties(FOutputDevice& Out, uint32 Indent)
+{
+#if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	// Texture source data export : first, make sure it is ready for export :
+	FinishCachePlatformData();
+
+	Source.ExportCustomProperties(Out, Indent);
+
+	Out.Logf(TEXT("\r\n"));
+#endif // WITH_EDITOR
+}
+
+void UTexture::ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn)
+{
+#if WITH_EDITOR
+	Source.ImportCustomProperties(SourceText, Warn);
+
+	BeginCachePlatformData();
+
+	bCustomPropertiesImported = true;
+#endif // WITH_EDITOR
+}
+
+void UTexture::PostEditImport()
+{
+#if WITH_EDITOR
+	bIsImporting = true;
+
+	if (bCustomPropertiesImported)
+	{
+		FinishCachePlatformData();
+	}
+#endif // WITH_EDITOR
+}
+
 bool UTexture::IsPostLoadThreadSafe() const
 {
 	return false;
@@ -270,6 +315,18 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 		{
 			return !HasHDRSource();
 		}
+		
+		// Only enable chromatic adapation method when the white points differ.
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FTextureSourceColorSettings, ChromaticAdaptationMethod))
+		{
+			if (SourceColorSettings.ColorSpace == ETextureColorSpace::TCS_None)
+			{
+				return false;
+			}
+
+			const URendererSettings* Settings = GetDefault<URendererSettings>();
+			return !Settings->WhiteChromaticityCoordinate.Equals(SourceColorSettings.WhiteChromaticityCoordinate);
+		}
 
 		// Virtual Texturing is only supported for Texture2D 
 		static const FName VirtualTextureStreamingName = GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming);
@@ -284,8 +341,25 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 
 void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::PostEditChangeProperty);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture_PostEditChangeProperty);
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+#if WITH_EDITOR
+	ON_SCOPE_EXIT
+	{
+		// PostEditChange is the last step in the import sequence (PreEditChange/PostEditImport/PostEditChange, called twice : see further details) so reset the import-related flags here:
+		bIsImporting = false;
+		bCustomPropertiesImported = false;
+	};
+
+	// When PostEditChange is called as part of the import process (PostEditImport has just been called), it may be called twice : once for the (sub-)object declaration, and once for the definition, the latter being 
+	//  when ImportCustomProperties is called. Because texture bulk data is only being copied to in ImportCustomProperties, it's invalid to do anything the first time so we postpone it to the second call :
+	if (bIsImporting && !bCustomPropertiesImported)
+	{
+		return;
+	}
+#endif // WITH_EDITOR
 
 	SetLightingGuid();
 
@@ -303,6 +377,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		static const FName SrgbName = GET_MEMBER_NAME_CHECKED(UTexture, SRGB);
 		static const FName VirtualTextureStreamingName = GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming);
 #if WITH_EDITORONLY_DATA
+		static const FName SourceColorSpaceName = GET_MEMBER_NAME_CHECKED(FTextureSourceColorSettings, ColorSpace);
 		static const FName MaxTextureSizeName = GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize);
 		static const FName CompressionQualityName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionQuality);
 #endif //WITH_EDITORONLY_DATA
@@ -338,6 +413,15 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			DeferCompressionWasEnabled = DeferCompression;
 		}
 #if WITH_EDITORONLY_DATA
+		else if (PropertyName == SourceColorSpaceName)
+		{
+			// Update the chromaticity coordinates member variables based on the color space choice (unless custom).
+			if (SourceColorSettings.ColorSpace != ETextureColorSpace::TCS_Custom)
+			{
+				UE::Color::FColorSpace ColorSpace(static_cast<UE::Color::EColorSpace>(SourceColorSettings.ColorSpace));
+				ColorSpace.GetChromaticities(SourceColorSettings.RedChromaticityCoordinate, SourceColorSettings.GreenChromaticityCoordinate, SourceColorSettings.BlueChromaticityCoordinate, SourceColorSettings.WhiteChromaticityCoordinate);
+			}
+		}
 		else if (PropertyName == CompressionQualityName)
 		{
 			RequiresNotifyMaterials = true;
@@ -359,14 +443,15 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			RequiresNotifyMaterials = true;
 		}
 #endif //WITH_EDITORONLY_DATA
-
-		bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
-		if(bPreventSRGB && SRGB == true)
-		{
-			SRGB = false;
-		}
 	}
-	else if (!GDisableAutomaticTextureMaterialUpdateDependencies)
+
+	const bool bPreventSRGB = (CompressionSettings == TC_Alpha || CompressionSettings == TC_Normalmap || CompressionSettings == TC_Masks || CompressionSettings == TC_HDR || CompressionSettings == TC_HDR_Compressed || CompressionSettings == TC_HalfFloat);
+	if (bPreventSRGB && SRGB == true)
+	{
+		SRGB = false;
+	}
+
+	if (!PropertyThatChanged && !GDisableAutomaticTextureMaterialUpdateDependencies)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDependentMaterials);
 
@@ -1689,6 +1774,97 @@ FSharedBuffer FTextureSource::TryDecompressJpegData(IImageWrapperModule* ImageWr
 	}	
 }
 
+void FTextureSource::ExportCustomProperties(FOutputDevice& Out, uint32 Indent)
+{
+	check(LockState == ELockState::None);
+
+	FSharedBuffer Payload = BulkData.GetPayload().Get();
+	uint64 PayloadSize = Payload.GetSize();
+
+	Out.Logf(TEXT("%sCustomProperties TextureSourceData "), FCString::Spc(Indent));
+
+	Out.Logf(TEXT("PayloadSize=%llu "), PayloadSize);
+	TArrayView<uint8> Buffer((uint8*)Payload.GetData(), PayloadSize);
+	for (uint8 Element : Buffer)
+	{
+		Out.Logf(TEXT("%x "), Element);
+	}
+}
+
+void FTextureSource::ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn)
+{
+	check(LockState == ELockState::None);
+
+	if (FParse::Command(&SourceText, TEXT("TextureSourceData")))
+	{
+		uint64 PayloadSize = 0;
+		if (FParse::Value(SourceText, TEXT("PayloadSize="), PayloadSize))
+		{
+			while (*SourceText && (!FChar::IsWhitespace(*SourceText)))
+			{
+				++SourceText;
+			}
+			FParse::Next(&SourceText);
+		}
+
+		bool bSuccess = true;
+		if (PayloadSize > (uint64)0)
+		{
+			TCHAR* StopStr;
+			FUniqueBuffer Buffer = FUniqueBuffer::Alloc(PayloadSize);
+			uint8* DestData = (uint8*)Buffer.GetData();
+			if (DestData)
+			{
+				uint64 Index = 0;
+				while (FChar::IsHexDigit(*SourceText))
+				{
+					if (Index < PayloadSize)
+					{
+						DestData[Index++] = (uint8)FCString::Strtoi(SourceText, &StopStr, 16);
+						while (FChar::IsHexDigit(*SourceText))
+						{
+							SourceText++;
+						}
+					}
+					FParse::Next(&SourceText);
+				}
+
+				if (Index != PayloadSize)
+				{
+					Warn->Log(*NSLOCTEXT("UnrealEd", "Importing_TextureSource_SyntaxError", "Syntax Error").ToString());
+					bSuccess = false;
+				}
+			}
+			else
+			{
+				Warn->Log(*NSLOCTEXT("UnrealEd", "Importing_TextureSource_BulkDataAllocFailure", "Couldn't allocate bulk data").ToString());
+				bSuccess = false;
+			}
+			
+			if (bSuccess)
+			{
+				BulkData.UpdatePayload(Buffer.MoveToShared());
+			}
+		}
+
+		if (bSuccess)
+		{
+			if (!bGuidIsHash)
+			{
+				ForceGenerateGuid();
+			}
+		}
+		else
+		{
+			BulkData.Reset();
+		}
+	}
+	else
+	{
+		Warn->Log(*NSLOCTEXT("UnrealEd", "Importing_TextureSource_MissingTextureSourceDataCommand", "Missing TextureSourceData tag from import text.").ToString());
+	}
+}
+
 bool FTextureSource::CanPNGCompress() const
 {
 	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
@@ -1809,6 +1985,8 @@ void FTextureSource::UseHashAsGuid()
 {
 	if (HasPayloadData())
 	{
+		checkf(LockState == ELockState::None, TEXT("UseHashAsGuid shouldn't be called in-between LockMip/UnlockMip"));
+
 		bGuidIsHash = true;
 		Id = BulkData.GetPayloadId().ToGuid();
 	}

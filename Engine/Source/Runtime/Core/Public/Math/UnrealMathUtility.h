@@ -2270,4 +2270,25 @@ TArray<TDest, InAllocatorType> ConvertArrayType(const TArray<TSrc, InAllocatorTy
 	}
 }
 
+// Convert array to a new type and clamps values to the Max of TDest type
+template<typename TDest, typename TSrc, typename InAllocatorType>
+TArray<TDest, InAllocatorType> ConvertArrayTypeClampMax(const TArray<TSrc, InAllocatorType>& From)
+{
+	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to ConvertArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
+	if constexpr (std::is_same<TDest, TSrc>::value)
+	{
+		return From;
+	}
+	else
+	{
+		TArray<TDest, InAllocatorType> Converted;
+		Converted.Reserve(From.Num());
+		for (const TSrc& Item : From)
+		{
+			Converted.Add(FMath::Min(TNumericLimits<TDest>::Max(), static_cast<TDest>(Item)));
+		}
+		return Converted;
+	}
+}
+
 }

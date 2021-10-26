@@ -183,3 +183,12 @@ public:
 	int32 Order = -1;
 };
 
+USTRUCT(BlueprintType)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationClusterItemReferenceList
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	TArray<FString> ItemNames;
+};

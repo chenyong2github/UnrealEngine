@@ -9,6 +9,7 @@
 class AUsdStageActor;
 class FUsdLevelSequenceHelperImpl;
 class ULevelSequence;
+class UUsdAssetCache;
 class UUsdPrimTwin;
 
 /**
@@ -32,6 +33,15 @@ public:
 public:
 	/** Creates the main level sequence and subsequences from the usd stage layers */
 	ULevelSequence* Init(const UE::FUsdStage& UsdStage);
+
+	/** Sets the asset cache to use when fetching assets and asset info required for the level sequence animation, like UAnimSequences */
+	void SetAssetCache( UUsdAssetCache* AssetCache );
+
+	/* Returns true if we have at least one possessable or a reference to a subsequence */
+	bool HasData() const;
+
+	/** Call this whenever the stage actor is renamed, to replace the possessable binding with a new one */
+	void OnStageActorRenamed();
 
 	/** Resets the helper, abandoning all managed LevelSequences */
 	void Clear();

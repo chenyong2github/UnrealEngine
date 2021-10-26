@@ -43,7 +43,7 @@ void dtPathQueue::purge()
 	m_navquery = 0;
 	for (int i = 0; i < MAX_QUEUE; ++i)
 	{
-		dtFree(m_queue[i].path);
+		dtFree(m_queue[i].path, DT_ALLOC_PERM_PATH_QUEUE);
 		m_queue[i].path = 0;
 	}
 }
@@ -62,7 +62,7 @@ bool dtPathQueue::init(const int maxPathSize, const int maxSearchNodeCount, dtNa
 	for (int i = 0; i < MAX_QUEUE; ++i)
 	{
 		m_queue[i].ref = DT_PATHQ_INVALID;
-		m_queue[i].path = (dtPolyRef*)dtAlloc(sizeof(dtPolyRef)*m_maxPathSize, DT_ALLOC_PERM);
+		m_queue[i].path = (dtPolyRef*)dtAlloc(sizeof(dtPolyRef)*m_maxPathSize, DT_ALLOC_PERM_PATH_QUEUE);
 		if (!m_queue[i].path)
 			return false;
 	}
@@ -133,7 +133,7 @@ void dtPathQueue::update(const int maxIters)
 }
 
 dtPathQueueRef dtPathQueue::request(dtPolyRef startRef, dtPolyRef endRef,
-									const float* startPos, const float* endPos, const float costLimit, //@UE
+									const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, //@UE
 									const dtQueryFilter* filter, TSharedPtr<dtQuerySpecialLinkFilter> linkFilter)
 {
 	// Find empty slot

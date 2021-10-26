@@ -82,6 +82,7 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 			NodesToProcess.SetNum(NodesToProcess.Num() - 1, /*bAllowShrinking=*/false);
 			ProcessedNodes.Add(NodeIndex); 
 
+
 			for (const int32 EdgeIndex : GraphNode.NodeEdges)
 			{
 				const typename FPBDConstraintGraph::FGraphEdge& GraphEdge = ConstraintGraph.GetGraphEdges()[EdgeIndex];

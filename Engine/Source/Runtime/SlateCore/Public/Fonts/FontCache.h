@@ -583,7 +583,7 @@ private:
 	 * 
 	 * @param Character	The character to cache
 	 */
-	FCharacterListEntry CacheCharacter(TCHAR Character);
+	FCharacterListEntry* CacheCharacter(TCHAR Character);
 
 	/**
 	 * Convert the cached internal entry to the external data for the old non-shaped API

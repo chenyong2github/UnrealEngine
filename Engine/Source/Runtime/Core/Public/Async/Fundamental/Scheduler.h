@@ -201,19 +201,21 @@ namespace LowLevelTasks
 		bool TryExecuteTaskFrom(FSchedulerTls::FLocalQueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork, bool bDisableThrottleStealing);
 
 	private:
-		TEventStack<FSleepEvent> 				SleepEventStack[2];
-		FSchedulerTls::FQueueRegistry 			QueueRegistry;
-		FCriticalSection 						WorkerThreadsCS;
-		TArray<TUniquePtr<FThread>>				WorkerThreads;
-		TArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
-		TArray<FSleepEvent>						WorkerEvents;
-		std::atomic_uint						ActiveWorkers { 0 };
-		std::atomic_uint						NextWorkerId { 0 };
-		uint64									WorkerAffinity = 0;
-		uint64									BackgroundAffinity = 0;
-		EThreadPriority							WorkerPriority = EThreadPriority::TPri_Normal;
-		EThreadPriority							BackgroundPriority = EThreadPriority::TPri_BelowNormal;
-		std::atomic_bool						TemporaryShutdown{ false };
+		template<typename ElementType>
+		using TAlignedArray = TArray<ElementType, TAlignedHeapAllocator<alignof(ElementType)>>;
+		TEventStack<FSleepEvent> 						SleepEventStack[2];
+		FSchedulerTls::FQueueRegistry 					QueueRegistry;
+		FCriticalSection 								WorkerThreadsCS;
+		TArray<TUniquePtr<FThread>>						WorkerThreads;
+		TAlignedArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
+		TAlignedArray<FSleepEvent>						WorkerEvents;
+		std::atomic_uint								ActiveWorkers { 0 };
+		std::atomic_uint								NextWorkerId { 0 };
+		uint64											WorkerAffinity = 0;
+		uint64											BackgroundAffinity = 0;
+		EThreadPriority									WorkerPriority = EThreadPriority::TPri_Normal;
+		EThreadPriority									BackgroundPriority = EThreadPriority::TPri_BelowNormal;
+		std::atomic_bool								TemporaryShutdown{ false };
 	};
 
 	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true)

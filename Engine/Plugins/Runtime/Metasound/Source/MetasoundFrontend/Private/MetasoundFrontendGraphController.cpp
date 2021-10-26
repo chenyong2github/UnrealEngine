@@ -677,7 +677,7 @@ namespace Metasound
 				{
 					return ClassInput.Name == InName && ClassInput.TypeName == InTypeName;
 				};
-				return GraphClass->Interface.Outputs.ContainsByPredicate(IsInputVertexWithSameNameAndType);
+				return GraphClass->Interface.Inputs.ContainsByPredicate(IsInputVertexWithSameNameAndType);
 			}
 			return false;
 		}

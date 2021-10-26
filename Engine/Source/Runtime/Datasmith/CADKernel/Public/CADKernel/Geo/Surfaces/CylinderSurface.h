@@ -28,6 +28,7 @@ namespace CADKernel
 		 * Bounds[EIso::IsoV].Max = EndLength;
 		 */
 		FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InStartLength = -HUGE_VALUE, double InEndLength = HUGE_VALUE, double InStartAngle = 0.0, double InEndAngle = 2.0 * PI);
+		FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& Boundary);
 
 		FCylinderSurface(FCADKernelArchive& Archive)
 			: FSurface()
@@ -35,7 +36,7 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		virtual void SetMinToleranceIso() const override
+		virtual void SetMinToleranceIso() override
 		{
 			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
 
@@ -71,7 +72,7 @@ namespace CADKernel
 			return ESurface::Cylinder;
 		}
 
-		virtual void InitBoundary() const override;
+		virtual void InitBoundary() override;
 
 		virtual void EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder = 0) const override;
 
@@ -80,9 +81,9 @@ namespace CADKernel
 			PresampleIsoCircle(InBoundaries, OutCoordinates, EIso::IsoU);
 
 			OutCoordinates[EIso::IsoV].Empty(3);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);
-			OutCoordinates[EIso::IsoV].Add((InBoundaries.UVBoundaries[EIso::IsoV].Max + InBoundaries.UVBoundaries[EIso::IsoV].Min) / 2.0);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Min);
+			OutCoordinates[EIso::IsoV].Add((InBoundaries[EIso::IsoV].Max + InBoundaries[EIso::IsoV].Min) / 2.0);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Max);
 		}
 
 	};

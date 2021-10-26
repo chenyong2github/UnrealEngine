@@ -12507,6 +12507,7 @@ void UCharacterMovementComponent::AccumulateRootMotionForAsync(float DeltaSecond
 
 void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput)
 {
+#if WITH_CHAOS 
 	if (!CharacterOwner || !CharacterOwner->Controller)
 	{
 		return;
@@ -12737,6 +12738,7 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 
 		AsyncSimState->bIsValid = true;
 	}
+#endif
 }
 
 void UCharacterMovementComponent::BuildAsyncInput()
@@ -12891,7 +12893,9 @@ void UCharacterMovementComponent::RegisterAsyncCallback()
 		{
 			if (FPhysScene* PhysScene = World->GetPhysicsScene())
 			{
+#if WITH_CHAOS
 				AsyncCallback = PhysScene->GetSolver()->CreateAndRegisterSimCallbackObject_External<FCharacterMovementComponentAsyncCallback>();
+#endif
 			}
 		}
 	}

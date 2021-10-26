@@ -325,6 +325,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView(c
 	FLoadingProfilerManager::Get()->SetEventAggregationTreeViewVisible(true);
 
 	TSharedRef<Insights::FUntypedTable> Table = MakeShared<Insights::FUntypedTable>();
+	Table->SetDisplayName(LOCTEXT("EventAggregation_TableName", "Event Aggregation"));
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)
@@ -358,6 +359,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeV
 	FLoadingProfilerManager::Get()->SetObjectTypeAggregationTreeViewVisible(true);
 
 	TSharedRef<Insights::FUntypedTable> Table = MakeShared<Insights::FUntypedTable>();
+	Table->SetDisplayName(LOCTEXT("ObjectTypeAggregation_TableName", "Object Type Aggregation"));
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)
@@ -391,6 +393,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView(con
 	FLoadingProfilerManager::Get()->SetPackageDetailsTreeViewVisible(true);
 
 	TSharedRef<Insights::FUntypedTable> Table = MakeShared<Insights::FUntypedTable>();
+	Table->SetDisplayName(LOCTEXT("PackageDetails_TableName", "Package Details"));
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)
@@ -424,6 +427,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView(cons
 	FLoadingProfilerManager::Get()->SetExportDetailsTreeViewVisible(true);
 
 	TSharedRef<Insights::FUntypedTable> Table = MakeShared<Insights::FUntypedTable>();
+	Table->SetDisplayName(LOCTEXT("ExportDetails_TableName", "Export Details"));
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)
@@ -457,6 +461,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_RequestsTreeView(const FSp
 	FLoadingProfilerManager::Get()->SetRequestsTreeViewVisible(true);
 
 	TSharedRef<Insights::FUntypedTable> Table = MakeShared<Insights::FUntypedTable>();
+	Table->SetDisplayName(LOCTEXT("Requests_TableName", "Requests"));
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)

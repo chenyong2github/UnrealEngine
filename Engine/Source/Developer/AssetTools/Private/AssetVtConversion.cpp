@@ -17,7 +17,6 @@
 #include "Editor.h"
 #include "Misc/ScopedSlowTask.h"
 #include "EditorSupportDelegates.h"
-#include "Factories/TextureImportSettings.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialEditingLibrary.h"
 
@@ -406,28 +405,19 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 	{
 		UMaterialFunctionInterface *ParentFunction = FunctionHeap[0];
 		FunctionHeap.RemoveAt(0);
-
-		// Check all parameters of the current material. If they reference a texture
-		// we want to convert to VT flag the parameter (this will then cause all textures assigned to this parameter to convert to vt as well)
-		TArray<FMaterialParameterInfo> ParameterInfos;
-		TArray<FGuid> ParameterGuids;
-
-		FMaterialParameterInfo BaseParameterInfo;
-		BaseParameterInfo.Association = EMaterialParameterAssociation::GlobalParameter;
-		BaseParameterInfo.Index = INDEX_NONE;
-
-		ParentFunction->GetAllParameterInfo<UMaterialExpressionTextureSampleParameter>(ParameterInfos, ParameterGuids, BaseParameterInfo);
-
-		for (auto ParamInfo : ParameterInfos)
 		{
-			UTexture *ParamValue = nullptr;
-			ParentFunction->OverrideNamedTextureParameter(ParamInfo, ParamValue);
-			UTexture2D *ParamValue2D = Cast<UTexture2D>(ParamValue);
-			if (ParamValue2D != nullptr)
+			UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(ParentFunction);
+			if (FunctionInstance)
 			{
-				if (InAffectedTextures.Contains(ParamValue2D))
+				// Check all parameters of the current material. If they reference a texture
+				// we want to convert to VT flag the parameter (this will then cause all textures assigned to this parameter to convert to vt as well)
+				for (const FTextureParameterValue& TextureParameter : FunctionInstance->TextureParameterValues)
 				{
-					FunctionParametersToVtIze.FindOrAdd(ParentFunction->GetBaseFunction()).Add(ParamInfo);
+					UTexture2D* ParamValue2D = Cast<UTexture2D>(TextureParameter.ParameterValue);
+					if (InAffectedTextures.Contains(ParamValue2D))
+					{
+						FunctionParametersToVtIze.FindOrAdd(ParentFunction->GetBaseFunction()).Add(TextureParameter.ParameterInfo);
+					}
 				}
 			}
 		}

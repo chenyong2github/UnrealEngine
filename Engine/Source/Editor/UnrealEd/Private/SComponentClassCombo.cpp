@@ -18,7 +18,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "SListViewSelectorDropdownMenu.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "ComponentClassCombo"
@@ -68,7 +68,7 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SAssignNew(AddNewButton, SEditorHeaderButton)
+		SAssignNew(AddNewButton, SPositiveActionButton)
 		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 		.Text(LOCTEXT("Add", "Add"))
 		.OnComboBoxOpened(this, &SComponentClassCombo::ClearSelection)

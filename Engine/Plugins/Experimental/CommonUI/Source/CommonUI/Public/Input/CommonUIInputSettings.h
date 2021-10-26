@@ -29,7 +29,7 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = "UI Action Key Mapping")
 	float HoldTime = 0.f;
 
-	//@todo DanH: Is this actually wanted/needed at all? Do we really want different bindings for the same thing on PS4 vs XB, for instance?
+	//@todo DanH: Is this actually wanted/needed at all? Do we really want different bindings for the same thing on Platform A vs Platform B, for instance?
 	///** 
 	// * (Optional) The platforms to which this mapping is exclusive. Leave empty to allow on all platforms.
 	// * Note that most platforms support multiple input methods (Gamepad/KBM/Touch), so be sparing with specific platform restrictions

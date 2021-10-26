@@ -248,7 +248,7 @@ public:
 
 		// Write out gameplaytags.ini
 		GameplayTagsUpdateSourceControl(Settings->GetDefaultConfigFilename());
-		Settings->UpdateDefaultConfigFile();
+		Settings->TryUpdateDefaultConfigFile();
 
 		GConfig->LoadFile(Settings->GetDefaultConfigFilename());
 		
@@ -264,7 +264,7 @@ public:
 			if (TagList)
 			{
 				GameplayTagsUpdateSourceControl(TagList->ConfigFileName);
-				TagList->UpdateDefaultConfigFile(TagList->ConfigFileName);
+				TagList->TryUpdateDefaultConfigFile(TagList->ConfigFileName);
 
 				// Reload off disk
 				GConfig->LoadFile(TagList->ConfigFileName);
@@ -318,7 +318,7 @@ public:
 				Settings->GameplayTagRedirects.RemoveAt(i);
 
 				GameplayTagsUpdateSourceControl(Settings->GetDefaultConfigFilename());
-				Settings->UpdateDefaultConfigFile();
+				Settings->TryUpdateDefaultConfigFile();
 				GConfig->LoadFile(Settings->GetDefaultConfigFilename());
 
 				Manager.EditorRefreshGameplayTagTree();
@@ -486,7 +486,7 @@ public:
 
 			// Check source control before and after writing, to make sure it gets created or checked out
 
-			TagListObj->UpdateDefaultConfigFile(ConfigFileName);
+			TagListObj->TryUpdateDefaultConfigFile(ConfigFileName);
 			GameplayTagsUpdateSourceControl(ConfigFileName);
 			GConfig->LoadFile(ConfigFileName);
 		}
@@ -610,7 +610,7 @@ public:
 				if (TagSource->SourceRestrictedTagList->RestrictedGameplayTagList[i].Tag == TagName)
 				{
 					TagSource->SourceRestrictedTagList->RestrictedGameplayTagList.RemoveAt(i);
-					TagSource->SourceRestrictedTagList->UpdateDefaultConfigFile(ConfigFileName);
+					TagSource->SourceRestrictedTagList->TryUpdateDefaultConfigFile(ConfigFileName);
 					bRemoved = true;
 				}
 			}
@@ -619,7 +619,7 @@ public:
 				if (TagSource->SourceTagList->GameplayTagList[i].Tag == TagName)
 				{
 					TagSource->SourceTagList->GameplayTagList.RemoveAt(i);
-					TagSource->SourceTagList->UpdateDefaultConfigFile(ConfigFileName);
+					TagSource->SourceTagList->TryUpdateDefaultConfigFile(ConfigFileName);
 					bRemoved = true;
 				}
 			}
@@ -707,7 +707,7 @@ public:
 				{
 					// Check source control before and after writing, to make sure it gets created or checked out
 					GameplayTagsUpdateSourceControl(ConfigFileName);
-					TagListObj->UpdateDefaultConfigFile(ConfigFileName);
+					TagListObj->TryUpdateDefaultConfigFile(ConfigFileName);
 					GameplayTagsUpdateSourceControl(ConfigFileName);
 
 					GConfig->LoadFile(ConfigFileName);
@@ -762,7 +762,7 @@ public:
 					{
 						TagList->GameplayTagList.RemoveAt(i);
 
-						TagList->UpdateDefaultConfigFile(TagList->ConfigFileName);
+						TagList->TryUpdateDefaultConfigFile(TagList->ConfigFileName);
 						GameplayTagsUpdateSourceControl(TagList->ConfigFileName);
 						GConfig->LoadFile(TagList->ConfigFileName);
 
@@ -784,7 +784,7 @@ public:
 		Settings->GameplayTagRedirects.AddUnique(Redirect);
 
 		GameplayTagsUpdateSourceControl(Settings->GetDefaultConfigFilename());
-		Settings->UpdateDefaultConfigFile();
+		Settings->TryUpdateDefaultConfigFile();
 		GConfig->LoadFile(Settings->GetDefaultConfigFilename());
 
 		ShowNotification(FText::Format(LOCTEXT("AddTagRedirect", "Renamed tag {0} to {1}"), FText::FromString(TagToRename), FText::FromString(TagToRenameTo)), 3.0f);

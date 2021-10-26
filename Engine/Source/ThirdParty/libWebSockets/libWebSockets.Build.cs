@@ -12,7 +12,6 @@ public class libWebSockets : ModuleRules
 				Target.Platform == UnrealTargetPlatform.Android ||
 				Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.PS4 ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
 				Target.Platform == UnrealTargetPlatform.Win64;
 		}

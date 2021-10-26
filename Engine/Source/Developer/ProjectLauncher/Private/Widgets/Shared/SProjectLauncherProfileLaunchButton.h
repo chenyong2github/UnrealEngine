@@ -16,6 +16,7 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Shared/SProjectLauncherValidation.h"
+#include "SSimpleButton.h"
 #define LOCTEXT_NAMESPACE "SProjectLauncherProfileLaunchButton"
 
 
@@ -47,15 +48,10 @@ public:
 		TSharedPtr<SVerticalBox> VerticalBoxWidget;
 		ChildSlot
 		[	
-			SNew(SButton)
+			SNew(SSimpleButton)
 			.OnClicked(InArgs._OnClicked)
 			.IsEnabled(this, &SProjectLauncherProfileLaunchButton::ButtonEnabled)
-			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
-			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(this, &SProjectLauncherProfileLaunchButton::GetLaunchIcon)
-			]
+			.Icon(this, &SProjectLauncherProfileLaunchButton::GetLaunchIcon)
 		];
 
 		// Add launch text is this was requested

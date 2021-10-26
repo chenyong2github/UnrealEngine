@@ -48,10 +48,6 @@ public:
 	static const FName ClassColumnId;
 	static const FName PathColumnId;
 
-public:
-	/** Compare the two strings, correctly ordering any numeric suffixes they may have */
-	static int32 CompareWithNumericSuffix(FStringView A, FStringView B);
-
 private:
 	/** The name of the column that is currently used for sorting. */
 	FName SortColumnId[EColumnSortPriority::Max];

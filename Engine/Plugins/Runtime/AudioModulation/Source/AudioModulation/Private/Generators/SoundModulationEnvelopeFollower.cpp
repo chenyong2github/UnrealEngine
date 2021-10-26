@@ -149,7 +149,7 @@ namespace AudioModulation
 				InitBus();
 			}
 
-			if (AudioBusPatch.IsValid())
+			if (AudioBusPatch.IsValid() && !AudioBusPatch->IsInputStale())
 			{
 				const int32 NumSamples = AudioBusPatch->GetNumSamplesAvailable();
 				const int32 NumFrames = NumSamples / EnvelopeFollower.GetNumChannels();

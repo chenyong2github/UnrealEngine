@@ -14,14 +14,14 @@
 namespace CADKernel
 {
 
-	void FCriterion::ApplyOnEdgeParameters(TSharedRef<FTopologicalEdge> Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
+	void FCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 	{
-		TArray<double>& DeltaUMaxs = Edge->GetDeltaUMaxs();
+		TArray<double>& DeltaUMaxs = Edge.GetDeltaUMaxs();
 
-		double NumericPrecision = Edge->GetTolerance3D();
+		double NumericPrecision = Edge.GetTolerance3D();
 		NumericPrecision /= 10;
 
-		if (Edge->Length() <= NumericPrecision)
+		if (Edge.Length() <= NumericPrecision)
 		{
 			return;
 		}

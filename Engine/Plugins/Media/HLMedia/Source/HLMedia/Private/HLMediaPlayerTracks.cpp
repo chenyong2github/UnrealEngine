@@ -80,21 +80,26 @@ void FHLMediaPlayerTracks::AddVideoFrameSample(FTimespan Time)
 
     auto SharedTexture = PlaybackItem->VideoTexture();
 
-    if (!VideoSample.IsValid())
+    if (!VideoSample.IsValid() ||
+        VideoSample->GetTexture() == nullptr)
     {
         VideoSample = MakeShared<FHLMediaTextureSample, ESPMode::ThreadSafe>(SharedTexture->Texture2D(), SharedTexture->ShaderResourceView());
+
+        auto Track = PlaybackItem->VideoTrack(PlaybackItem->SelectedVideoTrack());
+
+        double FPS = 30.0;
+
+        if (Track.Denominator != 0)
+        {
+            FPS = static_cast<double>(Track.Numerator) / static_cast<double>(Track.Denominator);
+        }
+
+        auto Duration = FTimespan::FromSeconds(1.0 / FPS);
+
+        VideoSample->Update(Time, Duration);
+        Samples->AddVideo(VideoSample.ToSharedRef());
     }
 
-    auto Track = PlaybackItem->VideoTrack(PlaybackItem->SelectedVideoTrack());
-
-	double FPS = 30.0;
-
-	if (Track.Denominator != 0)
-	{
-		FPS = static_cast<double>(Track.Numerator) / static_cast<double>(Track.Denominator);
-	}
-
-	auto Duration = FTimespan::FromSeconds(1.0 / FPS);
 
     auto Dim = VideoSample->GetDim();
 
@@ -102,15 +107,9 @@ void FHLMediaPlayerTracks::AddVideoFrameSample(FTimespan Time)
 
     if (Dim.X != Desc.Width
         ||
-        Dim.Y != Desc.Height
-        ||
-        !VideoSample->Update(Time, Duration))
+        Dim.Y != Desc.Height)
     {
         VideoSample->Reset();
-    }
-    else
-    {
-        Samples->AddVideo(VideoSample.ToSharedRef());
     }
 }
 

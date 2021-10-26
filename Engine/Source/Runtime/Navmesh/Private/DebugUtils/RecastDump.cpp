@@ -23,7 +23,7 @@
 #define _USE_MATH_DEFINES
 #include "Recast/Recast.h"
 #include "Recast/RecastAlloc.h"
-
+#include "DebugUtils/DebugDrawLargeWorldCoordinates.h"
 
 duFileIO::~duFileIO()
 {
@@ -55,9 +55,9 @@ bool duDumpPolyMeshToObj(rcPolyMesh& pmesh, duFileIO* io)
 	}
 	
 	const int nvp = pmesh.nvp;
-	const float cs = pmesh.cs;
-	const float ch = pmesh.ch;
-	const float* orig = pmesh.bmin;
+	const duReal cs = pmesh.cs;
+	const duReal ch = pmesh.ch;
+	const duReal* orig = pmesh.bmin;
 	
 	ioprintf(io, "# Recast Navmesh\n");
 	ioprintf(io, "o NavMesh\n");
@@ -67,9 +67,9 @@ bool duDumpPolyMeshToObj(rcPolyMesh& pmesh, duFileIO* io)
 	for (int i = 0; i < pmesh.nverts; ++i)
 	{
 		const unsigned short* v = &pmesh.verts[i*3];
-		const float x = orig[0] + v[0]*cs;
-		const float y = orig[1] + (v[1]+1)*ch + 0.1f;
-		const float z = orig[2] + v[2]*cs;
+		const duReal x = orig[0] + v[0]*cs;
+		const duReal y = orig[1] + (v[1]+1)*ch + 0.1f;
+		const duReal z = orig[2] + v[2]*cs;
 		ioprintf(io, "v %f %f %f\n", x,y,z);
 	}
 
@@ -108,7 +108,7 @@ bool duDumpPolyMeshDetailToObj(rcPolyMeshDetail& dmesh, duFileIO* io)
 
 	for (int i = 0; i < dmesh.nverts; ++i)
 	{
-		const float* v = &dmesh.verts[i*3];
+		const duReal* v = &dmesh.verts[i*3];
 		ioprintf(io, "v %f %f %f\n", v[0],v[1],v[2]);
 	}
 	

@@ -25,7 +25,7 @@ namespace SVGConstants
 	static const int32 BPP = 4;
 }
 
-TArray<uint8> FSlateSVGRasterizer::RasterizeSVGFromFile(const FString& Filename, FIntPoint PixelSize, bool bSwapRedBlue)
+TArray<uint8> FSlateSVGRasterizer::RasterizeSVGFromFile(const FString& Filename, FIntPoint PixelSize)
 {
 	TArray<uint8> PixelData;
 
@@ -49,16 +49,6 @@ TArray<uint8> FSlateSVGRasterizer::RasterizeSVGFromFile(const FString& Filename,
 			nsvgDeleteRasterizer(Rasterizer);
 
 			nsvgDelete(Image);
-
-			if (bSwapRedBlue)
-			{
-				for (int32 Pixel = 0; Pixel < PixelData.Num(); Pixel +=4)
-				{
-					uint8& R = PixelData[Pixel];
-					uint8& B = PixelData[Pixel + 2];
-					Swap(R, B);
-				}
-			}
 		}
 	}
 	else

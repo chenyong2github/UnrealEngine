@@ -21,32 +21,28 @@ bool UControlRigThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 	if (UControlRigBlueprint* InRigBlueprint = Cast<UControlRigBlueprint>(Object))
 	{
 		USkeletalMesh* SkeletalMesh = InRigBlueprint->PreviewSkeletalMesh.Get();
-		if (SkeletalMesh != nullptr)
-		{
-			for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : InRigBlueprint->ShapeLibraries)
-			{
-				if (ShapeLibrary.IsValid())
-				{
-					bool bMissingMeshCount = true;
-					InRigBlueprint->Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
-					{
-						if (const FControlRigShapeDefinition* ShapeDef = ShapeLibrary->GetShapeByName(ControlElement->Settings.ShapeName))
-						{
-							UStaticMesh* StaticMesh = ShapeDef->StaticMesh.Get();
-							if (StaticMesh == nullptr) // not yet loaded
-							{
-								bMissingMeshCount = true;
-								return false;
-							}
-						}
-						return true;
-					});
+		int32 MissingMeshCount = 0;
 
-					return !bMissingMeshCount;
-				}
+		for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : InRigBlueprint->ShapeLibraries)
+		{
+			if (ShapeLibrary.IsValid())
+			{
+				InRigBlueprint->Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
+				{
+					if (const FControlRigShapeDefinition* ShapeDef = ShapeLibrary->GetShapeByName(ControlElement->Settings.ShapeName))
+					{
+						UStaticMesh* StaticMesh = ShapeDef->StaticMesh.Get();
+						if (StaticMesh == nullptr) // not yet loaded
+						{
+							MissingMeshCount++;
+						}
+					}
+
+					return true; // continue the iteration
+				});
 			}
 		}
-
+		return MissingMeshCount == 0;
 	}
 	return false;
 }
@@ -57,28 +53,31 @@ void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 
 	if (UControlRigBlueprint* InRigBlueprint = Cast<UControlRigBlueprint>(Object))
 	{
-		USkeletalMesh* SkeletalMesh = InRigBlueprint->PreviewSkeletalMesh.Get();
-		if (SkeletalMesh != nullptr)
+		UObject* ObjectToDraw = InRigBlueprint->PreviewSkeletalMesh.Get();
+		if(ObjectToDraw == nullptr)
 		{
-			RigBlueprint = InRigBlueprint;
-			Super::Draw(SkeletalMesh, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
-
-			for (auto Pair : ShapeActors)
-			{
-				if (Pair.Value && Pair.Value->GetOuter())
-				{
-					Pair.Value->Rename(nullptr, GetTransientPackage());
-					Pair.Value->MarkPendingKill();
-				}
-			}
-			ShapeActors.Reset();
+			ObjectToDraw = InRigBlueprint;
 		}
+
+		RigBlueprint = InRigBlueprint;
+		Super::Draw(ObjectToDraw, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
+
+		for (auto Pair : ShapeActors)
+		{
+			if (Pair.Value && Pair.Value->GetOuter())
+			{
+				Pair.Value->Rename(nullptr, GetTransientPackage());
+				Pair.Value->MarkPendingKill();
+			}
+		}
+		ShapeActors.Reset();
 	}
 }
 
 void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Object, UWorld* PreviewWorld)
 {
-	if (ThumbnailScene && ThumbnailScene->GetPreviewActor() && RigBlueprint && !RigBlueprint->ShapeLibraries.IsEmpty() && RigBlueprint->GeneratedClass)
+	TSharedRef<FSkeletalMeshThumbnailScene> ThumbnailScene = ThumbnailSceneCache.EnsureThumbnailScene(Object);
+	if (ThumbnailScene->GetPreviewActor() && RigBlueprint && !RigBlueprint->ShapeLibraries.IsEmpty() && RigBlueprint->GeneratedClass)
 	{
 		UControlRig* ControlRig = nullptr;
 
@@ -153,7 +152,7 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 						ShapeActors.Add(ControlElement->GetName(), ShapeActor);
 
 						ShapeActor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
-						ShapeActor->SetActorTransform(ShapeGlobalTransform);
+						ShapeActor->SetActorTransform(ShapeDef->Transform * ShapeGlobalTransform);
 					}
 					break;
 				}

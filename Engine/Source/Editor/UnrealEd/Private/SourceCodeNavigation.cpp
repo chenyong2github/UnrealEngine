@@ -1830,21 +1830,15 @@ FText FSourceCodeNavigation::GetSuggestedSourceCodeIDE(bool bShortIDEName)
 
 FSlateIcon FSourceCodeNavigation::GetOpenSourceCodeIDEIcon()
 {
-#if PLATFORM_WINDOWS
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio");
-#else
-	return FSlateIcon();
-#endif
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), SourceCodeAccessModule.GetAccessor().GetOpenIconName());
 }
 
 
 FSlateIcon FSourceCodeNavigation::GetRefreshSourceCodeIDEIcon()
 {
-#if PLATFORM_WINDOWS
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.RefreshVisualStudio");
-#else
-	return FSlateIcon();
-#endif
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), SourceCodeAccessModule.GetAccessor().GetRefreshIconName());
 }
 
 FString FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL()

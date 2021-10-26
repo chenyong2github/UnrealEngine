@@ -57,6 +57,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (EditCondition = bImportGeometry, DisplayName = "Skeletal Animations"))
 	bool bImportSkeletalAnimations;
 
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = ( EditCondition = bImportSkeletalAnimations, DisplayName = "LevelSequences" ) )
+	bool bImportLevelSequences;
+
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Materials & Textures"))
 	bool bImportMaterials;
 

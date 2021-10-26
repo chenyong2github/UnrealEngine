@@ -6,7 +6,7 @@
 
 #include "CustomSerializationData.h"
 #include "WorldSnapshotData.h"
-#include "Serialization/ObjectSnapshotSerializationData.h"
+#include "Params/ObjectSnapshotSerializationData.h"
 
 class FSnapshotSubobjectMetaDataManager;
 

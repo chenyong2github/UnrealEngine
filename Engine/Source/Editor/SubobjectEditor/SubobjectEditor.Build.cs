@@ -36,6 +36,7 @@ public class SubobjectEditor : ModuleRules
 				"EditorFramework",
 				"GraphEditor",
 				"ToolMenus",
+				"ToolWidgets",
 			}
 		);
 		

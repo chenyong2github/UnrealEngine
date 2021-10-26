@@ -297,6 +297,33 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	bool FUsdAttribute::GetUnionedTimeSamples( const TArray<UE::FUsdAttribute>& Attrs, TArray<double>& OutTimes )
+	{
+		bool bResult = false;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		std::vector<pxr::UsdAttribute> UsdAttrs;
+		UsdAttrs.reserve( Attrs.Num() );
+		for ( const UE::FUsdAttribute& Attr : Attrs )
+		{
+			UsdAttrs.push_back( Attr );
+		}
+
+		std::vector<double> UsdTimes;
+
+		bResult = pxr::UsdAttribute::GetUnionedTimeSamples( UsdAttrs, &UsdTimes );
+		if ( bResult )
+		{
+			OutTimes.SetNumUninitialized( UsdTimes.size() );
+			FMemory::Memcpy( OutTimes.GetData(), UsdTimes.data(), OutTimes.Num() * OutTimes.GetTypeSize() );
+		}
+#endif // #if USE_USD_SDK
+
+		return bResult;
+	}
+
 	FSdfPath FUsdAttribute::GetPath() const
 	{
 #if USE_USD_SDK

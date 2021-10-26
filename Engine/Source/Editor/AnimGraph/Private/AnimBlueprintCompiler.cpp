@@ -1256,8 +1256,8 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetConstantsStructName(), RF_Public);
 
 		// Inherit from archetype struct if there is any 
-		UScriptStruct* ArchetypeStruct = ParentClass->GetSparseClassDataArchetypeStruct();
-		UScriptStruct* SuperStruct = ArchetypeStruct ? ArchetypeStruct : FAnimBlueprintConstantData::StaticStruct();
+		UScriptStruct* ParentStruct = ParentClass->GetSparseClassDataStruct();
+		UScriptStruct* SuperStruct = ParentStruct ? ParentStruct : FAnimBlueprintConstantData::StaticStruct();
 		NewAnimBlueprintConstants->SetSuperStruct(SuperStruct);
 	}
 
@@ -1274,7 +1274,7 @@ void FAnimBlueprintCompilerContext::RecreateMutables()
 	UScriptStruct* OldMutablesStruct = FindObject<UScriptStruct>(NewAnimBlueprintClass, *UAnimBlueprintGeneratedClass::GetMutablesStructName().ToString());
 	
 	// Set up our mutables struct
-	NewAnimBlueprintMutables = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetMutablesStructName());
+	NewAnimBlueprintMutables = NewObject<UScriptStruct>(NewAnimBlueprintClass, UAnimBlueprintGeneratedClass::GetMutablesStructName(), RF_Public);
 	NewAnimBlueprintMutables->SetSuperStruct(FAnimBlueprintMutableData::StaticStruct());
 
 	if(OldMutablesStruct)

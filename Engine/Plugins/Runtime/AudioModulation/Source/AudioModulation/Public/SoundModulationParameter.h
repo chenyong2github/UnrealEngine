@@ -54,42 +54,26 @@ public:
 	/** Function used to mix modulator units together */
 	virtual Audio::FModulationMixFunction GetMixFunction() const
 	{
-		static const Audio::FModulationMixFunction MixFunction = [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
-		{
-			for (int32 i = 0; i < InNumSamples; ++i)
-			{
-				OutValueBuffer[i] *= InValueBuffer[i];
-			}
-		};
-
-		return MixFunction;
+		return Audio::FModulationParameter::GetDefaultMixFunction();
 	}
 
 	/** Function used to convert normalized, unitless value to unit value */
-	virtual Audio::FModulationNormalizedConversionFunction  GetUnitConversionFunction() const
+	virtual Audio::FModulationNormalizedConversionFunction GetUnitConversionFunction() const
 	{
-		static const Audio::FModulationUnitConvertFunction ConversionFunction = [](float* RESTRICT OutValueBuffer, int32 InNumSamples)
-		{
-		};
-
-		return ConversionFunction;
+		return Audio::FModulationParameter::GetDefaultUnitConversionFunction();
 	}
 
 	/** Function used to convert unit value to normalized, unitless value */
 	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const
 	{
-		static const Audio::FModulationNormalizedConversionFunction ConversionFunction = [](float* RESTRICT OutValueBuffer, int32 InNumSamples)
-		{
-		};
-
-		return ConversionFunction;
+		return Audio::FModulationParameter::GetDefaultNormalizedConversionFunction();
 	}
 
 	/** Converts normalized, unitless value [0.0f, 1.0f] to unit value. */
 	virtual float ConvertNormalizedToUnit(float InNormalizedValue) const final
 	{
 		float UnitValue = InNormalizedValue;
-		GetUnitConversionFunction()(&UnitValue, 1);
+		GetUnitConversionFunction()(UnitValue);
 		return UnitValue;
 	}
 
@@ -97,12 +81,12 @@ public:
 	virtual float ConvertUnitToNormalized(float InUnitValue) const final
 	{
 		float NormalizedValue = InUnitValue;
-		GetNormalizedConversionFunction()(&NormalizedValue, 1);
+		GetNormalizedConversionFunction()(NormalizedValue);
 		return NormalizedValue;
 	}
 
 	/** Returns default unit value (works with and without editor loaded) */
-	virtual float GetUnitDefault() const
+	virtual float GetUnitDefault() const final
 	{
 		return ConvertNormalizedToUnit(Settings.ValueNormalized);
 	}
@@ -112,7 +96,7 @@ public:
 		return 0.0f;
 	}
 
-	virtual float GetUnitMax() const 
+	virtual float GetUnitMax() const
 	{
 		return 1.0f;
 	}
@@ -139,7 +123,7 @@ public:
 	float UnitMax = 1.0f;
 
 	virtual bool RequiresUnitConversion() const override;
-	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
+	virtual Audio::FModulationUnitConversionFunction GetUnitConversionFunction() const override;
 	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMin() const override;
 	virtual float GetUnitMax() const override;
@@ -153,7 +137,7 @@ class USoundModulationParameterFrequencyBase : public USoundModulationParameter
 
 public:
 	virtual bool RequiresUnitConversion() const override;
-	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
+	virtual Audio::FModulationUnitConversionFunction GetUnitConversionFunction() const override;
 	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 };
 
@@ -236,7 +220,7 @@ public:
 
 	virtual bool RequiresUnitConversion() const override;
 	virtual Audio::FModulationMixFunction GetMixFunction() const override;
-	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
+	virtual Audio::FModulationUnitConversionFunction GetUnitConversionFunction() const override;
 	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMax() const override;
 	virtual float GetUnitMin() const override;
@@ -253,7 +237,7 @@ public:
 	float MinVolume = -100.0f;
 
 	virtual bool RequiresUnitConversion() const override;
-	virtual Audio::FModulationUnitConvertFunction GetUnitConversionFunction() const override;
+	virtual Audio::FModulationUnitConversionFunction GetUnitConversionFunction() const override;
 	virtual Audio::FModulationNormalizedConversionFunction GetNormalizedConversionFunction() const override;
 	virtual float GetUnitMin() const override;
 	virtual float GetUnitMax() const override;

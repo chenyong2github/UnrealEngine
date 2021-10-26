@@ -132,6 +132,7 @@ private:
 FEditableSkeleton::FEditableSkeleton(USkeleton* InSkeleton)
 	: Skeleton(InSkeleton)
 {
+	Skeleton->SetFlags(RF_Transactional);
 	Skeleton->CollectAnimationNotifies();
 }
 

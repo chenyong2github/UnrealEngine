@@ -66,6 +66,13 @@ static void ReadCbField(FCbFieldView Field, FColor& OutValue)
 	OutValue.B = It++->AsUInt8(OutValue.B);
 }
 
+static void ReadCbField(FCbFieldView Field, FVector2D& OutValue)
+{
+	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
+	OutValue.X = It++->AsFloat(OutValue.X);
+	OutValue.Y = It++->AsFloat(OutValue.Y);
+}
+
 static void ReadCbField(FCbFieldView Field, FVector4& OutValue)
 {
 	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
@@ -110,6 +117,12 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	BuildSettings.bLongLatSource = Object["bLongLatSource"].AsBool(BuildSettings.bLongLatSource);
 	BuildSettings.bSRGB = Object["bSRGB"].AsBool(BuildSettings.bSRGB);
 	ReadCbField(Object["SourceEncodingOverride"], BuildSettings.SourceEncodingOverride);
+	BuildSettings.bHasColorSpaceDefinition = Object["bHasColorSpaceDefinition"].AsBool(BuildSettings.bHasColorSpaceDefinition);
+	ReadCbField(Object["RedChromaticityCoordinate"], BuildSettings.RedChromaticityCoordinate);
+	ReadCbField(Object["GreenChromaticityCoordinate"], BuildSettings.GreenChromaticityCoordinate);
+	ReadCbField(Object["BlueChromaticityCoordinate"], BuildSettings.BlueChromaticityCoordinate);
+	ReadCbField(Object["WhiteChromaticityCoordinate"], BuildSettings.WhiteChromaticityCoordinate);
+	ReadCbField(Object["ChromaticAdaptationMethod"], BuildSettings.ChromaticAdaptationMethod);
 	BuildSettings.bUseLegacyGamma = Object["bUseLegacyGamma"].AsBool(BuildSettings.bUseLegacyGamma);
 	BuildSettings.bPreserveBorder = Object["bPreserveBorder"].AsBool(BuildSettings.bPreserveBorder);
 	BuildSettings.bForceNoAlphaChannel = Object["bForceNoAlphaChannel"].AsBool(BuildSettings.bForceNoAlphaChannel);

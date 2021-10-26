@@ -92,9 +92,12 @@ FCachedGeometry GetCacheGeometryForHair(
 			}
 		}
 	}
-	else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+	else if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::GeometryCache)
 	{
-		BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, Out);
+		if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+		{
+			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, Out);
+		}
 	}
 	return Out;
 }

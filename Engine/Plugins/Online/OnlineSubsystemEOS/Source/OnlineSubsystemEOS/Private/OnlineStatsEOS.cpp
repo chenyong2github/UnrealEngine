@@ -106,6 +106,8 @@ void AppendStats(TUniqueNetIdMap<TSharedRef<FOnlineStatsUserStats>>& StatsCache,
 
 void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
 {
+	const FUniqueNetIdEOS& LocalEOSId = FUniqueNetIdEOS::Cast(*LocalUserId);
+	EOS_ProductUserId LocalEOSUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*LocalEOSId.ProductUserIdStr));
 	if (StatNames.Num() == 0)
 	{
 		UE_LOG_ONLINE_STATS(Warning, TEXT("QueryStats() without a list of stats names to query is not supported"));
@@ -145,14 +147,14 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 	for (const FUniqueNetIdRef& StatUserId : StatUsers)
 	{
 		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*StatUserId);
-		const EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
-		if (UserId == nullptr)
+		const EOS_ProductUserId TargetEOSUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+		if (TargetEOSUserId == nullptr)
 		{
 			continue;
 		}
 
-		Options.LocalUserId = UserId;
-		Options.TargetUserId = UserId;
+		Options.LocalUserId = LocalEOSUserId;
+		Options.TargetUserId = TargetEOSUserId;
 
 		FReadStatsCallback* CallbackObj = new FReadStatsCallback();
 		CallbackObj->CallbackLambda = [this, StatsQueryContext](const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)

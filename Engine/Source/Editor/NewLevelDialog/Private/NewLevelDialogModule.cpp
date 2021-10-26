@@ -27,6 +27,7 @@
 #include "Brushes/SlateImageBrush.h"
 #include "SPrimaryButton.h"
 #include "Engine/Level.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NewLevelDialog"
 
@@ -122,14 +123,14 @@ public:
 							.Padding(FMargin(5.0f, 0))
 							.VAlign(VAlign_Top)
 							.Padding(FMargin(3.0f, 3.0f))
-							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground"))
+							.BorderImage(this, &SNewLevelTemplateTile::GetNameAreaBackgroundBrush)
 							[
 								SNew(STextBlock)
 								.Font(FAppStyle::Get().GetFontStyle("ProjectBrowser.ProjectTile.Font"))
 								.WrapTextAt(NewLevelDialogDefs::TemplateTileWidth - 4.0f)
 								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
 								.Text(InArgs._Item->Name)
-								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+								.ColorAndOpacity(this, &SNewLevelTemplateTile::GetNameAreaTextColor)
 							]
 						]
 					]
@@ -168,6 +169,43 @@ private:
 		}
 
 		return FStyleDefaults::GetNoBrush();
+	}
+
+	const FSlateBrush* GetNameAreaBackgroundBrush() const
+	{
+		const bool bIsSelected = IsSelected();
+		const bool bIsRowHovered = IsHovered();
+
+		if (bIsSelected && bIsRowHovered)
+		{
+			static const FName SelectedHover("ProjectBrowser.ProjectTile.NameAreaSelectedHoverBackground");
+			return FAppStyle::Get().GetBrush(SelectedHover);
+		}
+		else if (bIsSelected)
+		{
+			static const FName Selected("ProjectBrowser.ProjectTile.NameAreaSelectedBackground");
+			return FAppStyle::Get().GetBrush(Selected);
+		}
+		else if (bIsRowHovered)
+		{
+			static const FName Hovered("ProjectBrowser.ProjectTile.NameAreaHoverBackground");
+			return FAppStyle::Get().GetBrush(Hovered);
+		}
+
+		return FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground");
+	}
+
+	FSlateColor GetNameAreaTextColor() const
+	{
+		const bool bIsSelected = IsSelected();
+		const bool bIsRowHovered = IsHovered();
+
+		if (bIsSelected || bIsRowHovered)
+		{
+			return FStyleColors::White;
+		}
+
+		return FSlateColor::UseForeground();
 	}
 };
 

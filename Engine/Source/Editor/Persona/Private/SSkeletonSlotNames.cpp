@@ -127,7 +127,7 @@ TSharedRef<SWidget> FSkeletonSlotNamesSummoner::CreateTabBody(const FWorkflowTab
 
 void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton)
 {
-	EditableSkeletonPtr = InEditableSkeleton;
+	EditableSkeleton = InEditableSkeleton;
 	OnObjectSelected = InArgs._OnObjectSelected;
 
 	InEditableSkeleton->RegisterOnSlotsChanged(FSimpleMulticastDelegate::FDelegate::CreateSP(this, &SSkeletonSlotNames::RefreshSlotNameListWithFilter));
@@ -320,7 +320,7 @@ TSharedPtr<SWidget> SSkeletonSlotNames::OnGetContextMenuContent() const
 
 void SSkeletonSlotNames::FillSetSlotGroupSubMenu(FMenuBuilder& MenuBuilder)
 {
-	const TArray<FAnimSlotGroup>& SlotGroups = EditableSkeletonPtr.Pin()->GetSkeleton().GetSlotGroups();
+	const TArray<FAnimSlotGroup>& SlotGroups = EditableSkeleton->GetSkeleton().GetSlotGroups();
 	for (auto SlotGroup : SlotGroups)
 	{
 		const FName& GroupName = SlotGroup.GroupName;
@@ -345,9 +345,9 @@ void SSkeletonSlotNames::ContextMenuOnSetSlot(FName InNewGroupName)
 	if (bShowSlotItem)
 	{
 		const FName SlotName = SelectedItems[0].Get()->Name;
-		if (EditableSkeletonPtr.Pin()->GetSkeleton().ContainsSlotName(SlotName))
+		if (EditableSkeleton->GetSkeleton().ContainsSlotName(SlotName))
 		{
-			EditableSkeletonPtr.Pin()->SetSlotGroupName(SlotName, InNewGroupName);
+			EditableSkeleton->SetSlotGroupName(SlotName, InNewGroupName);
 
 			RefreshSlotNameListWithFilter();
 		}
@@ -374,7 +374,7 @@ void SSkeletonSlotNames::OnNotifySelectionChanged(TSharedPtr<FDisplayedSlotNameI
 void SSkeletonSlotNames::OnSaveSkeleton()
 {
 	TArray< UPackage* > PackagesToSave;
-	PackagesToSave.Add(EditableSkeletonPtr.Pin()->GetSkeleton().GetOutermost());
+	PackagesToSave.Add(EditableSkeleton->GetSkeleton().GetOutermost());
 
 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty=*/ false, /*bPromptToSave=*/ false);
 }
@@ -420,7 +420,7 @@ void SSkeletonSlotNames::AddSlotPopUpOnCommit(const FText & InNewSlotText, EText
 		const FScopedTransaction Transaction(LOCTEXT("NewSlotName_AddSlotName", "Add New Slot Node Name"));
 
 		FName NewSlotName = FName(*InNewSlotText.ToString());
-		const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+		const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 		// Keep slot and group names unique
 		if (!Skeleton.ContainsSlotName(NewSlotName) && (Skeleton.FindAnimSlotGroup(NewSlotName) == nullptr))
 		{
@@ -428,7 +428,7 @@ void SSkeletonSlotNames::AddSlotPopUpOnCommit(const FText & InNewSlotText, EText
 			bool bHasSelectedItem = (SelectedItems.Num() > 0);
 			bool bShowGroupItem = bHasSelectedItem && SelectedItems[0].Get()->bIsGroupItem;
 
-			EditableSkeletonPtr.Pin()->SetSlotGroupName(NewSlotName, bShowGroupItem ? SelectedItems[0].Get()->Name : FAnimSlotGroup::DefaultGroupName);
+			EditableSkeleton->SetSlotGroupName(NewSlotName, bShowGroupItem ? SelectedItems[0].Get()->Name : FAnimSlotGroup::DefaultGroupName);
 
 			RefreshSlotNameListWithFilter();
 		}
@@ -449,9 +449,9 @@ void SSkeletonSlotNames::AddGroupPopUpOnCommit(const FText & InNewGroupText, ETe
 	if (!InNewGroupText.IsEmpty())
 	{
 		FName NewGroupName = FName(*InNewGroupText.ToString());
-		const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+		const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 		// Keep slot and group names unique
-		if (!Skeleton.ContainsSlotName(NewGroupName) && EditableSkeletonPtr.Pin()->AddSlotGroupName(NewGroupName))
+		if (!Skeleton.ContainsSlotName(NewGroupName) && EditableSkeleton->AddSlotGroupName(NewGroupName))
 		{
 			RefreshSlotNameListWithFilter();
 		}
@@ -470,7 +470,7 @@ void SSkeletonSlotNames::AddGroupPopUpOnCommit(const FText & InNewGroupText, ETe
 void SSkeletonSlotNames::GetCompatibleAnimBlueprints( TArray<FAssetData>& OutAssets )
 {
 	//Get the skeleton tag to search for
-	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+	const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 	FString SkeletonExportName = FAssetData(&Skeleton).GetExportTextName();
 
 	// Load the asset registry module
@@ -500,7 +500,7 @@ void SSkeletonSlotNames::CreateSlotNameList(const FString& SearchText)
 {
 	NotifyList.Empty();
 
-	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+	const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 	const TArray<FAnimSlotGroup>& SlotGroups = Skeleton.GetSlotGroups();
 	for (auto SlotGroup : SlotGroups)
 	{
@@ -553,7 +553,7 @@ void SSkeletonSlotNames::ShowNotifyInDetailsView(FName NotifyName)
 void SSkeletonSlotNames::GetCompatibleAnimMontages(TArray<struct FAssetData>& OutAssets)
 {
 	//Get the skeleton tag to search for
-	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+	const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 	FString SkeletonExportName = FAssetData(&Skeleton).GetExportTextName();
 
 	// Load the asset registry module
@@ -674,10 +674,10 @@ void SSkeletonSlotNames::OnDeleteSlot(FName SlotName)
 
 void SSkeletonSlotNames::DeleteSlot(const FName& SlotName)
 {
-	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
+	const USkeleton& Skeleton = EditableSkeleton->GetSkeleton();
 	if(Skeleton.ContainsSlotName(SlotName))
 	{
-		EditableSkeletonPtr.Pin()->DeleteSlotName(SlotName);
+		EditableSkeleton->DeleteSlotName(SlotName);
 		RefreshSlotNameListWithFilter();
 	}
 }
@@ -705,7 +705,7 @@ void SSkeletonSlotNames::GetAnimMontagesUsingSlot(FName SlotName, TArray<FAssetD
 
 void SSkeletonSlotNames::GetAnimMontagesUsingSlotGroup(FName SlotGroupName, TArray<FAssetData>& OutMontages)
 {
-	if(const FAnimSlotGroup* Group = EditableSkeletonPtr.Pin()->GetSkeleton().FindAnimSlotGroup(SlotGroupName))
+	if(const FAnimSlotGroup* Group = EditableSkeleton->GetSkeleton().FindAnimSlotGroup(SlotGroupName))
 	{
 		for(const FName& SlotName : Group->SlotNames)
 		{
@@ -789,7 +789,7 @@ void SSkeletonSlotNames::GetMontagesAndNodesUsingSlot(const FName& SlotName, TAr
 
 void SSkeletonSlotNames::GetMontagesAndNodesUsingSlotGroup(const FName& SlotGroupName, TArray<FAssetData>& OutMontages, TMultiMap<UAnimBlueprint*, UAnimGraphNode_Slot*> &OutBlueprintSlotMap)
 {
-	if(const FAnimSlotGroup* SlotGroup = EditableSkeletonPtr.Pin()->GetSkeleton().FindAnimSlotGroup(SlotGroupName))
+	if(const FAnimSlotGroup* SlotGroup = EditableSkeleton->GetSkeleton().FindAnimSlotGroup(SlotGroupName))
 	{
 		for(const auto& SlotName : SlotGroup->SlotNames)
 		{
@@ -808,7 +808,7 @@ void SSkeletonSlotNames::OnRenameSlotPopupCommitted(const FText & InNewSlotText,
 		FSlateApplication::Get().DismissAllMenus();
 
 		// Make sure the name doesn't already exist
-		if(EditableSkeletonPtr.Pin()->GetSkeleton().ContainsSlotName(NewName))
+		if(EditableSkeleton->GetSkeleton().ContainsSlotName(NewName))
 		{
 			FNotificationInfo Notification(FText::Format(LOCTEXT("ToastRenameFailDesc", "Rename Failed! Slot name {0} already exists in the target skeleton."), FText::FromName(NewName)));
 			Notification.ExpireDuration = 3.0f;
@@ -901,9 +901,9 @@ void SSkeletonSlotNames::OnRenameSlot(FName CurrentName)
 
 void SSkeletonSlotNames::RenameSlot(FName CurrentName, FName NewName)
 {
-	if(EditableSkeletonPtr.Pin()->GetSkeleton().ContainsSlotName(CurrentName))
+	if(EditableSkeleton->GetSkeleton().ContainsSlotName(CurrentName))
 	{
-		EditableSkeletonPtr.Pin()->RenameSlotName(CurrentName, NewName);
+		EditableSkeleton->RenameSlotName(CurrentName, NewName);
 		RefreshSlotNameListWithFilter();
 	}
 }
@@ -1040,9 +1040,9 @@ bool SSkeletonSlotNames::CanDeleteSlotGroup(FName GroupName)
 
 void SSkeletonSlotNames::DeleteSlotGroup(const FName& GroupName)
 {
-	if(EditableSkeletonPtr.Pin()->GetSkeleton().FindAnimSlotGroup(GroupName) != nullptr)
+	if(EditableSkeleton->GetSkeleton().FindAnimSlotGroup(GroupName) != nullptr)
 	{
-		EditableSkeletonPtr.Pin()->DeleteSlotGroup(GroupName);
+		EditableSkeleton->DeleteSlotGroup(GroupName);
 		RefreshSlotNameListWithFilter();
 	}
 }

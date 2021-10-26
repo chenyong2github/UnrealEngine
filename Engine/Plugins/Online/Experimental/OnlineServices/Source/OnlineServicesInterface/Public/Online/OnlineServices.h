@@ -4,6 +4,8 @@
 
 #include "Templates/SharedPointer.h"
 
+class FString;
+
 namespace UE::Online {
 
 enum class EOnlineServices : uint8
@@ -65,6 +67,9 @@ enum class EOnlineServices : uint8
 // Interfaces
 using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
+using IPresencePtr = TSharedPtr<class IPresence>;
+struct FOnlineId;
+using FAccountId = FOnlineId;
 
 class ONLINESERVICESINTERFACE_API IOnlineServices
 {
@@ -82,12 +87,22 @@ public:
 	/**
 	 *
 	 */
+	virtual FAccountId CreateAccountId(FString&& InAccountIdString) = 0;
+	
+	/**
+	 *
+	 */
 	virtual IAuthPtr GetAuthInterface() = 0;
 
 	/**
 	 *
 	 */
 	virtual IFriendsPtr GetFriendsInterface() = 0;
+
+	/**
+	 *
+	 */
+	virtual IPresencePtr GetPresenceInterface() = 0;
 };
 
 /**

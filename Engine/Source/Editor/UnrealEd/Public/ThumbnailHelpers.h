@@ -362,3 +362,69 @@ private:
 	 */
 	TMap<FName, TSharedPtr<ThumbnailSceneType>> InstancedThumbnailScenes;
 };
+
+
+/** Handles instancing thumbnail scenes for Object based Asset types (use the path as the key). */
+template <typename ThumbnailSceneType, int32 MaxNumScenes>
+class TObjectInstanceThumbnailScene
+{
+public:
+	/** Constructor */
+	TObjectInstanceThumbnailScene()
+	{
+		InstancedThumbnailScenes.Reserve(MaxNumScenes);
+	}
+
+	/** Find an existing thumbnail scene instance for this class type. */
+	TSharedPtr<ThumbnailSceneType> FindThumbnailScene(const UObject* InObject) const
+	{
+		check(InObject);
+		const FString ObjectPath = InObject->GetPathName();
+
+		return InstancedThumbnailScenes.FindRef(ObjectPath);
+	}
+
+	/** Find or create a thumbnail scene instance for this class type. */
+	TSharedRef<ThumbnailSceneType> EnsureThumbnailScene(const UObject* InObject)
+	{
+		check(InObject);
+		const FString ObjectPath = InObject->GetPathName();
+
+		TSharedPtr<ThumbnailSceneType> ExistingThumbnailScene = InstancedThumbnailScenes.FindRef(ObjectPath);
+		if (!ExistingThumbnailScene.IsValid())
+		{
+			if (InstancedThumbnailScenes.Num() >= MaxNumScenes)
+			{
+				InstancedThumbnailScenes.Reset();
+				// Will hitch but is better than a crash
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			}
+
+			ExistingThumbnailScene = MakeShareable(new ThumbnailSceneType());
+			InstancedThumbnailScenes.Add(ObjectPath, ExistingThumbnailScene);
+		}
+
+		return ExistingThumbnailScene.ToSharedRef();
+	}
+
+	/** Removes the thumbnail scene instance for the specified class */
+	void RemoveThumbnailScene(const UObject* InObject)
+	{
+		check(InObject);
+		InstancedThumbnailScenes.Remove(InObject->GetPathName());
+	}
+
+	/** Clears all thumbnail scenes */
+	void Clear()
+	{
+		InstancedThumbnailScenes.Reset();
+	}
+
+private:
+	/**
+	 * Mapping between the class type and its thumbnail scene.
+	 * @note This uses the class name rather than the class pointer to avoid leaving behind stale class instances as Blueprints are re-compiled.
+	 */
+	TMap<FString, TSharedPtr<ThumbnailSceneType>> InstancedThumbnailScenes;
+};
+

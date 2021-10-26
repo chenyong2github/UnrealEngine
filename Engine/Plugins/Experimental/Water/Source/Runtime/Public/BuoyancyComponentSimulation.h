@@ -473,7 +473,7 @@ public:
 		if (State.bIsInWaterBody)
 		{
 			const FVector DragTorque = -State.AngularVelocityRad * BuoyancyData.AngularDragCoefficient;
-			AddForce(Body, DragTorque);
+			AddTorque(Body, DragTorque);
 		}
 	}
 };

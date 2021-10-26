@@ -6,10 +6,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-using namespace CADKernel;
-
-
-void FRuledSurface::LinesNotDerivables(const FSurfacicBoundary& InBoundary, int32 InDerivativeOrder, FCoordinateGrid& OutCoordinates) const
+void CADKernel::FRuledSurface::LinesNotDerivables(const FSurfacicBoundary& InBoundary, int32 InDerivativeOrder, FCoordinateGrid& OutCoordinates) const
 {
 	TFunction<void(int32, TArray<double>&)> FindNotDerivableCoordinates = [&](int32 CurveIndex, TArray<double>& NotDerivables)
 	{
@@ -32,7 +29,7 @@ void FRuledSurface::LinesNotDerivables(const FSurfacicBoundary& InBoundary, int3
 	ArrayUtils::Complete(OutCoordinates[EIso::IsoU], LinesNotDerivablesCurve1, GetIsoTolerances()[IsoU]);
 }
 
-void FRuledSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FRuledSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	double CoordinateCurve0 = Curves[0]->GetBoundary().Min + InPoint2D.U * (Curves[0]->GetBoundary().Max - Curves[0]->GetBoundary().Min);
 	double CoordinateCurve1 = Curves[1]->GetBoundary().Min + InPoint2D.U * (Curves[1]->GetBoundary().Max - Curves[1]->GetBoundary().Min);
@@ -59,7 +56,7 @@ void FRuledSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& Out
 	}
 }
 
-void FRuledSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FRuledSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 
@@ -117,7 +114,7 @@ void FRuledSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfa
 	}
 }
 
-void FRuledSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void CADKernel::FRuledSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	TFunction<void(int32, TArray<double>&)> PresampleCurve = [&](int32 CurveIndex, TArray<double>& Sample)
 	{
@@ -140,12 +137,12 @@ void FRuledSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinate
 	ArrayUtils::InsertInside(Coordinates[EIso::IsoU], Curve1Sample, GetIsoTolerance(IsoU));
 
 	Coordinates[EIso::IsoV].Empty(3);
-	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);
-	Coordinates[EIso::IsoV].Add((InBoundaries.UVBoundaries[EIso::IsoV].Max + InBoundaries.UVBoundaries[EIso::IsoV].Min) / 2.0);
-	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
+	Coordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Min);
+	Coordinates[EIso::IsoV].Add((InBoundaries[EIso::IsoV].Max + InBoundaries[EIso::IsoV].Min) / 2.0);
+	Coordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Max);
 }
 
-TSharedPtr<FEntityGeom> FRuledSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FRuledSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FCurve> TransformedCurveU = StaticCastSharedPtr<FCurve>(Curves[0]->ApplyMatrix(InMatrix));
 	if (!TransformedCurveU.IsValid())
@@ -163,14 +160,14 @@ TSharedPtr<FEntityGeom> FRuledSurface::ApplyMatrix(const FMatrixH& InMatrix) con
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FRuledSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FRuledSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("Curve 0"), Curves[0])
 		.Add(TEXT("Curve 1"), Curves[1]);
 }
 #endif
 
-void FRuledSurface::SpawnIdent(FDatabase& Database)
+void CADKernel::FRuledSurface::SpawnIdent(FDatabase& Database)
 {
 	if (!FEntity::SetId(Database))
 	{
@@ -181,7 +178,7 @@ void FRuledSurface::SpawnIdent(FDatabase& Database)
 	Curves[1]->SpawnIdent(Database);
 }
 
-void FRuledSurface::ResetMarkersRecursively() 
+void CADKernel::FRuledSurface::ResetMarkersRecursively() 
 {
 	ResetMarkers();
 	Curves[0]->ResetMarkersRecursively();

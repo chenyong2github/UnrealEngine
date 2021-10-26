@@ -20,7 +20,7 @@
 #define RECAST_DEFAULT_AREA			(RECAST_MAX_AREAS - 1)
 #define RECAST_LOW_AREA				(RECAST_MAX_AREAS - 2)
 #define RECAST_NULL_AREA			0
-#define RECAST_UNWALKABLE_POLY_COST	FLT_MAX
+#define RECAST_UNWALKABLE_POLY_COST	FLT_MAX // LWC_TODO_AI: This should be TNumericLimits<FVector::FReal>::Max() when costs are upgraded to FReals. Not until after 5.0!
 
 // If set, recast will use async workers for rebuilding tiles in runtime
 // All access to tile data must be guarded with critical sections
@@ -48,6 +48,7 @@ struct FRecastAreaNavModifierElement;
 class dtNavMesh;
 class dtQueryFilter;
 class FRecastNavMeshGenerator;
+struct dtMeshTile;
 
 UENUM()
 namespace ERecastPartitioning
@@ -61,6 +62,45 @@ namespace ERecastPartitioning
 		ChunkyMonotone,
 	};
 }
+
+struct FDetourTileSizeInfo
+{
+	int32 VertCount = 0;
+	int32 PolyCount = 0;
+	int32 MaxLinkCount = 0;
+	int32 DetailMeshCount = 0;
+	int32 DetailVertCount = 0;
+	int32 DetailTriCount = 0;
+	int32 BvNodeCount = 0;
+	int32 OffMeshConCount = 0;
+	int32 OffMeshSegConCount = 0;
+	int32 ClusterCount = 0;
+	int32 OffMeshBase = 0;
+};
+
+struct NAVIGATIONSYSTEM_API FDetourTileLayout
+{
+	FDetourTileLayout(const dtMeshTile& tile);
+	FDetourTileLayout(const FDetourTileSizeInfo& SizeInfo);
+
+private:
+	void InitFromSizeInfo(const FDetourTileSizeInfo& SizeInfo);
+
+public:
+	int32 HeaderSize = 0;
+	int32 VertsSize = 0;
+	int32 PolysSize = 0;
+	int32 LinksSize = 0;
+	int32 DetailMeshesSize = 0;
+	int32 DetailVertsSize = 0;
+	int32 DetailTrisSize = 0;
+	int32 BvTreeSize = 0;
+	int32 OffMeshConsSize = 0;
+	int32 OffMeshSegsSize = 0;
+	int32 ClustersSize = 0;
+	int32 PolyClustersSize = 0;
+	int32 TileSize = 0;
+};
 
 namespace ERecastPathFlags
 {
@@ -79,12 +119,12 @@ struct FRecastDebugPathfindingNode
 {
 	NavNodeRef PolyRef;
 	NavNodeRef ParentRef;
-	float Cost;
+	float Cost; // LWC_TODO_AI: These should be FVector::FReal in the long run! Not until after 5.0!
 	float TotalCost;
 	float Length;
 
 	FVector NodePos;
-	TArray<FVector3f, TInlineAllocator<6> > Verts;
+	TArray<FVector3f, TInlineAllocator<6> > Verts; // LWC_TODO: Precision loss. Issue here is regarding debug rendering needing to work with FVector3f.
 	uint8 NumVerts;
 
 	uint8 bOpenSet : 1;
@@ -405,7 +445,7 @@ namespace FNavMeshConfig
 	};
 }
 
-
+// LWC_TODO_AI: Many of the virtual methods and members should be changed from float to FVector::FReal. Not for 5.0!
 UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transformation,Actor,Layers,Replication), notplaceable)
 class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 {
@@ -674,13 +714,13 @@ public:
 		NavNodeRef CorridorPolys[MAX_PATH_CORRIDOR_POLYS];
 		float CorridorCost[MAX_PATH_CORRIDOR_POLYS];
 		int32 CorridorPolysCount;
-		float HitTime;
+		FVector::FReal HitTime;
 		FVector HitNormal;
 		uint32 bIsRaycastEndInCorridor : 1;
 
 		FRaycastResult()
 			: CorridorPolysCount(0)
-			, HitTime(FLT_MAX)
+			, HitTime(TNumericLimits<FVector::FReal>::Max())
 			, HitNormal(0.f)
 			, bIsRaycastEndInCorridor(false)
 		{
@@ -689,7 +729,7 @@ public:
 		}
 
 		FORCEINLINE int32 GetMaxCorridorSize() const { return MAX_PATH_CORRIDOR_POLYS; }
-		FORCEINLINE bool HasHit() const { return HitTime != FLT_MAX; }
+		FORCEINLINE bool HasHit() const { return HitTime != TNumericLimits<FVector::FReal>::Max(); }
 		FORCEINLINE NavNodeRef GetLastNodeRef() const { return CorridorPolysCount > 0 ? CorridorPolys[CorridorPolysCount - 1] : INVALID_NAVNODEREF; }
 	};
 
@@ -947,7 +987,7 @@ public:
 	FColor GetAreaIDColor(uint8 AreaID) const;
 
 	/** Finds the polygons along the navigation graph that touch the specified circle. */
-	bool FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys = nullptr, TArray<NavNodeRef>* OutPolysParent = nullptr, TArray<float>* OutPolysCost = nullptr, int32* OutPolysCount = nullptr) const;
+	bool FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const FVector::FReal Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys = nullptr, TArray<NavNodeRef>* OutPolysParent = nullptr, TArray<float>* OutPolysCost = nullptr, int32* OutPolysCount = nullptr) const;
 
 	/** Returns nearest navmesh polygon to Loc, or INVALID_NAVMESHREF if Loc is not on the navmesh. */
 	NavNodeRef FindNearestPoly(FVector const& Loc, FVector const& Extent, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;
@@ -1023,14 +1063,14 @@ public:
 	bool GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSharedConstNavQueryFilter Filter = nullptr, const UObject* Owner = nullptr) const;
 
 	/** Find up to 64 navmesh eges in up to 64 polys around the center */
-	bool FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const float Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const;
+	bool FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const FVector::FReal Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const;
 
 	/** Get all polys from tile */
 	bool GetNavLinksInTile(const int32 TileIndex, TArray<FNavPoly>& Polys, const bool bIncludeLinksFromNeighborTiles) const;
 
 	/** Projects point on navmesh, returning all hits along vertical line defined by min-max Z params */
 	bool ProjectPointMulti(const FVector& Point, TArray<FNavLocation>& OutLocations, const FVector& Extent,
-		float MinZ, float MaxZ, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;
+		FVector::FReal MinZ, FVector::FReal MaxZ, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;
 	
 	// @todo docuement
 	static FPathFindingResult FindPath(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query);
@@ -1049,7 +1089,7 @@ public:
 	/** Check if navmesh is defined (either built/streamed or recognized as empty tile by generator) in given radius.
 	  * @returns true if ALL tiles inside are ready
 	  */
-	bool HasCompleteDataInRadius(const FVector& TestLocation, float TestRadius) const;
+	bool HasCompleteDataInRadius(const FVector& TestLocation, FVector::FReal TestRadius) const;
 
 	/** @return true is specified segment is fully on navmesh (respecting the optional filter) */
 	bool IsSegmentOnNavmesh(const FVector& SegmentStart, const FVector& SegmentEnd, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;

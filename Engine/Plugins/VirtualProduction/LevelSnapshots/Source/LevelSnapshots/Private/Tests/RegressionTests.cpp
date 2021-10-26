@@ -3,13 +3,12 @@
 #include "CoreMinimal.h"
 
 #include "PropertySelectionMap.h"
-#include "SnapshotTestRunner.h"
-#include "SnapshotTestActor.h"
+#include "Util/SnapshotTestRunner.h"
+#include "Types/SnapshotTestActor.h"
 #include "Types/ActorWithReferencesInCDO.h"
 
 #include "Engine/World.h"
 #include "Misc/AutomationTest.h"
-#include "UObject/WeakObjectPtr.h"
 
 // Bug fixes should generally be tested. Put tests for bug fixes here.
 

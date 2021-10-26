@@ -193,7 +193,12 @@ namespace CADKernel
 		 * Make a new curve based on the new bounds.
 		 * If the new bound is nearly equal to the initial bound, no curve is made (return TSharedPtr<FCurve>())
 		 */
-		virtual TSharedPtr<FCurve> ReboundCurve(const FLinearBoundary& InBoundary);
+		virtual TSharedPtr<FCurve> MakeBoundedCurve(const FLinearBoundary& InBoundary);
+
+		/**
+		 * Rebound the curve, if not possible make a new curve based on the new bounds.
+		 */
+		virtual TSharedPtr<FCurve> Rebound(const FLinearBoundary& InBoundary);
 
 		/**
 		 * Linear deformation of the curve along the axis [Start point, End point] so that the nearest extremity is at the desired position and the other is not modified

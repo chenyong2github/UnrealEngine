@@ -78,7 +78,7 @@ public:
 	 *
 	 * @param true if it closes without errors, false otherwise
 	 */
-	virtual bool Close() override;
+	virtual bool Close() override final;
 
 	/**
 	 * Binds a socket to a network byte ordered address

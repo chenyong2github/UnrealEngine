@@ -28,6 +28,11 @@ namespace AutomationToolDriver
 		/// <returns>True if the parameter has been successfully parsed.</returns>
 		private static void ParseParam(string CurrentParam, CommandInfo CurrentCommand)
 		{
+			if (AutomationToolCommandLine.IsParameterIgnored(CurrentParam))
+            {
+				return;
+            }
+
 			bool bGlobalParam = AutomationToolCommandLine.TrySetGlobal(CurrentParam);
 
 			// Global value parameters, handled explicitly
@@ -251,7 +256,8 @@ namespace AutomationToolDriver
 					{"-WaitForDebugger", "Waits for a debugger to be attached, and breaks once debugger successfully attached."},
 					{"-BuildMachine", "" },
 					{"-WaitForUATMutex", "" }
-				}
+				},
+				new HashSet<string>(){ "-msbuild-verbose" }
 			);
 
 			ParseProfile(ref Arguments);

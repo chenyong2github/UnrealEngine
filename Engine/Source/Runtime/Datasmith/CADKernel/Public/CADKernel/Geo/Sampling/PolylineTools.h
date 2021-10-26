@@ -19,8 +19,8 @@ namespace CADKernel
 	{
 		inline bool IsDichotomyToBePreferred(int32 InPolylineSize, int32 ResultSize)
 		{
-			float MeanLinearIteration = (float)InPolylineSize / (float)ResultSize;
-			float MaxDichotomyIteration = FMath::Log2((float)InPolylineSize);
+			double MeanLinearIteration = InPolylineSize / ResultSize;
+			double MaxDichotomyIteration = FMath::Log2((double) InPolylineSize);
 
 			if (MeanLinearIteration > MaxDichotomyIteration)
 			{

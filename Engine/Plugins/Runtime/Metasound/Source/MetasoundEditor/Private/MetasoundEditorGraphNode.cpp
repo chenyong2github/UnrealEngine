@@ -459,6 +459,11 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 	return GetConstNodeHandle()->GetDescription();
 }
 
+FText UMetasoundEditorGraphNode::GetDisplayName() const
+{
+	return Metasound::Editor::FGraphBuilder::GetDisplayName(*GetConstNodeHandle());
+}
+
 FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const
 {
 	// Default the node to searching for an excerpt named for the C++ node class name, including the U prefix.

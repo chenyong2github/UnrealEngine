@@ -38,6 +38,7 @@ bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipel
 	}
 
 	UPackage* NewPackage = CreatePackage(*NewPackageName);
+	NewPackage->MarkAsFullyLoaded();
 	NewPackage->AddToRoot();
 	
 	// Duplicate the provided config into this package.

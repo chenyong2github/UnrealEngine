@@ -27,7 +27,7 @@
 
 #include "SListViewSelectorDropdownMenu.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorComponentClassCombo"
 
@@ -54,7 +54,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::Construct(const FArguments&
 
 	ChildSlot
 	[
-		SAssignNew(AddNewButton, SEditorHeaderButton)
+		SAssignNew(AddNewButton, SPositiveActionButton)
 		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 		.Text(LOCTEXT("AddComponent", "Add Component"))
 		.OnComboBoxOpened(this, &SDisplayClusterConfiguratorComponentClassCombo::ClearSelection)

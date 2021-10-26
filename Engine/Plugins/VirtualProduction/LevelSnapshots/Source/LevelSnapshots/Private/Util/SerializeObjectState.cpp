@@ -5,6 +5,7 @@
 #include "Containers/Queue.h"
 #include "Serialization/ArchiveProxy.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 namespace
 {

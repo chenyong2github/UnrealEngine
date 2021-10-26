@@ -566,8 +566,9 @@ public:
 
 	/**
 	 * Invoke the delegate called whenever this element list has been changed.
+	 * @return true if a change notification was emitted
 	 */
-	void NotifyPendingChanges();
+	bool NotifyPendingChanges();
 
 	/**
 	 * Clear whether there are pending changes for OnChangedDelegate to notify for, without emitting a notification.

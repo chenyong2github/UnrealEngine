@@ -15,7 +15,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Engine/SkeletalMesh.h"
 #include "ApexClothingUtils.h"
 #include "UObject/UObjectIterator.h"
@@ -801,7 +801,7 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 				.HAlign(HAlign_Right)
 				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
-					SNew(SEditorHeaderButton)
+					SNew(SPositiveActionButton)
 					.Text(LOCTEXT("CopyClothingFromMeshText_TEXT", "Add Clothing"))
 					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 					.ToolTipText(LOCTEXT("CopyClothingFromMeshText_TOOLTIP", "Copy Clothing from SkeletalMesh"))

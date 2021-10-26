@@ -890,45 +890,45 @@ static void AddStrataFurnacePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		View.ViewRect);
 }
 
-void AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, FRDGTextureRef SceneColorTexture, EShaderPlatform Platform)
+bool ShouldRenderStrataDebugPasses(const FViewInfo& View)
 {
-	if (!IsStrataEnabled())
-		return;
+	return IsStrataEnabled() &&
+		(
+		   (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(View.GetShaderPlatform()) && View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial)
+		|| (IsClassificationEnabled() && CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
+		|| (CVarStrataFurnaceTest.GetValueOnAnyThread() > 0)
+		);
+}
+
+FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor)
+{
+	check(IsStrataEnabled());
+	EShaderPlatform Platform = View.GetShaderPlatform();
 
 	if (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(Platform))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeMaterial");
-		for (int32 i = 0; i < Views.Num(); ++i)
-		{
-			const FViewInfo& View = Views[i];
-			AddVisualizeMaterialPasses(GraphBuilder, View, SceneColorTexture, Platform);
-		}
+		AddVisualizeMaterialPasses(GraphBuilder, View, ScreenPassSceneColor.Texture, Platform);
 	}
 
 	const int32 StrataClassificationDebug = CVarStrataClassificationDebug.GetValueOnAnyThread();
 	if (IsClassificationEnabled() && StrataClassificationDebug > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeClassification");
-		for (int32 i = 0; i < Views.Num(); ++i)
-		{
-			const FViewInfo& View = Views[i];
-			const bool bDebugPass = true;
-			AddStrataInternalClassificationTilePass(
-				GraphBuilder, View, nullptr, &SceneColorTexture, EStrataTileMaterialType::ESimple, bDebugPass);
-			AddStrataInternalClassificationTilePass(
-				GraphBuilder, View, nullptr, &SceneColorTexture, EStrataTileMaterialType::EComplex, bDebugPass);
-		}
+		const bool bDebugPass = true;
+		AddStrataInternalClassificationTilePass(
+			GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESimple, bDebugPass);
+		AddStrataInternalClassificationTilePass(
+			GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::EComplex, bDebugPass);
 	}
 
 	if (CVarStrataFurnaceTest.GetValueOnAnyThread() > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeFurnaceTest");
-		for (int32 i = 0; i < Views.Num(); ++i)
-		{
-			const FViewInfo& View = Views[i];
-			AddStrataFurnacePass(GraphBuilder, View, SceneColorTexture);
-		}
+		AddStrataFurnacePass(GraphBuilder, View, ScreenPassSceneColor.Texture);
 	}
+
+	return MoveTemp(ScreenPassSceneColor);
 }
 
 } // namespace Strata

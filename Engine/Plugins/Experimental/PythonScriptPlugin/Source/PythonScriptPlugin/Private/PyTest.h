@@ -204,6 +204,9 @@ public:
 	void LegacyFuncTakingPyTestStruct(const FPyTestStruct& InStruct) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	void FuncTakingPyTestStructDefault(const FPyTestStruct& InStruct = FPyTestStruct());
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 FuncTakingPyTestDelegate(const FPyTestDelegate& InDelegate, const int32 InValue) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")

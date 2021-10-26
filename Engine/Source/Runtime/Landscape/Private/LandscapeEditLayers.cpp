@@ -1413,11 +1413,11 @@ bool ALandscape::IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming)
 bool ALandscape::IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation) const
 {
 	check(InMaterialResource);
-	if (bInWaitForCompilation && !InMaterialResource->HasValidGameThreadShaderMap())
+	if (bInWaitForCompilation && !InMaterialResource->IsGameThreadShaderMapComplete())
 	{
 		InMaterialResource->FinishCompilation();
 	}
-	return InMaterialResource->HasValidGameThreadShaderMap();
+	return InMaterialResource->IsGameThreadShaderMapComplete();
 }
 
 bool ALandscape::ComputeLandscapeLayerBrushInfo(FTransform& OutLandscapeTransform, FIntPoint& OutLandscapeSize, FIntPoint& OutLandscapeRenderTargetSize)
@@ -2964,7 +2964,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(FTextureToComponentHelper const& Ma
 			if (CPUReadback == nullptr)
 			{
 				FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
-				const uint8* LockedMip = ComponentHeightmap->Source.LockMip(0);
+				const uint8* LockedMip = ComponentHeightmap->Source.LockMipReadOnly(0);
 				const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, ComponentHeightmap->GetSizeX() * ComponentHeightmap->GetSizeY() * sizeof(FColor));
 				ComponentHeightmap->Source.UnlockMip(0);
 				NewCPUReadback->SetHash(Hash);
@@ -3276,7 +3276,6 @@ void ALandscape::ResolveLayersHeightmapTexture(
 			if (bChanged)
 			{
 				ChangedComponents.Append(MapHelper.HeightmapToComponents[Heightmap]);
-				Heightmap->MarkPackageDirty();
 			}
 		}
 	}
@@ -3504,6 +3503,9 @@ bool ALandscape::ResolveLayersTexture(
 					{
 						DirtyDelegate(InOutputTexture, (FColor*)TextureData, OutMipsData[MipIndex].GetData());
 						bChanged = true;
+
+						// We're about to modify the texture's source data, the texture needs to know so that it can handle properly update cached platform data (additionally, the package needs to be dirtied) :
+						InOutputTexture->Modify();
 					}
 				}
 
@@ -4269,7 +4271,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(FTextureToComponentHelper const& Ma
 					if (CPUReadback == nullptr)
 					{
 						FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
-						const uint8* LockedMip = WeightmapTexture->Source.LockMip(0);
+						const uint8* LockedMip = WeightmapTexture->Source.LockMipReadOnly(0);
 						const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, WeightmapTexture->GetSizeX() * WeightmapTexture->GetSizeY() * sizeof(FColor));
 						NewCPUReadback->SetHash(Hash);
 						WeightmapTexture->Source.UnlockMip(0);
@@ -4672,7 +4674,6 @@ void ALandscape::ResolveLayersWeightmapTexture(
 			if (bChanged)
 			{
 				ChangedComponents.Append(MapHelper.WeightmapToComponents[Weightmap]);
-				Weightmap->MarkPackageDirty();
 			}
 		}
 	}
@@ -6220,7 +6221,7 @@ LANDSCAPE_API extern bool GDisableUpdateLandscapeMaterialInstances;
 uint32 ULandscapeComponent::ComputeLayerHash() const
 {
 	UTexture2D* Heightmap = GetHeightmap(true);
-	const uint8* MipData = Heightmap->Source.LockMip(0);
+	const uint8* MipData = Heightmap->Source.LockMipReadOnly(0);
 	uint32 Hash = FCrc::MemCrc32(MipData, Heightmap->GetSizeX()*Heightmap->GetSizeY() * sizeof(FColor));
 	Heightmap->Source.UnlockMip(0);
 
@@ -6243,7 +6244,7 @@ uint32 ULandscapeComponent::ComputeLayerHash() const
 		{
             // Compute hash of actual data of the texture that is owned by the component (per Texture Channel)
 			UTexture2D* Weightmap = Weightmaps[AllocationInfo.WeightmapTextureIndex];
-			MipData = Weightmap->Source.LockMip(0) + ChannelOffsets[AllocationInfo.WeightmapTextureChannel];
+			MipData = Weightmap->Source.LockMipReadOnly(0) + ChannelOffsets[AllocationInfo.WeightmapTextureChannel];
 			TArray<uint8> ChannelData;
 			ChannelData.AddDefaulted(Weightmap->GetSizeX()*Weightmap->GetSizeY());
 			int32 TexSize = (SubsectionSizeQuads + 1)*NumSubsections;

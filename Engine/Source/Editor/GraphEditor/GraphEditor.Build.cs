@@ -51,6 +51,7 @@ public class GraphEditor : ModuleRules
 				"RenderCore",
 				"RHI",
 				"ToolMenus",
+				"ToolWidgets",
 			}
 		);
 

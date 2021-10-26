@@ -120,6 +120,36 @@ DEFINE_STAT(STAT_Navigation_PathVisibilityOptimisation);
 DEFINE_STAT(STAT_Navigation_ObservedPathsCount);
 DEFINE_STAT(STAT_Navigation_RecastMemory);
 
+DEFINE_STAT(STAT_Navigation_DetourTEMP);
+DEFINE_STAT(STAT_Navigation_DetourPERM);
+DEFINE_STAT(STAT_Navigation_DetourPERM_AVOIDANCE);
+DEFINE_STAT(STAT_Navigation_DetourPERM_CROWD);
+DEFINE_STAT(STAT_Navigation_DetourPERM_LOOKUP);
+DEFINE_STAT(STAT_Navigation_DetourPERM_NAVQUERY);
+DEFINE_STAT(STAT_Navigation_DetourPERM_NAVMESH);
+DEFINE_STAT(STAT_Navigation_DetourPERM_NODE_POOL);
+DEFINE_STAT(STAT_Navigation_DetourPERM_PATH_CORRIDOR);
+DEFINE_STAT(STAT_Navigation_DetourPERM_PATH_QUEUE);
+DEFINE_STAT(STAT_Navigation_DetourPERM_PROXY_GRID);
+DEFINE_STAT(STAT_Navigation_DetourPERM_TILE_DATA);
+DEFINE_STAT(STAT_Navigation_DetourPERM_TILE_DYNLINK_OFFMESH);
+DEFINE_STAT(STAT_Navigation_DetourPERM_TILE_DYNLINK_CLUSTER);
+DEFINE_STAT(STAT_Navigation_DetourPERM_TILES);
+
+DEFINE_STAT(STAT_DetourTileMemory);
+DEFINE_STAT(STAT_DetourTileMeshHeaderMemory);
+DEFINE_STAT(STAT_DetourTileNavVertsMemory);
+DEFINE_STAT(STAT_DetourTileNavPolysMemory);
+DEFINE_STAT(STAT_DetourTileLinksMemory);
+DEFINE_STAT(STAT_DetourTileDetailMeshesMemory);
+DEFINE_STAT(STAT_DetourTileDetailVertsMemory);
+DEFINE_STAT(STAT_DetourTileDetailTrisMemory);
+DEFINE_STAT(STAT_DetourTileBVTreeMemory);
+DEFINE_STAT(STAT_DetourTileOffMeshConsMemory);
+DEFINE_STAT(STAT_DetourTileOffMeshSegsMemory);
+DEFINE_STAT(STAT_DetourTileClustersMemory);
+DEFINE_STAT(STAT_DetourTilePolyClustersMemory);
+
 CSV_DEFINE_CATEGORY(NavigationSystem, false);
 CSV_DEFINE_CATEGORY(NavTasks, true);
 

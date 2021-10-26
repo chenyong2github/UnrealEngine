@@ -5,6 +5,8 @@
 #include "LC_FilesystemTypes.h"
 #include "LC_StrongTypedef.h"
 
+// warning V510: The 'Log' function is not expected to receive class-type variable as fifth actual argument.
+//-V::510
 
 namespace Process
 {

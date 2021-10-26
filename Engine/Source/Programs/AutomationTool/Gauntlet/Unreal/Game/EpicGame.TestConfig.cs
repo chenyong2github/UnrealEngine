@@ -233,9 +233,9 @@ namespace EpicGame
 
 			if (ConfigRole.RoleType.IsClient() || RequiresLogin)
 			{
-				string[] NoAssignedAccountPlatforms = {"PS4","PS5","XboxOneGDK","XSX" };
+				bool bNoAccountOverride = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(ConfigRole.Platform.ToString())?.bNoAccountOverride ?? false;
 				// select an account
-				if (NoMCP == false && !NoAssignedAccountPlatforms.Contains(ConfigRole.Platform.ToString()) && PreAssignAccount == true)
+				if (NoMCP == false && !bNoAccountOverride && PreAssignAccount == true)
 				{
 					Account UserAccount = AccountPool.Instance.ReserveAccount();
 					UserAccount.ApplyToConfig(AppConfig);

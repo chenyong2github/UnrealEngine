@@ -245,6 +245,16 @@ bool UCollectSurfacePathMechanic::RayToPathPoint(const FRay3d& Ray, FFrame3d& Po
 				}
 			}
 		}
+
+		if (bSnapToWorldGrid && ParentTool.IsValid())
+		{
+			FVector3d WorldGridSnapPos;
+			if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(ParentTool.Get(), PointOut.Origin, WorldGridSnapPos))
+			{
+				PointOut.Origin = WorldGridSnapPos;
+			}
+		}
+
 	}
 
 	return true;

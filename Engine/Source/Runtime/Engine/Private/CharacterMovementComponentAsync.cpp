@@ -3016,6 +3016,7 @@ bool FUpdatedComponentAsyncInput::ShouldIgnoreOverlapResult(const UWorld* World,
 
 void FUpdatedComponentAsyncInput::SetPosition(const FVector& InPosition) const
 {
+#if WITH_CHAOS
 	if (PhysicsHandle->GetPhysicsThreadAPI() == nullptr)
 	{
 		return;
@@ -3039,20 +3040,23 @@ void FUpdatedComponentAsyncInput::SetPosition(const FVector& InPosition) const
 	{
 		ensure(false);
 	}
+#endif
 }
 
 FVector FUpdatedComponentAsyncInput::GetPosition() const
 {
+#if WITH_CHAOS
 	if (PhysicsHandle && PhysicsHandle->GetPhysicsThreadAPI())
 	{
 		return PhysicsHandle->GetPhysicsThreadAPI()->X();
 	}
-
+#endif
 	return FVector::ZeroVector;
 }
 
 void FUpdatedComponentAsyncInput::SetRotation(const FQuat& InRotation) const
 {
+#if WITH_CHAOS
 	if (PhysicsHandle->GetPhysicsThreadAPI() == nullptr)
 	{
 		return;
@@ -3076,14 +3080,17 @@ void FUpdatedComponentAsyncInput::SetRotation(const FQuat& InRotation) const
 	{
 		ensure(false);
 	}
+#endif
 }
 
 FQuat FUpdatedComponentAsyncInput::GetRotation() const
 {
+#if WITH_CHAOS
 	if (PhysicsHandle && PhysicsHandle->GetPhysicsThreadAPI())
 	{
 		return PhysicsHandle->GetPhysicsThreadAPI()->R();
 	}
+#endif
 
 	return FQuat::Identity;
 }

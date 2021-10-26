@@ -2211,7 +2211,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			{
 				MaxInfluenceCount = 4;
 			}
-			else if (MaxInfluenceType == ENDISkelMesh_GpuMaxInfluences::Type::AllowMax8)
+			else if (MaxInfluenceType == ENDISkelMesh_GpuMaxInfluences::Type::AllowMax8) //-V517
 			{
 				MaxInfluenceCount = 8;
 			}

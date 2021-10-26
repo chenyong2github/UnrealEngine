@@ -172,6 +172,7 @@ public:
 	void InvalidateCachedScriptAssetData();
 
 	const TArray<FNiagaraScriptHighlight>& GetCachedScriptAssetHighlights() const;
+	const TArray<UNiagaraScript*>& GetCachedTypeConversionScripts() const;
 
 	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
 
@@ -315,6 +316,7 @@ private:
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 
 	mutable TOptional<TArray<FNiagaraScriptHighlight>> CachedScriptAssetHighlights;
+	mutable TOptional<TArray<UNiagaraScript*>> TypeConversionScriptCache;
 
 	bool bThumbnailRenderersRegistered;
 

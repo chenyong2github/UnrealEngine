@@ -193,24 +193,6 @@ namespace UnrealBuildTool
 			return ConfigCache.ReadHierarchy(Type, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
 		}
 
-		private string GetLatestSDKApiLevel(AndroidToolChain ToolChain, string PlatformsDir)
-		{
-			// get a list of SDK platforms
-			if (!Directory.Exists(PlatformsDir))
-			{
-				throw new BuildException("No platforms found in {0}", PlatformsDir);
-			}
-
-			// return the latest of them
-			string[] PlatformDirectories = Directory.GetDirectories(PlatformsDir);
-			if (PlatformDirectories != null && PlatformDirectories.Length > 0)
-			{
-				return ToolChain.GetLargestApiLevel(PlatformDirectories);
-			}
-
-			throw new BuildException("Can't make an APK without an API installed ({0} does not contain any SDKs)", PlatformsDir);
-		}
-
 		private bool ValidateSDK(string PlatformsDir, string ApiString)
 		{
 			if (!Directory.Exists(PlatformsDir))
@@ -261,12 +243,10 @@ namespace UnrealBuildTool
 					SDKLevel = ToolChain.GetNdkApiLevel();
 				}
 
-				string PlatformsDir = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platforms");
-
 				// run a command and capture output
 				if (SDKLevel == "latest")
 				{
-					SDKLevel = GetLatestSDKApiLevel(ToolChain, PlatformsDir);
+					SDKLevel = ToolChain.GetLargestApiLevel();
 				}
 
 				// make sure it is at least android-23
@@ -274,7 +254,7 @@ namespace UnrealBuildTool
 				if (SDKLevelInt < MinimumSDKLevel)
 				{
 					Log.TraceInformation("Requires at least SDK API level {0}, currently set to '{1}'", MinimumSDKLevel, SDKLevel);
-					SDKLevel = GetLatestSDKApiLevel(ToolChain, PlatformsDir);
+					SDKLevel = ToolChain.GetLargestApiLevel();
 
 					SDKLevelInt = GetApiLevelInt(SDKLevel);
 					if (SDKLevelInt < MinimumSDKLevel)
@@ -286,6 +266,7 @@ namespace UnrealBuildTool
 				}
 
 				// validate the platform SDK is installed
+				string PlatformsDir = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platforms");
 				if (!ValidateSDK(PlatformsDir, SDKLevel))
 				{
 					Log.TraceWarning("The SDK API requested '{0}' not installed in {1}; Gradle will attempt to download it.", SDKLevel, PlatformsDir);
@@ -2810,8 +2791,8 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t           android:value=\"@integer/google_play_services_version\" />");
 			if (bSupportAdMob)
 			{
-			Text.AppendLine("\t\t<activity android:name=\"com.google.android.gms.ads.AdActivity\"");
-			Text.AppendLine("\t\t          android:configChanges=\"keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize\"/>");
+				Text.AppendLine("\t\t<activity android:name=\"com.google.android.gms.ads.AdActivity\"");
+				Text.AppendLine("\t\t          android:configChanges=\"keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize\"/>");
 			}
 			if (!string.IsNullOrEmpty(ExtraApplicationSettings))
 			{

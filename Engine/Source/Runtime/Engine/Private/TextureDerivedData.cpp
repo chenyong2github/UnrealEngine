@@ -49,6 +49,7 @@
 #include "VT/LightmapVirtualTexture.h"
 #include "TextureCompiler.h"
 #include "TextureEncodingSettings.h"
+#include "ColorSpace.h"
 
 /*------------------------------------------------------------------------------
 	Versioning for texture derived data.
@@ -66,9 +67,6 @@
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
 #define TEXTURE_VT_DERIVEDDATA_VER	TEXT("93F54B64FA524F78BCA4EA2CD30B1E9F")
 
-// Version number for the texture encoding enum types (UE::Color::EEncoding/ETextureSourceEncoding).
-// Make sure to increment upon changes to the list.
-#define TEXTURE_ENCODING_TYPES_VER 2
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -96,7 +94,9 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	float TempFloat;
 	uint8 TempByte;
 	FColor TempColor;
+	FVector2D TempVector2D;
 	FVector4 TempVector4;
+	UE::Color::FColorSpace TempColorSpace;
 	FGuid TempGuid;
 
 	TempFloat = Settings.ColorAdjustment.AdjustBrightness; Ar << TempFloat;
@@ -119,8 +119,20 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 
 	if (Settings.SourceEncodingOverride != 0 /*UE::Color::EEncoding::None*/)
 	{
-		TempUint32 = TEXTURE_ENCODING_TYPES_VER; Ar << TempUint32;
+		TempUint32 = UE::Color::ENCODING_TYPES_VER; Ar << TempUint32;
 		TempByte = Settings.SourceEncodingOverride; Ar << TempByte;
+	}
+
+	if (Settings.bHasColorSpaceDefinition)
+	{
+		TempUint32 = UE::Color::COLORSPACE_VER; Ar << TempUint32;
+		TempColorSpace = UE::Color::FColorSpace::GetWorking(); Ar << TempColorSpace;
+
+		TempVector2D = Settings.RedChromaticityCoordinate; Ar << TempVector2D;
+		TempVector2D = Settings.GreenChromaticityCoordinate; Ar << TempVector2D;
+		TempVector2D = Settings.BlueChromaticityCoordinate; Ar << TempVector2D;
+		TempVector2D = Settings.WhiteChromaticityCoordinate; Ar << TempVector2D;
+		TempByte = Settings.ChromaticAdaptationMethod; Ar << TempByte;
 	}
 
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
@@ -393,10 +405,42 @@ static void GetEncodeSpeedOptions(ETextureEncodeSpeed InEncodeSpeed, FTextureEnc
 			
 			// log settings once at startup
 			UEnum* EncodeEffortEnum = StaticEnum<ETextureEncodeEffort>();
+			
+			UEnum* UniversalTilingEnum = StaticEnum<ETextureUniversalTiling>();
 
-			UE_LOG(LogTexture, Display, TEXT("Oodle Texture Encode Speed settings: Fast: RDO %s Lambda %d, Effort %s Final: RDO %s Lambda %d, Effort %s"), \
-				Fast.bUsesRDO ? TEXT("On") : TEXT("Off"), Fast.bUsesRDO ? Fast.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Fast.Effort)), \
-				Final.bUsesRDO ? TEXT("On") : TEXT("Off"), Final.bUsesRDO ? Final.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Final.Effort)) );
+			FString FastRDOString;
+			if ( Fast.bUsesRDO )
+			{
+				FastRDOString = FString(TEXT("On"));
+				if ( Fast.Tiling != ETextureUniversalTiling::Disabled )
+				{
+					FastRDOString += TEXT(" UT=");
+					FastRDOString += UniversalTilingEnum->GetNameStringByValue((int64)Fast.Tiling);
+				}
+			}
+			else
+			{
+				FastRDOString = FString(TEXT("Off"));
+			}
+			
+			FString FinalRDOString;
+			if ( Final.bUsesRDO )
+			{
+				FinalRDOString = FString(TEXT("On"));
+				if ( Final.Tiling != ETextureUniversalTiling::Disabled )
+				{
+					FinalRDOString += TEXT(" UT=");
+					FinalRDOString += UniversalTilingEnum->GetNameStringByValue((int64)Final.Tiling);
+				}
+			}
+			else
+			{
+				FinalRDOString = FString(TEXT("Off"));
+			}
+
+			UE_LOG(LogTexture, Display, TEXT("Oodle Texture Encode Speed settings: Fast: RDO %s Lambda=%d, Effort=%s Final: RDO %s Lambda=%d, Effort=%s"), \
+				*FastRDOString, Fast.bUsesRDO ? Fast.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Fast.Effort)), \
+				*FinalRDOString, Final.bUsesRDO ? Final.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Final.Effort)) );
 
 
 		}
@@ -626,7 +670,13 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bTextureArray = false;
 	OutBuildSettings.DiffuseConvolveMipLevel = 0;
 	OutBuildSettings.bLongLatSource = false;
-	OutBuildSettings.SourceEncodingOverride = Texture.SourceEncodingOverride.GetValue();
+	OutBuildSettings.SourceEncodingOverride = static_cast<uint8>(Texture.SourceColorSettings.EncodingOverride);
+	OutBuildSettings.bHasColorSpaceDefinition = Texture.SourceColorSettings.ColorSpace != ETextureColorSpace::TCS_None;
+	OutBuildSettings.RedChromaticityCoordinate = Texture.SourceColorSettings.RedChromaticityCoordinate;
+	OutBuildSettings.GreenChromaticityCoordinate = Texture.SourceColorSettings.GreenChromaticityCoordinate;
+	OutBuildSettings.BlueChromaticityCoordinate = Texture.SourceColorSettings.BlueChromaticityCoordinate;
+	OutBuildSettings.WhiteChromaticityCoordinate = Texture.SourceColorSettings.WhiteChromaticityCoordinate;
+	OutBuildSettings.ChromaticAdaptationMethod = static_cast<uint8>(Texture.SourceColorSettings.ChromaticAdaptationMethod);
 
 	if (Texture.MaxTextureSize > 0)
 	{
@@ -1105,7 +1155,7 @@ typedef TArray<uint32> FAsyncVTChunkHandles;
  * so we know what our in-use key is. This might be on the worker immediately
  * after the fetch completes.
  */
-static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 FirstMipToLoad, UTexture* Texture, FAsyncMipHandles& OutHandles, TUniqueFunction<void (int32 MipIndex, FSharedBuffer MipData)> Callback)
+static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 FirstMipToLoad, FStringView DebugContext, FAsyncMipHandles& OutHandles, TUniqueFunction<void (int32 MipIndex, FSharedBuffer MipData)> Callback)
 {
 	using namespace UE::DerivedData;
 
@@ -1119,7 +1169,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			const FTexture2DMipMap& Mip = Mips[MipIndex];
 			if (Mip.IsPagedToDerivedData())
 			{
-				OutHandles[MipIndex] = DDC.GetAsynchronous(*PlatformData.GetDerivedDataMipKeyString(MipIndex, Mip), Texture ? Texture->GetPathName() : TEXT("Unknown Texture"_SV));
+				OutHandles[MipIndex] = DDC.GetAsynchronous(*PlatformData.GetDerivedDataMipKeyString(MipIndex, Mip), DebugContext);
 			}
 		}
 	}
@@ -1142,7 +1192,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			check(Callback);
 			bool bMiss = false;
 			FRequestOwner RequestOwner(EPriority::Blocking);
-			GetCache().GetChunks(MipKeys, Texture ? Texture->GetPathName() : TEXT("Unknown Texture"_SV), RequestOwner,
+			GetCache().GetChunks(MipKeys, DebugContext, RequestOwner,
 				[&Mips, Callback = MoveTemp(Callback), FirstMipToLoad, &bMiss](FCacheGetChunkCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
@@ -1176,7 +1226,7 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 	return true;
 }
 
-static void BeginLoadDerivedVTChunks(const TArray<FVirtualTextureDataChunk>& Chunks, UTexture* Texture, FAsyncVTChunkHandles& OutHandles)
+static void BeginLoadDerivedVTChunks(const TArray<FVirtualTextureDataChunk>& Chunks, FStringView DebugContext, FAsyncVTChunkHandles& OutHandles)
 {
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 	OutHandles.AddZeroed(Chunks.Num());
@@ -1185,7 +1235,7 @@ static void BeginLoadDerivedVTChunks(const TArray<FVirtualTextureDataChunk>& Chu
 		const FVirtualTextureDataChunk& Chunk = Chunks[ChunkIndex];
 		if (Chunk.DerivedDataKey.IsEmpty() == false)
 		{
-			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey, Texture ? Texture->GetPathName() : TEXT("Unknown Texture"_SV));
+			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey, DebugContext);
 		}
 	}
 }
@@ -1213,7 +1263,7 @@ static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 
 	#endif
 }
 
-bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Texture)
+bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView DebugContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryInlineMipData);
 
@@ -1223,7 +1273,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Text
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 
 
-	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, Texture, AsyncHandles,
+	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, DebugContext, AsyncHandles,
 		[this](int32 MipIndex, FSharedBuffer MipBuffer)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
@@ -1239,7 +1289,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Text
 
 	if (VTData != nullptr)
 	{
-		BeginLoadDerivedVTChunks(VTData->Chunks, Texture, AsyncVTHandles);
+		BeginLoadDerivedVTChunks(VTData->Chunks, DebugContext, AsyncVTHandles);
 	}
 
 	// Process regular mips
@@ -1328,7 +1378,10 @@ FTexturePlatformData::~FTexturePlatformData()
 #if WITH_EDITOR
 	if (AsyncTask)
 	{
-		AsyncTask->Wait();
+		if (!AsyncTask->Cancel())
+		{
+			AsyncTask->Wait();
+		}
 		delete AsyncTask;
 		AsyncTask = nullptr;
 	}
@@ -1357,7 +1410,7 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 	return true;
 }
 
-bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, UTexture* Texture)
+bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, FStringView DebugContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryLoadMips);
 
@@ -1370,7 +1423,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 	TArray<uint8> TempData;
 	FAsyncMipHandles AsyncHandles;
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
-	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, Texture, AsyncHandles,
+	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, DebugContext, AsyncHandles,
 		[this, OutMipData, FirstMipToLoad, &NumMipsCached](int32 MipIndex, FSharedBuffer MipBuffer)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
@@ -1453,8 +1506,8 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 				}
 				else
 				{
-					UE_LOG(LogTexture, Verbose, TEXT("DDC.GetAsynchronousResults() failed for %s, MipIndex: %d"),
-						Texture ? *Texture->GetPathName() : TEXT("nullptr"),
+					UE_LOG(LogTexture, Verbose, TEXT("DDC.GetAsynchronousResults() failed for %.*s, MipIndex: %d"),
+						DebugContext.Len(), DebugContext.GetData(),
 						MipIndex);
 				}
 				TempData.Reset();
@@ -1465,8 +1518,8 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 
 	if (NumMipsCached != (LoadableMips - FirstMipToLoad))
 	{
-		UE_LOG(LogTexture, Verbose, TEXT("TryLoadMips failed for %s, NumMipsCached: %d, LoadableMips: %d, FirstMipToLoad: %d"),
-			Texture ? *Texture->GetPathName() : TEXT("nullptr"),
+		UE_LOG(LogTexture, Verbose, TEXT("TryLoadMips failed for %.*s, NumMipsCached: %d, LoadableMips: %d, FirstMipToLoad: %d"),
+			DebugContext.Len(), DebugContext.GetData(),
 			NumMipsCached,
 			LoadableMips,
 			FirstMipToLoad);
@@ -1985,7 +2038,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
-	if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+	if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
 	{
 		// Unable to load mips from the cache. Rebuild the texture and try again.
 		UE_LOG(LogTexture,Warning,TEXT("GetMipData failed for %s (%s)"),
@@ -1994,7 +2047,7 @@ void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 		if (!GetOutermost()->bIsCookedForEditor)
 		{
 			ForceRebuildPlatformData();
-			if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+			if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Failed to build texture %s."), *GetPathName());
 			}
@@ -2005,7 +2058,7 @@ void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 
 void UTextureCube::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
-	if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+	if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
 	{
 		// Unable to load mips from the cache. Rebuild the texture and try again.
 		UE_LOG(LogTexture,Warning,TEXT("GetMipData failed for %s (%s)"),
@@ -2014,7 +2067,7 @@ void UTextureCube::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 		if (!GetOutermost()->bIsCookedForEditor)
 		{
 			ForceRebuildPlatformData();
-			if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, this) == false)
+			if (PlatformData->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Failed to build texture %s."), *GetPathName());
 			}
@@ -2225,6 +2278,12 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		// Now have a unique list - kick off the caches.
 		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsCacheKeysFetchOrBuild.Num(); ++SettingsIndex)
 		{
+			// If we have two platforms that generate the same key, we can have duplicates (e.g. -run=DerivedDataCache  -TargetPlatform=WindowsEditor+Windows) 
+			if (CookedPlatformData.Find(BuildSettingsCacheKeysFetchOrBuild[SettingsIndex]))
+			{
+				continue;
+			}
+
 			FTexturePlatformData* PlatformDataToCache = new FTexturePlatformData();
 			PlatformDataToCache->Cache(
 				*this,

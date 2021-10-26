@@ -2,7 +2,6 @@
 
 #pragma once
 
-#if WITH_EOS_SDK
 #include "CoreMinimal.h"
 #include "Online/AuthCommon.h"
 
@@ -21,6 +20,7 @@ public:
 	using Super = FAuthCommon;
 
 	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem);
+	virtual void PreShutdown() override;
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthGenerateAuth> GenerateAuth(FAuthGenerateAuth::Params&& Params) override;
@@ -30,6 +30,7 @@ public:
 	bool IsLoggedIn(const FAccountId& AccountId) const;
 
 protected:
+	void OnEOSLoginStatusChanged(FAccountId LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus);
 	TOnlineResult<FAccountId> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
 
 	class FAccountInfoEOS : public FAccountInfo
@@ -41,7 +42,7 @@ protected:
 	TMap<FAccountId, TSharedRef<FAccountInfoEOS>> AccountInfos;
 
 	EOS_HAuth AuthHandle;
+	EOS_NotificationId NotifyLoginStatusChangedNotificationId = 0;
 };
 
 /* UE::Online */ }
-#endif // WITH_EOS_SDK

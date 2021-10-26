@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaSource.h"
+
+#include "IImgMediaModule.h"
+#include "ImgMediaGlobalCache.h"
 #include "ImgMediaMipMapInfo.h"
 #include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaPrivate.h"
@@ -15,6 +18,7 @@
 UImgMediaSource::UImgMediaSource()
 	: IsPathRelativeToProjectRoot(false)
 	, FrameRateOverride(0, 0)
+	, bFillGapsInSequence(true)
 	, MipMapInfo(MakeShared<FImgMediaMipMapInfo, ESPMode::ThreadSafe>())
 {
 }
@@ -87,6 +91,16 @@ void UImgMediaSource::SetMipLevelDistance(float Distance)
 /* IMediaOptions interface
  *****************************************************************************/
 
+bool UImgMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) const
+{
+	if (Key == ImgMedia::FillGapsInSequenceOption)
+	{
+		return bFillGapsInSequence;
+	}
+
+	return Super::GetMediaOption(Key, DefaultValue);
+}
+
 int64 UImgMediaSource::GetMediaOption(const FName& Key, int64 DefaultValue) const
 {
 	if (Key == ImgMedia::FrameRateOverrideDenonimatorOption)
@@ -125,7 +139,8 @@ TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> UImgMediaSource::
 
 bool UImgMediaSource::HasMediaOption(const FName& Key) const
 {
-	if ((Key == ImgMedia::FrameRateOverrideDenonimatorOption) ||
+	if ((Key == ImgMedia::FillGapsInSequenceOption) ||
+		(Key == ImgMedia::FrameRateOverrideDenonimatorOption) ||
 		(Key == ImgMedia::FrameRateOverrideNumeratorOption) ||
 		(Key == ImgMedia::ProxyOverrideOption) ||
 		(Key == ImgMedia::MipMapInfoOption))
@@ -151,6 +166,23 @@ bool UImgMediaSource::Validate() const
 	return FPaths::DirectoryExists(GetFullPath());
 }
 
+#if WITH_EDITOR
+
+void UImgMediaSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Has FillGapsInSequence changed?
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bFillGapsInSequence))
+	{
+		// Clear the cache, as effectively the frames have changed.
+		FImgMediaGlobalCache* GlobalCache = IImgMediaModule::GetGlobalCache();
+		if (GlobalCache != nullptr)
+		{
+			GlobalCache->EmptyCache();
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 /* UFileMediaSource implementation
  *****************************************************************************/

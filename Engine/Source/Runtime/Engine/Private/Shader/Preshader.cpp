@@ -129,21 +129,6 @@ static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet,
 		}
 	}
 
-	// Allow interface to override default value, only needed if using material layers
-	if (!bFoundParameter && Context.Material.HasMaterialLayers())
-	{
-		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-		if (Interface)
-		{
-			FMaterialParameterMetadata ParameterValue;
-			if (Interface->GetParameterDefaultValue(Parameter.ParameterType, Parameter.ParameterInfo, ParameterValue))
-			{
-				OutValue = ParameterValue.Value.AsShaderValue();
-				bFoundParameter = true;
-			}
-		}
-	}
-
 	// Editor overrides
 #if WITH_EDITOR
 	if (!bFoundParameter)

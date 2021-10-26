@@ -16,6 +16,7 @@ UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent
 	, DefaultVisualizerLoadingRange(10000.f)
 #endif
 	, TargetGrid(NAME_None)
+	, DebugColor(ForceInit)
 	, Priority(EStreamingSourcePriority::Low)
 	, bStreamingSourceEnabled(true)
 	, TargetState(EStreamingSourceTargetState::Activated)
@@ -71,6 +72,7 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 		OutStreamingSource.Location = Actor->GetActorLocation();
 		OutStreamingSource.Rotation = Actor->GetActorRotation();
 		OutStreamingSource.TargetState = TargetState;
+		OutStreamingSource.DebugColor = DebugColor;
 		OutStreamingSource.TargetGrid = TargetGrid;
 		OutStreamingSource.TargetHLODLayer = TargetHLODLayer;
 		OutStreamingSource.Shapes = Shapes;

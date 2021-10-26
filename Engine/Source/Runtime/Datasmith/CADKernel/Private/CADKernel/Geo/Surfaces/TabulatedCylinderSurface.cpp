@@ -6,9 +6,7 @@
 #include "CADKernel/Geo/Curves/Curve.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
-using namespace CADKernel;
-
-void FTabulatedCylinderSurface::SpawnIdent(FDatabase& Database)
+void CADKernel::FTabulatedCylinderSurface::SpawnIdent(FDatabase& Database)
 {
 	if (!FEntity::SetId(Database))
 	{
@@ -18,13 +16,13 @@ void FTabulatedCylinderSurface::SpawnIdent(FDatabase& Database)
 	GuideCurve->SpawnIdent(Database);
 }
 
-void FTabulatedCylinderSurface::ResetMarkersRecursively() 
+void CADKernel::FTabulatedCylinderSurface::ResetMarkersRecursively() 
 {
 	ResetMarkers();
 	GuideCurve->ResetMarkersRecursively();
 }
 
-void FTabulatedCylinderSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FTabulatedCylinderSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	const FLinearBoundary& CurveBounds = GuideCurve->GetBoundary();
 
@@ -49,7 +47,7 @@ void FTabulatedCylinderSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordina
 	}
 }
 
-void FTabulatedCylinderSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FTabulatedCylinderSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 
@@ -91,17 +89,17 @@ void FTabulatedCylinderSurface::EvaluatePointGrid(const FCoordinateGrid& Coordin
 
 }
 
-void FTabulatedCylinderSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void CADKernel::FTabulatedCylinderSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	GuideCurve->Presample(Coordinates[EIso::IsoU], Tolerance3D);
 
 	Coordinates[EIso::IsoV].Empty(3);
-	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);
-	Coordinates[EIso::IsoV].Add((InBoundaries.UVBoundaries[EIso::IsoV].Max + InBoundaries.UVBoundaries[EIso::IsoV].Min) / 2.0);
-	Coordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
+	Coordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Min);
+	Coordinates[EIso::IsoV].Add((InBoundaries[EIso::IsoV].Max + InBoundaries[EIso::IsoV].Min) / 2.0);
+	Coordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Max);
 }
 
-void FTabulatedCylinderSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivables) const
+void CADKernel::FTabulatedCylinderSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivables) const
 {
 	const FLinearBoundary& CurveBounds = GuideCurve->GetBoundary();
 	double Length = CurveBounds.Length();
@@ -114,7 +112,7 @@ void FTabulatedCylinderSurface::LinesNotDerivables(const FSurfacicBoundary& Boun
 	}
 }
 
-TSharedPtr<FEntityGeom> FTabulatedCylinderSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FTabulatedCylinderSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FEntityGeom> TransformedGuideCurve = GuideCurve->ApplyMatrix(InMatrix);
 
@@ -135,7 +133,7 @@ TSharedPtr<FEntityGeom> FTabulatedCylinderSurface::ApplyMatrix(const FMatrixH& I
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FTabulatedCylinderSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FTabulatedCylinderSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("guide curve"), GuideCurve)

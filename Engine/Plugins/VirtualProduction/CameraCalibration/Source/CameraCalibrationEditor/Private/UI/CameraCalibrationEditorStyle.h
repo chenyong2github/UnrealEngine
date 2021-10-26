@@ -11,7 +11,7 @@
 /**
  * Implements the visual style of the camera calibration tools UI.
  */
-class FCameraCalibrationEditorStyle	: public FSlateStyleSet
+class FCameraCalibrationEditorStyle	final : public FSlateStyleSet
 {
 public:
 

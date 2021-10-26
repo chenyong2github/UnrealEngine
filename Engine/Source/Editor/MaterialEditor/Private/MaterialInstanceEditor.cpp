@@ -289,6 +289,8 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 	check(InMaterialFunction);
 	MaterialFunctionOriginal = InMaterialFunction;
 
+	UMaterialFunctionInterface* Parent = InMaterialFunction->Parent;
+
 	// Working version of the function instance
 	MaterialFunctionInstance = (UMaterialFunctionInstance*)StaticDuplicateObject(InMaterialFunction, GetTransientPackage(), NAME_None, ~RF_Standalone, UMaterialFunctionInstance::StaticClass()); 
 	MaterialFunctionInstance->Parent = InMaterialFunction;
@@ -327,6 +329,18 @@ void FMaterialInstanceEditor::InitEditorForMaterialFunction(UMaterialFunctionIns
 
 		Expression->Function = NULL;
 		Expression->Material = FunctionMaterialProxy;
+
+		// The actual MFI we're adding may have multiple layers of inheritance, but for the editor, we only create a single UMaterial which represents all the parents
+		// So if any parent MFI has a parameter override, we need to bake that parameter override into the UMaterial's parameter expression here
+		FMaterialParameterMetadata ParameterMeta;
+		if (Parent && Expression->GetParameterValue(ParameterMeta))
+		{
+			const FName ParameterName = Expression->GetParameterName();
+			if (Parent->GetParameterOverrideValue(ParameterMeta.Value.Type, ParameterName, ParameterMeta))
+			{
+				Expression->SetParameterValue(ParameterName, ParameterMeta);
+			}
+		}
 
 		if (UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression))
 		{

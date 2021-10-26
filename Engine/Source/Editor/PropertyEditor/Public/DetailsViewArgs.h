@@ -104,7 +104,7 @@ public:
 		, ViewIdentifier(NAME_None)
 		, NotifyHook(nullptr)
 		, NameAreaSettings(ActorsUseNameArea)
-		, ColumnWidth(.7f)
+		, ColumnWidth(.6f)
 		, RightColumnMinWidth(22)
 		, bUpdatesFromSelection(false)
 		, bLockable(false)

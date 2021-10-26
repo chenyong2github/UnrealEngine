@@ -930,6 +930,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateShowMenu() const
 				.IncludeFlag(FEngineShowFlags::SF_SeparateTranslucency)
 				.IncludeFlag(FEngineShowFlags::SF_TemporalAA)
 				.IncludeFlag(FEngineShowFlags::SF_VertexColors)
+				.IncludeFlag(FEngineShowFlags::SF_MeshEdges)
 				;
 
 			FShowFlagMenuCommands::Get().BuildShowFlagsMenu(InMenu, ShowFlagFilter);

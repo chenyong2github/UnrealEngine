@@ -955,7 +955,7 @@ void UTakeRecorder::Start()
 	{
 		CachedPlaybackRange = MovieScene->GetPlaybackRange();
 		CachedClockSource = MovieScene->GetClockSource();
-		MovieScene->SetClockSource(EUpdateClockSource::RelativeTimecode);
+		MovieScene->SetClockSource(Parameters.Project.RecordingClockSource);
 		if (Sequencer.IsValid())
 		{
 			Sequencer->ResetTimeController();

@@ -197,7 +197,20 @@ struct NIAGARA_API FNiagaraConstants
 	static const FName OutputScopeName;
 	static const FName UniqueOutputScopeName;
 	static const FName CustomScopeName;
-	
+
+	/** String version of namespaces */
+	static const FString AssignmentNodePrefixString;
+	static const FString EngineNamespaceString;
+	static const FString EmitterNamespaceString;
+	static const FString ModuleNamespaceString;
+	static const FString OutputNamespaceString;
+	static const FString ParameterCollectionNamespaceString;
+	static const FString ParticleAttributeNamespaceString;
+	static const FString RapidIterationParametersNamespaceString;
+	static const FString StackContextNamespaceString;
+	static const FString SystemNamespaceString;
+	static const FString UserNamespaceString;
+
 	static const int32 MaxParameterLength;
 	static const int32 MaxScriptNameLength;
 private:

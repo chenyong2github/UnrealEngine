@@ -12,7 +12,7 @@
 /**
  * Implements the visual style of the Groom asset editor UI.
  */
-class FGroomEditorStyle	: public FSlateStyleSet
+class FGroomEditorStyle	final : public FSlateStyleSet
 {
 public:
 

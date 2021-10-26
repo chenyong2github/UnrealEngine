@@ -7,7 +7,7 @@
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/UI/Progress.h"
 
-//#define DEBUG_IntersectEdgeIsos
+//#define DEBUG_INTERSECTEDGEISOS
 
 namespace CADKernel
 {
@@ -157,7 +157,7 @@ namespace CADKernel
 		}
 
 		void Mesh(TSharedRef<FTopologicalFace> Face);
-		void Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTopologicalFace> CarrierFace);
+		void Mesh(FTopologicalEdge& InEdge, FTopologicalFace& CarrierFace);
 		void Mesh(TSharedRef<FTopologicalVertex> Vertex);
 
 		void MeshFaceLoops(FGrid& Grid);
@@ -178,15 +178,18 @@ namespace CADKernel
 		void LinkQuadSurfaceForMesh(TArray<FCostToFace>& QuadTrimmedSurfaceSet, TArray<TArray<TSharedPtr<FTopologicalFace>>>& OutStrips);
 		void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
 
-		void ApplyEdgeCriteria(TSharedRef<FTopologicalEdge> Edge);
-		void ApplySurfaceCriteria(TSharedRef<FTopologicalFace> Surface);
+		void ApplyEdgeCriteria(FTopologicalEdge& Edge);
+		void ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face);
 
-		void GenerateEdgeElements(TSharedRef<FTopologicalEdge> Edge);
+		/**
+		 * Generate Edge Elements on active edge from Edge cutting points
+		 */
+		void GenerateEdgeElements(FTopologicalEdge& Edge);
 
-		void IntersectEdgeIsos(TSharedPtr<FTopologicalEdge> Edge, const TArray<FPoint2D>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso Iso, TArray<double>& OutIntersections);
+		void IntersectEdgeIsos(const FTopologicalEdge& Edge, const TArray<FPoint2D>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso Iso, TArray<double>& OutIntersections);
 
-#ifdef DEBUG_IntersectEdgeIsos
-		void DebugIntersectEdgeIsos(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<FTopologicalFace> Surface, const TArray<FPoint>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso TypeIso);
+#ifdef DEBUG_INTERSECTEDGEISOS
+		void DebugIntersectEdgeIsos(const FTopologicalEdge& Edge, const FTopologicalFace& Face, const TArray<FPoint2D>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso TypeIso);
 #endif
 	};
 

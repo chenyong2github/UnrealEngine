@@ -319,7 +319,7 @@ namespace EpicGames.Core
 		/// <param name="Verbosity"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[Obsolete("StackFramesToSkip is no longer supported. Please call an override without this parameter")]
+		[Obsolete("StackFramesToSkip has been deprecated since 5.0. Please call an override without this parameter")]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(int StackFramesToSkip, LogEventType Verbosity, string Format, params object[] Args)
 		{
@@ -334,7 +334,7 @@ namespace EpicGames.Core
 		/// <param name="FormatOptions"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[Obsolete("StackFramesToSkip is no longer used. Please call an override without this parameter")]
+		[Obsolete("StackFramesToSkip has been deprecated since 5.0. Please call an override without this parameter")]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(int StackFramesToSkip, LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
 		{

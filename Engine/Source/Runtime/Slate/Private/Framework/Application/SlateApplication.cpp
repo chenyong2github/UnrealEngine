@@ -41,6 +41,7 @@
 #include "Math/UnitConversion.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/StallDetector.h"
 #include "Types/ReflectionMetadata.h"
 #include "Trace/SlateTrace.h"
 #include "Styling/StarshipCoreStyle.h"
@@ -110,7 +111,6 @@ public:
 		Width = Height = 32;
 	}
 
-	
 	virtual void Lock(const RECT* const Bounds) override
 	{
 		if (Bounds)
@@ -965,13 +965,15 @@ void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
 {
 	if (TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex))
 	{
-		bool bIsUsingPlatformCursor = SlateUser->GetCursor() == PlatformApplication->Cursor;
+		const bool bIsUsingPlatformCursor = SlateUser->GetCursor() == PlatformApplication->Cursor;
 
 		if (bIsUsingPlatformCursor != bUsePlatformCursor)
 		{
 			if (PlatformApplication && PlatformApplication->Cursor)
 			{
+				PlatformMouseMovementEvents = 0;
 				SlateUser->OverrideCursor(bUsePlatformCursor ? PlatformApplication->Cursor : MakeShared<FFauxSlateCursor>());
+				UE_LOG(LogSlate, Log, TEXT("User[%d] UsePlatformCursorForCursorUser(%s)"), SlateUser->GetUserIndex(), bUsePlatformCursor ? TEXT("true") : TEXT("false"));
 			}
 		}
 	}
@@ -1986,6 +1988,9 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 	// Block on all modal windows unless its a slow task.  In that case the game thread is allowed to run.
 	if( !bSlowTaskWindow )
 	{
+		// Time blocked in this scope shouldn't count against detection of stalls
+		SCOPE_STALL_DETECTOR_PAUSE();
+
 		// Show the cursor if it was previously hidden so users can interact with the window
 		if ( PlatformApplication->Cursor.IsValid() )
 		{
@@ -3138,7 +3143,7 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 		{
 			SomeWidget.Widget->OnMouseLeave( PointerEvent );
 #if WITH_SLATE_DEBUGGING
-			FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseLeave, SomeWidget.Widget);
+			FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseLeave, &PointerEvent, SomeWidget.Widget);
 #endif
 			return FNoReply();
 		}, ESlateDebuggingInputEvent::MouseLeave);
@@ -3148,7 +3153,7 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 		{
 			SomeWidget.Widget->OnDragEnter( SomeWidget.Geometry, DragDropEvent );
 #if WITH_SLATE_DEBUGGING
-			FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::DragEnter, SomeWidget.Widget);
+			FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::DragEnter, &DragDropEvent, SomeWidget.Widget);
 #endif
 			return FNoReply();
 		}, ESlateDebuggingInputEvent::DragEnter);
@@ -3209,7 +3214,7 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 										WidgetPreviouslyUnderCursor->OnMouseLeave(SimulatedPointer);
 									}
 #if WITH_SLATE_DEBUGGING
-									FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, WidgetPreviouslyUnderCursor);
+									FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, InMouseEvent, WidgetPreviouslyUnderCursor);
 #endif
 								}
 								else
@@ -4305,7 +4310,7 @@ bool FSlateApplication::ProcessKeyCharEvent( const FCharacterEvent& InCharacterE
 				{
 					const FReply TempReply = SomeWidgetGettingEvent.Widget->OnKeyChar(SomeWidgetGettingEvent.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyChar, TempReply, SomeWidgetGettingEvent.Widget, Event.GetCharacter());
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyChar, &Event, TempReply, SomeWidgetGettingEvent.Widget, Event.GetCharacter());
 #endif
 					return TempReply;
 				}
@@ -4395,14 +4400,14 @@ bool FSlateApplication::ProcessKeyDownEvent( const FKeyEvent& InKeyEvent )
 			{
 				const FReply TempReply = CurrentWidget.Widget->OnPreviewKeyDown(CurrentWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewKeyDown, TempReply, CurrentWidget.Widget, Event.GetKey().GetFName());
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewKeyDown, &Event, TempReply, CurrentWidget.Widget, Event.GetKey().GetFName());
 #endif
 				return TempReply;
 			}
 			else
 			{
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::PreviewKeyDown, CurrentWidget.Widget);
+				FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::PreviewKeyDown, &Event, CurrentWidget.Widget);
 #endif
 			}
 			return FReply::Unhandled();
@@ -4417,14 +4422,14 @@ bool FSlateApplication::ProcessKeyDownEvent( const FKeyEvent& InKeyEvent )
 				{
 					const FReply TempReply = SomeWidgetGettingEvent.Widget->OnKeyDown(SomeWidgetGettingEvent.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyDown, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().GetFName());
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyDown, &Event, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().GetFName());
 #endif
 					return TempReply;
 				}
 				else
 				{
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::KeyDown, SomeWidgetGettingEvent.Widget);
+					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::KeyDown, &Event, SomeWidgetGettingEvent.Widget);
 #endif
 				}
 
@@ -4485,7 +4490,7 @@ bool FSlateApplication::ProcessKeyUpEvent( const FKeyEvent& InKeyEvent )
 			{
 				const FReply TempReply = SomeWidgetGettingEvent.Widget->OnKeyUp(SomeWidgetGettingEvent.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyUp, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().ToString());
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::KeyUp, &Event, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().ToString());
 #endif
 				return TempReply;
 			}
@@ -4542,7 +4547,7 @@ bool FSlateApplication::ProcessAnalogInputEvent(const FAnalogInputEvent& InAnalo
 				{
 					const FReply TempReply = SomeWidgetGettingEvent.Widget->OnAnalogValueChanged(SomeWidgetGettingEvent.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::AnalogInput, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().ToString());
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::AnalogInput, &Event, TempReply, SomeWidgetGettingEvent.Widget, Event.GetKey().ToString());
 #endif
 					return TempReply;
 				}
@@ -4699,7 +4704,7 @@ bool FSlateApplication::ProcessMouseButtonDownEvent( const TSharedPtr< FGenericW
 			{
 				const FReply TempReply = InMouseCaptorWidget.Widget->OnPreviewMouseButtonDown(InMouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewMouseButtonDown, TempReply, InMouseCaptorWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewMouseButtonDown, &Event, TempReply, InMouseCaptorWidget.Widget);
 #endif
 				return TempReply;
 			}, ESlateDebuggingInputEvent::PreviewMouseButtonDown);
@@ -4714,14 +4719,14 @@ bool FSlateApplication::ProcessMouseButtonDownEvent( const TSharedPtr< FGenericW
 					{
 						TempReply = InMouseCaptorWidget.Widget->OnTouchStarted(InMouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchStart, TempReply, InMouseCaptorWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchStart, &Event, TempReply, InMouseCaptorWidget.Widget);
 #endif
 					}
 					if ( !Event.IsTouchEvent() || ( !TempReply.IsEventHandled() && this->bTouchFallbackToMouse ) )
 					{
 						TempReply = InMouseCaptorWidget.Widget->OnMouseButtonDown(InMouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDown, TempReply, InMouseCaptorWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDown, &Event, TempReply, InMouseCaptorWidget.Widget);
 #endif
 					}
 					return TempReply;
@@ -4784,7 +4789,7 @@ FReply FSlateApplication::RoutePointerDownEvent(const FWidgetPath& WidgetsUnderP
 	{
 		const FReply TempReply = TargetWidget.Widget->OnPreviewMouseButtonDown(TargetWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-		FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewMouseButtonDown, TempReply, TargetWidget.Widget);
+		FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::PreviewMouseButtonDown, &Event, TempReply, TargetWidget.Widget);
 #endif
 		return TempReply;
 	}, ESlateDebuggingInputEvent::PreviewMouseButtonDown);
@@ -4800,14 +4805,14 @@ FReply FSlateApplication::RoutePointerDownEvent(const FWidgetPath& WidgetsUnderP
 				{
 					TempReply = TargetWidget.Widget->OnTouchStarted( TargetWidget.Geometry, Event );
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchStart, TempReply, TargetWidget.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchStart, &Event, TempReply, TargetWidget.Widget);
 #endif
 				}
 				if( !Event.IsTouchEvent() || ( !TempReply.IsEventHandled() && this->bTouchFallbackToMouse ) )
 				{
 					TempReply = TargetWidget.Widget->OnMouseButtonDown( TargetWidget.Geometry, Event );
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDown, TempReply, TargetWidget.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDown, &Event, TempReply, TargetWidget.Widget);
 #endif
 				}
 			}
@@ -4823,7 +4828,7 @@ FReply FSlateApplication::RoutePointerDownEvent(const FWidgetPath& WidgetsUnderP
 
 				TargetWidget.Widget->OnMouseEnter(TargetWidget.Geometry, TransformedPointerEvent);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseEnter, TargetWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseEnter, &TransformedPointerEvent, TargetWidget.Widget);
 #endif
 			}
 		}
@@ -4915,7 +4920,7 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = TargetWidget.Widget->OnTouchEnded(TargetWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchEnd, TempReply, TargetWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchEnd, &Event, TempReply, TargetWidget.Widget);
 #endif
 					}
 
@@ -4923,7 +4928,7 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = TargetWidget.Widget->OnMouseButtonUp( TargetWidget.Geometry, Event );
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonUp, TempReply, TargetWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonUp, &Event, TempReply, TargetWidget.Widget);
 #endif
 					}
 					
@@ -4932,7 +4937,7 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 						// Generate a Leave event when a touch ends as well, since a touch can enter a widget and then end inside it
 						TargetWidget.Widget->OnMouseLeave(Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, TargetWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, &Event, TargetWidget.Widget);
 #endif
 					}
 
@@ -4962,9 +4967,10 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 		{
 			if (bIsDragDropping)
 			{
-				const FReply TempDropReply = CurWidget.Widget->OnDrop(CurWidget.Geometry, FDragDropEvent(Event, LocalDragDropContent));
+				FDragDropEvent LocalDropEvent(Event, LocalDragDropContent);
+				const FReply TempDropReply = CurWidget.Widget->OnDrop(CurWidget.Geometry, LocalDropEvent);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragDrop, TempDropReply, CurWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragDrop, &LocalDropEvent, TempDropReply, CurWidget.Widget);
 #endif
 				return TempDropReply;
 			}
@@ -4975,7 +4981,7 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 			{
 				TempReply = CurWidget.Widget->OnTouchEnded(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchEnd, TempReply, CurWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchEnd, &Event, TempReply, CurWidget.Widget);
 #endif
 			}
 
@@ -4983,7 +4989,7 @@ FReply FSlateApplication::RoutePointerUpEvent(const FWidgetPath& WidgetsUnderPoi
 			{
 				TempReply = CurWidget.Widget->OnMouseButtonUp(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonUp, TempReply, CurWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonUp, &Event, TempReply, CurWidget.Widget);
 #endif
 			}
 
@@ -5059,7 +5065,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 				{
 					const FReply TempReply = InDetectDragForMe.Widget->OnDragDetected(InDetectDragForMe.Geometry, TranslatedMouseEvent);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragDetected, TempReply, InDetectDragForMe.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragDetected, &TranslatedMouseEvent, TempReply, InDetectDragForMe.Widget);
 #endif
 					return TempReply;
 				}, ESlateDebuggingInputEvent::DragDetected);
@@ -5112,7 +5118,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 							// Note that the event's pointer position is not translated.
 							SomeWidgetPreviouslyUnderCursor->OnDragLeave(DragDropEvent);
 #if WITH_SLATE_DEBUGGING
-							FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragLeave, SomeWidgetPreviouslyUnderCursor);
+							FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragLeave, &DragDropEvent, SomeWidgetPreviouslyUnderCursor);
 #endif
 							// Reset the cursor override
 							DragDropEvent.GetOperation()->SetCursorOverride(TOptional<EMouseCursor::Type>());
@@ -5125,7 +5131,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 								// Note that the event's pointer position is not translated.
 								SomeWidgetPreviouslyUnderCursor->OnMouseLeave(PointerEvent);
 #if WITH_SLATE_DEBUGGING
-								FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, SomeWidgetPreviouslyUnderCursor);
+								FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseLeave, &PointerEvent, SomeWidgetPreviouslyUnderCursor);
 #endif
 							}
 						}
@@ -5148,7 +5154,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						WidgetUnderCursor.Widget->OnMouseEnter(WidgetUnderCursor.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseEnter, WidgetUnderCursor.Widget);
+						FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseEnter, &Event, WidgetUnderCursor.Widget);
 #endif
 					}
 				}
@@ -5166,7 +5172,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = MouseCaptorWidget.Widget->OnTouchForceChanged(MouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchForceChanged, TempReply, MouseCaptorWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchForceChanged, &Event, TempReply, MouseCaptorWidget.Widget);
 #endif
 						bAllowMouseFallback = false;
 					}
@@ -5174,7 +5180,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = MouseCaptorWidget.Widget->OnTouchFirstMove(MouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchFirstMove, TempReply, MouseCaptorWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchFirstMove, &Event, TempReply, MouseCaptorWidget.Widget);
 #endif
 						bAllowMouseFallback = false;
 					}
@@ -5182,7 +5188,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = MouseCaptorWidget.Widget->OnTouchMoved(MouseCaptorWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchMoved, TempReply, MouseCaptorWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchMoved, &Event, TempReply, MouseCaptorWidget.Widget);
 #endif
 					}
 				}
@@ -5194,7 +5200,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 						TempReply = MouseCaptorWidget.Widget->OnMouseMove(MouseCaptorWidget.Geometry, Event);
 					}
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseMove, TempReply, MouseCaptorWidget.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseMove, &Event, TempReply, MouseCaptorWidget.Widget);
 #endif
 				}
 				return TempReply;
@@ -5218,7 +5224,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 				{
 					WidgetUnderCursor.Widget->OnDragEnter(WidgetUnderCursor.Geometry, InDragDropEvent);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::DragEnter, WidgetUnderCursor.Widget);
+					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::DragEnter, &InDragDropEvent, WidgetUnderCursor.Widget);
 #endif
 				}
 				return FNoReply();
@@ -5232,7 +5238,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 				{
 					WidgetUnderCursor.Widget->OnMouseEnter(WidgetUnderCursor.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseEnter, WidgetUnderCursor.Widget);
+					FSlateDebugging::BroadcastNoReplyInputEvent(ESlateDebuggingInputEvent::MouseEnter, &Event, WidgetUnderCursor.Widget);
 #endif
 				}
 				return FNoReply();
@@ -5246,9 +5252,10 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 
 			if (bIsDragDroppingAffected)
 			{
-				TempReply = CurWidget.Widget->OnDragOver(CurWidget.Geometry, FDragDropEvent(Event, DragDropContent));
+				FDragDropEvent DragDropEvent(Event, DragDropContent);
+				TempReply = CurWidget.Widget->OnDragOver(CurWidget.Geometry, DragDropEvent);
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragOver, TempReply, CurWidget.Widget);
+				FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::DragOver, &DragDropEvent, TempReply, CurWidget.Widget);
 #endif
 			}
 			else
@@ -5260,7 +5267,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = CurWidget.Widget->OnTouchForceChanged(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchForceChanged, TempReply, CurWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchForceChanged, &Event, TempReply, CurWidget.Widget);
 #endif
 						bAllowMouseFallback = false;
 					}
@@ -5268,7 +5275,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = CurWidget.Widget->OnTouchFirstMove(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchFirstMove, TempReply, CurWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchFirstMove, &Event, TempReply, CurWidget.Widget);
 #endif
 						bAllowMouseFallback = false;
 					}
@@ -5276,7 +5283,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 					{
 						TempReply = CurWidget.Widget->OnTouchMoved(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchMoved, TempReply, CurWidget.Widget);
+						FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchMoved, &Event, TempReply, CurWidget.Widget);
 #endif
 					}
 				}
@@ -5284,7 +5291,7 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 				{
 					TempReply = CurWidget.Widget->OnMouseMove(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseMove, TempReply, CurWidget.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseMove, &Event, TempReply, CurWidget.Widget);
 #endif
 				}
 			}
@@ -5382,7 +5389,7 @@ FReply FSlateApplication::RoutePointerDoubleClickEvent(const FWidgetPath& Widget
 	{
 		const FReply TempReply = TargetWidget.Widget->OnMouseButtonDoubleClick(TargetWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-		FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDoubleClick, TempReply, TargetWidget.Widget);
+		FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseButtonDoubleClick, &Event, TempReply, TargetWidget.Widget);
 #endif
 		return TempReply;
 	}, ESlateDebuggingInputEvent::MouseButtonDoubleClick);
@@ -5556,7 +5563,7 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 		{
 			TempReply = CurWidget.Widget->OnTouchGesture(CurWidget.Geometry, *InGestureEvent);
 #if WITH_SLATE_DEBUGGING
-			FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchGesture, TempReply, CurWidget.Widget);
+			FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::TouchGesture, InGestureEvent, TempReply, CurWidget.Widget);
 #endif
 		}
 
@@ -5565,7 +5572,7 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 		{
 			TempReply = CurWidget.Widget->OnMouseWheel(CurWidget.Geometry, Event);
 #if WITH_SLATE_DEBUGGING
-			FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseWheel, TempReply, CurWidget.Widget);
+			FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MouseWheel, &Event, TempReply, CurWidget.Widget);
 #endif
 		}
 
@@ -5596,9 +5603,23 @@ bool FSlateApplication::OnMouseMove()
 	
 	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
 	// cursor position has changed. This is done intentionally after getting the positions in order to avoid
-	// false positives. 
+	// false positives.
 
-	UsePlatformCursorForCursorUser(true);
+	// NOTE: When we swap out the real OS cursor for the faux slate cursor ie. UsePlatformCursorForCursorUser(false)
+	// we reset this event count to 0.  This occurs typically when a gamepad is being used and you don't want to manipulate the real
+	// OS cursor, instead move around a fake cursor so that you can still do development stuff outside the game window.  Anyway,
+	// when this occurs, in the future the OS will send you a long delayed mouse movement.  I'm not exactly sure what's triggering it,
+	// it's not a movement from the application, I think it's something more subtle, like swapping true cursor visibility for using
+	// a None cursor, it could also be some combination.
+	// 
+	// In any event, we track the number of events, and if we get more than 3, then we start trying to swap back to the OS cursor.
+	// the 3 should give us any buffer needed for either a last frame mouse movement, or a weird condition like noted above.
+	PlatformMouseMovementEvents++;
+
+	if (PlatformMouseMovementEvents > 3)
+	{
+		UsePlatformCursorForCursorUser(true);
+	}
 	
 	if ( LastCursorPosition != CurrentCursorPosition )
 	{
@@ -6106,7 +6127,7 @@ void FSlateApplication::ProcessMotionDetectedEvent( const FMotionEvent& MotionEv
 				{
 					const FReply TempReply = SomeWidget.Widget->OnMotionDetected(SomeWidget.Geometry, InMotionEvent);
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MotionDetected, TempReply, SomeWidget.Widget);
+					FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent::MotionDetected, &InMotionEvent, TempReply, SomeWidget.Widget);
 #endif
 					return TempReply;
 				}, ESlateDebuggingInputEvent::MotionDetected);
@@ -6756,6 +6777,11 @@ bool FSlateApplication::OnWindowAction( const TSharedRef< FGenericWindow >& Plat
 				bResult = false;
 			}
 		}
+	}
+
+	if (InActionType == EWindowAction::ClickedNonClientArea)
+	{
+		DismissAllMenus();
 	}
 
 	return bResult;

@@ -95,8 +95,10 @@ void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent
 
 	if ( CameraComponent )
 	{
+		CameraComponent->Modify();
+
 		FScopedUsdAllocs UsdAllocs;
-		UsdToUnreal::ConvertGeomCamera( Context->Stage, pxr::UsdGeomCamera( GetPrim() ), *CameraComponent, Context->Time );
+		UsdToUnreal::ConvertGeomCamera( GetPrim(), *CameraComponent, Context->Time );
 	}
 }
 

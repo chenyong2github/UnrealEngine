@@ -1789,6 +1789,54 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 				}
 				break;
 			}
+			case Animation_CustomCurve_KeyArriveTangentWeight:
+			{
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyArriveTangentWeight"), ExpectedResultIndex);
+				FRichCurveKey CustomCurveKey;
+				if (FFbxImportAssetsAutomationTestHelper::GetImportedCustomCurveKey(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix, ExpectedResult, CustomCurveKey))
+				{
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Custom Curve Key Arriving Tangent Weight value)"),
+							*FormatedMessageErrorPrefix));
+						break;
+					}
+
+					const float ArriveTangentWeight = CustomCurveKey.ArriveTangentWeight;
+					if (!FMath::IsNearlyEqual(ArriveTangentWeight, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified arriving tangent weight [%f] does not match the expected value [%f]"),
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyArriveTangentWeight"), ExpectedResultIndex), ArriveTangentWeight, ExpectedResult.ExpectedPresetsDataFloat[0]));
+
+						break;
+					}
+				}
+				break;
+			}
+			case Animation_CustomCurve_KeyLeaveTangentWeight:
+			{
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyLeaveTangentWeight"), ExpectedResultIndex);
+				FRichCurveKey CustomCurveKey;
+				if (FFbxImportAssetsAutomationTestHelper::GetImportedCustomCurveKey(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix, ExpectedResult, CustomCurveKey))
+				{
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Custom Curve Key Leaving Tangent Weight value)"),
+							*FormatedMessageErrorPrefix));
+						break;
+					}
+
+					const float LeaveTangentWeight = CustomCurveKey.LeaveTangentWeight;
+					if (!FMath::IsNearlyEqual(LeaveTangentWeight, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified leaving tangent weight [%f] does not match the expected value [%f]"),
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyLeaveTangentWeight"), ExpectedResultIndex), LeaveTangentWeight, ExpectedResult.ExpectedPresetsDataFloat[0]));
+
+						break;
+					}
+				}
+				break;
+			}
 			case Skin_By_Bone_Vertex_Number:
 			{
 				if (ExpectedResult.ExpectedPresetsDataString.Num() < 1)

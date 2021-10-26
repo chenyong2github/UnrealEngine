@@ -43,7 +43,8 @@ namespace UnrealBuildTool.Rules
 					"AnimGraphRuntime",
 					
 					"IKRig",
-					"IKRigDeveloper",					
+					"IKRigDeveloper",
+					"ToolWidgets",
 				}
             );
 

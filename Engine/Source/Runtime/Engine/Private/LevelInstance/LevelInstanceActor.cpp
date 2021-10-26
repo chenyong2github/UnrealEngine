@@ -30,7 +30,7 @@ ALevelInstance::ALevelInstance(const FObjectInitializer& ObjectInitializer)
 	RootComponent->Mobility = EComponentMobility::Static;
 
 #if WITH_EDITORONLY_DATA
-	DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::Embedded;
+	DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::Partitioned;
 #endif
 }
 
@@ -527,11 +527,6 @@ bool ALevelInstance::CanEditChange(const FProperty* InProperty) const
 	if (HasDirtyChildren())
 	{
 		return false;
-	}
-
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ALevelInstance, DesiredRuntimeBehavior))
-	{
-		return GetLevel() && GetLevel()->GetWorldPartition() != nullptr;
 	}
 
 	return true;

@@ -245,7 +245,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 				UE_LOG(LogLevel, Warning, TEXT("Cannot find class %s. Saved actor %s will not be restored."), *SavedData.GetActorClass().ToString(), *OriginalActorPath.ToString());
 				return;
 			}
-			if (Settings->Blacklist.ActorClasses.Contains(ActorClass))
+			if (Settings->SkippedClasses.ActorClasses.Contains(ActorClass))
 			{
 				return;
 			}

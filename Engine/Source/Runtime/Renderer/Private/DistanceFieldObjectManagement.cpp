@@ -24,6 +24,8 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+extern int32 GDFShadowOffsetDataStructure;
+
 float GMeshDistanceFieldsMaxObjectBoundingRadius = 100000;
 FAutoConsoleVariableRef CVarMeshDistanceFieldsMaxObjectBoundingRadius(
 	TEXT("r.DistanceFields.MaxObjectBoundingRadius"),
@@ -124,7 +126,11 @@ FDistanceFieldAtlasParameters DistanceField::SetupAtlasParameters(const FDistanc
 	{
 		SceneParameters.SceneDistanceFieldAssetData = DistanceFieldSceneData.AssetDataBuffer.SRV;
 
-		SceneParameters.DistanceFieldIndirectionTable = DistanceFieldSceneData.IndirectionTable.SRV;
+		SceneParameters.DistanceFieldIndirectionTable = GDFShadowOffsetDataStructure == 0 ? DistanceFieldSceneData.IndirectionTable.SRV : nullptr;
+		SceneParameters.DistanceFieldIndirection2Table = GDFShadowOffsetDataStructure == 1 ? DistanceFieldSceneData.Indirection2Table.SRV : nullptr;
+		SceneParameters.DistanceFieldIndirectionAtlas = GDFShadowOffsetDataStructure == 2 && DistanceFieldSceneData.IndirectionAtlas ?
+			DistanceFieldSceneData.IndirectionAtlas->GetRenderTargetItem().ShaderResourceTexture : nullptr;
+
 		SceneParameters.DistanceFieldBrickTexture = DistanceFieldSceneData.DistanceFieldBrickVolumeTexture->GetRenderTargetItem().ShaderResourceTexture;
 		SceneParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
@@ -139,13 +145,18 @@ FDistanceFieldAtlasParameters DistanceField::SetupAtlasParameters(const FDistanc
 		SceneParameters.DistanceFieldBrickAtlasTexelSize = FVector(1.0f) / FVector(DistanceFieldSceneData.BrickTextureDimensionsInBricks * DistanceField::BrickSize);
 
 		SceneParameters.DistanceFieldBrickAtlasHalfTexelSize = 0.5f * SceneParameters.DistanceFieldBrickAtlasTexelSize;
-		SceneParameters.DistanceFieldBrickOffsetToAtlasUVScale = SceneParameters.DistanceFieldBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize;
 		SceneParameters.DistanceFieldUniqueDataBrickSizeInAtlasTexels = SceneParameters.DistanceFieldUniqueDataBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize;
+
+		SceneParameters.DistanceFieldBrickOffsetToAtlasUVScale = GDFShadowOffsetDataStructure == 0 ?
+			SceneParameters.DistanceFieldBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize :
+			SceneParameters.DistanceFieldBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize * (DistanceField::MaxIndirectionDimension - 1);
 	}
 	else
 	{
 		SceneParameters.SceneDistanceFieldAssetData = nullptr;
 		SceneParameters.DistanceFieldIndirectionTable = nullptr;
+		SceneParameters.DistanceFieldIndirection2Table = nullptr;
+		SceneParameters.DistanceFieldIndirectionAtlas = nullptr;
 		SceneParameters.DistanceFieldBrickTexture = nullptr;
 		SceneParameters.DistanceFieldSampler = nullptr;
 	}

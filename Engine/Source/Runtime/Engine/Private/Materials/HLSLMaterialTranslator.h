@@ -478,6 +478,7 @@ public:
 	FDerivInfo GetDerivInfo(int32 Index, bool bAllowNonFloat = false) const;
 
 protected:
+	bool GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const;
 
 	bool IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents) const;
 
@@ -859,7 +860,7 @@ protected:
 	virtual int32 StaticBool(bool bValue) override;
 	virtual int32 StaticBoolParameter(FName ParameterName, bool bDefaultValue) override;
 	virtual int32 StaticComponentMask(int32 Vector, FName ParameterName, bool bDefaultR, bool bDefaultG, bool bDefaultB, bool bDefaultA) override;
-	virtual const FMaterialLayersFunctions* StaticMaterialLayersParameter(FName ParameterName) override;
+	virtual const FMaterialLayersFunctions* GetMaterialLayers() override;
 
 	virtual bool GetStaticBoolValue(int32 BoolIndex, bool& bSucceeded) override;
 

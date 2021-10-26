@@ -69,7 +69,7 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 , InitialData(InState.RequestedFirstLODIdx())
 {
 	const int32 FirstLODIdx = InState.RequestedFirstLODIdx();
-	if (PlatformData && const_cast<FTexturePlatformData*>(PlatformData)->TryLoadMips(FirstLODIdx + InState.AssetLODBias, InitialData.GetMipData() + FirstLODIdx, InOwner))
+	if (PlatformData && const_cast<FTexturePlatformData*>(PlatformData)->TryLoadMips(FirstLODIdx + InState.AssetLODBias, InitialData.GetMipData() + FirstLODIdx, InOwner->GetPathName()))
 	{
 		// Compute the size of each mips so that they can be merged into a single allocation.
 		if (GUseTexture3DBulkDataRHI)

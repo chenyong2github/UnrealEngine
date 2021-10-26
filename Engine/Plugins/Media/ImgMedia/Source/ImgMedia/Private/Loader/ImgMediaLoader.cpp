@@ -57,10 +57,12 @@ namespace ImgMediaLoader
 
 FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
 	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
-	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo)
+	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
+	bool bInFillGapsInSequence)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
+	, bFillGapsInSequence(bInFillGapsInSequence)
 	, NumLoadAhead(0)
 	, NumLoadBehind(0)
 	, Scheduler(InScheduler)
@@ -262,12 +264,6 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			// Modulo with sequence duration to take care of looping.
 			StartTime = ModuloTime(StartTime);
 			EndTime = ModuloTime(EndTime);
-
-			// If we get an EndTime before the StartTime, the end was precisely on the end of the media data -> we adjust this for simpler code below
-			if (EndTime < StartTime)
-			{
-				EndTime += SequenceDuration;
-			}
 		}
 
 		// Get start and end frame indices for this time range.
@@ -800,8 +796,29 @@ void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& Ou
 
 	FoundFiles.Sort();
 
+	int32 LastIndex = -1;
+	FString EmptyString;
 	for (const auto& File : FoundFiles)
 	{
+		// Can we fill in gaps in the sequence?
+		if (bFillGapsInSequence)
+		{
+			// Get the index of this file.
+			int32 ThisIndex = -1;
+			if (GetNumberAtEndOfString(ThisIndex, File))
+			{
+				// Fill in any gaps from the last frame.
+				if ((LastIndex != -1) && (LastIndex < ThisIndex - 1))
+				{
+					for (int32 Index = LastIndex + 1; Index < ThisIndex; ++Index)
+					{
+						OutputPaths.Add(EmptyString);
+					}
+				}
+			}
+
+			LastIndex = ThisIndex;
+		}
 		OutputPaths.Add(FPaths::Combine(SequencePath, File));
 	}
 
@@ -1047,7 +1064,15 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 		
 		if ((NeedFrame) && !QueuedFrameNumbers.Contains(FrameNumber))
 		{
-			PendingFrameNumbers.Add(FrameNumber);
+			// Do we actually have a frame for this?
+			if (ImagePaths[0][FrameNumber].Len() == 0)
+			{
+				AddEmptyFrame(FrameNumber);
+			}
+			else
+			{
+				PendingFrameNumbers.Add(FrameNumber);
+			}
 		}
 	}
 	Algo::Reverse(PendingFrameNumbers);
@@ -1057,6 +1082,24 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 /* IImgMediaLoader interface
  *****************************************************************************/
 
+
+void FImgMediaLoader::AddEmptyFrame(int32 FrameNumber)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame;
+	int32 NumChannels = 3;
+	int32 PixelSize = sizeof(uint16) * NumChannels;
+	Frame = MakeShareable(new FImgMediaFrame());
+	Frame->Info.Dim = SequenceDim;
+	Frame->Info.FrameRate = SequenceFrameRate;
+	Frame->Info.NumChannels = NumChannels;
+	Frame->Format = EMediaTextureSampleFormat::FloatRGB;
+	Frame->Stride = Frame ->Info.Dim.X * PixelSize;
+	Frame->MipMapsPresent = -1;
+	AddFrameToCache(FrameNumber, Frame);
+}
+
 void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
 {
 	FScopeLock Lock(&CriticalSection);
@@ -1064,26 +1107,31 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 	// if frame is still needed, add it to the cache
 	if (QueuedFrameNumbers.Remove(FrameNumber) > 0)
 	{
-		if (Frame.IsValid())
-		{
-			UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
-			if (UseGlobalCache)
-			{
-				const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* ExistingFrame;
-				ExistingFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
-				if (ExistingFrame == nullptr)
-				{
-					GlobalCache->AddFrame(ImagePaths[0][FrameNumber], SequenceName, FrameNumber, Frame, MipMapInfo.IsValid());
-				}
-			}
-			else
-			{
-				Frames.Add(FrameNumber, Frame);
-			}
-		}
+		AddFrameToCache(FrameNumber, Frame);
 	}
 
 	WorkPool.Push(&CompletedWork);
+}
+
+void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
+{
+	if (Frame.IsValid())
+	{
+		UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
+		if (UseGlobalCache)
+		{
+			const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* ExistingFrame;
+			ExistingFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
+			if (ExistingFrame == nullptr)
+			{
+				GlobalCache->AddFrame(ImagePaths[0][FrameNumber], SequenceName, FrameNumber, Frame, MipMapInfo.IsValid());
+			}
+		}
+		else
+		{
+			Frames.Add(FrameNumber, Frame);
+		}
+	}
 }
 
 int32 FImgMediaLoader::GetDesiredMipLevel(int32 FrameIndex, FImgMediaTileSelection& OutTileSelection)
@@ -1136,4 +1184,47 @@ float FImgMediaLoader::GetFrameOverlap(uint32 FrameIndex, FTimespan StartTime, F
 	Overlap = OverlapTimespan.GetTotalSeconds();
 
 	return Overlap;
+}
+
+bool FImgMediaLoader::GetNumberAtEndOfString(int32 &Number, const FString& String) const
+{
+	bool bFoundNumber = false;
+
+	// Find the first digit starting from the right.
+	int32 Index = String.Len() - 1;
+	for (; Index >= 0; --Index)
+	{
+		bool bIsDigit = FChar::IsDigit(String[Index]);
+		if (bIsDigit)
+		{
+			break;
+		}
+	}
+	
+	// Did we find one?
+	if (Index >= 0)
+	{
+		int32 LastNumberIndex = Index;
+		// Find the next non digit...
+		for (; Index >= 0; --Index)
+		{
+			bool bIsDigit = FChar::IsDigit(String[Index]);
+			if (bIsDigit == false)
+			{
+				break;
+			}
+		}
+
+		// Index now points to the next non digit.
+		// Extract the number.
+		Index++;
+		if (Index < String.Len())
+		{
+			bFoundNumber = true;
+			FString NumberString = String.Mid(Index, LastNumberIndex - Index + 1);
+			Number = FCString::Atoi(*NumberString);
+		}
+	}
+	
+	return bFoundNumber;
 }

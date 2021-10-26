@@ -194,12 +194,6 @@ bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
-	// PackedLevelInstance doesn't support a runtime behavior
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(APackedLevelInstance, DesiredRuntimeBehavior))
-	{
-		return false;
-	}
-
 	// Disallow editing of the World if we are a BP instance
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(APackedLevelInstance, WorldAsset))
 	{

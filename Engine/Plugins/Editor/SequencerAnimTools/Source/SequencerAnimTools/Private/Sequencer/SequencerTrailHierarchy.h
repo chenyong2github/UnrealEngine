@@ -72,6 +72,7 @@ public:
 private:
 	void AddControlRigTrail(USkeletalMeshComponent* Component,UControlRig* ControlRig, UMovieSceneControlRigParameterTrack* CRTrack, const FName& ControlName);
 
+	void UpdateControlRig(const TArray<FFrameNumber>& Frames, UControlRig* ControlRig, TMap<FName, FGuid >& CompMapPair, bool bUseEditedTimes);
 	void UpdateControlRig(const FTrailEvaluateTimes& EvalTimes, UControlRig* ControlRig, TMap<FName, FGuid >& CompMapPair);
 
 	void UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(UObject*, FTrail*, FGuid)> OnUpdated);

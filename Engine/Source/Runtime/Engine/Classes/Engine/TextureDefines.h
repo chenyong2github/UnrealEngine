@@ -298,25 +298,59 @@ enum TextureCompressionSettings
 	TC_MAX,
 };
 
-/** List of (advanced) texture source encodings, matching the list in `ColorManagementDefines.h`. */
+/** List of (advanced) texture source encodings, matching the list in ColorManagementDefines.h. */
 UENUM()
-enum ETextureSourceEncoding
+enum class ETextureSourceEncoding : uint8
 {
-	TSE_None = 0 UMETA(DisplayName = "Default", ToolTip = "The source encoding is assumed to match the state of the sRGB checkbox parameter."),
-	TSE_Linear = 1 UMETA(DisplayName = "Linear", ToolTip = "The source encoding is considered linear (before optional sRGB encoding is applied)."),
-	TSE_sRGB = 2 UMETA(DisplayName = "sRGB", ToolTip = "sRGB source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_ST2084 = 3 UMETA(DisplayName = "ST 2084/PQ", ToolTip = "SMPTE ST 2084/PQ source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_Gamma22 = 4 UMETA(DisplayName = "Gamma 2.2", ToolTip = "Gamma 2.2 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_BT1886 = 5 UMETA(DisplayName = "BT1886", ToolTip = "BT1886 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_Cineon = 6 UMETA(DisplayName = "Cineon", ToolTip = "Cineon source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_REDLog = 7 UMETA(DisplayName = "REDLog", ToolTip = "RED Log source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_REDLog3G10 = 8 UMETA(DisplayName = "REDLog3G10", ToolTip = "RED Log3G10 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_SLog1 = 9 UMETA(DisplayName = "SLog1", ToolTip = "Sony SLog1 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_SLog2 = 10 UMETA(DisplayName = "SLog2", ToolTip = "Sony SLog2 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_SLog3 = 11 UMETA(DisplayName = "SLog3", ToolTip = "Sony SLog3 source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_AlexaV3LogC = 12 UMETA(DisplayName = "AlexaV3LogC", ToolTip = "ARRI Alexa V3 LogC source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_CanonLog = 13 UMETA(DisplayName = "CanonLog", ToolTip = "Canon Log source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_ProTune = 14 UMETA(DisplayName = "ProTune", ToolTip = "GoPro ProTune source encoding to be linearized (before optional sRGB encoding is applied)."),
-	TSE_VLog = 15 UMETA(DisplayName = "V-Log", ToolTip = "Panasonic V-Log source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_None		= 0 UMETA(DisplayName = "Default", ToolTip = "The source encoding is assumed to match the state of the sRGB checkbox parameter."),
+	TSE_Linear		= 1 UMETA(DisplayName = "Linear", ToolTip = "The source encoding is considered linear (before optional sRGB encoding is applied)."),
+	TSE_sRGB		= 2 UMETA(DisplayName = "sRGB", ToolTip = "sRGB source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_ST2084		= 3 UMETA(DisplayName = "ST 2084/PQ", ToolTip = "SMPTE ST 2084/PQ source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_Gamma22		= 4 UMETA(DisplayName = "Gamma 2.2", ToolTip = "Gamma 2.2 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_BT1886		= 5 UMETA(DisplayName = "BT1886/Gamma 2.4", ToolTip = "BT1886/Gamma 2.4 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_Gamma26		= 6 UMETA(DisplayName = "Gamma 2.6", ToolTip = "Gamma 2.6 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_Cineon		= 7 UMETA(DisplayName = "Cineon", ToolTip = "Cineon source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_REDLog		= 8 UMETA(DisplayName = "REDLog", ToolTip = "RED Log source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_REDLog3G10	= 9 UMETA(DisplayName = "REDLog3G10", ToolTip = "RED Log3G10 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog1		= 10 UMETA(DisplayName = "SLog1", ToolTip = "Sony SLog1 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog2		= 11 UMETA(DisplayName = "SLog2", ToolTip = "Sony SLog2 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog3		= 12 UMETA(DisplayName = "SLog3", ToolTip = "Sony SLog3 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_AlexaV3LogC	= 13 UMETA(DisplayName = "AlexaV3LogC", ToolTip = "ARRI Alexa V3 LogC source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_CanonLog	= 14 UMETA(DisplayName = "CanonLog", ToolTip = "Canon Log source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_ProTune		= 15 UMETA(DisplayName = "ProTune", ToolTip = "GoPro ProTune source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_VLog		= 16 UMETA(DisplayName = "V-Log", ToolTip = "Panasonic V-Log source encoding to be linearized (before optional sRGB encoding is applied)."),
 	TSE_MAX,
 };
+
+//TODO: Rename nearly-colliding ETextureSourceColorSpace enum in TextureFactory.h
+/** List of (source) texture color spaces, matching the list in ColorManagementDefines.h. */
+UENUM()
+enum class ETextureColorSpace : uint8
+{
+	TCS_None				= 0 UMETA(DisplayName = "None", ToolTip = "No explicit color space definition."),
+	TCS_sRGB				= 1 UMETA(DisplayName = "sRGB / Rec709", ToolTip = "sRGB / Rec709 (BT.709) color primaries, with D65 white point."),
+	TCS_Rec2020				= 2 UMETA(DisplayName = "Rec2020", ToolTip = "Rec2020 (BT.2020) primaries with D65 white point."),
+	TCS_ACESAP0				= 3 UMETA(DIsplayName = "ACES AP0", ToolTip = "ACES AP0 wide gamut primaries, with D60 white point."),
+	TCS_ACESAP1				= 4 UMETA(DIsplayName = "ACES AP1 / ACEScg", ToolTip = "ACES AP1 / ACEScg wide gamut primaries, with D60 white point."),
+	TCS_P3DCI				= 5 UMETA(DisplayName = "P3DCI", ToolTip = "P3 (Theater) primaries, with D65 white point."),
+	TCS_P3D65				= 6 UMETA(DisplayName = "P3D65", ToolTip = "P3 (Display) primaries, with D65 white point."),
+	TCS_REDWideGamut		= 7 UMETA(DisplayName = "RED Wide Gamut", ToolTip = "RED Wide Gamut primaries, with D65 white point."),
+	TCS_SonySGamut3			= 8 UMETA(DisplayName = "Sony S-Gamut3", ToolTip = "Sony S-Gamut/S-Gamut3 primaries, with D65 white point."),
+	TCS_SonySGamut3Cine		= 9 UMETA(DisplayName = "Sony S-Gamut3 Cine", ToolTip = "Sony S-Gamut3 Cine primaries, with D65 white point."),
+	TCS_AlexaWideGamut		= 10 UMETA(DisplayName = "Alexa Wide Gamut", ToolTip = "Alexa Wide Gamut primaries, with D65 white point."),
+	TCS_CanonCinemaGamut	= 11 UMETA(DisplayName = "Canon Cinema Gamut", ToolTip = "Canon Cinema Gamut primaries, with D65 white point."),
+	TCS_GoProProtuneNative	= 12 UMETA(DisplayName = "GoPro Protune Native", ToolTip = "GoPro Protune Native primaries, with D65 white point."),
+	TCS_PanasonicVGamut		= 13 UMETA(DisplayName = "Panasonic V-Gamut", ToolTip = "Panasonic V-Gamut primaries, with D65 white point."),
+	TCS_Custom				= 99 UMETA(DisplayName = "Custom", ToolTip = "User defined color space and white point."),
+	TCS_MAX,
+};
+
+/** List of chromatic adaptation methods, matching the list in ColorManagementDefines.h. */
+UENUM()
+enum class ETextureChromaticAdaptationMethod : uint8
+{
+	TCAM_None		= 0 UMETA(DisplayName = "None", ToolTip = "No chromatic adaptation is applied."),
+	TCAM_Bradford	= 1 UMETA(DisplayName = "Bradford", ToolTip = "Chromatic adaptation is applied using the Bradford method."),
+	TCAM_CAT02		= 2 UMETA(DisplayName = "CAT02", ToolTip = "Chromatic adaptation is applied using the CAT02 method."),
+};
+

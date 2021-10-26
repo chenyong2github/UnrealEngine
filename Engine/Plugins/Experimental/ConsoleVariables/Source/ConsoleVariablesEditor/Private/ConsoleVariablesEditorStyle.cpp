@@ -94,14 +94,14 @@ TSharedRef< FSlateStyleSet > FConsoleVariablesEditorStyle::Create()
 
 	// Buttons
 
-	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
+	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(FName("ContentBrowser.TopBar.Font"));
 	FLinearColor ButtonTextColor = ButtonTextStyle.ColorAndOpacity.GetSpecifiedColor();
 	ButtonTextColor.A /= 2;
 	ButtonTextStyle.ColorAndOpacity = ButtonTextColor;
 	ButtonTextStyle.ShadowColorAndOpacity.A /= 2;
 	Style->Set("ConsoleVariablesEditor.Button.TextStyle", ButtonTextStyle);
 
-	FTextBlockStyle AndTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Graph.CompactNode.Title");
+	FTextBlockStyle AndTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(FName("Graph.CompactNode.Title"));
 	FTextBlockStyle OrTextStyle = AndTextStyle;
 	AndTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 16 ));
 	OrTextStyle.SetFont(FCoreStyle::GetDefaultFontStyle("BoldCondensed", 18 ));

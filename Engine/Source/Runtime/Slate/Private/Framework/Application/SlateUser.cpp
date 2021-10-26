@@ -362,6 +362,8 @@ void FSlateUser::SetPointerPosition(uint32 PointerIndex, int32 PosX, int32 PosY)
 {
 	if (Cursor && PointerIndex == FSlateApplication::CursorPointerIndex)
 	{
+		UE_LOG(LogSlate, Verbose, TEXT("SlateUser [%d] moving cursor @ (%d, %d)"), UserIndex, PosX, PosY );
+
 		Cursor->SetPosition(PosX, PosY);
 	}
 

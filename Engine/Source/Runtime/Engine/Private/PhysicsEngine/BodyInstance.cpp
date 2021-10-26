@@ -1364,7 +1364,7 @@ bool FInitBodiesHelperBase::CreateShapesAndActors()
 		}
 
 		FPhysicsInterface::SetActorUserData_AssumesLocked(Instance->ActorHandle, &Instance->PhysicsUserData);
-#if USE_BODYINSTANCE_DEBUG_NAMES
+#if WITH_CHAOS && USE_BODYINSTANCE_DEBUG_NAMES
 		Instance->ActorHandle->GetParticle_LowLevel()->SetDebugName(DebugName);
 #endif
 	}
@@ -1727,10 +1727,12 @@ void FBodyInstance::UnWeld(FBodyInstance* TheirBI)
 		const int32 NumSyncShapes = GetAllShapes_AssumesLocked(Shapes);
 		const int32 NumTotalShapes = Shapes.Num();
 
+#if WITH_CHAOS
 		if(EnsureUnweldModifiesGTOnly && Actor->GetSolverBase() != nullptr)
 		{
 			ensureAlwaysMsgf(false, TEXT("Tried to unweld on body already in solver %s"), *GetBodyDebugName());
 		}
+#endif
 
 		// reversed since FPhysicsInterface::DetachShape is removing shapes
 		for (int Idx = Shapes.Num()-1; Idx >=0; Idx--)

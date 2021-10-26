@@ -18,7 +18,7 @@
 
 namespace CADKernel
 {
-	struct FSurfacicBoundary;
+	class FSurfacicBoundary;
 
 	class FBody;
 	class FCriterion;
@@ -61,6 +61,13 @@ namespace CADKernel
 		void AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell);
 
 		TSharedPtr<FTopologicalLoop> AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface);
+
+		/**
+		 * Build face's links with its neighbor have to be done after the loop is finalize.
+		 * This is to avoid to link an edge with another and then to delete it...
+		 */
+		void LinkEdgesLoop(CT_OBJECT_ID CTLoopId, FTopologicalLoop& Loop);
+
 		TSharedPtr<FTopologicalEdge> AddEdge(CT_OBJECT_ID CTCoedgeId, TSharedRef<FSurface>& Surface);
 
 		TSharedPtr<FSurface> AddSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& OutBoundary);

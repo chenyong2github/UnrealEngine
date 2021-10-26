@@ -421,9 +421,10 @@ FConcertSyncTransactionActivitySummary FConcertSyncTransactionActivitySummary::C
 			}
 			else // Something was modified.
 			{
+				static const FString EngineTransient(TEXT("/Engine/Transient"));
 				// If the modified object is the 'Level' itself, ignore it, we are more interested to say how it was modified.
 				FString OuterPathname(PotentialPair.Value->ObjectId.ObjectOuterPathName.ToString());
-				if (OuterPathname == FPackageName::ObjectPathToPackageName(OuterPathname))
+				if (OuterPathname != EngineTransient && OuterPathname == FPackageName::ObjectPathToPackageName(OuterPathname))
 				{
 					continue; // Ex. /Game/Map == /Game/Map -> Skip
 				}

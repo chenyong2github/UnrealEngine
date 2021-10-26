@@ -24,8 +24,8 @@ public class CopyUAT : BuildCommand
 			throw new AutomationException("Missing -TargetDir=... argument to CopyUAT");
 		}
 
-		// Construct a dummy UE4Build object to get a list of the UAT and UBT build products
-		UE4Build Build = new UE4Build(this);
+		// Construct a dummy UnrealBuild object to get a list of the UAT and UBT build products
+		UnrealBuild Build = new UnrealBuild(this);
 		Build.AddUATFilesToBuildProducts();
 		Build.AddUBTFilesToBuildProducts();
 

@@ -20,6 +20,7 @@
 #include "ZenSerialization.h"
 #include "ZenServerHttp.h"
 
+
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Exist,			TEXT("ZenDDC Exist"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_ExistHit,		TEXT("ZenDDC Exist Hit"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Get,			TEXT("ZenDDC Get"));
@@ -43,7 +44,7 @@ FZenDerivedDataBackend::FZenDerivedDataBackend(
 {
 	if (IsServiceReady())
 	{
-		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL());
+		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), 32);
 		bIsUsable = true;
 	}
  	bCacheRecordEndpointEnabled = false;
@@ -66,7 +67,14 @@ FString FZenDerivedDataBackend::GetName() const
 
 bool FZenDerivedDataBackend::IsRemote() const
 {
-	return true;
+	Zen::FZenStats ZenStats;
+
+	if (ZenService.GetInstance().GetStats(ZenStats) == true)
+	{
+		return( ZenStats.UpstreamStats.EndPointStats.IsEmpty() == false );
+	}
+
+	return false;
 }
 
 bool FZenDerivedDataBackend::IsServiceReady()

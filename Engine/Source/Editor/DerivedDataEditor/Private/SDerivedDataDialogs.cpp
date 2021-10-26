@@ -8,6 +8,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/StyleColors.h"
@@ -20,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "DerivedDataCacheEditor"
 
-static FString SingleDecimalFormat(double Value)
+FString SingleDecimalFormat(double Value)
 {
 	const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
 		.SetUseGrouping(true)
@@ -71,7 +72,7 @@ TSharedRef<SWidget> SDerivedDataRemoteStoreDialog::GetGridPanel()
 	// Accumulate Totals
 	for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
 	{
-		DDCResourceStatsTotal.Accumulate(Stat);
+		DDCResourceStatsTotal += Stat;
 	}
 
 	const int64 TotalCount = DDCResourceStatsTotal.LoadCount + DDCResourceStatsTotal.BuildCount;
@@ -243,7 +244,7 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 	// Accumulate Totals
 	for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
 	{
-		DDCResourceStatsTotal.Accumulate(Stat);
+		DDCResourceStatsTotal += Stat;
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -601,16 +602,6 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Speed", "Speed"))
-		];
-
-	Panel->AddSlot(5, Row)
-		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 			.ColorAndOpacity(TitleColor)
 			.Font(TitleFont)
 			.Justification(ETextJustify::Left)
@@ -697,15 +688,6 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 			];
 
 			Panel->AddSlot(4, Row)
-				.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(LexToString(Backend->GetSpeedClass())))
-			];
-
-			Panel->AddSlot(5, Row)
 			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)

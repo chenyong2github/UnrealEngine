@@ -243,16 +243,23 @@ namespace Audio
 			if(MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 			{
 				VolumeMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-				VolumeMod.UpdateModulator(SoundSubmix->OutputVolumeModulation.Modulator);
 				VolumeModBase = SoundSubmix->OutputVolumeModulation.Value;
 
 				WetLevelMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-				WetLevelMod.UpdateModulator(SoundSubmix->WetLevelModulation.Modulator);
 				WetModBase = SoundSubmix->WetLevelModulation.Value;
 
 				DryLevelMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-				DryLevelMod.UpdateModulator(SoundSubmix->DryLevelModulation.Modulator);
 				DryModBase = SoundSubmix->DryLevelModulation.Value;
+
+				USoundModulatorBase* VolumeModulator = SoundSubmix->OutputVolumeModulation.Modulator;
+				USoundModulatorBase* WetLevelModulator = SoundSubmix->WetLevelModulation.Modulator;
+				USoundModulatorBase* DryLevelModulator = SoundSubmix->DryLevelModulation.Modulator;
+
+				// Queue this up to happen after submix init, when the mixer device has finished being added to the device manager
+				SubmixCommand([this, VolumeModulator, WetLevelModulator, DryLevelModulator]()
+				{
+					UpdateModulationSettings(VolumeModulator, WetLevelModulator, DryLevelModulator);
+				});
 			}
 
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);

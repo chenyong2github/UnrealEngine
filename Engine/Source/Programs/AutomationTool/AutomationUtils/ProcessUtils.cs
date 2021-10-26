@@ -383,17 +383,6 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Convenience operator for getting the exit code value.
-		/// </summary>
-		/// <param name="Result"></param>
-		/// <returns>Process exit code.</returns>
-		[Obsolete]
-		public static implicit operator int(ProcessResult Result)
-		{
-			return Result.ExitCode;
-		}
-
-		/// <summary>
 		/// Gets or sets the process exit code.
 		/// </summary>
 		public int ExitCode

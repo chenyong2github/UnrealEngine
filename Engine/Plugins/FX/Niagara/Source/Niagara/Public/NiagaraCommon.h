@@ -1152,13 +1152,6 @@ struct NIAGARA_API FNiagaraAliasContext
 	const TOptional<FString>& GetStackContextName() const { return StackContextName; }
 	const TOptional<TPair<FString, FString>>& GetStackContextMapping() const { return StackContextMapping; }
 
-	static const FString EmitterNamespaceString;
-	static const FString ModuleNamespaceString;
-	static const FString StackContextNamespaceString;
-	static const FString RapidIterationParametersNamespaceString;
-	static const FString EngineNamespaceString;
-	static const FString AssignmentNodePrefix;
-
 private:
 	ERapidIterationParameterMode RapidIterationParameterMode;
 

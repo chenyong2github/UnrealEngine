@@ -46,6 +46,15 @@ struct FDebugPSInLean
 	uint PrimitiveID : SV_PrimitiveID;
 };
 
+// Reroute DebugViewModeStruct uniform buffer references
+#if SHADING_PATH_MOBILE
+#define DebugViewModeStruct MobileBasePass.DebugViewMode
+#define MobileSceneTextures MobileBasePass.SceneTextures 
+#else
+#define DebugViewModeStruct DebugViewModePass.DebugViewMode
+#define SceneTexturesStruct DebugViewModePass.SceneTextures 
+#endif
+
 #if DEBUG_MATERIAL_PARAMETERS
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(FDebugPSIn DebugInputs, float4 SvPosition)

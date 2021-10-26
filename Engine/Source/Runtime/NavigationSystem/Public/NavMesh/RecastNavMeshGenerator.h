@@ -140,7 +140,7 @@ struct FRecastGeometryCache
 	FHeader Header;
 
 	/** recast coords of vertices (size: NumVerts * 3) */
-	float* Verts;
+	FVector::FReal* Verts;
 
 	/** vert indices for triangles (size: NumFaces * 3) */
 	int32* Indices;
@@ -154,8 +154,8 @@ struct FRecastGeometryCache
 struct FRecastRawGeometryElement
 {
 	// Instance geometry
-	TArray<float>		GeomCoords;
-	TArray<int32>		GeomIndices;
+	TArray<FVector::FReal>		GeomCoords;
+	TArray<int32>				GeomIndices;
 	
 	// Per instance transformations in unreal coords
 	// When empty geometry is in world space
@@ -179,7 +179,7 @@ struct FRcTileBox
 {
 	int32 XMin, XMax, YMin, YMax;
 
-	FRcTileBox(const FBox& UnrealBounds, const FVector& RcNavMeshOrigin, const float TileSizeInWorldUnits)
+	FRcTileBox(const FBox& UnrealBounds, const FVector& RcNavMeshOrigin, const FVector::FReal TileSizeInWorldUnits)
 	{
 		check(TileSizeInWorldUnits > 0);
 
@@ -348,11 +348,31 @@ protected:
 	bool CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	ETimeSliceWorkResult RasterizeTrianglesTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	void RasterizeTriangles(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#endif
+	void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#endif
+	void RasterizeGeometryTransformCoords(const TArray<FVector::FReal>& Coords, const FTransform& LocalToWorld);
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	void RasterizeGeometryTransformCoords(const TArray<float>& Coords, const FTransform& LocalToWorld);
+#endif
+	ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#endif
+	void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+#endif
 	void GenerateRecastFilter(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	bool BuildCompactHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	bool RecastErodeWalkable(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
@@ -374,7 +394,7 @@ protected:
 	/** builds NavigationData array (layers + obstacles) */
 	bool GenerateNavigationData(FNavMeshBuildContext& BuildContext);
 
-	void ApplyVoxelFilter(struct rcHeightfield* SolidHF, float WalkableRadius);
+	void ApplyVoxelFilter(struct rcHeightfield* SolidHF, FVector::FReal WalkableRadius);
 
 	/** Compute rasterization mask */
 	void InitRasterizationMaskArray(const rcHeightfield* SolidHF, TInlineMaskArray& OutRasterizationMasks);
@@ -455,7 +475,7 @@ protected:
 	TArray<FNavMeshTileData> NavigationData;
 
 	/** Result of calling RasterizeGeometryInitVars() */
-	TArray<float> RasterizeGeometryWorldRecastCoords;
+	TArray<FVector::FReal> RasterizeGeometryWorldRecastCoords;
 	
 	// tile's geometry: without voxel cache
 	TArray<FRecastRawGeometryElement> RawGeometry;
@@ -503,7 +523,7 @@ struct FPendingTileElement
 	/** tile coordinates on a grid in recast space */
 	FIntPoint	Coord;
 	/** distance to seed, used for sorting pending tiles */
-	float		SeedDistance; 
+	FVector::FReal SeedDistance;
 	/** Whether we need a full rebuild for this tile grid cell */
 	bool		bRebuildGeometry;
 	/** We need to store dirty area bounds to check which cached layers needs to be regenerated
@@ -513,7 +533,7 @@ struct FPendingTileElement
 
 	FPendingTileElement()
 		: Coord(FIntPoint::NoneValue)
-		, SeedDistance(MAX_flt)
+		, SeedDistance(TNumericLimits<FVector::FReal>::Max())
 		, bRebuildGeometry(false)
 	{
 	}
@@ -807,7 +827,7 @@ protected:
 	 */
 	int32 MaxTileGeneratorTasks;
 
-	float AvgLayersPerTile;
+	FVector::FReal AvgLayersPerTile;
 
 	/** Total bounding box that includes all volumes, in unreal units. */
 	FBox TotalNavBounds;

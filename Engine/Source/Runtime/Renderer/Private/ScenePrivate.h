@@ -1616,7 +1616,7 @@ struct FReflectionCaptureSortData
 	{
 		if (Radius != Other.Radius)
 		{
-			return Radius < Radius;
+			return Radius < Other.Radius;
 		}
 		else
 		{
@@ -1793,6 +1793,21 @@ public:
 	int32 ReversedMipIndex;
 };
 
+/** Stores distance field mip relocation data. */
+class FDistanceFieldAssetMipRelocation
+{
+public:
+	FDistanceFieldAssetMipRelocation(FIntVector InIndirectionDimensions, FIntVector InSrcPosition, FIntVector InDstPosition) :
+		IndirectionDimensions(InIndirectionDimensions),
+		SrcPosition(InSrcPosition),
+		DstPosition(InDstPosition)
+	{}
+
+	FIntVector IndirectionDimensions;
+	FIntVector SrcPosition;
+	FIntVector DstPosition;
+};
+
 /** Stores state about a distance field mip that is tracked by the scene. */
 class FDistanceFieldAssetMipState
 {
@@ -1806,6 +1821,7 @@ public:
 
 	FIntVector IndirectionDimensions;
 	int32 IndirectionTableOffset;
+	FIntVector IndirectionAtlasOffset;
 	int32 NumBricks;
 	TArray<int32, TInlineAllocator<4>> AllocatedBlocks;
 };
@@ -1892,6 +1908,10 @@ struct FDistanceFieldAsyncUpdateParameters
 	FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
 	FIntVector4* BrickUploadCoordinatesPtr = nullptr;
 	uint8* BrickUploadDataPtr = nullptr;
+
+	uint32* IndirectionIndicesUploadPtr = nullptr;
+	FVector4f* IndirectionDataUploadPtr = nullptr;
+
 	TArray<FDistanceFieldReadRequest> NewReadRequests;
 	TArray<FDistanceFieldReadRequest> ReadRequestsToUpload;
 	TArray<FDistanceFieldReadRequest> ReadRequestsToCleanUp;
@@ -2010,6 +2030,14 @@ public:
 	FRWByteAddressBuffer IndirectionTable;
 	FScatterUploadBuffer IndirectionTableUploadBuffer;
 
+	FRWBuffer Indirection2Table;
+	FScatterUploadBuffer Indirection2TableUploadBuffer;
+
+	TRefCountPtr<IPooledRenderTarget> IndirectionAtlas;
+	FTextureLayout3d IndirectionAtlasLayout;
+	FReadBuffer IndirectionUploadIndicesBuffer;
+	FReadBuffer IndirectionUploadDataBuffer;
+
 	FDistanceFieldBlockAllocator DistanceFieldAtlasBlockAllocator;
 	TRefCountPtr<IPooledRenderTarget> DistanceFieldBrickVolumeTexture;
 	FIntVector BrickTextureDimensionsInBricks;
@@ -2053,7 +2081,13 @@ private:
 
 	void ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
 
+	bool ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
+
+	void DefragmentIndirectionAtlas(FIntVector MinSize, TArray<FDistanceFieldAssetMipRelocation>& Relocations);
+
 	void UploadAssetData(FRDGBuilder& GraphBuilder, const TArray<FDistanceFieldAssetMipId>& AssetDataUploads);
+	
+	void UploadAllAssetData(FRDGBuilder& GraphBuilder);
 
 	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters UpdateParameters);
 

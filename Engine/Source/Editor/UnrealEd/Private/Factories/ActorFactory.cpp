@@ -301,6 +301,7 @@ TArray<FTypedElementHandle> UActorFactory::PlaceAsset(const FAssetPlacementInfo&
 	TArray<FTypedElementHandle> PlacedActorHandles;
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = InPlacementInfo.NameOverride;
+	SpawnParams.ObjectFlags = InPlacementOptions.bIsCreatingPreviewElements ? EObjectFlags::RF_Transient : EObjectFlags::RF_Transactional;
 	AActor* NewActor = CreateActor(InPlacementInfo.AssetToPlace.GetAsset(), InPlacementInfo.PreferredLevel.Get(), InPlacementInfo.FinalizedTransform, SpawnParams);
 	if (NewActor)
 	{

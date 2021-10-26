@@ -104,8 +104,10 @@ namespace CADKernel
 			Archive.Serialize((void*) &EntityArray, sizeof(EntityType));
 		}
 
+		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, FEntity** Entity);
 		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TWeakPtr<FEntity>& Entity);
 		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TSharedPtr<FEntity>& Entity);
+
 		void AddEntityToSave(FIdent Id);
 		void AddEntityFromArchive(TSharedRef<FEntity>& Entity);
 

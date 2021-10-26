@@ -374,10 +374,10 @@ void FConcertClientSequencerManager::HandleAssetReload(const EPackageReloadPhase
 		if (LevelSequenceActor)
 		{
 			const UPackage* PackageReloaded = InPackageReloadedEvent->GetNewPackage();
-			const FString AssetPathName = LevelSequenceActor->LevelSequence.GetAssetPathString();
-			FString PackageName = FPackageName::ObjectPathToPackageName(AssetPathName);
-			if (PackageName == PackageReloaded->GetFName().ToString())
+			ULevelSequence* LevelSequence = LevelSequenceActor->GetSequence();
+			if (LevelSequence && LevelSequence->GetPackage() == PackageReloaded)
 			{
+				FString AssetPathName = LevelSequence->GetPathName();
 				UE_LOG(LogConcertSequencerSync, Display, TEXT("Rebuild required for LevelSequence %s"), *Item.Key.ToString());
 				TTuple<FName,FString> Pending(Item.Key,AssetPathName);
 				PendingDestroy.Emplace(MoveTemp(Pending));

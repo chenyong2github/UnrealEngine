@@ -12,8 +12,6 @@
 
 #include <algorithm>
 
-using namespace CADKernel;
-
 namespace CADKernel
 {
 	const FLinearBoundary FLinearBoundary::DefaultBoundary(0., 1.);

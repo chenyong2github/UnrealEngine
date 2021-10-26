@@ -416,8 +416,7 @@ private:
 	void RenderFog(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		FRDGTextureRef LightShaftOcclusionTexture,
-		const FIntPoint& LightShaftOcclusionTextureExtent);
+		FRDGTextureRef LightShaftOcclusionTexture);
 
 	void RenderUnderWaterFog(
 		FRDGBuilder& GraphBuilder,
@@ -428,9 +427,6 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		FRDGTextureRef LightShaftOcclusionTexture);
-
-	/** Render debug visualizations about the sky atmosphere into the scene render target.*/
-	void RenderDebugSkyAtmosphere(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);
 
 	// TODO: Address tech debt to that directly in RenderDiffuseIndirectAndAmbientOcclusion()
 	void SetupCommonDiffuseIndirectParameters(

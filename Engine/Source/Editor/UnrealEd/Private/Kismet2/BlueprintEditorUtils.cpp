@@ -388,7 +388,7 @@ void FBasePinChangeHelper::Broadcast(UBlueprint* InBlueprint, UK2Node_EditablePi
 					{
 						const UClass* MemberParentClass = CallSite->FunctionReference.GetMemberParentClass(CallSite->GetBlueprintClassFromNode());
 						const bool bClassMatchesEasy = (MemberParentClass != nullptr)
-							&& (MemberParentClass->IsChildOf(SignatureClass) || MemberParentClass->IsChildOf(InBlueprint->GeneratedClass));
+							&& ((SignatureClass != nullptr && MemberParentClass->IsChildOf(SignatureClass)) || MemberParentClass->IsChildOf(InBlueprint->GeneratedClass));
 						const bool bClassMatchesHard = !bClassMatchesEasy && CallSite->FunctionReference.IsSelfContext() && (SignatureClass == nullptr)
 							&& (CallSiteBlueprint == InBlueprint || CallSiteBlueprint->SkeletonGeneratedClass->IsChildOf(InBlueprint->SkeletonGeneratedClass));
 
@@ -1651,7 +1651,7 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 
 	for (FString HideCategory : Blueprint->HideCategories)
 	{
-		TArray<TCHAR>& CharArray = HideCategory.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType>& CharArray = HideCategory.GetCharArray();
 
 		int32 SpaceIndex = CharArray.Find(TEXT(' '));
 		while (SpaceIndex != INDEX_NONE)
@@ -2242,6 +2242,11 @@ UClass* FBlueprintEditorUtils::GetSkeletonClass(UClass* FromClass)
 		}
 	}
 	return nullptr;
+}
+
+const UClass* FBlueprintEditorUtils::GetSkeletonClass(const UClass* FromClass)
+{
+	return GetSkeletonClass(const_cast<UClass*>(FromClass));
 }
 
 UClass* FBlueprintEditorUtils::GetMostUpToDateClass(UClass* FromClass)
@@ -7557,15 +7562,16 @@ void FBlueprintEditorUtils::UpdateTransactionalFlags(UBlueprint* Blueprint)
 
 void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 {
-	TSet<UEdGraphPin*> AllPins;
+	TSet<FBlueprintWatchedPin> AllPins;
 	uint16 WatchCount = 0;
 	
 	// Find all unique pins being watched
 	FKismetDebugUtilities::ForeachPinWatch(
 		Blueprint,
-		[&AllPins, &WatchCount](UEdGraphPin* Pin)
+		[&AllPins, &WatchCount](const FBlueprintWatchedPin& WatchedPin)
 		{
 			++WatchCount;
+			UEdGraphPin* Pin = WatchedPin.Get();
 			if (Pin == nullptr)
 			{
 				return; // ~continue
@@ -7584,7 +7590,7 @@ void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 				return; // ~continue
 			}
 
-			AllPins.Add(Pin);
+			AllPins.Add(WatchedPin);
 		}
 	);
 
@@ -7592,9 +7598,9 @@ void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 	if (WatchCount != AllPins.Num())
 	{
 		FKismetDebugUtilities::ClearPinWatches(Blueprint);
-		for (UEdGraphPin* Pin : AllPins)
+		for (FBlueprintWatchedPin& WatchedPin : AllPins)
 		{
-			FKismetDebugUtilities::AddPinWatch(Blueprint, Pin);
+			FKismetDebugUtilities::AddPinWatch(Blueprint, MoveTemp(WatchedPin));
 		}
 	}
 }
@@ -10051,7 +10057,7 @@ namespace
 
 				if (bReconstruct)
 				{
-					UBlueprint* FoundBlueprint = Node->HasValidBlueprint() ? FoundBlueprint = Node->GetBlueprint() : nullptr;
+					UBlueprint* FoundBlueprint = Node->HasValidBlueprint() ? Node->GetBlueprint() : nullptr;
 					InOnNodeFoundOrUpdated(FoundBlueprint, Node);
 				}
 			}

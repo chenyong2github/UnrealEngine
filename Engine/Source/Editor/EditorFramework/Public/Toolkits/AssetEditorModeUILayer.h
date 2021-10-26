@@ -14,6 +14,7 @@
 #include "StatusBarSubsystem.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
+#include "AssetEditorModeUILayer.generated.h"
 
 class FExtender;
 class SBorder;
@@ -21,6 +22,21 @@ class IToolkit;
 class SDockTab;
 class ILevelEditor;
 
+UCLASS()
+class EDITORFRAMEWORK_API UAssetEditorUISubsystem : public UEditorSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	static const FName VerticalToolbarID;
+	static const FName TopLeftTabID;
+	static const FName BottomLeftTabID;
+	static const FName TopRightTabID;
+	static const FName BottomRightTabID;
+
+protected:
+	virtual void RegisterLayoutExtensions(FLayoutExtender& Extender) {};
+};
 
 class EDITORFRAMEWORK_API FAssetEditorModeUILayer : public TSharedFromThis<FAssetEditorModeUILayer>
 {
@@ -45,12 +61,6 @@ public:
 	{
 		return NAME_None;
 	}
-public:
-	static const FName VerticalToolbarID;
-	static const FName TopLeftTabID;
-	static const FName BottomLeftTabID;
-	static const FName TopRightTabID;
-	static const FName BottomRightTabID;
 
 protected:
 	const FOnSpawnTab& GetStoredSpawner(const FName TabID);
@@ -61,7 +71,6 @@ protected:
 	FText GetTabSpawnerName(const FName TabID) const;
 	FText GetTabSpawnerTooltip(const FName TabID) const;
 	const FSlateIcon& GetTabSpawnerIcon(const FName TabID) const;
-	virtual void RegisterLayoutExtensions(FLayoutExtender& Extender) {};
 
 protected:
 	/** The host of the toolkits created by modes */

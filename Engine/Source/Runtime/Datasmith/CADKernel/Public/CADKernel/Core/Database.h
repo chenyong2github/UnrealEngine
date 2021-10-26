@@ -54,8 +54,9 @@ namespace CADKernel
 		 * 
 		 * IdToWaitingPointers[ArchiveId].Add(&Edge.Vertex) 
 		 */
-		TArray<TArray<TSharedPtr<FEntity>*>> ArchiveIdToWaitingPointers;
+		TArray<TArray<TSharedPtr<FEntity>*>> ArchiveIdToWaitingSharedPointers;
 		TArray<TArray<TWeakPtr<FEntity>*>> ArchiveIdToWaitingWeakPointers;
+		TArray<TArray<FEntity**>> ArchiveIdToWaitingPointers;
 
 		/**
 		 * Dedicated to SerializeSelection. Set of entity Ids needed to be saved
@@ -138,7 +139,7 @@ namespace CADKernel
 			// Check if the entity is not referenced by other entities if the archive(ArchiveIdToWaitingPointers).
 			// If yes(IdToWaitingPointers[ArchiveId].Num() > 0), set all TSharedPtr with the new entity
 			{
-				TArray<TSharedPtr<FEntity>*>& WaitingList = ArchiveIdToWaitingPointers[ArchiveId];
+				TArray<TSharedPtr<FEntity>*>& WaitingList = ArchiveIdToWaitingSharedPointers[ArchiveId];
 				if (WaitingList.Num() > 0)
 				{
 					for (TSharedPtr<FEntity>* SharedPtr : WaitingList)
@@ -156,6 +157,19 @@ namespace CADKernel
 					for (TWeakPtr<FEntity>* WeakPtr : WaitingList)
 					{
 						*WeakPtr = Entity;
+					}
+					WaitingList.Empty();
+				}
+			}
+
+			{
+				TArray<FEntity**>& WaitingList = ArchiveIdToWaitingPointers[ArchiveId];
+				if (WaitingList.Num() > 0)
+				{
+					FEntity& EntityPtr = Entity.Get();
+					for (FEntity** Ptr : WaitingList)
+					{
+						*Ptr = &Entity.Get();
 					}
 					WaitingList.Empty();
 				}
@@ -186,7 +200,7 @@ namespace CADKernel
 			}
 			else
 			{
-				ArchiveIdToWaitingPointers[ArchiveId].Add(&Entity);
+				ArchiveIdToWaitingSharedPointers[ArchiveId].Add(&Entity);
 			}
 		}
 
@@ -210,6 +224,29 @@ namespace CADKernel
 			else
 			{
 				ArchiveIdToWaitingWeakPointers[ArchiveId].Add(&Entity);
+			}
+		}
+
+		/**
+		 * Find FEntity* associate to an Archive Id
+		 * If the Entity is not yet created, add the entity in the waiting list
+		 */
+		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, FEntity** Entity)
+		{
+			if (ArchiveId == 0)
+			{
+				*Entity = nullptr;
+				return;
+			}
+
+			TSharedPtr<FEntity>& EntityPtr = ArchiveEntities[ArchiveId];
+			if (EntityPtr.IsValid())
+			{
+				*Entity = EntityPtr.Get();
+			}
+			else
+			{
+				ArchiveIdToWaitingPointers[ArchiveId].Add(Entity);
 			}
 		}
 

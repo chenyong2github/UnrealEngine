@@ -74,6 +74,9 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 	if (ZenServerInfo)
 	{
 		Writer->WriteObjectStart(TEXT("ZenServer"));
+		Writer->WriteValue(TEXT("bAutoLaunch"), ZenServerInfo->bAutoLaunch);
+		Writer->WriteValue(TEXT("AutoLaunchExecutablePath"), ZenServerInfo->AutoLaunchExecutablePath);
+		Writer->WriteValue(TEXT("AutoLaunchArguments"), ZenServerInfo->AutoLaunchArguments);
 		Writer->WriteValue(TEXT("HostName"), ZenServerInfo->HostName);
 		Writer->WriteValue(TEXT("Port"), ZenServerInfo->Port);
 		Writer->WriteValue(TEXT("ProjectId"), ZenServerInfo->ProjectId);
@@ -158,6 +161,12 @@ FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 	{
 		ZenServerInfo = MakeUnique<FZenServerInfo>();
 		TSharedPtr<FJsonObject> ZenServerObject = ZenServerValue->AsObject();
+		if (TSharedPtr<FJsonValue> bAutoLaunchValue = ZenServerObject->Values.FindRef(TEXT("bAutoLaunch")))
+		{
+			ZenServerInfo->bAutoLaunch = bAutoLaunchValue->AsBool();
+			ZenServerInfo->AutoLaunchExecutablePath = ZenServerObject->Values.FindRef(TEXT("AutoLaunchExecutablePath"))->AsString();
+			ZenServerInfo->AutoLaunchArguments = ZenServerObject->Values.FindRef(TEXT("AutoLaunchArguments"))->AsString();
+		}
 		ZenServerInfo->HostName = ZenServerObject->Values.FindRef(TEXT("HostName"))->AsString();
 		ZenServerInfo->Port = uint16(ZenServerObject->Values.FindRef(TEXT("Port"))->AsNumber());
 		ZenServerInfo->ProjectId = ZenServerObject->Values.FindRef(TEXT("ProjectId"))->AsString();

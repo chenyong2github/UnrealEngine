@@ -41,12 +41,12 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/LoadTimeTracePrivate.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Internationalization/GatherableTextData.h"
-#include "Virtualization/VirtualizedBulkData.h"
 
 class FTexture2DResourceMem;
 

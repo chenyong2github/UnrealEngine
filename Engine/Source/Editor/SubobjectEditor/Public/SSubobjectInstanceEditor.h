@@ -45,11 +45,9 @@ protected:
 	virtual FSubobjectDataHandle AddNewSubobject(const FSubobjectDataHandle& ParentHandle, UClass* NewClass, UObject* AssetOverride, FText& OutFailReason, TUniquePtr<FScopedTransaction> InOngoingTransaction) override;
 	virtual void PopulateContextMenuImpl(UToolMenu* InMenu, TArray<FSubobjectEditorTreeNodePtrType>& InSelectedItems, bool bIsChildActorSubtreeNodeSelected) override;
 	virtual FMenuBuilder CreateMenuBuilder();
-
-public:
-	virtual FSlateColor GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const override;
 	// End of SSubobjectEditor
 
+public:
 	/** Delegate to invoke when objects within the Subobject tree are replaced (eg, via re-instancing from a BP compile) */
 	FSimpleDelegate OnObjectReplaced;
 

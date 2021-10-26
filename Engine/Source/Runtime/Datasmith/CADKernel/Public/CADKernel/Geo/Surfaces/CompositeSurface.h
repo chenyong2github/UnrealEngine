@@ -79,7 +79,7 @@ namespace CADKernel
 			return GlobalCoordinates[Iso].Num() - 1;
 		}
 
-		virtual void InitBoundary() const override;
+		virtual void InitBoundary() override;
 
 		virtual void LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const override;
 

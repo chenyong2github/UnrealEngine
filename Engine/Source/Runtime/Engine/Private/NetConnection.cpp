@@ -126,10 +126,11 @@ namespace UE_NetConnectionPrivate
 		};
 
 		FValidateLevelVisibilityResult Result;
-		Result.Package = FindPackage(nullptr, *LevelVisibility.PackageName.ToString());
+		FString PackageNameStr = LevelVisibility.PackageName.ToString();
+		Result.Package = FindPackage(nullptr, *PackageNameStr);
 		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
 		Result.bLevelExists = Result.Linker ||
-			FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString()) ||
+			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString())) ||
 			IsInLevelList(LevelVisibility.PackageName);
 
 		return Result;

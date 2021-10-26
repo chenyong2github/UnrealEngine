@@ -13,6 +13,8 @@ class APlayerController;
 class UInputMappingContext;
 class UInputAction;
 class UEnhancedPlayerInput;
+class UInputModifier;
+class UInputTrigger;
 
 // Subsystem interface
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
@@ -29,7 +31,20 @@ class ENHANCEDINPUT_API IEnhancedInputSubsystemInterface
 	GENERATED_BODY()
 
 public:
+
 	virtual UEnhancedPlayerInput* GetPlayerInput() const = 0;
+
+	/**
+	 * Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys.
+	 * Applies action modifiers and triggers on top.
+	 *
+	 * @param Action		The Input Action to set inject input for
+	 * @param RawValue		The value to set the action to
+	 * @param Modifiers		The modifiers to apply to the injected input.
+	 * @param Triggers		The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
 	/**
 	 * Remove all applied mapping contexts.

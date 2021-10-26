@@ -2427,6 +2427,12 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 			ParsedClassFlags |= CLASS_HideDropDown;
 			break;
 
+		case EClassMetadataSpecifier::Hidden:
+
+			// Prevents class from appearing in the editor class browser and edit inline menus.
+			ParsedClassFlags |= CLASS_Hidden;
+			break;
+			
 		case EClassMetadataSpecifier::DependsOn:
 
 			Throwf(TEXT("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead."));
@@ -2478,6 +2484,12 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 			// this child of a transient class is not transient - remove the transient flag
 			ParsedClassFlags &= ~CLASS_Transient;
 			InheritClassFlags &= ~CLASS_Transient;
+			break;
+
+		case EClassMetadataSpecifier::Optional:
+
+			// Optional class
+			ParsedClassFlags |= CLASS_Optional;
 			break;
 
 		case EClassMetadataSpecifier::CustomConstructor:

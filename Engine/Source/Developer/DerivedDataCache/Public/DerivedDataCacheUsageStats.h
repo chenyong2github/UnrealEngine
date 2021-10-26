@@ -149,7 +149,7 @@ public:
 			}
 		}
 		else
-		{
+		{ //-V523
 			for (const auto& KVP : Stats)
 			{
 				COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, *GetCacheName(), *KVP.Key), KVP.Value));
@@ -186,7 +186,7 @@ public:
 		GameThreadTimeSec(bIsGameThreadTime ? InLoadTimeSec + InBuildTimeSec : 0.0)
 	{}
 
-	void Accumulate(const FDerivedDataCacheResourceStat& OtherStat)
+	const FDerivedDataCacheResourceStat& operator+(const FDerivedDataCacheResourceStat& OtherStat)
 	{
 		GameThreadTimeSec += OtherStat.GameThreadTimeSec;
 
@@ -197,6 +197,35 @@ public:
 		BuildCount += OtherStat.BuildCount;
 		BuildTimeSec += OtherStat.BuildTimeSec;
 		BuildSizeMB += OtherStat.BuildSizeMB;
+
+		return *this;
+	}
+
+	const FDerivedDataCacheResourceStat& operator-(const FDerivedDataCacheResourceStat& OtherStat)
+	{
+		GameThreadTimeSec -= OtherStat.GameThreadTimeSec;
+
+		LoadCount -= OtherStat.LoadCount;
+		LoadTimeSec -= OtherStat.LoadTimeSec;
+		LoadSizeMB -= OtherStat.LoadSizeMB;
+
+		BuildCount -= OtherStat.BuildCount;
+		BuildTimeSec -= OtherStat.BuildTimeSec;
+		BuildSizeMB -= OtherStat.BuildSizeMB;
+
+		return *this;
+	}
+
+	const FDerivedDataCacheResourceStat& operator+=(const FDerivedDataCacheResourceStat& OtherStat)
+	{
+		*this = *this + OtherStat;
+		return *this;
+	}
+
+	const FDerivedDataCacheResourceStat& operator-=(const FDerivedDataCacheResourceStat& OtherStat)
+	{
+		*this = *this - OtherStat;
+		return *this;
 	}
 
 	FString AssetType;

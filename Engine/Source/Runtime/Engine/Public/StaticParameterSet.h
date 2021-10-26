@@ -8,6 +8,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "StaticParameterSet.generated.h"
@@ -296,15 +297,12 @@ struct FStaticTerrainLayerWeightParameter : public FStaticParameterBase
 	}
 };
 
-
-/**
-* Holds the information for a static material layers parameter
-*/
+struct UE_DEPRECATED(5.0, "Material layers are no longer material parameters, use FStaticParameterSet::MaterialLayers") FStaticMaterialLayersParameter;
 USTRUCT()
 struct FStaticMaterialLayersParameter : public FStaticParameterBase
 {
 	GENERATED_USTRUCT_BODY();
-
+#if WITH_EDITOR
 	struct ID
 	{
 		FStaticParameterBase ParameterID;
@@ -316,57 +314,24 @@ struct FStaticMaterialLayersParameter : public FStaticParameterBase
 			P.Functions.SerializeForDDC(Ar);
 			return Ar;
 		}
-
-		bool operator==(const ID& Reference) const
-		{
-			return ParameterID == Reference.ParameterID && Functions == Reference.Functions;
-		}
-
-		void UpdateHash(FSHA1& HashState) const
-		{
-			ParameterID.UpdateHash(HashState);
-			Functions.UpdateHash(HashState);
-		}
-
-		void AppendKeyString(FString& KeyString) const
-		{
-			ParameterID.AppendKeyString(KeyString);
-			Functions.AppendKeyString(KeyString);
-		}
 	};
+#endif // WITH_EDITOR
 
 	UPROPERTY()
 	FMaterialLayersFunctions Value;
 
-	FStaticMaterialLayersParameter() :
-		FStaticParameterBase()
-	{ }
-
-	FStaticMaterialLayersParameter(const FMaterialParameterInfo& InInfo, const FMaterialLayersFunctions& InValue, bool InOverride, FGuid InGuid) :
-		FStaticParameterBase(InInfo, InOverride, InGuid),
-		Value(InValue)
-	{ }
-	
-	const ID GetID() const;
-
-	UMaterialFunctionInterface* GetParameterAssociatedFunction(const FHashedMaterialParameterInfo& InParameterInfo) const;
-
-	void AppendKeyString(FString& InKeyString) const
-	{
-		InKeyString += ParameterInfo.ToString() + ExpressionGUID.ToString() + Value.GetStaticPermutationString();
-	}
-
+#if WITH_EDITOR
 	friend FArchive& operator<<(FArchive& Ar, FStaticMaterialLayersParameter& P)
 	{
 		Ar << P.ParameterInfo << P.bOverride << P.ExpressionGUID;
-		
 		Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MaterialLayersParameterSerializationRefactor)
 		{
-			P.Value.SerializeForDDC(Ar);
+			P.Value.SerializeLegacy(Ar);
 		}
 		return Ar;
 	}
+#endif // WITH_EDITOR
 };
 
 /** Contains all the information needed to identify a single permutation of static parameters. */
@@ -387,9 +352,16 @@ struct FStaticParameterSet
 	UPROPERTY()
 	TArray<FStaticTerrainLayerWeightParameter> TerrainLayerWeightParameters;
 
-	/** An array of function call parameters in this set */
+	/** Material layers for this set */
 	UPROPERTY()
-	TArray<FStaticMaterialLayersParameter> MaterialLayersParameters;
+	FMaterialLayersFunctions MaterialLayers;
+
+	UPROPERTY()
+	uint8 bHasMaterialLayers : 1;
+
+	FStaticParameterSet() : bHasMaterialLayers(false) {}
+	ENGINE_API FStaticParameterSet(const FStaticParameterSet& InValue);
+	ENGINE_API FStaticParameterSet& operator=(const FStaticParameterSet& InValue);
 
 	/** 
 	* Checks if this set contains any parameters
@@ -398,32 +370,15 @@ struct FStaticParameterSet
 	*/
 	bool IsEmpty() const
 	{
-		return StaticSwitchParameters.Num() == 0 && StaticComponentMaskParameters.Num() == 0 && TerrainLayerWeightParameters.Num() == 0 && MaterialLayersParameters.Num() == 0;
+		return StaticSwitchParameters.Num() == 0 && StaticComponentMaskParameters.Num() == 0 && TerrainLayerWeightParameters.Num() == 0 && !bHasMaterialLayers;
 	}
 
-	void Empty()
-	{
-		StaticSwitchParameters.Empty();
-		StaticComponentMaskParameters.Empty();
-		TerrainLayerWeightParameters.Empty();
-		MaterialLayersParameters.Empty();
-	}
+	void Empty();
 
-	void Serialize(FArchive& Ar)
-	{
-		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
-		Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-		// Note: FStaticParameterSet is saved both in packages (UMaterialInstance) and the DDC (FMaterialShaderMap)
-		// Backwards compatibility only works with FStaticParameterSet's stored in packages.  
-		// You must bump MATERIALSHADERMAP_DERIVEDDATA_VER as well if changing the serialization of FStaticParameterSet.
-		Ar << StaticSwitchParameters;
-		Ar << StaticComponentMaskParameters;
-		Ar << TerrainLayerWeightParameters;
-		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MaterialLayersParameterSerializationRefactor)
-		{
-			Ar << MaterialLayersParameters;
-		}
-	}
+#if WITH_EDITOR
+	void SerializeLegacy(FArchive& Ar);
+	void UpdateLegacyData();
+#endif // WITH_EDITOR
 
 	/** 
 	* Tests this set against another for equality
@@ -446,6 +401,13 @@ struct FStaticParameterSet
 #endif // WITH_EDITORONLY_DATA
 
 private:
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	TArray<FStaticMaterialLayersParameter> MaterialLayersParameters_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITORONLY_DATA
+
 	void SortForEquivalent();
 
 #if WITH_EDITORONLY_DATA

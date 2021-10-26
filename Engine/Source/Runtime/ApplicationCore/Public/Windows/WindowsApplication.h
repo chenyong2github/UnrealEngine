@@ -87,28 +87,28 @@ public:
 	/**
 	 * Sets the overlay icon of a task bar entry.
 	 *
-	 * @param NativeWindow The native window to change the overlay icon for.
+	 * @param WindowHandle The window handle to change the overlay icon for.
 	 * @param Icon The overlay icon to set.
 	 * @param Description The overlay icon's description text.
 	 */
-	void SetOverlayIcon(const TSharedRef<FGenericWindow>& NativeWindow, HICON Icon, FText Description);
+	void SetOverlayIcon(HWND WindowHandle, HICON Icon, FText Description);
 
 	/**
 	 * Sets the progress state of a task bar entry.
 	 *
-	 * @param NativeWindow The native window to change the progress state for.
+	 * @param WindowHandle The window handle to change the progress state for.
 	 * @param State The new progress state.
 	 */
-	void SetProgressState(const TSharedRef<FGenericWindow>& NativeWindow, ETaskbarProgressState::Type State);
+	void SetProgressState(HWND WindowHandle, ETaskbarProgressState::Type State);
 
 	/**
 	 * Sets the progress value of a task bar entry.
 	 *
-	 * @param NativeWindow The native window to change the progress value for.
+	 * @param WindowHandle The window handle to change the progress value for.
 	 * @param Current The current progress value.
 	 * @param Total The total progress value.
 	 */
-	void SetProgressValue(const TSharedRef<FGenericWindow>& NativeWindow, uint64 Current, uint64 Total);
+	void SetProgressValue(HWND WindowHandle, uint64 Current, uint64 Total);
 
 	/** Destructor. */
 	~FTaskbarList();

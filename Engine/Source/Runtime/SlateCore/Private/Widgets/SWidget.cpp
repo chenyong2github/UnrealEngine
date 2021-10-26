@@ -1230,23 +1230,25 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
 
 	// Backwards compatibility fix:  Its no longer valid to just invalidate volatility since we need to repaint to cache elements if a widget becomes non-volatile. So after volatility changes force repaint
-	if (InvalidateReason == EInvalidateWidgetReason::Volatility)
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Volatility))
 	{
-		InvalidateReason = EInvalidateWidgetReason::PaintAndVolatility;
-	}
-
-	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Volatility) ? Advanced_InvalidateVolatility() : false;
-
-	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
-	{
-		MarkPrepassAsDirty();
+		InvalidateReason |= EInvalidateWidgetReason::PaintAndVolatility;
 	}
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Prepass))
 	{
-		bNeedsPrepass = true;
+		MarkPrepassAsDirty();
 		InvalidateReason |= EInvalidateWidgetReason::Layout;
 	}
+
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
+	{
+		MarkPrepassAsDirty();
+		InvalidateReason |= EInvalidateWidgetReason::Prepass;
+		InvalidateReason |= EInvalidateWidgetReason::Layout;
+	}
+
+	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Volatility) ? Advanced_InvalidateVolatility() : false;
 
 	if(FastPathProxyHandle.IsValid(this))
 	{

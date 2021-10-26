@@ -584,6 +584,27 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 			}
 		}
 	}
+	else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
+	{
+		if (ControlRigComponent->GetControlRig() != ControlRig)
+		{
+			ControlRigComponent->Initialize();
+			/*
+			Previously with Sequencer and CR Components we would assign the CR to a Component
+			that the sequencer was using, in any world. This looks like it was causing issues
+			with two worlds running with pre-forward solve events so now we only do that if
+			in non-game, and if in game (which includes PIE), we don't re-set the
+			CR Component's CR, but instead grab the CR from it and then use that for evaluation.
+			*/
+			if (ControlRigComponent->GetWorld())
+			{
+				if (ControlRigComponent->GetWorld()->IsGameWorld() == false)
+				{
+					ControlRigComponent->SetControlRig(ControlRig);
+				}
+			}
+		}
+	}
 }
 
 void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlRig)

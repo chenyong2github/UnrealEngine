@@ -20,6 +20,7 @@ namespace CADKernel
 
 		/** A zero point (0,0,0)*/
 		static const FPoint ZeroPoint;
+		static const FPoint UnitPoint;
 		static const FPoint FarawayPoint;
 		static const int32 Dimension;
 
@@ -142,6 +143,13 @@ namespace CADKernel
 			Y *= Scale;
 			Z *= Scale;
 			return *this;
+		}
+
+		void NonUniformScale(const FPoint& Scale)
+		{
+			X *= Scale.X;
+			Y *= Scale.Y;
+			Z *= Scale.Z;
 		}
 
 		FPoint& operator/=(double InvScale)
@@ -689,12 +697,12 @@ inline uint32 GetTypeHash(const CADKernel::FPointH& Point)
 	return HashCombine(GetTypeHash(Point.X), HashCombine(GetTypeHash(Point.Y), HashCombine(GetTypeHash(Point.Z), GetTypeHash(Point.W))));
 }
 
-inline float ComputeCosinus(FVector Vector, FVector OtherVector)
+inline double ComputeCosinus(FVector Vector, FVector OtherVector)
 {
 	Vector.Normalize();
 	OtherVector.Normalize();
 
-	float Cosinus = Vector.X * OtherVector.X + Vector.Y * OtherVector.Y + Vector.Z * OtherVector.Z;
+	double Cosinus = Vector.X * OtherVector.X + Vector.Y * OtherVector.Y + Vector.Z * OtherVector.Z;
 
-	return FMath::Max(-1.0f, FMath::Min(Cosinus, 1.0f));
+	return FMath::Max(-1.0, FMath::Min(Cosinus, 1.0));
 }

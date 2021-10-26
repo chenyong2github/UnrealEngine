@@ -22,6 +22,8 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
+#include "Framework/Application/SlateApplication.h"
+
 namespace UE
 {
 namespace SequencerAnimTools
@@ -217,36 +219,13 @@ struct FTrailControlTransforms
 	TArray<FTransform> Transforms;
 };
 
-void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& EvaluateTimes,UControlRig* ControlRig, TMap<FName, FGuid > &CompMapPair)
+void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Frames,UControlRig* ControlRig, TMap<FName, FGuid >& CompMapPair, bool bUseEditedTimes)
 {
 	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 	{
 		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		check(Sequencer);
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-		TArray<FFrameNumber> Frames;
-		bool bUseEditedTimes = false;
 
-		const FFrameTime LastFrame = EvaluateTimes.EvalTimes[EvaluateTimes.EvalTimes.Num() - 1] * TickResolution;
-		for (TPair<FName, FGuid >& Pair : CompMapPair)
-		{
-			if (AllTrails[Pair.Value]->GetEditedTimes(this,LastFrame.RoundToFrame(), Frames))
-			{
-				bUseEditedTimes = true;
-				break;
-			}
-		}
-		int32 Index = 0;
-		if (bUseEditedTimes == false)
-		{
-			//Todo mz make time in frames
-			Frames.SetNum(EvaluateTimes.EvalTimes.Num());
-			for (const double Time : EvaluateTimes.EvalTimes)
-			{
-				const FFrameTime TickTime = Time * TickResolution;
-				Frames[Index++] = TickTime.RoundToFrame();
-			}
-		}
 		UWorld* World = GEditor->GetEditorWorldContext().World();
 		ALevelSequenceActor* OutActor = nullptr;
 		FMovieSceneSequencePlaybackSettings Settings;
@@ -278,7 +257,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 					TrailControlTransforms[PairIndex].Transforms.SetNum(Frames.Num());
 					++PairIndex;
 				}
-				for (Index = 0; Index < Frames.Num(); ++Index)
+				for (int32 Index = 0; Index < Frames.Num(); ++Index)
 				{
 					const FFrameNumber& FrameNumber = Frames[Index];
 					FFrameTime GlobalTime(FrameNumber);
@@ -287,7 +266,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 
 					Player->GetEvaluationTemplate().Evaluate(Context, *Player);
 					ControlRig->Evaluate_AnyThread();
-					for (FTrailControlTransforms& TrailControlTransform: TrailControlTransforms)
+					for (FTrailControlTransforms& TrailControlTransform : TrailControlTransforms)
 					{
 						TrailControlTransform.Transforms[Index] = ControlRig->GetControlGlobalTransform(TrailControlTransform.ControlName) * ControlRigParentWorldTransforms[Index];
 						if (bUseEditedTimes)
@@ -296,7 +275,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 							TrailControlTransform.Trail->GetTrajectoryTransforms()->Set(Sec, TrailControlTransform.Transforms[Index]);
 						}
 					}
-				}			
+				}
 				for (FTrailControlTransforms& TrailControlTransform : TrailControlTransforms)
 				{
 					if (bUseEditedTimes == false)
@@ -304,7 +283,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 						TrailControlTransform.Trail->GetTrajectoryTransforms()->SetTransforms(TrailControlTransform.Transforms, ControlRigParentWorldTransforms);
 					}
 					TrailControlTransform.Trail->UpdateKeysInRange(GetViewRange());
-				}			
+				}
 			}
 		}
 		if (Player)
@@ -314,6 +293,40 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 			Player->GetEvaluationTemplate().Evaluate(Context, *Player);
 			ControlRig->Evaluate_AnyThread();
 		}
+	}
+}
+
+void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& EvaluateTimes,UControlRig* ControlRig, TMap<FName, FGuid > &CompMapPair)
+{
+	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+	{
+		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+		check(Sequencer);
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		TArray<FFrameNumber> Frames;
+		bool bUseEditedTimes = false;
+
+		const FFrameTime LastFrame = EvaluateTimes.EvalTimes[EvaluateTimes.EvalTimes.Num() - 1] * TickResolution;
+		for (TPair<FName, FGuid >& Pair : CompMapPair)
+		{
+			if (AllTrails[Pair.Value]->GetEditedTimes(this,LastFrame.RoundToFrame(), Frames))
+			{
+				bUseEditedTimes = true;
+				break;
+			}
+		}
+		int32 Index = 0;
+		if (bUseEditedTimes == false)
+		{
+			//Todo mz make time in frames
+			Frames.SetNum(EvaluateTimes.EvalTimes.Num());
+			for (const double Time : EvaluateTimes.EvalTimes)
+			{
+				const FFrameTime TickTime = Time * TickResolution;
+				Frames[Index++] = TickTime.RoundToFrame();
+			}
+		}
+		UpdateControlRig(Frames, ControlRig, CompMapPair, bUseEditedTimes);
 	}
 }
 void FSequencerTrailHierarchy::Update()
@@ -327,17 +340,49 @@ void FSequencerTrailHierarchy::Update()
 	for (TPair<UControlRig*, TMap<FName, FGuid>>& CompMapPair : ControlsTracked)
 	{
 		bool bNeedToUpdateControlRig = false;
+		FTrail* ForceTrail = nullptr;
 		for (TPair<FName, FGuid>& Pair : CompMapPair.Value)
 		{
 			if (AllTrails[Pair.Value]->GetCacheState() == ETrailCacheState::Stale)
 			{
 				bNeedToUpdateControlRig = true;
+				ForceTrail = AllTrails[Pair.Value].Get();
 				break;
 			}
 		}
 		if (bNeedToUpdateControlRig == true)
 		{
-			UpdateControlRig(EvalTimes, CompMapPair.Key, CompMapPair.Value);
+			FMovieSceneControlRigTransformTrail* ControlRigTrail = static_cast<FMovieSceneControlRigTransformTrail*>(ForceTrail);
+				
+
+			//if the mouse is not down we update everything like normal making sure we don't use keys to draw the trajectory
+			//if mouse is down we make sure to just use keys to draw the trajectory and we figure out what times we just need to update
+			//which will be selected keys and the current time.
+			if (FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton) == false)
+			{
+				if (ControlRigTrail)
+				{
+					ControlRigTrail->SetUseKeysForTrajectory(false);
+				}
+				UpdateControlRig(EvalTimes, CompMapPair.Key, CompMapPair.Value);
+			}
+			else if(ForceTrail)
+			{
+				if (ControlRigTrail)
+				{
+					ControlRigTrail->SetUseKeysForTrajectory(true);
+				}
+				//just do selected key times and playback time
+				TArray<FFrameNumber> Frames = ForceTrail->GetSelectedKeyTimes();
+				TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+				FFrameNumber CurrentFrame = SequencerPtr->GetLocalTime().Time.GetFrame();
+				if (Frames.Contains(CurrentFrame) == false)
+				{
+					Frames.Add(CurrentFrame);
+				}
+				UpdateControlRig(Frames, CompMapPair.Key, CompMapPair.Value, true);
+				ForceTrail->ForceEvaluateNextTick();
+			}
 		}
 	}
 

@@ -29,7 +29,7 @@ bool USharedFilterPresetContainer::RemoveFilterData(const FFilterData& InFilterD
 void USharedFilterPresetContainer::Save()
 {
 	USharedFilterPresetContainer* SharedPresetsContainer = GetMutableDefault<USharedFilterPresetContainer>();
-	SharedPresetsContainer->UpdateDefaultConfigFile();
+	SharedPresetsContainer->TryUpdateDefaultConfigFile();
 }
 
 void UEngineFilterPresetContainer::GetEnginePresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets)

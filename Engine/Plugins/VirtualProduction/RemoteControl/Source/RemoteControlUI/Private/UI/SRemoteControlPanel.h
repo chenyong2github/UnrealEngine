@@ -185,6 +185,9 @@ private:
 	/** Handle clicking on the setting button. */
 	FReply OnClickSettingsButton();
 
+	/** Handle triggers each time when any material has been recompiled */
+	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
+
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;

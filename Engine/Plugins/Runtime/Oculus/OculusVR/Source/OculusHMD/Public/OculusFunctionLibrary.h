@@ -98,7 +98,7 @@ enum class EBoundaryType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EColorSpace : uint8
+enum class EOculusColorSpace : uint8
 {
 	/// The default value from GetHmdColorSpace until SetClientColorDesc is called. Only valid on PC, and will be remapped to Quest on Mobile
 	Unknown = 0,
@@ -409,13 +409,13 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* Returns the color space of the target HMD
 	*/
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
-	static EColorSpace GetHmdColorDesc();
+	static EOculusColorSpace GetHmdColorDesc();
 
 	/**
 	* Sets the target HMD to do color space correction to a specific color space
 	*/
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
-	static void SetClientColorDesc(EColorSpace ColorSpace);
+	static void SetClientColorDesc(EOculusColorSpace ColorSpace);
 
 	/**
 	 * Returns IStereoLayers interface to work with overlays.

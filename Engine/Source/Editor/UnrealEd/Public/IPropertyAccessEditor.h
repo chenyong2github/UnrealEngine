@@ -322,7 +322,7 @@ public:
 	virtual TSharedRef<SWidget> MakePropertyBindingWidget(const TArray<FBindingContextStruct>& InBindingContextStructs, const FPropertyBindingWidgetArgs& InArgs = FPropertyBindingWidgetArgs()) const = 0;
 	
 	/** Resolve a property access, returning the leaf property and array index if any. @return result structure for more information about the result */
-	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const = 0;
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const = 0;
 
 	/** Args used to resolve property access segments. The various functions will be called per-segment when resolved. */
 	struct FResolvePropertyAccessArgs
@@ -341,7 +341,7 @@ public:
 	 * Resolve a property path to a structure, calling back for each segment in path segment order if resolution succeed
 	 * @return true if resolution succeeded
 	 */
-	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const FResolvePropertyAccessArgs& InArgs) const = 0;
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, const FResolvePropertyAccessArgs& InArgs) const = 0;
 
 	UE_DEPRECATED(5.0, "Please use ResolvePropertyAccess")
 	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const

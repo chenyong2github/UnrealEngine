@@ -33,7 +33,7 @@ public:
 		InitData.pSysMem = InRawData.GetData();
 		InitData.SysMemPitch = InWidth * 4;
 
-		Texture->Init(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, &InitData);
+		Texture->Init(DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, &InitData);
 
 		return Texture;
 	}
@@ -251,7 +251,7 @@ bool FSlateD3DTextureManager::LoadTexture( const FSlateBrush& InBrush, uint32& O
 			OutWidth = ImageWrapper->GetWidth();
 			OutHeight = ImageWrapper->GetHeight();
 
-			if (ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, OutDecodedImage))
+			if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, OutDecodedImage))
 			{
 				bSucceeded = true;
 			}
@@ -363,7 +363,7 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::CreateDynamicTextureResource
 
 	FNewTextureInfo Info;
 	Info.bShouldAtlas = false;
-	LoadedTexture->Init(Info.bSrgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, &InitData);
+	LoadedTexture->Init(Info.bSrgb ? DXGI_FORMAT_B8G8R8A8_UNORM_SRGB : DXGI_FORMAT_B8G8R8A8_UNORM, &InitData);
 
 	TextureResource->Proxy->ActualSize = FIntPoint(Width, Height);
 	TextureResource->Proxy->Resource = TextureResource->D3DTexture;
@@ -476,7 +476,7 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( con
 		InitData.pSysMem = Info.TextureData->GetRawBytes().GetData();
 		InitData.SysMemPitch = Width * 4;
 
-		Texture->Init( Info.bSrgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, &InitData );
+		Texture->Init( Info.bSrgb ? DXGI_FORMAT_B8G8R8A8_UNORM_SRGB : DXGI_FORMAT_B8G8R8A8_UNORM, &InitData );
 
 		NonAtlasedTextures.Add(MoveTemp(Texture));
 	}

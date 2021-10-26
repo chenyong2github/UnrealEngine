@@ -218,7 +218,7 @@ private:
 /**
  * Implements a profile which controls the desired output of the Launcher
  */
-class FLauncherProfile
+class FLauncherProfile final
 	: public ILauncherProfile
 {
 public:
@@ -1957,6 +1957,7 @@ public:
 
 		bNotForLicensees = false;
 		bUseIoStore = false;
+		bUseZenStore = false;
 		bShouldUpdateFlash = false;
 		bMakeBinaryConfig = false;
 

@@ -302,14 +302,15 @@ public:
 
 public:
 	FLidarPointCloudNormal() { Reset(); }
-	FLidarPointCloudNormal(const FVector& Normal) { SetFromVector(Normal); }
+	FLidarPointCloudNormal(const FVector3f& Normal) { SetFromVector(Normal); }
+	FLidarPointCloudNormal(const FPlane& Normal) { SetFromFloats(Normal.X, Normal.Y, Normal.Z); }
 	FLidarPointCloudNormal(const float& X, const float& Y, const float& Z) { SetFromFloats(X, Y, Z); }
 
 	bool operator==(const FLidarPointCloudNormal& Other) const { return X == Other.X && Y == Other.Y && Z == Other.Z; }
 
 	FORCEINLINE bool IsValid() const { return X != 127 || Y != 127 || Z != 127; }
 
-	FORCEINLINE void SetFromVector(const FVector& Normal)
+	FORCEINLINE void SetFromVector(const FVector3f& Normal)
 	{
 		SetFromFloats(Normal.X, Normal.Y, Normal.Z);
 	}
@@ -325,13 +326,13 @@ public:
 		X = Y = Z = 127;
 	}
 
-	FORCEINLINE FVector ToVector() const { return FVector(X / 127.5f - 1, Y / 127.5f - 1, Z / 127.5f - 1); }
+	FORCEINLINE FVector3f ToVector() const { return FVector3f(X / 127.5f - 1, Y / 127.5f - 1, Z / 127.5f - 1); }
 };
 
 /** Used for backwards compatibility with pre-normal datasets */
 struct FLidarPointCloudPoint_Legacy
 {
-	FVector Location;
+	FVector3f Location;
 	FColor Color;
 	uint8 bVisible : 1;
 	uint8 ClassificationID : 5;
@@ -344,8 +345,9 @@ struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudPoint
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
-	FVector Location;			// LWC_TODO: FVector3f. Currently copied to RHI buffer as a double!
+	// LWC_TODO: Uncomment when FVector3f supports BP
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
+	FVector3f Location;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
 	FColor Color;
@@ -366,7 +368,7 @@ private:
 
 public:
 	FLidarPointCloudPoint()
-		: Location(FVector::ZeroVector)
+		: Location(FVector3f::ZeroVector)
 		, Color(FColor::White)
 		, Normal()
 		, bVisible(true)
@@ -398,31 +400,31 @@ public:
 		Color = FLinearColor(R, G, B, A).ToFColor(false);
 		Normal.SetFromFloats(NX, NY, NZ);
 	}
-	FLidarPointCloudPoint(const FVector& Location) : FLidarPointCloudPoint(Location.X, Location.Y, Location.Z) {}
-	FLidarPointCloudPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A = 1.0f)
+	FLidarPointCloudPoint(const FVector3f& Location) : FLidarPointCloudPoint(Location.X, Location.Y, Location.Z) {}
+	FLidarPointCloudPoint(const FVector3f& Location, const float& R, const float& G, const float& B, const float& A = 1.0f)
 		: FLidarPointCloudPoint(Location)
 	{
 		Color = FLinearColor(R, G, B, A).ToFColor(false);
 	}
-	FLidarPointCloudPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A, const uint8& ClassificationID)
+	FLidarPointCloudPoint(const FVector3f& Location, const float& R, const float& G, const float& B, const float& A, const uint8& ClassificationID)
 		: FLidarPointCloudPoint(Location, R, G, B, A)
 	{
 		this->ClassificationID = ClassificationID;
 	}
-	FLidarPointCloudPoint(const FVector& Location, const uint8& R, const uint8& G, const uint8& B, const uint8& A, const uint8& ClassificationID)
+	FLidarPointCloudPoint(const FVector3f& Location, const uint8& R, const uint8& G, const uint8& B, const uint8& A, const uint8& ClassificationID)
 		: FLidarPointCloudPoint(Location.X, Location.Y, Location.Z)
 	{
 		Color = FColor(R, G, B, A);
 		this->ClassificationID = ClassificationID;
 	}
-	FLidarPointCloudPoint(const FVector& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID)
+	FLidarPointCloudPoint(const FVector3f& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID)
 		: FLidarPointCloudPoint(Location)
 	{
 		this->Color = Color;
 		this->bVisible = bVisible;
 		this->ClassificationID = ClassificationID;
 	}
-	FLidarPointCloudPoint(const FVector& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID, const FLidarPointCloudNormal& Normal)
+	FLidarPointCloudPoint(const FVector3f& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID, const FLidarPointCloudNormal& Normal)
 		: FLidarPointCloudPoint(Location)
 	{
 		this->Color = Color;
@@ -566,20 +568,20 @@ private:
 struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudRay
 {
 public:
-	FVector Origin;
+	FVector3f Origin;
 
 private:
-	FVector Direction;
-	FVector InvDirection;
+	FVector3f Direction;
+	FVector3f InvDirection;
 
 public:
-	FLidarPointCloudRay() : FLidarPointCloudRay(FVector::ZeroVector, FVector::ForwardVector) {}
-	FLidarPointCloudRay(const FVector& Origin, const FVector& Direction) : Origin(Origin)
+	FLidarPointCloudRay() : FLidarPointCloudRay(FVector3f::ZeroVector, FVector3f::ForwardVector) {}
+	FLidarPointCloudRay(const FVector3f& Origin, const FVector3f& Direction) : Origin(Origin)
 	{
 		SetDirection(Direction);
 	}
 
-	static FORCEINLINE FLidarPointCloudRay FromLocations(const FVector& Origin, const FVector& Destination)
+	static FORCEINLINE FLidarPointCloudRay FromLocations(const FVector3f& Origin, const FVector3f& Destination)
 	{
 		return FLidarPointCloudRay(Origin, (Destination - Origin).GetSafeNormal());
 	}
@@ -594,16 +596,16 @@ public:
 	{
 		return FLidarPointCloudRay(Transform.TransformPosition(Origin), Transform.TransformVector(Direction));
 	}
-	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector& Offset) const
+	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector3f& Offset) const
 	{
 		return FLidarPointCloudRay(Origin + Offset, Direction);
 	}
 
-	FORCEINLINE FVector GetDirection() const { return Direction; }
-	FORCEINLINE void SetDirection(const FVector& NewDirection)
+	FORCEINLINE FVector3f GetDirection() const { return Direction; }
+	FORCEINLINE void SetDirection(const FVector3f& NewDirection)
 	{
 		Direction = NewDirection;
-		InvDirection = FVector(Direction.X == 0 ? 0 : 1 / Direction.X,
+		InvDirection = FVector3f(Direction.X == 0 ? 0 : 1 / Direction.X,
 								Direction.Y == 0 ? 0 : 1 / Direction.Y,
 								Direction.Z == 0 ? 0 : 1 / Direction.Z);
 	}
@@ -645,15 +647,15 @@ public:
 	}
 	FORCEINLINE bool Intersects(const FLidarPointCloudPoint* Point, const float& RadiusSq) const
 	{
-		const FVector L = Point->Location - Origin;
-		const float tca = FVector::DotProduct(L, Direction);
+		const FVector3f L = Point->Location - Origin;
+		const float tca = FVector3f::DotProduct(L, Direction);
 		
 		if (tca < 0)
 		{
 			return false;
 		}
 		
-		const float d2 = FVector::DotProduct(L, L) - tca * tca;
+		const float d2 = FVector3f::DotProduct(L, L) - tca * tca;
 
 		return d2 <= RadiusSq;
 	}
@@ -713,8 +715,8 @@ struct FLidarPointCloudComponentRenderParams
 	int32 MaxDepth;
 
 	float BoundsScale;
-	FVector BoundsSize;
-	FVector LocationOffset;
+	FVector3f BoundsSize;
+	FVector3f LocationOffset;
 	float ComponentScale;
 
 	float PointSize;
@@ -731,11 +733,11 @@ struct FLidarPointCloudComponentRenderParams
 	ELidarPointCloudSpriteShape PointShape;
 	ELidarPointCloudScalingMethod ScalingMethod;
 
-	FVector4 Saturation;
-	FVector4 Contrast;
-	FVector4 Gamma;
-	FVector4 Offset;
-	FVector ColorTint;
+	FVector4f Saturation;
+	FVector4f Contrast;
+	FVector4f Gamma;
+	FVector4f Offset;
+	FVector3f ColorTint;
 	float IntensityInfluence;
 
 	TMap<int32, FLinearColor> ClassificationColors;

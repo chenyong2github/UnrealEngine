@@ -119,6 +119,8 @@ DEFINE_LOG_CATEGORY_STATIC(LevelEditorActions, Log, All);
 
 const FName HotReloadModule("HotReload");
 
+FSimpleDelegate FLevelEditorActionCallbacks::NewLevelOverride;
+
 namespace LevelEditorActionsHelpers
 {
 	/** 
@@ -202,6 +204,11 @@ void FLevelEditorActionCallbacks::BrowseViewportControls()
 
 void FLevelEditorActionCallbacks::NewLevel()
 {
+	if (NewLevelOverride.ExecuteIfBound())
+	{
+		return;
+	}
+
 	if (GUnrealEd->WarnIfLightingBuildIsCurrentlyRunning())
 	{
 		return;

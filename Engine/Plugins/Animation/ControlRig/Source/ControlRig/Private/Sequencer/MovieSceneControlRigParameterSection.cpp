@@ -1217,7 +1217,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		int32 BoolChannelIndex = 0;
 		int32 EnumChannelIndex = 0;
 		int32 IntegerChannelIndex = 0;
-		int32 SpaceChannelIndeX = 0;
+		int32 SpaceChannelIndex = 0;
 		const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
 		const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
 		const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
@@ -1525,6 +1525,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							if (pChannelIndex)
 							{
 								pChannelIndex->bDoesHaveSpace = true;
+								pChannelIndex->SpaceChannelIndex = SpaceChannelIndex;
 							}
 
 							FString TotalName = Vector.ParameterName.ToString(); //need ControlName.Space for selection to work.
@@ -1532,7 +1533,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							TotalName += ("." + SpaceString);
 							FMovieSceneChannelMetaData SpaceMetaData(FName(*TotalName), Group, Group, bEnabled);
 							SpaceMetaData.DisplayText = FText::FromName(SpaceName);
-							SpaceChannelIndeX += 1;
+							SpaceChannelIndex += 1;
 							SpaceMetaData.SortOrder = TotalIndex++;
 							// Prevent single channels from collapsing to the track node
 							SpaceMetaData.bCanCollapseToTrack = false;
@@ -1571,6 +1572,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							if (pChannelIndex)
 							{
 								pChannelIndex->bDoesHaveSpace = true;
+								pChannelIndex->SpaceChannelIndex = SpaceChannelIndex;
 							}
 
 							FString TotalName = Transform.ParameterName.ToString(); //need ControlName.Space for selection to work.
@@ -1578,7 +1580,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							TotalName += ("." + SpaceString);
 							FMovieSceneChannelMetaData SpaceMetaData(FName(*TotalName), Group, Group, bEnabled);
 							SpaceMetaData.DisplayText = FText::FromName(SpaceName);
-							SpaceChannelIndeX += 1;
+							SpaceChannelIndex += 1;
 							SpaceMetaData.SortOrder = TotalIndex++;
 							// Prevent single channels from collapsing to the track node
 							SpaceMetaData.bCanCollapseToTrack = false;
@@ -1741,8 +1743,9 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 								if (pChannelIndex)
 								{
 									pChannelIndex->bDoesHaveSpace = true;
+									pChannelIndex->SpaceChannelIndex = SpaceChannelIndex;
 								}
-								SpaceChannelIndeX += 1;
+								SpaceChannelIndex += 1;
 								Channels.Add(SpaceChannel->SpaceCurve);
 							}
 						}
@@ -1788,8 +1791,9 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 								if (pChannelIndex)
 								{
 									pChannelIndex->bDoesHaveSpace = true;
+									pChannelIndex->SpaceChannelIndex = SpaceChannelIndex;
 								}
-								SpaceChannelIndeX += 1;
+								SpaceChannelIndex += 1;
 								Channels.Add(SpaceChannel->SpaceCurve);
 							}
 						}	

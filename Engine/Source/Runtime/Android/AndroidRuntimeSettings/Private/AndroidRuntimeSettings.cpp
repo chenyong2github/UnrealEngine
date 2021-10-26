@@ -171,7 +171,7 @@ void UAndroidRuntimeSettings::PostInitProperties()
 	{
 		AdMobAdUnitIDs.Add(AdMobAdUnitID);
 		AdMobAdUnitID.Empty();
-		UpdateDefaultConfigFile();
+		TryUpdateDefaultConfigFile();
 	}
 
 	// Upgrade old GoogleVR settings as necessary.
@@ -199,7 +199,7 @@ void UAndroidRuntimeSettings::PostInitProperties()
 		}
 
 		// Save changes to the ini file.
-		UpdateDefaultConfigFile();
+		TryUpdateDefaultConfigFile();
 	}
 
 	EnsureValidGPUArch();

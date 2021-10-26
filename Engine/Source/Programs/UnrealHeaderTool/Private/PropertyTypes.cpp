@@ -2183,6 +2183,19 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 				}
 			}
 		}
+		else
+		{
+			// Allow a default constructed struct as a default argument
+			const FString StructNameCPP = ScriptStructDef->GetAlternateNameCPP();
+			FString Parameters;
+			if (FDefaultValueHelper::GetParameters(CppForm, StructNameCPP, Parameters))
+			{
+				if (Parameters.IsEmpty())
+				{
+					OutForm = TEXT("()");
+				}
+			}
+		}
 		return !OutForm.IsEmpty();
 	}
 

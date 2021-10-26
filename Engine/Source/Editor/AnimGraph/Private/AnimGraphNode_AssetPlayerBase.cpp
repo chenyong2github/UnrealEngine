@@ -163,9 +163,15 @@ void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilation(USkeleton
 	{
 		FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
 
-		if(Node->GetGroupMethod() == EAnimSyncMethod::SyncGroup && Node->GetGroupName() == NAME_None)
+		const FName GroupName = Node->GetGroupName();
+		if(Node->GetGroupMethod() == EAnimSyncMethod::SyncGroup && GroupName == NAME_None)
 		{
 			MessageLog.Error(*LOCTEXT("NoSyncGroupSupplied", "Node @@ is set to use sync groups, but no sync group has been supplied").ToString(), this);
+		}
+		else if(Node->GetGroupMethod() != EAnimSyncMethod::SyncGroup && GroupName != NAME_None)
+		{
+			FText const ErrorFormat = LOCTEXT("InvalidSyncGroupSupplied", "Node @@ is set to not use named sync groups, but a sync group {0} is set.");
+			MessageLog.Error( *FText::Format(ErrorFormat, FText::FromName(GroupName)).ToString(), this );
 		}
 	}
 }

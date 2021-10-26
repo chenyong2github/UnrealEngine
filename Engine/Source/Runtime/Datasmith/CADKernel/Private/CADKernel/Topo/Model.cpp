@@ -10,10 +10,7 @@
 #include "CADKernel/Topo/Joiner.h"
 
 
-using namespace CADKernel;
-
-
-void FModel::AddEntity(TSharedRef<FTopologicalEntity> Entity)
+void CADKernel::FModel::AddEntity(TSharedRef<FTopologicalEntity> Entity)
 {
 	switch (Entity->GetEntityType())
 	{
@@ -28,7 +25,7 @@ void FModel::AddEntity(TSharedRef<FTopologicalEntity> Entity)
 	}
 }
 
-bool FModel::Contains(TSharedPtr<FTopologicalEntity> Entity)
+bool CADKernel::FModel::Contains(TSharedPtr<FTopologicalEntity> Entity)
 {
 	switch(Entity->GetEntityType())
 	{
@@ -42,7 +39,7 @@ bool FModel::Contains(TSharedPtr<FTopologicalEntity> Entity)
 	return false;
 }
 
-void FModel::RemoveEntity(TSharedPtr<FTopologicalEntity> Entity)
+void CADKernel::FModel::RemoveEntity(TSharedPtr<FTopologicalEntity> Entity)
 {
 	switch (Entity->GetEntityType())
 	{
@@ -57,7 +54,7 @@ void FModel::RemoveEntity(TSharedPtr<FTopologicalEntity> Entity)
 	}
 }
 
-void FModel::PrintBodyAndShellCount()
+void CADKernel::FModel::PrintBodyAndShellCount()
 {
 	int32 NbBody = 0;
 	int32 NbShell = 0;
@@ -71,7 +68,7 @@ void FModel::PrintBodyAndShellCount()
 	FMessage::Printf(Log, TEXT("Body count %d shell count %d \n"), NbBody, NbShell);
 }
 
-void FModel::RemoveEmptyBodies()
+void CADKernel::FModel::RemoveEmptyBodies()
 {
 	int32 NbBody = 0;
 	int32 NbShell = 0;
@@ -104,7 +101,7 @@ void FModel::RemoveBody(TSharedPtr<FBody> Body)
 	Bodies.Remove(Body);
 }*/
 
-TSharedPtr<FEntityGeom> FModel::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FModel::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FModel> Model = FEntity::MakeShared<FModel>();
 
@@ -123,7 +120,7 @@ TSharedPtr<FEntityGeom> FModel::ApplyMatrix(const FMatrixH& InMatrix) const
 	return Model;
 }
 
-int32 FModel::FaceCount() const
+int32 CADKernel::FModel::FaceCount() const
 {
 	int32 FaceCount = 0;
 	for (const TSharedPtr<FBody>& Body : Bodies)
@@ -134,7 +131,7 @@ int32 FModel::FaceCount() const
 	return FaceCount;
 }
 
-void FModel::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) 
+void CADKernel::FModel::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) 
 {
 	for (const TSharedPtr<FBody>& Body : Bodies)
 	{
@@ -151,7 +148,7 @@ void FModel::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces)
 	}
 }
 
-void FModel::SpreadBodyOrientation()
+void CADKernel::FModel::SpreadBodyOrientation()
 {
 	for (TSharedPtr<FBody>& Body : Bodies)
 	{
@@ -160,7 +157,7 @@ void FModel::SpreadBodyOrientation()
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FModel::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FModel::GetInfo(FInfoEntity& Info) const
 {
 	return FEntityGeom::GetInfo(Info)
 		.Add(TEXT("Bodies"), Bodies)
@@ -171,7 +168,7 @@ FInfoEntity& FModel::GetInfo(FInfoEntity& Info) const
 
 
 // Topo functions
-void FModel::MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities)
+void CADKernel::FModel::MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities)
 {
 
 }
@@ -179,10 +176,10 @@ void FModel::MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEnt
 
 struct FBodyShell
 {
-	TSharedPtr<FBody> Body;
-	TSharedPtr<FShell> Shell;
+	TSharedPtr<CADKernel::FBody> Body;
+	TSharedPtr<CADKernel::FShell> Shell;
 
-	FBodyShell(TSharedPtr<FBody> InBody, TSharedPtr<FShell> InShell)
+	FBodyShell(TSharedPtr<CADKernel::FBody> InBody, TSharedPtr<CADKernel::FShell> InShell)
 	: Body(InBody)
 	, Shell(InShell)
 	{
@@ -191,7 +188,7 @@ struct FBodyShell
 };
 
 //void FModel::CheckTopology()
-void FModel::CheckTopology() 
+void CADKernel::FModel::CheckTopology() 
 {
 	TArray<FBodyShell> IsolatedBodies;
 	IsolatedBodies.Reserve(Bodies.Num()*2);
@@ -250,7 +247,7 @@ for (const FFaceSubset& Subset : SubShells)
 }
 
 
-void FModel::Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody)
+void CADKernel::FModel::Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody)
 {
 
 }
@@ -258,7 +255,7 @@ void FModel::Split(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody
 /**
  * Fore each shell of each body, try to stitch topological gap
  */
-void FModel::HealModelTopology(double JoiningTolerance)
+void CADKernel::FModel::HealModelTopology(double JoiningTolerance)
 {
 
 }
@@ -266,7 +263,7 @@ void FModel::HealModelTopology(double JoiningTolerance)
 
 
 //void FModel::FixModelTopology()
-void FModel::FixModelTopology(double JoiningTolerance)
+void CADKernel::FModel::FixModelTopology(double JoiningTolerance)
 {
 	//HealModelTopology(JoiningTolerance);
 

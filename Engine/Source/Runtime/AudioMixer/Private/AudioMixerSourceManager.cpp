@@ -720,23 +720,32 @@ namespace Audio
 		TArray<TSoundEffectSourcePtr> SourceEffectChain;
 		BuildSourceEffectChain(SourceId, InitData, InitParams.SourceEffectChain, SourceEffectChain);
 
-		FModulationDestination VolumeModulation;
-		VolumeModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-		VolumeModulation.UpdateModulator(InitParams.ModulationSettings.VolumeModulationDestination.Modulator);
+		FModulationDestination VolumeMod;
+		VolumeMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		VolumeMod.UpdateModulator(InitParams.ModulationSettings.VolumeModulationDestination.Modulator);
 
-		FModulationDestination PitchModulation;
-		PitchModulation.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
-		PitchModulation.UpdateModulator(InitParams.ModulationSettings.PitchModulationDestination.Modulator);
+		FModulationDestination PitchMod;
+		PitchMod.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
+		PitchMod.UpdateModulator(InitParams.ModulationSettings.PitchModulationDestination.Modulator);
 
-		FModulationDestination HighpassModulation;
-		HighpassModulation.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
-		HighpassModulation.UpdateModulator(InitParams.ModulationSettings.HighpassModulationDestination.Modulator);
+		FModulationDestination HighpassMod;
+		HighpassMod.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
+		HighpassMod.UpdateModulator(InitParams.ModulationSettings.HighpassModulationDestination.Modulator);
 
-		FModulationDestination LowpassModulation;
-		LowpassModulation.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
-		LowpassModulation.UpdateModulator(InitParams.ModulationSettings.LowpassModulationDestination.Modulator);
+		FModulationDestination LowpassMod;
+		LowpassMod.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
+		LowpassMod.UpdateModulator(InitParams.ModulationSettings.LowpassModulationDestination.Modulator);
 
-		AudioMixerThreadCommand([this, SourceId, InitParams, VolumeModulation, HighpassModulation, LowpassModulation, PitchModulation, SourceEffectChain]()
+		AudioMixerThreadCommand([
+			this,
+			SourceId,
+			InitParams,
+			VolumeModulation = MoveTemp(VolumeMod),
+			HighpassModulation = MoveTemp(HighpassMod),
+			LowpassModulation = MoveTemp(LowpassMod),
+			PitchModulation = MoveTemp(PitchMod),
+			SourceEffectChain
+		]() mutable
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 			AUDIO_MIXER_CHECK(InitParams.SourceVoice != nullptr);
@@ -783,10 +792,10 @@ namespace Audio
 			EnvelopeFollowerInitParams.Mode = EPeakMode::Peak;
 			SourceInfo.SourceEnvelopeFollower = Audio::FInlineEnvelopeFollower(EnvelopeFollowerInitParams);
 
-			SourceInfo.VolumeModulation = VolumeModulation;
-			SourceInfo.PitchModulation = PitchModulation;
-			SourceInfo.LowpassModulation = LowpassModulation;
-			SourceInfo.HighpassModulation = HighpassModulation;
+			SourceInfo.VolumeModulation = MoveTemp(VolumeModulation);
+			SourceInfo.PitchModulation = MoveTemp(PitchModulation);
+			SourceInfo.LowpassModulation = MoveTemp(LowpassModulation);
+			SourceInfo.HighpassModulation = MoveTemp(HighpassModulation);
 
 			// Pass required info to clock manager
 			const FQuartzQuantizedRequestData& QuantData = InitParams.QuantizedRequestData;
@@ -844,7 +853,7 @@ namespace Audio
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
 				
 				// Add the effect chain instances 
-				SourceInfo.SourceEffects = SourceEffectChain;
+				SourceInfo.SourceEffects = MoveTemp(SourceEffectChain);
 				
 				// Add a slot entry for the preset so it can change while running. This will get sent to the running effect instance if the preset changes.
 				SourceInfo.SourceEffectPresets.Add(nullptr);

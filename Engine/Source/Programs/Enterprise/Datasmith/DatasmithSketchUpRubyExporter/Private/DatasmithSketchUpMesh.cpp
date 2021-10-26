@@ -374,10 +374,7 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 	{
 		Context.Materials.UnregisterGeometry(EntitiesGeometry.Get());
 		// Remove mesh elements from scene
-		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh: EntitiesGeometry->Meshes)
-		{
-			Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
-		}
+		RemoveMeshesFromDatasmithScene(Context);
 
 		Context.EntitiesObjects.UnregisterEntities(*this);
 		EntitiesGeometry->FaceIds.Reset();

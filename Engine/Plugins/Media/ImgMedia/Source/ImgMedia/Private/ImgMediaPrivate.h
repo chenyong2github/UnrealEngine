@@ -34,6 +34,9 @@ namespace ImgMedia
 	/** Default frame rate for image sequences (24 fps). */
 	static const FFrameRate DefaultFrameRate(24, 1);
 
+	/** Name of the FillGapsInSequence media option. */
+	static const FName FillGapsInSequenceOption("FillGapsInSequence");
+
 	/** Name of the FramesRateOverrideDenonimator media option. */
 	static const FName FrameRateOverrideDenonimatorOption("FrameRateOverrideDenonimator");
 

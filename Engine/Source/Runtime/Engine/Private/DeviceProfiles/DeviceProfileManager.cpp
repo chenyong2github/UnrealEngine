@@ -39,6 +39,8 @@ static TAutoConsoleVariable<int32> CVarAllowScalabilityGroupsToChangeAtRuntime(
 	ECVF_Default);
 
 TMap<FString, FString> UDeviceProfileManager::DeviceProfileScalabilityCVars;
+
+FString UDeviceProfileManager::BackupSuffix = TEXT("_Backup");
 TMap<FString, FString> UDeviceProfileManager::PushedSettings;
 TArray<FSelectedFragmentProperties> UDeviceProfileManager::PlatformFragmentsSelected;
 
@@ -115,8 +117,7 @@ static void GetCVarsFromDPFragmentIncludes(const FString& CurrentSectionName, co
 
 	for(const FString& FragmentInclude : FragmentIncludeArray)
 	{
-		FString FragmentSectionName = FString::Printf(TEXT("%s %s"), *FragmentInclude, *UDeviceProfileFragment::StaticClass()->GetName());
-		GetFragmentCVars(FragmentSectionName, CVarArrayName, FragmentCVarsINOUT, ConfigSystem);
+		GetFragmentCVars(FragmentInclude, CVarArrayName, FragmentCVarsINOUT, ConfigSystem);
 	}
 }
 
@@ -773,7 +774,7 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 			PlatformConfigFile->GetString(*SectionName, TEXT("BaseProfileName"), ParentName);
 		}
 
-		UObject* ParentObject = nullptr;
+		UDeviceProfile* ParentObject = nullptr;
 		// Recursively build the parent tree
 		if (ParentName.Len() > 0 && ParentName != ProfileName)
 		{
@@ -931,6 +932,16 @@ void UDeviceProfileManager::LoadProfiles()
 
 				Platform->RegisterTextureLODSettings(TextureLODSettingsObj);
 			}
+
+			// Make backup copies to allow proper saving
+			BackupProfiles.Reset();
+
+			for (UDeviceProfile* DeviceProfile : Profiles)
+			{
+				FString DuplicateName = DeviceProfile->GetName() + BackupSuffix;
+				UDeviceProfile* BackupProfile = DuplicateObject<UDeviceProfile>(DeviceProfile, DeviceProfile->GetOuter(), FName(*DuplicateName));
+				BackupProfiles.Add(BackupProfile);
+			}
 		}
 #endif
 
@@ -948,18 +959,37 @@ void UDeviceProfileManager::SaveProfiles(bool bSaveToDefaults)
 			for (int32 DeviceProfileIndex = 0; DeviceProfileIndex < Profiles.Num(); ++DeviceProfileIndex)
 			{
 				UDeviceProfile* CurrentProfile = CastChecked<UDeviceProfile>(Profiles[DeviceProfileIndex]);
-				CurrentProfile->UpdateDefaultConfigFile();
+				FString BackupName = CurrentProfile->GetName() + BackupSuffix;
+				UDeviceProfile* BackupProfile = FindObject<UDeviceProfile>(GetTransientPackage(), *BackupName);
+
+				// Don't save if it hasn't changed
+				if (!AreProfilesTheSame(CurrentProfile, BackupProfile))
+				{
+					// Strip out runtime inherited texture groups before save
+					UDeviceProfile* ParentProfile = CurrentProfile->GetParentProfile(true);
+					if (ParentProfile && CurrentProfile->TextureLODGroups.Num() == ParentProfile->TextureLODGroups.Num())
+					{
+						// Remove any that are the same, these are saved as a keyed array so the rest will inherit
+						for (int32 i = CurrentProfile->TextureLODGroups.Num() - 1; i >= 0; i--)
+						{
+							if (CurrentProfile->TextureLODGroups[i] == ParentProfile->TextureLODGroups[i])
+							{
+								CurrentProfile->TextureLODGroups.RemoveAt(i);
+							}
+						}
+					}
+					
+					CurrentProfile->TryUpdateDefaultConfigFile();
+
+					// Recreate texture groups
+					CurrentProfile->ValidateProfile();
+				}
 			}
 		}
 		else
 		{
-			for (int32 DeviceProfileIndex = 0; DeviceProfileIndex < Profiles.Num(); ++DeviceProfileIndex)
-			{
-				UDeviceProfile* CurrentProfile = CastChecked<UDeviceProfile>(Profiles[DeviceProfileIndex]);
-				FString DeviceProfileTypeNameCombo = FString::Printf(TEXT("%s,%s"), *CurrentProfile->GetName(), *CurrentProfile->DeviceType);
-
-				CurrentProfile->SaveConfig(CPF_Config, *GDeviceProfilesIni);
-			}
+			// We do not want to save local changes to profiles as this is not how any other editor works and it confuses the user
+			// For changes to save you need to hit the save to defaults button in the device profile editor
 		}
 
 		ManagerUpdatedDelegate.Broadcast();
@@ -1078,6 +1108,65 @@ void UDeviceProfileManager::HandleDeviceProfileOverrideChange()
 			SetOverrideDeviceProfile(NewActiveProfile);
 		}
 	}
+}
+
+bool UDeviceProfileManager::AreProfilesTheSame(UDeviceProfile* Profile1, UDeviceProfile* Profile2) const
+{
+	if (!AreTextureGroupsTheSame(Profile1, Profile2))
+	{
+		// This does null check
+		return false;
+	}
+
+	if (!Profile1->DeviceType.Equals(Profile2->DeviceType, ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+	if (!Profile1->BaseProfileName.Equals(Profile2->BaseProfileName, ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+
+	if (Profile1->CVars != Profile2->CVars)
+	{
+		return false;
+	}
+
+	if (Profile1->MatchingRules != Profile2->MatchingRules)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UDeviceProfileManager::AreTextureGroupsTheSame(UDeviceProfile* Profile1, UDeviceProfile* Profile2) const
+{
+	if (!Profile1 || !Profile2)
+	{
+		return false;
+	}
+
+	// If our groups are identical say yes
+	if (Profile1->TextureLODGroups == Profile2->TextureLODGroups)
+	{
+		return true;
+	}
+
+	UDeviceProfile* Parent1 = Profile1->GetParentProfile(true);
+	UDeviceProfile* Parent2 = Profile2->GetParentProfile(true);
+
+	// Also if both profiles inherit groups with no changes, count them as the same
+	if (Parent1 && Parent2 &&
+		Profile1->TextureLODGroups == Parent1->TextureLODGroups &&
+		Profile2->TextureLODGroups == Parent2->TextureLODGroups)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 IDeviceProfileSelectorModule* UDeviceProfileManager::GetPreviewDeviceProfileSelectorModule(FConfigCacheIni* PreviewConfigSystemIn)

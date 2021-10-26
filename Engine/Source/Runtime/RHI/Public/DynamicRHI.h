@@ -1060,6 +1060,7 @@ public:
 
 	// FlushType: Thread safe
 	virtual void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name) = 0;
+	virtual void RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name) {}
 	virtual void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name) {}
 
 	/**
@@ -1640,6 +1641,11 @@ FORCEINLINE uint32 RHIComputeMemorySize(FRHITexture* TextureRHI)
 FORCEINLINE void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name)
 {
 	GDynamicRHI->RHIBindDebugLabelName(Texture, Name);
+}
+
+FORCEINLINE void RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name)
+{
+	GDynamicRHI->RHIBindDebugLabelName(Buffer, Name);
 }
 
 FORCEINLINE void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)

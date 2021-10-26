@@ -383,7 +383,7 @@ bool FPointerUpgrader::LoadFileToString(FString& OutResult, EByteOrderMarkerType
 		return false;
 	}
 
-	TArray<TCHAR>& ResultArray = OutResult.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& ResultArray = OutResult.GetCharArray();
 	ResultArray.Empty();
 
 	bool bIsUnicode = false;

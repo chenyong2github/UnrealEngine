@@ -24,7 +24,15 @@
 void SPropertyAccessNode::Construct(const FArguments& InArgs, UK2Node_PropertyAccess* InNode)
 {
 	GraphNode = InNode;
+
+	SetCursor( EMouseCursor::CardinalCross );
+	
 	UpdateGraphNode();
+
+	// Centre the pin slot
+	SVerticalBox::FSlot& PinSlot = RightNodeBox->GetSlot(0);
+	PinSlot.SetVerticalAlignment(VAlign_Center);
+	PinSlot.SetFillHeight(1.0f);
 }
 
 bool SPropertyAccessNode::CanBindProperty(FProperty* InProperty) const
@@ -78,11 +86,8 @@ bool SPropertyAccessNode::CanBindProperty(FProperty* InProperty) const
 	return false;
 }
 
-TSharedPtr<SGraphPin> SPropertyAccessNode::CreatePinWidget(UEdGraphPin* Pin) const
+TSharedRef<SWidget> SPropertyAccessNode::UpdateTitleWidget(FText InTitleText, TSharedPtr<SWidget> InTitleWidget, EHorizontalAlignment& InOutTitleHAlign, FMargin& InOutTitleMargin) const
 {
-	TSharedPtr<SGraphPin> DefaultWidget = SGraphNodeK2Var::CreatePinWidget(Pin);
-	DefaultWidget->SetShowLabel(false);
-	
 	UK2Node_PropertyAccess* K2Node_PropertyAccess = CastChecked<UK2Node_PropertyAccess>(GraphNode);
 
 	FPropertyBindingWidgetArgs Args;
@@ -256,14 +261,10 @@ TSharedPtr<SGraphPin> SPropertyAccessNode::CreatePinWidget(UEdGraphPin* Pin) con
 	{
 		PropertyBindingWidget = SNullWidget::NullWidget;
 	}
-
-	TSharedRef<SWrapBox> LabelAndValue = DefaultWidget->GetLabelAndValue();
-
+	
 	const FTextBlockStyle& TextBlockStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
 	
-	LabelAndValue->AddSlot()
-	.Padding(5.0f)
-	[
+	InTitleWidget =
 		SNew(SLevelOfDetailBranchNode)
 		.UseLowDetailSlot(this, &SPropertyAccessNode::UseLowDetailNodeTitles)
 		.LowDetail()
@@ -303,9 +304,22 @@ TSharedPtr<SGraphPin> SPropertyAccessNode::CreatePinWidget(UEdGraphPin* Pin) con
 					})
 				]
 			]
-		]
-	];
-	
+		];
+
+	InTitleWidget->SetCursor( EMouseCursor::Default );
+
+	InOutTitleHAlign = HAlign_Left;
+	InOutTitleMargin = FMargin(40.0f, 14.0f, 40.0f, 14.0f);
+		
+	return InTitleWidget.ToSharedRef();
+}
+
+
+TSharedPtr<SGraphPin> SPropertyAccessNode::CreatePinWidget(UEdGraphPin* Pin) const
+{
+	TSharedPtr<SGraphPin> DefaultWidget = SGraphNodeK2Var::CreatePinWidget(Pin);
+	DefaultWidget->SetShowLabel(false);
+
 	return DefaultWidget;
 }
 

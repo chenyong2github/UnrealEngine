@@ -20,6 +20,8 @@
 
 #define LOCTEXT_NAMESPACE "EnhancedInput"
 
+DEFINE_LOG_CATEGORY(LogEnhancedInput);
+
 class FEnhancedInputModule : public IEnhancedInputModule, public FTickableGameObject
 {
 public:

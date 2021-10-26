@@ -283,9 +283,6 @@ private:
 	/** @return the content for the view button */
 	TSharedRef<SWidget> GetViewButtonContent();
 
-	/** @return the foreground color for the view button */
-	FSlateColor GetViewButtonForegroundColor() const;
-
 	/** Toggles state of 'display path' */
 	void ToggleDisplayPaths_Executed()
 	{

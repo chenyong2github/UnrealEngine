@@ -519,17 +519,14 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	}
 	else if (LayersExpression)
 	{
-		FMaterialLayersFunctions LayersValue;
-		FGuid LayersGuid;
-
-		ParameterInfo.Name = LayersExpression->ParameterName;
-		VisibleExpressions.AddUnique(ParameterInfo);
+		//ParameterInfo.Name = LayersExpression->ParameterName;
+		//VisibleExpressions.AddUnique(ParameterInfo);
 
 		// TODO: We only need to traverse a solo Layer[0] or the final Blend[N-1] here it will recurse anyway
-		if (MaterialInstance->GetMaterialLayersParameterValue(ParameterInfo, LayersValue, LayersGuid))
+		const FMaterialLayersFunctions* LayersValue = MaterialInstance->GetMaterialLayers();
+		if (LayersValue)
 		{
-			LayersExpression->OverrideLayerGraph(&LayersValue);
-
+			LayersExpression->OverrideLayerGraph(LayersValue);
 			if (LayersExpression->bIsLayerGraphBuilt)
 			{
 				for (auto& Layer : LayersExpression->LayerCallers)

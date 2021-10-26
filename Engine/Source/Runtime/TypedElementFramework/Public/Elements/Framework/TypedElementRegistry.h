@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementList.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "UObject/ScriptInterface.h"
 
@@ -284,13 +285,13 @@ public:
 
 	void Private_OnElementListCreated(FTypedElementList* InElementList)
 	{
-		FWriteScopeLock ActiveElementListsLock(ActiveElementListsRW);
+		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
 		ActiveElementLists.Add(InElementList);
 	}
 
 	void Private_OnElementListDestroyed(FTypedElementList* InElementList)
 	{
-		FWriteScopeLock ActiveElementListsLock(ActiveElementListsRW);
+		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
 		ActiveElementLists.Remove(InElementList);
 	}
 
@@ -545,7 +546,7 @@ private:
 	TUniquePtr<FRegisteredElementType> RegisteredElementTypes[TypedHandleMaxTypeId - 1];
 	TSortedMap<FName, FTypedHandleTypeId, FDefaultAllocator, FNameFastLess> RegisteredElementTypesNameToId;
 
-	mutable FRWLock ActiveElementListsRW;
+	mutable FCriticalSection ActiveElementListsCS;
 	TSet<FTypedElementList*> ActiveElementLists;
 
 	uint8 DisableElementDestructionOnGCCount = 0;

@@ -2,15 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
 #include "Input/Reply.h"
+#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-
-class IDocumentationPage;
-class SButton;
-class SImage;
-struct FSlateBrush;
 
 class SDocumentationAnchor : public SCompoundWidget
 {
@@ -22,26 +17,17 @@ public:
 
 		/** The string for the link to follow when clicked  */
 		SLATE_ATTRIBUTE( FString, Link )
-
 	SLATE_END_ARGS()
-
 
 	void Construct(const FArguments& InArgs);
 
 private:
 	
-	const FSlateBrush* GetButtonImage() const;
-
 	FReply OnClicked() const;
 
 private:
 
 	TAttribute<FString> Link;
-	TSharedPtr< SButton > Button;
-	TSharedPtr< SImage > ButtonImage;
-	const FSlateBrush* Default; 
-	const FSlateBrush* Hovered; 
-	const FSlateBrush* Pressed; 
-
-	TSharedPtr< IDocumentationPage > DocumentationPage;
+	TSharedPtr<class SButton> Button;
+	TSharedPtr<class SImage> ButtonImage;
 };

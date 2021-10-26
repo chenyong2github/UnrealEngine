@@ -39,7 +39,7 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerTiledComposite(
 	TEXT("Enable tiled optimisation of the water reflection rendering."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-int32 GSingleLayerWaterRefractionDownsampleFactor = 2;
+int32 GSingleLayerWaterRefractionDownsampleFactor = 1;
 static FAutoConsoleVariableRef CVarWaterSingleLayerRefractionDownsampleFactor(
 	TEXT("r.Water.SingleLayer.RefractionDownsampleFactor"),
 	GSingleLayerWaterRefractionDownsampleFactor,
@@ -310,7 +310,7 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 		PassParameters->SceneColorCopyDownsampleTexture = SceneColorTexture;
 		PassParameters->SceneColorCopyDownsampleSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->SceneDepthCopyDownsampleTexture = SceneDepthTexture;
-		PassParameters->SceneDepthCopyDownsampleSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->SceneDepthCopyDownsampleSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->SVPositionToSourceTextureUV = FVector2D(RefractionDownsampleFactor / float(SceneColorDesc.Extent.X), RefractionDownsampleFactor / float(SceneColorDesc.Extent.Y));
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneDepthWithoutSingleLayerWaterTexture, LoadAction);

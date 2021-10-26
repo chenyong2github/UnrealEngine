@@ -278,7 +278,7 @@ private:
 	TSharedPtr<class SWidgetSwitcher> WidgetSwitcher;
 
 	/** The Add Foliage Type combo button */
-	TSharedPtr<class SEditorHeaderButton> AddFoliageTypeCombo;
+	TSharedPtr<class SPositiveActionButton> AddFoliageTypeCombo;
 
 	/** The header row of the foliage mesh tree */
 	TSharedPtr<class SHeaderRow> TreeViewHeaderRow;

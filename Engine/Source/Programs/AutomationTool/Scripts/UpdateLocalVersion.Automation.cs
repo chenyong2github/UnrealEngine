@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,10 +18,10 @@ public class UpdateLocalVersion : BuildCommand
 {
 	public override void ExecuteBuild()
 	{
-		UE4Build UE4Build = new UE4Build(this);
+		UnrealBuild UnrealBuild = new UnrealBuild(this);
 		int? ChangelistOverride = ParseParamNullableInt("cl");
 		int? CompatibleChangelistOverride = ParseParamNullableInt("compatiblecl");
 		string Build = ParseParamValue("Build", null);
-		UE4Build.UpdateVersionFiles(ChangelistNumberOverride: ChangelistOverride, CompatibleChangelistNumberOverride: CompatibleChangelistOverride, Build: Build);
+		UnrealBuild.UpdateVersionFiles(ChangelistNumberOverride: ChangelistOverride, CompatibleChangelistNumberOverride: CompatibleChangelistOverride, Build: Build);
 	}
 }

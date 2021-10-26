@@ -87,9 +87,9 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 			if (DestVertexData)
 			{
 				const FDisplayClusterMeshVertex* SrcVertexData = InMeshData->GetVertexData().GetData();
-				for (uint32 i = 0; i < NumVertices; i++)
+				for (uint32 VertexIdx = 0; VertexIdx < NumVertices; VertexIdx++)
 				{
-					DestVertexData[i] = SrcVertexData[i];
+					DestVertexData[VertexIdx].SetVertexData(SrcVertexData[VertexIdx]);
 				}
 			
 				RHIUnlockBuffer(VertexBufferRHI);

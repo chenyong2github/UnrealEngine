@@ -31,6 +31,7 @@ struct TPreAnimatedStateStorage_ObjectTraits
 	: TPreAnimatedStateStorage<ObjectTraits>
 	, IPreAnimatedObjectEntityStorage
 {
+	using KeyType = typename ObjectTraits::KeyType;
 	using StorageType = typename ObjectTraits::StorageType;
 
 	TPreAnimatedStateStorage_ObjectTraits()
@@ -48,6 +49,13 @@ public:
 		TPreAnimatedStateStorage<ObjectTraits>::Initialize(InStorageID, InParentExtension);
 
 		ObjectGroupManager = InParentExtension->GetOrCreateGroupManager<FPreAnimatedObjectGroupManager>();
+	}
+
+	void OnObjectReplaced(FPreAnimatedStorageIndex StorageIndex, const FObjectKey& OldObject, const FObjectKey& NewObject) override
+	{
+		KeyType ExistingKey = this->GetKey(StorageIndex);
+		ExistingKey = NewObject;
+		this->ReplaceKey(StorageIndex, ExistingKey);
 	}
 
 	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) override

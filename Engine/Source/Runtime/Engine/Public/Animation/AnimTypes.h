@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/MemStack.h"
-//#include "Animation/AnimationAsset.h"
+#include "Algo/Transform.h"
 #include "Animation/AnimLinkableElement.h"
 #include "Animation/AnimEnums.h"
 #include "Misc/SecureHash.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "AnimTypes.generated.h"
 
 struct FMarkerPair;
@@ -880,6 +881,58 @@ struct ENGINE_API FRawAnimSequenceTrack
 	}
 
 	static const uint32 SingleKeySize = sizeof(FVector3f) + sizeof(FQuat4f) + sizeof(FVector3f);
+};
+
+UCLASS()
+class ENGINE_API URawAnimSequenceTrackExtensions : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	* Returns the positional keys contained by the FRawAnimSequenceTrack	
+	*/
+	UFUNCTION(BlueprintPure, Category = Animation, meta=(ScriptMethod))
+	static TArray<FVector> GetPositionalKeys(UPARAM(ref)const FRawAnimSequenceTrack& Track)
+	{
+		TArray<FVector> Keys;
+		Algo::Transform(Track.PosKeys, Keys, [](FVector3f FloatKey)
+		{
+			return FVector(FloatKey);
+		});
+
+		return Keys;
+	}
+
+	/**
+	* Returns the rotational keys contained by the FRawAnimSequenceTrack	
+	*/
+	UFUNCTION(BlueprintPure, Category = Animation, meta=(ScriptMethod))
+	static TArray<FQuat> GetRotationalKeys(UPARAM(ref)const FRawAnimSequenceTrack& Track)
+	{
+		TArray<FQuat> Keys;
+		Algo::Transform(Track.RotKeys, Keys, [](FQuat4f FloatKey)
+		{
+			return FQuat(FloatKey);
+		});
+
+		return Keys;
+	}
+
+	/**
+	* Returns the scale keys contained by the FRawAnimSequenceTrack	
+	*/
+	UFUNCTION(BlueprintPure, Category = Animation, meta=(ScriptMethod))
+	static TArray<FVector> GetScaleKeys(UPARAM(ref)const FRawAnimSequenceTrack& Track)
+	{
+		TArray<FVector> Keys;
+		Algo::Transform(Track.ScaleKeys, Keys, [](FVector3f FloatKey)
+		{
+			return FVector(FloatKey);
+		});
+
+		return Keys;
+	}
 };
 
 

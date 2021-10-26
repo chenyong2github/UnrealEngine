@@ -903,11 +903,10 @@ protected:
 	 * Called to get the nearest key
 	 *
 	 * @param InTime The time to get the nearest key to
-	 * @param bSearchAllTracks If true this will search all tracks for a potential nearest.
-	 *						 False will return keys only from the currently selected track.
+	 * @param NearestKeyOption (ie. search keys/markers/all tracks)
 	 * @return NearestKey
 	 */
-	FFrameNumber OnGetNearestKey(FFrameTime InTime, bool bSearchAllTracks);
+	FFrameNumber OnGetNearestKey(FFrameTime InTime, ENearestKeyOption NearestKeyOption);
 
 	/**
 	 * Called when the scrub position is changed by the user

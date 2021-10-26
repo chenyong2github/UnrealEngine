@@ -65,11 +65,12 @@ FLazyName FMapErrors::InvalidVirtualTextureUsage(TEXT("InvalidVirtualTextureUsag
 
 namespace
 {
-	constexpr TCHAR MapErrorsPath[] = TEXT("Shared/Editor/MapErrors");
+	constexpr TCHAR MapErrorsURLPath[] = TEXT("BuildingWorlds/LevelEditor/MapErrors");
+	constexpr TCHAR MapErrorsLocalPath[] = TEXT("Shared/Editor/MapErrors");
 }
 
 FMapErrorToken::FMapErrorToken(const FName& InErrorName)
-	: FDocumentationToken(MapErrorsPath, MapErrorsPath, InErrorName.ToString())
+	: FDocumentationToken(MapErrorsURLPath, MapErrorsLocalPath, InErrorName.ToString())
 {
 }
 

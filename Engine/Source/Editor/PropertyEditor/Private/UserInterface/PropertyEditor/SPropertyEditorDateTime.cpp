@@ -17,7 +17,6 @@ void SPropertyEditorDateTime::Construct( const FArguments& InArgs, const TShared
 		.ClearKeyboardFocusOnCommit(false)
 		.OnTextCommitted(this, &SPropertyEditorDateTime::HandleTextCommitted)
 		.SelectAllTextOnCommit(true)
-		.IsReadOnly(InPropertyEditor->IsEditConst())
 	];
 
 	if( InPropertyEditor->PropertyIsA( FObjectPropertyBase::StaticClass() ) )
@@ -25,6 +24,8 @@ void SPropertyEditorDateTime::Construct( const FArguments& InArgs, const TShared
 		// Object properties should display their entire text in a tooltip
 		PrimaryWidget->SetToolTipText( TAttribute<FText>( InPropertyEditor, &FPropertyEditor::GetValueAsText ) );
 	}
+
+	SetEnabled(TAttribute<bool>(this, &SPropertyEditorDateTime::CanEdit));
 }
 
 
@@ -53,4 +54,10 @@ void SPropertyEditorDateTime::HandleTextCommitted( const FText& NewText, ETextCo
 	const TSharedRef<IPropertyHandle> PropertyHandle = PropertyEditor->GetPropertyHandle();
 
 	PropertyHandle->SetValueFromFormattedString(NewText.ToString());
+}
+
+/** @return True if the property can be edited */
+bool SPropertyEditorDateTime::CanEdit() const
+{
+	return PropertyEditor.IsValid() ? !PropertyEditor->IsEditConst() : true;
 }

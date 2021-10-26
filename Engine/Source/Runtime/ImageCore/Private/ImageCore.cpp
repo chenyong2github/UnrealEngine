@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Async/ParallelFor.h"
 #include "TransferFunctions.h"
+#include "ColorSpace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageCore, Log, All);
 
@@ -311,6 +312,44 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		CopyImage(SrcImage, TempImage);
 		CopyImage(TempImage, DestImage);
 	}
+}
+
+void FImage::TransformToWorkingColorSpace(const FVector2D& SourceRedChromaticity, const FVector2D& SourceGreenChromaticity, const FVector2D& SourceBlueChromaticity, const FVector2D& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ApplyColorSpaceTransformation);
+
+	check(GammaSpace == EGammaSpace::Linear);
+
+	const UE::Color::FColorSpace Source(SourceRedChromaticity, SourceGreenChromaticity, SourceBlueChromaticity, SourceWhiteChromaticity);
+	const UE::Color::FColorSpace& Target = UE::Color::FColorSpace::GetWorking();
+
+	if (Source.Equals(Target, EqualityTolerance))
+	{
+		UE_LOG(LogImageCore, VeryVerbose, TEXT("Source and working color spaces are equal within tolerance, bypass color space transformation."));
+		return;
+	}
+
+	UE::Color::FColorSpaceTransform Transform(Source, Target, Method);
+
+	TArrayView64<FLinearColor> ImageColors = AsRGBA32F();
+
+	const int64 NumTexels = int64(SizeX) * SizeY * NumSlices;
+	const int64 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	int64 TexelsPerJob = NumTexels / NumJobs;
+	if (TexelsPerJob * NumJobs < NumTexels)
+	{
+		++TexelsPerJob;
+	}
+	ParallelFor(NumJobs, [Transform, ImageColors, TexelsPerJob, NumTexels](int64 JobIndex)
+		{
+			const int64 StartIndex = JobIndex * TexelsPerJob;
+			const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+			for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+			{
+				ImageColors[TexelIndex] = Transform.Apply(ImageColors[TexelIndex]);
+				SaturateToHalfFloat(ImageColors[TexelIndex]);
+			}
+		});
 }
 
 static FLinearColor SampleImage(TArrayView64<const FLinearColor> Pixels, int Width, int Height, float X, float Y)

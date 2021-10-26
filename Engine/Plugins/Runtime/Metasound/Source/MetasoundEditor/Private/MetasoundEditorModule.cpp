@@ -34,6 +34,7 @@
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundUObjectRegistry.h"
+#include "MetasoundVariableDetailCustomization.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
@@ -524,6 +525,10 @@ namespace Metasound
 				PropertyModule.RegisterCustomClassLayout(
 					UMetasoundEditorGraphOutput::StaticClass()->GetFName(),
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundOutputDetailCustomization>(); }));
+
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasoundEditorGraphVariable::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundVariableDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
 					"MetasoundEditorGraphInputBoolRef",

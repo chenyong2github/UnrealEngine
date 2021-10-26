@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "LevelSnapshotsModule.h"
-#include "Restorability/IPropertyComparer.h"
-#include "Restorability/ISnapshotLoader.h"
-#include "PhysicsEngine/BodyInstance.h"
+#include "Interfaces/IPropertyComparer.h"
+#include "Interfaces/ISnapshotLoader.h"
 
 class UStaticMeshComponent;
 
@@ -42,9 +41,8 @@ private:
 	bool HaveNonDefaultCollisionPropertiesChanged(
 		const FPropertyComparisonParams& Params, 
 		UStaticMeshComponent* SnapshotObject, 
-		UStaticMeshComponent* WorldObject, 
-		const FBodyInstance& SnapshotBody,
-		const FBodyInstance& WorldBody) const;
+		UStaticMeshComponent* WorldObject
+		) const;
 	
 	const FProperty* BodyInstanceProperty;
 	const FProperty* ObjectTypeProperty;

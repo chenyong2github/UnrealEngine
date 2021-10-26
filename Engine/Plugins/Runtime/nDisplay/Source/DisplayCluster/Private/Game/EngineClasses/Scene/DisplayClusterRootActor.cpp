@@ -726,12 +726,175 @@ void ADisplayClusterRootActor::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+/**
+* Propagate map changes from the DefaultsOwner to the InstanceOwner. The map must be <FString, UObject*>.
+* Each instanced object value will also be setup to use default propagation.
+*
+* If the DefaultsOwner has added a key it will be added to all instances with a new UObject value templated from the
+* default value.
+* 
+* If the DefaultsOwner has removed a key it will be removed from all instances.
+* 
+* All other elements will be left alone and element values will always work through the default propagation system.
+*
+* This is necessary in the event the instance has modified individual element value properties. Default container
+* propagation will treat the entire container as dirty and not add or remove elements to the instance.
+* 
+* For nDisplay the instance can only edit element properties, not the container size.
+* This allows us to safely propagate size changes from the default map through a custom propagation system.
+*
+* @param MapProperty The map property to sync.
+* @param DefaultsOwner The direct object owning the map property with the default values.
+* @param InstanceOwner The direct object owning the map property with the instance values.
+*/
+static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, UObject* DefaultsOwner, UObject* InstanceOwner)
+{
+	check(DefaultsOwner);
+	check(InstanceOwner);
+	
+	const void* MapContainerDefaults = MapProperty->ContainerPtrToValuePtr<void*>(DefaultsOwner);
+	const void* MapContainerInstance = MapProperty->ContainerPtrToValuePtr<void*>(InstanceOwner);
+	FScriptMapHelper MapDefaultsHelper(MapProperty, MapContainerDefaults);
+	FScriptMapHelper MapInstanceHelper(MapProperty, MapContainerInstance);
+
+	bool bHasChanged = false;
+
+	auto AddKeyWithInstancedObject = [&](const FString* Key, UObject* ArchetypeToUse)
+	{
+		if (const uint8* ExistingPair = MapInstanceHelper.FindMapPairPtrFromHash(Key))
+		{
+			MapInstanceHelper.RemovePair(ExistingPair);
+		}
+		
+		// Existing objects should only occur in the case of delete and undo.
+		UObject* ObjectToAdd = FindObject<UObject>(InstanceOwner, *ArchetypeToUse->GetName());
+		if (ObjectToAdd == nullptr)
+		{
+			// Create the instance to assign to the map. Provide the archetype as a template with
+			// the same name so properties are propagated automatically.
+			ObjectToAdd = NewObject<UObject>(InstanceOwner, ArchetypeToUse->GetClass(),
+			ArchetypeToUse->GetFName(), RF_Transactional, ArchetypeToUse);
+		}
+		
+		MapInstanceHelper.AddPair(Key, &ObjectToAdd);
+		
+		bHasChanged = true;
+	};
+
+	// Look for elements that should be added.
+	for (FScriptMapHelper::FIterator DefaultIt = MapDefaultsHelper.CreateIterator(); DefaultIt; ++DefaultIt)
+	{
+		uint8* DefaultPairPtr = MapDefaultsHelper.GetPairPtr(*DefaultIt);
+		check(DefaultPairPtr);
+		
+		FString* Key = MapProperty->KeyProp->ContainerPtrToValuePtr<FString>(DefaultPairPtr);
+		check(Key);
+		
+		UObject** DefaultObjectPtr =  MapProperty->ValueProp->ContainerPtrToValuePtr<UObject*>(DefaultPairPtr);
+		check(DefaultObjectPtr);
+		
+		UObject* DefaultObject = *DefaultObjectPtr;
+		check(DefaultObject);
+		
+		if (UObject** InstancedObjectPtr = (UObject**)MapInstanceHelper.FindValueFromHash(Key))
+		{
+			UObject* InstancedObject = *InstancedObjectPtr;
+			check(InstancedObject);
+			
+			if (ensure(DefaultObject == InstancedObject->GetArchetype()))
+			{
+				continue;
+			}
+		}
+		
+		AddKeyWithInstancedObject(Key, DefaultObject);
+	}
+
+	// Look for elements that should be removed.
+	for (FScriptMapHelper::FIterator InstanceIt = MapInstanceHelper.CreateIterator(); InstanceIt;)
+	{
+		uint8* InstancePairPtr = MapInstanceHelper.GetPairPtr(*InstanceIt);
+		check(InstancePairPtr);
+		
+		FString* Key = MapProperty->KeyProp->ContainerPtrToValuePtr<FString>(InstancePairPtr);
+		check(Key);
+		
+		if (!MapDefaultsHelper.FindValueFromHash(Key))
+		{
+			UObject** InstanceObjectPtr = MapProperty->ValueProp->ContainerPtrToValuePtr<UObject*>(InstancePairPtr);
+			if (InstanceObjectPtr)
+			{
+				UObject* InstanceObject = *InstanceObjectPtr;
+				check(InstanceObject);
+				
+				// Trash the object -- default propagation won't handle this any more.
+				// RemoveAt below will remove the reference to it. This transaction can still be undone.
+				// Rename to transient package now so the same name is available immediately.
+				// It's possible a new object needs to be created with this outer using the same name.
+				InstanceObject->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+				InstanceObject->SetFlags(RF_Transient);
+			}
+			
+			MapInstanceHelper.RemoveAt(*InstanceIt);
+			bHasChanged = true;
+		}
+		else
+		{
+			++InstanceIt;
+		}
+	}
+	
+	if (bHasChanged)
+	{
+		MapInstanceHelper.Rehash();
+#if WITH_EDITOR
+		InstanceOwner->PostEditChange();
+#endif
+	}
+}
+
+/**
+ * Syncs default config data changes to a config instance.
+ *
+ * @param InDefaultConfigData The class default config data object.
+ * @param InInstanceConfigData An instance config data object.
+ */
+static void PropagateDataFromDefaultConfig(UDisplayClusterConfigurationData* InDefaultConfigData, UDisplayClusterConfigurationData* InInstanceConfigData)
+{
+	check(InDefaultConfigData);
+	check(InInstanceConfigData);
+	
+	const FMapProperty* ClusterNodesMapProperty = FindFieldChecked<FMapProperty>(UDisplayClusterConfigurationCluster::StaticClass(),
+																				GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
+	const FMapProperty* ViewportsMapProperty = FindFieldChecked<FMapProperty>(UDisplayClusterConfigurationClusterNode::StaticClass(),
+																			GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports));
+	
+	PropagateDefaultMapToInstancedMap(ClusterNodesMapProperty, InDefaultConfigData->Cluster, InInstanceConfigData->Cluster);
+	
+	for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& ClusterKeyVal : InDefaultConfigData->Cluster->Nodes)
+	{
+		UDisplayClusterConfigurationClusterNode* DestinationValue = InInstanceConfigData->Cluster->Nodes.FindChecked(
+			ClusterKeyVal.Key);
+		PropagateDefaultMapToInstancedMap(ViewportsMapProperty, ClusterKeyVal.Value, DestinationValue);
+	}
+}
+
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
 	IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
 	if (!Config.IsTransactingSnapshot())
 	{
 		Super::RerunConstructionScripts();
+		
+		if (!IsTemplate())
+		{
+			if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
+			{
+				const ADisplayClusterRootActor* CDO = CastChecked<ADisplayClusterRootActor>(GetClass()->GetDefaultObject());
+				UDisplayClusterConfigurationData* DefaultData = CDO->GetConfigData();
+				PropagateDataFromDefaultConfig(DefaultData, CurrentData);
+			}
+		}
 #if WITH_EDITOR
 		RerunConstructionScripts_Editor();
 #endif

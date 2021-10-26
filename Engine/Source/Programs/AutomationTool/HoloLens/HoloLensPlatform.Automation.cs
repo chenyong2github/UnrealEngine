@@ -376,7 +376,7 @@ namespace HoloLens.Automation
 
 		}
 
-		public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
+		public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 		{
 			if(ActualArchitectures.Length == 0)
 			{
@@ -395,7 +395,7 @@ namespace HoloLens.Automation
 
 					foreach (var Arch in ActualArchitectures)
 					{
-						Agenda.Targets.Add(new UE4Build.BuildTarget()
+						Agenda.Targets.Add(new UnrealBuild.BuildTarget()
 						{
 							TargetName = target,
 							Platform = UnrealTargetPlatform.HoloLens,
@@ -511,8 +511,7 @@ namespace HoloLens.Automation
 				throw new AutomationException(ExitCode.Error_Arguments, "Wrong WinSDK toolchain selected on \'Platforms/HoloLens/Toolchain\' page. Please check.");
 			}
 
-			// VS 2017 puts MSBuild stuff (where PDBCopy lives) under the Visual Studio Installation directory
-			DirectoryReference VSInstallDir;
+			// VS puts MSBuild stuff (where PDBCopy lives) under the Visual Studio Installation directory
 			DirectoryReference MSBuildInstallDir = new DirectoryReference(Path.Combine(WindowsExports.GetMSBuildToolPath(), "..", "..", ".."));
 
 			DirectoryReference SDKFolder;
@@ -537,15 +536,16 @@ namespace HoloLens.Automation
 			MakeCertPath = HoloLensExports.GetWindowsSdkToolPath("makecert.exe");
 			Pvk2PfxPath = HoloLensExports.GetWindowsSdkToolPath("pvk2pfx.exe");
 
+			IEnumerable<DirectoryReference> VSInstallDirs;
 			if (PDBCopyPath == null || !FileReference.Exists(PDBCopyPath))
 			{
-				if (WindowsExports.TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
+				if (null != (VSInstallDirs = WindowsExports.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019)))
 				{
-					PDBCopyPath = FileReference.Combine(VSInstallDir, "MSBuild", "Microsoft", "VisualStudio", "v16.0", "AppxPackage", "PDBCopy.exe");
+					PDBCopyPath = FileReference.Combine(VSInstallDirs.First(), "MSBuild", "Microsoft", "VisualStudio", "v16.0", "AppxPackage", "PDBCopy.exe");
 				}
-				else if (WindowsExports.TryGetVSInstallDir(WindowsCompiler.VisualStudio2022, out VSInstallDir))
+				else if (null != (VSInstallDirs = WindowsExports.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022)))
 				{
-					PDBCopyPath = FileReference.Combine(VSInstallDir, "MSBuild", "Microsoft", "VisualStudio", "v17.0", "AppxPackage", "PDBCopy.exe");
+					PDBCopyPath = FileReference.Combine(VSInstallDirs.First(), "MSBuild", "Microsoft", "VisualStudio", "v17.0", "AppxPackage", "PDBCopy.exe");
 				}
 			}
 

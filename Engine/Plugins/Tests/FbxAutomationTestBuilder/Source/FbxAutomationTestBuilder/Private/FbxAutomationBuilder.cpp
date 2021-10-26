@@ -258,7 +258,7 @@ namespace FbxAutomationBuilder
 
 		FString ImportTestDirectory;
 		check(GConfig);
-		GConfig->GetString(TEXT("AutomationTesting.FbxImport"), TEXT("FbxImportTestPath"), ImportTestDirectory, GEngineIni);
+		GConfig->GetString(TEXT("AutomationTesting.FbxImport"), TEXT("FbxImportEditorTestPath"), ImportTestDirectory, GEngineIni);
 
 
 		// Find all files in the GenericImport directory

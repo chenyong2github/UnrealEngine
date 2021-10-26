@@ -65,7 +65,7 @@ enum FRecenterTypes
 // FOculusHMD - Oculus Rift Head Mounted Display
 //-------------------------------------------------------------------------------------------------
 
-class FOculusHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public IStereoLayers, public FSceneViewExtensionBase, public FOculusAssetManager
+class FOculusHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public IStereoLayers, public FHMDSceneViewExtension, public FOculusAssetManager
 {
 	friend class UOculusFunctionLibrary;
 	friend FOculusHMDModule;
@@ -213,7 +213,6 @@ public:
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual int32 GetPriority() const override;
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 
 public:

@@ -431,7 +431,6 @@ namespace AutomationTool
 
 		/// <summary>
 		/// Called after CopyUsingStagingManifest.  Does anything platform specific that requires a final list of staged files.
-		/// e.g.  PlayGo emulation control file generation for PS4.
 		/// </summary>
 		/// <param name="Params"></param>
 		/// <param name="SC"></param>
@@ -543,7 +542,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Agenda">Agenda to update</param>
 		/// <param name="ExtraBuildProducts">Any additional files that will be created</param>
-		public virtual void MakeAgenda(UE4Build.BuildAgenda Agenda, List<string> ExtraBuildProducts)
+		public virtual void MakeAgenda(UnrealBuild.BuildAgenda Agenda, List<string> ExtraBuildProducts)
 		{
 		}
 
@@ -742,7 +741,7 @@ namespace AutomationTool
 			get { return true; }
 		}
 
-		public virtual void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
+		public virtual void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 		{
 
 		}
@@ -773,7 +772,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Only relevant for the mac and PC at the moment. Example calling the Mac platform with PS4 as an arg will return false. Can't compile or cook for the PS4 on the mac.
+		/// Can host compile and cook for the platform
 		/// </summary>
 		public virtual bool CanHostPlatform(UnrealTargetPlatform Platform)
 		{
@@ -830,10 +829,6 @@ namespace AutomationTool
 			if (Target == UnrealTargetPlatform.Win64 || Target == UnrealTargetPlatform.HoloLens)
 			{
 				return ".exe";
-			}
-			if (Target == UnrealTargetPlatform.PS4)
-			{
-				return ".self";
 			}
 			if (Target == UnrealTargetPlatform.IOS)
 			{

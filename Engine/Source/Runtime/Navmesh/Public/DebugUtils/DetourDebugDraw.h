@@ -54,14 +54,14 @@ NAVMESH_API void duDebugDrawTileCacheClusters(duDebugDraw* dd, const struct dtTi
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 //@UE END
 
-NAVMESH_API void duDebugDrawTileCacheLayerAreas(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const float cs, const float ch);
+NAVMESH_API void duDebugDrawTileCacheLayerAreas(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const dtReal cs, const dtReal ch);
 NAVMESH_API void duDebugDrawTileCacheLayerDistance(struct duDebugDraw* dd, const dtTileCacheLayer& layer,
-									   const dtTileCacheDistanceField& dfield, const float cs, const float ch);
-NAVMESH_API void duDebugDrawTileCacheLayerRegions(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const float cs, const float ch);
+									   const dtTileCacheDistanceField& dfield, const dtReal cs, const dtReal ch);
+NAVMESH_API void duDebugDrawTileCacheLayerRegions(struct duDebugDraw* dd, const dtTileCacheLayer& layer, const dtReal cs, const dtReal ch);
 NAVMESH_API void duDebugDrawTileCacheContours(duDebugDraw* dd, const struct dtTileCacheContourSet& lcset,
-								  const float* orig, const float cs, const float ch);
+								  const dtReal* orig, const dtReal cs, const dtReal ch);
 NAVMESH_API void duDebugDrawTileCachePolyMesh(duDebugDraw* dd, const struct dtTileCachePolyMesh& lmesh,
-								  const float* orig, const float cs, const float ch);
+								  const dtReal* orig, const dtReal cs, const dtReal ch);
 NAVMESH_API void duDebugDrawTileCacheDetailMesh(duDebugDraw* dd, const struct dtTileCachePolyMeshDetail& dmesh);
 
 #endif // DETOURDEBUGDRAW_H

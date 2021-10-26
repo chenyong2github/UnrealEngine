@@ -293,28 +293,28 @@ struct FMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<
 
 	FMeshDescriptionMeshAdapterd(const FMeshDescription* MeshIn) : ParentAdapter(MeshIn)
 	{
-		IsTriangle = [&](int index) { return ParentAdapter.IsTriangle(index);};
-		IsVertex = [&](int index) { return ParentAdapter.IsVertex(index); };
-		MaxTriangleID = [&]() { return ParentAdapter.MaxTriangleID();};
-		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
-		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
-		VertexCount = [&]() { return ParentAdapter.VertexCount();};
-		GetChangeStamp = [&]() { return ParentAdapter.GetChangeStamp();};
-		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
-		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
+		IsTriangle = [this](int index) { return ParentAdapter.IsTriangle(index);};
+		IsVertex = [this](int index) { return ParentAdapter.IsVertex(index); };
+		MaxTriangleID = [this]() { return ParentAdapter.MaxTriangleID();};
+		MaxVertexID = [this]() { return ParentAdapter.MaxVertexID();};
+		TriangleCount = [this]() { return ParentAdapter.TriangleCount();};
+		VertexCount = [this]() { return ParentAdapter.VertexCount();};
+		GetChangeStamp = [this]() { return ParentAdapter.GetChangeStamp();};
+		GetTriangle = [this](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
+		GetVertex = [this](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
 	}
 
 	FMeshDescriptionMeshAdapterd(FMeshDescriptionTriangleMeshAdapter ParentAdapterIn) : ParentAdapter(ParentAdapterIn)
 	{
-		IsTriangle = [&](int index) { return ParentAdapter.IsTriangle(index);};
-		IsVertex = [&](int index) { return ParentAdapter.IsVertex(index); };
-		MaxTriangleID = [&]() { return ParentAdapter.MaxTriangleID();};
-		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
-		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
-		VertexCount = [&]() { return ParentAdapter.VertexCount();};
-		GetChangeStamp = [&]() { return ParentAdapter.GetChangeStamp();};
-		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
-		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
+		IsTriangle = [this](int index) { return ParentAdapter.IsTriangle(index);};
+		IsVertex = [this](int index) { return ParentAdapter.IsVertex(index); };
+		MaxTriangleID = [this]() { return ParentAdapter.MaxTriangleID();};
+		MaxVertexID = [this]() { return ParentAdapter.MaxVertexID();};
+		TriangleCount = [this]() { return ParentAdapter.TriangleCount();};
+		VertexCount = [this]() { return ParentAdapter.VertexCount();};
+		GetChangeStamp = [this]() { return ParentAdapter.GetChangeStamp();};
+		GetTriangle = [this](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
+		GetVertex = [this](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
 	}
 
 };

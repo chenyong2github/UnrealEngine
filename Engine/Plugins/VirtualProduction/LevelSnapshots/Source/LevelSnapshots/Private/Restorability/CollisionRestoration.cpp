@@ -2,12 +2,13 @@
 
 #include "Restorability/CollisionRestoration.h"
 
-#include "PropertyComparisonParams.h"
+#include "Params/PropertyComparisonParams.h"
+#include "Util/EquivalenceUtil.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "PhysicsEngine/BodyInstance.h"
 #include "UObject/UnrealType.h"
-#include "Util/EquivalenceUtil.h"
 
 void FCollisionRestoration::Register(FLevelSnapshotsModule& Module)
 {
@@ -39,14 +40,14 @@ IPropertyComparer::EPropertyComparison FCollisionRestoration::ShouldConsiderProp
 		check(WorldObject);
 #endif
 
-		const FBodyInstance& SnapshotBody = SnapshotObject->BodyInstance;
-		const FBodyInstance& WorldBody = WorldObject->BodyInstance;
-		if (HaveNonDefaultCollisionPropertiesChanged(Params, SnapshotObject, WorldObject, SnapshotBody, WorldBody))
+		if (HaveNonDefaultCollisionPropertiesChanged(Params, SnapshotObject, WorldObject))
 		{
 			return EPropertyComparison::CheckNormally;
 		}
 
 		// These properties may have different values but they do not matter if UStaticMeshComponent::bUseDefaultCollision == true
+		const FBodyInstance& SnapshotBody = SnapshotObject->BodyInstance;
+		const FBodyInstance& WorldBody = WorldObject->BodyInstance;
 		const bool bDidDefaultCollisionPropertiesChange =
 			SnapshotBody.GetCollisionEnabled() != WorldBody.GetCollisionEnabled()
 			|| SnapshotBody.GetObjectType() != WorldBody.GetObjectType()
@@ -92,7 +93,7 @@ void FCollisionRestoration::PostApplySnapshotProperties(const FApplySnapshotProp
 	}
 }
 
-bool FCollisionRestoration::HaveNonDefaultCollisionPropertiesChanged(const FPropertyComparisonParams& Params, UStaticMeshComponent* SnapshotObject, UStaticMeshComponent* WorldObject, const FBodyInstance& SnapshotBody, const FBodyInstance& WorldBody) const
+bool FCollisionRestoration::HaveNonDefaultCollisionPropertiesChanged(const FPropertyComparisonParams& Params, UStaticMeshComponent* SnapshotObject, UStaticMeshComponent* WorldObject) const
 {
 	void* SnapshotValuePtr = BodyInstanceProperty->ContainerPtrToValuePtr<void>(SnapshotObject);
 	void* EditorValuePtr = BodyInstanceProperty->ContainerPtrToValuePtr<void>(WorldObject);

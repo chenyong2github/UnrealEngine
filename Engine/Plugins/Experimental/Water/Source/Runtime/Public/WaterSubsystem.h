@@ -17,7 +17,7 @@ DECLARE_STATS_GROUP(TEXT("Water"), STATGROUP_Water, STATCAT_Advanced);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCameraUnderwaterStateChanged, bool, bIsUnderWater, float, DepthUnderwater);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWaterScalabilityChanged);
 
-class AWaterMeshActor;
+class AWaterZone;
 class UWaterBodyComponent;
 class UMaterialParameterCollection;
 class UWaterRuntimeSettings;
@@ -101,7 +101,7 @@ public:
 
 	FWaterBodyManager WaterBodyManager;
 
-	AWaterMeshActor* GetWaterMeshActor() const;
+	AWaterZone* GetWaterZoneActor() const;
 
 	ABuoyancyManager* GetBuoyancyManager() const { return BuoyancyManager; }
 
@@ -221,7 +221,7 @@ public:
 
 private:
 	UPROPERTY()
-	mutable AWaterMeshActor* WaterMeshActor;
+	mutable AWaterZone* WaterZoneActor;
 
 	TWeakObjectPtr<UWaterBodyComponent> OceanBodyComponent;
 

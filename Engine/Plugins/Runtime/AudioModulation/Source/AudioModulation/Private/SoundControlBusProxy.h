@@ -27,7 +27,7 @@ namespace AudioModulation
 
 		FControlBusSettings(const USoundControlBus& InBus, Audio::FDeviceId InDeviceId)
 			: TModulatorBase<FBusId>(InBus.GetName(), InBus.GetUniqueID())
-			, bBypass()
+			, bBypass(InBus.bBypass)
 			, DefaultValue(InBus.GetDefaultNormalizedValue())
 			, MixFunction(InBus.GetMixFunction())
 		{

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Compression/OodleDataCompression.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
@@ -19,6 +20,7 @@ namespace UE {
 class FPackageStoreOptimizer;
 class FZenFileSystemManifest;
 class FCbPackage;
+class FCbAttachment;
 class FCbWriter;
 
 /** 
@@ -35,14 +37,15 @@ public:
 	IOSTOREUTILITIES_API ~FZenStoreWriter();
 
 	IOSTOREUTILITIES_API virtual void BeginPackage(const FBeginPackageInfo& Info) override;
-	IOSTOREUTILITIES_API virtual void CommitPackage(const FCommitPackageInfo& Info) override;
+	IOSTOREUTILITIES_API virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) override;
 
-	IOSTOREUTILITIES_API virtual void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) override;
-	IOSTOREUTILITIES_API virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override;
+	IOSTOREUTILITIES_API virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions) override;
+	IOSTOREUTILITIES_API virtual void WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override;
 	IOSTOREUTILITIES_API virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override;
 
-	IOSTOREUTILITIES_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
-	IOSTOREUTILITIES_API virtual void BeginCook(const FCookInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
+	IOSTOREUTILITIES_API virtual void Initialize(const FCookInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void BeginCook() override;
 	IOSTOREUTILITIES_API virtual void EndCook() override;
 
 	IOSTOREUTILITIES_API virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&& Callback) override;
@@ -68,15 +71,8 @@ public:
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages() override;
 	IOSTOREUTILITIES_API virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
-	IOSTOREUTILITIES_API virtual bool GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
-		const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData) override;
-	IOSTOREUTILITIES_API virtual void SetCookOutputLocation(enum EOutputLocation) override;
 
 private:
-	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
-	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
-	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
-
 	struct FBulkDataEntry
 	{
 		FIoBuffer Payload;
@@ -116,6 +112,13 @@ private:
 		double TotalRequestTime = 0.0;
 	};
 
+	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
+	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
+	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
+	TFuture<FMD5Hash> AsyncComputeCookedHash(const FPendingPackageState& PackageState);
+	FCbAttachment CreateAttachment(FSharedBuffer Buffer);
+	FCbAttachment CreateAttachment(FIoBuffer Buffer);
+
 	FRWLock								PackagesLock;
 	TMap<FName,FPendingPackageState>	PendingPackages;
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
@@ -141,6 +144,9 @@ private:
 	TUniquePtr<FZenStoreHttpQueue>		HttpQueue;
 	
 	ICookedPackageWriter::FCookInfo::ECookMode CookMode;
+
+	FOodleDataCompression::ECompressor			Compressor;				
+	FOodleDataCompression::ECompressionLevel	CompressionLevel;	
 
 	FZenStats							ZenStats;
 

@@ -25,7 +25,6 @@
 #include "Engine/SkyLight.h"
 #include "Engine/SpotLight.h"
 #include "Engine/TextureLightProfile.h"
-#include "Engine/World.h"
 
 #include "Lightmass/LightmassPortal.h"
 #include "Math/Quat.h"
@@ -38,26 +37,10 @@ namespace DatasmithRuntime
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
 
-	extern void RenameObject(UObject* Object, const TCHAR* DesiredName);
-
 	/** Helper method to set up the properties common to all types of light components */
 	void SetupLightComponent(FActorData& ActorData, IDatasmithLightActorElement* LightElement);
 
-	USceneComponent* ImportAreaLightComponent(FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, USceneComponent* Parent);
-
-	USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent);
-
-	template<typename T>
-	T* CreateComponent(FActorData& ActorData, USceneComponent* Parent)
-	{
-		return Cast<T>(CreateComponent(ActorData, T::StaticClass(), Parent));
-	}
-
-	template<typename T>
-	T* CreateActor(UWorld* World)
-	{
-		return Cast<T>(World->SpawnActor(T::StaticClass(), nullptr, nullptr));
-	}
+	USceneComponent* ImportAreaLightComponent(FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, AActor* ParentActor);
 
 	bool FSceneImporter::ProcessLightActorData(FActorData& ActorData, IDatasmithLightActorElement* LightActorElement)
 	{
@@ -147,12 +130,15 @@ namespace DatasmithRuntime
 
 		IDatasmithLightActorElement* LightElement = static_cast<IDatasmithLightActorElement*>(Elements[ActorId].Get());
 
+		AActor* RootActor = RootComponent->GetOwner();
+		check(RootActor);
+
 		USceneComponent* LightComponent = ActorData.GetObject<USceneComponent>();
 
 		if ( LightElement->IsA(EDatasmithElementType::AreaLight) )
 		{
 			IDatasmithAreaLightElement* AreaLightElement = static_cast<IDatasmithAreaLightElement*>(LightElement);
-			LightComponent = ImportAreaLightComponent( ActorData, AreaLightElement, RootComponent.Get() );
+			LightComponent = ImportAreaLightComponent( ActorData, AreaLightElement, RootActor );
 		}
 		else if ( LightElement->IsA( EDatasmithElementType::LightmassPortal ) )
 		{
@@ -160,12 +146,14 @@ namespace DatasmithRuntime
 			{
 				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
 				{
-					ALightmassPortal* Actor = CreateActor<ALightmassPortal>(RootComponent->GetOwner()->GetWorld());
+					ALightmassPortal* Actor = CreateActor<ALightmassPortal>(RootActor->GetWorld());
 					LightComponent = Actor->GetPortalComponent();
+					// Add runtime tag to scene component
+					LightComponent->ComponentTags.Add(RuntimeTag);
 				}
 				else
 				{
-					LightComponent = CreateComponent< ULightmassPortalComponent >(ActorData, RootComponent.Get());
+					LightComponent = CreateComponent< ULightmassPortalComponent >(ActorData, RootActor);
 				}
 			}
 		}
@@ -175,12 +163,14 @@ namespace DatasmithRuntime
 			{
 				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
 				{
-					ADirectionalLight* Actor = CreateActor<ADirectionalLight>(RootComponent->GetOwner()->GetWorld());
+					ADirectionalLight* Actor = CreateActor<ADirectionalLight>(RootActor->GetWorld());
 					LightComponent = Actor->GetLightComponent();
+					// Add runtime tag to scene component
+					LightComponent->ComponentTags.Add(RuntimeTag);
 				}
 				else
 				{
-					LightComponent = CreateComponent< UDirectionalLightComponent >(ActorData, RootComponent.Get());
+					LightComponent = CreateComponent< UDirectionalLightComponent >(ActorData, RootActor);
 				}
 			}
 		}
@@ -192,12 +182,14 @@ namespace DatasmithRuntime
 			{
 				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
 				{
-					ASpotLight* Actor = CreateActor<ASpotLight>(RootComponent->GetOwner()->GetWorld());
+					ASpotLight* Actor = CreateActor<ASpotLight>(RootActor->GetWorld());
 					SpotLightComponent = Cast<USpotLightComponent>(Actor->GetLightComponent());
+					// Add runtime tag to scene component
+					SpotLightComponent->ComponentTags.Add(RuntimeTag);
 				}
 				else
 				{
-					SpotLightComponent = CreateComponent< USpotLightComponent >(ActorData, RootComponent.Get());
+					SpotLightComponent = CreateComponent< USpotLightComponent >(ActorData, RootActor);
 				}
 			}
 
@@ -219,12 +211,14 @@ namespace DatasmithRuntime
 			{
 				if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && !LightElement->IsAComponent())
 				{
-					APointLight* Actor = CreateActor<APointLight>(RootComponent->GetOwner()->GetWorld());
+					APointLight* Actor = CreateActor<APointLight>(RootActor->GetWorld());
 					PointLightComponent = Cast<UPointLightComponent>(Actor->GetLightComponent());
+					// Add runtime tag to scene component
+					PointLightComponent->ComponentTags.Add(RuntimeTag);
 				}
 				else
 				{
-					PointLightComponent = CreateComponent< UPointLightComponent >(ActorData, RootComponent.Get());
+					PointLightComponent = CreateComponent< UPointLightComponent >(ActorData, RootActor);
 				}
 			}
 
@@ -275,35 +269,6 @@ namespace DatasmithRuntime
 		return LightComponent ? EActionResult::Succeeded : EActionResult::Failed;
 	}
 
-	USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, USceneComponent* Parent)
-	{
-		USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>();
-
-		if (SceneComponent == nullptr)
-		{
-			SceneComponent = NewObject< USceneComponent >(Parent->GetOwner(), Class, NAME_None);
-			if (SceneComponent == nullptr)
-			{
-				return nullptr;
-			}
-
-			SceneComponent->SetMobility(EComponentMobility::Movable);
-
-			SceneComponent->AttachToComponent(Parent, FAttachmentTransformRules::KeepRelativeTransform);
-			SceneComponent->RegisterComponentWithWorld(Parent->GetOwner()->GetWorld());
-
-			ActorData.Object = TWeakObjectPtr<UObject>(SceneComponent);
-		}
-
-		if (SceneComponent->GetAttachParent() != Parent)
-		{
-			SceneComponent->Rename(nullptr, Parent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
-			SceneComponent->AttachToComponent(Parent, FAttachmentTransformRules::KeepRelativeTransform);
-		}
-
-		return SceneComponent;
-	}
-
 	EDatasmithAreaLightActorType GetLightActorTypeForLightType( const EDatasmithAreaLightType LightType )
 	{
 		EDatasmithAreaLightActorType LightActorType = EDatasmithAreaLightActorType::Point;
@@ -330,7 +295,7 @@ namespace DatasmithRuntime
 		return LightActorType;
 	}
 
-	USceneComponent* ImportAreaLightComponent( FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, USceneComponent* Parent )
+	USceneComponent* ImportAreaLightComponent( FActorData& ActorData, IDatasmithAreaLightElement* AreaLightElement, AActor* ParentActor )
 	{
 		FSoftObjectPath LightShapeBlueprintRef = FSoftObjectPath( TEXT("/DatasmithContent/Datasmith/DatasmithArealight.DatasmithArealight") );
 		UBlueprint* LightShapeBlueprint = Cast< UBlueprint >( LightShapeBlueprintRef.TryLoad() );
@@ -341,7 +306,7 @@ namespace DatasmithRuntime
 
 			if (ChildActorComponent == nullptr)
 			{
-				ChildActorComponent = CreateComponent< UChildActorComponent >(ActorData, Parent);
+				ChildActorComponent = CreateComponent< UChildActorComponent >(ActorData, ParentActor);
 
 				ChildActorComponent->SetChildActorClass( TSubclassOf< AActor > ( LightShapeBlueprint->GeneratedClass ) );
 				ChildActorComponent->CreateChildActor();

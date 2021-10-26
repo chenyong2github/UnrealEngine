@@ -3321,9 +3321,21 @@ void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode)
 		NewTime = FFrameRate::TransformTime(FFrameRate::TransformTime(NewTime, LocalResolution, LocalDisplayRate).RoundToFrame(), LocalDisplayRate, LocalResolution);
 	}
 
-	if ((SnapTimeMode & ESnapTimeMode::STM_Keys) && (Settings->GetSnapPlayTimeToKeys() || FSlateApplication::Get().GetModifierKeys().IsShiftDown()))
+	if (SnapTimeMode & ESnapTimeMode::STM_Keys)
 	{
-		NewTime = OnGetNearestKey(NewTime, true);
+		ENearestKeyOption NearestKeyOption = ENearestKeyOption::NKO_None;
+
+		if (Settings->GetSnapPlayTimeToKeys() || FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+		{
+			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchKeys);
+		}
+
+		if (Settings->GetSnapPlayTimeToMarkers() || FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+		{
+			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchMarkers);
+		}
+
+		NewTime = OnGetNearestKey(NewTime, NearestKeyOption);
 	}
 
 	SetLocalTimeDirectly(NewTime);
@@ -5320,11 +5332,11 @@ void FSequencer::OnClampRangeChanged( TRange<double> NewClampRange )
 	}
 }
 
-FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, bool bSearchAllTracks)
+FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, ENearestKeyOption NearestKeyOption)
 {
 	FFrameNumber NearestKeyTime = InTime.FloorToFrame();
 
-	if (bSearchAllTracks)
+	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchAllTracks))
 	{
 		GetAllKeys(SelectedKeyCollection, SMALL_NUMBER);
 	}
@@ -5333,7 +5345,7 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, bool bSearchAllTrack
 		GetKeysFromSelection(SelectedKeyCollection, SMALL_NUMBER);
 	}
 
-	if (SelectedKeyCollection.IsValid())
+	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchKeys) && SelectedKeyCollection.IsValid())
 	{
 		TRange<FFrameNumber> FindRangeBackwards(TRangeBound<FFrameNumber>::Open(), NearestKeyTime);
 		TOptional<FFrameNumber> NewTimeBackwards = SelectedKeyCollection->FindFirstKeyInRange(FindRangeBackwards, EFindKeyDirection::Backwards);
@@ -5363,6 +5375,36 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, bool bSearchAllTrack
 			NearestKeyTime = NewTimeBackwards.GetValue();
 		}
 	}
+
+	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchMarkers))
+	{
+		FFrameNumber MinDiff = FMath::Abs(NearestKeyTime - InTime.FloorToFrame());
+
+		TArray<FMovieSceneMarkedFrame> MarkedFrames = GetMarkedFrames();
+		for (const FMovieSceneMarkedFrame& MarkedFrame : MarkedFrames)
+		{
+			FFrameNumber Diff = FMath::Abs(MarkedFrame.FrameNumber - InTime.FloorToFrame());
+
+			if (Diff < MinDiff)
+			{
+				MinDiff = Diff;
+				NearestKeyTime = MarkedFrame.FrameNumber;
+			}
+		}
+
+		TArray<FMovieSceneMarkedFrame> GlobalMarkedFrames = GetGlobalMarkedFrames();
+		for (const FMovieSceneMarkedFrame& GlobalMarkedFrame : GlobalMarkedFrames)
+		{
+			FFrameNumber Diff = FMath::Abs(GlobalMarkedFrame.FrameNumber - InTime.FloorToFrame());
+
+			if (Diff < MinDiff)
+			{
+				MinDiff = Diff;
+				NearestKeyTime = GlobalMarkedFrame.FrameNumber;
+			}
+		}		
+	}
+
 	return NearestKeyTime;
 }
 
@@ -13214,6 +13256,12 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToKeys( !Settings->GetSnapPlayTimeToKeys() ); } ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapPlayTimeToKeys(); } ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.ToggleSnapPlayTimeToMarkers,
+		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToMarkers( !Settings->GetSnapPlayTimeToMarkers() ); } ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ),
+		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapPlayTimeToMarkers(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleSnapPlayTimeToInterval,

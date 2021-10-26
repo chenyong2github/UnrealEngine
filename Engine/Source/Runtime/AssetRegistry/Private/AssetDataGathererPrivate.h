@@ -357,6 +357,8 @@ public:
 	 */
 	void Update(FScanDir*& OutCursor, FInherited& InOutParentData);
 
+	FScanDir* GetFirstIncompleteScanDir();
+
 	/** Thread-synchronization helper - return true if the Tick thread is in the middle of scanning this directory. */
 	bool IsScanInFlight() const;
 	/** Thread-synchronization helper - set that the Tick thread is starting/done with the scan of this directory. */
@@ -492,6 +494,8 @@ public:
 	 * if OutCursor is null.
 	 */
 	void Update(FScanDir*& OutCursor, FScanDir::FInherited& OutParentData);
+
+	FScanDir* GetFirstIncompleteScanDir();
 
 	/** Record a directory under the MountDir has been scanned, used to detect if configuration occurs after scanning. */
 	void SetHasStartedScanning();

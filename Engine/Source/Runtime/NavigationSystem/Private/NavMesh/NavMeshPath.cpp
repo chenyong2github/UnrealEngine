@@ -60,7 +60,7 @@ float FNavMeshPath::GetStringPulledLength(const int32 StartingPoint) const
 		return 0.f;
 	}
 
-	float TotalLength = 0.f;
+	FVector::FReal TotalLength = 0.f;
 	const FNavPathPoint* PrevPoint = PathPoints.GetData() + StartingPoint;
 	const FNavPathPoint* PathPoint = PrevPoint + 1;
 
@@ -69,7 +69,7 @@ float FNavMeshPath::GetStringPulledLength(const int32 StartingPoint) const
 		TotalLength += FVector::Dist(PrevPoint->Location, PathPoint->Location);
 	}
 
-	return TotalLength;
+	return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalLength);
 }
 
 float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
@@ -80,15 +80,14 @@ float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
 	}
 	else if (StartingEdge >= PathCorridorEdges.Num())
 	{
-		return StartingEdge == 0 && PathPoints.Num() > 1 ? FVector::Dist(PathPoints[0].Location, PathPoints[PathPoints.Num()-1].Location) : 0.f;
+		return StartingEdge == 0 && PathPoints.Num() > 1 ? UE_REAL_TO_FLOAT_CLAMPED_MAX(FVector::Dist(PathPoints[0].Location, PathPoints[PathPoints.Num()-1].Location)) : 0.f;
 	}
-
 	
 	const FNavigationPortalEdge* PrevEdge = PathCorridorEdges.GetData() + StartingEdge;
 	const FNavigationPortalEdge* CorridorEdge = PrevEdge + 1;
 	FVector PrevEdgeMiddle = PrevEdge->GetMiddlePoint();
 
-	float TotalLength = StartingEdge == 0 ? FVector::Dist(PathPoints[0].Location, PrevEdgeMiddle)
+	FVector::FReal TotalLength = StartingEdge == 0 ? FVector::Dist(PathPoints[0].Location, PrevEdgeMiddle)
 		: FVector::Dist(PrevEdgeMiddle, PathCorridorEdges[StartingEdge - 1].GetMiddlePoint());
 
 	for (int32 PathPolyIndex = StartingEdge + 1; PathPolyIndex < PathCorridorEdges.Num(); ++PathPolyIndex, ++PrevEdge, ++CorridorEdge)
@@ -98,7 +97,7 @@ float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
 		PrevEdgeMiddle = CurrentEdgeMiddle;
 	}
 	// @todo add distance to last point here!
-	return TotalLength;
+	return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalLength);
 }
 
 const TArray<FNavigationPortalEdge>& FNavMeshPath::GeneratePathCorridorEdges() const
@@ -157,21 +156,21 @@ namespace
 		FVector EdgePt1;
 	};
 
-	FORCEINLINE bool CheckVisibility(const FPathPointInfo* StartPoint, const FPathPointInfo* EndPoint,  TArray<FNavigationPortalEdge>& PathCorridorEdges, float OffsetDistannce, FPathPointInfo* LastVisiblePoint)
+	FORCEINLINE bool CheckVisibility(const FPathPointInfo* StartPoint, const FPathPointInfo* EndPoint,  TArray<FNavigationPortalEdge>& PathCorridorEdges, FVector::FReal OffsetDistannce, FPathPointInfo* LastVisiblePoint)
 	{
 		FVector IntersectionPoint = FVector::ZeroVector;
 		FVector StartTrace = StartPoint->Point.Location;
 		FVector EndTrace = EndPoint->Point.Location;
 
 		// find closest edge to StartPoint
-		float BestDistance = FLT_MAX;
+		FVector::FReal BestDistance = TNumericLimits<FVector::FReal>::Max();
 		FNavigationPortalEdge* CurrentEdge = NULL;
 
-		float BestEndPointDistance = FLT_MAX;
+		FVector::FReal BestEndPointDistance = TNumericLimits<FVector::FReal>::Max();
 		FNavigationPortalEdge* EndPointEdge = NULL;
 		for (int32 EdgeIndex =0; EdgeIndex < PathCorridorEdges.Num(); ++EdgeIndex)
 		{
-			float DistToEdge = FLT_MAX;
+			FVector::FReal DistToEdge = TNumericLimits<FVector::FReal>::Max();
 			FNavigationPortalEdge* Edge = &PathCorridorEdges[EdgeIndex];
 			if (BestDistance > FMath::Square(KINDA_SMALL_NUMBER))
 			{
@@ -234,8 +233,8 @@ namespace
 			bool bIntersected = FMath::SegmentIntersection2D(Left, Right, StartTrace, EndTrace, IntersectionPoint);
 			if ( !bIntersected)
 			{
-				const float EdgeHalfLength = (CurrentEdge->Left - CurrentEdge->Right).Size() * 0.5;
-				const float Distance = FMath::Min(OffsetDistannce, EdgeHalfLength) *  0.1;
+				const FVector::FReal EdgeHalfLength = (CurrentEdge->Left - CurrentEdge->Right).Size() * 0.5f;
+				const FVector::FReal Distance = FMath::Min(OffsetDistannce, EdgeHalfLength) *  0.1f;
 				Left = CurrentEdge->Left + Distance * (CurrentEdge->Right - CurrentEdge->Left).GetSafeNormal();
 				Right = CurrentEdge->Right + Distance * (CurrentEdge->Left - CurrentEdge->Right).GetSafeNormal();
 				FVector ClosestPointOnRay, ClosestPointOnEdge;
@@ -301,7 +300,7 @@ void FNavMeshPath::OffsetFromCorners(float Distance)
 	{
 		GeneratePathCorridorEdges(); 
 	}
-	const float DistanceSq = Distance * Distance;
+	const FVector::FReal DistanceSq = Distance * Distance;
 	int32 CurrentEdge = 0;
 	bool bNeedToCopyResults = false;
 	int32 SingleNodePassCount = 0;
@@ -330,11 +329,11 @@ void FNavMeshPath::OffsetFromCorners(float Distance)
 		const FNavigationPortalEdge* Edge = &PathCorridorEdges[CurrentEdge];
 		for (int32 EdgeIndex = CurrentEdge; EdgeIndex < PathCorridorEdges.Num(); ++Edge, ++EdgeIndex)
 		{
-			const float DistToSequence = FMath::PointDistToSegmentSquared(PathPoint->Location, Edge->Left, Edge->Right);
+			const FVector::FReal DistToSequence = FMath::PointDistToSegmentSquared(PathPoint->Location, Edge->Left, Edge->Right);
 			if (DistToSequence <= FMath::Square(KINDA_SMALL_NUMBER))
 			{
-				const float LeftDistanceSq = FVector::DistSquared(PathPoint->Location, Edge->Left);
-				const float RightDistanceSq = FVector::DistSquared(PathPoint->Location, Edge->Right);
+				const FVector::FReal LeftDistanceSq = FVector::DistSquared(PathPoint->Location, Edge->Left);
+				const FVector::FReal RightDistanceSq = FVector::DistSquared(PathPoint->Location, Edge->Right);
 				if (LeftDistanceSq > DistanceSq && RightDistanceSq > DistanceSq)
 				{
 					++CurrentEdge;
@@ -353,7 +352,7 @@ void FNavMeshPath::OffsetFromCorners(float Distance)
 			bNeedToCopyResults = true;
 
 			Edge = &PathCorridorEdges[CurrentEdge];
-			const float ActualOffset = FPlatformMath::Min(Edge->GetLength()/2, Distance);
+			const FVector::FReal ActualOffset = FPlatformMath::Min(Edge->GetLength()/2, Distance);
 
 			FNavPathPoint NewPathPoint = *PathPoint;
 			// apply offset 
@@ -545,7 +544,7 @@ void FNavMeshPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, U
 			FNavMeshNodeFlags NodeFlags(PathPoints[VertIdx].Flags);
 			const UClass* NavAreaClass = RecastNavMesh->GetAreaClass(NodeFlags.Area);
 
-			Canvas->DrawText(RenderFont, FString::Printf(TEXT("%d: %s"), VertIdx, *GetNameSafe(NavAreaClass)), ScreenLocation.X, ScreenLocation.Y );
+			Canvas->DrawText(RenderFont, FString::Printf(TEXT("%d: %s"), VertIdx, *GetNameSafe(NavAreaClass)), UE_REAL_TO_FLOAT(ScreenLocation.X), UE_REAL_TO_FLOAT(ScreenLocation.Y));
 		}
 	}
 #endif // WITH_RECAST && ENABLE_DRAW_DEBUG

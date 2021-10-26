@@ -1,0 +1,167 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "AudioWidgetsStyle.h"
+#include "Curves/CurveFloat.h"
+#include "Framework/SlateDelegates.h"
+#include "Fonts/FontMeasure.h"
+#include "SAudioTextBox.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/SlateWidgetStyleAsset.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+
+class SRadialSlider;
+
+UENUM()
+enum EAudioRadialSliderLayout
+{
+	/** Label above radial slider. */
+	Layout_LabelTop UMETA(DisplayName = "Label Top"),
+
+	/** Label in the center of the radial slider. */
+	Layout_LabelCenter UMETA(DisplayName = "Label Center"),
+
+	/** Label below radial slider. */
+	Layout_LabelBottom UMETA(DisplayName = "Label Bottom"),
+};
+
+/**
+ * Slate audio radial sliders that wrap SRadialSlider and provides additional audio specific functionality.
+ * This is a nativized version of the previous Audio Knob Small/Large widgets. 
+ */
+class AUDIOWIDGETS_API SAudioRadialSlider
+	: public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SAudioRadialSlider)
+	{
+		_Value = 0.0f;
+		_WidgetLayout = EAudioRadialSliderLayout::Layout_LabelBottom;
+		_HandStartEndRatio = FVector2D(0.0f, 1.0f);
+
+		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+		if (ensure(AudioWidgetsStyle))
+		{
+			_CenterBackgroundColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.CenterBackgroundColor");
+			_SliderProgressColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.SliderProgressColor");
+			_SliderBarColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.SliderBarColor");
+			_LabelBackgroundColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.LabelBackgroundColor");
+		}
+	}
+
+	/** A value representing the audio slider value. */
+	SLATE_ATTRIBUTE(float, Value)
+
+	/** The widget layout. */
+	SLATE_ATTRIBUTE(EAudioRadialSliderLayout, WidgetLayout)
+
+	/** The color to draw the progress bar in. */
+	SLATE_ATTRIBUTE(FSlateColor, SliderProgressColor)
+
+	/** The color to draw the slider bar in. */
+	SLATE_ATTRIBUTE(FSlateColor, SliderBarColor)
+
+	/** The color to draw the center background in. */
+	SLATE_ATTRIBUTE(FSlateColor, CenterBackgroundColor)
+
+	/** The color to draw the text label background in. */
+	SLATE_ATTRIBUTE(FSlateColor, LabelBackgroundColor)
+
+	/** Start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
+	SLATE_ATTRIBUTE(FVector2D, HandStartEndRatio)
+
+	/** A curve that defines how the slider should be sampled. Default is linear.*/
+	SLATE_ARGUMENT(FRuntimeFloatCurve, SliderCurve)
+
+	/** When specified, use this as the slider's desired size */
+	SLATE_ATTRIBUTE(TOptional<FVector2D>, DesiredSizeOverride)
+
+	/** Called when the value is changed by slider or typing */
+	SLATE_EVENT(FOnFloatValueChanged, OnValueChanged)
+		
+	SLATE_END_ARGS()
+
+	SAudioRadialSlider();
+	virtual ~SAudioRadialSlider() {};
+
+	// Holds a delegate that is executed when the slider's value changed.
+	FOnFloatValueChanged OnValueChanged;
+	
+	void SetCenterBackgroundColor(FSlateColor InColor);
+	void SetSliderProgressColor(FSlateColor InColor);
+	void SetSliderBarColor(FSlateColor InColor);
+	void SetHandStartEndRatio(const FVector2D InHandStartEndRatio);
+	void SetSliderThickness(const float Thickness);
+	void SetWidgetLayout(EAudioRadialSliderLayout InLayout);
+
+	virtual void Construct(const SAudioRadialSlider::FArguments& InArgs);
+	void SetValue(float LinValue);
+	virtual const float GetOutputValue(const float LinValue);
+	virtual const float GetLinValue(const float OutputValue);
+	void SetOutputRange(const FVector2D Range);
+
+	// Text label functions 
+	void SetLabelBackgroundColor(FSlateColor InColor);
+	void SetUnitsText(const FText Units);
+	void SetUnitsTextReadOnly(const bool bIsReadOnly);
+	void SetValueTextReadOnly(const bool bIsReadOnly);
+	void SetShowLabelOnlyOnHover(const bool bShowLabelOnlyOnHover);
+	void SetShowUnitsText(const bool bShowUnitsText);
+
+protected:
+	TAttribute<float> Value;
+	FRuntimeFloatCurve SliderCurve;
+	
+	TAttribute<FSlateColor> CenterBackgroundColor;
+	TAttribute<FSlateColor> SliderProgressColor;
+	TAttribute<FSlateColor> SliderBarColor;
+	TAttribute<FSlateColor> LabelBackgroundColor;
+	TAttribute<FVector2D> HandStartEndRatio;
+	TAttribute<EAudioRadialSliderLayout> WidgetLayout;
+
+	TSharedPtr<SRadialSlider> RadialSlider;
+	TSharedPtr<SImage> CenterBackgroundImage;
+	TSharedPtr<SImage> OuterBackgroundImage;
+	TSharedPtr<SAudioTextBox> Label;
+	// Overall widget layout 
+	TSharedPtr<SWidgetSwitcher> LayoutWidgetSwitcher;
+
+	// Range for output 
+	FVector2D OutputRange = FVector2D(0.0f, 1.0f);
+	static const FVector2D LinearRange;
+
+	TSharedRef<SWidgetSwitcher> CreateLayoutWidgetSwitcher();
+};
+
+/*
+* An Audio Radial Slider widget with default customizable curves for volume (dB).
+*/
+class AUDIOWIDGETS_API SAudioVolumeRadialSlider
+	: public SAudioRadialSlider
+{
+public:
+	SAudioVolumeRadialSlider();
+	void Construct(const SAudioRadialSlider::FArguments& InArgs);
+	const float GetOutputValue(const float LinValue);
+	const float GetLinValue(const float OutputValue);
+};
+
+/*
+* An Audio Slider widget intended to be used for frequency output, with output frequency range but no customizable curves.
+*/
+class AUDIOWIDGETS_API SAudioFrequencyRadialSlider
+	: public SAudioRadialSlider
+{
+public:
+	SAudioFrequencyRadialSlider();
+	void Construct(const SAudioRadialSlider::FArguments& InArgs);
+	const float GetOutputValue(const float LinValue);
+	const float GetLinValue(const float OutputValue);
+};

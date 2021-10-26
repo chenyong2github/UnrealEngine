@@ -848,7 +848,9 @@ bool FUserManagerEOS::AutoLogin(int32 LocalUserNum)
 	FParse::Value(FCommandLine::Get(), TEXT("AUTH_PASSWORD="), Password);
 	FParse::Value(FCommandLine::Get(), TEXT("AUTH_TYPE="), AuthType);
 
-	if (EOSSubsystem->bIsDefaultOSS && (LoginId.IsEmpty() || Password.IsEmpty() || AuthType.IsEmpty()))
+	FEOSSettings Settings = UEOSSettings::GetSettings();
+
+	if (EOSSubsystem->bIsDefaultOSS && Settings.bUseEAS && (LoginId.IsEmpty() || Password.IsEmpty() || AuthType.IsEmpty()))
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Unable to AutoLogin user (%d) due to missing auth command line args"), LocalUserNum);
 		return false;
@@ -1123,7 +1125,7 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+		UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 	}
 
 	return bResult;
@@ -1157,6 +1159,10 @@ void FUserManagerEOS::GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUser
 				if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
 				{
 					Callback(ProductUserId, AccountId);
+				}
+				else
+				{
+					UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] Unable to get Epic account for ProductUserId (%s)."), *LexToString(ProductUserId));
 				}
 			}
 			else
@@ -1269,6 +1275,18 @@ ELoginStatus::Type FUserManagerEOS::GetLoginStatus(const FUniqueNetIdEOS& UserId
 {
 	if (!StringToAccountIdMap.Contains(UserId.UniqueNetIdStr))
 	{
+		return ELoginStatus::NotLoggedIn;
+	}
+
+	FEOSSettings Settings = UEOSSettings::GetSettings();
+	// If the user isn't using EAS, then only check for a product user id
+	if (!Settings.bUseEAS)
+	{
+		EOS_ProductUserId ProductUserId = StringToProductUserIdMap[UserId.UniqueNetIdStr];
+		if (ProductUserId != nullptr)
+		{
+			return ELoginStatus::LoggedIn;
+		}
 		return ELoginStatus::NotLoggedIn;
 	}
 

@@ -229,7 +229,7 @@ private:
 
 /** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the the low level backend which is also used by the taskgraph.
 */
-class CORE_API FQueuedLowLevelThreadPool : public FQueuedThreadPool
+class CORE_API FQueuedLowLevelThreadPool final : public FQueuedThreadPool
 {
 	/* Internal data of the scheduler used for cancellation */
 	struct FQueuedWorkInternalData : IQueuedWorkInternalData

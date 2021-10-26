@@ -129,6 +129,16 @@ FString UKismetSystemLibrary::GetEngineVersion()
 	return FEngineVersion::Current().ToString();
 }
 
+FString UKismetSystemLibrary::GetBuildVersion()
+{
+	return FApp::GetBuildVersion();
+}
+
+FString UKismetSystemLibrary::GetBuildConfiguration()
+{
+	return LexToString(FApp::GetBuildConfiguration());
+}
+
 FString UKismetSystemLibrary::GetGameName()
 {
 	return FString(FApp::GetProjectName());

@@ -56,7 +56,7 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 	virtual uint32 Release() override final;
 	virtual uint32 GetRefCount() const override final;
 	virtual bool IsFree() const override final;
-	virtual uint32 HasBeenDiscardedThisFrame() const
+	uint32 HasBeenDiscardedThisFrame() const
 	{
 		return GFrameNumberRenderThread == FrameNumberLastDiscard;
 	}

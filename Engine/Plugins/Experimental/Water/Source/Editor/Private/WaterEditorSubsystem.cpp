@@ -3,7 +3,7 @@
 #include "WaterEditorSubsystem.h"
 #include "WaterBodyActor.h"
 #include "EngineUtils.h"
-#include "WaterMeshActor.h"
+#include "WaterZoneActor.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Editor.h"
 #include "ISettingsModule.h"
@@ -99,20 +99,17 @@ void UWaterEditorSubsystem::UpdateWaterTextures(
 	UTextureRenderTarget2D* SourceVelocityTarget, 
 	UTexture2D*& OutWaterVelocityTexture)
 {
-	AWaterMeshActor* FoundMeshActor = nullptr;
-	
-	TActorIterator<AWaterMeshActor> MeshActorIt(World);
-	AWaterMeshActor* MeshActor = MeshActorIt ? *MeshActorIt : nullptr;
-	if (MeshActor)
+	TActorIterator<AWaterZone> WaterZoneActorIt(World);
+	AWaterZone* ZoneActor = WaterZoneActorIt ? *WaterZoneActorIt : nullptr;
+	if (ZoneActor)
 	{
-		FoundMeshActor = MeshActor;
 		if (SourceVelocityTarget)
 		{
-			UTexture2D* PreviousTexture = FoundMeshActor->WaterVelocityTexture;
-			UpdateSingleTexture(FoundMeshActor->WaterVelocityTexture, SourceVelocityTarget, FoundMeshActor, TEXT("WaterVelocityTexture"));
+			UTexture2D* PreviousTexture = ZoneActor->WaterVelocityTexture;
+			UpdateSingleTexture(ZoneActor->WaterVelocityTexture, SourceVelocityTarget, ZoneActor, TEXT("WaterVelocityTexture"));
 
 			// The water bodies' material instances are referencing the water velocity texture so they need to be in sync : 
-			if (FoundMeshActor->WaterVelocityTexture != PreviousTexture)
+			if (ZoneActor->WaterVelocityTexture != PreviousTexture)
 			{
 				UWaterSubsystem::ForEachWaterBodyComponent(World, [this](UWaterBodyComponent* WaterBodyComponent)
 				{
@@ -121,7 +118,7 @@ void UWaterEditorSubsystem::UpdateWaterTextures(
 				});
 			}
 
-			OutWaterVelocityTexture = FoundMeshActor->WaterVelocityTexture;
+			OutWaterVelocityTexture = ZoneActor->WaterVelocityTexture;
 		}
 	}
 }

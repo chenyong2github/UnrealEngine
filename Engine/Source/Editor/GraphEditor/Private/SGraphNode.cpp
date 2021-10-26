@@ -628,6 +628,17 @@ FText SGraphNode::GetNodeTooltip() const
 {
 	if (GraphNode != NULL)
 	{
+		// If any of our child pins have an interactive tooltip, we shouldn't have a tooltip
+		for (UEdGraphPin* Pin : GraphNode->GetAllPins())
+		{
+			TSharedPtr<SGraphPin> PinWidget = FindWidgetForPin(Pin);
+
+			if (PinWidget.IsValid() && PinWidget->HasInteractiveTooltip())
+			{
+				return FText::GetEmpty();
+			}
+		}
+
 		// Display the native title of the node when alt is held
 		if(FSlateApplication::Get().GetModifierKeys().IsAltDown())
 		{

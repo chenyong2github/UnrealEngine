@@ -1020,12 +1020,6 @@ namespace AutomationTool
 			}
         }
 
-		[Obsolete("BranchInfo no longer requires HostPlatforms passed to constructor")]
-		public BranchInfo(List<UnrealTargetPlatform> HostPlatforms)
-			: this()
-		{
-		}
-
         public BranchUProject FindGame(string GameName)
         {
 			foreach (BranchUProject Proj in AllProjects)

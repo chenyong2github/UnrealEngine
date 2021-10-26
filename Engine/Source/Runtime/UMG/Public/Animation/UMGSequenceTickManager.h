@@ -17,13 +17,14 @@ struct FSequenceTickManagerWidgetData
 {
 	GENERATED_BODY()
 
-	FSequenceTickManagerWidgetData();
-
-	UPROPERTY()
+	/** The widget was ticked. */
 	bool bIsTicking = true;
 
-	UPROPERTY()
+	/** The widget was ticked last update. */
 	bool bLastKnownTickState = true;
+
+	/** The widget's animation was ticked this frame. */
+	bool bActionsAndAnimationTicked = false;
 };
 
 

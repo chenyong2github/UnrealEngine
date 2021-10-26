@@ -128,7 +128,7 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	
-	/** Set a log listing name to be used for any errors or warnings. Must be preregistered by the caller with the MessageLog module*/
+	/** Set a log listing name to be used for any errors or warnings. Must be preregistered by the caller with the MessageLog module. */
 	void SetLogListingName(const FName& InLogListingName) { LogListingName = InLogListingName; }
 	const FName& GetLogListingName() { return LogListingName; }
 

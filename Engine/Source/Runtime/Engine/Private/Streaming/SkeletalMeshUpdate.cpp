@@ -523,7 +523,7 @@ void FSkeletalMeshStreamIn_IO::ReportIOError(const FContext& Context)
 
 void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 {
-	LLM_SCOPE(ELLMTag::SkeletalMesh);
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/Serialize"));
 
 	check(!TaskSynchronization.GetValue());
 	const USkeletalMesh* Mesh = Context.Mesh;

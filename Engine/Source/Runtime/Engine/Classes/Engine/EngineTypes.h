@@ -2870,6 +2870,10 @@ struct FMeshBuildSettings
 	/** If true, UVs will be stored at full floating point precision. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bUseFullPrecisionUVs:1;
+	
+	/** If true, UVs will use backwards-compatible F16 conversion with truncation for legacy meshes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings, AdvancedDisplay)
+	uint8 bUseBackwardsCompatibleF16TruncUVs:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bGenerateLightmapUVs:1;
@@ -2925,6 +2929,7 @@ struct FMeshBuildSettings
 		, bBuildReversedIndexBuffer(true)
 		, bUseHighPrecisionTangentBasis(false)
 		, bUseFullPrecisionUVs(false)
+		, bUseBackwardsCompatibleF16TruncUVs(false)
 		, bGenerateLightmapUVs(true)
 		, bGenerateDistanceFieldAsIfTwoSided(false)
 		, bSupportFaceRemap(false)
@@ -2951,6 +2956,7 @@ struct FMeshBuildSettings
 			&& bBuildReversedIndexBuffer == Other.bBuildReversedIndexBuffer
 			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
 			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
+			&& bUseBackwardsCompatibleF16TruncUVs == Other.bUseBackwardsCompatibleF16TruncUVs
 			&& bGenerateLightmapUVs == Other.bGenerateLightmapUVs
 			&& MinLightmapResolution == Other.MinLightmapResolution
 			&& SrcLightmapIndex == Other.SrcLightmapIndex
@@ -3003,6 +3009,10 @@ struct FSkeletalMeshBuildSettings
 	/** If true, UVs will be stored at full floating point precision. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bUseFullPrecisionUVs:1;
+
+	/** If true, UVs will use backwards-compatible F16 conversion with truncation for legacy meshes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings, AdvancedDisplay)
+	uint8 bUseBackwardsCompatibleF16TruncUVs:1;
 	
 	/** Threshold use to decide if two vertex position are equal. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
@@ -3029,6 +3039,7 @@ struct FSkeletalMeshBuildSettings
 		, bRemoveDegenerates(true)
 		, bUseHighPrecisionTangentBasis(false)
 		, bUseFullPrecisionUVs(false)
+		, bUseBackwardsCompatibleF16TruncUVs(false)
 		, ThresholdPosition(0.00002)
 		, ThresholdTangentNormal(0.00002)
 		, ThresholdUV(0.0009765625)
@@ -3045,6 +3056,7 @@ struct FSkeletalMeshBuildSettings
 			&& bRemoveDegenerates == Other.bRemoveDegenerates
 			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
 			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
+			&& bUseBackwardsCompatibleF16TruncUVs == Other.bUseBackwardsCompatibleF16TruncUVs
 			&& ThresholdPosition == Other.ThresholdPosition
 			&& ThresholdTangentNormal == Other.ThresholdTangentNormal
 			&& ThresholdUV == Other.ThresholdUV

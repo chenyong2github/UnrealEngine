@@ -6,58 +6,19 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
 
-using namespace CADKernel;
-
-void FSphericalSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FSphericalSurface::EvaluatePointGridInCylindricalSpace(const FCoordinateGrid& Coordinates, TArray<FPoint2D>& OutPoints) const
 {
-	double CosU = cos(InSurfacicCoordinate.U);
-	double CosV = cos(InSurfacicCoordinate.V);
-
-	double SinU = sin(InSurfacicCoordinate.U);
-	double SinV = sin(InSurfacicCoordinate.V);
-
-	OutPoint3D.DerivativeOrder = InDerivativeOrder;
-	OutPoint3D.Point.Set(Radius * CosV * CosU, Radius * CosV * SinU, Radius * SinV);
-	OutPoint3D.Point = Matrix.Multiply(OutPoint3D.Point);
-
-	if (InDerivativeOrder > 0)
-	{
-		OutPoint3D.GradientU = FPoint(-Radius * CosV * SinU, Radius * CosV * CosU, 0.0);
-		OutPoint3D.GradientV = FPoint(-Radius * SinV * CosU, -Radius * SinV * SinU, Radius * CosV);
-
-		OutPoint3D.GradientU = Matrix.MultiplyVector(OutPoint3D.GradientU);
-		OutPoint3D.GradientV = Matrix.MultiplyVector(OutPoint3D.GradientV);
-	}
-
-	if (InDerivativeOrder > 1)
-	{
-		OutPoint3D.LaplacianU = FPoint(-Radius * CosV * CosU, -Radius * CosV * SinU, 0.0);
-		OutPoint3D.LaplacianV = FPoint(OutPoint3D.LaplacianU.X, OutPoint3D.LaplacianU.Y, -Radius * SinV);
-		OutPoint3D.LaplacianUV = FPoint(Radius * SinV * SinU, -Radius * SinV * CosU, 0.);
-
-		OutPoint3D.LaplacianU = Matrix.MultiplyVector(OutPoint3D.LaplacianU);
-		OutPoint3D.LaplacianV = Matrix.MultiplyVector(OutPoint3D.LaplacianV);
-		OutPoint3D.LaplacianUV = Matrix.MultiplyVector(OutPoint3D.LaplacianUV);
-	}
-}
-
-void FSphericalSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
-{
-	OutPoints.bWithNormals = bComputeNormals;
-
 	int32 PointNum = Coordinates.Count();
-	OutPoints.Reserve(PointNum);
-
-	OutPoints.Set2DCoordinates(Coordinates);
+	OutPoints.Empty(PointNum);
 
 	int32 UCount = Coordinates.IsoCount(EIso::IsoU);
 
 	TArray<double> CosU;
-	TArray<double> SinU; 
+	TArray<double> SinU;
 	CosU.Reserve(UCount);
 	SinU.Reserve(UCount);
 
-	for(double Angle : Coordinates[EIso::IsoU])
+	for (double Angle : Coordinates[EIso::IsoU])
 	{
 		CosU.Emplace(cos(Angle));
 	}
@@ -67,17 +28,61 @@ void FSphericalSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FS
 		SinU.Emplace(sin(Angle));
 	}
 
+	for (double VAngle : Coordinates[EIso::IsoV])
+	{
+		double CosV = cos(VAngle);
+		double Rho = Radius * CosV;
+		double SwapOrientation = (VAngle < PI && VAngle >= 0) ? 1.0 : -1.0;
+
+		for (int32 Undex = 0; Undex < UCount; Undex++)
+		{
+			OutPoints.Emplace(Rho * CosU[Undex] * SwapOrientation, Rho * SinU[Undex]);
+		}
+	}
+}
+
+void CADKernel::FSphericalSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+{
+	OutPoints.bWithNormals = bComputeNormals;
+	
+	int32 PointNum = Coordinates.Count();
+	OutPoints.Reserve(PointNum);
+
+	OutPoints.Set2DCoordinates(Coordinates);
+
+	int32 UCount = Coordinates.IsoCount(EIso::IsoU);
+
+	TArray<double> CosU;
+	TArray<double> SinU;
+	CosU.Reserve(UCount);
+	SinU.Reserve(UCount);
+
+	for (double Angle : Coordinates[EIso::IsoU])
+	{
+		CosU.Emplace(cos(Angle));
+	}
+
+	for (double Angle : Coordinates[EIso::IsoU])
+	{
+		SinU.Emplace(sin(Angle));
+	}
 
 	for (double VAngle : Coordinates[EIso::IsoV])
 	{
 		double CosV = cos(VAngle);
 		double SinV = sin(VAngle);
+		double Rho = Radius * CosV;
+		double Height = Radius * SinV;
 
 		for (int32 Undex = 0; Undex < UCount; Undex++)
 		{
-			FPoint& Point = OutPoints.Points3D.Emplace_GetRef(Radius * CosV * CosU[Undex], Radius * CosV * SinU[Undex], Radius * SinV);
-			Point = Matrix.Multiply(Point);
+			OutPoints.Points3D.Emplace(Rho * CosU[Undex], Rho * SinU[Undex], Height);
 		}
+	}
+
+	for (FPoint& Point : OutPoints.Points3D)
+	{
+		Point = Matrix.Multiply(Point);
 	}
 
 	if (bComputeNormals)
@@ -87,12 +92,11 @@ void FSphericalSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FS
 		{
 			OutPoints.Normals.Emplace(Point - Center);
 		}
-
 		OutPoints.NormalizeNormals();
 	}
 }
 
-TSharedPtr<FEntityGeom> FSphericalSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FSphericalSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FSphericalSurface>(Tolerance3D, NewMatrix, Radius, 
@@ -101,7 +105,7 @@ TSharedPtr<FEntityGeom> FSphericalSurface::ApplyMatrix(const FMatrixH& InMatrix)
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FSphericalSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FSphericalSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)

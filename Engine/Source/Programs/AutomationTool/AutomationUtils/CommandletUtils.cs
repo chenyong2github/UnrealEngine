@@ -47,14 +47,14 @@ namespace AutomationTool
 		/// Runs Cook commandlet.
 		/// </summary>
 		/// <param name="ProjectName">Project name.</param>
-		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+		/// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
 		/// <param name="Maps">List of maps to cook, can be null in which case -MapIniSection=AllMaps is used.</param>
 		/// <param name="Dirs">List of directories to cook, can be null</param>
         /// <param name="InternationalizationPreset">The name of a prebuilt set of internationalization data to be included.</param>
         /// <param name="CulturesToCook">List of culture names whose localized assets should be cooked, can be null (implying defaults should be used).</param>
 		/// <param name="TargetPlatform">Target platform.</param>
 		/// <param name="Parameters">List of additional parameters.</param>
-		public static void CookCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string[] Dirs = null, string InternationalizationPreset = "", string[] CulturesToCook = null, string TargetPlatform = "Windows", string Parameters = "-Unversioned")
+		public static void CookCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string[] Dirs = null, string InternationalizationPreset = "", string[] CulturesToCook = null, string TargetPlatform = "Windows", string Parameters = "-Unversioned")
 		{
             string CommandletArguments = "";
 
@@ -87,18 +87,18 @@ namespace AutomationTool
                 CommandletArguments += (CommandletArguments.Length > 0 ? " " : "") + CulturesToCookArg;
             }
 
-            RunCommandlet(ProjectName, UE4Exe, "Cook", String.Format("{0} -TargetPlatform={1} {2}",  CommandletArguments, TargetPlatform, Parameters));
+            RunCommandlet(ProjectName, UnrealExe, "Cook", String.Format("{0} -TargetPlatform={1} {2}",  CommandletArguments, TargetPlatform, Parameters));
 		}
 
         /// <summary>
         /// Runs DDC commandlet.
         /// </summary>
         /// <param name="ProjectName">Project name.</param>
-        /// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+        /// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
         /// <param name="Maps">List of maps to cook, can be null in which case -MapIniSection=AllMaps is used.</param>
         /// <param name="TargetPlatform">Target platform.</param>
         /// <param name="Parameters">List of additional parameters.</param>
-        public static void DDCCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string TargetPlatform = "Windows", string Parameters = "")
+        public static void DDCCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string TargetPlatform = "Windows", string Parameters = "")
         {
             string MapsToCook = "";
             if (!IsNullOrEmpty(Maps))
@@ -106,17 +106,17 @@ namespace AutomationTool
                 MapsToCook = "-Map=" + CombineCommandletParams(Maps).Trim();
             }
 
-            RunCommandlet(ProjectName, UE4Exe, "DerivedDataCache", String.Format("{0} -TargetPlatform={1} {2}", MapsToCook, TargetPlatform, Parameters));
+            RunCommandlet(ProjectName, UnrealExe, "DerivedDataCache", String.Format("{0} -TargetPlatform={1} {2}", MapsToCook, TargetPlatform, Parameters));
         }
 
 		/// <summary>
 		/// Runs RebuildLightMaps commandlet.
 		/// </summary>
 		/// <param name="ProjectName">Project name.</param>
-		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+		/// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
 		/// <param name="Maps">List of maps to rebuild light maps for. Can be null in which case -MapIniSection=AllMaps is used.</param>
 		/// <param name="Parameters">List of additional parameters.</param>
-		public static void RebuildLightMapsCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
+		public static void RebuildLightMapsCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
 		{
 			string MapsToRebuildLighting = "";
 			if (!IsNullOrEmpty(Maps))
@@ -124,10 +124,10 @@ namespace AutomationTool
 				MapsToRebuildLighting = "-Map=" + CombineCommandletParams(Maps).Trim();
 			}
 
-			RunCommandlet(ProjectName, UE4Exe, "ResavePackages", String.Format("-buildtexturestreaming -buildlighting -MapsOnly -ProjectOnly -AllowCommandletRendering -SkipSkinVerify {0} {1}", MapsToRebuildLighting, Parameters));
+			RunCommandlet(ProjectName, UnrealExe, "ResavePackages", String.Format("-buildtexturestreaming -buildlighting -MapsOnly -ProjectOnly -AllowCommandletRendering -SkipSkinVerify {0} {1}", MapsToRebuildLighting, Parameters));
 		}
 
-        public static void RebuildHLODCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
+        public static void RebuildHLODCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
         {
             string MapsToRebuildHLODs = "";
             if (!IsNullOrEmpty(Maps))
@@ -135,17 +135,17 @@ namespace AutomationTool
                 MapsToRebuildHLODs = "-Map=" + CombineCommandletParams(Maps).Trim();
             }
 
-            RunCommandlet(ProjectName, UE4Exe, "ResavePackages", String.Format("-BuildHLOD -ProjectOnly -AllowCommandletRendering -SkipSkinVerify {0} {1}", MapsToRebuildHLODs, Parameters));
+            RunCommandlet(ProjectName, UnrealExe, "ResavePackages", String.Format("-BuildHLOD -ProjectOnly -AllowCommandletRendering -SkipSkinVerify {0} {1}", MapsToRebuildHLODs, Parameters));
         }
 
         /// <summary>
         /// Runs RebuildLightMaps commandlet.
         /// </summary>
         /// <param name="ProjectName">Project name.</param>
-        /// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+        /// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
         /// <param name="Maps">List of maps to rebuild light maps for. Can be null in which case -MapIniSection=AllMaps is used.</param>
         /// <param name="Parameters">List of additional parameters.</param>
-        public static void ResavePackagesCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
+        public static void ResavePackagesCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
         {
             string MapsToRebuildLighting = "";
             if (!IsNullOrEmpty(Maps))
@@ -153,18 +153,18 @@ namespace AutomationTool
                 MapsToRebuildLighting = "-Map=" + CombineCommandletParams(Maps).Trim();
             }
 
-            RunCommandlet(ProjectName, UE4Exe, "ResavePackages", String.Format((!String.IsNullOrEmpty(MapsToRebuildLighting) ? "-MapsOnly" : "") + "-ProjectOnly {0} {1}", MapsToRebuildLighting, Parameters));
+            RunCommandlet(ProjectName, UnrealExe, "ResavePackages", String.Format((!String.IsNullOrEmpty(MapsToRebuildLighting) ? "-MapsOnly" : "") + "-ProjectOnly {0} {1}", MapsToRebuildLighting, Parameters));
         }
 
         /// <summary>
         /// Runs GenerateDistillFileSets commandlet.
         /// </summary>
         /// <param name="ProjectName">Project name.</param>
-        /// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+        /// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
         /// <param name="Maps">List of maps to cook, can be null in which case -MapIniSection=AllMaps is used.</param>
         /// <param name="TargetPlatform">Target platform.</param>
         /// <param name="Parameters">List of additional parameters.</param>
-        public static List<FileReference> GenerateDistillFileSetsCommandlet(FileReference ProjectName, string ManifestFile, string UE4Exe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
+        public static List<FileReference> GenerateDistillFileSetsCommandlet(FileReference ProjectName, string ManifestFile, string UnrealExe = "UnrealEditor-Cmd.exe", string[] Maps = null, string Parameters = "")
         {
             string MapsToCook = "";
             if (!IsNullOrEmpty(Maps))
@@ -183,7 +183,7 @@ namespace AutomationTool
                 DeleteFile(ManifestFile);
             }
 
-            RunCommandlet(ProjectName, UE4Exe, "GenerateDistillFileSets", String.Format("{0} -OutputFolder={1} -Output={2} {3}", MapsToCook, CommandUtils.MakePathSafeToUseWithCommandLine(Dir), Filename, Parameters));
+            RunCommandlet(ProjectName, UnrealExe, "GenerateDistillFileSets", String.Format("{0} -OutputFolder={1} -Output={2} {3}", MapsToCook, CommandUtils.MakePathSafeToUseWithCommandLine(Dir), Filename, Parameters));
 
             if (!FileExists_NoExceptions(ManifestFile))
             {
@@ -218,47 +218,47 @@ namespace AutomationTool
         /// Runs UpdateGameProject commandlet.
         /// </summary>
         /// <param name="ProjectName">Project name.</param>
-        /// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+        /// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
         /// <param name="Parameters">List of additional parameters.</param>
-        public static void UpdateGameProjectCommandlet(FileReference ProjectName, string UE4Exe = "UnrealEditor-Cmd.exe", string Parameters = "")
+        public static void UpdateGameProjectCommandlet(FileReference ProjectName, string UnrealExe = "UnrealEditor-Cmd.exe", string Parameters = "")
         {
-            RunCommandlet(ProjectName, UE4Exe, "UpdateGameProject", Parameters);
+            RunCommandlet(ProjectName, UnrealExe, "UpdateGameProject", Parameters);
         }
 
 		/// <summary>
 		/// Runs a commandlet using Engine/Binaries/Win64/UnrealEditor-Cmd.exe.
 		/// </summary>
 		/// <param name="ProjectName">Project name.</param>
-		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+		/// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
 		/// <param name="Commandlet">Commandlet name.</param>
 		/// <param name="Parameters">Command line parameters (without -run=)</param>
 		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
-		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters = null, int ErrorLevel = 1)
+		public static void RunCommandlet(FileReference ProjectName, string UnrealExe, string Commandlet, string Parameters = null, int ErrorLevel = 1)
 		{
 			string LogFile;
-			RunCommandlet(ProjectName, UE4Exe, Commandlet, Parameters, out LogFile, ErrorLevel);
+			RunCommandlet(ProjectName, UnrealExe, Commandlet, Parameters, out LogFile, ErrorLevel);
 		}
 
 		/// <summary>
 		/// Runs a commandlet using Engine/Binaries/Win64/UnrealEditor-Cmd.exe.
 		/// </summary>
 		/// <param name="ProjectName">Project name.</param>
-		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
+		/// <param name="UnrealExe">The name of the Unreal Editor executable to use.</param>
 		/// <param name="Commandlet">Commandlet name.</param>
 		/// <param name="Parameters">Command line parameters (without -run=)</param>
 		/// <param name="DestLogFile">Log file after completion</param>
 		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
-		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters, out string DestLogFile, int ErrorLevel = 1)
+		public static void RunCommandlet(FileReference ProjectName, string UnrealExe, string Commandlet, string Parameters, out string DestLogFile, int ErrorLevel = 1)
 		{
 			LogInformation("Running UnrealEditor {0} for project {1}", Commandlet, ProjectName);
 
-            var CWD = Path.GetDirectoryName(UE4Exe);
+            var CWD = Path.GetDirectoryName(UnrealExe);
 
-            string EditorExe = UE4Exe;
+            string EditorExe = UnrealExe;
 
             if (String.IsNullOrEmpty(CWD))
             {
-                EditorExe = HostPlatform.Current.GetUE4ExePath(UE4Exe);
+                EditorExe = HostPlatform.Current.GetUnrealExePath(UnrealExe);
                 CWD = CombinePaths(CmdEnv.LocalRoot, HostPlatform.Current.RelativeBinariesFolder);
             }
 			

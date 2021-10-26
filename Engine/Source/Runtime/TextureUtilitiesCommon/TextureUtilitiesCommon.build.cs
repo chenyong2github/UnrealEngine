@@ -6,7 +6,11 @@ public class TextureUtilitiesCommon : ModuleRules
 {
 	public TextureUtilitiesCommon(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicDependencyModuleNames.Add("Core");
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"DeveloperSettings",
+			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

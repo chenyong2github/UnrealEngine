@@ -1103,6 +1103,9 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 							INC_DWORD_STAT_BY( STAT_NetActorChannelsClosed, 1 );
 							ConnectionActorInfo.Channel->Close(EChannelCloseReason::Relevancy);
+
+							// Make sure that we remove this actor from the PrevDormantActorList since it won't be dormant anymore since it will be destroyed
+							ConnectionManager->SetActorNotDormantOnConnection(Actor);
 						}						
 					}
 				}
@@ -4378,7 +4381,7 @@ void UReplicationGraphNode_DormancyNode::OnActorDormancyFlush(FActorRepListType 
 	CallFunctionOnValidConnectionNodes(DormancyFlushFunction);
 }
 
-void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness)
+void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness /* = false */, FActorRepListRefView* RemoveFromList /* = nullptr */)
 {
 	auto GatherDormantDynamicActorsForList = [&](const FActorRepListRefView& InReplicationActorList)
 	{
@@ -4388,11 +4391,17 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 			{
 				if (FConnectionReplicationActorInfo* Info = Params.ConnectionManager.ActorInfoMap.Find(Actor))
 				{
-					if (Info->bDormantOnConnection)
+					// Need to grab the actors with valid channels here as they will be going dormant soon, but might not be quite yet
+					if (Info->bDormantOnConnection || Info->Channel != nullptr)
 					{
 						if (RemovedList && RemovedList->Contains(Actor))
 						{
 							continue;
+						}
+
+						if (RemoveFromList && RemoveFromList->RemoveFast(Actor))
+						{
+							Info->bGridSpatilization_AlreadyDormant = false;
 						}
 
 						// Prevent adding actors if we already have added them, this saves on grow operations.
@@ -5504,7 +5513,8 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 				{
 					if (UReplicationGraphNode_DormancyNode* DormancyNode = CellNode->GetDormancyNode())
 					{
-						DormancyNode->ConditionalGatherDormantDynamicActors(DormantActorList, Params, nullptr);
+						// Making sure to remove from the PrevDormantActorList since we don't want things added to the DormantActorList to be destroyed anymore
+						DormancyNode->ConditionalGatherDormantDynamicActors(DormantActorList, Params, nullptr, false, &PrevDormantActorList);
 					}
 				}
 
@@ -5525,23 +5535,30 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 
 			UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Removing %d Actors (List size: %d)"), FMath::Min(NumActorsToRemove, PrevDormantActorList.Num()), PrevDormantActorList.Num());
 
+			FGlobalActorReplicationInfoMap* GlobalRepMap = GraphGlobals.IsValid() ? GraphGlobals->GlobalActorReplicationInfoMap : nullptr;
+
 			// any previous dormant actors not in the current node dormant list
-			for (int32 i = 0; i < PrevDormantActorList.Num() && NumActorsToRemove > 0; i++, NumActorsToRemove--)
+			for (int32 i = 0; i < PrevDormantActorList.Num() && NumActorsToRemove > 0; i++)
 			{
 				FActorRepListType& Actor = PrevDormantActorList[i];
-				Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
+
+				const FGlobalActorReplicationInfo* GlobalActorInfo = GlobalRepMap != nullptr ? GlobalRepMap->Find(Actor) : nullptr;
 
 				if (FConnectionReplicationActorInfo* ActorInfo = Params.ConnectionManager.ActorInfoMap.Find(Actor))
 				{
-					if (ensureMsgf(ActorInfo->bDormantOnConnection, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Doing dormant actor operations on non-dormant actor (%s) in PrevDormantActorList iteration"), *Actor->GetName()))
+					if (ActorInfo->bDormantOnConnection)
 					{
+						Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
 						ActorInfo->bDormantOnConnection = false;
 						// Ideally, no actor info outside this list should be set to true, so we don't have to worry about resetting them.
 						// However we could consider iterating through the actor map to reset all of them.
 						ActorInfo->bGridSpatilization_AlreadyDormant = false;
 
+
 						// add back to connection specific dormancy nodes
-						const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, Actor->GetActorLocation(), ActorInfo->GetCullDistance());
+						// Try to make sure that we're using the stored actor location otherwise we'll end up adding them to nodes they weren't in before
+						const FVector& ActorLocation = GlobalActorInfo != nullptr ? GlobalActorInfo->WorldLocation : Actor->GetActorLocation();
+						const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, ActorLocation, ActorInfo->GetCullDistance());
 						GetGridNodesForActor(Actor, CellInfo, GatheredNodes);
 
 						for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
@@ -5555,10 +5572,18 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 								}
 							}
 						}
+
+						NumActorsToRemove--;
+						PrevDormantActorList.RemoveAtSwap(i--);
+					}
+					else if (ActorInfo->Channel == nullptr)
+					{
+						//Channel was closed before becoming dormant.  Remove from list
+						UE_CLOG(CVar_RepGraph_Verify, LogReplicationGraph, Warning, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Actor with null channel pointer in Connection's PrevDormantActorList, it is preferred that we remove actors from the PrevDormantActorList when we clear their channel."));
+						ActorInfo->bGridSpatilization_AlreadyDormant = false;
+						PrevDormantActorList.RemoveAtSwap(i--);
 					}
 				}
-
-				PrevDormantActorList.RemoveAtSwap(i);
 			}
 		}
 	}

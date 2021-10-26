@@ -13,7 +13,7 @@ public:
 	FDisplayClusterWarpBlendMath_WarpMap(const IDisplayClusterRenderTexture& InWarpMap)
 		: Width(InWarpMap.GetWidth())
 		, Height(InWarpMap.GetHeight())
-		, Data((FVector4*)InWarpMap.GetData())
+		, Data((FVector4f*)InWarpMap.GetData())
 	{ }
 
 public:
@@ -26,7 +26,7 @@ public:
 		{
 			for (int32 X = 0; X < Width; ++X)
 			{
-				const FVector4& Pts = (Data)[(X + Y * Width)];
+				const FVector4f& Pts = (Data)[(X + Y * Width)];
 				if (Pts.W > 0)
 				{
 					AABBox.Min.X = FMath::Min(AABBox.Min.X, Pts.X);
@@ -87,12 +87,12 @@ public:
 		return InX + InY * Width;
 	}
 
-	const FVector4& GetPoint(int32 InX, int32 InY)
+	const FVector4f& GetPoint(int32 InX, int32 InY)
 	{
 		return Data[GetPointIndex(InX, InY)];
 	}
 
-	const FVector4& GetPoint(int32 PointIndex)
+	const FVector4f& GetPoint(int32 PointIndex)
 	{
 		return Data[PointIndex];
 	}
@@ -127,9 +127,9 @@ public:
 		{
 			for (int32 ItX = 0; ItX < (Width - 2); ++ItX)
 			{
-				const FVector4& Pts0 = GetPoint(ItX, ItY);
-				const FVector4& Pts1 = GetPoint(ItX + 1, ItY);
-				const FVector4& Pts2 = GetPoint(ItX, ItY + 1);
+				const FVector4f& Pts0 = GetPoint(ItX, ItY);
+				const FVector4f& Pts1 = GetPoint(ItX + 1, ItY);
+				const FVector4f& Pts2 = GetPoint(ItX, ItY + 1);
 
 				if (Pts0.W > 0 && Pts1.W > 0 && Pts2.W > 0)
 				{
@@ -158,9 +158,9 @@ public:
 
 	FVector GetSurfaceViewPlane()
 	{
-		const FVector4& Pts0 = GetValidPoint(0, 0);
-		const FVector4& Pts1 = GetValidPoint(Width - 1, 0);
-		const FVector4& Pts2 = GetValidPoint(0, Height - 1);
+		const FVector4f& Pts0 = GetValidPoint(0, 0);
+		const FVector4f& Pts1 = GetValidPoint(Width - 1, 0);
+		const FVector4f& Pts2 = GetValidPoint(0, Height - 1);
 
 		const FVector N1 = Pts1 - Pts0;
 		const FVector N2 = Pts2 - Pts0;
@@ -168,7 +168,7 @@ public:
 	}
 
 private:
-	const FVector4& GetValidPoint(int32 InX, int32 InY)
+	const FVector4f& GetValidPoint(int32 InX, int32 InY)
 	{
 		if (!IsValidPoint(InX, InY))
 		{
@@ -224,7 +224,7 @@ private:
 private:
 	const int32 Width;
 	const int32 Height;
-	const FVector4* Data;
+	const FVector4f* Data;
 
 	// Internal logic
 	int32 ValidPointX = 0;

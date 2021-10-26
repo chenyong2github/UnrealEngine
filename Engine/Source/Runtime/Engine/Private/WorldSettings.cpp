@@ -382,6 +382,12 @@ UAssetUserData* AWorldSettings::GetAssetUserDataOfClass(TSubclassOf<UAssetUserDa
 	}
 	return NULL;
 }
+
+const TArray<UAssetUserData*>* AWorldSettings::GetAssetUserDataArray() const
+{
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
+}
+
 #if WITH_EDITOR
 const TArray<FHierarchicalSimplification>& AWorldSettings::GetHierarchicalLODSetup() const
 {

@@ -65,7 +65,7 @@ FEQSSceneProxy::FEQSSceneProxy(const UPrimitiveComponent& InComponent, const FSt
 #endif
 }
 
-#if  USE_EQS_DEBUGGER 
+#if  USE_EQS_DEBUGGER
 void FEQSSceneProxy::CollectEQSData(const UPrimitiveComponent* InComponent, const IEQSQueryResultSourceInterface* InQueryDataSource, TArray<FSphere>& Spheres, TArray<FText3d>& Texts, TArray<EQSDebug::FDebugHelper>& DebugItems)
 {
 	AActor* ActorOwner = InComponent ? InComponent->GetOwner() : nullptr;
@@ -281,7 +281,7 @@ UEQSRenderingComponent::UEQSRenderingComponent(const FObjectInitializer& ObjectI
 {
 }
 
-#if UE_ENABLE_DEBUG_DRAWING
+#if UE_ENABLE_DEBUG_DRAWING && USE_EQS_DEBUGGER
 FDebugRenderSceneProxy* UEQSRenderingComponent::CreateDebugSceneProxy()
 {
 	FEQSSceneProxy* NewSceneProxy = new FEQSSceneProxy(*this, DrawFlagName, DebugDataSolidSpheres, DebugDataTexts);

@@ -35,8 +35,8 @@ FWidgetGFNActionZone::FWidgetGFNActionZone(const SWidget* InWidget) : Widget(InW
 
 void FWidgetGFNActionZone::UpdateActionZone(TArray<TSharedRef<SWindow>>& SlateWindows)
 {
-	const FVector2D AbsolutePosition = Widget->GetPaintSpaceGeometry().GetAbsolutePosition();
-	const FVector2D AbsoluteSize = Widget->GetPaintSpaceGeometry().GetAbsoluteSize();
+	const FVector2D AbsolutePosition = Widget->GetTickSpaceGeometry().GetAbsolutePosition();
+	const FVector2D AbsoluteSize = Widget->GetTickSpaceGeometry().GetAbsoluteSize();
 	const FVector2D AbsoluteMiddle = FVector2D(AbsolutePosition.X + (AbsoluteSize.X * 0.5f), AbsolutePosition.Y + (AbsoluteSize.Y * 0.5f));
 
 	const FSlateRect AbsolutePosRect = (FSlateRect(AbsolutePosition.X, AbsolutePosition.Y, AbsolutePosition.X + AbsoluteSize.X, AbsolutePosition.Y + AbsoluteSize.Y));

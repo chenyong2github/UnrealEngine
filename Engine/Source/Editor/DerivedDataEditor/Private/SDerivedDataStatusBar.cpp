@@ -70,9 +70,6 @@ void FDerivedDataStatusBarMenuCommands::RegisterCommands()
 void FDerivedDataStatusBarMenuCommands::ChangeSettings_Clicked()
 {
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
-
-	//FDerivedDataEditorModule& DerivedDataEditorModule = FModuleManager::LoadModuleChecked<FDerivedDataEditorModule>("DerivedDataEditor");
-	//DerivedDataEditorModule.ShowSettingsDialog();
 }
 
 void FDerivedDataStatusBarMenuCommands::ViewCacheStatistics_Clicked()

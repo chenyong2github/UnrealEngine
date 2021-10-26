@@ -54,6 +54,13 @@ private:
 	TSharedRef<CADKernel::FSurface> AddSurface(ON_NurbsSurface& Surface);
 
 	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedRef<CADKernel::FSurface>& CarrierSurface);
+
+	/**
+	 * Build face's links with its neighbor have to be done after the loop is finalize.
+	 * This is to avoid to link an edge with another and then to delete it...
+	 */
+	void LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, CADKernel::FTopologicalLoop& Loop);
+	
 	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedRef<CADKernel::FSurface>& CarrierSurface);
 
 protected:

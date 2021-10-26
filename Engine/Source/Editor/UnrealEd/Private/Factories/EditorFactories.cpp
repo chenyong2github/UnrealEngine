@@ -274,7 +274,7 @@
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Factories/TextureImportSettings.h"
+#include "TextureImportSettings.h"
 #include "AssetImportTask.h"
 #include "ObjectTools.h"
 
@@ -2716,7 +2716,7 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	bCreateNew = false;
 	bEditorImport = true;
 
-	UdimRegexPattern = TEXT(R"((.+?)[._](\d{4})$)");
+	UdimRegexPattern = UE::TextureUtilitiesCommon::DefaultUdimRegexPattern;
 
 	ColorSpaceMode = ETextureSourceColorSpace::Auto;
 }
@@ -3518,6 +3518,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			{
 				// the loader can suggest a compression setting
 				OutImage.CompressionSettings = TC_HDR;
+				OutImage.SRGB = false;
 			}
 
 			return true;
@@ -3817,6 +3818,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 			if (Format == TSF_RGBA16F)
 			{
 				TextureArray->CompressionSettings = TC_HDR;
+				TextureArray->SRGB = false;
 			}
 
 			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = { 0 };
@@ -3878,6 +3880,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 						);
 					// the loader can suggest a compression setting
 					TextureCube->CompressionSettings = TC_HDR;
+					TextureCube->SRGB = false;
 
 					return TextureCube;
 				}
@@ -3913,6 +3916,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 				Texture->AddressX = TA_Clamp;
 				Texture->AddressY = TA_Clamp;
 				Texture->CompressionSettings = TC_HDR;
+				Texture->SRGB = false;
 				MipGenSettings = TMGS_NoMipmaps;
 				Texture->Brightness = IESConverter.GetBrightness();
 				Texture->TextureMultiplier = IESConverter.GetMultiplier();

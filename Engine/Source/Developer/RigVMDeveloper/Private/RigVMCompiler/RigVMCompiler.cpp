@@ -215,6 +215,52 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 				}
 			}
 
+			// for variable let's validate ill formed variable nodes
+			if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(ModelNode))
+			{
+				static const FString IllFormedVariableNodeMessage = TEXT("Variable Node @@ is ill-formed (pin type doesn't match the variable type).\nConsider to recreate the node.");
+
+				const FRigVMGraphVariableDescription VariableDescription = VariableNode->GetVariableDescription();
+				const TArray<FRigVMGraphVariableDescription> LocalVariables = VisitedGraph->GetLocalVariables(true);
+
+				bool bFoundVariable = false;
+				for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+				{
+					if(LocalVariable.Name == VariableDescription.Name)
+					{
+						bFoundVariable = true;
+						
+						if(LocalVariable.CPPType != VariableDescription.CPPType ||
+							LocalVariable.CPPTypeObject != VariableDescription.CPPTypeObject)
+						{
+							Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, IllFormedVariableNodeMessage);
+							bEncounteredGraphError = true;
+						}
+					}
+				}
+
+				// if the variable is not a local variable, let's test against the external variables.
+				if(!bFoundVariable)
+				{
+					const FRigVMExternalVariable ExternalVariable = VariableDescription.ToExternalVariable();
+					for(const FRigVMExternalVariable& InExternalVariable : InExternalVariables)
+					{
+						if(InExternalVariable.Name == ExternalVariable.Name)
+						{
+							bFoundVariable = true;
+							
+							if(InExternalVariable.TypeName != ExternalVariable.TypeName ||
+								InExternalVariable.TypeObject != ExternalVariable.TypeObject ||
+								InExternalVariable.bIsArray != ExternalVariable.bIsArray)
+							{
+								Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, IllFormedVariableNodeMessage);
+								bEncounteredGraphError = true;
+							}
+						}
+					}
+				}
+			}
+
 			for(URigVMPin* Pin : ModelNode->Pins)
 			{
 				if(!URigVMController::EnsurePinValidity(Pin, true))

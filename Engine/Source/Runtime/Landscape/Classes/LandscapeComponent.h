@@ -477,7 +477,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 	TArray<int8> LODIndexToMaterialIndex;
 
 	/** XYOffsetmap texture reference */
-	UPROPERTY(TextExportTransient)
+	UPROPERTY()
 	TObjectPtr<UTexture2D> XYOffsetmapTexture;
 
 	/** UV offset to component's weightmap data from component local coordinates*/
@@ -532,7 +532,7 @@ private:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
-	UPROPERTY(TextExportTransient)
+	UPROPERTY()
 	TObjectPtr<UTexture2D> HeightmapTexture;
 
 	/** List of layers, and the weightmap and channel they are stored */
@@ -540,7 +540,7 @@ private:
 	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
 
 	/** Weightmap texture reference */
-	UPROPERTY(TextExportTransient)
+	UPROPERTY()
 	TArray<TObjectPtr<UTexture2D>> WeightmapTextures;
 
 	/** Used to interface the component to the LOD streamer. */
@@ -1043,12 +1043,6 @@ public:
 
 	/** @todo document */
 	void RemoveInvalidWeightmaps();
-
-	/** @todo document */
-	virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
-
-	/** @todo document */
-	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
 
 	/** @todo document */
 	LANDSCAPE_API void InitHeightmapData(TArray<FColor>& Heights, bool bUpdateCollision);

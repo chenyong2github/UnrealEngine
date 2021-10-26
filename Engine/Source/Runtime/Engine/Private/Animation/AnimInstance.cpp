@@ -555,6 +555,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Animation);
 	SCOPE_CYCLE_COUNTER(STAT_PreUpdateAnimation);
 
 	bNeedsUpdate = true;
@@ -569,6 +570,7 @@ void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
 
 void UAnimInstance::PostUpdateAnimation()
 {
+	LLM_SCOPE(ELLMTag::Animation);
 #if DO_CHECK
 	checkf(!bPostUpdatingAnimation, TEXT("PostUpdateAnimation already in progress, recursion detected for SkeletalMeshComponent [%s], AnimInstance [%s]"), *GetNameSafe(GetOwningComponent()), *GetName());
 	TGuardValue<bool> CircularGuard(bPostUpdatingAnimation, true);
@@ -733,6 +735,7 @@ void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeleta
 
 void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FParallelEvaluationData& OutEvaluationData)
 {
+	LLM_SCOPE(ELLMTag::Animation);
 	FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
 	OutEvaluationData.OutPose.SetBoneContainer(&Proxy.GetRequiredBones());
 
@@ -760,6 +763,7 @@ void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeleta
 
 void UAnimInstance::PostEvaluateAnimation()
 {
+	LLM_SCOPE(ELLMTag::Animation);
 	NativePostEvaluateAnimation();
 
 	{
@@ -1195,6 +1199,7 @@ void UAnimInstance::ResetDynamics(ETeleportType InTeleportType)
 
 void UAnimInstance::ResetDynamics()
 {
+	LLM_SCOPE(ELLMTag::Animation);
 	ResetDynamics(ETeleportType::ResetPhysics);
 }
 
@@ -1209,6 +1214,7 @@ int32 UAnimInstance::GetLODLevel() const
 
 void UAnimInstance::RecalcRequiredBones()
 {
+	LLM_SCOPE(ELLMTag::Animation);
 	USkeletalMeshComponent* SkelMeshComp = GetSkelMeshComponent();
 	check( SkelMeshComp )
 

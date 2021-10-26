@@ -98,7 +98,7 @@ struct FNetworkPredictionDevHUD
 };
 
 
-UCLASS(config=NetworkPrediction, defaultconfig, notplaceable, meta=(DisplayName="Network Prediction"))
+UCLASS(config=NetworkPrediction, defaultconfig, meta=(DisplayName="Network Prediction"))
 class UNetworkPredictionSettingsObject : public UObject
 {
 	GENERATED_BODY()

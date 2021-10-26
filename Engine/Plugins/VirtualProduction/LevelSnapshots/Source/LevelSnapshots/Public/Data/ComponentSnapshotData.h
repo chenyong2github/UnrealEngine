@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ComponentInstanceDataCache.h"
 #include "ObjectSnapshotData.h"
+#include "Misc/ObjectDependencyCallback.h"
 #include "ComponentSnapshotData.generated.h"
 
 class UPackage;
@@ -18,7 +19,7 @@ struct LEVELSNAPSHOTS_API FComponentSnapshotData
 
 	static TOptional<FComponentSnapshotData> SnapshotComponent(UActorComponent* OriginalComponent, FWorldSnapshotData& WorldData);
 	
-	void DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage);
+	void DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, const FProcessObjectDependency& ProcessObjectDependency, UPackage* InLocalisationSnapshotPackage);
 	
 	/* Describes how the component was created */
 	UPROPERTY()

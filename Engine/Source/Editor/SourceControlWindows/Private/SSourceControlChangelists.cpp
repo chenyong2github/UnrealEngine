@@ -917,6 +917,58 @@ static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 	return bValidationResult;
 }
 
+static bool GetOnPresubmitResult(FSourceControlChangelistStatePtr Changelist, FChangeListDescription& Description)
+{
+	const TArray<FSourceControlStateRef>& FileStates = Changelist->GetFilesStates();
+	TArray<FString> LocalFilepathList;
+	LocalFilepathList.Reserve(FileStates.Num());
+	for (const FSourceControlStateRef& State : FileStates)
+	{
+		LocalFilepathList.Add(State->GetFilename());
+	}
+
+	TArray<FText> PayloadErrors;
+	TArray<FText> DescriptionTags;
+	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(LocalFilepathList, DescriptionTags, PayloadErrors);
+
+	if (!PayloadErrors.IsEmpty())
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			FMessageLog("SourceControl").Error(Error);
+		}
+
+		// Setup the notification for operation feedback
+		FText FailureMsg(LOCTEXT("SCC_Virtualization_Failed", "Virtualized payloads failed to submit."));
+		FNotificationInfo Info(FailureMsg);
+
+		Info.Text = LOCTEXT("SCC_Checkin_Failed", "Failed to check in files!");
+		Info.ExpireDuration = 8.0f;
+		Info.HyperlinkText = LOCTEXT("SCC_Checkin_ShowLog", "Show Message Log");
+		Info.Hyperlink = FSimpleDelegate::CreateLambda([]() { FMessageLog("SourceControl").Open(EMessageSeverity::Error, true); });
+
+		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		Notification->SetCompletionState(SNotificationItem::CS_Fail);
+
+		return false;
+	}
+	else if (!DescriptionTags.IsEmpty())
+	{
+		FTextBuilder NewDescription;
+		NewDescription.AppendLine(Description.Description);
+		NewDescription.AppendLine(); // Add a gap between the user input and any automated description tags we need to add
+
+		for (const FText& Line : DescriptionTags)
+		{
+			NewDescription.AppendLine(Line);
+		}
+
+		Description.Description = NewDescription.ToText();
+	}
+
+	return true;
+}
+
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
 {
 	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
@@ -968,6 +1020,12 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		bool bCheckinSuccess = false;
 
 		SourceControlWidget->FillChangeListDescription(Description);
+
+		// Check if any of the presubmit hooks fail and if so early out to avoid the submit
+		if (!GetOnPresubmitResult(ChangelistState, Description))
+		{
+			return;
+		}
 
 		// If the description was modified, we add it to the operation to update the changelist
 		if (!OriginalChangelistDescription.EqualTo(Description.Description))

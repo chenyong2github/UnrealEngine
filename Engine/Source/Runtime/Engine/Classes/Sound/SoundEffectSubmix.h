@@ -26,7 +26,7 @@ class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FColor GetPresetColor() const override { return FColor(162.0f, 84.0f, 101.0f); }
+	virtual FColor GetPresetColor() const override { return FColor(162, 84, 101); }
 
 };
 

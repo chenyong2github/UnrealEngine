@@ -25,6 +25,7 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "DeferredShadingRenderer.h"
 #include "MeshPassProcessor.inl"
 
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModeUniformParameters, "DebugViewModeStruct");
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDebugViewModePassUniformParameters, "DebugViewModePass", SceneTextures);
 
 #if WITH_DEBUG_VIEW_MODES
@@ -45,7 +46,7 @@ int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type F
 	}
 }
 
-void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDebugViewModePassUniformParameters& PassParameters)
+void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDebugViewModeUniformParameters& Parameters)
 {
 	// Accuracy colors
 	{
@@ -53,11 +54,11 @@ void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDe
 		int32 ColorIndex = 0;
 		for (; ColorIndex < NumEngineColors; ++ColorIndex)
 		{
-			PassParameters.AccuracyColors[ColorIndex] = GEngine->StreamingAccuracyColors[ColorIndex];
+			Parameters.AccuracyColors[ColorIndex] = GEngine->StreamingAccuracyColors[ColorIndex];
 		}
 		for (; ColorIndex < NumStreamingAccuracyColors; ++ColorIndex)
 		{
-			PassParameters.AccuracyColors[ColorIndex] = FLinearColor::Black;
+			Parameters.AccuracyColors[ColorIndex] = FLinearColor::Black;
 		}
 	}
 	// LOD / HLOD colors
@@ -76,11 +77,11 @@ void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDe
 		int32 ColorIndex = 0;
 		for (; ColorIndex < NumColors; ++ColorIndex)
 		{
-			PassParameters.LODColors[ColorIndex] = (*Colors)[ColorIndex];
+			Parameters.LODColors[ColorIndex] = (*Colors)[ColorIndex];
 		}
 		for (; ColorIndex < NumLODColorationColors; ++ColorIndex)
 		{
-			PassParameters.LODColors[ColorIndex] = NumColors > 0 ? Colors->Last() : FLinearColor::Black;
+			Parameters.LODColors[ColorIndex] = NumColors > 0 ? Colors->Last() : FLinearColor::Black;
 		}
 	}
 }
@@ -94,7 +95,7 @@ TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePas
 
 	auto* UniformBufferParameters = GraphBuilder.AllocParameters<FDebugViewModePassUniformParameters>();
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, UniformBufferParameters->SceneTextures);
-	SetupDebugViewModePassUniformBufferConstants(View, *UniformBufferParameters);
+	SetupDebugViewModePassUniformBufferConstants(View, UniformBufferParameters->DebugViewMode);
 	UniformBufferParameters->QuadOverdraw = GraphBuilder.CreateUAV(QuadOverdrawTexture);
 	return GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
 }

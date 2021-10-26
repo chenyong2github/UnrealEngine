@@ -754,6 +754,9 @@ FPendingPayloadId::FPendingPayloadId(const FGuid& InBulkDataId)
 	: BulkDataId(InBulkDataId)
 	, Request(UE::DerivedData::EPriority::Low)
 {
+	// The last reference to this can be released by the completion callback, which will deadlock
+	// trying to cancel the request. KeepAlive skips cancellation in the destructor.
+	Request.KeepAlive();
 }
 
 void FPendingPayloadId::Cancel()

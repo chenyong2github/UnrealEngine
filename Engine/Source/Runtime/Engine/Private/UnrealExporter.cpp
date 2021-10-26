@@ -243,7 +243,20 @@ bool UExporter::RunAssetExportTask(class UAssetExportTask* Task)
 	UExporter*	Exporter	= Task->Exporter;
 	FString		Extension	= FPaths::GetExtension(Task->Filename);
 
-	if (!Exporter)
+	// We were provided with an exporter, check to see if its compatible with the asset we want to export
+	if (Exporter)
+	{
+		if (UObject* Object = Task->Object.Get())
+		{
+			if (!Object->IsA(Exporter->SupportedClass))
+			{
+				Task->Errors.Add(FString::Printf(TEXT("Chosen exporter '%s' does not support the exported object's class '%s'!"), *Exporter->GetName(), *Object->GetClass()->GetName()));
+				UE_LOG(LogExporter, Warning, TEXT( "%s" ), *Task->Errors.Last());
+				return false;
+			}
+		}
+	}
+	else
 	{
 		// look for an exporter with all possible extensions, so an exporter can have something like *.xxx.yyy as an extension
 		int32 SearchStart = 0;

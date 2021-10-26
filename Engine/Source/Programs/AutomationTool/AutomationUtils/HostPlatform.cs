@@ -58,11 +58,17 @@ namespace AutomationTool
 		abstract public string RelativeBinariesFolder { get; }
 
 		/// <summary>
-		/// Full path to the UE4 Editor executable for the current platform.
+		/// Full path to the UnrealEditor executable for the current platform.
 		/// </summary>
-		/// <param name="UE4Exe"></param>
+		/// <param name="UnrealExe"></param>
 		/// <returns></returns>
-		abstract public string GetUE4ExePath(string UE4Exe);
+		abstract public string GetUnrealExePath(string UnrealExe);
+
+		[Obsolete("Deprecated in 5.0; use GetUnrealExePath() instead")]
+		public string GetUE4ExePath(string UE4Exe)
+		{
+			return GetUnrealExePath(UE4Exe);
+		}
 
 		/// <summary>
 		/// Log folder for local builds.

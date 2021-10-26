@@ -617,8 +617,7 @@ FNiagaraSystemSimulation::~FNiagaraSystemSimulation()
 bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup InTickGroup)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init);
-	UNiagaraSystem* System = InSystem;
-	WeakSystem = System;
+	System = InSystem;
 
 	EffectType = InSystem->GetEffectType();
 	SystemTickGroup = InTickGroup;
@@ -781,7 +780,6 @@ void FNiagaraSystemSimulation::Destroy()
 
 UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterCollectionInstance(UNiagaraParameterCollection* Collection)
 {
-	UNiagaraSystem* System = WeakSystem.Get();
 	UNiagaraParameterCollectionInstance* Ret = nullptr;
 
 	if (System)
@@ -1135,7 +1133,6 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
-	UNiagaraSystem* System = WeakSystem.Get();
 
 #if STATS
 	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
@@ -1325,7 +1322,6 @@ void FNiagaraSystemSimulation::UpdateTickGroups_GameThread()
 	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
 	check(WorldManager != nullptr);
 
-	UNiagaraSystem* System = WeakSystem.Get();
 	check(System != nullptr);
 
 	// Transfer promoted instances to the new tick group
@@ -1389,7 +1385,6 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	UNiagaraSystem* System = WeakSystem.Get();
 	FScopeCycleCounterUObject AdditionalScope(System, GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
 	FNiagaraCrashReporterScope CRScope(this);
@@ -1680,7 +1675,6 @@ void FNiagaraSystemSimulation::PrepareForSystemSimulate(FNiagaraSystemSimulation
 	SpawnInstanceParameterDataSet.Allocate(NumInstances);
 	UpdateInstanceParameterDataSet.Allocate(NumInstances);
 
-	UNiagaraSystem* System = GetSystem();
 	check(System != nullptr);
 	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors = System->GetEmitterExecutionStateAccessors();
 
@@ -1902,8 +1896,6 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 		return;
 	}
 
-
-	UNiagaraSystem* System = GetSystem();
 	check(System != nullptr);
 #if STATS
 	System->GetStatData().AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>((uint64)this, ENiagaraScriptUsage::SystemSpawnScript), GetSpawnExecutionContext()->ReportStats());
@@ -2005,8 +1997,6 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	// Remove from pending promotions list
 	PendingTickGroupPromotions.RemoveSingleSwap(Instance);
 
-	UNiagaraSystem* System = WeakSystem.Get();
-
 	if(System)
 	{
 		System->UnregisterActiveInstance();
@@ -2043,7 +2033,6 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 
 	SetInstanceState(Instance, ENiagaraSystemInstanceState::PendingSpawn);
 	
-	UNiagaraSystem* System = WeakSystem.Get();
 	if(System)
 	{
 		System->RegisterActiveInstance();
@@ -2255,7 +2244,6 @@ void FNiagaraSystemSimulation::BuildConstantBufferTable(
 
 ENiagaraGPUTickHandlingMode FNiagaraSystemSimulation::GetGPUTickHandlingMode()const
 {
-	const UNiagaraSystem* System = GetSystem();
 	if (DispatchInterface && FNiagaraUtilities::AllowGPUParticles(DispatchInterface->GetShaderPlatform()) && System && System->HasAnyGPUEmitters())
 	{
 		//TODO: Maybe some DI post ticks can even be done concurrent too which would also remove this restriction.

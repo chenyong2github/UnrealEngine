@@ -81,9 +81,6 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 
 	WarpBlendContexts.Empty();
 
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, OriginCompId);
-
 	if (WarpBlendInterface.IsValid() == false && !CreateWarpBlendFromConfig())
 	{
 		// Ignore broken MPCDI config for other attempts
@@ -92,6 +89,9 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config for viewport '%s'"), *InViewport->GetId());
 		return false;
 	}
+
+	// Find origin component if it exists
+	InitializeOriginComponent(InViewport, OriginCompId);
 
 	// Finally, initialize internal views data container
 	WarpBlendContexts.AddDefaulted(2);

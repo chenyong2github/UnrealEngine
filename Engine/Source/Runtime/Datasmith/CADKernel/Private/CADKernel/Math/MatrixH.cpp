@@ -10,27 +10,6 @@ namespace CADKernel
 
 	const FMatrixH FMatrixH::Identity;
 
-	FPoint FMatrixH::Multiply(const FPoint& Point) const
-	{
-		return FPoint(
-			Point.X * Get(0, 0) + Point.Y * Get(0, 1) + Point.Z * Get(0, 2) + Get(0, 3),
-			Point.X * Get(1, 0) + Point.Y * Get(1, 1) + Point.Z * Get(1, 2) + Get(1, 3),
-			Point.X * Get(2, 0) + Point.Y * Get(2, 1) + Point.Z * Get(2, 2) + Get(2, 3)
-		);
-	}
-
-	/**
-	 * Apply only rotation matrix to the vector
-	 */
-	FPoint FMatrixH::MultiplyVector(const FPoint& Vector) const
-	{
-		return FPoint(
-			Vector.X * Get(0, 0) + Vector.Y * Get(0, 1) + Vector.Z * Get(0, 2),
-			Vector.X * Get(1, 0) + Vector.Y * Get(1, 1) + Vector.Z * Get(1, 2),
-			Vector.X * Get(2, 0) + Vector.Y * Get(2, 1) + Vector.Z * Get(2, 2)
-		);
-	}
-
 	void FMatrixH::BuildChangeOfCoordinateSystemMatrix(const FPoint& Xaxis, const FPoint& Yaxis, const FPoint& Zaxis, const FPoint& Origin)
 	{
 		Get(0, 0) = Xaxis[0];
@@ -127,115 +106,14 @@ namespace CADKernel
 		return Matrix;
 	}
 
-	FMatrixH FMatrixH::operator*(const FMatrixH& InMatrix) const
+	FMatrixH FMatrixH::MakeScaleMatrix(FPoint& Scale)
 	{
-		FMatrixH Result;
-
-		for (int32 Index = 0; Index < 4; Index++)
-		{
-			for (int32 Jndex = 0; Jndex < 4; Jndex++)
-			{
-				Result.Get(Index, Jndex) = 0;
-				for (int32 Kndex = 0; Kndex < 4; Kndex++)
-				{
-					Result.Get(Index, Jndex) = Result.Get(Index, Jndex) + (Get(Index, Kndex) * InMatrix.Get(Kndex, Jndex));
-				}
-			}
-		}
-		return Result;
-	}
-
-	FMatrixH FMatrixH::operator+(const FMatrixH& InMatrix) const
-	{
-		FMatrixH Result;
-		for (int32 i = 0; i < 16; i++)
-		{
-			Result.Matrix[i] = Matrix[i] + InMatrix.Matrix[i];
-		}
-		return Result;
-	}
-
-	FPoint FMatrixH::PointRotation(const FPoint& PointToRotate, const FPoint& Origin) const
-	{
-		FPoint Result = Origin;
-		for (int32 Index = 0; Index < 3; Index++)
-		{
-			for (int32 Jndex = 0; Jndex < 3; Jndex++)
-			{
-				Result[Index] += Get(Index, Jndex) * (PointToRotate[Jndex] - Origin[Jndex]);
-			}
-		}
-		return Result;
-	}
-
-	FVector FMatrixH::PointRotation(const FVector& PointToRotate, const FVector& Origin) const
-	{
-		FVector Result = Origin;
-		for (int32 Index = 0; Index < 3; Index++)
-		{
-			for (int32 Jndex = 0; Jndex < 3; Jndex++)
-			{
-				Result[Index] += Get(Index, Jndex) * (PointToRotate[Jndex] - Origin[Jndex]);
-			}
-		}
-		return Result;
-	}
-
-	FPoint2D FMatrixH::PointRotation(const FPoint2D& PointToRotate, const FPoint2D& Origin) const
-	{
-		FPoint2D Result = Origin;
-		for (int32 Index = 0; Index < 2; Index++)
-		{
-			for (int32 Jndex = 0; Jndex < 2; Jndex++)
-			{
-				Result[Index] += Get(Index, Jndex) * (PointToRotate[Jndex] - Origin[Jndex]);
-			}
-		}
-		return Result;
-	}
-
-	FPoint FMatrixH::Column(int32 Index) const
-	{
-		return FPoint(Get(0, Index), Get(1, Index), Get(2, Index));
-	}
-
-	FPoint FMatrixH::Row(int32 Index) const
-	{
-		return FPoint(Get(Index, 0), Get(Index, 1), Get(Index, 2));
+		return MakeScaleMatrix(Scale.X, Scale.Y, Scale.Z);
 	}
 
 	void FMatrixH::Inverse()
 	{
 		InverseMatrixN(Matrix, 4);
-	}
-
-	void FMatrixH::Transpose()
-	{
-		FMatrixH Tmp = *this;
-		for (int32 Index = 0; Index < 4; Index++)
-		{
-			for (int32 Jndex = 0; Jndex < 4; Jndex++)
-			{
-				Get(Index, Jndex) = Tmp.Get(Jndex, Index);
-			}
-		}
-	}
-
-	void FMatrixH::GetMatrixDouble(double* OutMatrix) const
-	{
-		memcpy(OutMatrix, Matrix, 16 * sizeof(double));
-	}
-
-	void FMatrixH::CrossProduct(const FPoint& vec)
-	{
-		SetIdentity();
-		Get(1, 0) = -vec.Z;
-		Get(2, 0) = vec.Y;
-		Get(0, 1) = vec.Z;
-		Get(2, 1) = -vec.X;
-		Get(0, 2) = -vec.Y;
-		Get(1, 2) = vec.X;
-		Get(3, 3) = 1.0;
 	}
 
 	void FMatrixH::Print(EVerboseLevel level) const

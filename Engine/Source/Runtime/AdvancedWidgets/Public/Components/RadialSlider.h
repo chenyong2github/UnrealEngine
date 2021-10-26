@@ -64,6 +64,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin = "0", ClampMax = "360"), Category = Appearance)
 	float AngularOffset;
 
+	/** Start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	FVector2D HandStartEndRatio;
+
 	/** The progress bar style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
 	FSliderStyle WidgetStyle;
@@ -79,6 +83,10 @@ public:
 	/** The color to draw the slider handle in. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
 	FLinearColor SliderHandleColor;
+
+	/** The color to draw the center background in. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	FLinearColor CenterBackgroundColor;
 
 	/** Whether the handle is interactive or fixed. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
@@ -99,6 +107,18 @@ public:
 	/** Should the slider be focusable? */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
 	bool IsFocusable;
+
+	/** Whether the value is changed when dragging vertically as opposed to along the radial curve.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Behavior")
+	bool UseVerticalDrag;
+
+	/** Whether to show the slider handle (thumb).  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	bool ShowSliderHandle;
+
+	/** Whether to show the slider hand.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	bool ShowSliderHand;
 
 	/** Invoked when the mouse is pressed and a capture begins. */
 	UPROPERTY(BlueprintAssignable, Category="Widget Event")
@@ -160,6 +180,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Behaviour")
 	void SetAngularOffset(float InValue);
 
+	/** Sets the start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetHandStartEndRatio(FVector2D InValue);
+
 	/** Sets the handle to be interactive or fixed */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetLocked(bool InValue);
@@ -179,6 +203,22 @@ public:
 	/** Sets the color of the handle bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetSliderHandleColor(FLinearColor InValue);
+
+	/** Sets the color of the slider bar */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetCenterBackgroundColor(FLinearColor InValue);
+
+	/** Set whether the value is changed when dragging vertically as opposed to along the radial curve.  */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	void SetUseVerticalDrag(bool InUseVerticalDrag);
+
+	/** Whether to show the slider handle (thumb). */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetShowSliderHandle(bool InShowSliderHandle);
+
+	/** Whether to show the slider hand. */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetShowSliderHand(bool InShowSliderHand);
 	
 	// UWidget interface
 	virtual void SynchronizeProperties() override;

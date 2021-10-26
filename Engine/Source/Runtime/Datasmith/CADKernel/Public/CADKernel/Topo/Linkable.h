@@ -36,12 +36,12 @@ namespace CADKernel
 
 		const TSharedRef<const EntityType> GetLinkActiveEntity() const
 		{
-			if (!TopologicalLink.IsValid()) 
+			if (!TopologicalLink.IsValid())
 			{
 				return StaticCastSharedRef<const EntityType>(AsShared());
 			}
-			TWeakPtr<EntityType>& ActiveEntity = TopologicalLink->GetActiveEntity();
-			return ActiveEntity.Pin().ToSharedRef();
+			EntityType* ActiveEntity = TopologicalLink->GetActiveEntity();
+			return StaticCastSharedRef<EntityType>(ActiveEntity->AsShared());
 		}
 
 		TSharedRef<EntityType> GetLinkActiveEntity()
@@ -50,34 +50,34 @@ namespace CADKernel
 			{
 				return StaticCastSharedRef<EntityType>(AsShared());
 			}
-			TWeakPtr<EntityType> ActiveEntity = TopologicalLink->GetActiveEntity();
-			return ActiveEntity.Pin().ToSharedRef();
+			EntityType* ActiveEntity = TopologicalLink->GetActiveEntity();
+			return StaticCastSharedRef<EntityType>(ActiveEntity->AsShared());
 		}
 
-		bool IsActiveEntity() const 
+		bool IsActiveEntity() const
 		{
 			if (!TopologicalLink.IsValid())
 			{
 				return true;
 			}
-			
-			if(TopologicalLink->GetTwinsEntitieNum() == 1)
+
+			if (TopologicalLink->GetTwinsEntitieNum() == 1)
 			{
 				return true;
 			}
 
-			return (TopologicalLink->GetActiveEntity() == StaticCastSharedRef<const EntityType>(AsShared()));
+			return (TopologicalLink->GetActiveEntity() == this);
 		}
 
 		void Activate()
 		{
 			if (TopologicalLink.IsValid())
 			{
-				TopologicalLink->ActivateEntity(StaticCastSharedRef<EntityType>(AsShared()));
+				TopologicalLink->ActivateEntity(*this);
 			}
 		}
 
-		virtual TSharedPtr<const LinkType> GetLink() const
+		virtual TSharedPtr<LinkType> GetLink() const
 		{
 			ensureCADKernel(TopologicalLink.IsValid());
 			return TopologicalLink;
@@ -87,7 +87,7 @@ namespace CADKernel
 		{
 			if (!TopologicalLink.IsValid())
 			{
-				TopologicalLink = FEntity::MakeShared<LinkType>(StaticCastSharedRef<EntityType>(AsShared()));
+				TopologicalLink = FEntity::MakeShared<LinkType>((EntityType&)(*this));
 			}
 			return TopologicalLink;
 		}
@@ -99,11 +99,15 @@ namespace CADKernel
 
 		bool IsLinkedTo(TSharedRef<EntityType> Entity) const
 		{
-			if (Entity == AsShared())
+			if (this == &*Entity)
 			{
 				return true;
 			}
-			return (Entity->TopologicalLink == TopologicalLink);
+			if(TopologicalLink.IsValid())
+			{
+				return (Entity->TopologicalLink == TopologicalLink);
+			}
+			return false;
 		}
 
 		int32 GetTwinsEntityCount() const
@@ -120,29 +124,20 @@ namespace CADKernel
 			return GetTwinsEntityCount() != 1;
 		}
 
-		const TArray<TWeakPtr<EntityType>>& GetTwinsEntities() const
+		const TArray<EntityType*>& GetTwinsEntities() const
 		{
 			if (!TopologicalLink.IsValid())
 			{
-				TopologicalLink = FEntity::MakeShared<LinkType>(ConstCastSharedRef<EntityType>(StaticCastSharedRef<const EntityType>(AsShared())));
+				TopologicalLink = FEntity::MakeShared<LinkType>((EntityType&)(*this));
 			}
 			return TopologicalLink->GetTwinsEntities();
 		}
 
-		const TArray<TWeakPtr<EntityType>>& GetTwinsEntities()
-		{
-			if(!TopologicalLink.IsValid())
-			{
-				TopologicalLink = FEntity::MakeShared<LinkType>(StaticCastSharedRef<EntityType>(AsShared()));
-			}
-			return TopologicalLink->GetTwinsEntities();
-		}
-
-		virtual void RemoveFromLink() 
+		virtual void RemoveFromLink()
 		{
 			if (TopologicalLink.IsValid())
 			{
-				TopologicalLink->RemoveEntity(StaticCastSharedRef<EntityType>(AsShared()));
+				TopologicalLink->RemoveEntity((EntityType&)*this);
 				TopologicalLink.Reset();
 			}
 		}
@@ -151,12 +146,12 @@ namespace CADKernel
 		{
 			return ((States & EHaveStates::ThinZone) == EHaveStates::ThinZone);
 		}
-		
+
 		virtual void SetThinZone()
 		{
 			States |= EHaveStates::ThinZone;
 		}
-		
+
 		virtual void ResetThinZone()
 		{
 			States &= ~EHaveStates::ThinZone;
@@ -164,16 +159,16 @@ namespace CADKernel
 
 	protected:
 
-		void MakeLink(TSharedRef<EntityType> Twin)
+		void MakeLink(EntityType& Twin)
 		{
 			TSharedPtr<LinkType> Link1 = TopologicalLink;
-			TSharedPtr<LinkType> Link2 = Twin->TopologicalLink;
+			TSharedPtr<LinkType> Link2 = Twin.TopologicalLink;
 
 			if (!Link1.IsValid() && !Link2.IsValid())
 			{
-				TopologicalLink = FEntity::MakeShared<LinkType>(StaticCastSharedRef<EntityType>(AsShared()));
-				TopologicalLink->AddEntity(Twin);
-				Twin->SetTopologicalLink(TopologicalLink);
+				TopologicalLink = FEntity::MakeShared<LinkType>((EntityType&)(*this));
+				TopologicalLink->AddEntity(&Twin);
+				Twin.SetTopologicalLink(TopologicalLink);
 			}
 			else if (Link1.IsValid() && Link2.IsValid())
 			{
@@ -186,29 +181,29 @@ namespace CADKernel
 				{
 					Swap(Link1, Link2);
 				}
-				
+
 				Link1->AddEntities(Link2->GetTwinsEntities());
-				for (const TWeakPtr<EntityType>& Entity : Link2->GetTwinsEntities())
+				for (EntityType* Entity : Link2->GetTwinsEntities())
 				{
-					Entity.Pin()->SetTopologicalLink(Link1);
+					Entity->SetTopologicalLink(Link1);
 				}
 			}
 			else
 			{
 				if (Link1.IsValid())
 				{
-					Link1->AddEntity(Twin);
-					Twin->SetTopologicalLink(Link1);
+					Link1->AddEntity(&Twin);
+					Twin.SetTopologicalLink(Link1);
 				}
 				else
 				{
-					Link2->AddEntity(StaticCastSharedRef<EntityType>(AsShared()));
+					Link2->AddEntity(this);
 					SetTopologicalLink(Link2);
 				}
 			}
 		}
 
-	protected :
+	protected:
 		void SetTopologicalLink(TSharedPtr<LinkType> Link)
 		{
 			TopologicalLink = Link;

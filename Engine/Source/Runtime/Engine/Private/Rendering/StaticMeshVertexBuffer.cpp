@@ -58,9 +58,9 @@ void FStaticMeshVertexBuffer::Init(uint32 InNumVertices, uint32 InNumTexCoords, 
 * @param InVertices - The vertices to initialize the buffer with.
 * @param InNumTexCoords - The number of texture coordinate to store in the buffer.
 */
-void FStaticMeshVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess)
+void FStaticMeshVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, const FStaticMeshVertexBufferFlags & InInitFlags)
 {
-	Init(InVertices.Num(), InNumTexCoords, bNeedsCPUAccess);
+	Init(InVertices.Num(), InNumTexCoords, InInitFlags.bNeedsCPUAccess);
 
 	// Copy the vertices into the buffer.
 	for (int32 VertexIndex = 0; VertexIndex < InVertices.Num(); VertexIndex++)
@@ -71,7 +71,7 @@ void FStaticMeshVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVerti
 
 		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 		{
-			SetVertexUV(DestVertexIndex, UVIndex, SourceVertex.UVs[UVIndex]);
+			SetVertexUV(DestVertexIndex, UVIndex, SourceVertex.UVs[UVIndex], InInitFlags.bUseBackwardsCompatibleF16TruncUVs);
 		}
 	}
 }
@@ -143,7 +143,7 @@ void FStaticMeshVertexBuffer::ConvertHalfTexcoordsToFloat(const uint8* InData)
 }
 
 
-void FStaticMeshVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend )
+void FStaticMeshVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend, bool bUseBackwardsCompatibleF16TruncUVs)
 {
 	if ((TangentsData == nullptr || TexcoordData == nullptr) && NumVerticesToAppend > 0)
 	{
@@ -179,7 +179,7 @@ void FStaticMeshVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vert
 				SetVertexTangents( DestVertexIndex, SourceVertex.TangentX, SourceVertex.TangentY, SourceVertex.TangentZ );
 				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 				{
-					SetVertexUV( DestVertexIndex, UVIndex, SourceVertex.UVs[ UVIndex ] );
+					SetVertexUV( DestVertexIndex, UVIndex, SourceVertex.UVs[ UVIndex ], bUseBackwardsCompatibleF16TruncUVs );
 				}
 			}
 		}

@@ -10,7 +10,7 @@
 class UOptimusResourceDescription;
 
 
-UCLASS(NotPlaceable)
+UCLASS(Hidden)
 class UOptimusNode_GetResource
 	: public UOptimusNode_ResourceAccessorBase
 {

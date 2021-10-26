@@ -23,9 +23,62 @@
 #define RECAST_H
 
 #include "CoreMinimal.h"
+#include "RecastLargeWorldCoordinates.h"
 
+//@UE BEGIN Adding support for LWCoords.
 /// The value of PI used by Recast.
-static const float RC_PI = 3.14159265f;
+static const rcReal RC_PI = 3.14159265358979323846;
+
+inline float rcSin(float x)
+{
+	return sinf(x);
+}
+
+inline double rcSin(double x)
+{
+	return sin(x);
+}
+
+inline float rcCos(float x)
+{
+	return cosf(x);
+}
+
+inline double rcCos(double x)
+{
+	return cos(x);
+}
+
+inline float rcFloor(float x)
+{
+	return floorf(x);
+}
+
+inline double rcFloor(double x)
+{
+	return floor(x);
+}
+
+inline float rcCeil(float x)
+{
+	return ceilf(x);
+}
+
+inline double rcCeil(double x)
+{
+	return ceil(x);
+}
+
+inline float rcAbs(float x)
+{
+	return fabsf(x);
+}
+
+inline double rcAbs(double x)
+{
+	return fabs(x);
+}
+//@UE END Adding support for LWCoords.
 
 /// Recast log categories.
 /// @see rcContext
@@ -208,19 +261,19 @@ struct rcConfig
 	int borderSize;
 
 	/// The xz-plane cell size to use for fields. [Limit: > 0] [Units: wu] 
-	float cs;
+	rcReal cs;
 
 	/// The y-axis cell size to use for fields. [Limit: > 0] [Units: wu]
-	float ch;
+	rcReal ch;
 
 	/// The minimum bounds of the field's AABB. [(x, y, z)] [Units: wu]
-	float bmin[3]; 
+	rcReal bmin[3];
 
 	/// The maximum bounds of the field's AABB. [(x, y, z)] [Units: wu]
-	float bmax[3];
+	rcReal bmax[3];
 
 	/// The maximum slope that is considered walkable. [Limits: 0 <= value < 90] [Units: Degrees] 
-	float walkableSlopeAngle;
+	rcReal walkableSlopeAngle;
 
 	/// Minimum floor to 'ceiling' height that will still allow the floor area to 
 	/// be considered walkable. [Limit: >= 3] [Units: vx] 
@@ -238,7 +291,7 @@ struct rcConfig
 	
 	/// The maximum distance a simplified contour's border edges should deviate 
 	/// the original raw contour. [Limit: >=0] [Units: wu]
-	float maxSimplificationError;
+	rcReal maxSimplificationError;
 	
 	/// The minimum number of cells allowed to form isolated island areas. [Limit: >=0] [Units: vx] 
 	int minRegionArea;
@@ -259,11 +312,11 @@ struct rcConfig
 	
 	/// Sets the sampling distance to use when generating the detail mesh.
 	/// (For height detail only.) [Limits: 0 or >= 0.9] [Units: wu] 
-	float detailSampleDist;
+	rcReal detailSampleDist;
 	
 	/// The maximum distance the detail mesh surface should deviate from heightfield
 	/// data. (For height detail only.) [Limit: >=0] [Units: wu] 
-	float detailSampleMaxError;
+	rcReal detailSampleMaxError;
 };
 
 /// Defines the number of bits allocated to rcSpan::smin and rcSpan::smax.
@@ -332,10 +385,10 @@ struct rcHeightfield
 {
 	int width;			///< The width of the heightfield. (Along the x-axis in cell units.)
 	int height;			///< The height of the heightfield. (Along the z-axis in cell units.)
-	float bmin[3];  	///< The minimum bounds in world space. [(x, y, z)]
-	float bmax[3];		///< The maximum bounds in world space. [(x, y, z)]
-	float cs;			///< The size of each cell. (On the xz-plane.)
-	float ch;			///< The height of each cell. (The minimum increment along the y-axis.)
+	rcReal bmin[3];  	///< The minimum bounds in world space. [(x, y, z)]
+	rcReal bmax[3];		///< The maximum bounds in world space. [(x, y, z)]
+	rcReal cs;			///< The size of each cell. (On the xz-plane.)
+	rcReal ch;			///< The height of each cell. (The minimum increment along the y-axis.)
 	rcSpan** spans;		///< Heightfield of spans (width*height).
 	rcSpanPool* pools;	///< Linked list of span pools.
 	rcSpan* freelist;	///< The next free span.
@@ -375,10 +428,10 @@ struct rcCompactHeightfield
 	int borderSize;				///< The AABB border size used during the build of the field. (See: rcConfig::borderSize)
 	unsigned short maxDistance;	///< The maximum distance value of any span within the field. 
 	unsigned short maxRegions;	///< The maximum region id of any span within the field. 
-	float bmin[3];				///< The minimum bounds in world space. [(x, y, z)]
-	float bmax[3];				///< The maximum bounds in world space. [(x, y, z)]
-	float cs;					///< The size of each cell. (On the xz-plane.)
-	float ch;					///< The height of each cell. (The minimum increment along the y-axis.)
+	rcReal bmin[3];				///< The minimum bounds in world space. [(x, y, z)]
+	rcReal bmax[3];				///< The maximum bounds in world space. [(x, y, z)]
+	rcReal cs;					///< The size of each cell. (On the xz-plane.)
+	rcReal ch;					///< The height of each cell. (The minimum increment along the y-axis.)
 	rcCompactCell* cells;		///< Array of cells. [Size: #width*#height]
 	rcCompactSpan* spans;		///< Array of spans. [Size: #spanCount]
 	unsigned short* dist;		///< Array containing border distance data. [Size: #spanCount]
@@ -389,10 +442,10 @@ struct rcCompactHeightfield
 /// @see rcHeightfieldLayerSet
 struct rcHeightfieldLayer
 {
-	float bmin[3];				///< The minimum bounds in world space. [(x, y, z)]
-	float bmax[3];				///< The maximum bounds in world space. [(x, y, z)]
-	float cs;					///< The size of each cell. (On the xz-plane.)
-	float ch;					///< The height of each cell. (The minimum increment along the y-axis.)
+	rcReal bmin[3];				///< The minimum bounds in world space. [(x, y, z)]
+	rcReal bmax[3];				///< The maximum bounds in world space. [(x, y, z)]
+	rcReal cs;					///< The size of each cell. (On the xz-plane.)
+	rcReal ch;					///< The height of each cell. (The minimum increment along the y-axis.)
 	int width;					///< The width of the heightfield. (Along the x-axis in cell units.)
 	int height;					///< The height of the heightfield. (Along the z-axis in cell units.)
 	int minx;					///< The minimum x-bounds of usable data.
@@ -432,10 +485,10 @@ struct rcContourSet
 {
 	rcContour* conts;	///< An array of the contours in the set. [Size: #nconts]
 	int nconts;			///< The number of contours in the set.
-	float bmin[3];  	///< The minimum bounds in world space. [(x, y, z)]
-	float bmax[3];		///< The maximum bounds in world space. [(x, y, z)]
-	float cs;			///< The size of each cell. (On the xz-plane.)
-	float ch;			///< The height of each cell. (The minimum increment along the y-axis.)
+	rcReal bmin[3];  	///< The minimum bounds in world space. [(x, y, z)]
+	rcReal bmax[3];		///< The maximum bounds in world space. [(x, y, z)]
+	rcReal cs;			///< The size of each cell. (On the xz-plane.)
+	rcReal ch;			///< The height of each cell. (The minimum increment along the y-axis.)
 	int width;			///< The width of the set. (Along the x-axis in cell units.) 
 	int height;			///< The height of the set. (Along the z-axis in cell units.) 
 	int borderSize;		///< The AABB border size used to generate the source data from which the contours were derived.
@@ -448,7 +501,7 @@ struct rcContourSet
 struct rcClusterSet
 {
 	int nclusters;			///< The number of clusters
-	float* center;			///< Center points per clusters [Size: 3 * #nclusters]
+	rcReal* center;			///< Center points per clusters [Size: 3 * #nclusters]
 	unsigned short* nlinks;	///< Number of links per cluster [Size: #nclusters]
 	unsigned short* links;	///< Neighbor Ids per cluster [Size: sum of #nlinks]
 };
@@ -468,10 +521,10 @@ struct rcPolyMesh
 	int npolys;				///< The number of polygons.
 	int maxpolys;			///< The number of allocated polygons.
 	int nvp;				///< The maximum number of vertices per polygon.
-	float bmin[3];			///< The minimum bounds in world space. [(x, y, z)]
-	float bmax[3];			///< The maximum bounds in world space. [(x, y, z)]
-	float cs;				///< The size of each cell. (On the xz-plane.)
-	float ch;				///< The height of each cell. (The minimum increment along the y-axis.)
+	rcReal bmin[3];			///< The minimum bounds in world space. [(x, y, z)]
+	rcReal bmax[3];			///< The maximum bounds in world space. [(x, y, z)]
+	rcReal cs;				///< The size of each cell. (On the xz-plane.)
+	rcReal ch;				///< The height of each cell. (The minimum increment along the y-axis.)
 	int borderSize;			///< The AABB border size used to generate the source data from which the mesh was derived.
 };
 
@@ -481,7 +534,7 @@ struct rcPolyMesh
 struct rcPolyMeshDetail
 {
 	unsigned int* meshes;	///< The sub-mesh data. [Size: 4*#nmeshes] 
-	float* verts;			///< The mesh vertices. [Size: 3*#nverts] 
+	rcReal* verts;			///< The mesh vertices. [Size: 3*#nverts] 
 	unsigned char* tris;	///< The mesh triangles. [Size: 4*#ntris] 
 	int nmeshes;			///< The number of sub-meshes defined by #meshes.
 	int nverts;				///< The number of vertices in #verts.
@@ -665,12 +718,16 @@ template<class T> inline void rcSwap(T& a, T& b) { T t = a; a = b; b = t; }
 ///  @param[in]		b	Value B
 ///  @return The minimum of the two values.
 template<class T> inline T rcMin(T a, T b) { return a < b ? a : b; }
+/// When used with a mixture of rcReal and other types (in practice floats and doubles mixed here) this overridden function will be preferred by the compiler.
+inline rcReal rcMin(rcReal a, rcReal b) { return rcMin<rcReal>(a, b); }
 
 /// Returns the maximum of two values.
 ///  @param[in]		a	Value A
 ///  @param[in]		b	Value B
 ///  @return The maximum of the two values.
 template<class T> inline T rcMax(T a, T b) { return a > b ? a : b; }
+/// When used with a mixture of rcReal and other types (in practice floats and doubles mixed here) this overridden function will be preferred by the compiler.
+inline rcReal rcMax(rcReal a, rcReal b) { return rcMax<rcReal>(a, b); }
 
 /// Returns the absolute value.
 ///  @param[in]		a	The value.
@@ -688,11 +745,13 @@ template<class T> inline T rcSqr(T a) { return a*a; }
 ///  @param[in]		mx	The maximum permitted return value.
 ///  @return The value, clamped to the specified range.
 template<class T> inline T rcClamp(T v, T mn, T mx) { return v < mn ? mn : (v > mx ? mx : v); }
+/// When used with a mixture of rcReal and other types (in practice floats and doubles mixed here) this overridden function will be preferred by the compiler.
+inline rcReal rcClamp(rcReal v, rcReal mn, rcReal mx) { return v < mn ? mn : (v > mx ? mx : v); }
 
 /// Returns the square root of the value.
 ///  @param[in]		x	The value.
 ///  @return The square root of the vlaue.
-float rcSqrt(float x);
+rcReal rcSqrt(rcReal x);
 
 /// @}
 /// @name Vector helper functions.
@@ -702,7 +761,7 @@ float rcSqrt(float x);
 ///  @param[out]	dest	The cross product. [(x, y, z)]
 ///  @param[in]		v1		A Vector [(x, y, z)]
 ///  @param[in]		v2		A vector [(x, y, z)]
-inline void rcVcross(float* dest, const float* v1, const float* v2)
+inline void rcVcross(rcReal* dest, const rcReal* v1, const rcReal* v2)
 {
 	dest[0] = v1[1]*v2[2] - v1[2]*v2[1];
 	dest[1] = v1[2]*v2[0] - v1[0]*v2[2];
@@ -713,7 +772,7 @@ inline void rcVcross(float* dest, const float* v1, const float* v2)
 ///  @param[in]		v1	A Vector [(x, y, z)]
 ///  @param[in]		v2	A vector [(x, y, z)]
 /// @return The dot product.
-inline float rcVdot(const float* v1, const float* v2)
+inline rcReal rcVdot(const rcReal* v1, const rcReal* v2)
 {
 	return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
 }
@@ -723,7 +782,7 @@ inline float rcVdot(const float* v1, const float* v2)
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to scale and add to @p v1. [(x, y, z)]
 ///  @param[in]		s		The amount to scale @p v2 by before adding to @p v1.
-inline void rcVmad(float* dest, const float* v1, const float* v2, const float s)
+inline void rcVmad(rcReal* dest, const rcReal* v1, const rcReal* v2, const rcReal s)
 {
 	dest[0] = v1[0]+v2[0]*s;
 	dest[1] = v1[1]+v2[1]*s;
@@ -734,7 +793,7 @@ inline void rcVmad(float* dest, const float* v1, const float* v2, const float s)
 ///  @param[out]	dest	The result vector. [(x, y, z)]
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to add to @p v1. [(x, y, z)]
-inline void rcVadd(float* dest, const float* v1, const float* v2)
+inline void rcVadd(rcReal* dest, const rcReal* v1, const rcReal* v2)
 {
 	dest[0] = v1[0]+v2[0];
 	dest[1] = v1[1]+v2[1];
@@ -745,7 +804,7 @@ inline void rcVadd(float* dest, const float* v1, const float* v2)
 ///  @param[out]	dest	The result vector. [(x, y, z)]
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to subtract from @p v1. [(x, y, z)]
-inline void rcVsub(float* dest, const float* v1, const float* v2)
+inline void rcVsub(rcReal* dest, const rcReal* v1, const rcReal* v2)
 {
 	dest[0] = v1[0]-v2[0];
 	dest[1] = v1[1]-v2[1];
@@ -755,7 +814,7 @@ inline void rcVsub(float* dest, const float* v1, const float* v2)
 /// Selects the minimum value of each element from the specified vectors.
 ///  @param[in,out]	mn	A vector.  (Will be updated with the result.) [(x, y, z)]
 ///  @param[in]		v	A vector. [(x, y, z)]
-inline void rcVmin(float* mn, const float* v)
+inline void rcVmin(rcReal* mn, const rcReal* v)
 {
 	mn[0] = rcMin(mn[0], v[0]);
 	mn[1] = rcMin(mn[1], v[1]);
@@ -765,7 +824,7 @@ inline void rcVmin(float* mn, const float* v)
 /// Selects the maximum value of each element from the specified vectors.
 ///  @param[in,out]	mx	A vector.  (Will be updated with the result.) [(x, y, z)]
 ///  @param[in]		v	A vector. [(x, y, z)]
-inline void rcVmax(float* mx, const float* v)
+inline void rcVmax(rcReal* mx, const rcReal* v)
 {
 	mx[0] = rcMax(mx[0], v[0]);
 	mx[1] = rcMax(mx[1], v[1]);
@@ -775,7 +834,7 @@ inline void rcVmax(float* mx, const float* v)
 /// Performs a vector copy.
 ///  @param[out]	dest	The result. [(x, y, z)]
 ///  @param[in]		v		The vector to copy. [(x, y, z)]
-inline void rcVcopy(float* dest, const float* v)
+inline void rcVcopy(rcReal* dest, const rcReal* v)
 {
 	dest[0] = v[0];
 	dest[1] = v[1];
@@ -786,11 +845,11 @@ inline void rcVcopy(float* dest, const float* v)
 ///  @param[in]		v1	A point. [(x, y, z)]
 ///  @param[in]		v2	A point. [(x, y, z)]
 /// @return The distance between the two points.
-inline float rcVdist(const float* v1, const float* v2)
+inline rcReal rcVdist(const rcReal* v1, const rcReal* v2)
 {
-	float dx = v2[0] - v1[0];
-	float dy = v2[1] - v1[1];
-	float dz = v2[2] - v1[2];
+	rcReal dx = v2[0] - v1[0];
+	rcReal dy = v2[1] - v1[1];
+	rcReal dz = v2[2] - v1[2];
 	return rcSqrt(dx*dx + dy*dy + dz*dz);
 }
 
@@ -798,19 +857,19 @@ inline float rcVdist(const float* v1, const float* v2)
 ///  @param[in]		v1	A point. [(x, y, z)]
 ///  @param[in]		v2	A point. [(x, y, z)]
 /// @return The square of the distance between the two points.
-inline float rcVdistSqr(const float* v1, const float* v2)
+inline rcReal rcVdistSqr(const rcReal* v1, const rcReal* v2)
 {
-	float dx = v2[0] - v1[0];
-	float dy = v2[1] - v1[1];
-	float dz = v2[2] - v1[2];
+	rcReal dx = v2[0] - v1[0];
+	rcReal dy = v2[1] - v1[1];
+	rcReal dz = v2[2] - v1[2];
 	return dx*dx + dy*dy + dz*dz;
 }
 
 /// Normalizes the vector.
 ///  @param[in,out]	v	The vector to normalize. [(x, y, z)]
-inline void rcVnormalize(float* v)
+inline void rcVnormalize(rcReal* v)
 {
-	float d = 1.0f / rcSqrt(rcSqr(v[0]) + rcSqr(v[1]) + rcSqr(v[2]));
+	rcReal d = 1.0f / rcSqrt(rcSqr(v[0]) + rcSqr(v[1]) + rcSqr(v[2]));
 	v[0] *= d;
 	v[1] *= d;
 	v[2] *= d;
@@ -827,7 +886,7 @@ inline void rcVnormalize(float* v)
 ///  @param[in]		nv		The number of vertices in the @p verts array.
 ///  @param[out]	bmin	The minimum bounds of the AABB. [(x, y, z)] [Units: wu]
 ///  @param[out]	bmax	The maximum bounds of the AABB. [(x, y, z)] [Units: wu]
-NAVMESH_API void rcCalcBounds(const float* verts, int nv, float* bmin, float* bmax);
+NAVMESH_API void rcCalcBounds(const rcReal* verts, int nv, rcReal* bmin, rcReal* bmax);
 
 /// Calculates the grid size based on the bounding box and grid cell size.
 ///  @ingroup recast
@@ -836,7 +895,7 @@ NAVMESH_API void rcCalcBounds(const float* verts, int nv, float* bmin, float* bm
 ///  @param[in]		cs		The xz-plane cell size. [Limit: > 0] [Units: wu]
 ///  @param[out]	w		The width along the x-axis. [Limit: >= 0] [Units: vx]
 ///  @param[out]	h		The height along the z-axis. [Limit: >= 0] [Units: vx]
-NAVMESH_API void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int* h);
+NAVMESH_API void rcCalcGridSize(const rcReal* bmin, const rcReal* bmax, rcReal cs, int* w, int* h);
 
 /// Initializes a new heightfield.
 ///  @ingroup recast
@@ -849,8 +908,8 @@ NAVMESH_API void rcCalcGridSize(const float* bmin, const float* bmax, float cs, 
 ///  @param[in]		cs		The xz-plane cell size to use for the field. [Limit: > 0] [Units: wu]
 ///  @param[in]		ch		The y-axis cell size to use for field. [Limit: > 0] [Units: wu]
 NAVMESH_API bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int height,
-						 const float* bmin, const float* bmax,
-						 float cs, float ch);
+						 const rcReal* bmin, const rcReal* bmax,
+						 rcReal cs, rcReal ch);
 
 /// Resets all spans of heightfield.
 ///  @ingroup recast
@@ -871,7 +930,7 @@ NAVMESH_API void rcResetHeightfield(rcHeightfield& hf);
 ///  @param[in]		tris				The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
 ///  @param[in]		nt					The number of triangles.
 ///  @param[out]	areas				The triangle area ids. [Length: >= @p nt]
-NAVMESH_API void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle, const float* verts, int nv,
+NAVMESH_API void rcMarkWalkableTriangles(rcContext* ctx, const rcReal walkableSlopeAngle, const rcReal* verts, int nv,
 							 const int* tris, int nt, unsigned char* areas); 
 
 /// Sets the area id of all triangles with a slope below the specified value
@@ -885,7 +944,7 @@ NAVMESH_API void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlo
 ///  @param[in]		tris				The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
 ///  @param[in]		nt					The number of triangles.
 ///  @param[out]	areas				The triangle area ids. [Length: >= @p nt]
-NAVMESH_API void rcMarkWalkableTrianglesCos(rcContext* ctx, const float walkableSlopeCos, const float* verts, int nv,
+NAVMESH_API void rcMarkWalkableTrianglesCos(rcContext* ctx, const rcReal walkableSlopeCos, const rcReal* verts, int nv,
 							    const int* tris, int nt, unsigned char* areas);
 
 /// Sets the area id of all triangles with a slope greater than or equal to the specified value to #RC_NULL_AREA.
@@ -898,7 +957,7 @@ NAVMESH_API void rcMarkWalkableTrianglesCos(rcContext* ctx, const float walkable
 ///  @param[in]		tris				The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
 ///  @param[in]		nt					The number of triangles.
 ///  @param[out]	areas				The triangle area ids. [Length: >= @p nt]
-NAVMESH_API void rcClearUnwalkableTriangles(rcContext* ctx, const float walkableSlopeAngle, const float* verts, int nv,
+NAVMESH_API void rcClearUnwalkableTriangles(rcContext* ctx, const rcReal walkableSlopeAngle, const rcReal* verts, int nv,
 								const int* tris, int nt, unsigned char* areas); 
 
 /// Adds a span to the specified heightfield.
@@ -935,7 +994,7 @@ NAVMESH_API void rcCacheSpans(rcContext* ctx, rcHeightfield& hf, rcSpanCache* ca
 ///  								[Limit: >= 0] [Units: vx]
 ///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
 ///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
-NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const float* v2,
+NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const rcReal* v0, const rcReal* v1, const rcReal* v2,
 						 const unsigned char area, rcHeightfield& solid,
 						 const int flagMergeThr = 1, 
 						 const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
@@ -953,7 +1012,7 @@ NAVMESH_API void rcRasterizeTriangle(rcContext* ctx, const float* v0, const floa
 ///  								[Limit: >= 0] [Units: vx]
 ///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
 ///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
-NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
+NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const rcReal* verts, const int nv,
 						  const int* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1, 
 						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
@@ -971,7 +1030,7 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  								[Limit: >= 0] [Units: vx]
 ///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
 ///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
-NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
+NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const rcReal* verts, const int nv,
 						  const unsigned short* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1, 
 						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
@@ -987,7 +1046,7 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const 
 ///  								[Limit: >= 0] [Units: vx]
 ///  @param[in]     rtzFlags		Flags to change the rasterization behavior			//UE
 ///  @param[in]     rtzMasks		Mask for the rasterization flags [Size: hf.w*hf.h]	//UE
-NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const float* verts, const unsigned char* areas, const int nt,
+NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const rcReal* verts, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1,
 						  const int rasterizationFlags = 0, const int* rasterizationMasks = nullptr); //UE
 
@@ -1089,7 +1148,7 @@ NAVMESH_API bool rcMarkLowAreas(rcContext* ctx, unsigned int height, unsigned ch
 ///  @param[in]		bmax	The maximum of the bounding box. [(x, y, z)]
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf		A populated compact heightfield.
-NAVMESH_API void rcMarkBoxArea(rcContext* ctx, const float* bmin, const float* bmax, unsigned char areaId,
+NAVMESH_API void rcMarkBoxArea(rcContext* ctx, const rcReal* bmin, const rcReal* bmax, unsigned char areaId,
 				   rcCompactHeightfield& chf);
 
 /// Applies the area id to the all spans within the specified convex polygon. 
@@ -1101,8 +1160,8 @@ NAVMESH_API void rcMarkBoxArea(rcContext* ctx, const float* bmin, const float* b
 ///  @param[in]		hmax	The height of the top of the polygon.
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf		A populated compact heightfield.
-NAVMESH_API void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
-						  const float hmin, const float hmax, unsigned char areaId,
+NAVMESH_API void rcMarkConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nverts,
+						  const rcReal hmin, const rcReal hmax, unsigned char areaId,
 						  rcCompactHeightfield& chf);
 
 /// Helper function to offset voncex polygons for rcMarkConvexPolyArea.
@@ -1112,8 +1171,8 @@ NAVMESH_API void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const 
 ///  @param[out]	outVerts	The offset vertices (should hold up to 2 * @p nverts) [Form: (x, y, z) * return value]
 ///  @param[in]		maxOutVerts	The max number of vertices that can be stored to @p outVerts.
 ///  @returns Number of vertices in the offset polygon or 0 if too few vertices in @p outVerts.
-NAVMESH_API int rcOffsetPoly(const float* verts, const int nverts, const float offset,
-				 float* outVerts, const int maxOutVerts);
+NAVMESH_API int rcOffsetPoly(const rcReal* verts, const int nverts, const rcReal offset,
+				 rcReal* outVerts, const int maxOutVerts);
 
 /// Applies the area id to all spans within the specified cylinder.
 ///  @ingroup recast
@@ -1123,8 +1182,8 @@ NAVMESH_API int rcOffsetPoly(const float* verts, const int nverts, const float o
 ///  @param[in]		h		The height of the cylinder.
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf	A populated compact heightfield.
-NAVMESH_API void rcMarkCylinderArea(rcContext* ctx, const float* pos,
-						const float r, const float h, unsigned char areaId,
+NAVMESH_API void rcMarkCylinderArea(rcContext* ctx, const rcReal* pos,
+						const rcReal r, const rcReal h, unsigned char areaId,
 						rcCompactHeightfield& chf);
 
 /// Replaces an area id in spans with matching filter area within the specified bounding box. (AABB) 
@@ -1134,7 +1193,7 @@ NAVMESH_API void rcMarkCylinderArea(rcContext* ctx, const float* pos,
 ///  @param[in]		bmax	The maximum of the bounding box. [(x, y, z)]
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf		A populated compact heightfield.
-NAVMESH_API void rcReplaceBoxArea(rcContext* ctx, const float* bmin, const float* bmax,
+NAVMESH_API void rcReplaceBoxArea(rcContext* ctx, const rcReal* bmin, const rcReal* bmax,
 	unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf);
 
@@ -1147,8 +1206,8 @@ NAVMESH_API void rcReplaceBoxArea(rcContext* ctx, const float* bmin, const float
 ///  @param[in]		hmax	The height of the top of the polygon.
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf		A populated compact heightfield.
-NAVMESH_API void rcReplaceConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
-	const float hmin, const float hmax, unsigned char areaId, unsigned char filterAreaId,
+NAVMESH_API void rcReplaceConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nverts,
+	const rcReal hmin, const rcReal hmax, unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf);
 
 /// Replaces an area id in spans with matching filter area within the specified cylinder.
@@ -1159,8 +1218,8 @@ NAVMESH_API void rcReplaceConvexPolyArea(rcContext* ctx, const float* verts, con
 ///  @param[in]		h		The height of the cylinder.
 ///  @param[in]		areaId	The area id to apply. [Limit: <= #RC_WALKABLE_AREA]
 ///  @param[in,out]	chf	A populated compact heightfield.
-NAVMESH_API void rcReplaceCylinderArea(rcContext* ctx, const float* pos,
-	const float r, const float h, unsigned char areaId, unsigned char filterAreaId,
+NAVMESH_API void rcReplaceCylinderArea(rcContext* ctx, const rcReal* pos,
+	const rcReal r, const rcReal h, unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf);
 
 /// Builds the distance field for the specified compact heightfield. 
@@ -1321,7 +1380,7 @@ NAVMESH_API bool rcBuildHeightfieldLayersChunky(rcContext* ctx, rcCompactHeightf
 ///  @param[in]		buildFlags	The build flags. (See: #rcBuildContoursFlags)
 ///  @returns True if the operation completed successfully.
 NAVMESH_API bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
-					 const float maxError, const int maxEdgeLen,
+					 const rcReal maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int flags = RC_CONTOUR_TESS_WALL_EDGES);
 
 //@UE BEGIN
@@ -1365,7 +1424,7 @@ NAVMESH_API bool rcMergePolyMeshes(rcContext* ctx, rcPolyMesh** meshes, const in
 ///  @param[out]	dmesh			The resulting detail mesh.  (Must be pre-allocated.)
 ///  @returns True if the operation completed successfully.
 NAVMESH_API bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompactHeightfield& chf,
-						   const float sampleDist, const float sampleMaxError,
+						   const rcReal sampleDist, const rcReal sampleMaxError,
 						   rcPolyMeshDetail& dmesh);
 
 /// Copies the poly mesh data from src to dst.

@@ -23,15 +23,30 @@ namespace CADKernel
 		 * where ConeAngle is the cone semi-angle and StartRadius is the given cone radius. 
 		 * 
 		 * The cone is placed at its final position and orientation by the Matrix
-		 * 
+		 */
+		FConeSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, double InStartRuleLength = -HUGE_VALUE, double InEndRuleLength = HUGE_VALUE, double InStartAngle = 0.0, double InEndAngle = 2.0 * PI)
+			: FConeSurface(InToleranceGeometric, InMatrix, InStartRadius, InConeAngle, FSurfacicBoundary(InStartAngle, InEndAngle, InStartRuleLength, InEndRuleLength))
+		{
+		}
+
+		/**
+		 * A Cone surface is defined by a point on the axis of the cone, the direction of the axis of the cone,
+		 * the radius of the cone at the axis point and the cone semi-angle.
+		 *
+		 * The local coordinate system is defined with the origin at the axis point and the Z axis in the axis direction,
+		 * The equation of the surface in this system is x2 + y2 – (StartRadius + z*tan(ConeAngle) )2 = 0
+		 * where ConeAngle is the cone semi-angle and StartRadius is the given cone radius.
+		 *
+		 * The cone is placed at its final position and orientation by the Matrix
+		 *
 		 * The bounds of the cone are defined as follow:
 		 * Bounds[EIso::IsoU].Min = StartRuleLength;
 		 * Bounds[EIso::IsoU].Max = EndRuleLength;
 		 * Bounds[EIso::IsoV].Min = StartAngle;
 		 * Bounds[EIso::IsoV].Max = EndAngle;
 		 */
-		FConeSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, double InStartRuleLength = -HUGE_VALUE, double InEndRuleLength = HUGE_VALUE, double InStartAngle = 0.0, double InEndAngle = 2.0 * PI)
-			: FSurface(InToleranceGeometric, InStartAngle, InEndAngle, InStartRuleLength, InEndRuleLength)
+		FConeSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, const FSurfacicBoundary& InBoundary)
+			: FSurface(InToleranceGeometric, InBoundary)
 			, Matrix(InMatrix)
 			, StartRadius(InStartRadius)
 			, ConeAngle(InConeAngle)
@@ -45,7 +60,7 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		virtual void SetMinToleranceIso() const override
+		virtual void SetMinToleranceIso() override
 		{
 			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
 
@@ -95,9 +110,9 @@ namespace CADKernel
 			PresampleIsoCircle(InBoundaries, OutCoordinates, EIso::IsoU);
 
 			OutCoordinates[EIso::IsoV].Empty(3);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);
-			OutCoordinates[EIso::IsoV].Add((InBoundaries.UVBoundaries[EIso::IsoV].Max + InBoundaries.UVBoundaries[EIso::IsoV].Min) / 2.0);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Min);
+			OutCoordinates[EIso::IsoV].Add((InBoundaries[EIso::IsoV].Max + InBoundaries[EIso::IsoV].Min) / 2.0);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Max);
 		}
 
 	};

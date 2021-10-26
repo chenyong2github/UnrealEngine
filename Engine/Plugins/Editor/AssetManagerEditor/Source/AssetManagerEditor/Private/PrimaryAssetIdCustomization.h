@@ -30,6 +30,15 @@ private:
 	FText GetDisplayText() const;
 	FPrimaryAssetId GetCurrentPrimaryAssetId() const;
 	void UpdateThumbnail();
+	void OnOpenAssetEditor();
+
+	/** Gets the border brush to show around the thumbnail, changes when the user hovers on it. */
+	const FSlateBrush* GetThumbnailBorder() const;
+
+	/**
+	 * Handle double clicking the asset thumbnail. this 'Edits' the displayed asset
+	 */
+	FReply OnAssetThumbnailDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Handle to the struct property being customized */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
@@ -39,6 +48,9 @@ private:
 
 	/** Thumbnail resource */
 	TSharedPtr<class FAssetThumbnail> AssetThumbnail;
+
+	/** The border surrounding the thumbnail image. */
+	TSharedPtr< class SBorder > ThumbnailBorder;
 };
 
 /** Graph pin version of UI */

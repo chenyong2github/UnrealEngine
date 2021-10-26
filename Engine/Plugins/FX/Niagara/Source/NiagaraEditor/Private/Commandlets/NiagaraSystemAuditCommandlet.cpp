@@ -19,6 +19,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraLightRendererProperties.h"
+#include "NiagaraRibbonRendererProperties.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraSystemAuditCommandlet, Log, All);
 
@@ -74,14 +75,16 @@ int32 UNiagaraSystemAuditCommandlet::Main(const FString& Params)
 			for (FString DeviceString : DeviceNamesArray)
 			{
 				FName DeviceName(DeviceString);
-				TObjectPtr<UObject>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* Device) {return Device->GetFName() == DeviceName; });
+				TObjectPtr<UDeviceProfile>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* Device) {return Device->GetFName() == DeviceName; });
 				if (DeviceProfile)
 				{
-					DeviceProfilesToDisableGpu.Add(CastChecked<UDeviceProfile>(*DeviceProfile));
+					DeviceProfilesToDisableGpu.Add(*DeviceProfile);
 				}
 			}
 		}
 	}
+
+	FParse::Bool(*Params, TEXT("RendererDetailed="), bRendererDetailed);
 
 	// Package Paths
 	FString PackagePathsString;
@@ -268,9 +271,23 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 			for (UNiagaraRendererProperties* RendererProperties : NiagaraEmitter->GetRenderers())
 			{
-				if (UNiagaraLightRendererProperties* LightRendererProperties = Cast< UNiagaraLightRendererProperties>(RendererProperties))
+				if (UNiagaraLightRendererProperties* LightRendererProperties = Cast<UNiagaraLightRendererProperties>(RendererProperties))
 				{
 					bHasLights = true;
+				}
+
+				if ( bRendererDetailed )
+				{
+					if (UNiagaraRibbonRendererProperties* RibbonRendererProperties = Cast<UNiagaraRibbonRendererProperties>(RendererProperties))
+					{
+						static UEnum* NiagaraRibbonTessellationModeEnum = StaticEnum<ENiagaraRibbonTessellationMode>();
+
+						TStringBuilder<512> RendererBuilder;
+						RendererBuilder.Append(NiagaraEmitter->GetPathName());
+						RendererBuilder.Append(TEXT(","));
+						RendererBuilder.Append(NiagaraRibbonTessellationModeEnum->GetValueAsString(RibbonRendererProperties->TessellationMode));
+						NiagaraRibbonRenderers.Add(RendererBuilder.ToString());
+					}
 				}
 			}
 
@@ -370,6 +387,10 @@ void UNiagaraSystemAuditCommandlet::DumpResults()
 		}
 		HeaderString.Append(TEXT(",CVar Conditions,System Path"));
 		DumpSimpleSet(NiagaraSystemsWithGPUEmitters, TEXT("NiagaraSystemsWithGPUEmitters"), HeaderString.ToString());
+	}
+	if (bRendererDetailed)
+	{
+		DumpSimpleSet(NiagaraRibbonRenderers, TEXT("NiagaraRibbonRenderers"), TEXT("Name,TessellationMode"));
 	}
 }
 

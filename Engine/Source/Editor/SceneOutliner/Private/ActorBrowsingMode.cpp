@@ -363,7 +363,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 	{
 		UToolMenu* Menu = ToolMenus->RegisterMenu(DefaultContextBaseMenuName);
 
-		Menu->AddDynamicSection("DynamicSection1", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		Menu->AddDynamicSection("DynamicHierarchySection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
 				USceneOutlinerMenuContext* Context = InMenu->FindContext<USceneOutlinerMenuContext>();
 				if (!Context || !Context->SceneOutliner.IsValid())
@@ -371,12 +371,16 @@ void FActorBrowsingMode::RegisterContextMenu()
 					return;
 				}
 
+				// NOTE: the name "Section" is used in many other places
+				FToolMenuSection& Section = InMenu->FindOrAddSection("Section");
+				Section.Label = LOCTEXT("HierarchySectionName", "Hierarchy");
+
 				SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
 				if (Context->bShowParentTree)
 				{
 					if (Context->NumSelectedItems == 0)
 					{
-						InMenu->FindOrAddSection("Section").AddMenuEntry(
+						Section.AddMenuEntry(
 							"CreateFolder",
 							LOCTEXT("CreateFolder", "Create Folder"),
 							FText(),
@@ -389,38 +393,11 @@ void FActorBrowsingMode::RegisterContextMenu()
 						{
 							SceneOutliner->GetTree().GetSelectedItems()[0]->GenerateContextMenu(InMenu, *SceneOutliner);
 						}
-						
-						if (Context->NumSelectedItems > 0)
-						{
-							// If selection contains some unpinned items, show the pin option
-							// If the selection contains folders, always show the pin option
-							if (Context->NumPinnedItems != Context->NumSelectedItems || Context->NumSelectedFolders > 0)
-							{
-								InMenu->FindOrAddSection("Section").AddMenuEntry(
-									"PinItems",
-									LOCTEXT("Pin", "Pin"),
-									FText(),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::PinSelectedItems)));
-							}
-							
-							// If the selection contains some pinned items, show the unpin option
-							// If the selection contains folders, always show the unpin option
-							if (Context->NumPinnedItems != 0 || Context->NumSelectedFolders > 0)
-							{
-								InMenu->FindOrAddSection("Section").AddMenuEntry(
-									"UnpinItems",
-									LOCTEXT("Unpin", "Unpin"),
-									FText(),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::UnpinSelectedItems)));
-							}
-						}
 
 						// If we've only got folders selected, show the selection and edit sub menus
 						if (Context->NumSelectedItems > 0 && Context->NumSelectedFolders == Context->NumSelectedItems)
 						{
-							InMenu->FindOrAddSection("Section").AddSubMenu(
+							Section.AddSubMenu(
 								"SelectSubMenu",
 								LOCTEXT("SelectSubmenu", "Select"),
 								LOCTEXT("SelectSubmenu_Tooltip", "Select the contents of the current selection"),
@@ -433,7 +410,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 		Menu->AddDynamicSection("DynamicMainSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
 				// We always create a section here, even if there is no parent so that clients can still extend the menu
-				FToolMenuSection& Section = InMenu->AddSection("MainSection");
+				FToolMenuSection& Section = InMenu->AddSection("MainSection", LOCTEXT("OutlinerSectionName", "Outliner"));
 
 				if (USceneOutlinerMenuContext* Context = InMenu->FindContext<USceneOutlinerMenuContext>())
 				{
@@ -446,6 +423,33 @@ void FActorBrowsingMode::RegisterContextMenu()
 							LOCTEXT("MoveActorsTo", "Move To"),
 							LOCTEXT("MoveActorsTo_Tooltip", "Move selection to another folder"),
 							FNewToolMenuDelegate::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::FillFoldersSubMenu));
+					}
+
+					if (Context->bShowParentTree && Context->NumSelectedItems > 0 && Context->SceneOutliner.IsValid())
+					{
+						// If selection contains some unpinned items, show the pin option
+						// If the selection contains folders, always show the pin option
+						if (Context->NumPinnedItems != Context->NumSelectedItems || Context->NumSelectedFolders > 0)
+						{
+							Section.AddMenuEntry(
+								"PinItems",
+								LOCTEXT("Pin", "Pin"),
+								FText(),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::PinSelectedItems)));
+						}
+
+						// If the selection contains some pinned items, show the unpin option
+						// If the selection contains folders, always show the unpin option
+						if (Context->NumPinnedItems != 0 || Context->NumSelectedFolders > 0)
+						{
+							Section.AddMenuEntry(
+								"UnpinItems",
+								LOCTEXT("Unpin", "Unpin"),
+								FText(),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::UnpinSelectedItems)));
+						}
 					}
 				}
 			}));

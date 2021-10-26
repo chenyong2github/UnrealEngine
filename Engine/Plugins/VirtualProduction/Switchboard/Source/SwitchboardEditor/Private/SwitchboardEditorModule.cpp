@@ -178,7 +178,7 @@ FString GetListenerAutolaunchEntry()
 	}
 
 	FString Value;
-	TArray<TCHAR>& CharArray = Value.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& CharArray = Value.GetCharArray();
 	const uint32 ValueLenChars = ValueSizeBytes / sizeof(TCHAR);
 	CharArray.SetNumUninitialized(ValueLenChars);
 
@@ -230,7 +230,7 @@ bool SetListenerAutolaunchEntry(const FString& NewCommandLine)
 		RegCloseKey(HkcuRunKey);
 	};
 
-	const TArray<TCHAR>& CharArray = NewCommandLine.GetCharArray();
+	const TArray<TCHAR, FString::AllocatorType>& CharArray = NewCommandLine.GetCharArray();
 	const LSTATUS SetResult = RegSetValueEx(HkcuRunKey, *ListenerAutolaunchRegValueName, 0, REG_SZ, reinterpret_cast<const BYTE*>(CharArray.GetData()), CharArray.Num() * sizeof(TCHAR));
 	if (SetResult != ERROR_SUCCESS)
 	{

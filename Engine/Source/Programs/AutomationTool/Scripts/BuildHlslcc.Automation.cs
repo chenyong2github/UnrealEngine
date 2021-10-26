@@ -478,20 +478,20 @@ class BuildHlslcc : BuildCommand
 
 	private static string GetMsDevExe(WindowsCompiler Version)
 	{
-		DirectoryReference VSPath;
-		if (WindowsExports.TryGetVSInstallDir(Version, out VSPath))
+		IEnumerable<DirectoryReference> VSPaths = WindowsExports.TryGetVSInstallDirs(Version);
+		if (VSPaths != null)
 		{
-			return FileReference.Combine(VSPath, "Common7", "IDE", "Devenv.com").FullName;
+			return FileReference.Combine(VSPaths.First(), "Common7", "IDE", "Devenv.com").FullName;
 		}
 		return null;
 	}
 
 	private static string GetMsBuildExe(WindowsCompiler Version)
 	{
-		DirectoryReference VSPath;
-		if (WindowsExports.TryGetVSInstallDir(Version, out VSPath))
+		IEnumerable<DirectoryReference> VSPaths = WindowsExports.TryGetVSInstallDirs(Version);
+		if (VSPaths != null)
 		{
-			return FileReference.Combine(VSPath, "MSBuild", "Current", "Bin", "MSBuild.exe").FullName;
+			return FileReference.Combine(VSPaths.First(), "MSBuild", "Current", "Bin", "MSBuild.exe").FullName;
 		}
 		return null;
 	}

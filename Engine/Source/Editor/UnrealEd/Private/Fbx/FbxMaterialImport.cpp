@@ -27,6 +27,7 @@
 #include "Misc/FbxErrors.h"
 #include "ARFilter.h"
 #include "Factories/MaterialImportHelpers.h"
+#include "MaterialEditingLibrary.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFbxMaterialImport, Log, All);
 
@@ -814,6 +815,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 
 			}
 			FixupMaterial(FbxMaterial, UnrealMaterial); // add random diffuse if none exists
+			UMaterialEditingLibrary::LayoutMaterialExpressions(UnrealMaterial);
 		}
 
 		// compile shaders for PC (from UPrecompileShadersCommandlet::ProcessMaterial

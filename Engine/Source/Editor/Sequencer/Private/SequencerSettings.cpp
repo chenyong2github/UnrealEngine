@@ -22,6 +22,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bSnapSectionTimesToInterval = true;
 	bSnapSectionTimesToSections = true;
 	bSnapPlayTimeToKeys = false;
+	bSnapPlayTimeToMarkers = false;
 	bSnapPlayTimeToInterval = true;
 	bSnapPlayTimeToPressedKey = true;
 	bSnapPlayTimeToDraggedKey = true;
@@ -257,6 +258,20 @@ void USequencerSettings::SetSnapPlayTimeToKeys(bool InbSnapPlayTimeToKeys)
 	if ( bSnapPlayTimeToKeys != InbSnapPlayTimeToKeys )
 	{
 		bSnapPlayTimeToKeys = InbSnapPlayTimeToKeys;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetSnapPlayTimeToMarkers() const
+{
+	return bSnapPlayTimeToMarkers;
+}
+
+void USequencerSettings::SetSnapPlayTimeToMarkers(bool InbSnapPlayTimeToMarkers)
+{
+	if ( bSnapPlayTimeToMarkers != InbSnapPlayTimeToMarkers )
+	{
+		bSnapPlayTimeToMarkers = InbSnapPlayTimeToMarkers;
 		SaveConfig();
 	}
 }

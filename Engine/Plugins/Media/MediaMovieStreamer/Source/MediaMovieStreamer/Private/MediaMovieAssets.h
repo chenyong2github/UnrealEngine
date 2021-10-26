@@ -19,7 +19,7 @@ class UMediaTexture;
  * Also handles other UObject functionality like hooking into the UMediaPlayer callbacks
  * which require a UObject.
  */
-UCLASS(Transient, NotPlaceable)
+UCLASS(Transient)
 class UMediaMovieAssets : public UObject
 {
 	GENERATED_BODY()

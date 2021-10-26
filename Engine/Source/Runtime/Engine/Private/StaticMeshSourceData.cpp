@@ -372,7 +372,7 @@ static bool GetMeshDataKey(FString& OutKey, const FRawMeshBulkData* RawMeshBulkD
 	FString LodIndexString = FString::Printf(TEXT("%d_"), LodIndex);
 	LodIndexString += RawMeshBulkData->GetIdString();
 
-	const TArray<TCHAR>& LodIndexArray = LodIndexString.GetCharArray();
+	const TArray<TCHAR, FString::AllocatorType>& LodIndexArray = LodIndexString.GetCharArray();
 	Sha.Update((uint8*)LodIndexArray.GetData(), LodIndexArray.Num() * LodIndexArray.GetTypeSize());
 	Sha.Final();
 

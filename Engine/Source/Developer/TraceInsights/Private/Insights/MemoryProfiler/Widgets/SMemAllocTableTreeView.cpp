@@ -4,6 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
 #include "Modules/ModuleManager.h"
@@ -930,7 +931,10 @@ FText SMemAllocTableTreeView::GetSymbolResolutionTooltip() const
 {
 	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
 
-	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths can be provided with the environment variable {0}."), FText::FromString(TEXT("UE_INSIGHTS_SYMBOL_PATH")));
+	static const TCHAR* SymbolPathEnvVar = TEXT("UE_INSIGHTS_SYMBOL_PATH");
+	FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(SymbolPathEnvVar);
+	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths can be provided with the environment variable {0}.\nUE_INSIGHTS_SYMBOL_PATH=\"{1}\""),
+		FText::FromString(SymbolPathEnvVar), FText::FromString(*SymbolPath));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

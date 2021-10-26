@@ -29,7 +29,7 @@ enum class EText3DHorizontalTextAlignment : uint8
 
 
 UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
-class TEXT3D_API UText3DComponent final : public USceneComponent
+class TEXT3D_API UText3DComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
@@ -130,8 +130,13 @@ public:
 	/**
 	 * Delegate called after text is rebuilt
 	 */
-	DECLARE_MULTICAST_DELEGATE(FTextGenerated);
-	FTextGenerated& OnTextGenerated()				{ return TextGeneratedDelegate; }
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTextGenerated);
+
+	/**
+	 * Delegate called after text is rebuilt
+	 */
+	DECLARE_MULTICAST_DELEGATE(FTextGeneratedNative);
+	FTextGeneratedNative& OnTextGenerated()				{ return TextGeneratedNativeDelegate; }
 
 
 	/** Set the text value and signal the primitives to be rebuilt */
@@ -222,16 +227,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetFreeze(const bool bFreeze);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	void GetBounds(FVector& Origin, FVector& BoxExtent);
 
+	/** Gets the number of font glyphs that are currently used */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	int32 GetGlyphCount();
+
+	/** Gets the USceneComponent that a glyph is attached to */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	USceneComponent* GetGlyphKerningComponent(int32 Index);
+
+	/** Gets all the glyph kerning components */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	const TArray<USceneComponent*>& GetGlyphKerningComponents();
+
+	/** Gets the StaticMeshComponent of a glyph */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	UStaticMeshComponent* GetGlyphMeshComponent(int32 Index);
+
+	/** Gets all the glyph meshes*/
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	const TArray<UStaticMeshComponent*>& GetGlyphMeshComponents();
+
+protected:
+	virtual void OnVisibilityChanged() override;
+	virtual void OnHiddenInGameChanged() override;
 
 private:
 	UPROPERTY(Transient)
 	class USceneComponent* TextRoot;
 
+	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Text Generated"))
 	FTextGenerated TextGeneratedDelegate;
+
+	FTextGeneratedNative TextGeneratedNativeDelegate;
 
 	bool bPendingBuild;
 	bool bFreezeBuild;

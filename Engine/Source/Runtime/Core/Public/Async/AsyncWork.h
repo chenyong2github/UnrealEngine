@@ -65,7 +65,7 @@ class FAutoDeleteAsyncTask
 	TTask Task;
 	/** optional LLM tag */
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	/** optional Trace tag */
 	int32 InheritedTraceTag;
 #endif
@@ -76,7 +76,7 @@ class FAutoDeleteAsyncTask
 	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal)
 	{
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 		InheritedTraceTag = MemoryTrace_GetActiveTag();
 #endif
 
@@ -234,7 +234,7 @@ class FAsyncTask
 	/** optional LLM tag */
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 	/** Memory trace tag */
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	int32 InheritedTraceTag;
 #endif
 
@@ -259,7 +259,7 @@ class FAsyncTask
 		FScopeCycleCounter Scope( Task.GetStatId(), true );
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 		InheritedTraceTag = MemoryTrace_GetActiveTag();
 #endif
 		RequiredMemory = InRequiredMemory;

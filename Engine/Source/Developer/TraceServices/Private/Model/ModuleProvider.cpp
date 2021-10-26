@@ -88,6 +88,8 @@ private:
 	TPagedArray<FResolvedSymbol> SymbolCache;
 	// Lookup table to for symbols
 	TMap<uint64, const FResolvedSymbol*> SymbolCacheLookup;
+	// Number of cached symbols that was loaded (used for stats)
+	uint32 NumCachedSymbols;
 	
 	IAnalysisSession&			Session;
 	FString						Platform;
@@ -100,6 +102,7 @@ TModuleProvider<SymbolResolverType>::TModuleProvider(IAnalysisSession& Session)
 	: Modules(Session.GetLinearAllocator(), 128)
 	, Strings(TEXT("ModuleProvider.Strings"), Session.GetCache())
 	, SymbolCache(Session.GetLinearAllocator(), 1024*1024)
+	, NumCachedSymbols(0)
 	, Session(Session)
 {
 	Resolver = TUniquePtr<SymbolResolverType>(new SymbolResolverType(Session));
@@ -152,6 +155,9 @@ template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::GetStats(FStats* OutStats) const
 {
 	Resolver->GetStats(OutStats);
+	// Add the cached symbols (the resolver doesn't know about them)
+	OutStats->SymbolsDiscovered += NumCachedSymbols;
+	OutStats->SymbolsResolved += NumCachedSymbols;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -239,6 +245,7 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, Symbol.Line);
 		SymbolCacheLookup.Add(Symbol.Address, &Resolved);
 	}
+	NumCachedSymbols = SymbolCacheLookup.Num();
 	UE_LOG(LogTraceServices, Display, TEXT("Loaded %d symbols from cache."), SymbolCacheLookup.Num());
 }
 

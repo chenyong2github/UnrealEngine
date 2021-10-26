@@ -129,9 +129,15 @@ namespace Metasound
 			/** Returns the data type name associated with this output. */
 			virtual const FName& GetDataType() const override { return Invalid::GetInvalidName(); }
 			
+			/** Returns the name associated with this variable. */
+			virtual const FName& GetName() const override { return Invalid::GetInvalidName(); }
+			virtual void SetName(const FName&) override { }
+
 			/** Returns the human readable name associated with this output. */
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
 			virtual void SetDisplayName(const FText&) override { }
+			virtual FText GetDescription() const override { return Invalid::GetInvalidText(); }
+			virtual void SetDescription(const FText&) override { }
 
 			virtual FNodeHandle FindMutatorNode() override { return INodeController::GetInvalidHandle(); }
 			virtual FConstNodeHandle FindMutatorNode() const override { return INodeController::GetInvalidHandle(); }

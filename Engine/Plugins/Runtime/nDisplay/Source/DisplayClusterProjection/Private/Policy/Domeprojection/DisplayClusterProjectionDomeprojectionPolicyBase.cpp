@@ -27,10 +27,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	check(IsInGameThread());
 
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
-	// so we can extend it by our projection related functionality/components/etc.
-
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, OriginCompId);
+	// so we can extend it by our projection related functionality/components/etc.	
 
 	// Read domeprojection config data from nDisplay config file
 	FString File;
@@ -39,6 +36,9 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't read Domeprojection configuration from the config file"));
 		return false;
 	}
+
+	// Find origin component if it exists
+	InitializeOriginComponent(InViewport, OriginCompId);
 
 	const FString FullFilePath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(File);
 	if (!FPaths::FileExists(FullFilePath))

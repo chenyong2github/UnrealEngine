@@ -345,7 +345,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	Class->ClassWithin = UObject::StaticClass();
 
 	// make sure that it cannot be placed / used for class selectors
-	Class->ClassFlags |= CLASS_NotPlaceable | CLASS_Hidden;
+	Class->ClassFlags |= CLASS_Hidden;
 
 	// store our custom state
 	Class->MemoryType = InMemoryType;
@@ -802,8 +802,13 @@ bool URigVMMemoryStorage::CopyProperty(
 
 		// if we reach this we failed since we are trying to copy
 		// between two properties which are not compatible
-		ensure(InTargetProperty->SameType(InSourceProperty));
-		return false;
+		if(!InTargetProperty->SameType(InSourceProperty))
+		{
+			UPackage* Package = InTargetProperty->GetOutermost();
+			check(Package);
+			UE_LOG(LogRigVM, Warning, TEXT("Failed to copy %s to %s (%s)"), *InTargetProperty->GetName(), *InSourceProperty->GetName(), *Package->GetName());
+			return false;
+		}
 	}
 
 	// rely on the core to copy the property contents

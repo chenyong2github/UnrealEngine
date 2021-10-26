@@ -241,6 +241,12 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 
 			FPlatformMisc::HidePlatformStartupScreen();
 
+			//Register to handle case where font cache resources are released during rendering and can lead to a softlock
+			if (ensureAlwaysMsgf(FSlateApplication::Get().GetRenderer(), TEXT("Unexpected invalid SlateApplication Renderer!")))
+			{
+				FSlateApplication::Get().GetRenderer()->GetFontCache().Get().OnReleaseResources().AddRaw(this, &FPreLoadScreenManager::HandleReleaseFontResources);
+			}
+
 			{
 				SCOPED_BOOT_TIMING("FPreLoadScreenManager::EarlyPlayFrameTick()");
 
@@ -249,6 +255,11 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 				{
 					EarlyPlayFrameTick();
 				}
+			}
+
+			if (FSlateApplication::Get().GetRenderer())
+			{
+				FSlateApplication::Get().GetRenderer()->GetFontCache().Get().OnReleaseResources().RemoveAll(this);
 			}
 
 			if (bDidDisableScreensaver)
@@ -669,6 +680,18 @@ bool FPreLoadScreenManager::ArePreLoadScreensEnabled()
 #endif
 
 	return bEnabled;
+}
+
+void FPreLoadScreenManager::HandleReleaseFontResources(const class FSlateFontCache& InFontCache)
+{
+	UE_LOG(LogPreLoadScreenManager, Display, TEXT("Detected FontCache is invalidated. To prevent soft lock unlocking critical section and flushing rendering commands."));
+
+	//Hack fix for soft lock whenever font cache is invalidated. Invalidating our font cache during rendering will call this delegate before flushing rendering commands.
+	//This leads to us soft locking on trying to aquire our critical section during our rendering command. Here we pre-emptively unlock and flush rendering commands to clear
+	//this situation out pro-actively
+	AcquireCriticalSection.Unlock();
+	FlushRenderingCommands();
+	AcquireCriticalSection.Lock();
 }
 
 void FPreLoadScreenManager::CleanUpResources()

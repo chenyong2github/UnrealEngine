@@ -34,7 +34,7 @@ struct FSavePackageArgs;
 enum class ESavePackageResult
 {
 	/** Package was saved successfully */
-	Success, 
+	Success,
 	/** Unknown error occured when saving package */
 	Error,
 	/** Canceled by user */
@@ -42,13 +42,12 @@ enum class ESavePackageResult
 	/** [When cooking] Package was not saved because it contained editor-only data */
 	ContainsEditorOnlyData,
 	/** [When cooking] Package was not saved because it was referenced by editor-only properties */
-	ReferencedOnlyByEditorOnlyData, 
+	ReferencedOnlyByEditorOnlyData,
 	/** [When cooking] Package was not saved because it contains assets that were converted into native code */
 	ReplaceCompletely,
 	/** [When cooking] Package was saved, but we should generate a stub so that other converted packages can interface with it*/
 	GenerateStub,
-	/** [When cooking] When performing package diff, the package generated in memory was different to the one that existed on disk */
-	DifferentContent,
+	DifferentContent	UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter."),
 	/** [When cooking] The file requested (when cooking on the fly) did not exist on disk */
 	MissingFile
 };

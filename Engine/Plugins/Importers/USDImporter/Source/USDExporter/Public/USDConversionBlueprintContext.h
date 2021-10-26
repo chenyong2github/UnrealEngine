@@ -126,7 +126,7 @@ public:
 	bool ConvertMeshComponent( const UMeshComponent* Component, const FString& PrimPath );
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
-	bool ConvertCineCameraComponent( const UCineCameraComponent* Component, const FString& PrimPath );
+	bool ConvertCineCameraComponent( const UCineCameraComponent* Component, const FString& PrimPath, float TimeCode = 3.402823466e+38F );
 
 	UFUNCTION( BlueprintCallable, Category = "Component conversion" )
 	bool ConvertInstancedFoliageActor( const AInstancedFoliageActor* Actor, const FString& PrimPath, float TimeCode = 3.402823466e+38F );

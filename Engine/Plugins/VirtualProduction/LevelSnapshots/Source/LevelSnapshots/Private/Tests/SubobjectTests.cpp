@@ -2,10 +2,10 @@
 
 #include "ConstantFilter.h"
 #include "ILevelSnapshotsModule.h"
-#include "ISnapshotRestorabilityOverrider.h"
+#include "Interfaces/ISnapshotRestorabilityOverrider.h"
 #include "PropertySelectionMap.h"
-#include "SnapshotTestRunner.h"
-#include "SnapshotTestActor.h"
+#include "Util/SnapshotTestRunner.h"
+#include "Types/SnapshotTestActor.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -16,7 +16,7 @@
 // TODO: FCollectionDoesNotContainSameSubobjects > Generates diff
 // TODO: FCollectionOfNonSubobjectsDiffesCorrectly > Generates diff when collection contains non-subobjects
 // TODO: Mixed references in collection: own subobjects and external subobjects
-// TODO: What happens when TArray<UObject*> contains an object with blacklisted class > Do not serialize into it. Only try resolving to it.
+// TODO: What happens when TArray<UObject*> contains an object with disallowed class > Do not serialize into it. Only try resolving to it.
 // TODO: Unrelated classes but same object name in collection and one of the classes is not allowed. What happens?
 
 // TODO: FSubobjectWithSamePropertiesAndDifferentNames does not diff
@@ -37,19 +37,19 @@ bool FRestoreSubobjectProperties::RunTest(const FString& Parameters)
 
 					Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty					= 1;
 					Actor->EditOnlySubobject_OptionalSubobject->IntProperty							= 2;
-					Actor->EditableInstancedSubobjectArray_OptionalSubobject[0]->IntProperty			= 3;
+					Actor->EditableInstancedSubobjectArray_OptionalSubobject[0]->IntProperty		= 3;
 					Actor->EditOnlySubobjectArray_OptionalSubobject[0]->IntProperty					= 4;
-					Actor->EditableInstancedSubobjectMap_OptionalSubobject["First"]->IntProperty		= 5;
+					Actor->EditableInstancedSubobjectMap_OptionalSubobject["First"]->IntProperty	= 5;
 					Actor->EditOnlySubobjectMap_OptionalSubobject["First"]->IntProperty				= 6;
 				})
 				.TakeSnapshot()
-				.ModifyWorld([&](UWorld* World)
+				.ModifyWorld([&](UWorld*)
 				{
 					Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty					= 10;
 					Actor->EditOnlySubobject_OptionalSubobject->IntProperty							= 20;
-					Actor->EditableInstancedSubobjectArray_OptionalSubobject[0]->IntProperty			= 30;
+					Actor->EditableInstancedSubobjectArray_OptionalSubobject[0]->IntProperty		= 30;
 					Actor->EditOnlySubobjectArray_OptionalSubobject[0]->IntProperty					= 40;
-					Actor->EditableInstancedSubobjectMap_OptionalSubobject["First"]->IntProperty		= 50;
+					Actor->EditableInstancedSubobjectMap_OptionalSubobject["First"]->IntProperty	= 50;
 					Actor->EditOnlySubobjectMap_OptionalSubobject["First"]->IntProperty				= 60;
 				})
 
@@ -706,8 +706,8 @@ bool FSkipDeadComponentReferences::RunTest(const FString& Parameters)
  *
  * If Subobject is an unsupported class, see FSnapshotRestorability, then this property should not generate any diff.
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlacklistedSubobjectsDoNotDiff, "VirtualProduction.LevelSnapshots.Snapshot.Subobject.BlacklistedSubobjectsDoNotDiff", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
-bool FBlacklistedSubobjectsDoNotDiff::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkippedSubobjectsDoNotDiff, "VirtualProduction.LevelSnapshots.Snapshot.Subobject.SkippedSubobjectsDoNotDiff", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FSkippedSubobjectsDoNotDiff::RunTest(const FString& Parameters)
 {
 	class FDisableSubobjectClassSupport : public ISnapshotRestorabilityOverrider
 	{
@@ -720,11 +720,11 @@ bool FBlacklistedSubobjectsDoNotDiff::RunTest(const FString& Parameters)
 
 	TSharedRef<FDisableSubobjectClassSupport> Support = MakeShared<FDisableSubobjectClassSupport>();
 	ILevelSnapshotsModule::Get().RegisterRestorabilityOverrider(Support);
-	ILevelSnapshotsModule::Get().AddBlacklistedSubobjectClasses({ USubobject::StaticClass() });
+	ILevelSnapshotsModule::Get().AddSkippedSubobjectClasses({ USubobject::StaticClass() });
 	ON_SCOPE_EXIT
 	{
 		ILevelSnapshotsModule::Get().UnregisterRestorabilityOverrider(Support);
-		ILevelSnapshotsModule::Get().RemoveBlacklistedSubobjectClasses({ USubobject::StaticClass() });
+		ILevelSnapshotsModule::Get().RemoveSkippedSubobjectClasses({ USubobject::StaticClass() });
 	};
 	
 	ASnapshotTestActor* ActorA = nullptr;
@@ -811,7 +811,7 @@ bool FBlacklistedSubobjectsDoNotDiff::RunTest(const FString& Parameters)
 			TestEqual(TEXT("ActorB only has soft object paths in selection set"), ActorSelection->GetSelectedProperties().Num(), ExpectedNumProperties);
 		})
 
-		// Because USubobject is blacklisted, the collections should contain null
+		// Because USubobject is skipped, the collections should contain null
 		// However, the original does not contain any objects because we cleared it above
 		// Since they collections are non-equal sizes, they're expected to diff.
 		.AccessSnapshot([&](ULevelSnapshot* Snapshot)
@@ -831,7 +831,7 @@ bool FBlacklistedSubobjectsDoNotDiff::RunTest(const FString& Parameters)
 			TestTrue(TEXT("WeakObjectPtrMap contains null"), ActorB_Snapshot->WeakObjectPtrMap.Num() == 1 && ActorB_Snapshot->WeakObjectPtrMap.Find("MapKey") && ActorB_Snapshot->WeakObjectPtrMap["MapKey"] == nullptr);
 		})
 
-		// Check whether no blacklisted subobjects were restored
+		// Check whether no skipped subobjects were restored
 		.ApplySnapshot()
 		.RunTest([&]()
 		{

@@ -1743,7 +1743,7 @@ bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY,
 
 FSteamVRHMD::FSteamVRHMD(const FAutoRegister& AutoRegister, ISteamVRPlugin* InSteamVRPlugin) :
 	FHeadMountedDisplayBase(nullptr),
-	FSceneViewExtensionBase(AutoRegister), 
+	FHMDSceneViewExtension(AutoRegister),
 	bHmdEnabled(true),
 	HmdWornState(EHMDWornState::Unknown),
 	bStereoDesired(false),

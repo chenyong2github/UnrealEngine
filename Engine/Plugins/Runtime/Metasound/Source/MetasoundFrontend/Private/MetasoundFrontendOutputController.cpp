@@ -166,12 +166,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* Output = ClassOutputPtr.Get())
 			{
-				if (!Output->Metadata.DisplayName.IsEmptyOrWhitespace())
-				{
-					return Output->Metadata.DisplayName;
-				}
-
-				return FText::FromName(GetName());
+				return Output->Metadata.DisplayName;
 			}
 
 			return Invalid::GetInvalidText();
@@ -317,12 +312,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				if (!OwningOutput->Metadata.DisplayName.IsEmptyOrWhitespace())
-				{
-					return OwningOutput->Metadata.DisplayName;
-				}
-
-				return FText::FromName(GetName());
+				return OwningOutput->Metadata.DisplayName;
 			}
 
 			return Invalid::GetInvalidText();

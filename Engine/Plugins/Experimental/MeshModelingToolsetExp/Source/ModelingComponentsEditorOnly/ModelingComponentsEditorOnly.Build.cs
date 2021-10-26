@@ -50,6 +50,7 @@ public class ModelingComponentsEditorOnly : ModuleRules
 				"InputCore",
                 "RenderCore",
 				"PhysicsCore",
+				"Slate",
                 "RHI",
 				"AssetTools",
 				"UnrealEd"			// required for asset factories

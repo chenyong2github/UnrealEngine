@@ -60,12 +60,13 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMap()
 	bool bAllPointsInFrustum = true;
 
 	int PointsAmmount = GeometryContext.GeometryProxy.WarpMap->GetTotalPoints();
-	FVector4* PointsSouce = (FVector4*)(GeometryContext.GeometryProxy.WarpMap->GetData());
+	FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMap->GetData());
 
 	// Search a camera space frustum
 	for (int i = 0; i < PointsAmmount; ++i)
 	{
-		if (GetProjectionClip(PointsSouce[i]) == false)
+		const FVector Pts(SourcePts[i]);
+		if (GetProjectionClip(Pts) == false)
 		{
 			bAllPointsInFrustum = false;
 		}
@@ -121,12 +122,13 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_LOD_WarpMap()
 	}
 
 	int PointsAmmount = GeometryContext.GeometryProxy.WarpMap->GetTotalPoints();
-	FVector4* PointsSouce = (FVector4*)(GeometryContext.GeometryProxy.WarpMap->GetData());
+	FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMap->GetData());
 
 	// Search a camera space frustum
 	for (const int& It: IndexLOD)
 	{
-		if (GetProjectionClip(PointsSouce[It]) == false)
+		const FVector Pts(SourcePts[It]);
+		if (GetProjectionClip(Pts) == false)
 		{
 			bAllPointsInFrustum = false;
 		}

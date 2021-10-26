@@ -55,7 +55,8 @@ void FDisplayClusterMultiUserManager::OnApplyRemoteTransaction(ETransactionNotif
 
 ETransactionFilterResult FDisplayClusterMultiUserManager::ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage)
 {
-	if (InObject && InObject->IsA<UDisplayClusterConfigurationData_Base>())
+	if (InObject && InObject->IsA<UDisplayClusterConfigurationData_Base>() &&
+		!InObject->IsTemplate() && !InObject->HasAnyFlags(RF_Transient) && InPackage != GetTransientPackage())
 	{
 		UE_LOG(LogDisplayClusterMultiUser, Log, TEXT("FDisplayClusterMultiUser transaction for object: %s"), *InObject->GetName());
 		return ETransactionFilterResult::IncludeObject;

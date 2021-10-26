@@ -338,7 +338,8 @@ namespace UnrealBuildTool
 		{
 			VersionNumber SelectedToolChainVersion;
 			DirectoryReference SelectedToolChainDir;
-			if (!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedToolChainVersion, out SelectedToolChainDir))
+			DirectoryReference SelectedRedistDir;
+			if (!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 			{
 				return null;
 			}

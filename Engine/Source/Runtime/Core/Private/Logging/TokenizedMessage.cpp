@@ -144,8 +144,6 @@ TSharedPtr<IMessageToken> FTokenizedMessage::GetMessageLink() const
 	return MessageLink;
 }
 
-FURLToken::FGenerateURL FURLToken::GenerateURL;
-
 void FURLToken::VisitURL(const TSharedRef<IMessageToken>& Token, FString InURL)
 {	
 	FPlatformProcess::LaunchURL(*InURL, NULL, NULL);
@@ -153,15 +151,8 @@ void FURLToken::VisitURL(const TSharedRef<IMessageToken>& Token, FString InURL)
 
 FURLToken::FURLToken( const FString& InURL, const FText& InMessage )
 {
-	if(GenerateURL.IsBound())
-	{
-		URL = GenerateURL.Execute(InURL);
-	}
-	else
-	{
-		URL = InURL;
-	}
-	
+	URL = InURL;
+
 	if ( !InMessage.IsEmpty() )
 	{
 		CachedText = InMessage;
@@ -208,7 +199,12 @@ FDocumentationToken::FDocumentationToken( FString InDocumentationLink, FString I
 	: DocumentationLink(MoveTemp(InDocumentationLink))
 	, PreviewExcerptLink(MoveTemp(InPreviewExcerptLink))
 	, PreviewExcerptName(MoveTemp(InPreviewExcerptName))
-{ }
+{
+	if (!PreviewExcerptName.IsEmpty())
+	{
+		DocumentationLink = DocumentationLink + "#" + PreviewExcerptName.ToLower();
+	}
+}
 
 TSharedRef<FDocumentationToken> FDocumentationToken::Create(const FString& InDocumentationLink, const FString& InPreviewExcerptLink, const FString& InPreviewExcerptName)
 {

@@ -28,7 +28,8 @@ public class SkeletonEditor : ModuleRules
 				"PinnedCommandList",
 				"ToolMenus",
 				"EditorWidgets",
-            }
+				"ToolWidgets",
+			}
 		);
 
         PublicIncludePathModuleNames.AddRange(

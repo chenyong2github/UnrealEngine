@@ -198,6 +198,12 @@ private:
 	*/
 	void HandleDeviceProfileOverrideChange();
 
+	/** Sees if two profiles are considered identical for saving */
+	bool AreProfilesTheSame(UDeviceProfile* Profile1, UDeviceProfile* Profile2) const;
+
+	/** Sees if the texture settings are the same between two profiles */
+	bool AreTextureGroupsTheSame(UDeviceProfile* Profile1, UDeviceProfile* Profile2) const;
+
 	enum class EDeviceProfileMode : uint8
 	{
 		DPM_SetCVars,
@@ -233,9 +239,12 @@ public:
 
 	// Holds the collection of managed profiles.
 	UPROPERTY( EditAnywhere, Category=Properties )
-	TArray< TObjectPtr<UObject> > Profiles;
+	TArray< TObjectPtr<UDeviceProfile> > Profiles;
 
 private:
+	// Cached copy of profiles at load
+	UPROPERTY()
+	TArray< TObjectPtr<UDeviceProfile> > BackupProfiles;
 
 	// Holds a delegate to be invoked profiles are updated.
 	FOnDeviceProfileManagerUpdated ManagerUpdatedDelegate;
@@ -246,8 +255,8 @@ private:
 	// Holds the selected device profile
 	UDeviceProfile* ActiveDeviceProfile;
 
-	// Holds the device profile .ini location
-	static FString DeviceProfileFileName;
+	// Add to profile to get load time backup
+	static FString BackupSuffix;
 
 	// Original values of all the CVars modified by the DP.
 	// Used to undo the DP before applying new state.

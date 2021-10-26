@@ -83,7 +83,7 @@ struct FDistributionLookupTable
 	 */
 	FORCEINLINE float GetValuesPerEntry() const
 	{
-		return (EntryStride - SubEntryStride);
+		return (float)(EntryStride - SubEntryStride);
 	}
 
 	/**
@@ -91,7 +91,7 @@ struct FDistributionLookupTable
 	 */
 	FORCEINLINE float GetValueCount() const
 	{
-		return Values.Num();
+		return (float)(Values.Num());
 	}
 
 	/**
@@ -131,7 +131,7 @@ struct FDistributionLookupTable
 	{
 		if ( EntryCount > 0 )
 		{
-			const int32 ValuesPerEntry = GetValuesPerEntry();
+			const int32 ValuesPerEntry = (int32)GetValuesPerEntry();
 			const float* Entry = Values.GetData();
 
 			// Initialize to the first entry in the table.

@@ -1079,7 +1079,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	// Handle renaming any renderer properties that might match.
 	if (bExposedParametersRename | bEditorOnlyParametersRename | bAssignmentNodeRename)
 	{
-		if (Parameter.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) || Parameter.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+		if (Parameter.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString) || Parameter.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 		{
 			for (const FNiagaraEmitterHandle* EmitterHandle : GetEditableEmitterHandles())
 			{
@@ -1833,8 +1833,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 	// See if this was the last reference to that parameter being renamed, if so, we need to update to a full rename and rename all locations where it was used that are downstream, like renderer bindings.
 
 	// Emitter & Particle namespaces are just for the ones actively being worked on.
-	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespace) ||
-		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace))
+	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString))
 	{
 		const TArray<FGuid>& SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
 
@@ -1871,8 +1871,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 		}		
 	}
 	// User and System need to be checked for all graphs as they could be used anywhere.
-	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
-			 InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespace))
+	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+			 InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespaceString))
 	{
 		TArray<UNiagaraGraph*> Graphs;
 		Graphs.Add(SystemScriptGraph.Get());
@@ -1916,8 +1916,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 	// See if this was the last reference to that parameter being renamed, if so, we need to update to a full rename and rename all locations where it was used that are downstream, like renderer bindings.
 
 	// Emitter & Particle namespaces are just for the ones actively being worked on.
-	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespace) ||
-		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace))
+	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString))
 	{
 		const TArray<FGuid>& SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
 
@@ -1951,8 +1951,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 		}
 	}
 	// User and System need to be checked for all graphs as they could be used anywhere.
-	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
-		InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespace))
+	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespaceString))
 	{
 		TArray<UNiagaraGraph*> Graphs;
 		Graphs.Add(SystemScriptGraph.Get());

@@ -102,7 +102,8 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 
 	
 	return DoesActorHaveSupportedClass(Actor)
-            && !Actor->IsTemplate()								// Should never happen, but we never want CDOs	
+            && !Actor->IsTemplate()								// Should never happen, but we never want CDOs
+			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds	
 #if WITH_EDITOR
             && Actor->IsEditable()
             && Actor->IsListedInSceneOutliner() 				// Only add actors that are allowed to be selected and drawn in editor
@@ -141,7 +142,7 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 bool FSnapshotRestorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsSubobjectClassDesirableForCapture);
-	return DoesSubobjecttHaveSupportedClassForCapture(SubobjectClass) && !FLevelSnapshotsModule::GetInternalModuleInstance().IsSubobjectClassBlacklisted(SubobjectClass);
+	return DoesSubobjecttHaveSupportedClassForCapture(SubobjectClass) && !FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipSubobjectClass(SubobjectClass);
 }
 
 bool FSnapshotRestorability::IsSubobjectDesirableForCapture(const UObject* Subobject)
@@ -160,31 +161,31 @@ bool FSnapshotRestorability::IsPropertyDesirableForCapture(const FProperty* Prop
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyDesirableForCapture);
 	
-	const bool bIsWhitelisted = IsPropertyWhitelistedForCapture(Property);
-	const bool bIsBlacklisted = IsPropertyBlacklistedForCapture(Property);
+	const bool bIsExplicitlyIncluded = IsPropertyExplicitlySupportedForCapture(Property);
+	const bool bIsExplicitlyExcluded = IsPropertyExplicitlyUnsupportedForCapture(Property);
 
 	// To avoid saving every single subobject, only save the editable ones.
 	const uint64 EditablePropertyFlag = CPF_Edit;
 	const bool bIsObjectProperty = CastField<FObjectPropertyBase>(Property) != nullptr;
 
 	// TODO: Technically, we should only save editable/visible properties. However, we not know whether this will cause any trouble for existing snapshots or has unintended side-effects.
-	const bool bIsAllowed = !bIsBlacklisted
-		&& (bIsWhitelisted
+	const bool bIsAllowed = !bIsExplicitlyExcluded
+		&& (bIsExplicitlyIncluded
 			|| !bIsObjectProperty															// Legacy / safety reasons: allow all non-object properties
 			|| (bIsObjectProperty && Property->HasAnyPropertyFlags(EditablePropertyFlag))); // Implementing object support now... rather save less than too many subobjects
 	return bIsAllowed;
 }
 
-bool FSnapshotRestorability::IsPropertyBlacklistedForCapture(const FProperty* Property)
+bool FSnapshotRestorability::IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property)
 {
-	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyBlacklisted);
-	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyBlacklisted(Property);
+	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlyUnsupportedForCapture);
+	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlyUnsupported(Property);
 }
 
-bool FSnapshotRestorability::IsPropertyWhitelistedForCapture(const FProperty* Property)
+bool FSnapshotRestorability::IsPropertyExplicitlySupportedForCapture(const FProperty* Property)
 {
-	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyWhitelisted);
-	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyWhitelisted(Property);
+	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlySupportedForCapture);
+	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
 }
 
 bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
@@ -206,11 +207,11 @@ bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
 	const uint64 RequiredFlags = CPF_Edit;
 
 	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
-	const bool bIsWhitelisted = Module.IsPropertyWhitelisted(LeafProperty);
-	const bool bIsBlacklisted = Module.IsPropertyBlacklisted(LeafProperty);
+	const bool bIsExplicitlyIncluded = Module.IsPropertyExplicitlySupported(LeafProperty);
+	const bool bIsExplicitlyExcluded = Module.IsPropertyExplicitlyUnsupported(LeafProperty);
 	const bool bPassesDefaultChecks =
 		!LeafProperty->HasAnyPropertyFlags(UnsavedProperties | UneditableFlags)
         && LeafProperty->HasAllPropertyFlags(RequiredFlags);
 	
-	return bIsWhitelisted || (!bIsBlacklisted && bPassesDefaultChecks);
+	return bIsExplicitlyIncluded || (!bIsExplicitlyExcluded && bPassesDefaultChecks);
 }

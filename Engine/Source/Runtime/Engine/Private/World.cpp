@@ -1568,7 +1568,7 @@ void UWorld::RepairWorldSettings()
 			AActor* Actor = PersistentLevel->Actors[Index];
 			if (Actor != nullptr && Actor->IsA<AWorldSettings>())
 			{
-				UE_LOG(LogWorld, Warning, TEXT("Extra World Settings '%s' actor found. Resave level or actors to clean up"), *Actor->GetName());
+				UE_LOG(LogWorld, Warning, TEXT("Extra World Settings '%s' actor found. Resave level %s or actors to clean up"), *Actor->GetPathName(), *PersistentLevel->GetPathName());
 				Actor->Destroy();
 			}
 		}
@@ -2754,7 +2754,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 				Level->ClearActorsSeamlessTraveledFlag();
 			}
 
-			const float PreventNextStepTimeLimit = GLevelStreamingForceRouteActorInitializeNextFrame ? 0.0f : TimeLimit;
+			const double PreventNextStepTimeLimit = GLevelStreamingForceRouteActorInitializeNextFrame ? 0.0 : TimeLimit;
 			bExecuteNextStep = (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("initializing network actors"), StartTime, Level, PreventNextStepTimeLimit ));
 		}
 
@@ -4156,7 +4156,7 @@ bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		if (PlayerController != nullptr)
 		{
 			GetWorldSettings()->SetPauserPlayerState(PlayerController->PlayerState);
-			const uint32 Time = FCString::Atoi(*TimeString);
+			const float Time = FCString::Atof(*TimeString);
 			DemoNetDriver->GotoTimeInSeconds(Time);
 		}
 	}
@@ -5149,7 +5149,7 @@ bool UWorld::AreActorsInitialized() const
 
 void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
-#if CHAOS_DEBUG_NAME
+#if WITH_CHAOS && CHAOS_DEBUG_NAME
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
 	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
@@ -5715,7 +5715,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						break;
 					}
 
-					uint8 SplitscreenCount = FMath::Min(Connection->Children.Num() + 1, 255);
+					int32 SplitscreenCount = FMath::Min(Connection->Children.Num() + 1, 255);
 
 					// Don't allow clients to specify this value
 					InURL.RemoveOption(TEXT("SplitscreenCount"));
@@ -5861,7 +5861,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 						break;
 					}
 
-					uint8 SplitscreenCount = FMath::Min(Connection->Children.Num() + 2, 255);
+					int32 SplitscreenCount = FMath::Min(Connection->Children.Num() + 2, 255);
 
 					// Don't allow clients to specify this value
 					InURL.RemoveOption(TEXT("SplitscreenCount"));
@@ -6259,9 +6259,9 @@ bool UWorld::SetNewWorldOrigin(FIntVector InNewOriginLocation)
 	FCoreDelegates::PostWorldOriginOffset.Broadcast(this, PreviosWorldOriginLocation, OriginLocation);
 
 	const double CurrentTime = FPlatformTime::Seconds();
-	const float TimeTaken = CurrentTime - MoveStartTime;
+	const double TimeTaken = CurrentTime - MoveStartTime;
 	UE_LOG(LogLevel, Log, TEXT("WORLD TRANSLATION END {%d, %d, %d} took %.4f ms"),
-		OriginLocation.X, OriginLocation.Y, OriginLocation.Z, TimeTaken*1000);
+		OriginLocation.X, OriginLocation.Y, OriginLocation.Z, TimeTaken * 1000);
 	
 	return true;
 }
@@ -8011,7 +8011,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	}
 
 	const double DuplicateEnd = FPlatformTime::Seconds();
-	const float TotalSeconds = ( DuplicateEnd - DuplicateStart );
+	const double TotalSeconds = ( DuplicateEnd - DuplicateStart );
 
 	UE_LOG( LogNet, Log, TEXT( "DuplicateLevelWithPrefix. TotalSeconds: %2.2f" ), TotalSeconds );
 
@@ -8134,15 +8134,15 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			Blueprint->GetAssetRegistryTags(OutTags);
 		}
 		// If there are no blueprints FiBData will be empty, the search manager will treat this as indexed
-
-		FBox LevelBounds;
-
-		if (UWorldPartition* WorldPartition = GetWorldPartition())
+								
+		if(IsPartitionedWorld())
 		{
-			LevelBounds = WorldPartition->GetWorldBounds();
+			static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelIsPartitioned, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 		}
 		else
 		{
+			FBox LevelBounds;
 			if (PersistentLevel->LevelBoundsActor.IsValid())
 			{
 				LevelBounds = PersistentLevel->LevelBoundsActor.Get()->GetComponentsBoundingBox();
@@ -8151,24 +8151,18 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			{
 				LevelBounds = ALevelBounds::CalculateLevelBounds(PersistentLevel);
 			}
+
+			FVector LevelBoundsLocation;
+			FVector LevelBoundsExtent;
+			LevelBounds.GetCenterAndExtents(LevelBoundsLocation, LevelBoundsExtent);
+
+			static const FName NAME_LevelBoundsLocation(TEXT("LevelBoundsLocation"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelBoundsLocation, LevelBoundsLocation.ToCompactString(), FAssetRegistryTag::TT_Hidden));
+
+			static const FName NAME_LevelBoundsExtent(TEXT("LevelBoundsExtent"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelBoundsExtent, LevelBoundsExtent.ToCompactString(), FAssetRegistryTag::TT_Hidden));
 		}
-
-		FVector LevelBoundsLocation;
-		FVector LevelBoundsExtent;
-		LevelBounds.GetCenterAndExtents(LevelBoundsLocation, LevelBoundsExtent);
-
-		static const FName NAME_LevelBoundsLocation(TEXT("LevelBoundsLocation"));
-		OutTags.Add(FAssetRegistryTag(NAME_LevelBoundsLocation, LevelBoundsLocation.ToCompactString(), FAssetRegistryTag::TT_Hidden));
-
-		static const FName NAME_LevelBoundsExtent(TEXT("LevelBoundsExtent"));
-		OutTags.Add(FAssetRegistryTag(NAME_LevelBoundsExtent, LevelBoundsExtent.ToCompactString(), FAssetRegistryTag::TT_Hidden));
-
-		if (PersistentLevel->GetWorldPartition())
-		{
-			static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
-			OutTags.Add(FAssetRegistryTag(NAME_LevelIsPartitioned, TEXT("1"), FAssetRegistryTag::TT_Hidden));
-		}
-
+	
 		if (PersistentLevel->IsUsingExternalActors())
 		{
 			static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));

@@ -27,29 +27,29 @@
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
-const FName FAssetEditorModeUILayer::TopLeftTabID(TEXT("TopLeftModeTab"));
-const FName FAssetEditorModeUILayer::BottomLeftTabID(TEXT("BottomLeftModeTab"));
-const FName FAssetEditorModeUILayer::TopRightTabID(TEXT("TopRightModeTab"));
-const FName FAssetEditorModeUILayer::BottomRightTabID(TEXT("BottomRightModeTab"));
-const FName FAssetEditorModeUILayer::VerticalToolbarID = TEXT("VerticalModeToolbar");
+const FName UAssetEditorUISubsystem::TopLeftTabID(TEXT("TopLeftModeTab"));
+const FName UAssetEditorUISubsystem::BottomLeftTabID(TEXT("BottomLeftModeTab"));
+const FName UAssetEditorUISubsystem::TopRightTabID(TEXT("TopRightModeTab"));
+const FName UAssetEditorUISubsystem::BottomRightTabID(TEXT("BottomRightModeTab"));
+const FName UAssetEditorUISubsystem::VerticalToolbarID = TEXT("VerticalModeToolbar");
 
 FAssetEditorModeUILayer::FAssetEditorModeUILayer(const IToolkitHost* InToolkitHost)
 	: ToolkitHost(InToolkitHost)
 {
-	RequestedTabInfo.Add(VerticalToolbarID, FMinorTabConfig(VerticalToolbarID));
-	RequestedTabInfo.Add(TopLeftTabID, FMinorTabConfig(TopLeftTabID));
-	RequestedTabInfo.Add(BottomLeftTabID, FMinorTabConfig(BottomLeftTabID));
-	RequestedTabInfo.Add(TopRightTabID, FMinorTabConfig(TopRightTabID));
-	RequestedTabInfo.Add(BottomRightTabID, FMinorTabConfig(BottomRightTabID));
+	RequestedTabInfo.Add(UAssetEditorUISubsystem::VerticalToolbarID, FMinorTabConfig(UAssetEditorUISubsystem::VerticalToolbarID));
+	RequestedTabInfo.Add(UAssetEditorUISubsystem::TopLeftTabID, FMinorTabConfig(UAssetEditorUISubsystem::TopLeftTabID));
+	RequestedTabInfo.Add(UAssetEditorUISubsystem::BottomLeftTabID, FMinorTabConfig(UAssetEditorUISubsystem::BottomLeftTabID));
+	RequestedTabInfo.Add(UAssetEditorUISubsystem::TopRightTabID, FMinorTabConfig(UAssetEditorUISubsystem::TopRightTabID));
+	RequestedTabInfo.Add(UAssetEditorUISubsystem::BottomRightTabID, FMinorTabConfig(UAssetEditorUISubsystem::BottomRightTabID));
 }
 
 void FAssetEditorModeUILayer::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
 {
-	GetTabManager()->UnregisterTabSpawner(TopLeftTabID);
-	GetTabManager()->UnregisterTabSpawner(BottomLeftTabID);
-	GetTabManager()->UnregisterTabSpawner(VerticalToolbarID);
-	GetTabManager()->UnregisterTabSpawner(TopRightTabID);
-	GetTabManager()->UnregisterTabSpawner(BottomRightTabID);
+	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::TopLeftTabID);
+	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::BottomLeftTabID);
+	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::VerticalToolbarID);
+	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::TopRightTabID);
+	GetTabManager()->UnregisterTabSpawner(UAssetEditorUISubsystem::BottomRightTabID);
 
 }
 
@@ -87,11 +87,11 @@ TSharedPtr<FWorkspaceItem> FAssetEditorModeUILayer::GetModeMenuCategory() const
 
 void FAssetEditorModeUILayer::RegisterModeTabSpawners()
 {
-	RegisterModeTabSpawner(TopLeftTabID);
-	RegisterModeTabSpawner(BottomLeftTabID);
-	RegisterModeTabSpawner(VerticalToolbarID);
-	RegisterModeTabSpawner(TopRightTabID);
-	RegisterModeTabSpawner(BottomRightTabID);
+	RegisterModeTabSpawner(UAssetEditorUISubsystem::TopLeftTabID);
+	RegisterModeTabSpawner(UAssetEditorUISubsystem::BottomLeftTabID);
+	RegisterModeTabSpawner(UAssetEditorUISubsystem::VerticalToolbarID);
+	RegisterModeTabSpawner(UAssetEditorUISubsystem::TopRightTabID);
+	RegisterModeTabSpawner(UAssetEditorUISubsystem::BottomRightTabID);
 
 }
 

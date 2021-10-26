@@ -45,6 +45,7 @@
 #include "ProfilingDebugging/PlatformFileTrace.h"
 #include "ProfilingDebugging/PlatformEvents.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.inl"
@@ -52,6 +53,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 const TCHAR* GDefaultChannels = TEXT("cpu,gpu,frame,log,bookmark");
 const TCHAR* GMemoryChannels = TEXT("memtag,memalloc,callstack,module");
+
+////////////////////////////////////////////////////////////////////////////////
+CSV_DEFINE_CATEGORY(Trace, true);
 
 ////////////////////////////////////////////////////////////////////////////////
 enum class ETraceConnectType
@@ -72,6 +76,7 @@ public:
 	void					EnableChannels();
 	void					DisableChannels();
 	void					SetTruncateFile(bool bTruncateFile);
+	void					UpdateCsvStats() const;
 
 private:
 	enum class EState : uint8
@@ -359,6 +364,25 @@ void FTraceAuxiliaryImpl::ReadChannels(T&& Callback) const
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::UpdateCsvStats() const
+{
+#if TRACE_PRIVATE_STATISTICS
+	// Only publish CSV stats if we have ever run tracing in order to reduce overhead in most runs.
+	static bool bDoStats = false;
+	if (UE::Trace::IsTracing() || bDoStats)
+	{
+		bDoStats = true;
+
+		UE::Trace::FStatistics Stats;
+		UE::Trace::GetStatistics(Stats);
+
+		CSV_CUSTOM_STAT(Trace, MemoryUsedMb,	double(Stats.MemoryUsed) / 1024.0 / 1024.0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Trace, CacheUsedMb,		double(Stats.CacheUsed) / 1024.0 / 1024.0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Trace, CacheWasteMb,	double(Stats.CacheWaste) / 1024.0 / 1024.0, ECsvCustomStatOp::Set);
+	}
+#endif
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -734,6 +758,10 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	PlatformEvents_Init(Microseconds);
 
 	FCoreDelegates::OnEndFrame.AddStatic(UE::Trace::Update);
+#if CSV_PROFILER
+	FCoreDelegates::OnEndFrame.AddRaw(&GTraceAuxiliary, &FTraceAuxiliaryImpl::UpdateCsvStats);
+#endif
+
 	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason)
 	{
 		if (Reason == EModuleChangeReason::ModuleLoaded)

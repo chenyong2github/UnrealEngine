@@ -4254,14 +4254,18 @@ static void GetNonSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovi
 			FGuid ActorHandle = GetHandleToObject(Actor, InSequence, Player, Template,false);
 			if (ActorHandle.IsValid())
 			{
-				GetSequencerActorWorldTransforms(Player,InSequence,Template, NewActorSelection, Frames, OutTransforms);
-				for (FTransform& OutTransform : OutTransforms)
+				if (InSequence->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ActorHandle))
 				{
-					OutTransform = WorldTransform * OutTransform;
+					GetSequencerActorWorldTransforms(Player, InSequence, Template, NewActorSelection, Frames, OutTransforms);
+					for (FTransform& OutTransform : OutTransforms)
+					{
+						OutTransform = WorldTransform * OutTransform;
+					}
+					return;
 				}
-				return;
 			}
-			else if (Actor->GetRootComponent()->DoesSocketExist(SocketName))
+
+			if (Actor->GetRootComponent()->DoesSocketExist(SocketName))
 			{
 				WorldTransform = WorldTransform * Actor->GetRootComponent()->GetSocketTransform(SocketName);
 			}
@@ -4293,20 +4297,23 @@ void MovieSceneToolHelpers::GetActorWorldTransforms(ISequencer* Sequencer, const
 	FGuid ObjectHandle = Sequencer->GetHandleToObject(ActorSelection.Actor.Get(), false);
 	if (ObjectHandle.IsValid())
 	{
-		GetSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(),Template, ActorSelection, Frames, OutWorldTransforms);
-	}
-	else
-	{
-		ObjectHandle = Sequencer->GetHandleToObject(ActorSelection.Component.Get(), false);
-		if (ObjectHandle.IsValid())
+		if (Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ObjectHandle))
 		{
 			GetSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, ActorSelection, Frames, OutWorldTransforms);
-		}
-		else
-		{
-			GetNonSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, ActorSelection, Frames, OutWorldTransforms);
+			return;
 		}
 	}
+
+	ObjectHandle = Sequencer->GetHandleToObject(ActorSelection.Component.Get(), false);
+	if (ObjectHandle.IsValid())
+	{
+		if (Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ObjectHandle))
+		{
+			GetSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, ActorSelection, Frames, OutWorldTransforms);
+			return;
+		}
+	}
+	GetNonSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, ActorSelection, Frames, OutWorldTransforms);
 }
 
 void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value)
@@ -4361,7 +4368,30 @@ void MovieSceneToolHelpers::GetActorWorldTransforms(IMovieScenePlayer* Player, U
 	FGuid ComponentHandle = GetHandleToObject(ActorSelection.Component.Get(), InSequence, Player, Template,false);
 	if (ActorHandle.IsValid() || ComponentHandle.IsValid())
 	{
-		GetSequencerActorWorldTransforms(Player, InSequence, Template, ActorSelection, Frames, OutWorldTransforms);
+		//we can have handles but if they don't have a transform track the interrogator will return identity
+		bool bHaveTransformTrack = false;
+		if (ActorHandle.IsValid())
+		{
+			if (InSequence->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ActorHandle))
+			{
+				bHaveTransformTrack = true;
+			}
+		}
+		if (ComponentHandle.IsValid())
+		{
+			if (InSequence->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ComponentHandle))
+			{
+				bHaveTransformTrack = true;
+			}
+		}
+		if (bHaveTransformTrack)
+		{
+			GetSequencerActorWorldTransforms(Player, InSequence, Template, ActorSelection, Frames, OutWorldTransforms);
+		}
+		else
+		{
+			GetNonSequencerActorWorldTransforms(Player, InSequence, Template, ActorSelection, Frames, OutWorldTransforms);
+		}
 	}
 	else
 	{

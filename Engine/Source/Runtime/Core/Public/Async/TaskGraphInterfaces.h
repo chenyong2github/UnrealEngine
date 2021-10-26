@@ -475,7 +475,7 @@ protected:
 		, NumberOfPrerequistitesOutstanding(InNumberOfPrerequistitesOutstanding + 1) // + 1 is not a prerequisite, it is a lock to prevent it from executing while it is getting prerequisites, one it is safe to execute, call PrerequisitesComplete
 	{
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Contructed));
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 		InheritedTraceTag = MemoryTrace_GetActiveTag();
 #endif
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
@@ -622,7 +622,7 @@ private:
 	FThreadSafeCounter			LifeStage;
 
 #endif
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	int32 InheritedTraceTag;
 #endif
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);

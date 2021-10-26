@@ -17,7 +17,7 @@ class FDisplayClusterConfiguratorBlueprintEditor;
 /**
  * The original format of the DisplayCluster config data UAsset, used only for importing 4.26 assets.
  */
-UCLASS(NotBlueprintable, NotPlaceable)
+UCLASS(NotBlueprintable)
 class UDisplayClusterConfiguratorEditorData final
 	: public UObject
 {

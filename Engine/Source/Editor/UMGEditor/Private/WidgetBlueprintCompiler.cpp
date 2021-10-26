@@ -286,14 +286,77 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 			WidgetBP->WidgetTree->GetAllWidgets(TreeWidgets);
 		}
 
+		FMemMark Mark(FMemStack::Get());
+		TArray<UWidget*, TMemStackAllocator<>> WidgetsToRemove;
+		WidgetsToRemove.Reserve(OuterWidgets.Num());
+		
+		struct FNameSlotInfo
+		{
+			TScriptInterface<INamedSlotInterface> NamedSlotHost;
+			FName SlotName;
+		};
+		TMap<UWidget*, FNameSlotInfo> WidgetToNamedSlotInfo;
+		WidgetToNamedSlotInfo.Reserve(OuterWidgets.Num());
+
 		for (UWidget* OuterWidget : OuterWidgets)
 		{
+			if (TScriptInterface<INamedSlotInterface> NamedSlotHost = TScriptInterface<INamedSlotInterface>(OuterWidget))
+			{
+				TArray<FName> SlotNames;
+				NamedSlotHost->GetSlotNames(SlotNames);
+				for (FName SlotName : SlotNames)
+				{
+					if (UWidget* SlotContent = NamedSlotHost->GetContentForSlot(SlotName))
+					{
+						FNameSlotInfo Info = { NamedSlotHost, SlotName };
+						WidgetToNamedSlotInfo.Add(SlotContent, Info);						
+					}
+				}
+			}
+
 			if (!TreeWidgets.Contains(OuterWidget))
 			{
-				MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemoved", "Removed unused widget '{0}'."), FText::FromName(OuterWidget->GetFName())).ToString());
+				WidgetsToRemove.Push(OuterWidget);
+			}
+		}
 
-				FString TransientCDOString = FString::Printf(TEXT("TRASH_%s"), *OuterWidget->GetName());
-				RenameObjectToTransientPackage(OuterWidget, *TransientCDOString, true);
+		if (WidgetsToRemove.Num() != 0)
+		{
+			if (WidgetBP->WidgetTree->RootWidget == nullptr)
+			{
+				MessageLog.Note(*LOCTEXT("RootWidgetEmpty", "There is no valid Widgets in this Widget Hierarchy.").ToString());
+			}
+			else
+			{
+				MessageLog.Note(*FText::Format(LOCTEXT("RootWidgetNamedMessage", "Some Widgets will be removed since they are not part of the Widget Hierarchy. Root Widget is  '{0}'."), FText::FromName(WidgetBP->WidgetTree->RootWidget->GetFName())).ToString());
+			}
+
+			// Log first to have all the parents and named slot intact for logging
+			for (const UWidget* WidgetToClean : WidgetsToRemove)
+			{
+				if (UPanelWidget* Parent = WidgetToClean->GetParent())
+				{
+					MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemovedWithParent", "Removing unused widget '{0}' (Parent: '{1}')."), FText::FromName(WidgetToClean->GetFName()), FText::FromName(Parent->GetFName())).ToString());				
+				}
+				else if (const FNameSlotInfo* Info = WidgetToNamedSlotInfo.Find(WidgetToClean))
+				{
+					UObject* NamedSlotWidget = Info->NamedSlotHost.GetObject();
+					if (ensure(NamedSlotWidget))
+					{
+						MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemovedWithNamedSlot", "Removing unused widget '{0}' (Named Slot '{1} in '{2}')."), FText::FromName(WidgetToClean->GetFName()), FText::FromName(Info->SlotName), FText::FromName(NamedSlotWidget->GetFName())).ToString());
+					}
+				}
+				else
+				{
+					MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemoved", "Removing unused widget '{0}'."), FText::FromName(WidgetToClean->GetFName())).ToString());
+				}
+			}
+
+			// Remove Widget
+			for (UWidget* WidgetToClean : WidgetsToRemove)
+			{
+				FString TransientCDOString = FString::Printf(TEXT("TRASH_%s"), *WidgetToClean->GetName());
+				RenameObjectToTransientPackage(WidgetToClean, *TransientCDOString, true);
 			}
 		}
 	}

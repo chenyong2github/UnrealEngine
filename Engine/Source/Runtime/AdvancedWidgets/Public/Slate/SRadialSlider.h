@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "CoreMinimal.h"
 #include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
@@ -13,6 +14,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SLeafWidget.h"
 
@@ -32,7 +34,9 @@ public:
 		, _SliderBarColor(FLinearColor::Gray)
 		, _SliderProgressColor(FLinearColor::White)
 		, _SliderHandleColor(FLinearColor::White)
-		, _Style(&FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider")) //TODO: Create bespoke SlateStyle for Radial Widget
+		, _CenterBackgroundColor(FLinearColor::Transparent)
+		, _CenterBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Transparent, FVector2D(90.0f, 90.0f))) // todo: add to a custom radial slider style 
+		, _Style(&FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"))
 		, _StepSize(0.01f)
 		, _Value(1.f)
 		, _bUseCustomDefaultValue(false)
@@ -40,7 +44,11 @@ public:
 		, _SliderHandleStartAngle(60.0f)
 		, _SliderHandleEndAngle(300.0f)
 		, _AngularOffset(0.0f)
+		, _HandStartEndRatio(FVector2D(0.0f, 1.0f))
 		, _IsFocusable(true)
+		, _UseVerticalDrag(false)
+		, _ShowSliderHandle(true)
+		, _ShowSliderHand(false)
 		, _OnMouseCaptureBegin()
 		, _OnMouseCaptureEnd()
 		, _OnValueChanged()
@@ -48,22 +56,31 @@ public:
 		}
 
 		/** Sets new value if mouse position is greater/less than half the step size. */
-		SLATE_ARGUMENT( bool, MouseUsesStep )
+	SLATE_ARGUMENT(bool, MouseUsesStep)
 
 		/** Sets whether we have to lock input to change the slider value. */
-		SLATE_ARGUMENT( bool, RequiresControllerLock )
+		SLATE_ARGUMENT(bool, RequiresControllerLock)
 
 		/** Whether the handle is interactive or fixed. */
-		SLATE_ATTRIBUTE( bool, Locked )
+		SLATE_ATTRIBUTE(bool, Locked)
 
 		/** The color to draw the slider bar in. */
-		SLATE_ATTRIBUTE( FSlateColor, SliderBarColor )
+		SLATE_ATTRIBUTE(FSlateColor, SliderBarColor)
 
 		/** The color to draw completed progress of the slider bar in. */
-		SLATE_ATTRIBUTE( FSlateColor, SliderProgressColor )
+		SLATE_ATTRIBUTE(FSlateColor, SliderProgressColor)
 
 		/** The color to draw the slider handle in. */
-		SLATE_ATTRIBUTE( FSlateColor, SliderHandleColor )
+		SLATE_ATTRIBUTE(FSlateColor, SliderHandleColor)
+
+		/** The color to draw the center background in. */
+		SLATE_ATTRIBUTE(FSlateColor, CenterBackgroundColor)
+
+		/** The thickness used for the slider bar. For backwards compatibility, this will only be used instead of the bar thickness from Style if it has been manually set with SetThickness. */
+		SLATE_ATTRIBUTE(float, Thickness)
+
+		/** Center background image. */
+		SLATE_ARGUMENT(FSlateBrush, CenterBackgroundBrush)
 
 		/** The style used to draw the slider. */
 		SLATE_STYLE_ARGUMENT(FSliderStyle, Style )
@@ -92,11 +109,23 @@ public:
 		/** Rotates radial slider by arbitrary offset to support full gamut of configurations */
 		SLATE_ARGUMENT(float, AngularOffset)
 
+		/** Start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
+		SLATE_ARGUMENT(FVector2D, HandStartEndRatio)
+
 		/** Distributes value tags along the slider */
 		SLATE_ARGUMENT(TArray<float>, ValueTags)
 
 		/** Sometimes a slider should only be mouse-clickable and never keyboard focusable. */
 		SLATE_ARGUMENT(bool, IsFocusable)
+
+		/** Whether the value is changed when dragging vertically as opposed to along the radial curve.  */
+		SLATE_ARGUMENT(bool, UseVerticalDrag)
+
+		/** Whether to show the slider thumb. */
+		SLATE_ARGUMENT(bool, ShowSliderHandle)
+
+		/** Whether to show the slider hand. */
+		SLATE_ARGUMENT(bool, ShowSliderHand)
 
 		/** Invoked when the mouse is pressed and a capture begins. */
 		SLATE_EVENT(FSimpleDelegate, OnMouseCaptureBegin)
@@ -178,6 +207,9 @@ public:
 	/** Set the AngularOffset attribute */
 	void SetAngularOffset(float InAngularOffset) { AngularOffset = InAngularOffset; }
 
+	/** Set the HandStartEndRatio. Clamped to 0.0 to 1.0, and if the start ratio is more than the end ratio, end ratio will be set to the start ratio.  */
+	void SetHandStartEndRatio(FVector2D InHandStartEndRatio);
+
 	/** Set the ValueTags attribute */
 	void SetValueTags(const TArray<float>& InValueTags) { ValueTags = InValueTags; }
 
@@ -193,6 +225,12 @@ public:
 	/** Set the SliderHandleColor attribute */
 	void SetSliderHandleColor(FSlateColor InSliderHandleColor);
 
+	/** Set the SliderHandleColor attribute */
+	void SetCenterBackgroundColor(FSlateColor InCenterHandleColor);
+
+	/** Set the Thickness attribute. For backward compatibility, Thickness will be used for drawing instead of Style->BarThickness only if it has been set with this method,  */
+	void SetThickness(const float InThickness);
+
 	/** Get the StepSize attribute */
 	float GetStepSize() const;
 
@@ -204,6 +242,15 @@ public:
 
 	/** Set the RequiresControllerLock attribute */
 	void SetRequiresControllerLock(bool RequiresControllerLock);
+
+	/** Set the UseVerticalDrag attribute */
+	void SetUseVerticalDrag(bool UseVerticalDrag);
+
+	/** Set the ShowSliderHandle attribute */
+	void SetShowSliderHandle(bool ShowSliderHandle);
+
+	/** Set the ShowSliderHand attribute */
+	void SetShowSliderHand(bool ShowSliderHand);
 
 public:
 
@@ -248,7 +295,7 @@ protected:
 	 * @return The new value.
 	 */
 	float PositionToValue(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition);
-
+	
 	const FSlateBrush* GetBarImage() const;
 	const FSlateBrush* GetThumbImage() const;
 
@@ -268,6 +315,15 @@ protected:
 
 	// Holds the color of the slider handle.
 	TAttribute<FSlateColor> SliderHandleColor;
+
+	// Holds the color of the center background.
+	TAttribute<FSlateColor> CenterBackgroundColor;
+
+	// Center background image brush
+	FSlateBrush CenterBackgroundBrush;
+
+	// Thickness used for slider bar instead of Style->BarThickness (see SetThickness)
+	TAttribute<TOptional<float>> Thickness;
 
 	// Holds the slider's current value.
 	TAttribute<float> ValueAttribute;
@@ -296,6 +352,9 @@ protected:
 	/**  The angle at which the radial slider should be offset by */	
 	float AngularOffset;
 
+	/** Start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
+	FVector2D HandStartEndRatio;
+
 	/**  The values that should be drawn around the radial slider*/	
 	TArray<float> ValueTags;
 
@@ -314,6 +373,15 @@ protected:
 
 	/** When true, this slider will be keyboard focusable. Defaults to false. */
 	bool bIsFocusable;
+
+	/** When true, value is changed when dragging vertically as opposed to along the radial curve.  */
+	bool bUseVerticalDrag;
+
+	/** Whether to show the slider handle (thumb). */
+	bool bShowSliderHandle;
+
+	/** Whether to show the slider hand. */
+	bool bShowSliderHand;
 
 private:
 
@@ -349,4 +417,15 @@ private:
 
 	// Stores the previous absolute position to support calculating rotational delta for relative input
 	FVector2D PreviousAbsolutePosition;
+
+	// Settings for behavior when IsUsingVerticalDrag is true
+	// For when UseVerticalDrag is true, whether we're fine tuning the value 
+	bool bIsUsingFineTune;
+
+	// The key to use when fine tuning vertical drag 
+	FKey FineTuneKey;
+
+	float VerticalDragMouseSpeedNormal = 0.2f;
+	float VerticalDragMouseSpeedFineTune = 0.05f;
+	float VerticalDragPixelDelta = 50.0f;
 };

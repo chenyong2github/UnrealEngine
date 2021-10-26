@@ -61,7 +61,7 @@ public:
 	inline StrongBlockIdentifier operator--(int) { StrongBlockIdentifier Temp(*this); operator--(); return Temp; }
 
 	// Get the offset in the file to read this block
-	inline static int64 GetSize() { return (int64)(GFileCacheBlockSizeKB * 1024); }
+	inline static int64 GetSize() { return ((int64)GFileCacheBlockSizeKB * 1024); }
 	inline int64 GetOffset() const { checkSlow(IsValid()); return (int64)Id * GetSize(); }
 
 	// Get the number of bytes that need to be read for this block
@@ -582,7 +582,7 @@ void FFileCacheHandle::CheckForSizeRequestComplete()
 		check(FileSize > 0);
 
 		// LineInfos key is int32
-		const int64 TotalNumSlots = FMath::DivideAndRoundUp(FileSize, (int64)(GFileCacheBlockSizeKB * 1024));
+		const int64 TotalNumSlots = FMath::DivideAndRoundUp(FileSize, (int64)GFileCacheBlockSizeKB * 1024);
 		check(TotalNumSlots < MAX_int32);
 	}
 }

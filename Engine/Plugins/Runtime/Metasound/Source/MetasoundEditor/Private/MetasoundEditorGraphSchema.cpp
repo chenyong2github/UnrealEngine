@@ -162,7 +162,7 @@ namespace Metasound
 					if (!InQuery.Filter || InQuery.Filter(NodeHandle))
 					{
 						const FText& GroupName = GetContextGroupDisplayName(InQuery.ContextGroup);
-						const FText NodeDisplayName = NodeHandle->GetDisplayName();
+						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
 						const FText Tooltip = FText::Format(InQuery.TooltipFormat, NodeDisplayName);
 						const FText DisplayName = FText::Format(InQuery.DisplayNameFormat, NodeDisplayName);
 						TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>(GroupName, DisplayName, NodeHandle->GetID(), Tooltip, InQuery.ContextGroup);
@@ -442,7 +442,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGrap
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	const FVertexName OutputName = OutputHandle->GetName();
+	const FString OutputName = OutputHandle->GetName().ToString();
 	const FVertexName NewNodeName = FGraphBuilder::GenerateUniqueNameByClassType(ParentMetasound, EMetasoundFrontendClassType::Output, OutputName);
 	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, OutputHandle->GetDataType(), FText::GetEmpty(), &NewNodeName);
 	if (ensure(NodeHandle->IsValid()))
@@ -888,6 +888,7 @@ bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) co
 FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) const
 {
 	using namespace Metasound::Frontend;
+	using namespace Metasound::Editor;
 
 	check(Pin);
 
@@ -900,7 +901,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 		case EMetasoundFrontendClassType::Input:
 		case EMetasoundFrontendClassType::Output:
 		{
-			return NodeHandle->GetDisplayName();
+			return FGraphBuilder::GetDisplayName(*NodeHandle);
 		}
 
 		case EMetasoundFrontendClassType::External:
@@ -910,7 +911,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 				FConstInputHandle InputHandle = NodeHandle->GetConstInputWithVertexName(Pin->GetFName());
 				if (InputHandle->IsValid())
 				{
-					return InputHandle->GetDisplayName();;
+					return FGraphBuilder::GetDisplayName(*InputHandle);
 				}
 			}
 			else
@@ -918,7 +919,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 				FConstOutputHandle OutputHandle = NodeHandle->GetConstOutputWithVertexName(Pin->GetFName());
 				if (OutputHandle->IsValid())
 				{
-					return OutputHandle->GetDisplayName();
+					return FGraphBuilder::GetDisplayName(*OutputHandle);
 				}
 			}
 

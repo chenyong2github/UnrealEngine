@@ -23,9 +23,53 @@
 #define DEBUGDRAW_H
 
 #include "CoreMinimal.h"
+#include "DebugDrawLargeWorldCoordinates.h"
 
+//@UE BEGIN Adding support for LWCoords.
+// LWC_TODO_AI: Remove the float version of these functions when we go to doubles.Before 5.0!
 // Some math headers don't have PI defined.
-static const float DU_PI = 3.14159265f;
+static const duReal DU_PI = 3.14159265358979323846;
+
+inline float duSin(float x)
+{
+	return sinf(x);
+}
+
+inline double duSin(double x)
+{
+	return sin(x);
+}
+
+inline float duCos(float x)
+{
+	return cosf(x);
+}
+
+inline double duCos(double x)
+{
+	return cos(x);
+}
+
+inline float duAbs(float x)
+{
+	return fabsf(x);
+}
+
+inline double duAbs(double x)
+{
+	return fabs(x);
+}
+
+inline float duSqrt(float x)
+{
+	return sqrtf(x);
+}
+
+inline double duSqrt(double x)
+{
+	return sqrt(x);
+}
+//@UE END Adding support for LWCoords.
 
 enum duDebugDrawPrimitives
 {
@@ -52,23 +96,47 @@ struct duDebugDraw
 	/// Submit a vertex
 	///  @param pos [in] position of the verts.
 	///  @param color [in] color of the verts.
-	virtual void vertex(const float* pos, unsigned int color) = 0;
+	virtual void vertex(const duReal* pos, unsigned int color) = 0;
+//@UE BEGIN Adding support for LWCoords.
+#if !DU_LARGE_WORLD_COORDINATES_DISABLED
+	// float version of this function is now deprecated
+	virtual void vertex(const float* pos, unsigned int color) final {}
+#endif
+//@UE END
 
 	/// Submit a vertex
 	///  @param x,y,z [in] position of the verts.
 	///  @param color [in] color of the verts.
-	virtual void vertex(const float x, const float y, const float z, unsigned int color) = 0;
+	virtual void vertex(const duReal x, const duReal y, const duReal z, unsigned int color) = 0;
+//@UE BEGIN Adding support for LWCoords.
+#if !DU_LARGE_WORLD_COORDINATES_DISABLED
+	// float version of this function is now deprecated
+	virtual void vertex(const float x, const float y, const float z, unsigned int color) final {}
+#endif
+//@UE END
 
 	/// Submit a vertex
 	///  @param pos [in] position of the verts.
 	///  @param color [in] color of the verts.
-	virtual void vertex(const float* pos, unsigned int color, const float* uv) = 0;
-	
+	virtual void vertex(const duReal* pos, unsigned int color, const duReal* uv) = 0;
+//@UE BEGIN Adding support for LWCoords.
+#if !DU_LARGE_WORLD_COORDINATES_DISABLED
+	// float version of this function is now deprecated
+	virtual void vertex(const float* pos, unsigned int color, const float* uv) final {}
+#endif
+//@UE END
+
 	/// Submit a vertex
 	///  @param x,y,z [in] position of the verts.
 	///  @param color [in] color of the verts.
-	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v) = 0;
-	
+	virtual void vertex(const duReal x, const duReal y, const duReal z, unsigned int color, const duReal u, const duReal v) = 0;
+//@UE BEGIN Adding support for LWCoords.
+#if !DU_LARGE_WORLD_COORDINATES_DISABLED
+	// float version of this function is now deprecated
+	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v) final {}
+#endif
+//@UE END
+
 	/// End drawing primitives.
 	virtual void end() = 0;
 };
@@ -130,77 +198,77 @@ inline unsigned int duTransCol(unsigned int c, unsigned int a)
 
 void duCalcBoxColors(unsigned int* colors, unsigned int colTop, unsigned int colSide);
 
-void duDebugDrawCylinderWire(struct duDebugDraw* dd, float minx, float miny, float minz,
-							 float maxx, float maxy, float maxz, unsigned int col, const float lineWidth);
+void duDebugDrawCylinderWire(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+							 duReal maxx, duReal maxy, duReal maxz, unsigned int col, const float lineWidth);
 
-void duDebugDrawBoxWire(struct duDebugDraw* dd, float minx, float miny, float minz,
-						float maxx, float maxy, float maxz, unsigned int col, const float lineWidth);
+void duDebugDrawBoxWire(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+						duReal maxx, duReal maxy, duReal maxz, unsigned int col, const float lineWidth);
 
-void duDebugDrawArc(struct duDebugDraw* dd, const float x0, const float y0, const float z0,
-					const float x1, const float y1, const float z1, const float h,
-					const float as0, const float as1, unsigned int col, const float lineWidth);
+void duDebugDrawArc(struct duDebugDraw* dd, const duReal x0, const duReal y0, const duReal z0,
+					const duReal x1, const duReal y1, const duReal z1, const duReal h,
+					const duReal as0, const duReal as1, unsigned int col, const float lineWidth);
 
-void duDebugDrawArrow(struct duDebugDraw* dd, const float x0, const float y0, const float z0,
-					  const float x1, const float y1, const float z1,
-					  const float as0, const float as1, unsigned int col, const float lineWidth);
+void duDebugDrawArrow(struct duDebugDraw* dd, const duReal x0, const duReal y0, const duReal z0,
+					  const duReal x1, const duReal y1, const duReal z1,
+					  const duReal as0, const duReal as1, unsigned int col, const float lineWidth);
 
-void duDebugDrawCircle(struct duDebugDraw* dd, const float x, const float y, const float z,
-					   const float r, unsigned int col, const float lineWidth);
+void duDebugDrawCircle(struct duDebugDraw* dd, const duReal x, const duReal y, const duReal z,
+					   const duReal r, unsigned int col, const float lineWidth);
 
-void duDebugDrawCross(struct duDebugDraw* dd, const float x, const float y, const float z,
-					  const float size, unsigned int col, const float lineWidth);
+void duDebugDrawCross(struct duDebugDraw* dd, const duReal x, const duReal y, const duReal z,
+					  const duReal size, unsigned int col, const float lineWidth);
 
-void duDebugDrawBox(struct duDebugDraw* dd, float minx, float miny, float minz,
-					float maxx, float maxy, float maxz, const unsigned int* fcol);
+void duDebugDrawBox(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+					duReal maxx, duReal maxy, duReal maxz, const unsigned int* fcol);
 
-void duDebugDrawCylinder(struct duDebugDraw* dd, float minx, float miny, float minz,
-						 float maxx, float maxy, float maxz, unsigned int col);
+void duDebugDrawCylinder(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+						 duReal maxx, duReal maxy, duReal maxz, unsigned int col);
 
-void duDebugDrawGridXZ(struct duDebugDraw* dd, const float ox, const float oy, const float oz,
-					   const int w, const int h, const float size,
+void duDebugDrawGridXZ(struct duDebugDraw* dd, const duReal ox, const duReal oy, const duReal oz,
+					   const int w, const int h, const duReal size,
 					   const unsigned int col, const float lineWidth);
 
 
 // Versions without begin/end, can be used to draw multiple primitives.
-void duAppendCylinderWire(struct duDebugDraw* dd, float minx, float miny, float minz,
-						  float maxx, float maxy, float maxz, unsigned int col);
+void duAppendCylinderWire(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+						  duReal maxx, duReal maxy, duReal maxz, unsigned int col);
 
-void duAppendBoxWire(struct duDebugDraw* dd, float minx, float miny, float minz,
-					 float maxx, float maxy, float maxz, unsigned int col);
+void duAppendBoxWire(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+					 duReal maxx, duReal maxy, duReal maxz, unsigned int col);
 
-void duAppendBoxPoints(struct duDebugDraw* dd, float minx, float miny, float minz,
-					   float maxx, float maxy, float maxz, unsigned int col);
+void duAppendBoxPoints(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+					   duReal maxx, duReal maxy, duReal maxz, unsigned int col);
 
-void duAppendArc(struct duDebugDraw* dd, const float x0, const float y0, const float z0,
-				 const float x1, const float y1, const float z1, const float h,
-				 const float as0, const float as1, unsigned int col);
+void duAppendArc(struct duDebugDraw* dd, const duReal x0, const duReal y0, const duReal z0,
+				 const duReal x1, const duReal y1, const duReal z1, const duReal h,
+				 const duReal as0, const duReal as1, unsigned int col);
 
-void duAppendArcSegment(struct duDebugDraw* dd, const float xA0, const float yA0, const float zA0,
-						const float xA1, const float yA1, const float zA1,
-						const float xB0, const float yB0, const float zB0,
-						const float xB1, const float yB1, const float zB1,
-						const float h, unsigned int col);
+void duAppendArcSegment(struct duDebugDraw* dd, const duReal xA0, const duReal yA0, const duReal zA0,
+						const duReal xA1, const duReal yA1, const duReal zA1,
+						const duReal xB0, const duReal yB0, const duReal zB0,
+						const duReal xB1, const duReal yB1, const duReal zB1,
+						const duReal h, unsigned int col);
 
-void duAppendArrow(struct duDebugDraw* dd, const float x0, const float y0, const float z0,
-				   const float x1, const float y1, const float z1,
-				   const float as0, const float as1, unsigned int col);
+void duAppendArrow(struct duDebugDraw* dd, const duReal x0, const duReal y0, const duReal z0,
+				   const duReal x1, const duReal y1, const duReal z1,
+				   const duReal as0, const duReal as1, unsigned int col);
 
-void duAppendCircle(struct duDebugDraw* dd, const float x, const float y, const float z,
-					const float r, unsigned int col);
+void duAppendCircle(struct duDebugDraw* dd, const duReal x, const duReal y, const duReal z,
+					const duReal r, unsigned int col);
 
-void duAppendCross(struct duDebugDraw* dd, const float x, const float y, const float z,
-				   const float size, unsigned int col);
+void duAppendCross(struct duDebugDraw* dd, const duReal x, const duReal y, const duReal z,
+				   const duReal size, unsigned int col);
 
-void duAppendBox(struct duDebugDraw* dd, float minx, float miny, float minz,
-				 float maxx, float maxy, float maxz, const unsigned int* fcol);
+void duAppendBox(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+				 duReal maxx, duReal maxy, duReal maxz, const unsigned int* fcol);
 
-void duAppendCylinder(struct duDebugDraw* dd, float minx, float miny, float minz,
-					  float maxx, float maxy, float maxz, unsigned int col);
+void duAppendCylinder(struct duDebugDraw* dd, duReal minx, duReal miny, duReal minz,
+					  duReal maxx, duReal maxy, duReal maxz, unsigned int col);
 
 
 class duDisplayList : public duDebugDraw
 {
-	float* m_pos;
+	duReal* m_pos;
 	unsigned int* m_color;
 	int m_size;
 	int m_cap;
@@ -216,8 +284,8 @@ public:
 	virtual ~duDisplayList() override;
 	virtual void depthMask(bool state);
 	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f);
-	virtual void vertex(const float x, const float y, const float z, unsigned int color);
-	virtual void vertex(const float* pos, unsigned int color);
+	virtual void vertex(const duReal x, const duReal y, const duReal z, unsigned int color);
+	virtual void vertex(const duReal* pos, unsigned int color);
 	virtual void end();
 	void clear();
 	void draw(struct duDebugDraw* dd);

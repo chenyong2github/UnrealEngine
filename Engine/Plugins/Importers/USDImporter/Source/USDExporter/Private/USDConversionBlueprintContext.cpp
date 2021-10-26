@@ -270,7 +270,7 @@ bool UUsdConversionBlueprintContext::ConvertMeshComponent( const UMeshComponent*
 #endif // USE_USD_SDK
 }
 
-bool UUsdConversionBlueprintContext::ConvertCineCameraComponent( const UCineCameraComponent* Component, const FString& PrimPath )
+bool UUsdConversionBlueprintContext::ConvertCineCameraComponent( const UCineCameraComponent* Component, const FString& PrimPath, float TimeCode  )
 {
 #if USE_USD_SDK
 	UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim( Stage, PrimPath );
@@ -279,7 +279,7 @@ bool UUsdConversionBlueprintContext::ConvertCineCameraComponent( const UCineCame
 		return false;
 	}
 
-	return UnrealToUsd::ConvertCameraComponent( Stage, Component, Prim );
+	return UnrealToUsd::ConvertCameraComponent( *Component, Prim, TimeCode == FLT_MAX ? UsdUtils::GetDefaultTimeCode() : TimeCode );
 #else
 	return false;
 #endif // USE_USD_SDK

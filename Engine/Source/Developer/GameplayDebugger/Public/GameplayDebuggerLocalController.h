@@ -15,6 +15,8 @@ class FGameplayDebuggerCanvasContext;
 class FGameplayDebuggerCategory;
 class UInputComponent;
 struct FKey;
+class UFont;
+
 
 UCLASS(NotBlueprintable, NotBlueprintType, noteditinlinenew, hidedropdown, Transient)
 class UGameplayDebuggerLocalController : public UObject
@@ -49,6 +51,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<AActor> DebugActorCandidate;
+
+	UPROPERTY()
+	TObjectPtr<UFont> HUDFont;
 
 	TArray<TArray<int32> > DataPackMap;
 	TArray<TArray<int32> > SlotCategoryIds;

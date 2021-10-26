@@ -22,8 +22,11 @@ namespace AutomationToolDriver
 {
     public partial class Program
     {
-	    // Cache records of last-modified times for files
-	    class WriteTimeCache
+		private static DirectoryReference AutomationToolBinaryDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "AutomationTool");
+		private static FileReference ScriptModuleManifestPath = FileReference.Combine(AutomationToolBinaryDir, "ScriptModuleManifest.json");
+
+		// Cache records of last-modified times for files
+		class WriteTimeCache
 	    {
 		    private Dictionary<string, DateTime> WriteTimes = new Dictionary<string, DateTime>();
 			public DateTime GetLastWriteTime(string BasePath, string RelativeFilePath)
@@ -51,7 +54,20 @@ namespace AutomationToolDriver
 			WriteTimeCache WriteTimeCache = new WriteTimeCache();
 			
 			HashSet<FileReference> FoundAutomationProjects = FindAutomationProjects(ScriptsForProjectFileName, AdditionalScriptsFolders);
-			
+
+			bool bInitializeFromScriptMdodulesManifest = Unreal.IsEngineInstalled() || (bNoCompile && !bUseBuildRecords) || (FoundAutomationProjects.Count == 0);
+			if (bInitializeFromScriptMdodulesManifest)
+			{
+				Log.TraceLog($"Loading script module manifest from {ScriptModuleManifestPath}");
+				HashSet<string> ScriptModuleAssemblyPaths = JsonSerializer.Deserialize<HashSet<string>>(FileReference.ReadAllText(ScriptModuleManifestPath));
+				bBuildSuccess = true;
+				return new HashSet<FileReference>(ScriptModuleAssemblyPaths
+					.Select(x => FileReference.Combine(AutomationToolBinaryDir, x))
+					// where AutomationTool has run with a set of script module plugins, it may not be bundled with all of them
+					// this is intended as a temporary workaround pending relocation of uatbuildrecord files and (likely) removal of the manifest.
+					.Where(FileReference.Exists));
+			}
+
 			if (!bForceCompile && bUseBuildRecords)
 			{
 				// fastest path: if we have an up-to-date record of a previous build, we should be able to start faster
@@ -63,14 +79,6 @@ namespace AutomationToolDriver
 					return ScriptModules;
 				}
 			}
-
-			// If the engine is installed, let's assume that there are valid .uatbuildrecord files (they live alongside .csproj files)
-			// Which means if we didn't find them, there's a bigger problem that needs to be addressed)
-			if (Unreal.IsEngineInstalled())
-            {
-				bBuildSuccess = false;
-				return null;
-            }
 
 			// Fall back to the slower approach: use msbuild to load csproj files & build as necessary
 			RegisterMsBuildPath();
@@ -383,45 +391,8 @@ namespace AutomationToolDriver
 			MSBuildLocator.RegisterMSBuildPath(DotnetSdkDirectory.FullName);
 		}
 
-		/// <summary>
-		/// Determines if a particular script module is supported on the current platform;
-		/// </summary>
-		private static bool IsScriptModuleSupported(string ModuleName)
-        {
-			if (RuntimePlatform.IsMac)
-            {
-				List<string> UnsupportedModules = new List<string>()
-				{
-					"GauntletExtras", "GDK", "WinGDK", "XboxCommonGDK", "XboxOneGDK", "XSX",
-					"FortniteGame", "PS4", "PS5", "Switch",
-				};
-				foreach (string UnsupportedModule in UnsupportedModules)
-				{
-					if (ModuleName.StartsWith(UnsupportedModule, StringComparison.OrdinalIgnoreCase))
-					{
-						return false;
-					}
-				}
-            }
-			else if (RuntimePlatform.IsLinux)
-            {
-				if (ModuleName.StartsWith("Gauntlet", StringComparison.OrdinalIgnoreCase))
-				{
-					return false;
-				}
-				if (ModuleName.StartsWith("PS4", StringComparison.OrdinalIgnoreCase))
-				{
-					return false;
-				}
-            }
-
-			return true;
-        }
-		
 		static HashSet<FileReference> FindAutomationProjects(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders)
 		{
-			HashSet<FileReference> FoundAutomationProjects = new HashSet<FileReference>();
-
 			// Configure the rules compiler
 			// Get all game folders and convert them to build subfolders.
 			List<DirectoryReference> AllGameFolders = new List<DirectoryReference>();
@@ -458,19 +429,8 @@ namespace AutomationToolDriver
 			
 			List<FileReference> DiscoveredModules = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule,
 				GameFolders: AllGameFolders, ForeignPlugins: null, AdditionalSearchPaths: AllAdditionalScriptFolders);
-			foreach (FileReference ModuleFilename in DiscoveredModules)
-			{
-				if (IsScriptModuleSupported(ModuleFilename.GetFileNameWithoutAnyExtensions()))
-				{
-					FoundAutomationProjects.Add(ModuleFilename);
-				}
-				else
-				{
-					Log.TraceVerbose("Script module {0} filtered by the Host Platform and will not be compiled.", ModuleFilename);
-				}
-			}
 
-			return FoundAutomationProjects;
+			return new HashSet<FileReference>(DiscoveredModules);
 		}
 
 		class MLogger : ILogger
@@ -574,200 +534,198 @@ namespace AutomationToolDriver
 			// The -IgnoreBuildRecords prevents the loading & parsing of .uatbuildrecord files - but UATBuildRecord objects will be used in this function regardless
 			Dictionary<FileReference, UATBuildRecord> BuildRecords = new Dictionary<FileReference, UATBuildRecord>();
 			
+			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
+			
+			// Microsoft.Build.Evaluation.Project provides access to information stored in the .csproj xml that is 
+			// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
+			// in BuildProjects) - particularly, to access glob information defined in the source file.
+
+			// Load all found automation projects, and any other referenced projects.
+			foreach (FileReference ProjectPath in FoundAutomationProjects)
 			{
-				Dictionary<string, Project> Projects = new Dictionary<string, Project>();
-				
-				// Microsoft.Build.Evaluation.Project provides access to information stored in the .csproj xml that is 
-				// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
-				// in BuildProjects) - particularly, to access glob information defined in the source file.
-
-				// Load all found automation projects, and any other referenced projects.
-				foreach (FileReference ProjectPath in FoundAutomationProjects)
+				void LoadProjectAndReferences(string ProjectPath, string ReferencedBy)
 				{
-					void LoadProjectAndReferences(string ProjectPath, string ReferencedBy)
+					ProjectPath = Path.GetFullPath(ProjectPath);
+					if (!Projects.ContainsKey(ProjectPath))
 					{
-						ProjectPath = Path.GetFullPath(ProjectPath);
-						if (!Projects.ContainsKey(ProjectPath))
+						Project Project;
+
+						// Microsoft.Build.Evaluation.Project doesn't give a lot of useful information if this fails,
+						// so make sure to print our own diagnostic info if something goes wrong
+						try
 						{
-							Project Project;
-
-							// Microsoft.Build.Evaluation.Project doesn't give a lot of useful information if this fails,
-							// so make sure to print our own diagnostic info if something goes wrong
-							try
+							Project = new Project(ProjectPath, GlobalProperties, toolsVersion: null);
+						}
+						catch (Microsoft.Build.Exceptions.InvalidProjectFileException IPFEx)
+						{
+							Log.TraceError($"Could not load project file {ProjectPath}");
+							Log.TraceError(IPFEx.BaseMessage);
+							
+							if (!String.IsNullOrEmpty(ReferencedBy))
 							{
-								Project = new Project(ProjectPath, GlobalProperties, toolsVersion: null);
+								Log.TraceError($"Referenced by: {ReferencedBy}");
 							}
-							catch (Microsoft.Build.Exceptions.InvalidProjectFileException IPFEx)
+							if (Projects.Count > 0)
 							{
-								Log.TraceError($"Could not load project file {ProjectPath}");
-								Log.TraceError(IPFEx.BaseMessage);
-								
-								if (!String.IsNullOrEmpty(ReferencedBy))
+								Log.TraceError("See the log file for the list of previously loaded projects.");
+								Log.TraceLog("Loaded projects (most recently loaded first):");
+								foreach (string Path in Projects.Keys.Reverse())
 								{
-									Log.TraceError($"Referenced by: {ReferencedBy}");
+									Log.TraceLog($"  {Path}");
 								}
-								if (Projects.Count > 0)
-								{
-									Log.TraceError("See the log file for the list of previously loaded projects.");
-									Log.TraceLog("Loaded projects (most recently loaded first):");
-									foreach (string Path in Projects.Keys.Reverse())
-                                    {
-										Log.TraceLog($"  {Path}");
-                                    }
-								}
-								throw IPFEx;
 							}
+							throw IPFEx;
+						}
 
-							Projects.Add(ProjectPath, Project);
-							ReferencedBy = String.IsNullOrEmpty(ReferencedBy) ? ProjectPath : $"{ProjectPath}{Environment.NewLine}{ReferencedBy}";
-							foreach (string ReferencedProject in Project.GetItems("ProjectReference").
-								Select(I => I.EvaluatedInclude))
-							{
-								LoadProjectAndReferences(Path.Combine(Project.DirectoryPath, ReferencedProject), ReferencedBy);
-							}
+						Projects.Add(ProjectPath, Project);
+						ReferencedBy = String.IsNullOrEmpty(ReferencedBy) ? ProjectPath : $"{ProjectPath}{Environment.NewLine}{ReferencedBy}";
+						foreach (string ReferencedProject in Project.GetItems("ProjectReference").
+							Select(I => I.EvaluatedInclude))
+						{
+							LoadProjectAndReferences(Path.Combine(Project.DirectoryPath, ReferencedProject), ReferencedBy);
 						}
 					}
-					LoadProjectAndReferences(ProjectPath.FullName, null);
+				}
+				LoadProjectAndReferences(ProjectPath.FullName, null);
+			}
+			
+			// generate a BuildRecord for each loaded project - the gathered information will be used to determine if the project is
+			// out of date, and if building this project can be skipped. It is also used to populate the .uatbuildrecord after the
+			// build completes
+			foreach (Project Project in Projects.Values)
+			{
+				string TargetPath = Path.GetRelativePath(Project.DirectoryPath, Project.GetPropertyValue("TargetPath"));
+				
+				UATBuildRecord BuildRecord = new UATBuildRecord()
+				{
+					Version = UATBuildRecord.CurrentVersion,
+					TargetPath = TargetPath,
+					TargetBuildTime = Cache.GetLastWriteTime(Project.DirectoryPath, TargetPath),
+				};
+
+				// the .csproj
+				BuildRecord.Dependencies.Add(Path.GetRelativePath(Project.DirectoryPath, Project.FullPath));
+				
+				// Imports: files included in the xml (typically props, targets, etc)
+				foreach (ResolvedImport Import in Project.Imports)
+				{
+					string ImportPath = Path.GetRelativePath(Project.DirectoryPath, Import.ImportedProject.FullPath);
+					
+					// nuget.g.props and nuget.g.targets are generated by Restore, and are frequently re-written;
+					// it should be safe to ignore these files - changes to references from a .csproj file will
+					// show up as that file being out of date.
+					if (ImportPath.IndexOf("nuget.g.") != -1)
+					{
+						continue;
+					}
+
+					BuildRecord.Dependencies.Add(ImportPath);
 				}
 				
-				// generate a BuildRecord for each loaded project - the gathered information will be used to determine if the project is
-				// out of date, and if building this project can be skipped. It is also used to populate the .uatbuildrecord after the
-				// build completes
-				foreach (Project Project in Projects.Values)
+				// References: e.g. Ionic.Zip.Reduced.dll, fastJSON.dll
+				foreach (var Item in Project.GetItems("Reference"))
 				{
-					string TargetPath = Path.GetRelativePath(Project.DirectoryPath, Project.GetPropertyValue("TargetPath"));
-					
-					UATBuildRecord BuildRecord = new UATBuildRecord()
-					{
-						Version = UATBuildRecord.CurrentVersion,
-						TargetPath = TargetPath,
-						TargetBuildTime = Cache.GetLastWriteTime(Project.DirectoryPath, TargetPath),
-					};
-
-					// the .csproj
-					BuildRecord.Dependencies.Add(Path.GetRelativePath(Project.DirectoryPath, Project.FullPath));
-					
-					// Imports: files included in the xml (typically props, targets, etc)
-					foreach (ResolvedImport Import in Project.Imports)
-					{
-						string ImportPath = Path.GetRelativePath(Project.DirectoryPath, Import.ImportedProject.FullPath);
-						
-						// nuget.g.props and nuget.g.targets are generated by Restore, and are frequently re-written;
-						// it should be safe to ignore these files - changes to references from a .csproj file will
-						// show up as that file being out of date.
-						if (ImportPath.IndexOf("nuget.g.") != -1)
-						{
-							continue;
-						}
-
-						BuildRecord.Dependencies.Add(ImportPath);
-					}
-					
-					// References: e.g. Ionic.Zip.Reduced.dll, fastJSON.dll
-					foreach (var Item in Project.GetItems("Reference"))
-					{
-						BuildRecord.Dependencies.Add(Item.GetMetadataValue("HintPath"));
-					}
-
-					foreach (ProjectItem ReferencedProjectItem in Project.GetItems("ProjectReference"))
-					{
-						BuildRecord.ProjectReferences.Add(ReferencedProjectItem.EvaluatedInclude);
-					}
-
-					foreach (ProjectItem CompileItem in Project.GetItems("Compile"))
-					{
-						if (FileMatcher.HasWildcards(CompileItem.UnevaluatedInclude))
-						{
-							BuildRecord.GlobbedDependencies.Add(CompileItem.EvaluatedInclude);
-						}
-						else
-						{
-							BuildRecord.Dependencies.Add(CompileItem.EvaluatedInclude);
-						}
-					}
-
-					foreach (ProjectItem ContentItem in Project.GetItems("Content"))
-                    {
-						if (FileMatcher.HasWildcards(ContentItem.UnevaluatedInclude))
-                        {
-							BuildRecord.GlobbedDependencies.Add(ContentItem.EvaluatedInclude);
-                        }
-						else
-                        {
-							BuildRecord.Dependencies.Add(ContentItem.EvaluatedInclude);
-                        }
-                    }
-
-					foreach (ProjectItem EmbeddedResourceItem in Project.GetItems("EmbeddedResource"))
-					{
-						if (FileMatcher.HasWildcards(EmbeddedResourceItem.UnevaluatedInclude))
-						{
-							BuildRecord.GlobbedDependencies.Add(EmbeddedResourceItem.EvaluatedInclude);
-						}
-						else
-						{
-							BuildRecord.Dependencies.Add(EmbeddedResourceItem.EvaluatedInclude);
-						}
-					}
-
-					// this line right here is slow: ~30-40ms per project (which can be more than a second total)
-					// making it one of the slowest steps in gathering or checking dependency information from
-					// .csproj files (after loading as Microsoft.Build.Evalation.Project)
-					// 
-					// This also returns a lot more information than we care for - MSBuildGlob objects,
-					// which have a range of precomputed values. It may be possible to take source for
-					// GetAllGlobs() and construct a version that does less.
-					var Globs = Project.GetAllGlobs();
-
-					// FileMatcher.IsMatch() requires directory separators in glob strings to match the
-					// local flavor. There's probably a better way.
-					string CleanGlobString(string GlobString)
-					{
-						char Sep = Path.DirectorySeparatorChar;
-						char NotSep = Sep == '/' ? '\\' : '/'; // AltDirectorySeparatorChar isn't always what we need (it's '/' on Mac)
-					
-						var Chars = GlobString.ToCharArray();
-						int P = 0;
-						for (int I = 0; I < GlobString.Length; ++I, ++P)
-						{
-							// Flip a non-native separator
-							if (Chars[I] == NotSep)
-							{
-								Chars[P] = Sep;
-							}
-							else
-							{
-								Chars[P] = Chars[I];
-							}
-
-							// Collapse adjacent separators
-							if (I > 0 && Chars[P] == Sep && Chars[P - 1] == Sep ) 
-							{
-								P -= 1;
-							}
-						}
-
-						return new string(Chars, 0, P);
-					}
-
-					foreach (var Glob in Globs)
-					{
-						if (String.Equals("None", Glob.ItemElement.ItemType))
-						{
-							// don't record the default "None" glob - it's not (?) a trigger for any Automation rebuild
-							continue;
-						}
-
-						List<string> Include = new List<string>(Glob.IncludeGlobs.Select(F => CleanGlobString(F)));
-						List<string> Exclude = new List<string>(Glob.Excludes.Select(F => CleanGlobString(F)));
-						List<string> Remove = new List<string>(Glob.Removes.Select(F => CleanGlobString(F)));
-						
-						BuildRecord.Globs.Add(new UATBuildRecord.Glob() { ItemType = Glob.ItemElement.ItemType, 
-							Include = Include, Exclude = Exclude, Remove = Remove });
-					}
-
-					BuildRecords.Add(FileReference.FromString(Project.FullPath), BuildRecord);
+					BuildRecord.Dependencies.Add(Item.GetMetadataValue("HintPath"));
 				}
+
+				foreach (ProjectItem ReferencedProjectItem in Project.GetItems("ProjectReference"))
+				{
+					BuildRecord.ProjectReferences.Add(ReferencedProjectItem.EvaluatedInclude);
+				}
+
+				foreach (ProjectItem CompileItem in Project.GetItems("Compile"))
+				{
+					if (FileMatcher.HasWildcards(CompileItem.UnevaluatedInclude))
+					{
+						BuildRecord.GlobbedDependencies.Add(CompileItem.EvaluatedInclude);
+					}
+					else
+					{
+						BuildRecord.Dependencies.Add(CompileItem.EvaluatedInclude);
+					}
+				}
+
+				foreach (ProjectItem ContentItem in Project.GetItems("Content"))
+				{
+					if (FileMatcher.HasWildcards(ContentItem.UnevaluatedInclude))
+					{
+						BuildRecord.GlobbedDependencies.Add(ContentItem.EvaluatedInclude);
+					}
+					else
+					{
+						BuildRecord.Dependencies.Add(ContentItem.EvaluatedInclude);
+					}
+				}
+
+				foreach (ProjectItem EmbeddedResourceItem in Project.GetItems("EmbeddedResource"))
+				{
+					if (FileMatcher.HasWildcards(EmbeddedResourceItem.UnevaluatedInclude))
+					{
+						BuildRecord.GlobbedDependencies.Add(EmbeddedResourceItem.EvaluatedInclude);
+					}
+					else
+					{
+						BuildRecord.Dependencies.Add(EmbeddedResourceItem.EvaluatedInclude);
+					}
+				}
+
+				// this line right here is slow: ~30-40ms per project (which can be more than a second total)
+				// making it one of the slowest steps in gathering or checking dependency information from
+				// .csproj files (after loading as Microsoft.Build.Evalation.Project)
+				// 
+				// This also returns a lot more information than we care for - MSBuildGlob objects,
+				// which have a range of precomputed values. It may be possible to take source for
+				// GetAllGlobs() and construct a version that does less.
+				var Globs = Project.GetAllGlobs();
+
+				// FileMatcher.IsMatch() requires directory separators in glob strings to match the
+				// local flavor. There's probably a better way.
+				string CleanGlobString(string GlobString)
+				{
+					char Sep = Path.DirectorySeparatorChar;
+					char NotSep = Sep == '/' ? '\\' : '/'; // AltDirectorySeparatorChar isn't always what we need (it's '/' on Mac)
+				
+					var Chars = GlobString.ToCharArray();
+					int P = 0;
+					for (int I = 0; I < GlobString.Length; ++I, ++P)
+					{
+						// Flip a non-native separator
+						if (Chars[I] == NotSep)
+						{
+							Chars[P] = Sep;
+						}
+						else
+						{
+							Chars[P] = Chars[I];
+						}
+
+						// Collapse adjacent separators
+						if (I > 0 && Chars[P] == Sep && Chars[P - 1] == Sep ) 
+						{
+							P -= 1;
+						}
+					}
+
+					return new string(Chars, 0, P);
+				}
+
+				foreach (var Glob in Globs)
+				{
+					if (String.Equals("None", Glob.ItemElement.ItemType))
+					{
+						// don't record the default "None" glob - it's not (?) a trigger for any Automation rebuild
+						continue;
+					}
+
+					List<string> Include = new List<string>(Glob.IncludeGlobs.Select(F => CleanGlobString(F)));
+					List<string> Exclude = new List<string>(Glob.Excludes.Select(F => CleanGlobString(F)));
+					List<string> Remove = new List<string>(Glob.Removes.Select(F => CleanGlobString(F)));
+					
+					BuildRecord.Globs.Add(new UATBuildRecord.Glob() { ItemType = Glob.ItemElement.ItemType, 
+						Include = Include, Exclude = Exclude, Remove = Remove });
+				}
+
+				BuildRecords.Add(FileReference.FromString(Project.FullPath), BuildRecord);
 			}
 
 			// Potential optimization: Contructing the ProjectGraph here gives the full graph of dependencies - which is nice,
@@ -846,6 +804,15 @@ namespace AutomationToolDriver
 			if (BuildProjectGraph != null)
 			{
 				bBuildSuccess = BuildProjects(BuildProjectGraph);
+				if (bBuildSuccess)
+                {
+					// write a list of built script module assemblies, so that source files are not required for installed builds
+
+					HashSet<string> ScriptModuleAssemblies = new HashSet<string>(Projects.Values.Select(
+						x => Path.GetRelativePath(AutomationToolBinaryDir.ToString(), x.GetPropertyValue("TargetPath"))));
+
+					FileReference.WriteAllText(ScriptModuleManifestPath, JsonSerializer.Serialize(ScriptModuleAssemblies, new JsonSerializerOptions { WriteIndented = true }));
+                }
 			}
 			else
 			{ 
@@ -867,7 +834,6 @@ namespace AutomationToolDriver
 			}
 
 			// todo: re-verify build records after a build to verify that everything is actually up to date
-
 
 			// even if only a subset was built, this function returns the full list of target assembly paths
 			return new HashSet<FileReference>(InputProjectGraph.EntryPointNodes.Select(
@@ -919,6 +885,7 @@ namespace AutomationToolDriver
 				}
 			}
 			Log.TraceInformation(" build complete.");
+
 			return Result;
 		}
     }

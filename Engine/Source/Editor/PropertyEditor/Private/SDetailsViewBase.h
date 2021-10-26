@@ -161,6 +161,8 @@ public:
 	 */
 	virtual void EnqueueDeferredAction(FSimpleDelegate& DeferredAction) override;
 
+	/** Restore all expanded items in root nodes and external root nodes. */
+	void RestoreAllExpandedItems();
 
 	// SWidget interface
 	virtual bool SupportsKeyboardFocus() const override;

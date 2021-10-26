@@ -9,7 +9,7 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
 
-class FIKRigEditorStyle	: public FSlateStyleSet
+class FIKRigEditorStyle	final : public FSlateStyleSet
 {
 public:
 	

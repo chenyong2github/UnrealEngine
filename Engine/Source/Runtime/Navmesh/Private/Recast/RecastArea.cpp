@@ -732,7 +732,7 @@ bool rcMarkLowAreas(rcContext* ctx, unsigned int height, unsigned char areaId, r
 /// The value of spacial parameters are in world units.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcMarkBoxArea(rcContext* ctx, const float* bmin, const float* bmax, unsigned char areaId,
+void rcMarkBoxArea(rcContext* ctx, const rcReal* bmin, const rcReal* bmax, unsigned char areaId,
 				   rcCompactHeightfield& chf)
 {
 	rcAssert(ctx);
@@ -778,13 +778,13 @@ void rcMarkBoxArea(rcContext* ctx, const float* bmin, const float* bmax, unsigne
 }
 
 
-static int pointInPoly(int nvert, const float* verts, const float* p)
+static int pointInPoly(int nvert, const rcReal* verts, const rcReal* p)
 {
 	int i, j, c = 0;
 	for (i = 0, j = nvert-1; i < nvert; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
+		const rcReal* vi = &verts[i*3];
+		const rcReal* vj = &verts[j*3];
 		if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
 			(p[0] < (vj[0]-vi[0]) * (p[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]) )
 			c = !c;
@@ -800,15 +800,15 @@ static int pointInPoly(int nvert, const float* verts, const float* p)
 /// projected onto the xz-plane at @p hmin, then extruded to @p hmax.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
-						  const float hmin, const float hmax, unsigned char areaId,
+void rcMarkConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nverts,
+						  const rcReal hmin, const rcReal hmax, unsigned char areaId,
 						  rcCompactHeightfield& chf)
 {
 	rcAssert(ctx);
 	
 	ctx->startTimer(RC_TIMER_MARK_CONVEXPOLY_AREA);
 
-	float bmin[3], bmax[3];
+	rcReal bmin[3], bmax[3];
 	rcVcopy(bmin, verts);
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nverts; ++i)
@@ -850,7 +850,7 @@ void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 					continue;
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					float p[3];
+					rcReal p[3];
 					p[0] = chf.bmin[0] + (x+0.5f)*chf.cs; 
 					p[1] = 0;
 					p[2] = chf.bmin[2] + (z+0.5f)*chf.cs; 
@@ -867,10 +867,10 @@ void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 	ctx->stopTimer(RC_TIMER_MARK_CONVEXPOLY_AREA);
 }
 
-int rcOffsetPoly(const float* verts, const int nverts, const float offset,
-				 float* outVerts, const int maxOutVerts)
+int rcOffsetPoly(const rcReal* verts, const int nverts, const rcReal offset,
+				 rcReal* outVerts, const int maxOutVerts)
 {
-	const float	MITER_LIMIT = 1.20f;
+	const rcReal	MITER_LIMIT = 1.20f;
 
 	int n = 0;
 
@@ -879,39 +879,39 @@ int rcOffsetPoly(const float* verts, const int nverts, const float offset,
 		const int a = (i+nverts-1) % nverts;
 		const int b = i;
 		const int c = (i+1) % nverts;
-		const float* va = &verts[a*3];
-		const float* vb = &verts[b*3];
-		const float* vc = &verts[c*3];
-		float dx0 = vb[0] - va[0];
-		float dy0 = vb[2] - va[2];
-		float d0 = dx0*dx0 + dy0*dy0;
+		const rcReal* va = &verts[a*3];
+		const rcReal* vb = &verts[b*3];
+		const rcReal* vc = &verts[c*3];
+		rcReal dx0 = vb[0] - va[0];
+		rcReal dy0 = vb[2] - va[2];
+		rcReal d0 = dx0*dx0 + dy0*dy0;
 		if (d0 > 1e-6f)
 		{
 			d0 = 1.0f/rcSqrt(d0);
 			dx0 *= d0;
 			dy0 *= d0;
 		}
-		float dx1 = vc[0] - vb[0];
-		float dy1 = vc[2] - vb[2];
-		float d1 = dx1*dx1 + dy1*dy1;
+		rcReal dx1 = vc[0] - vb[0];
+		rcReal dy1 = vc[2] - vb[2];
+		rcReal d1 = dx1*dx1 + dy1*dy1;
 		if (d1 > 1e-6f)
 		{
 			d1 = 1.0f/rcSqrt(d1);
 			dx1 *= d1;
 			dy1 *= d1;
 		}
-		const float dlx0 = -dy0;
-		const float dly0 = dx0;
-		const float dlx1 = -dy1;
-		const float dly1 = dx1;
-		float cross = dx1*dy0 - dx0*dy1;
-		float dmx = (dlx0 + dlx1) * 0.5f;
-		float dmy = (dly0 + dly1) * 0.5f;
-		float dmr2 = dmx*dmx + dmy*dmy;
+		const rcReal dlx0 = -dy0;
+		const rcReal dly0 = dx0;
+		const rcReal dlx1 = -dy1;
+		const rcReal dly1 = dx1;
+		rcReal cross = dx1*dy0 - dx0*dy1;
+		rcReal dmx = (dlx0 + dlx1) * 0.5f;
+		rcReal dmy = (dly0 + dly1) * 0.5f;
+		rcReal dmr2 = dmx*dmx + dmy*dmy;
 		bool bevel = dmr2 * MITER_LIMIT*MITER_LIMIT < 1.0f;
 		if (dmr2 > 1e-6f)
 		{
-			const float scale = 1.0f / dmr2;
+			const rcReal scale = 1.0f / dmr2;
 			dmx *= scale;
 			dmy *= scale;
 		}
@@ -920,7 +920,7 @@ int rcOffsetPoly(const float* verts, const int nverts, const float offset,
 		{
 			if (n+2 >= maxOutVerts)
 				return 0;
-			float d = (1.0f - (dx0*dx1 + dy0*dy1))*0.5f;
+			rcReal d = (1.0f - (dx0*dx1 + dy0*dy1))*0.5f;
 			outVerts[n*3+0] = vb[0] + (-dlx0+dx0*d)*offset;
 			outVerts[n*3+1] = vb[1];
 			outVerts[n*3+2] = vb[2] + (-dly0+dy0*d)*offset;
@@ -950,22 +950,22 @@ int rcOffsetPoly(const float* verts, const int nverts, const float offset,
 /// The value of spacial parameters are in world units.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcMarkCylinderArea(rcContext* ctx, const float* pos,
-						const float r, const float h, unsigned char areaId,
+void rcMarkCylinderArea(rcContext* ctx, const rcReal* pos,
+						const rcReal r, const rcReal h, unsigned char areaId,
 						rcCompactHeightfield& chf)
 {
 	rcAssert(ctx);
 	
 	ctx->startTimer(RC_TIMER_MARK_CYLINDER_AREA);
 	
-	float bmin[3], bmax[3];
+	rcReal bmin[3], bmax[3];
 	bmin[0] = pos[0] - r;
 	bmin[1] = pos[1];
 	bmin[2] = pos[2] - r;
 	bmax[0] = pos[0] + r;
 	bmax[1] = pos[1] + h;
 	bmax[2] = pos[2] + r;
-	const float r2 = r*r;
+	const rcReal r2 = r*r;
 	
 	int minx = (int)((bmin[0]-chf.bmin[0])/chf.cs);
 	int miny = (int)((bmin[1]-chf.bmin[1])/chf.ch);
@@ -999,10 +999,10 @@ void rcMarkCylinderArea(rcContext* ctx, const float* pos,
 				
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					const float sx = chf.bmin[0] + (x+0.5f)*chf.cs; 
-					const float sz = chf.bmin[2] + (z+0.5f)*chf.cs; 
-					const float dx = sx - pos[0];
-					const float dz = sz - pos[2];
+					const rcReal sx = chf.bmin[0] + (x+0.5f)*chf.cs;
+					const rcReal sz = chf.bmin[2] + (z+0.5f)*chf.cs;
+					const rcReal dx = sx - pos[0];
+					const rcReal dz = sz - pos[2];
 					
 					if (dx*dx + dz*dz < r2)
 					{
@@ -1021,7 +1021,7 @@ void rcMarkCylinderArea(rcContext* ctx, const float* pos,
 /// The value of spacial parameters are in world units.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcReplaceBoxArea(rcContext* ctx, const float* bmin, const float* bmax,
+void rcReplaceBoxArea(rcContext* ctx, const rcReal* bmin, const rcReal* bmax,
 	unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf)
 {
@@ -1075,15 +1075,15 @@ void rcReplaceBoxArea(rcContext* ctx, const float* bmin, const float* bmax,
 /// projected onto the xz-plane at @p hmin, then extruded to @p hmax.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcReplaceConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
-	const float hmin, const float hmax, unsigned char areaId, unsigned char filterAreaId,
+void rcReplaceConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nverts,
+	const rcReal hmin, const rcReal hmax, unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf)
 {
 	rcAssert(ctx);
 
 	ctx->startTimer(RC_TIMER_MARK_CONVEXPOLY_AREA);
 
-	float bmin[3], bmax[3];
+	rcReal bmin[3], bmax[3];
 	rcVcopy(bmin, verts);
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nverts; ++i)
@@ -1125,7 +1125,7 @@ void rcReplaceConvexPolyArea(rcContext* ctx, const float* verts, const int nvert
 					continue;
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					float p[3];
+					rcReal p[3];
 					p[0] = chf.bmin[0] + (x + 0.5f)*chf.cs;
 					p[1] = 0;
 					p[2] = chf.bmin[2] + (z + 0.5f)*chf.cs;
@@ -1147,22 +1147,22 @@ void rcReplaceConvexPolyArea(rcContext* ctx, const float* verts, const int nvert
 /// The value of spacial parameters are in world units.
 /// 
 /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
-void rcReplaceCylinderArea(rcContext* ctx, const float* pos,
-	const float r, const float h, unsigned char areaId, unsigned char filterAreaId,
+void rcReplaceCylinderArea(rcContext* ctx, const rcReal* pos,
+	const rcReal r, const rcReal h, unsigned char areaId, unsigned char filterAreaId,
 	rcCompactHeightfield& chf)
 {
 	rcAssert(ctx);
 
 	ctx->startTimer(RC_TIMER_MARK_CYLINDER_AREA);
 
-	float bmin[3], bmax[3];
+	rcReal bmin[3], bmax[3];
 	bmin[0] = pos[0] - r;
 	bmin[1] = pos[1];
 	bmin[2] = pos[2] - r;
 	bmax[0] = pos[0] + r;
 	bmax[1] = pos[1] + h;
 	bmax[2] = pos[2] + r;
-	const float r2 = r*r;
+	const rcReal r2 = r*r;
 
 	int minx = (int)((bmin[0] - chf.bmin[0]) / chf.cs);
 	int miny = (int)((bmin[1] - chf.bmin[1]) / chf.ch);
@@ -1196,10 +1196,10 @@ void rcReplaceCylinderArea(rcContext* ctx, const float* pos,
 
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					const float sx = chf.bmin[0] + (x + 0.5f)*chf.cs;
-					const float sz = chf.bmin[2] + (z + 0.5f)*chf.cs;
-					const float dx = sx - pos[0];
-					const float dz = sz - pos[2];
+					const rcReal sx = chf.bmin[0] + (x + 0.5f)*chf.cs;
+					const rcReal sz = chf.bmin[2] + (z + 0.5f)*chf.cs;
+					const rcReal dx = sx - pos[0];
+					const rcReal dz = sz - pos[2];
 
 					if (dx*dx + dz*dz < r2)
 					{

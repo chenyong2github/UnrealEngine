@@ -8,6 +8,7 @@
 #if !UE_BUILD_SHIPPING
 
 class FStorageServerConnection;
+struct FStorageServerSerializationContext;
 
 class FStorageServerIoDispatcherBackend final
 	: public FRunnable
@@ -63,8 +64,9 @@ private:
 	struct FBatch
 		: public IQueuedWork
 	{
-		FBatch(FStorageServerIoDispatcherBackend& InOwner)
+		FBatch(FStorageServerIoDispatcherBackend& InOwner, TUniquePtr<FStorageServerSerializationContext> InSerializationContext)
 			: Owner(InOwner)
+			, SerializationContext(MoveTemp(InSerializationContext))
 		{
 
 		}
@@ -77,6 +79,7 @@ private:
 		FIoRequestImpl* RequestsHead = nullptr;
 		FIoRequestImpl* RequestsTail = nullptr;
 		uint64 RequestsCount = 0;
+		TUniquePtr<FStorageServerSerializationContext> SerializationContext;
 	};
 
 	void SubmitBatch(FBatch* Batch);

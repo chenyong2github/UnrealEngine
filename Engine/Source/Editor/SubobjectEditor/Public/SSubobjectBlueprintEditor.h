@@ -115,9 +115,5 @@ protected:
 
 	/** Get the current preview actor for this blueprint editor. */
 	AActor* GetActorPreview() const { return PreviewActor.Get(nullptr); }
-
-public:
-	
-	virtual FSlateColor GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const override;
 	
 };

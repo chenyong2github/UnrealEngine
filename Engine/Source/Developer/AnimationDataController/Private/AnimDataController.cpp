@@ -451,13 +451,13 @@ void UAnimDataController::ResetModel(bool bShouldTransact /*= true*/)
 
 	CONDITIONAL_BRACKET(LOCTEXT("ResetModel", "Clearing Animation Data"));
 
-	RemoveAllBoneTracks();
+	RemoveAllBoneTracks(bShouldTransact);
 
 	RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float, bShouldTransact);
 	RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform, bShouldTransact);
 
-	SetPlayLength(MINIMUM_ANIMATION_LENGTH);
-	SetFrameRate(FFrameRate(30,1));
+	SetPlayLength(MINIMUM_ANIMATION_LENGTH, bShouldTransact);
+	SetFrameRate(FFrameRate(30,1), bShouldTransact);
 
 	Model->Notify(EAnimDataModelNotifyType::Reset);
 }

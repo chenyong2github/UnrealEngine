@@ -465,6 +465,8 @@ namespace UnrealBuildTool
 				}
 			}
 
+			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
+
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
 
 			// deliberately not linking stl or stdc++ here (c++_shared is default)

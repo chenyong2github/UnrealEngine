@@ -269,6 +269,27 @@ bool FMovieSceneTransformTrail::EndTracking()
 	return false;
 }
 
+TArray<FFrameNumber> FMovieSceneTransformTrail::GetKeyTimes() const
+{
+	TArray<FTrailKeyInfo*> AllKeys;
+	KeyTool->GetAllKeys(AllKeys);
+
+	TArray<FFrameNumber> Frames;
+	for (FTrailKeyInfo* Info : AllKeys)
+	{
+		if (Info)
+		{
+			Frames.Add(Info->FrameNumber);
+		}
+	}
+	return Frames;
+}
+
+TArray<FFrameNumber> FMovieSceneTransformTrail::GetSelectedKeyTimes() const
+{
+	return KeyTool->SelectedKeyTimes();
+}
+
 TRange<double> FMovieSceneTransformTrail::GetEffectiveSectionRange(int32 ChannelOffset) const
 {
 	UMovieSceneSection* TransformSection = GetSection();
@@ -606,6 +627,83 @@ void FMovieSceneControlRigTransformTrail::UpdateCacheTimes(const FSceneContext& 
 	*/
 }
 
+void FMovieSceneControlRigTransformTrail::SetUseKeysForTrajectory(bool bVal)
+{
+	bUseKeysForTrajectory = bVal;
+}
+
+void FMovieSceneControlRigTransformTrail::GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector>& OutPoints, TArray<double>& OutSeconds)
+{
+	if (FTrajectoryDrawInfo* DI = GetDrawInfo())
+	{
+		if (bUseKeysForTrajectory == false)
+		{
+			DI->GetTrajectoryPointsForDisplay(InDisplayContext, OutPoints, OutSeconds);
+		}
+		else
+		{
+			TRange<double> TimeRange = InDisplayContext.TimeRange;
+
+			TArray<FTrailKeyInfo*> AllKeys;
+			KeyTool->GetAllKeys(AllKeys);
+			TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+			FFrameNumber CurrentFrame = SequencerPtr->GetLocalTime().Time.GetFrame();
+			FFrameRate TickResolution = SequencerPtr->GetFocusedTickResolution();
+			bool bCurrentHandled = false;
+			//get cached positions from all of the keys and the current frame if it's between two keys
+			for (int32 Index = 0; Index < AllKeys.Num(); ++Index)
+			{
+				if (FTrailKeyInfo* KeyInfo = AllKeys[Index])
+				{
+					double LocalTime = TickResolution.AsSeconds(FFrameTime(KeyInfo->FrameNumber));
+					if (TimeRange.Contains(LocalTime))
+					{
+						FVector Point = DI->GetPoint(LocalTime);
+						OutPoints.Add(Point);
+						OutSeconds.Add(LocalTime);
+					}
+					if (LocalTime > TimeRange.GetUpperBoundValue())
+					{
+						break;
+					}
+					if (bCurrentHandled == false && ((Index + 1) < AllKeys.Num()))
+					{
+						if (CurrentFrame > KeyInfo->FrameNumber)
+						{
+							if (FTrailKeyInfo* NextKeyInfo = AllKeys[Index + 1])
+							{
+								if (CurrentFrame < NextKeyInfo->FrameNumber)
+								{
+									double CurrentTime = TickResolution.AsSeconds(FFrameTime(CurrentFrame));
+									if (TimeRange.Contains(CurrentTime))
+									{
+										FVector Point = DI->GetPoint(CurrentTime);
+										OutPoints.Add(Point);
+										OutSeconds.Add(CurrentTime);
+										bCurrentHandled = true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void FMovieSceneControlRigTransformTrail::GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& OutTicks, TArray<FVector2D>& OutTickTangents)
+{
+	if (bUseKeysForTrajectory == false)
+	{
+		if (FTrajectoryDrawInfo* DI = GetDrawInfo())
+		{
+			DI->GetTickPointsForDisplay(InDisplayContext, OutTicks, OutTickTangents);
+		}
+	}
+}
+
+
 bool FMovieSceneControlRigTransformTrail::StartTracking()
 {
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSection());
@@ -792,6 +890,8 @@ bool FMovieSceneControlRigTransformTrail::HandleAltClick(FEditorViewportClient* 
 	}
 	return true;
 }
+
+
 
 } // namespace MovieScene
 } // namespace UE

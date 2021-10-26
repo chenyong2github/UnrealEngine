@@ -108,6 +108,10 @@ void UPyTestObject::LegacyFuncTakingPyTestStruct(const FPyTestStruct& InStruct) 
 	FuncTakingPyTestStruct(InStruct);
 }
 
+void UPyTestObject::FuncTakingPyTestStructDefault(const FPyTestStruct& InStruct)
+{
+}
+
 int32 UPyTestObject::FuncTakingPyTestDelegate(const FPyTestDelegate& InDelegate, const int32 InValue) const
 {
 	return InDelegate.IsBound() ? InDelegate.Execute(InValue) : INDEX_NONE;

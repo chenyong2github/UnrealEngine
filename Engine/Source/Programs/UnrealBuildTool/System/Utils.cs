@@ -1268,7 +1268,7 @@ namespace UnrealBuildTool
 			// kick off a task per physical core - evidence suggests that, in general, using more cores does not yield significantly better throughput
 			else
 			{
-				Log.TraceInformation($"  Limiting parallelism to one process per physical core ({NumPhysicalCores})");
+				Log.TraceInformation($"  Executing up to {NumPhysicalCores} processes, one per physical core");
 				MaxActionsToExecuteInParallel = NumPhysicalCores;
 			}
 

@@ -218,7 +218,7 @@ bool FSettingsSection::Save()
 	{
 		if (SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig))
 		{
-			SettingsObject->UpdateDefaultConfigFile();
+			SettingsObject->TryUpdateDefaultConfigFile();
 		}
 		else if (SettingsObject->GetClass()->HasAnyClassFlags(CLASS_GlobalUserConfig))
 		{
@@ -249,7 +249,7 @@ bool FSettingsSection::SaveDefaults()
 
 	if (SettingsObject.IsValid())
 	{
-		SettingsObject->UpdateDefaultConfigFile();
+		SettingsObject->TryUpdateDefaultConfigFile();
 		SettingsObject->ReloadConfig(nullptr, nullptr, UE::LCPF_PropagateToInstances);
 
 		return true;			

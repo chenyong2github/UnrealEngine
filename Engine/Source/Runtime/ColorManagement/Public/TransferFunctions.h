@@ -123,6 +123,27 @@ FORCEINLINE float EncodeBT1886(float Value)
 }
 
 /**
+* Encode value to Gamma 2.6.
+*
+* @return float encoded value.
+*/
+FORCEINLINE float EncodeGamma26(float Value)
+{
+	return FGenericPlatformMath::Pow(Value, 1.0f / 2.6f);
+}
+
+
+/**
+* Decode value with a Gamma 2.6 encoding.
+*
+* @return float decoded value.
+*/
+FORCEINLINE float DecodeGamma26(float Value)
+{
+	return FGenericPlatformMath::Pow(Value, 2.6f);
+}
+
+/**
 * Decode value with an ITU-R BT.1886 encoding.
 *
 * @return float decoded value.

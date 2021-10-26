@@ -24,6 +24,7 @@
 #include "Widgets/Settings/SProjectLauncherSettings.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SProjectLauncher"
 
@@ -205,32 +206,11 @@ void SProjectLauncher::Construct(const FArguments& InArgs, const TSharedRef<SDoc
 							.AutoWidth()
 							.Padding(0, 0, 16, 0)
 							[
-								SNew(SComboButton)
-								.ContentPadding(FMargin(2.0f, 3.0f))
+								SNew(SPositiveActionButton)
+								.Text(LOCTEXT("AddButtonLabel", "Add"))
 								.ToolTipText(LOCTEXT("AddFilterToolTip", "Add a new custom launch profile using wizard"))
 								.OnGetMenuContent(this, &SProjectLauncher::MakeProfileWizardsMenu)
 								.Visibility(this, &SProjectLauncher::GetProfileWizardsMenuVisibility)
-								.HasDownArrow(false)
-								.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-								.ButtonContent()
-								[
-									SNew(SHorizontalBox)
-									+ SHorizontalBox::Slot()
-									.AutoWidth()
-									[
-										SNew(SImage)
-										.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
-										.ColorAndOpacity(FStyleColors::AccentGreen)
-									]
-									+ SHorizontalBox::Slot()
-									.Padding(FMargin(3, 0, 0, 0))
-									.AutoWidth()
-									[
-										SNew(STextBlock)
-										.TextStyle(FAppStyle::Get(), "SmallButtonText")
-										.Text(LOCTEXT("AddButtonLabel", "Add"))
-									]
-								]
 							]
 						]
 					]

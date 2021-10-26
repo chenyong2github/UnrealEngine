@@ -352,14 +352,16 @@ FTypedElementListLegacySync* FTypedElementList::Legacy_GetSyncPtr() const
 	return LegacySync.Get();
 }
 
-void FTypedElementList::NotifyPendingChanges()
+bool FTypedElementList::NotifyPendingChanges()
 {
 	if (bHasPendingNotify)
 	{
 		bHasPendingNotify = false;
 		OnChangedDelegate.Broadcast(*this);
-		check(!bHasPendingNotify); // This should still be false after emitting the notification!
+		return true;
 	}
+
+	return false;
 }
 
 void FTypedElementList::ClearPendingChanges()

@@ -290,6 +290,7 @@ private:
 	ECheckBoxState ShouldRemoveDegenerates() const;
 	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
+	ECheckBoxState ShouldUseBackwardsCompatibleF16TruncUVs() const;
 
 	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
 	void OnRecomputeTangentsChanged(ECheckBoxState NewState);
@@ -298,6 +299,7 @@ private:
 	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
+	void OnUseBackwardsCompatibleF16TruncUVsChanged(ECheckBoxState NewState);
 
 private:
 	FSkeletalMeshBuildSettings& BuildSettings;

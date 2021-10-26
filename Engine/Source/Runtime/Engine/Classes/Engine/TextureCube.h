@@ -59,8 +59,8 @@ public:
 	ENGINE_API void GetMipData(int32 FirstMipToLoad, void** OutMipData);
 	
 	//~ Begin UTexture Interface
-	virtual float GetSurfaceWidth() const override { return GetSizeX(); }
-	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
+	virtual float GetSurfaceWidth() const override { return (float)GetSizeX(); }
+	virtual float GetSurfaceHeight() const override { return (float)GetSizeY(); }
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 6; }
 	ENGINE_API virtual FTextureResource* CreateResource() override;

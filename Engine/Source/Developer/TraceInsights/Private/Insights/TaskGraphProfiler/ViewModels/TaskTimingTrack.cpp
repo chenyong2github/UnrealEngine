@@ -47,11 +47,11 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_ShowTaskDependencies, "Show Task Dependencies", "Show/hide dependencies of the current task (for a selected cpu timing event)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
-		UI_COMMAND(Command_ShowTaskPrerequisites, "Show dependencies for prerequisites", "Show/hide dependencies of the current task's prerequisites", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::P));
-		UI_COMMAND(Command_ShowTaskSubsequents, "Show dependencies for subsequents", "Show/hide dependencies of the current task's subsequents", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
-		UI_COMMAND(Command_ShowNestedTasks, "Show dependencies for nested tasks", "Show/hide dependencies of the current task's nested tasks", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
-		UI_COMMAND(Command_ShowCriticalPath, "Show task critical path", "Show/hide relations representing the critical path containing the current task", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(Command_ShowTaskDependencies, "Show Task Dependencies", "Show/hide dependencies of the current task (for a selected cpu timing event.)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
+		UI_COMMAND(Command_ShowTaskPrerequisites, "Show Dependencies of Prerequisites", "Show/hide dependencies of the current task's prerequisites.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::P));
+		UI_COMMAND(Command_ShowTaskSubsequents, "Show Dependencies of Subsequents", "Show/hide dependencies of the current task's subsequents.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
+		UI_COMMAND(Command_ShowNestedTasks, "Show Dependencies of Nested Tasks", "Show/hide dependencies of the current task's nested tasks.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
+		UI_COMMAND(Command_ShowCriticalPath, "Show Task Critical Path", "Show/hide relations representing the critical path containing the current task.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 

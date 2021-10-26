@@ -47,6 +47,7 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"UnrealEd",
 					"WorkspaceMenuStructure",
+					"ToolWidgets",
 				}
 			);
 		}

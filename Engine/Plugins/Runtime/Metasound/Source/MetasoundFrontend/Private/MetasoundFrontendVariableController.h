@@ -29,14 +29,26 @@ namespace Metasound
 
 			virtual FGuid GetID() const override;
 			
-			/** Returns the data type name associated with this output. */
+			/** Returns the data type name associated with this variable. */
 			virtual const FName& GetDataType() const override;
+
+			/** Returns the name associated with this variable. */
+			virtual const FName& GetName() const override;
+
+			/** Sets the name associated with this variable. */
+			virtual void SetName(const FName& InName) override;
 			
-			/** Returns the human readable name associated with this output. */
+			/** Returns the human readable name associated with this variable. */
 			virtual FText GetDisplayName() const override;
 
 			/** Sets the human readable name associated with this variable. */
 			virtual void SetDisplayName(const FText& InDisplayName) override;
+
+			/** Returns the human readable description associated with this variable. */
+			virtual FText GetDescription() const override;
+
+			/** Sets the human readable description associated with this variable. */
+			virtual void SetDescription(const FText& InDescription) override;
 
 			/** Returns the mutator node associated with this variable. */
 			virtual FNodeHandle FindMutatorNode() override;

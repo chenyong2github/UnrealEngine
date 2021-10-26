@@ -1087,7 +1087,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForAssetWithClass",
 								FText::Format( LOCTEXT("GoToDocsForAssetWithClass", "View Documentation - {0}"), SelectedClass->GetDisplayNameText() ),
 								FText::Format( LOCTEXT("GoToDocsForAssetWithClass_ToolTip", "Click to open documentation for {0}"), SelectedClass->GetDisplayNameText() ),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, SelectedClass ) )
 								);
 						}
@@ -1103,7 +1103,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForMacroBlueprint",
 								LOCTEXT("GoToDocsForMacroBlueprint", "View Documentation - Function Library"),
 								LOCTEXT("GoToDocsForMacroBlueprint_ToolTip", "Click to open documentation on blueprint function libraries"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_FunctionLibrary")) ) )
 								);
 							break;
@@ -1112,7 +1112,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForInterfaceBlueprint",
 								LOCTEXT("GoToDocsForInterfaceBlueprint", "View Documentation - Interface"),
 								LOCTEXT("GoToDocsForInterfaceBlueprint_ToolTip", "Click to open documentation on blueprint interfaces"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_Interface")) ) )
 								);
 							break;
@@ -1121,7 +1121,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForMacroLibrary",
 								LOCTEXT("GoToDocsForMacroLibrary", "View Documentation - Macro"),
 								LOCTEXT("GoToDocsForMacroLibrary_ToolTip", "Click to open documentation on blueprint macros"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_Macro")) ) )
 								);
 							break;
@@ -1130,7 +1130,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForBlueprint",
 								LOCTEXT("GoToDocsForBlueprint", "View Documentation - Blueprint"),
 								LOCTEXT("GoToDocsForBlueprint_ToolTip", "Click to open documentation on blueprints"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint")) ) )
 								);
 						}

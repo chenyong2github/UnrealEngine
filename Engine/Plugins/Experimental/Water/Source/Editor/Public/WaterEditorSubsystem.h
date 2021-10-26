@@ -10,7 +10,7 @@
 #include "WaterModule.h"
 #include "WaterEditorSubsystem.generated.h"
 
-class AWaterMeshActor;
+class AWaterZone;
 class UTexture2D;
 class UTextureRenderTarget2D;
 class UWorld;
@@ -42,8 +42,6 @@ private:
 	UPROPERTY()
 	UMaterialParameterCollection* LandscapeMaterialParameterCollection;
 
-	TWeakObjectPtr<AWaterMeshActor> WaterMeshActor;
-	
 	UPROPERTY()
 	TMap<UClass*, UTexture2D*> WaterActorSprites;
 	UPROPERTY()

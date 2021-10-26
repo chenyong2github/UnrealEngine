@@ -22,7 +22,7 @@
 /**
  * Implements the visual style of the messaging debugger UI.
  */
-class FMessagingDebuggerStyle
+class FMessagingDebuggerStyle final
 	: public FSlateStyleSet
 {
 public:

@@ -86,6 +86,7 @@ public class LevelEditor : ModuleRules
 				"SubobjectDataInterface",
 				"DerivedDataEditor",
 				"EditorWidgets",
+				"ToolWidgets",
 			}
 		);
 

@@ -8,17 +8,21 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 using namespace UE::Geometry;
+
+#define LOCTEXT_NAMESPACE "StaticMeshToolTarget"
 
 namespace StaticMeshToolTargetLocals
 {
 	static void DisplayCriticalWarningMessage(const FString& Message)
 	{
-		if (GAreScreenMessagesEnabled)
-		{
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, Message);
-		}
+		FNotificationInfo Info(FText::FromString(Message));
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
 	}
 }
@@ -290,3 +294,5 @@ void UStaticMeshToolTargetFactory::SetActiveEditingLOD(EStaticMeshEditingLOD New
 {
 	EditingLOD = NewEditingLOD;
 }
+
+#undef LOCTEXT_NAMESPACE

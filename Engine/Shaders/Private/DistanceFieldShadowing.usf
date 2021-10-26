@@ -308,7 +308,11 @@ void HandleShadowTileObjectIntersection(uint TileIndex, uint ObjectIndex)
 		uint ArrayIndex;
 		InterlockedAdd(RWShadowTileNumCulledObjects[TileIndex], 1U, ArrayIndex);
 
-		uint StartOffset = ShadowTileStartOffsets[TileIndex];
+		#if COMPACT_CULLED_SHADOW_OBJECTS
+			uint StartOffset = ShadowTileStartOffsets[TileIndex];
+		#else
+			uint StartOffset = TileIndex * ShadowMaxObjectsPerTile;
+		#endif
 		uint DataIndex = (ArrayIndex + StartOffset);
 		RWShadowTileArrayData[DataIndex] = ObjectIndex;
 	#endif

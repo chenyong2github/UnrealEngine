@@ -114,6 +114,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 		RetElem.Component = NewObject<UNiagaraComponent>(OuterObject);
 		RetElem.Component->SetAutoDestroy(false);// we don't auto destroy, just periodically clear up the pool.
 		RetElem.Component->bAutoActivate = false;
+		RetElem.Component->SetVisibleInRayTracing(false);
 		RetElem.Component->SetAsset(Template);
 	}
 

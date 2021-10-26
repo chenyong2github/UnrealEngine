@@ -9,6 +9,8 @@
 
 class APlayerController;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInput, Log, All);
+
 /**
  * The public interface to this module
  */

@@ -285,7 +285,7 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, FTransform(), false); // MDW Does not support root motion yet
 
 #if WITH_EDITOR
-	if (!HasRunningPlatformData() || RequiredBones.ShouldUseRawData())
+	if (IsDataModelValid() && (!HasRunningPlatformData() || RequiredBones.ShouldUseRawData()))
 	{
 		//Need to evaluate raw data
 		ValidateModel();
@@ -734,8 +734,11 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 
 void UAnimStreamable::UpdateRawData()
 {
-	RawDataGuid = DataModel->GenerateGuid();
-	RequestCompressedData();
+	if (IsDataModelValid())
+	{
+		RawDataGuid = DataModel->GenerateGuid();
+		RequestCompressedData();
+	}
 }
 
 FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks) const

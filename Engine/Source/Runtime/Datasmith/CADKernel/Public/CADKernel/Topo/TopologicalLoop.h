@@ -81,6 +81,8 @@ namespace CADKernel
 
 		static TSharedPtr<FTopologicalLoop> Make(const TArray<TSharedPtr<FTopologicalEdge>>& EdgeList, const TArray<EOrientation>& EdgeDirections, const double GeometricTolerance);
 
+		void DeleteLoopEdges();
+
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FTopologicalEntity::Serialize(Ar);
@@ -129,6 +131,23 @@ namespace CADKernel
 			return Edges;
 		}
 
+		/**
+		 * Add active Edge that has not marker 1 in the edge array.
+		 * Marker 1 has to be reset at the end.
+		 */
+		void GetActiveEdges(TArray<TSharedPtr<FTopologicalEdge>>& OutEdges) const
+		{
+			for (const FOrientedEdge& Edge : Edges)
+			{
+				TSharedPtr<FTopologicalEdge> ActiveEdge = Edge.Entity->GetLinkActiveEdge();
+				if (!ActiveEdge->HasMarker1())
+				{
+					ActiveEdge->SetMarker1();
+					OutEdges.Emplace(ActiveEdge);
+				}
+			}
+		}
+
 		TSharedRef<FTopologicalFace> GetFace() const
 		{
 			return Face.Pin().ToSharedRef();
@@ -151,7 +170,7 @@ namespace CADKernel
 		 * @param bNewEdgeIsFirst == true => StartVertex Connected to Edge, EndVertexConnected to NewEdge
 		 * According to the direction of Edge, if bNewEdgeIsFirst == true, NewEdge is added in the loop after (EOrientation::Front) or before (EOrientation::Back)
 		 */
-		void SplitEdge(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<FTopologicalEdge> NewEdge, bool bNewEdgeIsFirst);
+		void SplitEdge(FTopologicalEdge& Edge, TSharedPtr<FTopologicalEdge> NewEdge, bool bNewEdgeIsFirst);
 
 		void RemoveEdge(TSharedPtr<FTopologicalEdge>& Edge);
 		//void ReplaceEdgesWithMergedEdge(TArray<TSharedPtr<FTopologicalEdge>>& OldEdges, TSharedPtr<FTopologicalVertex>& MiddleVertex, TSharedPtr<FTopologicalEdge>& NewEdge);
@@ -168,11 +187,11 @@ namespace CADKernel
 			return Edges[Index].Entity;
 		}
 
-		int32 GetEdgeIndex(const TSharedPtr<FTopologicalEdge>& Edge) const
+		int32 GetEdgeIndex(const FTopologicalEdge& Edge) const
 		{
 			for (int32 Index = 0; Index < Edges.Num(); ++Index)
 			{
-				if (Edge == Edges[Index].Entity)
+				if (&Edge == Edges[Index].Entity.Get())
 				{
 					return Index;
 				}
@@ -188,5 +207,9 @@ namespace CADKernel
 		void ComputeBoundaryProperties(const TArray<int32>& StartSideIndex, TArray<FEdge2DProperties>& OutSideProperties) const;
 
 		void EnsureLogicalClosing(const double GeometricTolerance);
+
+		void CheckEdgesOrientation();
+		void CheckLoopWithTwoEdgesOrientation();
+		void RemoveDegeneratedEdges();
 	};
 }

@@ -24,6 +24,8 @@ class INavLinkCustomInterface;
 class UNavArea;
 class UPrimitiveComponent;
 
+// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
+
 USTRUCT()
 struct NAVIGATIONSYSTEM_API FSupportedAreaData
 {

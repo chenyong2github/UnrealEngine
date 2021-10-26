@@ -9,7 +9,7 @@
 
 void FSnapshotFileVersionInfo::Initialize()
 {
-	FileVersion = GPackageFileUEVersion.FileVersionUE4;
+	FileVersionUE4 = GPackageFileUEVersion.FileVersionUE4;
 	FileVersionUE5 = GPackageFileUEVersion.FileVersionUE5;
 	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
@@ -53,18 +53,18 @@ bool FSnapshotVersionInfo::IsInitialized() const
 
 void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 {
-	FPackageFileVersion UEVersion(FileVersion.FileVersion, (EUnrealEngineObjectUE5Version)FileVersion.FileVersionUE5);
+	FPackageFileVersion UEVersion(FileVersion.FileVersionUE4, (EUnrealEngineObjectUE5Version)FileVersion.FileVersionUE5);
 
-		Archive.SetUEVer(UEVersion);
-		Archive.SetLicenseeUEVer(FileVersion.FileVersionLicensee);
-		Archive.SetEngineVer(FEngineVersionBase(EngineVersion.Major, EngineVersion.Minor, EngineVersion.Patch, EngineVersion.Changelist));
+	Archive.SetUEVer(UEVersion);
+	Archive.SetLicenseeUEVer(FileVersion.FileVersionLicensee);
+	Archive.SetEngineVer(FEngineVersionBase(EngineVersion.Major, EngineVersion.Minor, EngineVersion.Patch, EngineVersion.Changelist));
 
-		FCustomVersionContainer EngineCustomVersions;
-		for (const FSnapshotCustomVersionInfo& CustomVersion : CustomVersions)
-		{
-			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
-		}
-		Archive.SetCustomVersions(EngineCustomVersions);
+	FCustomVersionContainer EngineCustomVersions;
+	for (const FSnapshotCustomVersionInfo& CustomVersion : CustomVersions)
+	{
+		EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
+	}
+	Archive.SetCustomVersions(EngineCustomVersions);
 }
 
 int32 FSnapshotVersionInfo::GetSnapshotCustomVersion() const

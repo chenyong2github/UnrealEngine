@@ -98,12 +98,12 @@ void UNiagaraDataInterfaceColorCurve::UpdateTimeRanges()
 TArray<float> UNiagaraDataInterfaceColorCurve::BuildLUT(int32 NumEntries) const
 {
 	TArray<float> OutputLUT;
-	const float NumEntriesMinusOne = NumEntries - 1;
+	const float InvEntryCountFactor = (NumEntries > 1) ? (1.0f / float(NumEntries - 1.0f)) : 0.0f;
 
 	OutputLUT.Reserve(NumEntries * 4);
 	for (int32 i = 0; i < NumEntries; i++)
 	{
-		float X = UnnormalizeTime(float(i) / NumEntriesMinusOne);
+		float X = UnnormalizeTime(float(i) * InvEntryCountFactor);
 		FLinearColor C(RedCurve.Eval(X), GreenCurve.Eval(X), BlueCurve.Eval(X), AlphaCurve.Eval(X));
 		OutputLUT.Add(C.R);
 		OutputLUT.Add(C.G);

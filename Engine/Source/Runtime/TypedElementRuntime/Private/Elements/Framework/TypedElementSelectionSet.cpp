@@ -534,6 +534,7 @@ void UTypedElementSelectionSet::OnElementListPreChange(const FTypedElementList& 
 {
 	check(&InElementList == ElementList.Get());
 	OnPreChangeDelegate.Broadcast(this);
+	OnPreSelectionChange.Broadcast(this);
 
 	if (!bIsRestoringState)
 	{
@@ -546,4 +547,5 @@ void UTypedElementSelectionSet::OnElementListChanged(const FTypedElementList& In
 {
 	check(&InElementList == ElementList.Get());
 	OnChangedDelegate.Broadcast(this);
+	OnSelectionChange.Broadcast(this);
 }

@@ -30,6 +30,7 @@
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Kismet2/WatchedPin.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Settings/ControlRigSettings.h"
@@ -3030,7 +3031,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 									{
 										if (!FKismetDebugUtilities::IsPinBeingWatched(this, EdPin))
 										{
-											FKismetDebugUtilities::AddPinWatch(this, EdPin);
+											FKismetDebugUtilities::AddPinWatch(this, FBlueprintWatchedPin(EdPin));
 										}
 									}
 									else

@@ -17,6 +17,7 @@ FORCEINLINE TFunction<float(float)> GetTransferFunction(EEncoding SourceEncoding
 	case EEncoding::ST2084:      return bIsEncode ? &EncodeST2084 : &DecodeST2084;
 	case EEncoding::Gamma22:     return bIsEncode ? &EncodeGamma22 : &DecodeGamma22;
 	case EEncoding::BT1886:      return bIsEncode ? &EncodeBT1886 : &DecodeBT1886;
+	case EEncoding::Gamma26:     return bIsEncode ? &EncodeGamma26 : &DecodeGamma26;
 	case EEncoding::Cineon:      return bIsEncode ? &EncodeCineon : &DecodeCineon;
 	case EEncoding::REDLog:      return bIsEncode ? &EncodeREDLog : &DecodeREDLog;
 	case EEncoding::REDLog3G10:  return bIsEncode ? &EncodeREDLog3G10 : &DecodeREDLog3G10;
@@ -27,7 +28,9 @@ FORCEINLINE TFunction<float(float)> GetTransferFunction(EEncoding SourceEncoding
 	case EEncoding::CanonLog:    return bIsEncode ? &EncodeCanonLog : &DecodeCanonLog;
 	case EEncoding::ProTune:     return bIsEncode ? &EncodeGoProProTune : &DecodeGoProProTune;
 	case EEncoding::VLog:        return bIsEncode ? &EncodePanasonicVLog : &DecodePanasonicVLog;
-	default: break;
+	default:
+		check(false);
+		break;
 	}
 
 	UE_LOG(LogTransferFunctions, Warning, TEXT("Failed to find valid transfer function for enum value %d."), SourceEncoding);

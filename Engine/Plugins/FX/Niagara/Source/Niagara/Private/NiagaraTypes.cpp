@@ -2,6 +2,15 @@
 
 #include "NiagaraTypes.h"
 
+void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName InVariableName)
+{
+	TStringBuilder<128> NameBuilder;
+	NameBuilder.Append(InNamespace);
+	NameBuilder.Append('.');
+	InVariableName.AppendString(NameBuilder);
+	Name = FName(NameBuilder.ToString());
+}
+
 void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData)
 {
 	for (const FProperty* ChildProperty : TFieldRange<FProperty>(StaticStruct()))

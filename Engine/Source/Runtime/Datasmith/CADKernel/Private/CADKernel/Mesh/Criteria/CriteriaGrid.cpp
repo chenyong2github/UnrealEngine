@@ -8,10 +8,7 @@
 #include "CADKernel/UI/Display.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 
-using namespace CADKernel;
-
-
-const FPoint& FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector* OutNormal) const
+const CADKernel::FPoint& CADKernel::FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector* OutNormal) const
 {
 	int32 Index = GetIndex(UIndex, VIndex, bIsInternalU, bIsInternalV);
 	ensureCADKernel(Grid.Points3D.IsValidIndex(Index));
@@ -23,7 +20,7 @@ const FPoint& FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsIntern
 	return Grid.Points3D[Index];
 }
 
-void FCriteriaGrid::Init()
+void CADKernel::FCriteriaGrid::Init()
 {
 	TFunction<void(const TArray<double>&, TArray<double>&)> ComputeMiddlePointsCoordinates = [](const TArray<double>& Tab, TArray<double>& Tab2)
 	{
@@ -44,7 +41,7 @@ void FCriteriaGrid::Init()
 	TrueUcoorindateCount = CoordinateGrid2[EIso::IsoU].Num();
 }
 
-FCriteriaGrid::FCriteriaGrid(TSharedRef<FTopologicalFace> InSurface)
+CADKernel::FCriteriaGrid::FCriteriaGrid(TSharedRef<FTopologicalFace> InSurface)
 	: Surface(InSurface)
 	, CoordinateGrid(InSurface->GetCrossingPointCoordinates())
 {
@@ -56,7 +53,7 @@ FCriteriaGrid::FCriteriaGrid(TSharedRef<FTopologicalFace> InSurface)
 #endif
 }
 
-void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria) const
+void CADKernel::FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria) const
 {
 	TArray<double>& DeltaUMaxArray = Surface->GetCrossingPointDeltaMaxs(EIso::IsoU);
 	TArray<double>& DeltaUMiniArray = Surface->GetCrossingPointDeltaMins(EIso::IsoU);
@@ -106,7 +103,7 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 	}
 }
 
-void FCriteriaGrid::Display()
+void CADKernel::FCriteriaGrid::Display()
 {
 	Open3DDebugSession(TEXT("Grid"));
 
@@ -153,14 +150,14 @@ void FCriteriaGrid::Display()
 	Open3DDebugSession(TEXT("Loop 3D"));
 	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 	{
-		::Display(Loop);
+		CADKernel::Display(Loop);
 	}
 	Close3DDebugSession();
 
 	Open3DDebugSession(TEXT("Loop 2D"));
 	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 	{
-		::Display2D(Loop);
+		Display2D(Loop);
 	}
 	Close3DDebugSession();
 

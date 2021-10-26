@@ -17,6 +17,7 @@
 #include "Serialization/BulkData.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "UObject/Class.h"
 #include "UObject/GCScopeLock.h"
@@ -31,7 +32,6 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
-#include "Virtualization/VirtualizedBulkData.h"
 
 DEFINE_LOG_CATEGORY(LogSavePackage);
 UE_TRACE_CHANNEL_DEFINE(SaveTimeChannel);
@@ -296,16 +296,6 @@ void GetBlueprintNativeCodeGenReplacement(UObject* InObj, UClass*& ObjClass, UOb
 		}
 	}
 #endif
-}
-
-void IncrementOutstandingAsyncWrites()
-{
-	OutstandingAsyncWrites.Increment();
-}
-
-void DecrementOutstandingAsyncWrites()
-{
-	OutstandingAsyncWrites.Decrement();
 }
 
 bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage)
@@ -750,11 +740,11 @@ ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, cons
 
 			if (bComputeHash)
 			{
-				SavePackageUtilities::IncrementOutstandingAsyncWrites();
+				UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
 				AsyncWriteAndHashSequence.AddWork([NewPath = File.TargetPath](FMD5& State)
 				{
 					SavePackageUtilities::AddFileToHash(NewPath, State);
-					SavePackageUtilities::DecrementOutstandingAsyncWrites();
+					UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
 				});
 			}
 		}
@@ -801,10 +791,7 @@ void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeM
 			State.Update(Data.Get(), DataSize);
 		}
 
-		if (EnumHasAnyFlags(Options, EAsyncWriteOptions::WriteFileToDisk))
-		{
-			WriteToFile(OutputFilename, Data.Get(), DataSize);
-		}
+		WriteToFile(OutputFilename, Data.Get(), DataSize);
 
 		if (FileRegions.Num() > 0)
 		{
@@ -823,46 +810,6 @@ void AsyncWriteFile(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, EAsyncW
 {
 	checkf(File.TempFilePath.IsEmpty(), TEXT("AsyncWriteFile does not handle temp files!"));
 	AsyncWriteFile(AsyncWriteAndHashSequence, FLargeMemoryPtr(File.FileMemoryBuffer.Release()), File.DataSize, *File.TargetPath, Options, File.FileRegions);
-}
-
-void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions)
-{
-	OutstandingAsyncWrites.Increment();
-	FString OutputFilename(Filename);
-	AsyncWriteAndHashSequence.AddWork([Data = MoveTemp(Data), DataSize, HeaderSize, OutputFilename = MoveTemp(OutputFilename), Options, FileRegions = TArray<FFileRegion>(InFileRegions)](FMD5& State) mutable
-	{
-		if (EnumHasAnyFlags(Options, EAsyncWriteOptions::ComputeHash))
-		{
-			State.Update(Data.Get(), DataSize);
-		}
-
-		if (EnumHasAnyFlags(Options, EAsyncWriteOptions::WriteFileToDisk))
-		{
-			// Write .uasset file
-			WriteToFile(OutputFilename, Data.Get(), HeaderSize);
-
-			// Write .uexp file
-			const FString FilenameExports = FPaths::ChangeExtension(OutputFilename, TEXT(".uexp"));
-			WriteToFile(FilenameExports, Data.Get() + HeaderSize, DataSize - HeaderSize);
-
-			if (FileRegions.Num() > 0)
-			{
-				// Adjust regions so they are relative to the start of the uexp file
-				for (FFileRegion& Region : FileRegions)
-				{
-					Region.Offset -= HeaderSize;
-				}
-
-				TArray<uint8> Memory;
-				FMemoryWriter Ar(Memory);
-				FFileRegion::SerializeFileRegions(Ar, FileRegions);
-
-				WriteToFile(FilenameExports + FFileRegion::RegionsFileExtension, Memory.GetData(), Memory.Num());
-			}
-		}
-
-		OutstandingAsyncWrites.Decrement();
-	});
 }
 
 /** For a CDO get all of the subobjects templates nested inside it or it's class */
@@ -969,6 +916,16 @@ EObjectFlags NormalizeTopLevelFlags(EObjectFlags TopLevelFlags, bool bIsCooking)
 		TopLevelFlags |= RF_HasExternalPackage;
 	}
 	return TopLevelFlags;
+}
+
+void IncrementOutstandingAsyncWrites()
+{
+	OutstandingAsyncWrites.Increment();
+}
+
+void DecrementOutstandingAsyncWrites()
+{
+	OutstandingAsyncWrites.Decrement();
 }
 
 }
@@ -1948,31 +1905,6 @@ FScopedSavingFlag::~FScopedSavingFlag()
 
 }
 
-FSavePackageDiffSettings::FSavePackageDiffSettings(bool bDiffing)
-	: MaxDiffsToLog(5)
-	, bIgnoreHeaderDiffs(false)
-	, bSaveForDiff(false)
-{
-	if (bDiffing)
-	{
-		GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxDiffsToLog"), MaxDiffsToLog, GEditorIni);
-		// Command line override for MaxDiffsToLog
-		FParse::Value(FCommandLine::Get(), TEXT("MaxDiffstoLog="), MaxDiffsToLog);
-
-		GConfig->GetBool(TEXT("CookSettings"), TEXT("IgnoreHeaderDiffs"), bIgnoreHeaderDiffs, GEditorIni);
-		// Command line override for IgnoreHeaderDiffs
-		if (bIgnoreHeaderDiffs)
-		{
-			bIgnoreHeaderDiffs = !FParse::Param(FCommandLine::Get(), TEXT("HeaderDiffs"));
-		}
-		else
-		{
-			bIgnoreHeaderDiffs = FParse::Param(FCommandLine::Get(), TEXT("IgnoreHeaderDiffs"));
-		}
-		bSaveForDiff = FParse::Param(FCommandLine::Get(), TEXT("SaveForDiff"));
-	}
-}
-
 FCanSkipEditorReferencedPackagesWhenCooking::FCanSkipEditorReferencedPackagesWhenCooking()
 	: bCanSkipEditorReferencedPackagesWhenCooking(true)
 {
@@ -2132,13 +2064,14 @@ ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataSta
 	IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 	if (PackageWriter)
 	{
+		bool bDeclareRegionForEachAdditionalFile = SavePackageContext->PackageWriterCapabilities.bDeclareRegionForEachAdditionalFile;
 		FLargeMemoryWriterWithRegions DataArchive;
 		for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
 		{
 			int64 RegionStart = DataArchive.Tell();
 			Callback(Linker, DataArchive, InOutDataStartOffset + RegionStart);
 			int64 RegionEnd = DataArchive.Tell();
-			if (RegionEnd != RegionStart)
+			if (RegionEnd != RegionStart && bDeclareRegionForEachAdditionalFile)
 			{
 				DataArchive.FileRegions.Add(FFileRegion(RegionStart, RegionEnd - RegionStart, EFileRegionType::None));
 			}
@@ -2167,7 +2100,7 @@ ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataSta
 	return ESavePackageResult::Success;
 }
 
-ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveToMemory, const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles, FSavePackageContext* SavePackageContext)
+ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveToMemory, FSavePackageOutputFileArray& AdditionalPackageFiles, FSavePackageContext* SavePackageContext)
 {
 	if (Linker.SidecarDataToAppend.IsEmpty())
 	{
@@ -2181,11 +2114,9 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 	// We could add support but it is difficult to test and would be better left for a proper clean up pass
 	// once we enable SavePackage2 only. 
 	checkf(!Linker.IsCooking(), TEXT("Cannot write a sidecar file during cooking! (%s)"), *PackagePath.GetDebugName());
-	checkf(bWriteToDisk, TEXT("Cannot disable writing of the sidecar data to disk, that is supposed to be a cook only operation! (%s)"), *PackagePath.GetDebugName());
 	IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
-	checkf(!PackageWriter, TEXT("PayloadSidecarFiles are not currently implemented for PackageWriters. (%s)"), *PackagePath.GetDebugName());
 
-	FLargeMemoryWriter Ar(0, true);
+	FLargeMemoryWriter Ar(0, true /* bIsPersistent */);
 
 	uint32 VersionNumber = UE::Virtualization::FTocEntry::PayloadSidecarFileVersion;
 	Ar << VersionNumber;
@@ -2231,7 +2162,15 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 
 	FString TargetFilePath = PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar);
 
-	if (bSaveToMemory)
+	if (PackageWriter)
+	{
+		IPackageWriter::FAdditionalFileInfo SidecarSegmentInfo;
+		SidecarSegmentInfo.PackageName = PackagePath.GetPackageFName();
+		SidecarSegmentInfo.Filename = TargetFilePath;
+		FIoBuffer FileData(FIoBuffer::AssumeOwnership, Ar.ReleaseOwnership(), DataSize);
+		PackageWriter->WriteAdditionalFile(SidecarSegmentInfo, FileData);
+	}
+	else if (bSaveToMemory)
 	{
 		AdditionalPackageFiles.Emplace(MoveTemp(TargetFilePath), FLargeMemoryPtr(Ar.ReleaseOwnership()), TArray<FFileRegion>(), DataSize);
 	}
@@ -2252,8 +2191,8 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 }
 
 ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
-				  const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
+				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bComputeHash,
+				  TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
@@ -2308,19 +2247,18 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 	bool bRequestSaveByReference = SaveFlags & SAVE_BulkDataByReference;
 
 	bool bAlignBulkData = false;
-	bool bUseFileRegions = false;
+	bool bDeclareSpecialRegions = false;
 	bool bDeclareRegionForEachAdditionalFile = false;
 	int64 BulkDataAlignment = 0;
 
 	if (TargetPlatform)
 	{
 		bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
-		bUseFileRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
+		bDeclareSpecialRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
 		BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
 	}
 	if (PackageWriter)
 	{
-		bUseFileRegions = true;
 		bDeclareRegionForEachAdditionalFile = SavePackageContext->PackageWriterCapabilities.bDeclareRegionForEachAdditionalFile;
 	}
 
@@ -2505,7 +2443,8 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 			}
 			BulkDataSizeOnDisk = BulkEndOffset - BulkStartOffset;
 
-			if ((bDeclareRegionForEachAdditionalFile || (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None)) && BulkDataSizeOnDisk > 0)
+			bool bDeclareBecauseSpecial = bDeclareSpecialRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None;
+			if ((bDeclareRegionForEachAdditionalFile || bDeclareBecauseSpecial) && BulkDataSizeOnDisk > 0)
 			{
 				TargetRegions->Add(FFileRegion(BulkStartOffset, BulkDataSizeOnDisk, BulkDataStorageInfo.BulkDataFileRegionType));
 			}
@@ -2533,9 +2472,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 
 	if (BulkArchive)
 	{
-		const bool bWriteBulkToDisk = !bDiffing;
-
-		if (PackageWriter && bWriteBulkToDisk)
+		if (PackageWriter)
 		{
 			auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
 			{
@@ -2552,23 +2489,24 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 			if (BulkArchive->TotalSize())
 			{
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::BulkData);
-				BulkInfo.BulkdataType = IPackageWriter::FBulkDataInfo::Standard;
+				BulkInfo.BulkDataType = bSeparateSegmentsEnabled ?
+					IPackageWriter::FBulkDataInfo::BulkSegment : IPackageWriter::FBulkDataInfo::AppendToExports;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataDefault));
-				PackageWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
+				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
 			}
 			if (OptionalBulkArchive && OptionalBulkArchive->TotalSize())
 			{
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::OptionalBulkData);
-				BulkInfo.BulkdataType = IPackageWriter::FBulkDataInfo::Optional;
+				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Optional;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataOptional));
-				PackageWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
+				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
 			}
 			if (MappedBulkArchive && MappedBulkArchive->TotalSize())
 			{
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::MemoryMappedBulkData);
-				BulkInfo.BulkdataType = IPackageWriter::FBulkDataInfo::Mmap;
+				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Mmap;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataMemoryMapped));
-				PackageWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
+				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
 			}
 		}
 		else
@@ -2579,23 +2517,16 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 				{
 					TotalPackageSizeUncompressed += DataSize;
 
-					if (bComputeHash || bWriteBulkToDisk)
+					FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
+
+					const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
+
+					EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
+					if (bComputeHash)
 					{
-						FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
-
-						const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
-
-						EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-						if (bComputeHash)
-						{
-							WriteOptions |= EAsyncWriteOptions::ComputeHash;
-						}
-						if (bWriteBulkToDisk)
-						{
-							WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
-						}
-						SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
+						WriteOptions |= EAsyncWriteOptions::ComputeHash;
 					}
+					SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
 				}
 			};
 

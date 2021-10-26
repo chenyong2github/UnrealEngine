@@ -42,7 +42,8 @@ namespace UnrealBuildTool.Rules
 					"SourceCodeAccess",
 					"SourceControl",
                     "ContentBrowser",
-					"DesktopPlatform"
+					"DesktopPlatform",
+					"ToolWidgets",
 				}
 			);
 

@@ -31,6 +31,13 @@ float rcSqrt(float x)
 	return sqrtf(x);
 }
 
+//@UE BEGIN Adding support for LWCoords.
+double rcSqrt(double x)
+{
+	return sqrt(x);
+}
+//@UE END
+
 /// @class rcContext
 /// @par
 ///
@@ -208,20 +215,20 @@ void rcFreePolyMeshDetail(rcPolyMeshDetail* dmesh)
 	rcFree(dmesh);
 }
 
-void rcCalcBounds(const float* verts, int nv, float* bmin, float* bmax)
+void rcCalcBounds(const rcReal* verts, int nv, rcReal* bmin, rcReal* bmax)
 {
 	// Calculate bounding box.
 	rcVcopy(bmin, verts);
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nv; ++i)
 	{
-		const float* v = &verts[i*3];
+		const rcReal* v = &verts[i*3];
 		rcVmin(bmin, v);
 		rcVmax(bmax, v);
 	}
 }
 
-void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int* h)
+void rcCalcGridSize(const rcReal* bmin, const rcReal* bmax, rcReal cs, int* w, int* h)
 {
 	*w = (int)((bmax[0] - bmin[0])/cs+0.5f);
 	*h = (int)((bmax[2] - bmin[2])/cs+0.5f);
@@ -233,8 +240,8 @@ void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int*
 /// 
 /// @see rcAllocHeightfield, rcHeightfield 
 bool rcCreateHeightfield(rcContext* /*ctx*/, rcHeightfield& hf, int width, int height,
-						 const float* bmin, const float* bmax,
-						 float cs, float ch)
+						 const rcReal* bmin, const rcReal* bmax,
+						 rcReal cs, rcReal ch)
 {
 	// TODO: VC complains about unref formal variable, figure out a way to handle this better.
 //	rcAssert(ctx);
@@ -305,9 +312,9 @@ void rcResetHeightfield(rcHeightfield& hf)
 	memset(hf.spans, 0, sizeof(rcSpan*)*hf.width*hf.height);
 }
 
-static void calcTriNormal(const float* v0, const float* v1, const float* v2, float* norm)
+static void calcTriNormal(const rcReal* v0, const rcReal* v1, const rcReal* v2, rcReal* norm)
 {
-	float e0[3], e1[3];
+	rcReal e0[3], e1[3];
 	rcVsub(e0, v1, v0);
 	rcVsub(e1, v2, v0);
 	rcVcross(norm, e0, e1);
@@ -322,24 +329,24 @@ static void calcTriNormal(const float* v0, const float* v1, const float* v2, flo
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
 /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
-void rcMarkWalkableTriangles(rcContext* /*ctx*/, const float walkableSlopeAngle,
-							 const float* verts, int /*nv*/,
+void rcMarkWalkableTriangles(rcContext* /*ctx*/, const rcReal walkableSlopeAngle,
+							 const rcReal* verts, int /*nv*/,
 							 const int* tris, int nt,
 							 unsigned char* areas)
 {
 	// TODO: VC complains about unref formal variable, figure out a way to handle this better.
 //	rcAssert(ctx);
 	
-	const float walkableThr = cosf(walkableSlopeAngle/180.0f*RC_PI);
+	const rcReal walkableThr = rcCos(walkableSlopeAngle/180.0f*RC_PI);
 	rcMarkWalkableTrianglesCos(0, walkableThr, verts, 0, tris, nt, areas);
 }
 
-void rcMarkWalkableTrianglesCos(rcContext* /*ctx*/, const float walkableSlopeCos,
-								const float* verts, int /*nv*/,
+void rcMarkWalkableTrianglesCos(rcContext* /*ctx*/, const rcReal walkableSlopeCos,
+								const rcReal* verts, int /*nv*/,
 								const int* tris, int nt,
 								unsigned char* areas)
 {
-	float norm[3];
+	rcReal norm[3];
 	for (int i = 0; i < nt; ++i)
 	{
 		const int* tri = &tris[i*3];
@@ -358,17 +365,17 @@ void rcMarkWalkableTrianglesCos(rcContext* /*ctx*/, const float walkableSlopeCos
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
 /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
-void rcClearUnwalkableTriangles(rcContext* /*ctx*/, const float walkableSlopeAngle,
-								const float* verts, int /*nv*/,
+void rcClearUnwalkableTriangles(rcContext* /*ctx*/, const rcReal walkableSlopeAngle,
+								const rcReal* verts, int /*nv*/,
 								const int* tris, int nt,
 								unsigned char* areas)
 {
 	// TODO: VC complains about unref formal variable, figure out a way to handle this better.
 //	rcAssert(ctx);
 	
-	const float walkableThr = cosf(walkableSlopeAngle/180.0f*RC_PI);
+	const rcReal walkableThr = rcCos(walkableSlopeAngle/180.0f*RC_PI);
 	
-	float norm[3];
+	rcReal norm[3];
 	
 	for (int i = 0; i < nt; ++i)
 	{

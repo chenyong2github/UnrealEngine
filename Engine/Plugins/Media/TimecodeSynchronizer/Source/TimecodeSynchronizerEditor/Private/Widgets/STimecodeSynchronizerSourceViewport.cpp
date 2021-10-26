@@ -168,7 +168,7 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMinTimecodeText() const
 	const FTimecodeSynchronizerActiveTimecodedInputSource* AttachedSource = GetAttachedSource();
 	if (AttachedSource && AttachedSource->IsReady())
 	{
-		const FFrameNumber OldestFrame = AttachedSource->GetInputSourceState().OldestAvailableSample.GetFrame();
+		const FFrameNumber OldestFrame = AttachedSource->GetInputSourceState().OldestAvailableSample.RoundToFrame();
 		Timecode = FTimecode::FromFrameNumber(OldestFrame, AttachedSource->GetFrameRate());
 	}
 
@@ -181,7 +181,7 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMaxTimecodeText() const
 	const FTimecodeSynchronizerActiveTimecodedInputSource* AttachedSource = GetAttachedSource();
 	if (AttachedSource && AttachedSource->IsReady())
 	{
-		const FFrameNumber NewestFrame = AttachedSource->GetInputSourceState().NewestAvailableSample.GetFrame();
+		const FFrameNumber NewestFrame = AttachedSource->GetInputSourceState().NewestAvailableSample.RoundToFrame();
 		Timecode = FTimecode::FromFrameNumber(NewestFrame, AttachedSource->GetFrameRate());
 	}
 

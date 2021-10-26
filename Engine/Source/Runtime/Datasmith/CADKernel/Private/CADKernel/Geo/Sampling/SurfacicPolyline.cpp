@@ -9,9 +9,7 @@
 #include "CADKernel/Geo/Sampler/SamplerOnParam.h"
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
 
-using namespace CADKernel;
-
-FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D, const double InTolerance)
+CADKernel::FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D, const double InTolerance)
 	: bWithNormals(true)
 	, bWithTangent(false)
 {
@@ -19,12 +17,12 @@ FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSha
 	Sampler.Sample();
 }
 
-FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D)
+CADKernel::FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D)
 	: FSurfacicPolyline(InCarrierSurface, Curve2D, InCarrierSurface->Get3DTolerance())
 {
 }
 
-FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D, const double ChordTolerance, const double ParamTolerance, bool bInWithNormals, bool bInWithTangents)
+CADKernel::FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D, const double ChordTolerance, const double ParamTolerance, bool bInWithNormals, bool bInWithTangents)
 	: bWithNormals(bInWithNormals)
 	, bWithTangent(bInWithTangents)
 {
@@ -32,7 +30,7 @@ FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSha
 	Sampler.Sample();
 }
 
-void FSurfacicPolyline::CheckIfDegenerated(const double Tolerance3D, const FSurfacicTolerance& ToleranceIso, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const
+void CADKernel::FSurfacicPolyline::CheckIfDegenerated(const double Tolerance3D, const FSurfacicTolerance& ToleranceIso, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const
 {
 	TPolylineApproximator<FPoint> Approximator(Coordinates, Points3D);
 	int32 BoundaryIndices[2];
@@ -63,7 +61,7 @@ void FSurfacicPolyline::CheckIfDegenerated(const double Tolerance3D, const FSurf
 	bDegeneration2D = (Aabb.GetSize(0) < ToleranceIso[EIso::IsoU] && Aabb.GetSize(1) < ToleranceIso[EIso::IsoV]);
 }
 
-void FSurfacicPolyline::GetExtremities(const FLinearBoundary& InBoundary, const double Tolerance3D, const FSurfacicTolerance& MinToleranceIso, FSurfacicCurveExtremity& Extremities) const
+void CADKernel::FSurfacicPolyline::GetExtremities(const FLinearBoundary& InBoundary, const double Tolerance3D, const FSurfacicTolerance& MinToleranceIso, FSurfacicCurveExtremities& Extremities) const
 {
 	FDichotomyFinder Finder(Coordinates);
 	const int32 StartIndex = Finder.Find(InBoundary.Min);

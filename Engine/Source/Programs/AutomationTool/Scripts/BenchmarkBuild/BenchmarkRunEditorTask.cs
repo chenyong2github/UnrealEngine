@@ -84,7 +84,7 @@ namespace AutomationTool.Benchmark
 		protected bool RunEditorAndWaitForMapLoad(bool bIsWarming)
 		{
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
-			string EditorPath = HostPlatform.Current.GetUE4ExePath("UnrealEditor.exe");
+			string EditorPath = HostPlatform.Current.GetUnrealExePath("UnrealEditor.exe");
 			string LogArg = string.Format("-log={0}.log", MakeValidFileName(GetFullTaskName()).Replace(" ", "_"));
 			string Arguments = string.Format("{0} -execcmds=\"automation runtest Project.Maps.PIE;Quit\" {1} -stdout -FullStdOutLogOutput -unattended {2}", ProjectArg, EditorArgs, LogArg);
 

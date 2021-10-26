@@ -8,18 +8,24 @@
 #include "USDLightConversion.h"
 #include "USDLog.h"
 #include "USDSkeletalDataConversion.h"
+#include "USDLog.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneDoubleChannel.h"
+#include "Channels/MovieSceneFloatChannel.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/LocalLightComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/RectLightComponent.h"
@@ -35,9 +41,14 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Sections/MovieSceneBoolSection.h"
+#include "Sections/MovieSceneColorSection.h"
 #include "Sections/MovieSceneFloatSection.h"
-#include "Sections/MovieSceneVectorSection.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
+#include "Tracks/MovieSceneBoolTrack.h"
+#include "Tracks/MovieSceneColorTrack.h"
+#include "Tracks/MovieSceneFloatTrack.h"
+#include "Tracks/MovieScenePropertyTrack.h"
 
 #if USE_USD_SDK
 
@@ -49,12 +60,20 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/timeCode.h"
 #include "pxr/usd/usdGeom/camera.h"
+#include "pxr/usd/usdGeom/imageable.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/pointInstancer.h"
+#include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
+#include "pxr/usd/usdLux/diskLight.h"
+#include "pxr/usd/usdLux/distantLight.h"
 #include "pxr/usd/usdLux/light.h"
+#include "pxr/usd/usdLux/rectLight.h"
+#include "pxr/usd/usdLux/shapingAPI.h"
+#include "pxr/usd/usdLux/sphereLight.h"
+#include "pxr/usd/usdLux/tokens.h"
 #include "pxr/usd/usdShade/connectableAPI.h"
 #include "pxr/usd/usdShade/material.h"
 #include "pxr/usd/usdShade/shader.h"
@@ -386,21 +405,1449 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTr
 
 bool UsdToUnreal::ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, double EvalTime )
 {
+	return ConvertGeomCamera( UE::FUsdPrim{ GeomCamera.GetPrim() }, CameraComponent, EvalTime );
+}
+
+bool UsdToUnreal::ConvertGeomCamera( const UE::FUsdPrim& Prim, UCineCameraComponent& CameraComponent, double UsdTimeCode )
+{
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	pxr::UsdGeomCamera GeomCamera{ UsdPrim };
+	if ( !GeomCamera )
+	{
+		return false;
+	}
+
+	UE::FUsdStage Stage = Prim.GetStage();
 	FUsdStageInfo StageInfo( Stage );
 
-	CameraComponent.CurrentFocalLength = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocalLengthAttr(), EvalTime ) );
+	CameraComponent.CurrentFocalLength = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocalLengthAttr(), UsdTimeCode ) );
 
-	CameraComponent.FocusSettings.ManualFocusDistance = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocusDistanceAttr(), EvalTime ) );
+	CameraComponent.FocusSettings.ManualFocusDistance = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetFocusDistanceAttr(), UsdTimeCode ) );
 
 	if ( FMath::IsNearlyZero( CameraComponent.FocusSettings.ManualFocusDistance ) )
 	{
 		CameraComponent.FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
 	}
 
-	CameraComponent.CurrentAperture = UsdUtils::GetUsdValue< float >( GeomCamera.GetFStopAttr(), EvalTime );
+	CameraComponent.CurrentAperture = UsdUtils::GetUsdValue< float >( GeomCamera.GetFStopAttr(), UsdTimeCode );
 
-	CameraComponent.Filmback.SensorWidth = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetHorizontalApertureAttr(), EvalTime ) );
-	CameraComponent.Filmback.SensorHeight = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetVerticalApertureAttr(), EvalTime ) );
+	CameraComponent.Filmback.SensorWidth = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetHorizontalApertureAttr(), UsdTimeCode ) );
+	CameraComponent.Filmback.SensorHeight = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( GeomCamera.GetVerticalApertureAttr(), UsdTimeCode ) );
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertBoolTimeSamples( const UE::FUsdStage& Stage, const TArray<double>& UsdTimeSamples, const TFunction<bool( double )>& ReaderFunc, UMovieSceneBoolTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	if ( !ReaderFunc )
+	{
+		return false;
+	}
+
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage{ Stage };
+	FUsdStageInfo StageInfo{ Stage };
+
+	TArray< FFrameNumber > FrameNumbers;
+	FrameNumbers.Reserve( UsdTimeSamples.Num() );
+
+	TArray< bool > SectionValues;
+	SectionValues.Reserve( UsdTimeSamples.Num() );
+
+	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	for ( const double UsdTimeSample : UsdTimeSamples )
+	{
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
+		float SubFrameNumber = UsdTimeSample - FrameNumber;
+
+		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
+
+		FFrameTime KeyFrameTime = FFrameRate::TransformTime( FrameTime, StageFrameRate, Resolution );
+		KeyFrameTime *= SequenceTransform;
+		FrameNumbers.Add( KeyFrameTime.GetFrame() );
+
+		bool UEValue = ReaderFunc( UsdTimeSample );
+		SectionValues.Emplace_GetRef( UEValue );
+	}
+
+	bool bSectionAdded = false;
+	UMovieSceneBoolSection* Section = Cast< UMovieSceneBoolSection >( MovieSceneTrack.FindOrAddSection( 0, bSectionAdded ) );
+	Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+
+	TMovieSceneChannelData<bool> Data = Section->GetChannel().GetData();
+	Data.Reset();
+	for ( int32 KeyIndex = 0; KeyIndex < FrameNumbers.Num(); ++KeyIndex )
+	{
+		Data.AddKey( FrameNumbers[ KeyIndex ], SectionValues[ KeyIndex ] );
+	}
+
+	Section->SetRange( Section->GetAutoSizeRange().Get( TRange<FFrameNumber>::Empty() ) );
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertFloatTimeSamples( const UE::FUsdStage& Stage, const TArray<double>& UsdTimeSamples, const TFunction<float( double )>& ReaderFunc, UMovieSceneFloatTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	if ( !ReaderFunc )
+	{
+		return false;
+	}
+
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage{ Stage };
+	FUsdStageInfo StageInfo{ Stage };
+
+	TArray< FFrameNumber > FrameNumbers;
+	FrameNumbers.Reserve( UsdTimeSamples.Num() );
+
+	TArray< FMovieSceneFloatValue > SectionValues;
+	SectionValues.Reserve( UsdTimeSamples.Num() );
+
+	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+
+	for ( const double UsdTimeSample : UsdTimeSamples )
+	{
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
+		float SubFrameNumber = UsdTimeSample - FrameNumber;
+
+		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
+
+		FFrameTime KeyFrameTime = FFrameRate::TransformTime( FrameTime, StageFrameRate, Resolution );
+		KeyFrameTime *= SequenceTransform;
+		FrameNumbers.Add( KeyFrameTime.GetFrame() );
+
+		float UEValue = ReaderFunc( UsdTimeSample );
+		SectionValues.Emplace_GetRef( UEValue ).InterpMode = InterpMode;
+	}
+
+	bool bSectionAdded = false;
+	UMovieSceneFloatSection* Section = Cast< UMovieSceneFloatSection >( MovieSceneTrack.FindOrAddSection( 0, bSectionAdded ) );
+	Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+
+	TArrayView< FMovieSceneFloatChannel* > Channels = Section->GetChannelProxy().GetChannels< FMovieSceneFloatChannel >();
+	if ( Channels.Num() > 0 )
+	{
+		Channels[ 0 ]->Set( FrameNumbers, SectionValues );
+	}
+
+	Section->SetRange( Section->GetAutoSizeRange().Get( TRange<FFrameNumber>::Empty() ) );
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertColorTimeSamples( const UE::FUsdStage& Stage, const TArray<double>& UsdTimeSamples, const TFunction<FLinearColor( double )>& ReaderFunc, UMovieSceneColorTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	if ( !ReaderFunc )
+	{
+		return false;
+	}
+
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage{ Stage };
+	FUsdStageInfo StageInfo{ Stage };
+
+	TArray< FFrameNumber > FrameNumbers;
+	FrameNumbers.Reserve( UsdTimeSamples.Num() );
+
+	TArray< FMovieSceneFloatValue > RedValues;
+	TArray< FMovieSceneFloatValue > GreenValues;
+	TArray< FMovieSceneFloatValue > BlueValues;
+	TArray< FMovieSceneFloatValue > AlphaValues;
+	RedValues.Reserve( UsdTimeSamples.Num() );
+	GreenValues.Reserve( UsdTimeSamples.Num() );
+	BlueValues.Reserve( UsdTimeSamples.Num() );
+	AlphaValues.Reserve( UsdTimeSamples.Num() );
+
+	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+
+	for ( const double UsdTimeSample : UsdTimeSamples )
+	{
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
+		float SubFrameNumber = UsdTimeSample - FrameNumber;
+
+		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
+
+		FFrameTime KeyFrameTime = FFrameRate::TransformTime( FrameTime, StageFrameRate, Resolution );
+		KeyFrameTime *= SequenceTransform;
+		FrameNumbers.Add( KeyFrameTime.GetFrame() );
+
+		FLinearColor UEValue = ReaderFunc( UsdTimeSample );
+		RedValues.Emplace_GetRef( UEValue.R ).InterpMode = InterpMode;
+		GreenValues.Emplace_GetRef( UEValue.G ).InterpMode = InterpMode;
+		BlueValues.Emplace_GetRef( UEValue.B ).InterpMode = InterpMode;
+		AlphaValues.Emplace_GetRef( UEValue.A ).InterpMode = InterpMode;
+	}
+
+	bool bSectionAdded = false;
+	UMovieSceneColorSection* Section = Cast< UMovieSceneColorSection >( MovieSceneTrack.FindOrAddSection( 0, bSectionAdded ) );
+	Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+
+	TArrayView< FMovieSceneFloatChannel* > Channels = Section->GetChannelProxy().GetChannels< FMovieSceneFloatChannel >();
+	if ( Channels.Num() != 4 )
+	{
+		return false;
+	}
+
+	Channels[ 0 ]->Set( FrameNumbers, RedValues );
+	Channels[ 1 ]->Set( FrameNumbers, GreenValues );
+	Channels[ 2 ]->Set( FrameNumbers, BlueValues );
+	Channels[ 3 ]->Set( FrameNumbers, AlphaValues );
+
+	Section->SetRange( Section->GetAutoSizeRange().Get( TRange<FFrameNumber>::Empty() ) );
+
+	return true;
+}
+
+bool UsdToUnreal::ConvertTransformTimeSamples( const UE::FUsdStage& Stage, const TArray<double>& UsdTimeSamples, const TFunction<FTransform( double )>& ReaderFunc, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform )
+{
+	if ( !ReaderFunc )
+	{
+		return false;
+	}
+
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage{ Stage };
+	FUsdStageInfo StageInfo{ Stage };
+
+	TArray< FFrameNumber > FrameNumbers;
+	FrameNumbers.Reserve( UsdTimeSamples.Num() );
+
+	TArray< FMovieSceneDoubleValue > LocationXValues;
+	TArray< FMovieSceneDoubleValue > LocationYValues;
+	TArray< FMovieSceneDoubleValue > LocationZValues;
+
+	TArray< FMovieSceneDoubleValue > RotationXValues;
+	TArray< FMovieSceneDoubleValue > RotationYValues;
+	TArray< FMovieSceneDoubleValue > RotationZValues;
+
+	TArray< FMovieSceneDoubleValue > ScaleXValues;
+	TArray< FMovieSceneDoubleValue > ScaleYValues;
+	TArray< FMovieSceneDoubleValue > ScaleZValues;
+
+	LocationXValues.Reserve( UsdTimeSamples.Num() );
+	LocationYValues.Reserve( UsdTimeSamples.Num() );
+	LocationZValues.Reserve( UsdTimeSamples.Num() );
+
+	RotationXValues.Reserve( UsdTimeSamples.Num() );
+	RotationYValues.Reserve( UsdTimeSamples.Num() );
+	RotationZValues.Reserve( UsdTimeSamples.Num() );
+
+	ScaleXValues.Reserve( UsdTimeSamples.Num() );
+	ScaleYValues.Reserve( UsdTimeSamples.Num() );
+	ScaleZValues.Reserve( UsdTimeSamples.Num() );
+
+	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	const ERichCurveInterpMode InterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+
+	for ( const double UsdTimeSample : UsdTimeSamples )
+	{
+		int32 FrameNumber = FMath::FloorToInt( UsdTimeSample );
+		float SubFrameNumber = UsdTimeSample - FrameNumber;
+
+		FFrameTime FrameTime( FrameNumber, SubFrameNumber );
+
+		FFrameTime KeyFrameTime = FFrameRate::TransformTime( FrameTime, StageFrameRate, Resolution );
+		KeyFrameTime *= SequenceTransform;
+		FrameNumbers.Add( KeyFrameTime.GetFrame() );
+
+		FTransform UEValue = ReaderFunc( UsdTimeSample );
+		FVector Location = UEValue.GetLocation();
+		FRotator Rotator = UEValue.Rotator();
+		FVector Scale = UEValue.GetScale3D();
+
+		LocationXValues.Emplace_GetRef( Location.X ).InterpMode = InterpMode;
+		LocationYValues.Emplace_GetRef( Location.Y ).InterpMode = InterpMode;
+		LocationZValues.Emplace_GetRef( Location.Z ).InterpMode = InterpMode;
+
+		RotationXValues.Emplace_GetRef( Rotator.Roll ).InterpMode = InterpMode;
+		RotationYValues.Emplace_GetRef( Rotator.Pitch ).InterpMode = InterpMode;
+		RotationZValues.Emplace_GetRef( Rotator.Yaw ).InterpMode = InterpMode;
+
+		ScaleXValues.Emplace_GetRef( Scale.X ).InterpMode = InterpMode;
+		ScaleYValues.Emplace_GetRef( Scale.Y ).InterpMode = InterpMode;
+		ScaleZValues.Emplace_GetRef( Scale.Z ).InterpMode = InterpMode;
+	}
+
+	bool bSectionAdded = false;
+	UMovieScene3DTransformSection* Section = Cast< UMovieScene3DTransformSection >( MovieSceneTrack.FindOrAddSection( 0, bSectionAdded ) );
+	Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+	Section->SetRange( TRange< FFrameNumber >::All() );
+
+	TArrayView< FMovieSceneDoubleChannel* > Channels = Section->GetChannelProxy().GetChannels< FMovieSceneDoubleChannel >();
+	if ( Channels.Num() < 9 )
+	{
+		return false;
+	}
+
+	Channels[ 0 ]->Set( FrameNumbers, LocationXValues );
+	Channels[ 1 ]->Set( FrameNumbers, LocationYValues );
+	Channels[ 2 ]->Set( FrameNumbers, LocationZValues );
+
+	Channels[ 3 ]->Set( FrameNumbers, RotationXValues );
+	Channels[ 4 ]->Set( FrameNumbers, RotationYValues );
+	Channels[ 5 ]->Set( FrameNumbers, RotationZValues );
+
+	Channels[ 6 ]->Set( FrameNumbers, ScaleXValues );
+	Channels[ 7 ]->Set( FrameNumbers, ScaleYValues );
+	Channels[ 8 ]->Set( FrameNumbers, ScaleZValues );
+
+	return true;
+}
+
+UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath )
+{
+	UsdToUnreal::FPropertyTrackReader Reader;
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+	FUsdStageInfo StageInfo{ UsdStage };
+
+	if ( pxr::UsdGeomXformable Xformable{ UsdPrim } )
+	{
+		if ( PropertyPath == UnrealIdentifiers::TransformPropertyName )
+		{
+			FTransform Default = FTransform::Identity;
+			UsdToUnreal::ConvertXformable( UsdStage, Xformable, Default, UsdUtils::GetDefaultTimeCode() );
+
+			Reader.TransformReader = [UsdStage, Xformable, Default]( double UsdTimeCode )
+			{
+				FTransform Result = Default;
+				UsdToUnreal::ConvertXformable( UsdStage, Xformable, Result, UsdTimeCode );
+				return Result;
+			};
+			return Reader;
+		}
+	}
+
+	if ( pxr::UsdGeomImageable Imageable{ UsdPrim } )
+	{
+		if ( PropertyPath == UnrealIdentifiers::HiddenInGamePropertyName )
+		{
+			if ( pxr::UsdAttribute Attr = Imageable.GetVisibilityAttr() )
+			{
+				pxr::TfToken Default = pxr::UsdGeomTokens->inherited;
+				Attr.Get<pxr::TfToken>( &Default );
+
+				Reader.BoolReader = [Imageable]( double UsdTimeCode )
+				{
+					// The property is "HiddenInGame" but it will end up in a visibility track, which is just a bool track,
+					// where true means visible
+					return Imageable.ComputeVisibility( UsdTimeCode ) == pxr::UsdGeomTokens->inherited;
+				};
+				return Reader;
+			}
+		}
+	}
+
+	if ( pxr::UsdGeomCamera Camera{ UsdPrim } )
+	{
+		bool bConvertDistance = true;
+		pxr::UsdAttribute Attr;
+
+		if ( PropertyPath == UnrealIdentifiers::CurrentFocalLengthPropertyName )
+		{
+			Attr = Camera.GetFocalLengthAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::ManualFocusDistancePropertyName )
+		{
+			Attr = Camera.GetFocusDistanceAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::CurrentAperturePropertyName )
+		{
+			bConvertDistance = false;
+			Attr = Camera.GetFStopAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::SensorWidthPropertyName )
+		{
+			Attr = Camera.GetHorizontalApertureAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::SensorHeightPropertyName )
+		{
+			Attr = Camera.GetVerticalApertureAttr();
+		}
+
+		if ( Attr )
+		{
+			if ( bConvertDistance )
+			{
+				float Default = 0.0;
+				Attr.Get<float>( &Default );
+				Default = UsdToUnreal::ConvertDistance( StageInfo, Default );
+
+				Reader.FloatReader = [Attr, Default, StageInfo]( double UsdTimeCode )
+				{
+					float Result = Default;
+					if ( Attr.Get<float>( &Result, UsdTimeCode ) )
+					{
+						Result = UsdToUnreal::ConvertDistance( StageInfo, Result );
+					}
+
+					return Result;
+				};
+				return Reader;
+			}
+			else
+			{
+				float Default = 0.0;
+				Attr.Get<float>( &Default );
+
+				Reader.FloatReader = [Attr, Default]( double UsdTimeCode )
+				{
+					float Result = Default;
+					Attr.Get<float>( &Result, UsdTimeCode );
+					return Result;
+				};
+				return Reader;
+			}
+		}
+	}
+	else if ( pxr::UsdLuxLight Light{ Prim } )
+	{
+		if ( PropertyPath == UnrealIdentifiers::LightColorPropertyName )
+		{
+			if ( pxr::UsdAttribute Attr = Light.GetColorAttr() )
+			{
+				pxr::GfVec3f UsdDefault;
+				Attr.Get<pxr::GfVec3f>( &UsdDefault );
+				FLinearColor Default = UsdToUnreal::ConvertColor( UsdDefault );
+
+				Reader.ColorReader = [Attr, Default]( double UsdTimeCode )
+				{
+					FLinearColor Result = Default;
+
+					pxr::GfVec3f Value;
+					if ( Attr.Get<pxr::GfVec3f>( &Value, UsdTimeCode ) )
+					{
+						Result = UsdToUnreal::ConvertColor( Value );
+					}
+
+					return Result;
+				};
+				return Reader;
+			}
+		}
+		else if ( PropertyPath == UnrealIdentifiers::UseTemperaturePropertyName )
+		{
+			if ( pxr::UsdAttribute Attr = Light.GetEnableColorTemperatureAttr() )
+			{
+				bool Default;
+				Attr.Get<bool>( &Default );
+
+				Reader.BoolReader = [Attr, Default]( double UsdTimeCode )
+				{
+					bool Result = Default;
+					Attr.Get<bool>( &Result, UsdTimeCode );
+					return Result;
+				};
+				return Reader;
+			}
+		}
+		else if ( PropertyPath == UnrealIdentifiers::TemperaturePropertyName )
+		{
+			if ( pxr::UsdAttribute Attr = Light.GetColorTemperatureAttr() )
+			{
+				float Default;
+				Attr.Get<float>( &Default );
+
+				Reader.FloatReader = [Attr, Default]( double UsdTimeCode )
+				{
+					float Result = Default;
+					Attr.Get<float>( &Result, UsdTimeCode );
+					return Result;
+				};
+				return Reader;
+			}
+		}
+
+		else if ( pxr::UsdLuxSphereLight SphereLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceRadiusPropertyName )
+			{
+				if ( pxr::UsdAttribute Attr = SphereLight.GetRadiusAttr() )
+				{
+					float Default = 0.0;
+					Attr.Get<float>( &Default );
+					Default = UsdToUnreal::ConvertDistance( StageInfo, Default );
+
+					Reader.FloatReader = [Attr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+						if ( Attr.Get<float>( &Result, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertDistance( StageInfo, Result );
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+
+			// Spot light
+			else if ( UsdPrim.HasAPI< pxr::UsdLuxShapingAPI >() )
+			{
+				pxr::UsdLuxShapingAPI ShapingAPI{ UsdPrim };
+
+				if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+				{
+					pxr::UsdAttribute IntensityAttr = SphereLight.GetIntensityAttr();
+					pxr::UsdAttribute ExposureAttr = SphereLight.GetExposureAttr();
+					pxr::UsdAttribute RadiusAttr = SphereLight.GetRadiusAttr();
+					pxr::UsdAttribute ConeAngleAttr = ShapingAPI.GetShapingConeAngleAttr();
+					pxr::UsdAttribute ConeSoftnessAttr = ShapingAPI.GetShapingConeSoftnessAttr();
+
+					if ( IntensityAttr && ExposureAttr && RadiusAttr && ConeAngleAttr && ConeSoftnessAttr )
+					{
+						// Default values directly from pxr/usd/usdLux/schema.usda
+						float DefaultUsdIntensity = 1.0f;
+						float DefaultUsdExposure = 0.0f;
+						float DefaultUsdRadius = 0.5f;
+						float DefaultUsdConeAngle = 90.0f;
+						float DefaultUsdConeSoftness = 0.0f;
+
+						IntensityAttr.Get<float>( &DefaultUsdIntensity );
+						ExposureAttr.Get<float>( &DefaultUsdExposure );
+						RadiusAttr.Get<float>( &DefaultUsdRadius );
+						ConeAngleAttr.Get<float>( &DefaultUsdConeAngle );
+						ConeSoftnessAttr.Get<float>( &DefaultUsdConeSoftness );
+
+						float Default = UsdToUnreal::ConvertLuxShapingAPIIntensityAttr(
+							DefaultUsdIntensity,
+							DefaultUsdExposure,
+							DefaultUsdRadius,
+							DefaultUsdConeAngle,
+							DefaultUsdConeSoftness,
+							StageInfo
+						);
+
+						Reader.FloatReader = [IntensityAttr, ExposureAttr, RadiusAttr, ConeAngleAttr, ConeSoftnessAttr, Default, StageInfo]( double UsdTimeCode )
+						{
+							float Result = Default;
+
+							float UsdIntensity = 1.0f;
+							float UsdExposure = 0.0f;
+							float UsdRadius = 0.5f;
+							float UsdConeAngle = 90.0f;
+							float UsdConeSoftness = 0.0f;
+							if ( IntensityAttr.Get<float>( &UsdIntensity, UsdTimeCode ) &&
+								 ExposureAttr.Get<float>( &UsdExposure, UsdTimeCode ) &&
+								 RadiusAttr.Get<float>( &UsdRadius, UsdTimeCode ) &&
+								 ConeAngleAttr.Get<float>( &UsdConeAngle, UsdTimeCode ) &&
+								 ConeSoftnessAttr.Get<float>( &UsdConeSoftness, UsdTimeCode ) )
+							{
+								Result = UsdToUnreal::ConvertLuxShapingAPIIntensityAttr(
+									UsdIntensity,
+									UsdExposure,
+									UsdRadius,
+									UsdConeAngle,
+									UsdConeSoftness,
+									StageInfo
+								);
+							}
+
+							return Result;
+						};
+						return Reader;
+					}
+				}
+				else if ( PropertyPath == UnrealIdentifiers::OuterConeAnglePropertyName )
+				{
+					if ( pxr::UsdAttribute Attr = ShapingAPI.GetShapingConeAngleAttr() )
+					{
+						float Default;
+						Attr.Get<float>( &Default );
+
+						Reader.FloatReader = [Attr, Default]( double UsdTimeCode )
+						{
+							float Result = Default;
+							Attr.Get<float>( &Result, UsdTimeCode );
+							return Result;
+						};
+						return Reader;
+					}
+				}
+				else if ( PropertyPath == UnrealIdentifiers::InnerConeAnglePropertyName )
+				{
+					pxr::UsdAttribute ConeAngleAttr = ShapingAPI.GetShapingConeAngleAttr();
+					pxr::UsdAttribute ConeSoftnessAttr = ShapingAPI.GetShapingConeSoftnessAttr();
+
+					if ( ConeAngleAttr && ConeSoftnessAttr )
+					{
+						// Default values directly from pxr/usd/usdLux/schema.usda
+						float DefaultUsdConeAngle = 90.0f;
+						float DefaultUsdConeSoftness = 0.0f;
+
+						ConeAngleAttr.Get<float>( &DefaultUsdConeAngle );
+						ConeSoftnessAttr.Get<float>( &DefaultUsdConeSoftness );
+
+						float Default = 0.0f;
+						UsdToUnreal::ConvertConeAngleSoftnessAttr( DefaultUsdConeAngle, DefaultUsdConeSoftness, Default );
+
+						Reader.FloatReader = [ConeAngleAttr, ConeSoftnessAttr, Default]( double UsdTimeCode )
+						{
+							float Result = Default;
+
+							float UsdConeAngle = 90.0f;
+							float UsdConeSoftness = 0.0f;
+							if ( ConeAngleAttr.Get<float>( &UsdConeAngle, UsdTimeCode ) && ConeSoftnessAttr.Get<float>( &UsdConeSoftness, UsdTimeCode ) )
+							{
+								UsdToUnreal::ConvertConeAngleSoftnessAttr( UsdConeAngle, UsdConeSoftness, Result );
+							}
+
+							return Result;
+						};
+						return Reader;
+					}
+				}
+			}
+			// Just a point light
+			else
+			{
+				if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+				{
+					pxr::UsdAttribute IntensityAttr = SphereLight.GetIntensityAttr();
+					pxr::UsdAttribute ExposureAttr = SphereLight.GetExposureAttr();
+					pxr::UsdAttribute RadiusAttr = SphereLight.GetRadiusAttr();
+
+					if ( IntensityAttr && ExposureAttr && RadiusAttr )
+					{
+						// Default values directly from pxr/usd/usdLux/schema.usda
+						float DefaultUsdIntensity = 1.0f;
+						float DefaultUsdExposure = 0.0f;
+						float DefaultUsdRadius = 0.5f;
+
+						IntensityAttr.Get<float>( &DefaultUsdIntensity );
+						ExposureAttr.Get<float>( &DefaultUsdExposure );
+						RadiusAttr.Get<float>( &DefaultUsdRadius );
+
+						float Default = UsdToUnreal::ConvertSphereLightIntensityAttr(
+							DefaultUsdIntensity,
+							DefaultUsdExposure,
+							DefaultUsdRadius,
+							StageInfo
+						);
+
+						Reader.FloatReader = [IntensityAttr, ExposureAttr, RadiusAttr, Default, StageInfo]( double UsdTimeCode )
+						{
+							float Result = Default;
+
+							float UsdIntensity = 1.0f;
+							float UsdExposure = 0.0f;
+							float UsdRadius = 0.5f;
+							if ( IntensityAttr.Get<float>( &UsdIntensity, UsdTimeCode ) &&
+								 ExposureAttr.Get<float>( &UsdExposure, UsdTimeCode ) &&
+								 RadiusAttr.Get<float>( &UsdRadius, UsdTimeCode ) )
+							{
+								Result = UsdToUnreal::ConvertSphereLightIntensityAttr(
+									UsdIntensity,
+									UsdExposure,
+									UsdRadius,
+									StageInfo
+								);
+							}
+
+							return Result;
+						};
+						return Reader;
+					}
+				}
+			}
+		}
+		else if ( pxr::UsdLuxRectLight RectLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceWidthPropertyName )
+			{
+				if ( pxr::UsdAttribute Attr = RectLight.GetWidthAttr() )
+				{
+					float Default = 0.0;
+					Attr.Get<float>( &Default );
+					Default = UsdToUnreal::ConvertDistance( StageInfo, Default );
+
+					Reader.FloatReader = [Attr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+						if ( Attr.Get<float>( &Result, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertDistance( StageInfo, Result );
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::SourceHeightPropertyName )
+			{
+				if ( pxr::UsdAttribute Attr = RectLight.GetHeightAttr() )
+				{
+					float Default = 0.0;
+					Attr.Get<float>( &Default );
+					Default = UsdToUnreal::ConvertDistance( StageInfo, Default );
+
+					Reader.FloatReader = [Attr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+						if ( Attr.Get<float>( &Result, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertDistance( StageInfo, Result );
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				pxr::UsdAttribute IntensityAttr = RectLight.GetIntensityAttr();
+				pxr::UsdAttribute ExposureAttr = RectLight.GetExposureAttr();
+				pxr::UsdAttribute WidthAttr = RectLight.GetWidthAttr();
+				pxr::UsdAttribute HeightAttr = RectLight.GetHeightAttr();
+
+				if ( IntensityAttr && ExposureAttr && WidthAttr && HeightAttr )
+				{
+					// Default values directly from pxr/usd/usdLux/schema.usda
+					float DefaultUsdIntensity = 1.0f;
+					float DefaultUsdExposure = 0.0f;
+					float DefaultUsdWidth = 1.0f;
+					float DefaultUsdHeight = 1.0f;
+
+					IntensityAttr.Get<float>( &DefaultUsdIntensity );
+					ExposureAttr.Get<float>( &DefaultUsdExposure );
+					WidthAttr.Get<float>( &DefaultUsdWidth );
+					HeightAttr.Get<float>( &DefaultUsdHeight );
+
+					float Default = UsdToUnreal::ConvertRectLightIntensityAttr(
+						DefaultUsdIntensity,
+						DefaultUsdExposure,
+						DefaultUsdWidth,
+						DefaultUsdHeight,
+						StageInfo
+					);
+
+					Reader.FloatReader = [IntensityAttr, ExposureAttr, WidthAttr, HeightAttr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+
+						float UsdIntensity = 1.0f;
+						float UsdExposure = 0.0f;
+						float UsdWidth = 1.0f;
+						float UsdHeight = 1.0f;
+						if ( IntensityAttr.Get<float>( &UsdIntensity, UsdTimeCode ) &&
+							 ExposureAttr.Get<float>( &UsdExposure, UsdTimeCode ) &&
+							 WidthAttr.Get<float>( &UsdWidth, UsdTimeCode ) &&
+							 HeightAttr.Get<float>( &UsdHeight, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertRectLightIntensityAttr(
+								UsdIntensity,
+								UsdExposure,
+								UsdWidth,
+								UsdHeight,
+								StageInfo
+							);
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+		}
+		else if ( pxr::UsdLuxDiskLight DiskLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceWidthPropertyName || PropertyPath == UnrealIdentifiers::SourceHeightPropertyName )
+			{
+				if ( pxr::UsdAttribute Attr = DiskLight.GetRadiusAttr() )
+				{
+					// Our conversion is that Width == Height == 2 * Radius
+
+					float Default = 0.0;
+					Attr.Get<float>( &Default );
+					Default = 2.0f * UsdToUnreal::ConvertDistance( StageInfo, Default );
+
+					Reader.FloatReader = [Attr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+						if ( Attr.Get<float>( &Result, UsdTimeCode ) )
+						{
+							Result = 2.0f * UsdToUnreal::ConvertDistance( StageInfo, Result );
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				pxr::UsdAttribute IntensityAttr = DiskLight.GetIntensityAttr();
+				pxr::UsdAttribute ExposureAttr = DiskLight.GetExposureAttr();
+				pxr::UsdAttribute RadiusAttr = DiskLight.GetRadiusAttr();
+
+				if ( IntensityAttr && ExposureAttr && RadiusAttr )
+				{
+					// Default values directly from pxr/usd/usdLux/schema.usda
+					float DefaultUsdIntensity = 1.0f;
+					float DefaultUsdExposure = 0.0f;
+					float DefaultUsdRadius = 0.5f;
+
+					IntensityAttr.Get<float>( &DefaultUsdIntensity );
+					ExposureAttr.Get<float>( &DefaultUsdExposure );
+					RadiusAttr.Get<float>( &DefaultUsdRadius );
+
+					float Default = UsdToUnreal::ConvertDiskLightIntensityAttr(
+						DefaultUsdIntensity,
+						DefaultUsdExposure,
+						DefaultUsdRadius,
+						StageInfo
+					);
+
+					Reader.FloatReader = [IntensityAttr, ExposureAttr, RadiusAttr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+
+						float UsdIntensity = 1.0f;
+						float UsdExposure = 0.0f;
+						float UsdRadius = 0.5f;
+						if ( IntensityAttr.Get<float>( &UsdIntensity, UsdTimeCode ) &&
+							 ExposureAttr.Get<float>( &UsdExposure, UsdTimeCode ) &&
+							 RadiusAttr.Get<float>( &UsdRadius, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertDiskLightIntensityAttr(
+								UsdIntensity,
+								UsdExposure,
+								UsdRadius,
+								StageInfo
+							);
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+		}
+		else if ( pxr::UsdLuxDistantLight DistantLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::LightSourceAnglePropertyName )
+			{
+				if ( pxr::UsdAttribute Attr = DistantLight.GetAngleAttr() )
+				{
+					float Default;
+					Attr.Get<float>( &Default );
+
+					Reader.FloatReader = [Attr, Default]( double UsdTimeCode )
+					{
+						float Result = Default;
+						Attr.Get<float>( &Result, UsdTimeCode );
+						return Result;
+					};
+					return Reader;
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				pxr::UsdAttribute IntensityAttr = SphereLight.GetIntensityAttr();
+				pxr::UsdAttribute ExposureAttr = SphereLight.GetExposureAttr();
+
+				if ( IntensityAttr && ExposureAttr )
+				{
+					// Default values directly from pxr/usd/usdLux/schema.usda
+					float DefaultUsdIntensity = 1.0f;
+					float DefaultUsdExposure = 0.0f;
+
+					IntensityAttr.Get<float>( &DefaultUsdIntensity );
+					ExposureAttr.Get<float>( &DefaultUsdExposure );
+
+					float Default = UsdToUnreal::ConvertDistantLightIntensityAttr( DefaultUsdIntensity, DefaultUsdExposure );
+
+					Reader.FloatReader = [IntensityAttr, ExposureAttr, Default, StageInfo]( double UsdTimeCode )
+					{
+						float Result = Default;
+
+						float UsdIntensity = 1.0f;
+						float UsdExposure = 0.0f;
+						if ( IntensityAttr.Get<float>( &UsdIntensity, UsdTimeCode ) && ExposureAttr.Get<float>( &UsdExposure, UsdTimeCode ) )
+						{
+							Result = UsdToUnreal::ConvertDistantLightIntensityAttr( UsdIntensity, UsdExposure );
+						}
+
+						return Result;
+					};
+					return Reader;
+				}
+			}
+		}
+	}
+
+	return Reader;
+}
+
+bool UnrealToUsd::ConvertCameraComponent( const UCineCameraComponent& CameraComponent, pxr::UsdPrim& Prim, double UsdTimeCode )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomCamera GeomCamera{ Prim };
+	if ( !GeomCamera )
+	{
+		return false;
+	}
+
+	FUsdStageInfo StageInfo( Prim.GetStage() );
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.CurrentFocalLength ), UsdTimeCode );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.FocusSettings.ManualFocusDistance ), UsdTimeCode );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
+	{
+		Attr.Set<float>( CameraComponent.CurrentAperture, UsdTimeCode );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorWidth ), UsdTimeCode );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorHeight ), UsdTimeCode );
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertBoolTrack( const UMovieSceneBoolTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( bool, double )>& WriterFunc, UE::FUsdPrim& Prim )
+{
+	if ( !WriterFunc || !Prim )
+	{
+		return false;
+	}
+
+	UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter<UMovieScene>();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	UE::FUsdStage Stage = Prim.GetStage();
+
+	const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = Stage.GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	auto EvaluateChannel = [&Resolution, &DisplayRate]( const FMovieSceneBoolChannel& Channel, bool InDefaultValue ) -> TArray< TPair< FFrameNumber, bool > >
+	{
+		TArray< TPair< FFrameNumber, bool > > Values;
+
+		bool DefaultValue = Channel.GetDefault().Get( InDefaultValue );
+
+		TArrayView<const FFrameNumber> KeyTimes = Channel.GetTimes();
+		TArrayView<const bool> KeyValues = Channel.GetValues();
+
+		for ( int32 KeyIndex = 0; KeyIndex < KeyTimes.Num(); ++KeyIndex )
+		{
+			const FFrameNumber KeyTime = KeyTimes[ KeyIndex ];
+			bool KeyValue = KeyValues[ KeyIndex ];
+
+			FFrameTime SnappedKeyTime{ FFrameRate::Snap( KeyTime, Resolution, DisplayRate ).FloorToFrame() };
+
+			// We never need to bake bool tracks
+			Values.Emplace( SnappedKeyTime.GetFrame(), KeyValue );
+		}
+
+		return Values;
+	};
+
+	for ( UMovieSceneSection* Section : MovieSceneTrack.GetAllSections() )
+	{
+		if ( UMovieSceneBoolSection* BoolSection = Cast<UMovieSceneBoolSection>( Section ) )
+		{
+			for ( const TPair< FFrameNumber, bool >& Pair : EvaluateChannel( BoolSection->GetChannel(), false ) )
+			{
+				FFrameTime TransformedBakedKeyTime{ Pair.Key };
+				TransformedBakedKeyTime *= SequenceTransform.InverseLinearOnly();
+				FFrameTime UsdFrameTime = FFrameRate::TransformTime( TransformedBakedKeyTime, Resolution, StageFrameRate );
+
+				bool UEValue = Pair.Value;
+
+				WriterFunc( UEValue, UsdFrameTime.AsDecimal() );
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertFloatTrack( const UMovieSceneFloatTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( float, double )>& WriterFunc, UE::FUsdPrim& Prim )
+{
+	if ( !WriterFunc || !Prim )
+	{
+		return false;
+	}
+
+	UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter<UMovieScene>();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	UE::FUsdStage Stage = Prim.GetStage();
+
+	ERichCurveInterpMode StageInterpMode;
+	{
+		FScopedUsdAllocs Allocs;
+		pxr::UsdStageRefPtr UsdStage{ Stage };
+		StageInterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+	}
+
+	const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = Stage.GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	auto EvaluateChannel = [&Resolution, &DisplayRate, StageInterpMode]( const FMovieSceneFloatChannel& Channel, float InDefaultValue ) -> TArray< TPair< FFrameNumber, float > >
+	{
+		TArray< TPair< FFrameNumber, float > > Values;
+
+		const FFrameTime BakeInterval = FFrameRate::TransformTime( 1, DisplayRate, Resolution );
+
+		float DefaultValue = Channel.GetDefault().Get( InDefaultValue );
+
+		TMovieSceneChannelData<const FMovieSceneFloatValue> ChannelData = Channel.GetData();
+		TArrayView<const FFrameNumber> KeyTimes = ChannelData.GetTimes();
+		TArrayView<const FMovieSceneFloatValue> KeyValues = ChannelData.GetValues();
+
+		for ( int32 KeyIndex = 0; KeyIndex < KeyTimes.Num(); ++KeyIndex )
+		{
+			const FFrameNumber KeyTime = KeyTimes[ KeyIndex ];
+			const FMovieSceneFloatValue& KeyValue = KeyValues[ KeyIndex ];
+
+			// If the channel has the same interpolation type as the stage (or we're the last key),
+			// we don't need to bake anything: Just write out the keyframe as is
+			if ( KeyValue.InterpMode == StageInterpMode || KeyIndex == ( KeyTimes.Num() - 1 ) )
+			{
+				FFrameTime SnappedKeyTime( FFrameRate::Snap( KeyTime, Resolution, DisplayRate ).FloorToFrame() );
+				Values.Emplace( SnappedKeyTime.GetFrame(), KeyValue.Value );
+			}
+			// We need to bake: Start from this key up until the next key (non-inclusive). We always want to put a keyframe at
+			// KeyTime, but then snap the other ones to the stage framerate
+			else
+			{
+				// Don't use the snapped key time for the end of the bake range, because if the snapping moves it
+				// later we may end up stepping back again when it's time to bake from that key onwards
+				const FFrameNumber NextKey = KeyTimes[ KeyIndex + 1 ];
+				const FFrameTime NextKeyTime{ NextKey };
+
+				for ( FFrameTime EvalTime = KeyTime; EvalTime < NextKeyTime; EvalTime += BakeInterval )
+				{
+					FFrameNumber BakedKeyTime = FFrameRate::Snap( EvalTime, Resolution, DisplayRate ).FloorToFrame();
+
+					float Value = DefaultValue;
+					Channel.Evaluate( BakedKeyTime, Value );
+
+					Values.Emplace( BakedKeyTime, Value );
+				}
+			}
+		}
+
+		return Values;
+	};
+
+	for ( UMovieSceneSection* Section : MovieSceneTrack.GetAllSections() )
+	{
+		if ( UMovieSceneFloatSection* FloatSection = Cast<UMovieSceneFloatSection>( Section ) )
+		{
+			for ( const TPair< FFrameNumber, float >& Pair : EvaluateChannel( FloatSection->GetChannel(), 0.0f ) )
+			{
+				FFrameTime TransformedBakedKeyTime{ Pair.Key };
+				TransformedBakedKeyTime *= SequenceTransform.InverseLinearOnly();
+				FFrameTime UsdFrameTime = FFrameRate::TransformTime( TransformedBakedKeyTime, Resolution, StageFrameRate );
+
+				float UEValue = Pair.Value;
+
+				WriterFunc( UEValue, UsdFrameTime.AsDecimal() );
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertColorTrack( const UMovieSceneColorTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( const FLinearColor&, double )>& WriterFunc, UE::FUsdPrim& Prim )
+{
+	if ( !WriterFunc || !Prim )
+	{
+		return false;
+	}
+
+	UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter<UMovieScene>();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	UE::FUsdStage Stage = Prim.GetStage();
+
+	ERichCurveInterpMode StageInterpMode;
+	{
+		FScopedUsdAllocs Allocs;
+		pxr::UsdStageRefPtr UsdStage{ Stage };
+		StageInterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+	}
+
+	const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = Stage.GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	auto AppendChannelBakeTimes = [&Resolution, &DisplayRate, StageInterpMode]( const FMovieSceneFloatChannel& Channel, TSet<FFrameNumber>& OutBakeTimes )
+	{
+		const FFrameTime BakeInterval = FFrameRate::TransformTime( 1, DisplayRate, Resolution );
+
+		TMovieSceneChannelData<const FMovieSceneFloatValue> ChannelData = Channel.GetData();
+		TArrayView<const FFrameNumber> KeyTimes = ChannelData.GetTimes();
+		TArrayView<const FMovieSceneFloatValue> KeyValues = ChannelData.GetValues();
+
+		for ( int32 KeyIndex = 0; KeyIndex < KeyTimes.Num(); ++KeyIndex )
+		{
+			const FFrameNumber KeyTime = KeyTimes[ KeyIndex ];
+			const FMovieSceneFloatValue& KeyValue = KeyValues[ KeyIndex ];
+
+			// If the channel has the same interpolation type as the stage (or we're the last key),
+			// we don't need to bake anything: Just write out the keyframe as is
+			if ( KeyValue.InterpMode == StageInterpMode || KeyIndex == ( KeyTimes.Num() - 1 ) )
+			{
+				FFrameNumber SnappedKeyTime = FFrameRate::Snap( KeyTime, Resolution, DisplayRate ).FloorToFrame();
+				OutBakeTimes.Emplace( SnappedKeyTime );
+			}
+			// We need to bake: Start from this key up until the next key (non-inclusive). We always want to put a keyframe at
+			// KeyTime, but then snap the other ones to the stage framerate
+			else
+			{
+				// Don't use the snapped key time for the end of the bake range, because if the snapping moves it
+				// later we may end up stepping back again when it's time to bake from that key onwards
+				const FFrameNumber NextKey = KeyTimes[ KeyIndex + 1 ];
+				const FFrameTime NextKeyTime{ NextKey };
+
+				for ( FFrameTime EvalTime = KeyTime; EvalTime < NextKeyTime; EvalTime += BakeInterval )
+				{
+					FFrameNumber BakedKeyTime = FFrameRate::Snap( EvalTime, Resolution, DisplayRate ).FloorToFrame();
+					OutBakeTimes.Emplace( BakedKeyTime );
+				}
+			}
+		}
+	};
+
+	for ( UMovieSceneSection* Section : MovieSceneTrack.GetAllSections() )
+	{
+		if ( UMovieSceneColorSection* ColorSection = Cast<UMovieSceneColorSection>( Section ) )
+		{
+			const FMovieSceneFloatChannel& RedChannel   = ColorSection->GetRedChannel();
+			const FMovieSceneFloatChannel& GreenChannel = ColorSection->GetGreenChannel();
+			const FMovieSceneFloatChannel& BlueChannel  = ColorSection->GetBlueChannel();
+			const FMovieSceneFloatChannel& AlphaChannel = ColorSection->GetAlphaChannel();
+
+			// Get the baked FFrameNumbers for each channel (without evaluating the channels yet),
+			// because they may have independent keys
+			TSet<FFrameNumber> ChannelBakeTimes;
+			AppendChannelBakeTimes( RedChannel, ChannelBakeTimes );
+			AppendChannelBakeTimes( GreenChannel, ChannelBakeTimes );
+			AppendChannelBakeTimes( BlueChannel, ChannelBakeTimes );
+			AppendChannelBakeTimes( AlphaChannel, ChannelBakeTimes );
+
+			TArray<FFrameNumber> BakeTimeUnion = ChannelBakeTimes.Array();
+			BakeTimeUnion.Sort();
+
+			// Sample all channels at the union of bake times, construct the value and write it out
+			for ( const FFrameNumber UntransformedBakeTime : BakeTimeUnion )
+			{
+				float RedValue = 0.0f;
+				float GreenValue = 0.0f;
+				float BlueValue = 0.0f;
+				float AlphaValue = 1.0f;
+
+				RedChannel.Evaluate( UntransformedBakeTime, RedValue );
+				GreenChannel.Evaluate( UntransformedBakeTime, GreenValue );
+				BlueChannel.Evaluate( UntransformedBakeTime, BlueValue );
+				AlphaChannel.Evaluate( UntransformedBakeTime, AlphaValue );
+
+				FLinearColor Color{ RedValue, GreenValue, BlueValue, AlphaValue };
+
+				FFrameTime TransformedBakedKeyTime{ UntransformedBakeTime };
+				TransformedBakedKeyTime *= SequenceTransform.InverseLinearOnly();
+				FFrameTime UsdFrameTime = FFrameRate::TransformTime( TransformedBakedKeyTime, Resolution, StageFrameRate );
+
+				WriterFunc( Color, UsdFrameTime.AsDecimal() );
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UnrealToUsd::Convert3DTransformTrack( const UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( const FTransform&, double )>& WriterFunc, UE::FUsdPrim& Prim )
+{
+	if ( !WriterFunc || !Prim )
+	{
+		return false;
+	}
+
+	UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter<UMovieScene>();
+	if ( !MovieScene )
+	{
+		return false;
+	}
+
+	UE::FUsdStage Stage = Prim.GetStage();
+
+	ERichCurveInterpMode StageInterpMode;
+	{
+		FScopedUsdAllocs Allocs;
+		pxr::UsdStageRefPtr UsdStage{ Stage };
+		StageInterpMode = ( UsdStage->GetInterpolationType() == pxr::UsdInterpolationTypeLinear ) ? ERichCurveInterpMode::RCIM_Linear : ERichCurveInterpMode::RCIM_Constant;
+	}
+
+	const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameRate Resolution = MovieScene->GetTickResolution();
+	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = Stage.GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	auto EvaluateChannelTimes = [&Resolution, &DisplayRate, StageInterpMode]( const FMovieSceneDoubleChannel* Channel ) -> TSet<FFrameNumber>
+	{
+		TSet<FFrameNumber> BakeTimes;
+
+		if ( !Channel )
+		{
+			return BakeTimes;
+		}
+
+		const FFrameTime BakeInterval = FFrameRate::TransformTime( 1, DisplayRate, Resolution );
+
+		TMovieSceneChannelData<const FMovieSceneDoubleValue> ChannelData = Channel->GetData();
+		TArrayView<const FFrameNumber> KeyTimes = ChannelData.GetTimes();
+		TArrayView<const FMovieSceneDoubleValue> KeyValues = ChannelData.GetValues();
+
+		for ( int32 KeyIndex = 0; KeyIndex < KeyTimes.Num(); ++KeyIndex )
+		{
+			const FFrameNumber KeyTime = KeyTimes[ KeyIndex ];
+			const FMovieSceneDoubleValue& KeyValue = KeyValues[ KeyIndex ];
+
+			// If the channel has the same interpolation type as the stage (or we're the last key),
+			// we don't need to bake anything: Just write out the keyframe as is
+			if ( KeyValue.InterpMode == StageInterpMode || KeyIndex == ( KeyTimes.Num() - 1 ) )
+			{
+				FFrameNumber SnappedKeyTime = FFrameRate::Snap( KeyTime, Resolution, DisplayRate ).FloorToFrame();
+				BakeTimes.Emplace( SnappedKeyTime );
+			}
+			// We need to bake: Start from this key up until the next key (non-inclusive). We always want to put a keyframe at
+			// KeyTime, but then snap the other ones to the stage framerate
+			else
+			{
+				// Don't use the snapped key time for the end of the bake range, because if the snapping moves it
+				// later we may end up stepping back again when it's time to bake from that key onwards
+				const FFrameNumber NextKey = KeyTimes[ KeyIndex + 1 ];
+				const FFrameTime NextKeyTime{ NextKey };
+
+				for ( FFrameTime EvalTime = KeyTime; EvalTime < NextKeyTime; EvalTime += BakeInterval )
+				{
+					FFrameNumber BakedKeyTime = FFrameRate::Snap( EvalTime, Resolution, DisplayRate ).FloorToFrame();
+					BakeTimes.Emplace( BakedKeyTime );
+				}
+			}
+		}
+
+		return BakeTimes;
+	};
+
+	for ( UMovieSceneSection* Section : MovieSceneTrack.GetAllSections() )
+	{
+		if ( UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>( Section ) )
+		{
+			TArrayView< FMovieSceneDoubleChannel* > Channels = TransformSection->GetChannelProxy().GetChannels< FMovieSceneDoubleChannel >();
+			if ( Channels.Num() < 9 )
+			{
+				UE_LOG( LogUsd, Error, TEXT( "Unexpected number of double tracks (%d) in transform section '%s'" ), Channels.Num(), *TransformSection->GetPathName() );
+				continue;
+			}
+
+			FMovieSceneDoubleChannel* LocationXChannel = Channels[ 0 ];
+			FMovieSceneDoubleChannel* LocationYChannel = Channels[ 1 ];
+			FMovieSceneDoubleChannel* LocationZChannel = Channels[ 2 ];
+
+			FMovieSceneDoubleChannel* RotationXChannel = Channels[ 3 ];
+			FMovieSceneDoubleChannel* RotationYChannel = Channels[ 4 ];
+			FMovieSceneDoubleChannel* RotationZChannel = Channels[ 5 ];
+
+			FMovieSceneDoubleChannel* ScaleXChannel = Channels[ 6 ];
+			FMovieSceneDoubleChannel* ScaleYChannel = Channels[ 7 ];
+			FMovieSceneDoubleChannel* ScaleZChannel = Channels[ 8 ];
+
+			TSet< FFrameNumber > LocationValuesX = EvaluateChannelTimes( LocationXChannel );
+			TSet< FFrameNumber > LocationValuesY = EvaluateChannelTimes( LocationYChannel );
+			TSet< FFrameNumber > LocationValuesZ = EvaluateChannelTimes( LocationZChannel );
+
+			TSet< FFrameNumber > RotationValuesX = EvaluateChannelTimes( RotationXChannel );
+			TSet< FFrameNumber > RotationValuesY = EvaluateChannelTimes( RotationYChannel );
+			TSet< FFrameNumber > RotationValuesZ = EvaluateChannelTimes( RotationZChannel );
+
+			TSet< FFrameNumber > ScaleValuesX = EvaluateChannelTimes( ScaleXChannel );
+			TSet< FFrameNumber > ScaleValuesY = EvaluateChannelTimes( ScaleYChannel );
+			TSet< FFrameNumber > ScaleValuesZ = EvaluateChannelTimes( ScaleZChannel );
+
+			LocationValuesX.Append( LocationValuesY );
+			LocationValuesX.Append( LocationValuesZ );
+
+			LocationValuesX.Append( RotationValuesX );
+			LocationValuesX.Append( RotationValuesY );
+			LocationValuesX.Append( RotationValuesZ );
+
+			LocationValuesX.Append( ScaleValuesX );
+			LocationValuesX.Append( ScaleValuesY );
+			LocationValuesX.Append( ScaleValuesZ );
+
+			TArray<FFrameNumber> BakeTimeUnion = LocationValuesX.Array();
+			BakeTimeUnion.Sort();
+
+			// Sample all channels at the union of bake times, construct the value and write it out
+			for ( const FFrameNumber UntransformedBakeTime : BakeTimeUnion )
+			{
+				double LocX = 0.0f;
+				double LocY = 0.0f;
+				double LocZ = 0.0f;
+
+				double RotX = 0.0f;
+				double RotY = 0.0f;
+				double RotZ = 0.0f;
+
+				double ScaleX = 1.0f;
+				double ScaleY = 1.0f;
+				double ScaleZ = 1.0f;
+
+				if ( LocationXChannel )
+				{
+					LocationXChannel->Evaluate( UntransformedBakeTime, LocX );
+				}
+				if ( LocationYChannel )
+				{
+					LocationYChannel->Evaluate( UntransformedBakeTime, LocY );
+				}
+				if ( LocationZChannel )
+				{
+					LocationZChannel->Evaluate( UntransformedBakeTime, LocZ );
+				}
+
+				if ( RotationXChannel )
+				{
+					RotationXChannel->Evaluate( UntransformedBakeTime, RotX );
+				}
+				if ( RotationYChannel )
+				{
+					RotationYChannel->Evaluate( UntransformedBakeTime, RotY );
+				}
+				if ( RotationZChannel )
+				{
+					RotationZChannel->Evaluate( UntransformedBakeTime, RotZ );
+				}
+
+				if ( ScaleXChannel )
+				{
+					ScaleXChannel->Evaluate( UntransformedBakeTime, ScaleX );
+				}
+				if ( ScaleYChannel )
+				{
+					ScaleYChannel->Evaluate( UntransformedBakeTime, ScaleY );
+				}
+				if ( ScaleZChannel )
+				{
+					ScaleZChannel->Evaluate( UntransformedBakeTime, ScaleZ );
+				}
+
+				// Casting this to float right now because depending on the build and the LWC status FVectors contain FLargeWorldCoordinatesReal,
+				// which can be floats and turn these into narrowing conversions, which require explicit casts.
+				// TODO: Replace these casts with the underlying FVector type later
+				FVector Location{ ( float ) LocX, ( float ) LocY, ( float ) LocZ };
+				FRotator Rotation{ ( float ) RotY, ( float ) RotZ, ( float ) RotX };
+				FVector Scale{ ( float ) ScaleX, ( float ) ScaleY, ( float ) ScaleZ };
+				FTransform Transform{ Rotation, Location, Scale };
+
+				FFrameTime TransformedBakedKeyTime{ UntransformedBakeTime };
+				TransformedBakedKeyTime *= SequenceTransform.InverseLinearOnly();
+				FFrameTime UsdFrameTime = FFrameRate::TransformTime( TransformedBakedKeyTime, Resolution, StageFrameRate );
+
+				WriterFunc( Transform, UsdFrameTime.AsDecimal() );
+			}
+		}
+	}
 
 	return true;
 }
@@ -768,47 +2215,12 @@ bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent( const UHierar
 
 bool UnrealToUsd::ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim, double TimeCode )
 {
-	if ( !UsdPrim || !CameraComponent )
+	if ( CameraComponent )
 	{
-		return false;
+		return ConvertCameraComponent( *CameraComponent, UE::FUsdPrim{ UsdPrim }, TimeCode );
 	}
 
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdGeomCamera GeomCamera( UsdPrim );
-	if ( !GeomCamera )
-	{
-		return false;
-	}
-
-	FUsdStageInfo StageInfo( UsdPrim.GetStage() );
-
-	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
-	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->CurrentFocalLength ), TimeCode );
-	}
-
-	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
-	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->FocusSettings.ManualFocusDistance ), TimeCode );
-	}
-
-	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
-	{
-		Attr.Set<float>( CameraComponent->CurrentAperture, TimeCode );
-	}
-
-	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
-	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorWidth ), TimeCode );
-	}
-
-	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
-	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorHeight ), TimeCode );
-	}
-
-	return true;
+	return false;
 }
 
 bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode )
@@ -836,31 +2248,26 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	bool bResetXFormStack = false;
 	XForm.GetLocalTransformation( &UsdMatrix, &bResetXFormStack, UsdTimeCode );
 
-	if ( !GfIsClose( UsdMatrix, UsdTransform, THRESH_VECTORS_ARE_NEAR ) )
+	bool bFoundTransformOp = false;
+	std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
+	for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
 	{
-		bResetXFormStack = false;
-		bool bFoundTransformOp = false;
-
-		std::vector< pxr::UsdGeomXformOp > XFormOps = XForm.GetOrderedXformOps( &bResetXFormStack );
-		for ( const pxr::UsdGeomXformOp& XFormOp : XFormOps )
+		// Found transform op, trying to set its value
+		if ( XFormOp.GetOpType() == pxr::UsdGeomXformOp::TypeTransform )
 		{
-			// Found transform op, trying to set its value
-			if ( XFormOp.GetOpType() == pxr::UsdGeomXformOp::TypeTransform )
-			{
-				bFoundTransformOp = true;
-				XFormOp.Set( UsdTransform, UsdTimeCode );
-				break;
-			}
+			bFoundTransformOp = true;
+			XFormOp.Set( UsdTransform, UsdTimeCode );
+			break;
 		}
+	}
 
-		// If transformOp is not found, make a new one
-		if ( !bFoundTransformOp )
+	// If transformOp is not found, make a new one
+	if ( !bFoundTransformOp )
+	{
+		pxr::UsdGeomXformOp MatrixXform = XForm.MakeMatrixXform();
+		if ( MatrixXform )
 		{
-			pxr::UsdGeomXformOp MatrixXform = XForm.MakeMatrixXform();
-			if ( MatrixXform )
-			{
-				MatrixXform.Set( UsdTransform, UsdTimeCode );
-			}
+			MatrixXform.Set( UsdTransform, UsdTimeCode );
 		}
 	}
 
@@ -1066,7 +2473,7 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 			BakerType = EBakingType::Camera;
 			BakerFunction = [UsdStage, CameraComponent, UsdPrim]( double UsdTimeCode ) mutable
 			{
-				UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim, UsdTimeCode );
+				UnrealToUsd::ConvertCameraComponent( *CameraComponent, UsdPrim, UsdTimeCode );
 			};
 		}
 	}
@@ -1315,6 +2722,466 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 #endif // WITH_EDITOR
 }
 
+UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const USceneComponent& Component, const UMovieScenePropertyTrack& Track, UE::FUsdPrim& Prim, TSet<FName>& OutPropertyPathsToRefresh )
+{
+	const FName& PropertyPath = Track.GetPropertyPath();
+
+	UnrealToUsd::FPropertyTrackWriter Result;
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+	FUsdStageInfo StageInfo{ UsdStage };
+
+	pxr::SdfChangeBlock ChangeBlock;
+
+	pxr::UsdAttribute Attr;
+
+	// SceneComponent
+	{
+		if ( PropertyPath == UnrealIdentifiers::TransformPropertyName )
+		{
+			if ( pxr::UsdGeomXformable Xformable{ UsdPrim } )
+			{
+				Xformable.CreateXformOpOrderAttr();
+
+				// Clear existing transform data and leave just one Transform op there
+				if ( pxr::UsdGeomXformOp TransformOp = Xformable.MakeMatrixXform() )
+				{
+					Attr = TransformOp.GetAttr();
+
+					// Compensate different orientation for light or camera components
+					FTransform AdditionalRotation = FTransform::Identity;
+					if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+					{
+						AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
+
+						if ( StageInfo.UpAxis == EUsdUpAxis::ZAxis )
+						{
+							AdditionalRotation *= FTransform( FRotator( 90.0f, 0.0f, 0.0f ) );
+						}
+					}
+
+					// Invert compensation applied to parent if it's a light or camera component
+					if ( const USceneComponent* AttachParent = Component.GetAttachParent() )
+					{
+						if ( AttachParent->IsA( UCineCameraComponent::StaticClass() ) ||
+							AttachParent->IsA( ULightComponent::StaticClass() ) )
+						{
+							FTransform InverseCompensation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
+
+							if ( UsdUtils::GetUsdStageUpAxis( UsdStage ) == pxr::UsdGeomTokens->z )
+							{
+								InverseCompensation *= FTransform( FRotator( 90.0f, 0.f, 0.0f ) );
+							}
+
+							AdditionalRotation = AdditionalRotation * InverseCompensation.Inverse();
+						}
+					}
+
+					Result.TransformWriter = [&Component, AdditionalRotation, StageInfo, Attr]( const FTransform& UEValue, double UsdTimeCode )
+					{
+						FTransform FinalUETransform = AdditionalRotation * UEValue;
+						pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, FinalUETransform );
+						Attr.Set< pxr::GfMatrix4d >( UsdTransform, UsdTimeCode );
+					};
+				}
+			}
+		}
+		// bHidden is for the actor, and bHiddenInGame is for a component
+		// A component is only visible when it's not hidden and its actor is not hidden
+		// A bHidden is just handled like a bHiddenInGame for the actor's root component
+		// Whenever we handle a bHiddenInGame, we always combine it with the actor's bHidden
+		else if ( PropertyPath == UnrealIdentifiers::HiddenPropertyName || PropertyPath == UnrealIdentifiers::HiddenInGamePropertyName )
+		{
+			if ( pxr::UsdGeomImageable Imageable{ UsdPrim } )
+			{
+				Attr = Imageable.CreateVisibilityAttr();
+				if ( Attr )
+				{
+					Result.BoolWriter = [Imageable]( bool UEValue, double UsdTimeCode )
+					{
+						if ( UEValue )
+						{
+							Imageable.MakeVisible( UsdTimeCode );
+						}
+						else
+						{
+							Imageable.MakeInvisible( UsdTimeCode );
+						}
+					};
+				}
+			}
+		}
+	}
+
+	if ( pxr::UsdGeomCamera Camera{ UsdPrim } )
+	{
+		bool bConvertDistance = true;
+
+		if ( PropertyPath == UnrealIdentifiers::CurrentFocalLengthPropertyName )
+		{
+			Attr = Camera.CreateFocalLengthAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::ManualFocusDistancePropertyName )
+		{
+			Attr = Camera.CreateFocusDistanceAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::CurrentAperturePropertyName )
+		{
+			bConvertDistance = false;
+			Attr = Camera.CreateFStopAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::SensorWidthPropertyName )
+		{
+			Attr = Camera.CreateHorizontalApertureAttr();
+		}
+		else if ( PropertyPath == UnrealIdentifiers::SensorHeightPropertyName )
+		{
+			Attr = Camera.CreateVerticalApertureAttr();
+		}
+
+		if ( Attr )
+		{
+			if ( bConvertDistance )
+			{
+				Result.FloatWriter = [Attr, StageInfo]( float UEValue, double UsdTimeCode ) mutable
+				{
+					Attr.Set( UnrealToUsd::ConvertDistance( StageInfo, UEValue ), UsdTimeCode );
+				};
+			}
+			else
+			{
+				Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode ) mutable
+				{
+					Attr.Set( UEValue, UsdTimeCode );
+				};
+			}
+		}
+	}
+	else if ( pxr::UsdLuxLight Light{ Prim } )
+	{
+		if ( PropertyPath == UnrealIdentifiers::LightColorPropertyName )
+		{
+			Attr = Light.GetColorAttr();
+			if ( Attr )
+			{
+				Result.ColorWriter = [Attr]( const FLinearColor& UEValue, double UsdTimeCode )
+				{
+					pxr::GfVec4f Vec4 = UnrealToUsd::ConvertColor( UEValue );
+					Attr.Set( pxr::GfVec3f{ Vec4[ 0 ], Vec4[ 1 ], Vec4[ 2 ] }, UsdTimeCode );
+				};
+			}
+		}
+		else if ( PropertyPath == UnrealIdentifiers::UseTemperaturePropertyName )
+		{
+			Attr = Light.GetEnableColorTemperatureAttr();
+			if ( Attr )
+			{
+				Result.BoolWriter = [Attr]( bool UEValue, double UsdTimeCode )
+				{
+					Attr.Set( UEValue, UsdTimeCode );
+				};
+			}
+		}
+		else if ( PropertyPath == UnrealIdentifiers::TemperaturePropertyName )
+		{
+			Attr = Light.GetColorTemperatureAttr();
+			if ( Attr )
+			{
+				Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode )
+				{
+					Attr.Set( UEValue, UsdTimeCode );
+				};
+			}
+		}
+
+		else if ( pxr::UsdLuxSphereLight SphereLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceRadiusPropertyName )
+			{
+				OutPropertyPathsToRefresh.Add( UnrealIdentifiers::IntensityPropertyName );
+
+				Attr = SphereLight.GetRadiusAttr();
+				if ( Attr )
+				{
+					Result.FloatWriter = [Attr, StageInfo]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UnrealToUsd::ConvertDistance( StageInfo, UEValue ), UsdTimeCode );
+					};
+				}
+			}
+
+			// Spot light
+			else if ( UsdPrim.HasAPI< pxr::UsdLuxShapingAPI >() )
+			{
+				pxr::UsdLuxShapingAPI ShapingAPI{ UsdPrim };
+
+				if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+				{
+					Attr = SphereLight.GetIntensityAttr();
+					pxr::UsdAttribute RadiusAttr = SphereLight.GetRadiusAttr();
+					pxr::UsdAttribute ConeAngleAttr = ShapingAPI.GetShapingConeAngleAttr();
+					pxr::UsdAttribute ConeSoftnessAttr = ShapingAPI.GetShapingConeSoftnessAttr();
+
+					// Always clear exposure because we'll put all of our "light intensity" on the intensity attr and assume exposure
+					// is zero, as we can't manipulate something like that exposure directly from UE anyway
+					if ( pxr::UsdAttribute ExposureAttr = SphereLight.GetExposureAttr() )
+					{
+						ExposureAttr.Clear();
+					}
+
+					// For now we'll assume the light intensity units are constant and the user doesn't have any light intensity unit tracks...
+					ELightUnits Units = ELightUnits::Lumens;
+					if ( const ULocalLightComponent* LightComponent = Cast<const ULocalLightComponent>( &Component ) )
+					{
+						Units = LightComponent->IntensityUnits;
+					}
+
+					if ( Attr && RadiusAttr && ConeAngleAttr && ConeSoftnessAttr )
+					{
+						Result.FloatWriter = [Attr, RadiusAttr, ConeAngleAttr, ConeSoftnessAttr, StageInfo, Units]( float UEValue, double UsdTimeCode )
+						{
+							const float UsdConeAngle = UsdUtils::GetUsdValue< float >( ConeAngleAttr, UsdTimeCode );
+							const float UsdConeSoftness = UsdUtils::GetUsdValue< float >( ConeSoftnessAttr, UsdTimeCode );
+							const float UsdRadius = UsdUtils::GetUsdValue< float >( RadiusAttr, UsdTimeCode );
+
+							float InnerConeAngle = 0.0f;
+							const float OuterConeAngle = UsdToUnreal::ConvertConeAngleSoftnessAttr( UsdConeAngle, UsdConeSoftness, InnerConeAngle );
+							const float SourceRadius = UsdToUnreal::ConvertDistance( StageInfo, UsdRadius );
+
+							Attr.Set(
+								UnrealToUsd::ConvertSpotLightIntensityProperty( UEValue, OuterConeAngle, InnerConeAngle, SourceRadius, StageInfo, Units ),
+								UsdTimeCode
+							);
+						};
+					}
+				}
+				else if ( PropertyPath == UnrealIdentifiers::OuterConeAnglePropertyName )
+				{
+					Attr = ShapingAPI.GetShapingConeAngleAttr();
+					if ( Attr )
+					{
+						// InnerConeAngle is calculated based on ConeAngleAttr, so we need to refresh it
+						OutPropertyPathsToRefresh.Add( UnrealIdentifiers::InnerConeAnglePropertyName );
+
+						Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode )
+						{
+							Attr.Set( UEValue, UsdTimeCode );
+						};
+					}
+				}
+				else if ( PropertyPath == UnrealIdentifiers::InnerConeAnglePropertyName )
+				{
+					Attr = ShapingAPI.GetShapingConeSoftnessAttr();
+					pxr::UsdAttribute ConeAngleAttr = ShapingAPI.GetShapingConeAngleAttr();
+
+					if ( ConeAngleAttr && Attr )
+					{
+						Result.FloatWriter = [Attr, ConeAngleAttr]( float UEValue, double UsdTimeCode )
+						{
+							const float UsdConeAngle = UsdUtils::GetUsdValue< float >( ConeAngleAttr, UsdTimeCode );
+							const float OuterConeAngle = UsdConeAngle;
+
+							const float OutNewSoftness = UnrealToUsd::ConvertInnerConeAngleProperty( UEValue, OuterConeAngle );
+							Attr.Set( OutNewSoftness, UsdTimeCode );
+						};
+					}
+				}
+			}
+			// Just a point light
+			else
+			{
+				if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+				{
+					Attr = SphereLight.GetIntensityAttr();
+					pxr::UsdAttribute RadiusAttr = SphereLight.GetRadiusAttr();
+
+					// Always clear exposure because we'll put all of our "light intensity" on the intensity attr and assume exposure
+					// is zero, as we can't manipulate something like that exposure directly from UE anyway
+					if ( pxr::UsdAttribute ExposureAttr = SphereLight.GetExposureAttr() )
+					{
+						ExposureAttr.Clear();
+					}
+
+					// For now we'll assume the light intensity units are constant and the user doesn't have any light intensity unit tracks...
+					ELightUnits Units = ELightUnits::Lumens;
+					if ( const ULocalLightComponent* LightComponent = Cast<const ULocalLightComponent>( &Component ) )
+					{
+						Units = LightComponent->IntensityUnits;
+					}
+
+					if ( Attr && RadiusAttr )
+					{
+						Result.FloatWriter = [Attr, RadiusAttr, StageInfo, Units]( float UEValue, double UsdTimeCode )
+						{
+							const float SourceRadius = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( RadiusAttr, UsdTimeCode ) );
+							Attr.Set( UnrealToUsd::ConvertPointLightIntensityProperty( UEValue, SourceRadius, StageInfo, Units ), UsdTimeCode );
+						};
+					}
+				}
+			}
+		}
+		else if ( pxr::UsdLuxRectLight RectLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceWidthPropertyName )
+			{
+				Attr = RectLight.GetWidthAttr();
+				if ( Attr )
+				{
+					OutPropertyPathsToRefresh.Add( UnrealIdentifiers::IntensityPropertyName );
+
+					Result.FloatWriter = [Attr, StageInfo]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UnrealToUsd::ConvertDistance( StageInfo, UEValue ), UsdTimeCode );
+					};
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::SourceHeightPropertyName )
+			{
+				Attr = RectLight.GetHeightAttr();
+				if ( Attr )
+				{
+					OutPropertyPathsToRefresh.Add( UnrealIdentifiers::IntensityPropertyName );
+
+					Result.FloatWriter = [Attr, StageInfo]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UnrealToUsd::ConvertDistance( StageInfo, UEValue ), UsdTimeCode );
+					};
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				Attr = RectLight.GetIntensityAttr();
+				pxr::UsdAttribute WidthAttr = RectLight.GetWidthAttr();
+				pxr::UsdAttribute HeightAttr = RectLight.GetHeightAttr();
+
+				// Always clear exposure because we'll put all of our "light intensity" on the intensity attr and assume exposure
+				// is zero, as we can't manipulate something like that exposure directly from UE anyway
+				if ( pxr::UsdAttribute ExposureAttr = RectLight.GetExposureAttr() )
+				{
+					ExposureAttr.Clear();
+				}
+
+				// For now we'll assume the light intensity units are constant and the user doesn't have any light intensity unit tracks...
+				ELightUnits Units = ELightUnits::Lumens;
+				if ( const ULocalLightComponent* LightComponent = Cast<const ULocalLightComponent>( &Component ) )
+				{
+					Units = LightComponent->IntensityUnits;
+				}
+
+				if ( Attr && WidthAttr && HeightAttr )
+				{
+					Result.FloatWriter = [Attr, WidthAttr, HeightAttr, StageInfo, Units]( float UEValue, double UsdTimeCode )
+					{
+						const float Width = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( WidthAttr, UsdTimeCode ) );
+						const float Height = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( HeightAttr, UsdTimeCode ) );
+
+						Attr.Set( UnrealToUsd::ConvertRectLightIntensityProperty( UEValue, Width, Height, StageInfo, Units ), UsdTimeCode );
+					};
+				}
+			}
+		}
+		else if ( pxr::UsdLuxDiskLight DiskLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::SourceWidthPropertyName || PropertyPath == UnrealIdentifiers::SourceHeightPropertyName )
+			{
+				Attr = DiskLight.GetRadiusAttr();
+				if ( Attr )
+				{
+					OutPropertyPathsToRefresh.Add( UnrealIdentifiers::IntensityPropertyName );
+
+					// Resync the other to match this one after we bake it, effectively always enforcing the UE rect light into a square shape
+					OutPropertyPathsToRefresh.Add( PropertyPath == UnrealIdentifiers::SourceWidthPropertyName
+						? UnrealIdentifiers::SourceHeightPropertyName
+						: UnrealIdentifiers::SourceWidthPropertyName
+					);
+
+					Result.FloatWriter = [Attr, StageInfo]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UnrealToUsd::ConvertDistance( StageInfo, UEValue * 0.5f ), UsdTimeCode );
+					};
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				Attr = RectLight.GetIntensityAttr();
+				pxr::UsdAttribute RadiusAttr = DiskLight.GetRadiusAttr();
+
+				// Always clear exposure because we'll put all of our "light intensity" on the intensity attr and assume exposure
+				// is zero, as we can't manipulate something like that exposure directly from UE anyway
+				if ( pxr::UsdAttribute ExposureAttr = RectLight.GetExposureAttr() )
+				{
+					ExposureAttr.Clear();
+				}
+
+				// For now we'll assume the light intensity units are constant and the user doesn't have any light intensity unit tracks...
+				ELightUnits Units = ELightUnits::Lumens;
+				if ( const ULocalLightComponent* LightComponent = Cast<const ULocalLightComponent>( &Component ) )
+				{
+					Units = LightComponent->IntensityUnits;
+				}
+
+				if ( Attr && RadiusAttr )
+				{
+					Result.FloatWriter = [Attr, RadiusAttr, StageInfo, Units]( float UEValue, double UsdTimeCode )
+					{
+						const float Radius = UsdToUnreal::ConvertDistance( StageInfo, UsdUtils::GetUsdValue< float >( RadiusAttr, UsdTimeCode ) );
+
+						Attr.Set( UnrealToUsd::ConvertRectLightIntensityProperty( UEValue, Radius, StageInfo, Units ), UsdTimeCode );
+					};
+				}
+			}
+		}
+		else if ( pxr::UsdLuxDistantLight DistantLight{ UsdPrim } )
+		{
+			if ( PropertyPath == UnrealIdentifiers::LightSourceAnglePropertyName )
+			{
+				Attr = DistantLight.GetAngleAttr();
+				if ( Attr )
+				{
+					Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UEValue, UsdTimeCode );
+					};
+				}
+			}
+			else if ( PropertyPath == UnrealIdentifiers::IntensityPropertyName )
+			{
+				Attr = DistantLight.GetIntensityAttr();
+
+				// Always clear exposure because we'll put all of our "light intensity" on the intensity attr and assume exposure
+				// is zero, as we can't manipulate something like that exposure directly from UE anyway
+				if ( pxr::UsdAttribute ExposureAttr = RectLight.GetExposureAttr() )
+				{
+					ExposureAttr.Clear();
+				}
+
+				if ( Attr )
+				{
+					Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode )
+					{
+						Attr.Set( UnrealToUsd::ConvertLightIntensityProperty( UEValue ), UsdTimeCode );
+					};
+				}
+			}
+		}
+	}
+
+	if ( Attr )
+	{
+		std::vector<double> TimeSamples;
+		Attr.GetTimeSamples( &TimeSamples );
+		for ( double TimeSample : TimeSamples )
+		{
+			Attr.ClearAtTime( TimeSample );
+		}
+	}
+
+	return Result;
+}
+
 bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform )
 {
 	if ( !UsdPrim )
@@ -1493,6 +3360,159 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 	}
 
 	return true;
+}
+
+TArray<UE::FUsdAttribute> UnrealToUsd::GetAttributesForProperty( const UE::FUsdPrim& Prim, const FName& PropertyPath )
+{
+	using namespace UnrealIdentifiers;
+
+	FScopedUsdAllocs Allocs;
+	pxr::UsdPrim UsdPrim{ Prim };
+
+	// Common attributes
+	if ( PropertyPath == TransformPropertyName )
+	{
+		if ( pxr::UsdAttribute Attr = UsdPrim.GetAttribute( UnrealToUsd::ConvertToken( TEXT( "xformOp:transform" ) ).Get() ) )
+		{
+			return { UE::FUsdAttribute{ Attr } };
+		}
+
+		if ( pxr::UsdGeomXformable Xformable{ UsdPrim } )
+		{
+			return { UE::FUsdAttribute{ Xformable.GetXformOpOrderAttr() } };
+		}
+	}
+	if ( PropertyPath == HiddenInGamePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->visibility ) } };
+	}
+
+	// Camera attributes
+	else if ( PropertyPath == CurrentFocalLengthPropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->focalLength ) } };
+	}
+	else if ( PropertyPath == ManualFocusDistancePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->focusDistance ) } };
+	}
+	else if ( PropertyPath == CurrentAperturePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->fStop ) } };
+	}
+	else if ( PropertyPath == SensorWidthPropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->horizontalAperture ) } };
+	}
+	else if ( PropertyPath == SensorHeightPropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdGeomTokens->verticalAperture ) } };
+	}
+
+	// Light attributes
+	else if ( PropertyPath == IntensityPropertyName )
+	{
+		if ( UsdPrim.IsA<pxr::UsdLuxRectLight>() )
+		{
+			return {
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsIntensity ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsExposure ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsWidth ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsHeight ) }
+			};
+		}
+		else if ( UsdPrim.IsA<pxr::UsdLuxDiskLight>() )
+		{
+			return {
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsIntensity ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsExposure ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) }
+			};
+		}
+		else if ( UsdPrim.IsA<pxr::UsdLuxDistantLight>() )
+		{
+			return {
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsIntensity ) },
+				UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsExposure ) }
+			};
+		}
+		else if ( UsdPrim.IsA<pxr::UsdLuxSphereLight>() )
+		{
+			if ( UsdPrim.HasAPI<pxr::UsdLuxShapingAPI>() )
+			{
+				return {
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsIntensity ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsExposure ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsShapingConeAngle ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsShapingConeSoftness ) }
+				};
+			}
+			else
+			{
+				return {
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsIntensity ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsExposure ) },
+					UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) }
+				};
+			}
+		}
+	}
+	else if ( PropertyPath == LightColorPropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsColor ) } };
+	}
+	else if ( PropertyPath == UseTemperaturePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsEnableColorTemperature ) } };
+	}
+	else if ( PropertyPath == TemperaturePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsColorTemperature ) } };
+	}
+	else if ( PropertyPath == SourceWidthPropertyName )
+	{
+		if ( UsdPrim.IsA<pxr::UsdLuxDiskLight>() )
+		{
+			return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) } };
+		}
+		else
+		{
+			return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsWidth ) } };
+		}
+	}
+	else if ( PropertyPath == SourceHeightPropertyName )
+	{
+		if ( UsdPrim.IsA<pxr::UsdLuxDiskLight>() )
+		{
+			return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) } };
+		}
+		else
+		{
+			return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsHeight ) } };
+		}
+	}
+	else if ( PropertyPath == SourceRadiusPropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsRadius ) } };
+	}
+	else if ( PropertyPath == OuterConeAnglePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsShapingConeAngle ) } };
+	}
+	else if ( PropertyPath == InnerConeAnglePropertyName )
+	{
+		return {
+			UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsShapingConeAngle ) },
+			UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsShapingConeSoftness ) }
+		};
+	}
+	else if ( PropertyPath == LightSourceAnglePropertyName )
+	{
+		return { UE::FUsdAttribute{ UsdPrim.GetAttribute( pxr::UsdLuxTokens->inputsAngle ) } };
+	}
+
+	return {};
 }
 
 #endif // #if USE_USD_SDK

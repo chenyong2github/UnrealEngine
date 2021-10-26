@@ -327,10 +327,13 @@ ULevel* UEditorLevelUtils::AddLevelsToWorld(UWorld* InWorld, TArray<FString> Pac
 		}
 	}
 
-	// For safety
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
+	if (!IsRunningCommandlet())
 	{
-		GLevelEditorModeTools().ActivateDefaultMode();
+		// For safety
+		if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
+		{
+			GLevelEditorModeTools().ActivateDefaultMode();
+		}
 	}
 
 	// Broadcast the levels have changed (new style)
@@ -383,10 +386,13 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 		}
 	}
 
-	// For safety
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
+	if (!IsRunningCommandlet())
 	{
-		GLevelEditorModeTools().ActivateDefaultMode();
+		// For safety
+		if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape))
+		{
+			GLevelEditorModeTools().ActivateDefaultMode();
+		}
 	}
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
@@ -636,7 +642,10 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevel(TSubclassOf<ULevelSt
 ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWorld, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename /* = TEXT( "" ) */, bool bMoveSelectedActorsIntoNewLevel /* = false */, UWorld* InTemplateWorld /* = nullptr */)
 {
 	// Editor modes cannot be active when any level saving occurs.
-	GLevelEditorModeTools().DeactivateAllModes();
+	if (!IsRunningCommandlet())
+	{
+		GLevelEditorModeTools().DeactivateAllModes();
+	}
 
 	// This is the world we are adding the new level to
 	UWorld* WorldToAddLevelTo = &InWorld;

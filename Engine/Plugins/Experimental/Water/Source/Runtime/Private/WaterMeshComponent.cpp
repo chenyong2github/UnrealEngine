@@ -136,6 +136,20 @@ FMaterialRelevance UWaterMeshComponent::GetWaterMaterialRelevance(ERHIFeatureLev
 	return Result;
 }
 
+void UWaterMeshComponent::SetExtentInTiles(FIntPoint NewExtentInTiles)
+{
+	ExtentInTiles = NewExtentInTiles;
+	MarkWaterMeshGridDirty();
+	MarkRenderStateDirty();
+}
+
+void UWaterMeshComponent::SetTileSize(float NewTileSize)
+{
+	TileSize = NewTileSize;
+	MarkWaterMeshGridDirty();
+	MarkRenderStateDirty();
+}
+
 FBoxSphereBounds UWaterMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	// Always return valid bounds (tree is initialized with invalid bounds and if nothing is inserted, the tree bounds will stay invalid)
@@ -186,6 +200,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 	// Go through all water body actors to figure out bounds and water tiles
 	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, WaterWorldBox, bIsFlooded, GlobalOceanHeight, OceanFlood, &FarMeshHeight](UWaterBodyComponent* WaterBodyComponent)
 	{
+		check(WaterBodyComponent);
 		AActor* Actor = WaterBodyComponent->GetOwner();
 		check(Actor);
 		
@@ -559,7 +574,6 @@ void UWaterMeshComponent::Update()
 		LODScaleBiasScalability = NewLODScaleBias;
 		const float LODCountBiasFactor = FMath::Pow(2.0f, (float)LODCountBiasScalability);
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));
-		UpdateWaterMPC();
 		bNeedsRebuild = false;
 	}
 }
@@ -568,33 +582,6 @@ void UWaterMeshComponent::SetLandscapeInfo(const FVector& InRTWorldLocation, con
 {
 	RTWorldLocation = InRTWorldLocation;
 	RTWorldSizeVector = InRTWorldSizeVector;
-
-	UpdateWaterMPC();
-}
-
-void UWaterMeshComponent::UpdateWaterMPC()
-{
-	if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
-	{
-		UMaterialParameterCollection* WaterCollection = WaterSubsystem->GetMaterialParameterCollection();
-		if (WaterCollection == nullptr)
-		{
-			UE_LOG(LogWater, Error, TEXT("No Water MaterialParameterCollection Assigned"));
-		}
-		else
-		{
-			UMaterialParameterCollectionInstance* WaterCollectionInstance = GetWorld()->GetParameterCollectionInstance(CastChecked<UMaterialParameterCollection>(WaterCollection));
-			check(WaterCollectionInstance != nullptr);
-			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeWorldSize")), FLinearColor(RTWorldSizeVector)))
-			{
-				UE_LOG(LogWater, Error, TEXT("Failed to set \"LandscapeWorldSize\" on Water MaterialParameterCollection"));
-			}
-			if (!WaterCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(RTWorldLocation)))
-			{
-				UE_LOG(LogWater, Error, TEXT("Failed to set \"LandscapeLocation\" on Water MaterialParameterCollection"));
-			}
-		}
-	}
 }
 
 #if WITH_EDITOR

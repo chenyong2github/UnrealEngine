@@ -4,6 +4,7 @@
 #include "PixelFormat.h"
 #include "RHI.h"
 #include "GPUSkinVertexFactory.h"
+#include "ColorSpace.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -78,6 +79,11 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bEnablePathTracing = 0;
 	bEnableRayTracingTextureLOD = 0;
 	MaxSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones;
+	WorkingColorSpaceChoice = EWorkingColorSpace::sRGB;
+	RedChromaticityCoordinate = FVector2D::ZeroVector;
+	GreenChromaticityCoordinate = FVector2D::ZeroVector;
+	BlueChromaticityCoordinate = FVector2D::ZeroVector;
+	WhiteChromaticityCoordinate = FVector2D::ZeroVector;
 }
 
 void URendererSettings::PostInitProperties()
@@ -85,6 +91,8 @@ void URendererSettings::PostInitProperties()
 	Super::PostInitProperties();
 	
 	SanatizeReflectionCaptureResolution();
+
+	UpdateWorkingColorSpaceAndChromaticities();
 
 #if WITH_EDITOR
 	if (IsTemplate())
@@ -247,6 +255,24 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 				}
 			}
 		}
+
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, WorkingColorSpaceChoice))
+		{
+			UpdateWorkingColorSpaceAndChromaticities();
+
+			UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, RedChromaticityCoordinate));
+			UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, GreenChromaticityCoordinate));
+			UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, BlueChromaticityCoordinate));
+			UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, WhiteChromaticityCoordinate));
+		}
+
+		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, RedChromaticityCoordinate)) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, GreenChromaticityCoordinate)) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, BlueChromaticityCoordinate)) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, WhiteChromaticityCoordinate)))
+		{
+			UpdateWorkingColorSpaceAndChromaticities();
+		}
 	}
 }
 
@@ -322,6 +348,45 @@ void URendererSettings::SanatizeReflectionCaptureResolution()
 	}
 #endif // WITH_EDITOR
 }
+
+void URendererSettings::UpdateWorkingColorSpaceAndChromaticities()
+{
+	using namespace UE::Color;
+
+	switch (WorkingColorSpaceChoice)
+	{
+	case EWorkingColorSpace::sRGB:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::sRGB));
+		break;
+	case EWorkingColorSpace::Rec2020:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::Rec2020));
+		break;
+	case EWorkingColorSpace::ACESAP0:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::ACESAP0));
+		break;
+	case EWorkingColorSpace::ACESAP1:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::ACESAP1));
+		break;
+	case EWorkingColorSpace::P3DCI:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::P3DCI));
+		break;
+	case EWorkingColorSpace::P3D65:
+		FColorSpace::SetWorking(FColorSpace(EColorSpace::P3D65));
+		break;
+	case EWorkingColorSpace::Custom:
+		FColorSpace::SetWorking(FColorSpace(RedChromaticityCoordinate, GreenChromaticityCoordinate, BlueChromaticityCoordinate, WhiteChromaticityCoordinate));
+		break;
+	default:
+		check(false);
+		break;
+	}
+
+	if (WorkingColorSpaceChoice != EWorkingColorSpace::Custom)
+	{
+		FColorSpace::GetWorking().GetChromaticities(RedChromaticityCoordinate, GreenChromaticityCoordinate, BlueChromaticityCoordinate, WhiteChromaticityCoordinate);
+	}
+}
+
 
 URendererOverrideSettings::URendererOverrideSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

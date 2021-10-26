@@ -54,6 +54,13 @@ private:
 	};
 
 	void InitializeRead();
+	
+	FCbAttachment CreateAttachment(FSharedBuffer AttachmentData);
+	FCbAttachment CreateAttachment(FCbObject AttachmentData)
+	{
+		return CreateAttachment(AttachmentData.GetBuffer().ToShared());
+	}
+
 	static void StaticInit();
 	static bool IsReservedOplogKey(FUtf8StringView Key);
 
@@ -78,8 +85,8 @@ bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, 
 	FCbWriter KeyBuilder;
 	UE::EditorDomain::EPackageDigestResult Result;
 	FString ErrorMessage;
-	bool bEditorDomainEnabled;
-	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, bEditorDomainEnabled, ErrorMessage);
+	UE::EditorDomain::EDomainUse EditorDomainUse;
+	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, EditorDomainUse, ErrorMessage);
 	if (Result != UE::EditorDomain::EPackageDigestResult::Success)
 	{
 		if (OutErrorMessage) *OutErrorMessage = MoveTemp(ErrorMessage);
@@ -88,7 +95,7 @@ bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, 
 
 	for (FName DependencyName : SortedBuildDependencies)
 	{
-		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, bEditorDomainEnabled, ErrorMessage);
+		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, EditorDomainUse, ErrorMessage);
 		if (Result != UE::EditorDomain::EPackageDigestResult::Success)
 		{
 			if (OutErrorMessage)
@@ -464,6 +471,13 @@ void FEditorDomainOplog::InitializeRead()
 	bInitializedRead = true;
 }
 
+FCbAttachment FEditorDomainOplog::CreateAttachment(FSharedBuffer AttachmentData)
+{
+	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(AttachmentData);
+	check(!CompressedBuffer.IsNull());
+	return FCbAttachment(CompressedBuffer);
+}
+
 void FEditorDomainOplog::StaticInit()
 {
 	if (ReservedOplogKeys.Num() > 0)
@@ -519,7 +533,7 @@ void FEditorDomainOplog::CommitPackage(FName PackageName, TArrayView<IPackageWri
 		CbAttachments.Reserve(NumAttachments);
 		for (const IPackageWriter::FCommitAttachmentInfo* AttachmentInfo : SortedAttachments)
 		{
-			const FCbAttachment& CbAttachment = CbAttachments.Emplace_GetRef(AttachmentInfo->Value);
+			const FCbAttachment& CbAttachment = CbAttachments.Add_GetRef(CreateAttachment(AttachmentInfo->Value));
 			check(!IsReservedOplogKey(AttachmentInfo->Key));
 			Pkg.AddAttachment(CbAttachment);
 			Entry.Attachments.Add(FOplogEntry::FAttachment{

@@ -239,9 +239,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging)
 	bool UsePakFile;
 
-	/** If enabled, all packages will be put into one or more container files. */
+	/** If enabled, use .utoc/.ucas container files for staged/packaged package data instead of pak. */
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	bool bUseIoStore;
+
+	/** If enabled, use Zen storage server for storing and fetching cooked data instead of using the local file system.  */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	bool bUseZenStore;
 
 	/** If enabled, staging will make a binary config file for faster loading. */
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
@@ -596,7 +600,6 @@ public:
 	 */
 	EProjectPackagingBuildConfigurations GetBuildConfigurationForPlatform(FName PlatformName) const;
 	void SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration);
-	void SetBuildConfigurationForAllPlatforms(EProjectPackagingBuildConfigurations Configuration);
 
 	FName GetTargetFlavorForPlatform(FName PlatformName) const;
 	void SetTargetFlavorForPlatform(FName PlatformName, FName TargetFlavorName);

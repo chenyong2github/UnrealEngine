@@ -22,6 +22,12 @@ TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Poi
 	return TOptional<FVector2D>();
 }
 
+FVector FTrajectoryDrawInfo::GetPoint(double InTime)
+{
+	FTransform Transform = TrajectoryCache->GetInterp(InTime);
+	return Transform.GetLocation();
+}
+
 void FTrajectoryDrawInfo::GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector>& TrajectoryPoints, TArray<double>& TrajectoryTimes)
 {	
 	CachedViewRange = InDisplayContext.TimeRange;

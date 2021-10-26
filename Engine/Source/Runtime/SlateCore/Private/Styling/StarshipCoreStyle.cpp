@@ -293,7 +293,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("Icons.Denied", new IMAGE_BRUSH("Icons/denied_16x", Icon16x16));
 	
-		Style->Set("Icons.Help", new IMAGE_BRUSH("Icons/icon_help_16x", Icon16x16));
+		Style->Set("Icons.Help", new IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16));
 	
 		Style->Set("Icons.Download", new IMAGE_BRUSH("Icons/icon_Downloads_16x", Icon16x16));
 		Style->Set("Icons.Server", new IMAGE_BRUSH_SVG("Starship/Common/server", Icon16x16));
@@ -1276,25 +1276,24 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 
 	const FTableRowStyle ComboBoxRow = FTableRowStyle()
 		.SetEvenRowBackgroundBrush(FSlateNoResource())
-		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Hover))
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
 
 		.SetOddRowBackgroundBrush(FSlateNoResource())
-		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Hover))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
 
 		.SetSelectorFocusedBrush(FSlateNoResource())
 
-		.SetActiveBrush(FSlateColorBrush(FStyleColors::Primary))
-		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
-		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
+		.SetActiveBrush(FSlateNoResource())
+		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
+		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::Primary))
 
-		.SetInactiveBrush(FSlateColorBrush(FStyleColors::Primary))
-		.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
-		.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
-
+		.SetInactiveBrush(FSlateNoResource())
+		.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::Primary))
+		.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::Primary))
 
 		.SetTextColor(FStyleColors::White)
-		.SetSelectedTextColor(FStyleColors::Input)
-
+		.SetSelectedTextColor(FStyleColors::White)
+		
 		.SetDropIndicator_Above(FSlateNoResource())
 		.SetDropIndicator_Onto(FSlateNoResource())
 		.SetDropIndicator_Below(FSlateNoResource());

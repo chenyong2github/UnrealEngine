@@ -14,9 +14,12 @@ UENUM()
 enum class ELevelInstanceRuntimeBehavior : uint8
 {
 	None UMETA(Hidden),
-	Embedded UMETA(ToolTip="Level Instance is discarded at runtime and all its actors are part of the same runtime World Partition cell"),
-	Partitioned UMETA(Hidden), 
-	LevelStreaming UMETA(ToolTip="Level Instance is streamed like a regular level"),
+	// Deprecated exists only to avoid breaking Actor Desc serialization
+	Embedded_Deprecated UMETA(Hidden),
+	// Default behavior is to move Level Instance level actors to the main world partition using World Partition clustering rules
+	Partitioned,
+	// Behavior only supported through Conversion Commandlet or on non OFPA Level Instances
+	LevelStreaming UMETA(Hidden)
 };
 
 UCLASS()
@@ -37,7 +40,7 @@ protected:
 public:
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = Runtime)
+	UPROPERTY()
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 #endif
 
@@ -81,7 +84,7 @@ public:
 	virtual FBox GetStreamingBounds() const override;
 	virtual bool IsLockLocation() const override;
 	virtual ELevelInstanceRuntimeBehavior GetDesiredRuntimeBehavior() const { return DesiredRuntimeBehavior; }
-	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const { return ELevelInstanceRuntimeBehavior::Embedded; }
+	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const { return ELevelInstanceRuntimeBehavior::Partitioned; }
 	virtual bool IsHLODRelevant() const override { return true; }
 
 	bool CanEdit(FText* OutReason = nullptr) const;

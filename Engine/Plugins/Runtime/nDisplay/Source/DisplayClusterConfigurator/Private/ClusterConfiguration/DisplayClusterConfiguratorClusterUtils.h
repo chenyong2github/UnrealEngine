@@ -15,6 +15,8 @@ class UDisplayClusterConfigurationViewport;
 class SDisplayClusterConfiguratorNewClusterItemDialog;
 struct FDisplayClusterConfigurationRectangle;
 
+#define NDISPLAY_DEFAULT_CLUSTER_HOST "127.0.0.1"
+
 class FDisplayClusterConfiguratorClusterUtils
 {
 public:
@@ -26,7 +28,8 @@ public:
 	 * @param PresetHost - Optional initial host string to configure the new cluster node with in the dialog box.
 	 * @return The newly created cluster node, or null if the user cancelled out of the dialog box.
 	 */
-	static UDisplayClusterConfigurationClusterNode* CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect, FString PresetHost = "");
+	static UDisplayClusterConfigurationClusterNode* CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect,
+		FString PresetHost = NDISPLAY_DEFAULT_CLUSTER_HOST);
 
 	/**
 	 * Creates a new viewport, presenting a dialog box to allow the user to customize its properties, and adds it to the user chosen cluster node.

@@ -1970,12 +1970,14 @@ void FControlRigParameterTrackEditor::HandleOnSpaceAdded(UMovieSceneControlRigPa
 {
 	if (SpaceChannel)
 	{
-		SpaceChannel->OnKeyMovedEvent().AddLambda([this, SpaceChannel,Section](FMovieSceneChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems)
+		SpaceChannel->OnKeyMovedEvent().AddLambda([this,Section](FMovieSceneChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems)
 			{
+				FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
 				HandleSpaceKeyMoved(Section, SpaceChannel,MovedItems);
 			});
-		SpaceChannel->OnKeyDeletedEvent().AddLambda([this,SpaceChannel, Section](FMovieSceneChannel* Channel, const  TArray<FKeyAddOrDeleteEventItem>& Items)
+		SpaceChannel->OnKeyDeletedEvent().AddLambda([this, Section](FMovieSceneChannel* Channel, const  TArray<FKeyAddOrDeleteEventItem>& Items)
 			{
+				FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
 				HandleSpaceKeyDeleted(Section, SpaceChannel,Items);
 			});
 	}
@@ -2211,10 +2213,6 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 	}
 
 	//Need seperate index fo bools,ints and enums and floats since there are seperate entries for each later when they are accessed by the set key stuff.
-	int32 ChannelIndex = 0;
-	int32 BoolChannelIndex = 0;
-	int32 EnumChannelIndex = 0;
-	int32 IntChannelIndex = 0;
 	int32 SpaceChannelIndex = 0;
 	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ++ControlIndex)
 	{
@@ -2225,186 +2223,198 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			continue;
 		}
 
-		if (SectionToKey->ControlChannelMap.Find(ControlElement->GetName()) == nullptr)
+		if (FChannelMapInfo* pChannelIndex = SectionToKey->ControlChannelMap.Find(ControlElement->GetName()))
 		{
-			continue;
-		}
-		bool bMaskKeyOut = (ControlIndex >= ControlsMask.Num() || ControlsMask[ControlIndex] == false);
-		bool bSetKey = ControlElement->GetName() == ParameterName && !bMaskKeyOut;
+			int32 ChannelIndex = pChannelIndex->ChannelIndex;
 
-		FRigControlValue ControlValue = InControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current);
+
+			bool bMaskKeyOut = (ControlIndex >= ControlsMask.Num() || ControlsMask[ControlIndex] == false);
+			bool bSetKey = ControlElement->GetName() == ParameterName && !bMaskKeyOut;
+
+			FRigControlValue ControlValue = InControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current);
 		
-		switch (ControlElement->Settings.ControlType)
-		{
-		case ERigControlType::Bool:
-		{
-			bool Val = ControlValue.Get<bool>();
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneBoolChannel>(BoolChannelIndex++, Val, bSetKey));
-			break;
-		}
-		case ERigControlType::Integer:
-		{
-			if (ControlElement->Settings.ControlEnum)
+			switch (ControlElement->Settings.ControlType)
 			{
-				uint8 Val = (uint8)ControlValue.Get<uint8>();
-				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneByteChannel>(EnumChannelIndex++, Val, bSetKey));
+			case ERigControlType::Bool:
+			{
+				bool Val = ControlValue.Get<bool>();
+				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneBoolChannel>(ChannelIndex, Val, bSetKey));
+				break;
 			}
-			else
+			case ERigControlType::Integer:
 			{
-				int32 Val = ControlValue.Get<int32>();
-				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneIntegerChannel>(IntChannelIndex++, Val, bSetKey));
-			}
-			break;
-		}
-		case ERigControlType::Float:
-		{
-			float Val = ControlValue.Get<float>();
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val, bSetKey));
-			break;
-		}
-		case ERigControlType::Vector2D:
-		{
-			FVector3f Val = ControlValue.Get<FVector3f>();
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
-			break;
-		}
-		case ERigControlType::Position:
-		case ERigControlType::Scale:
-		case ERigControlType::Rotator:
-		{
-			FVector3f Val = ControlValue.Get<FVector3f>();
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Z, bSetKey));
-			break;
-		}
-
-		case ERigControlType::Transform:
-		case ERigControlType::TransformNoScale:
-		case ERigControlType::EulerTransform:
-		{
-			FVector Translation, Scale(1.0f, 1.0f, 1.0f);
-			FRotator Rotation;
-
-			if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
-			{
-				FTransformNoScale NoScale = ControlValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
-				Translation = NoScale.Location;
-				Rotation = NoScale.Rotation.Rotator();
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-			{
-				FEulerTransform Euler = ControlValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
-				Translation = Euler.Location;
-				Rotation = Euler.Rotation;
-				Scale = Euler.Scale;
-			}
-			else
-			{
-				FTransform Val = ControlValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
-				Translation = Val.GetTranslation();
-				Rotation = Val.GetRotation().Rotator();
-				Scale = Val.GetScale3D();
-			}
-			FVector3f CurrentVector = Translation;
-			bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);
-			bool bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationY);
-			bool bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationZ);
-			if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
-			{
-				bKeyX = bKeyY = bKeyZ = true;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationX))
-			{
-				bKeyX = false;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationY))
-			{
-				bKeyY = false;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationZ))
-			{
-				bKeyZ = false;
-			}
-			if (FChannelMapInfo* pChannelIndex = SectionToKey->ControlChannelMap.Find(ControlElement->GetName()))
-			{
-				if (pChannelIndex->bDoesHaveSpace)
+				if (ControlElement->Settings.ControlEnum)
 				{
-					FMovieSceneControlRigSpaceBaseKey NewKey;
-					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneControlRigSpaceChannel>(SpaceChannelIndex++, NewKey, false));
+					uint8 Val = (uint8)ControlValue.Get<uint8>();
+					pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneByteChannel>(ChannelIndex, Val, bSetKey));
 				}
+				else
+				{
+					int32 Val = ControlValue.Get<int32>();
+					pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneIntegerChannel>(ChannelIndex, Val, bSetKey));
+				}
+				break;
+			}
+			case ERigControlType::Float:
+			{
+				float Val = ControlValue.Get<float>();
+				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex, Val, bSetKey));
+				break;
+			}
+			case ERigControlType::Vector2D:
+			{
+				FVector3f Val = ControlValue.Get<FVector3f>();
+				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
+				break;
+			}
+			case ERigControlType::Position:
+			case ERigControlType::Scale:
+			case ERigControlType::Rotator:
+			{
+				FVector3f Val = ControlValue.Get<FVector3f>();
+				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Z, bSetKey));
+				break;
 			}
 
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.X, bKeyX));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Y, bKeyY));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Z, bKeyZ));
+			case ERigControlType::Transform:
+			case ERigControlType::TransformNoScale:
+			case ERigControlType::EulerTransform:
+			{
+				FVector Translation, Scale(1.0f, 1.0f, 1.0f);
+				FRotator Rotation;
 
-			FRotator CurrentRotator = Rotation;
-			bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationX);
-			bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationY);
-			bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationZ);
-			if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
-			{
-				bKeyX = bKeyY = bKeyZ = true;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationX))
-			{
-				bKeyX = false;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationY))
-			{
-				bKeyY = false;
-			}
-			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationZ))
-			{
-				bKeyZ = false;
-			}
-
-			/* @Mike.Zyracki this is my gut feeling - we should run SetClosestToMe on the rotator SOMEWHERE....
-			FMovieSceneInterrogationData InterrogationData;
-			GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
-			for (const FTransformInterrogationData& PreviousVal : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
-			{
-			if ((PreviousVal.ParameterName == RigControl.Name))
-			{
-			FRotator PreviousRot = PreviousVal.Val.GetRotation().Rotator();
-			PreviousRot.SetClosestToMe(CurrentRotator);
-			}
-			}
-			*/
-
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Roll, bKeyX));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Pitch, bKeyY));
-			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Yaw, bKeyZ));
-
-			if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-			{
-				CurrentVector = Scale;
-				bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleX);
-				bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleY);
-				bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleZ);
+				if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
+				{
+					FTransformNoScale NoScale = ControlValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
+					Translation = NoScale.Location;
+					Rotation = NoScale.Rotation.Rotator();
+				}
+				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					FEulerTransform Euler = ControlValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+					Translation = Euler.Location;
+					Rotation = Euler.Rotation;
+					Scale = Euler.Scale;
+				}
+				else
+				{
+					FTransform Val = ControlValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
+					Translation = Val.GetTranslation();
+					Rotation = Val.GetRotation().Rotator();
+					Scale = Val.GetScale3D();
+				}
+				FVector3f CurrentVector = Translation;
+				bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);
+				bool bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationY);
+				bool bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationZ);
 				if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
 				{
 					bKeyX = bKeyY = bKeyZ = true;
 				}
-				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleX))
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationX))
 				{
 					bKeyX = false;
 				}
-				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleY))
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationY))
 				{
 					bKeyY = false;
 				}
-				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleZ))
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationZ))
 				{
 					bKeyZ = false;
 				}
+
+				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
+
+				if (pChannelIndex->bDoesHaveSpace)
+				{
+					//for some saved dev files this could be -1 so we used the local incremented value which is almost always safe, if not a resave will fix the file.
+					FMovieSceneControlRigSpaceBaseKey NewKey;
+					int32 RealSpaceChannelIndex = pChannelIndex->SpaceChannelIndex != -1 ? pChannelIndex->SpaceChannelIndex : SpaceChannelIndex;
+					++SpaceChannelIndex;
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneControlRigSpaceChannel>(RealSpaceChannelIndex, NewKey, false));
+				}
+
+
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.X, bKeyX));
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Y, bKeyY));
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Z, bKeyZ));
+
+				FRotator CurrentRotator = Rotation;
+				bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationX);
+				bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationY);
+				bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::RotationZ);
+				if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
+				{
+					bKeyX = bKeyY = bKeyZ = true;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationX))
+				{
+					bKeyX = false;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationY))
+				{
+					bKeyY = false;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationZ))
+				{
+					bKeyZ = false;
+				}
+
+				/* @Mike.Zyracki this is my gut feeling - we should run SetClosestToMe on the rotator SOMEWHERE....
+				FMovieSceneInterrogationData InterrogationData;
+				GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+				for (const FTransformInterrogationData& PreviousVal : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
+				{
+				if ((PreviousVal.ParameterName == RigControl.Name))
+				{
+				FRotator PreviousRot = PreviousVal.Val.GetRotation().Rotator();
+				PreviousRot.SetClosestToMe(CurrentRotator);
+				}
+				}
+				*/
+
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Roll, bKeyX));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Pitch, bKeyY));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Yaw, bKeyZ));
+
+				if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					CurrentVector = Scale;
+					bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleX);
+					bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleY);
+					bKeyZ = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::ScaleZ);
+					if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
+					{
+						bKeyX = bKeyY = bKeyZ = true;
+					}
+					if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleX))
+					{
+						bKeyX = false;
+					}
+					if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleY))
+					{
+						bKeyY = false;
+					}
+					if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleZ))
+					{
+						bKeyZ = false;
+					}
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.X, bKeyX));
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Y, bKeyY));
+					OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Z, bKeyZ));
+				}
+				break;
 			}
-			break;
 		}
 		}
 	}
@@ -2585,7 +2595,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
-						ChannelIndex = pChannelIndex->TotalChannelIndex;
+						ChannelIndex = pChannelIndex->GeneratedKeyIndex;
 						float FVal = (float)Val.Val;
 						GeneratedTotalKeys[ChannelIndex]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&FVal, Weight);
 					}
@@ -2610,7 +2620,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
-						ChannelIndex = pChannelIndex->TotalChannelIndex;
+						ChannelIndex = pChannelIndex->GeneratedKeyIndex;
 						float FVal = (float)Val.Val.X;
 						GeneratedTotalKeys[ChannelIndex]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&FVal, Weight);
 						FVal = (float)Val.Val.Y;
@@ -2632,11 +2642,8 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
-						ChannelIndex = pChannelIndex->TotalChannelIndex;
+						ChannelIndex = pChannelIndex->GeneratedKeyIndex;
 
-						
-						/* @Mike.Zyracki why is this causing the value to continuously grow?
-						*/
 						if (ControlElement->Settings.ControlType != ERigControlType::Rotator)
 						{
 							float FVal = (float)Val.Val.X;
@@ -2665,7 +2672,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
-						ChannelIndex = pChannelIndex->TotalChannelIndex;
+						ChannelIndex = pChannelIndex->GeneratedKeyIndex;
 
 						if (pChannelIndex->bDoesHaveSpace)
 						{

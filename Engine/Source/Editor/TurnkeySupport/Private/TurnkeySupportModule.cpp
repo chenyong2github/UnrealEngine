@@ -309,6 +309,17 @@ public:
 			BuildCookRunParams += FString::Printf(TEXT(" -project=\"%s\""), *ProjectPath);
 		}
 
+		bool bIsProjectBuildTarget = false;
+		const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
+
+		// Only add the -Target=... argument for code projects. Content projects will return UnrealGame/UnrealClient/UnrealServer here, but
+		// may need a temporary target generated to enable/disable plugins. Specifying -Target in these cases will cause packaging to fail,
+		// since it'll have a different name.
+		if (BuildTargetInfo && bIsProjectBuildTarget)
+		{
+			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *BuildTargetInfo->Name);
+		}
+
 		// let the editor add options (-ue4exe in particular)
 		{
 			BuildCookRunParams += FString::Printf(TEXT(" %s"), *FTurnkeyEditorSupport::GetUATOptions());
@@ -339,6 +350,10 @@ public:
 			BuildCookRunParams += TEXT(" -installed");
 		}
 
+		if (PackagingSettings->bUseZenStore)
+		{
+			BuildCookRunParams += TEXT(" -zenstore");
+		}
 
 
 		// per mode settings
@@ -453,21 +468,10 @@ public:
 			{
 				BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Shipping;
 			}
-			
-			bool bIsProjectBuildTarget = false;
-			const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
 
 			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
 			if (BuildTargetInfo)
 			{
-				// Only add the -Target=... argument for code projects. Content projects will return UnrealGame/UnrealClient/UnrealServer here, but
-				// may need a temporary target generated to enable/disable plugins. Specifying -Target in these cases will cause packaging to fail,
-				// since it'll have a different name.
-				if (bIsProjectBuildTarget)
-				{
-					BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *BuildTargetInfo->Name);
-				}
-
 				if (BuildTargetInfo->Type == EBuildTargetType::Client)
 				{
 					BuildCookRunParams += FString::Printf(TEXT(" -client -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
@@ -555,26 +559,16 @@ public:
 		FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, LOCTEXT("Turnkey_CustomTaskName", "Executing Custom Build"), LOCTEXT("Turnkey_CustomTaskName", "Custom"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
 	}
 
-	static void PackageBuildConfiguration(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
+	static void SetPackageBuildConfiguration(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
 	{
 		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 		PackagingSettings->SetBuildConfigurationForPlatform(Info->IniPlatformName, BuildConfiguration);
 		PackagingSettings->SaveConfig();
 	}
 
-	static bool CanPackageBuildConfiguration(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
+	static bool PackageBuildConfigurationIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
 	{
-		return true;
-	}
-
-	static bool DefaultPackageBuildConfigurationIsChecked(EProjectPackagingBuildConfigurations BuildConfiguration)
-	{
-		return BuildConfiguration == EProjectPackagingBuildConfigurations::PPBC_MAX;
-	}
-
-	static bool PackageBuildConfigurationIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration, EProjectPackagingBuildConfigurations DefaultBuildConfiguration)
-	{
-		return DefaultBuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_MAX && GetDefault<UProjectPackagingSettings>()->GetBuildConfigurationForPlatform(Info->IniPlatformName) == BuildConfiguration;
+		return GetDefault<UProjectPackagingSettings>()->GetBuildConfigurationForPlatform(Info->IniPlatformName) == BuildConfiguration;
 	}	
 	
 	static void SetActiveFlavor(const PlatformInfo::FTargetPlatformInfo* Info)
@@ -594,21 +588,16 @@ public:
 		return GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(Info->IniPlatformName) == Info->Name;
 	}
 
-	static void PackageBuildTarget(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName)
+	static void SetPackageBuildTarget(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName)
 	{
 		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 		PackagingSettings->SetBuildTargetForPlatform(Info->IniPlatformName, TargetName);
 		PackagingSettings->SaveConfig();
 	}
 	
-	static bool PackageBuildTargetIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName, FString DefaultTargetName)
+	static bool PackageBuildTargetIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName)
 	{
-		return !DefaultTargetName.IsEmpty() && GetDefault<UProjectPackagingSettings>()->GetBuildTargetForPlatform(Info->IniPlatformName) == TargetName;
-	}
-
-	static bool DefaultPackageBuildTargetIsChecked(FString TargetName)
-	{
-		return TargetName.IsEmpty();
+		return GetDefault<UProjectPackagingSettings>()->GetBuildTargetForPlatform(Info->IniPlatformName) == TargetName;
 	}
 
 	static void SetCookOnTheFly()
@@ -1005,9 +994,6 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 
 		MenuBuilder.BeginSection("BuildConfig", LOCTEXT("TurnkeySection_BuildConfig", "Binary Configuration"));
 
-		// Get the enum metadata to display the correct menu name
-		EProjectPackagingBuildConfigurations DefaultBuildConfiguration = AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName);
-
 		UEnum* Enum = StaticEnum<EProjectPackagingBuildConfigurations>();
 		check(Enum);
 		FString Metadata = Enum->GetMetaData(TEXT("DisplayName"), (int32)AllPlatformPackagingSettings->BuildConfiguration);
@@ -1017,9 +1003,9 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 			FText::Format(LOCTEXT("DefaultConfigurationTooltip", "Package the game in {0} configuration"), FText::FromString(Metadata)),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfiguration, VanillaInfo, EProjectPackagingBuildConfigurations::PPBC_MAX),
-				FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanPackageBuildConfiguration, VanillaInfo, DefaultBuildConfiguration),
-				FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::DefaultPackageBuildConfigurationIsChecked, DefaultBuildConfiguration)
+				FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetPackageBuildConfiguration, VanillaInfo, EProjectPackagingBuildConfigurations::PPBC_MAX),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfigurationIsChecked, VanillaInfo, EProjectPackagingBuildConfigurations::PPBC_MAX)
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1038,9 +1024,9 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 					ConfigurationInfo.ToolTip,
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
-						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanPackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
-						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfigurationIsChecked, VanillaInfo, PackagingConfiguration, DefaultBuildConfiguration)
+						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetPackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfigurationIsChecked, VanillaInfo, PackagingConfiguration)
 					),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
@@ -1080,8 +1066,6 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 					AllPlatformPackagingSettings->SaveConfig();
 				}
 
-				FText DefaultTarget = FText::FromString(AllPlatformPackagingSettings->GetBuildTargetForPlatform(IniPlatformName));
-
 				MenuBuilder.BeginSection("BuildTarget", LOCTEXT("TurnkeySection_BuildTarget", "Build Target"));
 
 				MenuBuilder.AddMenuEntry(
@@ -1089,9 +1073,9 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 					FText::Format(LOCTEXT("DefaultPackageTargetTooltip", "Package the {0} target"), FText::FromString(AllPlatformPackagingSettings->BuildTarget)),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTarget, VanillaInfo, FString("")),
+						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetPackageBuildTarget, VanillaInfo, FString("")),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::DefaultPackageBuildTargetIsChecked, DefaultTarget.ToString())
+						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTargetIsChecked, VanillaInfo, FString(""))
 						),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
@@ -1104,9 +1088,9 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 						FText::Format(LOCTEXT("PackageTargetName", "Package the '{0}' target."), FText::FromString(Target.Name)),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTarget, VanillaInfo, Target.Name),
+							FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetPackageBuildTarget, VanillaInfo, Target.Name),
 							FCanExecuteAction(),
-							FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTargetIsChecked, VanillaInfo, Target.Name, DefaultTarget.ToString())
+							FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTargetIsChecked, VanillaInfo, Target.Name)
 						),
 						NAME_None,
 						EUserInterfaceActionType::RadioButton

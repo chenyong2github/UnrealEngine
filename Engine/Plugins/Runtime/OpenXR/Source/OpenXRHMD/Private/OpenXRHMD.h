@@ -29,7 +29,7 @@ class FOpenXRRenderBridge;
 class FOpenXRHMD
 	: public FHeadMountedDisplayBase
 	, public FXRRenderTargetManager
-	, public FSceneViewExtensionBase
+	, public FHMDSceneViewExtension
 	, public FOpenXRAssetManager
 	, public TStereoLayerManager<FOpenXRLayer>
 {
@@ -245,6 +245,8 @@ public:
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
+
+	/** FHMDSceneViewExtension interface */
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const;
 
 	/** IStereoRenderTargetManager */

@@ -32,6 +32,7 @@
 #include "UObject/PackageResourceManager.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "EngineUtils.h"
@@ -1711,6 +1712,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FNiagaraObjectVersion::GUID);
+	//@@!! NOTE: FUE5MainStreamObjectVersion was not here but does seem to be in the Archive anyway
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	FStripDataFlags StripFlags( Ar );
@@ -1935,7 +1937,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			ThisLODInfo.BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs_DEPRECATED;
 			ThisLODInfo.BuildSettings.bUseHighPrecisionTangentBasis = bUseHighPrecisionTangentBasis_DEPRECATED;
 			ThisLODInfo.BuildSettings.bRemoveDegenerates = true;
-
 			//We cannot get back the imported build option here since those option are store in the UAssetImportData which FBX has derive in the UnrealEd module
 			//We are in engine module so there is no way to recover this data.
 			//Anyway because the asset was not re-import yet the build settings will not be shown in the UI and the asset will not be build
@@ -1943,6 +1944,31 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			//So we will leave the default value for the rest of the new build settings
 		}
 	}
+	
+	// Automatically detect assets saved before CL 16135278 which changed F16 to RTNE
+	//	set them to bUseBackwardsCompatibleF16TruncUVs
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault)
+	{
+		TArray<FSkeletalMeshLODInfo>& LODInfoArray = GetLODInfoArray();
+		const int32 TotalLODNum = LODInfoArray.Num();
+		for (int32 LodIndex = 0; LodIndex < TotalLODNum; LodIndex++)
+		{
+			FSkeletalMeshLODInfo& ThisLODInfo = LODInfoArray[LodIndex];
+
+			ThisLODInfo.BuildSettings.bUseBackwardsCompatibleF16TruncUVs = true;
+		}
+	}
+	
+	//@@!!  NOTE : will remove
+	// FUE5MainStreamObjectVersion is present in UE5 saves of SkeletalMesh
+	//	I'm not sure who's putting it there
+	//  but it does seem like I can use it even without an explicit Using here
+	/*
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault)
+	{
+		UE_LOG(LogSkeletalMesh, Display, TEXT("Skeletal mesh %s has FUE5MainStreamObjectVersion"), *GetFullName() );
+	}
+	*/
 }
 
 void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
@@ -5437,6 +5463,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FSkeletalMeshBuildSetting
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bComputeWeightedNormals);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRemoveDegenerates);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseFullPrecisionUVs);
+	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseBackwardsCompatibleF16TruncUVs);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionTangentBasis);
 	Ar << BuildSettings.ThresholdPosition;
 	Ar << BuildSettings.ThresholdTangentNormal;

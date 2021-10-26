@@ -358,14 +358,14 @@ static bool walkContour(dtTileCacheLayer& layer, int x, int y, int idx, unsigned
 
 namespace TileCacheFunc
 {
-	static float distancePtSeg(const int x, const int z, const int px, const int pz, const int qx, const int qz)
+	static dtReal distancePtSeg(const int x, const int z, const int px, const int pz, const int qx, const int qz)
 	{
-		float pqx = (float)(qx - px);
-		float pqz = (float)(qz - pz);
-		float dx = (float)(x - px);
-		float dz = (float)(z - pz);
-		float d = pqx*pqx + pqz*pqz;
-		float t = pqx*dx + pqz*dz;
+		dtReal pqx = (dtReal)(qx - px);
+		dtReal pqz = (dtReal)(qz - pz);
+		dtReal dx = (dtReal)(x - px);
+		dtReal dz = (dtReal)(z - pz);
+		dtReal d = pqx*pqx + pqz*pqz;
+		dtReal t = pqx*dx + pqz*dz;
 		if (d > 0)
 			t /= d;
 		if (t < 0)
@@ -380,7 +380,7 @@ namespace TileCacheFunc
 	}
 }
 
-static void simplifyContour(unsigned char area, dtTempContour& cont, const float maxError)
+static void simplifyContour(unsigned char area, dtTempContour& cont, const dtReal maxError)
 {
 	cont.npoly = 0;
 
@@ -449,7 +449,7 @@ static void simplifyContour(unsigned char area, dtTempContour& cont, const float
 		const int bz = (int)cont.verts[bi*5+2];
 
 		// Find maximum deviation from the segment.
-		float maxd = 0;
+		dtReal maxd = 0;
 		int maxi = -1;
 		int ci, cinc, endi;
 
@@ -477,7 +477,7 @@ static void simplifyContour(unsigned char area, dtTempContour& cont, const float
 		{
 			while (ci != endi)
 			{
-				float d = TileCacheFunc::distancePtSeg(cont.verts[ci*5+0], cont.verts[ci*5+2], ax, az, bx, bz);
+				dtReal d = TileCacheFunc::distancePtSeg(cont.verts[ci*5+0], cont.verts[ci*5+2], ax, az, bx, bz);
 				if (d > maxd)
 				{
 					maxd = d;
@@ -677,7 +677,7 @@ static bool mergeContours(dtTileCacheAlloc* alloc, dtTileCacheContour& ca, dtTil
 	return true;
 }
 
-static void getContourCenter(const dtTileCacheContour* cont, const float* orig, float cs, float ch, float* center)
+static void getContourCenter(const dtTileCacheContour* cont, const dtReal* orig, dtReal cs, dtReal ch, dtReal* center)
 {
 	center[0] = 0;
 	center[1] = 0;
@@ -687,11 +687,11 @@ static void getContourCenter(const dtTileCacheContour* cont, const float* orig, 
 	for (int i = 0; i < cont->nverts; ++i)
 	{
 		const unsigned short* v = &cont->verts[i*4];
-		center[0] += (float)v[0];
-		center[1] += (float)v[1];
-		center[2] += (float)v[2];
+		center[0] += (dtReal)v[0];
+		center[1] += (dtReal)v[1];
+		center[2] += (dtReal)v[2];
 	}
-	const float s = 1.0f / cont->nverts;
+	const dtReal s = 1.0f / cont->nverts;
 	center[0] *= s * cs;
 	center[1] *= s * ch;
 	center[2] *= s * cs;
@@ -714,8 +714,8 @@ static void addUniqueRegion(unsigned short* arr, unsigned short v, int& n)
 
 // TODO: move this somewhere else, once the layer meshing is done.
 dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& layer,
-	const int walkableClimb, const float maxError,
-	const float cs, const float ch,
+	const int walkableClimb, const dtReal maxError,
+	const dtReal cs, const dtReal ch,
 	dtTileCacheContourSet& lcset
 	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
@@ -2208,32 +2208,32 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 	return DT_SUCCESS;
 }
 
-dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-							const float* pos, const float radius, const float height, const unsigned char areaId)
+dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+							const dtReal* pos, const dtReal radius, const dtReal height, const unsigned char areaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	bmin[0] = pos[0] - radius;
 	bmin[1] = pos[1];
 	bmin[2] = pos[2] - radius;
 	bmax[0] = pos[0] + radius;
 	bmax[1] = pos[1] + height;
 	bmax[2] = pos[2] + radius;
-	const float r2 = dtSqr(radius/cs + 0.5f);
+	const dtReal r2 = dtSqr(radius/cs + 0.5f);
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f/cs;
-	const float ich = 1.0f/ch;
+	const dtReal ics = 1.0f/cs;
+	const dtReal ich = 1.0f/ch;
 	
-	const float px = (pos[0]-orig[0])*ics;
-	const float pz = (pos[2]-orig[2])*ics;
+	const dtReal px = (pos[0]-orig[0])*ics;
+	const dtReal pz = (pos[2]-orig[2])*ics;
 	
-	int minx = (int)floorf((bmin[0]-orig[0])*ics);
-	int miny = (int)floorf((bmin[1]-orig[1])*ich);
-	int minz = (int)floorf((bmin[2]-orig[2])*ics);
-	int maxx = (int)floorf((bmax[0]-orig[0])*ics);
-	int maxy = (int)floorf((bmax[1]-orig[1])*ich);
-	int maxz = (int)floorf((bmax[2]-orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0]-orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1]-orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2]-orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0]-orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1]-orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2]-orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2252,8 +2252,8 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
 			if (layer.areas[x+z*w] == DT_TILECACHE_NULL_AREA)
 				continue;
 
-			const float dx = (float)(x+0.5f) - px;
-			const float dz = (float)(z+0.5f) - pz;
+			const dtReal dx = (dtReal)(x+0.5f) - px;
+			const dtReal dz = (dtReal)(z+0.5f) - pz;
 			if (dx*dx + dz*dz > r2)
 				continue;
 			const int y = layer.heights[x+z*w];
@@ -2266,24 +2266,24 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
 	return DT_SUCCESS;
 }
 
-dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-	const float* pos, const float* extent, const unsigned char areaId)
+dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+	const dtReal* pos, const dtReal* extent, const unsigned char areaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	dtVsub(bmin, pos, extent);
 	dtVadd(bmax, pos, extent);
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f/cs;
-	const float ich = 1.0f/ch;
+	const dtReal ics = 1.0f/cs;
+	const dtReal ich = 1.0f/ch;
 
-	int minx = (int)floorf((bmin[0]-orig[0])*ics);
-	int miny = (int)floorf((bmin[1]-orig[1])*ich);
-	int minz = (int)floorf((bmin[2]-orig[2])*ics);
-	int maxx = (int)floorf((bmax[0]-orig[0])*ics);
-	int maxy = (int)floorf((bmax[1]-orig[1])*ich);
-	int maxz = (int)floorf((bmax[2]-orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0]-orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1]-orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2]-orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0]-orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1]-orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2]-orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2314,13 +2314,13 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
 
 namespace TileCacheFunc
 {
-	static int pointInPoly(int nvert, const float* verts, const float* p)
+	static int pointInPoly(int nvert, const dtReal* verts, const dtReal* p)
 	{
 		int i, j, c = 0;
 		for (i = 0, j = nvert - 1; i < nvert; j = i++)
 		{
-			const float* vi = &verts[i * 3];
-			const float* vj = &verts[j * 3];
+			const dtReal* vi = &verts[i * 3];
+			const dtReal* vj = &verts[j * 3];
 			if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
 				(p[0] < (vj[0] - vi[0]) * (p[2] - vi[2]) / (vj[2] - vi[2]) + vi[0]))
 				c = !c;
@@ -2329,11 +2329,11 @@ namespace TileCacheFunc
 	}
 }
 
-dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-	const float* verts, const int nverts, const float hmin, const float hmax,
+dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+	const dtReal* verts, const int nverts, const dtReal hmin, const dtReal hmax,
 	const unsigned char areaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	dtVcopy(bmin, verts);
 	dtVcopy(bmax, verts);
 	for (int i = 1; i < nverts; ++i)
@@ -2346,15 +2346,15 @@ dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const float* orig, const floa
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f/cs;
-	const float ich = 1.0f/ch;
+	const dtReal ics = 1.0f/cs;
+	const dtReal ich = 1.0f/ch;
 
-	int minx = (int)floorf((bmin[0]-orig[0])*ics);
-	int miny = (int)floorf((bmin[1]-orig[1])*ich);
-	int minz = (int)floorf((bmin[2]-orig[2])*ics);
-	int maxx = (int)floorf((bmax[0]-orig[0])*ics);
-	int maxy = (int)floorf((bmax[1]-orig[1])*ich);
-	int maxz = (int)floorf((bmax[2]-orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0]-orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1]-orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2]-orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0]-orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1]-orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2]-orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2378,10 +2378,10 @@ dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const float* orig, const floa
 			if (y < miny || y > maxy)
 				continue;
 
-			float p[3];
-			p[0] = orig[0] + (float)(x+0.5f)*cs;
+			dtReal p[3];
+			p[0] = orig[0] + (dtReal)(x+0.5f)*cs;
 			p[1] = 0.0f;
-			p[2] = orig[2] + (float)(z+0.5f)*cs;
+			p[2] = orig[2] + (dtReal)(z+0.5f)*cs;
 
 			if (TileCacheFunc::pointInPoly(nverts, verts, p))
 			{
@@ -2393,32 +2393,32 @@ dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const float* orig, const floa
 	return DT_SUCCESS;
 }
 
-dtStatus dtReplaceCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-	const float* pos, const float radius, const float height, const unsigned char areaId, const unsigned char filterAreaId)
+dtStatus dtReplaceCylinderArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+	const dtReal* pos, const dtReal radius, const dtReal height, const unsigned char areaId, const unsigned char filterAreaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	bmin[0] = pos[0] - radius;
 	bmin[1] = pos[1];
 	bmin[2] = pos[2] - radius;
 	bmax[0] = pos[0] + radius;
 	bmax[1] = pos[1] + height;
 	bmax[2] = pos[2] + radius;
-	const float r2 = dtSqr(radius / cs + 0.5f);
+	const dtReal r2 = dtSqr(radius / cs + 0.5f);
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f / cs;
-	const float ich = 1.0f / ch;
+	const dtReal ics = 1.0f / cs;
+	const dtReal ich = 1.0f / ch;
 
-	const float px = (pos[0] - orig[0])*ics;
-	const float pz = (pos[2] - orig[2])*ics;
+	const dtReal px = (pos[0] - orig[0])*ics;
+	const dtReal pz = (pos[2] - orig[2])*ics;
 
-	int minx = (int)floorf((bmin[0] - orig[0])*ics);
-	int miny = (int)floorf((bmin[1] - orig[1])*ich);
-	int minz = (int)floorf((bmin[2] - orig[2])*ics);
-	int maxx = (int)floorf((bmax[0] - orig[0])*ics);
-	int maxy = (int)floorf((bmax[1] - orig[1])*ich);
-	int maxz = (int)floorf((bmax[2] - orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0] - orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1] - orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2] - orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0] - orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1] - orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2] - orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2437,8 +2437,8 @@ dtStatus dtReplaceCylinderArea(dtTileCacheLayer& layer, const float* orig, const
 			if (layer.areas[x + z*w] != filterAreaId)
 				continue;
 
-			const float dx = (float)(x + 0.5f) - px;
-			const float dz = (float)(z + 0.5f) - pz;
+			const dtReal dx = (dtReal)(x + 0.5f) - px;
+			const dtReal dz = (dtReal)(z + 0.5f) - pz;
 			if (dx*dx + dz*dz > r2)
 				continue;
 			const int y = layer.heights[x + z*w];
@@ -2452,24 +2452,24 @@ dtStatus dtReplaceCylinderArea(dtTileCacheLayer& layer, const float* orig, const
 	return DT_SUCCESS;
 }
 
-dtStatus dtReplaceBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-	const float* pos, const float* extent, const unsigned char areaId, const unsigned char filterAreaId)
+dtStatus dtReplaceBoxArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+	const dtReal* pos, const dtReal* extent, const unsigned char areaId, const unsigned char filterAreaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	dtVsub(bmin, pos, extent);
 	dtVadd(bmax, pos, extent);
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f / cs;
-	const float ich = 1.0f / ch;
+	const dtReal ics = 1.0f / cs;
+	const dtReal ich = 1.0f / ch;
 
-	int minx = (int)floorf((bmin[0] - orig[0])*ics);
-	int miny = (int)floorf((bmin[1] - orig[1])*ich);
-	int minz = (int)floorf((bmin[2] - orig[2])*ics);
-	int maxx = (int)floorf((bmax[0] - orig[0])*ics);
-	int maxy = (int)floorf((bmax[1] - orig[1])*ich);
-	int maxz = (int)floorf((bmax[2] - orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0] - orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1] - orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2] - orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0] - orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1] - orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2] - orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2499,11 +2499,11 @@ dtStatus dtReplaceBoxArea(dtTileCacheLayer& layer, const float* orig, const floa
 	return DT_SUCCESS;
 }
 
-dtStatus dtReplaceConvexArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-	const float* verts, const int nverts, const float hmin, const float hmax,
+dtStatus dtReplaceConvexArea(dtTileCacheLayer& layer, const dtReal* orig, const dtReal cs, const dtReal ch,
+	const dtReal* verts, const int nverts, const dtReal hmin, const dtReal hmax,
 	const unsigned char areaId, const unsigned char filterAreaId)
 {
-	float bmin[3], bmax[3];
+	dtReal bmin[3], bmax[3];
 	dtVcopy(bmin, verts);
 	dtVcopy(bmax, verts);
 	for (int i = 1; i < nverts; ++i)
@@ -2516,15 +2516,15 @@ dtStatus dtReplaceConvexArea(dtTileCacheLayer& layer, const float* orig, const f
 
 	const int w = (int)layer.header->width;
 	const int h = (int)layer.header->height;
-	const float ics = 1.0f / cs;
-	const float ich = 1.0f / ch;
+	const dtReal ics = 1.0f / cs;
+	const dtReal ich = 1.0f / ch;
 
-	int minx = (int)floorf((bmin[0] - orig[0])*ics);
-	int miny = (int)floorf((bmin[1] - orig[1])*ich);
-	int minz = (int)floorf((bmin[2] - orig[2])*ics);
-	int maxx = (int)floorf((bmax[0] - orig[0])*ics);
-	int maxy = (int)floorf((bmax[1] - orig[1])*ich);
-	int maxz = (int)floorf((bmax[2] - orig[2])*ics);
+	int minx = (int)dtFloor((bmin[0] - orig[0])*ics);
+	int miny = (int)dtFloor((bmin[1] - orig[1])*ich);
+	int minz = (int)dtFloor((bmin[2] - orig[2])*ics);
+	int maxx = (int)dtFloor((bmax[0] - orig[0])*ics);
+	int maxy = (int)dtFloor((bmax[1] - orig[1])*ich);
+	int maxz = (int)dtFloor((bmax[2] - orig[2])*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2548,10 +2548,10 @@ dtStatus dtReplaceConvexArea(dtTileCacheLayer& layer, const float* orig, const f
 			if (y < miny || y > maxy)
 				continue;
 
-			float p[3];
-			p[0] = orig[0] + (float)(x + 0.5f)*cs;
+			dtReal p[3];
+			p[0] = orig[0] + (dtReal)(x + 0.5f)*cs;
 			p[1] = 0.0f;
-			p[2] = orig[2] + (float)(z + 0.5f)*cs;
+			p[2] = orig[2] + (dtReal)(z + 0.5f)*cs;
 
 			if (TileCacheFunc::pointInPoly(nverts, verts, p))
 			{
@@ -2621,10 +2621,10 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 							   const unsigned char* cons,
 							   unsigned char** outData, int* outDataSize)
 {
-	const int headerSize = dtAlign4(sizeof(dtTileCacheLayerHeader));
+	const int headerSize = dtAlign(sizeof(dtTileCacheLayerHeader));
 	const int gridSize = (int)header->width * (int)header->height;
 	const int maxDataSize = headerSize + comp->maxCompressedSize(gridSize*3);
-	unsigned char* data = (unsigned char*)dtAlloc(maxDataSize, DT_ALLOC_PERM);
+	unsigned char* data = (unsigned char*)dtAlloc(maxDataSize, DT_ALLOC_PERM_TILE_DATA);
 	if (!data)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	memset(data, 0, maxDataSize);
@@ -2637,7 +2637,7 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 	unsigned char* buffer = (unsigned char*)dtAlloc(bufferSize, DT_ALLOC_TEMP);
 	if (!buffer)
 	{
-		dtFree(data);
+		dtFree(data, DT_ALLOC_PERM_TILE_DATA);
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	}
 	memcpy(buffer, heights, gridSize*2);
@@ -2650,7 +2650,7 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 	int compressedSize = 0;
 	dtStatus status = comp->compress(buffer, bufferSize, compressed, maxCompressedSize, &compressedSize);
 
-	dtFree(buffer);
+	dtFree(buffer, DT_ALLOC_TEMP);
 	*outData = data;
 	*outDataSize = headerSize + compressedSize;
 	
@@ -2684,8 +2684,8 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 	if (compressedHeader->version != DT_TILECACHE_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 	
-	const int layerSize = dtAlign4(sizeof(dtTileCacheLayer));
-	const int headerSize = dtAlign4(sizeof(dtTileCacheLayerHeader));
+	const int layerSize = dtAlign(sizeof(dtTileCacheLayer));
+	const int headerSize = dtAlign(sizeof(dtTileCacheLayerHeader));
 	const int gridSize = (int)compressedHeader->width * (int)compressedHeader->height;
 	const int bufferSize = layerSize + headerSize + gridSize*6;
 	
@@ -2707,7 +2707,7 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 									   grids, gridsSize, &size);
 	if (dtStatusFailed(status))
 	{
-		dtFree(buffer);
+		dtFree(buffer, DT_ALLOC_TEMP);
 		return status;
 	}
 	

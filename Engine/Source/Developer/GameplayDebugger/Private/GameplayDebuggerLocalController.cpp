@@ -43,6 +43,11 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 #if WITH_EDITOR
 	bActivateOnPIEEnd = false;
 #endif // WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+	{
+		HUDFont = NewObject<UFont>(this, TEXT("HUDFont"), RF_NoFlags, GEngine->GetSmallFont());
+		HUDFont->LegacyFontSize = UGameplayDebuggerUserSettings::GetFontSize(); //FGameplayDebuggerTweakables::FontSize;
+	}
 }
 
 void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryReplicator& Replicator, AGameplayDebuggerPlayerManager& Manager)
@@ -141,7 +146,7 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 {
 	if (CachedReplicator && CachedReplicator->IsEnabled())
 	{
-		FGameplayDebuggerCanvasContext CanvasContext(Canvas, GEngine->GetSmallFont());
+		FGameplayDebuggerCanvasContext CanvasContext(Canvas, HUDFont);
 		CanvasContext.CursorX = CanvasContext.DefaultX = PaddingLeft;
 		CanvasContext.CursorY = CanvasContext.DefaultY = PaddingTop;
 
@@ -232,9 +237,9 @@ void UGameplayDebuggerLocalController::DrawHeader(FGameplayDebuggerCanvasContext
 	const FString VLogDesc = FString::Printf(TEXT("VLog: {cyan}%s"), CachedReplicator->GetVisLogSyncData().DeviceIDs.Len() > 0
 			? *CachedReplicator->GetVisLogSyncData().DeviceIDs
 			: TEXT("not recording to file"));
-	float VLogSizeX = 0.0f, VLogSizeY = 0.0f;
-	CanvasContext.MeasureString(VLogDesc, VLogSizeX, VLogSizeY);
-	CanvasContext.PrintAt(CanvasContext.Canvas->SizeX - PaddingRight - VLogSizeX, UsePaddingTop + LineHeight, VLogDesc);
+		float VLogSizeX = 0.0f, VLogSizeY = 0.0f;
+		CanvasContext.MeasureString(VLogDesc, VLogSizeX, VLogSizeY);
+		CanvasContext.PrintAt(CanvasContext.Canvas->SizeX - PaddingRight - VLogSizeX, UsePaddingTop + LineHeight, VLogDesc);
 
 	const FString TimestampDesc = FString::Printf(TEXT("Time: %.2fs"), CachedReplicator->GetWorld()->GetTimeSeconds());
 	float TimestampSizeX = 0.0f, TimestampSizeY = 0.0f;
@@ -963,6 +968,28 @@ private:
 		}
 	}
 
+	static void SetFontSize(const TArray<FString>& Args, UWorld* InWorld)
+	{
+		if (Args.Num() != 1)
+		{
+			UE_LOG(LogConsoleResponse, Error, TEXT("Missing \'fontSize\' parameter. Usage: gdt.fontsize <fontSize>"));
+			return;
+		}
+
+		if (!Args[0].IsNumeric())
+		{
+			UE_LOG(LogConsoleResponse, Error, TEXT("Must provide numerical value as \'fontSize\'. Usage: gdt.fontsize <fontSize>"));
+			return;
+		}
+	
+		if (const UGameplayDebuggerLocalController* LocalController = GetController(InWorld))
+		{
+			UGameplayDebuggerUserSettings::SetFontSize(TCString<TCHAR>::Atoi(*Args[0]));
+			check(LocalController->HUDFont);
+			LocalController->HUDFont->LegacyFontSize = UGameplayDebuggerUserSettings::GetFontSize();
+		}
+	}
+
 	/** For legacy command: EnableGDT */
 	static FAutoConsoleCommandWithWorld EnableDebuggerCmd;
 
@@ -973,6 +1000,7 @@ private:
 	static FAutoConsoleCommandWithWorld SelectNextRowCmd;
 	static FAutoConsoleCommandWithWorldAndArgs ToggleCategoryCmd;
 	static FAutoConsoleCommandWithWorldAndArgs EnableCategoryNameCmd;
+	static FAutoConsoleCommandWithWorldAndArgs SetFontSizeCmd;
 };
 
 FAutoConsoleCommandWithWorld FGameplayDebuggerConsoleCommands::EnableDebuggerCmd(
@@ -1015,4 +1043,10 @@ FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::EnableCate
 	TEXT("gdt.EnableCategoryName"),
 	TEXT("Enables/disables categories matching given substring. Use: gdt.EnableCategoryName <CategoryNamePart> [Enable]"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::EnableCategoryName)
+);
+
+FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::SetFontSizeCmd(
+	TEXT("gdt.fontsize"),
+	TEXT("Configures gameplay debugger's font size. Usage: gdt.fontsize <fontSize> (default = 10)"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::SetFontSize)
 );

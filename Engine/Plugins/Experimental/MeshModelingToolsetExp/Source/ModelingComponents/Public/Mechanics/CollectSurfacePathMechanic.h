@@ -38,6 +38,7 @@ public:
 	TUniqueFunction<bool(FVector3d, FVector3d)> SpatialSnapPointsFunc;
 
 	bool bSnapToTargetMeshVertices = false;
+	bool bSnapToWorldGrid = false;
 
 	// tfunc to emit changes to...
 

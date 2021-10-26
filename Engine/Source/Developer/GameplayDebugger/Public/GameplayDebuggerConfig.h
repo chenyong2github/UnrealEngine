@@ -218,11 +218,20 @@ UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Gameplay De
 class GAMEPLAYDEBUGGER_API UGameplayDebuggerUserSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
-public:
+protected:
 	virtual FName GetCategoryName() const override { return TEXT("Advanced"); }
 
+public:
+	static int32 GetFontSize() { return GetDefault<UGameplayDebuggerUserSettings>()->FontSize; }
+	static void SetFontSize(const int32 InFontSize);
+	
 	/** Controls whether GamplayDebugger will be available in pure editor mode. 
 	 *  @Note that you need to reload the map for the changes to this property to take effect */
 	UPROPERTY(config, EditAnywhere, Category = GameplayDebugger)
 	uint32 bEnableGameplayDebuggerInEditor : 1;
+
+protected:
+	/** Font Size used by Gameplay Debugger */ 
+	UPROPERTY(config, EditAnywhere, Category = GameplayDebugger)
+	int32 FontSize = 10;
 };

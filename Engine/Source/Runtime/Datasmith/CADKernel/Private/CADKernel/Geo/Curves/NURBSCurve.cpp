@@ -10,9 +10,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/Reverse.h"
 
-using namespace CADKernel;
-
-FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
+CADKernel::FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
 	: FCurve(InDimension)
 	, Degree(InDegre)
 	, NodalVector(InNodalVector)
@@ -23,7 +21,7 @@ FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, con
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
+CADKernel::FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
 	: FCurve(InDimension)
 	, Degree(InDegre)
 	, NodalVector(InNodalVector)
@@ -34,7 +32,7 @@ FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, con
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
+CADKernel::FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
 	: FCurve(NurbsCurveData.Dimension)
 	, Degree(NurbsCurveData.Degree)
 	, NodalVector(NurbsCurveData.NodalVector)
@@ -45,12 +43,12 @@ FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs)
+CADKernel::FNURBSCurve::FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs)
 	: FNURBSCurve(Nurbs->Degree, Nurbs->NodalVector, Nurbs->Poles, Nurbs->Weights, Nurbs->Dimension)
 {
 }
 
-TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<FPoint> TransformedPoles;
 
@@ -64,7 +62,7 @@ TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FNURBSCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& CADKernel::FNURBSCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info).Add(TEXT("Degre"), Degree)
 		.Add(TEXT("Nodal vector"), NodalVector)
@@ -73,7 +71,7 @@ FInfoEntity& FNURBSCurve::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FNURBSCurve::Finalize()
+void CADKernel::FNURBSCurve::Finalize()
 {
 	// Check if the curve is really rational, otherwise remove the weights
 	if (bIsRational)
@@ -148,14 +146,14 @@ void FNURBSCurve::Finalize()
 	Boundary.Set(NodalVector[Degree], NodalVector[NodalVector.Num() - 1 - Degree]);
 }
 
-void FNURBSCurve::ExtendTo(const FPoint& Point)
+void CADKernel::FNURBSCurve::ExtendTo(const FPoint& Point)
 {
 	PolylineTools::ExtendTo(Poles, Point);
 	Finalize();
 }
 
 
-void FNURBSCurve::SetStartNodalCoordinate(double NewStartBoundary)
+void CADKernel::FNURBSCurve::SetStartNodalCoordinate(double NewStartBoundary)
 {
 	double Offset = NewStartBoundary - NodalVector[0];
 	for (double& NodalValue : NodalVector)
@@ -166,7 +164,7 @@ void FNURBSCurve::SetStartNodalCoordinate(double NewStartBoundary)
 	Boundary.Set(NodalVector[Degree], NodalVector[NodalVector.Num() - 1 - Degree]);
 }
 
-void FNURBSCurve::Invert()
+void CADKernel::FNURBSCurve::Invert()
 {
 	{
 		TArray<FPoint> NewPoles;

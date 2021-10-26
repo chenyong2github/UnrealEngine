@@ -44,7 +44,7 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bFocusAware = true;
 	bPhaseSync = false;
 	bEnableSpecificColorGamut = false;
-	ColorSpace = EColorSpace::Unknown;
+	ColorSpace = EOculusColorSpace::Unknown;
 	bRequiresSystemKeyboard = false;
 	HandTrackingSupport = EHandTrackingSupport::ControllersOnly;
 #endif

@@ -14,7 +14,7 @@
  *	This is a non-instanced gameplay cue notify for effects that are one-offs.
  *	Since it is not instanced, it cannot do latent actions such as delays and time lines.
  */
-UCLASS(Blueprintable, notplaceable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst", ShortTooltip = "A one-off GameplayCueNotify that is never spawned into the world."))
+UCLASS(Blueprintable, Category = "GameplayCueNotify", Meta = (ShowWorldContextPin, DisplayName = "GCN Burst", ShortTooltip = "A one-off GameplayCueNotify that is never spawned into the world."))
 class GAMEPLAYABILITIES_API UGameplayCueNotify_Burst : public UGameplayCueNotify_Static
 {
 	GENERATED_BODY()

@@ -547,6 +547,8 @@ namespace CADKernel
 #ifdef CADKERNEL_DEV
 		FProgress Progress(TEXT("Display Surface"));
 
+		F3DDebugSegment GraphicSegment(Surface->GetId());
+
 		int32 IsoUNum = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
 		int32 IsoVNum = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
 
@@ -591,20 +593,20 @@ namespace CADKernel
 		int32 IsoVCount = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
 		FSurfacicBoundary Bounds = Surface->GetBoundary();
 
-		StepU = (Bounds.UVBoundaries[EIso::IsoU].Max - Bounds.UVBoundaries[EIso::IsoU].Min) / (IsoUCount + 1);
-		StepV = (Bounds.UVBoundaries[EIso::IsoV].Max - Bounds.UVBoundaries[EIso::IsoV].Min) / (IsoVCount + 1);
+		StepU = (Bounds[EIso::IsoU].Max - Bounds[EIso::IsoU].Min) / (IsoUCount + 1);
+		StepV = (Bounds[EIso::IsoV].Max - Bounds[EIso::IsoV].Min) / (IsoVCount + 1);
 
 		for (int32 iIso = 0; iIso <= (IsoUCount + 1); iIso++)
 		{
-			FPoint2D StartPoint(Bounds.UVBoundaries[EIso::IsoU].Min + (iIso)*StepU, Bounds.UVBoundaries[EIso::IsoV].Min);
-			FPoint2D EndPoint(Bounds.UVBoundaries[EIso::IsoU].Min + (iIso)*StepU, Bounds.UVBoundaries[EIso::IsoV].Max);
+			FPoint2D StartPoint(Bounds[EIso::IsoU].Min + (iIso)*StepU, Bounds[EIso::IsoV].Min);
+			FPoint2D EndPoint(Bounds[EIso::IsoU].Min + (iIso)*StepU, Bounds[EIso::IsoV].Max);
 			DrawSegment(StartPoint, EndPoint, EVisuProperty::Iso);
 		}
 
 		for (int32 iIso = 0; iIso <= (IsoVCount + 1); iIso++)
 		{
-			FPoint2D StartPoint(Bounds.UVBoundaries[EIso::IsoU].Min, Bounds.UVBoundaries[EIso::IsoV].Min + (iIso)*StepV);
-			FPoint2D EndPoint(Bounds.UVBoundaries[EIso::IsoU].Max, Bounds.UVBoundaries[EIso::IsoV].Min + (iIso)*StepV);
+			FPoint2D StartPoint(Bounds[EIso::IsoU].Min, Bounds[EIso::IsoV].Min + (iIso)*StepV);
+			FPoint2D EndPoint(Bounds[EIso::IsoU].Max, Bounds[EIso::IsoV].Min + (iIso)*StepV);
 			DrawSegment(StartPoint, EndPoint, EVisuProperty::Iso);
 		}
 #endif
@@ -744,7 +746,7 @@ namespace CADKernel
 					default:
 						Property = EVisuProperty::NonManifoldEdge;
 					}
-					Draw(Edge.Entity, Property);
+					Draw(*Edge.Entity, Property);
 				}
 			}
 		}
@@ -886,6 +888,14 @@ namespace CADKernel
 	{
 #ifdef CADKERNEL_DEV
 		F3DDebugSegment GraphicSegment(Edge->GetId());
+		Draw(*Edge, Property);
+#endif
+	}
+
+	void Display(const FTopologicalEdge& Edge, EVisuProperty Property)
+	{
+#ifdef CADKERNEL_DEV
+		F3DDebugSegment GraphicSegment(Edge.GetId());
 		Draw(Edge, Property);
 #endif
 	}
@@ -900,11 +910,11 @@ namespace CADKernel
 #endif
 	}
 
-	void Draw(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
+	void Draw(const FTopologicalEdge& Edge, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
-		const FLinearBoundary& Boundary = Edge->GetBoundary();
-		Draw(Boundary, Edge->GetCurve(), Property);
+		const FLinearBoundary& Boundary = Edge.GetBoundary();
+		Draw(Boundary, Edge.GetCurve(), Property);
 #endif
 	}
 
@@ -1098,11 +1108,11 @@ namespace CADKernel
 		if (FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals)
 		{
 			double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
-			const TArray<FPoint>& Normals = Mesh->Normals;
+			const TArray<FVector>& Normals = Mesh->Normals;
 			for (int32 Index = 0; Index < VertexIndices.Num(); ++Index)
 			{
 				F3DDebugSegment GraphicSegment(Index);
-				FPoint Normal = Normals[Index];
+				FVector Normal = Normals[Index];
 				Normal.Normalize();
 				Normal *= NormalLength;
 				DrawSegment(*NodeIdToCoordinates[VertexIndices[Index]], *NodeIdToCoordinates[VertexIndices[Index]] + Normal, EVisuProperty::EdgeMesh);
@@ -1114,7 +1124,7 @@ namespace CADKernel
 	void DisplayMesh(const TSharedRef<FEdgeMesh>& Mesh)
 	{
 #ifdef CADKERNEL_DEV
-		const TSharedRef<FModelMesh> MeshModel = Mesh->GetMeshModel();
+		const FModelMesh& MeshModel = Mesh->GetMeshModel();
 
 		const TArray<int32>& NodeIds = Mesh->EdgeVerticesIndex;
 		const TArray<FPoint>& NodeCoordinates = Mesh->GetNodeCoordinates();
@@ -1123,14 +1133,14 @@ namespace CADKernel
 		int32 LastNodeId = NodeIds.Last();
 
 		{
-			F3DDebugSegment GraphicSegment(Mesh->GetGeometricEntity()->GetId());
+			F3DDebugSegment GraphicSegment(Mesh->GetGeometricEntity().GetId());
 			if (NodeCoordinates.Num() == 0)
 			{
-				DrawSegment(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
+				DrawSegment(MeshModel.GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], MeshModel.GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
 			}
 			else
 			{
-				DrawSegment(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], NodeCoordinates[0], EVisuProperty::EdgeMesh);
+				DrawSegment(MeshModel.GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], NodeCoordinates[0], EVisuProperty::EdgeMesh);
 				if (NodeCoordinates.Num() > 1)
 				{
 					for (int32 Index = 0; Index < NodeCoordinates.Num() - 1; Index++)
@@ -1138,18 +1148,18 @@ namespace CADKernel
 						DrawSegment(NodeCoordinates[Index], NodeCoordinates[Index + 1], EVisuProperty::EdgeMesh);
 					}
 				}
-				DrawSegment(NodeCoordinates.Last(), MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
+				DrawSegment(NodeCoordinates.Last(), MeshModel.GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
 			}
 		}
 
 		{
 			F3DDebugSegment GraphicSegment(StartNodeId);
-			DrawPoint(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
+			DrawPoint(MeshModel.GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
 		}
 
 		{
 			F3DDebugSegment GraphicSegment(LastNodeId);
-			DrawPoint(MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
+			DrawPoint(MeshModel.GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
 		}
 
 		if (NodeCoordinates.Num() > 1)

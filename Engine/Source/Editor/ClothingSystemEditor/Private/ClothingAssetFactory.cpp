@@ -457,7 +457,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	FName ConvertedBoneName(*FString(InApexAsset->getBoneName(AssetInternalRootBoneIndex)).Replace(TEXT(" "), TEXT("-")));
 
 	NewClothingAsset->AssetGuid = FGuid::NewGuid();
-	NewClothingAsset->InvalidateCachedData(ClothingCachedData_All);
+	NewClothingAsset->InvalidateCachedData();
 
 	NewClothingAsset->BuildLodTransitionData();
 	NewClothingAsset->CalculateReferenceBoneIndex();

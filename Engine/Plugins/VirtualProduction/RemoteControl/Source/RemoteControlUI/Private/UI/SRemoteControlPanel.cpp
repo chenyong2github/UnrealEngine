@@ -19,6 +19,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
+#include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
@@ -761,6 +762,8 @@ void SRemoteControlPanel::RegisterEvents()
 
 	Preset->OnEntityExposed().AddSP(this, &SRemoteControlPanel::OnEntityExposed);
 	Preset->OnEntityUnexposed().AddSP(this, &SRemoteControlPanel::OnEntityUnexposed);
+
+	UMaterial::OnMaterialCompilationFinished().AddSP(this, &SRemoteControlPanel::OnMaterialCompiled);
 }
 
 void SRemoteControlPanel::UnregisterEvents()
@@ -784,6 +787,8 @@ void SRemoteControlPanel::UnregisterEvents()
 	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRenamed().RemoveAll(this);
+	
+	UMaterial::OnMaterialCompilationFinished().RemoveAll(this);
 }
 
 void SRemoteControlPanel::Refresh()
@@ -1039,6 +1044,11 @@ FReply SRemoteControlPanel::OnClickSettingsButton()
 {
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Remote Control");
 	return FReply::Handled();
+}
+
+void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterface)
+{
+	Refresh();
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

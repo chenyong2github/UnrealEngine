@@ -25,6 +25,8 @@
 #include "CoreMinimal.h"
 #include "Detour/DetourAlloc.h"
 #include "Detour/DetourStatus.h"
+#include "DetourLargeWorldCoordinates.h"
+
 
 // Note: If you want to use 64-bit refs, change the types of both dtPolyRef & dtTileRef.
 // It is also recommended that you change dtHashRef() to a proper 64-bit hash.
@@ -142,6 +144,16 @@ static const unsigned int DT_CLINK_FIRST = 0x80000000;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 //@UE END
 
+//@UE BEGIN Adding support for memory tracking.
+struct dtMeshTile;
+
+typedef void (dtStatsPostAddTileFunc)(const dtMeshTile& TileAdd);
+
+typedef void (dtStatsPreRemoveTileFunc)(const dtMeshTile& tileRemove);
+
+NAVMESH_API void dtStatsSetCustom(dtStatsPostAddTileFunc* addFunc, dtStatsPreRemoveTileFunc* removeFunc);
+//@UE END Adding support for memory tracking.
+
 /// Tile flags used for various functions and fields.
 /// For an example, see dtNavMesh::addTile().
 enum dtTileFlags
@@ -254,16 +266,16 @@ struct dtBVNode
 #if WITH_NAVMESH_SEGMENT_LINKS
 struct dtOffMeshSegmentConnection
 {
-	float startA[3];				///< Start point of segment A
-	float endA[3];					///< End point of segment A
-	float startB[3];				///< Start point of segment B
-	float endB[3];					///< End point of segment B
+	dtReal startA[3];				///< Start point of segment A
+	dtReal endA[3];					///< End point of segment A
+	dtReal startB[3];				///< Start point of segment B
+	dtReal endB[3];					///< End point of segment B
 
 	/// The radius of the endpoints. [Limit: >= 0]
-	float rad;
+	dtReal rad;
 
 	/// The snap height of endpoints (less than 0 = use step height)
-	float height;
+	dtReal height;
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
 	unsigned int userId;	
@@ -294,14 +306,14 @@ struct dtOffMeshSegmentConnection
 struct dtOffMeshConnection
 {
 	/// The endpoints of the connection. [(ax, ay, az, bx, by, bz)]
-	float pos[6];
+	dtReal pos[6];
 
 	/// The radius of the endpoints. [Limit: >= 0]
-	float rad;		
+	dtReal rad;
 
 	//@UE BEGIN
 	/// The snap height of endpoints (less than 0 = use step height)
-	float height;
+	dtReal height;
 	//@UE END
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
@@ -337,7 +349,7 @@ struct dtOffMeshConnection
 /// Cluster of polys
 struct dtCluster
 {
-	float center[3];				///< Center pos of cluster
+	dtReal center[3];				///< Center pos of cluster
 	unsigned int firstLink;			///< Link in dtMeshTile.links array
 	unsigned int numLinks;			///< Number of cluster links
 };
@@ -387,14 +399,14 @@ struct dtMeshHeader
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 	//@UE END
 
-	float walkableHeight;		///< The height of the agents using the tile.
-	float walkableRadius;		///< The radius of the agents using the tile.
-	float walkableClimb;		///< The maximum climb height of the agents using the tile.
-	float bmin[3];				///< The minimum bounds of the tile's AABB. [(x, y, z)]
-	float bmax[3];				///< The maximum bounds of the tile's AABB. [(x, y, z)]
+	dtReal walkableHeight;		///< The height of the agents using the tile.
+	dtReal walkableRadius;		///< The radius of the agents using the tile.
+	dtReal walkableClimb;		///< The maximum climb height of the agents using the tile.
+	dtReal bmin[3];				///< The minimum bounds of the tile's AABB. [(x, y, z)]
+	dtReal bmax[3];				///< The maximum bounds of the tile's AABB. [(x, y, z)]
 	
 	/// The bounding volume quantization factor. 
-	float bvQuantFactor;
+	dtReal bvQuantFactor;
 };
 
 /// Defines a navigation mesh tile.
@@ -406,12 +418,12 @@ struct dtMeshTile
 	unsigned int linksFreeList;			///< Index to the next free link.
 	dtMeshHeader* header;				///< The tile header.
 	dtPoly* polys;						///< The tile polygons. [Size: dtMeshHeader::polyCount]
-	float* verts;						///< The tile vertices. [Size: dtMeshHeader::vertCount]
+	dtReal* verts;						///< The tile vertices. [Size: dtMeshHeader::vertCount]
 	dtLink* links;						///< The tile links. [Size: dtMeshHeader::maxLinkCount]
 	dtPolyDetail* detailMeshes;			///< The tile's detail sub-meshes. [Size: dtMeshHeader::detailMeshCount]
 	
 	/// The detail mesh's unique vertices. [(x, y, z) * dtMeshHeader::detailVertCount]
-	float* detailVerts;	
+	dtReal* detailVerts;
 
 	/// The detail mesh's triangles. [(vertA, vertB, vertC) * dtMeshHeader::detailTriCount]
 	unsigned char* detailTris;	
@@ -436,11 +448,11 @@ struct dtMeshTile
 	dtCluster* clusters;						///< Cluster data
 	unsigned short* polyClusters;				///< Cluster Id for each ground type polygon [Size: dtMeshHeader::polyCount]
 
-	dtChunkArray<dtClusterLink> dynamicLinksC;	///< Dynamic links array (indices starting from DT_CLINK_FIRST)
+	dtChunkArray<dtClusterLink, DT_ALLOC_PERM_TILE_DYNLINK_CLUSTER> dynamicLinksC; ///< Dynamic links array (indices starting from DT_CLINK_FIRST)
 	unsigned int dynamicFreeListC;				///< Index of the next free dynamic link
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
-	dtChunkArray<dtLink> dynamicLinksO;			///< Dynamic links array (indices starting from dtMeshHeader::maxLinkCount)
+	dtChunkArray<dtLink, DT_ALLOC_PERM_TILE_DYNLINK_OFFMESH> dynamicLinksO; ///< Dynamic links array (indices starting from dtMeshHeader::maxLinkCount)
 	unsigned int dynamicFreeListO;				///< Index of the next free dynamic link
 	//@UE END
 };
@@ -451,9 +463,9 @@ struct dtMeshTile
 /// @ingroup detour
 struct dtNavMeshParams
 {
-	float orig[3];					///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
-	float tileWidth;				///< The width of each tile. (Along the x-axis.)
-	float tileHeight;				///< The height of each tile. (Along the z-axis.)
+	dtReal orig[3];					///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
+	dtReal tileWidth;				///< The width of each tile. (Along the x-axis.)
+	dtReal tileHeight;				///< The height of each tile. (Along the z-axis.)
 	int maxTiles;					///< The maximum number of tiles the navigation mesh can contain.
 	int maxPolys;					///< The maximum number of polygons each tile can contain.
 };
@@ -510,7 +522,7 @@ public:
 	///  @param[in]	pos  The world position for the query. [(x, y, z)]
 	///  @param[out]	tx		The tile's x-location. (x, y)
 	///  @param[out]	ty		The tile's y-location. (x, y)
-	void calcTileLoc(const float* pos, int* tx, int* ty) const;
+	void calcTileLoc(const dtReal* pos, int* tx, int* ty) const;
 
 	/// Gets the tile at the specified grid location.
 	///  @param[in]	x		The tile's x-location. (x, y, layer)
@@ -598,7 +610,7 @@ public:
 	///  @param[out]	startPos	The start position of the off-mesh connection. [(x, y, z)]
 	///  @param[out]	endPos		The end position of the off-mesh connection. [(x, y, z)]
 	/// @return The status flags for the operation.
-	dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, const float* currentPos, float* startPos, float* endPos) const;
+	dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, const dtReal* currentPos, dtReal* startPos, dtReal* endPos) const;
 
 	/// Gets the specified off-mesh connection: point type.
 	///  @param[in]	ref		The polygon reference of the off-mesh connection.
@@ -756,7 +768,7 @@ public:
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	/// Shift navigation mesh by provided offset
-	void applyWorldOffset(const float* offset);
+	void applyWorldOffset(const dtReal* offset);
 
 	/// Helper for accessing links
 	inline dtLink& getLink(dtMeshTile* tile, unsigned int linkIdx)
@@ -832,8 +844,8 @@ private:
 	// [UE] result struct for findConnectingPolys
 	struct FConnectingPolyData
 	{
-		float min;
-		float max;
+		dtReal min;
+		dtReal max;
 		dtPolyRef ref;
 	};
 
@@ -849,7 +861,7 @@ private:
 							dtMeshTile** tiles, const int maxTiles) const;
 	
 	/// [UE] Returns all polygons in neighbour tile based on portal defined by the segment.
-	int findConnectingPolys(const float* va, const float* vb,
+	int findConnectingPolys(const dtReal* va, const dtReal* vb,
 		const dtMeshTile* fromTile, int fromPolyIdx,
 		const dtMeshTile* tile, int side,
 		dtChunkArray<FConnectingPolyData>& cons) const;
@@ -882,20 +894,20 @@ private:
 	// TODO: These methods are duplicates from dtNavMeshQuery, but are needed for off-mesh connection finding.
 	
 	/// Queries polygons within a tile.
-	int queryPolygonsInTile(const dtMeshTile* tile, const float* qmin, const float* qmax,
+	int queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, const dtReal* qmax,
 							dtPolyRef* polys, const int maxPolys, bool bExcludeUnwalkable = false) const;
 	/// Find nearest polygon within a tile.
-	dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const float* center,
-									const float* extents, float* nearestPt, bool bExcludeUnwalkable = false) const;
-	dtPolyRef findCheapestNearPolyInTile(const dtMeshTile* tile, const float* center,
-										 const float* extents, float* nearestPt) const;
+	dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const dtReal* center,
+									const dtReal* extents, dtReal* nearestPt, bool bExcludeUnwalkable = false) const;
+	dtPolyRef findCheapestNearPolyInTile(const dtMeshTile* tile, const dtReal* center,
+										 const dtReal* extents, dtReal* nearestPt) const;
 	/// Returns closest point on polygon.
 	void closestPointOnPolyInTile(const dtMeshTile* tile, unsigned int ip,
-								  const float* pos, float* closest) const;
+								  const dtReal* pos, dtReal* closest) const;
 	
 	dtNavMeshParams m_params;			///< Current initialization params. TODO: do not store this info twice.
-	float m_orig[3];					///< Origin of the tile (0,0)
-	float m_tileWidth, m_tileHeight;	///< Dimensions of each tile.
+	dtReal m_orig[3];					///< Origin of the tile (0,0)
+	dtReal m_tileWidth, m_tileHeight;	///< Dimensions of each tile.
 	int m_maxTiles;						///< Max number of tiles.
 	int m_tileLutSize;					///< Tile hash lookup size (must be pot).
 	int m_tileLutMask;					///< Tile hash lookup mask.
@@ -933,7 +945,7 @@ struct ReadTilesHelper
 	ReadTilesHelper() : NumAllocated(0), AllocatedTiles(0) {}
 	~ReadTilesHelper()
 	{
-		dtFree(AllocatedTiles);
+		dtFree(AllocatedTiles, DT_ALLOC_TEMP);
 	}
 
 	dtMeshTile** PrepareArray(int RequestedSize)
@@ -945,7 +957,7 @@ struct ReadTilesHelper
 
 		if (NumAllocated < RequestedSize)
 		{
-			dtFree(AllocatedTiles);
+			dtFree(AllocatedTiles, DT_ALLOC_TEMP);
 			AllocatedTiles = (dtMeshTile**)dtAlloc(RequestedSize * sizeof(dtMeshTile*), DT_ALLOC_TEMP);
 			NumAllocated = RequestedSize;
 		}
@@ -1011,19 +1023,19 @@ if (neis[n] & #DT_EX_LINK)
 }
 @endcode
 
-@var float dtMeshHeader::bvQuantFactor
+@var dtReal dtMeshHeader::bvQuantFactor
 @par
 
 This value is used for converting between world and bounding volume coordinates.
 For example:
 @code
-const float cs = 1.0f / tile->header->bvQuantFactor;
+const dtReal cs = 1.0f / tile->header->bvQuantFactor;
 const dtBVNode* n = &tile->bvTree[i];
 if (n->i >= 0)
 {
     // This is a leaf node.
-    float worldMinX = tile->header->bmin[0] + n->bmin[0]*cs;
-    float worldMinY = tile->header->bmin[0] + n->bmin[1]*cs;
+    dtReal worldMinX = tile->header->bmin[0] + n->bmin[0]*cs;
+    dtReal worldMinY = tile->header->bmin[0] + n->bmin[1]*cs;
     // Etc...
 }
 @endcode
@@ -1044,7 +1056,7 @@ For example: The tile at a location might not have been loaded yet, or may have 
 In this case, pointers will be null.  So if in doubt, check the polygon count in the 
 tile's header to determine if a tile has polygons defined.
 
-@var float dtOffMeshConnection::pos[6]
+@var dtReal dtOffMeshConnection::pos[6]
 @par
 
 For a properly built navigation mesh, vertex A will always be within the bounds of the mesh. 

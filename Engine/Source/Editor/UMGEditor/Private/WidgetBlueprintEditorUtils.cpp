@@ -235,8 +235,8 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 
 		// Rename Preview before renaming the template widget so the preview widget can be found
 		UWidget* WidgetPreview = BlueprintEditor->GetReferenceFromTemplate(Widget).GetPreview();
-		if(WidgetPreview)
-		{			
+		if (WidgetPreview)
+		{
 			WidgetPreview->SetDisplayLabel(NewNameStr);
 			WidgetPreview->Rename(*NewNameStr);
 		}
@@ -503,6 +503,7 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 			for ( UWidget* Widget : ChildWidgets )
 			{
 				Widget->SetFlags(RF_Transactional);
+				Widget->Modify();
 				if (UsedVariables.Contains(Widget))
 				{
 					FBlueprintEditorUtils::RemoveVariableNodes(Blueprint, Widget->GetFName());
@@ -813,7 +814,7 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 			if (NewWrapperWidget == nullptr || !NewWrapperWidget->CanAddMoreChildren())
 			{
 				NewWrapperWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
-				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());				
+				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());
 
 				CurrentParent->SetFlags(RF_Transactional);
 				CurrentParent->Modify();
@@ -1167,7 +1168,11 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 		}
 		else if (WidgetTemplate == BP->WidgetTree->RootWidget)
 		{
-			NamedSlotContentTemplate->RemoveFromParent();
+			if (UPanelWidget* Parent = NamedSlotContentTemplate->GetParent())
+			{
+				Parent->Modify();
+				NamedSlotContentTemplate->RemoveFromParent();
+			}
 
 			BP->WidgetTree->Modify();
 			BP->WidgetTree->RootWidget = NamedSlotContentTemplate;
@@ -1689,9 +1694,9 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 		else
 		{
 			check(RootPasteWidgets.Num() == 1)
-				// If we've arrived here, we must be creating the root widget from paste data, and there can only be
-				// one item in the paste data by now.
-				BP->WidgetTree->Modify();
+			// If we've arrived here, we must be creating the root widget from paste data, and there can only be
+			// one item in the paste data by now.
+			BP->WidgetTree->Modify();
 
 			for ( UWidget* NewWidget : RootPasteWidgets )
 			{

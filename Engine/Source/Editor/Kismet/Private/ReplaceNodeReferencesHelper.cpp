@@ -40,10 +40,10 @@ void FReplaceNodeReferencesHelper::BeginFindAndReplace(const FSimpleDelegate& In
 
 void FReplaceNodeReferencesHelper::ReplaceReferences(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
 {
-	ReplaceReferences(ReplacementReference, Blueprint, InRawDataList);
+	ReplaceReferences(SourceReference, ReplacementReference, Blueprint, InRawDataList);
 }
 
-void FReplaceNodeReferencesHelper::ReplaceReferences(FMemberReference& InReplacement, UBlueprint* InBlueprint, TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
+void FReplaceNodeReferencesHelper::ReplaceReferences(const FMemberReference& InSource, const FMemberReference& InReplacement, UBlueprint* InBlueprint, TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
 {
 	const FScopedTransaction Transaction(FText::Format(LOCTEXT("ReplaceRefs", "Replace References with {0}"), FText::FromName(InReplacement.GetMemberName())));
 	TArray< UBlueprint* > BlueprintsModified;
@@ -51,20 +51,12 @@ void FReplaceNodeReferencesHelper::ReplaceReferences(FMemberReference& InReplace
 	{
 		UBlueprint* Blueprint = ImaginaryData->GetBlueprint();
 		BlueprintsModified.AddUnique(Blueprint);
-		UObject* Node = ImaginaryData->GetObject(Blueprint);
-		UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node);
-		if (ensure(VariableNode))
+		UK2Node* Node = Cast<UK2Node>(ImaginaryData->GetObject(Blueprint));
+		if (ensure(Node))
 		{
-			VariableNode->Modify();
-			if (VariableNode->VariableReference.IsLocalScope() || VariableNode->VariableReference.IsSelfContext())
-			{
-				VariableNode->VariableReference = InReplacement;
-			}
-			else
-			{
-				VariableNode->VariableReference.SetFromField<FProperty>(InReplacement.ResolveMember<FProperty>(InBlueprint), Blueprint->GeneratedClass);
-			}
-			VariableNode->ReconstructNode();
+			Node->Modify();
+			Node->ReplaceReferences(InBlueprint, Blueprint, InSource, InReplacement);
+			Node->ReconstructNode();
 		}
 	}
 

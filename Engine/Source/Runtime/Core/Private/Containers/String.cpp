@@ -18,7 +18,7 @@
 /* FString implementation
  *****************************************************************************/
 
-namespace UE4String_Private
+namespace UE::Core::String::Private
 {
 	struct FCompareCharsCaseSensitive
 	{
@@ -1002,11 +1002,11 @@ bool FString::MatchesWildcard(const TCHAR* InWildcard, ESearchCase::Type SearchC
 
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
-		return UE4String_Private::MatchesWildcardRecursive<UE4String_Private::FCompareCharsCaseSensitive>(Target, TargetLength, InWildcard, WildcardLength);
+		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseSensitive>(Target, TargetLength, InWildcard, WildcardLength);
 	}
 	else
 	{
-		return UE4String_Private::MatchesWildcardRecursive<UE4String_Private::FCompareCharsCaseInsensitive>(Target, TargetLength, InWildcard, WildcardLength);
+		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseInsensitive>(Target, TargetLength, InWildcard, WildcardLength);
 	}
 }
 

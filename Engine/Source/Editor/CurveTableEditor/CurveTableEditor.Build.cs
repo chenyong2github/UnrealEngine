@@ -21,6 +21,7 @@ public class CurveTableEditor : ModuleRules
                 "EditorStyle",
 				"UnrealEd",
 				"EditorWidgets",
+				"ToolWidgets",
 			}
 		);
 

@@ -30,6 +30,8 @@ private:
 
 	virtual void HandleTextCommitted( const FText& NewText, ETextCommit::Type CommitInfo );
 
+	bool CanEdit() const;
+
 private:
 
 	TSharedPtr< class FPropertyEditor > PropertyEditor;

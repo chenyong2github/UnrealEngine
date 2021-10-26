@@ -31,7 +31,6 @@ public:
 		, _HasDownArrow(true)
 		, _ForegroundColor(FSlateColor::UseStyle())
 		, _ButtonColorAndOpacity(FLinearColor::White)
-		, _ContentPadding(_ComboButtonStyle->ContentPadding)
 		, _MenuPlacement(MenuPlacement_ComboBox)
 		, _HAlign(HAlign_Fill)
 		, _VAlign(VAlign_Center)

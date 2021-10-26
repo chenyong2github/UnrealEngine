@@ -866,7 +866,7 @@ void MainPS(
 
 	// Remove the pre view translation
 	Parameters.WorldPosition_CamRelative = TranslatedWorldPosition.xyz;
-	Parameters.AbsoluteWorldPosition = TranslatedWorldPosition, LWCHackToFloat(ResolvedView.PreViewTranslation);
+	Parameters.AbsoluteWorldPosition = LWCToFloat(LWCSubtract(TranslatedWorldPosition, ResolvedView.PreViewTranslation));
 
 	Parameters.SvPosition = SvPosition;
 	Parameters.ScreenPosition = ScreenPosition;

@@ -10,7 +10,7 @@ class ILevelSnapshotsModule;
 class FDisplayClusterRootActorSerializer : public TReferenceSubobjectSerializer<FDisplayClusterRootActorSerializer>
 {
 	static UClass* GetSupportedClass();
-	static void BlacklistCustomProperties(ILevelSnapshotsModule& Module);
+	static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
 
 public:
 

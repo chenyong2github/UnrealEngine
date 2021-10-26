@@ -89,7 +89,7 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						OutputProxy.MixFunction(&OutSampleHold, &ModStageValue, 1);
+						OutputProxy.MixFunction(OutSampleHold, ModStageValue);
 					}
 				}
 			}
@@ -102,13 +102,13 @@ namespace AudioModulation
 					{
 						float ModStageValue = BusProxy.GetValue();
 						Input.Transform.Apply(ModStageValue);
-						OutputProxy.MixFunction(&Value, &ModStageValue, 1);
+						OutputProxy.MixFunction(Value, ModStageValue);
 					}
 				}
 			}
 		}
 
-		OutputProxy.MixFunction(&Value, &OutSampleHold, 1);
+		OutputProxy.MixFunction(Value, OutSampleHold);
 	}
 
 	FModulationPatchRefProxy::FModulationPatchRefProxy()

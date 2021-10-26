@@ -144,6 +144,7 @@ namespace CADKernel
 	CADKERNEL_API void Display(const TSharedPtr<FBody>& Body);
 	CADKERNEL_API void Display(const TSharedPtr<FShell>& Shell);
 	CADKERNEL_API void Display(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Display(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
 	CADKERNEL_API void Display(const TSharedPtr<FTopologicalFace>& Face);
 	CADKERNEL_API void Display(const TSharedPtr<FTopologicalLoop>& Loop);
 	CADKERNEL_API void Display(const TSharedPtr<FTopologicalVertex>& Vertex);
@@ -184,7 +185,7 @@ namespace CADKernel
 
 	CADKERNEL_API void DrawQuadripode(double Height, double Base, FPoint& Centre, FPoint& Direction);
 
-	CADKERNEL_API void Draw(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Draw(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
 	CADKERNEL_API void Draw(const TSharedPtr<FTopologicalFace>& Face);
 	CADKERNEL_API void Draw2D(const TSharedPtr<FTopologicalFace>& Face);
 	CADKERNEL_API void Draw(const TSharedPtr<FShell>& Shell);

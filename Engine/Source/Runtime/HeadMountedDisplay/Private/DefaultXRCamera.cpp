@@ -10,7 +10,7 @@
 #include "IHeadMountedDisplay.h"
 
 FDefaultXRCamera::FDefaultXRCamera(const FAutoRegister& AutoRegister, IXRTrackingSystem* InTrackingSystem, int32 InDeviceId)
-	: FSceneViewExtensionBase(AutoRegister)
+	: FHMDSceneViewExtension(AutoRegister)
 	, TrackingSystem(InTrackingSystem)
 	, DeviceId(InDeviceId)
 	, DeltaControlRotation(0, 0, 0)
@@ -213,6 +213,6 @@ void FDefaultXRCamera::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InV
 
 bool FDefaultXRCamera::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	bCurrentFrameIsStereoRendering = GEngine && GEngine->IsStereoscopic3D(Context.Viewport); // The current viewport might disallow stereo rendering. Save it so we'll use the correct value in SetupViewFamily.
+	bCurrentFrameIsStereoRendering = FHMDSceneViewExtension::IsActiveThisFrame_Internal(Context); // The current context/viewport might disallow stereo rendering. Save it so we'll use the correct value in SetupViewFamily.
 	return bCurrentFrameIsStereoRendering && TrackingSystem->IsHeadTrackingAllowed();
 }

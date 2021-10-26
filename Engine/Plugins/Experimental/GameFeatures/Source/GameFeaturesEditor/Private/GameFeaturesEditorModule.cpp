@@ -270,7 +270,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 			Settings->PrimaryAssetTypesToScan.Add(NewTypeInfo);
 
  			Settings->PostEditChange();
-			Settings->UpdateDefaultConfigFile();
+			Settings->TryUpdateDefaultConfigFile();
 
 			UAssetManager::Get().ReinitializeFromConfig();
 		}

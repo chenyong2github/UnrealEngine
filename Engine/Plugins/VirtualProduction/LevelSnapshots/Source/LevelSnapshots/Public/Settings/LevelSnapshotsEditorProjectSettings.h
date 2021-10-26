@@ -3,7 +3,7 @@
 #pragma once
 
 #include "HashSettings.h"
-#include "RestorationBlacklist.h"
+#include "Settings/SkippedClassList.h"
 #include "LevelSnapshotsEditorProjectSettings.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
@@ -28,7 +28,7 @@ public:
 
 	/* Specifies classes and properties that should never be captured nor restored. */
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Behavior")
-	FRestorationBlacklist Blacklist;
+	FSkippedClassList SkippedClasses;
 
 	
 

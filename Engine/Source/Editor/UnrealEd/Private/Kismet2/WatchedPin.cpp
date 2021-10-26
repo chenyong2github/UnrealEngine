@@ -12,6 +12,12 @@ FBlueprintWatchedPin::FBlueprintWatchedPin(const UEdGraphPin* Pin)
 	SetFromPin(Pin);
 }
 
+FBlueprintWatchedPin::FBlueprintWatchedPin(const UEdGraphPin* Pin, TArray<FName>&& InPathToProperty)
+	: PathToProperty(MoveTemp(InPathToProperty))
+{
+	SetFromPin(Pin);
+}
+
 UEdGraphPin* FBlueprintWatchedPin::Get() const
 {
 	UEdGraphPin* FoundPin = CachedPinRef.Get();
@@ -45,4 +51,12 @@ void FBlueprintWatchedPin::SetFromPin(const UEdGraphPin* Pin)
 	}
 
 	CachedPinRef = Pin;
+}
+
+void FBlueprintWatchedPin::SetFromWatchedPin(FBlueprintWatchedPin&& Other)
+{
+	PinId = Other.PinId;
+	OwningNode = Other.OwningNode;
+	CachedPinRef = Other.CachedPinRef;
+	PathToProperty = MoveTemp(Other.PathToProperty);
 }

@@ -8,8 +8,6 @@ public class Virtualization : ModuleRules
 	public Virtualization(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.Add("Core");
-
-		// Remove this when we move the rest of the Virtualization code to this module
 		PrivateDependencyModuleNames.Add("CoreUObject");
 
 		//  Dependency for DDC2

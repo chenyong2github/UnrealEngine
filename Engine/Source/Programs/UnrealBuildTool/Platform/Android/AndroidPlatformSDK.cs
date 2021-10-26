@@ -188,6 +188,15 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		protected virtual bool HasAnySDK()
 		{
+			// The Android SDK is not required to build AndroidTargetPlatform. So for installed builds where its expected another machine will have
+			// the SDK setup we can force this to be on to build AndroidTargetPlatform.
+			string ForceAndroidSDK = Environment.GetEnvironmentVariable("FORCE_ANDROID_SDK_ENABLED");
+
+			if (!String.IsNullOrEmpty(ForceAndroidSDK))
+			{
+				return true;
+			}
+
 			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 			{
 				ConfigHierarchy configCacheIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, BuildHostPlatform.Current.Platform);

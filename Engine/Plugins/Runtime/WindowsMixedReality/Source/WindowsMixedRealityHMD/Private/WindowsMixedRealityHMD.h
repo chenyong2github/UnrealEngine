@@ -39,7 +39,7 @@ namespace WindowsMixedReality
 	class WINDOWSMIXEDREALITYHMD_API FWindowsMixedRealityHMD
 		: public FHeadMountedDisplayBase
 		, public FXRRenderTargetManager
-		, public FSceneViewExtensionBase
+		, public FHMDSceneViewExtension
 	{
 	public:
 
@@ -201,7 +201,6 @@ namespace WindowsMixedReality
 		virtual void PreRenderViewFamily_RenderThread(
 			FRHICommandListImmediate& RHICmdList,
 			FSceneViewFamily& InViewFamily) override { }
-		virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const;
 
 		void CreateHMDDepthTexture(FRHICommandListImmediate& RHICmdList);
 

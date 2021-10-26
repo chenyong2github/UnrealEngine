@@ -46,7 +46,6 @@
 #include "EngineModule.h"
 #include "GPUScene.h"
 #include "MaterialSceneTextureId.h"
-#include "DebugViewModeRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "VisualizeTexture.h"
 #include "VT/VirtualTextureFeedback.h"
@@ -171,7 +170,6 @@ static void RenderOpaqueFX(
 BEGIN_SHADER_PARAMETER_STRUCT(FMobileRenderPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileBasePassUniformParameters, MobileBasePass)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, DebugViewMode)
 	RDG_BUFFER_ACCESS_ARRAY(DrawIndirectArgsBuffers)
 	RDG_BUFFER_ACCESS_ARRAY(InstanceIdOffsetBuffers)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -443,6 +441,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
 	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]) || IsMobileDistortionActive(Views[0]);
 	const bool bRequireSeparateViewPass = Views.Num() > 1 && !Views[0].bIsMobileMultiViewEnabled;
+	const bool bIsSimulatedLDR = (!IsMobileHDR() && IsSimulatedPlatform(ShaderPlatform));
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent =
 		bRequiresMultiPass ||
@@ -455,9 +454,10 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
 		bShouldRenderVelocities ||
 		bRequireSeparateViewPass ||
-		bIsFullDepthPrepassEnabled;
+		bIsFullDepthPrepassEnabled ||
+        bIsSimulatedLDR;
 	// never keep MSAA depth
-	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
+	bKeepDepthContent = ((NumMSAASamples > 1) && MobileRequiresSceneDepthAux(ShaderPlatform)) ? false : bKeepDepthContent;
 
 	// Update the bKeepDepthContent based on the mobile renderer status.
 	SceneTexturesConfig.bKeepDepthContent = bKeepDepthContent;
@@ -823,12 +823,18 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RenderFullDepthPrepass(GraphBuilder, SceneTextures);
 
+		if (!MobileRequiresSceneDepthAux(ShaderPlatform))
+		{
+			AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
+		}
+
 		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::SceneDepth;
 		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
 
 		if (bRequiresDistanceFieldShadowingPass)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderMobileShadowProjections);
+			RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
 			RenderMobileShadowProjections(GraphBuilder, SceneTextures.Depth.Resolve);
 		}
 
@@ -986,7 +992,10 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, FRDGTextureR
 
 	FRenderTargetBindingSlots BasePassRenderTargets;
 	BasePassRenderTargets[0] = FRenderTargetBinding(SceneColor, SceneColorResolve, ERenderTargetLoadAction::EClear);
-	BasePassRenderTargets[1] = FRenderTargetBinding(SceneTextures.DepthAux.Target, SceneTextures.DepthAux.Resolve, ERenderTargetLoadAction::EClear);
+	if (MobileRequiresSceneDepthAux(ShaderPlatform))
+	{
+		BasePassRenderTargets[1] = FRenderTargetBinding(SceneTextures.DepthAux.Target, SceneTextures.DepthAux.Resolve, ERenderTargetLoadAction::EClear);
+	}
 	BasePassRenderTargets.DepthStencil = bIsFullDepthPrepassEnabled ? FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite) : FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	BasePassRenderTargets.ShadingRateTexture = (!MainView.bIsSceneCapture && !MainView.bIsReflectionCapture && ShadingRateTarget.IsValid()) ? RegisterExternalTexture(GraphBuilder, ShadingRateTarget->GetRenderTargetItem().ShaderResourceTexture, TEXT("ShadingRateTexture")) : nullptr;
 	BasePassRenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -1032,13 +1041,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, FRDGTextureR
 		PassParameters->View = View.GetShaderParameters();
 		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode, MobileBasePassTextures);
 		PassParameters->RenderTargets = BasePassRenderTargets;
-		#if WITH_DEBUG_VIEW_MODES
-		if (ViewFamily.UseDebugViewPS())
-		{
-			PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, SceneTextures.QuadOverdraw);
-		}
-		#endif
-		
+	
 		BuildInstanceCullingDrawParams(GraphBuilder, View, PassParameters);
 
 		// Split if we need to render translucency in a separate render pass
@@ -1142,7 +1145,10 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 	}
 
 	BasePassRenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
-	BasePassRenderTargets[1].SetLoadAction(ERenderTargetLoadAction::ELoad);
+	if (MobileRequiresSceneDepthAux(ShaderPlatform))
+	{
+		BasePassRenderTargets[1].SetLoadAction(ERenderTargetLoadAction::ELoad);
+	}
 	BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
 	BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
 	BasePassRenderTargets.DepthStencil.SetDepthStencilAccess(ExclusiveDepthStencil);
@@ -1319,12 +1325,6 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 		PassParameters->View = View.GetShaderParameters();
 		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode, MobileBasePassTextures);
 		PassParameters->RenderTargets = BasePassRenderTargets;
-		#if WITH_DEBUG_VIEW_MODES
-		if (ViewFamily.UseDebugViewPS())
-		{
-			PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, SceneTextures.QuadOverdraw);
-		}
-		#endif
 		
 		BuildInstanceCullingDrawParams(GraphBuilder, View, PassParameters);
 

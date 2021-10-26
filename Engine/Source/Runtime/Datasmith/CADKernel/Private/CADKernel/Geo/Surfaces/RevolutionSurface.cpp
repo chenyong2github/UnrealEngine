@@ -7,9 +7,7 @@
 
 #include <math.h>
 
-using namespace CADKernel;
-
-FRevolutionSurface::FRevolutionSurface(const double InToleranceGeometric, TSharedRef<FSegmentCurve> InAxe, TSharedRef<FCurve> InGeneratrix, double InMinAngle, double InMaxAngle)
+CADKernel::FRevolutionSurface::FRevolutionSurface(const double InToleranceGeometric, TSharedRef<FSegmentCurve> InAxe, TSharedRef<FCurve> InGeneratrix, double InMinAngle, double InMaxAngle)
 	: FSurface(InToleranceGeometric)
 	, Axis(InAxe)
 	, Generatrix(InGeneratrix)
@@ -23,7 +21,7 @@ FRevolutionSurface::FRevolutionSurface(const double InToleranceGeometric, TShare
 	SetMinToleranceIso();
 }
 
-void FRevolutionSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FRevolutionSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	FCurvePoint GeneratrixPoint;
 	Generatrix->EvaluatePoint(InSurfacicCoordinate.U, GeneratrixPoint, InDerivativeOrder);
@@ -49,7 +47,7 @@ void FRevolutionSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSu
 	}
 }
 
-void FRevolutionSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FRevolutionSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 
@@ -98,18 +96,18 @@ void FRevolutionSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, F
 
 }
 
-void FRevolutionSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void CADKernel::FRevolutionSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	Generatrix->Presample(Coordinates[EIso::IsoU], Tolerance3D);
 	PresampleIsoCircle(InBoundaries, Coordinates, EIso::IsoV);
 }
 
-void FRevolutionSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutCoordinates) const
+void CADKernel::FRevolutionSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutCoordinates) const
 {
 	Generatrix->FindNotDerivableCoordinates(InDerivativeOrder, OutCoordinates[EIso::IsoU]);
 }
 
-TSharedPtr<FEntityGeom> FRevolutionSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FRevolutionSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FSegmentCurve> TransformedAxe = StaticCastSharedPtr<FSegmentCurve>(Axis->ApplyMatrix(InMatrix));
 	if (!TransformedAxe.IsValid())
@@ -127,7 +125,7 @@ TSharedPtr<FEntityGeom> FRevolutionSurface::ApplyMatrix(const FMatrixH& InMatrix
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FRevolutionSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FRevolutionSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("axis"), Axis)
 		.Add(TEXT("Generatrix"), Generatrix)
@@ -136,7 +134,7 @@ FInfoEntity& FRevolutionSurface::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FRevolutionSurface::SpawnIdent(FDatabase& Database)
+void CADKernel::FRevolutionSurface::SpawnIdent(FDatabase& Database)
 {
 	if (!FEntity::SetId(Database))
 	{
@@ -147,7 +145,7 @@ void FRevolutionSurface::SpawnIdent(FDatabase& Database)
 	Generatrix->SpawnIdent(Database);
 }
 
-void FRevolutionSurface::ResetMarkersRecursively()
+void CADKernel::FRevolutionSurface::ResetMarkersRecursively()
 {
 	ResetMarkers();
 	Axis->ResetMarkersRecursively();

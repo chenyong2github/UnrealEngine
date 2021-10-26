@@ -102,6 +102,9 @@ private:
 	// The game content domain
 	TSharedPtr<FDomainData> GameDomain;
 
+	// The never cooked content domain
+	TSharedPtr<FDomainData> NeverCookDomain;
+
 	// List of domains that came from plugins (used for domain pickers in the settings)
 	TArray<FString> DomainsDefinedByPlugins;
 

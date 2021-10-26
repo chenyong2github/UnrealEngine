@@ -13,19 +13,19 @@ void dtSharedBoundary::Initialize()
 	}
 }
 
-void dtSharedBoundary::Tick(float DeltaTime)
+void dtSharedBoundary::Tick(dtReal DeltaTime)
 {
 	CurrentTime += DeltaTime;
 	
 	// clear unused entries
 	if (CurrentTime > NextClearTime)
 	{
-		const float MaxLifeTime = 2.0f;
+		const dtReal MaxLifeTime = 2.0f;
 		NextClearTime = CurrentTime + MaxLifeTime;
 
 		for (TSparseArray<dtSharedBoundaryData>::TIterator It(Data); It; ++It)
 		{
-			const float LastAccess = CurrentTime - It->AccessTime;
+			const dtReal LastAccess = CurrentTime - It->AccessTime;
 			if (LastAccess >= MaxLifeTime)
 			{
 				It.RemoveCurrent();
@@ -34,7 +34,7 @@ void dtSharedBoundary::Tick(float DeltaTime)
 	}
 }
 
-int32 dtSharedBoundary::CacheData(float* Center, float Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, dtQueryFilter* NavFilter)
+int32 dtSharedBoundary::CacheData(dtReal* Center, dtReal Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, dtQueryFilter* NavFilter)
 {
 	// bail if requested poly is not valid (e.g. rebuild in progress)
 	if (NavQuery && !NavQuery->isValidPolyRef(CenterPoly, NavFilter))
@@ -68,7 +68,7 @@ int32 dtSharedBoundary::CacheData(float* Center, float Radius, dtPolyRef CenterP
 	return DataIdx;
 }
 
-int32 dtSharedBoundary::CacheData(float* Center, float Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, uint8 SingleAreaId)
+int32 dtSharedBoundary::CacheData(dtReal* Center, dtReal Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, uint8 SingleAreaId)
 {
 	SingleAreaFilter.setAreaCost(SingleAreaId, 1.0f);
 
@@ -108,7 +108,7 @@ void dtSharedBoundary::FindEdges(dtSharedBoundaryData& SharedData, dtPolyRef Cen
 {
 	const int32 MaxWalls = 64;
 	int32 NumWalls = 0;
-	float WallSegments[MaxWalls * 3 * 2] = { 0 };
+	dtReal WallSegments[MaxWalls * 3 * 2] = { 0 };
 	dtPolyRef WallPolys[MaxWalls * 2] = { 0 };
 
 	const int32 MaxNeis = 64;
@@ -136,16 +136,16 @@ void dtSharedBoundary::FindEdges(dtSharedBoundaryData& SharedData, dtPolyRef Cen
 	}
 }
 
-int32 dtSharedBoundary::FindData(float* Center, float Radius, dtPolyRef ReqPoly, dtQueryFilter* NavFilter) const
+int32 dtSharedBoundary::FindData(dtReal* Center, dtReal Radius, dtPolyRef ReqPoly, dtQueryFilter* NavFilter) const
 {
-	const float RadiusThr = 50.0f;
-	const float DistThrSq = FMath::Square(Radius * 0.5f);
+	const dtReal RadiusThr = 50.0f;
+	const dtReal DistThrSq = dtSqr(Radius * 0.5f);
 
 	for (int32 Idx = 0; Idx < Data.Num(); Idx++)
 	{
 		if (Data[Idx].Filter == NavFilter)
 		{
-			const float DistSq = dtVdistSqr(Center, Data[Idx].Center);
+			const dtReal DistSq = dtVdistSqr(Center, Data[Idx].Center);
 			if (DistSq <= DistThrSq && dtAbs(Data[Idx].Radius - Radius) < RadiusThr)
 			{
 				if (Data[Idx].Polys.Contains(ReqPoly))
@@ -159,16 +159,16 @@ int32 dtSharedBoundary::FindData(float* Center, float Radius, dtPolyRef ReqPoly,
 	return -1;
 }
 
-int32 dtSharedBoundary::FindData(float* Center, float Radius, dtPolyRef ReqPoly, uint8 SingleAreaId) const
+int32 dtSharedBoundary::FindData(dtReal* Center, dtReal Radius, dtPolyRef ReqPoly, uint8 SingleAreaId) const
 {
-	const float DistThrSq = FMath::Square(Radius * 0.5f);
-	const float RadiusThr = 50.0f;
+	const dtReal DistThrSq = dtSqr(Radius * 0.5f);
+	const dtReal RadiusThr = 50.0f;
 
 	for (int32 Idx = 0; Idx < Data.Num(); Idx++)
 	{
 		if (Data[Idx].SingleAreaId == SingleAreaId)
 		{
-			const float DistSq = dtVdistSqr(Center, Data[Idx].Center);
+			const dtReal DistSq = dtVdistSqr(Center, Data[Idx].Center);
 			if (DistSq <= DistThrSq && dtAbs(Data[Idx].Radius - Radius) < RadiusThr)
 			{
 				if (Data[Idx].Polys.Contains(ReqPoly))

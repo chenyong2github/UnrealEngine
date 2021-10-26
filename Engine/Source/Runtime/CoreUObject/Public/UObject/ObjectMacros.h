@@ -92,8 +92,8 @@ enum ESaveFlags
 	SAVE_CutdownPackage	= 0x00000040,	///< Saving cutdown packages in a temp location WITHOUT renaming the package.
 	SAVE_KeepEditorOnlyCookedPackages = 0x00000080,  ///< Keep packages which are marked as editor only even though we are cooking
 	SAVE_Concurrent		= 0x00000100,	///< We are save packages in multiple threads at once and should not call non-threadsafe functions or rely on globals. GIsSavingPackage should be set and PreSave/Postsave functions should be called before/after the entire concurrent save.
-	SAVE_DiffOnly       = 0x00000200,	///< Serializes the package to a special memory archive that performs a diff with an existing file on disk
-	SAVE_DiffCallstack  = 0x00000400,	///< Serializes the package to a special memory archive that compares all differences against a file on disk and dumps relevant callstacks
+	SAVE_DiffOnly		UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000200,
+	SAVE_DiffCallstack  UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000400,
 	SAVE_ComputeHash    = 0x00000800,	///< Compute the MD5 hash of the cooked data
 	SAVE_CompareLinker	= 0x00001000,	///< Return the linker save to compare against another
 	SAVE_BulkDataByReference = 0x00002000, ///< When saving to a different file than the package's LoadedPath, point bulkdata in the new file to be loaded from the original file.
@@ -182,8 +182,8 @@ enum EClassFlags
 	CLASS_Config			  = 0x00000004u,
 	/** This object type can't be saved; null it out at save time. */
 	CLASS_Transient			  = 0x00000008u,
-	/** Successfully parsed. */
-	CLASS_Parsed              = 0x00000010u,
+	/** This object type may not be available in certain context. (i.e. game runtime or in certain configuration). Optional class data is saved separately to other object types. (i.e. might use sidecar files) */
+	CLASS_Optional            = 0x00000010u,
 	/** */
 	CLASS_MatchedSerializers  = 0x00000020u,
 	/** Indicates that the config settings for this class will be saved to Project/User*.ini (similar to CLASS_GlobalUserConfig) */
@@ -252,7 +252,7 @@ enum EClassFlags
 ENUM_CLASS_FLAGS(EClassFlags);
 
 /** Flags to inherit from base class */
-#define CLASS_Inherit ((EClassFlags)(CLASS_Transient | CLASS_DefaultConfig | CLASS_Config | CLASS_PerObjectConfig | CLASS_ConfigDoNotCheckDefaults | CLASS_NotPlaceable \
+#define CLASS_Inherit ((EClassFlags)(CLASS_Transient | CLASS_Optional | CLASS_DefaultConfig | CLASS_Config | CLASS_PerObjectConfig | CLASS_ConfigDoNotCheckDefaults | CLASS_NotPlaceable \
 						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig | CLASS_NeedsDeferredDependencyLoading))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
@@ -725,6 +725,9 @@ namespace UC
 
 		/// This class should be saved normally (it cancels out an inherited transient flag).
 		nonTransient,
+
+		/// This class is optional and might not be available in certain context. reference from non optional data type is not allowed.
+		Optional,
 
 		/// Load object configuration at construction time.  These flags are inherited by subclasses.
 		/// Class containing config properties. Usage config=ConfigName or config=inherit (inherits config name from base class).

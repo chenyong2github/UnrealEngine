@@ -70,7 +70,7 @@ void ULocalizationSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		}
 	}
 
-	UpdateDefaultConfigFile();
+	TryUpdateDefaultConfigFile();
 }
 #endif
 

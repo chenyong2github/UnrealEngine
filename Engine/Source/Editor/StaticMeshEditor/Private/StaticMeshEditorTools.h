@@ -195,6 +195,7 @@ private:
 	ECheckBoxState ShouldBuildReversedIndexBuffer() const;
 	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
+	ECheckBoxState ShouldUseBackwardsCompatibleF16TruncUVs() const;
 	ECheckBoxState ShouldGenerateLightmapUVs() const;
 	ECheckBoxState ShouldGenerateDistanceFieldAsIfTwoSided() const;
 	bool IsRemoveDegeneratesDisabled() const;
@@ -214,6 +215,7 @@ private:
 	void OnBuildReversedIndexBufferChanged(ECheckBoxState NewState);
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
+	void OnUseBackwardsCompatibleF16TruncUVsChanged(ECheckBoxState NewState);
 	void OnGenerateLightmapUVsChanged(ECheckBoxState NewState);
 	void OnGenerateDistanceFieldAsIfTwoSidedChanged(ECheckBoxState NewState);
 	void OnMinLightmapResolutionChanged( int32 NewValue );

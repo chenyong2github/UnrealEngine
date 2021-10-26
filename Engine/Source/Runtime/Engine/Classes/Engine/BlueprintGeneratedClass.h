@@ -852,6 +852,8 @@ public:
 
 	/** called to gather blueprint replicated properties */
 	virtual void GetLifetimeBlueprintReplicationList(TArray<class FLifetimeProperty>& OutLifetimeProps) const;
+
+	UE_DEPRECATED(5.0, "To be removed in a future release.")
 	/** called prior to replication of an instance of this BP class */
 	virtual void InstancePreReplication(UObject* Obj, class IRepChangedPropertyTracker& ChangedPropertyTracker) const
 	{

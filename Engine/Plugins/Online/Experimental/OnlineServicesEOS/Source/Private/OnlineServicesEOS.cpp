@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineServicesEOS.h"
-
-#if WITH_EOS_SDK
+#include "OnlineServicesEOSTypes.h"
 
 #include "IEOSSDKManager.h"
 #include "AuthEOS.h"
+#include "FriendsEOS.h"
+#include "PresenceEOS.h"
 
 namespace UE::Online {
 
@@ -15,7 +16,6 @@ FOnlineServicesEOS::FOnlineServicesEOS()
 	EOS_Platform_Options PlatformOptions = {};
 	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
 	PlatformOptions.bIsServer = EOS_FALSE;
-	PlatformOptions.EncryptionKey = nullptr;
 	PlatformOptions.OverrideCountryCode = nullptr;
 	PlatformOptions.OverrideLocaleCode = nullptr;
 	PlatformOptions.Flags = EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D9 | EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D10 | EOS_PF_WINDOWS_ENABLE_OVERLAY_OPENGL; // Enable overlay support for D3D9/10 and OpenGL. This sample uses D3D11 or SDL.
@@ -40,9 +40,20 @@ FOnlineServicesEOS::FOnlineServicesEOS()
 
 void FOnlineServicesEOS::RegisterComponents()
 {
-#if WITH_EOS_SDK
 	Components.Register<FAuthEOS>(*this);
-#endif
+	Components.Register<FFriendsEOS>(*this);
+	Components.Register<FPresenceEOS>(*this);
+	FOnlineServicesCommon::RegisterComponents();
+}
+
+FAccountId FOnlineServicesEOS::CreateAccountId(FString&& InAccountIdString)
+{
+	EOS_EpicAccountId EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*InAccountIdString));
+	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
+	{
+		return MakeEOSAccountId(EpicAccountId);
+	}
+	return FAccountId();
 }
 
 EOS_HPlatform FOnlineServicesEOS::GetEOSPlatformHandle() const
@@ -56,5 +67,3 @@ EOS_HPlatform FOnlineServicesEOS::GetEOSPlatformHandle() const
 
 
 /* UE::Online */ }
-
-#endif // WITH_EOS_SDK

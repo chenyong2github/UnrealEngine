@@ -17,6 +17,7 @@ class UDynamicBlueprintBinding;
 class UEdGraph;
 class UEdGraphPin;
 class UEdGraphSchema;
+struct FMemberReference;
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserDefinedPinRenamed, UK2Node*, FName, FName);
 
@@ -408,6 +409,15 @@ public:
 
 	/** Return whether this node references the specified variable, give the supplied scope. Used when variable types are changed. */
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const { return false; }
+
+	/** 
+	 * Replace any member references of source with replacement 
+	 * @param	InBlueprint		The blueprint that the source reference is from
+	 * @param	InReplacementBlueprint	The blueprint that the replacement reference is from
+	 * @param	InSource		The reference to be replaced
+	 * @param	InReplacement		The reference to replace with
+	 */
+	virtual void ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement) {}
 
 	/** Helper function for ExpandNode(), allowing other contexts to call pin expansion alone */
 	BLUEPRINTGRAPH_API void ExpandSplitPins(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph);

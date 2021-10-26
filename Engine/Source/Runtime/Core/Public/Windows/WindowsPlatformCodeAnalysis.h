@@ -243,6 +243,15 @@
 	// Exclude all generated protobuf files
 	//V_EXCLUDE_PATH *.pb.cc
 
+	// warning V530: The return value of function 'HashCombine' is required to be utilized.
+	//-V::530
+
+	// warning V630: Instantiation of TRingBuffer < FString >: The 'Malloc' function is used to allocate memory for an array of objects which are classes containing constructors and destructors.
+	//-V::630
+
+	// warning V1043: A global object variable 'GSmallNumber' is declared in the header. Multiple copies of it will be created in all translation units that include this header file.
+	//-V::1043
+
 #else // defined(__clang_analyzer__)
 
 // A fake function marked with noreturn that acts as a marker for CA_ASSUME to ensure the

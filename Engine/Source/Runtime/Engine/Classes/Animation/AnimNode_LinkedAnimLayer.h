@@ -41,6 +41,9 @@ public:
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 
+	/** FAnimNode_CustomProperty interface */
+	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
+	
 	/** FAnimNode_LinkedAnimGraph interface */
 	virtual FName GetDynamicLinkFunctionName() const override;
 	virtual UAnimInstance* GetDynamicLinkTarget(UAnimInstance* InOwningAnimInstance) const override;

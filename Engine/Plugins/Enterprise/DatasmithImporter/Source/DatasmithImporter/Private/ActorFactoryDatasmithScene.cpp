@@ -57,7 +57,7 @@ namespace UActorFactoryDatasmithSceneImpl
 		FText LoggerLabel = LOCTEXT("DatasmithSceneDisplayName", "Datasmith Scene");
 		
 		TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource;
-		if (TObjectPtr<UDatasmithAssetImportData> DatasmithImportData = Cast<UDatasmithAssetImportData>(DatasmithScene->AssetImportData))
+		if (TObjectPtr<UDatasmithSceneImportData> DatasmithImportData = Cast<UDatasmithSceneImportData>(DatasmithScene->AssetImportData))
 		{
 			ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
 		}

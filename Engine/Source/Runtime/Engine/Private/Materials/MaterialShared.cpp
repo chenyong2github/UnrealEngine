@@ -1726,11 +1726,6 @@ bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 	return Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput;
 }
 
-bool FMaterialResource::HasMaterialLayers() const
-{
-	return Material->GetCachedExpressionData().bHasMaterialLayers;
-}
-
 bool FMaterialResource::CastsRayTracedShadows() const
 {
 	return Material->bCastRayTracedShadows;
@@ -4022,7 +4017,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 		}
 
 #if WITH_EDITOR
-		MI->UpdateCachedLayerParameters();
+		MI->UpdateCachedDataConstant();
 #endif
 		MI->RecacheUniformExpressions(true);
 		MI->InitStaticPermutation(EMaterialShaderPrecompileMode::None);//bHasStaticPermutation can change.
@@ -5052,6 +5047,59 @@ UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type)
 		checkNoEntry();
 		return UE::Shader::EValueType::Void;
 	}
+}
+
+template<typename TParameter>
+static bool RemapParameterLayerIndex(TArrayView<const int32> IndexRemap, const TParameter& ParameterInfo, TParameter& OutResult)
+{
+	int32 NewIndex = INDEX_NONE;
+	switch (ParameterInfo.Association)
+	{
+	case GlobalParameter:
+		// No remapping for global parameters
+		OutResult = ParameterInfo;
+		return true;
+	case LayerParameter:
+		if (IndexRemap.IsValidIndex(ParameterInfo.Index))
+		{
+			NewIndex = IndexRemap[ParameterInfo.Index];
+			if (NewIndex != INDEX_NONE)
+			{
+				OutResult = ParameterInfo;
+				OutResult.Index = NewIndex;
+				return true;
+			}
+		}
+		break;
+	case BlendParameter:
+		if (IndexRemap.IsValidIndex(ParameterInfo.Index + 1))
+		{
+			// Indices for blend parameters are offset by 1
+			NewIndex = IndexRemap[ParameterInfo.Index + 1];
+			if (NewIndex != INDEX_NONE)
+			{
+				check(NewIndex > 0);
+				OutResult = ParameterInfo;
+				OutResult.Index = NewIndex - 1;
+				return true;
+			}
+		}
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+	return false;
+}
+
+bool FMaterialParameterInfo::RemapLayerIndex(TArrayView<const int32> IndexRemap, FMaterialParameterInfo& OutResult) const
+{
+	return RemapParameterLayerIndex(IndexRemap, *this, OutResult);
+}
+
+bool FMemoryImageMaterialParameterInfo::RemapLayerIndex(TArrayView<const int32> IndexRemap, FMemoryImageMaterialParameterInfo& OutResult) const
+{
+	return RemapParameterLayerIndex(IndexRemap, *this, OutResult);
 }
 
 #undef LOCTEXT_NAMESPACE

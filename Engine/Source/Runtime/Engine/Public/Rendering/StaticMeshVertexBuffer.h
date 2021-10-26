@@ -129,6 +129,17 @@ struct TStaticMeshVertexUVsTypeSelector<EStaticMeshVertexUVType::HighPrecision>
 	typedef FVector2D UVsTypeT;
 };
 
+/*
+*  FStaticMeshVertexBufferFlags : options for FStaticMeshVertexBuffer::Init
+*  bNeedsCPUAccess - Whether the vertex data needs to be accessed by the CPU after creation
+*  bUseBackwardsCompatibleF16TruncUVs - Whether backwards compatible legacy truncation mode should be used for F16 UVs
+*/
+struct FStaticMeshVertexBufferFlags
+{
+	bool bNeedsCPUAccess = true;
+	bool bUseBackwardsCompatibleF16TruncUVs = false;
+};
+
 /** Vertex buffer for a static mesh LOD */
 class FStaticMeshVertexBuffer : public FRenderResource
 {
@@ -146,17 +157,32 @@ public:
 	ENGINE_API void CleanUp();
 
 	ENGINE_API void Init(uint32 InNumVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true);
-
+	
 	/**
 	* Initializes the buffer with the given vertices.
 	* @param InVertices - The vertices to initialize the buffer with.
 	* @param InNumTexCoords - The number of texture coordinate to store in the buffer.
+	* @param Flags - Options for Init ; FStaticMeshVertexBufferFlags can be default constructed for default options
 	*/
-	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true);
+	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, const FStaticMeshVertexBufferFlags & InInitFlags );
+	
+	/**
+	* Initializes the buffer with the given vertices.
+	* @param InVertices - The vertices to initialize the buffer with.
+	* @param InNumTexCoords - The number of texture coordinate to store in the buffer.
+	* @param bNeedsCPUAccess - Whether the vertex data needs to be accessed by the CPU after creation (default true)
+	*/
+	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true)
+	{
+		FStaticMeshVertexBufferFlags Flags;
+		Flags.bNeedsCPUAccess = bNeedsCPUAccess;
+		Init(InVertices,InNumTexCoords,Flags);
+	}
 
 	/**
 	* Initializes this vertex buffer with the contents of the given vertex buffer.
 	* @param InVertexBuffer - The vertex buffer to initialize from.
+	* @param bNeedsCPUAccess - Whether the vertex data needs to be accessed by the CPU after creation (default true)
 	*/
 	void Init(const FStaticMeshVertexBuffer& InVertexBuffer, bool bNeedsCPUAccess = true);
 
@@ -165,8 +191,9 @@ public:
 	 *
 	 * @param	Vertices	The vertex data to be appended.  Must not be nullptr.
 	 * @param	NumVerticesToAppend		How many vertices should be added
+	 * @param bUseBackwardsCompatibleF16TruncUVs - Whether backwards compatible legacy truncation mode should be used for F16 UVs (default false)
 	 */
-	ENGINE_API void AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend );
+	ENGINE_API void AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend, bool bUseBackwardsCompatibleF16TruncUVs = false);
 
 	/**
 	* Serializer
@@ -291,31 +318,38 @@ public:
 	* @param VertexIndex - index into the vertex buffer
 	* @param UVIndex - [0,MAX_STATIC_TEXCOORDS] value to index into UVs array
 	* @param Vec2D - UV values to set
+	* @param bUseBackwardsCompatibleF16TruncUVs - whether backwards compatible Truncate mode is used for F32 to F16 conversion
 	*/
-	FORCEINLINE_DEBUGGABLE void SetVertexUV(uint32 VertexIndex, uint32 UVIndex, const FVector2D& Vec2D)
+	FORCEINLINE_DEBUGGABLE void SetVertexUV(uint32 VertexIndex, uint32 UVIndex, const FVector2D& Vec2D, bool bUseBackwardsCompatibleF16TruncUVs = false)
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 		checkSlow(UVIndex < GetNumTexCoords());
 
 		if (GetUseFullPrecisionUVs())
 		{
-			typedef TStaticMeshVertexUVsDatum<typename TStaticMeshVertexUVsTypeSelector<EStaticMeshVertexUVType::HighPrecision>::UVsTypeT> UVType;
-			size_t UvStride = sizeof(UVType) * GetNumTexCoords();
+			size_t UvStride = sizeof(FVector2D) * GetNumTexCoords();
 
-			UVType* ElementData = reinterpret_cast<UVType*>(TexcoordDataPtr + (VertexIndex * UvStride));
+			FVector2D* ElementData = reinterpret_cast<FVector2D*>(TexcoordDataPtr + (VertexIndex * UvStride));
 			check((void*)((&ElementData[UVIndex]) + 1) <= (void*)(TexcoordDataPtr + TexcoordData->GetResourceSize()));
 			check((void*)((&ElementData[UVIndex]) + 0) >= (void*)(TexcoordDataPtr));
-			ElementData[UVIndex].SetUV(Vec2D);
+			ElementData[UVIndex] = Vec2D;
 		}
 		else
 		{
-			typedef TStaticMeshVertexUVsDatum<typename TStaticMeshVertexUVsTypeSelector<EStaticMeshVertexUVType::Default>::UVsTypeT> UVType;
-			size_t UvStride = sizeof(UVType) * GetNumTexCoords();
+			size_t UvStride = sizeof(FVector2DHalf) * GetNumTexCoords();
 
-			UVType* ElementData = reinterpret_cast<UVType*>(TexcoordDataPtr + (VertexIndex * UvStride));
+			FVector2DHalf* ElementData = reinterpret_cast<FVector2DHalf*>(TexcoordDataPtr + (VertexIndex * UvStride));
 			check((void*)((&ElementData[UVIndex]) + 1) <= (void*)(TexcoordDataPtr + TexcoordData->GetResourceSize()));
 			check((void*)((&ElementData[UVIndex]) + 0) >= (void*)(TexcoordDataPtr));
-			ElementData[UVIndex].SetUV(Vec2D);
+		
+			if ( bUseBackwardsCompatibleF16TruncUVs )
+			{
+				ElementData[UVIndex].SetTruncate( Vec2D );
+			}
+			else
+			{
+				ElementData[UVIndex] = Vec2D;
+			}
 		}
 	}
 

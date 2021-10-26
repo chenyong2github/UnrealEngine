@@ -230,7 +230,7 @@ void UAutomationTestExcludelist::SaveConfig()
 	else
 #endif
 	{
-		UObject::UpdateDefaultConfigFile();
+		UObject::TryUpdateDefaultConfigFile();
 	}
 }
 

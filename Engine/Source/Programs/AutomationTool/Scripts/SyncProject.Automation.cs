@@ -295,7 +295,7 @@ class SyncProject : SyncProjectBase
 				}
 			}
 
-			UE4Build Build = new UE4Build(this);
+			UnrealBuild Build = new UnrealBuild(this);
 			if (!Unversioned && !ProjectOnly)
 			{
 				LogInformation("Updating Version files to CL: {0}", CL);

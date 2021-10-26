@@ -40,6 +40,24 @@ namespace Metasound
 			}
 			return Invalid::GetInvalidName();
 		}
+
+		/** Returns the human readable name associated with this output. */
+		const FName& FVariableController::GetName() const
+		{
+			if (const FMetasoundFrontendVariable* Variable = VariablePtr.Get())
+			{
+				return Variable->Name;
+			}
+			return Invalid::GetInvalidName();
+		}
+
+		void FVariableController::SetName(const FName& InName)
+		{
+			if (FMetasoundFrontendVariable* Variable = VariablePtr.Get())
+			{
+				Variable->Name = InName;
+			}
+		}
 		
 		/** Returns the human readable name associated with this output. */
 		FText FVariableController::GetDisplayName() const
@@ -56,6 +74,24 @@ namespace Metasound
 			if (FMetasoundFrontendVariable* Variable = VariablePtr.Get())
 			{
 				Variable->DisplayName = InDisplayName;
+			}
+		}
+
+		/** Returns the human readable description associated with this output. */
+		FText FVariableController::GetDescription() const
+		{
+			if (const FMetasoundFrontendVariable* Variable = VariablePtr.Get())
+			{
+				return Variable->Description;
+			}
+			return Invalid::GetInvalidText();
+		}
+
+		void FVariableController::SetDescription(const FText& InDescription)
+		{
+			if (FMetasoundFrontendVariable* Variable = VariablePtr.Get())
+			{
+				Variable->Description = InDescription;
 			}
 		}
 

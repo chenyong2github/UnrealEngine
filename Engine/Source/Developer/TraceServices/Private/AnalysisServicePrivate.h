@@ -5,7 +5,6 @@
 #include "AnalysisCache.h"
 #include "TraceServices/AnalysisService.h"
 #include "Containers/HashTable.h"
-#include "Misc/ScopeLock.h"
 #include "Common/StringStore.h"
 #include "Trace/Analysis.h"
 
@@ -34,15 +33,16 @@ class FAnalysisSession
 	: public IAnalysisSession
 {
 public:
-	FAnalysisSession(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream);
+	FAnalysisSession(uint32 TraceId, const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream);
 	virtual ~FAnalysisSession();
 	void Start();
 	virtual void Stop(bool bAndWait) const override;
 	virtual void Wait() const override;
 
-	virtual const TCHAR* GetName() const { return *Name; }
+	virtual const TCHAR* GetName() const override { return *Name; }
+	virtual uint32 GetTraceId() const override { return TraceId; }
 	virtual bool IsAnalysisComplete() const override { return !Processor.IsActive(); }
-	virtual double GetDurationSeconds() const { Lock.ReadAccessCheck(); return DurationSeconds; }
+	virtual double GetDurationSeconds() const override { Lock.ReadAccessCheck(); return DurationSeconds; }
 	virtual void UpdateDurationSeconds(double Duration) override { Lock.WriteAccessCheck(); DurationSeconds = FMath::Max(Duration, DurationSeconds); }
 
 	virtual ILinearAllocator& GetLinearAllocator() override { return Allocator; }
@@ -72,6 +72,7 @@ private:
 	mutable FAnalysisSessionLock Lock;
 
 	FString Name;
+	uint32 TraceId;
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
@@ -91,7 +92,7 @@ public:
 	virtual ~FAnalysisService();
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionUri) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionUri) override;
-	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream) override;
+	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(uint32 TraceId, const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream) override;
 
 private:
 	FModuleService& ModuleService;

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#if WITH_CHAOS
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Physics/PhysScene.h"
@@ -356,3 +357,5 @@ private:
 	friend struct FScopedSceneReadLock;
 	friend struct FScopedSceneLock_Chaos;
 };
+
+#endif

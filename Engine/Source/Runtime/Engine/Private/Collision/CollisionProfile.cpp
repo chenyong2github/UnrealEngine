@@ -841,7 +841,7 @@ bool FCollisionProfilePrivateAccessor::AddProfileTemplate(FCollisionResponseTemp
 		if (CollisionProfile->GetProfileTemplate(NewProfileData.Name, ProfileData))
 		{
 			CollisionProfile->LoadProfileConfig(true);
-			CollisionProfile->UpdateDefaultConfigFile();
+			CollisionProfile->TryUpdateDefaultConfigFile();
 			return true;
 		}
 	}

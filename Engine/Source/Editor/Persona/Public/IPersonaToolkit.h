@@ -48,11 +48,16 @@ public:
 	/** Get the preview scene that we are using */
 	virtual TSharedRef<IPersonaPreviewScene> GetPreviewScene() const = 0;
 
-	/** Set the preview mesh, according to context (mesh, skeleton or animation etc.) */
+	/**
+	 * Get the preview mesh, according to context (mesh, skeleton or animation etc.).
+	 * Note that this returns the preview mesh that is set for the asset currently being edited, which may be different
+	 * from the one displayed int he viewport.
+	 */
 	virtual USkeletalMesh* GetPreviewMesh() const = 0;
 
 	/** 
-	 * Set the preview mesh, according to context (mesh, skeleton or animation etc.) 
+	 * Set the preview mesh, according to context (mesh, skeleton or animation etc.)
+	 * Note that this sets the mesh in the asset and in the viewport (and may re-open the asset editor to apply this).
 	 * @param	InSkeletalMesh			The mesh to set
 	 * @param	bSetPreviewMeshInAsset	If true, the mesh will be written to the asset so it can be permanently saved. 
 	 *									Otherwise the change is merely transient and will reset next time the editor is opened.

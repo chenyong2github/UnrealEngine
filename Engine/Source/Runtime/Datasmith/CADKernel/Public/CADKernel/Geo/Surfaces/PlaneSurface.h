@@ -44,7 +44,7 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 		
-		virtual void SetMinToleranceIso() const override
+		virtual void SetMinToleranceIso() override
 		{
 			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
 
@@ -94,14 +94,14 @@ namespace CADKernel
 		virtual void Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& OutCoordinates) override
 		{
 			OutCoordinates[EIso::IsoU].Empty(3);
-			OutCoordinates[EIso::IsoU].Add(InBoundaries.UVBoundaries[EIso::IsoU].Min);
-			OutCoordinates[EIso::IsoU].Add(InBoundaries.UVBoundaries[EIso::IsoU].GetMiddle());
-			OutCoordinates[EIso::IsoU].Add(InBoundaries.UVBoundaries[EIso::IsoU].Max);
+			OutCoordinates[EIso::IsoU].Add(InBoundaries[EIso::IsoU].Min);
+			OutCoordinates[EIso::IsoU].Add(InBoundaries[EIso::IsoU].GetMiddle());
+			OutCoordinates[EIso::IsoU].Add(InBoundaries[EIso::IsoU].Max);
 
 			OutCoordinates[EIso::IsoV].Empty(3);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Min);
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].GetMiddle());
-			OutCoordinates[EIso::IsoV].Add(InBoundaries.UVBoundaries[EIso::IsoV].Max);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Min);
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].GetMiddle());
+			OutCoordinates[EIso::IsoV].Add(InBoundaries[EIso::IsoV].Max);
 		}
 
 		virtual void IsSurfaceClosed(bool& bOutClosedAlongU, bool& bOutClosedAlongV) const override

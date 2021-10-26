@@ -165,24 +165,32 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 
 	const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>();
 
-	if (DDCProjectSettings->EnableWarnings)
+	if (DDCProjectSettings && DDCProjectSettings->EnableWarnings)
 	{
 		const UEditorSettings* EditorSettings = GetDefault<UEditorSettings>();
 
-		if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
+		if (EditorSettings)
 		{
-			RemoteCacheState = ERemoteCacheState::Warning;
-			RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path"));
-		}
-		else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bEnableS3DDC == false)
-		{
-			RemoteCacheState = ERemoteCacheState::Warning;
-			RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache"));
-		}
-		else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && EditorSettings->GlobalS3DDCPath.Path.IsEmpty())
-		{
-			RemoteCacheState = ERemoteCacheState::Warning;
-			RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathdWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
+			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage)
+			{
+				RemoteCacheState = ERemoteCacheState::Warning;
+				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "Make sure you are usign the Jupiter Baackend"));
+			}
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
+			{
+				RemoteCacheState = ERemoteCacheState::Warning;
+				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path"));
+			}
+			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bEnableS3DDC == false)
+			{
+				RemoteCacheState = ERemoteCacheState::Warning;
+				RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache"));
+			}
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && EditorSettings->GlobalS3DDCPath.Path.IsEmpty())
+			{
+				RemoteCacheState = ERemoteCacheState::Warning;
+				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathdWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
+			}
 		}
 		
 	}

@@ -1343,7 +1343,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	for (int32 Idx = 0; Idx < InComponent->WeightmapLayerAllocations.Num(); Idx++)
 	{
-		FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
+		const FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
 		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer && Allocation.IsAllocated())
 		{
 			VisibilityWeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
@@ -3489,8 +3489,6 @@ public:
 			FName(TEXT("TBasePassPSFNoLightMapPolicy")),
 			FName(TEXT("TBasePassVSFCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassPSFCachedPointIndirectLightingPolicy")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_OutputDepth")),
-			FName(TEXT("TShadowDepthPSPixelShadowDepth_NonPerspectiveCorrect")),
 			FName(TEXT("TBasePassPSFSimpleDirectionalLightLightingPolicy")),
 			FName(TEXT("TBasePassPSFSimpleDirectionalLightLightingPolicySkylight")),
 			FName(TEXT("TBasePassVSFSimpleDirectionalLightLightingPolicy")),
@@ -3517,8 +3515,6 @@ public:
 			FName(TEXT("TBasePassPSFSimpleStationaryLightPrecomputedShadowsLightingPolicySkylight")),
 			FName(TEXT("TBasePassVSFSimpleStationaryLightPrecomputedShadowsLightingPolicy")),
 			FName(TEXT("TBasePassVSFNoLightMapPolicySkyAtmosphereAP")),
-			FName(TEXT("TBasePassDSFNoLightMapPolicy")),
-			FName(TEXT("TBasePassHSFNoLightMapPolicy")),
 			FName(TEXT("TLightMapDensityVSFNoLightMapPolicy")),
 			FName(TEXT("TLightMapDensityPSFNoLightMapPolicy")),
 
@@ -3570,8 +3566,6 @@ public:
 		{
 			// This is not an exhaustive list
 			FName(TEXT("FDebugViewModeVS")),
-			FName(TEXT("FConvertToUniformMeshVS")),
-			FName(TEXT("FConvertToUniformMeshGS")),
 
 			// No lightmap on thumbnails
 			FName(TEXT("TLightMapDensityVSFDummyLightMapPolicy")),
@@ -3645,31 +3639,34 @@ public:
 			FName(TEXT("TBasePassPSFSelfShadowedTranslucencyPolicySkylight")),
 			FName(TEXT("TBasePassVSFSelfShadowedTranslucencyPolicySkyAtmosphereAP")),
 
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrectfalse")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrecttrue")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_OnePassPointLightfalse")),
-			FName(TEXT("TShadowDepthPSPixelShadowDepth_PerspectiveCorrectfalse")),
-			FName(TEXT("TShadowDepthPSPixelShadowDepth_PerspectiveCorrecttrue")),
-			FName(TEXT("TShadowDepthPSPixelShadowDepth_OnePassPointLightfalse")),
-			FName(TEXT("TShadowDepthPSPixelShadowDepth_OnePassPointLighttrue")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrect")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_OutputDepth")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_OnePassPointLight")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VirtualShadowMap")),
 
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OutputDepthfalse")),
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OutputDepthtrue")),
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_PerspectiveCorrectfalse")),
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_PerspectiveCorrecttrue")),
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightfalse")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrectPositionOnly")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VirtualShadowMapPositionOnly")),
+
+			FName(TEXT("TShadowDepthPSPixelShadowDepth_VirtualShadowMap")),
+			FName(TEXT("TShadowDepthPSPixelShadowDepth_PerspectiveCorrect")),
+			FName(TEXT("TShadowDepthPSPixelShadowDepth_OnePassPointLight")),
+			FName(TEXT("TShadowDepthPSPixelShadowDepth_NonPerspectiveCorrect")),
+
+			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight")),
+			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VSLayer")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VSLayerPositionOnly")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VSLayerGS")),
+			FName(TEXT("TShadowDepthVSVertexShadowDepth_VSLayerGSPositionOnly")),
+
 			FName(TEXT("FOnePassPointShadowDepthGS")),
 
 			FName(TEXT("TTranslucencyShadowDepthVS<TranslucencyShadowDepth_Standard>")),
 			FName(TEXT("TTranslucencyShadowDepthPS<TranslucencyShadowDepth_Standard>")),
 			FName(TEXT("TTranslucencyShadowDepthVS<TranslucencyShadowDepth_PerspectiveCorrect>")),
 			FName(TEXT("TTranslucencyShadowDepthPS<TranslucencyShadowDepth_PerspectiveCorrect>")),
-
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OnePassPointLight")),
-			FName(TEXT("TShadowDepthVSForGSVertexShadowDepth_OnePassPointLightPositionOnly")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_OnePassPointLightPositionOnly")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_OutputDepthPositionOnly")),
-			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrectPositionOnly")),
 
 			FName(TEXT("TBasePassVSTDistanceFieldShadowsAndLightMapPolicyHQSkyAtmosphereAP")),
 			FName(TEXT("TBasePassVSTLightMapPolicyHQSkyAtmosphereAP")),
@@ -3683,50 +3680,6 @@ public:
 			FName(TEXT("TBasePassPSFSimpleLightmapOnlyLightingPolicy")),
 			FName(TEXT("TBasePassPSFSimpleLightmapOnlyLightingPolicySkylight")),
 			FName(TEXT("TBasePassVSFSimpleLightmapOnlyLightingPolicy")),
-
-			FName(TEXT("TShadowDepthDSVertexShadowDepth_OnePassPointLightfalse")),
-			FName(TEXT("TShadowDepthHSVertexShadowDepth_OnePassPointLightfalse")),
-			FName(TEXT("TShadowDepthDSVertexShadowDepth_OutputDepthfalse")),
-			FName(TEXT("TShadowDepthHSVertexShadowDepth_OutputDepthfalse")),
-			FName(TEXT("TShadowDepthDSVertexShadowDepth_OutputDepthtrue")),
-			FName(TEXT("TShadowDepthHSVertexShadowDepth_OutputDepthtrue")),
-
-			FName(TEXT("TShadowDepthDSVertexShadowDepth_PerspectiveCorrectfalse")),
-			FName(TEXT("TShadowDepthHSVertexShadowDepth_PerspectiveCorrectfalse")),
-			FName(TEXT("TShadowDepthDSVertexShadowDepth_PerspectiveCorrecttrue")),
-			FName(TEXT("TShadowDepthHSVertexShadowDepth_PerspectiveCorrecttrue")),
-
-			FName(TEXT("FVelocityDS")),
-			FName(TEXT("FVelocityHS")),
-			FName(TEXT("FHitProxyDS")),
-			FName(TEXT("FHitProxyHS")),
-
-			FName(TEXT("TLightMapDensityDSTLightMapPolicyHQ")),
-			FName(TEXT("TLightMapDensityHSTLightMapPolicyHQ")),
-			FName(TEXT("TLightMapDensityDSTLightMapPolicyLQ")),
-			FName(TEXT("TLightMapDensityHSTLightMapPolicyLQ")),
-			FName(TEXT("TLightMapDensityDSFDummyLightMapPolicy")),
-			FName(TEXT("TLightMapDensityHSFDummyLightMapPolicy")),
-			FName(TEXT("TLightMapDensityDSFNoLightMapPolicy")),
-			FName(TEXT("TLightMapDensityHSFNoLightMapPolicy")),
-			FName(TEXT("FDepthOnlyDS")),
-			FName(TEXT("FDepthOnlyHS")),
-			FName(TEXT("FDebugViewModeDS")),
-			FName(TEXT("FDebugViewModeHS")),
-			FName(TEXT("TBasePassDSTDistanceFieldShadowsAndLightMapPolicyHQ")),
-			FName(TEXT("TBasePassHSTDistanceFieldShadowsAndLightMapPolicyHQ")),
-
-			FName(TEXT("TBasePassDSTLightMapPolicyHQ")),
-			FName(TEXT("TBasePassHSTLightMapPolicyHQ")),
-			FName(TEXT("TBasePassDSTLightMapPolicyLQ")),
-			FName(TEXT("TBasePassHSTLightMapPolicyLQ")),
-			FName(TEXT("TBasePassDSFCachedPointIndirectLightingPolicy")),
-			FName(TEXT("TBasePassHSFCachedPointIndirectLightingPolicy")),
-			FName(TEXT("TBasePassDSFCachedVolumeIndirectLightingPolicy")),
-			FName(TEXT("TBasePassHSFCachedVolumeIndirectLightingPolicy")),
-
-			FName(TEXT("TBasePassDSFPrecomputedVolumetricLightmapLightingPolicy")),
-			FName(TEXT("TBasePassHSFPrecomputedVolumetricLightmapLightingPolicy")),
 
 #if RHI_RAYTRACING
 			// No ray tracing on thumbnails

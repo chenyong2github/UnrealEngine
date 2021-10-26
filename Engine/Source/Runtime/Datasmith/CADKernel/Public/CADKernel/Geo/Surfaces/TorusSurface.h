@@ -21,6 +21,19 @@ namespace CADKernel
 		 *
 		 * The torus computed at the origin with Z axis.
 		 * It is placed at its final position and orientation by the Matrix
+		 */
+		FTorusSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, double InMajorStartAngle = 0.0, double InMajorEndAngle = 2.0 * PI, double InMinorStartAngle = 0.0, double InMinorEndAngle = 2.0 * PI)
+			: FTorusSurface(InToleranceGeometric, InMatrix, InMajorRadius, InMinorRadius, FSurfacicBoundary(InMajorStartAngle, InMajorEndAngle, InMinorStartAngle, InMinorEndAngle))
+		{
+		}
+
+		/**
+		 * A torus is the solid formed by revolving a circular disc about a specified coplanar axis.
+		 * MajorRadius is the distance from the axis to the center of the defining disc, and MinorRadius is the radius of the defining disc,
+		 * where MajorRadius > MinorRadius > 0.0.
+		 *
+		 * The torus computed at the origin with Z axis.
+		 * It is placed at its final position and orientation by the Matrix
 		 *
 		 * The bounds of the cone are defined as follow:
 		 * Bounds[EIso::IsoU].Min = MajorStartAngle
@@ -28,8 +41,8 @@ namespace CADKernel
 		 * Bounds[EIso::IsoV].Min = MinorStartAngle
 		 * Bounds[EIso::IsoV].Max = MinorEndAngle
 		 */
-		FTorusSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, double InMajorStartAngle = 0.0, double InMajorEndAngle = 2.0 * PI, double InMinorStartAngle = 0.0, double InMinorEndAngle = 2.0 * PI)
-			: FSurface(InToleranceGeometric, InMajorStartAngle, InMajorEndAngle, InMinorStartAngle, InMinorEndAngle)
+		FTorusSurface(const double InToleranceGeometric, const FMatrixH & InMatrix, double InMajorRadius, double InMinorRadius, const FSurfacicBoundary& InBoundary)
+			: FSurface(InToleranceGeometric, InBoundary)
 			, Matrix(InMatrix)
 			, MajorRadius(InMajorRadius)
 			, MinorRadius(InMinorRadius)
@@ -43,7 +56,7 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		void SetMinToleranceIso() const
+		virtual void SetMinToleranceIso() override
 		{
 			double Tolerance2DU = Tolerance3D / MajorRadius;
 			double Tolerance2DV = Tolerance3D / MinorRadius;
@@ -80,8 +93,58 @@ namespace CADKernel
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 
-		virtual void EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder = 0) const override;
+		virtual void EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder = 0) const override
+		{
+			const double CosU = cos(InSurfacicCoordinate.U);
+			const double CosV = cos(InSurfacicCoordinate.V);
+
+			const double SinU = sin(InSurfacicCoordinate.U);
+			const double SinV = sin(InSurfacicCoordinate.V);
+			double Rho = (MajorRadius + MinorRadius * CosV);
+
+			OutPoint3D.DerivativeOrder = InDerivativeOrder;
+			OutPoint3D.Point.Set(Rho * CosU, Rho * SinU, MinorRadius * SinV);
+
+			OutPoint3D.Point = Matrix.Multiply(OutPoint3D.Point);
+
+			if (InDerivativeOrder > 0)
+			{
+				OutPoint3D.GradientU = FPoint((MajorRadius + MinorRadius * CosV) * -SinU, (MajorRadius + MinorRadius * CosV) * CosU, 0.0);
+				OutPoint3D.GradientV = FPoint((MinorRadius * -SinV) * CosU, (MinorRadius * -SinV) * SinU, MinorRadius * CosV);
+
+				OutPoint3D.GradientU = Matrix.MultiplyVector(OutPoint3D.GradientU);
+				OutPoint3D.GradientV = Matrix.MultiplyVector(OutPoint3D.GradientV);
+
+				if (InDerivativeOrder > 1)
+				{
+					OutPoint3D.LaplacianU = FPoint((MajorRadius + MinorRadius * CosV) * -CosU, (MajorRadius + MinorRadius * CosV) * -SinU, 0.0);
+					OutPoint3D.LaplacianV = FPoint((MinorRadius * -CosV) * CosU, (MinorRadius * -CosV) * SinU, MinorRadius * -SinV);
+					OutPoint3D.LaplacianUV = FPoint((MinorRadius * -SinV) * -SinU, (MinorRadius * -SinV) * CosU, 0.0);
+
+					OutPoint3D.LaplacianU = Matrix.MultiplyVector(OutPoint3D.LaplacianU);
+					OutPoint3D.LaplacianV = Matrix.MultiplyVector(OutPoint3D.LaplacianV);
+					OutPoint3D.LaplacianUV = Matrix.MultiplyVector(OutPoint3D.LaplacianUV);
+				}
+			}
+		}
+	
 		virtual void EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals = false) const override;
+
+		virtual void EvaluatePointGridInCylindricalSpace(const FCoordinateGrid& Coordinates, TArray<FPoint2D>&) const override;
+
+		virtual FPoint2D EvaluatePointInCylindricalSpace(const FPoint2D& InSurfacicCoordinate) const override
+		{
+			const double CosU = cos(InSurfacicCoordinate.U);
+			const double CosV = cos(InSurfacicCoordinate.V);
+
+			const double SinU = sin(InSurfacicCoordinate.U);
+
+			double Rho = (MajorRadius + MinorRadius * CosV);
+
+			double SwapOrientation = (InSurfacicCoordinate.V < PI && InSurfacicCoordinate.V >=0) ? 1.0 : -1.0;
+
+			return FPoint2D(Rho * CosU * SwapOrientation, Rho * SinU);
+		}
 
 		virtual void Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& OutCoordinates) override
 		{

@@ -2,19 +2,20 @@
 
 
 #include "SDetailNameArea.h"
-#include "Components/ActorComponent.h"
-#include "Modules/ModuleManager.h"
-#include "Misc/PackageName.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
-#include "Engine/World.h"
+
 #include "AssetSelection.h"
-#include "Styling/SlateIconFinder.h"
-#include "EditorWidgetsModule.h"
+#include "Components/ActorComponent.h"
 #include "EditorClassUtils.h"
+#include "EditorStyleSet.h"
+#include "EditorWidgetsModule.h"
+#include "Engine/World.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SDetailsView"
 
@@ -160,11 +161,15 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 			ObjectNameArea->AddSlot()
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Center)
+				.Padding(4,0,4,0)
 				.AutoWidth()
 				[
 					SNew( SButton )
 					.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
 					.OnClicked(	OnLockButtonClicked )
+					.ContentPadding(0)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
 					.ToolTipText( LOCTEXT("LockSelectionButton_ToolTip", "Locks the current selection into the Details panel") )
 					[
 						SNew( SImage )
@@ -202,45 +207,7 @@ void SDetailNameArea::BuildObjectNameAreaSelectionLabel( TSharedRef< SHorizontal
 {
 	check( NumSelectedObjects > 1 || ObjectWeakPtr.IsValid() );
 
-	if( NumSelectedObjects == 1 )
-	{
-		UClass* ObjectClass = ObjectWeakPtr.Get()->GetClass();
-		if( ObjectClass != nullptr )
-		{
-			SelectionLabelBox->AddSlot()
-				.AutoWidth()
-				.VAlign( VAlign_Center )
-				.HAlign( HAlign_Left )
-				.Padding( 1.0f, 1.0f, 0.0f, 0.0f )
-				[
-					FEditorClassUtils::GetDocumentationLinkWidget(ObjectClass)
-				];
-
-
-			if( ObjectClass && ObjectClass->ClassGeneratedBy == nullptr && ObjectClass->GetOutermost() )
-			{
-				const FString ModuleName = FPackageName::GetShortName(ObjectClass->GetOutermost()->GetFName());
-
-				FModuleStatus PackageModuleStatus;
-				if(FModuleManager::Get().QueryModule(*ModuleName, PackageModuleStatus))
-				{
-					if( PackageModuleStatus.bIsGameModule ) 
-					{
-						SelectionLabelBox->AddSlot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Left)
-						.Padding(6.0f, 1.0f, 0.0f, 0.0f)
-						[
-							FEditorClassUtils::GetSourceLink(ObjectClass, ObjectWeakPtr)
-						];
-					}
-				}
-			}
-		
-		}
-	}
-	else
+	if (NumSelectedObjects > 1)
 	{
 		const FText SelectionText = FText::Format( LOCTEXT("MultipleObjectsSelectedFmt", "{0} objects"), FText::AsNumber(NumSelectedObjects) );
 		SelectionLabelBox->AddSlot()
@@ -251,7 +218,6 @@ void SDetailNameArea::BuildObjectNameAreaSelectionLabel( TSharedRef< SHorizontal
 			SNew(STextBlock)
 			.Text( SelectionText )
 		];
-
 	}
 }
 

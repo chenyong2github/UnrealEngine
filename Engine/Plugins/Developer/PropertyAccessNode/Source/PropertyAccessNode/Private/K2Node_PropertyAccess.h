@@ -29,7 +29,7 @@ public:
 	const FText& GetTextPath() const { return TextPath; }
 
 	/** Get the resolved leaf property, if any. */
-	const FProperty* GetResolvedProperty() const { return ResolvedProperty.Get(); }
+	const FProperty* GetResolvedProperty() const;
 
 	/** Get the resolved leaf property's array index, if any. */
 	int32 GetResolvedArrayIndex() const { return ResolvedArrayIndex; }
@@ -77,13 +77,13 @@ private:
 	FName ContextId;
 	
 	/** Resolved leaf property for the path, NULL if path cant be resolved or is empty. */
-	TFieldPath<FProperty> ResolvedProperty;
+	mutable TFieldPath<FProperty> ResolvedProperty;
 
 	/** Resolved array index, if the leaf property is an array. If this is INDEX_NONE then the property refers to the entire array */
-	int32 ResolvedArrayIndex = INDEX_NONE;
+	mutable int32 ResolvedArrayIndex = INDEX_NONE;
 
 	/** Whether the path was resolved as thread safe the last time the ResolvedProperty was updated */
-	bool bWasResolvedThreadSafe = false;
+	mutable bool bWasResolvedThreadSafe = false;
 
 	/** Handle used to hook into property access compilation machinery */
 	FDelegateHandle PostLibraryCompiledHandle;
@@ -103,7 +103,7 @@ private:
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	virtual void AddSearchMetaDataInfo(TArray<FSearchTagDataPair>& OutTaggedMetaData) const override;
+	virtual void AddPinSearchMetaDataInfo(const UEdGraphPin* InPin, TArray<FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual bool IsCompatibleWithGraph(UEdGraph const* TargetGraph) const override;
 	
@@ -115,10 +115,13 @@ private:
 	virtual FText GetMenuCategory() const override;
 	virtual bool DrawNodeAsVariable() const override { return true; }
 	virtual FText GetTooltipText() const override;
+	virtual void HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName) override;
+	virtual void ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement) override;
+	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const override;
 	
 	/** Helper function for pin allocation */
 	void AllocatePins(UEdGraphPin* InOldOutputPin = nullptr);
 
-	/** Attempt to resolve the path to a leaf property */
-	void ResolvePropertyAccess();
+	/** Attempt to resolve the path to a leaf property. Const function that modifies mutable internally cached values */
+	void ResolvePropertyAccess() const;
 };

@@ -47,6 +47,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Add native double and int64 support to FFormatArgumentData
 		TextFormatArgumentData64bitSupport,
+
+		// Material layer stacks are no longer considered 'static parameters'
+		MaterialLayerStacksAreNotParameters,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

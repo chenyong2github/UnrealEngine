@@ -123,6 +123,13 @@ static_assert(sizeof(FHeader) == 64, "FHeader is the wrong size.");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct FDecompressionContext
+{
+	FUniqueBuffer CompressedBlockSizes;
+	FUniqueBuffer CompressedBlock;
+	FUniqueBuffer UncompressedBlock;
+};
+
 class FEncoder
 {
 public:
@@ -133,7 +140,7 @@ class FDecoder
 {
 public:
 	virtual FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const = 0;
-	virtual bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const = 0;
+	virtual bool TryDecompressTo(FDecompressionContext& Context, const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const = 0;
 	virtual uint64 GetHeaderSize(const FHeader& Header) const = 0;
 };
 
@@ -171,7 +178,7 @@ public:
 		return FCompositeBuffer();
 	}
 
-	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final
+	bool TryDecompressTo(FDecompressionContext&, const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final
 	{
 		if (Header.Method == EMethod::None &&
 			RawOffset + RawView.GetSize() <= Header.TotalRawSize &&
@@ -298,7 +305,7 @@ class FBlockDecoder : public FDecoder
 {
 public:
 	FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const final;
-	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final;
+	bool TryDecompressTo(FDecompressionContext& Context, const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final;
 
 	uint64 GetHeaderSize(const FHeader& Header) const final
 	{
@@ -322,7 +329,8 @@ FCompositeBuffer FBlockDecoder::Decompress(const FHeader& Header, const FComposi
 	if (!CompressedData.IsOwned() || Header.TotalRawSize == 0)
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Header.TotalRawSize);
-		return TryDecompressTo(Header, CompressedData, Buffer, 0) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
+		FDecompressionContext Context;
+		return TryDecompressTo(Context, Header, CompressedData, Buffer, 0) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
 	}
 
 	TArray64<uint32> CompressedBlockSizes;
@@ -422,7 +430,12 @@ FCompositeBuffer FBlockDecoder::Decompress(const FHeader& Header, const FComposi
 	return FCompositeBuffer(MoveTemp(Segments));
 }
 
-bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const
+bool FBlockDecoder::TryDecompressTo(
+	FDecompressionContext& Context,
+	const FHeader& Header,
+	const FCompositeBuffer& CompressedData,
+	FMutableMemoryView RawView,
+	uint64 RawOffset) const
 {
 	if (Header.TotalRawSize < RawOffset + RawView.GetSize() || Header.TotalCompressedSize != CompressedData.GetSize())
 	{
@@ -431,12 +444,8 @@ bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffe
 
 	const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
 
-	FUniqueBuffer BlockSizeBuffer;
-	FMemoryView BlockSizeView = CompressedData.ViewOrCopyRange(sizeof(FHeader), Header.BlockCount * sizeof(uint32), BlockSizeBuffer);
+	FMemoryView BlockSizeView = CompressedData.ViewOrCopyRange(sizeof(FHeader), Header.BlockCount * sizeof(uint32), Context.CompressedBlockSizes);
 	TArrayView64<uint32 const> CompressedBlockSizes(reinterpret_cast<const uint32*>(BlockSizeView.GetData()), Header.BlockCount);
-
-	FUniqueBuffer CompressedBlockCopy;
-	FUniqueBuffer UncompressedBlockCopy;
 
 	const uint64 FirstBlockIndex	= uint64(RawOffset / BlockSize);
 	const uint64 LastBlockIndex		= uint64((RawOffset + RawView.GetSize() - 1) / BlockSize);
@@ -461,7 +470,7 @@ bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffe
 			? FMath::Min<uint64>(RawView.GetSize(), UncompressedBlockSize - OffsetInFirstBlock)
 			: FMath::Min<uint64>(RemainingRawSize, BlockSize);
 
-		FMemoryView CompressedBlock = CompressedData.ViewOrCopyRange(CompressedOffset, CompressedBlockSize, CompressedBlockCopy);
+		FMemoryView CompressedBlock = CompressedData.ViewOrCopyRange(CompressedOffset, CompressedBlockSize, Context.CompressedBlock);
 
 		if (IsCompressed)
 		{
@@ -471,11 +480,11 @@ bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffe
 			if (!bIsAligned)
 			{
 				// Decompress to a temporary buffer when the first or the last block reads are not aligned with the block boundaries.
-				if (UncompressedBlockCopy.IsNull())
+				if (Context.UncompressedBlock.GetSize() != BlockSize)
 				{
-					UncompressedBlockCopy = FUniqueBuffer::Alloc(BlockSize);
+					Context.UncompressedBlock = FUniqueBuffer::Alloc(BlockSize);
 				}
-				UncompressedBlock = UncompressedBlockCopy.GetView().Left(UncompressedBlockSize);
+				UncompressedBlock = Context.UncompressedBlock.GetView().Left(UncompressedBlockSize);
 			}
 
 			if (!DecompressBlock(UncompressedBlock, CompressedBlock))
@@ -783,6 +792,18 @@ bool FCompressedBuffer::TryGetCompressParameters(
 	return false;
 }
 
+bool FCompressedBuffer::TryGetBlockSize(uint32 &OutBlockSize) const
+{
+	using namespace UE::CompressedBuffer;
+	if (CompressedData)
+	{
+		const FHeader Header = FHeader::Read(CompressedData);
+		OutBlockSize = uint64(1) << Header.BlockSizeExponent;
+		return true;
+	}
+	return false;
+}
+
 bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset) const
 {
 	using namespace UE::CompressedBuffer;
@@ -791,7 +812,8 @@ bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView, uint64 RawOf
 		const FHeader Header = FHeader::Read(CompressedData);
 		if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 		{
-			return Decoder->TryDecompressTo(Header, CompressedData, RawView, RawOffset);
+			FDecompressionContext DecompressionContext;
+			return Decoder->TryDecompressTo(DecompressionContext, Header, CompressedData, RawView, RawOffset);
 		}
 	}
 	return false;
@@ -807,7 +829,9 @@ FSharedBuffer FCompressedBuffer::Decompress(uint64 RawOffset, uint64 RawSize) co
 		{
 			const uint64 TotalRawSize = RawSize < ~uint64(0) ? RawSize : Header.TotalRawSize - RawOffset;
 			FUniqueBuffer RawData = FUniqueBuffer::Alloc(TotalRawSize);
-			if (Decoder->TryDecompressTo(Header, CompressedData, RawData, RawOffset))
+			
+			FDecompressionContext Context;
+			if (Decoder->TryDecompressTo(Context, Header, CompressedData, RawData, RawOffset))
 			{
 				return RawData.MoveToShared();
 			}
@@ -847,3 +871,43 @@ FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer)
 	}
 	return Ar;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FCompressedBufferDecoder::FImpl
+{
+public:
+	bool TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset = 0)
+	{
+		using namespace UE::CompressedBuffer;
+		if (FCompositeBuffer CompressedData = CompressedBuffer.GetCompressed())
+		{
+			const FHeader Header = FHeader::Read(CompressedData);
+			if (const FDecoder* const Decoder = GetDecoder(Header.Method))
+			{
+				return Decoder->TryDecompressTo(DecompressionContext, Header, CompressedData, RawView, RawOffset);
+			}
+		}
+		return false;
+	}
+
+private:
+	UE::CompressedBuffer::FDecompressionContext DecompressionContext;
+};
+
+FCompressedBufferDecoder::FCompressedBufferDecoder()
+: Impl(new FImpl()) 
+{
+}
+
+FCompressedBufferDecoder::~FCompressedBufferDecoder()
+{
+}
+
+bool FCompressedBufferDecoder::TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset)
+{
+	return Impl->TryDecompressTo(CompressedBuffer,RawView, RawOffset);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+

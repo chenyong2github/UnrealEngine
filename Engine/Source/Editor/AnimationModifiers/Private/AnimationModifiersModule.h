@@ -31,4 +31,8 @@ protected:
 	TArray<TWeakPtr<FApplicationMode>> RegisteredApplicationModes;
 
 	FWorkflowApplicationModeExtender Extender;
+
+	/** Callbacks used to add and apply default animation modifier classes */
+	void OnAssetPostImport(UFactory* ImportFactory, UObject* ImportedObject);
+	void OnAssetPostReimport(UObject* ReimportedObject);
 };

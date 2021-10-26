@@ -801,14 +801,17 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 
 	if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu"))
 	{
-		FToolMenuSection& Section = Menu->AddDynamicSection("ActorLevelInstance", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
+		FToolMenuSection& Section = Menu->AddSection("ActorLevelInstance", TAttribute<FText>(), FToolMenuInsert("ActorOptions", EToolMenuInsertType::After));
+		Section.AddSubMenu(NAME_None, LOCTEXT("LevelInstanceSubMenuLabel", "Level Instance"), TAttribute<FText>(), FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
 		{
 			if (ToolMenu)
 			{
 				if (ULevelEditorContextMenuContext* LevelEditorMenuContext = ToolMenu->Context.FindContext<ULevelEditorContextMenuContext>())
 				{
+					// Use the actor under the cursor if available (e.g. right-click menu).
+					// Otherwise use the first selected actor if there's one (e.g. Actor pulldown menu or outliner).
 					AActor* ContextActor = LevelEditorMenuContext->HitProxyActor;
-					if (!ContextActor && GEditor->GetSelectedActorCount() == 1)
+					if (!ContextActor && GEditor->GetSelectedActorCount() != 0)
 					{
 						ContextActor = Cast<AActor>(GEditor->GetSelectedActors()->GetSelectedObject(0));
 					}
@@ -827,7 +830,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 					LevelInstanceMenuUtils::CreateCreateMenu(ToolMenu);
 				}
 			}
-		}), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+		}));
 	}
 
 	if (UToolMenu* WorldAssetMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.World"))

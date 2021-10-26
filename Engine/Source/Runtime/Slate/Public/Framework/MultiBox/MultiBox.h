@@ -33,9 +33,14 @@ namespace MultiBoxConstants
 	/** The time that a mouse should be hovered over a sub-menu before it automatically opens */
 	const float SubMenuOpenTime = 0.0f;
 
-	/** When a sub-menu is already open, the time that a mouse should be hovered over a sub-menu entry before
-	    dismissing the other menu and opening this one */
+	/** When a sub-menu is already open (for at least SubMenuClobberMinLifetime), the time that a mouse
+	    should be hovered over another sub-menu entry before dismissing the first menu and opening
+		the new one; this doesn't apply to short-lived sub-menus, see below */
 	const float SubMenuClobberTime = 0.5f;
+
+	/** The time that a sub-menu needs to remain open in order for the SubMenuClobberTime to apply;
+	    menus open shorter than this min lifetime will be instantly dismissed */
+	const float SubMenuClobberMinLifetime = 0.5f;
 
 	//const FName MenuItemFont = "MenuItem.Font";
 	//const FName MenuBindingFont = "MenuItem.BindingFont";
@@ -756,6 +761,16 @@ public:
 	 */
 	EVisibility GetCustomizationBorderDragVisibility(const FName InBlockName, const EMultiBlockType InBlockType, bool& bOutInsertAfter) const;
 
+	/**
+	 * Records the time that the multibox last summoned a menu
+	 */
+	void SetSummonedMenuTime(double InSummonedMenuTime);
+
+	/**
+	 * @return The last recorded time that the multibox summoned a menu
+	 */
+	double GetSummonedMenuTime() const;
+
 private:
 	/** Adds a block Widget to this widget */
 	void AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock);
@@ -858,6 +873,9 @@ private:
 
 	/** Whether this multibox can be searched */
 	bool bSearchable;
+
+	/** The time when the multibox last summoned a menu */
+	double SummonedMenuTime = 0.0;
 
 	/** Optional maximum height of widget */
 	TAttribute<float> MaxHeight;

@@ -83,6 +83,7 @@ namespace UnrealBuildTool.Rules
 					"KismetWidgets",
 					"PythonScriptPlugin",
 					"AdvancedPreviewScene",
+					"ToolWidgets",
 				}
             );
 

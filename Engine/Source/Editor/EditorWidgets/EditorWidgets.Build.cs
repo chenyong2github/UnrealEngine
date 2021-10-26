@@ -18,7 +18,8 @@ public class EditorWidgets : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"EditorFramework",
-				"UnrealEd"
+				"UnrealEd",
+				"ToolWidgets"
 			}
 		);
 

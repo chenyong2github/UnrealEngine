@@ -32,7 +32,7 @@ class ENGINE_API UDeviceProfile : public UTextureLODSettings
 
 	/** The parent object of this profile, it is the object matching this DeviceType with the BaseProfileName */
 	UPROPERTY()
-	TObjectPtr<UObject> Parent;
+	TObjectPtr<UDeviceProfile> Parent;
 
 	/** Flag used in the editor to determine whether the profile is visible in the property matrix */
 	bool bVisible;
@@ -56,6 +56,10 @@ public:
 	/** The collection of CVars which is set from this profile */
 	UPROPERTY(EditAnywhere, config, Category=ConsoleVariables)
 	TArray<FString> CVars;
+
+	/** An array of conditions to test against and fragment names to select. */
+	UPROPERTY(EditAnywhere, config, Category = "DeviceProfile Matching Rules")
+	TArray<FDPMatchingRulestruct> MatchingRules;
 
 	/** Prefer to load the DP from its platform's hierarchy */
 	virtual const TCHAR* GetConfigOverridePlatform() const override
@@ -83,16 +87,17 @@ public:
 	 * Access to the device profiles Texture LOD Settings
 	 */
 	UTextureLODSettings* GetTextureLODSettings() const;
+
+	/**
+	 * Returns the parent device profile, optionally including the default object
+	 */
+	UDeviceProfile* GetParentProfile(bool bIncludeDefaultObject = false) const;
 	
 private:
 	// Make sure our TextureLODGroups array is sorted correctly and complete
 	void ValidateTextureLODGroups();
 	/** Delegate object fired when there has been any changes to the console variables */
 	FOnCVarsUpdated CVarsUpdatedDelegate;
-
-	// An array of conditions to test against and fragment names to select.
-	UPROPERTY(EditAnywhere, config, Category = "DeviceProfile Matching Rules")
-	TArray<FDPMatchingRulestruct> MatchingRules;
 
 public:
 	/* ValidateProfile()

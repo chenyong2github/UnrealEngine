@@ -275,7 +275,7 @@ namespace EpicGames.CrowdinLocalization
 					// Add/check out backed up POs from Crowdin.
 					if (CommandUtils.P4Enabled)
 					{
-						UE4Build.AddBuildProductsToChangelist(PendingChangeList, new List<string>() { ExportFileCopy.FullName });
+						UnrealBuild.AddBuildProductsToChangelist(PendingChangeList, new List<string>() { ExportFileCopy.FullName });
 					}
 				}
 			}

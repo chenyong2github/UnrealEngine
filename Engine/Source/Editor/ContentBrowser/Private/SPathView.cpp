@@ -24,6 +24,7 @@
 #include "SourcesViewWidgets.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "ContentBrowserModule.h"
+#include "Misc/ComparisonUtility.h"
 #include "Misc/NamePermissionList.h"
 #include "Misc/PathViews.h"
 
@@ -1551,7 +1552,7 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 			}
 
 			// Two non special folders of the same priority, sort alphabetically
-			const int32 CompareResult = FAssetViewSortManager::CompareWithNumericSuffix(SortInfoA.FolderName, SortInfoB.FolderName);
+			const int32 CompareResult = UE::ComparisonUtility::CompareWithNumericSuffix(SortInfoA.FolderName, SortInfoB.FolderName);
 			if (CompareResult != 0)
 			{
 				return CompareResult < 0;

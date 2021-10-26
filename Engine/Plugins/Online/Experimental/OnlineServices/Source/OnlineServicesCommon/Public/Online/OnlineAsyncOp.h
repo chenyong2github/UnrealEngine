@@ -380,9 +380,9 @@ public:
 	}
 
 
-	ResultType& GetResultRef()
+	ResultType* GetResultPtr()
 	{
-		return Result;
+		return &Result;
 	}
 
 private:
@@ -480,6 +480,11 @@ template <typename Outer, typename OpType, typename LastResultType>
 class TOnlineAsyncOpBase
 {
 public:
+	TOnlineAsyncOpBase(LastResultType* InLastResult)
+		: LastResult(InLastResult)
+	{
+	}
+
 	// Callable can take one of the following forms, where the second form is used when an asynchronous
 	//     call can set the promise with a value that is only valid for the duration of the Callable call
 	//   ResultType(AsyncOp, LastResult)
@@ -501,6 +506,8 @@ template <typename Outer, typename OpType>
 class TOnlineAsyncOpBase<Outer, OpType, void>
 {
 public:
+	TOnlineAsyncOpBase() {}
+
 	// Callable can take one of the following forms, where the second form is used when an asynchronous
 	//     call can set the promise with a value that is only valid for the duration of the Callable call
 	//   ResultType(AsyncOp)
@@ -520,22 +527,30 @@ template <typename OpType, typename T>
 class TOnlineChainableAsyncOp : public Private::TOnlineAsyncOpBase<TOnlineChainableAsyncOp<OpType, T>, OpType, T>
 {
 public:
-	TOnlineChainableAsyncOp(TOnlineAsyncOp<OpType>& InOwningOperation, const T* InLastResult)
-		: OwningOperation(InOwningOperation)
-		, LastResult(InLastResult)
+	using Super = Private::TOnlineAsyncOpBase<TOnlineChainableAsyncOp<OpType, T>, OpType, T>;
+
+	TOnlineChainableAsyncOp(TOnlineAsyncOp<OpType>& InOwningOperation, T* InLastResult)
+		: Super(InLastResult)
+		, OwningOperation(InOwningOperation)
+	{
+	}
+
+
+	TOnlineChainableAsyncOp(TOnlineAsyncOp<OpType>& InOwningOperation)
+		: Super()
+		, OwningOperation(InOwningOperation)
 	{
 	}
 
 	TOnlineChainableAsyncOp(TOnlineChainableAsyncOp&& Other)
 		: OwningOperation(Other.OwningOperation)
-		, LastResult(Other.LastResult)
 	{
 	}
 
 	TOnlineChainableAsyncOp& operator=(TOnlineChainableAsyncOp&& Other)
 	{
 		check(&OwningOperation == &Other.OwningOperation); // Can't reassign this
-		LastResult = Other.LastResult;
+		Super::operator=(MoveTemp(Other));
 		return *this;
 	}
 
@@ -554,7 +569,6 @@ public:
 
 protected:
 	TOnlineAsyncOp<OpType>& OwningOperation;
-	const T* LastResult;
 };
 
 class FOnlineAsyncOp
@@ -609,11 +623,6 @@ public:
 		return *this;
 	}
 
-	operator TOnlineChainableAsyncOp<OpType, void>()
-	{
-		return TOnlineChainableAsyncOp<OpType, void>(*this, nullptr);
-	}
-
 	static TOnlineAsyncOp<OpType> CreateError(const FOnlineError& Error) { return TOnlineAsyncOp<OpType>(); }
 
 	TOnlineAsyncOpHandle<OpType> GetHandle()
@@ -658,10 +667,12 @@ public:
 	{
 		if (!IsComplete())
 		{
-			if (NextStep < Steps.Num())
+			const int StepToExecute = NextStep;
+			++NextStep;
+			if (StepToExecute < Steps.Num())
 			{
-				Execute(Steps[NextStep]->GetExecutionPolicy(),
-					[this, StepToExecute = NextStep, WeakThis = TWeakPtr<TOnlineAsyncOp<OpType>>(this->AsShared())]()
+				Execute(Steps[StepToExecute]->GetExecutionPolicy(),
+					[this, StepToExecute, WeakThis = TWeakPtr<TOnlineAsyncOp<OpType>>(this->AsShared())]()
 					{
 						TSharedPtr<TOnlineAsyncOp<OpType>> PinnedThis = WeakThis.Pin();
 						if (PinnedThis)
@@ -670,7 +681,6 @@ public:
 						}
 					});
 			}
-			++NextStep;
 		}
 	}
 
@@ -865,11 +875,11 @@ auto TOnlineAsyncOpBase<Outer, OpType, LastResultType>::Then(CallableType&& InCa
 
 	if constexpr (std::is_same_v<ResultType, void>)
 	{
-		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, nullptr);
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op);
 	}
 	else
 	{
-		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, &Step->GetResultRef());
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, Step->GetResultPtr());
 	}
 }
 
@@ -889,11 +899,11 @@ auto TOnlineAsyncOpBase<Outer, OpType, void>::Then(CallableType&& InCallable, FO
 
 	if constexpr (std::is_same_v<ResultType, void>)
 	{
-		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, nullptr);
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op);
 	}
 	else
 	{
-		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, &Step->GetResultRef());
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, Step->GetResultPtr());
 	}
 }
 

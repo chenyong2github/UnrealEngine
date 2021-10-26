@@ -27,6 +27,9 @@ public:
 
 	/** Paste all names */
 	TSharedPtr< FUICommandInfo > PasteAllNames;
+
+	/** Update selected pose to match viewport */
+	TSharedPtr< FUICommandInfo > UpdatePoseToCurrent;
 };
 
 

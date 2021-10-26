@@ -63,7 +63,7 @@ void UViewportStatsSubsystem::Draw(FViewport* Viewport, FCanvas* Canvas, UCanvas
 	{
 		SmallTextItem.Text = Message->DisplayText;
 		SmallTextItem.SetColor(Message->DisplayColor);
-		Canvas->DrawItem(SmallTextItem, MessagePos);
+		Canvas->DrawItem(SmallTextItem, MessagePos + Message->DisplayOffset);
 
 		MessagePos.Y += FontSizeY;
 	}
@@ -105,7 +105,7 @@ void UViewportStatsSubsystem::RemoveDisplayDelegate(const int32 IndexToRemove)
 	}
 }
 
-void UViewportStatsSubsystem::AddTimedDisplay(FText Text, FLinearColor Color, float Duration)
+void UViewportStatsSubsystem::AddTimedDisplay(FText Text, FLinearColor Color, float Duration, const FVector2D& DisplayOffset /* = FVector2D::ZeroVector */)
 {
 	UWorld* MyWorld = GetWorld();
 	
@@ -114,7 +114,7 @@ void UViewportStatsSubsystem::AddTimedDisplay(FText Text, FLinearColor Color, fl
 		return;
 	}
 
-	TSharedPtr<FUniqueDisplayData> Message = MakeShared<FUniqueDisplayData>(Text, Color);
+	TSharedPtr<FUniqueDisplayData> Message = MakeShared<FUniqueDisplayData>(Text, Color, DisplayOffset);
 	UniqueDisplayMessages.Add(Message);
 
 	// If the user has specified a duration, then remove the message after it

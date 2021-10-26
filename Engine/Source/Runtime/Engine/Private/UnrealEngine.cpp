@@ -1101,6 +1101,25 @@ public:
 
 		return bSucceeded;
 	}
+	
+	/** Get name of compressor
+	 * 
+	 * @return Name of thumbnail compressor
+	 */
+	FName GetThumbnailCompressorName() const override
+	{
+		static FName CompressorName = TEXT("PNG");
+		return CompressorName;
+	}
+
+	/** Is lossless compression
+	 * 
+	 * @return true if compression is lossless
+	 */
+	bool IsLosslessCompression() const override
+	{
+		return true;
+	}
 };
 
 
@@ -1170,6 +1189,25 @@ public:
 		}
 
 		return bSucceeded;
+	}
+
+	/** Get name of compressor
+	 * 
+	 * @return Name of thumbnail compressor
+	 */
+	FName GetThumbnailCompressorName() const override
+	{
+		static FName CompressorName = TEXT("JPEG");
+		return CompressorName;
+	}
+
+	/** Is lossless compression
+	 * 
+	 * @return true if compression is lossless
+	 */
+	bool IsLosslessCompression() const override
+	{
+		return false;
 	}
 };
 
@@ -1975,7 +2013,10 @@ void UEngine::RegisterEndStreamingPauseRenderingDelegate( FEndStreamingPauseDele
 
 void UEngine::OnExternalUIChange(bool bInIsOpening)
 {
-	FSlateApplication::Get().ExternalUIChange(bInIsOpening);
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().ExternalUIChange(bInIsOpening);
+	}
 }
 
 void UEngine::ReleaseAudioDeviceManager()
@@ -13556,7 +13597,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		appDumpTextureMemoryStats(TEXT(""));
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// if we aren't trimming memory above, then the world won't be fully cleaned up at this point, so don't bother checking
 	if (GDelayTrimMemoryDuringMapLoadMode == 0)
 	{
@@ -13564,7 +13604,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		VerifyLoadMapWorldCleanup();
 	}
 
-#endif
 	FMoviePlayerProxy::BlockingTick();
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
@@ -14581,6 +14620,7 @@ bool UEngine::IsWorldDuplicate(const UWorld* const InWorld)
 
 void UEngine::VerifyLoadMapWorldCleanup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(VerifyLoadMapWorldCleanup);
 	// All worlds at this point should be the CurrentWorld of some context, preview worlds, or streaming level
 	// worlds that are owned by the CurrentWorld of some context.
 	for( TObjectIterator<UWorld> It; It; ++It )
@@ -14643,7 +14683,7 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 	FString GarbageErrorMessage;
 	if (OutGarbageObject && OutReferencingObject)
 	{
-		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is %s being referenced by %s"), *OutGarbageObject->GetFullName(), *OutReferencingObject->GetFullName());
+		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is being referenced by %s"), *OutGarbageObject->GetFullName(), *OutReferencingObject->GetFullName());
 	}
 	else if (OutGarbageObject)
 	{

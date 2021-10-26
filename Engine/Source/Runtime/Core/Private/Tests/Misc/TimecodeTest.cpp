@@ -65,7 +65,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				const FFrameNumber ExpectedFrameNumber = TimecodeValue.ToFrameNumber(FrameRate);
 				if (FrameNumber != ExpectedFrameNumber)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d'.")
+					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d' for FrameRate '%s'.")
 						, *TimecodeValue.ToString()
 						, FrameNumber.Value
 						, *FrameRate.ToPrettyText().ToString()
@@ -74,7 +74,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 					++NumberOfErrors;
 				}
 			}
-
+			
 			// Conversion from Timespan to Timecode
 			if (bDoTest)
 			{
@@ -105,13 +105,18 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				else if (!bIsDropFrame)
 				{
 					// Do they have the same hours, minutes, seconds
-					bool bRolloverHoursAreValid = TimespanFromTimecode.GetHours() == TimecodeFromTimespanWithRollover.Hours;
-					bool bHoursAreValid = (TimecodeValue.Hours % 24) == TimespanFromTimecode.GetHours() && (TimecodeValue.Hours / 24) == TimespanFromTimecode.GetDays();
-					bool bMinutesAreValid = TimespanFromTimecode.GetMinutes() == TimecodeValue.Minutes;
-					bool bSecondsAreValid = TimespanFromTimecode.GetSeconds() == TimecodeValue.Seconds;
-					if (!bRolloverHoursAreValid || !bHoursAreValid || !bMinutesAreValid || !bSecondsAreValid)
+					// To test this, we start from the number of events (FrameIndex) from which we got our timecode first
+					// Timecode is just a label and doesn't necessarily reflect real time especially with 23.976 FrameRate like
+					const int32 TotalSeconds = FMath::FloorToInt((double)FrameIndex * FrameRate.AsInterval());
+					const int32 FrameHours = (TotalSeconds / (60 * 60));
+					const int32 FrameMinutes = ((TotalSeconds % (60 * 60)) / 60);
+					const int32 FrameSeconds = ((TotalSeconds % (60 * 60)) % 60);
+					const bool bHoursAreValid = (FrameHours % 24) == TimespanFromTimecode.GetHours() && (FrameHours / 24) == TimespanFromTimecode.GetDays();
+					const bool bMinutesAreValid = FrameMinutes == TimespanFromTimecode.GetMinutes();
+					const bool bSecondsAreValid = FrameSeconds == TimespanFromTimecode.GetSeconds();
+					if (!bHoursAreValid || !bMinutesAreValid || !bSecondsAreValid)
 					{
-						AddError(FString::Printf(TEXT("Timecode '%s' hours/minutes/seconds doesn't matches with Timespan '%s' from frame rate '%s'.")
+						AddError(FString::Printf(TEXT("Timecode hours/minutes/seconds doesn't matches with Timespan '%s' from frame rate '%s'.")
 							, *TimecodeValue.ToString()
 							, *TimespanFromTimecode.ToString()
 							, *FrameRate.ToPrettyText().ToString()
@@ -218,13 +223,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				));
 				++NumberOfErrors;
 			}
-			else if (!bIsDropFrame && FromTimespanTimecodeValueWithRollover.Frames != FromTimespanTimecodeValueWithoutRollover.Frames)
-			{
-				AddError(FString::Printf(TEXT("The timecode didn't convert properly from the computer clock's time when the frame rate is '%s'")
-					, *FrameRate.ToPrettyText().ToString()
-				));
-				++NumberOfErrors;
-			}
+			// Can't really test frame number matching between rollver timecode labels. We would need to exclude NDF fractional frame rates
 		}
 
 		AddInfo(FString::Printf(TEXT("Timecode test was completed with frame rate '%s'"), *FrameRate.ToPrettyText().ToString()));

@@ -93,6 +93,14 @@ void FTextureLODGroup::SetupGroup()
 	}
 }
 
+bool FTextureLODGroup::operator==(const FTextureLODGroup& Other) const
+{
+	// Do a UPROPERTY compare to avoid easily broken manual checks
+	UScriptStruct* ScriptStruct = FTextureLODGroup::StaticStruct();
+	
+	return ScriptStruct->CompareScriptStruct(this, &Other, 0);
+}
+
 UTextureLODSettings::UTextureLODSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

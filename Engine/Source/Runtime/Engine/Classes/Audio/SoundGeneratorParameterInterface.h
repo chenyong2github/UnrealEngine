@@ -13,7 +13,7 @@ class FAudioDevice;
 class USoundBase;
 struct FActiveSound;
 
-UINTERFACE()
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class ENGINE_API USoundGeneratorParameterInterface : public UAudioParameterInterface
 {
 	GENERATED_UINTERFACE_BODY()

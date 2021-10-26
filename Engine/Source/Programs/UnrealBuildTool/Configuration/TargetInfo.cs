@@ -83,7 +83,7 @@ namespace UnrealBuildTool
 			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString());
 			string ConfigurationStr = Reader.ReadString();
 			this.Architecture = Reader.ReadString();
-			this.ProjectFile = Reader.ReadFileReference();
+			this.ProjectFile = Reader.ReadFileReferenceOrNull();
 			string[] ArgumentStrs = Reader.ReadArray(() => Reader.ReadString());
 
 			if (!UnrealTargetConfiguration.TryParse(ConfigurationStr, out Configuration))

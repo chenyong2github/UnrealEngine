@@ -85,7 +85,7 @@
 #include "ISCSEditorUICustomization.h"
 
 #include "Logging/MessageLog.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
@@ -4019,7 +4019,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	.Padding(0,0,4,0)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SPositiveActionButton)
 		.AddMetaData<FTagMetaData>( FTagMetaData(TEXT("Actor.ConvertToBlueprint")) )
 		.Visibility( this, &SSCSEditor::GetPromoteToBlueprintButtonVisibility )
 		.OnClicked( this, &SSCSEditor::OnPromoteToBlueprintClicked )
@@ -4034,7 +4034,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SPositiveActionButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
 		.Visibility(this, &SSCSEditor::GetEditBlueprintButtonVisibility)
 		.ToolTipText(LOCTEXT("EditActorBlueprint_Tooltip", "Edit the Blueprint for this Actor"))
@@ -4537,10 +4537,9 @@ void SSCSEditor::OnFindReferences()
 		{
 			const FString VariableName = SelectedNodes[0]->GetVariableName().ToString();
 
-			// Search for both an explicit variable reference (finds get/sets of exactly that var, without including related-sounding variables)
-			// and a softer search for (VariableName) to capture bound component/widget event nodes which wouldn't otherwise show up
-			//@TODO: This logic is duplicated in SMyBlueprint::OnFindReference(), keep in sync
-			const FString SearchTerm = FString::Printf(TEXT("Nodes(VariableReference(MemberName=+\"%s\") || Name=\"(%s)\")"), *VariableName, *VariableName);
+			FMemberReference MemberReference;
+			MemberReference.SetSelfMember(*VariableName);
+			const FString SearchTerm = MemberReference.GetReferenceSearchString(GetBlueprint()->SkeletonGeneratedClass);
 
 			TSharedRef<IBlueprintEditor> BlueprintEditor = StaticCastSharedRef<IBlueprintEditor>(FoundAssetEditor.ToSharedRef());
 			BlueprintEditor->SummonSearchUI(true, SearchTerm);

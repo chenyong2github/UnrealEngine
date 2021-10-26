@@ -168,6 +168,14 @@ void UAnimGraphNode_Base::PostPlacedNewNode()
 	UAnimBlueprintExtension::RequestExtensionsForNode(this);
 }
 
+void UAnimGraphNode_Base::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	// This makes sure that all anim BP extensions are registered that this node needs
+	UAnimBlueprintExtension::RequestExtensionsForNode(this);
+}
+
 void UAnimGraphNode_Base::DestroyNode()
 {
 	// This node may have been the last using its extension, so refresh
@@ -279,6 +287,59 @@ void UAnimGraphNode_Base::InternalPinCreation(TArray<UEdGraphPin*>* OldPins)
 void UAnimGraphNode_Base::AllocateDefaultPins()
 {
 	InternalPinCreation(NULL);
+}
+
+void UAnimGraphNode_Base::RecalculateBindingType(FAnimGraphNodePropertyBinding& InBinding)
+{
+	if(FProperty* BindingProperty = GetPinProperty(InBinding.PropertyName))
+	{
+		// Use the inner for array properties
+		if(BindingProperty->IsA<FArrayProperty>() && InBinding.ArrayIndex != INDEX_NONE)
+		{
+			BindingProperty = CastFieldChecked<FArrayProperty>(BindingProperty)->Inner;
+		}
+		
+		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+		const UAnimationGraphSchema* Schema = GetDefault<UAnimationGraphSchema>();
+		
+		FProperty* LeafProperty = nullptr;
+		int32 ArrayIndex = INDEX_NONE;
+		FPropertyAccessResolveResult Result = PropertyAccessEditor.ResolvePropertyAccess(AnimBlueprint->SkeletonGeneratedClass, InBinding.PropertyPath, LeafProperty, ArrayIndex);
+		if(Result.Result == EPropertyAccessResolveResult::Succeeded)
+		{
+			if(LeafProperty)
+			{
+				Schema->ConvertPropertyToPinType(LeafProperty, InBinding.PinType);
+				
+				if(PropertyAccessEditor.GetPropertyCompatibility(LeafProperty, BindingProperty) == EPropertyAccessCompatibility::Promotable)
+				{
+					InBinding.bIsPromotion = true;
+					Schema->ConvertPropertyToPinType(LeafProperty, InBinding.PromotedPinType);
+				}
+				else
+				{
+					InBinding.bIsPromotion = false;
+					InBinding.PromotedPinType = InBinding.PinType;
+				}
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_Base::ReconstructNode()
+{
+	if(HasValidBlueprint())
+	{
+		// Refresh bindings
+		for(auto& BindingPair : PropertyBindings)
+		{
+			RecalculateBindingType(BindingPair.Value);
+		}
+	}
+	
+	Super::ReconstructNode();
 }
 
 void UAnimGraphNode_Base::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
@@ -656,16 +717,26 @@ FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
 void UAnimGraphNode_Base::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
 {
 	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
-
-	for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
-	{
-		OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(BindingPair.Key)));
-		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Binding", "Binding"), BindingPair.Value.PathAsText));
-	}
-
+	
 	if(Tag != NAME_None)
 	{
 		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Tag", "Tag"), FText::FromName(Tag)));
+	}
+}
+
+void UAnimGraphNode_Base::AddPinSearchMetaDataInfo(const UEdGraphPin* InPin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
+{
+	Super::AddPinSearchMetaDataInfo(InPin, OutTaggedMetaData);
+	
+	FName BindingName;
+	FProperty* PinProperty;
+	int32 OptionalPinIndex;
+	if(GetPinBindingInfo(InPin->GetFName(), BindingName, PinProperty, OptionalPinIndex))
+	{
+		if(const FAnimGraphNodePropertyBinding* BindingInfo = PropertyBindings.Find(BindingName))
+		{
+			OutTaggedMetaData.Add(FSearchTagDataPair(FText::FromString(TEXT("Binding")), BindingInfo->PathAsText));
+		}
 	}
 }
 
@@ -915,37 +986,8 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 					Binding.PathAsText = PropertyAccessEditor.MakeTextPath(Binding.PropertyPath);
 					Binding.Type = LeafField.IsA<UFunction>() ? EAnimGraphNodePropertyBindingType::Function : EAnimGraphNodePropertyBindingType::Property;
 					Binding.bIsBound = true;
-					if(LeafField.IsA<FProperty>())
-					{
-						const FProperty* LeafProperty = LeafField.Get<FProperty>();
-						if(LeafProperty)
-						{
-							if(PropertyAccessEditor.GetPropertyCompatibility(LeafProperty, BindingProperty) == EPropertyAccessCompatibility::Promotable)
-							{
-								Binding.bIsPromotion = true;
-								Schema->ConvertPropertyToPinType(LeafProperty, Binding.PromotedPinType);
-							}
+					AnimGraphNode->RecalculateBindingType(Binding);
 
-							Schema->ConvertPropertyToPinType(LeafProperty, Binding.PinType);
-						}
-					}
-					else if(LeafField.IsA<UFunction>())
-					{
-						const UFunction* LeafFunction = LeafField.Get<UFunction>();
-						if(LeafFunction)
-						{
-							if(FProperty* ReturnProperty = LeafFunction->GetReturnProperty())
-							{
-								if(PropertyAccessEditor.GetPropertyCompatibility(ReturnProperty, BindingProperty) == EPropertyAccessCompatibility::Promotable)
-								{
-									Binding.bIsPromotion = true;
-									Schema->ConvertPropertyToPinType(ReturnProperty, Binding.PromotedPinType);
-								}
-
-								Schema->ConvertPropertyToPinType(ReturnProperty, Binding.PinType);
-							}
-						}
-					}
 					AnimGraphNode->PropertyBindings.Add(InArgs.BindingName, Binding);
 				}
 			}
@@ -1212,19 +1254,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 				{
 					TArrayView<FOptionalPinFromProperty> OptionalPins; 
 					InArgs.OnGetOptionalPins.ExecuteIfBound(AnimGraphNode, OptionalPins);
-					if(OptionalPins.IsValidIndex(InArgs.OptionalPinIndex) && OptionalPins[InArgs.OptionalPinIndex].bShowPin)
-					{
-						if(Promotion == EPromotionState::NotChecked)
-						{
-							Promotion = EPromotionState::NotPromoted;
-						}
-						else if(Promotion == EPromotionState::Promoted)
-						{
-							BindingColor = FLinearColor::Gray;
-							break;
-						}
-					}
-					else if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.BindingName))
+					if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.BindingName))
 					{
 						if(Promotion == EPromotionState::NotChecked)
 						{
@@ -1246,6 +1276,18 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 								BindingColor = FLinearColor::Gray;
 								break;
 							}
+						}
+					}
+					else if(OptionalPins.IsValidIndex(InArgs.OptionalPinIndex) && OptionalPins[InArgs.OptionalPinIndex].bShowPin)
+					{
+						if(Promotion == EPromotionState::NotChecked)
+						{
+							Promotion = EPromotionState::NotPromoted;
+						}
+						else if(Promotion == EPromotionState::Promoted)
+						{
+							BindingColor = FLinearColor::Gray;
+							break;
 						}
 					}
 				}
@@ -1555,6 +1597,111 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 	{
 		return SNew(SSpacer);
 	}
+}
+
+void UAnimGraphNode_Base::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	UClass* SkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(InVariableClass);
+	
+	// See if any of bindings reference the variable
+	for(auto& BindingPair : PropertyBindings)
+	{
+		TArray<int32> RenameIndices;
+		IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+		ResolveArgs.PropertyFunction = [InOldVarName, SkeletonVariableClass, &RenameIndices](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+		{
+			UClass* OwnerClass = InProperty->GetOwnerClass();
+			if(OwnerClass && InProperty->GetFName() == InOldVarName && OwnerClass->IsChildOf(SkeletonVariableClass))
+			{
+				RenameIndices.Add(InSegmentIndex);
+			}
+		};
+		
+		PropertyAccessEditor.ResolvePropertyAccess(GetAnimBlueprint()->SkeletonGeneratedClass, BindingPair.Value.PropertyPath, ResolveArgs);
+
+		// Rename any references we found
+		for(const int32& RenameIndex : RenameIndices)
+		{
+			BindingPair.Value.PropertyPath[RenameIndex] = InNewVarName.ToString();
+			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath);
+		}
+	}
+}
+
+void UAnimGraphNode_Base::ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement)
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+	
+	UClass* SkeletonClass = InBlueprint->SkeletonGeneratedClass;
+
+	FMemberReference Source = InSource;
+	FProperty* SourceProperty = Source.ResolveMember<FProperty>(InBlueprint);
+	FMemberReference Replacement = InReplacement;
+	FProperty* ReplacementProperty = Replacement.ResolveMember<FProperty>(InReplacementBlueprint);
+	
+	// See if any of bindings reference the variable
+	for(auto& BindingPair : PropertyBindings)
+	{
+		TArray<int32> ReplaceIndices;
+		IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+		ResolveArgs.PropertyFunction = [SourceProperty, &ReplaceIndices](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+		{
+			if(InProperty == SourceProperty)
+			{
+				ReplaceIndices.Add(InSegmentIndex);
+			}
+		};
+		
+		PropertyAccessEditor.ResolvePropertyAccess(GetAnimBlueprint()->SkeletonGeneratedClass, BindingPair.Value.PropertyPath, ResolveArgs);
+
+		// Replace any references we found
+		for(const int32& RenameIndex : ReplaceIndices)
+		{
+			BindingPair.Value.PropertyPath[RenameIndex] = ReplacementProperty->GetName();
+			BindingPair.Value.PathAsText = PropertyAccessEditor.MakeTextPath(BindingPair.Value.PropertyPath);
+		}
+	}
+}
+
+bool UAnimGraphNode_Base::ReferencesVariable(const FName& InVarName, const UStruct* InScope) const
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	const UClass* SkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InScope));
+	
+	// See if any of bindings reference the variable
+	for(const auto& BindingPair : PropertyBindings)
+	{
+		bool bReferencesVariable = false;
+		
+		IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+		ResolveArgs.PropertyFunction = [InVarName, SkeletonVariableClass, &bReferencesVariable](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+		{
+			if(SkeletonVariableClass)
+			{
+				UStruct* OwnerStruct = InProperty->GetOwnerStruct();
+				if(OwnerStruct && InProperty->GetFName() == InVarName && OwnerStruct->IsChildOf(SkeletonVariableClass))
+				{
+					bReferencesVariable = true;
+				}
+			}
+			else if(InProperty->GetFName() == InVarName)
+			{
+				bReferencesVariable = true;
+			}
+		};
+		
+		PropertyAccessEditor.ResolvePropertyAccess(GetAnimBlueprint()->SkeletonGeneratedClass, BindingPair.Value.PropertyPath, ResolveArgs);
+
+		if(bReferencesVariable)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -252,7 +252,7 @@ float FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPa
 	}
 	
 	const uint32 PathPointsCount = PathPoints.Num();
-	float PathDistance = 0.f;
+	FVector::FReal PathDistance = 0.f;
 
 	for (uint32 PathIndex = NextPathPointIndex; PathIndex < PathPointsCount; ++PathIndex)
 	{
@@ -261,7 +261,7 @@ float FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPa
 		SegmentStart = SegmentEnd;
 	}
 
-	return PathDistance;
+	return UE_REAL_TO_FLOAT_CLAMPED_MAX(PathDistance);
 }
 
 bool FNavigationPath::ContainsCustomLink(uint32 LinkUniqueId) const

@@ -768,7 +768,7 @@ void FNiagaraDataInterfaceSplineLUT::BuildLUT(const FSplineCurves& SplineCurves,
 	MaxIndex = NumSteps - 1;
 
 	SplineLength = SplineCurves.GetSplineLength();
-	SplineDistanceStep = (1.0f / MaxIndex) * SplineLength;
+	SplineDistanceStep = MaxIndex ? ((1.0f / MaxIndex) * SplineLength) : 0.0f;
 	InvSplineDistanceStep = 1.0f / SplineDistanceStep;
 	
 	for (int32 Index = 0; Index < NumSteps; Index++)

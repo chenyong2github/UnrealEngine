@@ -15,6 +15,7 @@ class KISMET_API UBlueprintEditorToolMenuContext : public UObject
 	GENERATED_BODY()
 public:
 
+	UFUNCTION(BlueprintCallable, Category="Tool Menus")
 	UBlueprint* GetBlueprintObj() const;
 
 	TWeakPtr<FBlueprintEditor> BlueprintEditor;

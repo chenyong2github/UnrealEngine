@@ -247,7 +247,7 @@ namespace PackFactoryHelper
 				}
 					
 				InputSettingsCDO->SaveKeyMappings();
-				InputSettingsCDO->UpdateDefaultConfigFile();
+				InputSettingsCDO->TryUpdateDefaultConfigFile();
 			}
 		}
 

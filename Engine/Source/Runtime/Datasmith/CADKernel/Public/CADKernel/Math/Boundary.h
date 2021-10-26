@@ -16,6 +16,7 @@ namespace CADKernel
 
 	struct CADKERNEL_API FLinearBoundary
 	{
+
 		/** A default boundary (0., 1.)*/
 		static const FLinearBoundary DefaultBoundary;
 
@@ -28,14 +29,20 @@ namespace CADKernel
 			Max = 1.;
 		}
 
+		FLinearBoundary(const FLinearBoundary& Boundary)
+			: Min(Boundary.Min)
+			, Max(Boundary.Max)
+		{
+		}
+
 		FLinearBoundary(double UMin, double UMax)
 		{
 			Set(UMin, UMax);
 		}
 
-		friend FArchive& operator<<(FArchive& Ar, FLinearBoundary& Bounds)
+		friend FArchive& operator<<(FArchive& Ar, FLinearBoundary& Boundary)
 		{
-			Ar.Serialize(&Bounds, sizeof(FLinearBoundary));
+			Ar.Serialize(&Boundary, sizeof(FLinearBoundary));
 			return Ar;
 		}
 
@@ -142,7 +149,13 @@ namespace CADKernel
 			Max = FMath::Max(Max, MaxCoordinate);
 		}
 
-		void ExtendTo(FLinearBoundary MaxBound)
+		void TrimAt(const FLinearBoundary& MaxBound)
+		{
+			Min = FMath::Max(Min, MaxBound.Min);
+			Max = FMath::Min(Max, MaxBound.Max);
+		}
+
+		void ExtendTo(const FLinearBoundary& MaxBound)
 		{
 			Min = FMath::Min(Min, MaxBound.Min);
 			Max = FMath::Max(Max, MaxBound.Max);
@@ -161,7 +174,7 @@ namespace CADKernel
 			}
 		}
 
-		void RestrictTo(FLinearBoundary MaxBound)
+		void RestrictTo(const FLinearBoundary& MaxBound)
 		{
 			if (MaxBound.Min > Min)
 			{
@@ -194,12 +207,14 @@ namespace CADKernel
 
 	};
 
-	struct CADKERNEL_API FSurfacicBoundary
+	class CADKERNEL_API FSurfacicBoundary
 	{
+	private:
+		FLinearBoundary UVBoundaries[2];
+
+	public:
 		/** A default boundary (0., 1., 0., 1.)*/
 		static const FSurfacicBoundary DefaultBoundary;
-
-		FLinearBoundary UVBoundaries[2];
 
 		FSurfacicBoundary() = default;
 
@@ -220,10 +235,10 @@ namespace CADKernel
 			UVBoundaries[EIso::IsoV].Set(Point1.V, Point2.V);
 		}
 
-		friend FArchive& operator<<(FArchive& Ar, FSurfacicBoundary& Bounds)
+		friend FArchive& operator<<(FArchive& Ar, FSurfacicBoundary& Boundary)
 		{
-			Ar << Bounds.UVBoundaries[EIso::IsoU];
-			Ar << Bounds.UVBoundaries[EIso::IsoV];
+			Ar << Boundary[EIso::IsoU];
+			Ar << Boundary[EIso::IsoV];
 			return Ar;
 		}
 
@@ -270,6 +285,12 @@ namespace CADKernel
 		{
 			UVBoundaries[EIso::IsoU].Init();
 			UVBoundaries[EIso::IsoV].Init();
+		}
+
+		void TrimAt(const FSurfacicBoundary MaxLimit)
+		{
+			UVBoundaries[EIso::IsoU].TrimAt(MaxLimit[EIso::IsoU]);
+			UVBoundaries[EIso::IsoV].TrimAt(MaxLimit[EIso::IsoV]);
 		}
 
 		void ExtendTo(const FSurfacicBoundary MaxLimit)

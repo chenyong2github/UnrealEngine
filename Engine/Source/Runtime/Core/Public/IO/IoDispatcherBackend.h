@@ -15,18 +15,18 @@ public:
 	FIoRequestImpl* NextRequest = nullptr;
 	void* BackendData = nullptr;
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	int32 InheritedTraceTag;
 #endif
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	int32 Priority = 0;
 
-	FIoRequestImpl(FIoDispatcherImpl& InDispatcher)
-		: Dispatcher(InDispatcher)
+	FIoRequestImpl(class FIoRequestAllocator& InAllocator)
+		: Allocator(InAllocator)
 	{
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 		InheritedTraceTag = MemoryTrace_GetActiveTag();
 #endif
 	}
@@ -53,6 +53,11 @@ public:
 		return Buffer.GetValue();
 	}
 
+	void SetResult(FIoBuffer InBuffer)
+	{
+		Buffer.Emplace(InBuffer);
+	}
+
 private:
 	friend class FIoDispatcherImpl;
 	friend class FIoRequest;
@@ -73,7 +78,7 @@ private:
 
 	void FreeRequest();
 
-	FIoDispatcherImpl& Dispatcher;
+	FIoRequestAllocator& Allocator;
 	struct IIoDispatcherBackend* Backend = nullptr;
 	FIoBatchImpl* Batch = nullptr;
 	TOptional<FIoBuffer> Buffer;

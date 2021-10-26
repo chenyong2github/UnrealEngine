@@ -28,6 +28,10 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 	/** All Niagara systems that use a user requested data interface */
 	TSet<FString> NiagaraSystemsWithUserDataInterface;
 
+	/** Detailed renderer information. */
+	bool bRendererDetailed = false;
+	TSet<FString> NiagaraRibbonRenderers;
+
 	/** The folder in which the commandlet's output files will be stored */
 	FString AuditOutputFolder;
 

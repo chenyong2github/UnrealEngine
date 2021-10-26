@@ -144,6 +144,9 @@ protected:
 
 	void SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const;
 
+	bool CanOpenSource() const;
+	void OpenSource() const;
+
 protected:
 	TSharedPtr<FUICommandList> CommandList;
 

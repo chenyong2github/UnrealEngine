@@ -101,7 +101,10 @@ namespace DatasmithRhino.Utils
 					Texture[] MaterialTextures = RhinoMaterial.GetTextures();
 					for (int Index = 0; Index < MaterialTextures.Length; ++Index)
 					{
-						SerializeTexture(Writer, MaterialTextures[Index]);
+						if (MaterialTextures[Index] is Texture RhinoTexture)
+						{
+							SerializeTexture(Writer, RhinoTexture);
+						}
 					}
 				}
 
@@ -109,9 +112,17 @@ namespace DatasmithRhino.Utils
 			}
 		}
 
+		public static bool IsTextureSupported(Texture RhinoTexture)
+		{
+			return (RhinoTexture.Enabled 
+				&& (RhinoTexture.TextureType == TextureType.Bitmap 
+					|| RhinoTexture.TextureType == TextureType.Bump 
+					|| RhinoTexture.TextureType == TextureType.Transparency));
+		}
+
 		private static void SerializeTexture(BinaryWriter Writer, Texture RhinoTexture)
 		{
-			if (!RhinoTexture.Enabled || (RhinoTexture.TextureType != TextureType.Bitmap && RhinoTexture.TextureType != TextureType.Bump && RhinoTexture.TextureType != TextureType.Transparency))
+			if (!IsTextureSupported(RhinoTexture))
 			{
 				return;
 			}
@@ -309,47 +320,62 @@ namespace DatasmithRhino.Utils
 
 		public static string GetRhinoTextureFilePath(Texture RhinoTexture)
 		{
-			string FileName = "";
+			string FileName = string.Empty;
 			string FilePath = RhinoTexture.FileReference.FullPath;
-			if (FilePath != null && FilePath.Length != 0)
-			{
-				FileName = Path.GetFileName(FilePath);
-				if (!File.Exists(FilePath))
-				{
-					FilePath = "";
-				}
-			}
 
-			// Rhino's full path did not work, check with Rhino's relative path starting from current path
-			string RhinoFilePath = RhinoDoc.ActiveDoc.Path;
-			if (RhinoFilePath != null && RhinoFilePath != "")
+			try
 			{
-				string CurrentPath = Path.GetFullPath(Path.GetDirectoryName(RhinoFilePath));
-				if (FilePath == null || FilePath.Length == 0)
+				if (!string.IsNullOrWhiteSpace(FilePath))
 				{
-					string RelativePath = RhinoTexture.FileReference.RelativePath;
-					if (RelativePath != null && RelativePath.Length != 0)
+					FileName = Path.GetFileName(FilePath);
+					if (!File.Exists(FilePath))
 					{
-						FilePath = Path.Combine(CurrentPath, RelativePath);
-						FilePath = Path.GetFullPath(FilePath);
+						FilePath = string.Empty;
+					}
+				}
 
-						if (!File.Exists(FilePath))
+				// Rhino's full path did not work, check with Rhino's relative path starting from current path
+				string RhinoFilePath = RhinoDoc.ActiveDoc.Path;
+				if (!string.IsNullOrWhiteSpace(RhinoFilePath))
+				{
+					string CurrentPath = Path.GetFullPath(Path.GetDirectoryName(RhinoFilePath));
+					if (string.IsNullOrWhiteSpace(FilePath))
+					{
+						string RelativePath = RhinoTexture.FileReference.RelativePath;
+						if (!string.IsNullOrWhiteSpace(RelativePath))
 						{
-							FilePath = "";
+							FilePath = Path.Combine(CurrentPath, RelativePath);
+							FilePath = Path.GetFullPath(FilePath);
+
+							if (!File.Exists(FilePath))
+							{
+								FilePath = string.Empty;
+							}
+						}
+					}
+
+					// Last resort, search for the file
+					if (string.IsNullOrWhiteSpace(FilePath) && !string.IsNullOrEmpty(FileName))
+					{
+						// Search the texture in the CurrentPath and its sub-folders
+						string[] FileNames = Directory.GetFiles(CurrentPath, FileName, SearchOption.AllDirectories);
+						if (FileNames.Length > 0)
+						{
+							FilePath = Path.GetFullPath(FileNames[0]);
 						}
 					}
 				}
+			}
+			catch (Exception)
+			{
+				// IO operations can raise an exception for reasons outside of our control. Don't crash the export for this.
+				FilePath = string.Empty;
+			}
 
-				// Last resort, search for the file
-				if (FilePath == null || FilePath == "")
-				{
-					// Search the texture in the CurrentPath and its sub-folders
-					string[] FileNames = Directory.GetFiles(CurrentPath, FileName, SearchOption.AllDirectories);
-					if (FileNames.Length > 0)
-					{
-						FilePath = Path.GetFullPath(FileNames[0]);
-					}
-				}
+			if (string.IsNullOrWhiteSpace(FilePath))
+			{
+				string WarningMessage = string.Format("Texture ({0}) has an invalid filepath or its file is missing. Filepath: {1}", RhinoTexture.Id, RhinoTexture.FileReference.FullPath);
+				DatasmithRhinoPlugin.Instance.LogManager.AddLog(DatasmithRhinoLogType.Warning, WarningMessage);
 			}
 
 			return FilePath;
@@ -358,10 +384,10 @@ namespace DatasmithRhino.Utils
 		public static bool GetRhinoTextureNameAndPath(Texture RhinoTexture, out string Name, out string TexturePath)
 		{
 			TexturePath = GetRhinoTextureFilePath(RhinoTexture);
-			Name = "";
 
 			if (string.IsNullOrEmpty(TexturePath))
 			{
+				Name = string.Empty;
 				return false;
 			}
 

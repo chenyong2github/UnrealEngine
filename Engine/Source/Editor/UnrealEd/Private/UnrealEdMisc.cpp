@@ -316,8 +316,7 @@ void FUnrealEdMisc::OnInit()
 	const double InitialEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Loading editor; pre map load, took %.3f"), InitialEditorStartupTime);
 
-	FStudioAnalytics::FireEvent_Loading(TEXT("InitializeEditor"), InitialEditorStartupTime);
-
+	FStudioAnalytics::FireEvent_Loading(TEXT("InitializeEditor"), InitialEditorStartupTime, { FAnalyticsEventAttribute(TEXT("FirstTime"), true )});
 	// Check for automated build/submit option
 	const bool bDoAutomatedMapBuild = FParse::Param( ParsedCmdLine, TEXT("AutomatedMapBuild") );
 
@@ -504,7 +503,6 @@ void FUnrealEdMisc::OnInit()
 	FMessageLog::OnMessageSelectionChanged().BindRaw(this, &FUnrealEdMisc::OnMessageSelectionChanged);
 	FUObjectToken::DefaultOnMessageTokenActivated().BindRaw(this, &FUnrealEdMisc::OnMessageTokenActivated);
 	FUObjectToken::DefaultOnGetObjectDisplayName().BindRaw(this, &FUnrealEdMisc::OnGetDisplayName);
-	FURLToken::OnGenerateURL().BindRaw(this, &FUnrealEdMisc::GenerateURL);
 	FAssetNameToken::OnGotoAsset().BindRaw(this, &FUnrealEdMisc::OnGotoAsset);
 
 	// Register to receive notification of new key bindings
@@ -536,7 +534,7 @@ void FUnrealEdMisc::OnInit()
 
 	TRACE_BOOKMARK(TEXT("Editor Startup"));
 
-	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime);
+	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime, { FAnalyticsEventAttribute(TEXT("FirstTime"), true ) } );
 
 	GShaderCompilingManager->PrintStats(true);
 }
@@ -1007,7 +1005,6 @@ void FUnrealEdMisc::OnExit()
 	FMessageLog::OnMessageSelectionChanged().Unbind();
 	FUObjectToken::DefaultOnMessageTokenActivated().Unbind();
 	FUObjectToken::DefaultOnGetObjectDisplayName().Unbind();
-	FURLToken::OnGenerateURL().Unbind();
 	FAssetNameToken::OnGotoAsset().Unbind();
 
 	// Unregister message log UIs
@@ -1597,56 +1594,6 @@ void FUnrealEdMisc::OnMessageSelectionChanged(TArray< TSharedRef<FTokenizedMessa
 			GEditor->NoteSelectionChange();
 		}
 	}
-}
-
-FString FUnrealEdMisc::GenerateURL(const FString& InUDNPage)
-{
-	if( InUDNPage.Len() > 0 )
-	{
-		FInternationalization& I18N = FInternationalization::Get();
-		// The I18N info and version is now stored in MapErrorURL in the ini
-		const FString PageURL =  TEXT("/Editor/LevelEditing/MapErrors/index.html");
-		const FString BookmarkURL = FString::Printf( TEXT( "#%s" ), *InUDNPage );
-
-		// Developers can browse documentation included with the engine distribution, check for file presence...
-		FString MapErrorURL = FString::Printf( TEXT( "%sDocumentation/HTML/%s" ), *FPaths::ConvertRelativePathToFull( FPaths::EngineDir() ), *PageURL );
-
-		static FString Version = FString::FromInt(FEngineVersion::Current().GetMajor()) + TEXT(".") + FString::FromInt(FEngineVersion::Current().GetMinor());
-		const FString PartialPath = FString::Printf(TEXT("%s/%s%s/index.html"), *Version, *(*I18N.GetCurrentCulture()->GetName()), *PageURL);
-		return FString::Printf(TEXT("%sDocumentation/HTML/%s"), *FPaths::ConvertRelativePathToFull(FPaths::EngineDir()), *PartialPath);
-		if (IFileManager::Get().FileSize(*MapErrorURL) != INDEX_NONE)
-		{
-			MapErrorURL = FString::Printf( TEXT( "file://%s%s" ), *MapErrorURL, *BookmarkURL );
-		}
-		// ... if it's not present, fallback to using the online version, if the full URL is provided...
-		else if(FUnrealEdMisc::Get().GetURL( TEXT("MapErrorURL"), MapErrorURL, true ) && MapErrorURL.EndsWith( TEXT( ".html" ) ))
-		{	
-			FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(MapErrorURL, I18N.GetCurrentCulture());
-			MapErrorURL += BookmarkURL;
-		}
-		// ...otherwise, attempt to create the URL from what we know here...
-		else if(FUnrealEdMisc::Get().GetURL( TEXT("UDNDocsURL"), MapErrorURL, true ))
-		{
-			if ( !MapErrorURL.EndsWith( TEXT( "/" ) ) )
-			{
-				MapErrorURL += TEXT( "/" );
-			}
-
-			// UDNDocsURL is now stored with placeholders for internalization and version to be replaced
-			FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(MapErrorURL, I18N.GetCurrentCulture());
-			MapErrorURL += PageURL;
-			MapErrorURL += BookmarkURL;
-		}
-		// ... failing that, just try to access the UDN, period.
-		else
-		{
-			FUnrealEdMisc::Get().GetURL( TEXT("UDNURL"), MapErrorURL, true );
-		}
-
-		return MapErrorURL;
-	}
-
-	return FString();
 }
 
 void FUnrealEdMisc::OnGotoAsset(const FString& InAssetPath) const

@@ -114,6 +114,23 @@ public:
 	virtual void UpdateKeysInRange(const TRange<double>& ViewRange) {};
 	// Optionally implemented methods
 	virtual TRange<double> GetEffectiveRange() const { return TRange<double>::Empty(); }
+	virtual TArray<FFrameNumber> GetKeyTimes() const { return TArray<FFrameNumber>(); }
+	virtual TArray<FFrameNumber> GetSelectedKeyTimes() const { return TArray<FFrameNumber>(); }
+
+	virtual void GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector>& OutPoints, TArray<double>& OutSeconds)
+	{
+		if (FTrajectoryDrawInfo* DI = GetDrawInfo())
+		{
+			DI->GetTrajectoryPointsForDisplay(InDisplayContext, OutPoints, OutSeconds);
+		}
+	}
+	virtual void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& OutTicks, TArray<FVector2D>& OutTickTangents)
+	{
+		if (FTrajectoryDrawInfo* DI = GetDrawInfo())
+		{
+			DI->GetTickPointsForDisplay(InDisplayContext, OutTicks, OutTickTangents);
+		}
+	}
 
 	FTrajectoryDrawInfo* GetDrawInfo() { return DrawInfo.Get(); }
 	void ForceEvaluateNextTick() { bForceEvaluateNextTick = true; }

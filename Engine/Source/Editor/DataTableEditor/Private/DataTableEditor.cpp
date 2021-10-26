@@ -527,7 +527,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("ReimportText", "Reimport"),
 			LOCTEXT("ReimportTooltip", "Reimport this DataTable"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.ReimportAsset"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Import"));
 
 		ToolbarBuilder.AddSeparator();
 
@@ -536,7 +536,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("AddIconText", "Add"),
 			LOCTEXT("AddRowToolTip", "Add a new row to the Data Table"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Add"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Plus"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnCopyClicked),
@@ -544,7 +544,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("CopyIconText", "Copy"),
 			LOCTEXT("CopyToolTip", "Copy the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Copy"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Copy"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnPasteClicked),
@@ -552,7 +552,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("PasteIconText", "Paste"),
 			LOCTEXT("PasteToolTip", "Paste on the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Paste"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Paste"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnDuplicateClicked),
@@ -560,7 +560,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("DuplicateIconText", "Duplicate"),
 			LOCTEXT("DuplicateToolTip", "Duplicate the currently selected row"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Duplicate"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Duplicate"));
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FDataTableEditor::OnRemoveClicked),
@@ -568,7 +568,7 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None,
 			LOCTEXT("RemoveRowIconText", "Remove"),
 			LOCTEXT("RemoveRowToolTip", "Remove the currently selected row from the Data Table"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DataTableEditor.Remove"));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Delete"));
 	}
 	ToolbarBuilder.EndSection();
 

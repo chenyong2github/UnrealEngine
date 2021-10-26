@@ -6,6 +6,7 @@
 #include "ConsoleVariablesEditorStyle.h"
 
 #include "EditorStyleSet.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"

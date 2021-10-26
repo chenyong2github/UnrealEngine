@@ -165,7 +165,7 @@ public:
 /**
  * GoogleVR Head Mounted Display
  */
-class FGoogleVRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public IXRInput, public FSelfRegisteringExec, public FSceneViewExtensionBase
+class FGoogleVRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public IXRInput, public FSelfRegisteringExec, public FHMDSceneViewExtension
 {
 	friend class FGoogleVRHMDCustomPresent;
 	friend class FGoogleVRSplash;
@@ -471,15 +471,20 @@ public:
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 #endif  // GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 
-	// This view extension should only be allowed when stereo is enabled.
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
-
 	// Remaining pure virtual methods are not used
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {}
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override {}
+
+
+	//////////////////////////////////////////////////////
+	// Begin FHMDSceneViewExtension Interface //
+	//////////////////////////////////////////////////////
+
+	// This view extension should only be allowed when stereo is enabled.
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 
 	///////////////////////////////////////////////////

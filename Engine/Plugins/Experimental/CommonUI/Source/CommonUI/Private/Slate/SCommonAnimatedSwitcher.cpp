@@ -12,7 +12,7 @@ void SCommonAnimatedSwitcher::Construct(const FArguments& InArgs)
 
 	TransitionType = InArgs._TransitionType;
 
-	TransitionSequence.AddCurve(0.f, InArgs._TransitionDuration * 0.5f, TransitionCurveToCurveEaseFunction(InArgs._TransitionCurveType));
+	SetTransition(InArgs._TransitionDuration, InArgs._TransitionCurveType);
 
 	OnActiveIndexChanged = InArgs._OnActiveIndexChanged;
 	OnIsTransitioningChanged = InArgs._OnIsTransitioningChanged;
@@ -125,6 +125,11 @@ void SCommonAnimatedSwitcher::TransitionToIndex(int32 NewWidgetIndex, bool bInst
 SWidgetSwitcher::FSlot* SCommonAnimatedSwitcher::GetChildSlot(int32 SlotIndex)
 {
 	return GetTypedChildren().IsValidIndex(SlotIndex) ? &GetTypedChildren()[SlotIndex] : nullptr;
+}
+
+void SCommonAnimatedSwitcher::SetTransition(float Duration, ETransitionCurve Curve)
+{
+	TransitionSequence = FCurveSequence(0.f, Duration * 0.5f, TransitionCurveToCurveEaseFunction(Curve));
 }
 
 EActiveTimerReturnType SCommonAnimatedSwitcher::UpdateTransition(double InCurrentTime, float InDeltaTime)

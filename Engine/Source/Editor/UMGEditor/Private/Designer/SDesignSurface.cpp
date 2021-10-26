@@ -206,9 +206,7 @@ int32 SDesignSurface::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 {
 	OnPaintBackground(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
-	SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
-
-	return LayerId;
+	return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 }
 
 void SDesignSurface::OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const

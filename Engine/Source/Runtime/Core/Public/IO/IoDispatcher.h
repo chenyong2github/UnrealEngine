@@ -55,7 +55,8 @@ enum class EIoErrorCode
 	UnknownChunkID,
 	InvalidParameter,
 	SignatureError,
-	InvalidEncryptionKey
+	InvalidEncryptionKey,
+	CompressionError,
 };
 
 /*
@@ -78,7 +79,8 @@ static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 		TEXT("Unknown ChunkID"),
 		TEXT("Invalid Parameter"),
 		TEXT("Signature Error"),
-		TEXT("Invalid Encryption Key")
+		TEXT("Invalid Encryption Key"),
+		TEXT("Compression Error")
 	};
 
 	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
@@ -451,7 +453,13 @@ public:
 
 	inline const uint8*	Data() const			{ return CorePtr->Data(); }
 	inline uint8*		Data()					{ return CorePtr->Data(); }
+	inline const uint8*	GetData() const			{ return CorePtr->Data(); }
+	inline uint8*		GetData()				{ return CorePtr->Data(); }
 	inline uint64		DataSize() const		{ return CorePtr->DataSize(); }
+	inline uint64		GetSize() const			{ return CorePtr->DataSize(); }
+
+	inline FMemoryView	GetView() const			{ return MakeMemoryView(CorePtr->Data(), CorePtr->DataSize()); }
+	inline FMutableMemoryView GetMutableView()	{ return MakeMemoryView(CorePtr->Data(), CorePtr->DataSize()); }
 
 	inline void			SetSize(uint64 InSize)	{ return CorePtr->SetSize(InSize); }
 

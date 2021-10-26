@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ComponentSnapshotData.h"
+#include "Data/ComponentSnapshotData.h"
 
+#include "Archive/LoadSnapshotObjectArchive.h"
+#include "Data/WorldSnapshotData.h"
 #include "LevelSnapshotsLog.h"
-#include "TakeWorldObjectSnapshotArchive.h"
-#include "WorldSnapshotData.h"
 
 #include "Components/ActorComponent.h"
 #include "UObject/Package.h"
@@ -21,7 +21,7 @@ TOptional<FComponentSnapshotData> FComponentSnapshotData::SnapshotComponent(UAct
 	return Result;
 }
 
-void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage)
+void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, const FProcessObjectDependency& ProcessObjectDependency, UPackage* InLocalisationSnapshotPackage)
 {
 	if (ComponentToDeserializeInto->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 	{
@@ -42,5 +42,5 @@ void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& Seria
 		//   - We apply the CDO and afterwards we override it with the serialized data. Good.
 	WorldData.SerializeClassDefaultsInto(ComponentToDeserializeInto);
 	
-	FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedComponentData, WorldData, ComponentToDeserializeInto, InLocalisationSnapshotPackage);
+	FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializedComponentData, WorldData, ComponentToDeserializeInto, ProcessObjectDependency, InLocalisationSnapshotPackage);
 }

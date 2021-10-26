@@ -27,7 +27,8 @@ public:
 
 	bool IsAnyPostProcessRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const;
 
-	bool ShouldUseAdditionalFrameTargetableResource_PostProcess() const;
+	bool ShouldUseAdditionalFrameTargetableResource() const;
+	bool ShouldUseFullSizeFrameTargetableResource() const;
 
 	void PerformPostProcessBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const;
 	void PerformPostProcessAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const;

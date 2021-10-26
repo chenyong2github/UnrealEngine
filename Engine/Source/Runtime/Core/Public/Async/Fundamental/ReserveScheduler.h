@@ -40,13 +40,15 @@ namespace LowLevelTasks
 		TUniquePtr<FThread> CreateWorker(bool bIsForkable = false, FSchedulerTls::FLocalQueueType* WorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal);
 
 	private:
-		TEventStack<FYieldedWork> 				EventStack;
-		TArray<TUniquePtr<FYieldedWork>> ReserveEvents;
-		FCriticalSection 						WorkerThreadsCS;
-		TArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
-		TArray<TUniquePtr<FThread>>				WorkerThreads;
-		std::atomic_uint						ActiveWorkers { 0 };
-		std::atomic_uint						NextWorkerId { 0 };
+		template<typename ElementType>
+		using TAlignedArray = TArray<ElementType, TAlignedHeapAllocator<alignof(ElementType)>>;
+		TEventStack<FYieldedWork> 						EventStack;
+		TArray<TUniquePtr<FYieldedWork>>				ReserveEvents;
+		FCriticalSection 								WorkerThreadsCS;
+		TAlignedArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
+		TArray<TUniquePtr<FThread>>						WorkerThreads;
+		std::atomic_uint								ActiveWorkers { 0 };
+		std::atomic_uint								NextWorkerId { 0 };
 	};
 
 	inline FReserveScheduler& FReserveScheduler::Get()

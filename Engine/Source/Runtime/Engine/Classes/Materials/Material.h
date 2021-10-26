@@ -1054,12 +1054,9 @@ public:
 	ENGINE_API virtual FMaterialResource* AllocateResource();
 	ENGINE_API virtual FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) override;
 	ENGINE_API virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const override;
-#if WITH_EDITORONLY_DATA
-	ENGINE_API virtual bool GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent = true) const override;
-#endif // WITH_EDITORONLY_DATA
+	ENGINE_API virtual const FMaterialLayersFunctions* GetMaterialLayers(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
 	ENGINE_API virtual bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid& OutExpressionGuid) const override;
 	ENGINE_API virtual bool UpdateLightmassTextureTracking() override;
-	ENGINE_API virtual int32 GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface* LayerFunction) const override;
 #if WITH_EDITOR
 	ENGINE_API virtual bool GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const override;
 	ENGINE_API virtual bool GetTexturesInPropertyChain(EMaterialProperty InProperty, TArray<UTexture*>& OutTextures, 
@@ -1267,7 +1264,7 @@ public:
 	 * @return	Returns a array of parameter names used in this material for the specified expression type.
 	 */
 	template<typename ExpressionType>
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds, const TArray<FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const
+	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 	{
 		for (const TObjectPtr<UMaterialExpression>& Expression : Expressions)
 		{
@@ -1292,27 +1289,6 @@ public:
 			{
 				const TArray<UMaterialFunctionInterface*>* Layers = &LayersExpression->GetLayers();
 				const TArray<UMaterialFunctionInterface*>* Blends = &LayersExpression->GetBlends();
-#if WITH_EDITOR
-				const TArray<FText>* LayerNames = &LayersExpression->GetLayerNames();
-#endif
-
-				// Handle function overrides when searching for parameters
-				if (MaterialLayersParameters)
-				{
-					const FName& ParameterName = LayersExpression->ParameterName;
-					for (const FStaticMaterialLayersParameter& LayersParameter : *MaterialLayersParameters)
-					{
-						if (LayersParameter.ParameterInfo.Name == ParameterName)
-						{
-							Layers = &static_cast<const TArray<UMaterialFunctionInterface*>&>(LayersParameter.Value.Layers);
-							Blends = &static_cast<const TArray<UMaterialFunctionInterface*>&>(LayersParameter.Value.Blends);
-#if WITH_EDITOR
-							LayerNames = &LayersParameter.Value.LayerNames;
-#endif
-							break;
-						}
-					}
-				}
 
 				for (int32 LayerIndex = 0; LayerIndex < Layers->Num(); ++LayerIndex)
 				{
@@ -1343,7 +1319,6 @@ public:
 	ENGINE_API virtual void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const override;
 #if WITH_EDITORONLY_DATA
-	ENGINE_API virtual void GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
 #endif // WITH_EDITORONLY_DATA

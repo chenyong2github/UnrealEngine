@@ -111,7 +111,7 @@
 	#include "AssetCompilingManager.h"
 	#include "Serialization/BulkDataRegistry.h"
 	#include "ShaderCompiler.h"
-	#include "Virtualization/VirtualizationManager.h"
+	#include "Virtualization/VirtualizationSystem.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -484,7 +484,7 @@ static TUniquePtr<FOutputDeviceTestExit> GScopedTestExit;
 
 
 #if WITH_ENGINE
-static void RHIExitAndStopRHIThread()
+static void StopRHIThread()
 {
 #if HAS_GPU_STATS
 	FRealtimeGPUProfiler::SafeRelease();
@@ -497,8 +497,6 @@ static void RHIExitAndStopRHIThread()
 		FGraphEventRef QuitTask = TGraphTask<FReturnGraphTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(ENamedThreads::RHIThread);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(QuitTask, ENamedThreads::GameThread_Local);
 	}
-
-	RHIExit();
 }
 #endif
 
@@ -817,55 +815,27 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 	// Get the physical platform file.
 	IPlatformFile* CurrentPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
-	// Try to create storage server wrapper
-	bool bIsUsingStorageServer = false;
+	// NetworkPlatformFile can be only one of StorageServerClient, StreamingFile or NetworkFile
+	// Having a NetworkPlatformFile present prevents creation of Pakfile, CachedReadFile and SandboxFile
+	IPlatformFile* NetworkPlatformFile = nullptr;
+
 #if !UE_BUILD_SHIPPING
+	if (!NetworkPlatformFile)
 	{
-		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("StorageServerClient"), CurrentPlatformFile, CmdLine);
-		if (PlatformFile)
+		NetworkPlatformFile = ConditionallyCreateFileWrapper(TEXT("StorageServerClient"), CurrentPlatformFile, CmdLine);
+		if (NetworkPlatformFile)
 		{
-			CurrentPlatformFile = PlatformFile;
-			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
-			bIsUsingStorageServer = true;
-		}
-	}
-#endif
-
-	// Try to create pak file wrapper
-	if (!bIsUsingStorageServer)
-	{
-		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("PakFile"), CurrentPlatformFile, CmdLine);
-		if (PlatformFile)
-		{
-			CurrentPlatformFile = PlatformFile;
-			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
-		}
-		PlatformFile = ConditionallyCreateFileWrapper(TEXT("CachedReadFile"), CurrentPlatformFile, CmdLine);
-		if (PlatformFile)
-		{
-			CurrentPlatformFile = PlatformFile;
+			CurrentPlatformFile = NetworkPlatformFile;
 			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
 		}
 	}
 
-	// Try to create sandbox wrapper
-	if (!bIsUsingStorageServer)
-	{
-		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("SandboxFile"), CurrentPlatformFile, CmdLine);
-		if (PlatformFile)
-		{
-			CurrentPlatformFile = PlatformFile;
-			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
-		}
-	}
-
-#if !UE_BUILD_SHIPPING // UFS clients are not available in shipping builds.
 	// Streaming network wrapper (it has a priority over normal network wrapper)
-	bool bNetworkFailedToInitialize = false;
-	do
+	bool bShouldInitializeNetwork = !NetworkPlatformFile;
+	while (bShouldInitializeNetwork)
 	{
 		bool bShouldUseStreamingFile = false;
-		IPlatformFile* NetworkPlatformFile = ConditionallyCreateFileWrapper(TEXT("StreamingFile"), CurrentPlatformFile, CmdLine, &bNetworkFailedToInitialize, &bShouldUseStreamingFile);
+		NetworkPlatformFile = ConditionallyCreateFileWrapper(TEXT("StreamingFile"), CurrentPlatformFile, CmdLine, &bShouldInitializeNetwork, &bShouldUseStreamingFile);
 		if (NetworkPlatformFile)
 		{
 			CurrentPlatformFile = NetworkPlatformFile;
@@ -876,7 +846,7 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 		// Network file wrapper (only create if the streaming wrapper hasn't been created)
 		if (!bShouldUseStreamingFile && !NetworkPlatformFile)
 		{
-			NetworkPlatformFile = ConditionallyCreateFileWrapper(TEXT("NetworkFile"), CurrentPlatformFile, CmdLine, &bNetworkFailedToInitialize);
+			NetworkPlatformFile = ConditionallyCreateFileWrapper(TEXT("NetworkFile"), CurrentPlatformFile, CmdLine, &bShouldInitializeNetwork);
 			if (NetworkPlatformFile)
 			{
 				CurrentPlatformFile = NetworkPlatformFile;
@@ -884,7 +854,7 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 			}
 		}
 
-		if (bNetworkFailedToInitialize)
+		if (bShouldInitializeNetwork)
 		{
 			FString HostIpString;
 			FParse::Value(CmdLine, TEXT("-FileHostIP="), HostIpString);
@@ -909,8 +879,31 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 			}
 		}
 	}
-	while (bNetworkFailedToInitialize);
 #endif
+
+	if (!NetworkPlatformFile)
+	{
+		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("PakFile"), CurrentPlatformFile, CmdLine);
+		if (PlatformFile)
+		{
+			CurrentPlatformFile = PlatformFile;
+			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
+		}
+
+		PlatformFile = ConditionallyCreateFileWrapper(TEXT("CachedReadFile"), CurrentPlatformFile, CmdLine);
+		if (PlatformFile)
+		{
+			CurrentPlatformFile = PlatformFile;
+			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
+		}
+
+		PlatformFile = ConditionallyCreateFileWrapper(TEXT("SandboxFile"), CurrentPlatformFile, CmdLine);
+		if (PlatformFile)
+		{
+			CurrentPlatformFile = PlatformFile;
+			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
+		}
+	}
 
 #if !UE_BUILD_SHIPPING
 	// Try to create file profiling wrapper
@@ -2891,8 +2884,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 #if WITH_EDITOR
-		// Make sure that FVirtualizationManager is first called from the game thread
-		UE::Virtualization::FVirtualizationManager::Get();
+		// The virtualization system will be initialized when ever IVirtualizationSystem::Get is called
+		// but here we try to explicitly initialize it.
+		UE::Virtualization::Initialize();
 #endif //WITH_EDITOR
 
 		check(!GDistanceFieldAsyncQueue);
@@ -4552,10 +4546,7 @@ void FEngineLoop::Exit()
 	}
 #endif
 
-#if WITH_COREUOBJECT
-	// PackageResourceManager depends on AssetRegistry, so must be shutdown before we unload the AssetRegistry module
-	IPackageResourceManager::Shutdown();
-#endif
+
 
 #if WITH_EDITOR
 	// These module must be shut down first because other modules may try to access them during shutdown.
@@ -4564,13 +4555,20 @@ void FEngineLoop::Exit()
 
 #endif // WITH_EDITOR
 	FModuleManager::Get().UnloadModule("WorldBrowser", true);
-	FModuleManager::Get().UnloadModule("AssetRegistry", true);
 
 #if !PLATFORM_ANDROID 	// AppPreExit doesn't work on Android
 	AppPreExit();
 
 	TermGamePhys();
-#else
+#endif
+
+#if WITH_COREUOBJECT
+	// PackageResourceManager depends on AssetRegistry, so must be shutdown before we unload the AssetRegistry module
+	IPackageResourceManager::Shutdown();
+#endif
+	FModuleManager::Get().UnloadModule("AssetRegistry", true);
+
+#if PLATFORM_ANDROID
 	// AppPreExit() stops malloc profiler, do it here instead
 	MALLOC_PROFILER( GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog);	);
 #endif // !ANDROID
@@ -4617,8 +4615,7 @@ void FEngineLoop::Exit()
 
 	IStreamingManager::Shutdown();
 
-	// Tear down the RHI.
-	RHIExitAndStopRHIThread();
+	StopRHIThread();
 
 	DestroyMoviePlayer();
 
@@ -4628,6 +4625,8 @@ void FEngineLoop::Exit()
 #endif
 
 	FTaskGraphInterface::Shutdown();
+
+	RHIExit();
 
 	FPlatformMisc::ShutdownTaggedStorage();
 }
@@ -5371,7 +5370,7 @@ void FEngineLoop::Tick()
 
 		if (ConcurrentTask.GetReference())
 		{
-			CSV_SCOPED_SET_WAIT_STAT(Slate);
+			CSV_SCOPED_SET_WAIT_STAT(ConcurrentWithSlate);
 
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ConcurrentWithSlateTickTasks_Wait);
 			check(ConcurrentTaskCompleteEvent);
@@ -6137,12 +6136,6 @@ void FEngineLoop::AppPreExit( )
 		GetDerivedDataCacheRef().WaitForQuiescence(true);
 	}
 #endif
-#if !WITH_ENGINE
-#if WITH_COREUOBJECT
-	// Shutdown the PackageResourceManager in AppPreExit for programs that do not call FEngineLoop::Exit
-	IPackageResourceManager::Shutdown();
-#endif
-#endif
 
 #if WITH_EDITOR
 	FRemoteConfig::Flush();
@@ -6203,6 +6196,11 @@ void FEngineLoop::AppPreExit( )
 	}
 #endif
 
+#else
+#if WITH_COREUOBJECT
+	// Shutdown the PackageResourceManager in AppPreExit for programs that do not call FEngineLoop::Exit
+	IPackageResourceManager::Shutdown();
+#endif
 #endif
 
 }

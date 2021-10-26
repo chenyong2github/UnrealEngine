@@ -2112,6 +2112,15 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		TEXT("Source and destination class sizes differ.  Source: %s (%i)   Destination: %s (%i)"),
 		*Parameters.SourceObject->GetClass()->GetName(), Parameters.SourceObject->GetClass()->GetPropertiesSize(),
 		*Parameters.DestClass->GetName(), Parameters.DestClass->GetPropertiesSize());
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		checkf(!Parameters.SourceObject->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading),
+			TEXT("Duplicating object '%s' that's still being async loaded is not permitted."), *Parameters.SourceObject->GetFullName());
+		// Make sure we're not duplicating the Async internal flag, it will prevent the object from being gcd
+		Parameters.InternalFlagMask &= ~EInternalObjectFlags::Async;
+		// Make sure we're not duplicating the WasLoaded flag, it has special meaning to AsyncLoading code
+		Parameters.FlagMask &= ~RF_WasLoaded;
+	}
 
 	if (!IsAsyncLoading() && Parameters.SourceObject->HasAnyFlags(RF_ClassDefaultObject))
 	{

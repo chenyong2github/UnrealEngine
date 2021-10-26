@@ -13,9 +13,6 @@
 #include "DataProviders/AIDataProvider_QueryParams.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
-#include "BehaviorTree/Blackboard/BlackboardKeyType_Int.h"
-#include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
@@ -433,62 +430,7 @@ int32 FEQSParametrizedQueryExecutionRequest::Execute(UObject& QueryOwner, const 
 			// resolve 
 			for (FAIDynamicParam& RuntimeParam : QueryConfig)
 			{
-				// check if given param requires runtime resolve, like reading from BB
-				if (RuntimeParam.BBKey.IsSet())
-				{
-					check(BlackboardComponent && "If BBKey.IsSet and there's no BB component then we\'re in the error land!");
-
-					// grab info from BB
-					switch (RuntimeParam.ParamType)
-					{
-					case EAIParamType::Float:
-					{
-						const float Value = BlackboardComponent->GetValue<UBlackboardKeyType_Float>(RuntimeParam.BBKey.GetSelectedKeyID());
-						QueryRequest.SetFloatParam(RuntimeParam.ParamName, Value);
-					}
-					break;
-					case EAIParamType::Int:
-					{
-						const int32 Value = BlackboardComponent->GetValue<UBlackboardKeyType_Int>(RuntimeParam.BBKey.GetSelectedKeyID());
-						QueryRequest.SetIntParam(RuntimeParam.ParamName, Value);
-					}
-					break;
-					case EAIParamType::Bool:
-					{
-						const bool Value = BlackboardComponent->GetValue<UBlackboardKeyType_Bool>(RuntimeParam.BBKey.GetSelectedKeyID());
-						QueryRequest.SetBoolParam(RuntimeParam.ParamName, Value);
-					}
-					break;
-					default:
-						checkNoEntry();
-						break;
-					}
-				}
-				else
-				{
-					switch (RuntimeParam.ParamType)
-					{
-					case EAIParamType::Float:
-					{
-						QueryRequest.SetFloatParam(RuntimeParam.ParamName, RuntimeParam.Value);
-					}
-					break;
-					case EAIParamType::Int:
-					{
-						QueryRequest.SetIntParam(RuntimeParam.ParamName, RuntimeParam.Value);
-					}
-					break;
-					case EAIParamType::Bool:
-					{
-						bool Result = RuntimeParam.Value > 0;
-						QueryRequest.SetBoolParam(RuntimeParam.ParamName, Result);
-					}
-					break;
-					default:
-						checkNoEntry();
-						break;
-					}
-				}
+				QueryRequest.SetDynamicParam(RuntimeParam, BlackboardComponent);
 			}
 		}
 

@@ -10,6 +10,7 @@
 
 #define RECAST_STRAIGHTPATH_OFFMESH_CONNECTION 0x04
 
+// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
 /** Helper to translate FNavPathPoint.Flags. */
 struct NAVIGATIONSYSTEM_API FNavMeshNodeFlags
 {
@@ -73,14 +74,15 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 	/** get cost of path, starting from given point */
 	virtual float GetCostFromIndex(int32 PathPointIndex) const override
 	{
-		float TotalCost = 0.f;
-		const float* Cost = PathCorridorCost.GetData();
+		FVector::FReal TotalCost = 0.f;
+		const FVector::FReal* Cost = PathCorridorCost.GetData();
 		for (int32 PolyIndex = PathPointIndex; PolyIndex < PathCorridorCost.Num(); ++PolyIndex, ++Cost)
 		{
 			TotalCost += *Cost;
 		}
 
-		return TotalCost;
+		// LWC_TODO_AI: Precision Loss. This should return a FReal. Not until after 5.0!
+		return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalCost);
 	}
 
 	FORCEINLINE_DEBUGGABLE float GetTotalPathLength() const
@@ -138,7 +140,7 @@ public:
 	TArray<NavNodeRef> PathCorridor;
 
 	/** for every poly in PathCorridor stores traversal cost from previous navpoly */
-	TArray<float> PathCorridorCost;
+	TArray<FVector::FReal> PathCorridorCost;
 
 	/** set of unique link Ids */
 	TArray<uint32> CustomLinkIds;

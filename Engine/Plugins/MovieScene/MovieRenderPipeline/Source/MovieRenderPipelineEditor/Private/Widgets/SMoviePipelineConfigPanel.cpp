@@ -488,6 +488,7 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
 	UPackage*     NewPackage = CreatePackage(*PackageName);
+	NewPackage->MarkAsFullyLoaded();
 	UMoviePipelineConfigBase*  NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
 	
 	if (NewPreset)

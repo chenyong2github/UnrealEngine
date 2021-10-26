@@ -27,6 +27,7 @@ namespace CADKernel
 
 	protected:
 
+		FSurfacicBoundary Boundary;
 		double Tolerance3D;
 
 		/**
@@ -36,13 +37,11 @@ namespace CADKernel
 		 * The tolerance along an iso is the length of the boundary along this iso divided by 100 000: if the curve length in 3d is 10m, the tolerance is 0.01mm
 		 * In the used, a local tolerance has to be estimated
 		 */
-		mutable TCache<FSurfacicTolerance> MinToleranceIso;
-		mutable FSurfacicBoundary Boundary;
+		TCache<FSurfacicTolerance> MinToleranceIso;
 
 	private:
 
-
-		virtual void InitBoundary() const
+		virtual void InitBoundary()
 		{
 			Boundary.Set();
 		}
@@ -60,19 +59,20 @@ namespace CADKernel
 
 		FSurface(double InToleranceGeometric, const FSurfacicBoundary& InBoundary)
 			: FEntityGeom()
-			, Tolerance3D(InToleranceGeometric)
 			, Boundary(InBoundary)
+			, Tolerance3D(InToleranceGeometric)
 		{
+			Boundary.IsValid();
 		}
 
 		FSurface(double InToleranceGeometric, double UMin, double UMax, double VMin, double VMax)
 			: FEntityGeom()
 			, Tolerance3D(InToleranceGeometric)
-			, Boundary(UMin, UMax, VMin, VMax)
 		{
-		}
+			Boundary.Set(UMin, UMax, VMin, VMax);
+		}		
 
-		virtual void SetMinToleranceIso() const
+		virtual void SetMinToleranceIso()
 		{
 			MinToleranceIso.Set(Boundary[EIso::IsoU].ComputeMinimalTolerance(), Boundary[EIso::IsoV].ComputeMinimalTolerance());
 		}
@@ -81,7 +81,7 @@ namespace CADKernel
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
-			// Surface's type is serialize because it is used to instantiate the correct entity on deserialization (@see Deserialize(FCADKernelArchive& Archive))
+			// Surface's type is serialize because it is used to instantiate the correct entity on de-serialization (@see Deserialize(FCADKernelArchive& Archive))
 			if (Ar.IsSaving())
 			{
 				ESurface SurfaceType = GetSurfaceType();
@@ -114,13 +114,14 @@ namespace CADKernel
 
 		const FSurfacicBoundary& GetBoundary() const
 		{
-			if (!Boundary.IsValid())
-			{
-				InitBoundary();
-				SetMinToleranceIso();
-			}
+			ensureCADKernel(Boundary.IsValid());
 			return Boundary;
 		};
+
+		void TrimBoundaryTo(const FSurfacicBoundary NewLimit)
+		{
+			Boundary.TrimAt(NewLimit);
+		}
 
 		void ExtendBoundaryTo(const FSurfacicBoundary MaxLimit)
 		{
@@ -140,7 +141,7 @@ namespace CADKernel
 		const FSurfacicTolerance& GetIsoTolerances() const
 		{
 			ensureCADKernel(MinToleranceIso.IsValid());
-			return MinToleranceIso;
+			return *MinToleranceIso;
 		}
 
 		/**
@@ -151,7 +152,7 @@ namespace CADKernel
 		double GetIsoTolerance(EIso Iso) const
 		{
 			ensureCADKernel(MinToleranceIso.IsValid());
-			return ((FSurfacicTolerance) MinToleranceIso)[Iso];
+			return (*MinToleranceIso)[Iso];
 		}
 
 		double Get3DTolerance() const
@@ -167,6 +168,20 @@ namespace CADKernel
 		virtual void EvaluatePoints(const TArray<FCurvePoint2D>& InSurfacicCoordinates, TArray<FCurvePoint>& OutPoint3D, int32 InDerivativeOrder = 0) const;
 		virtual void EvaluatePoints(FSurfacicPolyline& Polyline) const;
 		virtual void EvaluatePoints(const TArray<FCurvePoint2D>& Points2D, FSurfacicPolyline& Polyline) const;
+
+		/**
+		 * X = Rho cos(Alpha) 
+		 * Y = Rho sin(Alpha)
+		 * Z = Z
+		 * 
+		 * YZ => cylindrical projection
+		 * XY => Plan projection along rotation axis
+		 * 
+		 * For Normal(u,v) parallel Rotation Axis -> use Plan projection 
+		 * For Normal(u,v) perpendicular to Rotation Axis -> use cylindrical projection
+		 */
+		virtual FPoint2D EvaluatePointInCylindricalSpace(const FPoint2D& InSurfacicCoordinate) const {return FPoint::ZeroPoint;}
+  		virtual void EvaluatePointGridInCylindricalSpace(const FCoordinateGrid& Coordinates, TArray<FPoint2D>&) const {;}
 
 		virtual void EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals = false) const;
 		void EvaluateGrid(FGrid& Grid) const;

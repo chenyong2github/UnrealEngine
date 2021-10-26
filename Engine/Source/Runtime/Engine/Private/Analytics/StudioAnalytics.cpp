@@ -178,7 +178,7 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 		// Accumulate Totals
 		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
 		{
-			DDCResourceStatsTotal.Accumulate(Stat);
+			DDCResourceStatsTotal += Stat;
 		}
 
 		DDCResourceStats.Emplace(DDCResourceStatsTotal);

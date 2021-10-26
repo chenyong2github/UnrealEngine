@@ -76,10 +76,10 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		for (FD3D12UniformBuffer& CurrentBuffer : *UniformBufferOut)
 		{
 			CurrentBuffer.ResourceTable.Empty(NumResources);
-			CurrentBuffer.ResourceTable.AddZeroed(NumResources);
 			for (int32 Index = 0; Index < NumResources; ++Index)
 			{
-				CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
+				//Emplace here instead of assignation prevents a lot of boiler plate code for the destruction/release of TSharedPtr from being generated at all.
+				CurrentBuffer.ResourceTable.Emplace(GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType));
 			}
 		}
 	}

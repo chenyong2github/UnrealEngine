@@ -371,6 +371,11 @@ void FVisualLogger::NavigationDataDump(const UObject* Object, const FName& Categ
 	NavigationDataDumpDelegate.Broadcast(Object, CategoryName, Verbosity, Box, *World, *CurrentEntry);
 }
 
+FVisualLogger& FVisualLogger::Get()
+{
+	static FVisualLogger GVisLog;
+	return GVisLog;
+}
 
 FVisualLogger::FVisualLogger()
 {

@@ -206,31 +206,14 @@ void SAnimationModifiersTab::RetrieveAnimationAsset()
 			if (Object->IsA<UAnimSequence>())
 			{
 				AnimationSequence = Cast<UAnimSequence>(Object);
-
-				AssetUserData = AnimationSequence->GetAssetUserData<UAnimationModifiersAssetUserData>();
-				if (!AssetUserData)
-				{
-					AssetUserData = NewObject<UAnimationModifiersAssetUserData>(AnimationSequence, UAnimationModifiersAssetUserData::StaticClass());
-					checkf(AssetUserData, TEXT("Unable to instantiate AssetUserData class"));
-					AssetUserData->SetFlags(RF_Transactional);
-					AnimationSequence->AddAssetUserData(AssetUserData);
-				}
+				AssetUserData = FAnimationModifierHelpers::RetrieveOrCreateModifierUserData(AnimationSequence);
 				
 				break;
 			}
 			else if (Object->IsA<USkeleton>())
 			{
 				Skeleton = Cast<USkeleton>(Object);
-
-				AssetUserData = Skeleton->GetAssetUserData<UAnimationModifiersAssetUserData>();
-				if (!AssetUserData)
-				{
-					AssetUserData = NewObject<UAnimationModifiersAssetUserData>(Skeleton, UAnimationModifiersAssetUserData::StaticClass());
-					checkf(AssetUserData, TEXT("Unable to instantiate AssetUserData class"));
-					AssetUserData->SetFlags(RF_Transactional);
-					Skeleton->AddAssetUserData(AssetUserData);
-				}
-				
+				AssetUserData = FAnimationModifierHelpers::RetrieveOrCreateModifierUserData(Skeleton);
 				break;
 			}
 		}

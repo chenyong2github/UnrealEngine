@@ -421,7 +421,7 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	}
 };
 
-struct FOpenGLRHIState : public FOpenGLCommonState
+struct FOpenGLRHIState final : public FOpenGLCommonState
 {
 	FOpenGLRasterizerStateData		RasterizerState;
 	FOpenGLDepthStencilStateData	DepthStencilState;

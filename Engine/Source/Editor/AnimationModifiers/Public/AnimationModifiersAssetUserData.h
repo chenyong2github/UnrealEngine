@@ -16,6 +16,7 @@ class ANIMATIONMODIFIERS_API UAnimationModifiersAssetUserData : public UAssetUse
 
 	friend class SAnimationModifiersTab;
 	friend class SAnimationModifierContentBrowserWindow;
+	friend class FAnimationModifiersModule;
 public:
 	const TArray<UAnimationModifier*>& GetAnimationModifierInstances() const;
 protected:	 

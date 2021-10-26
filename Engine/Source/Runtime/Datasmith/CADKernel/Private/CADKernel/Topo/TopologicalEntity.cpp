@@ -2,10 +2,8 @@
 #include "CADKernel/Topo/TopologicalEntity.h"
 
 
-using namespace CADKernel;
-
 #ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalEntity::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FTopologicalEntity::GetInfo(FInfoEntity& Info) const
 {
 	return FEntityGeom::GetInfo(Info)
 		.Add(TEXT("IsMesh"), IsMeshed());

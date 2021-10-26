@@ -394,6 +394,22 @@ bool IsRuntime(const UBodySetup* BS)
 
 DECLARE_CYCLE_STAT(TEXT("Create Physics Meshes"), STAT_CreatePhysicsMeshes, STATGROUP_Physics);
 
+FByteBulkData* UBodySetup::GetCookedFormatData()
+{
+	// Find or create cooked physics data
+	static FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
+
+	FByteBulkData* FormatData = GetCookedData(PhysicsFormatName);
+
+	// On dedicated servers we may be cooking generic data and sharing it
+	if (FormatData == nullptr && IsRunningDedicatedServer())
+	{
+		FormatData = GetCookedData(FGenericPlatformProperties::GetPhysicsFormat());
+	}
+
+	return FormatData;
+}
+
 void UBodySetup::CreatePhysicsMeshes()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBodySetup::CreatePhysicsMeshes);
@@ -413,38 +429,41 @@ void UBodySetup::CreatePhysicsMeshes()
 	}
 	
 	bool bClearMeshes = true;
+	bool bSkipProcessFormatData = false;
 
-	// Find or create cooked physics data
-	static FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
-
-	FByteBulkData* FormatData = GetCookedData(PhysicsFormatName);
-
-	// On dedicated servers we may be cooking generic data and sharing it
-	if (FormatData == nullptr && IsRunningDedicatedServer())
+#if WITH_CHAOS
+	// If the data already has been deserialized from the async loading thread, use that.
+	if (ChaosDerivedDataReader.IsValid())
 	{
-		FormatData = GetCookedData(FGenericPlatformProperties::GetPhysicsFormat());
+		bClearMeshes = !ProcessFormatData_Chaos(*ChaosDerivedDataReader.Get());
+		ChaosDerivedDataReader.Reset();
+		bSkipProcessFormatData = true;
 	}
-
-	if (FormatData)
-	{
-#if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-		bClearMeshes = !ProcessFormatData_PhysX(FormatData);
-#elif WITH_CHAOS
-		bClearMeshes = !ProcessFormatData_Chaos(FormatData);
 #endif
-	}
-	else
+
+	if (!bSkipProcessFormatData)
 	{
-		if (IsRuntime(this))
+		if (FByteBulkData* FormatData = GetCookedFormatData())
 		{
 #if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-			bClearMeshes = !RuntimeCookPhysics_PhysX();
+			bClearMeshes = !ProcessFormatData_PhysX(FormatData);
 #elif WITH_CHAOS
-			bClearMeshes = !RuntimeCookPhysics_Chaos();
+			bClearMeshes = !ProcessFormatData_Chaos(FormatData);
 #endif
 		}
+		else
+		{
+			if (IsRuntime(this))
+			{
+#if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
+				bClearMeshes = !RuntimeCookPhysics_PhysX();
+#elif WITH_CHAOS
+				bClearMeshes = !RuntimeCookPhysics_Chaos();
+#endif
+			}
+		}
 	}
-	
+
 	// fix up invalid transform to use identity
 	// this can be here because BodySetup isn't blueprintable
 	if ( GetLinkerUEVersion() < VER_UE4_FIXUP_BODYSETUP_INVALID_CONVEX_TRANSFORM )
@@ -691,6 +710,13 @@ void UBodySetup::FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCo
 }
 
 #if WITH_CHAOS
+bool UBodySetup::ProcessFormatData_Chaos(FChaosDerivedDataReader<float, 3>& Reader)
+{
+	FinishCreatingPhysicsMeshes_Chaos(Reader);
+
+	return true;
+}
+
 bool UBodySetup::ProcessFormatData_Chaos(FByteBulkData* FormatData)
 {
 	if(FormatData->IsLocked())
@@ -700,9 +726,7 @@ bool UBodySetup::ProcessFormatData_Chaos(FByteBulkData* FormatData)
 	}
 
 	FChaosDerivedDataReader<float, 3> Reader(FormatData);
-	FinishCreatingPhysicsMeshes_Chaos(Reader);
-	
-	return true;
+	return ProcessFormatData_Chaos(Reader);
 }
 
 bool UBodySetup::RuntimeCookPhysics_Chaos()
@@ -1180,7 +1204,16 @@ void UBodySetup::Serialize(FArchive& Ar)
 #endif
 	}
 
-
+#if WITH_CHAOS
+	if (bCooked && Ar.IsLoading())
+	{
+		// Deserialize bulk inline data inside the serialize function to benefit from async loading thread when possible.
+		if (FByteBulkData* FormatData = GetCookedFormatData())
+		{
+			ChaosDerivedDataReader = MakeUnique<FChaosDerivedDataReader<float, 3>>(FormatData);
+		}
+	}
+#endif
 }
 
 void UBodySetup::PostLoad()
@@ -1941,7 +1974,7 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 					// Grab triangle indices that we hit
 					int32 I0 = Indices[PolyData.mIndexBase + 0];
 					int32 I1 = Indices[PolyData.mIndexBase + (VertIdx - 1)];
-					int32 I2 = Indices[PolyData.mIndexBase + VecubemapunwraprtIdx];
+					int32 I2 = Indices[PolyData.mIndexBase + VertIdx];
 
 
 					Volume += SignedVolumeOfTriangle(ScaleTransform.TransformPosition(P2UVector(Vertices[I0])), 

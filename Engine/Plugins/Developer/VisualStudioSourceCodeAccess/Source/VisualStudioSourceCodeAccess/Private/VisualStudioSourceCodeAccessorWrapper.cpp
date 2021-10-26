@@ -44,6 +44,16 @@ bool FVisualStudioSourceCodeAccessorWrapper::OpenSolution()
 	return Inner->OpenSolution();
 }
 
+FName FVisualStudioSourceCodeAccessorWrapper::GetOpenIconName() const
+{
+	return FName("MainFrame.OpenVisualStudio");
+}
+
+FName FVisualStudioSourceCodeAccessorWrapper::GetRefreshIconName() const
+{
+	return FName("MainFrame.RefreshVisualStudio");
+}
+
 bool FVisualStudioSourceCodeAccessorWrapper::OpenSolutionAtPath(const FString& InSolutionPath)
 {
 	return Inner->OpenSolutionAtPath(InSolutionPath);

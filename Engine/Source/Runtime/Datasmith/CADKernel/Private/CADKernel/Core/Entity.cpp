@@ -129,10 +129,7 @@ namespace CADKernel
 
 	void FEntity::AddEntityInDatabase(TSharedRef<FEntity> Entity)
 	{
-		if (FSession::Session.IsValid())
-		{
-			FSession::Session->GetDatabase().AddEntity(Entity);
-		}
+		FSession::Session.GetDatabase().AddEntity(Entity);
 	}
 
 #endif
@@ -162,6 +159,46 @@ namespace CADKernel
 				Ar << Id;
 				Ar.Serialize(&OrientedEntity.Direction, sizeof(EOrientation));
 				Ar.AddEntityToSave(Id);
+			}
+		}
+	}
+
+	void FEntity::SerializeIdents(FCADKernelArchive& Ar, TArray<FEntity*>& EntityArray, bool bSaveSelection)
+	{
+		if (Ar.IsLoading())
+		{
+			int32 ArrayNum = 0;
+			Ar << ArrayNum;
+			EntityArray.Init(nullptr, ArrayNum);
+			for (FEntity*& Entity : EntityArray)
+			{
+				FIdent OldId = 0;
+				Ar << OldId;
+				Ar.SetReferencedEntityOrAddToWaitingList(OldId, &Entity);
+			}
+		}
+		else
+		{
+			int32 ArrayNum = EntityArray.Num();
+			Ar << ArrayNum;
+			for (FEntity* Entity : EntityArray)
+			{
+				if (Entity)
+				{
+					FIdent Id = Entity->GetId();
+					Ar << Id;
+				}
+			}
+
+			if (bSaveSelection)
+			{
+				for (FEntity* Entity : EntityArray)
+				{
+					if (Entity)
+					{
+						Ar.AddEntityToSave(Entity->GetId());
+					}
+				}
 			}
 		}
 	}
@@ -224,20 +261,25 @@ namespace CADKernel
 		{
 			int32 ArrayNum = EntityArray.Num();
 			Ar << ArrayNum;
+			FIdent Id = 0;
 			for (TSharedPtr<FEntity>& Entity : EntityArray)
 			{
-				if (Entity.IsValid())
+				if (Entity.IsValid() && !Entity->IsDeleted())
 				{
-					FIdent Id = Entity->GetId();
-					Ar << Id;
+					Id = Entity->GetId();
 				}
+				else
+				{
+					Id = 0;
+				}
+				Ar << Id;
 			}
 
 			if (bSaveSelection)
 			{
 				for (TSharedPtr<FEntity>& Entity : EntityArray)
 				{
-					if(Entity.IsValid())
+					if(Entity.IsValid() && !Entity->IsDeleted())
 					{ 
 						Ar.AddEntityToSave(Entity->GetId());
 					}
@@ -284,6 +326,25 @@ namespace CADKernel
 		}
 	}
 
+	void FEntity::SerializeIdent(FCADKernelArchive& Ar, FEntity** Entity, bool bSaveSelection)
+	{
+		if (Ar.Archive.IsLoading())
+		{
+			FIdent OldId;
+			Ar.Archive << OldId;
+			Ar.SetReferencedEntityOrAddToWaitingList(OldId, Entity);
+		}
+		else
+		{
+			FIdent Id = *Entity ? (*Entity)->GetId() : 0;
+			Ar.Archive << Id;
+			if (bSaveSelection && Id)
+			{
+				Ar.AddEntityToSave(Id);
+			}
+		}
+	}
+	
 	bool FEntity::SetId(FDatabase& Database)
 	{
 		if (Id < 1)

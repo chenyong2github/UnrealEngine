@@ -1149,6 +1149,9 @@ void SMenuEntryBlock::OnClicked( bool bCheckBoxClicked )
 
 					// Also tell the multibox about this open pull-down menu, so it can be closed later if we need to
 					OwnerMultiBoxWidget.Pin()->SetSummonedMenu(PinnedMenuAnchor.ToSharedRef());
+
+					// Make any clicked menu appear as old as possible (so they always pass the clobber min lifetime)
+					OwnerMultiBoxWidget.Pin()->SetSummonedMenuTime(0.0);
 				}
 			}
 		}
@@ -1293,10 +1296,14 @@ void SMenuEntryBlock::OnMouseEnter( const FGeometry& MyGeometry, const FPointerE
 	TSharedPtr< SMultiBoxWidget > PinnedOwnerMultiBoxWidget( OwnerMultiBoxWidget.Pin() );
 	check( PinnedOwnerMultiBoxWidget.IsValid() );
 
-	// Never dismiss another entry's submenu while the cursor is potentially moving toward that menu.  It's
+	// (Almost) never dismiss another entry's submenu while the cursor is potentially moving toward that menu.  It's
 	// not fun to try to keep the mouse in the menu entry bounds while moving towards the actual menu!
+	// We will, hoever, dismiss another entry's submenu if the lifetime of the submenu hasn't passed the clobber
+	// min lifetime yet. This is so that the user can sweep over multiple entries with submenus, landing on the desired
+	// entry without the first submenu being "sticky".
 	const TSharedPtr< const SMenuAnchor > OpenedMenuAnchor( PinnedOwnerMultiBoxWidget->GetOpenMenu() );
-	const bool bSubMenuAlreadyOpen = ( OpenedMenuAnchor.IsValid() && OpenedMenuAnchor->IsOpen() );
+	const bool bSubMenuAlreadyOpen = ( OpenedMenuAnchor.IsValid() && OpenedMenuAnchor->IsOpen());
+	const bool bClobberMinLifetimeElapsed = FPlatformTime::Seconds() > PinnedOwnerMultiBoxWidget->GetSummonedMenuTime() + MultiBoxConstants::SubMenuClobberMinLifetime;
 	bool bMouseEnteredTowardSubMenu = false;
 	{
 		if( bSubMenuAlreadyOpen )
@@ -1320,7 +1327,7 @@ void SMenuEntryBlock::OnMouseEnter( const FGeometry& MyGeometry, const FPointerE
 			{
 				if( PinnedOwnerMultiBoxWidget->GetOpenMenu() != PinnedMenuAnchor )
 				{
-					const bool bClobber = bSubMenuAlreadyOpen && bMouseEnteredTowardSubMenu;
+					const bool bClobber = bSubMenuAlreadyOpen && bMouseEnteredTowardSubMenu && bClobberMinLifetimeElapsed;
 					RequestSubMenuToggle( true, bClobber );
 				}
 			}
@@ -1336,7 +1343,10 @@ void SMenuEntryBlock::OnMouseEnter( const FGeometry& MyGeometry, const FPointerE
 				PinnedMenuAnchor->SetIsOpen( true );
 
 				// Also tell the multibox about this open pull-down menu, so it can be closed later if we need to
-				PinnedOwnerMultiBoxWidget->SetSummonedMenu( PinnedMenuAnchor.ToSharedRef() );
+				PinnedOwnerMultiBoxWidget->SetSummonedMenu( PinnedMenuAnchor.ToSharedRef());
+
+				// Make open pull-downs appear old as possible (so they always pass the clobber min lifetime)
+				PinnedOwnerMultiBoxWidget->SetSummonedMenuTime(0.0);
 			}
 		}
 		
@@ -1344,8 +1354,8 @@ void SMenuEntryBlock::OnMouseEnter( const FGeometry& MyGeometry, const FPointerE
 	else if( bSubMenuAlreadyOpen )
 	{
 		// Hovering over a menu item that is not a sub-menu, we need to close any sub-menus that are open
-		const bool bClobber = bSubMenuAlreadyOpen && bMouseEnteredTowardSubMenu;
-		RequestSubMenuToggle( false, bClobber );
+		const bool bClobber = bSubMenuAlreadyOpen && bMouseEnteredTowardSubMenu && bClobberMinLifetimeElapsed;
+		RequestSubMenuToggle( false, bClobber);
 	}
 	
 }
@@ -1458,6 +1468,10 @@ EActiveTimerReturnType SMenuEntryBlock::UpdateSubMenuState(double InCurrentTime,
 
 			// Also tell the multibox about this open pull-down menu, so it can be closed later if we need to
 			PinnedOwnerMultiBoxWidget->SetSummonedMenu(PinnedMenuAnchor.ToSharedRef());
+
+			// If there was a delay before summoning this menu, use the initial time before the delay to record the menu's lifetime.
+			// This makes it so that the new menu will, in turn, require a delay to clobber.
+			PinnedOwnerMultiBoxWidget->SetSummonedMenuTime(InCurrentTime - InDeltaTime);
 		}
 	}
 	else

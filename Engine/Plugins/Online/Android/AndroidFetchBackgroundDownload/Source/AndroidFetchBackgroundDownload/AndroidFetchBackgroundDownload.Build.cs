@@ -8,6 +8,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public AndroidFetchBackgroundDownload(ReadOnlyTargetRules Target) : base(Target)
 		{
+			ShortName = "AndroidFBGDL";
+
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
 					"Core",

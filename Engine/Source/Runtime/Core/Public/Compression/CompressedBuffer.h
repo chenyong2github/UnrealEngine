@@ -4,6 +4,7 @@
 
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryFwd.h"
+#include "Templates/UniquePtr.h"
 
 class FArchive;
 struct FBlake3Hash;
@@ -109,6 +110,11 @@ public:
 		ECompressedBufferCompressionLevel& OutCompressionLevel) const;
 
 	/**
+	 * Returns the compression block size. Zero if the buffer is not compressed.
+	 */
+	[[nodiscard]] CORE_API bool TryGetBlockSize(uint32 &OutBlockSize) const;
+
+	/**
 	 * Decompress into a memory view that is less or equal to GetRawSize()
 	 */
 	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset = 0) const;
@@ -137,3 +143,24 @@ private:
 inline const FCompressedBuffer FCompressedBuffer::Null;
 
 CORE_API FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer);
+
+/**
+ * A stateful decoder that reuses temporary buffers between decompression calls.
+ */
+class FCompressedBufferDecoder
+{
+	UE_NONCOPYABLE(FCompressedBufferDecoder);
+public:
+	CORE_API FCompressedBufferDecoder();
+	CORE_API ~FCompressedBufferDecoder();
+
+	/**
+	 * Decompress into a memory view that is less or equal to GetRawSize()
+	 */
+	[[nodiscard]] CORE_API bool TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset = 0);
+
+private:
+	class FImpl;
+	TUniquePtr<FImpl> Impl;
+};
+

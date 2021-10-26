@@ -96,6 +96,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 	}
 
 	FQueryLeaderboardForUserOptions Options(ReadObject->ColumnMetadata.Num(), ProductUserIds);
+	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
 	// Convert the column names to stats
 	int32 Index = 0;
 	for (const FColumnMetaData& Column : ReadObject->ColumnMetadata)
@@ -234,6 +235,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 	EOS_Leaderboards_QueryLeaderboardRanksOptions Options = { };
 	Options.ApiVersion = EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST;
 	Options.LeaderboardId = LeaderboardId;
+	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
 	FCStringAnsi::Strncpy(LeaderboardId, TCHAR_TO_UTF8(*ReadObject->LeaderboardName.ToString()), EOS_OSS_STRING_BUFFER_LENGTH);
 
 	FQueryLeaderboardCallback* CallbackObj = new FQueryLeaderboardCallback();
@@ -309,7 +311,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 
 	EOS_Leaderboards_QueryLeaderboardRanks(EOSSubsystem->LeaderboardsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
-	return false;
+	return true;
 }
 
 bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)

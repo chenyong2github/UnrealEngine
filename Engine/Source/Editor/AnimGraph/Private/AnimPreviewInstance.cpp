@@ -269,7 +269,7 @@ void FAnimPreviewInstanceProxy::RefreshCurveBoneControllers(UAnimationAsset* Ass
 	CurveBoneControllers.Empty();
 
 	// do not apply if BakedAnimation is on
-	if(CurrentSequence)
+	if(CurrentSequence && CurrentSequence->IsDataModelValid())
 	{
 		// make sure if this needs source update
 		if (CurrentSequence->GetDataModel()->GetNumberOfTransformCurves() == 0)
@@ -589,7 +589,7 @@ void UAnimPreviewInstance::SetAnimationAsset(UAnimationAsset* NewAsset, bool bIs
 
 	// disable playing for single frame assets
 	UAnimSequence* AnimSequence = GetAnimSequence();
-	bool bSingleFrameSequence = (AnimSequence != nullptr) ? AnimSequence->GetDataModel()->GetNumberOfFrames() <= 1 : false; 
+	bool bSingleFrameSequence = (AnimSequence != nullptr) ? AnimSequence->GetNumberOfSampledKeys() <= 1 : false;
 	if (bSingleFrameSequence && Proxy.IsPlaying())
 	{
 		Proxy.SetPlaying(false);

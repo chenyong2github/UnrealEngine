@@ -24,7 +24,6 @@ class UActorDescContainer;
 enum class EContainerClusterMode : uint8
 {
 	Partitioned, // Per Actor Partitioning
-	Embedded // Per Container Partitioning: Every actor of the container are going to be clustered together
 };
 #endif
 
@@ -76,7 +75,7 @@ public:
 
 	FName GetActorName() const;
 
-	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
+	virtual bool GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{

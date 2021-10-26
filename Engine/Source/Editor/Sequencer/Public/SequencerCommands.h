@@ -316,6 +316,9 @@ public:
 	/** Toggles whether or not snap to key times while scrubbing. */
 	TSharedPtr< FUICommandInfo > ToggleSnapPlayTimeToKeys;
 
+	/** Toggles whether or not snap to markers while scrubbing. */
+	TSharedPtr< FUICommandInfo > ToggleSnapPlayTimeToMarkers;
+
 	/** Toggles whether or not the play time should snap to the selected interval. */
 	TSharedPtr< FUICommandInfo > ToggleSnapPlayTimeToInterval;
 

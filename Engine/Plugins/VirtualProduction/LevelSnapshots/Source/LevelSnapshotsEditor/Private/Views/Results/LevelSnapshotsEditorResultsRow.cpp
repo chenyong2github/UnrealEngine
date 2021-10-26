@@ -850,52 +850,28 @@ FProperty* FLevelSnapshotsEditorResultsRow::GetProperty() const
 
 FLevelSnapshotPropertyChain FLevelSnapshotsEditorResultsRow::GetPropertyChain() const
 {
-	struct Local
+	const FProperty* Property = GetProperty();
+	check(Property);
+
+	ELevelSnapshotsObjectType OutType;
+	UObject* Object = ContainingObjectGroup.Pin()->GetFirstValidObject(OutType);
+	check(Object);
+
+	UStruct* IterableStruct;
+
+	if (UScriptStruct* AsScriptStruct = Cast<UScriptStruct>(Object))
 	{
-		static void LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(const TSharedPtr<IPropertyHandle> InHandle, TArray<FProperty*>& PropertyStack)
-		{
-			if (InHandle.IsValid())
-			{
-				if (FProperty* Property = InHandle->GetProperty())
-				{
-					PropertyStack.Insert(Property, 0);
-				}
+		IterableStruct = AsScriptStruct;
+	}
+	else
+	{
+		IterableStruct = Object->GetClass();
+	}
+	check(IterableStruct);
 
-				if (const TSharedPtr<IPropertyHandle> ParentHandle = InHandle->GetParentHandle())
-				{
-					LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(ParentHandle, PropertyStack);
-				}
-			}
-		}
-		
-		static void CreateChain(const FLevelSnapshotsEditorResultsRow& This, FLevelSnapshotPropertyChain& Result)
-		{
-			TArray<FProperty*> PropertyStack;
-
-			TSharedPtr<IPropertyHandle> OutHandle;
-			This.GetFirstValidPropertyHandle(OutHandle);
-
-			if (OutHandle.IsValid())
-			{
-				LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(OutHandle, PropertyStack);
-			}
-			else if (FProperty* DirectProperty = This.GetProperty())
-			{
-				PropertyStack.Insert(DirectProperty, 0);
-			}
-
-			for (const FProperty* Property : PropertyStack)
-			{
-				Result.AppendInline(Property);
-			}
-		}
-	};
+	TOptional<FLevelSnapshotPropertyChain> OutChain = FLevelSnapshotPropertyChain::FindPathToProperty(Property, IterableStruct);
 	
-	FLevelSnapshotPropertyChain Result;
-
-	Local::CreateChain(*this, Result);
-	
-	return Result;
+	return OutChain.IsSet() ? OutChain.GetValue() : FLevelSnapshotPropertyChain();
 }
 
 TSharedPtr<IDetailTreeNode> FLevelSnapshotsEditorResultsRow::GetSnapshotPropertyNode() const
@@ -1018,6 +994,18 @@ void FLevelSnapshotsEditorResultsRow::SetWidgetCheckedState(const ECheckBoxState
 		ResultsViewPtr.Pin()->UpdateSnapshotInformationText();
 		ResultsViewPtr.Pin()->RefreshScroll();
 	}
+}
+
+ECheckBoxState FLevelSnapshotsEditorResultsRow::GenerateChildWidgetCheckedStateBasedOnParent() const
+{
+	ECheckBoxState NewState = GetWidgetCheckedState();
+
+	if (NewState == ECheckBoxState::Undetermined)
+	{
+		NewState = ECheckBoxState::Checked;
+	}
+
+	return NewState;
 }
 
 bool FLevelSnapshotsEditorResultsRow::GetIsNodeChecked() const

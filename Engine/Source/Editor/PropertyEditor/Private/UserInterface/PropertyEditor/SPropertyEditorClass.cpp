@@ -90,11 +90,6 @@ void SPropertyEditorClass::GetDesiredWidth(float& OutMinDesiredWidth, float& Out
 
 bool SPropertyEditorClass::Supports(const TSharedRef< class FPropertyEditor >& InPropertyEditor)
 {
-	if(InPropertyEditor->IsEditConst())
-	{
-		return false;
-	}
-
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
 	const FProperty* Property = InPropertyEditor->GetProperty();
 	int32 ArrayIndex = PropertyNode->GetArrayIndex();
@@ -106,6 +101,12 @@ bool SPropertyEditorClass::Supports(const TSharedRef< class FPropertyEditor >& I
 	}
 
 	return false;
+}
+
+/** @return True if the property can be edited */
+bool SPropertyEditorClass::CanEdit() const
+{
+	return PropertyEditor.IsValid() ? !PropertyEditor->IsEditConst() : true;
 }
 
 void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr< class FPropertyEditor >& InPropertyEditor)
@@ -239,6 +240,8 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 	[
 		ComboButton.ToSharedRef()
 	];
+
+	SetEnabled(TAttribute<bool>(this, &SPropertyEditorClass::CanEdit));
 }
 
 /** Util to give better names for BP generated classes */

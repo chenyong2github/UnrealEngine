@@ -327,11 +327,11 @@ public sealed class BuildPhysX : BuildCommand
 					throw new BuildException("Unknown windows compiler specified: {0}", CompilerName);
 			}
 
-			DirectoryReference VSPath;
-			if (!WindowsExports.TryGetVSInstallDir(Compiler, out VSPath))
+			IEnumerable<DirectoryReference> VSPaths;
+			if (null == (VSPaths = WindowsExports.TryGetVSInstallDirs(Compiler)))
 				throw new BuildException("Failed to get Visual Studio install directory");
 
-			MsDevExe = FileReference.Combine(VSPath, "Common7", "IDE", "Devenv.com").FullName;
+			MsDevExe = FileReference.Combine(VSPaths.First(), "Common7", "IDE", "Devenv.com").FullName;
 			MsBuildExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "MSBuild", "14.0", "Bin", "MSBuild.exe");
 		}
 

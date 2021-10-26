@@ -2,16 +2,19 @@
 #pragma once
 
 #include "Audio.h"
-#include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "DSP/BufferVectorOperations.h"
+#include "HAL/CriticalSection.h"
 #include "IAudioModulation.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 #include "SoundModulationDestination.generated.h"
 
 
 // Forward Declarations
 class USoundModulatorBase;
-class UObject;
 
 
 UENUM(BlueprintType)
@@ -104,7 +107,9 @@ namespace Audio
 	{
 		public:
 			FModulationDestination() = default;
+
 			FModulationDestination(const FModulationDestination& InModulationDestination);
+			FModulationDestination(FModulationDestination&& InModulationDestination);
 
 			FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
 			FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
@@ -127,9 +132,6 @@ namespace Audio
 			/** returns whether or not destination references an active modulator */
 			bool IsActive();
 
-			/* Processes output buffer by modulating the input buffer of base (i.e. carrier) values (in unit space). Asserts if parameter is not set as buffered. */
-			void ProcessControl(const float* RESTRICT InBufferUnitBase, int32 InNumSamples);
-
 			/* Updates internal value (or buffer if set to bIsBuffered) to current modulated result using the provided value as the base carrier value to modulate.
 			 * Returns true if value was updated.
 			 */
@@ -138,29 +140,29 @@ namespace Audio
 			void UpdateModulator(const USoundModulatorBase* InModulator);
 
 		private:
+			void ClearHandle();
+			void SetHandle(const FModulatorHandle& InHandle);
+			void SetHandle(FModulatorHandle&& InHandle);
+
 			FDeviceId DeviceId = INDEX_NONE;
 
 			float ValueTarget = 1.0f;
 
-			uint8 bIsBuffered   = 0;
-			uint8 bValueNormalized  = 0;
-			uint8 bIsActive     = 0;
-			uint8 bHasProcessed = 0;
+			bool bIsBuffered = false;
+			bool bValueNormalized = false;
+			bool bHasProcessed = false;
 
 			FAlignedFloatBuffer OutputBuffer;
-			FAlignedFloatBuffer TempBufferNormalized;
 			FModulatorHandle Handle;
 
 			FName ParameterName;
-			FModulationParameter Parameter;
 
-			FCriticalSection SettingsCritSection;
+			mutable FCriticalSection HandleCritSection;
 
 		public:
-			/** Returns buffer of interpolated modulation values */
+			/** Returns buffer of interpolated modulation values. If not set to "IsBuffered" when initialized, returns an empty array. */
 			FORCEINLINE const FAlignedFloatBuffer& GetBuffer() const
 			{
-				check(bIsBuffered);
 				return OutputBuffer;
 			}
 
@@ -168,15 +170,14 @@ namespace Audio
 			  * process the control or not. */
 			FORCEINLINE bool GetHasProcessed() const
 			{
-				return bHasProcessed != 0;
+				return bHasProcessed;
 			}
 
-			/** Returns sample value last reported by modulator. Returns value in unit space, unless 
+			/** Returns sample value last reported by modulator. Returns value in unit space, unless
 			 * 'ValueNormalized' option is set on initialization.
 			 */
 			FORCEINLINE float GetValue() const
 			{
-				check(!bIsBuffered);
 				return ValueTarget;
 			}
 	};

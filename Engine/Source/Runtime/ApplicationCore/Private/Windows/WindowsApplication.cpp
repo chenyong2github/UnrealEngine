@@ -3082,30 +3082,27 @@ FTaskbarList::~FTaskbarList()
 	TaskBarList3 = NULL;
 }
 
-void FTaskbarList::SetOverlayIcon(const TSharedRef<FGenericWindow>& NativeWindow, HICON Icon, FText Description)
+void FTaskbarList::SetOverlayIcon(HWND WindowHandle, HICON Icon, FText Description)
 {
 	if (TaskBarList3)
 	{
-		const TSharedRef< FWindowsWindow > Window = StaticCastSharedRef< FWindowsWindow >(NativeWindow);
-		TaskBarList3->SetOverlayIcon(Window->GetHWnd(), Icon, *Description.ToString());
+		TaskBarList3->SetOverlayIcon(WindowHandle, Icon, *Description.ToString());
 	}
 }
 
-void FTaskbarList::SetProgressValue(const TSharedRef<FGenericWindow>& NativeWindow, uint64 Current, uint64 Total)
+void FTaskbarList::SetProgressValue(HWND WindowHandle, uint64 Current, uint64 Total)
 {
 	if (TaskBarList3)
 	{
-		const TSharedRef< FWindowsWindow > Window = StaticCastSharedRef< FWindowsWindow >(NativeWindow);
-		TaskBarList3->SetProgressValue(Window->GetHWnd(), (ULONGLONG)Current, (ULONGLONG)Total);
+		TaskBarList3->SetProgressValue(WindowHandle, (ULONGLONG)Current, (ULONGLONG)Total);
 	}
 }
 
-void FTaskbarList::SetProgressState(const TSharedRef<FGenericWindow>& NativeWindow, ETaskbarProgressState::Type State)
+void FTaskbarList::SetProgressState(HWND WindowHandle, ETaskbarProgressState::Type State)
 {
 	if (TaskBarList3)
 	{
-		const TSharedRef< FWindowsWindow > Window = StaticCastSharedRef< FWindowsWindow >(NativeWindow);
-		TaskBarList3->SetProgressState(Window->GetHWnd(), (TBPFLAG)State);
+		TaskBarList3->SetProgressState(WindowHandle, (TBPFLAG)State);
 	}
 }
 

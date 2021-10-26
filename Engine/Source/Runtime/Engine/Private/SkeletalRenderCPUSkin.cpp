@@ -16,7 +16,7 @@
 
 struct FMorphTargetDelta;
 
-template<typename VertexType>
+template<typename VertexType, int32 NumberOfUVs>
 static void SkinVertices(FFinalSkinVertex* DestVertex, FMatrix44f* ReferenceToLocal, int32 LODIndex, FSkeletalMeshLODRenderData& LOD, FSkinWeightVertexBuffer& WeightBuffer, TArray<FActiveMorphTarget>& ActiveMorphTargets, TArray<float>& MorphTargetWeights, const TMap<int32, FClothSimulData>& ClothSimulUpdateData, float ClothBlendWeight, const FMatrix& WorldToLocal);
 
 #define INFLUENCE_0		0
@@ -194,6 +194,29 @@ void FSkeletalMeshObjectCPUSkin::UpdateDynamicData_RenderThread(FRHICommandListI
 	CacheVertices(DynamicData->LODIndex,true);
 }
 
+#define SKIN_LOD_VERTICES(VertexType, NumUVs) \
+{\
+	switch( NumUVs )\
+    {\
+        case 1:\
+			SkinVertices<VertexType<1>, 1>( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal); \
+          	break;\
+        case 2:\
+			SkinVertices<VertexType<2>, 2>( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal); \
+          	break;\
+        case 3:\
+			SkinVertices<VertexType<3>, 3>( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal); \
+          	break;\
+        case 4:\
+			SkinVertices<VertexType<4>, 4>( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal); \
+          	break;\
+        default:\
+          	checkf(false, TEXT("Invalid number of UV sets.  Must be between 1 and 4") );\
+			break;\
+    }\
+}\
+	
+
 void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) const
 {
 	SCOPE_CYCLE_COUNTER( STAT_CPUSkinUpdateRTTime);
@@ -225,15 +248,15 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 		{
 			check(GIsEditor || LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetAllowCPUAccess());
 			SCOPE_CYCLE_COUNTER(STAT_SkinningTime);
+
+			// do actual skinning
 			if (LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 			{
-				// do actual skinning
-				SkinVertices< TGPUSkinVertexFloat32Uvs<1> >( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal);
+				SKIN_LOD_VERTICES(TGPUSkinVertexFloat32Uvs, LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
 			}
 			else
 			{
-				// do actual skinning
-				SkinVertices< TGPUSkinVertexFloat16Uvs<1> >( DestVertex, ReferenceToLocal, DynamicData->LODIndex, LOD, *MeshLOD.MeshObjectWeightBuffer, DynamicData->ActiveMorphTargets, DynamicData->MorphTargetWeights, DynamicData->ClothSimulUpdateData, DynamicData->ClothBlendWeight, DynamicData->WorldToLocal);
+				SKIN_LOD_VERTICES(TGPUSkinVertexFloat16Uvs, LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
 			}
 
 			if (bRenderOverlayMaterial)
@@ -262,7 +285,11 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 		{
 			MeshLOD.PositionVertexBuffer.VertexPosition(i) = CachedFinalVertices[i].Position;
 			MeshLOD.StaticMeshVertexBuffer.SetVertexTangents(i, CachedFinalVertices[i].TangentX.ToFVector(), CachedFinalVertices[i].GetTangentY(), CachedFinalVertices[i].TangentZ.ToFVector());
-			MeshLOD.StaticMeshVertexBuffer.SetVertexUV(i, 0, FVector2D(CachedFinalVertices[i].U, CachedFinalVertices[i].V));
+
+			for (uint32 UVIndex = 0; UVIndex < LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(); ++UVIndex)
+			{
+				MeshLOD.StaticMeshVertexBuffer.SetVertexUV(i, UVIndex, FVector2D(CachedFinalVertices[i].TextureCoordinates[UVIndex].X, CachedFinalVertices[i].TextureCoordinates[UVIndex].Y));
+			}
 		}
 
 		BeginUpdateResourceRHI(&MeshLOD.PositionVertexBuffer);
@@ -335,7 +362,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 
 	const FStaticMeshVertexBuffer& SrcVertexBuf = LODData.StaticVertexBuffers.StaticMeshVertexBuffer;
 	PositionVertexBuffer.Init(LODData.StaticVertexBuffers.PositionVertexBuffer);
-	StaticMeshVertexBuffer.Init(SrcVertexBuf.GetNumVertices(), 1);
+	StaticMeshVertexBuffer.Init(SrcVertexBuf.GetNumVertices(), MAX_TEXCOORDS);
 
 	for (uint32 i = 0; i < SrcVertexBuf.GetNumVertices(); i++)
 	{
@@ -694,7 +721,7 @@ const VectorRegister		VECTOR_0001				= DECLARE_VECTOR_REGISTER(0.f, 0.f, 0.f, 1.
 
 #define FIXED_VERTEX_INDEX 0xFFFF
 
-template<typename VertexType>
+template<typename VertexType, int32 NumberOfUVs>
 static void SkinVertexSection(
 	FFinalSkinVertex*& DestVertex,
 	TArray<FMorphTargetInfo>& MorphEvalInfos,
@@ -1007,16 +1034,17 @@ static void SkinVertexSection(
 			}
 
 			// Copy UVs.
-			FVector2D UVs = LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Section.GetVertexBufferIndex() + VertexIndex, 0);
-			DestVertex->U = UVs.X;
-			DestVertex->V = UVs.Y;
+			for (int32 UVIndex = 0; UVIndex < NumberOfUVs; ++UVIndex)
+			{
+				DestVertex->TextureCoordinates[UVIndex] = LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Section.GetVertexBufferIndex() + VertexIndex, UVIndex);
+			}
 
 			CurBaseVertIdx++;
 		}
 	}
 }
 
-template<typename VertexType>
+template<typename VertexType, int32 NumberOfUVs>
 static void SkinVertices(
 	FFinalSkinVertex* DestVertex, 
 	FMatrix44f* ReferenceToLocal, 
@@ -1055,7 +1083,7 @@ static void SkinVertices(
 
 		const FClothSimulData* ClothSimData = ClothSimulUpdateData.Find(Section.CorrespondClothAssetIndex);
 
-		SkinVertexSection<VertexType>(DestVertex, MorphEvalInfos, MorphTargetWeights, Section, LOD, WeightBuffer, VertexBufferBaseIndex, NumValidMorphs, CurBaseVertIdx, LODIndex, ReferenceToLocal, ClothSimData, ClothBlendWeight, WorldToLocal);
+		SkinVertexSection<VertexType, NumberOfUVs>(DestVertex, MorphEvalInfos, MorphTargetWeights, Section, LOD, WeightBuffer, VertexBufferBaseIndex, NumValidMorphs, CurBaseVertIdx, LODIndex, ReferenceToLocal, ClothSimData, ClothBlendWeight, WorldToLocal);
 	}
 
 	VectorSetControlRegister( StatusRegister );
@@ -1098,8 +1126,8 @@ static FORCEINLINE void CalculateSectionBoneWeights(FFinalSkinVertex*& DestVerte
 		FSkinWeightInfo SrcWeight = SkinWeightVertexBuffer.GetVertexSkinWeights(VertexBufferIndex);
 
 		//Zero out the UV coords
-		DestVertex->U = 0.0f;
-		DestVertex->V = 0.0f;
+		DestVertex->TextureCoordinates[0].X = 0.0f;
+		DestVertex->TextureCoordinates[0].Y = 0.0f;
 
 		const FBoneIndexType* RESTRICT BoneIndices = SrcWeight.InfluenceBones;
 		const uint8* RESTRICT BoneWeights = SrcWeight.InfluenceWeights;
@@ -1108,8 +1136,8 @@ static FORCEINLINE void CalculateSectionBoneWeights(FFinalSkinVertex*& DestVerte
 		{
 			if (BonesOfInterest.Contains(BoneMap[BoneIndices[i]]))
 			{
-				DestVertex->U += BoneWeights[i] * INV255; 
-				DestVertex->V += BoneWeights[i] * INV255;
+				DestVertex->TextureCoordinates[0].X += BoneWeights[i] * INV255; 
+				DestVertex->TextureCoordinates[0].Y += BoneWeights[i] * INV255;
 			}
 		}
 	}
@@ -1141,8 +1169,8 @@ static void CalculateMorphTargetWeights(FFinalSkinVertex* DestVertex, FSkeletalM
 
 	for (FFinalSkinVertex* ClearVert = DestVertex; ClearVert != EndVert; ++ClearVert)
 	{
-		ClearVert->U = 0.f;
-		ClearVert->V = 0.f;
+		DestVertex->TextureCoordinates[0].X = 0.0f;
+		DestVertex->TextureCoordinates[0].Y = 0.0f;
 	}
 
 	for (const UMorphTarget* Morphtarget : InMorphTargetOfInterest)
@@ -1152,8 +1180,8 @@ static void CalculateMorphTargetWeights(FFinalSkinVertex* DestVertex, FSkeletalM
 		for (int32 MorphVertexIndex = 0; MorphVertexIndex < NumDeltas; ++MorphVertexIndex)
 		{
 			FFinalSkinVertex* SetVert = DestVertex + MTLODVertices[MorphVertexIndex].SourceIdx;
-			SetVert->U = 1.0f;
-			SetVert->V = 1.0f;
+			DestVertex->TextureCoordinates[0].X += 1.0f;
+			DestVertex->TextureCoordinates[0].Y += 1.0f;
 		}
 	}
 }

@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					"DesktopPlatform",
                     "RenderCore",
                     "RHI",
+					"ToolWidgets",
                 }
             );
 

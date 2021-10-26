@@ -1360,17 +1360,17 @@ void FKismetDebugUtilities::ClearBreakpointsForPath(const FString& BlueprintPath
 
 FKismetDebugUtilities::FOnWatchedPinsListChanged FKismetDebugUtilities::WatchedPinsListChangedEvent;
 
-bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty)
 {
 	// Forward to schema
-	if(const UEdGraphNode* Node = Pin->GetOwningNode())
+	if (const UEdGraphNode* Node = Pin->GetOwningNode())
 	{
-		if(const UAnimationGraphSchema* AnimationGraphSchema = Cast<UAnimationGraphSchema>(Node->GetSchema()))
+		if (const UAnimationGraphSchema* AnimationGraphSchema = Cast<UAnimationGraphSchema>(Node->GetSchema()))
 		{
 			// Anim graphs need to respect whether they have a binding as they are effectively unlinked
-			bool bHasBinding = false; 
+			bool bHasBinding = false;
 
-			if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(Pin->GetOwningNode()))
+			if (UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(Pin->GetOwningNode()))
 			{
 				// Compare FName without number to make sure we catch array properties that are split into multiple pins
 				FName ComparisonName = Pin->GetFName();
@@ -1387,9 +1387,9 @@ bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGr
 			// We allow input pins to be watched only if they have bindings, otherwise we need to follow to output pins
 			const bool bNotAnInputOrBound = (Pin->Direction != EGPD_Input) || bHasBinding;
 
-			return !AnimationGraphSchema->IsMetaPin(*Pin) && bNotAnInputOrBound && !IsPinBeingWatched(Blueprint, Pin);
+			return !AnimationGraphSchema->IsMetaPin(*Pin) && bNotAnInputOrBound && !IsPinBeingWatched(Blueprint, Pin, InPathToProperty);
 		}
-		else if(const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Node->GetSchema()))
+		else if (const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Node->GetSchema()))
 		{
 			UEdGraph* Graph = Pin->GetOwningNode()->GetGraph();
 
@@ -1399,48 +1399,50 @@ bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGr
 			//@TODO: Make watching a schema-allowable/denyable thing
 			const bool bCanWatchThisGraph = true;
 
-			return bCanWatchThisGraph && !K2Schema->IsMetaPin(*Pin) && bNotAnInput && !IsPinBeingWatched(Blueprint, Pin);
+			return bCanWatchThisGraph && !K2Schema->IsMetaPin(*Pin) && bNotAnInput && !IsPinBeingWatched(Blueprint, Pin, InPathToProperty);
 		}
 	}
 
 	return false;
-	
 }
 
-bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty)
 {
-	if(TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
+	if (TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
 	{
-		return WatchedPins->Contains(Pin);
+		for (const FBlueprintWatchedPin& WatchedPin : *WatchedPins)
+		{
+			if (WatchedPin.Get() == Pin && WatchedPin.GetPathToProperty() == InPathToProperty)
+			{
+				return true;
+			}
+		}
 	}
 	return false;
 }
 
-bool FKismetDebugUtilities::RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+bool FKismetDebugUtilities::RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty)
 {
-	return RemovePinWatchesByPredicate(
+	return RemovePinPropertyWatchesByPredicate(
 		Blueprint,
-		[Pin](const UEdGraphPin* Other)
+		[Pin, &InPathToProperty](const FBlueprintWatchedPin& Other)
 		{
-			return Pin->PinId == Other->PinId;
+			return Other.Get()->PinId == Pin->PinId && Other.GetPathToProperty() == InPathToProperty;
 		}
 	);
 }
 
-void FKismetDebugUtilities::AddPinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+void FKismetDebugUtilities::AddPinWatch(const UBlueprint* Blueprint, FBlueprintWatchedPin&& WatchedPin)
 {
 	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 	check(Settings);
-	FPerBlueprintSettings &BlueprintSettings = Settings->PerBlueprintSettings.FindOrAdd(Blueprint->GetPathName());
+	FPerBlueprintSettings& BlueprintSettings = Settings->PerBlueprintSettings.FindOrAdd(Blueprint->GetPathName());
 
-	// ensure that this pin isn't already being watched
-	checkSlow(!IsPinBeingWatched(Blueprint, Pin));
-	
-	BlueprintSettings.WatchedPins.Add(Pin);
+	BlueprintSettings.WatchedPins.Emplace(MoveTemp(WatchedPin));
+
 	SaveBlueprintEditorSettings();
 	WatchedPinsListChangedEvent.Broadcast(const_cast<UBlueprint*>(Blueprint));
 }
-
 
 void FKismetDebugUtilities::TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
@@ -1489,6 +1491,17 @@ void FKismetDebugUtilities::ForeachPinWatch(const UBlueprint* Blueprint, TFuncti
 	}
 }
 
+void FKismetDebugUtilities::ForeachPinPropertyWatch(const UBlueprint* Blueprint, TFunctionRef<void(FBlueprintWatchedPin&)> Task)
+{
+	if (TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
+	{
+		for (FBlueprintWatchedPin& WatchedPin : *WatchedPins)
+		{
+			Task(WatchedPin);
+		}
+	}
+}
+
 bool FKismetDebugUtilities::RemovePinWatchesByPredicate(const UBlueprint* Blueprint,
 	const TFunctionRef<bool(const UEdGraphPin*)> Predicate)
 {
@@ -1503,6 +1516,31 @@ bool FKismetDebugUtilities::RemovePinWatchesByPredicate(const UBlueprint* Bluepr
 		if(WatchedPins->RemoveAllSwap(ModifiedPedicate, false))
 		{
 			if(WatchedPins->IsEmpty())
+			{
+				// keeps the ini file clean by removing empty arrays
+				ClearPinWatches(Blueprint);
+			}
+			SaveBlueprintEditorSettings();
+			WatchedPinsListChangedEvent.Broadcast(const_cast<UBlueprint*>(Blueprint));
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FKismetDebugUtilities::RemovePinPropertyWatchesByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const FBlueprintWatchedPin&)> Predicate)
+{
+	auto ModifiedPedicate = [Predicate](FBlueprintWatchedPin& WatchedPin)
+	{
+		const UEdGraphPin* Pin = WatchedPin.Get();
+		return Pin && Predicate(WatchedPin);
+	};
+
+	if (TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
+	{
+		if (WatchedPins->RemoveAllSwap(ModifiedPedicate, false))
+		{
+			if (WatchedPins->IsEmpty())
 			{
 				// keeps the ini file clean by removing empty arrays
 				ClearPinWatches(Blueprint);
@@ -1608,7 +1646,7 @@ bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 
 	// Can't inspect if not in PIE
 	const UWorld* OwningWorld = Object->GetTypedOuter<UWorld>();
-	if (!OwningWorld || !OwningWorld->IsPlayInEditor())
+	if (!OwningWorld || !(OwningWorld->IsPlayInEditor() || OwningWorld->IsPreviewWorld()))
 	{
 		return false;
 	}

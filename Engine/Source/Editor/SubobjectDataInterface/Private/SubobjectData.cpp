@@ -800,6 +800,19 @@ bool FSubobjectData::IsNativeComponent() const
 	return false;
 }
 
+bool FSubobjectData::IsBlueprintInheritedComponent() const
+{
+	if (const UActorComponent* Template = GetComponentTemplate())
+	{
+		if(GetSCSNode() != nullptr)
+		{
+			return IsInheritedSCSNode();
+		}
+	}
+
+	return false;
+}
+
 bool FSubobjectData::IsInheritedComponent() const
 {
 	// This covers a component that is added via blueprints

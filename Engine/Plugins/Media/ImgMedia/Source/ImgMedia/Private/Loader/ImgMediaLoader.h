@@ -38,7 +38,8 @@ public:
 	 */
 	FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
 		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
-		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo);
+		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
+		bool bInFillGapsInSequence);
 
 	/** Virtual destructor. */
 	virtual ~FImgMediaLoader();
@@ -333,6 +334,21 @@ protected:
 	void Update(int32 PlayHeadFrame, float PlayRate, bool Loop);
 
 	/**
+	 * Adds an empty frame to the cache.
+	 * 
+	 * @param FrameNumber Frame number to add.
+	 */
+	void AddEmptyFrame(int32 FrameNumber);
+
+	/**
+	 * Adds a frame to the cache.
+	 *
+	 * @param FrameNumber Number of frame to add.
+	 * @param Frame Frame information to add.
+	 */
+	void AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
+
+	/**
 	 * Get what mip level we should be using for a given frame.
 	 *
 	 * @param FrameIndex Frame to get mip level for.
@@ -368,6 +384,18 @@ protected:
 	 */
 	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* GetFrameForBestIndex(int32 & MaxIdx, int32 LastIndex);
 
+	/**
+	 * Helper function to get the number at the end of a string.
+	 * 
+	 * The number does not have to be at the very end,
+	 * e.g. test1.exr will get 1.
+	 * 
+	 * @param Number Will be set to the number found if one is found.
+	 * @param String String to search.
+	 * @return True if it found a number.
+	 */
+	bool GetNumberAtEndOfString(int32& Number, const FString& String) const;
+
 private:
 
 	/** Critical section for synchronizing access to Frames. */
@@ -390,6 +418,9 @@ private:
 
 	/** Whether this loader has been initialized yet. */
 	bool Initialized;
+
+	/** If true, then any gaps in the sequence will be filled with blank frames. */
+	bool bFillGapsInSequence;
 
 	/** The number of frames to load ahead of the play head. */
 	int32 NumLoadAhead;

@@ -246,7 +246,8 @@ TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 		for (TObjectIterator<UClass> It; It; ++It)
 		{
 			UClass* Class = *It;
-			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NotPlaceable) &&
+			
+			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_Hidden) &&
 				Class->IsChildOf(StaticClass()))
 			{
 				CachedNodesClasses.Add(Class);

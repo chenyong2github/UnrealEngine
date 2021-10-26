@@ -20,6 +20,8 @@
 
 #define LOCTEXT_NAMESPACE "StandaloneAssetEditorToolkit"
 
+static int32 StatusBarIdGenerator = 0;
+
 void SStandaloneAssetEditorToolkitHost::Construct( const SStandaloneAssetEditorToolkitHost::FArguments& InArgs, const TSharedPtr<FTabManager>& InTabManager, const FName InitAppName )
 {
 	ToolbarSlot = nullptr;
@@ -27,6 +29,9 @@ void SStandaloneAssetEditorToolkitHost::Construct( const SStandaloneAssetEditorT
 	EditorCloseRequest = InArgs._OnRequestClose;
 	EditorClosing = InArgs._OnClose;
 	AppName = InitAppName;
+
+	// Asset editors have non-unique names. For example every material editor is just "MaterialEditor" so the base app name plus a unique number to generate uniqueness. This number is not used across sessions and should never be saved.
+	StatusBarName = FName(AppName, ++StatusBarIdGenerator);
 
 	MyTabManager = InTabManager;
 }
@@ -165,7 +170,8 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 
 	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow( HostTab );
 	TSharedPtr<SWidget> RestoredUI = MyTabManager->RestoreFrom( NewLayout, ParentWindow );
-	StatusBarWidget = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetMenuName(), HostTab);
+
+	StatusBarWidget = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(StatusBarName, HostTab);
 
 	checkf(RestoredUI.IsValid(), TEXT("The layout must have a primary dock area") );
 
@@ -248,7 +254,7 @@ void SStandaloneAssetEditorToolkitHost::RegisterDrawer(FStatusBarDrawer&& Drawer
 {
 	if (StatusBarWidget.IsValid())
 	{
-		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->RegisterDrawer(GetMenuName(), MoveTemp(Drawer), SlotIndex);
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->RegisterDrawer(StatusBarName, MoveTemp(Drawer), SlotIndex);
 	}
 }
 

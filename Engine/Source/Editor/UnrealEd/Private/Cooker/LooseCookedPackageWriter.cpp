@@ -3,6 +3,7 @@
 #include "Cooker/LooseCookedPackageWriter.h"
 
 #include "AssetRegistry/AssetRegistryState.h"
+#include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Cooker/AsyncIODelete.h"
 #include "Cooker/CookTypes.h"
@@ -14,13 +15,16 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "UObject/Package.h"
 #include "PackageStoreOptimizer.h"
 
@@ -34,6 +38,7 @@ FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath
 	, PluginsToRemap(InPluginsToRemap)
 	, AsyncIODelete(InAsyncIODelete)
 	, bIterateSharedBuild(false)
+	, bCompletedExportsArchiveForDiff(false)
 {
 }
 
@@ -43,55 +48,290 @@ FLooseCookedPackageWriter::~FLooseCookedPackageWriter()
 
 void FLooseCookedPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
+	Super::BeginPackage(Info);
 	PackageStoreManifest.BeginPackage(Info.PackageName);
-	// Temp solution until WritePackageData gets called also for LooseCookedPackageWriter
-	FIoChunkId ChunkId = CreateIoChunkId(FPackageId::FromName(Info.PackageName).Value(), 0, EIoChunkType::ExportBundleData);
-	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, ChunkId);
 }
 
-void FLooseCookedPackageWriter::CommitPackage(const FCommitPackageInfo& Info)
+TFuture<FMD5Hash> FLooseCookedPackageWriter::CommitPackageInternal(const FCommitPackageInfo& Info)
 {
+	TFuture<FMD5Hash> CookedHash;
+	if (Info.bSucceeded)
+	{
+		CookedHash = AsyncSave(Info);
+	}
+	UpdateManifest();
+	return CookedHash;
 }
 
-void FLooseCookedPackageWriter::WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions)
+TFuture<FMD5Hash> FLooseCookedPackageWriter::AsyncSave(const FCommitPackageInfo& Info)
 {
-	// Not yet implemented
-	checkNoEntry();
+	FCommitContext Context{ Info };
+
+	// The order of these collection calls is important, both for ExportsBuffers (affects the meaning of offsets
+	// to those buffers) and for OutputFiles (affects the calculation of the Hash for the set of PackageData)
+	// The order of ExportsBuffers must match CompleteExportsArchiveForDiff.
+	CollectForSavePackageData(Context);
+	CollectForSaveBulkData(Context);
+	CollectForSaveLinkerAdditionalDataRecords(Context);
+	CollectForSaveAdditionalFileRecords(Context);
+	CollectForSaveExportsFooter(Context);
+	CollectForSaveExportsBuffers(Context);
+
+	return AsyncSaveOutputFiles(Context);
 }
 
-void FLooseCookedPackageWriter::WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions)
+void FLooseCookedPackageWriter::CompleteExportsArchiveForDiff(FLargeMemoryWriter& ExportsArchive)
 {
-	// Not yet implemented
-	checkNoEntry();
+	bCompletedExportsArchiveForDiff = true;
+
+	// Add on all the attachments which are usually added on during Commit. The order must match AsyncSave.
+	for (FBulkDataRecord& Record : Records.BulkDatas)
+	{
+		if (Record.Info.BulkDataType == FBulkDataInfo::AppendToExports)
+		{
+			ExportsArchive.Serialize(const_cast<void*>(Record.Buffer.GetData()), Record.Buffer.GetSize());
+		}
+	}
+	for (FLinkerAdditionalDataRecord& Record : Records.LinkerAdditionalDatas)
+	{
+		ExportsArchive.Serialize(const_cast<void*>(Record.Buffer.GetData()), Record.Buffer.GetSize());
+	}
+
+	uint32 FooterData = PACKAGE_FILE_TAG;
+	ExportsArchive << FooterData;
 }
 
-bool FLooseCookedPackageWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData)
+
+void FLooseCookedPackageWriter::CollectForSavePackageData(FCommitContext& Context)
 {
-	// Not yet implemented
-	checkNoEntry();
-	return false;
+	Context.ExportsBuffers.Add(FExportBuffer{ Records.Package->Buffer, MoveTemp(Records.Package->Regions) });
 }
 
-void FLooseCookedPackageWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
+void FLooseCookedPackageWriter::CollectForSaveBulkData(FCommitContext& Context)
 {
-	// LinkerAdditionalData is not yet implemented in this writer; it is only used for VirtualizedBulkData which is not used in cooked content
-	checkNoEntry();
+	for (FBulkDataRecord& Record : Records.BulkDatas)
+	{
+		if (Record.Info.BulkDataType == FBulkDataInfo::AppendToExports)
+		{
+			if (bCompletedExportsArchiveForDiff)
+			{
+				// Already Added in CompleteExportsArchiveForDiff
+				continue;
+			}
+			Context.ExportsBuffers.Add(FExportBuffer{ Record.Buffer, MoveTemp(Record.Regions) });
+		}
+		else
+		{
+			FWriteFileData& OutputFile = Context.OutputFiles.Emplace_GetRef();
+			OutputFile.Filename = FPaths::ChangeExtension(Records.Begin->LooseFilePath,
+				LexToString(BulkDataTypeToExtension(Record.Info.BulkDataType)));
+			OutputFile.Buffer = FCompositeBuffer(Record.Buffer);
+			OutputFile.Regions = MoveTemp(Record.Regions);
+			OutputFile.bIsSidecar = true;
+		}
+	}
 }
-
-bool FLooseCookedPackageWriter::GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
-	const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData)
+void FLooseCookedPackageWriter::CollectForSaveLinkerAdditionalDataRecords(FCommitContext& Context)
 {
-	// Not yet implemented
-	checkNoEntry();
-	return false;
+	if (bCompletedExportsArchiveForDiff)
+	{
+		// Already Added in CompleteExportsArchiveForDiff
+		return;
+	}
+
+	for (FLinkerAdditionalDataRecord& Record : Records.LinkerAdditionalDatas)
+	{
+		Context.ExportsBuffers.Add(FExportBuffer{ Record.Buffer, MoveTemp(Record.Regions) });
+	}
 }
 
-void FLooseCookedPackageWriter::SetCookOutputLocation(EOutputLocation location)
+void FLooseCookedPackageWriter::CollectForSaveAdditionalFileRecords(FCommitContext& Context)
 {
-	// Not yet implemented
-	checkNoEntry();
+	for (FAdditionalFileRecord& Record : Records.AdditionalFiles)
+	{
+		FWriteFileData& OutputFile = Context.OutputFiles.Emplace_GetRef();
+		OutputFile.Filename = Record.Info.Filename;
+		OutputFile.Buffer = FCompositeBuffer(Record.Buffer);
+		OutputFile.bIsSidecar = true;
+	}
 }
 
+void FLooseCookedPackageWriter::CollectForSaveExportsFooter(FCommitContext& Context)
+{
+	if (bCompletedExportsArchiveForDiff)
+	{
+		// Already Added in CompleteExportsArchiveForDiff
+		return;
+	}
+
+	uint32 FooterData = PACKAGE_FILE_TAG;
+	FSharedBuffer Buffer = FSharedBuffer::Clone(&FooterData, sizeof(FooterData));
+	Context.ExportsBuffers.Add(FExportBuffer{ Buffer, TArray<FFileRegion>() });
+}
+
+void FLooseCookedPackageWriter::AddToExportsSize(int32& ExportsSize)
+{
+	ExportsSize += sizeof(uint32); // Footer size
+}
+
+void FLooseCookedPackageWriter::CollectForSaveExportsBuffers(FCommitContext& Context)
+{
+	// Split the ExportsBuffer into (1) Header and (2) Exports + AllAppendedData
+	int64 HeaderSize = Records.Package->Info.HeaderSize;
+	check(Context.ExportsBuffers.Num() > 0);
+	FExportBuffer& HeaderAndExportsBuffer = Context.ExportsBuffers[0];
+	FSharedBuffer& HeaderAndExportsData = HeaderAndExportsBuffer.Buffer;
+
+	// Header (.uasset/.umap)
+	{
+		FWriteFileData& OutputFile = Context.OutputFiles.Emplace_GetRef();
+		OutputFile.Filename = Records.Begin->LooseFilePath;
+		OutputFile.Buffer = FCompositeBuffer(
+			FSharedBuffer::MakeView(HeaderAndExportsData.GetData(), HeaderSize, HeaderAndExportsData));
+		OutputFile.bIsSidecar = false;
+	}
+
+	// Exports + AllAppendedData (.uexp)
+	{
+		FWriteFileData& OutputFile = Context.OutputFiles.Emplace_GetRef();
+		OutputFile.Filename = FPaths::ChangeExtension(Records.Begin->LooseFilePath, LexToString(EPackageExtension::Exports));
+		OutputFile.bIsSidecar = false;
+
+		int32 NumBuffers = Context.ExportsBuffers.Num();
+		TArray<FSharedBuffer> BuffersForComposition;
+		BuffersForComposition.Reserve(NumBuffers);
+
+		const uint8* ExportsStart = static_cast<const uint8*>(HeaderAndExportsData.GetData()) + HeaderSize;
+		BuffersForComposition.Add(FSharedBuffer::MakeView(ExportsStart, HeaderAndExportsData.GetSize() - HeaderSize,
+			HeaderAndExportsData));
+		OutputFile.Regions.Append(MoveTemp(HeaderAndExportsBuffer.Regions));
+
+		for (FExportBuffer& ExportsBuffer : TArrayView<FExportBuffer>(Context.ExportsBuffers).Slice(1, NumBuffers - 1))
+		{
+			BuffersForComposition.Add(ExportsBuffer.Buffer);
+			OutputFile.Regions.Append(MoveTemp(ExportsBuffer.Regions));
+		}
+		OutputFile.Buffer = FCompositeBuffer(BuffersForComposition);
+
+		// Adjust regions so they are relative to the start of the uexp file
+		for (FFileRegion& Region : OutputFile.Regions)
+		{
+			Region.Offset -= HeaderSize;
+		}
+	}
+}
+
+void FLooseCookedPackageWriter::ResetPackage()
+{
+	Super::ResetPackage();
+	bCompletedExportsArchiveForDiff = false;
+}
+
+TFuture<FMD5Hash> FLooseCookedPackageWriter::AsyncSaveOutputFiles(FCommitContext& Context)
+{
+	if (!EnumHasAnyFlags(Context.Info.WriteOptions, EWriteOptions::Write | EWriteOptions::ComputeHash))
+	{
+		return TFuture<FMD5Hash>();
+	}
+
+	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
+	return Async(EAsyncExecution::TaskGraph,
+		[OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions]() mutable
+	{
+		FMD5 AccumulatedHash;
+		for (FWriteFileData& OutputFile : OutputFiles)
+		{
+			OutputFile.Write(AccumulatedHash, WriteOptions);
+		}
+
+		FMD5Hash OutputHash;
+		OutputHash.Set(AccumulatedHash);
+		UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
+		return OutputHash;
+	});
+}
+
+static void WriteToFile(const FString& Filename, const FCompositeBuffer& Buffer)
+{
+	IFileManager& FileManager = IFileManager::Get();
+
+	for (int32 Tries = 0; Tries < 3; ++Tries)
+	{
+		if (FArchive* Ar = FileManager.CreateFileWriter(*Filename))
+		{
+			int64 DataSize = 0;
+			for (const FSharedBuffer& Segment : Buffer.GetSegments())
+			{
+				int64 SegmentSize = static_cast<int64>(Segment.GetSize());
+				Ar->Serialize(const_cast<void*>(Segment.GetData()), SegmentSize);
+				DataSize += SegmentSize;
+			}
+			delete Ar;
+
+			if (FileManager.FileSize(*Filename) != DataSize)
+			{
+				FileManager.Delete(*Filename);
+
+				UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s!"), *Filename);
+			}
+			return;
+		}
+	}
+
+	UE_LOG(LogSavePackage, Fatal, TEXT("Could not write to %s!"), *Filename);
+}
+
+void FLooseCookedPackageWriter::FWriteFileData::Write(FMD5& AccumulatedHash, EWriteOptions WriteOptions) const
+{
+	if (EnumHasAnyFlags(WriteOptions, EWriteOptions::ComputeHash))
+	{
+		for (const FSharedBuffer& Segment : Buffer.GetSegments())
+		{
+			AccumulatedHash.Update(static_cast<const uint8*>(Segment.GetData()), Segment.GetSize());
+		}
+	}
+
+	if ((bIsSidecar && EnumHasAnyFlags(WriteOptions, EWriteOptions::WriteSidecars)) ||
+		(!bIsSidecar && EnumHasAnyFlags(WriteOptions, EWriteOptions::WritePackage)))
+	{
+		const FString* WriteFilename = &Filename;
+		FString FilenameBuffer;
+		if (EnumHasAnyFlags(WriteOptions, EWriteOptions::SaveForDiff))
+		{
+			FilenameBuffer = FPaths::Combine(FPaths::GetPath(Filename),
+				FPaths::GetBaseFilename(Filename) + TEXT("_ForDiff") + FPaths::GetExtension(Filename, true));
+			WriteFilename = &FilenameBuffer;
+		}
+		WriteToFile(*WriteFilename, Buffer);
+
+		if (Regions.Num() > 0)
+		{
+			TArray<uint8> Memory;
+			FMemoryWriter Ar(Memory);
+			FFileRegion::SerializeFileRegions(Ar, const_cast<TArray<FFileRegion>&>(Regions));
+
+			WriteToFile(*WriteFilename + FFileRegion::RegionsFileExtension,
+				FCompositeBuffer(FSharedBuffer::MakeView(Memory.GetData(), Memory.Num())));
+		}
+	}
+}
+
+void FLooseCookedPackageWriter::UpdateManifest()
+{
+	FName PackageName = Records.Begin->PackageName;
+	FIoChunkId ChunkId = CreateIoChunkId(FPackageId::FromName(PackageName).Value(), 0, EIoChunkType::ExportBundleData);
+	PackageStoreManifest.AddPackageData(PackageName, Records.Begin->LooseFilePath, ChunkId);
+}
+
+bool FLooseCookedPackageWriter::GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData)
+{
+	FArchiveStackTrace::FPackageData ExistingPackageData;
+	FArchiveStackTrace::LoadPackageIntoMemory(*Records.Begin->LooseFilePath, ExistingPackageData, OutData.Data);
+	OutData.Size = ExistingPackageData.Size;
+	OutData.HeaderSize = ExistingPackageData.HeaderSize;
+	OutData.StartOffset = ExistingPackageData.StartOffset;
+	return OutData.Data.IsValid();
+}
 
 FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 {
@@ -99,7 +339,7 @@ FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 	return IFileManager::Get().GetTimeStamp(*PreviousAssetRegistry);
 }
 
-void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
+void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 {
 	bIterateSharedBuild = Info.bIterateSharedBuild;
 	if (Info.bFullBuild)
@@ -115,6 +355,10 @@ void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 			MakeArrayView(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize()),
 			*(MetadataDirectoryPath / TEXT("scriptobjects.bin")));
 	}
+}
+
+void FLooseCookedPackageWriter::BeginCook()
+{
 }
 
 void FLooseCookedPackageWriter::EndCook()
@@ -399,4 +643,22 @@ FName FLooseCookedPackageWriter::ConvertCookedPathToUncookedPath(
 	FPaths::MakeStandardFilename(OutUncookedPath);
 
 	return FName(*OutUncookedPath);
+}
+
+EPackageExtension FLooseCookedPackageWriter::BulkDataTypeToExtension(FBulkDataInfo::EType BulkDataType)
+{
+	switch (BulkDataType)
+	{
+	case FBulkDataInfo::AppendToExports:
+		return EPackageExtension::Exports;
+	case FBulkDataInfo::BulkSegment:
+		return EPackageExtension::BulkDataDefault;
+	case FBulkDataInfo::Mmap:
+		return EPackageExtension::BulkDataMemoryMapped;
+	case FBulkDataInfo::Optional:
+		return EPackageExtension::BulkDataOptional;
+	default:
+		checkNoEntry();
+		return EPackageExtension::Unspecified;
+	}
 }

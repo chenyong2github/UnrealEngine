@@ -163,6 +163,30 @@ void FUsdStageViewModel::ReloadStage()
 #endif // #if USE_USD_SDK
 }
 
+void FUsdStageViewModel::ResetStage()
+{
+#if USE_USD_SDK
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
+	pxr::UsdStageRefPtr UsdStage = pxr::UsdStageRefPtr( Stage );
+
+	if ( UsdStage )
+	{
+		FScopedUsdAllocs Allocs;
+
+		UsdStage->GetSessionLayer()->Clear();
+
+		UsdStage->SetEditTarget( UsdStage->GetEditTargetForLocalLayer( UsdStage->GetRootLayer() ) );
+
+		UsdStage->MuteAndUnmuteLayers( {}, UsdStage->GetMutedLayers() );
+	}
+#endif // #if USE_USD_SDK
+}
+
 void FUsdStageViewModel::CloseStage()
 {
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
@@ -260,6 +284,7 @@ void FUsdStageViewModel::ImportStage()
 			// Let the importer reuse our assets, but force it to spawn new actors and components always
 			// This allows a different setting for asset/component collapsing, and doesn't require modifying the PrimTwins
 			ImportContext.AssetCache = StageActor->GetAssetCache();
+			ImportContext.LevelSequenceHelper.SetAssetCache( StageActor->GetAssetCache() );
 			ImportContext.MaterialToPrimvarToUVIndex = StageActor->GetMaterialToPrimvarToUVIndex();
 
 			ImportContext.TargetSceneActorAttachParent = StageActor->GetRootComponent()->GetAttachParent();

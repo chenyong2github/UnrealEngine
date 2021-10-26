@@ -237,7 +237,7 @@ struct FPartyBeaconCrossplayPlatformMapping
 /**
  * A beacon host used for taking reservations for an existing game session
  */
-UCLASS(transient, notplaceable, config=Engine)
+UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UPartyBeaconState : public UObject
 {
 	GENERATED_UCLASS_BODY()

@@ -68,7 +68,7 @@ namespace
 		// Extract only filename part in case Path is absolute path
 		FString FileName = FPaths::GetCleanFilename(Path);
 
-		FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(L"UE_INSIGHTS_SYMBOL_PATH");
+		FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(TEXT("UE_INSIGHTS_SYMBOL_PATH"));
 
 		FString SymbolPathPart;
 		while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
@@ -298,6 +298,7 @@ FSymslibResolver::FSymslibResolver(IAnalysisSession& InSession)
 	, CancelTasks(false)
 	, Session(InSession)
 {
+	UE_LOG(LogSymslib, Log, TEXT("UE_INSIGHTS_SYMBOL_PATH: '%s'"), *FPlatformMisc::GetEnvironmentVariable(TEXT("UE_INSIGHTS_SYMBOL_PATH")));
 }
 
 FSymslibResolver::~FSymslibResolver()

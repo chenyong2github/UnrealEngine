@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
 
+class FImgMediaGlobalCache;
 class IMediaEventSink;
 class IMediaPlayer;
 
@@ -29,4 +30,16 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~IImgMediaModule() { }
+
+	/**
+	 * Call this to get the global cache.
+	 * 
+	 * @return Global cache.
+	 */
+	static FImgMediaGlobalCache* GetGlobalCache() { return GlobalCache.Get(); }
+
+protected:
+
+	/** Holds the global cache. */
+	static TSharedPtr<FImgMediaGlobalCache, ESPMode::ThreadSafe> GlobalCache;
 };

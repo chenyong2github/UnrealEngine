@@ -162,8 +162,12 @@ void FBinkAudioInfo::SeekToTime(const float SeekTimeSeconds)
 
 			if (SizeOfChunk > RemnOffset)
 			{
-				// This is the block we need				
-				if (this->CurrentChunkIndex != BlockIndex)
+				// This is the block we need
+				// If we are in the current block *and* the current block doesn't need to be loaded,
+				// only then can we set the block offset directly. This is because AudioDecompress.cpp
+				// sets SrcBufferOffset to zero when switching to the next block.
+				if (this->CurrentChunkIndex != BlockIndex ||
+					this->SrcBufferData == nullptr)
 				{
 					// Need to seek to another block
 					this->StreamSeekBlockIndex = BlockIndex;

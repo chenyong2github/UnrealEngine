@@ -271,7 +271,7 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 						}
 						else
 						{
-							int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks, FBXMeshNodeArray);
+							int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks);
 							if(BestResampleRate > 0)
 							{
 								ResampleRate = BestResampleRate;
@@ -600,7 +600,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 
 			// we want the maximum resample rate, so that we don't lose any precision of fast anims,
 			// and don't mind creating lerped frames for slow anims
-			int32 BestResampleRate = GetMaxSampleRate(SortedLinks, NodeArray);
+			int32 BestResampleRate = GetMaxSampleRate(SortedLinks);
 
 			if (BestResampleRate > 0)
 			{
@@ -756,66 +756,31 @@ int32 GetAnimationCurveRate(FbxAnimCurve* CurrentCurve)
 	return 0;
 }
 
-void GetNodeSampleRate(FbxNode* Node, FbxAnimLayer* AnimLayer, TArray<int32>& NodeAnimSampleRates, bool bCurve, bool bBlendCurve)
+void GetNodeSampleRate(FbxNode* Node, FbxAnimLayer* AnimLayer, TArray<int32>& NodeAnimSampleRates)
 {
-	if (bCurve)
+	const int32 MaxElement = 9;
+	FbxAnimCurve* Curves[MaxElement];
+
+	Curves[0] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+	Curves[1] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+	Curves[2] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+	Curves[3] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+	Curves[4] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+	Curves[5] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+	Curves[6] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
+	Curves[7] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
+	Curves[8] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
+
+
+	for (int32 CurveIndex = 0; CurveIndex < MaxElement; ++CurveIndex)
 	{
-		const int32 MaxElement = 9;
-		FbxAnimCurve* Curves[MaxElement];
-
-		Curves[0] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
-		Curves[1] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
-		Curves[2] = Node->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
-		Curves[3] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
-		Curves[4] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
-		Curves[5] = Node->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
-		Curves[6] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
-		Curves[7] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
-		Curves[8] = Node->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
-
-
-		for (int32 CurveIndex = 0; CurveIndex < MaxElement; ++CurveIndex)
+		FbxAnimCurve* CurrentCurve = Curves[CurveIndex];
+		if (CurrentCurve)
 		{
-			FbxAnimCurve* CurrentCurve = Curves[CurveIndex];
-			if (CurrentCurve)
+			int32 CurveAnimRate = GetAnimationCurveRate(CurrentCurve);
+			if (CurveAnimRate != 0)
 			{
-				int32 CurveAnimRate = GetAnimationCurveRate(CurrentCurve);
-				if (CurveAnimRate != 0)
-				{
-					NodeAnimSampleRates.AddUnique(CurveAnimRate);
-				}
-			}
-		}
-	}
-
-	if (bBlendCurve)
-	{
-		FbxGeometry* Geometry = (FbxGeometry*)Node->GetNodeAttribute();
-		if (Geometry)
-		{
-			int32 BlendShapeDeformerCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
-			for (int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeDeformerCount; ++BlendShapeIndex)
-			{
-				FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
-
-				int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
-				for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
-				{
-					FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
-
-					if (Channel)
-					{
-						FbxAnimCurve* CurrentCurve = Geometry->GetShapeChannel(BlendShapeIndex, ChannelIndex, AnimLayer);
-						if (CurrentCurve)
-						{
-							int32 CurveAnimRate = GetAnimationCurveRate(CurrentCurve);
-							if (CurveAnimRate != 0)
-							{
-								NodeAnimSampleRates.AddUnique(CurveAnimRate);
-							}
-						}
-					}
-				}
+				NodeAnimSampleRates.AddUnique(CurveAnimRate);
 			}
 		}
 	}
@@ -836,7 +801,7 @@ int32 UnFbx::FFbxImporter::GetGlobalAnimStackSampleRate(FbxAnimStack* CurAnimSta
 			{
 				FbxNode* Node = Scene->GetNode(NodeIndex);
 				//Get both the transform properties curve and the blend shape animation sample rate
-				GetNodeSampleRate(Node, AnimLayer, CurveAnimSampleRates, true, true);
+				GetNodeSampleRate(Node, AnimLayer, CurveAnimSampleRates);
 			}
 		}
 
@@ -873,7 +838,7 @@ int32 UnFbx::FFbxImporter::GetGlobalAnimStackSampleRate(FbxAnimStack* CurAnimSta
 	return ResampleRate;
 }
 
-int32 UnFbx::FFbxImporter::GetMaxSampleRate(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray)
+int32 UnFbx::FFbxImporter::GetMaxSampleRate(TArray<FbxNode*>& SortedLinks)
 {
 	
 	int32 MaxStackResampleRate = 0;
@@ -896,17 +861,7 @@ int32 UnFbx::FFbxImporter::GetMaxSampleRate(TArray<FbxNode*>& SortedLinks, TArra
 			for (int32 LinkIndex = 0; LinkIndex < SortedLinks.Num(); ++LinkIndex)
 			{
 				FbxNode* CurrentLink = SortedLinks[LinkIndex];
-				GetNodeSampleRate(CurrentLink, AnimLayer, CurveAnimSampleRates, true, false);
-			}
-
-			// it doens't matter whether you choose to import morphtarget or not
-			// blendshape are always imported. Import morphtarget is only used for morphtarget for mesh
-			{
-				for (int32 NodeIndex = 0; NodeIndex < NodeArray.Num(); NodeIndex++)
-				{
-					// consider blendshape animation curve
-					GetNodeSampleRate(NodeArray[NodeIndex], AnimLayer, CurveAnimSampleRates, false, true);
-				}
+				GetNodeSampleRate(CurrentLink, AnimLayer, CurveAnimSampleRates);
 			}
 		}
 	}
@@ -1013,13 +968,14 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 	if ( FbxCurve )
 	{
 		int32 KeyCount = FbxCurve->KeyGetCount();
-		float PreviousKeyValue = 0;
+		
 		for ( int32 KeyIndex=0; KeyIndex < KeyCount; ++KeyIndex )
 		{
 			FbxAnimCurveKey Key = FbxCurve->KeyGet(KeyIndex);
 			FbxTime KeyTime = Key.GetTime() - AnimTimeSpan.GetStart();
+			const float KeyTimeValue = static_cast<float>(KeyTime.GetSecondDouble());
 			float Value = Key.GetValue() * ValueScale;
-			FKeyHandle NewKeyHandle = RichCurve.AddKey(KeyTime.GetSecondDouble(), Value, false);
+			FKeyHandle NewKeyHandle = RichCurve.AddKey(KeyTimeValue, Value, false);
 
 			const bool bIncludeOverrides = true;
 			FbxAnimCurveDef::ETangentMode KeyTangentMode = Key.GetTangentMode(bIncludeOverrides);
@@ -1030,26 +986,61 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			ERichCurveTangentMode NewTangentMode = RCTM_Auto;
 			ERichCurveTangentWeightMode NewTangentWeightMode = RCTWM_WeightedNone;
 
-			float LeaveTangent = 0.f; 
-			float ArriveTangent = 0.f;
-			float LeaveTangentWeight = DefaultCurveWeight;
-			float ArriveTangentWeight = DefaultCurveWeight;
+			float RightTangent = 0.f; 
+			float LeftTangent = 0.f;
+			float RightTangentWeight = 0.0f;
+			float LeftTangentWeight = 0.0f; //This one is dependent on the previous key.
 
-			//Gather if we want to use auto mode for tangent weight
-			const bool bIsAutoTangent = (KeyTangentMode & FbxAnimCurveDef::eTangentAuto);
+			const bool bPreviousKeyValid = KeyIndex > 0;
+			const bool bNextKeyValid = KeyIndex < KeyCount - 1;
+			float PreviousValue = 0.0f;
+			float PreviousKeyTimeValue = 0.0f;
+			bool bLeftWeightActive = false;
+			bool bRightWeightActive = false;
+			float NextValue = 0.0f;
+			float NextKeyTimeValue = 0.0f;
+			if (bPreviousKeyValid)
+			{
+				FbxAnimCurveKey PreviousKey = FbxCurve->KeyGet(KeyIndex - 1);
+				FbxTime PreviousKeyTime = PreviousKey.GetTime() - AnimTimeSpan.GetStart();
+				PreviousKeyTimeValue = static_cast<float>(PreviousKeyTime.GetSecondDouble());
+				PreviousValue = PreviousKey.GetValue() * ValueScale;
+				//The left tangent is driven by the previous key. If the previous key have a the NextLeftweight or both flag weighted mode, it mean the next key is weighted on the left side
+				bLeftWeightActive = (PreviousKey.GetTangentWeightMode() & FbxAnimCurveDef::eWeightedNextLeft) > 0;
+				if (bLeftWeightActive)
+				{
+					LeftTangentWeight = PreviousKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
+				}
+			}
+			if (bNextKeyValid)
+			{
+				FbxAnimCurveKey NextKey = FbxCurve->KeyGet(KeyIndex + 1);
+				FbxTime NextKeyTime = NextKey.GetTime() - AnimTimeSpan.GetStart();
+				NextKeyTimeValue = static_cast<float>(NextKeyTime.GetSecondDouble());
+				NextValue = NextKey.GetValue() * ValueScale;
+
+				bRightWeightActive = (KeyTangentWeightMode & FbxAnimCurveDef::eWeightedRight) > 0;
+				if (bRightWeightActive)
+				{
+					//The right tangent weight should be use only if we are not the last key since the last key do not have a right tangent.
+					//Use the current key to gather the right tangent weight
+					RightTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
+				}
+			}
+
 			// When this flag is true, the tangent is flat if the value has the same value as the previous or next key.
 			const bool bTangentGenericClamp = (KeyTangentMode & FbxAnimCurveDef::eTangentGenericClamp);
 			// When this flag is true, the tangent is flat if the value is outside of the [previous key, next key] value range.
 			const bool bTangentGenericClampProgressive = (KeyTangentMode & FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive) == FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive;
- 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
- 			{
- 				NewTangentMode = RCTM_Break;
- 			}
-  			else if(KeyTangentMode & FbxAnimCurveDef::eTangentUser)
-  			{
-  				NewTangentMode = RCTM_User;
-  			}
-			//Anything else will be set to auto, we do not support eTangentTCB (Tension, Continuity, Bias)
+
+			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
+			{
+				NewTangentMode = RCTM_Break;
+			}
+			else if (KeyTangentMode & FbxAnimCurveDef::eTangentUser)
+			{
+				NewTangentMode = RCTM_User;
+			}
 
 			switch (KeyInterpMode)
 			{
@@ -1066,12 +1057,10 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 					bool bIsFlatTangent = false;
 					if (bTangentGenericClampProgressive)
 					{
-						if (KeyIndex > 0 && KeyIndex < KeyCount - 1)
+						if (bPreviousKeyValid && bNextKeyValid)
 						{
-							const float NextValue = FbxCurve->KeyGet(KeyIndex + 1).GetValue() * ValueScale;
-							const float PreviousNextHalfDelta = (NextValue - PreviousKeyValue) * 0.5f;
-							const float PreviousNextAverage = PreviousKeyValue + PreviousNextHalfDelta;
-
+							const float PreviousNextHalfDelta = (NextValue - PreviousValue) * 0.5f;
+							const float PreviousNextAverage = PreviousValue + PreviousNextHalfDelta;
 							// If the value is outside of the previous-next value range, the tangent is flat.
 							bIsFlatTangent = FMath::Abs(Value - PreviousNextAverage) >= FMath::Abs(PreviousNextHalfDelta);
 						}
@@ -1081,36 +1070,36 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 							bIsFlatTangent = true;
 						}
 					}
-					else if (bTangentGenericClamp && (KeyIndex > 0 || KeyIndex < KeyCount - 1))
+					else if (bTangentGenericClamp && (bPreviousKeyValid || bNextKeyValid))
 					{
-						if (KeyIndex > 0 && PreviousKeyValue == Value)
+						if (bPreviousKeyValid && PreviousValue == Value)
 						{
 							bIsFlatTangent = true;
 						}
-						if (KeyIndex < KeyCount - 1)
+						if (bNextKeyValid)
 						{
-							const float NextValue = FbxCurve->KeyGet(KeyIndex + 1).GetValue() * ValueScale;
 							bIsFlatTangent |= Value == NextValue;
 						}
 					}
 					
 					if (bIsFlatTangent)
 					{
-						LeaveTangent = 0;
-						ArriveTangent = 0;
+						RightTangent = 0;
+						LeftTangent = 0;
+						//To force flat tangent we need to set the tangent mode to user
 						NewTangentMode = RCTM_User;
 					}
 					else
 					{
-						LeaveTangent = Key.GetDataFloat(FbxAnimCurveDef::eRightSlope);
-						if ( KeyIndex > 0 )
+						RightTangent = Key.GetDataFloat(FbxAnimCurveDef::eRightSlope) * ValueScale;
+						if (bPreviousKeyValid)
 						{
 							FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
-							ArriveTangent = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftSlope);
+							LeftTangent = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftSlope) * ValueScale;
 						}
 						else
 						{
-							ArriveTangent = 0.f;
+							LeftTangent = 0.f;
 						}
 					}
 
@@ -1118,57 +1107,82 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				break;
 			}
 
-			//Gather if we want to use auto mode for tangent weight
-			bool bSetDefaultWeight = (KeyTangentMode & FbxAnimCurveDef::eTangentAuto);
- 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
- 			{
- 				NewTangentMode = RCTM_Break;
- 			}
-  			else if(KeyTangentMode & FbxAnimCurveDef::eTangentUser)
-  			{
-  				NewTangentMode = RCTM_User;
-  			}
-			//Anything else will be set to auto, we do not support eTangentTCB (Tension, Continuity, Bias)
-
-			if (!bIsAutoTangent)
+			//auto with weighted give the wrong result, so when auto is weighted we set user mode and set the Right tangent equal to the left tangent.
+			//Auto has only the left tangent set
+			if (NewTangentMode == RCTM_Auto && (bLeftWeightActive || bRightWeightActive))
 			{
-				switch (KeyTangentWeightMode)
+				
+				NewTangentMode = RCTM_User;
+				RightTangent = LeftTangent;
+			}
+
+			if (NewTangentMode != RCTM_Auto)
+			{
+				const bool bEqualTangents = FMath::IsNearlyEqual(LeftTangent, RightTangent);
+				//instead we manually check to see if the tangents are the same or different, if different then broken.
+				if (bEqualTangents)
 				{
-				case FbxAnimCurveDef::eWeightedNone://! Tangent has default weights of 0.333; we define this state as not weighted.
-					LeaveTangentWeight = ArriveTangentWeight = DefaultCurveWeight;
-					NewTangentWeightMode = RCTWM_WeightedNone;
-					break;
-				case FbxAnimCurveDef::eWeightedRight: //! Right tangent is weighted.
-					NewTangentWeightMode = RCTWM_WeightedLeave;
-					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-					ArriveTangentWeight = DefaultCurveWeight;
-					break;
-				case FbxAnimCurveDef::eWeightedNextLeft://! Left tangent is weighted.
-					NewTangentWeightMode = RCTWM_WeightedArrive;
-					LeaveTangentWeight = DefaultCurveWeight;
-					if (KeyIndex > 0)
-					{
-						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
-						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
-					}
-					else
-					{
-						ArriveTangentWeight = 0.f;
-					}
-					break;
-				case FbxAnimCurveDef::eWeightedAll://! Both left and right tangents are weighted.
+					NewTangentMode = RCTM_User;
+				}
+				else
+				{
+					NewTangentMode = RCTM_Break;
+				}
+			}
+
+			//Only cubic interpolation allow weighted tangents
+			if (KeyInterpMode == FbxAnimCurveDef::eInterpolationCubic)
+			{
+				if (bLeftWeightActive && bRightWeightActive)
+				{
 					NewTangentWeightMode = RCTWM_WeightedBoth;
-					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-					if (KeyIndex > 0)
+				}
+				else if (bLeftWeightActive)
+				{
+					NewTangentWeightMode = RCTWM_WeightedArrive;
+					RightTangentWeight = DefaultCurveWeight;
+				}
+				else if (bRightWeightActive)
+				{
+					NewTangentWeightMode = RCTWM_WeightedLeave;
+					LeftTangentWeight = DefaultCurveWeight;
+				}
+				else
+				{
+					NewTangentWeightMode = RCTWM_WeightedNone;
+					LeftTangentWeight = DefaultCurveWeight;
+					RightTangentWeight = DefaultCurveWeight;
+				}
+
+				auto ComputeWeightInternal = [](float TimeA, float TimeB, const float TangentSlope, const float TangentWeight)
+				{
+					const float X = TimeA - TimeB;
+					const float Y = TangentSlope * X;
+					return FMath::Sqrt(X * X + Y * Y) * TangentWeight;
+				};
+
+				if (!FMath::IsNearlyZero(LeftTangentWeight))
+				{
+					if (bPreviousKeyValid)
 					{
-						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
-						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
+						LeftTangentWeight = ComputeWeightInternal(KeyTimeValue, PreviousKeyTimeValue, LeftTangent, LeftTangentWeight);
 					}
 					else
 					{
-						ArriveTangentWeight = 0.f;
+						LeftTangentWeight = 0.0f;
 					}
-					break;
+				}
+
+				if (!FMath::IsNearlyZero(RightTangentWeight))
+				{
+					if (bNextKeyValid)
+					{
+						RightTangentWeight = ComputeWeightInternal(NextKeyTimeValue, KeyTimeValue, RightTangent, RightTangentWeight);
+					}
+					else
+					{
+						RightTangentWeight = 0.0f;
+					}
 				}
 			}
 
@@ -1177,15 +1191,11 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode, bForceDisableTangentRecompute);
 			RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode, bForceDisableTangentRecompute);
 
-			if (NewTangentMode != RCTM_Auto || !bAutoSetTangents)
-			{
-				FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-				NewKey.ArriveTangent = ArriveTangent * ValueScale;
-				NewKey.LeaveTangent = LeaveTangent * ValueScale;
-				NewKey.ArriveTangentWeight = ArriveTangentWeight;
-				NewKey.LeaveTangentWeight = LeaveTangentWeight;
-			}
-			PreviousKeyValue = Value;
+			FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
+			NewKey.ArriveTangent = LeftTangent;
+			NewKey.LeaveTangent = RightTangent;
+			NewKey.ArriveTangentWeight = LeftTangentWeight;
+			NewKey.LeaveTangentWeight = RightTangentWeight;
 		}
 
 		if (bAutoSetTangents)

@@ -29,6 +29,12 @@ namespace ERawImageFormat
 	};
 };
 
+namespace UE {
+	namespace Color {
+		enum class EChromaticAdaptationMethod : uint8;
+	}
+}
+
 
 /**
  * Structure for raw image data.
@@ -113,6 +119,18 @@ public:
 	 * @param DestImage - The destination image.
 	 */
 	IMAGECORE_API void Linearize(uint8 SourceEncoding, FImage& DestImage) const;
+
+	/**
+	 * Apply a color space transformation from the source chromaticities to the engine's working color space.
+	 *
+	 * @param SourceRedChromaticity - The red chromaticity coordinate of the source color space.
+	 * @param SourceGreenChromaticity - The green chromaticity coordinate of the source color space.
+	 * @param SourceBlueChromaticity - The blue chromaticity coordinate of the source color space.
+	 * @param SourceWhiteChromaticity - The white chromaticity coordinate of the source color space.
+	 * @param Method - The chromatic adapation method.
+	 * @param EqualityTolerance - The tolerance for the source and working color space chromaticities to be considered equal, bypassing the transform.
+	 */
+	IMAGECORE_API void TransformToWorkingColorSpace(const FVector2D& SourceRedChromaticity, const FVector2D& SourceGreenChromaticity, const FVector2D& SourceBlueChromaticity, const FVector2D& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance = 1.e-7);
 
 	/**
 	 * Gets the number of bytes per pixel.

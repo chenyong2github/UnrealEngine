@@ -104,7 +104,7 @@ public:
 
 
 template<typename T, int32 StorageTypeIdentifier>
-class TBasicNodeOutput : public INodeOutput
+class TBasicNodeOutput final : public INodeOutput
 {
 public:
 	TBasicNodeOutput()

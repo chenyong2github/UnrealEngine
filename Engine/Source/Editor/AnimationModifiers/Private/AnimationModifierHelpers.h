@@ -10,6 +10,7 @@
 #include "Templates/SharedPointer.h"
 #include "ClassViewerFilter.h"
 #include "AnimationModifier.h"
+#include "AnimationModifiersAssetUserData.h"
 
 class FAnimationModifierHelpers
 {
@@ -58,6 +59,20 @@ public:
 		checkf(ProcessorInstance, TEXT("Unable to instantiate modifier class"));
 		ProcessorInstance->SetFlags(RF_Transactional);
 		return ProcessorInstance;
+	}
+
+	static UAnimationModifiersAssetUserData* RetrieveOrCreateModifierUserData(TScriptInterface<IInterface_AssetUserData> AssetUserDataInterface)
+	{
+		UAnimationModifiersAssetUserData* AssetUserData = AssetUserDataInterface->GetAssetUserData<UAnimationModifiersAssetUserData>();
+		if (!AssetUserData)
+		{
+			AssetUserData = NewObject<UAnimationModifiersAssetUserData>(AssetUserDataInterface.GetObject(), UAnimationModifiersAssetUserData::StaticClass());
+			checkf(AssetUserData, TEXT("Unable to instantiate AssetUserData class"));
+			AssetUserData->SetFlags(RF_Transactional);
+			AssetUserDataInterface->AddAssetUserData(AssetUserData);
+		}
+
+		return AssetUserData;
 	}
 
 };

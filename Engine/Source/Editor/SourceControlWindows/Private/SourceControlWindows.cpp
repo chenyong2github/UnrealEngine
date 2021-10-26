@@ -293,6 +293,44 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 	}
 
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// Allow any finalization pre-submit processes to run
+	TArray<FText> PayloadErrors;
+	TArray<FText> DescriptionTags;
+	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(CombinedFileList, DescriptionTags, PayloadErrors);
+
+	if (!PayloadErrors.IsEmpty())
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			FMessageLog("SourceControl").Error(Error);
+		}
+			
+		// TODO: We rely on the calling code to issue a noticeable error message to the user but this is 
+		// currently handled very inconsistently in the engine and the return values often ignored.
+		// So print the error to the log file as well for now but we should try and unify how the errors
+		// are reported.
+		FText FailureMsg(LOCTEXT("SCC_Virtualization_Failed", "Virtualized payloads failed to submit."));
+		FMessageLog("SourceControl").Notify(FailureMsg);
+
+		OutResultInfo.Result = ECommandResult::Failed;
+		OutResultInfo.Description = FailureMsg;
+
+		return false;
+	}
+	else if (!DescriptionTags.IsEmpty())
+	{
+		FTextBuilder NewDescription;
+		NewDescription.AppendLine(Description.Description);
+
+		for (const FText& Line : DescriptionTags)
+		{
+			NewDescription.AppendLine(Line);
+		}
+
+		Description.Description = NewDescription.ToText();
+	}
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 	// Check in files
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 	CheckInOperation->SetDescription(Description.Description);

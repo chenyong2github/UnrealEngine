@@ -493,6 +493,6 @@ FString FUncontrolledChangelistsModule::GetUObjectPackageFullpath(const UObject*
 	return Fullpath;
 }
 
-IMPLEMENT_MODULE(FUncontrolledChangelistsModule, UncontrolledChangelist);
+IMPLEMENT_MODULE(FUncontrolledChangelistsModule, UncontrolledChangelists);
 
 #undef LOCTEXT_NAMESPACE

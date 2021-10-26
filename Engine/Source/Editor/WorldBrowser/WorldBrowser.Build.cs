@@ -35,6 +35,8 @@ public class WorldBrowser : ModuleRules
                 "Slate",
 				"SlateCore",
                 "EditorStyle",
+                "EditorWidgets",
+                "ToolWidgets",
 				"EditorFramework",
 				"UnrealEd",
                 "GraphEditor",

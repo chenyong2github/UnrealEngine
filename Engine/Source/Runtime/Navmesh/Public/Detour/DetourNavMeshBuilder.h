@@ -24,18 +24,19 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourAlloc.h"
+#include "DetourLargeWorldCoordinates.h"
 
 struct dtOffMeshLinkCreateParams
 {
 	/// Off-mesh connection vertices (point-point = A0 <> B0, segment-segment = A0-A1 <> B0-B1 ) [Unit: wu]
-	float vertsA0[3];
-	float vertsA1[3];
-	float vertsB0[3];
-	float vertsB1[3];
+	dtReal vertsA0[3];
+	dtReal vertsA1[3];
+	dtReal vertsB0[3];
+	dtReal vertsB1[3];
 	/// Off-mesh connection radii. [Unit: wu]
-	float snapRadius;
+	dtReal snapRadius;
 	/// Off-mesh connection height, less than 0 = use step height [Unit: wu]
-	float snapHeight;
+	dtReal snapHeight;
 	/// The user defined ids of the off-mesh connection.
 	unsigned int userID;
 	/// User defined flags assigned to the polys of off-mesh connections
@@ -46,15 +47,16 @@ struct dtOffMeshLinkCreateParams
 	unsigned char type;	
 };
 
+// @todo: This appears unused
 struct dtDynamicAreaCreateParams
 {
 	/// Area id
 	unsigned char area;
 	/// Covex min,max height
-	float minH;
-	float maxH;
+	dtReal minH;
+	dtReal maxH;
 	/// X,Z coords of covex
-	dtChunkArray<float> verts;
+	dtChunkArray<dtReal> verts;
 };
 
 /// Represents the source data used to build an navigation mesh tile.
@@ -91,7 +93,7 @@ struct dtNavMeshCreateParams
 	/// @{
 
 	const unsigned int* detailMeshes;		///< The height detail sub-mesh data. [Size: 4 * #polyCount]
-	const float* detailVerts;				///< The detail mesh vertices. [Size: 3 * #detailVertsCount] [Unit: wu]
+	const dtReal* detailVerts;				///< The detail mesh vertices. [Size: 3 * #detailVertsCount] [Unit: wu]
 	int detailVertsCount;					///< The number of vertices in the detail mesh.
 	const unsigned char* detailTris;		///< The detail mesh triangles. [Size: 4 * #detailTriCount]
 	int detailTriCount;						///< The number of triangles in the detail mesh.
@@ -114,7 +116,7 @@ struct dtNavMeshCreateParams
 	/// @{
 
 	/// Dynamic Area data. [Size: #dynamicAreaCount] [Unit: wu]
-	const dtDynamicAreaCreateParams* dynamicAreas;
+	const dtDynamicAreaCreateParams* dynamicAreas; // @todo: this appears unused
 	/// The number of dynamic areas. [Limit: >= 0]
 	int dynamicAreaCount;
 
@@ -128,18 +130,18 @@ struct dtNavMeshCreateParams
 	int tileX;				///< The tile's x-grid location within the multi-tile destination mesh. (Along the x-axis.)
 	int tileY;				///< The tile's y-grid location within the multi-tile desitation mesh. (Along the z-axis.)
 	int tileLayer;			///< The tile's layer within the layered destination mesh. (Along the y-axis.) [Limit: >= 0]
-	float bmin[3];			///< The minimum bounds of the tile. [(x, y, z)] [Unit: wu]
-	float bmax[3];			///< The maximum bounds of the tile. [(x, y, z)] [Unit: wu]
+	dtReal bmin[3];			///< The minimum bounds of the tile. [(x, y, z)] [Unit: wu]
+	dtReal bmax[3];			///< The maximum bounds of the tile. [(x, y, z)] [Unit: wu]
 
 	/// @}
 	/// @name General Configuration Attributes
 	/// @{
 
-	float walkableHeight;	///< The agent height. [Unit: wu]
-	float walkableRadius;	///< The agent radius. [Unit: wu]
-	float walkableClimb;	///< The agent maximum traversable ledge. (Up/Down) [Unit: wu]
-	float cs;				///< The xz-plane cell size of the polygon mesh. [Limit: > 0] [Unit: wu]
-	float ch;				///< The y-axis cell height of the polygon mesh. [Limit: > 0] [Unit: wu]
+	dtReal walkableHeight;	///< The agent height. [Unit: wu]
+	dtReal walkableRadius;	///< The agent radius. [Unit: wu]
+	dtReal walkableClimb;	///< The agent maximum traversable ledge. (Up/Down) [Unit: wu]
+	dtReal cs;				///< The xz-plane cell size of the polygon mesh. [Limit: > 0] [Unit: wu]
+	dtReal ch;				///< The y-axis cell height of the polygon mesh. [Limit: > 0] [Unit: wu]
 
 	/// True if a bounding volume tree should be built for the tile.
 	/// @note The BVTree is not normally needed for layered navigation meshes.
@@ -175,7 +177,7 @@ NAVMESH_API bool dtNavMeshDataSwapEndian(unsigned char* data, const int dataSize
 ///  @param[in]		tileWidth		Tile width.
 ///  @param[in]		tileHeight		Tile height.
 ///  @param[in]		rotationDeg		Rotation in degrees.
-NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const float tileWidth, const float tileHeight, const float rotationDeg);
+NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const dtReal tileWidth, const dtReal tileHeight, const dtReal rotationDeg);
 
 /// Compute XY offset caused by the given rotation
 ///  @param[in]		position		Position to rotate. [(x, y, z)]
@@ -185,7 +187,7 @@ NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, co
 ///  @param[in]		tileHeight		Tile height.
 ///  @param[out]	deltaX			Offset X in tile coordinates.
 ///  @param[out]	deltaY			Offset Y in tile coordinates.
-NAVMESH_API void dtComputeTileOffsetFromRotation(const float* position, const float* rotationCenter, const float rotationDeg, const float tileWidth, const float tileHeight, int& deltaX, int& deltaY);
+NAVMESH_API void dtComputeTileOffsetFromRotation(const dtReal* position, const dtReal* rotationCenter, const dtReal rotationDeg, const dtReal tileWidth, const dtReal tileHeight, int& deltaX, int& deltaY);
 // @UE END
 
 #endif // DETOURNAVMESHBUILDER_H

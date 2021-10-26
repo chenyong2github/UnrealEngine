@@ -3,7 +3,7 @@
 #include "DisplayClusterRootActorSerializer.h"
 
 #include "ILevelSnapshotsModule.h"
-#include "Serialization/ObjectSnapshotSerializationData.h"
+#include "Params/ObjectSnapshotSerializationData.h"
 
 #include "UObject/UnrealType.h"
 
@@ -18,18 +18,18 @@ UClass* FDisplayClusterRootActorSerializer::GetSupportedClass()
 	return ClassPath.ResolveClass();
 }
 
-void FDisplayClusterRootActorSerializer::BlacklistCustomProperties(ILevelSnapshotsModule& Module)
+void FDisplayClusterRootActorSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
 {
 	const FProperty* CurrentConfigDataProperty = GetSupportedClass()->FindPropertyByName(CurrentConfigDataPropertyName);
 	if (ensure(CurrentConfigDataProperty))
 	{
-		Module.AddBlacklistedProperties( { CurrentConfigDataProperty } );
+		Module.AddExplicitlyUnsupportedProperties( { CurrentConfigDataProperty } );
 	}
 }
 
 void FDisplayClusterRootActorSerializer::Register(ILevelSnapshotsModule& Module)
 {
-	BlacklistCustomProperties(Module);
+	MarkPropertiesAsExplicitlyUnsupported(Module);
 	Module.RegisterCustomObjectSerializer(GetSupportedClass(), MakeShared<FDisplayClusterRootActorSerializer>());
 }
 

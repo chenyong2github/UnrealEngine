@@ -16,7 +16,7 @@ struct FText3DPolygonGroup
 
 using TText3DGroupList = TArray<FText3DPolygonGroup, TFixedAllocator<static_cast<int32>(EText3DGroupType::TypeCount)>>;
 
-class FText3DGlyph final
+class FText3DGlyph
 {
 public:
 	FText3DGlyph();

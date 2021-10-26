@@ -508,6 +508,8 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 
 void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete)
 {
+	using namespace UE::EditorDomain;
+
 	if (bStartAsyncComplete)
 	{
 		return;
@@ -516,7 +518,7 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 	if (FEditorDomain::Get())
 	{
 		// Disable BatchDownload until cache storage implements fetch-head requests in response to a Get with SkipData
-		bool bBatchDownloadEnabled = false;
+		bool bBatchDownloadEnabled = true;
 		GConfig->GetBool(TEXT("EditorDomain"), TEXT("BatchDownloadEnabled"), bBatchDownloadEnabled, GEditorIni);
 		if (bBatchDownloadEnabled)
 		{
@@ -526,13 +528,13 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 			CacheKeys.Reserve(Requests.Num());
 			for (FPackageData* PackageData : Requests)
 			{
-				UE::EditorDomain::FPackageDigest PackageDigest;
-				bool bEditorDomainEnabled;
-				UE::EditorDomain::EPackageDigestResult Result = UE::EditorDomain::GetPackageDigest(AssetRegistry,
-					PackageData->GetPackageName(), PackageDigest, bEditorDomainEnabled, ErrorMessage);
-				if (Result == UE::EditorDomain::EPackageDigestResult::Success && bEditorDomainEnabled)
+				FPackageDigest PackageDigest;
+				EDomainUse EditorDomainUse;
+				EPackageDigestResult Result = GetPackageDigest(AssetRegistry, PackageData->GetPackageName(),
+					PackageDigest, EditorDomainUse, ErrorMessage);
+				if (Result == EPackageDigestResult::Success && EnumHasAnyFlags(EditorDomainUse, EDomainUse::LoadEnabled))
 				{
-					CacheKeys.Add(UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest));
+					CacheKeys.Add(GetEditorDomainPackageKey(PackageDigest));
 				}
 			}
 

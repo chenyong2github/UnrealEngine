@@ -4,8 +4,6 @@
 
 #include "CADKernel/Core/System.h"
 
-using namespace CADKernel;
-
 const TCHAR* CADKernel::GroupOriginNames[] = {
 	TEXT("Unknown"),
 	TEXT("CAD Group"),
@@ -15,7 +13,7 @@ const TCHAR* CADKernel::GroupOriginNames[] = {
 };
 
 
-EEntity FGroup::GetGroupType() const
+CADKernel::EEntity CADKernel::FGroup::GetGroupType() const
 {
 	if (Entities.Num() == 0) 
 	{
@@ -25,7 +23,7 @@ EEntity FGroup::GetGroupType() const
 	return (*Entities.begin())->GetEntityType();
 }
 
-void FGroup::ReplaceEntitiesWithMap(const TMap<TSharedPtr<FEntity>, TSharedPtr<FEntity>>& Map)
+void CADKernel::FGroup::ReplaceEntitiesWithMap(const TMap<TSharedPtr<FEntity>, TSharedPtr<FEntity>>& Map)
 {
 	for (const TPair<TSharedPtr<FEntity>, TSharedPtr<FEntity>>& Pair : Map)
 	{
@@ -37,7 +35,7 @@ void FGroup::ReplaceEntitiesWithMap(const TMap<TSharedPtr<FEntity>, TSharedPtr<F
 	}
 }
 
-void FGroup::RemoveNonTopologicalEntities()
+void CADKernel::FGroup::RemoveNonTopologicalEntities()
 {
 	for (const TSharedPtr<FEntity>& Entity : Entities)
 	{
@@ -50,7 +48,7 @@ void FGroup::RemoveNonTopologicalEntities()
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FGroup::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FGroup::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
 	.Add(TEXT("Origin"), GroupOriginNames[(int8) GetOrigin()])
@@ -58,7 +56,7 @@ FInfoEntity& FGroup::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FGroup::SetName(const FString& Name)
+void CADKernel::FGroup::SetName(const FString& Name)
 {
 	GroupName = Name;
 }

@@ -24,6 +24,7 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourNavMesh.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 
 class dtNavMeshQuery;
 class dtQueryFilter;
@@ -32,12 +33,12 @@ class dtQueryFilter;
 /// @ingroup crowd, detour
 class NAVMESH_API dtPathCorridor
 {
-	float m_pos[3];
-	float m_target[3];
-	float m_prevMovePoint[3];
-	float m_nextExpectedCorner[3];
-	float m_nextExpectedCorner2[3];
-	float m_moveSegAngle;
+	dtReal m_pos[3];
+	dtReal m_target[3];
+	dtReal m_prevMovePoint[3];
+	dtReal m_nextExpectedCorner[3];
+	dtReal m_nextExpectedCorner2[3];
+	dtReal m_moveSegAngle;
 	uint32 m_hasNextExpectedCorner : 1;
 	uint32 m_hasNextExpectedCorner2 : 1;
 	uint32 m_isInSkipRange : 1;
@@ -59,7 +60,7 @@ public:
 	/// Resets the path corridor to the specified position.
 	///  @param[in]		ref		The polygon reference containing the position.
 	///  @param[in]		pos		The new position in the corridor. [(x, y, z)]
-	void reset(dtPolyRef ref, const float* pos);
+	void reset(dtPolyRef ref, const dtReal* pos);
 	
 	/// Finds the corners in the corridor from the position toward the target. (The straightened path.)
 	///  @param[out]	cornerVerts		The corner vertices. [(x, y, z) * cornerCount] [Size: <= maxCorners]
@@ -73,17 +74,17 @@ public:
 	///  @param[in]		earlyReachDistance	[UE] Radius for early reach detection
 	///  @param[in]		bAllowEarlyReach [UE] Check if corner skipping for EarlyReachTest is available now
 	/// @return The number of corners returned in the corner buffers. [0 <= value <= @p maxCorners]
-	int findCorners(float* cornerVerts, unsigned char* cornerFlags,
+	int findCorners(dtReal* cornerVerts, unsigned char* cornerFlags,
 					dtPolyRef* cornerPolys, const int maxCorners,
 					dtNavMeshQuery* navquery, const dtQueryFilter* filter,
-					float pathOffsetDistance, float earlyReachDistance, bool bAllowEarlyReach = true);
+					dtReal pathOffsetDistance, dtReal earlyReachDistance, bool bAllowEarlyReach = true);
 	
 	/// Attempts to optimize the path if the specified point is visible from the current position.
 	///  @param[in]		next					The point to search toward. [(x, y, z])
 	///  @param[in]		pathOptimizationRange	The maximum range to search. [Limit: > 0]
 	///  @param[in]		navquery				The query object used to build the corridor.
 	///  @param[in]		filter					The filter to apply to the operation.			
-	bool optimizePathVisibility(const float* next, const float pathOptimizationRange,
+	bool optimizePathVisibility(const dtReal* next, const dtReal pathOptimizationRange,
 								dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	/// Attempts to optimize the path using a local area search. (Partial replanning.) 
@@ -92,21 +93,21 @@ public:
 	bool optimizePathTopology(dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	bool moveOverOffmeshConnection(dtPolyRef offMeshConRef, dtPolyRef* refs,
-								   const float* agentPos,
-								   float* startPos, float* endPos,
+								   const dtReal* agentPos,
+								   dtReal* startPos, dtReal* endPos,
 								   dtNavMeshQuery* navquery);
 
 	/// [UE] check if offmesh connection can be traversed, but don't modify corridor yet
 	bool canMoveOverOffmeshConnection(dtPolyRef offMeshConRef, dtPolyRef* refs,
-		const float* agentPos, float* startPos, float* endPos,
+		const dtReal* agentPos, dtReal* startPos, dtReal* endPos,
 		dtNavMeshQuery* navquery) const;
 
 	/// [UE] remove offmesh connection from corridor
 	void pruneOffmeshConenction(dtPolyRef offMeshConRef);
 
-	bool fixPathStart(dtPolyRef safeRef, const float* safePos);
+	bool fixPathStart(dtPolyRef safeRef, const dtReal* safePos);
 
-	bool trimInvalidPath(dtPolyRef safeRef, const float* safePos,
+	bool trimInvalidPath(dtPolyRef safeRef, const dtReal* safePos,
 						 dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	/// Checks the current corridor path to see if its polygon references remain valid. 
@@ -120,28 +121,28 @@ public:
 	///  @param[in]		npos		The desired new position. [(x, y, z)]
 	///  @param[in]		navquery	The query object used to build the corridor.
 	///  @param[in]		filter		The filter to apply to the operation.
-	bool movePosition(const float* npos, dtNavMeshQuery* navquery, const dtQueryFilter* filter);
+	bool movePosition(const dtReal* npos, dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 
 	/// Moves the target from the curent location to the desired location, adjusting the corridor
 	/// as needed to reflect the change. 
 	///  @param[in]		npos		The desired new target position. [(x, y, z)]
 	///  @param[in]		navquery	The query object used to build the corridor.
 	///  @param[in]		filter		The filter to apply to the operation.
-	void moveTargetPosition(const float* npos, dtNavMeshQuery* navquery, const dtQueryFilter* filter);
+	void moveTargetPosition(const dtReal* npos, dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	/// Loads a new path and target into the corridor.
 	///  @param[in]		target		The target location within the last polygon of the path. [(x, y, z)]
 	///  @param[in]		path		The path corridor. [(polyRef) * @p npolys]
 	///  @param[in]		npath		The number of polygons in the path.
-	void setCorridor(const float* target, const dtPolyRef* polys, const int npath);
+	void setCorridor(const dtReal* target, const dtPolyRef* polys, const int npath);
 	
 	/// Gets the current position within the corridor. (In the first polygon.)
 	/// @return The current position within the corridor.
-	inline const float* getPos() const { return m_pos; }
+	inline const dtReal* getPos() const { return m_pos; }
 
 	/// Gets the current target within the corridor. (In the last polygon.)
 	/// @return The current target within the corridor.
-	inline const float* getTarget() const { return m_target; }
+	inline const dtReal* getTarget() const { return m_target; }
 	
 	/// The polygon reference id of the first polygon in the corridor, the polygon containing the position.
 	/// @return The polygon reference id of the first polygon in the corridor. (Or zero if there is no path.)
@@ -161,9 +162,9 @@ public:
 
 	inline void setEarlyReachTest(bool enable) { m_enableEarlyReach = enable; }
 
-	inline float getSegmentAngle() const { return m_moveSegAngle; }
-	inline const float* getNextFixedCorner() const { return &m_nextExpectedCorner[0]; }
-	inline const float* getNextFixedCorner2() const { return &m_nextExpectedCorner2[0]; }
+	inline dtReal getSegmentAngle() const { return m_moveSegAngle; }
+	inline const dtReal* getNextFixedCorner() const { return &m_nextExpectedCorner[0]; }
+	inline const dtReal* getNextFixedCorner2() const { return &m_nextExpectedCorner2[0]; }
 	inline bool hasNextFixedCorner() const { return m_hasNextExpectedCorner; }
 	inline bool hasNextFixedCorner2() const { return m_hasNextExpectedCorner2; }
 };

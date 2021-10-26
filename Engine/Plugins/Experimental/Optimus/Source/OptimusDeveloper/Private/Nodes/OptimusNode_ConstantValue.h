@@ -28,7 +28,7 @@ public:
 	FOptimusDataTypeRef DataType;
 };
 
-UCLASS(NotPlaceable)
+UCLASS(Hidden)
 class UOptimusNode_ConstantValue :
 	public UOptimusNode
 {

@@ -420,6 +420,18 @@ public:
 		return ((In.X > Min.X) && (In.X < Max.X) && (In.Y > Min.Y) && (In.Y < Max.Y));
 	}
 
+	/**
+	 * Checks whether the given location is inside or on this box in the XY plane.
+	 *
+	 * @param In The location to test for inside the bounding volume.
+	 * @return true if location is inside this box in the XY plane.
+	 * @see IsInsideOrOn
+	 */
+	FORCEINLINE bool IsInsideOrOnXY(const FVector& In) const
+	{
+		return ((In.X >= Min.X) && (In.X <= Max.X) && (In.Y >= Min.Y) && (In.Y <= Max.Y));
+	}
+
 	/** 
 	 * Checks whether the given box is fully encapsulated by this box in the XY plane.
 	 * 

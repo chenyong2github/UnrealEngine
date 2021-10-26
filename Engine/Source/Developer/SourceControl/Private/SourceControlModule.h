@@ -44,6 +44,10 @@ public:
 	virtual void RegisterPreSubmitDataValidation(const FSourceControlPreSubmitDataValidationDelegate& PreSubmitDataValidationDelegate) override;
 	virtual void UnregisterPreSubmitDataValidation() override;
 	virtual FSourceControlPreSubmitDataValidationDelegate GetRegisteredPreSubmitDataValidation() override;
+	
+	virtual FDelegateHandle RegisterPreSubmitFinalize(const FSourceControlPreSubmitFinalizeDelegate::FDelegate& Delegate) override;
+	virtual void UnregisterPreSubmitFinalize(FDelegateHandle Handle) override;
+	virtual const FSourceControlPreSubmitFinalizeDelegate& GetOnPreSubmitFinalize() const override;
 
 	/** Save the settings to the ini file */
 	void SaveSettings();
@@ -127,6 +131,9 @@ private:
 
 	/** To call when doing pre-submit data validation */
 	FSourceControlPreSubmitDataValidationDelegate OnSourceControlPreSubmitDataValidation;
+	
+	/** To be called right before files are submitted, allowing for additional last minute validation. @see FSourceControlPreSubmitFinalizeDelegate */
+	FSourceControlPreSubmitFinalizeDelegate OnPresubmitFinalize;
 
 	/** Used to cache source controlled AssetData information */
 	FSourceControlAssetDataCache AssetDataCache;

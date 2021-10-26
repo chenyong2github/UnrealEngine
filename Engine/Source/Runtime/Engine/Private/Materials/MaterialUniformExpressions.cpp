@@ -119,55 +119,17 @@ FGuid FMaterialRenderContext::GetExternalTextureGuid(const FGuid& ExternalTextur
 
 void FMaterialRenderContext::GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const UTexture*& OutValue) const
 {
-	if (ParameterInfo.Name.IsNone())
+	if (ParameterInfo.Name.IsNone() || !MaterialRenderProxy || !MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, *this))
 	{
 		OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
-	}
-	else if (!MaterialRenderProxy || !MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, *this))
-	{
-		UTexture* Value = nullptr;
-
-		if (Material.HasMaterialLayers())
-		{
-			UMaterialInterface* Interface = Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
-			{
-				Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
-			}
-		}
-		else
-		{
-			Value = GetIndexedTexture<UTexture>(Material, TextureIndex);
-		}
-
-		OutValue = Value;
 	}
 }
 
 void FMaterialRenderContext::GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const URuntimeVirtualTexture*& OutValue) const
 {
-	if (ParameterInfo.Name.IsNone())
+	if (ParameterInfo.Name.IsNone() || !MaterialRenderProxy || !MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, *this))
 	{
 		OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
-	}
-	else if (!MaterialRenderProxy || !MaterialRenderProxy->GetTextureValue(ParameterInfo, &OutValue, *this))
-	{
-		URuntimeVirtualTexture* Value = nullptr;
-
-		if (Material.HasMaterialLayers())
-		{
-			UMaterialInterface* Interface = Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
-			{
-				Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
-			}
-		}
-		else
-		{
-			Value = GetIndexedTexture<URuntimeVirtualTexture>(Material, TextureIndex);
-		}
-
-		OutValue = Value;
 	}
 }
 
@@ -1386,7 +1348,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 {
 	if (!ParameterInfo.Name.IsNone())
 	{
-		const bool bOverrideValuesOnly = !Material.HasMaterialLayers();
+		const bool bOverrideValuesOnly = true;
 		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
 		{
 			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);

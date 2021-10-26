@@ -19,18 +19,16 @@ namespace CADKernel
 
 	protected:
 
-		TArray<TWeakPtr<FTopologicalEdge>> ConnectedEdges;
+		TArray<FTopologicalEdge*> ConnectedEdges;
 		FPoint Coordinates;
 		TSharedPtr<FVertexMesh> Mesh;
 
 		FTopologicalVertex(const FPoint& InCoordinates)
 			: Coordinates(InCoordinates)
-			, Mesh(TSharedPtr<FVertexMesh>())
 		{
 		}
 
 		FTopologicalVertex(FCADKernelArchive& Archive)
-			: Mesh(TSharedPtr<FVertexMesh>())
 		{
 			Serialize(Archive);
 		}
@@ -41,7 +39,7 @@ namespace CADKernel
 		{
 			TLinkable<FTopologicalVertex, FVertexLink>::Serialize(Ar);
 			Ar.Serialize(Coordinates);
-			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) ConnectedEdges);
+			SerializeIdents(Ar, /*(TArray<TSharedPtr<FEntity>>&)*/ ConnectedEdges);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override;
@@ -99,14 +97,14 @@ namespace CADKernel
 			Coordinates = NewCoordinates;
 		}
 
-		double Distance(const TSharedRef<FTopologicalVertex>& OtherVertex) const
+		double Distance(const FTopologicalVertex& OtherVertex) const
 		{
-			return Coordinates.Distance((*OtherVertex).Coordinates);
+			return Coordinates.Distance(OtherVertex.Coordinates);
 		}
 
-		double SquareDistance(const TSharedRef<FTopologicalVertex>& OtherVertex) const
+		double SquareDistance(const FTopologicalVertex& OtherVertex) const
 		{
-			return Coordinates.SquareDistance((*OtherVertex).Coordinates);
+			return Coordinates.SquareDistance(OtherVertex.Coordinates);
 		}
 
 		double SquareDistance(const FPoint& Point) const
@@ -127,15 +125,15 @@ namespace CADKernel
 			return Mesh.ToSharedRef();
 		}
 
-		void Link(TSharedRef<FTopologicalVertex> InEntity);
+		void Link(FTopologicalVertex& InEntity);
 
-		void UnlinkTo(TSharedRef<FTopologicalVertex> Entity);
+		void UnlinkTo(FTopologicalVertex& Entity);
 
 		virtual void RemoveFromLink() override
 		{
 			if (TopologicalLink.IsValid())
 			{
-				TopologicalLink->RemoveEntity(StaticCastSharedRef<FTopologicalVertex>(AsShared()));
+				TopologicalLink->RemoveEntity(*this);
 				TopologicalLink->ComputeBarycenter();
 				TopologicalLink.Reset();
 			}
@@ -148,18 +146,18 @@ namespace CADKernel
 			{
 				if (TopologicalLink.IsValid())
 				{
-					TopologicalLink->RemoveEntity(StaticCastSharedRef<FTopologicalVertex>(AsShared()));
+					TopologicalLink->RemoveEntity(*this);
 					TopologicalLink->ComputeBarycenter();
 					TopologicalLink.Reset();
 				}
+				SetDeleted();
 			}
-			SetDeleted();
 		}
 
 		bool IsBorderVertex();
 
-		void AddConnectedEdge(TSharedRef<FTopologicalEdge> Edge);
-		void RemoveConnectedEdge(TSharedRef<FTopologicalEdge> Edge);
+		void AddConnectedEdge(FTopologicalEdge& Edge);
+		void RemoveConnectedEdge(FTopologicalEdge& Edge);
 
 		/**
 		 * Mandatory: to browse all the connected edges, you have to browse the connected edges of all the twin vertices
@@ -171,12 +169,12 @@ namespace CADKernel
 		 *    }
 		 *  }
 		 */
-		const TArray<TWeakPtr<FTopologicalEdge>>& GetDirectConnectedEdges() const 
+		const TArray<FTopologicalEdge*>& GetDirectConnectedEdges() const 
 		{
 			return ConnectedEdges;
 		}
 
-		const void GetConnectedEdges(TArray<TWeakPtr<FTopologicalEdge>>& OutConnectedEdges) const
+		void GetConnectedEdges(TArray<FTopologicalEdge*>& OutConnectedEdges) const
 		{
 			if (!TopologicalLink.IsValid())
 			{
@@ -185,9 +183,9 @@ namespace CADKernel
 			else
 			{
 				OutConnectedEdges.Reserve(100);
-				for (const TWeakPtr<FTopologicalVertex>& Vertex : GetLink()->GetTwinsEntities())
+				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinsEntities())
 				{
-					OutConnectedEdges.Append(Vertex.Pin()->ConnectedEdges);
+					OutConnectedEdges.Append(Vertex->ConnectedEdges);
 				}
 			}
 		}
@@ -201,9 +199,9 @@ namespace CADKernel
 			else
 			{
 				int32 Count = 0;
-				for (const TWeakPtr<FTopologicalVertex>& Vertex : GetLink()->GetTwinsEntities())
+				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinsEntities())
 				{
-					Count +=Vertex.Pin()->ConnectedEdges.Num();
+					Count += Vertex->ConnectedEdges.Num();
 				}
 				return Count;
 			}
@@ -212,7 +210,7 @@ namespace CADKernel
 		/**
 		 * 
 		 */
-		void GetConnectedEdges(TSharedPtr<FTopologicalVertex> OtherVertex, TArray<TSharedPtr<FTopologicalEdge>>& Edges) const;
+		void GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& Edges) const;
 	};
 
 } // namespace CADKernel

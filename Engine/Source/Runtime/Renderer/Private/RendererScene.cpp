@@ -379,6 +379,7 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
 	, NumHeightFieldObjectsInBuffer(0)
+	, IndirectionAtlasLayout(8, 8, 8, 512, 512, 512, false, true, false)
 	, HeightFieldAtlasGeneration(0)
 	, HFVisibilityAtlasGenerattion(0)
 {

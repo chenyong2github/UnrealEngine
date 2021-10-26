@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "AudioSliderStyle.h"
+#include "AudioWidgetsStyle.h"
 #include "Components/Widget.h"
-#include "CoreMinimal.h"
 #include "Curves/CurveFloat.h"
+#include "Styling/StyleColors.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWidget.h"
@@ -28,25 +28,37 @@ public:
 	UPROPERTY(EditAnywhere, Category = Appearance, meta = (UIMin = "0", UIMax = "1"))
 	float Value;
 
-	/** Whether to show text label. */
+	/** The text label units */
 	UPROPERTY(EditAnywhere, Category = Appearance)
-	bool AlwaysShowLabel;
+	FText UnitsText;
 
-	/** Whether to show text label. */
+	/** The color to draw the text label background. */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	FLinearColor TextLabelBackgroundColor;
+
+	/** A bindable delegate for the TextLabelBackgroundColor. */
+	UPROPERTY()
+	FGetLinearColor TextLabelBackgroundColorDelegate;
+
+	/** If true, show text label only on hover; if false always show label. */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool ShowLabelOnlyOnHover;
+
+	/** Whether to show the units part of the text label. */
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	bool ShowUnitsText;
+
+	/** Whether to set the units part of the text label read only. */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool IsUnitsTextReadOnly;
+
+	/** Whether to set the value part of the text label read only. */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool IsValueTextReadOnly;
 
 	/** A bindable delegate to allow logic to drive the value of the widget */
 	UPROPERTY()
 	FGetFloat ValueDelegate;
-
-	/** The color to draw the label background. */
-	UPROPERTY(EditAnywhere, Category = Appearance)
-	FLinearColor LabelBackgroundColor;
-
-	/** A bindable delegate for the LabelBackgroundColor. */
-	UPROPERTY()
-	FGetLinearColor LabelBackgroundColorDelegate;
 
 	/** The color to draw the slider background. */
 	UPROPERTY(EditAnywhere, Category = Appearance)
@@ -81,10 +93,6 @@ public:
 	FGetLinearColor WidgetBackgroundColorDelegate;
 
 public:
-	/** Set the units text (ex. "dB") */
-	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetUnitsText(const FText UnitsText);
-
 	/** Get output value from linear based on internal lin to output mapping. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
 	float GetOutputValue(const float LinValue);
@@ -93,17 +101,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
 	float GetLinValue(const float OutputValue);
 
-	/** Sets whether editable value and units text is read only or not. */
- 	UFUNCTION(BlueprintCallable, Category = "Behavior")
- 	void SetAllTextReadOnly(const bool bIsReadOnly);
+	/** Sets the label background color */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetTextLabelBackgroundColor(FSlateColor InColor);
+
+	/** Sets the units text */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetUnitsText(const FText Units);
 	
-	/** Sets whether to show the units text. */
+	/** Sets whether the units text is read only*/
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetUnitsTextReadOnly(const bool bIsReadOnly);
+
+	/** Sets whether the value text is read only*/
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetValueTextReadOnly(const bool bIsReadOnly);
+	
+	/** If true, show text label only on hover; if false always show label. */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetShowLabelOnlyOnHover(const bool bShowLabelOnlyOnHover);
+	
+	/** Sets whether to show the units text */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetShowUnitsText(const bool bShowUnitsText);
-
-	/** Sets whether editable value text is read only or not. */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetAlwaysShowLabel(const bool bSetAlwaysShowLabel);
 
 	/** The slider's orientation. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
@@ -112,10 +132,6 @@ public:
 	/** Called when the value is changed by slider or typing. */
 	UPROPERTY(BlueprintAssignable, Category = "Widget Event")
 	FOnFloatValueChangedEvent OnValueChanged;
-
-	/** Sets the label background color */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetLabelBackgroundColor(FLinearColor InValue);
 
 	/** Sets the slider background color */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
@@ -156,7 +172,7 @@ protected:
 	// End of UWidget interface
 
 	PROPERTY_BINDING_IMPLEMENTATION(float, Value);
-	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, LabelBackgroundColor);
+	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, TextLabelBackgroundColor);
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, SliderBackgroundColor);
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, SliderBarColor);
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, SliderThumbColor);

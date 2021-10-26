@@ -381,7 +381,7 @@ FVector ANavigationTestingActor::FindClosestWallLocation() const
 	if (AsRecastNavMesh)
 	{
 		FVector TmpOutLocation = FNavigationSystem::InvalidLocation;
-		const float Distance = AsRecastNavMesh->FindDistanceToWall(GetActorLocation(), UNavigationQueryFilter::GetQueryFilter(*MyNavData, this, FilterClass), FLT_MAX, &TmpOutLocation);
+		AsRecastNavMesh->FindDistanceToWall(GetActorLocation(), UNavigationQueryFilter::GetQueryFilter(*MyNavData, this, FilterClass), FLT_MAX, &TmpOutLocation);
 		return TmpOutLocation;
 	}
 	

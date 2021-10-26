@@ -164,12 +164,6 @@ namespace UnrealBuildTool
 		public bool bIsBuildingConsoleApplication = false;
 
 		/// <summary>
-		/// This setting is replaced by UEBuildBinaryConfiguration.bBuildAdditionalConsoleApp.
-		/// </summary>
-		[Obsolete("This setting is replaced by UEBuildBinaryConfiguration.bBuildAdditionalConsoleApp. It is explicitly set to true for editor targets, and defaults to false otherwise.")]
-		public bool bBuildAdditionalConsoleApplication { set { } }
-
-		/// <summary>
 		/// If set, overrides the program entry function on Windows platform.  This is used by the base UE4
 		/// program so we can link in either command-line mode or windowed mode without having to recompile the Launch module.
 		/// </summary>

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "riglogic/system/simd/SIMD.h"
 #include "trimd/AVX.h"
 #include "trimd/SSE.h"
 #include "trimd/Scalar.h"

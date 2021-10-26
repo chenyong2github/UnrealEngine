@@ -43,6 +43,50 @@ void FLevelSnapshotPropertyChain::AppendInline(const FProperty* Property)
 	}
 }
 
+TOptional<FLevelSnapshotPropertyChain> FLevelSnapshotPropertyChain::FindPathToProperty(
+	const FProperty* InLeafProperty, const UStruct* InStructToSearch, const bool bIncludeLeafPropertyInChain)
+{
+	struct Local
+	{
+		static bool MakePropertyChainFromLeafProperty(
+			const FProperty* InLeafProperty, const UStruct* InStructToSearch, FLevelSnapshotPropertyChain& OutPropertyChain, const bool bIncludeLeafPropertyInChain)
+		{
+			for (TFieldIterator<FProperty> It(InStructToSearch); It; ++It)
+			{
+				const FProperty* Property = *It;
+
+				if (Property == InLeafProperty)
+				{
+					if (bIncludeLeafPropertyInChain)
+					{
+						OutPropertyChain.AppendInline(Property);
+					}
+
+					return true;
+				}
+				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					FLevelSnapshotPropertyChain LocalChain = OutPropertyChain;
+					LocalChain.AppendInline(StructProperty);
+
+					if (MakePropertyChainFromLeafProperty(InLeafProperty, StructProperty->Struct, LocalChain, bIncludeLeafPropertyInChain))
+					{
+						OutPropertyChain = LocalChain;
+
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+	};
+
+	FLevelSnapshotPropertyChain Result;
+	const bool bSuccess = Local::MakePropertyChainFromLeafProperty(InLeafProperty, InStructToSearch, Result, bIncludeLeafPropertyInChain);
+	return bSuccess ? Result : TOptional<FLevelSnapshotPropertyChain>();
+}
+
 FString FLevelSnapshotPropertyChain::ToString() const
 {
 	FString Result;

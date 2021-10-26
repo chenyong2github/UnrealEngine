@@ -17,6 +17,8 @@ namespace EpicGames.MCP.Automation
 	using EpicGames.MCP.Config;
 	using System.Threading.Tasks;
 	using EpicGames.Core;
+	using System.ComponentModel;
+	using System.Globalization;
 
 	public static class Extensions
 	{
@@ -84,77 +86,236 @@ namespace EpicGames.MCP.Automation
 	/// <summary>
 	/// Enum that defines the MCP backend-compatible platform
 	/// </summary>
-	public enum MCPPlatform
+	[TypeConverter(typeof(MCPPlatformTypeConverter))]
+	public partial struct MCPPlatform
 	{
+		#nullable enable
+		#region Private/boilerplate
+
+		// internal concrete name of the enum
+		private int Id;
+
+		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
+		private static UniqueStringRegistry? StringRegistry;
+
+		// #jira UE-88908 if parts of a partial struct have each static member variables, their initialization order does not appear guaranteed
+		// here this means initializing "StringRegistry" directly to "new UniqueStringRegistry()" may not be executed before FindOrAddByName() has been called as part of initializing a static member variable of another part of the partial struct
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
+
+		private MCPPlatform(string Name)
+		{
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+		}
+
+		private MCPPlatform(int InId)
+		{
+			Id = InId;
+		}
+
+		static private MCPPlatform FindOrAddByName(string Name)
+		{
+			return new MCPPlatform(GetUniqueStringRegistry().FindOrAddByName(Name));
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="A"></param>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public static bool operator ==(MCPPlatform A, MCPPlatform B)
+		{
+			return A.Id == B.Id;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="A"></param>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public static bool operator !=(MCPPlatform A, MCPPlatform B)
+		{
+			return A.Id != B.Id;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public override bool Equals(object? B)
+		{
+			if (Object.ReferenceEquals(B, null))
+			{
+				return false;
+			}
+
+			return Id == ((MCPPlatform)B).Id;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public override int GetHashCode()
+		{
+			return Id;
+		}
+
+		#endregion
+
+		/// <summary>
+		/// Return the string representation
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return GetUniqueStringRegistry().GetStringForId(Id);
+		}
+
+		/// <summary>
+		/// Parse string into a MCPPlatform
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="Platform"></param>
+		/// <returns>True if parse succeeded</returns>
+		static public bool TryParse(string Name, out MCPPlatform Platform)
+		{
+			if (GetUniqueStringRegistry().HasString(Name))
+			{
+				Platform.Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+				return true;
+			}
+			Platform.Id = -1;
+			return false;
+		}
+
+		/// <summary>
+		/// Parse string into a MCPPlatform
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		static public MCPPlatform Parse(string Name)
+		{
+			if (GetUniqueStringRegistry().HasString(Name))
+			{
+				return new MCPPlatform(Name);
+			}
+
+			throw new BuildException(string.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name,
+				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
+		}
+
+		/// <summary>
+		/// Get list of valid platforms
+		/// </summary>
+		/// <returns>MCPPlatform list</returns>
+		public static MCPPlatform[] GetValidPlatforms()
+		{
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new MCPPlatform(x));
+		}
+
+		/// <summary>
+		/// Get list of valid platform names
+		/// </summary>
+		/// <returns>Platform name list</returns>
+		public static string[] GetValidPlatformNames()
+		{
+			return GetUniqueStringRegistry().GetStringNames();
+		}
+
 		/// <summary>
 		/// MCP uses Windows for Win64
 		/// </summary>
-		Windows,
+		public static MCPPlatform Windows = FindOrAddByName("Windows");
 
 		/// <summary>
 		/// 32 bit Windows
 		/// </summary>
-		Win32,
+		public static MCPPlatform Win32 = FindOrAddByName("Win32");
 
 		/// <summary>
 		/// Mac platform.
 		/// </summary>
-		Mac,
+		public static MCPPlatform Mac = FindOrAddByName("Mac");
 
 		/// <summary>
 		/// Linux platform.
 		/// </summary>
-		Linux,
+		public static MCPPlatform Linux = FindOrAddByName("Linux");
 
 		/// <summary>
 		/// IOS platform.
 		/// </summary>
-		IOS,
+		public static MCPPlatform IOS = FindOrAddByName("IOS");
 
 		/// <summary>
 		/// Android platform.
 		/// </summary>
-		Android,
+		public static MCPPlatform Android = FindOrAddByName("Android");
 
 		/// <summary>
 		/// WindowsCN Platform.
 		/// </summary>
-		WindowsCN,
+		public static MCPPlatform WindowsCN = FindOrAddByName("WindowsCN");
 
 		/// <summary>
 		/// IOSCN Platform.
 		/// </summary>
-		IOSCN,
+		public static MCPPlatform IOSCN = FindOrAddByName("IOSCN");
 
 		/// <summary>
 		/// AndroidCN Platform.
 		/// </summary>
-		AndroidCN,
+		public static MCPPlatform AndroidCN = FindOrAddByName("AndroidCN");
 
-		/// <summary>
-		/// PS4 platform
-		/// </summary>
-		PS4,
+	#nullable restore
+	}
 
-		/// <summary>
-		/// PS5 platform
-		/// </summary>
-		PS5,
+	internal class MCPPlatformTypeConverter : TypeConverter
+	{
+		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+		{
+			if (sourceType == typeof(string))
+				return true;
 
-		/// <summary>
-		/// Switch platform
-		/// </summary>
-		Switch,
+			return base.CanConvertFrom(context, sourceType);
+		}
 
-		/// <summary>
-		/// Xbox One with GDK Platform
-		/// </summary>
-		XboxOneGDK,
+		public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+		{
+			if (destinationType == typeof(string))
+				return true;
 
-		/// <summary>
-		/// XSX platform
-		/// </summary>
-		XSX,
+			return base.CanConvertTo(context, destinationType);
+		}
+
+		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+		{
+			if (value.GetType() == typeof(string))
+			{
+				return MCPPlatform.Parse((string)value);
+			}
+			return base.ConvertFrom(context, culture, value);
+		}
+
+		public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+		{
+			if (destinationType == typeof(string))
+			{
+				MCPPlatform Platform = (MCPPlatform)value;
+				return Platform.ToString();
+			}
+			return base.ConvertTo(context, culture, value, destinationType);
+		}
 	}
 
 	/// <summary>
@@ -260,41 +421,9 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.Windows;
 			}
-			else if (TargetPlatform == UnrealTargetPlatform.Mac)
+			else if (MCPPlatform.TryParse(TargetPlatform.ToString(), out MCPPlatform Platform))
 			{
-				return MCPPlatform.Mac;
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.Linux)
-			{
-				return MCPPlatform.Linux;
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.IOS)
-			{
-				return MCPPlatform.IOS;
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.Android)
-			{
-				return MCPPlatform.Android;
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.PS4)
-			{
-				return MCPPlatform.PS4;
-			}
-			else if (TargetPlatform.ToString() == "PS5")
-			{
-				return MCPPlatform.PS5;
-			}
-			else if (TargetPlatform.ToString() == "XboxOneGDK")
-			{
-				return MCPPlatform.XboxOneGDK;
-			}
-			else if (TargetPlatform.ToString() == "XSX")
-			{
-				return MCPPlatform.XSX;
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.Switch)
-			{
-				return MCPPlatform.Switch;
+				return Platform;
 			}
 			throw new AutomationException("Platform {0} is not properly supported by the MCP backend yet", TargetPlatform);
         }
@@ -308,46 +437,8 @@ namespace EpicGames.MCP.Automation
 			{
 				return UnrealTargetPlatform.Win64;
 			}
-			else if (TargetPlatform == MCPPlatform.Mac)
+			else if (UnrealTargetPlatform.TryParse(TargetPlatform.ToString(), out UnrealTargetPlatform ReturnValue))
 			{
-				return UnrealTargetPlatform.Mac;
-			}
-			else if (TargetPlatform == MCPPlatform.Linux)
-			{
-				return UnrealTargetPlatform.Linux;
-			}
-			else if (TargetPlatform == MCPPlatform.IOS)
-			{
-				return UnrealTargetPlatform.IOS;
-			}
-			else if (TargetPlatform == MCPPlatform.Android)
-			{
-				return UnrealTargetPlatform.Android;
-			}
-			else if (TargetPlatform == MCPPlatform.PS4)
-			{
-				return UnrealTargetPlatform.PS4;
-			}
-			else if (TargetPlatform == MCPPlatform.Switch)
-			{
-				return UnrealTargetPlatform.Switch;
-			}
-			else if (TargetPlatform == MCPPlatform.XboxOneGDK)
-			{
-				UnrealTargetPlatform ReturnValue;
-				UnrealTargetPlatform.TryParse("XboxOneGDK", out ReturnValue);
-				return ReturnValue;
-			}
-			else if (TargetPlatform == MCPPlatform.XSX)
-			{
-				UnrealTargetPlatform ReturnValue;
-				UnrealTargetPlatform.TryParse("XSX", out ReturnValue);
-				return ReturnValue;
-			}
-			else if (TargetPlatform == MCPPlatform.PS5)
-			{
-				UnrealTargetPlatform ReturnValue;
-				UnrealTargetPlatform.TryParse("PS5", out ReturnValue);
 				return ReturnValue;
 			}
 			throw new AutomationException("Platform {0} is not properly supported by the MCP backend yet", TargetPlatform);
@@ -1040,7 +1131,7 @@ namespace EpicGames.MCP.Automation
 				foreach (ListBinariesOutputLabelJsonFormat Label in Labels)
 				{
 					ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputLabel NewLabel = new ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputLabel();
-					if (Enum.TryParse<MCPPlatform>(Label.Platform, out NewLabel.Platform) == false)
+					if (MCPPlatform.TryParse(Label.Platform, out NewLabel.Platform) == false)
 					{
 						// skip platforms which don't have a resolvable platform
 						CommandUtils.LogWarning("Unable to resolve MCP platform for Label {0} platform string is {1}", Label.LabelName, Label.Platform);

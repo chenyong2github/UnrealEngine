@@ -6,10 +6,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Math/Boundary.h"
 
-using namespace CADKernel;
-
-
-void FConeSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FConeSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	OutPoint3D.DerivativeOrder = InDerivativeOrder;
 
@@ -43,7 +40,7 @@ void FConeSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutP
 
 }
 
-void FConeSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FConeSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 
@@ -102,14 +99,14 @@ void FConeSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfac
 	}
 }
 
-TSharedPtr<FEntityGeom> FConeSurface::ApplyMatrix(const FMatrixH& NewMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FConeSurface::ApplyMatrix(const FMatrixH& NewMatrix) const
 {
 	FMatrixH Mat = NewMatrix * Matrix;
 	return FEntity::MakeShared<FConeSurface>(Tolerance3D, Mat, StartRadius, ConeAngle, Boundary[EIso::IsoU].Min, Boundary[EIso::IsoU].Max, Boundary[EIso::IsoV].Min, Boundary[EIso::IsoV].Max);
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FConeSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FConeSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)

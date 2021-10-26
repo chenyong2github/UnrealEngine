@@ -16,6 +16,7 @@ public:
 	void NewStage( const TCHAR* FilePath );
 	void OpenStage( const TCHAR* FilePath );
 	void ReloadStage();
+	void ResetStage();
 	void CloseStage();
 	void SaveStage();
 	/** Temporary until SaveAs feature is properly implemented, may be removed in a future release */

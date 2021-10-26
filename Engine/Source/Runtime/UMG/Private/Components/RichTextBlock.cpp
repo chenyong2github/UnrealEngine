@@ -56,6 +56,7 @@ void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
 
 	MyRichTextBlock.Reset();
 	StyleInstance.Reset();
+	InstanceDecorators.Empty();
 }
 
 TSharedRef<SWidget> URichTextBlock::RebuildWidget()

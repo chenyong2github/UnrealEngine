@@ -67,15 +67,3 @@ void FRenderAssetInstanceView::FBounds4::UpdateMaxDrawDistanceSquared(int32 Inde
 	check(Index >= 0 && Index < 4);
 	MaxRangeSq.Component(Index) = InMaxRangeSq;
 }
-
-FRenderAssetInstanceView::FElement::FElement()
-:	Component(nullptr)
-,	RenderAsset(nullptr)
-,	BoundsIndex(INDEX_NONE)
-,	TexelFactor(0)
-,	PrevRenderAssetLink(INDEX_NONE)
-,	NextRenderAssetLink(INDEX_NONE)
-,	NextComponentLink(INDEX_NONE)
-{
-}
-

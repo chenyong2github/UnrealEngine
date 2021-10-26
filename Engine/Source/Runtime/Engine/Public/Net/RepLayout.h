@@ -149,7 +149,9 @@ public:
 	FRepChangedPropertyTracker() = delete;
 	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording);
 
-	virtual ~FRepChangedPropertyTracker() {}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	virtual ~FRepChangedPropertyTracker() = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	//~ Begin IRepChangedPropertyTracker Interface.
 	/**
@@ -175,6 +177,7 @@ public:
 	 * @param Src		Memory containing the external data.
 	 * @param NumBits	Size of the memory, in bits.
 	 */
+	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) override;
 
 	virtual void CountBytes(FArchive& Ar) const override;
@@ -188,7 +191,10 @@ private:
 	bool bIsClientReplayRecording;
 
 public:
+	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
 	TArray<uint8> ExternalData;
+
+	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
 	uint32 ExternalDataNumBits;
 };
 
@@ -1533,6 +1539,11 @@ public:
 	const int32 GetParentCondition(int32 Index) const
 	{
 		return Parents.IsValidIndex(Index) ? Parents[Index].Condition : COND_None;
+	}
+
+	const bool IsCustomDeltaProperty(int32 Index) const
+	{
+		return Parents.IsValidIndex(Index) ? EnumHasAnyFlags(Parents[Index].Flags, ERepParentFlags::IsCustomDelta) : false;
 	}
 
 #if WITH_PUSH_MODEL

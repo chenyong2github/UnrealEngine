@@ -160,18 +160,22 @@ private:
 
 	bool ReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
 
-	struct FReplayExternalOutData
+	TMap<TWeakObjectPtr<UObject>, FNetworkGUID, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UObject>, FNetworkGUID>> ObjectsWithExternalDataMap;
+
+	struct FExternalDataWrapper
 	{
-		TWeakObjectPtr<UObject> Object;
-		FNetworkGUID GUID;
+		FNetworkGUID NetGUID;
+		TArray<uint8> Data;
+		int32 NumBits;
 	};
 
-	TArray<FReplayExternalOutData> ObjectsWithExternalData;
+	TMap<TWeakObjectPtr<UObject>, FExternalDataWrapper, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UObject>, FExternalDataWrapper>> ExternalDataMap;
 
 	void SaveExternalData(UNetConnection* Connection, FArchive& Ar);
 	void LoadExternalData(FArchive& Ar, const float TimeSeconds);
 
-	bool UpdateExternalDataForActor(UNetConnection* Connection, AActor* Actor);
+	bool UpdateExternalDataForObject(UNetConnection* Connection, UObject* OwningObject);
+	bool SetExternalDataForObject(UNetConnection* Connection, UObject* OwningObject, const uint8* Src, const int32 NumBits);
 
 	// Cached replay URL
 	FURL DemoURL;

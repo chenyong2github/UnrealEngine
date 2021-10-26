@@ -94,7 +94,7 @@ FString FGuid::ToString(EGuidFormats Format) const
 
 		FString Result;
 		Result.Reserve(26);
-		TArray<TCHAR>& OutCharArray = Result.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType>& OutCharArray = Result.GetCharArray();
 
 		while(Value > 0)
 		{

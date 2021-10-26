@@ -907,7 +907,7 @@ public:
 	 * @param SortedLinks	skeleton nodes which are sorted
 	 * @param NodeArray node array of FBX meshes
 	 */
-	int32 GetMaxSampleRate(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray);
+	int32 GetMaxSampleRate(TArray<FbxNode*>& SortedLinks);
 	/**
 	 * Validate Anim Stack - multiple check for validating animstack
 	 *

@@ -426,23 +426,13 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 	const int32 NumSelectedNodes = SelectedNodes.Num();
 	FMemTagNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
-
 	FText SelectionStr;
-	FText PropertyName;
-	FText PropertyValue;
-
 	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
 	else if (NumSelectedNodes == 1)
 	{
-		if (HoveredColumnPtr != nullptr)
-		{
-			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
-		}
 		FString ItemName = SelectedNode->GetName().ToString();
 		const int32 MaxStringLen = 64;
 		if (ItemName.Len() > MaxStringLen)
@@ -453,7 +443,7 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 	}
 	else
 	{
-		SelectionStr = LOCTEXT("MultipleSelection", "Multiple selection");
+		SelectionStr = FText::Format(LOCTEXT("MultipleSelection_Fmt", "{0} selected items"), FText::AsNumber(NumSelectedNodes));
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -476,7 +466,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			SelectionStr,
 			LOCTEXT("ContextMenu_Selection", "Currently selected items"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "@missing.icon"), DummyUIAction, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			DummyUIAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -527,7 +520,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Misc_GenerateColorForSelectedMemTags", "Generate New Color"),
 			LOCTEXT("ContextMenu_Misc_GenerateColorForSelectedMemTags_Desc", "Generate new color for selected LLM tag(s)."),
-			FSlateIcon(), Action_GenerateColorForSelectedMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_GenerateColorForSelectedMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_EditColorForSelectedMemTags
@@ -539,7 +535,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Misc_EditColorForSelectedMemTags", "Edit Color..."),
 			LOCTEXT("ContextMenu_Misc_EditColorForSelectedMemTags_Desc", "Edit color for selected LLM tag(s)."),
-			FSlateIcon(), Action_EditColorForSelectedMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_EditColorForSelectedMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddSubMenu
@@ -573,7 +572,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowAllColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		//FUIAction Action_ShowMinMaxMedColumns
@@ -585,7 +587,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		//(
 		//	LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
 		//	LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset"),
-		//	FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowMinMaxMedColumns, NAME_None, EUserInterfaceActionType::Button
+		//	FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+		//	Action_ShowMinMaxMedColumns,
+		//	NAME_None,
+		//	EUserInterfaceActionType::Button
 		//);
 
 		FUIAction Action_ResetColumns
@@ -597,7 +602,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ResetColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -621,7 +629,10 @@ void SMemTagTreeView::TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_CreateGraphTracksForSelectedMemTags", "Selected"),
 			LOCTEXT("ContextMenu_Misc_CreateGraphTracksForSelectedMemTags_Desc", "Create memory graph tracks for selected LLM tag(s)."),
-			FSlateIcon(), Action_CreateGraphTracksForSelectedMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_CreateGraphTracksForSelectedMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		// Create memory graph tracks for filtered LLM tags
@@ -634,7 +645,10 @@ void SMemTagTreeView::TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_CreateGraphTracksForFilteredMemTags", "Filtered"),
 			LOCTEXT("ContextMenu_Misc_CreateGraphTracksForFilteredMemTags_Desc", "Create memory graph tracks for all visible (filtered) LLM tags."),
-			FSlateIcon(), Action_CreateGraphTracksForFilteredMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_CreateGraphTracksForFilteredMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		// Create memory graph tracks for all LLM tags
@@ -647,7 +661,10 @@ void SMemTagTreeView::TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_CreateAllGraphTracks", "All"),
 			LOCTEXT("ContextMenu_Misc_CreateAllGraphTracks_Desc", "Create memory graph tracks for all LLM tags."),
-			FSlateIcon(), Action_CreateAllGraphTracks, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_CreateAllGraphTracks,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -669,7 +686,10 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForSelectedMemTags", "Selected"),
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForSelectedMemTags_Desc", "Remove memory graph tracks for selected LLM tag(s)."),
-			FSlateIcon(), Action_RemoveGraphTracksForSelectedMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_RemoveGraphTracksForSelectedMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		// Remove memory graph tracks for LLM tags not used by the current tracker
@@ -682,7 +702,10 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForUnusedMemTags", "Unused"),
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForUnusedMemTags_Desc", "Remove memory graph tracks for LLM tags not used by the current tracker."),
-			FSlateIcon(), Action_RemoveGraphTracksForUnusedMemTags, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_RemoveGraphTracksForUnusedMemTags,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		// Remove memory graph tracks for all LLM tags
@@ -695,7 +718,10 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveAllGraphTracks", "All"),
 			LOCTEXT("ContextMenu_Misc_RemoveAllGraphTracks_Desc", "Remove memory graph tracks for all LLM tags."),
-			FSlateIcon(), Action_RemoveAllGraphTracks, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			Action_RemoveAllGraphTracks,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -725,7 +751,10 @@ void SMemTagTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			(
 				Column.GetTitleName(),
 				Column.GetDescription(),
-				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(),
+				Action_SortByColumn,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 		}
 	}
@@ -746,7 +775,10 @@ void SMemTagTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			Action_SortAscending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 
 		FUIAction Action_SortDescending
@@ -759,7 +791,10 @@ void SMemTagTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			Action_SortDescending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection();
@@ -785,7 +820,10 @@ void SMemTagTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 		(
 			Column.GetTitleName(),
 			Column.GetDescription(),
-			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
+			FSlateIcon(),
+			Action_ToggleColumn,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
@@ -841,7 +879,10 @@ TSharedRef<SWidget> SMemTagTreeView::TreeViewHeaderRow_GenerateColumnMenu(const 
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 
 			bIsMenuVisible = true;
@@ -862,7 +903,10 @@ TSharedRef<SWidget> SMemTagTreeView::TreeViewHeaderRow_GenerateColumnMenu(const 
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				Action_SortAscending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			FUIAction Action_SortDescending
@@ -875,7 +919,10 @@ TSharedRef<SWidget> SMemTagTreeView::TreeViewHeaderRow_GenerateColumnMenu(const 
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				Action_SortDescending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			bIsMenuVisible = true;

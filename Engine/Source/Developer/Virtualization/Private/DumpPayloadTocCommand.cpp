@@ -3,7 +3,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/PackagePath.h"
-#include "Virtualization/VirtualizedBulkData.h"
+#include "Serialization/VirtualizedBulkData.h"
 
 namespace UE
 {

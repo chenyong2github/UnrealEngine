@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Textures/SlateIcon.h"
 #include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/Input/SButton.h"
@@ -107,8 +108,14 @@ void FMovieSceneObjectBindingIDPicker::OnGetMenuContent(FMenuBuilder& MenuBuilde
 
 TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetPickerMenu()
 {
+	// The menu are generated through reflection and sometime the API exposes some recursivity (think about a Widget returning it parent which is also a Widget). Just by reflection
+	// it is not possible to determine when the root object is reached. It needs a kind of simulation which is not implemented. Also, even if the recursivity was correctly handled, the possible
+	// permutations tend to grow exponentially. Until a clever solution is found, the simple approach is to disable recursively searching those menus. User can still search the current one though.
+	// See UE-131257
+	const bool bInRecursivelySearchable = false;
+
 	// Close self only to enable use inside context menus
-	FMenuBuilder MenuBuilder(true, nullptr, nullptr, true);
+	FMenuBuilder MenuBuilder(true, nullptr, nullptr, true, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
 
 	Initialize();
 	GetPickerMenu(MenuBuilder);

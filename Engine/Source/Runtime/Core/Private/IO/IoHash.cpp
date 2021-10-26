@@ -7,7 +7,7 @@
 FString LexToString(const FIoHash& Hash)
 {
 	FString Output;
-	TArray<TCHAR>& CharArray = Output.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
 	CharArray.AddUninitialized(sizeof(FIoHash::ByteArray) * 2 + 1);
 	UE::String::BytesToHexLower(Hash.GetBytes(), CharArray.GetData());
 	CharArray.Last() = 0;

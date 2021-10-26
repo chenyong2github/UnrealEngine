@@ -109,6 +109,7 @@
 #include "BlueprintEditorContext.h"
 
 #include "Interfaces/IProjectManager.h"
+#include "BlueprintDebugger.h"
 
 // Core kismet tabs
 #include "SGraphNode.h"
@@ -125,7 +126,6 @@
 
 // Debugging
 #include "Debugging/SKismetDebuggingView.h"
-#include "Debugging/KismetDebugCommands.h"
 #include "WatchPointViewer.h"
 // End of debugging
 
@@ -2629,11 +2629,6 @@ void FBlueprintEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlu
 
 	if (InBlueprint)
 	{
-		this->DebuggingView =
-			SNew(SKismetDebuggingView)
-			. BlueprintToWatch(InBlueprint)
-			. IsEnabled(!bIsInterface && !bIsMacro);
-
 		this->Palette = 
 			SNew(SBlueprintPalette, SharedThis(this))
 				.IsEnabled(this, &FBlueprintEditor::IsFocusedGraphEditable);
@@ -3922,27 +3917,39 @@ void FBlueprintEditor::FindInBlueprints_OnClicked()
 
 void FBlueprintEditor::ClearAllBreakpoints()
 {
-	FDebuggingActionCallbacks::ClearBreakpoints(GetBlueprintObj());
+	FKismetDebugUtilities::ClearBreakpoints(GetBlueprintObj());
 }
 
 void FBlueprintEditor::DisableAllBreakpoints()
 {
-	FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(GetBlueprintObj(), false);
+	FKismetDebugUtilities::ForeachBreakpoint(GetBlueprintObj(),
+		[](FBlueprintBreakpoint& Breakpoint)
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, false);
+		}
+	);
 }
 
 void FBlueprintEditor::EnableAllBreakpoints()
 {
-	FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(GetBlueprintObj(), true);
+	FKismetDebugUtilities::ForeachBreakpoint(GetBlueprintObj(),
+		[](FBlueprintBreakpoint& Breakpoint)
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, true);
+		}
+	);
 }
 
 void FBlueprintEditor::ClearAllWatches()
 {
-	FDebuggingActionCallbacks::ClearWatches(GetBlueprintObj());
+	FKismetDebugUtilities::ClearPinWatches(GetBlueprintObj());
 }
 
 void FBlueprintEditor::OpenBlueprintDebugger()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FBlueprintEditorTabs::BlueprintDebuggerID);
+	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::Get().LoadModuleChecked<FBlueprintEditorModule>(TEXT("Kismet"));
+	BlueprintEditorModule.GetBlueprintDebugger()->SetDebuggedBlueprint(GetBlueprintObj());
 }
 
 bool FBlueprintEditor::CanOpenBlueprintDebugger() const
@@ -9406,17 +9413,17 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	if (TabWithGraph.IsValid())
 	{
 
-	// We know that the contents of the opened tabs will be a graph editor.
-	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
+		// We know that the contents of the opened tabs will be a graph editor.
+		TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
 
-	// Handover the keyboard focus to the new graph editor widget.
-	if (bSetFocus)
-	{
-		NewGraphEditor->CaptureKeyboard();
+		// Handover the keyboard focus to the new graph editor widget.
+		if (bSetFocus)
+		{
+			NewGraphEditor->CaptureKeyboard();
+		}
+
+		return NewGraphEditor;
 	}
-
-	return NewGraphEditor;
-}
 	else
 	{
 		return TSharedPtr<SGraphEditor>();

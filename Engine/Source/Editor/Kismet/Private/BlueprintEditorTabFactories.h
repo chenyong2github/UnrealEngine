@@ -56,17 +56,6 @@ struct FLocalKismetCallbacks
 };
 
 /////////////////////////////////////////////////////
-// FDebugInfoSummoner
-
-struct FDebugInfoSummoner : public FWorkflowTabFactory
-{
-public:
-	FDebugInfoSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp);
-
-	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-};
-
-/////////////////////////////////////////////////////
 // FDefaultsEditorSummoner
 
 struct FDefaultsEditorSummoner : public FWorkflowTabFactory

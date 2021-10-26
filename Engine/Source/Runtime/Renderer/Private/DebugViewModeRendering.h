@@ -25,15 +25,20 @@ static const int32 NumStreamingAccuracyColors = 5;
 static const int32 NumLODColorationColors = 8;
 static const float UndefinedStreamingAccuracyIntensity = .015f;
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, QuadOverdraw)
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModeUniformParameters, )
 	SHADER_PARAMETER_ARRAY(FLinearColor, AccuracyColors, [NumStreamingAccuracyColors])
 	SHADER_PARAMETER_ARRAY(FLinearColor, LODColors, [NumLODColorationColors])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassUniformParameters, )
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT(FDebugViewModeUniformParameters, DebugViewMode)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, QuadOverdraw)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 #if WITH_DEBUG_VIEW_MODES
 
+void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDebugViewModeUniformParameters& Parameters);
 TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef QuadOverdrawTexture);
 
 /** Returns the RT index where the QuadOverdrawUAV will be bound. */

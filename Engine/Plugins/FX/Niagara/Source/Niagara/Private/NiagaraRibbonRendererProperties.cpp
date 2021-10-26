@@ -326,10 +326,10 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 
 bool UNiagaraRibbonRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
 {
-	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 	{
 		return true;
 	}

@@ -32,8 +32,14 @@ FZenStoreHttpClient::FZenStoreHttpClient()
 	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
 }
 
-FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 InPort)
-: ZenService(InHostName, InPort)
+FZenStoreHttpClient::FZenStoreHttpClient(FStringView HostName, uint16 Port)
+: ZenService(HostName, Port)
+{
+	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
+}
+
+FZenStoreHttpClient::FZenStoreHttpClient(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
+: ZenService(AutoLaunchExecutablePath, AutoLaunchArguments, DesiredPort)
 {
 	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
 }
@@ -57,7 +63,7 @@ FZenStoreHttpClient::TryCreateProject(FStringView InProjectId,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_Initialize);
 
-	UE_LOG(LogZenStore, Display, TEXT("Establishing oplog %s / %s"), *FString(InProjectId), *FString(InOplogId));
+	UE_LOG(LogZenStore, Display, TEXT("Establishing oplog '%s/%s'"), *FString(InProjectId), *FString(InOplogId));
 
 	// Establish project
 
@@ -133,7 +139,7 @@ bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView In
 
 	if (bFullBuild)
 	{
-		UE_LOG(LogZenStore, Display, TEXT("Deleting oplog '%s'/'%s' if it exists"), *FString(InProjectId), *FString(InOplogId));
+		UE_LOG(LogZenStore, Display, TEXT("Deleting oplog '%s/%s' if it exists"), *FString(InProjectId), *FString(InOplogId));
 		Request->PerformBlockingDelete(OplogPath);
 		Request->Reset();
 	}
@@ -144,7 +150,7 @@ bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView In
 
 	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 	{
-		UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' already exists"), *FString(InProjectId), *FString(InOplogId));
+		UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s/%s' already exists"), *FString(InProjectId), *FString(InOplogId));
 
 		OplogInfo = FCbObjectView(GetBuffer.GetData());
 	}
@@ -157,18 +163,18 @@ bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView In
 
 		if (Res != Zen::FZenHttpRequest::Result::Success)
 		{
-			UE_LOG(LogZenStore, Error, TEXT("Zen oplog '%s'/'%s' creation FAILED"), *FString(InProjectId), *FString(InOplogId));
+			UE_LOG(LogZenStore, Error, TEXT("Zen oplog '%s/%s' creation FAILED"), *FString(InProjectId), *FString(InOplogId));
 			// Demote the connection status back to not connected
 			bConnectionSucceeded = false;
 			return false;
 		}
 		else if (Request->GetResponseCode() == 201)
 		{
-			UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' created"), *FString(InProjectId), *FString(InOplogId));
+			UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s/%s' created"), *FString(InProjectId), *FString(InOplogId));
 		}
 		else
 		{
-			UE_LOG(LogZenStore, Warning, TEXT("Zen oplog '%s'/'%s' creation returned success but not HTTP 201"), *FString(InProjectId), *FString(InOplogId));
+			UE_LOG(LogZenStore, Warning, TEXT("Zen oplog '%s/%s' creation returned success but not HTTP 201"), *FString(InProjectId), *FString(InOplogId));
 		}
 
 		// Issue another GET to retrieve information
@@ -237,24 +243,20 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 
 static std::atomic<uint32> GOpCounter;
 
-TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
+TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 {
 	check(bAllowEdit);
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_AppendOp);
 
-#if WITH_EDITOR
-	EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;
-#else
-	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
-#endif
-	return Async(ThreadPool, [this, OpEntry]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Zen_AppendOp_Async);
 		FLargeMemoryWriter SerializedPackage;
 
 		const uint32 Salt = ++GOpCounter;
-		bool IsUsingTempFiles = false;
+		bool bIsUsingTempFiles = false;
+
+		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
 		if (TempDirPath.IsEmpty())
 		{
@@ -284,8 +286,6 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 				Writer.EndObject();
 
 				FCbFieldIterator Prep = Writer.Save();
-
-				UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
 				bool IsOk = false;
 				
@@ -325,46 +325,47 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 			for (const FCbAttachment& Attachment : Attachments)
 			{
-				bool IsSerialized = false;
+				if (!Attachment.IsCompressedBinary())
+				{
+					return TIoStatusOr<uint64>((FIoStatus)(FIoStatusBuilder(EIoErrorCode::CompressionError) << TEXT("Attachment is not compressed")));
+				}
 
 				const FIoHash AttachmentHash = Attachment.GetHash();
+				bool bIsSerialized = false;
 
 				if (NeedChunks.Contains(AttachmentHash))
 				{
-					if (FSharedBuffer AttachView = Attachment.AsBinary())
+					FSharedBuffer AttachmentData = Attachment.AsCompressedBinary().GetCompressed().ToShared();
+					if (AttachmentData.GetSize() >= StandaloneThresholdBytes)
 					{
-						if (AttachView.GetSize() >= StandaloneThresholdBytes)
+						// Write to temporary file. To avoid race conditions we derive
+						// the file name from a salt value and the attachment hash
+
+						FIoHash AttachmentSpec[] { FIoHash::HashBuffer(&Salt, sizeof Salt), AttachmentHash };
+						FIoHash AttachmentId = FIoHash::HashBuffer(MakeMemoryView(AttachmentSpec));
+
+						FString TempFilePath = TempDirPath / LexToString(AttachmentId);
+						IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+						if (IFileHandle* FileHandle = PlatformFile.OpenWrite(*TempFilePath))
 						{
-							// Write to temporary file. To avoid race conditions we derive
-							// the file name from a salt value and the attachment hash
+							FileHandle->Write((const uint8*)AttachmentData.GetData(), AttachmentData.GetSize());
+							delete FileHandle;
 
-							FIoHash AttachmentSpec[] { FIoHash::HashBuffer(&Salt, sizeof Salt), AttachmentHash };
-							FIoHash AttachmentId = FIoHash::HashBuffer(MakeMemoryView(AttachmentSpec));
+							Writer.AddHash(AttachmentHash);
+							bIsSerialized = true;
+							bIsUsingTempFiles = true;
+						}
+						else
+						{
+							// Take the slow path if we can't open the payload file in the
+							// large attachment directory
 
-							FString TempFilePath = TempDirPath / LexToString(AttachmentId);
-							IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-							if (IFileHandle* FileHandle = PlatformFile.OpenWrite(*TempFilePath))
-							{
-								FileHandle->Write((const uint8*)AttachView.GetData(), AttachView.GetSize());
-								delete FileHandle;
-
-								Writer.AddHash(AttachmentHash);
-
-								IsSerialized = true;
-								IsUsingTempFiles = true;
-							}
-							else
-							{
-								// Take the slow path if we can't open the payload file in the
-								// large attachment directory
-
-								UE_LOG(LogZenStore, Warning, TEXT("Could not create file '%s', taking slow path for large attachment"), *TempFilePath);
-							}
+							UE_LOG(LogZenStore, Warning, TEXT("Could not create file '%s', taking slow path for large attachment"), *TempFilePath);
 						}
 					}
 
-					if (!IsSerialized)
+					if (!bIsSerialized)
 					{
 						UE::Zen::SaveCbAttachment(Attachment, Writer);
 					}
@@ -381,15 +382,15 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 		UE_LOG(LogZenStore, Verbose, TEXT("Package size: %" UINT64_FMT), SerializedPackage.TotalSize());
 
-		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-
 		TStringBuilder<64> NewOpPostUri;
 		NewOpPostUri << OplogNewEntryPath;
 
-		if (IsUsingTempFiles)
+		if (bIsUsingTempFiles)
 		{
 			NewOpPostUri << "?salt=" << Salt;
 		}
+
+		Request->Reset();
 
 		if (UE::Zen::FZenHttpRequest::Result::Success == Request->PerformBlockingPost(NewOpPostUri, SerializedPackage.GetView()))
 		{
@@ -399,7 +400,7 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 		{
 			return TIoStatusOr<uint64>((FIoStatus)(FIoStatusBuilder(EIoErrorCode::Unknown) << TEXT("Append OpLog failed, NewOpLogPath='") << OplogNewEntryPath << TEXT("'")));
 		}
-	});
+	}
 }
 
 TIoStatusOr<uint64> FZenStoreHttpClient::GetChunkSize(const FIoChunkId& Id)
@@ -409,14 +410,14 @@ TIoStatusOr<uint64> FZenStoreHttpClient::GetChunkSize(const FIoChunkId& Id)
 	check(bAllowRead);
 
 	UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-	TArray64<uint8> GetBuffer;
 	TStringBuilder<128> ChunkUri;
-	ChunkUri << OplogPath << '/' << Id;
-	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingHead(ChunkUri, Zen::EContentType::Binary);
-	FString ContentLengthStr;
-	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200 && Request->GetHeader("Content-Length", ContentLengthStr))
+	ChunkUri << OplogPath << '/' << Id << "/info";
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ChunkUri, nullptr, Zen::EContentType::CbObject);
+	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 	{
-		return FCStringWide::Atoi64(*ContentLengthStr);
+		FCbObjectView ResponseObj = Request->GetResponseAsObject();
+		const uint64 ChunkSize = ResponseObj["size"].AsUInt64(0);
+		return ChunkSize;
 	}
 	return FIoStatus(EIoErrorCode::NotFound);
 }
@@ -429,11 +430,11 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadChunk(const FIoChunkId& Id, uint
 	return ReadOpLogUri(ChunkUri, Offset, Size);
 }
 
-TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogAttachment(FStringView Id, uint64 Offset, uint64 Size)
+TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogAttachment(FStringView Id)
 {
 	TStringBuilder<128> ChunkUri;
 	ChunkUri << OplogPath << '/' << Id;
-	return ReadOpLogUri(ChunkUri, Offset, Size);
+	return ReadOpLogUri(ChunkUri);
 }
 
 TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& ChunkUri, uint64 Offset, uint64 Size)
@@ -470,12 +471,39 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& Chu
 		ChunkUri.Appendf(TEXT("size=%" UINT64_FMT), Size);
 	}
 
-
-	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ChunkUri, &GetBuffer, Zen::EContentType::Binary);
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ChunkUri, &GetBuffer, Zen::EContentType::CompressedBinary);
 
 	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 	{
-		return FIoBuffer(FIoBuffer::Clone, GetBuffer.GetData(), GetBuffer.Num());
+		if (FCompressedBuffer Compressed = FCompressedBuffer::FromCompressed(FSharedBuffer::MakeView(GetBuffer.GetData(), GetBuffer.Num())))
+		{
+			uint64 CompressedOffset = 0;
+			if (Offset > 0)
+			{
+				uint32 BlockSize = 0;
+				if  (!Compressed.TryGetBlockSize(BlockSize))
+				{
+					return FIoStatus(EIoErrorCode::CompressionError);
+				}
+
+				if (BlockSize > 0)
+				{
+					CompressedOffset = Offset % uint64(BlockSize);
+				}
+			}
+
+			FIoBuffer Decompressed(Compressed.GetRawSize());
+			if (!Compressed.TryDecompressTo(Decompressed.GetMutableView(), CompressedOffset))
+			{
+				return FIoStatus(EIoErrorCode::CompressionError);
+			}
+
+			return Decompressed;
+		}
+		else
+		{
+			return FIoBuffer(FIoBuffer::Clone, GetBuffer.GetData(), GetBuffer.Num());
+		}
 	}
 	return FIoStatus(EIoErrorCode::NotFound);
 }
@@ -591,6 +619,10 @@ FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 In
 {
 }
 
+FZenStoreHttpClient::FZenStoreHttpClient(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
+{
+}
+
 FZenStoreHttpClient::FZenStoreHttpClient(UE::Zen::EServiceMode Mode)
 {
 }
@@ -624,7 +656,7 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadChunk(const FIoChunkId& Id, uint
 	return FIoBuffer();
 }
 
-TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogAttachment(FStringView Id, uint64 Offset, uint64 Size)
+TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogAttachment(FStringView Id)
 {
 	return FIoBuffer();
 }
@@ -643,9 +675,9 @@ TIoStatusOr<uint64> FZenStoreHttpClient::EndBuildPass(FCbPackage OpEntry)
 	return FIoStatus(EIoErrorCode::Unknown);
 }
 
-TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
+TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 {
-	return TFuture<TIoStatusOr<uint64>>();
+	return TIoStatusOr<uint64>();
 }
 
 TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()

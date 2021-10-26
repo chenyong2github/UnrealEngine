@@ -57,7 +57,6 @@ void FNiagaraDataInterfaceMeshRendererInfoDetails::CustomizeDetails(IDetailLayou
 			if (PropertyPtr == MeshRendererProperty->GetProperty())
 			{				
 				MeshRendererWidget = SNew(SMeshRendererComboBox)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
 					.OptionsSource(&RendererList)
 					.InitiallySelectedItem(Interface->GetMeshRenderer())
 					.OnComboBoxOpening(this, &FNiagaraDataInterfaceMeshRendererInfoDetails::GenerateRendererList)

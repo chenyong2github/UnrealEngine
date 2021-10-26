@@ -199,6 +199,21 @@ namespace ELumenSoftwareTracingMode
 	};
 }
 
+UENUM()
+namespace EWorkingColorSpace
+{
+	enum Type
+	{
+		sRGB = 1 UMETA(DisplayName = "sRGB / Rec709", ToolTip = "sRGB / Rec709 (BT.709) color primaries, with D65 white point."),
+		Rec2020 = 2 UMETA(DisplayName = "Rec2020", ToolTip = "Rec2020 (BT.2020) primaries with D65 white point."),
+		ACESAP0 = 3 UMETA(DIsplayName = "ACES AP0", ToolTip = "ACES AP0 wide gamut primaries, with D60 white point."),
+		ACESAP1 = 4 UMETA(DIsplayName = "ACES AP1 / ACEScg", ToolTip = "ACES AP1 / ACEScg wide gamut primaries, with D60 white point."),
+		P3DCI = 5 UMETA(DisplayName = "P3DCI", ToolTip = "P3 (Theater) primaries, with D65 white point."),
+		P3D65 = 6 UMETA(DisplayName = "P3D65", ToolTip = "P3 (Display) primaries, with D65 white point."),
+		Custom = 7 UMETA(DisplayName = "Custom", ToolTip = "User defined color space and white point."),
+	};
+}
+
 /**
  * Rendering settings.
  */
@@ -352,6 +367,36 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Use Crunch library to compress virtual textures for supported formats, this is a lossy compression format that gives much better ratio than zlib. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
+		DisplayName = "Working Color Space",
+		ToolTip = "Choose from list of provided working color spaces, or custom to provide user-defined space.",
+		ConfigRestartRequired = true))
+	TEnumAsByte<EWorkingColorSpace::Type> WorkingColorSpaceChoice;
+
+	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
+		EditCondition = "WorkingColorSpaceChoice == EWorkingColorSpace::Custom",
+		ToolTip = "Working color space red chromaticity coordinates.",
+		ConfigRestartRequired = true))
+	FVector2D RedChromaticityCoordinate;
+
+	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
+		EditCondition = "WorkingColorSpaceChoice == EWorkingColorSpace::Custom",
+		ToolTip = "Working color space green chromaticity coordinates.",
+		ConfigRestartRequired = true))
+	FVector2D GreenChromaticityCoordinate;
+
+	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
+		EditCondition = "WorkingColorSpaceChoice == EWorkingColorSpace::Custom",
+		ToolTip = "Working color space blue chromaticity coordinates.",
+		ConfigRestartRequired = true))
+	FVector2D BlueChromaticityCoordinate;
+
+	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
+		EditCondition = "WorkingColorSpaceChoice == EWorkingColorSpace::Custom",
+		ToolTip = "Working color space white chromaticity coordinates.",
+		ConfigRestartRequired = true))
+	FVector2D WhiteChromaticityCoordinate;
 
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta =(
 		ConfigRestartRequired = true,
@@ -981,6 +1026,8 @@ private:
 #endif // WITH_EDITOR
 
 	void SanatizeReflectionCaptureResolution();
+
+	void UpdateWorkingColorSpaceAndChromaticities();
 };
 
 UCLASS(config = Engine, projectuserconfig, meta = (DisplayName = "Rendering Overrides (Local)"))

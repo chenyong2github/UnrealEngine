@@ -9,7 +9,7 @@
 #define LOCTEXT_NAMESPACE "UOnAcceptHandleSourcesProperties"
 
 
-void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager)
+void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager, const AActor* MustKeepActor)
 {
 	// Hide or destroy the sources
 	bool bKeepSources = OnToolAccept == EHandleSourcesMethod::KeepSources;
@@ -51,6 +51,11 @@ void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors
 			}
 
 			AActor* Actor = Actors[ActorIdx];
+			if (Actor == MustKeepActor)
+			{
+				continue;
+			}
+
 			if (bDelete)
 			{
 				Actor->Destroy();

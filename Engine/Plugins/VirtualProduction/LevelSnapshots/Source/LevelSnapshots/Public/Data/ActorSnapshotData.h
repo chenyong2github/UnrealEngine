@@ -8,6 +8,7 @@
 #include "CustomSerializationData.h"
 #include "ObjectSnapshotData.h"
 #include "SubobjectSnapshotData.h"
+#include "Misc/ObjectDependencyCallback.h"
 #include "ActorSnapshotData.generated.h"
 
 class UActorComponent;
@@ -22,9 +23,12 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	GENERATED_BODY()
 
 	static FActorSnapshotData SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData);
+
+	void ResetTransientData();
 	
 	TOptional<AActor*> GetPreallocatedIfValidButDoNotAllocate() const;
 	TOptional<AActor*> GetPreallocated(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData) const;
+	
 	TOptional<AActor*> GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData, const FSoftObjectPath& OriginalActorPath, UPackage* InLocalisationSnapshotPackage);
 
 	/**
@@ -46,8 +50,7 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	void DeserializeIntoEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent);
 	void DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, FHandleFoundComponent Callback);
 
-	void DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage);
-
+	void DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, const FProcessObjectDependency& ProcessObjectDependency, UPackage* InLocalisationSnapshotPackage);
 	
 	/* We cache the actor to avoid recreating it all the time */
 	UPROPERTY(Transient)
@@ -61,6 +64,10 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	UPROPERTY(Transient)
 	bool bReceivedSerialisation = false;
 
+	/** Stores all object dependencies. Only valid if bReceivedSerialisation == true. */
+	UPROPERTY(Transient)
+	TArray<int32> ObjectDependencies;
+
 
 #if WITH_EDITORONLY_DATA
 	/** Whether bCachedHadChanges contains a valid value */
@@ -69,7 +76,7 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 
 	/** Whether the saved data was different from the world counterpart, the last time we compared. */
 	UPROPERTY(Transient)
-	bool bCachedHadChanges;
+	bool bCachedHadChanges {};
 #endif
 	
 

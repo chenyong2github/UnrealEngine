@@ -377,7 +377,7 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 		}
 		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			const FMaterialLayersFunctions* OverrideLayers = StaticMaterialLayersParameter(LayersExpression->ParameterName);
+			const FMaterialLayersFunctions* OverrideLayers = GetMaterialLayers();
 			if (OverrideLayers)
 			{
 				LayersExpression->OverrideLayerGraph(OverrideLayers);
@@ -514,7 +514,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 		}
 		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			const FMaterialLayersFunctions* OverrideLayers = StaticMaterialLayersParameter(LayersExpression->ParameterName);
+			const FMaterialLayersFunctions* OverrideLayers = GetMaterialLayers();
 			if (OverrideLayers)
 			{
 				LayersExpression->OverrideLayerGraph(OverrideLayers);
@@ -3971,6 +3971,7 @@ FString FHLSLMaterialTranslator::CastValue(const FString& Code, EMaterialValueTy
 				else
 				{
 					static const TCHAR* Mask[] = { TEXT("<ERROR>"), TEXT("x"), TEXT("xy"), TEXT("xyz"), TEXT("xyzw") };
+					check(NumComponents <= 4);
 					Result += FString::Printf(TEXT("%s.%s"), *Code, Mask[NumComponents]);
 				}
 			}
@@ -4070,10 +4071,35 @@ int32 FHLSLMaterialTranslator::AccessCollectionParameter(UMaterialParameterColle
 		ComponentIndex == -1 ? true : ComponentIndex % 4 == 3);
 }
 
-int32 FHLSLMaterialTranslator::NumericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue)
+bool FHLSLMaterialTranslator::GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const
+{
+	const FMaterialFunctionCompileState* CurrentFunctionState = FunctionStacks[ShaderFrequency].Last();
+	bool bResult = false;
+	if (CurrentFunctionState->FunctionCall)
+	{
+		const UMaterialFunctionInterface* CurrentFunction = CurrentFunctionState->FunctionCall->MaterialFunction;
+		if (CurrentFunction)
+		{
+			bResult = CurrentFunction->GetParameterOverrideValue(ParameterType, ParameterName, OutResult);
+		}
+	}
+
+	return bResult;
+}
+
+int32 FHLSLMaterialTranslator::NumericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& InDefaultValue)
 {
 	const UE::Shader::EValueType ValueType = GetShaderValueType(ParameterType);
-	check(DefaultValue.GetType() == ValueType);
+	check(InDefaultValue.GetType() == ValueType);
+	UE::Shader::FValue DefaultValue(InDefaultValue);
+
+	// If we're compiling a function, give the function a chance to override the default parameter value
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValueForCurrentFunction(ParameterType, ParameterName, Meta))
+	{
+		DefaultValue = Meta.Value.AsShaderValue();
+		check(DefaultValue.GetType() == ValueType);
+	}
 
 	const uint32* PrevDefaultOffset = DefaultUniformValues.Find(DefaultValue);
 	uint32 DefaultOffset;
@@ -6556,8 +6582,17 @@ int32 FHLSLMaterialTranslator::Texture(UTexture* InTexture, int32& TextureRefere
 	return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, SamplerType, SamplerSource, bVirtual),ShaderType,TEXT(""));
 }
 
-int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource)
+int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* InDefaultValue, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource)
 {
+	UTexture* DefaultValue = InDefaultValue;
+
+	// If we're compiling a function, give the function a chance to override the default parameter value
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValueForCurrentFunction(EMaterialParameterType::Texture, ParameterName, Meta))
+	{
+		DefaultValue = Meta.Value.Texture;
+	}
+
 	EMaterialValueType ShaderType = DefaultValue->GetMaterialType();
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
 	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->TextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly"));
@@ -6588,11 +6623,20 @@ int32 FHLSLMaterialTranslator::VirtualTexture(URuntimeVirtualTexture* InTexture,
 	return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, TextureLayerIndex, PageTableLayerIndex, SamplerType), MCT_TextureVirtual, TEXT(""));
 }
 
-int32 FHLSLMaterialTranslator::VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* DefaultValue, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)
+int32 FHLSLMaterialTranslator::VirtualTextureParameter(FName ParameterName, URuntimeVirtualTexture* InDefaultValue, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)
 {
 	if (!UseVirtualTexturing(FeatureLevel, TargetPlatform))
 	{
 		return INDEX_NONE;
+	}
+
+	URuntimeVirtualTexture* DefaultValue = InDefaultValue;
+
+	// If we're compiling a function, give the function a chance to override the default parameter value
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValueForCurrentFunction(EMaterialParameterType::RuntimeVirtualTexture, ParameterName, Meta))
+	{
+		DefaultValue = Meta.Value.RuntimeVirtualTexture;
 	}
 
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
@@ -6787,20 +6831,9 @@ int32 FHLSLMaterialTranslator::StaticComponentMask(int32 Vector,FName ParameterN
 	return ComponentMask(Vector,bValueR,bValueG,bValueB,bValueA);
 }
 
-const FMaterialLayersFunctions* FHLSLMaterialTranslator::StaticMaterialLayersParameter(FName ParameterName)
+const FMaterialLayersFunctions* FHLSLMaterialTranslator::GetMaterialLayers()
 {
-	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
-	ParameterInfo.Name = ParameterName;
-
-	for (const FStaticMaterialLayersParameter& Parameter : StaticParameters.MaterialLayersParameters)
-	{
-		if(Parameter.ParameterInfo == ParameterInfo)
-		{
-			return &Parameter.Value;
-		}
-	}
-
-	return nullptr;
+	return StaticParameters.bHasMaterialLayers ? &StaticParameters.MaterialLayers : nullptr;
 }
 
 bool FHLSLMaterialTranslator::GetStaticBoolValue(int32 BoolIndex, bool& bSucceeded)

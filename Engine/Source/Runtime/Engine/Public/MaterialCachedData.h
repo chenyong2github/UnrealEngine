@@ -125,6 +125,7 @@ struct FMaterialCachedParameters
 #endif
 	void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const;
 	void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
+	void GetAllGlobalParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const;
 	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void Reset();
 
@@ -192,9 +193,8 @@ struct FMaterialCachedParameters
 
 struct FMaterialCachedExpressionContext
 {
-	FMaterialCachedExpressionContext() : bUpdateFunctionExpressions(true) {}
-
-	bool bUpdateFunctionExpressions;
+	const UMaterialFunctionInterface* CurrentFunction = nullptr;
+	bool bUpdateFunctionExpressions = true;
 };
 
 USTRUCT()
@@ -205,12 +205,12 @@ struct FMaterialCachedExpressionData
 	ENGINE_API static const FMaterialCachedExpressionData EmptyData;
 
 	FMaterialCachedExpressionData()
-		: bHasRuntimeVirtualTextureOutput(false)
+		: bHasMaterialLayers(false)
+		, bHasRuntimeVirtualTextureOutput(false)
 		, bHasSceneColor(false)
 		, bHasPerInstanceCustomData(false)
 		, bHasPerInstanceRandom(false)
 		, bHasVertexInterpolator(false)
-		, bHasMaterialLayers(false)
 	{}
 
 #if WITH_EDITOR
@@ -250,10 +250,7 @@ struct FMaterialCachedExpressionData
 	TArray<FMaterialParameterCollectionInfo> ParameterCollectionInfos;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UMaterialFunctionInterface>> DefaultLayers;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UMaterialFunctionInterface>> DefaultLayerBlends;
+	FMaterialLayersFunctions MaterialLayers;
 
 	UPROPERTY()
 	TArray<TObjectPtr<ULandscapeGrassType>> GrassTypes;
@@ -263,6 +260,9 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	TArray<bool> QualityLevelsUsed;
+
+	UPROPERTY()
+	uint32 bHasMaterialLayers : 1;
 
 	UPROPERTY()
 	uint32 bHasRuntimeVirtualTextureOutput : 1;
@@ -279,9 +279,6 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	uint32 bHasVertexInterpolator : 1;
 
-	UPROPERTY()
-	uint32 bHasMaterialLayers : 1;
-
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()
 	uint32 MaterialAttributesPropertyConnectedBitmask = 0;
@@ -292,12 +289,22 @@ struct FMaterialInstanceCachedData
 {
 	GENERATED_USTRUCT_BODY()
 
-	void Initialize(FMaterialCachedExpressionData&& InCachedExpressionData);
+#if WITH_EDITOR
+	void Initialize(FMaterialCachedExpressionData&& InCachedExpressionData, const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers);
+#endif // WITH_EDITOR
+	void InitializeForDynamic(const FMaterialLayersFunctions* ParentLayers);
+
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
 	UPROPERTY()
-	FMaterialCachedParameters Parameters;
+	FMaterialCachedParameters LayerParameters;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> ReferencedTextures;
+
+	UPROPERTY()
+	TArray<int32> ParentLayerIndexRemap;
+
+	UPROPERTY()
+	int32 NumParentLayers = 0;
 };

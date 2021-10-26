@@ -2,7 +2,6 @@
 
 #include "AuthEOS.h"
 
-#if WITH_EOS_SDK
 #include "OnlineServicesEOS.h"
 #include "OnlineServicesEOSTypes.h"
 #include "Online/AuthErrors.h"
@@ -18,16 +17,36 @@ namespace UE::Online {
 // TEMP until Net Id Registry is done
 TMap<EOS_EpicAccountId, int32> EOSAccountIdMap;
 
+static inline ELoginStatus ToELoginStatus(EOS_ELoginStatus InStatus)
+{
+	switch (InStatus)
+	{
+	case EOS_ELoginStatus::EOS_LS_NotLoggedIn:
+	{
+		return ELoginStatus::NotLoggedIn;
+	}
+	case EOS_ELoginStatus::EOS_LS_UsingLocalProfile:
+	{
+		return ELoginStatus::UsingLocalProfile;
+	}
+	case EOS_ELoginStatus::EOS_LS_LoggedIn:
+	{
+		return ELoginStatus::LoggedIn;
+	}
+	}
+	return ELoginStatus::NotLoggedIn;
+}
+
 // Copied from OSS EOS
 
 #define EOS_OSS_STRING_BUFFER_LENGTH 256
 // Chose arbitrarily since the SDK doesn't define it
 #define EOS_MAX_TOKEN_SIZE 4096
 
-struct FEosAuthCredentials :
+struct FEOSAuthCredentials :
 	public EOS_Auth_Credentials
 {
-	FEosAuthCredentials() :
+	FEOSAuthCredentials() :
 		EOS_Auth_Credentials()
 	{
 		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
@@ -35,7 +54,7 @@ struct FEosAuthCredentials :
 		Token = TokenAnsi;
 	}
 
-	FEosAuthCredentials(EOS_EExternalCredentialType InExternalType, const TArray<uint8>& InToken) :
+	FEOSAuthCredentials(EOS_EExternalCredentialType InExternalType, const TArray<uint8>& InToken) :
 		EOS_Auth_Credentials()
 	{
 		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
@@ -57,6 +76,18 @@ FAuthEOS::FAuthEOS(FOnlineServicesEOS& InServices)
 {
 	AuthHandle = EOS_Platform_GetAuthInterface(InServices.GetEOSPlatformHandle());
 	check(AuthHandle != nullptr);
+
+	// Register for login status changes
+	EOS_Auth_AddNotifyLoginStatusChangedOptions Options = { };
+	Options.ApiVersion = EOS_AUTH_ADDNOTIFYLOGINSTATUSCHANGED_API_LATEST;
+	NotifyLoginStatusChangedNotificationId = EOS_Auth_AddNotifyLoginStatusChanged(AuthHandle, &Options, this, [](const EOS_Auth_LoginStatusChangedCallbackInfo* Data)
+	{
+		FAuthEOS* This = reinterpret_cast<FAuthEOS*>(Data->ClientData);
+		FAccountId LocalUserId = MakeEOSAccountId(Data->LocalUserId);
+		ELoginStatus PreviousStatus = ToELoginStatus(Data->PrevStatus);
+		ELoginStatus CurrentStatus = ToELoginStatus(Data->CurrentStatus);
+		This->OnEOSLoginStatusChanged(LocalUserId, PreviousStatus, CurrentStatus);
+	});
 }
 
 bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const TCHAR* InString)
@@ -106,6 +137,10 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 	//{
 	//	OutEnum = EOS_ELoginCredentialType::EOS_LCT_DeviceCode;
 	//}
+	else if (FCString::Stricmp(InString, TEXT("Password")) == 0)
+	{
+		OutEnum = EOS_ELoginCredentialType::EOS_LCT_Password;
+	}
 	else if (FCString::Stricmp(InString, TEXT("Developer")) == 0)
 	{
 		OutEnum = EOS_ELoginCredentialType::EOS_LCT_Developer;
@@ -127,6 +162,10 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 		return false;
 	}
 	return true;
+}
+
+void FAuthEOS::PreShutdown()
+{
 }
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
@@ -160,7 +199,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
 	}	
 
-	FEosAuthCredentials Credentials;
+	FEOSAuthCredentials Credentials;
 	if (LexFromString(Credentials.Type, *Op.GetParams().CredentialsType))
 	{
 		switch (Credentials.Type)
@@ -168,6 +207,10 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		case EOS_ELoginCredentialType::EOS_LCT_ExchangeCode:
 			// This is how the Epic launcher will pass credentials to you
 			Credentials.IdAnsi[0] = '\0';
+			FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*Op.GetParams().CredentialsToken), EOS_MAX_TOKEN_SIZE);
+			break;
+		case EOS_ELoginCredentialType::EOS_LCT_Password:
+			FCStringAnsi::Strncpy(Credentials.IdAnsi, TCHAR_TO_UTF8(*Op.GetParams().CredentialsId), EOS_OSS_STRING_BUFFER_LENGTH);
 			FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*Op.GetParams().CredentialsToken), EOS_MAX_TOKEN_SIZE);
 			break;
 		case EOS_ELoginCredentialType::EOS_LCT_Developer:
@@ -205,11 +248,12 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		})
 		.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp, const EOS_Auth_LoginCallbackInfo* Data)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("LoginResult: [%s]"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			UE_LOG(LogTemp, Warning, TEXT("LoginResult: [%s]"), *LexToString(Data->ResultCode));
 
 			if (Data->ResultCode == EOS_EResult::EOS_Success)
 			{
 				// Success
+				UE_LOG(LogTemp, Warning, TEXT("Successfully logged in as [%s]"), *LexToString(Data->LocalUserId));
 				TSharedRef<FAccountInfoEOS> AccountInfo = MakeShared<FAccountInfoEOS>();
 				AccountInfo->LocalUserNum = InAsyncOp.GetParams().LocalUserNum;
 				AccountInfo->UserId = MakeEOSAccountId(Data->LocalUserId);
@@ -219,6 +263,13 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 
 				FAuthLogin::Result Result = { AccountInfo };
 				InAsyncOp.SetResult(MoveTemp(Result));
+
+				// Trigger event
+				FLoginStatusChanged EventParameters;
+				EventParameters.LocalUserId = AccountInfo->UserId;
+				EventParameters.PreviousStatus = ELoginStatus::NotLoggedIn;
+				EventParameters.CurrentStatus = ELoginStatus::LoggedIn;
+				OnLoginStatusChangedEvent.Broadcast(EventParameters);
 			}
 			else if (Data->ResultCode == EOS_EResult::EOS_InvalidUser && Data->ContinuanceToken != nullptr)
 			{
@@ -277,7 +328,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 			})
 			.Then([](TOnlineAsyncOp<FAuthLogout>& InAsyncOp, const EOS_Auth_LogoutCallbackInfo* Data)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("LogoutResult: [%s]"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+				UE_LOG(LogTemp, Warning, TEXT("LogoutResult: [%s]"), *LexToString(Data->ResultCode));
 
 				if (Data->ResultCode == EOS_EResult::EOS_Success)
 				{
@@ -312,8 +363,7 @@ TOnlineResult<FAuthGetAccountByLocalUserNum::Result> FAuthEOS::GetAccountByLocal
 	TOnlineResult<FAccountId> LocalUserIdResult = GetAccountIdByLocalUserNum(Params.LocalUserNum);
 	if (LocalUserIdResult.IsOk())
 	{
-		FAuthGetAccountByLocalUserNum::Result Result;
-		Result.AccountInfo = AccountInfos.FindChecked(LocalUserIdResult.GetOkValue());
+		FAuthGetAccountByLocalUserNum::Result Result = { AccountInfos.FindChecked(LocalUserIdResult.GetOkValue()) };
 		return TOnlineResult<FAuthGetAccountByLocalUserNum::Result>(Result);
 	}
 	else
@@ -337,6 +387,12 @@ TOnlineResult<FAuthGetAccountByAccountId::Result> FAuthEOS::GetAccountByAccountI
 	}
 }
 
+bool FAuthEOS::IsLoggedIn(const FAccountId& AccountId) const
+{
+	// TODO:  More logic?
+	return AccountInfos.Contains(AccountId);
+}
+
 TOnlineResult<FAccountId> FAuthEOS::GetAccountIdByLocalUserNum(int32 LocalUserNum) const
 {
 	for (const TPair<FAccountId, TSharedRef<FAccountInfoEOS>>& AccountPair : AccountInfos)
@@ -351,6 +407,34 @@ TOnlineResult<FAccountId> FAuthEOS::GetAccountIdByLocalUserNum(int32 LocalUserNu
 	return Result;
 }
 
-/* UE::Online */ }
+void FAuthEOS::OnEOSLoginStatusChanged(FAccountId LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus)
+{
+	UE_LOG(LogTemp, Warning, TEXT("OnEOSLoginStatusChanged: [%s] %d %d"),
+		*LexToString(EOSAccountIdFromOnlineServiceAccountId(LocalUserId).GetValue()),
+		(int)PreviousStatus,
+		(int)CurrentStatus);
+	if (TSharedRef<FAccountInfoEOS>* AccountInfoPtr = AccountInfos.Find(LocalUserId))
+	{
+		FAccountInfoEOS& AccountInfo = **AccountInfoPtr;
+		if (AccountInfo.LoginStatus != CurrentStatus)
+		{
+			FLoginStatusChanged EventParameters;
+			EventParameters.LocalUserId = LocalUserId;
+			EventParameters.PreviousStatus = AccountInfo.LoginStatus;
+			EventParameters.CurrentStatus = CurrentStatus;
 
-#endif // WITH_EOS_SDK
+			AccountInfo.LoginStatus = CurrentStatus;
+
+			if (CurrentStatus == ELoginStatus::NotLoggedIn)
+			{
+				// Remove user
+				AccountInfos.Remove(LocalUserId); // Invalidates AccountInfo
+			}
+
+			OnLoginStatusChangedEvent.Broadcast(EventParameters);
+		}
+	}
+}
+
+
+/* UE::Online */ }

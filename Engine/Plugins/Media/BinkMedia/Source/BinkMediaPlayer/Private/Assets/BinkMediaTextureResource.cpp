@@ -105,7 +105,7 @@ void FBinkMediaTextureResource::ReleaseDynamicRHI()
 void FBinkMediaTextureResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget) 
 {
 	auto Player = Owner->MediaPlayer;
-	if ((!Player->IsPlaying() && !Player->IsPaused()) || !TextureRHI) 
+	if (!Player || (!Player->IsPlaying() && !Player->IsPaused()) || !TextureRHI) 
 	{
 		return;
 	}

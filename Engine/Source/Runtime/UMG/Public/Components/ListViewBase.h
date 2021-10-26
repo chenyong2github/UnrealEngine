@@ -9,6 +9,7 @@
 #include "Widgets/Views/STileView.h"
 #include "Widgets/Views/STreeView.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/UMGCoreStyle.h"
 
 #include "ListViewBase.generated.h"
 
@@ -218,7 +219,7 @@ protected:
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
 		bool bReturnFocusToSelection = false;
 		EOrientation Orientation = Orient_Vertical;
-		const FTableViewStyle* ListViewStyle = &FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView");
+		const FTableViewStyle* ListViewStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView");
 	};
 
 	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
@@ -289,7 +290,7 @@ protected:
 		bool bClearSelectionOnClick = false;
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
 		bool bReturnFocusToSelection = false;
-		const FTableViewStyle* TreeViewStyle = &FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView");
+		const FTableViewStyle* TreeViewStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView");
 	};
 
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>

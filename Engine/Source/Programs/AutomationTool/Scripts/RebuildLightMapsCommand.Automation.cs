@@ -67,7 +67,7 @@ namespace AutomationScripts.Automation
 		private void BuildNecessaryTargets()
 		{
 			LogInformation("Running Step:- RebuildLightMaps::BuildNecessaryTargets");
-			UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
+			UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
             Agenda.AddTarget("UnrealHeaderTool", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 			Agenda.AddTarget("ShaderCompileWorker", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
 			Agenda.AddTarget("UnrealLightmass", UnrealBuildTool.UnrealTargetPlatform.Win64, UnrealBuildTool.UnrealTargetConfiguration.Development);
@@ -75,9 +75,9 @@ namespace AutomationScripts.Automation
 
 			try
 			{
-				UE4Build Builder = new UE4Build(this);
+				UnrealBuild Builder = new UnrealBuild(this);
 				Builder.Build(Agenda, InDeleteBuildProducts: true, InUpdateVersionFiles: true, InForceNoXGE: false, InChangelistNumberOverride: GetLatestCodeChange());
-				UE4Build.CheckBuildProducts(Builder.BuildProductFiles);
+				UnrealBuild.CheckBuildProducts(Builder.BuildProductFiles);
 			}
 			catch (AutomationException)
 			{
@@ -110,11 +110,11 @@ namespace AutomationScripts.Automation
 			LogInformation("Running Step:- RebuildLightMaps::RunRebuildLightmapsCommandlet");
 
 			// Find the commandlet binary
-			string UE4EditorExe = HostPlatform.Current.GetUE4ExePath(Params.UE4Exe);
-			if (!FileExists(UE4EditorExe))
+			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
+			if (!FileExists(UEEditorExe))
 			{
-				LogError("Missing " + UE4EditorExe + " executable. Needs to be built first.");
-				throw new AutomationException("Missing " + UE4EditorExe + " executable. Needs to be built first.");
+				LogError("Missing " + UEEditorExe + " executable. Needs to be built first.");
+				throw new AutomationException("Missing " + UEEditorExe + " executable. Needs to be built first.");
 			}
 
 			// Now let's rebuild lightmaps for the project
@@ -126,7 +126,7 @@ namespace AutomationScripts.Automation
                 {
                     CommandletParams += String.Format(" -SCCProvider={0} -P4Port={1} -P4User={2} -P4Client={3} -P4Changelist={4} -P4Passwd={5}", "Perforce", P4Env.ServerAndPort, P4Env.User, P4Env.Client, WorkingCL.ToString(), P4.GetAuthenticationToken());
                 }
-				RebuildLightMapsCommandlet(Params.RawProjectPath, Params.UE4Exe, Params.MapsToRebuildLightMaps.ToArray(), CommandletParams);
+				RebuildLightMapsCommandlet(Params.RawProjectPath, Params.UnrealExe, Params.MapsToRebuildLightMaps.ToArray(), CommandletParams);
 			}
 			catch (Exception Ex)
 			{

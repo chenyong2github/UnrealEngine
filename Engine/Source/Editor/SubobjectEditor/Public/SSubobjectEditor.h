@@ -309,10 +309,21 @@ private:
 	FText GetActorClassNameText() const;
 	FText GetActorSuperClassNameText() const;
 	FText GetActorMobilityText() const;
+	
+	/** Returns a widget that represents the inheritance of this subobject which includes a hyperlink to edit the property */
+	TSharedRef<SWidget> GetInheritedLinkWidget();
+	
+	/** Gets the context of this subobject, such as "(Self)" or "(Instance)" for actors. */
 	FText GetObjectContextText() const;
 
 	FString GetDocumentationLink() const;
 	FString GetDocumentationExcerptName() const;
+
+	/** Callback used when the user clicks on a blueprint inherited variable */
+	void OnEditBlueprintClicked();
+	
+	/** Callback used when the user clicks on a native inherited variable */
+	void OnEditNativeCppClicked();
 
 	/**
 	 * Retrieves tooltip text describing the specified component's mobility.
@@ -469,7 +480,8 @@ public:
 	/** Select the root of the tree */
 	void SelectRoot();
 
-	virtual FSlateColor GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const = 0;
+	/** Get the tint color that any subobject editor icons should use. The default is the foreground color. */
+	virtual FSlateColor GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const;
 	
 	/** Get the currently selected nodes from the tree sorted in order from parent to child */
 	TArray<FSubobjectEditorTreeNodePtrType> GetSelectedNodes() const;

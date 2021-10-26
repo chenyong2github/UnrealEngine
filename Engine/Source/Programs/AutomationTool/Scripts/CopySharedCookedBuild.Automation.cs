@@ -128,14 +128,14 @@ class CopySharedCookedBuild : BuildCommand
 				// Build everything
 				UnrealTargetPlatform CurrentPlatform = HostPlatform.Current.HostEditorPlatform;
 
-				UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
+				UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 				Agenda.AddTarget("UnrealHeaderTool", CurrentPlatform, UnrealTargetConfiguration.Development);
 				Agenda.AddTarget(EditorTargetName, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase)? new FileReference(ProjectFileName) : null);
 				Agenda.AddTarget("ShaderCompileWorker", CurrentPlatform, UnrealTargetConfiguration.Development);
 				Agenda.AddTarget("UnrealLightmass", CurrentPlatform, UnrealTargetConfiguration.Development);
 				Agenda.AddTarget("CrashReportClient", CurrentPlatform, UnrealTargetConfiguration.Shipping);
 
-				UE4Build Build = new UE4Build(this);
+				UnrealBuild Build = new UnrealBuild(this);
 				Build.UpdateVersionFiles(ActuallyUpdateVersionFiles: true, ChangelistNumberOverride: CL);
 				Build.Build(Agenda, InUpdateVersionFiles: false);*/
 	}

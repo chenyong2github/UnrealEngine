@@ -696,8 +696,6 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 
 	if(CurrentMaterial != nullptr)
 	{
-		CurrentMaterial->GetAllMaterialLayersParameterInfo(MaterialLayerParameterInfo, MaterialLayerGuids);
-	
 		CurrentMaterial->GetAllStaticSwitchParameterInfo(StaticSwitchParameterInfo, StaticSwitchGuids);
 	
 		CurrentMaterial->GetAllStaticComponentMaskParameterInfo(StaticMaskParameterInfo, StaticMaskGuids);
@@ -796,35 +794,20 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		}
 	}
 
-
-	CurrentMaterialNode->MaterialLayerParameters.Empty(MaterialLayerParameterInfo.Num());
-
-	for (int ParameterIndex = 0; ParameterIndex < MaterialLayerParameterInfo.Num(); ++ParameterIndex)
+	const FMaterialLayersFunctions* MaterialLayers = CurrentMaterialInterface->GetMaterialLayers();
+	if (MaterialLayers)
 	{
-		FMaterialLayersFunctions Functions;
-		bool bIsOverridden = CurrentMaterialInterface->GetMaterialLayersParameterValue(MaterialLayerParameterInfo[ParameterIndex], Functions, MaterialLayerGuids[ParameterIndex], false);
-
-		if (!bIsOverridden)
+		bool bIsOverridden = false;
+		if (CurrentMaterialInstance)
 		{
-			// Check the parent for this variable
-			FAnalyzedMaterialNodePtr Parent = CurrentMaterialNode->Parent;
-			// We shouldn't be able to get in here for the base Material
-			check(Parent.IsValid());
-
-			FStaticMaterialLayerParameterNodeRef ParentParameter = Parent->FindMaterialLayerParameter(MaterialLayerParameterInfo[ParameterIndex].Name);
-
-			CurrentMaterialNode->MaterialLayerParameters.Add(FStaticMaterialLayerParameterNodeRef(
-					new FStaticMaterialLayerParameterNode(ParentParameter->ParameterName,
-						ParentParameter->ParameterValue,
-						false)));
+			const FMaterialLayersFunctions* ParentMaterialLayers = CurrentMaterialInstance->Parent->GetMaterialLayers();
+			bIsOverridden = !ParentMaterialLayers || *MaterialLayers != *ParentMaterialLayers;
 		}
-		else
-		{
-			CurrentMaterialNode->MaterialLayerParameters.Add(FStaticMaterialLayerParameterNodeRef(
-				new FStaticMaterialLayerParameterNode(MaterialLayerParameterInfo[ParameterIndex].Name,
-					Functions.GetStaticPermutationString(),
-					true)));
-		}
+
+		CurrentMaterialNode->MaterialLayerParameters.Add(FStaticMaterialLayerParameterNodeRef(
+			new FStaticMaterialLayerParameterNode(FName(),
+				MaterialLayers->GetStaticPermutationString(),
+				bIsOverridden)));
 	}
 	
 	CurrentMaterialNode->StaticSwitchParameters.Empty(StaticSwitchParameterInfo.Num());
@@ -832,7 +815,15 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	for (int ParameterIndex = 0; ParameterIndex < StaticSwitchParameterInfo.Num(); ++ParameterIndex)
 	{
 		FMaterialParameterMetadata Meta;
-		bool bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta);
+		bool bIsOverridden = false;
+		if (CurrentMaterialInstance)
+		{
+			bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta);
+		}
+		else if(CurrentMaterial)
+		{
+			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta, EMaterialGetParameterValueFlags::CheckAll);
+		}
 
 		if (!bIsOverridden)
 		{
@@ -860,7 +851,15 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	for (int ParameterIndex = 0; ParameterIndex < StaticMaskParameterInfo.Num(); ++ParameterIndex)
 	{
 		FMaterialParameterMetadata Meta;
-		bool bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta);
+		bool bIsOverridden = false;
+		if (CurrentMaterialInstance)
+		{
+			bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta);
+		}
+		else if (CurrentMaterial)
+		{
+			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta, EMaterialGetParameterValueFlags::CheckAll);
+		}
 
 		if(!bIsOverridden)
 		{

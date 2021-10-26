@@ -95,7 +95,20 @@ namespace CADKernel
 	{
 	}
 
-	TSharedPtr<FCurve> FCurve::ReboundCurve(const FLinearBoundary& InBoundary)
+	TSharedPtr<FCurve> FCurve::Rebound(const FLinearBoundary& InBoundary)
+	{
+		if (FMath::IsNearlyEqual(InBoundary.Min, GetUMin()) && FMath::IsNearlyEqual(InBoundary.Max, GetUMax()))
+		{
+			FMessage::Printf(Debug, TEXT("Invalid rebound (UMin and UMax are nearly equal) on curve %d\n"), GetId());
+			TSharedPtr<FEntity> Entity = AsShared();
+			return StaticCastSharedPtr<FCurve> (Entity);
+		}
+	
+		ensureCADKernel(false);
+		return TSharedPtr<FCurve>();
+	}
+
+	TSharedPtr<FCurve> FCurve::MakeBoundedCurve(const FLinearBoundary& InBoundary) 
 	{
 		FLinearBoundary NewBoundary = InBoundary;
 		if (NewBoundary.Min < GetUMin())

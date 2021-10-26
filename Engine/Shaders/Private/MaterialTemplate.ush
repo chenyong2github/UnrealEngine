@@ -21,7 +21,9 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/DBufferDecalShared.ush"
 
-// Bump!!!!!!!!!!!!!!
+// Update this GUID to force all material shaders to recompile
+// Merge conflicts on this line should be resolved by generating a new GUID
+// GUID = 4E3A3611-FB00-4498-AF79-80F57CBC06A8
 
 #define USE_ANALYTIC_DERIVATIVES	(IS_NANITE_FACTORY)
 
@@ -1834,7 +1836,7 @@ float2 LWCApplyAddressMode(FLWCVector2 UV, uint AddressX, uint AddressY)
 }
 float3 LWCApplyAddressMode(FLWCVector3 UV, uint AddressX, uint AddressY, uint AddressZ)
 {
-	return float3(LWCApplyAddressMode(LWCGetX(UV), AddressX), LWCApplyAddressMode(LWCGetY(UV), AddressY), LWCApplyAddressMode(LWCGetY(UV), AddressZ));
+	return float3(LWCApplyAddressMode(LWCGetX(UV), AddressX), LWCApplyAddressMode(LWCGetY(UV), AddressY), LWCApplyAddressMode(LWCGetZ(UV), AddressZ));
 }
 
 float2 RotateScaleOffsetTexCoords(float2 InTexCoords, float4 InRotationScale, float2 InOffset)
@@ -2079,11 +2081,7 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 #else
 	if (SceneTextureId == PPI_SceneDepth)
 	{
-		#if MOBILE_DEFERRED_SHADING
-			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV).r);
-		#else
-			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, UV).r);
-		#endif
+		MaterialFloat Depth = CalcSceneDepth(UV);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureId == PPI_CustomDepth)

@@ -32,6 +32,7 @@
 #include "Materials/MaterialFunctionMaterialLayer.h"
 #include "Materials/MaterialFunctionMaterialLayerBlend.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Materials/MaterialInstanceSupport.h"
 #include "Materials/Material.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -6894,7 +6895,7 @@ UMaterialExpressionMaterialAttributeLayers::UMaterialExpressionMaterialAttribute
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	bIsParameterExpression = true;
+	DefaultLayers.AddDefaultBackgroundLayer();
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
@@ -6935,7 +6936,7 @@ void UMaterialExpressionMaterialAttributeLayers::PostEditChangeProperty(FPropert
 }
 #endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportErrors)
 {
 	const TArray<UMaterialFunctionInterface*>& Layers = GetLayers();
@@ -6971,7 +6972,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 				LayerCallers[CallerIndex]->FunctionParameterInfo.Index = LayerIndex;
 				++NumActiveLayerCallers;
 
-#if WITH_EDITOR
 				Layers[LayerIndex]->GetInputsAndOutputs(LayerCallers[CallerIndex]->FunctionInputs, LayerCallers[CallerIndex]->FunctionOutputs);
 				for (FFunctionExpressionOutput& FunctionOutput : LayerCallers[CallerIndex]->FunctionOutputs)
 				{
@@ -6989,7 +6989,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 
 				// Recursively run through internal functions to allow connection of inputs/outputs
 				LayerCallers[CallerIndex]->UpdateFromFunctionResource();
-#endif
 			}
 		}
 
@@ -7007,7 +7006,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 					BlendCallers[CallerIndex]->FunctionParameterInfo.Association = EMaterialParameterAssociation::BlendParameter;
 					BlendCallers[CallerIndex]->FunctionParameterInfo.Index = BlendIndex;
 
-#if WITH_EDITOR
 					Blends[BlendIndex]->GetInputsAndOutputs(BlendCallers[CallerIndex]->FunctionInputs, BlendCallers[CallerIndex]->FunctionOutputs);
 					for (FFunctionExpressionOutput& FunctionOutput : BlendCallers[CallerIndex]->FunctionOutputs)
 					{
@@ -7016,7 +7014,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 
 					// Recursively run through internal functions to allow connection of inputs/ouputs
 					BlendCallers[CallerIndex]->UpdateFromFunctionResource();
-#endif
 				}
 				else
 				{
@@ -7037,7 +7034,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 			BlendCallers[CallerIndex]->MaterialFunction = nullptr;
 		}
 
-#if WITH_EDITOR
 		// Assemble function chain so each layer blends with the previous
 		if (NumActiveLayerCallers >= 2 && NumActiveBlendCallers >= 1)
 		{
@@ -7060,7 +7056,6 @@ void UMaterialExpressionMaterialAttributeLayers::RebuildLayerGraph(bool bReportE
 				}
 			}
 		}
-#endif
 
 		bIsLayerGraphBuilt = true;
 	}
@@ -7078,9 +7073,7 @@ void UMaterialExpressionMaterialAttributeLayers::OverrideLayerGraph(const FMater
 		RebuildLayerGraph(false);
 	}
 }
-#endif // WITH_EDITORONLY_DATA
 
-#if WITH_EDITOR
 bool UMaterialExpressionMaterialAttributeLayers::ValidateLayerConfiguration(FMaterialCompiler* Compiler, bool bReportErrors)
 {
 #define COMPILER_OR_LOG_ERROR(Format, ...)								\
@@ -7278,8 +7271,7 @@ int32 UMaterialExpressionMaterialAttributeLayers::Compile(FMaterialCompiler* Com
 {
 	int32 Result = INDEX_NONE;
 
-	// The layer stack is a parameter so can be overridden
-	const FMaterialLayersFunctions* OverrideLayers = Compiler->StaticMaterialLayersParameter(ParameterName);
+	const FMaterialLayersFunctions* OverrideLayers = Compiler->GetMaterialLayers();
 	OverrideLayerGraph(OverrideLayers);
 
 	if (ValidateLayerConfiguration(Compiler, true) && bIsLayerGraphBuilt)
@@ -7327,7 +7319,6 @@ int32 UMaterialExpressionMaterialAttributeLayers::Compile(FMaterialCompiler* Com
 void UMaterialExpressionMaterialAttributeLayers::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Material Attribute Layers"));
-	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
 
 void UMaterialExpressionMaterialAttributeLayers::GetExpressionToolTip(TArray<FString>& OutToolTip) 
@@ -7361,55 +7352,7 @@ uint32 UMaterialExpressionMaterialAttributeLayers::GetInputType(int32 InputIndex
 {
 	return MCT_MaterialAttributes;
 }
-#endif
-
-bool UMaterialExpressionMaterialAttributeLayers::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutLayers = (ParamLayers != nullptr) ? *ParamLayers : DefaultLayers;
-		OutExpressionGuid = ExpressionGUID;
-		return true;
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
-bool UMaterialExpressionMaterialAttributeLayers::MatchesSearchQuery(const TCHAR* SearchQuery)
-{
-	if (ParameterName.ToString().Contains(SearchQuery))
-	{
-		return true;
-	}
-
-	return Super::MatchesSearchQuery(SearchQuery);
-}
-
-FString UMaterialExpressionMaterialAttributeLayers::GetEditableName() const
-{
-	return ParameterName.ToString();
-}
-
-void UMaterialExpressionMaterialAttributeLayers::SetEditableName(const FString& NewName)
-{
-	ParameterName = *NewName;
-}
-#endif
-
-void UMaterialExpressionMaterialAttributeLayers::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName);
-	OutParameterInfo.AddUnique(NewParameter);
-	if (CurrentSize != OutParameterInfo.Num())
-	{
-		OutParameterIds.Add(ExpressionGUID);
-	}
-	
-	checkf(InBaseParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter && InBaseParameterInfo.Index == INDEX_NONE,
-		TEXT("Tried to gather parameters from a material layer not in the top-level material, shouldn't be possible"));
-}
+#endif // WITH_EDITOR
 
 // -----
 
@@ -12383,23 +12326,30 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 			TEXT("GetWorldPosition(Parameters)"),
 			TEXT("GetPrevWorldPosition(Parameters)"),
 			TEXT("GetObjectWorldPosition(Parameters)"),
+			TEXT("GetPrimitiveData(Parameters).WorldToLocal"),
+			TEXT("GetPrimitiveData(Parameters).LocalToWorld"),
+			TEXT("GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal"),
+			TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalToWorld"),
 		};
 
 		for (const TCHAR* Member : UniformMembers)
 		{
 			const FString ViewSearchString = FString(TEXT("View.")) + Member;
-			const FString ResolvedSearchString = FString(TEXT("ResolvedView.")) + Member;
 			const FString ReplaceString = FString(TEXT("LWCToFloat(ResolvedView.")) + Member + FString(TEXT(")"));
-
-			if (Code.ReplaceInline(*ResolvedSearchString, *ReplaceString, ESearchCase::CaseSensitive) > 0)
-			{
-				bDidUpdate = true;
-			}
 
 			if (Code.ReplaceInline(*ViewSearchString, *ReplaceString, ESearchCase::CaseSensitive) > 0)
 			{
 				bDidUpdate = true;
 			}
+		}
+
+		// We really want to replace all instances of 'View.Member' and 'ResolvedView.Member' with 'LWCToFloat(ResolvedView.Member)'
+		// But since this is just dumb string processing and we're not really attempting to parse HLSL, replacing 'View.Member' will also match 'ResolvedVIEW.Member', and turn it into 'ResolvedLWCToFloat(ResolvedView.Member)'
+		// So we just allow that to happen, and then fix up any instances of 'ResolvedLWCToFloat' here
+		// This is admittedly pretty ugly...if this gets any worse probably need to just add a real HLSL parser here
+		if (Code.ReplaceInline(TEXT("ResolvedLWCToFloat(ResolvedView."), TEXT("LWCToFloat(ResolvedView."), ESearchCase::CaseSensitive) > 0)
+		{
+			bDidUpdate = true;
 		}
 
 		for (const TCHAR* Expression : GlobalExpressions)
@@ -12528,6 +12478,94 @@ void UMaterialFunctionInterface::ForceRecompileForRendering(FMaterialUpdateConte
 			CurrentMaterialInterface->ForceRecompileForRendering();
 		}
 	}
+}
+
+bool UMaterialFunctionInterface::GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue) const
+{
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::Scalar, ParameterInfo.GetName(), Meta))
+	{
+		OutValue = Meta.Value.AsScalar();
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::Vector, ParameterInfo.GetName(), Meta))
+	{
+		OutValue = Meta.Value.AsLinearColor();
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::Texture, ParameterInfo.GetName(), Meta))
+	{
+		OutValue = Meta.Value.Texture;
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedRuntimeVirtualTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture*& OutValue)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo.GetName(), Meta))
+	{
+		OutValue = Meta.Value.RuntimeVirtualTexture;
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedFontParameter(const FHashedMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::Font, ParameterInfo.GetName(), Meta))
+	{
+		OutFontValue = Meta.Value.Font.Value;
+		OutFontPage = Meta.Value.Font.Page;
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedStaticSwitchParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::StaticSwitch, ParameterInfo.GetName(), Meta))
+	{
+		OutExpressionGuid = Meta.ExpressionGuid;
+		OutValue = Meta.Value.AsStaticSwitch();
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialFunctionInterface::OverrideNamedStaticComponentMaskParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::Scalar, ParameterInfo.GetName(), Meta))
+	{
+		OutExpressionGuid = Meta.ExpressionGuid;
+		OutR = Meta.Value.Bool[0];
+		OutG = Meta.Value.Bool[1];
+		OutB = Meta.Value.Bool[2];
+		OutA = Meta.Value.Bool[3];
+		return true;
+	}
+	return false;
 }
 #endif // WITH_EDITOR
 
@@ -13535,112 +13573,25 @@ bool UMaterialFunctionInstance::HasFlippedCoordinates() const
 {
 	return Parent ? Parent->HasFlippedCoordinates() : false;
 }
-#endif
 
-bool UMaterialFunctionInstance::OverrideNamedScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue)
+bool UMaterialFunctionInstance::GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutResult) const
 {
-	for (const FScalarParameterValue& ScalarParameter : ScalarParameterValues)
+	const FMemoryImageMaterialParameterInfo ParameterInfo(ParameterName);
+
+	bool bResult = false;
+	switch (Type)
 	{
-		if (ScalarParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutValue = ScalarParameter.ParameterValue;
-			return true;
-		}
+	case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticSwitchParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticComponentMaskParameterValues, ParameterInfo, OutResult); break;
+	default: checkNoEntry(); break;
 	}
-
-	return false;
+	return bResult;
 }
-
-bool UMaterialFunctionInstance::OverrideNamedVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue)
-{
-	for (const FVectorParameterValue& VectorParameter : VectorParameterValues)
-	{
-		if (VectorParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutValue = VectorParameter.ParameterValue;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UMaterialFunctionInstance::OverrideNamedTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue)
-{
-	for (const FTextureParameterValue& TextureParameter : TextureParameterValues)
-	{
-		if (TextureParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutValue = TextureParameter.ParameterValue;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UMaterialFunctionInstance::OverrideNamedRuntimeVirtualTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue)
-{
-	for (const FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParameter : RuntimeVirtualTextureParameterValues)
-	{
-		if (RuntimeVirtualTextureParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutValue = RuntimeVirtualTextureParameter.ParameterValue;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UMaterialFunctionInstance::OverrideNamedFontParameter(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage)
-{
-	for (const FFontParameterValue& FontParameter : FontParameterValues)
-	{
-		if (FontParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutFontValue = FontParameter.FontValue;
-			OutFontPage = FontParameter.FontPage;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UMaterialFunctionInstance::OverrideNamedStaticSwitchParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid)
-{
-	for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameterValues)
-	{
-		if (StaticSwitchParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutValue = StaticSwitchParameter.Value;
-			OutExpressionGuid = StaticSwitchParameter.ExpressionGUID;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool UMaterialFunctionInstance::OverrideNamedStaticComponentMaskParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid)
-{
-	for (const FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameterValues)
-	{
-		if (StaticComponentMaskParameter.ParameterInfo.Name == ParameterInfo.Name)
-		{
-			OutR = StaticComponentMaskParameter.R;
-			OutG = StaticComponentMaskParameter.G;
-			OutB = StaticComponentMaskParameter.B;
-			OutA = StaticComponentMaskParameter.A;
-			OutExpressionGuid = StaticComponentMaskParameter.ExpressionGUID;
-			return true;
-		}
-	}
-
-	return false;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // FMaterialLayersFunctions::ID
@@ -13689,7 +13640,7 @@ void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
 		KeyString += FString::FromInt(State);
 	}
 }
-
+#endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
 // FMaterialLayersFunctions
@@ -13697,6 +13648,7 @@ void FMaterialLayersFunctions::ID::AppendKeyString(FString& KeyString) const
 
 const FGuid FMaterialLayersFunctions::BackgroundGuid(2u, 0u, 0u, 0u);
 
+#if WITH_EDITOR
 const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
 {
 	FMaterialLayersFunctions::ID Result;
@@ -13742,52 +13694,16 @@ const FMaterialLayersFunctions::ID FMaterialLayersFunctions::GetID() const
 FString FMaterialLayersFunctions::GetStaticPermutationString() const
 {
 	FString StaticKeyString;
-	for (UMaterialFunctionInterface* Layer : Layers)
-	{
-		UMaterialFunctionInterface* Parent = Layer ? Layer->GetBaseFunction() : nullptr;
-		if (Parent)
-		{
-			StaticKeyString += TEXT("_") + Parent->GetOutermost()->GetFullName();
-		}
-		else
-		{
-			StaticKeyString += TEXT("_NullLayer");
-		}
-	}
-
-	for (UMaterialFunctionInterface* Blend : Blends)
-	{
-		UMaterialFunctionInterface* Parent = Blend ? Blend->GetBaseFunction() : nullptr;
-		if (Parent)
-		{
-			StaticKeyString += TEXT("_") + Parent->GetOutermost()->GetFullName();
-		}
-		else
-		{
-			StaticKeyString += TEXT("_NullBlend");
-		}
-	}
-
-	// @TODO: This will generate unique permutations for disabled layers but
-	// should append layers/blends in reverse order, stopping at opaque and
-	// skipping inactive to allow maximum DDC re-use where possible
-	StaticKeyString += TEXT("_");
-	for (const bool State : LayerStates)
-	{
-		StaticKeyString += State ? TEXT("1") : TEXT("0");
-	}
-
+	GetID().AppendKeyString(StaticKeyString);
 	return StaticKeyString;
 }
 
-void FMaterialLayersFunctions::SerializeForDDC(FArchive& Ar)
+void FMaterialLayersFunctions::SerializeLegacy(FArchive& Ar)
 {
-	if (!Ar.IsCooking())
-	{
-		KeyString_DEPRECATED = GetStaticPermutationString();
-	}
+	FString KeyString_DEPRECATED;
 	Ar << KeyString_DEPRECATED;
 }
+#endif // WITH_EDITOR
 
 void FMaterialLayersFunctions::PostSerialize(const FArchive& Ar)
 {
@@ -13826,15 +13742,15 @@ int32 FMaterialLayersFunctions::AppendBlendedLayer()
 {
 	const int32 LayerIndex = Layers.AddDefaulted();
 	Blends.AddDefaulted();
+#if WITH_EDITORONLY_DATA
 	LayerStates.Add(true);
-#if WITH_EDITOR
 	FText LayerName = FText::Format(LOCTEXT("LayerPrefix", "Layer {0}"), Layers.Num() - 1);
 	LayerNames.Add(LayerName);
 	RestrictToLayerRelatives.Add(false);
 	RestrictToBlendRelatives.Add(false);
 	LayerGuids.Add(FGuid::NewGuid());
 	LayerLinkStates.Add(EMaterialLayerLinkState::NotFromParent);
-#endif
+#endif // WITH_EDITORONLY_DATA
 	return LayerIndex;
 }
 
@@ -13848,8 +13764,9 @@ int32 FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Sou
 	{
 		Blends.Add(Source.Blends[SourceLayerIndex - 1]);
 	}
-	LayerStates.Add(Source.LayerStates[SourceLayerIndex]);
+	
 #if WITH_EDITOR
+	LayerStates.Add(Source.LayerStates[SourceLayerIndex]);
 	LayerNames.Add(Source.LayerNames[SourceLayerIndex]);
 	RestrictToLayerRelatives.Add(Source.RestrictToLayerRelatives[SourceLayerIndex]);
 	if (LayerIndex > 0)
@@ -13868,8 +13785,9 @@ void FMaterialLayersFunctions::InsertLayerCopy(const FMaterialLayersFunctions& S
 	check(LayerIndex > 0);
 	Layers.Insert(Source.Layers[SourceLayerIndex], LayerIndex);
 	Blends.Insert(Source.Blends[SourceLayerIndex - 1], LayerIndex - 1);
-	LayerStates.Insert(Source.LayerStates[SourceLayerIndex], LayerIndex);
+	
 #if WITH_EDITOR
+	LayerStates.Insert(Source.LayerStates[SourceLayerIndex], LayerIndex);
 	LayerNames.Insert(Source.LayerNames[SourceLayerIndex], LayerIndex);
 	RestrictToLayerRelatives.Insert(Source.RestrictToLayerRelatives[SourceLayerIndex], LayerIndex);
 	RestrictToBlendRelatives.Insert(Source.RestrictToBlendRelatives[SourceLayerIndex - 1], LayerIndex - 1);
@@ -13882,12 +13800,12 @@ void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
 {
 	if (Layers.IsValidIndex(Index))
 	{
-		check(Layers.IsValidIndex(Index) && Blends.IsValidIndex(Index - 1) && LayerStates.IsValidIndex(Index));
+		check(Layers.IsValidIndex(Index) && Blends.IsValidIndex(Index - 1));
 		Layers.RemoveAt(Index);
 		Blends.RemoveAt(Index - 1);
-		LayerStates.RemoveAt(Index);
+		
 #if WITH_EDITOR
-		check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
+		check(LayerStates.IsValidIndex(Index) && LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
 
 		if (LayerLinkStates[Index] != EMaterialLayerLinkState::NotFromParent)
 		{
@@ -13897,6 +13815,7 @@ void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
 			DeletedParentLayerGuids.Add(LayerGuid);
 		}
 
+		LayerStates.RemoveAt(Index);
 		LayerNames.RemoveAt(Index);
 		RestrictToLayerRelatives.RemoveAt(Index);
 		RestrictToBlendRelatives.RemoveAt(Index - 1);
@@ -13914,8 +13833,8 @@ void FMaterialLayersFunctions::MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLa
 	{
 		Layers.Swap(SrcLayerIndex, DstLayerIndex);
 		Blends.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
-		LayerStates.Swap(SrcLayerIndex, DstLayerIndex);
 #if WITH_EDITOR
+		LayerStates.Swap(SrcLayerIndex, DstLayerIndex);
 		LayerNames.Swap(SrcLayerIndex, DstLayerIndex);
 		RestrictToLayerRelatives.Swap(SrcLayerIndex, DstLayerIndex);
 		RestrictToBlendRelatives.Swap(SrcLayerIndex - 1, DstLayerIndex - 1);
@@ -13970,9 +13889,7 @@ bool FMaterialLayersFunctions::HasAnyUnlinkedLayers() const
 	}
 	return false;
 }
-#endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
 void FMaterialLayersFunctions::LinkAllLayersToParent()
 {
 	for (int32 Index = 0; Index < LayerLinkStates.Num(); ++Index)
@@ -14158,7 +14075,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 
 	return bUpdatedLayerIndices;
 }
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionMaterialFunctionCall

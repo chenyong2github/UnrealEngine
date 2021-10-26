@@ -46,10 +46,11 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	{
-		StyleSet->Set("Icon.FocusPicking", new FSlateImageBrush(RootToContentDir("Icons/SlateReflector/FocusPicking_24x.png"), Icon24x24));
-		StyleSet->Set("Icon.HitTestPicking", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Select_40x.png"), Icon24x24));
-		StyleSet->Set("Icon.VisualPicking", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Paint_40x.png"), Icon24x24));
-		StyleSet->Set("Icon.LoadSnapshot", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Import_40x.png"), Icon24x24));
+		StyleSet->Set("Icon.FocusPicking", new IMAGE_BRUSH("Icons/SlateReflector/FocusPicking_24x", Icon24x24));
+		StyleSet->Set("Icon.HitTestPicking", new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon24x24));
+		StyleSet->Set("Icon.VisualPicking", new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon24x24));
+		StyleSet->Set("Icon.LoadSnapshot", new IMAGE_BRUSH("Icons/GeneralTools/Import_40x", Icon24x24));
+
 		StyleSet->Set("Icon.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon24x24));
 		StyleSet->Set("Icon.TakeSnapshot", new IMAGE_BRUSH_SVG("Starship/Common/SaveThumbnail", Icon24x24));
 

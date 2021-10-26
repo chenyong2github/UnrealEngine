@@ -8,7 +8,7 @@
 
 
 /** Settings for the Data Registry subsystem, these settings are used to scan for registry assets and set runtime access rules */
-UCLASS(config = Game, defaultconfig, notplaceable, meta = (DisplayName = "Data Registry"))
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Data Registry"))
 class DATAREGISTRY_API UDataRegistrySettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

@@ -87,8 +87,7 @@ void SMetasoundGraphNode::ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral&
 
 	if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 	{
-		Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
-		PreviewComponent->SetTriggerParameter(NodeHandle->GetNodeName());
+		PreviewComponent->SetTriggerParameter(Input->GetMemberName());
 	}
 }
 
@@ -627,7 +626,6 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 
 					InputSlider->SetOutputRange(InputFloat->GetRange());
 					InputSlider->SetOrientation(InputFloat->InputWidgetOrientation);
-					InputSlider->SetAlwaysShowLabel(true);
 					InputSlider->SetUnitsTextReadOnly(true);
 					InputSlider->SetValue(InputSlider->GetLinValue(InputFloat->GetDefault()));
 				}

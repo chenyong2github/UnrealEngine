@@ -320,6 +320,7 @@
 			<!-- Publish (Staged) -->
 			<Node Name="$(PlatformPublishStagedNodeName)" Requires="$(PlatformHashNodeName)">
 				<Copy Files="..." From="$(ProjectOutputDirectory)/$(StagedPlatformFolder)" To="$(NetworkOutputDirectory)/$(StagedPlatformFolder)/Staged"/>
+				<Copy Files="..." From="$(ShaderSymbolsDirectory)/*$(TargetPlatform)*" To="$(NetworkOutputDirectory)/$(StagedPlatformFolder)/ShaderSymbols"/>
 			</Node>
 			
 			<!-- Package -->

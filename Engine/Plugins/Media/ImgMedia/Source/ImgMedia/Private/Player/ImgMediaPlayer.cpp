@@ -181,10 +181,13 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	// get frame rate override, if any
 	FFrameRate FrameRateOverride(0, 0);
 	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
+	bool bFillGapsInSequence = true;
 	if (Options != nullptr)
 	{
 		FrameRateOverride.Denominator = Options->GetMediaOption(ImgMedia::FrameRateOverrideDenonimatorOption, 0LL);
 		FrameRateOverride.Numerator = Options->GetMediaOption(ImgMedia::FrameRateOverrideNumeratorOption, 0LL);
+		bFillGapsInSequence = Options->GetMediaOption(ImgMedia::FillGapsInSequenceOption, true);
+
 		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DefaultValue;
 		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DataContainer = Options->GetMediaOption(ImgMedia::MipMapInfoOption, DefaultValue);
 		if (DataContainer.IsValid())
@@ -206,7 +209,7 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	}
 
 	// initialize image loader on a separate thread
-	Loader = MakeShared<FImgMediaLoader, ESPMode::ThreadSafe>(Scheduler.ToSharedRef(), GlobalCache.ToSharedRef(), MipMapInfo);
+	Loader = MakeShared<FImgMediaLoader, ESPMode::ThreadSafe>(Scheduler.ToSharedRef(), GlobalCache.ToSharedRef(), MipMapInfo, bFillGapsInSequence);
 	Scheduler->RegisterLoader(Loader.ToSharedRef());
 
 	const FString SequencePath = Url.RightChop(6);
@@ -701,13 +704,39 @@ IMediaSamples::EFetchBestSampleResult FImgMediaPlayer::FetchBestVideoSampleForTi
 {
 	IMediaSamples::EFetchBestSampleResult SampleResult = EFetchBestSampleResult::NoSample;
 
-	if (Loader.IsValid() && IsInitialized())
+	// The facade will keep on asking for frames, so don't do anything if we are stopped.
+	if (Loader.IsValid() && IsInitialized() && (CurrentState != EMediaState::Stopped))
 	{
 		// See if we have any samples in the specified time range.
 		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, CurrentRate, PlaybackIsBlocking);
 		if (SampleResult == IMediaSamples::EFetchBestSampleResult::Ok)
 		{
 			CurrentTime = OutSample->GetTime().Time;
+		}
+
+		// Are we not looping?
+		if (ShouldLoop == false)
+		{
+			// Are we at the end?
+			bool bIsAtEnd = false;
+			if (CurrentRate >= 0.0f)
+			{
+				bIsAtEnd = ((TimeRange.HasUpperBound()) &&
+					(TimeRange.GetUpperBoundValue().Time >= CurrentDuration));
+			}
+			else
+			{
+				bIsAtEnd = ((TimeRange.HasLowerBound()) &&
+					(TimeRange.GetLowerBoundValue().Time <= 0.0f));
+			}
+			if (bIsAtEnd)
+			{
+				// Stop the player.
+				EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackEndReached);
+				CurrentState = EMediaState::Stopped;
+				CurrentRate = 0.0f;
+				EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
+			}
 		}
 	}
 	return SampleResult;

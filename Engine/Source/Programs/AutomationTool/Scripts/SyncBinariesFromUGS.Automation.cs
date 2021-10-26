@@ -159,7 +159,7 @@ class SyncBinariesFromUGS : SyncProjectBase
 
 			// Update version files with our current and compatible CLs
 			LogInformation("Updating Version files to CL: {0} CompatibleCL: {1}", CurrentChangeList, CompatibleChangeList);
-			UE4Build Build = new UE4Build(this);
+			UnrealBuild Build = new UnrealBuild(this);
 			Build.UpdateVersionFiles(ActuallyUpdateVersionFiles: true, ChangelistNumberOverride: CurrentChangeList, CompatibleChangelistNumberOverride: CompatibleChangeList, IsPromotedOverride: false);
 		}
 

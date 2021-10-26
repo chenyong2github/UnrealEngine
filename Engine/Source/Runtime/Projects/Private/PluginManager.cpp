@@ -192,7 +192,7 @@ void FPluginManager::RefreshPluginsList()
 	ReadAllPlugins(NewPlugins, PluginDiscoveryPaths);
 
 	// Build a list of filenames for plugins which are enabled, and remove the rest
-	TArray<FString> EnabledPluginFileNames;
+	TSet<FString> EnabledPluginFileNames;
 	for(TMap<FString, TSharedRef<FPlugin>>::TIterator Iter(AllPlugins); Iter; ++Iter)
 	{
 		const TSharedRef<FPlugin>& Plugin = Iter.Value();
@@ -212,7 +212,7 @@ void FPluginManager::RefreshPluginsList()
 		const TSharedRef<FPlugin>& NewPlugin = NewPluginPair.Value;
 		if(!EnabledPluginFileNames.Contains(NewPlugin->FileName))
 		{
-			uint32 PluginNameHash = GetTypeHash(NewPlugin->GetName());
+			const uint32 PluginNameHash = GetTypeHash(NewPlugin->GetName());
 			AllPlugins.AddByHash(PluginNameHash, NewPlugin->GetName(), NewPlugin);
 			PluginsToConfigure.AddByHash(PluginNameHash, NewPlugin->GetName());
 		}

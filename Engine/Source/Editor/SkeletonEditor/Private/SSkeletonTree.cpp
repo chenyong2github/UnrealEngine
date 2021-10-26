@@ -66,7 +66,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "IPinnedCommandList.h"
 #include "PersonaModule.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SSkeletonTree"
 
@@ -243,7 +243,7 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 				.VAlign(VAlign_Center)
 				.Padding(FMargin(6.f, 0.0))
 				[
-					SNew(SEditorHeaderButton)
+					SNew(SPositiveActionButton)
 					.OnGetMenuContent( this, &SSkeletonTree::CreateNewMenu )
 					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				]

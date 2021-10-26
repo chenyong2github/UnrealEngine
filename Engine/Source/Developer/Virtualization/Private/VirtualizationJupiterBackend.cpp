@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Virtualization/IVirtualizationBackend.h"
+#include "IVirtualizationBackend.h"
 
 // TODO: Our libcurl implementation does not currently support MacOS
 // (not registering this will cause a fatal log error if the backend is actually used)
@@ -360,7 +360,6 @@ public:
 
 		if (V == Delete)
 		{
-			curl_easy_setopt(Curl, CURLOPT_POST, 1L);
 			curl_easy_setopt(Curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 		}
 		else if (V == Head)

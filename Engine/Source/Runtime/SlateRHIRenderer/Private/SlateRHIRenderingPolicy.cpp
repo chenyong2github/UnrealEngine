@@ -1150,7 +1150,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				SLATE_DRAW_EVENT(RHICmdList, PostProcess);
 				RHICmdList.EndRenderPass();
 
-				const FVector4 QuadPositionData = ShaderParams.PixelParams;
+				const FVector4f QuadPositionData = ShaderParams.PixelParams;
 
 				FPostProcessRectParams RectParams;
 				RectParams.SourceTexture = PostProcessTexture->GetTexture2D();

@@ -24,6 +24,7 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourStatus.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 
 struct dtTileCacheAlloc;
 struct dtTileCacheCompressor;
@@ -61,7 +62,8 @@ enum ObstacleState
 static const int DT_MAX_TOUCHED_TILES = 8;
 struct dtTileCacheObstacle
 {
-	float pos[3], radius, height;
+	dtReal pos[3];
+	dtReal radius, height;
 	dtCompressedTileRef touched[DT_MAX_TOUCHED_TILES];
 	dtCompressedTileRef pending[DT_MAX_TOUCHED_TILES];
 	unsigned short salt;
@@ -73,18 +75,18 @@ struct dtTileCacheObstacle
 
 struct dtTileCacheParams
 {
-	float orig[3];
-	float cs, ch;
+	dtReal orig[3];
+	dtReal cs, ch;
 	int width, height;
-	float walkableHeight;
-	float walkableRadius;
-	float walkableClimb;
-	float maxSimplificationError;
+	dtReal walkableHeight;
+	dtReal walkableRadius;
+	dtReal walkableClimb;
+	dtReal maxSimplificationError;
 	int maxTiles;
 	int maxObstacles;
 //@UE BEGIN
-	float detailSampleDist;
-	float detailSampleMaxError;
+	dtReal detailSampleDist;
+	dtReal detailSampleMaxError;
 	int minRegionArea;
 	int mergeRegionArea;
 	int regionChunkSize;
@@ -94,7 +96,15 @@ struct dtTileCacheParams
 
 struct NAVMESH_API dtTileCacheMeshProcess
 {
-	virtual void markAreas(struct dtTileCacheLayer* layer, const float* orig, const float cs, const float ch) = 0;
+	virtual void markAreas(struct dtTileCacheLayer* layer, const dtReal* orig, const dtReal cs, const dtReal ch) = 0;
+	
+//@UE BEGIN Adding support for LWCoords.
+#if !DT_LARGE_WORLD_COORDINATES_DISABLED
+	// This function is deprecated use the version that uses dtReal
+	virtual void markAreas(struct dtTileCacheLayer* layer, const float* orig, const float cs, const float ch) final {};
+#endif // DT_LARGE_WORLD_COORDINATES_DISABLED
+//@UE END Adding support for LWCoords.
+
 	virtual void process(struct dtNavMeshCreateParams* params,
 						 unsigned char* polyAreas, unsigned short* polyFlags) = 0;
 };
@@ -136,21 +146,21 @@ public:
 	
 	dtStatus removeTile(dtCompressedTileRef ref, unsigned char** data, int* dataSize);
 	
-	dtStatus addObstacle(const float* pos, const float radius, const float height, dtObstacleRef* result);
+	dtStatus addObstacle(const dtReal* pos, const dtReal radius, const dtReal height, dtObstacleRef* result);
 	dtStatus removeObstacle(const dtObstacleRef ref);
 	
-	dtStatus queryTiles(const float* bmin, const float* bmax,
+	dtStatus queryTiles(const dtReal* bmin, const dtReal* bmax,
 						dtCompressedTileRef* results, int* resultCount, const int maxResults) const;
 	
-	dtStatus update(const float /*dt*/, class dtNavMesh* navmesh);
+	dtStatus update(const dtReal /*dt*/, class dtNavMesh* navmesh);
 	
 	dtStatus buildNavMeshTilesAt(const int tx, const int ty, class dtNavMesh* navmesh);
 	
 	dtStatus buildNavMeshTile(const dtCompressedTileRef ref, class dtNavMesh* navmesh);
 	
-	void calcTightTileBounds(const struct dtTileCacheLayerHeader* header, float* bmin, float* bmax) const;
+	void calcTightTileBounds(const struct dtTileCacheLayerHeader* header, dtReal* bmin, dtReal* bmax) const;
 	
-	void getObstacleBounds(const struct dtTileCacheObstacle* ob, float* bmin, float* bmax) const;
+	void getObstacleBounds(const struct dtTileCacheObstacle* ob, dtReal* bmin, dtReal* bmax) const;
 	
 
 	/// Encodes a tile id.
