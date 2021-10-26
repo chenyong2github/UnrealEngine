@@ -564,7 +564,7 @@ static void AddCopyHairStrandsPositionPass(
 	FHairStrandsRestResource& RestResources,
 	FHairStrandsDeformedResource& DeformedResources)
 {
-	// Copy using an explicit copy, as AddCopyBufferPass is not implemented on PS5
+	// Copy using an explicit copy instead of AddCopyBufferPass as some RHI didn't support it. This is now fix & should be fixed (TODO)
 #if 0
 	FRDGBufferRef RestBuffer = Register(GraphBuilder, RestResources.PositionBuffer, ERDGImportedBufferFlags::None).Buffer;
 	FRDGBufferRef Deformed0Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[0], ERDGImportedBufferFlags::None).Buffer;

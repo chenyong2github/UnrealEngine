@@ -14,7 +14,6 @@
 #include "GroomInstance.h"
 #include "SystemTextures.h" 
 
-// Disabling GPU scene data for this vertex factory as there are some Primitive index issue on PS4 which needs to be investigated
 #define VF_CARDS_SUPPORT_GPU_SCENE 0
 
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value) { if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
