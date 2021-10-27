@@ -26,7 +26,6 @@
 #include "RayTracingInstanceBufferUtil.h"
 #include "ScreenPass.h"
 #include "RayTracingDynamicGeometryCollection.h"
-#include "Experimental/Containers/SherwoodHashTable.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -166,57 +165,6 @@ struct FGPUBatchedTileRequests
 	FShaderResourceViewRHIRef BatchedTilesSRV;
 	TResourceArray<FGPUTileDescription> BatchedTilesDesc;
 };
-
-static FRayTracingSceneRHIRef CreateRayTracingScene(TArrayView<FRayTracingGeometryInstance> Instances, TArray<uint32>& OutInstancesGeometryIndex)
-{
-	const uint32 NumSceneInstances = Instances.Num();
-
-	FRayTracingSceneInitializer2 Initializer;
-	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
-	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer.NumNativeInstances = 0;
-	Initializer.NumTotalSegments = 0;
-
-	Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
-	OutInstancesGeometryIndex.SetNumUninitialized(NumSceneInstances);
-
-	// Compute geometry segment and instance count prefix sums.
-	// These are later used by GetHitRecordBaseIndex() during resource binding
-	// and by GetBaseInstanceIndex() in shaders to emulate SV_InstanceIndex.
-
-	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
-	{
-		const FRayTracingGeometryInstance& InstanceDesc = Instances[InstanceIndex];
-
-		checkf(InstanceDesc.GPUTransformsSRV || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
-			TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
-			InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
-
-		checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-
-		ensure(InstanceDesc.NumTransforms == uint32(InstanceDesc.Transforms.Num()));
-
-		Initializer.PerInstanceGeometries[InstanceIndex] = InstanceDesc.GeometryRHI;
-
-		// Compute geometry segment count prefix sum to be later used in GetHitRecordBaseIndex()
-		Initializer.SegmentPrefixSum[InstanceIndex] = Initializer.NumTotalSegments;
-		Initializer.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
-
-		uint32 GeometryIndex = UniqueGeometries.FindOrAdd(InstanceDesc.GeometryRHI, Initializer.ReferencedGeometries.Num());
-		OutInstancesGeometryIndex[InstanceIndex] = GeometryIndex;
-		if (GeometryIndex == Initializer.ReferencedGeometries.Num())
-		{
-			Initializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
-		}
-
-		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstances;
-		Initializer.NumNativeInstances += InstanceDesc.NumTransforms;
-	}
-
-	return RHICreateRayTracingScene(MoveTemp(Initializer));
-}
 
 namespace GPULightmass
 {
@@ -1056,8 +1004,8 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		{
 			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-			TArray<uint32> InstancesGeometryIndex;
-			RayTracingScene = CreateRayTracingScene(RayTracingGeometryInstances, InstancesGeometryIndex);
+			TArray<uint32> GeometryIndices;
+			RayTracingScene = CreateRayTracingSceneWithGeometryInstances(RayTracingGeometryInstances, RAY_TRACING_NUM_SHADER_SLOTS, 1, GeometryIndices);
 
 			const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene->GetInitializer();
 
@@ -1078,19 +1026,18 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			FByteAddressBuffer AccelerationStructureAddressesBuffer;
 			AccelerationStructureAddressesBuffer.Initialize(TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"), sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
 
+			const uint32 InstanceUploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
 			FBufferRHIRef InstanceUploadBuffer;
 			FShaderResourceViewRHIRef InstanceUploadSRV;
 			{
-				const uint32 UploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
-
 				FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
-				InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+				InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 				InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
 			}
 
 			{
-				FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, sizeof(FRayTracingInstanceDescriptorInput), RLM_WriteOnly);
-				FillInstanceUploadBuffer(RayTracingGeometryInstances, InstancesGeometryIndex, RayTracingScene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
+				FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, InstanceUploadBufferSize, RLM_WriteOnly);
+				FillRayTracingInstanceUploadBuffer(RayTracingGeometryInstances, GeometryIndices, RayTracingScene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 			}
 

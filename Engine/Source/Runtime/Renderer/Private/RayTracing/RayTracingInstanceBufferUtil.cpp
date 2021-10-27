@@ -12,9 +12,70 @@
 
 #include "Async/ParallelFor.h"
 
+#include "Experimental/Containers/SherwoodHashTable.h"
+
 #if RHI_RAYTRACING
 
-void FillInstanceUploadBuffer(
+FRayTracingSceneRHIRef CreateRayTracingSceneWithGeometryInstances(
+	TArrayView<FRayTracingGeometryInstance> Instances,
+	uint32 NumShaderSlotsPerGeometrySegment,
+	uint32 NumMissShaderSlots,
+	TArray<uint32>& OutGeometryIndices)
+{
+	const uint32 NumSceneInstances = Instances.Num();
+
+	OutGeometryIndices.SetNumUninitialized(NumSceneInstances);
+
+	FRayTracingSceneInitializer2 Initializer;
+	Initializer.DebugName = FName(TEXT("FRayTracingScene"));
+	Initializer.ShaderSlotsPerGeometrySegment = NumShaderSlotsPerGeometrySegment;
+	Initializer.NumMissShaderSlots = NumMissShaderSlots;
+	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
+	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
+	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
+	Initializer.NumNativeInstances = 0;
+	Initializer.NumTotalSegments = 0;
+
+	Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
+
+	// Compute geometry segment and instance count prefix sums.
+	// These are later used by GetHitRecordBaseIndex() during resource binding
+	// and by GetBaseInstanceIndex() in shaders to emulate SV_InstanceIndex.
+
+	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
+	{
+		const FRayTracingGeometryInstance& InstanceDesc = Instances[InstanceIndex];
+
+		const bool bGpuInstance = InstanceDesc.GPUTransformsSRV != nullptr;
+		const bool bCpuInstance = !bGpuInstance;
+
+		checkf(bGpuInstance || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
+			TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
+			InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
+
+		checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
+
+		Initializer.PerInstanceGeometries[InstanceIndex] = InstanceDesc.GeometryRHI;
+
+		// Compute geometry segment count prefix sum to be later used in GetHitRecordBaseIndex()
+		Initializer.SegmentPrefixSum[InstanceIndex] = Initializer.NumTotalSegments;
+		Initializer.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
+
+		uint32 GeometryIndex = UniqueGeometries.FindOrAdd(InstanceDesc.GeometryRHI, Initializer.ReferencedGeometries.Num());
+		OutGeometryIndices[InstanceIndex] = GeometryIndex;
+		if (GeometryIndex == Initializer.ReferencedGeometries.Num())
+		{
+			Initializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
+		}
+
+		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstances;
+		Initializer.NumNativeInstances += InstanceDesc.NumTransforms;
+	}
+
+	return RHICreateRayTracingScene(MoveTemp(Initializer));
+}
+
+void FillRayTracingInstanceUploadBuffer(
 	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	TConstArrayView<uint32> InstancesGeometryIndex,
 	FRayTracingSceneRHIRef RayTracingSceneRHI,
