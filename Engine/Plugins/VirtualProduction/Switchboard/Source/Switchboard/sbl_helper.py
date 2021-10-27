@@ -737,7 +737,7 @@ class SbListenerHelper:
         buildver_info = self.get_buildver_info()
         if self.sync_engine_cl:
             # Remove Build.version if present, so we can write our own.
-            if buildver_info.have_rev:
+            if buildver_info.local_path and buildver_info.have_rev:
                 pathspecs.append(f"{buildver_info.local_path}#0")
 
         def sync_filter(workload: SyncWorkload):
@@ -785,11 +785,17 @@ class SbListenerHelper:
 
         # Write updated Build.version.
         if self.sync_engine_cl:
-            assert buildver_info is not None
-            if buildver_info.updated_text:
+            if buildver_info.local_path and buildver_info.updated_text:
                 logging.info('Updating Build.version')
-                with open(buildver_info.local_path, 'wt') as buildver_file:
-                    buildver_file.write(buildver_info.updated_text)
+                try:
+                    with open(buildver_info.local_path, 'wt') as buildver_file:
+                        buildver_file.write(buildver_info.updated_text)
+                except Exception as exc:
+                    logging.error('Exception writing to Build.version',
+                                  exc_info=exc)
+            else:
+                logging.warning('Unable to update Build.version at path '
+                                f'{buildver_info.local_path}')
 
         # Generate project files.
         if self.generate_after_sync:
@@ -806,7 +812,7 @@ class SbListenerHelper:
 
     @dataclass
     class BuildVerInfo:
-        local_path: str
+        local_path: Optional[str] = None
         have_rev: Optional[int] = None
         depot_path: Optional[str] = None
         depot_text: Optional[str] = None
@@ -819,7 +825,10 @@ class SbListenerHelper:
         '''
         logging.debug('get_buildver_info(): start')
 
-        assert self.engine_dir
+        ret_info = SbListenerHelper.BuildVerInfo()
+
+        if not self.engine_dir:
+            return ret_info
 
         epicint_local_path = os.path.join(
             self.engine_dir, 'Restricted', 'NotForLicensees', 'Build',
@@ -827,8 +836,7 @@ class SbListenerHelper:
         buildver_local_path = os.path.join(self.engine_dir, 'Build',
                                            'Build.version')
 
-        ret_info = SbListenerHelper.BuildVerInfo(
-            local_path=buildver_local_path)
+        ret_info.local_path = buildver_local_path
 
         ret_info.have_rev = p4_have([buildver_local_path],
                                     user=self.p4user, client=self.p4client)[0]
@@ -935,7 +943,7 @@ class SbListenerHelper:
         if options.project is None:
             if options.project_cl is not None:
                 self.parser.error('--project-cl requires --project')
-            elif options.generate is not None:
+            elif options.generate:
                 self.parser.error('--generate requires --project')
 
         if options.engine_cl is not None and options.engine_cl <= 0:
@@ -960,25 +968,39 @@ class SbListenerHelper:
                 self.parser.error('argument --project: unable to parse JSON'
                                   f'\n\n{traceback.format_exc()}')
 
+        engine_dir_required = ((self.sync_engine_cl is not None)
+                               or (self.generate_after_sync))
+
+        if engine_dir_required:
+            self.engine_dir = self.find_engine_dir(options)
+
+            if self.engine_dir is None:
+                if self.sync_engine_cl is not None:
+                    self.parser.error('--engine-cl was specified, but unable '
+                                      'to determine engine directory')
+                elif self.generate_after_sync:
+                    self.parser.error('--generate was specified, but unable '
+                                      'to determine engine directory')
+
+    def find_engine_dir(
+        self,
+        options: argparse.Namespace
+    ) -> Optional[pathlib.Path]:
         if options.engine_dir:
-            self.engine_dir = options.engine_dir
-        else:
-            # Find engine; look up the tree from the project for an Engine/ dir
+            return options.engine_dir
+
+        # Look up the tree from the project for an Engine/ dir
+        if self.uproj_path:
             iter_dir = self.uproj_path.parent.parent
             while not iter_dir.samefile(iter_dir.anchor):
                 candidate = iter_dir / 'Engine'
                 if candidate.is_dir():
-                    self.engine_dir = candidate
-                    break
+                    return candidate
                 iter_dir = iter_dir.parent
 
-        if self.engine_dir is None:
-            if self.sync_engine_cl is not None:
-                self.parser.error('--engine-cl was specified, but unable to '
-                                  'determine engine directory')
-            elif self.generate_after_sync:
-                self.parser.error('--generate was specified, but unable to '
-                                  'determine engine directory')
+        # TODO: Consider looking for Engine dir as ancestor of this script?
+
+        return None
 
     def generate_project_files(self) -> int:
         '''
@@ -999,16 +1021,21 @@ class SbListenerHelper:
         logging.debug('generate_project_files(): invoking subprocess: '
                       f'args={args}')
 
-        # stdin=subprocess.DEVNULL is required when launched via
-        # SwitchboardListener; otherwise this call tries to make the
-        # non-existent stdin inheritable, raising `OSError: [WinError 6] The
-        # handle is invalid`
-        with subprocess.Popen(args, stdin=subprocess.DEVNULL,
-                              stdout=subprocess.PIPE) as proc:
-            for line in proc.stdout:
-                logging.info(f'gpf> {line.decode().rstrip()}')
+        try:
+            # stdin=subprocess.DEVNULL is required when launched via
+            # SwitchboardListener; otherwise this call tries to make the
+            # non-existent stdin inheritable, raising `OSError: [WinError 6]
+            # The handle is invalid`
+            with subprocess.Popen(args, stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE) as proc:
+                for line in proc.stdout:
+                    logging.info(f'gpf> {line.decode().rstrip()}')
 
-            return proc.wait()
+                return proc.wait()
+        except Exception as exc:
+            logging.error('generate_project_files(): exception during Popen',
+                          exc_info=exc)
+            return -1
 
 
 def main() -> int:
