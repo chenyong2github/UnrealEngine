@@ -8,6 +8,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
+#include "SPrimaryButton.h"
 #include "Tools/UEdMode.h"
 #include "UVEditorBackgroundPreview.h"
 #include "UVEditorCommands.h"
@@ -16,7 +17,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "EdModeInteractiveToolsContext.h"
-#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 
@@ -75,16 +75,6 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 		.Padding(4)
 		[
 			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew(ToolMessageArea, STextBlock)
-				.AutoWrapText(true)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
-			.Text(LOCTEXT("UVEditorToolsLabel", "UV Editor Tools"))
-			]
-
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Left)
@@ -116,47 +106,6 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 					SAssignNew(ToolDetailsContainer, SBorder)
 					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(ToolMessageArea, STextBlock)
-					.AutoWrapText(true)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
-					.Text(FText::GetEmpty())
-				]
-			]
-
-            // Todo: Move this out of here once we figure out how to add menus/UI to the viewport
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(2, 0, 0, 0)
-			[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(ToolMessageArea, STextBlock)
-						.AutoWrapText(true)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
-						.Text(LOCTEXT("UVEditorSettingsLabel", "UV Editor Settings"))
-					]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(EditorDetailsContainer, SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-					]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(BackgroundDetailsContainer, SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-					]
-
 			]
 
 		];
@@ -172,11 +121,13 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 
 	UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(GetScriptableEditorMode());
 	check(UVEditorMode);
+	UEditorInteractiveToolsContext* InteractiveToolsContext = UVEditorMode->GetInteractiveToolsContext();
+	check(InteractiveToolsContext);
 
 	// Currently, there's no EToolChangeTrackingMode that reverts back to a default tool on undo (if we add that
 	// support, the tool manager will need to be aware of the default tool). So, we instead opt to do our own management
 	// of tool start transactions. See FUVEditorModeToolkit::OnToolStarted for how we issue the transactions.
-	UVEditorMode->GetInteractiveToolsContext()->ToolManager->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
+	InteractiveToolsContext->ToolManager->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 
 	// Build the tool palette
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
@@ -196,27 +147,6 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 
 	// Hook up the tool detail panel
 	ToolDetailsContainer->SetContent(DetailsView.ToSharedRef());
-
-	// Hook up the editor detail panel
-	EditorDetailsContainer->SetContent(ModeDetailsView.ToSharedRef());
-
-	// Hook up the background detail panel
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		FDetailsViewArgs BackgroundDetailsViewArgs;
-		BackgroundDetailsViewArgs.bAllowSearch = false;
-		BackgroundDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		BackgroundDetailsViewArgs.bHideSelectionTip = true;
-		BackgroundDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-		BackgroundDetailsViewArgs.bShowOptions = false;
-		BackgroundDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
-
-		CustomizeDetailsViewArgs(BackgroundDetailsViewArgs);		// allow subclass to customize arguments
-
-		BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
-		BackgroundDetailsContainer->SetContent(BackgroundDetailsView.ToSharedRef());
-	}
 	
 	// Set up the overlay. Largely copied from ModelingToolsEditorModeToolkit.
 	// TODO: We could put some of the shared code in some common place.
@@ -323,10 +253,96 @@ FText FUVEditorModeToolkit::GetBaseToolkitName() const
 	return NSLOCTEXT("UVEditorModeToolkit", "DisplayName", "UVEditorMode");
 }
 
-void FUVEditorModeToolkit::SetModeDetailsViewObjects(const TArray<TObjectPtr<UInteractiveToolPropertySet>>& InObjects)
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateChannelMenu()
 {
-	TArray<TObjectPtr<UObject>> Objects(InObjects);
-	ModeDetailsView->SetObjects(Objects);
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	// For each asset, create a submenu labeled with its name
+	const TArray<FString>& AssetNames = Mode->GetAssetNames();
+	for (int32 AssetID = 0; AssetID < AssetNames.Num(); ++AssetID)
+	{
+		MenuBuilder.AddSubMenu(
+			FText::AsCultureInvariant(AssetNames[AssetID]), // label
+			FText(), // tooltip
+			FNewMenuDelegate::CreateWeakLambda(Mode, [this, Mode, AssetID](FMenuBuilder& SubMenuBuilder)
+		{
+
+			// Inside each submenu, create a button for each channel
+			int32 NumChannels = Mode->GetNumUVChannels(AssetID);
+			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+			{
+				SubMenuBuilder.AddMenuEntry(
+					FText::Format(LOCTEXT("ChannelLabel", "UV Channel {0}"), Channel), // label
+					FText(), // tooltip
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateWeakLambda(Mode, [Mode, AssetID, Channel]()
+						{
+							Mode->RequestUVChannelChange(AssetID, Channel);
+
+							// A bit of a hack to force the menu to close if the checkbox is clicked (which usually doesn't
+							// close the menu)
+							FSlateApplication::Get().DismissAllMenus();
+						}), 
+						FCanExecuteAction::CreateWeakLambda(Mode, []() { return true; }),
+						FIsActionChecked::CreateWeakLambda(Mode, [Mode, AssetID, Channel]()
+						{
+							return Mode->GetDisplayedChannel(AssetID) == Channel;
+						})),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton);
+			}
+		}));
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
+{
+	TSharedRef<SBorder> BackgroundDetailsContainer =
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("NoBorder"));
+
+	TSharedRef<SWidget> Widget = SNew(SBorder)
+		.HAlign(HAlign_Fill)
+		.Padding(4)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2, 0, 0, 0)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					BackgroundDetailsContainer
+				]
+			]
+		];
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs BackgroundDetailsViewArgs;
+	BackgroundDetailsViewArgs.bAllowSearch = false;
+	BackgroundDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	BackgroundDetailsViewArgs.bHideSelectionTip = true;
+	BackgroundDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+	BackgroundDetailsViewArgs.bShowOptions = false;
+	BackgroundDetailsViewArgs.bAllowMultipleTopLevelObjects = false;
+
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	TSharedRef<IDetailsView> BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
+	BackgroundDetailsView->SetObject(Mode->GetBackgroundSettingsObject());
+	BackgroundDetailsContainer->SetContent(BackgroundDetailsView);
+
+	return Widget;
 }
 
 void FUVEditorModeToolkit::UpdateActiveToolProperties()

@@ -180,11 +180,11 @@ public:
 		return TArray<int32>();
 	}
 
-	void RequestChannelVisibilityChange(const TArray<int32>& ChannelPerAsset, bool bForceRebuildUnwrap=false, bool bEmitUndoTransaction=true)
+	void RequestChannelVisibilityChange(const TArray<int32>& ChannelPerAsset, bool bEmitUndoTransaction=true)
 	{
 		if (RequestChannelVisibilityChangeFunc)
 		{
-			RequestChannelVisibilityChangeFunc(ChannelPerAsset, bForceRebuildUnwrap, bEmitUndoTransaction);
+			RequestChannelVisibilityChangeFunc(ChannelPerAsset, bEmitUndoTransaction);
 		}
 	}
 
@@ -198,7 +198,7 @@ public:
 
 
 	TUniqueFunction<TArray<int32>()> GetCurrentChannelVisibilityFunc;
-	TUniqueFunction<void(const TArray<int32>&, bool, bool)> RequestChannelVisibilityChangeFunc;
+	TUniqueFunction<void(const TArray<int32>&, bool)> RequestChannelVisibilityChangeFunc;
 	TUniqueFunction<void(int32 AssetID)> NotifyOfAssetChannelCountChangeFunc;
 
 };
