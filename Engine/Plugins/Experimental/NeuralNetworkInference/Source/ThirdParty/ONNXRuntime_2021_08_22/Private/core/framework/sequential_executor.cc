@@ -38,7 +38,12 @@ using namespace Concurrency;
 #endif
 
 #ifdef ONNXRUNTIME_ENABLE_INSTRUMENT
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
 #include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include "core/platform/tracing.h"
 namespace {
 LARGE_INTEGER OrtGetPerformanceFrequency() {

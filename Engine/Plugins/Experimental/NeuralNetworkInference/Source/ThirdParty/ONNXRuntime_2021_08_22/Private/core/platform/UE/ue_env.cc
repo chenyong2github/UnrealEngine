@@ -20,8 +20,12 @@ limitations under the License.
 
 #ifdef PLATFORM_NNI_MICROSOFT
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
 #undef TEXT
 #include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #undef CreateDirectory
 #undef GetEnvironmentVariable
 #include <string>
