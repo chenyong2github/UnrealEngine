@@ -17,6 +17,15 @@ FMassStateTreeTestTask::~FMassStateTreeTestTask()
 {
 }
 
+bool FMassStateTreeTestTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(MassStateTreeSubSystemHandle);
+	Linker.LinkExternalItem(SmartObjectUserHandle);
+	Linker.LinkExternalItem(TransformHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassStateTreeTestTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	Time = 0.0f;
@@ -25,9 +34,9 @@ EStateTreeRunStatus FMassStateTreeTestTask::EnterState(FStateTreeExecutionContex
 
 EStateTreeRunStatus FMassStateTreeTestTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
 {
-	UMassStateTreeSubsystem& MassStateTreeSubSystem = Context.GetExternalItem(MassStateTreeSubSystemHandle).GetMutable<UMassStateTreeSubsystem>();
-	const FDataFragment_SmartObjectUser* SmartObjectUser = Context.GetExternalItem(SmartObjectUserHandle).GetPtr<FDataFragment_SmartObjectUser>();
-	FDataFragment_Transform& Transform = Context.GetExternalItem(TransformHandle).GetMutable<FDataFragment_Transform>();
+	UMassStateTreeSubsystem& MassStateTreeSubSystem = Context.GetExternalItem(MassStateTreeSubSystemHandle);
+	const FDataFragment_SmartObjectUser* SmartObjectUser = Context.GetExternalItemPtr(SmartObjectUserHandle);
+	FDataFragment_Transform& Transform = Context.GetExternalItem(TransformHandle);
 
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 1.0f, FColor::Orange, *FString::Printf(TEXT("[%s] Time=%f X=%f\n"), *Name.ToString(), Time, Transform.GetTransform().GetLocation().X));
 

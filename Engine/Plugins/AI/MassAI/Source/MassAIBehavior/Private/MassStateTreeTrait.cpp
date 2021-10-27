@@ -57,7 +57,7 @@ void UMassStateTreeTrait::ValidateTemplate(FMassEntityTemplateBuildContext& Buil
 	// Make sure all the required subsystems can be found.
 	for (const FStateTreeExternalItemDesc& ItemDesc : StateTree->GetExternalItems())
 	{
-		if (ensure(ItemDesc.Struct) && !ItemDesc.bOptional)
+		if (ensure(ItemDesc.Struct) && ItemDesc.Requirement == EStateTreeItemRequirement::Required)
 		{
 			if (ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 			{

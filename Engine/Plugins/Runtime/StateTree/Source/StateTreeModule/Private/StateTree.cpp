@@ -2,6 +2,7 @@
 
 #include "StateTree.h"
 #include "StateTreeEvaluatorBase.h"
+#include "StateTreeTaskBase.h"
 #include "CoreMinimal.h"
 #include "StateTreeDelegates.h"
 
@@ -57,8 +58,11 @@ void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void UStateTree::PostLoad()
 {
 	Super::PostLoad();
+	
 	PropertyBindings.ResolvePaths();
 
+	Link();
+	
 #if WITH_EDITOR
 	InitRuntimeStorage();
 #else
@@ -86,6 +90,25 @@ void UStateTree::ResolvePropertyPaths()
 {
 	// TODO: find better hook when to call this. Currently this gets called from StateTreeComponent, it should be called once PostLoad() or when entering SIE/PIE in editor.
 	PropertyBindings.ResolvePaths();
+}
+
+void UStateTree::Link()
+{
+	FStateTreeLinker Linker;
+
+	for (FInstancedStruct& RuntimeItem : RuntimeStorageItems)
+	{
+		if (FStateTreeEvaluatorBase* Eval = RuntimeItem.GetMutablePtr<FStateTreeEvaluatorBase>())
+		{
+			Eval->Link(Linker);
+		}
+		else if (FStateTreeTaskBase* Task = RuntimeItem.GetMutablePtr<FStateTreeTaskBase>())
+		{
+			Task->Link(Linker);
+		}
+	}
+
+	ExternalItems = Linker.GetItemDescs();
 }
 
 void UStateTree::InitRuntimeStorage()

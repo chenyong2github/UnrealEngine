@@ -7,7 +7,7 @@
 #include "MassZoneGraphAnnotationEvaluator.generated.h"
 
 struct FStateTreeExecutionContext;
-
+struct FMassZoneGraphAnnotationTagsFragment;
 /**
  * Evaluator to expose ZoneGraph Annotation Tags for decision making.
  */
@@ -19,10 +19,10 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationEvaluator : public FMassStateT
 	FMassZoneGraphAnnotationEvaluator();
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphAnnotationTagsFragment"))
-	FStateTreeExternalItemHandle BehaviorTagsHandle;
+	TStateTreeItemHandle<FMassZoneGraphAnnotationTagsFragment> BehaviorTagsHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FZoneGraphTagMask BehaviorTags = FZoneGraphTagMask::None;

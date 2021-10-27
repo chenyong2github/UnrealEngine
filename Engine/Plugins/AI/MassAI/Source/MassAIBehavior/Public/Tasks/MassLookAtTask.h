@@ -7,6 +7,8 @@
 #include "MassLookAtFragments.h"
 #include "MassLookAtTask.generated.h"
 
+class UMassSignalSubsystem;
+
 /**
  * Task to assign a LookAt target for mass processing
  */
@@ -16,15 +18,13 @@ struct MASSAIBEHAVIOR_API FMassLookAtTask : public FMassStateTreeTaskBase
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta = (BaseClass="MassSignalSubsystem"))
-	FStateTreeExternalItemHandle MassSignalSubsystemHandle;
-
-	UPROPERTY(meta = (BaseStruct="MassLookAtFragment"))
-	FStateTreeExternalItemHandle LookAtHandle;
+	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
+	TStateTreeItemHandle<FMassLookAtFragment> LookAtHandle;
 
 	/** Delay before the task ends. Default (0 or any negative) will run indefinitely so it requires a transition in the state tree to stop it. */
 	UPROPERTY(EditAnywhere, Category = Parameters, meta = (Bindable))

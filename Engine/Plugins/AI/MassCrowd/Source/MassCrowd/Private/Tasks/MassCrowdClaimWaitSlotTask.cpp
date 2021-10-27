@@ -7,6 +7,15 @@
 #include "MassAIMovementFragments.h"
 #include "MassStateTreeExecutionContext.h"
 
+bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalItem(MoveTargetHandle);
+	Linker.LinkExternalItem(CrowdSubsystemHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
@@ -19,9 +28,9 @@ EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionC
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassEntityHandle Entity = MassContext.GetEntity();
 	
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
-	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle).Get<FMassMoveTargetFragment>();
-	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle).GetMutable<UMassCrowdSubsystem>();
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
+	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle);
 
 	FVector SlotPosition = FVector::ZeroVector;
 	FVector SlotDirection = FVector::ForwardVector;
@@ -63,7 +72,7 @@ void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context,
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassEntityHandle Entity = MassContext.GetEntity();
 	
-	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle).GetMutable<UMassCrowdSubsystem>();
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle);
 
 	if (WaitingSlotIndex != INDEX_NONE)
 	{

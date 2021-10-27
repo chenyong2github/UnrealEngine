@@ -6,12 +6,20 @@
 #include "MassSignalSubsystem.h"
 #include "MassStateTreeExecutionContext.h"
 
+bool FMassLookAtTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(MassSignalSubsystemHandle);
+	Linker.LinkExternalItem(LookAtHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassLookAtTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	Time = 0.f;
 	
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	FMassLookAtFragment& LookAtFragment = MassContext.GetExternalItem(LookAtHandle).GetMutable<FMassLookAtFragment>();
+	FMassLookAtFragment& LookAtFragment = MassContext.GetExternalItem(LookAtHandle);
 
 	LookAtFragment.Reset();
 	LookAtFragment.LookAtMode = LookAtMode;
@@ -39,7 +47,7 @@ EStateTreeRunStatus FMassLookAtTask::EnterState(FStateTreeExecutionContext& Cont
 	// Otherwise we schedule a signal to end the task.
 	if (Duration > 0.0f)
 	{
-		UMassSignalSubsystem& MassSignalSubsystem = MassContext.GetExternalItem(MassSignalSubsystemHandle).GetMutable<UMassSignalSubsystem>();
+		UMassSignalSubsystem& MassSignalSubsystem = MassContext.GetExternalItem(MassSignalSubsystemHandle);
 		MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::LookAtFinished, MassContext.GetEntity(), Duration);
 	}
 
@@ -49,7 +57,7 @@ EStateTreeRunStatus FMassLookAtTask::EnterState(FStateTreeExecutionContext& Cont
 void FMassLookAtTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	FMassLookAtFragment& LookAtFragment = MassContext.GetExternalItem(LookAtHandle).GetMutable<FMassLookAtFragment>();
+	FMassLookAtFragment& LookAtFragment = MassContext.GetExternalItem(LookAtHandle);
 	
 	LookAtFragment.Reset();
 }

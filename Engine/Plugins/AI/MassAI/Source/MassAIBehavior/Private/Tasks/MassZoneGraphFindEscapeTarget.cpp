@@ -15,6 +15,15 @@ FMassZoneGraphFindEscapeTarget::FMassZoneGraphFindEscapeTarget()
 {
 }
 
+bool FMassZoneGraphFindEscapeTarget::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalItem(ZoneGraphSubsystemHandle);
+	Linker.LinkExternalItem(ZoneGraphAnnotationSubsystemHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
@@ -26,9 +35,9 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
-	UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle).GetMutable<UZoneGraphSubsystem>();
-	UZoneGraphAnnotationSubsystem& ZoneGraphAnnotationSubsystem = Context.GetExternalItem(ZoneGraphAnnotationSubsystemHandle).GetMutable<UZoneGraphAnnotationSubsystem>();
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
+	UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle);
+	UZoneGraphAnnotationSubsystem& ZoneGraphAnnotationSubsystem = Context.GetExternalItem(ZoneGraphAnnotationSubsystemHandle);
 
 	if (!LaneLocation.LaneHandle.IsValid())
 	{

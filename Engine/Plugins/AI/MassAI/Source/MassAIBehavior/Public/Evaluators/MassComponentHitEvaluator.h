@@ -6,6 +6,8 @@
 #include "MassStateTreeTypes.h"
 #include "MassComponentHitEvaluator.generated.h"
 
+class UMassComponentHitSubsystem;
+
 /**
  * Evaluator to extract last hit from the MassComponentHitSubsystem and expose it for tasks and transitions
  */
@@ -15,10 +17,10 @@ struct MASSAIBEHAVIOR_API FMassComponentHitEvaluator : public FMassStateTreeEval
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseClass="MassComponentHitSubsystem"))
-	FStateTreeExternalItemHandle ComponentHitSubsystemHandle;
+	TStateTreeItemHandle<UMassComponentHitSubsystem> ComponentHitSubsystemHandle;
 
 	UPROPERTY(VisibleAnywhere, Category = Output)
 	bool bGotHit = false;

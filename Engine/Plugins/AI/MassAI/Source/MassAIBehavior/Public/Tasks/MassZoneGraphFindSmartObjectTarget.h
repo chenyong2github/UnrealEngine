@@ -3,8 +3,11 @@
 #pragma once
 #include "MassStateTreeTypes.h"
 #include "MassZoneGraphPathFollowTask.h"
-
 #include "MassZoneGraphFindSmartObjectTarget.generated.h"
+
+struct FDataFragment_SmartObjectUser;
+struct FMassZoneGraphLaneLocationFragment;
+class UZoneGraphAnnotationSubsystem;
 
 /**
 * Computes move target to a smart object based on current location on ZoneGraph.
@@ -15,18 +18,14 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTarget : public FMassStat
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser"))
-	FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment"))
-	FStateTreeExternalItemHandle LocationHandle;
-
-	UPROPERTY(meta=(BaseClass="ZoneGraphAnnotationSubsystem"))
-	FStateTreeExternalItemHandle AnnotationSubsystemHandle;
+	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
 
 	FMassZoneGraphTargetLocation TargetLocation;
 

@@ -8,6 +8,8 @@
 #include "MassStateTreeSmartObjectEvaluator.generated.h"
 
 struct FStateTreeExecutionContext;
+struct FDataFragment_Transform;
+struct FMassZoneGraphLaneLocationFragment;
 
 /**
  * Evaluator that will keep track if there is one or more smart object(s) that can be used.
@@ -18,25 +20,17 @@ struct MASSAIBEHAVIOR_API FMassStateTreeSmartObjectEvaluator : public FMassState
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;
 	void Reset();
 
-	UPROPERTY(meta=(BaseClass="SmartObjectSubsystem"))
-	FStateTreeExternalItemHandle SmartObjectSubsystemHandle;
-
-	UPROPERTY(meta=(BaseClass="MassSignalSubsystem"))
-	FStateTreeExternalItemHandle MassSignalSubsystemHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_Transform"))
-	FStateTreeExternalItemHandle EntityTransformHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser"))
-	FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment", Optional))
-	FStateTreeExternalItemHandle LocationHandle;
+	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
+	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
+	TStateTreeItemHandle<FDataFragment_Transform> EntityTransformHandle;
+	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment, EStateTreeItemRequirement::Optional> LocationHandle;
 
 	/** The identifier of the search request send by the evaluator to find candidates */
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)

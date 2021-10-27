@@ -6,10 +6,18 @@
 #include "MassStateTreeExecutionContext.h"
 #include "Engine/World.h"
 
+
+bool FMassComponentHitEvaluator::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(ComponentHitSubsystemHandle);
+
+	return true;
+}
+
 void FMassComponentHitEvaluator::Evaluate(FStateTreeExecutionContext &Context, const EStateTreeEvaluationType EvalType, const float DeltaTime)
 {
 	// Look for recent hits
-	UMassComponentHitSubsystem& HitSubsystem = Context.GetExternalItem(ComponentHitSubsystemHandle).GetMutable<UMassComponentHitSubsystem>();
+	UMassComponentHitSubsystem& HitSubsystem = Context.GetExternalItem(ComponentHitSubsystemHandle);
 	const FMassHitResult* HitResult = HitSubsystem.GetLastHit(static_cast<FMassStateTreeExecutionContext&>(Context).GetEntity());
 
 	// LastHitEntity is not reset intentionally, so that it's available the duration of the behavior reacting to it.

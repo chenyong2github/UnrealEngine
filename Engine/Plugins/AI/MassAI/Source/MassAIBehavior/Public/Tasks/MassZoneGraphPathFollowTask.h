@@ -8,6 +8,14 @@
 #include "MassZoneGraphPathFollowTask.generated.h"
 
 struct FMassStateTreeExecutionContext;
+struct FMassZoneGraphLaneLocationFragment;
+struct FMassMoveTargetFragment;
+struct FMassMovementConfigFragment;
+struct FMassZoneGraphPathRequestFragment;
+struct FMassZoneGraphShortPathFragment;
+struct FMassZoneGraphCachedLaneFragment;
+struct FDataFragment_AgentRadius;
+class UZoneGraphSubsystem;
 
 USTRUCT()
 struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation : public FStateTreeResult
@@ -65,34 +73,20 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTask : public FMassStateTreeTa
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
 	bool RequestPath(FMassStateTreeExecutionContext& Context, const FMassZoneGraphTargetLocation& TargetLocation) const;
 
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment"))
-	FStateTreeExternalItemHandle LocationHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMoveTargetFragment"))
-	FStateTreeExternalItemHandle MoveTargetHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMovementConfigFragment"))
-	FStateTreeExternalItemHandle MovementConfigHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphPathRequestFragment"))
-	FStateTreeExternalItemHandle PathRequestHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphShortPathFragment"))
-	FStateTreeExternalItemHandle ShortPathHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphCachedLaneFragment"))
-	FStateTreeExternalItemHandle CachedLaneHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_AgentRadius"))
-	FStateTreeExternalItemHandle AgentRadiusHandle;
-	
-	UPROPERTY(meta=(BaseClass="ZoneGraphSubsystem"))
-	FStateTreeExternalItemHandle ZoneGraphSubsystemHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeItemHandle<FMassMovementConfigFragment> MovementConfigHandle;
+	TStateTreeItemHandle<FMassZoneGraphPathRequestFragment> PathRequestHandle;
+	TStateTreeItemHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
+	TStateTreeItemHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
+	TStateTreeItemHandle<FDataFragment_AgentRadius> AgentRadiusHandle;
+	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation", Bindable))
 	FStateTreeResultRef TargetLocation;

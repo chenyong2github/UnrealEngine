@@ -34,7 +34,7 @@ bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEn
 			}
 			else
 			{
-				if (!ItemDesc.bOptional)
+				if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
 				{
 					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalItemsValid().
 					bFoundAllFragments = false;
@@ -66,7 +66,7 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 			}
 			else
 			{
-				if (!ItemDesc.bOptional)
+				if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
 				{
 					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalItemsValid().
 					bFoundAllSubsystems = false;
