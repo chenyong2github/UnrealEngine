@@ -323,7 +323,7 @@ struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBas
 	UPROPERTY(meta = (Output))
 	float OutputParam;
 	
-	// Rotate the entire falloff region to align with the desired area of effect.
+	// The bone that will drive the output parameter when rotated into the active regions of this pose reader.
 	UPROPERTY(meta = (Input, ExpandByDefault))
     FRigElementKey DriverItem;
 
@@ -356,6 +356,10 @@ struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBas
 	// Flip the positive / negative directions of the height scale factors.
 	UPROPERTY(meta = (Input))
 	bool FlipHeightScaling = false;
+
+	// An optional parent to use as a stable frame of reference for the active regions (defaults to DriverItem's parent if unset).
+	UPROPERTY(meta = (Input))
+	FRigElementKey OptionalParentItem;
 
 	UPROPERTY(meta = (Input))
 	FSphericalPoseReaderDebugSettings Debug;
