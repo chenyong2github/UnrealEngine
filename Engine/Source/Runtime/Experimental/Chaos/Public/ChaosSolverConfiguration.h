@@ -30,6 +30,7 @@ struct FChaosSolverConfiguration
 		, CollisionMarginFraction(FEvolution::DefaultCollisionMarginFraction)
 		, CollisionMarginMax(FEvolution::DefaultCollisionMarginMax)
 		, CollisionCullDistance(FEvolution::DefaultCollisionCullDistance)
+		, CollisionMaxPushOutVelocity(FEvolution::DefaultCollisionMaxPushOutVelocity)
 		, JointPairIterations(FEvolution::DefaultNumJointPairIterations)
 		, JointPushOutPairIterations(FEvolution::DefaultNumJointPushOutPairIterations)
 		, ClusterConnectionFactor(1.0f)
@@ -74,6 +75,14 @@ struct FChaosSolverConfiguration
 	// during the collision detection step.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
 	float CollisionCullDistance;
+
+	// The maximum speed at which two bodies can be extracted from each other when they start a frame inter-penetrating. This can
+	// happen because they spawned on top of each other, or the solver failed to fully reolve collisions last frame. A value of
+	// zero means "no limit". A non-zero value can be used to prevent explosive behaviour when bodies start deeply penetrating. 
+	// An alternative to using this approach is to increase the number of Velocity Iterations, which is more expensive but will 
+	// ensure the bdoies are depenetrated in a single frame without explosive behaviour.
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
+	float CollisionMaxPushOutVelocity;
 
 	// The number of iterations to run on each constraint during the constraint solver step
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")

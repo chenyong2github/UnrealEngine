@@ -182,6 +182,7 @@ namespace Chaos
 
 	FPBDCollisionSolverContainer::FPBDCollisionSolverContainer()
 		: FConstraintSolverContainer()
+		, MaxPushOutVelocity(0)
 	{
 	}
 
@@ -299,6 +300,7 @@ namespace Chaos
 
 		const int32 NumZeroFrictionIterations = Chaos_PBDCollisionSolver_Position_ZeroFrictionIterations;
 		const bool bApplyStaticFriction = (It >= NumZeroFrictionIterations);
+		const FReal MaxPushOut = (MaxPushOutVelocity > 0) ? (MaxPushOutVelocity * Dt) / FReal(NumIts) : 0;
 
 		// Apply the position correction
 		// @todo(chaos): parallel version of SolvePosition
@@ -314,7 +316,7 @@ namespace Chaos
 				CollisionSolver.GatherManifoldPoints(Dt);
 			}
 
-			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePosition(Dt, bApplyStaticFriction);
+			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePosition(Dt, MaxPushOut, bApplyStaticFriction);
 		}
 
 		return bNeedsAnotherIteration;

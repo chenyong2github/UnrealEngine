@@ -412,10 +412,19 @@ namespace Chaos
 		return ContactVelocity0 - ContactVelocity1;
 	}
 
-	inline void FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const
+	inline void FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal MaxPushOut, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const
 	{
 		OutContactDelta = (Body0.P() + Body0.Q() * LocalRelativeAnchorPoint0) - (Body1.P() + Body1.Q() * LocalRelativeAnchorPoint1);
 		OutContactDeltaNormal = FVec3::DotProduct(OutContactDelta, WorldContactNormal);
+
+		// NOTE: OutContactDeltaNormal is negative for penetration
+		// NOTE: MaxPushOut == 0 disables the pushout limits
+		if ((MaxPushOut > 0) && (OutContactDeltaNormal < -MaxPushOut))
+		{
+			const FReal ClampedContactDeltaNormal = -MaxPushOut;
+			OutContactDelta += (ClampedContactDeltaNormal - OutContactDeltaNormal) * WorldContactNormal;
+			OutContactDeltaNormal = ClampedContactDeltaNormal;
+		}
 	}
 
 	inline void FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal DynamicFriction, const FReal Dt, FVec3& OutContactVelocityDelta, FReal& OutContactVelocityDeltaNormal) const
@@ -534,7 +543,7 @@ namespace Chaos
 		State.ManifoldPoints[ManifoldPoiontIndex].UpdateContact(State.SolverBodies[0], State.SolverBodies[1], InCoMAnchorPoint0, InCoMAnchorPoint1, InWorldContactNormal);
 	}
 
-	bool FPBDCollisionSolver::SolvePosition(const FReal Dt, const bool bApplyStaticFriction)
+	bool FPBDCollisionSolver::SolvePosition(const FReal Dt, const FReal MaxPushOut, const bool bApplyStaticFriction)
 	{
 		if (!bChaos_PBDCollisionSolver_Position_SolveEnabled)
 		{
@@ -572,7 +581,7 @@ namespace Chaos
 
 			FVec3 ContactDelta;
 			FReal ContactDeltaNormal;
-			SolverManifoldPoint.CalculateContactPositionError(Body0.SolverBody(), Body1.SolverBody(), ContactDelta, ContactDeltaNormal);
+			SolverManifoldPoint.CalculateContactPositionError(Body0.SolverBody(), Body1.SolverBody(), MaxPushOut, ContactDelta, ContactDeltaNormal);
 
 			const bool bProcessManifoldPoint = (ContactDeltaNormal < Chaos_PBDCollisionSolver_Position_NormalTolerance) || !SolverManifoldPoint.NetPushOut.IsNearlyZero();
 			if (bProcessManifoldPoint)

@@ -30,6 +30,8 @@ namespace Chaos
 
 		int32 NumSolvers() const { return CollisionSolvers.Num(); }
 
+		void SetMaxPushOutVelocity(const FReal InMaxPushOutVelocity) { MaxPushOutVelocity = InMaxPushOutVelocity; }
+
 		virtual void Reset(const int32 InMaxCollisions) override;
 
 		// Add a solver constraint for the specified constraint and gather the required solver data
@@ -55,5 +57,6 @@ namespace Chaos
 
 		TArray<FPBDCollisionSolverAdapter> CollisionSolvers;
 		TArray<int32> SweptCollisionSolvers;
+		FReal MaxPushOutVelocity;
 	};
 }

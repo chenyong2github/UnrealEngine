@@ -76,8 +76,9 @@ namespace Chaos
 
 			/**
 			 * @brief Calculate the position error at the current transforms
+			 * @param MaxPushOut a limit on the position error for this iteration to prevent initial-penetration explosion (a common PBD problem)
 			*/
-			void CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const;
+			void CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal MaxPushOut, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const;
 
 			/**
 			 * @brief Calculate the velocity error at the current transforms
@@ -212,7 +213,7 @@ namespace Chaos
 		 * @brief Calculate and apply the position correction for this iteration
 		 * @return true if we need to run more iterations, false if we did not apply any correction
 		*/
-		bool SolvePosition(const FReal Dt, const bool bApplyStaticFriction);
+		bool SolvePosition(const FReal Dt, const FReal MaxPushOut, const bool bApplyStaticFriction);
 
 		/**
 		 * @brief Calculate and apply the velocity correction for this iteration

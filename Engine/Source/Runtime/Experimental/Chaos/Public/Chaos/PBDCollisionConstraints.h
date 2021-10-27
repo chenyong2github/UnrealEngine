@@ -263,6 +263,11 @@ public:
 		return GravitySize;
 	}
 
+	void SetMaxPushOutVelocity(const FReal InMaxPushOutVelocity)
+	{
+		MaxPushOutVelocity = InMaxPushOutVelocity;
+	}
+
 	int32 NumConstraints() const
 	{
 		return GetConstraints().Num();
@@ -332,6 +337,8 @@ private:
 	// Used to determine constraint directions
 	FVec3 GravityDirection;
 	FReal GravitySize;
+
+	FReal MaxPushOutVelocity;
 
 	EConstraintSolverType SolverType;
 };
