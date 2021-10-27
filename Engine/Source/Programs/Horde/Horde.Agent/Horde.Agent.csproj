@@ -101,7 +101,6 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Horde.Client\EpicGames.Horde.Client.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Perforce.Managed\EpicGames.Perforce.Managed.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Perforce\EpicGames.Perforce.csproj" />
-    <ProjectReference Include="..\HordeCommon\HordeCommon.csproj" />
   </ItemGroup>
 
   <ItemGroup>
