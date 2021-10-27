@@ -773,7 +773,9 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 #endif // SUBSURFACE_HALF_RES
 
 	{
-		float4 SSSColorWithAlpha = Texture2DSample(SubsurfaceInput1_Texture, SharedSubsurfaceSampler1, BufferUV);
+		// subsurface scattering buffer has garbage data outside of viewport bilinear min/max. 
+		float2 ClampedBufferUV = clamp(BufferUV, SubsurfaceInput1_UVViewportBilinearMin, SubsurfaceInput1_UVViewportBilinearMax);
+		float4 SSSColorWithAlpha = Texture2DSampleLevel(SubsurfaceInput1_Texture, SharedSubsurfaceSampler1, ClampedBufferUV, 0);
 
 		// renormalize to dilate RGB to fix half res upsampling artifacts
 		SSSColor = SSSColorWithAlpha.rgb / max(SSSColorWithAlpha.a, 0.00001f);
