@@ -17,6 +17,9 @@ namespace HordeCommon
 		DateTime UtcNow { get; }
 	}
 	
+	/// <summary>
+	/// Implementation of <see cref="IClock"/> which returns the current time
+	/// </summary>
 	public class Clock : IClock
 	{
 		/// <inheritdoc/>
@@ -29,6 +32,9 @@ namespace HordeCommon
 	/// </summary>
 	public class FakeClock : IClock
 	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public FakeClock()
 		{
 			UtcNow = DateTime.UtcNow;

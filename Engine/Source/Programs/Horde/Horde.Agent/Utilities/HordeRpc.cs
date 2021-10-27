@@ -13,7 +13,7 @@ using System.Text;
 namespace HordeCommon.Rpc
 {
 #pragma warning disable CS1591
-	public partial class Property
+	partial class Property
 	{
 		public Property(string Name, string Value)
 		{
@@ -28,7 +28,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class PropertyUpdate
+	partial class PropertyUpdate
 	{
 		public PropertyUpdate(string Name, string? Value)
 		{
@@ -37,7 +37,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public static class PropertyExtensions
+	static class PropertyExtensions
 	{
 		public static string GetValue(this RepeatedField<Property> Properties, string Name)
 		{
@@ -60,7 +60,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class GetStreamRequest
+	partial class GetStreamRequest
 	{
 		public GetStreamRequest(string StreamId)
 		{
@@ -68,7 +68,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class UpdateStreamRequest
+	partial class UpdateStreamRequest
 	{
 		public UpdateStreamRequest(string StreamId, Dictionary<string, string?> Properties)
 		{
@@ -77,7 +77,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class GetJobRequest
+	partial class GetJobRequest
 	{
 		public GetJobRequest(string JobId)
 		{
@@ -85,7 +85,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class BeginBatchRequest
+	partial class BeginBatchRequest
 	{
 		public BeginBatchRequest(string JobId, string BatchId, string LeaseId)
 		{
@@ -95,7 +95,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class FinishBatchRequest
+	partial class FinishBatchRequest
 	{
 		public FinishBatchRequest(string JobId, string BatchId, string LeaseId)
 		{
@@ -105,7 +105,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class BeginStepRequest
+	partial class BeginStepRequest
 	{
 		public BeginStepRequest(string JobId, string BatchId, string LeaseId)
 		{
@@ -115,7 +115,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class UpdateStepRequest
+	partial class UpdateStepRequest
 	{
 		public UpdateStepRequest(string JobId, string BatchId, string StepId, JobStepState State, JobStepOutcome Outcome)
 		{
@@ -127,7 +127,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 	
-	public partial class GetStepRequest
+	partial class GetStepRequest
 	{
 		public GetStepRequest(string JobId, string BatchId, string StepId)
 		{
@@ -137,7 +137,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 	
-	public partial class GetStepResponse
+	partial class GetStepResponse
 	{
 		public GetStepResponse(JobStepOutcome Outcome, JobStepState State, bool AbortRequested)
 		{
@@ -147,7 +147,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class CreateEventRequest
+	partial class CreateEventRequest
 	{
 		public CreateEventRequest(EventSeverity Severity, string LogId, int LineIndex, int LineCount)
 		{
@@ -158,7 +158,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class CreateEventsRequest
+	partial class CreateEventsRequest
 	{
 		public CreateEventsRequest(IEnumerable<CreateEventRequest> Events)
 		{
@@ -166,7 +166,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class WriteOutputRequest
+	partial class WriteOutputRequest
 	{
 		public WriteOutputRequest(string LogId, long Offset, int LineIndex, byte[] Data, bool Flush)
 		{
@@ -178,7 +178,7 @@ namespace HordeCommon.Rpc
 		}
 	}
 
-	public partial class DownloadSoftwareRequest
+	partial class DownloadSoftwareRequest
 	{
 		public DownloadSoftwareRequest(string Version)
 		{
