@@ -10,7 +10,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRayTracingTestbed, "System.Renderer.RayTracing
 
 #if RHI_RAYTRACING
 
-#include "RayTracingInstanceCopyShader.h"
+#include "RayTracingInstanceBufferUtil.h"
 #include "RayTracingDefinitions.h"
 #include "GlobalShader.h"
 #include "Containers/DynamicRHIResourceArray.h"

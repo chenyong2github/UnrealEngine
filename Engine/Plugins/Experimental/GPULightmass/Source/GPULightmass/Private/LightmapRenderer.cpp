@@ -23,7 +23,7 @@
 #include "EngineModule.h"
 #include "PostProcess/PostProcessing.h"
 #include "RayTracingGeometryManager.h"
-#include "RayTracingInstanceCopyShader.h"
+#include "RayTracingInstanceBufferUtil.h"
 #include "ScreenPass.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "Experimental/Containers/SherwoodHashTable.h"

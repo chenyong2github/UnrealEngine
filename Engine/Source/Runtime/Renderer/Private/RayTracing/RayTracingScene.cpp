@@ -4,7 +4,7 @@
 
 #if RHI_RAYTRACING
 
-#include "RayTracingInstanceCopyShader.h"
+#include "RayTracingInstanceBufferUtil.h"
 #include "RenderCore.h"
 #include "RayTracingDefinitions.h"
 #include "RenderGraphBuilder.h"
