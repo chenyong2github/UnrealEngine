@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include <DirectML.h>
 #include <dxgi1_4.h>
 
@@ -13,7 +9,6 @@ using Microsoft::WRL::ComPtr;
 
 #include <wil/wrl.h>
 #include <wil/result.h>
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #include "core/providers/dml/dml_provider_factory.h"
 #include "core/session/abi_session_options_impl.h"

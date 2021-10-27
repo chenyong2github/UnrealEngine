@@ -11,6 +11,11 @@
 #ifndef __WIL_WRL_INCLUDED
 #define __WIL_WRL_INCLUDED
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+
 #include <wrl.h>
 #include "result.h"
 #include "common.h" // wistd type_traits helpers
@@ -88,5 +93,7 @@ namespace wil
     }
 #endif // WIL_ENABLE_EXCEPTIONS
 } // namespace wil
+
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #endif // __WIL_WRL_INCLUDED
