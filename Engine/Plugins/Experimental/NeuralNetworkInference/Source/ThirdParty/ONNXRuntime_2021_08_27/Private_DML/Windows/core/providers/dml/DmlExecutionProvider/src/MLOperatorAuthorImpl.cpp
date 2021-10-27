@@ -485,7 +485,7 @@ HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::G
     MLOperatorAttributeType type,
     uint32_t elementCount,
     size_t elementByteSize,
-    void* value) const noexcept {
+    void* attributeValue) const noexcept { // WITH_UE: C4458: declaration of 'value' hides class member. Windows Kits\10\include\10.0.18362.0\winrt\wrl\implements.h(81): note: see declaration of 'Microsoft::WRL::RuntimeClassFlags<4>::value'
 ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
@@ -501,22 +501,22 @@ ORT_TRY // WITH_UE
       THROW_HR(E_FAIL);
     }
 
-    defaultAttr->second.GetAttribute(type, elementCount, elementByteSize, value);
+    defaultAttr->second.GetAttribute(type, elementCount, elementByteSize, attributeValue); // WITH_UE
   } else {
     switch (type) {
       case MLOperatorAttributeType::Float:
         ML_CHECK_BOOL(elementCount == 1);
-        return GetAttributeHelper<MLOperatorAttributeType::Float>(name, static_cast<uint32_t>(elementByteSize), value);
+        return GetAttributeHelper<MLOperatorAttributeType::Float>(name, static_cast<uint32_t>(elementByteSize), attributeValue); // WITH_UE
 
       case MLOperatorAttributeType::Int:
         ML_CHECK_BOOL(elementCount == 1);
-        return GetAttributeHelper<MLOperatorAttributeType::Int>(name, static_cast<uint32_t>(elementByteSize), value);
+        return GetAttributeHelper<MLOperatorAttributeType::Int>(name, static_cast<uint32_t>(elementByteSize), attributeValue); // WITH_UE
 
       case MLOperatorAttributeType::FloatArray:
-        return GetAttributeArrayHelper<MLOperatorAttributeType::FloatArray>(name, elementCount, static_cast<uint32_t>(elementByteSize), value);
+        return GetAttributeArrayHelper<MLOperatorAttributeType::FloatArray>(name, elementCount, static_cast<uint32_t>(elementByteSize), attributeValue); // WITH_UE
 
       case MLOperatorAttributeType::IntArray:
-        return GetAttributeArrayHelper<MLOperatorAttributeType::IntArray>(name, elementCount, static_cast<uint32_t>(elementByteSize), value);
+        return GetAttributeArrayHelper<MLOperatorAttributeType::IntArray>(name, elementCount, static_cast<uint32_t>(elementByteSize), attributeValue); // WITH_UE
 
       default:
         ML_CHECK_BOOL(false);
