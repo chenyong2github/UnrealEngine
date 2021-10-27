@@ -547,7 +547,7 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
 		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
 		check(StaticMeshAsset);
-		FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetName();
+		const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
 
 		bool bCreatedAssetOK = true;
 		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
