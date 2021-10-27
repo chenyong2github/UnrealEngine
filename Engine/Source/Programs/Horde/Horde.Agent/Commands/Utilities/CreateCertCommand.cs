@@ -77,7 +77,7 @@ namespace HordeAgent.Commands.Certs
 
 			Logger.LogInformation("Creating certificate for {DnsName}", DnsName);
 
-			byte[] PrivateCertData = AgentUtilities.CreateAgentCert(DnsName);
+			byte[] PrivateCertData = CertificateUtils.CreateSelfSignedCert(DnsName, "Horde Server");
 
 			Logger.LogInformation("Writing private cert: {PrivateCert}", new FileReference(PrivateCertFile).FullName);
 			File.WriteAllBytes(PrivateCertFile, PrivateCertData);
