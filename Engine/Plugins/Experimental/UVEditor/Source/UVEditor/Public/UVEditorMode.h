@@ -24,7 +24,6 @@ class UMeshOpPreviewWithBackgroundCompute;
 class UUVToolStateObjectStore;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
-class UUVEditorUVChannelProperties;
 
 
 /**
@@ -56,9 +55,14 @@ public:
 
 	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
 
-	// public for use by undo/redo
-	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex, bool bForceRebuild=false);
-	void UpdateSelectedLayer();
+	// Public for use by undo/redo. Otherwise should use RequestUVChannelChange
+	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex);
+
+	/** 
+	 * Request a change of the displayed UV channel/layer. It will happen on the next tick, and 
+	 * create an undo/redo event.
+	 */
+	void RequestUVChannelChange(int32 AssetID, int32 Channel);
 
 	bool IsActive() { return bIsActive; }
 
@@ -77,6 +81,18 @@ public:
 	bool HaveUnappliedChanges();
 	void GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut);
 	void ApplyChanges();
+
+	/** @return List of asset names, indexed by AssetID */
+	const TArray<FString>& GetAssetNames() const { return AssetNames; }
+
+	/** @return Number of UV channels in the given asset, or IndexConstants::InvalidID if AssetID was invalid.  */
+	int32 GetNumUVChannels(int32 AssetID) const;
+
+	/** @return The index of the channel currently displayed for the given AssetID. */
+	int32 GetDisplayedChannel(int32 AssetID) const;
+
+	/** @return A settings object suitable for display in a details panel to control the background visualization. */
+	UObject* GetBackgroundSettingsObject();
 
 	// UEdMode overrides
 	virtual void Enter() override;
@@ -108,7 +124,6 @@ protected:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
-	void AddDisplayedPropertySet(const TObjectPtr<UInteractiveToolPropertySet>& PropertySet);
 
 	/**
 	 * Stores original input objects, for instance UStaticMesh pointers. AssetIDs on tool input 
@@ -164,23 +179,13 @@ protected:
 	// Authoritative list of targets that have changes that have not been baked back yet.
 	TSet<int32> ModifiedAssetIDs;
 
-
-	/** Used as a selector of UV channels/layers of opened assets in the editor. */
-	UPROPERTY()
-	TObjectPtr<UUVEditorUVChannelProperties> UVChannelProperties = nullptr;
-
-	// Used with UVChannelProperties
-	void SwitchActiveAsset(const FString& UVAsset);
-	void SwitchActiveChannel(const FString& UVChannel);
+	// 1:1 with ToolTargets, indexed by AssetID
+	TArray<FString> AssetNames;
 
 	// Used with the ToolAssetAndLayerAPI to process tool layer change requests
-	void ForceUpdateDisplayChannel(const TArray<int32>& LayerPerAsset, bool bForceRebuildUnwrap, bool bEmitUndoTransaction);
+	void SetDisplayedUVChannels(const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction);
 
 	TArray<int32> PendingUVLayerIndex;
-
-	// TODO: Should be removed
-	bool  bForceRebuildUVLayer = false;
-
 
 	// Wireframe Display Properties
 	float TriangleOpacity = 1.0;
@@ -193,12 +198,6 @@ protected:
 	// Here largely for convenience to avoid having to pass it around functions.
 	UPROPERTY()
 	TObjectPtr<UWorld> LivePreviewWorld = nullptr;
-
-	/**
-	* Mode-level property objects to display in the details panel.
-	*/
-	UPROPERTY()
-	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToDisplay;
 
 	/**
 	 * Mode-level property objects (visible or not) that get ticked.

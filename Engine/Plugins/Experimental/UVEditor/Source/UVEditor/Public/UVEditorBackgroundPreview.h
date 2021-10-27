@@ -21,15 +21,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Background)
 	bool bVisible = false;
 
-	/** Should the background show textures or materials? */
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bVisible", EditConditionHides = true))
+	/** Should the background show textures or materials */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bVisible"))
 	bool bUseMaterials = false;
 
-
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "!bUseMaterials && bVisible", EditConditionHides = true))
+	/** Used when bUseMaterials is false */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "!bUseMaterials && bVisible"))
 	TObjectPtr<UTexture2D> SourceTexture;
 
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bUseMaterials && bVisible", EditConditionHides=true))
+	/** Used when bUseMaterials is true */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bUseMaterials && bVisible"))
 	TObjectPtr<UMaterial> SourceMaterial;
 };
 
@@ -53,15 +54,15 @@ public:
 public:
 	/** Visualization settings */
 	UPROPERTY()
-		TObjectPtr<UUVEditorBackgroundPreviewProperties> Settings;
+	TObjectPtr<UUVEditorBackgroundPreviewProperties> Settings;
 
 	/** The component containing the quad visualization */
 	UPROPERTY()
-		TObjectPtr<UTriangleSetComponent> BackgroundComponent;
+	TObjectPtr<UTriangleSetComponent> BackgroundComponent;
 
 	/** The active material being displayed for the background */
 	UPROPERTY()
-		TObjectPtr<UMaterialInstanceDynamic> BackgroundMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BackgroundMaterial;
 
 protected:
 	virtual void OnCreated() override;

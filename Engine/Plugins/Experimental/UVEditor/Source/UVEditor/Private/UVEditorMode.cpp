@@ -32,7 +32,6 @@
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
-#include "UVEditorModeChannelProperties.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
@@ -70,14 +69,12 @@ namespace UVEditorModeLocals
 		{
 			UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(Object);
 			UVEditorMode->ChangeInputObjectLayer(AssetID, NewUVLayerIndex);
-			UVEditorMode->UpdateSelectedLayer();
 		}
 
 		virtual void Revert(UObject* Object) override
 		{
 			UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(Object);
 			UVEditorMode->ChangeInputObjectLayer(AssetID, OldUVLayerIndex);
-			UVEditorMode->UpdateSelectedLayer();
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
@@ -97,8 +94,15 @@ namespace UVEditorModeLocals
 		int32 NewUVLayerIndex;
 	};
 
+	void InitializeAssetNames(const TArray<TObjectPtr<UToolTarget>>& ToolTargets, TArray<FString>& AssetNamesOut)
+	{
+		AssetNamesOut.Reset(ToolTargets.Num());
 
-
+		for (const TObjectPtr<UToolTarget>& ToolTarget : ToolTargets)
+		{
+			AssetNamesOut.Add(UE::ToolTarget::GetHumanReadableName(ToolTarget));
+		}
+	}
 }
 
 const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
@@ -132,17 +136,10 @@ void UUVEditorMode::Enter()
 	BackgroundVisualization = NewObject<UUVEditorBackgroundPreview>(this);
 	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
 
-	UVChannelProperties = NewObject<UUVEditorUVChannelProperties>(this);
-	UVChannelProperties->WatchProperty(UVChannelProperties->Asset, [this](FString UVAsset) {SwitchActiveAsset(UVAsset); });
-	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](FString UVChannel) {SwitchActiveChannel(UVChannel); });
-
 	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
 		[this](bool IsVisible) { UpdateTriangleMaterialBasedOnBackground(IsVisible); });
 
-	AddDisplayedPropertySet(UVChannelProperties);
-	AddDisplayedPropertySet(BackgroundVisualization->Settings);
-		
-	StaticCastSharedPtr<FUVEditorModeToolkit>(Toolkit)->SetModeDetailsViewObjects(PropertyObjectsToDisplay);	
+	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
 	
 	RegisterTools();
 
@@ -186,15 +183,18 @@ void UUVEditorMode::RegisterTools()
 	RegisterTool(CommandInfos.BeginSeamTool, TEXT("UVSeamTool"), UVEditorSeamToolBuilder);
 }
 
-void UUVEditorMode::AddDisplayedPropertySet(const TObjectPtr<UInteractiveToolPropertySet>& PropertySet)
-{
-	PropertyObjectsToTick.Add(PropertySet);
-	PropertyObjectsToDisplay.Add(PropertySet);
-}
-
 void UUVEditorMode::CreateToolkit()
 {
 	Toolkit = MakeShared<FUVEditorModeToolkit>();
+}
+
+UObject* UUVEditorMode::GetBackgroundSettingsObject()
+{
+	if (BackgroundVisualization)
+	{
+		return BackgroundVisualization->Settings;
+	}
+	return nullptr;
 }
 
 void UUVEditorMode::ActivateDefaultTool()
@@ -323,9 +323,7 @@ void UUVEditorMode::Exit()
 		BackgroundVisualization = nullptr;
 	}
 
-	UVChannelProperties = nullptr;
 	PropertyObjectsToTick.Empty();
-	PropertyObjectsToDisplay.Empty();
 	LivePreviewWorld = nullptr;
 
 	bIsActive = false;
@@ -459,20 +457,21 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		ToolInputObjects.Add(ToolInputObject);
 	}
 
-	// Initialize our layer selector
-	UVChannelProperties->Initialize(ToolTargets, AppliedCanonicalMeshes, true);
+	// Prep things for layer/channel selection
+	InitializeAssetNames(ToolTargets, AssetNames);
 	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());		
 
-	int32 AssetID = UVChannelProperties->GetSelectedAssetID();
+	// Prep channel/layer change API
 	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = ContextStore->FindContext<UUVToolAssetAndChannelAPI>();
 	if (AssetAndLayerAPI)
 	{
-		AssetAndLayerAPI->RequestChannelVisibilityChangeFunc = [this](const TArray<int32>& LayerPerAsset, bool bForceRebuildUnwrap, bool bEmitUndoTransaction) {
-			this->ForceUpdateDisplayChannel(LayerPerAsset, bForceRebuildUnwrap, bEmitUndoTransaction);
+		AssetAndLayerAPI->RequestChannelVisibilityChangeFunc = [this](const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction) {
+			this->SetDisplayedUVChannels(LayerPerAsset, bEmitUndoTransaction);
 		};
 
 		AssetAndLayerAPI->NotifyOfAssetChannelCountChangeFunc = [this](int32 AssetID) {
-			UVChannelProperties->Initialize(ToolTargets, AppliedCanonicalMeshes, false);
+			// Don't currently need to do anything because the layer selection menu gets populated
+			// from scratch each time that it's opened.
 		};
 
 		AssetAndLayerAPI->GetCurrentChannelVisibilityFunc = [this]() {
@@ -480,7 +479,7 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 			VisibleLayers.SetNum(ToolTargets.Num());
 			for (int32 AssetID = 0; AssetID < ToolTargets.Num(); ++AssetID)
 			{
-				VisibleLayers[AssetID] = ToolInputObjects[AssetID]->UVLayerIndex;
+				VisibleLayers[AssetID] = GetDisplayedChannel(AssetID);
 			}
 			return VisibleLayers;
 		};
@@ -559,7 +558,7 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 	bool bSwitchingLayers = false;
 	for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
 	{
-		if (ToolInputObjects[AssetID]->UVLayerIndex != PendingUVLayerIndex[AssetID] || bForceRebuildUVLayer)
+		if (ToolInputObjects[AssetID]->UVLayerIndex != PendingUVLayerIndex[AssetID])
 		{
 			bSwitchingLayers = true;
 			break;
@@ -568,31 +567,21 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 
 	if (bSwitchingLayers)
 	{
-		GetToolManager()->BeginUndoTransaction(UVLayerChangeTransactionName);
-
 		// TODO: Perhaps we need our own interactive tools context that allows this kind of "end tool now"
 		// call. We can't do the normal GetInteractiveToolsContext()->EndTool() call because we cannot defer
 		// shutdown.
 		GetInteractiveToolsContext()->ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 
-		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
-		{
-			if (ToolInputObjects[AssetID]->UVLayerIndex != PendingUVLayerIndex[AssetID] || bForceRebuildUVLayer)
-			{
-				int32 OldLayerIndex = ToolInputObjects[AssetID]->UVLayerIndex;
+		// We open the transaction here instead of before the tool close above because otherwise we seem
+		// to get some kind of spurious items in the transaction that, while they don't seem to do anything,
+		// cause the transaction to not be fully expired on editor close.
+		GetToolManager()->BeginUndoTransaction(UVLayerChangeTransactionName);
 
-				ChangeInputObjectLayer(AssetID, PendingUVLayerIndex[AssetID], bForceRebuildUVLayer);
+		SetDisplayedUVChannels(PendingUVLayerIndex, true);
 
-				GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(this,
-					MakeUnique<FInputObjectUVLayerChange>(AssetID, OldLayerIndex, PendingUVLayerIndex[AssetID]),
-					UVLayerChangeTransactionName);
-			}
-		}
 		ActivateDefaultTool();
 
 		GetToolManager()->EndUndoTransaction();
-
-		bForceRebuildUVLayer = false;
 	}
 	
 	for (TObjectPtr<UInteractiveToolPropertySet>& Propset : PropertyObjectsToTick)
@@ -631,102 +620,64 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 	}
 }
 
-
-void UUVEditorMode::SwitchActiveAsset(const FString& UVAsset)
+int32 UUVEditorMode::GetNumUVChannels(int32 AssetID) const
 {
-	if (UVChannelProperties)
+	if (AssetID < 0 || AssetID >= AppliedCanonicalMeshes.Num())
 	{
-		// Not doing an ensure here because the "revert to default" can give us an empty string
-		UVChannelProperties->ValidateUVAssetSelection(true);
-		UpdateSelectedLayer();
-		bForceRebuildUVLayer = false;
+		return IndexConstants::InvalidID;
 	}
+
+	return AppliedCanonicalMeshes[AssetID]->HasAttributes() ?
+		AppliedCanonicalMeshes[AssetID]->Attributes()->NumUVLayers() : 0;
 }
 
-void UUVEditorMode::UpdateSelectedLayer()
+int32 UUVEditorMode::GetDisplayedChannel(int32 AssetID) const
 {
-	int32 AssetID = UVChannelProperties->GetSelectedAssetID();
-	if (!ensure(AssetID != INDEX_NONE))
+	if (!ensure(AssetID >= 0 && AssetID < ToolInputObjects.Num()))
+	{
+		return IndexConstants::InvalidID;
+	}
+
+	return ToolInputObjects[AssetID]->UVLayerIndex;;
+}
+
+void UUVEditorMode::RequestUVChannelChange(int32 AssetID, int32 Channel)
+{
+	if (!ensure(
+		AssetID >= 0 && AssetID < ToolTargets.Num())
+		&& Channel >= 0 && Channel < GetNumUVChannels(AssetID))
 	{
 		return;
 	}
-	const TArray<FString>& ChannelNames = UVChannelProperties->GetUVChannelNames();
 
-	// Find the currently selected layer for the current asset
-	bool bFound = false;
-	for (auto InputObject : ToolInputObjects)
-	{
-		if (InputObject->AssetID == AssetID)
-		{
-			bFound = true;
-
-			UVChannelProperties->UVChannel = ChannelNames[InputObject->UVLayerIndex];
-			UVChannelProperties->SilentUpdateWatched();
-			break;
-		}
-	}
-	if (!ensure(bFound))
-	{
-		UVChannelProperties->UVChannel = TEXT("");
-	}
-	else 
-	{
-		PendingUVLayerIndex[AssetID] = ToolInputObjects[AssetID]->UVLayerIndex;
-	}		
+	PendingUVLayerIndex[AssetID] = Channel;
 }
 
-
-void UUVEditorMode::SwitchActiveChannel(const FString& UVChannel)
+void UUVEditorMode::ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex)
 {
 	using namespace UVEditorModeLocals;
 
-	if (UVChannelProperties)
+	if (!ensure(AssetID >= 0 && AssetID < ToolInputObjects.Num() 
+		&& ToolInputObjects[AssetID]->AssetID == AssetID))
 	{
-		// Not doing an ensure because the "revert to default" can give us an empty string
-		UVChannelProperties->ValidateUVChannelSelection(true);
-		int32 NewUVLayerIndex = UVChannelProperties->GetSelectedChannelIndex();
-		int32 AssetID = UVChannelProperties->GetSelectedAssetID();
-		if (!ensure(AssetID != INDEX_NONE))
-		{
-			return;
-		}
-
-		if (ensure(NewUVLayerIndex != IndexConstants::InvalidID))
-		{
-			PendingUVLayerIndex[AssetID] = NewUVLayerIndex;
-		}
-	}
-	bForceRebuildUVLayer = false;
-}
-
-void UUVEditorMode::ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex, bool bForceRebuild)
-{
-	using namespace UVEditorModeLocals;
-
-	bool bFound = false;
-	for (auto InputObject : ToolInputObjects)
-	{
-		if (InputObject->AssetID == AssetID)
-		{
-			bFound = true;
-
-			if (InputObject->UVLayerIndex != NewLayerIndex || bForceRebuild)
-			{
-				InputObject->UVLayerIndex = NewLayerIndex;
-				InputObject->UpdateAllFromAppliedCanonical();
-			}
-			break;
-		}
+		return;
 	}
 
-	ensure(bFound);
+	UUVEditorToolMeshInput* InputObject = ToolInputObjects[AssetID];
+	if (InputObject->UVLayerIndex != NewLayerIndex)
+	{
+		InputObject->UVLayerIndex = NewLayerIndex;
+		InputObject->UpdateAllFromAppliedCanonical();
+	}
+
+	PendingUVLayerIndex[AssetID] = InputObject->UVLayerIndex;
 }
 
-void UUVEditorMode::ForceUpdateDisplayChannel(const TArray<int32>& LayerPerAsset, bool bForceRebuildUnwrap, bool bEmitUndoTransaction)
+void UUVEditorMode::SetDisplayedUVChannels(const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction)
 {
 	for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
 	{
-		if (ToolInputObjects[AssetID]->UVLayerIndex != LayerPerAsset[AssetID] || bForceRebuildUnwrap)
+		if (ToolInputObjects[AssetID]->UVLayerIndex != LayerPerAsset[AssetID])
 		{			
 			if (bEmitUndoTransaction)
 			{
@@ -735,11 +686,9 @@ void UUVEditorMode::ForceUpdateDisplayChannel(const TArray<int32>& LayerPerAsset
 					UVEditorModeLocals::UVLayerChangeTransactionName);
 			}
 
-			ChangeInputObjectLayer(AssetID, LayerPerAsset[AssetID], true);
-			PendingUVLayerIndex[AssetID] = LayerPerAsset[AssetID];
+			ChangeInputObjectLayer(AssetID, LayerPerAsset[AssetID]);
 		}
 	}
-	UpdateSelectedLayer();
 }
 
 #undef LOCTEXT_NAMESPACE

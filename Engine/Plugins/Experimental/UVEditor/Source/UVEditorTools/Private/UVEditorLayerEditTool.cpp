@@ -21,10 +21,40 @@ using namespace UE::Geometry;
 
 namespace UUVEditorChannelEditLocals
 {
-	
 	const FText UVChannelAddTransactionName = LOCTEXT("UVChannelAddTransactionName", "Add UV Channel");
 	const FText UVChannelCloneTransactionName = LOCTEXT("UVChannelCloneTransactionName", "Clone UV Channel");
 	const FText UVChannelDeleteTransactionName = LOCTEXT("UVChannelDeleteTransactionName", "Delete UV Channel");
+
+	void DeleteChannel(UUVEditorToolMeshInput* Target, int32 DeletedUVChannelIndex, 
+		UUVToolAssetAndChannelAPI* AssetAndChannelAPI, bool bClearInstead)
+	{
+		FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), DeletedUVChannelIndex, false);
+
+		int32 NewChannelIndex = DeletedUVChannelIndex;
+		if (bClearInstead)
+		{
+			DynamicMeshUVEditor.SetPerTriangleUVs(0.0, nullptr);
+		}
+		else
+		{
+			NewChannelIndex = DynamicMeshUVEditor.RemoveUVLayer();
+		}
+
+		if (NewChannelIndex != Target->UVLayerIndex)
+		{
+			// The change of displayed layer will perform the needed update for us
+			AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
+			TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
+			ChannelPerAsset[Target->AssetID] = NewChannelIndex;
+			AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, false);
+		}
+		else
+		{
+			// We're showing the same layer index, but it's now the next layer over, actually,
+			// so we need to update it.
+			Target->UpdateAllFromAppliedCanonical();
+		}
+	}
 
 	class FInputObjectUVChannelAdd : public FToolCommandChange
 	{
@@ -37,7 +67,11 @@ namespace UUVEditorChannelEditLocals
 
 		virtual void Apply(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), AddedUVChannelIndex-1, false);
@@ -49,26 +83,30 @@ namespace UUVEditorChannelEditLocals
 				Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
 
 				AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-				Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
+				Target->OnCanonicalModified.Broadcast(Target.Get(), UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 			}
 
 		}
 
 		virtual void Revert(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), AddedUVChannelIndex, false);
 			int32 NewChannelIndex = DynamicMeshUVEditor.RemoveUVLayer();
 			Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
 			AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
+			Target->OnCanonicalModified.Broadcast(Target.Get(), UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			return false;
+			return !(Target.IsValid() && Target->IsValid());
 		}
 
 		virtual FString ToString() const override
@@ -77,7 +115,7 @@ namespace UUVEditorChannelEditLocals
 		}
 
 	protected:
-		TObjectPtr<UUVEditorToolMeshInput> Target;
+		TWeakObjectPtr<UUVEditorToolMeshInput> Target;
 		int32 AddedUVChannelIndex;		
 	};
 
@@ -94,7 +132,11 @@ namespace UUVEditorChannelEditLocals
 
 		virtual void Apply(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
@@ -104,7 +146,11 @@ namespace UUVEditorChannelEditLocals
 
 		virtual void Revert(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
@@ -114,7 +160,7 @@ namespace UUVEditorChannelEditLocals
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			return false;
+			return !(Target.IsValid() && Target->IsValid());
 		}
 
 		virtual FString ToString() const override
@@ -123,71 +169,81 @@ namespace UUVEditorChannelEditLocals
 		}
 
 	protected:
-		TObjectPtr<UUVEditorToolMeshInput> Target;
+		TWeakObjectPtr<UUVEditorToolMeshInput> Target;
 		int32 SourceUVChannelIndex;
 		int32 TargetUVChannelIndex;
 		FDynamicMeshUVOverlay OriginalUVChannel;
 	};
 
-
 	class FInputObjectUVChannelDelete : public FToolCommandChange
 	{
 	public:
-		FInputObjectUVChannelDelete(const TObjectPtr<UUVEditorToolMeshInput>& TargetIn, int32 DeletedUVChannelIndexIn, const FDynamicMeshUVOverlay& OriginalUVChannelIn)
+		FInputObjectUVChannelDelete(const TObjectPtr<UUVEditorToolMeshInput>& TargetIn, int32 DeletedUVChannelIndexIn, 
+			const FDynamicMeshUVOverlay& OriginalUVChannelIn, bool bClearedInsteadIn)
 			: Target(TargetIn)			
 			, DeletedUVChannelIndex(DeletedUVChannelIndexIn)
 			, OriginalUVChannel(OriginalUVChannelIn)
+			, bClearedInstead(bClearedInsteadIn)
 		{
 		}
 
 		virtual void Apply(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
-			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), DeletedUVChannelIndex, false);
-
-			DynamicMeshUVEditor.SetPerTriangleUVs(0.0, nullptr); // "clear" the UVs to a single point.
-			int32 NewChannelIndex = DynamicMeshUVEditor.RemoveUVLayer();
-
-			Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
-
-			AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-			TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
-			ChannelPerAsset[Target->AssetID] = DeletedUVChannelIndex;
-			AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, false, false);
-			
-			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
+			DeleteChannel(Target.Get(), DeletedUVChannelIndex, AssetAndChannelAPI, bClearedInstead);
 		}
 
 		virtual void Revert(UObject* Object) override
 		{
-			UInteractiveToolManager* InteractiveToolManager = Cast<UInteractiveToolManager>(Object);
+			UInteractiveToolManager* InteractiveToolManager = Cast<UUVEditorChannelEditTool>(Object)->GetToolManager();
+			if (!ensure(InteractiveToolManager))
+			{
+				return;
+			}
 			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
-			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), DeletedUVChannelIndex, false);
-			int32 NewChannelIndex = DynamicMeshUVEditor.AddUVLayer();
-			Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
-
-			for (int32 ChannelIndex = NewChannelIndex; ChannelIndex > DeletedUVChannelIndex; --ChannelIndex)
+			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), 0, false);
+			if (!bClearedInstead)
 			{
-				DynamicMeshUVEditor.SwitchActiveLayer(ChannelIndex);
-				DynamicMeshUVEditor.CopyUVLayer(Target->AppliedCanonical->Attributes()->GetUVLayer(ChannelIndex - 1));
+				int32 NewChannelIndex = DynamicMeshUVEditor.AddUVLayer();
+
+				// Shift the new layer to the correct index.
+				// TODO: This is slightly wasteful since we should just be allowed to swap pointers in the underlying indirect array
+				for (int32 ChannelIndex = NewChannelIndex; ChannelIndex > DeletedUVChannelIndex; --ChannelIndex)
+				{
+					DynamicMeshUVEditor.SwitchActiveLayer(ChannelIndex);
+					DynamicMeshUVEditor.CopyUVLayer(Target->AppliedCanonical->Attributes()->GetUVLayer(ChannelIndex - 1));
+				}
 			}
+
+			// Fill the layer
 			DynamicMeshUVEditor.SwitchActiveLayer(DeletedUVChannelIndex);
 			DynamicMeshUVEditor.CopyUVLayer(&OriginalUVChannel);
 
-			AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-			TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
-			ChannelPerAsset[Target->AssetID] = DeletedUVChannelIndex;
-			AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true, false);
-			
-			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
+			if (DeletedUVChannelIndex != Target->UVLayerIndex)
+			{
+				// The change of displayed layer will perform the needed update for us
+				AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
+				TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
+				ChannelPerAsset[Target->AssetID] = DeletedUVChannelIndex;
+				AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, false);
+			}
+			else
+			{
+				// We're showing the same layer index, but it's actually the previously deleted layer
+				Target->UpdateAllFromAppliedCanonical();
+			}
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			return false;
+			return !(Target.IsValid() && Target->IsValid());
 		}
 
 		virtual FString ToString() const override
@@ -196,9 +252,10 @@ namespace UUVEditorChannelEditLocals
 		}
 
 	protected:
-		TObjectPtr<UUVEditorToolMeshInput> Target;		
+		TWeakObjectPtr<UUVEditorToolMeshInput> Target;		
 		int32 DeletedUVChannelIndex;
 		FDynamicMeshUVOverlay OriginalUVChannel;
+		bool bClearedInstead;
 	};
 
 }
@@ -537,7 +594,7 @@ void UUVEditorChannelEditTool::ApplyVisbleChannelChange()
 	{
 		TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
 		ChannelPerAsset[ActiveAsset] = ActiveChannel;
-		AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset);
+		AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true);
 	}
 }
 
@@ -571,14 +628,14 @@ void UUVEditorChannelEditTool::AddChannel()
 		Targets[ActiveAsset]->AppliedPreview->PreviewMesh->UpdatePreview(Targets[ActiveAsset]->AppliedCanonical.Get());
 
 		EmitChangeAPI->BeginUndoTransaction(UUVEditorChannelEditLocals::UVChannelAddTransactionName);
-		EmitChangeAPI->EmitToolIndependentChange(GetToolManager(),
+		EmitChangeAPI->EmitToolIndependentChange(this,
 			MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelAdd>(Targets[ActiveAsset], NewChannelIndex),
 			UUVEditorChannelEditLocals::UVChannelAddTransactionName);
 
 		AssetAndChannelAPI->NotifyOfAssetChannelCountChange(ActiveAsset);
 		TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
 		ChannelPerAsset[ActiveAsset] = NewChannelIndex;
-		AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset);
+		AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true);
 
 		EmitChangeAPI->EndUndoTransaction();
 
@@ -592,22 +649,14 @@ void UUVEditorChannelEditTool::CopyChannel()
 {
 	UUVToolAssetAndChannelAPI* AssetAndChannelAPI = GetToolManager()->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
-	FDynamicMeshUVOverlay OriginalUVChannel(Targets[ActiveAsset]->AppliedCanonical.Get());
-	OriginalUVChannel.Copy(*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel));
-
-	FDynamicMeshUVEditor DynamicMeshUVEditor(Targets[ActiveAsset]->AppliedCanonical.Get(), ActiveChannel, false);
-	DynamicMeshUVEditor.CopyUVLayer( Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ReferenceChannel) );
-
-	EmitChangeAPI->BeginUndoTransaction(UUVEditorChannelEditLocals::UVChannelCloneTransactionName);
-	EmitChangeAPI->EmitToolIndependentChange(GetToolManager(),
-		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelClone>(Targets[ActiveAsset], ReferenceChannel, ActiveChannel, OriginalUVChannel),
+	EmitChangeAPI->EmitToolIndependentChange(this,
+		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelClone>(Targets[ActiveAsset], ReferenceChannel, ActiveChannel, 
+			*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel)),
 		UUVEditorChannelEditLocals::UVChannelCloneTransactionName);
 
-	TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
-	ChannelPerAsset[ActiveAsset] = ActiveChannel;
-	AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true);
-
-	EmitChangeAPI->EndUndoTransaction();
+	FDynamicMeshUVEditor DynamicMeshUVEditor(Targets[ActiveAsset]->AppliedCanonical.Get(), ActiveChannel, false);
+	DynamicMeshUVEditor.CopyUVLayer(Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ReferenceChannel));
+	Targets[ActiveAsset]->UpdateAllFromAppliedCanonical();
 
 	SourceChannelProperties->Initialize(Targets, false);
 }
@@ -615,31 +664,19 @@ void UUVEditorChannelEditTool::CopyChannel()
 void UUVEditorChannelEditTool::DeleteChannel()
 {
 	UUVToolAssetAndChannelAPI* AssetAndChannelAPI = GetToolManager()->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
-	FDynamicMeshUVEditor DynamicMeshUVEditor(Targets[ActiveAsset]->AppliedCanonical.Get(), ActiveChannel, false);
-	
-	FDynamicMeshUVOverlay OriginalUVChannel(Targets[ActiveAsset]->AppliedCanonical.Get());
-	OriginalUVChannel.Copy(*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel));
 
-	DynamicMeshUVEditor.SetPerTriangleUVs(0.0, nullptr); // "clear" the UVs to a single point.
-	int32 NewChannelIndex = DynamicMeshUVEditor.RemoveUVLayer();
-	
-	Targets[ActiveAsset]->AppliedPreview->PreviewMesh->UpdatePreview(Targets[ActiveAsset]->AppliedCanonical.Get());
+	int32 TotalLayerCount = Targets[ActiveAsset]->AppliedCanonical->Attributes()->NumUVLayers();
+	bool bClearInstead = TotalLayerCount == 1;
 
-	EmitChangeAPI->BeginUndoTransaction(UUVEditorChannelEditLocals::UVChannelDeleteTransactionName);
-	EmitChangeAPI->EmitToolIndependentChange(GetToolManager(),
-		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelDelete>(Targets[ActiveAsset], ActiveChannel, OriginalUVChannel),
+	EmitChangeAPI->EmitToolIndependentChange(this,
+		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelDelete>(Targets[ActiveAsset], ActiveChannel, 
+			*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel), bClearInstead),
 		UUVEditorChannelEditLocals::UVChannelDeleteTransactionName);
 
-	AssetAndChannelAPI->NotifyOfAssetChannelCountChange(ActiveAsset);
-	TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
-	ChannelPerAsset[ActiveAsset] = NewChannelIndex;
-	AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true);
-
-	EmitChangeAPI->EndUndoTransaction();
-
+	UUVEditorChannelEditLocals::DeleteChannel(Targets[ActiveAsset], ActiveChannel, AssetAndChannelAPI, bClearInstead);
 
 	SourceChannelProperties->Initialize(Targets, false);
-	SourceChannelProperties->TargetChannel = SourceChannelProperties->GetUVChannelNames()[NewChannelIndex];
+	SourceChannelProperties->TargetChannel = SourceChannelProperties->GetUVChannelNames()[Targets[ActiveAsset]->UVLayerIndex];
 }
 
 #undef LOCTEXT_NAMESPACE

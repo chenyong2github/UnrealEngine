@@ -13,10 +13,12 @@
 #include "SUVEditor3DViewport.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ToolContextInterfaces.h"
+#include "Toolkits/AssetEditorModeUILayer.h"
 #include "ToolMenus.h"
 #include "UVEditor.h"
-#include "UVEditorMode.h"
 #include "UVEditorCommands.h"
+#include "UVEditorMode.h"
+#include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
 #include "UVEditor2DViewportClient.h"
 #include "UVEditor3DViewportClient.h"
@@ -398,7 +400,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	}
 
 	// Plug in the mode tool panel
-	TSharedPtr<FModeToolkit> UVModeToolkit = UVMode->GetToolkit().Pin();
+	TSharedPtr<FUVEditorModeToolkit> UVModeToolkit = StaticCastSharedPtr<FUVEditorModeToolkit>(UVMode->GetToolkit().Pin());
 	if (ensure(ToolsPanel && UVModeToolkit.IsValid()))
 	{
 		ToolsPanel->SetContent(UVModeToolkit->GetInlineContent().ToSharedRef());
@@ -421,8 +423,34 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	FName ParentToolbarName;
 	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);
 	UToolMenu* AssetToolbar = UToolMenus::Get()->ExtendMenu(ToolBarName);
-	FToolMenuSection& Section = AssetToolbar->FindOrAddSection("UVAsset");
+	FToolMenuSection& Section = AssetToolbar->FindOrAddSection("Asset");
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(FUVEditorCommands::Get().ApplyChanges));
+	
+	// Add the channel selection button.
+	Section.AddEntry(FToolMenuEntry::InitComboButton(
+		"UVEditorChannelMenu",
+		FUIAction(),
+		FOnGetContent::CreateLambda([UVModeToolkit]()
+		{
+			return UVModeToolkit->CreateChannelMenu();
+		}),
+		LOCTEXT("UVEditorChannelMenu_Label", "Channels"),
+		LOCTEXT("UVEditorChannelMenu_ToolTip", "Change the selected UV Channel for each asset."),
+		FSlateIcon()
+	));
+
+	// Add the background settings button.
+	Section.AddEntry(FToolMenuEntry::InitComboButton(
+		"UVEditorBackgroundSettings",
+		FUIAction(),
+		FOnGetContent::CreateLambda([UVModeToolkit]()
+		{
+			return UVModeToolkit->CreateBackgroundSettingsWidget();
+		}),
+		LOCTEXT("UVEditorBackgroundSettings_Label", "Background"),
+		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the visibility and other settings of the background."),
+		FSlateIcon()
+	));
 
 
 	// Adjust our main (2D) viewport:

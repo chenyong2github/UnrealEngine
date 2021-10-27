@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 
-#include "Toolkits/BaseToolkit.h"
 #include "InteractiveTool.h"
+#include "Toolkits/BaseToolkit.h"
 
 class SBorder;
 class STextBlock;
@@ -21,21 +21,27 @@ public:
 	FUVEditorModeToolkit();
 	~FUVEditorModeToolkit();
 
-	/** FModeToolkit interface */
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+	/** Creates a menu where the displayed UV Channel can be changed for each asset */
+	virtual TSharedRef<SWidget> CreateChannelMenu();
+	
+	/** Creates a widget where the background visualization can be changed. */
+	virtual TSharedRef<SWidget> CreateBackgroundSettingsWidget();
 
-	/** IToolkit interface */
+	// FModeToolkit
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
+
+	// IToolkit
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
-	virtual void SetModeDetailsViewObjects(const TArray<TObjectPtr<UInteractiveToolPropertySet>>& InObjects);
-
-	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
+protected:
+	// FModeToolkit
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 
-protected:
+
 	// The mode's entire toolbox, which gets returned by GetInlineContent()
 	TSharedPtr<SWidget> ToolkitWidget;
 
@@ -51,13 +57,6 @@ protected:
 
 	// A container for the editor settings
 	TSharedPtr<SBorder> EditorDetailsContainer;
-
-	// A container for the background settings
-	TSharedPtr<SBorder> BackgroundDetailsContainer;
-	TSharedPtr<IDetailsView> BackgroundDetailsView;
-
-	// A place for tools to write out any instructions
-	TSharedPtr<STextBlock> ToolMessageArea;
 
 	/** Contains the widget container for the Accept/Cancel buttons for tools. */
 	TSharedPtr<SWidget> ViewportOverlayWidget;
