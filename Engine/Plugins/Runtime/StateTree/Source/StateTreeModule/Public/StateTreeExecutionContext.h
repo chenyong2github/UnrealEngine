@@ -90,40 +90,74 @@ public:
 		bool bResult = true;
 		for (const FStateTreeExternalItemDesc& ItemDesc : StateTree->ExternalItems)
 		{
-			const FStateTreeItemView& ItemView = ItemViews[ItemDesc.Handle.GetIndex()];
-			if (!ItemDesc.bOptional && (ItemView.GetMemory() == nullptr || ItemView.GetStruct() != ItemDesc.Struct))
+			const FStateTreeItemView& ItemView = ItemViews[ItemDesc.Handle.ItemIndex];
+			
+			if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
 			{
-				bResult = false;
-				break;
+				// Required items must have valid pointer and expected type.  
+				if (ItemView.GetMemory() == nullptr || ItemView.GetStruct() != ItemDesc.Struct)
+				{
+					bResult = false;
+					break;
+				}
+			}
+			else
+			{
+				// Optional items must have same type if they are set.
+				if (ItemView.IsValid() && ItemView.GetStruct() != ItemDesc.Struct)
+				{
+					bResult = false;
+					break;
+				}
+			 
 			}
 		}
 		return bResult;
 	}
 
-	/** @return Handle to external item of type InStruct, or invalid handle if not found */ 
-	FStateTreeExternalItemHandle GetExternalItemHandleByStruct(const UStruct* InStruct) const
+	/** @return Handle to external item of type InStruct, or invalid handle if struct not found. */ 
+	FStateTreeItemHandle GetExternalItemHandleByStruct(const UStruct* InStruct) const
 	{
 		check(StateTree);
 		const FStateTreeExternalItemDesc* Item = StateTree->ExternalItems.FindByPredicate([InStruct](const FStateTreeExternalItemDesc& Item) { return Item.Struct == InStruct; });
-		return Item != nullptr ? Item->Handle : FStateTreeExternalItemHandle();
+		return Item != nullptr ? Item->Handle : FStateTreeItemHandle::Invalid;
 	}
 
-	/** Sets external item view based on handle */ 
-	void SetExternalItem(const FStateTreeExternalItemHandle ItemHandle, FStateTreeItemView Item)
+	/** Sets external item view value for specific item. */ 
+	void SetExternalItem(const FStateTreeItemHandle ItemHandle, FStateTreeItemView Item)
 	{
 		check(StateTree);
 		check(ItemHandle.IsValid());
-		ItemViews[ItemHandle.GetIndex()] = Item;
+		ItemViews[ItemHandle.ItemIndex] = Item;
 	}
 
-	/** @return item view to external item based on handle */ 
-	FStateTreeItemView GetExternalItem(const FStateTreeExternalItemHandle ItemHandle) const
+	/**
+	 * Returns reference to external item based on provided item handle. The return type is deducted from the handle's template type.
+     * @param ItemHandle Valid TStateTreeItemHandle<> item handle. 
+	 * @return reference to external item based on handle or null if item is not set.
+	 */ 
+	template <typename T>
+	typename T::ItemType& GetExternalItem(const T ItemHandle) const
 	{
 		check(StateTree);
 		check(ItemHandle.IsValid());
-		return ItemViews[ItemHandle.GetIndex()];
+		checkSlow(StateTree->ExternalItems[ItemHandle.ItemIndex].Requirement != EStateTreeItemRequirement::Optional); // Optionals should query pointer instead.
+		return ItemViews[ItemHandle.ItemIndex].GetMutable<T::ItemType>();
 	}
 
+	/**
+	 * Returns pointer to external item based on provided item handle. The return type is deducted from the handle's template type.
+     * @param ItemHandle Valid TStateTreeItemHandle<> item handle.
+	 * @return pointer to external item based on handle or null if item is not set.
+	 */ 
+	template <typename T>
+	typename T::ItemType* GetExternalItemPtr(const T ItemHandle) const
+	{
+		check(StateTree);
+		check(ItemHandle.IsValid());
+		return ItemViews[ItemHandle.ItemIndex].GetMutablePtr<T::ItemType>();
+	}
+	
 	EStateTreeRunStatus GetLastTickStatus(FStateTreeItemView ExternalStorage = FStateTreeItemView()) const;
 	EStateTreeRunStatus GetEnterStateStatus() const { return EnterStateStatus; }
 

@@ -24,6 +24,14 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	virtual ~FStateTreeEvaluatorBase() {}
 
 	/**
+	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
+	 * @see TStateTreeItemHandle.
+	 * @param Linker Reference to the linker
+	 * @return true if linking succeeded. 
+	 */
+	virtual bool Link(FStateTreeLinker& Linker) { return true; }
+	
+	/**
 	 * Called when a new state is entered and evaluator is part of active states. The change type parameter describes if the evaluator's state
 	 * was previously part of the list of active states (Sustained), or if it just became active (Changed).
 	 * @param Context Reference to current execution context.

@@ -929,7 +929,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeItemView Ext
 	DebugString += FString::Printf(TEXT("\nExternal items(%d)\n  [ %-40s | %-8s | %5s ]\n"), StateTree->ExternalItems.Num(), TEXT("Name"), TEXT("Optional"), TEXT("Index"));
 	for (const FStateTreeExternalItemDesc& Desc : StateTree->ExternalItems)
 	{
-		DebugString += FString::Printf(TEXT("  | %-40s | %8s | %5d |\n"), Desc.Struct ? *Desc.Struct->GetName() : TEXT("null"), *LexToString(Desc.bOptional), Desc.Handle.GetIndex());
+		DebugString += FString::Printf(TEXT("  | %-40s | %8s | %5d |\n"), Desc.Struct ? *Desc.Struct->GetName() : TEXT("null"), *UEnum::GetValueAsString(Desc.Requirement), Desc.Handle.ItemIndex);
 	}
 
 	// Bindings
@@ -942,8 +942,8 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeItemView Ext
 	{
 		DebugString += FString::Printf(TEXT("  | %3d | %15s | %-40s | %-40s | %8d |\n"),
 									Transition.ConditionsBegin, *Transition.State.Describe(),
-									*StaticEnum<EStateTreeTransitionType>()->GetValueAsString(Transition.Type),
-									*StaticEnum<EStateTreeTransitionEvent>()->GetValueAsString(Transition.Event),
+									*UEnum::GetValueAsString(Transition.Type),
+									*UEnum::GetValueAsString(Transition.Event),
 									Transition.ConditionsNum);
 	}
 

@@ -8,6 +8,7 @@
 #include "MassCrowdClaimWaitSlotTask.generated.h"
 
 struct FStateTreeExecutionContext;
+class UMassCrowdSubsystem;
 
 /**
 * Claim wait slot and expose slot position for path follow.
@@ -18,18 +19,14 @@ struct MASSCROWD_API FMassCrowdClaimWaitSlotTask : public FMassStateTreeTaskBase
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment"))
-	FStateTreeExternalItemHandle LocationHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMoveTargetFragment"))
-	FStateTreeExternalItemHandle MoveTargetHandle;
-
-	UPROPERTY(meta=(BaseClass="MassCrowdSubsystem"))
-	FStateTreeExternalItemHandle CrowdSubsystemHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeItemHandle<UMassCrowdSubsystem> CrowdSubsystemHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation"))
 	FStateTreeResultRef WaitSlotLocation;

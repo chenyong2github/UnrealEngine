@@ -11,16 +11,30 @@
 #include "MassZoneGraphMovementUtils.h"
 #include "ZoneGraphSubsystem.h"
 
+bool FMassZoneGraphPathFollowTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalItem(MoveTargetHandle);
+	Linker.LinkExternalItem(MovementConfigHandle);
+	Linker.LinkExternalItem(PathRequestHandle);
+	Linker.LinkExternalItem(ShortPathHandle);
+	Linker.LinkExternalItem(CachedLaneHandle);
+	Linker.LinkExternalItem(AgentRadiusHandle);
+	Linker.LinkExternalItem(ZoneGraphSubsystemHandle);
+
+	return true;
+}
+
 bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& Context, const FMassZoneGraphTargetLocation& RequestedTargetLocation) const
 {
-	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle).Get<UZoneGraphSubsystem>();
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
-	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalItem(MovementConfigHandle).Get<FMassMovementConfigFragment>();
-	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalItem(AgentRadiusHandle).Get<FDataFragment_AgentRadius>();
-	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle).GetMutable<FMassZoneGraphShortPathFragment>();
-	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalItem(CachedLaneHandle).GetMutable<FMassZoneGraphCachedLaneFragment>();
-	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle).GetMutable<FMassMoveTargetFragment>();
-	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalItem(PathRequestHandle).GetMutable<FMassZoneGraphPathRequestFragment>();
+	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
+	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalItem(MovementConfigHandle);
+	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalItem(AgentRadiusHandle);
+	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle);
+	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalItem(CachedLaneHandle);
+	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
+	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalItem(PathRequestHandle);
 
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);
@@ -101,7 +115,7 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 		return EStateTreeRunStatus::Failed;
 	}
 
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
 
 	const FMassZoneGraphTargetLocation* TargetLocationPtr = TargetLocation.GetPtr<FMassZoneGraphTargetLocation>();
 	if (!TargetLocationPtr)
@@ -137,8 +151,8 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContex
 		MASSBEHAVIOR_LOG(Verbose, TEXT("tick"));
 	}
 
-	const FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle).Get<FMassZoneGraphShortPathFragment>();
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
+	const FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
 
 	const FMassZoneGraphTargetLocation* TargetLocationPtr = TargetLocation.GetPtr<FMassZoneGraphTargetLocation>();
 	if (!TargetLocationPtr)

@@ -363,100 +363,136 @@ struct FStateTreeRuntimeStorageItemOffset
 	int32 Offset = 0;
 };
 
-
+UENUM()
+enum class EStateTreeItemRequirement : uint8
+{
+	Required,	// StateTree cannot be executed if the item is not present.
+	Optional,	// Item is optional for StateTree execution.
+};
 
 /**
- * Handle to an external struct or object. 
+ * Handle to access an external struct or object.
+ * Note: Use the templated version below. 
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeExternalItemHandle
+struct STATETREEMODULE_API FStateTreeItemHandle
 {
 	GENERATED_BODY()
 
-	FStateTreeExternalItemHandle() = default;
-	explicit FStateTreeExternalItemHandle(const uint16 InIndex) : ItemIndex(InIndex) {}
-	
-	static const uint16 InvalidIndex = uint16(-1);		// Index value indicating invalid item.
+	static const FStateTreeItemHandle Invalid;
+	static constexpr uint8 IndexNone = MAX_uint8;
 
-	bool IsValid() const { return ItemIndex != InvalidIndex; }
+	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
 
-	void SetIndex(const uint16 Index) { ItemIndex = Index; }
-	uint16 GetIndex() const { return ItemIndex; }
+	bool IsValid() const { return ItemIndex != IndexNone; }
 	
-protected:
-	UPROPERTY();
-	uint16 ItemIndex = InvalidIndex;
+	uint8 ItemIndex = IndexNone;
 };
 
+/**
+ * Handle to access an external struct or object.
+ * This reference handle can be used in StateTree tasks and evaluators to have quick access to external items.
+ * The type provided to the template is used by the linker and context to pass along the type.
+ *
+ * USTRUCT()
+ * struct FExampleTask : public FStateTreeTaskBase
+ * {
+ *    ...
+ *
+ *    bool Link(FStateTreeLinker& Linker)
+ *    {
+ *      Linker.LinkExternalItem(ExampleSubsystemHandle);
+ *      return true;
+ *    }
+ * 
+ *    EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+ *    {
+ *      const UExampleSubsystem& ExampleSubsystem = Context.GetExternalItem(ExampleSubsystemHandle);
+ *      ...
+ *    }
+ *
+ *    TStateTreeItemHandle<UExampleSubsystem> ExampleSubsystemHandle;
+ * }
+ */
+template<typename T, EStateTreeItemRequirement Req = EStateTreeItemRequirement::Required>
+struct TStateTreeItemHandle : FStateTreeItemHandle
+{
+	typedef T ItemType;
+	static constexpr EStateTreeItemRequirement ItemRequirement = Req;
+};
 
+/**
+ * Describes an external item. The item can point to a struct or object.
+ * The code that handles StateTree ticking is responsible for passing in the actually data, see FStateTreeExecutionContext.
+ */
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeExternalItemDesc
 {
 	GENERATED_BODY()
 
 	FStateTreeExternalItemDesc() = default;
-	FStateTreeExternalItemDesc(const UStruct* InStruct, const bool bInOptional) : Struct(InStruct), bOptional(bInOptional) {}
+	FStateTreeExternalItemDesc(const UStruct* InStruct, const EStateTreeItemRequirement InRequirement) : Struct(InStruct), Requirement(InRequirement) {}
+
+	bool operator==(const FStateTreeExternalItemDesc& Other) const
+	{
+		return Struct == Other.Struct && Requirement == Other.Requirement;
+	}
 	
 	/** Class or struct of the external item. */
 	UPROPERTY();
 	const UStruct* Struct = nullptr;
 
-	/** Handle to the StateTreeExecutionContext item views array */
+	/** Handle/Index to the StateTreeExecutionContext item views array */
 	UPROPERTY();
-	FStateTreeExternalItemHandle Handle;
+	FStateTreeItemHandle Handle;
 
-	/** If true, the extern item is optional (can be null). */
+	/** Describes if the item is required or not. */
 	UPROPERTY();
-	bool bOptional = false;
+	EStateTreeItemRequirement Requirement = EStateTreeItemRequirement::Required;
 };
 
-
-namespace FStateTreeVariableHelpers
+/**
+ * The StateTree linker is used to resolved references to various StateTree data at load time.
+ * @see TStateTreeItemHandle<> for example usage.
+ */
+struct FStateTreeLinker
 {
-	// Returns size of a variable type in bytes.
-	inline uint16 GetVariableMemoryUsage(EStateTreeVariableType Type)
+	/**
+	 * Links reference to an external UObject.
+	 * @param Handle Reference to TStateTreeItemHandle<> with UOBJECT type to link to.
+	 */
+	template <typename T>
+	typename TEnableIf<TIsDerivedFrom<typename T::ItemType, UObject>::IsDerived, void>::Type LinkExternalItem(T& Handle)
 	{
-		static const uint64 Alignment = 4;
-		switch (Type)
+		LinkExternalItem(Handle, T::ItemType::StaticClass(), T::ItemRequirement);
+	}
+
+	/**
+	 * Links reference to an external UObject.
+	 * @param Handle Reference to TStateTreeItemHandle<> with USTRUCT type to link to.
+	 */
+	template <typename T>
+	typename TEnableIf<!TIsDerivedFrom<typename T::ItemType, UObject>::IsDerived, void>::Type LinkExternalItem(T& Handle)
+	{
+		LinkExternalItem(Handle, T::ItemType::StaticStruct(), T::ItemRequirement);
+	}
+
+	/** @return linked external item descriptors. */
+	TConstArrayView<FStateTreeExternalItemDesc> GetItemDescs() const { return ItemDescs; }
+
+protected:
+	void LinkExternalItem(FStateTreeItemHandle& Handle, const UStruct* Struct, const EStateTreeItemRequirement Requirement)
+	{
+		const FStateTreeExternalItemDesc Desc(Struct, Requirement);
+		int32 Index = ItemDescs.Find(Desc);
+		if (Index == INDEX_NONE)
 		{
-		case EStateTreeVariableType::Float:
-			return uint16(Align(sizeof(float), Alignment));
-		case EStateTreeVariableType::Int:
-			return uint16(Align(sizeof(int32), Alignment));
-		case EStateTreeVariableType::Bool:
-			return uint16(Align(sizeof(bool), Alignment));
-		case EStateTreeVariableType::Vector:
-			return uint16(Align(sizeof(FVector), Alignment));
-		case EStateTreeVariableType::Object:
-			return uint16(Align(sizeof(FWeakObjectPtr), Alignment));
-		default:
-			return 0;
+			Index = ItemDescs.Add(Desc);
+			ItemDescs[Index].Handle.ItemIndex = (uint8)Index;
 		}
+		check(FStateTreeItemHandle::IsValidIndex(Index));
+		Handle.ItemIndex = (uint8)Index;
 	}
 
-	// Get simple value based on pointer in byte array.
-	template<typename T>
-	static const T& GetValueFromMemory(const uint8* MemoryBlock)
-	{
-		return *((T*)MemoryBlock);
-	}
-
-	// Helper function for writing typed data to memory block, returns true if value has changed.
-	template<typename T>
-	static bool SetValueInMemory(uint8* MemoryBlock, const T& Value)
-	{
-		const bool bChanged = *((T*)MemoryBlock) != Value;
-		*((T*)MemoryBlock) = Value;
-
-		return bChanged;
-	}
-
-	// Helper function for writing weak object data to memory block, returns true if value has changed.
-	static bool SetWeakObjectInMemory(uint8* MemoryBlock, const FWeakObjectPtr& Value)
-	{
-		FWeakObjectPtr* PrevValue = (FWeakObjectPtr*)MemoryBlock;
-		const bool bChanged = !PrevValue->HasSameIndexAndSerialNumber(Value);
-		*((FWeakObjectPtr*)MemoryBlock) = Value;
-		return bChanged;
-	}
+	TArray<FStateTreeExternalItemDesc> ItemDescs;
 };

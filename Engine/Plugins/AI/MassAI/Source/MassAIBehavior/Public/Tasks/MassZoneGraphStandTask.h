@@ -7,6 +7,14 @@
 #include "MassZoneGraphStandTask.generated.h"
 
 struct FStateTreeExecutionContext;
+struct FMassZoneGraphLaneLocationFragment;
+struct FMassMoveTargetFragment;
+struct FMassZoneGraphShortPathFragment;
+struct FMassZoneGraphCachedLaneFragment;
+class UZoneGraphSubsystem;
+class UMassSignalSubsystem;
+struct FMassSimulationLODFragment;
+struct FMassMovementConfigFragment;
 
 /**
  * Stop, and stand on current ZoneGraph location
@@ -17,29 +25,18 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphStandTask : public FMassStateTreeTaskBas
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment"))
-	FStateTreeExternalItemHandle LocationHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMoveTargetFragment"))
-	FStateTreeExternalItemHandle MoveTargetHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphShortPathFragment"))
-	FStateTreeExternalItemHandle ShortPathHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphCachedLaneFragment"))
-	FStateTreeExternalItemHandle CachedLaneHandle;
-
-	UPROPERTY(meta=(BaseClass="ZoneGraphSubsystem"))
-	FStateTreeExternalItemHandle ZoneGraphSubsystemHandle;
-
-	UPROPERTY(meta=(BaseClass="MassSignalSubsystem"))
-	FStateTreeExternalItemHandle MassSignalSubsystemHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMovementConfigFragment"))
-	FStateTreeExternalItemHandle MovementConfigHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeItemHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
+	TStateTreeItemHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
+	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
+	TStateTreeItemHandle<FMassSimulationLODFragment> SimulationLODHandle;
+	TStateTreeItemHandle<FMassMovementConfigFragment> MovementConfigHandle;
 
 	UPROPERTY()
 	float Time = 0.0f;

@@ -17,6 +17,18 @@
 //----------------------------------------------------------------------//
 // FMassStateTreeSmartObjectEvaluator
 //----------------------------------------------------------------------//
+
+bool FMassStateTreeSmartObjectEvaluator::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(SmartObjectSubsystemHandle);
+	Linker.LinkExternalItem(MassSignalSubsystemHandle);
+	Linker.LinkExternalItem(EntityTransformHandle);
+	Linker.LinkExternalItem(SmartObjectUserHandle);
+	Linker.LinkExternalItem(LocationHandle);
+
+	return true;
+}
+
 void FMassStateTreeSmartObjectEvaluator::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
@@ -37,7 +49,7 @@ void FMassStateTreeSmartObjectEvaluator::ExitState(FStateTreeExecutionContext& C
 	if (SearchRequestID.IsSet())
 	{
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle).GetMutable<USmartObjectSubsystem>();
+		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
 		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
 		SearchRequestID.Reset();
@@ -54,7 +66,7 @@ void FMassStateTreeSmartObjectEvaluator::Reset()
 
 void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType,  const float DeltaTime)
 {
-	const FDataFragment_SmartObjectUser& SOUser = Context.GetExternalItem(SmartObjectUserHandle).Get<FDataFragment_SmartObjectUser>();
+	const FDataFragment_SmartObjectUser& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
 
 	bCandidatesFound = false;
 	bClaimed = SOUser.GetClaimHandle().IsValid();
@@ -78,7 +90,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	}
 	NextUpdate = 0.f;
 
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle).GetMutable<USmartObjectSubsystem>();
+	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 
@@ -87,7 +99,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	{
 		// Use lanes if possible for faster queries using zone graph annotations
 		const FMassEntityHandle RequestingEntity = MassContext.GetEntity();
-		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalItem(LocationHandle).GetPtr<FMassZoneGraphLaneLocationFragment>();
+		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalItemPtr(LocationHandle);
 		bUsingZoneGraphAnnotations = LaneLocation != nullptr;
 		if (bUsingZoneGraphAnnotations)
 		{
@@ -99,7 +111,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 		}
 		else
 		{
-			const FDataFragment_Transform& TransformFragment = Context.GetExternalItem(EntityTransformHandle).Get<FDataFragment_Transform>();
+			const FDataFragment_Transform& TransformFragment = Context.GetExternalItem(EntityTransformHandle);
 			SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, TransformFragment.GetTransform().GetLocation());
 		}
 	}
@@ -127,7 +139,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 			{
 				const float DelayInSeconds = bCandidatesFound ? TickInterval : RetryCooldown;
 				NextUpdate = World->GetTimeSeconds() + DelayInSeconds;
-				UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalItem(MassSignalSubsystemHandle).GetMutable<UMassSignalSubsystem>();
+				UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalItem(MassSignalSubsystemHandle);
 				MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::SmartObjectRequestCandidates, RequestingEntity, DelayInSeconds);
 			}
 		}

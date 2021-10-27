@@ -9,6 +9,10 @@
 #include "MassStateTreeSmartObjectTask.generated.h"
 
 struct FStateTreeExecutionContext;
+struct FDataFragment_SmartObjectUser;
+class USmartObjectSubsystem;
+struct FDataFragment_Transform;
+struct FMassMoveTargetFragment;
 
 /**
  * Tasks to claim a smart object from search results and release it when done.
@@ -19,15 +23,13 @@ struct MASSAIBEHAVIOR_API FMassClaimSmartObjectTask : public FMassStateTreeTaskB
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser"))
-	FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-	UPROPERTY(meta=(BaseClass="SmartObjectSubsystem"))
-	FStateTreeExternalItemHandle SmartObjectSubsystemHandle;
+	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 
 	/** Result of the candidates search request (Input) */
 	UPROPERTY(VisibleAnywhere, Category = SmartObject, meta = (Bindable), Transient)
@@ -47,22 +49,16 @@ struct MASSAIBEHAVIOR_API FMassUseSmartObjectTask : public FMassStateTreeTaskBas
 	GENERATED_BODY()
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseClass="SmartObjectSubsystem"))
-	FStateTreeExternalItemHandle SmartObjectSubsystemHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_Transform"))
-	FStateTreeExternalItemHandle EntityTransformHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser"))
-	FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-	UPROPERTY(meta=(BaseStruct="MassMoveTargetFragment"))
-	FStateTreeExternalItemHandle MoveTargetHandle;
+	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
+	TStateTreeItemHandle<FDataFragment_Transform> EntityTransformHandle;
+	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
 
 	/** Delay in seconds before trying to find & use another smart object */
 	UPROPERTY(EditAnywhere, Category = SmartObject)

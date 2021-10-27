@@ -9,11 +9,20 @@
 #include "MassZoneGraphMovementFragments.h"
 #include "SmartObjectZoneAnnotations.h"
 
+bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(SmartObjectUserHandle);
+	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalItem(AnnotationSubsystemHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
-	const UZoneGraphAnnotationSubsystem& AnnotationSubsystem = Context.GetExternalItem(AnnotationSubsystemHandle).Get<UZoneGraphAnnotationSubsystem>();
-	const FDataFragment_SmartObjectUser& SOUser = Context.GetExternalItem(SmartObjectUserHandle).Get<FDataFragment_SmartObjectUser>();
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
+	const UZoneGraphAnnotationSubsystem& AnnotationSubsystem = Context.GetExternalItem(AnnotationSubsystemHandle);
+	const FDataFragment_SmartObjectUser& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
 	const FZoneGraphLaneHandle LaneHandle(LaneLocation.LaneHandle);
 
 	TargetLocationRef = nullptr;

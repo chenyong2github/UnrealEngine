@@ -6,6 +6,10 @@
 #include "MassStateTreeTypes.h"
 #include "MassStateTreeTestTask.generated.h"
 
+class UMassStateTreeSubsystem;
+struct FDataFragment_SmartObjectUser;
+struct FDataFragment_Transform;
+
 /**
  * Test Task, will be removed later.
  */
@@ -16,22 +20,20 @@ struct MASSAIBEHAVIOR_API FMassStateTreeTestTask : public FMassStateTreeTaskBase
 
 	FMassStateTreeTestTask();
 	virtual ~FMassStateTreeTestTask();
+
+protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-protected:
+	TStateTreeItemHandle<UMassStateTreeSubsystem> MassStateTreeSubSystemHandle;
+	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FDataFragment_Transform> TransformHandle;
+
 	UPROPERTY()
 	float Time = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = Test, meta = (Bindable))
 	float Duration = 5.0f;
 
-	UPROPERTY(meta=(BaseClass="MassStateTreeSubsystem"))
-	FStateTreeExternalItemHandle MassStateTreeSubSystemHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser", Optional))
-	FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-	UPROPERTY(meta=(BaseStruct="DataFragment_Transform"))
-	FStateTreeExternalItemHandle TransformHandle;
 };

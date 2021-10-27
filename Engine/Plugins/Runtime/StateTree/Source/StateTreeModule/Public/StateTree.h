@@ -63,6 +63,9 @@ protected:
 	/** Initializes the types and default values related to StateTree runtime storage */
 	void InitRuntimeStorage();
 
+	/** Resolved references between data in the StateTree. */
+	void Link();
+	
 	/** @return Number of items (Evaluators & Tasks) in the runtime storage. */
 	int32 GetRuntimeStorageItemCount() const { return RuntimeStorageOffsets.Num(); }
 
@@ -91,8 +94,8 @@ private:
 	UPROPERTY(meta = (BaseStruct = "StateTreeConditionBase", ExcludeBaseStruct))
 	TArray<FInstancedStruct> Conditions;
 
-	/** List of external items required by the state tree */
-	UPROPERTY()
+	/** List of external items required by the state tree, creating during linking. */
+	UPROPERTY(Transient)
 	TArray<FStateTreeExternalItemDesc> ExternalItems;
 
 	UPROPERTY()

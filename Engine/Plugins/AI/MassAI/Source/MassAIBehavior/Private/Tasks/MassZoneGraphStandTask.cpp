@@ -12,6 +12,20 @@
 #include "MassSimulationLOD.h"
 #include "MassZoneGraphMovementUtils.h"
 
+bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalItem(MoveTargetHandle);
+	Linker.LinkExternalItem(ShortPathHandle);
+	Linker.LinkExternalItem(CachedLaneHandle);
+	Linker.LinkExternalItem(ZoneGraphSubsystemHandle);
+	Linker.LinkExternalItem(MassSignalSubsystemHandle);
+	Linker.LinkExternalItem(SimulationLODHandle);
+	Linker.LinkExternalItem(MovementConfigHandle);
+
+	return true;
+}
+
 EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	// Do not reset of the state if current state is still active after transition, unless transitioned specifically to this state.
@@ -22,9 +36,9 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
-	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle).Get<UZoneGraphSubsystem>();
-	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalItem(MovementConfigHandle).Get<FMassMovementConfigFragment>();
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
+	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle);
+	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalItem(MovementConfigHandle);
 
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);
@@ -42,9 +56,9 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle).GetMutable<FMassZoneGraphShortPathFragment>();
-	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalItem(CachedLaneHandle).GetMutable<FMassZoneGraphCachedLaneFragment>();
-	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle).GetMutable<FMassMoveTargetFragment>();
+	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle);
+	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalItem(CachedLaneHandle);
+	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
 
 	// TODO: This could be smarter too, like having a stand location/direction, or even make a small path to stop, if we're currently running.
 
@@ -64,7 +78,7 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 	// Otherwise we schedule a signal to end the task.
 	if (Duration > 0.0f)
 	{
-		UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalItem(MassSignalSubsystemHandle).GetMutable<UMassSignalSubsystem>();
+		UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalItem(MassSignalSubsystemHandle);
 		MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::StandTaskFinished, MassContext.GetEntity(), Duration);
 	}
 

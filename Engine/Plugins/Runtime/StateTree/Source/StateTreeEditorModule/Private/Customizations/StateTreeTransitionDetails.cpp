@@ -6,8 +6,9 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "StateTree.h"
 #include "StateTreeState.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

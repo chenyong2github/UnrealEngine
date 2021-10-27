@@ -85,10 +85,12 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 
 	BindingsCompiler.Finalize();
 
-	StateTree->InitRuntimeStorage();
-
 	// TODO: This is just for testing. It should be called just before use.
 	StateTree->ResolvePropertyPaths();
+
+	StateTree->Link();
+	
+	StateTree->InitRuntimeStorage();
 
 	return true;
 }
@@ -285,111 +287,6 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 	return true;
 }
 
-bool FStateTreeBaker::CreateExternalItemHandles(FStructView Item)
-{
-	check(StateTree);
-	
-	const UScriptStruct* ScriptStruct = Item.GetScriptStruct();
-	check(ScriptStruct);
-
-	static const FName BaseStructMetaName(TEXT("BaseStruct"));
-	static const FName BaseClassMetaName(TEXT("BaseClass"));
-	static const FName OptionalMetaName(TEXT("Optional"));
-
-	//
-	// Iterate over the main level properties of the struct and look for properties of type FStateTreeExternalItemHandle.
-	// The meta data of the property defines what type will bound to it. Examples:
-	//
-	// Handle to WorldSubsystem:
-	//		UPROPERTY(meta=(BaseClass="MassStateTreeSubsystem"))
-	//		FStateTreeExternalItemHandle MassStateTreeSubSystemHandle;
-	//
-	// Handle to a struct (fragment), optional, meaning it can be null:
-	//		UPROPERTY(meta=(BaseStruct="DataFragment_SmartObjectUser", Optional))
-	//		FStateTreeExternalItemHandle SmartObjectUserHandle;
-
-    for (TPropertyValueIterator<const FStructProperty> It(ScriptStruct, Item.GetMutableMemory(), EPropertyValueIteratorFlags::NoRecursion); It; ++It)
-    {
-    	const FStructProperty* StructProperty = It->Key;
-    	check(StructProperty);
-    	if (StructProperty->Struct == FStateTreeExternalItemHandle::StaticStruct())
-    	{
-    		// Find Class or ScriptStruct.
-    		const UStruct* Struct = nullptr;
-    		if (StructProperty->HasMetaData(BaseStructMetaName))
-    		{
-	    		const FString& BaseStructName = StructProperty->GetMetaData(BaseStructMetaName);
-				Struct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseStructName);
-    			if (Struct == nullptr)
-    			{
-    				UE_LOG(LogStateTree, Error, TEXT("%s: Struct '%s' does not exists."), ANSI_TO_TCHAR(__FUNCTION__), *BaseStructName);
-    				return false;
-    			}
-    		}
-    		else if (StructProperty->HasMetaData(BaseClassMetaName))
-    		{
-    			const FString& BaseClassName = StructProperty->GetMetaData(BaseClassMetaName);
-				Struct = FindObject<UClass>(ANY_PACKAGE, *BaseClassName);
-    			if (Struct == nullptr)
-    			{
-    				UE_LOG(LogStateTree, Error, TEXT("%s: Class '%s' does not exists."), ANSI_TO_TCHAR(__FUNCTION__), *BaseClassName);
-    				return false;
-    			}
-    		}
-    		else
-    		{
-    			UE_LOG(LogStateTree, Error, TEXT("%s: FStateTreeExternalItemHandle must have 'BaseStruct' or 'BaseClass' set."), ANSI_TO_TCHAR(__FUNCTION__));
-    			return false;
-    		}
-
-    		// Parse optional
-    		const bool bOptional = StructProperty->HasMetaData(OptionalMetaName);
-
-    		// The struct/class must be accepted by the schema.
-    		if (StateTree->Schema && !StateTree->Schema->IsExternalItemAllowed(*Struct))
-    		{
-    			UE_LOG(LogStateTree, Error, TEXT("%s: Schema %s does not allow item type %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree->Schema), *GetNameSafe(Struct));
-    			return false;
-    		}
-
-    		// Check if similar struct already exists, if not add new.
-    		FStateTreeExternalItemDesc* ExternalItem = StateTree->ExternalItems.FindByPredicate([Struct](const FStateTreeExternalItemDesc& Item) { return Item.Struct == Struct; });
-    		if (ExternalItem == nullptr)
-    		{
-    			ExternalItem = &StateTree->ExternalItems.Emplace_GetRef(Struct, bOptional);
-    		
-    			// The external struct pointer is stored in the same array as property binding sources.
-    			// This is done also as anticipation to allow to bind to external items.
-    			FStateTreeBindableStructDesc StructDesc;
-    			StructDesc.Struct = Struct;
-    			StructDesc.Name = FName(Struct->GetName() + TEXT("_External"));
-    			StructDesc.ID = FGuid(); // Empty GUID, this item cannot be bound to.
-
-    			const int32 StructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
-
-    			check(StructIndex <= int32(MAX_uint16));
-    			ExternalItem->Handle.SetIndex(uint16(StructIndex));
-			}
-    		else
-    		{
-    			// If same type is requested as required, clear optional flag. 
-    			if (!bOptional)
-    			{
-    				ExternalItem->bOptional = false;
-    			}
-    		}
-
-    		check(ExternalItem);
-
-    		// Update the handle on Eval/struct
-    		FStateTreeExternalItemHandle& Handle = *static_cast<FStateTreeExternalItemHandle*>(const_cast<void*>(It.Value()));
-    		Handle = ExternalItem->Handle;
-    	}
-    }
-
-	return true;
-}
-
 bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
 {
 	const int32 StateIdx = StateTree->States.AddDefaulted();
@@ -440,12 +337,6 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			Eval.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
 			check(SourceStructIndex <= int32(MAX_uint16));
 			Eval.SourceStructIndex = uint16(SourceStructIndex);
-
-			if (!CreateExternalItemHandles(EvalPtr))
-			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: '%s': %s failed to create external item handles."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *Eval.Name.ToString());
-				return false;
-			}
 		}
 	}
 	const int32 EvaluatorsNum = StateTree->RuntimeStorageItems.Num() - int32(BakedState.EvaluatorsBegin);
@@ -492,12 +383,6 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			Task.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
 			check(SourceStructIndex <= int32(MAX_uint16));
 			Task.SourceStructIndex = uint16(SourceStructIndex);
-
-			if (!CreateExternalItemHandles(TaskPtr))
-			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: '%s': %s failed to create external item handles."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *Task.Name.ToString());
-				return false;
-			}
 		}
 	}
 	const int32 TasksNum = StateTree->RuntimeStorageItems.Num() - int32(BakedState.TasksBegin);

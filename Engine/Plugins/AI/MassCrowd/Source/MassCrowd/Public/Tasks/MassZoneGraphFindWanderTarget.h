@@ -7,6 +7,10 @@
 #include "MassZoneGraphFindWanderTarget.generated.h"
 
 struct FStateTreeExecutionContext;
+struct FMassZoneGraphLaneLocationFragment;
+class UZoneGraphSubsystem;
+class UZoneGraphAnnotationSubsystem;
+class UMassCrowdSubsystem;
 
 /**
  * Updates TargetLocation to a wander target based on the agents current location on ZoneGraph.
@@ -19,21 +23,15 @@ struct MASSCROWD_API FMassZoneGraphFindWanderTarget : public FMassStateTreeTaskB
 	FMassZoneGraphFindWanderTarget();
 
 protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	UPROPERTY(meta=(BaseStruct="MassZoneGraphLaneLocationFragment"))
-	FStateTreeExternalItemHandle LocationHandle;
-
-	UPROPERTY(meta=(BaseClass="ZoneGraphSubsystem"))
-	FStateTreeExternalItemHandle ZoneGraphSubsystemHandle;
-
-	UPROPERTY(meta=(BaseClass="ZoneGraphAnnotationSubsystem"))
-	FStateTreeExternalItemHandle ZoneGraphAnnotationSubsystemHandle;
-
-	UPROPERTY(meta=(BaseClass="MassCrowdSubsystem"))
-	FStateTreeExternalItemHandle MassCrowdSubsystemHandle;
+	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
+	TStateTreeItemHandle<UMassCrowdSubsystem> MassCrowdSubsystemHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FZoneGraphTagFilter AllowedBehaviorTags;

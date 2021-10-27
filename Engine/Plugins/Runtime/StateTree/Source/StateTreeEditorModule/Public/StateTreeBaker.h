@@ -38,7 +38,6 @@ private:
 	bool CreateCondition(const FStateTreeConditionItem& CondItem);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
-	bool CreateExternalItemHandles(FStructView Item);
 
 	UStateTree* StateTree = nullptr;
 	UStateTreeEditorData* TreeData = nullptr;
