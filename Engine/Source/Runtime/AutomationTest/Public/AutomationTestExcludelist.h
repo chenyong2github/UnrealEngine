@@ -97,7 +97,7 @@ struct FAutomationTestExcludelistEntry
 	/* Determine if exclusion entry is propagated based on test name - used for management in test automation window */
 	void SetPropagation(const FString& ForTestName)
 	{
-		bIsPropagated = FullTestName != ForTestName.ToLower();
+		bIsPropagated = FullTestName != ForTestName.TrimStartAndEnd().ToLower();
 	}
 
 	/* Return true if the entry is not specific */
