@@ -12,9 +12,9 @@ using System.Diagnostics;
 
 #nullable disable
 
-namespace HordeCommon
+namespace HordeServer.Utilities
 {
-	public static class AgentUtilities
+	static class AgentUtilities
 	{
 		/// <summary>
 		/// Reads the version number from an archive
