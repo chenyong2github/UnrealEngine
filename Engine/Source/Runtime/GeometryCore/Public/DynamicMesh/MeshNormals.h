@@ -189,20 +189,14 @@ public:
 	static bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 
-protected:
-	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */
-	void Compute_FaceAvg_AreaWeighted();
-	/** Compute per-vertex normals using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
-	void Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle);
-
-	/** Compute per-triangle normals */
-	void Compute_Triangle();
-
-	/** Recompute the element Normals of the given attribute overlay using area-weighted averaging of one-ring triangle normals */
-	void Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay);
-	/** Recompute the element Normals of the given attribute overlay using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
-	void Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle);
-
+	/**
+	 * Retrieve the area and/or angle weights for each vertex of a triangle
+	 * @param Mesh the mesh to query
+	 * @param TriID the triangle index of the mesh to query
+	 * @param TriArea the area of the triangle
+	 * @param bWeightByArea if true, include weighting by the area of the triangle
+	 * @param bWeightByAngle if true, include weighting by the interior angles of the triangle
+	 */
 	static FVector3d GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle)
 	{
 		FVector3d TriNormalWeights = FVector3d::One();
@@ -216,6 +210,21 @@ protected:
 		}
 		return TriNormalWeights;
 	}
+
+
+protected:
+	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */
+	void Compute_FaceAvg_AreaWeighted();
+	/** Compute per-vertex normals using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
+	void Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle);
+
+	/** Compute per-triangle normals */
+	void Compute_Triangle();
+
+	/** Recompute the element Normals of the given attribute overlay using area-weighted averaging of one-ring triangle normals */
+	void Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay);
+	/** Recompute the element Normals of the given attribute overlay using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
+	void Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle);
 
 };
 

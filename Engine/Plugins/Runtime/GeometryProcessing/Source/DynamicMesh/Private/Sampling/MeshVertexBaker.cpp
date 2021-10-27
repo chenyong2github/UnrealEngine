@@ -2,6 +2,7 @@
 
 #include "Sampling/MeshVertexBaker.h"
 #include "Sampling/MeshBakerCommon.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -95,7 +96,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	ECorrespondenceStrategy UseStrategy = Baker->CorrespondenceStrategy;
 	bool bIsIdentity = true;
 	int NumDetailMeshes = 0;
-	auto CheckIdentity = [&Baker, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+	auto CheckIdentity = [Baker, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
 	{
 		bIsIdentity = bIsIdentity && (DetailMesh == Baker->TargetMesh);
 		++NumDetailMeshes;
@@ -110,37 +111,46 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	
 	const FDynamicMesh3* Mesh = Baker->TargetMesh;
 	const FDynamicMeshColorOverlay* ColorOverlay = Baker->TargetMesh->Attributes()->PrimaryColors();
+	const FDynamicMeshNormalOverlay* NormalOverlay = Baker->TargetMesh->Attributes()->PrimaryNormals();
 
 	// TODO: Refactor into TMeshSurfaceSampler class (future vertex bake enhancements will require non-UV based surface sampling)
-	auto SampleSurface = [&Baker, &Mesh, &ColorOverlay, &UseStrategy](int32 ElementIdx,
+	auto SampleSurface = [Baker, Mesh, ColorOverlay, NormalOverlay, UseStrategy](int32 ElementIdx,
 	                                                                FMeshMapEvaluator::FCorrespondenceSample& ValueOut)
 	{
-		const int32 VId = ColorOverlay->GetParentVertex(ElementIdx);
+		const int32 VertexId = ColorOverlay->GetParentVertex(ElementIdx);
 
 		// Compute ray direction
-		// TODO: Precompute a color to normal overlay mapping data structure and replace this with a lookup.
 		FVector3f SurfaceNormal = FVector3f::Zero();
-		TArray<int> ColorElemTris;
-		ColorOverlay->GetElementTriangles(ElementIdx, ColorElemTris);
-		for (int TId : ColorElemTris)
+		TArray<int> ColorElementTris;
+		ColorOverlay->GetElementTriangles(ElementIdx, ColorElementTris);
+		for (const int TriId : ColorElementTris)
 		{
-			SurfaceNormal += Mesh->GetTriNormal(TId);
+			FVector3d TriNormal, TriCentroid; double TriArea;
+			Mesh->GetTriInfo(TriId, TriNormal, TriArea, TriCentroid);
+			FVector3d NormalWeights = FMeshNormals::GetVertexWeightsOnTriangle(Mesh, TriId, TriArea, true, true);
+			const FIndex3i TriVerts = Mesh->GetTriangle(TriId);
+			const int TriVertexId = IndexUtil::FindTriIndex(VertexId, TriVerts);
+			
+			if (NormalOverlay->IsSetTriangle(TriId))
+			{
+				FVector3f Normal;
+				NormalOverlay->GetElementAtVertex(TriId, VertexId, Normal);
+				SurfaceNormal += NormalWeights[TriVertexId] * Normal;
+			}
+			else
+			{
+				SurfaceNormal += NormalWeights[TriVertexId] * TriNormal;
+			}
 		}
 		Normalize(SurfaceNormal);
 
 		// Compute surface point and barycentric coords
-		const FVector3d SurfacePoint = Mesh->GetVertex(VId);
-		const int32 TriangleIndex = ColorElemTris[0];
+		const FVector3d SurfacePoint = Mesh->GetVertex(VertexId);
+		const int32 TriangleIndex = ColorElementTris[0];
+		const FIndex3i TriVerts = Mesh->GetTriangle(TriangleIndex);
+		const int TriVertexId = IndexUtil::FindTriIndex(VertexId, TriVerts);
 		FVector3d BaryCoords = FVector3d::Zero();
-		FIndex3i TriVerts = Mesh->GetTriangle(TriangleIndex);
-		for (int Idx = 0; Idx < 3; ++Idx)
-		{
-			if (VId == TriVerts[Idx])
-			{
-				BaryCoords[Idx] = 1.0;
-				break;
-			}
-		}
+		BaryCoords[TriVertexId] = 1.0;
 
 		ValueOut.BaseSample.TriangleIndex = TriangleIndex;
 		ValueOut.BaseSample.SurfacePoint = SurfacePoint;
@@ -149,7 +159,6 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 		ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
 		ValueOut.BaseNormal = SurfaceNormal;
 
-		const FVector3d RayDir = SurfaceNormal;
 		if (UseStrategy == ECorrespondenceStrategy::Identity)
 		{
 			ValueOut.DetailMesh = Mesh;
@@ -166,7 +175,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 			const double SampleThickness = Baker->GetThickness(); // could modulate w/ a map here...
 
 			// Find detail mesh triangle point
-			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Raycast(Baker->DetailSampler, SurfacePoint, RayDir,
+			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Raycast(Baker->DetailSampler, SurfacePoint, SurfaceNormal,
 			                                   ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness,
 			                                   (UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
@@ -178,7 +187,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	const FImageTiling Tiles(Baker->Dimensions, TileWidth, TileHeight);
 	const int32 NumTiles = Tiles.Num();
 	const int NumBakers = Baker->Bakers.Num();
-	ParallelFor(NumTiles, [&Baker, &Tiles, &TileWidth, &NumBakers, &SampleSurface](const int32 TileIdx)
+	ParallelFor(NumTiles, [Baker, &Tiles, TileWidth, NumBakers, &SampleSurface](const int32 TileIdx)
 	{
 		const FImageTile Tile = Tiles.GetTile(TileIdx);
 		const int Width = Tile.GetWidth();
