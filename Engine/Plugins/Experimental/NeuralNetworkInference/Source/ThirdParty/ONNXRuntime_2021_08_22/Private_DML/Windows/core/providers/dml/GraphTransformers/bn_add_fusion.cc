@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include "precomp.h"
 
 #undef OPTIONAL
@@ -105,4 +101,3 @@ bool BatchNormalizationAddFusion::SatisfyCondition(const Graph& graph, const Nod
 }
 
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
