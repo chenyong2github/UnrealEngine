@@ -24,6 +24,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #include <wrl/client.h>
 #include <wrl/implements.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #include <wil/wrl.h>
 #include <wil/result.h>
@@ -59,4 +60,3 @@ using Microsoft::WRL::ComPtr;
 #include "TensorDesc.h"
 #include "DescriptorPool.h"
 #include "IExecutionProvider.h"
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
