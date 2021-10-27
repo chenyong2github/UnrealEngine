@@ -5,6 +5,8 @@
 #include "MassCommonFragments.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
+#include "VisualLogger/VisualLogger.h"
+#include "MassLODUtils.h"
 
 //-----------------------------------------------------------------------------
 // UMassProcessor_MassSimulationLODViewersInfo
