@@ -5,9 +5,6 @@
 =============================================================================*/
 
 #include "Common.ush"
-
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || SIMULATED_PLATFORM  
-
 Texture2DMS<float4> UnresolvedSurface;
 
 
@@ -53,18 +50,3 @@ void MainSingleSample(
 
 	OutColor = UnresolvedSurface.Load(IntUV,SingleSampleIndex);
 }
-
-#else
-
-Texture2D UnresolvedSurfaceNonMS;
-void MainDepthNonMS(
-	float2 InUV : TEXCOORD0,
-	out float OutDepth : SV_DEPTH
-	)
-{
-	int3 IntUV = int3(trunc(InUV),0);
-	float Sample = UnresolvedSurfaceNonMS.Load(IntUV).r;
-	OutDepth = Sample;
-}
-
-#endif

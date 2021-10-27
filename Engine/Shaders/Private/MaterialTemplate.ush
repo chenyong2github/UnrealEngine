@@ -2079,11 +2079,7 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 #else
 	if (SceneTextureId == PPI_SceneDepth)
 	{
-		#if MOBILE_DEFERRED_SHADING
-			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV).r);
-		#else
-			MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, UV).r);
-		#endif
+		MaterialFloat Depth = CalcSceneDepth(UV);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureId == PPI_CustomDepth)

@@ -94,18 +94,13 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 		return;
 
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
-	if (GMaxRHIShaderPlatform == SP_PCD3D_SM6 || GMaxRHIShaderPlatform == SP_PCD3D_SM5)
+
 	{
 		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_Depth(ShaderMap);
 		ResolvePixelShader_Depth.GetPixelShader();
 
 		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_SingleSample(ShaderMap);
 		ResolvePixelShader_SingleSample.GetPixelShader();
-	}
-	else
-	{
-		TShaderMapRef<FResolveDepthNonMSPS> ResolvePixelShader_DepthNonMS(ShaderMap);
-		ResolvePixelShader_DepthNonMS.GetPixelShader();
 	}
 }
 

@@ -16,17 +16,10 @@ class FResolveDepthPS : public FGlobalShader
 public:
 	
 	typedef FDummyResolveParameter FParameter;
-	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5
-			|| IsSimulatedPlatform(Parameters.Platform); // support resolving MSAA depth in mobile emulation
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SIMULATED_PLATFORM"), IsSimulatedPlatform(Parameters.Platform) ? 1 : 0);
 	}
 		
 	FResolveDepthPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -50,17 +43,10 @@ public:
 
 	typedef FDummyResolveParameter FParameter;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 
-			|| IsSimulatedPlatform(Parameters.Platform); // support resolving MSAA depth in mobile emulation
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 2);
-		OutEnvironment.SetDefine(TEXT("SIMULATED_PLATFORM"), IsSimulatedPlatform(Parameters.Platform) ? 1 : 0);
 	}
 
 	FResolveDepth2XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
@@ -85,17 +71,10 @@ public:
 
 	typedef FDummyResolveParameter FParameter;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5
-			|| IsSimulatedPlatform(Parameters.Platform); // support resolving MSAA depth in mobile emulation
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 4);
-		OutEnvironment.SetDefine(TEXT("SIMULATED_PLATFORM"), IsSimulatedPlatform(Parameters.Platform) ? 1 : 0);
 	}
 
 	FResolveDepth4XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
@@ -122,17 +101,10 @@ public:
 
 	static bool ShouldCache(EShaderPlatform Platform) { return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5; }
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5
-			|| IsSimulatedPlatform(Parameters.Platform); // support resolving MSAA depth in mobile emulation
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 8);
-		OutEnvironment.SetDefine(TEXT("SIMULATED_PLATFORM"), IsSimulatedPlatform(Parameters.Platform) ? 1 : 0);
 	}
 
 	FResolveDepth8XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
@@ -142,30 +114,6 @@ public:
 	}
 	FResolveDepth8XPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, FParameter)
-	{
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
-};
-
-
-class FResolveDepthNonMSPS : public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthNonMSPS, Global, RENDERCORE_API);
-public:
-	
-	typedef FDummyResolveParameter FParameter;
-	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return GetMaxSupportedFeatureLevel(Parameters.Platform) <= ERHIFeatureLevel::ES3_1; }
-	
-	FResolveDepthNonMSPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-	FGlobalShader(Initializer)
-	{
-		UnresolvedSurface.Bind(Initializer.ParameterMap,TEXT("UnresolvedSurfaceNonMS"), SPF_Mandatory);
-	}
-	FResolveDepthNonMSPS() {}
-	
 	void SetParameters(FRHICommandList& RHICmdList, FParameter)
 	{
 	}

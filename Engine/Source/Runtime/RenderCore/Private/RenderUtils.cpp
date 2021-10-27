@@ -1117,10 +1117,14 @@ RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform P
 
 RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Platform)
 {
-	// SceneDepth is used on all mobile platforms when the forward shading is enabled and on IOS with deferred shading.
-	if (!IsMobileDeferredShadingEnabled(Platform) || IsMetalMobilePlatform(Platform))
+	// SceneDepth is used on most mobile platforms when forward shading is enabled and always on IOS.
+	if (IsMetalMobilePlatform(Platform))
 	{
 		return true;
+	}
+	else if (!IsMobileDeferredShadingEnabled(Platform))
+	{
+		return IsAndroidOpenGLESPlatform(Platform) || IsVulkanMobilePlatform(Platform) || IsSimulatedPlatform(Platform);
 	}
 	return false;
 }
