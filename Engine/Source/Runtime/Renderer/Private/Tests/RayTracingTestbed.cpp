@@ -115,24 +115,8 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	Instances[0].NumTransforms = NumTransforms;
 	Instances[0].Transforms = MakeArrayView(&FMatrix::Identity, 1);
 
-	uint32 InstancesGeometryIndex[NumInstances] = {};
-	InstancesGeometryIndex[0] = 0;
-
-	FRayTracingSceneRHIRef Scene;
-
-	{
-		FRayTracingSceneInitializer2 Initializer;
-		Initializer.DebugName = FName(TEXT("FRayTracingScene"));
-		Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-		Initializer.PerInstanceGeometries.Add(Geometry);
-		Initializer.BaseInstancePrefixSum.Add(0);
-		Initializer.SegmentPrefixSum.Add(0);
-		Initializer.ReferencedGeometries.Add(Geometry);
-		Initializer.NumNativeInstances = NumInstances * NumTransforms;
-		Initializer.NumTotalSegments = Geometry->GetNumSegments();
-
-		Scene = RHICreateRayTracingScene(MoveTemp(Initializer));
-	}
+	TArray<uint32> GeometryIndices;
+	FRayTracingSceneRHIRef Scene = CreateRayTracingSceneWithGeometryInstances(Instances, RAY_TRACING_NUM_SHADER_SLOTS, 1, GeometryIndices);
 
 	const FRayTracingSceneInitializer2& SceneInitializer = Scene->GetInitializer();
 
@@ -151,26 +135,26 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		ScratchBufferCreateInfo);
 
 	FRWBufferStructured InstanceBuffer;
-	InstanceBuffer.Initialize(TEXT("RayTracingTestBedInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, 1);
+	InstanceBuffer.Initialize(TEXT("RayTracingTestBedInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, SceneInitializer.NumNativeInstances);
 
 	FByteAddressBuffer AccelerationStructureAddressesBuffer;
 	AccelerationStructureAddressesBuffer.Initialize(TEXT("RayTracingTestBedAccelerationStructureAddressesBuffer"), sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
 
+	const uint32 InstanceUploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
 	FBufferRHIRef InstanceUploadBuffer;
 	FShaderResourceViewRHIRef InstanceUploadSRV;
 	{
-		const uint32 UploadBufferSize = 1 * sizeof(FRayTracingInstanceDescriptorInput);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
-		InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+		InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
 	}
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	{
-		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, sizeof(FRayTracingInstanceDescriptorInput), RLM_WriteOnly);
-		FillInstanceUploadBuffer(Instances, InstancesGeometryIndex, Scene, MakeArrayView(InstanceUploadData, 1));
+		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, InstanceUploadBufferSize, RLM_WriteOnly);
+		FillRayTracingInstanceUploadBuffer(Instances, GeometryIndices, Scene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
 		RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 	}
 

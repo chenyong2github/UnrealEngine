@@ -10,8 +10,6 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 
-#include "Experimental/Containers/SherwoodHashTable.h"
-
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -32,57 +30,8 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 
 	WaitForTasks();
 
-	TArray<uint32> InstancesGeometryIndex;
-
-	{
-		const uint32 NumSceneInstances = Instances.Num();
-
-		FRayTracingSceneInitializer2 SceneInitializer;
-		SceneInitializer.DebugName = FName(TEXT("FRayTracingScene"));
-		SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-		SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-		SceneInitializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
-		SceneInitializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
-		SceneInitializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
-		SceneInitializer.NumNativeInstances = 0;
-		SceneInitializer.NumTotalSegments = 0;
-
-		Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
-		InstancesGeometryIndex.SetNumUninitialized(NumSceneInstances);
-
-		// Compute geometry segment and instance count prefix sums.
-		// These are later used by GetHitRecordBaseIndex() during resource binding
-		// and by GetBaseInstanceIndex() in shaders to emulate SV_InstanceIndex.
-
-		for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
-		{
-			const FRayTracingGeometryInstance& InstanceDesc = Instances[InstanceIndex];
-
-			checkf(InstanceDesc.GPUTransformsSRV || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
-				TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
-				InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
-
-			checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-
-			SceneInitializer.PerInstanceGeometries[InstanceIndex] = InstanceDesc.GeometryRHI;
-
-			// Compute geometry segment count prefix sum to be later used in GetHitRecordBaseIndex()
-			SceneInitializer.SegmentPrefixSum[InstanceIndex] = SceneInitializer.NumTotalSegments;
-			SceneInitializer.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
-
-			uint32 GeometryIndex = UniqueGeometries.FindOrAdd(InstanceDesc.GeometryRHI, SceneInitializer.ReferencedGeometries.Num());
-			InstancesGeometryIndex[InstanceIndex] = GeometryIndex;
-			if (GeometryIndex == SceneInitializer.ReferencedGeometries.Num())
-			{
-				SceneInitializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
-			}
-
-			SceneInitializer.BaseInstancePrefixSum[InstanceIndex] = SceneInitializer.NumNativeInstances;
-			SceneInitializer.NumNativeInstances += InstanceDesc.NumTransforms;
-		}
-
-		RayTracingSceneRHI = RHICreateRayTracingScene(MoveTemp(SceneInitializer));
-	}
+	TArray<uint32> GeometryIndices;
+	RayTracingSceneRHI = CreateRayTracingSceneWithGeometryInstances(Instances, RAY_TRACING_NUM_SHADER_SLOTS, RAY_TRACING_NUM_MISS_SHADER_SLOTS, GeometryIndices);
 
 	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingSceneRHI->GetInitializer();
 
@@ -167,12 +116,12 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 			[InstanceUploadData,
 			NumNativeInstances = SceneInitializer.NumNativeInstances,
 			Instances = MakeArrayView(Instances),
-			InstancesGeometryIndex = MoveTemp(InstancesGeometryIndex),
+			GeometryIndices = MoveTemp(GeometryIndices),
 			RayTracingSceneRHI = RayTracingSceneRHI]()
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
 
-			FillInstanceUploadBuffer(Instances, InstancesGeometryIndex, RayTracingSceneRHI, MakeArrayView(InstanceUploadData, NumNativeInstances));
+			FillRayTracingInstanceUploadBuffer(Instances, GeometryIndices, RayTracingSceneRHI, MakeArrayView(InstanceUploadData, NumNativeInstances));
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();

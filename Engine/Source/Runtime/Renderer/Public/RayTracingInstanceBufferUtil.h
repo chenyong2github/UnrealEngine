@@ -17,7 +17,15 @@ struct FRayTracingInstanceDescriptorInput
 	uint32 InstanceContributionToHitGroupIndex;
 };
 
-RENDERER_API void FillInstanceUploadBuffer(
+// Helper function to create FRayTracingSceneRHI using array of high level instances
+// Also outputs data required to build the instance buffer
+RENDERER_API FRayTracingSceneRHIRef CreateRayTracingSceneWithGeometryInstances(
+	TArrayView<FRayTracingGeometryInstance> Instances,
+	uint32 NumShaderSlotsPerGeometrySegment,
+	uint32 NumMissShaderSlots,
+	TArray<uint32>& OutGeometryIndices);
+
+RENDERER_API void FillRayTracingInstanceUploadBuffer(
 	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	TConstArrayView<uint32> InstancesGeometryIndex,
 	FRayTracingSceneRHIRef RayTracingSceneRHI,
