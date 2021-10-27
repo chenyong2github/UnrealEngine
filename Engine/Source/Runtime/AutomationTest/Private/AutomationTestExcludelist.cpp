@@ -59,7 +59,7 @@ FString UAutomationTestExcludelist::GetFullTestName(const FAutomationTestExclude
 void UAutomationTestExcludelist::AddToExcludeTest(const FString& TestName, const FAutomationTestExcludelistEntry& ExcludelistEntry)
 {
 	auto NewEntry = FAutomationTestExcludelistEntry(ExcludelistEntry);
-	NewEntry.Test = *TestName;
+	NewEntry.Test = *(TestName.TrimStartAndEnd());
 	if (!NewEntry.Map.IsNone())
 	{
 		NewEntry.Map = TEXT("");
@@ -75,7 +75,7 @@ void UAutomationTestExcludelist::RemoveFromExcludeTest(const FString& TestName)
 	if (TestName.IsEmpty())
 		return;
 
-	const FString NameToCompare = TestName.ToLower();
+	const FString NameToCompare = TestName.TrimStartAndEnd().ToLower();
 
 	for (int i = 0; i < ExcludeTest.Num(); ++i)
 	{
@@ -117,7 +117,7 @@ FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry
 	if (TestName.IsEmpty())
 		return nullptr;
 
-	const FString NameToCompare = TestName.ToLower();
+	const FString NameToCompare = TestName.TrimStartAndEnd().ToLower();
 
 	for (auto& Entry : ExcludeTest)
 	{
