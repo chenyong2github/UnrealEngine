@@ -34,15 +34,31 @@ FRigUnit_SphericalPoseReader_Execute()
 		FalloffRegionScaleFactors,
 		FlipWidthScaling,
 		FlipHeightScaling);
+
+	// get parent global space
+	FTransform GlobalDriverParentTransform;
+	FTransform GlobalDriverParentTransformInit;
+	if (OptionalParentItem.IsValid())
+	{
+		GlobalDriverParentTransform = Hierarchy->GetGlobalTransform(OptionalParentItem);
+		GlobalDriverParentTransformInit = Hierarchy->GetInitialGlobalTransform(OptionalParentItem);
+	}else
+	{
+		// if user does not specify a custom parent space, then simply use the driver's parent
+		GlobalDriverParentTransform = Hierarchy->GetParentTransform(DriverItem);
+		GlobalDriverParentTransformInit = Hierarchy->GetInitialGlobalTransform(DriverItem);
+	}
 	
 	// get local rotation space of driver
-	FTransform LocalDriverTransformInit = Hierarchy->GetInitialLocalTransform(DriverItem);
+	FTransform GlobalDriverTransformInit = Hierarchy->GetInitialGlobalTransform(DriverItem);
+	FTransform LocalDriverTransformInit = GlobalDriverTransformInit * GlobalDriverParentTransformInit.Inverse();
 	// apply static offset in local space
 	FQuat RotationOffsetQuat = FQuat::MakeFromEuler(RotationOffset);
 	LocalDriverTransformInit.SetRotation(LocalDriverTransformInit.GetRotation() * RotationOffsetQuat);
-	// put into global space
-	const FTransform GlobalDriverParentTransform = Hierarchy->GetParentTransform(DriverItem);
+	
+	// calculate world transform of sphere
 	FTransform WorldOffset = LocalDriverTransformInit * GlobalDriverParentTransform;
+	WorldOffset.SetLocation(Hierarchy->GetGlobalTransform(DriverItem).GetLocation());
 
 	// get driver axis
 	const FTransform GlobalDriverTransform = Hierarchy->GetGlobalTransform(DriverItem);
@@ -192,7 +208,7 @@ void FRigUnit_SphericalPoseReader::DistanceToEllipse(
     float TX = 0.70710678118f;
     float TY = 0.70710678118f;
 
-    const int Iterations = 2; // this could be higher for greatly quality
+    const int Iterations = 2; // this could be higher for accuracy, but 2 seems good enough for this use case
     for (int i=0; i<Iterations; ++i)
     {
         const float ScaledX = SizeX * TX;
