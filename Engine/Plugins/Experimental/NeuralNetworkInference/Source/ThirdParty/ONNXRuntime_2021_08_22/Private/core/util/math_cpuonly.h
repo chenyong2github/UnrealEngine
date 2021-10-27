@@ -47,22 +47,9 @@
 #pragma warning(disable : 4127)
 #endif
 
-#ifndef __PROSPERO__
-PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
-#endif
-
-#include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
-NNI_THIRD_PARTY_INCLUDES_END
-
-#ifndef __PROSPERO__
-PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE
-#endif
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
