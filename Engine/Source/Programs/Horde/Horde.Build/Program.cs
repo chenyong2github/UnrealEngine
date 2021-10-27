@@ -346,7 +346,7 @@ namespace HordeServer
 					string DnsName = System.Net.Dns.GetHostName();
 					Serilog.Log.Logger.Information("Creating certificate for {DnsName}", DnsName);
 
-					byte[] PrivateCertData = AgentUtilities.CreateAgentCert(DnsName);
+					byte[] PrivateCertData = CertificateUtils.CreateSelfSignedCert(DnsName, "Horde Server");
 					
 					Serilog.Log.Logger.Information("Writing private cert: {PrivateCert}", PrivateCertFile.FullName);
 
