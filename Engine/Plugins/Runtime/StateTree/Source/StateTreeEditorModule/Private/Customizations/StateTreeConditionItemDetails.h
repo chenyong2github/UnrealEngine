@@ -30,6 +30,9 @@ public:
 
 private:
 
+	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const;
+	void ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle);
+
 	FText GetDescription() const;
 	void OnChildChanged();
 	void OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);

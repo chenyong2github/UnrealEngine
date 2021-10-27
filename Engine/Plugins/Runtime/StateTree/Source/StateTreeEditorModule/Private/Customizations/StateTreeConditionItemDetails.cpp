@@ -143,6 +143,10 @@ void FStateTreeConditionItemDetails::CustomizeHeader(TSharedRef<class IPropertyH
 	const FString BaseClassName = TypeProperty->GetMetaData(BaseClassMetaName);
 	BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseClassName);
 
+	const FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FStateTreeConditionItemDetails::ShouldResetToDefault);
+	const FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FStateTreeConditionItemDetails::ResetToDefault);
+	const FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+
 	OnBindingChangedHandle = UE::StateTree::PropertyBinding::OnStateTreeBindingChanged.AddRaw(this, &FStateTreeConditionItemDetails::OnBindingChanged);
 
 	FindOuterObjects();
@@ -188,7 +192,61 @@ void FStateTreeConditionItemDetails::CustomizeHeader(TSharedRef<class IPropertyH
 			[
 				StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 			]
-		];
+		]
+		.OverrideResetToDefault(ResetOverride);
+}
+
+bool FStateTreeConditionItemDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const
+{
+	check(TypeProperty);
+	
+	bool bAnyValid = false;
+	
+	TArray<void*> RawData;
+	TypeProperty->AccessRawData(RawData);
+	for (void* Data : RawData)
+	{
+		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		{
+			if (Struct->IsValid())
+			{
+				bAnyValid = true;
+				break;
+			}
+		}
+	}
+	
+	// Assume that the default value is empty. Any valid means that some can be reset to empty.
+	return bAnyValid;
+}
+
+void FStateTreeConditionItemDetails::ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	check(TypeProperty);
+	
+	GEditor->BeginTransaction(LOCTEXT("OnResetToDefault", "Reset to default"));
+
+	TypeProperty->NotifyPreChange();
+
+	TArray<void*> RawData;
+	TypeProperty->AccessRawData(RawData);
+	for (void* Data : RawData)
+	{
+		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		{
+			// Assume that the default value is empty.
+			Struct->Reset();
+		}
+	}
+
+	TypeProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	GEditor->EndTransaction();
+	TypeProperty->NotifyFinishedChangingProperties();
+
+	if (PropUtils)
+	{
+		PropUtils->ForceRefresh();
+	}
 }
 
 void FStateTreeConditionItemDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)

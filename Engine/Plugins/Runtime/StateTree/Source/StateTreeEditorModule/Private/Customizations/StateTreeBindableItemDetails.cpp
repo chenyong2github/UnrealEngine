@@ -154,6 +154,10 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 	const FString BaseClassName = TypeProperty->GetMetaData(BaseClassMetaName);
 	BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseClassName);
 
+	const FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FStateTreeBindableItemDetails::ShouldResetToDefault);
+	const FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FStateTreeBindableItemDetails::ResetToDefault);
+	const FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeBindableItemDetails::OnIdentifierChanged);
 
 	FindOuterObjects();
@@ -210,7 +214,61 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 			[
 				StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 			]
-		];
+		]
+		.OverrideResetToDefault(ResetOverride);
+}
+
+bool FStateTreeBindableItemDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const
+{
+	check(TypeProperty);
+	
+	bool bAnyValid = false;
+	
+	TArray<void*> RawData;
+	TypeProperty->AccessRawData(RawData);
+	for (void* Data : RawData)
+	{
+		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		{
+			if (Struct->IsValid())
+			{
+				bAnyValid = true;
+				break;
+			}
+		}
+	}
+	
+	// Assume that the default value is empty. Any valid means that some can be reset to empty.
+	return bAnyValid;
+}
+
+void FStateTreeBindableItemDetails::ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	check(TypeProperty);
+	
+	GEditor->BeginTransaction(LOCTEXT("OnResetToDefault", "Reset to default"));
+
+	TypeProperty->NotifyPreChange();
+
+	TArray<void*> RawData;
+	TypeProperty->AccessRawData(RawData);
+	for (void* Data : RawData)
+	{
+		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		{
+			// Assume that the default value is empty.
+			Struct->Reset();
+		}
+	}
+
+	TypeProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	GEditor->EndTransaction();
+	TypeProperty->NotifyFinishedChangingProperties();
+
+	if (PropUtils)
+	{
+		PropUtils->ForceRefresh();
+	}
 }
 
 void FStateTreeBindableItemDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -466,8 +524,6 @@ void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct
 		TypeProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 		GEditor->EndTransaction();
 		TypeProperty->NotifyFinishedChangingProperties();
-
-		GEditor->EndTransaction();
 	}
 
 	ComboButton->SetIsOpen(false);
