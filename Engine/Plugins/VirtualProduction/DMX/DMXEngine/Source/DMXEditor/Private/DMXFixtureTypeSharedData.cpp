@@ -536,6 +536,11 @@ void FDMXFixtureTypeSharedData::PasteClipboardToModes(const TArray<TSharedPtr<FD
 {
 	for (int32 IndexOfMode = 0; IndexOfMode < ModeItems.Num(); IndexOfMode++)
 	{
+		if (!ModesClipboard.IsValidIndex(IndexOfMode))
+		{
+			return;
+		}
+
 		const FString& ClipboardElement = ModesClipboard[IndexOfMode];
 
 		TSharedPtr<FJsonObject> RootJsonObject;
