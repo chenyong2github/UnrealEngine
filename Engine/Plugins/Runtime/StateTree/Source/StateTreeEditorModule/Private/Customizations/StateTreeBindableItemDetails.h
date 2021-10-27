@@ -26,6 +26,9 @@ public:
 
 private:
 
+	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const;
+	void ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle);
+
 	FText GetName() const;
 	void OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	bool IsNameEnabled() const;
