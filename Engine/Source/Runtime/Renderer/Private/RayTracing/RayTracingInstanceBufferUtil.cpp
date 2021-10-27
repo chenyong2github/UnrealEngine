@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RayTracingInstanceCopyShader.h"
+#include "RayTracingInstanceBufferUtil.h"
 
 #include "RayTracingDefinitions.h"
 
@@ -112,7 +112,7 @@ struct FRayTracingInstanceCopyCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceCopyCS, "/Engine/Private/Raytracing/RayTracingInstanceCopy.usf", "RayTracingInstanceCopyShaderCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceCopyCS, "/Engine/Private/Raytracing/RayTracingInstanceBufferUtil.usf", "RayTracingInstanceCopyShaderCS", SF_Compute);
 
 struct FRayTracingInstanceBufferCS : public FGlobalShader
 {
@@ -141,7 +141,7 @@ struct FRayTracingInstanceBufferCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceBufferCS, "/Engine/Private/Raytracing/RayTracingInstanceCopy.usf", "RayTracingBuildInstanceBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceBufferCS, "/Engine/Private/Raytracing/RayTracingInstanceBufferUtil.usf", "RayTracingBuildInstanceBufferCS", SF_Compute);
 
 void BuildRayTracingInstanceBuffer(FRHICommandList& RHICmdList, uint32 NumInstances, FUnorderedAccessViewRHIRef InstancesUAV, FShaderResourceViewRHIRef InstanceUploadSRV, FShaderResourceViewRHIRef AccelerationStructureAddressesSRV)
 {

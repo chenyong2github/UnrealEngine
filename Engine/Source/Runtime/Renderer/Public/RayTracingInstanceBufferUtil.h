@@ -17,13 +17,13 @@ struct FRayTracingInstanceDescriptorInput
 	uint32 InstanceContributionToHitGroupIndex;
 };
 
-RENDERCORE_API void FillInstanceUploadBuffer(
+RENDERER_API void FillInstanceUploadBuffer(
 	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	TConstArrayView<uint32> InstancesGeometryIndex,
 	FRayTracingSceneRHIRef RayTracingSceneRHI,
 	TArrayView<FRayTracingInstanceDescriptorInput> OutInstanceUploadData);
 
-RENDERCORE_API void BuildRayTracingInstanceBuffer(
+RENDERER_API void BuildRayTracingInstanceBuffer(
 	FRHICommandList& RHICmdList, 
 	uint32 NumInstances,
 	FUnorderedAccessViewRHIRef InstancesUAV,
