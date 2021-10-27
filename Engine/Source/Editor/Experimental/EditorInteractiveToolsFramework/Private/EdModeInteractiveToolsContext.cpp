@@ -948,7 +948,7 @@ bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* Viewpo
 					: (Key == EKeys::MouseScrollUp) ? 1 
 					: -1;
 
-				InputRouter->PostInputEvent(InputState);
+				return InputRouter->PostInputEvent(InputState);
 			}
 		}
 		else if (Key.IsGamepadKey())
