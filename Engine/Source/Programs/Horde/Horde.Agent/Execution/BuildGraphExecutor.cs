@@ -714,6 +714,9 @@ namespace HordeAgent.Execution
 			NewEnvironment["UE_HORDE_BATCHID"] = BatchId;
 			NewEnvironment["UE_HORDE_STEPID"] = Step.StepId;
 
+			// Enable structured logging output
+			NewEnvironment["UE_LOG_JSON"] = "1";
+
 			// Disable the S3DDC. This is technically a Fortnite-specific setting, but affects a large number of branches and is hard to retrofit. 
 			// Setting here for now, since it's likely to be temporary.
 			if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
