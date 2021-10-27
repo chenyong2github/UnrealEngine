@@ -110,7 +110,7 @@ namespace
 
 	TAutoConsoleVariable<int32> CVarSSSBurleyEnableProfileIdCache(
 		TEXT("r.SSS.Burley.EnableProfileIdCache"),
-		0,
+		1,
 		TEXT("0: Disable profile id cache using in the sampling pass.\n")
 		TEXT("1: Consumes 1 byte per pixel more memory to make Burley pass much faster. (default)\n"),
 		ECVF_RenderThreadSafe);
@@ -279,8 +279,8 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 
 bool IsProfileIdCacheEnabled()
 {
-	// Had to disable this at the last minute, because it uses an R8 UAV which isn't supported on all platforms. Will enable it in a later revision.
-	return 0 && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
+	const bool bIsR8UintSupported = GDynamicRHI && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_R8_UINT);
+	return bIsR8UintSupported && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
 }
 
 uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)
