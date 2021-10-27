@@ -126,7 +126,7 @@ namespace HordeAgent.Parser
 			{
 				Data = Data.Slice(0, Data.Length - 1);
 			}
-			if (Buffer.Length == 0 && Data[0] == '{' && WriteRawEvent(Data))
+			if (Buffer.Length == 0 && Data.Length > 0 && Data[0] == '{' && WriteRawEvent(Data))
 			{
 				return;
 			}
