@@ -65,7 +65,7 @@ struct FMassCombinedLODLogic : public FLODDefaultLogic
 
 /**
  * This is the expected member variables for the TArrayView<FMassLODFragment> when calling the TMassLODCalculator and TMassLODtickRateController methods
- */
+ 
 struct FMassLODFragment
 {
 	// Saved closest viewer distance
@@ -93,6 +93,7 @@ struct FMassLODFragment
 	float DeltaTime = 0.0f;
 	float LastTickedTime = 0.0f;
 };
+*/
 
 /**
  * Base struct for the LOD calculation helpers
