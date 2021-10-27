@@ -1484,8 +1484,9 @@ inline const DML_OPERATOR_SCHEMA& GetSchema(DML_OPERATOR_TYPE operatorType)
     case DML_OPERATOR_ACTIVATION_THRESHOLDED_RELU: return DML_ACTIVATION_THRESHOLDED_RELU_OPERATOR_SCHEMA;
     case DML_OPERATOR_ACTIVATION_SHRINK: return DML_ACTIVATION_SHRINK_OPERATOR_SCHEMA;
 
-    default: THROW_HR(E_INVALIDARG);
-        return DML_ELEMENT_WISE_IDENTITY_OPERATOR_SCHEMA; // WITH_UE
+    default:
+        THROW_HR(E_INVALIDARG);
+        return DML_ACTIVATION_RELU_OPERATOR_SCHEMA;
     }
 }
 
@@ -2053,11 +2054,11 @@ inline AbstractOperatorDesc ConvertOperatorDesc(const DML_OPERATOR_DESC& opDesc)
         return AbstractOperatorDesc(
             &DML_ACTIVATION_SHRINK_OPERATOR_SCHEMA,
             GetFields(*static_cast<const DML_ACTIVATION_SHRINK_OPERATOR_DESC*>(opDesc.Desc)));
-    default: THROW_HR(E_INVALIDARG);
-        // WITH_UE: Return something
+    default:
+        THROW_HR(E_INVALIDARG);
         return AbstractOperatorDesc(
-            &DML_ELEMENT_WISE_IDENTITY_OPERATOR_SCHEMA,
-            GetFields(*static_cast<const DML_ELEMENT_WISE_IDENTITY_OPERATOR_DESC*>(opDesc.Desc)));
+            &DML_ACTIVATION_RELU_OPERATOR_SCHEMA,
+            GetFields(*static_cast<const DML_ACTIVATION_RELU_OPERATOR_DESC*>(opDesc.Desc)));
     }
 
 }
