@@ -98,6 +98,7 @@ namespace Chaos
 		static constexpr FRealSingle DefaultCollisionMarginFraction = 0.1f;
 		static constexpr FRealSingle DefaultCollisionMarginMax = 100.0f;
 		static constexpr FRealSingle DefaultCollisionCullDistance = 5.0f;
+		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
 		static constexpr int32 DefaultNumJointPairIterations = 1;
 		static constexpr int32 DefaultNumJointPushOutPairIterations = 1;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
