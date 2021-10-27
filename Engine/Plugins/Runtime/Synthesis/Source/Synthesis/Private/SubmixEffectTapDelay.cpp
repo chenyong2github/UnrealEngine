@@ -13,7 +13,7 @@ namespace TapDelayUtils
 		{
 			float LeftGain;
 			float RightGain;
-			Audio::GetStereoPan(Angle / -90.0f, LeftGain, RightGain);
+			Audio::GetStereoPan(Angle / 90.0f, LeftGain, RightGain);
 
 			DestinationFrame[0] += LeftGain * InputWithGain;
 			DestinationFrame[1] += RightGain * InputWithGain;
@@ -32,7 +32,7 @@ namespace TapDelayUtils
 			const float ChannelFraction = 4 * NormalizedAngle;
 			const int32 Channel0 = FMath::FloorToInt(ChannelFraction);
 			const int32 Channel1 = (Channel0 + 1) % 4;
-			const float ChannelAlpha = (ChannelFraction - Channel0) * -2.0f + 1.0f;
+			const float ChannelAlpha = (ChannelFraction - Channel0) * 2.0f - 1.0f;
 
 			Audio::GetStereoPan(ChannelAlpha, QuadChannelMap[Channel0], QuadChannelMap[Channel1]);
 

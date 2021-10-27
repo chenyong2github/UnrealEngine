@@ -406,7 +406,7 @@ int32 UText3DComponent::GetGlyphCount()
 
 USceneComponent* UText3DComponent::GetGlyphKerningComponent(int32 Index)
 {
-	if (Index < 0 || Index >= CharacterKernings.Num())
+	if (!CharacterKernings.IsValidIndex(Index))
 	{
 		return nullptr;
 	}
@@ -414,14 +414,24 @@ USceneComponent* UText3DComponent::GetGlyphKerningComponent(int32 Index)
 	return CharacterKernings[Index];
 }
 
+const TArray<USceneComponent*>& UText3DComponent::GetGlyphKerningComponents()
+{
+	return CharacterKernings;
+}
+
 UStaticMeshComponent* UText3DComponent::GetGlyphMeshComponent(int32 Index)
 {
-	if (Index < 0 || Index >= CharacterMeshes.Num())
+	if (!CharacterKernings.IsValidIndex(Index))
 	{
 		return nullptr;
 	}
 
 	return CharacterMeshes[Index];
+}
+
+const TArray<UStaticMeshComponent*>& UText3DComponent::GetGlyphMeshComponents()
+{
+	return CharacterMeshes;
 }
 
 void UText3DComponent::Rebuild()
@@ -657,6 +667,8 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 #endif
 			StaticMeshComponent->SetStaticMesh(CachedMesh);
 			StaticMeshComponent->RegisterComponent();
+			StaticMeshComponent->SetVisibility(GetVisibleFlag());
+			StaticMeshComponent->SetHiddenInGame(bHiddenInGame);
 			CharacterMeshes.Add(StaticMeshComponent);
 
 			GetOwner()->AddInstanceComponent(StaticMeshComponent);
@@ -676,6 +688,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 		UpdateMaterial(Type, GetMaterial(Type));
 	}
 
+	TextGeneratedNativeDelegate.Broadcast();
 	TextGeneratedDelegate.Broadcast();
 
 	if (bCleanCache)
@@ -704,6 +717,37 @@ void UText3DComponent::UpdateMaterial(const EText3DGroupType Type, UMaterialInte
 	{
 		StaticMeshComponent->SetMaterial(Index, Material);
 	}
+}
+
+void UText3DComponent::OnVisibilityChanged()
+{
+	Super::OnVisibilityChanged();
+	bool Visibility = GetVisibleFlag();
+	for (UStaticMeshComponent* StaticMeshComponent : CharacterMeshes)
+	{
+		StaticMeshComponent->SetVisibility(Visibility);
+	}
+}
+
+void UText3DComponent::OnHiddenInGameChanged()
+{
+	Super::OnHiddenInGameChanged();
+	for (UStaticMeshComponent* StaticMeshComponent : CharacterMeshes)
+	{
+		StaticMeshComponent->SetHiddenInGame(bHiddenInGame);
+	}
+}
+
+void UText3DComponent::GetBounds(FVector& Origin, FVector& BoxExtent)
+{
+	FBox Box(ForceInit);
+
+	for (UStaticMeshComponent* StaticMeshComponent : CharacterMeshes)
+	{
+		Box += StaticMeshComponent->Bounds.GetBox();
+	}
+
+	Box.GetCenterAndExtents(Origin, BoxExtent);
 }
 
 #undef LOCTEXT_NAMESPACE

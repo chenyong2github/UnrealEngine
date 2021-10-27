@@ -25,7 +25,7 @@ namespace AutomationTool
 		
 		public override ExitCode Execute()
 		{
-			string EditorPath = HostPlatform.Current.GetUE4ExePath("UnrealEditor");
+			string EditorPath = HostPlatform.Current.GetUnrealExePath("UnrealEditor");
 
 			string EditorArgs = "";
 

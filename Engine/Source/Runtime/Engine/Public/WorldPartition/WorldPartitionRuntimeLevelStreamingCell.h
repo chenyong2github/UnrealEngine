@@ -54,7 +54,7 @@ private:
 #if WITH_EDITOR
 	void LoadActorsForCook();
 	void MoveAlwaysLoadedContentToPersistentLevel();
-	class ULevelStreaming* CreateLevelStreaming(const FString& InPackageName = FString()) const;
+	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 #endif
 
 #if WITH_EDITORONLY_DATA

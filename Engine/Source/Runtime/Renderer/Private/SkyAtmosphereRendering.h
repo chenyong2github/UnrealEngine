@@ -27,6 +27,7 @@ class FSkyAtmosphereInternalCommonParameters;
 class FVolumeShadowingShaderParametersGlobal0;
 class FVolumeShadowingShaderParametersGlobal1;
 
+struct FScreenPassTexture;
 struct FEngineShowFlags;
 
 
@@ -195,3 +196,8 @@ void GetSkyAtmosphereLightsUniformBuffers(
 	const FViewInfo& ViewInfo,
 	const bool bShouldSampleOpaqueShadow,
 	const EUniformBufferUsage UniformBufferUsage);
+
+
+bool ShouldRenderSkyAtmosphereDebugPasses(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
+FScreenPassTexture AddSkyAtmosphereDebugPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FSceneViewFamily& ViewFamily, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
+

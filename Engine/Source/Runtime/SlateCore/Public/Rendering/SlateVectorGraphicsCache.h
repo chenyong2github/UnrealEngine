@@ -13,7 +13,7 @@ class FSlateTextureAtlas;
 class FSlateVectorGraphicsCache : public FSlateFlushableAtlasCache
 {
 public:
-	SLATECORE_API FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory, bool bInNeedRedBlueSwap = false);
+	SLATECORE_API FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory);
 
 	SLATECORE_API FSlateShaderResourceProxy* GetShaderResource(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale);
 
@@ -79,6 +79,5 @@ private:
 
 	TArray<FRasterRequest> PendingRequests;
 
-	bool bNeedRedBlueSwap;
 	bool bFlushRequested;
 };

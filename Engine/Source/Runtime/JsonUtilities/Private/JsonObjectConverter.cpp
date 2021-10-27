@@ -44,7 +44,7 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 	{
 		// export enums as strings
 		UEnum* EnumDef = EnumProperty->GetEnum();
-		FString StringValue = EnumDef->GetNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(Value));
+		FString StringValue = EnumDef->GetAuthoredNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(Value));
 		return MakeShared<FJsonValueString>(StringValue);
 	}
 	else if (FNumericProperty *NumericProperty = CastField<FNumericProperty>(Property))
@@ -54,7 +54,7 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 		if (EnumDef != NULL)
 		{
 			// export enums as strings
-			FString StringValue = EnumDef->GetNameStringByValue(NumericProperty->GetSignedIntPropertyValue(Value));
+			FString StringValue = EnumDef->GetAuthoredNameStringByValue(NumericProperty->GetSignedIntPropertyValue(Value));
 			return MakeShared<FJsonValueString>(StringValue);
 		}
 
@@ -137,7 +137,7 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 						MapProperty->KeyProp->ExportTextItem(KeyString, Helper.GetKeyPtr(i), nullptr, nullptr, 0);
 						if (KeyString.IsEmpty())
 						{
-							UE_LOG(LogJson, Error, TEXT("Unable to convert key to string for property %s."), *MapProperty->GetName())
+							UE_LOG(LogJson, Error, TEXT("Unable to convert key to string for property %s."), *MapProperty->GetAuthoredName())
 							KeyString = FString::Printf(TEXT("Unparsed Key %d"), i);
 						}
 					}
@@ -292,7 +292,7 @@ bool FJsonObjectConverter::UStructToJsonAttributes(const UStruct* StructDefiniti
 			continue;
 		}
 
-		FString VariableName = StandardizeCase(Property->GetName());
+		FString VariableName = StandardizeCase(Property->GetAuthoredName());
 		const void* Value = Property->ContainerPtrToValuePtr<uint8>(Struct);
 
 		// convert the property to a FJsonValue
@@ -408,7 +408,7 @@ namespace
 			const UEnum* Enum = EnumProperty->GetEnum();
 			check(Enum);
 			FString StrValue = JsonValue->AsString();
-			int64 IntValue = Enum->GetValueByName(FName(*StrValue));
+			int64 IntValue = Enum->GetValueByName(FName(*StrValue), EGetByNameFlags::CheckAuthoredName);
 			if (IntValue == INDEX_NONE)
 			{
 				UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable import enum %s from string value %s for property %s"), *Enum->CppType, *StrValue, *Property->GetNameCPP());
@@ -430,7 +430,7 @@ namespace
 			const UEnum* Enum = NumericProperty->GetIntPropertyEnum();
 			check(Enum); // should be assured by IsEnum()
 			FString StrValue = JsonValue->AsString();
-			int64 IntValue = Enum->GetValueByName(FName(*StrValue));
+			int64 IntValue = Enum->GetValueByName(FName(*StrValue), EGetByNameFlags::CheckAuthoredName);
 			if (IntValue == INDEX_NONE)
 			{
 				UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable import enum %s from string value %s for property %s"), *Enum->CppType, *StrValue, *Property->GetNameCPP());
@@ -782,17 +782,17 @@ namespace
 			{
 				if (bStrictMode)
 				{
-					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Property %s is not an array but has %d elements"), *Property->GetName(), Property->ArrayDim);
+					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Property %s is not an array but has %d elements"), *Property->GetAuthoredName(), Property->ArrayDim);
 					return false;
 				}
 				
-				UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetName());
+				UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetAuthoredName());
 			}
 
 			return ConvertScalarJsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode);
 		}
 
-		// In practice, the ArrayDim == 1 check ought to be redundant, since nested arrays of FPropertys are not supported
+		// In practice, the ArrayDim == 1 check ought to be redundant, since nested arrays of FProperties are not supported
 		if (bArrayOrSetProperty && Property->ArrayDim == 1)
 		{
 			// Read into TArray
@@ -804,13 +804,13 @@ namespace
 
 		if (bStrictMode && (Property->ArrayDim != ArrayValue.Num()))
 		{
-			UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Json array for property %s doesn't have the same number of elements (has %d elements, but needs %d)"), *Property->GetName(), ArrayValue.Num(), Property->ArrayDim);
+			UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Json array for property %s doesn't have the same number of elements (has %d elements, but needs %d)"), *Property->GetAuthoredName(), ArrayValue.Num(), Property->ArrayDim);
 			return false;
 		}
 		
 		if (Property->ArrayDim < ArrayValue.Num())
 		{
-			UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetName());
+			UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetAuthoredName());
 		}
 
 		// Read into native array
@@ -858,12 +858,14 @@ namespace
 			}
 
 			// find a json value matching this property name
-			const TSharedPtr<FJsonValue>* JsonValue = JsonAttributes.Find(Property->GetName());
+			FString PropertyName = StructDefinition->GetAuthoredNameForField(Property);
+			const TSharedPtr<FJsonValue>* JsonValue = JsonAttributes.Find(PropertyName);
+			
 			if (!JsonValue)
 			{
 				if (bStrictMode)
 				{
-					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetName(), *Property->GetName());
+					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetAuthoredName(), *PropertyName);
 					return false;
 				}
 				
@@ -876,7 +878,7 @@ namespace
 				void* Value = Property->ContainerPtrToValuePtr<uint8>(OutStruct);
 				if (!JsonValueToFPropertyWithContainer(*JsonValue, Property, Value, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode))
 				{
-					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetName(), *Property->GetName());
+					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetAuthoredName(), *PropertyName);
 					return false;
 				}
 			}

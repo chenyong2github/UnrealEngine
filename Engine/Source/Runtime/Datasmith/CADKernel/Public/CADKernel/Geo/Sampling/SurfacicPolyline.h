@@ -61,7 +61,7 @@ namespace CADKernel
 
 		void CheckIfDegenerated(const double Tolerance3D, const FSurfacicTolerance& Tolerances2D, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const;
 
-		void GetExtremities(const FLinearBoundary& InBoundary, const double Tolerance3D, const FSurfacicTolerance& Tolerances2D, FSurfacicCurveExtremity& Extremities) const;
+		void GetExtremities(const FLinearBoundary& InBoundary, const double Tolerance3D, const FSurfacicTolerance& Tolerances2D, FSurfacicCurveExtremities& Extremities) const;
 
 		FPoint Approximate3DPoint(double InCoordinate) const
 		{
@@ -131,6 +131,11 @@ namespace CADKernel
 
 		void ApproximatePolyline(FSurfacicPolyline& OutPolyline) const
 		{
+			if (OutPolyline.Coordinates.IsEmpty())
+			{
+				return;
+			}
+
 			TFunction<void(FIndexOfCoordinateFinder&)> ComputePoints = [&](FIndexOfCoordinateFinder& Finder)
 			{
 				int32 CoordinateCount = OutPolyline.Coordinates.Num();

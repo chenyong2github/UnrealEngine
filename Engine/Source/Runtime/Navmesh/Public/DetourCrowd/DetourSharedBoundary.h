@@ -4,20 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourNavMeshQuery.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 
 struct dtSharedBoundaryEdge
 {
-	float v0[3];
-	float v1[3];
+	dtReal v0[3];
+	dtReal v1[3];
 	dtPolyRef p0;
 	dtPolyRef p1;
 };
 
 struct dtSharedBoundaryData
 {
-	float Center[3];
-	float Radius;
-	float AccessTime;
+	dtReal Center[3];
+	dtReal Radius;
+	dtReal AccessTime;
 	dtQueryFilter* Filter;
 	uint8 SingleAreaId;
 	
@@ -32,17 +33,17 @@ class dtSharedBoundary
 public:
 	TSparseArray<dtSharedBoundaryData> Data;
 	dtQueryFilter SingleAreaFilter;
-	float CurrentTime;
-	float NextClearTime;
+	dtReal CurrentTime;
+	dtReal NextClearTime;
 
 	void Initialize();
-	void Tick(float DeltaTime);
+	void Tick(dtReal DeltaTime);
 
-	int32 FindData(float* Center, float Radius, dtPolyRef ReqPoly, dtQueryFilter* NavFilter) const;
-	int32 FindData(float* Center, float Radius, dtPolyRef ReqPoly, uint8 SingleAreaId) const;
+	int32 FindData(dtReal* Center, dtReal Radius, dtPolyRef ReqPoly, dtQueryFilter* NavFilter) const;
+	int32 FindData(dtReal* Center, dtReal Radius, dtPolyRef ReqPoly, uint8 SingleAreaId) const;
 
-	int32 CacheData(float* Center, float Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, dtQueryFilter* NavFilter);
-	int32 CacheData(float* Center, float Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, uint8 SingleAreaId);
+	int32 CacheData(dtReal* Center, dtReal Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, dtQueryFilter* NavFilter);
+	int32 CacheData(dtReal* Center, dtReal Radius, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, uint8 SingleAreaId);
 
 	void FindEdges(dtSharedBoundaryData& Data, dtPolyRef CenterPoly, dtNavMeshQuery* NavQuery, dtQueryFilter* NavFilter);
 	bool HasSample(int32 Idx) const;

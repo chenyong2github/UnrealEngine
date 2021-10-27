@@ -1784,7 +1784,7 @@ void FCollisionProfileDetails::UpdateChannel(bool bTraceType)
 void FCollisionProfileDetails::UpdateProfile()
 {
 	CollisionProfile->LoadProfileConfig(true);
-	CollisionProfile->UpdateDefaultConfigFile();
+	CollisionProfile->TryUpdateDefaultConfigFile();
 	SavedData.Save(CollisionProfile);
 
 	RefreshProfileList();

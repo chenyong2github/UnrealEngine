@@ -532,6 +532,7 @@ public:
 		const uint16 RepIndex,
 		const bool bIsActive) = 0;
 
+	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
 
 	/**

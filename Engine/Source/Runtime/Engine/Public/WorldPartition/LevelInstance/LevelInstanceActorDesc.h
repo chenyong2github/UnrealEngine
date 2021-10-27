@@ -24,7 +24,7 @@ class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc, publ
 public:
 	inline FName GetLevelPackage() const { return LevelPackage; }
 
-	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
+	virtual bool GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
 protected:
 	FLevelInstanceActorDesc();
 	virtual void Init(const AActor* InActor) override;

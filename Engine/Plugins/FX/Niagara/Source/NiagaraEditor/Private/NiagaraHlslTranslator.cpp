@@ -4862,7 +4862,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			}
 
 			Var = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
-			ensure(!Var.IsInNameSpace(FNiagaraConstants::StackContextNamespace));
+			ensure(!Var.IsInNameSpace(FNiagaraConstants::StackContextNamespaceString));
 			const FNiagaraVariable* ConstantVar = FNiagaraConstants::GetKnownConstant(Var.GetName(), false);
 			if (ConstantVar != nullptr && ConstantVar->GetType() != Var.GetType())
 			{
@@ -8350,7 +8350,7 @@ void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNo
 
 void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker)
 {
-	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespace))
+	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
 		return;
 
 	if (FNiagaraConstants::IsNiagaraConstant(InVar) || InVar.GetName() == TEXT("Emitter.InterpSpawnStartDt") || InVar.GetName() == TEXT("Emitter.SpawnInterval"))

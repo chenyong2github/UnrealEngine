@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ObjectDependencyCallback.h"
 
 class AActor;
 class UObject;
@@ -14,7 +15,7 @@ namespace SnapshotUtil
 	namespace Object
 	{
 		/* Resolves an object dependency for use in the snapshot world. If the object is a subobject, it gets fully serialized. */
-		UObject* ResolveObjectDependencyForSnapshotWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FString& LocalisationNamespace);
+		UObject* ResolveObjectDependencyForSnapshotWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace); 
 	
 		/* Resolves an object dependency for use in the editor world. If the object is a subobject, it is serialized.
 		 * Steps for serializing subobject:

@@ -165,10 +165,7 @@ FDisplayClusterProjectionVIOSOPolicy::~FDisplayClusterProjectionVIOSOPolicy()
 
 bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
-	check(IsInGameThread());
-
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, ViosoConfigData.OriginCompId);
+	check(IsInGameThread());	
 
 	// Read VIOSO config data from nDisplay config file
 	if (!ViosoConfigData.Initialize(GetParameters(), InViewport->GetId()))
@@ -176,6 +173,9 @@ bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayCluste
 		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't read VIOSO configuration from the config file for viewport -'%s'"), *InViewport->GetId());
 		return false;
 	}
+
+	// Find origin component if it exists
+	InitializeOriginComponent(InViewport, ViosoConfigData.OriginCompId);
 
 	Views.AddDefaulted(2);
 	//ViewportSize = InViewportSize;

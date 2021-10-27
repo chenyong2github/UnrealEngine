@@ -18,7 +18,11 @@ FName UAnimBlueprintExtension_CallFunction::AddCustomEventName(UAnimGraphNode_Ba
 	return Name;
 }
 
-FName UAnimBlueprintExtension_CallFunction::GetCustomEventName(UAnimGraphNode_Base* InNode) const
+FName UAnimBlueprintExtension_CallFunction::FindCustomEventName(UAnimGraphNode_Base* InNode) const
 {
-	return CustomEventNames.FindChecked(InNode);
+	if(const FName* ExistingName = CustomEventNames.Find(InNode))
+	{
+		return *ExistingName;
+	}
+	return NAME_None;
 }

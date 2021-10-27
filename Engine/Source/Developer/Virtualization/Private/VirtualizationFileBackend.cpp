@@ -6,7 +6,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
-#include "Virtualization/VirtualizationManager.h"
+#include "Virtualization/PayloadId.h"
 #include "VirtualizationUtilities.h"
 
 namespace UE::Virtualization

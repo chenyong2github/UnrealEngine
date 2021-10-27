@@ -117,25 +117,6 @@ TAttribute<FText> FTimelineEditorSummoner::ConstructTabNameForObject(UTimelineTe
 	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<UObject*>(&FLocalKismetCallbacks::GetObjectName, DocumentID));
 }
 
-FDebugInfoSummoner::FDebugInfoSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp) : FWorkflowTabFactory(FBlueprintEditorTabs::DebugID, InHostingApp)
-{
-	TabLabel = LOCTEXT("DebugTabTitle", "Debug");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "DebugTools.TabIcon");
-
-	EnableTabPadding();
-	bIsSingleton = true;
-
-	ViewMenuDescription = LOCTEXT("DebugView", "Debug");
-	ViewMenuTooltip = LOCTEXT("DebugView_ToolTip", "Shows the debugging view");
-}
-
-TSharedRef<SWidget> FDebugInfoSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
-{
-	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<FBlueprintEditor>(HostingApp.Pin());
-
-	return BlueprintEditorPtr->GetDebuggingView();
-}
-
 FDefaultsEditorSummoner::FDefaultsEditorSummoner(TSharedPtr<FBlueprintEditor> InHostingApp)
 	: FWorkflowTabFactory(FBlueprintEditorTabs::DefaultEditorID, InHostingApp)
 	, EditingBlueprint(InHostingApp->GetBlueprintObj())

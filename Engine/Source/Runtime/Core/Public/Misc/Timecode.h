@@ -57,7 +57,8 @@ struct FTimecode
 			const int32 CurrentRolloverSeconds = (int32)IntegralPart % NumberOfSecondsPerDay;
 			InSeconds = (double)CurrentRolloverSeconds + Fractional;
 		}
-		int32 NumberOfFrames = InbDropFrame ? (int32)FMath::RoundToDouble(InSeconds * InFrameRate.AsDecimal()) : (int32)FMath::RoundToDouble(InSeconds * FMath::RoundToDouble(InFrameRate.AsDecimal()));
+		
+		const int32 NumberOfFrames = (int32)FMath::RoundToDouble(InSeconds * InFrameRate.AsDecimal());
 		*this = FromFrameNumber(FFrameNumber(NumberOfFrames), InFrameRate, InbDropFrame);
 	}
 
@@ -230,9 +231,7 @@ public:
 	FTimespan ToTimespan(const FFrameRate& InFrameRate) const
 	{
 		const FFrameNumber ConvertedFrameNumber = ToFrameNumber(InFrameRate);
-		const double NumberOfSeconds = bDropFrameFormat
-				? ConvertedFrameNumber.Value * InFrameRate.AsInterval()
-				: (double)ConvertedFrameNumber.Value / FMath::RoundToDouble(InFrameRate.AsDecimal());
+		const double NumberOfSeconds = ConvertedFrameNumber.Value * InFrameRate.AsInterval();
 		return FTimespan::FromSeconds(NumberOfSeconds);
 	}
 
@@ -240,7 +239,7 @@ public:
 	 * Create a FTimecode from a timespan at the given frame rate. Optionally supports creating a drop frame timecode,
 	 * which drops certain timecode display numbers to help account for NTSC frame rates which are fractional.
 	 *
-	 * @param InFrameNumber	- The timespan to convert into a timecode.
+	 * @param InTimespan	- The timespan to convert into a timecode.
 	 * @param InFrameRate	- The framerate that this timecode is based in. This should be the playback framerate as it is used to determine
 	 *						  when the Frame value wraps over.
 	 * @param InbDropFrame	- If true, the returned timecode will drop the first two frames on every minute (except when Minute % 10 == 0)
@@ -256,7 +255,7 @@ public:
 	/**
 	 * Create a FTimecode from a timespan at the given frame rate.
 	 *
-	 * @param InFrameNumber	- The timespan to convert into a timecode.
+	 * @param InTimespan	- The timespan to convert into a timecode.
 	 * @param InFrameRate	- The framerate that this timecode is based in. This should be the playback framerate as it is used to determine
 	 *						  when the Frame value wraps over.
 	 * @param InbRollover	- If true, the hours will be the modulo of 24.

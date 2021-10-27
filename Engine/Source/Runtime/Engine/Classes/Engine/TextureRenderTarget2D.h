@@ -176,8 +176,8 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	ENGINE_API void UpdateResourceImmediate(bool bClearRenderTarget=true);
 
 	//~ Begin UTexture Interface.
-	virtual float GetSurfaceWidth() const override { return SizeX; }
-	virtual float GetSurfaceHeight() const override { return SizeY; }
+	virtual float GetSurfaceWidth() const override { return (float)SizeX; }
+	virtual float GetSurfaceHeight() const override { return (float)SizeY; }
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	ENGINE_API virtual FTextureResource* CreateResource() override;

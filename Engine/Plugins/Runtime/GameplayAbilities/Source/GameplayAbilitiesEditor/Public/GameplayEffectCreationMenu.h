@@ -25,7 +25,7 @@ struct FGameplayEffectCreationData
 };
 
 /** Container to hold EventKeywords for PIE testing */
-UCLASS(config=Game,defaultconfig, notplaceable)
+UCLASS(config=Game,defaultconfig)
 class GAMEPLAYABILITIESEDITOR_API UGameplayEffectCreationMenu : public UObject
 {
 	GENERATED_BODY()

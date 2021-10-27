@@ -245,12 +245,6 @@ public class Launch : ModuleRules
 			DynamicallyLoadedModuleNames.Add("OpenGLDrv");
 		}
 
-        // @todo ps4 clang bug: this works around a PS4/clang compiler bug (optimizations)
-        if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			bUseUnity = true;
-		}
-
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			// Clang 9.0.1 lld seems to end up having issues with resolving EditorStyle

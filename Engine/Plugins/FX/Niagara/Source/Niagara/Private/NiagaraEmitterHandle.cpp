@@ -133,8 +133,15 @@ UNiagaraEmitter* FNiagaraEmitterHandle::GetInstance() const
 
 FString FNiagaraEmitterHandle::GetUniqueInstanceName()const
 {
-	check(Instance);
-	return Instance->GetUniqueEmitterName();
+	// We might not have an instance if this is a cooked object that we're loading in the editor
+	if (Instance)
+	{
+		return Instance->GetUniqueEmitterName();
+	}
+	else
+	{
+		return FString();
+	}
 }
 
 #if WITH_EDITORONLY_DATA

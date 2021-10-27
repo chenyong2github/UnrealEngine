@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Restorability/IRestorationListener.h"
-#include "Restorability/ISnapshotLoader.h"
-#include "Restorability/IPropertyComparer.h"
-#include "Restorability/ISnapshotRestorabilityOverrider.h"
-#include "Serialization/ICustomObjectSnapshotSerializer.h"
+#include "Interfaces/IRestorationListener.h"
+#include "Interfaces/ISnapshotLoader.h"
+#include "Interfaces/IPropertyComparer.h"
+#include "Interfaces/ISnapshotRestorabilityOverrider.h"
+#include "Interfaces/ICustomObjectSnapshotSerializer.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -55,9 +55,9 @@ public:
 
 	
 
-	/** Snapshots will no longer capture nor restore subobjects of this class. Subclasses are implicitly blacklisted. */
-	virtual void AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
-	virtual void RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
+	/** Snapshots will no longer capture nor restore subobjects of this class. Subclasses are implicitly skipped as well. */
+	virtual void AddSkippedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
+	virtual void RemoveSkippedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
 	
 
 	
@@ -100,15 +100,15 @@ public:
 	 * Adds properties that snapshots will capture and restore from now on. This allows support for properties that are skipped by default.
 	 * Important: Only add add native properties; Blueprint properties may be invalidated (and left dangeling) when recompiled.
 	 */
-	virtual void AddWhitelistedProperties(const TSet<const FProperty*>& Properties) = 0;
-	virtual void RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties) = 0;
+	virtual void AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties) = 0;
+	virtual void RemoveAdditionallySupportedProperties(const TSet<const FProperty*>& Properties) = 0;
 
 	/**
 	 * Stops snapshots from capturing / restoring these properties.
 	 * Important: Only add add native properties; Blueprint properties may be invalidated (and left dangeling) when recompiled.
 	 */
-	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
-	virtual void RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
+	virtual void AddExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties) = 0;
+	virtual void RemoveExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties) = 0;
 
 
 	/**
@@ -122,11 +122,11 @@ public:
 	 * conditionally serializes data depending on whether the serialized object has the RF_ClassDefaultObject flag. Doing so would trigger an ensure in
 	 * the snapshot archive code because the data would not be read in the same order as it was written.
 	 *
-	 * Note: Level Snapshots will no longer detect changes made to the class default values of blacklisted classes.
+	 * Note: Level Snapshots will no longer detect changes made to the class default values of skipped classes.
 	 */
-	virtual void AddBlacklistedClassDefault(const UClass* Class) = 0;
-	virtual void RemoveBlacklistedClassDefault(const UClass* Class) = 0;
-	virtual bool IsClassDefaultBlacklisted(const UClass* Class) const = 0;
+	virtual void AddSkippedClassDefault(const UClass* Class) = 0;
+	virtual void RemoveSkippedClassDefault(const UClass* Class) = 0;
+	virtual bool ShouldSkipClassDefaultSerialization(const UClass* Class) const = 0;
 
 protected:
 

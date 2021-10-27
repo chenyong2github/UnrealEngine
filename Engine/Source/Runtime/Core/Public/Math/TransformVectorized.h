@@ -1638,7 +1638,7 @@ FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4NoScale(const TVector4<T
 	// NewVect.XYZ += Translation * W
 	// NewVect.W += 1 * W
 	const TransformVectorRegister WWWW = VectorReplicate(InputVector, 3);
-	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(Translation, WWWW, RotatedVec);
+	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(VectorSet_W1(Translation), WWWW, RotatedVec);
 
 	TVector4<T> NewVectOutput;
 	VectorStoreAligned(TranslatedVec, &NewVectOutput);
@@ -1666,7 +1666,7 @@ FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4(const TVector4<T>& V) c
 	// NewVect.XYZ += Translation * W
 	// NewVect.W += 1 * W
 	const TransformVectorRegister WWWW = VectorReplicate(InputVector, 3);
-	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(Translation, WWWW, RotatedVec);
+	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(VectorSet_W1(Translation), WWWW, RotatedVec);
 
 	TVector4<T> NewVectOutput;
 	VectorStoreAligned(TranslatedVec, &NewVectOutput);

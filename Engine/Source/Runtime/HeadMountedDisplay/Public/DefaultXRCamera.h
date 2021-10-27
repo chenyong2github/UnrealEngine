@@ -11,7 +11,7 @@
  * Default base implementation of IXRCamera.
  * Can either be used directly by implementations or extended with platform-specific features.
  */
-class HEADMOUNTEDDISPLAY_API  FDefaultXRCamera : public IXRCamera, public FSceneViewExtensionBase
+class HEADMOUNTEDDISPLAY_API  FDefaultXRCamera : public IXRCamera, public FHMDSceneViewExtension
 {
 public:
 	FDefaultXRCamera(const FAutoRegister&, IXRTrackingSystem* InTrackingSystem, int32 InDeviceId);
@@ -78,6 +78,8 @@ public:
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
+
+	// FWorldSceneViewExtension interface:
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 	
 

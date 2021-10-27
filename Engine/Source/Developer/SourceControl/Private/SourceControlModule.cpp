@@ -476,6 +476,21 @@ FSourceControlPreSubmitDataValidationDelegate FSourceControlModule::GetRegistere
 	return OnSourceControlPreSubmitDataValidation;
 }
 
+FDelegateHandle FSourceControlModule::RegisterPreSubmitFinalize(const FSourceControlPreSubmitFinalizeDelegate::FDelegate& Delegate)
+{
+	return OnPresubmitFinalize.Add(Delegate);
+}
+
+void FSourceControlModule::UnregisterPreSubmitFinalize(FDelegateHandle Handle)
+{
+	OnPresubmitFinalize.Remove(Handle);
+}
+
+const FSourceControlPreSubmitFinalizeDelegate& FSourceControlModule::GetOnPreSubmitFinalize() const
+{
+	return OnPresubmitFinalize;
+}
+
 IMPLEMENT_MODULE( FSourceControlModule, SourceControl );
 
 #undef LOCTEXT_NAMESPACE

@@ -409,7 +409,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				NameColumnBox->AddSlot()
 					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
-					.Padding(-2, 0, -10, 0)
+					.Padding(-4, 0, -10, 0)
 					.AutoWidth()
 					[
 						ReorderHandle
@@ -429,7 +429,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					NameColumnBox->AddSlot()
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
-						.Padding(-2, 0, -10, 0)
+						.Padding(-4, 0, -10, 0)
 						.AutoWidth()
 						[
 							ArrayHandle
@@ -804,26 +804,26 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 		}
 		
 		MenuBuilder.AddMenuEntry(
-        	NSLOCTEXT("PropertyView", "CopyWhitelist", "Copy internal row name"),
-        	NSLOCTEXT("PropertyView", "CopyWhitelist_ToolTip", "Copy the row's parent struct and internal name to use in the property editor's whitelist"),
+        	NSLOCTEXT("PropertyView", "CopyRowName", "Copy internal row name"),
+        	NSLOCTEXT("PropertyView", "CopyRowName_ToolTip", "Copy the row's parent struct and internal name to use in the property editor's allow/deny lists."),
         	FSlateIcon(),
-        	FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::CopyWhitelistText)));
+        	FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::CopyRowNameText)));
 
 		MenuBuilder.AddMenuEntry(
-			NSLOCTEXT("PropertyView", "AddWhitelist", "Add to whitelist"),
-			NSLOCTEXT("PropertyView", "AddWhitelist_ToolTip", "Add this row to the property editor's whitelist"),
+			NSLOCTEXT("PropertyView", "AddAllowList", "Add to Allowed"),
+			NSLOCTEXT("PropertyView", "AddAllowList_ToolTip", "Add this row to the property editor's allowed properties list."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleWhitelist), FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsWhitelistChecked)),
+			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleAllowList), FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsAllowListChecked)),
 			NAME_None,
 			EUserInterfaceActionType::Check);
 
 		MenuBuilder.AddMenuEntry(
-			NSLOCTEXT("PropertyView", "AddBlacklist", "Add to blacklist"),
-			NSLOCTEXT("PropertyView", "AddBlacklist_ToolTip", "Add this row to the property editor's blacklist"),
+			NSLOCTEXT("PropertyView", "AddDenyList", "Add to Denied"),
+			NSLOCTEXT("PropertyView", "AddDenyList_ToolTip", "Add this row to the property editor's denied properties list."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleBlacklist), FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsBlacklistChecked)),
+			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleDenyList), FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsDenyListChecked)),
 			NAME_None,
 			EUserInterfaceActionType::Check);
 			
@@ -948,7 +948,7 @@ const UStruct* GetExactStructForProperty(const UStruct* MostDerivedStruct, const
 	return MostDerivedStruct;
 }
 
-void SDetailSingleItemRow::CopyWhitelistText() const
+void SDetailSingleItemRow::CopyRowNameText() const
 {
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
 	{
@@ -961,14 +961,14 @@ void SDetailSingleItemRow::CopyWhitelistText() const
 	}
 }
 
-void SDetailSingleItemRow::OnToggleWhitelist() const
+void SDetailSingleItemRow::OnToggleAllowList() const
 {
 	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
 	if (Owner)
 	{
 		const FName OwnerName = "DetailRowContextMenu";
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
-		if (IsWhitelistChecked())
+		if (IsAllowListChecked())
 		{
 			FPropertyEditorPermissionList::Get().RemoveFromAllowList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
@@ -979,7 +979,7 @@ void SDetailSingleItemRow::OnToggleWhitelist() const
 	}
 }
 
-bool SDetailSingleItemRow::IsWhitelistChecked() const
+bool SDetailSingleItemRow::IsAllowListChecked() const
 {
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
 	{
@@ -989,14 +989,14 @@ bool SDetailSingleItemRow::IsWhitelistChecked() const
 	return false;
 }
 
-void SDetailSingleItemRow::OnToggleBlacklist() const
+void SDetailSingleItemRow::OnToggleDenyList() const
 {
 	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
 	if (Owner)
 	{
 		const FName OwnerName = "DetailRowContextMenu";
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
-		if (IsBlacklistChecked())
+		if (IsDenyListChecked())
 		{
 			FPropertyEditorPermissionList::Get().RemoveFromDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
@@ -1007,7 +1007,7 @@ void SDetailSingleItemRow::OnToggleBlacklist() const
 	}
 }
 
-bool SDetailSingleItemRow::IsBlacklistChecked() const
+bool SDetailSingleItemRow::IsDenyListChecked() const
 {
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
     {

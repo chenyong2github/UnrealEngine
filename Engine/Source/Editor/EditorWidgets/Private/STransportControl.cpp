@@ -190,7 +190,7 @@ const FSlateBrush* STransportControl::GetForwardStatusIcon() const
 		bIsRecording = TransportControlArgs.OnGetRecording.Execute();
 	}
 
-	if ( PlaybackMode == EPlaybackMode::PlayingForward || bIsRecording )
+	if ( PlaybackMode == EPlaybackMode::PlayingForward)
 	{
 		return ForwardPlayButton.IsValid() && ForwardPlayButton->IsPressed() ? 
 			&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Pause").Pressed : 

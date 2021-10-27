@@ -6,6 +6,7 @@
 #include "IPropertyTypeCustomization.h"
 
 class ADisplayClusterRootActor;
+class FDisplayClusterConfiguratorBlueprintEditor;
 
 #define GET_CHILD_HANDLE(ParentType, ChildName) GetChildHandleChecked(InPropertyHandle, GET_MEMBER_NAME_CHECKED(ParentType, ChildName))
 
@@ -77,8 +78,14 @@ protected:
 	/** Marks the currently edited blueprint as modified */
 	void ModifyBlueprint();
 
-	/** Attempts to find the display cluster root actor that owns the tpye being customized. */
+	/** Attempts to find the display cluster root actor that owns the type being customized. */
 	ADisplayClusterRootActor* FindRootActor() const;
+
+	/** Attempts to find the blueprint editor editing the selected object, if the object is being edited in a blueprint editor. */
+	FDisplayClusterConfiguratorBlueprintEditor* FindBlueprintEditor() const;
+
+	/** Searches the specified property's instanced and default metadata maps for metadata using the specified key */
+	const FString* FindMetaData(TSharedPtr<IPropertyHandle> PropertyHandle, const FName& Key) const;
 
 protected:
 	/** A weak reference to the object being edited by the details panel */

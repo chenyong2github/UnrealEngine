@@ -395,7 +395,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "SimTarget == ENiagaraSimTarget::GPUComputeSim", DisplayName = "Max GPU Particles Spawn per Frame"))
 	int32 MaxGPUParticlesSpawnPerFrame;
 
-	void NIAGARA_API GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly = true, bool bEnabledOnly = false) const;
+	NIAGARA_API void GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly = true, bool bEnabledOnly = false) const;
 
 	NIAGARA_API UNiagaraScript* GetScript(ENiagaraScriptUsage Usage, FGuid UsageId);
 
@@ -416,13 +416,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (DisplayName = "Supports Baked Rapid Iteration"))
 	uint32 bBakeOutRapidIteration : 1;
 
-	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;
-	void NIAGARA_API OnPostCompile();
+	NIAGARA_API bool AreAllScriptAndSourcesSynchronized() const;
+	NIAGARA_API void OnPostCompile();
 
-	void NIAGARA_API InvalidateCompileResults();
+	NIAGARA_API void InvalidateCompileResults();
 
 	/* Gets a Guid which is updated any time data in this emitter is changed. */
-	FGuid NIAGARA_API GetChangeId() const;
+	NIAGARA_API FGuid GetChangeId() const;
 
 	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
 	NIAGARA_API UNiagaraEditorParametersAdapterBase* GetEditorParameters();
@@ -516,8 +516,8 @@ public:
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
 #endif
 
-	FString NIAGARA_API GetUniqueEmitterName()const;
-	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
+	NIAGARA_API const FString& GetUniqueEmitterName() const;
+	NIAGARA_API bool SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
@@ -527,9 +527,9 @@ public:
 	template<typename TAction>
 	void ForEachScript(TAction Func) const;
 
-	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
+	NIAGARA_API void AddRenderer(UNiagaraRendererProperties* Renderer);
 
-	void NIAGARA_API RemoveRenderer(UNiagaraRendererProperties* Renderer);
+	NIAGARA_API void RemoveRenderer(UNiagaraRendererProperties* Renderer);
 
 	FORCEINLINE const TArray<FNiagaraEventScriptProperties>& GetEventHandlers() const { return EventHandlerScriptProps; }
 
@@ -537,19 +537,19 @@ public:
 	   the event handler array can make this pointer become invalid without warning. */
 	NIAGARA_API FNiagaraEventScriptProperties* GetEventHandlerByIdUnsafe(FGuid ScriptUsageId);
 
-	void NIAGARA_API AddEventHandler(FNiagaraEventScriptProperties EventHandler);
+	NIAGARA_API void AddEventHandler(FNiagaraEventScriptProperties EventHandler);
 
-	void NIAGARA_API RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
+	NIAGARA_API void RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
 
 	NIAGARA_API const TArray<UNiagaraSimulationStageBase*>& GetSimulationStages() const { return SimulationStages; }
 
 	NIAGARA_API UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
 
-	void NIAGARA_API AddSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
+	NIAGARA_API void AddSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API RemoveSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
+	NIAGARA_API void RemoveSimulationStage(UNiagaraSimulationStageBase* SimulationStage);
 
-	void NIAGARA_API MoveSimulationStageToIndex(UNiagaraSimulationStageBase* SimulationStage, int32 TargetIndex);
+	NIAGARA_API void MoveSimulationStageToIndex(UNiagaraSimulationStageBase* SimulationStage, int32 TargetIndex);
 
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;

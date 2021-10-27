@@ -20,7 +20,13 @@ public:
 	//~ Begin FSnapshotArchive Interface
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	//~ End FSnapshotArchive Interface
+
+protected:
 	
+	//~ Begin FSnapshotArchive Interface
+	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const { checkNoEntry(); return nullptr; }
+	//~ End FSnapshotArchive Interface
+
 private:
 	
 	FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);

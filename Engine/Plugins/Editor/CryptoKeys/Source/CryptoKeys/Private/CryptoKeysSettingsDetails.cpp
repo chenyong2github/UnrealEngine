@@ -39,7 +39,7 @@ void FCryptoKeysSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 				{
 					if (Settings.IsValid() && CryptoKeysHelpers::GenerateEncryptionKey(Settings->EncryptionKey))
 					{
-						Settings->UpdateDefaultConfigFile();
+						Settings->TryUpdateDefaultConfigFile();
 					}
 					else
 					{
@@ -82,7 +82,7 @@ void FCryptoKeysSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 				{
 					if (Settings.IsValid() && CryptoKeysHelpers::GenerateSigningKey(Settings->SigningPublicExponent, Settings->SigningPrivateExponent, Settings->SigningModulus))
 					{
-						Settings->UpdateDefaultConfigFile();
+						Settings->TryUpdateDefaultConfigFile();
 					}
 					else
 					{

@@ -54,6 +54,7 @@
 #include "Misc/ExclusiveLoadPackageTimeTracker.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/CoreRedirects.h"
+#include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/PackageAccessTracking.h"
@@ -2763,6 +2764,25 @@ void UObject::UpdateDefaultConfigFile(const FString& SpecificFileLocation)
 	UpdateSingleSectionOfConfigFile(SpecificFileLocation.IsEmpty() ? GetDefaultConfigFilename() : SpecificFileLocation);
 }
 
+bool UObject::TryUpdateDefaultConfigFile(const FString& SpecificFileLocation, bool bWarnIfFail)
+{
+	FString ConfigFile = SpecificFileLocation.IsEmpty() ? GetDefaultConfigFilename() : SpecificFileLocation;
+
+	if (FPaths::FileExists(ConfigFile) && !IFileManager::Get().IsReadOnly(*ConfigFile))
+	{
+		UpdateSingleSectionOfConfigFile(ConfigFile);
+
+		return true;
+	}
+
+	if (bWarnIfFail)
+	{
+		UE_LOG(LogObj, Warning, TEXT("Ini File '%s' was not found or is read-only"), *ConfigFile);
+	}
+
+	return false;
+}
+
 void UObject::UpdateGlobalUserConfigFile()
 {
 	UpdateSingleSectionOfConfigFile(GetGlobalUserConfigFilename());
@@ -2917,7 +2937,7 @@ static void ShowIntrinsicClasses( FOutputDevice& Ar )
 			{
 				MarkedClasses.AddClass(*It);
 			}
-			else if ( !It->HasAnyClassFlags(CLASS_Parsed) )
+			else
 			{
 				UnmarkedClasses.AddClass(*It);
 			}

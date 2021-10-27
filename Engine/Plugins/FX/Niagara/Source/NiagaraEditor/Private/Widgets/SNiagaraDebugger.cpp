@@ -279,8 +279,10 @@ namespace NiagaraOutlinerTab
 			return SNullWidget::NullWidget;
 		}
 
-		FToolBarBuilder ToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder ToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
 		UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>();
+		
+		ToolbarBuilder.BeginStyleOverride("CalloutToolbar");
 		ToolbarBuilder.BeginSection("Capture Settings");
 
 		// Capture controls
@@ -607,7 +609,8 @@ namespace NiagaraOutlinerTab
 		}
 
 		ToolbarBuilder.EndSection();
-
+		ToolbarBuilder.EndStyleOverride();
+		
 		return ToolbarBuilder.MakeWidget();
 	}
 
@@ -857,10 +860,11 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 {
 	using namespace NiagaraDebuggerLocal;
 
-	FToolBarBuilder ToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
 	UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>();
+	
+	ToolbarBuilder.BeginStyleOverride("CalloutToolbar");
 	ToolbarBuilder.BeginSection("Main");
-
 	// Refresh button
 	{
 		ToolbarBuilder.AddToolBarButton(
@@ -963,7 +967,8 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 	}
 
 	ToolbarBuilder.EndSection();
-
+	ToolbarBuilder.EndStyleOverride();
+	
 	return ToolbarBuilder.MakeWidget();
 }
 

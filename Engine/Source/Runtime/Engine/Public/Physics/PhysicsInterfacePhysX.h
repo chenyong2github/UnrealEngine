@@ -364,7 +364,7 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface, pub
 	static void UpdateTwistLimitParams_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, float InAverageMass, const FTwistConstraint& InParams);
 	static void UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FLinearDriveConstraint& InDriveParams);
 	static void UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FAngularDriveConstraint& InDriveParams);
-	static void UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive);
+	static void UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive, bool bInitialized_IGNORED = true);
 	static void SetDrivePosition(const FPhysicsConstraintHandle_PhysX& InHandle, const FVector& InPosition);
 	static void SetDriveOrientation(const FPhysicsConstraintHandle_PhysX& InHandle, const FQuat& InOrientation);
 	static void SetDriveLinearVelocity(const FPhysicsConstraintHandle_PhysX& InHandle, const FVector& InLinVelocity);

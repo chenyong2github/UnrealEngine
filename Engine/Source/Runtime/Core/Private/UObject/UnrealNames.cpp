@@ -1665,7 +1665,7 @@ FNameEntry const* FName::GetEntry(FNameEntryId Id)
 FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIsBool )
 {
 	// Copy the characters out so that we can modify the string in place
-	const TArray< TCHAR >& Chars = InDisplayName.GetCharArray();
+	const TArray< TCHAR, FString::AllocatorType >& Chars = InDisplayName.GetCharArray();
 
 	// This is used to indicate that we are in a run of uppercase letter and/or digits.  The code attempts to keep
 	// these characters together as breaking them up often looks silly (i.e. "Draw Scale 3 D" as opposed to "Draw Scale 3D"
@@ -2303,18 +2303,18 @@ uint32 FName::GetStringLength() const
 	const FNameEntry& Entry = *GetDisplayNameEntry();
 	uint32 NameLen = Entry.GetNameLength();
 
-	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
+	if (GetNumber() != NAME_NO_NUMBER_INTERNAL)
 	{
-		return NameLen;
+		// Return the length of the number suffix "_<num>"
+		// We only need to actually compute the size past values of 9.
+		// The minimum suffix length is 2, including the one for a suffix value of 0.
+		NameLen += 2;
+		for (int32 Num = NAME_INTERNAL_TO_EXTERNAL(GetNumber()); Num >= 10; Num /= 10)
+		{
+			++NameLen;
+		}
 	}
-	else
-	{
-		TCHAR NumberSuffixStr[16];
-		int32 SuffixLen = FCString::Sprintf(NumberSuffixStr, TEXT("_%d"), NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
-		check(SuffixLen > 0);
-
-		return NameLen + SuffixLen;
-	}
+	return NameLen;
 }
 
 uint32 FName::ToString(TCHAR* Out, uint32 OutSize) const

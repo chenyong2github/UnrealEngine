@@ -98,7 +98,7 @@ void UK2Node_PropertyAccess::ExpandNode(FKismetCompilerContext& InCompilerContex
 	}
 }
 
-void UK2Node_PropertyAccess::ResolvePropertyAccess()
+void UK2Node_PropertyAccess::ResolvePropertyAccess() const
 {
 	if(UBlueprint* Blueprint = GetBlueprint())
 	{
@@ -218,16 +218,17 @@ void UK2Node_PropertyAccess::ReallocatePinsDuringReconstruction(TArray<UEdGraphP
 
 FText UK2Node_PropertyAccess::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return !TextPath.IsEmpty() ? TextPath : LOCTEXT("PropertyAccess", "Property Access");
+	return LOCTEXT("PropertyAccess", "Property Access");
 }
 
-void UK2Node_PropertyAccess::AddSearchMetaDataInfo(TArray<FSearchTagDataPair>& OutTaggedMetaData) const
+void UK2Node_PropertyAccess::AddPinSearchMetaDataInfo(const UEdGraphPin* InPin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
 {
-	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
+	Super::AddPinSearchMetaDataInfo(InPin, OutTaggedMetaData);
 
+	// Only one pin on the node so no need to check it here
 	if(!TextPath.IsEmpty())
 	{
-		OutTaggedMetaData.Emplace(LOCTEXT("PropertyAccess", "Property Access"), TextPath);
+		OutTaggedMetaData.Emplace(FText::FromString(TEXT("Binding")), TextPath);
 	}
 }
 
@@ -290,6 +291,109 @@ void UK2Node_PropertyAccess::PostEditUndo()
 	Super::PostEditUndo();
 	
 	ResolvePropertyAccess();
+}
+
+void UK2Node_PropertyAccess::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	UClass* SkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(InVariableClass);
+
+	// See if the path references the variable
+	TArray<int32> RenameIndices;
+	IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+	ResolveArgs.PropertyFunction = [InOldVarName, SkeletonVariableClass, &RenameIndices](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+	{
+		UClass* OwnerClass = InProperty->GetOwnerClass();
+		if(OwnerClass && InProperty->GetFName() == InOldVarName && OwnerClass->IsChildOf(SkeletonVariableClass))
+		{
+			RenameIndices.Add(InSegmentIndex);
+		}
+	};
+	
+	PropertyAccessEditor.ResolvePropertyAccess(GetBlueprint()->SkeletonGeneratedClass, Path, ResolveArgs);
+
+	// Rename any references we found
+	for(const int32& RenameIndex : RenameIndices)
+	{
+		Path[RenameIndex] = InNewVarName.ToString();
+		TextPath = PropertyAccessEditor.MakeTextPath(Path);
+	}
+}
+
+void UK2Node_PropertyAccess::ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement)
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+	
+	UClass* SkeletonClass = InBlueprint->SkeletonGeneratedClass;
+
+	FMemberReference Source = InSource;
+	FProperty* SourceProperty = Source.ResolveMember<FProperty>(InBlueprint);
+	FMemberReference Replacement = InReplacement;
+	FProperty* ReplacementProperty = Replacement.ResolveMember<FProperty>(InReplacementBlueprint);
+
+	// See if the path references the variable
+	TArray<int32> ReplaceIndices;
+	IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+	ResolveArgs.PropertyFunction = [SourceProperty, &ReplaceIndices](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+	{
+		if(InProperty == SourceProperty)
+		{
+			ReplaceIndices.Add(InSegmentIndex);
+		}
+	};
+	
+	PropertyAccessEditor.ResolvePropertyAccess(GetBlueprint()->SkeletonGeneratedClass, Path, ResolveArgs);
+
+	// Replace any references we found
+	for(const int32& RenameIndex : ReplaceIndices)
+	{
+		Path[RenameIndex] = ReplacementProperty->GetName();
+		TextPath = PropertyAccessEditor.MakeTextPath(Path);
+	}
+}
+
+bool UK2Node_PropertyAccess::ReferencesVariable(const FName& InVarName, const UStruct* InScope) const
+{
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+	const UClass* SkeletonVariableClass = FBlueprintEditorUtils::GetSkeletonClass(Cast<UClass>(InScope));
+	
+	// See if the path references the variable
+	bool bReferencesVariable = false;
+	
+	IPropertyAccessEditor::FResolvePropertyAccessArgs ResolveArgs;
+	ResolveArgs.PropertyFunction = [InVarName, SkeletonVariableClass, &bReferencesVariable](int32 InSegmentIndex, FProperty* InProperty, int32 InStaticArrayIndex)
+	{
+		if(SkeletonVariableClass)
+		{
+			UStruct* OwnerStruct = InProperty->GetOwnerStruct();
+			if(OwnerStruct && InProperty->GetFName() == InVarName && OwnerStruct->IsChildOf(SkeletonVariableClass))
+			{
+				bReferencesVariable = true;
+			}
+		}
+		else if(InProperty->GetFName() == InVarName)
+		{
+			bReferencesVariable = true;
+		}
+	};
+	
+	PropertyAccessEditor.ResolvePropertyAccess(GetBlueprint()->SkeletonGeneratedClass, Path, ResolveArgs);
+	
+	return bReferencesVariable;
+}
+
+const FProperty* UK2Node_PropertyAccess::GetResolvedProperty() const
+{
+	if(const FProperty* Property = ResolvedProperty.Get())
+	{
+		return Property;
+	}
+	
+	ResolvePropertyAccess();
+
+	return ResolvedProperty.Get();
 }
 
 #undef LOCTEXT_NAMESPACE

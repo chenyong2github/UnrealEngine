@@ -38,7 +38,10 @@ dir ^
 
 if not exist ..\Binaries\DotNET\AutomationTool\AutomationTool.dll goto Build_AutomationTool
 
-set ARGUMENT=%1
+set MSBUILD_LOGLEVEL=%1
+if not defined %MSBUILD_LOGLEVEL set MSBUILD_LOGLEVEL=quiet
+
+set ARGUMENT=%2
 if not defined %ARGUMENT goto Check_UpToDate
 if /I "%ARGUMENT%" == "FORCE" goto Build_AutomationTool
 
@@ -53,7 +56,7 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building AutomationTool...
-dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\AutomationTool\AutomationTool.csproj /verbosity:quiet
+dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\AutomationTool\AutomationTool.csproj /verbosity:%MSBUILD_LOGLEVEL%
 if errorlevel 1 goto Error_UATCompileFailed
 
 rem record input files - regardless of how we got here, these are now our point of reference

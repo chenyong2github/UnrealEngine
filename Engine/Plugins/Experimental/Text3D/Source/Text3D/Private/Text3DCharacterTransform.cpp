@@ -41,8 +41,7 @@ void UText3DCharacterTransform::OnRegister()
 		ProcessEffect();
 	}
 
-	UText3DComponent* Text3DComponent = GetText3DComponent();
-	if (Text3DComponent)
+	if (UText3DComponent* Text3DComponent = GetText3DComponent())
 	{
 		Text3DComponent->OnTextGenerated().AddUObject(this, &UText3DCharacterTransform::ProcessEffect);
 	}
@@ -50,8 +49,7 @@ void UText3DCharacterTransform::OnRegister()
 
 void UText3DCharacterTransform::OnUnregister()
 {
-	UText3DComponent* Text3DComponent = GetText3DComponent();
-	if (Text3DComponent)
+	if (UText3DComponent* Text3DComponent = GetText3DComponent())
 	{
 		Text3DComponent->OnTextGenerated().RemoveAll(this);
 	}

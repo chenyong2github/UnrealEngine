@@ -8,7 +8,7 @@
 #include "GameFeaturesSubsystemSettings.generated.h"
 
 /** Settings for the Game Features framework */
-UCLASS(config=Game, defaultconfig, notplaceable, meta = (DisplayName = "Game Features"))
+UCLASS(config=Game, defaultconfig, meta = (DisplayName = "Game Features"))
 class GAMEFEATURES_API UGameFeaturesSubsystemSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

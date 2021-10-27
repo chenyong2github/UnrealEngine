@@ -23,6 +23,7 @@
 #if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
 #endif
+#include "MaterialShared.h"
 #include "MaterialInterface.generated.h"
 
 class FMaterialCompiler;
@@ -439,6 +440,12 @@ public:
 	 */
 	virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const { return NULL; }
 
+	/**
+	 * Get the material layers stack
+	 * @return - material layers stack, or nullptr if material has no layers
+	 */
+	virtual const FMaterialLayersFunctions* GetMaterialLayers(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const PURE_VIRTUAL(UMaterialInterface::GetMaterialLayers, return nullptr;);
+
 #if WITH_EDITORONLY_DATA
 
 	/**
@@ -458,16 +465,6 @@ public:
 	* @return					True if successful
 	*/
 	ENGINE_API bool GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly = false) const;
-
-	/**
-	* Get the value of the given static material layers parameter
-	*
-	* @param	ParameterName	The name of the material layer parameter
-	* @param	OutValue		Will contain the value of the parameter if successful
-	* @return					True if successful
-	*/
-	virtual bool GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetMaterialLayersParameterValue, return false;);
 #endif // WITH_EDITORONLY_DATA
 
 	/**
@@ -512,8 +509,6 @@ public:
 	ENGINE_API void GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 
 #if WITH_EDITORONLY_DATA
-	virtual void GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-		PURE_VIRTUAL(UMaterialInterface::GetAllMaterialLayersParameterInfo,return;);
 	ENGINE_API void GetAllStaticSwitchParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	ENGINE_API void GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 
@@ -538,9 +533,6 @@ public:
 	virtual void GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
 		PURE_VIRTUAL(UMaterialInterface::GetReferencedTexturesAndOverrides, );
 #endif // WITH_EDITOR
-
-	virtual int32 GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface * LayerFunction) const
-		PURE_VIRTUAL(UMaterialInterface::GetLayerParameterIndex, return INDEX_NONE;);
 
 	/** Get textures referenced by expressions, including nested functions. */
 	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const

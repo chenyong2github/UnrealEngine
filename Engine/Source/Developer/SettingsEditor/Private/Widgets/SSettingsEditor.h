@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/NotifyHook.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SOverlay.h"
 #include "ISettingsCategory.h"
 #include "ISettingsContainer.h"
 #include "ISettingsEditorModel.h"
 #include "ISettingsSection.h"
+#include "Layout/Visibility.h"
+#include "Misc/NotifyHook.h"
+#include "PropertyEditorDelegates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SWidget.h"
 
 class IDetailsView;
 class SVerticalBox;
@@ -114,6 +114,9 @@ private:
 
 	/** Callback for determining the visibility of the settings view. */
 	EVisibility HandleSettingsViewVisibility() const;
+
+	/** Callback for determining the visibility of each individual property. */
+	bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
 
 	/** Callback when the timer has been ticked to refresh the categories latently. */
 	EActiveTimerReturnType UpdateCategoriesCallback(double InCurrentTime, float InDeltaTime);

@@ -253,7 +253,7 @@ public:
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
 
-	bool IsValid()const { return WeakSystem.Get() != nullptr && bCanExecute && World != nullptr; }
+	bool IsValid() const { return bCanExecute && World != nullptr; }
 
 	/** First phase of system sim tick. Must run on GameThread. */
 	void Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
@@ -280,7 +280,7 @@ public:
 	void PauseInstance(FNiagaraSystemInstance* Instance);
 	void UnpauseInstance(FNiagaraSystemInstance* Instance);
 
-	FORCEINLINE UNiagaraSystem* GetSystem()const { return WeakSystem.Get(); }
+	FORCEINLINE UNiagaraSystem* GetSystem() const { return System; }
 
 	UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
 
@@ -343,7 +343,7 @@ protected:
 	TArray<FNiagaraSystemInstance*>& GetSystemInstances(ENiagaraSystemInstanceState State) { check(State != ENiagaraSystemInstanceState::None); return SystemInstancesPerState[int32(State)]; }
 
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
-	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
+	UNiagaraSystem* System;
 
 	/** We cache off the effect type in the unlikely even that someone GCs the System from under us so that we can keep the effect types instance count etc accurate. */
 	UNiagaraEffectType* EffectType;
@@ -353,6 +353,11 @@ protected:
 
 	/** World this system simulation belongs to. */
 	UWorld* World;
+
+	uint32 bCanExecute : 1;
+	uint32 bBindingsInitialized : 1;
+	uint32 bInSpawnPhase : 1;
+	uint32 bIsSolo : 1;
 
 	/** System instance per state. */
 	TArray<FNiagaraSystemInstance*> SystemInstancesPerState[int32(ENiagaraSystemInstanceState::Num)];
@@ -406,11 +411,6 @@ protected:
 	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
 	void InitParameterDataSetBindings(FNiagaraSystemInstance* SystemInst);
-
-	uint32 bCanExecute : 1;
-	uint32 bBindingsInitialized : 1;
-	uint32 bInSpawnPhase : 1;
-	uint32 bIsSolo : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

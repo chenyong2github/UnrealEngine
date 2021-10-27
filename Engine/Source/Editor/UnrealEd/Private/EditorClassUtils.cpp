@@ -78,6 +78,15 @@ TSharedRef<SWidget> FEditorClassUtils::GetDocumentationLinkWidget(const UClass* 
 	return DocLinkWidget;
 }
 
+TSharedRef<SWidget> FEditorClassUtils::GetDynamicDocumentationLinkWidget(const TAttribute<const UClass*>& ClassAttribute)
+{
+	auto GetLink = [ClassAttribute]()
+	{
+		return GetDocumentationLink(ClassAttribute.Get(nullptr));
+	};
+	return IDocumentation::Get()->CreateAnchor(TAttribute<FString>::CreateLambda(GetLink));
+}
+
 TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr)
 {
 	const FText BlueprintFormat = NSLOCTEXT("SourceHyperlink", "EditBlueprint", "Edit {0}");

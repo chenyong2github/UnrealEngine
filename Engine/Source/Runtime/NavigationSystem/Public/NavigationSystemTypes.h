@@ -20,6 +20,7 @@ class FNavigationOctree;
 class UNavigationPath;
 class ANavigationData;
 
+// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
 
 struct NAVIGATIONSYSTEM_API FPathFindingQueryData
 {

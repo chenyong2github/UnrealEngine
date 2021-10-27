@@ -385,8 +385,8 @@ private:
 		static_assert(decltype(_Property)::AttributeType == SlateAttributePrivate::ESlateAttributeType::Contained, "The SlateProperty is not a TSlateAttribute. Do not use SLATE_ADD_CONTAINED_ATTRIBUTE_DEFINITION"); \
 		static_assert(!decltype(_Property)::HasDefinedInvalidationReason, "When implementing the SLATE_DECLARE_WIDGET pattern, use TSlateSlotAttribute without the invalidation reason."); \
 		static_assert(!std::is_same<decltype(_Reason), EInvalidateWidgetReason>::value || FSlateAttributeBase::IsInvalidateWidgetReasonSupported(_Reason), "The invalidation is not supported by the SlateAttribute system."); \
-		static_assert(STRUCT_OFFSET(_SlotType, _Property) > 0, "The offset cannot be calculated"); \
-		_Initializer.AddContainedAttribute(_Name, ((std::size_t)(&(((_SlotType*)(1))->_Property)) - (std::size_t)((SlateAttributePrivate::ISlateAttributeContainer*)((_SlotType*)(1)))), FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{_Reason})
+		/** We do not use STRUCT_OFFSET here. At runtime we use the ISlateAttributeContainer as the base pointer. FSlot uses multi-inheritance. */ \
+		_Initializer.AddContainedAttribute(_Name, ((SIZE_T)(&(((_SlotType*)(0x1000))->_Property)) - (SIZE_T)(static_cast<SlateAttributePrivate::ISlateAttributeContainer*>((_SlotType*)(0x1000)))), FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{_Reason})
 
 #define SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION(_SlotType, _Initializer, _Property, _Reason) \
 	SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(_SlotType, _Initializer, GET_MEMBER_NAME_CHECKED(_SlotType, _Property), _Property, _Reason)

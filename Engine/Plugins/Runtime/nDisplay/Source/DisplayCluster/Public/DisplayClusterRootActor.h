@@ -180,9 +180,6 @@ private:
 	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CurrentConfigData.StageSettings.bEnableInnerFrustums"))
 	FDisplayClusterEditorPropertyReference EnableInnerFrustumsRef;
 
-	UPROPERTY(EditInstanceOnly, Transient, Category = "In Camera VFX", meta = (DisplayName = "Inner Frustum Visible in Viewports", PropertyPath = "CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowInnerFrustum", ToolTip = "Enable/disable inner frustum rendering on each individual viewport for all ICVFX cameras.", EditCondition = "CurrentConfigData->StageSettings.bEnableInnerFrustums"))
-	FDisplayClusterEditorPropertyReference ViewportAllowInnerFrustumRef;
-
 	UPROPERTY(EditAnywhere, Transient, Category = "Color Grading", meta = (PropertyPath = "CurrentConfigData.StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading"))
 	FDisplayClusterEditorPropertyReference EnableClusterColorGradingRef;
 

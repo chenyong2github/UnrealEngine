@@ -821,7 +821,7 @@ bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Co
 	// Don't activate the SVE if xr is being used for tracking only purposes
 	static const bool bXrTrackingOnly = FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly"));
 
-	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport) && !bXrTrackingOnly;
+	return FHMDSceneViewExtension::IsActiveThisFrame_Internal(Context) && !bXrTrackingOnly;
 }
 
 bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProps)
@@ -840,7 +840,7 @@ bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProp
 
 FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport)
 	: FHeadMountedDisplayBase(ARSystemSupport)
-	, FSceneViewExtensionBase(AutoRegister)
+	, FHMDSceneViewExtension(AutoRegister)
 	, FOpenXRAssetManager(InInstance, this)
 	, bStereoEnabled(false)
 	, bIsRunning(false)

@@ -9,6 +9,8 @@
 
 #include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
 #include "Framework/Application/SlateApplication.h"
@@ -200,16 +202,16 @@ UE::FSdfLayer UsdUtils::FindLayerForPrim( const pxr::UsdPrim& Prim )
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdPrimCompositionQuery PrimCompositionQuery( Prim );
-	std::vector< pxr::UsdPrimCompositionQueryArc > CompositionArcs = PrimCompositionQuery.GetCompositionArcs();
-
-	for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : CompositionArcs )
+	// Use this instead of UsdPrimCompositionQuery as that one can simply fail in some scenarios
+	// (e.g. empty parent layer pointing at a sublayer with a prim, where it fails to provide the sublayer arc's layer)
+	for ( const pxr::SdfPrimSpecHandle& Handle : Prim.GetPrimStack() )
 	{
-		pxr::SdfLayerHandle IntroducingLayer = CompositionArc.GetIntroducingLayer();
-
-		if ( IntroducingLayer )
+		if ( Handle )
 		{
-			return UE::FSdfLayer( IntroducingLayer );
+			if ( pxr::SdfLayerHandle Layer = Handle->GetLayer() )
+			{
+				return UE::FSdfLayer( Layer );
+			}
 		}
 	}
 
@@ -230,6 +232,54 @@ UE::FSdfLayer UsdUtils::FindLayerForAttribute( const pxr::UsdAttribute& Attribut
 		if ( PropertySpec->HasDefaultValue() || PropertySpec->GetLayer()->GetNumTimeSamplesForPath( PropertySpec->GetPath() ) > 0 )
 		{
 			return UE::FSdfLayer( PropertySpec->GetLayer() );
+		}
+	}
+
+	return {};
+}
+
+UE::FSdfLayer UsdUtils::FindLayerForAttributes( const TArray<UE::FUsdAttribute>& Attributes, double TimeCode, bool bIncludeSessionLayers )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	TMap<FString, UE::FSdfLayer> IdentifierToLayers;
+	IdentifierToLayers.Reserve( Attributes.Num() );
+
+	pxr::UsdStageRefPtr Stage;
+	for ( const UE::FUsdAttribute& Attribute : Attributes )
+	{
+		if ( Attribute )
+		{
+			if ( UE::FSdfLayer Layer = UsdUtils::FindLayerForAttribute( Attribute, TimeCode ) )
+			{
+				IdentifierToLayers.Add( Layer.GetIdentifier(), Layer );
+
+				if ( !Stage )
+				{
+					Stage = pxr::UsdStageRefPtr{ Attribute.GetPrim().GetStage() };
+				}
+			}
+		}
+	}
+
+	if ( !Stage || IdentifierToLayers.Num() == 0)
+	{
+		return {};
+	}
+
+	if ( IdentifierToLayers.Num() == 1 )
+	{
+		return IdentifierToLayers.CreateIterator().Value();
+	}
+
+	// Iterate through the layer stack in strong to weak order, and return the first of those layers
+	// that is actually one of the attribute layers
+	for ( const pxr::SdfLayerHandle& LayerHandle : Stage->GetLayerStack( bIncludeSessionLayers ) )
+	{
+		FString Identifier = UsdToUnreal::ConvertString( LayerHandle->GetIdentifier() );
+		if ( UE::FSdfLayer* AttributeLayer = IdentifierToLayers.Find( Identifier ) )
+		{
+			return *AttributeLayer;
 		}
 	}
 
@@ -318,6 +368,56 @@ UE::FSdfLayerOffset UsdUtils::GetLayerToStageOffset( const pxr::UsdAttribute& At
 	}
 
 	return UE::FSdfLayerOffset( LocalOffset.GetOffset(), LocalOffset.GetScale() );
+}
+
+UE::FSdfLayerOffset UsdUtils::GetPrimToStageOffset( const UE::FUsdPrim& Prim )
+{
+	// In most cases all we care about is an offset from the prim's layer to the stage, but it is also possible for a prim
+	// to directly reference another layer with an offset and scale as well, and this function will pick up on that. Example:
+	//
+	// def SkelRoot "Model" (
+	//	  prepend references = @sublayer.usda@ ( offset = 15; scale = 2.0 )
+	// )
+	// {
+	// }
+	//
+	// Otherwise, this function really has the same effect as GetLayerToStageOffset, but we need to use an actual prim to be able
+	// to get USD to combine layer offsets and scales for us (via UsdPrimCompositionQuery).
+
+	FScopedUsdAllocs Allocs;
+
+	UE::FSdfLayer StrongestLayerForPrim = UsdUtils::FindLayerForPrim( Prim );
+
+	pxr::UsdPrim UsdPrim{ Prim };
+
+	pxr::UsdPrimCompositionQuery PrimCompositionQuery( UsdPrim );
+	pxr::UsdPrimCompositionQuery::Filter Filter;
+	Filter.hasSpecsFilter = pxr::UsdPrimCompositionQuery::HasSpecsFilter::HasSpecs;
+	PrimCompositionQuery.SetFilter( Filter );
+
+	for ( const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs() )
+	{
+		if ( pxr::PcpNodeRef Node = CompositionArc.GetTargetNode() )
+		{
+			pxr::SdfLayerOffset Offset;
+
+			// This part of the offset will handle direct prim references
+			const pxr::PcpMapExpression& MapToRoot = Node.GetMapToRoot();
+			if ( !MapToRoot.IsNull() )
+			{
+				Offset = MapToRoot.GetTimeOffset();
+			}
+
+			if ( const pxr::SdfLayerOffset* LayerOffset = Node.GetLayerStack()->GetLayerOffsetForLayer( pxr::SdfLayerRefPtr{ StrongestLayerForPrim } ) )
+			{
+				Offset = Offset * (*LayerOffset);
+			}
+
+			return UE::FSdfLayerOffset{ Offset.GetOffset(), Offset.GetScale() };
+		}
+	}
+
+	return UE::FSdfLayerOffset{};
 }
 
 void UsdUtils::AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode )

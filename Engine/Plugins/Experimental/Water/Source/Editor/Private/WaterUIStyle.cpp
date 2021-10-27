@@ -61,9 +61,9 @@ void FWaterUIStyle::Initialize()
 	// WaterBodyExclusionVolume
 	StyleSet->Set("ClassIcon.WaterBodyExclusionVolume", new IMAGE_BRUSH("Icons/WaterBodyExclusionVolume_16x", Icon16x16));
 	StyleSet->Set("ClassThumbnail.WaterBodyExclusionVolume", new IMAGE_BRUSH("Icons/WaterBodyExclusionVolume_64x", Icon64x64));
-	// WaterMesh
-	StyleSet->Set("ClassIcon.WaterMeshActor", new IMAGE_BRUSH("Icons/WaterMeshActor_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterMeshActor", new IMAGE_BRUSH("Icons/WaterMeshActor_64x", Icon64x64));
+	// WaterZone
+	StyleSet->Set("ClassIcon.WaterZone", new IMAGE_BRUSH("Icons/WaterZoneActor_16x", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterZone", new IMAGE_BRUSH("Icons/WaterZoneActor_64x", Icon64x64));
 	// WaterLandscapeBrush
 	StyleSet->Set("ClassIcon.WaterLandscapeBrush", new IMAGE_BRUSH("Icons/WaterLandscapeBrush_16x", Icon16x16));
 	StyleSet->Set("ClassThumbnail.WaterLandscapeBrush", new IMAGE_BRUSH("Icons/WaterLandscapeBrush_64x", Icon64x64));

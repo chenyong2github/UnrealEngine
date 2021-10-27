@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Camera/CameraShakeBase.h"
+#include "Camera/CameraAnimationHelper.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
@@ -435,46 +436,16 @@ void UCameraShakeBase::ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FC
 
 void UCameraShakeBase::ApplyPlaySpace(ECameraShakePlaySpace PlaySpace, FMatrix UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult)
 {
-	const FRotationMatrix CameraRot(InPOV.Rotation);
-	const FRotationMatrix OffsetRot(InOutResult.Rotation);
-
-	if (PlaySpace == ECameraShakePlaySpace::CameraLocal)
+	// Orient the shake according to the play space.
+	const bool bIsCameraLocal = (PlaySpace == ECameraShakePlaySpace::CameraLocal);
+	const FCameraAnimationHelperOffset CameraOffset { InOutResult.Location, InOutResult.Rotation };
+	if (bIsCameraLocal)
 	{
-		// Apply translation offset in the camera's local space.
-		InOutResult.Location = InPOV.Location + CameraRot.TransformVector(InOutResult.Location);
-
-		// Apply rotation offset to camera's local orientation.
-		InOutResult.Rotation = (OffsetRot * CameraRot).Rotator();
+		FCameraAnimationHelper::ApplyOffset(InPOV, CameraOffset, InOutResult.Location, InOutResult.Rotation);
 	}
 	else
 	{
-		// Apply translation offset using the desired space.
-		// (it's FMatrix::Identity if the space is World, and whatever value was passed to StartShake if UserDefined)
-		InOutResult.Location = InPOV.Location + UserPlaySpaceMatrix.TransformVector(InOutResult.Location);
-
-		// Apply rotation offset using the desired space.
-		//
-		// Compute the transform from camera to play space.
-		FMatrix const CameraToPlaySpace = CameraRot * UserPlaySpaceMatrix.Inverse();
-
-		// Compute the transform from shake (applied in playspace) back to camera.
-		FMatrix const ShakeToCamera = OffsetRot * CameraToPlaySpace.Inverse();
-
-		// RCS = rotated camera space, meaning camera space after it's been animated.
-		// This is what we're looking for, the diff between rotated cam space and regular cam space.
-		// Apply the transform back to camera space from the post-animated transform to get the RCS.
-		FMatrix const RCSToCamera = CameraToPlaySpace * ShakeToCamera;
-
-		// Now apply to real camera
-		InOutResult.Rotation = (RCSToCamera * CameraRot).Rotator();
-		
-		// Math breakdown:
-		//
-		// ResultRot = RCSToCamera * CameraRot
-		// ResultRot = CameraToPlaySpace * ShakeToCamera * CameraRot
-		// ResultRot = (CameraToPlaySpace) * OffsetRot * (CameraToPlaySpace^-1) * CameraRot
-		//
-		// ...where CameraToPlaySpace = (CameraRot * (UserPlaySpaceMatrix^-1))
+		FCameraAnimationHelper::ApplyOffset(UserPlaySpaceMatrix, InPOV, CameraOffset, InOutResult.Location, InOutResult.Rotation);
 	}
 
 	// We have a final location/rotation for the camera, so it should be applied verbatim.

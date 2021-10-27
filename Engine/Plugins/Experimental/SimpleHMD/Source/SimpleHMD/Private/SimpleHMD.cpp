@@ -309,14 +309,9 @@ void FSimpleHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 	check(IsInRenderingThread());
 }
 
-bool FSimpleHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
-{
-	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
-}
-
 FSimpleHMD::FSimpleHMD(const FAutoRegister& AutoRegister) :
 	FHeadMountedDisplayBase(nullptr),
-	FSceneViewExtensionBase(AutoRegister),
+	FHMDSceneViewExtension(AutoRegister),
 	CurHmdOrientation(FQuat::Identity),
 	LastHmdOrientation(FQuat::Identity),
 	DeltaControlRotation(FRotator::ZeroRotator),

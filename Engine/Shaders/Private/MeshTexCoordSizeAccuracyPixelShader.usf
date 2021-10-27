@@ -85,7 +85,7 @@ void Main(
 		{
 			float Accuracy = GetTexCoordSizeAccuracy(DebugInputs, TexCoordAnalysisIndex, CPUSize);
 			int ColorIndex = floor(Accuracy) + 2;
-			Result = lerp(DebugViewModePass.AccuracyColors[ColorIndex].rgb, DebugViewModePass.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
+			Result = lerp(DebugViewModeStruct.AccuracyColors[ColorIndex].rgb, DebugViewModeStruct.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
 		}
 	}
 	else
@@ -111,7 +111,7 @@ void Main(
 		if (abs(Accuracy) != UNDEF_ACCURACY)
 		{
 			int ColorIndex = floor(Accuracy) + 2;
-			Result = lerp(DebugViewModePass.AccuracyColors[ColorIndex].rgb, DebugViewModePass.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
+			Result = lerp(DebugViewModeStruct.AccuracyColors[ColorIndex].rgb, DebugViewModeStruct.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
 		}
 	}
 

@@ -11,13 +11,298 @@
 #include "AssetRegistryModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Interfaces/IPluginManager.h"
+#include "ImageUtils.h"
+#include "Hash/CityHash.h"
+#include "Async/Async.h"
+#include "Async/ParallelFor.h"
+
+#define LOCTEXT_NAMESPACE "ThumbnailExternalCache"
 
 DEFINE_LOG_CATEGORY_STATIC(LogThumbnailExternalCache, Log, All);
 
-const int64 FThumbnailExternalCache::LatestVersion = 0;
-const uint64 FThumbnailExternalCache::ExpectedHeaderId = 0x424d5548545f4555; // "UE_THUMB"
-const FString FThumbnailExternalCache::ThumbnailFilenamePart(TEXT("CachedEditorThumbnails.bin"));
-const FString FThumbnailExternalCache::ThumbnailImageFormatName(TEXT("PNG"));
+namespace ThumbnailExternalCache
+{
+	const int64 LatestVersion = 0;
+	const uint64 ExpectedHeaderId = 0x424d5548545f4555; // "UE_THUMB"
+	const FString ThumbnailFilenamePart(TEXT("CachedEditorThumbnails.bin"));
+	const FString ThumbnailImageFormatName(TEXT(""));
+
+	void ResizeThumbnailImage(FObjectThumbnail& Thumbnail, const int32 NewWidth, const int32 NewHeight)
+	{
+		TArray<uint8> DestData;
+		DestData.AddUninitialized(NewWidth * NewHeight * sizeof(FColor));
+
+		// Force decompress if needed
+		Thumbnail.GetUncompressedImageData();
+		TArray<uint8>& UncompressedImageData = Thumbnail.AccessImageData();
+
+		const bool bLinearSpace = false;
+		const bool bForceOpaqueOutput = false;
+		const TArrayView<FColor> SrcDataView(reinterpret_cast<FColor*>(UncompressedImageData.GetData()), UncompressedImageData.Num() / sizeof(FColor));
+		const TArrayView<FColor> DestDataView(reinterpret_cast<FColor*>(DestData.GetData()), DestData.Num() / sizeof(FColor));
+		FImageUtils::ImageResize(Thumbnail.GetImageWidth(), Thumbnail.GetImageHeight(), SrcDataView, NewWidth, NewHeight, DestDataView, bLinearSpace, bForceOpaqueOutput);
+
+		UncompressedImageData = MoveTemp(DestData);
+		Thumbnail.SetImageSize(NewWidth, NewHeight);
+
+		// Invalidate compressed data so it will be recompressed
+		Thumbnail.AccessCompressedImageData().Reset();
+	}
+
+	// Return true if was resized
+	bool ResizeThumbnailIfNeeded(FObjectThumbnail& Thumbnail, const int32 MaxImageSize)
+	{
+		const int32 Width = Thumbnail.GetImageWidth();
+		const int32 Height = Thumbnail.GetImageHeight();
+
+		// Resize if larger than maximum size
+		if (Width > MaxImageSize || Height > MaxImageSize)
+		{
+			const double ShrinkModifier = (double)FMath::Max<int32>(Width, Height) / (double)MaxImageSize;
+			const int32 NewWidth = int32((double)Width / ShrinkModifier);
+			const int32 NewHeight = int32((double)Height / ShrinkModifier);
+			ResizeThumbnailImage(Thumbnail, NewWidth, NewHeight);
+
+			return true;
+		}
+
+		return false;
+	}
+}
+
+struct FThumbnailDeduplicateKey
+{
+	FThumbnailDeduplicateKey() {}
+	FThumbnailDeduplicateKey(uint64 InHash, int32 InNumBytes) : Hash(InHash), NumBytes(InNumBytes) {}
+
+	uint64 Hash = 0;
+	int32 NumBytes = 0;
+
+	bool operator ==( const FThumbnailDeduplicateKey& Other ) const
+	{
+		return Hash == Other.Hash && NumBytes == Other.NumBytes;
+	}
+};
+
+inline uint32 GetTypeHash(const FThumbnailDeduplicateKey& InValue)
+{
+	return GetTypeHash(InValue.Hash);
+}
+
+struct FPackageThumbnailRecord
+{
+	FName Name;
+	int64 Offset = 0;
+};
+
+class FSaveThumbnailCacheTask
+{
+public:
+	FObjectThumbnail ObjectThumbnail;
+	FName Name;
+	uint64 CompressedBytesHash = 0;
+
+	void Compress(const FThumbnailExternalCacheSettings& InSettings);
+};
+
+class FSaveThumbnailCache
+{
+public:
+	FSaveThumbnailCache();
+	~FSaveThumbnailCache();
+
+	void Save(const FString& InFilename, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings);
+	void Save(FArchive& Ar, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings);
+};
+
+FSaveThumbnailCache::FSaveThumbnailCache()
+{
+}
+
+FSaveThumbnailCache::~FSaveThumbnailCache()
+{
+}
+
+void FSaveThumbnailCache::Save(const FString& InFilename, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings)
+{
+	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InFilename)))
+	{
+		Save(*FileWriter, InAssetDatas, InSettings);
+		return;
+	}
+}
+
+void FSaveThumbnailCache::Save(FArchive& Ar, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings)
+{
+	// Reduce peak memory to support larger asset counts by loading then saving in batches
+	int32 TaskBatchSize = 100000;
+
+	const double TimeStart = FPlatformTime::Seconds();
+
+	const int32 NumAssetDatas = InAssetDatas.Num();
+
+	FText StatusText = LOCTEXT("SaveStatus", "Saving Thumbnails: {0}");
+	FScopedSlowTask SlowTask( (double)NumAssetDatas / (double)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas)));
+	SlowTask.MakeDialog(/*bShowCancelButton*/ false);
+
+	TArray<FPackageThumbnailRecord> PackageThumbnailRecords;
+	PackageThumbnailRecords.Reset();
+	PackageThumbnailRecords.Reserve(NumAssetDatas);
+
+	TMap<FThumbnailDeduplicateKey, int64> DeduplicateMap;	
+	DeduplicateMap.Reset();
+	DeduplicateMap.Reserve(NumAssetDatas);
+	int32 NumDuplicates = 0;
+	int64 DuplicateBytesSaved = 0;
+
+	int64 TotalCompressedBytes = 0;
+
+	{
+		FThumbnailExternalCache::FThumbnailExternalCacheHeader Header;
+		Header.HeaderId = ThumbnailExternalCache::ExpectedHeaderId;
+		Header.Version = ThumbnailExternalCache::LatestVersion;
+		Header.Flags = 0;
+		Header.ImageFormatName = ThumbnailExternalCache::ThumbnailImageFormatName;
+		Header.Serialize(Ar);
+	}
+	const int64 ThumbnailTableOffsetPos = Ar.Tell() - sizeof(int64);
+
+	double LoadTime = 0.0;
+	double SaveTime = 0.0;
+
+	for (int32 StartIndex = 0; StartIndex < InAssetDatas.Num(); StartIndex += TaskBatchSize)
+	{
+		const int32 EndIndex = FMath::Min<int32>(StartIndex + TaskBatchSize, InAssetDatas.Num());
+		const TArrayView<FAssetData> AssetsForSegment(&InAssetDatas[StartIndex], EndIndex - StartIndex);
+
+		TArray<FSaveThumbnailCacheTask> Tasks;
+		Tasks.AddDefaulted(AssetsForSegment.Num());
+
+		const double LoadTimeStart = FPlatformTime::Seconds();
+
+		// Load then recompress if needed. Thread for improved load performance.
+		ParallelFor(AssetsForSegment.Num(), [AssetsForSegment, &Tasks, &InSettings](int32 Index)
+		{
+			FSaveThumbnailCacheTask& Task = Tasks[Index];
+			Task.ObjectThumbnail = FThumbnailExternalCache::LoadThumbnailFromPackage(AssetsForSegment[Index]);
+			if (!Task.ObjectThumbnail.IsEmpty())
+			{
+				{
+					FNameBuilder ObjectFullNameBuilder;
+					AssetsForSegment[Index].GetFullName(ObjectFullNameBuilder);
+					Task.Name = FName(ObjectFullNameBuilder);
+				}
+
+				Task.Compress(InSettings);
+			}
+		});
+
+		const double SaveTimeStart = FPlatformTime::Seconds();
+
+		// Save compressed image data
+		for (FSaveThumbnailCacheTask& Task : Tasks)
+		{
+			// Skip empty
+			if (Task.ObjectThumbnail.IsEmpty())
+			{
+				continue;
+			}
+
+			// Add table of contents entry
+			FPackageThumbnailRecord& PackageThumbnailRecord = PackageThumbnailRecords.AddDefaulted_GetRef();
+			PackageThumbnailRecord.Name = Task.Name;
+
+			FThumbnailDeduplicateKey DeduplicateKey(Task.CompressedBytesHash, Task.ObjectThumbnail.GetCompressedDataSize());
+			if (const int64* ExistingOffset = DeduplicateMap.Find(DeduplicateKey))
+			{
+				// Reference existing compressed image data
+				PackageThumbnailRecord.Offset = *ExistingOffset;
+				DuplicateBytesSaved += DeduplicateKey.NumBytes;
+				++NumDuplicates;
+			}
+			else
+			{
+				// Save compressed image data
+				PackageThumbnailRecord.Offset = Ar.Tell();
+				Task.ObjectThumbnail.Serialize(Ar);
+				DeduplicateMap.Add(DeduplicateKey, PackageThumbnailRecord.Offset);
+				TotalCompressedBytes += DeduplicateKey.NumBytes;
+			}
+
+			// Free memory
+			Task.ObjectThumbnail.AccessCompressedImageData().Empty();
+		}
+
+		SaveTime += FPlatformTime::Seconds() - SaveTimeStart;
+		LoadTime += SaveTimeStart - LoadTimeStart;
+
+		SlowTask.EnterProgressFrame((double)AssetsForSegment.Num() / (double)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas - EndIndex)));
+		if (SlowTask.ShouldCancel())
+		{
+			PackageThumbnailRecords.Reset();
+			break;
+		}
+	}
+
+	// Save table of contents
+	int64 NewThumbnailTableOffset = Ar.Tell();
+
+	int64 NumThumbnails = PackageThumbnailRecords.Num();
+	Ar << NumThumbnails;
+
+	FString ThumbnailNameString;
+	for (FPackageThumbnailRecord& PackageThumbnailRecord : PackageThumbnailRecords)
+	{
+		ThumbnailNameString.Reset();
+		PackageThumbnailRecord.Name.AppendString(ThumbnailNameString);
+		Ar << ThumbnailNameString;
+		Ar << PackageThumbnailRecord.Offset;
+	}
+
+	// Modify top of archive to know where table of contents is located
+	Ar.Seek(ThumbnailTableOffsetPos);
+	Ar << NewThumbnailTableOffset;
+
+	UE_LOG(LogThumbnailExternalCache, Log, TEXT("Load Time: %f secs, Save Time: %f secs, Total Time: %f secs"), LoadTime, SaveTime, FPlatformTime::Seconds() - TimeStart);
+	UE_LOG(LogThumbnailExternalCache, Log, TEXT("Thumbnails: %d, %f MB"), PackageThumbnailRecords.Num(), (TotalCompressedBytes / (1024.0 * 1024.0)));
+	UE_LOG(LogThumbnailExternalCache, Log, TEXT("Duplicates: %d, %f MB"), NumDuplicates, (DuplicateBytesSaved / (1024.0 * 1024.0)));
+}
+
+void FSaveThumbnailCacheTask::Compress(const FThumbnailExternalCacheSettings& InSettings)
+{
+	ThumbnailExternalCache::ResizeThumbnailIfNeeded(ObjectThumbnail, InSettings.MaxImageSize);
+
+	if (ObjectThumbnail.GetCompressedDataSize() > 0)
+	{
+		if (InSettings.bRecompressLossless)
+		{
+			// See if compressor would change
+			FThumbnailCompressionInterface* SourceCompressor = ObjectThumbnail.GetCompressor();
+			FThumbnailCompressionInterface* DestCompressor = ObjectThumbnail.ChooseNewCompressor();
+			if (SourceCompressor != DestCompressor && SourceCompressor && DestCompressor)
+			{
+				// Do not recompress lossy images because they are already likely small and artifacts in the image would increase
+				if (SourceCompressor->IsLosslessCompression())
+				{
+					// Force decompress if needed so we can compress again
+					ObjectThumbnail.GetUncompressedImageData();
+
+					// Delete existing compressed image data and compress again
+					ObjectThumbnail.CompressImageData();
+				}
+			}
+		}
+	}
+	else
+	{
+		ObjectThumbnail.CompressImageData();
+	}
+
+	CompressedBytesHash = CityHash64(reinterpret_cast<const char*>(ObjectThumbnail.AccessCompressedImageData().GetData()), ObjectThumbnail.GetCompressedDataSize());
+
+	// Release uncompressed image memory
+	ObjectThumbnail.AccessImageData().Empty();
+}
 
 FThumbnailExternalCache::FThumbnailExternalCache()
 {
@@ -41,7 +326,7 @@ void FThumbnailExternalCache::Init()
 		bHasInit = true;
 
 		// Load file for project
-		LoadCacheFileIndex(FPaths::ProjectDir() / ThumbnailFilenamePart);
+		LoadCacheFileIndex(FPaths::ProjectDir() / ThumbnailExternalCache::ThumbnailFilenamePart);
 
 		// Load any thumbnail files for content plugins
 		TArray<TSharedRef<IPlugin>> ContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
@@ -137,12 +422,17 @@ bool FThumbnailExternalCache::LoadThumbnailsFromExternalCache(const TSet<FName>&
 	return NumLoaded > 0;
 }
 
-bool FThumbnailExternalCache::SaveExternalCache(const FString& InFilename, TArray<FAssetData>& AssetDatas)
+void FThumbnailExternalCache::SortAssetDatas(TArray<FAssetData>& AssetDatas)
+{
+	Algo::SortBy(AssetDatas, [](const FAssetData& Data) { return Data.PackageName; }, FNameLexicalLess());
+}
+
+bool FThumbnailExternalCache::SaveExternalCache(const FString& InFilename, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings)
 {
 	bIsSavingCache = true;
 	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InFilename)))
 	{
-		SaveExternalCache(*FileWriter, AssetDatas);
+		SaveExternalCache(*FileWriter, InAssetDatas, InSettings);
 		bIsSavingCache = false;
 		return true;
 	}
@@ -152,128 +442,36 @@ bool FThumbnailExternalCache::SaveExternalCache(const FString& InFilename, TArra
 	return false;
 }
 
-void FThumbnailExternalCache::SaveExternalCache(FArchive& Ar, const TArray<FAssetData>& AssetDatas) const
+void FThumbnailExternalCache::SaveExternalCache(FArchive& Ar, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings)
 {
-	FThumbnailExternalCacheHeader Header;
-	Header.HeaderId = ExpectedHeaderId;
-	Header.Version = LatestVersion;
-	Header.Flags = 0;
-	Header.ImageFormatName = FThumbnailExternalCache::ThumbnailImageFormatName;
-	Header.Serialize(Ar);
-	const int64 ThumbnailTableOffsetPos = Ar.Tell() - sizeof(int64);
-
-	struct FPackageThumbnailRecord
-	{
-		FName Name;
-		int64 Offset = 0;
-	};
-
-	const int32 NumAssetDatas = AssetDatas.Num();
-
-	FScopedSlowTask SlowTask(NumAssetDatas / 5000.0, FText::FromString("Saving Thumbnail Cache"));
-	SlowTask.MakeDialog(/*bShowCancelButton*/ true);
-
-	TArray<FPackageThumbnailRecord> PackageThumbnailRecords;
-	PackageThumbnailRecords.Reserve(NumAssetDatas);
-
-	FString CustomThumbnailTagValue;
-	FString ObjectFullName;
-	int64 TotalCompressedBytes = 0;
-	int32 Counter = 0;
-	for (const FAssetData& AssetData : AssetDatas)
-	{
-		FAssetData CustomThumbnailAsset;
-		CustomThumbnailTagValue.Reset();
-		if (AssetData.GetTagValue(FAssetThumbnailPool::CustomThumbnailTagName, CustomThumbnailTagValue))
-		{
-			if (FPackageName::IsValidObjectPath(CustomThumbnailTagValue))
-			{
-				CustomThumbnailAsset = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get().GetAssetByObjectPath(*CustomThumbnailTagValue);
-			}
-		}
-
-		FThumbnailMap ThumbnailMap;
-		FObjectThumbnail* LoadedThumbnail = nullptr;
-		const FAssetData* AssetDataToUse = nullptr;
-
-		if (CustomThumbnailAsset.IsValid())
-		{
-			AssetDataToUse = &CustomThumbnailAsset;
-			LoadedThumbnail = LoadThumbnailFromPackage(CustomThumbnailAsset, ThumbnailMap);
-		}
-
-		if (!LoadedThumbnail)
-		{
-			AssetDataToUse = &AssetData;
-			LoadedThumbnail = LoadThumbnailFromPackage(AssetData, ThumbnailMap);
-		}
-
-		if (LoadedThumbnail)
-		{
-			AssetDataToUse->GetFullName(ObjectFullName);
-
-			FPackageThumbnailRecord& PackageThumbnailRecord = PackageThumbnailRecords.AddDefaulted_GetRef();
-			PackageThumbnailRecord.Name = FName(ObjectFullName);
-			PackageThumbnailRecord.Offset = Ar.Tell();
-
-			if (LoadedThumbnail->GetCompressedDataSize() == 0)
-			{
-				LoadedThumbnail->CompressImageData();
-			}
-
-			LoadedThumbnail->Serialize(Ar);
-
-			TotalCompressedBytes += LoadedThumbnail->GetCompressedDataSize();
-		}
-
-		if ((++Counter % 5000) == 0)
-		{
-			SlowTask.EnterProgressFrame(1.f);
-
-			if (SlowTask.ShouldCancel())
-			{
-				break;
-			}
-		}
-	}
-
-	// Table of contents
-	int64 NewThumbnailTableOffset = Ar.Tell();
-
-	int64 NumPackages = PackageThumbnailRecords.Num();
-	Ar << NumPackages;
-
-	FString ThumbnailNameString;
-	for (FPackageThumbnailRecord& PackageThumbnailRecord : PackageThumbnailRecords)
-	{
-		ThumbnailNameString.Reset();
-		PackageThumbnailRecord.Name.AppendString(ThumbnailNameString);
-		Ar << ThumbnailNameString;
-		Ar << PackageThumbnailRecord.Offset;
-	}
-
-	// Modify top of archive to know where table of contents is located
-	Ar.Seek(ThumbnailTableOffsetPos);
-	Ar << NewThumbnailTableOffset;
-
-	UE_LOG(LogThumbnailExternalCache, Log, TEXT("Thumbnail cache saved. Thumbnails: %d, %f MB"), PackageThumbnailRecords.Num(), (TotalCompressedBytes / (1024.0 * 1024.0)));
+	bIsSavingCache = true;
+	FSaveThumbnailCache SaveJob;
+	SaveJob.Save(Ar, InAssetDatas, InSettings);
+	bIsSavingCache = false;
 }
 
-FObjectThumbnail* FThumbnailExternalCache::LoadThumbnailFromPackage(const FAssetData& AssetData, FThumbnailMap& ThumbnailMap) const
+FObjectThumbnail FThumbnailExternalCache::LoadThumbnailFromPackage(const FAssetData& AssetData)
 {
+	// Determine filename
 	FString PackageFilename;
 	if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename))
 	{
+		// Thumbnails are identified in package with full object names
 		TSet<FName> ObjectFullNames;
-		FName ObjectFullName = FName(*AssetData.GetFullName());
+		FNameBuilder ObjectFullNameBuilder;
+		AssetData.GetFullName(ObjectFullNameBuilder);
+		const FName ObjectFullName(ObjectFullNameBuilder);
 		ObjectFullNames.Add(ObjectFullName);
 
+		FThumbnailMap ThumbnailMap;
 		ThumbnailTools::LoadThumbnailsFromPackage(PackageFilename, ObjectFullNames, ThumbnailMap);
-
-		return ThumbnailMap.Find(ObjectFullName);
+		if (FObjectThumbnail* Found = ThumbnailMap.Find(ObjectFullName))
+		{
+			return MoveTemp(*Found);
+		}
 	}
 
-	return nullptr;
+	return FObjectThumbnail();
 }
 
 void FThumbnailExternalCache::OnContentPathMounted(const FString& InAssetPath, const FString& InFilesystemPath)
@@ -290,7 +488,7 @@ void FThumbnailExternalCache::OnContentPathDismounted(const FString& InAssetPath
 	{
 		if (FoundPlugin->CanContainContent())
 		{
-			FString Filename = FoundPlugin->GetBaseDir() / ThumbnailFilenamePart;
+			FString Filename = FoundPlugin->GetBaseDir() / ThumbnailExternalCache::ThumbnailFilenamePart;
 			CacheFiles.Remove(Filename);
 		}
 	}
@@ -300,7 +498,7 @@ void FThumbnailExternalCache::LoadCacheFileIndexForPlugin(const TSharedPtr<IPlug
 {
 	if (InPlugin && InPlugin->CanContainContent())
 	{
-		FString Filename = InPlugin->GetBaseDir() / ThumbnailFilenamePart;
+		FString Filename = InPlugin->GetBaseDir() / ThumbnailExternalCache::ThumbnailFilenamePart;
 		if (IFileManager::Get().FileExists(*Filename))
 		{
 			LoadCacheFileIndex(Filename);
@@ -340,7 +538,7 @@ bool FThumbnailExternalCache::LoadCacheFileIndex(FArchive& Ar, const TSharedPtr<
 	FThumbnailExternalCacheHeader& Header = CacheFile->Header;
 	Header.Serialize(Ar);
 
-	if (Header.HeaderId != ExpectedHeaderId)
+	if (Header.HeaderId != ThumbnailExternalCache::ExpectedHeaderId)
 	{
 		return false;
 	}
@@ -371,3 +569,5 @@ bool FThumbnailExternalCache::LoadCacheFileIndex(FArchive& Ar, const TSharedPtr<
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

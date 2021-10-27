@@ -6,7 +6,7 @@
 #include "Styling/SlateStyleRegistry.h"
 
 
-class FActorSequenceEditorStyle
+class FActorSequenceEditorStyle final
 	: public FSlateStyleSet
 {
 public:

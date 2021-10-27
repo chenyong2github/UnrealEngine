@@ -30,6 +30,7 @@
 #include "Texture/InterchangeTextureLightProfilePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
+#include "TextureImportSettings.h"
 #include "UDIMUtilities.h"
 #include "UObject/ObjectMacros.h"
 
@@ -423,6 +424,31 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			// The TexturePayload should be validated before calling this function
 			checkNoEntry();
 		}
+
+		// The texture has been imported and has no editor specific changes applied so we clear the painted flag.
+		Texture2D->bHasBeenPaintedInEditor = false;
+
+		// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
+		// application of the existing settings above, so if a texture gets reimported at a larger size it will
+		// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
+		static const TConsoleVariableData<int32>* CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+		check(CVarVirtualTexturesEnabled);
+
+		if (CVarVirtualTexturesEnabled->GetValueOnGameThread())
+		{
+			const int VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
+			const int VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
+
+			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
+			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
+			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
+			// old texture. 
+			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
+			if (Texture2D->Source.GetSizeX() * Texture2D->Source.GetSizeY() >= VirtualTextureAutoEnableThresholdPixels)
+			{
+				Texture2D->VirtualTextureStreaming = true;
+			}
+		}
 	}
 
 	bool CanSetupTextureCubeSourceData(FTexturePayloadVariant& TexturePayload)
@@ -779,7 +805,9 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 	// create a new texture or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
-		Texture = NewObject<UObject>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		UTexture* NewTexture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		NewTexture->AlphaCoverageThresholds = FVector4(0.0, 0.0, 0.0, 1.0);
+		Texture = NewTexture;
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{

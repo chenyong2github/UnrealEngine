@@ -20,6 +20,7 @@
 #include "Misc/FileHelper.h"
 #include "Engine/Selection.h"
 #include "LevelEditorViewport.h"
+#include "Subsystems/EditorElementSubsystem.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementHandle.h"
@@ -98,15 +99,11 @@ namespace InternalActorUtilitiesSubsystemLibrary
 		GEditor->ClickLocation = Location;
 		GEditor->ClickPlane = FPlane(Location, FVector::UpVector);
 
-		EObjectFlags NewObjectFlags = RF_NoFlags;
+		EObjectFlags NewObjectFlags = RF_Transactional;
 
 		if (bTransient)
 		{
 			NewObjectFlags |= RF_Transient;
-		}
-		else
-		{
-			NewObjectFlags |= RF_Transactional;
 		}
 
 		UActorFactory* FactoryToUse = nullptr;
@@ -702,6 +699,32 @@ TArray<AActor*> UEditorActorSubsystem::DuplicateActors(const TArray<AActor*>& Ac
 	FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
 
 	return NewActors;
+}
+
+bool UEditorActorSubsystem::SetActorTransform(AActor* InActor, const FTransform& InWorldTransform)
+{
+	if (UEditorElementSubsystem* ElementSubsystem = GEditor->GetEditorSubsystem<UEditorElementSubsystem>())
+	{
+		if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor))
+		{
+			return ElementSubsystem->SetElementTransform(ActorElementHandle, InWorldTransform);
+		}
+	}
+
+	return false;
+}
+
+bool UEditorActorSubsystem::SetComponentTransform(UActorComponent* InActorComponent, const FTransform& InWorldTransform)
+{
+	if (UEditorElementSubsystem* ElementSubsystem = GEditor->GetEditorSubsystem<UEditorElementSubsystem>())
+	{
+		if (FTypedElementHandle ComponentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InActorComponent))
+		{
+			return ElementSubsystem->SetElementTransform(ComponentElementHandle, InWorldTransform);
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

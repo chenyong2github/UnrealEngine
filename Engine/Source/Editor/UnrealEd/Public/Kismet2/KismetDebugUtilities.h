@@ -313,11 +313,11 @@ public:
 	// Notifies listeners when a watched pin is added or removed
 	static FOnWatchedPinsListChanged WatchedPinsListChangedEvent;
 
-	static bool CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static bool IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static bool CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
+	static bool IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
 	static void TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static bool RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static void AddPinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static bool RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
+	static void AddPinWatch(const UBlueprint* Blueprint, FBlueprintWatchedPin&& WatchedPin);
 	static void ClearPinWatches(const UBlueprint* Blueprint);
 	static bool BlueprintHasPinWatches(const UBlueprint* Blueprint);
 
@@ -327,6 +327,13 @@ public:
 	* @param Task function to be called on every element
 	*/
 	static void ForeachPinWatch(const UBlueprint* Blueprint, TFunctionRef<void(UEdGraphPin*)> Task);
+	
+	/**
+	* Performs a task on every watched pin in the provided blueprint
+	* @param Blueprint The owning blueprint of the watched pins to iterate
+	* @param Task function to be called on every element
+	*/
+	static void ForeachPinPropertyWatch(const UBlueprint* Blueprint, TFunctionRef<void(FBlueprintWatchedPin&)> Task);
 
 	/**
 	* Removes any watched pin that matches the provided predicate
@@ -334,6 +341,13 @@ public:
 	* @param Predicate function that returns true if a watched pin should be removed
 	*/
 	static bool RemovePinWatchesByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const UEdGraphPin*)> Predicate);
+	
+	/**
+	* Removes any watched pin that matches the provided predicate
+	* @param Blueprint The owning blueprint of the watched pins to iterate
+	* @param Predicate function that returns true if a watched pin should be removed
+	*/
+	static bool RemovePinPropertyWatchesByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const FBlueprintWatchedPin&)> Predicate);
 
 	/**
 	* Returns the first watched pin that matches the provided predicate or nullptr if nothing matched

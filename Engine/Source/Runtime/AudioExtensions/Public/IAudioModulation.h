@@ -30,13 +30,19 @@ namespace Audio
 	using FModulatorTypeId = uint32;
 	using FModulatorHandleId = uint32;
 
-	using FModulationUnitConvertFunction = TFunction<void(float* RESTRICT /* OutValueNormalizedToUnitBuffer */, int32 /* InNumSamples */)>;
-	using FModulationNormalizedConversionFunction = TFunction<void(float* RESTRICT /* OutValueUnitToNormalizedBuffer */, int32 /* InNumSamples */)>;
-	using FModulationMixFunction = TFunction<void(float* RESTRICT /* OutBufferNormalizedA */, const float* RESTRICT /* InBufferNormalizedB */, int32 /* InNumSamples */)>;
+	using FModulationUnitConversionFunction = TFunction<void(float& /* OutValueNormalizedToUnit */)>;
+	using FModulationNormalizedConversionFunction = TFunction<void(float& /* OutValueUnitToNormalized */)>;
+	using FModulationMixFunction = TFunction<void(float& /* OutNormalizedA */, float /* InNormalizedB */)>;
+
 
 	struct AUDIOEXTENSIONS_API FModulationParameter
 	{
 		FModulationParameter();
+		FModulationParameter(const FModulationParameter& InParam);
+		FModulationParameter(FModulationParameter&& InParam);
+
+		FModulationParameter& operator=(FModulationParameter&& InParam);
+		FModulationParameter& operator=(const FModulationParameter& InParam);
 
 		FName ParameterName;
 
@@ -56,16 +62,18 @@ namespace Audio
 		FText UnitDisplayName;
 #endif // WITH_EDITORONLY_DATA
 
+		// Function used to mix normalized values together.
+		FModulationMixFunction MixFunction;
+
 		// Function used to convert value buffer from normalized, unitless space [0.0f, 1.0f] to unit space.
-		FModulationUnitConvertFunction UnitFunction;
+		FModulationUnitConversionFunction UnitFunction;
 
 		// Function used to convert value buffer from unit space to normalized, unitless [0.0f, 1.0f] space.
 		FModulationNormalizedConversionFunction NormalizedFunction;
 
 		static const FModulationMixFunction& GetDefaultMixFunction();
-
-		// Function used to mix normalized values together.
-		FModulationMixFunction MixFunction;
+		static const FModulationUnitConversionFunction& GetDefaultUnitConversionFunction();
+		static const FModulationNormalizedConversionFunction& GetDefaultNormalizedConversionFunction();
 	};
 
 	/** Handle to a modulator which interacts with the modulation API to manage lifetime of internal objects */

@@ -2591,6 +2591,16 @@ private:
 				DownscaleImage(*Mip, *Mip, DownscaleSettings);
 			}
 
+			if (BuildSettings.bHasColorSpaceDefinition)
+			{
+				Mip->TransformToWorkingColorSpace(
+					BuildSettings.RedChromaticityCoordinate,
+					BuildSettings.GreenChromaticityCoordinate,
+					BuildSettings.BlueChromaticityCoordinate,
+					BuildSettings.WhiteChromaticityCoordinate,
+					static_cast<UE::Color::EChromaticAdaptationMethod>(BuildSettings.ChromaticAdaptationMethod));
+			}
+
 			// Apply color adjustments
 			AdjustImageColors(*Mip, BuildSettings);
 			if (BuildSettings.bComputeBokehAlpha)

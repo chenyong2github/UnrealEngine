@@ -34,10 +34,10 @@ namespace AutomationScripts
 
 			LogInformation("********** COOK COMMAND STARTED **********");
 
-			string UE4EditorExe = HostPlatform.Current.GetUE4ExePath(Params.UE4Exe);
-			if (!FileExists(UE4EditorExe))
+			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
+			if (!FileExists(UEEditorExe))
 			{
-				throw new AutomationException("Missing " + UE4EditorExe + " executable. Needs to be built first.");
+				throw new AutomationException("Missing " + UEEditorExe + " executable. Needs to be built first.");
 			}
 
 			if (Params.CookOnTheFly && !Params.SkipServer)
@@ -271,7 +271,7 @@ namespace AutomationScripts
 						CommandletParams += ConfigOverrideParam;
 					}
 
-					CookCommandlet(Params.RawProjectPath, Params.UE4Exe, Maps, Dirs, InternationalizationPreset, CulturesToCook, CombineCommandletParams(PlatformsToCook.ToArray()), CommandletParams);
+					CookCommandlet(Params.RawProjectPath, Params.UnrealExe, Maps, Dirs, InternationalizationPreset, CulturesToCook, CombineCommandletParams(PlatformsToCook.ToArray()), CommandletParams);
 				}
 				catch (Exception Ex)
 				{

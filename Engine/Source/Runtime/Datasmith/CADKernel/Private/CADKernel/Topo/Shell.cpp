@@ -5,9 +5,7 @@
 #include "CADKernel/Topo/Body.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 
-using namespace CADKernel;
-
-FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, bool bIsInnerShell)
+CADKernel::FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, bool bIsInnerShell)
 	: FTopologicalEntity()
 	, TopologicalFaces()
 {
@@ -28,7 +26,7 @@ FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, b
 }
 
 
-FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, const TArray<EOrientation>& InOrientations, bool bIsInnerShell)
+CADKernel::FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, const TArray<EOrientation>& InOrientations, bool bIsInnerShell)
 	: FTopologicalEntity()
 {
 	ensureCADKernel(InTopologicalFaces.Num() == InOrientations.Num());
@@ -45,13 +43,13 @@ FShell::FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, c
 	}
 }
 
-TSharedPtr<FEntityGeom> FShell::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FShell::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	ensureCADKernel(false);
 	return TSharedPtr<FEntityGeom>();
 }
 
-void FShell::Empty(int32 NewSize)
+void CADKernel::FShell::Empty(int32 NewSize)
 {
 	for(FOrientedFace& Face : TopologicalFaces)
 	{
@@ -60,7 +58,7 @@ void FShell::Empty(int32 NewSize)
 	TopologicalFaces.Empty(NewSize);
 }
 
-void FShell::Add(TArray<TSharedPtr<FTopologicalFace>> Faces)
+void CADKernel::FShell::Add(TArray<TSharedPtr<FTopologicalFace>> Faces)
 {
 	TSharedPtr<FShell> Shell = StaticCastSharedRef<FShell>(AsShared());
 
@@ -74,7 +72,7 @@ void FShell::Add(TArray<TSharedPtr<FTopologicalFace>> Faces)
 }
 
 
-void FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Orientation)
+void CADKernel::FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Orientation)
 {
 	TSharedPtr<FTopologicalFace> Face = InTopologicalFace;
 	TopologicalFaces.Emplace(Face, Orientation);
@@ -83,7 +81,7 @@ void FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Or
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FShell::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FShell::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
 		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
@@ -92,7 +90,7 @@ FInfoEntity& FShell::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FShell::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& Faces)
+void CADKernel::FShell::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& Faces)
 {
 	for (FOrientedFace& Face : TopologicalFaces)
 	{
@@ -106,14 +104,14 @@ void FShell::GetFaces(TArray<TSharedPtr<FTopologicalFace>>& Faces)
 	}
 }
 
-void FShell::Merge(TSharedPtr<FShell>& Shell)
+void CADKernel::FShell::Merge(TSharedPtr<FShell>& Shell)
 {
 	TopologicalFaces.Append(Shell->TopologicalFaces);
 	Shell->TopologicalFaces.Empty();
 }
 
 
-void FShell::SpreadBodyOrientation()
+void CADKernel::FShell::SpreadBodyOrientation()
 {
 	bool bIsOutter = IsOutter();
 	for (FOrientedFace& Face : TopologicalFaces)
@@ -132,7 +130,7 @@ void FShell::SpreadBodyOrientation()
 	}
 }
 
-bool FShell::IsOpenShell()
+bool CADKernel::FShell::IsOpenShell()
 {
 	for (const FOrientedFace& OrientedFace : GetFaces())
 	{
@@ -153,7 +151,7 @@ bool FShell::IsOpenShell()
 }
 
 
-void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
+void CADKernel::FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 {
 	// Processed1 : Surfaces added in CandidateSurfacesForMesh
 
@@ -191,9 +189,8 @@ void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
 					Shell.NonManifoldEdgeCount++;
 				}
 
-				for (TWeakPtr<FTopologicalEdge> WeakEdge : Edge->GetTwinsEntities())
+				for (FTopologicalEdge* NextEdge : Edge->GetTwinsEntities())
 				{
-					TSharedPtr<FTopologicalEdge> NextEdge = WeakEdge.Pin();
 					if (NextEdge->HasMarker1())
 					{
 						continue;

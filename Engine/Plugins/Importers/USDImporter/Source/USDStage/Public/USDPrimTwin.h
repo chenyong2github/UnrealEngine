@@ -48,8 +48,7 @@ public:
 	UUsdPrimTwin* Find( const FString& InPrimPath );
 	UUsdPrimTwin* Find( const USceneComponent* InSceneComponent );
 
-	USceneComponent* GetSceneComponent();
-	const USceneComponent* GetSceneComponent() const;
+	USceneComponent* GetSceneComponent() const;
 
 	DECLARE_EVENT_OneParam( UUsdPrimTwin, FOnUsdPrimTwinDestroyed, const UUsdPrimTwin& );
 	FOnUsdPrimTwinDestroyed OnDestroyed;

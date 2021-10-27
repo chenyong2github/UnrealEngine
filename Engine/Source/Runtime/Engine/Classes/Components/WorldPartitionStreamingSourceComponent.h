@@ -52,6 +52,10 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	FName TargetGrid;
 
+	/** Color used for debugging. */
+	UPROPERTY(EditAnywhere, Category = "Streaming")
+	FColor DebugColor;
+
 	/** Optional target HLODLayer affected by the streaming source. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	TObjectPtr<const UHLODLayer> TargetHLODLayer;

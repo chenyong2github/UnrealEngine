@@ -531,6 +531,8 @@ public:
 
 	FReplayExternalDataArray* GetExternalDataArrayForObject(UObject* Object);
 
+	bool SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits);
+
 	bool ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlaybackPacket>& Packets, const bool bForLevelFastForward, float* OutTime);
 	bool ReadDemoFrameIntoPlaybackPackets(FArchive& Ar) { return ReadDemoFrameIntoPlaybackPackets(Ar, PlaybackPackets, false, nullptr); }
 

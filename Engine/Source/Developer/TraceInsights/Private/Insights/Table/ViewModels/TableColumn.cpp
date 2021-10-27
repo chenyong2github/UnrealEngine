@@ -48,6 +48,61 @@ FText FTableColumn::GetValueAsTooltipText(const FBaseTreeNode& InNode) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+inline void TrimEndingZero(FString& Str)
+{
+	const TCHAR* Start = *Str;
+	const TCHAR* End = Start + Str.Len();
+	const TCHAR* Data = End;
+	while (Data != Start)
+	{
+		--Data;
+		if (*Data != TEXT('0'))
+		{
+			break;
+		}
+	}
+	if (Data != End)
+	{
+		if (*Data == TEXT('.'))
+		{
+			--Data;
+		}
+		Str.LeftInline(Data - Start + 1);
+	}
+}
+
+FString FTableColumn::GetValueAsSerializableString(const FBaseTreeNode& InNode) const
+{
+	const TOptional<FTableCellValue> Value = GetValue(InNode);
+	switch (Value->DataType)
+	{
+		case ETableCellDataType::Double:
+		{
+			FString Str = FString::Printf(TEXT("%.9f"), Value->AsDouble());
+			TrimEndingZero(Str);
+			return Str;
+		}
+		case ETableCellDataType::Float:
+		{
+			FString Str = FString::Printf(TEXT("%.6f"), Value->AsFloat());
+			TrimEndingZero(Str);
+			return Str;
+		}
+		case ETableCellDataType::Int64:
+			return FString::Printf(TEXT("%lli"), Value->AsInt64());
+		case ETableCellDataType::Bool:
+			return Value->AsBool() ? TEXT("true") : TEXT("false");
+		case ETableCellDataType::CString:
+			return Value->AsString();
+		case ETableCellDataType::Text:
+			return Value->AsText().ToString();
+		default:
+			return GetValueAsText(InNode).ToString();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

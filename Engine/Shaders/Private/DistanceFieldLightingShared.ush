@@ -32,6 +32,10 @@
 #define DISTANCEFIELD_PRIMITIVE_TYPE DFPT_SignedDistanceField
 #endif
 
+#ifndef OFFSET_DATA_STRUCT
+#define OFFSET_DATA_STRUCT (0)
+#endif
+
 // Size of SDF brick in voxels, including padding
 float3 DistanceFieldBrickSize;
 
@@ -54,6 +58,8 @@ float3 DistanceFieldUniqueDataBrickSizeInAtlasTexels;
 
 // Stores ranges of global brick indices for each asset mip. Brick indices be INVALID_BRICK_INDEX.
 ByteAddressBuffer DistanceFieldIndirectionTable;
+Buffer<float4> DistanceFieldIndirection2Table;
+Texture3D<float4> DistanceFieldIndirectionAtlas;
 
 // Brick atlas texture, used with hardware trilinear filtering
 Texture3D DistanceFieldBrickTexture;
@@ -453,10 +459,19 @@ float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetD
 	float3 IndirectionPos = SampleVolumePosition * DFAssetData.VolumeToIndirectionScale + DFAssetData.VolumeToIndirectionAdd;
 
 	int3 IndirectionCoord = IndirectionPos;
+#if OFFSET_DATA_STRUCT == 0
 	uint IndirectionIndex = (IndirectionCoord.z * DFAssetData.IndirectionDimensions.y + IndirectionCoord.y) * DFAssetData.IndirectionDimensions.x + IndirectionCoord.x;
 	// Fetch the brick index that covers this region of the virtual UV space
 	uint BrickIndex = DistanceFieldIndirectionTable.Load((DFAssetData.IndirectionTableOffset + IndirectionIndex) * 4);
 	bool ValidBrick = BrickIndex != INVALID_BRICK_INDEX;
+#elif OFFSET_DATA_STRUCT == 1
+	uint IndirectionIndex = (IndirectionCoord.z * DFAssetData.IndirectionDimensions.y + IndirectionCoord.y) * DFAssetData.IndirectionDimensions.x + IndirectionCoord.x;
+	float4 BrickOffset = DistanceFieldIndirection2Table.Load(DFAssetData.IndirectionTableOffset + IndirectionIndex);
+	bool ValidBrick = BrickOffset.w > 0;
+#else
+	float4 BrickOffset = DistanceFieldIndirectionAtlas.Load(int4(IndirectionCoord, 0));
+	bool ValidBrick = BrickOffset.w > 0;
+#endif
 
 	float MaxEncodedDistance = DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
 	float DistanceField = MaxEncodedDistance;
@@ -467,11 +482,13 @@ float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetD
 		// Half voxel border around each brick
 		float3 BrickLocalUV = IndirectionPos - IndirectionCoord;
 
+#if OFFSET_DATA_STRUCT == 0
 		// Decompose into 3d offset
 		float3 BrickOffset = uint3(
 			BrickIndex & DistanceFieldBrickAtlasMask.x, 
 			(BrickIndex >> DistanceFieldBrickAtlasSizeLog2.x) & DistanceFieldBrickAtlasMask.y, 
 			BrickIndex >> (DistanceFieldBrickAtlasSizeLog2.x + DistanceFieldBrickAtlasSizeLog2.y));
+#endif
 
 		float3 AtlasUV = BrickOffset.xyz * DistanceFieldBrickOffsetToAtlasUVScale + BrickLocalUV * DistanceFieldUniqueDataBrickSizeInAtlasTexels + DistanceFieldBrickAtlasHalfTexelSize;
 		float EncodedDistanceField = SampleDistanceFieldBrickTexture(AtlasUV);

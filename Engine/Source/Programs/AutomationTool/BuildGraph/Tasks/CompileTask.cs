@@ -81,12 +81,12 @@ namespace AutomationTool
 		/// <summary>
 		/// List of targets to compile. As well as the target specifically added for this task, additional compile tasks may be merged with it.
 		/// </summary>
-		List<UE4Build.BuildTarget> Targets = new List<UE4Build.BuildTarget>();
+		List<UnrealBuild.BuildTarget> Targets = new List<UnrealBuild.BuildTarget>();
 
 		/// <summary>
 		/// Mapping of receipt filename to its corresponding tag name
 		/// </summary>
-		Dictionary<UE4Build.BuildTarget, string> TargetToTagName = new Dictionary<UE4Build.BuildTarget,string>();
+		Dictionary<UnrealBuild.BuildTarget, string> TargetToTagName = new Dictionary<UnrealBuild.BuildTarget,string>();
 
 		/// <summary>
 		/// Whether to allow using XGE for this job
@@ -136,7 +136,7 @@ namespace AutomationTool
 			bAllowXGE &= Parameters.AllowXGE;
 			bAllowParallelExecutor &= Parameters.AllowParallelExecutor;
 
-			UE4Build.BuildTarget Target = new UE4Build.BuildTarget { TargetName = Parameters.Target, Platform = Parameters.Platform, Config = Parameters.Configuration, UprojectPath = CompileTask.FindProjectFile(), UBTArgs = "-nobuilduht " + (Parameters.Arguments ?? ""), Clean = Parameters.Clean };
+			UnrealBuild.BuildTarget Target = new UnrealBuild.BuildTarget { TargetName = Parameters.Target, Platform = Parameters.Platform, Config = Parameters.Configuration, UprojectPath = CompileTask.FindProjectFile(), UBTArgs = "-nobuilduht " + (Parameters.Arguments ?? ""), Clean = Parameters.Clean };
 			if(!String.IsNullOrEmpty(Parameters.Tag))
 			{
 				TargetToTagName.Add(Target, Parameters.Tag);
@@ -156,20 +156,20 @@ namespace AutomationTool
 		public void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Create the agenda
-			UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
+			UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 			Agenda.Targets.AddRange(Targets);
 
 			// Build everything
-			Dictionary<UE4Build.BuildTarget, BuildManifest> TargetToManifest = new Dictionary<UE4Build.BuildTarget,BuildManifest>();
-			UE4Build Builder = new UE4Build(Job.OwnerCommand);
+			Dictionary<UnrealBuild.BuildTarget, BuildManifest> TargetToManifest = new Dictionary<UnrealBuild.BuildTarget,BuildManifest>();
+			UnrealBuild Builder = new UnrealBuild(Job.OwnerCommand);
 
 			bool bCanUseParallelExecutor = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && bAllowParallelExecutor);	// parallel executor is only available on Windows as of 2016-09-22
 			Builder.Build(Agenda, InDeleteBuildProducts: null, InUpdateVersionFiles: false, InForceNoXGE: !bAllowXGE, InUseParallelExecutor: bCanUseParallelExecutor, InTargetToManifest: TargetToManifest);
 
-			UE4Build.CheckBuildProducts(Builder.BuildProductFiles);
+			UnrealBuild.CheckBuildProducts(Builder.BuildProductFiles);
 
 			// Tag all the outputs
-			foreach(KeyValuePair<UE4Build.BuildTarget, string> TargetTagName in TargetToTagName)
+			foreach(KeyValuePair<UnrealBuild.BuildTarget, string> TargetTagName in TargetToTagName)
 			{
 				BuildManifest Manifest;
 				if(!TargetToManifest.TryGetValue(TargetTagName.Key, out Manifest))

@@ -23,14 +23,29 @@
 #define DETOURALLOCATOR_H
 
 #include "CoreMinimal.h"
+#include "Detour/DetourAssert.h"
 
-/// Provides hint values to the memory allocator on how long the
-/// memory is expected to be used.
+//@UE BEGIN Adding support for memory tracking.
+/// Provides hint values on how the memory is expected to be used. Typically used by external memory allocation and tracking systems.
 enum dtAllocHint
 {
-	DT_ALLOC_PERM,		///< Memory persist after a function call.
-	DT_ALLOC_TEMP		///< Memory used temporarily within a function.
+	DT_ALLOC_TEMP,		///< Memory used temporarily within a function.
+	DT_ALLOC_PERM_AVOIDANCE,
+	DT_ALLOC_PERM_CROWD,
+	DT_ALLOC_PERM_LOOKUP,
+	DT_ALLOC_PERM_NAVMESH,
+	DT_ALLOC_PERM_NAVQUERY,
+	DT_ALLOC_PERM_NODE_POOL,
+	DT_ALLOC_PERM_PATH_CORRIDOR,
+	DT_ALLOC_PERM_PATH_QUEUE,
+	DT_ALLOC_PERM_PROXIMITY_GRID,
+	DT_ALLOC_PERM_TILE_CACHE_LAYER,
+	DT_ALLOC_PERM_TILE_DATA,
+	DT_ALLOC_PERM_TILE_DYNLINK_OFFMESH,
+	DT_ALLOC_PERM_TILE_DYNLINK_CLUSTER,
+	DT_ALLOC_PERM_TILES,
 };
+//@UE END Adding support for memory tracking.
 
 /// A memory allocation function.
 //  @param[in]		size			The size, in bytes of memory, to allocate.
@@ -42,7 +57,9 @@ typedef void* (dtAllocFunc)(int size, dtAllocHint hint);
 /// A memory deallocation function.
 ///  @param[in]		ptr		A pointer to a memory block previously allocated using #dtAllocFunc.
 /// @see dtAllocSetCustom
-typedef void (dtFreeFunc)(void* ptr);
+//@UE BEGIN Adding support for memory tracking.
+typedef void (dtFreeFunc)(void* ptr, dtAllocHint hint);
+//@UE END Adding support for memory tracking.
 
 /// Sets the base custom allocation functions to be used by Detour.
 ///  @param[in]		allocFunc	The memory allocation function to be used by #dtAlloc
@@ -59,7 +76,9 @@ NAVMESH_API void* dtAlloc(int size, dtAllocHint hint);
 /// Deallocates a memory block.
 ///  @param[in]		ptr		A pointer to a memory block previously allocated using #dtAlloc.
 /// @see dtAlloc
-NAVMESH_API void dtFree(void* ptr);
+//@UE BEGIN Adding support for memory tracking.
+NAVMESH_API void dtFree(void* ptr, dtAllocHint hint);
+//@UE END Adding support for memory tracking.
 
 NAVMESH_API void dtMemCpy(void* dst, void* src, int size);
 
@@ -78,7 +97,7 @@ public:
 	/// Constructs an instance with the specified pointer.
 	///  @param[in]		p	An pointer to an allocated array.
 	inline dtScopedDelete(T* p) : ptr(p) {}
-	inline ~dtScopedDelete() { dtFree(ptr); }
+	inline ~dtScopedDelete() { dtFree(ptr, DT_ALLOC_TEMP); }
 
 	/// The root array pointer.
 	///  @return The root array pointer.
@@ -101,7 +120,7 @@ public:
 	/// Constructs an instance initialized to the specified size.
 	///  @param[in]		n	The initial size of the integer array.
 	inline dtIntArray(int n) : m_data(0), m_size(0), m_cap(0) { resize(n); }
-	inline ~dtIntArray() { dtFree(m_data); }
+	inline ~dtIntArray() { dtFree(m_data, DT_ALLOC_TEMP); }
 
 	/// Specifies the new size of the integer array.
 	///  @param[in]		n	The new size of the integer array.
@@ -143,22 +162,23 @@ public:
 };
 
 /// A simple dynamic array of integers.
-template<class T>
+template<class T, dtAllocHint TAllocHint = DT_ALLOC_TEMP> //UE Adding support for memory tracking.
 class dtChunkArray
 {
 	T* m_data;
 	int m_size, m_cap;
+
 	inline dtChunkArray(const dtChunkArray&);
 	inline dtChunkArray& operator=(const dtChunkArray&);
 public:
 
 	/// Constructs an instance with an initial array size of zero.
-	inline dtChunkArray() : m_data(0), m_size(0), m_cap(0) {}
+	inline dtChunkArray() : m_data(0), m_size(0), m_cap(0){}
 
 	/// Constructs an instance initialized to the specified size.
 	///  @param[in]		n	The initial size of the integer array.
-	inline dtChunkArray(int n) : m_data(0), m_size(0), m_cap(0) { resize(n); }
-	inline ~dtChunkArray() { dtFree(m_data); }
+	inline dtChunkArray(int n) : m_data(0), m_size(0), m_cap(0){ resize(n); }
+	inline ~dtChunkArray() { dtFree(m_data, TAllocHint); }
 
 	/// Specifies the new size of the integer array.
 	///  @param[in]		n	The new size of the integer array.
@@ -186,16 +206,16 @@ public:
 	inline int size() const { return m_size; }
 };
 
-template<class T>
-void dtChunkArray<T>::resize(int n)
+template<class T, dtAllocHint TAllocHint>
+void dtChunkArray<T, TAllocHint>::resize(int n)
 {
 	if (n > m_cap)
 	{
 		if (!m_cap) m_cap = n;
 		while (m_cap < n) m_cap += 32;
-		T* newData = (T*)dtAlloc(m_cap*sizeof(T), DT_ALLOC_TEMP);
+		T* newData = (T*)dtAlloc(m_cap*sizeof(T), TAllocHint);
 		if (m_size && newData) dtMemCpy(newData, m_data, m_size*sizeof(T));
-		dtFree(m_data);
+		dtFree(m_data, TAllocHint);
 		m_data = newData;
 	}
 	m_size = n;

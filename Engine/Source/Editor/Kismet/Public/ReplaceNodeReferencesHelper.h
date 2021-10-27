@@ -48,12 +48,13 @@ struct FReplaceNodeReferencesHelper : FTickableEditorObject
 
 	/**
 	 * Helper function to replace references
-	 * 
+	 *
+	 * @param InSource		Variable reference to replace
 	 * @param InReplacement Variable reference to replace with
 	 * @param InBlueprint   Blueprint that InReplacement belongs to
 	 * @param InRawDataList Raw find in blueprints search results
 	 */
-	static void ReplaceReferences(FMemberReference& InReplacement, UBlueprint* InBlueprint, TArray<FImaginaryFiBDataSharedPtr>& InRawDataList);
+	static void ReplaceReferences(const FMemberReference& InSource, const FMemberReference& InReplacement, UBlueprint* InBlueprint, TArray<FImaginaryFiBDataSharedPtr>& InRawDataList);
 
 private:
 

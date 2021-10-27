@@ -66,9 +66,9 @@ dtNodePool::dtNodePool(int maxNodes, int hashSize) :
 	dtAssert(dtNextPow2(m_hashSize) == (unsigned int)m_hashSize);
 	dtAssert(m_maxNodes > 0);
 
-	m_nodes = (dtNode*)dtAlloc(sizeof(dtNode)*m_maxNodes, DT_ALLOC_PERM);
-	m_next = (dtNodeIndex*)dtAlloc(sizeof(dtNodeIndex)*m_maxNodes, DT_ALLOC_PERM);
-	m_first = (dtNodeIndex*)dtAlloc(sizeof(dtNodeIndex)*hashSize, DT_ALLOC_PERM);
+	m_nodes = (dtNode*)dtAlloc(sizeof(dtNode)*m_maxNodes, DT_ALLOC_PERM_NODE_POOL);
+	m_next = (dtNodeIndex*)dtAlloc(sizeof(dtNodeIndex)*m_maxNodes, DT_ALLOC_PERM_NODE_POOL);
+	m_first = (dtNodeIndex*)dtAlloc(sizeof(dtNodeIndex)*hashSize, DT_ALLOC_PERM_NODE_POOL);
 
 	dtAssert(m_nodes);
 	dtAssert(m_next);
@@ -80,9 +80,9 @@ dtNodePool::dtNodePool(int maxNodes, int hashSize) :
 
 dtNodePool::~dtNodePool()
 {
-	dtFree(m_nodes);
-	dtFree(m_next);
-	dtFree(m_first);
+	dtFree(m_nodes, DT_ALLOC_PERM_NODE_POOL);
+	dtFree(m_next, DT_ALLOC_PERM_NODE_POOL);
+	dtFree(m_first, DT_ALLOC_PERM_NODE_POOL);
 }
 
 void dtNodePool::clear()
@@ -147,13 +147,13 @@ dtNodeQueue::dtNodeQueue(int n) :
 {
 	dtAssert(m_capacity > 0);
 	
-	m_heap = (dtNode**)dtAlloc(sizeof(dtNode*)*(m_capacity+1), DT_ALLOC_PERM);
+	m_heap = (dtNode**)dtAlloc(sizeof(dtNode*)*(m_capacity+1), DT_ALLOC_PERM_NODE_POOL);
 	dtAssert(m_heap);
 }
 
 dtNodeQueue::~dtNodeQueue()
 {
-	dtFree(m_heap);
+	dtFree(m_heap, DT_ALLOC_PERM_NODE_POOL);
 }
 
 void dtNodeQueue::bubbleUp(int i, dtNode* node)

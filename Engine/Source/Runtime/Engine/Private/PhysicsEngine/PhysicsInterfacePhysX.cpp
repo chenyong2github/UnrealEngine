@@ -2225,7 +2225,7 @@ void FPhysicsInterface_PhysX::UpdateAngularDrive_AssumesLocked(const FPhysicsCon
 	}
 }
 
-void FPhysicsInterface_PhysX::UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive)
+void FPhysicsInterface_PhysX::UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle_PhysX& InHandle, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive, bool bInitialized_IGNORED)
 {
 	PxD6Joint* Joint = InHandle.ConstraintData;
 

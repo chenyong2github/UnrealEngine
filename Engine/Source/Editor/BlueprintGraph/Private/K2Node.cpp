@@ -27,6 +27,8 @@
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/FrameworkObjectVersion.h"
 
+#include "Kismet2/WatchedPin.h"
+
 #define LOCTEXT_NAMESPACE "K2Node"
 
 // File-Scoped Globals
@@ -1019,10 +1021,26 @@ void UK2Node::ReconstructSinglePin(UEdGraphPin* NewPin, UEdGraphPin* OldPin, ERe
 		}
 	}
 
-	// if OldPin has a watch, swap the watch for NewPin
-	if(FKismetDebugUtilities::RemovePinWatch(Blueprint, OldPin))
+	// if OldPin has any watches, swap the watches for NewPin
+	TArray<TArray<FName>> WatchedPropertyPaths;
+	FKismetDebugUtilities::RemovePinPropertyWatchesByPredicate(
+		Blueprint, 
+		[OldPin, &WatchedPropertyPaths](const FBlueprintWatchedPin& WatchedPin)
+		{
+			if (WatchedPin.Get() == OldPin)
+			{
+				WatchedPropertyPaths.Add(WatchedPin.GetPathToProperty());
+				return true;
+			}
+
+			return false;
+		}
+	);
+
+	for (TArray<FName>& WatchedPropertyPath : WatchedPropertyPaths)
 	{
-		FKismetDebugUtilities::AddPinWatch(Blueprint, NewPin);
+		FBlueprintWatchedPin WatchedPin(NewPin, MoveTemp(WatchedPropertyPath));
+		FKismetDebugUtilities::AddPinWatch(Blueprint, MoveTemp(WatchedPin));
 	}
 }
 

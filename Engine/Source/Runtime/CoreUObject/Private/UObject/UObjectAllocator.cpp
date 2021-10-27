@@ -56,6 +56,7 @@ UObjectBase* FUObjectAllocator::AllocateUObject(int32 Size, int32 Alignment, boo
 	int32 AlignedSize = Align( Size, Alignment );
 	UObjectBase* Result = nullptr;
 
+	bAllowPermanent &= PermanentObjectPool != nullptr;
 	const bool bPlaceInPerm = bAllowPermanent && (Align(PermanentObjectPoolTail,Alignment) + Size) <= (PermanentObjectPool + PermanentObjectPoolSize);
 	if (bAllowPermanent && !bPlaceInPerm)
 	{

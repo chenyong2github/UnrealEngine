@@ -80,10 +80,10 @@ public:
 
 	/** Construct a Margin where the margins are coming from a FVector4 */
 	FMargin(const FVector4& InVector)
-		: Left(InVector.X)
-		, Top(InVector.Y)
-		, Right(InVector.Z)
-		, Bottom(InVector.W)
+		: Left(UE_REAL_TO_FLOAT(InVector.X))
+		, Top(UE_REAL_TO_FLOAT(InVector.Y))
+		, Right(UE_REAL_TO_FLOAT(InVector.Z))
+		, Bottom(UE_REAL_TO_FLOAT(InVector.W))
 	{ }
 	
 public:

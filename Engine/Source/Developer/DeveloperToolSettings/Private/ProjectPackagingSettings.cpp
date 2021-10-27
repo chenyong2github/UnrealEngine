@@ -255,14 +255,13 @@ EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigur
 
 void UProjectPackagingSettings::SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration)
 {
-	PerPlatformBuildConfig.Add(PlatformName, Configuration);
-}
-
-void UProjectPackagingSettings::SetBuildConfigurationForAllPlatforms(EProjectPackagingBuildConfigurations Configuration)
-{
-	for (auto& Config : PerPlatformBuildConfig)
+	if (Configuration == EProjectPackagingBuildConfigurations::PPBC_MAX)
 	{
-		Config.Value = Configuration;
+		PerPlatformBuildConfig.Remove(PlatformName);
+	}
+	else
+	{
+		PerPlatformBuildConfig.Add(PlatformName, Configuration);
 	}
 }
 
@@ -289,7 +288,14 @@ FString UProjectPackagingSettings::GetBuildTargetForPlatform(FName PlatformName)
 
 void UProjectPackagingSettings::SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName)
 {
-	PerPlatformBuildTarget.Add(PlatformName, BuildTargetName);
+	if (BuildTargetName.IsEmpty())
+	{
+		PerPlatformBuildTarget.Remove(PlatformName);
+	}
+	else
+	{
+		PerPlatformBuildTarget.Add(PlatformName, BuildTargetName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

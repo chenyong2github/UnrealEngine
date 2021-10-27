@@ -72,28 +72,47 @@ void UEnvQueryContext_BlueprintBase::ProvideContext(FEnvQueryInstance& QueryInst
 		{
 			AActor* ResultingActor = NULL;
 			ProvideSingleActor(QuerierObject, QuerierActor, ResultingActor);
-			UEnvQueryItemType_Actor::SetContextHelper(ContextData, ResultingActor);
+			// store the result only if it's a valid actor, otherwise the FEnvQueryContextData will think it succeeded 
+			// and proceed with the query
+			if (ResultingActor)
+			{
+				UEnvQueryItemType_Actor::SetContextHelper(ContextData, ResultingActor);
+			}
 		}
 		break;
 	case SingleLocation:
 		{
 			FVector ResultingLocation = FAISystem::InvalidLocation;
 			ProvideSingleLocation(QuerierObject, QuerierActor, ResultingLocation);
-			UEnvQueryItemType_Point::SetContextHelper(ContextData, ResultingLocation);
+			// filter out invalid locations as they don't represent valid context
+			if (FAISystem::IsValidLocation(ResultingLocation))
+			{
+				UEnvQueryItemType_Point::SetContextHelper(ContextData, ResultingLocation);
+			}
 		}
 		break;
 	case ActorSet:
 		{
 			TArray<AActor*> ActorSet;
 			ProvideActorsSet(QuerierObject, QuerierActor, ActorSet);
-			UEnvQueryItemType_Actor::SetContextHelper(ContextData, ActorSet);
+			// remove nulls as they don't represent valid information, i.e. null actors are invalid rather than an "is missing" information
+			ActorSet.Remove(nullptr);
+			if (ActorSet.Num())
+			{
+				UEnvQueryItemType_Actor::SetContextHelper(ContextData, ActorSet);
+			}
 		}
 		break;
 	case LocationSet:
 		{
 			TArray<FVector> LocationSet;
 			ProvideLocationsSet(QuerierObject, QuerierActor, LocationSet);
-			UEnvQueryItemType_Point::SetContextHelper(ContextData, LocationSet);
+			// filter out invalid locations as they don't represent valid context
+			LocationSet.RemoveAll([](const FVector& Element) { return !FAISystem::IsValidLocation(Element); });
+			if (LocationSet.Num())
+			{
+				UEnvQueryItemType_Point::SetContextHelper(ContextData, LocationSet);
+			}
 		}
 		break;
 	default:

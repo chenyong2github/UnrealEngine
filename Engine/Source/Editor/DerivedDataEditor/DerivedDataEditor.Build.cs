@@ -8,7 +8,7 @@ public class DerivedDataEditor : ModuleRules
 		 : base(Target)
 	{
 		PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
+		
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -27,6 +27,7 @@ public class DerivedDataEditor : ModuleRules
 				"WorkspaceMenuStructure",
 				"MessageLog",
 				"ToolWidgets",
+				"Zen"
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(

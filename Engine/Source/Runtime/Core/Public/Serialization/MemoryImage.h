@@ -1005,7 +1005,7 @@ public:
 	{
 		if (IsFrozen())
 		{
-			return PtrTable.GetIndexedPointer(PackedIndex >> IndexShift);
+			return PtrTable.GetIndexedPointer((uint32)(PackedIndex >> IndexShift));
 		}
 		return Ptr;
 	}
@@ -1016,7 +1016,7 @@ public:
 		{
 			check(PtrTable);
 			const FTypeLayoutDesc& TypeDesc = StaticGetTypeLayoutDesc<TIndexedPtrBase<T, PtrType>>();
-			return static_cast<T*>(PtrTable->GetIndexedPointer(TypeDesc, PackedIndex >> IndexShift));
+			return static_cast<T*>(PtrTable->GetIndexedPointer(TypeDesc, (uint32)(PackedIndex >> IndexShift)));
 		}
 		return Ptr;
 	}

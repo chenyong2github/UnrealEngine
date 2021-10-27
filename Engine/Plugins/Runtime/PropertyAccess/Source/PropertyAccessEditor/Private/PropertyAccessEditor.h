@@ -13,13 +13,13 @@ struct FEdGraphPinType;
 namespace PropertyAccess
 {
 	/** Resolve a property path to a structure, returning the leaf property and array index if any. @return true if resolution succeeded */
-	extern FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex);
+	extern FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex);
 
 	/**
 	 * Resolve a property path to a structure, calling back for each segment in path segment order if resolution succeed
 	 * @return true if resolution succeeded
 	 */
-	extern FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs);
+	extern FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs);
 
 	// Get the compatibility of the two supplied properties. Ordering matters for promotion (A->B).
 	extern EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB);

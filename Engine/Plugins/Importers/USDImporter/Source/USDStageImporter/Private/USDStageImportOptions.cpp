@@ -14,6 +14,7 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bImportActors = true;
 	bImportGeometry = true;
 	bImportSkeletalAnimations = true;
+	bImportLevelSequences = true;
 	bImportMaterials = true;
 
 	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide);

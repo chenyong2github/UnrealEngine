@@ -258,22 +258,23 @@ void EvaluateFloatCurvesFromModel(const UAnimDataModel* Model, FBlendedCurve& Ou
 
 void EvaluateTransformCurvesFromModel(const UAnimDataModel* Model, TMap<FName, FTransform>& OutCurves, float Time, float BlendWeight)
 {
-	check(Model);
-
-	for (const FTransformCurve& Curve : Model->GetTransformCurves())
+	if (Model)
 	{
-		// if disabled, do not handle
-		if (Curve.GetCurveTypeFlag(AACF_Disabled))
+		for (const FTransformCurve& Curve : Model->GetTransformCurves())
 		{
-			continue;
+			// if disabled, do not handle
+			if (Curve.GetCurveTypeFlag(AACF_Disabled))
+			{
+				continue;
+			}
+
+			// Add or retrieve curve
+			const FName& CurveName = Curve.Name.DisplayName;
+
+			// note we're not checking Curve.GetCurveTypeFlags() yet
+			FTransform& Value = OutCurves.FindOrAdd(CurveName);
+			Value = Curve.Evaluate(Time, BlendWeight);
 		}
-
-		// Add or retrieve curve
-		const FName& CurveName = Curve.Name.DisplayName;
-
-		// note we're not checking Curve.GetCurveTypeFlags() yet
-		FTransform& Value = OutCurves.FindOrAdd(CurveName);
-		Value = Curve.Evaluate(Time, BlendWeight);
 	}
 }
 

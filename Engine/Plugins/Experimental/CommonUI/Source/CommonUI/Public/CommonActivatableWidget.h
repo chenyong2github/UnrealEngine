@@ -182,18 +182,6 @@ private:
 	/** See BindVisibilityToMultipleActivations */
 	void HandleVisibilityBoundWidgetActivations();
 
-	UPROPERTY(EditAnywhere, Category = Activation, meta = (InlineEditConditionToggle = "ActivatedVisibility"))
-	bool bSetVisibilityOnActivated = false;
-
-	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = "bSetVisibilityOnActivated"))
-	ESlateVisibility ActivatedVisibility = ESlateVisibility::SelfHitTestInvisible;
-
-	UPROPERTY(EditAnywhere, Category = Activation, meta = (InlineEditConditionToggle = "DeactivatedVisibility"))
-	bool bSetVisibilityOnDeactivated = false;
-
-	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = "bSetVisibilityOnDeactivated"))
-	ESlateVisibility DeactivatedVisibility = ESlateVisibility::Collapsed;
-
 	/** Fires when the widget is activated. */
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Widget Activated"))
 	FOnWidgetActivationChanged BP_OnWidgetActivated;
@@ -230,6 +218,19 @@ private:
 	mutable FSimpleMulticastDelegate OnRequestRefreshFocusEvent;
 
 protected:
+	
+	UPROPERTY(EditAnywhere, Category = Activation, meta = (InlineEditConditionToggle = "ActivatedVisibility"))
+	bool bSetVisibilityOnActivated = false;
+
+	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = "bSetVisibilityOnActivated"))
+	ESlateVisibility ActivatedVisibility = ESlateVisibility::SelfHitTestInvisible;
+
+	UPROPERTY(EditAnywhere, Category = Activation, meta = (InlineEditConditionToggle = "DeactivatedVisibility"))
+	bool bSetVisibilityOnDeactivated = false;
+
+	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = "bSetVisibilityOnDeactivated"))
+	ESlateVisibility DeactivatedVisibility = ESlateVisibility::Collapsed;
+	
 	virtual void InternalProcessActivation();
 	virtual void InternalProcessDeactivation();
 	void Reset();

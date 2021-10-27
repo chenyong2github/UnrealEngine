@@ -8,6 +8,7 @@
 
 #include "SAnimationModifiersTab.h"
 #include "AnimationModifierDetailCustomization.h"
+#include "AnimationModifierHelpers.h"
 #include "AnimationModifiersTabSummoner.h"
 
 #include "Modules/ModuleManager.h"
@@ -16,6 +17,8 @@
 #include "ScopedTransaction.h" 
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
+
+#include "AnimationModifierSettings.h"
 
 #include "AnimationModifiersAssetUserData.h"
 
@@ -32,6 +35,16 @@ void FAnimationModifiersModule::StartupModule()
 	// Add application mode extender
 	Extender = FWorkflowApplicationModeExtender::CreateRaw(this, &FAnimationModifiersModule::ExtendApplicationMode);
 	FWorkflowCentricApplication::GetModeExtenderList().Add(Extender);
+
+	// Register delegates during PostEngineInit as this module is part of preload phase and GEditor is not valid yet
+	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+	{
+		if (GEditor)
+		{
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FAnimationModifiersModule::OnAssetPostImport);
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(this, &FAnimationModifiersModule::OnAssetPostReimport);
+		}
+	});
 }
 
 TSharedRef<FApplicationMode> FAnimationModifiersModule::ExtendApplicationMode(const FName ModeName, TSharedRef<FApplicationMode> InMode)
@@ -44,6 +57,48 @@ TSharedRef<FApplicationMode> FAnimationModifiersModule::ExtendApplicationMode(co
 	}
 	
 	return InMode;
+}
+
+void FAnimationModifiersModule::OnAssetPostImport(UFactory* ImportFactory, UObject* ImportedObject)
+{
+	// Check whether or not the imported asset is a AnimSequence
+	if (UAnimSequence* AnimationSequence = Cast<UAnimSequence>(ImportedObject))
+	{
+		// Check whether or not there are any default modifiers which should be added to the new sequence
+		const TArray<TSubclassOf<UAnimationModifier>>& DefaultModifiers = GetDefault<UAnimationModifierSettings>()->DefaultAnimationModifiers;
+		if (DefaultModifiers.Num())
+		{
+			UAnimationModifiersAssetUserData* AssetUserData = FAnimationModifierHelpers::RetrieveOrCreateModifierUserData(AnimationSequence);			
+			for (TSubclassOf<UAnimationModifier> ModifierClass : DefaultModifiers)
+			{
+				if (ModifierClass.Get())
+				{
+					UObject* Outer = AssetUserData;
+					UAnimationModifier* Processor = FAnimationModifierHelpers::CreateModifierInstance(Outer, *ModifierClass);
+					AssetUserData->Modify();
+					AssetUserData->AddAnimationModifier(Processor);
+				}
+			}
+
+			if (GetDefault<UAnimationModifierSettings>()->bApplyAnimationModifiersOnImport)
+			{
+				ApplyAnimationModifiers({AnimationSequence});
+			}
+		}
+	}
+}
+
+void FAnimationModifiersModule::OnAssetPostReimport(UObject* ReimportedObject)
+{
+	// Check whether or not the reimported asset is a AnimSequence
+	if (UAnimSequence* AnimationSequence = Cast<UAnimSequence>(ReimportedObject))
+	{
+		// Check whether or not any contained modifiers should be applied 
+		if (GetDefault<UAnimationModifierSettings>()->bApplyAnimationModifiersOnImport)
+		{			
+			ApplyAnimationModifiers({AnimationSequence});
+		}
+	}
 }
 
 void FAnimationModifiersModule::ShutdownModule()
@@ -69,6 +124,11 @@ void FAnimationModifiersModule::ShutdownModule()
 	}
 
 	RegisteredApplicationModes.Empty();
+
+	if (GEditor)
+	{
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
+	}
 }
 
 void FAnimationModifiersModule::ShowAddAnimationModifierWindow(const TArray<UAnimSequence*>& InSequences)

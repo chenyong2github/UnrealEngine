@@ -13,7 +13,10 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 #include "Logging/MessageLog.h"
+#include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
@@ -60,11 +63,12 @@ public:
 		UI_COMMAND(Command_ShowOnlySelectedCategory, "Show Only Selected Category", "Shows only the selected log category (hides all other log categories).", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(Command_ShowAllCategories, "Show All Categories", "Resets the category filter (shows all log categories).", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(Command_CopySelected, "Copy", "Copies the selected log (with all its properties) to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
-		UI_COMMAND(Command_CopyMessage, "Copy Message", "Copies the message text of selected log to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::C));
+		UI_COMMAND(Command_CopyMessage, "Copy Message", "Copies the message text of the selected log to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::C));
 		UI_COMMAND(Command_CopyRange, "Copy Range", "Copies all the logs in the selected time range (highlighted in blue) to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
 		UI_COMMAND(Command_CopyAll, "Copy All", "Copies all the (filtered) logs to clipboard.", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(Command_SaveRange, "Save Range As...", "Saves all the logs in the selected time range (highlighted in blue) to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
 		UI_COMMAND(Command_SaveAll, "Save All As...", "Saves all the (filtered) logs to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(Command_OpenSource, "Open Source", "Opens the source file of the selected message in the registered IDE.", EUserInterfaceActionType::Button, FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -77,6 +81,7 @@ public:
 	TSharedPtr<FUICommandInfo> Command_CopyAll;
 	TSharedPtr<FUICommandInfo> Command_SaveRange;
 	TSharedPtr<FUICommandInfo> Command_SaveAll;
+	TSharedPtr<FUICommandInfo> Command_OpenSource;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -681,6 +686,7 @@ void SLogView::InitCommandList()
 	CommandList->MapAction(FLogViewCommands::Get().Command_CopyAll, FExecuteAction::CreateSP(this, &SLogView::CopyAll), FCanExecuteAction::CreateSP(this, &SLogView::CanCopyAll));
 	CommandList->MapAction(FLogViewCommands::Get().Command_SaveRange, FExecuteAction::CreateSP(this, &SLogView::SaveRange), FCanExecuteAction::CreateSP(this, &SLogView::CanSaveRange));
 	CommandList->MapAction(FLogViewCommands::Get().Command_SaveAll, FExecuteAction::CreateSP(this, &SLogView::SaveAll), FCanExecuteAction::CreateSP(this, &SLogView::CanSaveAll));
+	CommandList->MapAction(FLogViewCommands::Get().Command_OpenSource, FExecuteAction::CreateSP(this, &SLogView::OpenSource), FCanExecuteAction::CreateSP(this, &SLogView::CanOpenSource));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1120,6 +1126,49 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			TAttribute<FText>(),
 			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
+
+		MenuBuilder.AddSeparator();
+
+		// Open Source in IDE
+		{
+			FString File;
+			uint32 Line = 0;
+			if (SelectedLogMessage.IsValid())
+			{
+				FLogMessageRecord& Record = Cache.Get(SelectedLogMessage->GetIndex());
+				File = Record.GetFile();
+				Line = Record.GetLine();
+			}
+
+			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+			ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+
+			const FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource", "Open Source in {0}"), SourceCodeAccessor.GetNameText());
+
+			FText ItemToolTip;
+			if (!File.IsEmpty())
+			{
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc1", "Opens the source file of the selected message in {0}.\n{1} ({2})"),
+					SourceCodeAccessor.GetNameText(), FText::FromString(File), FText::AsNumber(Line, &FNumberFormattingOptions::DefaultNoGrouping()));
+			}
+			else
+			{
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc2", "Opens the source file of the selected message in {0}."),
+					SourceCodeAccessor.GetNameText());
+			}
+
+			MenuBuilder.AddMenuEntry(
+				FLogViewCommands::Get().Command_OpenSource,
+				NAME_None,
+				ItemLabel,
+				ItemToolTip,
+#if PLATFORM_WINDOWS
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio")
+#else
+				FSlateIcon()
+#endif
+			);
+		}
 	}
 	MenuBuilder.EndSection();
 
@@ -1780,6 +1829,27 @@ void SLogView::SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
 	UE_LOG(TraceInsights, Log, TEXT("Saved %d logs to file in %.3fs."), NumMessagesInSelectedRange, TotalTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SLogView::CanOpenSource() const
+{
+	return GetSelectedLogMessage().IsValid();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::OpenSource() const
+{
+	TSharedPtr<FLogMessage> SelectedLogMessage = GetSelectedLogMessage();
+	if (SelectedLogMessage.IsValid())
+	{
+		FLogMessageRecord& Record = Cache.Get(SelectedLogMessage->GetIndex());
+		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+		ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+		SourceCodeAccessor.OpenFileAtLine(Record.GetFile(), Record.GetLine());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

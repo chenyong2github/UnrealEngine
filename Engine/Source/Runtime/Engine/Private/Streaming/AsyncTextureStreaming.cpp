@@ -223,7 +223,7 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 			const float CumBoostFactor = StreamingRenderAsset.BoostFactor * StreamingRenderAsset.DynamicBoostFactor;
 
 			// If there is not enough resolution in the texture to fix the required quality, save this information to prevent degrading this texture before other ones.
-			bLooksLowRes = FMath::Max3<int32>(MaxSize_VisibleOnly, MaxSize, MaxAllowedSize) / MaxAllowedSize >= CumBoostFactor * 2.f;
+			bLooksLowRes = FMath::Max3(MaxSize_VisibleOnly, MaxSize, MaxAllowedSize) / MaxAllowedSize >= CumBoostFactor * 2.f;
 
 			MaxSize *=  CumBoostFactor;
 			MaxSize_VisibleOnly *= CumBoostFactor;
@@ -257,7 +257,7 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 			if (StreamingRenderAsset.bUseUnkownRefHeuristic && StreamingRenderAsset.LastRenderTime < 90.0f && (Settings.DropMips != 3 || AssetType == EStreamableRenderAssetType::Texture))
 			{
 				if (bOutputToLog) UE_LOG(LogContentStreaming, Log,  TEXT("  UnkownRef"));
-				MaxSize = FMath::Max<int32>(MaxSize, MaxAllowedSize); // affected by HiddenPrimitiveScale
+				MaxSize = FMath::Max(MaxSize, MaxAllowedSize); // affected by HiddenPrimitiveScale
 				if (StreamingRenderAsset.LastRenderTime < 5.0f)
 				{
 					MaxSize_VisibleOnly = FMath::Max<int32>(MaxSize_VisibleOnly, MaxAllowedSize);
@@ -282,11 +282,11 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 
 			if (Settings.bUseNewMetrics)
 			{
-				MaxSize = FMath::Max<int32>(MaxSize, MaxAllowedSize); // Affected by HiddenPrimitiveScale
+				MaxSize = FMath::Max(MaxSize, MaxAllowedSize); // Affected by HiddenPrimitiveScale
 			}
 			else
 			{
-				MaxSize = FMath::Max<int32>(MaxSize, MaxAllowedSize * .5f);
+				MaxSize = FMath::Max(MaxSize, MaxAllowedSize * .5f);
 			}
 		}
 	}

@@ -29,7 +29,7 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		virtual void SetMinToleranceIso() const override
+		virtual void SetMinToleranceIso() override
 		{
 			MinToleranceIso = BaseSurface->GetIsoTolerances();
 		}
@@ -74,7 +74,7 @@ namespace CADKernel
 			return BaseSurface;
 		}
 
-		virtual void InitBoundary() const override;
+		virtual void InitBoundary() override;
 
 #ifdef CADKERNEL_DEV
 		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;

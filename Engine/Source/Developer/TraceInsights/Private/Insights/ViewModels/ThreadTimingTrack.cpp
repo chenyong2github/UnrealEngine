@@ -393,7 +393,7 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 				uint32 GpuTimelineIndex;
 				if (TimingProfilerProvider->GetGpuTimelineIndex(GpuTimelineIndex))
 				{
-					GpuTrack = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU"), nullptr, GpuTimelineIndex, 0);
+					GpuTrack = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU"), nullptr, GpuTimelineIndex, FGpuTimingTrack::Gpu1ThreadId);
 					GpuTrack->SetOrder(FTimingTrackOrder::Gpu);
 					GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
 					InSession.AddScrollableTrack(GpuTrack);
@@ -404,7 +404,7 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 				uint32 GpuTimelineIndex;
 				if (TimingProfilerProvider->GetGpu2TimelineIndex(GpuTimelineIndex))
 				{
-					Gpu2Track = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU2"), nullptr, GpuTimelineIndex, 0);
+					Gpu2Track = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU2"), nullptr, GpuTimelineIndex, FGpuTimingTrack::Gpu2ThreadId);
 					Gpu2Track->SetOrder(FTimingTrackOrder::Gpu);
 					Gpu2Track->SetVisibilityFlag(bShowHideAllGpuTracks);
 					InSession.AddScrollableTrack(Gpu2Track);

@@ -1,16 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertySelectionMap.h"
-#include "SnapshotTestRunner.h"
-#include "SnapshotTestActor.h"
+#include "Util/SnapshotTestRunner.h"
 #include "Util/EquivalenceUtil.h"
+#include "Types/SnapshotTestActor.h"
 
 #include "Components/PointLightComponent.h"
 #include "Engine/PointLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Misc/AutomationTest.h"
-#include "PreviewScene.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreSimpleProperties, "VirtualProduction.LevelSnapshots.Snapshot.RestoreSimpleProperties", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
 bool FRestoreSimpleProperties::RunTest(const FString& Parameters)

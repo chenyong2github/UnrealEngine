@@ -44,6 +44,13 @@ public:
 		Time = InTime;
 		NumMipMaps = InNumMipMaps;
 
+		// If we have no data then make sure the number of mipmaps is 1.
+		// otherwise FMediaTextureResource won't like it.
+		if ((Frame.Data.IsValid() == false) && (Frame.GetSampleConverter() == nullptr))
+		{
+			NumMipMaps = 1;
+		}
+
 		return true;
 	}
 

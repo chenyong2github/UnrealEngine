@@ -274,6 +274,7 @@ FVersionedNiagaraScriptData::FVersionedNiagaraScriptData()
 	, bExperimental(false)
 	, LibraryVisibility(ENiagaraScriptLibraryVisibility::Unexposed)
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
+	, bCanBeUsedForTypeConversions(false)
 {
 }
 #endif

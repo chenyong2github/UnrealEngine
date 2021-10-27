@@ -6,16 +6,14 @@
 
 #include <math.h>
 
-using namespace CADKernel;
-
-TSharedPtr<FEntityGeom> FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FParabolaCurve>(NewMatrix, FocalDistance, Boundary, Dimension);
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FParabolaCurve::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FParabolaCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)

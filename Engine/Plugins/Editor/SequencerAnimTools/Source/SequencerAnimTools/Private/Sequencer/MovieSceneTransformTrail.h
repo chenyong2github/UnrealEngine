@@ -43,6 +43,8 @@ public:
 	virtual int32 GetChannelOffset()const { return 0; }
 	virtual bool GetEditedTimes(const FTrailHierarchy* TrailHierarchy,const FFrameNumber& LastFrame, TArray<FFrameNumber>& OutEditedTimes);
 	virtual void UpdateKeysInRange(const TRange<double>& ViewRange) override;
+	virtual TArray<FFrameNumber> GetKeyTimes() const override;
+	virtual TArray<FFrameNumber> GetSelectedKeyTimes() const override;
 	// End FTrail interface
 
 	TSharedPtr<ISequencer> GetSequencer() const { return WeakSequencer.Pin(); }
@@ -77,9 +79,8 @@ protected:
 	TWeakObjectPtr<UMovieSceneTrack> WeakTrack;
 
 	TOptional<TArray<FFrameNumber>> EditedTimes;
-
-
 };
+
 
 class FMovieSceneComponentTransformTrail : public FMovieSceneTransformTrail
 {
@@ -120,11 +121,15 @@ public:
 	virtual bool ApplyDelta(const FVector& Pos, const FRotator& Rot, const FVector& WidgetLocation) override;
 	virtual bool EndTracking() override;
 	virtual int32 GetChannelOffset() const override;
+	virtual void GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector>& OutPoints, TArray<double>& OutSeconds) override;
+	virtual void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& OutTicks, TArray<FVector2D>& OutTickTangents) override;
 
+	void SetUseKeysForTrajectory(bool bVal);
 protected:
 	virtual bool HandleAltClick(FEditorViewportClient* InViewportClient, HMotionTrailProxy* Proxy, FInputClick Click) override;
 
 private:
+	bool bUseKeysForTrajectory = false; //on when interatively moving
 	FTransform EvaluateChannelsAtTime(TArrayView<FMovieSceneFloatChannel*> Channels, FFrameTime Time) const;
 	FName ControlName;
 };

@@ -27,9 +27,9 @@ public:
 	/** Can the property be captured? */
 	static bool IsPropertyDesirableForCapture(const FProperty* Property);
 	/* Is this property never captured by the snapshot system? */
-	static bool IsPropertyBlacklistedForCapture(const FProperty* Property);
+	static bool IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property);
 	/* Is this property always captured by the snapshot system? */
-	static bool IsPropertyWhitelistedForCapture(const FProperty* Property);
+	static bool IsPropertyExplicitlySupportedForCapture(const FProperty* Property);
 
 	/* The actor did not exist in the snapshot. Should we show it in the list of added actors? */
 	static bool ShouldConsiderNewActorForRemoval(const AActor* Actor);

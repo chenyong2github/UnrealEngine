@@ -25,7 +25,6 @@ void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
 	for(int32 FunctionIndex = 0; FunctionIndex < AnimBlueprintFunctions.Num(); ++FunctionIndex)
 	{
 		AnimBlueprintFunctions[FunctionIndex].OutputPoseNodeProperty = AnimBlueprintFunctionData[FunctionIndex].OutputPoseNodeProperty.Get();
-		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputProperties, AnimBlueprintFunctions[FunctionIndex].InputProperties, [](const TFieldPath<FProperty>& InPropertyPath){ return InPropertyPath.Get(); });
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputPoseNodeProperties, AnimBlueprintFunctions[FunctionIndex].InputPoseNodeProperties, ResolveTransform);
 	}
 }
@@ -44,7 +43,6 @@ void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
 	{
 		FAnimBlueprintFunctionData& NewAnimBlueprintFunctionData = AnimBlueprintFunctionData.AddDefaulted_GetRef();
 		NewAnimBlueprintFunctionData.OutputPoseNodeProperty = AnimBlueprintFunction.OutputPoseNodeProperty;
-		Algo::Transform(AnimBlueprintFunction.InputProperties, NewAnimBlueprintFunctionData.InputProperties, [](FProperty* InProperty){ return TFieldPath<FProperty>(InProperty); });
 		Algo::Transform(AnimBlueprintFunction.InputPoseNodeProperties, NewAnimBlueprintFunctionData.InputPoseNodeProperties, [](FStructProperty* InProperty){ return TFieldPath<FStructProperty>(InProperty); });
 	}
 

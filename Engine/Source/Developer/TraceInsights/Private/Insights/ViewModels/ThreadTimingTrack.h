@@ -214,6 +214,10 @@ public:
 class FGpuTimingTrack : public FThreadTimingTrack
 {
 public:
+	static constexpr uint32 Gpu1ThreadId = uint32('GPU1');
+	static constexpr uint32 Gpu2ThreadId = uint32('GPU2');
+
+public:
 	explicit FGpuTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
 		: FThreadTimingTrack(InSharedState, InName, InGroupName, InTimelineIndex, InThreadId)
 	{

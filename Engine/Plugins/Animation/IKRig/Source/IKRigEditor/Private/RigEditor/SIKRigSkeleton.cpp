@@ -7,7 +7,7 @@
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "RigEditor/IKRigEditorController.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/IKRigSkeletonCommands.h"

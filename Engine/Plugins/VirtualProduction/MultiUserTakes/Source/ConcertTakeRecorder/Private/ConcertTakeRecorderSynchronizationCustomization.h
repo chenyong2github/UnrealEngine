@@ -11,6 +11,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Types/SlateEnums.h"
 #include "UObject/Script.h"
+#include "UObject/UObjectGlobals.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBox.h"
@@ -40,6 +41,12 @@ public:
 		return SyncPropertyChanged;
 	}
 
+	void TakeMetaPropertyChanged()
+	{
+		UConcertTakeSynchronization* TakeSync = GetMutableDefault<UConcertTakeSynchronization>();
+		TakeSync->SaveConfig();
+	}
+
 	void SyncPropertyChanged()
 	{
 		UConcertTakeSynchronization const* TakeSync = GetDefault<UConcertTakeSynchronization>();
@@ -50,6 +57,10 @@ public:
 	{
 		// Pop the take recorder category to the top
 		IDetailCategoryBuilder& TakeSync = DetailLayout.EditCategory("Multi-user Take Synchronization");
+
+		TSharedPtr<IPropertyHandle> TransactMetaData = DetailLayout.GetProperty(
+			GET_MEMBER_NAME_CHECKED(UConcertTakeSynchronization, bTransactTakeMetaData));
+		TransactMetaData->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &ThisType::TakeMetaPropertyChanged));
 
 		TSharedPtr<IPropertyHandle> SyncTakeRecordingProperty = DetailLayout.GetProperty(
 			GET_MEMBER_NAME_CHECKED(UConcertTakeSynchronization, bSyncTakeRecordingTransactions));

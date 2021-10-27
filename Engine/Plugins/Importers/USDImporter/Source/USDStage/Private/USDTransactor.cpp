@@ -228,7 +228,8 @@ namespace UsdUtils
 
 					// If the prim is the root, this is a stage info change, and PropertyName is actually a metadata key, so
 					// it's not possible (or required) to know its SdfValueTypeName to e.g. undo/redo the creation of the property
-					if ( !Prim.IsPseudoRoot() && ConvertedAttributeChange.PropertyName != TEXT( "kind" ) && !ConvertedAttributeChange.PropertyName.IsEmpty() )
+					if ( !Prim.IsPseudoRoot() && ConvertedAttributeChange.PropertyName != TEXT( "kind" ) && !ConvertedAttributeChange.PropertyName.IsEmpty() &&
+						 !ConvertedChange.Flags.bDidRemoveProperty && !ConvertedChange.Flags.bDidRemovePropertyWithOnlyRequiredFields )
 					{
 						if ( UE::FUsdAttribute Attribute = Prim.GetAttribute( *ConvertedAttributeChange.PropertyName ) )
 						{

@@ -301,6 +301,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Force Gradle to compress native libs irregardless of MinSDKVersion setting"))
 	bool bForceCompressNativeLibs;
 
+	// Generates Android binary with RELR and APS2 relocation tables when building for MinSDKVersion >= 28 or just APS2 when building for MinSDKVersion >= 23
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable compression of relocation tables (and more). Depends on MinSDKVersion setting"))
+	bool bEnableAdvancedBinaryCompression;
+
 	// Enables generating AAB bundle
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "App Bundles", Meta = (DisplayName = "Generate bundle (AAB)"))
 	bool bEnableBundle;

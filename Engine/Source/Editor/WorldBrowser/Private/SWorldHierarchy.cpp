@@ -20,6 +20,8 @@
 #include "WorldBrowserModule.h"
 #include "LevelModel.h"
 #include "LevelCollectionModel.h"
+#include "SSimpleButton.h"
+#include "SSimpleComboButton.h"
 
 #include "LevelEditor.h"
 
@@ -82,14 +84,15 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 
 			ChildSlot
 			[
-				SNew(SVerticalBox)
-
-				// Toolbar
-				+SVerticalBox::Slot()
-				.AutoHeight()
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+
+					SNew(SVerticalBox)
+
+					// Toolbar
+					+SVerticalBox::Slot()
+					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
 					
@@ -98,39 +101,14 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)
+						.Padding(8.f, 0.f, 0.f, 0.f)
 						[
 							// Levels menu
-							SNew( SComboButton )
-							.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-							.ForegroundColor(FLinearColor::White)
-							.ContentPadding(0)
+							SNew( SSimpleComboButton )
 							.OnGetMenuContent(this, &SWorldHierarchy::GetFileButtonContent)
-							//.ToolTipText(this, &SWorldHierarchy::GetNewAssetToolTipText)
-							//.IsEnabled(this, &SWorldHierarchy::IsAssetPathSelected )
-							.ButtonContent()
-							[
-								SNew(SHorizontalBox)
-
-								// Icon
-								+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								[
-									SNew(SImage)
-									.Image(this, &SWorldHierarchy::GetLevelsMenuBrush)
-								]
-
-								// Text
-								+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								.Padding(0,0,2,0)
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Text(LOCTEXT("LevelsButton", "Levels"))
-								]
-							]
+							.Icon(FAppStyle::Get().GetBrush("WorldBrowser.LevelsMenuBrush"))
+							.Text(LOCTEXT("LevelsButton", "Levels"))
+							.HasDownArrow(true)
 						]
 
 						// Button to summon level details tab
@@ -138,18 +116,12 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)
+						.Padding(8.f, 0.f, 0.f, 0.f)
 						[
-							SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+							SNew(SSimpleButton)
 							.OnClicked(this, &SWorldHierarchy::OnSummonDetails)
 							.ToolTipText(LOCTEXT("SummonDetailsToolTipText", "Summons level details"))
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
-							.Content()
-							[
-								SNew(SImage)
-								.Image(this, &SWorldHierarchy::GetSummonDetailsBrush)
-							]
+							.Icon(FAppStyle::Get().GetBrush("WorldBrowser.DetailsButtonBrush"))
 						]
 
 						// Button to summon world composition tab
@@ -157,33 +129,23 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)
+						.Padding(8.f, 0.f, 0.f, 0.f)
 						[
-							SNew(SButton)
+							SNew(SSimpleButton)
 							.Visibility(this, &SWorldHierarchy::GetCompositionButtonVisibility)
-							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 							.OnClicked(this, &SWorldHierarchy::OnSummonComposition)
 							.ToolTipText(LOCTEXT("SummonCompositionToolTipText", "Summons world composition"))
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
-							.Content()
-							[
-								SNew(SImage)
-								.Image(this, &SWorldHierarchy::GetSummonCompositionBrush)
-							]
+							.Icon(this, &SWorldHierarchy::GetSummonCompositionBrush)
 						]
 					]
-				]
 			
-				// Hierarchy
-				+SVerticalBox::Slot()
-				.FillHeight(1.f)
-				.Padding(0,4,0,0)
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					// Hierarchy
+					+SVerticalBox::Slot()
+					.FillHeight(1.f)
+					.Padding(0.f, 4.f, 0.f ,0.f)
 					[
 						SNew(SWorldHierarchyImpl)
-							.InWorldModel(WorldModel)
+						.InWorldModel(WorldModel)
 					]
 				]
 			];
@@ -196,16 +158,6 @@ FReply SWorldHierarchy::OnSummonDetails()
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	LevelEditorModule.SummonWorldBrowserDetails();
 	return FReply::Handled();
-}
-
-const FSlateBrush* SWorldHierarchy::GetLevelsMenuBrush() const
-{
-	return FEditorStyle::GetBrush("WorldBrowser.LevelsMenuBrush");
-}
-
-const FSlateBrush* SWorldHierarchy::GetSummonDetailsBrush() const
-{
-	return FEditorStyle::GetBrush("WorldBrowser.DetailsButtonBrush");
 }
 
 EVisibility SWorldHierarchy::GetCompositionButtonVisibility() const

@@ -225,6 +225,7 @@ void ULatticeDeformerTool::Setup()
 		{
 			SoftDeformLattice();
 		}
+		ResetConstrainedPoints();
 		Preview->InvalidateResult();
 		Settings->bCanChangeResolution = !ControlPointsMechanic->bHasChanged;
 	};
@@ -278,6 +279,11 @@ void ULatticeDeformerTool::RebuildDeformer()
 	}
 }
 
+
+void ULatticeDeformerTool::ResetConstrainedPoints()
+{
+	ControlPointsMechanic->UpdatePointLocations(ConstrainedLatticePoints);
+}
 
 void ULatticeDeformerTool::SoftDeformLattice()
 {

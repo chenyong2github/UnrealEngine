@@ -148,6 +148,14 @@ public:
 	 */
 	static void FillSourceControlMenu(UToolMenu* Menu);
 
+	/**
+	 * Adds the entry for Select Immediate Children depending on the current selection
+	 * 
+	 * @param Section			The section to add items to
+	 * @param SelectedActors	Current list of selected actors
+	 * @param Context			Menu context, used to determine whether entry is needed
+	 */
+	static void AddSelectChildrenEntry(FToolMenuSection& Section, const TArray<AActor*>& SelectedActors, ULevelEditorContextMenuContext* Context);
 };
 
 FSelectedActorInfo FLevelEditorContextMenuImpl::SelectionInfo;
@@ -261,8 +269,9 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		SelectionInfo = AssetSelectionUtils::BuildSelectedActorInfo(SelectedActors);
 
 		{
-			// General actions that apply to most actors and their assets
-			FToolMenuSection& Section = InMenu->AddSection("ActorGeneral", LOCTEXT("ActorHeading", "Actor"));
+			// General actions that apply to most actors and their underlying assets
+			// In most cases, you DO NOT want to extend this section; look at ActorUETools or ActorTypeTools below
+			FToolMenuSection& Section = InMenu->AddSection("ActorGeneral", LOCTEXT("AssetOptionsHeading", "Asset Options"));
 
 			// Check if current selection has any referenced assets that can be edited
 			TArray< UObject* > ReferencedAssets;
@@ -328,16 +337,21 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(Section, LevelEditorContext);
 		}
 
-		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
+		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport || LevelEditorContext->ContextType == ELevelEditorMenuContext::SceneOutliner)
 		{
-			// Options that are only relevant in the viewport context menu (e.g. are spatial, require clicks)
+			// Options that only appear in the viewport context menu or scene outliner (will affect the current viewport)
+			// In most cases, you DO NOT want to extend this section; look at ActorUETools or ActorTypeTools below
 			FToolMenuSection& Section = InMenu->AddSection("ActorViewOptions", LOCTEXT("ViewOptionsHeading", "View Options"));
 			const FVector* ClickLocation = &GEditor->ClickLocation;
 
-			FUIAction GoHereAction;
-			GoHereAction.ExecuteAction = FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::GoHere_Clicked, ClickLocation);
+			// This keys off the mouse position so can only appear in the viewport
+			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
+			{
+				FUIAction GoHereAction;
+				GoHereAction.ExecuteAction = FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::GoHere_Clicked, ClickLocation);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
+			}
 
-			Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
 
@@ -372,8 +386,11 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		}
 
 		{
-			// Options for editing, transforming, etc.
+			// Options for editing, transforming, and manipulating this actor
+			// In most cases, you DO NOT want to extend this section; look at ActorUETools or ActorTypeTools below
 			FToolMenuSection& Section = InMenu->AddSection("ActorOptions", LOCTEXT("ActorOptionsHeading", "Actor Options"));
+
+			FLevelEditorContextMenuImpl::AddSelectChildrenEntry(Section, SelectedActors, LevelEditorContext);
 
 			Section.AddSubMenu(
 				"EditSubMenu",
@@ -1377,6 +1394,33 @@ void FLevelEditorContextMenuImpl::FillSourceControlMenu(UToolMenu* Menu)
 	FToolMenuSection& Section = Menu->AddSection(TEXT("Source Control"));
 
 	Section.AddMenuEntry(FLevelEditorCommands::Get().ShowActorHistory);
+}
+
+void FLevelEditorContextMenuImpl::AddSelectChildrenEntry(FToolMenuSection& Section, const TArray<AActor*>& SelectedActors, ULevelEditorContextMenuContext* Context)
+{
+	// Don't show in main Actor menu because it's already available from the Select pulldown menu.
+	if (Context->ContextType == ELevelEditorMenuContext::MainMenu)
+	{
+		return;
+	}
+
+	bool bHasAttachedChildren = false;
+	for (AActor* Actor : SelectedActors)
+	{
+		TArray<AActor*> AttachedActors;
+		Actor->GetAttachedActors(AttachedActors);
+		if (!AttachedActors.IsEmpty())
+		{
+			bHasAttachedChildren = true;
+			break;
+		}
+	}
+
+	// Only show if there are attached children to prevent crowding the context menu all the time.
+	if (bHasAttachedChildren)
+	{
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectImmediateChildren);
+	}
 }
 
 void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(FToolMenuSection& Section, const TArray<AActor*>& SelectedActors)

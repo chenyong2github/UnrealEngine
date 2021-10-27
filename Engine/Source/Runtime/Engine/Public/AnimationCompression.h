@@ -248,9 +248,9 @@ public:
 			Temp.W = -Temp.W;
 		}
 		Temp.Normalize();
-		X = Temp.X;
-		Y = Temp.Y;
-		Z = Temp.Z;
+		X = UE_REAL_TO_FLOAT(Temp.X);
+		Y = UE_REAL_TO_FLOAT(Temp.Y);
+		Z = UE_REAL_TO_FLOAT(Temp.Z);
 	}
 
 	template<bool bIsDataAligned = true>

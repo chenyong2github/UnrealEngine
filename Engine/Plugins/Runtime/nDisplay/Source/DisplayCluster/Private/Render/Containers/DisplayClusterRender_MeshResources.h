@@ -15,7 +15,8 @@ struct FDisplayClusterMeshVertexType
 	FVector2D UV;
 	FVector2D UV_Chromakey;
 
-	void operator=(const FDisplayClusterMeshVertex& In)
+	/** type conversion double -> float */
+	FORCEINLINE void SetVertexData(const FDisplayClusterMeshVertex& In)
 	{
 		Position = In.Position;
 		UV = In.UV;

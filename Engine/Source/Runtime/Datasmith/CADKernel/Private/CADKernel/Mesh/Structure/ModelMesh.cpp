@@ -9,10 +9,7 @@
 #include "CADKernel/Mesh/Structure/VertexMesh.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 
-using namespace CADKernel;
-
-
-void FModelMesh::AddCriterion(TSharedPtr<FCriterion>& Criterion)
+void CADKernel::FModelMesh::AddCriterion(TSharedPtr<FCriterion>& Criterion)
 {
 	Criteria.Add(Criterion);
 	switch (Criterion->GetCriterionType())
@@ -45,7 +42,7 @@ FInfoEntity& FModelMesh::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-const int32 FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
+const int32 CADKernel::FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
 {
 	for (const TSharedPtr<FVertexMesh>& VertexMesh : VertexMeshes)
 	{
@@ -57,7 +54,7 @@ const int32 FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
 	return -1;
 }
 
-const TSharedPtr<FVertexMesh> FModelMesh::GetMeshOfVertexNodeId(const int32 Ident) const
+const TSharedPtr<CADKernel::FVertexMesh> CADKernel::FModelMesh::GetMeshOfVertexNodeId(const int32 Ident) const
 {
 	for (const TSharedPtr<FVertexMesh>& VertexMesh : VertexMeshes)
 	{
@@ -69,7 +66,7 @@ const TSharedPtr<FVertexMesh> FModelMesh::GetMeshOfVertexNodeId(const int32 Iden
 	return nullptr;
 }
 
-const int32 FModelMesh::GetIndexOfEdgeFromId(const int32 Ident) const
+const int32 CADKernel::FModelMesh::GetIndexOfEdgeFromId(const int32 Ident) const
 {
 	for (const TSharedPtr<FEdgeMesh>& EdgeMesh : EdgeMeshes)
 	{
@@ -84,7 +81,7 @@ const int32 FModelMesh::GetIndexOfEdgeFromId(const int32 Ident) const
 	return -1;
 }
 
-const int32 FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
+const int32 CADKernel::FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
 {
 	for (const TSharedPtr<FFaceMesh>& FaceMesh : FaceMeshes)
 	{
@@ -99,7 +96,7 @@ const int32 FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
 	return -1;
 }
 
-void FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
+void CADKernel::FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
 {
 	NodeCoordinates.Reserve(LastIdUsed);
 
@@ -109,7 +106,7 @@ void FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
 	}
 }
 
-void FModelMesh::GetNodeCoordinates(TArray<FVector>& NodeCoordinates) const
+void CADKernel::FModelMesh::GetNodeCoordinates(TArray<FVector>& NodeCoordinates) const
 {
 	NodeCoordinates.Reserve(LastIdUsed);
 
@@ -122,7 +119,7 @@ void FModelMesh::GetNodeCoordinates(TArray<FVector>& NodeCoordinates) const
 	}
 }
 
-const TArray<TSharedPtr<FMesh>>& FModelMesh::GetMeshes() const
+const TArray<TSharedPtr<CADKernel::FMesh>>& CADKernel::FModelMesh::GetMeshes() const
 {
 	if (FaceMeshes.Num())
 	{
@@ -135,7 +132,7 @@ const TArray<TSharedPtr<FMesh>>& FModelMesh::GetMeshes() const
 	return (TArray<TSharedPtr<FMesh>>&) VertexMeshes;
 }
 
-int32 FModelMesh::GetTriangleCount() const
+int32 CADKernel::FModelMesh::GetTriangleCount() const
 {
 	int32 TriangleCount = 0;
 	for (const TSharedPtr<FFaceMesh>& FaceMesh : FaceMeshes)

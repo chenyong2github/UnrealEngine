@@ -270,6 +270,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::PostEditChangeProperty(struct FPro
 				if (Node.AlphaInputType != EAnimAlphaInputType::Float)
 				{
 					Pin->BreakAllPinLinks();
+					PropertyBindings.Remove(Pin->PinName);
 				}
 			}
 			else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, bAlphaBoolEnabled))
@@ -277,6 +278,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::PostEditChangeProperty(struct FPro
 				if (Node.AlphaInputType != EAnimAlphaInputType::Bool)
 				{
 					Pin->BreakAllPinLinks();
+					PropertyBindings.Remove(Pin->PinName);
 				}
 			}
 			else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, AlphaCurveName))
@@ -284,6 +286,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::PostEditChangeProperty(struct FPro
 				if (Node.AlphaInputType != EAnimAlphaInputType::Curve)
 				{
 					Pin->BreakAllPinLinks();
+					PropertyBindings.Remove(Pin->PinName);
 				}
 			}
 		}

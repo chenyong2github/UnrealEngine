@@ -58,11 +58,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	FVector CursorWorldLocation;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	TArray<TObjectPtr<UActorComponent>> SelectedComponents;
 
 	/** If the ContextType is Viewport this property can be set to the HitProxy actor that triggered the ContextMenu. */
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	TObjectPtr<AActor> HitProxyActor = nullptr;
 };
 
@@ -83,6 +83,6 @@ class LEVELEDITOR_API UQuickActionMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(Transient)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	TObjectPtr<const UTypedElementSelectionSet> CurrentSelection;
 };

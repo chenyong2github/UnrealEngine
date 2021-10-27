@@ -167,9 +167,9 @@ class FSlateRenderBatch;
 struct FShaderParams
 {
 	/** Pixel shader parameters */
-	FVector4 PixelParams;
-	FVector4 PixelParams2;
-	FVector4 PixelParams3;
+	FVector4f PixelParams;
+	FVector4f PixelParams2;
+	FVector4f PixelParams3;
 
 	FShaderParams()
 		: PixelParams(0, 0, 0, 0)
@@ -177,7 +177,7 @@ struct FShaderParams
 		, PixelParams3(0, 0, 0, 0)
 	{}
 
-	FShaderParams(const FVector4& InPixelParams, const FVector4& InPixelParams2 = FVector4(0), const FVector4& InPixelParams3 = FVector4(0))
+	FShaderParams(const FVector4f& InPixelParams, const FVector4f& InPixelParams2 = FVector4f(0), const FVector4f& InPixelParams3 = FVector4f(0))
 		: PixelParams(InPixelParams)
 		, PixelParams2(InPixelParams2)
 		, PixelParams3(InPixelParams3)
@@ -188,7 +188,7 @@ struct FShaderParams
 		return PixelParams == Other.PixelParams && PixelParams2 == Other.PixelParams2 && PixelParams3 == Other.PixelParams3;
 	}
 
-	static FShaderParams MakePixelShaderParams(const FVector4& PixelShaderParams, const FVector4& InPixelShaderParams2 = FVector4(0), const FVector4& InPixelShaderParams3 = FVector4(0))
+	static FShaderParams MakePixelShaderParams(const FVector4f& PixelShaderParams, const FVector4f& InPixelShaderParams2 = FVector4f(0), const FVector4f& InPixelShaderParams3 = FVector4f(0))
 	{
 		return FShaderParams(PixelShaderParams, InPixelShaderParams2, InPixelShaderParams3);
 	}
@@ -249,7 +249,7 @@ public:
 	}
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector4 InTexCoords, const FVector2D InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector4f InTexCoords, const FVector2D InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -263,7 +263,7 @@ public:
 	}
 
 	template<ESlateVertexRounding Rounding>
-	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector2D InLocalSize, float Scale, const FVector4 InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2D InLocalPosition, const FVector2D InLocalSize, float Scale, const FVector4f InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -289,7 +289,7 @@ public:
 		return Vertex;
 	}
 
-	void SetTexCoords(const FVector4 InTexCoords)
+	void SetTexCoords(const FVector4f InTexCoords)
 	{
 		TexCoords[0] = InTexCoords.X;
 		TexCoords[1] = InTexCoords.Y;
@@ -919,7 +919,7 @@ public:
 	virtual void BindStreamSource(class FRHICommandList& RHICmdList, int32 StreamIndex, uint32 InstanceOffset) = 0;
 };
 
-typedef TArray<FVector4> FSlateInstanceBufferData;
+typedef TArray<FVector4f> FSlateInstanceBufferData;
 
 /**
  * Represents a per instance data buffer for a custom Slate mesh element.

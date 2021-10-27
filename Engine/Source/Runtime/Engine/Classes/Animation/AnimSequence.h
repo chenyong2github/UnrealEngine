@@ -947,6 +947,9 @@ private:
 
 	void GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
+	/** Returns whether or not evaluation of the raw (source) animation data is possible according to whether or not the (editor only) data has been stripped */
+	bool CanEvaluateRawAnimationData() const;
+
 #if WITH_EDITOR
 	/**
 	 * Remap Tracks to New Skeleton

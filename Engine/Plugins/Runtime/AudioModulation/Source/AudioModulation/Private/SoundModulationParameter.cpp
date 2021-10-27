@@ -29,38 +29,31 @@ bool USoundModulationParameterFrequencyBase::RequiresUnitConversion() const
 	return true;
 }
 
-Audio::FModulationUnitConvertFunction USoundModulationParameterFrequencyBase::GetUnitConversionFunction() const
+Audio::FModulationUnitConversionFunction USoundModulationParameterFrequencyBase::GetUnitConversionFunction() const
 {
-	const float InUnitMin = GetUnitMin();
-	const float InUnitMax = GetUnitMax();
-	return [InUnitMin, InUnitMax](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = GetUnitMin(), InUnitMax = GetUnitMax()](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = Audio::GetLogFrequencyClamped(OutValueBuffer[i], FVector2D(0.0f, 1.0f), FVector2D(InUnitMin, InUnitMax));
-		}
+		static const FVector2D Domain(0.0f, 1.0f);
+		const FVector2D Range(InUnitMin, InUnitMax);
+		InOutValue = Audio::GetLogFrequencyClamped(InOutValue, Domain, Range);
 	};
 }
 
 Audio::FModulationNormalizedConversionFunction USoundModulationParameterFrequencyBase::GetNormalizedConversionFunction() const
 {
-	return [InUnitMin = GetUnitMin(), InUnitMax = GetUnitMax()](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = GetUnitMin(), InUnitMax = GetUnitMax()](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = Audio::GetLinearFrequencyClamped(OutValueBuffer[i], FVector2D(0.0f, 1.0f), FVector2D(InUnitMin, InUnitMax));
-		}
+		static const FVector2D Domain(0.0f, 1.0f);
+		const FVector2D Range(InUnitMin, InUnitMax);
+		InOutValue = Audio::GetLinearFrequencyClamped(InOutValue, Domain, Range);
 	};
 }
 
 Audio::FModulationMixFunction USoundModulationParameterHPFFrequency::GetMixFunction() const
 {
-	return [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
+	return [](float& InOutValue, float InValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = FMath::Max(OutValueBuffer[i], InValueBuffer[i]);
-		}
+		InOutValue = FMath::Max(InOutValue, InValue);
 	};
 }
 
@@ -76,12 +69,9 @@ USoundModulationParameterHPFFrequency::USoundModulationParameterHPFFrequency(con
 
 Audio::FModulationMixFunction USoundModulationParameterLPFFrequency::GetMixFunction() const
 {
-	return [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
+	return [](float& InOutValueA, float InValueB)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = FMath::Min(OutValueBuffer[i], InValueBuffer[i]);
-		}
+		InOutValueA = FMath::Min(InOutValueA, InValueB);
 	};
 }
 
@@ -90,26 +80,20 @@ bool USoundModulationParameterScaled::RequiresUnitConversion() const
 	return true;
 }
 
-Audio::FModulationUnitConvertFunction USoundModulationParameterScaled::GetUnitConversionFunction() const
+Audio::FModulationUnitConversionFunction USoundModulationParameterScaled::GetUnitConversionFunction() const
 {
-	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = FMath::Lerp(InUnitMin, InUnitMax, OutValueBuffer[i]);
-		}
+		InOutValue = FMath::Lerp(InUnitMin, InUnitMax, InOutValue);
 	};
 }
 
 Audio::FModulationNormalizedConversionFunction USoundModulationParameterScaled::GetNormalizedConversionFunction() const
 {
-	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float& InOutValue)
 	{
 		const float Denom = FMath::Max(SMALL_NUMBER, InUnitMax - InUnitMin);
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = (OutValueBuffer[i] - InUnitMin) / Denom;
-		}
+		InOutValue = (InOutValue - InUnitMin) / Denom;
 	};
 }
 
@@ -140,34 +124,25 @@ bool USoundModulationParameterBipolar::RequiresUnitConversion() const
 
 Audio::FModulationMixFunction USoundModulationParameterBipolar::GetMixFunction() const
 {
-	return [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
+	return [](float& InOutValueA, float InValueB)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] += InValueBuffer[i] - 0.5f;
-		}
+		InOutValueA += InValueB - 0.5f;
 	};
 }
 
-Audio::FModulationUnitConvertFunction USoundModulationParameterBipolar::GetUnitConversionFunction() const
+Audio::FModulationUnitConversionFunction USoundModulationParameterBipolar::GetUnitConversionFunction() const
 {
-	return [InUnitRange = UnitRange](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitRange = UnitRange](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = (InUnitRange * OutValueBuffer[i]) - (0.5f * InUnitRange);
-		}
+		InOutValue = (InUnitRange * InOutValue) - (0.5f * InUnitRange);
 	};
 }
 
 Audio::FModulationNormalizedConversionFunction USoundModulationParameterBipolar::GetNormalizedConversionFunction() const
 {
-	return [InUnitRange = UnitRange](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitRange = UnitRange](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = 0.5f + (OutValueBuffer[i] / FMath::Max(InUnitRange, SMALL_NUMBER));
-		}
+		InOutValue = 0.5f + (InOutValue / FMath::Max(InUnitRange, SMALL_NUMBER));
 	};
 }
 
@@ -186,29 +161,23 @@ bool USoundModulationParameterVolume::RequiresUnitConversion() const
 	return true;
 }
 
-Audio::FModulationUnitConvertFunction USoundModulationParameterVolume::GetUnitConversionFunction() const
+Audio::FModulationUnitConversionFunction USoundModulationParameterVolume::GetUnitConversionFunction() const
 {
-	return [InUnitMin = GetUnitMin()](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = GetUnitMin()](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = OutValueBuffer[i] > 0.0f
-				? Audio::ConvertToDecibels(OutValueBuffer[i])
-				: InUnitMin;
-		}
+		InOutValue = InOutValue > 0.0f
+			? Audio::ConvertToDecibels(InOutValue)
+			: InUnitMin;
 	};
 }
 
 Audio::FModulationNormalizedConversionFunction USoundModulationParameterVolume::GetNormalizedConversionFunction() const
 {
-	return [InUnitMin = GetUnitMin()](float* RESTRICT OutValueBuffer, int32 InNumSamples)
+	return [InUnitMin = GetUnitMin()](float& InOutValue)
 	{
-		for (int32 i = 0; i < InNumSamples; ++i)
-		{
-			OutValueBuffer[i] = OutValueBuffer[i] < InUnitMin
-				? 0.0f
-				: Audio::ConvertToLinear(OutValueBuffer[i]);
-		}
+		InOutValue = InOutValue < InUnitMin
+			? 0.0f
+			: Audio::ConvertToLinear(InOutValue);
 	};
 }
 

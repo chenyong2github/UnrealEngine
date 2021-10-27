@@ -258,7 +258,7 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FGoogleVRHMDPlugin::C
 /////////////////////////////////////
 FGoogleVRHMD::FGoogleVRHMD(const FAutoRegister& AutoRegister)
 	: FHeadMountedDisplayBase(nullptr)
-	, FSceneViewExtensionBase(AutoRegister)
+	, FHMDSceneViewExtension(AutoRegister)
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
 	, CustomPresent(nullptr)
 #endif
@@ -1190,7 +1190,7 @@ void FGoogleVRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICm
 bool FGoogleVRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
-	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
+	return FHMDSceneViewExtension::IsActiveThisFrame_Internal(Context);
 #else
 	return false;
 #endif

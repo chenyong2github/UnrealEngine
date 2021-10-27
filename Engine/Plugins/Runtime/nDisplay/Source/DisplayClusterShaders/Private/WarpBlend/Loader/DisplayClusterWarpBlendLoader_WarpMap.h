@@ -30,7 +30,7 @@ public:
 		return Height;
 	}
 
-	const FVector4* GetWarpData() const
+	const FVector4f* GetWarpData() const
 	{
 		return WarpData;
 	}
@@ -48,7 +48,7 @@ protected:
 protected:
 	int32 Width = 0;
 	int32 Height = 0;
-	FVector4* WarpData = nullptr;
+	FVector4f* WarpData = nullptr;
 };
 
 class FDisplayClusterWarpBlendLoader_WarpMap

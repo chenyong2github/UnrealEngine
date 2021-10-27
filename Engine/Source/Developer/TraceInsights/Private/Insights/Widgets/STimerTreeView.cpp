@@ -168,23 +168,13 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 	const int32 NumSelectedNodes = SelectedNodes.Num();
 	FTimerNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
-
 	FText SelectionStr;
-	FText PropertyName;
-	FText PropertyValue;
-
 	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
 	else if (NumSelectedNodes == 1)
 	{
-		if (HoveredColumnPtr != nullptr)
-		{
-			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
-		}
 		FString ItemName = SelectedNode->GetName().ToString();
 		const int32 MaxStringLen = 64;
 		if (ItemName.Len() > MaxStringLen)
@@ -195,7 +185,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 	}
 	else
 	{
-		SelectionStr = LOCTEXT("MultipleSelection", "Multiple selection");
+		SelectionStr = FText::Format(LOCTEXT("MultipleSelection_Fmt", "{0} selected items"), FText::AsNumber(NumSelectedNodes));
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -218,7 +208,10 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 		(
 			SelectionStr,
 			LOCTEXT("ContextMenu_Selection", "Currently selected items"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "@missing.icon"), DummyUIAction, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			DummyUIAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -313,7 +306,10 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			(
 				Column.GetTitleName(),
 				Column.GetDescription(),
-				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(),
+				Action_SortByColumn,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 		}
 	}
@@ -334,7 +330,10 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			Action_SortAscending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 
 		FUIAction Action_SortDescending
@@ -347,7 +346,10 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			Action_SortDescending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection();
@@ -373,7 +375,10 @@ void STimerTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 		(
 			Column.GetTitleName(),
 			Column.GetDescription(),
-			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
+			FSlateIcon(),
+			Action_ToggleColumn,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
@@ -434,7 +439,10 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 
 			bIsMenuVisible = true;
@@ -455,7 +463,10 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				Action_SortAscending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			FUIAction Action_SortDescending
@@ -468,7 +479,10 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				Action_SortDescending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			bIsMenuVisible = true;

@@ -207,7 +207,7 @@ namespace UE { namespace ConcurrentQueuesTests
 
 		const int32 NumProducers = FTaskGraphInterface::Get().GetNumWorkerThreads();
 		const uint32 NumPerProducer = Num / NumProducers;
-		TArray<FCounter> NumsProduced;
+		TArray<FCounter, TAlignedHeapAllocator<PLATFORM_CACHE_LINE_SIZE>> NumsProduced;
 		NumsProduced.AddDefaulted(NumProducers);
 		for (int32 i = 0; i != NumProducers; ++i)
 		{
@@ -619,7 +619,7 @@ namespace ClosableMpscQueueTests
 	template<uint32 Num, typename QueueType>
 	void TestPerf()
 	{
-		TArray<QueueType> Queues;
+		TArray<QueueType, TAlignedHeapAllocator<alignof(QueueType)>> Queues;
 		Queues.AddDefaulted(Num);
 		std::atomic<int> Index{ 0 };
 

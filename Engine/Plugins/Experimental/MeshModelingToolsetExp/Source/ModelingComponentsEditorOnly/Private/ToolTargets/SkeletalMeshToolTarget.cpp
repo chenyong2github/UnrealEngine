@@ -5,8 +5,12 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 using namespace UE::Geometry;
+
+#define LOCTEXT_NAMESPACE "SkeletalMeshToolTarget"
 
 namespace USkeletalMeshToolTargetLocals
 {
@@ -156,12 +160,12 @@ void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshI
 
 	if (SkeletalMeshIn->GetPathName().StartsWith(TEXT("/Engine/")))
 	{
-		const FString DebugMessage = FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *SkeletalMeshIn->GetPathName());
-		if (GAreScreenMessagesEnabled)
-		{
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, DebugMessage);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugMessage);
+		FText Error = FText::Format(LOCTEXT("CannotModifyBuiltInAssetError", "Cannot modify built-in engine asset: {0}"), FText::FromString(*SkeletalMeshIn->GetPathName()));
+		FNotificationInfo Info(Error);
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Error.ToString());
 		return;
 	}
 
@@ -230,3 +234,5 @@ UToolTarget* USkeletalMeshToolTargetFactory::BuildTarget(UObject* SourceObject, 
 
 	return Target;
 }
+
+#undef LOCTEXT_NAMESPACE

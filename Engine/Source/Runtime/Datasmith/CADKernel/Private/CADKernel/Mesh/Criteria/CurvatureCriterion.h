@@ -57,7 +57,7 @@ namespace CADKernel
 			return 0.;
 		}
 
-		virtual void ApplyOnEdgeParameters(TSharedRef<FTopologicalEdge> Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override
+		virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override
 		{
 			// Do nothing
 		}

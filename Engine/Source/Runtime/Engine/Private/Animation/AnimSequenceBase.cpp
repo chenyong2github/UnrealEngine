@@ -70,41 +70,52 @@ void UAnimSequenceBase::PostLoad()
 #if WITH_EDITORONLY_DATA
 	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 	{
-		const bool bRequiresModelCreation = DataModel == nullptr;
-		const bool bRequiresModelPopulation = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel;
-		// for now, allow filtered (cooked) packages to not have the DataModel, and recreate it. this is temporary until we come up with best solution (JIRA UE-130385)
-		checkf(bRequiresModelPopulation || DataModel != nullptr || GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly), TEXT("Invalid Animation Sequence base state, no data model found past upgrade object version"));
-
-		// Construct a new UAnimDataModel instance
-		if(bRequiresModelCreation)
+		auto PreloadSkeletonAndVerifyCurves = [this]()
 		{
-			CreateModel();
-		}
-
-		ValidateModel();
-		GetController();
-		BindToModelModificationEvent();
-
-		if (USkeleton* MySkeleton = GetSkeleton())
-		{
-			if (FLinkerLoad* SkeletonLinker = MySkeleton->GetLinker())
+			if (USkeleton* MySkeleton = GetSkeleton())
 			{
-				SkeletonLinker->Preload(MySkeleton);
+				if (FLinkerLoad* SkeletonLinker = MySkeleton->GetLinker())
+				{
+					SkeletonLinker->Preload(MySkeleton);
+				}
+				MySkeleton->ConditionalPostLoad();
+
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
+				VerifyCurveNames<FTransformCurve>(*MySkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
-			MySkeleton->ConditionalPostLoad();
-
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
-			VerifyCurveNames<FTransformCurve>(*MySkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-
-		GetController();
-		if (bRequiresModelPopulation)
+		};
+		
+		if(ShouldDataModelBeValid())
 		{
-			bPopulatingDataModel = true;
-			PopulateModel();
-			bPopulatingDataModel = false;
+			const bool bRequiresModelCreation = DataModel == nullptr;
+			const bool bRequiresModelPopulation = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel;
+			checkf(bRequiresModelPopulation || DataModel != nullptr, TEXT("Invalid Animation Sequence base state, no data model found past upgrade object version"));
+
+			// Construct a new UAnimDataModel instance
+			if(bRequiresModelCreation)
+			{
+				CreateModel();
+			}
+
+			ValidateModel();
+			GetController();
+			BindToModelModificationEvent();
+
+			PreloadSkeletonAndVerifyCurves();
+
+			GetController();
+			if (bRequiresModelPopulation)
+			{
+				bPopulatingDataModel = true;
+				PopulateModel();
+				bPopulatingDataModel = false;
+			}
+		}
+		else
+		{
+			PreloadSkeletonAndVerifyCurves();
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
@@ -127,47 +138,54 @@ void UAnimSequenceBase::PostLoad()
 		}
 	}
 
+#if WITH_EDITOR
+	InitializeNotifyTrack();
+#endif
 	RefreshCacheData();
 
 	if(USkeleton* MySkeleton = GetSkeleton())
 	{
 		const bool bDoNotTransactAction = false;
 #if WITH_EDITOR
-		if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves)
+		if (IsDataModelValid())
 		{
-			Controller->OpenBracket(LOCTEXT("FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves_Bracket","FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves"), bDoNotTransactAction);
+			if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves)
+			{
+				
+				Controller->OpenBracket(LOCTEXT("FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves_Bracket","FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves"), bDoNotTransactAction);
+				{
+					const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
+					for (int32 Index = 0; Index < FloatCurves.Num(); ++Index)
+					{
+						const FFloatCurve& Curve = FloatCurves[Index];
+						if (Curve.Name.DisplayName == NAME_None)
+						{
+							// give unique name
+							const FName UniqueName = FName(*FString(GetName() + TEXT("_CurveNameFix_") + FString::FromInt(Index)));
+							UE_LOG(LogAnimation, Warning, TEXT("[AnimSequence %s] contains invalid curve name \'None\'. Renaming this to %s. Please fix this curve in the editor. "), *GetFullName(), *Curve.Name.DisplayName.ToString());
+
+							FSmartName NewSmartName = Curve.Name;
+							NewSmartName.DisplayName = UniqueName;
+
+							Controller->RenameCurve(FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float), FAnimationCurveIdentifier(NewSmartName, ERawCurveTrackTypes::RCT_Float), bDoNotTransactAction);
+						}
+					}
+				}
+				Controller->CloseBracket(bDoNotTransactAction);
+			}
+			else
 			{
 				const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
 				for (int32 Index = 0; Index < FloatCurves.Num(); ++Index)
 				{
 					const FFloatCurve& Curve = FloatCurves[Index];
-					if (Curve.Name.DisplayName == NAME_None)
-					{
-						// give unique name
-						const FName UniqueName = FName(*FString(GetName() + TEXT("_CurveNameFix_") + FString::FromInt(Index)));
-						UE_LOG(LogAnimation, Warning, TEXT("[AnimSequence %s] contains invalid curve name \'None\'. Renaming this to %s. Please fix this curve in the editor. "), *GetFullName(), *Curve.Name.DisplayName.ToString());
-
-						FSmartName NewSmartName = Curve.Name;
-						NewSmartName.DisplayName = UniqueName;
-
-						Controller->RenameCurve(FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float), FAnimationCurveIdentifier(NewSmartName, ERawCurveTrackTypes::RCT_Float), bDoNotTransactAction);
-					}
+					ensureMsgf(Curve.Name.DisplayName != NAME_None, TEXT("[AnimSequencer %s] has invalid curve name."), *GetFullName());
 				}
 			}
-			Controller->CloseBracket(bDoNotTransactAction);
-		}
-		else
-		{
-			const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
-			for (int32 Index = 0; Index < FloatCurves.Num(); ++Index)
-			{
-				const FFloatCurve& Curve = FloatCurves[Index];
-				ensureMsgf(Curve.Name.DisplayName != NAME_None, TEXT("[AnimSequencer %s] has invalid curve name."), *GetFullName());
-			}
-		}
 
-		Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Float, bDoNotTransactAction);
-		Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Transform, bDoNotTransactAction);
+			Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Float, bDoNotTransactAction);
+			Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Transform, bDoNotTransactAction);
+		}
 #else
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
@@ -208,7 +226,7 @@ void UAnimSequenceBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	Super::PostDuplicate(DuplicateMode);
 
 #if WITH_EDITOR
-	if (ensure(DataModel))
+	if (IsDataModelValid())
 	{
 		BindToModelModificationEvent();
 	}
@@ -836,6 +854,7 @@ void UAnimSequenceBase::RefreshParentAssetData()
 
 	RateScale = ParentSeqBase->RateScale;
 
+	ValidateModel();
 	Controller->OpenBracket(LOCTEXT("RefreshParentAssetData_Bracket", "Refreshing Parent Asset Data"));
 	{
 		const UAnimDataModel* ParentDataModel = ParentSeqBase->GetDataModel();
@@ -922,13 +941,15 @@ const FRawCurveTracks& UAnimSequenceBase::GetCurveData() const
 bool UAnimSequenceBase::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const
 {
 #if WITH_EDITOR
-	ValidateModel();
-	return DataModel->FindFloatCurve(FAnimationCurveIdentifier(CurveUID, ERawCurveTrackTypes::RCT_Float)) != nullptr;
-#else
+	if (IsDataModelValid())
+	{
+		return DataModel->FindFloatCurve(FAnimationCurveIdentifier(CurveUID, ERawCurveTrackTypes::RCT_Float)) != nullptr;
+	}
+#endif
+	
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RawCurveData.GetCurveData(CurveUID) != nullptr;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 }
 
 void UAnimSequenceBase::Serialize(FArchive& Ar)
@@ -1207,7 +1228,6 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 
 UAnimDataModel* UAnimSequenceBase::GetDataModel() const
 {
-	ValidateModel();
 	return DataModel;
 }
 
@@ -1246,11 +1266,6 @@ void UAnimSequenceBase::PopulateModel()
 	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton,  *Controller);	
 }
 
-void UAnimSequenceBase::ValidateModel() const
-{
-	checkf(DataModel != nullptr, TEXT("Invalidate data model"));
-}
-
 void UAnimSequenceBase::BindToModelModificationEvent()
 {
 	ValidateModel();
@@ -1278,6 +1293,21 @@ void UAnimSequenceBase::CreateModel()
 	DataModel = NewObject<UAnimDataModel>(this, FName(TEXT("AnimationDataModel")));
 		
 	BindToModelModificationEvent();
+}
+
+void UAnimSequenceBase::ValidateModel() const
+{
+	checkf(DataModel != nullptr, TEXT("Invalid AnimSequenceBase state (%s), no data model found"), *GetPathName());
+}
+
+bool UAnimSequenceBase::ShouldDataModelBeValid() const
+{
+	return
+#if WITH_EDITOR
+		!GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly);
+#else
+		false;
+#endif
 }
 #endif // WITH_EDITOR
 

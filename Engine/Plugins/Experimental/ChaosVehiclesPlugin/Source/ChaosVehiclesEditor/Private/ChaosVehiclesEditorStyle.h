@@ -4,7 +4,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
-class FChaosVehiclesEditorStyle : public FSlateStyleSet
+class FChaosVehiclesEditorStyle final : public FSlateStyleSet
 {
 public:
 	FChaosVehiclesEditorStyle() : FSlateStyleSet("ChaosVehiclesEditorStyle")

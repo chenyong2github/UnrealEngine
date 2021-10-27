@@ -37,7 +37,7 @@ namespace ICUUtilities
 		if (SourceLen > 0)
 		{
 			// Get the internal buffer of the string, we're going to write to it directly
-			TArray<TCHAR>& InternalStringBuffer = Destination.GetCharArray();
+			TArray<TCHAR, FString::AllocatorType>& InternalStringBuffer = Destination.GetCharArray();
 			InternalStringBuffer.SetNumUninitialized(SourceLen + 1);
 
 			// Copy into the string buffer and terminate
@@ -105,7 +105,7 @@ namespace ICUUtilities
 			ucnv_reset(ICUConverter);
 
 			// Get the internal buffer of the string, we're going to use it as scratch space
-			TArray<TCHAR>& InternalStringBuffer = Destination.GetCharArray();
+			TArray<TCHAR, FString::AllocatorType>& InternalStringBuffer = Destination.GetCharArray();
 
 			// Work out the maximum size required and resize the buffer so it can hold enough data
 			const int32_t DestinationCapacityBytes = UCNV_GET_MAX_BYTES_FOR_STRING(SourceLen, ucnv_getMaxCharSize(ICUConverter));

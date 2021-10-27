@@ -242,6 +242,12 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 {
 	FMobileBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassUniformParameters>();
 	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, SetupMode, MobileBasePassTextures, *BasePassParameters);
+#if WITH_DEBUG_VIEW_MODES
+	if (View.Family->UseDebugViewPS())
+	{
+		SetupDebugViewModePassUniformBufferConstants(View, BasePassParameters->DebugViewMode);
+	}
+#endif
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 

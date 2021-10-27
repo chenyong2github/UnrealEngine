@@ -3,10 +3,9 @@
 #include "CADKernel/Geo/Surfaces/NURBSSurface.h"
 
 #include "CADKernel/Geo/GeoPoint.h"
+#include "CADKernel/Math/Aabb.h"
 
-using namespace CADKernel;
-
-TSharedPtr<FEntityGeom> FNURBSSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FNURBSSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<FPoint> TransformedPoles;
 	TransformedPoles.Reserve(Poles.Num());
@@ -20,7 +19,7 @@ TSharedPtr<FEntityGeom> FNURBSSurface::ApplyMatrix(const FMatrixH& InMatrix) con
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FNURBSSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FNURBSSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("Degre"), UDegree, VDegree)
@@ -33,8 +32,13 @@ FInfoEntity& FNURBSSurface::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FNURBSSurface::Finalize()
+void CADKernel::FNURBSSurface::Finalize()
 {
+	if (bIsRational && Weights.IsEmpty())
+	{
+		bIsRational = false;
+	}
+
 	if (bIsRational)
 	{
 		const double FirstWeigth = Weights[0];
@@ -88,7 +92,7 @@ void FNURBSSurface::Finalize()
 	SetMinToleranceIso();
 }
 
-void FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData)
+void CADKernel::FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData)
 {
 	bIsRational = NurbsData.bIsRational;
 
@@ -132,5 +136,41 @@ void FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData)
 	Finalize();
 }
 
+void CADKernel::FNURBSSurface::SetMinToleranceIso()
+{
+	double LengthU = 0;
+	double LengthV = 0;
 
+	for (int32 IndexV = 0, Index = 0; IndexV < PoleVCount; IndexV++)
+	{
+		FAABB ControlPolygonAABB;
+		for (int32 IndexU = 0; IndexU < PoleUCount; IndexU++, Index++)
+		{
+			ControlPolygonAABB += Poles[Index];
+		}
+		double Length = ControlPolygonAABB.DiagonalLength();
+		if (Length > LengthU)
+		{
+			LengthU = Length;
+		}
+	}
 
+	for (int32 IndexU = 0; IndexU < PoleUCount; IndexU++)
+	{
+		FAABB ControlPolygonAABB;
+		for (int32 IndexV = 0, Index = IndexU; IndexV < PoleVCount; IndexV++, Index += PoleUCount)
+		{
+			ControlPolygonAABB += Poles[Index];
+		}
+		double Length = ControlPolygonAABB.DiagonalLength();
+		if (Length > LengthV)
+		{
+			LengthV = Length;
+		}
+	}
+
+	double ToleranceU = Tolerance3D * Boundary[EIso::IsoU].Length() / LengthU * 0.1;
+	double ToleranceV = Tolerance3D * Boundary[EIso::IsoV].Length() / LengthV * 0.1;
+
+	MinToleranceIso.Set(ToleranceU, ToleranceV);
+}

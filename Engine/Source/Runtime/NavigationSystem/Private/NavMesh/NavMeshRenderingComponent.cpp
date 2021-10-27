@@ -248,7 +248,7 @@ namespace FNavMeshRenderingHelpers
 		MeshBuilders.Add(DebugMeshData);
 	}
 
-	void AddRecastGeometry(TArray<FVector>& OutVertexBuffer, TArray<uint32>& OutIndexBuffer, const float* Coords, int32 NumVerts, const int32* Faces, int32 NumFaces, const FTransform& Transform = FTransform::Identity)
+	void AddRecastGeometry(TArray<FVector>& OutVertexBuffer, TArray<uint32>& OutIndexBuffer, const FVector::FReal* Coords, int32 NumVerts, const int32* Faces, int32 NumFaces, const FTransform& Transform = FTransform::Identity)
 	{
 		const int32 VertIndexBase = OutVertexBuffer.Num();
 		for (int32 VertIdx = 0; VertIdx < NumVerts * 3; VertIdx += 3)

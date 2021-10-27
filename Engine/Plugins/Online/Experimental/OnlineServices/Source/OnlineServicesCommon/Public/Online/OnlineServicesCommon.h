@@ -31,8 +31,10 @@ public:
 	// IOnlineServices
 	virtual void Init() override;
 	virtual void Destroy() override;
+	virtual FAccountId CreateAccountId(FString&& InAccountIdString) override;
 	virtual IAuthPtr GetAuthInterface() override;
 	virtual IFriendsPtr GetFriendsInterface() override;
+	virtual IPresencePtr GetPresenceInterface() override;
 
 	// FOnlineServicesCommon
 

@@ -96,7 +96,7 @@ void SaveAsset(UObject* InObject)
 	double StartTime = FPlatformTime::Seconds();
 
 	UMetaData *MetaData = Package->GetMetaData();
-	UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+	UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError | SAVE_Async);
 
 	double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogTakesCore, Log, TEXT("Saved %s in %0.2f seconds"), *PackageName, ElapsedTime);

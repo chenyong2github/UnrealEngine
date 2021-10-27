@@ -32,6 +32,11 @@ void FOnlineServicesCommon::Destroy()
 	Shutdown();
 }
 
+FAccountId FOnlineServicesCommon::CreateAccountId(FString&& InAccountIdString)
+{
+	return FAccountId();
+}
+
 IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 {
 	return IAuthPtr(AsShared(), Get<IAuth>());
@@ -40,6 +45,11 @@ IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 IFriendsPtr FOnlineServicesCommon::GetFriendsInterface()
 {
 	return IFriendsPtr(AsShared(), Get<IFriends>());
+}
+
+IPresencePtr FOnlineServicesCommon::GetPresenceInterface()
+{
+	return IPresencePtr(AsShared(), Get<IPresence>());
 }
 
 void FOnlineServicesCommon::RegisterComponents()

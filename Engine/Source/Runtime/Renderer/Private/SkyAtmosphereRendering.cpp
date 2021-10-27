@@ -18,6 +18,7 @@
 #include "VolumetricCloudRendering.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "RendererUtils.h"
+#include "ScreenPass.h"
 
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -1973,13 +1974,12 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBu
 
 
 
-/*=============================================================================
-	FDeferredShadingSceneRenderer functions
-=============================================================================*/
+bool ShouldRenderSkyAtmosphereDebugPasses(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
+{
+	return EngineShowFlags.VisualizeSkyAtmosphere && ShouldRenderSkyAtmosphere(Scene, EngineShowFlags);
+}
 
-
-
-void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth)
+FScreenPassTexture AddSkyAtmosphereDebugPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FSceneViewFamily& ViewFamily, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor)
 {
 #if WITH_EDITOR
 	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
@@ -2001,98 +2001,88 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRDGBuilder& GraphB
 		FRDGTextureRef MultiScatteredLuminanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetMultiScatteredLuminanceLutTexture());
 
 		FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-		FRHIDepthStencilState* DepthStencilStateWrite = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+		FRHIDepthStencilState* DepthStencilStateWrite = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		// Render the sky and atmosphere on the scene luminance buffer
 		{
-			FViewInfo& View = Views[ViewIndex];
+			FRenderDebugSkyAtmospherePS::FPermutationDomain PermutationVector;
+			TShaderMapRef<FRenderDebugSkyAtmospherePS> PixelShader(View.ShaderMap, PermutationVector);
 
-			// Render the sky and atmosphere on the scene luminance buffer
-			{
-				FRenderDebugSkyAtmospherePS::FPermutationDomain PermutationVector;
-				TShaderMapRef<FRenderDebugSkyAtmospherePS> PixelShader(View.ShaderMap, PermutationVector);
+			FRenderDebugSkyAtmospherePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderDebugSkyAtmospherePS::FParameters>();
+			PassParameters->Atmosphere = SkyInfo.GetAtmosphereUniformBuffer();
+			PassParameters->SkyAtmosphere = SkyInfo.GetInternalCommonParametersUniformBuffer();
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenPassSceneColor.Texture, ERenderTargetLoadAction::ELoad);
+			PassParameters->TransmittanceLutTextureSampler = SamplerLinearClamp;
+			PassParameters->MultiScatteredLuminanceLutTextureSampler = SamplerLinearClamp;
+			PassParameters->TransmittanceLutTexture = TransmittanceLut;
+			PassParameters->MultiScatteredLuminanceLutTexture = MultiScatteredLuminanceLut;
+			PassParameters->ViewPortWidth = float(View.ViewRect.Width());
+			PassParameters->ViewPortHeight = float(View.ViewRect.Height());
 
-				FRenderDebugSkyAtmospherePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderDebugSkyAtmospherePS::FParameters>();
-				PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
-				PassParameters->SkyAtmosphere = SkyInfo.GetInternalCommonParametersUniformBuffer();
-				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-				PassParameters->TransmittanceLutTextureSampler = SamplerLinearClamp;
-				PassParameters->MultiScatteredLuminanceLutTextureSampler = SamplerLinearClamp;
-				PassParameters->TransmittanceLutTexture = TransmittanceLut;
-				PassParameters->MultiScatteredLuminanceLutTexture = MultiScatteredLuminanceLut;
-				PassParameters->ViewPortWidth = float(View.ViewRect.Width());
-				PassParameters->ViewPortHeight = float(View.ViewRect.Height());
-
-				FPixelShaderUtils::AddFullscreenPass<FRenderDebugSkyAtmospherePS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("SkyAtmosphere"), PixelShader, PassParameters,
-					View.ViewRect, PreMultipliedColorTransmittanceBlend, nullptr, DepthStencilStateWrite);
-			}
+			FPixelShaderUtils::AddFullscreenPass<FRenderDebugSkyAtmospherePS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("SkyAtmosphere"), PixelShader, PassParameters,
+				View.ViewRect, PreMultipliedColorTransmittanceBlend, nullptr, DepthStencilStateWrite);
 		}
 	}
 
 	// Now debug print
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	AddDrawCanvasPass(GraphBuilder, {}, View, FScreenPassRenderTarget(ScreenPassSceneColor, ERenderTargetLoadAction::ELoad),
+		[bSkyAtmosphereVisualizeShowFlag, &View, &Atmosphere](FCanvas& Canvas)
 	{
-		FViewInfo& View = Views[ViewIndex];
+		FLinearColor TextColor(FLinearColor::White);
+		FLinearColor GrayTextColor(FLinearColor::Gray);
+		FLinearColor WarningColor(1.0f, 0.5f, 0.0f);
+		FString Text;
 
-		AddDrawCanvasPass(GraphBuilder, {}, View, FScreenPassRenderTarget(SceneColor, View.ViewRect, ERenderTargetLoadAction::ELoad),
-			[bSkyAtmosphereVisualizeShowFlag, &View, &Atmosphere](FCanvas& Canvas)
+		const float ViewPortWidth = float(View.ViewRect.Width());
+		const float ViewPortHeight = float(View.ViewRect.Height());
+
+		if (bSkyAtmosphereVisualizeShowFlag)
 		{
-			FLinearColor TextColor(FLinearColor::White);
-			FLinearColor GrayTextColor(FLinearColor::Gray);
-			FLinearColor WarningColor(1.0f, 0.5f, 0.0f);
-			FString Text;
-
-			const float ViewPortWidth = float(View.ViewRect.Width());
-			const float ViewPortHeight = float(View.ViewRect.Height());
-
-			if (bSkyAtmosphereVisualizeShowFlag)
+			const float ViewPlanetAltitude = (View.ViewLocation * FAtmosphereSetup::CmToSkyUnit - Atmosphere.PlanetCenterKm).Size() - Atmosphere.BottomRadiusKm;
+			const bool bViewUnderGroundLevel = ViewPlanetAltitude < 0.0f;
+			if (bViewUnderGroundLevel)
 			{
-				const float ViewPlanetAltitude = (View.ViewLocation * FAtmosphereSetup::CmToSkyUnit - Atmosphere.PlanetCenterKm).Size() - Atmosphere.BottomRadiusKm;
-				const bool bViewUnderGroundLevel = ViewPlanetAltitude < 0.0f;
-				if (bViewUnderGroundLevel)
-				{
-					Text = FString::Printf(TEXT("SkyAtmosphere: View is %.3f km under the planet ground level!"), -ViewPlanetAltitude);
-					Canvas.DrawShadowedString(ViewPortWidth * 0.5 - 250.0f, ViewPortHeight * 0.5f, *Text, GetStatsFont(), WarningColor);
-				}
-
-				// This needs to stay in sync with RenderSkyAtmosphereDebugPS.
-				const float DensityViewTop = ViewPortHeight * 0.1f;
-				const float DensityViewBottom = ViewPortHeight * 0.8f;
-				const float DensityViewLeft = ViewPortWidth * 0.8f;
-				const float Margin = 2.0f;
-				const float TimeOfDayViewHeight = 64.0f;
-				const float TimeOfDayViewTop = ViewPortHeight - (TimeOfDayViewHeight + Margin * 2.0);
-				const float HemiViewHeight = ViewPortWidth * 0.25f;
-				const float HemiViewTop = ViewPortHeight - HemiViewHeight - TimeOfDayViewHeight - Margin * 2.0;
-
-				Text = FString::Printf(TEXT("Atmosphere top = %.1f km"), Atmosphere.TopRadiusKm - Atmosphere.BottomRadiusKm);
-				Canvas.DrawShadowedString(DensityViewLeft, DensityViewTop, *Text, GetStatsFont(), TextColor);
-				Text = FString::Printf(TEXT("Rayleigh extinction"));
-				Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 30.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Red));
-				Text = FString::Printf(TEXT("Mie extinction"));
-				Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 45.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Green));
-				Text = FString::Printf(TEXT("Absorption"));
-				Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 60.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Blue));
-				Text = FString::Printf(TEXT("<=== Low visual contribution"));
-				Canvas.DrawShadowedString(DensityViewLeft + 2.0, DensityViewTop + 150.0f, *Text, GetStatsFont(), GrayTextColor);
-				Text = FString::Printf(TEXT("High visual contribution ===>"));
-				Canvas.DrawShadowedString(ViewPortWidth - 170.0f, DensityViewTop + 166.0f, *Text, GetStatsFont(), GrayTextColor);
-				Text = FString::Printf(TEXT("Ground level"));
-				Canvas.DrawShadowedString(DensityViewLeft, DensityViewBottom, *Text, GetStatsFont(), TextColor);
-
-				Text = FString::Printf(TEXT("Time-of-day preview"));
-				Canvas.DrawShadowedString(ViewPortWidth * 0.5f - 80.0f, TimeOfDayViewTop, *Text, GetStatsFont(), TextColor);
-
-				Text = FString::Printf(TEXT("Hemisphere view"));
-				Canvas.DrawShadowedString(Margin, HemiViewTop, *Text, GetStatsFont(), TextColor);
+				Text = FString::Printf(TEXT("SkyAtmosphere: View is %.3f km under the planet ground level!"), -ViewPlanetAltitude);
+				Canvas.DrawShadowedString(ViewPortWidth * 0.5 - 250.0f, ViewPortHeight * 0.5f, *Text, GetStatsFont(), WarningColor);
 			}
-		});
-	}
+
+			// This needs to stay in sync with RenderSkyAtmosphereDebugPS.
+			const float DensityViewTop = ViewPortHeight * 0.1f;
+			const float DensityViewBottom = ViewPortHeight * 0.8f;
+			const float DensityViewLeft = ViewPortWidth * 0.8f;
+			const float Margin = 2.0f;
+			const float TimeOfDayViewHeight = 64.0f;
+			const float TimeOfDayViewTop = ViewPortHeight - (TimeOfDayViewHeight + Margin * 2.0);
+			const float HemiViewHeight = ViewPortWidth * 0.25f;
+			const float HemiViewTop = ViewPortHeight - HemiViewHeight - TimeOfDayViewHeight - Margin * 2.0;
+
+			Text = FString::Printf(TEXT("Atmosphere top = %.1f km"), Atmosphere.TopRadiusKm - Atmosphere.BottomRadiusKm);
+			Canvas.DrawShadowedString(DensityViewLeft, DensityViewTop, *Text, GetStatsFont(), TextColor);
+			Text = FString::Printf(TEXT("Rayleigh extinction"));
+			Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 30.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Red));
+			Text = FString::Printf(TEXT("Mie extinction"));
+			Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 45.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Green));
+			Text = FString::Printf(TEXT("Absorption"));
+			Canvas.DrawShadowedString(DensityViewLeft + 60.0f, DensityViewTop + 60.0f, *Text, GetStatsFont(), FLinearColor(FLinearColor::Blue));
+			Text = FString::Printf(TEXT("<=== Low visual contribution"));
+			Canvas.DrawShadowedString(DensityViewLeft + 2.0, DensityViewTop + 150.0f, *Text, GetStatsFont(), GrayTextColor);
+			Text = FString::Printf(TEXT("High visual contribution ===>"));
+			Canvas.DrawShadowedString(ViewPortWidth - 170.0f, DensityViewTop + 166.0f, *Text, GetStatsFont(), GrayTextColor);
+			Text = FString::Printf(TEXT("Ground level"));
+			Canvas.DrawShadowedString(DensityViewLeft, DensityViewBottom, *Text, GetStatsFont(), TextColor);
+
+			Text = FString::Printf(TEXT("Time-of-day preview"));
+			Canvas.DrawShadowedString(ViewPortWidth * 0.5f - 80.0f, TimeOfDayViewTop, *Text, GetStatsFont(), TextColor);
+
+			Text = FString::Printf(TEXT("Hemisphere view"));
+			Canvas.DrawShadowedString(Margin, HemiViewTop, *Text, GetStatsFont(), TextColor);
+		}
+	});
 
 #endif
+	return MoveTemp(ScreenPassSceneColor);
 }
 
 

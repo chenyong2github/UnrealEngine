@@ -45,7 +45,7 @@ namespace Private
 /** InOutResult = Value, but without shrinking the string to fit. */
 void AssignStringWithoutShrinking(FString& InOutResult, FStringView Value)
 {
-	TArray<TCHAR>& Result = InOutResult.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& Result = InOutResult.GetCharArray();
 	if (Value.IsEmpty())
 	{
 		Result.Reset();
@@ -132,7 +132,9 @@ FScanDir::FScanDir(FMountDir& InMountDir, FScanDir* InParent, FStringView InRelP
 	, Parent(InParent)
 	, RelPath(InRelPath)
 {
-	InMountDir.GetDiscovery().NumDirectoriesToScan.Increment();
+	FAssetDataDiscovery& Discovery = InMountDir.GetDiscovery();
+	Discovery.NumDirectoriesToScan.Increment();
+	UE_CLOG(Discovery.bIsIdle, LogAssetRegistry, Warning, TEXT("AssetDataGatherer: FScanDir is constructed while bIsIdle=true."));
 }
 
 FScanDir::~FScanDir()
@@ -752,6 +754,23 @@ void FScanDir::Update(FScanDir*& OutCursor, FInherited& InOutParentData)
 	// After calling SetComplete, this may have been removed from tree and should no longer run calculations
 }
 
+FScanDir* FScanDir::GetFirstIncompleteScanDir()
+{
+	for (const TRefCountPtr<FScanDir>& SubDir : SubDirs)
+	{
+		FScanDir* Result = SubDir->GetFirstIncompleteScanDir();
+		if (Result)
+		{
+			return Result;
+		}
+	}
+	if (!bIsComplete)
+	{
+		return this;
+	}
+	return nullptr;
+}
+
 bool FScanDir::IsScanInFlight() const
 {
 	return bScanInFlight;
@@ -840,7 +859,9 @@ void FScanDir::SetComplete(bool bInIsComplete)
 	}
 	else
 	{
-		MountDir->GetDiscovery().NumDirectoriesToScan.Increment();
+		FAssetDataDiscovery& Discovery = MountDir->GetDiscovery();
+		Discovery.NumDirectoriesToScan.Increment();
+		UE_CLOG(Discovery.bIsIdle, LogAssetRegistry, Warning, TEXT("AssetDataGatherer: SetComplete(false) is called while bIsIdle=true."));
 	}
 }
 
@@ -1148,6 +1169,11 @@ void FMountDir::Update(FScanDir*& OutCursor, FScanDir::FInherited& OutParentData
 	Root->Update(OutCursor, OutParentData);
 }
 
+FScanDir* FMountDir::GetFirstIncompleteScanDir()
+{
+	return Root->GetFirstIncompleteScanDir();
+}
+
 void FMountDir::SetHasStartedScanning()
 {
 	bHasStartedScanning = true;
@@ -1414,11 +1440,27 @@ void FAssetDataDiscovery::TickInternal()
 				if (!NewCursor)
 				{
 					SetIsIdle(true);
+					int32 LocalNumDirectoriesToScan = NumDirectoriesToScan.GetValue();
+					if (LocalNumDirectoriesToScan != 0)
+					{
+						FScanDir* Incomplete = nullptr;
+						for (TUniquePtr<FMountDir>& MountDir : MountDirs)
+						{
+							Incomplete = MountDir->GetFirstIncompleteScanDir();
+							if (Incomplete)
+							{
+								break;
+							}
+						}
+						UE_LOG(LogAssetRegistry, Warning, TEXT("FAssetDataDiscovery::SetIsIdle(true) called when NumDirectoriesToScan == %d.\n")
+							TEXT("First incomplete scandir: %s"), LocalNumDirectoriesToScan, Incomplete ? *Incomplete->GetLocalAbsPath() : TEXT("<NoneFound>"));
+					}
 					return;
 				}
 			}
 			if (Cursor->ShouldScan(CursorParentData))
 			{
+				SetIsIdle(false);
 				break;
 			}
 
@@ -1638,6 +1680,11 @@ void FAssetDataDiscovery::GetAndTrimSearchResults(bool& bOutIsComplete, TArray<F
 
 	OutNumPathsToSearch = NumDirectoriesToScan.GetValue();
 	bOutIsComplete = bIsIdle;
+	if (bIsIdle && OutNumPathsToSearch != 0)
+	{
+		UE_LOG(LogAssetRegistry, Warning, TEXT("FAssetDataDiscovery::GetAndTrimSearchResults is returning bIsIdle=true while OutNumPathsToSearch=%d."),
+			OutNumPathsToSearch);
+	}
 }
 
 void FAssetDataDiscovery::WaitForIdle()
@@ -1849,11 +1896,11 @@ bool FAssetDataDiscovery::TrySetDirectoryProperties(const FString& LocalAbsPath,
 	}
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 	FGathererScopeLock TreeScopeLock(&TreeLock);
+	SetIsIdle(false);
 	if (!TrySetDirectoryPropertiesInternal(LocalAbsPath, InProperties, bConfirmedExists))
 	{
 		return false;
 	}
-	SetIsIdle(false);
 	InvalidateCursor();
 	return true;
 }
@@ -2111,8 +2158,8 @@ void FAssetDataDiscovery::OnDirectoryCreated(FStringView LocalAbsPath)
 	// Any files and paths under it will be added by their own event from the directory watcher, so a scan is unnecessary.
 	// The directory may also be scanned in the future because a parent directory is still yet pending to scan,
 	// we do not try to prevent that wasteful rescan because this is a rare event and it does not cause a behavior problem
-	AddDiscovered(DirData.LocalAbsPath, TConstArrayView<FDiscoveredPathData>(&DirData, 1), TConstArrayView<FDiscoveredPathData>());
 	SetIsIdle(false);
+	AddDiscovered(DirData.LocalAbsPath, TConstArrayView<FDiscoveredPathData>(&DirData, 1), TConstArrayView<FDiscoveredPathData>());
 }
 
 void FAssetDataDiscovery::OnFilesCreated(TConstArrayView<FString> LocalAbsPaths)

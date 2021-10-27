@@ -82,9 +82,9 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	 * @param NavMeshImpl		Recast navmesh implementation.
 	 * @param Offset			Offset in tile coordinates.
 	 * @param RotationDeg		Rotation in degrees.
-     * @param RotationCenter	World position in float.
+	 * @param RotationCenter	World position
 	 */
-	void MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const float RotationDeg, const FVector2D& RotationCenter);
+	void MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const FVector::FReal RotationDeg, const FVector2D& RotationCenter);
 	
 	/** Number of tiles in this chunk */
 	int32 GetNumTiles() const;

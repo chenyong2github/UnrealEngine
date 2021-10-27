@@ -388,7 +388,7 @@ FString FOSCStream::ReadString()
 
 void FOSCStream::WriteString(const FString& InString)
 {
-	const TArray<TCHAR>& CharArr = InString.GetCharArray();
+	const TArray<TCHAR, FString::AllocatorType>& CharArr = InString.GetCharArray();
 
 	int32 Count = CharArr.Num();
 	if (Count == 0)

@@ -115,25 +115,8 @@ struct FVertexFactoryIntermediates
     half TangentToWorldSign;
     half4 Color;
 	float3 Position;
-	half2 Scale;
-	float SpriteSize;
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;
-};
-
-FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
-{
-	return Intermediates.SceneData.Primitive;
-}
-
-struct FPointCloudInstanceData
-{
-	float3 Position;
-	uint Color;
-	uint bSelected;
-	uint Classification;
-	half3x3 TangentToLocal;
-	float SpriteSize;
 };
 
 float3 ApplyClipping(float3 Position)
@@ -145,7 +128,7 @@ float3 ApplyClipping(float3 Position)
 	{
 		for (uint i = 0; i < NumClippingVolumes; i++)
 		{
-			float3 DeltaPosition = TransformLocalToWorld(Position).xyz - ClippingVolume[i][0].xyz;
+			float3 DeltaPosition = LWCToFloat(TransformLocalToWorld(Position)).xyz - ClippingVolume[i][0].xyz;
 			bool bInsideClippingBox = abs(dot(DeltaPosition, ClippingVolume[i][1].xyz)) <= ClippingVolume[i][1].w && abs(dot(DeltaPosition, ClippingVolume[i][2].xyz)) <= ClippingVolume[i][2].w && abs(dot(DeltaPosition, ClippingVolume[i][3].xyz)) <= ClippingVolume[i][3].w;
 
 			if (ClippingVolume[i][0][3] == 1)
@@ -166,11 +149,6 @@ float3 ApplyClipping(float3 Position)
 	}
 
 	return (!bEditorView && bClip) ? 0.0f / 0 : Position;
-}
-
-float3 CalcPosition(float3 Position)
-{
-	return ApplyClipping(Position + LocationOffset);
 }
 
 half3x3 CalcTangentToLocal(uint MetaData)
@@ -263,7 +241,7 @@ float CalcSpriteSize(float3 Position)
 			}
 
 			Idx += (0x0000FFFF & (TreeBufferData >> 8));
-			for (int i = 0; i < 8; i++)
+			for (uint i = 0; i < 8; i++)
 			{
 				if (i == ChildNodeIndex)
 				{
@@ -285,96 +263,77 @@ float CalcSpriteSize(float3 Position)
 	return RootCellSize / pow(2.0f, VD);
 }
 
-float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, half2 Scale, float SpriteSize)
+float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, int VertexID)
 {
-	float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : SpriteSize;
+	Position = ApplyClipping(Position + LocationOffset);
+	
+	const float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : CalcSpriteSize(Position);
+	const half2 Scale = PrecomputedUV_Quad[VertexID % 4];
 	return Position + (TangentToLocal[0] * Scale.x + TangentToLocal[1] * Scale.y) * SpriteSizeMultiplier * Size;
 }
 
-float3 ProcessPosition(float3 Position, half2 Scale)
+float3 ProcessPosition(float3 Position, int VertexID)
 {
 	half3x3 TangentToLocal;
 	TangentToLocal[0] = ViewRightVector;
 	TangentToLocal[1] = ViewUpVector;
-	return ProcessPosition(Position, TangentToLocal, Scale, CalcSpriteSize(Position));
+	return ProcessPosition(Position, TangentToLocal, VertexID);
 }
 
-FPointCloudInstanceData LidarGetInstanceData(uint VertexId)
+float3 LidarGetInstancePosition(uint VertexId)
 {
-	FPointCloudInstanceData InstanceData = (FPointCloudInstanceData)0;
+	uint Idx = (VertexId / 4) * 5;
+	return float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]);
+}
 
-	uint PointId = VertexId / 4;
-	uint Idx = PointId * 5;
-	InstanceData.Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]) + LocationOffset;
-	InstanceData.Color = asuint(DataBuffer[Idx + 3]);
-
-	/**
-	 * 0		bVisible
-	 * 1 - 5	Classification
-	 * 6		bSelected
-	 * 7		Unused
-	 */
-	uint MetaData = 0x000000FF & (asuint(DataBuffer[Idx + 4]) >> 24);
-
-	InstanceData.Classification = 0x0000001F & (MetaData >> 1);
-	InstanceData.bSelected = bEditorView && (0x00000040 & MetaData);
-	InstanceData.TangentToLocal = CalcTangentToLocal(asuint(DataBuffer[Idx + 4]));
-	InstanceData.Position = ApplyClipping(InstanceData.Position);
-	InstanceData.SpriteSize = CalcSpriteSize(InstanceData.Position);
-
-	return InstanceData;
+float3 LidarGetInstanceNormal(uint VertexId)
+{
+	uint Idx = (VertexId / 4) * 5;
+	return CalcTangentToLocal(asuint(DataBuffer[Idx + 4]))[2];
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
-	
-	uint bSelected;
-	uint Classification;
+
+	float3 Position;
 	half3 Color;
 	half Intensity;
-	float SpriteSize;
-
+	uint MetaData;
+	
 	if (bUseStaticBuffers)
 	{
-		Intermediates.Position = CalcPosition(Input.Position.xyz);
-		Intermediates.TangentToLocal = CalcTangentToLocal(Input.MetaData);
-
-		uint MetaData = 0x000000FF & (Input.MetaData >> 24);
-
-		bSelected = bEditorView && (0x00000040 & MetaData);
-		Classification = 0x0000001F & (MetaData >> 1);
-
-		SpriteSize = CalcSpriteSize(Intermediates.Position);
-
+		Position = Input.Position.xyz;
+		MetaData = Input.MetaData;
 		Color = Input.Color.rgb;
 		Intensity = Input.Color.a;
 	}
 	else
 	{
-		FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
-		Intermediates.Position = InstanceData.Position;
-		Intermediates.TangentToLocal = InstanceData.TangentToLocal;
-		bSelected = InstanceData.bSelected;
-		Classification = InstanceData.Classification;
-		SpriteSize = InstanceData.SpriteSize;
-		Color = half3(0x000000FF & (InstanceData.Color >> 16), 0x000000FF & (InstanceData.Color >> 8), 0x000000FF & InstanceData.Color) * 0.003921568627451;
-		Intensity = (0x000000FF & (InstanceData.Color >> 24)) * 0.003921568627451;
+		uint Idx = (Input.VertexId / 4) * 5;
+		Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]);
+		
+		uint ColorData = asuint(DataBuffer[Idx + 3]);		
+		Color = half3(0x000000FF & (ColorData >> 16), 0x000000FF & (ColorData >> 8), 0x000000FF & ColorData) * 0.003921568627451;
+		Intensity = (0x000000FF & (ColorData >> 24)) * 0.003921568627451;
+
+		MetaData = asuint(DataBuffer[Idx + 4]);
 	}
 
-	Intermediates.SpriteSize = SpriteSize;
-	Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
-	Intermediates.TangentToWorldSign = GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
+	Intermediates.TangentToLocal = CalcTangentToLocal(MetaData);
+	Intermediates.TangentToWorldSign = Intermediates.SceneData.InstanceData.DeterminantSign;
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
+	Intermediates.Position = ProcessPosition(Position, Intermediates.TangentToLocal, Input.VertexId);
 	
 	// Color
 	{
-		// Used to account for offset due to shifted points bounds
-		float3 RelativePosition = Intermediates.Position - LocationOffset;
+		MetaData = 0x000000FF & (MetaData >> 24);
+		uint bSelected = bEditorView && (0x00000040 & MetaData);
+		uint Classification = 0x0000001F & (MetaData >> 1);
 
-		half3 ElevationColor = lerp(ElevationColorBottom, ElevationColorTop, clamp((RelativePosition.z + BoundsSize.z * 0.5) / BoundsSize.z, 0, 1));
-		half3 PositionColor = (RelativePosition + BoundsSize * 0.5) / BoundsSize;
+		half3 ElevationColor = lerp(ElevationColorBottom, ElevationColorTop, clamp((Position.z + BoundsSize.z * 0.5) / BoundsSize.z, 0, 1));
+		half3 PositionColor = (Position + BoundsSize * 0.5) / BoundsSize;
 		half3 ClassificationColor = ClassificationColors[0x0000001F & (Classification >> 1)].rgb;
 
 		// Pick color source
@@ -414,63 +373,45 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	return Interpolants;
 }
 
-half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates) { return Intermediates.TangentToLocal; }
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentToLocal;
+}
 
 // @return translated world position
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4 WorldPosition = TransformLocalToTranslatedWorld(Intermediates.Position);
-	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Intermediates.TangentToLocal, Intermediates.Scale, Intermediates.SpriteSize);
-	return WorldPosition;
+	return TransformLocalToTranslatedWorld(Intermediates.Position);
 }
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 {
-	if (bUseStaticBuffers)
-	{
-		float4 WorldPosition = TransformLocalToTranslatedWorld(CalcPosition(Input.Position.xyz));
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, PrecomputedUV_Quad[Input.VertexId % 4]);
-		return WorldPosition;
-	}
-	else
-	{
-		FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
-		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position);
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4], InstanceData.SpriteSize);
-		return WorldPosition;
-	}
-}
-float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition) { return InWorldPosition; }
-float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition) { return TranslatedWorldPosition; }
-float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
-{
-	return RotateLocalToWorld(bUseStaticBuffers ? Input.Normal.xyz : LidarGetInstanceData(Input.VertexId).TangentToLocal[2]);
+	return TransformLocalToTranslatedWorld(ProcessPosition(bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId), Input.VertexId));
 }
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	if (bUseStaticBuffers)
-	{
-		float4 WorldPosition = TransformLocalToTranslatedWorld(CalcPosition(Input.Position.xyz));
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, PrecomputedUV_Quad[Input.VertexId % 4]);
-		return WorldPosition;
-	}
-	else
-	{
-		FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
-		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position);
-		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4], InstanceData.SpriteSize);
-		return WorldPosition;
-	}
+	return TransformLocalToTranslatedWorld(ProcessPosition(bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId), Input.VertexId));
 }
-float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates) { return Intermediates.TangentToWorld[2]; }
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
+{
+	return RotateLocalToWorld(bUseStaticBuffers ? Input.Normal.xyz : LidarGetInstanceNormal(Input.VertexId));
+}
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentToWorld[2];
+}
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = Primitive.PreviousLocalToWorld;
-    PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
-    PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
-    PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
-    return mul(float4(Intermediates.Position, 1), PreviousLocalToWorldTranslated);
+    return mul(float4(Intermediates.Position, 1), LWCMultiplyTranslation(Intermediates.SceneData.InstanceData.PrevLocalToWorld, ResolvedView.PrevPreViewTranslation));
 }
 
 /** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
@@ -486,9 +427,6 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	Result.TexCoords[0] = PrecomputedUV_Quad[Input.VertexId % 4];
-	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-		Result.TexCoords[1] = Intermediates.Scale;
-	#endif
 #endif
 
     return Result;
@@ -521,7 +459,8 @@ float4 VertexFactoryGetInstanceHitProxyId(FVertexFactoryInput Input, FVertexFact
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	return float4(Primitive.ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, Primitive.ObjectWorldPositionAndRadius.w);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();
+	return float4(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)), PrimitiveData.ObjectRadius);
 }
 
 #if INSTANCED_STEREO

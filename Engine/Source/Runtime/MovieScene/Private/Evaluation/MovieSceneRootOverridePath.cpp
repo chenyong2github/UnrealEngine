@@ -183,7 +183,10 @@ void FSubSequencePath::PopGenerations(int32 NumGenerations)
 {
 	if (NumGenerations != 0)
 	{
-		check(NumGenerations <= PathToRoot.Num());
+		if(!ensureMsgf(NumGenerations <= PathToRoot.Num(), TEXT("FSubSequencePath::PopGenerations NumGenerations [%d] PathToRoot.Num [%d]. This can be caused by copy/pasting between sequences"), NumGenerations, PathToRoot.Num()))
+		{
+			NumGenerations = PathToRoot.Num();
+		}
 
 		// Remove children from the head of the array
 		PathToRoot.RemoveAt(0, NumGenerations, false);

@@ -127,8 +127,8 @@ protected:
 		FString PlayerName;
 		// Current talking state
 		bool bTalking = false;
-		// Current audio mute state
-		bool bAudioMuted = false;
+		// Combined audio mute and isListening state
+		bool bAudioDisabled = false;
 		// Current block state
 		bool bBlocked = false;
 		// Desired channel mute state

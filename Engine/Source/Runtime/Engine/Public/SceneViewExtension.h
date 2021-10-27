@@ -245,6 +245,17 @@ private:
 	TWeakObjectPtr<UWorld> World;
 };
 
+/** Scene View Extension which is enabled for all HMDs to unify IsActiveThisFrame_Internal. */
+class ENGINE_API FHMDSceneViewExtension : public FSceneViewExtensionBase
+{
+public:
+	FHMDSceneViewExtension(const FAutoRegister& AutoReg) : FSceneViewExtensionBase(AutoReg)
+	{
+	}
+protected:
+	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+};
+
 using FSceneViewExtensionRef = TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>;
 
 /**

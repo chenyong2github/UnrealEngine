@@ -245,4 +245,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Warnings)
 	bool RecommendEveryoneEnableS3DDC = false;
+
+	/**
+	 *
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Warnings)
+	bool RecommendEveryoneUseHordeStorage = false;
 };

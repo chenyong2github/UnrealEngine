@@ -15,6 +15,7 @@
 
 DEFINE_LOG_CATEGORY(LogImgMedia);
 
+TSharedPtr<FImgMediaGlobalCache, ESPMode::ThreadSafe> IImgMediaModule::GlobalCache;
 
 #if USE_IMGMEDIA_DEALLOC_POOL
 struct FImgMediaThreadPool
@@ -155,7 +156,6 @@ private:
 	}
 
 	TSharedPtr<FImgMediaScheduler, ESPMode::ThreadSafe> Scheduler;
-	TSharedPtr<FImgMediaGlobalCache, ESPMode::ThreadSafe> GlobalCache;
 };
 
 

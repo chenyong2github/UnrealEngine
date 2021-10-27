@@ -1552,6 +1552,8 @@ TSharedPtr<SDockingArea> FTabManager::RestoreArea(const TSharedRef<FArea>& AreaT
 	// Sidebar tabs for this area
 	FSidebarTabLists SidebarTabs;
 
+	TemporarilySidebaredTabs.Empty();
+
 	if (TSharedPtr<SDockingNode> RestoredNode = RestoreArea_Helper(AreaToRestore, InParentWindow, bEmbedTitleAreaContent, SidebarTabs, OutputCanBeNullptr))
 	{
 		TSharedRef<SDockingArea> RestoredArea = StaticCastSharedRef<SDockingArea>(RestoredNode->AsShared());
@@ -1559,6 +1561,17 @@ TSharedPtr<SDockingArea> FTabManager::RestoreArea(const TSharedRef<FArea>& AreaT
 		RestoredArea->CleanUp(SDockingNode::TabRemoval_None);
 
 		RestoredArea->AddSidebarTabsFromRestoredLayout(SidebarTabs);
+
+		for (const TSharedRef<SDockTab>& Tab : SidebarTabs.LeftSidebarTabs)
+		{
+			TemporarilySidebaredTabs.Add(Tab);
+		}
+
+		for (const TSharedRef<SDockTab>& Tab : SidebarTabs.RightSidebarTabs)
+		{
+			TemporarilySidebaredTabs.Add(Tab);
+		}
+
 		return RestoredArea;
 	}
 	else

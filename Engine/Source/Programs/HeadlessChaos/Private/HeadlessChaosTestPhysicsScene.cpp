@@ -1451,6 +1451,11 @@ namespace ChaosTest {
 		Callback->GetProducerInputData_External()->CorrectX = CurrentX;
 		AdvanceFrameAndRunTest(CurrentX, CurrentV);
 
+		// Test if particle state to sleeping change after setting a kinematic target it's position and velocity should remain the same
+		FChaosEngineInterface::SetKinematicTarget_AssumesLocked(Proxy, FTransform(FVec3(1, 2, 3)));
+		Particle.SetObjectState(EObjectStateType::Sleeping);
+		AdvanceFrameAndRunTest(CurrentX, CurrentV);
+
 		// Test if particle positions and velocities are correct after SetKinematicTarget_AssumesLocked, SetGlobalPose_AssumesLocked
 		CurrentX = FVec3(3, 2, 1);
 		CurrentV = FVec3(0, 0, 0);

@@ -37,6 +37,16 @@ private:
 	FVector2D HalfScreenSize;
 };
 
+struct FDisplayContext
+{
+	FGuid YourNode;
+	const FTrailScreenSpaceTransform& ScreenSpaceTransform;
+	double SecondsPerTick;
+	const TRange<double>& TimeRange;
+	double SecondsPerSegment;
+};
+
+
 class FTrajectoryDrawInfo
 {
 public:
@@ -49,17 +59,9 @@ public:
 
 	virtual ~FTrajectoryDrawInfo() {}
 
-	struct FDisplayContext
-	{
-		FGuid YourNode;
-		const FTrailScreenSpaceTransform& ScreenSpaceTransform;
-		double SecondsPerTick;
-		const TRange<double>& TimeRange;
-		double SecondsPerSegment;
-	};
-
 	void GetTrajectoryPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector>& OutPoints, TArray<double>& OutSeconds);
 	void GetTickPointsForDisplay(const FDisplayContext& InDisplayContext, TArray<FVector2D>& OutTicks, TArray<FVector2D>& OutTickTangents);
+	FVector GetPoint(double InTime);
 
 	// Optionally implemented methods
 	void SetColor(const FLinearColor& InColor) { Color = InColor; }

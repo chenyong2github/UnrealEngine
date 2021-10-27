@@ -204,6 +204,13 @@ void UDrawPolyPathTool::Setup()
 	TransformProps = NewObject<UDrawPolyPathProperties>(this);
 	TransformProps->RestoreProperties(this);
 	AddToolPropertySource(TransformProps);
+	TransformProps->WatchProperty(TransformProps->bSnapToWorldGrid, [this](bool) 
+	{
+		if (SurfacePathMechanic != nullptr)
+		{
+			SurfacePathMechanic->bSnapToWorldGrid = TransformProps->bSnapToWorldGrid;
+		}
+	});
 
 	ExtrudeProperties = NewObject<UDrawPolyPathExtrudeProperties>();
 	ExtrudeProperties->RestoreProperties(this);
@@ -448,6 +455,12 @@ void UDrawPolyPathTool::InitializeNewSurfacePath()
 		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
 	};
 	SurfacePathMechanic->SetDoubleClickOrCloseLoopMode();
+
+	if (TransformProps)
+	{
+		SurfacePathMechanic->bSnapToWorldGrid = TransformProps->bSnapToWorldGrid;
+	}
+
 	UpdateSurfacePathPlane();
 
 	ShowStartupMessage();

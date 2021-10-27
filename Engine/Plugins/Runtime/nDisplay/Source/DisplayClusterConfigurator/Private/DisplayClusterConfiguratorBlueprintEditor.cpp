@@ -715,12 +715,6 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveWithOpenFileDialog()
 	return false;
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnly)
-{
-	ViewOutputMapping->SetEnabled(!bReadOnly);
-	ViewCluster->SetEnabled(!bReadOnly);
-}
-
 void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName)
 {
 	if (Blueprint != LoadedBlueprint)
@@ -867,8 +861,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 
 	ViewOutputMapping->CreateWidget();
 	ViewCluster->CreateWidget();
-	
-	FDisplayClusterConfiguratorModule::RegisterOnReadOnly(FOnDisplayClusterConfiguratorReadOnlyChangedDelegate::CreateSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged));
 
 	// Set the visibility
 	{

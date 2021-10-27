@@ -48,7 +48,7 @@ struct FSavePackageArgs
 	bool bSlowTask = true;
 	FDateTime FinalTimeStamp;
 	FOutputDevice* Error = nullptr;
-	FArchiveDiffMap* DiffMap = nullptr;
+	FArchiveDiffMap* DiffMap = nullptr; // SAVEPACKAGE_TODO: Deprecate
 	FSavePackageContext* SavePackageContext = nullptr;
 };
 
@@ -110,5 +110,10 @@ namespace SavePackageUtilities
 	/** Add any required TopLevelFlags based on the save parameters. */
 	COREUOBJECT_API EObjectFlags NormalizeTopLevelFlags(EObjectFlags TopLevelFlags, bool bIsCooking);
 
+	COREUOBJECT_API void IncrementOutstandingAsyncWrites();
+	COREUOBJECT_API void DecrementOutstandingAsyncWrites();
+
 }
 }
+
+COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);

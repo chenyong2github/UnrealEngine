@@ -35,44 +35,51 @@ public:
 	 */
 	static AudioModulation::FAudioModulation* GetModulation(UWorld* World);
 
-	/** Activates a modulation bus. Does nothing if an instance of the provided bus is already active
-	 * @param Bus - Bus to activate
+	/** Manually activates a modulation bus. If called, deactivation will only occur
+	 * if bus is manually deactivated or destroyed (i.e. will not deactivate
+	 * when all references become inactive).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Control Bus", meta = (
 		WorldContext = "WorldContextObject", 
-		Keywords = "activate modulation modulator control bus")
+		Keywords = "modulation modulator")
 	)
 	static void ActivateBus(const UObject* WorldContextObject, USoundControlBus* Bus);
 
-	/** Activates a bus modulator mix. Does nothing if an instance of the provided bus mix is already active
+	/** Manually activates a bus modulator mix. If called, deactivation will only occur
+	 * if mix is manually deactivated and not referenced or destroyed (i.e. will not deactivate
+	 * when all references become inactive).
 	 * @param BusMix - Mix to activate
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject", 
-		Keywords = "activate modulation modulator control bus mix")
+		Keywords = "modulation modulator")
 	)
 	static void ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
-	/** Activates a modulation generator. Does nothing if an instance of the provided generator is already active
+	/** Manually activates a modulation generator. If called, deactivation will only occur
+	 * if generator is manually deactivated and not referenced or destroyed (i.e. will not deactivate
+	 * when all references become inactive).
 	 * @param Modulator - Modulator to activate
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Modulation Generator", meta = (
 		WorldContext = "WorldContextObject", 
-		Keywords = "activate modulation modulator generator lfo")
+		Keywords = "modulator lfo envelope follower")
 	)
 	static void ActivateGenerator(const UObject* WorldContextObject, USoundModulationGenerator* Generator);
 
 	/** Creates a modulation bus with the provided default value.
 	 * @param Name - Name of bus
 	 * @param Parameter - Default value for created bus
-	 * @param Activate - Whether or not to activate bus on creation.
+	 * @param Activate - Whether or not to activate bus on creation. If true, deactivation will only occur
+	 * if returned bus is manually deactivated and not referenced or destroyed (i.e. will not deactivate
+	 * when all references become inactive).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus", meta = (
 		AdvancedDisplay = "3",
 		WorldContext = "WorldContextObject",
-		Keywords = "make create bus modulation LPF modulator")
+		Keywords = "make modulation LPF modulator")
 	)
-	static USoundControlBus* CreateBus(const UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
+	static USoundControlBus* CreateBus(UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
 
 	/** Creates a stage used to mix a control bus.
 	 * @param Bus - Bus stage is in charge of applying mix value to.
@@ -83,7 +90,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus Mix Stage", meta = (
 		AdvancedDisplay = "3",
 		WorldContext = "WorldContextObject",
-		Keywords = "make create control bus mix modulation modulator stage")
+		Keywords = "make modulation modulator stage")
 	)
 	static FSoundControlBusMixStage CreateBusMixStage(
 		const UObject* WorldContextObject,
@@ -92,46 +99,48 @@ public:
 		float AttackTime = 0.1f,
 		float ReleaseTime = 0.1f);
 
-	/** Creates a modulation bus mix, with a bus stage set to the provided target value
+	/** Creates a modulation bus mix, with a bus stage set to the provided target value.
 	 * @param Name - Name of mix.
 	 * @param Stages - Stages mix is responsible for.
-	 * @param Activate - Whether or not to activate mix on creation.
+	 * @param Activate - Whether or not to activate mix on creation. If true, deactivation will only occur
+	 * if returned mix is manually deactivated and not referenced or destroyed (i.e. will not deactivate
+	 * when all references become inactive).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "make create control bus mix modulation modulator")
+		Keywords = "make modulation modulator")
 	)
 	static USoundControlBusMix* CreateBusMix(
-		const UObject* WorldContextObject,
+		UObject* WorldContextObject,
 		FName Name, 
 		TArray<FSoundControlBusMixStage> Stages,
 		bool Activate);
 
-	/** Deactivates a bus. Does nothing if the provided bus is already inactive
+	/** Deactivates a bus. Does nothing if the provided bus is already inactive.
 	 * @param Bus - Scope of modulator
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Control Bus", meta = (
 		WorldContext = "WorldContextObject", 
-		Keywords = "deactivate modulation modulator bus")
+		Keywords = "modulation modulator bus")
 	)
 	static void DeactivateBus(const UObject* WorldContextObject, USoundControlBus* Bus);
 
-	/** Deactivates a modulation bus mix. Does nothing if an instance of the provided bus mix is already inactive
+	/** Deactivates a modulation bus mix. Does nothing if an instance of the provided bus mix is already inactive.
 	 * @param BusMix - Mix to deactivate
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "deactivate modulation modulator")
+		Keywords = "modulation modulator")
 	)
 	static void DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
-	/** Deactivates a modulation generator. Does nothing if an instance of the provided generator is already inactive
+	/** Deactivates a modulation generator. Does nothing if an instance of the provided generator is already inactive.
 	 * @param Generator - Generator to activate
 	 * @param Scope - Scope of modulator
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Control Bus Modulator", meta = (
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Modulation Generator", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "deactivate bus modulation modulator")
+		Keywords = "bus modulation modulator generator")
 )
 	static void DeactivateGenerator(const UObject* WorldContextObject, USoundModulationGenerator* Generator);
 
@@ -143,7 +152,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Save Control Bus Mix to Profile", meta = (
 		WorldContext = "WorldContextObject",
 		AdvancedDisplay = "2",
-		Keywords = "save serialize bus control modulation mix modulator ini")
+		Keywords = "serialize modulation modulator ini")
 	)
 	static void SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, int32 ProfileIndex = 0);
 
@@ -156,7 +165,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Load Control Bus Mix From Profile", meta = (
 		WorldContext = "WorldContextObject",
 		AdvancedDisplay = "2",
-		Keywords = "load deserialize control bus modulation mix modulator ini")
+		Keywords = "deserialize modulation modulator ini")
 	)
 	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, bool bActivate = true, int32 ProfileIndex = 0);
 
@@ -171,7 +180,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "set bus control modulation modulator mix stage")
+		Keywords = "modulation modulator stage")
 	)
 	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float FadeTime = -1.0f);
 
@@ -185,7 +194,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Global Control Bus Mix Value", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "set bus control modulation modulator mix stage global")
+		Keywords = "modulation modulator stage")
 	)
 	static void SetGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float Value, float FadeTime = -1.0f);
 
@@ -196,7 +205,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Clear Global Control Bus Mix Value", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "clear bus control modulation modulator mix stage global")
+		Keywords = "modulation modulator stage")
 	)
 	static void ClearGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float FadeTime = -1.0f);
 
@@ -204,9 +213,9 @@ public:
 	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
 	 *					 If non-positive, change is immediate.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Clear All Global Control Bus Mix Value", meta = (
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Clear All Global Control Bus Mix Values", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "clear bus control modulation modulator mix stage global")
+		Keywords = "modulation modulator stage")
 	)
 	static void ClearAllGlobalBusMixValues(const UObject* WorldContextObject, float FadeTime = -1.0f);
 
@@ -222,7 +231,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix By Filter", meta = (
 		AdvancedDisplay = "6",
 		WorldContext = "WorldContextObject",
-		Keywords = "set bus control class modulation modulator mix stage value filter")
+		Keywords = "control class modulation modulator stage value")
 	)
 	static void UpdateMixByFilter(
 		const UObject* WorldContextObject,
@@ -242,17 +251,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "update set control bus mix modulation modulator")
+		Keywords = "set modulation modulator")
 	)
 	static void UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix, float FadeTime = -1.0f);
 
-	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, LFO)
+	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, Generator)
 	 *  to active instance in audio thread (ignored if modulator type has not been activated).
 	 * @param Modulator - Modulator to update
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Modulator", meta = (
 		WorldContext = "WorldContextObject",
-		Keywords = "update set control bus mix modulation modulator")
+		Keywords = "set control bus mix modulation modulator generator")
 	)
 	static void UpdateModulator(const UObject* WorldContextObject, USoundModulatorBase* Modulator);
 };

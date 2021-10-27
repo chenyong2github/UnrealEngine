@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_EOS_SDK
-
 #include "Online/OnlineServicesCommon.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
@@ -21,6 +19,7 @@ public:
 	FOnlineServicesEOS();
 	virtual void RegisterComponents() override;
 
+	virtual FAccountId CreateAccountId(FString&& InAccountIdString) override;
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
@@ -29,5 +28,3 @@ protected:
 };
 
 /* UE::Online */ }
-
-#endif // WITH_EOS_SDK

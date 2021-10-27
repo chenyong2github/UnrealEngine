@@ -6,6 +6,10 @@
 #include "EngineLogs.h"
 #include "Animation/AnimCurveTypes.h"
 
+#include "HAL/LowLevelMemTracker.h"
+
+LLM_DEFINE_TAG(BoneContainer);
+
 DEFINE_LOG_CATEGORY(LogSkeletalControl);
 
 //////////////////////////////////////////////////////////////////////////
@@ -16,6 +20,7 @@ FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const F
 	, BoneContainer(InBoneContainer)
 	, bIsRemapping(true)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	const FCachedSkeletonCurveMapping& CurveMapping = InBoneContainer.GetOrCreateCachedCurveMapping(InSkeletonRemapping);
 	Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
 }
@@ -24,6 +29,7 @@ FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const F
 	: Curve(InCurve)
 	, BoneContainer(InBoneContainer)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	const FSkeletonRemapping* SkeletonRemapping = BoneContainer.GetSkeletonAsset()->GetSkeletonRemapping(SourceSkeleton);
 	if (SkeletonRemapping) // No remapping is required, just continue as we normally would.
 	{
@@ -63,6 +69,7 @@ FBoneContainer::FBoneContainer()
 , bUseRAWData(false)
 , bUseSourceData(false)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	BoneIndicesArray.Empty();
 	BoneSwitchArray.Empty();
 	SkeletonToPoseBoneIndexArray.Empty();
@@ -84,11 +91,13 @@ FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndex
 , bUseRAWData(false)
 , bUseSourceData(false)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	Initialize(CurveEvalOption);
 }
 
 void FBoneContainer::InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	BoneIndicesArray = InRequiredBoneIndexArray;
 	Asset = &InAsset;
 
@@ -102,6 +111,7 @@ struct FBoneContainerScratchArea : public TThreadSingleton<FBoneContainerScratch
 
 void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	RefSkeleton = nullptr;
 	UObject* AssetObj = Asset.Get();
 	USkeletalMesh* AssetSkeletalMeshObj = Cast<USkeletalMesh>(AssetObj);
@@ -244,6 +254,7 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 
 void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	if (AssetSkeleton.IsValid())
 	{
 		// this is placeholder. In the future, this will change to work with linked joint of curve meta data
@@ -379,6 +390,8 @@ void FBoneContainer::MarkAllCachedCurveMappingsDirty()
 
 const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
+	
 	check(SkeletonRemapping);
 
 	const USkeleton* SourceSkeleton = SkeletonRemapping->GetSourceSkeleton().Get();
@@ -423,12 +436,14 @@ const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping
 
 const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InRetargetSourceName) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	const TArray<FTransform>& RetargetTransforms = AssetSkeleton->GetRefLocalPoses(InRetargetSourceName);
 	return GetRetargetSourceCachedData(InRetargetSourceName, RetargetTransforms);
 }
 
 const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	FRetargetSourceCachedData* RetargetSourceCachedData = RetargetSourceCachedDataLUT.Find(InSourceName);
 	if (!RetargetSourceCachedData)
 	{
@@ -543,6 +558,7 @@ bool FBoneContainer::BoneIsChildOf(const FCompactPoseBoneIndex& BoneIndex, const
 
 void FBoneContainer::RemapFromSkelMesh(USkeletalMesh const & SourceSkeletalMesh, USkeleton& TargetSkeleton)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	int32 const SkelMeshLinkupIndex = TargetSkeleton.GetMeshLinkupIndex(&SourceSkeletalMesh);
 	check(SkelMeshLinkupIndex != INDEX_NONE);
 
@@ -556,6 +572,7 @@ void FBoneContainer::RemapFromSkelMesh(USkeletalMesh const & SourceSkeletalMesh,
 
 void FBoneContainer::RemapFromSkeleton(USkeleton const & SourceSkeleton)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	// Map SkeletonBoneIndex to the SkeletalMesh Bone Index, taking into account the required bone index array.
 	SkeletonToPoseBoneIndexArray.Init(INDEX_NONE, SourceSkeleton.GetRefLocalPoses().Num());
 	for(int32 Index=0; Index<BoneIndicesArray.Num(); Index++)

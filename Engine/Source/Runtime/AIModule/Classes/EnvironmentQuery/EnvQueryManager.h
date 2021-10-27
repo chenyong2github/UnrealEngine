@@ -79,6 +79,10 @@ struct AIMODULE_API FEnvQueryRequest
 	// use when owner is different from finish delegate binding
 	FEnvQueryRequest(const UEnvQuery* Query, UObject* RequestOwner) : QueryTemplate(Query), Owner(RequestOwner), World(NULL) {}
 
+	// set names param indicated by Param. If Param is configured to read values from a blackboard then BlackboardComponent
+	// is expected to be non-null (the function will fail a check otherwise).
+	FEnvQueryRequest& SetDynamicParam(const FAIDynamicParam& Param, const UBlackboardComponent* BlackboardComponent = nullptr);
+
 	// set named params
 	FORCEINLINE FEnvQueryRequest& SetFloatParam(FName ParamName, float Value) { NamedParams.Add(ParamName, Value); return *this; }
 	FORCEINLINE FEnvQueryRequest& SetIntParam(FName ParamName, int32 Value) { NamedParams.Add(ParamName, *((float*)&Value)); return *this; }

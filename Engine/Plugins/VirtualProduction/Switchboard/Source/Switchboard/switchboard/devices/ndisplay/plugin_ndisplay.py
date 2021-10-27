@@ -252,7 +252,7 @@ class AddnDisplayDialog(AddDeviceDialog):
     def devices_to_add(self):
         cfg_file = self.current_config_path()
         try:
-            (devices, _) = DevicenDisplay.parse_config(cfg_file)
+            devices = DevicenDisplay.parse_config(cfg_file).nodes
 
             if len(devices) == 0:
                 LOGGER.error(
@@ -328,6 +328,13 @@ class DeviceWidgetnDisplay(DeviceWidgetUnreal):
         self.signal_device_widget_master.emit(self)
 
 
+class DisplayConfig(object):
+    ''' Encapsulates nDisplay config'''
+
+    def __init__(self):
+        self.nodes = []
+        self.uasset_path = ''
+
 class DevicenDisplay(DeviceUnreal):
 
     add_device_dialog = AddnDisplayDialog
@@ -362,6 +369,19 @@ class DevicenDisplay(DeviceUnreal):
             value="Mono",
             possible_values=[
                 "Mono", "Frame sequential", "Side-by-Side", "Top-bottom"]
+        ),
+        'render_sync_policy': OptionSetting(
+            attr_name="render_sync_policy",
+            nice_name="Render Sync Policy",
+            value='Config',
+            possible_values=['Config','None','Ethernet','Nvidia'],
+            tool_tip=(
+                "Select which cluster synchronization policy to use. \n"
+                "- 'Config': Use the setting in the nDisplay config file \n"
+                "- 'None': Freerun. Formerly known as 'sync policy 0'\n"
+                "- 'Ethernet': Ethernet-based sync. Formerly known as 'sync policy 1'\n"
+                "- 'Nvidia': Nvidia's Quadro Sync Framelock. Formerly known as 'sync policy 2'\n"
+            ),
         ),
         'executable_filename': FilePathSetting(
             attr_name="executable_filename",
@@ -971,6 +991,9 @@ class DevicenDisplay(DeviceUnreal):
 
         data = json.loads(cfg_content)
 
+        # override master node
+        #
+
         nodes = data['nDisplay']['cluster']['nodes']
         masternodeid = data['nDisplay']['cluster']['masterNode']['id']
 
@@ -1012,6 +1035,33 @@ class DevicenDisplay(DeviceUnreal):
         data['nDisplay']['cluster']['nodes'] = activenodes
         data['nDisplay']['cluster']['masterNode']['id'] = masternodeid
 
+        # override sync policy
+        #
+
+        render_sync_policy = DevicenDisplay.csettings['render_sync_policy'].get_value()
+
+        new_rsp = data['nDisplay']['cluster']['sync']['renderSyncPolicy']
+        
+        if render_sync_policy == 'Nvidia':
+
+            new_rsp['type'] = 'Nvidia'
+            new_rsp['parameters'] = {
+                "SwapGroup": "1",
+                "SwapBarrier": "1"
+            }
+
+        elif render_sync_policy == 'Ethernet':
+
+            new_rsp['type'] = 'ethernet' # .ndisplay uses lowercase
+            new_rsp['parameters'] = {}
+
+        elif render_sync_policy == 'None':
+
+            new_rsp['type'] = 'None'
+            new_rsp['parameters'] = {}
+
+        data['nDisplay']['cluster']['sync']['renderSyncPolicy'] = new_rsp
+
         return json.dumps(data)
 
     @classmethod
@@ -1028,10 +1078,11 @@ class DevicenDisplay(DeviceUnreal):
 
         js = json.loads(jsstr)
 
-        nodes = []
+        config = DisplayConfig()
+
         cnodes = js['nDisplay']['cluster']['nodes']
         masterNode = js['nDisplay']['cluster']['masterNode']
-        uasset_path = js['nDisplay'].get('assetPath')
+        config.uasset_path = js['nDisplay'].get('assetPath')
 
         for name, cnode in cnodes.items():
             kwargs = {"ue_command_line": ""}
@@ -1045,10 +1096,10 @@ class DevicenDisplay(DeviceUnreal):
             kwargs["window_resolution"] = (resx, resy)
             # Note the capital 'S'.
             kwargs["fullscreen"] = bool(cnode.get('fullScreen', False))
-
+        
             master = True if masterNode['id'] == name else False
 
-            nodes.append({
+            config.nodes.append({
                 "name": name,
                 "ip_address": cnode['host'],
                 "master": master,
@@ -1056,7 +1107,7 @@ class DevicenDisplay(DeviceUnreal):
                 "kwargs": kwargs,
             })
 
-        return (nodes, uasset_path)
+        return config
 
     @classmethod
     def parse_config_json(cls, cfg_file):
@@ -1091,7 +1142,10 @@ class DevicenDisplay(DeviceUnreal):
         '''
         Updates settings that are exclusively controlled by the config file.
         '''
-        nodes, self.bp_object_path = self.__class__.parse_config(cfg_file)
+        config = self.__class__.parse_config(cfg_file)
+
+        self.bp_object_path = config.uasset_path
+        nodes = config.nodes
 
         # find which node is self:
         try:
@@ -1345,8 +1399,7 @@ class DevicenDisplay(DeviceUnreal):
             return
 
         # Verify that there is a device that matches our master selection
-        master_device_name = DevicenDisplay.csettings[
-            'master_device_name'].get_value()
+        master_device_name = DevicenDisplay.csettings['master_device_name'].get_value()
         master_found = False
 
         for device in devices:
@@ -1357,23 +1410,23 @@ class DevicenDisplay(DeviceUnreal):
         # If there isn't a master selection (e.g. old config), try to assign
         # one based on the nDisplay config.
         if not master_found:
-            cfg_file = DevicenDisplay.csettings[
-                'ndisplay_config_file'].get_value()
+
+            cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value()
 
             try:
-                (nodes, _) = DevicenDisplay.parse_config(cfg_file)
+                config = DevicenDisplay.parse_config(cfg_file)
             except (IndexError, KeyError):
                 LOGGER.error(f"Error parsing nDisplay config file {cfg_file}")
-            else:
-                for node in nodes:
-                    if node['master']:
-                        for device in devices:
-                            if node['name'] == device.name:
-                                cls.select_device_as_master(device)
-                                master_found = True
-                                break
+                return
 
-                        break
+            for node in config.nodes:
+                if node['master']:
+                    for device in devices:
+                        if node['name'] == device.name:
+                            cls.select_device_as_master(device)
+                            master_found = True
+                            break
+                    break
 
             # If we still don't have a master, log the error.
             if not master_found:

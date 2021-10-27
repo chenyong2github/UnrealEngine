@@ -237,147 +237,12 @@ namespace UnFbx {
 		if (FbxCurve)
 		{
 			RichCurve.Reset();
-			for (int32 KeyIndex = 0; KeyIndex < FbxCurve->KeyGetCount(); ++KeyIndex)
-			{
-				FbxAnimCurveKey Key = FbxCurve->KeyGet(KeyIndex);
-				FbxTime KeyTime = Key.GetTime();
-				float Value = bNegative ? -Key.GetValue() : Key.GetValue();
-				Value *= Scale;
-				FKeyHandle NewKeyHandle = RichCurve.AddKey(KeyTime.GetSecondDouble(), Value, false);
-
-				FbxAnimCurveDef::ETangentMode KeyTangentMode = Key.GetTangentMode();
-				FbxAnimCurveDef::EInterpolationType KeyInterpMode = Key.GetInterpolation();
-				FbxAnimCurveDef::EWeightedMode KeyTangentWeightMode = Key.GetTangentWeightMode();
-
-				ERichCurveInterpMode NewInterpMode = RCIM_Linear;
-				ERichCurveTangentMode NewTangentMode = RCTM_Auto;
-				ERichCurveTangentWeightMode NewTangentWeightMode = RCTWM_WeightedNone;
-
-				float LeaveTangent = 0.f;
-				float ArriveTangent = 0.f;
-				float LeaveTangentWeight = DefaultCurveWeight;
-				float ArriveTangentWeight = DefaultCurveWeight;
-				float ArriveTimeDiff = 0.f;
-				float LeaveTimeDiff = 0.f;
-				bool bEqualTangents = false;
-
-				switch (KeyInterpMode)
-				{
-				case FbxAnimCurveDef::eInterpolationConstant://! Constant value until next key.
-					NewInterpMode = RCIM_Constant;
-					break;
-				case FbxAnimCurveDef::eInterpolationLinear://! Linear progression to next key.
-					NewInterpMode = RCIM_Linear;
-					break;
-				case FbxAnimCurveDef::eInterpolationCubic://! Cubic progression to next key.
-					NewInterpMode = RCIM_Cubic;
-					// get tangents
-					{
-						FbxAnimCurveKey CurKey = CurveHandle.AnimCurve->KeyGet(KeyIndex);
-						float LeftTangent = FbxCurve->KeyGetLeftDerivative(KeyIndex);
-						float RightTangent = FbxCurve->KeyGetRightDerivative(KeyIndex);
-						
-						bEqualTangents = FMath::IsNearlyEqual(LeftTangent, RightTangent);
-
-						if (KeyIndex > 0)
-						{
-							ArriveTimeDiff = CurKey.GetTime().GetSecondDouble() - FbxCurve->KeyGetTime(KeyIndex - 1).GetSecondDouble();
-							ArriveTangent = LeftTangent * (ArriveTimeDiff);
-						}
-
-						if (KeyIndex < FbxCurve->KeyGetCount() - 1)
-						{
-							LeaveTimeDiff = FbxCurve->KeyGetTime(KeyIndex + 1).GetSecondDouble() - CurKey.GetTime().GetSecondDouble();
-							LeaveTangent = RightTangent * (LeaveTimeDiff);
-						}
-					}
-					break;
-				}
-				if (KeyTangentMode &  FbxAnimCurveDef::eTangentAuto) //tangent can be auto or broken/user (
-				{
-					NewTangentMode = RCTM_Auto;
-				}
-				else
-				{
-					//no longer use KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak to see if tangent is broken since it maya broken/unify is just a manipulation state
-					//instead we manually check to see if the tangents are the same or different, if different then broken.
-					if (bEqualTangents)
-					{
-						NewTangentMode = RCTM_User;
-					}
-					else
-					{
-						NewTangentMode = RCTM_Break;
-					}
-				}
-
-				switch (KeyTangentWeightMode)
-				{
-				case FbxAnimCurveDef::eWeightedNone://! Tangent has default weights of 0.333; we define this state as not weighted.
-					LeaveTangentWeight = ArriveTangentWeight = DefaultCurveWeight;
-					NewTangentWeightMode = RCTWM_WeightedNone;
-					break;
-				case FbxAnimCurveDef::eWeightedRight: //! Right tangent is weighted.
-					NewTangentWeightMode = RCTWM_WeightedLeave;
-					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-					ArriveTangentWeight = DefaultCurveWeight;
-					break;
-				case FbxAnimCurveDef::eWeightedNextLeft://! Left tangent is weighted.
-					NewTangentWeightMode = RCTWM_WeightedArrive;
-					LeaveTangentWeight = DefaultCurveWeight;
-					if (KeyIndex > 0)
-					{
-						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
-						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);              
-					}
-					else
-					{
-						ArriveTangentWeight = 0.f;
-					}
-					break;
-				case FbxAnimCurveDef::eWeightedAll://! Both left and right tangents are weighted.
-					NewTangentWeightMode = RCTWM_WeightedBoth;
-					LeaveTangentWeight = Key.GetDataFloat(FbxAnimCurveDef::eRightWeight);
-					if (KeyIndex > 0)
-					{
- 						FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex - 1);
-						ArriveTangentWeight = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftWeight);
-					}
-					else
-				 	{
-						ArriveTangentWeight = 0.f;
-					}
-					break;
-				}
-				RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode,false);
-				RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode,false);
-				RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode,false);
-
-				FRichCurveKey& NewKey = RichCurve.GetKey(NewKeyHandle);
-				NewKey.ArriveTangent = ArriveTangent;
-				NewKey.LeaveTangent = LeaveTangent;
-				//Tangent Weights in FBX/Maya are normalized X (Time) values.
-				//Our weights are the length of hypontenuse. So here we do the
-				//conversion. Note that Specificed Tangent is already Tangent * Time_Difference;
-				//so we just need to scale it by the normalized weight value.
-				if (!FMath::IsNearlyZero(ArriveTangentWeight))
-				{
-					const float X = ArriveTangentWeight * ArriveTimeDiff;
-					const float Y = ArriveTangent * ArriveTangentWeight;  //timediff already there
-					ArriveTangentWeight = FMath::Sqrt(Y*Y + X * X);
-				}
-				NewKey.ArriveTangentWeight = ArriveTangentWeight;
-				if (!FMath::IsNearlyZero(LeaveTangentWeight))
-				{
-					const float X = LeaveTangentWeight * LeaveTimeDiff;
-					const float Y = LeaveTangent * LeaveTangentWeight; //timediff already there
-					LeaveTangentWeight = FMath::Sqrt(Y*Y + X * X);
-				}
-				NewKey.LeaveTangentWeight = LeaveTangentWeight;
-			}
+			//Send a neutral timespan 0 to infinite, the ImportCurve, offset the keytime by doing: (KeyTime - TimeSpan.start), setting TimeSpan.start at zero will not affect the keys time value.
+			FbxTimeSpan AnimTimeSpan(FBXSDK_TIME_ZERO, FBXSDK_TIME_INFINITE);
+			//Sequencer use auto set tangents
+			const bool bAutoSetTangents = true;
+			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, (bNegative ? -Scale : Scale), bAutoSetTangents);
 		}
-		//no longer set tangents till end...
-		RichCurve.AutoSetTangents();
 	}
 
 	void FFbxCurvesAPI::GetCurveData(const FFbxAnimCurveHandle &CurveHandle, FRichCurve& RichCurve, bool bNegative,float Scale) const
@@ -389,7 +254,7 @@ namespace UnFbx {
 			//Send a neutral timespan 0 to infinite, the ImportCurve, offset the keytime by doing: (KeyTime - TimeSpan.start), setting TimeSpan.start at zero will not affect the keys time value.
 			FbxTimeSpan AnimTimeSpan(FBXSDK_TIME_ZERO, FBXSDK_TIME_INFINITE);
 			const bool bAutoSetTangents = false;
-			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, Scale, bAutoSetTangents);
+			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, (bNegative ? -Scale : Scale), bAutoSetTangents);
 		}
 	}
 

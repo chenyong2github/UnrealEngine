@@ -247,7 +247,7 @@ private:
 	 */
 	bool HitTestMark(const FScrubRangeToScreen& RangeToScreen, float HitPixel, int32& OutMarkIndex) const;
 
-	FFrameTime SnapTimeToNearestKey(const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const;
+	FFrameTime SnapTimeToNearestKey(const FPointerEvent& MouseEvent, const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const;
 
 	void SetPlaybackRangeStart(FFrameNumber NewStart);
 	void SetPlaybackRangeEnd(FFrameNumber NewEnd);
@@ -258,7 +258,7 @@ private:
 	void SetMark(int32 InMarkIndex, FFrameNumber NewFrame);
 
 	TSharedRef<SWidget> OpenSetPlaybackRangeMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-	FFrameTime ComputeScrubTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen) const;
+	FFrameTime ComputeScrubTimeFromMouse(const FGeometry& Geometry, const FPointerEvent& MouseEvent, FScrubRangeToScreen RangeToScreen) const;
 	FFrameTime ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping = true) const;
 
 	void AddMarkAtFrame(FFrameNumber FrameNumber);
@@ -277,8 +277,6 @@ private:
 	FScrubberMetrics GetScrubPixelMetrics(const FQualifiedFrameTime& ScrubTime, const FScrubRangeToScreen& RangeToScreen, float DilationPixels = 0.f) const;
 
 	FScrubberMetrics GetHitTestScrubPixelMetrics(const FScrubRangeToScreen& RangeToScreen) const;
-
-	TSharedRef<IPropertyTypeCustomization> CreateFrameNumberCustomization();
 
 private:
 

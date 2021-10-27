@@ -20,7 +20,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-class FNiagaraBakerViewportClient : public FEditorViewportClient
+class FNiagaraBakerViewportClient final : public FEditorViewportClient
 {
 public:
 	FNiagaraBakerViewportClient(const TSharedRef<SNiagaraBakerViewport>& InOwnerViewport)

@@ -79,8 +79,9 @@ void FAnalysisSessionLock::EndEdit()
 	}
 }
 
-FAnalysisSession::FAnalysisSession(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream)
+FAnalysisSession::FAnalysisSession(uint32 InTraceId, const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream)
 	: Name(SessionName)
+	, TraceId(InTraceId)
 	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
@@ -212,12 +213,12 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 	FileStream->Remaining = Handle->Size();
 
 	TUniquePtr<UE::Trace::IInDataStream> DataStream(FileStream);
-	return StartAnalysis(SessionUri, MoveTemp(DataStream));
+	return StartAnalysis(~0, SessionUri, MoveTemp(DataStream));
 }
 
-TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream)
+TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceId, const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& DataStream)
 {
-	TSharedRef<FAnalysisSession> Session = MakeShared<FAnalysisSession>(SessionName, MoveTemp(DataStream));
+	TSharedRef<FAnalysisSession> Session = MakeShared<FAnalysisSession>(TraceId, SessionName, MoveTemp(DataStream));
 
 	FAnalysisSessionEditScope _(*Session);
 

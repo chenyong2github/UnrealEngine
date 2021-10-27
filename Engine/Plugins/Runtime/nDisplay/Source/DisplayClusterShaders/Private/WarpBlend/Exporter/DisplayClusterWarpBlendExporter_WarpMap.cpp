@@ -15,7 +15,7 @@ bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRend
 	const uint32 Width = InWarpMap->GetWidth();
 	const uint32 Height = InWarpMap->GetHeight();
 
-	const FVector4* WarpData = (FVector4*)InWarpMap->GetData();
+	const FVector4f* WarpData = (FVector4f*)InWarpMap->GetData();
 
 	uint32 DownScaleFactor = 1;
 
@@ -48,7 +48,7 @@ bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRend
 				uint32 MeshX = (i == (MaxWidth - 1)) ? Width : (i * DownScaleFactor);
 
 				int SrcIdx = MeshX + (MeshY) * Width;
-				const FVector4& v = WarpData[SrcIdx];
+				const FVector4f& v = WarpData[SrcIdx];
 				if (v.W > 0)
 				{
 					Dst.Vertices.Add(FVector(v.X, v.Y, v.Z));

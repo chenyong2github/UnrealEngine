@@ -76,6 +76,11 @@ enum EFBXExpectedResultPreset
 
 	/** Data should contain the bone name [string0], the switch to inspect a alternate profile (0 = no, 1 = yes) [int0] and the expected number of vertex skin by the specified bone [int1]*/
 	Skin_By_Bone_Vertex_Number,
+
+	/** Data should contain the custom animation name [string0], key index [int0], and expected arriving tangent weight value [float0]*/
+	Animation_CustomCurve_KeyArriveTangentWeight,
+	/** Data should contain the custom animation name [string0], key index [int0], and expected leaving tangent weight value [float0]*/
+	Animation_CustomCurve_KeyLeaveTangentWeight,
 };
 
 /** Import mesh type */

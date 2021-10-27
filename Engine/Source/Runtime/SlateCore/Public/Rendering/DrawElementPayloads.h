@@ -94,11 +94,11 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 struct FSlateRoundedBoxPayload : public FSlateBoxPayload
 {
 	FLinearColor OutlineColor;
-	FVector4 Radius;
+	FVector4f Radius;
 	float OutlineWeight;
 
-	FORCEINLINE void SetRadius(FVector4 InRadius) { Radius = InRadius; }
-	FORCEINLINE FVector4 GetRadius() const { return Radius; }
+	FORCEINLINE void SetRadius(FVector4f InRadius) { Radius = InRadius; }
+	FORCEINLINE FVector4f GetRadius() const { return Radius; }
 
 	FORCEINLINE void SetOutline(const FLinearColor& InOutlineColor, float InOutlineWeight) { OutlineColor = InOutlineColor; OutlineWeight = InOutlineWeight; }
 	FORCEINLINE FLinearColor GetOutlineColor() const { return OutlineColor; }
@@ -206,9 +206,9 @@ struct FSlateGradientPayload : public FSlateDataPayload
 {
 	TArray<FSlateGradientStop> GradientStops;
 	EOrientation GradientType;
-	FVector4 CornerRadius;
+	FVector4f CornerRadius;
 
-	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, FVector4 InCornerRadius)
+	void SetGradient(const TArray<FSlateGradientStop>& InGradientStops, EOrientation InGradientType, FVector4f InCornerRadius)
 	{
 		GradientStops = InGradientStops;
 		GradientType = InGradientType;
@@ -382,7 +382,7 @@ struct FSlateCustomVertsPayload : public FSlateDataPayload
 struct FSlatePostProcessPayload : public FSlateDataPayload
 {
 	// Post Process Data
-	FVector4 PostProcessData;
-	FVector4 CornerRadius;
+	FVector4f PostProcessData;
+	FVector4f CornerRadius;
 	int32 DownsampleAmount;
 };

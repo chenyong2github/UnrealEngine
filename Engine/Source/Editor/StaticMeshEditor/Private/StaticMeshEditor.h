@@ -232,6 +232,14 @@ public:
 
 	void CreateEditorModeManager() override;
 
+	/**	The tab ids for all the tabs used */
+	static const FName ViewportTabId;
+	static const FName PropertiesTabId;
+	static const FName SocketManagerTabId;
+	static const FName CollisionTabId;
+	static const FName PreviewSceneSettingsTabId;
+	static const FName SecondaryToolbarTabId;
+
 private:
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
@@ -540,14 +548,6 @@ private:
 	/** Instance of the active asynchronous convex decomposition interface. */
 	IDecomposeMeshToHullsAsync        *DecomposeMeshToHullsAsync{ nullptr };
 #endif
-
-	/**	The tab ids for all the tabs used */
-	static const FName ViewportTabId;
-	static const FName PropertiesTabId;
-	static const FName SocketManagerTabId;
-	static const FName CollisionTabId;
-	static const FName PreviewSceneSettingsTabId;
-	static const FName SecondaryToolbarTabId;
 
 	/** Allow custom data for this editor */
 	TMap<int32, int32> CustomEditorData;

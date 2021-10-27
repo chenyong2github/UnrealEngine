@@ -15,6 +15,7 @@
 #include "StatusBarSubsystem.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
+#include "SLevelEditorToolBox.generated.h"
 
 class FExtender;
 class SBorder;
@@ -22,12 +23,23 @@ class IToolkit;
 class SDockTab;
 class ILevelEditor;
 
+UCLASS()
+class ULevelEditorUISubsystem : public UAssetEditorUISubsystem
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	virtual void RegisterLayoutExtensions(FLayoutExtender& Extender) override;
+};
+
+
 class FLevelEditorModeUILayer : public FAssetEditorModeUILayer
 {
 public:
 	FLevelEditorModeUILayer(const IToolkitHost* InToolkitHost);
 	FLevelEditorModeUILayer() {};
-	virtual ~FLevelEditorModeUILayer() override;
 	virtual void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 
@@ -37,6 +49,4 @@ public:
 		static const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
 		return LevelEditorStatusBarName;
 	}
-protected:
-	virtual void RegisterLayoutExtensions(FLayoutExtender& Extender) override;
 };

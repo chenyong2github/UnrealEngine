@@ -214,3 +214,27 @@ ADisplayClusterRootActor* FDisplayClusterConfiguratorBaseTypeCustomization::Find
 
 	return EditingObject->GetTypedOuter<ADisplayClusterRootActor>();
 }
+
+FDisplayClusterConfiguratorBlueprintEditor* FDisplayClusterConfiguratorBaseTypeCustomization::FindBlueprintEditor() const
+{
+	if (EditingObject.IsValid())
+	{
+		return FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject.Get());
+	}
+
+	return nullptr;
+}
+
+const FString* FDisplayClusterConfiguratorBaseTypeCustomization::FindMetaData(TSharedPtr<IPropertyHandle> PropertyHandle, const FName& Key) const
+{
+	if (const FString* MetadataValue = PropertyHandle->GetInstanceMetaData(Key))
+	{
+		return MetadataValue;
+	}
+	else if (PropertyHandle->HasMetaData(Key))
+	{
+		return &PropertyHandle->GetMetaData(Key);
+	}
+
+	return nullptr;
+}

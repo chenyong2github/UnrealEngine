@@ -22,10 +22,13 @@ public:
 	
 	struct FZenServerInfo
 	{
+		FString AutoLaunchExecutablePath;
+		FString AutoLaunchArguments;
 		FString HostName;
 		uint16 Port;
 		FString ProjectId;
 		FString OplogId;
+		bool bAutoLaunch = false;
 	};
 
 	IOSTOREUTILITIES_API FPackageStoreManifest(const FString& CookedOutputPath);

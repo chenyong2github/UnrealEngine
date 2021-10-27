@@ -6,7 +6,7 @@
 #include "ILauncherProfileLaunchRole.h"
 #include "Dom/JsonObject.h"
 
-class FLauncherProfileLaunchRole
+class FLauncherProfileLaunchRole final
 	: public ILauncherProfileLaunchRole
 {
 public:
@@ -97,7 +97,7 @@ public:
 		Writer.WriteObjectEnd();
 	}
 
-	virtual void Serialize( FArchive& Archive ) override
+	virtual void Serialize( FArchive& Archive ) override final
 	{
 		Archive << AssignedDevice
 				<< CommandLine

@@ -371,7 +371,7 @@ namespace EpicGames.Core
 
 				if (TryConvertVersionToInt(AutoSDKVersion, out Ver))
 				{
-					Log.WriteLine(Verbosity, Options, "{0} using Auto SDK from: {1} 0x{2:X}", PlatformName, Path.Combine(PlatformSDKRoot, AutoSDKVersion), Ver);
+					Log.WriteLine(Verbosity, Options, "{0} using Auto SDK {1} from: {2} 0x{3:X}", PlatformName, AutoSDKVersion, Path.Combine(PlatformSDKRoot, GetAutoSDKDirectoryForMainVersion()), Ver);
 				}
 				else
 				{

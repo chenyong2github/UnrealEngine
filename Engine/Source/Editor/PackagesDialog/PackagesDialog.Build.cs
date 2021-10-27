@@ -21,7 +21,8 @@ public class PackagesDialog : ModuleRules
 				"UnrealEd",
 				"SourceControl",
 				"EditorWidgets",
-				"AssetRegistry"
+				"AssetRegistry",
+				"ToolWidgets",
 			}
 		);
 

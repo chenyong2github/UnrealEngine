@@ -604,7 +604,7 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 		TArray<FName> InputPoseNames;
 		TArray<int32> InputPoseNodeIndices;
 		TArray<FStructProperty*> InputPoseNodeProperties;
-		TArray<FProperty*> InputProperties;
+		TArray<FAnimBlueprintFunction::FInputPropertyData> InputPropertyData;
 
 		// grab the input/output poses, their indices will be patched up later once the CDO is loaded in PostLoadDefaultObject
 		for (TFieldIterator<FProperty> ItParam(*It); ItParam; ++ItParam)
@@ -635,12 +635,12 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 				}
 				else
 				{
-					InputProperties.Add(*ItParam);
+					InputPropertyData.Add({ ItParam->GetFName(), *ItParam, nullptr });
 				}
 			}
 			else
 			{
-				InputProperties.Add(*ItParam);
+				InputPropertyData.Add({ ItParam->GetFName(), *ItParam, nullptr });
 			}
 		}
 
@@ -667,7 +667,7 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 			AnimBlueprintFunction->InputPoseNames.Append(MoveTemp(InputPoseNames));
 			AnimBlueprintFunction->InputPoseNodeIndices.Append(MoveTemp(InputPoseNodeIndices));
 			AnimBlueprintFunction->InputPoseNodeProperties.Append(MoveTemp(InputPoseNodeProperties));
-			AnimBlueprintFunction->InputProperties.Append(MoveTemp(InputProperties));
+			AnimBlueprintFunction->InputPropertyData.Append(MoveTemp(InputPropertyData));
 		}
 	}
 }
@@ -771,6 +771,11 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 						FoundFunction->InputPoseNodeIndices[InputIndex] = AnimNodeIndex;
 						FoundFunction->InputPoseNodeProperties[InputIndex] = StructProperty;
 					}
+				}
+
+				for(int32 InputPropertyIndex = 0; InputPropertyIndex < FoundFunction->InputPropertyData.Num(); ++InputPropertyIndex)
+				{
+					FoundFunction->InputPropertyData[InputPropertyIndex].ClassProperty = FindPropertyByName(FoundFunction->InputPropertyData[InputPropertyIndex].Name);
 				}
 			}
 		}

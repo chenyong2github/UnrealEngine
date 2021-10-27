@@ -35,8 +35,8 @@
 #include "Components/LightComponent.h"
 #include "Components/LightComponentBase.h"
 #include "Components/PointLightComponent.h"
-#include "Components/PoseableMeshComponent.h"
 #include "Components/RectLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -98,8 +98,8 @@ struct FUsdStageActorImpl
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
 		TranslationContext->bAllowInterpretingLODs = false;
 
-		// No point in baking these UAnimSequence assets if we're going to be sampling the stage in real time anyway
-		TranslationContext->bAllowParsingSkeletalAnimations = false;
+		// We parse these even when opening the stage now, as they are used in the skeletal animation tracks
+		TranslationContext->bAllowParsingSkeletalAnimations = true;
 
 		UE::FSdfPath UsdPrimPath( *PrimPath );
 		UUsdPrimTwin* ParentUsdPrimTwin = StageActor->GetRootPrimTwin()->Find( UsdPrimPath.GetParentPath().GetString() );
@@ -1498,6 +1498,18 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 			// need to ensure their lifetime here, so just take the previous asset cache instead, which still that has the transient assets
 			AssetCache->Rename( nullptr, NewActor );
 			NewActor->AssetCache = AssetCache;
+
+			// It could be that we're automatically recompiling when going into PIE because our blueprint was dirty.
+			// In that case we also need bIsTransitioningIntoPIE to be true to prevent us from calling LoadUsdStage from PostRegisterAllComponents
+			NewActor->bIsTransitioningIntoPIE = bIsTransitioningIntoPIE;
+			NewActor->bIsModifyingAProperty = bIsModifyingAProperty;
+			NewActor->bIsUndoRedoing = bIsUndoRedoing;
+
+			NewActor->IsBlockedFromUsdNotices.Set( IsBlockedFromUsdNotices.GetValue() );
+			NewActor->OldRootLayer = OldRootLayer;
+
+			// Close our stage or else it will remain open forever. NewActor has a a reference to it now so it won't actually close
+			CloseUsdStage();
 		}
 	}
 }
@@ -1529,6 +1541,11 @@ void AUsdStageActor::LoadUsdStage()
 	{
 		AssetCache = NewObject< UUsdAssetCache >( this, TEXT("AssetCache"), GetMaskedFlags( RF_PropagateToSubObjects ) );
 	}
+
+	// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
+	// the movie scene and tracks will all trigger OnObjectTransacted. We listen for those on FUsdLevelSequenceHelperImpl::OnObjectTransacted,
+	// and would otherwise end up writing all of the data we just loaded back to the USD stage
+	BlockMonitoringLevelSequenceForThisTransaction();
 
 	ObjectsToWatch.Reset();
 
@@ -1646,7 +1663,9 @@ void AUsdStageActor::UnloadUsdStage()
 	}
 
 #if WITH_EDITOR
-	if ( GEditor )
+	// We can't emit this when garbage collecting as it may lead to objects being created
+	// (we may unload stage when going into PIE or other sensitive transitions)
+	if ( GEditor && !IsGarbageCollecting() )
 	{
 		GEditor->BroadcastLevelActorListChanged();
 	}
@@ -1902,31 +1921,16 @@ void AUsdStageActor::Destroyed()
 void AUsdStageActor::PostActorCreated()
 {
 	Super::PostActorCreated();
+}
 
-#if WITH_EDITOR
-	// We can't load stage when recompiling our blueprint because blueprint recompilation is not a transaction. We're forced
-	// to reuse the existing spawned components, actors and prim twins instead ( which we move over on OnObjectsReplaced ), or
-	// we'd get tons of undo/redo bugs.
-	if ( UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>( GetClass() ) )
-	{
-		if ( FRecompilationTracker::IsBeingCompiled( Cast<UBlueprint>( BPClass->ClassGeneratedBy ) ) )
-		{
-			return;
-		}
-	}
-#endif // WITH_EDITOR
+void AUsdStageActor::PostRename( UObject* OldOuter, const FName OldName )
+{
+	Super::PostRename( OldOuter, OldName );
 
-	// This is in charge of:
-	// - Loading the stage when we open a blueprint editor for a blueprint that derives the AUsdStageActor
-	// - Loading the stage when we release the mouse and drop the blueprint onto the level
-	if ( HasAuthorityOverStage()
-#if WITH_EDITOR
-		&& !bIsEditorPreviewActor
-#endif // WITH_EDITOR
-	)
-	{
-		LoadUsdStage();
-	}
+	// Update the binding to this actor on the level sequence. This happens consistently when placing a BP-derived
+	// stage actor with a set root layer onto the stage: We will call ReloadAnimations() before something else calls SetActorLabel()
+	// and changes the actor's name, which means the level sequence would never be bound to the actor
+	LevelSequenceHelper.OnStageActorRenamed();
 }
 
 void AUsdStageActor::BeginDestroy()
@@ -1973,6 +1977,17 @@ void AUsdStageActor::PostRegisterAllComponents()
 	{
 		return;
 	}
+
+	// We can't load stage when recompiling our blueprint because blueprint recompilation is not a transaction. We're forced
+	// to reuse the existing spawned components, actors and prim twins instead ( which we move over on OnObjectsReplaced ), or
+	// we'd get tons of undo/redo bugs.
+	if ( UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>( GetClass() ) )
+	{
+		if ( FRecompilationTracker::IsBeingCompiled( Cast<UBlueprint>( BPClass->ClassGeneratedBy ) ) )
+		{
+			return;
+		}
+	}
 #endif // WITH_EDITOR
 
 	// When we add a sublevel the very first time (i.e. when it is associating) it may still be invisible, but we should load the stage anyway because by
@@ -2016,6 +2031,16 @@ void AUsdStageActor::PostUnregisterAllComponents()
 	if ( bIsEditorPreviewActor )
 	{
 		return;
+	}
+
+	// We can't unload stage when recompiling our blueprint because blueprint recompilation is not a transaction.
+	// After recompiling we will reuse these already spawned actors and assets.
+	if ( UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>( GetClass() ) )
+	{
+		if ( FRecompilationTracker::IsBeingCompiled( Cast<UBlueprint>( BPClass->ClassGeneratedBy ) ) )
+		{
+			return;
+		}
 	}
 #endif // WITH_EDITOR
 
@@ -2213,7 +2238,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 					// ACineCameraActor (see UE-120826)
 					if ( UCineCameraComponent* RecreatedCameraComponent = Cast<UCineCameraComponent>( PrimSceneComponent ) )
 					{
-						UnrealToUsd::ConvertCameraComponent( UsdStage, RecreatedCameraComponent, UsdPrim );
+						UnrealToUsd::ConvertCameraComponent( *RecreatedCameraComponent, UsdPrim );
 					}
 					// Or it could have been just a generic Camera prim, at which case we'll have spawned an entire new
 					// ACineCameraActor for it. In this scenario our prim twin is pointing at the root component, so we need
@@ -2225,7 +2250,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 					{
 						if ( UCineCameraComponent* CameraComponent = CameraActor->GetCineCameraComponent() )
 						{
-							UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim );
+							UnrealToUsd::ConvertCameraComponent( *CameraComponent, UsdPrim );
 						}
 					}
 				}

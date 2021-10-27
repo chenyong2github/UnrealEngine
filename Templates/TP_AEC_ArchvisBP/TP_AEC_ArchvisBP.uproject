@@ -5,32 +5,12 @@
 	"Description": "",
 	"Plugins": [
 		{
-			"Name": "SunPosition",
-			"Enabled": true
-		},
-		{
-			"Name": "DataPrepEditor",
-			"Enabled": true
-		},
-		{
 			"Name": "DatasmithImporter",
 			"Enabled": true
 		},
 		{
-			"Name": "VariantManager",
+			"Name": "DatasmithGLTFImporter",
 			"Enabled": true
-		},
-		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "HDRIBackdrop",
-			"Enabled": true
-		},
-		{
-			"Name": "SequencerScripting",
-			"Enabled": false
 		},
 		{
 			"Name": "DatasmithCADImporter",
@@ -47,8 +27,12 @@
 			]
 		},
 		{
-			"Name": "DatasmithGLTFImporter",
-			"Enabled": true
+			"Name": "DatasmithC4DImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Mac"
+			]
 		},
 		{
 			"Name": "AxFImporter",
@@ -58,23 +42,19 @@
 			]
 		},
 		{
-			"Name": "ModelingToolsEditorMode",
+			"Name": "DataPrepEditor",
 			"Enabled": true
 		},
 		{
-			"Name": "DatasmithC4DImporter",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Mac"
-			]
-		},
-		{
-			"Name": "MovieRenderPipeline",
+			"Name": "VariantManager",
 			"Enabled": true
 		},
 		{
-			"Name": "MoviePipelineMaskRenderPass",
+			"Name": "SunPosition",
+			"Enabled": true
+		},
+		{
+			"Name": "HDRIBackdrop",
 			"Enabled": true
 		},
 		{
@@ -83,6 +63,26 @@
 		},
 		{
 			"Name": "Water",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": false
+		},
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		},
+		{
+			"Name": "MoviePipelineMaskRenderPass",
 			"Enabled": true
 		}
 	]

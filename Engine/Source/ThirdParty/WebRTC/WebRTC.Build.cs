@@ -8,27 +8,17 @@ public class WebRTC : ModuleRules
 {
 	protected string ConfigPath {get; private set; }
 
+	protected virtual bool bShouldUseWebRTC
+	{
+		get =>
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
+	}
+
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
-
-		bool bShouldUseWebRTC = false;
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			bShouldUseWebRTC = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			bShouldUseWebRTC = true;
-		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"))
-		{
-			bShouldUseWebRTC = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4)
-		{
-			bShouldUseWebRTC = true;
-		}
 
 		// WebRTC binaries with debug symbols are huge hence the Release binaries do not have any
 		// if you want to have debug symbols with shipping you will need to build with debug instead  

@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWaitTargetDataDelegate, const FGame
  * For most games you will need to subclass and heavily modify this actor, or you will want to implement similar functions in a game-specific actor or blueprint to avoid actor spawn costs
  * This task is not well tested by internal games, but it is a useful class to look at to learn how target replication occurs
  */
-UCLASS(notplaceable)
+UCLASS()
 class GAMEPLAYABILITIES_API UAbilityTask_WaitTargetData: public UAbilityTask
 {
 	GENERATED_UCLASS_BODY()

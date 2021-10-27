@@ -25,6 +25,7 @@
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UObjectAnnotation.h"
 #include "EngineUtils.h"
@@ -2340,6 +2341,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bBuildReversedIndexBuffer);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionTangentBasis);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseFullPrecisionUVs);
+	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseBackwardsCompatibleF16TruncUVs);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bGenerateLightmapUVs);
 
 	Ar << BuildSettings.MinLightmapResolution;
@@ -4979,6 +4981,14 @@ void UStaticMesh::Serialize(FArchive& Ar)
 		{
 			FStaticMeshSourceModel& SrcModel = GetSourceModel(i);
 			SrcModel.SerializeBulkData(Ar, this);
+
+			//@@!!
+			// Automatically detect assets saved before CL 16135278 which changed F16 to RTNE
+			//	set them to bUseBackwardsCompatibleF16TruncUVs	
+			if ( Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DirLightsAreAtmosphereLightsByDefault)
+			{
+				SrcModel.BuildSettings.bUseBackwardsCompatibleF16TruncUVs = true;
+			}
 		}
 
 		if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::UPropertryForMeshSection)
@@ -5848,7 +5858,11 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	}
 
 	LODResources.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
-	LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, VertexInstanceUVs.GetNumChannels());
+
+	FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
+	StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
+	StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = false;
+	LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, VertexInstanceUVs.GetNumChannels(), StaticMeshVertexBufferFlags);
 
 	LODResources.bHasColorVertexData = bHasVertexColors;
 	FColorVertexBuffer& ColorVertexBuffer = LODResources.VertexBuffers.ColorVertexBuffer;

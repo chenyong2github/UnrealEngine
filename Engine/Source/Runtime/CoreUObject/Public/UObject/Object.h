@@ -1117,7 +1117,17 @@ public:
 	/**
 	 * Saves just the section(s) for this class into the default ini file for the class (with just the changes from base)
 	 */
+	UE_DEPRECATED(5.0, "TryUpdateDefaultConfigFile replaces UpdateDefaultConfigFile")
 	void UpdateDefaultConfigFile(const FString& SpecificFileLocation = "");
+
+	/**
+	 * Try to Saves just the section(s) for this class into the default ini file for the class (with just the changes from base)
+	 *
+	 *  @param SpecificFileLocation The Ini file or if Empty the default ini file for the call
+	 *  @param bWarnIfFail If unable to update the Ini file due to incorrect path or unable to write will log a warning
+	 *  @return true if it was able to write false otherwise
+	 */
+	bool TryUpdateDefaultConfigFile(const FString& SpecificFileLocation = "", bool bWarnIfFail = true);
 
 	/**
 	 * Saves just the section(s) for this class into the global user ini file for the class (with just the changes from base)
@@ -1591,6 +1601,7 @@ struct FObjectNetPushIdHelper
 {
 private:
 	friend struct FNetPrivatePushIdHelper;
+	friend struct FNetObjectManagerPushIdHelper;
 
 	static void SetNetPushIdDynamic(UObject* Object, const int32 NewNetPushId)
 	{

@@ -13,7 +13,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Styling/CoreStyle.h"
 #include "EditorStyleSet.h"
 #include "Curves/CurveFloat.h"
@@ -1049,7 +1049,7 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 			.VAlign(VAlign_Center)
 			.Padding(6.f)
 			[
-				SNew(SEditorHeaderButton)
+				SNew(SPositiveActionButton)
 				.OnGetMenuContent(this, &STimelineEditor::MakeAddButton)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				.Text(LOCTEXT("Track", "Track"))

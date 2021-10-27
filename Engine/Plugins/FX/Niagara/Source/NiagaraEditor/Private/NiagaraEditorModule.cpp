@@ -1457,6 +1457,7 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
 void FNiagaraEditorModule::InvalidateCachedScriptAssetData()
 {
 	CachedScriptAssetHighlights.Reset();
+	TypeConversionScriptCache.Reset();
 }
 
 const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAssetHighlights() const
@@ -1499,6 +1500,33 @@ const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAsse
 		}
 	}
 	return CachedScriptAssetHighlights.GetValue();
+}
+
+const TArray<UNiagaraScript*>& FNiagaraEditorModule::GetCachedTypeConversionScripts() const
+{
+	if (!TypeConversionScriptCache.IsSet())
+	{
+		TArray<FAssetData> DynamicInputAssets;
+	    FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions DynamicInputScriptFilterOptions;
+	    DynamicInputScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::DynamicInput;
+	    FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
+
+		TArray<UNiagaraScript*> AvailableDynamicInputs;
+	    for (const FAssetData& DynamicInputAsset : DynamicInputAssets)
+	    {
+    		UNiagaraScript* DynamicInputScript = Cast<UNiagaraScript>(DynamicInputAsset.GetAsset());
+    		if (DynamicInputScript != nullptr)
+    		{
+    			UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(DynamicInputScript->GetLatestSource());
+    			if (ScriptSource && DynamicInputScript->GetLatestScriptData()->bCanBeUsedForTypeConversions)
+    			{
+    				AvailableDynamicInputs.Add(DynamicInputScript);
+    			}
+    		}
+	    }
+		TypeConversionScriptCache = AvailableDynamicInputs;
+	}
+	return TypeConversionScriptCache.GetValue();
 }
 
 void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const

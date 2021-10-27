@@ -53,7 +53,12 @@ void UUsdPrimTwin::Clear()
 
 	for (const TPair< FString, UUsdPrimTwin* >& Pair : Children)
 	{
-		Pair.Value->Clear();
+		// Apparently when changing levels it is possible for these objects to already be nullptr by the time we try clearing them,
+		// so its safer to check
+		if ( Pair.Value )
+		{
+			Pair.Value->Clear();
+		}
 	}
 	Children.Empty();
 
@@ -165,7 +170,7 @@ UUsdPrimTwin* UUsdPrimTwin::Find( const USceneComponent* InSceneComponent )
 	return nullptr;
 }
 
-USceneComponent* UUsdPrimTwin::GetSceneComponent()
+USceneComponent* UUsdPrimTwin::GetSceneComponent() const
 {
 	if ( SceneComponent.IsValid() )
 	{
@@ -178,9 +183,4 @@ USceneComponent* UUsdPrimTwin::GetSceneComponent()
 	}
 
 	return nullptr;
-}
-
-const USceneComponent* UUsdPrimTwin::GetSceneComponent() const
-{
-	return static_cast< const USceneComponent* >( const_cast< UUsdPrimTwin* >( this )->GetSceneComponent() );
 }

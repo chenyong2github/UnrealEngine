@@ -20,6 +20,7 @@
 #include "PlatformInfo.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Profiles/LauncherProfile.h"
+#include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
 
 
 #define LOCTEXT_NAMESPACE "LauncherWorker"
@@ -598,6 +599,19 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				UATCommand += TEXT(" -fastcook");
 			}
 
+			if (InProfile->IsUsingZenStore())
+			{
+				// TODO: launch the zen server from the client once the external CBTB is done
+				// -fileserver tells UAT to take the cotf/fileserver path and stage a thin client that loads data via the network
+				// -skipserver prevents UAT from launching a COTF server for this CBTB scenario
+				UATCommand += TEXT(" -zenstore -fileserver -skipserver");
+			}
+
+			if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+			{
+				UATCommand += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+			}
+
 			if (InProfile->IsPackingWithUnrealPak())
 			{
 				UATCommand += TEXT(" -pak");
@@ -700,6 +714,11 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				UATCommand += TEXT(" -zenstore");
 			}
 
+			if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+			{
+				UATCommand += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+			}
+
 			//if UAT doesn't stick around as long as the process we are going to run, then we can't kill the COTF server when UAT goes down because the program
 			//will still need it.  If UAT DOES stick around with the process then we DO want the COTF server to die with UAT so the next time we launch we don't end up
 			//with two COTF servers.
@@ -733,6 +752,13 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		UATCommand += MapList;
 		UATCommand += CultureList;
 		UATCommand += TEXT(" -skipcook -CookInEditor"); // don't cook anything the editor is doing it ;)
+		if (InProfile->IsUsingZenStore())
+		{
+			// TODO: launch the zen server from the client once the external CBTB is done
+			// -fileserver tells UAT to take the cotf/fileserver path and stage a thin client that loads data via the network
+			// -skipserver prevents UAT from launching a COTF server for this CBTB scenario
+			UATCommand += TEXT(" -zenstore -fileserver -skipserver");
+		}
 		if (InProfile->IsPackingWithUnrealPak())
 		{
 			UATCommand += TEXT(" -pak");

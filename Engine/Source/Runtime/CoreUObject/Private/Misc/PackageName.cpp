@@ -1220,7 +1220,15 @@ bool FPackageName::TryGetMountPointForPath(FStringView InFilePathOrPackageName, 
 	}
 	if (OutFailureReason)
 	{
-		*OutFailureReason = EErrorCode::PackageNamePathNotMounted;
+		FStringView RelPath;
+		if (FPathViews::TryMakeChildPathRelativeTo(InFilePathOrPackageName, Paths.MemoryRootPath, RelPath))
+		{
+			*OutFailureReason = EErrorCode::PackageNamePathIsMemoryOnly;
+		}
+		else
+		{
+			*OutFailureReason = EErrorCode::PackageNamePathNotMounted;
+		}
 	}
 	return false;
 }
@@ -1324,7 +1332,7 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		EErrorCode FailureReason;
 		if (!FPackageName::TryConvertToMountedPathComponents(LongPackageName, PackageNameRoot, FilePathRoot, RelPath, UnusedObjectName, Extension, CustomExtension, nullptr /* OutFlexNameType */, &FailureReason))
 		{
-			FString Message = FString::Printf(TEXT("DoesPackageExist was called with an invalid LongPackageName; this will always return false. Reason: %s"), *FormatErrorAsString(LongPackageName, FailureReason));
+			FString Message = FString::Printf(TEXT("DoesPackageExist called on PackageName that will always return false. Reason: %s"), *FormatErrorAsString(LongPackageName, FailureReason));
 			UE_LOG(LogPackageName, Warning, TEXT("%s"), *Message);
 			return false;
 		}
@@ -2273,6 +2281,8 @@ FText FPackageName::FormatErrorAsText(FStringView InPath, EErrorCode ErrorCode)
 		return FText::Format(NSLOCTEXT("Core", "PackageNameEmptyPath", "Input '{InPath}' was empty."), Args);
 	case EErrorCode::PackageNamePathNotMounted:
 		return FText::Format(NSLOCTEXT("Core", "PackageNamePathNotMounted", "Input '{InPath}' is not a child of an existing mount point."), Args);
+	case EErrorCode::PackageNamePathIsMemoryOnly:
+		return FText::Format(NSLOCTEXT("Core", "PackageNamePathIsMemoryOnly", "Input '{InPath}' is in a memory-only mount point."), Args);
 	case EErrorCode::PackageNameFullObjectPathNotAllowed:
 		return FText::Format(NSLOCTEXT("Core", "PackageNameFullObjectPathNotAllowed", "Input '{InPath}' is an unallowed FullObjectPath \"<ClassName> <PackageName>.<ObjectName>:<SubObjectName>\". Only partial ObjectPaths \"<PackageName>.<ObjectName>:<SubObjectName>\" are allowed."), Args);
 	case EErrorCode::PackageNameContainsInvalidCharacters:

@@ -145,7 +145,7 @@ private:
  * A wrapper around an element list that ensures mutation goes via the selection 
  * interfaces, as well as providing some utilities for batching operations.
  */
-UCLASS(Transient)
+UCLASS(Transient, BlueprintType, meta=(DontUseGenericSpawnObject="True"))
 class TYPEDELEMENTRUNTIME_API UTypedElementSelectionSet : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementSelectionCustomization>
 {
 	GENERATED_BODY()
@@ -523,6 +523,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Selection")
 	void RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPreChangeDynamic, const UTypedElementSelectionSet*, SelectionSet);
+
+	/** Delegate that is invoked whenever the underlying element list is potentially about to change. */
+	UPROPERTY(BlueprintAssignable, Category = "TypedElementFramework|Selection")
+	FOnPreChangeDynamic OnPreSelectionChange;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChangeDynamic, const UTypedElementSelectionSet*, SelectionSet);
+
+	/** Delegate that is invoked whenever the underlying element list has been changed. */
+	UPROPERTY(BlueprintAssignable, Category = "TypedElementFramework|Selection")
+	FOnChangeDynamic OnSelectionChange;
 
 private:
 	/**

@@ -14,8 +14,10 @@ using System.Linq;
 [Help("Platform", "Platform(s) or Platform Groups to generate for")]
 [Help("Project", "Optional path to project (only required if not creating code for Engine modules/plugins")]
 [Help("SkipPluginModules", "Do not generate platform extension module files when generating a platform extension plugin")]
+[Help("AllowOverwrite", "If target files already exist they'll be overwritten rather than skipped")]
 [Help("AllowUnknownPlatforms", "Allow platform & platform groups that are not known, for example when generating code for extensions we do not have access to")]
 [Help("P4", "Create a changelist for the new files")]
+[Help("CL", "Override the changelist #")]
 class CreatePlatformExtension : BuildCommand
 {
 	readonly List<ModuleHostType> ModuleTypeDenyList = new List<ModuleHostType>
@@ -30,15 +32,25 @@ class CreatePlatformExtension : BuildCommand
 	ConfigHierarchy GameIni;
 	DirectoryReference ProjectDir;
 	List<string> NewFiles = new List<string>();
+	List<string> ModifiedFiles = new List<string>();
+	List<string> WritableFiles = new List<string>(); // for testing only
+	
+	string[] Platforms;
+	string Source;
+	string Project;
 	bool bSkipPluginModules;
+	bool bOverwriteExistingFile;
+	int CL = -1;
 
 	public override void ExecuteBuild()
 	{
 		// Parse the parameters
-		string[] Platforms = ParseParamValue("Platform", "").Split('+', StringSplitOptions.RemoveEmptyEntries);
-		string Source = ParseParamValue("Source", "");
-		string Project = ParseParamValue("Project", "");
-		bSkipPluginModules = ParseParamBool("SkipPluginModules");
+		Platforms = ParseParamValue("Platform", "").Split('+', StringSplitOptions.RemoveEmptyEntries);
+		Source = ParseParamValue("Source", "");
+		Project = ParseParamValue("Project", "");
+		bSkipPluginModules = ParseParam("SkipPluginModules");
+		bOverwriteExistingFile = ParseParam("AllowOverwrite");
+		CL = ParseParamInt("CL", -1 );
 
 		// make sure we have somewhere to look
 		if (string.IsNullOrEmpty(Source))
@@ -55,10 +67,35 @@ class CreatePlatformExtension : BuildCommand
 			return;
 		}
 
+		// cannot have both -P4 and -Test
+		bool bIsTest = ParseParam("Test");
+		if (CommandUtils.P4Enabled && bIsTest)
+		{
+			Log.TraceError("Cannot specify both -P4 and -Test");
+			return;
+		}
+
+		// cannot have -CL without -P4
+		if (!CommandUtils.P4Enabled && CL >= 0)
+		{
+			Log.TraceError("-CL requires -P4");
+			return;
+		}
+
+		// sanity check changelist
+		if (CommandUtils.P4Enabled && CL >= 0)
+		{
+			bool bPending;
+			if (!P4.ChangeExists(CL, out bPending) || !bPending)
+			{
+				Log.TraceError($"Changelist {CL} cannot be used or is not valid");
+				return;
+			}
+		}
+
 		// Prepare values
 		ProjectDir = string.IsNullOrEmpty(Project) ? null : new FileReference(Project).Directory;
 		GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectDir, BuildHostPlatform.Current.Platform );
-		int CL = -1;
 
 		// Generate the code
 		try
@@ -71,7 +108,7 @@ class CreatePlatformExtension : BuildCommand
 				{
 					foreach (string Plugin in Plugins)
 					{
-						GeneratePluginPlatformExtension( new FileReference(Plugin), Platforms );
+						GeneratePluginPlatformExtension( new FileReference(Plugin) );
 					}
 				}
 				else
@@ -94,7 +131,7 @@ class CreatePlatformExtension : BuildCommand
 			}
 			else if (File.Exists(Source))
 			{
-				GeneratePlatformExtensionFromFile(new FileReference(Source), Platforms);
+				GeneratePlatformExtensionFromFile(new FileReference(Source));
 			}
 			else
 			{
@@ -102,43 +139,38 @@ class CreatePlatformExtension : BuildCommand
 			}
 
 			// check the generated files
-			if (NewFiles.Count > 0)
+			if (NewFiles.Count > 0 || ModifiedFiles.Count > 0)
 			{
-				bool bIsTest = ParseParam("Test");
-
-				// add the files to perforce if that is available
-				if (CommandUtils.P4Enabled && !bIsTest)
-				{
-					DirectoryReference SourceDir = new DirectoryReference(Source);
-					string Description = $"[AUTO-GENERATED] {string.Join('+', Platforms)} platform extension files from {SourceDir.MakeRelativeTo(Unreal.RootDirectory)}\n\n#nocheckin verify the code has been generated successfully before checking in!";
-
-					CL = P4.CreateChange(P4Env.Client, Description );
-					foreach (string NewFile in NewFiles)
-					{
-						P4.Add(CL, CommandUtils.MakePathSafeToUseWithCommandLine(NewFile) );
-					}
-				}
-
 				// display final report
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
-				Log.TraceInformation("The following files have been created" + ((CL > 0) ? $" and added to changelist {CL}:" : ":") );
+				Log.TraceInformation("The following files should have been added or edited" + ((CL > 0) ? $" in changelist {CL}:" : ":") );
 				foreach (string NewFile in NewFiles)
 				{
-					Log.TraceInformation($"\t{NewFile}");
+					Log.TraceInformation($"\t{NewFile} (added)");
+				}
+				foreach (string ModifiedFile in ModifiedFiles)
+				{
+					Log.TraceInformation($"\t{ModifiedFile} (edit)");
 				}
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
 
 				// remove everything if requested (for debugging etc)
-				if (!CommandUtils.P4Enabled && bIsTest)
+				if (bIsTest)
 				{
 					Log.TraceInformation("Deleting all the files because this is just a test...");
 					foreach (string NewFile in NewFiles)
 					{
 						File.Delete(NewFile);
+					}
+					foreach (string WritableFile in WritableFiles)
+					{
+						File.Delete(WritableFile);
+						File.Move(WritableFile + ".tmp.bak", WritableFile);
+						File.SetAttributes( WritableFile, File.GetAttributes(WritableFile) | FileAttributes.ReadOnly );
 					}
 				}
 			}
@@ -151,11 +183,19 @@ class CreatePlatformExtension : BuildCommand
 				Log.TraceInformation($"Removing partial file ${NewFile} due to error");
 				File.Delete(NewFile);
 			}
+			foreach (string WritableFile in WritableFiles)
+			{
+				Log.TraceInformation($"Restoring read-only file ${WritableFile} due to error");
+				File.Delete(WritableFile);
+				File.Move(WritableFile + ".tmp.bak", WritableFile);
+				File.SetAttributes( WritableFile, File.GetAttributes(WritableFile) | FileAttributes.ReadOnly );
+			}
 
-			// try to safely clean up the perforce changelist too
+
+			// try to safely clean up the perforce changelist too, if it was not specified on the command line
 			try
 			{
-				if (CL > 0 && CommandUtils.P4Enabled)
+				if (CL > 0 && CommandUtils.P4Enabled && ParseParamInt("CL", -1) != CL)
 				{
 					Log.TraceInformation($"Removing partial changelist ${CL} due to error");
 					P4.DeleteChange(CL,true);
@@ -177,7 +217,7 @@ class CreatePlatformExtension : BuildCommand
 	/// <summary>
 	/// Create the platform extension plugin files of the given plugin, for the given platforms
 	/// </summary>
-	private void GeneratePluginPlatformExtension(FileReference PluginPath, string[] Platforms)
+	private void GeneratePluginPlatformExtension(FileReference PluginPath)
 	{
 		// sanity check plugin path
 		if (!File.Exists(PluginPath.FullName))
@@ -202,39 +242,36 @@ class CreatePlatformExtension : BuildCommand
 
 		// load the plugin & find suitable modules, if required
 		PluginDescriptor ParentPlugin = PluginDescriptor.FromFile(PluginPath); //NOTE: if the PluginPath is itself a child plugin, not all allow list, deny list & supported platform information will be available.
-		List<ModuleDescriptor> ParentModuleDescs = new List<ModuleDescriptor>();
 		List<PluginReferenceDescriptor> ParentPluginDescs = new List<PluginReferenceDescriptor>();
 		Dictionary<ModuleDescriptor, FileReference> ParentModuleRules = new Dictionary<ModuleDescriptor, FileReference>();
 		if (!bSkipPluginModules && ParentPlugin.Modules != null)
 		{
-			ParentModuleDescs = ParentPlugin.Modules.Where(ModuleDesc => CanCreatePlatformExtensionForPluginModule(ModuleDesc)).ToList();
-
 			// find all module rules that are listed in the plugin
 			DirectoryReference ModuleRulesPath = DirectoryReference.Combine( PluginDir, "Source" );
-			var ModuleRules = DirectoryReference.EnumerateFiles(ModuleRulesPath, "*.build.cs", SearchOption.AllDirectories);
-			foreach (FileReference ModuleRule in ModuleRules)
+			if (DirectoryReference.Exists(ModuleRulesPath))
 			{
-				string ModuleRuleName = GetPlatformExtensionBaseNameFromPath(ModuleRule.FullName);
-				ModuleDescriptor ModuleDesc = ParentModuleDescs.Find(ParentModuleDesc => ParentModuleDesc.Name.Equals(ModuleRuleName, StringComparison.InvariantCultureIgnoreCase));
-				if (ModuleDesc != null)
+				var ModuleRules = DirectoryReference.EnumerateFiles(ModuleRulesPath, "*.build.cs", SearchOption.AllDirectories);
+				foreach (FileReference ModuleRule in ModuleRules)
 				{
-					ParentModuleRules.Add(ModuleDesc, ModuleRule);
+					string ModuleRuleName = GetPlatformExtensionBaseNameFromPath(ModuleRule.FullName);
+					ModuleDescriptor ModuleDesc = ParentPlugin.Modules.Find(ParentModuleDesc => ParentModuleDesc.Name.Equals(ModuleRuleName, StringComparison.InvariantCultureIgnoreCase));
+					if (ModuleDesc != null)
+					{
+						ParentModuleRules.Add(ModuleDesc, ModuleRule);
+					}
 				}
 			}
 		}
-		if (ParentPlugin.Plugins != null)
-		{
-			ParentPluginDescs = ParentPlugin.Plugins.Where(PluginDesc => CanCreatePlatformExtensionForPluginReference(PluginDesc)).ToList();
-		}
+
+		bool bParentPluginDirty = false;
 
 		// generate the platform extension files
-		string BasePluginDir = GetRelativeBaseDirectory(PluginDir, RootDir);
 		string BasePluginName = GetPlatformExtensionBaseNameFromPath(PluginPath.FullName);
 		foreach (string PlatformName in Platforms)
 		{
 			// verify final file name
-			string FinalFileName = Path.Combine(RootDir.FullName, "Platforms", PlatformName, BasePluginDir, BasePluginName + "_" + PlatformName + ".uplugin");
-			if (File.Exists(FinalFileName))
+			string FinalFileName = MakePlatformExtensionPathFromSource(RootDir, PluginDir, PlatformName, BasePluginName + "_" + PlatformName + ".uplugin");
+			if (File.Exists(FinalFileName) && !(bOverwriteExistingFile && EditFile(FinalFileName)))
 			{
 				Log.TraceWarning($"Skipping {FinalFileName} as it already exists");
 				continue;
@@ -262,8 +299,8 @@ class CreatePlatformExtension : BuildCommand
 					ChildPlugin.WriteStringArrayField("SupportedTargetPlatforms", new string[]{ Platform.ToString() } );
 				}
 
-				// select all modules that are not denied
-				IEnumerable<ModuleDescriptor> ModuleDescs = ParentModuleDescs.Where( ModuleDesc => !(bHasPlatform && ModuleDesc.PlatformDenyList != null && ModuleDesc.PlatformDenyList.Contains(Platform)) );
+				// select all modules that need child module references for this platform
+				IEnumerable<ModuleDescriptor> ModuleDescs = ParentPlugin.Modules?.Where( ModuleDesc => ShouldCreateChildReferenceForModule(ModuleDesc, bHasPlatform, Platform));
 				if (ModuleDescs.Any() )
 				{
 					ChildPlugin.WriteArrayStart("Modules");
@@ -277,6 +314,10 @@ class CreatePlatformExtension : BuildCommand
 						{
 							ChildPlugin.WriteStringArrayField("PlatformAllowList", new string[] { Platform.ToString() } );
 						}
+						if (NeedsPlatformReference(ParentModuleDesc.PlatformDenyList, ParentModuleDesc.bHasExplicitPlatforms))
+						{
+							ChildPlugin.WriteStringArrayField("PlatformDenyList", new string[] { Platform.ToString() } );
+						}
 						ChildPlugin.WriteObjectEnd();
 
 						// see if there is a module rule file too & generate the rules file for this platform
@@ -285,12 +326,22 @@ class CreatePlatformExtension : BuildCommand
 						{
 							GenerateModulePlatformExtension(ParentModuleRule, new string[] { PlatformName });
 						}
+
+						// remove platform from parent plugin references
+						if (bHasPlatform && ParentModuleDesc.PlatformAllowList != null)
+						{
+							bParentPluginDirty |= ParentModuleDesc.PlatformAllowList.Remove(Platform);
+						}
+						if (bHasPlatform && ParentModuleDesc.PlatformDenyList != null)
+						{
+							bParentPluginDirty |= ParentModuleDesc.PlatformDenyList.Remove(Platform);
+						}
 					}
 					ChildPlugin.WriteArrayEnd();
 				}
 
-				// select all plugins that are not defnied
-				IEnumerable<PluginReferenceDescriptor> PluginDescs = ParentPluginDescs.Where( PluginDesc => !(bHasPlatform && PluginDesc.PlatformDenyList != null && PluginDesc.PlatformDenyList.ToList().Contains(Platform.ToString())) );
+				// select all plugins that need child plugin references for this platform
+				IEnumerable<PluginReferenceDescriptor> PluginDescs = ParentPlugin.Plugins?.Where( PluginDesc => ShouldCreateChildReferenceForDependentPlugin(PluginDesc, bHasPlatform, Platform ) );
 				if (PluginDescs.Any() )
 				{
 					ChildPlugin.WriteArrayStart("Plugins");
@@ -300,18 +351,46 @@ class CreatePlatformExtension : BuildCommand
 						ChildPlugin.WriteObjectStart();
 						ChildPlugin.WriteValue("Name", ParentPluginDesc.Name );
 						ChildPlugin.WriteValue("Enabled", ParentPluginDesc.bEnabled);
-						if (NeedsPlatformReference(ParentPluginDesc.PlatformAllowList.ToList(), ParentPluginDesc.bHasExplicitPlatforms))
+						if (NeedsPlatformReference(ParentPluginDesc.PlatformAllowList?.ToList(), ParentPluginDesc.bHasExplicitPlatforms))
 						{
 							ChildPlugin.WriteStringArrayField("PlatformAllowList", new string[] { Platform.ToString() } );
 						}
+						if (NeedsPlatformReference(ParentPluginDesc.PlatformDenyList?.ToList(), ParentPluginDesc.bHasExplicitPlatforms))
+						{
+							ChildPlugin.WriteStringArrayField("PlatformDenyList", new string[] { Platform.ToString() } );
+						}
 						ChildPlugin.WriteObjectEnd();
+
+						// remove platform from parent plugin references
+						if (bHasPlatform && PlatformArrayContainsPlatform( ParentPluginDesc.PlatformAllowList, Platform ) )
+						{
+							ParentPluginDesc.PlatformAllowList = ParentPluginDesc.PlatformAllowList.Where( X => !X.Equals(Platform.ToString() ) ).ToArray();
+							bParentPluginDirty = true;
+						}
+						if (bHasPlatform && PlatformArrayContainsPlatform( ParentPluginDesc.PlatformDenyList, Platform ) )
+						{
+							ParentPluginDesc.PlatformDenyList = ParentPluginDesc.PlatformDenyList.Where( X => !X.Equals(Platform.ToString() ) ).ToArray();
+							bParentPluginDirty = true;
+						}
 					}
 
 					ChildPlugin.WriteArrayEnd();
 				}
 				ChildPlugin.WriteObjectEnd();
+
+				// remove platform from parent plugin, if necessary
+				if (bHasPlatform && ParentPlugin.SupportedTargetPlatforms != null)
+				{
+					bParentPluginDirty |= ParentPlugin.SupportedTargetPlatforms.Remove(Platform);
+				}
 			}
-			NewFiles.Add(FinalFileName);
+			AddNewFile(FinalFileName);
+		}
+
+		// save parent plugin, if necessary
+		if (bParentPluginDirty && EditFile(PluginPath.FullName) )
+		{
+			ParentPlugin.Save(PluginPath.FullName);
 		}
 	}
 
@@ -319,7 +398,7 @@ class CreatePlatformExtension : BuildCommand
 	/// <summary>
 	/// Creates the platform extension child class files of the given module, for the given platforms
 	/// </summary>
-	private void GenerateModulePlatformExtension(FileReference ModulePath, string[] Platforms)
+	private void GenerateModulePlatformExtension(FileReference ModulePath, string[] PlatformNames)
 	{
 		// sanity check module path
 		if (!File.Exists(ModulePath.FullName))
@@ -378,15 +457,14 @@ class CreatePlatformExtension : BuildCommand
 		}
 
 		// load template and generate the platform extension files
-		string BaseModuleDir = GetRelativeBaseDirectory( ModuleDir, RootDir );
 		string BaseModuleFileName = GetPlatformExtensionBaseNameFromPath( ModulePath.FullName );
 		string CopyrightLine = MakeCopyrightLine();
 		string Template = LoadTemplate($"PlatformExtension{ModuleExtension}.template");
-		foreach (string PlatformName in Platforms)
+		foreach (string PlatformName in PlatformNames)
 		{
 			// verify the final file name
-			string FinalFileName = Path.Combine(RootDir.FullName, "Platforms", PlatformName, BaseModuleDir, BaseModuleFileName + "_" + PlatformName + ModuleExtension );
-			if (File.Exists(FinalFileName))
+			string FinalFileName = MakePlatformExtensionPathFromSource(RootDir, ModuleDir, PlatformName, BaseModuleFileName + "_" + PlatformName + ModuleExtension );
+			if (File.Exists(FinalFileName) && !(bOverwriteExistingFile && EditFile(FinalFileName) ))
 			{
 				Log.TraceWarning($"Skipping {FinalFileName} as it already exists");
 				continue;
@@ -402,7 +480,7 @@ class CreatePlatformExtension : BuildCommand
 			// save the child .cs file
 			Directory.CreateDirectory(Path.GetDirectoryName(FinalFileName));
 			File.WriteAllText(FinalFileName, FinalOutput);
-			NewFiles.Add(FinalFileName);
+			AddNewFile(FinalFileName);
 		}
 	}
 
@@ -411,11 +489,11 @@ class CreatePlatformExtension : BuildCommand
 	/// <summary>
 	/// Generates platform extension files based on the given source file name
 	/// </summary>
-	private void GeneratePlatformExtensionFromFile(FileReference Source, string[] Platforms)
+	private void GeneratePlatformExtensionFromFile(FileReference Source)
 	{
 		if (Source.FullName.ToLower().EndsWith(".uplugin") )
 		{
-			GeneratePluginPlatformExtension(Source, Platforms);
+			GeneratePluginPlatformExtension(Source);
 		}
 		else if (Source.FullName.ToLower().EndsWith(".build.cs") || Source.FullName.ToLower().EndsWith(".target.cs"))
 		{
@@ -433,11 +511,12 @@ class CreatePlatformExtension : BuildCommand
 
 
 	/// <summary>
-	/// Determines whether we should attempt to add this plugin module to the child plugin module references
+	/// Determines whether we should attempt to add a child module reference for the given plugin module
 	/// </summary>
 	/// <param name="ModuleDesc"></param>
+	/// <param name="Platform"></param>
 	/// <returns></returns>
-	private bool CanCreatePlatformExtensionForPluginModule( ModuleDescriptor ModuleDesc )
+	private bool ShouldCreateChildReferenceForModule( ModuleDescriptor ModuleDesc, bool bHasPlatform, UnrealTargetPlatform Platform )
 	{
 		// make sure it's a type that is usually associated with platform extensions
 		if (ModuleTypeDenyList.Contains(ModuleDesc.Type))
@@ -452,7 +531,13 @@ class CreatePlatformExtension : BuildCommand
 		}
 
 		// the module has a non-empty platform allow list so we must create a child reference
-		if (ModuleDesc.PlatformAllowList != null && ModuleDesc.PlatformAllowList.Count >= 0)
+		if (ModuleDesc.PlatformAllowList != null && ModuleDesc.PlatformAllowList.Count > 0)
+		{
+			return true;
+		}
+
+		// the module has a non-empty platform deny list that explicitly mentions this platform
+		if (bHasPlatform && ModuleDesc.PlatformDenyList != null && ModuleDesc.PlatformDenyList.Contains(Platform))
 		{
 			return true;
 		}
@@ -466,7 +551,7 @@ class CreatePlatformExtension : BuildCommand
 	/// </summary>
 	/// <param name="PluginDesc"></param>
 	/// <returns></returns>
-	private bool CanCreatePlatformExtensionForPluginReference( PluginReferenceDescriptor PluginDesc )
+	private bool ShouldCreateChildReferenceForDependentPlugin( PluginReferenceDescriptor PluginDesc, bool bHasPlatform, UnrealTargetPlatform Platform )
 	{
 		// this plugin reference must have supported platforms explicitly listed so we must create a child reference
 		if (PluginDesc.bHasExplicitPlatforms)
@@ -475,7 +560,13 @@ class CreatePlatformExtension : BuildCommand
 		}
 
 		// the plugin reference has a non-empty platform allow list so we must create a child reference
-		if (PluginDesc.PlatformAllowList != null && PluginDesc.PlatformAllowList.Length >= 0)
+		if (PluginDesc.PlatformAllowList != null && PluginDesc.PlatformAllowList.Length > 0)
+		{
+			return true;
+		}
+
+		// the plugin reference has a non-empty platform deny list that explicitly mentions this platform
+		if (bHasPlatform && PlatformArrayContainsPlatform( PluginDesc.PlatformDenyList, Platform ) )
 		{
 			return true;
 		}
@@ -487,23 +578,37 @@ class CreatePlatformExtension : BuildCommand
 
 
 	/// <summary>
-	/// Gets the relative path from the given root. If the root is also under a Platforms/[name] then that is also removed
+	/// Generates the final platform extension file path for the given source directory, platform & filename
 	/// </summary>
-	private string GetRelativeBaseDirectory(DirectoryReference ChildDir, DirectoryReference RootDir)
+	private string MakePlatformExtensionPathFromSource( DirectoryReference RootDir, DirectoryReference SourceDir, string PlatformName, string Filename )
 	{
-		DirectoryReference PlatformsDir = DirectoryReference.Combine(RootDir, "Platforms");
-		string BaseDir;
-		if (ChildDir.IsUnderDirectory(PlatformsDir))
+		string BaseDir = SourceDir.MakeRelativeTo(RootDir)
+			.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+		// handle Restricted folders first - need to keep the restricted folder at the start of the path
+		string OptionalRestrictedDir = "";
+		if (BaseDir.StartsWith("Restricted" + Path.DirectorySeparatorChar))
 		{
-			BaseDir = ChildDir.MakeRelativeTo(PlatformsDir);
-			BaseDir = BaseDir.Substring(BaseDir.IndexOf(Path.DirectorySeparatorChar) + 1);
-		}
-		else
-		{
-			BaseDir = ChildDir.MakeRelativeTo(RootDir);
+			string[] RestrictedFragments = BaseDir.Split(Path.DirectorySeparatorChar, 3); // 3 = Restricted/NotForLicensees/<remainder...>
+			if (RestrictedFragments.Length > 0)
+			{
+				OptionalRestrictedDir = Path.Combine( RestrictedFragments.SkipLast(1).ToArray() ); // Restricted/NotForLicensees
+				BaseDir = RestrictedFragments.Last(); // remainder
+			}
 		}
 
-		return BaseDir;
+		// handle Platform folders next - trim off the source platform
+		if (BaseDir.StartsWith("Platforms" + Path.DirectorySeparatorChar))
+		{
+			string[] PlatformFragments = BaseDir.Split(Path.DirectorySeparatorChar, 3); // 3 = Platforms/<platform>/<remainder...>
+			if (PlatformFragments.Length > 0)
+			{
+				BaseDir = PlatformFragments.Last(); //remainder
+			}
+		}
+
+		// build the final path
+		return Path.Combine( RootDir.FullName, OptionalRestrictedDir, "Platforms", PlatformName, BaseDir, Filename );
 	}
 
 
@@ -561,13 +666,107 @@ class CreatePlatformExtension : BuildCommand
 	}
 
 
+	/// <summary>
+	/// Returns whether there is a valid changelist for adding files to
+	/// </summary>
+	/// <returns></returns>
+	private bool HasChangelist()
+	{
+		if (!CommandUtils.P4Enabled)
+		{
+			return false;
+		}
+
+		if (CL == -1)
+		{
+			// add the files to perforce if that is available
+			DirectoryReference SourceDir = new DirectoryReference(Source);
+			string Description = $"[AUTO-GENERATED] {string.Join('+', Platforms)} platform extension files from {SourceDir.MakeRelativeTo(Unreal.RootDirectory)}\n\n#nocheckin verify the code has been generated successfully before checking in!";
+
+			CL = P4.CreateChange(P4Env.Client, Description );
+		}
+
+		return (CL != -1);
+	}
+
+	/// <summary>
+	/// Adds the given file to the list of new files, optionally adding to the current changelist if applicable
+	/// </summary>
+	/// <param name="NewFile"></param>
+	private void AddNewFile( string NewFile )
+	{
+		if (ModifiedFiles.Contains(NewFile) || NewFiles.Contains(NewFile))
+		{
+			return;
+		}
+
+		if (HasChangelist())
+		{
+			P4.Add(CL, CommandUtils.MakePathSafeToUseWithCommandLine(NewFile) );
+		}
+
+		NewFiles.Add(NewFile);
+	}
+
+	/// <summary>
+	/// Attempts to edit the given file, optionally checking it out if applicable. If this is just a test, read-only files are backed up and made writable
+	/// </summary>
+	/// <param name="ExistingFile"></param>
+	/// <returns></returns>
+	private bool EditFile( string ExistingFile )
+	{
+		if (ModifiedFiles.Contains(ExistingFile) || NewFiles.Contains(ExistingFile))
+		{
+			return true;
+		}
+
+		if (HasChangelist())
+		{
+			P4.Edit(CL, CommandUtils.MakePathSafeToUseWithCommandLine(ExistingFile) );
+		}
+
+
+		if ((File.GetAttributes(ExistingFile) & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+		{
+			bool bIsTest = ParseParam("Test");
+			if (bIsTest)
+			{
+				File.Copy(ExistingFile, ExistingFile + ".tmp.bak");
+
+				// make the file writable if this is a test
+				WritableFiles.Add(ExistingFile);
+				File.SetAttributes( ExistingFile, File.GetAttributes(ExistingFile) & ~FileAttributes.ReadOnly );
+			}
+			else
+			{
+				Log.TraceWarning($"Cannot edit {ExistingFile} because it is read-only");
+				return false;
+			}
+		}
+
+		ModifiedFiles.Add(ExistingFile);
+		return true;
+	}
+
+
+	/// <summary>
+	/// Heler function to see if the given platform name array contains the given platform
+	/// </summary>
+	/// <param name="PlatformNames"></param>
+	/// <param name="Platform"></param>
+	/// <returns></returns>
+	private bool PlatformArrayContainsPlatform( string[] PlatformNames, UnrealTargetPlatform Platform )
+	{
+		return PlatformNames != null && PlatformNames.Any( PlatformName => PlatformName.Equals(Platform.ToString(), StringComparison.InvariantCultureIgnoreCase) );
+	}
+
 
 	/// <summary>
 	/// Returns a list of validated and case-corrected platform and platform groups
 	/// </summary>
 	private string[] VerifyPlatforms(string[] Platforms)
 	{
-		bool bAllowUnknownPlatforms = ParseParamBool("AllowUnknownPlatforms");
+		bool bAllowUnknownPlatforms = ParseParam("AllowUnknownPlatforms");
 
 		List<string> Result = new List<string>();
 		foreach (string PlatformName in Platforms)

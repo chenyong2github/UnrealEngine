@@ -541,6 +541,11 @@ FText STextPropertyEditableStringTableReference::GetKeyComboContent() const
 		GetTableIdAndKey(TmpTableId, CurrentKey);
 	}
 
+	if (CurrentKey.IsEmpty())
+	{
+		return LOCTEXT("NoKeyLabel", "No Key");
+	}
+
 	return FText::FromString(MoveTemp(CurrentKey));
 }
 
@@ -630,7 +635,6 @@ public:
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.TransformPolicy(ETextTransformPolicy::ToUpper)
 						.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 						.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.BoldFont"))
 						.Text(InArgs._Text)

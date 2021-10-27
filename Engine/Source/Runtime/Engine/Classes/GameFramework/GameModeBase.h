@@ -311,6 +311,14 @@ public:
 	/** Called after a successful login.  This is the first place it is safe to call replicated functions on the PlayerController. */
 	virtual void PostLogin(APlayerController* NewPlayer);
 
+	/** Called as part of the PostLogin process.  This is the last step before we spawn a new player. */
+	void DispatchPostLogin(AController* NewPlayer);
+
+protected:
+	/** Called as part of DispatchPostLogin */
+	virtual void OnPostLogin(AController* NewPlayer) { }
+
+public:
 	/** Notification that a player has successfully logged in, and has been given a player controller */
 	UFUNCTION(BlueprintImplementableEvent, Category=Game, meta = (DisplayName = "OnPostLogin", ScriptName = "OnPostLogin"))
 	void K2_PostLogin(APlayerController* NewPlayer);
@@ -473,6 +481,13 @@ public:
 	//~ End AActor Interface
 
 protected:
+	/**
+	 *	Attempts to initialize the 'StartSpot' of the Player.
+	 * 	@param	Player				The controller for the player.
+	 *	@param	OutErrorMessage		Any error messages.
+	 *	@return	bool	true if we updated the start spot, otherwise false.
+	 */
+	virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage);
 
 	/**
 	 *	Check to see if we should start in cinematic mode 

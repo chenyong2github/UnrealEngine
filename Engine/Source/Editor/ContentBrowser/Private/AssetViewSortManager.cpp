@@ -3,6 +3,7 @@
 #include "AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "ContentBrowserDataSource.h"
+#include "Misc/ComparisonUtility.h"
 
 struct FCompareFAssetItemBase
 {
@@ -116,7 +117,7 @@ protected:
 		// TODO: Have an option to sort by display name? It's slower, but more correct for non-English languages
 		//const int32 Result = (AItemData && BItemData) ? AItemData->GetDisplayName().CompareTo(BItemData->GetDisplayName()) : 0;
 		//const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(FNameBuilder(AItemData->GetItemName()).ToView(), FNameBuilder(BItemData->GetItemName()).ToView()) : 0;
-		const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(AItemData->GetDisplayName().ToString(), BItemData->GetDisplayName().ToString()) : 0;
+		const int32 Result = (AItemData && BItemData) ? UE::ComparisonUtility::CompareWithNumericSuffix(AItemData->GetDisplayName().ToString(), BItemData->GetDisplayName().ToString()) : 0;
 		if (Result < 0)
 		{
 			return bAscending;
@@ -170,7 +171,7 @@ protected:
 	{
 		const FContentBrowserItemData* AItemData = A->GetItem().GetPrimaryInternalItem();
 		const FContentBrowserItemData* BItemData = B->GetItem().GetPrimaryInternalItem();
-		const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(FNameBuilder(AItemData->GetVirtualPath()).ToView(), FNameBuilder(BItemData->GetVirtualPath()).ToView()) : 0;
+		const int32 Result = (AItemData && BItemData) ? UE::ComparisonUtility::CompareWithNumericSuffix(AItemData->GetVirtualPath(), BItemData->GetVirtualPath()) : 0;
 		if (Result < 0)
 		{
 			return bAscending;
@@ -576,45 +577,4 @@ bool FAssetViewSortManager::SetOrToggleSortColumn(const EColumnSortPriority::Typ
 		}
 		return false;
 	}
-}
-
-int32 FAssetViewSortManager::CompareWithNumericSuffix(FStringView A, FStringView B)
-{
-	auto SplitNumericSuffix = [](FStringView Full, FStringView& OutPrefix, int32& OutSuffix)
-	{
-		int32 SuffixSplit = Full.Len();
-		for (; SuffixSplit > 0 && FChar::IsDigit(Full[SuffixSplit - 1]); --SuffixSplit) {}
-
-		if (SuffixSplit < Full.Len())
-		{
-			OutPrefix = Full.Left(SuffixSplit);
-
-			TStringBuilder<32> SuffixStr;
-			SuffixStr.Append(Full.RightChop(SuffixSplit));
-			LexFromString(OutSuffix, SuffixStr.ToString());
-		}
-		else
-		{
-			OutPrefix = Full;
-			OutSuffix = INDEX_NONE;
-		}
-	};
-
-	FStringView APrefix;
-	int32 ASuffix = 0;
-	SplitNumericSuffix(A, APrefix, ASuffix);
-
-	FStringView BPrefix;
-	int32 BSuffix = 0;
-	SplitNumericSuffix(B, BPrefix, BSuffix);
-
-	// Are the prefixes identical?
-	const int32 PrefixResult = APrefix.Compare(BPrefix, ESearchCase::IgnoreCase);
-	if (PrefixResult != 0)
-	{
-		return PrefixResult;
-	}
-
-	// If so, compare the suffixes too
-	return ASuffix - BSuffix;
 }

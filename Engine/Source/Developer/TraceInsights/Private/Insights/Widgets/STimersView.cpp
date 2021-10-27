@@ -2,16 +2,20 @@
 
 #include "STimersView.h"
 
+#include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFileManager.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
+#include "Logging/MessageLog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/TimingProfiler.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -25,6 +29,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -52,7 +57,7 @@ class FTimersViewCommands : public TCommands<FTimersViewCommands>
 {
 public:
 	FTimersViewCommands()
-		: TCommands<FTimersViewCommands>(TEXT("FTimersViewCommands"), NSLOCTEXT("FTimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FTimersViewCommands>(TEXT("FTimersViewCommands"), NSLOCTEXT("FTimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FInsightsStyle::Get().GetStyleSetName())
 	{
 	}
 
@@ -64,11 +69,57 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+		UI_COMMAND(Command_CopyToClipboard,
+			"Copy To Clipboard",
+			"Copies the selection (timers and their aggregated statistics) to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_Export,
+			"Export...",
+			"Exports the selection (timers and their aggregated statistics) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::S));
+
+		UI_COMMAND(Command_ExportTimingEventsSelection,
+			"Export Timing Events (Selection)...",
+			"Exports the timing events to a text file (tab-separated values or comma-separated values).\nOnly exports the timing events of the selected timer(s), for the visible CPU/GPU Thread tracks and in the selected time region (if any).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportTimingEvents,
+			"Export Timing Events (All)...",
+			"Exports all the timing events (for all CPU/GPU threads) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportThreads,
+			"Export Threads...",
+			"Exports the list of threads to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportTimers,
+			"Export Timers...",
+			"Exports the list of timers to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_OpenSource,
+			"Open Source",
+			"Opens the source file of the selected timer in the registered IDE.",
+			EUserInterfaceActionType::Button,
+			FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
 	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+	TSharedPtr<FUICommandInfo> Command_Export;
+	TSharedPtr<FUICommandInfo> Command_ExportTimingEventsSelection;
+	TSharedPtr<FUICommandInfo> Command_ExportTimingEvents;
+	TSharedPtr<FUICommandInfo> Command_ExportThreads;
+	TSharedPtr<FUICommandInfo> Command_ExportTimers;
+	TSharedPtr<FUICommandInfo> Command_OpenSource;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +160,13 @@ void STimersView::InitCommandList()
 {
 	FTimersViewCommands::Register();
 	CommandList = MakeShared<FUICommandList>();
-	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopyToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopyToClipboard_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_Export, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_Export_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_Export_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_ExportTimingEventsSelection, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimingEventsSelection_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimingEventsSelection_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_ExportTimingEvents, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimingEvents_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimingEvents_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_ExportThreads, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportThreads_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportThreads_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_ExportTimers, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimers_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_ExportTimers_CanExecute));
+	CommandList->MapAction(FTimersViewCommands::Get().Command_OpenSource, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_OpenSource_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_OpenSource_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,23 +398,13 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 	const int32 NumSelectedNodes = SelectedNodes.Num();
 	FTimerNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
-
 	FText SelectionStr;
-	FText PropertyName;
-	FText PropertyValue;
-
 	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
 	else if (NumSelectedNodes == 1)
 	{
-		if (HoveredColumnPtr != nullptr)
-		{
-			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
-		}
 		FString ItemName = SelectedNode->GetName().ToString();
 		const int32 MaxStringLen = 64;
 		if (ItemName.Len() > MaxStringLen)
@@ -368,7 +415,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 	}
 	else
 	{
-		SelectionStr = LOCTEXT("MultipleSelection", "Multiple selection");
+		SelectionStr = FText::Format(LOCTEXT("MultipleSelection_Fmt", "{0} selected items"), FText::AsNumber(NumSelectedNodes));
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -391,7 +438,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			SelectionStr,
 			LOCTEXT("ContextMenu_Selection", "Currently selected items"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "@missing.icon"), DummyUIAction, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			DummyUIAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -423,8 +473,11 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent", "Stop Highlighting Event"),
-					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent_Desc", "Stops highlighting timing event instances of this timer."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"), Action_ToggleHighlight, NAME_None, EUserInterfaceActionType::Button
+					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent_Desc", "Stops highlighting timing event instances for the selected timer."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"),
+					Action_ToggleHighlight,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 			else
@@ -432,8 +485,11 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent", "Highlight Event"),
-					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent_Desc", "Highlights all timing event instances of this timer."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"), Action_ToggleHighlight, NAME_None, EUserInterfaceActionType::Button
+					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent_Desc", "Highlights all timing event instances for the selected timer."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"),
+					Action_ToggleHighlight,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 		}
@@ -451,8 +507,11 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack", "Remove series from graph track"),
-					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of this timer from the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleTimerInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of the selected timer from the timing graph track."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					Action_ToggleTimerInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 			else
@@ -460,13 +519,16 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack", "Add series to graph track"),
-					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack_Desc", "Add a series containing event instances of this timer to the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleTimerInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack_Desc", "Add a series containing event instances of the selected timer to the timing graph track."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					Action_ToggleTimerInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 		}
 
-		// Open source in IDE
+		// Open Source in IDE
 		{
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 			ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
@@ -479,26 +541,30 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				bIsValidSource = SelectedNode->GetSourceFileAndLine(File, Line);
 			}
 
-			FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource", "Open source in {0}"), SourceCodeAccessor.GetNameText());
-			FText ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc", "Open source file of selected timer in {0}.\n{1} ({2})"),
-				SourceCodeAccessor.GetNameText(), FText::FromString(File), FText::AsNumber(Line));
+			FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource", "Open Source in {0}"), SourceCodeAccessor.GetNameText());
 
-			FUIAction Action_OpenSource;
-			Action_OpenSource.CanExecuteAction = FCanExecuteAction::CreateLambda([bIsValidSource]() { return bIsValidSource; });
-			Action_OpenSource.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::OpenSourceFileInIDE, SelectedNode);
+			FText ItemToolTip;
+			if (bIsValidSource)
+			{
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc1", "Opens the source file of the selected timer in {0}.\n{1} ({2})"),
+					SourceCodeAccessor.GetNameText(), FText::FromString(File), FText::AsNumber(Line, &FNumberFormattingOptions::DefaultNoGrouping()));
+			}
+			else
+			{
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc2", "Opens the source file of the selected timer in {0}."),
+					SourceCodeAccessor.GetNameText());
+			}
 
-			MenuBuilder.AddMenuEntry
-			(
+			MenuBuilder.AddMenuEntry(
+				FTimersViewCommands::Get().Command_OpenSource,
+				NAME_None,
 				ItemLabel,
 				ItemToolTip,
 #if PLATFORM_WINDOWS
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio")
 #else
-				FSlateIcon(),
+				FSlateIcon()
 #endif
-				Action_OpenSource,
-				NAME_None,
-				EUserInterfaceActionType::Button
 			);
 		}
 	}
@@ -515,6 +581,37 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
+		MenuBuilder.AddMenuEntry
+		(
+			FTimersViewCommands::Get().Command_Export,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTimersViewCommands::Get().Command_ExportTimingEventsSelection,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_Header_Misc_Export", "More Export Options"),
+			LOCTEXT("ContextMenu_Header_Misc_Export_Desc", "Exports threads, timers and timing events to text files."),
+			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildExportMenu),
+			false,
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Sorting", LOCTEXT("ContextMenu_Header_Sorting", "Sorting"));
+	{
 		MenuBuilder.AddSubMenu
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
@@ -546,7 +643,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowAllColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_ShowMinMaxMedColumns
@@ -558,7 +658,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowMinMaxMedColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowMinMaxMedColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_ResetColumns
@@ -570,7 +673,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ResetColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -602,7 +708,10 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			(
 				Column.GetTitleName(),
 				Column.GetDescription(),
-				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(),
+				Action_SortByColumn,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 		}
 	}
@@ -623,7 +732,10 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			Action_SortAscending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 
 		FUIAction Action_SortDescending
@@ -636,7 +748,10 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			Action_SortDescending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection();
@@ -662,10 +777,49 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 		(
 			Column.GetTitleName(),
 			Column.GetDescription(),
-			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
+			FSlateIcon(),
+			Action_ToggleColumn,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
+	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("Export", LOCTEXT("ContextMenu_Header_Export", "Export"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FTimersViewCommands::Get().Command_ExportThreads,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTimersViewCommands::Get().Command_ExportTimers,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTimersViewCommands::Get().Command_ExportTimingEvents,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+	}
 	MenuBuilder.EndSection();
 }
 
@@ -718,7 +872,10 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 
 			bIsMenuVisible = true;
@@ -739,7 +896,10 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				Action_SortAscending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			FUIAction Action_SortDescending
@@ -752,7 +912,10 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				Action_SortDescending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			bIsMenuVisible = true;
@@ -800,6 +963,10 @@ void STimersView::InsightsManager_OnSessionChanged()
 
 void STimersView::InsightsManager_OnSessionAnalysisCompleted()
 {
+	// Re-sync the list of timers to update the "<unknown>" timer names.
+	RebuildTree(true);
+
+	// Aggregate stats automatically for the entire session (but only if user didn't made a time selection yet).
 	if (Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning())
 	{
 		TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
@@ -892,7 +1059,7 @@ void STimersView::ApplyFiltering()
 		}
 	}
 
-	// Only expand timer nodes if we have a text filter.
+	// Only expand tree nodes if we have a text filter.
 	const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
 	if (bNonEmptyTextFilter)
 	{
@@ -1284,9 +1451,9 @@ void STimersView::CreateGroups()
 			if (!GroupPtr)
 			{
 				const FName GroupName =
-					(Order == 0) ?			FName(TEXT("Count == 0")) :
-					(Order < MaxOrder) ?	FName(FString::Printf(TEXT("Count: [%s .. %s)"), Orders[Order - 1], Orders[Order])) :
-											FName(FString::Printf(TEXT("Count >= %s"), Orders[MaxOrder - 1]));
+				    (Order == 0) ?          FName(TEXT("Count == 0")) :
+				    (Order < MaxOrder) ?    FName(FString::Printf(TEXT("Count: [%s .. %s)"), Orders[Order - 1], Orders[Order])) :
+				                            FName(FString::Printf(TEXT("Count >= %s"), Orders[MaxOrder - 1]));
 				GroupPtr = GroupNodeSet.Add(Order, MakeShared<FTimerNode>(GroupName));
 			}
 			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
@@ -2067,7 +2234,7 @@ void STimersView::ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimersView::ContextMenu_CopySelectedToClipboard_CanExecute() const
+bool STimersView::ContextMenu_CopyToClipboard_CanExecute() const
 {
 	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
 
@@ -2076,7 +2243,7 @@ bool STimersView::ContextMenu_CopySelectedToClipboard_CanExecute() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
+void STimersView::ContextMenu_CopyToClipboard_Execute()
 {
 	if (!Table->IsValid())
 	{
@@ -2111,9 +2278,774 @@ void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+bool STimersView::ContextMenu_Export_CanExecute() const
 {
-	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_Export_Execute()
+{
+	if (!Table->IsValid())
+	{
+		return;
+	}
+
+	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	for (FTimerNodePtr TimerPtr : TreeView->GetSelectedItems())
+	{
+		SelectedNodes.Add(TimerPtr);
+	}
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	const FString DialogTitle = LOCTEXT("Export_Title", "Export Aggregated Timer Stats").ToString();
+	const FString DefaultFile = TEXT("TimerStats.tsv");
+	FString Filename;
+	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF16CHAR BOM = UNICODE_BOM;
+	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
+
+	TCHAR Separator = TEXT('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = TEXT(',');
+	}
+	constexpr TCHAR LineEnd = TEXT('\n');
+	constexpr TCHAR QuotationMarkBegin = TEXT('\"');
+	constexpr TCHAR QuotationMarkEnd = TEXT('\"');
+
+	TStringBuilder<512> StringBuilder;
+
+	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	Table->GetVisibleColumns(VisibleColumns);
+
+	// Write header.
+	{
+		bool bIsFirstColumn = true;
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				StringBuilder.Append(Separator);
+			}
+			FString Value = ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				StringBuilder.Append(QuotationMarkBegin);
+				StringBuilder.Append(Value);
+				StringBuilder.Append(QuotationMarkEnd);
+			}
+			else
+			{
+				StringBuilder.Append(Value);
+			}
+		}
+		StringBuilder.Append(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
+	}
+
+	if (CurrentSorter.IsValid())
+	{
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+	}
+
+	const int32 NodeCount = SelectedNodes.Num();
+	for (int32 Index = 0; Index < NodeCount; Index++)
+	{
+		const Insights::FBaseTreeNodePtr& Node = SelectedNodes[Index];
+
+		StringBuilder.Reset();
+
+		bool bIsFirstColumn = true;
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				StringBuilder.Append(Separator);
+			}
+
+			FString Value = ColumnRef->GetValueAsSerializableString(*Node).ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				StringBuilder.Append(QuotationMarkBegin);
+				StringBuilder.Append(Value);
+				StringBuilder.Append(QuotationMarkEnd);
+			}
+			else
+			{
+				StringBuilder.Append(Value);
+			}
+		}
+		StringBuilder.Append(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported aggregated timer stats to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Insights {
+
+struct FExportTimingEventsHeaderParams
+{
+	IFileHandle* ExportFileHandle;
+	const UTF8CHAR Separator;
+	const UTF8CHAR LineEnd;
+	TUtf8StringBuilder<512>& StringBuilder;
+};
+
+void ExportTimingEventsHeader(FExportTimingEventsHeaderParams& Params)
+{
+	Params.StringBuilder.Append(UTF8TEXT("ThreadId"));
+	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.Append(UTF8TEXT("TimerId"));
+	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.Append(UTF8TEXT("StartTime"));
+	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.Append(UTF8TEXT("EndTime"));
+	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.Append(UTF8TEXT("Depth"));
+	Params.StringBuilder.Append(Params.LineEnd);
+
+	Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
+}
+
+struct FExportTimingEventsEnumerateParams
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session;
+	IFileHandle* ExportFileHandle;
+	const UTF8CHAR Separator;
+	const UTF8CHAR LineEnd;
+	TUtf8StringBuilder<512>& StringBuilder;
+	double IntervalStartTime;
+	double IntervalEndTime;
+	TFunction<bool(uint32 ThreadId)> ThreadFilter;
+	TFunction<bool(double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)> TimingEventFilter;
+	uint32 ThreadId;
+};
+
+void ExportTimingEventsEnumerate(FExportTimingEventsEnumerateParams& Params)
+{
+	if (Params.Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Params.Session.Get()))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Params.Session.Get());
+
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Params.Session.Get());
+
+		auto TimelineEnumerator = [&Params](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
+		{
+			// Iterate timing events.
+			Timeline.EnumerateEvents(Params.IntervalStartTime, Params.IntervalEndTime,
+				[&Params](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event)
+				{
+					if (!Params.TimingEventFilter || Params.TimingEventFilter(EventStartTime, EventEndTime, EventDepth, Event))
+					{
+						Params.StringBuilder.Reset();
+						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Params.ThreadId);
+						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Event.TimerIndex);
+						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventStartTime);
+						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventEndTime);
+						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.Appendf(UTF8TEXT("%u"), EventDepth);
+						Params.StringBuilder.Append(Params.LineEnd);
+
+						Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
+					}
+
+					return TraceServices::EEventEnumerate::Continue;
+				});
+		};
+
+		// Iterate the GPU timelines.
+		{
+			if (!Params.ThreadFilter || Params.ThreadFilter(FGpuTimingTrack::Gpu1ThreadId))
+			{
+				Params.ThreadId = FGpuTimingTrack::Gpu1ThreadId;
+				uint32 GpuTimelineIndex1 = 0;
+				TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex1);
+				TimingProfilerProvider.ReadTimeline(GpuTimelineIndex1, TimelineEnumerator);
+			}
+
+			if (!Params.ThreadFilter || Params.ThreadFilter(FGpuTimingTrack::Gpu2ThreadId))
+			{
+				Params.ThreadId = FGpuTimingTrack::Gpu2ThreadId;
+				uint32 GpuTimelineIndex2 = 0;
+				TimingProfilerProvider.GetGpu2TimelineIndex(GpuTimelineIndex2);
+				TimingProfilerProvider.ReadTimeline(GpuTimelineIndex2, TimelineEnumerator);
+			}
+		}
+
+		// Iterate the CPU threads and their corresponding timelines.
+		const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Params.Session.Get());
+		ThreadProvider.EnumerateThreads(
+			[&TimelineEnumerator, &Params, &TimingProfilerProvider](const TraceServices::FThreadInfo& ThreadInfo)
+			{
+				if (!Params.ThreadFilter || Params.ThreadFilter(ThreadInfo.Id))
+				{
+					Params.ThreadId = ThreadInfo.Id;
+					uint32 CpuTimelineIndex = 0;
+					TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex);
+					TimingProfilerProvider.ReadTimeline(CpuTimelineIndex, TimelineEnumerator);
+				}
+			});
+	}
+}
+
+} // namespace Insights
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_ExportTimingEventsSelection_CanExecute() const
+{
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+
+	return SelectedNodes.Num() > 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::AddTimerNodeRecursive(FTimerNodePtr InNode, TSet<uint32>& InOutIncludedTimers) const
+{
+	if (InNode->GetType() == ETimerNodeType::Group)
+	{
+		for (Insights::FBaseTreeNodePtr ChildNode : InNode->GetFilteredChildren())
+		{
+			AddTimerNodeRecursive(StaticCastSharedPtr<FTimerNode>(ChildNode), InOutIncludedTimers);
+		}
+	}
+	else
+	{
+		InOutIncludedTimers.Add(InNode->GetTimerId());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_ExportTimingEventsSelection_Execute() const
+{
+	const FString DialogTitle = LOCTEXT("ExportTimingEventsSelection_Title", "Export Timing Events (Selection)").ToString();
+	const FString DefaultFile = TEXT("TimingEvents.tsv");
+	FString Filename;
+	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	TUtf8StringBuilder<512> StringBuilder;
+
+	// Write header.
+	{
+		Insights::FExportTimingEventsHeaderParams HeaderParams = { ExportFileHandle, Separator, LineEnd, StringBuilder };
+		Insights::ExportTimingEventsHeader(HeaderParams);
+	}
+
+	// Write values.
+	if (Session.IsValid())
+	{
+		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+
+		Insights::FExportTimingEventsEnumerateParams EnumerateParams = { Session, ExportFileHandle, Separator, LineEnd, StringBuilder, 0.0, 0.0, nullptr, nullptr, 0 };
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Filter by thread (visible Gpu/Cpu tracks in TimingView).
+
+		// Filter sets to be used in ExportTimingEventsEnumerate.
+		// It needs to be in the same scope (as it is referenced in the lambda filter)!
+		TSet<uint32> IncludedThreads;
+		TSet<uint32> ExcludedThreads;
+
+		if (TimingView.IsValid())
+		{
+			// Add available Gpu threads to the ExcludedThreads list.
+			ExcludedThreads.Add(FGpuTimingTrack::Gpu1ThreadId);
+			ExcludedThreads.Add(FGpuTimingTrack::Gpu2ThreadId);
+
+			// Add available Cpu threads to the ExcludedThreads list.
+			{
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+				ThreadProvider.EnumerateThreads(
+					[&ExcludedThreads](const TraceServices::FThreadInfo& ThreadInfo)
+					{
+						ExcludedThreads.Add(ThreadInfo.Id);
+					});
+			}
+
+			// Move the threads corresponding to visible Cpu/Gpu tracks to the IncludedThreads list.
+			TimingView->EnumerateAllTracks([&IncludedThreads, &ExcludedThreads](TSharedPtr<FBaseTimingTrack>& Track) -> bool
+				{
+					if (Track->IsVisible() && Track->Is<FThreadTimingTrack>())
+					{
+						const uint32 ThreadId = Track->As<FThreadTimingTrack>().GetThreadId();
+						ExcludedThreads.Remove(ThreadId);
+						IncludedThreads.Add(ThreadId);
+					}
+					return true;
+				});
+
+			if (IncludedThreads.Num() < ExcludedThreads.Num())
+			{
+				if (IncludedThreads.Num() == 1)
+				{
+					const uint32 IncludedThreadId = IncludedThreads[FSetElementId::FromInteger(0)];
+					EnumerateParams.ThreadFilter = [IncludedThreadId](uint32 ThreadId) -> bool
+					{
+						return ThreadId == IncludedThreadId;
+					};
+				}
+				else
+				{
+					EnumerateParams.ThreadFilter = [&IncludedThreads](uint32 ThreadId) -> bool
+					{
+						return IncludedThreads.Contains(ThreadId);
+					};
+				}
+			}
+			else
+			{
+				if (ExcludedThreads.Num() == 1)
+				{
+					const uint32 ExcludedThreadId = ExcludedThreads[FSetElementId::FromInteger(0)];
+					EnumerateParams.ThreadFilter = [ExcludedThreadId](uint32 ThreadId) -> bool
+					{
+						return ThreadId != ExcludedThreadId;
+					};
+				}
+				else
+				{
+					EnumerateParams.ThreadFilter = [&ExcludedThreads](uint32 ThreadId) -> bool
+					{
+						return !ExcludedThreads.Contains(ThreadId);
+					};
+				}
+			}
+		}
+
+		// Debug/test filters.
+		//EnumerateParams.ThreadFilter = [](uint32 ThreadId) -> bool { return ThreadId == 2; };
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Filter by timing event (e.g.: by timer, by duration, by depth).
+
+		// Filter set to be used in ExportTimingEventsEnumerate.
+		// It needs to be in the same scope (as it is referenced in the lambda filter)!
+		TSet<uint32> IncludedTimers;
+
+		TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+		for (FTimerNodePtr Node : SelectedNodes)
+		{
+			AddTimerNodeRecursive(Node, IncludedTimers);
+		}
+
+		if (IncludedTimers.Num() == 1)
+		{
+			const uint32 IncludedTimerId = IncludedTimers[FSetElementId::FromInteger(0)];
+			EnumerateParams.TimingEventFilter = [IncludedTimerId](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool
+			{
+				return Event.TimerIndex == IncludedTimerId;
+			};
+		}
+		else
+		{
+			EnumerateParams.TimingEventFilter = [&IncludedTimers](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool
+			{
+				return IncludedTimers.Contains(Event.TimerIndex);
+			};
+		}
+
+		// Debug/test filters.
+		//EnumerateParams.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return Event.TimerIndex < 100; };
+		//EnumerateParams.TimingEventFilter = [](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FTimingProfilerEvent& Event) -> bool { return EventEndTime - EventStartTime > 0.001; };
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Limit the time interval for enumeration (if a time range selection is made in Timing view).
+
+		EnumerateParams.IntervalStartTime = -std::numeric_limits<double>::infinity();
+		EnumerateParams.IntervalEndTime = +std::numeric_limits<double>::infinity();
+		if (TimingView.IsValid())
+		{
+			const double SelectionStartTime = TimingView->GetSelectionStartTime();
+			const double SelectionEndTime = TimingView->GetSelectionEndTime();
+			if (SelectionStartTime < SelectionEndTime)
+			{
+				EnumerateParams.IntervalStartTime = SelectionStartTime;
+				EnumerateParams.IntervalEndTime = SelectionEndTime;
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		ExportTimingEventsEnumerate(EnumerateParams);
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported selected timing events to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_ExportTimingEvents_CanExecute() const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_ExportTimingEvents_Execute() const
+{
+	const FString DialogTitle = LOCTEXT("ExportTimingEvents_Title", "Export Timing Events (All)").ToString();
+	const FString DefaultFile = TEXT("TimingEvents.tsv");
+	FString Filename;
+	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	TUtf8StringBuilder<512> StringBuilder;
+
+	// Write header.
+	{
+		Insights::FExportTimingEventsHeaderParams HeaderParams = { ExportFileHandle, Separator, LineEnd, StringBuilder };
+		Insights::ExportTimingEventsHeader(HeaderParams);
+	}
+
+	// Write values.
+	if (Session.IsValid())
+	{
+		Insights::FExportTimingEventsEnumerateParams EnumerateParams = { Session, ExportFileHandle, Separator, LineEnd, StringBuilder, 0.0, 0.0, nullptr, nullptr, 0 };
+
+		EnumerateParams.IntervalStartTime = -std::numeric_limits<double>::infinity();
+		EnumerateParams.IntervalEndTime = +std::numeric_limits<double>::infinity();
+
+		Insights::ExportTimingEventsEnumerate(EnumerateParams);
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported all timing events to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_ExportThreads_CanExecute() const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_ExportThreads_Execute() const
+{
+	const FString DialogTitle = LOCTEXT("ExportThreads_Title", "Export Threads").ToString();
+	const FString DefaultFile = TEXT("Threads.tsv");
+	FString Filename;
+	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	TUtf8StringBuilder<512> StringBuilder;
+
+	// Write header.
+	{
+		StringBuilder.Append(UTF8TEXT("ThreadId"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("Name"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("GroupName"));
+		StringBuilder.Append(LineEnd);
+
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+	}
+
+	// Write values.
+	if (Session.IsValid())
+	{
+		StringBuilder.Reset();
+		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu1ThreadId);
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("GPU1"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("GPU"));
+		StringBuilder.Append(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+
+		StringBuilder.Reset();
+		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu2ThreadId);
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("GPU2"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("GPU"));
+		StringBuilder.Append(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+
+		// Iterate the CPU threads.
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+			ThreadProvider.EnumerateThreads(
+				[&](const TraceServices::FThreadInfo& ThreadInfo)
+				{
+					StringBuilder.Reset();
+					StringBuilder.Appendf(UTF8TEXT("%u"), ThreadInfo.Id);
+					StringBuilder.Append(Separator);
+					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.Name));
+					StringBuilder.Append(Separator);
+					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.GroupName));
+					StringBuilder.Append(LineEnd);
+					ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+				});
+		}
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported the thread list to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_ExportTimers_CanExecute() const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_ExportTimers_Execute() const
+{
+	const FString DialogTitle = LOCTEXT("ExportTimers_Title", "Export Timers").ToString();
+	const FString DefaultFile = TEXT("Timers.tsv");
+	FString Filename;
+	IFileHandle* ExportFileHandle = OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename);
+
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	TUtf8StringBuilder<512> StringBuilder;
+
+	// Write header.
+	{
+		StringBuilder.Append(UTF8TEXT("TimerId"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("Type"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("Name"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("File"));
+		StringBuilder.Append(Separator);
+		StringBuilder.Append(UTF8TEXT("Line"));
+		StringBuilder.Append(LineEnd);
+
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+	}
+
+	// Write values.
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+		const uint32 TimerCount = TimerReader->GetTimerCount();
+		for (uint32 TimerIndex = 0; TimerIndex < TimerCount; ++TimerIndex)
+		{
+			const TraceServices::FTimingProfilerTimer& Timer = *(TimerReader->GetTimer(TimerIndex));
+			StringBuilder.Reset();
+			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Id);
+			StringBuilder.Append(Separator);
+			StringBuilder.Append(Timer.IsGpuTimer ? UTF8TEXT("GPU") : UTF8TEXT("CPU"));
+			StringBuilder.Append(Separator);
+			StringBuilder.Append(TCHAR_TO_UTF8(Timer.Name));
+			StringBuilder.Append(Separator);
+			StringBuilder.Append(Timer.File ? (const UTF8CHAR*)TCHAR_TO_UTF8(Timer.File) : UTF8TEXT(""));
+			StringBuilder.Append(Separator);
+			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Line);
+			StringBuilder.Append(LineEnd);
+			ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+		}
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported the timers list to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+IFileHandle* STimersView::OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const
+{
+	TArray<FString> SaveFilenames;
+	bool bDialogResult = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		const FString DefaultPath = FPaths::ProjectSavedDir();
+		bDialogResult = DesktopPlatform->SaveFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			InDialogTitle,
+			DefaultPath,
+			InDefaultFile,
+			TEXT("Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Comma-Separated Values (*.csv)|*.csv|All Files (*.*)|*.*"),
+			EFileDialogFlags::None,
+			SaveFilenames
+		);
+	}
+
+	if (!bDialogResult || SaveFilenames.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	OutFilename = SaveFilenames[0];
+
+	IFileHandle* ExportFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*OutFilename);
+
+	if (ExportFileHandle == nullptr)
+	{
+		FName LogListingName = FTimingProfilerManager::Get()->GetLogListingName();
+		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
+		ReportMessageLog.Error(LOCTEXT("FailedToOpenFile", "Export failed. Failed to open file for write."));
+		ReportMessageLog.Notify();
+		return nullptr;
+	}
+
+	return ExportFileHandle;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_OpenSource_CanExecute() const
+{
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	const int32 NumSelectedNodes = SelectedNodes.Num();
+	if (NumSelectedNodes == 1)
+	{
+		FTimerNodePtr SelectedNode = SelectedNodes[0];
+		if (SelectedNode.IsValid() && SelectedNode->GetType() != ETimerNodeType::Group)
+		{
+			FString File;
+			uint32 Line = 0;
+			return SelectedNode->GetSourceFileAndLine(File, Line);
+		}
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_OpenSource_Execute() const
+{
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	const int32 NumSelectedNodes = SelectedNodes.Num();
+	if (NumSelectedNodes == 1)
+	{
+		OpenSourceFileInIDE(SelectedNodes[0]);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2132,6 +3064,13 @@ void STimersView::OpenSourceFileInIDE(FTimerNodePtr InNode) const
 			SourceCodeAccessor.OpenFileAtLine(File, Line);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

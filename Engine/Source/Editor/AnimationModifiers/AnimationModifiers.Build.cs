@@ -25,6 +25,7 @@ public class AnimationModifiers : ModuleRules
                 "ClassViewer",
                 "AssetRegistry",
                 "AnimationBlueprintLibrary",
+                "DeveloperSettings"
             }
 		);
     }

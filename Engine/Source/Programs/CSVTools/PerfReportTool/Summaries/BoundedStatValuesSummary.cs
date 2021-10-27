@@ -198,6 +198,19 @@ namespace PerfSummaries
 
 					totalFrameWeight = 1.0;
 				}
+				else if (col.formula == "minimum")
+				{
+					value = statValues[startFrame];
+					for (int i = startFrame + 1; i < colEndFrame; i++)
+					{
+						if (col.filterOutZeros == false || statValues[i] > 0)
+						{
+							value = statValues[i] < value ? statValues[i] : value;
+						}
+					}
+
+					totalFrameWeight = 1.0;
+				}
 				else if (col.formula == "percentoverthreshold")
 				{
 					for (int i = startFrame; i < colEndFrame; i++)

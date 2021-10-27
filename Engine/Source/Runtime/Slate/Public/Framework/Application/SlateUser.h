@@ -178,7 +178,6 @@ SLATE_SCOPE:
 	void IncrementFocusVersion() { FocusVersion++; }
 
 	void UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewTooltip);
-	TSharedPtr<IToolTip> GetTooltip() const;
 	void ResetTooltipWindow();
 	bool IsWindowHousingInteractiveTooltip(const TSharedRef<const SWindow>& WindowToTest) const;
 

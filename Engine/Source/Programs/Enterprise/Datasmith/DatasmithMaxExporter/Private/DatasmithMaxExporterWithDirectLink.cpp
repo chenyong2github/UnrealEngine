@@ -8,6 +8,7 @@
 #include "DatasmithMaxClassIDs.h"
 
 #include "DatasmithMaxLogger.h"
+#include "DatasmithMaxSceneParser.h"
 
 #ifdef NEW_DIRECTLINK_PLUGIN
 
@@ -491,7 +492,12 @@ public:
 		return bInvalidated;
 	}
 
-	INode* Node = nullptr;
+	bool IsInstance()
+	{
+		return InstanceHandle != 0;
+	}
+
+	INode* const Node;
 	AnimHandle InstanceHandle = 0; // todo: rename - this is handle for object this node is instance of
 	bool bInvalidated = true;
 
@@ -501,20 +507,6 @@ public:
 
 	TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
 
-	void RemoveMeshActor()
-	{
-		if (DatasmithMeshActor)
-		{
-			DatasmithActorElement->RemoveChild(DatasmithMeshActor);
-			DatasmithMeshActor.Reset();
-			// todo: consider pool of MeshActors 
-		}
-	}
-
-	bool IsInstance()
-	{
-		return InstanceHandle != 0;
-	}
 };
 
 
@@ -549,12 +541,12 @@ public:
 // todo: these converters from baseline plugin. Might extract and reuse in both places(here and FDatasmithMaxMeshExporter)?
 class FDatasmithConverter
 {
-	float UnitToCentimeter;
 public:
+	const float UnitToCentimeter;
 
 	FDatasmithConverter()
+		: UnitToCentimeter(FMath::Abs(GetSystemUnitScale(UNITS_CENTIMETERS)))
 	{
-		UnitToCentimeter = FMath::Abs(GetSystemUnitScale(UNITS_CENTIMETERS));
 	}
 
 	FVector toDatasmithVector(Point3 Point) const
@@ -766,12 +758,12 @@ public:
 
 	void AddActualMaterial(Mtl* ActualMaterial)
 	{
-		Materials.Add(ActualMaterial);
+		Materials.AddUnique(ActualMaterial);
 	}
 
 	void AddActualTexture(Texmap* Texture)
 	{
-		Textures.Add(Texture);
+		Textures.AddUnique(Texture);
 	}
 };
 
@@ -963,6 +955,7 @@ public:
 struct FInstances
 {
 	Object* EvaluatedObj = nullptr;
+	Mtl* Material = nullptr; // Material assigned to Datasmith StaticMesh, used to check if a particular instance needs to verride it
 
 	TSet<class FNodeTracker*> NodeTrackers;
 
@@ -1094,9 +1087,19 @@ public:
 		DatasmithMaxLogger::Get().Purge();
 		for (FNodeTracker* NodeTracker : InvalidatedNodeTrackers)
 		{
-			ConvertNode(*NodeTracker);
+			UpdateNode(*NodeTracker);
 		}
 		InvalidatedNodeTrackers.Reset();
+
+		LogDebug("Clear instances to rebuild");
+		for (FInstances* Instances : InvalidatedInstances)
+		{
+			for(FNodeTracker* NodeTrackerPtr: Instances->NodeTrackers)
+			{
+				ClearNodeFromDatasmithScene(*NodeTrackerPtr);
+				NodeTrackerPtr->Invalidate();
+			}
+		}
 
 		LogDebug("Process invalidated instances");
 		for (FInstances* Instances : InvalidatedInstances)
@@ -1192,11 +1195,9 @@ public:
 		return NodeTracker.GetNodeTracker()->IsInvalidated();
 	}
 
-	void ConvertNode(FNodeTracker& NodeTracker)
+	void ClearNodeFromDatasmithScene(FNodeTracker& NodeTracker)
 	{
-		INode* Node = NodeTracker.Node;
-
-		// Initialize actor(reset hierarchy if it was already created before) and set label
+		// remove from hierarchy
 		if (NodeTracker.DatasmithActorElement)
 		{
 			if (TSharedPtr<IDatasmithActorElement> ParentActor = NodeTracker.DatasmithActorElement->GetParentActor())
@@ -1207,78 +1208,49 @@ public:
 			{
 				ExportedScene.DatasmithSceneRef->RemoveActor(NodeTracker.DatasmithActorElement, EDatasmithActorRemovalRule::RemoveChildren);
 			}
-		}
-		else
-		{
-			// note: this is how baseline exporter derives names
-			FString UniqueName = FString::FromInt(Node->GetHandle());
-			NodeTracker.DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
-		}
-		NodeTracker.DatasmithActorElement->SetLabel(Node->GetName());
 
-		// Add to parent
-		FNodeKey ParentNodeKey = NodeEventNamespace::GetKeyByNode(Node->GetParentNode());
-		if (FNodeTrackerHandle* ParentNodeTrackerHandle = NodeTrackers.Find(ParentNodeKey))
-		{
-			// Add to parent Datasmith actor if it has been updated already, if not parent will add it
-			if (!IsNodeInvalidated(*ParentNodeTrackerHandle))
+			if (NodeTracker.DatasmithMeshActor)
 			{
-				FNodeTracker* ParentNodeTracker = ParentNodeTrackerHandle->GetNodeTracker();
-				ParentNodeTracker->DatasmithActorElement->AddChild(NodeTracker.DatasmithActorElement);
+				NodeTracker.DatasmithActorElement->RemoveChild(NodeTracker.DatasmithMeshActor);
+				NodeTracker.DatasmithMeshActor.Reset();
+				// todo: consider pool of MeshActors 
 			}
+
+			NodeTracker.DatasmithActorElement.Reset();
 		}
-		else
-		{
-			// If there's no parent node registered assume it's at root
-			ExportedScene.GetDatasmithScene()->AddActor(NodeTracker.DatasmithActorElement);
-		}
-
-		// Add attach datasmith actors of child nodes
-		int32 ChildNum = Node->NumberOfChildren();
-		for (int32 ChildIndex = 0; ChildIndex < ChildNum; ++ChildIndex)
-		{
-
-			FNodeKey ChildNodeKey = NodeEventNamespace::GetKeyByNode(Node->GetChildNode(ChildIndex));
-			if (FNodeTrackerHandle* ChildNodeTrackerHandle = NodeTrackers.Find(ChildNodeKey))
-			{
-				// Add child datasmith actor if child is updated, if not child will add itself(it will be updated further in the queue)
-				if (!IsNodeInvalidated(*ChildNodeTrackerHandle))
-				{
-					NodeTracker.DatasmithActorElement->AddChild(ChildNodeTrackerHandle->GetNodeTracker()->DatasmithActorElement);
-				}
-			}
-		}
-
-		ConvertNodeTransform(NodeTracker);
-		ConvertNodeGeometry(NodeTracker);
-
-		// Mark node as updated as soon as it is - in order for next nodes to be able to use its DatasmithActor
-		NodeTracker.bInvalidated = false;
 	}
 
-	void ConvertNodeGeometry(FNodeTracker& NodeTracker)
+	void RemoveFromConverted(FNodeTracker& NodeTracker)
 	{
-		// Clear node state before converting again
-		// todo: extract for better visibility
+		Helpers.Remove(&NodeTracker);
+		Lights.Remove(&NodeTracker);
+
+		if (NodeTracker.IsInstance())
 		{
-			// Clear instance/geometry connection
-			if (NodeTracker.IsInstance())
+			if (TUniquePtr<FInstances>* InstancesPtr = InstancesForAnimHandle.Find(NodeTracker.InstanceHandle))
 			{
-				if (TUniquePtr<FInstances>* InstancesPtr = InstancesForAnimHandle.Find(NodeTracker.InstanceHandle))
+				FInstances& Instances = **InstancesPtr;
+				Instances.NodeTrackers.Remove(&NodeTracker);
+				if (!Instances.NodeTrackers.Num())
 				{
-					FInstances& Instances = **InstancesPtr;
-					Instances.NodeTrackers.Remove(&NodeTracker);
-					if (!Instances.NodeTrackers.Num())
-					{
-						ExportedScene.DatasmithSceneRef->RemoveMesh(Instances.DatasmithMeshElement);
-						InstancesForAnimHandle.Remove(NodeTracker.InstanceHandle);
-						InvalidatedInstances.Remove(&Instances);
-					}
+					ExportedScene.DatasmithSceneRef->RemoveMesh(Instances.DatasmithMeshElement);
+					InstancesForAnimHandle.Remove(NodeTracker.InstanceHandle);
+					InvalidatedInstances.Remove(&Instances);
 				}
 			}
-			NodeTracker.RemoveMeshActor();
 		}
+	}
 
+	void UpdateNode(FNodeTracker& NodeTracker)
+	{
+		// Forget anything that this node was before update: place in datasmith hierarchy, datasmith objects, instances connection. Updating may change anything 
+		ClearNodeFromDatasmithScene(NodeTracker);
+		RemoveFromConverted(NodeTracker);
+		ConvertNodeObject(NodeTracker);
+	}
+
+	void ConvertNodeObject(FNodeTracker& NodeTracker)
+	{
 		if (NodeTracker.Node->IsNodeHidden(TRUE) || !NodeTracker.Node->Renderable())
 		{
 			return;
@@ -1294,14 +1266,19 @@ public:
 
 		switch (Obj->SuperClassID())
 		{
+		case HELPER_CLASS_ID:
+			ConvertHelper(NodeTracker, Obj);
+			break;
+		case LIGHT_CLASS_ID:
+		{
+			ConvertLight(NodeTracker, Obj);
+			break;
+		}
+
 		case SHAPE_CLASS_ID:
 		case GEOMOBJECT_CLASS_ID:
 		{
-			if (Obj->IsRenderable()) // Shape's Enable In Render flag(note - different from Node's Renderable flag)
-			{
-				// todo: reuse mesh element(make sure to reset all)
-				ConvertGeomObjToDatasmithMesh(NodeTracker, Obj);
-			}
+			ConvertGeomObj(NodeTracker, Obj);
 			break;
 		}
 		// todo: other object types besides geometry
@@ -1325,37 +1302,123 @@ public:
 			 // - there's multimat among instances
 			 // - there's one instance only(can just assing material to mesh instead of actor mesh overrides)
 
-			 bool bConverted = false; // Use first node to extract information from evaluated object(e.g. GetRendedrMesh needs it)
+			 bool bGeometryUpdated = false; // Use first node to extract information from evaluated object(e.g. GetRenderMesh needs it)
 
-			 bool bAssignToStaticMesh = true; // assign to static mesh for the first instance
+			 bool bMaterialsAssignToStaticMesh = true; // assign materials to static mesh for the first instance(others will use override on mesh actors)
 			 for(FNodeTracker* NodeTrackerPtr: Instances.NodeTrackers)
 			 {
-				 FNodeTracker& NodeTracker = *NodeTrackerPtr;
-				 if (!bConverted)
-				 {
-					 ConvertInstancesGeometry(Instances, NodeTracker);
-					 bConverted = true;
-				 }
 
+				FNodeTracker& NodeTracker = *NodeTrackerPtr;
+				if (!bGeometryUpdated)
+				{
+					UpdateInstancesGeometry(Instances, NodeTracker);
+					bGeometryUpdated = true;
+				}
 
-				 AssignDatasmithMeshToNodeTracker(NodeTracker, Instances, bAssignToStaticMesh);
-				 bAssignToStaticMesh = false;
+				AssignDatasmithMeshToNodeTracker(NodeTracker, Instances, bMaterialsAssignToStaticMesh);
+				bMaterialsAssignToStaticMesh = false;
+
+			 	// Mark node as updated as soon as it is - in order for next nodes to be able to use its DatasmithActor
+				NodeTracker.bInvalidated = false;
 			 }
 		 }
 	}
 
-	void AssignDatasmithMeshToNodeTracker(FNodeTracker& NodeTracker, FInstances& Instances, bool bAssignToStaticMesh)
+	void AttachNodeToDatasmithScene(FNodeTracker& NodeTracker)
 	{
+		// Add to parent
+		FNodeKey ParentNodeKey = NodeEventNamespace::GetKeyByNode(NodeTracker.Node->GetParentNode());
+		if (FNodeTrackerHandle* ParentNodeTrackerHandle = NodeTrackers.Find(ParentNodeKey))
+		{
+			// Add to parent Datasmith actor if it has been updated already, if not parent will add it
+			if (!IsNodeInvalidated(*ParentNodeTrackerHandle))
+			{
+				FNodeTracker* ParentNodeTracker = ParentNodeTrackerHandle->GetNodeTracker();
+				ParentNodeTracker->DatasmithActorElement->AddChild(NodeTracker.DatasmithActorElement);
+			}
+		}
+		else
+		{
+			// If there's no parent node registered assume it's at root
+			ExportedScene.GetDatasmithScene()->AddActor(NodeTracker.DatasmithActorElement);
+		}
+
+		// Add attach datasmith actors of child nodes
+		int32 ChildNum = NodeTracker.Node->NumberOfChildren();
+		for (int32 ChildIndex = 0; ChildIndex < ChildNum; ++ChildIndex)
+		{
+
+			FNodeKey ChildNodeKey = NodeEventNamespace::GetKeyByNode(NodeTracker.Node->GetChildNode(ChildIndex));
+			if (FNodeTrackerHandle* ChildNodeTrackerHandle = NodeTrackers.Find(ChildNodeKey))
+			{
+				// Add child datasmith actor if child is updated, if not child will add itself(it will be updated further in the queue)
+				if (!IsNodeInvalidated(*ChildNodeTrackerHandle))
+				{
+					NodeTracker.DatasmithActorElement->AddChild(ChildNodeTrackerHandle->GetNodeTracker()->DatasmithActorElement);
+				}
+			}
+		}
+	}
+
+	void GetNodeObjectTransform(FNodeTracker& NodeTracker, FDatasmithConverter Converter, FTransform& ObjectTransform)
+	{
+		FVector Translation, Scale;
+		FQuat Rotation;
+		// todo: do we really need to call GetObjectTM if there's no WSM attached? Maybe just call GetObjTMAfterWSM always?
+		if (NodeTracker.Node->GetWSMDerivedObject() != nullptr)
+		{
+
+			Converter.MaxToUnrealCoordinates(NodeTracker.Node->GetObjTMAfterWSM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale);
+		}
+		else
+		{
+			Converter.MaxToUnrealCoordinates(NodeTracker.Node->GetObjectTM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale);
+		}
+		Rotation.Normalize();
+		ObjectTransform = FTransform(Rotation, Translation, Scale);
+	}
+
+	void AssignDatasmithMeshToNodeTracker(FNodeTracker& NodeTracker, FInstances& Instances, bool bMaterialsAssignToStaticMesh)
+	{
+		FDatasmithConverter Converter;
+
+		if(!NodeTracker.DatasmithActorElement)
+		{
+			// note: this is how baseline exporter derives names
+			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
+			NodeTracker.DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
+		}
+		NodeTracker.DatasmithActorElement->SetLabel(NodeTracker.Node->GetName());
+
+		AttachNodeToDatasmithScene(NodeTracker);
+
+		FTransform ObjectTransform;
+		GetNodeObjectTransform(NodeTracker, Converter, ObjectTransform);
+
+		FTransform Pivot = FDatasmithMaxSceneExporter::GetPivotTransform(NodeTracker.Node, Converter.UnitToCentimeter);
+		FTransform NodeTransform = Pivot.Inverse() * ObjectTransform; // Remove pivot from the node actor transform
+
+
+		TSharedPtr<IDatasmithActorElement> DatasmithActorElement = NodeTracker.DatasmithActorElement;
+		DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
+		DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
+		DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
+
 		const TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement = Instances.DatasmithMeshElement;
 
 		if (DatasmithMeshElement)
 		{
 			if (!NodeTracker.DatasmithMeshActor)
 			{
-				FString MeshActorName = FString::FromInt(NodeTracker.Node->GetHandle() ) + TEXT("_Mesh");
+				FString MeshActorName = FString::FromInt(NodeTracker.Node->GetHandle() ) + TEXT("_Pivot");
 				FString MeshActorLabel = FString((const TCHAR*)NodeTracker.Node->GetName());
 				TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor = FDatasmithSceneFactory::CreateMeshActor(*MeshActorName);
 				DatasmithMeshActor->SetLabel(*MeshActorLabel);
+
+				DatasmithMeshActor->SetTranslation(Pivot.GetTranslation());
+				DatasmithMeshActor->SetRotation(Pivot.GetRotation());
+				DatasmithMeshActor->SetScale(Pivot.GetScale3D());
+				DatasmithMeshActor->SetIsAComponent( true );
 
 				NodeTracker.DatasmithActorElement->AddChild(DatasmithMeshActor, EDatasmithActorAttachmentRule::KeepRelativeTransform);
 				NodeTracker.DatasmithMeshActor = DatasmithMeshActor;
@@ -1400,18 +1463,21 @@ public:
 					NodeTracker.DatasmithMeshActor->ResetMaterialOverrides(); 
 
 					// Assign materials
-					if (bAssignToStaticMesh)
+					if (bMaterialsAssignToStaticMesh)
 					{
 						// todo: move to header
 						void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
 
 						AssignMeshMaterials(Instances.DatasmithMeshElement, Material, Instances.SupportedChannels);
+						Instances.Material = Material;
 					}
 					else // Assign material overrides to meshactor
 					{
-						
-						TSharedRef<IDatasmithMeshActorElement> DatasmithMeshActor = NodeTracker.DatasmithMeshActor.ToSharedRef();
-						FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(NodeTracker.MaterialTracker->Material, DatasmithMeshActor, Instances.SupportedChannels, NodeTracker.DatasmithMeshActor->GetTranslation());
+						if (Instances.Material != Material)
+						{
+							TSharedRef<IDatasmithMeshActorElement> DatasmithMeshActor = NodeTracker.DatasmithMeshActor.ToSharedRef();
+							FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Material, DatasmithMeshActor, Instances.SupportedChannels, NodeTracker.DatasmithMeshActor->GetTranslation());
+						}
 					}
 				}
 				else
@@ -1437,13 +1503,9 @@ public:
 
 
 		}
-		else
-		{
-			NodeTracker.RemoveMeshActor();
-		}
 	}
 
-	bool ConvertInstancesGeometry(FInstances& Instances, FNodeTracker& NodeTracker)
+	bool UpdateInstancesGeometry(FInstances& Instances, FNodeTracker& NodeTracker)
 	{
 		INode* Node = NodeTracker.Node;
 		Object* Obj = Instances.EvaluatedObj;
@@ -1485,6 +1547,14 @@ public:
 				FDatasmithMesh DatasmithMesh;
 
 				const TCHAR* MeshName = (const TCHAR*)Node->GetName();
+
+				// for (FNodeTracker* NodeTracker : Instances.NodeTrackers)
+				// {
+				// 	NodeTracker
+				// 	
+				// }
+
+
 				// todo: pivot
 				FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, false, Instances.SupportedChannels, MeshName, FTransform::Identity);
 
@@ -1521,9 +1591,101 @@ public:
 		return bResult;
 	}
 
-	bool ConvertGeomObjToDatasmithMesh(FNodeTracker& NodeTracker, Object* Obj)
+	bool ConvertHelper(FNodeTracker& NodeTracker, Object* Obj)
 	{
+		Helpers.Add(&NodeTracker);
+
+		if(!NodeTracker.DatasmithActorElement)
+		{
+			// note: this is how baseline exporter derives names
+			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
+			NodeTracker.DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
+		}
+		NodeTracker.DatasmithActorElement->SetLabel(NodeTracker.Node->GetName());
+
+		AttachNodeToDatasmithScene(NodeTracker);
+
+		FDatasmithConverter Converter;
+		FTransform ObjectTransform;
+		GetNodeObjectTransform(NodeTracker, Converter, ObjectTransform);
+
+		FTransform NodeTransform = ObjectTransform;
+		TSharedPtr<IDatasmithActorElement> DatasmithActorElement = NodeTracker.DatasmithActorElement;
+		DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
+		DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
+		DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
+
+		NodeTracker.bInvalidated = false;
+
+		return true;
+	}
+
+	bool ConvertLight(FNodeTracker& NodeTracker, Object* Obj)
+	{
+		if (EMaxLightClass::Unknown == FDatasmithMaxSceneParser::GetLightClass(NodeTracker.Node))
+		{
+			return false;
+		}
+
+		Lights.Add(&NodeTracker);
+
+		if(!NodeTracker.DatasmithActorElement)
+		{
+			// note: this is how baseline exporter derives names
+			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
+
+			TSharedPtr<IDatasmithLightActorElement> LightElement = FDatasmithMaxSceneExporter::CreateLightElementForNode(NodeTracker.Node, *UniqueName);
+
+			if (!LightElement)
+			{
+				if (FDatasmithMaxSceneParser::GetLightClass(NodeTracker.Node) == EMaxLightClass::SkyEquivalent)
+				{
+					ExportedScene.DatasmithSceneRef->SetUsePhysicalSky(true);
+				}
+				else
+				{
+					DatasmithMaxLogger::Get().AddUnsupportedLight(NodeTracker.Node);
+				}
+				return false;
+			}
+			else
+			{
+				if ( !FDatasmithMaxSceneExporter::ParseLight(NodeTracker.Node, LightElement.ToSharedRef(), ExportedScene.DatasmithSceneRef.ToSharedRef()) )
+				{
+					return false;
+				}
+			}
+
+			NodeTracker.DatasmithActorElement = LightElement;
+		}
+		NodeTracker.DatasmithActorElement->SetLabel(NodeTracker.Node->GetName());
+
+		AttachNodeToDatasmithScene(NodeTracker);
+
+		FDatasmithConverter Converter;
+		FTransform ObjectTransform;
+		GetNodeObjectTransform(NodeTracker, Converter, ObjectTransform);
+
+		FTransform NodeTransform = ObjectTransform;
+		TSharedPtr<IDatasmithActorElement> DatasmithActorElement = NodeTracker.DatasmithActorElement;
+		DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
+		DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
+		DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
+
+		NodeTracker.bInvalidated = false;
+
+		return true;
+	}
+
+	bool ConvertGeomObj(FNodeTracker& NodeTracker, Object* Obj)
+	{
+		// todo: reuse mesh element(make sure to reset all)
+
 		bool bResult = false;
+		if (!Obj->IsRenderable()) // Shape's Enable In Render flag(note - different from Node's Renderable flag)
+		{
+			return bResult;
+		}
 
 		// AnimHandle is unique and never reused for new objects 
 		// todo: reset instances and nodes when one node of an instance changes??? Check how it should be done actually, dependencies - nodes, object, invalidation place(Update, Event) etc...
@@ -1544,36 +1706,6 @@ public:
 		InvalidatedInstances.Add(Instances.Get());
 
 		return bResult;
-	}
-
-	void ConvertNodeTransform(FNodeTracker& NodeTracker)
-	{
-		FVector Translation, Scale;
-		FQuat Rotation;
-
-		FDatasmithConverter Converter;
-
-		// todo: do we really need to call GetObjectTM if there's no WSM attached? Maybe just call GetObjTMAfterWSM always?
-		if (NodeTracker.Node->GetWSMDerivedObject() != nullptr)
-		{
-
-			Converter.MaxToUnrealCoordinates(NodeTracker.Node->GetObjTMAfterWSM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale);
-		}
-		else
-		{
-			Converter.MaxToUnrealCoordinates(NodeTracker.Node->GetObjectTM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale);
-		}
-
-		Rotation.Normalize();
-
-		TSharedPtr<IDatasmithActorElement> DatasmithActorElement = NodeTracker.DatasmithActorElement;
-
-		if (DatasmithActorElement)
-		{
-			DatasmithActorElement->SetTranslation(Translation);
-			DatasmithActorElement->SetScale(Scale);
-			DatasmithActorElement->SetRotation(Rotation);
-		}
 	}
 
 	/******************* Events *****************************/
@@ -1698,6 +1830,8 @@ public:
 				}
 			}
 		}
+
+		InvalidateNode(NodeKey); // Invalidate node that has this material assigned. This is needed to trigger rebuild - exported geometry might change(e.g. multimaterial changed to slots will change on static mesh)
 	}
 
 	void NodeGeometryChanged(FNodeKey NodeKey)
@@ -1705,9 +1839,6 @@ public:
 		// GeometryChanged is executed to handle:
 		// - actual geometry modification(in any way)
 		// - change of baseObject
-
-		// todo: how this could be?
-		ensure(NodeTrackers.Contains(NodeKey));
 
 		InvalidateNode(NodeKey);
 	}
@@ -1747,6 +1878,8 @@ public:
 	TMap<FMaterialTracker*, TSet<FNodeTracker*>> MaterialsAssignedToNodes;
 
 	TMap<AnimHandle, TUniquePtr<FInstances>> InstancesForAnimHandle; // set of instanced nodes for each AnimHandle
+	TSet<FNodeTracker*> Helpers;
+	TSet<FNodeTracker*> Lights;
 
 	TSet<FInstances*> InvalidatedInstances;
 };

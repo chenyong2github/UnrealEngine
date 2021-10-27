@@ -42,6 +42,10 @@
 #include "ContentStreaming.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/BuiltInAttributeTypes.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
+
+LLM_DEFINE_TAG(SkeletalMesh_TransformData);
 
 #if INTEL_ISPC
 #include "SkeletalMeshComponent.ispc.generated.h"
@@ -1736,6 +1740,7 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	if (!bIgnorePhysicsAsset && PhysicsAsset)
 	{
 		TArray<FBoneIndexType> PhysAssetBones;
+		PhysAssetBones.Reserve(PhysicsAsset->SkeletalBodySetups.Num());
 		for (int32 i = 0; i<PhysicsAsset->SkeletalBodySetups.Num(); i++)
 		{
 			if (!ensure(PhysicsAsset->SkeletalBodySetups[i]))
@@ -1817,8 +1822,9 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	TArray<FBoneIndexType> NeededBonesForFillComponentSpaceTransforms;
 	{
 		TArray<FBoneIndexType> ForceAnimatedSocketBones;
-
-		for (const USkeletalMeshSocket* Socket : SkeletalMesh->GetActiveSocketList())
+		TArray<USkeletalMeshSocket*> ActiveSocketList = SkeletalMesh->GetActiveSocketList();
+		ForceAnimatedSocketBones.Reserve(ActiveSocketList.Num());
+		for (const USkeletalMeshSocket* Socket : ActiveSocketList)
 		{
 			int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(Socket->BoneName);
 			if (BoneIndex != INDEX_NONE)
@@ -2287,7 +2293,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 	const bool bMainInstanceValidForParallelWork = AnimScriptInstance == nullptr || AnimScriptInstance->CanRunParallelWork();
 	const bool bPostInstanceValidForParallelWork = PostProcessAnimInstance == nullptr || PostProcessAnimInstance->CanRunParallelWork();
 	const bool bHasValidInstanceForParallelWork = HasValidAnimationInstance() && bMainInstanceValidForParallelWork && bPostInstanceValidForParallelWork;
-	const bool bDoParallelEvaluation = bHasValidInstanceForParallelWork && bDoPAE && (bShouldDoEvaluation || bShouldDoParallelInterpolation) && TickFunction && (TickFunction->GetActualTickGroup() == TickFunction->TickGroup) && TickFunction->IsCompletionHandleValid();
+	const bool bDoParallelEvaluation = bHasValidInstanceForParallelWork && bDoPAE && (bShouldDoEvaluation || bShouldDoParallelInterpolation) && TickFunction && TickFunction->IsCompletionHandleValid();
 	const bool bBlockOnTask = !bDoParallelEvaluation;  // If we aren't trying to do parallel evaluation then we
 															// will need to wait on an existing task.
 
@@ -2337,7 +2343,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 			bool bShouldTickAnimation = false;		
 			if (AnimScriptInstance && !AnimScriptInstance->NeedsUpdate())
 			{
-				bShouldTickAnimation = bShouldTickAnimation || !AnimScriptInstance->GetUpdateCounter().HasEverBeenUpdated();
+				bShouldTickAnimation = !AnimScriptInstance->GetUpdateCounter().HasEverBeenUpdated();
 			}
 
 			bShouldTickAnimation = bShouldTickAnimation || (ShouldPostUpdatePostProcessInstance() && !PostProcessAnimInstance->GetUpdateCounter().HasEverBeenUpdated());
@@ -2489,7 +2495,7 @@ void USkeletalMeshComponent::DispatchParallelTickPose(FActorComponentTickFunctio
 				// This duplicates *some* of the logic from RefreshBoneTransforms()
 				const bool bDoPAE = !!CVarUseParallelAnimationEvaluation.GetValueOnGameThread() && FApp::ShouldUseThreadingForPerformance();
 
-				const bool bDoParallelUpdate = bDoPAE && (TickFunction->GetActualTickGroup() == TickFunction->TickGroup) && TickFunction->IsCompletionHandleValid();
+				const bool bDoParallelUpdate = bDoPAE && TickFunction->IsCompletionHandleValid();
 
 				const bool bBlockOnTask = !bDoParallelUpdate;   // If we aren't trying to do parallel update then we
 																// will need to wait on an existing task.
@@ -2890,7 +2896,7 @@ void USkeletalMeshComponent::SetSkeletalMeshWithoutResettingAnimation(USkeletalM
 
 bool USkeletalMeshComponent::AllocateTransformData()
 {
-	LLM_SCOPE(ELLMTag::SkeletalMesh);
+	LLM_SCOPE_BYNAME("SkeletalMesh/TransformData");
 
 	// Allocate transforms if not present.
 	if ( Super::AllocateTransformData() )
@@ -3931,11 +3937,11 @@ void USkeletalMeshComponent::CompleteParallelAnimationEvaluation(bool bDoPostAni
 
 bool USkeletalMeshComponent::HandleExistingParallelEvaluationTask(bool bBlockOnTask, bool bPerformPostAnimEvaluation)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMeshComponent);
 	if (IsRunningParallelEvaluation()) // We are already processing eval on another thread
 	{
 		if (bBlockOnTask)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMeshComponent::BlockOnParallelEvaluationTask);
 			check(IsInGameThread()); // Only attempt this from game thread!
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ParallelAnimationEvaluationTask, ENamedThreads::GameThread);
 			CompleteParallelAnimationEvaluation(bPerformPostAnimEvaluation); //Perform completion now

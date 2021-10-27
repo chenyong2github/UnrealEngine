@@ -9,9 +9,7 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 
-using namespace CADKernel;
-
-void FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoordinates) const
+void CADKernel::FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoordinates) const
 {
 	const FTopologicalFace& Face = (const FTopologicalFace&) GetGeometricEntity();
 
@@ -54,7 +52,7 @@ void FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoord
 	}
 }
 
-void FFaceMesh::InverseOrientation()
+void CADKernel::FFaceMesh::InverseOrientation()
 {
 	for (int32 Index = 0; Index <TrianglesVerticesIndex.Num(); Index += 3)
 	{

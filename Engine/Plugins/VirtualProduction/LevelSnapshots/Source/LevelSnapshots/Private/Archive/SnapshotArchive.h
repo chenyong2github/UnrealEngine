@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SnapshotVersion.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/ObjectMacros.h"
 
@@ -18,10 +17,7 @@ class FSnapshotArchive : public FArchiveUObject
 	using Super = FArchiveUObject;
 	
 public:
-
-	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
-	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, const FString& InLocalisationNamespace);
-
+	
 	//~ Begin FArchive Interface
 	virtual FString GetArchiveName() const override;
 	virtual int64 TotalSize() override;
@@ -37,7 +33,7 @@ public:
 protected:
 	
 	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
-	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const;
+	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const = 0;
 	
 	FWorldSnapshotData& GetSharedData() const { return SharedData;}
 	UObject* GetSerializedObject() const { return SerializedObject; }
@@ -62,5 +58,4 @@ private:
 	FObjectSnapshotData& ObjectData;
 	/* Stores shared data, e.g. FNames and FSoftObjectPaths */
 	FWorldSnapshotData& SharedData;
-	
 };

@@ -57,7 +57,7 @@ namespace CADKernel
 		TSharedPtr<FRestrictionCurve> Curve;
  		mutable double Length3D = -1.;
 
-		TWeakPtr<FTopologicalLoop> Loop;
+		FTopologicalLoop* Loop = nullptr;
 
 		TSharedPtr<FEdgeMesh> Mesh;
 
@@ -105,14 +105,14 @@ namespace CADKernel
 			Serialize(Archive);
 		}
 
-		void SetLoop(const TSharedRef<FTopologicalLoop>& NewBoundary)
+		void SetLoop(FTopologicalLoop& NewBoundary)
 		{
-			Loop = NewBoundary;
+			Loop = &NewBoundary;
 		}
 
 		void RemoveLoop()
 		{
-			Loop.Reset();
+			Loop = nullptr;
 		}
 
 		/**
@@ -142,7 +142,7 @@ namespace CADKernel
 			SerializeIdent(Ar, EndVertex);
 			SerializeIdent(Ar, Curve);
 			Ar << Boundary;
-			SerializeIdent(Ar, Loop);
+			SerializeIdent(Ar, &Loop);
 			Ar << Length3D;
 		}
 
@@ -181,7 +181,11 @@ namespace CADKernel
 		 */
 		bool CheckIfDegenerated();
 
-		void Link(const TSharedRef<FTopologicalEdge>& OtherEdge, double SquareJoiningTolerance);
+		/**
+		 * Build face links with its neigbour (link edges) should be done after the loop is finalize.
+		 * In some case, edges can be delete, split, extend... Link edges when the loop is well done and clean avoid problems
+		 */
+		void Link(FTopologicalEdge& OtherEdge, double SquareJoiningTolerance);
 
 		TSharedRef<const FTopologicalEdge> GetLinkActiveEdge() const
 		{
@@ -193,7 +197,7 @@ namespace CADKernel
 			return StaticCastSharedRef<FTopologicalEdge>(GetLinkActiveEntity());
 		}
 
-		TSharedPtr<FTopologicalEdge> GetFirstTwinEdge() const
+		FTopologicalEdge* GetFirstTwinEdge() const
 		{
 			if (!TopologicalLink)
 			{
@@ -205,14 +209,14 @@ namespace CADKernel
 				return nullptr;
 			}
 
-			TWeakPtr<FTopologicalEdge> FirstTwinEdge = (TopologicalLink->GetTwinsEntities()[0].Pin().Get() == this) ? TopologicalLink->GetTwinsEntities()[1] : TopologicalLink->GetTwinsEntities()[0];
-			return FirstTwinEdge.Pin();
+			FTopologicalEdge* FirstTwinEdge = (TopologicalLink->GetTwinsEntities()[0] == this) ? TopologicalLink->GetTwinsEntities()[1] : TopologicalLink->GetTwinsEntities()[0];
+			return FirstTwinEdge;
 		}
 
 		/**
 		 * @return true if the twin edge is in the same direction as this
 		 */
-		bool IsSameDirection(const TSharedPtr<FTopologicalEdge>& Edge) const;
+		bool IsSameDirection(const FTopologicalEdge& Edge) const;
 
 		/**
 		 * @return true if the edge is self connected at its extremities
@@ -225,17 +229,17 @@ namespace CADKernel
 		/**
 		 * @return the containing boundary
 		 */
-		const TSharedPtr<FTopologicalLoop> GetLoop() const
+		const FTopologicalLoop* GetLoop() const
 		{
-			return Loop.Pin();
+			return Loop;
 		}
 
 		/**
 		 * @return the containing boundary
 		 */
-		TSharedPtr<FTopologicalLoop> GetLoop()
+		FTopologicalLoop* GetLoop()
 		{
-			return Loop.Pin();
+			return Loop;
 		}
 
 		/**
@@ -288,6 +292,16 @@ namespace CADKernel
 		TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<FTopologicalVertex>& Vertex)
 		{
 			return (Vertex->GetLink() == StartVertex->GetLink() ? EndVertex : (Vertex->GetLink() == EndVertex->GetLink() ? StartVertex : TSharedPtr<FTopologicalVertex>()));
+		}
+
+		FTopologicalVertex* GetOtherVertex(FTopologicalVertex& Vertex)
+		{
+			return (Vertex.GetLink() == StartVertex->GetLink() ? EndVertex.Get() : (Vertex.GetLink() == EndVertex->GetLink() ? StartVertex.Get() : nullptr));
+		}
+
+		const FTopologicalVertex* GetOtherVertex(const FTopologicalVertex& Vertex) const
+		{
+			return (Vertex.GetLink() == StartVertex->GetLink() ? EndVertex.Get() : (Vertex.GetLink() == EndVertex->GetLink() ? StartVertex.Get() : nullptr));
 		}
 
 		const TSharedPtr<FTopologicalVertex> GetOtherVertex(const TSharedRef<FTopologicalVertex>& Vertex) const
@@ -533,8 +547,8 @@ namespace CADKernel
 		/**
 		 * Return the tangent at the input vertex
 		 */
-		FPoint GetTangentAt(const TSharedRef<FTopologicalVertex>& InVertex);
-		FPoint2D GetTangent2DAt(const TSharedRef<FTopologicalVertex>& InVertex);
+		FPoint GetTangentAt(const FTopologicalVertex& InVertex);
+		FPoint2D GetTangent2DAt(const FTopologicalVertex& InVertex);
 
 		/**
 		 * Project Point (2D or 3D) on the polyline (2D or 3D) and return the coordinate of the projected point
@@ -586,7 +600,7 @@ namespace CADKernel
 		 */
 		void ComputeEdge2DProperties(FEdge2DProperties& SlopCharacteristics);
 
-		void GetExtremities(FSurfacicCurveExtremity& Extremities) const
+		void GetExtremities(FSurfacicCurveExtremities& Extremities) const
 		{
 			Curve->GetExtremities(Boundary, Extremities);
 		}
@@ -609,6 +623,9 @@ namespace CADKernel
 		 */
 		bool ExtendTo(bool bStartExtremity, const FPoint2D& NewExtremityCoordinate, TSharedRef<FTopologicalVertex> NewVertex);
 
+		bool IsSharpEdge();
+
+
 		// ======   State Functions   ======
 
 		/**
@@ -619,16 +636,6 @@ namespace CADKernel
 		{
 			return FHaveStates::IsDegenerated();
 		}
-
-		virtual void SetAsDegenerated() const override
-		{
-			if (TopologicalLink.IsValid())
-			{
-				printf("WTF");
-			}
-			return FHaveStates::SetAsDegenerated();
-		}
-
 
 		bool IsThinPeak() const
 		{
@@ -651,6 +658,14 @@ namespace CADKernel
 		bool IsBorder()
 		{
 			return GetTwinsEntityCount() == 1;
+		}
+
+		/**
+		 * @return true if the edge is adjacent to only two surfaces
+		 */
+		bool IsSurfacic()
+		{
+			return GetTwinsEntityCount() == 2;
 		}
 
 		/**

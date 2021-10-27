@@ -454,3 +454,18 @@ void UReplaySubsystem::RequestCheckpoint()
 		return Connection->RequestCheckpoint();
 	}
 }
+
+void UReplaySubsystem::SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits)
+{
+	UWorld* CurrentWorld = GetWorld();
+
+	if (CurrentWorld != nullptr && CurrentWorld->GetDemoNetDriver() != nullptr)
+	{
+		CurrentWorld->GetDemoNetDriver()->SetExternalDataForObject(OwningObject, Src, NumBits);
+	}
+
+	if (UReplayNetConnection* Connection = ReplayConnection.Get())
+	{
+		Connection->SetExternalDataForObject(OwningObject, Src, NumBits);
+	}
+}

@@ -324,7 +324,8 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 							// Add this target to all cameras visible on it
 							for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
 							{
-								if (CameraIt.IsCameraProjectionVisibleOnViewport(TargetIt))
+							if (CameraIt.IsCameraProjectionVisibleOnViewport(TargetIt)
+								&& !CameraIt.GetCameraSettings().HiddenICVFXViewports.ItemNames.Contains(TargetIt->GetId()))
 								{
 									CameraIt.VisibleTargets.Add(TargetIt);
 								}

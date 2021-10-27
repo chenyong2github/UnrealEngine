@@ -117,9 +117,32 @@ private:
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
+	void TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder);
 
-	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
-	void ContextMenu_CopySelectedToClipboard_Execute();
+	bool ContextMenu_CopyToClipboard_CanExecute() const;
+	void ContextMenu_CopyToClipboard_Execute();
+
+	bool ContextMenu_Export_CanExecute() const;
+	void ContextMenu_Export_Execute();
+
+	void AddTimerNodeRecursive(FTimerNodePtr InNode, TSet<uint32>& InOutIncludedTimers) const;
+
+	bool ContextMenu_ExportTimingEventsSelection_CanExecute() const;
+	void ContextMenu_ExportTimingEventsSelection_Execute() const;
+
+	bool ContextMenu_ExportTimingEvents_CanExecute() const;
+	void ContextMenu_ExportTimingEvents_Execute() const;
+
+	bool ContextMenu_ExportThreads_CanExecute() const;
+	void ContextMenu_ExportThreads_Execute() const;
+
+	bool ContextMenu_ExportTimers_CanExecute() const;
+	void ContextMenu_ExportTimers_Execute() const;
+
+	class IFileHandle* OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const;
+
+	bool ContextMenu_OpenSource_CanExecute() const;
+	void ContextMenu_OpenSource_Execute() const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header

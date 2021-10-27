@@ -126,35 +126,38 @@ void UAnimGraphNode_CallFunction::ExpandNode(FKismetCompilerContext& CompilerCon
 
 		UAnimBlueprintExtension_CallFunction* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_CallFunction>(GetAnimBlueprint());
 		
-		const FName EventName = Extension->GetCustomEventName(this);
+		const FName EventName = Extension->FindCustomEventName(this);
 
-		UK2Node_CustomEvent* CustomEventNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
-		CustomEventNode->bInternalEvent = true;
-		CustomEventNode->CustomFunctionName = EventName;
-		CustomEventNode->AllocateDefaultPins();
-
-		UEdGraphPin* ExecChain = K2Schema->FindExecutionPin(*CustomEventNode, EGPD_Output);
-
-		// Add call function node
-		UK2Node_CallFunction* NewCallFunctionNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CallFunction>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
-		NewCallFunctionNode->FunctionReference = CallFunctionPrototype->FunctionReference;
-		NewCallFunctionNode->AllocateDefaultPins();
-		
-		// link up pins
-		for(UEdGraphPin* Pin : CallFunctionPrototype->Pins)
+		if(EventName != NAME_None)
 		{
-			if(!K2Schema->IsExecPin(*Pin) && Pin->PinName != UEdGraphSchema_K2::PN_Self && Pin->Direction == EGPD_Input)
+			UK2Node_CustomEvent* CustomEventNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
+			CustomEventNode->bInternalEvent = true;
+			CustomEventNode->CustomFunctionName = EventName;
+			CustomEventNode->AllocateDefaultPins();
+
+			UEdGraphPin* ExecChain = K2Schema->FindExecutionPin(*CustomEventNode, EGPD_Output);
+
+			// Add call function node
+			UK2Node_CallFunction* NewCallFunctionNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CallFunction>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
+			NewCallFunctionNode->FunctionReference = CallFunctionPrototype->FunctionReference;
+			NewCallFunctionNode->AllocateDefaultPins();
+			
+			// link up pins
+			for(UEdGraphPin* Pin : CallFunctionPrototype->Pins)
 			{
-				UEdGraphPin* AnimGraphPin = FindPinChecked(Pin->PinName);
-				UEdGraphPin* NewPin = NewCallFunctionNode->FindPinChecked(Pin->PinName);
+				if(!K2Schema->IsExecPin(*Pin) && Pin->PinName != UEdGraphSchema_K2::PN_Self && Pin->Direction == EGPD_Input)
+				{
+					UEdGraphPin* AnimGraphPin = FindPinChecked(Pin->PinName);
+					UEdGraphPin* NewPin = NewCallFunctionNode->FindPinChecked(Pin->PinName);
 
-				NewPin->CopyPersistentDataFromOldPin(*AnimGraphPin);
+					NewPin->CopyPersistentDataFromOldPin(*AnimGraphPin);
+				}
 			}
-		}
 
-		// Link function call into exec chain
-		UEdGraphPin* ExecFunctionCall = K2Schema->FindExecutionPin(*NewCallFunctionNode, EGPD_Input);
-		ExecChain->MakeLinkTo(ExecFunctionCall);
+			// Link function call into exec chain
+			UEdGraphPin* ExecFunctionCall = K2Schema->FindExecutionPin(*NewCallFunctionNode, EGPD_Input);
+			ExecChain->MakeLinkTo(ExecFunctionCall);
+		}
 	}
 }
 

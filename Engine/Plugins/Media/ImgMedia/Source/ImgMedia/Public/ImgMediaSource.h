@@ -56,6 +56,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Sequence, AdvancedDisplay)
 	FString ProxyOverride;
 
+	/** If true, then any gaps in the sequence will be filled with blank frames. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence)
+	bool bFillGapsInSequence;
+
 public:
 
 	/**
@@ -140,6 +144,7 @@ public:
 
 	//~ IMediaOptions interface
 
+	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
 	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
 	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
 	virtual TSharedPtr<FDataContainer, ESPMode::ThreadSafe> GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const override;
@@ -151,6 +156,10 @@ public:
 
 	virtual FString GetUrl() const override;
 	virtual bool Validate() const override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 
 protected:
 

@@ -259,9 +259,9 @@ void FNiagaraPlatformSet::GetOverridenDeviceProfiles(int32 QualityLevel, TArray<
 	int32 QLMask = CreateQualityLevelMask(QualityLevel);
 	for (const FNiagaraDeviceProfileStateEntry& Entry : DeviceProfileStates)
 	{
-		if (TObjectPtr<UObject>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* CheckProfile) {return CheckProfile->GetFName() == Entry.ProfileName;}))
+		if (TObjectPtr<UDeviceProfile>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* CheckProfile) {return CheckProfile->GetFName() == Entry.ProfileName;}))
 		{
-			UDeviceProfile* Profile = CastChecked<UDeviceProfile>(*DeviceProfile);
+			UDeviceProfile* Profile = *DeviceProfile;
 			//If this platform cannot change at runtime then we store all EQs in the state so that the device is still overridden if someone changes it's EQ CVar.
 			//So here we must also check that this QualityLevel is the right one for the platforms current setting.
 			int32 ProfileQLMask = GetEffectQualityMaskForDeviceProfile(Profile);

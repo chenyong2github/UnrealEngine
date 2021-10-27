@@ -239,7 +239,7 @@ private:
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The Add combo button. */
-	TSharedPtr<class SEditorHeaderButton> AddNewButton;
+	TSharedPtr<class SPositiveActionButton> AddNewButton;
 
 	/** The component list control - part of the combo drop down */
 	TSharedPtr< SListView<FComponentClassComboEntryPtr> > ComponentClassListView;

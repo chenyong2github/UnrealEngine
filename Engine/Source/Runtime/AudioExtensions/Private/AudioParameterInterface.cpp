@@ -158,6 +158,49 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 	}
 }
 
+void FAudioParameter::Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioParameter>& OutParams)
+{
+	if (InParams.IsEmpty())
+	{
+		return;
+	}
+
+	if (OutParams.IsEmpty())
+	{
+		OutParams.Append(MoveTemp(InParams));
+		return;
+	}
+
+	auto SortParamsPredicate = [](const FAudioParameter& A, const FAudioParameter& B) { return A.ParamName.FastLess(B.ParamName); };
+
+	InParams.Sort(SortParamsPredicate);
+	OutParams.Sort(SortParamsPredicate);
+
+	for (int32 i = OutParams.Num() - 1; i >= 0; --i)
+	{
+		while (!InParams.IsEmpty())
+		{
+			FAudioParameter& OutParam = OutParams[i];
+			if (InParams.Last().ParamName.FastLess(OutParam.ParamName))
+			{
+				break;
+			}
+
+			constexpr bool bAllowShrinking = false;
+			FAudioParameter NewParam = InParams.Pop(bAllowShrinking);
+			if (NewParam.ParamName == OutParam.ParamName)
+			{
+				NewParam.Merge(OutParam);
+				OutParam = MoveTemp(NewParam);
+			}
+			else
+			{
+				OutParams.Emplace(MoveTemp(NewParam));
+			}
+		}
+	}
+}
+
 UAudioParameterInterface::UAudioParameterInterface(FObjectInitializer const& InObjectInitializer)
 	: UInterface(InObjectInitializer)
 {

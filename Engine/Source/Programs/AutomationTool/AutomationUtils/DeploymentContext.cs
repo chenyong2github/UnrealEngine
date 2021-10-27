@@ -1104,56 +1104,56 @@ public class DeploymentContext //: ProjectParams
 		return string.Format("Manifest_UFSFiles_{0}{1}.txt", StageTargetPlatform.PlatformType, GetSanitizedDeviceNameSuffix(DeviceName));
 	}
 
-	[Obsolete("Use DirectoriesAllowList instead")]
+	[Obsolete("Deprecated in 5.0; Use DirectoriesAllowList instead")]
 	public List<StagedDirectoryReference> WhitelistDirectories
 	{
 		get { return DirectoriesAllowList; }
 		set { DirectoriesAllowList = value; }
 	}
 
-	[Obsolete("Use ConfigFilesAllowList instead")]
+	[Obsolete("Deprecated in 5.0; Use ConfigFilesAllowList instead")]
 	public HashSet<StagedFileReference> WhitelistConfigFiles
 	{
 		get { return ConfigFilesAllowList; }
 		set { ConfigFilesAllowList = value; }
 	}
 
-	[Obsolete("Use ConfigFilesDenyList instead")]
+	[Obsolete("Deprecated in 5.0; Use ConfigFilesDenyList instead")]
 	public HashSet<StagedFileReference> BlacklistConfigFiles
 	{
 		get { return ConfigFilesDenyList; }
 		set { ConfigFilesDenyList = value; }
 	}
 
-	[Obsolete("Use IniKeyDenyList instead")]
+	[Obsolete("Deprecated in 5.0; Use IniKeyDenyList instead")]
 	public List<string> IniKeyBlacklist
 	{
 		get { return IniKeyDenyList; }
 		set { IniKeyDenyList = value; }
 	}
 
-	[Obsolete("Use IniSectionDenyList instead")]
+	[Obsolete("Deprecated in 5.0; Use IniSectionDenyList instead")]
 	public List<string> IniSectionBlacklist
 	{
 		get { return IniSectionDenyList; }
 		set { IniSectionDenyList = value; }
 	}
 
-	[Obsolete("Use IniSuffixAllowList instead")]
+	[Obsolete("Deprecated in 5.0; Use IniSuffixAllowList instead")]
 	public List<string> IniSuffixWhitelist
 	{
 		get { return IniSuffixAllowList; }
 		set { IniSuffixAllowList = value; }
 	}
 	
-	[Obsolete("Use IniSuffixDenyList instead")]
+	[Obsolete("Deprecated in 5.0; Use IniSuffixDenyList instead")]
 	public List<string> IniSuffixBlacklist
 	{
 		get { return IniSuffixDenyList; }
 		set { IniSuffixDenyList = value; }
 	}
 
-	[Obsolete("Use LocalizationTargetsDenyList instead")]
+	[Obsolete("Deprecated in 5.0; Use LocalizationTargetsDenyList instead")]
 	public List<string> BlacklistLocalizationTargets
 	{
 		get { return LocalizationTargetsDenyList; }

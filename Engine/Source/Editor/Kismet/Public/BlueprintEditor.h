@@ -34,7 +34,6 @@ class ISCSEditorCustomization;
 class SBlueprintPalette;
 class SBlueprintBookmarks;
 class SFindInBlueprints;
-class SKismetDebuggingView;
 class SKismetInspector;
 class SMyBlueprint;
 class SReplaceNodeReferences;
@@ -278,7 +277,6 @@ public:
 	/** Getters for the various Kismet2 widgets */
 	TSharedRef<SKismetInspector> GetInspector() const { return Inspector.ToSharedRef(); }
 	TSharedRef<SKismetInspector> GetDefaultEditor() const { return DefaultEditor.ToSharedRef(); }
-	TSharedRef<SKismetDebuggingView> GetDebuggingView() const { return DebuggingView.ToSharedRef(); }
 	TSharedRef<SBlueprintPalette> GetPalette() const { return Palette.ToSharedRef(); }
 	TSharedRef<SBlueprintBookmarks> GetBookmarksWidget() const { return BookmarksWidget.ToSharedRef(); }
 	TSharedRef<SWidget> GetCompilerResults() const { return CompilerResults.ToSharedRef(); }
@@ -1322,9 +1320,6 @@ protected:
 
 	/** defaults inspector widget */
 	TSharedPtr<class SKismetInspector> DefaultEditor;
-
-	/** Debugging window (watches, breakpoints, etc...) */
-	TSharedPtr<class SKismetDebuggingView> DebuggingView;
 
 	/** Palette of all classes with funcs/vars */
 	TSharedPtr<class SBlueprintPalette> Palette;

@@ -24,6 +24,7 @@
 #include "Cooker/CookRequestCluster.h"
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
+#include "Cooker/DiffPackageWriter.h"
 #include "Cooker/IoStoreCookOnTheFlyRequestManager.h"
 #include "Cooker/LooseCookedPackageWriter.h"
 #include "Cooker/NetworkFileCookOnTheFlyRequestManager.h"
@@ -687,6 +688,8 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 	FAssetRegistryGenerator& Generator = *PlatformData->RegistryGenerator;
 	Generator.SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true);
 	check(PlatformData->bIsSandboxInitialized); // This should have been set by BeginCookSandbox, and it is what we use to determine whether a platform has been initialized
+
+	FindOrCreatePackageWriter(TargetPlatform).BeginCook();
 }
 
 void UCookOnTheFlyServer::OnTargetPlatformsInvalidated()
@@ -1677,6 +1680,8 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 	UE::Cook::EExternalRequestType RequestType;
 	while (!CookerTimer.IsTimeUp())
 	{
+		BuildRequests.Reset();
+		SchedulerCallbacks.Reset();
 		RequestType = ExternalRequests->DequeueNextCluster(SchedulerCallbacks, BuildRequests);
 		if (RequestType == UE::Cook::EExternalRequestType::None)
 		{
@@ -3952,59 +3957,30 @@ private:
 
 	/* LinkerDiff settings */
 	IConsoleVariable* EnableNewSave = nullptr;
-	int32 PreviousCvarValue = 0;
+	int32 CurrentEnableNewSaveValue = 0;
 
 public:
 
-
-	void Initialize(TConstArrayView<UE::Cook::FCookSavePackageContext*> SavePackageContexts)
+	void InitializePackageWriter(ICookedPackageWriter*& CookedPackageWriter)
 	{
-		if (bInitialized)
+		Initialize();
+		if (!IsRunningCookDiff() && !IsRunningCookLinkerDiff())
 		{
 			return;
 		}
 
-		bDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-
-		FString DiffMode;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffMode))
+		ICookedPackageWriter::FCookCapabilities Capabilities = CookedPackageWriter->GetCookCapabilities();
+		if (!Capabilities.bDiffModeSupported)
 		{
-			if (DiffMode == TEXT("1") || DiffMode == TEXT("algo"))
-			{
-				LinkerDiffMode = LDM_Algo;
-			}
-			else if (DiffMode == TEXT("2") || DiffMode == TEXT("consistent"))
-			{
-				LinkerDiffMode = LDM_Consistent;
-			}
+			const TCHAR* CommandLineArg = IsRunningCookDiff() ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
+			UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but -iostore is also enabled and iostore PackageWriters do not support %s."),
+				CommandLineArg, CommandLineArg);
 		}
 
-		ParseCmds();
-		InitializePlatformSettings(SavePackageContexts);
-		bInitialized = true;
-	}
-
-	void InitializePlatformSettings(TConstArrayView<UE::Cook::FCookSavePackageContext*> SavePackageContexts)
-	{
-		if (IsRunningCookDiff() || IsRunningCookLinkerDiff())
+		if (IsRunningCookDiff())
 		{
-			bool bCompatible = true;
-			for (UE::Cook::FCookSavePackageContext* SavePackageContext : SavePackageContexts)
-			{
-				if (!SavePackageContext->PackageWriterCapabilities.bDiffModeSupported)
-				{
-					bCompatible = false;
-					break;
-				}
-			}
-			if (!bCompatible)
-			{
-				const TCHAR* CommandLineArg = IsRunningCookDiff() ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
-				UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but -iostore is also enabled and iostore PackageWriters do not support %s."),
-					CommandLineArg, CommandLineArg);
-				bDiffEnabled = false;
-				LinkerDiffMode = LDM_None;
-			}
+			// Wrap the incoming writer inside a FDiffPackageWriter
+			CookedPackageWriter = new FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>(CookedPackageWriter));
 		}
 	}
 
@@ -4029,40 +4005,71 @@ public:
 		ConditionallyDumpObjects(InPackage);
 	}
 
-	void LinkerDiffSetup()
+	void LinkerDiffSetupOther()
 	{
-		// Resave the package again using the other save algorithm
-		if (!EnableNewSave)
-		{
-			EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-		}
-		PreviousCvarValue = EnableNewSave->GetInt();
-
 		// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
 		// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
 		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
 		{
 			// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
-			EnableNewSave->Set(PreviousCvarValue & 1 ? 0 : 1);
+			EnableNewSave->Set(CurrentEnableNewSaveValue & 1 ? 0 : 1);
 		}
 	}
-	void LinkerDiffFinish(FSavePackageResultStruct& FirstResult, FSavePackageResultStruct& SecondResult)
+
+	void LinkerDiffSetupCurrent()
 	{
 		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
 		{
-			EnableNewSave->Set(PreviousCvarValue);
+			EnableNewSave->Set(CurrentEnableNewSaveValue);
+		}
+	}
+
+	void LinkerDiffFinish(FSavePackageResultStruct& OtherResult, FSavePackageResultStruct& CurrentResult)
+	{
+		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
+		{
+			EnableNewSave->Set(CurrentEnableNewSaveValue);
 		}
 
-		if (FirstResult.LinkerSave && SecondResult.LinkerSave)
+		if (OtherResult.LinkerSave && CurrentResult.LinkerSave)
 		{
-			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(FirstResult.LinkerSave.Get(), SecondResult.LinkerSave.Get());
+			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(OtherResult.LinkerSave.Get(), CurrentResult.LinkerSave.Get());
 			LinkerDiff.PrintDiff(*GWarn);
 		}
-		FirstResult.LinkerSave.Reset();
-		SecondResult.LinkerSave.Reset();
+		OtherResult.LinkerSave.Reset();
+		CurrentResult.LinkerSave.Reset();
 	}
 
 private:
+
+	void Initialize()
+	{
+		if (bInitialized)
+		{
+			return;
+		}
+
+		bDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
+
+		FString DiffMode;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffMode))
+		{
+			if (DiffMode == TEXT("1") || DiffMode == TEXT("algo"))
+			{
+				LinkerDiffMode = LDM_Algo;
+			}
+			else if (DiffMode == TEXT("2") || DiffMode == TEXT("consistent"))
+			{
+				LinkerDiffMode = LDM_Consistent;
+			}
+
+			EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
+			CurrentEnableNewSaveValue = EnableNewSave->GetInt();
+		}
+
+		ParseCmds();
+		bInitialized = true;
+	}
 
 	void RemoveParam(FString& InOutParams, const TCHAR* InParamToRemove)
 	{
@@ -4226,40 +4233,53 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			{
 				if (DiffModeHelper->IsRunningCookDiff())
 				{
-					check(Context.CookContext->PackageWriterCapabilities.bDiffModeSupported); // IsRunningCookDiff should have been disabled by DiffModeHelper if we are using a PackageWriter
 					DiffModeHelper->ProcessPackage(Package);
 
 					// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
-					uint32 DiffSaveFlags = Context.SaveFlags | SAVE_DiffOnly;
-					FArchiveDiffMap DiffMap;
+					FDiffPackageWriter* DiffPackageWriter = static_cast<FDiffPackageWriter*>(Context.PackageWriter);
 					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, DiffSaveFlags, TargetPlatform,
-						FDateTime::MinValue(), false, &DiffMap, Context.SavePackageContext);
-					if (Context.SavePackageResult == ESavePackageResult::DifferentContent)
+						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
+						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+					if (Context.SavePackageResult == ESavePackageResult::Success && DiffPackageWriter->IsDifferenceFound())
 					{
 						// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
-						DiffSaveFlags = Context.SaveFlags | SAVE_DiffCallstack;
+						DiffPackageWriter->BeginDiffCallstack();
+
 						Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-							GError, nullptr, Context.bEndianSwap, false, DiffSaveFlags, TargetPlatform,
-							FDateTime::MinValue(), false, &DiffMap, Context.SavePackageContext);
+							GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
+							FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
 					}
 				}
 				else if (DiffModeHelper->IsRunningCookLinkerDiff())
 				{
-					check(Context.CookContext->PackageWriterCapabilities.bDiffModeSupported); // IsRunningCookDiff should have been disabled by DiffModeHelper if we are using a PackageWriter
+					// Save the package with the other save algorithm. Discard the result but keep the linker.
+					DiffModeHelper->LinkerDiffSetupOther();
+					FSavePackageResultStruct OtherResult;
+					OtherResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
+						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
 
+					// The contract with the PackageWriter is that every Begin is paired with a single commit.
+					// Send the old commit and the new begin.
+					IPackageWriter::FCommitPackageInfo CommitInfo;
+					CommitInfo.bSucceeded = OtherResult == ESavePackageResult::Success;
+					CommitInfo.PackageName = Package->GetFName();
+					CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::None;
+					Context.PackageWriter->CommitPackage(MoveTemp(CommitInfo));
+					IPackageWriter::FBeginPackageInfo BeginInfo;
+					BeginInfo.PackageName = Package->GetFName();
+					BeginInfo.LooseFilePath = Context.PlatFilename;
+					Context.PackageWriter->BeginPackage(BeginInfo);
+
+					// Resave the package with the current save algorithm.
+					// Commit the result in FinishPlatform later, and compare the linkers now.
+					DiffModeHelper->LinkerDiffSetupCurrent();
+					FSavePackageResultStruct NewResult;
 					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
 						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
 						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
 
-					// Resave the package again using the other save algorithm
-					DiffModeHelper->LinkerDiffSetup();
-					FSavePackageResultStruct NewResult;
-					NewResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags | SAVE_DiffOnly, TargetPlatform,
-						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
-
-					DiffModeHelper->LinkerDiffFinish(Context.SavePackageResult, NewResult);
+					DiffModeHelper->LinkerDiffFinish(OtherResult, Context.SavePackageResult);
 				}
 				else
 				{
@@ -4312,7 +4332,6 @@ FSaveCookedPackageContext::FSaveCookedPackageContext(UCookOnTheFlyServer& InCOTF
 
 void FSaveCookedPackageContext::SetupPackage()
 {
-	COTFS.DiffModeHelper->Initialize(COTFS.SavePackageContexts);
 	check(Package && Package->IsFullyLoaded()); // PackageData should not be in the save state if Package is not fully loaded
 	check(Package->GetPathName().Equals(PackageName)); // We should only be saving outermost packages, so the path name should be the same as the package name
 	check(!Filename.IsEmpty()); // PackageData guarantees FileName is non-empty; if not found it should never make it into save state
@@ -4433,6 +4452,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
+	TFuture<FMD5Hash> CookedHash;
 	FAssetRegistryGenerator& Generator = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 	if (bPlatformSetupSuccessful)
 	{
@@ -4457,14 +4477,19 @@ void FSaveCookedPackageContext::FinishPlatform()
 		Info.Attachments.Add({ "Dependencies", TargetDomainDependencies });
 		// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
 		//Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
+		Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
+		if (!!(SaveFlags & SAVE_ComputeHash))
+		{
+			Info.WriteOptions |= IPackageWriter::EWriteOptions::ComputeHash;
+		}
 
-		PackageWriter->CommitPackage(Info);
+		CookedHash = PackageWriter->CommitPackage(MoveTemp(Info));
 	}
 
 	// Update asset registry
 	if (COTFS.CookByTheBookOptions)
 	{
-		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult);
+		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, CookedHash);
 	}
 
 	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
@@ -7360,7 +7385,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 					PopulatePlatforms.Add(TargetPlatform);
 				}
 			}
-			PackageWriter.BeginCook(CookInfo);
+			PackageWriter.Initialize(CookInfo);
 			PlatformData->bFullBuild = CookInfo.bFullBuild;
 			PlatformData->bIsSandboxInitialized = true;
 			ResetPlatforms.Emplace(TargetPlatform, bResetResults);
@@ -7418,6 +7443,8 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 			const_cast<UCookOnTheFlyServer&>(*this).GetAsyncIODelete(), GetPackageNameCache(), PluginsToRemap);
 		WriterDebugName = TEXT("DirectoryWriter");
 	}
+
+	DiffModeHelper->InitializePackageWriter(PackageWriter);
 
 	FConfigFile PlatformEngineIni;
 	FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
@@ -8001,6 +8028,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	{
 		// Discoveries during the processing of the initial cluster are expected, so LogDiscoveredPackages must be off.
 		PackageDatas->SetLogDiscoveredPackages(false);
+	}
+
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	{
+		FindOrCreatePackageWriter(TargetPlatform).BeginCook();
 	}
 }
 
@@ -8755,7 +8787,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 						// Update asset registry
 						FAssetRegistryGenerator& Generator = *(PlatformManager->GetPlatformData(Target)->RegistryGenerator);
-						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult);
+						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, SaveResult.CookedHash);
 
 						if (SaveResult.IsSuccessful())
 						{

@@ -96,6 +96,7 @@ void UUVLayoutTool::Setup()
 		UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
 		{
 			MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+			UpdateVisualization();
 		});
 	}
 

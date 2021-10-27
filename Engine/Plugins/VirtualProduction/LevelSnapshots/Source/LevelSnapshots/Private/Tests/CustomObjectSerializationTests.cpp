@@ -3,41 +3,39 @@
 #include "CustomSubobjectRestorationInfo.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertySelectionMap.h"
-#include "Serialization/ICustomObjectSnapshotSerializer.h"
-#include "Serialization/ObjectSnapshotSerializationData.h"
-#include "SnapshotTestActor.h"
-#include "SnapshotTestRunner.h"
+#include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "Params/ObjectSnapshotSerializationData.h"
+#include "Util/SnapshotTestRunner.h"
+#include "Types/SnapshotTestActor.h"
 #include "Engine/StaticMeshActor.h"
 
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 
-namespace
+namespace CustomObjectSerializationTests
 {
-	void BlacklistSubobjectProperties()
+	TSet<const FProperty*> GetSubobjectProperties()
+	{
+		TSet<const FProperty*> Properties;
+		
+		Properties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, EditableInstancedSubobject_DefaultSubobject)));
+		Properties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, InstancedOnlySubobject_DefaultSubobject)));
+		Properties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, NakedSubobject_DefaultSubobject)));
+		Properties.Add(USubobject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, NestedChild)));
+
+		return Properties;
+	}
+	
+	void DisallowSubobjectProperties()
 	{
 		FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
-		TSet<const FProperty*> BlacklistedProperties;
-		
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, EditableInstancedSubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, InstancedOnlySubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, NakedSubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(USubobject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, NestedChild)));
-
-		Module.AddBlacklistedProperties(BlacklistedProperties);
+		Module.AddExplicitlyUnsupportedProperties(GetSubobjectProperties());
 	}
 
-	void UnblacklistSubobjectProperties()
+	void ReallowSubobjectProperties()
 	{
 		FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
-		TSet<const FProperty*> BlacklistedProperties;
-		
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, EditableInstancedSubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, InstancedOnlySubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, NakedSubobject_DefaultSubobject)));
-		BlacklistedProperties.Add(USubobject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, NestedChild)));
-
-		Module.RemoveBlacklistedProperties(BlacklistedProperties);
+		Module.RemoveExplicitlyUnsupportedProperties(GetSubobjectProperties());
 	}
 }
 
@@ -159,11 +157,11 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 	TSharedRef<FStub> Stub = MakeShared<FStub>(*this);
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
-	BlacklistSubobjectProperties();
+	CustomObjectSerializationTests::DisallowSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
-		UnblacklistSubobjectProperties();
+		CustomObjectSerializationTests::ReallowSubobjectProperties();
 	};
 	
 	FSnapshotTestRunner()
@@ -294,11 +292,11 @@ bool FSaveAndLoadObjectAnnotation::RunTest(const FString& Parameters)
 	TSharedRef<FStub> Stub = MakeShared<FStub>(*this);
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
-	BlacklistSubobjectProperties();
+	CustomObjectSerializationTests::DisallowSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
-		UnblacklistSubobjectProperties();
+		CustomObjectSerializationTests::ReallowSubobjectProperties();
 	};
 
 	ASnapshotTestActor* TestActor = nullptr;
@@ -432,12 +430,12 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), ActorSerializer);
 	Module.RegisterCustomObjectSerializer(USubobject::StaticClass(), SubobjectSerializer);
-	BlacklistSubobjectProperties();
+	CustomObjectSerializationTests::DisallowSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
 		Module.UnregisterCustomObjectSerializer(USubobject::StaticClass());
-		UnblacklistSubobjectProperties();
+		CustomObjectSerializationTests::ReallowSubobjectProperties();
 	};
 
 	ASnapshotTestActor* TestActor = nullptr;
@@ -589,11 +587,11 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 	TSharedRef<FStub> Stub = MakeShared<FStub>();
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
-	BlacklistSubobjectProperties();
+	CustomObjectSerializationTests::DisallowSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
-		UnblacklistSubobjectProperties();
+		CustomObjectSerializationTests::ReallowSubobjectProperties();
 	};
 
 
@@ -775,11 +773,11 @@ bool FRestoreSubobjectsMissingFromEditorWorld::RunTest(const FString& Parameters
 	TSharedRef<FStub> Stub = MakeShared<FStub>();
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
-	BlacklistSubobjectProperties();
+	CustomObjectSerializationTests::DisallowSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
-		UnblacklistSubobjectProperties();
+		CustomObjectSerializationTests::ReallowSubobjectProperties();
 	};
 
 	

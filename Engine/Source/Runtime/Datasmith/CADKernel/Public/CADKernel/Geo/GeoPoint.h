@@ -44,7 +44,7 @@ namespace CADKernel
 		FSurfacicTolerance Tolerance = FPoint2D::FarawayPoint;
 	};
 
-	typedef FSurfacicCurvePointWithTolerance FSurfacicCurveExtremity[2];
+	typedef FSurfacicCurvePointWithTolerance FSurfacicCurveExtremities[2];
 
 	struct FCurvePoint
 	{

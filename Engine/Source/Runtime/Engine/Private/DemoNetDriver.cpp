@@ -2033,7 +2033,7 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 
 		const bool bDidReplicateActor = DemoReplicateActor(Actor, Connection, false);
 
-		const bool bUpdatedExternalData = ReplayHelper.UpdateExternalDataForActor(Connection, Actor);
+		const bool bUpdatedExternalData = ReplayHelper.UpdateExternalDataForObject(Connection, Actor);
 
 		if (bDidReplicateActor || bUpdatedExternalData)
 		{
@@ -3012,6 +3012,17 @@ FReplayExternalDataArray* UDemoNetDriver::GetExternalDataArrayForObject(UObject*
 	}
 
 	return ReplayHelper.ExternalDataToObjectMap.Find(NetworkGUID);
+}
+
+bool UDemoNetDriver::SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits)
+{
+	if (IsRecording())
+	{
+		// IsRecording verifies that ClientConnections[0] exists
+		return ReplayHelper.SetExternalDataForObject(ClientConnections[0], OwningObject, Src, NumBits);
+	}
+
+	return false;
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

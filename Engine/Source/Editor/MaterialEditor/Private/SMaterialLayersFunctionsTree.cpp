@@ -1439,7 +1439,6 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 					auto It = StructPtrs.CreateConstIterator();
 					FunctionInstance = reinterpret_cast<FMaterialLayersFunctions*>(*It);
 					FunctionInstanceHandle = ParameterValueProperty;
-					LayersFunctionsParameterName = FName(Parameter->ParameterInfo.Name);
 
 					TSharedPtr<IPropertyHandle>	LayerHandle = ChildHandle->GetChildHandle("Layers").ToSharedRef();
 					TSharedPtr<IPropertyHandle> BlendHandle = ChildHandle->GetChildHandle("Blends").ToSharedRef();
@@ -1787,7 +1786,7 @@ void SMaterialLayersFunctionsInstanceWrapper::Refresh()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromName(NestedTree->LayersFunctionsParameterName))
+						.Text(LOCTEXT("MaterialLayers", "Material Layers"))
 					]
 				]
 				+ SVerticalBox::Slot()
@@ -2769,7 +2768,6 @@ void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()
 				auto It = StructPtrs.CreateConstIterator();
 				FunctionInstance = reinterpret_cast<FMaterialLayersFunctions*>(*It);
 				FunctionInstanceHandle = ParameterValueProperty;
-				LayersFunctionsParameterName = FName(Parameter->ParameterInfo.Name);
 
 				TSharedPtr<IPropertyHandle>	LayerHandle = ChildHandle->GetChildHandle("Layers").ToSharedRef();
 				TSharedPtr<IPropertyHandle> BlendHandle = ChildHandle->GetChildHandle("Blends").ToSharedRef();
@@ -3091,7 +3089,7 @@ void SMaterialLayersFunctionsMaterialWrapper::Refresh()
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromName(NestedTree->LayersFunctionsParameterName))
+						.Text(LOCTEXT("MaterialLayers", "Material Layers"))
 					]
 				]
 				+ SVerticalBox::Slot()

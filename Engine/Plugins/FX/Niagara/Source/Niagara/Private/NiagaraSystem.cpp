@@ -35,7 +35,6 @@
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 static uint32 CompileGuardSlot = 0;
-
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Precompile, STATGROUP_Niagara);
@@ -523,8 +522,7 @@ void UNiagaraSystem::BeginDestroy()
 	}
 #endif
 
-	//Should we just destroy all system sims here to simplify cleanup?
-	//FNiagaraWorldManager::DestroyAllSystemSimulations(this);
+	FNiagaraWorldManager::DestroyAllSystemSimulations(this);
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -557,7 +555,7 @@ void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 
 void UNiagaraSystem::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts)
 {
-	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespace))
+	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString))
 	{
 		if (GetExposedParameters().IndexOf(InOldVariable) != INDEX_NONE)
 			GetExposedParameters().RenameParameter(InOldVariable, InNewVariable.GetName());
@@ -581,7 +579,7 @@ void UNiagaraSystem::HandleVariableRenamed(const FNiagaraVariable& InOldVariable
 
 void UNiagaraSystem::HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts)
 {
-	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespace))
+	if (InOldVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString))
 	{
 		if (GetExposedParameters().IndexOf(InOldVariable) != INDEX_NONE)
 			GetExposedParameters().RemoveParameter(InOldVariable);

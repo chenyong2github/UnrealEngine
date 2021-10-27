@@ -41,6 +41,11 @@ namespace UnrealBuildTool
 			public string? HardwareCompressionFormat = null;
 
 			/// <summary>
+			/// The online account can't be set from the command line
+			/// </summary>
+			public bool bNoAccountOverride = false;
+
+			/// <summary>
 			/// Entire ini parent chain, ending with this platform
 			/// </summary>
 			public string[]? IniParentChain = null;
@@ -121,6 +126,12 @@ namespace UnrealBuildTool
 							if (ParsedSection.TryGetValue("HardwareCompressionFormat", out NewInfo.HardwareCompressionFormat) == false)
 							{
 								NewInfo.HardwareCompressionFormat = null;
+							}
+
+							NewInfo.bNoAccountOverride = false;
+							if (ParsedSection.TryGetValue("bNoAccountOverride", out Temp))
+							{
+								ConfigHierarchy.TryParse(Temp, out NewInfo.bNoAccountOverride);
 							}
 
 							// get a list of additional restricted folders

@@ -684,7 +684,7 @@ FString FWindowsPlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName)
 	FString Buffer;
 	for(uint32 Length = 128;;)
 	{
-		TArray<TCHAR>& CharArray = Buffer.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType>& CharArray = Buffer.GetCharArray();
 		CharArray.SetNumUninitialized(Length);
 
 		Length = ::GetEnvironmentVariableW(VariableName, CharArray.GetData(), CharArray.Num());

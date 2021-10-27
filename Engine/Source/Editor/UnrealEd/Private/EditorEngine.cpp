@@ -639,28 +639,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	// Call base.
 	UEngine::Init(InEngineLoop);
 
-	// Specify "-ForceLauncher" on the command-line to always open the launcher, even in unusual cases.  This is useful for debugging the Launcher startup.
-	const bool bForceLauncherToOpen = FParse::Param(FCommandLine::Get(), TEXT("ForceLauncher"));
-
-	if ( bForceLauncherToOpen ||
-		( !FEngineBuildSettings::IsInternalBuild() &&
-		!FEngineBuildSettings::IsPerforceBuild() &&
-		!FPlatformMisc::IsDebuggerPresent() &&	// Don't spawn launcher while running in the Visual Studio debugger by default
-		!FApp::IsBenchmarking() &&
-		!GIsDemoMode &&
-		!IsRunningCommandlet() &&
-		!FPlatformProcess::IsApplicationRunning(TEXT("EpicGamesLauncher")) &&
-		!FPlatformProcess::IsApplicationRunning(TEXT("EpicGamesLauncher-Mac-Shipping"))
-		))
-	{
-		ILauncherPlatform* LauncherPlatform = FLauncherPlatformModule::Get();
-		if (LauncherPlatform != NULL )
-		{
-			FOpenLauncherOptions SilentOpen;
-			LauncherPlatform->OpenLauncher(SilentOpen);
-		}
-	}
-
 	// Create selection sets.
 	PrivateEditorSelection::InitSelectionSets();
 
@@ -7125,7 +7103,7 @@ void UEditorEngine::HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, E
 bool FActorLabelUtilities::SplitActorLabel(FString& InOutLabel, int32& OutIdx)
 {
 	// Look at the label and see if it ends in a number and separate them
-	const TArray<TCHAR>& LabelCharArray = InOutLabel.GetCharArray();
+	const TArray<TCHAR, FString::AllocatorType>& LabelCharArray = InOutLabel.GetCharArray();
 	for (int32 CharIdx = LabelCharArray.Num() - 1; CharIdx >= 0; CharIdx--)
 	{
 		if (CharIdx == 0 || !FChar::IsDigit(LabelCharArray[CharIdx - 1]))

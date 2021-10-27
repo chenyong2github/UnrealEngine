@@ -1346,11 +1346,13 @@ void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 	}
 #endif
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
 	if (BPClass != nullptr)
 	{
 		BPClass->InstancePreReplication(this, ChangedPropertyTracker);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void AActor::CallPreReplication(UNetDriver* NetDriver)

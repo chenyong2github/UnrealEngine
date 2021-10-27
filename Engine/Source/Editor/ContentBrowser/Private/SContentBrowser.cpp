@@ -74,7 +74,7 @@
 #include "ToolMenu.h"
 #include "Widgets/Input/SExpandableButton.h"
 #include "SSearchToggleButton.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -1085,7 +1085,7 @@ void SContentBrowser::RegisterContentBrowserToolBar()
 			UContentBrowserToolbarMenuContext* Context = InSection.FindContext<UContentBrowserToolbarMenuContext>();
 			TSharedRef<SContentBrowser> ContentBrowser = Context->ContentBrowser.Pin().ToSharedRef();
 		
-			TSharedRef<SEditorHeaderButton> NewButton = SNew(SEditorHeaderButton)
+			TSharedRef<SPositiveActionButton> NewButton = SNew(SPositiveActionButton)
 				.OnGetMenuContent_Lambda([Context] { return Context->ContentBrowser.Pin()->MakeAddNewContextMenu(EContentBrowserDataMenuContext_AddNewMenuDomain::Toolbar, Context); })
 				.ToolTipText(ContentBrowser, &SContentBrowser::GetAddNewToolTipText)
 				.IsEnabled(ContentBrowser, &SContentBrowser::IsAddNewEnabled)

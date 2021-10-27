@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"DeveloperSettings",
+					"DeveloperToolSettings",
 					"Engine",
 					"EditorSubsystem",
 					"UnrealEd",

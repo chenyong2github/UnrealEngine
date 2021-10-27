@@ -41,6 +41,7 @@
 #include "SProjectDialog.h"
 #include "LauncherPlatformModule.h"
 #include "SPrimaryButton.h"
+#include "Styling/StyleColors.h"
 
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
@@ -201,14 +202,53 @@ public:
 							.Padding(FMargin(NewProjectDialogDefs::ThumbnailPadding, 0))
 							.VAlign(VAlign_Top)
 							.Padding(FMargin(3.0f, 3.0f))
-							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground"))
+							.BorderImage_Lambda
+							(
+								[this]()
+								{
+									const bool bIsSelected = IsSelected();
+									const bool bIsRowHovered = IsHovered();
+
+									if (bIsSelected && bIsRowHovered)
+									{
+										static const FName SelectedHover("ProjectBrowser.ProjectTile.NameAreaSelectedHoverBackground");
+										return FAppStyle::Get().GetBrush(SelectedHover);
+									}
+									else if (bIsSelected)
+									{
+										static const FName Selected("ProjectBrowser.ProjectTile.NameAreaSelectedBackground");
+										return FAppStyle::Get().GetBrush(Selected);
+									}
+									else if (bIsRowHovered)
+									{
+										static const FName Hovered("ProjectBrowser.ProjectTile.NameAreaHoverBackground");
+										return FAppStyle::Get().GetBrush(Hovered);
+									}
+
+									return FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground");
+								}
+							)
 							[
 								SNew(STextBlock)
 								.Font(FAppStyle::Get().GetFontStyle("ProjectBrowser.ProjectTile.Font"))
 								.WrapTextAt(NewProjectDialogDefs::TemplateTileWidth-4.0f)
 								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
 								.Text(InArgs._Item->Name)
-								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+								.ColorAndOpacity_Lambda
+								(
+									[this]()
+									{
+										const bool bIsSelected = IsSelected();
+										const bool bIsRowHovered = IsHovered();
+
+										if (bIsSelected || bIsRowHovered)
+										{
+											return FStyleColors::White;
+										}
+
+										return FSlateColor::UseForeground();
+									}
+								)
 							]
 						]
 					]

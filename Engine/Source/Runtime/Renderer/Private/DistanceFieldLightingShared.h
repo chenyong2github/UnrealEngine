@@ -95,6 +95,8 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneDistanceFieldAssetData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, DistanceFieldIndirectionTable)
+	SHADER_PARAMETER_SRV(Buffer<float4>, DistanceFieldIndirection2Table)
+	SHADER_PARAMETER_TEXTURE(Texture3D<float4>, DistanceFieldIndirectionAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldBrickTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
 	SHADER_PARAMETER(FVector3f, DistanceFieldBrickSize)
@@ -204,6 +206,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightTileIntersectionParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShadowTileArrayData)
 
 	SHADER_PARAMETER(FIntPoint, ShadowTileListGroupSize)
+	SHADER_PARAMETER(uint32, ShadowMaxObjectsPerTile)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void CullDistanceFieldObjectsForLight(

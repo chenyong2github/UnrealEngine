@@ -575,7 +575,7 @@ SStatusBar::~SStatusBar()
 void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab)
 {
 	StatusBarName = InStatusBarName;
-	StatusBarToolBarName = FName(*(StatusBarName.ToString() + ".ToolBar"));
+	StatusBarToolBarName = FName(*(GetStatusBarSerializableName() + ".ToolBar"));
 	
 	ParentTab = InParentTab;
 
@@ -996,7 +996,7 @@ void SStatusBar::OnDrawerHeightChanged(float TargetHeight)
 	// Save the height has a percentage of the screen
 	const float TargetDrawerHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
 
-	GConfig->SetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString() + TEXT(".") + OpenedDrawer.DrawerId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
+	GConfig->SetFloat(TEXT("DrawerSizes"), *(GetStatusBarSerializableName() + TEXT(".") + OpenedDrawer.DrawerId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
 }
 
 void SStatusBar::RegisterStatusBarMenu()
@@ -1195,6 +1195,11 @@ void SStatusBar::CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data)
 	}
 }
 
+FString SStatusBar::GetStatusBarSerializableName() const
+{
+	return StatusBarName.GetPlainNameString();
+}
+
 void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
 {
 	const int32 NumDrawers = RegisteredDrawers.Num();
@@ -1229,7 +1234,7 @@ void SStatusBar::OpenDrawer(const FName DrawerId)
 			const float MaxDrawerHeight = MyWindow->GetSizeInScreen().Y * 0.90f;
 
 			float TargetDrawerHeightPct = .33f;
-			GConfig->GetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString()+TEXT(".")+DrawerData->UniqueId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
+			GConfig->GetFloat(TEXT("DrawerSizes"), *(GetStatusBarSerializableName()+TEXT(".")+DrawerData->UniqueId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
 
 			float TargetDrawerHeight = (MyWindow->GetSizeInScreen().Y * TargetDrawerHeightPct) / MyWindow->GetDPIScaleFactor();
 

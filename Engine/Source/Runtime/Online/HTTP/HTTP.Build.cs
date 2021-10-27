@@ -18,8 +18,7 @@ public class HTTP : ModuleRules
 		{
 			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
-				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
-				Target.Platform == UnrealTargetPlatform.Switch;
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Android);
 		}
 	}
 	protected virtual bool bPlatformSupportsXCurl { get { return false; } }

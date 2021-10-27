@@ -38,11 +38,11 @@ struct WATEREDITOR_API FWaterBrushActorDefaults
 }; 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterMeshActorDefaults
+struct WATEREDITOR_API FWaterZoneActorDefaults
 {
 	GENERATED_BODY()
 
-	FWaterMeshActorDefaults();
+	FWaterZoneActorDefaults();
 
 	UMaterialInterface* GetFarDistanceMaterial() const;
 
@@ -219,7 +219,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TEnumAsByte<TextureGroup> TextureGroupForGeneratedTextures;
 
-	/** Maximum size of the water velocity/height texture for a WaterMeshActor */
+	/** Maximum size of the water velocity/height texture for a WaterZoneActor */
 	UPROPERTY(EditAnywhere, config, Category = Rendering, meta=(ClampMin=1, ClampMax=2048))
 	int32 MaxWaterVelocityAndHeightTextureSize;
 
@@ -233,7 +233,7 @@ public:
 
 	/** Default values for base WaterMesh actor*/
 	UPROPERTY(EditAnywhere, config, Category = ActorDefaults)
-	FWaterMeshActorDefaults WaterMeshActorDefaults;
+	FWaterZoneActorDefaults WaterZoneActorDefaults;
 	/** Default values for base WaterBodyRiver actor */
 	UPROPERTY(EditAnywhere, config, Category = ActorDefaults)
 	FWaterBodyRiverDefaults WaterBodyRiverDefaults;

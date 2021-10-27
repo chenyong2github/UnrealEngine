@@ -77,7 +77,7 @@ FName UCurveTable::MakeValidName(const FString& InString)
 	FString InvalidChars(INVALID_NAME_CHARACTERS);
 
 	FString FixedString;
-	TArray<TCHAR>& FixedCharArray = FixedString.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& FixedCharArray = FixedString.GetCharArray();
 
 	// Iterate over input string characters
 	for (int32 CharIdx=0; CharIdx<InString.Len(); CharIdx++)

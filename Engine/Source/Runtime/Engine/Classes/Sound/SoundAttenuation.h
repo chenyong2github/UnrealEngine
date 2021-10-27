@@ -443,13 +443,13 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 #endif
 		, ReverbWetLevelMin(0.3f)
 		, ReverbWetLevelMax(0.95f)
-		, ReverbDistanceMin(AttenuationShapeExtents.X)
-		, ReverbDistanceMax(AttenuationShapeExtents.X + FalloffDistance)
+		, ReverbDistanceMin(UE_REAL_TO_FLOAT(AttenuationShapeExtents.X))
+		, ReverbDistanceMax(UE_REAL_TO_FLOAT(AttenuationShapeExtents.X) + FalloffDistance)
 		, ManualReverbSendLevel(0.0f)
 		, PriorityAttenuationMin(1.0f)
 		, PriorityAttenuationMax(1.0f)
-		, PriorityAttenuationDistanceMin(AttenuationShapeExtents.X)
-		, PriorityAttenuationDistanceMax(AttenuationShapeExtents.X + FalloffDistance)
+		, PriorityAttenuationDistanceMin(UE_REAL_TO_FLOAT(AttenuationShapeExtents.X))
+		, PriorityAttenuationDistanceMax(UE_REAL_TO_FLOAT(AttenuationShapeExtents.X) + FalloffDistance)
 		, ManualPriorityAttenuation(1.0f)
 	{
 	}

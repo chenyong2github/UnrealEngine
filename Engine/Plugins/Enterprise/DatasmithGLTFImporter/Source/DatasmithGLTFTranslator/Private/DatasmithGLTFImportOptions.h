@@ -25,4 +25,9 @@ public:
 		DisplayName = "Import Uniform Scale",
 		ToolTip = "Scale factor used for importing assets, by default: 100, for conversion from meters(glTF) to centimeters(Unreal default)."))
 	float ImportScale = 100.f;
+
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = AssetImporting, meta = (
+		DisplayName = "Animation FPS from File",
+		ToolTip = "Use animation frame rate from source (as it was exported). If unchecked, animations are resampled with 30 FPS."))
+	bool bAnimationFrameRateFromFile = false;
 };

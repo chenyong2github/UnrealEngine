@@ -175,11 +175,13 @@ void UVCamOutputRemoteSession::OnRemoteSessionChannelChange(IRemoteSessionRole* 
 	TSharedPtr<IRemoteSessionChannel> PinnedChannel = Channel.Pin();
 	if (PinnedChannel && Change == ERemoteSessionChannelChange::Created)
 	{
-		if (PinnedChannel->GetType() == FRemoteSessionImageChannel::StaticType())
+        const FString PinnedChannelTypeString(PinnedChannel->GetType());
+        
+		if (PinnedChannelTypeString.Compare(FRemoteSessionImageChannel::StaticType()) == 0)
 		{
 			OnImageChannelCreated(Channel);
 		}
-		else if (PinnedChannel->GetType() == FRemoteSessionInputChannel::StaticType())
+        else if (PinnedChannelTypeString.Compare(FRemoteSessionInputChannel::StaticType()) == 0)
 		{
 			OnInputChannelCreated(Channel);
 		}

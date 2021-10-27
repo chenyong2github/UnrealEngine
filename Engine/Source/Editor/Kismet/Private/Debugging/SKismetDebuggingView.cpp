@@ -26,7 +26,6 @@
 #include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/DebuggerCommands.h"
-#include "Debugging/KismetDebugCommands.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "ToolMenus.h"
 #include "PropertyEditor/Private/SDetailsView.h"
@@ -79,35 +78,6 @@ TSharedRef<SHorizontalBox> SKismetDebuggingView::GetDebugLineTypeToggle(FDebugLi
 		];
 }
 
-TSharedPtr<SWidget> SKismetDebuggingView::OnMakeDebugTreeContextMenu() const
-{
-	return OnMakeTreeContextMenu(DebugTreeView);
-}
-
-TSharedPtr<SWidget> SKismetDebuggingView::OnMakeOtherTreeContextMenu() const
-{
-	return OnMakeTreeContextMenu(OtherTreeView);
-}
-
-TSharedPtr<SWidget> SKismetDebuggingView::OnMakeTreeContextMenu(const TSharedPtr<SKismetDebugTreeView>& Tree)
-{
-	FMenuBuilder MenuBuilder(true, nullptr);
-
-	MenuBuilder.BeginSection("DebugActions", LOCTEXT("DebugActionsMenuHeading", "Debug Actions"));
-	{
-		TArray<FDebugTreeItemPtr> SelectionList;
-		Tree->GetSelectedItems(SelectionList);
-
-		for (int32 SelIndex = 0; SelIndex < SelectionList.Num(); ++SelIndex)
-		{
-			FDebugTreeItemPtr Ptr = SelectionList[SelIndex];
-			Ptr->MakeMenu(MenuBuilder);
-		}
-	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
-}
 
 void SKismetDebuggingView::OnSearchTextChanged(const FText& Text)
 {
@@ -153,7 +123,12 @@ FReply SKismetDebuggingView::OnDisableAllBreakpointsClicked()
 {
 	if(BlueprintToWatchPtr.IsValid())
 	{
-		FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(BlueprintToWatchPtr.Get(), false);
+		FKismetDebugUtilities::ForeachBreakpoint(BlueprintToWatchPtr.Get(),
+			[](FBlueprintBreakpoint& Breakpoint)
+			{
+				FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, false);
+			}
+		);
 	}
 	
 	return FReply::Handled();
@@ -302,7 +277,6 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 					+SSplitter::Slot()
 					[
 						SAssignNew( DebugTreeView, SKismetDebugTreeView )
-							.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeDebugTreeContextMenu )
 							.HeaderRow
 							(
 								SNew(SHeaderRow)
@@ -315,7 +289,6 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 					+SSplitter::Slot()
 					[
 						SAssignNew( OtherTreeView, SKismetDebugTreeView )
-							.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeOtherTreeContextMenu )
 							.HeaderRow
 							(
 								SNew(SHeaderRow)
@@ -477,6 +450,12 @@ void SKismetDebuggingView::Tick( const FGeometry& AllottedGeometry, const double
 	}
 
 	OtherTreeView->RequestUpdateFilteredItems();
+}
+
+void SKismetDebuggingView::SetBlueprintToWatch(TWeakObjectPtr<UBlueprint> InBlueprintToWatch)
+{
+	BlueprintToWatchPtr = InBlueprintToWatch;
+	FDebugLineItem::SetBreakpointParentItemBlueprint(BreakpointParentItem, BlueprintToWatchPtr);
 }
 
 #undef LOCTEXT_NAMESPACE

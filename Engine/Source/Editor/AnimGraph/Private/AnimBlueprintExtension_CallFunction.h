@@ -19,8 +19,8 @@ public:
 	// Add a custom event name for the specified node
 	FName AddCustomEventName(UAnimGraphNode_Base* InNode);
 
-	// Get the custom event name for the specified node
-	FName GetCustomEventName(UAnimGraphNode_Base* InNode) const;
+	// Find the custom event name for the specified node. @return NAME_None if the node was not found
+	FName FindCustomEventName(UAnimGraphNode_Base* InNode) const;
 
 private:
 	// Counter to allow us to create unique stub function names

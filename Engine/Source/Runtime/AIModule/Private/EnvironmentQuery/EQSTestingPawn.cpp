@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "EnvironmentQuery/EQSRenderingComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "BehaviorTree/BlackboardComponent.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Components/ArrowComponent.h"
@@ -241,16 +242,14 @@ void AEQSTestingPawn::MakeOneStep()
 
 	if (QueryInstance.IsValid() == false && QueryTemplate != NULL)
 	{
+		UBlackboardComponent* BlackboardComponent = FindComponentByClass<UBlackboardComponent>();
 		FEnvQueryRequest QueryRequest(QueryTemplate, this);
 		for (FAIDynamicParam& RuntimeParam : QueryConfig)
 		{
-			// check if given param requires runtime resolve, like reading from BB
-			if (RuntimeParam.BBKey.IsSet())
+			if (ensureMsgf(RuntimeParam.BBKey.IsSet() == false || BlackboardComponent, TEXT("BBKey.IsSet but no BlackboardComponent provided")))
 			{
-				// grab info from BB
+				QueryRequest.SetDynamicParam(RuntimeParam, BlackboardComponent);
 			}
-
-			QueryRequest.SetFloatParam(RuntimeParam.ParamName, RuntimeParam.Value);
 		}
 		QueryInstance = EQS->PrepareQueryInstance(QueryRequest, QueryingMode);
 		if (QueryInstance.IsValid())

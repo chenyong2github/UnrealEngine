@@ -31,6 +31,7 @@ public:
 		PackageNameUnknown,
 		PackageNameEmptyPath,
 		PackageNamePathNotMounted,
+		PackageNamePathIsMemoryOnly,
 		PackageNameFullObjectPathNotAllowed,
 		PackageNameContainsInvalidCharacters,
 		LongPackageNames_PathTooShort,

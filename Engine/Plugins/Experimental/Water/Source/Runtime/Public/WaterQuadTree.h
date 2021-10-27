@@ -69,7 +69,7 @@ struct FWaterTileInstanceData
 {
 	static constexpr int32 NumStreams = WITH_WATER_SELECTION_SUPPORT ? 3 : 2;
 
-	TArray<FVector4> Streams[NumStreams];
+	TArray<FVector4f> Streams[NumStreams];
 };
 
 struct FWaterQuadTree 
@@ -81,7 +81,7 @@ struct FWaterQuadTree
 	struct FStagingInstanceData
 	{
 		int32 BucketIndex;
-		FVector4 Data[FWaterTileInstanceData::NumStreams];
+		FVector4f Data[FWaterTileInstanceData::NumStreams];
 	};
 
 	/** Output of the quadtree when asking to traverse it for visible water tiles */

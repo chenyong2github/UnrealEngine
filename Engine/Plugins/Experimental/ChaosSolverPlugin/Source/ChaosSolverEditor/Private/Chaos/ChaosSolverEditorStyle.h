@@ -4,7 +4,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
-class FChaosSolverEditorStyle : public FSlateStyleSet
+class FChaosSolverEditorStyle final : public FSlateStyleSet
 {
 public:
 	FChaosSolverEditorStyle() : FSlateStyleSet("ChaosSolverEditorStyle")

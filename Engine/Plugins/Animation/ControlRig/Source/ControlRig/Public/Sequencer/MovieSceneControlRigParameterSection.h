@@ -151,6 +151,10 @@ struct CONTROLRIG_API FChannelMapInfo
 	FName ChannelTypeName; 
 	UPROPERTY()
 	bool bDoesHaveSpace = false;
+	UPROPERTY()
+	int32 SpaceChannelIndex = -1; //if it has space what's the space channel index
+	
+	int32 GeneratedKeyIndex = -1; //temp index set by the ControlRigParameterTrack, not saved
 
 
 };

@@ -256,7 +256,7 @@ public:
 	void GetPoseNames(TArray<FName>& PoseNames) const;
 	
 	ENGINE_API bool AddOrUpdatePoseWithUniqueName(USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName = nullptr);
-
+	ENGINE_API void AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent, bool bUpdateCurves = true);
 	ENGINE_API void CreatePoseFromAnimation(class UAnimSequence* AnimSequence, const TArray<FSmartName>* InPoseNames = nullptr);
 
 	/** Contained poses are re-generated from the provided Animation Sequence*/
@@ -323,7 +323,6 @@ private:
 	void Reinitialize();
 
 	// After any update to SourceLocalPoses, this does update runtime data
-	void AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent);
 	void AddOrUpdatePose(const FSmartName& PoseName, const TArray<FName>& TrackNames, const TArray<FTransform>& LocalTransform, const TArray<float>& CurveValues);
 	void PostProcessData();
 #endif // WITH_EDITOR	

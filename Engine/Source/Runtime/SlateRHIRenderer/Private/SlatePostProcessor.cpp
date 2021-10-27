@@ -344,7 +344,7 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			PixelShader->SetShaderParams(RHICmdList, FShaderParams::MakePixelShaderParams(FVector4(InvSrcTetureSize.X, InvSrcTetureSize.Y, 0, 0)));
+			PixelShader->SetShaderParams(RHICmdList, FShaderParams::MakePixelShaderParams(FVector4f(InvSrcTetureSize.X, InvSrcTetureSize.Y, 0, 0)));
 			PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
 			PixelShader->SetTexture(RHICmdList, Params.SourceTexture, BilinearClamp);
 
@@ -372,7 +372,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 {
 	SCOPED_DRAW_EVENT(RHICmdList, SlatePostProcessUpsample);
 
-	const FVector4 Zero(0, 0, 0, 0);
+	const FVector4f Zero(0, 0, 0, 0);
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.BlendState = Params.CornerRadius == Zero ? TStaticBlendState<>::GetRHI() : TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
@@ -431,7 +431,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 			);
 
 		const FVector2D Size(DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top);
-		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4(Size, SizeUV), Params.CornerRadius);
+		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4f(Size, SizeUV), Params.CornerRadius);
 
 
 		PixelShader->SetShaderParams(RHICmdList, ShaderParams);
@@ -455,7 +455,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 
 #if !BILINEAR_FILTER_METHOD
 
-static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4>& OutWeightsAndOffsets)
+static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4f>& OutWeightsAndOffsets)
 {
 	OutWeightsAndOffsets.AddUninitialized(KernelSize / 2 + 1);
 
@@ -463,7 +463,7 @@ static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4>& Out
 	for (int32 X = 0; X < KernelSize; X += 2)
 	{
 		float Dist = X;
-		FVector4 WeightAndOffset;
+		FVector4f WeightAndOffset;
 		WeightAndOffset.X = (1.0f / FMath::Sqrt(2 * PI*Sigma*Sigma))*FMath::Exp(-(Dist*Dist) / (2 * Sigma*Sigma));
 		WeightAndOffset.Y = Dist;
 
@@ -516,7 +516,7 @@ static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4f>& Ou
 
 	OutWeightsAndOffsets.AddUninitialized(NumSamples%2 == 0 ? NumSamples / 2 : NumSamples/2+1);
 
-	OutWeightsAndOffsets[0] = FVector4(FVector2D(GetWeight(0,Sigma), 0), GetWeightAndOffset(1, Sigma) );
+	OutWeightsAndOffsets[0] = FVector4f(FVector2D(GetWeight(0,Sigma), 0), GetWeightAndOffset(1, Sigma) );
 	int32 SampleIndex = 1;
 	for (int32 X = 3; X < KernelSize; X += 4)
 	{

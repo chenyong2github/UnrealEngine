@@ -87,10 +87,11 @@ public:
 	* 
 	* @param Text		The text to be displayed
 	* @param Color		Color of the text to be displayed
-	* @param Duration	How long the text will be on screen, if 0 then it will stay indefinitely 
+	* @param Duration	How long the text will be on screen, if 0 then it will stay indefinitely
+	* @param DisplayOffset	A position offset that the message should use when displayed. 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem")
-	void AddTimedDisplay(FText Text, FLinearColor Color = FLinearColor::White, float Duration = 0.0f);
+	void AddTimedDisplay(FText Text, FLinearColor Color = FLinearColor::White, float Duration = 0.0f, const FVector2D& DisplayOffset = FVector2D::ZeroVector);
 
 	/**
 	* Add a dynamic delegate to the display subsystem.
@@ -128,13 +129,15 @@ protected:
 	{
 		FUniqueDisplayData() = default;
 
-		FUniqueDisplayData(FText& Text, FLinearColor& Col)
+		FUniqueDisplayData(const FText& Text, const FLinearColor& Col, const FVector2D& Offset = FVector2D::ZeroVector)
 		: DisplayText(Text)
-		, DisplayColor(Col) 
+		, DisplayColor(Col)
+		, DisplayOffset(Offset)
 		{};
 
 		FText DisplayText = FText::GetEmpty();
 		FLinearColor DisplayColor = FLinearColor::White;
+		FVector2D DisplayOffset = FVector2D::ZeroVector;
 	};
 
 	/** Array of delegates that will be displayed if they return true when evaluated */

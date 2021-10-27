@@ -631,6 +631,7 @@ FMallocBinned2::FPoolInfo& FMallocBinned2::FPoolList::PushNewPoolToFront(FMalloc
 	const uint32 LocalPageSize = Allocator.PageSize;
 
 	// Allocate memory.
+	LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
 	void* FreePtr = Allocator.CachedOSPageAllocator.Allocate(LocalPageSize, FMemory::AllocationHints::SmallPool);
 	if (!FreePtr)
 	{
@@ -720,9 +721,10 @@ FMallocBinned2::FMallocBinned2()
 
 	{
 		LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
-		HashBuckets = (PoolHashBucket*)FPlatformMemory::BinnedAllocFromOS(Align(MaxHashBuckets * sizeof(PoolHashBucket), OsAllocationGranularity));
+		size_t AllocationSize = Align(MaxHashBuckets * sizeof(PoolHashBucket), OsAllocationGranularity);
+		HashBuckets = (PoolHashBucket*)FPlatformMemory::BinnedAllocFromOS(AllocationSize);
 #if BINNED2_ALLOCATOR_STATS
-		Binned2HashMemory += Align(MaxHashBuckets * sizeof(PoolHashBucket), OsAllocationGranularity);
+		Binned2HashMemory += AllocationSize;
 #endif
 	}
 
@@ -813,6 +815,8 @@ void* FMallocBinned2::MallocExternalLarge(SIZE_T Size, uint32 Alignment)
 	checkf(FMallocBinned2::FPoolInfo::IsSupportedSize(Size), TEXT("Invalid Malloc size: '%" SIZE_T_FMT "'"), Size);
 
 	UPTRINT AlignedSize = Align(Size, OsAllocationGranularity);
+
+	LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
 
 	FPoolInfo* Pool;
 	void*      Result;

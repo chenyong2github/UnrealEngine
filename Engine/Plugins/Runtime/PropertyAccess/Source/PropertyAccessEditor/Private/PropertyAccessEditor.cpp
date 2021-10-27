@@ -15,7 +15,7 @@ struct FPropertyAccessEditorSystem
 {
 	struct FResolveSegmentsContext
 	{
-		FResolveSegmentsContext(const UStruct* InStruct, TArrayView<FString> InPath, FPropertyAccessPath& InAccessPath)
+		FResolveSegmentsContext(const UStruct* InStruct, TArrayView<const FString> InPath, FPropertyAccessPath& InAccessPath)
 			: Struct(InStruct)
 			, CurrentStruct(InStruct)
 			, Path(InPath)
@@ -29,7 +29,7 @@ struct FPropertyAccessEditorSystem
 		const UStruct* CurrentStruct = nullptr;
 
 		// Path as FStrings with optional array markup
-		TArrayView<FString> Path;
+		TArrayView<const FString> Path;
 
 		// The access path we are building
 		FPropertyAccessPath& AccessPath;
@@ -245,7 +245,7 @@ struct FPropertyAccessEditorSystem
 		}
 	}
 
-	static FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
+	static FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
 	{
 		FPropertyAccessPath AccessPath;
 		FResolveSegmentsContext Context(InStruct, InPath, AccessPath);
@@ -262,7 +262,7 @@ struct FPropertyAccessEditorSystem
 		return Result;
 	}
 
-	static FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs)
+	static FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs)
 	{
 		FPropertyAccessPath AccessPath;
 		FResolveSegmentsContext Context(InStruct, InPath, AccessPath);
@@ -322,7 +322,7 @@ struct FPropertyAccessEditorSystem
 		return Result;
 	}
 	
-	static EPropertyAccessCopyType GetCopyType(const FPropertyAccessSegment& InSrcSegment, const FPropertyAccessSegment& InDestSegment)
+	static EPropertyAccessCopyType GetCopyType(const FPropertyAccessSegment& InSrcSegment, const FPropertyAccessSegment& InDestSegment, FText& OutErrorMessage)
 	{
 		FProperty* SrcProperty = InSrcSegment.Property.Get();
 		check(SrcProperty);
@@ -456,7 +456,7 @@ struct FPropertyAccessEditorSystem
 			}
 		}
 
-		checkf(false, TEXT("Couldnt determine property copy type (%s -> %s)"), *SrcProperty->GetName(), *DestProperty->GetName());
+		OutErrorMessage = FText::Format(LOCTEXT("CopyTypeInvalidFormat", "@@ Cannot copy property ({0} -> {1})"), FText::FromString(SrcProperty->GetCPPType()), FText::FromString(DestProperty->GetCPPType()));
 
 		return EPropertyAccessCopyType::None;
 	}
@@ -476,36 +476,46 @@ struct FPropertyAccessEditorSystem
 
 		if(OutCopy.SourceResult != EPropertyAccessResolveResult::Failed && OutCopy.DestResult != EPropertyAccessResolveResult::Failed)
 		{
-			FPropertyAccessCopyContext CopyContext;
-			CopyContext.Object = OutCopy.AssociatedObject;
-			CopyContext.ContextId = OutCopy.ContextId;
-			CopyContext.SourcePathAsText = PropertyAccess::MakeTextPath(OutCopy.SourcePath);
-			CopyContext.DestPathAsText = PropertyAccess::MakeTextPath(OutCopy.DestPath);
-			CopyContext.bSourceThreadSafe = DestContext.bWasThreadSafe;
-			CopyContext.bDestThreadSafe = SrcContext.bWasThreadSafe;
-			
-			OutCopy.BatchId = InOnDetermineBatchId.IsBound() ? InOnDetermineBatchId.Execute(CopyContext) : 0;
-			check(OutCopy.BatchId >= 0);
-			InLibrary.CopyBatchArray.SetNum(FMath::Max(OutCopy.BatchId + 1, InLibrary.CopyBatchArray.Num()));
-			
-			OutCopy.BatchIndex = InLibrary.CopyBatchArray[OutCopy.BatchId].Copies.Num();
-			FPropertyAccessCopy& Copy = InLibrary.CopyBatchArray[OutCopy.BatchId].Copies.AddDefaulted_GetRef();
-			Copy.AccessIndex = InLibrary.SrcPaths.Num();
-			Copy.DestAccessStartIndex = InLibrary.DestPaths.Num();
-			Copy.DestAccessEndIndex = InLibrary.DestPaths.Num() + 1;
-			Copy.Type = GetCopyType(SrcContext.Segments.Last(), DestContext.Segments.Last());
+			FText CopyTypeError;
+			EPropertyAccessCopyType CopyType = GetCopyType(SrcContext.Segments.Last(), DestContext.Segments.Last(), CopyTypeError);
+			if(CopyType != EPropertyAccessCopyType::None)
+			{
+				FPropertyAccessCopyContext CopyContext;
+				CopyContext.Object = OutCopy.AssociatedObject;
+				CopyContext.ContextId = OutCopy.ContextId;
+				CopyContext.SourcePathAsText = PropertyAccess::MakeTextPath(OutCopy.SourcePath);
+				CopyContext.DestPathAsText = PropertyAccess::MakeTextPath(OutCopy.DestPath);
+				CopyContext.bSourceThreadSafe = DestContext.bWasThreadSafe;
+				CopyContext.bDestThreadSafe = SrcContext.bWasThreadSafe;
+				
+				OutCopy.BatchId = InOnDetermineBatchId.IsBound() ? InOnDetermineBatchId.Execute(CopyContext) : 0;
+				check(OutCopy.BatchId >= 0);
+				InLibrary.CopyBatchArray.SetNum(FMath::Max(OutCopy.BatchId + 1, InLibrary.CopyBatchArray.Num()));
+				
+				OutCopy.BatchIndex = InLibrary.CopyBatchArray[OutCopy.BatchId].Copies.Num();
+				FPropertyAccessCopy& Copy = InLibrary.CopyBatchArray[OutCopy.BatchId].Copies.AddDefaulted_GetRef();
+				Copy.AccessIndex = InLibrary.SrcPaths.Num();
+				Copy.DestAccessStartIndex = InLibrary.DestPaths.Num();
+				Copy.DestAccessEndIndex = InLibrary.DestPaths.Num() + 1;
+				Copy.Type = CopyType;
 
-			SrcAccessPath.PathSegmentStartIndex = InLibrary.PathSegments.Num();
-			SrcAccessPath.PathSegmentCount = SrcContext.Segments.Num();
-			InLibrary.SrcPaths.Add(SrcAccessPath);
-			InLibrary.PathSegments.Append(SrcContext.Segments);
+				SrcAccessPath.PathSegmentStartIndex = InLibrary.PathSegments.Num();
+				SrcAccessPath.PathSegmentCount = SrcContext.Segments.Num();
+				InLibrary.SrcPaths.Add(SrcAccessPath);
+				InLibrary.PathSegments.Append(SrcContext.Segments);
 
-			DestAccessPath.PathSegmentStartIndex = InLibrary.PathSegments.Num();
-			DestAccessPath.PathSegmentCount = DestContext.Segments.Num();
-			InLibrary.DestPaths.Add(DestAccessPath);
-			InLibrary.PathSegments.Append(DestContext.Segments);
+				DestAccessPath.PathSegmentStartIndex = InLibrary.PathSegments.Num();
+				DestAccessPath.PathSegmentCount = DestContext.Segments.Num();
+				InLibrary.DestPaths.Add(DestAccessPath);
+				InLibrary.PathSegments.Append(DestContext.Segments);
 
-			return true;
+				return true;
+			}
+			else
+			{
+				OutCopy.SourceResult = EPropertyAccessResolveResult::Failed;
+				OutCopy.SourceErrorText = CopyTypeError;
+			}
 		}
 
 		return false;
@@ -514,12 +524,12 @@ struct FPropertyAccessEditorSystem
 
 namespace PropertyAccess
 {
-	FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
+	FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex)
 	{
 		return ::FPropertyAccessEditorSystem::ResolvePropertyAccess(InStruct, InPath, OutProperty, OutArrayIndex);
 	}
 
-	FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs)
+	FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<const FString> InPath, const IPropertyAccessEditor::FResolvePropertyAccessArgs& InArgs)
 	{
 		return ::FPropertyAccessEditorSystem::ResolvePropertyAccess(InStruct, InPath, InArgs);
 	}

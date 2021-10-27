@@ -2339,7 +2339,8 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 	return AssetData;
 }
 
-void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult)
+void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package,
+	FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash)
 {
 	const FName PackageName = Package.GetFName();
 	PreviousPackagesToUpdate.Remove(PackageName);
@@ -2358,9 +2359,9 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
 		// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
 		// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
-		if (SavePackageResult.CookedHash.IsValid())
+		if (CookedHash.IsValid())
 		{
-			SavePackageResult.CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
+			CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
 				{
 					// Store the cooked hash in the Asset Registry when it is done computing in another thread.
 					// NOTE: For this to work, we rely on:

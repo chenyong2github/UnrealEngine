@@ -19,6 +19,13 @@ struct APPLICATIONCORE_API FWindowsPlatformSplash
 	static void Hide();
 
 	/**
+	 * Sets the progress displayed on the application icon (for startup/loading progress).
+	 *
+	 * @param InType Progress value in percent.
+	 */
+	static void SetProgress(int ProgressPercent);
+
+	/**
 	 * Sets the text displayed on the splash screen (for startup/loading progress).
 	 *
 	 * @param InType Type of text to change.

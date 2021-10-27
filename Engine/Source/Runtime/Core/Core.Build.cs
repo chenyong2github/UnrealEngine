@@ -289,23 +289,6 @@ public class Core : ModuleRules
 			PrivateDefinitions.Add("IS_CLIENT_TARGET=0");
 		}
 
-		// Decide if validating memory allocator (aka MallocStomp) can be used on the current platform.
-		// Run-time validation must be enabled through '-stompmalloc' command line argument.
-
-		bool bWithMallocStomp = false;
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			if (Target.Platform == UnrealTargetPlatform.Mac
-				|| Target.Platform == UnrealTargetPlatform.Linux
-				|| Target.Platform == UnrealTargetPlatform.LinuxArm64
-				|| Target.Platform == UnrealTargetPlatform.Win64
-				|| Target.Platform.IsInGroup(UnrealPlatformGroup.XboxCommon)	// Base Xbox will run out of virtual memory very quickly but it can be utilized on some hardware configs
-				)
-			{
-				bWithMallocStomp = true;
-			}
-		}
-
 		if (Target.Platform == UnrealTargetPlatform.Win64
 			&& Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
@@ -331,5 +314,17 @@ public class Core : ModuleRules
 	protected virtual bool SupportsBinaryConfig(ReadOnlyTargetRules Target)
 	{
 		return Target.Platform != UnrealTargetPlatform.Android;
+	}
+
+	// Decide if validating memory allocator (aka MallocStomp) can be used on the current plVatform.
+	// Run-time validation must be enabled through '-stompmalloc' command line argument.
+	protected virtual bool bWithMallocStomp
+	{
+		get => 
+			Target.Configuration != UnrealTargetConfiguration.Shipping &&
+			(Target.Platform == UnrealTargetPlatform.Mac ||
+			 Target.Platform == UnrealTargetPlatform.Linux ||
+			 Target.Platform == UnrealTargetPlatform.LinuxArm64 ||
+			 Target.Platform == UnrealTargetPlatform.Win64);
 	}
 }

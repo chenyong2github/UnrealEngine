@@ -19,6 +19,14 @@ DECLARE_CYCLE_STAT(TEXT("Render Ribbons - CPU Sim Copy[RT]"), STAT_NiagaraRender
 DECLARE_CYCLE_STAT(TEXT("Render Ribbons - CPU Sim Memcopy[RT]"), STAT_NiagaraRenderRibbonsCPUSimMemCopy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Genereate GPU Buffers"), STAT_NiagaraGenRibbonGpuBuffers, STATGROUP_Niagara);
 
+int32 GNiagaraRibbonTessellationEnabled = 1;
+static FAutoConsoleVariableRef CVarNiagaraRibbonTessellationEnabled(
+	TEXT("Niagara.Ribbon.Tessellation.Enabled"),
+	GNiagaraRibbonTessellationEnabled,
+	TEXT("Determine if we allow tesellation on this platform or not."),
+	ECVF_Scalability
+);
+
 float GNiagaraRibbonTessellationAngle = 15.f * (2.f * PI) / 360.f; // Every 15 degrees
 static FAutoConsoleVariableRef CVarNiagaraRibbonTessellationAngle(
 	TEXT("Niagara.Ribbon.Tessellation.MinAngle"),
@@ -1300,7 +1308,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	int32 SegmentTessellation = 1;
 	int32 NumSegments = DynamicDataRibbon->SegmentData.Num();
-	if (TessellationFactor > 1 && TessellationCurvature > SMALL_NUMBER && ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5)
+	if (GNiagaraRibbonTessellationEnabled && TessellationFactor > 1 && TessellationCurvature > SMALL_NUMBER)
 	{
 		const float MinTesselation = [&]
 		{

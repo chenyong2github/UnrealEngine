@@ -19,6 +19,7 @@ using EpicGames.Core;
 using System.Xml;
 using System.Xml.Serialization;
 using System.IO.Compression;
+using JetBrains.Annotations;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
@@ -73,7 +74,7 @@ namespace AutomationTool
 		static private CommandEnvironment CmdEnvironment;
 
 		/// <summary>
-		/// BuildEnvironment to use for this buildcommand. This is initialized by InitBuildEnvironment. As soon
+		/// BuildEnvironment to use for this buildcommand. This is initialized by InitCommandEnvironment. As soon
 		/// as the script execution in ExecuteBuild begins, the BuildEnv is set up and ready to use.
 		/// </summary>
 		static public CommandEnvironment CmdEnv
@@ -111,6 +112,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
+		[StringFormatMethod("Format")]
 		public static void LogInformation(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Console, Format, Args);
@@ -130,6 +132,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
+		[StringFormatMethod("Format")]
 		public static void LogError(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Error, Format, Args);
@@ -149,6 +152,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
+		[StringFormatMethod("Format")]
 		public static void LogWarning(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, Format, Args);
@@ -168,6 +172,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
+		[StringFormatMethod("Format")]
 		public static void LogVerbose(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Verbose, Format, Args);
@@ -187,6 +192,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
+		[StringFormatMethod("Format")]
 		public static void LogVeryVerbose(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.VeryVerbose, Format, Args);
@@ -206,6 +212,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
+		[StringFormatMethod("Format")]
 		public static void LogLog(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Log, Format, Args);
@@ -226,6 +233,7 @@ namespace AutomationTool
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Arguments</param>
+		[StringFormatMethod("Format")]
 		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, string Format, params object[] Args)
 		{
             EpicGames.Core.Log.WriteLine(Verbosity, Format, Args);
@@ -275,6 +283,7 @@ namespace AutomationTool
 			}
 		}
 
+		[StringFormatMethod("Format")]
 		public static void LogSetProgress(bool bShowProgress, string Format, params string[] Args)
 		{
 			if(bShowProgress)
@@ -283,6 +292,7 @@ namespace AutomationTool
 			}
 		}
 
+		[StringFormatMethod("Format")]
 		public static void LogSetProgress(bool bShowProgress, int Numerator, int Denominator, string Format, params string[] Args)
 		{
 			if(bShowProgress)
@@ -2646,6 +2656,7 @@ namespace AutomationTool
         DateTime StartTime;
         bool bFinished;
 
+		[StringFormatMethod("Format")]
         public TelemetryStopwatch(string Format, params object[] Args)
         {
             Name = String.Format(Format, Args);

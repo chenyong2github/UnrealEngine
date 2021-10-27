@@ -71,4 +71,8 @@ public:
 	/** Interpret an InputActionValue as a 3D axis (Vector) input */
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (BlueprintAutocast))
 	static FVector Conv_InputActionValueToAxis3D(FInputActionValue ActionValue);
+
+	/** Converts a FInputActionValue to a string */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (InputActionValue)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_InputActionValueToString(FInputActionValue ActionValue);
 };

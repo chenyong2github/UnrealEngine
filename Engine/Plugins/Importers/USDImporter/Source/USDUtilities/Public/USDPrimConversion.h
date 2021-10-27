@@ -33,35 +33,93 @@ class ULevel;
 class UMeshComponent;
 class UMovieScene;
 class UMovieScene3DTransformTrack;
+class UMovieSceneBoolTrack;
+class UMovieSceneColorTrack;
+class UMovieSceneFloatTrack;
+class UMovieScenePropertyTrack;
+class UMovieSceneSkeletalAnimationTrack;
+class UMovieSceneTrack;
 class USceneComponent;
 class USkeletalMeshComponent;
 struct FFrameRate;
 struct FMovieSceneSequenceTransform;
+struct FUsdStageInfo;
+namespace UE
+{
+	class FUsdAttribute;
+}
 
 namespace UsdToUnreal
 {
-	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime );
-	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime );
-
 	/**
-	 * Converts a time varying UsdGeomXformable to a UMovieScene3DTransformTrack
+	 * Converts a time varying UsdGeomXformable to a UMovieScene3DTransformTrack.
 	 * @param Schema               The Xformable to read from
 	 * @param MovieSceneTrack      The track to add the time sampled transform to
 	 * @param SequenceTransform    The time transform to apply to the track keys to get them from Usd Stage time to track time (in other words: from main sequence to subsequence)
 	 */
+	UE_DEPRECATED( 5.0, "Use CreatePropertyTrackReader and ConvertTransformTimeSamples (c.f. FUsdLevelSequenceHelperImpl::AddCommonTracks)" )
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
 
+	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime );
+	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime );
+
+	UE_DEPRECATED( 5.0, "Prefer the overload that receives an UE::FUsdPrim" )
 	USDUTILITIES_API bool ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, double EvalTime );
+
+	USDUTILITIES_API bool ConvertGeomCamera( const UE::FUsdPrim& Prim, UCineCameraComponent& CameraComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/**
+	 * Calls the ReaderFunc on each time sample of UsdTimeSamples in order to bake values into MovieSceneTrack.
+	 * This is mostly used when reading attributes from USD into tracks for the automatically generated ULevelSequence provided with AUsdStageActors.
+	 */
+	USDUTILITIES_API bool ConvertBoolTimeSamples( const UE::FUsdStage& UsdStage, const TArray<double>& UsdTimeSamples, const TFunction<bool( double )>& ReaderFunc, UMovieSceneBoolTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
+	USDUTILITIES_API bool ConvertFloatTimeSamples( const UE::FUsdStage& UsdStage, const TArray<double>& UsdTimeSamples, const TFunction<float( double )>& ReaderFunc, UMovieSceneFloatTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
+	USDUTILITIES_API bool ConvertColorTimeSamples( const UE::FUsdStage& UsdStage, const TArray<double>& UsdTimeSamples, const TFunction<FLinearColor( double )>& ReaderFunc, UMovieSceneColorTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
+	USDUTILITIES_API bool ConvertTransformTimeSamples( const UE::FUsdStage& UsdStage, const TArray<double>& UsdTimeSamples, const TFunction<FTransform( double )>& ReaderFunc, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
+
+	/**
+	 * Struct with lambda functions that can be used to sample an FUsdPrim's attributes at a provided UsdTimeCode and return a converted result.
+	 * The target prims, stage and the actual attributes are captured into the lambda when creating it with CreatePropertyTrackReader.
+	 * This is used so that the reading process can be decoupled from the baking process (ConvertXTimeSamples functions) and reused for different attributes
+	 * c.f. CreatePropertyTrackReader
+	 */
+	struct USDUTILITIES_API FPropertyTrackReader
+	{
+		TFunction<float( double )> FloatReader;
+		TFunction<bool( double )> BoolReader;
+		TFunction<FLinearColor( double )> ColorReader;
+		TFunction<FTransform( double )> TransformReader;
+	};
+
+	/**
+	 * Creates an FPropertyTrackReader that can be used to repeatedly read and convert values of attributes that correspond to PropertyPath in UE.
+	 * e.g. calling this with a RectLight prim and UnrealIdentifiers::IntensityPropertyName will return a reader with a FloatReader member that checks
+	 * the intensity, exposure, width, height of Prim at each UsdTimeCode and returns the corresponding float value for Intensity.
+	 */
+	USDUTILITIES_API FPropertyTrackReader CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath );
 }
 
 namespace UnrealToUsd
 {
-	USDUTILITIES_API bool ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const USceneComponent* SceneComponent, pxr::UsdPrim& UsdPrim );
-	USDUTILITIES_API bool ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim );
-	USDUTILITIES_API bool ConvertHierarchicalInstancedStaticMeshComponent( const UHierarchicalInstancedStaticMeshComponent* HISMComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
 	USDUTILITIES_API bool ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
-	USDUTILITIES_API bool ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode );
+	USDUTILITIES_API bool ConvertCameraComponent( const UCineCameraComponent& CameraComponent, pxr::UsdPrim& Prim, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/**
+	 * Functions that call WriterFunc on each UsdTimeSample that corresponds to the keyframes of MovieSceneTrack, writing out time samples for attributes of Prim.
+	 * Mostly used to write out to USD the modified tracks from the automatically generated ULevelSequence owned by AUsdStageActors
+	 */
+	USDUTILITIES_API bool ConvertFloatTrack( const UMovieSceneFloatTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( float, double )>& WriterFunc, UE::FUsdPrim& Prim );
+	USDUTILITIES_API bool ConvertBoolTrack( const UMovieSceneBoolTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( bool, double )>& WriterFunc, UE::FUsdPrim& Prim );
+	USDUTILITIES_API bool ConvertColorTrack( const UMovieSceneColorTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( const FLinearColor&, double )>& WriterFunc, UE::FUsdPrim& Prim );
+	USDUTILITIES_API bool Convert3DTransformTrack( const UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform, const TFunction<void( const FTransform&, double )>& WriterFunc, UE::FUsdPrim& Prim );
+
+	USDUTILITIES_API bool ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const USceneComponent* SceneComponent, pxr::UsdPrim& UsdPrim );
+
+	USDUTILITIES_API bool ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim );
+
+	USDUTILITIES_API bool ConvertHierarchicalInstancedStaticMeshComponent( const UHierarchicalInstancedStaticMeshComponent* HISMComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/**
 	 * Converts a UMovieScene3DTransformTrack to a UsdGeomXformable
@@ -70,6 +128,7 @@ namespace UnrealToUsd
 	 * @param SequenceTransform    The time transform to apply to the track keys to get them from Usd Stage time to track time (in other words: from main sequence to subsequence)
 	 */
 	USDUTILITIES_API bool ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform );
+	USDUTILITIES_API bool ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode );
 
 	/**
 	 * Converts a AInstancedFoliageActor to a prim containing a pxr::UsdGeomPointInstancer schema. Each foliage type should correspond to a prototype.
@@ -121,6 +180,35 @@ namespace UnrealToUsd
 	 * returning true if a EBakingType::Skeletal baker was created
 	 */
 	USDUTILITIES_API bool CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsdPrim& SkelAnimation, USkeletalMeshComponent& Component, FComponentBaker& OutBaker );
+
+	/**
+	 * Struct with lambda functions that can be used to convert an UE property's value into the corresponding USD attribute values at the received UsdTimeCode.
+	 * The target prims, stage and the actual attributes are captured into the lambda when creating it with CreatePropertyTrackWriter.
+	 * This is used so that the writing process can be decoupled from the baking process (ConvertXTrack functions) and reused for different attributes
+	 * c.f. CreatePropertyTrackWriter
+	 */
+	struct USDUTILITIES_API FPropertyTrackWriter
+	{
+		TFunction<void( float, double )> FloatWriter;
+		TFunction<void( bool, double )> BoolWriter;
+		TFunction<void( const FLinearColor&, double )> ColorWriter;
+		TFunction<void( const FTransform&, double )> TransformWriter;
+	};
+
+	/**
+	 * Creates an FPropertyTrackWriter that can be used to receive, convert and output to USD the values of UE properties contained in Track, baking frame-by-frame when needed.
+	 * e.g. calling this with a RectLight prim and UnrealIdentifiers::SourceWidthPropertyName will return a writer with a FloatWriter member that writes
+	 * not only to the width, but also the intensity attributes of Prim at each UsdTimeCode.
+	 * Also outputs OutPropertyPathsToRefresh: In the case above containing "Intensity", which lets us know to refresh and re-read from USD the Intensity track, if we have one
+	 */
+	USDUTILITIES_API FPropertyTrackWriter CreatePropertyTrackWriter( const USceneComponent& Component, const UMovieScenePropertyTrack& Track, UE::FUsdPrim& Prim, TSet<FName>& OutPropertyPathsToRefresh );
+
+	/**
+	 * Returns the attributes that in USD correspond to a property in UE.
+	 * The first one is the "main" attribute, when appropriate. e.g. for a RectLight prim and UnrealIdentifiers::IntensityPropertyName,
+	 * we'll receive intensity, exposure, width and height, in that order.
+	 */
+	USDUTILITIES_API TArray<UE::FUsdAttribute> GetAttributesForProperty( const UE::FUsdPrim& Prim, const FName& PropertyPath );
 }
 
 #endif // #if USE_USD_SDK

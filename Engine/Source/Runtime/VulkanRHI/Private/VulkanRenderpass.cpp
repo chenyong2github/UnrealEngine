@@ -232,7 +232,10 @@ public:
 		const uint32_t CorrelationMask = MultiviewMask;
 
 #if VULKAN_SUPPORTS_RENDERPASS2
-		CreateInfo.SetCorrelationMask(&CorrelationMask);
+		if (RTLayout.GetIsMultiView())
+		{
+			CreateInfo.SetCorrelationMask(&CorrelationMask);
+		}
 #else
 		VkRenderPassMultiviewCreateInfo MultiviewInfo;
 		if (RTLayout.GetIsMultiView())

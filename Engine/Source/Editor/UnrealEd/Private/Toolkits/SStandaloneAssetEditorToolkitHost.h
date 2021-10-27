@@ -121,6 +121,9 @@ private:
 	/** Name ID for this app */
 	FName AppName;
 
+	/** Name for the status bar. Must be unique. This name is not preserved across sessions and should never be saved. */
+	FName StatusBarName;
+
 	/** List of all of the toolkits we're currently hosting */
 	TArray< TSharedPtr< class IToolkit > > HostedToolkits;
 

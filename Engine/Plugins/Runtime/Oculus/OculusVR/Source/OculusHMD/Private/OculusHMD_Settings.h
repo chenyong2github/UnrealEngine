@@ -110,7 +110,7 @@ public:
 	int GPULevel;
 
 	bool bEnableSpecificColorGamut;
-	EColorSpace ColorSpace;
+	EOculusColorSpace ColorSpace;
 
 	EHandTrackingSupport HandTrackingSupport;
 

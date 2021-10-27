@@ -153,11 +153,15 @@ bool FDefaultValueHelper::GetParameters(const FString& Source, const FString& Ty
 
 	int32 EndPos = -1, PendingParentheses = 1;
 	// find the end of the actual string before " ) "
-	for(Pos = Source.Len() - 1; Pos > StartPos; --Pos )
+	for(Pos = Source.Len() - 1; Pos >= StartPos; --Pos )
 	{
 		if( TS(TEXT(")")) == Source[Pos]) 
 		{
-			PendingParentheses--;
+			if (--PendingParentheses == 0 && Pos == StartPos)
+			{
+				// Empty param list
+				EndPos = StartPos;
+			}
 		}
 		else if(!IsWhitespace(Source[Pos]))
 		{

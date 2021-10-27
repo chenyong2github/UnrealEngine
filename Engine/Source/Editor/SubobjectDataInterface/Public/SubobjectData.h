@@ -122,6 +122,7 @@ public:
 	virtual bool IsInstancedComponent() const;
 	virtual bool IsInstancedActor() const;
 	virtual bool IsNativeComponent() const;
+	virtual bool IsBlueprintInheritedComponent() const;
 	virtual bool IsInheritedComponent() const;
 	virtual bool IsSceneComponent() const;
 	virtual bool IsRootComponent() const;

@@ -168,6 +168,11 @@ public:
 	/** Sets whether or not to snap the play time to keys while scrubbing. */
 	void SetSnapPlayTimeToKeys(bool InbSnapPlayTimeToKeys);
 
+	/** Gets whether or not to snap the play time to markers while scrubbing. */
+	bool GetSnapPlayTimeToMarkers() const;
+	/** Sets whether or not to snap the play time to markers while scrubbing. */
+	void SetSnapPlayTimeToMarkers(bool InbSnapPlayTimeToMarkers);
+
 	/** Gets whether or not to snap the play time to the interval while scrubbing. */
 	bool GetSnapPlayTimeToInterval() const;
 	/** Sets whether or not to snap the play time to the interval while scrubbing. */
@@ -203,6 +208,11 @@ public:
 	/** Sets whether or not to show selected nodes only. */
 	void SetShowSelectedNodesOnly(bool Visible);
 	FOnShowSelectedNodesOnlyChanged& GetOnShowSelectedNodesOnlyChanged() { return OnShowSelectedNodesOnlyChangedEvent; }
+
+	/** Gets whether to jump to the start of the sequence when we start a recording or not. */
+	bool ShouldRewindOnRecord() const;
+	/** Sets whether to jump to the start of the sequence when we start a recording. */
+	void SetRewindOnRecord(bool bInRewindOnRecord);
 
 	/** Get zoom in/out position (mouse position or current time). */
 	ESequencerZoomPosition GetZoomPosition() const;
@@ -424,6 +434,10 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapPlayTimeToKeys;
 
+	/** Enable or disable snapping the current time to markers while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	bool bSnapPlayTimeToMarkers;
+
 	/** Enable or disable snapping the current time to the time snapping interval while scrubbing. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapPlayTimeToInterval;
@@ -449,6 +463,10 @@ protected:
 	/** Only show selected nodes in the tree view. */
 	UPROPERTY( config, EditAnywhere, Category=General )
 	bool bShowSelectedNodesOnly;
+
+	/** Defines whether to jump back to the start of the sequence when a recording is started */
+	UPROPERTY(config, EditAnywhere, Category=General)
+	bool bRewindOnRecord;
 
 	/** Whether to zoom in on the current position or the current time in the timeline. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

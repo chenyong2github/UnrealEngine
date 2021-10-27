@@ -109,6 +109,9 @@ namespace UsdUtils
 	 * Applies the SkelBindingAPI to Prim. See pxr::SkelBindingAPI::GetAnimationSourceRel.
 	 */
 	USDUTILITIES_API void BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& AnimationSource );
+
+	// Finds the strongest SkelAnimation prim that is bound to SkelRootPrim as its animation source
+	USDUTILITIES_API UE::FUsdPrim FindAnimationSource( const UE::FUsdPrim& SkelRootPrim );
 #endif // USE_USD_SDK
 }
 
@@ -157,9 +160,13 @@ namespace UsdToUnreal
 	 * @param InBlendShapes - Converted blend shape data that will be used to interpret blend shape weights as morph target weight float curves. Optional (can be nullptr to ignore)
 	 * @param InInterpretLODs - Whether we try parsing animation data from all LODs of skinning meshes that are inside LOD variant sets
 	 * @param OutSkeletalAnimationAsset - Output parameter that will be filled with the converted data
+	 * @param OutStartOffsetSeconds - Optional output parameter that will be filled with the offset in seconds of when this UAnimSequence asset should be played since the start of its layer
+	 *								  to match the intended composed animation. The baked UAnimSequence will only contain the range between the first and last joint and/or blend shape
+	 *                                timeSamples, and so the offset is needed to properly position the animation on the stage's timeline. This is in seconds because the main use case is to
+	 *                                use this offset when animating USkeletalMeshComponents, and those drive their UAnimSequences with seconds.
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, bool bInInterpretLODs, UAnimSequence* OutSkeletalAnimationAsset );
+	USDUTILITIES_API bool ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, bool bInInterpretLODs, UAnimSequence* OutSkeletalAnimationAsset, float* OutStartOffsetSeconds=nullptr);
 
 	/**
 	 * Builds a USkeletalMesh and USkeleton from the imported data in SkelMeshImportData

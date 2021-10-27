@@ -401,7 +401,7 @@ namespace Audio
 
 	float FQuartzClock::GetEstimatedRunTime()
 	{
-		return Metronome.GetTimeSinceStart();
+		return (float)Metronome.GetTimeSinceStart();
 	}
 
 	FMixerDevice* FQuartzClock::GetMixerDevice()

@@ -68,7 +68,7 @@ struct FUnderwaterPostProcessSettings
 enum class EWaterBodyStatus : uint8
 {
 	Valid,
-	MissingWaterMesh,
+	MissingWaterZone,
 	MissingLandscape,
 	InvalidWaveData,
 };
@@ -394,6 +394,7 @@ public:
 	static const FName FixedZHeightName;
 	static const FName FixedVelocityName;
 	static const FName FixedWaterDepthName;
+	static const FName WaterAreaParamName;
 
 	UPROPERTY(EditDefaultsOnly, Category = Collision, meta = (EditCondition = "bGenerateCollisions"))
 	UPhysicalMaterial* PhysicalMaterial;

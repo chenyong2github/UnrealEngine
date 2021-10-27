@@ -19,6 +19,7 @@
 #include "Stats/Stats.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "Windows/WindowsApplication.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Misc/EngineBuildSettings.h"
@@ -721,12 +722,20 @@ bool FWindowsPlatformSplash::IsShown()
 	return (GSplashScreenThread != nullptr);
 }
 
-/**
- * Sets the text displayed on the splash screen (for startup/loading progress)
- *
- * @param	InType		Type of text to change
- * @param	InText		Text to display
- */
+void FWindowsPlatformSplash::SetProgress(int ProgressPercent)
+{
+	extern FWindowsApplication* WindowsApplication;
+
+	if (ProgressPercent == 100)
+	{
+		WindowsApplication->GetTaskbarList()->SetProgressState(GSplashScreenWnd, ETaskbarProgressState::NoProgress);
+	}
+	else
+	{
+		WindowsApplication->GetTaskbarList()->SetProgressValue(GSplashScreenWnd, ProgressPercent, 100);
+	}
+}
+
 void FWindowsPlatformSplash::SetSplashText( const SplashTextType::Type InType, const TCHAR* InText )
 {
 	// We only want to bother drawing startup progress in the editor, since this information is

@@ -27,6 +27,8 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace UE
 {
+	class FUsdAttribute;
+	class FUsdPrim;
 	struct FSdfLayerOffset;
 }
 
@@ -69,6 +71,9 @@ namespace UsdUtils
 	/** Finds the strongest layer contributing to an attribute */
 	USDUTILITIES_API UE::FSdfLayer FindLayerForAttribute( const pxr::UsdAttribute& Attribute, double TimeCode );
 
+	/** Finds the strongest layer that contributes to a set of attributes. Assumes these attributes are on the same stage */
+	USDUTILITIES_API UE::FSdfLayer FindLayerForAttributes( const TArray<UE::FUsdAttribute>& Attributes, double TimeCode, bool bIncludeSessionLayers=true );
+
 	/** Finds the layer for a sublayer path of a given root layer */
 	USDUTILITIES_API UE::FSdfLayer FindLayerForSubLayerPath( const UE::FSdfLayer& RootLayer, const FStringView& SubLayerPath );
 
@@ -77,6 +82,9 @@ namespace UsdUtils
 
 	/** Finds the layer offset that converts the Attribute local times to stage times */
 	USDUTILITIES_API UE::FSdfLayerOffset GetLayerToStageOffset( const pxr::UsdAttribute& Attribute );
+
+	/** Finds the full offset for a prim with respect to the composed stage */
+	USDUTILITIES_API UE::FSdfLayerOffset GetPrimToStageOffset( const UE::FUsdPrim& Prim );
 
 	/** Makes sure that the layer start and end timecodes include StartTimeCode and EndTimeCode */
 	USDUTILITIES_API void AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode );

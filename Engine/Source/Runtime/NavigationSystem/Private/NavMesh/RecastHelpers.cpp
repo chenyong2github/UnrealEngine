@@ -7,10 +7,17 @@ FVector Unreal2RecastPoint(const FVector& UnrealPoint)
 	return FVector(-UnrealPoint[0], UnrealPoint[2], -UnrealPoint[1]);
 }
 
+FVector Unreal2RecastPoint(const FVector::FReal* UnrealPoint)
+{
+	return FVector(-UnrealPoint[0], UnrealPoint[2], -UnrealPoint[1]);
+}
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
 FVector Unreal2RecastPoint(const float* UnrealPoint)
 {
 	return FVector(-UnrealPoint[0], UnrealPoint[2], -UnrealPoint[1]);
 }
+#endif // !UE_LARGE_WORLD_COORDINATES_DISABLED
 
 FBox Unreal2RecastBox(const FBox& UnrealBox)
 {
@@ -24,21 +31,38 @@ FMatrix Unreal2RecastMatrix()
 	return TM;
 }
 
+FVector Recast2UnrealPoint(const FVector::FReal* RecastPoint)
+{
+	return FVector(-RecastPoint[0], -RecastPoint[2], RecastPoint[1]);
+}
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
 FVector Recast2UnrealPoint(const float* RecastPoint)
 {
 	return FVector(-RecastPoint[0], -RecastPoint[2], RecastPoint[1]);
 }
+#endif // !UE_LARGE_WORLD_COORDINATES_DISABLED
 
 FVector Recast2UnrealPoint(const FVector& RecastPoint)
 {
 	return FVector(-RecastPoint.X, -RecastPoint.Z, RecastPoint.Y);
 }
 
-FBox Recast2UnrealBox(const float* RecastMin, const float* RecastMax)
+FBox Recast2UnrealBox(const FVector::FReal* RecastMin, const FVector::FReal* RecastMax)
 {
 	FVector Points[2] = { Recast2UnrealPoint(RecastMin), Recast2UnrealPoint(RecastMax) };
 	return FBox(Points, 2);
 }
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+FBox Recast2UnrealBox(const float* RecastMin, const float* RecastMax)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FVector Points[2] = { Recast2UnrealPoint(RecastMin), Recast2UnrealPoint(RecastMax) };
+	return FBox(Points, 2);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif // !UE_LARGE_WORLD_COORDINATES_DISABLED
 
 FBox Recast2UnrealBox(const FBox& RecastBox)
 {

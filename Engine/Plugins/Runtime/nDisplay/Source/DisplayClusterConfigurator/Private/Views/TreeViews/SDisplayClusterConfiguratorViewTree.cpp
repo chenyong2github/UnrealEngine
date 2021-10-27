@@ -22,7 +22,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewTree"
 
@@ -89,7 +89,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 						.VAlign(VAlign_Center)
 						[
 					
-							SNew(SEditorHeaderButton)
+							SNew(SPositiveActionButton)
 							.Text(LOCTEXT("AddNewItem", "Add New"))
 							.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 							.ToolTipText(LOCTEXT("AddNewClusterItemTooltip", "Adds a new Cluster Item to the Cluster"))

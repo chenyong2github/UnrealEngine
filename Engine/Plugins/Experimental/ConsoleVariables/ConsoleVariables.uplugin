@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Console Variables UI",
-	"Description": "",
+	"Description": "Save, load and control Console Variables (cvars) from this panel using Slate.",
 	"Category": "Virtual Production",
 	"CreatedBy": "",
 	"CreatedByURL": "",

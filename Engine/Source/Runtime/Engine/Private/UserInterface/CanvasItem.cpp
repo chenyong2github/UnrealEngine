@@ -1015,7 +1015,7 @@ void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const 
 
 	const float CharIncrement = ( (float)Font->Kerning + HorizSpacingAdjust ) * Scale.X;
 
-	const TArray< TCHAR >& Chars = TextString.GetCharArray();
+	const TArray< TCHAR, FString::AllocatorType >& Chars = TextString.GetCharArray();
 	// Draw all characters in string.
 	const int32 TextLen = TextString.Len();
 	for( int32 i=0; i < TextLen; i++ )
@@ -1195,7 +1195,7 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 		}
 		else
 		{
-			const FCharacterEntry& Entry = CharacterList.GetCharacter(CurrentChar, LegacyFontInfo.FontFallback);
+			FCharacterEntry Entry{ CharacterList.GetCharacter(CurrentChar, LegacyFontInfo.FontFallback) };
 
 			if( Entry.Valid && (FontTexture == nullptr || Entry.TextureIndex != FontTextureIndex) )
 			{
@@ -1236,7 +1236,6 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 			}
 
 			LineX += Kerning;
-			PreviousCharEntry = Entry;
 
 			if( !bIsWhitespace )
 			{
@@ -1291,6 +1290,9 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 			{
 				DrawnSize.X = LineX;
 			}
+
+			// MoveTemp to reduce the number of SharedPtr creation/destruction.
+			PreviousCharEntry = MoveTemp(Entry);
 		}
 	}
 }

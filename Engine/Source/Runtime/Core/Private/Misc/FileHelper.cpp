@@ -85,7 +85,7 @@ bool FFileHelper::LoadFileToArray(TArray64<uint8>& Result, const TCHAR* Filename
  */
 void FFileHelper::BufferToString( FString& Result, const uint8* Buffer, int32 Size )
 {
-	TArray<TCHAR>& ResultArray = Result.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& ResultArray = Result.GetCharArray();
 	ResultArray.Empty();
 
 	bool bIsUnicode = false;

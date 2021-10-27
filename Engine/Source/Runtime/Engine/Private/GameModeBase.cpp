@@ -738,24 +738,14 @@ FString AGameModeBase::InitNewPlayer(APlayerController* NewPlayerController, con
 		return FString(TEXT("PlayerState is null"));
 	}
 
-	FString ErrorMessage;
-
 	// Register the player with the session
 	GameSession->RegisterPlayer(NewPlayerController, UniqueId.GetUniqueNetId(), UGameplayStatics::HasOption(Options, TEXT("bIsFromInvite")));
 
 	// Find a starting spot
-	AActor* const StartSpot = FindPlayerStart(NewPlayerController, Portal);
-	if (StartSpot != nullptr)
+	FString ErrorMessage;
+	if (!UpdatePlayerStartSpot(NewPlayerController, Portal, ErrorMessage))
 	{
-		// Set the player controller / camera in this new location
-		FRotator InitialControllerRot = StartSpot->GetActorRotation();
-		InitialControllerRot.Roll = 0.f;
-		NewPlayerController->SetInitialLocationAndRotation(StartSpot->GetActorLocation(), InitialControllerRot);
-		NewPlayerController->StartSpot = StartSpot;
-	}
-	else
-	{
-		ErrorMessage = FString::Printf(TEXT("Failed to find PlayerStart"));
+		UE_LOG(LogGameMode, Warning, TEXT("InitNewPlayer: %s"), *ErrorMessage);
 	}
 
 	// Set up spectating
@@ -780,20 +770,12 @@ FString AGameModeBase::InitNewPlayer(APlayerController* NewPlayerController, con
 void AGameModeBase::InitSeamlessTravelPlayer(AController* NewController)
 {
 	APlayerController* NewPC = Cast<APlayerController>(NewController);
-	// Find a start spot
-	AActor* StartSpot = FindPlayerStart(NewController);
 
-	if (StartSpot == nullptr)
+	FString ErrorMessage;
+	if (!UpdatePlayerStartSpot(NewController, TEXT(""), ErrorMessage))
 	{
-		UE_LOG(LogGameMode, Warning, TEXT("InitSeamlessTravelPlayer: Could not find a starting spot"));
+		UE_LOG(LogGameMode, Warning, TEXT("InitSeamlessTravelPlayer: %s"), *ErrorMessage);
 	}
-	else
-	{
-		FRotator StartRotation(0, StartSpot->GetActorRotation().Yaw, 0);
-		NewController->SetInitialLocationAndRotation(StartSpot->GetActorLocation(), StartRotation);
-	}
-
-	NewController->StartSpot = StartSpot;
 
 	if (NewPC != nullptr)
 	{
@@ -810,6 +792,25 @@ void AGameModeBase::InitSeamlessTravelPlayer(AController* NewController)
 			NewPC->ClientGotoState(NAME_Spectating);
 		}
 	}
+}
+
+bool AGameModeBase::UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage)
+{
+	OutErrorMessage.Reset();
+
+	AActor* const StartSpot = FindPlayerStart(Player, Portal);
+	if (StartSpot != nullptr)
+	{
+		FRotator StartRotation(0, StartSpot->GetActorRotation().Yaw, 0);
+		Player->SetInitialLocationAndRotation(StartSpot->GetActorLocation(), StartRotation);
+
+		Player->StartSpot = StartSpot;
+
+		return true;
+	}
+
+	OutErrorMessage = FString::Printf(TEXT("Could not find a starting spot"));
+	return false;
 }
 
 bool AGameModeBase::ShouldStartInCinematicMode(APlayerController* Player, bool& OutHidePlayer, bool& OutHideHUD, bool& OutDisableMovement, bool& OutDisableTurning)
@@ -986,12 +987,21 @@ void AGameModeBase::PostLogin(APlayerController* NewPlayer)
 		GameSession->PostLogin(NewPlayer);
 	}
 
-	// Notify Blueprints that a new player has logged in.  Calling it here, because this is the first time that the PlayerController can take RPCs
-	K2_PostLogin(NewPlayer);
-	FGameModeEvents::GameModePostLoginEvent.Broadcast(this, NewPlayer);
+	DispatchPostLogin(NewPlayer);
 
 	// Now that initialization is done, try to spawn the player's pawn and start match
 	HandleStartingNewPlayer(NewPlayer);
+}
+
+void AGameModeBase::DispatchPostLogin(AController* NewPlayer)
+{
+	if (APlayerController* NewPC = Cast<APlayerController>(NewPlayer))
+	{
+		K2_PostLogin(NewPC);
+		FGameModeEvents::GameModePostLoginEvent.Broadcast(this, NewPC);
+	}
+
+	OnPostLogin(NewPlayer);
 }
 
 void AGameModeBase::Logout(AController* Exiting)

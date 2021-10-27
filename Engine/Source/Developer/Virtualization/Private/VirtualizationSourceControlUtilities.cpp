@@ -21,10 +21,9 @@
 // The feature is entirely opt in so it shouldn't affect anyone else.
 #define UE_FIX_COMPILE_ISSUES 1
 
-namespace UE
+namespace UE::Virtualization::Experimental
 {
-namespace Virtualization
-{
+
 bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFile(const FPackagePath& PackagePath)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPayloadSideCarFunctionality::SyncPayloadSidecarFile);
@@ -147,5 +146,4 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFileInternal(const
 	return true;
 }
 
-} // namespace Virtualization
-} // namespace UE
+} // namespace UE::Virtualization::Experimental

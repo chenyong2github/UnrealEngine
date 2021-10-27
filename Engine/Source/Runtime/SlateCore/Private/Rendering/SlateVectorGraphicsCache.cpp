@@ -27,10 +27,9 @@ FAutoConsoleVariableRef CVarGrowSVGNonAtlasFrameWindow(
 	SVGAtlasFlushParams.GrowNonAtlasFrameWindow,
 	TEXT("The number of frames within the large pool will resize rather than flush."));
 
-FSlateVectorGraphicsCache::FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory, bool bInNeedRedBlueSwap)
+FSlateVectorGraphicsCache::FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory)
 	: FSlateFlushableAtlasCache(&SVGAtlasFlushParams)
 	, AtlasFactory(InAtlasFactory)
-	, bNeedRedBlueSwap(bInNeedRedBlueSwap)
 	, bFlushRequested(false)
 {
 }
@@ -81,7 +80,7 @@ void FSlateVectorGraphicsCache::UpdateCache()
 		ParallelFor(PendingRequests.Num(), [this](int32 Index)
 			{
 				FRasterRequest& CurrentRequest = PendingRequests[Index];
-				CurrentRequest.PixelData = FSlateSVGRasterizer::RasterizeSVGFromFile(CurrentRequest.Key.BrushName.ToString(), CurrentRequest.Key.PixelSize, bNeedRedBlueSwap);
+				CurrentRequest.PixelData = FSlateSVGRasterizer::RasterizeSVGFromFile(CurrentRequest.Key.BrushName.ToString(), CurrentRequest.Key.PixelSize);
 
 			});
 

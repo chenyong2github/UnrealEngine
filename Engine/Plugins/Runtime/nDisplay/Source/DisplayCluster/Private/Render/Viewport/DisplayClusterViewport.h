@@ -116,6 +116,9 @@ public:
 	// Get from logic request for additional targetable resource
 	bool ShouldUseAdditionalTargetableResource() const;
 
+	bool ShouldUseAdditionalFrameTargetableResource() const;
+	bool ShouldUseFullSizeFrameTargetableResource() const;
+
 	inline bool FindContext(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum)
 	{
 		check(IsInGameThread());
@@ -155,8 +158,6 @@ public:
 	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(FViewport* InViewport) const;
 
 	bool UpdateFrameContexts(const uint32 InViewPassNum, const FDisplayClusterRenderFrameSettings& InFrameSettings);
-
-	void ImplReleaseOpenColorIODisplayExtension();
 
 public:
 	FIntRect GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName);

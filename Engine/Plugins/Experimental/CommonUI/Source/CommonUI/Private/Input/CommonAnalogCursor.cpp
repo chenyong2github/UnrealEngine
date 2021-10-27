@@ -21,6 +21,7 @@
 #include "Components/ScrollBox.h"
 #include "Engine/Engine.h"
 #include "Slate/SGameLayerManager.h"
+#include "Types/ReflectionMetadata.h"
 
 #define LOCTEXT_NAMESPACE "CommonAnalogCursor"
 
@@ -120,6 +121,13 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 			// We want to update the cursor position when focus changes or the focused widget moves at all
 			if (CursorTarget != PinnedLastCursorTarget || (CursorTarget && CursorTarget->GetCachedGeometry().GetAccumulatedRenderTransform() != LastCursorTargetTransform))
 			{
+#if !UE_BUILD_SHIPPING
+				if (CursorTarget != PinnedLastCursorTarget)
+				{
+					UE_LOG(LogCommonUI, Verbose, TEXT("User[%d] cursor target changed to [%s]"), GetOwnerUserIndex(), *FReflectionMetaData::GetWidgetDebugInfo(CursorTarget.Get()));
+				}
+#endif
+
 				// Release capture unless the focused widget is the captor
 				if (PinnedLastCursorTarget != CursorTarget && SlateUser->HasCursorCapture() && !SlateUser->DoesWidgetHaveAnyCapture(CursorTarget))
 				{
@@ -156,6 +164,8 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 						
 						const FVector2D AbsoluteWidgetCenter = TargetGeometry.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
 						SlateUser->SetCursorPosition(AbsoluteWidgetCenter);
+
+						UE_LOG(LogCommonUI, Verbose, TEXT("User[%d] moving cursor to target [%s] @ (%d, %d)"), GetOwnerUserIndex(), *FReflectionMetaData::GetWidgetDebugInfo(CursorTarget.Get()), (int32)AbsoluteWidgetCenter.X, (int32)AbsoluteWidgetCenter.Y);
 					}
 				}
 

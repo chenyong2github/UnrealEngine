@@ -393,13 +393,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClass* Class = ClassPtr.Get())
 			{
-				const FText& DisplayName = Class->Metadata.GetDisplayName();
-				if (!DisplayName.IsEmptyOrWhitespace())
-				{
-					return Class->Metadata.GetDisplayName();
-				}
-
-				return FText::FromString(GetNodeName().ToString());
+				return Class->Metadata.GetDisplayName();
 			}
 
 			return Invalid::GetInvalidText();
@@ -791,6 +785,7 @@ namespace Metasound
 				});
 			});
 
+			const FGuid ReplacedNodeGuid = GetID();
 			if (!ensureAlways(GetOwningGraph()->RemoveNode(*this)))
 			{
 				return this->AsShared();
@@ -803,7 +798,7 @@ namespace Metasound
 			FDocumentHandle Document = GetOwningGraph()->GetOwningDocument();
 			ensureAlways(Document->SynchronizeDependency(RegistryKey) != nullptr);
 
-			FNodeHandle ReplacementNode = GetOwningGraph()->AddNode(RegisteredClass->Metadata);
+			FNodeHandle ReplacementNode = GetOwningGraph()->AddNode(RegisteredClass->Metadata, ReplacedNodeGuid);
 			if (!ensureAlways(ReplacementNode->IsValid()))
 			{
 				return this->AsShared();
@@ -1146,12 +1141,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				if (!OwningOutput->Metadata.DisplayName.IsEmptyOrWhitespace())
-				{
-					return OwningOutput->Metadata.DisplayName;
-				}
-
-				return FText::FromName(GetNodeName());
+				return OwningOutput->Metadata.DisplayName;
 			}
 
 			return Invalid::GetInvalidText();
@@ -1403,12 +1393,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				if (!OwningInput->Metadata.DisplayName.IsEmptyOrWhitespace())
-				{
-					return OwningInput->Metadata.DisplayName;
-				}
-
-				return FText::FromName(GetNodeName());
+				return OwningInput->Metadata.DisplayName;
 			}
 
 			return Invalid::GetInvalidText();

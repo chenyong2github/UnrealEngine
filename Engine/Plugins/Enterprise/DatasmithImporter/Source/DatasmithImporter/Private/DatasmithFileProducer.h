@@ -53,6 +53,11 @@ public:
 
 	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> GetTranslatorImportOptions();
 
+	void SetTranslatorImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>> InOptions)
+	{
+		ImportOptionsOverride = InOptions;
+	}
+
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
@@ -90,6 +95,8 @@ private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
 	TSharedPtr< UE::DatasmithImporter::FExternalSource > ExternalSourcePtr;
+
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> ImportOptionsOverride;
 
 	UPROPERTY( Transient, DuplicateTransient )
 	UDatasmithScene* DatasmithScene;
@@ -157,6 +164,7 @@ public:
 	// Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
 	// End of UObject interface
 
 	UE_DEPRECATED(4.26, "SetFolderName was renamed to SetFolderPath")
@@ -177,6 +185,9 @@ protected:
 	virtual bool Execute(TArray< TWeakObjectPtr< UObject > >& OutAssets) override;
 	virtual void Reset() override;
 	// End UDataprepContentProducer overrides
+
+	void OnChangeImportSettings();
+	void SetFileProducerSettings();
 
 private:
 
@@ -233,6 +244,9 @@ private:
 
 	UPROPERTY( Transient, DuplicateTransient )
 	UDatasmithFileProducer* FileProducer;
+
+	UPROPERTY()
+	UDatasmithCommonTessellationOptions* TessellationOptions;
 
 	static TSet< FString > SupportedFormats;
 

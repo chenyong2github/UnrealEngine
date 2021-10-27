@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"EditorWidgets",
 					"MessageLog",
                     "RigVM",
+					"ToolWidgets",
                 }
             );
 

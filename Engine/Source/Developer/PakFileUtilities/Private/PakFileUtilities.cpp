@@ -4781,6 +4781,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		}
 	}
 
+	if (NonOptionArguments.Num() && NonOptionArguments[0] == TEXT("IoStore"))
+	{
+		return CreateIoStoreContainerFiles(CmdLine) == 0;
+	}
+
 	FString ProjectArg;
 	if (FParse::Value(CmdLine, TEXT("-Project="), ProjectArg))
 	{

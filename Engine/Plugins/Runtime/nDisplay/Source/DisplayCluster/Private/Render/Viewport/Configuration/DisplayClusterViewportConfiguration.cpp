@@ -95,6 +95,8 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 				ConfigurationBase.UpdateTextureShare(InClusterNodeId);
 			}
 
+			ImplPostUpdateRenderFrameConfiguration();
+
 			return true;
 		}
 	}
@@ -115,11 +117,15 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 	}
 }
 
-void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
+void FDisplayClusterViewportConfiguration::ImplPostUpdateRenderFrameConfiguration()
 {
 	// Some frame postprocess require additional render targetable resources
-	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.PostProcessManager->ShouldUseAdditionalFrameTargetableResource_PostProcess();
+	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.ShouldUseAdditionalFrameTargetableResource();
+	RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager.ShouldUseFullSizeFrameTargetableResource();
+}
 
+void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
+{
 	// Global RTT sizes mults
 	RenderFrameSettings.ClusterRenderTargetRatioMult = InRenderFrameConfiguration.ClusterRenderTargetRatioMult;
 	RenderFrameSettings.ClusterICVFXInnerViewportRenderTargetRatioMult = InRenderFrameConfiguration.ClusterICVFXInnerViewportRenderTargetRatioMult;
@@ -233,6 +239,8 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(const FDis
 			RenderFrameSettings.RenderMode = EDisplayClusterRenderFrameMode::PreviewMono;
 
 			RenderFrameSettings.bIsRenderingInEditor = true;
+
+			ImplPostUpdateRenderFrameConfiguration();
 
 			return true;
 		}

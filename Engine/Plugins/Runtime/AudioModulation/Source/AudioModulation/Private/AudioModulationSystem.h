@@ -43,11 +43,13 @@ namespace AudioModulation
 		FPatchProxyMap Patches;
 	};
 
+	using FModulatorHandleSet = TSet<Audio::FModulatorHandleId>;
+
 	struct FReferencedModulators
 	{
-		TMap<FPatchHandle, TArray<uint32>> PatchMap;
-		TMap<FBusHandle, TArray<uint32>> BusMap;
-		TMap<FGeneratorHandle, TArray<uint32>> GeneratorMap;
+		TMap<FPatchHandle, FModulatorHandleSet> PatchMap;
+		TMap<FBusHandle, FModulatorHandleSet> BusMap;
+		TMap<FGeneratorHandle, FModulatorHandleSet> GeneratorMap;
 	};
 
 	class FAudioModulationSystem
@@ -76,8 +78,12 @@ namespace AudioModulation
 
 		Audio::FDeviceId GetAudioDeviceId() const;
 
+		/* Register new handle with given a given modulator that may or may already be active (i.e. registered). */
 		Audio::FModulatorTypeId RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter);
+
+		/* Register new handle with given Id with a modulator that is already active (i.e. registered). Used primarily for copying modulation handles. */
 		void RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId);
+
 		bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const;
 		void UnregisterModulator(const Audio::FModulatorHandle& InHandle);
 
@@ -128,13 +134,13 @@ namespace AudioModulation
 		void RunCommandOnProcessingThread(TUniqueFunction<void()> Cmd);
 
 		template <typename THandleType, typename TModType, typename TModSettings, typename TMapType>
-		bool RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, TMapType& ProxyMap, TMap<THandleType, TArray<uint32>>& ModMap)
+		bool RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, TMapType& OutProxyMap, TMap<THandleType, FModulatorHandleSet>& OutModMap)
 		{
 			check(InHandleId != INDEX_NONE);
 
 			if (const TModType* Mod = Cast<TModType>(InModulatorBase))
 			{
-				RunCommandOnProcessingThread([this, Modulator = TModSettings(*Mod, AudioDeviceId), InHandleId, PassedProxyMap = &ProxyMap, PassedModMap = &ModMap]()
+				RunCommandOnProcessingThread([this, Modulator = TModSettings(*Mod, AudioDeviceId), InHandleId, PassedProxyMap = &OutProxyMap, PassedModMap = &OutModMap]()
 				{
 					check(PassedProxyMap);
 					check(PassedModMap);
@@ -150,31 +156,25 @@ namespace AudioModulation
 		}
 
 		template <typename THandleType>
-		bool UnregisterModulator(THandleType PatchHandle, TMap<THandleType, TArray<uint32>>& HandleMap, const uint32 ParentId)
+		bool UnregisterModulator(THandleType InModHandle, TMap<THandleType, FModulatorHandleSet>& OutHandleMap, const Audio::FModulatorHandleId InHandleId)
 		{
-			if (!PatchHandle.IsValid())
+			bool bHandleRemoved = false;
+
+			if (!InModHandle.IsValid())
 			{
-				return false;
+				return bHandleRemoved;
 			}
 
-			if (TArray<uint32>* ObjectIds = HandleMap.Find(PatchHandle))
+			if (FModulatorHandleSet* HandleSet = OutHandleMap.Find(InModHandle))
 			{
-				for (int32 i = 0; i < ObjectIds->Num(); ++i)
+				bHandleRemoved = HandleSet->Remove(InHandleId) > 0;
+				if (HandleSet->IsEmpty())
 				{
-					const uint32 ObjectId = (*ObjectIds)[i];
-					if (ObjectId == ParentId)
-					{
-						ObjectIds->RemoveAtSwap(i, 1, false /* bAllowShrinking */);
-						if (ObjectIds->Num() == 0)
-						{
-							HandleMap.Remove(PatchHandle);
-						}
-						return true;
-					}
+					OutHandleMap.Remove(InModHandle);
 				}
 			}
 
-			return false;
+			return bHandleRemoved;
 		}
 
 		FReferencedProxies RefProxies;

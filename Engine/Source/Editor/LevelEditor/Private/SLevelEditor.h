@@ -238,6 +238,9 @@ private:
 	/** Called when element selection changes */
 	void OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh = false);
 
+	/** Called when actor selection changes */
+	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
+
 	/** Called to set property editors to show the given actors, even if those actors aren't in the current selection set */
 	void OnOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh = false);
 
@@ -330,7 +333,7 @@ private:
 	/** If this flag is raised we will force refresh on next selection update. */
 	bool bNeedsRefresh : 1;
 
-	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer;
+	TMap<FName, TSharedPtr<FLevelEditorModeUILayer>> ModeUILayers;
 
 	/** Viewport context menu title, cached each time the element selection set changes */
 	FText CachedViewportContextMenuTitle;

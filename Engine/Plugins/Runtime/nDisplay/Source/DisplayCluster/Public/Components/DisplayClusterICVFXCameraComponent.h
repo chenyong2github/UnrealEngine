@@ -63,8 +63,13 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA
 private:
+	friend class FDisplayClusterICVFXCameraComponentDetailsCustomization;
+	
 	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.bEnable"))
 	FDisplayClusterEditorPropertyReference IsEnabledRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.HiddenICVFXViewports"))
+	FDisplayClusterEditorPropertyReference HiddenICVFXViewportsRef;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CameraSettings.ExternalCameraActor"))
 	FDisplayClusterEditorPropertyReference ExternalCameraActorRef;

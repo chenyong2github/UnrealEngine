@@ -64,9 +64,6 @@ public:
 
 	TArray<FMaterialParameterInfo> BasePropertyOverrideInfo;
 
-	TArray<FMaterialParameterInfo> MaterialLayerParameterInfo;
-	TArray<FGuid> MaterialLayerGuids;
-
 	TArray<FMaterialParameterInfo> StaticSwitchParameterInfo;
 	TArray<FGuid> StaticSwitchGuids;
 

@@ -776,6 +776,7 @@ public:
 	ENGINE_API FName GetSectionName(int32 SectionIndex) const;
 
 	/** @return true if valid section */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
 	ENGINE_API bool IsValidSectionName(FName InSectionName) const;
 
 	// @todo document

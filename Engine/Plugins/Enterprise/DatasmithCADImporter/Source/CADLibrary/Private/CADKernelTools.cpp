@@ -27,7 +27,6 @@
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 
-using namespace CADKernel;
 typedef uint32 TriangleIndex[3];
 
 namespace CADLibrary
@@ -47,7 +46,7 @@ namespace CADLibrary
 		}
 	};
 
-	void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
+	static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 	{
 		TArray<FVector> VertexArray;
 		ModelMesh->GetNodeCoordinates(VertexArray);
@@ -95,6 +94,8 @@ namespace CADLibrary
 
 	bool FillMesh(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 	{
+		using namespace CADKernel;
+
 		const int32 UVChannel = 0;
 		const int32 TriangleCount = 3;
 		const TriangleIndex Clockwise = { 0, 1, 2 };
@@ -253,7 +254,7 @@ namespace CADLibrary
 		return true;
 	}
 
-	bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, const TSharedRef<FModelMesh>& InModelMesh, FMeshDescription& MeshDescription)
+	static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& InModelMesh, FMeshDescription& MeshDescription)
 	{
 		int32 VertexCount = InModelMesh->GetVertexCount();
 		int32 TriangleCount = InModelMesh->GetTriangleCount();
@@ -274,8 +275,10 @@ namespace CADLibrary
 		return MeshDescription.Polygons().Num() > 0;
 	}
 
-	bool FCADKernelTools::Tessellate(TSharedRef<FTopologicalEntity>& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
+	bool FCADKernelTools::Tessellate(TSharedRef<CADKernel::FTopologicalEntity>& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
 	{
+		using namespace CADKernel;
+
 		// Tessellate the model
 		TSharedRef<FModelMesh> CADKernelModelMesh = FEntity::MakeShared<FModelMesh>();
 		FParametricMesher Mesher(CADKernelModelMesh);

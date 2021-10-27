@@ -181,7 +181,7 @@ namespace SubdividePolyLocal
 							const FDynamicMesh3& Mesh,
 							TTuple<int, int>& OutTriangleVertex)
 	{
-		for (int Tri : Group.Triangles)
+		for (int Tri : Group.Triangles)		// TODO: do better than linear search
 		{
 			FIndex3i TriVertices = Mesh.GetTriangle(Tri);
 			for (int i = 0; i < 3; ++i)
@@ -196,43 +196,173 @@ namespace SubdividePolyLocal
 		return false;
 	}
 
+
 	// Treating the GroupTopology as a polygonal mesh, get its "face-varying" UV coordinates. Assumes that each 
 	// polygonal face has no UV seams cutting through it, but that UV seams might exist at polygon boundaries.
+	// The UV data is returned in a buffer, with index buffer accompanying
+	// NOTE: This is currently called twice -- first time to get the index buffers for topology refinement, and 
+	// the second time to get the data for interpolation.
+
+	template<bool bBuildingCoordBuffer, bool bBuildingIndexBuffer>
 	bool GetGroupPolyMeshUVs(const FGroupTopology& Topology,
 							 const FDynamicMesh3& Mesh,
-							 const FDynamicMeshUVOverlay* UVOverlay,
-							 TArray<SubdUVVertex>& OutUVs)		// for each group, all the uvs on the group corners
+							 const FDynamicMeshUVOverlay& UVOverlay,
+							 TArray<SubdUVVertex>* OutUVs,
+							 TArray<int>* OutUVFaceIndices)
 	{
+		TMap<int, int> ElementIDToUVBufferIndex;
+		int UVVertexIndex = 0;
+
 		for (const FGroupTopology::FGroup& Group : Topology.Groups)
 		{
-			check(Group.Boundaries.Num() == 1);
-			check(Group.Triangles.Num() > 0);
+			if (!ensure(Group.Boundaries.Num() == 1))
+			{
+				return false;
+			}
+			if (!ensure(Group.Triangles.Num() > 0))
+			{
+				return false;
+			}
+
 			const FGroupTopology::FGroupBoundary& Bdry = Group.Boundaries[0];
 
 			TArray<int> Corners;
 			GetBoundaryCorners(Bdry, Topology, Corners);
 
+			TArray<int> CornerUVIndices;
+
 			for (int CornerID : Corners)
 			{
-				int CornerVertexID = Topology.Corners[CornerID].VertexID;
+				const int CornerVertexID = Topology.Corners[CornerID].VertexID;
 
 				// Find a triangle in the group that has a vertex ID equal to the given corner
 				TTuple<int, int> TriangleVertex;
 				if (FindTriangleVertex(Group, CornerVertexID, Mesh, TriangleVertex))
 				{
-					int TriangleID = TriangleVertex.Get<0>();
-					int TriVertexIndex = TriangleVertex.Get<1>();	// The (0,1,2) index of the polygon corner wrt the triangle
+					const int TriangleID = TriangleVertex.Get<0>();
+					const int TriVertexIndex = TriangleVertex.Get<1>();	// The (0,1,2) index of the polygon corner wrt the triangle
 
-					TStaticArray<FVector2f, 3> TriangleUVs;
-					UVOverlay->GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
-					FVector2f CornerUV = TriangleUVs[TriVertexIndex];
+					const FIndex3i ElementTri = UVOverlay.GetTriangle(TriangleID);
+					const int CornerElementID = ElementTri[TriVertexIndex];
 
-					OutUVs.Add(SubdUVVertex{ CornerUV });
+					if (ElementIDToUVBufferIndex.Contains(CornerElementID))
+					{
+						if constexpr (bBuildingIndexBuffer)
+						{
+							CornerUVIndices.Add(ElementIDToUVBufferIndex[CornerElementID]);
+						}
+					}
+					else
+					{
+						ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+
+						if constexpr (bBuildingIndexBuffer)
+						{
+							CornerUVIndices.Add(UVVertexIndex);
+						}
+
+						if constexpr (bBuildingCoordBuffer)
+						{
+							TStaticArray<FVector2f, 3> TriangleUVs;
+							UVOverlay.GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
+							OutUVs->Add(SubdUVVertex{ TriangleUVs[TriVertexIndex] });
+						}
+
+						++UVVertexIndex;
+					}
 				}
 				else
 				{
 					return false;
 				}
+			}
+
+			if constexpr (bBuildingIndexBuffer)
+			{
+				OutUVFaceIndices->Append(CornerUVIndices);
+			}
+		}
+		return true;
+	}
+
+
+	inline bool GetGroupPolyMeshUVCoords(const FGroupTopology& Topology,
+		const FDynamicMesh3& Mesh,
+		const FDynamicMeshUVOverlay& UVOverlay,
+		TArray<SubdUVVertex>* OutUVCoords)
+	{
+		return GetGroupPolyMeshUVs<true, false>(Topology, Mesh, UVOverlay, OutUVCoords, nullptr);
+	}
+
+	inline bool GetGroupPolyMeshUVIndexBuffer(const FGroupTopology& Topology,
+		const FDynamicMesh3& Mesh,
+		const FDynamicMeshUVOverlay& UVOverlay,
+		TArray<int>* OutUVFaceIndices)
+	{
+		return GetGroupPolyMeshUVs<false, true>(Topology, Mesh, UVOverlay, nullptr, OutUVFaceIndices);
+	}
+
+
+	// Get the "face-varying" UV coordinates for each triangle in the mesh
+	// The UV data is returned in a buffer, with index buffer accompanying
+	// NOTE: This is currently called twice -- first time to get the index buffers for topology refinement, and 
+	// the second time to get the data for interpolation.
+	// TODO: A lot of code duplication with GetGroupPolyMeshUVs
+
+	template<bool bBuildingCoordBuffer, bool bBuildingIndexBuffer>
+	bool GetMeshUVs(const FDynamicMesh3& Mesh,
+					const FDynamicMeshUVOverlay& UVOverlay,
+					TArray<SubdUVVertex>* OutUVs,
+					TArray<int>* OutUVFaceIndices)
+	{
+		TMap<int, int> ElementIDToUVBufferIndex;
+		int UVVertexIndex = 0;
+
+		for (int32 TriangleID : Mesh.TriangleIndicesItr())
+		{
+			const FIndex3i MeshTri = Mesh.GetTriangle(TriangleID);
+			const FIndex3i ElementTri = UVOverlay.GetTriangle(TriangleID);
+			
+			FIndex3i CornerUVIndices{ FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID };
+
+			for (int I = 0; I < 3; ++I)
+			{
+				const int CornerElementID = ElementTri[I];
+
+				ensure(UVOverlay.GetParentVertex(CornerElementID) == MeshTri[I]);
+
+				if (ElementIDToUVBufferIndex.Contains(CornerElementID))
+				{
+					if constexpr (bBuildingIndexBuffer)
+					{
+						CornerUVIndices[I] = ElementIDToUVBufferIndex[CornerElementID];
+					}
+				}
+				else
+				{
+					ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+
+					if constexpr (bBuildingIndexBuffer)
+					{
+						CornerUVIndices[I] = UVVertexIndex;
+					}
+
+					if constexpr (bBuildingCoordBuffer)
+					{
+						TStaticArray<FVector2f, 3> TriangleUVs;
+						UVOverlay.GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
+						OutUVs->Add(SubdUVVertex{ TriangleUVs[I] });
+					}
+
+					++UVVertexIndex;
+				}
+			}
+
+			if constexpr (bBuildingIndexBuffer)
+			{
+				OutUVFaceIndices->Add(CornerUVIndices[0]);
+				OutUVFaceIndices->Add(CornerUVIndices[1]);
+				OutUVFaceIndices->Add(CornerUVIndices[2]);
 			}
 		}
 
@@ -240,41 +370,52 @@ namespace SubdividePolyLocal
 	}
 
 
-	bool GetMeshUVs(const FDynamicMesh3& Mesh,
-					const FDynamicMeshUVOverlay* UVOverlay,
-					TArray<SubdUVVertex>& OutUVs)		// for each triangle, all the uvs
+	inline bool GetMeshUVCoords(const FDynamicMesh3& Mesh,
+		const FDynamicMeshUVOverlay& UVOverlay,
+		TArray<SubdUVVertex>* OutUVCoords)
 	{
-		for (int32 TriangleID : Mesh.TriangleIndicesItr())
-		{
-			TStaticArray<FVector2f, 3> TriangleUVs;
-			UVOverlay->GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
-			OutUVs.Add(SubdUVVertex{ TriangleUVs[0] });
-			OutUVs.Add(SubdUVVertex{ TriangleUVs[1] });
-			OutUVs.Add(SubdUVVertex{ TriangleUVs[2] });
-		}
-
-		return true;
+		return GetMeshUVs<true, false>(Mesh, UVOverlay, OutUVCoords, nullptr);
 	}
 
-	void InitializeOverlayToFaceVertexUVs(FDynamicMeshUVOverlay* UVOverlay, const TArray<FVector2f>& UVs)
+	inline bool GetMeshUVIndexBuffer(const FDynamicMesh3& Mesh,
+		const FDynamicMeshUVOverlay& UVOverlay,
+		TArray<int>* OutUVFaceIndices)
+	{
+		return GetMeshUVs<false, true>(Mesh, UVOverlay, nullptr, OutUVFaceIndices);
+	}
+
+
+
+	void InitializeOverlayToFaceVertexUVs(FDynamicMeshUVOverlay* UVOverlay, const TArray<FIndex3i>& UVTriangles, const TArray<FVector2f>& UVElements)
 	{
 		const FDynamicMesh3* Mesh = UVOverlay->GetParentMesh();
 		check(Mesh->IsCompact());
 
+		UVOverlay->ClearElements();
+		for (int ElementIndex = 0; ElementIndex < UVElements.Num(); ++ElementIndex)
+		{
+			UVOverlay->AppendElement(UVElements[ElementIndex]);
+		}
+
 		int NumTriangles = Mesh->TriangleCount();
 		check(NumTriangles == Mesh->MaxTriangleID());
-		check(UVs.Num() == 3 * NumTriangles);
+		check(UVTriangles.Num() == NumTriangles);
 
-		UVOverlay->ClearElements();
 		UVOverlay->InitializeTriangles(NumTriangles);
-
 		for (int TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 		{
-			FIndex3i Tri{ 3 * TriangleIndex + 0, 3 * TriangleIndex + 1,	3 * TriangleIndex + 2 };
-			UVOverlay->AppendElement(UVs[Tri[0]]);
-			UVOverlay->AppendElement(UVs[Tri[1]]);
-			UVOverlay->AppendElement(UVs[Tri[2]]);
-			UVOverlay->SetTriangle(TriangleIndex, Tri);
+			const FIndex3i& UVTri = UVTriangles[TriangleIndex];
+
+			if (ensure(Mesh->IsTriangle(TriangleIndex)))
+			{
+				const FIndex3i MeshTriVertices = Mesh->GetTriangle(TriangleIndex);
+				for (int I = 0; I < 3; ++I)
+				{
+					UVOverlay->SetParentVertex(UVTri[I], MeshTriVertices[I]);
+				}
+			}
+
+			UVOverlay->SetTriangle(TriangleIndex, UVTri);
 		}
 	}
 
@@ -323,10 +464,11 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 
 	TArray<int> BoundaryVertsPerFace;
 	TArray<int> NumVertsPerFace;
+	
 	OpenSubdiv::Far::TopologyDescriptor::FVarChannel UVChannel;
-	TArray<int> UVBuffer;
+	TArray<int> UVIndexBuffer;
 
-	auto DescriptorFromTriangleMesh = [this, &NumVertsPerFace, &BoundaryVertsPerFace, &UVChannel, &UVBuffer]
+	auto DescriptorFromTriangleMesh = [this, &NumVertsPerFace, &BoundaryVertsPerFace, &UVChannel, &UVIndexBuffer]
 	(OpenSubdiv::Far::TopologyDescriptor& Descriptor)
 	{
 		for (auto TriangleID : OriginalMesh.TriangleIndicesItr())
@@ -347,12 +489,17 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 		if (UVComputationMethod == ESubdivisionOutputUVs::Interpolated)
 		{
 			UVChannel.numValues = BoundaryVertsPerFace.Num();
-			UVBuffer.SetNum(UVChannel.numValues);
-			for (int i = 0; i < UVChannel.numValues; ++i)
+
+			const bool bGetUVsOK = SubdividePolyLocal::GetMeshUVIndexBuffer(OriginalMesh,
+				*OriginalMesh.Attributes()->PrimaryUV(),
+				&UVIndexBuffer);
+
+			if (!bGetUVsOK)
 			{
-				UVBuffer[i] = i;
+				return false;
 			}
-			UVChannel.valueIndices = UVBuffer.GetData();
+
+			UVChannel.valueIndices = UVIndexBuffer.GetData();
 			Descriptor.numFVarChannels = 1;
 			Descriptor.fvarChannels = &UVChannel;
 		}
@@ -364,7 +511,7 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 		return true;
 	};
 
-	auto DescriptorFromGroupTopology = [this, &NumVertsPerFace, &BoundaryVertsPerFace, &UVChannel, &UVBuffer]
+	auto DescriptorFromGroupTopology = [this, &NumVertsPerFace, &BoundaryVertsPerFace, &UVChannel, &UVIndexBuffer]
 	(OpenSubdiv::Far::TopologyDescriptor& Descriptor)
 	{
 		int TotalNumVertices = 0;
@@ -398,12 +545,18 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 		if (UVComputationMethod == ESubdivisionOutputUVs::Interpolated)
 		{
 			UVChannel.numValues = BoundaryVertsPerFace.Num();
-			UVBuffer.SetNum(UVChannel.numValues);
-			for (int i = 0; i < UVChannel.numValues; ++i)
+
+			bool bGetUVsOK = SubdividePolyLocal::GetGroupPolyMeshUVIndexBuffer(GroupTopology,
+				OriginalMesh,
+				*OriginalMesh.Attributes()->PrimaryUV(),
+				&UVIndexBuffer);
+
+			if (!bGetUVsOK)
 			{
-				UVBuffer[i] = i;
+				return false;
 			}
-			UVChannel.valueIndices = UVBuffer.GetData();
+
+			UVChannel.valueIndices = UVIndexBuffer.GetData();
 			Descriptor.numFVarChannels = 1;
 			Descriptor.fvarChannels = &UVChannel;
 		}
@@ -555,14 +708,16 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 
 		if (SubdivisionScheme == ESubdivisionScheme::Loop)
 		{
-			bGetUVsOK = GetMeshUVs(OriginalMesh, OriginalMesh.Attributes()->PrimaryUV(), SourceUVs);
+			bGetUVsOK = GetMeshUVCoords(OriginalMesh,
+				*OriginalMesh.Attributes()->PrimaryUV(), 
+				&SourceUVs);
 		}
 		else
 		{
-			bGetUVsOK = GetGroupPolyMeshUVs(GroupTopology,
-											OriginalMesh,
-											OriginalMesh.Attributes()->PrimaryUV(),
-											SourceUVs);
+			bGetUVsOK = SubdividePolyLocal::GetGroupPolyMeshUVCoords(GroupTopology,
+				OriginalMesh,
+				*OriginalMesh.Attributes()->PrimaryUV(),
+				&SourceUVs);
 		}
 
 		if (!bGetUVsOK)
@@ -570,7 +725,8 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 			return false;
 		}
 
-		check(SourceUVs.Num() == Refiner->TopologyRefiner->GetLevel(0).GetNumFaceVertices());
+		int NumFVarValues = Refiner->TopologyRefiner->GetLevel(0).GetNumFVarValues();
+		int NumFaceVertices = Refiner->TopologyRefiner->GetLevel(0).GetNumFaceVertices();
 
 		for (int CurrentLevel = 1; CurrentLevel <= Level; ++CurrentLevel)
 		{
@@ -611,7 +767,8 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	// Add the faces (manually triangulate the output here)
 
 	int NumFaceVertices = 0;
-	TArray<FVector2f> TriangleUVs;
+	TArray<FVector2f> UVElements;
+	TArray<FIndex3i> UVTriangles;
 
 	for (int FaceID = 0; FaceID < FinalLevel.GetNumFaces(); ++FaceID)
 	{
@@ -630,16 +787,12 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 			if (UVComputationMethod == ESubdivisionOutputUVs::Interpolated)
 			{
 				OpenSubdiv::Far::ConstIndexArray FaceUVIndices = FinalLevel.GetFaceFVarValues(FaceID);
-
+				
 				FIndex3i UVTriA{ FaceUVIndices[0], FaceUVIndices[1], FaceUVIndices[3] };
-				TriangleUVs.Add(RefinedUVs[UVTriA[0]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[UVTriA[1]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[UVTriA[2]].VertexUV);
+				UVTriangles.Add(UVTriA);
 
 				FIndex3i UVTriB{ FaceUVIndices[2], FaceUVIndices[3], FaceUVIndices[1] };
-				TriangleUVs.Add(RefinedUVs[UVTriB[0]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[UVTriB[1]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[UVTriB[2]].VertexUV);
+				UVTriangles.Add(UVTriB);
 			}
 		}
 		else
@@ -650,11 +803,15 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 			if (UVComputationMethod == ESubdivisionOutputUVs::Interpolated)
 			{
 				OpenSubdiv::Far::ConstIndexArray FaceUVIndices = FinalLevel.GetFaceFVarValues(FaceID);
-				TriangleUVs.Add(RefinedUVs[FaceUVIndices[0]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[FaceUVIndices[1]].VertexUV);
-				TriangleUVs.Add(RefinedUVs[FaceUVIndices[2]].VertexUV);
+				FIndex3i UVTri{ FaceUVIndices[0], FaceUVIndices[1], FaceUVIndices[2] };
+				UVTriangles.Add(UVTri);
 			}
 		}
+	}
+
+	for (const SubdividePolyLocal::SubdUVVertex& UVVertex : RefinedUVs)
+	{
+		UVElements.Add(UVVertex.VertexUV);
 	}
 
 	if (NormalComputationMethod != ESubdivisionOutputNormals::None)
@@ -665,7 +822,7 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 
 	if (UVComputationMethod == ESubdivisionOutputUVs::Interpolated)
 	{
-		SubdividePolyLocal::InitializeOverlayToFaceVertexUVs(OutMesh.Attributes()->PrimaryUV(), TriangleUVs);
+		SubdividePolyLocal::InitializeOverlayToFaceVertexUVs(OutMesh.Attributes()->PrimaryUV(), UVTriangles, UVElements);
 	}
 
 	// Remove any vertices that are not referenced by a face

@@ -117,23 +117,6 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Gets the parent directory for a file
-		/// </summary>
-		/// <param name="File">The file to get directory for</param>
-		/// <returns>The full directory name containing the given file</returns>
-		[Obsolete("Replace with call to FileReference.ParentDirectory instead.")]
-		public static DirectoryReference GetParentDirectory(FileReference File)
-		{
-			int ParentLength = File.FullName.LastIndexOf(Path.DirectorySeparatorChar);
-			if(ParentLength == 2 && File.FullName[1] == ':')
-			{
-				ParentLength++;
-			}
-
-			return new DirectoryReference(File.FullName.Substring(0, ParentLength), Sanitize.None);
-		}
-
-		/// <summary>
 		/// Gets the path for a special folder
 		/// </summary>
 		/// <param name="Folder">The folder to receive the path for</param>

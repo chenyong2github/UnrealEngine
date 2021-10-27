@@ -26,7 +26,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Styling/ToolBarStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
@@ -305,12 +305,12 @@ void FUserDefinedStructureEditor::RegisterTabSpawners(const TSharedRef<class FTa
 	InTabManager->RegisterTabSpawner( MemberVariablesTabId, FOnSpawnTab::CreateSP(this, &FUserDefinedStructureEditor::SpawnStructureTab) )
 		.SetDisplayName( LOCTEXT("MemberVariablesEditor", "Structure") )
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Variables"));
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Kismet.Tabs.Variables"));
 
 	InTabManager->RegisterTabSpawner( DefaultValuesTabId, FOnSpawnTab::CreateSP(this, &FUserDefinedStructureEditor::SpawnStructureDefaultValuesTab))
 		.SetDisplayName(LOCTEXT("DefaultValuesEditor", "Default Values"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.DefaultValues"));
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Details"));
 }
 
 void FUserDefinedStructureEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -480,7 +480,7 @@ void FUserDefinedStructureEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		.VAlign(VAlign_Fill)
 		.Padding(ToolBarStyle.ButtonPadding)
 		[
-			SNew(SEditorHeaderButton)
+			SNew(SPositiveActionButton)
 			.Text(LOCTEXT("AddStructVariable", "Add Variable"))
 			.ToolTipText(LOCTEXT("AddStructVariableToolTip", "Adds a new member variable to the end of this structure"))
 			.OnClicked(this, &FUserDefinedStructureEditor::OnAddNewField)
@@ -509,11 +509,11 @@ const FSlateBrush* FUserDefinedStructureEditor::OnGetStructureStatus() const
 		switch (UserDefinedStruct->Status.GetValue())
 		{
 		case EUserDefinedStructureStatus::UDSS_Error:
-			return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Error");
+			return FAppStyle::Get().GetBrush("Blueprint.CompileStatus.Overlay.Error");
 		case EUserDefinedStructureStatus::UDSS_UpToDate:
-			return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Good");
+			return FAppStyle::Get().GetBrush("Blueprint.CompileStatus.Overlay.Good");
 		default:
-			return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Unknown");
+			return FAppStyle::Get().GetBrush("Blueprint.CompileStatus.Overlay.Unknown");
 		}
 	}
 	return nullptr;
@@ -640,12 +640,12 @@ public:
 		if (IsValidTarget)
 		{
 			CurrentHoverText = FText::Format(LOCTEXT("MoveVariableHere", "Move '{StructVariableName}' Here"), Args);
-			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.OK");
+			CurrentIconBrush = FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.OK");
 		}
 		else
 		{
 			CurrentHoverText = FText::Format(LOCTEXT("CannotMoveVariableHere", "Cannot Move '{StructVariableName}' Here"), Args);
-			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.Error");
+			CurrentIconBrush = FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error");
 		}
 	}
 
@@ -1036,7 +1036,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(ErrorIcon, SImage)
-				.Image( FEditorStyle::GetBrush("Icons.Error") )
+				.Image(FAppStyle::Get().GetBrush("Icons.Error") )
 				.ToolTipText(LOCTEXT("MemberVariableErrorToolTip", "Member variable is invalid"))
 			]
 

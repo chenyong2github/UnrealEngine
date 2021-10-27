@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Compression/CompressedBuffer.h"
 #include "IO/IoContainerId.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinarySerialization.h"
+#include "Memory/MemoryView.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -14,17 +16,74 @@ class FInternetAddr;
 class FIoChunkId;
 class FSocket;
 class FStorageServerConnection;
+class FIoBuffer;
+
+enum class EStorageServerContentType : uint8
+{
+	Unknown = 0,
+	CbObject,
+	Binary,
+	CompressedBinary,
+};
+
+inline FAnsiStringView GetMimeTypeString(EStorageServerContentType ContentType)
+{
+	switch (ContentType)
+	{
+		case EStorageServerContentType::CbObject:
+			return "application/ue-x-cb"_ASV;
+		case EStorageServerContentType::Binary:
+			return "application/octet-stream"_ASV;
+		case EStorageServerContentType::CompressedBinary:
+			return "application/x-ue-comp"_ASV;
+		default:
+			return "unknown"_ASV;
+	};
+};
+
+inline EStorageServerContentType GetMimeType(const FAnsiStringView& ContentType)
+{
+	if (ContentType == "application/octet-stream"_ASV)
+	{
+		return EStorageServerContentType::Binary;
+	}
+	else if (ContentType == "application/x-ue-comp"_ASV)
+	{
+		return EStorageServerContentType::CompressedBinary;
+	}
+	else if (ContentType == "application/x-ue-cb"_ASV)
+	{
+		return EStorageServerContentType::CbObject;
+	}
+	else
+	{
+		return EStorageServerContentType::Unknown;
+	}
+};
+
+struct FStorageServerSerializationContext
+{
+	TArray<uint8> CompressedBuffer;
+	FCompressedBufferDecoder Decoder;
+};
 
 class FStorageServerRequest
 	: public FArchive
 {
+	EStorageServerContentType AcceptContentType() const;
 protected:
 	friend class FStorageServerConnection;
 
-	FStorageServerRequest(FAnsiStringView Verb, FAnsiStringView Resource, FAnsiStringView Hostname);
+	FStorageServerRequest(
+		FAnsiStringView Verb,
+		FAnsiStringView Resource,
+		FAnsiStringView Hostname,
+		EStorageServerContentType Accept = EStorageServerContentType::Binary);
+
 	FSocket* Send(FStorageServerConnection& Owner);
 	virtual void Serialize(void* V, int64 Length) override;
 
+	EStorageServerContentType AcceptType;
 	TAnsiStringBuilder<512> HeaderBuffer;
 	TArray<uint8, TInlineAllocator<1024>> BodyBuffer;
 };
@@ -68,6 +127,16 @@ public:
 
 	void Serialize(void* V, int64 Length) override;
 
+	int64 SerializeChunk(FStorageServerSerializationContext& Context, FIoBuffer& OutChunk, void* TargetVa = nullptr, uint64 RawOffset = 0, uint64 RawSize = MAX_uint64);
+	
+	inline int64 SerializeChunk(FIoBuffer& OutChunk, void* TargetVa = nullptr, uint64 RawOffset = 0, uint64 RawSize = MAX_uint64)
+	{
+		FStorageServerSerializationContext SerializationContext;
+		return SerializeChunk(SerializationContext, OutChunk, TargetVa, RawOffset, RawSize);
+	}
+
+	int64 SerializeChunkTo(FMutableMemoryView Memory, uint64 RawOffset = 0);
+
 	FCbObject GetResponseObject()
 	{
 		FCbField Payload = LoadCompactBinary(*this);
@@ -88,6 +157,7 @@ private:
 	int32 ErrorCode;
 	FString ErrorMessage;
 	bool bIsOk = false;
+	EStorageServerContentType ContentType = EStorageServerContentType::Unknown;
 };
 
 class FStorageServerChunkBatchRequest
@@ -127,7 +197,8 @@ private:
 	friend class FStorageServerChunkBatchRequest;
 
 	int32 HandshakeRequest(TArrayView<const TSharedPtr<FInternetAddr>> HostAddresses);
-	FSocket* AcquireSocket();
+	FSocket* AcquireSocketFromPool();
+	FSocket* AcquireNewSocket();
 	void ReleaseSocket(FSocket* Socket, bool bKeepAlive);
 
 	ISocketSubsystem& SocketSubsystem;

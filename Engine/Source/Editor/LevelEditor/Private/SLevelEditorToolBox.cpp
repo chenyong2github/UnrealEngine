@@ -24,22 +24,36 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include <Misc/Attribute.h>
+#include "Misc/Attribute.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
+
+void ULevelEditorUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditorModule.OnRegisterLayoutExtensions().AddUObject(this, &ULevelEditorUISubsystem::RegisterLayoutExtensions);
+}
+
+void ULevelEditorUISubsystem::Deinitialize()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditorModule.OnRegisterLayoutExtensions().RemoveAll(this);
+}
+
+void ULevelEditorUISubsystem::RegisterLayoutExtensions(FLayoutExtender& Extender)
+{
+	Extender.ExtendLayout(LevelEditorTabIds::PlacementBrowser, ELayoutExtensionPosition::Before, FTabManager::FTab(UAssetEditorUISubsystem::TopLeftTabID, ETabState::ClosedTab));
+	Extender.ExtendStack("BottomLeftPanel", ELayoutExtensionPosition::Before, FTabManager::FTab(UAssetEditorUISubsystem::BottomLeftTabID, ETabState::ClosedTab));
+	Extender.ExtendStack("VerticalToolbar", ELayoutExtensionPosition::Before, FTabManager::FTab(UAssetEditorUISubsystem::VerticalToolbarID, ETabState::ClosedTab));
+	Extender.ExtendLayout(LevelEditorTabIds::LevelEditorSceneOutliner, ELayoutExtensionPosition::Before, FTabManager::FTab(UAssetEditorUISubsystem::TopRightTabID, ETabState::ClosedTab));
+	Extender.ExtendLayout(LevelEditorTabIds::LevelEditorSelectionDetails, ELayoutExtensionPosition::Before, FTabManager::FTab(UAssetEditorUISubsystem::BottomRightTabID, ETabState::ClosedTab));
+}
+
 
 FLevelEditorModeUILayer::FLevelEditorModeUILayer(const IToolkitHost* InToolkitHost)
 	: FAssetEditorModeUILayer(InToolkitHost)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.OnRegisterLayoutExtensions().AddRaw(this, &FLevelEditorModeUILayer::RegisterLayoutExtensions);
-}
-
-
-FLevelEditorModeUILayer::~FLevelEditorModeUILayer()
-{
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.OnRegisterLayoutExtensions().RemoveAll(this);
+	
 }
 
 void FLevelEditorModeUILayer::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
@@ -66,14 +80,7 @@ void FLevelEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit
 
 
 
-void FLevelEditorModeUILayer::RegisterLayoutExtensions(FLayoutExtender& Extender)
-{
-	Extender.ExtendLayout(LevelEditorTabIds::PlacementBrowser, ELayoutExtensionPosition::Before, FTabManager::FTab(TopLeftTabID, ETabState::ClosedTab));
-	Extender.ExtendStack("BottomLeftPanel", ELayoutExtensionPosition::Before, FTabManager::FTab(BottomLeftTabID, ETabState::ClosedTab));
-	Extender.ExtendStack("VerticalToolbar", ELayoutExtensionPosition::Before, FTabManager::FTab(VerticalToolbarID, ETabState::ClosedTab));
-	Extender.ExtendLayout(LevelEditorTabIds::LevelEditorSceneOutliner, ELayoutExtensionPosition::Before, FTabManager::FTab(TopRightTabID, ETabState::ClosedTab));
-	Extender.ExtendLayout(LevelEditorTabIds::LevelEditorSelectionDetails, ELayoutExtensionPosition::Before, FTabManager::FTab(BottomRightTabID, ETabState::ClosedTab));
-}
+
 
 
 

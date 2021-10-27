@@ -2873,6 +2873,15 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
+	// Validate if we are using editor only data in a class or struct definition
+	if ((Flags & CPF_EditorOnly) != 0)
+	{
+		if (OwnerClassDef && OwnerClassDef->HasAnyClassFlags(CLASS_Optional))
+		{
+			LogError(TEXT("Cannot specify an editor only property inside an optional class."));
+		}
+	}
+
 	// Store the start and end positions of the parsed type
 	if (ParsedVarIndexRange)
 	{

@@ -10,7 +10,7 @@
 #include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -245,13 +245,13 @@ int32 FTagTrace::AnnounceCustomTag(int32 Tag, int32 ParentTag, const ANSICHAR* D
 	return Tag;
 }
 
-#endif //USE_MEMORY_TRACE_TAGS
+#endif //UE_MEMORY_TAGS_TRACE_ENABLED
 
 
 ////////////////////////////////////////////////////////////////////////////////
 void MemoryTrace_InitTags(FMalloc* InMalloc)
 {
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	GTagTrace = (FTagTrace*)InMalloc->Malloc(sizeof(FTagTrace), alignof(FTagTrace));
 	new (GTagTrace) FTagTrace(InMalloc);
 #endif
@@ -260,7 +260,7 @@ void MemoryTrace_InitTags(FMalloc* InMalloc)
 ////////////////////////////////////////////////////////////////////////////////
 int32 MemoryTrace_AnnounceCustomTag(int32 Tag, int32 ParentTag, const TCHAR* Display)
 {
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	//todo: How do we check if tag trace is active?
 	if (GTagTrace)
 	{
@@ -273,7 +273,7 @@ int32 MemoryTrace_AnnounceCustomTag(int32 Tag, int32 ParentTag, const TCHAR* Dis
 ////////////////////////////////////////////////////////////////////////////////
 int32 MemoryTrace_AnnounceFNameTag(const FName& TagName)
 {
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	if (GTagTrace)
 	{
 		return GTagTrace->AnnounceFNameTag(TagName);
@@ -285,7 +285,7 @@ int32 MemoryTrace_AnnounceFNameTag(const FName& TagName)
 ////////////////////////////////////////////////////////////////////////////////
 int32 MemoryTrace_GetActiveTag()
 {
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 	return GActiveTag;
 #else
 	return -1;

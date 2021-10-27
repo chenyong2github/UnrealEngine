@@ -74,8 +74,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
 	void ClearWidgets();
 
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
+	void SetTransitionDuration(float Duration);
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidgetContainer)
+	float GetTransitionDuration() const;
+
 	DECLARE_EVENT_OneParam(UCommonActivatableWidgetContainerBase, FOnDisplayedWidgetChanged, UCommonActivatableWidget*);
 	FOnDisplayedWidgetChanged& OnDisplayedWidgetChanged() const { return OnDisplayedWidgetChangedEvent; }
+
+	DECLARE_EVENT_TwoParams(UCommonActivatableWidgetContainerBase, FTransitioningChanged, UCommonActivatableWidgetContainerBase* /*Widget*/, bool /*bIsTransitioning*/);
+	FTransitioningChanged OnTransitioningChanged;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

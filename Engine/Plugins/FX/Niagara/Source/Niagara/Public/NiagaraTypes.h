@@ -1399,6 +1399,8 @@ struct FNiagaraVariableBase
 		return Name;
 	}
 
+	void SetNamespacedName(const FString& InNamespace, FName InVariableName);
+
 	void SetType(const FNiagaraTypeDefinition& InTypeDef)
 	{
 		TypeDefHandle = FNiagaraTypeDefinitionHandle(InTypeDef);
@@ -1426,15 +1428,24 @@ struct FNiagaraVariableBase
 		return Name != NAME_None && TypeDefHandle->IsValid();
 	}
 
-	FORCEINLINE bool IsInNameSpace(FString Namespace) const
+	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
 	{
-		return Name.ToString().StartsWith(Namespace + TEXT("."));
+		TStringBuilder<128> NameString;
+		Name.ToString(NameString);
+		
+		FStringView NameStringView = NameString.ToView();
+		return (NameStringView.Len() > Namespace.Len() + 1) && (NameStringView[Namespace.Len()] == '.') && NameStringView.StartsWith(Namespace);
 	}
 
+#if WITH_EDITORONLY_DATA
+	// This method should not be used at runtime as we have pre-defined strings in FNiagaraConstants for runtime cases
 	FORCEINLINE bool IsInNameSpace(const FName& Namespace) const
 	{
-		return Name.ToString().StartsWith(Namespace.ToString() + TEXT("."));
+		TStringBuilder<128> NamespaceString;
+		Namespace.ToString(NamespaceString);
+		return IsInNameSpace(NamespaceString.ToView());
 	}
+#endif
 
 	bool Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA

@@ -1858,7 +1858,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 		// Handle renaming any renderer properties that might match.
 		if (bSuccess)
 		{
-			if (Parameter.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) || Parameter.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+			if (Parameter.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString) || Parameter.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 			{
 				FGraphPanelSelectionSet Objs = SelectedScriptObjects->GetSelectedObjects();
 				for (UObject* SelectedObj : Objs)

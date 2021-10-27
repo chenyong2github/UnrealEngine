@@ -14,7 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigSolverStack"
 
@@ -230,7 +230,7 @@ void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEdi
                     .FillWidth(1.f)
                     .Padding(3.0f, 1.0f)
                     [
-	                    SNew(SEditorHeaderButton)
+	                    SNew(SPositiveActionButton)
 				        .Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				        .Text(LOCTEXT("AddNewSolverLabel", "Add New Solver"))
 				        .ToolTipText(LOCTEXT("AddNewToolTip", "Add a new IK solver to the rig."))

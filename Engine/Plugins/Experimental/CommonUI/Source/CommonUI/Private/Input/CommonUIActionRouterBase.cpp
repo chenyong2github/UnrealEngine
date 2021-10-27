@@ -1019,7 +1019,8 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 	if (bForceRefresh || NewConfig != ActiveInputConfig.GetValue())
 	{
 		UE_LOG(LogUIActionRouter, Display, TEXT("UIInputConfig being changed. bForceRefresh: %d"), bForceRefresh ? 1 : 0);
-		UE_LOG(LogUIActionRouter, Display, TEXT("\tInputMode: Previous (%d), New (%d)"), ActiveInputConfig.IsSet() ? (int32)ActiveInputConfig->GetInputMode() : -1, (int32)NewConfig.GetInputMode());
+		UE_LOG(LogUIActionRouter, Display, TEXT("\tInputMode: Previous (%s), New (%s)"),
+			ActiveInputConfig.IsSet() ? *StaticEnum<ECommonInputMode>()->GetValueAsString(ActiveInputConfig->GetInputMode()) : TEXT("None"), *StaticEnum<ECommonInputMode>()->GetValueAsString(NewConfig.GetInputMode()));
 
 		const ECommonInputMode PreviousInputMode = GetActiveInputMode();
 
@@ -1068,16 +1069,37 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 						SlateOperations.ReleaseMouseCapture();
 
 						// If the mouse was captured previously, set it back to the center of the viewport now that we're showing it again 
-						// (don't bother on touch, when refreshing an input config, or when we're setting up the initial config - the cursor isn't really relevant there)
-						if (!bForceRefresh && bWasPermanentlyCaptured && GetInputSubsystem().GetCurrentInputType() != ECommonInputType::Touch)
+						if (!bForceRefresh && bWasPermanentlyCaptured)
 						{
-							TSharedPtr<FSlateUser> SlateUser = LocalPlayer.GetSlateUser();
-							TSharedPtr<IGameLayerManager> GameLayerManager = GameViewportClient->GetGameLayerManager();
-							if (ensure(SlateUser) && ensure(GameLayerManager))
+							const ECommonInputType CurrentInputType = GetInputSubsystem().GetCurrentInputType();
+							
+							bool bCenterCursor = true;
+							switch (CurrentInputType)
 							{
-								FGeometry PlayerViewGeometry = GameLayerManager->GetPlayerWidgetHostGeometry(&LocalPlayer);
-								const FVector2D AbsoluteViewCenter = PlayerViewGeometry.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
-								SlateUser->SetCursorPosition(AbsoluteViewCenter);
+								// Touch - Don't do it - the cursor isn't really relevant there.
+								case ECommonInputType::Touch:
+									bCenterCursor = false;
+									break;
+								// Gamepad - Let the settings tell us if we should center it.
+								case ECommonInputType::Gamepad:
+									//TODO - Consider doing something here so that the gamepad isn't moved when the gamepad's
+									// hovering is really based on what has focus right now when not in analog mode, but we
+									// don't have a good way to know that here, other than to maybe expose a setting.
+									break;
+							}
+
+							if (bCenterCursor)
+							{
+								TSharedPtr<FSlateUser> SlateUser = LocalPlayer.GetSlateUser();
+								TSharedPtr<IGameLayerManager> GameLayerManager = GameViewportClient->GetGameLayerManager();
+								if (ensure(SlateUser) && ensure(GameLayerManager))
+								{
+									FGeometry PlayerViewGeometry = GameLayerManager->GetPlayerWidgetHostGeometry(&LocalPlayer);
+									const FVector2D AbsoluteViewCenter = PlayerViewGeometry.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
+									SlateUser->SetCursorPosition(AbsoluteViewCenter);
+
+									UE_LOG(LogUIActionRouter, Verbose, TEXT("Capturing the cursor at the viewport center."));
+								}
 							}
 						}
 					}

@@ -117,11 +117,11 @@ struct AIMODULE_API FRecastAStarSearchNode : public FGraphAStarDefaultNode<FReca
 {
 	typedef FGraphAStarDefaultNode<FRecastGraphWrapper> Super;
 
-	FORCEINLINE FRecastAStarSearchNode(const dtPolyRef InNodeRef = INVALID_NAVNODEREF, FVector InPosition = FVector(FLT_MAX, FLT_MAX, FLT_MAX) )
+	FORCEINLINE FRecastAStarSearchNode(const dtPolyRef InNodeRef = INVALID_NAVNODEREF, FVector InPosition = FVector(TNumericLimits<FVector::FReal>::Max(), TNumericLimits<FVector::FReal>::Max(), TNumericLimits<FVector::FReal>::Max()) )
 		: Super(InNodeRef)
 		, Tile{ nullptr }
 		, Poly{ nullptr }
-		, Position { (float)InPosition[0], (float)InPosition[1], (float)InPosition[2] }
+		, Position { InPosition[0], InPosition[1], InPosition[2] }
 	{}
 
 	FRecastAStarSearchNode(const FRecastAStarSearchNode& Other) = default;
@@ -129,7 +129,7 @@ struct AIMODULE_API FRecastAStarSearchNode : public FGraphAStarDefaultNode<FReca
 
 	mutable const dtMeshTile* Tile;
 	mutable const dtPoly* Poly;
-	mutable float Position[3]; // Position in Recast World coordinate system
+	mutable FVector::FReal Position[3]; // Position in Recast World coordinate system
 
 	FORCEINLINE operator dtPolyRef() const
 	{
@@ -143,7 +143,7 @@ struct AIMODULE_API FRecastAStarSearchNode : public FGraphAStarDefaultNode<FReca
 
 	FORCEINLINE bool HasValidCacheInfo() const
 	{
-		return Tile != nullptr && Poly != nullptr && Position[0] != FLT_MAX && Position[1] != FLT_MAX && Position[2] != FLT_MAX;
+		return Tile != nullptr && Poly != nullptr && Position[0] != TNumericLimits<FVector::FReal>::Max() && Position[1] != TNumericLimits<FVector::FReal>::Max() && Position[2] != TNumericLimits<FVector::FReal>::Max();
 	}
 
 	FORCEINLINE void CacheInfo(const FRecastGraphWrapper& RecastGraphWrapper, const FRecastAStarSearchNode& FromNode) const
@@ -175,23 +175,31 @@ struct AIMODULE_API FRecastGraphAStarFilter
 	}
 	FORCEINLINE float GetHeuristicScale() const
 	{ 
-		return Filter.getHeuristicScale();
+		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
+		return UE_REAL_TO_FLOAT(Filter.getHeuristicScale());
 	}
 
 	FORCEINLINE float GetHeuristicCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
 	{
 		check(EndNode.HasValidCacheInfo());
-		return dtVdist(StartNode.Position, EndNode.Position);
+
+		const FVector::FReal Cost = dtVdist(StartNode.Position, EndNode.Position);
+
+		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
+		return UE_REAL_TO_FLOAT_CLAMPED_MAX(Cost);
 	}
 
 	FORCEINLINE float GetTraversalCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
 	{
 		EndNode.CacheInfo(RecastGraphWrapper, StartNode);
-		return Filter.getCost(
+		const FVector::FReal Cost = Filter.getCost(
 			StartNode.Position, EndNode.Position,
 			INVALID_NAVNODEREF, nullptr, nullptr,
 			StartNode.NodeRef, StartNode.Tile, StartNode.Poly,
 			EndNode.NodeRef, EndNode.Tile, EndNode.Poly);
+
+		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
+		return UE_REAL_TO_FLOAT_CLAMPED_MAX(Cost);
 	}
 
 	FORCEINLINE bool IsTraversalAllowed(const dtPolyRef& NodeA, const FRecastNeighbour& NodeB) const

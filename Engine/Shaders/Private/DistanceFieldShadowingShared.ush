@@ -4,19 +4,27 @@
 	DistanceFieldShadowingShared.usf
 =============================================================================*/
 
+#ifndef COMPACT_CULLED_SHADOW_OBJECTS
+#define COMPACT_CULLED_SHADOW_OBJECTS 1
+#endif
+
 Buffer<uint> ShadowTileNumCulledObjects;
 Buffer<uint> ShadowTileStartOffsets;
 
 Buffer<uint> ShadowTileArrayData;
 uint2 ShadowTileListGroupSize;
-uint ShadowAverageObjectsPerTile;
+uint ShadowMaxObjectsPerTile;
 
 uint2 GetShadowTileHead(uint2 TileCoordinate)
 {
 	uint TileIndex = TileCoordinate.y * ShadowTileListGroupSize.x + TileCoordinate.x;
 
 	return uint2(
-		ShadowTileStartOffsets[TileIndex], 
+#if COMPACT_CULLED_SHADOW_OBJECTS
+		ShadowTileStartOffsets[TileIndex],
+#else
+		TileIndex * ShadowMaxObjectsPerTile,
+#endif
 		ShadowTileNumCulledObjects[TileIndex]); 
 }
 

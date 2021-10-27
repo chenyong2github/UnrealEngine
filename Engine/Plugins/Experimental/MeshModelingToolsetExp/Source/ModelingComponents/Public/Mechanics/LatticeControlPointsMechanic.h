@@ -107,6 +107,8 @@ public:
 
 	void UpdateDrawables();
 
+	void UpdatePointLocations(const TMap<int32, FVector3d>& NewLocations);
+
 protected:
 
 	TArray<FVector3d> ControlPoints;
@@ -192,7 +194,6 @@ protected:
 	void SelectPoint(int32 PointID);
 	bool DeselectPoint(int32 PointID);
 	void UpdateGizmoLocation();
-	void UpdatePointLocations(const TMap<int32, FVector3d>& NewLocations);
 
 	void RebuildDrawables();
 

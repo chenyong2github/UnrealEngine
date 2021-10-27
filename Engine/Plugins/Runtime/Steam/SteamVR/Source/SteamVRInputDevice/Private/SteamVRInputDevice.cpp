@@ -4296,7 +4296,7 @@ void FSteamVRInputDevice::SanitizeActions()
 	if (DuplicateActions.Num() > 0)
 	{
 		InputSettings->SaveKeyMappings();
-		InputSettings->UpdateDefaultConfigFile();
+		InputSettings->TryUpdateDefaultConfigFile();
 		DuplicateActions.Empty();
 	}
 }

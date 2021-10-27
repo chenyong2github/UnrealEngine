@@ -161,6 +161,12 @@ public:
 	UEnum* SomeFunc() const;
 };
 
+UCLASS(Optional)
+class UOptionalObject : public UObject
+{
+	GENERATED_BODY()
+};
+
 UCLASS()
 class UDocumentedBaseObject : public UObject
 {

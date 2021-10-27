@@ -17,7 +17,7 @@
 /**
  * Implements the visual style of the template sequence editor.
  */
-class FTemplateSequenceEditorStyle : public FSlateStyleSet
+class FTemplateSequenceEditorStyle final : public FSlateStyleSet
 {
 public:
 	

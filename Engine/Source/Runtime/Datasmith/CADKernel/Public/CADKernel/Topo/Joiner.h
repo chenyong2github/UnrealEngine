@@ -102,7 +102,7 @@ namespace CADKernel
 		 * Split the edge to split except if one side is too small (JoiningTolerance). In this case (too small), the EdgeToSplit is not split but linked to EdgeToLink. 
 		 * @return the created vertex or TSharedPtr<FTopologicalVertex>()
 		 */
-		TSharedPtr<FTopologicalVertex> SplitAndLink(TSharedRef<FTopologicalVertex>& StartVertex, TSharedPtr<FTopologicalEdge>& EdgeToLink, TSharedPtr<FTopologicalEdge>& EdgeToSplit);
+		TSharedPtr<FTopologicalVertex> SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit);
 
 		/**
 		 * For each loop of each surface, check if successive edges are unconnected and if their common vertices are connected only to them. 

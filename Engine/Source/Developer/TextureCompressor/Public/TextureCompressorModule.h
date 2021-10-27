@@ -100,6 +100,18 @@ struct FTextureBuildSettings
 	uint32 bSRGB : 1;
 	/** Advanced source encoding of the image. */
 	uint8 SourceEncodingOverride;
+	/** Whether the texture has a defined source color space. */
+	bool bHasColorSpaceDefinition;
+	/** Red chromaticity coordinate of the source color space. */
+	FVector2D RedChromaticityCoordinate;
+	/** Green chromaticity coordinate of the source color space. */
+	FVector2D GreenChromaticityCoordinate;
+	/** Blue chromaticity coordinate of the source color space. */
+	FVector2D BlueChromaticityCoordinate;
+	/** White chromaticity coordinate of the source color space. */
+	FVector2D WhiteChromaticityCoordinate;
+	/** Chromatic adaption method applied if the source white point differs from the working color space white point. */
+	uint8 ChromaticAdaptationMethod;
 	/** Whether the texture should use the legacy gamma space for converting to sRGB */
 	uint32 bUseLegacyGamma : 1;
 	/** Whether the border of the image should be maintained during mipmap generation. */
@@ -211,6 +223,12 @@ struct FTextureBuildSettings
 		, bLongLatSource(false)
 		, bSRGB(false)
 		, SourceEncodingOverride(0 /*UE::Color::EEncoding::None*/)
+		, bHasColorSpaceDefinition(false)
+		, RedChromaticityCoordinate(0, 0)
+		, GreenChromaticityCoordinate(0, 0)
+		, BlueChromaticityCoordinate(0, 0)
+		, WhiteChromaticityCoordinate(0, 0)
+		, ChromaticAdaptationMethod(1 /*UE::Color::EChromaticAdaptationMethod::Bradford*/)
 		, bUseLegacyGamma(false)
 		, bPreserveBorder(false)
 		, bForceNoAlphaChannel(false)

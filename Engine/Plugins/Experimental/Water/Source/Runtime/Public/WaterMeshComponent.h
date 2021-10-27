@@ -56,6 +56,12 @@ public:
 
 	float GetLODScale() const { return LODScale + LODScaleBiasScalability; }
 
+	void SetExtentInTiles(FIntPoint NewExtentInTiles);
+	FIntPoint GetExtentInTiles() const { return ExtentInTiles; }
+
+	void SetTileSize(float NewTileSize);
+	float GetTileSize() const { return TileSize; }
+
 	/** At above what density level a tile is allowed to force collapse even if not all leaf nodes in the subtree are present.
 	 *	Collapsing will not occus if any child node in the subtree has different materials.
 	 *	Setting this to -1 means no collapsing is allowed and the water mesh will always keep it's silhouette at any distance.
@@ -64,14 +70,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "-1"))
 	int32 ForceCollapseDensityLevel = -1;
-
-	/** World size of the water tiles at LOD0. Multiply this with the ExtentInTiles to get the world extents of the system */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "100"))
-	float TileSize = 2400.0f;
-
-	/** The extent of the system in number of tiles. Maximum number of tiles for this system will be ExtentInTiles.X*2*ExtentInTiles.Y*2 */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1"))
-	FIntPoint ExtentInTiles = FIntPoint(64, 64);
 
 	UPROPERTY(EditAnywhere, Category = "Mesh|FarDistance")
 	UMaterialInterface* FarDistanceMaterial = nullptr;
@@ -83,8 +81,6 @@ public:
 	bool IsEnabled() const { return bIsEnabled; }
 
 	// HACK [jonathan.bard] (start) : This is to make sure that the RTWorldLocation / RTWorldSizeVector MPC params can be serialized and set at runtime on the Water MPC.
-	//  It used to be handled by AWaterBrushManager, which is not available on client builds. 
-	//  This should be handled 1) not through a MPC and 2) not through a landscape-specific tool-only thing such as AWaterBrushManager : 
 	void SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
@@ -102,8 +98,13 @@ private:
 	/** Based on all water bodies in the scene, rebuild the water mesh */
 	void RebuildWaterMesh(float InTileSize, const FIntPoint& InExtentInTiles);
 
-	// HACK [jonathan.bard] : see SetLandscapeInfo
-	void UpdateWaterMPC();
+	/** World size of the water tiles at LOD0. Multiply this with the ExtentInTiles to get the world extents of the system */
+	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "100", AllowPrivateAcces = "true"))
+	float TileSize = 2400.0f;
+
+	/** The extent of the system in number of tiles. Maximum number of tiles for this system will be ExtentInTiles.X*2*ExtentInTiles.Y*2 */
+	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1", AllowPrivateAcces = "true"))
+	FIntPoint ExtentInTiles = FIntPoint(64, 64);
 
 	/** Tiles containing water, stored in a quad tree */
 	FWaterQuadTree WaterQuadTree;

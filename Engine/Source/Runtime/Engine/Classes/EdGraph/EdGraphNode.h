@@ -616,6 +616,9 @@ public:
 	/** Find the pin on this node with the supplied guid and assert if it is not present */
 	UEdGraphPin* FindPinByIdChecked(const FGuid PinId) const;
 
+	/** Find a pin using a user-defined predicate */
+	UEdGraphPin* FindPinByPredicate(TFunctionRef<bool(UEdGraphPin* InPin)> InFunction) const;
+	
 	/** Find a pin on this node with the supplied name and remove it, returns TRUE if successful */
 	bool RemovePin(UEdGraphPin* Pin);
 

@@ -53,6 +53,7 @@
 #include "Internationalization/BreakIterator.h"
 #include "SSimpleButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "ProjectBrowser"
 
@@ -198,7 +199,32 @@ public:
 						SNew(SBorder)
 						.Padding(FMargin(ProjectBrowserDefs::ThumbnailPadding, 0))
 						.Padding(FMargin(3.0f, 3.0f))
-						.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground"))
+						.BorderImage_Lambda
+						(
+							[this]()
+							{
+								const bool bIsSelected = IsSelected();
+								const bool bIsRowHovered = IsHovered();
+
+								if (bIsSelected && bIsRowHovered)
+								{
+									static const FName SelectedHover("ProjectBrowser.ProjectTile.NameAreaSelectedHoverBackground");
+									return FAppStyle::Get().GetBrush(SelectedHover);
+								}
+								else if (bIsSelected)
+								{
+									static const FName Selected("ProjectBrowser.ProjectTile.NameAreaSelectedBackground");
+									return FAppStyle::Get().GetBrush(Selected);
+								}
+								else if (bIsRowHovered)
+								{
+									static const FName Hovered("ProjectBrowser.ProjectTile.NameAreaHoverBackground");
+									return FAppStyle::Get().GetBrush(Hovered);
+								}
+
+								return FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground");
+							}
+						)
 						[
 							SNew(SVerticalBox)
 							+SVerticalBox::Slot()
@@ -208,7 +234,21 @@ public:
 								.WrapTextAt(ProjectBrowserDefs::ProjectTileWidth - 4.0f)
 								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
 								.Text(ProjectItem->Name)
-								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+								.ColorAndOpacity_Lambda
+								(
+									[this]()
+									{
+										const bool bIsSelected = IsSelected();
+										const bool bIsRowHovered = IsHovered();
+
+										if (bIsSelected || bIsRowHovered)
+										{
+											return FStyleColors::White;
+										}
+
+										return FSlateColor::UseForeground();
+									}
+								)
 							]
 							+SVerticalBox::Slot()
 							.AutoHeight()
@@ -218,7 +258,21 @@ public:
 								SNew(STextBlock)
 								.Text(ProjectItem->GetEngineLabel())
 								.Font(FAppStyle::Get().GetFontStyle("ProjectBrowser.ProjectTile.Font"))
-								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White25"))
+								.ColorAndOpacity_Lambda
+								(
+									[this]()
+									{
+										const bool bIsSelected = IsSelected();
+										const bool bIsRowHovered = IsHovered();
+
+										if (bIsSelected || bIsRowHovered)
+										{
+											return FStyleColors::White;
+										}
+
+										return FSlateColor::UseSubduedForeground();
+									}
+								)
 							]
 						]
 					]

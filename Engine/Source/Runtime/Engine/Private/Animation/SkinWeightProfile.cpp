@@ -717,6 +717,8 @@ void FSkinWeightProfilesData::InitialiseProfileBuffer(const FName& ProfileName)
 			OverrideBuffer->SetMaxBoneInfluences(NumInfluences);
 			const bool bUse16BitBoneIndex = BaseBuffer->Use16BitBoneIndex();
 			OverrideBuffer->SetUse16BitBoneIndex(bUse16BitBoneIndex);
+			const bool bNeedsCPUAccess = BaseBuffer->GetNeedsCPUAccess();
+			OverrideBuffer->SetNeedsCPUAccess(bNeedsCPUAccess);
 			
 			const FRuntimeSkinWeightProfileData* ProfilePtr = OverrideData.Find(ProfileName);
 			if (ProfilePtr)

@@ -188,6 +188,12 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 	// bInMergeArrayTypes - Appends array(s) for specified type if true, else swaps the local value with that of the provided parameter if false.
 	void Merge(const FAudioParameter& InParameter, bool bInTakeName = true, bool bInTakeType = true, bool bInMergeArrayTypes = false);
 
+	// Moves InParams to OutParams that are not already included. For backward compatibility (i.e. SoundCues),
+	// if a param is already in OutParams, attempts to merge param values together, but assigns the param the
+	// incoming param's type. Currently existing OutParam values left if new value of the same type is provided
+	// by InParam.
+	static void Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioParameter>& OutParams);
+
 	FAudioParameter(FAudioParameter&& InParameter)
 		: ParamName(MoveTemp(InParameter.ParamName))
 		, FloatParam(MoveTemp(InParameter.FloatParam))
@@ -279,7 +285,7 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 	float FloatParam = 0.f;
 
 	// Boolean value of parameter
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Bool)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Bool"), Category = AudioParameter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Bool)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Boolean"), Category = AudioParameter)
 	bool BoolParam = false;
 
 	// Integer value of parameter. If set to 'Default Construct', value is number of array items to construct.

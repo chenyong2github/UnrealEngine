@@ -128,6 +128,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Development", meta=(BlueprintThreadSafe))
 	static FString GetEngineVersion();
 
+	// Build version, for displaying to end users in diagnostics.
+	UFUNCTION(BlueprintPure, Category="Development", meta=(BlueprintThreadSafe))
+	static FString GetBuildVersion();
+
+	// Build configuration, for displaying to end users in diagnostics.
+	UFUNCTION(BlueprintPure, Category = "Development", meta = (BlueprintThreadSafe))
+	static FString GetBuildConfiguration();
+
 	/** Get the name of the current game  */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(BlueprintThreadSafe))
 	static FString GetGameName();

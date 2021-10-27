@@ -3,6 +3,9 @@
 #include "GameplayDebuggerConfig.h"
 #include "GameplayDebugger.h"
 #include "GameplayDebuggerAddonManager.h"
+#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
+
 
 UGameplayDebuggerConfig::UGameplayDebuggerConfig(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -281,3 +284,16 @@ void UGameplayDebuggerConfig::PostEditChangeChainProperty(struct FPropertyChange
 	AddonManager.UpdateFromConfig();
 }
 #endif
+
+//----------------------------------------------------------------------//
+//  UGameplayDebuggerUserSettings
+//----------------------------------------------------------------------//
+void UGameplayDebuggerUserSettings::SetFontSize(const int32 InFontSize)
+{
+	UGameplayDebuggerUserSettings* Setting = GetMutableDefault<UGameplayDebuggerUserSettings>();
+	Setting->FontSize = FMath::Clamp(InFontSize, 1, 100);
+
+	const FString ConfigFileName = Setting->GetProjectUserConfigFilename();
+	GConfig->SetInt(TEXT("/Script/GameplayDebugger.GameplayDebuggerUserSettings"), TEXT("FontSize"), Setting->FontSize, *ConfigFileName);
+	GConfig->Flush(false);
+}

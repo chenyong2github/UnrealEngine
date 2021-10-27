@@ -24,16 +24,19 @@
 #include "Components/PrimitiveComponent.h"
 
 #include "Styling/SlateIconFinder.h"
+#include "Styling/StyleColors.h"
+#include "SourceCodeNavigation.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SComponentClassCombo.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "CreateBlueprintFromActorDialog.h"
 #include "ClassViewerFilter.h"
 #include "GameProjectGenerationModule.h"	// Adding new component classes
@@ -790,11 +793,20 @@ TSharedRef<SWidget> SSubobject_RowWidget::GenerateWidgetForColumn(const FName& C
 		+ SHorizontalBox::Slot()
 	        .HAlign(HAlign_Left)
 	        .VAlign(VAlign_Center)
+			.FillWidth(1.0f)
 	        .Padding(4.f, 0.f, 0.f, 0.f)
 	        [
 	            SNew(STextBlock)
 	            .Text(this, &SSubobject_RowWidget::GetObjectContextText)
 	            .ColorAndOpacity(FSlateColor::UseForeground())
+	        ]
+		+ SHorizontalBox::Slot()
+	        .HAlign(HAlign_Right)
+	        .VAlign(VAlign_Center)
+			.AutoWidth()
+	        .Padding(4.f, 0.f, 4.f, 0.f)
+	        [
+	            GetInheritedLinkWidget()
 	        ];
 				
 		return Contents;
@@ -1709,15 +1721,105 @@ FText SSubobject_RowWidget::GetActorMobilityText() const
 	return FText::GetEmpty();
 }
 
+TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
+{
+	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
+    const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
+
+	if(!Data)
+	{
+		return SNullWidget::NullWidget;
+	}	
+	
+	// Native components are inherited and have a gray hyperlink to their C++ class
+	if(Data->IsNativeComponent())
+	{
+		static const FText NativeCppLabel = LOCTEXT("NativeCppInheritedLabel", "Edit in C++");
+
+		return SNew(SHyperlink)
+			.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+			.OnNavigate(this, &SSubobject_RowWidget::OnEditNativeCppClicked)
+			.Text(NativeCppLabel)
+			.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()));	
+	}
+	// If the subobject is inherited and not native then it must be from a blueprint
+	else if(Data->IsInstancedInheritedComponent() || Data->IsBlueprintInheritedComponent())
+	{
+		const UBlueprint* BP = Data->GetBlueprint();
+		static const FText InheritedBPLabel = LOCTEXT("InheritedBpLabel", "Edit in Blueprint");
+		
+		return SNew(SHyperlink)
+			.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+			.OnNavigate(this, &SSubobject_RowWidget::OnEditBlueprintClicked)
+			.Text(InheritedBPLabel)
+			.ToolTipText(LOCTEXT("EditBlueprint_ToolTip", "Click to edit the blueprint"));
+	}
+
+	// Non-inherited subobjects shouldn't show anything! 
+	return SNullWidget::NullWidget;
+}
+
 FText SSubobject_RowWidget::GetObjectContextText() const
 {
 	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
     const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
-    if (Data)
+	
+	// We want to display (Self) or (Instance) only if the data is an actor
+    if (Data && Data->IsActor())
     {
 	   return Data->GetDisplayNameContextModifiers(GetDefault<UEditorStyleSettings>()->bShowNativeComponentNames);
     }
 	return FText::GetEmpty();
+}
+
+void SSubobject_RowWidget::OnEditBlueprintClicked()
+{
+	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
+    const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
+	if(!Data)
+	{
+		return;
+	}
+
+	// Bring focus to or open the blueprint asset
+	if(UBlueprint* Blueprint = Data->GetBlueprint())
+	{
+		if (Blueprint->UbergraphPages.Num() > 0)
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Blueprint->GetLastEditedUberGraph());
+		}
+		else
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+		}
+	}
+}
+
+void SSubobject_RowWidget::OnEditNativeCppClicked()
+{
+	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
+    const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
+	if(!Data)
+	{
+		return;
+	}
+
+	const FName VariableName = Data->GetVariableName();
+	const UClass* ParentClass = nullptr;
+	// If the property came from a blueprint then we can get it from generated class
+	if(UBlueprint* Blueprint = Data->GetBlueprint())
+	{
+		ParentClass = Blueprint ? Blueprint->SkeletonGeneratedClass : nullptr;
+	}
+	// Otherwise we have get the class from the outer and look for a property on it
+	else if(const FSubobjectData* ParentData = Data->GetRootSubobject().GetData())
+	{
+		const UObject* ParentObj = ParentData->GetObject();
+		ParentClass = ParentObj ? ParentObj->GetClass() : nullptr;
+	}
+	
+	const FProperty* VariableProperty = ParentClass ? FindFProperty<FProperty>(ParentClass, VariableName) : nullptr;
+	FSourceCodeNavigation::NavigateToProperty(VariableProperty);
 }
 
 FString SSubobject_RowWidget::GetDocumentationLink() const
@@ -2180,11 +2282,9 @@ void SSubobjectEditor::OnFindReferences()
 		{
 			const FString VariableName = Data->GetVariableName().ToString();
 
-			// Search for both an explicit variable reference (finds get/sets of exactly that var, without including related-sounding variables)
-			// and a softer search for (VariableName) to capture bound component/widget event nodes which wouldn't otherwise show up
-			//@TODO: This logic is duplicated in SMyBlueprint::OnFindReference(), keep in sync
-			const FString SearchTerm = FString::Printf(
-				TEXT("Nodes(VariableReference(MemberName=+\"%s\") || Name=\"(%s)\")"), *VariableName, *VariableName);
+			FMemberReference MemberReference;
+			MemberReference.SetSelfMember(*VariableName);
+			const FString SearchTerm = MemberReference.GetReferenceSearchString(GetBlueprint()->SkeletonGeneratedClass);
 
 			TSharedRef<IBlueprintEditor> BlueprintEditor = StaticCastSharedRef<IBlueprintEditor>(
 				FoundAssetEditor.ToSharedRef());
@@ -2199,6 +2299,11 @@ void SSubobjectEditor::SelectRoot()
 	{
 		TreeWidget->SetSelection(RootNodes[0]);
 	}
+}
+
+FSlateColor SSubobjectEditor::GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const
+{
+	return FSlateColor::UseForeground();
 }
 
 void SSubobjectEditor::SelectNodeFromHandle(const FSubobjectDataHandle& InHandle, bool bIsCntrlDown)
@@ -3395,6 +3500,25 @@ void SSubobjectEditor::Utils::PopulateHandlesArray(const TArray<FSubobjectEditor
     {
     	OutHandles.Add(DroppedNodePtr->GetDataHandle());
     }
+}
+
+TArray<UObject*> USubobjectEditorMenuContext::GetSelectedObjects() const
+{
+	TArray<UObject*> Result;
+	if (TSharedPtr<SSubobjectEditor> Pinned = SubobjectEditor.Pin())
+	{
+		TArray<FComponentEventConstructionData> SelectedItems;
+		Pinned->GetSelectedItemsForContextMenu(SelectedItems);
+		for (FComponentEventConstructionData& SelectedItemConstructionData : SelectedItems)
+		{
+			if (UObject* SelectedObject = SelectedItemConstructionData.Component.Get())
+			{
+				Result.Add(SelectedObject);
+			}
+		}
+	}
+
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE

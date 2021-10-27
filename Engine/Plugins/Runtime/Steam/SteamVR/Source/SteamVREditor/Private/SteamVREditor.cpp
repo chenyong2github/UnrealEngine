@@ -302,7 +302,7 @@ void FSteamVREditorModule::AddSampleInputs()
 
 	//	// Update the config file
 	//	InputSettings->SaveKeyMappings();
-	//	InputSettings->UpdateDefaultConfigFile();
+	//	InputSettings->TryUpdateDefaultConfigFile();
 	//}
 }
 

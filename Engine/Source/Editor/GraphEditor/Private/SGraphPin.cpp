@@ -313,9 +313,7 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 	);
 
 	TSharedPtr<IToolTip> TooltipWidget = SNew(SToolTip)
-		.Text(this, &SGraphPin::GetTooltipText)
-		.IsInteractive(this, &SGraphPin::IsTooltipInteractive)
-		.OnSetInteractiveWindowLocation(this, &SGraphPin::OnSetInteractiveTooltipLocation);
+		.Text(this, &SGraphPin::GetTooltipText);
 
 	SetToolTip(TooltipWidget);
 }
@@ -827,6 +825,23 @@ void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 {
 	CachedNodeOffset = AllottedGeometry.AbsolutePosition/AllottedGeometry.Scale - OwnerNodePtr.Pin()->GetUnscaledPosition();
 	CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
+
+	if (!ValueInspectorTooltip.IsValid() && IsHovered() && FKismetDebugUtilities::CanInspectPinValue(GetPinObj()))
+	{
+		ValueInspectorTooltip = FPinValueInspectorTooltip::SummonTooltip(GetPinObj());
+		TSharedPtr<FPinValueInspectorTooltip> ValueTooltip = ValueInspectorTooltip.Pin();
+
+		if (ensure(ValueTooltip.IsValid()))
+		{
+			FVector2D TooltipLocation;
+			GetInteractiveTooltipLocation(TooltipLocation);
+			ValueTooltip->MoveTooltip(TooltipLocation);
+		}
+	}
+	else if (ValueInspectorTooltip.IsValid() && ((!IsHovered()) || !FKismetDebugUtilities::CanInspectPinValue(GetPinObj())))
+	{
+		ValueInspectorTooltip.Pin()->TryDismissTooltip();
+	}
 }
 
 UEdGraphPin* SGraphPin::GetPinObj() const
@@ -1200,35 +1215,14 @@ void SGraphPin::SetOnlyShowDefaultValue(bool bNewOnlyShowDefaultValue)
 
 TSharedPtr<IToolTip> SGraphPin::GetToolTip()
 {
-	TSharedPtr<IToolTip> CurrentTooltip = SBorder::GetToolTip();
-	if (CurrentTooltip.IsValid())
+	// If we want the PinValueInspector tooltip, we'll create a custom tooltip window
+	const UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin && FKismetDebugUtilities::CanInspectPinValue(GraphPin))
 	{
-		const UEdGraphPin* GraphPin = GetPinObj();
-		if (GraphPin && FKismetDebugUtilities::CanInspectPinValue(GraphPin) && !ValueInspectorWidget.IsValid())
-		{
-			ValueInspectorWidget = SNew(SPinValueInspector, GraphPin);
-
-			CurrentTooltip->SetContentWidget(ValueInspectorWidget.ToSharedRef());
-		}
+		return nullptr;
 	}
 
-	return CurrentTooltip;
-}
-
-void SGraphPin::OnToolTipClosing()
-{
-	if (ValueInspectorWidget.IsValid())
-	{
-		TSharedPtr<IToolTip> CurrentTooltip = SBorder::GetToolTip();
-		if (CurrentTooltip.IsValid())
-		{
-			CurrentTooltip->ResetContentWidget();
-		}
-
-		ValueInspectorWidget.Reset();
-	}
-
-	SBorder::OnToolTipClosing();
+	return SBorder::GetToolTip();
 }
 
 FText SGraphPin::GetTooltipText() const
@@ -1255,12 +1249,7 @@ FText SGraphPin::GetTooltipText() const
 	return HoverText;
 }
 
-bool SGraphPin::IsTooltipInteractive() const
-{
-	return ValueInspectorWidget.IsValid();
-}
-
-void SGraphPin::OnSetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const
+void SGraphPin::GetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const
 {
 	TSharedPtr<SGraphNode> OwnerNode = OwnerNodePtr.Pin();
 	if (OwnerNode.IsValid())
@@ -1275,13 +1264,14 @@ void SGraphPin::OnSetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation)
 			InOutDesiredLocation.X += GetTickSpaceGeometry().Size.X;
 
 			// Align to the first entry in the inspector's tree view.
-			if (ValueInspectorWidget.IsValid())
+			TSharedPtr<FPinValueInspectorTooltip> Inspector = ValueInspectorTooltip.Pin();
+			if (Inspector.IsValid() && Inspector->ValueInspectorWidget.IsValid())
 			{
 				// @todo - Find a way to calculate these at runtime, e.g. based off of actual child widget geometry?
 				static const float VerticalOffsetWithSearchFilter = 41.0f;
 				static const float VerticalOffsetWithoutSearchFilter = 19.0f;
 
-				if (ValueInspectorWidget->ShouldShowSearchFilter())
+				if (Inspector->ValueInspectorWidget->ShouldShowSearchFilter())
 				{
 					InOutDesiredLocation.Y -= VerticalOffsetWithSearchFilter;
 				}
@@ -1342,6 +1332,11 @@ void SGraphPin::SetCustomPinIcon(const FSlateBrush* InConnectedBrush, const FSla
 {
 	Custom_Brush_Connected = InConnectedBrush;
 	Custom_Brush_Disconnected = InDisconnectedBrush;
+}
+
+bool SGraphPin::HasInteractiveTooltip() const
+{
+	return ValueInspectorTooltip.IsValid();
 }
 
 bool SGraphPin::GetIsConnectable() const

@@ -192,8 +192,8 @@ void FSlateMaskingVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, flo
 
 void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2D& TopLeft, const FVector2D& TopRight, const FVector2D& BotLeft, const FVector2D& BotRight)
 {
-	//FVector4 MaskRectVal[4] = { FVector4(TopLeft, FVector2D::ZeroVector), FVector4(TopRight, FVector2D::ZeroVector), FVector4(BotLeft, FVector2D::ZeroVector), FVector4(BotRight, FVector2D::ZeroVector) };
-	FVector4 MaskRectVal[2] = { FVector4(TopLeft, TopRight), FVector4(BotLeft, BotRight) };
+	//FVector4f MaskRectVal[4] = { FVector4f(TopLeft, FVector2D::ZeroVector), FVector4f(TopRight, FVector2D::ZeroVector), FVector4f(BotLeft, FVector2D::ZeroVector), FVector4f(BotRight, FVector2D::ZeroVector) };
+	FVector4f MaskRectVal[2] = { FVector4f(TopLeft, TopRight), FVector4f(BotLeft, BotRight) };
 
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), MaskRect, MaskRectVal);
 }

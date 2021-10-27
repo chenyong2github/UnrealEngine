@@ -49,7 +49,7 @@ FString FBase64::Encode(const uint8* Source, uint32 Length)
 	
 	FString OutBuffer;
 
-	TArray<TCHAR>& OutCharArray = OutBuffer.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& OutCharArray = OutBuffer.GetCharArray();
 	OutCharArray.SetNum(ExpectedLength + 1);
 	int64 EncodedLength = Encode(Source, Length, OutCharArray.GetData());
 	verify(EncodedLength == OutBuffer.Len());

@@ -48,6 +48,8 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
+#include "Audio/ActorSoundParameterInterface.h"
+
 #if WITH_ACCESSIBILITY
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
@@ -1528,7 +1530,10 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase
 
 		NewActiveSound.SetOwner(OwningActor);
 
-		AudioDevice->AddNewActiveSound(NewActiveSound);
+		TArray<FAudioParameter> Params;
+		UActorSoundParameterInterface::Fill(OwningActor, Params);
+
+		AudioDevice->AddNewActiveSound(NewActiveSound, &Params);
 	}
 }
 
@@ -1557,6 +1562,12 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 	UAudioComponent* AudioComponent = FAudioDevice::CreateComponent(Sound, Params);
 	if (AudioComponent)
 	{
+		TArray<FAudioParameter> ActorParams;
+		const AActor* ActorFromContext = Cast<AActor>(WorldContextObject);
+
+		UActorSoundParameterInterface::Fill(ActorFromContext, ActorParams);
+
+		AudioComponent->SetParameters(MoveTemp(ActorParams));
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 		AudioComponent->SetPitchMultiplier(PitchMultiplier);
 		AudioComponent->bAllowSpatialization = false;
@@ -1593,8 +1604,15 @@ void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, cl
 
 	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
-		const TArray<FAudioParameter>* Params = InitialParams ? &InitialParams->AudioParams : nullptr;
-		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, Params, OwningActor);
+		TArray<FAudioParameter> Params;
+		if (InitialParams)
+		{
+			Params.Append(MoveTemp(InitialParams->AudioParams));
+		}
+
+		UActorSoundParameterInterface::Fill(OwningActor, Params);
+
+		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, &Params, OwningActor);
 	}
 }
 
@@ -1626,6 +1644,11 @@ UAudioComponent* UGameplayStatics::SpawnSoundAtLocation(const UObject* WorldCont
 
 	if (AudioComponent)
 	{
+		TArray<FAudioParameter> ActorParams;
+		const AActor* ActorFromContext = Cast<AActor>(WorldContextObject);
+		UActorSoundParameterInterface::Fill(ActorFromContext, ActorParams);
+
+		AudioComponent->SetParameters(MoveTemp(ActorParams));
 		AudioComponent->SetWorldLocationAndRotation(Location, Rotation);
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 		AudioComponent->SetPitchMultiplier(PitchMultiplier);
@@ -1712,6 +1735,10 @@ UAudioComponent* UGameplayStatics::SpawnSoundAttached(USoundBase* Sound, USceneC
 				}
 			}
 
+			TArray<FAudioParameter> ActorParams;
+			UActorSoundParameterInterface::Fill(AttachToComponent->GetOwner(), ActorParams);
+
+			AudioComponent->SetParameters(MoveTemp(ActorParams));
 			AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 			AudioComponent->SetPitchMultiplier(PitchMultiplier);
 			AudioComponent->bAllowSpatialization = Params.ShouldUseAttenuation();

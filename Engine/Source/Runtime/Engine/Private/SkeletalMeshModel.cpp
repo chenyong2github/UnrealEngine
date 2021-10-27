@@ -117,7 +117,7 @@ void FSkeletalMeshModel::GenerateGUIDFromHash(USkeletalMesh* Owner)
 {
 	// Build the hash from the path name + the contents of the bulk data.
 	FSHA1 Sha;
-	TArray<TCHAR> OwnerName = Owner->GetPathName().GetCharArray();
+	TArray<TCHAR, FString::AllocatorType> OwnerName = Owner->GetPathName().GetCharArray();
 	Sha.Update((uint8*)OwnerName.GetData(), OwnerName.Num() * OwnerName.GetTypeSize());
 
 	TArray<uint8> TempBytes;
@@ -164,7 +164,7 @@ FString FSkeletalMeshModel::GetLODModelIdString() const
 	{
 		const FSkeletalMeshLODModel& Model = LODModels[LODIndex];
 		Model.BuildStringID = Model.GetLODModelDeriveDataKey();
-		TArray<TCHAR> IDArray = Model.BuildStringID.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType> IDArray = Model.BuildStringID.GetCharArray();
 		Sha.Update((uint8*)IDArray.GetData(), IDArray.Num() * IDArray.GetTypeSize());
 	}
 	Sha.Final();

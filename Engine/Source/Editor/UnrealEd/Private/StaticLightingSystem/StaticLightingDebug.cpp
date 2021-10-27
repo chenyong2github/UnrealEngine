@@ -39,7 +39,7 @@ static void WriteTexel(UTexture2D* Texture, int32 X, int32 Y, FColor NewColor)
 		{
 			// The runtime data needs to be fully cached in memory for this to work.
 			// These changes won't (and don't need to) persist.
-			if (Texture->PlatformData->TryInlineMipData(0, Texture))
+			if (Texture->PlatformData->TryInlineMipData(0, Texture->GetPathName()))
 			{
 				// Release the texture's resources and block until the rendering thread is done accessing it
 				Texture->ReleaseResource();

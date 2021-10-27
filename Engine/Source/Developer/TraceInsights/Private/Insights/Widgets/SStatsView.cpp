@@ -60,7 +60,11 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+		UI_COMMAND(Command_CopyToClipboard,
+			"Copy To Clipboard",
+			"Copies the selection (counters and their aggregated statistics) to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -142,10 +146,10 @@ void SStatsView::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search stats counters or groups"))
+					.HintText(LOCTEXT("SearchBoxHint", "Search counters or groups"))
 					.OnTextChanged(this, &SStatsView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &SStatsView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search stats counter or group."))
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search counter or group."))
 				]
 
 				// Filter by type (Int64)
@@ -178,7 +182,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.Padding(3.0f)
 					.OnCheckStateChanged(this, &SStatsView::FilterOutZeroCountStats_OnCheckStateChanged)
 					.IsChecked(this, &SStatsView::FilterOutZeroCountStats_IsChecked)
-					.ToolTipText(LOCTEXT("FilterOutZeroCountStats_Tooltip", "Filter out the stats counters having zero total instance count (aggregated stats)."))
+					.ToolTipText(LOCTEXT("FilterOutZeroCountStats_Tooltip", "Filter out the counters having zero total instance count (aggregated stats)."))
 					[
 						SNew(SImage)
 						.Image(FInsightsStyle::Get().GetBrush("ZeroCountFilter.Icon.Small"))
@@ -329,23 +333,13 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	const int32 NumSelectedNodes = SelectedNodes.Num();
 	FStatsNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const TSharedPtr<Insights::FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
-
 	FText SelectionStr;
-	FText PropertyName;
-	FText PropertyValue;
-
 	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
 	else if (NumSelectedNodes == 1)
 	{
-		if (HoveredColumnPtr != nullptr)
-		{
-			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
-		}
 		FString ItemName = SelectedNode->GetName().ToString();
 		const int32 MaxStringLen = 64;
 		if (ItemName.Len() > MaxStringLen)
@@ -356,7 +350,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	}
 	else
 	{
-		SelectionStr = LOCTEXT("MultipleSelection", "Multiple selection");
+		SelectionStr = FText::Format(LOCTEXT("MultipleSelection_Fmt", "{0} selected items"), FText::AsNumber(NumSelectedNodes));
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -379,7 +373,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			SelectionStr,
 			LOCTEXT("ContextMenu_Selection", "Currently selected items"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "@missing.icon"), DummyUIAction, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			DummyUIAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -394,7 +391,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			return TimingView.IsValid() && NumSelectedNodes == 1 && SelectedNode.IsValid() && SelectedNode->GetType() != EStatsNodeType::Group;
 		};
 
-		/* Add/remove series to/from graph track */
+		// Add/remove series to/from graph track
 		{
 			FUIAction Action_ToggleCounterInGraphTrack;
 			Action_ToggleCounterInGraphTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
@@ -408,7 +405,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack", "Remove series from graph track"),
 					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of this counter from the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleCounterInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					Action_ToggleCounterInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 			else
@@ -417,7 +417,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack", "Add series to graph track"),
 					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack_Desc", "Add a series containing event instances of this counter to the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleCounterInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					Action_ToggleCounterInGraphTrack,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 		}
@@ -434,7 +437,11 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			TAttribute<FText>(),
 			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
+	}
+	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("Sorting", LOCTEXT("ContextMenu_Header_Sorting", "Sorting"));
+	{
 		MenuBuilder.AddSubMenu
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
@@ -466,7 +473,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowAllColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_ShowMinMaxMedColumns
@@ -478,7 +488,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowMinMaxMedColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowMinMaxMedColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_ResetColumns
@@ -490,7 +503,10 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ResetColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -522,7 +538,10 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			(
 				Column.GetTitleName(),
 				Column.GetDescription(),
-				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(),
+				Action_SortByColumn,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 		}
 	}
@@ -543,7 +562,10 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			Action_SortAscending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 
 		FUIAction Action_SortDescending
@@ -556,7 +578,10 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			Action_SortDescending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection();
@@ -580,9 +605,12 @@ void SStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			Column.GetTitleName() ,
+			Column.GetTitleName(),
 			Column.GetDescription(),
-			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
+			FSlateIcon(),
+			Action_ToggleColumn,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
@@ -638,7 +666,10 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 
 			bIsMenuVisible = true;
@@ -659,7 +690,10 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				Action_SortAscending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			FUIAction Action_SortDescending
@@ -672,7 +706,10 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				Action_SortDescending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			bIsMenuVisible = true;
@@ -720,6 +757,10 @@ void SStatsView::InsightsManager_OnSessionChanged()
 
 void SStatsView::InsightsManager_OnSessionAnalysisCompleted()
 {
+	// Re-sync the list of counters to update the "<unknown>" counter names.
+	RebuildTree(true);
+
+	// Aggregate stats automatically for the entire session (but only if user didn't made a time selection yet).
 	if (Aggregator->IsEmptyTimeInterval() && !Aggregator->IsRunning())
 	{
 		TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
@@ -813,7 +854,7 @@ void SStatsView::ApplyFiltering()
 		}
 	}
 
-	// Only expand stats nodes if we have a text filter.
+	// Only expand tree nodes if we have a text filter.
 	const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
 	if (bNonEmptyTextFilter)
 	{
@@ -1303,9 +1344,9 @@ void SStatsView::CreateGroups()
 			if (!GroupPtr)
 			{
 				const FName GroupName =
-					(Order == 0) ? FName(TEXT("Count == 0")) :
-					(Order < MaxOrder) ? FName(FString::Printf(TEXT("Count: [%s .. %s)"), Orders[Order - 1], Orders[Order])) :
-					FName(FString::Printf(TEXT("Count >= %s"), Orders[MaxOrder - 1]));
+				    (Order == 0) ?          FName(TEXT("Count == 0")) :
+				    (Order < MaxOrder) ?    FName(FString::Printf(TEXT("Count: [%s .. %s)"), Orders[Order - 1], Orders[Order])) :
+				                            FName(FString::Printf(TEXT("Count >= %s"), Orders[MaxOrder - 1]));
 				GroupPtr = GroupNodeSet.Add(Order, MakeShared<FStatsNode>(GroupName));
 			}
 			GroupPtr->AddChildAndSetGroupPtr(NodePtr);

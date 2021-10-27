@@ -108,9 +108,12 @@ public:
 	static void ClearNodeSpawners();
 
 	/**
-	 * Clear out the promotion table and rebuild it, reassessing each available UFunction. 
+	 * Clear out the promotion table and rebuild it, reassessing each available UFunction.
+	 * 
+	 * @param Reason	The reason for refreshing the promotion tables, which can indicate
+	 *					whether or not it came from a Live Coding recompile.
 	 */
-	static void RefreshPromotionTables();
+	static void RefreshPromotionTables(EReloadCompleteReason Reason = EReloadCompleteReason::None);
 
 	/**
 	* Get the "Primitive Promotion Table" which represents what base Pin types 
@@ -167,6 +170,9 @@ private:
 
 	/** Delegate to handle that will be used to refresh the op table when a module has changed */
 	FDelegateHandle OnModulesChangedDelegateHandle;
+
+	/** Handle that will be used to refresh the top table when a Live coding reload has completed */
+	FDelegateHandle OnReloadCompleteDelegateHandle;
 
 	/** A map of 'Type' to its 'available promotions'. See ctor for creation */
 	TMap<FName, TArray<FName>> PromotionTable;

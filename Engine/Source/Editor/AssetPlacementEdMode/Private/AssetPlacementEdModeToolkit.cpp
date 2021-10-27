@@ -50,9 +50,9 @@ void FAssetPlacementEdModeToolkit::InvokeUI()
 	if (ModeUILayer.IsValid())
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		AssetPaletteTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomLeftTabID);
+		AssetPaletteTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomLeftTabID);
 
-		PaletteItemDetailsViewTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomRightTabID);
+		PaletteItemDetailsViewTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomRightTabID);
 	}
 }
 
@@ -66,13 +66,13 @@ void FAssetPlacementEdModeToolkit::RequestModeUITabs()
 		AssetPaletteInfo.TabLabel = LOCTEXT("AssetPaletteTab", "Palette");
 		AssetPaletteInfo.TabTooltip = LOCTEXT("AssetPaletteTabTooltipText", "Open the asset palette tab, which contains placement mode's palette settings.");
 		AssetPaletteInfo.TabIcon = GetEditorModeIcon();
-		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomLeftTabID, AssetPaletteInfo);
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::BottomLeftTabID, AssetPaletteInfo);
 
 		PaletteItemDetailsViewInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FAssetPlacementEdModeToolkit::CreatePaletteItemDetailsView);
 		PaletteItemDetailsViewInfo.TabLabel = LOCTEXT("PaletteItemDetailsTab", "Palette Details");
 		PaletteItemDetailsViewInfo.TabTooltip = LOCTEXT("PaletteItemDetailsTabTooltipText", "Open the asset palette details tab, which allows customization of individual items in the active palette.");
 		PaletteItemDetailsViewInfo.TabIcon = GetEditorModeIcon();
-		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomRightTabID, PaletteItemDetailsViewInfo);
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::BottomRightTabID, PaletteItemDetailsViewInfo);
 	}
 }
 

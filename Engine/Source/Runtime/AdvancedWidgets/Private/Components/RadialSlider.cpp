@@ -24,13 +24,18 @@ URadialSlider::URadialSlider(const FObjectInitializer& ObjectInitializer)
 	SliderHandleStartAngle = 60.0f;
 	SliderHandleEndAngle = 300.0f;
 	AngularOffset = 0.0f;
+	HandStartEndRatio = FVector2D(0.0f, 1.0f);
 	SliderBarColor = FLinearColor::Gray;
 	SliderProgressColor = FLinearColor::White;
 	SliderHandleColor = FLinearColor::White;
+	CenterBackgroundColor = FLinearColor::Transparent;
 	StepSize = 0.01f;
 	IsFocusable = true;
 	MouseUsesStep = false;
 	RequiresControllerLock = true;
+	UseVerticalDrag = false;
+	ShowSliderHandle = true;
+	ShowSliderHand = false;
 
 	if (DefaultSliderStyle == nullptr)
 	{
@@ -105,6 +110,7 @@ void URadialSlider::SynchronizeProperties()
 	MyRadialSlider->SetSliderBarColor(SliderBarColor);
 	MyRadialSlider->SetSliderProgressColor(SliderProgressColor);
 	MyRadialSlider->SetSliderHandleColor(SliderHandleColor);
+	MyRadialSlider->SetCenterBackgroundColor(CenterBackgroundColor);
 	MyRadialSlider->SetValue(ValueBinding);
 	MyRadialSlider->SetUseCustomDefaultValue(bUseCustomDefaultValue);
 	MyRadialSlider->SetCustomDefaultValue(CustomDefaultValue);
@@ -112,8 +118,12 @@ void URadialSlider::SynchronizeProperties()
 	MyRadialSlider->SetValueTags(ValueTags);
 	MyRadialSlider->SetSliderHandleStartAngleAndSliderHandleEndAngle(SliderHandleStartAngle, SliderHandleEndAngle);
 	MyRadialSlider->SetAngularOffset(AngularOffset);
+	MyRadialSlider->SetHandStartEndRatio(HandStartEndRatio);
 	MyRadialSlider->SetLocked(Locked);
 	MyRadialSlider->SetStepSize(StepSize);
+	MyRadialSlider->SetUseVerticalDrag(UseVerticalDrag);
+	MyRadialSlider->SetShowSliderHandle(ShowSliderHandle);
+	MyRadialSlider->SetShowSliderHand(ShowSliderHand);
 }
 
 void URadialSlider::ReleaseSlateResources(bool bReleaseChildren)
@@ -232,6 +242,16 @@ void URadialSlider::SetAngularOffset(float InValue)
 	}
 }
 
+void URadialSlider::SetHandStartEndRatio(FVector2D InValue)
+{
+	// value will be clamped by radial slider itself if necessary
+	HandStartEndRatio = InValue;
+	if (MyRadialSlider.IsValid())
+	{
+		MyRadialSlider->SetHandStartEndRatio(HandStartEndRatio);
+	}
+}
+
 void URadialSlider::SetValueTags(const TArray<float>& InValueTags)
 {
 	ValueTags = InValueTags;
@@ -259,12 +279,12 @@ void URadialSlider::SetStepSize(float InValue)
 	}
 }
 
-void URadialSlider::SetSliderHandleColor(FLinearColor InValue)
+void URadialSlider::SetCenterBackgroundColor(FLinearColor InValue)
 {
-	SliderHandleColor = InValue;
+	CenterBackgroundColor = InValue;
 	if (MyRadialSlider.IsValid())
 	{
-		MyRadialSlider->SetSliderHandleColor(InValue);
+		MyRadialSlider->SetCenterBackgroundColor(InValue);
 	}
 }
 
@@ -283,6 +303,42 @@ void URadialSlider::SetSliderProgressColor(FLinearColor InValue)
 	if (MyRadialSlider.IsValid())
 	{
 		MyRadialSlider->SetSliderProgressColor(InValue);
+	}
+}
+
+void URadialSlider::SetSliderHandleColor(FLinearColor InValue)
+{
+	SliderHandleColor = InValue;
+	if (MyRadialSlider.IsValid())
+	{
+		MyRadialSlider->SetSliderHandleColor(InValue);
+	}
+}
+
+void URadialSlider::SetUseVerticalDrag(bool InUseVerticalDrag)
+{
+	UseVerticalDrag = InUseVerticalDrag;
+	if (MyRadialSlider.IsValid())
+	{
+		MyRadialSlider->SetUseVerticalDrag(InUseVerticalDrag);
+	}
+}
+
+void URadialSlider::SetShowSliderHandle(bool InShowSliderHandle)
+{
+	ShowSliderHandle = InShowSliderHandle;
+	if (MyRadialSlider.IsValid())
+	{
+		MyRadialSlider->SetShowSliderHandle(InShowSliderHandle);
+	}
+}
+
+void URadialSlider::SetShowSliderHand(bool InShowSliderHand)
+{
+	ShowSliderHand = InShowSliderHand;
+	if (MyRadialSlider.IsValid())
+	{
+		MyRadialSlider->SetShowSliderHand(InShowSliderHand);
 	}
 }
 

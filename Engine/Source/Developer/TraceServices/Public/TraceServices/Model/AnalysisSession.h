@@ -35,6 +35,7 @@ public:
 	virtual void Wait() const = 0;
 	
 	virtual const TCHAR* GetName() const = 0;
+	virtual uint32 GetTraceId() const = 0;
 	virtual bool IsAnalysisComplete() const = 0;
 	virtual double GetDurationSeconds() const = 0;
 	virtual void UpdateDurationSeconds(double Duration) = 0;

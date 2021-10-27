@@ -46,7 +46,7 @@ public:
 		return (uint32)MipSize[FirstMipIdx];
 	}
 
-	void Discard() override;
+	void Discard() override final;
 	void MergeMips(int32 NumMips);
 
 	void** GetMipData() { return MipData; }

@@ -1160,7 +1160,8 @@ bool UPoseAsset::AddOrUpdatePoseWithUniqueName(USkeletalMeshComponent* MeshCompo
 	return true;
 }
 
-void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent)
+
+void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent, bool bUpdateCurves)
 {
 	USkeleton* MySkeleton = GetSkeleton();
 	if (MySkeleton && MeshComponent && MeshComponent->SkeletalMesh)
@@ -1206,7 +1207,9 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshCompon
 			}
 		}
 
-		AddOrUpdatePose(PoseName, TrackNames, BoneTransform, NewCurveValues);
+		// Only update curves if user has requested so - or when setting up a new pose
+		const FPoseData* PoseData = PoseContainer.FindPoseData(PoseName);
+		AddOrUpdatePose(PoseName, TrackNames, BoneTransform, (PoseData && !bUpdateCurves) ? PoseData->CurveData : NewCurveValues);
 		PostProcessData();
 	}
 }

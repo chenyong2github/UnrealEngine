@@ -417,6 +417,7 @@ public:
 	ENGINE_API void SetParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
 	ENGINE_API void SetForceStaticPermutationUpdate(bool bValue);
 	ENGINE_API void SetBasePropertyOverrides(const FMaterialInstanceBasePropertyOverrides& InValue);
+	ENGINE_API void SetMaterialLayers(const FMaterialLayersFunctions& InValue);
 
 private:
 	UMaterialInstance* Instance;
@@ -635,11 +636,8 @@ public:
 	virtual ENGINE_API void OverrideNumericParameterDefault(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) override;
 	virtual ENGINE_API bool CheckMaterialUsage(const EMaterialUsage Usage) override;
 	virtual ENGINE_API bool CheckMaterialUsage_Concurrent(const EMaterialUsage Usage) const override;
-#if WITH_EDITORONLY_DATA
-	virtual ENGINE_API bool GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid &OutExpressionGuid, bool bCheckParent = true) const override;
-#endif // WITH_EDITORONLY_DATA
+	virtual ENGINE_API const FMaterialLayersFunctions* GetMaterialLayers(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
 	virtual ENGINE_API bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const override;
-			ENGINE_API bool UpdateMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, const FMaterialLayersFunctions& LayersValue, const bool bOverridden, const FGuid& GUID);
 	virtual ENGINE_API bool IsDependent(UMaterialInterface* TestDependency) override;
 	virtual ENGINE_API bool IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard) override;
 	virtual ENGINE_API void GetDependencies(TSet<UMaterialInterface*>& Dependencies) override;
@@ -652,12 +650,12 @@ public:
 	virtual ENGINE_API float GetEmissiveBoost() const override;
 	virtual ENGINE_API float GetDiffuseBoost() const override;
 	virtual ENGINE_API float GetExportResolutionScale() const override;
-	virtual ENGINE_API int32 GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface* LayerFunction) const override;
 #if WITH_EDITOR
 	virtual ENGINE_API bool GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const override;
 	virtual ENGINE_API bool GetTexturesInPropertyChain(EMaterialProperty InProperty, TArray<UTexture*>& OutTextures,
 		TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
+	ENGINE_API bool SetMaterialLayers(const FMaterialLayersFunctions& LayersValue);
 #endif
 	virtual ENGINE_API void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 	virtual ENGINE_API bool GetRefractionSettings(float& OutBiasValue) const override;
@@ -772,7 +770,6 @@ public:
 	ENGINE_API virtual void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const override;
 #if WITH_EDITORONLY_DATA
-	ENGINE_API virtual void GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
 #endif // WITH_EDITORONLY_DATA
@@ -1094,7 +1091,7 @@ namespace MaterialInstance_Private
 
 		TArray<FMaterialParameterInfo> CachedParamInfos;
 		TArray<FGuid> CachedParamGuids;
-		ParentMaterial->GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(ParamTypeEnum, CachedParamInfos, CachedParamGuids);
+		ParentMaterial->GetAllParameterInfoOfType(ParamTypeEnum, CachedParamInfos, CachedParamGuids);
 		int32 NumCachedParams = CachedParamGuids.Num();
 		check(NumCachedParams == CachedParamInfos.Num());
 

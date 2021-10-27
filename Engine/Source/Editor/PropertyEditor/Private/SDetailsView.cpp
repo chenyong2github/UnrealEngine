@@ -950,9 +950,9 @@ void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 		FObjectPropertyNode* RootPropertyNode = ComplexRootNode->AsObjectNode();
 
 		RootPropertyNode->InitNode( InitParams );
-
-		RestoreExpandedItems(ComplexRootNode.ToSharedRef());
 	}
+
+	RestoreAllExpandedItems();
 
 	UpdatePropertyMaps();
 	UpdateFilteredDetails();

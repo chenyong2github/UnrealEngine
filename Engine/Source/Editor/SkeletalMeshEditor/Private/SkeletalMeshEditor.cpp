@@ -1378,10 +1378,11 @@ void FSkeletalMeshEditor::ExtendMenu()
 
 	UToolMenu* AssetMenu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Asset");
 	FToolMenuSection& AssetSection = AssetMenu->FindOrAddSection("AssetEditorActions");
-	FToolMenuEntry& Entry = AssetSection.AddDynamicEntry("AssetManagerEditorSkeletalMeshCommands", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+	const FName SkeletalMeshToolkitName = GetToolkitFName();
+	FToolMenuEntry& Entry = AssetSection.AddDynamicEntry("AssetManagerEditorSkeletalMeshCommands", FNewToolMenuSectionDelegate::CreateLambda([SkeletalMeshToolkitName](FToolMenuSection& InSection)
 		{
 			UAssetEditorToolkitMenuContext* MenuContext = InSection.FindContext<UAssetEditorToolkitMenuContext>();
-			if (MenuContext && MenuContext->Toolkit.IsValid() && MenuContext->Toolkit.Pin()->GetToolkitFName() == GetToolkitFName())
+			if (MenuContext && MenuContext->Toolkit.IsValid() && MenuContext->Toolkit.Pin()->GetToolkitFName() == SkeletalMeshToolkitName)
 			{
 				InSection.AddMenuEntry(FSkeletalMeshEditorCommands::Get().BakeMaterials);
 			}

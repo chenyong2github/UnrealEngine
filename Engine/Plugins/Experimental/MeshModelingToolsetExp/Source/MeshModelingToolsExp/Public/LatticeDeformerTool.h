@@ -178,10 +178,11 @@ protected:
 	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DeformationSolver;
 	TPimplPtr<UE::Geometry::FDynamicGraph3d> LatticeGraph;
 
-	TMap<int, FVector3d> ConstrainedLatticePoints;
+	TMap<int32, FVector3d> ConstrainedLatticePoints;
 	void ConstrainSelectedPoints();
 	void ClearConstrainedPoints();
 	void UpdateMechanicColorOverrides();
+	void ResetConstrainedPoints();
 
 	void RebuildDeformer();
 	void SoftDeformLattice();

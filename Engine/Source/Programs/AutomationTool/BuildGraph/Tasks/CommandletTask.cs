@@ -14,7 +14,7 @@ using UnrealBuildTool;
 namespace AutomationTool.Tasks
 {
 	/// <summary>
-	/// Parameters for a task which runs a UE4 commandlet
+	/// Parameters for a task which runs a UE commandlet
 	/// </summary>
 	public class CommandletTaskParameters
 	{
@@ -103,7 +103,7 @@ namespace AutomationTool.Tasks
 				EditorExe = ProjectUtils.GetProjectTarget(ProjectFile, UnrealBuildTool.TargetType.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, true);
 				if (EditorExe == null)
 				{
-					EditorExe = new FileReference(HostPlatform.Current.GetUE4ExePath("UnrealEditor-Cmd.exe"));
+					EditorExe = new FileReference(HostPlatform.Current.GetUnrealExePath("UnrealEditor-Cmd.exe"));
 				}
 			}
 			else

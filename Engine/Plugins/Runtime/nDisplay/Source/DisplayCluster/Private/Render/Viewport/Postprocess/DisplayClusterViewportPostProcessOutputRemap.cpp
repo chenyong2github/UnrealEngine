@@ -20,8 +20,20 @@
 
 #include "Engine/RendererSettings.h"
 #include "Engine/StaticMesh.h"
+#include "ClearQuad.h"
+
 #include "Misc/Paths.h"
 
+// Enable/Disable ClearTexture for OutputRemap RTT
+static TAutoConsoleVariable<int32> CVarClearOutputRemapFrameTextureEnabled(
+	TEXT("nDisplay.render.output_remap.ClearTextureEnabled"),
+	1,
+	TEXT("Enables OutputRemap RTT clearing before postprocessing.\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportPostProcessOutputRemap
@@ -131,10 +143,20 @@ void FDisplayClusterViewportPostProcessOutputRemap::PerformPostProcessFrame_Rend
 		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = OutputRemapMesh.GetProxy();
 		if (MeshProxy && MeshProxy->IsValid_RenderThread())
 		{
+			const bool bClearOutputRemapFrameTextureEnabled = CVarClearOutputRemapFrameTextureEnabled.GetValueOnRenderThread() != 0;
+
 			for (int Index = 0; Index < InFrameTargets->Num(); Index++)
 			{
 				FRHITexture2D* InOutTexture = (*InFrameTargets)[Index];
 				FRHITexture2D* TempTargetableTexture = (*InAdditionalFrameTargets)[Index];
+
+				if (bClearOutputRemapFrameTextureEnabled)
+				{
+					// Do clear output frame texture before whole frame remap
+					const FIntPoint Size = TempTargetableTexture->GetSizeXY();
+					RHICmdList.SetViewport(0, 0, 0.0f, Size.X, Size.Y, 1.0f);
+					DrawClearQuad(RHICmdList, FLinearColor::Black);
+				}
 
 				if (ShadersAPI.RenderPostprocess_OutputRemap(RHICmdList, InOutTexture, TempTargetableTexture, *MeshProxy))
 				{

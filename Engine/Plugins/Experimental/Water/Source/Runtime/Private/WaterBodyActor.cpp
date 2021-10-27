@@ -581,7 +581,7 @@ void AWaterBody::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	if (WaterBodyComponent)
+	if (IsValid(WaterBodyComponent))
 	{
 		WaterBodyComponent->UpdateAll(true);
 		WaterBodyComponent->UpdateMaterialInstances();

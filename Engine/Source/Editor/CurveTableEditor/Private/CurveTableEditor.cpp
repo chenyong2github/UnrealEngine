@@ -12,7 +12,7 @@
 #include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "EditorStyleSet.h"
 #include "Styling/StyleColors.h"
 #include "EditorReimportHandler.h"
@@ -443,7 +443,7 @@ TSharedRef<SDockTab> FCurveTableEditor::SpawnTab_CurveTable( const FSpawnTabArgs
 							.AutoWidth()
 							.Padding(2.f, 0.f, 4.f, 0.0)
 							[
-								SNew(SEditorHeaderButton)
+								SNew(SPositiveActionButton)
 								.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 								.Text(LOCTEXT("Curve", "Curve"))
 								.OnClicked(this, &FCurveTableEditor::OnAddCurveClicked)

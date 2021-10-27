@@ -13,7 +13,7 @@
 #include "Dialogs/Dialogs.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 

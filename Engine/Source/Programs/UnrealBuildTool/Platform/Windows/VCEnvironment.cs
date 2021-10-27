@@ -84,6 +84,11 @@ namespace UnrealBuildTool
 		public readonly FileReference ResourceCompilerPath;
 
 		/// <summary>
+		/// Optional directory containing redistributable items (DLLs etc)
+		/// </summary>
+		public readonly DirectoryReference? RedistDir = null;
+
+		/// <summary>
 		/// The default system include paths
 		/// </summary>
 		public readonly List<DirectoryReference> IncludePaths = new List<DirectoryReference>();
@@ -96,44 +101,36 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Platform">The platform to find the compiler for</param>
-		/// <param name="Compiler">The compiler to use</param>
-		/// <param name="CompilerDir">The compiler directory</param>
-		/// <param name="CompilerVersion">The compiler version number</param>
-		/// <param name="Architecture">The compiler Architecture</param>
-		/// <param name="ToolChain">The base toolchain version</param>
-		/// <param name="ToolChainDir">Directory containing the toolchain</param>
-		/// <param name="ToolChainVersion">Version of the toolchain</param>
-		/// <param name="WindowsSdkDir">Root directory containing the Windows Sdk</param>
-		/// <param name="WindowsSdkVersion">Version of the Windows Sdk</param>
-		public VCEnvironment(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir, VersionNumber CompilerVersion, WindowsArchitecture Architecture, WindowsCompiler ToolChain, DirectoryReference ToolChainDir, VersionNumber ToolChainVersion, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
+		/// <param name="Params">Main constructor parameters</param>
+		public VCEnvironment(VCEnvironmentParameters Params)
 		{
-			this.Compiler = Compiler;
-			this.CompilerDir = CompilerDir;
-			this.CompilerVersion = CompilerVersion;
-			this.Architecture = Architecture;
-			this.ToolChain = ToolChain;
-			this.ToolChainDir = ToolChainDir;
-			this.ToolChainVersion = ToolChainVersion;
-			this.WindowsSdkDir = WindowsSdkDir;
-			this.WindowsSdkVersion = WindowsSdkVersion;
+			this.Compiler = Params.Compiler;
+			this.CompilerDir = Params.CompilerDir;
+			this.CompilerVersion = Params.CompilerVersion;
+			this.Architecture = Params.Architecture;
+			this.ToolChain = Params.ToolChain;
+			this.ToolChainDir = Params.ToolChainDir;
+			this.ToolChainVersion = Params.ToolChainVersion;
+			this.WindowsSdkDir = Params.WindowsSdkDir;
+			this.WindowsSdkVersion = Params.WindowsSdkVersion;
+			this.RedistDir = Params.RedistDir;
 
 			// Get the standard VC paths
 			DirectoryReference VCToolPath = GetVCToolPath(ToolChain, ToolChainDir, Architecture);
 
             // Compile using 64 bit tools for 64 bit targets, and 32 for 32.
-			CompilerPath = GetCompilerToolPath(Platform, Compiler, Architecture, CompilerDir);
+			CompilerPath = GetCompilerToolPath(Params.Platform, Compiler, Architecture, CompilerDir);
 
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker and can handle large linking jobs)
 			DirectoryReference DefaultLinkerDir = VCToolPath;
-			LinkerPath = GetLinkerToolPath(Platform, Compiler, DefaultLinkerDir);
-			LibraryManagerPath = GetLibraryLinkerToolPath(Platform, Compiler, DefaultLinkerDir);
+			LinkerPath = GetLinkerToolPath(Params.Platform, Compiler, DefaultLinkerDir);
+			LibraryManagerPath = GetLibraryLinkerToolPath(Params.Platform, Compiler, DefaultLinkerDir);
 
 			// Get the resource compiler path from the Windows SDK
-			ResourceCompilerPath = GetResourceCompilerToolPath(Platform, WindowsSdkDir, WindowsSdkVersion);
+			ResourceCompilerPath = GetResourceCompilerToolPath(Params.Platform, WindowsSdkDir, WindowsSdkVersion);
 
 			// Get all the system include paths
-			SetupEnvironment(Platform);
+			SetupEnvironment(Params.Platform);
 		}
 
 		/// <summary>
@@ -321,12 +318,10 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Sets up the standard compile environment for the toolchain
+		/// Return the standard Visual C++ library path for the given platform in this toolchain
 		/// </summary>
-		private void SetupEnvironment(UnrealTargetPlatform Platform)
+		protected virtual DirectoryReference GetToolChainLibsDir(UnrealTargetPlatform Platform)
 		{
-			// Add the standard Visual C++ include paths
-			IncludePaths.Add(DirectoryReference.Combine(ToolChainDir, "INCLUDE"));
 			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
 
 			// Add the standard Visual C++ library paths
@@ -334,11 +329,11 @@ namespace UnrealBuildTool
 			{
 				if (Platform == UnrealTargetPlatform.HoloLens)
 				{
-					LibraryPaths.Add(DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder, "store"));
+					return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder, "store");
 				}
 				else
 				{
-					LibraryPaths.Add(DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder));
+					return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder);
 				}
 			}
 			else
@@ -354,8 +349,22 @@ namespace UnrealBuildTool
 					LibsPath = DirectoryReference.Combine(LibsPath, "amd64");
 				}
 
-				LibraryPaths.Add(LibsPath);
+				return LibsPath;
 			}
+		}
+
+		/// <summary>
+		/// Sets up the standard compile environment for the toolchain
+		/// </summary>
+		private void SetupEnvironment(UnrealTargetPlatform Platform)
+		{
+			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
+
+			// Add the standard Visual C++ include paths
+			IncludePaths.Add(DirectoryReference.Combine(ToolChainDir, "INCLUDE"));
+
+			// Add the standard Visual C++ library paths
+			LibraryPaths.Add( GetToolChainLibsDir(Platform));
 
 			// If we're on >= Visual Studio 2015 and using pre-Windows 10 SDK, we need to find a Windows 10 SDK and add the UCRT include paths
 			if(ToolChain >= WindowsCompiler.VisualStudio2019 && WindowsSdkVersion < new VersionNumber(10))
@@ -410,6 +419,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// Creates an environment with the given settings
 		/// </summary>
@@ -422,10 +432,75 @@ namespace UnrealBuildTool
 		/// <returns>New environment object with paths for the given settings</returns>
 		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
 		{
+			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion) );
+		}
+
+		/// <summary>
+		/// Creates an environment with the given parameters
+		/// </summary>
+		public static VCEnvironment Create( VCEnvironmentParameters Params)
+		{
+			return new VCEnvironment(Params);
+		}
+
+
+	}
+
+	/// <summary>
+	/// Parameter structure for constructing VCEnvironment
+	/// </summary>
+	struct VCEnvironmentParameters
+	{
+		/// <summary>The platform to find the compiler for</summary>
+		public UnrealTargetPlatform Platform;
+
+		/// <summary>The compiler to use</summary>
+		public WindowsCompiler Compiler;
+
+		/// <summary>The compiler directory</summary>
+		public DirectoryReference CompilerDir;
+
+		/// <summary>The compiler version number</summary>
+		public VersionNumber CompilerVersion;
+
+		/// <summary>The compiler Architecture</summary>
+		public WindowsArchitecture Architecture;
+
+		/// <summary>The base toolchain version</summary>
+		public WindowsCompiler ToolChain;
+
+		/// <summary>Directory containing the toolchain</summary>
+		public DirectoryReference ToolChainDir;
+
+		/// <summary>Version of the toolchain</summary>
+		public VersionNumber ToolChainVersion;
+
+		/// <summary>Root directory containing the Windows Sdk</summary>
+		public DirectoryReference WindowsSdkDir;
+
+		/// <summary>Version of the Windows Sdk</summary>
+		public VersionNumber WindowsSdkVersion;
+
+		/// <summary>Optional directory for redistributable items (DLLs etc)</summary>
+		public DirectoryReference? RedistDir;	   
+
+		/// <summary>
+		/// Creates VC environment construction parameters with the given settings
+		/// </summary>
+		/// <param name="Compiler">The compiler version to use</param>
+		/// <param name="Platform">The platform to target</param>
+		/// <param name="Architecture">The Architecture to target</param>
+		/// <param name="CompilerVersion">The specific toolchain version to use</param>
+		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
+		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
+		/// <returns>Creation parameters for VC environment</returns>
+		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
+		{
 			// Get the compiler version info
 			VersionNumber? SelectedCompilerVersion;
 			DirectoryReference? SelectedCompilerDir;
-			if(!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedCompilerVersion, out SelectedCompilerDir))
+			DirectoryReference? SelectedRedistDir;
+			if(!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedCompilerVersion, out SelectedCompilerDir, out SelectedRedistDir))
 			{
 				throw new BuildException("{0}{1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(Compiler), String.IsNullOrEmpty(CompilerVersion)? "" : String.Format(" ({0})", CompilerVersion));
 			}
@@ -437,15 +512,15 @@ namespace UnrealBuildTool
 			if(Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.Intel)
 			{
 				const string DefaultClangVisualStudioVersion = "14.24.28315";
-				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, DefaultClangVisualStudioVersion, out SelectedToolChainVersion, out SelectedToolChainDir))
+				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, DefaultClangVisualStudioVersion, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2019;
 				}
-				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir))
+				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2019;
 				}
-				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2022, null, out SelectedToolChainVersion, out SelectedToolChainDir))
+				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2022, null, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2022;
 				}
@@ -482,7 +557,18 @@ namespace UnrealBuildTool
 				}
 			}
 
-			return new VCEnvironment(Platform, Compiler, SelectedCompilerDir, SelectedCompilerVersion, Architecture, ToolChain, SelectedToolChainDir, SelectedToolChainVersion, SelectedWindowsSdkDir, SelectedWindowsSdkVersion);
+			// Store the final parameters
+			this.Platform = Platform;
+			this.Compiler = Compiler;
+			this.CompilerDir = SelectedCompilerDir;
+			this.CompilerVersion = SelectedCompilerVersion;
+			this.Architecture = Architecture;
+			this.ToolChain = ToolChain;
+			this.ToolChainDir = SelectedToolChainDir;
+			this.ToolChainVersion = SelectedToolChainVersion;
+			this.WindowsSdkDir = SelectedWindowsSdkDir;
+			this.WindowsSdkVersion = SelectedWindowsSdkVersion;
+			this.RedistDir = SelectedRedistDir;
 		}
 	}
 }

@@ -2554,7 +2554,7 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 	}
 
 	// Add in any other needed flags
-	Class->ClassFlags |= (CLASS_Parsed | CLASS_CompiledFromBlueprint);
+	Class->ClassFlags |= (CLASS_CompiledFromBlueprint);
 	Class->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
 
 	// This function mostly mirrors PostParsingClassSetup, opportunity to refactor:

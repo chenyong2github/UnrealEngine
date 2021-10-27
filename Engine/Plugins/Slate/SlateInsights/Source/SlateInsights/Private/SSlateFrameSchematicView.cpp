@@ -286,16 +286,35 @@ namespace Private
 
 		void HandleSearchBox_OnTextChanged(const FText& InText)
 		{
-			TOptional<uint64> Result = NumericInterface->FromString(InText.ToString(), WidgetId);
-			if (Result.IsSet())
+			if (InText.IsEmptyOrWhitespace())
 			{
-				WidgetId = Result.GetValue();
+				WidgetId = 0;
 				Search();
 				SearchBoxWidget->SetError(FText::GetEmpty());
 			}
 			else
 			{
-				SearchBoxWidget->SetError(LOCTEXT("NotAValidId", "Not a valid Widget Id. Widget Ids are numbers."));
+				TOptional<uint64> Result = NumericInterface->FromString(InText.ToString(), WidgetId);
+				if (Result.IsSet())
+				{
+					WidgetId = Result.GetValue();
+					Search();
+					SearchBoxWidget->SetError(FText::GetEmpty());
+				}
+				else
+				{
+					SearchBoxWidget->SetError(LOCTEXT("NotAValidId", "Not a valid Widget Id. Widget Ids are numbers."));
+				}
+			}
+		}
+
+		void Search(Message::FWidgetId WidgetToSearch)
+		{
+			if (WidgetToSearch.GetValue() != WidgetId)
+			{
+				WidgetId = WidgetToSearch.GetValue();
+				Search();
+				SearchBoxWidget->SetError(FText::GetEmpty());
 			}
 		}
 
@@ -364,7 +383,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(FMargin(2.0f))
 		[
-			SNew(SExpandableArea)
+			SAssignNew(ExpandableSearchBox, SExpandableArea)
 			.InitiallyCollapsed(true)
 			.HeaderContent()
 			[
@@ -423,7 +442,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 
 						+ SHeaderRow::Column(Private::ColumnNumber)
 						.DefaultLabel(LOCTEXT("AmountColumn", "Amount"))
-						.FixedWidth(50.f)
+						.FillSized(50.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 						
 						+ SHeaderRow::Column(Private::ColumnFlag)
@@ -468,6 +487,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 					.ListItemsSource(&WidgetUpdateInfos)
 					.SelectionMode(ESelectionMode::SingleToggle)
 					.OnGenerateRow(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoGenerateWidget)
+					.OnContextMenuOpening(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoContextMenu)
 					.HeaderRow
 					(
 						SNew(SHeaderRow)
@@ -475,27 +495,27 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 						+ SHeaderRow::Column(Private::ColumnWidgetId)
 						.DefaultLabel(LOCTEXT("WidgetColumn", "Widget"))
 						.HAlignCell(EHorizontalAlignment::HAlign_Left)
-						.FillWidth(0.8f)
+						.FillWidth(1.f)
 						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnWidgetId)
 						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
 
 						+ SHeaderRow::Column(Private::ColumnAffectedCount)
 						.DefaultLabel(LOCTEXT("AffectedColumn", "Affected"))
-						.FixedWidth(50.f)
+						.FillSized(50.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnAffectedCount)
 						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
 						
 						+ SHeaderRow::Column(Private::ColumnDuration)
-						.DefaultLabel(LOCTEXT("Duration", "Length"))
-						.FillWidth(0.2f)
+						.DefaultLabel(LOCTEXT("Duration", "Duration"))
+						.FillSized(75.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnDuration)
 						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
 						
 						+ SHeaderRow::Column(Private::ColumnNumber)
 						.DefaultLabel(LOCTEXT("AmountColumn", "Amount"))
-						.FixedWidth(50.f)
+						.FillSized(50.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 
 						+ SHeaderRow::Column(Private::ColumnFlag)
@@ -571,6 +591,47 @@ TSharedRef<ITableRow> SSlateFrameSchematicView::HandleWidgetUpdateInfoGenerateWi
 		Private::GetWidgetName(AnalysisSession, Item->WidgetId));
 }
 
+TSharedPtr<SWidget> SSlateFrameSchematicView::HandleWidgetUpdateInfoContextMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SearchWidget", "Search Widget"),
+		LOCTEXT("SearchWidgetTooltip", "Search for this widget in the 'Search Widget' tool."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSearchWidget),
+			FCanExecuteAction::CreateSP(this, &SSlateFrameSchematicView::CanWidgetUpdateInfoSearchWidget)
+		));
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool SSlateFrameSchematicView::CanWidgetUpdateInfoSearchWidget() const
+{
+	return WidgetUpdateInfoListView->GetSelectedItems().Num() == 1;
+}
+
+void SSlateFrameSchematicView::HandleWidgetUpdateInfoSearchWidget()
+{
+	if (WidgetSearchBox != nullptr && ExpandableSearchBox != nullptr)
+	{
+		TArray<TSharedPtr<Private::FWidgetUpdateInfo>> SelectedItems = WidgetUpdateInfoListView->GetSelectedItems();
+		if (SelectedItems.Num() != 1)
+		{
+			return;
+		}
+
+		TSharedPtr<Private::FWidgetUpdateInfo> SelectedItem = SelectedItems.Last();
+		if (SelectedItem)
+		{
+			WidgetSearchBox->Search(SelectedItem->WidgetId);
+			ExpandableSearchBox->SetExpanded(true);
+		}
+	}
+}
+
 void SSlateFrameSchematicView::HandleWidgetUpdateInfoSort(EColumnSortPriority::Type, const FName& ColumnId, EColumnSortMode::Type SortMode)
 {
 	if (WidgetUpdateSortColumn == ColumnId)
@@ -636,6 +697,15 @@ TSharedPtr<SWidget> SSlateFrameSchematicView::HandleWidgetInvalidateListContextM
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
 
 	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SearchWidget", "Search Widget"),
+		LOCTEXT("SearchWidgetTooltip", "Search for this widget in the 'Search Widget' tool."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListSearchWidget),
+			FCanExecuteAction::CreateSP(this, &SSlateFrameSchematicView::CanWidgetInvalidateListSearchWidget)
+		));
+
+	MenuBuilder.AddMenuEntry(
 		LOCTEXT("GotoRootInvalidationWidget", "Go to root widget(s)"),
 		LOCTEXT("GotoRootInvalidationWidgetTooltip", "Go to child widget that caused invalidation. Stops early if multiple widgets caused invalidation."),
 		FSlateIcon(),
@@ -661,7 +731,32 @@ FString SSlateFrameSchematicView::HandleWidgetInvalidateListToStringDebug(TShare
 	return Private::GetWidgetName(AnalysisSession, InInfo->WidgetId).ToString();
 }
 
-bool SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget()
+
+bool SSlateFrameSchematicView::CanWidgetInvalidateListSearchWidget() const
+{
+	return WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1;
+}
+
+void SSlateFrameSchematicView::HandleWidgetInvalidateListSearchWidget()
+{
+	if (WidgetSearchBox != nullptr && ExpandableSearchBox != nullptr)
+	{
+		TArray<TSharedPtr<Private::FWidgetUniqueInvalidatedInfo>> SelectedItems = WidgetInvalidateInfoListView->GetSelectedItems();
+		if (SelectedItems.Num() != 1)
+		{
+			return;
+		}
+
+		TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> SelectedItem = SelectedItems.Last();
+		if (SelectedItem)
+		{
+			WidgetSearchBox->Search(SelectedItem->WidgetId);
+			ExpandableSearchBox->SetExpanded(true);
+		}
+	}
+}
+
+bool SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget() const
 {
 	return WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1;
 }
@@ -669,7 +764,6 @@ bool SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget()
 void SSlateFrameSchematicView::HandleWidgetInvalidateListGotoRootWidget()
 {
 	TArray<TSharedPtr<Private::FWidgetUniqueInvalidatedInfo>> SelectedItems = WidgetInvalidateInfoListView->GetSelectedItems();
-	
 	if (SelectedItems.Num() != 1)
 	{
 		return;
@@ -693,7 +787,7 @@ void SSlateFrameSchematicView::HandleWidgetInvalidateListGotoRootWidget()
 	}
 }
 
-bool SSlateFrameSchematicView::CanWidgetInvalidateListViewScriptAndCallStack()
+bool SSlateFrameSchematicView::CanWidgetInvalidateListViewScriptAndCallStack() const
 {
 	if (WidgetInvalidateInfoListView->GetSelectedItems().Num() == 1)
 	{

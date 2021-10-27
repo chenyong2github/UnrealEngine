@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Restorability/IRestorationListener.h"
+#include "Interfaces/IRestorationListener.h"
 #include "Templates/UnrealTemplate.h"
 
 struct FPropertySelectionMap;

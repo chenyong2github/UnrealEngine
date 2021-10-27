@@ -26,6 +26,11 @@
 #	define TRACE_PRIVATE_STOMP 0
 #endif
 
+#ifndef TRACE_PRIVATE_BUFFER_SEND
+#	define TRACE_PRIVATE_BUFFER_SEND 0
+#endif
+
+
 namespace UE {
 namespace Trace {
 namespace Private {
@@ -51,6 +56,7 @@ uint32			Writer_GetControlPort();
 void			Writer_UpdateControl();
 void			Writer_InitializeControl();
 void			Writer_ShutdownControl();
+bool			Writer_IsTracing();
 
 
 
@@ -69,6 +75,8 @@ static bool						GInitialized;		// = false;
 FStatistics						GTraceStatistics;	// = {};
 uint64							GStartCycle;		// = 0;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
+// Counter of calls to Writer_WorkerUpdate to enable regular flushing of output buffers 
+static uint32					GUpdateCounter;		// = 0;
 
 
 
@@ -232,17 +240,67 @@ static UPTRINT					GDataHandle;		// = 0
 UPTRINT							GPendingDataHandle;	// = 0
 
 ////////////////////////////////////////////////////////////////////////////////
+#if TRACE_PRIVATE_BUFFER_SEND
+static const SIZE_T GSendBufferSize = 1 << 20; // 1Mb
+uint8* GSendBuffer; // = nullptr;
+uint8* GSendBufferCursor; // = nullptr;
+static bool Writer_FlushSendBuffer()
+{
+	if( GSendBufferCursor > GSendBuffer )
+	{
+		if (!IoWrite(GDataHandle, GSendBuffer, GSendBufferCursor - GSendBuffer))
+		{
+			IoClose(GDataHandle);
+			GDataHandle = 0;
+			return false;
+		}
+		GSendBufferCursor = GSendBuffer;
+	}
+	return true;
+}
+#else
+static bool Writer_FlushSendBuffer() { return true; }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 static void Writer_SendDataImpl(const void* Data, uint32 Size)
 {
 #if TRACE_PRIVATE_STATISTICS
 	GTraceStatistics.BytesSent += Size;
 #endif
 
+#if TRACE_PRIVATE_BUFFER_SEND
+	// If there's not enough space for this data, flush
+	if (GSendBufferCursor + Size > GSendBuffer + GSendBufferSize)
+	{
+		if (!Writer_FlushSendBuffer())
+		{
+			return;
+		}
+	}
+
+	// Should rarely happen but if we're asked to send large data send it directly
+	if (Size > GSendBufferSize)
+	{
+		if (!IoWrite(GDataHandle, Data, Size))
+		{
+			IoClose(GDataHandle);
+			GDataHandle = 0;
+		}
+	}
+	// Otherwise append to the buffer
+	else
+	{
+		memcpy(GSendBufferCursor, Data, Size);
+		GSendBufferCursor += Size;
+	}
+#else
 	if (!IoWrite(GDataHandle, Data, Size))
 	{
 		IoClose(GDataHandle);
 		GDataHandle = 0;
 	}
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -388,6 +446,7 @@ static bool Writer_UpdateConnection()
 		{
 			if (GDataHandle)
 			{
+				Writer_FlushSendBuffer();
 				IoClose(GDataHandle);
 			}
 
@@ -408,6 +467,14 @@ static bool Writer_UpdateConnection()
 
 	GDataHandle = GPendingDataHandle;
 	GPendingDataHandle = 0;
+
+#if TRACE_PRIVATE_BUFFER_SEND
+	if (!GSendBuffer)
+	{
+		GSendBuffer = static_cast<uint8*>(Writer_MemoryAllocate(GSendBufferSize, 16));
+	}
+	GSendBufferCursor = GSendBuffer;
+#endif
 
 	// Handshake.
 	struct FHandshake
@@ -472,6 +539,14 @@ static void Writer_WorkerUpdate()
 	Writer_UpdateSharedBuffers();
 	Writer_DrainBuffers();
 	Writer_SendSync();
+
+#if TRACE_PRIVATE_BUFFER_SEND
+	const uint32 FlushSendBufferCadenceMask = 8-1; // Flush every 8 calls 
+	if( (++GUpdateCounter & FlushSendBufferCadenceMask) == 0)
+	{
+		Writer_FlushSendBuffer();
+	}
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -552,6 +627,7 @@ static void Writer_InternalShutdown()
 
 	if (GDataHandle)
 	{
+		Writer_FlushSendBuffer();
 		IoClose(GDataHandle);
 		GDataHandle = 0;
 	}
@@ -561,6 +637,15 @@ static void Writer_InternalShutdown()
 	Writer_ShutdownSharedBuffers();
 	Writer_ShutdownCache();
 	Writer_ShutdownTail();
+
+#if TRACE_PRIVATE_BUFFER_SEND
+	if (GSendBuffer)
+	{
+		Writer_MemoryFree(GSendBuffer, GSendBufferSize);
+		GSendBuffer = nullptr;
+		GSendBufferCursor = nullptr;
+	}
+#endif
 
 	GInitialized = false;
 }
@@ -620,6 +705,7 @@ void Writer_Update()
 	{
 		Writer_WorkerUpdate();
 	}
+
 }
 
 

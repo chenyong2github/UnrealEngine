@@ -32,8 +32,8 @@ enum EMemoryTraceRootHeap : uint8
 {
 	SystemMemory, // RAM
 	VideoMemory, // VRAM
-	Trace,
-	EndHardcoded = Trace,
+	TraceMemory, // Memory used by Trace itself
+	EndHardcoded = TraceMemory,
 	EndReserved = 15
 };
 

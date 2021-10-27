@@ -54,27 +54,27 @@ namespace AutomationTool
 			get { return @"Engine/Binaries/Linux/"; }
 		}
 
-		public override string GetUE4ExePath(string UE4Exe)
+		public override string GetUnrealExePath(string UnrealExe)
 		{
-			if(Path.IsPathRooted(UE4Exe))
+			if(Path.IsPathRooted(UnrealExe))
 			{
-				return CommandUtils.CombinePaths(UE4Exe);
+				return CommandUtils.CombinePaths(UnrealExe);
 			}
 
-			int CmdExeIndex = UE4Exe.IndexOf("-Cmd.exe");
+			int CmdExeIndex = UnrealExe.IndexOf("-Cmd.exe");
 			if (CmdExeIndex != -1)
 			{
-				UE4Exe = UE4Exe.Substring (0, CmdExeIndex);
+				UnrealExe = UnrealExe.Substring (0, CmdExeIndex);
 			}
 			else
 			{
-				CmdExeIndex = UE4Exe.IndexOf (".exe");
+				CmdExeIndex = UnrealExe.IndexOf (".exe");
 				if (CmdExeIndex != -1)
 				{
-					UE4Exe = UE4Exe.Substring (0, CmdExeIndex);
+					UnrealExe = UnrealExe.Substring (0, CmdExeIndex);
 				}
 			}
-			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, RelativeBinariesFolder, UE4Exe);
+			return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, RelativeBinariesFolder, UnrealExe);
 		}
 
 		public override string LocalBuildsLogFolder

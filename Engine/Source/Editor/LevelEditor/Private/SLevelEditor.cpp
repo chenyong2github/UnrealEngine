@@ -238,8 +238,6 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 {
 	SelectedElements = NewObject<UTypedElementSelectionSet>(GetTransientPackage(), NAME_None, RF_Transactional);
 	SelectedElements->AddToRoot();
-	
-	ModeUILayer = MakeShareable(new FLevelEditorModeUILayer(this));
 
 	// Register the level editor specific selection behavior
 	{
@@ -286,6 +284,7 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	FModuleManager::Get().LoadModuleChecked("StatusBar");
 
 	LevelEditorModule.OnElementSelectionChanged().AddSP(this, &SLevelEditor::OnElementSelectionChanged);
+	LevelEditorModule.OnActorSelectionChanged().AddSP(this, &SLevelEditor::OnActorSelectionChanged);
 	LevelEditorModule.OnOverridePropertyEditorSelection().AddSP(this, &SLevelEditor::OnOverridePropertyEditorSelection);
 
 	TSharedRef<SWidget> ContentArea = RestoreContentArea( OwnerTab, OwnerWindow );
@@ -563,17 +562,21 @@ void SLevelEditor::OnToolkitHostingStarted( const TSharedRef< class IToolkit >& 
 	//   at once.  OR, we allow multiple to be hosted, but we only show tabs for one at a time (fast switching.)
 	//   Otherwise, it's going to be a huge cluster trying to distinguish tabs for different assets of the same type
 	//   of editor
-	
+	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer = MakeShareable(new FLevelEditorModeUILayer(this));
 	HostedToolkits.Add( Toolkit );
 	ModeUILayer->OnToolkitHostingStarted(Toolkit);
+
+	ModeUILayers.Add(Toolkit->GetToolkitFName(), ModeUILayer);
 }
 
 void SLevelEditor::OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit )
 {
-	TSharedPtr<FTabManager> LevelEditorTabManager = GetTabManager();
-
-	ModeUILayer->OnToolkitHostingFinished(Toolkit);
-
+	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer; 
+	ModeUILayers.RemoveAndCopyValue(Toolkit->GetToolkitFName(), ModeUILayer);
+	if(ModeUILayer)
+	{
+		ModeUILayer->OnToolkitHostingFinished(Toolkit);
+	}
 	HostedToolkits.Remove( Toolkit );
 
 	// @todo toolkit minor: If user clicks X on all opened world-centric toolkit tabs, should we exit that toolkit automatically?
@@ -638,6 +641,7 @@ void SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TShared
 			else
 			{
 				Tab->SetContent(SNullWidget::NullWidget);
+				Tab->RequestCloseTab();
 				SequencerAssetEditor.Reset();
 			}
 		}
@@ -896,10 +900,11 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		FDetailsViewArgs DetailsViewArgs;
 		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 		DetailsViewArgs.NotifyHook = GUnrealEd;
+		DetailsViewArgs.ColumnWidth = 0.5f;
 
 		WorldSettingsView = PropPlugin.CreateDetailView( DetailsViewArgs );
 
-		if (GetWorld() != NULL)
+		if (GetWorld() != nullptr)
 		{
 			WorldSettingsView->SetObject(GetWorld()->GetWorldSettings());
 		}
@@ -1739,6 +1744,11 @@ void SLevelEditor::OnElementSelectionChanged(const UTypedElementSelectionSet* Se
 #endif
 
 	bNeedsRefresh = false;
+}
+
+void SLevelEditor::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
+{
+	GetEditorModeManager().ActorSelectionChangeNotify();
 }
 
 void SLevelEditor::OnOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh)

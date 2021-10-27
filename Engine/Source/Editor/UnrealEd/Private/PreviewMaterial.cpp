@@ -327,23 +327,13 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 			}
 		}
 
-		// Static Material Layers Parameters
-		TArray<FMaterialParameterInfo> ParameterInfo;
-		TArray<FGuid> Guids;
-		ParentMaterial->GetAllMaterialLayersParameterInfo(ParameterInfo, Guids);
-		for (int32 ParameterIdx = 0; ParameterIdx < ParameterInfo.Num(); ParameterIdx++)
+		// Static Material Layers
+		const FMaterialLayersFunctions* MaterialLayers = ParentMaterial->GetMaterialLayers();
+		if (MaterialLayers)
 		{
 			UDEditorMaterialLayersParameterValue* ParameterValue = NewObject<UDEditorMaterialLayersParameterValue>(this);
 			ParameterValue->bOverride = true;
-			ParameterValue->ParameterInfo = ParameterInfo[ParameterIdx];
-			ParameterValue->ExpressionId = Guids[ParameterIdx];
-
-			//get the settings from the parent in the MIC chain
-			FMaterialLayersFunctions Value;
-			if (PreviewMaterial->GetMaterialLayersParameterValue(ParameterValue->ParameterInfo, Value, ParameterValue->ExpressionId))
-			{
-				ParameterValue->ParameterValue = Value;
-			}
+			ParameterValue->ParameterValue = *MaterialLayers;
 			AssignParameterToGroup(ParameterValue, FName());
 		}
 	}
@@ -513,10 +503,10 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 				{
 					if (UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(Parameter))
 					{
-						if (SourceInstance->UpdateMaterialLayersParameterValue(LayersParam->ParameterInfo, LayersParam->ParameterValue, LayersParam->bOverride, LayersParam->ExpressionId))
+						if (SourceInstance->SetMaterialLayers(LayersParam->ParameterValue))
 						{
 							bLayersParameterChanged = true;
-						}	
+						}
 					}
 				}
 			}
@@ -590,39 +580,13 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 		SourceInstance->UpdateCachedLayerParameters();
 
 		// Need to get layer info first as other params are collected from layers
+		const FMaterialLayersFunctions* MaterialLayers = SourceInstance->GetMaterialLayers();
+		if (MaterialLayers)
 		{
-			TArray<FMaterialParameterInfo> OutParameterInfo;
-			TArray<FGuid> Guids;
-			SourceInstance->GetAllMaterialLayersParameterInfo(OutParameterInfo, Guids);
-			// Copy Static Material Layers Parameters
-			for (int32 ParameterIdx = 0; ParameterIdx < OutParameterInfo.Num(); ParameterIdx++)
-			{
-				FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-				FGuid ExpressionId = Guids[ParameterIdx];
-
-				UDEditorMaterialLayersParameterValue& ParameterValue = *(NewObject<UDEditorMaterialLayersParameterValue>(this));
-				ParameterValue.bOverride = true;
-				ParameterValue.ParameterInfo = ParameterInfo;
-				ParameterValue.ExpressionId = ExpressionId;
-
-				Parent->GetMaterialLayersParameterValue(ParameterInfo, ParameterValue.ParameterValue, ExpressionId);
-				ParameterValue.ParameterValue.LinkAllLayersToParent(); // Set parent guids for layers from parent material
-
-				// If the SourceInstance is overriding this parameter, use its settings
-				for (const FStaticMaterialLayersParameter& LayersParam : SourceInstance->GetStaticParameters().MaterialLayersParameters)
-				{
-					if (ParameterInfo == LayersParam.ParameterInfo)
-					{
-						ParameterValue.bOverride = LayersParam.bOverride;
-						if (LayersParam.bOverride)
-						{
-							ParameterValue.ParameterValue = LayersParam.Value;
-						}
-					}
-				}
-
-				AssignParameterToGroup(&ParameterValue, FName());
-			}
+			UDEditorMaterialLayersParameterValue& ParameterValue = *(NewObject<UDEditorMaterialLayersParameterValue>(this));
+			ParameterValue.bOverride = true;
+			ParameterValue.ParameterValue = *MaterialLayers;
+			AssignParameterToGroup(&ParameterValue, FName());
 		}
 
 		TMap<FMaterialParameterInfo, FMaterialParameterMetadata> ParameterValues;
@@ -758,10 +722,12 @@ void UMaterialEditorInstanceConstant::ResetOverrides(int32 Index, EMaterialParam
 				if (ParameterType != EMaterialParameterType::None)
 				{
 					FMaterialParameterMetadata SourceValue;
+					bool bOverride = false;
 					if (SourceInstance->GetParameterValue(ParameterType, Parameter->ParameterInfo, SourceValue, EMaterialGetParameterValueFlags::CheckInstanceOverrides))
 					{
-						Parameter->bOverride = SourceValue.bOverride;
+						bOverride = SourceValue.bOverride;
 					}
+					Parameter->bOverride = bOverride;
 				}
 			}
 		}
@@ -802,18 +768,9 @@ void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStat
 						{
 							UpdateContext.SetParameterValueEditorOnly(Parameter->ParameterInfo, EditorValue, EMaterialSetParameterValueFlags::SetCurveAtlas);
 						}
-						else
+						else if (UDEditorMaterialLayersParameterValue* LayersParameter = Cast<UDEditorMaterialLayersParameterValue>(Parameter))
 						{
-							// Material layers param
-							UDEditorMaterialLayersParameterValue* MaterialLayersParameterValue = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
-							if (MaterialLayersParameterValue)
-							{
-								const FMaterialLayersFunctions& MaterialLayers = MaterialLayersParameterValue->ParameterValue;
-								FGuid ExpressionIdValue = MaterialLayersParameterValue->ExpressionId;
-
-								FStaticMaterialLayersParameter* NewParameter = new(UpdateContext.GetStaticParameters().MaterialLayersParameters)
-									FStaticMaterialLayersParameter(MaterialLayersParameterValue->ParameterInfo, MaterialLayers, MaterialLayersParameterValue->bOverride, ExpressionIdValue);
-							}
+							UpdateContext.SetMaterialLayers(LayersParameter->ParameterValue);
 						}
 					}
 				}
@@ -891,6 +848,7 @@ void UMaterialEditorInstanceConstant::SetSourceInstance(UMaterialInstanceConstan
 
 	//propagate changes to the base material so the instance will be updated if it has a static permutation resource
 	FMaterialInstanceParameterUpdateContext UpdateContext(SourceInstance, EMaterialInstanceClearParameterFlag::Static);
+
 	for (int32 GroupIdx = 0; GroupIdx < ParameterGroups.Num(); GroupIdx++)
 	{
 		FEditorParameterGroup& Group = ParameterGroups[GroupIdx];
@@ -908,18 +866,9 @@ void UMaterialEditorInstanceConstant::SetSourceInstance(UMaterialInstanceConstan
 						UpdateContext.SetParameterValueEditorOnly(Parameter->ParameterInfo, EditorValue);
 					}
 				}
-				else
+				else if (UDEditorMaterialLayersParameterValue* LayersParameter = Cast<UDEditorMaterialLayersParameterValue>(Parameter))
 				{
-					// Material layers param
-					UDEditorMaterialLayersParameterValue* MaterialLayersParameterValue = Cast<UDEditorMaterialLayersParameterValue>(Group.Parameters[ParameterIdx]);
-					if (MaterialLayersParameterValue)
-					{
-						const FMaterialLayersFunctions& MaterialLayers = MaterialLayersParameterValue->ParameterValue;
-						FGuid ExpressionIdValue = MaterialLayersParameterValue->ExpressionId;
-
-						FStaticMaterialLayersParameter* NewParameter = new(UpdateContext.GetStaticParameters().MaterialLayersParameters)
-							FStaticMaterialLayersParameter(MaterialLayersParameterValue->ParameterInfo, MaterialLayers, MaterialLayersParameterValue->bOverride, ExpressionIdValue);
-					}
+					UpdateContext.SetMaterialLayers(LayersParameter->ParameterValue);
 				}
 			}
 		}

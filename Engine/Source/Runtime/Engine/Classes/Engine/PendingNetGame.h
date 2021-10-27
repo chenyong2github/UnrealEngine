@@ -31,21 +31,20 @@ public:
 	UPROPERTY()
 	TObjectPtr<class UNetDriver>		NetDriver;
 
+private:
 	/** 
 	 * Demo Net driver created for loading demos, but we need to go through pending net game
 	 * Transferred to world on successful connection
 	 */
-	UE_DEPRECATED(4.26, "DemoNetDriver will be made private in a future release.  Please use GetDemoNetDriver/SetDemoNetDriver instead.")
 	UPROPERTY()
 	TObjectPtr<class UDemoNetDriver>	DemoNetDriver;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+public:
 	/** Gets the demo net driver for this pending world. */
 	UDemoNetDriver* GetDemoNetDriver() const { return DemoNetDriver; }
 
 	/** Sets the demo net driver for this pending world. */
 	void SetDemoNetDriver(UDemoNetDriver* const InDemoNetDriver) { DemoNetDriver = InDemoNetDriver; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Setup the connection for encryption with a given key

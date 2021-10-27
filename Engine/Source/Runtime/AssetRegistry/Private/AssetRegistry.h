@@ -216,6 +216,14 @@ private:
 		UE::AssetRegistry::Impl::FClassInheritanceContext& InheritanceContext,
 		UE::AssetRegistry::Impl::FClassInheritanceBuffer& StackBuffer);
 
+#if WITH_EDITOR
+	/**
+	 * Callback for FObject::FAssetRegistryTag::OnGetExtraObjectTags
+	 * If bAddMetaDataTagsToOnGetExtraObjectTags is true, this function will add missing UMetaData tags to cooked assets
+	 */
+	void OnGetExtraObjectTags(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags);
+#endif
+
 private:
 
 	UE::AssetRegistry::FAssetRegistryImpl GuardedData;
@@ -226,6 +234,11 @@ private:
 #if WITH_EDITOR
 	/** Handles to all registered OnDirectoryChanged delegates */
 	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	/** If true, the asset registry will inject missing tags from UMetaData for cooked assets only in GetAssetRegistryTags */
+	bool bAddMetaDataTagsToOnGetExtraObjectTags = true;
 #endif
 
 	/** The delegate to execute when an asset path is added to the registry */

@@ -144,9 +144,16 @@ int32 FZenFileSystemManifest::Generate()
 	const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(TargetPlatform.IniPlatformName());
 
 	TArray<FString> PlatformDirectories;
-	PlatformDirectories.Reserve(Info.IniParentChain.Num() + 1);
+	PlatformDirectories.Reserve(Info.IniParentChain.Num() + Info.AdditionalRestrictedFolders.Num() + 1);
 	PlatformDirectories.Add(TargetPlatform.IniPlatformName());
-	PlatformDirectories.Append(Info.IniParentChain);
+	for (const FString& PlatformName : Info.AdditionalRestrictedFolders)
+	{
+		PlatformDirectories.AddUnique(PlatformName);
+	}
+	for (const FString& PlatformName : Info.IniParentChain)
+	{
+		PlatformDirectories.AddUnique(PlatformName);
+	}
 
 	for (const FString& PlatformDirectory : PlatformDirectories)
 	{

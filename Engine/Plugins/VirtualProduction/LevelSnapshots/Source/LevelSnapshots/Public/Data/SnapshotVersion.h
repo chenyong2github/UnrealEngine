@@ -20,15 +20,15 @@ struct LEVELSNAPSHOTS_API FSnapshotFileVersionInfo
 
 	/* UE4 File version */
 	UPROPERTY()
-	int32 FileVersion = 0; // Ideally we would rename this FileVersionUE4
+	int32 FileVersionUE4 = 0;
 
 	/* UE5 File version */
 	UPROPERTY()
 	int32 FileVersionUE5 = 0;
-
+	
 	/* Licensee file version */
 	UPROPERTY()
-	int32 FileVersionLicensee = 0;
+	int32 FileVersionLicensee;
 };
 
 /** Holds engine version information */

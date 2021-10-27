@@ -128,6 +128,7 @@ public class Engine : ModuleRules
 				"CrunchCompression",
 				"IntelISPC",
 				"TraceLog",
+				"ColorManagement"
 			}
 		);
 
@@ -310,7 +311,7 @@ public class Engine : ModuleRules
 			);
 		}
 
-		WhitelistRestrictedFolders.Add("Private/NotForLicensees");
+		AllowedRestrictedFolders.Add("Private/NotForLicensees");
 
 		if (!Target.bBuildRequiresCookedData && Target.bCompileAgainstEngine)
 		{
@@ -405,11 +406,6 @@ public class Engine : ModuleRules
                 });
 
 			PrivateIncludePathModuleNames.Add("IOSRuntimeSettings");
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PrivateIncludePathModuleNames.Add("SwitchRuntimeSettings");
 		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

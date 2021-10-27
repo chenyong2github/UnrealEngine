@@ -24,24 +24,21 @@ void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDis
 
 	const FStaticMeshLODResources& SrcMeshResource = InStaticMesh.GetLODForExport(0);
 
-	const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
+	const FPositionVertexBuffer& PositionBuffer = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
 	const FRawStaticIndexBuffer& IndexBuffer = SrcMeshResource.IndexBuffer;
-
-	NumTriangles = IndexBuffer.GetNumIndices() / 3; // Now by default no triangle strip supported
-	NumVertices = VertexBuffer.GetNumVertices();
 
 	uint32 UVBaseIndex = 0;
 	uint32 UVChromakeyIndex = (InUVChromakeyIndex < SrcMeshResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
 
 	IndexBuffer.GetCopy(IndexData);
 
-	VertexData.AddZeroed(NumVertices);
-	for (uint32 i = 0; i < NumVertices; i++)
+	VertexData.AddZeroed(PositionBuffer.GetNumVertices());
+	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
-		VertexData[i].Position = VertexPosition.VertexPosition(i);
-		VertexData[i].UV = VertexBuffer.GetVertexUV(i, UVBaseIndex);
-		VertexData[i].UV_Chromakey = VertexBuffer.GetVertexUV(i, UVChromakeyIndex);
+		VertexData[VertexIdx].Position = PositionBuffer.VertexPosition(VertexIdx);
+		VertexData[VertexIdx].UV = VertexBuffer.GetVertexUV(VertexIdx, UVBaseIndex);
+		VertexData[VertexIdx].UV_Chromakey = VertexBuffer.GetVertexUV(VertexIdx, UVChromakeyIndex);
 	}
 
 	UpdateData(InDataFunc);
@@ -69,17 +66,12 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 {
 	bool bUseChromakeyUV = InMeshGeometry.ChromakeyUV.Num() > 0;
 
-	NumTriangles = InMeshGeometry.Triangles.Num() / 3; // No triangle strip supported by default
-	NumVertices = InMeshGeometry.Vertices.Num();
-
-	VertexData.AddZeroed(NumVertices);
-	for (uint32 i = 0; i < NumVertices; i++)
+	VertexData.AddZeroed(InMeshGeometry.Vertices.Num());
+	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
-		VertexData[i].Position = InMeshGeometry.Vertices[i];
-		VertexData[i].UV = InMeshGeometry.UV[i];
-
-		// Use channel 1 as default source for chromakey custom markers UV
-		VertexData[i].UV_Chromakey = bUseChromakeyUV ? InMeshGeometry.ChromakeyUV[i] : InMeshGeometry.UV[i];
+		VertexData[VertexIdx].Position = InMeshGeometry.Vertices[VertexIdx];
+		VertexData[VertexIdx].UV = InMeshGeometry.UV[VertexIdx];
+		VertexData[VertexIdx].UV_Chromakey = bUseChromakeyUV ? InMeshGeometry.ChromakeyUV[VertexIdx] : InMeshGeometry.UV[VertexIdx];
 	}
 
 	int Idx = 0;
@@ -94,12 +86,12 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 
 void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc)
 {
-	if (IsValid())
+	if (IndexData.Num() > 0 && VertexData.Num() > 0)
 	{
 		switch (InDataFunc)
 		{
 		case FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace:
-			// Output remap require normalize:
+			// Output remap require normalize mesh to screen space coords:
 			NormalizeToScreenSpace();
 			RemoveInvisibleFaces();
 			break;
@@ -108,6 +100,24 @@ void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const FDisplayClus
 		case FDisplayClusterRender_MeshComponentProxyDataFunc::None:
 			break;
 		}
+	}
+
+	if (IndexData.Num() > 0 && VertexData.Num() > 0)
+	{
+		NumTriangles = IndexData.Num() / 3;
+		NumVertices = VertexData.Num();
+	}
+	else
+	{
+		IndexData.Empty();
+		VertexData.Empty();
+		NumTriangles = 0;
+		NumVertices = 0;
+	}
+
+	if (!IsValid())
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::UpdateData() Invalid mesh - ignored"));
 	}
 }
 
@@ -143,76 +153,95 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 		(AABBox.Max.Z - AABBox.Min.Z)
 	);
 
-	// Detect axis aligned plane
+	bool bIsValidMeshAxis = true;
+	// Support axis rules: Z=UP(screen Y), Y=RIGHT(screen X), X=NotUsed
 	EGeometryPlane2DAxis GeometryPlane2DAxis = EGeometryPlane2DAxis::Undefined;
-	if (Size.X != 0)
+	if (FMath::Abs(Size.Y) <= KINDA_SMALL_NUMBER)
 	{
-		if (fabs(Size.Y) > fabs(Size.Z))
-		{
-			GeometryPlane2DAxis = EGeometryPlane2DAxis::XY;
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The Y axis is used in screen space as 'x' and the distance cannot be zero."));
+		bIsValidMeshAxis = false;
 		}
-		else
+	if (FMath::Abs(Size.Z) <= KINDA_SMALL_NUMBER)
 		{
-			GeometryPlane2DAxis = EGeometryPlane2DAxis::XZ;
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The Z axis is used in screen space as 'y' and the distance cannot be zero."));
+		bIsValidMeshAxis = false;
 		}
+	if (FMath::Abs(Size.X) > KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The X axis is not used, all points must be in the same plane ZY"));
+		bIsValidMeshAxis = false;
 	}
-	else
-	if (Size.Y != 0 && Size.Z != 0)
+	if (bIsValidMeshAxis)
 	{
-		GeometryPlane2DAxis = EGeometryPlane2DAxis::YZ;
+		// Checking for strange aspect ratio
+		FVector ScreenSize(FMath::Max(Size.Z, Size.Y), FMath::Min(Size.Z, Size.Y), 0);
+		double AspectRatio = ScreenSize.X / ScreenSize.Y;
+		if (AspectRatio > 10)
+		{
+			// just warning, experimental
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): Aspect ratio is to big '%d'- <%d,%d>"), AspectRatio, ScreenSize.X, ScreenSize.Y);
+		}
 	}
 
-	if (GeometryPlane2DAxis == EGeometryPlane2DAxis::Undefined)
+	if (!bIsValidMeshAxis)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace() has empty geometry"));
+		// Dont use invalid mesh
+		IndexData.Empty();
+		VertexData.Empty();
+		NumTriangles = 0;
+		NumVertices = 0;
+
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace() Invalid mesh. Expected mesh axis: Z=UP(screen Y), Y=RIGHT(screen X), X=NotUsed"));
 		return;
 	}
 
-	Size.X = (Size.X == 0 ? 1 : Size.X);
-	Size.Y = (Size.Y == 0 ? 1 : Size.Y);
-	Size.Z = (Size.Z == 0 ? 1 : Size.Z);
-
-	FVector Scale(1.f / Size.X, 1.f / Size.Y, 1.f / Size.Z);
-
+	FVector Scale(0, 1.f / Size.Y, 1.f / Size.Z);
 	for (FDisplayClusterMeshVertex& MeshVertexIt : VertexData)
 	{
 		FVector4& Vertex = MeshVertexIt.Position;
 
-		const float X = (Vertex.X - AABBox.Min.X) * Scale.X;
-		const float Y = (Vertex.Y - AABBox.Min.Y) * Scale.Y;
-		const float Z = (Vertex.Z - AABBox.Min.Z) * Scale.Z;
+		const float X = (Vertex.Y - AABBox.Min.Y) * Scale.Y;
+		const float Y = (Vertex.Z - AABBox.Min.Z) * Scale.Z;
 
-		switch (GeometryPlane2DAxis)
-		{
-		case EGeometryPlane2DAxis::XY:
-			Vertex = FVector4(Y, X, 0, 1);
-			break;
-		case EGeometryPlane2DAxis::XZ:
-			Vertex = FVector4(Z, X, 0, 1);
-			break;
-		case EGeometryPlane2DAxis::YZ:
-			Vertex = FVector4(Y, Z, 0, 1);
-			break;
-		default:
-			break;
-		}
+		Vertex = FVector4(X, Y, 0);
 	}
 }
 
 void FDisplayClusterRender_MeshComponentProxyData::RemoveInvisibleFaces()
 {
+	TArray<uint32> VisibleIndexData;
+	int32 RemovedFacesNum = 0;
 	const int32 FacesNum = IndexData.Num() / 3;
 	for (int32 Face = 0; Face < FacesNum; ++Face)
 	{
-		const bool bFaceExist = (Face * 3) < IndexData.Num();
-
-		if (bFaceExist && !IsFaceVisible(Face))
+		if (IsFaceVisible(Face))
 		{
-			IndexData.RemoveAt(Face * 3, 3, false);
+			const uint32 FaceIdx0 = IndexData[Face * 3 + 0];
+			const uint32 FaceIdx1 = IndexData[Face * 3 + 1];
+			const uint32 FaceIdx2 = IndexData[Face * 3 + 2];
+
+			VisibleIndexData.Add(FaceIdx0);
+			VisibleIndexData.Add(FaceIdx1);
+			VisibleIndexData.Add(FaceIdx2);
+		}
+		else
+		{
+			RemovedFacesNum++;
 		}
 	}
 
-	IndexData.Shrink();
+	IndexData.Empty();
+	IndexData.Append(VisibleIndexData);
+
+	if (IndexData.Num() == 0)
+	{
+		VertexData.Empty();
+	}
+
+	if (RemovedFacesNum)
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::RemoveInvisibleFaces() Removed %d/%d faces"), RemovedFacesNum, FacesNum);
+	}
 }
 
 bool FDisplayClusterRender_MeshComponentProxyData::IsFaceVisible(int32 Face)

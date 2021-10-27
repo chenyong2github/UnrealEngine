@@ -690,6 +690,8 @@ void FNiagaraWorldManager::OnComputeDispatchInterfaceDestroyed(FNiagaraGpuComput
 
 void FNiagaraWorldManager::DestroyAllSystemSimulations(class UNiagaraSystem* System)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FNiagaraWorldManager::DestroyAllSystemSimulations);
+
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
 	{
 		Pair.Value->DestroySystemSimulation(System);

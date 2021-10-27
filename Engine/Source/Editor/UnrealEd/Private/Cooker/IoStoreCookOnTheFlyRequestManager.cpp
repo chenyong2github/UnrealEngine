@@ -396,19 +396,19 @@ private:
 
 		FCookPackageRequest CookRequest = Request.GetBodyAs<FCookPackageRequest>();
 		
-		FName PackageName = AllKnownPackagesMap.FindRef(CookRequest.PackageId);
-		if (PackageName.IsNone())
+		const bool bIsCooked = Context.PackageTracker.IsCooked(CookRequest.PackageId);
+		if (!bIsCooked)
 		{
-			UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request for unknown package 0x%llX"), CookRequest.PackageId.ValueForDebugging());
-			Response.SetBodyTo(FCookPackageResponse { EPackageStoreEntryStatus::Missing });
-		}
-		else
-		{
-			UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request, PackageName='%s'"), *PackageName.ToString());
-			const bool bIsCooked = Context.PackageTracker.IsCooked(CookRequest.PackageId);
-
-			if (!bIsCooked)
+			FName PackageName = AllKnownPackagesMap.FindRef(CookRequest.PackageId);
+			if (PackageName.IsNone())
 			{
+				UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request for unknown package 0x%llX"), CookRequest.PackageId.ValueForDebugging());
+				Response.SetBodyTo(FCookPackageResponse { EPackageStoreEntryStatus::Missing });
+			}
+			else
+			{
+				UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request, PackageName='%s'"), *PackageName.ToString());
+			
 				Context.PackageTracker.MarkAsRequested(CookRequest.PackageId);
 
 				FString Filename;

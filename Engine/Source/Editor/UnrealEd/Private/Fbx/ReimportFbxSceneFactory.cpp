@@ -1345,7 +1345,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 					}
 					else
 					{
-						int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks, FBXMeshNodeArray);
+						int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks);
 						if (BestResampleRate > 0)
 						{
 							ResampleRate = BestResampleRate;
@@ -1414,7 +1414,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 							}
 							else
 							{
-								int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks, FBXMeshNodeArray);
+								int32 BestResampleRate = FbxImporter->GetMaxSampleRate(SortedLinks);
 								if (BestResampleRate > 0)
 								{
 									ResampleRate = BestResampleRate;

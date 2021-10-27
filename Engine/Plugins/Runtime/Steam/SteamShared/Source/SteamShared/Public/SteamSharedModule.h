@@ -144,7 +144,7 @@ protected:
 };
 
 /** A simple instance handler that creates and uninitializes the client SteamAPI automatically. */
-class STEAMSHARED_API FSteamClientInstanceHandler : public FSteamInstanceHandlerBase
+class STEAMSHARED_API FSteamClientInstanceHandler final : public FSteamInstanceHandlerBase
 {
 public:
 	virtual ~FSteamClientInstanceHandler() { Destroy(); }
@@ -164,7 +164,7 @@ private:
 };
 
 /** A simple instance handler that creates and uninitializes the server SteamAPI automatically. */
-class STEAMSHARED_API FSteamServerInstanceHandler : public FSteamInstanceHandlerBase
+class STEAMSHARED_API FSteamServerInstanceHandler final : public FSteamInstanceHandlerBase
 {
 public:
 	virtual ~FSteamServerInstanceHandler() { Destroy(); }

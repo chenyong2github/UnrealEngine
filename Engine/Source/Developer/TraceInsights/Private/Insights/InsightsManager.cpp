@@ -757,7 +757,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		TraceName = FPaths::SetExtension(TraceName, ".utrace");
 	}
 
-	Session = AnalysisService->StartAnalysis(*TraceName, MoveTemp(TraceData));
+	Session = AnalysisService->StartAnalysis(InTraceId, *TraceName, MoveTemp(TraceData));
 
 	if (Session)
 	{

@@ -36,7 +36,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 
 	int32 DesiredNumIterations = Quality;
 
-	const FLidarPointCloudNormal UpNormal = FVector::UpVector;
+	const FLidarPointCloudNormal UpNormal = FVector3f::UpVector;
 
 	TArray64<int32> Indices;
 

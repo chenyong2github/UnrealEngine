@@ -131,50 +131,46 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 
-	const ERHIFeatureLevel::Type RenderFeatureLevel = GMaxRHIFeatureLevel;
-	const auto GlobalShaderMap = GetGlobalShaderMap(RenderFeatureLevel);
+	FRHIRenderPassInfo RPInfo(InRenderTargetableDestTexture, ERenderTargetActions::Load_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_OutputRemap"));
 
 	const FIntPoint TargetSizeXY = InRenderTargetableDestTexture->GetSizeXY();
+	RHICmdList.SetViewport(0, 0, 0.0f, TargetSizeXY.X, TargetSizeXY.Y, 1.0f);
+
+	const ERHIFeatureLevel::Type RenderFeatureLevel = GMaxRHIFeatureLevel;
+	const auto GlobalShaderMap = GetGlobalShaderMap(RenderFeatureLevel);
 
 	TShaderMapRef<FOutputRemapVS> VertexShader(GlobalShaderMap);
 	TShaderMapRef<FOutputRemapPS> PixelShader(GlobalShaderMap);
 
-	FRHIRenderPassInfo RPInfo(InRenderTargetableDestTexture, ERenderTargetActions::DontLoad_Store);
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_OutputRemap"));
-	{
-		// Do clear
-		RHICmdList.SetViewport(0, 0, 0.0f, InRenderTargetableDestTexture->GetSizeXY().X, InRenderTargetableDestTexture->GetSizeXY().Y, 1.0f);
-		DrawClearQuad(RHICmdList, FLinearColor::Black);
-	}
-	{
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	// Set the graphic pipeline state.
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		if (MeshProxy->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit))
+	if (MeshProxy->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit))
+	{
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Never>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+		FOutputRemapPixelShaderParameters PSParameters;
 		{
-			GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
-
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-			FOutputRemapPixelShaderParameters PSParameters;
-			{
-				PSParameters.PostprocessInput0 = InSourceTexture;
-				PSParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
-
-			MeshProxy->FinishRender_RenderThread(RHICmdList);
-			bResult = true;
+			PSParameters.PostprocessInput0 = InSourceTexture;
+			PSParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
+
+		MeshProxy->FinishRender_RenderThread(RHICmdList);
+		bResult = true;
 	}
+
 	RHICmdList.EndRenderPass();
 
 	return bResult;

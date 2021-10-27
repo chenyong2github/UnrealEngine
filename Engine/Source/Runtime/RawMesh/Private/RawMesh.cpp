@@ -318,7 +318,7 @@ void FRawMeshBulkData::UseHashAsGuid(UObject* Owner)
 {
 	// Build the hash from the path name + the contents of the bulk data.
 	FSHA1 Sha;
-	TArray<TCHAR> OwnerName = Owner->GetPathName().GetCharArray();
+	TArray<TCHAR, FString::AllocatorType> OwnerName = Owner->GetPathName().GetCharArray();
 	Sha.Update((uint8*)OwnerName.GetData(), OwnerName.Num() * OwnerName.GetTypeSize());
 	if (BulkData.GetBulkDataSize() > 0)
 	{

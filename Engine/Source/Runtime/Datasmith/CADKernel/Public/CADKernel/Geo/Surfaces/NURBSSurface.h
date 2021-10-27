@@ -99,6 +99,18 @@ namespace CADKernel
 			FillNurbs(NurbsData);
 		}
 
+		/**
+		 * Build a Non uniform B-Spline surface
+		 * @param NodalVectorU Its size is the number of poles in U + the surface degree in U + 1 (PoleUNum + UDegre + 1)
+		 * @param NodalVectorV Its size is the number of poles in V + the surface degree in V + 1 (PoleVNum + VDegre + 1)
+		 */
+		//FNURBSSurface(const double InToleranceGeometric, FNurbsSurfaceData NurbsData)
+		//	: FNURBSSurface(InToleranceGeometric, NurbsData.PoleUCount, NurbsData.PoleVCount, NurbsData.UDegree, NurbsData.VDegree, NurbsData.UNodalVector, NurbsData.VNodalVector, NurbsData.Poles, NurbsData.Weights)
+		//{
+		//	SetMinToleranceIso();
+		//	Finalize();
+		//}
+
 		FNURBSSurface(FCADKernelArchive& Archive)
 			: FSurface()
 		{
@@ -204,6 +216,8 @@ namespace CADKernel
 		{
 			BSpline::FindNotDerivableParameters(*this, InDerivativeOrder, InBoundary, OutNotDerivableCoordinates);
 		}
+
+		virtual void SetMinToleranceIso() override;
 
 	private:
 		void Finalize();

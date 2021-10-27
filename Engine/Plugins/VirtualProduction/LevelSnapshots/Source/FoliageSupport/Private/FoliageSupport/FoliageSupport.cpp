@@ -5,20 +5,22 @@
 #include "FoliageSupport/InstancedFoliageActorData.h"
 #include "PropertySelection.h"
 #include "PropertySelectionMap.h"
-#include "Serialization/ObjectSnapshotSerializationData.h"
+#include "Params/ObjectSnapshotSerializationData.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "FoliageHelper.h"
 #include "ILevelSnapshotsModule.h"
 #include "InstancedFoliageActor.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
+#include "libJPG/jpge.h"
 #if WITH_EDITOR
 #include "FoliageEditModule.h"
 #endif
 
-namespace
+namespace FoliageSupport
 {
-	void WhitelistRequiredFoliageProperties(ILevelSnapshotsModule& Module)
+	static void EnableRequiredFoliageProperties(ILevelSnapshotsModule& Module)
 	{
 		FProperty* InstanceReorderTable = UInstancedStaticMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UInstancedStaticMeshComponent, InstanceReorderTable));
 		
@@ -36,7 +38,7 @@ namespace
 		
 		if (ensure(InstanceReorderTable))
 		{
-			Module.AddWhitelistedProperties({
+			Module.AddExplicitilySupportedProperties({
 				InstanceReorderTable,
 				SortedInstances,
 				NumBuiltInstances,
@@ -56,7 +58,7 @@ namespace
 
 void FFoliageSupport::Register(ILevelSnapshotsModule& Module)
 {
-	WhitelistRequiredFoliageProperties(Module);
+	FoliageSupport::EnableRequiredFoliageProperties(Module);
 	
 	const TSharedRef<FFoliageSupport> FoliageSupport = MakeShared<FFoliageSupport>();
 	Module.RegisterRestorabilityOverrider(FoliageSupport);
@@ -66,41 +68,9 @@ void FFoliageSupport::Register(ILevelSnapshotsModule& Module)
 
 ISnapshotRestorabilityOverrider::ERestorabilityOverride FFoliageSupport::IsActorDesirableForCapture(const AActor* Actor)
 {
-	// TODO: Handle foliage type AActor using FFoliageHelper::IsOwnedByFoliage
-	
 	// Foliage's not allowed by default because it is hidden from the scene outliner
 	return Actor->GetClass() == AInstancedFoliageActor::StaticClass() || FFoliageHelper::IsOwnedByFoliage(Actor)
 		? ERestorabilityOverride::Allow : ERestorabilityOverride::DoNotCare;
-}
-
-namespace
-{
-	void RebuildChangedFoliageComponents(AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectionMap)
-	{
-		const FRestorableObjectSelection FoliageSelection = SelectionMap.GetObjectSelection(FoliageActor);
-		const FAddedAndRemovedComponentInfo* RecreatedComponentInfo = FoliageSelection.GetComponentSelection();
-		
-		TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Components(FoliageActor);
-		for (UHierarchicalInstancedStaticMeshComponent* Comp : Components)
-		{
-			const FRestorableObjectSelection ObjectSelection = SelectionMap.GetObjectSelection(Comp);
-
-			const FPropertySelection* CompPropertySelection = ObjectSelection.GetPropertySelection();
-			const bool bHasChangedProperties = CompPropertySelection && !CompPropertySelection->IsEmpty();
-			const bool bWasRecreated = RecreatedComponentInfo && Algo::FindByPredicate(RecreatedComponentInfo->SnapshotComponentsToAdd, [Comp](TWeakObjectPtr<UActorComponent> SnapshotComp)
-			{
-				return SnapshotComp->GetFName().IsEqual(Comp->GetFName());
-			}) != nullptr;
-			
-			if (bHasChangedProperties || bWasRecreated)
-			{
-				// This recomputes transforms and shadows
-				constexpr bool bAsync = false;
-				constexpr bool bForceUpdate = true;
-				Comp->BuildTreeIfOutdated(bAsync, bForceUpdate);
-			}
-		}
-	}
 }
 
 void FFoliageSupport::OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage)
@@ -133,9 +103,41 @@ void FFoliageSupport::PostApplySnapshotProperties(UObject* Object, const ICustom
 	// Rest is done in PostApplySnapshotToActor (need access to the property selection map)
 }
 
-namespace
+namespace FoliageSupport
 {
-	void UpdateFoliageUI()
+	static void RebuildChangedFoliageComponents(AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectionMap, bool bWasRecreated)
+	{
+		const FRestorableObjectSelection FoliageSelection = SelectionMap.GetObjectSelection(FoliageActor);
+		const FAddedAndRemovedComponentInfo* RecreatedComponentInfo = FoliageSelection.GetComponentSelection();
+		
+		TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Components(FoliageActor);
+		for (UHierarchicalInstancedStaticMeshComponent* Comp : Components)
+		{
+			const FRestorableObjectSelection ObjectSelection = SelectionMap.GetObjectSelection(Comp);
+
+			const FPropertySelection* CompPropertySelection = ObjectSelection.GetPropertySelection();
+			const bool bHasChangedProperties = CompPropertySelection && !CompPropertySelection->IsEmpty();
+			const bool bComponentWasRecreated = RecreatedComponentInfo && Algo::FindByPredicate(RecreatedComponentInfo->SnapshotComponentsToAdd, [Comp](TWeakObjectPtr<UActorComponent> SnapshotComp)
+			{
+				return SnapshotComp->GetFName().IsEqual(Comp->GetFName());
+			}) != nullptr;
+			
+			if (bWasRecreated || bHasChangedProperties || bComponentWasRecreated)
+			{
+				// Unregister and register recreates render state: otherwise instances won't show
+				Comp->UnregisterComponent();
+				
+				// This recomputes transforms and shadows
+				constexpr bool bAsync = false;
+				constexpr bool bForceUpdate = true;
+				Comp->BuildTreeIfOutdated(bAsync, bForceUpdate);
+				
+				Comp->RegisterComponent();
+			}
+		}
+	}
+	
+	static void UpdateFoliageUI()
 	{
 #if WITH_EDITOR
 		IFoliageEditModule& FoliageEditModule = FModuleManager::Get().GetModuleChecked<IFoliageEditModule>("FoliageEdit");
@@ -157,19 +159,71 @@ void FFoliageSupport::PostApplySnapshotToActor(const FApplySnapshotToActorParams
 	{
 		checkf(FoliageActor == CurrentFoliageActor.Get(), TEXT("PostApplySnapshotToActor was not directly followed by PostApplySnapshotProperties. Investigate."));
 		CurrentFoliageActor.Reset();
+#if WITH_EDITOR
+		// Actor might not have been modified because none of its uproperties were changed
+		FoliageActor->Modify();
+#endif
 
-		CurrentFoliageData.ApplyTo(CurrentVersionInfo, FoliageActor, Params.SelectedProperties);
-		RebuildChangedFoliageComponents(FoliageActor, Params.SelectedProperties);
-		FoliageActor->RemoveFoliageType(FoliageTypesToRemove.GetData(), FoliageTypesToRemove.Num());
+		CurrentFoliageData.ApplyTo(CurrentVersionInfo, FoliageActor, Params.SelectedProperties, Params.bWasRecreated);
+		FoliageSupport::RebuildChangedFoliageComponents(FoliageActor, Params.SelectedProperties, Params.bWasRecreated);
 
 		FoliageTypesToRemove.Reset();
-		UpdateFoliageUI();
+		FoliageSupport::UpdateFoliageUI();
 	}
 }
 
-namespace
+void FFoliageSupport::PreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
 {
-	UFoliageType* FindFoliageInfoFor(UHierarchicalInstancedStaticMeshComponent* Component)
+	// RF_Transactional is temporarily required because Level Snapshots changes components differently than Foliage originally designed.
+	// Needed for correct undo / redo 
+	if (UHierarchicalInstancedStaticMeshComponent* Comp = Cast<UHierarchicalInstancedStaticMeshComponent>(Params.Object); Comp && Comp->IsIn(CurrentFoliageActor.Get()))
+	{
+		Comp->SetFlags(RF_Transactional);
+	}
+}
+
+void FFoliageSupport::PostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+{
+	if (UHierarchicalInstancedStaticMeshComponent* Comp = Cast<UHierarchicalInstancedStaticMeshComponent>(Params.Object); Comp && Comp->IsIn(CurrentFoliageActor.Get()))
+	{
+		Comp->ClearFlags(RF_Transactional);
+	}
+}
+
+void FFoliageSupport::PreRecreateActor(UWorld* World, TSubclassOf<AActor> ActorClass, FActorSpawnParameters& InOutSpawnParameters)
+{
+	if (ActorClass->IsChildOf(AInstancedFoliageActor::StaticClass()))
+	{
+		InOutSpawnParameters.bCreateActorPackage = true;
+
+		// See AInstancedFoliageActor::GetDefault
+		ULevel* CurrentLevel = World->GetCurrentLevel();
+		if (CurrentLevel && CurrentLevel->GetWorld()->GetSubsystem<UActorPartitionSubsystem>()->IsLevelPartition())
+		{
+			InOutSpawnParameters.ObjectFlags |= RF_Transient;
+		}
+	}
+}
+
+void FFoliageSupport::PostRecreateActor(AActor* RecreatedActor)
+{
+	if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(RecreatedActor))
+	{
+		RecreatedActor->GetLevel()->InstancedFoliageActor = FoliageActor;
+	}
+}
+
+void FFoliageSupport::PreRemoveActor(AActor* ActorToRemove)
+{
+	if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(ActorToRemove))
+	{
+		FoliageActor->GetLevel()->InstancedFoliageActor.Reset();
+	}
+}
+
+namespace FoliageSupport
+{
+	static UFoliageType* FindFoliageInfoFor(UHierarchicalInstancedStaticMeshComponent* Component)
 	{
 		AInstancedFoliageActor* Foliage = Cast<AInstancedFoliageActor>(Component->GetOwner());
 		if (!LIKELY(Foliage))
@@ -188,7 +242,7 @@ namespace
 		return nullptr;
 	}
 
-	UFoliageType* FindFoliageInfoFor(UActorComponent* Component)
+	static UFoliageType* FindFoliageInfoFor(UActorComponent* Component)
 	{
 		if (UHierarchicalInstancedStaticMeshComponent* Comp = Cast<UHierarchicalInstancedStaticMeshComponent>(Component))
 		{
@@ -200,8 +254,9 @@ namespace
 
 void FFoliageSupport::PreRemoveComponent(UActorComponent* ComponentToRemove)
 {
-	if (UFoliageType* FoliagType = FindFoliageInfoFor(ComponentToRemove))
+	if (UFoliageType* FoliagType = FoliageSupport::FindFoliageInfoFor(ComponentToRemove))
 	{
-		FoliageTypesToRemove.Add(FoliagType); 
+		AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(ComponentToRemove->GetOwner());
+		FoliageActor->RemoveFoliageType(&FoliagType, 1);
 	}
 }

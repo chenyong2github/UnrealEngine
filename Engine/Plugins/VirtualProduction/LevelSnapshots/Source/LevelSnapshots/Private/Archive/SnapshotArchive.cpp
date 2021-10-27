@@ -7,39 +7,12 @@
 #include "SnapshotRestorability.h"
 #include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
+#include "Util/SnapshotObjectUtil.h"
 #if UE_BUILD_DEBUG
 #include "SnapshotConsoleVariables.h"
 #endif
 
-#include "Internationalization/TextNamespaceUtil.h"
-#include "Internationalization/TextPackageNamespaceUtil.h"
 #include "UObject/ObjectMacros.h"
-#include "Util/SnapshotObjectUtil.h"
-
-void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
-{
-	ApplyToSnapshotWorldObject(
-		InObjectData,
-		InSharedData,
-		InObjectToRestore,
-#if USE_STABLE_LOCALIZATION_KEYS
-		TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage)
-#else
-		FString()
-#endif
-		);
-}
-
-void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, const FString& InLocalisationNamespace)
-{
-	FSnapshotArchive Archive(InObjectData, InSharedData, true, InObjectToRestore);
-#if USE_STABLE_LOCALIZATION_KEYS
-	Archive.SetLocalizationNamespace(InLocalisationNamespace);
-#endif
-
-	InObjectToRestore->Serialize(Archive);
-	FLevelSnapshotsModule::GetInternalModuleInstance().OnPostLoadSnapshotObject({ InObjectToRestore, InSharedData });
-}
 
 FString FSnapshotArchive::GetArchiveName() const
 {
@@ -160,15 +133,6 @@ void FSnapshotArchive::Serialize(void* Data, int64 Length)
 		FMemory::Memcpy(&ObjectData.SerializedData[DataIndex], Data, Length);
 		DataIndex = RequiredEndIndex;
 	}
-}
-
-UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
-{
-	FString LocalizationNamespace;
-#if USE_STABLE_LOCALIZATION_KEYS
-	LocalizationNamespace = GetLocalizationNamespace();
-#endif
-	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, LocalizationNamespace);
 }
 
 FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject)

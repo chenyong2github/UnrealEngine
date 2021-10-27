@@ -383,8 +383,12 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 						NewComp->bSelectable = bAdditionalMeshesSelectable;
 						NewComp->RegisterComponent();
 						NewComp->SetSkeletalMesh(SkeletalMesh);
-						NewComp->bUseAttachParentBound = true;
 						AddComponent(NewComp, FTransform::Identity, true);
+						// Use the attach parent bounds if it is valid, as empty bounds would cause mesh to flicker from frustum culling.
+						if (NewComp->GetAttachParent() && NewComp->GetAttachParent()->Bounds.SphereRadius > 0)
+						{
+							NewComp->bUseAttachParentBound = true;
+						}
 						if (bUseCustomAnimBP && AnimInstances.IsValidIndex(MeshIndex) && AnimInstances[MeshIndex] != nullptr)
 						{
 							NewComp->SetAnimInstanceClass(AnimInstances[MeshIndex]);

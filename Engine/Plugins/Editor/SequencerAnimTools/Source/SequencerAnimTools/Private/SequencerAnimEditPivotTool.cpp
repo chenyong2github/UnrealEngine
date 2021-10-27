@@ -34,10 +34,11 @@
 #include "EditorModeManager.h"
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SequencerAnimTools"
-
-
 
 void FEditPivotCommands::RegisterCommands()
 {
@@ -509,7 +510,15 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 			{
 				continue;
 			}
-			//Actor->Modify? Need something for undo.
+			if (USceneComponent* RootComponent = Actor->GetRootComponent())
+			{
+				if (RootComponent->HasAnyFlags(RF_DefaultSubObject))
+				{
+					// Default subobjects must be included in any undo/redo operations
+					RootComponent->SetFlags(RF_Transactional);
+				}
+				RootComponent->Modify();
+			}
 
 			FTransform Transform = UControlRigSequencerEditorLibrary::GetActorWorldTransform(LevelSequence, Actor.Get(), FrameNumber,
 				ESequenceTimeUnit::TickResolution);
@@ -528,6 +537,7 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 	bManipulatorMadeChange = false;
 	GizmoTransform = StartDragTransform;
 }
+
 
 void USequencerPivotTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
@@ -580,19 +590,16 @@ void USequencerPivotTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransfo
 					FVector RotatedDiff = Diff.GetRotation().RotateVector(LocDiff);
 					FVector NewLocation = StartDragTransform.TransformPosition(RotatedDiff);
 					ActorDrag.CurrentTransform.SetLocation(NewLocation);
-
-					if (USceneComponent* RootComponent = ActorDrag.Actor->GetRootComponent())
-					{
-						RootComponent->SetWorldLocation(NewLocation);
-					}
+					UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+					EditorActorSubsystem->SetActorTransform(ActorDrag.Actor,ActorDrag.CurrentTransform);
+					GUnrealEd->UpdatePivotLocationForSelection();
 				}
 			}
 			else //last one with shift we keep locked!
 			{
-				if (USceneComponent* RootComponent = ActorDrag.Actor->GetRootComponent())
-				{
-					RootComponent->SetWorldLocation(ActorDrag.CurrentTransform.GetLocation());
-				}
+				UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+				EditorActorSubsystem->SetActorTransform(ActorDrag.Actor, ActorDrag.CurrentTransform);
+				GUnrealEd->UpdatePivotLocationForSelection();
 			}
 			++Index;
 		}

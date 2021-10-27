@@ -1456,4 +1456,14 @@ void FVisualStudioSourceCodeAccessor::Tick(const float DeltaTime)
 	}
 }
 
+FName FVisualStudioSourceCodeAccessor::GetOpenIconName() const
+{
+	return FName("MainFrame.OpenVisualStudio");
+}
+
+FName FVisualStudioSourceCodeAccessor::GetRefreshIconName() const
+{
+	return FName("MainFrame.RefreshVisualStudio");
+}
+
 #undef LOCTEXT_NAMESPACE

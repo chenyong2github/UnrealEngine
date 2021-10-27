@@ -941,10 +941,6 @@ namespace AutomationTool
 		static private P4Connection PerforceConnection;
 		static private P4Environment PerforceEnvironment;
 
-		/// <summary>
-		/// BuildEnvironment to use for this buildcommand. This is initialized by InitBuildEnvironment. As soon
-		/// as the script execution in ExecuteBuild begins, the BuildEnv is set up and ready to use.
-		/// </summary>
 		static public P4Connection P4
 		{
 			get
@@ -957,10 +953,6 @@ namespace AutomationTool
 			}
 		}
 
-		/// <summary>
-		/// BuildEnvironment to use for this buildcommand. This is initialized by InitBuildEnvironment. As soon
-		/// as the script execution in ExecuteBuild begins, the BuildEnv is set up and ready to use.
-		/// </summary>
 		static public P4Environment P4Env
 		{
 			get

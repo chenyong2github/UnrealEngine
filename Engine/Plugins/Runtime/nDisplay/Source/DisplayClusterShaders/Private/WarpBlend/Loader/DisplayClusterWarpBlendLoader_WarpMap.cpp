@@ -95,17 +95,21 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 			mpcdi::NODE& node = (*SourceWarpMap)(x, y);
 			FVector t(node.r, node.g, bIsProfile2D ? 0.f : node.b);
 
-			FVector4& Pts = OutWarpMapData.WarpData[x + y * OutWarpMapData.Width];
+			FVector4f& Pts = OutWarpMapData.WarpData[x + y * OutWarpMapData.Width];
 
 			if ((!(FMath::Abs(t.X) < kEpsilon && FMath::Abs(t.Y) < kEpsilon && FMath::Abs(t.Z) < kEpsilon))
 				&& (!FMath::IsNaN(t.X) && !FMath::IsNaN(t.Y) && !FMath::IsNaN(t.Z)))
 			{
-				Pts = ConventionMatrix.TransformPosition(t);
+				FVector ScaledPts = ConventionMatrix.TransformPosition(t);
+
+				Pts.X = ScaledPts.X;
+				Pts.Y = ScaledPts.Y;
+				Pts.Z = ScaledPts.Z;
 				Pts.W = 1;
 			}
 			else
 			{
-				Pts = FVector4(0.f, 0.f, 0.f, -1.f);
+				Pts = FVector4f(0.f, 0.f, 0.f, -1.f);
 			}
 		}
 	}
@@ -147,8 +151,7 @@ bool FDisplayClusterWarpBlendLoader_WarpMap::Load(FLoadedWarpMapData& OutWarpMap
 		for (int x = 0; x < OutWarpMapData.Width; ++x)
 		{
 			mpcdi::NODE node = SourcePFM->operator()(x, y);
-
-			FVector pts = (FVector&)(node);
+			FVector pts(node.r, node.g, node.b);
 			WarpMeshPoints.Add(pts);
 		}
 	}
@@ -168,7 +171,7 @@ bool FLoadedWarpMapData::Initialize(int InWidth, int InHeight)
 
 	Width = InWidth;
 	Height = InHeight;
-	WarpData = new FVector4[Width * Height];
+	WarpData = new FVector4f[Width * Height];
 
 	return true;
 }
@@ -214,23 +217,27 @@ void FLoadedWarpMapData::LoadGeometry(EDisplayClusterWarpProfileType ProfileType
 		break;
 	};
 
-	FVector4* DstPoint = WarpData;;
+	FVector4f* DstPoint = WarpData;
 	for (const FVector& PointIt : InPoints)
 	{
 		const FVector& t = PointIt;
 
-		FVector4& Pts = *DstPoint;
+		FVector4f& Pts = *DstPoint;
 		DstPoint++;
 
 		if ((!(FMath::Abs(t.X) < kEpsilon && FMath::Abs(t.Y) < kEpsilon && FMath::Abs(t.Z) < kEpsilon))
 			&& (!FMath::IsNaN(t.X) && !FMath::IsNaN(t.Y) && !FMath::IsNaN(t.Z)))
 		{
-			Pts = ConventionMatrix.TransformPosition(t);
+			FVector ScaledPts = ConventionMatrix.TransformPosition(t);
+
+			Pts.X = ScaledPts.X;
+			Pts.Y = ScaledPts.Y;
+			Pts.Z = ScaledPts.Z;
 			Pts.W = 1;
 		}
 		else
 		{
-			Pts = FVector4(0.f, 0.f, 0.f, -1.f);
+			Pts = FVector4f(0.f, 0.f, 0.f, -1.f);
 		}
 	}
 }
@@ -241,7 +248,7 @@ bool FLoadedWarpMapData::Is3DPointValid(int X, int Y) const
 {
 	if (X >= 0 && X < Width && Y >= 0 && Y < Height)
 	{
-		FVector4* pts = (FVector4*)WarpData;
+		FVector4f* pts = (FVector4f*)WarpData;
 		return pts[(X + Y * Width)].W > 0;
 	}
 
@@ -266,7 +273,7 @@ void FLoadedWarpMapData::ClearNoise(const FIntPoint& SearchXYDepth, const FIntPo
 
 int FLoadedWarpMapData::RemoveDetachedPoints(const FIntPoint& SearchLen, const FIntPoint& RemoveRule)
 {
-	FVector4* pts = (FVector4*)WarpData;
+	FVector4f* pts = (FVector4f*)WarpData;
 
 	int SearchX = SearchLen.X * Width / 100;
 	int SearchY = SearchLen.Y * Height / 100;
@@ -323,7 +330,7 @@ int FLoadedWarpMapData::RemoveDetachedPoints(const FIntPoint& SearchLen, const F
 				if (!Test1 && !Test2)
 				{
 					// Both test failed, remove it
-					pts[(X + Y * Width)] = FVector4(0.f, 0.f, 0.f, -1.f);
+					pts[(X + Y * Width)] = FVector4f(0.f, 0.f, 0.f, -1.f);
 					TotalChangesCount++;
 				}
 			}

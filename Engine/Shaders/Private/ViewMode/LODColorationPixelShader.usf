@@ -40,7 +40,7 @@ void Main(
 	ResolvedView = ResolveView();
 #endif
 
-	float3 Result = DebugViewModePass.LODColors[LODIndex].rgb;
+	float3 Result = DebugViewModeStruct.LODColors[LODIndex].rgb;
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(DebugInputs, DebugInputs.SvPosition);
 	MaterialParameters.TexCoordScalesParams.Dummy = 0;

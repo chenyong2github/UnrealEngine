@@ -18,6 +18,8 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SButton.h"
+#include "SSimpleComboButton.h"
+#include "SSimpleButton.h"
 
 #include "WorldTreeItemTypes.h"
 #include "LevelFolders.h"
@@ -193,19 +195,15 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 	if (!bFoldersOnlyMode)
 	{
 		CreateNewFolderButton = 
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			SNew(SSimpleButton)
 			.ToolTipText(LOCTEXT("CreateFolderTooltip", "Create a new folder containing the current selection"))
 			.OnClicked(this, &SWorldHierarchyImpl::OnCreateFolderClicked)
 			.Visibility(WorldModel->HasFolderSupport() ? EVisibility::Visible : EVisibility::Collapsed)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("WorldBrowser.NewFolderIcon"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			];
+			.Icon(FAppStyle::Get().GetBrush("WorldBrowser.NewFolderIcon"));
 	}
 
 	ChildSlot
+	.Padding(8.f, 0.f, 8.f, 0.f)
 	[
 		SNew(SVerticalBox)
 		// Hierarchy Toolbar
@@ -228,9 +226,20 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			[
 				CreateNewFolderButton
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SSimpleComboButton)
+				.OnGetMenuContent( this, &SWorldHierarchyImpl::GetViewButtonContent )
+				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
+
 			]
 		]
 		// Empty Label
@@ -246,18 +255,24 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 		// Hierarchy
 		+SVerticalBox::Slot()
 		.FillHeight(1.f)
+		.Padding(0.f, 4.f, 0.f, 0.f)
 		[
-			SAssignNew(TreeWidget, SLevelsTreeWidget, WorldModel, SharedThis(this))
-			.TreeItemsSource(&RootTreeItems)
-			.SelectionMode(ESelectionMode::Multi)
-			.OnGenerateRow(this, &SWorldHierarchyImpl::GenerateTreeRow)
-			.OnGetChildren(this, &SWorldHierarchyImpl::GetChildrenForTree)
-			.OnSelectionChanged(this, &SWorldHierarchyImpl::OnSelectionChanged)
-			.OnExpansionChanged(this, &SWorldHierarchyImpl::OnExpansionChanged)
-			.OnMouseButtonDoubleClick(this, &SWorldHierarchyImpl::OnTreeViewMouseButtonDoubleClick)
-			.OnContextMenuOpening(ContextMenuEvent)
-			.OnItemScrolledIntoView(this, &SWorldHierarchyImpl::OnTreeItemScrolledIntoView)
-			.HeaderRow(HeaderRowWidget.ToSharedRef())
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+			.Padding(FMargin(0.f, 4.f, 0.f, 0.f))
+			[
+				SAssignNew(TreeWidget, SLevelsTreeWidget, WorldModel, SharedThis(this))
+				.TreeItemsSource(&RootTreeItems)
+				.SelectionMode(ESelectionMode::Multi)
+				.OnGenerateRow(this, &SWorldHierarchyImpl::GenerateTreeRow)
+				.OnGetChildren(this, &SWorldHierarchyImpl::GetChildrenForTree)
+				.OnSelectionChanged(this, &SWorldHierarchyImpl::OnSelectionChanged)
+				.OnExpansionChanged(this, &SWorldHierarchyImpl::OnExpansionChanged)
+				.OnMouseButtonDoubleClick(this, &SWorldHierarchyImpl::OnTreeViewMouseButtonDoubleClick)
+				.OnContextMenuOpening(ContextMenuEvent)
+				.OnItemScrolledIntoView(this, &SWorldHierarchyImpl::OnTreeItemScrolledIntoView)
+				.HeaderRow(HeaderRowWidget.ToSharedRef())
+			]
 		]
 
 		// Separator
@@ -280,41 +295,11 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			.FillWidth(1.f)
 			.VAlign(VAlign_Center)
-			.Padding(8, 0)
+			.Padding(8.f)
 			[
 				SNew( STextBlock )
 				.Text( this, &SWorldHierarchyImpl::GetFilterStatusText )
 				.ColorAndOpacity( this, &SWorldHierarchyImpl::GetFilterStatusTextColor )
-			]
-
-			// View mode combo button
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SAssignNew( ViewOptionsComboButton, SComboButton )
-				.ContentPadding(0)
-				.ForegroundColor( this, &SWorldHierarchyImpl::GetViewButtonForegroundColor )
-				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
-				.OnGetMenuContent( this, &SWorldHierarchyImpl::GetViewButtonContent )
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage).Image( FEditorStyle::GetBrush("GenericViewButton") )
-					]
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(2, 0, 0, 0)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock).Text( LOCTEXT("ViewButton", "View Options") )
-					]
-				]
 			]
 		]
 	];
@@ -1623,14 +1608,6 @@ TSharedRef<SWidget> SWorldHierarchyImpl::GetViewButtonContent()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
-}
-
-FSlateColor SWorldHierarchyImpl::GetViewButtonForegroundColor() const
-{
-	static const FName InvertedForegroundName("InvertedForeground");
-	static const FName DefaultForegroundName("DefaultForeground");
-
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
 }
 
 bool SWorldHierarchyImpl::GetDisplayPathsState() const

@@ -53,6 +53,16 @@ struct APPLICATIONCORE_API FGenericPlatformSplash
 
 
 	/**
+	 * Sets the progress displayed on the application icon (for startup/loading progress).
+	 *
+	 * @param InType Progress value in percent.
+	 */
+	FORCEINLINE static void SetProgress(int ProgressPercent)
+	{
+	
+	}
+
+	/**
 	 * Sets the text displayed on the splash screen (for startup/loading progress)
 	 *
 	 * @param	InType		Type of text to change

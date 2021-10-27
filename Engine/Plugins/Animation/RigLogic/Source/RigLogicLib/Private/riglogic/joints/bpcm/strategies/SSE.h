@@ -3,7 +3,7 @@
 #pragma once
 
 #include "riglogic/joints/bpcm/strategies/Block4.h"
-#include "riglogic/system/simd/SIMD.h"
+#include "trimd/TRiMD.h"
 
 namespace rl4 {
 

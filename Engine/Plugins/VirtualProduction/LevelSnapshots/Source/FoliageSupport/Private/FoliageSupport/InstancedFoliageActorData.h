@@ -35,7 +35,7 @@ public:
 	 * Looks up saved foliage types and restores the passed in foliage actor.
 	 * The caller must ensure that the required instances already exist by using FindFoliageType or FindOrCreateFoliageType.
 	 */
-	void ApplyTo(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties) const;
+	void ApplyTo(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties, bool bWasRecreated) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FInstancedFoliageActorData& MeshInfo);
 };

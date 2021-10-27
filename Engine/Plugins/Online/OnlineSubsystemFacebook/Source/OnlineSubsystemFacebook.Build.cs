@@ -5,9 +5,16 @@ using UnrealBuildTool;
 
 public class OnlineSubsystemFacebook : ModuleRules
 {
+	protected virtual bool bUsesRestfulImpl
+	{
+		get =>
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix);
+	}
+
 	public OnlineSubsystemFacebook(ReadOnlyTargetRules Target) : base(Target)
 	{
-		bool bUsesRestfulImpl = false;
 		PrivateDefinitions.Add("ONLINESUBSYSTEMFACEBOOK_PACKAGE=1");
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -72,40 +79,18 @@ public class OnlineSubsystemFacebook : ModuleRules
 				PublicDefinitions.Add("WITH_FACEBOOK=0");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			bUsesRestfulImpl = true;
-			PublicDefinitions.Add("WITH_FACEBOOK=1");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		else if (bUsesRestfulImpl)
 		{
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			bUsesRestfulImpl = true;
+			PrivateIncludePaths.Add("Private/Rest");
 		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			PublicDefinitions.Add("WITH_FACEBOOK=1");
-			bUsesRestfulImpl = true;
-		}
-        else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-            PublicDefinitions.Add("WITH_FACEBOOK=1");
-            bUsesRestfulImpl = true;
-        }
         else
         {
 			PublicDefinitions.Add("WITH_FACEBOOK=0");
+
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}
 
-		if (bUsesRestfulImpl)
-		{
-			PublicDefinitions.Add("USES_RESTFUL_FACEBOOK=1");
-			PrivateIncludePaths.Add("Private/Rest");
-		}
-		else
-		{
-			PublicDefinitions.Add("USES_RESTFUL_FACEBOOK=0");
-		}
+		PublicDefinitions.Add("USES_RESTFUL_FACEBOOK=" + (bUsesRestfulImpl ? "1" : "0"));
 	}
 }

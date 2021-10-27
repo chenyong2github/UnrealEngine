@@ -84,6 +84,26 @@ public:
 		checkSlow(NewValue > 0); 
 		return uint32(NewValue);
 	}
+
+private:
+	// Separate function to avoid force inlining this everywhere. Helps both for code size and performance.
+	inline void Destroy() const
+	{
+		if (!AtomicFlags.MarkForDelete(std::memory_order_release))
+		{
+			while (true)
+			{
+				auto HP = MakeHazardPointer(PendingDeletes, PendingDeletesHPC);
+				TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = HP.Get();
+				if (PendingDeletesPtr->Enqueue(const_cast<FRHIResource*>(this)))
+				{
+					break;
+				}
+			}
+		}
+	}
+
+public:
 	FORCEINLINE_DEBUGGABLE uint32 Release() const
 	{
 		int32 NewValue = AtomicFlags.Release(std::memory_order_release);
@@ -91,22 +111,12 @@ public:
 
 		if (NewValue == 0)
 		{
-			if (!AtomicFlags.MarkForDelete(std::memory_order_release))
-			{
-				while(true)
-				{
-					auto HP = MakeHazardPointer(PendingDeletes, PendingDeletesHPC);
-					TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = HP.Get();
-					if(PendingDeletesPtr->Enqueue(const_cast<FRHIResource*>(this)))
-					{
-						break;
-					}
-				}
-			}
+			Destroy();
 		}
 		checkSlow(NewValue >= 0);
 		return uint32(NewValue);
 	}
+
 	FORCEINLINE_DEBUGGABLE uint32 GetRefCount() const
 	{
 		int32 CurrentValue = AtomicFlags.GetNumRefs(std::memory_order_relaxed);

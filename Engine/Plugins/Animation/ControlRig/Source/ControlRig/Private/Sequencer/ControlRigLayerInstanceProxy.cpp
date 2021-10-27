@@ -363,6 +363,7 @@ void FAnimNode_ControlRigInputPose::Evaluate_AnyThread(FPoseContext& Output)
 
 			Output.Pose.MoveBonesFrom(InputContext.Pose);
 			Output.Curve.MoveFrom(InputContext.Curve);
+			Output.CustomAttributes.MoveFrom(InputContext.CustomAttributes);
 			return;
 		}
 	}

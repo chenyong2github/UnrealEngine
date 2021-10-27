@@ -691,8 +691,10 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 
 	if (SelectedTargetReferenceItem.IsValid())
 	{
-		FMemberReference VariableReference;
-		if (SelectedTargetReferenceItem->GetMemberReference(VariableReference))
+		FMemberReference SourceVariableReference;
+		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
+		FMemberReference TargetVariableReference;
+		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourceProperty->GetOwnerClass()))
 		{
 			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
 			if (PinnedEditor.IsValid())
@@ -700,10 +702,10 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 				UBlueprint* Blueprint = PinnedEditor->GetBlueprintObj();
 				if (Blueprint)
 				{
-					const FScopedTransaction Transaction(GetTransactionTitle(VariableReference));
+					const FScopedTransaction Transaction(GetTransactionTitle(TargetVariableReference));
 					Blueprint->Modify();
 
-					FReplaceNodeReferencesHelper::ReplaceReferences(VariableReference, Blueprint, InRawDataList);
+					FReplaceNodeReferencesHelper::ReplaceReferences(SourceVariableReference, TargetVariableReference, Blueprint, InRawDataList);
 
 					if (SourceProperty && bShowReplacementsWhenFinished)
 					{
@@ -713,7 +715,7 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 							FStreamSearchOptions SearchOptions;
 							SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
 							SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-							GlobalResults->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+							GlobalResults->MakeSearchQuery(TargetVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
 						}
 					}
 				}

@@ -24,7 +24,7 @@ public:
 	 * @param	MaxSizeY - The maximum height of the texture.
 	 * @param	InPowerOfTwoSize - True if the texture size must be a power of two.
 	 */
-	FTextureLayout3d(uint32 InMinSizeX, uint32 InMinSizeY, uint32 InMinSizeZ, uint32 MaxSizeX, uint32 MaxSizeY, uint32 MaxSizeZ, bool bInPowerOfTwoSize = false, bool bInAlignByFour = true):
+	FTextureLayout3d(uint32 InMinSizeX, uint32 InMinSizeY, uint32 InMinSizeZ, uint32 MaxSizeX, uint32 MaxSizeY, uint32 MaxSizeZ, bool bInPowerOfTwoSize = false, bool bInAlignByFour = true, bool bInAllowShrink = true):
 		MinSizeX(InMinSizeX),
 		MinSizeY(InMinSizeY),
 		MinSizeZ(InMinSizeZ),
@@ -32,10 +32,12 @@ public:
 		SizeY(InMinSizeY),
 		SizeZ(InMinSizeZ),
 		bPowerOfTwoSize(bInPowerOfTwoSize),
-		bAlignByFour(bInAlignByFour)
+		bAlignByFour(bInAlignByFour),
+		bAllowShrink(bInAllowShrink)
 	{
 		checkSlow(MaxSizeX < USHRT_MAX && MaxSizeY < USHRT_MAX && MaxSizeZ < USHRT_MAX);
-		new(Nodes) FTextureLayoutNode3d(0, 0, 0, MaxSizeX, MaxSizeY, MaxSizeZ);
+		new(Nodes) FTextureLayoutNode3d(0, 0, 0, MaxSizeX, MaxSizeY, MaxSizeZ, INDEX_NONE);
+		new (UnusedLeaves) FUnusedLeaf(0, 0, 0, MaxSizeX, MaxSizeY, MaxSizeZ, 0);
 	}
 
 	/**
@@ -67,12 +69,43 @@ public:
 			ElementSizeZ = (ElementSizeZ + 3) & ~3;
 		}
 		
+		int32 IdealNodeIndex = INDEX_NONE;
+		int32 ContainingNodeIndex = INDEX_NONE;
+		int32 RemoveIndex = INDEX_NONE;
+		for (int32 Index = 0; Index < UnusedLeaves.Num(); ++Index)
+		{
+			if (ElementSizeX <= UnusedLeaves[Index].SizeX && ElementSizeY <= UnusedLeaves[Index].SizeY && ElementSizeZ <= UnusedLeaves[Index].SizeZ)
+			{
+				if (ContainingNodeIndex == INDEX_NONE)
+				{
+					ContainingNodeIndex = UnusedLeaves[Index].NodeIndex;
+					RemoveIndex = Index;
+				}
+
+				if (UnusedLeaves[Index].MinX + ElementSizeX <= SizeX && UnusedLeaves[Index].MinY + ElementSizeY <= SizeY && UnusedLeaves[Index].MinZ + ElementSizeZ <= SizeZ)
+				{
+					IdealNodeIndex = UnusedLeaves[Index].NodeIndex;
+					RemoveIndex = Index;
+					break;
+				}
+			}
+		}
+
+		if (RemoveIndex != INDEX_NONE)
+		{
+			UnusedLeaves.RemoveAtSwap(RemoveIndex);
+		}
+
 		// Try allocating space without enlarging the texture.
-		int32	NodeIndex = AddSurfaceInner(0, ElementSizeX, ElementSizeY, ElementSizeZ, false);
-		if (NodeIndex == INDEX_NONE)
+		int32 NodeIndex = INDEX_NONE;
+		if (IdealNodeIndex != INDEX_NONE)
+		{
+			NodeIndex = AddSurfaceInner(IdealNodeIndex, ElementSizeX, ElementSizeY, ElementSizeZ, false);
+		}
+		if (NodeIndex == INDEX_NONE && ContainingNodeIndex != INDEX_NONE)
 		{
 			// Try allocating space which might enlarge the texture.
-			NodeIndex = AddSurfaceInner(0, ElementSizeX, ElementSizeY, ElementSizeZ, true);
+			NodeIndex = AddSurfaceInner(ContainingNodeIndex, ElementSizeX, ElementSizeY, ElementSizeZ, true);
 		}
 
 		if (NodeIndex != INDEX_NONE)
@@ -83,7 +116,9 @@ public:
 			OutBaseY = Node.MinY;
 			OutBaseZ = Node.MinZ;
 
-			UpdateSize(Node.MinX + ElementSizeX, Node.MinY + ElementSizeY, Node.MinZ + ElementSizeZ);
+			UsedLeaves.Add(FIntVector(OutBaseX, OutBaseY, OutBaseZ), NodeIndex);
+
+			UpdateSize(OutBaseX + ElementSizeX, OutBaseY + ElementSizeY, OutBaseZ + ElementSizeZ);
 			return true;
 		}
 		else
@@ -100,33 +135,23 @@ public:
 	bool RemoveElement(uint32 ElementBaseX, uint32 ElementBaseY, uint32 ElementBaseZ, uint32 ElementSizeX, uint32 ElementSizeY, uint32 ElementSizeZ)
 	{
 		int32 FoundNodeIndex = INDEX_NONE;
-		// Search through nodes to find the element to remove
-		//@todo - traverse the tree instead of iterating through all nodes
-		for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
-		{
-			FTextureLayoutNode3d&	Node = Nodes[NodeIndex];
-
-			if (Node.MinX == ElementBaseX
-				&& Node.MinY == ElementBaseY
-				&& Node.MinZ == ElementBaseZ
-				&& Node.SizeX == ElementSizeX
-				&& Node.SizeY == ElementSizeY
-				&& Node.SizeZ == ElementSizeZ)
-			{
-				FoundNodeIndex = NodeIndex;
-				break;
-			}
-		}
+		
+		// Find the element to remove
+		UsedLeaves.RemoveAndCopyValue(FIntVector(ElementBaseX, ElementBaseY, ElementBaseZ), FoundNodeIndex);
 
 		if (FoundNodeIndex != INDEX_NONE)
 		{
+			check(Nodes[FoundNodeIndex].SizeX == (bAlignByFour ? ((ElementSizeX + 3u) & ~3u) : ElementSizeX)
+				&& Nodes[FoundNodeIndex].SizeY == (bAlignByFour ? ((ElementSizeY + 3u) & ~3u) : ElementSizeY)
+				&& Nodes[FoundNodeIndex].SizeZ == (bAlignByFour ? ((ElementSizeZ + 3u) & ~3u) : ElementSizeZ));
+
 			// Mark the found node as not being used anymore
 			Nodes[FoundNodeIndex].bUsed = false;
 
 			// Walk up the tree to find the node closest to the root that doesn't have any used children
 			int32 ParentNodeIndex = FindParentNode(FoundNodeIndex);
-			ParentNodeIndex = IsNodeUsed(ParentNodeIndex) ? INDEX_NONE : ParentNodeIndex;
-			int32 LastParentNodeIndex = ParentNodeIndex;
+			int32 LastParentNodeIndex = INDEX_NONE;
+
 			while (ParentNodeIndex != INDEX_NONE 
 				&& !IsNodeUsed(Nodes[ParentNodeIndex].ChildA) 
 				&& !IsNodeUsed(Nodes[ParentNodeIndex].ChildB))
@@ -141,9 +166,20 @@ public:
 			if (LastParentNodeIndex != INDEX_NONE)
 			{
 				RemoveChildren(LastParentNodeIndex);
+				FoundNodeIndex = LastParentNodeIndex;
 			}
 
+			new (UnusedLeaves) FUnusedLeaf(
+				Nodes[FoundNodeIndex].MinX,
+				Nodes[FoundNodeIndex].MinY,
+				Nodes[FoundNodeIndex].MinZ,
+				Nodes[FoundNodeIndex].SizeX,
+				Nodes[FoundNodeIndex].SizeY,
+				Nodes[FoundNodeIndex].SizeZ,
+				FoundNodeIndex);
+
 			// Recalculate size
+			if (bAllowShrink)
 			{
 				SizeX = MinSizeX;
 				SizeY = MinSizeY;
@@ -200,7 +236,8 @@ private:
 	struct FTextureLayoutNode3d
 	{
 		int32	ChildA,
-				ChildB;
+				ChildB,
+				Parent;
 		uint16	MinX,
 				MinY,
 				MinZ,
@@ -211,9 +248,10 @@ private:
 
 		FTextureLayoutNode3d() {}
 
-		FTextureLayoutNode3d(uint16 InMinX, uint16 InMinY, uint16 InMinZ, uint16 InSizeX, uint16 InSizeY, uint16 InSizeZ):
+		FTextureLayoutNode3d(uint16 InMinX, uint16 InMinY, uint16 InMinZ, uint16 InSizeX, uint16 InSizeY, uint16 InSizeZ, int32 InParent):
 			ChildA(INDEX_NONE),
 			ChildB(INDEX_NONE),
+			Parent(InParent),
 			MinX(InMinX),
 			MinY(InMinY),
 			MinZ(InMinZ),
@@ -221,6 +259,23 @@ private:
 			SizeY(InSizeY),
 			SizeZ(InSizeZ),
 			bUsed(false)
+		{}
+	};
+
+	struct FUnusedLeaf
+	{
+		uint16 MinX, MinY, MinZ;
+		uint16 SizeX, SizeY, SizeZ;
+		int32 NodeIndex;
+
+		FUnusedLeaf(uint16 InMinX, uint16 InMinY, uint16 InMinZ, uint16 InSizeX, uint16 InSizeY, uint16 InSizeZ, int32 InNodeIndex) :
+			MinX(InMinX),
+			MinY(InMinY),
+			MinZ(InMinZ),
+			SizeX(InSizeX),
+			SizeY(InSizeY),
+			SizeZ(InSizeZ),
+			NodeIndex(InNodeIndex)
 		{}
 	};
 
@@ -232,7 +287,11 @@ private:
 	uint32 SizeZ;
 	bool bPowerOfTwoSize;
 	bool bAlignByFour;
+	bool bAllowShrink;
 	TArray<FTextureLayoutNode3d,TInlineAllocator<5> > Nodes;
+	TArray<int32> FreeNodeIndices;
+	TArray<FUnusedLeaf> UnusedLeaves;
+	TMap<FIntVector, int32> UsedLeaves;
 
 	/** Recursively traverses the tree depth first and searches for a large enough leaf node to contain the requested allocation. */
 	int32 AddSurfaceInner(int32 NodeIndex, uint32 ElementSizeX, uint32 ElementSizeY, uint32 ElementSizeZ, bool bAllowTextureEnlargement)
@@ -296,6 +355,8 @@ private:
 			// The pointer to the current node may be invalidated below, be explicit!
 			CurrentNodePtr = 0;
 
+			int32 ChildIndex;
+
 			// Add new nodes, and link them as children of the current node.
 			if (ExcessWidth > ExcessHeight)
 			{
@@ -306,52 +367,56 @@ private:
 				if (ExcessWidth > ExcessDepth)
 				{
 					// Update the child indices
-					Nodes[NodeIndex].ChildA = Nodes.Num();
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildA = ChildIndex;
 
 					// Create a child with the same width as the element being placed.
 					// The height may not be the same as the element height yet, in that case another subdivision will occur when traversing this child node.
-					new(Nodes) FTextureLayoutNode3d(
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						ElementSizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ
-						);
+						CurrentNode.SizeZ,
+						NodeIndex);
 
 					// Create a second child to contain the leftover area in the X direction
-					Nodes[NodeIndex].ChildB = Nodes.Num();
-					new(Nodes) FTextureLayoutNode3d(
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildB = ChildIndex;
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX + ElementSizeX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX - ElementSizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ
-						);
+						CurrentNode.SizeZ,
+						NodeIndex);
 				}
 				else
 				{
-					Nodes[NodeIndex].ChildA = Nodes.Num();
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildA = ChildIndex;
 
-					new(Nodes) FTextureLayoutNode3d(
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						ElementSizeZ
-						);
+						ElementSizeZ,
+						NodeIndex);
 
-					Nodes[NodeIndex].ChildB = Nodes.Num();
-					new(Nodes) FTextureLayoutNode3d(
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildB = ChildIndex;
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ + ElementSizeZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ - ElementSizeZ
-						);
+						CurrentNode.SizeZ - ElementSizeZ,
+						NodeIndex);
 				}
 			}
 			else
@@ -362,50 +427,57 @@ private:
 
 				if (ExcessHeight > ExcessDepth)
 				{
-					Nodes[NodeIndex].ChildA = Nodes.Num();
-					new(Nodes) FTextureLayoutNode3d(
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildA = ChildIndex;
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						ElementSizeY,
-						CurrentNode.SizeZ
-						);
+						CurrentNode.SizeZ,
+						NodeIndex);
 
-					Nodes[NodeIndex].ChildB = Nodes.Num();
-					new(Nodes) FTextureLayoutNode3d(
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildB = ChildIndex;
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY + ElementSizeY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY - ElementSizeY,
-						CurrentNode.SizeZ
-						);
+						CurrentNode.SizeZ,
+						NodeIndex);
 				}
 				else
 				{
-					Nodes[NodeIndex].ChildA = Nodes.Num();
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildA = ChildIndex;
 
-					new(Nodes) FTextureLayoutNode3d(
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						ElementSizeZ
-						);
+						ElementSizeZ,
+						NodeIndex);
 
-					Nodes[NodeIndex].ChildB = Nodes.Num();
-					new(Nodes) FTextureLayoutNode3d(
+					ChildIndex = FreeNodeIndices.Num() ? FreeNodeIndices.Pop() : Nodes.AddUninitialized();
+					Nodes[NodeIndex].ChildB = ChildIndex;
+					new(&Nodes[ChildIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ + ElementSizeZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ - ElementSizeZ
-						);
+						CurrentNode.SizeZ - ElementSizeZ,
+						NodeIndex);
 				}
 			}
+
+			const int32 ChildBIndex = Nodes[NodeIndex].ChildB;
+			new (UnusedLeaves) FUnusedLeaf(Nodes[ChildBIndex].MinX, Nodes[ChildBIndex].MinY, Nodes[ChildBIndex].MinZ, Nodes[ChildBIndex].SizeX, Nodes[ChildBIndex].SizeY, Nodes[ChildBIndex].SizeZ, ChildBIndex);
 
 			// Only traversing ChildA, since ChildA is always the newly created node that matches the element size
 			return AddSurfaceInner(Nodes[NodeIndex].ChildA, ElementSizeX, ElementSizeY, ElementSizeZ, bAllowTextureEnlargement);
@@ -431,16 +503,7 @@ private:
 	/** Returns the index into Nodes of the parent node of SearchNode. */
 	int32 FindParentNode(int32 SearchNodeIndex)
 	{
-		//@todo - could be a constant time search if the nodes stored a parent index
-		for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
-		{
-			FTextureLayoutNode3d&	Node = Nodes[NodeIndex];
-			if (Node.ChildA == SearchNodeIndex || Node.ChildB == SearchNodeIndex)
-			{
-				return NodeIndex;
-			}
-		}
-		return INDEX_NONE;
+		return Nodes[SearchNodeIndex].Parent;
 	}
 
 	/** Returns true if the node or any of its children are marked used. */
@@ -452,7 +515,7 @@ private:
 			checkSlow(Nodes[NodeIndex].ChildB != INDEX_NONE);
 			bChildrenUsed = IsNodeUsed(Nodes[NodeIndex].ChildA) || IsNodeUsed(Nodes[NodeIndex].ChildB);
 		}
-		return Nodes[NodeIndex].bUsed || bChildrenUsed;
+		return bChildrenUsed || Nodes[NodeIndex].bUsed;
 	}
 
 	/** Recursively removes the children of a given node from the Nodes array and adjusts existing indices to compensate. */
@@ -474,20 +537,17 @@ private:
 			const int32 OldChildA = Nodes[NodeIndex].ChildA;
 
 			// Remove the child from the Nodes array
-			Nodes.RemoveAt(OldChildA);
+			FreeNodeIndices.Add(OldChildA);
 
-			// Iterate over all the Nodes and fix up their indices now that an element has been removed
-			for (int32 OtherNodeIndex = 0; OtherNodeIndex < Nodes.Num(); OtherNodeIndex++)
+			for (int32 Index = 0; Index < UnusedLeaves.Num(); ++Index)
 			{
-				if (Nodes[OtherNodeIndex].ChildA >= OldChildA)
+				if (UnusedLeaves[Index].NodeIndex == OldChildA)
 				{
-					Nodes[OtherNodeIndex].ChildA--;
-				}
-				if (Nodes[OtherNodeIndex].ChildB >= OldChildA)
-				{
-					Nodes[OtherNodeIndex].ChildB--;
+					UnusedLeaves.RemoveAtSwap(Index);
+					break;
 				}
 			}
+
 			// Mark the node as not having a ChildA
 			Nodes[NodeIndex].ChildA = INDEX_NONE;
 		}
@@ -495,18 +555,17 @@ private:
 		if (Nodes[NodeIndex].ChildB != INDEX_NONE)
 		{
 			const int32 OldChildB = Nodes[NodeIndex].ChildB;
-			Nodes.RemoveAt(OldChildB);
-			for (int32 OtherNodeIndex = 0; OtherNodeIndex < Nodes.Num(); OtherNodeIndex++)
+			FreeNodeIndices.Add(OldChildB);
+
+			for (int32 Index = 0; Index < UnusedLeaves.Num(); ++Index)
 			{
-				if (Nodes[OtherNodeIndex].ChildA >= OldChildB)
+				if (UnusedLeaves[Index].NodeIndex == OldChildB)
 				{
-					Nodes[OtherNodeIndex].ChildA--;
-				}
-				if (Nodes[OtherNodeIndex].ChildB >= OldChildB)
-				{
-					Nodes[OtherNodeIndex].ChildB--;
+					UnusedLeaves.RemoveAtSwap(Index);
+					break;
 				}
 			}
+
 			Nodes[NodeIndex].ChildB = INDEX_NONE;
 		}
 	}

@@ -50,6 +50,7 @@ protected:
 	void OnOpen();
 	void OnSave();
 	void OnReloadStage();
+	void OnResetStage();
 	void OnClose();
 
 	void OnImport();

@@ -94,6 +94,7 @@ public:
 	template <typename U>
 	bool IsType() const
 	{
+		static_assert(UE::Core::Private::TParameterPackTypeIndex<U, T, Ts...>::Value != (SIZE_T)-1, "The TVariant is not declared to hold the type passed to IsType<>");
 		return UE::Core::Private::TIsType<U, T, Ts...>::IsSame(TypeIndex);
 	}
 

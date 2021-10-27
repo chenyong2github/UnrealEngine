@@ -1,28 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSubobjectInstanceEditor.h"
-#include "ScopedTransaction.h"
-#include "IDocumentation.h"
-#include "Widgets/SToolTip.h"
-#include "GraphEditorActions.h"
+
 #include "Editor/EditorEngine.h"
-#include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
-#include "SubobjectEditorExtensionContext.h"
-#include "Styling/SlateIconFinder.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "SComponentClassCombo.h"
-#include "SEditorHeaderButton.h"
-#include "SSimpleButton.h"
-#include "SSimpleComboButton.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
+#include "EditorClassUtils.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "GraphEditorActions.h"
+#include "IDocumentation.h"
+#include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"		// ApplyInstanceChangesToBlueprint
-#include "Styling/StyleColors.h"
+#include "SComponentClassCombo.h"
+#include "SPositiveActionButton.h"
+#include "ScopedTransaction.h"
+#include "SlateOptMacros.h"
+#include "Styling/SlateIconFinder.h"
+#include "SubobjectEditorExtensionContext.h"
+#include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "SSubobjectInstanceEditor"
 
@@ -81,7 +83,6 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	]
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
-	.Padding(0.0f,0.0f,4.0f,0.0f)
 	.AutoWidth()
 	[
 		SAssignNew(ExtensionPanel, SExtensionPanel)
@@ -95,30 +96,55 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SSimpleButton)
+		SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), "CompactButton")
+		.ContentPadding(0)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
 		.Visibility(this, &SSubobjectInstanceEditor::GetPromoteToBlueprintButtonVisibility)
 		.OnClicked(this, &SSubobjectInstanceEditor::OnPromoteToBlueprintClicked)
-		.Icon(FAppStyle::Get().GetBrush("Icons.Blueprints"))
 		.ToolTip(IDocumentation::Get()->CreateToolTip(
 			LOCTEXT("PromoteToBluerprintTooltip", "Converts this actor into a reusable Blueprint Class that can have script behavior" ),
 			nullptr,
 			TEXT("Shared/LevelEditor"),
 			TEXT("ConvertToBlueprint")))
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+		]
 	]
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SSimpleComboButton)
+		SNew(SComboButton)
+		.ComboButtonStyle(FAppStyle::Get(), "CompactComboButton")
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
 		.Visibility(this, &SSubobjectInstanceEditor::GetEditBlueprintButtonVisibility)
 		.ToolTipText(LOCTEXT("EditActorBlueprint_Tooltip", "Edit the Blueprint for this Actor"))
-		.Icon(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+		]
 		.MenuContent()
 		[
 			EditBlueprintMenuBuilder.MakeWidget()
 		]
+	]
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
+	.Padding(4, 0, 0, 0)
+	.AutoWidth()
+	[
+		FEditorClassUtils::GetDynamicDocumentationLinkWidget(TAttribute<const UClass*>::CreateLambda([this]()
+			{
+				UObject* Obj = GetObjectContext();
+				return Obj != nullptr ? Obj->GetClass() : nullptr;
+			}))
 	];
 
 	Contents = SNew(SVerticalBox)
@@ -481,54 +507,6 @@ FMenuBuilder SSubobjectInstanceEditor::CreateMenuBuilder()
 	);
 
 	return EditBlueprintMenuBuilder;
-}
-
-FSlateColor SSubobjectInstanceEditor::GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const
-{
-	USlateThemeManager& ThemeManager = USlateThemeManager::Get();
-
-	const FLinearColor& IntroducedHereColor = ThemeManager.GetColor(EStyleColor::AccentWhite);
-
-	// A blue-ish tint
-	const FLinearColor& InheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
-	const FLinearColor& InstancedInheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
-
-	// A green-ish tint
-	const FLinearColor& InheritedNativeComponentColor = ThemeManager.GetColor(EStyleColor::AccentGreen);
-
-	const FSubobjectData* Data = Node ? Node->GetDataSource() : nullptr;
-	if(!Data)
-	{
-		return IntroducedHereColor;
-	}
-
-	if (Data->IsInheritedComponent())
-	{
-		// Native C++ components will be tinted green
-		if (Data->IsNativeComponent())
-		{
-			return InheritedNativeComponentColor;
-		}
-		else if (Data->IsInstancedComponent())
-		{
-			return InstancedInheritedBlueprintComponentColor;
-		}
-		else
-		{
-			return InheritedBlueprintComponentColor;
-		}
-	}
-	// If its not an actor, instanced, or native inherited component then it must be inherited from a BP
-	else if(!Data->IsActor() && !Data->IsInstancedComponent())
-	{
-		return InheritedBlueprintComponentColor;
-	}
-	else if(Data->IsActor())
-	{
-		return ThemeManager.GetColor(EStyleColor::AccentWhite);
-	}
-	
-	return IntroducedHereColor;
 }
 
 FText SSubobjectInstanceEditor::OnGetApplyChangesToBlueprintTooltip() const

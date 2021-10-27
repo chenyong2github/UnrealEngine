@@ -5,6 +5,9 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
+#include "HAL/LowLevelMemTracker.h"
+
+LLM_DEFINE_TAG(Animation_Inertialization);
 
 #define LOCTEXT_NAMESPACE "AnimNode_Inertialization"
 
@@ -94,6 +97,7 @@ void FAnimNode_Inertialization::RequestInertialization(float Duration)
 
 void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/Inertialization"));
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread);
 
 	FAnimNode_Base::Initialize_AnyThread(Context);
@@ -135,6 +139,7 @@ void FAnimNode_Inertialization::CacheBones_AnyThread(const FAnimationCacheBonesC
 
 void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/Inertialization"));
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
 
 	const int32 NodeId = Context.GetCurrentNodeId();
@@ -175,6 +180,7 @@ void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& 
 
 void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/Inertialization"));
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
 
 	Source.Evaluate(Output);

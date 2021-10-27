@@ -16,7 +16,7 @@
 /**
  * Implements the visual style of the messaging debugger UI.
  */
-class FLevelSequenceEditorStyle
+class FLevelSequenceEditorStyle final
 	: public FSlateStyleSet
 {
 public:

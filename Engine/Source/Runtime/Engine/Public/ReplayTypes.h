@@ -514,24 +514,3 @@ public:
 
 // Using an indirect array here since FReplayExternalData stores an FBitReader, and it's not safe to store an FArchive directly in a TArray.
 typedef TIndirectArray<FReplayExternalData> FReplayExternalDataArray;
-
-// Helps manage packets, and any associations with streaming levels or exported GUIDs / fields.
-class UE_DEPRECATED(4.26, "No longer used") FScopedPacketManager
-{
-public:
-	FScopedPacketManager(FScopedPacketManager&&) = delete;
-	FScopedPacketManager(const FScopedPacketManager&) = delete;
-	FScopedPacketManager& operator=(const FScopedPacketManager&) = delete;
-	FScopedPacketManager& operator=(FScopedPacketManager&&) = delete;
-
-	FScopedPacketManager(UNetConnection& InConnection, TArray<FQueuedDemoPacket>& InPackets, const uint32 InSeenLevelIndex);
-	~FScopedPacketManager();
-
-private:
-	void AssociatePacketsWithLevel();
-
-	UNetConnection& Connection;
-	TArray<FQueuedDemoPacket>& Packets;
-	const uint32 SeenLevelIndex;
-	int32 StartPacketCount;
-};

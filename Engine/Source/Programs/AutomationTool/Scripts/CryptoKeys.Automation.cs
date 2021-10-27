@@ -24,10 +24,10 @@ namespace AutomationTool
 
 			LogInformation("********** CRYPTOKEYS COMMAND STARTED **********");
 
-			string UE4EditorExe = HostPlatform.Current.GetUE4ExePath(Params.UE4Exe);
-			if (!FileExists(UE4EditorExe))
+			string UEEditorExe = HostPlatform.Current.GetUnrealExePath(Params.UnrealExe);
+			if (!FileExists(UEEditorExe))
 			{
-				throw new AutomationException("Missing " + UE4EditorExe + " executable. Needs to be built first.");
+				throw new AutomationException("Missing " + UEEditorExe + " executable. Needs to be built first.");
 			}
 
 			bool bCycleAllKeys = ParseParam("updateallkeys");
@@ -96,7 +96,7 @@ namespace AutomationTool
 			else if (bCycleEncryptionKey) CommandletParams = "-updateencryptionkey";
 			else if (bCycleSigningKey) CommandletParams = "-updatesigningkey";
 
-			RunCommandlet(ProjectPath, UE4EditorExe, "CryptoKeys", CommandletParams);
+			RunCommandlet(ProjectPath, UEEditorExe, "CryptoKeys", CommandletParams);
 
 			if (DestinationFile != OutputFile)
 			{

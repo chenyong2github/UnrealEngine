@@ -13,6 +13,7 @@
 #include "HAL/LowLevelMemTracker.h"
 
 class UTexture;
+struct FMaterialInstanceCachedData;
 
 /**
  * Cache uniform expressions for the given material instance.
@@ -101,6 +102,8 @@ public:
 	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 
 	void GameThread_SetParent(UMaterialInterface* ParentMaterialInterface);
+
+	void GameThread_UpdateCachedData(const FMaterialInstanceCachedData& CachedData);
 
 	void InitMIParameters(struct FMaterialInstanceParameterSet& ParameterSet);
 
@@ -193,6 +196,8 @@ private:
 	TArray<TNamedParameter<const UTexture*> > TextureParameterArray;
 	/** Runtime Virtual Texture parameters for this material instance. */
 	TArray<TNamedParameter<const URuntimeVirtualTexture*> > RuntimeVirtualTextureParameterArray; 
+	/** Remap layer indices for parent */
+	TArray<int32> ParentLayerIndexRemap;
 };
 
 template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<float> >& FMaterialInstanceResource::GetValueArray() { return ScalarParameterArray; }
@@ -283,7 +288,7 @@ const ParameterType* GameThread_FindParameterByIndex(const TArray<ParameterType>
 }
 
 template <typename ParameterType>
-FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult)
+inline bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult)
 {
 	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
 	{
@@ -298,23 +303,27 @@ FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Param
 }
 
 template <typename ParameterType>
-FORCEINLINE void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Parameters, bool bSetOverride, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters)
+inline void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Parameters, TArrayView<const int32> LayerIndexRemap, bool bSetOverride, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters)
 {
 	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
 	{
 		const ParameterType* Parameter = &Parameters[ParameterIndex];
 		if (Parameter->IsOverride())
 		{
-			FMaterialParameterMetadata* Result = OutParameters.Find(Parameter->ParameterInfo);
-			if (Result)
+			FMaterialParameterInfo ParameterInfo;
+			if (Parameter->ParameterInfo.RemapLayerIndex(LayerIndexRemap, ParameterInfo))
 			{
-				Parameter->GetValue(*Result);
-#if WITH_EDITORONLY_DATA
-				if (bSetOverride)
+				FMaterialParameterMetadata* Result = OutParameters.Find(ParameterInfo);
+				if (Result)
 				{
-					Result->bOverride = true;
-				}
+					Parameter->GetValue(*Result);
+#if WITH_EDITORONLY_DATA
+					if (bSetOverride)
+					{
+						Result->bOverride = true;
+					}
 #endif // WITH_EDITORONLY_DATA
+				}
 			}
 		}
 	}

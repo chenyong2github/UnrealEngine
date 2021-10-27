@@ -1160,7 +1160,7 @@ FString FWindowsPlatformProcess::GetCurrentWorkingDirectory()
 	FString Buffer;
 	for (uint32 Length = 128;;)
 	{
-		TArray<TCHAR>& CharArray = Buffer.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType>& CharArray = Buffer.GetCharArray();
 		CharArray.SetNumUninitialized(Length);
 
 		Length = ::GetCurrentDirectoryW(CharArray.Num(), CharArray.GetData());

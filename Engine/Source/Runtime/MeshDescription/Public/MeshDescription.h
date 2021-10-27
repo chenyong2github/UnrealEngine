@@ -16,10 +16,9 @@
 #include "Containers/ArrayView.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "Serialization/BulkData.h"
 #include "Serialization/CustomVersion.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "Containers/StaticArray.h"
-#include "Virtualization/VirtualizedBulkData.h"
 #include "MeshDescription.generated.h"
 
 enum

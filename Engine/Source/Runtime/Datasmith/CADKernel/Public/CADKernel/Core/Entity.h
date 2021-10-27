@@ -90,6 +90,13 @@ namespace CADKernel
 		 */
 		static void SerializeIdent(FCADKernelArchive& Ar, TSharedPtr<FEntity>& Entity, bool bSaveSelection = true);
 		static void SerializeIdent(FCADKernelArchive& Ar, TWeakPtr<FEntity>& Entity, bool bSaveSelection = true);
+		static void SerializeIdent(FCADKernelArchive& Ar, FEntity** Entity, bool bSaveSelection = true);
+
+		template<typename EntityType>
+		static void SerializeIdent(FCADKernelArchive& Ar, EntityType** Entity, bool bSaveSelection = true)
+		{
+			SerializeIdent(Ar, (FEntity**) Entity, bSaveSelection);
+		}
 
 		template<typename EntityType>
 		static void SerializeIdent(FCADKernelArchive& Ar, TSharedPtr<EntityType>& Entity, bool bSaveSelection = true)
@@ -106,10 +113,16 @@ namespace CADKernel
 		/**
 		 * SerializeIdent of each TSharedPtr<FEntity> of the array
 		 */
+		static void SerializeIdents(FCADKernelArchive& Ar, TArray<FEntity*>& Array, bool bSaveSelection = true);
 		static void SerializeIdents(FCADKernelArchive& Ar, TArray<TWeakPtr<FEntity>>& Array, bool bSaveSelection = true);
 		static void SerializeIdents(FCADKernelArchive& Ar, TArray<TSharedPtr<FEntity>>& Array, bool bSaveSelection = true);
 		static void SerializeIdents(FCADKernelArchive& Ar, TArray<TOrientedEntity<FEntity>>& Array);
 
+		template<typename EntityType>
+		static void SerializeIdents(FCADKernelArchive& Ar, TArray<EntityType*>& Array, bool bSaveSelection = true)
+		{
+			SerializeIdents(Ar, (TArray<FEntity*>&) Array, bSaveSelection);
+		}
 
 		template<typename EntityType>
 		static void SerializeIdents(FCADKernelArchive& Ar, TArray<TWeakPtr<EntityType>>& Array, bool bSaveSelection = true)

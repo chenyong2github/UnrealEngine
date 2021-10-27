@@ -1002,7 +1002,7 @@ public:
 	 *
 	 * These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	 * Because of that reason, it is not safe to be used during construction script
-	 * Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized 
+	 * Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void PlayAnimation(class UAnimationAsset* NewAnimToPlay, bool bLooping);
@@ -1011,7 +1011,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void SetAnimation(class UAnimationAsset* NewAnimToPlay);
@@ -1020,7 +1020,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void Play(bool bLooping);
@@ -1029,7 +1029,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void Stop();
@@ -1038,7 +1038,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	bool IsPlaying() const;
@@ -1047,7 +1047,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void SetPosition(float InPos, bool bFireNotifies = true);
@@ -1056,7 +1056,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	float GetPosition() const;
@@ -1065,7 +1065,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	void SetPlayRate(float Rate);
@@ -1074,7 +1074,7 @@ public:
 	*
 	* These changes status of animation instance, which is transient data, which means it won't serialize with this component
 	* Because of that reason, it is not safe to be used during construction script
-	* Please use OverrideAnimationDatat for construction script. That will override AnimationData to be serialized
+	* Please use OverrideAnimationData for construction script. That will override AnimationData to be serialized
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation", UnsafeDuringActorConstruction = "true"))
 	float GetPlayRate() const;

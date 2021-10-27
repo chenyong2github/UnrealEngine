@@ -69,9 +69,7 @@ FSlateOpenGLTextureManager::FDynamicTextureResource::~FDynamicTextureResource()
 
 FSlateOpenGLTextureManager::FSlateOpenGLTextureManager()
 {
-	// Need to get it into BGRA
-	const bool bNeedRedBlueSwap = true;
-	VectorGraphicsCache = MakeUnique<FSlateVectorGraphicsCache>(MakeShared<FSlateOpenGLTextureAtlasFactory>(), bNeedRedBlueSwap);
+	VectorGraphicsCache = MakeUnique<FSlateVectorGraphicsCache>(MakeShared<FSlateOpenGLTextureAtlasFactory>());
 }
 
 FSlateOpenGLTextureManager::~FSlateOpenGLTextureManager()

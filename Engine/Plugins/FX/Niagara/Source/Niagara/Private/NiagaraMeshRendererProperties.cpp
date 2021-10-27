@@ -367,10 +367,10 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 #if WITH_EDITORONLY_DATA
 bool UNiagaraMeshRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
 {
-	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles && InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace)) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
-		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles && InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString)) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 	{
 		return true;
 	}

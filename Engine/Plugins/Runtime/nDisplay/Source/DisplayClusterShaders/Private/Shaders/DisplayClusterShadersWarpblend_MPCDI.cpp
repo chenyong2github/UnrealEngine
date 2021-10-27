@@ -243,9 +243,9 @@ public:
 		float USize = WarpBlendParameters.Src.Rect.Width() / (float)WarpDataSrcSize.X;
 		float VSize = WarpBlendParameters.Src.Rect.Height() / (float)WarpDataSrcSize.Y;
 
-		RenderPassData.VSParameters.DrawRectanglePosScaleBias = FVector4(1, 1, 0, 0);
-		RenderPassData.VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4(1, 1, 1, 1);
-		RenderPassData.VSParameters.DrawRectangleUVScaleBias = FVector4(USize, VSize, U, V);
+		RenderPassData.VSParameters.DrawRectanglePosScaleBias = FVector4f(1, 1, 0, 0);
+		RenderPassData.VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4f(1, 1, 1, 1);
+		RenderPassData.VSParameters.DrawRectangleUVScaleBias = FVector4f(USize, VSize, U, V);
 		return true;
 	}
 

@@ -20,7 +20,7 @@ FRecastTileData::FRawData::FRawData(uint8* InData)
 FRecastTileData::FRawData::~FRawData()
 {
 #if WITH_RECAST
-	dtFree(RawData);
+	dtFree(RawData, DT_ALLOC_PERM_TILE_DATA);
 #else
 	FMemory::Free(RawData);
 #endif
@@ -56,7 +56,7 @@ FRecastTileData::FRecastTileData(int32 DataSize, uint8* RawData, int32 CacheData
 static uint8* DuplicateRecastRawData(uint8* Src, int32 SrcSize)
 {
 #if WITH_RECAST	
-	uint8* DupData = (uint8*)dtAlloc(SrcSize, DT_ALLOC_PERM);
+	uint8* DupData = (uint8*)dtAlloc(SrcSize, DT_ALLOC_PERM_TILE_DATA);
 #else
 	uint8* DupData = (uint8*)FMemory::Malloc(SrcSize);
 #endif
@@ -88,7 +88,9 @@ void URecastNavMeshDataChunk::Serialize(FArchive& Ar)
 	{
 		if (NavMeshVersion < NAVMESHVER_MIN_COMPATIBLE)
 		{
-			// incompatible, just skip over this data.  navmesh needs rebuilt.
+			UE_LOG(LogNavigation, Warning, TEXT("%s: URecastNavMeshDataChunk: Nav mesh version %d < Min compatLWCible %d. Nav mesh must be rebuilt in the editor \n"), *GetName(), NavMeshVersion, NAVMESHVER_MIN_COMPATIBLE);
+
+			// incompatible, just skip over this data. Navmesh needs rebuilt.
 			Ar.Seek(RecastNavMeshSizePos + RecastNavMeshSizeBytes);
 		}
 #if WITH_RECAST
@@ -326,7 +328,7 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 	return Result;
 }
 
-void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const float RotationDeg, const FVector2D& RotationCenter)
+void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const FVector::FReal RotationDeg, const FVector2D& RotationCenter)
 {
 #if WITH_RECAST	
 	UE_LOG(LogNavigation, Verbose, TEXT("%s Moving %i tiles on navmesh %s."), ANSI_TO_TCHAR(__FUNCTION__), Tiles.Num(), *NavigationDataName.ToString());
@@ -344,10 +346,10 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 
 			if ((TileData.bAttached == false) && TileData.TileRawData.IsValid())
 			{
-				const FVector3f RcRotationCenter = Unreal2RecastPoint(FVector(RotationCenter.X, RotationCenter.Y, 0.f));
+				const FVector RcRotationCenter = Unreal2RecastPoint(FVector(RotationCenter.X, RotationCenter.Y, 0.f));
 
-				const float TileWidth = NavMesh->getParams()->tileWidth;
-				const float TileHeight = NavMesh->getParams()->tileHeight;
+				const FVector::FReal TileWidth = NavMesh->getParams()->tileWidth;
+				const FVector::FReal TileHeight = NavMesh->getParams()->tileHeight;
 
 				const dtMeshHeader* Header = (dtMeshHeader*)TileData.TileRawData->RawData;
 				if (Header->magic != DT_NAVMESH_MAGIC || Header->version != DT_NAVMESH_VERSION)
@@ -359,7 +361,7 @@ void URecastNavMeshDataChunk::MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const 
 				int DeltaX = 0;
 				int DeltaY = 0;
 				FBox TileBox(Recast2UnrealPoint(Header->bmin), Recast2UnrealPoint(Header->bmax));
-				FVector3f RcTileCenter = Unreal2RecastPoint(TileBox.GetCenter());
+				FVector RcTileCenter = Unreal2RecastPoint(TileBox.GetCenter());
 				dtComputeTileOffsetFromRotation(&RcTileCenter.X, &RcRotationCenter.X, RotationDeg, TileWidth, TileHeight, DeltaX, DeltaY);
 
 				const int OffsetWithRotX = Offset.X + DeltaX;

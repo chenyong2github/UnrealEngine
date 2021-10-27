@@ -129,7 +129,7 @@ namespace AutomationScripts
 				{
 					if (!CommandUtils.FileExists_NoExceptions(BuildPatchToolExe))
 					{
-						UEBuildUtils.BuildBuildPatchTool(null, UnrealBuildTool.BuildHostPlatform.Current.Platform);
+						UnrealBuildUtils.BuildBuildPatchTool(null, UnrealBuildTool.BuildHostPlatform.Current.Platform);
 					}
 				}
 			}
@@ -1189,7 +1189,7 @@ namespace AutomationScripts
 						String TargetPlatformName = ThisPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client);
 						FileReference OutputFile = FileReference.Combine(SC.ProjectRoot, "Intermediate", "Config", TargetPlatformName, "BinaryConfig.ini");
 						String CommandletParams = String.Format("-TargetPlatform={0} -OutputFile={1} -StagedPluginsFile={2}", TargetPlatformName, OutputFile.FullName, PluginListFile.FullName);
-						RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "MakeBinaryConfig", CommandletParams);
+						RunCommandlet(SC.RawProjectPath, Params.UnrealExe, "MakeBinaryConfig", CommandletParams);
 						SC.StageFile(StagedFileType.UFS, OutputFile, StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Config", OutputFile.GetFileName()));
 					}
 
@@ -3990,7 +3990,19 @@ namespace AutomationScripts
 				string FileHostParams = " ";
 				if (Params.CookOnTheFly || Params.FileServer)
 				{
-					FileHostParams += Params.ZenStore ? "-cookonthefly -zenstorehost=" : "-filehostip=";
+					if (Params.ZenStore)
+					{
+						if (Params.CookOnTheFly)
+						{
+							FileHostParams += "-cookonthefly ";
+						}
+						FileHostParams += "-zenstorehost=";
+					}
+					else
+					{
+						FileHostParams += "-filehostip=";
+					}
+
 					// add localhost first for platforms using redirection
 					const string LocalHost = "127.0.0.1";
 					if (!IsNullOrEmpty(Params.Port))

@@ -224,6 +224,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeterminesOutputType = "ActorClass"))
 	TArray<class AActor*> ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath);
 
+	/**
+	 * Sets the world transform of the given actor, if possible.
+	 * @returns false if the world transform could not be set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	bool SetActorTransform(AActor* InActor, const FTransform& InWorldTransform);
+
+	/**
+	 * Sets the world transform of the given component, if possible.
+	 * @returns false if the world transform could not be set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	bool SetComponentTransform(UActorComponent* InActorComponent, const FTransform& InWorldTransform);
+
 private:
 
 	/** To fire before an Actor is Cut */

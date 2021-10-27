@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "Virtualization/IVirtualizationSourceControlUtilities.h"
+#include "Virtualization/VirtualizationSystem.h"
 
-namespace UE
-{
-namespace Virtualization
+namespace UE::Virtualization::Experimental
 {
 
 class FVirtualizationSourceControlUtilities : public IVirtualizationSourceControlUtilities
@@ -26,5 +24,4 @@ private:
 	bool SyncPayloadSidecarFileInternal(const FPackagePath& PackagePath);
 };
 
-} // namespace Virtualization
-} // namespace UE
+} // namespace UE::Virtualization::Experimental

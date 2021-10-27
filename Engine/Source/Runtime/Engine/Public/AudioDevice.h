@@ -1278,7 +1278,7 @@ public:
 	int32 GetNumFreeSources() const { return Sources.Num(); }
 
 	/** Returns the sample rate used by the audio device. */
-	float GetSampleRate() const { return SampleRate; }
+	float GetSampleRate() const { return (float)(SampleRate); }
 
 	/** Returns the buffer length of the audio device. */
 	int32 GetBufferLength() const { return PlatformSettings.CallbackBufferFrameSize; }
@@ -1777,7 +1777,7 @@ public:
 	virtual void UpdateDeviceDeltaTime()
 	{
 		const double CurrTime = FPlatformTime::Seconds();
-		DeviceDeltaTime = CurrTime - LastUpdateTime;
+		DeviceDeltaTime = UE_REAL_TO_FLOAT(CurrTime - LastUpdateTime);
 		LastUpdateTime = CurrTime;
 	}
 

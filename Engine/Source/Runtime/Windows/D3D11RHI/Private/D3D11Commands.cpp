@@ -173,7 +173,7 @@ void FD3D11DynamicRHI::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* Vertex
 {
 	FD3D11Buffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 
-	ID3D11Buffer* D3DBuffer = VertexBuffer ? VertexBuffer->Resource : NULL;
+	ID3D11Buffer* D3DBuffer = VertexBuffer ? VertexBuffer->Resource.GetReference() : nullptr;
 	TrackResourceBoundAsVB(VertexBuffer, StreamIndex);
 	StateCache.SetStreamSource(D3DBuffer, StreamIndex, Offset);
 }
@@ -563,7 +563,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI,u
 {
 	check(BufferRHI->GetLayout().GetHash());
 	FD3D11UniformBuffer* Buffer = ResourceCast(BufferRHI);
-	ID3D11Buffer* ConstantBuffer = Buffer ? Buffer->Resource : NULL;
+	ID3D11Buffer* ConstantBuffer = Buffer ? Buffer->Resource.GetReference() : nullptr;
 	EShaderFrequency Stage = SF_NumFrequencies;
 	switch (ShaderRHI->GetFrequency())
 	{
@@ -606,7 +606,7 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShade
 	//VALIDATE_BOUND_SHADER(ComputeShader);
 	FD3D11UniformBuffer* Buffer = ResourceCast(BufferRHI);
 	{
-		ID3D11Buffer* ConstantBuffer = Buffer ? Buffer->Resource : NULL;
+		ID3D11Buffer* ConstantBuffer = Buffer ? Buffer->Resource.GetReference() : nullptr;
 		StateCache.SetConstantBuffer<SF_Compute>(ConstantBuffer, BufferIndex);
 	}
 
@@ -1229,7 +1229,6 @@ template <EShaderFrequency ShaderFrequency>
 inline int32 SetShaderResourcesFromBufferUAVPS(FD3D11DynamicRHI* RESTRICT D3D11RHI, FD3D11StateCache* RESTRICT StateCache, FD3D11UniformBuffer* RESTRICT Buffer, const uint32* RESTRICT ResourceMap, int32 BufferIndex, const TCHAR* LayoutName)
 {
 	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
-	float CurrentTime = FApp::GetCurrentTime();
 	int32 NumSetCalls = 0;
 	uint32 BufferOffset = ResourceMap[BufferIndex];
 	if (BufferOffset > 0)
@@ -1268,7 +1267,6 @@ template <EShaderFrequency ShaderFrequency>
 inline int32 SetShaderResourcesFromBuffer_SRV(FD3D11DynamicRHI* RESTRICT D3D11RHI, FD3D11StateCache* RESTRICT StateCache, FD3D11UniformBuffer* RESTRICT Buffer, const uint32* RESTRICT ResourceMap, int32 BufferIndex, const TCHAR* LayoutName)
 {
 	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
-	float CurrentTime = FApp::GetCurrentTime();
 	int32 NumSetCalls = 0;
 	uint32 BufferOffset = ResourceMap[BufferIndex];
 	if (BufferOffset > 0)

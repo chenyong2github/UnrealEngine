@@ -5,16 +5,14 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
-using namespace CADKernel;
-
-TSharedPtr<FEntityGeom> FTorusSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FTorusSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FTorusSurface>(Tolerance3D, NewMatrix, MajorRadius, MinorRadius, Boundary[EIso::IsoU].Min, Boundary[EIso::IsoU].Max, Boundary[EIso::IsoV].Min, Boundary[EIso::IsoV].Max);
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FTorusSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FTorusSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)
@@ -27,41 +25,43 @@ FInfoEntity& FTorusSurface::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FTorusSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FTorusSurface::EvaluatePointGridInCylindricalSpace(const FCoordinateGrid& Coordinates, TArray<FPoint2D>& OutPoints) const
 {
-	double CosU = cos(InSurfacicCoordinate.U);
-	double CosV = cos(InSurfacicCoordinate.V);
+	int32 PointNum = Coordinates.Count();
 
-	double SinU = sin(InSurfacicCoordinate.U);
-	double SinV = sin(InSurfacicCoordinate.V);
+	OutPoints.Empty(PointNum);
 
-	OutPoint3D.DerivativeOrder = InDerivativeOrder;
-	OutPoint3D.Point.Set((MajorRadius + MinorRadius * CosV) * CosU, (MajorRadius + MinorRadius * CosV) * SinU, MinorRadius * SinV);
+	int32 UCount = Coordinates.IsoCount(EIso::IsoU);
 
-	OutPoint3D.Point = Matrix.Multiply(OutPoint3D.Point);
+	TArray<double> CosU;
+	TArray<double> SinU;
+	CosU.Reserve(UCount);
+	SinU.Reserve(UCount);
 
-	if (InDerivativeOrder > 0) 
+	for (double Angle : Coordinates[EIso::IsoU])
 	{
-		OutPoint3D.GradientU = FPoint((MajorRadius + MinorRadius * CosV) * -SinU, (MajorRadius + MinorRadius * CosV) * CosU, 0.0);
-		OutPoint3D.GradientV = FPoint((MinorRadius * -SinV) * CosU, (MinorRadius * -SinV) * SinU, MinorRadius * CosV);
+		CosU.Emplace(cos(Angle));
+	}
 
-		OutPoint3D.GradientU = Matrix.MultiplyVector(OutPoint3D.GradientU);
-		OutPoint3D.GradientV = Matrix.MultiplyVector(OutPoint3D.GradientV);
+	for (double Angle : Coordinates[EIso::IsoU])
+	{
+		SinU.Emplace(sin(Angle));
+	}
 
-		if (InDerivativeOrder > 1)
+	for (double Angle : Coordinates[EIso::IsoV])
+	{
+		double CosV = cos(Angle);
+		double Rho = MajorRadius + MinorRadius * CosV;
+
+		double SwapOrientation = (Angle < PI && Angle >= 0) ? 1.0 : -1.0;
+		for (int32 Undex = 0; Undex < UCount; Undex++)
 		{
-			OutPoint3D.LaplacianU = FPoint((MajorRadius + MinorRadius * CosV) * -CosU, (MajorRadius + MinorRadius * CosV) * -SinU, 0.0);
-			OutPoint3D.LaplacianV = FPoint((MinorRadius * -CosV) * CosU, (MinorRadius * -CosV) * SinU, MinorRadius * -SinV);
-			OutPoint3D.LaplacianUV = FPoint((MinorRadius * -SinV) * -SinU, (MinorRadius * -SinV) * CosU, 0.0);
-
-			OutPoint3D.LaplacianU = Matrix.MultiplyVector(OutPoint3D.LaplacianU);
-			OutPoint3D.LaplacianV = Matrix.MultiplyVector(OutPoint3D.LaplacianV);
-			OutPoint3D.LaplacianUV = Matrix.MultiplyVector(OutPoint3D.LaplacianUV);
+			OutPoints.Emplace(Rho * CosU[Undex] * SwapOrientation, Rho * SinU[Undex]);
 		}
 	}
 }
 
-void FTorusSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FTorusSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	int32 PointNum = Coordinates.Count();
 
@@ -92,18 +92,21 @@ void FTorusSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfa
 	{
 		double CosV = cos(Angle);
 		double SinV = sin(Angle);
+		double Rho = MajorRadius + MinorRadius * CosV;
+		double Height = MinorRadius * SinV;
 
 		for (int32 Undex = 0; Undex < UCount; Undex++)
 		{
-			OutPoints.Points3D.Emplace((MajorRadius + MinorRadius * CosV) * CosU[Undex], (MajorRadius + MinorRadius * CosV) * SinU[Undex], MinorRadius * SinV);
+			OutPoints.Points3D.Emplace(Rho * CosU[Undex], Rho * SinU[Undex], Height);
 		}
 
 		if (bComputeNormals)
 		{
+			double DeltaHeight = MinorRadius * CosV;
 			for (int32 Undex = 0; Undex < UCount; Undex++)
 			{
-				FPoint GradientU = FPoint((MajorRadius + MinorRadius * CosV) * -SinU[Undex], (MajorRadius + MinorRadius * CosV) * CosU[Undex], 0.0);
-				FPoint GradientV = FPoint((MinorRadius * -SinV) * CosU[Undex], (MinorRadius * -SinV) * SinU[Undex], MinorRadius * CosV);
+				FPoint GradientU = FPoint(Rho * (-SinU[Undex]), Rho * CosU[Undex], 0.0);
+				FPoint GradientV = FPoint(-Height * CosU[Undex], -Height * SinU[Undex], DeltaHeight);
 				OutPoints.Normals.Emplace(GradientU ^ GradientV);
 			}
 		}
@@ -119,7 +122,7 @@ void FTorusSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfa
 		FVector Center = Matrix.Column(3);
 		for (FVector& Normal : OutPoints.Normals)
 		{
-			 Normal = Matrix.PointRotation(Normal, Center);
+			 Normal = Matrix.MultiplyVector(Normal);
 		}
 		OutPoints.NormalizeNormals();
 	}

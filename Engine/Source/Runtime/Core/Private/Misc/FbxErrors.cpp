@@ -166,10 +166,11 @@ FLazyName FFbxErrors::Animation_CurveNotFound(TEXT("Animation_CurveNotFound"));
 
 namespace
 {
-	constexpr TCHAR FbxErrorsPath[] = TEXT("Shared/Editor/FbxErrors");
+	constexpr TCHAR FbxErrorsURLPath[] = TEXT("WorkingWithContent/Importing/FBX/FbxErrors/");
+	constexpr TCHAR FbxErrorsLocalPath[] = TEXT("Shared/Editor/FbxErrors");
 }
 
 FFbxErrorToken::FFbxErrorToken(const FName& InErrorName)
-	: FDocumentationToken(FbxErrorsPath, FbxErrorsPath, InErrorName.ToString())
+	: FDocumentationToken(FbxErrorsURLPath, FbxErrorsLocalPath, InErrorName.ToString())
 {
 }

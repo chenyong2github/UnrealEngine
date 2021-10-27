@@ -18,7 +18,7 @@
 #include "BuoyancyComponent.h"
 #include "WaterModule.h"
 #include "WaterSubsystem.h"
-#include "WaterMeshActor.h"
+#include "WaterZoneActor.h"
 #include "WaterBodyExclusionVolume.h"
 #include "WaterBodyIslandActor.h"
 #include "WaterSplineMetadata.h"
@@ -27,6 +27,7 @@
 #include "WaterUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GerstnerWaterWaves.h"
+#include "WaterMeshComponent.h"
 #include "WaterVersion.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
@@ -59,6 +60,7 @@ const FName UWaterBodyComponent::WaterBodyIndexParamName(TEXT("WaterBodyIndex"))
 const FName UWaterBodyComponent::WaterVelocityAndHeightName(TEXT("WaterVelocityAndHeight"));
 const FName UWaterBodyComponent::GlobalOceanHeightName(TEXT("GlobalOceanHeight"));
 const FName UWaterBodyComponent::FixedZHeightName(TEXT("FixedZHeight"));
+const FName UWaterBodyComponent::WaterAreaParamName(TEXT("WaterArea"));
 const FName UWaterBodyComponent::FixedVelocityName(TEXT("FixedVelocity"));
 const FName UWaterBodyComponent::FixedWaterDepthName(TEXT("FixedWaterDepth"));
 
@@ -744,12 +746,12 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 		{
 			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld())) 
 			{
-				if (AWaterMeshActor* WaterMesh = WaterSubsystem->GetWaterMeshActor())
+				if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor())
 				{
-					WaterMesh->MarkWaterMeshComponentForRebuild();
+					WaterZone->MarkWaterMeshComponentForRebuild();
 				}
-			}
-		}
+	 		}
+	 	}
 	}
 }
 
@@ -834,12 +836,12 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus(
 		{
 			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
 			{
-				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
+				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterZoneActor() == nullptr))
 				{
 					Result.Add(FTokenizedMessage::Create(
 						EMessageSeverity::Error,
 						FText::Format(
-							LOCTEXT("MapCheck_Message_MissingWaterMesh", "Water body {0} requires a WaterMeshActor to be rendered. Please add one to the map. "),
+							LOCTEXT("MapCheck_Message_MissingWaterZone", "Water body {0} requires a WaterZone actorr to be rendered. Please add one to the map. "),
 							FText::FromString(GetWaterBodyActor()->GetActorLabel()))));
 				}
 			}
@@ -1184,9 +1186,17 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 	InMID->SetScalarParameterValue(FixedWaterDepthName, GetConstantDepth());
 	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
-	if (AWaterMeshActor* WaterMesh = WaterSubsystem->GetWaterMeshActor())
+	if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor())
 	{
-		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterMesh->WaterVelocityTexture);
+		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterVelocityTexture);
+
+		UWaterMeshComponent* WaterMeshComponent = WaterZone->GetWaterMeshComponent();
+		check(WaterMeshComponent);
+
+		FLinearColor WaterArea = WaterMeshComponent->RTWorldLocation;
+		WaterArea.B = WaterMeshComponent->RTWorldSizeVector.X;
+		WaterArea.A = WaterMeshComponent->RTWorldSizeVector.Y;
+		InMID->SetVectorParameterValue(WaterAreaParamName, WaterArea);
 	}
 
 	return true;

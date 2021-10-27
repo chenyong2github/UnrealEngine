@@ -7,6 +7,8 @@
 #include "Views/SnapshotEditorViewData.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetThumbnail.h"
+#include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
 #include "Editor/EditorStyle/Public/EditorStyleSet.h"
 #include "IContentBrowserSingleton.h"
@@ -15,6 +17,10 @@
 #include "Modules/ModuleManager.h"
 #include "Slate/Public/Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPath.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -31,10 +37,11 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const FSn
 	ARFilter.ClassNames.Add(ULevelSnapshot::StaticClass()->GetFName());
 
 	FAssetPickerConfig AssetPickerConfig;
+	AssetPickerConfig.CustomColumns = GetCustomColumns();
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
 	AssetPickerConfig.bAllowNullSelection = false;
-	AssetPickerConfig.bShowBottomToolbar = false;
+	AssetPickerConfig.bShowBottomToolbar = true;
 	AssetPickerConfig.bAutohideSearchBar = false;
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.bCanShowClasses = false;
@@ -49,6 +56,9 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const FSn
 	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnShouldFilterAsset);
 	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu);
 
+	AssetPickerConfig.OnGetCustomAssetToolTip =
+		FOnGetCustomAssetToolTip::CreateSP(this, &SLevelSnapshotsEditorBrowser::CreateCustomTooltip);
+	
 	ChildSlot
 		[
 			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
@@ -70,6 +80,105 @@ void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) co
 	{
 		ViewBuildData.EditorDataPtr->SetActiveSnapshot(Snapshot);
 	}
+}
+
+TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetData& AssetData)
+{
+	const uint32 ThumbnailSize = 256;
+			
+	const TSharedRef<FAssetThumbnail> AssetThumbnail =
+		MakeShareable(new FAssetThumbnail(
+			AssetData.GetAsset(), ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool()));
+	FAssetThumbnailConfig AssetThumbnailConfig;
+	AssetThumbnailConfig.bAllowFadeIn = false;
+	AssetThumbnailConfig.bAllowRealTimeOnHovered = false;
+	AssetThumbnailConfig.bForceGenericThumbnail = false;
+			
+	TSharedRef<SToolTip> NewTooltip = SNew(SToolTip)
+	[
+		SNew(SBox)
+		.WidthOverride(ThumbnailSize)
+		.HeightOverride(ThumbnailSize)
+		.VAlign(VAlign_Top)
+		[
+			AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
+		]
+	];
+			
+	return NewTooltip;
+}
+
+TArray<FAssetViewCustomColumn> SLevelSnapshotsEditorBrowser::GetCustomColumns() const
+{
+	TArray<FAssetViewCustomColumn> ReturnValue;
+
+	{
+		auto ColumnStringReturningLambda = [](const FAssetData& AssetData, const FName& ColumnName)
+		{
+			FString AssetMetaData;
+			const bool bHasMetaTag = AssetData.GetTagValue(ColumnName, AssetMetaData);
+			AssetMetaData = bHasMetaTag ? FSoftObjectPath(AssetMetaData).GetAssetName() : "";
+				
+			return AssetMetaData;
+		};
+		
+		FAssetViewCustomColumn Column;
+		Column.ColumnName = FName("MapPath");
+		Column.DataType = UObject::FAssetRegistryTag::TT_Alphabetical;
+		Column.DisplayName = LOCTEXT("SnapshotMapNameColumnName", "Owning Map");
+		Column.OnGetColumnData = FOnGetCustomAssetColumnData::CreateLambda(ColumnStringReturningLambda);
+		Column.OnGetColumnDisplayText =
+			FOnGetCustomAssetColumnDisplayText::CreateLambda(
+				[ColumnStringReturningLambda](const FAssetData& AssetData, const FName& ColumnName)
+			{
+				return FText::FromString(ColumnStringReturningLambda(AssetData, ColumnName));
+			});
+		ReturnValue.Add(Column);
+	}
+
+	{
+		auto ColumnStringReturningLambda = [](const FAssetData& AssetData, const FName& ColumnName)
+		{
+			FString AssetMetaData;			
+			return AssetData.GetTagValue(ColumnName, AssetMetaData) ? AssetMetaData : "";
+		};
+		
+		FAssetViewCustomColumn Column;
+		Column.ColumnName = FName("SnapshotDescription");
+		Column.DataType = UObject::FAssetRegistryTag::TT_Alphabetical;
+		Column.DisplayName = LOCTEXT("SnapshotDescriptionColumnName", "Description");
+		Column.OnGetColumnData = FOnGetCustomAssetColumnData::CreateLambda(ColumnStringReturningLambda);
+		Column.OnGetColumnDisplayText = 
+			FOnGetCustomAssetColumnDisplayText::CreateLambda(
+				[ColumnStringReturningLambda](const FAssetData& AssetData, const FName& ColumnName)
+			{
+				return FText::FromString(ColumnStringReturningLambda(AssetData, ColumnName));
+			});
+		ReturnValue.Add(Column);
+	}
+
+	{
+		auto ColumnStringReturningLambda = [](const FAssetData& AssetData, const FName& ColumnName)
+		{
+			FString AssetMetaData;			
+			return AssetData.GetTagValue(ColumnName, AssetMetaData) ? AssetMetaData : "";
+		};
+		
+		FAssetViewCustomColumn Column;
+		Column.ColumnName = FName("CaptureTime");
+		Column.DataType = UObject::FAssetRegistryTag::TT_Alphabetical;
+		Column.DisplayName = LOCTEXT("SnapshotCaptureTimeColumnName", "Time Taken");
+		Column.OnGetColumnData = FOnGetCustomAssetColumnData::CreateLambda(ColumnStringReturningLambda);
+		Column.OnGetColumnDisplayText = 
+			FOnGetCustomAssetColumnDisplayText::CreateLambda(
+				[ColumnStringReturningLambda](const FAssetData& AssetData, const FName& ColumnName)
+			{
+				return FText::FromString(ColumnStringReturningLambda(AssetData, ColumnName));
+			});
+		ReturnValue.Add(Column);
+	}
+
+	return ReturnValue;
 }
 
 void SLevelSnapshotsEditorBrowser::OnAssetDoubleClicked(const FAssetData& InAssetData) const

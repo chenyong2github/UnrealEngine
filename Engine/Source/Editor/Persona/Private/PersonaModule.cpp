@@ -891,7 +891,8 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 			MenuBuilder.BeginSection(TEXT("ChoosePreviewMesh"), LOCTEXT("ChoosePreviewMesh", "Choose Preview Mesh"));
 			{
 				FAssetPickerConfig AssetPickerConfig;
-				AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateLambda([WeakPersonaToolkit](const FAssetData& AssetData)
+
+				auto HandleAssetSelected = [WeakPersonaToolkit](const FAssetData& AssetData)
 				{
 					if (WeakPersonaToolkit.IsValid())
 					{
@@ -920,7 +921,16 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 
 						FSlateApplication::Get().DismissAllMenus();
 					}
+				};
+				
+				AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateLambda([HandleAssetSelected](const TArray<FAssetData>& SelectedAssetData)
+				{
+					if (SelectedAssetData.Num() == 1)
+					{
+						HandleAssetSelected(SelectedAssetData[0]);
+					}
 				});
+				AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateLambda(HandleAssetSelected);
 				AssetPickerConfig.bAllowNullSelection = false;
 				AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 				AssetPickerConfig.Filter.bRecursiveClasses = false;

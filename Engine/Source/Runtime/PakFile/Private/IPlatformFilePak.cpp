@@ -7328,7 +7328,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 #endif
 
 	FString GlobalUTocPath = FString::Printf(TEXT("%sPaks/global.utoc"), *FPaths::ProjectContentDir());
-	const bool bShouldMountGlobal = !IsRunningCookOnTheFly() && FPlatformFileManager::Get().GetPlatformFile().FileExists(*GlobalUTocPath);
+	const bool bShouldMountGlobal = FPlatformFileManager::Get().GetPlatformFile().FileExists(*GlobalUTocPath);
 	const bool bForceIoStore = WITH_IOSTORE_IN_EDITOR && FParse::Param(CmdLine, TEXT("UseIoStore"));
 	if (bShouldMountGlobal || bForceIoStore)
 	{
@@ -7790,17 +7790,6 @@ int32 FPakPlatformFile::MountAllPakFiles(const TArray<FString>& PakFolders, cons
 	{
 		CmdLinePaksToLoad.ParseIntoArray(PaksToLoad, TEXT("+"), true);
 	}
-
-	//if we are using a fileserver, then dont' mount paks automatically.  We only want to read files from the server.
-	FString FileHostIP;
-	const bool bCookOnTheFly = FParse::Value(FCommandLine::Get(), TEXT("filehostip"), FileHostIP);
-	const bool bPreCookedNetwork = FParse::Param(FCommandLine::Get(), TEXT("precookednetwork"));
-	if (bPreCookedNetwork)
-	{
-		// precooked network builds are dependent on cook on the fly
-		check(bCookOnTheFly);
-	}
-	bMountPaks &= (!bCookOnTheFly || bPreCookedNetwork);
 #endif
 
 	if (bMountPaks)

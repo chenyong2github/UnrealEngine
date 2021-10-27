@@ -19,7 +19,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SSlider.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "EditorStyleSet.h"
 #include "FoliagePaletteCommands.h"
 #include "AssetThumbnail.h"
@@ -220,7 +220,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				// +Add Foliage Type button
-				SAssignNew(AddFoliageTypeCombo, SEditorHeaderButton)
+				SAssignNew(AddFoliageTypeCombo, SPositiveActionButton)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				.Text(LOCTEXT("AddFoliageTypeButtonLabel", "Foliage"))
 				.OnGetMenuContent(this, &SFoliagePalette::GetAddFoliageTypePicker)

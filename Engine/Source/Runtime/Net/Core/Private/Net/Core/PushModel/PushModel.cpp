@@ -17,6 +17,17 @@
 DECLARE_CYCLE_STAT(TEXT("PushModel PostGarbageCollect"), STAT_PushModel_PostGarbageCollect, STATGROUP_Net);
 DEFINE_LOG_CATEGORY_STATIC(LogPushModel, All, All);
 
+struct FNetObjectManagerPushIdHelper
+{
+	static void ResetNetPushId(const FObjectKey& InObjectKey)
+	{
+		if (UObject* Object = InObjectKey.ResolveObjectPtr())
+		{
+			FObjectNetPushIdHelper::SetNetPushIdDynamic(Object, INDEX_NONE);
+		}
+	}
+};
+
 namespace UEPushModelPrivate
 {
 	//! Originally, multiple implementations of FPushModelObjectManagers were tested.
@@ -27,7 +38,7 @@ namespace UEPushModelPrivate
 	//! Returns are just ignored.
 	
 	//! TODO: We should add in a way for NetDrivers to opt out of PushModel.
-	//! Things like the Beacon Net Driver, for exmaple, don't need to care about it.
+	//! Things like the Beacon Net Driver, for example, don't need to care about it.
 	//! Since most things are lazily created, this probably isn't a big deal, but
 	//! having explicit behavior preventing it is probably worthwhile.
 
@@ -168,7 +179,7 @@ namespace UEPushModelPrivate
 	 *		for some configurable timeout, and all connections have received its most
 	 *		up to date information.
 	 *
-	 *	2. Alongisde dirty property states, Push Model could also have a bitfield that
+	 *	2. Alongside dirty property states, Push Model could also have a bitfield that
 	 *		tracks whether or not an object was dirtied in a frame. Alternatively,
 	 *		that state could be derived from FPushModelPerObjectState.
 	 *
@@ -280,7 +291,10 @@ namespace UEPushModelPrivate
 			{
 				if (!It->HasAnyNetDriverStates())
 				{
-					ObjectKeyToInternalId.Remove(It->GetObjectKey());
+					const FObjectKey& ObjectKey = It->GetObjectKey();
+
+					FNetObjectManagerPushIdHelper::ResetNetPushId(ObjectKey);
+					ObjectKeyToInternalId.Remove(ObjectKey);
 					It.RemoveCurrent();
 				}
 				else

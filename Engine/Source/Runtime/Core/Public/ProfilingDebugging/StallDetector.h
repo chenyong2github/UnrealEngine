@@ -17,9 +17,9 @@
 #ifndef STALL_DETECTOR
  #if WITH_EDITOR && PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
   #define STALL_DETECTOR 1
- #else // WITH_EDITOR && PLATFORM_WINDOWS
+ #else // WITH_EDITOR && PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
   #define STALL_DETECTOR 0
- #endif // WITH_EDITOR && PLATFORM_WINDOWS
+ #endif // WITH_EDITOR && PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
 #endif // STALL_DETECTOR
 
 #if STALL_DETECTOR
@@ -134,16 +134,56 @@ namespace UE
 	};
 
 	/**
-	* FStallDetector is meant to be constructed and destructed across a single scope to measure that specific timespan.
+	* FStallTimer tracks remaining time from some budget, and access is protected from multiple threads
+	**/
+	class CORE_API FStallTimer
+	{
+	public:
+		/**
+		* Construct the timer, you must call Reset() before the other methods
+		*/
+		FStallTimer();
+
+		/**
+		* Initialize the timer with the current timestamp and remaining time to track
+		**/
+		void Reset(const double InSeconds, const double InRemainingSeconds);
+
+		/**
+		* Perform a check against the specified timestamp and provide some useful details
+		**/
+		void Check(const double InSeconds, double& OutDeltaSeconds, double& OutOverageSeconds);
+
+		/**
+		* Pause the timer
+		**/
+		void Pause(const double InSeconds);
+
+		/**
+		* Resume the timer
+		**/
+		void Resume(const double InSeconds);
+
+	private:
+		// To track pause/unpause calls
+		uint32 PauseCount;
+
+		// The timestamp of when we last called Reset() or Check()
+		double LastCheckSeconds;
+
+		// The time remaining before we we go beyond the remaining time
+		double RemainingSeconds;
+
+		// Guards access to internal state from multiple threads
+		FCriticalSection Section;
+	};
+
+	/**
+	* FStallDetector is meant to be constructed and destructed across a single scope to measure that specific timespan
 	**/
 	class CORE_API FStallDetector
 	{
 	public:
-		/**
-		* Special const value for invalid timestamps, used to detect races of startup/shutdown and threads
-		*/
-		static const double InvalidSeconds;
-
 		/**
 		* Construct the stall detector linking it to it's stats object and take a timestamp
 		*/
@@ -156,17 +196,35 @@ namespace UE
 
 		/**
 		* Check the detector to see if we are over budget, called from both construction and background thread
-		* @param bIsComplete			Is this check the one performed at completion of the scope or measurement period?
-		* @param InWhenToCheckSeconds	The timestamp at which to compare the start time to
+		* @param bFinalCheck			Is this check the one performed at completion of the scope or measurement period?
+		* @param InCheckSeconds			The timestamp at which to compare the start time to
 		**/
-		void Check(bool bIsComplete, double InWhenToCheckSeconds = InvalidSeconds);
+		void Check(bool bFinalCheck, double InCheckSeconds);
 
 		/**
-		* Perform a Check and then reset the timer to the current time.
+		* Perform a Check and then reset the timer to the current time
 		* This changes the mode of this class to defer the first check, and skip the destruction check
 		* This mode enables this class to used as a global or static, and CheckAndReset() callable periodically
 		**/
 		void CheckAndReset();
+
+		/**
+		* Pause the timer for an expectantly long/slow operation we don't want counted against the stall timer
+		**/
+		void Pause(const double InSeconds);
+
+		/**
+		* Resume the timer at the specified timestamp
+		**/
+		void Resume(const double InSeconds);
+
+		/**
+		* The Parent stall detector on the calling thread's stack space
+		**/
+		FStallDetector* GetParent()
+		{
+			return Parent;
+		}
 
 		/**
 		* Sample the same clock that the stall detector uses internally
@@ -208,14 +266,20 @@ namespace UE
 		// The time provided, the deadline
 		FStallDetectorStats& Stats;
 
+		// The parent detector, if any
+		FStallDetector* Parent;
+
 		// Thread it was constructed on, and to stack trace when budgeted time is elapsed
 		uint32 ThreadId;
 
-		// The time of construction of this object
-		double StartSeconds;
+		// Did we actually start the detector (was the thread started at construction time)
+		bool bStarted;
 
 		// Persistent usage mode
 		bool bPersistent;
+
+		// The timer data for this detector
+		FStallTimer Timer;
 
 		// Track the triggered state, atomic to mitigate foreground and background thread checking
 		std::atomic<bool> Triggered;
@@ -228,6 +292,19 @@ namespace UE
 
 		// The pointers to every constructed instance of this class
 		static TSet<FStallDetector*> Instances;
+	};
+
+	/**
+	* FStallDetectorPause checks, pauses, and resumes the current thread's stack of stall detectors across it's lifetime
+	**/
+	class CORE_API FStallDetectorPause
+	{
+	public:
+		FStallDetectorPause();
+		~FStallDetectorPause();
+
+	private:
+		bool bPaused;
 	};
 }
 
@@ -254,10 +331,17 @@ UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_
 static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__) (TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::Always); \
 UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
 
+/**
+* Counts, but does not report, a stall.
+**/
+#define SCOPE_STALL_DETECTOR_PAUSE() \
+UE::FStallDetectorPause PREPROCESSOR_JOIN(ScopeStallDetectorPause, __LINE__);
+
 #else // STALL_DETECTOR
 
 #define SCOPE_STALL_COUNTER(InName, InBudgetSeconds)
 #define SCOPE_STALL_REPORTER(InName, InBudgetSeconds)
 #define SCOPE_STALL_REPORTER_ALWAYS(InName, InBudgetSeconds)
+#define SCOPE_STALL_DETECTOR_PAUSE()
 
 #endif // STALL_DETECTOR

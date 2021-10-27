@@ -145,6 +145,11 @@ ETickableTickType ALevelBounds::GetTickableTickType() const
 
 bool ALevelBounds::IsTickable() const
 {
+	if (!IsValidChecked(this) || HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
+	{
+		return false;
+	}
+
 	if (bAutoUpdateBounds)
 	{
 		UWorld* World = GetWorld();

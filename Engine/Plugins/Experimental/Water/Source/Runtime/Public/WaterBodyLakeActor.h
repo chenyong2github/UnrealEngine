@@ -34,7 +34,6 @@ class WATER_API AWaterBodyLake : public AWaterBody
 	GENERATED_UCLASS_BODY()
 protected:
 	virtual void PostLoad() override;
-	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Lake; }
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

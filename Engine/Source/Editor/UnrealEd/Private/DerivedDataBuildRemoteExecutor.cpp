@@ -227,13 +227,15 @@ public:
 		check(IsInGameThread()); // initialization from the main thread is expected to allow config reading for the limiting heuristics
 		check(GConfig && GConfig->IsReadyForUse());
 
+		bool bConfigEnabled = false;
+		GConfig->GetBool(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("bEnabled"), bConfigEnabled, GEngineIni);
 		GConfig->GetString(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("NameSpaceId"), NameSpaceId, GEngineIni);
 		GConfig->GetInt(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("GlobalExecutionTimeoutSeconds"), GlobalExecutionTimeoutSeconds, GEngineIni);
 
 		const FName RemoteExecutionFeatureName(TEXT("RemoteExecution"));
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
 
-		if (FParse::Param(FCommandLine::Get(), TEXT("DDC2RemoteExecution")))
+		if (bConfigEnabled || FParse::Param(FCommandLine::Get(), TEXT("DDC2RemoteExecution")))
 		{
 			FModuleManager::Get().LoadModule("HordeExecutor");
 			if (ModularFeatures.IsModularFeatureAvailable(RemoteExecutionFeatureName))

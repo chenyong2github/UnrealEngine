@@ -94,6 +94,7 @@ public:
 
 	virtual FMetasoundFrontendClassName GetClassName() const { return FMetasoundFrontendClassName(); }
 	virtual FGuid GetNodeID() const { return FGuid(); }
+	virtual FText GetDisplayName() const;
 
 protected:
 	virtual void SetNodeID(FGuid InNodeID) { }

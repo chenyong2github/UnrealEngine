@@ -11,10 +11,10 @@ struct LEVELSNAPSHOTS_API FSubobjectSnapshotData : public FObjectSnapshotData
 {
 	GENERATED_BODY()
 
-	static FSubobjectSnapshotData MakeBlacklisted()
+	static FSubobjectSnapshotData MakeSkippedSubobjectData()
 	{
 		FSubobjectSnapshotData Result;
-		Result.bWasBlacklisted = true;
+		Result.bWasSkippedClass = true;
 		return Result;
 	}
 
@@ -25,8 +25,9 @@ struct LEVELSNAPSHOTS_API FSubobjectSnapshotData : public FObjectSnapshotData
 	UPROPERTY()
 	FSoftClassPath Class;
 
+	/** Whether this class was marked as unsupported when the snapshot was taken */
 	UPROPERTY()
-	bool bWasBlacklisted = false;
+	bool bWasSkippedClass = false;
 
 	/** Allocated in snapshot world */
 	UPROPERTY(Transient)

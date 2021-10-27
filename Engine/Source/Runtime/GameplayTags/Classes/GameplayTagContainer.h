@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "Misc/ComparisonUtility.h"
 #include "GameplayTagContainer.generated.h"
 
 class UEditableGameplayTagQuery;
@@ -86,7 +87,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 
 	FORCEINLINE bool operator<(FGameplayTag const& Other) const
 	{
-		return TagName.LexicalLess(Other.TagName);
+		return UE::ComparisonUtility::CompareWithNumericSuffix(TagName, Other.TagName) < 0;
 	}
 
 	/**

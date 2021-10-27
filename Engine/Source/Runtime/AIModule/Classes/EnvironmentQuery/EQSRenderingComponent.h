@@ -92,7 +92,7 @@ class AIMODULE_API UEQSRenderingComponent : public UDebugDrawComponent
 protected:
 	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
 
-#if UE_ENABLE_DEBUG_DRAWING
+#if UE_ENABLE_DEBUG_DRAWING && USE_EQS_DEBUGGER
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return EQSRenderingDebugDrawDelegateHelper; }
 	FEQSRenderingDebugDrawDelegateHelper EQSRenderingDebugDrawDelegateHelper;

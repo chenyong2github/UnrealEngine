@@ -152,13 +152,7 @@ FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, con
 	: Cluster(InCluster)
 	, ContainerInstance(InContainerInstance)
 {
-	// Bounds based on cluster mode
-	Bounds = Cluster->Bounds;
-	if (ContainerInstance->ClusterMode == EContainerClusterMode::Embedded)
-	{
-		Bounds = ContainerInstance->Bounds;
-	}
-	Bounds = Bounds.TransformBy(ContainerInstance->Transform);
+	Bounds = Cluster->Bounds.TransformBy(ContainerInstance->Transform);
 	
 	TSet<const UDataLayer*> DataLayerSet;
 	DataLayerSet.Reserve(Cluster->DataLayers.Num() + ContainerInstance->DataLayers.Num());
@@ -176,7 +170,7 @@ FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, con
 	DataLayers.Append(DataLayerSet.Array());
 }
 
-FActorClusterContext::FActorClusterContext(const UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate, bool bInIncludeChildContainers)
+FActorClusterContext::FActorClusterContext(UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate, bool bInIncludeChildContainers)
 	: WorldPartition(InWorldPartition)
 	, RuntimeHash(InRuntimeHash)
 	, FilterPredicate(InFilterPredicate)
@@ -234,8 +228,7 @@ bool FActorInstance::ShouldStripFromStreaming() const
 
 FVector FActorInstance::GetOrigin() const
 {
-	// Embedded mode means all actors of the container share the same location so that they get placed in the same runtime cell
-	return ContainerInstance->ClusterMode == EContainerClusterMode::Embedded ? ContainerInstance->Transform.GetLocation() : ContainerInstance->Transform.TransformPosition(GetActorDescView().GetOrigin());
+	return ContainerInstance->Transform.TransformPosition(GetActorDescView().GetOrigin());
 }
 
 const FWorldPartitionActorDescView& FActorInstance::GetActorDescView() const
@@ -312,7 +305,7 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint64 ID, const FTr
 		const UActorDescContainer* OutContainer = nullptr;
 		FTransform OutTransform;
 		EContainerClusterMode OutClusterMode;
-		if (bIncludeChildContainers && ActorDescView.GetContainerInstance(OutContainer, OutTransform, OutClusterMode))
+		if (bIncludeChildContainers && ActorDescView.GetContainerInstance(WorldPartition, OutContainer, OutTransform, OutClusterMode))
 		{
 			// Add Child Container Guid so we can discard the actor later
 			ChildContainers.Add(ActorDescView.GetGuid());
@@ -352,7 +345,7 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint64 ID, const FTr
 	
 	ParentBounds += Bounds;
 	
-	UE_LOG(LogWorldPartition, Verbose, TEXT("ContainerInstance (%08x) Bounds (%s) Package (%s)"), ID, *Bounds.TransformBy(Transform).ToString(), *Container->GetContainerPackage().ToString());
+	UE_LOG(LogWorldPartition, Verbose, TEXT("ContainerInstance (%08x) Bounds (%s) Package (%s)"), ID, *Bounds.ToString(), *Container->GetContainerPackage().ToString());
 	ContainerInstances.Add(FActorContainerInstance(ID, Transform, Bounds, DataLayers, ClusterMode, Container, MoveTemp(ChildContainers), MoveTemp(ActorDescViewMap)));
 }
 

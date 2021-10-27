@@ -1882,6 +1882,9 @@ private:
 
 	/** Did we synthesize cursor input this frame? */
 	bool bSynthesizedCursorMove = false;
+
+	/** Platform mouse movement event count. */
+	uint64 PlatformMouseMovementEvents = 0;
 		
 	/**
 	 * A helper class to wrap the list of input pre-processors. 

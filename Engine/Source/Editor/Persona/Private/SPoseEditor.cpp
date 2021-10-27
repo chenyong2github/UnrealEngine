@@ -2,6 +2,7 @@
 
 
 #include "SPoseEditor.h"
+#include "AnimPreviewInstance.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SSpinBox.h"
@@ -612,6 +613,17 @@ void SPoseViewer::BindCommands()
 		PoseEditorCommands.PasteAllNames,
 		FExecuteAction::CreateSP(this, &SPoseViewer::OnPastePoseNamesFromClipBoard, false),
 		FCanExecuteAction());
+
+	CommandList.MapAction(
+		PoseEditorCommands.UpdatePoseToCurrent,
+		FExecuteAction::CreateSP(this, &SPoseViewer::UpdateSelectedPoseWithCurrent),
+		FCanExecuteAction(),
+		FGetActionCheckState(),
+		FIsActionButtonVisible::CreateLambda([this]()
+		{
+			const TArray<TSharedPtr<FDisplayedPoseInfo>> SelectedRows = PoseListView->GetSelectedItems();
+			return SelectedRows.Num() == 1;
+		}));
 }
 
 
@@ -625,6 +637,7 @@ TSharedPtr<SWidget> SPoseViewer::OnGetContextMenuContent() const
 	MenuBuilder.AddMenuEntry(PoseEditorCommands.PasteAllNames);
 
 	MenuBuilder.BeginSection("PoseAction", LOCTEXT("SelectedItems", "Selected Item Actions"));
+	MenuBuilder.AddMenuEntry(PoseEditorCommands.UpdatePoseToCurrent);
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, LOCTEXT("DeletePoseButtonLabel", "Delete"), LOCTEXT("DeletePoseButtonTooltip", "Delete the selected pose(s)"));
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("RenamePoseButtonLabel", "Rename"), LOCTEXT("RenamePoseButtonTooltip", "Renames the selected pose"));
 	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste, NAME_None, LOCTEXT("PastePoseNamesButtonLabel", "Paste Selected"), LOCTEXT("PastePoseNamesButtonTooltip", "Paste the selected pose names from clipBoard"));
@@ -877,5 +890,40 @@ bool SPoseViewer::IsBasePose(FName PoseName) const
 	}
 
 	return false;
+}
+
+void SPoseViewer::UpdateSelectedPoseWithCurrent()
+{
+	TArray<TSharedPtr<FDisplayedPoseInfo>> SelectedRows = PoseListView->GetSelectedItems();
+	UPoseAsset* PoseAsset = PoseAssetPtr.Get();
+	
+	if (SelectedRows.Num() == 1 && PoseAsset && PreviewScenePtr.IsValid())
+	{
+		UDebugSkelMeshComponent* PreviewComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
+		const USkeleton* Skeleton = PoseAsset->GetSkeleton();
+		if (PreviewComponent && Skeleton)
+        {
+		    const FName PoseName = SelectedRows[0]->Name;
+		    FSmartName PoseCurveSmartName;
+		    // Ensure the PoseName exists as a curve on the skeleton
+		    if(Skeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, PoseName, PoseCurveSmartName))
+		    {
+			    FScopedTransaction Transaction(LOCTEXT("UpdatePose", "Update Pose from Viewport"));
+			    PoseAsset->Modify();			
+			    PoseAsset->AddOrUpdatePose(PoseCurveSmartName, PreviewComponent, false);
+
+		    	// Reset bone modifiers in case the user has created a pose using them - resetting them to the 'base' pose
+			    if(UAnimPreviewInstance* PreviewInstance = Cast<UAnimPreviewInstance>(PreviewComponent->GetAnimInstance()))
+			    {
+				    PreviewInstance->ResetModifiedBone();
+			    }
+		    	
+			    // Reinitialize animation preview
+			    RestartAnimations(Skeleton);
+			    RestartPreviewComponent();
+		    }		
+        }
+
+	}
 }
 #undef LOCTEXT_NAMESPACE

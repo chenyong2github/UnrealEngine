@@ -318,9 +318,6 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 		return;
 	}
 
-	bool bPointsChanged = false;
-
-	FVector Displacement = Transform.GetTranslation() - GizmoStartPosition;
 	FQuaterniond DeltaRotation = FQuaterniond(Transform.GetRotation() * GizmoStartRotation.Inverse());
 	FVector DeltaScale = Transform.GetScale3D() / GizmoStartScale;
 
@@ -329,27 +326,20 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 	DeltaTransform.SetRotation((FQuaterniond)DeltaRotation);
 	DeltaTransform.SetTranslation((FVector3d)Transform.GetTranslation());
 
-	// If any deltas are non-zero
-	if (Displacement != FVector::ZeroVector || !DeltaRotation.EpsilonEqual(FQuaterniond::Identity(), SMALL_NUMBER) || DeltaScale != FVector::OneVector)
+	for (int32 PointID : SelectedPointIDs)
 	{
-		for (int32 PointID : SelectedPointIDs)
-		{
-			FVector3d PointPosition = SelectedPointStartPositions[PointID];
+		FVector3d PointPosition = SelectedPointStartPositions[PointID];
 
-			// Translate to origin, scale, rotate, and translate back (DeltaTransform has "translate back" baked in.)
-			PointPosition -= (FVector3d)GizmoStartPosition;
-			PointPosition = DeltaTransform.TransformPosition(PointPosition);
+		// Translate to origin, scale, rotate, and translate back (DeltaTransform has "translate back" baked in.)
+		PointPosition -= (FVector3d)GizmoStartPosition;
+		PointPosition = DeltaTransform.TransformPosition(PointPosition);
 
-			ControlPoints[PointID] = PointPosition;
-		}
-		bPointsChanged = true;
-		UpdateDrawables();
+		ControlPoints[PointID] = PointPosition;
 	}
 
-	if (bPointsChanged)
-	{
-		OnPointsChanged.Broadcast();
-	}
+	UpdateDrawables();
+
+	OnPointsChanged.Broadcast();
 }
 
 void ULatticeControlPointsMechanic::GizmoTransformEnded(UTransformProxy* Proxy)

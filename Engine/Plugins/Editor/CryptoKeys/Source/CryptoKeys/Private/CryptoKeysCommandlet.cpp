@@ -37,7 +37,7 @@ int32 UCryptoKeysCommandlet::Main(const FString& InParams)
 			check(Result);
 		}
 
-		Settings->UpdateDefaultConfigFile();
+		Settings->TryUpdateDefaultConfigFile();
 	}
 
 	if (bTestSigningKeyGeneration)

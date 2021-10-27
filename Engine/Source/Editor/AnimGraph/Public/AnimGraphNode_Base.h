@@ -243,13 +243,16 @@ public:
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
+	virtual void AddPinSearchMetaDataInfo(const UEdGraphPin* Pin, TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual void PostPlacedNewNode() override;
+	virtual void PostPasteNode() override;
 	virtual void DestroyNode() override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
+	virtual void ReconstructNode() override;
 	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	virtual bool ShouldShowNodeProperties() const override { return true; }
 	virtual bool CanPlaceBreakpoints() const override { return false; }
@@ -264,6 +267,9 @@ public:
 	virtual UObject* GetJumpTargetForDoubleClick() const override { return GetAnimationAsset(); }
 	virtual bool CanJumpToDefinition() const override;
 	virtual void JumpToDefinition() const override;
+	virtual void HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName) override;
+	virtual void ReplaceReferences(UBlueprint* InBlueprint, UBlueprint* InReplacementBlueprint, const FMemberReference& InSource, const FMemberReference& InReplacement) override;
+	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const override;
 	// End of UK2Node interface
 
 	// UAnimGraphNode_Base interface
@@ -569,6 +575,9 @@ protected:
 
 	FOnNodeTitleChangedEvent NodeTitleChangedEvent;
 
+	// Helper function used to refresh the type of a binding
+	void RecalculateBindingType(FAnimGraphNodePropertyBinding& InBinding);
+	
 protected:
 	// Old shown pins. Needs to be a member variable to track pin visibility changes between Pre and PostEditChange 
 	TArray<FName> OldShownPins;

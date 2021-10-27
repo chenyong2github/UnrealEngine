@@ -87,6 +87,8 @@ public:
 
 	FSlot* GetChildSlot(int32 SlotIndex);
 
+	void SetTransition(float Duration, ETransitionCurve Curve);
+
 private:
 	EActiveTimerReturnType UpdateTransition(double InCurrentTime, float InDeltaTime);
 	float GetTransitionProgress() const;

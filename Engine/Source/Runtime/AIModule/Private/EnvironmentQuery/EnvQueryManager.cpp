@@ -13,6 +13,10 @@
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQuery/EQSTestingPawn.h"
 #include "EnvironmentQuery/EnvQueryDebugHelpers.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Int.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "Engine/Engine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
@@ -64,6 +68,68 @@ FEnvQueryRequest& FEnvQueryRequest::SetNamedParams(const TArray<FEnvNamedValue>&
 	for (int32 ParamIndex = 0; ParamIndex < Params.Num(); ParamIndex++)
 	{
 		NamedParams.Add(Params[ParamIndex].ParamName, Params[ParamIndex].Value);
+	}
+
+	return *this;
+}
+
+FEnvQueryRequest& FEnvQueryRequest::SetDynamicParam(const FAIDynamicParam& Param, const UBlackboardComponent* BlackboardComponent)
+{
+	checkf(BlackboardComponent || (Param.BBKey.IsSet() == false), TEXT("BBKey.IsSet but no BlackboardComponent provided"));
+
+	// check if given param requires runtime resolve, like reading from BB
+	if (Param.BBKey.IsSet() && BlackboardComponent)
+	{
+		// grab info from BB
+		switch (Param.ParamType)
+		{
+		case EAIParamType::Float:
+		{
+			const float Value = BlackboardComponent->GetValue<UBlackboardKeyType_Float>(Param.BBKey.GetSelectedKeyID());
+			SetFloatParam(Param.ParamName, Value);
+		}
+		break;
+		case EAIParamType::Int:
+		{
+			const int32 Value = BlackboardComponent->GetValue<UBlackboardKeyType_Int>(Param.BBKey.GetSelectedKeyID());
+			SetIntParam(Param.ParamName, Value);
+		}
+		break;
+		case EAIParamType::Bool:
+		{
+			const bool Value = BlackboardComponent->GetValue<UBlackboardKeyType_Bool>(Param.BBKey.GetSelectedKeyID());
+			SetBoolParam(Param.ParamName, Value);
+		}
+		break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+	else
+	{
+		switch (Param.ParamType)
+		{
+		case EAIParamType::Float:
+		{
+			SetFloatParam(Param.ParamName, Param.Value);
+		}
+		break;
+		case EAIParamType::Int:
+		{
+			SetIntParam(Param.ParamName, Param.Value);
+		}
+		break;
+		case EAIParamType::Bool:
+		{
+			bool Result = Param.Value > 0;
+			SetBoolParam(Param.ParamName, Result);
+		}
+		break;
+		default:
+			checkNoEntry();
+			break;
+		}
 	}
 
 	return *this;

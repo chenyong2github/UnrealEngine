@@ -14,39 +14,117 @@ namespace Audio
 
 	FModulationParameter::FModulationParameter()
 		: MixFunction(GetDefaultMixFunction())
+		, UnitFunction(GetDefaultUnitConversionFunction())
+		, NormalizedFunction(GetDefaultNormalizedConversionFunction())
 	{
+	}
+
+	FModulationParameter::FModulationParameter(FModulationParameter&& InParam)
+		: ParameterName(MoveTemp(InParam.ParameterName))
+		, DefaultValue(InParam.DefaultValue)
+		, MinValue(InParam.MinValue)
+		, MaxValue(InParam.MaxValue)
+		, bRequiresConversion(InParam.bRequiresConversion)
+	#if WITH_EDITORONLY_DATA
+		, UnitDisplayName(MoveTemp(InParam.UnitDisplayName))
+	#endif // WITH_EDITORONLY_DATA
+		, MixFunction(MoveTemp(InParam.MixFunction))
+		, UnitFunction(MoveTemp(InParam.UnitFunction))
+		, NormalizedFunction(MoveTemp(InParam.NormalizedFunction))
+	{
+	}
+
+	FModulationParameter::FModulationParameter(const FModulationParameter& InParam)
+		: ParameterName(InParam.ParameterName)
+		, DefaultValue(InParam.DefaultValue)
+		, MinValue(InParam.MinValue)
+		, MaxValue(InParam.MaxValue)
+		, bRequiresConversion(InParam.bRequiresConversion)
+#if WITH_EDITORONLY_DATA
+		, UnitDisplayName(InParam.UnitDisplayName)
+#endif // WITH_EDITORONLY_DATA
+		, MixFunction(InParam.MixFunction)
+		, UnitFunction(InParam.UnitFunction)
+		, NormalizedFunction(InParam.NormalizedFunction)
+	{
+	}
+
+	FModulationParameter& FModulationParameter::operator=(const FModulationParameter& InParam)
+	{
+		ParameterName = InParam.ParameterName;
+		DefaultValue = InParam.DefaultValue;
+		MinValue = InParam.MinValue;
+		MaxValue = InParam.MaxValue;
+		bRequiresConversion = InParam.bRequiresConversion;
+
+#if WITH_EDITORONLY_DATA
+		UnitDisplayName = InParam.UnitDisplayName;
+#endif // WITH_EDITORONLY_DATA
+
+		MixFunction = InParam.MixFunction;
+		UnitFunction = InParam.UnitFunction;
+		NormalizedFunction = InParam.NormalizedFunction;
+
+		return *this;
+	}
+
+	FModulationParameter& FModulationParameter::operator=(FModulationParameter&& InParam)
+	{
+		ParameterName = MoveTemp(InParam.ParameterName);
+		DefaultValue = InParam.DefaultValue;
+		MinValue = InParam.MinValue;
+		MaxValue = InParam.MaxValue;
+		bRequiresConversion = InParam.bRequiresConversion;
+
+	#if WITH_EDITORONLY_DATA
+		UnitDisplayName = MoveTemp(InParam.UnitDisplayName);
+	#endif // WITH_EDITORONLY_DATA
+
+		MixFunction = MoveTemp(InParam.MixFunction);
+		UnitFunction = MoveTemp(InParam.UnitFunction);
+		NormalizedFunction = MoveTemp(InParam.NormalizedFunction);
+
+		return *this;
 	}
 
 	const FModulationMixFunction& FModulationParameter::GetDefaultMixFunction()
 	{
-		static const FModulationMixFunction DefaultMixFunction = [](float* RESTRICT OutValueBuffer, const float* RESTRICT InValueBuffer, int32 InNumSamples)
+		static const FModulationMixFunction DefaultMixFunction = [](float& InOutValueA, float InValueB)
 		{
-			if (InNumSamples % 4 == 0)
-			{
-				Audio::MultiplyBuffersInPlace(InValueBuffer, OutValueBuffer, InNumSamples);
-			}
-			else
-			{
-				for (int32 i = 0; i < InNumSamples; ++i)
-				{
-					OutValueBuffer[i] *= InValueBuffer[i];
-				}
-			}
+			InOutValueA *= InValueB;
 		};
 
 		return DefaultMixFunction;
 	}
 
+	const FModulationUnitConversionFunction& FModulationParameter::GetDefaultUnitConversionFunction()
+	{
+		static const FModulationUnitConversionFunction ConversionFunction = [](float& InOutValue)
+		{
+		};
+
+		return ConversionFunction;
+	};
+
+	const FModulationNormalizedConversionFunction& FModulationParameter::GetDefaultNormalizedConversionFunction()
+	{
+		static const FModulationNormalizedConversionFunction ConversionFunction = [](float& InOutValue)
+		{
+		};
+
+		return ConversionFunction;
+	};
+
 	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, const USoundModulatorBase* InModulatorBase, FName InParameterName)
 	{
 		HandleId = CreateModulatorHandleId();
-
+		Modulation = &InModulation;
 		Parameter.ParameterName = InParameterName;
 		ModulatorTypeId = InModulation.RegisterModulator(HandleId, InModulatorBase, Parameter);
+
 		if (ModulatorTypeId != INDEX_NONE)
 		{
-			ModulatorId		= static_cast<Audio::FModulatorId>(InModulatorBase->GetUniqueID());
-			Modulation		= &InModulation;
+			ModulatorId = static_cast<Audio::FModulatorId>(InModulatorBase->GetUniqueID());
 		}
 	}
 
@@ -57,15 +135,15 @@ namespace Audio
 		if (InOther.Modulation)
 		{
 			InOther.Modulation->RegisterModulator(HandleId, InOther.ModulatorId);
-			Parameter		= InOther.Parameter;
-			ModulatorId		= InOther.ModulatorId;
+			Parameter = InOther.Parameter;
+			ModulatorId = InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
-			Modulation		= InOther.Modulation;
+			Modulation = InOther.Modulation;
 		}
 	}
 
 	FModulatorHandle::FModulatorHandle(FModulatorHandle&& InOther)
-		: Parameter(InOther.Parameter)
+		: Parameter(MoveTemp(InOther.Parameter))
 		, HandleId(InOther.HandleId)
 		, ModulatorTypeId(InOther.ModulatorTypeId)
 		, ModulatorId(InOther.ModulatorId)
@@ -75,11 +153,11 @@ namespace Audio
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
-		InOther.Parameter		= FModulationParameter();
-		InOther.HandleId		= INDEX_NONE;
+		InOther.Parameter = FModulationParameter();
+		InOther.HandleId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
-		InOther.ModulatorId		= INDEX_NONE;
-		InOther.Modulation		= nullptr;
+		InOther.ModulatorId = INDEX_NONE;
+		InOther.Modulation = nullptr;
 	}
 
 	FModulatorHandle::~FModulatorHandle()
@@ -92,22 +170,26 @@ namespace Audio
 
 	FModulatorHandle& FModulatorHandle::operator=(const FModulatorHandle& InOther)
 	{
-		HandleId = CreateModulatorHandleId();
+		Parameter = InOther.Parameter;
 
 		if (InOther.Modulation)
 		{
-			InOther.Modulation->RegisterModulator(InOther.HandleId, InOther.ModulatorId);
-			Parameter		= InOther.Parameter;
-			ModulatorId		= InOther.ModulatorId;
+			HandleId = CreateModulatorHandleId();
+			ModulatorId = InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
-			Modulation		= InOther.Modulation;
+			Modulation = InOther.Modulation;
+
+			if (ModulatorId != INDEX_NONE)
+			{
+				Modulation->RegisterModulator(HandleId, ModulatorId);
+			}
 		}
 		else
 		{
-			Parameter		= FModulationParameter();
-			ModulatorId		= INDEX_NONE;
+			HandleId = INDEX_NONE;
+			ModulatorId = INDEX_NONE;
 			ModulatorTypeId = INDEX_NONE;
-			Modulation		= nullptr;
+			Modulation = nullptr;
 		}
 
 		return *this;
@@ -115,21 +197,29 @@ namespace Audio
 
 	FModulatorHandle& FModulatorHandle::operator=(FModulatorHandle&& InOther)
 	{
+		if (HandleId != INDEX_NONE)
+		{
+			if (ensureAlways(Modulation))
+			{
+				Modulation->UnregisterModulator(*this);
+			}
+		}
+
 		// Move does not activate as presumed already activated or
 		// copying default handle, which is invalid. Removes data
 		// from handle being moved to avoid double deactivation on
 		// destruction.
-		Parameter		= InOther.Parameter;
-		HandleId		= InOther.HandleId;
-		ModulatorId		= InOther.ModulatorId;
+		Parameter = MoveTemp(InOther.Parameter);
+		HandleId = InOther.HandleId;
+		ModulatorId = InOther.ModulatorId;
 		ModulatorTypeId = InOther.ModulatorTypeId;
-		Modulation		= InOther.Modulation;
+		Modulation = InOther.Modulation;
 
-		InOther.Parameter		= FModulationParameter();
-		InOther.HandleId		= INDEX_NONE;
-		InOther.ModulatorId		= INDEX_NONE;
+		InOther.Parameter = FModulationParameter();
+		InOther.HandleId = INDEX_NONE;
+		InOther.ModulatorId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
-		InOther.Modulation		= nullptr;
+		InOther.Modulation = nullptr;
 
 		return *this;
 	}

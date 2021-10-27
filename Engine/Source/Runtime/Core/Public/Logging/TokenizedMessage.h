@@ -372,12 +372,6 @@ public:
 		return URL;
 	}
 
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FGenerateURL, const FString&);
-	CORE_API static FGenerateURL& OnGenerateURL()
-	{
-		return GenerateURL;
-	}
-
 private:
 	/** Private constructor */
 	FURLToken( const FString& InURL, const FText& InMessage );
@@ -391,9 +385,6 @@ private:
 
 	/** The URL we will follow */
 	FString URL;
-
-	/** The delegate we will use to generate our URL */
-	CORE_API static FGenerateURL GenerateURL;
 };
 
 /** 

@@ -224,9 +224,14 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 				.ToolTipText(LOCTEXT("ApplyToAssetToolTip", "The preview mesh has changed, but it will not be able to be saved until it is applied to the asset. Click here to make the change to the preview mesh persistent."))
 				.Visibility_Lambda([this]()
 				{
-					TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
-					USkeletalMesh* SkeletalMesh = PinnedPersonaToolkit->GetPreviewMesh();
-					return (SkeletalMesh != PinnedPersonaToolkit->GetPreviewScene()->GetPreviewMesh()) ? EVisibility::Visible : EVisibility::Collapsed;
+					if (PersonaToolkit.IsValid() && PreviewScene.IsValid())
+					{
+						const TSharedPtr<IPersonaToolkit> PinnedPersonaToolkit = PersonaToolkit.Pin();
+						USkeletalMesh* SkeletalMesh = PinnedPersonaToolkit->GetPreviewMesh();
+						return (SkeletalMesh != PinnedPersonaToolkit->GetPreviewScene()->GetPreviewMesh()) ? EVisibility::Visible : EVisibility::Collapsed;
+					}
+
+					return EVisibility::Collapsed;
 				})
 				.OnClicked_Lambda([this]() 
 				{

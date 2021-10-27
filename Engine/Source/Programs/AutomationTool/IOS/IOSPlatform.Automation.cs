@@ -1017,7 +1017,7 @@ public class IOSPlatform : Platform
 				};
 
 				// check in the .ipa along with everything else
-				UE4Build.AddBuildProductsToChangelist(WorkingCL, ExtraFilesToCheckin);
+				UnrealBuild.AddBuildProductsToChangelist(WorkingCL, ExtraFilesToCheckin);
 			}
 
 			//@TODO: This automatically deploys after packaging, useful for testing on PC when iterating on IPP
@@ -1063,7 +1063,7 @@ public class IOSPlatform : Platform
 			if (Unreal.IsEngineInstalled())
 			{
 				// Get the path to UBT
-				string InstalledUBT = UE4Build.GetUBTExecutable();
+				string InstalledUBT = UnrealBuild.GetUBTExecutable();
 				Arguments = "-XcodeProjectFiles " + Arguments;
 				RunUBT(CmdEnv, InstalledUBT, Arguments);
 			}
@@ -2294,7 +2294,7 @@ public class IOSPlatform : Platform
 
 	#region Hooks
 
-	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
+	public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 	{
 		if (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac && !Unreal.IsEngineInstalled())
 		{

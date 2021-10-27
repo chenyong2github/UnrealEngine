@@ -34,3 +34,22 @@ private:
 	/** The world this player will spawn actors in, if needed. */
 	TWeakObjectPtr<UWorld> World;
 };
+
+/**
+ * A spawn register that accepts a "wildcard" object.
+ */
+class FSequenceCameraShakeSpawnRegister : public FMovieSceneSpawnRegister
+{
+public:
+	void SetSpawnedObject(UObject* InObject) { SpawnedObject = InObject; }
+
+	virtual UObject* SpawnObject(FMovieSceneSpawnable&, FMovieSceneSequenceIDRef, IMovieScenePlayer&) override { return SpawnedObject.Get(); }
+	virtual void DestroySpawnedObject(UObject&) override {}
+
+#if WITH_EDITOR
+	virtual bool CanSpawnObject(UClass* InClass) const override { return SpawnedObject.IsValid() && SpawnedObject.Get()->GetClass()->IsChildOf(InClass); }
+#endif
+
+private:
+	FWeakObjectPtr SpawnedObject;
+};

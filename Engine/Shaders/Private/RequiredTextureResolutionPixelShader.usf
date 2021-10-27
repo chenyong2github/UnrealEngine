@@ -139,7 +139,7 @@ void Main(
 			Accuracy = clamp(log2(TextureResolution / MaterialParameters.TexCoordScalesParams.RequiredResolution), -1.99, 1.99);
 		}
 		int ColorIndex = floor(Accuracy) + 2;
-		Result = MaterialParameters.TexCoordScalesParams.TexSample * lerp(DebugViewModePass.AccuracyColors[ColorIndex].rgb, DebugViewModePass.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
+		Result = MaterialParameters.TexCoordScalesParams.TexSample * lerp(DebugViewModeStruct.AccuracyColors[ColorIndex].rgb, DebugViewModeStruct.AccuracyColors[ColorIndex + 1].rgb, frac(Accuracy));
 	}
 	OutColor = RETURN_COLOR(float4(Result, PrimitiveAlpha));
 	

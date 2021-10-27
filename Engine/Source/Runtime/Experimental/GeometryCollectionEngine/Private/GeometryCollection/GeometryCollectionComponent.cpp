@@ -1117,8 +1117,8 @@ void UGeometryCollectionComponent::RegisterForEvents()
 
 			}
 		}
-	}
 #endif
+	}
 }
 
 void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
@@ -2010,6 +2010,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 
 void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 {
+#if WITH_CHAOS
 	FSimulationParameters SimulationParameters;
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2059,6 +2060,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	Scene->AddObject(this, PhysicsProxy);
 
 	RegisterForEvents();
+#endif
 }
 
 void UGeometryCollectionComponent::OnDestroyPhysicsState()
@@ -2789,6 +2791,7 @@ FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 
 AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 {
+#if WITH_CHAOS
 	if (ChaosSolverActor)
 	{
 		return ChaosSolverActor;
@@ -2799,6 +2802,7 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 		return Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
 	}
 
+#endif
 	return nullptr;
 }
 

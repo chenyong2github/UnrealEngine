@@ -51,6 +51,7 @@
 #include "IControlRigObjectBinding.h"
 #include "ControlRigSpaceChannelCurveModel.h"
 #include "ScopedTransaction.h"
+#include "IControlRigEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
@@ -122,7 +123,11 @@ static FKeyHandle SequencerOpenSpaceSwitchDialog(UControlRig* ControlRig, TArray
 
 FKeyHandle AddOrUpdateKey(FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey, FFrameNumber Time, ISequencer& Sequencer, const FGuid& InObjectBindingID, FTrackInstancePropertyBindings* PropertyBindings)
 {
+	UE_LOG(LogControlRigEditor, Log, TEXT("We don't support adding keys to the Space Channel via the + key. Please use the Space Channel Area in the Animation Panel"));
+
 	FKeyHandle Handle = FKeyHandle::Invalid();
+
+	/**
 	if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionToKey))
 	{
 		if (UControlRig* ControlRig = Section->GetControlRig())
@@ -145,6 +150,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneControlRigSpaceChannel* Channel, UMovieScen
 			}
 		}
 	}
+	*/
 	return Handle;
 }
 

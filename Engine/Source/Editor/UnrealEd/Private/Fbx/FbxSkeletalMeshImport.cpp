@@ -1749,6 +1749,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	FSkeletalMeshBuildSettings BuildOptions;
 	//Make sure the build option change in the re-import ui is reconduct
 	BuildOptions.bUseFullPrecisionUVs = false;
+	BuildOptions.bUseBackwardsCompatibleF16TruncUVs = false;
 	BuildOptions.bUseHighPrecisionTangentBasis = false;
 	BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
 	BuildOptions.bRecomputeTangents = !ImportOptions->ShouldImportTangents() || !SkelMeshImportDataPtr->bHasTangents;
@@ -1772,6 +1773,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			// Full precision UV and High precision tangent cannot be change in the re-import options, it must not be change from the original data.
 			BuildOptions.bUseFullPrecisionUVs = LODInfoPtr->BuildSettings.bUseFullPrecisionUVs;
 			BuildOptions.bUseHighPrecisionTangentBasis = LODInfoPtr->BuildSettings.bUseHighPrecisionTangentBasis;
+			BuildOptions.bUseBackwardsCompatibleF16TruncUVs = LODInfoPtr->BuildSettings.bUseBackwardsCompatibleF16TruncUVs;
 
 			//Copy all the build option to reflect any change in the setting using the re-import UI
 			LODInfoPtr->BuildSettings = BuildOptions;

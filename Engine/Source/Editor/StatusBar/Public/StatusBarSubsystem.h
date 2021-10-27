@@ -136,9 +136,10 @@ public:
 	/** 
 	 * Creates a new instance of a status bar widget
 	 *
-	 * @param StatusBarName	The name of the status bar for updating it later.
+	 * @param StatusBarName	The name of the status bar for updating it later. This name must be unique. You can use the instance number of an fname to generate a unique fname for comparison but a non-unique one for serialization of status bar data. I.E all asset editors of a specific type will be saved the same but at runtime will be indentified uniquely. This is usally what you want.
+	 * @param ParentTab	Parent tab of the status bar.
 	 */
-	TSharedRef<SWidget> MakeStatusBarWidget(FName StatusBarName, const TSharedRef<SDockTab>& InParentTab);
+	TSharedRef<SWidget> MakeStatusBarWidget(FName UniqueStatusBarName, const TSharedRef<SDockTab>& InParentTab);
 
 	/**
 	 * @return true if a status bar was found for the active window

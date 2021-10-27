@@ -2,14 +2,14 @@
 
 #include "Data/CustomSerialization/CustomObjectSerializationWrapper.h"
 
-#include "ApplySnapshotDataArchiveV2.h"
-#include "LevelSnapshotsLog.h"
+#include "Archive/ApplySnapshotToEditorArchive.h"
+#include "Archive/LoadSnapshotObjectArchive.h"
 #include "CustomSerialization/CustomSerializationDataManager.h"
+#include "Data/WorldSnapshotData.h"
+#include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertySelectionMap.h"
-#include "SnapshotArchive.h"
-#include "Serialization/ICustomObjectSnapshotSerializer.h"
-#include "WorldSnapshotData.h"
 
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
@@ -21,6 +21,7 @@ namespace
 	FRestoreObjectScope PreObjectRestore_SnapshotWorld(
 		UObject* SnapshotObject,
 		FWorldSnapshotData& WorldData,
+		const FProcessObjectDependency& ProcessObjectDependency,
 		UPackage* LocalisationSnapshotPackage,
 		FSerializationDataGetter SerializationDataGetter
 		)
@@ -36,7 +37,7 @@ namespace
 
 		FCustomSerializationDataReader SerializationDataReader = FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly::CreateLambda([SerializationDataGetter](){ return SerializationDataGetter();}), WorldData);
 		CustomSerializer->PreApplySnapshotProperties(SnapshotObject, SerializationDataReader);
-		return FRestoreObjectScope([SnapshotObject, SerializationDataGetter, &WorldData, LocalisationSnapshotPackage, SerializationDataReader, CustomSerializer]()
+		return FRestoreObjectScope([SnapshotObject, SerializationDataGetter, &WorldData, &ProcessObjectDependency, LocalisationSnapshotPackage, SerializationDataReader, CustomSerializer]()
 		{
 			for (int32 i = 0; i < SerializationDataReader.GetNumSubobjects(); ++i)
 			{
@@ -49,8 +50,8 @@ namespace
 				}
 
 				// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-				const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);});
-				FSnapshotArchive::ApplyToSnapshotWorldObject(SerializationDataGetter()->Subobjects[i], WorldData, SnapshotSubobject, LocalisationSnapshotPackage);
+				const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, ProcessObjectDependency, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);});
+				FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializationDataGetter()->Subobjects[i], WorldData, SnapshotSubobject, ProcessObjectDependency, LocalisationSnapshotPackage);
 				CustomSerializer->OnPostSerializeSnapshotSubobject(SnapshotSubobject, *MetaData, SerializationDataReader);
 			}
 
@@ -108,7 +109,7 @@ namespace
 					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
 				
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
-					FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap, *SelectedProperties);
+					FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap, *SelectedProperties);
 					CustomSerializer->OnPostSerializeEditorSubobject(EditorSubobject, *MetaData, SerializationDataReader);
 					continue;
 				}
@@ -120,7 +121,7 @@ namespace
 					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
 
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
-					FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap);
+					FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap);
 					CustomSerializer->OnPostSerializeEditorSubobject(EditorSubobject, *MetaData, SerializationDataReader);
 					continue;
 				}
@@ -181,6 +182,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreActorRestore_SnapshotW
 	AActor* SnapshotActor,
 	FCustomSerializationData& ActorSerializationData,
 	FWorldSnapshotData& WorldData,
+	const FProcessObjectDependency& ProcessObjectDependency,
 	UPackage* LocalisationSnapshotPackage)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreSnapshotActorRestore);
@@ -188,6 +190,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreActorRestore_SnapshotW
 	return PreObjectRestore_SnapshotWorld(
 		SnapshotActor,
 		WorldData,
+		ProcessObjectDependency,
 		LocalisationSnapshotPackage,
 		[&ActorSerializationData](){ return &ActorSerializationData; }
 		);
@@ -219,6 +222,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Snaps
 	UObject* Subobject,
 	const FSoftObjectPath& OriginalSubobjectPath,
 	FWorldSnapshotData& WorldData,
+	const FProcessObjectDependency& ProcessObjectDependency,
 	UPackage* LocalisationSnapshotPackage
 	)
 {
@@ -227,6 +231,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Snaps
 	return PreObjectRestore_SnapshotWorld(
 		Subobject,
 		WorldData,
+		ProcessObjectDependency,
 		LocalisationSnapshotPackage,
 		[&WorldData, OriginalSubobjectPath](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalSubobjectPath); }
 		);

@@ -10,8 +10,8 @@
 #include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Kismet2/WatchedPin.h"
 #include "BlueprintEditor.h"
-#include "Debugging/KismetDebugCommands.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/StyleColors.h"
@@ -126,6 +126,12 @@ void FDebugLineItem::MakeMenu(FMenuBuilder& MenuBuilder)
 		FSlateIcon(),
 		CopyValue
 	);
+
+	ExtendContextMenu(MenuBuilder);
+}
+
+void FDebugLineItem::ExtendContextMenu(class FMenuBuilder& MenuBuilder)
+{
 }
 
 void FDebugLineItem::UpdateSearch(const FString& InSearchString, FDebugLineItem::ESearchFlags SearchFlags)
@@ -602,12 +608,14 @@ struct FWatchChildLineItem : public FLineItemWithChildren
 {
 protected:
 	FPropertyInstanceInfo Data;
+	TWeakPtr<FDebugLineItem> ParentTreeItem;
 private:
 	bool bIconHovered = false;
 public:
-	FWatchChildLineItem(const FPropertyInstanceInfo& Child) :
+	FWatchChildLineItem(const FPropertyInstanceInfo& Child, const FDebugTreeItemPtr& InParentTreeItem) :
 		FLineItemWithChildren(DLT_WatchChild),
-		Data(Child)
+		Data(Child),
+		ParentTreeItem(InParentTreeItem)
 	{}
 
 	virtual bool Compare(const FDebugLineItem* BaseOther) const override
@@ -629,7 +637,7 @@ public:
 
 	virtual FDebugLineItem* Duplicate() const override
 	{
-		return new FWatchChildLineItem(Data);
+		return new FWatchChildLineItem(Data, ParentTreeItem.Pin());
 	}
 
 	virtual uint32 GetHash() override
@@ -696,28 +704,42 @@ public:
 	// the color changes slightly based on whether it's null or a hovered button
 	FSlateColor ModifiedIconColor(FSlateColor BaseColor) const
 	{
+		FLinearColor LinearRGB = BaseColor.GetSpecifiedColor();
+
 		// check if Data is a UObject
 		if (CastField<FObjectPropertyBase>(Data.Property.Get()))
 		{
-			FLinearColor LinearHSV = BaseColor.GetSpecifiedColor().LinearRGBToHSV();
+			FLinearColor LinearHSV = LinearRGB.LinearRGBToHSV();
 
 			// if it's a null object, darken the icon so it's clear that it's not a button
 			if (Data.Object == nullptr)
 			{
 				LinearHSV.B *= 0.5f; // decrease value
 				LinearHSV.A *= 0.5f; // decrease alpha
-				return LinearHSV.HSVToLinearRGB();
+				LinearRGB = LinearHSV.HSVToLinearRGB();
 			}
-
 			// if the icon is hovered, lighten the icon
-			if (bIconHovered)
+			else if (bIconHovered)
 			{
 				LinearHSV.B *= 2.f;  // increase value
 				LinearHSV.G *= 0.8f; // decrease Saturation
-				return LinearHSV.HSVToLinearRGB();
+				LinearRGB = LinearHSV.HSVToLinearRGB();
 			}
 		}
-		return BaseColor;
+
+		bool bPinWatched = false;
+		TArray<FName> PathToProperty;
+		if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+		{
+			bPinWatched = FKismetDebugUtilities::IsPinBeingWatched(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), PinToWatch, PathToProperty);
+		}
+
+		if (bPinWatched)
+		{
+			LinearRGB.A *= 0.3f;
+		}
+
+		return LinearRGB;
 	}
 
 	FText IconTooltipText() const
@@ -755,10 +777,22 @@ public:
 				[&bIconHovered = bIconHovered]() {bIconHovered = false; }
 			)
 			[
-				SNew(SImage)
-					.Image(Icon)
-					.ColorAndOpacity(this, &FWatchChildLineItem::ModifiedIconColor, BaseColor)
-					.ToolTipText(this, &FWatchChildLineItem::IconTooltipText)
+				SNew(SOverlay)
+				.ToolTipText(this, &FWatchChildLineItem::IconTooltipText)
+				+ SOverlay::Slot()
+				.Padding(FMargin(10.f, 0.f, 0.f, 0.f))
+				[
+					SNew(SImage)
+						.Image(Icon)
+						.ColorAndOpacity(this, &FWatchChildLineItem::ModifiedIconColor, BaseColor)
+				]
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Left)
+				[
+					SNew(SImage)
+						.Image(FEditorStyle::GetBrush(TEXT("Kismet.WatchIcon")))
+						.Visibility(this, &FWatchChildLineItem::GetWatchIconVisibility)
+				]
 			];
 	}
 
@@ -766,7 +800,7 @@ public:
 	{
 		for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : Data.Children)
 		{
-			EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData), InSearchString, bRespectSearch);
+			EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData, AsShared()), InSearchString, bRespectSearch);
 		}
 	}
 
@@ -830,13 +864,45 @@ public:
 			];
 	}
 
+	virtual void ExtendContextMenu(FMenuBuilder& MenuBuilder) override
+	{
+		//Navigate to Class source
+
+		//Add Watch
+		FUIAction AddThisWatch(
+			FExecuteAction::CreateSP(this, &FWatchChildLineItem::AddWatch),
+			FCanExecuteAction::CreateSP(this, &FWatchChildLineItem::CanAddWatch)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AddPropertyWatch", "Start Watching"),
+			LOCTEXT("AddPropertyWatchTooltip", "Start Watching This Variable"),
+			FSlateIcon(),
+			AddThisWatch
+		);
+
+		//Add Watch
+		FUIAction ClearThisWatch(
+			FExecuteAction::CreateSP(this, &FWatchChildLineItem::ClearWatch),
+			FCanExecuteAction::CreateSP(this, &FWatchChildLineItem::CanClearWatch)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearPropertyWatch", "Stop Watching"),
+			LOCTEXT("ClearPropertyWatchTooltip", "Stop Watching This Variable"),
+			FSlateIcon(),
+			ClearThisWatch
+		);
+
+	}
+
 protected:
 	virtual bool IsContainer() const override
 	{
 		return Data.Property->IsA<FSetProperty>() || Data.Property->IsA<FArrayProperty>() || Data.Property->IsA<FMapProperty>();
 	}
 
-	virtual FText GetObjectValueText() const
+	FText GetObjectValueText() const
 	{
 		if (const UObject* Object = Data.Object.Get())
 		{
@@ -846,7 +912,7 @@ protected:
 		return LOCTEXT("UnknownObjectValueBegin", "[Unknown] (Class: ");
 	}
 
-	virtual FText GetObjectClassText() const
+	FText GetObjectClassText() const
 	{
 		if (const UObject* Object = Data.Object.Get())
 		{
@@ -856,7 +922,7 @@ protected:
 		return LOCTEXT("UnknownClassName", "[Unknown]");
 	}
 
-	virtual void OnNavigateToClass() const
+	void OnNavigateToClass() const
 	{
 		if (const UObject* Object = Data.Object.Get())
 		{
@@ -875,7 +941,7 @@ protected:
 		}
 	}
 
-	virtual FText GetClassLinkTooltipText() const
+	FText GetClassLinkTooltipText() const
 	{
 		if (const UObject* Object = Data.Object.Get())
 		{
@@ -896,7 +962,7 @@ protected:
 		return LOCTEXT("UnknownClassName", "[Unknown]");
 	}
 
-	virtual FText GetValueTooltipText() const
+	FText GetValueTooltipText() const
 	{
 		// if this is an Object property, tooltip text should include its full name
 		if (const UObject* Object = Data.Object.Get())
@@ -908,6 +974,24 @@ protected:
 
 		return GetDescription();
 	}
+
+	EVisibility GetWatchIconVisibility() const
+	{
+		bool bPinWatched = false;
+		TArray<FName> PathToProperty;
+		if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+		{
+			bPinWatched = FKismetDebugUtilities::IsPinBeingWatched(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), PinToWatch, PathToProperty);
+		}
+
+		return bPinWatched ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	void AddWatch();
+	bool CanAddWatch() const;
+	void ClearWatch();
+	bool CanClearWatch() const;
+	UEdGraphPin* BuildPathToProperty(TArray<FName>& OutPathToProperty) const;
 };
 
 //////////////////////////////////////////////////////////////////////////\
@@ -919,7 +1003,7 @@ protected:
 	TWeakObjectPtr<UObject> ObjectToWatch;
 public:
 	FSelfWatchLineItem(UObject* Object) :
-		FLineItemWithChildren(DLT_Watch),
+		FLineItemWithChildren(DLT_SelfWatch),
 		ObjectToWatch(Object)
 	{}
 
@@ -952,7 +1036,7 @@ public:
 					void* Value = Property->ContainerPtrToValuePtr<void*>(Object);
 					FKismetDebugUtilities::GetDebugInfoInternal(DebugInfo, Property, Value);
 
-					EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*DebugInfo), InSearchString, bRespectSearch);
+					EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*DebugInfo, AsShared()), InSearchString, bRespectSearch);
 				}
 			}
 		}
@@ -980,10 +1064,20 @@ struct FWatchLineItem : public FLineItemWithChildren
 protected:
 	TWeakObjectPtr< UObject > ParentObjectRef;
 	const FEdGraphPinReference ObjectRef;
+	const TArray<FName> PathToProperty;
 public:
 	FWatchLineItem(const UEdGraphPin* PinToWatch, UObject* ParentObject)
 		: FLineItemWithChildren(DLT_Watch)
 		, ObjectRef(PinToWatch)
+		, PathToProperty()
+	{
+		ParentObjectRef = ParentObject;
+	}
+
+	FWatchLineItem(const UEdGraphPin* PinToWatch, UObject* ParentObject, const TArray<FName>& InPathToProperty)
+		: FLineItemWithChildren(DLT_Watch)
+		, ObjectRef(PinToWatch)
+		, PathToProperty(InPathToProperty)
 	{
 		ParentObjectRef = ParentObject;
 	}
@@ -992,12 +1086,13 @@ public:
 	{
 		FWatchLineItem* Other = (FWatchLineItem*)BaseOther;
 		return (ParentObjectRef == Other->ParentObjectRef) &&
-			(ObjectRef == Other->ObjectRef);
+			(ObjectRef == Other->ObjectRef) && 
+			(PathToProperty == Other->PathToProperty);
 	}
 
 	virtual FDebugLineItem* Duplicate() const override
 	{
-		return new FWatchLineItem(ObjectRef.Get(), ParentObjectRef.Get());
+		return new FWatchLineItem(ObjectRef.Get(), ParentObjectRef.Get(), PathToProperty);
 	}
 
 	virtual uint32 GetHash() override
@@ -1005,13 +1100,24 @@ public:
 		return HashCombine(GetTypeHash(ParentObjectRef), GetTypeHash(ObjectRef));
 	}
 
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) override
+	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder) override
 	{
 		if (UEdGraphPin* WatchedPin = ObjectRef.Get())
 		{
+			FUIAction AddThisWatch(
+				FExecuteAction::CreateSP(this, &FWatchLineItem::AddWatch),
+				FCanExecuteAction::CreateSP(this, &FWatchLineItem::CanAddWatch)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("AddWatch", "Start Watching"),
+				LOCTEXT("AddWatch_ToolTip", "Start watching this variable"),
+				FSlateIcon(),
+				AddThisWatch);
+
 			FUIAction ClearThisWatch(
-				FExecuteAction::CreateStatic(&FDebuggingActionCallbacks::ClearWatch, WatchedPin),
-				FCanExecuteAction() // always allow
+				FExecuteAction::CreateSP(this, &FWatchLineItem::ClearWatch),
+				FCanExecuteAction::CreateSP(this, &FWatchLineItem::CanClearWatch)
 			);
 
 			MenuBuilder.AddMenuEntry(
@@ -1020,8 +1126,6 @@ public:
 				FSlateIcon(),
 				ClearThisWatch);
 		}
-
-		FDebugLineItem::MakeMenu(MenuBuilder);
 	}
 
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, const FString& InSearchString, bool bRespectSearch) override
@@ -1041,23 +1145,84 @@ public:
 				if (WatchStatus == FKismetDebugUtilities::EWTR_Valid)
 				{
 					check(DebugInfo);
-					for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : DebugInfo->Children)
+
+					TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+					
+					if (ThisDebugInfo.IsValid())
 					{
-						EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData), InSearchString, bRespectSearch);
+						for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : ThisDebugInfo->Children)
+						{
+							EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData, AsShared()), InSearchString, bRespectSearch);
+						}
 					}
 				}
 			}
 		}
 	}
 
+	const FEdGraphPinReference& GetPin() const
+	{
+		return ObjectRef;
+	}
 
 protected:
 	virtual FText GetDescription() const override;
 	virtual FText GetDisplayName() const override;
 	virtual TSharedRef<SWidget> GenerateNameWidget(TSharedPtr<FString> InSearchString) override;
 	virtual TSharedRef<SWidget> GetNameIcon() override;
+	const FSlateBrush* GetPinIcon() const;
+	FSlateColor GetPinIconColor() const;
+	EVisibility GetWatchIconVisibility() const;
+	FText GetTypename() const;
 
 	void OnNavigateToWatchLocation();
+
+	// Finds the DebugInfo for the property pointed to by PathToProperty from the Pin's debuginfo
+	TSharedPtr<FPropertyInstanceInfo> GetWatchedPropertyDebugInfo(const TSharedPtr<FPropertyInstanceInfo>& InPinInfo) const;
+
+private:
+	void AddWatch() const
+	{
+		if (UEdGraphPin* PinToWatch = ObjectRef.Get())
+		{
+			UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+			FKismetDebugUtilities::AddPinWatch(ParentBlueprint, FBlueprintWatchedPin(PinToWatch, TArray<FName>(PathToProperty)));
+		}
+	}
+
+	bool CanAddWatch() const
+	{
+		if (UEdGraphPin* PinToWatch = ObjectRef.Get())
+		{
+			UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+			return FKismetDebugUtilities::CanWatchPin(ParentBlueprint, PinToWatch, PathToProperty);
+		}
+
+		return false;
+	}
+
+	void ClearWatch() const
+	{
+		if (UEdGraphPin* PinToWatch = ObjectRef.Get())
+		{
+			UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+			TArray<FName> PathToPropertyCopy = PathToProperty;
+			FKismetDebugUtilities::RemovePinWatch(ParentBlueprint, PinToWatch, MoveTemp(PathToPropertyCopy));
+		}
+	}
+
+	bool CanClearWatch() const
+	{
+		if (UEdGraphPin* PinToWatch = ObjectRef.Get())
+		{
+			UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+			return FKismetDebugUtilities::IsPinBeingWatched(ParentBlueprint, PinToWatch, PathToProperty);
+		}
+
+		return false;
+	}
+
+
 };
 
 FText FWatchLineItem::GetDisplayName() const
@@ -1068,7 +1233,13 @@ FText FWatchLineItem::GetDisplayName() const
 		{
 			if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(Blueprint, PinToWatch))
 			{
-				return FText::FromString(UEditorEngine::GetFriendlyName(Property));
+				FString PathString;
+				for (FName PropertyName : PathToProperty)
+				{
+					PathString.Append(TEXT("/") + PropertyName.ToString());
+				}
+
+				return FText::FromString(UEditorEngine::GetFriendlyName(Property) + PathString);
 			}
 		}
 
@@ -1101,8 +1272,16 @@ FText FWatchLineItem::GetDescription() const
 			case FKismetDebugUtilities::EWTR_Valid:
 			{
 				check(DebugInfo);
-				const FString ValStr = DebugInfo->Value.ToString();
-				return FText::FromString(ValStr.Replace(TEXT("\n"), TEXT(" ")));
+				TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+				if (ThisDebugInfo.IsValid())
+				{
+					const FString ValStr = ThisDebugInfo->Value.ToString();
+					return FText::FromString(ValStr.Replace(TEXT("\n"), TEXT(" ")));
+				}
+				else
+				{
+					return LOCTEXT("UnknownProperty", "No debug data");
+				}
 			}
 
 			case FKismetDebugUtilities::EWTR_NotInScope:
@@ -1138,48 +1317,151 @@ TSharedRef<SWidget> FWatchLineItem::GenerateNameWidget(TSharedPtr<FString> InSea
 // overlays the watch icon on top of a faded icon associated with the pin type
 TSharedRef<SWidget> FWatchLineItem::GetNameIcon()
 {
-	const FSlateBrush* PinIcon;
-	FLinearColor PinIconColor;
-	FText Typename;
-	if (UEdGraphPin* ObjectToFocus = ObjectRef.Get())
-	{
-		PinIcon = FBlueprintEditorUtils::GetIconFromPin(ObjectToFocus->PinType);
-
-		const UEdGraphSchema* Schema = ObjectToFocus->GetSchema();
-		PinIconColor = Schema->GetPinTypeColor(ObjectToFocus->PinType);
-		PinIconColor.A = 0.3f;
-
-		// Note: Currently tunnel node pins (e.g. macro/consolidated node outputs) won't return a property.
-		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
-		if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(ParentBlueprint, ObjectToFocus))
-		{
-			Typename = UEdGraphSchema_K2::TypeToText(Property);
-		}
-		else
-		{
-			Typename = UEdGraphSchema_K2::TypeToText(ObjectToFocus->PinType);
-		}
-	}
-	else
-	{
-		PinIcon = FEditorStyle::GetBrush(TEXT("NoBrush"));
-	}
-
 	return SNew(SOverlay)
-		.ToolTipText(Typename)
+		.ToolTipText(this, &FWatchLineItem::GetTypename)
 		+ SOverlay::Slot()
 			.Padding(FMargin(10.f, 0.f, 0.f, 0.f))
 			[
 				SNew(SImage)
-					.Image(PinIcon)
-					.ColorAndOpacity(PinIconColor)
+					.Image(this, &FWatchLineItem::GetPinIcon)
+					.ColorAndOpacity(this, &FWatchLineItem::GetPinIconColor)
 			]
 		+ SOverlay::Slot()
 			.HAlign(HAlign_Left)
 			[
 				SNew(SImage)
 					.Image(FEditorStyle::GetBrush(TEXT("Kismet.WatchIcon")))
+					.Visibility(this, &FWatchLineItem::GetWatchIconVisibility)
 			];
+}
+
+const FSlateBrush* FWatchLineItem::GetPinIcon() const
+{
+	if (UEdGraphPin* ObjectToFocus = ObjectRef.Get())
+	{
+		// Try to determine the blueprint that generated the watch
+		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+
+		// Find a valid property mapping and display the current value
+		UObject* ParentObject = ParentObjectRef.Get();
+		if ((ParentBlueprint != ParentObject) && (ParentBlueprint != nullptr))
+		{
+			TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+			const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, ParentBlueprint, ParentObject, ObjectToFocus);
+
+			if (WatchStatus == FKismetDebugUtilities::EWTR_Valid)
+			{
+				check(DebugInfo);
+				TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+				if (ThisDebugInfo.IsValid())
+				{
+					FSlateColor BaseColor;
+					FSlateColor SecondaryColor;
+					FSlateBrush const* SecondaryIcon;
+					const FSlateBrush* Icon = FBlueprintEditor::GetVarIconAndColorFromProperty(
+						ThisDebugInfo->Property.Get(),
+						BaseColor,
+						SecondaryIcon,
+						SecondaryColor
+					);
+
+					return Icon;
+				}
+			}
+		}
+	}
+
+	return FEditorStyle::GetBrush(TEXT("NoBrush"));
+}
+
+FSlateColor FWatchLineItem::GetPinIconColor() const
+{
+	FSlateColor PinIconColor = FLinearColor::White;
+
+	if (UEdGraphPin* ObjectToFocus = ObjectRef.Get())
+	{
+		// Try to determine the blueprint that generated the watch
+		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+
+		// Find a valid property mapping and display the current value
+		UObject* ParentObject = ParentObjectRef.Get();
+		if ((ParentBlueprint != ParentObject) && (ParentBlueprint != nullptr))
+		{
+			TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+			const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, ParentBlueprint, ParentObject, ObjectToFocus);
+
+			if (WatchStatus == FKismetDebugUtilities::EWTR_Valid)
+			{
+				check(DebugInfo);
+				TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+				if (ThisDebugInfo.IsValid())
+				{
+					FSlateColor BaseColor;
+					FSlateColor SecondaryColor;
+					FSlateBrush const* SecondaryIcon;
+					const FSlateBrush* Icon = FBlueprintEditor::GetVarIconAndColorFromProperty(
+						ThisDebugInfo->Property.Get(),
+						BaseColor,
+						SecondaryIcon,
+						SecondaryColor
+					);
+
+					PinIconColor = BaseColor;
+				}
+			}
+		}
+
+		if (FKismetDebugUtilities::IsPinBeingWatched(FBlueprintEditorUtils::FindBlueprintForNode(ObjectToFocus->GetOwningNode()), ObjectToFocus, PathToProperty))
+		{
+			FLinearColor Color = PinIconColor.GetSpecifiedColor();
+			Color.A = 0.3f;
+			PinIconColor = Color;
+		}
+	}
+
+
+	return PinIconColor;
+}
+
+EVisibility FWatchLineItem::GetWatchIconVisibility() const
+{
+	if (const UEdGraphPin* Pin = ObjectRef.Get())
+	{
+		return FKismetDebugUtilities::IsPinBeingWatched(FBlueprintEditorUtils::FindBlueprintForNode(Pin->GetOwningNode()), Pin, PathToProperty) ?
+			EVisibility::Visible :
+			EVisibility::Collapsed;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+FText FWatchLineItem::GetTypename() const
+{
+	if (UEdGraphPin* ObjectToFocus = ObjectRef.Get())
+	{
+		// Try to determine the blueprint that generated the watch
+		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+
+		// Find a valid property mapping and display the current value
+		UObject* ParentObject = ParentObjectRef.Get();
+		if ((ParentBlueprint != ParentObject) && (ParentBlueprint != nullptr))
+		{
+			TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+			const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, ParentBlueprint, ParentObject, ObjectToFocus);
+
+			if (WatchStatus == FKismetDebugUtilities::EWTR_Valid)
+			{
+				check(DebugInfo);
+				TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+				if (ThisDebugInfo.IsValid())
+				{
+					return UEdGraphSchema_K2::TypeToText(ThisDebugInfo->Property.Get());
+				}
+			}
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 void FWatchLineItem::OnNavigateToWatchLocation()
@@ -1188,6 +1470,113 @@ void FWatchLineItem::OnNavigateToWatchLocation()
 	{
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnPin(ObjectToFocus);
 	}
+}
+
+TSharedPtr<FPropertyInstanceInfo> FWatchLineItem::GetWatchedPropertyDebugInfo(const TSharedPtr<FPropertyInstanceInfo>& InPinInfo) const
+{
+	// Drill down to the actual property being watched if necessary
+	TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = InPinInfo;
+	for (const FName& ChildName : PathToProperty)
+	{
+		if (ThisDebugInfo.IsValid())
+		{
+			TSharedPtr<FPropertyInstanceInfo>* FoundChild = ThisDebugInfo->Children.FindByPredicate(
+				[&ChildName](const TSharedPtr<FPropertyInstanceInfo>& Child)
+				{
+					return Child->Property->GetFName() == ChildName;
+				}
+			);
+
+			if (FoundChild)
+			{
+				ThisDebugInfo = *FoundChild;
+			}
+			else
+			{
+				ThisDebugInfo.Reset();
+			}
+		}
+	}
+
+	return ThisDebugInfo;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FWatchChildLineItem (some functions that need the definition of FWatchLineItem)
+
+void FWatchChildLineItem::AddWatch()
+{
+	TArray<FName> PathToProperty;
+	if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+	{
+		FKismetDebugUtilities::AddPinWatch(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), FBlueprintWatchedPin(PinToWatch, MoveTemp(PathToProperty)));
+	}
+}
+
+bool FWatchChildLineItem::CanAddWatch() const
+{
+	TArray<FName> PathToProperty;
+	if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+	{
+		return FKismetDebugUtilities::CanWatchPin(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), PinToWatch, PathToProperty);
+	}
+
+	return false;
+}
+
+void FWatchChildLineItem::ClearWatch()
+{
+	TArray<FName> PathToProperty;
+	if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+	{
+		FKismetDebugUtilities::RemovePinWatch(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), PinToWatch, PathToProperty);
+	}
+}
+
+bool FWatchChildLineItem::CanClearWatch() const
+{
+	TArray<FName> PathToProperty;
+	if (UEdGraphPin* PinToWatch = BuildPathToProperty(PathToProperty))
+	{
+		return FKismetDebugUtilities::IsPinBeingWatched(FBlueprintEditorUtils::FindBlueprintForNode(PinToWatch->GetOwningNode()), PinToWatch, PathToProperty);
+	}
+
+	return false;
+}
+
+UEdGraphPin* FWatchChildLineItem::BuildPathToProperty(TArray<FName>& OutPathToProperty) const
+{
+	UEdGraphPin* PinToWatch = nullptr;
+	OutPathToProperty.Reset();
+	OutPathToProperty.Emplace(Data.Property->GetFName());
+	FDebugTreeItemPtr Parent = ParentTreeItem.Pin();
+	while (Parent.IsValid())
+	{
+		if (Parent->GetType() == DLT_Watch)
+		{
+			// this is a FWatchLineItem
+			TSharedPtr<FWatchLineItem> ParentAsWatch = StaticCastSharedPtr<FWatchLineItem>(Parent);
+			PinToWatch = ParentAsWatch->GetPin().Get();
+			break;
+		}
+
+		if (Parent->GetType() == DLT_WatchChild)
+		{
+			// This is a FWatchChildLineItem
+			TSharedPtr<FWatchChildLineItem> ParentAsChild = StaticCastSharedPtr<FWatchChildLineItem>(Parent);
+			OutPathToProperty.Emplace(ParentAsChild->Data.Property->GetFName());
+			Parent = ParentAsChild->ParentTreeItem.Pin();
+		}
+		else
+		{
+			Parent.Reset();
+		}
+	}
+
+	// Reverse the array because we built it backwards
+	Algo::Reverse(OutPathToProperty);
+
+	return PinToWatch;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1223,7 +1612,7 @@ public:
 		return HashCombine(GetTypeHash(ParentObjectRef), GetTypeHash(BreakpointNode));
 	}
 
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) override
+	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder) override
 	{
 		FBlueprintBreakpoint* Breakpoint = GetBreakpoint();
 		const UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
@@ -1237,9 +1626,7 @@ public:
 			const bool bNewEnabledState = !Breakpoint->IsEnabledByUser();
 
 			FUIAction ToggleThisBreakpoint(
-				FExecuteAction::CreateStatic(
-					&FDebuggingActionCallbacks::SetBreakpointEnabled, BreakpointNode, ParentBlueprint, bNewEnabledState
-				),
+				FExecuteAction::CreateSP(this, &FBreakpointLineItem::ToggleBreakpoint),
 				AlwaysAllowExecute
 			);
 
@@ -1266,7 +1653,7 @@ public:
 		if ((Breakpoint != nullptr) && (ParentBlueprint != nullptr))
 		{
 			FUIAction ClearThisBreakpoint(
-				FExecuteAction::CreateStatic(&FDebuggingActionCallbacks::ClearBreakpoint, BreakpointNode, ParentBlueprint),
+				FExecuteAction::CreateSP(this, &FBreakpointLineItem::ClearBreakpoint),
 				AlwaysAllowExecute
 			);
 
@@ -1276,8 +1663,6 @@ public:
 				FSlateIcon(),
 				ClearThisBreakpoint);
 		}
-
-		FDebugLineItem::MakeMenu(MenuBuilder);
 	}
 protected:
 	FBlueprintBreakpoint* GetBreakpoint() const
@@ -1322,10 +1707,29 @@ protected:
 
 
 	virtual FText GetDisplayName() const override;
+
+private:
+	void ToggleBreakpoint() const
+	{
+		if (FBlueprintBreakpoint* Breakpoint = GetBreakpoint())
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(*Breakpoint, !Breakpoint->IsEnabled());
+		}
+	}
+
+	void ClearBreakpoint() const
+	{
+		if (UEdGraphNode* Node = BreakpointNode.Get())
+		{
+			if (UBlueprint* Blueprint = GetBlueprintForObject(Node))
+			{
+				FKismetDebugUtilities::RemoveBreakpointFromNode(Node, Blueprint);
+			}
+		}
+	}
+
 	FReply OnUserToggledEnabled();
-
 	void OnNavigateToBreakpointLocation();
-
 	const FSlateBrush* GetStatusImage() const;
 	FText GetStatusTooltip() const;
 };
@@ -1420,7 +1824,7 @@ public:
 		// Create children for each breakpoint
 		FKismetDebugUtilities::ForeachBreakpoint(
 			Blueprint.Get(),
-			[this, &OutChildren, &InSearchString, bRespectSearch] (FBlueprintBreakpoint& Breakpoint)
+			[this, &OutChildren, &InSearchString, bRespectSearch](FBlueprintBreakpoint& Breakpoint)
 			{
 				EnsureChildIsAdded(OutChildren,
 					FBreakpointLineItem(Breakpoint.GetLocation(), Blueprint.Get()), InSearchString, bRespectSearch);
@@ -1435,12 +1839,12 @@ public:
 		}
 	}
 
-	virtual void MakeMenu(FMenuBuilder& MenuBuilder) override
+	virtual void ExtendContextMenu(FMenuBuilder& MenuBuilder) override
 	{
 		if (FKismetDebugUtilities::BlueprintHasBreakpoints(Blueprint.Get()))
 		{
 			const FUIAction ClearAllBreakpoints(
-				FExecuteAction::CreateStatic(&FDebuggingActionCallbacks::ClearBreakpoints, Blueprint.Get()),
+				FExecuteAction::CreateSP(this, &FBreakpointParentItem::ClearAllBreakpoints),
 				FCanExecuteAction() // always allow
 			);
 
@@ -1461,11 +1865,7 @@ public:
 			if (bEnabledBreakpointExists)
 			{
 				const FUIAction DisableAllBreakpoints(
-					FExecuteAction::CreateStatic(
-						&FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints,
-						const_cast<const UBlueprint*>(Blueprint.Get()),
-						false
-					),
+					FExecuteAction::CreateSP(this, &FBreakpointParentItem::DisableAllBreakpoints),
 					FCanExecuteAction() // always allow
 				);
 
@@ -1487,11 +1887,7 @@ public:
 			if (bDisabledBreakpointExists)
 			{
 				const FUIAction EnableAllBreakpoints(
-					FExecuteAction::CreateStatic(
-						&FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints,
-						const_cast<const UBlueprint*>(Blueprint.Get()),
-						true
-					),
+					FExecuteAction::CreateSP(this, &FBreakpointParentItem::EnableAllBreakpoints),
 					FCanExecuteAction() // always allow
 				);
 
@@ -1502,7 +1898,6 @@ public:
 					EnableAllBreakpoints);
 			}
 		}
-		FDebugLineItem::MakeMenu(MenuBuilder);
 	}
 
 protected:
@@ -1527,6 +1922,33 @@ protected:
 	{
 		check(false);
 		return 0;
+	}
+
+private:
+
+	void DisableAllBreakpoints() const
+	{
+		FKismetDebugUtilities::ForeachBreakpoint(Blueprint.Get(),
+			[](FBlueprintBreakpoint& Breakpoint)
+			{
+				FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, false);
+			}
+		);
+	}
+
+	void EnableAllBreakpoints() const
+	{
+		FKismetDebugUtilities::ForeachBreakpoint(Blueprint.Get(),
+			[](FBlueprintBreakpoint& Breakpoint)
+			{
+				FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, true);
+			}
+		);
+	}
+
+	void ClearAllBreakpoints() const
+	{
+		FKismetDebugUtilities::ClearBreakpoints(Blueprint.Get());
 	}
 };
 
@@ -1575,12 +1997,11 @@ public:
 				// Create children for each watch
 				if (IsDebugLineTypeActive(DLT_Watch))
 				{
-					FKismetDebugUtilities::ForeachPinWatch(
-						ParentBP,
-						[this, &OutChildren, ParentObject, &InSearchString, bRespectSearch](UEdGraphPin* WatchedPin)
+					FKismetDebugUtilities::ForeachPinPropertyWatch(ParentBP,
+						[this, &OutChildren, ParentObject, &InSearchString, bRespectSearch] (FBlueprintWatchedPin& WatchedPin)
 						{
 							EnsureChildIsAdded(OutChildren,
-								FWatchLineItem(WatchedPin, ParentObject), InSearchString, bRespectSearch);
+								FWatchLineItem(WatchedPin.Get(), ParentObject, WatchedPin.GetPathToProperty()), InSearchString, bRespectSearch);
 						}
 					);
 				}
@@ -1689,14 +2110,14 @@ protected:
 			.ToolTipText(this, &FParentLineItem::GetStatusTooltip);
 	}
 
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) override
+	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder) override
 	{
 		if (UBlueprint* BP = Cast<UBlueprint>(ObjectRef.Get()))
 		{
 			if (FKismetDebugUtilities::BlueprintHasPinWatches(BP))
 			{
 				FUIAction ClearAllWatches(
-					FExecuteAction::CreateStatic(&FDebuggingActionCallbacks::ClearWatches, BP),
+					FExecuteAction::CreateSP(this, &FParentLineItem::ClearAllWatches),
 					FCanExecuteAction() // always allow
 				);
 
@@ -1707,8 +2128,16 @@ protected:
 					ClearAllWatches);
 			}
 		}
+	}
 
-		FDebugLineItem::MakeMenu(MenuBuilder);
+private:
+
+	void ClearAllWatches() const
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(ObjectRef.Get()))
+		{
+			FKismetDebugUtilities::ClearPinWatches(Blueprint);
+		}
 	}
 };
 
@@ -2078,7 +2507,7 @@ void SKismetDebugTreeView::Construct(const FArguments& InArgs)
 			.OnGetChildren(this, &SKismetDebugTreeView::OnGetChildren)
 			.OnGenerateRow(this, &SKismetDebugTreeView::OnGenerateRow)
 			.OnExpansionChanged(InArgs._OnExpansionChanged)
-			.OnContextMenuOpening(InArgs._OnContextMenuOpening)
+			.OnContextMenuOpening(this, &SKismetDebugTreeView::OnMakeContextMenu)
 			.TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("PropertyTable.InViewport.ListView"))
 			.HeaderRow(InArgs._HeaderRow)
 	];
@@ -2194,6 +2623,25 @@ void SKismetDebugTreeView::OnGetChildren(FDebugTreeItemPtr InParent, TArray<FDeb
 	InParent->GatherChildrenBase(OutChildren, *SearchString);
 }
 
+TSharedPtr<SWidget> SKismetDebugTreeView::OnMakeContextMenu() const
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.BeginSection("DebugActions", LOCTEXT("DebugActionsMenuHeading", "Debug Actions"));
+	{
+		TArray<FDebugTreeItemPtr> SelectedItems;
+		TreeView->GetSelectedItems(SelectedItems);
+
+		for (FDebugTreeItemPtr& Item : SelectedItems)
+		{
+			Item->MakeMenu(MenuBuilder);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 FDebugTreeItemPtr SKismetDebugTreeView::MakeTraceStackParentItem()
 {
 	return MakeShared<FTraceStackParentItem>();
@@ -2214,9 +2662,9 @@ FDebugTreeItemPtr SKismetDebugTreeView::MakeParentItem(UObject* InObject)
 	return MakeShared<FParentLineItem>(InObject);
 }
 
-FDebugTreeItemPtr SKismetDebugTreeView::MakeWatchChildItem(TSharedPtr<struct FPropertyInstanceInfo> InPropertyInfo)
+FDebugTreeItemPtr SKismetDebugTreeView::MakeWatchLineItem(const UEdGraphPin* InPinRef, UObject* InDebugObject)
 {
-	return MakeShared<FWatchChildLineItem>(*InPropertyInfo);
+	return MakeShared<FWatchLineItem>(InPinRef, InDebugObject);
 }
 
 #undef LOCTEXT_NAMESPACE

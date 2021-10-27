@@ -875,7 +875,7 @@ bool FSyncData::FElement::AddTags(FSyncDatabase* IOSyncDatabase)
 		GSErrCode GSErr = ACAPI_Element_Get(&APIElement, 0);
 		UE_AC_Assert(APIElement.header.typeID == TypeID);
 
-		if (GSErr != NoError)
+		if (GSErr == NoError)
 		{
 			GS::Int32 LibPartIndex = 0;
 			switch (TypeID)

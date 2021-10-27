@@ -102,7 +102,7 @@ PACKAGE_SCOPE:
 	{
 		TArray<FString> AccountIds;
 		UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
-		if (AccountIds.Num() > 0)
+		if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
 		{
 			EpicAccountIdStr = AccountIds[0];
 		}
@@ -111,7 +111,7 @@ PACKAGE_SCOPE:
 			EpicAccountIdStr = EMPTY_EASID;
 		}
 		AddToBuffer(RawBytes, EpicAccountIdStr);
-		if (AccountIds.Num() > 1)
+		if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
 		{
 			ProductUserIdStr = AccountIds[1];
 		}
@@ -451,8 +451,12 @@ static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_Pr
 /** Used to store a pointer to the EOS callback object without knowing type */
 class FCallbackBase
 {
+	static bool bShouldCancelAllCallbacks;
+
 public:
 	virtual ~FCallbackBase() {}
+	static bool ShouldCancelAllCallbacks() { return FCallbackBase::bShouldCancelAllCallbacks; }
+	static void CancelAllCallbacks() { FCallbackBase::bShouldCancelAllCallbacks = true; }
 };
 
 /** Class to handle all callbacks generically using a lambda to process callback results */
@@ -487,6 +491,12 @@ private:
 
 		TEOSCallback* CallbackThis = (TEOSCallback*)Data->ClientData;
 		check(CallbackThis);
+
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			delete CallbackThis;
+			return;
+		}
 
 		check(CallbackThis->CallbackLambda);
 		CallbackThis->CallbackLambda(Data);
@@ -525,6 +535,10 @@ private:
 	static Nested1ReturnType EOS_CALL Nested1CallbackImpl(const Nested1CallbackType* Data)
 	{
 		check(IsInGameThread());
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			return Nested1ReturnType();
+		}
 
 		TEOSCallbackWithNested1* CallbackThis = (TEOSCallbackWithNested1*)Data->ClientData;
 		check(CallbackThis);
@@ -565,6 +579,10 @@ private:
 	static void EOS_CALL Nested2CallbackImpl(const Nested2CallbackType* Data)
 	{
 		check(IsInGameThread());
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			return;
+		}
 
 		TEOSCallbackWithNested2* CallbackThis = (TEOSCallbackWithNested2*)Data->ClientData;
 		check(CallbackThis);
@@ -604,6 +622,10 @@ private:
 	static Nested1ReturnType EOS_CALL Nested1CallbackImpl(const Nested1CallbackType* Data, void* OutDataBuffer, uint32_t* OutDataWritten)
 	{
 		check(IsInGameThread());
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			return Nested1ReturnType();
+		}
 
 		TEOSCallbackWithNested1Param3* CallbackThis = (TEOSCallbackWithNested1Param3*)Data->ClientData;
 		check(CallbackThis);
@@ -644,6 +666,10 @@ private:
 	static void EOS_CALL Nested2CallbackImpl(const Nested2CallbackType* Data)
 	{
 		check(IsInGameThread());
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			return;
+		}
 
 		TEOSCallbackWithNested2ForNested1Param3* CallbackThis = (TEOSCallbackWithNested2ForNested1Param3*)Data->ClientData;
 		check(CallbackThis);
@@ -677,6 +703,11 @@ private:
 
 		TEOSGlobalCallback* CallbackThis = (TEOSGlobalCallback*)Data->ClientData;
 		check(CallbackThis);
+
+		if (FCallbackBase::ShouldCancelAllCallbacks())
+		{
+			return;
+		}
 
 		check(CallbackThis->CallbackLambda);
 		CallbackThis->CallbackLambda(Data);

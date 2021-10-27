@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_CHAOS
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
 
@@ -1810,3 +1811,4 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;
 
 #endif // WITH_CHAOS
+#endif

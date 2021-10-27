@@ -46,6 +46,7 @@ public:
 
 private:
 	void ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
+	void ImplPostUpdateRenderFrameConfiguration();
 	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
 
 private:

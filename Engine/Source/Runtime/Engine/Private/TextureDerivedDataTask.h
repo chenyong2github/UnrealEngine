@@ -119,11 +119,11 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	IImageWrapperModule* ImageWrapper;
 	/** Where to store derived data. */
 	FTexturePlatformData* DerivedData;
-	/** The texture for which derived data is being cached. 
-	*	We are likely off the main thread so be very careful with this! 
-	*	AFAICT it's only used for debug GetPathName... 
-	*/
+	/** The texture for which derived data is being cached. */
 	UTexture& Texture;
+
+	/** The name of the texture we are building. */
+	FString TexturePathName;
 
 	/** Compression settings. We need two for when we are in the fallback case. We have
 	*	to do this out here so that we can generate keys before knowing which one we'll use */

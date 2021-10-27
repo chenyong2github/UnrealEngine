@@ -24,7 +24,7 @@ public:
 	FSoftClassPath AdvancedCopyCustomization;
 };
 
-UCLASS(config = Game, defaultconfig, notplaceable, meta = (DisplayName = "Asset Tools"))
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Asset Tools"))
 class ASSETTOOLS_API UAssetToolsSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

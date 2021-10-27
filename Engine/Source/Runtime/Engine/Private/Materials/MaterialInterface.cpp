@@ -263,10 +263,18 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 
 FMaterialParameterInfo UMaterialInterface::GetParameterInfo(EMaterialParameterAssociation Association, FName ParameterName, UMaterialFunctionInterface* LayerFunction) const
 {
-	int32 Index = 0;
+	int32 Index = INDEX_NONE;
 	if (Association != GlobalParameter)
 	{
-		Index = LayerFunction ? GetLayerParameterIndex(Association, LayerFunction) : INDEX_NONE;
+		if (LayerFunction)
+		{
+			const FMaterialLayersFunctions* MaterialLayers = GetMaterialLayers();
+			if (MaterialLayers)
+			{
+				if (Association == BlendParameter) Index = MaterialLayers->Blends.Find(LayerFunction);
+				else if (Association == LayerParameter) Index = MaterialLayers->Layers.Find(LayerFunction);
+			}
+		}
 		if (Index == INDEX_NONE)
 		{
 			return FMaterialParameterInfo();

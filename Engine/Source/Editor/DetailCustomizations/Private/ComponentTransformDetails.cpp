@@ -347,7 +347,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 	// Location
 	if(!bHideLocationField)
 	{
-		TSharedPtr<INumericTypeInterface<float>> TypeInterface;
+		TSharedPtr<INumericTypeInterface<FVector::FReal>> TypeInterface;
 		if( FUnitConversion::Settings().ShouldDisplayUnits() )
 		{
 			TypeInterface = SharedThis(this);
@@ -369,7 +369,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.MaxDesiredWidth(125.0f * 3.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SVectorInputBox)
+			SNew(SNumericVectorInputBox<FVector::FReal>)
 			.X(this, &FComponentTransformDetails::GetLocationX)
 			.Y(this, &FComponentTransformDetails::GetLocationY)
 			.Z(this, &FComponentTransformDetails::GetLocationZ)
@@ -424,12 +424,12 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 			.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
 			.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotationSlider )
 			.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndRotationSlider )
-			.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
-			.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
-			.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
-			.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::X, true )
-			.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Y, true )
-			.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Z, true )
+			.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
+			.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
+			.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
+			.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::X, true )
+			.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::Y, true )
+			.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::Z, true )
 			.TypeInterface( TypeInterface )
 			.Font( FontInfo )
 		];
@@ -454,7 +454,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.MaxDesiredWidth(125.0f * 3.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew( SVectorInputBox )
+			SNew( SNumericVectorInputBox<FVector::FReal> )
 			.X( this, &FComponentTransformDetails::GetScaleX )
 			.Y( this, &FComponentTransformDetails::GetScaleY )
 			.Z( this, &FComponentTransformDetails::GetScaleZ )
@@ -893,17 +893,17 @@ void FComponentTransformDetails::CacheTransform()
 				else if( CurLoc != Loc || CurRot != Rot || CurScale != Scale )
 				{
 					// Check which values differ and unset the different values
-					CachedLocation.X = Loc.X == CurLoc.X && CachedLocation.X.IsSet() ? Loc.X : TOptional<float>();
-					CachedLocation.Y = Loc.Y == CurLoc.Y && CachedLocation.Y.IsSet() ? Loc.Y : TOptional<float>();
-					CachedLocation.Z = Loc.Z == CurLoc.Z && CachedLocation.Z.IsSet() ? Loc.Z : TOptional<float>();
+					CachedLocation.X = Loc.X == CurLoc.X && CachedLocation.X.IsSet() ? Loc.X : TOptional<FVector::FReal>();
+					CachedLocation.Y = Loc.Y == CurLoc.Y && CachedLocation.Y.IsSet() ? Loc.Y : TOptional<FVector::FReal>();
+					CachedLocation.Z = Loc.Z == CurLoc.Z && CachedLocation.Z.IsSet() ? Loc.Z : TOptional<FVector::FReal>();
 
 					CachedRotation.X = Rot.Roll == CurRot.Roll && CachedRotation.X.IsSet() ? Rot.Roll : TOptional<float>();
 					CachedRotation.Y = Rot.Pitch == CurRot.Pitch && CachedRotation.Y.IsSet() ? Rot.Pitch : TOptional<float>();
 					CachedRotation.Z = Rot.Yaw == CurRot.Yaw && CachedRotation.Z.IsSet() ? Rot.Yaw : TOptional<float>();
 
-					CachedScale.X = Scale.X == CurScale.X && CachedScale.X.IsSet() ? Scale.X : TOptional<float>();
-					CachedScale.Y = Scale.Y == CurScale.Y && CachedScale.Y.IsSet() ? Scale.Y : TOptional<float>();
-					CachedScale.Z = Scale.Z == CurScale.Z && CachedScale.Z.IsSet() ? Scale.Z : TOptional<float>();
+					CachedScale.X = Scale.X == CurScale.X && CachedScale.X.IsSet() ? Scale.X : TOptional<FVector::FReal>();
+					CachedScale.Y = Scale.Y == CurScale.Y && CachedScale.Y.IsSet() ? Scale.Y : TOptional<FVector::FReal>();
+					CachedScale.Z = Scale.Z == CurScale.Z && CachedScale.Z.IsSet() ? Scale.Z : TOptional<FVector::FReal>();
 
 					// If all values are unset all values are different and we can stop looking
 					const bool bAllValuesDiffer = !CachedLocation.IsSet() && !CachedRotation.IsSet() && !CachedScale.IsSet();
@@ -1308,10 +1308,16 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 	GUnrealEd->RedrawLevelEditingViewports();
 }
 
-void FComponentTransformDetails::OnSetTransformAxis(float NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted)
+void FComponentTransformDetails::OnSetTransformAxis(FVector::FReal NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted)
 {
 	FVector NewVector = GetAxisFilteredVector(Axis, FVector(NewValue), FVector::ZeroVector);
 	OnSetTransform(TransformField, Axis, NewVector, false, bCommitted);
+}
+
+void FComponentTransformDetails::OnSetTransformAxisFloat(float NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted)
+{
+	FVector NewVector = GetAxisFilteredVector(Axis, FVector(NewValue), FVector::ZeroVector);
+	OnSetTransform(ETransformField::Rotation, Axis, NewVector, false, bCommitted);
 }
 
 void FComponentTransformDetails::BeginSliderTransaction(FText ActorTransaction, FText ComponentTransaction) const
@@ -1407,7 +1413,7 @@ void FComponentTransformDetails::OnBeginLocationSlider()
 	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
 }
 
-void FComponentTransformDetails::OnEndLocationSlider(float NewValue)
+void FComponentTransformDetails::OnEndLocationSlider(FVector::FReal NewValue)
 {
 	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
@@ -1426,7 +1432,7 @@ void FComponentTransformDetails::OnBeginScaleSlider()
 	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
 }
 
-void FComponentTransformDetails::OnEndScaleSlider(float NewValue)
+void FComponentTransformDetails::OnEndScaleSlider(FVector::FReal NewValue)
 {
 	bIsSliderTransaction = false;
 	GEditor->EndTransaction();

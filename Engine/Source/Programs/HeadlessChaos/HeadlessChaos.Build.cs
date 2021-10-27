@@ -44,7 +44,7 @@ public class HeadlessChaos : ModuleRules
 		{
 			PublicDefinitions.Add("GTEST_OS_LINUX_ANDROID=1");
 		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) || Target.Platform == UnrealTargetPlatform.PS4)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PublicDefinitions.Add("GTEST_OS_LINUX=1");
 		}

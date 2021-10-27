@@ -2,14 +2,14 @@
 
 #include "ApplySnapshotFilter.h"
 
-#include "IPropertyComparer.h"
 #include "CustomSerialization/CustomSerializationDataManager.h"
 #include "Data/LevelSnapshot.h"
 #include "Data/PropertySelection.h"
+#include "Interfaces/IPropertyComparer.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
-#include "PropertyComparisonParams.h"
+#include "Params/PropertyComparisonParams.h"
 #include "SnapshotConsoleVariables.h"
 #include "SnapshotCustomVersion.h"
 #include "Restorability/SnapshotRestorability.h"
@@ -582,11 +582,11 @@ TOptional<FApplySnapshotFilter::EPropertySearchResult> FApplySnapshotFilter::Ana
 
 	if (SnapshotObject == nullptr || WorldObject == nullptr)
 	{
-		// Are they subobjects
+		// Are they subobjects?
 		const bool bSnapshotObjectIsSubobject = bPropertyMarkedAsSubobject || (SnapshotObject && SnapshotObject->IsIn(DeserializedSnapshotActor));
 		const bool bWorldObjectIsSubobject = bPropertyMarkedAsSubobject || (WorldObject && WorldObject->IsIn(WorldActor));
 
-		// Blacklisted
+		// Skipped?
 		const bool bIsSnapshotSupportedSubobject = SnapshotObject && bSnapshotObjectIsSubobject && !FSnapshotRestorability::IsSubobjectDesirableForCapture(SnapshotObject);
 		const bool bIsWorldSupportedSubobject = WorldObject && bWorldObjectIsSubobject && !FSnapshotRestorability::IsSubobjectDesirableForCapture(WorldObject);
 

@@ -283,9 +283,6 @@ public:
 	/** Delegate for (default) message log message selection - selects the objects that the tokens refer to (if any) */
 	void OnMessageSelectionChanged(TArray< TSharedRef<class FTokenizedMessage> >& Selection);
 
-	/** Delegate for URL generation, used to generate UDN pages */
-	FString GenerateURL(const FString& InUDNPage);
-
 	/** Delegate used to go to assets in the content browser */
 	void OnGotoAsset(const FString& InAssetPath) const;
 

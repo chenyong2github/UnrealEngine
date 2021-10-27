@@ -82,7 +82,7 @@ void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& 
 
 			if (ExistingStat)
 			{
-				ExistingStat->Accumulate(Stat);
+				*ExistingStat += Stat;
 			}
 			else
 			{

@@ -36,6 +36,7 @@
 #include "K2Node_ComponentBoundEvent.h"
 
 #include "Engine/SCS_Node.h"		// #TODO_BH  We need to remove this when the actual subobject refactor happens
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "SubobjectDataInterface"
 

@@ -3229,6 +3229,10 @@ FString FNativeClassHeaderGenerator::GetClassFlagExportText(FUnrealClassDefiniti
 	{
 		StaticClassFlagText += TEXT(" | CLASS_Transient");
 	}
+	if (ClassDef.HasAnyClassFlags(CLASS_Optional))
+	{
+		StaticClassFlagText += TEXT(" | CLASS_Optional");
+	}
 	if (ClassDef.HasAnyClassFlags(CLASS_DefaultConfig) )
 	{
 		StaticClassFlagText += TEXT(" | CLASS_DefaultConfig");

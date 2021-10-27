@@ -87,5 +87,20 @@ namespace CADKernel
 			}
 			return ret;
 		}
+
+		inline void RemoveUnwantedChar(FString& String, const TCHAR UnwantedChar)
+		{
+			FString NewString;
+			NewString.Reserve(String.Len());
+			for (const TCHAR& Char : String)
+			{
+				if (Char != UnwantedChar)
+				{
+					NewString.AppendChar(Char);
+				}
+			}
+			Move(String, NewString);
+		}
+
 	};
 }

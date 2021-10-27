@@ -2,12 +2,10 @@
 
 #pragma once
 
-#if WITH_EOS_SDK
-
 #include "Online/OnlineAsyncOp.h"
 #include "Async/Future.h"
 
-#include "eos_common.h"
+#include "EOSShared.h"
 
 namespace UE::Online {
 
@@ -48,11 +46,11 @@ private:
 	}
 };
 
-template<typename TEosResult, typename TEosHandle, typename TEosParameters, typename TEosFn, typename TAsyncOpType> 
-TFuture<const TEosResult*> EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEosFn EosFn, TEosHandle EosHandle, TEosParameters Parameters)
+template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn, typename TAsyncOpType> 
+TFuture<const TEOSResult*> EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters)
 {
-	TEOSCallback<TEosResult>* Callback = new TEOSCallback<TEosResult>();
-	EosFn(EosHandle, &Parameters, Callback, *Callback);
+	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>();
+	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
 	return Callback->GetFuture();
 }
 
@@ -90,5 +88,3 @@ inline TOptional<EOS_EpicAccountId> EOSAccountIdFromOnlineServiceAccountId(const
 }
 
 /* UE::Online */ }
-
-#endif // WITH_EOS_SDK

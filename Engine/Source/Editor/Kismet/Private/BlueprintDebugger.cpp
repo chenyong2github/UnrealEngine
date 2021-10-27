@@ -53,6 +53,9 @@ struct FBlueprintDebuggerImpl
 	/** Function registered with tab manager to create the bluepring debugger */
 	TSharedRef<SDockTab> CreateBluprintDebuggerTab(const FSpawnTabArgs& Args);
 
+	/** Sets the debugged blueprint in the debugger */
+	void SetDebuggedBlueprint(UBlueprint* InBlueprint);
+
 	TSharedPtr<FTabManager> DebuggingToolsTabManager;
 	TSharedPtr<FTabManager::FLayout> BlueprintDebuggerLayout;
 
@@ -326,6 +329,17 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 	return NomadTab;
 }
 
+void FBlueprintDebuggerImpl::SetDebuggedBlueprint(UBlueprint* InBlueprint)
+{
+	static const FName ExecutionFlowTabName(TEXT("ExecutionFlowApp"));
+	TSharedPtr<SDockTab> DebuggingViewTab = DebuggingToolsTabManager->TryInvokeTab(ExecutionFlowTabName);
+	if (DebuggingViewTab.IsValid())
+	{
+		TSharedRef<SKismetDebuggingView> DebuggingViewWidget = StaticCastSharedRef<SKismetDebuggingView>(DebuggingViewTab->GetContent());
+		DebuggingViewWidget->SetBlueprintToWatch(InBlueprint);
+	}
+}
+
 FBlueprintDebugger::FBlueprintDebugger()
 	: Impl(MakeUnique<FBlueprintDebuggerImpl>())
 {
@@ -333,6 +347,11 @@ FBlueprintDebugger::FBlueprintDebugger()
 
 FBlueprintDebugger::~FBlueprintDebugger()
 {
+}
+
+void FBlueprintDebugger::SetDebuggedBlueprint(UBlueprint* InBlueprint)
+{
+	Impl->SetDebuggedBlueprint(InBlueprint);
 }
 
 #undef LOCTEXT_NAMESPACE 

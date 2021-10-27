@@ -99,7 +99,7 @@ namespace UE
 UInterchangeUDIMTranslator::UInterchangeUDIMTranslator()
 	: Super()
 	, IInterchangeBlockedTexturePayloadInterface()
-	, UdimRegexPattern( TEXT(R"((.+?)[._](\d{4})$)") )
+	, UdimRegexPattern( UE::TextureUtilitiesCommon::DefaultUdimRegexPattern )
 {
 }
 

@@ -62,6 +62,8 @@ $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): Redistribution override f
 
 $ bLegalToDistributeObjectCode (Boolean): Whether the output from this module can be publicly distributed, even if it has code/ dependencies on modules that are not (i.e. CarefullyRedist, NotForLicensees, NoRedist). This should be used when you plan to release binaries but not source.
 
+$ AllowedRestrictedFolders (List&lt;String&gt;): List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
+
 $ WhitelistRestrictedFolders (List&lt;String&gt;): List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
 
 $ AliasRestrictedFolders (Dictionary&lt;String, String&gt;): Set of aliased restricted folder references
@@ -76,7 +78,7 @@ $ bPrecompile (Boolean): Whether this module should be precompiled. Defaults to 
 
 $ bUsePrecompiled (Boolean): Whether this module should use precompiled data. Always true for modules created from installed assemblies.
 
-$ bAllowConfidentialPlatformDefines (Boolean): Whether this module can use PLATFORM_XXXX style defines, where XXXX is a confidential platform name. This is used to ensure engine or other shared code does not reveal confidential information inside an #if PLATFORM_XXXX block. Licensee game code may want to allow for them, however. Note: this is future looking, and previous confidential platforms (like PS4) are unlikely to be restricted
+$ bAllowConfidentialPlatformDefines (Boolean): Whether this module can use PLATFORM_XXXX style defines, where XXXX is a confidential platform name. This is used to ensure engine or other shared code does not reveal confidential information inside an #if PLATFORM_XXXX block. Licensee game code may want to allow for them, however.
 
 $ PublicIncludePathModuleNames (List&lt;String&gt;): List of modules names (no path needed) with header files that our module's public headers needs access to, but we don't need to "import" or link against.
 

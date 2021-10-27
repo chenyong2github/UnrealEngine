@@ -80,14 +80,19 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		const float2 DistortedUV = clamp(ViewportUV + BufferUVDistortion, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
-		float SceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
-
-		if (SceneDepth < WaterDepth)
+		// Gather the four depth samples that would be used for bilinear interpolation. We need to know if any of these are invalid (above the water). If so, we have to discard this distorted sample and fall back. Otherwise we end up sampling foreground color from the bilinear color sample.
+		// This is only guaranteed to be artifact free if the input depth/color resolution is the same as the output. If the input is downsampled, this will still do the right thing but might still sample leaking color
+		float4 SceneDepth4 = SceneDepthWithoutSingleLayerWaterTexture.Gather(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		
+		float SceneDepth = 0.0;
+		if(any(SceneDepth4 < WaterDepth))
 		{
-			SceneDepth = PixelSceneDepth; // The pixel we try to sample is closer than the water pixel: falback to no distortion
+			SceneDepth = PixelSceneDepth; // The pixel we try to sample is closer than the water pixel: fallback to no distortion
 		}
 		else
 		{
+			// Pick the depth furthest away to make sure we pick a depth sample under water
+			SceneDepth = max(max(SceneDepth4.x, SceneDepth4.y), max(SceneDepth4.z, SceneDepth4.w));
 			ViewportUV = DistortedUV;
 		}
 

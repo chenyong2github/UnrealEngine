@@ -23,7 +23,7 @@ public:
 public:
 	FDatasmithGLTFAnimationImporter(TArray<GLTF::FLogMessage>& LogMessages);
 
-	void CreateAnimations(const GLTF::FAsset& GLTFAsset);
+	void CreateAnimations(const GLTF::FAsset& GLTFAsset, bool bAnimationFPSFromFile);
 
 	const TArray<TSharedRef<IDatasmithLevelSequenceElement>>& GetImportedSequences() { return ImportedSequences; }
 

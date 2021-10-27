@@ -1402,8 +1402,15 @@ void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackag
 {
 #if !NO_LOGGING
 	FString AssetPathName = FPaths::Combine(*FPaths::GetPath(AssetFilename.Mid(AssetFilename.Find(TEXT(":"), ESearchCase::CaseSensitive) + 1)), *FPaths::GetBaseFilename(AssetFilename));
+	// The root directory could have a period in it (d:/Release5.0/EngineTest/Saved/Cooked),
+	// which is not a valid character for a LongPackageName. Remove it.
+	for (TCHAR c : FStringView(INVALID_LONGPACKAGE_CHARACTERS))
+	{
+		AssetPathName.ReplaceCharInline(c, TEXT('_'), ESearchCase::CaseSensitive);
+	}
 	FString SourceAssetPackageName = FPaths::Combine(TEXT("/Memory"), TEXT("/SourceForDiff"), *AssetPathName);
 	FString DestAssetPackageName = FPaths::Combine(TEXT("/Memory"), TEXT("/DestForDiff"), *AssetPathName);
+	check(FPackageName::IsValidLongPackageName(SourceAssetPackageName, true /* bIncludeReadOnlyRoots */));
 
 	TGuardValue<bool> GuardIsSavingPackage(GIsSavingPackage, false);
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);

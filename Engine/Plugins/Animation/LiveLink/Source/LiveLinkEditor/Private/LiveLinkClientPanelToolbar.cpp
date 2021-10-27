@@ -46,7 +46,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 
 #define LOCTEXT_NAMESPACE "LiveLinkClientPanel"
@@ -437,7 +437,7 @@ void SLiveLinkClientPanelToolbar::Construct(const FArguments& Args, FLiveLinkCli
 			.Padding(.0f)
 			.AutoWidth()
 			[
-				SNew(SEditorHeaderButton)
+				SNew(SPositiveActionButton)
 				.OnGetMenuContent(this, &SLiveLinkClientPanelToolbar::OnGenerateSourceMenu)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				.Text(LOCTEXT("AddSource", "Source"))

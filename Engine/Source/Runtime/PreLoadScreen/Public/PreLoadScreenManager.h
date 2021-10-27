@@ -106,6 +106,8 @@ protected:
 	void HandleStopPreLoadScreen();
 	void CleanUpResources();
 
+	void HandleReleaseFontResources(const class FSlateFontCache& InFontCache);
+
 	//Singleton Instance
 	struct FPreLoadScreenManagerDelete
 	{

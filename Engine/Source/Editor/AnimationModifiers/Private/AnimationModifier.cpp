@@ -48,6 +48,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 	CurrentAnimSequence = InAnimationSequence;
 	checkf(CurrentAnimSequence, TEXT("Invalid Animation Sequence supplied"));
 	CurrentSkeleton = InAnimationSequence->GetSkeleton();
+	checkf(CurrentSkeleton, TEXT("Invalid Skeleton for supplied Animation Sequence"));
 
 	// Filter to check for warnings / errors thrown from animation blueprint library (rudimentary approach for now)
 	FCategoryLogOutputFilter OutputLog;
@@ -100,7 +101,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		if (UE::Anim::FApplyModifiersScope::ScopesOpened == 0 || !ScopeReturnType.IsSet() || ScopeReturnType.GetValue() != EAppReturnType::Type::Ok)
 		{
 			const FText ErrorMessageFormat = FText::FormatOrdered(LOCTEXT("ModifierErrorDescription", "Modifier: {0}\nAsset: {1}\n{2}\nResolve the errors before trying to apply again."), FText::FromString(GetClass()->GetPathName()),
-				FText::FromString(CurrentAnimSequence->GetPathName()), FText::FromString(OutputLog));
+				FText::FromString(CurrentAnimSequence ? CurrentAnimSequence->GetPathName() : CurrentSkeleton->GetPathName()), FText::FromString(OutputLog));
 			
 			EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::Ok, ErrorMessageFormat, &MessageTitle);
 			UE::Anim::FApplyModifiersScope::SetReturnType(this, ReturnValue);
@@ -150,7 +151,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 			PreviouslyAppliedModifier->MarkPendingKill();
 		}
 
-		PreviouslyAppliedModifier = DuplicateObject(this, GetOuter(), RevertModifierObjectName);
+		PreviouslyAppliedModifier = DuplicateObject(this, GetOuter(), MakeUniqueObjectName(GetOuter(), GetClass(), RevertModifierObjectName));
 
 		CurrentAnimSequence->PostEditChange();
 		CurrentSkeleton->PostEditChange();
@@ -302,7 +303,7 @@ void UAnimationModifier::UpdateNativeRevisionGuid()
 
 			// Save the new native revision to config files
 			SaveConfig();
-			UpdateDefaultConfigFile();
+			TryUpdateDefaultConfigFile();
 		}
 	}
 }
@@ -318,7 +319,8 @@ void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubC
 		for (TObjectIterator<UAnimationModifier> It; It; ++It)
 		{
 			// Check if valid, of the required class, not pending kill and not a modifier back-up for reverting
-			if (*It && It->GetClass() == ModifierClass && IsValidChecked(*It) && It->GetFName() != RevertModifierObjectName)
+			const bool bIsRevertModifierInstance = *It && It->GetFName().ToString().StartsWith(RevertModifierObjectName.ToString());
+			if (*It && It->GetClass() == ModifierClass && IsValidChecked(*It) && !bIsRevertModifierInstance)
 			{
 				if (bForceApply || !It->IsLatestRevisionApplied())
 				{

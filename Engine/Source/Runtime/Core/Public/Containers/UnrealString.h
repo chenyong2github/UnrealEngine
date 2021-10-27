@@ -49,11 +49,14 @@ int32        GetNum(const FString& String);
  */
 class CORE_API FString
 {
+public:
+	using AllocatorType = TSizedDefaultAllocator<32>;
+
 private:
 	friend struct TContainerTraits<FString>;
 
 	/** Array holding the character data */
-	typedef TArray<TCHAR> DataType;
+	typedef TArray<TCHAR, AllocatorType> DataType;
 	DataType Data;
 
 	template <typename RangeType>
@@ -359,8 +362,8 @@ public:
 	/**
 	 * Iterator typedefs
 	 */
-	typedef TArray<TCHAR>::TIterator      TIterator;
-	typedef TArray<TCHAR>::TConstIterator TConstIterator;
+	typedef DataType::TIterator      TIterator;
+	typedef DataType::TConstIterator TConstIterator;
 
 	/** Creates an iterator for the characters in this string */
 	FORCEINLINE TIterator CreateIterator()

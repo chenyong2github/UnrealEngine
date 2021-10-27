@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Virtualization/IVirtualizationBackend.h"
+#include "IVirtualizationBackend.h"
 
+#include "HAL/FileManager.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "Misc/App.h"
 #include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "SourceControlOperations.h"
 #include "Virtualization/PayloadId.h"
 #include "VirtualizationSourceControlUtilities.h"
@@ -16,6 +20,18 @@
 
 namespace UE::Virtualization
 {
+
+void CreateDescription(TStringBuilder<512>& OutDescription)
+{
+	// TODO: Maybe make writing out the project name an option or allow for a codename to be set via ini file?
+	OutDescription << TEXT("Submitted for: Project: ");
+	OutDescription << FApp::GetProjectName();
+
+	// TODO: When we start passing in the context to ::Push we can write out the PackageName here for 
+	// debugging purposes
+	//OutDescription << TEXT("\nPackage ");
+	//OutDescription << PackageName;
+}
 
 /**
  * This backend can be used to access payloads stored in source control.
@@ -33,7 +49,7 @@ class FSourceControlBackend : public IVirtualizationBackend
 {
 public:
 	FSourceControlBackend(FStringView ConfigName)
-		: IVirtualizationBackend(EOperations::Pull)
+		: IVirtualizationBackend(EOperations::Both)
 	{
 	}
 
@@ -108,16 +124,167 @@ public:
 
 	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
 	{
-		// This backend will not actually push data to source control, that will be done by
-		// a separate submission tool. Since files submitted to source control are there forever 
-		// we don't want the user to be uploaded new entries each time that they save the asset
-		// but instead upload once when the package is committed to source control.
-		// TODO: As we put the pieces together it is likely that we will change the backend API
-		// so that we don't need dummy implementations of PushData for backends that don't need it.
-		// Especially considering that it is most likely that no backend will push.
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData);
 
-		checkNoEntry(); 
-		return EPushResult::Failed;
+		// TODO: Consider creating one workspace and one temp dir per session rather than per push.
+		// Although this would require more checking on start up to check for lingering workspaces
+		// and directories in case of editor crashes.
+		// We'd also need to remove each submitted file from the workspace after submission so that
+		// we can delete the local file
+
+		// We cannot easily submit files from within the project root due to p4 ignore rules
+		// so we will use the user temp directory instead. We append a guid to the root directory
+		// to avoid potentially conflicting with other editor processes that might be running.
+
+		const FGuid SessionGuid = FGuid::NewGuid();
+		TStringBuilder<260> RootDirectory;
+		RootDirectory << FPlatformProcess::UserTempDir() << TEXT("UnrealEngine/VirtualizedPayloads/") << SessionGuid << TEXT("/");
+
+		// First we need to save the payload to a file in the workspace client mapping so that it can be submitted
+		TStringBuilder<52> LocalPayloadPath;
+		Utils::PayloadIdToPath(Id, LocalPayloadPath);
+
+		FString PayloadFilePath = *WriteToString<512>(RootDirectory, LocalPayloadPath);
+
+		ON_SCOPE_EXIT
+		{
+			// Clean up the payload file from disk and the temp directories, but we do not need to give errors if any of these operations fail.
+			IFileManager::Get().Delete(*PayloadFilePath, false, false, true);
+			IFileManager::Get().DeleteDirectory(RootDirectory.ToString(), false, true);
+		};
+
+		// Write the payload to Disk
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Writing payload to '%s' for submission"), *GetDebugString(), *PayloadFilePath);
+
+			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*PayloadFilePath));
+			if (!FileAr)
+			{
+				TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+				Utils::GetFormattedSystemError(SystemErrorMsg);
+
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
+					*GetDebugString(), *Id.ToString(), *PayloadFilePath, SystemErrorMsg.ToString());
+
+				return EPushResult::Failed;
+			}
+
+			*FileAr << const_cast<FCompressedBuffer&>(Payload);
+
+			if (!FileAr->Close())
+			{
+				TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+				Utils::GetFormattedSystemError(SystemErrorMsg);
+
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
+					*GetDebugString(), *Id.ToString(), *PayloadFilePath, SystemErrorMsg.ToString());
+
+				return EPushResult::Failed;
+			}
+		}
+
+		TStringBuilder<64> WorkspaceName;
+		WorkspaceName << TEXT("MirageSubmission-") << SessionGuid;
+
+		ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+
+		// Create a temp workspace so that we can submit the payload from
+		{
+			TSharedRef<FCreateWorkspace> CreateWorkspaceCommand = ISourceControlOperation::Create<FCreateWorkspace>(WorkspaceName, RootDirectory);
+
+			TStringBuilder<512> DepotMapping;
+			DepotMapping << DepotRoot << TEXT("...");
+
+			TStringBuilder<128> ClientMapping;
+			ClientMapping << TEXT("//") << WorkspaceName << TEXT("/...");
+
+			CreateWorkspaceCommand->AddNativeClientViewMapping(DepotMapping, ClientMapping);
+
+			if (SCCProvider.Execute(CreateWorkspaceCommand) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to create temp workspace '%s' to submit payload '%s' from"), 
+					*GetDebugString(), WorkspaceName.ToString(), *Id.ToString());
+
+				return EPushResult::Failed;
+			}
+		}
+
+		ON_SCOPE_EXIT
+		{
+			// Remove the temp workspace mapping
+			if (SCCProvider.Execute(ISourceControlOperation::Create<FDeleteWorkspace>(WorkspaceName)) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to remove temp workspace '%s' please delete manually"), *GetDebugString(), WorkspaceName.ToString());
+			}
+		};
+
+		FSourceControlResultInfo SwitchToNewWorkspaceInfo;
+		FString OriginalWorkspace;
+		if (SCCProvider.SwitchWorkspace(WorkspaceName, SwitchToNewWorkspaceInfo, &OriginalWorkspace) != ECommandResult::Succeeded)
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to switch to temp workspace '%s' when trying to submit payload '%s'"), 
+				*GetDebugString(), WorkspaceName.ToString(), *Id.ToString());
+
+			return EPushResult::Failed;
+		}
+
+		ON_SCOPE_EXIT
+		{
+			FSourceControlResultInfo SwitchToOldWorkspaceInfo;
+			if (SCCProvider.SwitchWorkspace(OriginalWorkspace, SwitchToOldWorkspaceInfo, nullptr) != ECommandResult::Succeeded)
+			{
+				// Failing to restore the old workspace could result in confusing editor issues and data loss, so for now it is fatal.
+				// The medium term plan should be to refactor the SourceControlModule so that we could use an entirely different 
+				// ISourceControlProvider so as not to affect the rest of the editor.
+				UE_LOG(LogVirtualization, Fatal, TEXT("[%s] Failed to restore the original workspace to temp workspace '%s' continuing would risk editor instability and potential data loss"), 
+					*GetDebugString(), *OriginalWorkspace);
+			}
+		};
+
+		FSourceControlStatePtr FileState = SCCProvider.GetState(PayloadFilePath, EStateCacheUsage::ForceUpdate);
+		if (!FileState.IsValid())
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to find the current file state for '%s'"), *GetDebugString(), *PayloadFilePath);
+			return EPushResult::Failed;
+		}
+
+		if (FileState->IsSourceControlled())
+		{
+			// TODO: Maybe check if the data is the same (could be different if the compression algorithm has changed)
+			// TODO: Should we respect if the file is deleted as technically we can still get access to it?
+			return EPushResult::PayloadAlreadyExisted;
+		}
+		else if (FileState->CanAdd())
+		{
+			if (SCCProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), PayloadFilePath) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to mark the payload file '%s' for Add in source control"), *GetDebugString(), *PayloadFilePath);
+				return EPushResult::Failed;
+			}
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] The the payload file '%s' is not in source control but also cannot be marked for Add"), *GetDebugString(), *PayloadFilePath);
+			return EPushResult::Failed;
+		}
+
+		// Now submit the payload
+		{
+			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+
+			TStringBuilder<512> Description;
+			CreateDescription(Description);
+
+			CheckInOperation->SetDescription(FText::FromString(Description.ToString()));
+
+			if (SCCProvider.Execute(CheckInOperation, PayloadFilePath) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to submit the payload file '%s' to source control"), *GetDebugString(), *PayloadFilePath);
+				return EPushResult::Failed;
+			}
+		}
+
+		return EPushResult::Success;
 	}
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override

@@ -16,7 +16,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SComponentClassCombo.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
 #include "ThumbnailRendering/ThumbnailManager.h"
@@ -27,7 +27,6 @@
 #include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "ObjectTools.h"						// ThumbnailTools::CacheEmptyThumbnail
 #include "K2Node_ComponentBoundEvent.h"
-#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSubobjectBlueprintEditor"
 
@@ -103,7 +102,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SPositiveActionButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
 		.Visibility(this, &SSubobjectBlueprintEditor::GetPromoteToBlueprintButtonVisibility)
 		.OnClicked(this, &SSubobjectBlueprintEditor::OnPromoteToBlueprintClicked)
@@ -118,7 +117,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SPositiveActionButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
 		.Visibility(this, &SSubobjectBlueprintEditor::GetEditBlueprintButtonVisibility)
 		.ToolTipText(LOCTEXT("EditActorBlueprint_Tooltip", "Edit the Blueprint for this Actor"))
@@ -839,57 +838,6 @@ void SSubobjectBlueprintEditor::ViewEvent(UBlueprint* Blueprint, const FName Eve
 		if (ExistingNode)
 		{
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(ExistingNode);
-		}
-	}
-}
-
-FSlateColor SSubobjectBlueprintEditor::GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const
-{
-	USlateThemeManager& ThemeManager = USlateThemeManager::Get();
-
-	const FLinearColor& IntroducedHereColor = ThemeManager.GetColor(EStyleColor::AccentWhite);
-	
-	const FSubobjectData* Data = Node ? Node->GetDataSource() : nullptr;
-	if(!Data || Data->IsActor())
-	{
-		return IntroducedHereColor;
-	}
-
-	// A blue-ish tint
-	const FLinearColor& InheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
-	const FLinearColor& InstancedInheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
-
-	// A green-ish tint
-	const FLinearColor& InheritedNativeComponentColor = ThemeManager.GetColor(EStyleColor::AccentGreen);
-
-	if (Data->IsInheritedComponent())
-	{
-		// Native C++ components will be tinted green
-		if (Data->IsNativeComponent())
-		{
-			return InheritedNativeComponentColor;
-		}
-		else if (Data->IsInstancedComponent())
-		{
-			return InstancedInheritedBlueprintComponentColor;
-		}
-		else
-		{
-			return InheritedBlueprintComponentColor;
-		}
-	}
-	// If we have an SCS but are not Inherited, then this is just a regular blueprint and we should be blue
-	else
-	{
-		// If it's inherited BP color then it should be blue (i.e. this is a BP component that came from a BP generated class)
-		if (Data->IsInheritedComponent() || Data->IsInstancedComponent())
-		{
-			return InheritedBlueprintComponentColor;
-		}
-		// Otherwise this is just a regular SCS node inside of the BP editor
-		else
-		{
-			return IntroducedHereColor;
 		}
 	}
 }

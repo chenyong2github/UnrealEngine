@@ -33,12 +33,12 @@ class WATER_API IWaterBrushActorInterface
 	virtual bool AffectsLandscape() const = 0;
 
 	/**
-	 * Returns true if this water actor is currently affecting (i.e. being rendered by) a AWaterMeshActor :
+	 * Returns true if this water actor is currently affecting (i.e. being rendered by) a AWaterZoneActor :
 	 */
 	virtual bool AffectsWaterMesh() const = 0;
 
 	/**
-	 * Returns true if this water actor could potentially be affecting (i.e. being rendered by) a AWaterMeshActor :
+	 * Returns true if this water actor could potentially be affecting (i.e. being rendered by) a AWaterZoneActor :
 	 */
 	virtual bool CanAffectWaterMesh() const = 0;
 

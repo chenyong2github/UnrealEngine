@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Boost",
+					"CinematicCamera",
 					"Core",
 					"CoreUObject",
 					"Engine",

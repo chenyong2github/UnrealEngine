@@ -163,21 +163,45 @@ FDatasmithGLTFAnimationImporter::FDatasmithGLTFAnimationImporter(TArray<GLTF::FL
 {
 }
 
-void FDatasmithGLTFAnimationImporter::CreateAnimations(const GLTF::FAsset& GLTFAsset)
+void FDatasmithGLTFAnimationImporter::CreateAnimations(const GLTF::FAsset& GLTFAsset, bool bAnimationFPSFromFile)
 {
 	using namespace DatasmithGLTFImporterImpl;
 
 	check(CurrentScene);
+	
+	TArray<float> FrameTimes;
 
 	ImportedSequences.Empty();
 	for (const GLTF::FAnimation& Animation : GLTFAsset.Animations)
 	{
 		TSharedRef<IDatasmithLevelSequenceElement> SequenceElement = FDatasmithSceneFactory::CreateLevelSequence(*Animation.Name);
-
+	
 		NodeChannelMap.Empty(GLTFAsset.Nodes.Num() / 2);
+
+		float FramesPerSec = SequenceElement->GetFrameRate();
 
 		for (const GLTF::FAnimation::FChannel& Channel : Animation.Channels)
 		{
+			if (bAnimationFPSFromFile)
+			{
+				// Compute FPS from glTF data
+				const GLTF::FAnimation::FSampler& Sampler = Animation.Samplers[Channel.Sampler];
+
+				FrameTimes.Empty(Sampler.Input.Count);
+				Sampler.Input.GetFloatArray(FrameTimes);
+
+				if (FrameTimes.Num() > 1)
+				{
+					const float StartTime = FrameTimes[0];
+					const float EndTime = FrameTimes.Last();
+
+					if (EndTime > StartTime)
+					{
+						FramesPerSec = FMath::Max(FramesPerSec, static_cast<float>(FrameTimes.Num() - 1) / (EndTime - StartTime));
+					}
+				}
+			}
+
 			if (Channel.Target.Path != GLTF::FAnimation::EPath::Weights)
 			{
 				TArray<GLTF::FAnimation::FChannel>& NodeChannels = NodeChannelMap.FindOrAdd(&Channel.Target.Node);
@@ -187,6 +211,11 @@ void FDatasmithGLTFAnimationImporter::CreateAnimations(const GLTF::FAsset& GLTFA
 				LogMessages.Emplace(GLTF::EMessageSeverity::Error, TEXT("Morph animations aren't supported: ") + Animation.Name);
 		}
 
+		if (bAnimationFPSFromFile)
+		{
+			SequenceElement->SetFrameRate(FramesPerSec);
+		}
+	
 		FFrameRate FrameRate = FFrameRate(FMath::RoundToInt(SequenceElement->GetFrameRate()), 1);
 		for (const auto& NodeChannelPair : NodeChannelMap)
 		{

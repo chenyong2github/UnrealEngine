@@ -529,6 +529,11 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 	{
 		FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UAssetRegistryImpl::OnAssetLoaded);
 	}
+
+	if (bAddMetaDataTagsToOnGetExtraObjectTags)
+	{
+		UObject::FAssetRegistryTag::OnGetExtraObjectTags.AddUObject(this, &UAssetRegistryImpl::OnGetExtraObjectTags);
+	}
 #endif // WITH_EDITOR
 
 	// Listen for new content paths being added or removed at runtime.  These are usually plugin-specific asset paths that
@@ -956,6 +961,11 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 	if (GuardedData.IsUpdateDiskCacheAfterLoad())
 	{
 		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	}
+
+	if (bAddMetaDataTagsToOnGetExtraObjectTags)
+	{
+		UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
 	}
 #endif // WITH_EDITOR
 
@@ -2887,6 +2897,23 @@ void FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventContext, const d
 		HighestPending = FMath::Max(this->HighestPending, NumPending);
 
 		bOutIdle = !bInterrupted && !bIsSearching && NumPending == 0;
+		// Temp
+		// Temporary instrumentation for debugging "Processing Asset Data" UI hangs without info provided in the log
+		if ((0 < NumPending && NumPending < 10) || (bOutIdle && !bGatherIdle))
+		{
+			static int DisplayCount = 0;
+			if (++DisplayCount <= 100)
+			{
+				UE_LOG(LogAssetRegistry, Display, TEXT("AssetRegistryFileLoadProgress nearly complete.")
+					TEXT("\nbInterrupted=%s, bIsSearching=%s, NumPending=%d, NumFilesToSearch=%d, NumPathsToSearch=%d")
+					TEXT("\nBackgroundPathResults.Num()=%d, BackgroundAssetResults.Num()=%d, BackgroundDependencyResults.Num()=%d, BackgroundCookedPackageNamesWithoutAssetDataResults.Num()=%d")
+					TEXT("\nbOutIdle=%s, bGatherIdle=%s"),
+					bInterrupted ? TEXT("true") : TEXT("false"), bIsSearching ? TEXT("true") : TEXT("false"), NumPending, NumFilesToSearch, NumPathsToSearch, BackgroundPathResults.Num(),
+					BackgroundAssetResults.Num(), BackgroundDependencyResults.Num(), BackgroundCookedPackageNamesWithoutAssetDataResults.Num(),
+					bOutIdle ? TEXT("true") : TEXT("false"), bGatherIdle ? TEXT("true") : TEXT("false"));
+			}
+		}
+		// EndTemp
 		// Notify the status change, only when something changed, or when sending the final result before going idle
 		if (bIsSearching || bHadAssetsToProcess || (bOutIdle && !this->bGatherIdle))
 		{
@@ -4678,6 +4705,30 @@ void UAssetRegistryImpl::GetInheritanceContextWithRequiredLock(FRWScopeLock& InO
 		InheritanceContext.BindToBuffer(StackBuffer, GuardedData, false /* bInInheritanceMapUpToDate */, bCodeGeneratorClassesUpToDate);
 	}
 }
+
+#if WITH_EDITOR
+void UAssetRegistryImpl::OnGetExtraObjectTags(const UObject* Object, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	if (bAddMetaDataTagsToOnGetExtraObjectTags)
+	{
+		TSet<FName>& MetaDataTags = UObject::GetMetaDataTagsForAssetRegistry();
+		// It is critical that bIncludeOnlyOnDiskAssets=true otherwise this will cause an infinite loop
+		const FAssetData AssetData = GetAssetByObjectPath(*Object->GetPathName(), /*bIncludeOnlyOnDiskAssets=*/true);
+		for (const FName MetaDataTag : MetaDataTags)
+		{
+			auto OutTagsContainsTagPredicate = [MetaDataTag](const UObject::FAssetRegistryTag& Tag) { return Tag.Name == MetaDataTag; };
+			if (!OutTags.ContainsByPredicate(OutTagsContainsTagPredicate))
+			{
+				FAssetTagValueRef TagValue = AssetData.TagsAndValues.FindTag(MetaDataTag);
+				if (TagValue.IsSet())
+				{
+					OutTags.Add(UObject::FAssetRegistryTag(MetaDataTag, TagValue.AsString(), UObject::FAssetRegistryTag::TT_Alphabetical));
+				}
+			}
+		}
+	}
+}
+#endif
 
 namespace UE::AssetRegistry
 {

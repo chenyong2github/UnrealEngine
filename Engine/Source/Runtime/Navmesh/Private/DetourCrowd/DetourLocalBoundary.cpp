@@ -28,7 +28,8 @@ dtLocalBoundary::dtLocalBoundary() :
 	m_nsegs(0),
 	m_npolys(0)
 {
-	dtVset(m_center, FLT_MAX,FLT_MAX,FLT_MAX);
+	// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!
+	dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
 }
 
 dtLocalBoundary::~dtLocalBoundary()
@@ -37,12 +38,13 @@ dtLocalBoundary::~dtLocalBoundary()
 
 void dtLocalBoundary::reset()
 {
-	dtVset(m_center, FLT_MAX,FLT_MAX,FLT_MAX);
+	// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!
+	dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
 	m_npolys = 0;
 	m_nsegs = 0;
 }
 
-void dtLocalBoundary::addSegment(const float dist, const float* s, int flags)
+void dtLocalBoundary::addSegment(const dtReal dist, const dtReal* s, int flags)
 {
 	// Insert neighbour based on the distance.
 	Segment* seg = 0;
@@ -76,7 +78,7 @@ void dtLocalBoundary::addSegment(const float dist, const float* s, int flags)
 	
 	seg->d = dist;
 	seg->flags = flags;
-	memcpy(seg->s, s, sizeof(float)*6);
+	memcpy(seg->s, s, sizeof(dtReal)*6);
 	
 	if (m_nsegs + 1 < MAX_LOCAL_SEGS)
 	{
@@ -86,37 +88,38 @@ void dtLocalBoundary::addSegment(const float dist, const float* s, int flags)
 
 namespace LocalBoundaryHelpers
 {
-	inline bool IsOutsideHeightLimit(const float* pos, const float* p, const float* q, float tseg)
+	inline bool IsOutsideHeightLimit(const dtReal* pos, const dtReal* p, const dtReal* q, dtReal tseg)
 	{
-		const float closestPtHeight = p[1] + (q[1] - p[1]) * tseg;
-		const float segHeightDiff = dtAbs(closestPtHeight - pos[1]);
-		const float maxHeightDiff = 50.0f;
+		const dtReal closestPtHeight = p[1] + (q[1] - p[1]) * tseg;
+		const dtReal segHeightDiff = dtAbs(closestPtHeight - pos[1]);
+		const dtReal maxHeightDiff = 50.0f;
 
 		return segHeightDiff > maxHeightDiff;
 	}
 
-	inline int GetSegmentFlags(const float* endPos, const float* p, const float* q, float QueryRange)
+	inline int GetSegmentFlags(const dtReal* endPos, const dtReal* p, const dtReal* q, dtReal QueryRange)
 	{
-		const float ignoreDistancePct = 0.25f;
-		const float maxDistSq = dtSqr(QueryRange * ignoreDistancePct);
+		const dtReal ignoreDistancePct = 0.25f;
+		const dtReal maxDistSq = dtSqr(QueryRange * ignoreDistancePct);
 
-		float tsegEnd = 0.0f;
-		const float distEndSqr = dtDistancePtSegSqr2D(endPos, p, q, tsegEnd);
+		dtReal tsegEnd = 0.0f;
+		const dtReal distEndSqr = dtDistancePtSegSqr2D(endPos, p, q, tsegEnd);
 		return (distEndSqr < maxDistSq) ? DT_CROWD_BOUNDARY_IGNORE : 0;
 	}
 }
 
-void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collisionQueryRange,
-	const bool bIgnoreAtEnd, const float* endPos,
+void dtLocalBoundary::update(dtPolyRef ref, const dtReal* pos, const dtReal collisionQueryRange,
+	const bool bIgnoreAtEnd, const dtReal* endPos,
 	const dtPolyRef* path, const int npath,
-	const float* moveDir,
+	const dtReal* moveDir,
 	dtNavMeshQuery* navquery, const dtQueryFilter* filter)
 {
 	static const int MAX_SEGS_PER_POLY = DT_VERTS_PER_POLYGON*3;
 	
 	if (!ref)
 	{
-		dtVset(m_center, FLT_MAX,FLT_MAX,FLT_MAX);
+		// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!!
+		dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
 		m_nsegs = 0;
 		m_npolys = 0;
 		return;
@@ -129,22 +132,22 @@ void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collis
 									 filter, m_polys, 0, &m_npolys, MAX_LOCAL_POLYS);
 	
 	// [UE] include direction to segment in score
-	float closestPt[3] = { 0.0f };
-	float dirToSeg[3] = { 0.0f };
+	dtReal closestPt[3] = { 0.0f };
+	dtReal dirToSeg[3] = { 0.0f };
 
 	// Secondly, store all polygon edges.
 	m_nsegs = 0;
-	float segs[MAX_SEGS_PER_POLY*6];
+	dtReal segs[MAX_SEGS_PER_POLY*6];
 	int nsegs = 0;
 	for (int j = 0; j < m_npolys; ++j)
 	{
 		navquery->getPolyWallSegments(m_polys[j], filter, segs, 0, &nsegs, MAX_SEGS_PER_POLY);
 		for (int k = 0; k < nsegs; ++k)
 		{
-			const float* s = &segs[k*6];
+			const dtReal* s = &segs[k*6];
 			// Skip too distant segments.
-			float tseg = 0.0f;
-			const float distSqr = dtDistancePtSegSqr2D(pos, s, s+3, tseg);
+			dtReal tseg = 0.0f;
+			const dtReal distSqr = dtDistancePtSegSqr2D(pos, s, s+3, tseg);
 			if (distSqr > dtSqr(collisionQueryRange))
 				continue;
 
@@ -162,8 +165,8 @@ void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collis
 			dtVlerp(closestPt, s, s + 3, tseg);
 			dtVsub(dirToSeg, closestPt, pos);
 			dtVnormalize(dirToSeg);
-			const float dseg = dtVdot2D(dirToSeg, moveDir);
-			const float score = distSqr * ((1.0f - dseg) * 0.5f);
+			const dtReal dseg = dtVdot2D(dirToSeg, moveDir);
+			const dtReal score = distSqr * ((1.0f - dseg) * 0.5f);
 
 			addSegment(score, s, segFlags);
 		}
@@ -171,9 +174,9 @@ void dtLocalBoundary::update(dtPolyRef ref, const float* pos, const float collis
 }
 
 void dtLocalBoundary::update(const dtSharedBoundary* sharedData, const int sharedIdx,
-	const float* pos, const float collisionQueryRange,
-	const bool bIgnoreAtEnd, const float* endPos,
-	const dtPolyRef* path, const int npath, const float* moveDir,
+	const dtReal* pos, const dtReal collisionQueryRange,
+	const bool bIgnoreAtEnd, const dtReal* endPos,
+	const dtPolyRef* path, const int npath, const dtReal* moveDir,
 	dtNavMeshQuery* navquery, const dtQueryFilter* filter)
 {
 	if (!sharedData || !sharedData->HasSample(sharedIdx))
@@ -195,9 +198,9 @@ void dtLocalBoundary::update(const dtSharedBoundary* sharedData, const int share
 		}
 	}
 
-	float closestPt[3] = { 0.0f };
-	float dirToSeg[3] = { 0.0f };
-	float s[6];
+	dtReal closestPt[3] = { 0.0f };
+	dtReal dirToSeg[3] = { 0.0f };
+	dtReal s[6];
 
 	TSet<dtPolyRef> PathLookup;
 	for (int32 Idx = 0; Idx < npath; Idx++)
@@ -208,8 +211,8 @@ void dtLocalBoundary::update(const dtSharedBoundary* sharedData, const int share
 	m_nsegs = 0;
 	for (int32 Idx = 0; Idx < Data.Edges.Num(); Idx++)
 	{
-		float tseg = 0.0f;
-		const float distSqr = dtDistancePtSegSqr2D(pos, Data.Edges[Idx].v0, Data.Edges[Idx].v1, tseg);
+		dtReal tseg = 0.0f;
+		const dtReal distSqr = dtDistancePtSegSqr2D(pos, Data.Edges[Idx].v0, Data.Edges[Idx].v1, tseg);
 		if (distSqr > dtSqr(collisionQueryRange))
 			continue;
 
@@ -233,8 +236,8 @@ void dtLocalBoundary::update(const dtSharedBoundary* sharedData, const int share
 		dtVlerp(closestPt, Data.Edges[Idx].v0, Data.Edges[Idx].v1, tseg);
 		dtVsub(dirToSeg, closestPt, pos);
 		dtVnormalize(dirToSeg);
-		const float dseg = dtVdot2D(dirToSeg, moveDir);
-		const float score = distSqr *((1.0f - dseg) * 0.5f);
+		const dtReal dseg = dtVdot2D(dirToSeg, moveDir);
+		const dtReal score = distSqr *((1.0f - dseg) * 0.5f);
 
 		dtVcopy(s, Data.Edges[Idx].v0);
 		dtVcopy(s + 3, Data.Edges[Idx].v1);

@@ -144,24 +144,32 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 
 			 for (int32 SectionIdx = 0; SectionIdx < TrackProxy->MeshData->BatchesInfo.Num(); ++SectionIdx)
 			 {
-				 const FGeometryCacheMeshBatchInfo& BatchInfo = TrackProxy->MeshData->BatchesInfo[SectionIdx];
-
-				 FCachedGeometry::Section CachedSection;
-				 CachedSection.PositionBuffer = TrackProxy->PositionBuffers[PositionIndex].GetBufferSRV();
-				 CachedSection.UVsBuffer = TrackProxy->TextureCoordinatesBuffer.GetBufferSRV();
-				 CachedSection.TotalVertexCount = TrackProxy->MeshData->Positions.Num();
-				 CachedSection.IndexBuffer = TrackProxy->IndexBuffer.GetBufferSRV();
-				 CachedSection.TotalIndexCount = TrackProxy->IndexBuffer.NumIndices;
-				 CachedSection.UVsChannelCount = 1;
-				 CachedSection.NumPrimitives = BatchInfo.NumTriangles;
-				 CachedSection.NumVertices = TrackProxy->MeshData->Positions.Num();
-				 CachedSection.IndexBaseIndex = BatchInfo.StartIndex;
-				 CachedSection.VertexBaseIndex = 0;
-				 CachedSection.SectionIndex = SectionIdx;
-				 CachedSection.LODIndex = 0;
-				 CachedSection.UVsChannelOffset = 0;
-
-				 CachedGeometry.Sections.Add(CachedSection);
+				const FGeometryCacheMeshBatchInfo& BatchInfo = TrackProxy->MeshData->BatchesInfo[SectionIdx];
+				
+				FCachedGeometry::Section CachedSection;
+				CachedSection.PositionBuffer = TrackProxy->PositionBuffers[PositionIndex].GetBufferSRV();
+				CachedSection.UVsBuffer = TrackProxy->TextureCoordinatesBuffer.GetBufferSRV();
+				CachedSection.TotalVertexCount = TrackProxy->MeshData->Positions.Num();
+				// It is unclear why the existing SRV is invalid. When the index buffer is changed/recreated its SRV is supposed to be update.
+				//CachedSection.IndexBuffer = TrackProxy->IndexBuffer.GetBufferSRV();
+				if (TrackProxy->IndexBuffer.IsInitialized())
+				{
+					CachedSection.IndexBuffer = RHICreateShaderResourceView(TrackProxy->IndexBuffer.IndexBufferRHI);
+				}
+				CachedSection.TotalIndexCount = TrackProxy->IndexBuffer.NumIndices;
+				CachedSection.UVsChannelCount = 1;
+				CachedSection.NumPrimitives = BatchInfo.NumTriangles;
+				CachedSection.NumVertices = TrackProxy->MeshData->Positions.Num();
+				CachedSection.IndexBaseIndex = BatchInfo.StartIndex;
+				CachedSection.VertexBaseIndex = 0;
+				CachedSection.SectionIndex = SectionIdx;
+				CachedSection.LODIndex = 0;
+				CachedSection.UVsChannelOffset = 0;
+				
+				if (CachedSection.PositionBuffer && CachedSection.IndexBuffer)
+				{
+					CachedGeometry.Sections.Add(CachedSection);
+				}
 			 }
 		 }
 	 }

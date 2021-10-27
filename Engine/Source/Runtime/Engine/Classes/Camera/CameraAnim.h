@@ -13,7 +13,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogCameraAnim, Log, All);
 /**
  * A predefined animation to be played on a camera
  */
-UCLASS(BlueprintType, notplaceable, MinimalAPI)
+UCLASS(BlueprintType, MinimalAPI)
 class UCameraAnim : public UObject
 {
 	GENERATED_UCLASS_BODY()

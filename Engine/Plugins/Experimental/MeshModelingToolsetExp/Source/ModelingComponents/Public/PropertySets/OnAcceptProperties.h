@@ -43,5 +43,5 @@ public:
 	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
 	EHandleSourcesMethod OnToolAccept;
 
-	void ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager);
+	void ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager, const AActor* MustKeepActor = nullptr);
 };

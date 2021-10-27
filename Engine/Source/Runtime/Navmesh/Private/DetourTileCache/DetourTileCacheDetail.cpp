@@ -23,6 +23,7 @@
 #include "Detour/DetourCommon.h"
 #include "Detour/DetourAssert.h"
 #include "Detour/DetourAlloc.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 #include "DetourTileCache/DetourTileCacheBuilder.h"
 #define _USE_MATH_DEFINES
 
@@ -32,7 +33,7 @@ static const unsigned DT_UNSET_LAYER_HEIGHT = 0xffff;
 struct dtHeightPatch
 {
 	inline dtHeightPatch() : data(0), xmin(0), ymin(0), width(0), height(0) {}
-	inline ~dtHeightPatch() { dtFree(data); }
+	inline ~dtHeightPatch() { dtFree(data, DT_ALLOC_TEMP); }
 	unsigned short* data;
 	int xmin, ymin, width, height;
 };
@@ -191,12 +192,12 @@ static void getLayerHeightData(dtTileCacheLayer& layer,
 	}
 }
 
-static unsigned short getHeight(const float fx, const float fy, const float fz,
-	const float /*cs*/, const float ics, const float ch,
+static unsigned short getHeight(const dtReal fx, const dtReal fy, const dtReal fz,
+	const dtReal /*cs*/, const dtReal ics, const dtReal ch,
 	const dtHeightPatch& hp)
 {
-	int ix = (int)floorf(fx*ics + 0.01f);
-	int iz = (int)floorf(fz*ics + 0.01f);
+	int ix = (int)dtFloor(fx*ics + 0.01f);
+	int iz = (int)dtFloor(fz*ics + 0.01f);
 	ix = dtClamp(ix-hp.xmin, 0, hp.width - 1);
 	iz = dtClamp(iz-hp.ymin, 0, hp.height - 1);
 	unsigned short h = hp.data[ix+iz*hp.width];
@@ -204,13 +205,13 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 	{
 		//@UE BEGIN
 		// setting fallback value in case proper height is not found
-		h = (unsigned short)floorf(fy/ch);
+		h = (unsigned short)dtFloor(fy/ch);
 		//@UE END
 
 		// Special case when data might be bad.
 		// Find nearest neighbour pixel which has valid height.
 		const int off[8*2] = { -1,0, -1,-1, 0,-1, 1,-1, 1,0, 1,1, 0,1, -1,1};
-		float dmin = FLT_MAX;
+		dtReal dmin = DT_REAL_MAX;
 		for (int i = 0; i < 8; ++i)
 		{
 			const int nx = ix+off[i*2+0];
@@ -219,7 +220,7 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 			const unsigned short nh = hp.data[nx+nz*hp.width];
 			if (nh == DT_UNSET_PATCH_HEIGHT) continue;
 
-			const float d = fabsf(nh*ch - fy);
+			const dtReal d = dtAbs(nh*ch - fy);
 			if (d < dmin)
 			{
 				h = nh;
@@ -232,42 +233,42 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 
 namespace TileCacheFunc
 {
-	inline float vdot2(const float* a, const float* b)
+	inline dtReal vdot2(const dtReal* a, const dtReal* b)
 	{
 		return a[0] * b[0] + a[2] * b[2];
 	}
 
-	inline float vdistSq2(const float* p, const float* q)
+	inline dtReal vdistSq2(const dtReal* p, const dtReal* q)
 	{
-		const float dx = q[0] - p[0];
-		const float dy = q[2] - p[2];
+		const dtReal dx = q[0] - p[0];
+		const dtReal dy = q[2] - p[2];
 		return dx*dx + dy*dy;
 	}
 
-	inline float vdist2(const float* p, const float* q)
+	inline dtReal vdist2(const dtReal* p, const dtReal* q)
 	{
-		return sqrtf(vdistSq2(p, q));
+		return dtSqrt(vdistSq2(p, q));
 	}
 
-	inline float vcross2(const float* p1, const float* p2, const float* p3)
+	inline dtReal vcross2(const dtReal* p1, const dtReal* p2, const dtReal* p3)
 	{
-		const float u1 = p2[0] - p1[0];
-		const float v1 = p2[2] - p1[2];
-		const float u2 = p3[0] - p1[0];
-		const float v2 = p3[2] - p1[2];
+		const dtReal u1 = p2[0] - p1[0];
+		const dtReal v1 = p2[2] - p1[2];
+		const dtReal u2 = p3[0] - p1[0];
+		const dtReal v2 = p3[2] - p1[2];
 		return u1 * v2 - v1 * u2;
 	}
 
-	static float distancePtSeg(const float* pt, const float* p, const float* q)
+	static dtReal distancePtSeg(const dtReal* pt, const dtReal* p, const dtReal* q)
 	{
-		float pqx = q[0] - p[0];
-		float pqy = q[1] - p[1];
-		float pqz = q[2] - p[2];
-		float dx = pt[0] - p[0];
-		float dy = pt[1] - p[1];
-		float dz = pt[2] - p[2];
-		float d = pqx*pqx + pqy*pqy + pqz*pqz;
-		float t = pqx*dx + pqy*dy + pqz*dz;
+		dtReal pqx = q[0] - p[0];
+		dtReal pqy = q[1] - p[1];
+		dtReal pqz = q[2] - p[2];
+		dtReal dx = pt[0] - p[0];
+		dtReal dy = pt[1] - p[1];
+		dtReal dz = pt[2] - p[2];
+		dtReal d = pqx*pqx + pqy*pqy + pqz*pqz;
+		dtReal t = pqx*dx + pqy*dy + pqz*dz;
 		if (d > 0)
 			t /= d;
 		if (t < 0)
@@ -282,14 +283,14 @@ namespace TileCacheFunc
 		return dx*dx + dy*dy + dz*dz;
 	}
 
-	static float distancePtSeg2d(const float* pt, const float* p, const float* q)
+	static dtReal distancePtSeg2d(const dtReal* pt, const dtReal* p, const dtReal* q)
 	{
-		float pqx = q[0] - p[0];
-		float pqz = q[2] - p[2];
-		float dx = pt[0] - p[0];
-		float dz = pt[2] - p[2];
-		float d = pqx*pqx + pqz*pqz;
-		float t = pqx*dx + pqz*dz;
+		dtReal pqx = q[0] - p[0];
+		dtReal pqz = q[2] - p[2];
+		dtReal dx = pt[0] - p[0];
+		dtReal dz = pt[2] - p[2];
+		dtReal d = pqx*pqx + pqz*pqz;
+		dtReal t = pqx*dx + pqz*dz;
 		if (d > 0)
 			t /= d;
 		if (t < 0)
@@ -303,59 +304,58 @@ namespace TileCacheFunc
 		return dx*dx + dz*dz;
 	}
 
-	static float distPtTri(const float* p, const float* a, const float* b, const float* c)
+	static dtReal distPtTri(const dtReal* p, const dtReal* a, const dtReal* b, const dtReal* c)
 	{
-		float v0[3], v1[3], v2[3];
+		dtReal v0[3], v1[3], v2[3];
 		dtVsub(v0, c, a);
 		dtVsub(v1, b, a);
 		dtVsub(v2, p, a);
 
-		const float dot00 = vdot2(v0, v0);
-		const float dot01 = vdot2(v0, v1);
-		const float dot02 = vdot2(v0, v2);
-		const float dot11 = vdot2(v1, v1);
-		const float dot12 = vdot2(v1, v2);
+		const dtReal dot00 = vdot2(v0, v0);
+		const dtReal dot01 = vdot2(v0, v1);
+		const dtReal dot02 = vdot2(v0, v2);
+		const dtReal dot11 = vdot2(v1, v1);
+		const dtReal dot12 = vdot2(v1, v2);
 
 		// Compute barycentric coordinates
-		const float invDenom = 1.0f / (dot00 * dot11 - dot01 * dot01);
-		const float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-		float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+		const dtReal invDenom = 1.0f / (dot00 * dot11 - dot01 * dot01);
+		const dtReal u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+		dtReal v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
 		// If point lies inside the triangle, return interpolated y-coord.
-		static const float EPS = 1e-4f;
+		static const dtReal EPS = 1e-4f;
 		if (u >= -EPS && v >= -EPS && (u + v) <= 1 + EPS)
 		{
-			const float y = a[1] + v0[1] * u + v1[1] * v;
-			return fabsf(y - p[1]);
+			const dtReal y = a[1] + v0[1] * u + v1[1] * v;
+			return dtAbs(y - p[1]);
 		}
-		return FLT_MAX;
+		return DT_REAL_MAX;
 	}
 
-	static float distToTriMesh(const float* p, const float* verts, const int /*nverts*/, const int* tris, const int ntris)
+	static dtReal distToTriMesh(const dtReal* p, const dtReal* verts, const int /*nverts*/, const int* tris, const int ntris)
 	{
-		float dmin = FLT_MAX;
+		dtReal dmin = DT_REAL_MAX;
 		for (int i = 0; i < ntris; ++i)
 		{
-			const float* va = &verts[tris[i * 4 + 0] * 3];
-			const float* vb = &verts[tris[i * 4 + 1] * 3];
-			const float* vc = &verts[tris[i * 4 + 2] * 3];
-			float d = distPtTri(p, va, vb, vc);
+			const dtReal* va = &verts[tris[i * 4 + 0] * 3];
+			const dtReal* vb = &verts[tris[i * 4 + 1] * 3];
+			const dtReal* vc = &verts[tris[i * 4 + 2] * 3];
+			dtReal d = distPtTri(p, va, vb, vc);
 			if (d < dmin)
 				dmin = d;
 		}
-		if (dmin == FLT_MAX) return -1;
+		if (dmin == DT_REAL_MAX) return -1;
 		return dmin;
 	}
 
-	static float distToPoly(int nvert, const float* verts, const float* p)
+	static dtReal distToPoly(int nvert, const dtReal* verts, const dtReal* p)
 	{
-
-		float dmin = FLT_MAX;
+		dtReal dmin = DT_REAL_MAX;
 		int i, j, c = 0;
 		for (i = 0, j = nvert - 1; i < nvert; j = i++)
 		{
-			const float* vi = &verts[i * 3];
-			const float* vj = &verts[j * 3];
+			const dtReal* vi = &verts[i * 3];
+			const dtReal* vj = &verts[j * 3];
 			if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
 				(p[0] < (vj[0] - vi[0]) * (p[2] - vi[2]) / (vj[2] - vi[2]) + vi[0]))
 				c = !c;
@@ -364,16 +364,16 @@ namespace TileCacheFunc
 		return c ? -dmin : dmin;
 	}
 
-	static bool circumCircle(const float* p1, const float* p2, const float* p3, float* c, float& r)
+	static bool circumCircle(const dtReal* p1, const dtReal* p2, const dtReal* p3, dtReal* c, dtReal& r)
 	{
-		static const float EPS = 1e-6f;
+		static const dtReal EPS = 1e-6f;
 
-		const float cp = vcross2(p1, p2, p3);
-		if (fabsf(cp) > EPS)
+		const dtReal cp = vcross2(p1, p2, p3);
+		if (dtAbs(cp) > EPS)
 		{
-			const float p1Sq = vdot2(p1, p1);
-			const float p2Sq = vdot2(p2, p2);
-			const float p3Sq = vdot2(p3, p3);
+			const dtReal p1Sq = vdot2(p1, p1);
+			const dtReal p2Sq = vdot2(p2, p2);
+			const dtReal p3Sq = vdot2(p3, p3);
 			c[0] = (p1Sq*(p2[2] - p3[2]) + p2Sq*(p3[2] - p1[2]) + p3Sq*(p1[2] - p2[2])) / (2 * cp);
 			c[2] = (p1Sq*(p3[0] - p2[0]) + p2Sq*(p1[0] - p3[0]) + p3Sq*(p2[0] - p1[0])) / (2 * cp);
 			r = vdist2(c, p1);
@@ -441,21 +441,21 @@ namespace TileCacheFunc
 			e[3] = f;
 	}
 
-	static int overlapSegSeg2d(const float* a, const float* b, const float* c, const float* d)
+	static int overlapSegSeg2d(const dtReal* a, const dtReal* b, const dtReal* c, const dtReal* d)
 	{
-		const float a1 = vcross2(a, b, d);
-		const float a2 = vcross2(a, b, c);
+		const dtReal a1 = vcross2(a, b, d);
+		const dtReal a2 = vcross2(a, b, c);
 		if (a1*a2 < 0.0f)
 		{
-			float a3 = vcross2(c, d, a);
-			float a4 = a3 + a2 - a1;
+			dtReal a3 = vcross2(c, d, a);
+			dtReal a4 = a3 + a2 - a1;
 			if (a3 * a4 < 0.0f)
 				return 1;
 		}
 		return 0;
 	}
 
-	static bool overlapEdges(const float* pts, const int* edges, int nedges, int s1, int t1)
+	static bool overlapEdges(const dtReal* pts, const int* edges, int nedges, int s1, int t1)
 	{
 		for (int i = 0; i < nedges; ++i)
 		{
@@ -470,9 +470,9 @@ namespace TileCacheFunc
 		return false;
 	}
 
-	static void completeFacet(const float* pts, int npts, int* edges, int& nedges, const int maxEdges, int& nfaces, int e)
+	static void completeFacet(const dtReal* pts, int npts, int* edges, int& nedges, const int maxEdges, int& nfaces, int e)
 	{
-		static const float EPS = 1e-5f;
+		static const dtReal EPS = 1e-5f;
 
 		int* edge = &edges[e * 4];
 
@@ -496,8 +496,8 @@ namespace TileCacheFunc
 
 		// Find best point on left of edge. 
 		int pt = npts;
-		float c[3] = { 0, 0, 0 };
-		float r = -1;
+		dtReal c[3] = { 0, 0, 0 };
+		dtReal r = -1;
 		for (int u = 0; u < npts; ++u)
 		{
 			if (u == s || u == t) continue;
@@ -510,10 +510,10 @@ namespace TileCacheFunc
 					circumCircle(&pts[s * 3], &pts[t * 3], &pts[u * 3], c, r);
 					continue;
 				}
-				const float d = vdist2(c, &pts[u * 3]);
+				const dtReal d = vdist2(c, &pts[u * 3]);
 				// UE: increased tolerance of safe checks from 0.001f
 				// it was producing (rarely) overlapping edges
-				const float tol = 0.005f;
+				const dtReal tol = 0.005f;
 				if (d > r*(1 + tol))
 				{
 					// Outside current circumcircle, skip.
@@ -568,7 +568,7 @@ namespace TileCacheFunc
 		}
 	}
 
-	static void delaunayHull(const int npts, const float* pts,
+	static void delaunayHull(const int npts, const dtReal* pts,
 		const int nhull, const int* hull,
 		dtIntArray& tris, dtIntArray& edges)
 	{
@@ -643,11 +643,11 @@ namespace TileCacheFunc
 		}
 	}
 
-	static unsigned char getEdgeFlags(const float* va, const float* vb,
-		const float* vpoly, const int npoly)
+	static unsigned char getEdgeFlags(const dtReal* va, const dtReal* vb,
+		const dtReal* vpoly, const int npoly)
 	{
 		// Return true if edge (va,vb) is part of the polygon.
-		static const float thrSqr = dtSqr(0.001f);
+		static const dtReal thrSqr = dtSqr(0.001f);
 		for (int i = 0, j = npoly - 1; i < npoly; j = i++)
 		{
 			if (distancePtSeg2d(va, &vpoly[j * 3], &vpoly[i * 3]) < thrSqr &&
@@ -657,8 +657,8 @@ namespace TileCacheFunc
 		return 0;
 	}
 
-	static unsigned char getTriFlags(const float* va, const float* vb, const float* vc,
-		const float* vpoly, const int npoly)
+	static unsigned char getTriFlags(const dtReal* va, const dtReal* vb, const dtReal* vc,
+		const dtReal* vpoly, const int npoly)
 	{
 		unsigned char flags = 0;
 		flags |= getEdgeFlags(va, vb, vpoly, npoly) << 0;
@@ -668,25 +668,25 @@ namespace TileCacheFunc
 	}
 }
 
-inline float getJitterValueX(const int i)
+inline dtReal getJitterValueX(const int i)
 {
 	return (((i * 0x8da6b343) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
 }
 
-inline float getJitterValueY(const int i)
+inline dtReal getJitterValueY(const int i)
 {
 	return (((i * 0xd8163841) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
 }
 
-static bool buildLayerPolyDetail(const float* in, const int nin, const float cs, const float ch,
-	const float sampleDist, const float sampleMaxError,
-	const dtHeightPatch& hp, float* verts, int& nverts, dtIntArray& tris,
+static bool buildLayerPolyDetail(const dtReal* in, const int nin, const dtReal cs, const dtReal ch,
+	const dtReal sampleDist, const dtReal sampleMaxError,
+	const dtHeightPatch& hp, dtReal* verts, int& nverts, dtIntArray& tris,
 	dtIntArray& edges, dtIntArray& samples)
 {
 	static const int MAX_VERTS = 127;
 	static const int MAX_TRIS = 255;	// Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
 	static const int MAX_VERTS_PER_EDGE = 32;
-	float edge[(MAX_VERTS_PER_EDGE+1)*3];
+	dtReal edge[(MAX_VERTS_PER_EDGE+1)*3];
 	int hull[MAX_VERTS];
 	int nhull = 0;
 
@@ -696,7 +696,7 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 		dtVcopy(&verts[i*3], &in[i*3]);
 	nverts = nin;
 
-	const float ics = 1.0f/cs;
+	const dtReal ics = 1.0f/cs;
 
 	// Tessellate outlines.
 	// This is done in separate pass in order to ensure
@@ -705,12 +705,12 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 	{
 		for (int i = 0, j = nin-1; i < nin; j=i++)
 		{
-			const float* vj = &in[j*3];
-			const float* vi = &in[i*3];
+			const dtReal* vj = &in[j*3];
+			const dtReal* vi = &in[i*3];
 			bool swapped = false;
 			// Make sure the segments are always handled in same order
 			// using lexological sort or else there will be seams.
-			if (fabsf(vj[0]-vi[0]) < 1e-6f)
+			if (dtAbs(vj[0]-vi[0]) < 1e-6f)
 			{
 				if (vj[2] > vi[2])
 				{
@@ -727,19 +727,19 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 				}
 			}
 			// Create samples along the edge.
-			float dx = vi[0] - vj[0];
-			float dy = vi[1] - vj[1];
-			float dz = vi[2] - vj[2];
-			float d = sqrtf(dx*dx + dz*dz);
-			int nn = 1 + (int)floorf(d/sampleDist);
+			dtReal dx = vi[0] - vj[0];
+			dtReal dy = vi[1] - vj[1];
+			dtReal dz = vi[2] - vj[2];
+			dtReal d = dtSqrt(dx*dx + dz*dz);
+			int nn = 1 + (int)dtFloor(d/sampleDist);
 			if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE-1;
 			if (nverts+nn >= MAX_VERTS)
 				nn = MAX_VERTS-1-nverts;
 
 			for (int k = 0; k <= nn; ++k)
 			{
-				float u = (float)k/(float)nn;
-				float* pos = &edge[k*3];
+				dtReal u = (dtReal)k/(dtReal)nn;
+				dtReal* pos = &edge[k*3];
 				pos[0] = vj[0] + dx*u;
 				pos[1] = vj[1] + dy*u;
 				pos[2] = vj[2] + dz*u;
@@ -752,14 +752,14 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 			{
 				const int a = idx[k];
 				const int b = idx[k+1];
-				const float* va = &edge[a*3];
-				const float* vb = &edge[b*3];
+				const dtReal* va = &edge[a*3];
+				const dtReal* vb = &edge[b*3];
 				// Find maximum deviation along the segment.
-				float maxd = 0;
+				dtReal maxd = 0;
 				int maxi = -1;
 				for (int m = a+1; m < b; ++m)
 				{
-					float dev = TileCacheFunc::distancePtSeg(&edge[m * 3], va, vb);
+					dtReal dev = TileCacheFunc::distancePtSeg(&edge[m * 3], va, vb);
 					if (dev > maxd)
 					{
 						maxd = dev;
@@ -827,7 +827,7 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 	if (sampleDist > 0)
 	{
 		// Create sample locations in a grid.
-		float bmin[3], bmax[3];
+		dtReal bmin[3], bmax[3];
 		dtVcopy(bmin, in);
 		dtVcopy(bmax, in);
 		for (int i = 1; i < nin; ++i)
@@ -835,16 +835,16 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 			dtVmin(bmin, &in[i*3]);
 			dtVmax(bmax, &in[i*3]);
 		}
-		int x0 = (int)floorf(bmin[0]/sampleDist);
-		int x1 = (int)ceilf(bmax[0]/sampleDist);
-		int z0 = (int)floorf(bmin[2]/sampleDist);
-		int z1 = (int)ceilf(bmax[2]/sampleDist);
+		int x0 = (int)dtFloor(bmin[0]/sampleDist);
+		int x1 = (int)dtCeil(bmax[0]/sampleDist);
+		int z0 = (int)dtFloor(bmin[2]/sampleDist);
+		int z1 = (int)dtCeil(bmax[2]/sampleDist);
 		samples.resize(0);
 		for (int z = z0; z < z1; ++z)
 		{
 			for (int x = x0; x < x1; ++x)
 			{
-				float pt[3];
+				dtReal pt[3];
 				pt[0] = x*sampleDist;
 				pt[1] = (bmax[1]+bmin[1])*0.5f;
 				pt[2] = z*sampleDist;
@@ -867,20 +867,20 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 				break;
 
 			// Find sample with most error.
-			float bestpt[3] = {0,0,0};
-			float bestd = 0;
+			dtReal bestpt[3] = {0,0,0};
+			dtReal bestd = 0;
 			int besti = -1;
 			for (int i = 0; i < nsamples; ++i)
 			{
 				const int* s = &samples[i*4];
 				if (s[3]) continue; // skip added.
-				float pt[3];
+				dtReal pt[3];
 				// The sample location is jittered to get rid of some bad triangulations
 				// which are cause by symmetrical data from the grid structure.
 				pt[0] = s[0]*sampleDist + getJitterValueX(i)*cs*0.1f;
 				pt[1] = s[1]*ch;
 				pt[2] = s[2]*sampleDist + getJitterValueY(i)*cs*0.1f;
-				float d = TileCacheFunc::distToTriMesh(pt, verts, nverts, &tris[0], tris.size() / 4);
+				dtReal d = TileCacheFunc::distToTriMesh(pt, verts, nverts, &tris[0], tris.size() / 4);
 				if (d < 0) continue; // did not hit the mesh.
 				if (d > bestd)
 				{
@@ -916,8 +916,8 @@ static bool buildLayerPolyDetail(const float* in, const int nin, const float cs,
 }
 
 dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
-	const float cs, const float ch,
-	const float sampleDist, const float sampleMaxError,
+	const dtReal cs, const dtReal ch,
+	const dtReal sampleDist, const dtReal sampleMaxError,
 	dtTileCacheLayer& layer,
 	dtTileCachePolyMesh& lmesh,
 	dtTileCachePolyMeshDetail& dmesh)
@@ -928,14 +928,14 @@ dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
 		return DT_SUCCESS;
 
 	const int nvp = lmesh.nvp;
-	const float* orig = layer.header->bmin;
+	const dtReal* orig = layer.header->bmin;
 
 	dtHeightPatch hp;
 	dtIntArray edges(64);
 	dtIntArray tris(512);
 	dtIntArray stack(512);
 	dtIntArray samples(512);
-	float verts[256*3];
+	dtReal verts[256*3];
 	int nPolyVerts = 0;
 	int maxhw = 0, maxhh = 0;
 
@@ -944,7 +944,7 @@ dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
 	{
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	}
-	dtFixedArray<float> poly(alloc, nvp*3);
+	dtFixedArray<dtReal> poly(alloc, nvp*3);
 	if (!poly)
 	{
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -1000,7 +1000,7 @@ dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
 	int tcap = vcap*2;
 
 	dmesh.nverts = 0;
-	dmesh.verts = (float*)alloc->alloc(sizeof(float)*vcap*3);
+	dmesh.verts = (dtReal*)alloc->alloc(sizeof(dtReal)*vcap*3);
 	if (!dmesh.verts)
 	{
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -1073,14 +1073,14 @@ dtStatus dtBuildTileCachePolyMeshDetail(dtTileCacheAlloc* alloc,
 			while (dmesh.nverts+nverts > vcap)
 				vcap += 256;
 
-			float* newv = (float*)alloc->alloc(sizeof(float)*vcap*3);
+			dtReal* newv = (dtReal*)alloc->alloc(sizeof(dtReal)*vcap*3);
 			if (!newv)
 			{
 				return DT_FAILURE | DT_OUT_OF_MEMORY;
 			}
 			if (dmesh.nverts)
 			{
-				memcpy(newv, dmesh.verts, sizeof(float)*3*dmesh.nverts);
+				memcpy(newv, dmesh.verts, sizeof(dtReal)*3*dmesh.nverts);
 			}
 			alloc->free(dmesh.verts);
 			dmesh.verts = newv;

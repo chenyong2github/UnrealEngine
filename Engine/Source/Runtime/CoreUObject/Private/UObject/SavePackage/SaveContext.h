@@ -66,17 +66,22 @@ public:
 		, Asset(InAsset)
 		, Filename(InFilename)
 		, SaveArgs(InSaveArgs)
+		, PackageWriter(InSaveArgs.SavePackageContext ? InSaveArgs.SavePackageContext->PackageWriter : nullptr)
 		, SerializeContext(InSerializeContext)
-		, DiffSettings((InSaveArgs.SaveFlags& (SAVE_DiffCallstack | SAVE_DiffOnly)) != 0)
 		, ExcludedObjectMarks(SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(SaveArgs.TargetPlatform))
 	{
 		// Assumptions & checks
 		check(InPackage);
 		check(InFilename);
-		// if we are cooking we should be doing it in the editor
+		// if we are cooking we should be doing it in the editor and with a CookedPackageWriter
 		check(!IsCooking() || WITH_EDITOR);
+		checkf(!IsCooking() || (PackageWriter && PackageWriter->AsCookedPackageWriter()), TEXT("Cook saves require an ICookedPackageWriter"));
 
 		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
+		if (PackageWriter)
+		{
+			bIgnoreHeaderDiffs = SaveArgs.SavePackageContext->PackageWriterCapabilities.bIgnoreHeaderDiffs;
+		}
 
 		// if the asset wasn't provided, fetch it from the package
 		if (Asset == nullptr)
@@ -232,7 +237,7 @@ public:
 
 	bool IsSaveToMemory() const
 	{
-		return !!(SaveArgs.SaveFlags & SAVE_Async) || GetPackageWriter();
+		return !!(SaveArgs.SaveFlags & SAVE_Async) || PackageWriter;
 	}
 
 	bool IsGenerateSaveError() const
@@ -265,21 +270,6 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_ComputeHash);
 	}
 
-	bool IsDiffing() const
-	{
-		return !!(SaveArgs.SaveFlags & (SAVE_DiffCallstack | SAVE_DiffOnly));
-	}
-
-	bool IsDiffCallstack() const
-	{
-		return !!(SaveArgs.SaveFlags & (SAVE_DiffCallstack));
-	}
-
-	bool IsDiffOnly() const
-	{
-		return !!(SaveArgs.SaveFlags & (SAVE_DiffOnly));
-	}
-
 	bool IsConcurrent() const
 	{
 		return !!(SaveArgs.SaveFlags & SAVE_Concurrent);
@@ -297,22 +287,7 @@ public:
 
 	bool IsIgnoringHeaderDiff() const
 	{
-		return DiffSettings.bIgnoreHeaderDiffs;
-	}
-
-	bool IsSavingForDiff() const
-	{
-		return DiffSettings.bSaveForDiff;
-	}
-
-	int32 GetMaxDiffsToLog() const
-	{
-		return DiffSettings.MaxDiffsToLog;
-	}
-
-	FArchiveDiffMap* GetDiffMapPtr() const
-	{
-		return SaveArgs.DiffMap;
+		return bIgnoreHeaderDiffs;
 	}
 
 	bool IsProcessingPrestreamingRequests() const
@@ -554,8 +529,7 @@ public:
 			return Result;
 		}
 
-		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub
-			: (bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent);
+		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
 		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed,
 			AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)),
 			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(Linker) : nullptr);
@@ -568,7 +542,7 @@ public:
 
 	IPackageWriter* GetPackageWriter() const
 	{
-		return SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->PackageWriter : nullptr;
+		return PackageWriter;
 	}
 
 public:
@@ -584,13 +558,12 @@ public:
 
 	EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
 
-	bool bDiffOnlyIdentical = true;
 	int64 TotalPackageSizeUncompressed = 0;
 	int32 OffsetAfterPackageFileSummary = 0;
 	int32 OffsetAfterImportMap = 0;
 	int32 OffsetAfterExportMap = 0;
 	int64 OffsetAfterPayloadToc = 0;
-	int32 SerializedPackageFlags = 0;	
+	int32 SerializedPackageFlags = 0;
 	TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
 	FSavePackageOutputFileArray AdditionalPackageFiles;
@@ -603,6 +576,7 @@ private:
 	FPackagePath TargetPackagePath;
 	const TCHAR* Filename;
 	FSavePackageArgs SaveArgs;
+	IPackageWriter* PackageWriter;
 
 	// State context
 	FUObjectSerializeContext* SerializeContext = nullptr;
@@ -613,9 +587,9 @@ private:
 	bool bIsFixupStandaloneFlags = false;
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
+	bool bIgnoreHeaderDiffs = false;
 
 	// Config classes shared with the old Save
-	FSavePackageDiffSettings DiffSettings;
 	FCanSkipEditorReferencedPackagesWhenCooking SkipEditorRefCookingSetting;
 
 	// Pointer to the EDLCookChecker associated with this context

@@ -41,7 +41,7 @@ static TArray<TSharedPtr<FInternetAddr>> GetAddressFromString(ISocketSubsystem& 
 	return InterntAddresses;
 }
 
-class FCookOnTheFlyServerConnection
+class FCookOnTheFlyServerConnection final
 	: public UE::Cook::ICookOnTheFlyServerConnection
 {
 public:

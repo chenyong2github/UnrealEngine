@@ -1135,7 +1135,7 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 #endif				
 				break;
 			}
-			else if (Tag.LexicalLess(SimpleTagName) && WhereToInsert == INDEX_NONE)
+			else if (UE::ComparisonUtility::CompareWithNumericSuffix(Tag, SimpleTagName) < 0 && WhereToInsert == INDEX_NONE)
 			{
 				// Insert new node before this
 				WhereToInsert = CurIdx;
@@ -2162,7 +2162,7 @@ bool FGameplayTagTableRow::operator!=(FGameplayTagTableRow const& Other) const
 
 bool FGameplayTagTableRow::operator<(FGameplayTagTableRow const& Other) const
 {
-	return Tag.LexicalLess(Other.Tag);
+	return UE::ComparisonUtility::CompareWithNumericSuffix(Tag, Other.Tag) < 0;
 }
 
 FRestrictedGameplayTagTableRow::FRestrictedGameplayTagTableRow(FRestrictedGameplayTagTableRow const& Other)

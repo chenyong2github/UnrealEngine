@@ -2804,9 +2804,14 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 
 	TRACE_BOOKMARK(TEXT("LoadMap"));
 
+	static bool bReportFirstTime = true;
+
 	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, {
-		FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename))
+		FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename)),
+		FAnalyticsEventAttribute(TEXT("FirstTime"), bReportFirstTime)
 	});
+
+	bReportFirstTime = false;
 
 	if (GUnrealEd)
 	{

@@ -1279,7 +1279,7 @@ void FWidget::DrawThickArc (const FThickArcParams& InParams, const FVector& Axis
 	RingColor.A = MAX_uint8;
 
 	FVector ZAxis = Axis0 ^ Axis1;
-	FVector LastVertex;
+	FVector LastWorldVertex;
 
 	FDynamicMeshBuilder MeshBuilder(InParams.PDI->View->GetFeatureLevel());
 
@@ -1300,8 +1300,10 @@ void FWidget::DrawThickArc (const FThickArcParams& InParams, const FVector& Axis
 			float TCAngle = Percent*(PI/2);
 			FVector2D TC(TCRadius*FMath::Cos(Angle), TCRadius*FMath::Sin(Angle));
 
-			const FVector VertexPosition = InParams.Position + VertexDir*Radius;
-			FVector Normal = VertexPosition - InParams.Position;
+			// Keep the vertices in local space so that we don't lose precision when dealing with LWC
+			// The local-to-world transform is handled in the MeshBuilder.Draw() call at the end of this function
+			const FVector VertexPosition = VertexDir*Radius;
+			FVector Normal = VertexPosition;
 			Normal.Normalize();
 
 			FDynamicMeshVertex MeshVertex;
@@ -1318,13 +1320,14 @@ void FWidget::DrawThickArc (const FThickArcParams& InParams, const FVector& Axis
 			MeshBuilder.AddVertex(MeshVertex); //Add bottom vertex
 
 			// Push out the arc line borders so they dont z-fight with the mesh arcs
-			FVector StartLinePos = LastVertex;
-			FVector EndLinePos = VertexPosition;
+			// DrawLine needs vertices in world space, but this is fine because it takes FVectors and works with LWC well
+			FVector StartLinePos = LastWorldVertex;
+			FVector EndLinePos = VertexPosition + InParams.Position;
 			if (VertexIndex != 0)
 			{
 				InParams.PDI->DrawLine(StartLinePos,EndLinePos,RingColor,SDPG_Foreground);
 			}
-			LastVertex = VertexPosition;
+			LastWorldVertex = EndLinePos;
 		}
 	}
 
@@ -1336,7 +1339,7 @@ void FWidget::DrawThickArc (const FThickArcParams& InParams, const FVector& Axis
 		MeshBuilder.AddTriangle(VertexIndex+1, InnerVertexStartIndex+VertexIndex+1, InnerVertexStartIndex+VertexIndex);
 	}
 
-	MeshBuilder.Draw(InParams.PDI, FMatrix::Identity, InParams.Material->GetRenderProxy(),SDPG_Foreground,0.f);
+	MeshBuilder.Draw(InParams.PDI, FTranslationMatrix(InParams.Position), InParams.Material->GetRenderProxy(),SDPG_Foreground,0.f);
 }
 
 /**
@@ -1360,21 +1363,22 @@ void FWidget::DrawSnapMarker(FPrimitiveDrawInterface* PDI, const FVector& InLoca
 	const float MarkerWidth = MaxMarkerHeight*InWidthPercent;
 	const float MarkerHeight = MaxMarkerHeight*InPercentSize;
 
-	FVector Vertices[4];
-	Vertices[0] = InLocation + (OuterDistance)*Axis0 - (MarkerWidth*.5)*Axis1;
-	Vertices[1] = Vertices[0] + (MarkerWidth)*Axis1;
-	Vertices[2] = InLocation + (OuterDistance-MarkerHeight)*Axis0 - (MarkerWidth*.5)*Axis1;
-	Vertices[3] = Vertices[2] + (MarkerWidth)*Axis1;
+	FVector LocalVertices[4];
+	LocalVertices[0] = (OuterDistance)*Axis0 - (MarkerWidth*.5)*Axis1;
+	LocalVertices[1] = LocalVertices[0] + (MarkerWidth)*Axis1;
+	LocalVertices[2] = (OuterDistance-MarkerHeight)*Axis0 - (MarkerWidth*.5)*Axis1;
+	LocalVertices[3] = LocalVertices[2] + (MarkerWidth)*Axis1;
 
 	//draw at least one line
-	PDI->DrawLine(Vertices[0], Vertices[2], InColor, SDPG_Foreground);
+	// DrawLine needs vertices in world space, but this is fine because it takes FVectors and works with LWC well
+	PDI->DrawLine(LocalVertices[0] + InLocation, LocalVertices[2] + InLocation, InColor, SDPG_Foreground);
 
 	//if there should be thickness, draw the other lines
 	if (InWidthPercent > 0.0f)
 	{
-		PDI->DrawLine(Vertices[0], Vertices[1], InColor, SDPG_Foreground);
-		PDI->DrawLine(Vertices[1], Vertices[3], InColor, SDPG_Foreground);
-		PDI->DrawLine(Vertices[2], Vertices[3], InColor, SDPG_Foreground);
+		PDI->DrawLine(LocalVertices[0] + InLocation, LocalVertices[1] + InLocation, InColor, SDPG_Foreground);
+		PDI->DrawLine(LocalVertices[1] + InLocation, LocalVertices[3] + InLocation, InColor, SDPG_Foreground);
+		PDI->DrawLine(LocalVertices[2] + InLocation, LocalVertices[3] + InLocation, InColor, SDPG_Foreground);
 
 		//fill in the box
 		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
@@ -1382,7 +1386,7 @@ void FWidget::DrawSnapMarker(FPrimitiveDrawInterface* PDI, const FVector& InLoca
 		for(int32 VertexIndex = 0;VertexIndex < 4; VertexIndex++)
 		{
 			FDynamicMeshVertex MeshVertex;
-			MeshVertex.Position = Vertices[VertexIndex];
+			MeshVertex.Position = LocalVertices[VertexIndex];
 			MeshVertex.Color = InColor;
 			MeshVertex.TextureCoordinate[0] = FVector2D(0.0f, 0.0f);
 			MeshVertex.SetTangents(
@@ -1395,7 +1399,7 @@ void FWidget::DrawSnapMarker(FPrimitiveDrawInterface* PDI, const FVector& InLoca
 
 		MeshBuilder.AddTriangle(0, 1, 2);
 		MeshBuilder.AddTriangle(1, 3, 2);
-		MeshBuilder.Draw(PDI, FMatrix::Identity, TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
+		MeshBuilder.Draw(PDI, FTranslationMatrix(InLocation), TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
 	}
 }
 
@@ -1423,14 +1427,15 @@ void FWidget::DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& I
 	FVector RotatedAxis0 = Axis0.RotateAngleAxis(InAngle, ZAxis);
 	FVector RotatedAxis1 = Axis1.RotateAngleAxis(InAngle, ZAxis);
 
-	FVector Vertices[3];
-	Vertices[0] = InLocation + (OuterDistance)*RotatedAxis0;
-	Vertices[1] = Vertices[0] + (ArrowHeight)*RotatedAxis0 - HalfArrowidth*RotatedAxis1;
-	Vertices[2] = Vertices[1] + (2*HalfArrowidth)*RotatedAxis1;
+	FVector LocalVertices[3];
+	LocalVertices[0] = (OuterDistance)*RotatedAxis0;
+	LocalVertices[1] = LocalVertices[0] + (ArrowHeight)*RotatedAxis0 - HalfArrowidth*RotatedAxis1;
+	LocalVertices[2] = LocalVertices[1] + (2*HalfArrowidth)*RotatedAxis1;
 
-	PDI->DrawLine(Vertices[0], Vertices[1], InColor, SDPG_Foreground);
-	PDI->DrawLine(Vertices[1], Vertices[2], InColor, SDPG_Foreground);
-	PDI->DrawLine(Vertices[0], Vertices[2], InColor, SDPG_Foreground);
+	// DrawLine needs vertices in world space, but this is fine because it takes FVectors and works with LWC well
+	PDI->DrawLine(LocalVertices[0] + InLocation, LocalVertices[1] + InLocation, InColor, SDPG_Foreground);
+	PDI->DrawLine(LocalVertices[1] + InLocation, LocalVertices[2] + InLocation, InColor, SDPG_Foreground);
+	PDI->DrawLine(LocalVertices[0] + InLocation, LocalVertices[2] + InLocation, InColor, SDPG_Foreground);
 
 	if (InColor.A > 0)
 	{
@@ -1440,7 +1445,7 @@ void FWidget::DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& I
 		for(int32 VertexIndex = 0;VertexIndex < 3; VertexIndex++)
 		{
 			FDynamicMeshVertex MeshVertex;
-			MeshVertex.Position = Vertices[VertexIndex];
+			MeshVertex.Position = LocalVertices[VertexIndex];
 			MeshVertex.Color = InColor;
 			MeshVertex.TextureCoordinate[0] = FVector2D(0.0f, 0.0f);
 			MeshVertex.SetTangents(
@@ -1452,7 +1457,7 @@ void FWidget::DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& I
 		}
 
 		MeshBuilder.AddTriangle(0, 1, 2);
-		MeshBuilder.Draw(PDI, FMatrix::Identity, TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
+		MeshBuilder.Draw(PDI, FTranslationMatrix(InLocation), TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
 	}
 }
 

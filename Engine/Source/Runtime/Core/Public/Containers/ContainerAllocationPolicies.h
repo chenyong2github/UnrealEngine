@@ -373,11 +373,14 @@ public:
 	template<typename ElementType>
 	class ForElementType : public ForAnyElementType
 	{
-	public:
+		static constexpr SIZE_T MinimumAlignment = (Alignment <= __STDCPP_DEFAULT_NEW_ALIGNMENT__) ? __STDCPP_DEFAULT_NEW_ALIGNMENT__ : Alignment;
 
+	public:
 		/** Default constructor. */
 		ForElementType()
-		{}
+		{
+			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > MinimumAlignment, "Using TAlignedHeapAllocator with an alignment lower than the element type's alignment - please update the alignment parameter");
+		}
 
 		FORCEINLINE ElementType* GetAllocation() const
 		{
@@ -411,7 +414,7 @@ class TSizedHeapAllocator
 public:
 	using SizeType = typename TBitsToSizeType<IndexSize>::Type;
 
-	enum { NeedsElementType = false };
+	enum { NeedsElementType = true };
 	enum { RequireRangeCheck = true };
 
 	class ForAnyElementType
@@ -520,10 +523,11 @@ public:
 	class ForElementType : public ForAnyElementType
 	{
 	public:
-
 		/** Default constructor. */
 		ForElementType()
-		{}
+		{
+			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__, "TSizedHeapAllocator uses GMalloc's default alignment, which is lower than the element type's alignment - please use TAlignedHeapAllocator with an appropriate alignment");
+		}
 
 		FORCEINLINE ElementType* GetAllocation() const
 		{
@@ -715,11 +719,11 @@ public:
 	class ForElementType
 	{
 	public:
-
 		/** Default constructor. */
 		ForElementType()
 			: Data(GetInlineElements())
 		{
+			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__, "TNonRelocatableInlineAllocator uses GMalloc's default alignment, which is lower than the element type's alignment - please consider a different approach");
 		}
 
 		/**

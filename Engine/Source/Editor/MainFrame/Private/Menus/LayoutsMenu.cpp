@@ -375,21 +375,32 @@ void FPrivateLayoutsMenu::DisplayLayoutsInternal(FToolMenuSection& InSection, co
 			FUIAction UIAction;
 			if (InLayoutsMenu == ELayoutsMenu::Load)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuLoad::LoadLayout, LayoutIndex, InLayoutsType),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuLoad::CanLoadChooseLayout, LayoutIndex, InLayoutsType),
-					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
+				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuLoad::LoadLayout, LayoutIndex, InLayoutsType));
 			}
 			else if (InLayoutsMenu == ELayoutsMenu::Save)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuSave::OverrideLayout, LayoutIndex, InLayoutsType),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuSave::CanSaveChooseLayout, LayoutIndex, InLayoutsType),
-					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
+				if (FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutsType))
+				{
+					UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuSave::OverrideLayout, LayoutIndex, InLayoutsType));
+				}
+				else
+				{
+					// Cannot save engine or project layouts
+					continue;
+				}
+
 			}
 			else if (InLayoutsMenu == ELayoutsMenu::Remove)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveLayout, LayoutIndex, InLayoutsType),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuRemove::CanRemoveChooseLayout, InLayoutsType),
-					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
+				if (FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutsType))
+				{
+					UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveLayout, LayoutIndex, InLayoutsType));
+				}
+				else
+				{
+					// Cannot delete engine or project layouts
+					continue;
+				}
 			}
 			else
 			{
@@ -491,11 +502,6 @@ FText FPrivateLayoutsMenu::GetProjectLayoutSectionName()
 
 void FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const ELayoutsMenu InLayoutsMenu)
 {
-#if !PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
-	// Update GEditorLayoutIni file. Otherwise, we could not track the changes the user did since the layout was loaded
-	FLayoutsMenuSave::SaveLayout();
-#endif
-
 	// Display (if load-only) engine/project layouts and (always)  user layouts
 	const TArray<FLayoutsMenu::ELayoutsType> LayoutSectionTypes = InLayoutsMenu == ELayoutsMenu::Load
 		? TArray<FLayoutsMenu::ELayoutsType>({FLayoutsMenu::ELayoutsType::Engine, FLayoutsMenu::ELayoutsType::Project, FLayoutsMenu::ELayoutsType::User})

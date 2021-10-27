@@ -4,13 +4,11 @@
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/UI/Message.h"
 
-using namespace CADKernel;
-
 #ifdef CADKERNEL_DEV
-TSharedPtr<FSession> FSession::Session = TSharedPtr<FSession>();
+FSession FSession::Session(0.01);
 #endif
 
-void FSession::SaveDatabase(const TCHAR* FileName)
+void CADKernel::FSession::SaveDatabase(const TCHAR* FileName)
 {
 	TSharedPtr<FCADKernelArchive> Archive = FCADKernelArchive::CreateArchiveWriter(*this, FileName);
 	if (!Archive.IsValid())
@@ -22,13 +20,13 @@ void FSession::SaveDatabase(const TCHAR* FileName)
 	Archive->Close();
 }
 
-TSharedRef<FModel> FSession::GetModel()
+TSharedRef<CADKernel::FModel> CADKernel::FSession::GetModel()
 {
 	return Database.GetModel();
 }
 
 
-void FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
+void CADKernel::FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
 {
 	TArray<FIdent> EntityIds;
 	EntityIds.Reserve(SelectedEntities.Num());
@@ -46,12 +44,13 @@ void FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEnti
 	Archive->Close();
 }
 
-void FSession::LoadDatabase(const TCHAR* FilePath)
+void CADKernel::FSession::LoadDatabase(const TCHAR* FilePath)
 {
 	TSharedPtr<FCADKernelArchive> Archive = FCADKernelArchive::CreateArchiveReader(*this, FilePath);
 	if (!Archive.IsValid())
 	{
 		FMessage::Printf(Log, TEXT("The archive file %s is corrupted\n"), FilePath);
+		return;
 	}
 
 	TSharedRef<FModel> SessionModel = GetModel();
@@ -67,13 +66,13 @@ void FSession::LoadDatabase(const TCHAR* FilePath)
 	Archive->Close();
 }
 
-void FSession::AddDatabase(const TArray<uint8>& InRawData)
+void CADKernel::FSession::AddDatabase(const TArray<uint8>& InRawData)
 {
 	FCADKernelArchive Archive = FCADKernelArchive(*this, InRawData);
 	Database.Deserialize(Archive);
 }
 
-void FSession::SetGeometricTolerance(double NewTolerance)
+void CADKernel::FSession::SetGeometricTolerance(double NewTolerance)
 {
 	ensure(Database.GetModel()->EntityCount() == 0);
 	GeometricTolerance = NewTolerance;

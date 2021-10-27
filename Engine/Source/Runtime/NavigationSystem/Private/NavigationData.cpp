@@ -194,7 +194,9 @@ void ANavigationData::PostInitProperties()
 	{
 		bNetLoadOnClient = FNavigationSystem::ShouldLoadNavigationOnClient(*this);
 		RequestRegistration();
+#if UE_ENABLE_DEBUG_DRAWING
 		RenderingComp = ConstructRenderingComponent();
+#endif // UE_ENABLE_DEBUG_DRAWING
 	}
 }
 
@@ -382,7 +384,7 @@ void ANavigationData::OnUnregistered()
 
 void ANavigationData::InstantiateAndRegisterRenderingComponent()
 {
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	if (IsValid(this) && !IsValid(RenderingComp))
 	{
 		const bool bRootIsRenderComp = (RenderingComp == RootComponent);
@@ -405,7 +407,7 @@ void ANavigationData::InstantiateAndRegisterRenderingComponent()
 			RootComponent = RenderingComp;
 		}
 	}
-#endif // !UE_BUILD_SHIPPING
+#endif // UE_ENABLE_DEBUG_DRAWING
 }
 
 void ANavigationData::PurgeUnusedPaths()

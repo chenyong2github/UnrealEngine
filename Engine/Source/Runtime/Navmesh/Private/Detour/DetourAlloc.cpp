@@ -26,7 +26,7 @@ static void *dtAllocDefault(int size, dtAllocHint)
 	return malloc(size);
 }
 
-static void dtFreeDefault(void *ptr)
+static void dtFreeDefault(void *ptr, dtAllocHint) //UE
 {
 	free(ptr);
 }
@@ -45,11 +45,13 @@ void* dtAlloc(int size, dtAllocHint hint)
 	return sAllocFunc(size, hint);
 }
 
-void dtFree(void* ptr)
+//@UE BEGIN Added dtAllocHint.
+void dtFree(void* ptr, dtAllocHint hint)
 {
 	if (ptr)
-		sFreeFunc(ptr);
+		sFreeFunc(ptr, hint);
 }
+//@UE END
 
 void dtMemCpy(void* dst, void* src, int size)
 {
@@ -78,7 +80,7 @@ void dtIntArray::resize(int n)
 		while (m_cap < n) m_cap *= 2;
 		int* newData = (int*)dtAlloc(m_cap*sizeof(int), DT_ALLOC_TEMP);
 		if (m_size && newData) memcpy(newData, m_data, m_size*sizeof(int));
-		dtFree(m_data);
+		dtFree(m_data, DT_ALLOC_TEMP);
 		m_data = newData;
 	}
 	m_size = n;

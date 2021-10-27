@@ -875,6 +875,8 @@ void FDatasmithMaxSceneParser::ParseRailcloneNode(INode* RailCloneNode)
 					RenderableNode.MaxMesh = MakeUnique<Mesh>(*RCInstance->mesh);
 					RenderableNode.MeshIndex = NextMeshIndex++;
 					RenderableNode.InstancesTransformPtr = MakeUnique<TArray<Matrix3>>();
+
+					RenderableNode.InstancesTransformPtr->Emplace(RCInstance->tm);
 				}
 			}
 		}

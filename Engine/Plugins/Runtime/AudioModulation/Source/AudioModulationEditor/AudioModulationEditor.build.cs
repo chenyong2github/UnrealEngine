@@ -24,7 +24,8 @@ public class AudioModulationEditor : ModuleRules
 				"AudioExtensions",
 				"AudioModulation",
 				"CurveEditor",
-				"EditorWidgets"
+				"EditorWidgets",
+				"ToolWidgets",
 			}
 		);
 

@@ -79,7 +79,7 @@ public class MacPlatform : Platform
 	/// <param name="InTarget"></param>
 	/// <param name="InParams"></param>
 	/// <returns></returns>
-	protected bool CanBuildTargetForAllArchitectures(UE4Build.BuildTarget InTarget, ProjectParams InParams)
+	protected bool CanBuildTargetForAllArchitectures(UnrealBuild.BuildTarget InTarget, ProjectParams InParams)
 	{
 		return MacExports.TargetsAllowedForAppleSilicon.Contains(InTarget.TargetName, StringComparer.OrdinalIgnoreCase);
 	}
@@ -91,7 +91,7 @@ public class MacPlatform : Platform
 	/// <param name="Build"></param>
 	/// <param name="Agenda"></param>
 	/// <param name="Params"></param>
-	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
+	public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 	{
 		base.PreBuildAgenda(Build, Agenda, Params);
 
@@ -100,7 +100,7 @@ public class MacPlatform : Platform
 		bool ProjectIsUniversal = ProjectTargetArchitectures.Count() > 1;
 
 		// Go through the agenda for all targets and set the architecture appropriately
-		foreach (UE4Build.BuildTarget Target in Agenda.Targets)
+		foreach (UnrealBuild.BuildTarget Target in Agenda.Targets)
 		{
 			bool IsTarget = Params.ClientCookedTargets.Contains(Target.TargetName) || Params.ServerCookedTargets.Contains(Target.TargetName);
 

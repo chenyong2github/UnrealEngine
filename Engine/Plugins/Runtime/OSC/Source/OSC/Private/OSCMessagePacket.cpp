@@ -118,7 +118,7 @@ void FOSCMessagePacket::ReadData(FOSCStream& Stream)
 	// Read string of tags
 	const FString StreamString = Stream.ReadString();
 
-	const TArray<TCHAR>& TagTypes = StreamString.GetCharArray();
+	const TArray<TCHAR, FString::AllocatorType>& TagTypes = StreamString.GetCharArray();
 	if(TagTypes.Num() == 0)
 	{
 		UE_LOG(LogOSC, Error, TEXT("Failed to read message packet with address '%s' from stream: Invalid (Empty) Type Tag"), *Address.GetFullPath());

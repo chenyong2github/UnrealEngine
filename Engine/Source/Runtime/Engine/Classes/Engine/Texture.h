@@ -12,14 +12,13 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
-#include "Serialization/BulkData.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "Engine/TextureDefines.h"
 #include "MaterialShared.h"
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
-#include "Virtualization/VirtualizedBulkData.h"
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
 #include "DerivedDataCacheKeyProxy.h"
@@ -260,7 +259,7 @@ struct FTextureSource
 	ENGINE_API void Compress();
 
 	/** Force the GUID to change even if mip data has not been modified. */
-	void ForceGenerateGuid();
+	ENGINE_API void ForceGenerateGuid();
 
 	/** Lock a mip for reading. */
 	ENGINE_API const uint8* LockMipReadOnly(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
@@ -270,10 +269,10 @@ struct FTextureSource
 
 	/** Unlock a mip. */
 	ENGINE_API void UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
-	
+
 	/** Retrieve a copy of the data for a particular mip. */
 	ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr);
-	
+
 	/** Returns a FMipData structure that wraps around the entire mip chain for read only operations. This is more efficient than calling the above method once per mip. */
 	ENGINE_API FMipData GetMipData(class IImageWrapperModule* ImageWrapperModule);
 
@@ -306,6 +305,10 @@ struct FTextureSource
 
 	/** Returns the compression format of the source data in enum format. */
 	ETextureSourceCompressionFormat GetSourceCompression() const;
+
+	/** Support for copy/paste */
+	void ExportCustomProperties(FOutputDevice& Out, uint32 Indent);
+	void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn);
 
 	/** Trivial accessors. These will only give values for Block0 so may not be correct for UDIM/multi-block textures, use GetBlock() for this case. */
 	FGuid GetPersistentId() const { return BulkData.GetIdentifier(); }
@@ -696,10 +699,10 @@ public:
 	 * @param OutMipData -	Must point to an array of pointers with at least
 	 *						Texture.Mips.Num() - FirstMipToLoad + 1 entries. Upon
 	 *						return those pointers will contain mip data.
-	 * @param Texture - The texture to load mips for.
+	 * @param DebugContext - A string used for debug tracking and logging. Usually Texture->GetPathName()
 	 * @returns true if all requested mips have been loaded.
 	 */
-	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData, UTexture* Texture);
+	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData, FStringView DebugContext);
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class UTexture* Owner);
@@ -787,7 +790,7 @@ public:
 	void FinishCache();
 	bool TryCancelCache();
 	void CancelCache();
-	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, UTexture* Texture = nullptr);
+	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, FStringView DebugContext=FStringView());
 	bool AreDerivedMipsAvailable(FStringView Context) const;
 	bool AreDerivedVTChunksAvailable(FStringView Context) const;
 	UE_DEPRECATED(5.00, "Use AreDerivedMipsAvailable with the context instead.")
@@ -846,6 +849,51 @@ struct FTextureFormatSettings
 
 	UPROPERTY()
 	uint8 SRGB : 1;
+};
+
+
+USTRUCT(BlueprintType)
+struct FTextureSourceColorSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FTextureSourceColorSettings()
+		: EncodingOverride(ETextureSourceEncoding::TSE_None)
+		, ColorSpace(ETextureColorSpace::TCS_None)
+		, RedChromaticityCoordinate(FVector2D::ZeroVector)
+		, GreenChromaticityCoordinate(FVector2D::ZeroVector)
+		, BlueChromaticityCoordinate(FVector2D::ZeroVector)
+		, WhiteChromaticityCoordinate(FVector2D::ZeroVector)
+		, ChromaticAdaptationMethod(ETextureChromaticAdaptationMethod::TCAM_Bradford)
+	{}
+
+	/** Source encoding of the texture, exposing more options than just sRGB. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement)
+	ETextureSourceEncoding EncodingOverride;
+
+	/** Source color space of the texture. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement)
+	ETextureColorSpace ColorSpace;
+
+	/** Red chromaticity coordinate of the source color space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement, meta = (EditCondition = "ColorSpace == ETextureColorSpace::TCS_Custom"))
+	FVector2D RedChromaticityCoordinate;
+
+	/** Green chromaticity coordinate of the source color space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement, meta = (EditCondition = "ColorSpace == ETextureColorSpace::TCS_Custom"))
+	FVector2D GreenChromaticityCoordinate;
+
+	/** Blue chromaticity coordinate of the source color space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement, meta = (EditCondition = "ColorSpace == ETextureColorSpace::TCS_Custom"))
+	FVector2D BlueChromaticityCoordinate;
+
+	/** White chromaticity coordinate of the source color space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement, meta = (EditCondition = "ColorSpace == ETextureColorSpace::TCS_Custom"))
+	FVector2D WhiteChromaticityCoordinate;
+
+	/** Chromatic adaption method applied if the source white point differs from the working color space white point. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorManagement)
+	ETextureChromaticAdaptationMethod ChromaticAdaptationMethod;
 };
 
 UCLASS(abstract, MinimalAPI, BlueprintType)
@@ -1056,16 +1104,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="sRGB"), AssetRegistrySearchable)
 	uint8 SRGB:1;
 
-	/** Source encoding of the texture, exposing more options than just sRGB. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AssetRegistrySearchable, AdvancedDisplay)
-	TEnumAsByte<enum ETextureSourceEncoding> SourceEncodingOverride;
-	
-
 #if WITH_EDITORONLY_DATA
+	/** Texture color management settings: source encoding and color space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AdvancedDisplay)
+	FTextureSourceColorSettings SourceColorSettings;
 
 	/** A flag for using the simplified legacy gamma space e.g pow(color,1/2.2) for converting from FColor to FLinearColor, if we're doing sRGB. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AdvancedDisplay)
 	uint8 bUseLegacyGamma:1;
+
+	/** Indicates we're currently importing the object (set in PostEditImport, unset in the subsequent PostEditChange) */
+	uint8 bIsImporting : 1;
+	
+	/** Indicates ImportCustomProperties has been called (set in ImportCustomProperties, unset in the subsequent PostEditChange) */
+	uint8 bCustomPropertiesImported : 1;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -1133,6 +1185,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTextureSaved, class UTexture*);
 	/** triggered before a texture is being saved */
 	ENGINE_API static FOnTextureSaved PreSaveEvent;
+
+	ENGINE_API virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
+	ENGINE_API virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
+	ENGINE_API virtual void PostEditImport() override;
 
 	/**
 	 * Resets the resource for the texture.
@@ -1295,9 +1351,9 @@ public:
 	/** @return the array size of the surface represented by the texture. */
 	virtual uint32 GetSurfaceArraySize() const PURE_VIRTUAL(UTexture::GetSurfaceArraySize, return 0;);
 
-	virtual TextureAddress GetTextureAddressX() const { return TA_Clamp; }
-	virtual TextureAddress GetTextureAddressY() const { return TA_Clamp; }
-	virtual TextureAddress GetTextureAddressZ() const { return TA_Clamp; }
+	virtual TextureAddress GetTextureAddressX() const { return TA_Wrap; }
+	virtual TextureAddress GetTextureAddressY() const { return TA_Wrap; }
+	virtual TextureAddress GetTextureAddressZ() const { return TA_Wrap; }
 
 	/**
 	 * Access the GUID which defines this texture's resources externally through FExternalTextureRegistry

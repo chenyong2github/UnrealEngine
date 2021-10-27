@@ -228,10 +228,14 @@ namespace CADKernel
 		void FindInnerFacePoints();
 
 		/**
-		 * Define if a node is closes to a loop i.e. the loop cross the space [[IndexU - 1, IndexU + 1], [IndexV - 1, IndexV + 1]]
+		 * Define if an inner node is close to a loop i.e. if the loop cross the cell [[IndexU - 1, IndexU], [IndexV - 1, IndexV]], each corner node of the cell is close to the loop
+		 * 
 		 * This algorithm is inspired of Bresenham's line algorithm
+		 * The loop is traversed segment by segment
+		 * For each segment, according to the slop of the segment, each cell intersecting the segment is selected (FindIntersectionsCaseSlop_) i.e. each corner node of the cell is flagged IsCloseToLoop (SetCellCloseToLoop)
+		 * @see SlopeUtils
 		 * @see IsNodeCloseToLoop
-		 * @see ProcessPointClound (called in ProcessPointClound)
+		 * @see ProcessPointCloud (called in ProcessPointClound)
 		 */
 		void FindPointsCloseToLoop();
 
@@ -525,6 +529,8 @@ namespace CADKernel
 
 		void DisplayGridPoints(EGridSpace DisplaySpace) const;
 		void DisplayGridInnerPoints(EGridSpace DisplaySpace, TCHAR* Message) const;
+
+		void DisplayGridNormal() const;
 
 		template<typename TPoint>
 		void DisplayPoints(FString Message, const TArray<TPoint>& Points) const

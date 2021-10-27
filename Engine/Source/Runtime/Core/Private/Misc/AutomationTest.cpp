@@ -14,6 +14,7 @@
 #include "Internationalization/Regex.h"
 #include <inttypes.h>
 #include "Misc/App.h"
+#include "HAL/ThreadHeartBeat.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
@@ -1173,6 +1174,10 @@ void FAutomationTestBase::GetExpectedErrors(TArray<FAutomationExpectedError>& Ou
 
 void FAutomationTestBase::GenerateTestNames(TArray<FAutomationTestInfo>& TestInfo) const
 {
+	// This can take a while, particularly as spec tests walk the callstack, so suspend the heartbeat watchdog and hitch detector
+	FSlowHeartBeatScope SuspendHeartBeat;
+	FDisableHitchDetectorScope SuspendGameThreadHitch;
+
 	TArray<FString> BeautifiedNames;
 	TArray<FString> ParameterNames;
 	GetTests(BeautifiedNames, ParameterNames);

@@ -167,7 +167,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 			{
 				Bindings.AddUnique(Var);
 			}
-			else if (Var.IsInNameSpace(FNiagaraConstants::EmitterNamespace) && bEmitter)
+			else if (Var.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString) && bEmitter)
 			{
 				Bindings.AddUnique(Var);
 			}
@@ -842,7 +842,7 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 			[&](const FNiagaraVariableBase& BaseVariable) -> UNiagaraDataInterface*
 			{
 				FName VariableName = BaseVariable.GetName();
-				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
 				{
 					VariableName = FNiagaraUtilities::ResolveAliases(BaseVariable, FNiagaraAliasContext()
 						.ChangeEmitterToEmitterName(BaseEmitter->GetUniqueEmitterName())).GetName();

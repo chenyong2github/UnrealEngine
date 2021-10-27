@@ -41,7 +41,7 @@ private:
 	 *	@param CommitInfo	The way in which the value was committed, currently ignored, we always use the new value.
 	 *	@param Axis			The axis being edited.
 	 */
-	void OnSetLevelPosition( float NewValue, ETextCommit::Type CommitInfo, int32 Axis );
+	void OnSetLevelPosition( FVector::FReal NewValue, ETextCommit::Type CommitInfo, int32 Axis );
 
 	/**
 	 *	Called by the Editor Level Transform column, to set the new values.
@@ -57,7 +57,7 @@ private:
 	 *
 	 *	@return			The current value of the translation for given axis.
 	 */
-	TOptional<float> OnGetLevelPosition( int32 Axis ) const;
+	TOptional<FVector::FReal> OnGetLevelPosition( int32 Axis ) const;
 
 	/**
 	 *	Called by the Editor Level Rotation column, to update the displayed value as we spin

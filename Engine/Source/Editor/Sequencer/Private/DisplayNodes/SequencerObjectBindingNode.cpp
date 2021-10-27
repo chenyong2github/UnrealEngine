@@ -11,6 +11,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
 #include "GameFramework/Actor.h"
 #include "Containers/ArrayBuilder.h"
 #include "KeyParams.h"
@@ -1348,7 +1349,13 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::HandleAddTrackComboButtonGetMen
 		TrackEditor->ExtendObjectBindingTrackMenu(Extender, ObjectBindings, ObjectClass);
 	}
 
-	FMenuBuilder AddTrackMenuBuilder(true, nullptr, Extender);
+	// The menu are generated through reflection and sometime the API exposes some recursivity (think about a Widget returning it parent which is also a Widget). Just by reflection
+	// it is not possible to determine when the root object is reached. It needs a kind of simulation which is not implemented. Also, even if the recursivity was correctly handled, the possible
+	// permutations tend to grow exponentially. Until a clever solution is found, the simple approach is to disable recursively searching those menus. User can still search the current one though.
+	// See UE-131257
+	const bool bInRecursivelySearchable = false;
+
+	FMenuBuilder AddTrackMenuBuilder(true, nullptr, Extender, false, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
 
 	const int32 NumStartingBlocks = AddTrackMenuBuilder.GetMultiBox()->GetBlocks().Num();
 

@@ -9,5 +9,5 @@ struct FSlateBrush;
 class FSlateSVGRasterizer
 {
 public:
-	static TArray<uint8> RasterizeSVGFromFile(const FString& Filename, FIntPoint PixelSize, bool bSwapRedBlue = false);
+	static TArray<uint8> RasterizeSVGFromFile(const FString& Filename, FIntPoint PixelSize);
 }; 

@@ -37,7 +37,7 @@ enum dtRegionPartitioning
 
 dtTileCache* dtAllocTileCache()
 {
-	void* mem = dtAlloc(sizeof(dtTileCache), DT_ALLOC_PERM);
+	void* mem = dtAlloc(sizeof(dtTileCache), DT_ALLOC_PERM_TILE_DATA);
 	if (!mem) return 0;
 	return new(mem) dtTileCache;
 }
@@ -46,7 +46,7 @@ void dtFreeTileCache(dtTileCache* tc)
 {
 	if (!tc) return;
 	tc->~dtTileCache();
-	dtFree(tc);
+	dtFree(tc, DT_ALLOC_PERM_TILE_DATA);
 }
 
 static bool contains(const dtCompressedTileRef* a, const int n, const dtCompressedTileRef v)
@@ -138,15 +138,15 @@ dtTileCache::~dtTileCache()
 	{
 		if (m_tiles[i].flags & DT_COMPRESSEDTILE_FREE_DATA)
 		{
-			dtFree(m_tiles[i].data);
+			dtFree(m_tiles[i].data, DT_ALLOC_PERM_TILE_DATA);
 			m_tiles[i].data = 0;
 		}
 	}
-	dtFree(m_obstacles);
+	dtFree(m_obstacles, DT_ALLOC_PERM_TILE_DATA);
 	m_obstacles = 0;
-	dtFree(m_posLookup);
+	dtFree(m_posLookup, DT_ALLOC_PERM_TILE_DATA);
 	m_posLookup = 0;
-	dtFree(m_tiles);
+	dtFree(m_tiles, DT_ALLOC_PERM_TILE_DATA);
 	m_tiles = 0;
 	m_nreqs = 0;
 	m_nupdate = 0;
@@ -179,7 +179,7 @@ dtStatus dtTileCache::init(const dtTileCacheParams* params,
 	memcpy(&m_params, params, sizeof(m_params));
 	
 	// Alloc space for obstacles.
-	m_obstacles = (dtTileCacheObstacle*)dtAlloc(sizeof(dtTileCacheObstacle)*m_params.maxObstacles, DT_ALLOC_PERM);
+	m_obstacles = (dtTileCacheObstacle*)dtAlloc(sizeof(dtTileCacheObstacle)*m_params.maxObstacles, DT_ALLOC_PERM_TILE_DATA);
 	if (!m_obstacles)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	memset(m_obstacles, 0, sizeof(dtTileCacheObstacle)*m_params.maxObstacles);
@@ -196,10 +196,10 @@ dtStatus dtTileCache::init(const dtTileCacheParams* params,
 	if (!m_tileLutSize) m_tileLutSize = 1;
 	m_tileLutMask = m_tileLutSize-1;
 	
-	m_tiles = (dtCompressedTile*)dtAlloc(sizeof(dtCompressedTile)*m_params.maxTiles, DT_ALLOC_PERM);
+	m_tiles = (dtCompressedTile*)dtAlloc(sizeof(dtCompressedTile)*m_params.maxTiles, DT_ALLOC_PERM_TILE_DATA);
 	if (!m_tiles)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
-	m_posLookup = (dtCompressedTile**)dtAlloc(sizeof(dtCompressedTile*)*m_tileLutSize, DT_ALLOC_PERM);
+	m_posLookup = (dtCompressedTile**)dtAlloc(sizeof(dtCompressedTile*)*m_tileLutSize, DT_ALLOC_PERM_TILE_DATA);
 	if (!m_posLookup)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
 	memset(m_tiles, 0, sizeof(dtCompressedTile)*m_params.maxTiles);
@@ -323,7 +323,7 @@ dtStatus dtTileCache::addTile(unsigned char* data, const int dataSize, unsigned 
 	m_posLookup[h] = tile;
 	
 	// Init tile.
-	const int headerSize = dtAlign4(sizeof(dtTileCacheLayerHeader));
+	const int headerSize = dtAlign(sizeof(dtTileCacheLayerHeader));
 	tile->header = (dtTileCacheLayerHeader*)data;
 	tile->data = data;
 	tile->dataSize = dataSize;
@@ -371,7 +371,7 @@ dtStatus dtTileCache::removeTile(dtCompressedTileRef ref, unsigned char** data, 
 	if (tile->flags & DT_COMPRESSEDTILE_FREE_DATA)
 	{
 		// Owns data
-		dtFree(tile->data);
+		dtFree(tile->data, DT_ALLOC_PERM_TILE_DATA);
 		tile->data = 0;
 		tile->dataSize = 0;
 		if (data) *data = 0;
@@ -403,7 +403,7 @@ dtStatus dtTileCache::removeTile(dtCompressedTileRef ref, unsigned char** data, 
 }
 
 
-dtObstacleRef dtTileCache::addObstacle(const float* pos, const float radius, const float height, dtObstacleRef* result)
+dtObstacleRef dtTileCache::addObstacle(const dtReal* pos, const dtReal radius, const dtReal height, dtObstacleRef* result)
 {
 	if (m_nreqs >= MAX_REQUESTS)
 		return DT_FAILURE | DT_BUFFER_TOO_SMALL;
@@ -452,7 +452,7 @@ dtObstacleRef dtTileCache::removeObstacle(const dtObstacleRef ref)
 	return DT_SUCCESS;
 }
 
-dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
+dtStatus dtTileCache::queryTiles(const dtReal* bmin, const dtReal* bmax,
 								 dtCompressedTileRef* results, int* resultCount, const int maxResults) const 
 {
 	const int MAX_TILES = 32;
@@ -460,12 +460,12 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
 	
 	int n = 0;
 	
-	const float tw = m_params.width * m_params.cs;
-	const float th = m_params.height * m_params.cs;
-	const int tx0 = (int)floorf((bmin[0]-m_params.orig[0]) / tw);
-	const int tx1 = (int)floorf((bmax[0]-m_params.orig[0]) / tw);
-	const int ty0 = (int)floorf((bmin[2]-m_params.orig[2]) / th);
-	const int ty1 = (int)floorf((bmax[2]-m_params.orig[2]) / th);
+	const dtReal tw = m_params.width * m_params.cs;
+	const dtReal th = m_params.height * m_params.cs;
+	const int tx0 = (int)dtFloor((bmin[0]-m_params.orig[0]) / tw);
+	const int tx1 = (int)dtFloor((bmax[0]-m_params.orig[0]) / tw);
+	const int ty0 = (int)dtFloor((bmin[2]-m_params.orig[2]) / th);
+	const int ty1 = (int)dtFloor((bmax[2]-m_params.orig[2]) / th);
 	
 	for (int ty = ty0; ty <= ty1; ++ty)
 	{
@@ -476,7 +476,7 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
 			for (int i = 0; i < ntiles; ++i)
 			{
 				const dtCompressedTile* tile = &m_tiles[decodeTileIdTile(tiles[i])];
-				float tbmin[3], tbmax[3];
+				dtReal tbmin[3], tbmax[3];
 				calcTightTileBounds(tile->header, tbmin, tbmax);
 				
 				if (dtOverlapBounds(bmin,bmax, tbmin,tbmax))
@@ -493,7 +493,7 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
 	return DT_SUCCESS;
 }
 
-dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh)
+dtStatus dtTileCache::update(const dtReal /*dt*/, dtNavMesh* navmesh)
 {
 	if (m_nupdate == 0)
 	{
@@ -513,7 +513,7 @@ dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh)
 			if (req->action == REQUEST_ADD)
 			{
 				// Find touched tiles.
-				float bmin[3], bmax[3];
+				dtReal bmin[3], bmax[3];
 				getObstacleBounds(ob, bmin, bmax);
 
 				int ntouched = 0;
@@ -783,7 +783,7 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 		status = navmesh->addTile(navData,navDataSize,DT_TILE_FREE_DATA,0,0);
 		if (dtStatusFailed(status))
 		{
-			dtFree(navData);
+			dtFree(navData, DT_ALLOC_PERM_TILE_DATA);
 			return status;
 		}
 	}
@@ -791,9 +791,9 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
 	return DT_SUCCESS;
 }
 
-void dtTileCache::calcTightTileBounds(const dtTileCacheLayerHeader* header, float* bmin, float* bmax) const
+void dtTileCache::calcTightTileBounds(const dtTileCacheLayerHeader* header, dtReal* bmin, dtReal* bmax) const
 {
-	const float cs = m_params.cs;
+	const dtReal cs = m_params.cs;
 	bmin[0] = header->bmin[0] + header->minx*cs;
 	bmin[1] = header->bmin[1];
 	bmin[2] = header->bmin[2] + header->miny*cs;
@@ -802,7 +802,7 @@ void dtTileCache::calcTightTileBounds(const dtTileCacheLayerHeader* header, floa
 	bmax[2] = header->bmin[2] + (header->maxy+1)*cs;
 }
 
-void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, float* bmin, float* bmax) const
+void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, dtReal* bmin, dtReal* bmax) const
 {
 	bmin[0] = ob->pos[0] - ob->radius;
 	bmin[1] = ob->pos[1];

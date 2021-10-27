@@ -106,7 +106,7 @@ int32 GetTilesCountHelper(const dtNavMesh* DetourMesh)
  * @param GeomVerts - list of vertices
  * @param GeomFaces - list of triangles (3 vert indices for each)
  */
-static void ExportGeomToOBJFile(const FString& InFileName, const TNavStatArray<float>& GeomCoords, const TNavStatArray<int32>& GeomFaces, const FString& AdditionalData)
+static void ExportGeomToOBJFile(const FString& InFileName, const TNavStatArray<FVector::FReal>& GeomCoords, const TNavStatArray<int32>& GeomFaces, const FString& AdditionalData)
 {
 #define USE_COMPRESSION 0
 
@@ -216,7 +216,7 @@ struct FRecastGeometryExport : public FNavigableGeometryExport
 	}
 
 	FNavigationRelevantData* Data;
-	TNavStatArray<float> VertexBuffer;
+	TNavStatArray<FVector::FReal> VertexBuffer;
 	TNavStatArray<int32> IndexBuffer;
 	FWalkableSlopeOverride SlopeOverride;
 
@@ -282,8 +282,8 @@ FRecastVoxelCache::FRecastVoxelCache(const uint8* Memory)
 FRecastGeometryCache::FRecastGeometryCache(const uint8* Memory)
 {
 	Header = *((FHeader*)Memory);
-	Verts = (float*)(Memory + sizeof(FRecastGeometryCache));
-	Indices = (int32*)(Memory + sizeof(FRecastGeometryCache) + (sizeof(float) * Header.NumVerts * 3));
+	Verts = (FVector::FReal*)(Memory + sizeof(FRecastGeometryCache));
+	Indices = (int32*)(Memory + sizeof(FRecastGeometryCache) + (sizeof(FVector::FReal) * Header.NumVerts * 3));
 }
 
 namespace RecastGeometryExport {
@@ -322,7 +322,7 @@ static void StoreCollisionCache(FRecastGeometryExport& GeomExport)
 
 	// allocate memory
 	const int32 HeaderSize = sizeof(FRecastGeometryCache);
-	const int32 CoordsSize = sizeof(float) * 3 * NumVerts;
+	const int32 CoordsSize = sizeof(FVector::FReal) * 3 * NumVerts;
 	const int32 IndicesSize = sizeof(int32) * 3 * NumFaces;
 	const int32 CacheSize = HeaderSize + CoordsSize + IndicesSize;
 
@@ -346,7 +346,7 @@ static void StoreCollisionCache(FRecastGeometryExport& GeomExport)
 #if PHYSICS_INTERFACE_PHYSX
 /** exports PxConvexMesh as trimesh */
 void ExportPxConvexMesh(PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld,
-						TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+						TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 						FBox& UnrealBounds)
 {
 	// after FKConvexElem::AddCachedSolidConvexGeom
@@ -415,7 +415,7 @@ void ExportPxConvexMesh(PxConvexMesh const * const ConvexMesh, const FTransform&
 
 template<typename TIndicesType> 
 FORCEINLINE_DEBUGGABLE void ExportPxTriMesh(PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld,
-											TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+											TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 											FBox& UnrealBounds)
 {
 	if (TriMesh == NULL)
@@ -473,7 +473,7 @@ FORCEINLINE_DEBUGGABLE void ExportPxTriMesh(PxTriangleMesh const * const TriMesh
 }
 
 void ExportPxHeightField(PxHeightField const * const HeightField, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
 	, FBox& UnrealBounds)
 {
 	if (HeightField == NULL)
@@ -556,7 +556,7 @@ void ExportPxHeightField(PxHeightField const * const HeightField, const FTransfo
 }
 
 void ExportPxHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
 	, FBox& UnrealBounds)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightFieldSlice);
@@ -646,7 +646,7 @@ void ExportPxHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfiel
 
 #if WITH_CHAOS
 void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
 	, FBox& UnrealBounds)
 {
 	if (TriMesh == nullptr)
@@ -722,7 +722,7 @@ void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh,
 
 
 void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
 	, FBox& UnrealBounds)
 {
 	using namespace Chaos;
@@ -796,7 +796,7 @@ void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& L
 }
 
 void ExportChaosHeightField(const Chaos::FHeightField* const HeightField, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
 	, FBox& UnrealBounds)
 {
 	using namespace Chaos;
@@ -867,7 +867,7 @@ void ExportChaosHeightField(const Chaos::FHeightField* const HeightField, const 
 }
 
 void ExportChaosHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld
-	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
+	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
 	, FBox& UnrealBounds)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportChaosHeightFieldSlice);
@@ -950,7 +950,7 @@ void ExportChaosHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightf
 #endif
 
 void ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* InIndices, int32 NumIndices, const FTransform& LocalToWorld,
-					  TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, FBox& UnrealBounds)
+					  TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, FBox& UnrealBounds)
 {
 	if (NumVerts <= 0 || NumIndices <= 0)
 	{
@@ -1003,7 +1003,7 @@ void ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* In
 
 template<typename OtherAllocator>
 FORCEINLINE_DEBUGGABLE void AddFacesToRecast(TArray<FVector, OtherAllocator>& InVerts, TArray<int32, OtherAllocator>& InFaces,
-											 TNavStatArray<float>& OutVerts, TNavStatArray<int32>& OutIndices, FBox& UnrealBounds)
+											 TNavStatArray<FVector::FReal>& OutVerts, TNavStatArray<int32>& OutIndices, FBox& UnrealBounds)
 {
 	// Add indices
 	int32 StartVertOffset = OutVerts.Num();
@@ -1032,7 +1032,7 @@ FORCEINLINE_DEBUGGABLE void AddFacesToRecast(TArray<FVector, OtherAllocator>& In
 	}
 }
 
-FORCEINLINE_DEBUGGABLE void ExportRigidBodyConvexElements(UBodySetup& BodySetup, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+FORCEINLINE_DEBUGGABLE void ExportRigidBodyConvexElements(UBodySetup& BodySetup, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 	TNavStatArray<int32>& ShapeBuffer, FBox& UnrealBounds, const FTransform& LocalToWorld)
 {
 	const int32 ConvexCount = BodySetup.AggGeom.ConvexElems.Num();
@@ -1066,7 +1066,7 @@ FORCEINLINE_DEBUGGABLE void ExportRigidBodyConvexElements(UBodySetup& BodySetup,
 	}
 }
 
-FORCEINLINE_DEBUGGABLE void ExportRigidBodyTriMesh(UBodySetup& BodySetup, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+FORCEINLINE_DEBUGGABLE void ExportRigidBodyTriMesh(UBodySetup& BodySetup, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 	FBox& UnrealBounds, const FTransform& LocalToWorld)
 {
 	if (BodySetup.GetCollisionTraceFlag() == CTF_UseComplexAsSimple)
@@ -1092,7 +1092,7 @@ FORCEINLINE_DEBUGGABLE void ExportRigidBodyTriMesh(UBodySetup& BodySetup, TNavSt
 }
 }
 
-void ExportRigidBodyBoxElements(const FKAggregateGeom& AggGeom, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+void ExportRigidBodyBoxElements(const FKAggregateGeom& AggGeom, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 								TNavStatArray<int32>& ShapeBuffer, FBox& UnrealBounds, const FTransform& LocalToWorld, const int32 NumExistingVerts = 0)
 {
 	for (int32 i = 0; i < AggGeom.BoxElems.Num(); i++)
@@ -1142,7 +1142,7 @@ void ExportRigidBodyBoxElements(const FKAggregateGeom& AggGeom, TNavStatArray<fl
 	}
 }
 
-void ExportRigidBodySphylElements(const FKAggregateGeom& AggGeom, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+void ExportRigidBodySphylElements(const FKAggregateGeom& AggGeom, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 								  TNavStatArray<int32>& ShapeBuffer, FBox& UnrealBounds, const FTransform& LocalToWorld, const int32 NumExistingVerts = 0)
 {
 	TArray<FVector> ArcVerts;
@@ -1167,17 +1167,17 @@ void ExportRigidBodySphylElements(const FKAggregateGeom& AggGeom, TNavStatArray<
 		ArcVerts.AddZeroed(NumRings+1);
 		for (int32 RingIdx=0; RingIdx<NumRings+1; RingIdx++)
 		{
-			float Angle;
-			float ZOffset;
+			FVector::FReal Angle;
+			FVector::FReal ZOffset;
 			if (RingIdx <= NumSides/4)
 			{
-				Angle = ((float)RingIdx/(NumRings-1)) * PI;
-				ZOffset = 0.5 * SphylInfo.Length;
+				Angle = ((FVector::FReal)RingIdx/(NumRings-1)) * (FVector::FReal)DOUBLE_PI;
+				ZOffset = 0.5f * SphylInfo.Length;
 			}
 			else
 			{
-				Angle = ((float)(RingIdx-1)/(NumRings-1)) * PI;
-				ZOffset = -0.5 * SphylInfo.Length;
+				Angle = ((FVector::FReal)(RingIdx-1)/(NumRings-1)) * (FVector::FReal)DOUBLE_PI;
+				ZOffset = -0.5f * SphylInfo.Length;
 			}
 
 			// Note- unit sphere, so position always has mag of one. We can just use it for normal!		
@@ -1222,7 +1222,7 @@ void ExportRigidBodySphylElements(const FKAggregateGeom& AggGeom, TNavStatArray<
 	}
 }
 
-void ExportRigidBodySphereElements(const FKAggregateGeom& AggGeom, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+void ExportRigidBodySphereElements(const FKAggregateGeom& AggGeom, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 								   TNavStatArray<int32>& ShapeBuffer, FBox& UnrealBounds, const FTransform& LocalToWorld, const int32 NumExistingVerts = 0)
 {
 	TArray<FVector> ArcVerts;
@@ -1247,7 +1247,7 @@ void ExportRigidBodySphereElements(const FKAggregateGeom& AggGeom, TNavStatArray
 		ArcVerts.AddZeroed(NumRings+1);
 		for (int32 RingIdx=0; RingIdx<NumRings+1; RingIdx++)
 		{
-			float Angle = ((float)RingIdx/NumRings) * PI;
+			FVector::FReal Angle = ((FVector::FReal)RingIdx/NumRings) * (FVector::FReal)DOUBLE_PI;
 
 			// Note- unit sphere, so position always has mag of one. We can just use it for normal!			
 			FVector& ArcVert = ArcVerts[RingIdx];
@@ -1289,7 +1289,7 @@ void ExportRigidBodySphereElements(const FKAggregateGeom& AggGeom, TNavStatArray
 	}
 }
 
-FORCEINLINE_DEBUGGABLE void ExportRigidBodySetup(UBodySetup& BodySetup, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
+FORCEINLINE_DEBUGGABLE void ExportRigidBodySetup(UBodySetup& BodySetup, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
 												 FBox& UnrealBounds, const FTransform& LocalToWorld)
 {
 	// Make sure meshes are created before we try and export them
@@ -1344,7 +1344,7 @@ FORCEINLINE_DEBUGGABLE void ExportComponent(UActorComponent* Component, FRecastG
 	}
 }
 
-FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, TNavStatArray<FVector3f>& Verts, TNavStatArray<int32>& Faces)
+FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, TNavStatArray<FVector>& Verts, TNavStatArray<int32>& Faces)
 {
 	if (VertexSoup.Num() == 0)
 	{
@@ -1370,15 +1370,15 @@ FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, 
 	}
 }
 
-FORCEINLINE void CovertCoordDataToRecast(TNavStatArray<float>& Coords)
+FORCEINLINE void CovertCoordDataToRecast(TNavStatArray<FVector::FReal>& Coords)
 {
-	float* CoordPtr = Coords.GetData();
+	FVector::FReal* CoordPtr = Coords.GetData();
 	const int32 MaxIt = Coords.Num() / 3;
 	for (int32 i = 0; i < MaxIt; i++)
 	{
 		CoordPtr[0] = -CoordPtr[0];
 
-		const float TmpV = -CoordPtr[1];
+		const FVector::FReal TmpV = -CoordPtr[1];
 		CoordPtr[1] = CoordPtr[2];
 		CoordPtr[2] = TmpV;
 
@@ -1386,7 +1386,7 @@ FORCEINLINE void CovertCoordDataToRecast(TNavStatArray<float>& Coords)
 	}
 }
 
-void ExportVertexSoup(const TArray<FVector>& VertexSoup, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, FBox& UnrealBounds)
+void ExportVertexSoup(const TArray<FVector>& VertexSoup, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, FBox& UnrealBounds)
 {
 	if (VertexSoup.Num())
 	{
@@ -1490,7 +1490,7 @@ void FRecastGeometryExport::SetNavDataPerInstanceTransformDelegate(const FNavDat
 	Data->NavDataPerInstanceTransformDelegate = InDelegate;
 }
 
-FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& Verts, TArray<FVector3f>& OutResult)
+FORCEINLINE void GrowConvexHull(const FVector::FReal ExpandBy, const TArray<FVector>& Verts, TArray<FVector>& OutResult)
 {
 	if (Verts.Num() < 3)
 	{
@@ -1510,18 +1510,18 @@ FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& V
 		}
 		static FVector Intersection(const FSimpleLine& Line1, const FSimpleLine& Line2)
 		{
-			const float A1 = Line1.P2.X - Line1.P1.X;
-			const float B1 = Line2.P1.X - Line2.P2.X;
-			const float C1 = Line2.P1.X - Line1.P1.X;
+			const FVector::FReal A1 = Line1.P2.X - Line1.P1.X;
+			const FVector::FReal B1 = Line2.P1.X - Line2.P2.X;
+			const FVector::FReal C1 = Line2.P1.X - Line1.P1.X;
 
-			const float A2 = Line1.P2.Y - Line1.P1.Y;
-			const float B2 = Line2.P1.Y - Line2.P2.Y;
-			const float C2 = Line2.P1.Y - Line1.P1.Y;
+			const FVector::FReal A2 = Line1.P2.Y - Line1.P1.Y;
+			const FVector::FReal B2 = Line2.P1.Y - Line2.P2.Y;
+			const FVector::FReal C2 = Line2.P1.Y - Line1.P1.Y;
 
-			const float Denominator = A2*B1 - A1*B2;
+			const FVector::FReal Denominator = A2*B1 - A1*B2;
 			if (Denominator != 0)
 			{
-				const float t = (B1*C2 - B2*C1) / Denominator;
+				const FVector::FReal t = (B1*C2 - B2*C1) / Denominator;
 				return Line1.P1 + t * (Line1.P2 - Line1.P1);
 			}
 
@@ -1536,7 +1536,7 @@ FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& V
 	const int32 VertsCount = AllVerts.Num();
 	const FQuat Rotation90(FVector(0, 0, 1), FMath::DegreesToRadians(90));
 
-	float RotationAngle = MAX_FLT;
+	FVector::FReal RotationAngle = TNumericLimits<FVector::FReal>::Max();
 	for (int32 Index = 0; Index < VertsCount - 2; ++Index)
 	{
 		const FVector& V1 = AllVerts[Index + 0];
@@ -1546,7 +1546,7 @@ FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& V
 		const FVector V01 = (V1 - V2).GetSafeNormal();
 		const FVector V12 = (V2 - V3).GetSafeNormal();
 		const FVector NV1 = Rotation90.RotateVector(V01);
-		const float d = FVector::DotProduct(NV1, V12);
+		const FVector::FReal d = FVector::DotProduct(NV1, V12);
 
 		if (d < 0)
 		{
@@ -1568,8 +1568,8 @@ FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& V
 		return;
 	}
 
-	const float ExpansionThreshold = 2 * ExpandBy;
-	const float ExpansionThresholdSQ = ExpansionThreshold * ExpansionThreshold;
+	const FVector::FReal ExpansionThreshold = 2 * ExpandBy;
+	const FVector::FReal ExpansionThresholdSQ = ExpansionThreshold * ExpansionThreshold;
 	const FQuat Rotation(FVector(0, 0, 1), FMath::DegreesToRadians(RotationAngle));
 	FSimpleLine PreviousLine;
 	OutResult.Reserve(Verts.Num());
@@ -1606,7 +1606,7 @@ FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector3f>& V
 		else
 		{
 			const FVector VectorToNewPoint = NewPoint - V2;
-			const float DistToNewVector = VectorToNewPoint.SizeSquared2D();
+			const FVector::FReal DistToNewVector = VectorToNewPoint.SizeSquared2D();
 			if (DistToNewVector > ExpansionThresholdSQ)
 			{
 				//clamp our point to not move to far from original location
@@ -1722,7 +1722,7 @@ struct FOffMeshData
 
 protected:
 
-	void StoreUnrealPoint(float* dest, const FVector& UnrealPt)
+	void StoreUnrealPoint(FVector::FReal* dest, const FVector& UnrealPt)
 	{
 		const FVector RecastPt = Unreal2RecastPoint(UnrealPt);
 		dest[0] = RecastPt.X;
@@ -1840,7 +1840,7 @@ struct FTileCacheAllocator : public dtTileCacheAlloc
 
 	virtual void free(void* Data)
 	{
-		dtFree(Data);
+		dtFree(Data, DT_ALLOC_TEMP);
 	}
 };
 
@@ -1861,11 +1861,11 @@ struct FVoxelCacheRasterizeContext
 		RasterizeHF = 0;
 	}
 
-	void Create(int32 FieldSize, float CellSize, float CellHeight)
+	void Create(int32 FieldSize, FVector::FReal CellSize, FVector::FReal CellHeight)
 	{
 		if (RasterizeHF == NULL)
 		{
-			const float DummyBounds[3] = { 0 };
+			const FVector::FReal DummyBounds[3] = { 0 };
 
 			RasterizeHF = rcAllocHeightfield();
 			rcCreateHeightfield(NULL, *RasterizeHF, FieldSize, FieldSize, DummyBounds, DummyBounds, CellSize, CellHeight);
@@ -1877,7 +1877,7 @@ struct FVoxelCacheRasterizeContext
 		rcResetHeightfield(*RasterizeHF);
 	}
 
-	void SetupForTile(const float* TileBMin, const float* TileBMax, const float RasterizationPadding)
+	void SetupForTile(const FVector::FReal* TileBMin, const FVector::FReal* TileBMax, const FVector::FReal RasterizationPadding)
 	{
 		Reset();
 
@@ -1906,7 +1906,7 @@ uint32 GetTileCacheSizeHelper(TArray<FNavMeshTileData>& CompressedTiles)
 	return TotalMemory;
 }
 
-static FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, float TileSizeInWorldUnits)
+static FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits)
 {
 	FBox TileBox(
 		RcNavMeshOrigin + (FVector(X + 0, 0, Y + 0) * TileSizeInWorldUnits),
@@ -1964,14 +1964,14 @@ void FRecastTileGenerator::Setup(const FRecastNavMeshGenerator& ParentGenerator,
 {
 	const FVector RcNavMeshOrigin = ParentGenerator.GetRcNavMeshOrigin();
 	const FBox NavTotalBounds = ParentGenerator.GetTotalBounds();
-	const float TileCellSize = (TileConfig.tileSize * TileConfig.cs);
+	const FVector::FReal TileCellSize = (TileConfig.tileSize * TileConfig.cs);
 
 	NavDataConfig = ParentGenerator.GetOwner()->GetConfig();
 
 	TileBB = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, NavTotalBounds, TileCellSize);
 	TileBBExpandedForAgent = TileBB.ExpandBy(NavDataConfig.AgentRadius * 2 + TileConfig.cs);
 	const FBox RCBox = Unreal2RecastBox(TileBB);
-	FVector3f Min32(RCBox.Min), Max32(RCBox.Max);
+	FVector Min32(RCBox.Min), Max32(RCBox.Max);
 	rcVcopy(TileConfig.bmin, &Min32.X);
 	rcVcopy(TileConfig.bmax, &Max32.X);
 			
@@ -2337,7 +2337,7 @@ void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNaviga
 	}
 }
 
-void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, float WalkableRadius)
+void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, FVector::FReal WalkableRadius)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_TileVoxelFilteringAsync);
 
@@ -2345,15 +2345,15 @@ void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, float WalkableRad
 	{
 		const int32 Width = HF->width;
 		const int32 Height = HF->height;
-		const float CellSize = HF->cs;
-		const float CellHeight = HF->ch;
-		const float BottomX = HF->bmin[0];
-		const float BottomZ = HF->bmin[1];
-		const float BottomY = HF->bmin[2];
+		const FVector::FReal CellSize = HF->cs;
+		const FVector::FReal CellHeight = HF->ch;
+		const FVector::FReal BottomX = HF->bmin[0];
+		const FVector::FReal BottomZ = HF->bmin[1];
+		const FVector::FReal BottomY = HF->bmin[2];
 		const int32 SpansCount = Width*Height;
 		// we need to expand considered bounding boxes so that
 		// it doesn't create "fake cliffs"
-		const float ExpandBBBy = WalkableRadius*CellSize;
+		const FVector::FReal ExpandBBBy = WalkableRadius*CellSize;
 
 		const FBox* BBox = InclusionBounds.GetData();
 		// optimized common case of single box
@@ -2367,16 +2367,16 @@ void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, float WalkableRad
 			{
 				for (int32 x = 0; x < Width; ++x)
 				{
-					const float SpanX = -(BottomX + x * CellSize);
-					const float SpanY = -(BottomY + y * CellSize);
+					const FVector::FReal SpanX = -(BottomX + x * CellSize);
+					const FVector::FReal SpanY = -(BottomY + y * CellSize);
 
 					// mark all spans outside of InclusionBounds as unwalkable
 					for (rcSpan* s = *Span; s; s = s->next)
 					{
 						if (s->data.area == RC_WALKABLE_AREA)
 						{
-							const float SpanMin = CellHeight * s->data.smin + BottomZ;
-							const float SpanMax = CellHeight * s->data.smax + BottomZ;
+							const FVector::FReal SpanMin = CellHeight * s->data.smin + BottomZ;
+							const FVector::FReal SpanMax = CellHeight * s->data.smax + BottomZ;
 
 							const FVector SpanMinV(SpanX-CellSize, SpanY-CellSize, SpanMin);
 							const FVector SpanMaxV(SpanX, SpanY, SpanMax);
@@ -2408,16 +2408,16 @@ void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, float WalkableRad
 			{
 				for (int32 x = 0; x < Width; ++x)
 				{
-					const float SpanX = -(BottomX + x * CellSize);
-					const float SpanY = -(BottomY + y * CellSize);
+					const FVector::FReal SpanX = -(BottomX + x * CellSize);
+					const FVector::FReal SpanY = -(BottomY + y * CellSize);
 
 					// mark all spans outside of InclusionBounds as unwalkable
 					for (rcSpan* s = *Span; s; s = s->next)
 					{
 						if (s->data.area == RC_WALKABLE_AREA)
 						{
-							const float SpanMin = CellHeight * s->data.smin + BottomZ;
-							const float SpanMax = CellHeight * s->data.smax + BottomZ;
+							const FVector::FReal SpanMin = CellHeight * s->data.smin + BottomZ;
+							const FVector::FReal SpanMax = CellHeight * s->data.smax + BottomZ;
 
 							const FVector SpanMinV(SpanX-CellSize, SpanY-CellSize, SpanMin);
 							const FVector SpanMaxV(SpanX, SpanY, SpanMax);
@@ -2458,14 +2458,15 @@ void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawColl
 {
 	// tile's geometry: voxel cache (only for synchronous rebuilds)
 	const int32 WalkableClimbVX = TileConfig.walkableClimb;
-	const float WalkableSlopeCos = FMath::Cos(FMath::DegreesToRadians(TileConfig.walkableSlopeAngle));
-	const float RasterizationPadding = TileConfig.borderSize * TileConfig.cs;
+	const FVector::FReal WalkableSlopeCos = FMath::Cos(FMath::DegreesToRadians(TileConfig.walkableSlopeAngle));
+	const FVector::FReal RasterizationPadding = TileConfig.borderSize * TileConfig.cs;
 
 	FRecastGeometryCache CachedCollisions(RawCollisionCache.GetData());
 
 	VoxelCacheContext.SetupForTile(TileConfig.bmin, TileConfig.bmax, RasterizationPadding);
 
-	float SlopeCosPerActor = WalkableSlopeCos;
+	// LWC_TODO_AI: Precision loss and unnecessary float cast (if ModifyWalkableFloorZ() takes FVector::FReal). Not until after 5.0!
+	float SlopeCosPerActor = UE_REAL_TO_FLOAT(WalkableSlopeCos);
 	CachedCollisions.Header.SlopeOverride.ModifyWalkableFloorZ(SlopeCosPerActor);
 
 	// rasterize triangle soup
@@ -2627,7 +2628,7 @@ void FRecastTileGenerator::AppendGeometry(const FNavigationRelevantData& DataRef
 		GeometryElement.GeomCoords.SetNumUninitialized(NumCoords);
 		GeometryElement.GeomIndices.SetNumUninitialized(NumIndices);
 
-		FMemory::Memcpy(GeometryElement.GeomCoords.GetData(), CollisionCache.Verts, sizeof(float) * NumCoords);
+		FMemory::Memcpy(GeometryElement.GeomCoords.GetData(), CollisionCache.Verts, sizeof(FVector::FReal) * NumCoords);
 		FMemory::Memcpy(GeometryElement.GeomIndices.GetData(), CollisionCache.Indices, sizeof(int32) * NumIndices);
 
 		RawGeometry.Add(MoveTemp(GeometryElement));
@@ -2759,7 +2760,7 @@ bool FRecastTileGenerator::CreateHeightField(FNavMeshBuildContext& BuildContext,
 	TileConfig.width = TileConfig.tileSize + TileConfig.borderSize * 2;
 	TileConfig.height = TileConfig.tileSize + TileConfig.borderSize * 2;
 
-	const float BBoxPadding = TileConfig.borderSize * TileConfig.cs;
+	const FVector::FReal BBoxPadding = TileConfig.borderSize * TileConfig.cs;
 	TileConfig.bmin[0] -= BBoxPadding;
 	TileConfig.bmin[2] -= BBoxPadding;
 	TileConfig.bmax[0] += BBoxPadding;
@@ -2788,7 +2789,7 @@ bool FRecastTileGenerator::CreateHeightField(FNavMeshBuildContext& BuildContext,
 	return true;
 }
 
-ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometryRecast);
 
@@ -2845,8 +2846,18 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 	return ETimeSliceWorkResult::Succeeded;
 }
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+{
+	TArray<FVector::FReal> RealCoords;
 
-void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+
+	return RasterizeGeometryRecastTimeSliced(BuildContext, RealCoords, Indices, RasterizationFlags, RasterContext);
+}
+#endif
+
+void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometryRecast);
 
@@ -2876,7 +2887,18 @@ void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildCo
 	RasterizeGeomRecastTriAreas.Reset();
 }
 
-void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<float>& Coords, const FTransform& LocalToWorld)
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+{
+	TArray<FVector::FReal> RealCoords;
+
+	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+
+	RasterizeGeometryRecast(BuildContext, RealCoords, Indices, RasterizationFlags, RasterContext);
+}
+#endif
+
+void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<FVector::FReal>& Coords, const FTransform& LocalToWorld)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometryTransformCoords);
 
@@ -2896,7 +2918,18 @@ void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<float>&
 	}
 }
 
-ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<float>& Coords, const FTransform& LocalToWorld)
+{
+	TArray<FVector::FReal> RealCoords;
+
+	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+
+	RasterizeGeometryTransformCoords(RealCoords, LocalToWorld);
+}
+#endif
+
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometry);
 
@@ -2937,13 +2970,35 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshB
 	return WorkResult;
 }
 
-void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+{
+	TArray<FVector::FReal> RealCoords;
+
+	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+
+	return RasterizeGeometryTimeSliced(BuildContext, RealCoords, Indices, LocalToWorld, RasterizationFlags, RasterContext);
+}
+#endif
+
+void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometry);
 
 	RasterizeGeometryTransformCoords(Coords, LocalToWorld);
 	RasterizeGeometryRecast(BuildContext, RasterizeGeometryWorldRecastCoords, Indices, RasterizationFlags, RasterContext);
 }
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED 
+void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
+{
+	TArray<FVector::FReal> RealCoords;
+
+	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+
+	return RasterizeGeometry(BuildContext, RealCoords, Indices, LocalToWorld, RasterizationFlags, RasterContext);
+}
+#endif
 
 ETimeSliceWorkResult FRecastTileGenerator::RasterizeTrianglesTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext)
 {
@@ -3177,7 +3232,7 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 	// use this to expand vertically layer's bounds
 	// this is needed to allow off-mesh connections that are not quite
 	// touching tile layer still connect with it.
-	const float StepHeights = TileConfig.AgentMaxClimb;
+	const FVector::FReal StepHeights = TileConfig.AgentMaxClimb;
 
 	FTileCacheCompressor TileCompressor;
 	for (int32 i = 0; i < NumLayers; i++)
@@ -3217,7 +3272,7 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 		const dtStatus status = dtBuildTileCacheLayer(&TileCompressor, &header, layer->heights, layer->areas, layer->cons, &TileData, &TileDataSize);
 		if (dtStatusFailed(status))
 		{
-			dtFree(TileData);
+			dtFree(TileData, DT_ALLOC_PERM_TILE_DATA);
 			BuildContext.log(RC_LOG_ERROR, "RecastBuildTileCache: failed to build layer.");
 			return false;
 		}
@@ -3235,10 +3290,10 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 		// copy compressed data to new buffer in rasterization context
 		// (TileData allocates a lots of space, but only first TileDataSize bytes hold compressed data)
 
-		uint8* CompressedData = (uint8*)dtAlloc(TileDataSize * sizeof(uint8), DT_ALLOC_PERM);
+		uint8* CompressedData = (uint8*)dtAlloc(TileDataSize * sizeof(uint8), DT_ALLOC_PERM_TILE_DATA);
 		if (CompressedData == nullptr)
 		{
-			dtFree(TileData);
+			dtFree(TileData, DT_ALLOC_PERM_TILE_DATA);
 			BuildContext.log(RC_LOG_ERROR, "RecastBuildTileCache: Out of memory 'CompressedData'.");
 			return false;
 		}
@@ -3246,7 +3301,7 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 		FMemory::Memcpy(CompressedData, TileData, TileDataSize);
 		RasterContext.Layers.Add(FNavMeshTileData(CompressedData, TileDataSize, i, LayerBBox));
 
-		dtFree(TileData);
+		dtFree(TileData, DT_ALLOC_PERM_TILE_DATA);
 
 		const int32 UncompressedSize = ((sizeof(dtTileCacheLayerHeader) + 3) & ~3) + (3 * header.width * header.height);
 		const float Inv1kB = 1.0f / 1024.0f;
@@ -3765,7 +3820,7 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			OffMeshData.AreaClassToIdMap = &AdditionalCachedData.AreaClassToIdMap;
 			OffMeshData.FlagsPerArea = AdditionalCachedData.FlagsPerOffMeshLinkArea;
 			const FSimpleLinkNavModifier* LinkModifier = OffmeshLinks.GetData();
-			const float DefaultSnapHeight = TileConfig.walkableClimb * TileConfig.ch;
+			const float DefaultSnapHeight = TileConfig.walkableClimb * (float)TileConfig.ch;
 
 			for (int32 LinkModifierIndex = 0; LinkModifierIndex < OffmeshLinks.Num(); ++LinkModifierIndex, ++LinkModifier)
 			{
@@ -4083,21 +4138,21 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 	}
 }
 
-void MarkBoxMask(const float* pos, const float* extent, const int mask, rcHeightfield& hf, int* rasterizationMasks)
+void MarkBoxMask(const FVector::FReal* pos, const FVector::FReal* extent, const int mask, rcHeightfield& hf, int* rasterizationMasks)
 {
-	float* orig = hf.bmin;
-	float bmin[3], bmax[3];
+	FVector::FReal* orig = hf.bmin;
+	FVector::FReal bmin[3], bmax[3];
 	rcVsub(bmin, pos, extent);
 	rcVadd(bmax, pos, extent);
 
 	const int w = hf.width;
 	const int h = hf.height;
-	const float ics = 1.0f/hf.cs;
+	const FVector::FReal ics = 1.0f/hf.cs;
 
-	int minx = (int)floorf((bmin[0]-orig[0])*ics);
-	int minz = (int)floorf((bmin[2]-orig[2])*ics);
-	int maxx = (int)floorf((bmax[0]-orig[0])*ics);
-	int maxz = (int)floorf((bmax[2]-orig[2])*ics);
+	int minx = (int)FMath::Floor((bmin[0]-orig[0])*ics);
+	int minz = (int)FMath::Floor((bmin[2]-orig[2])*ics);
+	int maxx = (int)FMath::Floor((bmax[0]-orig[0])*ics);
+	int maxz = (int)FMath::Floor((bmax[2]-orig[2])*ics);
 
 	if (maxx < 0) return;
 	if (minx >= w) return;
@@ -4118,13 +4173,13 @@ void MarkBoxMask(const float* pos, const float* extent, const int mask, rcHeight
 	}
 }
 
-int PointInPoly(const float* verts, int nv, const float* p)
+int PointInPoly(const FVector::FReal* verts, int nv, const FVector::FReal* p)
 {
 	int i, j, c = 0;
 	for (i = 0, j = nv-1; i < nv; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
+		const FVector::FReal* vi = &verts[i*3];
+		const FVector::FReal* vj = &verts[j*3];
 		if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
 			(p[0] < (vj[0]-vi[0]) * (p[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]))
 			c = !c;
@@ -4133,10 +4188,10 @@ int PointInPoly(const float* verts, int nv, const float* p)
 }
 
 // Similar to rcMarkConvexPolyArea
-void MarkConvexMask(const int mask, const float* verts, const int nv, rcHeightfield& hf, int* rasterizationMasks)
+void MarkConvexMask(const int mask, const FVector::FReal* verts, const int nv, rcHeightfield& hf, int* rasterizationMasks)
 {
-	float* orig = hf.bmin;
-	float bmin[3], bmax[3];
+	FVector::FReal* orig = hf.bmin;
+	FVector::FReal bmin[3], bmax[3];
 	rcVcopy(bmin, verts);
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nv; ++i)
@@ -4147,7 +4202,7 @@ void MarkConvexMask(const int mask, const float* verts, const int nv, rcHeightfi
 
 	const int w = hf.width;
 	const int h = hf.height;
-	const float ics = 1.0f/hf.cs;
+	const FVector::FReal ics = 1.0f/hf.cs;
 
 	int minx = (int)((bmin[0]-orig[0])*ics);
 	int minz = (int)((bmin[2]-orig[2])*ics);
@@ -4168,10 +4223,10 @@ void MarkConvexMask(const int mask, const float* verts, const int nv, rcHeightfi
 	{
 		for (int x = minx; x <= maxx; ++x)
 		{
-			float p[3];
-			p[0] = orig[0] + (float)(x+0.5f)*hf.cs;
+			FVector::FReal p[3];
+			p[0] = orig[0] + ((FVector::FReal)x+0.5f)*hf.cs;
 			p[1] = 0.0f;
-			p[2] = orig[2] + (float)(z+0.5f)*hf.cs;
+			p[2] = orig[2] + ((FVector::FReal)z+0.5f)*hf.cs;
 			if (PointInPoly(verts, nv, p))
 			{
 				rasterizationMasks[x+z*w] &= mask;
@@ -4205,10 +4260,8 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 		FBox RecastBox = Unreal2RecastBox(WorldBox);
 		FVector RecastPos;
 		FVector RecastExtent;
-		RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
-		FVector3f RecastPosFloat(RecastPos), RecastExtentFloat(RecastExtent);
 		check(OutMaskArray.Num() == SolidHF->width*SolidHF->height);
-		MarkBoxMask(&(RecastPosFloat.X), &(RecastExtentFloat.X), Mask, *SolidHF, OutMaskArray.GetData());
+		MarkBoxMask(&(RecastPos.X), &(RecastExtent.X), Mask, *SolidHF, OutMaskArray.GetData());
 	}
 	break;
 
@@ -4216,14 +4269,17 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 	{
 		FConvexNavAreaData ConvexData;
 		Modifier.GetConvex(ConvexData);
-		TArray<FVector3f> ConvexVerts;
-		const float Expand = 0.f;
-		GrowConvexHull(Expand, ConvexData.Points, ConvexVerts);
+		TArray<FVector> ConvexVerts;
+		const FVector::FReal Expand = 0.f;
+
+		const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ConvexData.Points);
+		GrowConvexHull(Expand, Points, ConvexVerts);
+
 		if (ConvexVerts.Num())
 		{
-			TArray<float> ConvexCoords;
+			TArray<FVector::FReal> ConvexCoords;
 			ConvexCoords.AddZeroed(ConvexVerts.Num() * 3);
-			float* ItCoord = ConvexCoords.GetData();
+			FVector::FReal* ItCoord = ConvexCoords.GetData();
 			for (int32 i = 0; i < ConvexVerts.Num(); i++)
 			{
 				const FVector RecastV = Unreal2RecastPoint(ConvexVerts[i]);
@@ -4248,8 +4304,8 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 
 	// If requested, expand by 1 cell height
 	const bool bExpandTop = TileConfig.bUseExtraTopCellWhenMarkingAreas || Modifier.ShouldExpandTopByCellHeight();
-	const float OffsetZMax = (bExpandTop ? TileConfig.ch : 0.f);
-	const float OffsetZMin = TileConfig.ch + (Modifier.ShouldIncludeAgentHeight() ? TileConfig.AgentHeight : 0.0f);
+	const FVector::FReal OffsetZMax = (bExpandTop ? TileConfig.ch : 0.f);
+	const FVector::FReal OffsetZMin = TileConfig.ch + (Modifier.ShouldIncludeAgentHeight() ? TileConfig.AgentHeight : 0.0f);
 
 	// Check whether modifier affects this layer
 	const FBox LayerUnrealBounds = Recast2UnrealBox(Layer.header->bmin, Layer.header->bmax);
@@ -4262,7 +4318,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 		return;
 	}
 
-	const float* LayerRecastOrig = Layer.header->bmin;
+	const FVector::FReal* LayerRecastOrig = Layer.header->bmin;
 	switch (Modifier.GetShapeType())
 	{
 	case ENavigationShapeType::Cylinder:
@@ -4272,16 +4328,17 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 
 			// Only scaling and translation
 			FVector Scale3D = LocalToWorld.GetScale3D().GetAbs();
-			CylinderData.Height *= Scale3D.Z;
-			CylinderData.Radius *= FMath::Max(Scale3D.X, Scale3D.Y);
+			// LWC_TODO_AI: Precision loss FCylinderNavAreaData should probably work with FVector::FReal. Probably not until after 5.0!
+			CylinderData.Height = UE_REAL_TO_FLOAT(CylinderData.Height * Scale3D.Z);
+			CylinderData.Radius = UE_REAL_TO_FLOAT(CylinderData.Radius * FMath::Max(Scale3D.X, Scale3D.Y));
 			CylinderData.Origin = LocalToWorld.TransformPosition(CylinderData.Origin);
 			
-			const float OffsetZMid = (OffsetZMax - OffsetZMin) * 0.5f;
+			const float OffsetZMid = UE_REAL_TO_FLOAT((OffsetZMax - OffsetZMin) * 0.5f);
 			CylinderData.Origin.Z += OffsetZMid;
 			CylinderData.Height += FMath::Abs(OffsetZMid) * 2.f;
 			CylinderData.Radius += ExpandBy;
 			
-			FVector3f RecastPos = Unreal2RecastPoint(CylinderData.Origin);
+			FVector RecastPos = Unreal2RecastPoint(CylinderData.Origin);
 
 			if (ReplaceIDPtr)
 			{
@@ -4307,10 +4364,8 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			WorldBox.Max.Z += OffsetZMax;
 
 			const FBox RecastBox = Unreal2RecastBox(WorldBox);
-			FVector RecastPosVec, RecastExtentVec;
-			RecastBox.GetCenterAndExtents(RecastPosVec, RecastExtentVec);
-			FVector3f RecastPos = RecastPosVec;
-			FVector3f RecastExtent = RecastExtentVec;
+			FVector RecastPos, RecastExtent;
+			RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
 				
 			if (ReplaceIDPtr)
 			{
@@ -4338,17 +4393,19 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 				Modifier.GetConvex(ConvexData);
 			}
 
-			TArray<FVector3f> ConvexVerts;
-			GrowConvexHull(ExpandBy, ConvexData.Points, ConvexVerts);
+			TArray<FVector> ConvexVerts;
+
+			const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ConvexData.Points);
+			GrowConvexHull(ExpandBy, Points, ConvexVerts);
 			ConvexData.MinZ -= OffsetZMin;
 			ConvexData.MaxZ += OffsetZMax;
 
 			if (ConvexVerts.Num())
 			{
-				TArray<float> ConvexCoords;
+				TArray<FVector::FReal> ConvexCoords;
 				ConvexCoords.AddZeroed(ConvexVerts.Num() * 3);
 						
-				float* ItCoord = ConvexCoords.GetData();
+				FVector::FReal* ItCoord = ConvexCoords.GetData();
 				for (int32 i = 0; i < ConvexVerts.Num(); i++)
 				{
 					const FVector RecastV = Unreal2RecastPoint(ConvexVerts[i]);
@@ -4434,7 +4491,7 @@ FString FRecastTileGenerator::GetReferencerName() const
 	return TEXT("FRecastTileGenerator");
 }
 
-static int32 CaclulateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, float TileSizeinWorldUnits, float AvgLayersPerGridCell)
+static int32 CaclulateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeinWorldUnits, FVector::FReal AvgLayersPerGridCell)
 {
 	int32 GridCellsCount = 0;
 	for (FBox AreaBounds : NavigableAreas)
@@ -4492,17 +4549,16 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	OutConfig.cs = CellSize;
 	OutConfig.ch = CellHeight;
 	OutConfig.walkableSlopeAngle = AgentMaxSlope;
-	OutConfig.walkableHeight = (int32)ceilf(AgentHeight / CellHeight);
-	OutConfig.walkableClimb = (int32)ceilf(AgentMaxClimb / CellHeight);
-	const float WalkableRadius = FMath::CeilToFloat(AgentRadius / CellSize);
-	OutConfig.walkableRadius = WalkableRadius;
+	OutConfig.walkableHeight = FMath::CeilToInt(AgentHeight / CellHeight);
+	OutConfig.walkableClimb = FMath::CeilToInt(AgentMaxClimb / CellHeight);
+	OutConfig.walkableRadius = FMath::CeilToInt(AgentRadius / CellSize);
 
 	// store original sizes
 	OutConfig.AgentHeight = AgentHeight;
 	OutConfig.AgentMaxClimb = AgentMaxClimb;
 	OutConfig.AgentRadius = AgentRadius;
 
-	OutConfig.borderSize = WalkableRadius + 3; // +1 for voxelization rounding, +1 for ledge neighbor access, +1 for occasional errors
+	OutConfig.borderSize = OutConfig.walkableRadius + 3; // +1 for voxelization rounding, +1 for ledge neighbor access, +1 for occasional errors
 	OutConfig.maxEdgeLen = (int32)(1200.0f / CellSize);
 	OutConfig.maxSimplificationError = 1.3f;
 	// hardcoded, but can be overridden by RecastNavMesh params later
@@ -4711,7 +4767,7 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		dtNavMeshParams TiledMeshParameters;
 		FMemory::Memzero(TiledMeshParameters);	
 
-		FVector3f NMOrigin = RcNavMeshOrigin;
+		FVector NMOrigin = RcNavMeshOrigin;
 		rcVcopy(TiledMeshParameters.orig, &NMOrigin.X);
 
 		TiledMeshParameters.tileWidth = Config.tileSize * Config.cs;
@@ -5060,7 +5116,6 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 	// a little trick here - adding a dirty area so that navmesh building figures it out on its own
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh();
 	const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
-	const float TileDim = Config.tileSize * Config.cs;
 
 	TSet<FPendingTileElement> DirtyTiles;
 
@@ -5491,7 +5546,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles(const FBox& AreaBounds) const
 	}
 
 	bool bRetDirty = false;
-	const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
 	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 		
 	for (int32 Index = 0; bRetDirty == false && Index < PendingDirtyTiles.Num(); ++Index)
@@ -5508,7 +5563,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles(const FBox& AreaBounds) const
 
 int32 FRecastNavMeshGenerator::GetDirtyTilesCount(const FBox& AreaBounds) const
 {
-	const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
 	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
 	int32 DirtyPendingCount = 0;
@@ -5549,7 +5604,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_MarkDirtyTiles);
 	
 	check(bInitialized);
-	const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
 	check(TileSizeInWorldUnits > 0);
 
 	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
@@ -5707,7 +5762,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 
 	if (SeedLocations.Num() > 0)
 	{
-		const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+		const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
 		
 		// Calculate shortest distances between tiles and players
 		for (FPendingTileElement& Element : PendingDirtyTiles)
@@ -6209,16 +6264,16 @@ void FRecastNavMeshGenerator::GetDebugGeometry(const FNavigationRelevantData& En
 	DebugMeshData.Vertices.AddZeroed(HeaderInfo->NumVerts);
 	FDynamicMeshVertex* DebugVert = DebugMeshData.Vertices.GetData();
 	// we cannot copy verts directly since not only are the EncodedData's verts in
-	// a float[3] format, they're also in Recast coords so we need to translate it 
+	// a FVector::FReal[3] format, they're also in Recast coords so we need to translate it 
 	// back to Unreal coords
-	const float* VertCoord = reinterpret_cast<const float*>(RawMemory + HeaderSize);
+	const FVector::FReal* VertCoord = reinterpret_cast<const FVector::FReal*>(RawMemory + HeaderSize);
 	for (int VertIndex = 0; VertIndex < HeaderInfo->NumVerts; ++VertIndex, ++DebugVert, VertCoord += 3)
 	{
 		new (DebugVert) FDynamicMeshVertex(Recast2UnrealPoint(VertCoord));
 	}
 
 	DebugMeshData.Indices.AddZeroed(IndicesCount);
-	FMemory::Memcpy(DebugMeshData.Indices.GetData(), RawMemory + HeaderSize + HeaderInfo->NumVerts * 3 * sizeof(float), IndicesCount * sizeof(int32));
+	FMemory::Memcpy(DebugMeshData.Indices.GetData(), RawMemory + HeaderSize + HeaderInfo->NumVerts * 3 * sizeof(FVector::FReal), IndicesCount * sizeof(int32));
 }
 #endif // !UE_BUILD_SHIPPING
 
@@ -6239,7 +6294,7 @@ void FRecastNavMeshGenerator::ExportVertexSoupGeometry(const TArray<FVector>& Ve
 
 void FRecastNavMeshGenerator::ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutVertexBuffer, TNavStatArray<int32>& OutIndexBuffer, const FTransform& LocalToWorld)
 {
-	TNavStatArray<float> VertCoords;
+	TNavStatArray<FVector::FReal> VertCoords;
 	FBox TempBounds;
 
 	RecastGeometryExport::ExportRigidBodySetup(BodySetup, VertCoords, OutIndexBuffer, TempBounds, LocalToWorld);
@@ -6257,7 +6312,7 @@ void FRecastNavMeshGenerator::ExportRigidBodyGeometry(UBodySetup& BodySetup, TNa
 {
 	BodySetup.CreatePhysicsMeshes();
 
-	TNavStatArray<float> VertCoords;
+	TNavStatArray<FVector::FReal> VertCoords;
 	FBox TempBounds;
 
 	VertCoords.Reset();
@@ -6266,7 +6321,7 @@ void FRecastNavMeshGenerator::ExportRigidBodyGeometry(UBodySetup& BodySetup, TNa
 	OutTriMeshVertexBuffer.Reserve(OutTriMeshVertexBuffer.Num() + (VertCoords.Num() / 3));
 	for (int32 i = 0; i < VertCoords.Num(); i += 3)
 	{
-		OutTriMeshVertexBuffer.Add(FVector3f(VertCoords[i + 0], VertCoords[i + 1], VertCoords[i + 2]));
+		OutTriMeshVertexBuffer.Add(FVector(VertCoords[i + 0], VertCoords[i + 1], VertCoords[i + 2]));
 	}
 
 	const int32 NumExistingVerts = OutConvexVertexBuffer.Num();
@@ -6285,7 +6340,7 @@ void FRecastNavMeshGenerator::ExportRigidBodyGeometry(UBodySetup& BodySetup, TNa
 
 void FRecastNavMeshGenerator::ExportAggregatedGeometry(const FKAggregateGeom& AggGeom, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld)
 {
-	TNavStatArray<float> VertCoords;
+	TNavStatArray<FVector::FReal> VertCoords;
 	FBox TempBounds;
 
 	const int32 NumExistingVerts = OutConvexVertexBuffer.Num();
@@ -6446,7 +6501,7 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 				}
 				else
 				{
-					TArray<FVector3f> Verts;
+					TArray<FVector> Verts;
 					for (const FAreaNavModifier& AreaMod : Element.Data->Modifiers.GetAreas())
 					{
 						ENavigationShapeType::Type ShapeType = AreaMod.GetShapeType();
@@ -6479,14 +6534,14 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 							auto AddElementFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
 							{
 								Verts.Reset();
-								GrowConvexHull(NavData->AgentRadius, InConvexNavAreaData.Points, Verts);
+
+								const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(InConvexNavAreaData.Points);
+								GrowConvexHull(NavData->AgentRadius, Points, Verts);
 
 								if (Verts.Num())
 								{
-									TArray<FVector> VertsFVec;
-									for (FVector3f& v : Verts) VertsFVec.Add(v);
 									Snapshot->AddElement(
-										VertsFVec,
+										Verts,
 										InConvexNavAreaData.MinZ - NavData->CellHeight,
 										InConvexNavAreaData.MaxZ + NavData->CellHeight,
 										CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
@@ -6535,7 +6590,7 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 	for (int32 Index = 0; Index < NavSys->NavDataSet.Num(); ++Index)
 	{
 		// feed data from octtree and mark for rebuild				
-		TNavStatArray<float> CoordBuffer;
+		TNavStatArray<FVector::FReal> CoordBuffer;
 		TNavStatArray<int32> IndexBuffer;
 		const ARecastNavMesh* NavData = Cast<const ARecastNavMesh>(NavSys->NavDataSet[Index]);
 		if (NavData)
@@ -6605,13 +6660,16 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 
 							auto AddAreaExportDataFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
 							{
-								TArray<FVector3f> ConvexVerts;
-								GrowConvexHull(NavData->AgentRadius, ExportInfo.Convex.Points, ConvexVerts);
+								TArray<FVector> ConvexVerts;
+
+								const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ExportInfo.Convex.Points);
+								GrowConvexHull(NavData->AgentRadius, Points, ConvexVerts);
 								if (ConvexVerts.Num())
 								{
 									ExportInfo.Convex.MinZ -= NavData->CellHeight;
 									ExportInfo.Convex.MaxZ += NavData->CellHeight;
-									ExportInfo.Convex.Points = ConvexVerts;
+
+									ExportInfo.Convex.Points = LWC::ConvertArrayType<FVector>(ConvexVerts);
 
 									AreaExport.Add(ExportInfo);
 								}								
@@ -6647,7 +6705,7 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 				const TArray<FVector>* LevelGeom = Level->GetStaticNavigableGeometry();
 				if (LevelGeom != NULL && LevelGeom->Num() > 0)
 				{
-					TNavStatArray<FVector3f> Verts;
+					TNavStatArray<FVector> Verts;
 					TNavStatArray<int32> Faces;
 					// For every ULevel in World take its pre-generated static geometry vertex soup
 					RecastGeometryExport::TransformVertexSoupToRecast(*LevelGeom, Verts, Faces);

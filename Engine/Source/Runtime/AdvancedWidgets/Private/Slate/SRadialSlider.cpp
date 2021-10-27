@@ -2,6 +2,7 @@
 
 #include "Slate/SRadialSlider.h"
 
+#include "Brushes/SlateColorBrush.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
@@ -35,10 +36,16 @@ void SRadialSlider::Construct( const SRadialSlider::FArguments& InDeclaration )
 	SliderHandleStartAngle = InDeclaration._SliderHandleStartAngle;
 	SliderHandleEndAngle = InDeclaration._SliderHandleEndAngle;
 	AngularOffset = InDeclaration._AngularOffset;
+	HandStartEndRatio = InDeclaration._HandStartEndRatio;
 	SliderBarColor = InDeclaration._SliderBarColor;
 	SliderProgressColor = InDeclaration._SliderProgressColor;
 	SliderHandleColor = InDeclaration._SliderHandleColor;
+	CenterBackgroundColor = InDeclaration._CenterBackgroundColor;
+	CenterBackgroundBrush = InDeclaration._CenterBackgroundBrush;
 	bIsFocusable = InDeclaration._IsFocusable;
+	bUseVerticalDrag = InDeclaration._UseVerticalDrag;
+	bShowSliderHandle = InDeclaration._ShowSliderHandle;
+	bShowSliderHand = InDeclaration._ShowSliderHand;
 	OnMouseCaptureBegin = InDeclaration._OnMouseCaptureBegin;
 	OnMouseCaptureEnd = InDeclaration._OnMouseCaptureEnd;
 	OnControllerCaptureBegin = InDeclaration._OnControllerCaptureBegin;
@@ -46,13 +53,14 @@ void SRadialSlider::Construct( const SRadialSlider::FArguments& InDeclaration )
 	OnValueChanged = InDeclaration._OnValueChanged;
 
 	bControllerInputCaptured = false;
+	bIsUsingFineTune = false;
+	FineTuneKey = EKeys::LeftShift;
 }
 
 int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
 	const float AllottedWidth = AllottedGeometry.GetLocalSize().X;
 	const float AllottedHeight = AllottedGeometry.GetLocalSize().Y;
-
 	FGeometry SliderGeometry = AllottedGeometry;
 
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
@@ -113,6 +121,20 @@ int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 	FLinearColor ProgressBarColorWithAlpha = SliderProgressColor.Get().GetColor(InWidgetStyle);
 	ProgressBarColorWithAlpha.A *= GetRenderOpacity();
 
+	float BarThickness;
+	// For backwards compat, if Thickness isn't set, use Style->BarThickness
+	if (Thickness.Get().IsSet())
+	{
+		// Compensate for the widget size when passing screenspace thickness to MakeLines  
+		// TODO: Compensate thickness based on zoom level
+		float ScaleFactor = FMath::Min(AllottedWidth, AllottedHeight) / 100.0f;
+		BarThickness = Thickness.Get().GetValue() * ScaleFactor;
+	}
+	else
+	{
+		BarThickness = Style->BarThickness;
+	}
+
 	// draw slider bar
 	FSlateDrawElement::MakeLines
 	(
@@ -123,7 +145,7 @@ int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 		DrawEffects,
 		SliderBarColorWithAlpha,
 		true,
-		Style->BarThickness
+		BarThickness
 	);
 
 	// draw completed progress bar
@@ -136,10 +158,46 @@ int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 		DrawEffects,
 		ProgressBarColorWithAlpha,
 		true,
-		Style->BarThickness
+		BarThickness 
 	);
 
-	++LayerId;	
+	// draw center background circle
+	FLinearColor CenterBackgroundColorWithAlpha = CenterBackgroundColor.Get().GetColor(InWidgetStyle);
+	CenterBackgroundColorWithAlpha.A *= GetRenderOpacity();
+
+	FSlateDrawElement::MakeBox
+	(
+		OutDrawElements, 
+		LayerId, 
+		SliderGeometry.ToPaintGeometry(SliderMidPoint - SliderRadius, SliderDiameter),
+		&CenterBackgroundBrush,
+		DrawEffects, 
+		CenterBackgroundColorWithAlpha
+	);
+	++LayerId;
+
+	// Draw hand from middle to handle 
+	if (bShowSliderHand)
+	{
+		const FVector2D HandStart(0.0f, SliderRadius * HandStartEndRatio.X);
+		const FVector2D HandEnd(0.0f, SliderRadius * HandStartEndRatio.Y);
+
+		const FVector2D HandStartRotated = HandStart.GetRotated(MidPointAngle + AngularOffset);
+		const FVector2D HandEndRotated = HandEnd.GetRotated(MidPointAngle + AngularOffset);
+
+		FSlateDrawElement::MakeLines
+		(
+			OutDrawElements,
+			LayerId,
+			SliderGeometry.ToPaintGeometry(SliderMidPoint, SliderDiameter),
+			TArray<FVector2D>{HandStartRotated, HandEndRotated},
+			DrawEffects,
+			SliderBarColorWithAlpha,
+			true,
+			BarThickness 
+		);
+		++LayerId;
+	}
 	
 	TArray<float> DrawnTagValues;
 	for (int32 TagIndex = 0; TagIndex < ValueTags.Num(); TagIndex++)
@@ -190,7 +248,7 @@ int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 			DrawEffects,
 			TagLineColor,
 			true,
-			Style->BarThickness
+			BarThickness
 		);
 
 		const FText TextToWrite = FText::FromString(FString::SanitizeFloat(CandidateValue));
@@ -215,21 +273,24 @@ int32 SRadialSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedG
 		);
 	}
 
-	// Draw slider thumb
-	const FVector2D HandleTopLeftPoint = HandleLocation + (AllottedGeometry.GetLocalSize() * 0.5f) - HalfHandleSize;
+	// Draw slider handle (thumb)
+	if (bShowSliderHandle)
+	{
+		const FVector2D HandleTopLeftPoint = HandleLocation + (AllottedGeometry.GetLocalSize() * 0.5f) - HalfHandleSize;
 
-	auto ThumbImage = GetThumbImage();
-	FSlateDrawElement::MakeRotatedBox(
-		OutDrawElements,
-		LayerId,
-		SliderGeometry.ToPaintGeometry(HandleTopLeftPoint, GetThumbImage()->ImageSize),
-		ThumbImage,
-		DrawEffects,
-		(180.0f + MidPointAngle + AngularOffset) * (PI / 180.0f),
-		HalfHandleSize,
-		FSlateDrawElement::RelativeToElement,
-		ThumbImage->GetTint(InWidgetStyle) * SliderHandleColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-	);
+		auto ThumbImage = GetThumbImage();
+		FSlateDrawElement::MakeRotatedBox(
+			OutDrawElements,
+			LayerId,
+			SliderGeometry.ToPaintGeometry(HandleTopLeftPoint, GetThumbImage()->ImageSize),
+			ThumbImage,
+			DrawEffects,
+			(180.0f + MidPointAngle + AngularOffset) * (PI / 180.0f),
+			HalfHandleSize,
+			FSlateDrawElement::RelativeToElement,
+			ThumbImage->GetTint(InWidgetStyle) * SliderHandleColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+		);
+	}
 
 	++LayerId;
 		
@@ -308,6 +369,11 @@ FNavigationReply SRadialSlider::OnNavigation(const FGeometry& MyGeometry, const 
 FReply SRadialSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
+	
+	if (InKeyEvent.GetKey() == FineTuneKey)
+	{
+		bIsUsingFineTune = true;
+	}
 
 	if (IsInteractable())
 	{
@@ -345,6 +411,9 @@ FReply SRadialSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 FReply SRadialSlider::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
+
+	bIsUsingFineTune = false;
+
 	if (bControllerInputCaptured)
 	{
 		Reply = FReply::Handled();
@@ -486,9 +555,7 @@ FReply SRadialSlider::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEv
 void SRadialSlider::CommitValue(float NewValue)
 {
 	ValueAttribute.Set(NewValue);
-
 	Invalidate(EInvalidateWidgetReason::Paint);
-
 	OnValueChanged.ExecuteIfBound(FMath::Clamp(NewValue, GetMinValue(), GetMaxValue()));
 }
 
@@ -503,27 +570,37 @@ float SRadialSlider::GetAngleFromPosition(const FGeometry& MyGeometry, const FVe
 
 float SRadialSlider::PositionToValue(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition)
 {
-	const float OldAngle = GetAngleFromPosition(MyGeometry, PreviousAbsolutePosition);
-	const float NewAngle = GetAngleFromPosition(MyGeometry, AbsolutePosition);
-	
-	float WrappedDelta = FMath::Abs(FMath::Fmod((NewAngle - OldAngle), 360.0f));
-	float AngularDelta = WrappedDelta > 180.0f ? 360.0f - WrappedDelta : WrappedDelta;
-
-	int32 Sign = (NewAngle - OldAngle >= 0.0f && NewAngle - OldAngle <= 180.0f) || (NewAngle - OldAngle <= -180 && NewAngle - OldAngle >= -360) ? 1 : -1;
-	AngularDelta *= Sign;
-
-	PreviousAbsolutePosition = AbsolutePosition;
-	AbsoluteInputAngle += AngularDelta;
-
+	float NewValue;
+	float CurveTime; 
 	const FRichCurve* SliderRangeCurve = SliderRange.GetRichCurveConst();
-	
 	float CurveMinTime;
 	float CurveMaxTime;
 	SliderRangeCurve->GetTimeRange(CurveMinTime, CurveMaxTime);
 
-	float CurveTime = FMath::GetMappedRangeValueClamped(FVector2D(SliderHandleStartAngle, SliderHandleEndAngle), FVector2D(CurveMinTime, CurveMaxTime), AbsoluteInputAngle);
-	float NewValue = SliderRangeCurve->Eval(CurveTime);
+	if (bUseVerticalDrag)
+	{
+		const float VerticalDragMouseSpeed = bIsUsingFineTune ? VerticalDragMouseSpeedFineTune : VerticalDragMouseSpeedNormal;
+		float ValueDelta = (float)(AbsolutePosition.Y - PreviousAbsolutePosition.Y) / VerticalDragPixelDelta * VerticalDragMouseSpeed;
+		PreviousAbsolutePosition = AbsolutePosition;
+		CurveTime = FMath::Clamp(ValueAttribute.Get() - ValueDelta, 0.0f, 1.0f);
+	}
+	else
+	{
+		const float OldAngle = GetAngleFromPosition(MyGeometry, PreviousAbsolutePosition);
+		const float NewAngle = GetAngleFromPosition(MyGeometry, AbsolutePosition);
 
+		float WrappedDelta = FMath::Abs(FMath::Fmod((NewAngle - OldAngle), 360.0f));
+		float AngularDelta = WrappedDelta > 180.0f ? 360.0f - WrappedDelta : WrappedDelta;
+
+		int32 Sign = (NewAngle - OldAngle >= 0.0f && NewAngle - OldAngle <= 180.0f) || (NewAngle - OldAngle <= -180 && NewAngle - OldAngle >= -360) ? 1 : -1;
+		AngularDelta *= Sign;
+
+		PreviousAbsolutePosition = AbsolutePosition;
+		AbsoluteInputAngle += AngularDelta;
+		CurveTime = FMath::GetMappedRangeValueClamped(FVector2D(SliderHandleStartAngle, SliderHandleEndAngle), FVector2D(CurveMinTime, CurveMaxTime), AbsoluteInputAngle);
+	}
+
+	NewValue = SliderRangeCurve->Eval(CurveTime);
 	if (bMouseUsesStep)
 	{
 		const float SteppedValue = FMath::RoundToInt(NewValue / StepSize.Get()) * StepSize.Get();
@@ -674,6 +751,19 @@ void SRadialSlider::SetSliderHandleStartAngleAndSliderHandleEndAngle(float InSli
 	}
 }
 
+void SRadialSlider::SetHandStartEndRatio(FVector2D InHandStartEndRatio)
+{
+	const FVector2D ClampedRatio = InHandStartEndRatio.ClampAxes(0.0f, 1.0f);
+	if (ClampedRatio.X > ClampedRatio.Y)
+	{
+		HandStartEndRatio = FVector2D(ClampedRatio.X);
+	}
+	else
+	{
+		HandStartEndRatio = ClampedRatio;
+	}
+}
+
 void SRadialSlider::SetLocked(const TAttribute<bool>& InLocked)
 {
 	SetAttribute(LockedAttribute, InLocked, EInvalidateWidgetReason::Paint);
@@ -694,6 +784,11 @@ void SRadialSlider::SetSliderHandleColor(FSlateColor InSliderHandleColor)
 	SetAttribute(SliderHandleColor, TAttribute<FSlateColor>(InSliderHandleColor), EInvalidateWidgetReason::Paint);
 }
 
+void SRadialSlider::SetCenterBackgroundColor(FSlateColor InCenterBackgroundColor)
+{
+	SetAttribute(CenterBackgroundColor, TAttribute<FSlateColor>(InCenterBackgroundColor), EInvalidateWidgetReason::Paint);
+}
+
 float SRadialSlider::GetStepSize() const
 {
 	return StepSize.Get();
@@ -712,6 +807,26 @@ void SRadialSlider::SetMouseUsesStep(bool MouseUsesStep)
 void SRadialSlider::SetRequiresControllerLock(bool RequiresControllerLock)
 {
 	bRequiresControllerLock = RequiresControllerLock;
+}
+
+void SRadialSlider::SetUseVerticalDrag(bool UseVerticalDrag)
+{
+	bUseVerticalDrag = UseVerticalDrag;
+}
+
+void SRadialSlider::SetShowSliderHandle(bool ShowSliderHandle)
+{
+	bShowSliderHandle = ShowSliderHandle;
+}
+
+void SRadialSlider::SetShowSliderHand(bool ShowSliderHand)
+{
+	bShowSliderHand = ShowSliderHand;
+}
+
+void SRadialSlider::SetThickness(const float InThickness)
+{
+	SetAttribute(Thickness, TAttribute<TOptional<float>>(InThickness), EInvalidateWidgetReason::Paint);
 }
 
 #if WITH_ACCESSIBILITY

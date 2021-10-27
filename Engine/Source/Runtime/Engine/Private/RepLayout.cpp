@@ -981,10 +981,12 @@ struct FNetPrivatePushIdHelper
 };
 #endif // (WITH_PUSH_MODEL)
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording) :
 	bIsClientReplayRecording(InbIsClientReplayRecording),
 	ExternalDataNumBits(0)
 {}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
 {
@@ -1001,6 +1003,7 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 #endif	
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
 {
 	ExternalDataNumBits = NumBits;
@@ -1009,13 +1012,17 @@ void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 N
 	ExternalData.AddUninitialized(NumBytes);
 	FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
 {
 	// Include our size here, because the caller won't know.
 	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
 	Parents.CountBytes(Ar);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ExternalData.CountBytes(Ar);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const

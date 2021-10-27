@@ -757,7 +757,7 @@ void FAnimNode_StateMachine::UpdateTransitionStates(const FAnimationUpdateContex
 					for (TArray<FAnimNode_TransitionPoseEvaluator*>::TIterator PoseEvaluatorListIt = Transition.PoseEvaluators.CreateIterator(); PoseEvaluatorListIt; ++PoseEvaluatorListIt)
 					{
 						FAnimNode_TransitionPoseEvaluator* Evaluator = *PoseEvaluatorListIt;
-						if (Evaluator->InputNodeNeedsUpdate())
+						if (Evaluator->InputNodeNeedsUpdate(Context))
 						{
 							const bool bUsePreviousState = (Evaluator->DataSource == EEvaluatorDataSource::EDS_SourcePose);
 							const int32 EffectiveStateIndex = bUsePreviousState ? Transition.PreviousState : Transition.NextState;

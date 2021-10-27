@@ -30,7 +30,7 @@ struct GAMEPLAYTAGS_API FGameplayTagCategoryRemap
 };
 
 /** Base class for storing a list of gameplay tags as an ini list. This is used for both the central list and additional lists */
-UCLASS(config = GameplayTagsList, notplaceable)
+UCLASS(config = GameplayTagsList)
 class GAMEPLAYTAGS_API UGameplayTagsList : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -48,7 +48,7 @@ class GAMEPLAYTAGS_API UGameplayTagsList : public UObject
 };
 
 /** Base class for storing a list of restricted gameplay tags as an ini list. This is used for both the central list and additional lists */
-UCLASS(config = GameplayTags, notplaceable)
+UCLASS(config = GameplayTags)
 class GAMEPLAYTAGS_API URestrictedGameplayTagsList : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -95,7 +95,7 @@ struct GAMEPLAYTAGS_API FRestrictedConfigInfo
  *	the user types (e.g, autocomplete 'Damage.Physical' as the user is adding a 'Damage.Physical.Slash' tag).
  *	
  */
-UCLASS(config=GameplayTags, defaultconfig, notplaceable)
+UCLASS(config=GameplayTags, defaultconfig)
 class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 {
 	GENERATED_UCLASS_BODY()

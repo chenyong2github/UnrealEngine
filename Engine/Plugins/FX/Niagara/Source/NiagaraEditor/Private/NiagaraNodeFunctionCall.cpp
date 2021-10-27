@@ -499,7 +499,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 					const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& MetaData = CalledGraph->GetAllMetaData();
 					for (const auto& Entry : MetaData)
 					{
-						if (Entry.Value && Entry.Key.IsInNameSpace(FNiagaraConstants::OutputNamespace))
+						if (Entry.Value && Entry.Key.IsInNameSpace(FNiagaraConstants::OutputNamespaceString))
 						{
 							TArray<FName> HandleParts = FNiagaraParameterHandle(Entry.Key.GetName()).GetHandleParts();
 							if (HandleParts.Num() >= 3 && HandleParts[1] == FNiagaraConstants::ModuleNamespace)

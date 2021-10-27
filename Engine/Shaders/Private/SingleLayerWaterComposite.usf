@@ -391,8 +391,14 @@ void WaterRefractionCopyPS(
 	float2 BufferUV = SVPosition.xy * SVPositionToSourceTextureUV;
 
 #if DOWNSAMPLE_COLOR
-	// Downsample and average all 2x2 quads
-	OutSceneColor.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
+	#if DOWNSAMPLE_REFRACTION || !SUPPORTS_INDEPENDENT_SAMPLERS
+		// Downsample and average all 2x2 quads
+		OutSceneColor.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneColorCopyDownsampleSampler, BufferUV, 0).xyz;
+	#else
+		// Use the depth point sampler when not downsampling color
+		OutSceneColor.xyz = Texture2DSampleLevel(SceneColorCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).xyz;
+	#endif
+
 	OutSceneColor.w = 1.0f;
 #endif
 

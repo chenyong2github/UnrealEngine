@@ -8,7 +8,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 
 [Help("Compiles a bunch of stuff together with megaxge: Example arguments: -Target1=\"PlatformerGame win32|ios debug|development\"")]
-[Help(typeof(UE4Build))]
+[Help(typeof(UnrealBuild))]
 [Help("Target1", "target1[|target2...] platform1[|platform2...] config1[|config2...]")]
 [Help("Target2", "target1[|target2...] platform1[|platform2...] config1[|config2...]")]
 
@@ -34,9 +34,9 @@ class MegaXGE : BuildCommand
 
 		bool ShowProgress = ParseParam("Progress");
 
-		var UE4Build = new UE4Build(this);
+		var UnrealBuild = new UnrealBuild(this);
 
-		var Agenda = new UE4Build.BuildAgenda();
+		var Agenda = new UnrealBuild.BuildAgenda();
 
 		// we need to always build UHT when we use mega XGE
 		var ProgramTargets = new string[] 
@@ -159,22 +159,22 @@ class MegaXGE : BuildCommand
 		}
 		LogInformation("*************************");
 
-		UE4Build.Build(Agenda, InUpdateVersionFiles: IsBuildMachine, InUseParallelExecutor: ParseParam("useparallelexecutor"), InShowProgress: ShowProgress);
+		UnrealBuild.Build(Agenda, InUpdateVersionFiles: IsBuildMachine, InUseParallelExecutor: ParseParam("useparallelexecutor"), InShowProgress: ShowProgress);
 
 		// 		if (WorkingCL > 0) // only move UAT files if we intend to check in some build products
 		// 		{
-		// 			UE4Build.CopyUATFilesAndAddToBuildProducts();
+		// 			UnrealBuild.CopyUATFilesAndAddToBuildProducts();
 		// 		}
 
-		UE4Build.CheckBuildProducts(UE4Build.BuildProductFiles);
+		UnrealBuild.CheckBuildProducts(UnrealBuild.BuildProductFiles);
 
 		if (WorkingCL > 0)
 		{
 			// Sign everything we built
-			CodeSign.SignMultipleIfEXEOrDLL(this, UE4Build.BuildProductFiles);
+			CodeSign.SignMultipleIfEXEOrDLL(this, UnrealBuild.BuildProductFiles);
 
 			// Open files for add or edit
-			UE4Build.AddBuildProductsToChangelist(WorkingCL, UE4Build.BuildProductFiles);
+			UnrealBuild.AddBuildProductsToChangelist(WorkingCL, UnrealBuild.BuildProductFiles);
 
 			int SubmittedCL;
 			P4.Submit(WorkingCL, out SubmittedCL, true, true);

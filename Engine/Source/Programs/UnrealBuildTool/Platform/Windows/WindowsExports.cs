@@ -19,11 +19,10 @@ namespace UnrealBuildTool
 		/// Tries to get the directory for an installed Visual Studio version
 		/// </summary>
 		/// <param name="Compiler">The compiler version</param>
-		/// <param name="InstallDir">Receives the install directory on success</param>
 		/// <returns>True if successful</returns>
-		public static bool TryGetVSInstallDir(WindowsCompiler Compiler, [NotNullWhen(true)] out DirectoryReference? InstallDir)
+		public static IEnumerable<DirectoryReference>? TryGetVSInstallDirs(WindowsCompiler Compiler)
 		{
-			return WindowsPlatform.TryGetVSInstallDir(Compiler, out InstallDir);
+			return WindowsPlatform.TryGetVSInstallDirs(Compiler);
 		}
 
 		/// <summary>

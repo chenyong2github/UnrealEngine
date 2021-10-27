@@ -6177,6 +6177,8 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 	WeightmapDataPtrs.AddUninitialized(WeightmapTextures.Num());
 	for (int32 WeightmapIdx = 0; WeightmapIdx < WeightmapTextures.Num(); ++WeightmapIdx)
 	{
+		// Calling modify here makes sure that async texture compilation finishes (triggered by ReallocateWeightmaps) so we can Lock the mip
+		WeightmapTextures[WeightmapIdx]->Modify();
 		WeightmapDataPtrs[WeightmapIdx] = WeightmapTextures[WeightmapIdx]->Source.LockMip(0);
 	}
 
@@ -6268,153 +6270,6 @@ bool ALandscapeProxy::ShouldImport(FString* ActorPropString, bool IsMovingToLeve
 		}
 	}
 	return true;
-}
-
-void ULandscapeComponent::ExportCustomProperties(FOutputDevice& Out, uint32 Indent)
-{
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
-	// Height map
-	int32 NumVertices = FMath::Square(NumSubsections*(SubsectionSizeQuads + 1));
-	FLandscapeComponentDataInterface DataInterface(this);
-	TArray<FColor> Heightmap;
-	DataInterface.GetHeightmapTextureData(Heightmap);
-	check(Heightmap.Num() == NumVertices);
-
-	Out.Logf(TEXT("%sCustomProperties LandscapeHeightData "), FCString::Spc(Indent));
-	for (int32 i = 0; i < NumVertices; i++)
-	{
-		Out.Logf(TEXT("%x "), Heightmap[i].DWColor());
-	}
-
-	TArray<uint8> Weightmap;
-	// Weight map
-	Out.Logf(TEXT("LayerNum=%d "), WeightmapLayerAllocations.Num());
-	for (int32 i = 0; i < WeightmapLayerAllocations.Num(); i++)
-	{
-		if (DataInterface.GetWeightmapTextureData(WeightmapLayerAllocations[i].LayerInfo, Weightmap))
-		{
-			Out.Logf(TEXT("LayerInfo=%s "), *WeightmapLayerAllocations[i].LayerInfo->GetPathName());
-			for (int32 VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
-			{
-				Out.Logf(TEXT("%x "), Weightmap[VertexIndex]);
-			}
-		}
-	}
-
-	Out.Logf(TEXT("\r\n"));
-}
-
-
-void ULandscapeComponent::ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn)
-{
-	if (FParse::Command(&SourceText, TEXT("LandscapeHeightData")))
-	{
-		int32 NumVertices = FMath::Square(NumSubsections*(SubsectionSizeQuads + 1));
-
-		TArray<FColor> Heights;
-		Heights.Empty(NumVertices);
-		Heights.AddZeroed(NumVertices);
-
-		FParse::Next(&SourceText);
-		int32 i = 0;
-		TCHAR* StopStr;
-		while (FChar::IsHexDigit(*SourceText))
-		{
-			if (i < NumVertices)
-			{
-				Heights[i++].DWColor() = FCString::Strtoi(SourceText, &StopStr, 16);
-				while (FChar::IsHexDigit(*SourceText))
-				{
-					SourceText++;
-				}
-			}
-
-			FParse::Next(&SourceText);
-		}
-
-		if (i != NumVertices)
-		{
-			Warn->Log(*NSLOCTEXT("Core", "SyntaxError", "Syntax Error").ToString());
-		}
-
-		int32 ComponentSizeVerts = NumSubsections * (SubsectionSizeQuads + 1);
-
-		InitHeightmapData(Heights, false);
-
-		// Weight maps
-		int32 LayerNum = 0;
-		if (FParse::Value(SourceText, TEXT("LayerNum="), LayerNum))
-		{
-			while (*SourceText && (!FChar::IsWhitespace(*SourceText)))
-			{
-				++SourceText;
-			}
-			FParse::Next(&SourceText);
-		}
-
-		if (LayerNum <= 0)
-		{
-			return;
-		}
-
-		// Init memory
-		TArray<ULandscapeLayerInfoObject*> LayerInfos;
-		LayerInfos.Empty(LayerNum);
-		TArray<TArray<uint8>> WeightmapData;
-		for (int32 LayerIndex = 0; LayerIndex < LayerNum; ++LayerIndex)
-		{
-			TArray<uint8> Weights;
-			Weights.Empty(NumVertices);
-			Weights.AddUninitialized(NumVertices);
-			WeightmapData.Add(Weights);
-		}
-
-		int32 LayerIdx = 0;
-		FString LayerInfoPath;
-		while (*SourceText)
-		{
-			if (FParse::Value(SourceText, TEXT("LayerInfo="), LayerInfoPath))
-			{
-				LayerInfos.Add(LoadObject<ULandscapeLayerInfoObject>(nullptr, *LayerInfoPath));
-
-				while (*SourceText && (!FChar::IsWhitespace(*SourceText)))
-				{
-					++SourceText;
-				}
-				FParse::Next(&SourceText);
-				check(*SourceText);
-
-				i = 0;
-				while (FChar::IsHexDigit(*SourceText))
-				{
-					if (i < NumVertices)
-					{
-						(WeightmapData[LayerIdx])[i++] = (uint8)FCString::Strtoi(SourceText, &StopStr, 16);
-						while (FChar::IsHexDigit(*SourceText))
-						{
-							SourceText++;
-						}
-					}
-					FParse::Next(&SourceText);
-				}
-
-				if (i != NumVertices)
-				{
-					Warn->Log(*NSLOCTEXT("Core", "SyntaxError", "Syntax Error").ToString());
-				}
-				LayerIdx++;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		InitWeightmapData(LayerInfos, WeightmapData);
-	}
 }
 
 bool ALandscapeStreamingProxy::IsValidLandscapeActor(ALandscape* Landscape)
@@ -7277,10 +7132,24 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformData.InitializeFromUncompressedData(NewPlatformData, StreamingLODData);
 }
 
+FName ALandscapeProxy::GenerateUniqueLandscapeTextureName(UObject* InOuter, TextureGroup InLODGroup) const
+{
+	FName BaseName;
+	if (InLODGroup == TEXTUREGROUP_Terrain_Heightmap)
+	{
+		BaseName = "Heightmap";
+	}
+	else if (InLODGroup == TEXTUREGROUP_Terrain_Weightmap)
+	{
+		BaseName = "Weightmap";
+	}
+	return MakeUniqueObjectName(InOuter, UTexture2D::StaticClass(), BaseName);
+}
+
 UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const
 {
 	UObject* TexOuter = OptionalOverrideOuter ? OptionalOverrideOuter : const_cast<ALandscapeProxy*>(this);
-	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter, GenerateUniqueLandscapeTextureName(TexOuter, InLODGroup));
 	NewTexture->Source.Init2DWithMipChain(InSizeX, InSizeY, InFormat);
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = !bCompress;
@@ -7295,7 +7164,7 @@ UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY
 UTexture2D* ALandscapeProxy::CreateLandscapeToolTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat) const
 {
 	UObject* TexOuter = const_cast<ALandscapeProxy*>(this);
-	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter, GenerateUniqueLandscapeTextureName(TexOuter, InLODGroup));
 	NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat);
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = true;

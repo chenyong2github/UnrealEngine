@@ -22,7 +22,7 @@
 #include "WaterEditorSettings.h"
 #include "WaterSubsystem.h"
 #include "WaterUtils.h"
-#include "WaterMeshActor.h"
+#include "WaterZoneActor.h"
 #include "WaterVersion.h"
 #include "Algo/Transform.h"
 #include "Curves/CurveFloat.h"
@@ -108,13 +108,13 @@ void AWaterBrushManager::PostLoad()
 		{
 			if (World == GetWorld())
 			{
-				TActorIterator<AWaterMeshActor> It(World);
-				if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+				TActorIterator<AWaterZone> It(World);
+				if (AWaterZone* WaterZoneActor = It ? *It : nullptr)
 				{
 					FVector RTWorldLocation, RTWorldSizeVector;
 					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
 					{
-						WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+						WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 						SetMPCParams();
 					}
 				}
@@ -126,13 +126,13 @@ void AWaterBrushManager::PostLoad()
 		{
 			if ((World == GetWorld()) && (Level != nullptr))
 			{
-				TActorIterator<AWaterMeshActor> It(World);
-				if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+				TActorIterator<AWaterZone> It(World);
+				if (AWaterZone* WaterZoneActor = It ? *It : nullptr)
 				{
 					FVector RTWorldLocation, RTWorldSizeVector;
 					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
 					{
-						WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+						WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 						SetMPCParams();
 					}
 				}
@@ -1203,10 +1203,10 @@ void AWaterBrushManager::SetMPCParams()
 
 		// HACK [jonathan.bard] : Quick and dirty way to move the responsability of updating the Water MPC to the water mesh actor (because AWaterBrushManager doesn't exist on client builds, this 
 		//  information needs to live somewhere, at least until we get rid of the water MPC and the water texture/params are handled outside of the water landscape brush) :
-		TActorIterator<AWaterMeshActor> It(World);
-		if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+		TActorIterator<AWaterZone> It(World);
+		if (AWaterZone* WaterZoneActor = It ? *It : nullptr)
 		{
-			WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+			WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 		}
 	}
 }

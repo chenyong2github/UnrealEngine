@@ -10,6 +10,9 @@
 #include "UObject/AnimObjectVersion.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "HAL/LowLevelMemTracker.h"
+
+LLM_DEFINE_TAG(Animation_ControlRig);
 
 #if WITH_EDITOR
 #include "RigVMPythonUtils.h"
@@ -124,6 +127,8 @@ URigHierarchy::~URigHierarchy()
 
 void URigHierarchy::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
@@ -253,6 +258,8 @@ void URigHierarchy::PostLoad()
 {
 	UObject::PostLoad();
 
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	struct Local
 	{
 		static bool NeedsCheck(const FRigLocalAndGlobalTransform& InTransform)
@@ -340,6 +347,8 @@ void URigHierarchy::PostLoad()
 
 void URigHierarchy::Reset()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	TopologyVersion = 0;
 	bEnableDirtyPropagation = true;
 
@@ -368,6 +377,8 @@ void URigHierarchy::Reset()
 void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 {
 	check(InHierarchy);
+	
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	
 	Reset();
 
@@ -504,6 +515,7 @@ void URigHierarchy::ClearListeningHierarchy()
 void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial)
 {
 	check(InHierarchy);
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
@@ -520,6 +532,7 @@ void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bIn
 void URigHierarchy::UpdateReferences(const FRigUnitContext* InContext)
 {
 	check(InContext);
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
@@ -545,6 +558,7 @@ void URigHierarchy::UpdateReferences(const FRigUnitContext* InContext)
 
 void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	bool bPerformFiltering = InTypeFilter != ERigElementType::All;
 
 	// if we are resetting the pose on some elements, we need to check if
@@ -620,6 +634,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 
 void URigHierarchy::ResetCurveValues()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	for(int32 ElementIndex=0; ElementIndex<Elements.Num(); ElementIndex++)
 	{
 		if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Elements[ElementIndex]))
@@ -636,6 +651,7 @@ int32 URigHierarchy::Num(ERigElementType InElementType) const
 
 TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	TArray<FRigBaseElement*> Selection;
 
 	if(URigHierarchy* HierarchyForSelection = HierarchyForSelectionPtr.Get())
@@ -667,6 +683,8 @@ TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTy
 
 TArray<FRigElementKey> URigHierarchy::GetSelectedKeys(ERigElementType InTypeFilter) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	if(URigHierarchy* HierarchyForSelection = HierarchyForSelectionPtr.Get())
 	{
 		return HierarchyForSelection->GetSelectedKeys(InTypeFilter);
@@ -798,6 +816,7 @@ FName URigHierarchy::GetSafeNewName(const FString& InPotentialNewName, ERigEleme
 FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlElement) const
 {
 	check(InControlElement);
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 
 	// local copy of UEdGraphSchema_K2::PC_ ... static members
 	static const FName PC_Boolean(TEXT("bool"));
@@ -859,6 +878,7 @@ FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlEl
 FString URigHierarchy::GetControlPinDefaultValue(FRigControlElement* InControlElement, bool bForEdGraph, ERigControlValueType InValueType) const
 {
 	check(InControlElement);
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 
 	FRigControlValue Value = GetControlValue(InControlElement, InValueType);
 	switch(InControlElement->Settings.ControlType)
@@ -930,6 +950,7 @@ FString URigHierarchy::GetControlPinDefaultValue(FRigControlElement* InControlEl
 
 TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FRigBaseElementChildrenArray LocalChildren;
 	const FRigBaseElementChildrenArray* ChildrenPtr = nullptr;
 	if(bRecursive)
@@ -954,6 +975,7 @@ TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRe
 
 TArray<int32> URigHierarchy::GetChildren(int32 InIndex, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FRigBaseElementChildrenArray LocalChildren;
 	const FRigBaseElementChildrenArray* ChildrenPtr = nullptr;
 	if(bRecursive)
@@ -978,6 +1000,7 @@ TArray<int32> URigHierarchy::GetChildren(int32 InIndex, bool bRecursive) const
 
 const FRigBaseElementChildrenArray& URigHierarchy::GetChildren(const FRigBaseElement* InElement) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InElement)
 	{
 		UpdateCachedChildren(InElement);
@@ -988,6 +1011,7 @@ const FRigBaseElementChildrenArray& URigHierarchy::GetChildren(const FRigBaseEle
 
 FRigBaseElementChildrenArray URigHierarchy::GetChildren(const FRigBaseElement* InElement, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	// call the non-recursive variation
 	FRigBaseElementChildrenArray Children = GetChildren(InElement);
 	
@@ -1004,6 +1028,7 @@ FRigBaseElementChildrenArray URigHierarchy::GetChildren(const FRigBaseElement* I
 
 TArray<FRigElementKey> URigHierarchy::GetParents(FRigElementKey InKey, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	const FRigBaseElementParentArray& Parents = GetParents(Find(InKey), bRecursive);
 	TArray<FRigElementKey> Keys;
 	for(const FRigBaseElement* Parent : Parents)
@@ -1015,6 +1040,7 @@ TArray<FRigElementKey> URigHierarchy::GetParents(FRigElementKey InKey, bool bRec
 
 TArray<int32> URigHierarchy::GetParents(int32 InIndex, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	const FRigBaseElementParentArray& Parents = GetParents(Get(InIndex), bRecursive);
 	TArray<int32> Indices;
 	for(const FRigBaseElement* Parent : Parents)
@@ -1026,6 +1052,7 @@ TArray<int32> URigHierarchy::GetParents(int32 InIndex, bool bRecursive) const
 
 FRigBaseElementParentArray URigHierarchy::GetParents(const FRigBaseElement* InElement, bool bRecursive) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FRigBaseElementParentArray Parents;
 
 	if(const FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InElement))
@@ -1162,11 +1189,14 @@ FRigElementWeight URigHierarchy::GetParentWeight(const FRigBaseElement* InChild,
 
 TArray<FRigElementWeight> URigHierarchy::GetParentWeightArray(FRigElementKey InChild, bool bInitial) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	return GetParentWeightArray(Find(InChild), bInitial);
 }
 
 TArray<FRigElementWeight> URigHierarchy::GetParentWeightArray(const FRigBaseElement* InChild, bool bInitial) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	TArray<FRigElementWeight> Weights;
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
@@ -1192,6 +1222,7 @@ bool URigHierarchy::SetParentWeight(FRigElementKey InChild, FRigElementKey InPar
 
 bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, const FRigBaseElement* InParent, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
 		if(const int32* ParentIndexPtr = MultiParentElement->IndexLookup.Find(InParent->GetKey()))
@@ -1204,6 +1235,7 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, const FRigBaseElem
 
 bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	using namespace ERigTransformType;
 
 	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
@@ -1300,6 +1332,7 @@ bool URigHierarchy::SetParentWeightArray(FRigElementKey InChild, TArray<FRigElem
 bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<FRigElementWeight>& InWeights,
 	bool bInitial, bool bAffectChildren)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InWeights.Num() == 0)
 	{
 		return false;
@@ -1312,6 +1345,7 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<
 bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArrayView<const FRigElementWeight>& InWeights,
 	bool bInitial, bool bAffectChildren)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	using namespace ERigTransformType;
 
 	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
@@ -1593,6 +1627,8 @@ FRigElementKey URigHierarchy::GetWorldSpaceReferenceKey()
 
 TArray<FRigElementKey> URigHierarchy::GetAllKeys(bool bTraverse, ERigElementType InElementType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"))
+
 	return GetKeysByPredicate([InElementType](const FRigBaseElement& InElement)
 	{
 		return InElement.IsTypeOf(InElementType);
@@ -1882,6 +1918,7 @@ FRigPose URigHierarchy::GetPose(
 FRigPose URigHierarchy::GetPose(bool bInitial, ERigElementType InElementType,
 	const TArrayView<const FRigElementKey>& InItems) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FRigPose Pose;
 	Pose.HierarchyTopologyVersion = GetTopologyVersion();
 	Pose.PoseHash = Pose.HierarchyTopologyVersion;
@@ -1941,6 +1978,7 @@ void URigHierarchy::SetPose(
 void URigHierarchy::SetPose(const FRigPose& InPose, ERigTransformType::Type InTransformType,
 	ERigElementType InElementType, const TArrayView<const FRigElementKey>& InItems, float InWeight)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	const float U = FMath::Clamp(InWeight, 0.f, 1.f);
 	if(U < SMALL_NUMBER)
 	{
@@ -2004,6 +2042,7 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 	const ERigTransformType::Type InTransformType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InTransformElement == nullptr)
 	{
 		return FTransform::Identity;
@@ -2078,6 +2117,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 
 void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InTransformElement == nullptr)
 	{
 		return;
@@ -2216,6 +2256,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InControlElement,
 	const ERigTransformType::Type InTransformType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InControlElement == nullptr)
 	{
 		return FTransform::Identity;
@@ -2378,6 +2419,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 FTransform URigHierarchy::GetControlShapeTransform(FRigControlElement* InControlElement,
 	const ERigTransformType::Type InTransformType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InControlElement == nullptr)
 	{
 		return FTransform::Identity;
@@ -2407,6 +2449,7 @@ FTransform URigHierarchy::GetControlShapeTransform(FRigControlElement* InControl
 void URigHierarchy::SetControlShapeTransform(FRigControlElement* InControlElement, const FTransform& InTransform,
 	const ERigTransformType::Type InTransformType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InControlElement == nullptr)
 	{
 		return;
@@ -2503,6 +2546,7 @@ void URigHierarchy::SetControlShapeTransform(FRigControlElement* InControlElemen
 
 void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRigControlSettings InSettings, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InControlElement == nullptr)
 	{
 		return;
@@ -2573,6 +2617,7 @@ void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRi
 
 FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const ERigTransformType::Type InTransformType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InElement))
 	{
 		return GetTransform(SingleParentElement->ParentElement, InTransformType);
@@ -2602,6 +2647,7 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 
 FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlElement, ERigControlValueType InValueType) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	using namespace ERigTransformType;
 
 	FRigControlValue Value;
@@ -2643,6 +2689,8 @@ FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlEle
 
 void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	using namespace ERigTransformType;
 
 	if(InControlElement != nullptr)
@@ -2800,6 +2848,7 @@ float URigHierarchy::GetCurveValue(FRigCurveElement* InCurveElement) const
 
 void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValue, bool bSetupUndo, bool bForce)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(InCurveElement == nullptr)
 	{
 		return;
@@ -2937,6 +2986,7 @@ bool URigHierarchy::IsTracingChanges() const
 
 void URigHierarchy::ResetTransformStack()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	TransformUndoStack.Reset();
 	TransformRedoStack.Reset();
 	TransformStackIndex = TransformUndoStack.Num();
@@ -2950,6 +3000,7 @@ void URigHierarchy::ResetTransformStack()
 
 void URigHierarchy::StorePoseForTrace(const FString& InPrefix)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(!InPrefix.IsEmpty());
 	
 	FName InitialKey = *FString::Printf(TEXT("%s_Initial"), *InPrefix);
@@ -2983,6 +3034,7 @@ struct TRigHierarchyJsonPrintPolicy
 
 void URigHierarchy::DumpTransformStackToFile(FString* OutFilePath)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(IsTracingChanges())
 	{
 		StorePoseForTrace(TEXT("EndOfFrame"));
@@ -3047,6 +3099,8 @@ void URigHierarchy::DumpTransformStackToFile(FString* OutFilePath)
 
 void URigHierarchy::TraceFrames(int32 InNumFramesToTrace)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	TraceFramesLeft = InNumFramesToTrace;
 	TraceFramesCaptured = 0;
 	ResetTransformStack();
@@ -3069,6 +3123,7 @@ bool URigHierarchy::IsSelected(const FRigBaseElement* InElement) const
 
 void URigHierarchy::ResetCachedChildren()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
 		FRigBaseElement* Element = Elements[ElementIndex];
@@ -3078,6 +3133,7 @@ void URigHierarchy::ResetCachedChildren()
 
 void URigHierarchy::UpdateCachedChildren(const FRigBaseElement* InElement, bool bForce) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InElement);
 
 	if(InElement->TopologyVersion == TopologyVersion && !bForce)
@@ -3115,6 +3171,7 @@ void URigHierarchy::UpdateCachedChildren(const FRigBaseElement* InElement, bool 
 
 void URigHierarchy::UpdateAllCachedChildren() const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	TArray<bool> ParentVisited;
 	ParentVisited.AddZeroed(Elements.Num());
 	
@@ -3155,6 +3212,8 @@ void URigHierarchy::UpdateAllCachedChildren() const
 	
 FRigElementKey URigHierarchy::PreprocessParentElementKeyForSpaceSwitching(const FRigElementKey& InChildKey, const FRigElementKey& InParentKey)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	
 	if(InParentKey == GetWorldSpaceReferenceKey())
 	{
 		return GetOrAddWorldSpaceReference();
@@ -3177,6 +3236,7 @@ FRigElementKey URigHierarchy::PreprocessParentElementKeyForSpaceSwitching(const 
 
 FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32 InCount, int32* OutStructureSize)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InCount > 0);
 	
 	FRigBaseElement* Element = nullptr;
@@ -3281,6 +3341,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 
 void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InElement != nullptr);
 
 	if(InElement->OwnedInstances == 0)
@@ -3536,6 +3597,7 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 
 void URigHierarchy::EnsureCacheValidityImpl()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	if(!bEnableCacheValidityCheck)
 	{
 		return;
@@ -3745,6 +3807,7 @@ void URigHierarchy::EnsureCacheValidityImpl()
 
 URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(URigVM* InVM, FName InEventName)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InVM);
 
 	if(InEventName.IsNone())
@@ -4118,6 +4181,7 @@ FTransform URigHierarchy::SolveParentConstraints(
 	const FTransform& InLocalPoseTransform,
 	bool bApplyLocalPoseTransform) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FTransform Result = FTransform::Identity;
 	const bool bInitial = IsInitial(InTransformType);
 
@@ -4345,6 +4409,7 @@ FTransform URigHierarchy::InverseSolveParentConstraints(
 	const ERigTransformType::Type InTransformType,
 	const FTransform& InLocalOffsetTransform) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 
 	FTransform Result = FTransform::Identity;
 
@@ -4588,6 +4653,7 @@ FTransform URigHierarchy::LazilyComputeParentConstraint(
 	const FTransform& InLocalPoseTransform,
 	bool bApplyLocalPoseTransform) const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	const FRigElementParentConstraint& Constraint = InConstraints[InIndex];
 	if(Constraint.Cache.bDirty)
 	{
@@ -4690,6 +4756,7 @@ void URigHierarchy::IntegrateParentConstraintQuat(
 	const FTransform& InTransform,
 	float InWeight)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	FQuat ParentRotation = InTransform.GetRotation().GetNormalized();
 
 	if(OutNumMixedRotations == 0)

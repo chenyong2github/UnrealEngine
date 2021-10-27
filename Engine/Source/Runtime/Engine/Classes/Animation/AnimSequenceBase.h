@@ -304,6 +304,19 @@ protected:
 private:
 	/** Creates a new UAnimDataModel instance and sets DataModel accordingly */
 	void CreateModel();
+
+public:
+	bool ShouldDataModelBeValid() const;
+	bool IsDataModelValid() const
+	{
+		if(ShouldDataModelBeValid())
+		{
+			ValidateModel();
+			return DataModel != nullptr;
+		}
+
+		return false;
+	}	
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

@@ -162,7 +162,7 @@ bool URuntimeVirtualTextureComponent::IsStreamingTextureValid() const
 bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 {
 #if WITH_EDITOR
-	if (!bUseStreamingLowMipsInEditor && GIsEditor && !GetWorld()->IsPlayInEditor())
+	if (!bUseStreamingLowMipsInEditor && GIsEditor)
 	{
 		return false;
 	}

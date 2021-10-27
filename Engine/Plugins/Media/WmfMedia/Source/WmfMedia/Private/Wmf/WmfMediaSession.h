@@ -284,6 +284,9 @@ private:
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	/** Pointer to the tracks from the player. */
 	TWeakPtr<FWmfMediaTracks, ESPMode::ThreadSafe> Tracks;
+
+	/** True if we are waiting for the tracks to send out its last samples before we "end". */
+	bool bIsWaitingForEnd;
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 };
 

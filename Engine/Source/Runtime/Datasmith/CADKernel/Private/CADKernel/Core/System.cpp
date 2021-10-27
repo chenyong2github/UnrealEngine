@@ -15,11 +15,9 @@
 #include <signal.h>
 #endif 
 
-using namespace CADKernel;
+TUniquePtr<CADKernel::FSystem> CADKernel::FSystem::Instance = nullptr;
 
-TUniquePtr<FSystem> FSystem::Instance = nullptr;
-
-FSystem::FSystem()
+CADKernel::FSystem::FSystem()
 	: Parameters(MakeShared<FKernelParameters>())
 	, DefaultVisu()
 	, Viewer(&DefaultVisu)
@@ -33,7 +31,7 @@ FSystem::FSystem()
 	VerboseLevel = Log;
 }
 
-void FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString& SpyFilePath)
+void CADKernel::FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString& SpyFilePath)
 {
 	SetVerboseLevel(Log);
 
@@ -60,7 +58,7 @@ void FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString&
 	}
 }
 
-void FSystem::CloseLogFiles()
+void CADKernel::FSystem::CloseLogFiles()
 {
 	if (LogFile)
 	{
@@ -74,13 +72,13 @@ void FSystem::CloseLogFiles()
 	}
 }
 
-void FSystem::Shutdown()
+void CADKernel::FSystem::Shutdown()
 {
 	CloseLogFiles();
 	Instance.Reset();
 }
 
-void FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLevel InLevel)
+void CADKernel::FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLevel InLevel)
 {
 	if(LogFile) 
 	{
@@ -92,7 +90,7 @@ void FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLevel InLevel)
 	LogLevel = InLevel;
 }
 
-void FSystem::DefineSpyFile(const FString& InSpyFilePath)
+void CADKernel::FSystem::DefineSpyFile(const FString& InSpyFilePath)
 {
 	if(SpyFile) 
 	{
@@ -102,23 +100,23 @@ void FSystem::DefineSpyFile(const FString& InSpyFilePath)
 	SpyFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InSpyFilePath, IO_WRITE));
 }
 
-void FSystem::InitializeCADKernel()
+void CADKernel::FSystem::InitializeCADKernel()
 {
 	FSystem::Get().Initialize();
 	FSystem::Get().SetVerboseLevel(EVerboseLevel::Log);
 }
 
-FString FSystem::GetToolkitVersion() const
+FString CADKernel::FSystem::GetToolkitVersion() const
 {
 	return TOOLKIT_VERSION_ASCII;
 }
 
-FString FSystem::GetCompilationDate() const
+FString CADKernel::FSystem::GetCompilationDate() const
 {
 	return UTF8_TO_TCHAR(__DATE__);
 }
 
-void FSystem::PrintHeader()
+void CADKernel::FSystem::PrintHeader()
 {
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));
 	FMessage::Printf(Log, TEXT("\n"));

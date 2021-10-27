@@ -237,6 +237,8 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	ECheckBoxState GetWidgetCheckedState() const;
 	void SetWidgetCheckedState(const ECheckBoxState NewState, const bool bShouldUpdateHierarchyCheckedStates = false);
 
+	ECheckBoxState GenerateChildWidgetCheckedStateBasedOnParent() const;
+
 	bool GetIsNodeChecked() const;
 	void SetIsNodeChecked(const bool bNewChecked, const bool bShouldUpdateHierarchyCheckedStates = false);
 

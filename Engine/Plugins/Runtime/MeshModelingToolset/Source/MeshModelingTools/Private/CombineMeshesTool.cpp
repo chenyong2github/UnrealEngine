@@ -473,12 +473,9 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
 		AActor* Actor = UE::ToolTarget::GetTargetActor(Targets[Idx]);
-		if (Actor != SkipActor)
-		{
-			Actors.Add(Actor);
-		}
+		Actors.Add(Actor);
 	}
-	HandleSourceProperties->ApplyMethod(Actors, GetToolManager());
+	HandleSourceProperties->ApplyMethod(Actors, GetToolManager(), SkipActor);
 
 	GetToolManager()->EndUndoTransaction();
 }

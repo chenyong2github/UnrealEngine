@@ -20,8 +20,8 @@
 #include "CineCameraComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
-#include "Components/PoseableMeshComponent.h"
 #include "Components/RectLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -338,7 +338,7 @@ UClass* UsdUtils::GetComponentTypeForPrim( const pxr::UsdPrim& Prim )
 {
 	if ( Prim.IsA< pxr::UsdSkelRoot >() )
 	{
-		return UPoseableMeshComponent::StaticClass();
+		return USkeletalMeshComponent::StaticClass();
 	}
 	else if ( Prim.IsA< pxr::UsdGeomMesh >() )
 	{

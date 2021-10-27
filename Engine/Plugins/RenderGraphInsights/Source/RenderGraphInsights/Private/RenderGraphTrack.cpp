@@ -115,7 +115,7 @@ public:
 		, Packet(&InEvent->GetPacket())
 		, Graph(Packet->Graph)
 	{}
-	virtual ~FPacketFilter() {}
+	~FPacketFilter() {}
 
 	bool FilterPacket(const FPacket& Packet) const;
 	bool FilterPacketExact(const FPacket& Packet) const;

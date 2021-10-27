@@ -1102,7 +1102,7 @@ public:
 			TRACE_PLATFORMFILE_END_OPEN(hFile);
 			for (uint32 Length = NormalizedFileName.Len() + 10;;)
 			{
-				TArray<TCHAR>& CharArray = NormalizedFileName.GetCharArray();
+				TArray<TCHAR, FString::AllocatorType>& CharArray = NormalizedFileName.GetCharArray();
 				CharArray.SetNum(Length);
 
 				Length = GetFinalPathNameByHandle(hFile, CharArray.GetData(), CharArray.Num(), FILE_NAME_NORMALIZED);

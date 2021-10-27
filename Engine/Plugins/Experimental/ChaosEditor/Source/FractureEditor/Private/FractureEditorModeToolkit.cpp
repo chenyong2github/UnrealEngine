@@ -318,14 +318,14 @@ void FFractureEditorModeToolkit::RequestModeUITabs()
 		HierarchyTabInfo.TabLabel = LOCTEXT("FractureHierarchy", "Fracture Hierarchy");
 		HierarchyTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
 		HierarchyTabInfo.TabIcon = GetEditorModeIcon();
-		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::TopRightTabID, HierarchyTabInfo);
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopRightTabID, HierarchyTabInfo);
 
 
 		StatisticsTabInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FFractureEditorModeToolkit::CreateStatisticsTab);
 		StatisticsTabInfo.TabLabel = LOCTEXT("FractureStatistics", "Level Statistics");
 		StatisticsTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
 		StatisticsTabInfo.TabIcon = GetEditorModeIcon();
-		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomLeftTabID, StatisticsTabInfo);
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::BottomLeftTabID, StatisticsTabInfo);
 	}
 }
 
@@ -336,8 +336,8 @@ void FFractureEditorModeToolkit::InvokeUI()
 	if (ModeUILayer.IsValid())
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		HierarchyTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::TopRightTabID);
-		StatisticsTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomLeftTabID);
+		HierarchyTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
+		StatisticsTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomLeftTabID);
 	}
 
 

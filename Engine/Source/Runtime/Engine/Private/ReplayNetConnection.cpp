@@ -133,7 +133,7 @@ void UReplayNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 			{
 				//@todo: unique this in tick?
 				// RepChangedPropertyTrackerMap.Find is expensive
-				ReplayHelper.UpdateExternalDataForActor(this, Actor);
+				ReplayHelper.UpdateExternalDataForObject(this, Actor);
 			}
 
 			if (!bCheckpoint && ReplayHelper.bHasDeltaCheckpoints && Driver)
@@ -316,4 +316,9 @@ void UReplayNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, E
 void UReplayNetConnection::RequestCheckpoint()
 {
 	ReplayHelper.RequestCheckpoint();
+}
+
+bool UReplayNetConnection::SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits)
+{
+	return ReplayHelper.SetExternalDataForObject(this, OwningObject, Src, NumBits);
 }

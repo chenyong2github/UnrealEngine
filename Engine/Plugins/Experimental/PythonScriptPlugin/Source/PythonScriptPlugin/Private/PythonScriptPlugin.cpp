@@ -21,6 +21,8 @@
 #include "UObject/PackageReload.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Char.h"
+#include "Misc/CString.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -30,6 +32,7 @@
 #include "Features/IModularFeatures.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Stats/Stats.h"
+#include "String/Find.h"
 
 #if WITH_EDITOR
 #include "EditorSupportDelegates.h"
@@ -488,18 +491,89 @@ bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonComma
 #if WITH_PYTHON
 	if (InOutPythonCommand.ExecutionMode == EPythonCommandExecutionMode::ExecuteFile)
 	{
-		// We may have been passed literal code or a file
-		// To work out which, extract the first token and see if it's a .py file
-		// If it is, treat the remaining text as arguments to the file
-		// Otherwise, treat it as literal code
+		// The EPythonCommandExecutionMode::ExecuteFile name is misleading as it is used to run literal code or a .py file. Detect
+		// if the user supplied a .py files. The command can have the python pathname with spaces, command line parameter(s) and could be quoted.
+		//   C:\My Scripts\Test.py -param1 -param2     -> Ok
+		//   "C:\My Scripts\Test.py  " -param1 -param2 -> Ok
+		//   "C:\My Scripts\Test.py"-param1 -param2    -> Ok
+		//   C:\My Scripts\Test.py-param1 -param2      -> Error missing a space between .py and -param1
+		//   "C:\My Scripts\Test.py                    -> Error missing closing quote.
+		//   C:\My Scripts\Test.py  "                  -> Error missing opening quote.
+		auto TryExtractPathnameAndCommand = [&InOutPythonCommand](FString& OutExtractedFilename, FString& OutExtractedCommand) -> bool
+		{
+			const TCHAR* PyFileExtension = TEXT(".py");
+			int32 Pos = UE::String::FindFirst(InOutPythonCommand.Command, PyFileExtension);
+			if (Pos == INDEX_NONE)
+			{
+				return false; // no .py file extension found.
+			}
+
+			int32 EndPathnamePos = Pos + FCString::Strlen(PyFileExtension);
+			OutExtractedFilename = InOutPythonCommand.Command.Left(EndPathnamePos);
+			bool bCommandQuoted = false;
+			
+			// The caller may quote the pathname if it contains space(s). Trim a leading quote, if any. (Any trailing quote is already removed by the Left() command).
+			if (OutExtractedFilename.StartsWith(TEXT("\"")))
+			{
+				OutExtractedFilename.RemoveAt(0);
+				bCommandQuoted = true;
+			}
+
+			// Early out if the command doesn't match an existing file.
+			if (!IFileManager::Get().FileExists(*OutExtractedFilename))
+			{
+				return false;
+			}
+			// If the pathname started with a quote, expect a closing quote after the .py.
+			else if (bCommandQuoted)
+			{
+				if (EndPathnamePos == InOutPythonCommand.Command.Len())
+				{
+					return false; // Missing the closing quote.
+				}
+
+				// Scan after the .py to find the closing quote.
+				for (int32 CurrPos = EndPathnamePos; CurrPos < InOutPythonCommand.Command.Len(); ++CurrPos)
+				{
+					if (InOutPythonCommand.Command[CurrPos] == TEXT('\"'))
+					{
+						EndPathnamePos = CurrPos + 1; // +1 to put the end just after the quote like a std::end() iterator.
+						break;
+					}
+					else if (FChar::IsWhitespace(InOutPythonCommand.Command[CurrPos]))
+					{
+						continue; // It is legal to have blank space after the .py.
+					}
+					else
+					{
+						return false; // Invalid character found after .py.
+					}
+				}
+			}
+			// Some characters appears after the .py
+			else if (EndPathnamePos < InOutPythonCommand.Command.Len() && !FChar::IsWhitespace(InOutPythonCommand.Command[EndPathnamePos]))
+			{
+				return false; // Some non-blank characters are there and we don't expect a closing quote. This is not a valid command Ex: C:\MyScript.py-t
+			}
+
+			// Quote/re-quote the command. This allows Python to set sys.argv/sys.argc property if the pathname contains space. (So parts of the pathname are not interpreted as arguments)
+			OutExtractedCommand = FString::Printf(TEXT("\"%s\""), *OutExtractedFilename);
+
+			// Append the arguments (if any).
+			if (EndPathnamePos < InOutPythonCommand.Command.Len())
+			{
+				OutExtractedCommand += InOutPythonCommand.Command.Mid(EndPathnamePos);
+			}
+
+			return true; // Pathname, command and argument were successfully parsed.
+		};
+
 		FString ExtractedFilename;
+		FString ExtractedCommand;
+
+		if (TryExtractPathnameAndCommand(ExtractedFilename, ExtractedCommand))
 		{
-			const TCHAR* Tmp = *InOutPythonCommand.Command;
-			ExtractedFilename = FParse::Token(Tmp, false);
-		}
-		if (FPaths::GetExtension(ExtractedFilename) == TEXT("py"))
-		{
-			return RunFile(*ExtractedFilename, *InOutPythonCommand.Command, InOutPythonCommand);
+			return RunFile(*ExtractedFilename, *ExtractedCommand, InOutPythonCommand);
 		}
 		else
 		{

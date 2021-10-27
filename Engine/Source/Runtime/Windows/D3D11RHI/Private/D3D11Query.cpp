@@ -262,7 +262,7 @@ void FD3D11DynamicRHI::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 	{
 		++ActualOcclusionQueriesInBatch;
 		Query->bResultIsCached = false;
-		Direct3DDeviceIMContext->Begin(Query->Resource);
+		Direct3DDeviceIMContext->Begin(Query->Resource.GetReference());
 		FD3D11RenderQueryBatcher::Get().Add(QueryRHI);
 	}
 	else

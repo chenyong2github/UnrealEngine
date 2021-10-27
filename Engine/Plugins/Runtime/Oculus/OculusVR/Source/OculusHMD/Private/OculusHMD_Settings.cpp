@@ -23,7 +23,7 @@ FSettings::FSettings() :
 	, CPULevel(2)
 	, GPULevel(3)
 	, bEnableSpecificColorGamut(false)
-	, ColorSpace(EColorSpace::Unknown)
+	, ColorSpace(EOculusColorSpace::Unknown)
 	, HandTrackingSupport(EHandTrackingSupport::ControllersOnly)
 	, ColorScale(ovrpVector4f{1,1,1,1})
 	, ColorOffset(ovrpVector4f{0,0,0,0})

@@ -785,8 +785,8 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	{
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < ImportAssetParameters.OverridePipelines.Num(); ++GraphPipelineIndex)
 		{
-			//Use directly the override pipeline no duplicate.
-			AsyncHelper->Pipelines.Add(ImportAssetParameters.OverridePipelines[GraphPipelineIndex]);
+			// Duplicate the override pipelines to protect the scripted users form making race conditions
+			AsyncHelper->Pipelines.Add(DuplicateObject<UInterchangePipelineBase>(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], GetTransientPackage()));
 		}
 	}
 

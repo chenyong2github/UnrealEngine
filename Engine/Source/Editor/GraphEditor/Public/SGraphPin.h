@@ -20,7 +20,7 @@ class SGraphPin;
 class SHorizontalBox;
 class SImage;
 class SWrapBox;
-class SPinValueInspector;
+class FPinValueInspectorTooltip;
 
 #define NAME_DefaultPinLabelStyle TEXT("Graph.Node.PinName")
 
@@ -120,7 +120,6 @@ public:
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	virtual TSharedPtr<IToolTip> GetToolTip() override;
-	virtual void OnToolTipClosing() override;
 	// End of SWidget interface
 
 public:
@@ -209,6 +208,9 @@ public:
 	/** Override the visual look of the pin by providing two custom brushes */
 	void SetCustomPinIcon(const FSlateBrush* InConnectedBrush, const FSlateBrush* InDisconnectedBrush);
 
+	/** @returns true if we have a valid PinValueInspector tooltip */
+	bool HasInteractiveTooltip() const;
+
 protected:
 
 	/** If true the graph pin subclass is responsible for setting the IsEnabled delegates for the aspects it cares about. If false, the default value widget enabling is done by the base class */
@@ -254,11 +256,8 @@ protected:
 	/** @return The tooltip to display for this pin */
 	FText GetTooltipText() const;
 
-	/** @return Whether the tooltip should be considered interactive */
-	bool IsTooltipInteractive() const;
-
-	/** Delegate to modify or reset the given window location (in screen coords) for an interactive tooltip (e.g. pin value inspector) */
-	void OnSetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const;
+	/** Gets the window location (in screen coords) for an interactive tooltip (e.g. pin value inspector) */
+	void GetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const;
 
 	TOptional<EMouseCursor::Type> GetPinCursor() const;
 
@@ -287,8 +286,8 @@ protected:
 	/** Value widget for the pin, created with GetDefaultValueWidget() */
 	TSharedPtr<SWidget> ValueWidget;
 
-	/** Value inspector widget hosted inside the tooltip while debugging */
-	TSharedPtr<SPinValueInspector> ValueInspectorWidget;
+	/** Value inspector tooltip while debugging */
+	TWeakPtr<FPinValueInspectorTooltip> ValueInspectorTooltip;
 
 	/** The GraphPin that this widget represents. */
 	class UEdGraphPin* GraphPinObj;

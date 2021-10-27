@@ -73,6 +73,7 @@
 #include "RenderCore/Public/RenderUtils.h"
 #include "Engine/Font.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionComponentMask.h"
@@ -547,7 +548,7 @@ void UMaterialInterface::InitDefaultMaterials()
 					)
 				{
 					GDefaultMaterials[Domain] = LoadObject<UMaterial>(nullptr, *ResolvedPath, nullptr, LOAD_DisableDependencyPreloading, nullptr);
-					checkf(GDefaultMaterials[Domain] != nullptr, TEXT("Cannot load default material '%s'"), GDefaultMaterialNames[Domain]);
+					checkf(GDefaultMaterials[Domain] != nullptr, TEXT("Cannot load default material '%s' from path '%s'"), GDefaultMaterialNames[Domain], *ResolvedPath);
 				}
 				if (GDefaultMaterials[Domain])
 				{
@@ -1752,13 +1753,6 @@ void UMaterial::GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FM
 }
 
 #if WITH_EDITORONLY_DATA
-void UMaterial::GetAllMaterialLayersParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	OutParameterInfo.Reset();
-	OutParameterIds.Reset();
-	GetAllParameterInfo<UMaterialExpressionMaterialAttributeLayers>(OutParameterInfo, OutParameterIds);
-}
-
 bool UMaterial::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	for (UMaterialExpression* Expression : Expressions)
@@ -1900,7 +1894,7 @@ void UMaterial::UpdateCachedExpressionData()
 
 bool UMaterial::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
 {
-	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides) && CachedExpressionData)
+	if (CachedExpressionData)
 	{
 		return CachedExpressionData->Parameters.GetParameterValue(Type, ParameterInfo, OutResult);
 	}
@@ -1908,26 +1902,10 @@ bool UMaterial::GetParameterValue(EMaterialParameterType Type, const FMemoryImag
 	return false;
 }
 
-#if WITH_EDITORONLY_DATA
-bool UMaterial::GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent /*= true*/) const
+const FMaterialLayersFunctions* UMaterial::GetMaterialLayers(TMicRecursionGuard) const
 {
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		// Note: Check for layers in top-level only, no recursion required or supported here
-		if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-		{
-			if (LayersExpression->IsNamedParameter(ParameterInfo, OutLayers, OutExpressionGuid))
-			{
-				return true;
-			}
-		}
-	}
-
-	OutLayers.Layers.Empty();
-	OutLayers.Blends.Empty();
-	return false;
+	return CachedExpressionData && CachedExpressionData->bHasMaterialLayers ? &CachedExpressionData->MaterialLayers : nullptr;
 }
-#endif // WITH_EDITORONLY_DATA
 
 bool UMaterial::GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid& OutExpressionGuid) const
 {
@@ -2365,6 +2343,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -4637,21 +4616,6 @@ bool UMaterial::UpdateLightmassTextureTracking()
 #endif // WITH_EDITORONLY_DATA
 
 	return bTexturesHaveChanged;
-}
-
-int32 UMaterial::GetLayerParameterIndex(EMaterialParameterAssociation Association, UMaterialFunctionInterface* LayerFunction) const
-{
-	int32 Index = INDEX_NONE;
-	if (CachedExpressionData)
-	{
-		switch (Association)
-		{
-		case BlendParameter: Index = CachedExpressionData->DefaultLayerBlends.Find(LayerFunction); break;
-		case LayerParameter: Index = CachedExpressionData->DefaultLayers.Find(LayerFunction); break;
-		default: checkNoEntry(); break;
-		}
-	}
-	return Index;
 }
 
 #if WITH_EDITOR

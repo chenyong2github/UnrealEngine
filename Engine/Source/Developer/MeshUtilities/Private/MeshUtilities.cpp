@@ -2789,7 +2789,10 @@ public:
 			int32 NumTexCoords = ComputeNumTexCoords(RawMesh, MAX_STATIC_TEXCOORDS);
 			LODModel.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings[LODIndex].bUseHighPrecisionTangentBasis);
 			LODModel.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings[LODIndex].bUseFullPrecisionUVs);
-			LODModel.VertexBuffers.StaticMeshVertexBuffer.Init(Vertices, NumTexCoords);
+			FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
+			StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
+			StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = LODBuildSettings[LODIndex].bUseBackwardsCompatibleF16TruncUVs;
+			LODModel.VertexBuffers.StaticMeshVertexBuffer.Init(Vertices, NumTexCoords, StaticMeshVertexBufferFlags);
 			LODModel.VertexBuffers.PositionVertexBuffer.Init(Vertices);
 			LODModel.VertexBuffers.ColorVertexBuffer.Init(Vertices);
 

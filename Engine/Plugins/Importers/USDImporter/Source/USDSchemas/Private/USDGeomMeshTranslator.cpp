@@ -32,6 +32,7 @@
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "RHI.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "StaticMeshResources.h"
@@ -506,7 +507,7 @@ namespace UsdGeomMeshTranslatorImpl
 		StaticMesh.CreateBodySetup();
 	}
 
-	bool BuildStaticMesh( UStaticMesh& StaticMesh, TArray<FMeshDescription>& LODIndexToMeshDescription )
+	bool BuildStaticMesh( UStaticMesh& StaticMesh, const FStaticFeatureLevel& FeatureLevel, TArray<FMeshDescription>& LODIndexToMeshDescription )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::BuildStaticMesh );
 
@@ -924,7 +925,19 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 	Then( ESchemaTranslationLaunchPolicy::Async,
 		[ this ]() mutable
 		{
-			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, LODIndexToMeshDescription ) )
+			FStaticFeatureLevel FeatureLevel = GMaxRHIFeatureLevel;
+
+			UWorld* World = Context->Level ? Context->Level->GetWorld() : nullptr;
+			if ( !World )
+			{
+				World = GWorld;
+			}
+			if ( World )
+			{
+				FeatureLevel = World->FeatureLevel;
+			}
+
+			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, FeatureLevel, LODIndexToMeshDescription ) )
 			{
 				// Build failed, discard the mesh
 				StaticMesh = nullptr;

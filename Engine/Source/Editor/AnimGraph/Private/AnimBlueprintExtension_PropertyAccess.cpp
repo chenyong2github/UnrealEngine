@@ -216,6 +216,8 @@ void UAnimBlueprintExtension_PropertyAccess::ExpandPropertyAccess(FKismetCompile
 	
 	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	
 	UEdGraphNode* SourceNode = InTargetPin->GetOwningNode();
 	check(SourceNode);
 	
@@ -341,7 +343,55 @@ void UAnimBlueprintExtension_PropertyAccess::ExpandPropertyAccess(FKismetCompile
 		check(CurrentPin);
 		if(InTargetPin->Direction == CurrentPin->Direction)
 		{
-			InCompilerContext.MovePinLinksToIntermediate(*InTargetPin, *CurrentPin);
+			if(K2Schema->ArePinTypesCompatible(InTargetPin->PinType, CurrentPin->PinType, InCompilerContext.NewClass))
+			{
+				InCompilerContext.MovePinLinksToIntermediate(*InTargetPin, *CurrentPin);
+			}
+			else
+			{
+				// Need to create a conversion node. We will support basic conversion here for now as we are only looking for primitive types/casts
+				FName FuncName = NAME_None;
+				UClass* FuncOwner = nullptr;
+				if(K2Schema->SearchForAutocastFunction(CurrentPin->PinType, InTargetPin->PinType, FuncName, FuncOwner))
+				{
+					UK2Node_CallFunction* AutoCastNode = InCompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode, InParentGraph);
+					AutoCastNode->FunctionReference.SetExternalMember(FuncName, FuncOwner);
+					AutoCastNode->AllocateDefaultPins();
+					
+					// Find output pin & connect
+					UEdGraphPin* OutputPin = AutoCastNode->FindPinByPredicate([K2Schema, InTargetPin, &InCompilerContext](UEdGraphPin* InPin)
+					{
+						return InPin->Direction == EGPD_Output && K2Schema->ArePinTypesCompatible(InPin->PinType, InTargetPin->PinType, InCompilerContext.NewClass);
+					});
+					
+					UEdGraphPin* InputPin = AutoCastNode->FindPinByPredicate([K2Schema, CurrentPin, &InCompilerContext](UEdGraphPin* InPin)
+					{
+						return InPin->Direction == EGPD_Input && K2Schema->ArePinTypesCompatible(InPin->PinType, CurrentPin->PinType, InCompilerContext.NewClass);
+					});
+					
+					if(InputPin && OutputPin)
+					{
+						bool bSucceeded = GraphSchema->TryCreateConnection(CurrentPin, InputPin);
+						if(!bSucceeded)
+						{
+							InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ ICE: could not connect autocast when expanding node").ToString(), SourceNode);
+						}
+						else
+						{
+							CurrentPin = OutputPin;
+							InCompilerContext.MovePinLinksToIntermediate(*InTargetPin, *CurrentPin);
+						}
+					}
+					else
+					{
+						InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ ICE: could not find pins on autocast when expanding node").ToString(), SourceNode);
+					}
+				}
+				else
+				{
+					InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ could not make auto-cast function when expanding node").ToString(), SourceNode);
+				}
+			}
 		}
 		else
 		{

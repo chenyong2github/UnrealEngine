@@ -201,7 +201,14 @@ extern "C" {
 #define NSVG_ALIGN_SLICE 2
 
 #define NSVG_NOTUSED(v) do { (void)(1 ? (void)0 : ( (void)(v) ) ); } while(0)
+
+// BEGIN EPIC - Allow r and b to be swapped for platforms that use BGRA
+#if NSVG_USE_BGRA
+#define NSVG_RGB(r, g, b) (((unsigned int)b) | ((unsigned int)g << 8) | ((unsigned int)r << 16))
+#else
 #define NSVG_RGB(r, g, b) (((unsigned int)r) | ((unsigned int)g << 8) | ((unsigned int)b << 16))
+#endif
+// END EPIC
 
 #ifdef _MSC_VER
 #pragma warning(push)

@@ -38,7 +38,7 @@ public:
 	*/
 	FORCEINLINE int32 GetEntryIndex(float R0, float R1)const
 	{
-		int32 Idx = R0 * Prob.Num();
+		int32 Idx = (int32)(R0) * Prob.Num();
 		return R1 < Prob[Idx] ? Idx : Alias[Idx];
 	}
 

@@ -222,7 +222,7 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 /** Computes the world space position of this vertex last frame. */
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(GetPrimitiveData(Intermediates).PreviousLocalToWorld, ResolvedView.PreViewTranslation);
+	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(GetPrimitiveData(Intermediates).PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
 	return mul(float4(Intermediates.LocalPos,1), PreviousLocalToWorldTranslated);
 }
 

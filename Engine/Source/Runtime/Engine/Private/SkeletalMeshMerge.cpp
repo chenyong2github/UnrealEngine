@@ -549,6 +549,7 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 			}
 #endif
 			MergeLODInfo.BuildSettings.bUseFullPrecisionUVs |= SrcLODInfo.BuildSettings.bUseFullPrecisionUVs;
+			MergeLODInfo.BuildSettings.bUseBackwardsCompatibleF16TruncUVs |= SrcLODInfo.BuildSettings.bUseBackwardsCompatibleF16TruncUVs;
 			MergeLODInfo.BuildSettings.bUseHighPrecisionTangentBasis |= SrcLODInfo.BuildSettings.bUseHighPrecisionTangentBasis;
 
 			MergeLODInfo.LODHysteresis = FMath::Min<float>(MergeLODInfo.LODHysteresis,SrcLODInfo.LODHysteresis);
@@ -727,13 +728,15 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 	MergeLODData.StaticVertexBuffers.PositionVertexBuffer.Init(MergedVertexBuffer.Num(), bNeedsCPUAccess);
 	MergeLODData.StaticVertexBuffers.StaticMeshVertexBuffer.Init(MergedVertexBuffer.Num(), TotalNumUVs, bNeedsCPUAccess);
 
+	bool bUseBackwardsCompatibleF16TruncUVs = MergeLODInfo.BuildSettings.bUseBackwardsCompatibleF16TruncUVs;
+
 	for (int i = 0; i < MergedVertexBuffer.Num(); i++)
 	{
 		MergeLODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(i) = MergedVertexBuffer[i].Position;
 		MergeLODData.StaticVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, MergedVertexBuffer[i].TangentX.ToFVector(), MergedVertexBuffer[i].GetTangentY(), MergedVertexBuffer[i].TangentZ.ToFVector());
 		for (uint32 j = 0; j < TotalNumUVs; j++)
 		{
-			MergeLODData.StaticVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, j, MergedVertexBuffer[i].UVs[j]);
+			MergeLODData.StaticVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, j, MergedVertexBuffer[i].UVs[j], bUseBackwardsCompatibleF16TruncUVs);
 		}
 	}
 

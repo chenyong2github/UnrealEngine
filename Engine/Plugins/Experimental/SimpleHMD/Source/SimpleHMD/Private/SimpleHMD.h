@@ -15,7 +15,7 @@ class UCanvas;
 /**
  * Simple Head Mounted Display
  */
-class FSimpleHMD : public FHeadMountedDisplayBase, public FSceneViewExtensionBase
+class FSimpleHMD : public FHeadMountedDisplayBase, public FHMDSceneViewExtension
 {
 public:
 	/** IXRTrackingSystem interface */
@@ -85,7 +85,6 @@ public:
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) {}
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const;
 
 public:
 	/** Constructor */

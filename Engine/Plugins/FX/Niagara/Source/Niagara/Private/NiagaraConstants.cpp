@@ -47,6 +47,18 @@ const FName FNiagaraConstants::EngineSystemScopeName(TEXT("EngineSystem"));
 const FName FNiagaraConstants::EngineEmitterScopeName(TEXT("EngineEmitter"));
 const FName FNiagaraConstants::CustomScopeName(TEXT("Custom"));
 
+const FString FNiagaraConstants::AssignmentNodePrefixString(TRANSLATOR_SET_VARIABLES_STR);
+const FString FNiagaraConstants::EngineNamespaceString(TEXT("Engine"));
+const FString FNiagaraConstants::EmitterNamespaceString(TEXT("Emitter"));
+const FString FNiagaraConstants::OutputNamespaceString(TEXT("Output"));
+const FString FNiagaraConstants::ModuleNamespaceString(TEXT("Module"));
+const FString FNiagaraConstants::ParameterCollectionNamespaceString(TEXT("NPC"));
+const FString FNiagaraConstants::ParticleAttributeNamespaceString(TEXT("Particles"));
+const FString FNiagaraConstants::RapidIterationParametersNamespaceString(TEXT("Constants"));
+const FString FNiagaraConstants::StackContextNamespaceString(TEXT("StackContext"));
+const FString FNiagaraConstants::SystemNamespaceString(TEXT("System"));
+const FString FNiagaraConstants::UserNamespaceString(TEXT("User"));
+
 const FName FNiagaraConstants::InputScopeName(TEXT("Input"));
 const FName FNiagaraConstants::OutputScopeName(TEXT("Output"));
 const FName FNiagaraConstants::UniqueOutputScopeName(TEXT("OutputModule"));
@@ -701,21 +713,47 @@ FNiagaraVariable FNiagaraConstants::GetAttributeWithDefaultValue(const FNiagaraV
 
 FNiagaraVariable FNiagaraConstants::GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InVar)
 {
+	static FString ParticlesString = TEXT("Particles.");
+	static FString StackContextString = TEXT("StackContext.");
+
 	FNiagaraVariable OutVar = InVar;
-	FString DataSetName = InVar.GetName().ToString();
-	DataSetName.RemoveFromStart(TEXT("Particles."));
-	DataSetName.RemoveFromStart(TEXT("StackContext."));
-	OutVar.SetName(*DataSetName);
+
+	TStringBuilder<128> DataSetName;
+	InVar.GetName().ToString(DataSetName);
+
+	FStringView DataSetNameView(DataSetName);
+	if (DataSetNameView.StartsWith(ParticlesString))
+	{
+		DataSetNameView.RemovePrefix(ParticlesString.Len());
+	}
+	else if (DataSetNameView.StartsWith(StackContextString))
+	{
+		DataSetNameView.RemovePrefix(StackContextString.Len());
+	}
+	OutVar.SetName(FName(DataSetNameView));
 	return OutVar;
 }
 
 FNiagaraVariable FNiagaraConstants::GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InVar)
 {
+	static FString EmitterString = TEXT("Emitter.");
+	static FString StackContextString = TEXT("StackContext.");
+
 	FNiagaraVariable OutVar = InVar;
-	FString DataSetName = InVar.GetName().ToString();
-	DataSetName.RemoveFromStart(TEXT("Emitter."));
-	DataSetName.RemoveFromStart(TEXT("StackContext."));
-	OutVar.SetName(*DataSetName);
+
+	TStringBuilder<128> DataSetName;
+	InVar.GetName().ToString(DataSetName);
+
+	FStringView DataSetNameView(DataSetName);
+	if ( DataSetNameView.StartsWith(EmitterString) )
+	{
+		DataSetNameView.RemovePrefix(EmitterString.Len());
+	}
+	else if (DataSetNameView.StartsWith(StackContextString))
+	{
+		DataSetNameView.RemovePrefix(StackContextString.Len());
+	}
+	OutVar.SetName(FName(DataSetNameView));
 	return OutVar;
 }
 FNiagaraVariableAttributeBinding FNiagaraConstants::GetAttributeDefaultBinding(const FNiagaraVariable& InVar)

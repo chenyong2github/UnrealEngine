@@ -265,9 +265,17 @@ struct FMetasoundFrontendVariable
 {
 	GENERATED_BODY()
 
+	// Name of the vertex. Unique amongst other vertices on the same interface.
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
+	FName Name;
+
 	// Variable display name
 	UPROPERTY()
 	FText DisplayName;
+
+	// Variable description
+	UPROPERTY()
+	FText Description;
 
 	// Variable data type name
 	UPROPERTY()
@@ -708,7 +716,7 @@ struct FMetasoundFrontendInterfaceStyle
 		// TODO: Hack for assets which aren't getting sort order set for inputs/outputs. Fix this & remove size check.
 		if (DefaultSortOrder.Num() > 0)
 		{
-			if (ensure(SortedHandles.Num() == DefaultSortOrder.Num()))
+			if (SortedHandles.Num() == DefaultSortOrder.Num())
 			{
 				TMap<FGuid, int32> HandleIDToSortIndex;
 				for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
@@ -721,11 +729,11 @@ struct FMetasoundFrontendInterfaceStyle
 				}
 
 				SortedHandles.Sort([&](const HandleType& HandleA, const HandleType& HandleB)
-					{
-						const FGuid HandleAID = HandleA->GetID();
-						const FGuid HandleBID = HandleB->GetID();
-						return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
-					});
+				{
+					const FGuid HandleAID = HandleA->GetID();
+					const FGuid HandleBID = HandleB->GetID();
+					return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
+				});
 			}
 		}
 

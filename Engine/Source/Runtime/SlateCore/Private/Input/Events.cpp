@@ -55,12 +55,12 @@ bool FKeyEvent::IsKeyEvent() const
 
 FText FAnalogInputEvent::ToText() const
 {
-	return FText::Format(NSLOCTEXT("Events", "AnalogInput", "AnalogInput Key({0})"), GetKey().GetDisplayName());
+	return FText::Format(NSLOCTEXT("Events", "AnalogInput", "AnalogInput(key:{0}, value:{1}"), GetKey().GetDisplayName(), AnalogValue);
 }
 
 FText FPointerEvent::ToText() const
 {
-	return FText::Format( NSLOCTEXT("Events", "Pointer", "Pointer({0}, {1})"), EffectingButton.GetDisplayName() );
+	return FText::Format( NSLOCTEXT("Events", "Pointer", "Pointer(key:{0}, pos:{1}x{2}, delta:{3}x{4})"), EffectingButton.GetDisplayName(), ScreenSpacePosition.X, ScreenSpacePosition.Y, CursorDelta.X, CursorDelta.Y);
 }
 
 bool FPointerEvent::IsPointerEvent() const

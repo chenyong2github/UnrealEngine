@@ -59,7 +59,7 @@ public:
 		const int32 StructIndex = GetStructIndex<StructType>();
 		if (StructIndex >= Blackboard.Num())
 		{
-			Blackboard.SetNum(StructIndex + 1);
+			Blackboard.SetNumZeroed(StructIndex + 1);
 		}
 
 		FStruct*& Result = Blackboard[StructIndex];

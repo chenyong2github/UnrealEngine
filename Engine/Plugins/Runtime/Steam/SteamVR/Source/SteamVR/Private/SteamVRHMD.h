@@ -69,7 +69,7 @@ struct FSteamVRLayer
 /**
  * SteamVR Head Mounted Display
  */
-class FSteamVRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSteamVRAssetManager, public TStereoLayerManager<FSteamVRLayer>, public FSceneViewExtensionBase
+class FSteamVRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSteamVRAssetManager, public TStereoLayerManager<FSteamVRLayer>, public FHMDSceneViewExtension
 {
 public:
 	static const FName SteamSystemName;
@@ -195,6 +195,8 @@ public:
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override {}
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {}
 	virtual void PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
+
+	// FHMDSceneViewExtension interface
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	// SpectatorScreen

@@ -47,11 +47,6 @@ void SPropertyEditorStruct::GetDesiredWidth(float& OutMinDesiredWidth, float& Ou
 
 bool SPropertyEditorStruct::Supports(const TSharedRef< class FPropertyEditor >& InPropertyEditor)
 {
-	if (InPropertyEditor->IsEditConst())
-	{
-		return false;
-	}
-
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
 	const FProperty* Property = InPropertyEditor->GetProperty();
 	int32 ArrayIndex = PropertyNode->GetArrayIndex();
@@ -134,6 +129,8 @@ void SPropertyEditorStruct::Construct(const FArguments& InArgs, const TSharedPtr
 	[
 		ComboButton.ToSharedRef()
 	];
+
+	SetEnabled(TAttribute<bool>(this, &SPropertyEditorStruct::CanEdit));
 }
 
 FText SPropertyEditorStruct::GetDisplayValue() const
@@ -328,6 +325,12 @@ FReply SPropertyEditorStruct::OnDrop(const FGeometry& MyGeometry, const FDragDro
 	}
 
 	return FReply::Unhandled();
+}
+
+/** @return True if the property can be edited */
+bool SPropertyEditorStruct::CanEdit() const
+{
+	return PropertyEditor.IsValid() ? !PropertyEditor->IsEditConst() : true;
 }
 
 #undef LOCTEXT_NAMESPACE

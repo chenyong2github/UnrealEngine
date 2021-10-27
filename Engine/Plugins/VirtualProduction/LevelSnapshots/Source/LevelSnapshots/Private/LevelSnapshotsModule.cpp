@@ -2,11 +2,12 @@
 
 #include "LevelSnapshotsModule.h"
 
-#include "BlacklistRestorabilityOverrider.h"
+#include "ClassRestorationSkipper.h"
 #include "LevelSnapshotsEditorProjectSettings.h"
 #include "LevelSnapshotsLog.h"
-#include "Restorability/PropertyComparisonParams.h"
+#include "Params/PropertyComparisonParams.h"
 #include "Restorability/CollisionRestoration.h"
+#include "Restorability/GridPlacementRestoration.h"
 
 #include "Algo/AllOf.h"
 #include "Components/ActorComponent.h"
@@ -22,7 +23,7 @@ namespace
 	void AddSoftObjectPathSupport(FLevelSnapshotsModule& Module)
 	{
 		// FSnapshotRestorability::IsRestorableProperty requires properties to have the CPF_Edit specifier
-		// FSoftObjectPath does not have this so we need to whitelist its properties
+		// FSoftObjectPath does not have this so we need to explicitly allow its properties
 
 		UStruct* SoftObjectClassPath = FindObject<UStruct>(nullptr, TEXT("/Script/CoreUObject.SoftObjectPath"));
 		if (!ensureMsgf(SoftObjectClassPath, TEXT("Investigate why this class could not be found")))
@@ -30,9 +31,9 @@ namespace
 			return;
 		}
 
-		TSet<const FProperty*> WhitelistedProperties;
-		Algo::Transform(TFieldRange<const FProperty>(SoftObjectClassPath), WhitelistedProperties, [](const FProperty* Prop) { return Prop;} );
-		Module.AddWhitelistedProperties(WhitelistedProperties);
+		TSet<const FProperty*> SoftObjectPathProperties;
+		Algo::Transform(TFieldRange<const FProperty>(SoftObjectClassPath), SoftObjectPathProperties, [](const FProperty* Prop) { return Prop;} );
+		Module.AddExplicitilySupportedProperties(SoftObjectPathProperties);
 	}
 
 	void AddAttachParentSupport(FLevelSnapshotsModule& Module)
@@ -44,7 +45,7 @@ namespace
 		const FProperty* RootComponent = AActor::StaticClass()->FindPropertyByName(FName("RootComponent"));
 		if (ensure(AttachParent && AttachSocketName))
 		{
-			Module.AddWhitelistedProperties({ AttachParent, AttachSocketName, RootComponent });
+			Module.AddExplicitilySupportedProperties({ AttachParent, AttachSocketName, RootComponent });
 		}
 	}
 
@@ -55,7 +56,7 @@ namespace
 		const FProperty* BrushBuilder = ABrush::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ABrush, BrushBuilder));
 		if (ensure(BrushBuilder))
 		{
-			Module.AddBlacklistedProperties({ BrushBuilder });
+			Module.AddExplicitlyUnsupportedProperties({ BrushBuilder });
 		}
 #endif
 	}
@@ -66,7 +67,7 @@ namespace
 		const FProperty* NavigationSystemConfig = AWorldSettings::StaticClass()->FindPropertyByName(FName("NavigationSystemConfig"));
 		if (ensure(NavigationSystemConfig))
 		{
-			Module.AddBlacklistedProperties({ NavigationSystemConfig });
+			Module.AddExplicitlyUnsupportedProperties({ NavigationSystemConfig });
 		}
 	}
 
@@ -76,9 +77,17 @@ namespace
 		const FProperty* BasePropertyOverrides = UMaterialInstance::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialInstance, BasePropertyOverrides));
 		if (ensure(BasePropertyOverrides))
 		{
-			Module.AddBlacklistedProperties({ BasePropertyOverrides });
+			Module.AddExplicitlyUnsupportedProperties({ BasePropertyOverrides });
 		}
-		
+	}
+
+	void DisableIrrelevantActorProperties(FLevelSnapshotsModule& Module)
+	{
+		const FProperty* ActorGuid = AActor::StaticClass()->FindPropertyByName(FName("ActorGuid"));
+		if (ensure(ActorGuid))
+		{
+			Module.AddExplicitlyUnsupportedProperties({ ActorGuid });
+		}
 	}
 }
 
@@ -94,15 +103,15 @@ FLevelSnapshotsModule& FLevelSnapshotsModule::GetInternalModuleInstance()
 
 void FLevelSnapshotsModule::StartupModule()
 {
-	// Hook up project settings blacklist
-	const TSharedRef<FBlacklistRestorabilityOverrider> Blacklist = MakeShared<FBlacklistRestorabilityOverrider>(
-		FBlacklistRestorabilityOverrider::FGetBlacklist::CreateLambda([]() -> const FRestorationBlacklist&
+	// Hook up project settings
+	const TSharedRef<FClassRestorationSkipper> ClassSkipper = MakeShared<FClassRestorationSkipper>(
+		FClassRestorationSkipper::FGetSkippedClassList::CreateLambda([]() -> const FSkippedClassList&
 		{
 			ULevelSnapshotsEditorProjectSettings* Settings = GetMutableDefault<ULevelSnapshotsEditorProjectSettings>();
-			return Settings->Blacklist;
+			return Settings->SkippedClasses;
 		})
 	);
-	RegisterRestorabilityOverrider(Blacklist);
+	RegisterRestorabilityOverrider(ClassSkipper);
 
 	// Enable / disable troublesome properties
 	AddSoftObjectPathSupport(*this);
@@ -110,9 +119,11 @@ void FLevelSnapshotsModule::StartupModule()
 	DisableIrrelevantBrushSubobjects(*this);
 	DisableIrrelevantWorldSettings(*this);
 	DisableIrrelevantMaterialInstanceProperties(*this);
+	DisableIrrelevantActorProperties(*this);
 
 	// Interact with special engine features
 	FCollisionRestoration::Register(*this);
+	GridPlacementRestoration::Register(*this);
 }
 
 void FLevelSnapshotsModule::ShutdownModule()
@@ -133,7 +144,7 @@ void FLevelSnapshotsModule::UnregisterRestorabilityOverrider(TSharedRef<ISnapsho
 	Overrides.RemoveSwap(Overrider);
 }
 
-void FLevelSnapshotsModule::AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes)
+void FLevelSnapshotsModule::AddSkippedSubobjectClasses(const TSet<UClass*>& Classes)
 {
 	for (UClass* Class : Classes)
 	{
@@ -146,15 +157,15 @@ void FLevelSnapshotsModule::AddBlacklistedSubobjectClasses(const TSet<UClass*>& 
 			continue;
 		}
 
-		BlacklistedSubobjectClasses.Add(Class);
+		SkippedSubobjectClasses.Add(Class);
 	}
 }
 
-void FLevelSnapshotsModule::RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes)
+void FLevelSnapshotsModule::RemoveSkippedSubobjectClasses(const TSet<UClass*>& Classes)
 {
 	for (UClass* Class : Classes)
 	{
-		BlacklistedSubobjectClasses.Remove(Class);
+		SkippedSubobjectClasses.Remove(Class);
 	}
 }
 
@@ -225,53 +236,53 @@ void FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestoratio
 	RestorationListeners.RemoveSingle(Listener);
 }
 
-void FLevelSnapshotsModule::AddWhitelistedProperties(const TSet<const FProperty*>& Properties)
+void FLevelSnapshotsModule::AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
-		WhitelistedProperties.Add(Property);
+		SupportedProperties.Add(Property);
 	}
 }
 
-void FLevelSnapshotsModule::RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties)
+void FLevelSnapshotsModule::RemoveAdditionallySupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
-		WhitelistedProperties.Remove(Property);
+		SupportedProperties.Remove(Property);
 	}
 }
 
-void FLevelSnapshotsModule::AddBlacklistedProperties(const TSet<const FProperty*>& Properties)
+void FLevelSnapshotsModule::AddExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
-		BlacklistedProperties.Add(Property);
+		UnsupportedProperties.Add(Property);
 	}
 }
 
-void FLevelSnapshotsModule::RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties)
+void FLevelSnapshotsModule::RemoveExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
-		BlacklistedProperties.Remove(Property);
+		UnsupportedProperties.Remove(Property);
 	}
 }
 
-void FLevelSnapshotsModule::AddBlacklistedClassDefault(const UClass* Class)
+void FLevelSnapshotsModule::AddSkippedClassDefault(const UClass* Class)
 {
-	BlacklistedCDOs.Add(Class);
+	SkippedCDOs.Add(Class);
 }
 
-void FLevelSnapshotsModule::RemoveBlacklistedClassDefault(const UClass* Class)
+void FLevelSnapshotsModule::RemoveSkippedClassDefault(const UClass* Class)
 {
-	BlacklistedCDOs.Remove(Class);
+	SkippedCDOs.Remove(Class);
 }
 
-bool FLevelSnapshotsModule::IsClassDefaultBlacklisted(const UClass* Class) const
+bool FLevelSnapshotsModule::ShouldSkipClassDefaultSerialization(const UClass* Class) const
 {
 	for (const UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
 	{
-		if (BlacklistedCDOs.Contains(CurrentClass))
+		if (SkippedCDOs.Contains(CurrentClass))
 		{
 			return true;
 		}
@@ -280,20 +291,20 @@ bool FLevelSnapshotsModule::IsClassDefaultBlacklisted(const UClass* Class) const
 	return false;
 }
 
-bool FLevelSnapshotsModule::IsSubobjectClassBlacklisted(const UClass* Class) const
+bool FLevelSnapshotsModule::ShouldSkipSubobjectClass(const UClass* Class) const
 {
 	if (Class->IsChildOf(UActorComponent::StaticClass()))
 	{
 		return false;
 	}
 
-	bool bFoundBlacklistedClass = false;
-	for (const UClass* CurrentClass = Class; !bFoundBlacklistedClass && CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	bool bFoundSkippedClass = false;
+	for (const UClass* CurrentClass = Class; !bFoundSkippedClass && CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
 	{
-		bFoundBlacklistedClass = BlacklistedSubobjectClasses.Contains(CurrentClass);
+		bFoundSkippedClass = SkippedSubobjectClasses.Contains(CurrentClass);
 	}
 
-	return bFoundBlacklistedClass;
+	return bFoundSkippedClass;
 }
 
 const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule::GetOverrides() const
@@ -301,14 +312,14 @@ const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule
 	return Overrides;
 }
 
-bool FLevelSnapshotsModule::IsPropertyWhitelisted(const FProperty* Property) const
+bool FLevelSnapshotsModule::IsPropertyExplicitlySupported(const FProperty* Property) const
 {
-	return WhitelistedProperties.Contains(Property);
+	return SupportedProperties.Contains(Property);
 }
 
-bool FLevelSnapshotsModule::IsPropertyBlacklisted(const FProperty* Property) const
+bool FLevelSnapshotsModule::IsPropertyExplicitlyUnsupported(const FProperty* Property) const
 {
-	return BlacklistedProperties.Contains(Property);
+	return UnsupportedProperties.Contains(Property);
 }
 
 FPropertyComparerArray FLevelSnapshotsModule::GetPropertyComparerForClass(UClass* Class) const
@@ -426,6 +437,36 @@ void FLevelSnapshotsModule::OnPostApplySnapshotToActor(const FApplySnapshotToAct
 	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
 	{
 		Listener->PostApplySnapshotToActor(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPreCreateActor(UWorld* World, TSubclassOf<AActor> ActorClass, FActorSpawnParameters& InOutSpawnParams)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreRecreateActor(World, ActorClass, InOutSpawnParams);
+	}
+}
+
+void FLevelSnapshotsModule::OnPostRecreateActor(AActor* Actor)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostRecreateActor(Actor);
+	}
+}
+
+void FLevelSnapshotsModule::OnPreRemoveActor(AActor* Actor)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreRemoveActor(Actor);
 	}
 }
 

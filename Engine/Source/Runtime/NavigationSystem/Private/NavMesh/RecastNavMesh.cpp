@@ -64,10 +64,72 @@ namespace
 	}
 }
 
+FDetourTileLayout::FDetourTileLayout(const dtMeshTile& tile)
+{
+	const dtMeshHeader* header = tile.header;
+
+	if (header && (header->magic == DT_NAVMESH_MAGIC) && (header->version == DT_NAVMESH_VERSION))
+	{
+		FDetourTileSizeInfo SizeInfo;
+
+		SizeInfo.VertCount = header->vertCount;
+		SizeInfo.PolyCount = header->polyCount;
+		SizeInfo.MaxLinkCount = header->maxLinkCount;
+		SizeInfo.DetailMeshCount = header->detailMeshCount;
+		SizeInfo.DetailVertCount = header->detailVertCount;
+		SizeInfo.DetailTriCount = header->detailTriCount;
+		SizeInfo.BvNodeCount = header->bvNodeCount;
+		SizeInfo.OffMeshConCount = header->offMeshConCount;
+
+#if WITH_NAVMESH_SEGMENT_LINKS
+		SizeInfo.OffMeshSegConCount = header->offMeshSegConCount;
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+		SizeInfo.ClusterCount = header->clusterCount;
+		SizeInfo.OffMeshBase = header->offMeshBase;
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+		InitFromSizeInfo(SizeInfo);
+	}
+}
+
+FDetourTileLayout::FDetourTileLayout(const FDetourTileSizeInfo& SizeInfo)
+{
+	InitFromSizeInfo(SizeInfo);
+}
+
+void FDetourTileLayout::InitFromSizeInfo(const FDetourTileSizeInfo& SizeInfo)
+{
+	// Patch header pointers.
+	HeaderSize = dtAlign(sizeof(dtMeshHeader));
+	VertsSize = dtAlign(sizeof(dtReal) * 3 * SizeInfo.VertCount);
+	PolysSize = dtAlign(sizeof(dtPoly) * SizeInfo.PolyCount);
+	LinksSize = dtAlign(sizeof(dtLink) * (SizeInfo.MaxLinkCount));
+	DetailMeshesSize = dtAlign(sizeof(dtPolyDetail) * SizeInfo.DetailMeshCount);
+	DetailVertsSize = dtAlign(sizeof(dtReal) * 3 * SizeInfo.DetailVertCount);
+	DetailTrisSize = dtAlign(sizeof(unsigned char) * 4 * SizeInfo.DetailTriCount);
+	BvTreeSize = dtAlign(sizeof(dtBVNode) * SizeInfo.BvNodeCount);
+	OffMeshConsSize = dtAlign(sizeof(dtOffMeshConnection) * SizeInfo.OffMeshConCount);
+
+#if WITH_NAVMESH_SEGMENT_LINKS
+	OffMeshSegsSize = dtAlign(sizeof(dtOffMeshSegmentConnection) * SizeInfo.OffMeshSegConCount);
+#endif // WITH_NAVMESH_SEGMENT_LINKS
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+	ClustersSize = dtAlign(sizeof(dtCluster) * SizeInfo.ClusterCount);
+	PolyClustersSize = dtAlign(sizeof(unsigned short) * SizeInfo.OffMeshBase);
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+	TileSize = HeaderSize + VertsSize + PolysSize + LinksSize + DetailMeshesSize + DetailVertsSize + DetailTrisSize
+		+ BvTreeSize + OffMeshConsSize + OffMeshSegsSize + ClustersSize + PolyClustersSize;
+}
+
+
 FNavMeshTileData::FNavData::~FNavData()
 {
 #if WITH_RECAST
-	dtFree(RawNavData);
+	dtFree(RawNavData, DT_ALLOC_PERM_TILE_DATA);
 #else
 	FMemory::Free(RawNavData);
 #endif // WITH_RECAST
@@ -86,6 +148,7 @@ FNavMeshTileData::~FNavMeshTileData()
 {
 	if (NavData.IsUnique() && NavData->RawNavData)
 	{
+		// @todo this isn't accounting for the fact that NavData is a shared pointer
 		DEC_MEMORY_STAT_BY(STAT_Navigation_TileCacheMemory, DataSize);
 	}
 }
@@ -112,7 +175,7 @@ void FNavMeshTileData::MakeUnique()
 	{
 		INC_MEMORY_STAT_BY(STAT_Navigation_TileCacheMemory, DataSize);
 #if WITH_RECAST
-		uint8* UniqueRawData = (uint8*)dtAlloc(sizeof(uint8)*DataSize, DT_ALLOC_PERM);
+		uint8* UniqueRawData = (uint8*)dtAlloc(sizeof(uint8)*DataSize, DT_ALLOC_PERM_TILE_DATA);
 #else
 		uint8* UniqueRawData = (uint8*)FMemory::Malloc(sizeof(uint8)*DataSize);
 #endif //WITH_RECAST
@@ -715,6 +778,8 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 	{
 		if (NavMeshVersion < NAVMESHVER_MIN_COMPATIBLE)
 		{
+			UE_LOG(LogNavigation, Warning, TEXT("%s: ARecastNavMesh: Nav mesh version %d < Min compatible %d. Nav mesh must be rebuilt in the editor \n"), *GetName(), NavMeshVersion, NAVMESHVER_MIN_COMPATIBLE);
+
 			// incompatible, just skip over this data.  navmesh needs rebuilt.
 			Ar.Seek( RecastNavMeshSizePos + RecastNavMeshSizeBytes );
 
@@ -1063,16 +1128,16 @@ bool ARecastNavMesh::GetRandomReachablePointInRadius(const FVector& Origin, floa
 	{
 		// find starting poly
 		const FVector ProjectionExtent(NavDataConfig.DefaultQueryExtent.X, NavDataConfig.DefaultQueryExtent.Y, BIG_NUMBER);
-		const FVector3f RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
+		const FVector RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
 		// convert start/end pos to Recast coords
-		const FVector3f RecastOrigin = Unreal2RecastPoint(Origin);
+		const FVector RecastOrigin = Unreal2RecastPoint(Origin);
 		NavNodeRef OriginPolyID = INVALID_NAVNODEREF;
 		NavQuery.findNearestPoly(&RecastOrigin.X, &RcExtent.X, QueryFilter, &OriginPolyID, nullptr);
 
 		if (OriginPolyID != INVALID_NAVNODEREF)
 		{
 			dtPolyRef Poly;
-			float RandPt[3];
+			FVector::FReal RandPt[3];
 			dtStatus Status = NavQuery.findRandomPointAroundCircle(OriginPolyID, &RecastOrigin.X, Radius
 				, QueryFilter, FMath::FRand, &Poly, RandPt);
 
@@ -1094,9 +1159,9 @@ bool ARecastNavMesh::GetRandomPointInNavigableRadius(const FVector& Origin, floa
 	const FVector ProjectionExtent(NavDataConfig.DefaultQueryExtent.X, NavDataConfig.DefaultQueryExtent.Y, BIG_NUMBER);
 	OutResult = FNavLocation(FNavigationSystem::InvalidLocation);
 
-	const float RandomAngle = 2.f * PI * FMath::FRand();
-	const float U = FMath::FRand() + FMath::FRand();
-	const float RandomRadius = Radius * (U > 1 ? 2.f - U : U);
+	const FVector::FReal RandomAngle = 2.f * PI * FMath::FRand();
+	const FVector::FReal U = FMath::FRand() + FMath::FRand();
+	const FVector::FReal RandomRadius = Radius * (U > 1 ? 2.f - U : U);
 	const FVector RandomOffset(FMath::Cos(RandomAngle) * RandomRadius, FMath::Sin(RandomAngle) * RandomRadius, 0);
 	FVector RandomLocationInRadius = Origin + RandomOffset;
 
@@ -1106,7 +1171,7 @@ bool ARecastNavMesh::GetRandomPointInNavigableRadius(const FVector& Origin, floa
 	// if failed get a list of all nav polys in the area and do it the hard way
 	if (OutResult.HasNodeRef() == false && RecastNavMeshImpl)
 	{
-		const float RadiusSq = FMath::Square(Radius);
+		const FVector::FReal RadiusSq = FMath::Square(Radius);
 		TArray<FNavPoly> Polys;
 		const FVector FallbackExtent(Radius, Radius, HALF_WORLD_MAX); //Using HALF_WORLD_MAX instead of BIG_NUMBER, else the box size will be NaN.
 		const FVector BoxOrigin(Origin.X, Origin.Y, 0.f);
@@ -1207,14 +1272,14 @@ void ARecastNavMesh::BatchProjectPoints(TArray<FNavigationProjectionWork>& Workl
 	
 	if (ensure(QueryFilter))
 	{
-		const FVector3f ModifiedExtent = GetModifiedQueryExtent(Extent);
-		FVector3f RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
-		float ClosestPoint[3];
+		const FVector ModifiedExtent = GetModifiedQueryExtent(Extent);
+		FVector RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
+		FVector::FReal ClosestPoint[3];
 		dtPolyRef PolyRef;
 
 		for (int32 Idx = 0; Idx < Workload.Num(); Idx++)
 		{
-			FVector3f RcPoint = Unreal2RecastPoint(Workload[Idx].Point);
+			FVector RcPoint = Unreal2RecastPoint(Workload[Idx].Point);
 			if (Workload[Idx].bHintProjection2D)
 			{
 				NavQuery.findNearestPoly2D(&RcPoint.X, &RcExtent.X, QueryFilter, &PolyRef, ClosestPoint);
@@ -1253,16 +1318,16 @@ void ARecastNavMesh::BatchProjectPoints(TArray<FNavigationProjectionWork>& Workl
 
 	if (ensure(QueryFilter))
 	{
-		float ClosestPoint[3];
+		FVector::FReal ClosestPoint[3];
 		dtPolyRef PolyRef;
 
 		for (FNavigationProjectionWork& Work : Workload)
 		{
 			ensure(Work.ProjectionLimit.IsValid);
-			const FVector3f RcReferencePoint = Unreal2RecastPoint(Work.Point);
+			const FVector RcReferencePoint = Unreal2RecastPoint(Work.Point);
 			const FVector ModifiedExtent = GetModifiedQueryExtent(Work.ProjectionLimit.GetExtent());
-			const FVector3f RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
-			const FVector3f RcBoxCenter = Unreal2RecastPoint(Work.ProjectionLimit.GetCenter());
+			const FVector RcExtent = Unreal2RecastPoint(ModifiedExtent).GetAbs();
+			const FVector RcBoxCenter = Unreal2RecastPoint(Work.ProjectionLimit.GetCenter());
 
 			if (Work.bHintProjection2D)
 			{
@@ -1307,8 +1372,8 @@ bool ARecastNavMesh::GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSh
 	{
 		const FVector ModifiedExtent = GetModifiedQueryExtent(Box.GetExtent());
 
-		const FVector3f RcPoint = Unreal2RecastPoint( Box.GetCenter() );
-		const FVector3f RcExtent = Unreal2RecastPoint( ModifiedExtent ).GetAbs();
+		const FVector RcPoint = Unreal2RecastPoint( Box.GetCenter() );
+		const FVector RcExtent = Unreal2RecastPoint( ModifiedExtent ).GetAbs();
 
 		const int32 MaxHitPolys = 256;
 		dtPolyRef HitPolys[MaxHitPolys];
@@ -1348,7 +1413,7 @@ bool ARecastNavMesh::GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSh
 	return bSuccess;
 }
 
-bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const float Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const
+bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const FVector::FReal Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const
 {
 	const FNavigationQueryFilter& FilterToUse = GetRightFilterRef(Filter);
 	INITIALIZE_NAVQUERY(NavQuery, FilterToUse.GetMaxSearchNodes());
@@ -1356,14 +1421,14 @@ bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Cen
 
 	const int32 MaxWalls = 64;
 	int32 NumWalls = 0;
-	float WallSegments[MaxWalls * 3 * 2] = { 0 };
+	FVector::FReal WallSegments[MaxWalls * 3 * 2] = { 0 };
 	dtPolyRef WallPolys[MaxWalls * 2] = { 0 };
 
 	const int32 MaxNeis = 64;
 	int32 NumNeis = 0;
 	dtPolyRef NeiPolys[MaxNeis] = { 0 };
 
-	const FVector3f RcCenter = Unreal2RecastPoint(Center);
+	const FVector RcCenter = Unreal2RecastPoint(Center);
 
 	dtStatus Status = NavQuery.findWallsInNeighbourhood(CenterNodeRef, &RcCenter.X, Radius, QueryFilter,
 		NeiPolys, &NumNeis, MaxNeis, WallSegments, WallPolys, &NumWalls, MaxWalls);
@@ -1386,7 +1451,7 @@ bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Cen
 }
 
 bool ARecastNavMesh::ProjectPointMulti(const FVector& Point, TArray<FNavLocation>& OutLocations, const FVector& Extent,
-	float MinZ, float MaxZ, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
+	FVector::FReal MinZ, FVector::FReal MaxZ, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
 	return RecastNavMeshImpl && RecastNavMeshImpl->ProjectPointMulti(Point, OutLocations, Extent, MinZ, MaxZ, GetRightFilterRef(Filter), QueryOwner);
 }
@@ -1422,13 +1487,15 @@ ENavigationQueryResult::Type ARecastNavMesh::CalcPathLengthAndCost(const FVector
 			Path->SetWantsStringPulling(false);
 			Path->SetWantsPathCorridor(true);
 			
+			// LWC_TODO_AI: CostLimit should be FVector::FReal. Not until after 5.0!
 			const float CostLimit = FLT_MAX;
 			Result = RecastNavMeshImpl->FindPath(PathStart, PathEnd, CostLimit, Path.Get(), GetRightFilterRef(QueryFilter), QueryOwner);
 
 			if (Result == ENavigationQueryResult::Success || (Result == ENavigationQueryResult::Fail && Path->IsPartial()))
 			{
-				OutPathLength = Path->GetTotalPathLength();
-				OutPathCost = Path->GetCost();
+				// LWC_TODO_AI: These should be FVector::FReal. Not until after 5.0!
+				OutPathLength = FMath::Min(TNumericLimits<float>::Max(), Path->GetTotalPathLength());
+				OutPathCost = FMath::Min(TNumericLimits<float>::Max(), Path->GetCost());
 			}
 		}
 	}
@@ -1444,7 +1511,7 @@ bool ARecastNavMesh::DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& 
 		dtNavMeshQuery NavQuery;
 		NavQuery.init(RecastNavMeshImpl->GetRecastMesh(), 0);
 
-		const FVector3f RcLocation = Unreal2RecastPoint(WorldSpaceLocation);
+		const FVector RcLocation = Unreal2RecastPoint(WorldSpaceLocation);
 		if (dtStatusFailed(NavQuery.isPointInsidePoly(NodeRef, &RcLocation.X, bResult)))
 		{
 			bResult = false;
@@ -1454,7 +1521,7 @@ bool ARecastNavMesh::DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& 
 	return bResult; 
 }
 
-bool ARecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys, TArray<NavNodeRef>* OutPolysParent, TArray<float>* OutPolysCost, int32* OutPolysCount) const
+bool ARecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const FVector::FReal Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys, TArray<NavNodeRef>* OutPolysParent, TArray<float>* OutPolysCost, int32* OutPolysCount) const
 {
 	return RecastNavMeshImpl ? RecastNavMeshImpl->FindPolysAroundCircle(CenterPos, CenterNodeRef, Radius, GetRightFilterRef(Filter), QueryOwner, OutPolys, OutPolysParent, OutPolysCost, OutPolysCount) : false;
 }
@@ -1488,18 +1555,18 @@ float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNa
 		return 0.f;
 	}
 
-	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
-	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
+	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector::FReal Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
-	const FVector3f RecastStart = Unreal2RecastPoint(StartLoc);
+	const FVector RecastStart = Unreal2RecastPoint(StartLoc);
 
 	NavNodeRef StartNode = INVALID_NAVNODEREF;
 	NavQuery.findNearestPoly(&RecastStart.X, Extent, QueryFilter, &StartNode, NULL);
 
 	if (StartNode != INVALID_NAVNODEREF)
 	{
-		float TmpHitPos[3], TmpHitNormal[3];
-		float DistanceToWall = 0.f;
+		FVector::FReal TmpHitPos[3], TmpHitNormal[3];
+		FVector::FReal DistanceToWall = 0.f;
 		const dtStatus RaycastStatus = NavQuery.findDistanceToWall(StartNode, &RecastStart.X, MaxDistance, QueryFilter
 			, &DistanceToWall, TmpHitPos, TmpHitNormal);
 
@@ -1509,7 +1576,7 @@ float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNa
 			{
 				*OutClosestPointOnWall = Recast2UnrealPoint(TmpHitPos);
 			}
-			return DistanceToWall;
+			return UE_REAL_TO_FLOAT_CLAMPED_MAX(DistanceToWall);
 		}
 	}
 
@@ -1641,8 +1708,8 @@ int32 ARecastNavMesh::ReplaceAreaInTileBounds(const FBox& Bounds, TSubclassOf<UN
 		dtNavMesh const* const ConstDetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
 
 		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
-		const float RcTileSize = FMath::TruncToInt(TileSizeUU / CellSize);
-		const float TileSizeInWorldUnits = RcTileSize * CellSize;
+		const FVector::FReal RcTileSize = FMath::TruncToInt(TileSizeUU / CellSize);
+		const FVector::FReal TileSizeInWorldUnits = RcTileSize * CellSize;
 		const FRcTileBox TileBox(Bounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
 		for (int32 TileY = TileBox.YMin; TileY <= TileBox.YMax; ++TileY)
@@ -2030,7 +2097,6 @@ void ARecastNavMesh::OnNavMeshGenerationFinished()
 uint32 ARecastNavMesh::LogMemUsed() const 
 {
 	const uint32 SuperMemUsed = Super::LogMemUsed();
-	const int32 headerSize = dtAlign4(sizeof(dtMeshHeader));
 
 	uint32 MemUsed = 0;
 
@@ -2041,38 +2107,12 @@ uint32 ARecastNavMesh::LogMemUsed() const
 		for (int TileIndex = 0; TileIndex < RecastNavMeshImpl->DetourNavMesh->getMaxTiles(); ++TileIndex)
 		{
 			const dtMeshTile* Tile = ConstNavMesh->getTile(TileIndex);
-			if (Tile && Tile->header)
+			if (Tile)
 			{
 				dtMeshHeader* const H = (dtMeshHeader*)(Tile->header);
-				const int32 vertsSize = dtAlign4(sizeof(float) * 3 * H->vertCount);
-				const int32 polysSize = dtAlign4(sizeof(dtPoly) * H->polyCount);
-				const int32 linksSize = dtAlign4(sizeof(dtLink) * H->maxLinkCount);
-				const int32 detailMeshesSize = dtAlign4(sizeof(dtPolyDetail) * H->detailMeshCount);
-				const int32 detailVertsSize = dtAlign4(sizeof(float) * 3 * H->detailVertCount);
-				const int32 detailTrisSize = dtAlign4(sizeof(unsigned char) * 4 * H->detailTriCount);
-				const int32 bvTreeSize = dtAlign4(sizeof(dtBVNode) * H->bvNodeCount);
-				const int32 offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection) * H->offMeshConCount);
+				const FDetourTileLayout TileLayout(*Tile);
 
-#if WITH_NAVMESH_SEGMENT_LINKS
-				const int32 offMeshSegsSize = dtAlign4(sizeof(dtOffMeshSegmentConnection) * H->offMeshSegConCount);
-#else
-				const int32 offMeshSegsSize = 0;
-#endif // WITH_NAVMESH_SEGMENT_LINKS
-
-#if WITH_NAVMESH_CLUSTER_LINKS
-				const int32 clusterSize = dtAlign4(sizeof(dtCluster) * H->clusterCount);
-				const int32 polyClustersSize = dtAlign4(sizeof(unsigned short) * H->detailMeshCount);
-#else
-				const int32 clusterSize = 0;
-				const int32 polyClustersSize = 0;
-#endif // WITH_NAVMESH_CLUSTER_LINKS
-
-				const int32 TileDataSize = headerSize + vertsSize + polysSize + linksSize +
-					detailMeshesSize + detailVertsSize + detailTrisSize +
-					bvTreeSize + offMeshConsSize + offMeshSegsSize +
-					clusterSize + polyClustersSize;
-
-				MemUsed += TileDataSize;
+				MemUsed += TileLayout.TileSize;
 			}
 		}
 	}
@@ -2232,14 +2272,14 @@ bool ARecastNavMesh::AdjustLocationWithFilter(const FVector& StartLoc, FVector& 
 {
 	INITIALIZE_NAVQUERY(NavQuery, Filter.GetMaxSearchNodes());
 
-	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
-	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
+	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector::FReal Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
 	const dtQueryFilter* QueryFilter = ((const FRecastQueryFilter*)(Filter.GetImplementation()))->GetAsDetourQueryFilter();
 	ensure(QueryFilter);
 
-	FVector3f RecastStart = Unreal2RecastPoint(StartLoc);
-	FVector3f RecastAdjustedPoint = Unreal2RecastPoint(StartLoc);
+	FVector RecastStart = Unreal2RecastPoint(StartLoc);
+	FVector RecastAdjustedPoint = Unreal2RecastPoint(StartLoc);
 	NavNodeRef StartPolyID = INVALID_NAVNODEREF;
 	NavQuery.findNearestPoly(&RecastStart.X, Extent, QueryFilter, &StartPolyID, &RecastAdjustedPoint.X);
 
@@ -2454,22 +2494,22 @@ void ARecastNavMesh::BatchRaycast(TArray<FNavigationRaycastWork>& Workload, FSha
 		return;
 	}
 	
-	const FVector3f NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
-	const float Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
+	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
+	const FVector::FReal Extent[3] = { NavExtent.X, NavExtent.Z, NavExtent.Y };
 
 	for (FNavigationRaycastWork& WorkItem : Workload)
 	{
 		ARecastNavMesh::FRaycastResult RaycastResult;
 
-		const FVector3f RecastStart = Unreal2RecastPoint(WorkItem.RayStart);
-		const FVector3f RecastEnd = Unreal2RecastPoint(WorkItem.RayEnd);
+		const FVector RecastStart = Unreal2RecastPoint(WorkItem.RayStart);
+		const FVector RecastEnd = Unreal2RecastPoint(WorkItem.RayEnd);
 
 		NavNodeRef StartNode = INVALID_NAVNODEREF;
 		NavQuery.findNearestContainingPoly(&RecastStart.X, Extent, QueryFilter, &StartNode, NULL);
 
 		if (StartNode != INVALID_NAVNODEREF)
 		{
-			float RecastHitNormal[3];
+			FVector::FReal RecastHitNormal[3];
 
 			const dtStatus RaycastStatus = NavQuery.raycast(StartNode, &RecastStart.X, &RecastEnd.X
 				, QueryFilter, &RaycastResult.HitTime, RecastHitNormal
@@ -2741,7 +2781,7 @@ bool ARecastNavMesh::HasValidNavmesh() const
 }
 
 #if WITH_RECAST
-bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, float TestRadius) const
+bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, FVector::FReal TestRadius) const
 {
 	if (HasValidNavmesh() == false)
 	{
@@ -2750,7 +2790,7 @@ bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, float 
 
 	const dtNavMesh* NavMesh = RecastNavMeshImpl->DetourNavMesh;
 	const dtNavMeshParams* NavParams = RecastNavMeshImpl->DetourNavMesh->getParams();
-	const float NavTileSize = CellSize * FMath::TruncToInt(TileSizeUU / CellSize);
+	const FVector::FReal NavTileSize = CellSize * FMath::TruncToInt(TileSizeUU / CellSize);
 	const FVector RcNavOrigin(NavParams->orig[0], NavParams->orig[1], NavParams->orig[2]);
 
 	const FBox RcBounds = Unreal2RecastBox(FBox::BuildAABB(TestLocation, FVector(TestRadius, TestRadius, 0)));
@@ -2807,8 +2847,7 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	check(NavParams && MyGenerator);
 	const FRecastBuildConfig& Config = MyGenerator->GetConfig();
 	const FVector NavmeshOrigin = Recast2UnrealPoint(NavParams->orig);
-	const float TileDim = Config.tileSize * Config.cs;
-	const FVector TileCenterOffset(TileDim, TileDim, 0);
+	const FVector::FReal TileDim = Config.tileSize * Config.cs;
 
 	TArray<FIntPoint>& ActiveTiles = GetActiveTiles();
 	TArray<FIntPoint> OldActiveSet = ActiveTiles;
@@ -2819,13 +2858,13 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	ActiveTiles.Reset();
 
 	//const int32 TileRadius = FMath::CeilToInt(Radius / TileDim);
-	static const float SqareRootOf2 = FMath::Sqrt(2.f);
+	static const FVector::FReal SqareRootOf2 = FMath::Sqrt(2.f);
 
 	for (const FNavigationInvokerRaw& Invoker : InvokerLocations)
 	{
 		const FVector InvokerRelativeLocation = (NavmeshOrigin - Invoker.Location);
-		const float TileCenterDistanceToRemoveSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMax);
-		const float TileCenterDistanceToAddSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMin);
+		const  FVector::FReal TileCenterDistanceToRemoveSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMax);
+		const  FVector::FReal TileCenterDistanceToAddSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMin);
 
 		const int32 MinTileX = FMath::FloorToInt((InvokerRelativeLocation.X - Invoker.RadiusMax) / TileDim);
 		const int32 MaxTileX = FMath::CeilToInt((InvokerRelativeLocation.X + Invoker.RadiusMax) / TileDim);
@@ -2836,7 +2875,7 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 		{
 			for (int32 Y = MinTileY; Y <= MaxTileY; ++Y)
 			{
-				const float DistanceSq = (InvokerRelativeLocation - FVector(X * TileDim + TileDim / 2, Y * TileDim + TileDim / 2, 0.f)).SizeSquared2D();
+				const FVector::FReal DistanceSq = (InvokerRelativeLocation - FVector(X * TileDim + TileDim / 2, Y * TileDim + TileDim / 2, 0.f)).SizeSquared2D();
 				if (DistanceSq < TileCenterDistanceToRemoveSq)
 				{
 					TilesInMaxDistance.AddUnique(FIntPoint(X, Y));

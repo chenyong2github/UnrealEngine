@@ -18,7 +18,7 @@ If no DefaultMap can be found, the command falls back to /Engine/Maps/Entry.")]
 [Help("destsample", "Destination Sample name")]
 [Help("foreigndest", "Foreign Destination")]
 [Help(typeof(ProjectParams))]
-[Help(typeof(UE4Build))]
+[Help(typeof(UnrealBuild))]
 [Help(typeof(CodeSign))]
 public class BuildCookRun : BuildCommand
 {

@@ -5,7 +5,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "WaterMeshActor.h"
+#include "WaterZoneActor.h"
 #include "WaterMeshComponent.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -202,9 +202,9 @@ void UWaterSubsystem::Tick(float DeltaTime)
 	SetMPCTime(MPCTime, PrevWorldTimeSeconds);
 	PrevWorldTimeSeconds = MPCTime;
 
-	if (WaterMeshActor)
+	if (WaterZoneActor)
 	{
-		WaterMeshActor->Update();
+		WaterZoneActor->Update();
 	}
 
 	if (!bUnderWaterForAudio && CachedDepthUnderwater > 0.0f)
@@ -479,16 +479,15 @@ void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 	}
 }
 
-AWaterMeshActor* UWaterSubsystem::GetWaterMeshActor() const
+AWaterZone* UWaterSubsystem::GetWaterZoneActor() const
 {
 	if (UWorld* World = GetWorld())
 	{
-	// @todo water: this assumes only one water mesh actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
-		TActorIterator<AWaterMeshActor> It(World);
-	WaterMeshActor = It ? *It : nullptr;
-
-	return WaterMeshActor;
-}
+		// #todo_water: this assumes only one water zone actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
+		TActorIterator<AWaterZone> It(World);
+		WaterZoneActor = It ? *It : nullptr;
+		return WaterZoneActor;
+	}
 
 	return nullptr;
 }
@@ -507,7 +506,7 @@ void UWaterSubsystem::MarkAllWaterMeshesForRebuild()
 {
 	if (UWorld* World = GetWorld())
 	{
-		for (AWaterMeshActor* WaterMesh : TActorRange<AWaterMeshActor>(World))
+		for (AWaterZone* WaterMesh : TActorRange<AWaterZone>(World))
 	{
 		WaterMesh->MarkWaterMeshComponentForRebuild();
 	}
@@ -588,8 +587,8 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 
 	TArray<FHitResult> Hits;
 	TArray<FWaterBodyPostProcessQuery, TInlineAllocator<4>> WaterBodyQueriesToProcess;
-	const AWaterMeshActor* LocalWaterMeshActor = GetWaterMeshActor();
-	if ((LocalWaterMeshActor != nullptr) && World->SweepMultiByChannel(Hits, ViewLocation, ViewLocation + FVector(0, 0, TraceDistance), FQuat::Identity, UnderwaterTraceChannel, FCollisionShape::MakeSphere(TraceDistance), TraceSimple))
+	const AWaterZone* LocalWaterZoneActor = GetWaterZoneActor();
+	if ((LocalWaterZoneActor != nullptr) && World->SweepMultiByChannel(Hits, ViewLocation, ViewLocation + FVector(0, 0, TraceDistance), FQuat::Identity, UnderwaterTraceChannel, FCollisionShape::MakeSphere(TraceDistance), TraceSimple))
 	{
 		if (Hits.Num() > 1)
 		{

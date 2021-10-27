@@ -39,6 +39,7 @@
 #include "ContentBrowserDataSource.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "Fonts/FontMeasure.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -1688,7 +1689,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 	bShowType = InArgs._ShowType;
 	AssetThumbnail = InArgs._AssetThumbnail;
 	ItemWidth = InArgs._ItemWidth;
-	ThumbnailPadding = IsFolder() ? InArgs._ThumbnailPadding + 5.0f : InArgs._ThumbnailPadding;
+	ThumbnailPadding = InArgs._ThumbnailPadding;
 
 	CurrentThumbnailSize = InArgs._CurrentThumbnailSize;
 
@@ -1765,12 +1766,10 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 					]
 
 					+SVerticalBox::Slot()
-					// note this negative padding is intentional to cover up the top part of the rounded border
-					.Padding(FMargin(0.0f, -3.0f, 0.0f, 0.0f))
 					[
 						SNew(SBorder)
 						.Padding(FMargin(2.0f, 3.0f))
-						.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.NameAreaBackground"))
+						.BorderImage(this, &SAssetTileItem::GetNameAreaBackgroundImage)
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
@@ -1792,20 +1791,20 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 									.Justification(IsFolder() ? ETextJustify::Center : ETextJustify::Left)
 									.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
 									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+									.ColorAndOpacity(this, &SAssetTileItem::GetNameAreaTextColor)
 								]
 							]
 							+ SVerticalBox::Slot()
 							.VAlign(VAlign_Bottom)
 							.AutoHeight()
-							.Padding(4.0f,0.0f, 0.0f, 2.0f)
+							.Padding(2.0f,0.0f, 0.0f, 2.0f)
 							[
 								SAssignNew(ClassTextWidget, STextBlock)
 								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
 								.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
-								.TransformPolicy(ETextTransformPolicy::ToUpper)
+								.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 								.Text(this, &SAssetTileItem::GetAssetClassText)
-								.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-								//.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
+								.ColorAndOpacity(this, &SAssetTileItem::GetAssetClassLabelTextColor)
 							]
 							
 						]
@@ -1924,6 +1923,18 @@ EVisibility SAssetTileItem::GetAssetClassLabelVisibility() const
 	return EVisibility::Collapsed;
 }
 
+FSlateColor SAssetTileItem::GetAssetClassLabelTextColor() const
+{
+	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		return FStyleColors::White;
+	}
+
+	return FSlateColor::UseSubduedForeground();
+}
+
 FSlateFontInfo SAssetTileItem::GetThumbnailFont() const
 {
 	FOptionalSize ThumbSize = GetThumbnailBoxSize();
@@ -1951,7 +1962,17 @@ const FSlateBrush* SAssetTileItem::GetFolderBackgroundImage() const
 	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
 	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
 
-	if (bIsSelected || bIsHoveredOrDraggedOver)
+	if (bIsSelected && bIsHoveredOrDraggedOver)
+	{
+		static const FName SelectedHoverBackground("ContentBrowser.AssetTileItem.FolderAreaSelectedHoverBackground");
+		return FAppStyle::Get().GetBrush(SelectedHoverBackground);
+	}
+	else if (bIsSelected)
+	{
+		static const FName SelectedBackground("ContentBrowser.AssetTileItem.FolderAreaSelectedBackground");
+		return FAppStyle::Get().GetBrush(SelectedBackground);
+	}
+	else if (bIsHoveredOrDraggedOver)
 	{
 		static const FName HoveredBackground("ContentBrowser.AssetTileItem.FolderAreaHoveredBackground");
 		return FAppStyle::Get().GetBrush(HoveredBackground);
@@ -1972,6 +1993,46 @@ const FSlateBrush* SAssetTileItem::GetFolderBackgroundShadowImage() const
 	}
 
 	return FStyleDefaults::GetNoBrush();
+}
+
+const FSlateBrush* SAssetTileItem::GetNameAreaBackgroundImage() const
+{
+	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+	if (bIsSelected && bIsHoveredOrDraggedOver)
+	{
+		static const FName SelectedHover("ContentBrowser.AssetTileItem.NameAreaSelectedHoverBackground");
+		return FAppStyle::Get().GetBrush(SelectedHover);
+	}
+	else if (bIsSelected)
+	{
+		static const FName Selected("ContentBrowser.AssetTileItem.NameAreaSelectedBackground");
+		return FAppStyle::Get().GetBrush(Selected);
+	}
+	else if (bIsHoveredOrDraggedOver && !IsFolder())
+	{
+		static const FName Hovered("ContentBrowser.AssetTileItem.NameAreaHoverBackground");
+		return FAppStyle::Get().GetBrush(Hovered);
+	}
+	else if (!IsFolder())
+	{
+		static const FName Normal("ContentBrowser.AssetTileItem.NameAreaBackground");
+		return FAppStyle::Get().GetBrush(Normal);
+	}
+
+	return FStyleDefaults::GetNoBrush();
+}
+
+FSlateColor SAssetTileItem::GetNameAreaTextColor() const
+{
+	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		return FStyleColors::White;
+	}
+
+	return FSlateColor::UseForeground();
 }
 
 FOptionalSize SAssetTileItem::GetNameAreaMaxDesiredHeight() const

@@ -2,7 +2,7 @@
 
 #include "Data/ActorSnapshotData.h"
 
-#include "Archive/ApplySnapshotDataArchiveV2.h"
+#include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Archive/TakeWorldObjectSnapshotArchive.h"
 #include "Data/WorldSnapshotData.h"
 #include "Data/SnapshotCustomVersion.h"
@@ -12,6 +12,7 @@
 #include "Data/Util/SnapshotUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
+#include "LoadSnapshotObjectArchive.h"
 #include "PropertySelectionMap.h"
 #include "RestorationEvents/ApplySnapshotToActorScope.h"
 #include "RestorationEvents/RemoveComponentScope.h"
@@ -65,9 +66,23 @@ namespace
 			UClass* ComponentClass = SubobjectData.Class.TryLoadClass<UActorComponent>();
 			const FName ComponentName = *SnapshotUtil::ExtractLastSubobjectName(ComponentPath);
 			
-			PreCreateComponent(ComponentName, ComponentClass, ComponentData.CreationMethod);
-			Component = NewObject<UActorComponent>(ComponentOuter, ComponentClass, ComponentName);
-			PostCreateComponent(SubobjectData, Component);
+			const EObjectFlags ObjectFlags = SubobjectData.GetObjectFlags();
+			const bool bIsObjectFromSnapshotWorld = ComponentOuter->GetPackage()->HasAnyFlags(RF_Transient);
+			if (bIsObjectFromSnapshotWorld)
+			{
+				PreCreateComponent(ComponentName, ComponentClass, ComponentData.CreationMethod);
+				// Objects in transient snapshot world should not transact
+				Component = NewObject<UActorComponent>(ComponentOuter, ComponentClass, ComponentName, ObjectFlags & ~RF_Transactional);
+				PostCreateComponent(SubobjectData, Component);
+			}
+			else
+			{
+				PreCreateComponent(ComponentName, ComponentClass, ComponentData.CreationMethod);
+				// RF_Transactional must be set when the object is created so the creation transacted correctly
+				Component = NewObject<UActorComponent>(ComponentOuter, ComponentClass, ComponentName, ObjectFlags | RF_Transactional);
+				Component->SetFlags(ObjectFlags);
+				PostCreateComponent(SubobjectData, Component);
+			}
 		}
 			
 		// UActorComponent::PostInitProperties implicitly calls AddOwnedComponent but we have to manually add it to the other arrays
@@ -178,9 +193,13 @@ namespace
 			// Evil user might have manually deleted the component between filtering and applying the snapshot
 			if (ComponentToRemove.IsValid())
 			{
-				const FRemoveComponentScope NotifySnapshotListeners(ComponentToRemove.Get());
 				ComponentToRemove->Modify();
-				ComponentToRemove->DestroyComponent();
+				const FRemoveComponentScope NotifySnapshotListeners(ComponentToRemove.Get());
+				// Subscribers to ISnapshotListener::PreRemoveComponent are allowed to manually remove the component
+				if (ComponentToRemove.IsValid())
+				{
+					ComponentToRemove->DestroyComponent();
+				}
 			}
 		}
 	}
@@ -237,7 +256,7 @@ namespace
 		for (const FDeferredComponentSerializationTask& Task : DeferredSerializationsTasks)
 		{
 			const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_EditorWorld(Task.Snapshot, Task.Original, WorldData, SelectionMap, LocalisationSnapshotPackage);
-			FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(*Task.SubobjectData, WorldData, Task.Original, Task.Snapshot, SelectionMap); 
+			FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(*Task.SubobjectData, WorldData, Task.Original, Task.Snapshot, SelectionMap); 
 		}
 	}
 
@@ -306,6 +325,15 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 	return Result;
 }
 
+void FActorSnapshotData::ResetTransientData()
+{
+	CachedSnapshotActor.Reset();
+	bReceivedSerialisation = false;
+#if WITH_EDITORONLY_DATA
+	bHasBeenDiffed = false;
+#endif
+}
+
 TOptional<AActor*> FActorSnapshotData::GetPreallocatedIfValidButDoNotAllocate() const
 {
 	return CachedSnapshotActor.IsValid() ? CachedSnapshotActor.Get() : TOptional<AActor*>();
@@ -370,14 +398,18 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 	}
 	bReceivedSerialisation = true;
 
+	const auto ProcessObjectDependency = [this](int32 OriginalObjectDependency)
+	{
+		ObjectDependencies.Add(OriginalObjectDependency);
+	};
 	AActor* PreallocatedActor = Preallocated.GetValue();
 	{
-		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_SnapshotWorld(PreallocatedActor, CustomActorSerializationData, WorldData, InLocalisationSnapshotPackage);
-		FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_SnapshotWorld(PreallocatedActor, CustomActorSerializationData, WorldData, ProcessObjectDependency, InLocalisationSnapshotPackage);
+		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, ProcessObjectDependency, InLocalisationSnapshotPackage);
 	}
 
 	DeserializeComponents(PreallocatedActor, WorldData,
-		[&WorldData, InLocalisationSnapshotPackage](
+		[&WorldData, &ProcessObjectDependency, InLocalisationSnapshotPackage](
 			FSubobjectSnapshotData& SerializedCompData,
 			FComponentSnapshotData& CompData,
 			UActorComponent* Comp,
@@ -386,12 +418,12 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 		{
 			SerializedCompData.SnapshotObject = Comp;
 			
-			const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_SnapshotWorld(Comp, OriginalComponentPath, WorldData, InLocalisationSnapshotPackage);
-			CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData, InLocalisationSnapshotPackage);
+			const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_SnapshotWorld(Comp, OriginalComponentPath, WorldData, ProcessObjectDependency, InLocalisationSnapshotPackage);
+			CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData, ProcessObjectDependency, InLocalisationSnapshotPackage);
 		}
 	);
 
-	DeserializeSubobjectsForSnapshotActor(PreallocatedActor, WorldData, InLocalisationSnapshotPackage);
+	DeserializeSubobjectsForSnapshotActor(PreallocatedActor, WorldData, ProcessObjectDependency, InLocalisationSnapshotPackage);
 #if WITH_EDITOR
 	// Hide this actor so external systems can see that this components should not render, i.e. make USceneComponent::ShouldRender return false
 	if (!ensureMsgf(PreallocatedActor->IsTemporarilyHiddenInEditor(), TEXT("Transient property bHiddenEdTemporary was set to false by serializer. This should not happen. Investigate.")))
@@ -522,7 +554,7 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 		const FPropertySelection* ActorPropertySelection = SelectedProperties.GetObjectSelection(OriginalActor).GetPropertySelection();
 		if (ActorPropertySelection)
 		{
-			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties, *ActorPropertySelection);
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties, *ActorPropertySelection);
 		}
 	};
 	auto DeserializeComponent = [InLocalisationSnapshotPackage, &SelectedProperties, &WorldData](FSubobjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
@@ -532,7 +564,7 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 		if (ComponentSelectedProperties)
 		{
 			ActorSnapshotData::PreventAttachParentInfiniteRecursion(Original, *ComponentSelectedProperties);
-			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties, *ComponentSelectedProperties);
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties, *ComponentSelectedProperties);
 		};
 	};
 	DeserializeIntoEditorWorldActor(SnapshotWorld, OriginalActor, WorldData, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
@@ -547,12 +579,12 @@ void FActorSnapshotData::DeserializeIntoRecreatedEditorWorldActor(UWorld* Snapsh
 	auto DeserializeActor = [this, &WorldData, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
 		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_EditorWorld(OriginalActor, CustomActorSerializationData, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
-		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties);
+		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties);
 	};
 	auto DeserializeComponent = [InLocalisationSnapshotPackage, &WorldData, &SelectedProperties](FSubobjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
 	{
 		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
-		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties); 
+		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties); 
 	};
 	DeserializeIntoEditorWorldActor(SnapshotWorld, OriginalActor, WorldData, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
 }
@@ -593,7 +625,7 @@ void FActorSnapshotData::DeserializeIntoEditorWorldActor(UWorld* SnapshotWorld, 
 			
 				// We may have modified render information, e.g. for lights we may have changed intensity or colour
 				// It may be more efficient to track whether we actually changed render state
-				Comp->MarkRenderStateDirty();
+				Comp->ReregisterComponent();
 	        }
 	    }
 	);
@@ -636,7 +668,7 @@ void FActorSnapshotData::DeserializeComponents(
 	}
 }
 
-inline void FActorSnapshotData::DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage)
+inline void FActorSnapshotData::DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, const FProcessObjectDependency& ProcessObjectDependency, UPackage* InLocalisationSnapshotPackage)
 {
 	for (const int32 SubobjectIndex : OwnedSubobjects)
 	{
@@ -651,6 +683,7 @@ inline void FActorSnapshotData::DeserializeSubobjectsForSnapshotActor(AActor* In
 		SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(
 			WorldData,
 			SubobjectIndex,
+			ProcessObjectDependency,
 			LocalisationNamespace
 		);
 	}

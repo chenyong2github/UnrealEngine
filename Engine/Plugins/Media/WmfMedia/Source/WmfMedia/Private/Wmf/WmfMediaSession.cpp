@@ -58,6 +58,9 @@ FWmfMediaSession::FWmfMediaSession()
 	, ShouldLoop(false)
 	, Status(EMediaStatus::None)
 	, bShuttingDown(false)
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	, bIsWaitingForEnd(false)
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 {
 	UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Created"), this);
 	MediaSessionCloseEvent = FPlatformProcess::GetSynchEventFromPool();
@@ -102,6 +105,34 @@ void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 	}
 #endif
 #endif // WMFMEDIA_PLAYER_VERSION == 1
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	// Are we waiting for the end?
+	if (bIsWaitingForEnd)
+	{
+		// Is Tracks done with all its samples?
+		TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> TracksPinned = Tracks.Pin();
+		if (TracksPinned.IsValid())
+		{
+			FMediaTimeStamp TimeStamp;
+			bool bHaveSamples = TracksPinned->PeekVideoSampleTime(TimeStamp);
+			if (bHaveSamples == false)
+			{
+				bIsWaitingForEnd = false;
+			}
+		}
+		else
+		{
+			bIsWaitingForEnd = false;
+		}
+
+		// Are we done yet?
+		if (bIsWaitingForEnd == false)
+		{
+			DeferredEvents.Enqueue(EMediaEvent::PlaybackEndReached);
+		}
+	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 	EMediaEvent Event;
 
@@ -362,6 +393,14 @@ EMediaState FWmfMediaSession::GetState() const
 	{
 		return EMediaState::Paused;
 	}
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	// If we are waiting for the end then pretend that we are still playing.
+	if (bIsWaitingForEnd)
+	{
+		return EMediaState::Playing;
+	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 	return SessionState;
 }
@@ -669,6 +708,12 @@ STDMETHODIMP FWmfMediaSession::Invoke(IMFAsyncResult* AsyncResult)
 		SessionRate,
 		PendingChanges ? TEXT("true") : TEXT("false")
 	);
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("Session %p: WaitingForEnd:%d"),
+		this,
+		bIsWaitingForEnd);
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 	
 	return S_OK;
 }
@@ -1249,7 +1294,12 @@ void FWmfMediaSession::HandleError(HRESULT EventStatus)
 void FWmfMediaSession::HandleSessionEnded()
 {
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaSession::HandleSessionEnded ShouldLoop:%d"), ShouldLoop);
-	DeferredEvents.Enqueue(EMediaEvent::PlaybackEndReached);
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	if (ShouldLoop)
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+	{
+		DeferredEvents.Enqueue(EMediaEvent::PlaybackEndReached);
+	}
 
 	SessionState = EMediaState::Stopped;
 
@@ -1264,6 +1314,9 @@ void FWmfMediaSession::HandleSessionEnded()
 	{
 		LastTime = FTimespan::Zero();
 		RequestedRate.Reset();
+#if WMFMEDIA_PLAYER_VERSION >= 2
+		bIsWaitingForEnd = true;
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 	}
 }
 
@@ -1320,6 +1373,10 @@ void FWmfMediaSession::HandleSessionStarted(HRESULT EventStatus)
 {
 	if (SUCCEEDED(EventStatus))
 	{
+#if WMFMEDIA_PLAYER_VERSION >= 2
+		bIsWaitingForEnd = false;
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 		if ((SessionState == EMediaState::Paused) && (SessionRate == 0.0f))
 		{
 			SessionState = EMediaState::Playing;

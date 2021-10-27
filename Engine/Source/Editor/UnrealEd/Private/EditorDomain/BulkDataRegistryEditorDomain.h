@@ -11,9 +11,9 @@
 #include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
 #include "Serialization/BulkDataRegistry.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "Templates/RefCounting.h"
 #include "TickableEditorObject.h"
-#include "Virtualization/VirtualizedBulkData.h"
 
 class FCompressedBuffer;
 class UPackage;

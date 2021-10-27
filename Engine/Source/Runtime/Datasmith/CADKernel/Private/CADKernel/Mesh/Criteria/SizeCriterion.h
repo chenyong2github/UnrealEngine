@@ -30,7 +30,7 @@ namespace CADKernel
 			Ar << Size;
 		}
 
-		void ApplyOnEdgeParameters(TSharedRef<FTopologicalEdge> Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
+		void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
 
 		double Value() const override
 		{
@@ -51,7 +51,7 @@ namespace CADKernel
 
 		void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
 
-		void ApplyOnEdgeParameters(TSharedRef<FTopologicalEdge> Edge, const TArray<double>& TabU, const TArray<FCurvePoint>& tabPt, TArray<double>& tabDeltaU, TFunction<void(double, double&)> Compare) const;
+		void ApplyOnEdgeParameters(const TArray<double>& TabU, const TArray<FCurvePoint>& tabPt, TArray<double>& tabDeltaU, TFunction<void(double, double&)> Compare) const;
 	};
 
 } // namespace CADKernel

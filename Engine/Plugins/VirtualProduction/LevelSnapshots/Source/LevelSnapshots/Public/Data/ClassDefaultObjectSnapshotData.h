@@ -15,8 +15,8 @@ struct LEVELSNAPSHOTS_API FClassDefaultObjectSnapshotData : public FObjectSnapsh
 	UPROPERTY(Transient)
 	UObject* CachedLoadedClassDefault = nullptr;
 
-	/** Whether no data was saved because somebody called ILevelSnapshotsModule::AddBlacklistedCDO */
+	/** Whether no data was saved because somebody called ILevelSnapshotsModule::AddSkippedClassDefault */
 	UPROPERTY()
-	bool bWasBlacklistedCDO = false;
+	bool bSerializationSkippedCDO = false;
 };
 

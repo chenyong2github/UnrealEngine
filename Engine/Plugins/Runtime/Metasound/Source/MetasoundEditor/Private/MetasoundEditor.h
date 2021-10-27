@@ -58,6 +58,7 @@ namespace Metasound
 			None,
 			Inputs,
 			Outputs,
+			Variables,
 
 			COUNT
 		};
@@ -130,6 +131,7 @@ namespace Metasound
 
 			void OnInputNameChanged(FGuid InNodeID);
 			void OnOutputNameChanged(FGuid InNodeID);
+			void OnVariableNameChanged(FGuid InVariableID);
 
 			/** Creates analyzers */
 			void CreateAnalyzers();
@@ -269,7 +271,7 @@ namespace Metasound
 
 			/** Create new graph editor widget */
 			void CreateGraphEditorWidget();
-
+			
 		private:
 			TSharedPtr<SWidget> BuildAnalyzerWidget() const;
 

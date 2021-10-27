@@ -8,19 +8,17 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/UI/Display.h"
 
-using namespace CADKernel;
-
-void FOffsetSurface::InitBoundary() const
+void CADKernel::FOffsetSurface::InitBoundary()
 {
 	Boundary = BaseSurface->GetBoundary();
 }
 
-void FOffsetSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 derivatedOrder, FCoordinateGrid& NotDerivables) const
+void CADKernel::FOffsetSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 derivatedOrder, FCoordinateGrid& NotDerivables) const
 {
 	BaseSurface->LinesNotDerivables(Bounds, derivatedOrder, NotDerivables);
 }
 
-TSharedPtr<FEntityGeom> FOffsetSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FOffsetSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FSurface> TransformedBaseSurface;
 
@@ -34,14 +32,14 @@ TSharedPtr<FEntityGeom> FOffsetSurface::ApplyMatrix(const FMatrixH& InMatrix) co
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FOffsetSurface::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FOffsetSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("base Surface"), BaseSurface)
 		.Add(TEXT("distance"), Offset);
 }
 #endif
 
-void FOffsetSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FOffsetSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	if (InDerivativeOrder == 0)
 	{
@@ -54,7 +52,7 @@ void FOffsetSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfac
 	OutPoint3D.Point += Normal*Offset;
 }
 
-void FOffsetSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacicCoordinates, TArray<FSurfacicPoint>& OutPoint3D, int32 InDerivativeOrder) const
+void CADKernel::FOffsetSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacicCoordinates, TArray<FSurfacicPoint>& OutPoint3D, int32 InDerivativeOrder) const
 {
 	if (InDerivativeOrder == 0)
 	{
@@ -71,7 +69,7 @@ void FOffsetSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacicCoordinate
 	}
 }
 
-void FOffsetSurface::EvaluatePointGrid(const FCoordinateGrid& Coords, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void CADKernel::FOffsetSurface::EvaluatePointGrid(const FCoordinateGrid& Coords, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 	BaseSurface->EvaluatePointGrid(Coords, OutPoints, true);
@@ -82,7 +80,7 @@ void FOffsetSurface::EvaluatePointGrid(const FCoordinateGrid& Coords, FSurfacicS
 	}
 }
 
-void FOffsetSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void CADKernel::FOffsetSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	BaseSurface->Presample(InBoundaries, Coordinates);
 }

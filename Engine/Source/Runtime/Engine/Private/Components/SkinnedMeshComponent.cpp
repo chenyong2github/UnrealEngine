@@ -1658,7 +1658,7 @@ FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() cons
 
 bool USkinnedMeshComponent::AllocateTransformData()
 {
-	LLM_SCOPE(ELLMTag::SkeletalMesh);
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/TransformData"));
 
 	// Allocate transforms if not present.
 	if ( SkeletalMesh != NULL && MasterPoseComponent == NULL )
@@ -3095,9 +3095,17 @@ bool USkinnedMeshComponent::UpdateLODStatus()
 	return UpdateLODStatus_Internal(INDEX_NONE);
 }
 
-bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponentPredictedLODLevel)
+bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponentPredictedLODLevel, bool bRequestedByMasterPoseComponent)
 {
 	SCOPED_NAMED_EVENT(USkinnedMeshComponent_UpdateLODStatus, FColor::Red);
+
+	// Don't update LOD status for slave component unless it explicitly ignores its master component's LOD or if update is recursively requested by its master.
+	// This is because when UpdateLODStatus is called on master component, it updates the slave component LOD,
+	// therefore if slave component also calls UpdateLODStatus, it could overturn the result and cause LOD to be out of sync from its master.
+	if (MasterPoseComponent.IsValid() && !bIgnoreMasterPoseComponentLOD && !bRequestedByMasterPoseComponent)
+	{
+		return false;
+	}
 
 	// Predict the best (min) LOD level we are going to need. Basically we use the Min (best) LOD the renderer desired last frame.
 	// Because we update bones based on this LOD level, we have to update bones to this LOD before we can allow rendering at it.
@@ -3217,7 +3225,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 	{
 		if (USkinnedMeshComponent* SlaveComponentPtr = SlaveComponent.Get())
 		{
-			bLODChanged |= SlaveComponentPtr->UpdateLODStatus_Internal(NewPredictedLODLevel);
+			bLODChanged |= SlaveComponentPtr->UpdateLODStatus_Internal(NewPredictedLODLevel, /*bRequestedByMasterPoseComponent=*/true);
 		}
 	}
 
@@ -3318,13 +3326,21 @@ void USkinnedMeshComponent::GetCPUSkinnedVertices(TArray<FFinalSkinVertex>& OutV
 	check(MeshObject);
 	check(MeshObject->IsCPUSkinned());
 		
-	// Copy our vertices out. We know we are using CPU skinning now, so this cast is safe
-	OutVertices = static_cast<FSkeletalMeshObjectCPUSkin*>(MeshObject)->GetCachedFinalVertices();
+	GetCPUSkinnedCachedFinalVertices(OutVertices);
 	
 	// switch skinning mode, LOD, bRenderStatic, etc. back
 	PoseComponent->SetForcedLOD(CachedForcedLOD);
 	MutableThis->bRenderStatic = bCachedRenderStatic;
 	MutableThis->SetCPUSkinningEnabled(bCachedCPUSkinning, bRecreateRenderStateImmediately);
+}
+
+void USkinnedMeshComponent::GetCPUSkinnedCachedFinalVertices(TArray<FFinalSkinVertex>& OutVertices) const
+{
+	if (MeshObject && MeshObject->IsCPUSkinned())
+	{
+		// Copy our vertices out. We know we are using CPU skinning now, so this cast is safe
+		OutVertices = static_cast<FSkeletalMeshObjectCPUSkin*>(MeshObject)->GetCachedFinalVertices();
+	}
 }
 
 void USkinnedMeshComponent::ReleaseResources()

@@ -4,6 +4,26 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Toolkits/IToolkit.h"
+#include "StaticMeshEditor.h"
+#include "StaticMeshEditorModule.h"
+
+void UStaticMeshEditorUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	IStaticMeshEditorModule& StaticMeshEditorModule = FModuleManager::GetModuleChecked<IStaticMeshEditorModule>("StaticMeshEditor");
+	StaticMeshEditorModule.OnRegisterLayoutExtensions().AddUObject(this, &UStaticMeshEditorUISubsystem::RegisterLayoutExtensions);
+}
+
+void UStaticMeshEditorUISubsystem::Deinitialize()
+{
+	IStaticMeshEditorModule& StaticMeshEditorModule = FModuleManager::GetModuleChecked<IStaticMeshEditorModule>("StaticMeshEditor");
+	StaticMeshEditorModule.OnRegisterLayoutExtensions().RemoveAll(this);
+}
+
+void UStaticMeshEditorUISubsystem::RegisterLayoutExtensions(FLayoutExtender& Extender)
+{
+	FTabManager::FTab NewTab(FTabId(UAssetEditorUISubsystem::TopLeftTabID, ETabIdFlags::SaveLayout), ETabState::ClosedTab);
+	Extender.ExtendLayout(FStaticMeshEditor::SocketManagerTabId, ELayoutExtensionPosition::After, NewTab);
+}
 
 FStaticMeshEditorModeUILayer::FStaticMeshEditorModeUILayer(const IToolkitHost* InToolkitHost) :
 	FAssetEditorModeUILayer(InToolkitHost)

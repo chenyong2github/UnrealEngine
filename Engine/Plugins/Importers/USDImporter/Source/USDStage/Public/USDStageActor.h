@@ -154,6 +154,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void Destroyed() override;
 	virtual void PostActorCreated() override;
+	virtual void PostRename( UObject* OldOuter, const FName OldName ) override;
 	virtual void BeginDestroy() override;
 
 	virtual void PostRegisterAllComponents() override;

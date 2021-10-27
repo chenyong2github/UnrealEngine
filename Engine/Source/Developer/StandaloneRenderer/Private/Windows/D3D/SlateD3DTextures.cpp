@@ -189,15 +189,7 @@ void FSlateD3DTexture::Init(void* ShareHandleIn)
 	SizeY = TexDesc.Height;
 	ShareHandle = ShareHandleIn;
 
-	// Ideally we would use the input texture format here but we need the SRGB variants for our render pipeline
-	if (TexDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB || TexDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-	{
-		Init(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, NULL, true, false);
-	}
-	else
-	{
-		Init(DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, NULL, true, false);
-	}
+	Init(TexDesc.Format, NULL, true, false);
 }
 
 void FSlateD3DTexture::UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& InDirty)
@@ -300,7 +292,7 @@ void FSlateTextureAtlasD3D::InitAtlasTexture()
 
 	AtlasTexture = new FSlateD3DTexture(AtlasWidth, AtlasHeight);
 
-	AtlasTexture->Init( DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, nullptr, true );
+	AtlasTexture->Init( DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, nullptr, true );
 }
 
 void FSlateTextureAtlasD3D::ConditionalUpdateTexture()

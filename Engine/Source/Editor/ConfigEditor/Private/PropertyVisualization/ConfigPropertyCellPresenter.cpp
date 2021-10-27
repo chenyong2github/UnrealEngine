@@ -191,7 +191,7 @@ bool SConfigPropertyCell::HandleDisplayedValueWidgetEnabled() const
 
 FReply SConfigPropertyCell::HandleAddPropertyToConfigClicked()
 {
-	PropertyOwnerDisplayObject->UpdateDefaultConfigFile(PropertyOwnerDisplayObject->ConfigFileName);
+	PropertyOwnerDisplayObject->TryUpdateDefaultConfigFile(PropertyOwnerDisplayObject->ConfigFileName);
 	bCachedConfigHasPropertyValue = true;
 
 	return FReply::Handled();
@@ -215,7 +215,7 @@ FReply SConfigPropertyCell::HandleRemovePropertyFromConfigClicked()
 	GConfig->RemoveKey(*SectionName, *PropertyName, PropertyOwnerDisplayObject->ConfigFileName);
 
 	// ... really oughta affect this...
-	PropertyOwnerDisplayObject->UpdateDefaultConfigFile(PropertyOwnerDisplayObject->ConfigFileName);
+	PropertyOwnerDisplayObject->TryUpdateDefaultConfigFile(PropertyOwnerDisplayObject->ConfigFileName);
 
 	return FReply::Handled();
 }

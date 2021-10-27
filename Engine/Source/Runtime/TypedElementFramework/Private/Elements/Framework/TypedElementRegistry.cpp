@@ -211,11 +211,31 @@ FTypedElementListRef UTypedElementRegistry::CreateElementList(TArrayView<const F
 
 void UTypedElementRegistry::NotifyElementListPendingChanges()
 {
-	FReadScopeLock ActiveElementListsLock(ActiveElementListsRW);
+	/** 
+	 * We use a critical section here since we need the called function to be able to create or delete TypedElementLists.
+	 * Critical sections are recursive. They can be lock multiple times by the same thread without blocking.
+	 */
+	FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
+	TArray<FTypedElementList*> ElementListToNotify = ActiveElementLists.Array();
 
-	for (FTypedElementList* ActiveElementList : ActiveElementLists)
+	bool bHasListPotentialyChanged = false;
+	for (FTypedElementList* ActiveElementList : ElementListToNotify)
 	{
-		ActiveElementList->NotifyPendingChanges();
+		if (bHasListPotentialyChanged)
+		{
+			/**
+			 * One of the callbacks could have modified the ActiveElementLists by deleting a ElementList.
+			 * So we need to validate that the ActiveElementList still exist.
+			 */
+			if (ActiveElementLists.Contains(ActiveElementList))
+			{
+				ActiveElementList->NotifyPendingChanges();
+			}
+		}
+		else
+		{
+			bHasListPotentialyChanged = ActiveElementList->NotifyPendingChanges();
+		}
 	}
 }
 

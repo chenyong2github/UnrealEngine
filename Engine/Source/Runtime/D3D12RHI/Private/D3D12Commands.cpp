@@ -336,7 +336,8 @@ static void HandleResourceDiscardTransitions(
 static void HandleDiscardResources(
 	FD3D12CommandContext& Context,
 	D3D12_RESOURCE_STATES SkipFastClearEliminateState,
-	TArrayView<const FRHITransition*> Transitions)
+	TArrayView<const FRHITransition*> Transitions,
+	bool bIsBeginTransition)
 {
 	FD3D12DiscardResourceArray ResourcesToDiscard;
 
@@ -344,7 +345,10 @@ static void HandleDiscardResources(
 	{
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
-		HandleResourceDiscardTransitions(Context, Data, SkipFastClearEliminateState, ResourcesToDiscard);
+		if (ProcessTransitionDuringBegin(Data) == bIsBeginTransition)
+		{
+			HandleResourceDiscardTransitions(Context, Data, SkipFastClearEliminateState, ResourcesToDiscard);
+		}
 	}
 
 	if (!GD3D12AllowDiscardResources)
@@ -352,7 +356,10 @@ static void HandleDiscardResources(
 		return;
 	}
 
-	Context.CommandListHandle.FlushResourceBarriers();
+	if (!ResourcesToDiscard.IsEmpty())
+	{
+		Context.CommandListHandle.FlushResourceBarriers();
+	}
 
 	for (const FD3D12DiscardResource& DiscardResource : ResourcesToDiscard)
 	{
@@ -541,10 +548,13 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	{
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
-		HandleTransientAliasing(*this, Data);
+		if (ProcessTransitionDuringBegin(Data))
+		{
+			HandleTransientAliasing(*this, Data);
+		}
 	}
 
-	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions);
+	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions, true /** bIsBeginTransitions */);
 
 	bool bUAVBarrier = false;
 
@@ -582,6 +592,18 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIEndTransitions, bShowTransitionEvents, TEXT("RHIEndTransitions"));
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+
+		if (!ProcessTransitionDuringBegin(Data))
+		{
+			HandleTransientAliasing(*this, Data);
+		}
+	}
+
+	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions, false /** bIsBeginTransitions */);
 
 	bool bUAVBarrier = false;
 

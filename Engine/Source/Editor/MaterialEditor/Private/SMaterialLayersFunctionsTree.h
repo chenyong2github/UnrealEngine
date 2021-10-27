@@ -138,7 +138,6 @@ public:
 	void SetParentsExpansionState();
 
 	void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
-	FName LayersFunctionsParameterName;
 	class UDEditorParameterValue* FunctionParameter;
 	struct FMaterialLayersFunctions* FunctionInstance;
 	TSharedPtr<IPropertyHandle> FunctionInstanceHandle;
@@ -286,7 +285,6 @@ public:
 		void OnExpansionChanged(TSharedPtr<FSortedParamData> Item, bool bIsExpanded);
 		void SetParentsExpansionState();
 		void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
-		FName LayersFunctionsParameterName;
 		class UDEditorParameterValue* FunctionParameter;
 		struct FMaterialLayersFunctions* FunctionInstance;
 		TSharedPtr<IPropertyHandle> FunctionInstanceHandle;

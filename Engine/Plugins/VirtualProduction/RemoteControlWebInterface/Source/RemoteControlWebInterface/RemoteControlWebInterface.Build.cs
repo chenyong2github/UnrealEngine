@@ -41,7 +41,8 @@ public class RemoteControlWebInterface : ModuleRules
 					"RemoteControl",
 					"RemoteControlUI",
 					"Settings",
-					"UnrealEd"
+					"UnrealEd",
+					"ToolWidgets",
 				}
 			);
 		}

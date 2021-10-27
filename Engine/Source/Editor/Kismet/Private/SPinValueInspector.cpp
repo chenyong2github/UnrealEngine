@@ -9,8 +9,18 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "IDetailPropertyRow.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "SPinValueInspector"
+
+///////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWindow> FPinValueInspectorTooltip::TooltipWindow = nullptr;
+TSharedPtr<SToolTip> FPinValueInspectorTooltip::TooltipWidget = nullptr;
+TSharedPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::Instance = nullptr;
+
+///////////////////////////////////////////////////////////////////////////////
 
 class SPinValueInspector_ConstrainedBox : public SCompoundWidget
 {
@@ -226,8 +236,87 @@ void SPinValueInspector::PopulateTreeView()
 
 	if (ensureMsgf(DebugInfo.IsValid(), TEXT("GetDebugInfo returned EWTR_Valid, but DebugInfo wasn't valid")))
 	{
-		TreeViewWidget->AddTreeItemUnique(SKismetDebugTreeView::MakeWatchChildItem(DebugInfo));
+		TreeViewWidget->AddTreeItemUnique(SKismetDebugTreeView::MakeWatchLineItem(GraphPin, Blueprint->GetObjectBeingDebugged()));
 	}
+}
+
+TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEdGraphPinReference InPinRef)
+{
+	if (ensureMsgf(InPinRef.Get(), TEXT("SPinValueInspector::SummonTooltip was called with an invalid Pin")))
+	{
+		if (!TooltipWindow.IsValid())
+		{
+			CreatePinValueTooltipWindow();
+		}
+		else if (Instance.IsValid())
+		{
+			Instance->DismissTooltip();
+		}
+
+		Instance = MakeShared<FPinValueInspectorTooltip>();
+		TooltipWindow->ShowWindow();
+		TooltipWidget->SetContentWidget(SAssignNew(Instance->ValueInspectorWidget, SPinValueInspector, InPinRef));
+		return Instance;
+	}
+
+	return nullptr;
+}
+
+void FPinValueInspectorTooltip::MoveTooltip(const FVector2D& InNewLocation)
+{
+	if (ensureMsgf(TooltipWindow.IsValid(), TEXT("SPinValueInspector::MoveTooltip was called before any tooltip was created")))
+	{
+		TooltipWindow->MoveWindowTo(InNewLocation);
+	}
+}
+
+void FPinValueInspectorTooltip::TryDismissTooltip()
+{
+	if (Instance.IsValid() && Instance->ValueInspectorWidget.IsValid())
+	{
+		// if we can't inspect the pin, force it to close
+		if (!FKismetDebugUtilities::CanInspectPinValue(Instance->ValueInspectorWidget->PinRef.Get()) || TooltipCanClose())
+		{
+			DismissTooltip();
+		}
+	}
+}
+
+void FPinValueInspectorTooltip::DismissTooltip()
+{
+	if (TooltipHostsMenu())
+	{
+		FSlateApplication::Get().DismissAllMenus();
+	}
+	TooltipWidget->ResetContentWidget();
+	TooltipWindow->HideWindow();
+	Instance.Reset();
+}
+
+void FPinValueInspectorTooltip::CreatePinValueTooltipWindow()
+{
+	TooltipWindow = SNew(SWindow)
+		.Type(EWindowType::Notification) // EWindowType::Tooltip disables interactivity with child widgets
+		.CreateTitleBar(false)
+		.IsTopmostWindow(true)
+		.SupportsMaximize(false)
+		.SupportsMinimize(false)
+		.IsPopupWindow(true)
+		.SizingRule(ESizingRule::Autosized);
+
+	FSlateApplication::Get().AddWindow(TooltipWindow.ToSharedRef());
+	TooltipWindow->SetContent(SAssignNew(TooltipWidget, SToolTip));
+}
+
+bool FPinValueInspectorTooltip::TooltipCanClose()
+{
+	return !TooltipWindow->IsHovered() && !TooltipHostsMenu();
+}
+
+bool FPinValueInspectorTooltip::TooltipHostsMenu()
+{
+	TSharedPtr<SWindow> MenuHostWindow = FSlateApplication::Get().GetVisibleMenuWindow();
+	return MenuHostWindow.IsValid() && (MenuHostWindow == TooltipWindow);
 }
 
 #undef LOCTEXT_NAMESPACE

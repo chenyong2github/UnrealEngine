@@ -84,7 +84,7 @@ struct FMetaSettingGatherer
 			const FString Filename = Pair.Key->GetDefaultConfigFilename();
 			const FDateTime BeforeTime = IFileManager::Get().GetTimeStamp(*Filename);
 
-			Pair.Key->UpdateDefaultConfigFile();
+			Pair.Key->TryUpdateDefaultConfigFile();
 
 			const FDateTime AfterTime = IFileManager::Get().GetTimeStamp(*Filename);
 			bSuccess = BeforeTime != AfterTime && bSuccess;
@@ -274,7 +274,7 @@ void FHardwareTargetingModule::ApplyHardwareTargetingSettings()
 		{
 			Settings->AppliedTargetedHardwareClass = Settings->TargetedHardwareClass;
 			Settings->AppliedDefaultGraphicsPerformance = Settings->DefaultGraphicsPerformance;
-			Settings->UpdateDefaultConfigFile();
+			Settings->TryUpdateDefaultConfigFile();
 		}
 	}
 }

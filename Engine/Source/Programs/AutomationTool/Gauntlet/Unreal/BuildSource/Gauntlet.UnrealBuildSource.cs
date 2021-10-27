@@ -643,7 +643,7 @@ namespace Gauntlet
 
 				if (BuildName == "Editor")
 				{
-					ProjectUtils.GetProjectTarget(ProjectPath, UnrealBuildTool.TargetType.Editor, TargetPlatform, TargetConfiguration);
+					EditorExe = ProjectUtils.GetProjectTarget(ProjectPath, UnrealBuildTool.TargetType.Editor, TargetPlatform, TargetConfiguration);
 				}
 
 				if (EditorExe != null)

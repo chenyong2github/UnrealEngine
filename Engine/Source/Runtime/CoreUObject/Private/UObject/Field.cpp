@@ -753,11 +753,7 @@ FText FField::GetToolTipText(bool bShortTooltip) const
 	const FString Key = GetFullGroupName(false);
 	if (!FText::FindText(Namespace, Key, /*OUT*/LocalizedToolTip, &NativeToolTip))
 	{
-		if (NativeToolTip.IsEmpty())
-		{
-			NativeToolTip = FName::NameToDisplayString(FFieldDisplayNameHelper::Get(*this), IsA<FBoolProperty>());
-		}
-		else
+		if (!NativeToolTip.IsEmpty())
 		{
 			static const FString DoxygenSee(TEXT("@see"));
 			static const FString TooltipSee(TEXT("See:"));
@@ -767,6 +763,16 @@ FText FField::GetToolTipText(bool bShortTooltip) const
 			}
 		}
 		LocalizedToolTip = FText::FromString(NativeToolTip);
+	}
+
+	const FText DisplayName = FText::FromString(FName::NameToDisplayString(FFieldDisplayNameHelper::Get(*this), IsA<FBoolProperty>()));
+	if (LocalizedToolTip.IsEmpty())
+	{
+		LocalizedToolTip = DisplayName;
+	}
+	else
+	{
+		LocalizedToolTip = FText::Join(FText::FromString(TEXT(":") LINE_TERMINATOR), DisplayName, LocalizedToolTip);
 	}
 
 	return LocalizedToolTip;

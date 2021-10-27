@@ -93,6 +93,7 @@
 #include "Types/ISlateMetaData.h"
 #include "ControlRigGraphDetails.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Kismet2/WatchedPin.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
@@ -4127,7 +4128,7 @@ void FControlRigEditor::UpdateStaleWatchedPins()
 	}
 	for (UEdGraphPin* Pin : AllPins)
 	{
-		FKismetDebugUtilities::AddPinWatch(ControlRigBP, Pin);
+		FKismetDebugUtilities::AddPinWatch(ControlRigBP, FBlueprintWatchedPin(Pin));
 		UEdGraph* EdGraph = Pin->GetOwningNode()->GetGraph();
 		ControlRigBP->GetController(EdGraph)->SetPinIsWatched(Pin->GetName(), true, false);
 	}

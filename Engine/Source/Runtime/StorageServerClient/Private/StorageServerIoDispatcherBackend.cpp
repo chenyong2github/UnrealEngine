@@ -52,7 +52,7 @@ uint32 FStorageServerIoDispatcherBackend::Run()
 {
 	for (int32 BatchIndex = 0; BatchIndex < GStorageServerIoDispatcherMaxActiveBatchCount; ++BatchIndex)
 	{
-		FBatch* Batch = new FBatch(*this);
+		FBatch* Batch = new FBatch(*this, MakeUnique<FStorageServerSerializationContext>());
 		Batch->Next = FirstAvailableBatch;
 		FirstAvailableBatch = Batch;
 	}
@@ -122,11 +122,18 @@ bool FStorageServerIoDispatcherBackend::Resolve(FIoRequestImpl* Request)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerIoDispatcherReadChunk);
 		bool bSuccess = Connection.ReadChunkRequest(Request->ChunkId, Request->Options.GetOffset(), Request->Options.GetSize(), [&Request](FStorageServerResponse& Response)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SerializeResponse);
+			FIoBuffer Chunk;
+			if (Response.SerializeChunk(Chunk, Request->Options.GetTargetVa(), Request->Options.GetOffset(), Request->Options.GetSize()))
 			{
-				Request->CreateBuffer(Response.TotalSize());
-				TRACE_CPUPROFILER_EVENT_SCOPE(SerializeResponse);
-				Response.Serialize(Request->GetBuffer().Data(), Response.TotalSize());
-			});
+				Request->SetResult(Chunk);
+			}
+			else
+			{
+				Request->SetFailed();
+			}
+		});
 		if (!bSuccess)
 		{
 			Request->SetFailed();
@@ -282,11 +289,18 @@ void FStorageServerIoDispatcherBackend::FBatch::DoThreadedWork()
 	{
 		FIoRequestImpl* NextRequest = Request->NextRequest;
 		TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerIoDispatcherReadChunk);
-		bool bSuccess = Owner.Connection.ReadChunkRequest(Request->ChunkId, Request->Options.GetOffset(), Request->Options.GetSize(), [&Request](FStorageServerResponse& Response)
+		bool bSuccess = Owner.Connection.ReadChunkRequest(Request->ChunkId, Request->Options.GetOffset(), Request->Options.GetSize(), [this, &Request](FStorageServerResponse& Response)
 			{
-				Request->CreateBuffer(Response.TotalSize());
 				TRACE_CPUPROFILER_EVENT_SCOPE(SerializeResponse);
-				Response.Serialize(Request->GetBuffer().Data(), Response.TotalSize());
+				FIoBuffer Chunk;
+				if (Response.SerializeChunk(*SerializationContext, Chunk, Request->Options.GetTargetVa(), Request->Options.GetOffset(), Request->Options.GetSize()))
+				{
+					Request->SetResult(Chunk);
+				}
+				else
+				{
+					Request->SetFailed();
+				}
 			});
 		if (!bSuccess)
 		{

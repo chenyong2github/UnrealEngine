@@ -63,7 +63,7 @@ struct FPrimaryAssetRulesCustomOverride
 };
 
 /** Settings for the Asset Management framework, which can be used to discover, load, and audit game-specific asset types */
-UCLASS(config = Game, defaultconfig, notplaceable, meta = (DisplayName = "Asset Manager"))
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Asset Manager"))
 class ENGINE_API UAssetManagerSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

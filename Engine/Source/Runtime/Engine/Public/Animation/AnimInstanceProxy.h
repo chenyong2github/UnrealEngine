@@ -279,7 +279,7 @@ public:
 	/** Check whether animation content authored on the supplied skeleton may be played on this instance's skeleton */
 	bool IsSkeletonCompatible(USkeleton const* InSkeleton) const
 	{
-		return Skeleton->IsCompatible(InSkeleton);
+		return Skeleton && Skeleton->IsCompatible(InSkeleton);
 	}
 
 	/** Check whether we should extract root motion */

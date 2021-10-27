@@ -576,6 +576,9 @@ protected:
 	/** Gets the visibility of the asset class label in thumbnails */
 	EVisibility GetAssetClassLabelVisibility() const;
 
+	/** Gets the color of the asset class label in thumbnails */
+	FSlateColor GetAssetClassLabelTextColor() const;
+
 	/** Returns the font to use for the thumbnail label */
 	FSlateFontInfo GetThumbnailFont() const;
 
@@ -584,6 +587,9 @@ protected:
 
 	const FSlateBrush* GetFolderBackgroundImage() const;
 	const FSlateBrush* GetFolderBackgroundShadowImage() const;
+
+	const FSlateBrush* GetNameAreaBackgroundImage() const;
+	FSlateColor GetNameAreaTextColor() const;
 
 	FOptionalSize GetNameAreaMaxDesiredHeight() const;
 

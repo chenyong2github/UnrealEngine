@@ -38,6 +38,9 @@ DEFINE_LOG_CATEGORY(LogStall);
 // The reference count for the resources for this API
 static int32 InitCount = 0;
 
+// Sentinel value for invalid timestamp
+static const double InvalidSeconds = -1.0;
+
 /**
 * Stall Detector Thread
 **/
@@ -109,7 +112,7 @@ uint32 UE::FStallDetectorRunnable::Run()
 		double Seconds = FStallDetector::Seconds();
 
 		// Check the detectors
-		if (Seconds != FStallDetector::InvalidSeconds)
+		if (Seconds != InvalidSeconds)
 		{
 			FScopeLock ScopeLock(&FStallDetector::GetInstancesSection());
 			for (FStallDetector* Detector : FStallDetector::GetInstances())
@@ -229,24 +232,139 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 
 
 /**
+* Stall Timer
+**/
+
+UE::FStallTimer::FStallTimer()
+: PauseCount(0)
+, LastCheckSeconds(InvalidSeconds)
+, RemainingSeconds(InvalidSeconds)
+{
+}
+
+void UE::FStallTimer::Reset(const double InSeconds, const double InRemainingSeconds)
+{
+	FScopeLock ScopeLock(&Section);
+
+	LastCheckSeconds = InSeconds;
+	RemainingSeconds = InRemainingSeconds;
+}
+
+void UE::FStallTimer::Check(const double InSeconds, double& OutDeltaSeconds, double& OutOverageSeconds)
+{
+	OutDeltaSeconds = 0.0;
+	OutOverageSeconds = 0.0;
+
+	FScopeLock ScopeLock(&Section);
+
+	// Check to see if we are paused, no need to check in this case
+	if (LastCheckSeconds == InvalidSeconds)
+	{
+		return;
+	}
+
+	// The amount of time that has transpired since the last check
+	OutDeltaSeconds = InSeconds - LastCheckSeconds;
+
+	// Update the last check time
+	LastCheckSeconds = InSeconds;
+
+	// Deduct our delta from the remaining time
+	RemainingSeconds -= OutDeltaSeconds;
+
+	// The following calls use overage vs. negative remaining time
+	OutOverageSeconds = -RemainingSeconds;
+}
+
+void UE::FStallTimer::Pause(const double InSeconds)
+{
+	FScopeLock ScopeLock(&Section);
+
+	if (++PauseCount == 1 && ensure(LastCheckSeconds != InvalidSeconds))
+	{
+		// Keep remaining time up to date with now
+		RemainingSeconds -= InSeconds - LastCheckSeconds;
+
+		// Forget when we start this interval, we don't need synchronization here as if Check() updates LastCheckSeconds between the above and here, it doesn't matter as RemainingSeconds will still be correct
+		LastCheckSeconds = InvalidSeconds;
+	}
+}
+
+void UE::FStallTimer::Resume(const double InSeconds)
+{
+	FScopeLock ScopeLock(&Section);
+
+	if (--PauseCount == 0)
+	{
+		// We should be paused!
+		ensure(LastCheckSeconds == InvalidSeconds);
+
+		// Resume checking from this time, we don't need atomics here as this thread is the only one that should issue this write (we were paused which means the StallDetectorThread won't Check())
+		LastCheckSeconds = InSeconds;
+	}
+}
+
+
+/**
 * Stall Detector
 **/
 
-const double UE::FStallDetector::InvalidSeconds = -1.0;
+// statics
 FCriticalSection UE::FStallDetector::InstancesSection;
 TSet<UE::FStallDetector*> UE::FStallDetector::Instances;
 
+// globals
+class ThreadLocalSlotAcquire
+{
+public:
+	ThreadLocalSlotAcquire()
+	{
+		Slot = FPlatformTLS::AllocTlsSlot();
+		FPlatformTLS::SetTlsValue(Slot, nullptr);
+	}
+
+	~ThreadLocalSlotAcquire()
+	{
+		FPlatformTLS::FreeTlsSlot(Slot);
+		Slot = ~0;
+	}
+
+	uint32 GetSlot()
+	{
+		return Slot;
+	}
+
+private:
+	uint32 Slot = ~0;
+};
+static ThreadLocalSlotAcquire ThreadLocalSlot;
+
 UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	: Stats(InStats)
+	, Parent(nullptr)
 	, ThreadId(0)
-	, StartSeconds(InvalidSeconds)
+	, bStarted (false)
 	, bPersistent(false)
 	, Triggered(false)
 {
-	if (FStallDetector::IsRunning())
+	// Capture this thread's current stall detector to our parent member
+	Parent = static_cast<FStallDetector*>(FPlatformTLS::GetTlsValue(ThreadLocalSlot.GetSlot()));
+
+	// Set the current thread's stall detector to this object
+	FPlatformTLS::SetTlsValue(ThreadLocalSlot.GetSlot(), this);
+
+	// This will be invalid if the stall detector thread isn't running
+	double Seconds = FStallDetector::Seconds();
+	if (Seconds != InvalidSeconds)
 	{
+		// Capture the calling thread's id, can't do it later because we could need it from the stall detector thread
 		ThreadId = FPlatformTLS::GetCurrentThreadId();
-		StartSeconds = FStallDetector::Seconds();
+
+		// Setting this will cause our dtor to do a check (unless we are put into persistent mode by CheckAndReset())
+		Timer.Reset(Seconds, InStats.BudgetSeconds);
+
+		// Flag this detector to be checked at destruction time
+		bStarted = true;
 	}
 
 	// Add at the end of construction
@@ -262,41 +380,38 @@ UE::FStallDetector::~FStallDetector()
 		Instances.Remove(this);
 	}
 
-	if (FStallDetector::IsRunning())
+	// This will be invalid if the stall detector thread isn't running
+	double Seconds = FStallDetector::Seconds();
+
+	// If we have a timestamp, and captured a timestamp at contruction time, and we are not a persistent detector, do the final check
+	if (Seconds != InvalidSeconds && bStarted && !bPersistent)
 	{
-		if (!bPersistent)
-		{
-			Check(true);
-		}
+		Check(true, Seconds);
 	}
+
+	// We are destructed, so set current thread's detector to our parent
+	FPlatformTLS::SetTlsValue(ThreadLocalSlot.GetSlot(), Parent);
 }
 
-void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
+void UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
 {
-	// StartSeconds checks that system was started when this detector was constructed
-	bool bInitialized = FStallDetector::IsRunning() && StartSeconds != InvalidSeconds;
-	if (!bInitialized)
-	{
-		return;
-	}
+	// all callers need to sort out checking the clock
+	check(InCheckSeconds != InvalidSeconds);
 
-	double CheckSeconds = InWhenToCheckSeconds;
-	if (InWhenToCheckSeconds == InvalidSeconds)
-	{
-		CheckSeconds = FStallDetector::Seconds();
-		if (CheckSeconds == InvalidSeconds)
-		{
-			return;
-		}
-	}
-
-	double DeltaSeconds = CheckSeconds - StartSeconds;
-	double OverageSeconds = DeltaSeconds - Stats.BudgetSeconds;
+	// Both the potentially stalling thread and the stall detector thread will call into here.
+	// FStallTimer will take a section and calculate the time remaining and update the last checked time stamp.
+	// We don't hammer this too too badly (5ms at the time of this writing), so the lock shouldn't be too costly.
+	// There shouldn't be enough contention to warrant trying to implement these semantics via atomics.
+	// The critical section fastpath should be in effect almost all the time.
+	double DeltaSeconds;
+	double OverageSeconds;
+	Timer.Check(InCheckSeconds, DeltaSeconds, OverageSeconds);
 
 	if (Triggered)
 	{
-		if (bIsComplete)
+		if (bFinalCheck)
 		{
+			// this callback allows for tracking the total overrun, once the stalling period is finally done
 			Stats.OnStallCompleted(OverageSeconds);
 
 #if STALL_DETECTOR_DEBUG
@@ -313,11 +428,12 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 	{
 		if (OverageSeconds > 0.0)
 		{
+			// can be called from multiple threads, but we only want the first caller to call OnStallDetected
 			bool PreviousTriggered = false;
 			if (Triggered.compare_exchange_strong(PreviousTriggered, true, std::memory_order_acquire, std::memory_order_relaxed))
 			{
 #if STALL_DETECTOR_DEBUG
-				FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Triggered at %f\n"), Stats.Name, CheckSeconds);
+				FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Triggered at %f\n"), Stats.Name, InCheckSeconds);
 				FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
 #endif
 				OnStallDetected(ThreadId, DeltaSeconds);
@@ -328,23 +444,15 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 
 void UE::FStallDetector::CheckAndReset()
 {
-	// StartSeconds checks that system was started when this detector was constructed
-	bool bInitialized = FStallDetector::IsRunning() && StartSeconds != InvalidSeconds;
-	if (!bInitialized)
-	{
-		return;
-	}
-
 	double CheckSeconds = FStallDetector::Seconds();
 	if (CheckSeconds == InvalidSeconds)
 	{
 		return;
 	}
 
-	// if this is the first call to CheckAndReset
+	// If this is the first call to CheckAndReset, flag that we are now in persistent mode (vs. scope mode)
 	if (!bPersistent)
 	{
-		// never the first call again, because the timespan between construction and the first call isn't valid don't perform a check
 		bPersistent = true;
 	}
 	else
@@ -353,8 +461,24 @@ void UE::FStallDetector::CheckAndReset()
 		Check(true, CheckSeconds);
 	}
 
-	StartSeconds = CheckSeconds;
+	Timer.Reset(CheckSeconds, Stats.BudgetSeconds);
 	Triggered = false;
+}
+
+void UE::FStallDetector::Pause(const double InSeconds)
+{
+	// All callers need to sort out checking the clock
+	check(InSeconds != InvalidSeconds);
+
+	Timer.Pause(InSeconds);
+}
+
+void UE::FStallDetector::Resume(const double InSeconds)
+{
+	// All callers need to sort out checking the clock
+	check(InSeconds != InvalidSeconds);
+
+	Timer.Resume(InSeconds);
 }
 
 void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElapsedSeconds)
@@ -498,7 +622,7 @@ void UE::FStallDetector::Shutdown()
 
 		delete Runnable;
 		Runnable = nullptr;
-		
+
 		UE_LOG(LogStall, Log, TEXT("Shutdown complete."));
 	}
 	check(InitCount >= 0);
@@ -507,6 +631,42 @@ void UE::FStallDetector::Shutdown()
 bool UE::FStallDetector::IsRunning()
 {
 	return InitCount > 0;
+}
+
+UE::FStallDetectorPause::FStallDetectorPause()
+	: bPaused(false)
+{
+	// this will be invalid if the thread isn't running
+	double Seconds = FStallDetector::Seconds();
+	if (Seconds == InvalidSeconds)
+	{
+		return;
+	}
+
+	bPaused = true;
+
+	for (FStallDetector* Current = static_cast<FStallDetector*>(FPlatformTLS::GetTlsValue(ThreadLocalSlot.GetSlot())); Current; Current = Current->GetParent())
+	{
+		Current->Pause(Seconds);
+	}
+}
+
+UE::FStallDetectorPause::~FStallDetectorPause()
+{
+	// this will be invalid if the thread isn't running
+	double Seconds = FStallDetector::Seconds();
+	if (Seconds == InvalidSeconds)
+	{
+		return;
+	}
+
+	if (bPaused)
+	{
+		for (FStallDetector* Current = static_cast<FStallDetector*>(FPlatformTLS::GetTlsValue(ThreadLocalSlot.GetSlot())); Current; Current = Current->GetParent())
+		{
+			Current->Resume(Seconds);
+		}
+	}
 }
 
 #endif // STALL_DETECTOR

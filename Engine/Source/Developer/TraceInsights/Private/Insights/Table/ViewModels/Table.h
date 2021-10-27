@@ -20,9 +20,11 @@ public:
 	FTable();
 	virtual ~FTable();
 
-	const FName& GetName() const { return Name; }
-	FText GetDisplayName() const { return FText::FromName(Name); }
+	const FText& GetDisplayName() const { return DisplayName; }
+	void SetDisplayName(const FText& InDisplayName) { DisplayName = InDisplayName; }
+
 	const FText& GetDescription() const { return Description; }
+	void SetDescription(const FText& InDescription) { Description = InDescription; }
 
 	virtual void Reset();
 
@@ -61,7 +63,7 @@ protected:
 	void AddHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName);
 
 private:
-	FName Name;
+	FText DisplayName;
 	FText Description;
 
 	/** All available columns. */

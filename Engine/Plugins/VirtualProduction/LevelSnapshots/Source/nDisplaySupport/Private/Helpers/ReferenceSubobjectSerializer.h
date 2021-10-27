@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Restorability/Serialization/ICustomObjectSnapshotSerializer.h"
-#include "Restorability/Serialization/ObjectSnapshotSerializationData.h"
+#include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "Params/ObjectSnapshotSerializationData.h"
 
 class FScriptMapHelper;
 class ILevelSnapshotsModule;

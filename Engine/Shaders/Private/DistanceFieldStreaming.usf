@@ -42,6 +42,55 @@ void ScatterUploadDistanceFieldAtlasCS(
 	}
 }
 
+RWTexture3D<float4> RWIndirectionAtlas;
+Buffer<uint> IndirectionUploadIndices;
+Buffer<float4> IndirectionUploadData;
+uint3 IndirectionAtlasSize;
+uint NumIndirectionUploads;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void ScatterUploadDistanceFieldIndirectionAtlasCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint Index = DispatchThreadId.x;
+
+	if (Index < NumIndirectionUploads)
+	{
+		uint OutputIndex = IndirectionUploadIndices[Index];
+		uint3 AtlasPosition = uint3(
+			OutputIndex % IndirectionAtlasSize.x,
+			OutputIndex / IndirectionAtlasSize.x % IndirectionAtlasSize.y,
+			OutputIndex / IndirectionAtlasSize.x / IndirectionAtlasSize.y);
+		RWIndirectionAtlas[AtlasPosition] = IndirectionUploadData[Index];
+	}
+}
+
+uint3 IndirectionDimensions;
+uint3 SrcPosition;
+uint3 DstPosition;
+uint NumAssets;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void CopyDistanceFieldIndirectionAtlasCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint Index = DispatchThreadId.x;
+	uint3 LocalPosition = uint3(
+		Index % IndirectionDimensions.x,
+		Index / IndirectionDimensions.x % IndirectionDimensions.y,
+		Index / IndirectionDimensions.x / IndirectionDimensions.y % IndirectionDimensions.z);
+	uint AssetIndex = Index / IndirectionDimensions.x / IndirectionDimensions.y / IndirectionDimensions.z;
+
+	if (AssetIndex < NumAssets)
+	{
+		RWIndirectionAtlas[DstPosition + LocalPosition] = DistanceFieldIndirectionAtlas[SrcPosition + LocalPosition];
+	}
+}
+
 RWStructuredBuffer<uint> RWDistanceFieldAssetWantedNumMips;
 RWStructuredBuffer<uint> RWDistanceFieldAssetStreamingRequests;
 

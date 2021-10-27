@@ -51,6 +51,13 @@ struct FDPMatchingIfCondition
 
 	UPROPERTY()
 	FString Arg2;
+
+	bool operator==(const FDPMatchingIfCondition& Other) const
+	{
+		return Operator == Other.Operator
+			&& Arg1.Equals(Other.Arg1, ESearchCase::CaseSensitive)
+			&& Arg2.Equals(Other.Arg2, ESearchCase::CaseSensitive);
+	}
 };
 
 USTRUCT()
@@ -73,6 +80,14 @@ struct FDPMatchingRulestructBase
 
 	virtual const FDPMatchingRulestructBase* GetOnTrue() const { return nullptr; };
 	virtual const FDPMatchingRulestructBase* GetOnFalse() const { return nullptr; };
+
+	bool operator==(const FDPMatchingRulestructBase& Other) const
+	{
+		return IfConditions == Other.IfConditions
+			&& RuleName.Equals(Other.RuleName, ESearchCase::CaseSensitive)
+			&& AppendFragments.Equals(Other.AppendFragments, ESearchCase::CaseSensitive)
+			&& SetSrc.Equals(Other.SetSrc, ESearchCase::CaseSensitive);
+	}
 };
 
 USTRUCT()

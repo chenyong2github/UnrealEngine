@@ -52,6 +52,7 @@ public:
 	FOnPatchCheckComplete& GetOnComplete() { return OnComplete; }
 
 protected:
+	void RefreshConfig();
 	virtual void StartPlatformOSSPatchCheck();
 	virtual void StartOSSPatchCheck();
 	virtual bool EnvironmentWantsPatchCheck() const;

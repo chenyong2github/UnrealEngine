@@ -5,6 +5,7 @@
 #include "Algo/AllOf.h"
 #include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
+#include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/SlopeUtils.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalLink.h"
@@ -14,15 +15,16 @@
 #include "CADKernel/Utils/Util.h"
 
 
-using namespace CADKernel;
-
-TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, double GeometricTolerance)
+TSharedPtr<CADKernel::FTopologicalLoop> CADKernel::FTopologicalLoop::Make(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, double GeometricTolerance)
 {
 	TSharedRef<FTopologicalLoop> Loop = FEntity::MakeShared<FTopologicalLoop>(InEdges, InEdgeDirections);
+
 	Loop->EnsureLogicalClosing(GeometricTolerance);
+	Loop->RemoveDegeneratedEdges();
+
 	for (FOrientedEdge& OrientedEdge : Loop->GetEdges())
 	{
-		OrientedEdge.Entity->SetLoop(Loop);
+		OrientedEdge.Entity->SetLoop(*Loop);
 	}
 
 	TArray<FPoint2D> LoopSampling;
@@ -33,12 +35,26 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 
 	if (Algo::AllOf(Loop->GetEdges(), [](const FOrientedEdge& Edge) { return Edge.Entity->IsDegenerated(); }))
 	{
+		Loop->DeleteLoopEdges();
 		return TSharedPtr<FTopologicalLoop>();
 	}
+
+	double Length = 0;
+	for(const FOrientedEdge& Edge : Loop->GetEdges())
+	{
+		Length += Edge.Entity->Length();
+	}
+	if(Length < 10*GeometricTolerance)
+	{
+		// Degenerated Loop
+		Loop->DeleteLoopEdges();
+		return TSharedPtr<FTopologicalLoop>();
+	}
+
 	return Loop;
 }
 
-FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections)
+CADKernel::FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections)
 	: FTopologicalEntity()
 	, Face(TSharedPtr<FTopologicalFace>())
 	, bExternalLoop(true)
@@ -52,7 +68,17 @@ FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& I
 	}
 }
 
-void FTopologicalLoop::RemoveEdge(TSharedPtr<FTopologicalEdge>& EdgeToRemove)
+void CADKernel::FTopologicalLoop::DeleteLoopEdges()
+{
+	for (FOrientedEdge& Edge : Edges)
+	{
+		Edge.Entity->Delete();
+		Edge.Entity.Reset();
+	}
+	Edges.Empty();
+}
+
+void CADKernel::FTopologicalLoop::RemoveEdge(TSharedPtr<FTopologicalEdge>& EdgeToRemove)
 {
 	for (int32 IEdge = 0; IEdge < Edges.Num(); IEdge++)
 	{
@@ -66,7 +92,7 @@ void FTopologicalLoop::RemoveEdge(TSharedPtr<FTopologicalEdge>& EdgeToRemove)
 	ensureCADKernel(false);
 }
 
-EOrientation FTopologicalLoop::GetDirection(TSharedPtr<FTopologicalEdge>& InEdge, bool bAllowLinkedEdge) const
+CADKernel::EOrientation CADKernel::FTopologicalLoop::GetDirection(TSharedPtr<FTopologicalEdge>& InEdge, bool bAllowLinkedEdge) const
 {
 	ensureCADKernel(InEdge.IsValid());
 
@@ -88,7 +114,7 @@ EOrientation FTopologicalLoop::GetDirection(TSharedPtr<FTopologicalEdge>& InEdge
 }
 
 
-void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling)
+void CADKernel::FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling)
 {
 	int32 PointNum = 0;
 	for (const FOrientedEdge& Edge : Edges)
@@ -106,74 +132,180 @@ void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling)
 	LoopSampling.Emplace(LoopSampling[0]);
 }
 
-void FTopologicalLoop::Orient()
+//#define DEBUG_ORIENT
+
+
+/**
+ * To check loop orientation, we check the orientation of the extremity points i.e. "o" points below
+ * 
+ *                   o
+ *                  / \
+ *                 /   \
+ *                o     o
+ *                 \   /
+ *                  \ /
+ *                   o
+ * 
+ * For these points, the slop is compute. 
+ * If the slop is between 0 and 4, the loop at the point is well oriented otherwise not
+ *
+ * The difficulties start when the slop is closed to 0 or 4 i.e.
+ * 
+ *     -----o-----
+ *    |           |
+ * 
+ * In this case, the orientation of the next segment is compare to the bounding box
+ * 
+ * The last very difficult case is a sharp case at the previous case i.e. 
+ *  
+ *     ______
+ *    |   ---O
+ *    |   |
+ * Not yet cover as if there is 4 sharp case in a loop should be very rare and the loop should be a very bad loop...
+ */
+void CADKernel::FTopologicalLoop::Orient()
 {
 	ensureCADKernel(Edges.Num() > 0);
 
 	TArray<FPoint2D> LoopSampling;
 	Get2DSampling(LoopSampling);
+	LoopSampling.Pop();
+	TSet<int32> ExtremityIndex;
+	ExtremityIndex.Reserve(8);
+
+	int32 PointCount = LoopSampling.Num();
 
 	double UMin = HUGE_VAL;
 	double UMax = -HUGE_VAL;
 	double VMin = HUGE_VAL;
 	double VMax = -HUGE_VAL;
-	int32 IndexUMin = 0;
-	int32 IndexUMax = 0;
-	int32 IndexVMin = 0;
-	int32 IndexVMax = 0;
 
-	int32 PointCount = LoopSampling.Num();
-
-	for (int32 Index = 0; Index < PointCount; ++Index)
+	TFunction<void(const int32, const int32, const int32)> FindExtremity = [&](const int32 StartIndex, const int32 EndIndex, const int32 Increment)
 	{
-		if (LoopSampling[Index].U > UMax)
-		{
-			UMax = LoopSampling[Index].U;
-			IndexUMax = Index;
-		}
-		if (LoopSampling[Index].U < UMin)
-		{
-			UMin = LoopSampling[Index].U;
-			IndexUMin = Index;
-		}
+		UMin = HUGE_VAL;
+		UMax = -HUGE_VAL;
+		VMin = HUGE_VAL;
+		VMax = -HUGE_VAL;
 
-		if (LoopSampling[Index].V > VMax)
-		{
-			VMax = LoopSampling[Index].V;
-			IndexVMax = Index;
-		}
-		if (LoopSampling[Index].V < VMin)
-		{
-			VMin = LoopSampling[Index].V;
-			IndexVMin = Index;
-		}
-	}
+		int32 IndexUMin = 0;
+		int32 IndexUMax = 0;
+		int32 IndexVMin = 0;
+		int32 IndexVMax = 0;
 
-	int32 WrongOrientationNum = 0;
-	TFunction<void(int32&, double)> CompareOrientation = [&](int32& Index, double ReferenceSlop)
+		for (int32 Index = StartIndex; Index != EndIndex; Index += Increment)
+		{
+			if (LoopSampling[Index].U > UMax)
+			{
+				UMax = LoopSampling[Index].U;
+				IndexUMax = Index;
+			}
+			if (LoopSampling[Index].U < UMin)
+			{
+				UMin = LoopSampling[Index].U;
+				IndexUMin = Index;
+			}
+
+			if (LoopSampling[Index].V > VMax)
+			{
+				VMax = LoopSampling[Index].V;
+				IndexVMax = Index;
+			}
+			if (LoopSampling[Index].V < VMin)
+			{
+				VMin = LoopSampling[Index].V;
+				IndexVMin = Index;
+			}
+		}
+		ExtremityIndex.Add(IndexUMax);
+		ExtremityIndex.Add(IndexUMin);
+		ExtremityIndex.Add(IndexVMax);
+		ExtremityIndex.Add(IndexVMin);
+	};
+
+	FindExtremity(0, PointCount, 1);
+	FindExtremity(PointCount - 1, -1, -1);
+
+	int32 WrongOrientationCount = 0;
+	int32 GoodOrientationCount = 0;
+	int32 UndefinedOrientationCount = 0;
+	TFunction<void(const int32)> CompareOrientation = [&](const int32 Index)
 	{
-		// if the slop of the selected segment is not close to the BBox side (closed of 0 of 4), so the angle between the neighboring segments of the local extrema is not closed to 4 and allows to defined the orientation
-		// Pic case: the slop is compute between previous and nex segment of the extrema 
-		int32 PreviousIndex = Index == 0 ? PointCount - 1 : Index - 1;
-		int32 NextIndex = Index+1;
-		if(NextIndex  == LoopSampling.Num()) 
+		int32 Index1 = Index + 1;
+		if (Index1 == PointCount)
 		{
-			NextIndex = 0;
+			Index1 = 0;
 		}
+		int32 Index2 = Index == 0 ? PointCount - 1 : Index - 1;
 
-		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
+		// if the slop of the selected segments is not close to the BBox side (closed of 0 or 4), so the angle between the neighboring segments of the local extrema is not closed to 4 and allows to defined the orientation
+		// Pic case: the slop is compute between previous and next segment of the extrema 
+		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[Index1], LoopSampling[Index2]);
 		if (Slop > 4.2)
 		{
-			WrongOrientationNum++;
+			WrongOrientationCount++;
 		}
-		else if (Slop > 3.8)
+		else if (Slop < 3.8)
 		{
-			// the angle between the neighboring segments of the local extrema is too closed to 4 (PI) so the slop of the segment Index, Index+1 is compared to the AABB side to define the orientation
-			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[NextIndex], ReferenceSlop);
-			// slop should be closed to [0, 0.2] or [3.8, 4]
-			if (Slop > 3)
+			GoodOrientationCount++;
+		}
+		else
+		{
+			// Extrema case: the slop is compute between the next segment and the nearest BBox side 
+			double ReferenceSlop = 0;
+			if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMin))
 			{
-				WrongOrientationNum++;
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMin));
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMax));
+				ReferenceSlop = 6;
+			}
+			else if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMax))
+			{
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMin));
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMax));
+				ReferenceSlop = 2;
+			}
+			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMin))
+			{
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMin));
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMax));
+				ReferenceSlop = 0;
+			}
+			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMax))
+			{
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMin));
+				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMax));
+				ReferenceSlop = 4;
+			}
+
+			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[Index1], ReferenceSlop);
+			// slop should be closed to [0, 0.2] or [3.8, 4]
+			if (Slop > 3.8)
+			{
+				WrongOrientationCount++;
+			}
+			else if (Slop < 0.2)
+			{
+				GoodOrientationCount++;
+			}
+			else
+			{
+#ifdef DEBUG_ORIENT
+				F3DDebugSession _(*FString::Printf(TEXT("Pic case")));
+				{
+					F3DDebugSession _(*FString::Printf(TEXT("Loop")));
+					DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
+				}
+				{
+					F3DDebugSession _(*FString::Printf(TEXT("Next")));
+					DisplaySegment(LoopSampling[Index1], LoopSampling[Index], EVisuProperty::YellowCurve);
+				}
+				{
+					F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
+					DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
+				}
+				Wait();
+#endif
+				UndefinedOrientationCount++;
 			}
 		}
 
@@ -183,74 +315,61 @@ void FTopologicalLoop::Orient()
 			F3DDebugSession _(*FString::Printf(TEXT("Pic case")));
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Loop")));
-				DisplayPolyline(LoopSampling);
+				DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Next")));
-				::DisplaySegment(LoopSampling[Index + 1], LoopSampling[Index], EVisuProperty::NonManifoldEdge);
+				DisplaySegment(LoopSampling[Index1], LoopSampling[Index], EVisuProperty::YellowCurve);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Previous")));
-				::DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::NonManifoldEdge);
+				DisplaySegment(LoopSampling[Index2], LoopSampling[Index], EVisuProperty::YellowCurve);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
-				::Display(LoopSampling[Index], EVisuProperty::RedPoint, Index);
+				DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
 			}
 			Wait();
 		}
 #endif
 	};
 
-	CompareOrientation(IndexUMin, 6);
-	CompareOrientation(IndexUMax, 2);
-	CompareOrientation(IndexVMin, 0);
-	CompareOrientation(IndexVMax, 4);
-
-#ifdef DEBUG_ORIENT
-	if (WrongOrientationNum != 0 && WrongOrientationNum != 4)
+	for (int32 Index : ExtremityIndex)
 	{
+		CompareOrientation(Index);
+	}
+
+	if ((WrongOrientationCount != 0 && GoodOrientationCount != 0) || UndefinedOrientationCount > FMath::Max(WrongOrientationCount, GoodOrientationCount))
+	{
+#ifdef DEBUG_ORIENT
 		F3DDebugSession GraphicSession(TEXT("Points of evaluation"));
 		{
 			F3DDebugSession G(*FString::Printf(TEXT("Loop Discretization %d"), Face.Pin()->GetId()));
-			DisplayPolyline(LoopSampling);
+			DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
 			for (int32 Index = 0; Index < LoopSampling.Num(); ++Index)
 			{
-				::Display(LoopSampling[Index], Index);
+				DisplayPoint(LoopSampling[Index], Index);
 			}
 		}
+
+		for (int32 Index : ExtremityIndex)
 		{
 			F3DDebugSession G(*FString::Printf(TEXT("Seg UMin Loop Discretization %d"), Face.Pin()->GetId()));
-			::DisplaySegment(LoopSampling[IndexUMin + 1], LoopSampling[IndexUMin]);
-			::Display(LoopSampling[IndexUMin], EVisuProperty::RedPoint, IndexUMin);
+			DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
 		}
-		{
-			F3DDebugSession G(*FString::Printf(TEXT("Seg UMax Loop Discretization %d"), Face.Pin()->GetId()));
-			::DisplaySegment(LoopSampling[IndexUMax + 1], LoopSampling[IndexUMax]);
-			::Display(LoopSampling[IndexUMax], EVisuProperty::RedPoint, IndexUMax);
-		}
-		{
-			F3DDebugSession G(*FString::Printf(TEXT("Seg VMin Loop Discretization %d"), Face.Pin()->GetId()));
-			::DisplaySegment(LoopSampling[IndexVMin + 1], LoopSampling[IndexVMin]);
-			::Display(LoopSampling[IndexVMin], EVisuProperty::RedPoint, IndexVMin);
-		}
-		{
-			F3DDebugSession G(*FString::Printf(TEXT("Seg VMax Loop Discretization %d"), Face.Pin()->GetId()));
-			::DisplaySegment(LoopSampling[IndexVMax + 1], LoopSampling[IndexVMax]);
-			::Display(LoopSampling[IndexVMax], EVisuProperty::RedPoint, IndexVMax);
-		}
-		//Wait();
-		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d could failed\n"), Face.Pin()->GetId());
-	}
+		Wait();
 #endif
 
-	if ((WrongOrientationNum > 2) == bExternalLoop)
+		FMessage::Printf(Log, TEXT("WARNING: Loop Orientation of surface %d could failed\n"), Face.Pin()->GetId());
+	}
+
+	if ((WrongOrientationCount > GoodOrientationCount) == bExternalLoop)
 	{
 		SwapOrientation();
 	}
 }
 
-void FTopologicalLoop::SwapOrientation()
+void CADKernel::FTopologicalLoop::SwapOrientation()
 {
 	TArray<FOrientedEdge> TmpEdges;
 	TmpEdges.Reserve(Edges.Num());
@@ -261,7 +380,7 @@ void FTopologicalLoop::SwapOrientation()
 	Swap(TmpEdges, Edges);
 }
 
-void FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& OldEdge, TSharedPtr<FTopologicalEdge>& NewEdge)
+void CADKernel::FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& OldEdge, TSharedPtr<FTopologicalEdge>& NewEdge)
 {
 	for (int32 IEdge = 0; IEdge < (int32)Edges.Num(); IEdge++)
 	{
@@ -269,21 +388,20 @@ void FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& OldEdge, TShare
 		{
 			Edges[IEdge].Entity = NewEdge;
 			OldEdge->RemoveLoop();
-			NewEdge->SetLoop(StaticCastSharedRef<FTopologicalLoop>(AsShared()));
+			NewEdge->SetLoop(*this);
 			return;
 		}
 	}
 	ensureCADKernel(false);
 }
 
-void FTopologicalLoop::SplitEdge(TSharedPtr<FTopologicalEdge> SplitEdge, TSharedPtr<FTopologicalEdge> NewEdge, bool bSplitEdgeIsFirst)
+void CADKernel::FTopologicalLoop::SplitEdge(FTopologicalEdge& SplitEdge, TSharedPtr<FTopologicalEdge> NewEdge, bool bSplitEdgeIsFirst)
 {
-	TSharedRef<FTopologicalLoop> Loop = StaticCastSharedRef<FTopologicalLoop>(AsShared());
-	NewEdge->SetLoop(Loop);
+	NewEdge->SetLoop(*this);
 
 	for (int32 IEdge = 0; IEdge < Edges.Num(); IEdge++)
 	{
-		if (Edges[IEdge].Entity == SplitEdge)
+		if (Edges[IEdge].Entity.Get() == &SplitEdge)
 		{
 			EOrientation OldEdgeDirection = Edges[IEdge].Direction;
 			if ((OldEdgeDirection == EOrientation::Front) == bSplitEdgeIsFirst)
@@ -297,17 +415,16 @@ void FTopologicalLoop::SplitEdge(TSharedPtr<FTopologicalEdge> SplitEdge, TShared
 	ensureCADKernel(false);
 }
 
-void FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& Edge, TArray<TSharedPtr<FTopologicalEdge>>& NewEdges)
+void CADKernel::FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& Edge, TArray<TSharedPtr<FTopologicalEdge>>& NewEdges)
 {
 	TArray<FOrientedEdge> TmpEdges;
 	int32 NewEdgeNum = Edges.Num() + NewEdges.Num();
 	TmpEdges.Reserve(NewEdgeNum);
 
 	Edge->RemoveLoop();
-	TSharedRef<FTopologicalLoop> Loop = StaticCastSharedRef<FTopologicalLoop>(AsShared());
 	for (TSharedPtr<FTopologicalEdge>& NewEdge : NewEdges)
 	{
-		NewEdge->SetLoop(Loop);
+		NewEdge->SetLoop(*this);
 	}
 
 	for (int32 IEdge = 0; IEdge < Edges.Num(); IEdge++)
@@ -338,15 +455,14 @@ void FTopologicalLoop::ReplaceEdge(TSharedPtr<FTopologicalEdge>& Edge, TArray<TS
 	ensureCADKernel(false);
 }
 
-void FTopologicalLoop::ReplaceEdges(TArray<FOrientedEdge>& OldEdges, TSharedPtr<FTopologicalEdge>& NewEdge)
+void CADKernel::FTopologicalLoop::ReplaceEdges(TArray<FOrientedEdge>& OldEdges, TSharedPtr<FTopologicalEdge>& NewEdge)
 {
 	for (FOrientedEdge& Edge : OldEdges)
 	{
 		Edge.Entity->RemoveLoop();
 	}
 
-	TSharedRef<FTopologicalLoop> Loop = StaticCastSharedRef<FTopologicalLoop>(AsShared());
-	NewEdge->SetLoop(Loop);
+	NewEdge->SetLoop(*this);
 
 	for (int32 IEdge = 0; IEdge < Edges.Num(); IEdge++)
 	{
@@ -381,13 +497,13 @@ void FTopologicalLoop::ReplaceEdges(TArray<FOrientedEdge>& OldEdges, TSharedPtr<
 	ensureCADKernel(false);
 }
 
-void FTopologicalLoop::FindSurfaceCorners(TArray<TSharedPtr<FTopologicalVertex>>& OutCorners, TArray<int32>& OutStartSideIndex) const
+void CADKernel::FTopologicalLoop::FindSurfaceCorners(TArray<TSharedPtr<FTopologicalVertex>>& OutCorners, TArray<int32>& OutStartSideIndex) const
 {
 	TArray<double> BreakValues;
 	FindBreaks(OutCorners, OutStartSideIndex, BreakValues);
 }
 
-void FTopologicalLoop::ComputeBoundaryProperties(const TArray<int32>& StartSideIndex, TArray<FEdge2DProperties>& OutSideProperties) const
+void CADKernel::FTopologicalLoop::ComputeBoundaryProperties(const TArray<int32>& StartSideIndex, TArray<FEdge2DProperties>& OutSideProperties) const
 {
 	if (StartSideIndex.Num() == 0)
 	{
@@ -415,14 +531,199 @@ void FTopologicalLoop::ComputeBoundaryProperties(const TArray<int32>& StartSideI
 	}
 }
 
-void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
+void CADKernel::FTopologicalLoop::CheckEdgesOrientation()
 {
-	TSharedRef<FTopologicalLoop> Loop = StaticCastSharedRef<FTopologicalLoop>(AsShared());
+	FOrientedEdge PreviousEdge = Edges.Last();
+	FSurfacicCurveExtremities PreviousExtremities;
+	PreviousEdge.Entity->GetExtremities(PreviousExtremities);
+
+	FOrientedEdge OrientedEdge = Edges[0];
+	FSurfacicCurveExtremities EdgeExtremities;
+	OrientedEdge.Entity->GetExtremities(EdgeExtremities);
+
+
+	TFunction<void()> CheckOrientation = [&]()
+	{
+		int32 PIndex = 0;
+		int32 EIndex = 0;
+		double SmallDistance = PreviousExtremities[0].Point2D.Distance(EdgeExtremities[0].Point2D);
+		double Distance = PreviousExtremities[0].Point2D.Distance(EdgeExtremities[1].Point2D);
+		if (Distance < SmallDistance)
+		{
+			SmallDistance = Distance;
+			EIndex = 1;
+		}
+		Distance = PreviousExtremities[1].Point2D.Distance(EdgeExtremities[0].Point2D);
+		if (Distance < SmallDistance)
+		{
+			SmallDistance = Distance;
+			PIndex = 1;
+			EIndex = 0;
+		}
+		Distance = PreviousExtremities[1].Point2D.Distance(EdgeExtremities[1].Point2D);
+		if (Distance < SmallDistance)
+		{
+			SmallDistance = Distance;
+			PIndex = 1;
+			EIndex = 1;
+		}
+
+		if ((PIndex == 0 && PreviousEdge.Direction != EOrientation::Back)
+			|| (PIndex == 1 && PreviousEdge.Direction != EOrientation::Front)
+			|| (EIndex == 0 && OrientedEdge.Direction != EOrientation::Front)
+			|| (EIndex == 1 && OrientedEdge.Direction != EOrientation::Back))
+		{
+			FMessage::Printf(EVerboseLevel::Log, TEXT("CheckEdgesOrientation failed for loop %d edge %d\n"), GetId(), OrientedEdge.Entity->GetId());
+			//ensureCADKernel(false);
+		}
+	};
+
+	CheckOrientation();
+
+	PreviousEdge = MoveTemp(OrientedEdge);
+	FMemory::Memcpy(&PreviousExtremities, &EdgeExtremities, sizeof(FSurfacicCurveExtremities));
+
+	for (int32 Index = 1; Index < Edges.Num(); ++Index)
+	{
+		OrientedEdge = Edges[Index];
+		OrientedEdge.Entity->GetExtremities(EdgeExtremities);
+
+		CheckOrientation();
+
+		PreviousEdge = MoveTemp(OrientedEdge);
+		FMemory::Memcpy(&PreviousExtremities, &EdgeExtremities, sizeof(FSurfacicCurveExtremities));
+	}
+}
+
+void CADKernel::FTopologicalLoop::CheckLoopWithTwoEdgesOrientation()
+{
+	FOrientedEdge Edge0 = Edges[0];
+	FSurfacicCurveExtremities Edge0Extremities;
+	Edge0.Entity->GetExtremities(Edge0Extremities);
+
+	FOrientedEdge Edge1 = Edges[1];
+	FSurfacicCurveExtremities Edge1Extremities;
+	Edge1.Entity->GetExtremities(Edge1Extremities);
+
+	int32 IndexEdge0 = 0;
+	int32 IndexEdge1 = 0;
+	double SmallDistance = Edge0Extremities[0].Point2D.Distance(Edge1Extremities[0].Point2D);
+	double Distance = Edge0Extremities[0].Point2D.Distance(Edge1Extremities[1].Point2D);
+	if (Distance < SmallDistance)
+	{
+		SmallDistance = Distance;
+		IndexEdge1 = 1;
+	}
+	Distance = Edge0Extremities[1].Point2D.Distance(Edge1Extremities[0].Point2D);
+	if (Distance < SmallDistance)
+	{
+		SmallDistance = Distance;
+		IndexEdge0 = 1;
+		IndexEdge1 = 0;
+	}
+	Distance = Edge0Extremities[1].Point2D.Distance(Edge1Extremities[1].Point2D);
+	if (Distance < SmallDistance)
+	{
+		SmallDistance = Distance;
+		IndexEdge0 = 1;
+		IndexEdge1 = 1;
+	}
+
+	if ((IndexEdge0 == IndexEdge1 && Edge0.Direction == Edge1.Direction)
+		|| (IndexEdge0 != IndexEdge1 && Edge0.Direction != Edge1.Direction))
+	{
+		FMessage::Printf(EVerboseLevel::Log, TEXT("CheckEdgesOrientation failed for loop %d between edge %d and edge %d\n"), GetId(), Edge0.Entity->GetId(), Edge1.Entity->GetId());
+		//ensureCADKernel(false);
+	}
+}
+
+
+void CADKernel::FTopologicalLoop::RemoveDegeneratedEdges()
+{
+#ifdef CADKERNEL_DEV
+	switch (EdgeCount())
+	{
+	case 1:
+		break;
+	case 2:
+		CheckLoopWithTwoEdgesOrientation();
+		break;
+	default:
+		CheckEdgesOrientation();
+		break;
+	}
+#endif
+
+	FOrientedEdge DegeneratedOrientedEdge;
+	FSurfacicCurveExtremities DegeneratedEdgeExtremities;
+
+	TFunction<bool(bool, const int32)> RemoveDegeneratedEdge = [&](bool bPrevious, const int32 OtherEdgeIndex)
+	{
+		TSharedPtr<FTopologicalEdge>& DegeneratedEdge = DegeneratedOrientedEdge.Entity;
+
+		FOrientedEdge NearOrientedEdge = Edges[OtherEdgeIndex];
+		FSurfacicCurveExtremities NearEdgeExtremities;
+		NearOrientedEdge.Entity->GetExtremities(NearEdgeExtremities);
+
+		TSharedRef<FTopologicalVertex> DegeneratedEdgeVertex = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdge->GetStartVertex() : DegeneratedEdge->GetEndVertex();
+		TSharedRef<FTopologicalVertex> OtherDegeneratedEdgeVertex = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdge->GetEndVertex() : DegeneratedEdge->GetStartVertex();
+		FPoint2D DegeneratedEdgeTangent = DegeneratedEdge->GetTangent2DAt(*DegeneratedEdgeVertex);
+
+		TSharedRef<FTopologicalVertex> NearEdgeVertex = (bPrevious == (NearOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdge->GetEndVertex() : DegeneratedEdge->GetStartVertex();
+		FPoint2D NearEdgeTangent = NearOrientedEdge.Entity->GetTangent2DAt(*NearEdgeVertex);
+
+		FPoint2D& NearEdgeExtremity = (bPrevious == (NearOrientedEdge.Direction == EOrientation::Front)) ? NearEdgeExtremities[1].Point2D : NearEdgeExtremities[0].Point2D;
+		FPoint2D& DegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[0].Point2D : DegeneratedEdgeExtremities[1].Point2D;
+		FPoint2D& OtherDegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[1].Point2D : DegeneratedEdgeExtremities[0].Point2D;
+		double Distance = NearEdgeExtremity.Distance(DegeneratedEdgeExtremity);
+
+		double Slop = FMath::Abs(TransformIntoOrientedSlope(ComputePositiveSlope(FPoint2D::ZeroPoint, DegeneratedEdgeTangent, NearEdgeTangent)));
+		if (Slop > 3.5 && Distance < 0.01)
+		{
+			DegeneratedEdge->Delete();
+			DegeneratedEdgeVertex->DeleteIfIsolated();
+
+			NearOrientedEdge.Entity->ExtendTo((bPrevious == (NearOrientedEdge.Direction != EOrientation::Front)), OtherDegeneratedEdgeExtremity, OtherDegeneratedEdgeVertex);
+			NearEdgeVertex->DeleteIfIsolated();
+
+			return true;
+		}
+		return false;
+	};
+
+	for (int32 Index = Edges.Num() - 1; Index >= 0; --Index)
+	{
+		DegeneratedOrientedEdge = Edges[Index];
+		if (DegeneratedOrientedEdge.Entity->IsDegenerated())
+		{
+			// Is this edge is tangent in 2d space with previous or next edge
+			DegeneratedOrientedEdge.Entity->GetExtremities(DegeneratedEdgeExtremities);
+
+			int32 PreviousEdgeIndex = (Index == 0) ? Edges.Num() - 1 : Index -1;
+			if (RemoveDegeneratedEdge(true, PreviousEdgeIndex))
+			{
+				Edges.RemoveAt(Index);
+				continue;
+			}
+
+			int32 NextEdgeIndex = (Index == Edges.Num() - 1) ? 0 : Index + 1;
+			if(RemoveDegeneratedEdge(false, NextEdgeIndex))
+			{
+				Edges.RemoveAt(Index);
+			}
+		}
+	}
+}
+
+void CADKernel::FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
+{
+	const double SquareTolerance3D = FMath::Square(Tolerance3D);
+
 	const TSharedRef<FSurface>& Surface = Edges[0].Entity->GetCurve()->GetCarrierSurface();
 
 	FOrientedEdge PreviousEdge = Edges.Last();
 
-	FSurfacicCurveExtremity PreviousExtremities;
+	FSurfacicCurveExtremities PreviousExtremities;
 	PreviousEdge.Entity->GetExtremities(PreviousExtremities);
 	FSurfacicCurvePointWithTolerance PreviousExtremity;
 
@@ -441,23 +742,20 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 		FSurfacicCurvePointWithTolerance EdgeExtremities[2];
 		OrientedEdge.Entity->GetExtremities(EdgeExtremities);
 
-		double Gap3D;
-
 		int32 ExtremityIndex = OrientedEdge.Direction == EOrientation::Front ? 0 : 1;
-		Gap3D = EdgeExtremities[ExtremityIndex].Point.SquareDistance(PreviousExtremity.Point);
+		double SquareGap3D = EdgeExtremities[ExtremityIndex].Point.SquareDistance(PreviousExtremity.Point);
 
 		TSharedRef<FTopologicalVertex> PreviousEdgeEndVertex = PreviousEdge.Direction == EOrientation::Front ? PreviousEdge.Entity->GetEndVertex() : PreviousEdge.Entity->GetStartVertex();
 		TSharedRef<FTopologicalVertex> EdgeStartVertex = OrientedEdge.Direction == EOrientation::Front ? OrientedEdge.Entity->GetStartVertex() : OrientedEdge.Entity->GetEndVertex();
 
-		FPoint2D Gap2D;
-		Gap2D = EdgeExtremities[ExtremityIndex].Point2D - PreviousExtremity.Point2D;
+		FPoint2D Gap2D = EdgeExtremities[ExtremityIndex].Point2D - PreviousExtremity.Point2D;
 		FSurfacicTolerance Tolerance2D = Max(EdgeExtremities[ExtremityIndex].Tolerance, PreviousExtremity.Tolerance);
 
-		if (Gap3D > Tolerance3D)
+		if (SquareGap3D > SquareTolerance3D)
 		{
-			FMessage::Printf(Log, TEXT("Loop %d Gap 3D : %f\n"), Id, sqrt(Gap3D));
-			FPoint PreviousTangent = PreviousEdge.Entity->GetTangentAt(PreviousEdgeEndVertex);
-			FPoint EdgeTangent = OrientedEdge.Entity->GetTangentAt(EdgeStartVertex);
+			FMessage::Printf(Log, TEXT("Loop %d Gap 3D : %f\n"), Id, sqrt(SquareGap3D));
+			FPoint PreviousTangent = PreviousEdge.Entity->GetTangentAt(*PreviousEdgeEndVertex);
+			FPoint EdgeTangent = OrientedEdge.Entity->GetTangentAt(*EdgeStartVertex);
 
 			FPoint Gap = EdgeExtremities[ExtremityIndex].Point - PreviousExtremity.Point;
 
@@ -477,14 +775,14 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 				{
 					if (PreviousEdgeEndVertex->IsLinkedTo(EdgeStartVertex))
 					{
-						PreviousEdgeEndVertex->UnlinkTo(EdgeStartVertex);
+						PreviousEdgeEndVertex->UnlinkTo(*EdgeStartVertex);
 					}
 
 					TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(Surface, PreviousExtremity.Point2D, PreviousEdgeEndVertex, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
 					if (Edge.IsValid())
 					{
 						Edges.EmplaceAt(Index, Edge, EOrientation::Front);
-						Edge->SetLoop(Loop);
+						Edge->SetLoop(*this);
 						++Index;
 					}
 					PreviousEdgeEndVertex = EdgeStartVertex;
@@ -495,8 +793,8 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 		{
 			FMessage::Printf(Log, TEXT("Loop %d Gap 2D : [%f, %f] vs Tol2D [%f, %f]\n"), Id, FMath::Abs(Gap2D.U), FMath::Abs(Gap2D.V), Tolerance2D.U, Tolerance2D.V);
 
-			FPoint2D PreviousTangent = PreviousEdge.Entity->GetTangent2DAt(PreviousEdgeEndVertex);
-			FPoint2D EdgeTangent = OrientedEdge.Entity->GetTangent2DAt(EdgeStartVertex);
+			FPoint2D PreviousTangent = PreviousEdge.Entity->GetTangent2DAt(*PreviousEdgeEndVertex);
+			FPoint2D EdgeTangent = OrientedEdge.Entity->GetTangent2DAt(*EdgeStartVertex);
 
 			double CosAngle = Gap2D.ComputeCosinus(EdgeTangent);
 			if (CosAngle > 0.9)
@@ -516,9 +814,9 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 					if (Edge.IsValid())
 					{
 						Edges.EmplaceAt(Index, Edge, EOrientation::Front);
-						Edge->SetLoop(Loop);
+						Edge->SetLoop(*this);
 
-						PreviousEdgeEndVertex->Link(EdgeStartVertex);
+						PreviousEdgeEndVertex->Link(*EdgeStartVertex);
 						++Index;
 
 					}
@@ -527,7 +825,7 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 		}
 		else
 		{
-			PreviousEdgeEndVertex->Link(EdgeStartVertex);
+			PreviousEdgeEndVertex->Link(*EdgeStartVertex);
 		}
 
 		if (OrientedEdge.Direction == EOrientation::Front)
@@ -543,7 +841,7 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalLoop::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FTopologicalLoop::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
 		.Add(TEXT("Edges"), (TArray<TOrientedEntity<FEntity>>&) Edges)
@@ -551,7 +849,7 @@ FInfoEntity& FTopologicalLoop::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void FTopologicalLoop::FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& OutBreaks, TArray<int32>& OutStartSideIndex, TArray<double>& OutBreakValues) const
+void CADKernel::FTopologicalLoop::FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& OutBreaks, TArray<int32>& OutStartSideIndex, TArray<double>& OutBreakValues) const
 {
 	const double MinCosAngleOfBreak = -0.7;  // 135 deg
 	if (Edges.Num() == 0)

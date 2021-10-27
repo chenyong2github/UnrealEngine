@@ -63,15 +63,59 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
-		UI_COMMAND(Command_CopyColumnToClipboard, "Copy Column Value To Clipboard", "Copies the value of hovered column to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
-		UI_COMMAND(Command_CopyColumnTooltipToClipboard, "Copy Column Tooltip To Clipboard", "Copies the value of hovered column's tooltip to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
-		UI_COMMAND(Command_ExpandSubtree, "Expand Subtree", "Expand the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::E));
-		UI_COMMAND(Command_ExpandCriticalPath, "Expand Critical Path", "Expand the first group child node recursively until a leaf nodes in reached.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::R));
-		UI_COMMAND(Command_CollapseSubtree, "Collapse Subtree", "Collapse the subtree that starts from the selected group node.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::None, EKeys::C));
-		UI_COMMAND(Command_ExportToFile, "Export Visible Tree to File...", "Exports the tree/table content to a file. It exports only the tree nodes currently expanded in the tree, including leaf nodes.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::E));
-		UI_COMMAND(Command_ExportEntireTreeToFile, "Export Entire Tree to File...", "Exports the entire tree/table content to a file. It exports also the collapsed tree nodes, including the leaf nodes. Filtered out nodes are not exported.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::E));
-		UI_COMMAND(Command_ExportEntireTreeToFileNoLeafs, "Export Entire Tree (No Leafs) to File...", "Exports the entire tree/table content to a file, but not the leaf nodes. It exports the collapsed tree nodes. Filtered out nodes are not exported.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::E));
+		UI_COMMAND(Command_CopyToClipboard,
+			"Copy To Clipboard",
+			"Copies the selection to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_CopyColumnToClipboard,
+			"Copy Column Value To Clipboard",
+			"Copies the value of the hovered column to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
+
+		UI_COMMAND(Command_CopyColumnTooltipToClipboard,
+			"Copy Column Tooltip To Clipboard",
+			"Copies the value of the hovered column's tooltip to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
+
+		UI_COMMAND(Command_ExpandSubtree,
+			"Expand Subtree",
+			"Expand the subtree that starts from the selected group node.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::E));
+
+		UI_COMMAND(Command_ExpandCriticalPath,
+			"Expand Critical Path",
+			"Expand the first group child node recursively until a leaf nodes in reached.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::R));
+
+		UI_COMMAND(Command_CollapseSubtree,
+			"Collapse Subtree",
+			"Collapse the subtree that starts from the selected group node.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::None, EKeys::C));
+
+		UI_COMMAND(Command_ExportToFile,
+			"Export Visible Tree to File...",
+			"Exports the tree/table content to a file. It exports only the tree nodes currently expanded in the tree, including leaf nodes.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::E));
+
+		UI_COMMAND(Command_ExportEntireTreeToFile,
+			"Export Entire Tree to File...",
+			"Exports the entire tree/table content to a file. It exports also the collapsed tree nodes, including the leaf nodes. Filtered out nodes are not exported.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Shift, EKeys::E));
+
+		UI_COMMAND(Command_ExportEntireTreeToFileNoLeafs,
+			"Export Entire Tree (No Leafs) to File...",
+			"Exports the entire tree/table content to a file, but not the leaf nodes. It exports the collapsed tree nodes. Filtered out nodes are not exported.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Alt, EKeys::E));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -367,23 +411,13 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 	const int32 NumSelectedNodes = SelectedNodes.Num();
 	FTableTreeNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
-	const TSharedPtr<FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
-
 	FText SelectionStr;
-	FText PropertyName;
-	FText PropertyValue;
-
 	if (NumSelectedNodes == 0)
 	{
 		SelectionStr = LOCTEXT("NothingSelected", "Nothing selected");
 	}
 	else if (NumSelectedNodes == 1)
 	{
-		if (HoveredColumnPtr != nullptr)
-		{
-			PropertyName = HoveredColumnPtr->GetShortName();
-			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
-		}
 		FString ItemName = SelectedNode->GetName().ToString();
 		const int32 MaxStringLen = 64;
 		if (ItemName.Len() > MaxStringLen)
@@ -394,7 +428,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 	}
 	else
 	{
-		SelectionStr = LOCTEXT("MultipleSelection", "Multiple selection");
+		SelectionStr = FText::Format(LOCTEXT("MultipleSelection_Fmt", "{0} selected items"), FText::AsNumber(NumSelectedNodes));
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -417,7 +451,10 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		(
 			SelectionStr,
 			LOCTEXT("ContextMenu_Selection", "Currently selected items"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "@missing.icon"), DummyUIAction, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(),
+			DummyUIAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -525,7 +562,10 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowAllColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		FUIAction Action_ResetColumns
@@ -537,7 +577,10 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ResetColumns, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -569,7 +612,10 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			(
 				Column.GetTitleName(),
 				Column.GetDescription(),
-				FSlateIcon(), Action_SortByColumn, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(),
+				Action_SortByColumn,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 		}
 	}
@@ -590,7 +636,10 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			Action_SortAscending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 
 		FUIAction Action_SortDescending
@@ -603,7 +652,10 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			Action_SortDescending,
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	MenuBuilder.EndSection();
@@ -628,7 +680,10 @@ void STableTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 		(
 			Column.GetTitleName(),
 			Column.GetDescription(),
-			FSlateIcon(), Action_ToggleColumn, NAME_None, EUserInterfaceActionType::ToggleButton
+			FSlateIcon(),
+			Action_ToggleColumn,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
@@ -730,7 +785,10 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			(
 				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
 				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(), Action_HideColumn, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 			bIsMenuVisible = true;
 
@@ -751,7 +809,10 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"), Action_SortAscending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				Action_SortAscending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 
 			FUIAction Action_SortDescending
@@ -764,7 +825,10 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"), Action_SortDescending, NAME_None, EUserInterfaceActionType::RadioButton
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				Action_SortDescending,
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
 			);
 			bIsMenuVisible = true;
 
@@ -1628,7 +1692,10 @@ void STableTreeView::BuildGroupingSubMenu_Change(FMenuBuilder& MenuBuilder, cons
 			(
 				Grouping->GetTitleName(),
 				Grouping->GetDescription(),
-				FSlateIcon(), Action_Change, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_Change,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 		}
 	}
@@ -1652,7 +1719,10 @@ void STableTreeView::BuildGroupingSubMenu_Add(FMenuBuilder& MenuBuilder, const T
 			(
 				Grouping->GetTitleName(),
 				Grouping->GetDescription(),
-				FSlateIcon(), Action_Add, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_Add,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 		}
 	}
@@ -1713,7 +1783,10 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				(
 					LOCTEXT("GroupingMenu_MoveLeft", "Move Left"),
 					LOCTEXT("GroupingMenu_MoveLeft_Desc", "Move selected grouping to the left."),
-					FSlateIcon(), Action_MoveLeft, NAME_None, EUserInterfaceActionType::Button
+					FSlateIcon(),
+					Action_MoveLeft,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 
@@ -1728,7 +1801,10 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				(
 					LOCTEXT("GroupingMenu_MoveRight", "Move Right"),
 					LOCTEXT("GroupingMenu_MoveRight_Desc", "Move selected grouping to the right."),
-					FSlateIcon(), Action_MoveRight, NAME_None, EUserInterfaceActionType::Button
+					FSlateIcon(),
+					Action_MoveRight,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 
@@ -1743,7 +1819,10 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				(
 					LOCTEXT("GroupingMenu_Remove", "Remove"),
 					LOCTEXT("GroupingMenu_Remove_Desc", "Remove selected grouping."),
-					FSlateIcon(), Action_Remove, NAME_None, EUserInterfaceActionType::Button
+					FSlateIcon(),
+					Action_Remove,
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			}
 		}
@@ -1763,7 +1842,10 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 			(
 				LOCTEXT("GroupingMenu_Reset", "Reset"),
 				LOCTEXT("GroupingMenu_Reset_Desc", "Reset groupings to default."),
-				FSlateIcon(), Action_Reset, NAME_None, EUserInterfaceActionType::Button
+				FSlateIcon(),
+				Action_Reset,
+				NAME_None,
+				EUserInterfaceActionType::Button
 			);
 		}
 		MenuBuilder.EndSection();
@@ -3081,17 +3163,25 @@ bool STableTreeView::ContextMenu_ExportToFile_CanExecute() const
 
 void STableTreeView::ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, bool InExportLeafs)
 {
+	FString DefaultFile = TEXT("Table.tsv");
+	if (Table.IsValid() && !Table->GetDisplayName().IsEmpty())
+	{
+		DefaultFile = Table->GetDisplayName().ToString();
+		DefaultFile.RemoveSpacesInline();
+	}
+
 	TArray<FString> SaveFilenames;
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 	bool bDialogResult = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 	if (DesktopPlatform)
 	{
-		const FString DefaultBrowsePath = FPaths::ProjectLogDir();
+		const FString DefaultPath = FPaths::ProjectSavedDir();
 		bDialogResult = DesktopPlatform->SaveFileDialog(
 			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
 			LOCTEXT("ExportFileTitle", "Export Table").ToString(),
-			DefaultBrowsePath,
-			TEXT(""),
+			DefaultPath,
+			DefaultFile,
 			TEXT("Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Comma-Separated Values (*.csv)|*.csv|All Files (*.*)|*.*"),
 			EFileDialogFlags::None,
 			SaveFilenames

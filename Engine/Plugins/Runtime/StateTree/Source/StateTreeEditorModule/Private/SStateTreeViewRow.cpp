@@ -96,9 +96,8 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
                         .Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
                         .Visibility(this, &SStateTreeViewRow::GetConditionVisibility)
                         [
-                            SNew(STextBlock)
-                            .Text(FEditorFontGlyphs::Question)
-                            .TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+                            SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("Icons.Help"))
 						]
 					]
 
@@ -332,10 +331,9 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.Padding(FMargin(8.0f, 0.0f, 0, 0))
 			.AutoWidth()
 			[
-				SNew(STextBlock)
-				.Text(FEditorFontGlyphs::Question_Circle)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Help"))
                 .ColorAndOpacity(FLinearColor(FColor(31,151,167)))
-				.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
 				.Visibility(this, &SStateTreeViewRow::GetConditionalTransitionsVisibility)
 			]
             + SHorizontalBox::Slot()

@@ -32,7 +32,7 @@ public:
 
 	/** The target color space */
 	UPROPERTY(config, EditAnywhere, Category = General)
-	EColorSpace	ColorSpace;
+	EOculusColorSpace	ColorSpace;
 
 	/** Whether Dash is supported by the app, which will keep the app in foreground when the User presses the oculus button (needs the app to handle input focus loss!) */
 	UPROPERTY(config, EditAnywhere, Category = PC)

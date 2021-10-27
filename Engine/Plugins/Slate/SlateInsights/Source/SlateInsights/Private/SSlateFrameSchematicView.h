@@ -15,6 +15,7 @@ class FAnimationSharedData;
 class IInsightsManager;
 class ITableRow;
 class ITimingEvent;
+class SExpandableArea;
 class STableViewBase;
 class STextBlock;
 class SMultiLineEditableTextBox;
@@ -50,10 +51,15 @@ private:
 
 	TSharedPtr<SWidget> HandleWidgetInvalidateListContextMenu();
 	FString HandleWidgetInvalidateListToStringDebug(TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> Item);
-	bool CanWidgetInvalidateListGotoRootWidget();
+	bool CanWidgetInvalidateListSearchWidget() const;
+	void HandleWidgetInvalidateListSearchWidget();
+	bool CanWidgetInvalidateListGotoRootWidget() const;
 	void HandleWidgetInvalidateListGotoRootWidget();
-	bool CanWidgetInvalidateListViewScriptAndCallStack();
+	bool CanWidgetInvalidateListViewScriptAndCallStack() const;
 	void HandleWidgetInvalidateListViewScriptAndCallStack();
+	TSharedPtr<SWidget> HandleWidgetUpdateInfoContextMenu();
+	bool CanWidgetUpdateInfoSearchWidget() const;
+	void HandleWidgetUpdateInfoSearchWidget();
 	void HandleWidgetUpdateInfoSort(EColumnSortPriority::Type, const FName& ColumnId, EColumnSortMode::Type SortMode);
 	EColumnSortMode::Type HandleWidgetUpdateGetSortMode(FName ColumnId) const;
 
@@ -75,6 +81,7 @@ private:
 	TSharedPtr<SListView<TSharedPtr<Private::FWidgetUpdateInfo>>> WidgetUpdateInfoListView;
 	TArray<TSharedPtr<Private::FWidgetUpdateInfo>> WidgetUpdateInfos;
 
+	TSharedPtr<SExpandableArea> ExpandableSearchBox;
 	TSharedPtr<Private::SSlateWidgetSearch> WidgetSearchBox;
 	TSharedPtr<STextBlock> InvalidationSummary;
 	TSharedPtr<STextBlock> UpdateSummary;

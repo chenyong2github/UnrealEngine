@@ -651,6 +651,7 @@ public:
 
 	/** Creates a new level */
 	static void NewLevel();
+	static FSimpleDelegate NewLevelOverride;
 	static bool NewLevel_CanExecute();
 
 	/** Opens an existing level */

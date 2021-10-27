@@ -139,7 +139,12 @@ namespace DatasmithRhino.DirectLink
 					RhinoApp.Idle += OnRhinoIdle;
 					bAutoSyncActive = true;
 
-					return Synchronize(ExportContext.RhinoDocument);
+					if (!ExportContext.bExportedOnce)
+					{
+						// Make sure the first (longest) update is done on the spot.
+						// Not needed if the scene has already been synced.
+						return Synchronize(ExportContext.RhinoDocument);
+					}
 				}
 				else
 				{

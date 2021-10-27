@@ -9,6 +9,7 @@ const FString UAssetReferencingPolicySettings::EngineDomainName(TEXT("EngineCont
 const FString UAssetReferencingPolicySettings::ScriptDomainName(TEXT("Script"));
 const FString UAssetReferencingPolicySettings::GameDomainName(TEXT("ProjectContent"));
 const FString UAssetReferencingPolicySettings::TempDomainName(TEXT("Temp"));
+const FString UAssetReferencingPolicySettings::NeverCookDomainName(TEXT("NeverCook"));
 
 UAssetReferencingPolicySettings::UAssetReferencingPolicySettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

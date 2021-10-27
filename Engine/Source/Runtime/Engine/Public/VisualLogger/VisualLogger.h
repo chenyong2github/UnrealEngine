@@ -438,11 +438,7 @@ public:
 	static void EventLog(const UObject* LogOwner, const FVisualLogEventBase& Event1, const FName EventTag1 = NAME_None, const FName EventTag2 = NAME_None, const FName EventTag3 = NAME_None, const FName EventTag4 = NAME_None, const FName EventTag5 = NAME_None, const FName EventTag6 = NAME_None);
 
 	// static getter
-	static FVisualLogger& Get()
-	{
-		static FVisualLogger GVisLog;
-		return GVisLog;
-	}
+	static FVisualLogger& Get();
 
 	virtual ~FVisualLogger() {}
 

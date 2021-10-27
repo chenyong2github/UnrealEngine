@@ -13,7 +13,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 FLevelInstanceActorDesc::FLevelInstanceActorDesc()
-	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Embedded)
+	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Partitioned)
 	, LevelInstanceContainer(nullptr)
 {
 
@@ -43,17 +43,16 @@ void FLevelInstanceActorDesc::OnUnregister()
 	LevelInstanceContainer = nullptr;
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
+bool FLevelInstanceActorDesc::GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
 	// Lazy register
 	if (!LevelInstanceContainer)
 	{
-		if (Container && (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded || DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned))
+		if (InMainPartition && DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned)
 		{
 			if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
 			{
-				UWorldPartition* WorldPartition = Container->GetWorld()->GetWorldPartition();
-				LevelInstanceContainer = WorldPartition->RegisterActorDescContainer(LevelPackage);
+				LevelInstanceContainer = InMainPartition->RegisterActorDescContainer(LevelPackage);
 			}
 		}
 	}
@@ -62,8 +61,7 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& O
 	{
 		OutLevelContainer = LevelInstanceContainer;
 		OutLevelTransform = LevelInstanceTransform;
-		check(DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded || DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned)
-		OutClusterMode = DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded ? EContainerClusterMode::Embedded : EContainerClusterMode::Partitioned;
+		OutClusterMode = EContainerClusterMode::Partitioned;
 		return true;
 	}
 
@@ -81,6 +79,11 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::LevelInstanceSerializeRuntimeBehavior)
 	{
 		Ar << DesiredRuntimeBehavior;
+
+		if (Ar.IsLoading() && DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded_Deprecated)
+		{
+			DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::Partitioned;
+		}
 	}
 
 	if (Ar.IsLoading())

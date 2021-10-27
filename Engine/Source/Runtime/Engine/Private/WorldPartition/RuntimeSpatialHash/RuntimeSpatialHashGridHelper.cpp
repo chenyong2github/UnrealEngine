@@ -226,11 +226,23 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 				}
 			}
 
-			if (!(ensure(bFoundCell)))
+			if (!bFoundCell)
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
 				bAlwaysLoadedPromotedOutOfGrid = true;
 				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
+
+				UE_LOG(LogWorldPartition, Warning, TEXT("Cluster of %d actors was promoted always loaded, BV of [%d x %d] (meters)"), 
+					ActorCluster->Actors.Num(),
+					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
+					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
+				for (const FGuid& ActorGuid : ActorCluster->Actors)
+				{
+					const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
+					UE_LOG(LogWorldPartition, Warning, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+					UE_LOG(LogWorldPartition, Warning, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
+					UE_LOG(LogWorldPartition, Warning, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
+				}
 			}
 			break;
 		}

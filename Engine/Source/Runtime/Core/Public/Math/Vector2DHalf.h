@@ -55,6 +55,10 @@ public:
 
 	/** Implicit conversion operator for conversion to FVector2D. */
 	operator FVector2D() const;
+	
+	/** Conversion with backwards-compatible Truncate rounding mode (default is RTNE) */
+	void SetTruncate( float InX, float InY );
+	void SetTruncate( const FVector2D& Vector2D );
 
 public:
 
@@ -117,4 +121,15 @@ FORCEINLINE FString FVector2DHalf::ToString() const
 FORCEINLINE FVector2DHalf::operator FVector2D() const
 {
 	return FVector2D((float)X,(float)Y);
+}
+
+FORCEINLINE void FVector2DHalf::SetTruncate( float InX, float InY )
+{
+	X.SetTruncate(InX);
+	Y.SetTruncate(InY);
+}
+
+FORCEINLINE void FVector2DHalf::SetTruncate( const FVector2D& Vector2D )
+{
+	SetTruncate(Vector2D.X,Vector2D.Y);
 }

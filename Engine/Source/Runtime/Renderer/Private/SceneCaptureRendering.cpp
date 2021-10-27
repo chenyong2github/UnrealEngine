@@ -19,7 +19,6 @@
 #include "SceneView.h"
 #include "Shader.h"
 #include "TextureResource.h"
-#include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneCaptureComponent.h"
@@ -35,7 +34,6 @@
 #include "ScenePrivate.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "ScreenRendering.h"
-#include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "RendererModule.h"
 #include "Rendering/MotionVectorSimulation.h"
@@ -870,8 +868,11 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		SceneCaptureComponent->ShowFlags)
 		.SetResolveScene(!bCaptureSceneColor)
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
-	
-	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
+
+	FSceneViewExtensionContext ViewExtensionContext(Scene);
+	ViewExtensionContext.bStereoDisabled = true;
+
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 	
 	SetupViewFamilyForSceneCapture(
 		ViewFamily,
@@ -982,12 +983,15 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 		// Process Scene View extensions for the capture component
 		{
+			FSceneViewExtensionContext ViewExtensionContext(SceneRenderer->Scene);
+			ViewExtensionContext.bStereoDisabled = true;
+
 			for (int32 Index = 0; Index < CaptureComponent->SceneViewExtensions.Num(); ++Index)
 			{
 				TSharedPtr<ISceneViewExtension, ESPMode::ThreadSafe> Extension = CaptureComponent->SceneViewExtensions[Index].Pin();
 				if (Extension.IsValid())
 				{
-					if (Extension->IsActiveThisFrame(FSceneViewExtensionContext(SceneRenderer->Scene)))
+					if (Extension->IsActiveThisFrame(ViewExtensionContext))
 					{
 						SceneRenderer->ViewFamily.ViewExtensions.Add(Extension.ToSharedRef());
 					}

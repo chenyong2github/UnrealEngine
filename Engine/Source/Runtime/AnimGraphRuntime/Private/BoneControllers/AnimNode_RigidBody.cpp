@@ -4,6 +4,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "HAL/Event.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
@@ -16,6 +17,8 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
 #include "Logging/LogMacros.h"
+
+LLM_DEFINE_TAG(Animation_RigidBody);
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -1032,6 +1035,8 @@ void ComputeBodyInsertionOrder(TArray<FBoneIndexType>& InsertionOrder, const USk
 
 void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
+	
 	SCOPE_CYCLE_COUNTER(STAT_RigidBodyNodeInitTime);
 
 	DestroyPhysicsSimulation();
@@ -1314,6 +1319,8 @@ DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::UpdateWorldGeometry"), STAT_Immedi
 
 void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkeletalMeshComponent& SKC)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
+	
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateUpdateWorldGeometry);
 	QueryParams = FCollisionQueryParams(SCENE_QUERY_STAT(RagdollNodeFindGeometry), /*bTraceComplex=*/false);
 #if WITH_EDITOR
@@ -1354,6 +1361,7 @@ DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::UpdateWorldForces"), STAT_Immediat
 
 void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& BaseBoneTM, const float DeltaSeconds)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateUpdateWorldForces);
 
 	if(TotalMass > 0.f)
@@ -1549,6 +1557,7 @@ DECLARE_CYCLE_STAT(TEXT("RigidBody_Update"), STAT_RigidBody_Update, STATGROUP_An
 
 void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
 	// Avoid this work if RBN is disabled, as the results would be discarded
 	if(!bEnabled)
@@ -1690,6 +1699,7 @@ void FAnimNode_RigidBody::PurgeExpiredWorldObjects()
 // will be moving in the simulation's frame of reference.
 void FAnimNode_RigidBody::UpdateWorldObjects(const FTransform& SpaceTransform)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
 #if WITH_CHAOS
 	if (SimulationSpace != ESimulationSpace::WorldSpace)
 	{

@@ -2,14 +2,18 @@
 
 #pragma once
 
+#include "Async/Future.h"
 #include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
 
 class FAssetRegistryState;
+class FLargeMemoryWriter;
 class ICookedPackageWriter;
 class IPackageStoreWriter;
 struct FPackageStoreEntryResource;
@@ -20,7 +24,6 @@ class IPackageWriter
 public:
 	virtual ~IPackageWriter() = default;
 
-
 	struct FCapabilities
 	{
 		/**
@@ -29,6 +32,9 @@ public:
 		 * For other writers the extra regions are an unnecessary performance cost.
 		 */
 		bool bDeclareRegionForEachAdditionalFile = false;
+
+		/** Applicable only to -diffonly saves; suppresses output and breakpoints for diffs in the header. */
+		bool bIgnoreHeaderDiffs = false;
 	};
 
 	/** Return capabilities/settings this PackageWriter has/requires 
@@ -56,17 +62,27 @@ public:
 		FUtf8StringView Key;
 		FCbObject Value;
 	};
+	enum class EWriteOptions
+	{
+		None = 0,
+		WritePackage = 0x01,
+		WriteSidecars = 0x02,
+		Write = WritePackage | WriteSidecars,
+		ComputeHash = 0x04,
+		SaveForDiff = 0x08,
+	};
 	struct FCommitPackageInfo
 	{
 		FName PackageName;
 		FGuid PackageGuid;
 		TArray<FCommitAttachmentInfo> Attachments;
 		bool bSucceeded = false;
+		EWriteOptions WriteOptions;
 	};
 
 	/** Finalize a package started with BeginPackage()
 	  */
-	virtual void CommitPackage(const FCommitPackageInfo& Info) = 0;
+	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) = 0;
 
 	struct FPackageInfo
 	{
@@ -81,26 +97,28 @@ public:
 		This may only be called after a BeginPackage() call has been made
 		to signal the start of a package store transaction
 	  */
-	virtual void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) = 0;
+	virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions) = 0;
 
 	struct FBulkDataInfo
 	{
 		enum EType
 		{
-			Standard,
+			AppendToExports,
+			BulkSegment,
 			Mmap,
-			Optional
+			Optional,
+			NumTypes,
 		};
 
 		FName		PackageName;
-		EType		BulkdataType = Standard;
+		EType		BulkDataType = BulkSegment;
 		FString		LooseFilePath;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
 	};
 
 	/** Write bulk data for the current package
 	  */
-	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) = 0;
+	virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) = 0;
 
 	struct FAdditionalFileInfo
 	{
@@ -110,7 +128,7 @@ public:
 	};
 
 	/** Write separate files written by UObjects during cooking via UObject::CookAdditionalFiles. */
-	virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) = 0;
+	virtual void WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) = 0;
 
 	struct FLinkerAdditionalDataInfo
 	{
@@ -119,12 +137,30 @@ public:
 	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend. */
 	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) = 0;
 
+	/** Increase the referenced ExportsSize by the size in bytes of the data that will be added on to it during
+	 * commit before writing to disk. Used for accurate disk size reporting on the UPackage and AssetRegistry.
+	 */
+	virtual void AddToExportsSize(int32& InOutExportsSize)
+	{
+	}
+
+	/** Create the FLargeMemoryWriter to which the Header and Exports are written during the save. */
+	COREUOBJECT_API virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset);
+
+	/** Report whether PreSave was already called by the PackageWriter before the current UPackage::Save call. */
+	virtual bool IsPreSaveCompleted() const
+	{
+		return false;
+	}
+
 	/** Downcast function for IPackageWriters that implement the ICookedPackageWriters inherited interface. */
 	virtual ICookedPackageWriter* AsCookedPackageWriter()
 	{
 		return nullptr;
 	}
 };
+
+ENUM_CLASS_FLAGS(IPackageWriter::EWriteOptions);
 
 /** Interface for cooking that writes cooked packages to storage usable by the runtime game. */
 class ICookedPackageWriter : public IPackageWriter
@@ -136,8 +172,6 @@ public:
 	{
 		/** Whether this writer implements -diffonly and -linkerdiff. */
 		bool bDiffModeSupported = false;
-		/** Whether this writer implements the IPackageWriter interface and can be passed to SavePackage. */
-		bool bSavePackageSupported = true;
 	};
 
 	/** Return cook capabilities/settings this PackageWriter has/requires
@@ -171,12 +205,16 @@ public:
 		bool bIterateSharedBuild = false;
 	};
 
+	/** Delete outdated cooked data, etc.
+	  */
+	virtual void Initialize(const FCookInfo& Info) = 0;
+
 	/** Signal the start of a cooking pass
 
 		Package data may only be produced after BeginCook() has been called and
 		before EndCook() is called
 	  */
-	virtual void BeginCook(const FCookInfo& Info) = 0;
+	virtual void BeginCook() = 0;
 
 	/** Signal the end of a cooking pass.
 	  */
@@ -229,18 +267,18 @@ public:
 		int64 StartOffset;
 	};
 	/** Load the bytes of the previously-cooked package, used for diffing */
-	virtual bool GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* TargetPlatform,
-		const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData) = 0;
-
-	enum class EOutputLocation
+	virtual bool GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData)
 	{
-		/** Cooked files that can be read from runtime or staged, e.g. <ProjectDir>/Saved/Cooked/<Platform>/<PackagePath>.uasset */
-		Cooked,
-		/** Files read by diff utilities, e.g. <ProjectDir>/Saved/Cooked/<Platform>/<PackagePath>_ForDiff.uasset */
-		Diff,
-	};
-	/** Set the output location for the package. Only applies to the until the next BeginPackage. */
-	virtual void SetCookOutputLocation(EOutputLocation Location) = 0;
+		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
+		unimplemented();
+		return false;
+	}
+	/** Append all data to the Exports archive that would normally be done in CommitPackage, used for diffing. */
+	virtual void CompleteExportsArchiveForDiff(FLargeMemoryWriter& ExportsArchive)
+	{
+		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
+		unimplemented();
+	}
 
 	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
 	virtual IPackageStoreWriter* AsPackageStoreWriter()
@@ -253,13 +291,17 @@ static inline const ANSICHAR* LexToString(IPackageWriter::FBulkDataInfo::EType V
 {
 	switch (Value)
 	{
-	case IPackageWriter::FBulkDataInfo::Standard:
+	case IPackageWriter::FBulkDataInfo::AppendToExports:
+		return "AppendToExports";
+	case IPackageWriter::FBulkDataInfo::BulkSegment:
 		return "Standard";
 	case IPackageWriter::FBulkDataInfo::Mmap:
 		return "Mmap";
 	case IPackageWriter::FBulkDataInfo::Optional:
 		return "Optional";
+	default:
+		checkNoEntry();
+		return "Unknown";
 	}
 
-	return "Unknown";
 }

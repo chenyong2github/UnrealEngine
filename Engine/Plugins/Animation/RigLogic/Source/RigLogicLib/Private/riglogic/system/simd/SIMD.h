@@ -14,4 +14,3 @@
     #define TRIMD_ENABLE_SSE
 #endif  // RL_BUILD_WITH_SSE
 
-#include <trimd/TRiMD.h>

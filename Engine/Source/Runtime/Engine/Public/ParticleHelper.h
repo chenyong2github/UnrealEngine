@@ -120,7 +120,7 @@ const int32 PDM_DefaultValue = 0xFFFF;
 	Helper functions.
 -----------------------------------------------------------------------------*/
 
-inline void Particle_SetColorFromVector(const FVector& InColorVec, const float InAlpha, FLinearColor& OutColor)
+inline void Particle_SetColorFromVector(const FVector3f& InColorVec, const float InAlpha, FLinearColor& OutColor)
 {
 	OutColor.R = InColorVec.X;
 	OutColor.G = InColorVec.Y;
@@ -2431,7 +2431,7 @@ public:
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
 	uint32 GetAllocatedSize( void ) const 
 	{ 
-		uint32 AdditionalSize = FPrimitiveSceneProxy::GetAllocatedSize();
+		uint32 AdditionalSize = (uint32)FPrimitiveSceneProxy::GetAllocatedSize();
 
 		return( AdditionalSize ); 
 	}

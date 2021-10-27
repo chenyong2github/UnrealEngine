@@ -471,41 +471,55 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SAnimationRefPoseViewport::InitSkeleton()
 {
-	UObject *Object = NULL;
+	UObject *Object = nullptr;
 	AnimRefPropertyHandle->GetValue(Object);
-	AnimRef = Cast<UAnimSequence>(Object);
-	USkeleton *Skeleton = NULL;
-	if(AnimRef != NULL)
+	PreviewAnimationSequence = Cast<UAnimSequence>(Object);
+	const USkeleton* Skeleton = nullptr;
+	if(PreviewAnimationSequence != nullptr)
 	{
-		Skeleton = AnimRef->GetSkeleton();
-	}
-	else
-	{
-		Skeleton = TargetSkeleton;
+		Skeleton = PreviewAnimationSequence->GetSkeleton();
 	}
 
 	// if skeleton doesn't match with target skeleton, this is error, we can't support it
-	if ( Skeleton == TargetSkeleton)
-	{
-		if(PreviewComponent != NULL && Skeleton != NULL)
+	if (PreviewComponent && Skeleton && (Skeleton == TargetSkeleton))
+	{	
+		UAnimSingleNodeInstance* PreviewAnimInstance = PreviewComponent->PreviewInstance;
+		USkeletalMesh* PreviewSkeletalMesh = [Skeleton, this]() -> USkeletalMesh*
 		{
-			UAnimSingleNodeInstance * Preview = PreviewComponent->PreviewInstance;
-			USkeletalMesh* PreviewSkeletalMesh = Skeleton->GetPreviewMesh();
-			if((Preview == NULL || Preview->GetCurrentAsset() != AnimRef) || PreviewComponent->SkeletalMesh != PreviewSkeletalMesh)
+			// Try preview mesh on Anim Sequence
+			USkeletalMesh* Mesh = PreviewAnimationSequence->GetPreviewMesh(); 
+			
+			// Otherwise try skeleton preview mesh
+			if (Mesh == nullptr)
 			{
-				PreviewComponent->SetSkeletalMesh(PreviewSkeletalMesh);
-				PreviewComponent->EnablePreview(true, AnimRef);
-				PreviewComponent->PreviewInstance->SetLooping(true);
-
-				//Place the camera at a good viewer position
-				FVector NewPosition = LevelViewportClient->GetViewLocation();
-				NewPosition.Normalize();
-				if(PreviewSkeletalMesh)
-				{
-					NewPosition *= (PreviewSkeletalMesh->GetImportedBounds().SphereRadius*1.5f);
-				}
-				LevelViewportClient->SetViewLocation( NewPosition );
+				Mesh = Skeleton->GetPreviewMesh();
 			}
+
+			// Last resort try to find a _any_ compatible mesh for the skeleton
+			if (Mesh == nullptr)
+			{
+				Mesh = Skeleton->FindCompatibleMesh();
+			}
+
+			return Mesh;
+		}();
+		
+		const bool bInvalidPreviewInstance = PreviewAnimInstance == nullptr || PreviewAnimInstance->GetCurrentAsset() != PreviewAnimationSequence;
+		const bool bPreviewMeshMismatch = PreviewComponent->SkeletalMesh != PreviewSkeletalMesh;
+		if(bInvalidPreviewInstance || bPreviewMeshMismatch)
+		{
+			PreviewComponent->SetSkeletalMesh(PreviewSkeletalMesh);
+			PreviewComponent->EnablePreview(true, PreviewAnimationSequence);
+			PreviewComponent->PreviewInstance->SetLooping(true);
+
+			//Place the camera at a good viewer position
+			FVector NewPosition = LevelViewportClient->GetViewLocation();
+			NewPosition.Normalize();
+			if(PreviewSkeletalMesh)
+			{
+				NewPosition *= (PreviewSkeletalMesh->GetImportedBounds().SphereRadius*1.5f);
+			}
+			LevelViewportClient->SetViewLocation( NewPosition );
 		}
 	}
 }
@@ -526,7 +540,7 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 		// Reinit the skeleton if the anim ref has changed
 		InitSkeleton();
 
-		if ( Component->IsPreviewOn() && AnimRef != NULL )
+		if ( Component->IsPreviewOn() && PreviewAnimationSequence != NULL )
 		{
 			if ( PreviewComponent != NULL && PreviewComponent->PreviewInstance != NULL )
 			{
@@ -536,8 +550,8 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 				{
 					int RefFrameIndex;
 					RefFrameIndexPropertyHandle->GetValue( RefFrameIndex );
-					float Fraction = ( AnimRef->GetNumberOfSampledKeys() > 0 ) ? FMath::Clamp<float>( (float)RefFrameIndex / (float)AnimRef->GetNumberOfSampledKeys(), 0.f, 1.f ) : 0.f;
-					float RefTime = AnimRef->GetPlayLength() * Fraction;
+					float Fraction = ( PreviewAnimationSequence->GetNumberOfSampledKeys() > 0 ) ? FMath::Clamp<float>( (float)RefFrameIndex / (float)PreviewAnimationSequence->GetNumberOfSampledKeys(), 0.f, 1.f ) : 0.f;
+					float RefTime = PreviewAnimationSequence->GetPlayLength() * Fraction;
 					PreviewComponent->PreviewInstance->SetPosition( RefTime, false );
 					PreviewComponent->PreviewInstance->SetPlaying( false );
 					LevelViewportClient->Invalidate();
@@ -550,7 +564,7 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 		{
 			Description->SetText( FText::Format( LOCTEXT( "Previewing", "Previewing {0}" ), FText::FromString( Component->AnimClass->GetName() ) ) );
 		}
-		else if ( AnimRef && !AnimRef->GetSkeleton()->IsCompatible(TargetSkeleton) )
+		else if ( PreviewAnimationSequence && !PreviewAnimationSequence->GetSkeleton()->IsCompatible(TargetSkeleton) )
 		{
 			Description->SetText( FText::Format( LOCTEXT( "IncorrectSkeleton", "The preview asset doesn't work for the skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
 		}
@@ -617,12 +631,12 @@ float SAnimationRefPoseViewport::GetViewMaxInput() const
 TArray<float> SAnimationRefPoseViewport::GetBars() const
 {
 	TArray<float> Bars;
-	if (AnimRef)
+	if (PreviewAnimationSequence)
 	{
 		int32 RefFrameIndex;
 		RefFrameIndexPropertyHandle->GetValue(RefFrameIndex);
-		float Fraction = (AnimRef->GetNumberOfSampledKeys() > 0)? FMath::Clamp<float>((float)RefFrameIndex/(float)AnimRef->GetNumberOfSampledKeys(), 0.f, 1.f) : 0.f;
-		Bars.Add(AnimRef->GetPlayLength() * Fraction);
+		float Fraction = (PreviewAnimationSequence->GetNumberOfSampledKeys() > 0)? FMath::Clamp<float>((float)RefFrameIndex/(float)PreviewAnimationSequence->GetNumberOfSampledKeys(), 0.f, 1.f) : 0.f;
+		Bars.Add(PreviewAnimationSequence->GetPlayLength() * Fraction);
 	}
 	else
 	{
@@ -633,9 +647,9 @@ TArray<float> SAnimationRefPoseViewport::GetBars() const
 
 void SAnimationRefPoseViewport::OnBarDrag(int32 Index, float Position)
 {
-	if (AnimRef)
+	if (PreviewAnimationSequence)
 	{
-		int RefFrameIndex = FMath::Clamp<int>(AnimRef->GetPlayLength() > 0.0f? (int)(Position * (float)AnimRef->GetNumberOfSampledKeys() / AnimRef->GetPlayLength() + 0.5f) : 0.0f, 0, AnimRef->GetNumberOfSampledKeys() - 1);
+		int RefFrameIndex = FMath::Clamp<int>(PreviewAnimationSequence->GetPlayLength() > 0.0f? (int)(Position * (float)PreviewAnimationSequence->GetNumberOfSampledKeys() / PreviewAnimationSequence->GetPlayLength() + 0.5f) : 0.0f, 0, PreviewAnimationSequence->GetNumberOfSampledKeys() - 1);
 		RefFrameIndexPropertyHandle->SetValue(RefFrameIndex);
 	}
 }

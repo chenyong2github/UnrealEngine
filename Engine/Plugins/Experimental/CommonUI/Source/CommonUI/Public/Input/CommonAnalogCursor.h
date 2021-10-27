@@ -49,6 +49,8 @@ public:
 
 	virtual void ShouldHandleRightAnalog(bool bInShouldHandleRightAnalog);
 
+	bool IsAnalogMovementEnabled() const { return bIsAnalogMovementEnabled; }
+
 protected:
 	FCommonAnalogCursor(const UCommonUIActionRouterBase& InActionRouter);
 	virtual void Initialize();

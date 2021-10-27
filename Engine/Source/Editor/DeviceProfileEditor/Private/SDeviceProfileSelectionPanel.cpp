@@ -291,9 +291,9 @@ TSharedRef< ITableRow > SDeviceProfileSelectionPanel::OnGenerateWidgetForDeviceP
 void SDeviceProfileSelectionPanel::RegenerateProfileList()
 {
 	DeviceProfiles.Empty();
-	for( TArray<UObject*>::TIterator It(DeviceProfileManager->Profiles); It; It++  )
+	for( TArray<UDeviceProfile*>::TIterator It(DeviceProfileManager->Profiles); It; It++  )
 	{
-		DeviceProfiles.Add( CastChecked<UDeviceProfile>( *It ) );
+		DeviceProfiles.Add(*It);
 	}
 
 	if( DeviceProfileManager.IsValid() )

@@ -59,11 +59,6 @@ public:
 		return (UDemoNetDriver*)Driver;
 	}
 
-	UE_DEPRECATED(4.26, "Moved to FReplayHelper")
-	TArray<FQueuedDemoPacket> QueuedDemoPackets;
-	UE_DEPRECATED(4.26, "Moved to FReplayHelper")
-	TArray<FQueuedDemoPacket> QueuedCheckpointPackets;
-
 	TMap<FNetworkGUID, UActorChannel*>& GetOpenChannelMap() { return OpenChannelMap; }
 
 protected:

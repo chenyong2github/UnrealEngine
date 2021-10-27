@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_CHAOS
+
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/GCObject.h"
@@ -192,3 +194,5 @@ private:
 
 	FChaosSceneSimCallback* SimCallback;
 };
+
+#endif

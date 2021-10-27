@@ -106,14 +106,14 @@ void FScene::Import( FLightmassImporter& Importer )
 	
 	FStaticLightingMapping::s_bShowLightmapBorders = bDebugPadding;
 
-	TArray<TCHAR>& InstigatorUserNameArray = InstigatorUserName.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& InstigatorUserNameArray = InstigatorUserName.GetCharArray();
 	int32 UserNameLen;
 	Importer.ImportData(&UserNameLen);
 	Importer.ImportArray(InstigatorUserNameArray, UserNameLen);
 	InstigatorUserNameArray.Add('\0');
 
 	FString PersistentLevelName;
-	TArray<TCHAR>& PersistentLevelNameArray = PersistentLevelName.GetCharArray();
+	TArray<TCHAR, FString::AllocatorType>& PersistentLevelNameArray = PersistentLevelName.GetCharArray();
 	int32 PersistentLevelNameLen;
 	Importer.ImportData(&PersistentLevelNameLen);
 	Importer.ImportArray(PersistentLevelNameArray, PersistentLevelNameLen);

@@ -462,19 +462,12 @@ protected:
 	uint8 bEnableAISystem:1;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
-	TSoftClassPtr<UAISystemBase> AISystemClass;
-
 	/** 
 	 * Enables tools for composing a tiled world. 
 	 * Level has to be saved and all sub-levels removed before enabling this option.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, meta=(EditConditionHides, EditCondition="WorldPartition == nullptr"))
 	uint8 bEnableWorldComposition:1;
-
-	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
-	UPROPERTY()
-	FVector LevelInstancePivotOffset;
 
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
@@ -522,6 +515,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Broadphase)
 	uint8 bOverrideDefaultBroadphaseSettings:1;
 
+	/** If set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels) */
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(DisplayAfter="HierarchicalLODSetup"))
+	uint8 bGenerateSingleClusterForLevel : 1;
+
 #if WITH_EDITORONLY_DATA
 	/** 
 	 * Whether Foliage actors of this world contain their grid size in their name. This should only be changed by UWorldPartitionFoliageBuilder or when creating new worlds so that older worlds are unaffected
@@ -537,6 +534,14 @@ public:
 	UPROPERTY()
 	uint8 bIncludeGridSizeInNameForPartitionedActors : 1;
 #endif
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
+	TSoftClassPtr<UAISystemBase> AISystemClass;
+
+	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
+	UPROPERTY()
+	FVector LevelInstancePivotOffset;
+
 protected:
 	/** Holds parameters for NavigationSystem's creation. Set to Null will result
 	 *	in NavigationSystem instance not being created for this world. Note that
@@ -672,12 +677,8 @@ public:
 	UPROPERTY()
 	int32 NumHLODLevels;
 
-	/** If set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels) */
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay)
-	uint32 bGenerateSingleClusterForLevel : 1;
-
 	/** Specify the transform to apply to the source meshes when building HLODs. */
-	UPROPERTY(EditAnywhere, config, Category = LODSystem, AdvancedDisplay, meta=(DisplayName = "HLOD Baking Transform"))
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(DisplayName = "HLOD Baking Transform"))
 	FTransform HLODBakingTransform;
 
 	/************************************/
@@ -726,11 +727,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Broadphase)
 	FBroadphaseSettings BroadphaseSettings;
 
-	// If paused, FName of person pausing the game.
-	UE_DEPRECATED(4.23, "This property is deprecated. Please use Get/SetPauserPlayerState().")
-	UPROPERTY(transient)
-	TObjectPtr<class APlayerState> Pauser;
-
 	/** valid only during replication - information about the player(s) being replicated to
 	 * (there could be more than one in the case of a splitscreen client)
 	 */
@@ -738,10 +734,6 @@ public:
 	TArray<struct FNetViewer> ReplicationViewers;
 
 	// ************************************
-
-	/** Maximum number of bookmarks	*/
-	UE_DEPRECATED(4.21, "Please use GetMaxNumberOfBookmarks or NumMappedBookmarks instead.")
-	static const int32 MAX_BOOKMARK_NUMBER = 10;
 
 	protected:
 
@@ -833,6 +825,7 @@ public:
 	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
 	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
 	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITOR
@@ -969,7 +962,7 @@ public:
 #if WITH_EDITORONLY_DATA
 private: //DEPRECATED
 	UPROPERTY()
-	uint32 bEnableHierarchicalLODSystem_DEPRECATED:1;
+	bool bEnableHierarchicalLODSystem_DEPRECATED;
 #endif
 };
 

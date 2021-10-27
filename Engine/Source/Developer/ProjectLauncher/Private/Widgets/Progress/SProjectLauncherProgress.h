@@ -83,6 +83,8 @@ public:
 			.Orientation(EOrientation::Orient_Vertical)
 			.AlwaysShowScrollbar(true);
 
+		MaxMessageListRowWidth = 0.0f;
+
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -190,26 +192,42 @@ public:
 						]
 						+ SGridPanel::Slot(0, 1)
 						[
-							SNew(SScrollBox)
+							SAssignNew(HorizontalScrollBox, SScrollBox)
 							.Orientation(EOrientation::Orient_Horizontal)
 							.ExternalScrollbar(HorizontalScrollBar)
 							+ SScrollBox::Slot()
 							[
-								SAssignNew(MessageListView, SListView< TSharedPtr<FProjectLauncherMessage> >)
-								.HeaderRow
-								(
-									SNew(SHeaderRow)
-									.Visibility(EVisibility::Collapsed)
-									+ SHeaderRow::Column("Status")
-									.DefaultLabel(LOCTEXT("TaskListOutputLogColumnHeader", "Output Log"))
-								)
-								.ListItemsSource(&MessageList)
-								.OnGenerateRow(this, &SProjectLauncherProgress::HandleMessageListViewGenerateRow)
-								.ItemHeight(24.0)
-								.SelectionMode(ESelectionMode::Multi)
-								.ExternalScrollbar(VerticalScrollBar)
-								.AllowOverscroll(EAllowOverscroll::No)
-								.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+								SNew(SBox)
+								.Padding(0.0f)
+								.MinDesiredWidth_Lambda([this]()
+								{
+									// Cache the max desired width seen so far of rows in the message list.
+									// We use this to prevent the horizontal scroll bar from constantly shrinking/expanding as rows are virtualized.
+									// This will get reset whenever the message list is cleared.
+									MaxMessageListRowWidth = FMath::Max(MaxMessageListRowWidth, MessageListView->GetDesiredSize().X);
+
+									// Make the message list at least as wide as the scroll box so that there's not an empty space to its right;
+									// scroll boxes do not deal with alignment in the scroll direction (horizontal in this case).
+									const float CurrentScrollWidth = HorizontalScrollBox->GetTickSpaceGeometry().GetLocalSize().X;
+									return FMath::Max(MaxMessageListRowWidth, CurrentScrollWidth);
+								})
+								[
+									SAssignNew(MessageListView, SListView< TSharedPtr<FProjectLauncherMessage> >)
+									.HeaderRow
+									(
+										SNew(SHeaderRow)
+										.Visibility(EVisibility::Collapsed)
+										+ SHeaderRow::Column("Status")
+										.DefaultLabel(LOCTEXT("TaskListOutputLogColumnHeader", "Output Log"))
+									)
+									.ListItemsSource(&MessageList)
+									.OnGenerateRow(this, &SProjectLauncherProgress::HandleMessageListViewGenerateRow)
+									.ItemHeight(24.0)
+									.SelectionMode(ESelectionMode::Multi)
+									.ExternalScrollbar(VerticalScrollBar)
+									.AllowOverscroll(EAllowOverscroll::No)
+									.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+								]
 							]
 						]
 						+ SGridPanel::Slot(1, 1)
@@ -325,6 +343,7 @@ public:
 		TaskListView->RequestListRefresh();
 
 		MessageList.Reset();
+		MaxMessageListRowWidth = 0.0;
 		Worker->OnOutputReceived().AddRaw(this, &SProjectLauncherProgress::HandleOutputReceived);
 		MessageListView->RequestListRefresh();
 	}
@@ -585,6 +604,7 @@ private:
 	void ClearLog()
 	{
 		MessageList.Reset();
+		MaxMessageListRowWidth = 0.0;
 		MessageListView->RequestListRefresh();
 	}
 
@@ -708,8 +728,14 @@ private:
 	// Holds the pending message list.
 	TArray< TSharedPtr<FProjectLauncherMessage>> PendingMessages;
 
+	// Horizontal scroll box wrapping the message list view.
+	TSharedPtr<SScrollBox> HorizontalScrollBox;
+
 	// Holds the message list view.
 	TSharedPtr<SListView<TSharedPtr<FProjectLauncherMessage>>> MessageListView;
+
+	// Caches the size of the longest row seen in the message list. Should be cleared when message list is cleared.
+	float MaxMessageListRowWidth;
 
 	// Holds the task list view.
 	TSharedPtr<SListView<ILauncherTaskPtr>> TaskListView;

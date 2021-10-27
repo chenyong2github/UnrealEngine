@@ -9,7 +9,7 @@
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "Widgets/Input/SComboBox.h"
@@ -186,7 +186,7 @@ void SIKRetargetChainMapList::Construct(
 		.HAlign(HAlign_Fill)
 		.Padding(5)
 		[
-			SNew(SEditorHeaderButton)
+			SNew(SPositiveActionButton)
 			.Visibility(this, &SIKRetargetChainMapList::IsAutoMapButtonVisible)
 			.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
 			.Text(LOCTEXT("AutoMapButtonLabel", "Auto-Map Chains"))

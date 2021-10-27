@@ -42,10 +42,13 @@ public:
 		NumEdges(0)
 	{
 #if WITH_EDITOR
-		Polys.Append(InModel->Polys->Element);
-		for(int32 PolyIndex = 0;PolyIndex < InModel->Polys->Element.Num();PolyIndex++)
+		if (!InModel->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
 		{
-			NumEdges += InModel->Polys->Element[PolyIndex].Vertices.Num();
+			Polys.Append(InModel->Polys->Element);
+			for(int32 PolyIndex = 0;PolyIndex < InModel->Polys->Element.Num();PolyIndex++)
+			{
+				NumEdges += InModel->Polys->Element[PolyIndex].Vertices.Num();
+			}
 		}
 #endif
 	}
@@ -147,29 +150,32 @@ public:
 		PropertyColor = NewPropertyColor;
 
 #if WITH_EDITORONLY_DATA
-		TArray<FPoly> Polys;
-		Polys.Append(Component->Brush->Polys->Element);
-
-		TArray<FDynamicMeshVertex> OutVerts;
-
-		for (int32 PolyIndex = 0; PolyIndex < Polys.Num(); PolyIndex++)
+		if (!Component->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
 		{
-			FPoly& Poly = Polys[PolyIndex];
-			for (int32 VertexIndex = 0; VertexIndex < Poly.Vertices.Num(); VertexIndex++)
-			{
-				FDynamicMeshVertex Vertex;
-				Vertex.Position = Poly.Vertices[VertexIndex];
-				Vertex.TangentX = FVector(1, 0, 0);
-				Vertex.TangentZ = FVector(0, 0, 1);
-				// TangentZ.w contains the sign of the tangent basis determinant. Assume +1
-				Vertex.TangentZ.Vector.W = 127;
-				Vertex.TextureCoordinate[0].X = 0.0f;
-				Vertex.TextureCoordinate[0].Y = 0.0f;
-				OutVerts.Push(Vertex);
-			}
-		}
+			TArray<FPoly> Polys;
+			Polys.Append(Component->Brush->Polys->Element);
 
-		VertexBuffers.InitFromDynamicVertex(&VertexFactory, OutVerts);
+			TArray<FDynamicMeshVertex> OutVerts;
+
+			for (int32 PolyIndex = 0; PolyIndex < Polys.Num(); PolyIndex++)
+			{
+				FPoly& Poly = Polys[PolyIndex];
+				for (int32 VertexIndex = 0; VertexIndex < Poly.Vertices.Num(); VertexIndex++)
+				{
+					FDynamicMeshVertex Vertex;
+					Vertex.Position = Poly.Vertices[VertexIndex];
+					Vertex.TangentX = FVector(1, 0, 0);
+					Vertex.TangentZ = FVector(0, 0, 1);
+					// TangentZ.w contains the sign of the tangent basis determinant. Assume +1
+					Vertex.TangentZ.Vector.W = 127;
+					Vertex.TextureCoordinate[0].X = 0.0f;
+					Vertex.TextureCoordinate[0].Y = 0.0f;
+					OutVerts.Push(Vertex);
+				}
+			}
+
+			VertexBuffers.InitFromDynamicVertex(&VertexFactory, OutVerts);
+		}
 #endif
 	}
 

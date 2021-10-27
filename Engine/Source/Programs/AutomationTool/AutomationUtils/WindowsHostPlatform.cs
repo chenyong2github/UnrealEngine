@@ -34,15 +34,15 @@ namespace AutomationTool
 			get { return @"Engine/Binaries/Win64/"; }
 		}
 
-		public override string GetUE4ExePath(string UE4Exe)
+		public override string GetUnrealExePath(string UnrealExe)
 		{
-			if(Path.IsPathRooted(UE4Exe))
+			if(Path.IsPathRooted(UnrealExe))
 			{
-				return CommandUtils.CombinePaths(UE4Exe);
+				return CommandUtils.CombinePaths(UnrealExe);
 			}
 			else
 			{
-				return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, RelativeBinariesFolder, UE4Exe);
+				return CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, RelativeBinariesFolder, UnrealExe);
 			}
 		}
 

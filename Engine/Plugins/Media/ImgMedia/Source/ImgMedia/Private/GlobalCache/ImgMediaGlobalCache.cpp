@@ -163,6 +163,12 @@ void FImgMediaGlobalCache::GetIndices(const FName& Sequence, TArray<int32>& OutI
 	}
 }
 
+void FImgMediaGlobalCache::EmptyCache()
+{
+	FScopeLock Lock(&CriticalSection);
+	Empty();
+}
+
 void FImgMediaGlobalCache::EnforceMaxSize(SIZE_T Extra)
 {
 	while (CurrentSize + Extra > MaxSize)

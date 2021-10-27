@@ -1268,7 +1268,14 @@ bool FOnlineSessionEOS::StartSession(FName SessionName)
 		{
 			if (!Session->SessionSettings.bIsLANMatch)
 			{
-				Result = StartEOSSession(Session);
+				if (Session->SessionSettings.bUseLobbiesIfAvailable)
+				{
+					Result = StartLobbySession(Session);
+				}
+				else
+				{
+					Result = StartEOSSession(Session);
+				}
 			}
 			else
 			{
@@ -1335,6 +1342,20 @@ uint32 FOnlineSessionEOS::StartEOSSession(FNamedOnlineSession* Session)
 	};
 
 	EOS_Sessions_StartSession(EOSSubsystem->SessionsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+
+	return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionEOS::StartLobbySession(FNamedOnlineSession* Session)
+{
+	Session->SessionState = EOnlineSessionState::Starting;
+
+	EOSSubsystem->ExecuteNextTick([this, Session]()
+	{
+		Session->SessionState = EOnlineSessionState::InProgress;
+
+		TriggerOnStartSessionCompleteDelegates(Session->SessionName, true);
+	});
 
 	return ONLINE_IO_PENDING;
 }
@@ -2597,13 +2618,17 @@ bool FOnlineSessionEOS::RegisterPlayer(FName SessionName, const FUniqueNetId& Pl
 	return RegisterPlayers(SessionName, Players, bWasInvited);
 }
 
+typedef TEOSCallback<EOS_Sessions_OnRegisterPlayersCallback, EOS_Sessions_RegisterPlayersCallbackInfo> FRegisterPlayersCallback;
+
 bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited)
 {
 	bool bSuccess = false;
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
 	if (Session)
 	{
+		TArray<EOS_ProductUserId> EOSIds;
 		bSuccess = true;
+		bool bRegisterEOS = !Session->SessionSettings.bUseLobbiesIfAvailable;
 
 		for (int32 PlayerIdx=0; PlayerIdx<Players.Num(); PlayerIdx++)
 		{
@@ -2613,6 +2638,10 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 			if (Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch) == INDEX_NONE)
 			{
 				Session->RegisteredPlayers.Add(PlayerId);
+				if (bRegisterEOS)
+				{
+					EOSIds.Add(EOSSubsystem->UserManager->GetProductUserId(*PlayerId));
+				}
 
 				// update number of open connections
 				if (Session->NumOpenPublicConnections > 0)
@@ -2632,7 +2661,23 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 			else
 			{
 				UE_LOG_ONLINE_SESSION(Log, TEXT("Player %s already registered in session %s"), *PlayerId->ToDebugString(), *SessionName.ToString());
-			}			
+			}
+		}
+		if (bRegisterEOS && EOSIds.Num() > 0)
+		{
+			EOS_Sessions_RegisterPlayersOptions Options = { };
+			Options.ApiVersion = EOS_SESSIONS_REGISTERPLAYERS_API_LATEST;
+			Options.PlayersToRegister = EOSIds.GetData();
+			Options.PlayersToRegisterCount = EOSIds.Num();
+
+			FRegisterPlayersCallback* CallbackObj = new FRegisterPlayersCallback();
+			CallbackObj->CallbackLambda = [this, SessionName, RegisteredPlayers = TArray<FUniqueNetIdRef>(Players)](const EOS_Sessions_RegisterPlayersCallbackInfo* Data)
+			{
+				bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_NoChange;
+				TriggerOnRegisterPlayersCompleteDelegates(SessionName, RegisteredPlayers, bWasSuccessful);
+			};
+			EOS_Sessions_RegisterPlayers(EOSSubsystem->SessionsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			return true;
 		}
 	}
 	else
@@ -2640,10 +2685,10 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUnique
 		UE_LOG_ONLINE_SESSION(Warning, TEXT("No game present to join for session (%s)"), *SessionName.ToString());
 	}
 
-	EOSSubsystem->ExecuteNextTick([this, SessionName, Players, bSuccess]()
-		{
-			TriggerOnRegisterPlayersCompleteDelegates(SessionName, Players, bSuccess);
-		});
+	EOSSubsystem->ExecuteNextTick([this, SessionName, RegisteredPlayers = TArray<FUniqueNetIdRef>(Players), bSuccess]()
+	{
+		TriggerOnRegisterPlayersCompleteDelegates(SessionName, RegisteredPlayers, bSuccess);
+	});
 
 	return true;
 }
@@ -2655,6 +2700,8 @@ bool FOnlineSessionEOS::UnregisterPlayer(FName SessionName, const FUniqueNetId& 
 	return UnregisterPlayers(SessionName, Players);
 }
 
+typedef TEOSCallback<EOS_Sessions_OnUnregisterPlayersCallback, EOS_Sessions_UnregisterPlayersCallbackInfo> FUnregisterPlayersCallback;
+
 bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	bool bSuccess = true;
@@ -2662,6 +2709,8 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniq
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
 	if (Session)
 	{
+		TArray<EOS_ProductUserId> EOSIds;
+		bool bUnregisterEOS = !Session->SessionSettings.bUseLobbiesIfAvailable;
 		for (int32 PlayerIdx=0; PlayerIdx < Players.Num(); PlayerIdx++)
 		{
 			const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
@@ -2671,6 +2720,10 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniq
 			if (RegistrantIndex != INDEX_NONE)
 			{
 				Session->RegisteredPlayers.RemoveAtSwap(RegistrantIndex);
+				if (bUnregisterEOS)
+				{
+					EOSIds.Add(EOSSubsystem->UserManager->GetProductUserId(*PlayerId));
+				}
 
 				// update number of open connections
 				if (Session->NumOpenPublicConnections < Session->SessionSettings.NumPublicConnections)
@@ -2691,6 +2744,22 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniq
 			{
 				UE_LOG_ONLINE_SESSION(Warning, TEXT("Player %s is not part of session (%s)"), *PlayerId->ToDebugString(), *SessionName.ToString());
 			}
+		}
+		if (bUnregisterEOS && EOSIds.Num() > 0)
+		{
+			EOS_Sessions_UnregisterPlayersOptions Options = { };
+			Options.ApiVersion = EOS_SESSIONS_UNREGISTERPLAYERS_API_LATEST;
+			Options.PlayersToUnregister = EOSIds.GetData();
+			Options.PlayersToUnregisterCount = EOSIds.Num();
+
+			FUnregisterPlayersCallback* CallbackObj = new FUnregisterPlayersCallback();
+			CallbackObj->CallbackLambda = [this, SessionName, UnregisteredPlayers = TArray<FUniqueNetIdRef>(Players)](const EOS_Sessions_UnregisterPlayersCallbackInfo* Data)
+			{
+				bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_NoChange;
+				TriggerOnUnregisterPlayersCompleteDelegates(SessionName, UnregisteredPlayers, bWasSuccessful);
+			};
+			EOS_Sessions_UnregisterPlayers(EOSSubsystem->SessionsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			return true;
 		}
 	}
 	else
@@ -3346,9 +3415,12 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	// The second will let us find it on lobby searches
 	FString Keyword;
 	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
-	const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-	const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
-	AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
+	if (!Keyword.IsEmpty())
+	{
+		const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
+		const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
+		AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
+	}
 
 	// We set the session's owner id and name
 	const FLobbyAttributeOptions OwnerId("OwningUserId", TCHAR_TO_UTF8(*Session->OwningUserId->ToString()));

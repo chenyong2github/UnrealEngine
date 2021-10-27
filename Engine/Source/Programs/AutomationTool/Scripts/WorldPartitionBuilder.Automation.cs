@@ -34,7 +34,7 @@ namespace AutomationScripts.Automation
 			}
 
 			string EditorExe = "UnrealEditor-Cmd.exe";
-			EditorExe = AutomationTool.HostPlatform.Current.GetUE4ExePath(EditorExe);
+			EditorExe = AutomationTool.HostPlatform.Current.GetUnrealExePath(EditorExe);
 
 			FileReference ProjectPath = ParseProjectParam();
 			RunCommandlet(ProjectPath, EditorExe, "WorldPartitionBuilderCommandlet", CommandletArgs);

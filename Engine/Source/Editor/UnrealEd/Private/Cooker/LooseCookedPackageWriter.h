@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "Serialization/PackageWriter.h"
+#include "Memory/CompositeBuffer.h"
+#include "Misc/PackagePath.h"
+#include "PackageStoreManifest.h"
+#include "Serialization/PackageWriterToSharedBuffer.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
-#include "PackageStoreManifest.h"
 
 class FAsyncIODelete;
 class IPlugin;
@@ -14,44 +16,71 @@ class ITargetPlatform;
 struct FPackageNameCache;
 
 /** A CookedPackageWriter that saves cooked packages in separate .uasset,.uexp,.ubulk files in the Saved\Cooked\[Platform] directory. */
-class FLooseCookedPackageWriter
-	: public ICookedPackageWriter
+class FLooseCookedPackageWriter : public TPackageWriterToSharedBuffer<ICookedPackageWriter>
 {
 public:
+	using Super = TPackageWriterToSharedBuffer<ICookedPackageWriter>;
+
 	FLooseCookedPackageWriter(const FString& OutputPath, const FString& MetadataDirectoryPath, const ITargetPlatform* TargetPlatform,
 		FAsyncIODelete& InAsyncIODelete, const FPackageNameCache& InPackageNameCache, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap);
 	~FLooseCookedPackageWriter();
 
-	FCookCapabilities GetCookCapabilities() const override
+	virtual FCookCapabilities GetCookCapabilities() const override
 	{
 		FCookCapabilities Result;
 		Result.bDiffModeSupported = true;
-		// TODO: Finish implementing this class so we can turn bSavePackageSupported on (and delete bSavePackageSupported as everything will have it set to true)
-		Result.bSavePackageSupported = false;
 		return Result;
 	}
 
-	void BeginPackage(const FBeginPackageInfo& Info) override;
-	void CommitPackage(const FCommitPackageInfo& Info) override;
-	void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) override;
-	void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
-	bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override;
-	void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override;
+	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
+	virtual void AddToExportsSize(int32& ExportsSize) override;
 
-	FDateTime GetPreviousCookTime() const override;
-	void BeginCook(const FCookInfo& Info) override;
-	void EndCook() override;
-	void Flush() override;
-	TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override;
-	FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
-	void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
-	void RemoveCookedPackages() override;
-	void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
-	bool GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
-		const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData) override;
-	void SetCookOutputLocation(EOutputLocation location) override;
+	virtual FDateTime GetPreviousCookTime() const override;
+	virtual void Initialize(const FCookInfo& Info) override;
+	virtual void BeginCook() override;
+	virtual void EndCook() override;
+	virtual void Flush() override;
+	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override;
+	virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
+	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
+	virtual void RemoveCookedPackages() override;
+	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
+	virtual bool GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData) override;
+	virtual void CompleteExportsArchiveForDiff(FLargeMemoryWriter& ExportsArchive) override;
+	virtual TFuture<FMD5Hash> CommitPackageInternal(const FCommitPackageInfo& Info) override;
+	virtual void ResetPackage() override;
 
+	static EPackageExtension BulkDataTypeToExtension(FBulkDataInfo::EType BulkDataType);
 private:
+
+	/** Buffers that are combined into the HeaderAndExports file (which is then split into .uasset + .uexp). */
+	struct FExportBuffer
+	{
+		FSharedBuffer Buffer;
+		TArray<FFileRegion> Regions;
+	};
+
+	/**
+	 * The data needed to asynchronously write one of the files (.uasset, .uexp, .ubulk, and any additional),
+	 * without reference back to other data on this writer.
+	 */
+	struct FWriteFileData
+	{
+		FString Filename;
+		FCompositeBuffer Buffer;
+		TArray<FFileRegion> Regions;
+		bool bIsSidecar;
+
+		void Write(FMD5& AccumulatedHash, EWriteOptions WriteOptions) const;
+	};
+
+	/** Stack data for the helper functions of CommitPackageInternal. */
+	struct FCommitContext
+	{
+		const FCommitPackageInfo& Info;
+		TArray<FExportBuffer> ExportsBuffers;
+		TArray<FWriteFileData> OutputFiles;
+	};
 
 	/* Delete the sandbox directory (asynchronously) in preparation for a clean cook */
 	void DeleteSandboxDirectory();
@@ -69,6 +98,16 @@ private:
 		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
 		const FString& CookedPath, FString& OutUncookedPath) const;
 	void RemoveCookedPackagesByUncookedFilename(const TArray<FName>& UncookedFileNamesToRemove);
+	TFuture<FMD5Hash> AsyncSave(const FCommitPackageInfo& Info);
+
+	void CollectForSavePackageData(FCommitContext& Context);
+	void CollectForSaveBulkData(FCommitContext& Context);
+	void CollectForSaveLinkerAdditionalDataRecords(FCommitContext& Context);
+	void CollectForSaveAdditionalFileRecords(FCommitContext& Context);
+	void CollectForSaveExportsFooter(FCommitContext& Context);
+	void CollectForSaveExportsBuffers(FCommitContext& Context);
+	TFuture<FMD5Hash> AsyncSaveOutputFiles(FCommitContext& Context);
+	void UpdateManifest();
 
 	TMap<FName, FName> UncookedPathToCookedPath;
 	FString OutputPath;
@@ -79,4 +118,5 @@ private:
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;
 	bool bIterateSharedBuild;
+	bool bCompletedExportsArchiveForDiff;
 };

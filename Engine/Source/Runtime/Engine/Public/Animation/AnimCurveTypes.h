@@ -370,7 +370,7 @@ struct FBaseBlendedCurve
 	void InitFrom(const FBoneContainer& RequiredBones)
 	{
 		UIDToArrayIndexLUT = &RequiredBones.GetUIDToArrayLookupTable();
-		NumValidCurveCount = RequiredBones.GetUIDToArrayIndexLookupTableValidCount();
+		NumValidCurveCount = (uint16)RequiredBones.GetUIDToArrayIndexLookupTableValidCount();
 		CurveWeights.Reset();
 		CurveWeights.AddZeroed(NumValidCurveCount);
 		ValidCurveWeights.Init(false, NumValidCurveCount);
@@ -382,7 +382,7 @@ struct FBaseBlendedCurve
 	{
 		check(InUIDToArrayIndexLUT != nullptr);
 		UIDToArrayIndexLUT = InUIDToArrayIndexLUT;
-		NumValidCurveCount = GetValidElementCount(UIDToArrayIndexLUT);
+		NumValidCurveCount = (uint16)GetValidElementCount(UIDToArrayIndexLUT);
 		CurveWeights.Reset();
 		CurveWeights.AddZeroed(NumValidCurveCount);
 		ValidCurveWeights.Init(false, NumValidCurveCount);

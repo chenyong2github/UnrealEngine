@@ -68,7 +68,8 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"Media",
 				"VirtualTexturingEditor",
-				"TextureBuild"
+				"TextureBuild",
+				"ToolWidgets",
 			}
 		);
 
@@ -136,6 +137,7 @@ public class UnrealEd : ModuleRules
 				"CurveEditor",
 				"ContentBrowserData",
 				"DerivedDataCache",
+				"Zen",
 				"DesktopPlatform",
 				"LauncherPlatform",
 				"EditorStyle",
@@ -212,6 +214,7 @@ public class UnrealEd : ModuleRules
 				"CookOnTheFly",
 				"RemoteExecution",
 				"HordeExecutor",
+				"Zen",
 			}
 		);
 

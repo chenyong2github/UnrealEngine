@@ -17,6 +17,10 @@ namespace Chaos
 	int32 bOneSidedHeightField = 1;
 	static FAutoConsoleVariableRef CVarOneSidedHeightField(TEXT("p.Chaos.OneSidedHeightField"), bOneSidedHeightField, TEXT("When enabled, extra steps will ensure that FHeightField::GJKContactPointImp never results in internal-facing contact data."));
 
+	int32 bOneSidedHeightfieldAlwaysSweep = 0;
+	static FAutoConsoleVariableRef CVarOneSidedHeightfieldAlwaysSweep(TEXT("p.Chaos.OneSidedHeightfieldAlwaysSweep"), bOneSidedHeightfieldAlwaysSweep, TEXT("When enabled, always use a sweep to ensure FHeightField::GJKContactPointImp never results \
+	in internal-facing contact data. Else, we only sweep if we detect an inward facing normal. Note that the sweep results can be inaccurate in some cases."));
+
 	class FHeightfieldRaycastVisitor
 	{
 	public:
@@ -1253,18 +1257,14 @@ namespace Chaos
 			const FVec3 AC = C - A;
 
 			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
-
+			const FVec3 TriNormal = Offset.GetUnsafeNormal();
 			FTriangle TriangleConvex(A, B, C);
 
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, Normal;
 
-			if (bOneSidedHeightField)
+			auto SweepAgainstTriangle = [&]() -> bool
 			{
-				// HACK:
-				// The regular penetration calculation vs a triangle may result in inward facing normals.
-				// To protect against this, we sweep against the triangle from a distance to ensure an outward
-				// facing normal and MTD.
 				//
 				// BUG: This does not detect collisions when we specify a cull distance. It is as if
 				// Thickness is always zero...
@@ -1274,7 +1274,6 @@ namespace Chaos
 				const FReal ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
 				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
 				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
-				const FVec3 TriNormal = Offset.GetUnsafeNormal();
 				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
 				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, (FReal)0., true))
 				{
@@ -1283,6 +1282,36 @@ namespace Chaos
 					LocalContactPhi = Penetration - SweepLength;
 					return true;
 				}
+				return false;
+			};
+
+			if (bOneSidedHeightField)
+			{
+				// HACK:
+				// The regular penetration calculation vs a triangle may result in inward facing normals.
+				// To protect against this, we sweep against the triangle from a distance to ensure an outward
+				// facing normal and MTD.
+
+				if (bOneSidedHeightfieldAlwaysSweep)
+				{
+					return SweepAgainstTriangle();
+				}
+				else
+				{
+					int32 ClosestVertexIndexA, ClosestVertexIndexB;
+					if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0))
+					{
+						if (FVec3::DotProduct(TriNormal, Normal) < 0)
+						{
+							return SweepAgainstTriangle();
+						}
+						LocalContactLocation = ClosestB;
+						LocalContactNormal = Normal;
+						LocalContactPhi = -Penetration;
+						return true;
+					}
+				}
+				
 			}
 			else
 			{

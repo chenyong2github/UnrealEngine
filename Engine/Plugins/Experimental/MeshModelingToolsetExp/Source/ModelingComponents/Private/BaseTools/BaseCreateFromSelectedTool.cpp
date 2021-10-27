@@ -357,12 +357,9 @@ void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			AActor* Actor = TargetComponentInterface(ComponentIdx)->GetOwnerActor();
-			if (Actor != KeepActor)
-			{
-				Actors.Add(Actor);
-			}
+			Actors.Add(Actor);
 		}
-		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager(), KeepActor);
 
 		if (KeepActor != nullptr)
 		{

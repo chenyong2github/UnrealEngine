@@ -63,9 +63,9 @@ namespace UnrealBuildTool
 					"BenchmarkTool",
 					"BlankProgram",
 					"BuildPatchTool",
-					"UE4Client",
-					"UE4Game", 
-					"UE4Server",
+					"UnrealClient",
+					"UnrealGame", 
+					"UnrealServer",
 					"UnrealHeaderTool", 
 					"UnrealPak"
 				};

@@ -18,18 +18,20 @@ void FAnimPreviewAttacheInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, 
 {
 	FAnimInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
 
-	CopyPoseFromMesh.PreUpdate(InAnimInstance);
+	if (CopyPoseFromMesh.SourceMeshComponent.IsValid())
+	{
+		CopyPoseFromMesh.PreUpdate(InAnimInstance);
+	}
 }
 
-void FAnimPreviewAttacheInstanceProxy::Update(float DeltaSeconds)
+void FAnimPreviewAttacheInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
-	// we cant update on a worker thread here because of the key delegate needing to be fired
-	check(IsInGameThread());
-
-	FAnimationUpdateContext UpdateContext(this, DeltaSeconds);
-	CopyPoseFromMesh.Update_AnyThread(UpdateContext);
-
-	FAnimInstanceProxy::Update(DeltaSeconds);
+	UpdateCounter.Increment();
+	
+	if (CopyPoseFromMesh.SourceMeshComponent.IsValid())
+	{
+		CopyPoseFromMesh.Update_AnyThread(InContext);
+	}
 }
 
 bool FAnimPreviewAttacheInstanceProxy::Evaluate(FPoseContext& Output)

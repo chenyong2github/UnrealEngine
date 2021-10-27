@@ -511,7 +511,7 @@ public:
 		Close();
 	}
 
-	bool Close()
+	bool Close() final
 	{
 		// don't redo if we were already closed
 		if (ReaderData)

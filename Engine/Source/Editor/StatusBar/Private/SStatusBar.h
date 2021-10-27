@@ -204,6 +204,8 @@ private:
 	TSharedRef<SWidget> OnGetProgressBarMenuContent();
 
 	void CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data);
+
+	FString GetStatusBarSerializableName() const;
 private:
 	TArray<FStatusBarMessage> MessageStack;
 	TArray<FStatusBarProgress> ProgressNotifications;

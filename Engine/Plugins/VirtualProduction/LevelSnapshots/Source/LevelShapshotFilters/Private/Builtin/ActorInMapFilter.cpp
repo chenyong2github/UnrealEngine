@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorInMapFilter.h"
+#include "Builtin/ActorInMapFilter.h"
 
 #include "Engine/Level.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
-namespace
+namespace ActorInMapFilter
 {
-	bool IsActorInMap(const AActor* Actor, const FString& MapNameToCheck)
+	static bool IsActorInMap(const AActor* Actor, const FString& MapNameToCheck)
 	{
 		const ULevel* Level = Actor->GetLevel();
 
@@ -17,7 +18,6 @@ namespace
 		}
 
 		const UWorld* World = Level->GetTypedOuter<UWorld>();
-
 		if (!ensure(World))
 		{
 			return false;
@@ -26,7 +26,7 @@ namespace
 		return World->GetName() == MapNameToCheck;
 	}
 
-	EFilterResult::Type IsActorAllowed(const AActor* Actor, const TArray<TSoftObjectPtr<UWorld>>& AllowedLevels)
+	static EFilterResult::Type IsActorAllowed(const AActor* Actor, const TArray<TSoftObjectPtr<UWorld>>& AllowedLevels)
 	{
 		for (const TSoftObjectPtr<UWorld>& AllowedLevel : AllowedLevels)
 		{
@@ -42,12 +42,12 @@ namespace
 
 EFilterResult::Type UActorInMapFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	return IsActorAllowed(Params.LevelActor, AllowedLevels);
+	return ActorInMapFilter::IsActorAllowed(Params.LevelActor, AllowedLevels);
 }
 
 EFilterResult::Type UActorInMapFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
-	return IsActorAllowed(Params.NewActor, AllowedLevels);
+	return ActorInMapFilter::IsActorAllowed(Params.NewActor, AllowedLevels);
 }
 
 

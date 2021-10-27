@@ -990,8 +990,13 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NetTickFlushGatherStatsPerfCounters);
 
+				static const FString PerfCounter_AvgPing = TEXT("AvgPing");
+				static const FString PerfCounter_MaxPing = TEXT("MaxPing");
+				static const FString PerfCounter_MinPing = TEXT("MinPing");
+				static const FString PerfCounter_NumConnections = TEXT("NumConnections");
+
 				// Update total connections
-				PerfCounters->Set(TEXT("NumConnections"), ClientConnections.Num());
+				PerfCounters->Set(PerfCounter_NumConnections, ClientConnections.Num());
 
 				const int kNumBuckets = 8;	// evenly spaced with increment of 30 ms; last bucket collects all off-scale pings as well
 				if (ClientConnections.Num() > 0)
@@ -1039,9 +1044,9 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 						AvgPing /= static_cast<float>(PingCount);
 					}
 
-					PerfCounters->Set(TEXT("AvgPing"), AvgPing, IPerfCounters::Flags::Transient);
-					PerfCounters->Set(TEXT("MaxPing"), MaxPing, IPerfCounters::Flags::Transient);
-					PerfCounters->Set(TEXT("MinPing"), MinPing, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_AvgPing, AvgPing, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_MaxPing, MaxPing, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_MinPing, MinPing, IPerfCounters::Flags::Transient);
 
 					// update buckets
 					for (int BucketIdx = 0; BucketIdx < UE_ARRAY_COUNT(Buckets); ++BucketIdx)
@@ -1051,9 +1056,9 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				}
 				else
 				{
-					PerfCounters->Set(TEXT("AvgPing"), 0.0f, IPerfCounters::Flags::Transient);
-					PerfCounters->Set(TEXT("MaxPing"), -FLT_MAX, IPerfCounters::Flags::Transient);
-					PerfCounters->Set(TEXT("MinPing"), FLT_MAX, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_AvgPing, 0.0f, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_MaxPing, -FLT_MAX, IPerfCounters::Flags::Transient);
+					PerfCounters->Set(PerfCounter_MinPing, FLT_MAX, IPerfCounters::Flags::Transient);
 
 					for (int BucketIdx = 0; BucketIdx < kNumBuckets; ++BucketIdx)
 					{
@@ -1061,31 +1066,55 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 					}
 				}
 
+				static const FString PerfCounter_NumClients = TEXT("NumClients");
+				static const FString PerfCounter_MaxPacketOverhead = TEXT("MaxPacketOverhead");
+				static const FString PerfCounter_InRateClientMax = TEXT("InRateClientMax");
+				static const FString PerfCounter_InRateClientMin = TEXT("InRateClientMin");
+				static const FString PerfCounter_InRateClientAvg = TEXT("InRateClientAvg");
+				static const FString PerfCounter_InPacketsClientMax = TEXT("InPacketsClientMax");
+				static const FString PerfCounter_InPacketsClientMin = TEXT("InPacketsClientMin");
+				static const FString PerfCounter_InPacketsClientAvg = TEXT("InPacketsClientAvg");
+				static const FString PerfCounter_OutRateClientMax = TEXT("OutRateClientMax");
+				static const FString PerfCounter_OutRateClientMin = TEXT("OutRateClientMin");
+				static const FString PerfCounter_OutRateClientAvg = TEXT("OutRateClientAvg");
+				static const FString PerfCounter_OutPacketsClientMax = TEXT("OutPacketsClientMax");
+				static const FString PerfCounter_OutPacketsClientMin = TEXT("OutPacketsClientMin");
+				static const FString PerfCounter_OutPacketsClientAvg = TEXT("OutPacketsClientAvg");
+
+				static const FString PerfCounter_InRate = TEXT("InRate");
+				static const FString PerfCounter_OutRate = TEXT("OutRate");
+				static const FString PerfCounter_InPacketsLost = TEXT("InPacketsLost");
+				static const FString PerfCounter_OutPacketsLost = TEXT("OutPacketsLost");
+				static const FString PerfCounter_InPackets = TEXT("InPackets");
+				static const FString PerfCounter_OutPackets = TEXT("OutPackets");
+				static const FString PerfCounter_InBunches = TEXT("InBunches");
+				static const FString PerfCounter_OutBunches = TEXT("OutBunches");
+
 				// set the per connection stats (these are calculated earlier).
 				// Note that NumClients may be != NumConnections. Also, if NumClients is 0, the rest of counters should be 0 as well
-				PerfCounters->Set(TEXT("NumClients"), NumClients);
-				PerfCounters->Set(TEXT("MaxPacketOverhead"), MaxPacketOverhead);
-				PerfCounters->Set(TEXT("InRateClientMax"), ClientInBytesMax);
-				PerfCounters->Set(TEXT("InRateClientMin"), ClientInBytesMin);
-				PerfCounters->Set(TEXT("InRateClientAvg"), ClientInBytesAvg);
-				PerfCounters->Set(TEXT("InPacketsClientMax"), ClientInPacketsMax);
-				PerfCounters->Set(TEXT("InPacketsClientMin"), ClientInPacketsMin);
-				PerfCounters->Set(TEXT("InPacketsClientAvg"), ClientInPacketsAvg);
-				PerfCounters->Set(TEXT("OutRateClientMax"), ClientOutBytesMax);
-				PerfCounters->Set(TEXT("OutRateClientMin"), ClientOutBytesMin);
-				PerfCounters->Set(TEXT("OutRateClientAvg"), ClientOutBytesAvg);
-				PerfCounters->Set(TEXT("OutPacketsClientMax"), ClientOutPacketsMax);
-				PerfCounters->Set(TEXT("OutPacketsClientMin"), ClientOutPacketsMin);
-				PerfCounters->Set(TEXT("OutPacketsClientAvg"), ClientOutPacketsAvg);
+				PerfCounters->Set(PerfCounter_NumClients, NumClients);
+				PerfCounters->Set(PerfCounter_MaxPacketOverhead, MaxPacketOverhead);
+				PerfCounters->Set(PerfCounter_InRateClientMax, ClientInBytesMax);
+				PerfCounters->Set(PerfCounter_InRateClientMin, ClientInBytesMin);
+				PerfCounters->Set(PerfCounter_InRateClientAvg, ClientInBytesAvg);
+				PerfCounters->Set(PerfCounter_InPacketsClientMax, ClientInPacketsMax);
+				PerfCounters->Set(PerfCounter_InPacketsClientMin, ClientInPacketsMin);
+				PerfCounters->Set(PerfCounter_InPacketsClientAvg, ClientInPacketsAvg);
+				PerfCounters->Set(PerfCounter_OutRateClientMax, ClientOutBytesMax);
+				PerfCounters->Set(PerfCounter_OutRateClientMin, ClientOutBytesMin);
+				PerfCounters->Set(PerfCounter_OutRateClientAvg, ClientOutBytesAvg);
+				PerfCounters->Set(PerfCounter_OutPacketsClientMax, ClientOutPacketsMax);
+				PerfCounters->Set(PerfCounter_OutPacketsClientMin, ClientOutPacketsMin);
+				PerfCounters->Set(PerfCounter_OutPacketsClientAvg, ClientOutPacketsAvg);
 
-				PerfCounters->Set(TEXT("InRate"), InBytes);
-				PerfCounters->Set(TEXT("OutRate"), OutBytes);
-				PerfCounters->Set(TEXT("InPacketsLost"), InPacketsLost);
-				PerfCounters->Set(TEXT("OutPacketsLost"), OutPacketsLost);
-				PerfCounters->Set(TEXT("InPackets"), InPackets);
-				PerfCounters->Set(TEXT("OutPackets"), OutPackets);
-				PerfCounters->Set(TEXT("InBunches"), InBunches);
-				PerfCounters->Set(TEXT("OutBunches"), OutBunches);
+				PerfCounters->Set(PerfCounter_InRate, InBytes);
+				PerfCounters->Set(PerfCounter_OutRate, OutBytes);
+				PerfCounters->Set(PerfCounter_InPacketsLost, InPacketsLost);
+				PerfCounters->Set(PerfCounter_OutPacketsLost, OutPacketsLost);
+				PerfCounters->Set(PerfCounter_InPackets, InPackets);
+				PerfCounters->Set(PerfCounter_OutPackets, OutPackets);
+				PerfCounters->Set(PerfCounter_InBunches, InBunches);
+				PerfCounters->Set(PerfCounter_OutBunches, OutBunches);
 			}
 #endif // USE_SERVER_PERF_COUNTERS
 
@@ -3119,7 +3148,7 @@ bool UNetDriver::HandleDumpRepLayoutFlagsCommand(const TCHAR* Cmd, FOutputDevice
 
 				for (int32 i = 0; i < ParentCount; ++i)
 				{
-					if ((RepLayout->GetParentCondition(i) != COND_Never) && !RepLayout->IsPushModelProperty(i) && (RepLayout->GetParentArrayIndex(i) == 0))
+					if ((RepLayout->GetParentCondition(i) != COND_Never) && !RepLayout->IsPushModelProperty(i) && !RepLayout->IsCustomDeltaProperty(i) && (RepLayout->GetParentArrayIndex(i) == 0))
 					{
 						if (const FProperty* Property = RepLayout->GetParentProperty(i))
 						{

@@ -4,18 +4,22 @@
 #include "IO/IoContainerHeader.h"
 #include "IO/IoDispatcher.h"
 #include "StorageServerConnection.h"
+#include "Serialization/MemoryReader.h"
 
 #if !UE_BUILD_SHIPPING
 
 FStorageServerPackageStore::FStorageServerPackageStore(FStorageServerConnection& Connection)
 {
 	FIoChunkId HeaderChunkId = CreateIoChunkId(FIoContainerId::FromName(TEXT("global")).Value(), 0, EIoChunkType::ContainerHeader);
-	Connection.ReadChunkRequest(HeaderChunkId, 0, uint64(-1), [this](FStorageServerResponse& ResponseStream)
+	Connection.ReadChunkRequest(HeaderChunkId, 0, uint64(-1), [this](FStorageServerResponse& Response)
 	{
-		if (ResponseStream.IsOk())
+		FIoBuffer Chunk;
+		if (Response.SerializeChunk(Chunk))
 		{
+			FMemoryReaderView Ar(MakeArrayView(reinterpret_cast<const uint8*>(Chunk.Data()), Chunk.DataSize()));
+			
 			FIoContainerHeader ContainerHeader;
-			ResponseStream << ContainerHeader;
+			Ar << ContainerHeader;
 			StoreEntriesData = MoveTemp(ContainerHeader.StoreEntries);
 			StoreEntriesMap.Reserve(ContainerHeader.PackageCount);
 			TArrayView<const FFilePackageStoreEntry> StoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(StoreEntriesData.GetData()), ContainerHeader.PackageCount);

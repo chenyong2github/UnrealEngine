@@ -60,7 +60,7 @@ set FORCECOMPILE_UAT=FORCE
 
 
 
-call "%SCRIPT_DIR%BuildUAT.bat" %FORCECOMPILE_UAT%
+call "%SCRIPT_DIR%BuildUAT.bat" %MSBUILD_LOGLEVEL% %FORCECOMPILE_UAT%
 if errorlevel 1 goto Error_UATCompileFailed
 
 goto DoRunUAT

@@ -1956,16 +1956,10 @@ namespace OculusHMD
 	}
 
 
-	bool FOculusHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
-	{
-		// We need to use GEngine->IsStereoscopic3D in case the current viewport disallows running in stereo.
-		return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
-	}
-
 
 	FOculusHMD::FOculusHMD(const FAutoRegister& AutoRegister)
 		: FHeadMountedDisplayBase(nullptr)
-		, FSceneViewExtensionBase(AutoRegister)
+		, FHMDSceneViewExtension(AutoRegister)
 		, ConsoleCommands(this)
 		, bShutdownRequestQueued(false)
 	{
@@ -2317,11 +2311,11 @@ namespace OculusHMD
 
 		if (Settings->bEnableSpecificColorGamut)
 		{
-			EColorSpace ClientColorSpace = Settings->ColorSpace;
+			EOculusColorSpace ClientColorSpace = Settings->ColorSpace;
 #if PLATFORM_ANDROID
-			if (ClientColorSpace == EColorSpace::Unknown)
+			if (ClientColorSpace == EOculusColorSpace::Unknown)
 			{
-				ClientColorSpace = EColorSpace::Quest;
+				ClientColorSpace = EOculusColorSpace::Quest;
 			}
 #endif
 			FOculusHMDModule::GetPluginWrapper().SetClientColorDesc((ovrpColorSpace)ClientColorSpace);

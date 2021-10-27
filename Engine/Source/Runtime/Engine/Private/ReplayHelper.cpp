@@ -28,31 +28,6 @@ extern TAutoConsoleVariable<float> CVarCheckpointSaveMaxMSPerFrameOverride;
 
 CSV_DECLARE_CATEGORY_EXTERN(Demo);
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FScopedPacketManager::FScopedPacketManager(UNetConnection& InConnection, TArray<FQueuedDemoPacket>& InPackets, const uint32 InSeenLevelIndex) :
-	Connection(InConnection),
-	Packets(InPackets),
-	SeenLevelIndex(InSeenLevelIndex)
-{
-	FReplayHelper::FlushNetChecked(Connection);
-	StartPacketCount = Packets.Num();
-}
-
-FScopedPacketManager::~FScopedPacketManager()
-{
-	FReplayHelper::FlushNetChecked(Connection);
-	AssociatePacketsWithLevel();
-}
-
-void FScopedPacketManager::AssociatePacketsWithLevel()
-{
-	for (int32 i = StartPacketCount; i < Packets.Num(); i++)
-	{
-		Packets[i].SeenLevelIndex = SeenLevelIndex;
-	}
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 FReplayHelper::FReplayHelper()
 	: CurrentLevelIndex(0)
 	, DemoFrameNum(0)
@@ -1164,33 +1139,53 @@ void FReplayHelper::SaveExternalData(UNetConnection* Connection, FArchive& Ar)
 	check(Connection && Connection->Driver);
 
 	SCOPED_NAMED_EVENT(FReplayHelper_SaveExternalData, FColor::Blue);
-	for (auto It = ObjectsWithExternalData.CreateIterator(); It; ++It)
+	for (TPair<TWeakObjectPtr<UObject>, FNetworkGUID>& Pair : ObjectsWithExternalDataMap)
 	{
-		FReplayExternalOutData& Element = *It;
-		if (UObject* Object = Element.Object.Get())
+		if (UObject* Object = Pair.Key.Get())
 		{
-			FRepChangedPropertyTracker* PropertyTracker = Connection->Driver->RepChangedPropertyTrackerMap.FindChecked(Object).Get();
-
-			uint32 ExternalDataNumBits = PropertyTracker->ExternalDataNumBits;
-			if (ExternalDataNumBits > 0)
+			if (FExternalDataWrapper* ExternalData = ExternalDataMap.Find(Object))
 			{
-				// Save payload size (in bits)
-				Ar.SerializeIntPacked(ExternalDataNumBits);
+				if (ExternalData->NumBits > 0)
+				{
+					// Save payload size (in bits)
+					uint32 NumBits = ExternalData->NumBits;
+					Ar.SerializeIntPacked(NumBits);
 
-				// Save GUID
-				Ar << Element.GUID;
+					// Save GUID
+					Ar << ExternalData->NetGUID;
 
-				// Save payload
-				Ar.Serialize(PropertyTracker->ExternalData.GetData(), PropertyTracker->ExternalData.Num());
+					// Save payload
+					Ar.Serialize(ExternalData->Data.GetData(), ExternalData->Data.Num());
+				}
+			}
+			else
+			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				FRepChangedPropertyTracker* PropertyTracker = Connection->Driver->RepChangedPropertyTrackerMap.FindChecked(Object).Get();
 
-				PropertyTracker->ExternalData.Empty();
-				PropertyTracker->ExternalDataNumBits = 0;
+				uint32 ExternalDataNumBits = PropertyTracker->ExternalDataNumBits;
+				if (ExternalDataNumBits > 0)
+				{
+					// Save payload size (in bits)
+					Ar.SerializeIntPacked(ExternalDataNumBits);
+
+					// Save GUID
+					Ar << Pair.Value;
+
+					// Save payload
+					Ar.Serialize(PropertyTracker->ExternalData.GetData(), PropertyTracker->ExternalData.Num());
+
+					PropertyTracker->ExternalData.Empty();
+					PropertyTracker->ExternalDataNumBits = 0;
+				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
 
 	// Reset external out datas
-	ObjectsWithExternalData.Reset();
+	ObjectsWithExternalDataMap.Reset();
+	ExternalDataMap.Reset();
 
 	uint32 StopCount = 0;
 	Ar.SerializeIntPacked(StopCount);
@@ -1296,7 +1291,7 @@ bool FReplayHelper::ReplicateCheckpointActor(AActor* ToReplicate, UNetConnection
 			ActorChannel->ConditionalCleanUp(false, EChannelCloseReason::Dormancy);
 		}
 
-		UpdateExternalDataForActor(Connection, ToReplicate);
+		UpdateExternalDataForObject(Connection, ToReplicate);
 
 		const double CheckpointTime = FPlatformTime::Seconds();
 
@@ -1344,11 +1339,12 @@ void FReplayHelper::LoadExternalData(FArchive& Ar, const float TimeSeconds)
 	}
 }
 
-bool FReplayHelper::UpdateExternalDataForActor(UNetConnection* Connection, AActor* Actor)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FReplayHelper::UpdateExternalDataForObject(UNetConnection* Connection, UObject* OwningObject)
 {
 	check(Connection && Connection->Driver);
 
-	UNetDriver::FRepChangedPropertyTrackerWrapper* PropertyTrackerWrapper = Connection->Driver->RepChangedPropertyTrackerMap.Find(Actor);
+	UNetDriver::FRepChangedPropertyTrackerWrapper* PropertyTrackerWrapper = Connection->Driver->RepChangedPropertyTrackerMap.Find(OwningObject);
 	if (PropertyTrackerWrapper == nullptr)
 	{
 		return false;
@@ -1361,20 +1357,59 @@ bool FReplayHelper::UpdateExternalDataForActor(UNetConnection* Connection, AActo
 		return false;
 	}
 
-	if (FNetworkGUID* NetworkGUID = Connection->Driver->GuidCache->NetGUIDLookup.Find(Actor))
+	if (FNetworkGUID* NetworkGUID = Connection->Driver->GuidCache->NetGUIDLookup.Find(OwningObject))
 	{
-		ObjectsWithExternalData.Add({ Actor, *NetworkGUID });
+		ObjectsWithExternalDataMap.Add(OwningObject, *NetworkGUID);
 
 		return true;
 	}
 	else
 	{
+		UE_LOG(LogDemo, Warning, TEXT("UpdateExternalDataForObject: Discarding external data for object with no net guid: %s"), *GetNameSafe(OwningObject));
+
 		// Clear external data if the actor has never replicated yet (and doesn't have a net guid)
 		PropertyTracker->ExternalData.Reset();
 		PropertyTracker->ExternalDataNumBits = 0;
 
 		return false;
 	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+// only allow one chunk of data per object at a time (first wins), when recording ticks it will store/clear it
+bool FReplayHelper::SetExternalDataForObject(UNetConnection* Connection, UObject* OwningObject, const uint8* Src, const int32 NumBits)
+{
+	check(Connection && Connection->Driver);
+
+	if (FNetworkGUID* NetworkGUID = Connection->Driver->GuidCache->NetGUIDLookup.Find(OwningObject))
+	{
+		if (!ExternalDataMap.Contains(OwningObject))
+		{
+			ObjectsWithExternalDataMap.Add(OwningObject, *NetworkGUID);
+
+			FExternalDataWrapper ExternalData;
+			ExternalData.NetGUID = *NetworkGUID;
+			ExternalData.NumBits = NumBits;
+
+			const int32 NumBytes = (NumBits + 7) >> 3;
+
+			ExternalData.Data.AddUninitialized(NumBytes);
+			FMemory::Memcpy(ExternalData.Data.GetData(), Src, NumBytes);
+
+			ExternalDataMap.Emplace(OwningObject, MoveTemp(ExternalData));
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogDemo, Warning, TEXT("SetExternalDataForObject: Discarding external data for object, already exists: %s"), *GetNameSafe(OwningObject));
+		}
+	}
+	else
+	{
+		UE_LOG(LogDemo, Warning, TEXT("SetExternalDataForObject: Discarding external data for object with no net guid: %s"), *GetNameSafe(OwningObject));
+	}
+
+	return false;
 }
 
 void FReplayHelper::Serialize(FArchive& Ar)
@@ -1415,7 +1450,8 @@ void FReplayHelper::Serialize(FArchive& Ar)
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelStatusIndexByLevel", LevelStatusIndexByLevel.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SeenLevelStatuses", SeenLevelStatuses.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelsPendingFastForward", LevelsPendingFastForward.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectsWithExternalData", ObjectsWithExternalData.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectsWithExternalDataMap", ObjectsWithExternalDataMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExternalDataMap", ExternalDataMap.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointSaveContext", CheckpointSaveContext.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedDemoPackets",

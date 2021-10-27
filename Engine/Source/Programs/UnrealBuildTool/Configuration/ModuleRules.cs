@@ -842,6 +842,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
 		/// </summary>
+		public List<string> AllowedRestrictedFolders = new List<string>();
+
+		/// <summary>
+		/// List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
+		/// </summary>
+		[Obsolete("WhitelistRestrictedFolders has been deprecated in 5.0. Use AllowedRestrictedFolders instead.")]
 		public List<string> WhitelistRestrictedFolders = new List<string>();
 
 		/// <summary>
@@ -878,7 +884,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether this module can use PLATFORM_XXXX style defines, where XXXX is a confidential platform name. This is used to ensure engine or other 
 		/// shared code does not reveal confidential information inside an #if PLATFORM_XXXX block. Licensee game code may want to allow for them, however.
-		/// Note: this is future looking, and previous confidential platforms (like PS4) are unlikely to be restricted
 		/// </summary>
 		public bool bAllowConfidentialPlatformDefines = false;
 

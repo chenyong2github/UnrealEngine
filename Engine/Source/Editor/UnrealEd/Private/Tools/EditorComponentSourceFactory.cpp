@@ -8,14 +8,15 @@
 #include "StaticMeshAttributes.h"
 #include "ComponentReregisterContext.h"
 #include "PhysicsEngine/BodySetup.h"
-
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 static void DisplayCriticalWarningMessage(const FString& Message)
 {
-	if (GAreScreenMessagesEnabled)
-	{
-		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, Message);
-	}
+	FNotificationInfo Info(FText::FromString(Message));
+	Info.ExpireDuration = 5.0f;
+	FSlateNotificationManager::Get().AddNotification(Info);
+
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
 }
 

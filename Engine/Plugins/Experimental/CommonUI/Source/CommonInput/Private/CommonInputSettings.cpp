@@ -133,7 +133,7 @@ void UCommonInputSettings::PostInitProperties()
 				Settings->DefaultInputType = OriginalData.DefaultInputType;
 				Settings->ControllerData = OriginalData.ControllerData;
 
-				Settings->UpdateDefaultConfigFile();
+				Settings->TryUpdateDefaultConfigFile();
 			}
 			else if (PlatformData.Key == FCommonInputDefaults::PlatformPC)
 			{
@@ -154,14 +154,14 @@ void UCommonInputSettings::PostInitProperties()
 						PCPlatform->DefaultInputType = OriginalData.DefaultInputType;
 						PCPlatform->ControllerData = OriginalData.ControllerData;
 
-						PCPlatform->UpdateDefaultConfigFile();
+						PCPlatform->TryUpdateDefaultConfigFile();
 					}
 				}
 			}
 		}
 
 		CommonInputPlatformData_DEPRECATED.Reset();
-		UpdateDefaultConfigFile();
+		TryUpdateDefaultConfigFile();
 	}
 #endif
 }

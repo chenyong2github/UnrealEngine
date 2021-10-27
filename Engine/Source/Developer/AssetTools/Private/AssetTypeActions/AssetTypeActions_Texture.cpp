@@ -37,7 +37,6 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Misc/ScopedSlowTask.h"
 #include "EditorSupportDelegates.h"
-#include "Factories/TextureImportSettings.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialEditingLibrary.h"
 #include "AssetVtConversion.h"
@@ -882,9 +881,6 @@ FConvertToVTDlg::EResult FConvertToVTDlg::ShowModal()
 
 void FAssetTypeActions_Texture::ConvertVTTexture(TArray<TWeakObjectPtr<UTexture>> Objects, bool backwards)
 {
-	int virtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
-	int virtualTextureAutoEnableThresholdPixels = virtualTextureAutoEnableThreshold * virtualTextureAutoEnableThreshold;
-
 	TArray<FAssetData> AllRelevantMaterials;
 	TArray<UTexture2D*> UserTextures; // The original selection of the user
 

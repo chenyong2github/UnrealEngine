@@ -8,6 +8,7 @@ TextureInstanceView.h: Definitions of classes used for texture streaming.
 
 #include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
+#include "Containers/ChunkedArray.h"
 #include "Streaming/StreamingTexture.h"
 
 class UPrimitiveComponent;
@@ -83,7 +84,16 @@ public:
 
 	struct FElement
 	{
-		FORCEINLINE FElement();
+		FORCEINLINE FElement()
+			: Component(nullptr)
+			, RenderAsset(nullptr)
+			, BoundsIndex(INDEX_NONE)
+			, TexelFactor(0)
+			, PrevRenderAssetLink(INDEX_NONE)
+			, NextRenderAssetLink(INDEX_NONE)
+			, NextComponentLink(INDEX_NONE)
+		{
+		}
 
 		const UPrimitiveComponent* Component; // Which component this relates too
 		const UStreamableRenderAsset* RenderAsset;	// Texture or mesh, never dereferenced.
@@ -222,7 +232,7 @@ protected:
 
 	TArray<FBounds4> Bounds4;
 
-	TArray<FElement> Elements;
+	TChunkedArray<FElement> Elements;
 
 	TMap<const UStreamableRenderAsset*, FRenderAssetDesc> RenderAssetMap;
 

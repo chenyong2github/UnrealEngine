@@ -75,6 +75,7 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 #if UE_ALLOW_OSMEMORYLOCKFREE
 						FScopeUnlock FScopeUnlock(Mutex);
 #endif
+						LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
 						Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 					}
 					LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);

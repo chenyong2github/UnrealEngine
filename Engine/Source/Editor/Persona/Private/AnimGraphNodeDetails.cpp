@@ -195,11 +195,8 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 						}
 
 						NameWidget = PropertyNameWidget;
-
-						// we only show children if visibility is one
-						// whenever toggles, this gets called, so it will be refreshed
-						const bool bShowChildren = GetVisibilityOfProperty(ShowHidePropertyHandle) == EVisibility::Visible;
-						PropertyRow.CustomWidget(bShowChildren)
+						
+						PropertyRow.CustomWidget()
 						.NameContent()
 						.MinDesiredWidth(Row.NameWidget.MinWidth)
 						.MaxDesiredWidth(Row.NameWidget.MaxWidth)
@@ -212,6 +209,28 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 						[
 							ValueWidget.ToSharedRef()
 						];
+
+						// Set visibility of children based on parent if this is an array property
+						if(TargetPropertyHandle->AsArray().IsValid())
+						{
+							uint32 NumChildren = 0;
+							TargetPropertyHandle->GetNumChildren(NumChildren);
+							for(uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+							{
+								TSharedPtr<IPropertyHandle> ChildHandle = TargetPropertyHandle->GetChildHandle(ChildIndex);
+								IDetailPropertyRow& ChildRow = DetailBuilder.AddPropertyToCategory(ChildHandle);
+
+								ChildRow.Visibility(MakeAttributeLambda([this, WeakShowHidePropertyHandle = TWeakPtr<IPropertyHandle>(ShowHidePropertyHandle)]()
+								{
+									if(TSharedPtr<IPropertyHandle> PinnedShowHidePropertyHandle = WeakShowHidePropertyHandle.Pin())
+									{
+										return GetVisibilityOfProperty(PinnedShowHidePropertyHandle.ToSharedRef());
+									}
+
+									return EVisibility::Visible;
+								}));
+							}
+						}
 					}
 					else if (InternalCustomWidget != SNullWidget::NullWidget)
 					{
@@ -1170,7 +1189,18 @@ void FAnimGraphNodeBindingExtension::GetOptionalPinData(const IPropertyHandle& P
 		{
 			OutOptionalPinIndex = OutAnimGraphNode->ShowPinForProperties.IndexOfByPredicate([Property](const FOptionalPinFromProperty& InOptionalPin)
 			{
-				return Property->GetFName() == InOptionalPin.PropertyName;
+				UStruct* OwnerStruct = Property->GetOwnerStruct();
+				if(OwnerStruct)
+				{
+					// Checking the owner struct here avoids placing binding widgets on inner structs that have properties
+					// that share the same name as the anim node we are customizing
+					if(OwnerStruct->IsChildOf(FAnimNode_Base::StaticStruct()))
+					{
+						return Property->GetFName() == InOptionalPin.PropertyName;
+					}
+				}
+				
+				return false;
 			});
 		}
 	}

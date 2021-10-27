@@ -50,6 +50,11 @@ FPatchCheck::~FPatchCheck()
 
 FPatchCheck::FPatchCheck()
 {
+	RefreshConfig();
+}
+
+void FPatchCheck::RefreshConfig()
+{
 	if (!GConfig->GetBool(TEXT("PatchCheck"), TEXT("bCheckPlatformOSSForUpdate"), bCheckPlatformOSSForUpdate, GEngineIni))
 	{
 		/** For backwards compatibility with UUpdateManager */
@@ -73,6 +78,8 @@ void FPatchCheck::StartPatchCheck()
 {
 	if (bIsCheckInProgress)
 		return;
+
+	RefreshConfig();
 
 	if (bCheckPlatformOSSForUpdate && IOnlineSubsystem::GetByPlatform() != nullptr)
 	{

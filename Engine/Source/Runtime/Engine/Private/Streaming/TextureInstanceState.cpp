@@ -93,6 +93,7 @@ void FRenderAssetInstanceState::RemoveBounds(int32 BoundsIndex)
 
 void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponent, const UStreamableRenderAsset* InAsset, int InBoundsIndex, float InTexelFactor, bool InForceLoad, int32*& ComponentLink, int32 IterationCount_DebuggingOnly)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRenderAssetInstanceState::AddElement);
 	check(InComponent && InAsset);
 
 	// Keep Max texel factor up to date.
@@ -101,12 +102,13 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 	int32 ElementIndex = INDEX_NONE;
 	if (FreeElementIndices.Num())
 	{
-		ElementIndex = FreeElementIndices.Pop();
+		const bool bAllowShrinking = false;
+		ElementIndex = FreeElementIndices.Pop(bAllowShrinking);
 	}
 	else
 	{
 		ElementIndex = Elements.Num();
-		Elements.Push(FElement());
+		Elements.AddElement(FElement());
 	}
 
 	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);

@@ -279,10 +279,10 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 		// first event associated with this key, add it to the map
 		FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
 
-		TestEventEdges(KeyState, KeyState.Value.X);
+		TestEventEdges(KeyState, UE_REAL_TO_FLOAT(KeyState.Value.X));
 
 		// accumulate deltas until processed next
-		KeyState.SampleCountAccumulator += NumSamples;
+		KeyState.SampleCountAccumulator += (uint8)NumSamples;
 		KeyState.RawValueAccumulator.X += Delta;
 	}
 
@@ -618,7 +618,7 @@ struct FAxisDelegate
 
 	friend inline uint32 GetTypeHash(FAxisDelegate const& D)
 	{
-		return (PTRINT)D.Obj + (PTRINT)D.Func;
+		return uint32((PTRINT)D.Obj + (PTRINT)D.Func);
 	}
 };
 
@@ -1135,7 +1135,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 		 	if ( SmoothedMouse[0] != 0 )
 		 	{
 		 		// not first non-zero
-		 		MouseSamplingTotal += FApp::GetDeltaTime();
+		 		MouseSamplingTotal += UE_REAL_TO_FLOAT(FApp::GetDeltaTime());
 		 		MouseSamples += KeyState->SampleCountAccumulator;
 		 	}
 		}
@@ -1482,7 +1482,7 @@ float UPlayerInput::SmoothMouse(float aMouse, uint8& SampleCount, int32 Index)
 		}
 	}
 
-	const float DeltaTime = FApp::GetDeltaTime();
+	const float DeltaTime = UE_REAL_TO_FLOAT(FApp::GetDeltaTime());
 
 	if (DeltaTime < 0.25f)
 	{
@@ -1523,7 +1523,7 @@ float UPlayerInput::SmoothMouse(float aMouse, uint8& SampleCount, int32 Index)
 				{
 					// fewer samples, so going slow
 					// use number of samples we should have had for sample count
-					SampleCount = DeltaTime/MouseSamplingTime;
+					SampleCount = (uint8)(DeltaTime / MouseSamplingTime);
 				}
 			}
 

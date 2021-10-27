@@ -157,6 +157,37 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Navmesh cumulative build Time"),STAT
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Navmesh build time"),STAT_Navigation_BuildTime,STATGROUP_Navigation, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Recast memory"), STAT_Navigation_RecastMemory, STATGROUP_Navigation, );
 
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour TEMP"), STAT_Navigation_DetourTEMP, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM"), STAT_Navigation_DetourPERM, STATGROUP_Navigation, ); // This stat should not really be used and will be deprecated, favor stats that define the preferred type of allocation.
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_AVOIDANCE"), STAT_Navigation_DetourPERM_AVOIDANCE, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_CROWD"), STAT_Navigation_DetourPERM_CROWD, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_LOOKUP"), STAT_Navigation_DetourPERM_LOOKUP, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_NAVQUERY"), STAT_Navigation_DetourPERM_NAVQUERY, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_NAVMESH"), STAT_Navigation_DetourPERM_NAVMESH, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_NODE_POOL"), STAT_Navigation_DetourPERM_NODE_POOL, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_PATH_CORRIDOR"), STAT_Navigation_DetourPERM_PATH_CORRIDOR, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_PATH_QUEUE"), STAT_Navigation_DetourPERM_PATH_QUEUE, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_PROXY_GRID"), STAT_Navigation_DetourPERM_PROXY_GRID, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_TILE_DATA"), STAT_Navigation_DetourPERM_TILE_DATA, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_TILE_DYNLINK_OFFMESH"), STAT_Navigation_DetourPERM_TILE_DYNLINK_OFFMESH, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_TILE_DYNLINK_CLUSTER"), STAT_Navigation_DetourPERM_TILE_DYNLINK_CLUSTER, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour PERM_TILES"), STAT_Navigation_DetourPERM_TILES, STATGROUP_Navigation, );
+
+
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Memory"), STAT_DetourTileMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Mesh Header Memory"), STAT_DetourTileMeshHeaderMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Nav Verts Memory"), STAT_DetourTileNavVertsMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Nav Polys Memory"), STAT_DetourTileNavPolysMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Links Memory"), STAT_DetourTileLinksMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Detail Meshes Memory"), STAT_DetourTileDetailMeshesMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Detail Verts Memory"), STAT_DetourTileDetailVertsMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Detail Tris Memory"), STAT_DetourTileDetailTrisMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile BV Tree Memory"), STAT_DetourTileBVTreeMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Off Mesh Cons Memory"), STAT_DetourTileOffMeshConsMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Off Mesh Segs Memory"), STAT_DetourTileOffMeshSegsMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Poly CLusters Memory"), STAT_DetourTileClustersMemory, STATGROUP_Navigation, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Detour Tile Poly CLusters Memory"), STAT_DetourTilePolyClustersMemory, STATGROUP_Navigation, );
+
 /**
 * Canvas Stats
 */

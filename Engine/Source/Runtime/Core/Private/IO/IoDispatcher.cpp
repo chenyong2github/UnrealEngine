@@ -141,6 +141,49 @@ private:
 	FCriticalSection	CriticalSection;
 };
 
+class FIoRequestAllocator
+{
+public:
+	void AddRef()
+	{
+		RefCount.IncrementExchange();
+	}
+
+	void ReleaseRef()
+	{
+		if (RefCount.DecrementExchange() == 1)
+		{
+			delete this;
+		}
+	}
+
+	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
+	{
+		FIoRequestImpl* Request = BlockAllocator.Construct(*this);
+		AddRef();
+
+		Request->ChunkId = ChunkId;
+		Request->Options = Options;
+
+		return Request;
+	}
+
+	void FreeRequest(FIoRequestImpl* Request)
+	{
+		BlockAllocator.Destroy(Request);
+		ReleaseRef();
+	}
+
+	void Trim()
+	{
+		BlockAllocator.Trim();
+	}
+
+private:
+	TAtomic<int32> RefCount;
+	TBlockAllocator<FIoRequestImpl, 4096> BlockAllocator;
+};
+
 class FIoDispatcherImpl
 	: public FRunnable
 {
@@ -148,12 +191,14 @@ public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: BackendContext(MakeShared<FIoDispatcherBackendContext>())
 	{
+		RequestAllocator = new FIoRequestAllocator();
+		RequestAllocator->AddRef();
 		DispatcherEvent = FPlatformProcess::GetSynchEventFromPool(false);
 		BackendContext->WakeUpDispatcherThreadDelegate.BindRaw(this, &FIoDispatcherImpl::WakeUpDispatcherThread);
 		BackendContext->bIsMultiThreaded = bInIsMultithreaded;
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
-			RequestAllocator.Trim();
+			RequestAllocator->Trim();
 			BatchAllocator.Trim();
 		});
 #if CSV_PROFILER
@@ -168,6 +213,7 @@ public:
 #endif
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
+		RequestAllocator->ReleaseRef();
 	}
 
 	FIoStatus Initialize()
@@ -185,21 +231,6 @@ public:
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
 		FFileIoStats::SetDispatcherThreadId(Thread ? Thread->GetThreadID() : 0);
 		return true;
-	}
-
-	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
-	{
-		FIoRequestImpl* Request = RequestAllocator.Construct(*this);
-
-		Request->ChunkId = ChunkId;
-		Request->Options = Options;
-
-		return Request;
-	}
-
-	void FreeRequest(FIoRequestImpl* Request)
-	{
-		RequestAllocator.Destroy(Request);
 	}
 
 	FIoBatchImpl* AllocBatch()
@@ -621,12 +652,11 @@ private:
 	}
 #endif
 
-	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
 	using FBatchAllocator = TBlockAllocator<FIoBatchImpl, 4096>;
 
 	TSharedRef<FIoDispatcherBackendContext> BackendContext;
 	TArray<TSharedRef<IIoDispatcherBackend>> Backends;
-	FRequestAllocator RequestAllocator;
+	FIoRequestAllocator* RequestAllocator = nullptr;
 	FBatchAllocator BatchAllocator;
 	FRunnableThread* Thread = nullptr;
 	FEvent* DispatcherEvent = nullptr;
@@ -816,7 +846,7 @@ FIoBatch::operator=(FIoBatch&& Other)
 FIoRequestImpl*
 FIoBatch::ReadInternal(const FIoChunkId& ChunkId, const FIoReadOptions& Options, int32 Priority)
 {
-	FIoRequestImpl* Request = Dispatcher->AllocRequest(ChunkId, Options);
+	FIoRequestImpl* Request = Dispatcher->RequestAllocator->AllocRequest(ChunkId, Options);
 	Request->Priority = Priority;
 	Request->AddRef();
 	if (!HeadRequest)
@@ -891,7 +921,7 @@ void FIoRequestImpl::CreateBuffer(uint64 Size)
 
 void FIoRequestImpl::FreeRequest()
 {
-	Dispatcher.FreeRequest(this);
+	Allocator.FreeRequest(this);
 }
 
 FIoRequest::FIoRequest(FIoRequestImpl* InImpl)
@@ -998,23 +1028,23 @@ FIoRequest::GetResultOrDie() const
 void
 FIoRequest::Cancel()
 {
-	if (!Impl)
+	if (!GIoDispatcher || !Impl)
 	{
 		return;
 	}
 	//TRACE_BOOKMARK(TEXT("FIoRequest::Cancel()"));
-	Impl->Dispatcher.Cancel(Impl);
+	GIoDispatcher->Impl->Cancel(Impl);
 }
 
 void
 FIoRequest::UpdatePriority(uint32 NewPriority)
 {
-	if (!Impl || Impl->Priority == NewPriority)
+	if (!GIoDispatcher || !Impl || Impl->Priority == NewPriority)
 	{
 		return;
 	}
 	Impl->Priority = NewPriority;
-	Impl->Dispatcher.Reprioritize(Impl);
+	GIoDispatcher->Impl->Reprioritize(Impl);
 }
 
 void

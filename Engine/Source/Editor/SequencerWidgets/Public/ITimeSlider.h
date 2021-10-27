@@ -24,6 +24,22 @@ enum class EViewRangeInterpolation
 	Immediate,
 };
 
+/** Enum specifying how to find the nearest key */
+enum class ENearestKeyOption : uint8
+{
+	NKO_None = 0x00,
+
+	/* Search keys */
+	NKO_SearchKeys = 0x01,
+
+	/* Search markers */
+	NKO_SearchMarkers = 0x02,
+
+	/** Search all tracks */
+	NKO_SearchAllTracks = 0x04
+};
+ENUM_CLASS_FLAGS(ENearestKeyOption);
+
 DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, FFrameTime, bool )
 DECLARE_DELEGATE_TwoParams( FOnViewRangeChanged, TRange<double>, EViewRangeInterpolation )
 DECLARE_DELEGATE_OneParam( FOnTimeRangeChanged, TRange<double> )
@@ -31,7 +47,7 @@ DECLARE_DELEGATE_OneParam( FOnFrameRangeChanged, TRange<FFrameNumber> )
 DECLARE_DELEGATE_TwoParams(FOnSetMarkedFrame, int32, FFrameNumber)
 DECLARE_DELEGATE_OneParam(FOnAddMarkedFrame, FFrameNumber)
 DECLARE_DELEGATE_OneParam(FOnDeleteMarkedFrame, int32)
-DECLARE_DELEGATE_RetVal_TwoParams( FFrameNumber, FOnGetNearestKey, FFrameTime, bool )
+DECLARE_DELEGATE_RetVal_TwoParams( FFrameNumber, FOnGetNearestKey, FFrameTime, ENearestKeyOption )
 DECLARE_DELEGATE_OneParam(FOnScrubPositionParentChanged, FMovieSceneSequenceID)
 
 /** Structure used to wrap up a range, and an optional animation target */

@@ -29,7 +29,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/TextFilter.h"
 #include "Kismet2/Kismet2NameValidators.h"
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -315,7 +315,7 @@ public:
 							.VAlign( VAlign_Center )
 							.AutoWidth()
 							[
-								SNew(SEditorHeaderButton)
+								SNew(SPositiveActionButton)
 								.OnClicked( this, &SUMGAnimationList::OnNewAnimationClicked )
 								.Text( LOCTEXT("NewAnimationButtonText", "Animation") )
 							]

@@ -236,54 +236,93 @@ void UpdateMaterialShaderCompilingStats(const FMaterial* Material)
 	}
 }
 
-
-const FStaticMaterialLayersParameter::ID FStaticMaterialLayersParameter::GetID() const
+FStaticParameterSet::FStaticParameterSet(const FStaticParameterSet& InValue)
+	: StaticSwitchParameters(InValue.StaticSwitchParameters)
+	, StaticComponentMaskParameters(InValue.StaticComponentMaskParameters)
+	, TerrainLayerWeightParameters(InValue.TerrainLayerWeightParameters)
+	, bHasMaterialLayers(InValue.bHasMaterialLayers)
 {
-	ID Result;
-	Result.ParameterID = *this;
-	Result.Functions = Value.GetID();
-
-	return Result;
+	if (bHasMaterialLayers)
+	{
+		MaterialLayers = InValue.MaterialLayers;
+	}
 }
 
-
-UMaterialFunctionInterface* FStaticMaterialLayersParameter::GetParameterAssociatedFunction(const FHashedMaterialParameterInfo& InParameterInfo) const
+FStaticParameterSet& FStaticParameterSet::operator=(const FStaticParameterSet& InValue)
 {
-	check(InParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter);
-
-	// Grab the associated layer or blend
-	UMaterialFunctionInterface* Function = nullptr;
-
-	if (InParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
+	StaticSwitchParameters = InValue.StaticSwitchParameters;
+	StaticComponentMaskParameters = InValue.StaticComponentMaskParameters;
+	TerrainLayerWeightParameters = InValue.TerrainLayerWeightParameters;
+	MaterialLayers = InValue.MaterialLayers;
+	bHasMaterialLayers = InValue.bHasMaterialLayers;
+	if (bHasMaterialLayers)
 	{
-		if (Value.Layers.IsValidIndex(InParameterInfo.Index))
-		{
-			Function = Value.Layers[InParameterInfo.Index];
-		}
+		MaterialLayers = InValue.MaterialLayers;
 	}
-	else if (InParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
-	{
-		if (Value.Blends.IsValidIndex(InParameterInfo.Index))
-		{
-			Function = Value.Blends[InParameterInfo.Index];
-		}
-	}
-
-	return Function;
+	return *this;
 }
 
-/** 
-* Tests this set against another for equality, disregarding override settings.
-* 
-* @param ReferenceSet	The set to compare against
-* @return				true if the sets are equal
-*/
+void FStaticParameterSet::Empty()
+{
+	StaticSwitchParameters.Empty();
+	StaticComponentMaskParameters.Empty();
+	TerrainLayerWeightParameters.Empty();
+	MaterialLayers.Empty();
+	bHasMaterialLayers = false;
+}
+
+#if WITH_EDITOR
+void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
+{
+	// Old UMaterialInstances may use this path to serialize their 'StaticParameters' (newer assets will use automatic tagged serialization)
+	// Even older UMaterialInstances may serialize FMaterialShaderMapId, which will potentially use this path as well (newer FMaterialShaderMapId do not serialize FStaticParameterSet directly)
+	// In both cases, the data will be loaded from uasset, so backwards compatibility is required
+	// New assets should *not* use this path, so this doesn't need to handle future version changes
+
+	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	Ar << StaticSwitchParameters;
+	Ar << StaticComponentMaskParameters;
+	Ar << TerrainLayerWeightParameters;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MaterialLayersParameterSerializationRefactor)
+	{
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MaterialLayerStacksAreNotParameters)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Ar << MaterialLayersParameters_DEPRECATED;
+			if (MaterialLayersParameters_DEPRECATED.Num() > 0)
+			{
+				bHasMaterialLayers = true;
+				MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value);
+				MaterialLayersParameters_DEPRECATED.Empty();
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+}
+
+void FStaticParameterSet::UpdateLegacyData()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (MaterialLayersParameters_DEPRECATED.Num() > 0)
+	{
+		bHasMaterialLayers = true;
+		MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value);
+		MaterialLayersParameters_DEPRECATED.Empty();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif // WITH_EDITOR
+
 bool FStaticParameterSet::operator==(const FStaticParameterSet& ReferenceSet) const
 {
 	if (StaticSwitchParameters.Num() != ReferenceSet.StaticSwitchParameters.Num()
 		|| StaticComponentMaskParameters.Num() != ReferenceSet.StaticComponentMaskParameters.Num()
 		|| TerrainLayerWeightParameters.Num() != ReferenceSet.TerrainLayerWeightParameters.Num()
-		|| MaterialLayersParameters.Num() != ReferenceSet.MaterialLayersParameters.Num())
+		|| bHasMaterialLayers != ReferenceSet.bHasMaterialLayers)
 	{
 		return false;
 	}
@@ -303,7 +342,7 @@ bool FStaticParameterSet::operator==(const FStaticParameterSet& ReferenceSet) co
 		return false;
 	}
 
-	if (MaterialLayersParameters != ReferenceSet.MaterialLayersParameters)
+	if (bHasMaterialLayers && MaterialLayers != ReferenceSet.MaterialLayers)
 	{
 		return false;
 	}
@@ -316,7 +355,6 @@ void FStaticParameterSet::SortForEquivalent()
 	StaticSwitchParameters.Sort([](const FStaticSwitchParameter& A, const FStaticSwitchParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
 	StaticComponentMaskParameters.Sort([](const FStaticComponentMaskParameter& A, const FStaticComponentMaskParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
 	TerrainLayerWeightParameters.Sort([](const FStaticTerrainLayerWeightParameter& A, const FStaticTerrainLayerWeightParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
-	MaterialLayersParameters.Sort([](const FStaticMaterialLayersParameter& A, const FStaticMaterialLayersParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
 }
 
 bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) const
@@ -324,7 +362,7 @@ bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) co
 	if (StaticSwitchParameters.Num() == ReferenceSet.StaticSwitchParameters.Num()
 		&& StaticComponentMaskParameters.Num() == ReferenceSet.StaticComponentMaskParameters.Num()
 		&& TerrainLayerWeightParameters.Num() == ReferenceSet.TerrainLayerWeightParameters.Num()
-		&& MaterialLayersParameters.Num() == ReferenceSet.MaterialLayersParameters.Num())
+		&& bHasMaterialLayers == ReferenceSet.bHasMaterialLayers)
 	{
 		// this is not ideal, but it is easy to code up
 		FStaticParameterSet Temp1 = *this;
@@ -426,6 +464,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	// You must bump MATERIALSHADERMAP_DERIVEDDATA_VER as well if changing the serialization of FMaterialShaderMapId.
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	const bool bIsLegacyPackage = Ar.UEVer() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS;
 
@@ -471,7 +510,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		{
 			// Serialize using old path
 			FStaticParameterSet ParameterSet;
-			ParameterSet.Serialize(Ar);
+			ParameterSet.SerializeLegacy(Ar);
 			UpdateFromParameterSet(ParameterSet);
 		}
 		else
@@ -479,7 +518,21 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 			Ar << StaticSwitchParameters;
 			Ar << StaticComponentMaskParameters;
 			Ar << TerrainLayerWeightParameters;
-			Ar << MaterialLayersParameterIDs;
+			if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MaterialLayerStacksAreNotParameters)
+			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				TArray<FStaticMaterialLayersParameter::ID> MaterialLayersParameterIDs;
+				Ar << MaterialLayersParameterIDs;
+				if (MaterialLayersParameterIDs.Num() > 0)
+				{
+					MaterialLayersId = MoveTemp(MaterialLayersParameterIDs[0].Functions);
+				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
+			else
+			{
+				Ar << MaterialLayersId;
+			}
 		}
 
 		Ar << ReferencedFunctions;
@@ -592,9 +645,9 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 	{
 		StaticTerrainLayerWeightParameter.UpdateHash(HashState);
 	}
-	for (const FStaticMaterialLayersParameter::ID &LayerParameterID : MaterialLayersParameterIDs)
+	if (MaterialLayersId)
 	{
-		LayerParameterID.UpdateHash(HashState);
+		MaterialLayersId->UpdateHash(HashState);
 	}
 
 	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedFunctions.Num(); FunctionIndex++)
@@ -678,7 +731,6 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 		if (StaticSwitchParameters.Num() != ReferenceSet.StaticSwitchParameters.Num()
 			|| StaticComponentMaskParameters.Num() != ReferenceSet.StaticComponentMaskParameters.Num()
 			|| TerrainLayerWeightParameters.Num() != ReferenceSet.TerrainLayerWeightParameters.Num()
-			|| MaterialLayersParameterIDs.Num() != ReferenceSet.MaterialLayersParameterIDs.Num()
 			|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
 			|| ReferencedParameterCollections.Num() != ReferenceSet.ReferencedParameterCollections.Num()
 			|| ShaderTypeDependencies.Num() != ReferenceSet.ShaderTypeDependencies.Num()
@@ -691,7 +743,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 		if (StaticSwitchParameters != ReferenceSet.StaticSwitchParameters
 			|| StaticComponentMaskParameters != ReferenceSet.StaticComponentMaskParameters
 			|| TerrainLayerWeightParameters != ReferenceSet.TerrainLayerWeightParameters
-			|| MaterialLayersParameterIDs != ReferenceSet.MaterialLayersParameterIDs)
+			|| MaterialLayersId != ReferenceSet.MaterialLayersId)
 		{
 			return false;
 		}
@@ -792,13 +844,6 @@ bool FMaterialShaderMapId::IsContentValid() const
 			return false;
 		}
 	}
-	for (const FStaticMaterialLayersParameter::ID &LayerParameterID : MaterialLayersParameterIDs)
-	{
-		if (LayerParameterID.ParameterID.bOverride != false)
-		{
-			return false;
-		}
-	}
 #endif // WITH_EDITOR
 	return true;
 }
@@ -817,29 +862,18 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 		}
 	};
 
-	struct FMaterialLayersParameterIDCompare : public FStaticParameterCompare
-	{
-		bool operator()(const FStaticMaterialLayersParameter::ID& Lhs, const FStaticMaterialLayersParameter::ID& Rhs) const
-		{
-			return FStaticParameterCompare::operator()(Lhs.ParameterID, Rhs.ParameterID);
-		}
-	};
-
 	StaticSwitchParameters = StaticParameters.StaticSwitchParameters;
 	StaticComponentMaskParameters = StaticParameters.StaticComponentMaskParameters;
 	TerrainLayerWeightParameters = StaticParameters.TerrainLayerWeightParameters;
-
-	MaterialLayersParameterIDs.SetNum(StaticParameters.MaterialLayersParameters.Num());
-	for (int i = 0; i < StaticParameters.MaterialLayersParameters.Num(); ++i)
+	if (StaticParameters.bHasMaterialLayers)
 	{
-		MaterialLayersParameterIDs[i] = StaticParameters.MaterialLayersParameters[i].GetID();
+		MaterialLayersId = StaticParameters.MaterialLayers.GetID();
 	}
 
 	// Sort the arrays by parameter name, ensure the ID is not influenced by the order
 	StaticSwitchParameters.Sort(FStaticParameterCompare());
 	StaticComponentMaskParameters.Sort(FStaticParameterCompare());
 	TerrainLayerWeightParameters.Sort(FStaticParameterCompare());
-	MaterialLayersParameterIDs.Sort(FMaterialLayersParameterIDCompare());
 
 	//since bOverrides aren't used to check id matches, make sure they're consistently set to false in the static parameter set as part of the id.
 	//this ensures deterministic cook results, rather than allowing bOverride to be set in the shader map's copy of the id based on the first id used.
@@ -854,10 +888,6 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 	for (FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter : TerrainLayerWeightParameters)
 	{
 		StaticTerrainLayerWeightParameter.bOverride = false;
-	}
-	for (FStaticMaterialLayersParameter::ID &LayerParameterID : MaterialLayersParameterIDs)
-	{
-		LayerParameterID.ParameterID.bOverride = false;
 	}
 }	
 #endif // WITH_EDITOR
@@ -891,9 +921,9 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	{
 		StaticTerrainLayerWeightParameter.AppendKeyString(KeyString);
 	}
-	for (const FStaticMaterialLayersParameter::ID &LayerParameterID : MaterialLayersParameterIDs)
+	if (MaterialLayersId)
 	{
-		LayerParameterID.AppendKeyString(KeyString);
+		MaterialLayersId->AppendKeyString(KeyString);
 	}
 
 	KeyString += TEXT("_");
@@ -1931,32 +1961,32 @@ void FMaterialShaderMap::Compile(
 			*FString::Printf(TEXT("Weightmap%u"), StaticTerrainLayerWeightParameter.WeightmapIndex)
 		);
 	}
-	for (const auto &LayerParameterID : ShaderMapId.GetMaterialLayersParameterIDs())
+
+	if (ShaderMapId.GetMaterialLayersId())
 	{
-		FString UUIDs;
-		UUIDs += TEXT("Layers:");
+		const FMaterialLayersFunctions::ID& MaterialLayersId = *ShaderMapId.GetMaterialLayersId();
+		WorkingDebugDescription += TEXT("Layers:");
 		bool StartWithComma = false;
-		for (const auto &Layer : LayerParameterID.Functions.LayerIDs)
+		for (const auto &Layer : MaterialLayersId.LayerIDs)
 		{
-			UUIDs += (StartWithComma ? TEXT(", ") : TEXT("")) + Layer.ToString();
+			WorkingDebugDescription += (StartWithComma ? TEXT(", ") : TEXT("")) + Layer.ToString();
 			StartWithComma = true;
 		}
-		UUIDs += TEXT(", Blends:");
+		WorkingDebugDescription += TEXT(", Blends:");
 		StartWithComma = false;
-		for (const auto &Blend : LayerParameterID.Functions.BlendIDs)
+		for (const auto &Blend : MaterialLayersId.BlendIDs)
 		{
-			UUIDs += (StartWithComma ? TEXT(", ") : TEXT("")) + Blend.ToString();
+			WorkingDebugDescription += (StartWithComma ? TEXT(", ") : TEXT("")) + Blend.ToString();
 			StartWithComma = true;
 		}
-		UUIDs += TEXT(", LayerStates:");
+		WorkingDebugDescription += TEXT(", LayerStates:");
 		StartWithComma = false;
-		for (bool State : LayerParameterID.Functions.LayerStates)
+		for (bool State : MaterialLayersId.LayerStates)
 		{
-			UUIDs += (StartWithComma ? TEXT(", ") : TEXT(""));
-			UUIDs += (State ? TEXT("1") : TEXT("0"));
+			WorkingDebugDescription += (StartWithComma ? TEXT(", ") : TEXT(""));
+			WorkingDebugDescription += (State ? TEXT("1") : TEXT("0"));
 			StartWithComma = true;
 		}
-		WorkingDebugDescription += FString::Printf(TEXT(", LayersParameter'%s'=[%s]"), *LayerParameterID.ParameterID.ParameterInfo.ToString(), *UUIDs);
 	}
 
 	UE_LOG(LogShaders, Display, TEXT("	%s"), *WorkingDebugDescription);

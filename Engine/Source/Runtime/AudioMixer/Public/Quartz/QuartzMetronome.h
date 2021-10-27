@@ -38,7 +38,7 @@ namespace Audio
 
 		FQuartzTransportTimeStamp GetTimeStamp() const { return CurrentTimeStamp; }
 
-		float GetTimeSinceStart() const { return TimeSinceStart; }
+		double GetTimeSinceStart() const { return TimeSinceStart; }
 
 		void SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
 

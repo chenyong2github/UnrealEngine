@@ -107,7 +107,7 @@ public:
 	/**
 	 * Create the actor clusters from the root World Partition. Optionally filtering some actors and including child Containers. 
 	 */
-	FActorClusterContext(const UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate = TOptional<FFilterPredicate>(), bool bInIncludeChildContainers = true);
+	FActorClusterContext(UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate = TOptional<FFilterPredicate>(), bool bInIncludeChildContainers = true);
 				
 	/**
 	 * Returns the list of cluster instances of this context. 
@@ -122,7 +122,7 @@ private:
 	const TArray<FActorCluster>& CreateActorClustersImpl(const FActorContainerInstance& ContainerInstance);
 	
 	// Init data
-	const UWorldPartition* WorldPartition;
+	UWorldPartition* WorldPartition;
 	const UWorldPartitionRuntimeHash* RuntimeHash;
 	TOptional<FFilterPredicate> FilterPredicate;
 	bool bIncludeChildContainers;

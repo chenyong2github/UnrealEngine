@@ -46,6 +46,13 @@ struct FAnimBlueprintFunction
 		, bImplemented(false)
 	{}
 
+	// Disable compiler-generated deprecation warnings by implementing our own destructor/copy assignment/etc
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	~FAnimBlueprintFunction() = default;
+	FAnimBlueprintFunction& operator=(const FAnimBlueprintFunction&) = default;
+	FAnimBlueprintFunction(const FAnimBlueprintFunction&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	bool operator==(const FAnimBlueprintFunction& InFunction) const
 	{
 		return Name == InFunction.Name;
@@ -77,7 +84,23 @@ struct FAnimBlueprintFunction
 	/** The properties of the input nodes, patched up during link */
 	TArray< FStructProperty* > InputPoseNodeProperties;
 
-	/** The input properties themselves */
+	// A named input property
+	struct FInputPropertyData
+	{
+		// The name of the property
+		FName Name = NAME_None;
+
+		// The input property (on the stub function)
+		FProperty* FunctionProperty = nullptr;
+
+		// The input property itself (on this class, not the stub function)
+		FProperty* ClassProperty = nullptr;
+	};
+
+	/** The input properties */
+	TArray< FInputPropertyData > InputPropertyData;
+
+	UE_DEPRECATED(5.0, "Please use InputPropertyData.")
 	TArray< FProperty* > InputProperties;
 
 	/** Whether this function is actually implemented by this class - it could just be a stub */

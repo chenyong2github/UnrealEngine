@@ -97,7 +97,7 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		"$SCRIPT_DIR"/BuildUAT.sh
+		"$SCRIPT_DIR"/BuildUAT.sh $MSBuild_Verbosity
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool failed to compile.
 			exit 1

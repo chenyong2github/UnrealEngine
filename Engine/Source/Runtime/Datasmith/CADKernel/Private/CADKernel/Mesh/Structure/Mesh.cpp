@@ -5,10 +5,7 @@
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 
-using namespace CADKernel;
-
-
-int32 FMesh::RegisterCoordinates()
+int32 CADKernel::FMesh::RegisterCoordinates()
 {
 	ModelMesh.RegisterCoordinates(NodeCoordinates, StartNodeId, MeshModelIndex);
 	LastNodeIndex = StartNodeId + (int32)NodeCoordinates.Num();
@@ -17,7 +14,7 @@ int32 FMesh::RegisterCoordinates()
 
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FMesh::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FMesh::GetInfo(FInfoEntity& Info) const
 {
 	return FEntityGeom::GetInfo(Info)
 		.Add(TEXT("Geometric Entity"), (FEntity&) GetGeometricEntity())

@@ -10,7 +10,7 @@ class IAnimationProvider;
 struct FSkeletalMeshPoseMessage;
 struct FSkeletalMeshInfo;
 
-UCLASS()
+UCLASS(Hidden)
 class GAMEPLAYINSIGHTSEDITOR_API UInsightsSkeletalMeshComponent : public USkeletalMeshComponent
 {
 	GENERATED_BODY()

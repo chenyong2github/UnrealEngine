@@ -615,11 +615,22 @@ bool UDatasmithImportFactory::CanReimport( UObject* Obj, TArray<FString>& OutFil
 
 void UDatasmithImportFactory::SetReimportPaths( UObject* Obj, const TArray<FString>& NewReimportPaths )
 {
+	using namespace UE::DatasmithImporter;
 	ensure(NewReimportPaths.Num() == 1);
 
 	if (UAssetImportData* ReImportData = DatasmithImportFactoryImpl::GetImportData(Obj))
 	{
 		ReImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+
+		FString SourceUriString = FSourceUri::FromFilePath(NewReimportPaths[0]).ToString();
+		if (UDatasmithAssetImportData* DatasmithAssetReImportData = Cast<UDatasmithAssetImportData>(ReImportData))
+		{
+			DatasmithAssetReImportData->SourceUri = MoveTemp(SourceUriString);
+		}
+		else if (UDatasmithSceneImportData* DatasmithSceneReImportData = Cast<UDatasmithSceneImportData>(ReImportData))
+		{
+			DatasmithSceneReImportData->SourceUri = MoveTemp(SourceUriString);
+		}
 	}
 }
 

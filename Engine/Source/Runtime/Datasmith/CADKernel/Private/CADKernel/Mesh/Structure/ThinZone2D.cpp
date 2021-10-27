@@ -10,11 +10,9 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/UI/Display.h"
 
-using namespace CADKernel;
+FIdent CADKernel::FEdgeSegment::LastId = 0;
 
-FIdent FEdgeSegment::LastId = 0;
-
-void FThinZone2DFinder::FindClosedSegments()
+void CADKernel::FThinZone2DFinder::FindClosedSegments()
 {
 	double MaxSegmentLength = 0.0;
 	for (const FEdgeSegment* Segment : LoopSegments)
@@ -47,7 +45,7 @@ void FThinZone2DFinder::FindClosedSegments()
 	int32 SegmentToBeginIndex = 0;
 	for (FEdgeSegment* Segment : SortedLoopSegments)
 	{
-		TSharedPtr<FTopologicalLoop> SegmentLoop = nullptr;
+		FTopologicalLoop* SegmentLoop = nullptr;
 		if (Segment->IsInner())
 		{
 			SegmentLoop = Segment->GetEdge()->GetLoop();
@@ -151,7 +149,7 @@ void FThinZone2DFinder::FindClosedSegments()
 #endif
 }
 
-void FThinZone2DFinder::DisplayClosedSegments()
+void CADKernel::FThinZone2DFinder::DisplayClosedSegments()
 {
 #ifdef DEBUG_THIN_ZONES
 	F3DDebugSession _(TEXT("Closed Segment"));
@@ -172,7 +170,7 @@ void FThinZone2DFinder::DisplayClosedSegments()
 #endif
 }
 
-void FThinZone2DFinder::CheckClosedSegments()
+void CADKernel::FThinZone2DFinder::CheckClosedSegments()
 {
 	for (FEdgeSegment* Segment : LoopSegments)
 	{
@@ -192,7 +190,7 @@ void FThinZone2DFinder::CheckClosedSegments()
 	}
 }
 
-void FThinZone2DFinder::LinkClosedSegments()
+void CADKernel::FThinZone2DFinder::LinkClosedSegments()
 {
 	SortedLoopSegments.Empty();
 	SortedLoopSegments.Reserve(LoopSegments.Num());
@@ -201,15 +199,15 @@ void FThinZone2DFinder::LinkClosedSegments()
 	FEdgeSegment* Segment = nullptr;
 	FIdent Index = 0;
 	FIdent StartZoneIndex = 0;
-	TSharedPtr<FTopologicalLoop> LastBoundary = nullptr;
+	FTopologicalLoop* LastLoop = nullptr;
 	bool bThinZone = false;
 
 	for (FEdgeSegment* EdgeSegment : LoopSegments)
 	{
 		Segment = EdgeSegment;
-		if (LastBoundary != EdgeSegment->GetEdge()->GetLoop())
+		if (LastLoop != EdgeSegment->GetEdge()->GetLoop())
 		{
-			LastBoundary = EdgeSegment->GetEdge()->GetLoop();
+			LastLoop = EdgeSegment->GetEdge()->GetLoop();
 			Index++;
 			StartSegment = EdgeSegment;
 			StartZoneIndex = Index;
@@ -274,11 +272,11 @@ void FThinZone2DFinder::LinkClosedSegments()
 }
 
 
-void GetThinZoneSideConnectionsLength(TArray<FEdgeSegment*>& FirstSide, TArray<FEdgeSegment*>& SecondSide, double MaxLength, double* LengthBetweenExtremity, TArray<TSharedPtr<FTopologicalEdge>>* PeakEdges)
+static void GetThinZoneSideConnectionsLength(TArray<CADKernel::FEdgeSegment*>& FirstSide, TArray<CADKernel::FEdgeSegment*>& SecondSide, double MaxLength, double* LengthBetweenExtremity, TArray<TSharedPtr<CADKernel::FTopologicalEdge>>* PeakEdges)
 {
 	LengthBetweenExtremity[0] = 0.0;
-	TSharedPtr<FTopologicalEdge> Edge = nullptr;
-	FEdgeSegment* Segment = FirstSide[0]->GetPrevious();
+	TSharedPtr<CADKernel::FTopologicalEdge> Edge = nullptr;
+	CADKernel::FEdgeSegment* Segment = FirstSide[0]->GetPrevious();
 	while (Segment != SecondSide[0])
 	{
 		if (Edge != Segment->GetEdge())
@@ -320,7 +318,7 @@ void GetThinZoneSideConnectionsLength(TArray<FEdgeSegment*>& FirstSide, TArray<F
 	}
 }
 
-void FThinZone2DFinder::BuildThinZone()
+void CADKernel::FThinZone2DFinder::BuildThinZone()
 {
 	for (FEdgeSegment* EdgeSegment : SortedLoopSegments)
 	{
@@ -552,7 +550,7 @@ void FThinZone2DFinder::BuildThinZone()
 	}
 }
 
-void FThinZone2DFinder::DisplayLoopSegments()
+void CADKernel::FThinZone2DFinder::DisplayLoopSegments()
 {
 #ifdef DEBUG_THIN_ZONES
 	TSharedPtr<FTopologicalEdge> currentEdge = nullptr;
@@ -575,7 +573,7 @@ void FThinZone2DFinder::DisplayLoopSegments()
 #endif
 }
 
-void FThinZone2DFinder::SearchThinZones()
+void CADKernel::FThinZone2DFinder::SearchThinZones()
 {
 #ifdef DEBUG_THIN_ZONES
 	{
@@ -678,7 +676,7 @@ void FThinZone2DFinder::SearchThinZones()
 #endif
 
 }
-void FThinZone2DFinder::BuildLoopSegments()
+void CADKernel::FThinZone2DFinder::BuildLoopSegments()
 {
 	double Length = 0;
 	double SegmentLength = Tolerance / 5.;
@@ -746,7 +744,7 @@ void FThinZone2DFinder::BuildLoopSegments()
 	SortedLoopSegments = LoopSegments;
 }
 
-FThinZoneSide::FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide)
+CADKernel::FThinZoneSide::FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide)
 	: FrontSide(*InFrontSide)
 {
 	Segments = InSegments;
@@ -757,7 +755,7 @@ FThinZoneSide::FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegme
 	}
 }
 
-void FThinZoneSide::SetEdgesAsThinZone()
+void CADKernel::FThinZoneSide::SetEdgesAsThinZone()
 {
 	for (FEdgeSegment* Segment : Segments)
 	{
@@ -765,7 +763,7 @@ void FThinZoneSide::SetEdgesAsThinZone()
 	}
 }
 
-bool FThinZoneSide::IsPartiallyMeshed() const
+bool CADKernel::FThinZoneSide::IsPartiallyMeshed() const
 {
 	TSharedPtr<FTopologicalEdge> Edge = nullptr;
 	for (FEdgeSegment* EdgeSegment : Segments)
@@ -782,7 +780,7 @@ bool FThinZoneSide::IsPartiallyMeshed() const
 	return false;
 }
 
-double FThinZoneSide::GetMeshedLength() const
+double CADKernel::FThinZoneSide::GetMeshedLength() const
 {
 	double LocalLength = 0;
 	TSharedPtr<FTopologicalEdge> Edge = nullptr;
@@ -800,7 +798,7 @@ double FThinZoneSide::GetMeshedLength() const
 	return LocalLength;
 }
 
-void FThinZone2D::SetEdgesAsThinZone()
+void CADKernel::FThinZone2D::SetEdgesAsThinZone()
 {
 	FirstSide.SetEdgesAsThinZone();
 	SecondSide.SetEdgesAsThinZone();

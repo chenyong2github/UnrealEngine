@@ -2,7 +2,7 @@
 
 #include "RetargetEditor/SIKRetargetAssetBrowser.h"
 
-#include "SEditorHeaderButton.h"
+#include "SPositiveActionButton.h"
 #include "AnimPreviewInstance.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -31,7 +31,7 @@ void SIKRetargetAssetBrowser::Construct(
 		.AutoHeight()
 		.Padding(5)
 		[
-			SNew(SEditorHeaderButton)
+			SNew(SPositiveActionButton)
 			.IsEnabled(this, &SIKRetargetAssetBrowser::IsExportButtonEnabled)
 			.Icon(FAppStyle::Get().GetBrush("Icons.Save"))
 			.Text(LOCTEXT("ExportButtonLabel", "Export Selected Animations"))

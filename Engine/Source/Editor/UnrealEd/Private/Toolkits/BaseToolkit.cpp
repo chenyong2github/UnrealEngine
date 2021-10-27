@@ -385,7 +385,7 @@ void FModeToolkit::InvokeUI()
 	if (ModeUILayer.IsValid())
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		TSharedPtr<SDockTab> CreatedTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::TopLeftTabID);
+		TSharedPtr<SDockTab> CreatedTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopLeftTabID);
 		UpdatePrimaryModePanel();
 		TSharedPtr<FUICommandList> CommandList;
 		if (!HasIntegratedToolPalettes())
@@ -406,7 +406,7 @@ void FModeToolkit::InvokeUI()
 					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 				}
 			}
-			TSharedPtr<SDockTab> CreatedToolbarTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::VerticalToolbarID);
+			TSharedPtr<SDockTab> CreatedToolbarTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::VerticalToolbarID);
 			ModeToolbarTab = CreatedToolbarTab;
 
 		}
@@ -617,14 +617,14 @@ void FModeToolkit::RequestModeUITabs()
 		PrimaryTabInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FModeToolkit::CreatePrimaryModePanel);
 		PrimaryTabInfo.TabLabel = LOCTEXT("ModesToolboxTab", "Mode Toolbox");
 		PrimaryTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
-		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::TopLeftTabID, PrimaryTabInfo);
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopLeftTabID, PrimaryTabInfo);
 		if (!HasIntegratedToolPalettes())
 		{
 
 			ToolbarInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FModeToolkit::MakeModeToolbarTab);
 			ToolbarInfo.TabLabel = LOCTEXT("ModesToolbarTab", "Mode Toolbar");
 			ToolbarInfo.TabTooltip = LOCTEXT("LevelEditorModesToolbarTabTooltipText", "Opens a toolbar for the active editor mode");
-			ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::VerticalToolbarID, ToolbarInfo);
+			ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::VerticalToolbarID, ToolbarInfo);
 		}
 	}
 }
@@ -644,7 +644,7 @@ void FModeToolkit::SpawnOrUpdateModeToolbar()
 		}
 		else if (ModeUILayer.IsValid())
 		{
-			ModeUILayer.Pin()->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::VerticalToolbarID);
+			ModeUILayer.Pin()->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::VerticalToolbarID);
 		}
 	}
 }

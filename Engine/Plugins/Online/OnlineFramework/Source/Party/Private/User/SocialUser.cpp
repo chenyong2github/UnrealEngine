@@ -1369,7 +1369,14 @@ void USocialUser::SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<F
 								}
 
 								FUniqueNetIdRepl SubsystemId = MissingOSS->GetIdentityInterface()->CreateUniquePlayerId(SubsystemIdStr);
-								SetSubsystemId(Subsystem, SubsystemId);
+								if (SubsystemId.IsValid())
+								{
+									SetSubsystemId(Subsystem, SubsystemId);
+								}
+								else 
+								{
+									UE_LOG(LogParty, Error, TEXT("SocialUser [%s] Failed to create SubsystemId for SubsystemType: [%s] SubsystemIdKey [%s] IdPrefix: [%s] SubsystemIdStr: [%s] for OnlineUser [%s]"), *ToDebugString(), ToString(SubsystemType), *SubsystemIdKey, *IdPrefix, *SubsystemIdStr, *UserInfo->GetUserId()->ToDebugString());
+								}
 							}
 						}
 					}

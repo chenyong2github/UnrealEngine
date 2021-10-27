@@ -54,11 +54,13 @@ private:
 	TSharedPtr<class SButton> ButtonCreateAtmosphericLight1;
 	TSharedPtr<class SButton> ButtonCreateSkyAtmosphere;
 	TSharedPtr<class SButton> ButtonCreateVolumetricCloud;
+	TSharedPtr<class SButton> ButtonCreateHeightFog;
 
 	FReply OnButtonCreateSkyLight();
 	FReply OnButtonCreateAtmosphericLight(uint32 Index);
 	FReply OnButtonCreateSkyAtmosphere();
 	FReply OnButtonCreateVolumetricCloud();
+	FReply OnButtonCreateHeightFog();
 
 	TSharedRef<SWidget> ComboBoxDetailFilterWidget(TSharedPtr<FString> InItem);
 	void ComboBoxDetailFilterWidgetSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);

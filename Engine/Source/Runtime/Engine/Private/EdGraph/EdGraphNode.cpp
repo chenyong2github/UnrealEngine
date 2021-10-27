@@ -394,6 +394,19 @@ UEdGraphPin* UEdGraphNode::FindPinByIdChecked(const FGuid PinId) const
 	return Result;
 }
 
+UEdGraphPin* UEdGraphNode::FindPinByPredicate(TFunctionRef<bool(UEdGraphPin* InPin)> InFunction) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (InFunction(Pin))
+		{
+			return Pin;
+		}
+	}
+
+	return nullptr;
+}
+
 bool UEdGraphNode::RemovePin(UEdGraphPin* Pin)
 {
 	check( Pin );

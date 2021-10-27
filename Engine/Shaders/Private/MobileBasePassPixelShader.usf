@@ -266,7 +266,7 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 #endif
 )
 {
-	half3 ProjectedCaptureVector = GetOffSpecularPeakReflectionDir(MaterialParameters.WorldNormal, MaterialParameters.ReflectionVector, Roughness);
+	half3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;
 
 #if HQ_REFLECTIONS
 
@@ -284,7 +284,8 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	half3 CaptureVector = MaterialParameters.WorldPosition_CamRelative - CaptureTranslatedWorldPosition;
 	half CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));
 	half NormalizedDistanceToCapture = saturate(CaptureVectorLength / CaptureRadius);
-
+	ProjectedCaptureVector = GetOffSpecularPeakReflectionDir(MaterialParameters.WorldNormal, MaterialParameters.ReflectionVector, Roughness);
+	
 	if (CaptureVectorLength < CaptureRadius || CaptureRadius <= 0)
 	{
 #if ALLOW_CUBE_REFLECTIONS
@@ -312,10 +313,13 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	{
 		// Apply sky colour if the reflection map is the sky.
 #if HQ_REFLECTIONS
-		ExtraIndirectSpecular = GetMobileSkyLightReflection(ProjectedCaptureVector, Roughness, ReflectionAverageBrigtness.w);
+		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ReflectionAverageBrigtness.w);
+		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
+		ExtraIndirectSpecular = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb;
 #else
-		half3 SpecularIBLSample = GetMobileSkyLightReflection(ProjectedCaptureVector, Roughness, MobileReflectionCapture.Params.y);
-		ImageBasedReflections.rgb = SpecularIBLSample * ImageBasedReflections.a;
+		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, MobileReflectionCapture.Params.y);
+		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
+		ImageBasedReflections.rgb = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb * ImageBasedReflections.a;
 #endif
 	}
 	else

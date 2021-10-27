@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "Trace/Detail/LogScope.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,17 +21,17 @@ CORE_API int32	MemoryTrace_GetActiveTag();
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if !defined(USE_MEMORY_TRACE_TAGS) && UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
+#if !defined(UE_MEMORY_TAGS_TRACE_ENABLED) && UE_TRACE_ENABLED && UE_MEMORY_TRACE_ENABLED
 	#if PLATFORM_WINDOWS 
-		#define USE_MEMORY_TRACE_TAGS 1
+		#define UE_MEMORY_TAGS_TRACE_ENABLED !UE_BUILD_SHIPPING
 	#endif
 #endif
 
-#if !defined(USE_MEMORY_TRACE_TAGS)
-	#define USE_MEMORY_TRACE_TAGS 0
+#if !defined(UE_MEMORY_TAGS_TRACE_ENABLED)
+	#define UE_MEMORY_TAGS_TRACE_ENABLED 0
 #endif
 
-#if USE_MEMORY_TRACE_TAGS
+#if UE_MEMORY_TAGS_TRACE_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -76,11 +76,11 @@ private:
 #define UE_MEMSCOPE(InTag)				FMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
 #define UE_MEMSCOPE_PTR(InPtr)			FMemScopePtr PREPROCESSOR_JOIN(MemPtrScope,__LINE__)((uint64)InPtr);
 
-#else // USE_MEMORY_TRACE_TAGS
+#else // UE_MEMORY_TAGS_TRACE_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_MEMSCOPE(...)
 #define UE_MEMSCOPE_PTR(...)
 
-#endif // USE_MEMORY_TRACE_TAGS
+#endif // UE_MEMORY_TAGS_TRACE_ENABLED
 

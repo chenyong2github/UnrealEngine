@@ -66,6 +66,11 @@ public:
 	 */
 	void GetIndices(const FName& Sequence, TArray<int32>& OutIndices) const;
 
+	/**
+	 * Empties the cache.
+	 */
+	void EmptyCache();
+
 private:
 
 	/** An entry in the cache. */
@@ -171,6 +176,8 @@ private:
 
 	/**
 	 * Empties the cache.
+	 * 
+	 * Assumes CriticalSection is already locked.
 	 */
 	void Empty();
 

@@ -135,7 +135,11 @@ FLWCType LWCDivide(FLWCType Lhs, FLWCType Rhs) { return LWCMultiply(Lhs, LWCRcp(
 FLWCType LWCDivide(FLWCType Lhs, FFloatType Rhs) { return LWCMultiply(Lhs, rcp(Rhs)); }
 FLWCType LWCDivide(FFloatType Lhs, FLWCType Rhs) { return LWCConstructor((FFloatType)0, Lhs * LWCRcp(Rhs)); }
 
-FLWCType LWCLerp(FLWCType Lhs, FLWCType Rhs, FFloatType S) { return LWCAdd(Lhs, LWCMultiply(S, LWCSubtract(Rhs, Lhs))); }
+//FLWCType LWCLerp(FLWCType Lhs, FLWCType Rhs, FFloatType S) { return LWCAdd(Lhs, LWCMultiply(S, LWCSubtract(Rhs, Lhs))); }
+FLWCType LWCLerp(FLWCType Lhs, FLWCType Rhs, FFloatType S)
+{
+	return LWCConstructor(lerp(LWCGetTile(Lhs), LWCGetTile(Rhs), S), lerp(Lhs.Offset, Rhs.Offset, S));
+}
 
 FFloatType LWCFmod(FLWCType Lhs, FFloatType Rhs)
 {

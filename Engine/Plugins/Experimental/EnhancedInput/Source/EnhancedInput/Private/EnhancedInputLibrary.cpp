@@ -78,3 +78,8 @@ FVector UEnhancedInputLibrary::Conv_InputActionValueToAxis3D(FInputActionValue I
 {
 	return InValue.Get<FInputActionValue::Axis3D>();
 }
+
+FString UEnhancedInputLibrary::Conv_InputActionValueToString(FInputActionValue ActionValue)
+{
+	return ActionValue.ToString();
+}

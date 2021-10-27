@@ -91,11 +91,5 @@ public class WebBrowser : ModuleRules
 				}
 			}
 		}
-
-		if (Target.Platform == UnrealTargetPlatform.PS4 &&
-			Target.bCompileAgainstEngine)
-		{
-			PrivateDependencyModuleNames.Add("Engine");
-		}
 	}
 }

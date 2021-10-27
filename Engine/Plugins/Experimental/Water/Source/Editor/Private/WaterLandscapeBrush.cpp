@@ -13,7 +13,6 @@
 #include "UObject/UObjectIterator.h"
 #include "WaterSubsystem.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "WaterMeshActor.h"
 #include "EngineUtils.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Editor.h"

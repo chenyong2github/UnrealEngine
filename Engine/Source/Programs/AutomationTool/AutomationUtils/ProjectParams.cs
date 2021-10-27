@@ -103,17 +103,50 @@ namespace AutomationTool
 		/// <param name="Default">Default value</param>
 		/// <param name="bTrimQuotes">If set, the leading and trailing quotes will be removed, e.g. instead of "/home/User Name" it will return /home/User Name</param>
 		/// <returns>Parameter value.</returns>
-		string ParseParamValueIfNotSpecified(BuildCommand Command, string SpecifiedValue, string ParamName, string Default = "", bool bTrimQuotes = false)
+		string ParseParamValueIfNotSpecified(BuildCommand Command, string SpecifiedValue, string ParamName, string Default = "", bool bTrimQuotes = false, string ObsoleteParamName = null, string ObsoleteSpecifiedValue = null)
 		{
 			string Result = Default;
 
-			if (SpecifiedValue != null)
+			if (ObsoleteSpecifiedValue != null)
+			{
+				if (SpecifiedValue == null)
+				{
+					Log.TraceWarning($"Value was provided for \"{ParamName}\" using obsolete name \"{ObsoleteParamName}\"");
+					Result = SpecifiedValue;
+				}
+				else
+				{
+					Log.TraceWarning($"Value provided for obsolete name \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided");
+				}
+			}
+			else if (SpecifiedValue != null)
 			{
 				Result = SpecifiedValue;
 			}
 			else if (Command != null)
 			{
-				Result = Command.ParseParamValue(ParamName, Default);
+				string Parsed = Command.ParseParamValue(ParamName, null);
+
+				if (ObsoleteParamName != null)
+				{
+					string ParsedObsolete = Command.ParseParamValue(ObsoleteParamName, null);
+					if (Parsed == null)
+					{
+						// Didn't find the new name on the command line. If the obsolete name was found, use it, and warn.
+						if (ParsedObsolete != null)
+						{
+							Log.TraceWarning($"Obsolete argument \"{ObsoleteParamName}\" on command line - use \"{ParamName}\" instead");
+							Parsed = ParsedObsolete;
+						}
+					}
+					else if (ParsedObsolete != null)
+					{
+						// Did find the new name on the command line - check for the obsolete name. If found, do not use it, and warn.
+						Log.TraceWarning($"Obsolete argument \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided");
+					}
+				}
+
+				Result = Parsed ?? Default;
 			}
 
 			return bTrimQuotes ? Result.Trim( new char[]{'\"'} ) : Result;
@@ -311,7 +344,7 @@ namespace AutomationTool
 			this.Manifests = InParams.Manifests;
             this.CreateChunkInstall = InParams.CreateChunkInstall;
 			this.SkipEncryption = InParams.SkipEncryption;
-			this.UE4Exe = InParams.UE4Exe;
+			this.UnrealExe = InParams.UnrealExe;
 			this.NoDebugInfo = InParams.NoDebugInfo;
 			this.SeparateDebugInfo = InParams.SeparateDebugInfo;
 			this.MapFile = InParams.MapFile;
@@ -392,7 +425,8 @@ namespace AutomationTool
 			string StageCommandline = null,
             string BundleName = null,
             string StageDirectoryParam = null,
-			string UE4Exe = null,
+			string UnrealExe = null,
+			string UE4Exe = null, // remove this when deprecated HostParams.UE4Exe is removed
 			string SignPak = null,
 			List<UnrealTargetConfiguration> ClientConfigsToBuild = null,
 			List<UnrealTargetConfiguration> ServerConfigsToBuild = null,
@@ -874,7 +908,7 @@ namespace AutomationTool
             this.RunAutomationTest = ParseParamValueIfNotSpecified(Command, RunAutomationTest, "RunAutomationTest");
             this.RunAutomationTests = this.RunAutomationTest != "" || GetParamValueIfNotSpecified(Command, RunAutomationTests, this.RunAutomationTests, "RunAutomationTests");
             this.SkipServer = GetParamValueIfNotSpecified(Command, SkipServer, this.SkipServer, "skipserver");
-			this.UE4Exe = ParseParamValueIfNotSpecified(Command, UE4Exe, "ue4exe", "UnrealEditor-Cmd.exe");
+			this.UnrealExe = ParseParamValueIfNotSpecified(Command, UnrealExe, "unrealexe", "UnrealEditor-Cmd.exe", ObsoleteSpecifiedValue: UE4Exe, ObsoleteParamName: "ue4exe");
 			this.Unattended = GetParamValueIfNotSpecified(Command, Unattended, this.Unattended, "unattended");
 			this.DeviceUsername = ParseParamValueIfNotSpecified(Command, DeviceUsername, "deviceuser", String.Empty);
 			this.DevicePassword = ParseParamValueIfNotSpecified(Command, DevicePassword, "devicepass", String.Empty);
@@ -1392,8 +1426,15 @@ namespace AutomationTool
 		[Help("stagingdirectory=Path", "Directory to copy the builds to, i.e. -stagingdirectory=C:\\Stage")]
 		public string StageDirectoryParam;
         
-		[Help("ue4exe=ExecutableName", "Name of the UE4 Editor executable, i.e. -ue4exe=UnrealEditor.exe")]
-		public string UE4Exe;
+		[Help("unrealexe=ExecutableName", "Name of the Unreal Editor executable, i.e. -unrealexe=UnrealEditor.exe")]
+		public string UnrealExe;
+
+		[Obsolete("Removed in 5.0; Use UnrealExe instead")]
+		public string UE4Exe
+		{
+			set => UnrealExe = value;
+			get => UnrealExe;
+		}
 
 		/// <summary>
 		/// Shared: true if this build is archived, command line: -archive
@@ -1430,7 +1471,7 @@ namespace AutomationTool
         /// <summary>
         /// Determines if Blueprint assets should be substituted with auto-generated code.
         /// </summary>
-		[Obsolete("The RunAssetNativization property has been deprecated. This feature is no longer supported.")]
+		[Obsolete("The RunAssetNativization property has been deprecated in 5.0. This feature is no longer supported.")]
         public bool RunAssetNativization
 		{
 			get { return false; }
@@ -2185,7 +2226,7 @@ namespace AutomationTool
 				// Make sure we haven't specified game and clients together
 				if (Targets.Any(x => x.Rules.Type == TargetType.Client) && Targets.Any(x => x.Rules.Type == TargetType.Game))
 				{
-					throw new AutomationException("Cannot specify client ang game targets to be built together");
+					throw new AutomationException("Cannot specify client and game targets to be built together");
 				}
 
 				// Create the lists to receive all the target types
@@ -2266,7 +2307,8 @@ namespace AutomationTool
 				{
 					if (AvailableGameTargets.Count > 1)
 					{
-						string TargetMessage = "";
+						StringBuilder TargetMessage = new StringBuilder("Multiple game targets found for project. Specify the desired target using the -Target=... argument.");
+
 						List<SingleTargetProperties> Targets = DetectedTargets.FindAll(Target => Target.Rules.Type == TargetType.Game);
 						foreach (SingleTargetProperties Target in Targets)
 						{
@@ -2278,15 +2320,15 @@ namespace AutomationTool
 
 							if (PossibleScriptFiles.Count > 0)
 							{
-								TargetMessage += $"Target \"{Target.TargetName}\" from class {Target.TargetClassName}, which may be defined in:\n {String.Join(", or\n", PossibleScriptFiles)}\n";
+								TargetMessage.Append($"\n  Could be \"{Target.TargetName}\" ({String.Join(" or ", PossibleScriptFiles)})");
 							}
 							else
 							{
-								TargetMessage += $"Target \"{Target.TargetName}\" from class {Target.TargetClassName}, source file undetermined.\n";
+								TargetMessage.Append($"\n  Could be \"{Target.TargetName}\"");
 							}
 						}
 
-						throw new AutomationException("More than one Game project found for project: \n" + TargetMessage);
+						throw new AutomationException(TargetMessage.ToString());
 					}
 
 					GameTarget = AvailableGameTargets.First();
@@ -2767,9 +2809,9 @@ namespace AutomationTool
                 throw new AutomationException("RawProjectPath {0} file must exist", RawProjectPath);
             }
 
-			if (FileServer && !Cook)
+			if (FileServer && !Cook && !CookInEditor)
 			{
-				throw new AutomationException("Only cooked builds can use a fileserver be staged, use -cook");
+				throw new AutomationException("Only cooked builds can use a fileserver, use -cook or -CookInEditor");
 			}
 
 			if (Stage && !SkipStage && !Cook && !CookOnTheFly && !IsProgramTarget)

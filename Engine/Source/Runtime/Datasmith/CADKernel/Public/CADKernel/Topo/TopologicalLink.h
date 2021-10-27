@@ -17,20 +17,20 @@ namespace CADKernel
 
 	protected:
 		friend EntityType;
-		TWeakPtr<EntityType> ActiveEntity;
+		EntityType* ActiveEntity;
 
-		TArray<TWeakPtr<EntityType>> TwinsEntities;
+		TArray<EntityType*> TwinsEntities;
 
 		TTopologicalLink()
 		{
-			ActiveEntity = TWeakPtr<EntityType>();
+			ActiveEntity = nullptr;
 		}
 
-		TTopologicalLink(TSharedRef<EntityType> Entity)
+		TTopologicalLink(EntityType& Entity)
 			: FEntity()
 		{
-			TwinsEntities.Add(Entity);
-			ActiveEntity = Entity;
+			TwinsEntities.Add(&Entity);
+			ActiveEntity = &Entity;
 		}
 
 	public:
@@ -44,7 +44,7 @@ namespace CADKernel
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FEntity::Serialize(Ar);
-			SerializeIdent(Ar, ActiveEntity, false);
+			SerializeIdent(Ar, &ActiveEntity, false);
 			SerializeIdents(Ar, TwinsEntities, false);
 		}
 
@@ -54,9 +54,9 @@ namespace CADKernel
 			return ActiveEntity;
 		}
 
-		TWeakPtr<EntityType>& GetActiveEntity()
+		EntityType* GetActiveEntity()
 		{
-			ensureCADKernel(ActiveEntity.IsValid());
+			ensureCADKernel(ActiveEntity);
 			return ActiveEntity;
 		}
 
@@ -65,17 +65,17 @@ namespace CADKernel
 			return (int32)TwinsEntities.Num();
 		}
 
-		const TArray<TWeakPtr<EntityType>>& GetTwinsEntities() const
+		const TArray<EntityType*>& GetTwinsEntities() const
 		{
 			return TwinsEntities;
 		}
 
-		void ActivateEntity(TSharedRef<EntityType> NewActiveEntity)
+		void ActivateEntity(const EntityType& NewActiveEntity)
 		{
 			TFunction<bool()> CheckEntityIsATwin = [&]() {
-				for (TWeakPtr<EntityType>& Entity : TwinsEntities)
+				for (EntityType* Entity : TwinsEntities)
 				{
-					if (Entity.Pin() == NewActiveEntity)
+					if (Entity == &NewActiveEntity)
 					{
 						return true;
 					}
@@ -85,15 +85,27 @@ namespace CADKernel
 			};
 
 			ensureCADKernel(CheckEntityIsATwin());
-			ActiveEntity = NewActiveEntity;
+			ActiveEntity = &NewActiveEntity;
 		}
 
-		void RemoveEntity(const TSharedPtr<EntityType>& Entity)
+		void RemoveEntity(TSharedPtr<EntityType>& Entity)
 		{
-			TwinsEntities.Remove(Entity);
-			if (Entity == ActiveEntity && TwinsEntities.Num() > 0)
+			EntityType* EntityPtr = *Entity;
+			RemoveEntity(*EntityPtr);
+		}
+
+		void RemoveEntity(EntityType& Entity)
+		{
+			TwinsEntities.Remove(&Entity);
+			if (&Entity == ActiveEntity && TwinsEntities.Num() > 0)
 			{
 				ActiveEntity = TwinsEntities.HeapTop();
+			}
+
+			if (TwinsEntities.Num() == 0)
+			{
+				ActiveEntity = nullptr;
+				SetDeleted();
 			}
 		}
 
@@ -106,9 +118,20 @@ namespace CADKernel
 			return EEntity::EdgeLink;
 		}
 
-		void AddEntity(TSharedRef<EntityType> Entity)
+		void AddEntity(EntityType* Entity)
 		{
 			TwinsEntities.Add(Entity);
+		}
+
+		void AddEntity(EntityType& Entity)
+		{
+			TwinsEntities.Add(&Entity);
+		}
+
+		template <typename LinkableType>
+		void AddEntity(const LinkableType* Entity)
+		{
+			TwinsEntities.Add((EntityType*) Entity);
 		}
 
 		template <typename ArrayType>
@@ -117,13 +140,16 @@ namespace CADKernel
 			TwinsEntities.Insert(Entities, TwinsEntities.Num());
 		}
 
-		bool CleanLink()
+		/**
+		 * @return true if the Twin entity count link is modified
+		 */
+		virtual bool CleanLink()
 		{
-			TArray<TWeakPtr<EntityType>> NewTwinsEntities;
+			TArray<EntityType*> NewTwinsEntities;
 			NewTwinsEntities.Reserve(TwinsEntities.Num());
-			for (TWeakPtr<EntityType>& Entity : TwinsEntities)
+			for (EntityType* Entity : TwinsEntities)
 			{
-				if (Entity.IsValid())
+				if (Entity)
 				{
 					NewTwinsEntities.Add(Entity);
 				}
@@ -132,8 +158,11 @@ namespace CADKernel
 			if (NewTwinsEntities.Num() != TwinsEntities.Num())
 			{
 				Swap(NewTwinsEntities, TwinsEntities);
-				ActiveEntity = TwinsEntities.HeapTop();
-				return true;
+				if(TwinsEntities.Num())
+				{
+					ActiveEntity = TwinsEntities.HeapTop();
+					return true;
+				}
 			}
 			return false;
 		}
@@ -160,10 +189,9 @@ namespace CADKernel
 		{
 		}
 
-		FVertexLink(TSharedRef<FTopologicalVertex> Entity)
+		FVertexLink(FTopologicalVertex& Entity)
 			: TTopologicalLink<FTopologicalVertex>(Entity)
 			, Barycenter(FPoint::ZeroPoint)
-
 		{
 		}
 
@@ -188,13 +216,15 @@ namespace CADKernel
 			return Barycenter;
 		}
 
-		void CleanLink()
+		bool CleanLink() override
 		{
 			if(TTopologicalLink::CleanLink())
 			{
 				ComputeBarycenter();
 				DefineActiveEntity();
+				return true;
 			}
+			return false;
 		}
 
 		virtual EEntity GetEntityType() const override

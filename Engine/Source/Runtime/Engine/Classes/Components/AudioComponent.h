@@ -169,9 +169,20 @@ class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGenerato
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
 	TObjectPtr<USoundBase> Sound;
 
-	/** Array of per-instance parameters for this AudioComponent. Direct changes to this array from Blueprint (as opposed to updates
-	  * made via the Set functions) will not be forwarded to the sound if the component is actively playing. */
+	/** Array of parameters for this AudioComponent. Changes to this array directly will
+	  * not be forwarded to the sound if the component is actively playing, and will be superseded
+	  * by parameters set via the actor interface if set, or the instance parameters.
+	  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters, meta = (DisplayAfter = "bDisableParameterUpdatesWhilePlaying"))
+	TArray<FAudioParameter> DefaultParameters;
+
+	/** Array of transient parameters for this AudioComponent instance. Not serialized and can be set by code or BP.
+	  * Changes to this array directly will not be forwarded to the sound if the component is actively playing.
+	  * This should be done via the 'SetParameterX' calls implemented by the ISoundGeneratorParameterInterface.
+	  * Instance parameter values superseded the parameters set by the actor interface & the component's default
+	  * parameters.
+	  */
+	UPROPERTY(Transient)
 	TArray<FAudioParameter> InstanceParameters;
 
 	/** SoundClass that overrides that set on the referenced SoundBase when component is played. */
@@ -689,6 +700,9 @@ private:
 	void SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType);
 
 	void BroadcastPlayState();
+
+	/** Returns the owning world's "AudioTime" - affected by world pause, but not time dilation.  If no world exists, returns the application time */
+	float GetAudioTimeSeconds() const;
 
 public:
 	/** Set when the sound is finished with initial fading in */

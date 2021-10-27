@@ -16,7 +16,7 @@ class FChannel;
 } // namespace Trace
 } // namespace UE
 
-#define TRACE_PRIVATE_STATISTICS (!UE_BUILD_TEST)
+#define TRACE_PRIVATE_STATISTICS (!UE_BUILD_SHIPPING)
 
 #define TRACE_PRIVATE_CHANNEL_DEFAULT_ARGS false, "None"
 

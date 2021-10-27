@@ -9,6 +9,7 @@
 #include "UObject/CoreNet.h"
 #include "Serialization/BitWriter.h"
 #include "Engine/DemoNetDriver.h"
+#include "ReplaySubsystem.h"
 
 FArchive& operator<<(FArchive& Ar, FWorldPartitionReplayStreamingSource& StreamingSource)
 {
@@ -138,7 +139,10 @@ void AWorldPartitionReplay::PreReplication(IRepChangedPropertyTracker& ChangedPr
 		Writer << Replay;
 		if (Writer.GetNumBits())
 		{
-			ChangedPropertyTracker.SetExternalData(Writer.GetData(), Writer.GetNumBits());
+			if (UReplaySubsystem* ReplaySubsystem = UGameInstance::GetSubsystem<UReplaySubsystem>(GetGameInstance()))
+			{
+				ReplaySubsystem->SetExternalDataForObject(this, Writer.GetData(), Writer.GetNumBits());
+			}			
 		}
 	}
 }

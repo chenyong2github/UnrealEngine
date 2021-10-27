@@ -20,11 +20,11 @@ FWaterBrushActorDefaults::FWaterBrushActorDefaults()
 	CurveSettings.CurveRampWidth = 1024.0f;
 }
 
-FWaterMeshActorDefaults::FWaterMeshActorDefaults()
+FWaterZoneActorDefaults::FWaterZoneActorDefaults()
 	: FarDistanceMaterial(FSoftObjectPath(TEXT("/Water/Materials/WaterSurface/Water_FarMesh.Water_FarMesh")))
 {}
 
-UMaterialInterface* FWaterMeshActorDefaults::GetFarDistanceMaterial() const
+UMaterialInterface* FWaterZoneActorDefaults::GetFarDistanceMaterial() const
 {
 	return FarDistanceMaterial.LoadSynchronous();
 }

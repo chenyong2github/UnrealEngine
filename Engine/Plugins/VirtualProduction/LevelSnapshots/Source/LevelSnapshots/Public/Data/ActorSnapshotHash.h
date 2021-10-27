@@ -24,15 +24,15 @@ struct LEVELSNAPSHOTS_API FActorSnapshotHash
 	
 	/** How many bytes of data were in the data were used for CRC32. Used to avoid computing hash. */
 	UPROPERTY()
-	int32 Crc32DataLength;
+	int32 Crc32DataLength {};
 	
 	/** How many bytes of data were in the data were used for MD5. Used to avoid computing hash. */
 	UPROPERTY()
-	int32 MD5DataLength;
+	int32 MD5DataLength {};
 
 	/** Crc32 hash of actor when it was snapshot. Used to check for changes without loading actor. */
 	UPROPERTY()
-	uint32 Crc32;
+	uint32 Crc32 {};
 
 	FMD5Hash MD5;
 	

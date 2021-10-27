@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ObjectDependencyCallback.h"
 #include "Templates/Function.h"
 
 class AActor;
@@ -69,6 +70,7 @@ public:
 		AActor* EditorActor,
 		FCustomSerializationData& ActorSerializationData,
 		FWorldSnapshotData& WorldData,
+		const FProcessObjectDependency& ProcessObjectDependency,
 		UPackage* LocalisationSnapshotPackage
 		);
 
@@ -85,6 +87,7 @@ public:
 		UObject* Subobject,
 		const FSoftObjectPath& OriginalSubobjectPath,
 		FWorldSnapshotData& WorldData,
+		const FProcessObjectDependency& ProcessObjectDependency,
 		UPackage* LocalisationSnapshotPackage
 		);
 	

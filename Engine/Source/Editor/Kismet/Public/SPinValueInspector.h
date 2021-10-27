@@ -22,10 +22,12 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FEdGraphPinReference& InPinRef);
+		void Construct(const FArguments& InArgs, const FEdGraphPinReference& InPinRef);
 
 	/** Whether the search filter UI should be visible. */
 	bool ShouldShowSearchFilter() const;
+
+	friend class FPinValueInspectorTooltip;
 
 protected:
 	/** @return Visibility of the search box filter widget. */
@@ -52,4 +54,48 @@ private:
 
 	/** The box that handles resizing of the Tree View */
 	TSharedPtr<class SPinValueInspector_ConstrainedBox> ConstrainedBox;
+};
+
+/** class holding functions to spawn a pin value inspector tooltip */
+class KISMET_API FPinValueInspectorTooltip
+{
+public:
+	/** Moves the tooltip to the new location */
+	void MoveTooltip(const FVector2D& InNewLocation);
+
+	/** 
+	 * Dismisses the current tooltip, if it is not currently hovered
+	 * NOTE: Pin a shared ptr before calling this function 
+	 */
+	void TryDismissTooltip();
+
+	/** Inspector widget in the tooltip */
+	TSharedPtr<SPinValueInspector> ValueInspectorWidget;
+
+private:
+	/** Dismisses the current tooltip (internal implementation) */
+	void DismissTooltip();
+	
+	/** @returns whether this tooltip is the host for a context menu */
+	bool TooltipHostsMenu();
+
+	/** @returns whether or not the tooltip can close */
+	bool TooltipCanClose();
+
+public:
+	/** Summons a new tooltip in the shared window */
+	static TWeakPtr<FPinValueInspectorTooltip> SummonTooltip(FEdGraphPinReference InPinRef);
+
+private:
+	/** Handles Creating a custom tooltip window for all PinValueInspector tooltips */
+	static void CreatePinValueTooltipWindow();
+
+	/** A reusable tooltip window for PinValueInspector */
+	static TSharedPtr<class SWindow> TooltipWindow;
+
+	/** Tooltip widget housed in the window */
+	static TSharedPtr<class SToolTip> TooltipWidget;
+
+	/** The current "live" tooltip */
+	static TSharedPtr<FPinValueInspectorTooltip> Instance;
 };

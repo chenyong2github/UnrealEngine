@@ -3,9 +3,7 @@
 #include "CADKernel/Geo/Curves/SegmentCurve.h"
 
 
-using namespace CADKernel;
-
-TSharedPtr<FEntityGeom> FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<CADKernel::FEntityGeom> CADKernel::FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FPoint TransformedStartPoint = InMatrix.Multiply(StartPoint);
 	FPoint TransformedEndPoint = InMatrix.Multiply(EndPoint);
@@ -14,7 +12,7 @@ TSharedPtr<FEntityGeom> FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& FSegmentCurve::GetInfo(FInfoEntity& Info) const
+CADKernel::FInfoEntity& CADKernel::FSegmentCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info).Add(TEXT("StartPoint"), StartPoint).Add(TEXT("pt2"), EndPoint);
 }

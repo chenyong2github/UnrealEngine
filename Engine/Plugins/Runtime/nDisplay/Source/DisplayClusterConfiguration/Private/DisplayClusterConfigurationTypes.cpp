@@ -253,7 +253,8 @@ void UDisplayClusterConfigurationData_Base::Serialize(FArchive& Ar)
 		 */
 
 		SetFlags(RF_Public);
-
+		ClearFlags(RF_Transient);
+		
 		ExportedObjects.Reset();
 		GetObjectsToExport(ExportedObjects);
 		for (UObject* Object : ExportedObjects)
@@ -268,6 +269,7 @@ void UDisplayClusterConfigurationData_Base::Serialize(FArchive& Ar)
 				Object->Rename(nullptr, this, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
 			}
 			Object->SetFlags(RF_Public);
+			Object->ClearFlags(RF_Transient);
 		}
 	}
 #endif

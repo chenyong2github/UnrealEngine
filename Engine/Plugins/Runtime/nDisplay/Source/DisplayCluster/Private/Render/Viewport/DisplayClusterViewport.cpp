@@ -154,6 +154,16 @@ bool FDisplayClusterViewport::ShouldUseAdditionalTargetableResource() const
 	return false;
 }
 
+bool FDisplayClusterViewport::ShouldUseAdditionalFrameTargetableResource() const
+{
+	return false;
+}
+
+bool FDisplayClusterViewport::ShouldUseFullSizeFrameTargetableResource() const
+{
+	return false;
+}
+
 void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InOutViewFamily, FSceneView& InOutView) const
 {
 	check(IsInGameThread());

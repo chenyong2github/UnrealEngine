@@ -570,6 +570,8 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 			}
 		}
 
+		int DisplayProgress = 0;
+
 		if (!DisplayMessage.IsEmpty())
 		{
 			const int32 DotCount = 4;
@@ -597,9 +599,11 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 				}
 			}
 
-			DisplayMessage = FText::FromString(FString::Printf(TEXT("%i%% - %s"), int(TotalProgressInterp * 100.f), *NewDisplayMessage));
+			DisplayProgress = int(TotalProgressInterp * 100.f);
+			DisplayMessage = FText::FromString(FString::Printf(TEXT("%i%% - %s"), DisplayProgress, *NewDisplayMessage));
 		}
 
+		FPlatformSplash::SetProgress(DisplayProgress);
 		FPlatformSplash::SetSplashText(SplashTextType::StartupProgress, *DisplayMessage.ToString());
 	}
 }

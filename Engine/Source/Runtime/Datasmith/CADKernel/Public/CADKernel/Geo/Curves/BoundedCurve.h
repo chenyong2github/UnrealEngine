@@ -71,7 +71,7 @@ namespace CADKernel
 
 		virtual void FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const override;
 
-		virtual TSharedPtr<FCurve> ReboundCurve(const FLinearBoundary& InBoundary) override;
+		virtual TSharedPtr<FCurve> MakeBoundedCurve(const FLinearBoundary& InBoundary) override;
 	};
 
 } // namespace CADKernel

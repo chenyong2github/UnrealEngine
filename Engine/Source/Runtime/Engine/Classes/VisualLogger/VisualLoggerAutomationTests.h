@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "VisualLoggerAutomationTests.generated.h"
 
-UCLASS(NotBlueprintable, Transient, hidecategories = UObject, notplaceable)
+UCLASS(NotBlueprintable, Transient, hidecategories = UObject)
 class UVisualLoggerAutomationTests : public UObject
 {
 	GENERATED_UCLASS_BODY()

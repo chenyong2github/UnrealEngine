@@ -2,6 +2,8 @@
 
 #include "StateTreeTransitionDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"

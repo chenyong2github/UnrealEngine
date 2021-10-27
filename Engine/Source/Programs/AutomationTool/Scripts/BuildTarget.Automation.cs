@@ -121,10 +121,10 @@ namespace AutomationTool
 
 			if (!SingleBuild || (ContainsEditor && !NoTools))
 			{
-				UE4Build Build = new UE4Build(this);
+				UnrealBuild Build = new UnrealBuild(this);
 				Build.AlwaysBuildUHT = true;
 
-				UE4Build.BuildAgenda Agenda = new UE4Build.BuildAgenda();
+				UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 
 				string EditorTarget = BuildTargets.Where(T => T.EndsWith("Editor", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
 

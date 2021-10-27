@@ -15,9 +15,8 @@ namespace CADKernel
 	friend class FCoreTechBridge;
 
 	protected:
-#ifdef CORETECHBRIDGE_DEBUG
 		FIdent CtKioId = 0;
-#endif
+
 	public:
 		FEntityGeom()
 			: FEntity()
@@ -37,18 +36,13 @@ namespace CADKernel
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FEntity::Serialize(Ar);
-#ifndef CORETECHBRIDGE_DEBUG
-			FIdent CtKioId = 0;
-#endif
 			Ar << CtKioId;
 		}
 
-#ifdef CORETECHBRIDGE_DEBUG
 		FIdent GetKioId()
 		{
 			return CtKioId;
 		}
-#endif
 
 #ifdef CADKERNEL_DEV
 		virtual FInfoEntity& GetInfo(FInfoEntity& Info) const override;

@@ -3,6 +3,7 @@
 #include "Components/AudioComponent.h"
 #include "ActiveSound.h"
 #include "Audio.h"
+#include "Audio/ActorSoundParameterInterface.h"
 #include "Audio/SoundGeneratorParameterInterface.h"
 #include "AudioDevice.h"
 #include "AudioThread.h"
@@ -39,6 +40,14 @@ FAutoConsoleVariableRef CVarTimeToTakeUpVoiceSlot(
 	TimeToTakeUpVoiceSlotCVar,
 	TEXT("TheEQuartzCommandQuantization type (default: EQuartzCommandQuantization::EighthNote) before playing that a queued sound should take up a voice slot for\n")
 	TEXT("Value: The EQuartzCommandQuantization index of the desired duration"),
+	ECVF_Default);
+
+static int32 WorldlessGetAudioTimeBehaviorCVar = 0;
+FAutoConsoleVariableRef CVarWorldlessGetAudioTimeBehavior(
+	TEXT("au.WorldlessGetAudioTimeBehavior"),
+	WorldlessGetAudioTimeBehaviorCVar,
+	TEXT("Determines the return value of GetAudioTime when an audio component does not belong to a world.\n")
+	TEXT("0: 0.f (default), 1: Application's CurrentTime"),
 	ECVF_Default);
 
 uint64 UAudioComponent::AudioComponentIDCounter = 0;
@@ -341,6 +350,21 @@ void UAudioComponent::BroadcastPlayState()
 	}
 }
 
+float UAudioComponent::GetAudioTimeSeconds() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		return World->GetAudioTimeSeconds();
+	}
+
+	if (WorldlessGetAudioTimeBehaviorCVar)
+	{
+		return FApp::GetCurrentTime();
+	}
+
+	return 0.f;
+}
+
 FBoxSphereBounds UAudioComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	const USceneComponent* UseAutoParent = (bAutoManageAttachment && GetAttachParent() == nullptr) ? AutoAttachParent.Get() : nullptr;
@@ -569,13 +593,14 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 	SCOPE_CYCLE_COUNTER(STAT_AudioComp_Play);
 
 	UWorld* World = GetWorld();
+	const float AudioTimeSeconds = GetAudioTimeSeconds();
 	USoundBase* SoundToPlay = InSoundOverride ? InSoundOverride : Sound.Get();
 	if (SoundToPlay)
 	{
-		UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), World ? World->GetAudioTimeSeconds() : 0.0f, *GetFullName(), *SoundToPlay->GetName());
+		UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), AudioTimeSeconds, *GetFullName(), *SoundToPlay->GetName());
 	}
 
-	// Reset fading out flag in case this is a reused audio component and replaying after previously fading out.
+	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
 	bIsFadingOut = false;
 
 	// Stop sound if active & not set to play multiple instances, irrespective of whether or not a valid sound is set to play.
@@ -611,14 +636,7 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 	}
 
 	// Store the time that this audio component played
-	if (World)
-	{
-		TimeAudioComponentPlayed = World->GetAudioTimeSeconds();
-	}
-	else
-	{
-		TimeAudioComponentPlayed = 0.0f;
-	}
+	TimeAudioComponentPlayed = AudioTimeSeconds;
 	FadeInTimeDuration = InPlayRequestData.FadeInDuration;
 
 	// Auto attach if requested
@@ -773,7 +791,19 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
 	}
 
-	AudioDevice->AddNewActiveSound(NewActiveSound, &InstanceParameters);
+	TArray<FAudioParameter> SoundParams = InstanceParameters;
+
+	if (AActor* Owner = GetOwner())
+	{
+		TArray<FAudioParameter> ActorParams;
+		UActorSoundParameterInterface::Fill(Owner, ActorParams);
+		FAudioParameter::Merge(MoveTemp(ActorParams), SoundParams);
+	}
+
+	TArray<FAudioParameter> DefaultParamsCopy = DefaultParameters;
+	FAudioParameter::Merge(MoveTemp(DefaultParamsCopy), SoundParams);
+
+	AudioDevice->AddNewActiveSound(NewActiveSound, MoveTemp(SoundParams));
 
 	// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
 	// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
@@ -930,9 +960,7 @@ void UAudioComponent::Stop()
 	// Set this to immediately be inactive
 	SetActiveFlag(false);
 
-	UE_LOG(LogAudio, Verbose, TEXT("%g: Stopping AudioComponent : '%s' with Sound: '%s'"),
-		GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(),
-		Sound ? *Sound->GetName() : TEXT("nullptr"));
+	UE_LOG(LogAudio, Verbose, TEXT("%g: Stopping AudioComponent : '%s' with Sound: '%s'"), GetAudioTimeSeconds(), *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
 
 	AudioDevice->StopActiveSound(AudioComponentID);
 
@@ -1003,7 +1031,7 @@ void UAudioComponent::SetPaused(bool bPause)
 
 		if (IsActive())
 		{
-			UE_LOG(LogAudio, Verbose, TEXT("%g: Pausing AudioComponent : '%s' with Sound: '%s'"), GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
+			UE_LOG(LogAudio, Verbose, TEXT("%g: Pausing AudioComponent : '%s' with Sound: '%s'"), GetAudioTimeSeconds(), *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
 
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
@@ -1049,8 +1077,7 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	// Mark inactive before calling destroy to avoid recursion
 	SetActiveFlag(false);
 
-	const UWorld* MyWorld = GetWorld();
-	if (!bFailedToStart && MyWorld != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
+	if (!bFailedToStart && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
 	{
 		INC_DWORD_STAT(STAT_AudioFinishedDelegatesCalled);
 		SCOPE_CYCLE_COUNTER(STAT_AudioFinishedDelegates);
@@ -1067,7 +1094,7 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	// Otherwise see if we should detach ourself and wait until we're needed again
 	else if (bAutoManageAttachment)
 	{
-		CancelAutoAttachment(true, MyWorld);
+		CancelAutoAttachment(true, GetWorld());
 	}
 
 	if (bIsPreviewSound)
@@ -1090,8 +1117,7 @@ bool UAudioComponent::IsVirtualized() const
 
 EAudioComponentPlayState UAudioComponent::GetPlayState() const
 {
-	UWorld* World = GetWorld();
-	if (!IsActive() || !World)
+	if (!IsActive())
 	{
 		return EAudioComponentPlayState::Stopped;
 	}
@@ -1107,7 +1133,7 @@ EAudioComponentPlayState UAudioComponent::GetPlayState() const
 	}
 
 	// Get the current audio time seconds and compare when it started and the fade in duration 
-	float CurrentAudioTimeSeconds = World->GetAudioTimeSeconds();
+	float CurrentAudioTimeSeconds = GetAudioTimeSeconds();
 	if (CurrentAudioTimeSeconds - TimeAudioComponentPlayed < FadeInTimeDuration)
 	{
 		return EAudioComponentPlayState::FadingIn;

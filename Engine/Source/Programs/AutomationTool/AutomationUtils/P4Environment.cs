@@ -60,33 +60,6 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// The Perforce host and port number (eg. perforce:1666)
-		/// </summary>
-		[Obsolete("The P4Port property has been deprecated in 4.18. Use the ServerAndPort property instead.")]
-		public string P4Port
-		{
-			get { return ServerAndPort; }
-		}
-
-		/// <summary>
-		/// Root directory of the current branch
-		/// </summary>
-		[Obsolete("The BuildRootP4 property has been deprecated in 4.18. Use the Branch property instead.")]
-		public string BuildRootP4
-		{
-			get { return Branch; }
-		}
-
-		/// <summary>
-		/// Escaped branch name
-		/// </summary>
-		[Obsolete("The BuildRootEscaped property has been deprecated in 4.18. Use the CommandUtils.EscapePath(P4Env.Branch) instead.")]
-		public string BuildRootEscaped
-		{
-			get { return CommandUtils.EscapePath(BuildRootP4); }
-		}
-
-		/// <summary>
 		/// The currently synced changelist.
 		/// </summary>
 		public int Changelist
@@ -103,15 +76,6 @@ namespace AutomationTool
 			{
 				ChangelistInternal = value;
 			}
-		}
-
-		/// <summary>
-		/// Deprecated accessor for the current changelist as a string.
-		/// </summary>
-		[Obsolete("The ChangelistString property has been deprecated in 4.18. Use the integer Changelist property instead.")]
-		public string ChangelistString
-		{
-			get { return Changelist.ToString(); }
 		}
 
 		/// <summary>

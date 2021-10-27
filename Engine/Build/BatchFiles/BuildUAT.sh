@@ -19,6 +19,8 @@ if [ ! -f ../Build/BatchFiles/BuildUAT.sh ]; then
   exit 1
 fi
 
+MSBuild_Verbosity="${1:quiet}"
+
 # Check to see if the files in the AutomationTool, EpicGames.Build, EpicGames.Core, or UnrealBuildTool
 # directory have changed.
 
@@ -76,7 +78,7 @@ if [ $PERFORM_REBUILD -eq 1 ]; then
   fi
 
   echo dotnet msbuild -restore -t:build -property:Configuration=Development -nologo \
-    Programs/AutomationTool/AutomationTool.csproj -verbosity:quiet
+    Programs/AutomationTool/AutomationTool.csproj -verbosity:$MSBuild_Verbosity
   dotnet msbuild -restore -t:build -property:Configuration=Development -nologo \
     Programs/AutomationTool/AutomationTool.csproj -verbosity:quiet
   if [ $? -ne 0 ]; then

@@ -30,13 +30,6 @@ public:
 	virtual const FDisplayClusterConfiguratorCommands& GetCommands() const override;
 	//~ End IDisplayClusterConfigurator Interface
 
-public:
-	static void ReadOnlySink();
-
-	static FDelegateHandle RegisterOnReadOnly(const FOnDisplayClusterConfiguratorReadOnlyChangedDelegate& Delegate);
-
-	static void UnregisterOnReadOnly(FDelegateHandle DelegateHandle);
-
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void RegisterSettings();

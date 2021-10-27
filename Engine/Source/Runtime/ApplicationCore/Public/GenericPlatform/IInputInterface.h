@@ -10,8 +10,8 @@
 
 // General identifiers for potential force feedback channels. These will be mapped according to the
 // platform specific implementation.
-// For example, the PS4 only listens to the XXX_LARGE channels and ignores the rest, while the XBox One could
-// map the XXX_LARGE to the handle motors and XXX_SMALL to the trigger motors. And iOS can map LEFT_SMALL to
+// For example, Platform A only listens to the XXX_LARGE channels and ignores the rest, while Platform B could
+// map the XXX_LARGE to the handle motors and XXX_SMALL to the trigger motors. And others can map LEFT_SMALL to
 // its single motor.
 enum class FForceFeedbackChannelType
 {

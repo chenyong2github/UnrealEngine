@@ -6,6 +6,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "Misc/TVariant.h"
+#include "Serialization/VirtualizedBulkData.h"
 #include "Texture/InterchangeBlockedTexturePayloadData.h"
 #include "Texture/InterchangeSlicedTexturePayloadData.h"
 #include "Texture/InterchangeTextureLightProfilePayloadData.h"
@@ -13,7 +14,6 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Virtualization/VirtualizedBulkData.h"
 
 #include "InterchangeTextureFactory.generated.h"
 

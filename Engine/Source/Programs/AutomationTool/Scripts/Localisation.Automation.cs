@@ -663,7 +663,7 @@ public class ExportMcpTemplates : BuildCommand
 	public static void RunExportTemplates(FileReference ProjectFile, bool bCheckoutAndSubmit, bool bOnlyLoc, bool bbNoRobomerge, string CommandletOverride)
 	{
 		string EditorExe = "UnrealEditor.exe";
-		EditorExe = HostPlatform.Current.GetUE4ExePath(EditorExe);
+		EditorExe = HostPlatform.Current.GetUnrealExePath(EditorExe);
 
 		string GameBackendFolder = GetGameBackendFolder(ProjectFile);
 		if (!DirectoryExists_NoExceptions(GameBackendFolder))

@@ -10,7 +10,7 @@
 
 
 
-UCLASS(notplaceable)
+UCLASS()
 class ASSETTOOLS_API UAdvancedCopyCustomization : public UObject
 {
 	GENERATED_BODY()

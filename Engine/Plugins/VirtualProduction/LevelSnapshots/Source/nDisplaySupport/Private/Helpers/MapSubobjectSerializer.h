@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Restorability/Serialization/ICustomObjectSnapshotSerializer.h"
-#include "Serialization/ObjectSnapshotSerializationData.h"
+#include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "Params/ObjectSnapshotSerializationData.h"
 #include "UObject/UnrealType.h"
 
 class FScriptMapHelper;

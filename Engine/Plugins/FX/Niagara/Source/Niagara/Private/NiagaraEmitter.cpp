@@ -1704,7 +1704,7 @@ bool UNiagaraEmitter::CanObtainUserVariable(const FNiagaraVariableBase& InVar) c
 	return false;
 }
 
-FString UNiagaraEmitter::GetUniqueEmitterName()const
+const FString& UNiagaraEmitter::GetUniqueEmitterName()const
 {
 	return UniqueEmitterName;
 }

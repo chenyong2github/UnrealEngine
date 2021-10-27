@@ -233,7 +233,7 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 	{
 		// Convert buffer to an FString (will this be slow with big tables?)
 		int32 NumChars = (BufferEnd - Buffer);
-		TArray<TCHAR>& StringChars = ImportSettings.DataToImport.GetCharArray();
+		TArray<TCHAR, FString::AllocatorType>& StringChars = ImportSettings.DataToImport.GetCharArray();
 		StringChars.AddUninitialized(NumChars+1);
 		FMemory::Memcpy(StringChars.GetData(), Buffer, NumChars*sizeof(TCHAR));
 		StringChars.Last() = 0;

@@ -523,10 +523,8 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		FName(TEXT("Menu"))
 	);
 
-#if !WITH_EDITOR
 	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
 	MenuWidget->SetClipping(EWidgetClipping::ClipToBoundsWithoutIntersecting);
-#endif
 
 	ChildSlot
 	[
@@ -561,6 +559,14 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SVerticalBox)
+
+#if WITH_EDITOR
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				MenuWidget
+			]
+#endif
 
 			+ SVerticalBox::Slot()
 			.AutoHeight()

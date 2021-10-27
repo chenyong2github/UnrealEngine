@@ -10,7 +10,7 @@
 /**
  * Implements the visual style of the text asset editor UI.
  */
-class FInterchangeResultsBrowserStyle : public FSlateStyleSet
+class FInterchangeResultsBrowserStyle final : public FSlateStyleSet
 {
 public:
 

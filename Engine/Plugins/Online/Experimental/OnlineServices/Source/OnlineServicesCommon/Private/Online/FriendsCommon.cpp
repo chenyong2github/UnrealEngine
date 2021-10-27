@@ -23,6 +23,13 @@ TOnlineResult<FGetFriends::Result> FFriendsCommon::GetFriends(FGetFriends::Param
 	return TOnlineResult<FGetFriends::Result>(Errors::Unimplemented());
 }
 
+TOnlineAsyncOpHandle<FAddFriend> FFriendsCommon::AddFriend(FAddFriend::Params&& Params)
+{
+	TOnlineAsyncOp<FAddFriend>& Operation = GetOp<FAddFriend>(MoveTemp(Params));
+	Operation.SetError(Errors::Unimplemented());
+	return Operation.GetHandle();
+}
+
 TOnlineEvent<void(const FFriendsListUpdated&)> FFriendsCommon::OnFriendsListUpdated()
 {
 	return OnFriendsListUpdatedEvent;

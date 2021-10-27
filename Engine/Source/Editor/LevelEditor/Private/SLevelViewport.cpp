@@ -61,7 +61,6 @@
 #include "NaniteVisualizationData.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "SLevelViewportControlsPopup.h"
 #include "SActorPilotViewportToolbar.h"
 #include "Engine/LocalPlayer.h"
 #include "Slate/SGameLayerManager.h"
@@ -273,15 +272,6 @@ void SLevelViewport::ConstructViewportOverlayContent()
 	.Padding(0.0f, 0.0f, 0.0f, 35.0f)
 	[
 		SAssignNew( ActorPreviewHorizontalBox, SHorizontalBox )
-	];
-
-	ViewportOverlay->AddSlot(SlotIndex)
-	.VAlign(VAlign_Bottom)
-	.HAlign(HAlign_Left)
-	.Padding(5.0f)
-	[
-		SNew(SLevelViewportControlsPopup)
-		.Visibility(this, &SLevelViewport::GetViewportControlsVisibility)
 	];
 
 	ViewportOverlay->AddSlot( SlotIndex )

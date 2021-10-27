@@ -86,7 +86,7 @@ struct FTrackedCamera
 /**
 * Object to hold the state of MR capture and capturing camera
 */
-UCLASS(ClassGroup = OculusMR, NotPlaceable, NotBlueprintable)
+UCLASS(ClassGroup = OculusMR, NotBlueprintable)
 class UOculusMR_State : public UObject
 {
 	GENERATED_BODY()

@@ -200,7 +200,13 @@ namespace CADKernel
 		 */
 		void ApplyNaturalLoops();
 
-		int32 LoopCount() const
+		/**
+		 * Trimmed the face with the boundary limit curves (Iso UMin,  ...). This function is called to trim untrimmed topological face.
+		 * This function should not be called if the topological face already has a loop.
+		 */
+		void ApplyNaturalLoops(const FSurfacicBoundary& Boundaries);
+
+		int32 LoopCount() const 
 		{
 			return Loops.Num();
 		}
@@ -222,7 +228,7 @@ namespace CADKernel
 		/**
 		 * @return the twin edge of linked edge belonging this topological face
 		 */
-		TSharedPtr<FTopologicalEdge> GetLinkedEdge(const TSharedPtr<FTopologicalEdge>& LinkedEdge) const;
+		const FTopologicalEdge* GetLinkedEdge(const FTopologicalEdge& LinkedEdge) const;
 
 		/**
 		 * Finds the boundary containing the twin edge of Edge
@@ -230,7 +236,30 @@ namespace CADKernel
 		 * @param OutBoundaryIndex: the index of the boundary containing the twin edge
 		 * @param OutEdgeIndex: the index in the boundary of the twin edge
 		 */
-		void GetEdgeIndex(const TSharedPtr<FTopologicalEdge>& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const;
+		void GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const;
+
+		/**
+		 * Count the edges.
+		 */
+		void EdgeCount(int32& EdgeCount) const 
+		{
+			for (const TSharedPtr<FTopologicalLoop>& Loop : Loops)
+			{
+				EdgeCount += Loop->GetEdges().Num();
+			}
+		}
+
+		/**
+		 * Add active Edge that has not marker 1 in the edge array.
+		 * Marker 1 has to be reset at the end.
+		 */
+		void GetActiveEdges(TArray<TSharedPtr<FTopologicalEdge>>& OutEdges) const
+		{
+			for (const TSharedPtr<FTopologicalLoop>& Loop : Loops)
+			{
+				Loop->GetActiveEdges(OutEdges);
+			}
+		}
 
 		// ======   Carrier Surface Functions   ======
 
@@ -481,7 +510,7 @@ namespace CADKernel
 			return StartSideIndices;
 		}
 
-		int32 GetSideIndex(TSharedPtr<FTopologicalEdge> Edge) const
+		int32 GetSideIndex(FTopologicalEdge& Edge) const
 		{
 			int32 EdgeIndex = Loops[0]->GetEdgeIndex(Edge);
 			if (EdgeIndex < 0)

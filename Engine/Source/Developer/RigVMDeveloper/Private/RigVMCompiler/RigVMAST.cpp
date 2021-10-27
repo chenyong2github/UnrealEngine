@@ -1840,6 +1840,11 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 			}
 			else if (PinForDefaultValue->IsStruct())
 			{
+				if(SplitDefaultValues.IsEmpty())
+				{
+					break;
+				}
+				
 				for (const FString& MemberNameValuePair : SplitDefaultValues)
 				{
 					FString MemberName, MemberValue;

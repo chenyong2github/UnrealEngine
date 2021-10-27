@@ -22,6 +22,18 @@ UAnimInstance* FAnimNode_LinkedAnimLayer::GetDynamicLinkTarget(UAnimInstance* In
 
 void FAnimNode_LinkedAnimLayer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
+	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
+	
+	// Initialize source properties here as they do not change
+	const int32 NumSourceProperties = SourcePropertyNames.Num();
+	SourceProperties.SetNumZeroed(NumSourceProperties);
+
+	const UClass* ThisClass = InAnimInstance->GetClass();
+	for(int32 SourcePropertyIndex = 0; SourcePropertyIndex < NumSourceProperties; ++SourcePropertyIndex)
+	{
+		SourceProperties[SourcePropertyIndex] = ThisClass->FindPropertyByName(SourcePropertyNames[SourcePropertyIndex]);
+	}
+	
 	// We only initialize here if we are running a 'self' layer. Layers that use external instances need to be 
 	// initialized by the owning anim instance as they may share linked instances via grouping.
 	if(Interface.Get() == nullptr || InstanceClass.Get() == nullptr)
@@ -81,4 +93,36 @@ void FAnimNode_LinkedAnimLayer::SetLinkedLayerInstance(const UAnimInstance* InOw
 #if WITH_EDITOR
 	OnInstanceChangedEvent.Broadcast();
 #endif
+}
+
+void FAnimNode_LinkedAnimLayer::InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass)
+{
+	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
+	
+	// Build dest property list - source is set up when we initialize
+	DestProperties.SetNumZeroed(SourcePropertyNames.Num());
+	
+	IAnimClassInterface* TargetAnimClassInterface = IAnimClassInterface::GetFromClass(InTargetClass);
+	check(TargetAnimClassInterface);
+
+	const FName FunctionName = GetDynamicLinkFunctionName();
+	if(const FAnimBlueprintFunction* Function = IAnimClassInterface::FindAnimBlueprintFunction(TargetAnimClassInterface, FunctionName))
+	{
+		// Target properties are linked via the anim BP function params
+		for(int32 DestPropertyIndex = 0; DestPropertyIndex < DestPropertyNames.Num(); ++DestPropertyIndex)
+		{
+			const FName& DestName = DestPropertyNames[DestPropertyIndex];
+
+			// Look for an input property (parameter) with the specified name
+			const int32 NumParams = Function->InputPropertyData.Num();
+			for(int32 InputPropertyIndex = 0; InputPropertyIndex < NumParams; ++InputPropertyIndex)
+			{
+				if(Function->InputPropertyData[InputPropertyIndex].Name == DestName)
+				{
+					DestProperties[DestPropertyIndex] = Function->InputPropertyData[InputPropertyIndex].ClassProperty;
+					break;
+				}
+			}
+		}
+	}
 }

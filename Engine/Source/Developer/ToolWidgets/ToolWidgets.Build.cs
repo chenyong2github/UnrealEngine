@@ -14,6 +14,7 @@ public class ToolWidgets : ModuleRules
 				"Core",
 				"Slate",
 				"SlateCore",
+				"InputCore",
 			}
 		);
 

@@ -14,6 +14,7 @@
 #include "Views/Details/Cluster/DisplayClusterConfiguratorExternalImageTypeCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorGenerateMipsCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorNodeSelectionCustomization.h"
+#include "Views/Details/Cluster/DisplayClusterConfiguratorClusterReferenceListCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorViewportDetailsCustomization.h"
 #include "Views/Details/Components/DisplayClusterConfiguratorScreenComponentDetailsCustomization.h"
 #include "Views/Details/Components/DisplayClusterICVFXCameraComponentDetailsCustomization.h"
@@ -48,16 +49,6 @@
 }
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfigurator"
-
-FOnDisplayClusterConfiguratorReadOnlyChanged FDisplayClusterConfiguratorModule::OnDisplayClusterConfiguratorReadOnlyChanged;
-
-static TAutoConsoleVariable<bool> CVarDisplayClusterConfiguratorReadOnly(
-	TEXT("nDisplay.configurator.ReadOnly"),
-	true,
-	TEXT("Enable or disable editing functionality")
-	);
-
-static FAutoConsoleVariableSink CVarDisplayClusterConfiguratorReadOnlySink(FConsoleCommandDelegate::CreateStatic(&FDisplayClusterConfiguratorModule::ReadOnlySink));
 
 void FDisplayClusterConfiguratorModule::StartupModule()
 {
@@ -141,32 +132,6 @@ const FDisplayClusterConfiguratorCommands& FDisplayClusterConfiguratorModule::Ge
 	return FDisplayClusterConfiguratorCommands::Get();
 }
 
-void FDisplayClusterConfiguratorModule::ReadOnlySink()
-{
-	bool bNewDisplayClusterConfiguratorReadOnly = CVarDisplayClusterConfiguratorReadOnly.GetValueOnGameThread();
-
-	// By default we assume the ReadOnly is true
-	static bool GReadOnly = true;
-
-	if (GReadOnly != bNewDisplayClusterConfiguratorReadOnly)
-	{
-		GReadOnly = bNewDisplayClusterConfiguratorReadOnly;
-
-		// Broadcast the changes
-		OnDisplayClusterConfiguratorReadOnlyChanged.Broadcast(GReadOnly);
-	}
-}
-
-FDelegateHandle FDisplayClusterConfiguratorModule::RegisterOnReadOnly(const FOnDisplayClusterConfiguratorReadOnlyChangedDelegate& Delegate)
-{
-	return OnDisplayClusterConfiguratorReadOnlyChanged.Add(Delegate);
-}
-
-void FDisplayClusterConfiguratorModule::UnregisterOnReadOnly(FDelegateHandle DelegateHandle)
-{
-	OnDisplayClusterConfiguratorReadOnlyChanged.Remove(DelegateHandle);
-}
-
 void FDisplayClusterConfiguratorModule::RegisterAssetTypeAction(IAssetTools& AssetTools,
 	TSharedRef<IAssetTypeActions> Action)
 {
@@ -222,6 +187,7 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 	REGISTER_PROPERTY_LAYOUT(FDisplayClusterConfigurationViewport_PerViewportColorGrading, FDisplayClusterConfiguratorPerViewportColorGradingCustomization);
 	REGISTER_PROPERTY_LAYOUT(FDisplayClusterConfigurationViewport_PerNodeColorGrading, FDisplayClusterConfiguratorPerNodeColorGradingCustomization);
 	REGISTER_PROPERTY_LAYOUT(FDisplayClusterConfigurationPostRender_GenerateMips, FDisplayClusterConfiguratorGenerateMipsCustomization);
+	REGISTER_PROPERTY_LAYOUT(FDisplayClusterConfigurationClusterItemReferenceList, FDisplayClusterConfiguratorClusterReferenceListCustomization);
 }
 
 void FDisplayClusterConfiguratorModule::UnregisterCustomLayouts()

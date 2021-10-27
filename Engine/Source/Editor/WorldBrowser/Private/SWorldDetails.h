@@ -48,12 +48,10 @@ private:
 	
 	/**  */
 	FReply OnSummonHierarchy();
-	const FSlateBrush* GetSummonHierarchyBrush() const;
 
 	/**  */
 	EVisibility GetCompositionButtonVisibility() const;
 	FReply OnSummonComposition();
-	const FSlateBrush* GetSummonCompositionBrush() const;
 		
 private:
 	TSharedPtr<FLevelCollectionModel>				WorldModel;

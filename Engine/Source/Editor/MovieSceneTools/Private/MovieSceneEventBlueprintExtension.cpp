@@ -68,4 +68,10 @@ void UMovieSceneEventBlueprintExtension::HandleGenerateFunctionGraphs(FKismetCom
 
 		CompilerContext->OnFunctionListCompiled().AddLambda(OnFunctionListGenerated);
 	}
+
+	// Don't remove while transacting because it can remove when an undo is in progress
+	if (!GIsTransacting)
+	{
+		FMovieSceneEventUtils::RemoveUnusedCustomEvents(EventSections, CompilerContext->Blueprint);
+	}
 }

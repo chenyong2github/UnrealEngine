@@ -9,6 +9,15 @@
 
 class IPlugin;
 
+struct UNREALED_API FThumbnailExternalCacheSettings
+{
+	/** Recompress any lossless thumbnails */
+	bool bRecompressLossless = false;
+
+	/** Reduce size of any thumbnails to MaxImageSize */
+	int32 MaxImageSize = INT32_MAX;
+};
+
 class FThumbnailExternalCache
 {
 public:
@@ -22,10 +31,14 @@ public:
 	/** Load thumbnails for the given object names from external cache */
 	UNREALED_API bool LoadThumbnailsFromExternalCache(const TSet<FName>& InObjectFullNames, FThumbnailMap& InOutThumbnails);
 
-	/** Save thumbnails for the given assets to an external file */
-	UNREALED_API bool SaveExternalCache(const FString& InFilename, TArray<FAssetData>& AssetDatas);
+	/** Save thumbnails for the given assets to an external file. Deterministic if assets were sorted. */
+	UNREALED_API bool SaveExternalCache(const FString& InFilename, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings);
 
-private:
+	/** Sort asset data list if determinism needed */
+	UNREALED_API static void SortAssetDatas(TArray<FAssetData>& InOutAssetDatas);
+
+	/** Try to load thumbnail for a given asset data */
+	static FObjectThumbnail LoadThumbnailFromPackage(const FAssetData& AssetData);
 
 	enum class EThumbnailExternalCacheHeaderFlags : uint64
 	{
@@ -67,10 +80,10 @@ private:
 		FThumbnailExternalCacheHeader Header;
 		TMap<FName, FThumbnailEntry> NameToEntry;
 	};
-	
-	void SaveExternalCache(FArchive& Ar, const TArray<FAssetData>& AssetDatas) const;
 
-	FObjectThumbnail* LoadThumbnailFromPackage(const FAssetData& AssetData, FThumbnailMap& ThumbnailMap) const;
+private:
+
+	void SaveExternalCache(FArchive& Ar, const TArrayView<FAssetData> InAssetDatas, const FThumbnailExternalCacheSettings& InSettings);
 
 	void Init();
 
@@ -90,8 +103,4 @@ private:
 
 	bool bHasInit = false;
 	bool bIsSavingCache = false;
-	static const int64 LatestVersion;
-	static const uint64 ExpectedHeaderId;
-	static const FString ThumbnailFilenamePart;
-	static const FString ThumbnailImageFormatName;
 };

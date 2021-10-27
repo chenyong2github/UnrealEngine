@@ -28,6 +28,7 @@ struct FFinalSkinVertex
 	FPackedNormal	TangentZ;
 	float			U;
 	float			V;
+	FVector2D TextureCoordinates[MAX_TEXCOORDS];
 
 	FVector3f GetTangentY() const
 	{

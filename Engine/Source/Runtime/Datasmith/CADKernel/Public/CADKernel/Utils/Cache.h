@@ -66,6 +66,11 @@ namespace CADKernel
 			return Value;
 		}
 
+		const ObjectType& operator*() const
+		{
+			return Value;
+		}
+
 		void SetReady()
 		{
 			bReady = true;

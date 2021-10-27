@@ -14,7 +14,7 @@
 
 #include "CameraAnimInst.generated.h"
 
-UCLASS(notplaceable, BlueprintType, transient)
+UCLASS(BlueprintType, transient)
 class ENGINE_API UCameraAnimInst : public UObject
 {
 	GENERATED_UCLASS_BODY()
