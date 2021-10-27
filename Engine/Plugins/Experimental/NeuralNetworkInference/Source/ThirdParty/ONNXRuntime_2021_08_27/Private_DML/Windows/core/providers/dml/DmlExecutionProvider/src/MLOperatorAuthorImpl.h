@@ -192,7 +192,7 @@ class OpNodeInfoWrapper : public Base1_t, public Base2_t, public Closable
         MLOperatorAttributeType type,
         uint32_t elementCount,
         size_t elementByteSize,
-        void* value) const noexcept override;
+        void* attributeValue) const noexcept override; // WITH_UE: C4458: declaration of 'value' hides class member. Windows Kits\10\include\10.0.18362.0\winrt\wrl\implements.h(81): note: see declaration of 'Microsoft::WRL::RuntimeClassFlags<4>::value'
 
     HRESULT STDMETHODCALLTYPE GetStringAttributeElementLength(
         _In_z_ const char* name,
