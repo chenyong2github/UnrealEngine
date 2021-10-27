@@ -145,7 +145,7 @@ namespace HordeAgent.Utility
 		/// </summary>
 		/// <param name="Level">The log level</param>
 		/// <param name="Lines">Utf-8 encoded JSON line data</param>
-		protected abstract void WriteFormattedEvent(LogLevel Level, byte[][] Lines);
+		public abstract void WriteFormattedEvent(LogLevel Level, byte[][] Lines);
 
 		/// <summary>
 		/// Callback to write a systemic event

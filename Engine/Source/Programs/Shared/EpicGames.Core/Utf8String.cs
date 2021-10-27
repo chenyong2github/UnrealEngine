@@ -120,16 +120,10 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(Utf8String Other)
-		{
-			return Span.SequenceEqual(Other.Span);
-		}
+		public bool Equals(Utf8String Other) => Utf8StringComparer.Ordinal.Equals(Span, Other.Span);
 
 		/// <inheritdoc/>
-		public int CompareTo(Utf8String Other)
-		{
-			return Span.SequenceCompareTo(Other.Span);
-		}
+		public int CompareTo(Utf8String Other) => Utf8StringComparer.Ordinal.Compare(Span, Other.Span);
 
 		/// <inheritdoc cref="String.Contains(string)"/>
 		public bool Contains(Utf8String String) => IndexOf(String) != -1;
@@ -287,15 +281,7 @@ namespace EpicGames.Core
 		/// Returns the hash code of this string
 		/// </summary>
 		/// <returns>Hash code for the string</returns>
-		public override int GetHashCode()
-		{
-			int Hash = 5381;
-			for(int Idx = 0; Idx < Memory.Length; Idx++)
-			{
-				Hash += (Hash << 5) + Span[Idx];
-			}
-			return Hash;
-		}
+		public override int GetHashCode() => Utf8StringComparer.Ordinal.GetHashCode(Span);
 
 		/// <summary>
 		/// Gets the string represented by this data
@@ -373,33 +359,38 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Ordinal comparer for utf8 strings
 		/// </summary>
-		class OrdinalComparer : Utf8StringComparer
+		public sealed class OrdinalComparer : Utf8StringComparer
 		{
 			/// <inheritdoc/>
-			public override bool Equals(Utf8String StrA, Utf8String StrB)
+			public override bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
 			{
-				return StrA.Equals(StrB);
+				return StrA.SequenceEqual(StrB);
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(Utf8String String)
+			public override int GetHashCode(ReadOnlySpan<byte> String)
 			{
-				return String.GetHashCode();
+				int Hash = 5381;
+				for (int Idx = 0; Idx < String.Length; Idx++)
+				{
+					Hash += (Hash << 5) + String[Idx];
+				}
+				return Hash;
 			}
 
-			public override int Compare(Utf8String StrA, Utf8String StrB)
+			public override int Compare(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
 			{
-				return StrA.Span.SequenceCompareTo(StrB.Span);
+				return StrA.SequenceCompareTo(StrB);
 			}
 		}
 
 		/// <summary>
 		/// Comparison between ReadOnlyUtf8String objects that ignores case for ASCII characters
 		/// </summary>
-		class OrdinalIgnoreCaseComparer : Utf8StringComparer 
+		public sealed class OrdinalIgnoreCaseComparer : Utf8StringComparer 
 		{
 			/// <inheritdoc/>
-			public override bool Equals(Utf8String StrA, Utf8String StrB)
+			public override bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB)
 			{
 				if (StrA.Length != StrB.Length)
 				{
@@ -418,7 +409,7 @@ namespace EpicGames.Core
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(Utf8String String)
+			public override int GetHashCode(ReadOnlySpan<byte> String)
 			{
 				HashCode HashCode = new HashCode();
 				for (int Idx = 0; Idx < String.Length; Idx++)
@@ -429,12 +420,9 @@ namespace EpicGames.Core
 			}
 
 			/// <inheritdoc/>
-			public override int Compare(Utf8String StrA, Utf8String StrB)
+			public override int Compare(ReadOnlySpan<byte> SpanA, ReadOnlySpan<byte> SpanB)
 			{
-				ReadOnlySpan<byte> SpanA = StrA.Span;
-				ReadOnlySpan<byte> SpanB = StrB.Span;
-
-				int Length = Math.Min(StrA.Length, StrB.Length);
+				int Length = Math.Min(SpanA.Length, SpanB.Length);
 				for (int Idx = 0; Idx < Length; Idx++)
 				{
 					if (SpanA[Idx] != SpanB[Idx])
@@ -447,8 +435,7 @@ namespace EpicGames.Core
 						}
 					}
 				}
-
-				return StrA.Length - StrB.Length;
+				return SpanA.Length - SpanB.Length;
 			}
 
 			/// <summary>
@@ -465,21 +452,30 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of the ordinal utf8 ordinal comparer
 		/// </summary>
-		public static Utf8StringComparer Ordinal = new OrdinalComparer();
+		public static Utf8StringComparer Ordinal { get; } = new OrdinalComparer();
 
 		/// <summary>
 		/// Static instance of the case-insensitive utf8 ordinal string comparer
 		/// </summary>
-		public static Utf8StringComparer OrdinalIgnoreCase = new OrdinalIgnoreCaseComparer();
+		public static Utf8StringComparer OrdinalIgnoreCase { get; } = new OrdinalIgnoreCaseComparer();
 
 		/// <inheritdoc/>
-		public abstract bool Equals(Utf8String StrA, Utf8String StrB);
+		public bool Equals(Utf8String StrA, Utf8String StrB) => Equals(StrA.Span, StrB.Span);
 
 		/// <inheritdoc/>
-		public abstract int GetHashCode(Utf8String String);
+		public abstract bool Equals(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB);
 
 		/// <inheritdoc/>
-		public abstract int Compare(Utf8String StrA, Utf8String StrB);
+		public int GetHashCode(Utf8String String) => GetHashCode(String.Span);
+
+		/// <inheritdoc/>
+		public abstract int GetHashCode(ReadOnlySpan<byte> String);
+
+		/// <inheritdoc/>
+		public int Compare(Utf8String StrA, Utf8String StrB) => Compare(StrA.Span, StrB.Span);
+
+		/// <inheritdoc/>
+		public abstract int Compare(ReadOnlySpan<byte> StrA, ReadOnlySpan<byte> StrB);
 	}
 
 	/// <summary>

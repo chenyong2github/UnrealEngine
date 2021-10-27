@@ -6,12 +6,14 @@ using HordeAgent.Utility;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,6 +69,11 @@ namespace HordeAgent.Parser
 		ILogger Logger;
 
 		/// <summary>
+		/// Special passthrough for Json log devices
+		/// </summary>
+		JsonLogger? JsonLogger;
+
+		/// <summary>
 		/// Context for matchers for this log
 		/// </summary>
 		LogParserContext Context;
@@ -86,6 +93,7 @@ namespace HordeAgent.Parser
 		{
 			this.IgnorePatterns = IgnorePatterns;
 			this.Logger = Logger;
+			this.JsonLogger = Logger as JsonLogger;
 			this.Buffer = new LineBuffer(50);
 			this.Context = Context;
 		}
@@ -118,7 +126,75 @@ namespace HordeAgent.Parser
 			{
 				Data = Data.Slice(0, Data.Length - 1);
 			}
+			if (Buffer.Length == 0 && Data[0] == '{' && WriteRawEvent(Data))
+			{
+				return;
+			}
 			Buffer.AddLine(Encoding.UTF8.GetString(Data));
+		}
+
+		/// <summary>
+		/// Static constant string for the level property in a log event
+		/// </summary>
+		readonly Utf8String LevelString = new Utf8String("Level");
+
+		/// <summary>
+		/// Attempts to parse the line as a raw JSON object and pass it directly through to the JsonLogger. For this to succeed, it must be a well formatted JSON object and have a Level property.
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns></returns>
+		private bool WriteRawEvent(ReadOnlySpan<byte> Data)
+		{
+			if(JsonLogger == null)
+			{
+				return false;
+			}
+
+			Utf8JsonReader Reader = new Utf8JsonReader(Data);
+			if (!Reader.Read() || Reader.TokenType != JsonTokenType.StartObject)
+			{
+				return false;
+			}
+
+			LogLevel Level = LogLevel.None;
+			for(; ;)
+			{
+				if(!Reader.Read())
+				{
+					return false;
+				}
+
+				if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
+				{
+					break;
+				}
+				else if(Reader.TokenType != JsonTokenType.PropertyName)
+				{
+					return false;
+				}
+
+				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(Reader.ValueSpan, LevelString.Span))
+				{
+					if (!Reader.TrySkip() || Reader.TokenType != JsonTokenType.String)
+					{
+						return false;
+					}
+					if(!Enum.TryParse(Reader.GetString(), out Level))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (!Reader.TrySkip())
+					{
+						return false;
+					}
+				}
+			}
+
+			JsonLogger.WriteFormattedEvent(Level, new byte[][] { Data.ToArray() });
+			return true;
 		}
 
 		/// <summary>
