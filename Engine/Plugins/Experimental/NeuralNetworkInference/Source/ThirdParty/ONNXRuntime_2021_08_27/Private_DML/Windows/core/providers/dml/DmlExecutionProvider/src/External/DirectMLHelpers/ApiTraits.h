@@ -2159,7 +2159,7 @@ auto OperatorTypeVisitor(DML_OPERATOR_TYPE type, Visitor&& visitor, Ts&&... args
 
     default:
         THROW_HR(E_INVALIDARG);
-        return std::invoke(std::forward<Visitor>(visitor), DML_ACTIVATION_SHRINK_OPERATOR_DESC{}, std::forward<Ts>(args)...); // WITH_UE
+        return std::invoke(std::forward<Visitor>(visitor), DML_ACTIVATION_RELU_OPERATOR_DESC{}, std::forward<Ts>(args)...);
     }
 }
 

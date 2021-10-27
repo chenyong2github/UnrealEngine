@@ -127,8 +127,9 @@ inline size_t GetByteSizeFromMlDataType(MLOperatorTensorDataType tensorDataType)
     case MLOperatorTensorDataType::Complex64: return 8;
     case MLOperatorTensorDataType::Complex128: return 16;
     case MLOperatorTensorDataType::Undefined:
-    default: THROW_HR(E_INVALIDARG);
-        return 0; // WITH_UE
+    default:
+        THROW_HR(E_INVALIDARG);
+        return 0;
     };
 }
 
