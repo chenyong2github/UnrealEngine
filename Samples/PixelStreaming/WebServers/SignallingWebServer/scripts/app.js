@@ -1613,7 +1613,7 @@ function registerTouchEvents(playerElement) {
     }
 
     function emitTouchData(type, touches) {
-        let data = new DataView(new ArrayBuffer(2 + 6 * touches.length));
+        let data = new DataView(new ArrayBuffer(2 + 7 * touches.length));
         data.setUint8(0, type);
         data.setUint8(1, touches.length);
         let byte = 2;
@@ -1633,7 +1633,10 @@ function registerTouchEvents(playerElement) {
             byte += 1;
             data.setUint8(byte, 255 * touch.force, true); // force is between 0.0 and 1.0 so quantize into byte.
             byte += 1;
+            data.setUint8(byte, coord.inRange ? 1 : 0, true); // mark the touch as in the player or not
+            byte += 1;
         }
+        
         sendInputData(data.buffer);
     }
 
