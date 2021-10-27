@@ -19,26 +19,4 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\EpicGames.Horde\EpicGames.Horde.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="Protos\horde\horde_rpc_messages.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\agent_status.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\event_severity.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\jobstep_outcome.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\jobstep_state.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\label_change.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\lease_outcome.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\lease_state.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\common\priority.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\messages\agent_capabilities.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\messages\agent_requirements.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\messages\agent_workspace.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\messages\lease.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\tasks\compute_task.proto" ProtoRoot="Protos;..\..\Shared\EpicGames.Horde\Protos" />
-    <Protobuf Include="Protos\horde\tasks\conform_task.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\tasks\job_task.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\tasks\restart_task.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\tasks\shutdown_task.proto" ProtoRoot="Protos" />
-    <Protobuf Include="Protos\horde\tasks\upgrade_task.proto" ProtoRoot="Protos" />
-  </ItemGroup>
 </Project>

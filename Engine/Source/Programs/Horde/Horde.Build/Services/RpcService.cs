@@ -796,7 +796,7 @@ namespace HordeServer.Services
 				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", Job.Id, Batch.Id, StepId);
 			}
 
-			return new GetStepResponse(Step.Outcome, Step.State, Step.AbortRequested);
+			return new GetStepResponse { Outcome = Step.Outcome, State = Step.State, AbortRequested = Step.AbortRequested };
 		}
 
 		/// <summary>
