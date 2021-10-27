@@ -41,12 +41,6 @@ SDL_bool X11_Vulkan_CreateSurface(_THIS,
                                   VkInstance instance,
                                   VkSurfaceKHR *surface);
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-extern char** X11_Vulkan_GetRequiredInstanceExtensions(_THIS, unsigned int* count);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
 #endif
 
 #endif /* SDL_x11vulkan_h_ */

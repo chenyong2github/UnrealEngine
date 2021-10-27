@@ -244,29 +244,6 @@ SDL_bool X11_Vulkan_CreateSurface(_THIS,
     }
 }
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-char**
-X11_Vulkan_GetRequiredInstanceExtensions(_THIS, unsigned int* count) {
-    /** If we didn't allocated memory for the strings, let's do it now. */
-    if(NULL == _this->vulkan_config.required_instance_extensions) {
-        size_t length;
-        _this->vulkan_config.required_instance_extensions = (char**)malloc(sizeof(char*) * 2);
-
-        length = SDL_strlen(VK_KHR_SURFACE_EXTENSION_NAME) + 1;
-        _this->vulkan_config.required_instance_extensions[0] = (char*)malloc(sizeof(char) * length );
-        SDL_strlcpy(_this->vulkan_config.required_instance_extensions[0], VK_KHR_SURFACE_EXTENSION_NAME, length);
-
-        length = SDL_strlen(VK_KHR_XLIB_SURFACE_EXTENSION_NAME) + 1;
-        _this->vulkan_config.required_instance_extensions[1] = (char*)malloc(sizeof(char) * length );
-        SDL_strlcpy(_this->vulkan_config.required_instance_extensions[1], VK_KHR_XLIB_SURFACE_EXTENSION_NAME, length);
-    }
-    *count = 2;
-    return _this->vulkan_config.required_instance_extensions;
-}
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
 #endif
 
 /* vim: set ts=4 sw=4 expandtab: */

@@ -817,7 +817,6 @@
 #define SDL_GameControllerGetSensorDataRate SDL_GameControllerGetSensorDataRate_REAL
 
 /* EG BEGIN */
-#define SDL_Vulkan_GetRequiredInstanceExtensions SDL_Vulkan_GetRequiredInstanceExtensions_REAL
 #define SDL_ConfineCursor SDL_ConfineCursor_REAL
 /* EG END */
 
