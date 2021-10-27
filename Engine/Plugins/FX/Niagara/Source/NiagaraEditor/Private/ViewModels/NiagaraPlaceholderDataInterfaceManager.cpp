@@ -25,7 +25,8 @@ TSharedRef<FNiagaraPlaceholderDataInterfaceHandle> FNiagaraPlaceholderDataInterf
 		PlaceholderDataInterfaceInfo->OwningEmitterHandleId = OwningEmitterHandleId;
 		PlaceholderDataInterfaceInfo->OwningFunctionCall = &OwningFunctionCall;
 		PlaceholderDataInterfaceInfo->InputHandle = InputHandle;
-		PlaceholderDataInterfaceInfo->PlaceholderDataInterface = NewObject<UNiagaraDataInterface>(GetTransientPackage(), DataInterfaceClass, NAME_None, RF_Transactional | RF_Transient);
+		// @todo add a transient uproperty to keep the placeholder data interfaces in their correct owner objects
+		PlaceholderDataInterfaceInfo->PlaceholderDataInterface = NewObject<UNiagaraDataInterface>(&OwningFunctionCall, DataInterfaceClass, NAME_None, RF_Transactional | RF_Transient);
 		PlaceholderDataInterfaceInfo->PlaceholderDataInterface->OnChanged().AddSP(
 			this, &FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged, PlaceholderDataInterfaceInfo->PlaceholderDataInterface);
 	}
