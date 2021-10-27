@@ -770,7 +770,7 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType, bool
 					}
 					else
 					{
-						LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+						LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, FName(), RF_Public);
 					}
 				}
 			}
@@ -791,11 +791,11 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType, bool
 				{
 					if(UClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, InMemoryType))
 					{
-						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class);
+						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class, FName(), RF_Public);
 					}
 					else
 					{
-						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, FName(), RF_Public);
 					}
 				}
 			}
@@ -818,12 +818,12 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType, bool
 #if WITH_EDITOR
 					if(UClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, InMemoryType))
 					{
-						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class);
+						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class, FName(), RF_Public);
 					}
 					else
 #endif
 					{
-						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, FName(), RF_Public);
 					}
 				}
 			}
