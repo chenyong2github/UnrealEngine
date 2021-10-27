@@ -245,15 +245,6 @@ struct SDL_VideoDevice
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
     SDL_bool (*ConfineCursor)(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags);
-    /* * * */
-    /*
-     * Vulkan support
-     */
-    //int (*VK_LoadLibrary) (_THIS, const char *path);
-    //void (*VK_UnloadLibrary) (_THIS);
-    char** (*Vulkan_GetRequiredInstanceExtensions)(_THIS, unsigned int* count);
-    //SDL_bool (*VK_CreateSurface)(_THIS, SDL_Window* window, SDL_VkInstance instance, SDL_VkSurface* surface);
-
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 
@@ -411,11 +402,6 @@ struct SDL_VideoDevice
         int loader_loaded;
         char loader_path[256];
         void *loader_handle;
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        char** required_instance_extensions;
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     } vulkan_config;
 
     /* * * */

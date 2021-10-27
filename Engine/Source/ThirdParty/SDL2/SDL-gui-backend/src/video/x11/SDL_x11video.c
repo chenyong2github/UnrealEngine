@@ -275,12 +275,6 @@ X11_CreateDevice(int devindex)
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
     device->ConfineCursor = X11_ConfineCursor;
-    //device->VK_LoadLibrary = X11_VK_LoadLibrary;
-    //device->VK_UnloadLibrary = X11_VK_UnloadLibrary;
-#if SDL_VIDEO_VULKAN
-    device->Vulkan_GetRequiredInstanceExtensions = X11_Vulkan_GetRequiredInstanceExtensions;
-#endif
-    //device->VK_CreateSurface = X11_VK_CreateSurface;
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 

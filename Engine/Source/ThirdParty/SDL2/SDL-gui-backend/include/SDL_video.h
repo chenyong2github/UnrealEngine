@@ -1406,9 +1406,6 @@ extern DECLSPEC int SDLCALL SDL_SetWindowInputFocus(SDL_Window * window);
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_ConfineCursor(SDL_Window * window, const SDL_Rect * rect);
 
-/** Vulkan related stuff. */
-extern DECLSPEC char** SDLCALL SDL_Vulkan_GetRequiredInstanceExtensions(unsigned int* count);
-
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 

@@ -541,12 +541,6 @@ SDL_VideoInit(const char *driver_name)
     _this->current_glwin_tls = SDL_TLSCreate();
     _this->current_glctx_tls = SDL_TLSCreate();
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    _this->vulkan_config.required_instance_extensions = NULL;
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
     /* Initialize the video subsystem */
     if (_this->VideoInit(_this) < 0) {
         SDL_VideoQuit();
@@ -3206,15 +3200,6 @@ SDL_VideoQuit(void)
         _this->displays = NULL;
         _this->num_displays = 0;
     }
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    if (_this->vulkan_config.required_instance_extensions){
-        SDL_free(_this->vulkan_config.required_instance_extensions[0]);
-        SDL_free(_this->vulkan_config.required_instance_extensions[1]);
-        _this->vulkan_config.required_instance_extensions = NULL;
-    }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
     SDL_free(_this->clipboard_text);
     _this->clipboard_text = NULL;
     _this->free(_this);
@@ -4577,20 +4562,6 @@ void SDL_Vulkan_GetDrawableSize(SDL_Window * window, int *w, int *h)
         SDL_GetWindowSize(window, w, h);
     }
 }
-
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-char**
-SDL_Vulkan_GetRequiredInstanceExtensions(unsigned int* count)
-{
-    if (!_this->Vulkan_GetRequiredInstanceExtensions) {
-        return NULL;
-    }
-
-    return _this->Vulkan_GetRequiredInstanceExtensions(_this, count);
-}
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
 
 SDL_MetalView
 SDL_Metal_CreateView(SDL_Window * window)
