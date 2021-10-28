@@ -38,7 +38,7 @@ namespace HordeAgent.Commands.Parse
 		[Description("The changelist number that has been synced")]
 		int? Change = null;
 
-		public override Task<int> ExecuteAsync(ILogger Logger)
+		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
 			// Read all the ignore patterns
 			List<string> IgnorePatterns = new List<string>();
@@ -62,7 +62,7 @@ namespace HordeAgent.Commands.Parse
 			}
 
 			// Read the file and pipe it through the event parser
-			using (StreamReader Reader = new StreamReader(InputFile.FullName))
+			using (FileStream InputStream = FileReference.Open(InputFile, FileMode.Open, FileAccess.Read))
 			{
 				LogParserContext Context = new LogParserContext();
 				Context.WorkspaceDir = WorkspaceDir;
@@ -71,18 +71,20 @@ namespace HordeAgent.Commands.Parse
 
 				using (LogParser Parser = new LogParser(Logger, Context, IgnorePatterns))
 				{
+					byte[] Data = new byte[1024];
 					for (; ; )
 					{
-						string? Line = Reader.ReadLine();
-						if(Line == null)
+						int Length = await InputStream.ReadAsync(Data);
+						if(Length == 0)
 						{
+							Parser.WriteData(ReadOnlyMemory<byte>.Empty, true);
 							break;
 						}
-						Parser.WriteLine(Line);
+						Parser.WriteData(Data.AsMemory(0, Length), false);
 					}
 				}
 			}
-			return Task.FromResult(0);
+			return 0;
 		}
 	}
 }

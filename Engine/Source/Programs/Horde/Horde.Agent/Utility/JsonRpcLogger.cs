@@ -82,7 +82,7 @@ namespace HordeAgent.Parser
 			this.Outcome = JobStepOutcome.Success;
 		}
 
-		public override void WriteFormattedEvent(LogLevel Level, byte[][] Lines)
+		protected override void WriteFormattedEvent(LogLevel Level, byte[][] Lines)
 		{
 			// Update the state of this job if this is an error status
 			if (Level == LogLevel.Error || Level == LogLevel.Critical)
