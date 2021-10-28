@@ -485,8 +485,10 @@ void USteamSocketsNetDriver::OnConnectionCreated(SteamSocketHandles ListenParent
 		FSteamSocket* NewSocket = static_cast<FSteamSocket*>(Socket->Accept(TEXT("AcceptedSocket")));
 		NewSocket->InternalHandle = SocketHandle;
 
+#if !PLATFORM_MAC
 		// Hotfix-safe version, should get refactored into a separate function that also sets InternalHandle
 		SocketSubsystem->GetSteamSocketsInterface()->SetConnectionPollGroup(SocketHandle, Socket->PollGroup);
+#endif // PLATFORM_MAC
 
 		NewSocket->GetPeerAddress(ConnectedAddr);
 		SocketSubsystem->AddSocket(ConnectedAddr, NewSocket, Socket);
