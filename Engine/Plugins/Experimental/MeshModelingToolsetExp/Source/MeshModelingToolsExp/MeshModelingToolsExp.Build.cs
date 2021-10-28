@@ -40,6 +40,7 @@ public class MeshModelingToolsExp : ModuleRules
 				"DynamicMesh",
 				"MeshConversion",
 				"MeshDescription",
+				"MeshModelingTools",
                 "StaticMeshDescription",
                 "SkeletalMeshDescription",
 				"ModelingComponents",

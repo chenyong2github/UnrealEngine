@@ -19,13 +19,31 @@
 			"Name": "MeshModelingTools",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelingComponents",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelingComponentsEditorOnly",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		},		
+		{
+			"Name": "ModelingOperators",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelingOperatorsEditorOnly",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins": [
-		{
-			"Name": "MeshModelingToolsetExp",
-			"Enabled": true
-		},
 		{
 			"Name": "GeometryProcessing",
 			"Enabled": true

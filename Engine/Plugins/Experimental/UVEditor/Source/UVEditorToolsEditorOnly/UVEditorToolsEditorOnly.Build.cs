@@ -44,7 +44,8 @@ public class UVEditorToolsEditorOnly : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-					
+
+				"MeshModelingTools",
 				"MeshModelingToolsExp",
 				"DynamicMesh",
 				"GeometryCore",

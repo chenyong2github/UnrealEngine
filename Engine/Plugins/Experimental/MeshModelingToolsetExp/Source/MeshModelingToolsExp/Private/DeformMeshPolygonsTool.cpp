@@ -10,6 +10,7 @@
 #include "ToolSetupUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ModelingToolTargetUtil.h"
+#include "Curves/RichCurve.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
