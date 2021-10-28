@@ -12,11 +12,17 @@
 class UNewMeshMaterialProperties;
 PREDECLARE_GEOMETRY(class FCurveSweepOp);
 
+UENUM()
 enum class ERevolvePropertiesCapFillMode : uint8
 {
+	/** No caps will be generated. */
 	None,
+	/** Caps are triangulated by placing a vertex in the center and creating a fan to the boundary. This works well if the path is convex,
+	  * but can create invalid geometry if it is concave. */
 	CenterFan,
+	/** Caps are triangulated to maximize the minimal angle in the triangles using Delaunay triangulation. */
 	Delaunay,
+	/** Caps are triangulated using a standard ear clipping approach. This could result in some very thin triangles. */
 	EarClipping
 };
 

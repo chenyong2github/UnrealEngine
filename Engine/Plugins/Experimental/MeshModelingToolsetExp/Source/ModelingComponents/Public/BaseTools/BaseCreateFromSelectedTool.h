@@ -40,12 +40,14 @@ protected:
 UENUM()
 enum class EBaseCreateFromSelectedTargetType
 {
-	/** Create a new asset containing the result mesh */
-	NewAsset,
-	/** Store the result mesh in the first selected input asset */
-	FirstInputAsset,
-	/** Store the result mesh in the last selected input asset */
-	LastInputAsset
+	/** Create and write to a new object with a given name. */
+	NewObject,
+
+	/** Write to the first object in the input selection. */
+	FirstInputObject,
+
+	/** Write to the last object in the input selection. */
+	LastInputObject
 };
 
 
@@ -54,17 +56,19 @@ class MODELINGCOMPONENTS_API UBaseCreateFromSelectedHandleSourceProperties : pub
 {
 	GENERATED_BODY()
 public:
-	/** Where should the output mesh produced by this operation be stored */
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	EBaseCreateFromSelectedTargetType WriteOutputTo = EBaseCreateFromSelectedTargetType::NewAsset;
+	/** Defines the object the tool output is written to. */
+	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (DisplayName = "Write To"))
+	EBaseCreateFromSelectedTargetType OutputWriteTo = EBaseCreateFromSelectedTargetType::NewObject;
 
-	/** Base name for newly-generated asset */
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions, meta = (TransientToolProperty, EditCondition = "WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset", EditConditionHides))
-	FString OutputName;
+	/** Base name of the newly generated object to which the output is written to. */
+	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (TransientToolProperty, DisplayName = "Name",
+		EditCondition = "OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject", EditConditionHides, NoResetToDefault))
+	FString OutputNewName;
 
-	/** Name of asset that will be updated */
-	UPROPERTY(VisibleAnywhere, Category = ToolOutputOptions, meta = (TransientToolProperty, EditCondition = "WriteOutputTo != EBaseCreateFromSelectedTargetType::NewAsset", EditConditionHides))
-	FString OutputAsset;
+	/** Name of the existing object to which the output is written to. */
+	UPROPERTY(VisibleAnywhere, Category = OutputObject, meta = (TransientToolProperty, DisplayName = "Name",
+		EditCondition = "OutputWriteTo != EBaseCreateFromSelectedTargetType::NewObject", EditConditionHides))
+	FString OutputExistingName;
 };
 
 
