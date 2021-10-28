@@ -66,7 +66,6 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	const bool bRenderSkylight = false;
-	const bool bPermutationSkyAtmosphereEnabled = false;
 
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
@@ -77,7 +76,6 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		VertexFactory->GetType(),
 		NoLightmapPolicy,
 		FeatureLevel,
-		bPermutationSkyAtmosphereEnabled,
 		bRenderSkylight,
 		false,
 		&BasePassShaders.VertexShader,

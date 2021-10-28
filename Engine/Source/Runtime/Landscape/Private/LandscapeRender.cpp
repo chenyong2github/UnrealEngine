@@ -3629,15 +3629,13 @@ public:
 
 			FName(TEXT("TBasePassPSFSimpleStationaryLightVolumetricLightmapShadowsLightingPolicy")),
 
-			FName(TEXT("TBasePassVSFCachedPointIndirectLightingPolicySkyAtmosphereAP")),
+			FName(TEXT("TBasePassVSFCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassVSFSelfShadowedCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedCachedPointIndirectLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSelfShadowedCachedPointIndirectLightingPolicySkyAtmosphereAP")),
 			FName(TEXT("TBasePassVSFSelfShadowedTranslucencyPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedTranslucencyPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedTranslucencyPolicySkylight")),
-			FName(TEXT("TBasePassVSFSelfShadowedTranslucencyPolicySkyAtmosphereAP")),
 
 			FName(TEXT("TShadowDepthVSVertexShadowDepth_PerspectiveCorrect")),
 			FName(TEXT("TShadowDepthVSVertexShadowDepth_OutputDepth")),
@@ -3668,13 +3666,11 @@ public:
 			FName(TEXT("TTranslucencyShadowDepthVS<TranslucencyShadowDepth_PerspectiveCorrect>")),
 			FName(TEXT("TTranslucencyShadowDepthPS<TranslucencyShadowDepth_PerspectiveCorrect>")),
 
-			FName(TEXT("TBasePassVSTDistanceFieldShadowsAndLightMapPolicyHQSkyAtmosphereAP")),
-			FName(TEXT("TBasePassVSTLightMapPolicyHQSkyAtmosphereAP")),
-			FName(TEXT("TBasePassVSTLightMapPolicyLQSkyAtmosphereAP")),
-			FName(TEXT("TBasePassVSFPrecomputedVolumetricLightmapLightingPolicySkyAtmosphereAP")),
+			FName(TEXT("TBasePassVSTDistanceFieldShadowsAndLightMapPolicyHQ")),
+			FName(TEXT("TBasePassVSTLightMapPolicyHQ")),
+			FName(TEXT("TBasePassVSTLightMapPolicyLQ")),
 			FName(TEXT("TBasePassPSFSelfShadowedVolumetricLightmapPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedVolumetricLightmapPolicySkylight")),
-			FName(TEXT("TBasePassVSFSelfShadowedVolumetricLightmapPolicySkyAtmosphereAP")),
 			FName(TEXT("TBasePassVSFSelfShadowedVolumetricLightmapPolicy")),
 
 			FName(TEXT("TBasePassPSFSimpleLightmapOnlyLightingPolicy")),

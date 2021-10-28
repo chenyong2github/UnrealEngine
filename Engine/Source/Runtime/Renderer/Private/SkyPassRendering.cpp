@@ -73,13 +73,11 @@ bool FSkyPassMeshProcessor::Process(
 			TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> SkyPassShaders;
 
 		const bool bRenderSkylight = false;
-		const bool bPermutationSkyAtmosphereEnabled = false;
 		if (!GetBasePassShaders<LightMapPolicyType>(
 			MaterialResource,
 			VertexFactory->GetType(),
 			NoLightmapPolicy,
 			FeatureLevel,
-			bPermutationSkyAtmosphereEnabled,
 			bRenderSkylight,
 			false,
 			&SkyPassShaders.VertexShader,

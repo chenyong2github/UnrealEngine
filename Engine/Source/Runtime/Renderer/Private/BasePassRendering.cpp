@@ -87,12 +87,8 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FTranslucentBasePassUniformParameters, "T
 
 // Typedef is necessary because the C preprocessor thinks the comma in the template parameter list is a comma in the macro parameter list.
 #define IMPLEMENT_BASEPASS_VERTEXSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
-	typedef TBasePassVS< LightMapPolicyType, false > TBasePassVS##LightMapPolicyName ; \
+	typedef TBasePassVS< LightMapPolicyType > TBasePassVS##LightMapPolicyName ; \
 	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassVS##LightMapPolicyName,TEXT("/Engine/Private/BasePassVertexShader.usf"),TEXT("Main"),SF_Vertex);
-
-#define IMPLEMENT_BASEPASS_VERTEXSHADER_ONLY_TYPE(LightMapPolicyType,LightMapPolicyName,SkyAtmosphereAPShaderName) \
-	typedef TBasePassVS<LightMapPolicyType,true> TBasePassVS##LightMapPolicyName##SkyAtmosphereAPShaderName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassVS##LightMapPolicyName##SkyAtmosphereAPShaderName,TEXT("/Engine/Private/BasePassVertexShader.usf"),TEXT("Main"),SF_Vertex);
 
 #define IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName) \
 	typedef TBasePassPS<LightMapPolicyType, bEnableSkyLight> TBasePassPS##LightMapPolicyName##SkyLightName; \
@@ -101,7 +97,6 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FTranslucentBasePassUniformParameters, "T
 // Implement a pixel shader type for skylights and one without, and one vertex shader that will be shared between them
 #define IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	IMPLEMENT_BASEPASS_VERTEXSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
-	IMPLEMENT_BASEPASS_VERTEXSHADER_ONLY_TYPE(LightMapPolicyType,LightMapPolicyName,SkyAtmosphereAP) \
 	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight) \
 	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,);
 
@@ -416,7 +411,6 @@ bool GetUniformBasePassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	bool bEnableSkyAtmosphereAerialPerspective,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
@@ -426,14 +420,7 @@ bool GetUniformBasePassShaders(
 	FMaterialShaderTypes ShaderTypes;
 	if(VertexShader)
 	{
-		if (bEnableSkyAtmosphereAerialPerspective)
-		{
-			ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<Policy>, true>>();
-		}
-		else
-		{
-			ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<Policy>, false>>();
-		}
+		ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<Policy>>>();
 	}
 
 	if(PixelShader)
@@ -472,7 +459,6 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
-	bool bEnableSkyAtmosphereAerialPerspective,
 	bool bEnableSkyLight,
     bool bUse128bitRT,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
@@ -482,31 +468,31 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	switch (LightMapPolicy.GetIndirectPolicy())
 	{
 	case LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_CACHED_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_CACHED_POINT_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_NO_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_SIMPLE_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_LQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_HQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_NO_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyAtmosphereAerialPerspective, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	default:
 		check(false);
 		return false;
@@ -1273,7 +1259,6 @@ bool FBasePassMeshProcessor::Process(
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && ShadingModels.IsLit();
-	const bool bRenderSkyAtmosphere = IsTranslucentBlendMode(BlendMode) && (Scene && Scene->HasSkyAtmosphere() && Scene->ReadOnlyCVARCache.bSupportSkyAtmosphere);
 
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
@@ -1284,7 +1269,6 @@ bool FBasePassMeshProcessor::Process(
 		VertexFactory->GetType(),
 		LightMapPolicy,
 		FeatureLevel,
-		bRenderSkyAtmosphere,
 		bRenderSkylight,
 		Get128BitRequirement(),
 		&BasePassShaders.VertexShader,
