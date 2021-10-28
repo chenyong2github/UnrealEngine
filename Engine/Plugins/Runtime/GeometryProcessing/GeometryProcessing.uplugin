@@ -15,11 +15,6 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "GeometricObjects",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "GeometryAlgorithms",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

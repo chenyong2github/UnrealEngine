@@ -16,8 +16,7 @@ public class GeoReferencing : ModuleRules
 			new string[]
 			{
 				"Core",
-				"Engine",
-				"GeometricObjects"
+				"Engine"
 			}
 		);
 
