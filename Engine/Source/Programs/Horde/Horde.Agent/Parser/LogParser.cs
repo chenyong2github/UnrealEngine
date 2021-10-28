@@ -69,11 +69,6 @@ namespace HordeAgent.Parser
 		ILogger Logger;
 
 		/// <summary>
-		/// Special passthrough for Json log devices
-		/// </summary>
-		JsonLogger? JsonLogger;
-
-		/// <summary>
 		/// Context for matchers for this log
 		/// </summary>
 		LogParserContext Context;
@@ -93,7 +88,6 @@ namespace HordeAgent.Parser
 		{
 			this.IgnorePatterns = IgnorePatterns;
 			this.Logger = Logger;
-			this.JsonLogger = Logger as JsonLogger;
 			this.Buffer = new LineBuffer(50);
 			this.Context = Context;
 		}
@@ -120,82 +114,23 @@ namespace HordeAgent.Parser
 		/// Adds a raw utf-8 string to the buffer
 		/// </summary>
 		/// <param name="Data">The string data</param>
-		private void AddLine(ReadOnlySpan<byte> Data)
+		private void AddLine(ReadOnlyMemory<byte> Data)
 		{
-			if(Data.Length > 0 && Data[Data.Length - 1] == '\r')
+			if(Data.Length > 0 && Data.Span[Data.Length - 1] == '\r')
 			{
 				Data = Data.Slice(0, Data.Length - 1);
 			}
-			if (Data.Length > 0 && Data[0] == '{' && WriteRawEvent(Data))
+			if (Data.Length > 0 && Data.Span[0] == '{')
 			{
-				return;
-			}
-			Buffer.AddLine(Encoding.UTF8.GetString(Data));
-		}
-
-		/// <summary>
-		/// Static constant string for the level property in a log event
-		/// </summary>
-		readonly Utf8String LevelString = new Utf8String("Level");
-
-		/// <summary>
-		/// Attempts to parse the line as a raw JSON object and pass it directly through to the JsonLogger. For this to succeed, it must be a well formatted JSON object and have a Level property.
-		/// </summary>
-		/// <param name="Data"></param>
-		/// <returns></returns>
-		private bool WriteRawEvent(ReadOnlySpan<byte> Data)
-		{
-			if(JsonLogger == null)
-			{
-				return false;
-			}
-
-			Utf8JsonReader Reader = new Utf8JsonReader(Data);
-			if (!Reader.Read() || Reader.TokenType != JsonTokenType.StartObject)
-			{
-				return false;
-			}
-
-			LogLevel Level = LogLevel.None;
-			for(; ;)
-			{
-				if(!Reader.Read())
+				JsonLogEvent JsonEvent;
+				if (JsonLogEvent.TryParse(Data, out JsonEvent))
 				{
-					return false;
-				}
-
-				if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
-				{
-					break;
-				}
-				else if(Reader.TokenType != JsonTokenType.PropertyName)
-				{
-					return false;
-				}
-
-				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(Reader.ValueSpan, LevelString.Span))
-				{
-					if (!Reader.TrySkip() || Reader.TokenType != JsonTokenType.String)
-					{
-						return false;
-					}
-					if(!Enum.TryParse(Reader.GetString(), out Level))
-					{
-						return false;
-					}
-				}
-				else
-				{
-					if (!Reader.TrySkip())
-					{
-						return false;
-					}
+					ProcessData(true);
+					Logger.Log(JsonEvent.Level, JsonEvent.EventId, JsonEvent, null, JsonLogEvent.Format);
+					return;
 				}
 			}
-
-			ProcessData(true);
-			JsonLogger.WriteFormattedEvent(Level, new byte[][] { Data.ToArray() });
-			return true;
+			Buffer.AddLine(Encoding.UTF8.GetString(Data.Span));
 		}
 
 		/// <summary>
@@ -213,19 +148,20 @@ namespace HordeAgent.Parser
 		/// </summary>
 		/// <param name="Data">Data to write</param>
 		/// <param name="bEndOfStream">Whether this is the end of the stream</param>
-		public void WriteData(ReadOnlySpan<byte> Data, bool bEndOfStream)
+		public void WriteData(ReadOnlyMemory<byte> Data, bool bEndOfStream)
 		{
 			int BaseIdx = 0;
 			int ScanIdx = 0;
+			ReadOnlySpan<byte> Span = Data.Span;
 
 			// Handle a partially existing line
 			if (PartialLine.Length > 0)
 			{
-				for (; ScanIdx < Data.Length; ScanIdx++)
+				for (; ScanIdx < Span.Length; ScanIdx++)
 				{
-					if (Data[ScanIdx] == '\n')
+					if (Span[ScanIdx] == '\n')
 					{
-						PartialLine.Write(Data.Slice(BaseIdx, ScanIdx - BaseIdx));
+						PartialLine.Write(Span.Slice(BaseIdx, ScanIdx - BaseIdx));
 						FlushPartialLine();
 						BaseIdx = ++ScanIdx;
 						break;
@@ -234,9 +170,9 @@ namespace HordeAgent.Parser
 			}
 
 			// Handle any complete lines
-			for (; ScanIdx < Data.Length; ScanIdx++)
+			for (; ScanIdx < Span.Length; ScanIdx++)
 			{
-				if(Data[ScanIdx] == '\n')
+				if(Span[ScanIdx] == '\n')
 				{
 					AddLine(Data.Slice(BaseIdx, ScanIdx - BaseIdx));
 					BaseIdx = ScanIdx + 1;
@@ -244,7 +180,7 @@ namespace HordeAgent.Parser
 			}
 
 			// Add the rest of the text to the partial line buffer
-			PartialLine.Write(Data.Slice(BaseIdx));
+			PartialLine.Write(Span.Slice(BaseIdx));
 
 			// If it's the end of the stream, force a flush
 			if (bEndOfStream && PartialLine.Length > 0)

@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeAgent.Parser;
+using HordeAgent.Utility;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestPlatform.Common.Utilities;
@@ -57,13 +58,51 @@ namespace HordeAgentTests
 				int LineCount = Message.Count(x => x == '\n') + 1;
 
 				IEnumerable<KeyValuePair<string, object>>? Properties = State as IEnumerable<KeyValuePair<string, object>>;
-				if (Properties != null)
+				if (LogLevel != LogLevel.Information || EventId.Id != 0 || Properties != null || State is JsonLogEvent)
 				{
+					Properties ??= new Dictionary<string, object>();
 					Events.Add(new CapturedEvent(EventId, LogLevel, LineIndex, LineCount, Message, Properties));
 				}
 
 				LineIndex += LineCount;
 			}
+		}
+
+		[TestMethod]
+		public void StructuredOutputMatcher()
+		{
+			string[] Lines =
+			{
+				"{\"Timestamp\":\"2021-10-28T09:14:48.8561456-04:00\",\"Level\":\"Information\",\"MessageTemplate\":\"Hello {World}\",\"RenderedMessage\":\"Hello 123\",\"Properties\":{\"World\":123,\"EventId\":{\"Id\":123},\"SourceContext\":\"HordeAgent\",\"dd.env\":\"default\",\"dd.service\":\"hordeagent\",\"dd.version\":\"1.0.0\"}}",
+				"{\"Timestamp\":\"2021-10-28T05:36:08\",\"Level\":\"Information\",\"RenderedMessage\":\"Building 43 projects (see Log \u0027Engine/Programs/AutomationTool/Saved/Logs/Log.txt\u0027 for more details)\"}",
+				"{\"Timestamp\":\"2021-10-28T05:36:08\",\"Level\":\"Warning\",\"RenderedMessage\":\" Restore...\"}",
+				"{\"Timestamp\":\"2021-10-28T05:36:15\",\"Level\":\"Error\",\"RenderedMessage\":\" Build...\"}",
+			};
+
+			List<CapturedEvent> Events = Parse(Lines);
+			Assert.AreEqual(4, Events.Count);
+
+			int Idx = 0;
+
+			CapturedEvent Event = Events[Idx++];
+			Assert.AreEqual(LogLevel.Information, Event.Level);
+			Assert.AreEqual(new EventId(123), Event.Id);
+			Assert.AreEqual("Hello 123", Event.Text);
+
+			Event = Events[Idx++];
+			Assert.AreEqual(LogLevel.Information, Event.Level);
+			Assert.AreEqual(new EventId(0), Event.Id);
+			Assert.AreEqual("Building 43 projects (see Log \u0027Engine/Programs/AutomationTool/Saved/Logs/Log.txt\u0027 for more details)", Event.Text);
+
+			Event = Events[Idx++];
+			Assert.AreEqual(LogLevel.Warning, Event.Level);
+			Assert.AreEqual(new EventId(0), Event.Id);
+			Assert.AreEqual(" Restore...", Event.Text);
+
+			Event = Events[Idx++];
+			Assert.AreEqual(LogLevel.Error, Event.Level);
+			Assert.AreEqual(new EventId(0), Event.Id);
+			Assert.AreEqual(" Build...", Event.Text);
 		}
 
 		[TestMethod]
@@ -1060,7 +1099,7 @@ namespace HordeAgentTests
 				while(Pos < TextBytes.Length)
 				{
 					int Len = Math.Min((int)(Generator.NextDouble() * 256), TextBytes.Length - Pos);
-					Parser.WriteData(TextBytes.AsSpan(Pos, Len), Pos + Len == TextBytes.Length);
+					Parser.WriteData(TextBytes.AsMemory(Pos, Len), Pos + Len == TextBytes.Length);
 					Pos += Len;
 				}
 			}
