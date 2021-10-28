@@ -3,7 +3,6 @@
 #include "CombineMeshesTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "ToolSetupUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
@@ -13,9 +12,6 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "Physics/ComponentCollisionUtil.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
-
-#include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -28,7 +24,6 @@
 #include "Misc/ScopedSlowTask.h"
 #endif
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UCombineMeshesTool"
@@ -69,8 +64,6 @@ UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& 
 }
 
 
-
-
 /*
  * Tool
  */
@@ -102,54 +95,53 @@ void UCombineMeshesTool::Setup()
 	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
 	AddToolPropertySource(OutputTypeProperties);
 
-	BasicProperties->WatchProperty(BasicProperties->WriteOutputTo, [&](ECombineTargetType NewType)
+	BasicProperties->WatchProperty(BasicProperties->OutputWriteTo, [&](EBaseCreateFromSelectedTargetType NewType)
 	{
-		if (NewType == ECombineTargetType::NewAsset)
+		if (NewType == EBaseCreateFromSelectedTargetType::NewObject)
 		{
-			BasicProperties->OutputAsset = TEXT("");
+			BasicProperties->OutputExistingName = TEXT("");
 			SetToolPropertySourceEnabled(OutputTypeProperties, true);
 		}
 		else
 		{
-			int32 Index = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
-			BasicProperties->OutputAsset = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[Index]), false);
+			int32 Index = (BasicProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::FirstInputObject) ? 0 : Targets.Num() - 1;
+			BasicProperties->OutputExistingName = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[Index]), false);
 			SetToolPropertySourceEnabled(OutputTypeProperties, false);
 		}
 	});
 
-	SetToolPropertySourceEnabled(OutputTypeProperties, BasicProperties->WriteOutputTo == ECombineTargetType::NewAsset);
+	SetToolPropertySourceEnabled(OutputTypeProperties, BasicProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject);
 
 	if (bDuplicateMode)
 	{
 		SetToolDisplayName(LOCTEXT("DuplicateMeshesToolName", "Duplicate"));
-		BasicProperties->OutputName = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[0]));
+		BasicProperties->OutputNewName = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[0]));
 	}
 	else
 	{
 		SetToolDisplayName(LOCTEXT("CombineMeshesToolName", "Append"));
-		BasicProperties->OutputName = FString("Combined");
+		BasicProperties->OutputNewName = FString("Combined");
 	}
 
-
-	HandleSourceProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	HandleSourceProperties = bDuplicateMode
+		                         ? static_cast<UOnAcceptHandleSourcesPropertiesBase*>(NewObject<UOnAcceptHandleSourcesPropertiesSingle>(this))
+		                         : static_cast<UOnAcceptHandleSourcesPropertiesBase*>(NewObject<UOnAcceptHandleSourcesProperties>(this));
 	AddToolPropertySource(HandleSourceProperties);
 	HandleSourceProperties->RestoreProperties(this);
-
 
 	if (bDuplicateMode)
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartToolDuplicate", "This Tool duplicates input Asset into a new Asset, and optionally replaces the input Actor with a new Actor containing the new Asset."),
+			LOCTEXT("OnStartToolDuplicate", "This tool duplicates a single input object to create new objects, and optionally replaces the input object."),
 			EToolMessageLevel::UserNotification);
 	}
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartToolCombine", "This Tool appends the meshes from the input Assets into a new Asset, and optionally replaces the source Actors with a new Actor containing the new Asset."),
+			LOCTEXT("OnStartToolCombine", "This tool appends multiple input object to create new objects, and optionally replaces the one of the input objects."),
 			EToolMessageLevel::UserNotification);
 	}
 }
-
 
 
 void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
@@ -160,7 +152,7 @@ void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		if (bDuplicateMode || BasicProperties->WriteOutputTo == ECombineTargetType::NewAsset)
+		if (bDuplicateMode || BasicProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject)
 		{
 			CreateNewAsset();
 		}
@@ -170,6 +162,7 @@ void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 	}
 }
+
 
 void UCombineMeshesTool::CreateNewAsset()
 {
@@ -184,7 +177,7 @@ void UCombineMeshesTool::CreateNewAsset()
 
 	GetToolManager()->BeginUndoTransaction( bDuplicateMode ? 
 		LOCTEXT("DuplicateMeshToolTransactionName", "Duplicate Mesh") :
-		LOCTEXT("CombineMeshesToolTransactionName", "Combine Meshes"));
+		LOCTEXT("CombineMeshesToolTransactionName", "Merge Meshes"));
 
 	FBox Box(ForceInit);
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
@@ -213,7 +206,7 @@ void UCombineMeshesTool::CreateNewAsset()
 		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
-			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
+			LOCTEXT("CombineMeshesBuild", "Building merged mesh ..."));
 		SlowTask.MakeDialog();
 #endif
 		bool bNeedColorAttr = false;
@@ -291,10 +284,10 @@ void UCombineMeshesTool::CreateNewAsset()
 		}
 
 		// max len explicitly enforced here, would ideally notify user
-		FString UseBaseName = BasicProperties->OutputName.Left(250);
+		FString UseBaseName = BasicProperties->OutputNewName.Left(250);
 		if (UseBaseName.IsEmpty())
 		{
-			UseBaseName = (bDuplicateMode) ? TEXT("Duplicate") : TEXT("Combined");
+			UseBaseName = (bDuplicateMode) ? TEXT("Duplicate") : TEXT("Merge");
 		}
 
 		FCreateMeshObjectParams NewMeshObjectParams;
@@ -337,11 +330,6 @@ void UCombineMeshesTool::CreateNewAsset()
 }
 
 
-
-
-
-
-
 void UCombineMeshesTool::UpdateExistingAsset()
 {
 	// Make sure meshes are available before we open transaction. This is to avoid potential stability issues related 
@@ -354,7 +342,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	}
 
 	check(!bDuplicateMode);
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("CombineMeshesToolTransactionName", "Combine Meshes"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("CombineMeshesToolTransactionName", "Merge Meshes"));
 
 	AActor* SkipActor = nullptr;
 
@@ -369,7 +357,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	AccumulateDMesh.Attributes()->EnableMaterialID();
 	AccumulateDMesh.Attributes()->EnablePrimaryColors();
 
-	int32 SkipIndex = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : (Targets.Num() - 1);
+	int32 SkipIndex = (BasicProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::FirstInputObject) ? 0 : (Targets.Num() - 1);
 	UPrimitiveComponent* UpdateComponent = UE::ToolTarget::GetTargetComponent(Targets[SkipIndex]);
 	SkipActor = UE::ToolTarget::GetTargetActor(Targets[SkipIndex]);
 
@@ -391,7 +379,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
-			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
+			LOCTEXT("CombineMeshesBuild", "Building merged mesh ..."));
 		SlowTask.MakeDialog();
 #endif
 		bool bNeedColorAttr = false;
@@ -481,11 +469,6 @@ void UCombineMeshesTool::UpdateExistingAsset()
 }
 
 
-
-
-
-
-
 void UCombineMeshesTool::BuildCombinedMaterialSet(TArray<UMaterialInterface*>& NewMaterialsOut, TArray<TArray<int32>>& MaterialIDRemapsOut)
 {
 	NewMaterialsOut.Reset();
@@ -515,12 +498,6 @@ void UCombineMeshesTool::BuildCombinedMaterialSet(TArray<UMaterialInterface*>& N
 		}
 	}
 }
-
-
-
-
-
-
 
 
 #undef LOCTEXT_NAMESPACE

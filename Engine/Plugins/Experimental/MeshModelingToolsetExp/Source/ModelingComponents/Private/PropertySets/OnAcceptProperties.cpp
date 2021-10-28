@@ -9,47 +9,38 @@
 #define LOCTEXT_NAMESPACE "UOnAcceptHandleSourcesProperties"
 
 
-void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager, const AActor* MustKeepActor)
+void UOnAcceptHandleSourcesPropertiesBase::ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager, const AActor* MustKeepActor)
 {
+	const EHandleSourcesMethod HandleInputs = GetHandleInputs();
+
 	// Hide or destroy the sources
-	bool bKeepSources = OnToolAccept == EHandleSourcesMethod::KeepSources;
-	if (Actors.Num() == 1 && (OnToolAccept == EHandleSourcesMethod::KeepFirstSource || OnToolAccept == EHandleSourcesMethod::KeepLastSource))
+	bool bKeepSources = HandleInputs == EHandleSourcesMethod::KeepSources;
+	if (Actors.Num() == 1 && (HandleInputs == EHandleSourcesMethod::KeepFirstSource || HandleInputs == EHandleSourcesMethod::KeepLastSource))
 	{
 		// if there's only one actor, keeping any source == keeping all sources
 		bKeepSources = true;
 	}
 	if (!bKeepSources)
 	{
-		bool bDelete = OnToolAccept == EHandleSourcesMethod::DeleteSources
-					|| OnToolAccept == EHandleSourcesMethod::KeepFirstSource
-					|| OnToolAccept == EHandleSourcesMethod::KeepLastSource;
+		bool bDelete = HandleInputs == EHandleSourcesMethod::DeleteSources
+					|| HandleInputs == EHandleSourcesMethod::KeepFirstSource
+					|| HandleInputs == EHandleSourcesMethod::KeepLastSource;
 		if (bDelete)
 		{
-			ToolManager->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
+			ToolManager->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Inputs"));
 		}
 		else
 		{
 #if WITH_EDITOR
-			ToolManager->BeginUndoTransaction(LOCTEXT("HideSources", "Hide Sources"));
+			ToolManager->BeginUndoTransaction(LOCTEXT("HideSources", "Hide Inputs"));
 #endif
 		}
 
-		int32 SkipIdx = -1;
-		if (OnToolAccept == EHandleSourcesMethod::KeepFirstSource)
-		{
-			SkipIdx = 0;
-		}
-		else if (OnToolAccept == EHandleSourcesMethod::KeepLastSource)
-		{
-			SkipIdx = Actors.Num() - 1;
-		}
-		for (int32 ActorIdx = 0; ActorIdx < Actors.Num(); ActorIdx++)
-		{
-			if (ActorIdx == SkipIdx)
-			{
-				continue;
-			}
+		const int32 ActorIdxBegin = HandleInputs == EHandleSourcesMethod::KeepFirstSource ? 1 : 0;
+		const int32 ActorIdxEnd = HandleInputs == EHandleSourcesMethod::KeepLastSource ? Actors.Num() - 1 : Actors.Num();
 
+		for (int32 ActorIdx = ActorIdxBegin; ActorIdx < ActorIdxEnd; ActorIdx++)
+		{
 			AActor* Actor = Actors[ActorIdx];
 			if (Actor == MustKeepActor)
 			{

@@ -28,18 +28,6 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
-UENUM()
-enum class ERevolvePropertiesPathCapFillMode : uint8
-{
-	/** No caps will be generated. */
-	None = static_cast<uint8>(ERevolvePropertiesCapFillMode::None),
-	/** Caps are triangulated by placing a vertex in the center and creating a fan to the boundary. This works well if the path is convex,
-	  * but can create invalid geometry if it is concave. */
-	CenterFan = static_cast<uint8>(ERevolvePropertiesCapFillMode::CenterFan),
-	/** Caps are triangulated to maximize the minimal angle in the triangles using Delaunay triangulation. */
-	Delaunay = static_cast<uint8>(ERevolvePropertiesCapFillMode::Delaunay)
-};
-
 UCLASS()
 class MESHMODELINGTOOLS_API URevolveToolProperties : public URevolveProperties
 {
@@ -49,8 +37,8 @@ public:
 
 	/** Determines how end caps are created. This is not relevant if the end caps are not visible or if the path is not closed. */
 	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayAfter = "QuadSplitMode",
-		EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360"))
-	ERevolvePropertiesPathCapFillMode CapFillMode = ERevolvePropertiesPathCapFillMode::Delaunay;
+		EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360", ValidEnumValues = "None, CenterFan, Delaunay"))
+	ERevolvePropertiesCapFillMode CapFillMode = ERevolvePropertiesCapFillMode::Delaunay;
 
 	/** Connect the ends of an open path to the axis to add caps to the top and bottom of the revolved result.
 	  * This is not relevant for paths that are already closed. */
@@ -77,7 +65,7 @@ public:
 protected:
 	virtual ERevolvePropertiesCapFillMode GetCapFillMode() const override
 	{
-		return static_cast<ERevolvePropertiesCapFillMode>(CapFillMode);
+		return CapFillMode;
 	}
 };
 

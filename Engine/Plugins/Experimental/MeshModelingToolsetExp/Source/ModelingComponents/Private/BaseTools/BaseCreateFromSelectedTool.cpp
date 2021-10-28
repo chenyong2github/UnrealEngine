@@ -4,14 +4,11 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "Components/DynamicMeshComponent.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
-#include "Async/Async.h"
 
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "MeshDescriptionToDynamicMesh.h"
 
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
@@ -113,19 +110,19 @@ void UBaseCreateFromSelectedTool::Setup()
 	ConvertInputsAndSetPreviewMaterials(true);
 
 	// output name fields
-	HandleSourcesProperties->OutputName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
-	HandleSourcesProperties->WatchProperty(HandleSourcesProperties->WriteOutputTo, [&](EBaseCreateFromSelectedTargetType NewType)
+	HandleSourcesProperties->OutputNewName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
+	HandleSourcesProperties->WatchProperty(HandleSourcesProperties->OutputWriteTo, [&](EBaseCreateFromSelectedTargetType NewType)
 	{
-		SetToolPropertySourceEnabled(OutputTypeProperties, (NewType == EBaseCreateFromSelectedTargetType::NewAsset));
-		if (NewType == EBaseCreateFromSelectedTargetType::NewAsset)
+		SetToolPropertySourceEnabled(OutputTypeProperties, (NewType == EBaseCreateFromSelectedTargetType::NewObject));
+		if (NewType == EBaseCreateFromSelectedTargetType::NewObject)
 		{
-			HandleSourcesProperties->OutputAsset = TEXT("");
+			HandleSourcesProperties->OutputExistingName = TEXT("");
 			UpdateGizmoVisibility();
 		}
 		else
 		{
-			int32 Index = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
-			HandleSourcesProperties->OutputAsset = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
+			int32 Index = (HandleSourcesProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::FirstInputObject) ? 0 : Targets.Num() - 1;
+			HandleSourcesProperties->OutputExistingName = UE::Modeling::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
 
 			// Reset the hidden gizmo to its initial position
 			FTransform ComponentTransform = TargetComponentInterface(Index)->GetWorldTransform();
@@ -140,13 +137,13 @@ void UBaseCreateFromSelectedTool::Setup()
 
 int32 UBaseCreateFromSelectedTool::GetHiddenGizmoIndex() const
 {
-	if (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset)
+	if (HandleSourcesProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject)
 	{
 		return -1;
 	}
 	else
 	{
-		return (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
+		return (HandleSourcesProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::FirstInputObject) ? 0 : Targets.Num() - 1;
 	}
 }
 
@@ -233,7 +230,7 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	}
 
 	// max len explicitly enforced here, would ideally notify user
-	FString UseBaseName = HandleSourcesProperties->OutputName.Left(250);
+	FString UseBaseName = HandleSourcesProperties->OutputNewName.Left(250);
 	if (UseBaseName.IsEmpty())
 	{
 		UseBaseName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
@@ -341,13 +338,13 @@ void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
 
 		// Generate the result
 		AActor* KeepActor = nullptr;
-		if (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset)
+		if (HandleSourcesProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject)
 		{
 			GenerateAsset(Result);
 		}
 		else
 		{
-			int32 TargetIndex = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : (Targets.Num() - 1);
+			int32 TargetIndex = (HandleSourcesProperties->OutputWriteTo == EBaseCreateFromSelectedTargetType::FirstInputObject) ? 0 : (Targets.Num() - 1);
 			KeepActor = TargetComponentInterface(TargetIndex)->GetOwnerActor();
 
 			UpdateAsset(Result, Targets[TargetIndex]);

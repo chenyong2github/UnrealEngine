@@ -40,20 +40,6 @@ public:
 	TObjectPtr<URevolveBoundaryTool> RevolveBoundaryTool;
 };
 
-UENUM()
-enum class ERevolvePropertiesBoundaryCapFillMode : uint8
-{
-	/** No caps will be generated. */
-	None = static_cast<uint8>(ERevolvePropertiesCapFillMode::None),
-	/** Caps are triangulated by placing a vertex in the center and creating a fan to the boundary. This works well if the path is convex,
-	  * but can create invalid geometry if it is concave. */
-	CenterFan = static_cast<uint8>(ERevolvePropertiesCapFillMode::CenterFan),
-	/** Caps are triangulated to maximize the minimal angle in the triangles using Delaunay triangulation. */
-	Delaunay = static_cast<uint8>(ERevolvePropertiesCapFillMode::Delaunay),
-	/** Caps are triangulated using a standard ear clipping approach. This could result in some very thin triangles. */
-	EarClipping = static_cast<uint8>(ERevolvePropertiesCapFillMode::EarClipping)
-};
-
 UCLASS()
 class MESHMODELINGTOOLSEXP_API URevolveBoundaryToolProperties : public URevolveProperties
 {
@@ -64,7 +50,7 @@ public:
 	/** Determines how end caps are created. This is not relevant if the end caps are not visible or if the path is not closed. */
 	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayAfter = "QuadSplitMode",
 		EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360"))
-	ERevolvePropertiesBoundaryCapFillMode CapFillMode = ERevolvePropertiesBoundaryCapFillMode::Delaunay;
+	ERevolvePropertiesCapFillMode CapFillMode = ERevolvePropertiesCapFillMode::Delaunay;
 
 	/** If true, displays the original mesh in addition to the revolved boundary. */
 	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
@@ -81,7 +67,7 @@ public:
 protected:
 	virtual ERevolvePropertiesCapFillMode GetCapFillMode() const override
 	{
-		return static_cast<ERevolvePropertiesCapFillMode>(CapFillMode);
+		return CapFillMode;
 	}
 };
 

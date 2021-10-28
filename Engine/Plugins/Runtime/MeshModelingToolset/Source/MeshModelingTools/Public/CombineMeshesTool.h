@@ -7,11 +7,12 @@
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "BaseTools/BaseCreateFromSelectedTool.h"
 #include "PropertySets/OnAcceptProperties.h"
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "CombineMeshesTool.generated.h"
 
-// predeclarations
+// Forward declarations
 struct FMeshDescription;
 
 /**
@@ -33,19 +34,8 @@ protected:
 };
 
 
-
-
-UENUM()
-enum class ECombineTargetType
-{
-	NewAsset,
-	FirstInputAsset,
-	LastInputAsset
-};
-
-
 /**
- * Standard properties
+ * Common properties
  */
 UCLASS()
 class MESHMODELINGTOOLS_API UCombineMeshesToolProperties : public UInteractiveToolPropertySet
@@ -56,21 +46,21 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bIsDuplicateMode = false;
 
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "bIsDuplicateMode == false", EditConditionHides, HideEditConditionToggle))
-	ECombineTargetType WriteOutputTo = ECombineTargetType::NewAsset;
+	/** Defines the object the tool output is written to. */
+	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (DisplayName = "Write To",
+		EditCondition = "bIsDuplicateMode == false", EditConditionHides, HideEditConditionToggle))
+	EBaseCreateFromSelectedTargetType OutputWriteTo = EBaseCreateFromSelectedTargetType::NewObject;
 
-	/** Base name for newly-generated asset */
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode || WriteOutputTo == ECombineTargetType::NewAsset", EditConditionHides))
-	FString OutputName;
+	/** Base name of the newly generated object to which the output is written to. */
+	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (TransientToolProperty, DisplayName = "Name",
+		EditCondition = "bIsDuplicateMode || OutputWriteTo == EBaseCreateFromSelectedTargetType::NewObject", EditConditionHides, NoResetToDefault))
+	FString OutputNewName;
 
-	/** Name of asset that will be updated */
-	UPROPERTY(VisibleAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode == false && WriteOutputTo != ECombineTargetType::NewAsset", EditConditionHides))
-	FString OutputAsset;
+	/** Name of the existing object to which the output is written to. */
+	UPROPERTY(VisibleAnywhere, Category = OutputObject, meta = (TransientToolProperty, DisplayName = "Name",
+		EditCondition = "bIsDuplicateMode == false && OutputWriteTo != EBaseCreateFromSelectedTargetType::NewObject", EditConditionHides))
+	FString OutputExistingName;
 };
-
-
-
-
 
 
 /**
@@ -101,16 +91,15 @@ protected:
 	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourceProperties;
+	TObjectPtr<UOnAcceptHandleSourcesPropertiesBase> HandleSourceProperties;
 
-protected:
+	UPROPERTY()
 	UWorld* TargetWorld;
 
 	bool bDuplicateMode;
 
 	void CreateNewAsset();
 	void UpdateExistingAsset();
-
 
 	void BuildCombinedMaterialSet(TArray<UMaterialInterface*>& NewMaterialsOut, TArray<TArray<int32>>& MaterialIDRemapsOut);
 };

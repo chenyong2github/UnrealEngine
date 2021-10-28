@@ -16,32 +16,70 @@ class AActor;
 UENUM()
 enum class EHandleSourcesMethod : uint8
 {
-	DeleteSources = 0	UMETA(DisplayName = "Delete Sources"),
+	/** Delete all input objects */
+	DeleteSources UMETA(DisplayName = "Delete Inputs"),
 
-	HideSources = 1		UMETA(DisplayName = "Hide Sources"),
+	/** Hide all input objects */
+	HideSources UMETA(DisplayName = "Hide Inputs"),
 
-	KeepSources = 2		UMETA(DisplayName = "Keep Sources"),
+	/** Keep all input objects */
+	KeepSources UMETA(DisplayName = "Keep Inputs"),
 
-	/** Delete all but the first source */
-	KeepFirstSource = 3	UMETA(DisplayName = "Keep First Source"),
+	/** Keep only the first input object and delete all other input objects */
+	KeepFirstSource UMETA(DisplayName = "Keep First Input"),
 
-	/** Delete all but the last source */
-	KeepLastSource = 4	UMETA(DisplayName = "Keep Last Source")
+	/** Keep only the last input object and delete all other input objects */
+	KeepLastSource UMETA(DisplayName = "Keep Last Input")
 };
 
-
-
-
-// Standard property settings for tools that create a new actor and need to decide what to do with the input (source) actor(s)
+// Base class for property settings for tools that create a new actor and need to decide what to do with the input objects.
 UCLASS()
-class MODELINGCOMPONENTS_API UOnAcceptHandleSourcesProperties : public UInteractiveToolPropertySet
+class MODELINGCOMPONENTS_API UOnAcceptHandleSourcesPropertiesBase : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
-	/** What to do with the source Actors/Components when accepting results of tool.*/
-	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	EHandleSourcesMethod OnToolAccept;
-
 	void ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager, const AActor* MustKeepActor = nullptr);
+
+protected:
+	virtual EHandleSourcesMethod GetHandleInputs() const
+	{
+		return EHandleSourcesMethod::KeepSources;
+	}
+};
+
+// Specialization for property settings for tools that create a new actor and need to decide what to do with multiple input objects.
+UCLASS()
+class MODELINGCOMPONENTS_API UOnAcceptHandleSourcesProperties : public UOnAcceptHandleSourcesPropertiesBase
+{
+	GENERATED_BODY()
+public:
+
+	/** Defines what to do with the input objects when accepting the tool results. */
+	UPROPERTY(EditAnywhere, Category = OnToolAccept)
+	EHandleSourcesMethod HandleInputs;
+
+protected:
+	virtual EHandleSourcesMethod GetHandleInputs() const override
+	{
+		return HandleInputs;
+	}
+};
+
+// Specialization for property settings for tools that create a new actor and need to decide what to do with a single input object.
+UCLASS()
+class MODELINGCOMPONENTS_API UOnAcceptHandleSourcesPropertiesSingle : public UOnAcceptHandleSourcesPropertiesBase
+{
+	GENERATED_BODY()
+public:
+
+	/** Defines what to do with the input object when accepting the tool results. */
+	UPROPERTY(EditAnywhere, Category = OnToolAccept, meta = (ValidEnumValues = "DeleteSources, HideSources, KeepSources"))
+	EHandleSourcesMethod HandleInputs;
+
+protected:
+	virtual EHandleSourcesMethod GetHandleInputs() const override
+	{
+		return HandleInputs;
+	}
 };
