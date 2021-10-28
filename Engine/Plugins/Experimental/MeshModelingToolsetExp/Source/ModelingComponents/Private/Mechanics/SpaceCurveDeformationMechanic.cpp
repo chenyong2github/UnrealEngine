@@ -16,6 +16,7 @@
 #include "ToolSetupUtil.h"
 #include "Transforms/MultiTransformer.h"
 #include "ToolDataVisualizer.h"
+#include "IntBoxTypes.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
