@@ -16,28 +16,6 @@
 	"Hidden": true,
 	"Modules": [
 		{
-			"Name": "ModelingComponents",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "ModelingComponentsEditorOnly",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
-		},		
-		{
-			"Name": "ModelingOperators",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "ModelingOperatorsEditorOnly",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
-		},
-		{
 			"Name": "MeshModelingToolsExp",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
@@ -61,6 +39,10 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "MeshModelingToolset",
+			"Enabled": true
+		},
 		{
 			"Name": "GeometryProcessing",
 			"Enabled": true

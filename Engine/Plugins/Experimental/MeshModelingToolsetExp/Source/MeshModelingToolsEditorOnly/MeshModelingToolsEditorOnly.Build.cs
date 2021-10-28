@@ -34,6 +34,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"GeometryFramework",
 				"DynamicMesh",
 				"MeshConversion",
+				"MeshModelingTools",
 				"MeshModelingToolsExp",
 				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
