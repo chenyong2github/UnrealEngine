@@ -1,12 +1,8 @@
 #include "custom_op_library.h"
 
-#ifndef ORT_API_MANUAL_INIT // WITH_UE: Added to avoid UE's warning for re-definition
 #define ORT_API_MANUAL_INIT
-#endif //ORT_API_MANUAL_INIT // WITH_UE: Added to avoid UE's warning for re-definition
 #include "onnxruntime_cxx_api.h"
-#ifdef ORT_API_MANUAL_INIT // WITH_UE: Added to avoid UE's warning for re-definition
 #undef ORT_API_MANUAL_INIT
-#endif //ORT_API_MANUAL_INIT // WITH_UE: Added to avoid UE's warning for re-definition
 
 #include <vector>
 #include <cmath>

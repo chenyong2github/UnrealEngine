@@ -149,7 +149,6 @@ public class ONNXRuntime : ModuleRules
 		PublicDefinitions.Add("EIGEN_STRONG_INLINE = inline");
 
 		PublicDefinitions.Add("ENABLE_ORT_FORMAT_LOAD");
-		PublicDefinitions.Add("ORT_API_MANUAL_INIT");
 
 		PublicDefinitions.Add("ONNX_NAMESPACE = onnx");
 		PublicDefinitions.Add("ONNX_ML = 1");
