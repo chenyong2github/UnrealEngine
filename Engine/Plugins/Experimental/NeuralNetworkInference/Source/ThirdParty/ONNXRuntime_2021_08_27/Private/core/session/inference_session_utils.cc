@@ -42,24 +42,6 @@ static Status SetInterOpNumThreads(SessionOptions& session_options,
   return Status::OK();
 }
 
-#ifdef WITH_UE
-static Status SetPriorityOpThreads(SessionOptions& session_options,
-	EThreadPriority ThreadPri,
-	const logging::Logger& logger) {
-	if (ThreadPri < 0) {
-		LOGS(logger, ERROR) << "Unsupported value for priority of the threads: " << ThreadPri;
-		return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Unsupported value for priority of the threads: ", ThreadPri);
-	}
-
-	LOGS(logger, INFO) << "Setting the priority of threads to " << ThreadPri;
-
-	session_options.intra_op_param.ThreadPri = ThreadPri;
-	session_options.inter_op_param.ThreadPri = ThreadPri;
-
-	return Status::OK();
-}
-#endif //WITH_UE
-
 static Status SetExecutionMode(SessionOptions& session_options,
                                int value,
                                const logging::Logger& logger) {

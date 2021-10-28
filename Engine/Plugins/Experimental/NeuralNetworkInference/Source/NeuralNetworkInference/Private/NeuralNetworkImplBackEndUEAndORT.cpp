@@ -426,7 +426,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 	// Configure number threads
 	SessionOptions->SetIntraOpNumThreads(2);
 	// Uncomment if you want to change the priority of the threads, by default is TPri_Normal
-	//SessionOptions->SetPriorityOpThreads(EThreadPriority::TPri_Normal);
+	SessionOptions->SetPriorityOpThreads(EThreadPriority::TPri_Normal);
 
 	// Configure Provider
 	// GPU

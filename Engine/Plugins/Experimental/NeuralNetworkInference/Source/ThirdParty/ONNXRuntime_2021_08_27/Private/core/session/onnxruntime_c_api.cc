@@ -2120,6 +2120,25 @@ Second example, if we wanted to add and remove some members, we'd do this:
     In GetApi we now make it return ort_api_3 for version 3.
 */
 
+#ifdef WITH_UE // I should add this to ort_apis.h/abi_session_options.cc, but this avoids those 2 files to be modified
+ORT_API_STATUS_IMPL(/*OrtApis::*/SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri) {
+#ifdef _OPENMP
+  ORT_UNUSED_PARAMETER(options);
+  ORT_UNUSED_PARAMETER(ThreadPri);
+  // Can't use the default logger here since it's possible that the default logger has not been created
+  // at this point. The default logger gets created when the env is created and these APIs don't require
+  // the env to be created first.
+  std::cout << "WARNING: Since openmp is enabled in this build, this API cannot be used to configure"
+    " priority of threads. Please use the openmp environment variables to control"
+    " the priority of threads.\n";
+#else //_OPENMP
+  options->value.intra_op_param.ThreadPri = ThreadPri;
+  options->value.inter_op_param.ThreadPri = ThreadPri;
+#endif //_OPENMP
+  return nullptr;
+}
+#endif //WITH_UE
+
 static constexpr OrtApi ort_api_1_to_10 = {
     // NOTE: The ordering of these fields MUST not change after that version has shipped since existing binaries depend on this ordering.
 
@@ -2154,7 +2173,7 @@ static constexpr OrtApi ort_api_1_to_10 = {
     &OrtApis::SetIntraOpNumThreads,
     &OrtApis::SetInterOpNumThreads,
 
-    &OrtApis::SetPriorityOpThreads, // WITH_UE
+    &/*OrtApis::*/SetPriorityOpThreads, // WITH_UE
 
     &OrtApis::CreateCustomOpDomain,
     &OrtApis::CustomOpDomain_Add,

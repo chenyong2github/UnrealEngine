@@ -156,25 +156,6 @@ ORT_API_STATUS_IMPL(OrtApis::SetIntraOpNumThreads, _Inout_ OrtSessionOptions* op
   return nullptr;
 }
 
-#ifdef WITH_UE
-ORT_API_STATUS_IMPL(OrtApis::SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri) {
-#ifdef _OPENMP
-	ORT_UNUSED_PARAMETER(options);
-	ORT_UNUSED_PARAMETER(ThreadPri);
-	// Can't use the default logger here since it's possible that the default logger has not been created
-	// at this point. The default logger gets created when the env is created and these APIs don't require
-	// the env to be created first.
-	std::cout << "WARNING: Since openmp is enabled in this build, this API cannot be used to configure"
-		" priority of threads. Please use the openmp environment variables to control"
-		" the priority of threads.\n";
-#else //_OPENMP
-	options->value.intra_op_param.ThreadPri = ThreadPri;
-	options->value.inter_op_param.ThreadPri = ThreadPri;
-#endif //_OPENMP
-	return nullptr;
-}
-#endif //WITH_UE
-
 ORT_API_STATUS_IMPL(OrtApis::SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads) {
   options->value.inter_op_param.thread_pool_size = inter_op_num_threads;
   return nullptr;
