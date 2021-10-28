@@ -24,9 +24,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
-PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
 #include "Eigen/src/Core/arch/Default/Half.h"
-PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
