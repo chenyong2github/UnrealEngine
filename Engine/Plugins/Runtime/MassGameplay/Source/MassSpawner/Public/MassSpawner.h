@@ -29,8 +29,6 @@ protected:
 	virtual void BeginDestroy() override;
 
 public:
-	TArray<FInstancedStruct>& GetSpawnSets() { return SpawnSets; }
-
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
 	void DEBUG_Spawn();
@@ -43,7 +41,6 @@ public:
 protected:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void ValidateSpawnSets();
 #endif // WITH_EDITOR
 
 	void RegisterEntityTemplates();
@@ -75,7 +72,7 @@ public:
 	bool DespawnEntity(const FMassEntityHandle Entity);
 
 	/**
-	 * Scales the spawning counts (this only works when bUseEntityConfig is set)
+	 * Scales the spawning counts
 	 * @param Scale is the number to multiply the all counts of each agent types 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
@@ -97,17 +94,10 @@ protected:
 		TArray<FMassEntityHandle> Entities;
 	};
 
-	// @TODO CONSIDER HAVING ONE PER ENTRY IN SpawnSets
-	UPROPERTY(Category = "Mass|Spawn", EditAnywhere, meta = (BaseStruct = "MassSpawnConfigBase", EditCondition = "!bUseEntityConfig"))
-	TArray<FInstancedStruct> SpawnSets;
-
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
-	bool bUseEntityConfig = false;
-
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (EditCondition = "bUseEntityConfig"))
 	int32 Count;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Mass|Spawn", meta = (EditCondition = "bUseEntityConfig"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Mass|Spawn")
 	TArray<FMassSpawnedEntityType> EntityTypes;
 
 	/** Asset that describes the way we want to generate SpawnPoints of the entity */
