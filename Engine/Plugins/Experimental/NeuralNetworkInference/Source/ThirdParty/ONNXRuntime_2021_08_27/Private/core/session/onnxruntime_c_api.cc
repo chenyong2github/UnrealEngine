@@ -2173,8 +2173,6 @@ static constexpr OrtApi ort_api_1_to_10 = {
     &OrtApis::SetIntraOpNumThreads,
     &OrtApis::SetInterOpNumThreads,
 
-    &/*OrtApis::*/SetPriorityOpThreads, // WITH_UE
-
     &OrtApis::CreateCustomOpDomain,
     &OrtApis::CustomOpDomain_Add,
     &OrtApis::AddCustomOpDomain,
@@ -2371,23 +2369,19 @@ static constexpr OrtApi ort_api_1_to_10 = {
     // End of Version 9 - DO NOT MODIFY ABOVE (see above text for more information)
 
     // Version 10 - In development, feel free to add/remove/rearrange here
+    &/*OrtApis::*/SetPriorityOpThreads, // WITH_UE: Put at the very end of this static ort_api_1_to_10 to avoid "Size of version X API cannot change" error
 };
 
 // Asserts to do a some checks to ensure older Versions of the OrtApi never change (will detect an addition or deletion but not if they cancel out each other)
 // If any of these asserts hit, read the above 'Rules on how to add a new Ort API version'
-#ifdef WITH_UE
-constexpr int OrtApiOffset = 1;
-#else //WITH_UE
-constexpr int OrtApiOffset = 0;
-#endif //WITH_UE
-static_assert(offsetof(OrtApi, ReleaseCustomOpDomain) / sizeof(void*) == 101 + OrtApiOffset, "Size of version 1 API cannot change");
-static_assert(offsetof(OrtApi, ReleaseModelMetadata) / sizeof(void*) == 118 + OrtApiOffset, "Size of version 2 API cannot change");
-static_assert(offsetof(OrtApi, AddFreeDimensionOverrideByName) / sizeof(void*) == 124 + OrtApiOffset, "Size of version 3 API cannot change");
-static_assert(offsetof(OrtApi, ReleaseAvailableProviders) / sizeof(void*) == 126 + OrtApiOffset, "Size of version 4 API cannot change");
-static_assert(offsetof(OrtApi, SetGlobalSpinControl) / sizeof(void*) == 149 + OrtApiOffset, "Size of version 5 API cannot change");
-static_assert(offsetof(OrtApi, ReleaseArenaCfg) / sizeof(void*) == 157 + OrtApiOffset, "Size of version 6 API cannot change");
-static_assert(offsetof(OrtApi, GetCurrentGpuDeviceId) / sizeof(void*) == 161 + OrtApiOffset, "Size of version 7 API cannot change");
-static_assert(offsetof(OrtApi, CreateSessionFromArrayWithPrepackedWeightsContainer) / sizeof(void*) == 169 + OrtApiOffset, "Size of version 8 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseCustomOpDomain) / sizeof(void*) == 101, "Size of version 1 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseModelMetadata) / sizeof(void*) == 118, "Size of version 2 API cannot change");
+static_assert(offsetof(OrtApi, AddFreeDimensionOverrideByName) / sizeof(void*) == 124, "Size of version 3 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseAvailableProviders) / sizeof(void*) == 126, "Size of version 4 API cannot change");
+static_assert(offsetof(OrtApi, SetGlobalSpinControl) / sizeof(void*) == 149, "Size of version 5 API cannot change");
+static_assert(offsetof(OrtApi, ReleaseArenaCfg) / sizeof(void*) == 157, "Size of version 6 API cannot change");
+static_assert(offsetof(OrtApi, GetCurrentGpuDeviceId) / sizeof(void*) == 161, "Size of version 7 API cannot change");
+static_assert(offsetof(OrtApi, CreateSessionFromArrayWithPrepackedWeightsContainer) / sizeof(void*) == 169, "Size of version 8 API cannot change");
 
 // So that nobody forgets to finish an API version, this check will serve as a reminder:
 static_assert(std::string_view(ORT_VERSION) == "1.10.0", "ORT_Version change detected, please follow below steps to ensure OrtApi is updated properly");

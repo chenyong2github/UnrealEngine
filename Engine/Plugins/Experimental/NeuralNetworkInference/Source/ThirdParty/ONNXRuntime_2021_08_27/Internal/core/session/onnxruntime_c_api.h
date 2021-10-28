@@ -853,9 +853,6 @@ struct OrtApi {
   */
   ORT_API2_STATUS(SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads);
 
-  // WITH_UE: Set the priority level of the threads used to compute
-  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri); // WITH_UE
-
   /// @}
   /// \name OrtCustomOpDomain
   /// @{
@@ -3034,6 +3031,9 @@ struct OrtApi {
   ORT_API2_STATUS(GetSparseTensorIndices, _In_ const OrtValue* ort_value, enum OrtSparseIndicesFormat indices_format, _Out_ size_t* num_indices, _Outptr_ const void** indices);
 
   /// @}
+
+  // WITH_UE: Set the priority level of the threads used to compute. Put this at the very end of this OrtApi struct to avoid "Size of version X API cannot change" error
+  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri);
 };
 
 /*
