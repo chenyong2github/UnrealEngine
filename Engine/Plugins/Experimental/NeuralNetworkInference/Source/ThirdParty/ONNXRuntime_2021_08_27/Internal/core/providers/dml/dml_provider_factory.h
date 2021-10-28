@@ -72,6 +72,7 @@ ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderEx_DML, _In_ OrtSessionOp
 /**
  * Create DirectML Execution Provider with specified options
  */
+ORT_EXPORT
 ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
 	_In_ OrtDMLProviderOptions* provider_options);
 #endif //WITH_UE

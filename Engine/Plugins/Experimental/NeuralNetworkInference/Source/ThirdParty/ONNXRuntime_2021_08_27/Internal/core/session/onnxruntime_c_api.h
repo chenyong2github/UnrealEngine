@@ -127,13 +127,8 @@ extern "C" {
 // __VA_ARGS__ on Windows and Linux are different
 #define ORT_API(RETURN_TYPE, NAME, ...) RETURN_TYPE ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION
 
-#ifdef WITH_UE
-#define ORT_API_STATUS(NAME, ...) \
-  _Success_(return == 0) _Check_return_ _Ret_maybenull_ ORT_EXPORT OrtStatusPtr ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION ORT_MUST_USE_RESULT
-#else //WITH_UE
 #define ORT_API_STATUS(NAME, ...) \
   _Success_(return == 0) _Check_return_ _Ret_maybenull_ OrtStatusPtr ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION ORT_MUST_USE_RESULT
-#endif //WITH_UE
 
 // XXX: Unfortunately, SAL annotations are known to not work with function pointers
 #define ORT_API2_STATUS(NAME, ...) \

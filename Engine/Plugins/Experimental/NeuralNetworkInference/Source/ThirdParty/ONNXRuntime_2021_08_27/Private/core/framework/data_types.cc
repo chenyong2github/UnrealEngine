@@ -845,7 +845,7 @@ const NonTensorTypeBase* DataTypeImpl::SequenceTensorTypeFromONNXEnum(int type) 
 
 #if !defined(DISABLE_SPARSE_TENSORS)
 const SparseTensorTypeBase* DataTypeImpl::SparseTensorTypeFromONNXEnum(int type) {
-NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE: C4191: 'reinterpret_cast': unsafe conversion from 'X' to 'Y'
   switch (type) {
     case TensorProto_DataType_FLOAT:
       return reinterpret_cast<const SparseTensorTypeBase*>(DataTypeImpl::GetSparseTensorType<float>());
