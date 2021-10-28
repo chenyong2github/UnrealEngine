@@ -71,6 +71,8 @@ void UUVSeamSewAction::Shutdown()
 
 void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_SetSelection);
+	
 	SelectionTargetIndex = SelectionTargetIndexIn;
 	if (NewSelection)
 	{
@@ -114,6 +116,8 @@ void UUVSeamSewAction::UpdateVisualizations()
 
 void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_UpdateSewEdgePreviewLines);
+	
 	SewEdgePairingLineSet->Clear();
 	if (CurrentSelection && !CurrentSelection->IsEmpty())
 	{

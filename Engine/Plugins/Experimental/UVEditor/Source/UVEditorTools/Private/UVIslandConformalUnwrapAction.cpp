@@ -40,6 +40,8 @@ void UUVIslandConformalUnwrapAction::Shutdown()
 
 void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_SetSelection);
+	
 	SelectionTargetIndex = SelectionTargetIndexIn;
 	if (NewSelection)
 	{

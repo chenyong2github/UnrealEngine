@@ -48,6 +48,8 @@ protected:
 	// 	FAbortableBackgroundTask API
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ModelingOpTask_DoWork);
+		
 		if (Operator)
 		{
 			Operator->CalculateResult(GetProgress());
