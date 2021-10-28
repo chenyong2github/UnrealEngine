@@ -114,6 +114,7 @@
 		Engine/Content/...
 
 		<!-- Plugins -->
+		Engine/Extras/ThirdPartyNotUE/SwitchboardThirdParty/...
 		Engine/Plugins/VirtualProduction/RemoteControlWebInterface/WebApp/...
 
 		<!-- Source code -->
@@ -326,6 +327,9 @@
 
 		<!-- Binaries required to make Bink2 videos -->
 		Engine/Binaries/ThirdParty/Bink/...
+
+		<!-- Used by Switchboard application, and by iOS/tvOS build automation -->
+		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">
@@ -511,7 +515,6 @@
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
 		Engine/Build/Rsync/...
-		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyIOSExceptions">
@@ -532,7 +535,6 @@
 		Engine/Binaries/DotNET/IOS/openssl.exe
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
-		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyTVOSExceptions">
