@@ -78,6 +78,7 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 #endif
 	// Not safe since the UTexture might not have yet PostLoad() called and so UpdateResource() called.
 	// This will affect whether the SamplerStateRHI will be available or not.
+	TextureSize = Texture != nullptr ? FIntPoint(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight()) : FIntPoint::ZeroValue;
 	MarkRenderDataDirty();
 }
 
@@ -86,10 +87,9 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 void UNiagaraDataInterfaceTexture::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	TextureSize = Texture != nullptr ? FIntPoint(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight()) : FIntPoint::ZeroValue;
 	MarkRenderDataDirty();
 }
-
-
 
 #endif
 
@@ -112,6 +112,7 @@ bool UNiagaraDataInterfaceTexture::CopyToInternal(UNiagaraDataInterface* Destina
 	}
 	UNiagaraDataInterfaceTexture* DestinationTexture = CastChecked<UNiagaraDataInterfaceTexture>(Destination);
 	DestinationTexture->Texture = Texture;
+	DestinationTexture->TextureSize = Texture != nullptr ? FIntPoint(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight()) : FIntPoint::ZeroValue;
 	DestinationTexture->MarkRenderDataDirty();
 
 	return true;
@@ -219,12 +220,6 @@ void UNiagaraDataInterfaceTexture::GetVMExternalFunction(const FVMExternalFuncti
 
 bool UNiagaraDataInterfaceTexture::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
-	const FIntPoint CurrentTextureSize = Texture != nullptr ? FIntPoint(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight()) : FIntPoint::ZeroValue;
-	if ( CurrentTextureSize !=  TextureSize )
-	{
-		TextureSize = CurrentTextureSize;
-		MarkRenderDataDirty();
-	}
 	return false;
 }
 
@@ -467,6 +462,7 @@ void UNiagaraDataInterfaceTexture::PushToRenderThreadImpl()
 void UNiagaraDataInterfaceTexture::SetTexture(UTexture* InTexture)
 {
 	Texture = InTexture;
+	TextureSize = Texture != nullptr ? FIntPoint(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight()) : FIntPoint::ZeroValue;
 	MarkRenderDataDirty();
 }
 

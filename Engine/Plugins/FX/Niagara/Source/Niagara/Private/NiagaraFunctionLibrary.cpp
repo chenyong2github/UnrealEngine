@@ -468,7 +468,7 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 
 	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
 
-	if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture) )
+	if (Texture->IsA<UTexture2D>() || Texture->IsA<UTextureRenderTarget2D>())
 	{
 		const FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceTexture::StaticClass()), *OverrideName);
 		const int32 Index = OverrideParameters.IndexOf(Variable);
@@ -485,7 +485,7 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 			return;
 		}
 
-		TextureDI->SetTexture(Texture2D);
+		TextureDI->SetTexture(Texture);
 #if WITH_EDITOR
 		NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
