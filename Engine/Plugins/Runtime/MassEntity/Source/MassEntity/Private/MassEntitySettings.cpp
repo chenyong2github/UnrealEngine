@@ -11,9 +11,9 @@
 #endif // WITH_EDITOR
 
 //----------------------------------------------------------------------//
-//  UMassSettings
+//  UMassEntitySettings
 //----------------------------------------------------------------------//
-UMassSettings::UMassSettings(const FObjectInitializer& ObjectInitializer)
+UMassEntitySettings::UMassEntitySettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	for (int i = 0; i < (int)EMassProcessingPhase::MAX; ++i)
@@ -21,16 +21,16 @@ UMassSettings::UMassSettings(const FObjectInitializer& ObjectInitializer)
 		ProcessingPhasesConfig[i].PhaseName = *EnumToString(EMassProcessingPhase(i));
 	}
 
-	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassSettings::BuildProcessorListAndPhases);
+	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassEntitySettings::BuildProcessorListAndPhases);
 }
 
-void UMassSettings::BeginDestroy()
+void UMassEntitySettings::BeginDestroy()
 {
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	Super::BeginDestroy();
 }
 
-void UMassSettings::BuildProcessorListAndPhases()
+void UMassEntitySettings::BuildProcessorListAndPhases()
 {
 	if (bInitialized)
 	{
@@ -42,7 +42,7 @@ void UMassSettings::BuildProcessorListAndPhases()
 	bInitialized = true;
 }
 
-void UMassSettings::BuildPhases()
+void UMassEntitySettings::BuildPhases()
 {
 #if WITH_EDITOR
 	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
@@ -62,7 +62,7 @@ void UMassSettings::BuildPhases()
 #endif // WITH_EDITOR
 }
 
-void UMassSettings::BuildProcessorList()
+void UMassEntitySettings::BuildProcessorList()
 {
 	ProcessorCDOs.Reset();
 	for (FMassProcessingPhaseConfig& PhaseConfig : ProcessingPhasesConfig)
@@ -101,7 +101,7 @@ void UMassSettings::BuildProcessorList()
 	});
 }
 
-void UMassSettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass)
+void UMassEntitySettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass)
 {
 	if (UMassProcessor* ProcessorCDO = GetMutableDefault<UMassProcessor>(ProcessorClass))
 	{
@@ -126,16 +126,16 @@ void UMassSettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> Proces
 	}
 }
 
-const FMassProcessingPhaseConfig* UMassSettings::GetProcessingPhasesConfig()
+const FMassProcessingPhaseConfig* UMassEntitySettings::GetProcessingPhasesConfig()
 {
 	BuildProcessorListAndPhases();
 	return ProcessingPhasesConfig;
 }
 
 #if WITH_EDITOR
-void UMassSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UMassEntitySettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	static const FName ProcessorCDOsName = GET_MEMBER_NAME_CHECKED(UMassSettings, ProcessorCDOs);
+	static const FName ProcessorCDOsName = GET_MEMBER_NAME_CHECKED(UMassEntitySettings, ProcessorCDOs);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -158,7 +158,7 @@ void UMassSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 }
 
-void UMassSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void UMassEntitySettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	static const FName AutoRegisterName = TEXT("bAutoRegisterWithProcessingPhases");
 

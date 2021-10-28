@@ -2,7 +2,7 @@
 
 #pragma once
 #include "ZoneGraphTypes.h"
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "MassSmartObjectSettings.generated.h"
 
 #if WITH_EDITOR
@@ -14,7 +14,7 @@ DECLARE_MULTICAST_DELEGATE(FOnAnnotationSettingsChanged);
  * Settings for the MassSmartObject module.
  */
 UCLASS(config = Plugins, defaultconfig, DisplayName = "Mass SmartObject")
-class MASSSMARTOBJECTS_API UMassSmartObjectSettings : public UDeveloperSettings
+class MASSSMARTOBJECTS_API UMassSmartObjectSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 

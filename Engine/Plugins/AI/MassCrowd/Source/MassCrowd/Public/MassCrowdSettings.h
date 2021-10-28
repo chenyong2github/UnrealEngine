@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "ZoneGraphTypes.h"
 #include "MassCrowdSettings.generated.h"
 
@@ -46,8 +46,8 @@ struct MASSCROWD_API FMassCrowdLaneDensityDesc
 /**
  * Settings for the MassCrowd plugin.
  */
-UCLASS(config = Plugins, defaultconfig, DisplayName = "Mass Crowd")
-class MASSCROWD_API UMassCrowdSettings : public UDeveloperSettings
+UCLASS(config = Plugins, defaultconfig, DisplayName = "Mass Crowd", dontCollapseCategories)
+class MASSCROWD_API UMassCrowdSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "MassProcessingPhase.h"
 #include "MassProcessor.h"
 #include "InstancedStruct.h"
 #include "MassEntitySettings.generated.h"
 
-#define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassSettings>()->a)
+#define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassEntitySettings>()->a)
 
 class UMassProcessingPhaseManager;
 struct FMassProcessingPhaseConfig;
@@ -46,8 +46,8 @@ struct FMassProcessingPhaseConfig
 /**
  * Implements the settings for MassEntity plugin
  */
-UCLASS(config = Mass, defaultconfig, DisplayName = "Mass")
-class MASSENTITY_API UMassSettings : public UDeveloperSettings
+UCLASS(config = Mass, defaultconfig, DisplayName = "Mass Entity")
+class MASSENTITY_API UMassEntitySettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 public:
@@ -55,7 +55,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSettingsChange, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
 #endif // WITH_EDITORONLY_DATA
 
-	UMassSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UMassEntitySettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void BuildProcessorListAndPhases();
 	void AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass);
@@ -90,7 +90,7 @@ public:
 	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
 
 	/** This list contains all the processors available in the given binary (including plugins). The contents are sorted by display name.*/
-	UPROPERTY(VisibleAnywhere, Category = Mass, Transient, Instanced)
+	UPROPERTY(VisibleAnywhere, Category = Mass, Transient, Instanced, EditFixedSize)
 	TArray<UMassProcessor*> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA

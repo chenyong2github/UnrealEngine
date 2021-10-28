@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "MassSimulationSettings.generated.h"
 
 #define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassSimulationSettings>()->a)
@@ -13,7 +13,7 @@ class UMassSchematic;
  * Implements the settings for MassSimulation
  */
 UCLASS(config = Mass, defaultconfig, DisplayName = "Mass Simulation")
-class MASSSIMULATION_API UMassSimulationSettings : public UDeveloperSettings
+class MASSSIMULATION_API UMassSimulationSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 public:

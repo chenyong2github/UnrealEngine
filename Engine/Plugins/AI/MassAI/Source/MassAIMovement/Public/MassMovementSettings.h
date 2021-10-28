@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "MassAIMovementTypes.h"
 #include "MassMovementSettings.generated.h"
 
 UCLASS(config = Mass, defaultconfig, meta = (DisplayName = "Mass Movement"))
-class MASSAIMOVEMENT_API UMassMovementSettings : public UDeveloperSettings
+class MASSAIMOVEMENT_API UMassMovementSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 

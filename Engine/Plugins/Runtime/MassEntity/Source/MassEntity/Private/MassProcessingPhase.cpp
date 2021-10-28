@@ -120,9 +120,9 @@ void UMassProcessingPhaseManager::PostInitProperties()
 		UWorld* World = GetWorld();
 		if (World && World->IsGameWorld() == false)
 		{
-			UMassSettings* MassSettings = GetMutableDefault<UMassSettings>();
-			check(MassSettings);
-			MassSettingsChangeHandle = MassSettings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnMassSettingsChange);
+			UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>();
+			check(Settings);
+			MassEntitySettingsChangeHandle = Settings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnMassEntitySettingsChange);
 		}
 #endif // WITH_EDITOR
 	}
@@ -135,9 +135,9 @@ void UMassProcessingPhaseManager::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
-	if (UMassSettings* MassSettings = GetMutableDefault<UMassSettings>())
+	if (UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>())
 	{
-		MassSettings->GetOnSettingsChange().Remove(MassSettingsChangeHandle);
+		Settings->GetOnSettingsChange().Remove(MassEntitySettingsChangeHandle);
 	}
 #endif // WITH_EDITOR
 }
@@ -150,10 +150,10 @@ void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 
 #if WITH_EDITOR
 	const UWorld* World = InProcessorOwner.GetWorld();
-	const UMassSettings* MassSettings = GetMutableDefault<UMassSettings>();
-	if (World != nullptr && MassSettings != nullptr && !MassSettings->DumpDependencyGraphFileName.IsEmpty())
+	const UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>();
+	if (World != nullptr && Settings != nullptr && !Settings->DumpDependencyGraphFileName.IsEmpty())
 	{
-		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *MassSettings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
+		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *Settings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
 	}
 #endif // WITH_EDITOR
 
@@ -326,7 +326,7 @@ void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 }
 
 #if WITH_EDITOR
-void UMassProcessingPhaseManager::OnMassSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
+void UMassProcessingPhaseManager::OnMassEntitySettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	check(GetOuter());
 	InitializePhases(*GetOuter());

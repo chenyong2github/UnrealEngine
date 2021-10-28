@@ -88,7 +88,7 @@ public:
 	FMassProcessingPhase::FOnPhaseEvent& GetOnPhaseEnd(const EMassProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseEnd; }
 
 	/** 
-	 *  Populates hosted FMassProcessingPhase instances with Processors read from MassSettings configuration.
+	 *  Populates hosted FMassProcessingPhase instances with Processors read from MassEntitySettings configuration.
 	 *  Calling this function overrides previous configuration of Phases.
 	 */
 	void InitializePhases(UObject& InProcessorOwner);
@@ -121,11 +121,11 @@ protected:
 	virtual void BeginDestroy() override;
 	void EnableTickFunctions(const UWorld& World);
 
-	/** Creates phase processors instances for each declared phase name, based on MassSettings */
+	/** Creates phase processors instances for each declared phase name, based on MassEntitySettings */
 	virtual void CreatePhases();
 
 #if WITH_EDITOR
-	virtual void OnMassSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent);
+	virtual void OnMassEntitySettingsChange(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif // WITH_EDITOR
 
 	friend FMassProcessingPhase;
@@ -152,6 +152,6 @@ protected:
 	EMassProcessingPhase CurrentPhase = EMassProcessingPhase::MAX;
 
 #if WITH_EDITOR
-	FDelegateHandle MassSettingsChangeHandle;
+	FDelegateHandle MassEntitySettingsChangeHandle;
 #endif // WITH_EDITOR
 };

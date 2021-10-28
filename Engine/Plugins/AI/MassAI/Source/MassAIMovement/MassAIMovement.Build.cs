@@ -38,7 +38,7 @@ namespace UnrealBuildTool.Rules
 					"StructUtils",
 					"ZoneGraph",
 					"ZoneGraphAnnotations",
-					"DeveloperSettings",
+					"DeveloperSettings"
 				}
 			);
 
