@@ -249,7 +249,6 @@ protected:
 	/** last vertex of polygon that is actively being updated as input device is moved */
 	FVector3d PreviewVertex;
 
-	UPROPERTY()
 	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;

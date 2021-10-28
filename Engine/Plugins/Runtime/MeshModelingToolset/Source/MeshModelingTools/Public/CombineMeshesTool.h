@@ -93,7 +93,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UOnAcceptHandleSourcesPropertiesBase> HandleSourceProperties;
 
-	UPROPERTY()
 	UWorld* TargetWorld;
 
 	bool bDuplicateMode;
