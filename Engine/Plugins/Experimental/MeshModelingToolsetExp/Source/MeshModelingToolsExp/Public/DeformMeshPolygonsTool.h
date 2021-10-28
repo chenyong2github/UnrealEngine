@@ -17,7 +17,6 @@
 #include "Selection/GroupTopologySelector.h"
 #include "Operations/GroupTopologyDeformer.h"
 #include "Solvers/MeshLaplacian.h"
-#include "Curves/CurveFloat.h"
 #include "DeformMeshPolygonsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
@@ -33,9 +32,6 @@ class MESHMODELINGTOOLSEXP_API UDeformMeshPolygonsToolBuilder : public UMeshSurf
 	GENERATED_BODY()
 
 public:
-	UDeformMeshPolygonsToolBuilder()
-	{
-	}
 
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
@@ -44,10 +40,10 @@ public:
 UENUM()
 enum class EGroupTopologyDeformationStrategy : uint8
 {
-	/** Deforms the mesh using linear translations*/
+	/** Deforms the mesh using linear deformation. */
 	Linear UMETA(DisplayName = "Linear"),
 
-	/** Deforms the mesh using laplacian deformation*/
+	/** Deforms the mesh using Laplacian deformation. */
 	Laplacian UMETA(DisplayName = "Smooth")
 };
 
@@ -75,10 +71,10 @@ static ELaplacianWeightScheme ConvertToLaplacianWeightScheme(const EWeightScheme
 UENUM()
 enum class EQuickTransformerMode : uint8
 {
-	/** Translation along frame axes */
+	/** Translation along axes */
 	AxisTranslation = 0 UMETA(DisplayName = "Translate"),
 
-	/** Rotation around frame axes*/
+	/** Rotation around axes */
 	AxisRotation = 1 UMETA(DisplayName = "Rotate"),
 };
 
@@ -95,21 +91,27 @@ public:
 
 	//Options
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Deformation Type", ToolTip = "Select the type of deformation you wish to employ on a polygroup."))
+	/** Type of deformation used. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Deformation"))
 	EGroupTopologyDeformationStrategy DeformationStrategy;
 
-	UPROPERTY(EditAnywhere, Category = Options)
+	/** Type of transformation used. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Transformation"))
 	EQuickTransformerMode TransformMode;
 
-	UPROPERTY(EditAnywhere, Category = SelectionFilter)
+	/** Allow for faces (PolyGroups) to be selected. */
+	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bSelectFaces;
 
-	UPROPERTY(EditAnywhere, Category = SelectionFilter)
+	/** Allow for edges to be selected. */
+	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bSelectEdges;
 
-	UPROPERTY(EditAnywhere, Category = SelectionFilter)
+	/** Allow for vertices to be selected. */
+	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bSelectVertices;
 
+	/** If true, overlays preview with wireframe. */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowWireframe;
 
