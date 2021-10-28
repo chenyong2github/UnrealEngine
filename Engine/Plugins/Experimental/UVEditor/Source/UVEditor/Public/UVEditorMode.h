@@ -191,9 +191,19 @@ protected:
 	float TriangleOpacity = 1.0;
 	float TriangleDepthOffset = 0.5;
 	const float WireframeDepthOffset = 0.6;
-	FColor TriangleColor = FColor(50, 194, 219);
-	FColor WireframeColor = FColor(50, 100, 219);
-	FColor IslandBorderColor = FColor(103, 52, 235);
+	float UnwrapBaseColorHueStart = 200;
+	float UnwrapBaseColorSaturation = 0.25;
+	float UnwrapBaseColorValue = 0.75;
+	float UnwrapWireframeHueShift = 15;
+	float UnwrapWireframeSaturation = 0.40;
+	float UnwrapWireframeValue = 0.40;
+	float UnwrapBoundaryHueShift = 30;
+	float UnwrapBoundarySaturation = 0.50;
+	float UnwrapBoundaryValue = 0.50;
+
+	FLinearColor GetTriangleColorByTargetIndex(int32 TargetIndex) const;
+	FLinearColor GetWireframeColorByTargetIndex(int32 TargetIndex) const;
+	FLinearColor GetBoundaryColorByTargetIndex(int32 TargetIndex) const;
 
 	// Here largely for convenience to avoid having to pass it around functions.
 	UPROPERTY()
