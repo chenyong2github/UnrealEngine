@@ -18,19 +18,73 @@ class UCombinedTransformGizmo;
 class UTransformProxy;
 class UPreviewMesh;
 
+/**
+ * Type of Brush Size currently active in FBrushToolRadius
+ */
+UENUM()
+enum class EBrushToolSizeType : uint8
+{
+	/** Brush size is a dimensionless scale relative to the target object size */
+	Adaptive = 0,
+	/** Brush size is defined in world dimensions */
+	World = 1
+};
 
+/**
+ * FBrushToolRadius is used to define the size of 3D "brushes" used in (eg) sculpting tools.
+ * The brush size can be defined in various ways.
+ */
+USTRUCT()
+struct FBrushToolRadius
+{
+	GENERATED_BODY()
+
+	/** Specify the type of brush size currently in use */
+	UPROPERTY(EditAnywhere, Category = Brush)
+	EBrushToolSizeType SizeType = EBrushToolSizeType::Adaptive;
+
+	/** Adaptive brush size is used to interpolate between an object-specific minimum and maximum brush size */
+	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay, meta = (EditCondition = "SizeType == EBrushToolSizeType::Adaptive",
+		DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	float AdaptiveSize = 0.25;
+
+	/** World brush size is a dimension in world coordinates */
+	UPROPERTY(EditAnywhere, Category = Brush, AdvancedDisplay, meta = (EditCondition = "SizeType == EBrushToolSizeType::World",
+		DisplayName = "World Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.1", ClampMax = "50000.0"))
+	float WorldRadius = 100.0;
+
+	/**
+	 * WorldSizeRange defines the min/max dimensions for Adaptive brush size
+	 */
+	TInterval<float> WorldSizeRange = TInterval<float>(1.0f, 1000.0f);
+
+	//
+	// util functions
+	//
+
+	/** Set the WorldSizeRange value and optionally clamp the WorldRadius based on this new range */
+	void InitializeWorldSizeRange(TInterval<float> Range, bool bValidateWorldRadius = true);
+	/** Return the set/calculated world-space radius for the current settings */
+	float GetWorldRadius() const;
+	/** Increase the current radius dimension by a fixed step (or a smaller fixed step) */
+	void IncreaseRadius(bool bSmallStep);
+	/** Decrease the current radius dimension by a fixed step (or a smaller fixed step) */
+	void DecreaseRadius(bool bSmallStep);
+};
+
+ 
 /** Mesh Sculpting Brush Types */
 UENUM()
 enum class EMeshSculptFalloffType : uint8
 {
-	Smooth,
-	Linear,
-	Inverse,
-	Round,
-	BoxSmooth,
-	BoxLinear,
-	BoxInverse,
-	BoxRound,
+	Smooth = 0,
+	Linear = 1,
+	Inverse = 2,
+	Round = 3,
+	BoxSmooth = 4,
+	BoxLinear = 5,
+	BoxInverse = 6,
+	BoxRound = 7,
 
 	LastValue UMETA(Hidden)
 };
@@ -40,14 +94,21 @@ enum class EMeshSculptFalloffType : uint8
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USculptBrushProperties : public UBrushBaseProperties
+class MESHMODELINGTOOLSEXP_API USculptBrushProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	USculptBrushProperties()
-	{
-		this->BrushFalloffAmount = 0.5f;
-	}
+
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 1))
+	FBrushToolRadius BrushSize;
+
+	/** Amount of falloff to apply (0.0 - 1.0) */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", HideEditConditionToggle, EditConditionHides, EditCondition="bShowFalloff", DisplayPriority = 3))
+	float BrushFalloffAmount;
+
+	/** If false, then BrushFalloffAmount will not be shown in DetailsView panels (otherwise no effect) */
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowFalloff = true;
 
 	/** Depth of Brush into surface along view ray or surface normal, depending on the Active Brush Type */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowPerBrushProps"))
@@ -58,15 +119,15 @@ public:
 	bool bHitBackFaces = true;
 
 	/** Brush stamps are applied at this time interval. 0 for a single stamp, 1 for continuous stamps, 0.5 is a stamp every half-second */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowFlowRate"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Flow", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowFlowRate"))
 	float FlowRate = 1.0f;
 
-	/** Minimum world-space spacing between stamps, defined along the brush path. Zero spacing means continuous stamps. */
+	/** Space out stamp centers at distances Spacing*BrushDiameter along the stroke (so Spacing of 1 means that stamps will be adjacent but non-overlapping). Zero spacing means continuous stamps. */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "4.0", ClampMin = "0.0", ClampMax = "1000.0", DisplayPriority = 8, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowSpacing"))
 	float Spacing = 0.0f;
 
 	/** Lazy brush smooths out the brush path by averaging the cursor positions */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 9, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowLazyness"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Lazy", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0", DisplayPriority = 9, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowLazyness"))
 	float Lazyness = 0;
 
 	/**  */
@@ -241,7 +302,19 @@ protected:
 	//
 	// Brush Types
 	//
+public:
+	struct FBrushTypeInfo
+	{
+		FText Name;
+		int32 Identifier;
+	};
+	const TArray<FBrushTypeInfo>& GetRegisteredPrimaryBrushTypes() const { return RegisteredPrimaryBrushTypes; }
+	const TArray<FBrushTypeInfo>& GetRegisteredSecondaryBrushTypes() const { return RegisteredSecondaryBrushTypes; }
+
 protected:
+	TArray<FBrushTypeInfo> RegisteredPrimaryBrushTypes;
+	TArray<FBrushTypeInfo> RegisteredSecondaryBrushTypes;
+
 	UPROPERTY()
 	TMap<int32, TObjectPtr<UMeshSculptBrushOpProps>> BrushOpPropSets;
 
@@ -252,8 +325,8 @@ protected:
 
 	TMap<int32, TUniquePtr<FMeshSculptBrushOpFactory>> SecondaryBrushOpFactories;
 
-	void RegisterBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
-	void RegisterSecondaryBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
+	void RegisterBrushType(int32 Identifier, FText Name, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
+	void RegisterSecondaryBrushType(int32 Identifier, FText Name, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet);
 
 	virtual void SaveAllBrushTypeProperties(UInteractiveTool* SaveFromTool);
 	virtual void RestoreAllBrushTypeProperties(UInteractiveTool* RestoreToTool);
@@ -275,12 +348,23 @@ protected:
 	//
 	// Falloff types
 	//
+public:
+	struct FFalloffTypeInfo
+	{
+		FText Name;
+		FString StringIdentifier;
+		int32 Identifier;
+	};
+	const TArray<FFalloffTypeInfo>& GetRegisteredPrimaryFalloffTypes() const { return RegisteredPrimaryFalloffTypes; }
+
+	/** Set the active falloff type for the primary brush */
+	virtual void SetPrimaryFalloffType(EMeshSculptFalloffType Falloff);
+
 protected:
 	TSharedPtr<FMeshSculptFallofFunc> PrimaryFalloff;
 
-	void SetPrimaryFalloffType(EMeshSculptFalloffType Falloff);
-
-
+	TArray<FFalloffTypeInfo> RegisteredPrimaryFalloffTypes;
+	void RegisterStandardFalloffTypes();
 
 
 	//

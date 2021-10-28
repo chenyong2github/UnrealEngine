@@ -104,11 +104,11 @@ UENUM()
 enum class EMeshVertexSculptBrushFilterType : uint8
 {
 	/** Do not filter brush area */
-	None,
+	None = 0,
 	/** Only apply brush to triangles in the same connected mesh component/island */
-	Component,
+	Component = 1,
 	/** Only apply brush to triangles with the same PolyGroup */
-	PolyGroup
+	PolyGroup = 2
 };
 
 
@@ -120,25 +120,24 @@ class MESHMODELINGTOOLSEXP_API UVertexBrushSculptProperties : public UInteractiv
 
 public:
 	/** Primary Brush Mode */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Brush Type"))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Brush"))
 	EMeshVertexSculptBrushType PrimaryBrushType = EMeshVertexSculptBrushType::Offset;
 
 	/** Primary Brush Falloff Type, multiplied by Alpha Mask where applicable */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Falloff Shape"))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Falloff"))
 	EMeshSculptFalloffType PrimaryFalloffType = EMeshSculptFalloffType::Smooth;
 
 	/** Filter applied to Stamp Region Triangles, based on first Stroke Stamp */
-	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Region Filter"))
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Region"))
 	EMeshVertexSculptBrushFilterType BrushFilter = EMeshVertexSculptBrushFilterType::None;
 
 	/** When Freeze Target is toggled on, the Brush Target Surface will be Frozen in its current state, until toggled off. Brush strokes will be applied relative to the Target Surface, for applicable Brushes */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EMeshVertexSculptBrushType::Offset || PrimaryBrushType == EMeshVertexSculptBrushType::SculptMax || PrimaryBrushType == EMeshVertexSculptBrushType::SculptView || PrimaryBrushType == EMeshVertexSculptBrushType::Pinch || PrimaryBrushType == EMeshVertexSculptBrushType::Resample" ))
 	bool bFreezeTarget = false;
 
-	/** When enabled, instead of Mesh Smoothing, the Shift-Smooth modifier will "erase" the displacement relative to the Brush Target Surface */
-	//UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Shift-Smooth Erases", EditCondition = "bFreezeTarget == true"))
-	UPROPERTY()
-	bool bSmoothErases = false;
+	// parent ref required for details customization
+	UPROPERTY(meta = (TransientToolProperty))
+	TWeakObjectPtr<UMeshVertexSculptTool> Tool;
 };
 
 
@@ -210,6 +209,10 @@ public:
 	virtual void DecreaseBrushSpeedAction() override;
 
 	virtual void UpdateBrushAlpha(UTexture2D* NewAlpha);
+
+	virtual void SetActiveBrushType(int32 Identifier);
+	virtual void SetActiveFalloffType(int32 Identifier);
+	virtual void SetRegionFilterType(int32 Identifier);
 
 protected:
 	// UMeshSculptToolBase API
