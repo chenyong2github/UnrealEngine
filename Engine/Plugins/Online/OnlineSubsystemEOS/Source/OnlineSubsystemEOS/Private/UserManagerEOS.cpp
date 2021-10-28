@@ -488,8 +488,33 @@ void FUserManagerEOS::LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token)
 struct FConnectCredentials :
 	public EOS_Connect_Credentials
 {
-	FConnectCredentials(EOS_EExternalCredentialType InType, const TArray<uint8>& InToken)
-		: EOS_Connect_Credentials()
+	FConnectCredentials(EOS_EExternalCredentialType InType, const FExternalAuthToken& AuthToken) :
+		EOS_Connect_Credentials()
+	{
+		if (AuthToken.HasTokenData())
+		{
+			Init(InType, AuthToken.TokenData);
+		}
+		else if (AuthToken.HasTokenString())
+		{
+			Init(InType, AuthToken.TokenString);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("FConnectCredentials object cannot be constructed with invalid FExternalAuthToken parameter"));
+		}
+	}
+
+	void Init(EOS_EExternalCredentialType InType, const FString& InTokenString)
+	{
+		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		Token = TokenAnsi;
+		Type = InType;
+
+		FCStringAnsi::Strncpy(TokenAnsi, TCHAR_TO_UTF8(*InTokenString), InTokenString.Len() + 1);
+	}
+
+	void Init(EOS_EExternalCredentialType InType, const TArray<uint8>& InToken)
 	{
 		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
 		Token = TokenAnsi;
@@ -498,6 +523,7 @@ struct FConnectCredentials :
 		uint32_t InOutBufferLength = EOS_MAX_TOKEN_SIZE;
 		EOS_ByteArray_ToString(InToken.GetData(), InToken.Num(), TokenAnsi, &InOutBufferLength);
 	}
+
 	char TokenAnsi[EOS_MAX_TOKEN_SIZE];
 };
 
@@ -506,15 +532,16 @@ bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
 	GetPlatformAuthToken(LocalUserNum,
 		FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
 		{
-			if (!bWasSuccessful || !AuthToken.HasTokenData())
+			if (!bWasSuccessful || !AuthToken.IsValid())
 			{
 				UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to the platform OSS giving an empty auth token"), LocalUserNum);
 				return;
 			}
 
 			// Now login into our EOS account
+
 			check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
-			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken.TokenData);
+			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken);
 			EOS_Connect_LoginOptions Options = { };
 			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 			Options.Credentials = &Credentials;
@@ -1068,7 +1095,7 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+		UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful for ProductUserId (%s). Finished with EOS_EResult %s"), *LexToString(ProductUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 	}
 
 	return bResult;
@@ -1096,18 +1123,18 @@ void FUserManagerEOS::GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUser
 		FConnectQueryProductUserIdMappingsCallback* CallbackObj = new FConnectQueryProductUserIdMappingsCallback();
 		CallbackObj->CallbackLambda = [this, ProductUserId, Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data)
 		{
+			EOS_EpicAccountId AccountId = nullptr;
+
 			if (Data->ResultCode == EOS_EResult::EOS_Success)
 			{
-				EOS_EpicAccountId AccountId;
-				if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
-				{
-					Callback(ProductUserId, AccountId);
-				}
+				GetEpicAccountIdFromProductUserId(ProductUserId, AccountId);
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful. Finished with EOS_EResult %s."), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+				UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful for ProductUserId (%s). Finished with EOS_EResult %s."), *LexToString(ProductUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 			}
+
+			Callback(ProductUserId, AccountId);
 		};
 
 		EOS_Connect_QueryProductUserIdMappings(EOSSubsystem->ConnectHandle, &QueryProductUserIdMappingsOptions, CallbackObj, CallbackObj->GetCallbackPtr());
