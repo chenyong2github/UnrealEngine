@@ -832,6 +832,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 	{
 		UE_LOG(LogNiagara, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
 	}
+	SourceData->~FNiagaraPassedInstanceDataForRT();
 }
 
 //////////////////////////////////////////////////////////////////////////

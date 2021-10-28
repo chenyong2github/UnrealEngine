@@ -4125,195 +4125,192 @@ void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmit
 
 void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameThread(void* PerInstanceDataFromGameThread, const FNiagaraSystemInstanceID& Instance)
 { 
-	FNiagaraDIChaosDestruction_GPUData* DataPtr = SystemsToGPUInstanceData.Find(Instance);
-	ensure(DataPtr);
-	if (!DataPtr)
-	{
-		return;
-	}
-
-	FNiagaraDIChaosDestruction_GPUData& Data = *DataPtr;
-
 	FNiagaraDIChaosDestruction_InstanceDataToPassToRT* InstanceData = static_cast<FNiagaraDIChaosDestruction_InstanceDataToPassToRT*>(PerInstanceDataFromGameThread);
+	FNiagaraDIChaosDestruction_GPUData* DataPtr = SystemsToGPUInstanceData.Find(Instance);
+	if (ensure(DataPtr))
+	{
+		FNiagaraDIChaosDestruction_GPUData& Data = *DataPtr;
 	
-	Data.ResetAll();
+		Data.ResetAll();
 
-	Data.SolverTime = InstanceData->SolverTime;
-	Data.LastSpawnedPointID = InstanceData->LastSpawnedPointID;
+		Data.SolverTime = InstanceData->SolverTime;
+		Data.LastSpawnedPointID = InstanceData->LastSpawnedPointID;
 
-	if (InstanceData->PositionArray)
-	{
-		Data.PositionArray = TArray<FVector>(MoveTemp(*InstanceData->PositionArray));		
-		//LoadGPUBufferFromArray(Data.GPUPositionBuffer, InstanceData->PositionArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("PositionBuffer")));
-		delete InstanceData->PositionArray;
-	}
+		if (InstanceData->PositionArray)
+		{
+			Data.PositionArray = TArray<FVector>(MoveTemp(*InstanceData->PositionArray));		
+			//LoadGPUBufferFromArray(Data.GPUPositionBuffer, InstanceData->PositionArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("PositionBuffer")));
+			delete InstanceData->PositionArray;
+		}
 
-	if (InstanceData->VelocityArray)
-	{
-		Data.VelocityArray = TArray<FVector>(MoveTemp(*InstanceData->VelocityArray));
-		//LoadGPUBufferFromArray(Data.GPUVelocityBuffer, InstanceData->VelocityArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("VelocityBuffer")));
-		delete InstanceData->VelocityArray;
-	}
+		if (InstanceData->VelocityArray)
+		{
+			Data.VelocityArray = TArray<FVector>(MoveTemp(*InstanceData->VelocityArray));
+			//LoadGPUBufferFromArray(Data.GPUVelocityBuffer, InstanceData->VelocityArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("VelocityBuffer")));
+			delete InstanceData->VelocityArray;
+		}
 	
-	if (InstanceData->ExtentMinArray)
-	{
-		Data.ExtentMinArray = TArray<float>(MoveTemp(*InstanceData->ExtentMinArray));
-		//LoadGPUBufferFromArray(Data.GPUExtentMinBuffer, InstanceData->ExtentMinArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMinBuffer")));
-		delete InstanceData->ExtentMinArray;
-	}
+		if (InstanceData->ExtentMinArray)
+		{
+			Data.ExtentMinArray = TArray<float>(MoveTemp(*InstanceData->ExtentMinArray));
+			//LoadGPUBufferFromArray(Data.GPUExtentMinBuffer, InstanceData->ExtentMinArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMinBuffer")));
+			delete InstanceData->ExtentMinArray;
+		}
 	
-	if (InstanceData->ExtentMaxArray)
-	{
-		Data.ExtentMaxArray = TArray<float>(MoveTemp(*InstanceData->ExtentMaxArray));
-		//LoadGPUBufferFromArray(Data.GPUExtentMaxBuffer, InstanceData->ExtentMaxArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMaxBuffer")));
-		delete InstanceData->ExtentMaxArray;
-	}
+		if (InstanceData->ExtentMaxArray)
+		{
+			Data.ExtentMaxArray = TArray<float>(MoveTemp(*InstanceData->ExtentMaxArray));
+			//LoadGPUBufferFromArray(Data.GPUExtentMaxBuffer, InstanceData->ExtentMaxArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMaxBuffer")));
+			delete InstanceData->ExtentMaxArray;
+		}
 
-	if (InstanceData->VolumeArray)
-	{
-		Data.VolumeArray = TArray<float>(MoveTemp(*InstanceData->VolumeArray));
-		//LoadGPUBufferFromArray(Data.GPUVolumeBuffer, InstanceData->VolumeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("VolumeBuffer")));
-		delete InstanceData->VolumeArray;
-	}
+		if (InstanceData->VolumeArray)
+		{
+			Data.VolumeArray = TArray<float>(MoveTemp(*InstanceData->VolumeArray));
+			//LoadGPUBufferFromArray(Data.GPUVolumeBuffer, InstanceData->VolumeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("VolumeBuffer")));
+			delete InstanceData->VolumeArray;
+		}
 
-	if (InstanceData->SolverIDArray)
-	{
-		Data.SolverIDArray = TArray<int32>(MoveTemp(*InstanceData->SolverIDArray));
-		//LoadGPUBufferFromArray(Data.GPUSolverIDBuffer, InstanceData->SolverIDArray, EPixelFormat::PF_R32_SINT, FString(TEXT("SolverIDBuffer")));
-		delete InstanceData->SolverIDArray;
-	}
+		if (InstanceData->SolverIDArray)
+		{
+			Data.SolverIDArray = TArray<int32>(MoveTemp(*InstanceData->SolverIDArray));
+			//LoadGPUBufferFromArray(Data.GPUSolverIDBuffer, InstanceData->SolverIDArray, EPixelFormat::PF_R32_SINT, FString(TEXT("SolverIDBuffer")));
+			delete InstanceData->SolverIDArray;
+		}
 
-	if (InstanceData->DensityArray)
-	{
-		Data.DensityArray = TArray<float>(MoveTemp(*InstanceData->DensityArray));
-		//LoadGPUBufferFromArray(Data.GPUDensityBuffer, InstanceData->DensityArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("DensityBuffer")));
-		delete InstanceData->DensityArray;
-	}
+		if (InstanceData->DensityArray)
+		{
+			Data.DensityArray = TArray<float>(MoveTemp(*InstanceData->DensityArray));
+			//LoadGPUBufferFromArray(Data.GPUDensityBuffer, InstanceData->DensityArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("DensityBuffer")));
+			delete InstanceData->DensityArray;
+		}
 
-	if (InstanceData->FrictionArray)
-	{
-		Data.FrictionArray = TArray<float>(MoveTemp(*InstanceData->FrictionArray));
-		//LoadGPUBufferFromArray(Data.GPUFrictionBuffer, InstanceData->FrictionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("FrictionBuffer")));
-		delete InstanceData->FrictionArray;
-	}
+		if (InstanceData->FrictionArray)
+		{
+			Data.FrictionArray = TArray<float>(MoveTemp(*InstanceData->FrictionArray));
+			//LoadGPUBufferFromArray(Data.GPUFrictionBuffer, InstanceData->FrictionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("FrictionBuffer")));
+			delete InstanceData->FrictionArray;
+		}
 
-	if (InstanceData->RestitutionArray)
-	{
-		Data.RestitutionArray = TArray<float>(MoveTemp(*InstanceData->RestitutionArray));
-		//LoadGPUBufferFromArray(Data.GPURestitutionBuffer, InstanceData->RestitutionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
-		delete InstanceData->RestitutionArray;
-	}
+		if (InstanceData->RestitutionArray)
+		{
+			Data.RestitutionArray = TArray<float>(MoveTemp(*InstanceData->RestitutionArray));
+			//LoadGPUBufferFromArray(Data.GPURestitutionBuffer, InstanceData->RestitutionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
+			delete InstanceData->RestitutionArray;
+		}
 
-	if (InstanceData->TransformTranslationArray)
-	{
-		Data.TransformTranslationArray = TArray<FVector>(MoveTemp(*InstanceData->TransformTranslationArray));
-		//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformTranslationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformTranslationBuffer")));
-		delete InstanceData->TransformTranslationArray;
-	}
+		if (InstanceData->TransformTranslationArray)
+		{
+			Data.TransformTranslationArray = TArray<FVector>(MoveTemp(*InstanceData->TransformTranslationArray));
+			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformTranslationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformTranslationBuffer")));
+			delete InstanceData->TransformTranslationArray;
+		}
 
-	if (InstanceData->TransformRotationArray)
-	{
-		Data.TransformRotationArray = TArray<FQuat>(MoveTemp(*InstanceData->TransformRotationArray));
-		//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformRotationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformRotationBuffer")));
-		delete InstanceData->TransformRotationArray;
-	}
+		if (InstanceData->TransformRotationArray)
+		{
+			Data.TransformRotationArray = TArray<FQuat>(MoveTemp(*InstanceData->TransformRotationArray));
+			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformRotationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformRotationBuffer")));
+			delete InstanceData->TransformRotationArray;
+		}
 
-	if (InstanceData->TransformScaleArray)
-	{
-		Data.TransformScaleArray = TArray<FVector>(MoveTemp(*InstanceData->TransformScaleArray));
-		//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformScaleArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformScaleBuffer")));
-		delete InstanceData->TransformScaleArray;
-	}
+		if (InstanceData->TransformScaleArray)
+		{
+			Data.TransformScaleArray = TArray<FVector>(MoveTemp(*InstanceData->TransformScaleArray));
+			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformScaleArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformScaleBuffer")));
+			delete InstanceData->TransformScaleArray;
+		}
 
-	if (InstanceData->BoundsArray)
-	{
-		Data.BoundsArray = TArray<FVector>(MoveTemp(*InstanceData->BoundsArray));
-		//LoadGPUBufferFromArray(Data.GPUBoundsBuffer, InstanceData->BoundsArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("BoundsBuffer")));
-		delete InstanceData->BoundsArray;
-	}
+		if (InstanceData->BoundsArray)
+		{
+			Data.BoundsArray = TArray<FVector>(MoveTemp(*InstanceData->BoundsArray));
+			//LoadGPUBufferFromArray(Data.GPUBoundsBuffer, InstanceData->BoundsArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("BoundsBuffer")));
+			delete InstanceData->BoundsArray;
+		}
 
-	if (InstanceData->SurfaceTypeArray)
-	{
-		Data.SurfaceTypeArray = TArray<int32>(MoveTemp(*InstanceData->SurfaceTypeArray));
-		//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->SurfaceTypeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
-		delete InstanceData->SurfaceTypeArray;
-	}
+		if (InstanceData->SurfaceTypeArray)
+		{
+			Data.SurfaceTypeArray = TArray<int32>(MoveTemp(*InstanceData->SurfaceTypeArray));
+			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->SurfaceTypeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
+			delete InstanceData->SurfaceTypeArray;
+		}
 
-	if (InstanceData->ColorArray)
-	{
-		Data.ColorArray = TArray<FLinearColor>(MoveTemp(*InstanceData->ColorArray));
-		//LoadGPUBufferFromArray(Data.GPUColorBuffer, InstanceData->ColorArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("ColorBuffer")));
-		delete InstanceData->ColorArray;
-	}
+		if (InstanceData->ColorArray)
+		{
+			Data.ColorArray = TArray<FLinearColor>(MoveTemp(*InstanceData->ColorArray));
+			//LoadGPUBufferFromArray(Data.GPUColorBuffer, InstanceData->ColorArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("ColorBuffer")));
+			delete InstanceData->ColorArray;
+		}
 
-	if (InstanceData->IncomingLocationArray)
-	{
-		Data.IncomingLocationArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingLocationArray));
-		//LoadGPUBufferFromArray(Data.GPUIncomingLocationBuffer, InstanceData->IncomingLocationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingLocationBuffer")));
-		delete InstanceData->IncomingLocationArray;
-	}
+		if (InstanceData->IncomingLocationArray)
+		{
+			Data.IncomingLocationArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingLocationArray));
+			//LoadGPUBufferFromArray(Data.GPUIncomingLocationBuffer, InstanceData->IncomingLocationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingLocationBuffer")));
+			delete InstanceData->IncomingLocationArray;
+		}
 
-	if (InstanceData->IncomingAccumulatedImpulseArray)
-	{
-		Data.IncomingAccumulatedImpulseArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingAccumulatedImpulseArray));
-		//LoadGPUBufferFromArray(Data.GPUIncomingAccumulatedImpulseBuffer, InstanceData->IncomingAccumulatedImpulseArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAccumulatedImpulseBuffer")));
-		delete InstanceData->IncomingAccumulatedImpulseArray;
-	}
+		if (InstanceData->IncomingAccumulatedImpulseArray)
+		{
+			Data.IncomingAccumulatedImpulseArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingAccumulatedImpulseArray));
+			//LoadGPUBufferFromArray(Data.GPUIncomingAccumulatedImpulseBuffer, InstanceData->IncomingAccumulatedImpulseArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAccumulatedImpulseBuffer")));
+			delete InstanceData->IncomingAccumulatedImpulseArray;
+		}
 
-	if (InstanceData->IncomingNormalArray)
-	{
-		Data.IncomingNormalArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingNormalArray));
-		//LoadGPUBufferFromArray(Data.GPUIncomingNormalBuffer, InstanceData->IncomingNormalArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingNormalBuffer")));
-		delete InstanceData->IncomingNormalArray;
-	}
+		if (InstanceData->IncomingNormalArray)
+		{
+			Data.IncomingNormalArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingNormalArray));
+			//LoadGPUBufferFromArray(Data.GPUIncomingNormalBuffer, InstanceData->IncomingNormalArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingNormalBuffer")));
+			delete InstanceData->IncomingNormalArray;
+		}
 
-	if (InstanceData->IncomingVelocity1Array)
-	{
-		Data.IncomingVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity1Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingVelocity1Buffer, InstanceData->IncomingVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity1Buffer")));
-		delete InstanceData->IncomingVelocity1Array;
-	}
+		if (InstanceData->IncomingVelocity1Array)
+		{
+			Data.IncomingVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity1Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingVelocity1Buffer, InstanceData->IncomingVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity1Buffer")));
+			delete InstanceData->IncomingVelocity1Array;
+		}
 
-	if (InstanceData->IncomingVelocity2Array)
-	{
-		Data.IncomingVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity2Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingVelocity2Buffer, InstanceData->IncomingVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity2Buffer")));
-		delete InstanceData->IncomingVelocity2Array;
-	}
+		if (InstanceData->IncomingVelocity2Array)
+		{
+			Data.IncomingVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity2Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingVelocity2Buffer, InstanceData->IncomingVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity2Buffer")));
+			delete InstanceData->IncomingVelocity2Array;
+		}
 
-	if (InstanceData->IncomingAngularVelocity1Array)
-	{
-		Data.IncomingAngularVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity1Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity1Buffer, InstanceData->IncomingAngularVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity1Buffer")));
-		delete InstanceData->IncomingAngularVelocity1Array;
-	}
+		if (InstanceData->IncomingAngularVelocity1Array)
+		{
+			Data.IncomingAngularVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity1Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity1Buffer, InstanceData->IncomingAngularVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity1Buffer")));
+			delete InstanceData->IncomingAngularVelocity1Array;
+		}
 
-	if (InstanceData->IncomingAngularVelocity2Array)
-	{
-		Data.IncomingAngularVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity2Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity2Buffer, InstanceData->IncomingAngularVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity2Buffer")));
-		delete InstanceData->IncomingAngularVelocity2Array;
-	}
+		if (InstanceData->IncomingAngularVelocity2Array)
+		{
+			Data.IncomingAngularVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity2Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity2Buffer, InstanceData->IncomingAngularVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity2Buffer")));
+			delete InstanceData->IncomingAngularVelocity2Array;
+		}
 	
-	if (InstanceData->IncomingMass1Array)
-	{
-		Data.IncomingMass1Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass1Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingMass1Buffer, InstanceData->IncomingMass1Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass1Buffer")));
-		delete InstanceData->IncomingMass1Array;
-	}
+		if (InstanceData->IncomingMass1Array)
+		{
+			Data.IncomingMass1Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass1Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingMass1Buffer, InstanceData->IncomingMass1Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass1Buffer")));
+			delete InstanceData->IncomingMass1Array;
+		}
 
-	if (InstanceData->IncomingMass2Array)
-	{
-		Data.IncomingMass2Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass2Array));
-		//LoadGPUBufferFromArray(Data.GPUIncomingMass2Buffer, InstanceData->IncomingMass2Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass2Buffer")));
-		delete InstanceData->IncomingMass2Array;
-	}
+		if (InstanceData->IncomingMass2Array)
+		{
+			Data.IncomingMass2Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass2Array));
+			//LoadGPUBufferFromArray(Data.GPUIncomingMass2Buffer, InstanceData->IncomingMass2Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass2Buffer")));
+			delete InstanceData->IncomingMass2Array;
+		}
 
-	if (InstanceData->IncomingTimeArray)
-	{
-		Data.IncomingTimeArray = TArray<float>(MoveTemp(*InstanceData->IncomingTimeArray));
-		//LoadGPUBufferFromArray(Data.GPUIncomingTimeBuffer, InstanceData->IncomingTimeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingTimeBuffer")));
-		delete InstanceData->IncomingTimeArray;
+		if (InstanceData->IncomingTimeArray)
+		{
+			Data.IncomingTimeArray = TArray<float>(MoveTemp(*InstanceData->IncomingTimeArray));
+			//LoadGPUBufferFromArray(Data.GPUIncomingTimeBuffer, InstanceData->IncomingTimeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingTimeBuffer")));
+			delete InstanceData->IncomingTimeArray;
+		}
+		InstanceData->~FNiagaraDIChaosDestruction_InstanceDataToPassToRT();
 	}
 }
 

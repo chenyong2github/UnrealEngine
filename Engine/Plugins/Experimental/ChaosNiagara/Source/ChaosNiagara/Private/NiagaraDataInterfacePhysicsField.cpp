@@ -212,6 +212,7 @@ void FNDIPhysicsFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	{
 		TargetData->FieldResource = SourceData->FieldResource;
 	}
+	SourceData->~FNDIPhysicsFieldData();
 }
 
 void FNDIPhysicsFieldProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)

@@ -175,23 +175,22 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 {
 	virtual void ConsumePerInstanceDataFromGameThread(void* Data, const FNiagaraSystemInstanceID& InstanceID) override
 	{
-		FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(InstanceID);
-		if (!ensure(InstanceData))
-		{
-			return;
-		}
-
 		FNDIParticleRead_GameToRenderData* IncomingData = static_cast<FNDIParticleRead_GameToRenderData*>(Data);
-		if (IncomingData)
+		FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(InstanceID);
+		if (ensure(InstanceData))
 		{
-			InstanceData->SourceEmitterGPUContext = IncomingData->SourceEmitterGPUContext;
-			InstanceData->SourceEmitterName = IncomingData->SourceEmitterName;
+			if (IncomingData)
+			{
+				InstanceData->SourceEmitterGPUContext = IncomingData->SourceEmitterGPUContext;
+				InstanceData->SourceEmitterName = IncomingData->SourceEmitterName;
+			}
+			else
+			{
+				InstanceData->SourceEmitterGPUContext = nullptr;
+				InstanceData->SourceEmitterName = TEXT("");
+			}
 		}
-		else
-		{
-			InstanceData->SourceEmitterGPUContext = nullptr;
-			InstanceData->SourceEmitterName = TEXT("");
-		}
+		IncomingData->~FNDIParticleRead_GameToRenderData();
 	}
 	
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override

@@ -1632,6 +1632,8 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 	Data.UvMappingSet = SourceData->UvMappingSet;
 
 	Data.ConnectivityBuffer = SourceData->ConnectivityBuffer;
+
+	SourceData->~FNiagaraDISkeletalMeshPassedDataToRT();
 }
 
 //////////////////////////////////////////////////////////////////////////

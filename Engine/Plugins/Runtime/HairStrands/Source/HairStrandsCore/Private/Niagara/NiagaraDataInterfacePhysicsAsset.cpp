@@ -603,6 +603,7 @@ void FNDIPhysicsAssetProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	{
 		UE_LOG(LogPhysicsAsset, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %d"), Instance);
 	}
+	SourceData->~FNDIPhysicsAssetData();
 }
 
 void FNDIPhysicsAssetProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
