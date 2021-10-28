@@ -3,14 +3,9 @@
 
 #include "precomp.h"
 
-#ifndef WITH_UE
 #include "core/session/onnxruntime_c_api.h"
-#include "BucketizedBufferAllocator.h"
 
-#else //WITH_UE
 #include "BucketizedBufferAllocator.h"
-#include "core/session/onnxruntime_c_api.h"
-#endif //WITH_UE
 // #define PRINT_OUTSTANDING_ALLOCATIONS
 
 namespace Dml
