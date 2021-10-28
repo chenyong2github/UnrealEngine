@@ -7,6 +7,7 @@
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "HAL/IConsoleManager.h"
 #include "IAssetRegistry.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
@@ -934,6 +935,43 @@ void UTakeRecorder::PreRecord()
 	}
 }
 
+// Temporary CVar-based switching mechanism for UE 4.27 only.
+// In UE 5.0, this is a Take Recorder project setting instead.
+static int32 RecordingClockSourceCVarValue = static_cast<int32>(EUpdateClockSource::RelativeTimecode);
+static FAutoConsoleVariableRef CVarRecordingClockSource(
+	TEXT("TakeRecorder.RecordingClockSource"),
+	RecordingClockSourceCVarValue,
+	TEXT("Select the clock source used for recording: "
+		"0 = Tick, "
+		"1 = Platform, "
+		"2 = Audio, "
+		"3 = RelativeTimecode, "
+		"4 = Timecode, "
+		"5 = Custom "));
+
+static EUpdateClockSource GetRecordingClockSource()
+{
+	static EUpdateClockSource RecordingClockSource = EUpdateClockSource::RelativeTimecode;
+
+	static constexpr int32 EnumRangeBegin = static_cast<int32>(EUpdateClockSource::Tick);
+	static constexpr int32 EnumRangeEnd = static_cast<int32>(EUpdateClockSource::Custom);
+
+	if (RecordingClockSourceCVarValue >= EnumRangeBegin && RecordingClockSourceCVarValue <= EnumRangeEnd)
+	{
+		RecordingClockSource = static_cast<EUpdateClockSource>(RecordingClockSourceCVarValue);
+	}
+	else
+	{
+		UE_LOG(LogTakesCore, Warning,
+			TEXT("Invalid value %d for CVar 'TakeRecorder.RecordingClockSource' is not in the range [%d -> %d]. "
+				"Using RelativeTimecode clock source instead."),
+			RecordingClockSourceCVarValue, EnumRangeBegin, EnumRangeEnd);
+		RecordingClockSource = EUpdateClockSource::RelativeTimecode;
+	}
+
+	return RecordingClockSource;
+}
+
 void UTakeRecorder::Start()
 {
 	FTimecode Timecode = FApp::GetTimecode();
@@ -956,7 +994,7 @@ void UTakeRecorder::Start()
 	{
 		CachedPlaybackRange = MovieScene->GetPlaybackRange();
 		CachedClockSource = MovieScene->GetClockSource();
-		MovieScene->SetClockSource(EUpdateClockSource::RelativeTimecode);
+		MovieScene->SetClockSource(GetRecordingClockSource());
 		if (Sequencer.IsValid())
 		{
 			Sequencer->ResetTimeController();
