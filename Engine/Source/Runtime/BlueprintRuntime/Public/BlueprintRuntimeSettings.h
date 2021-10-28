@@ -29,7 +29,7 @@ struct FBlueprintWarningSettings
 	FText WarningDescription;
 
 	UPROPERTY()
-	EBlueprintWarningBehavior WarningBehavior;
+	EBlueprintWarningBehavior WarningBehavior = EBlueprintWarningBehavior::Warn;
 };
 
 /**
