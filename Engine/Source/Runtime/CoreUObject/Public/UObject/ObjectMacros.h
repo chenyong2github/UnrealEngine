@@ -1350,6 +1350,9 @@ namespace UM
 
 		/// [PropertyMetadata] The property can be exposed as a data pin, but is hidden by default.
 		PinHiddenByDefault,
+
+		/// [PropertyMetadata] Used for enum properties to define the subset of valid values as a comma-separated string; values outside of this subset are not made available.
+		ValidEnumValues,
 	};
 
 	// Metadata usable in UPROPERTY for customizing the behavior of Persona and UMG
