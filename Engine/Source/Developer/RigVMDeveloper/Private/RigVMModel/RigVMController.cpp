@@ -6121,12 +6121,14 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 		ActionStack->BeginAction(Action);
 	}
 
+	const FString ClampedDefaultValue = InPin->IsRootPin() ? InPin->ClampDefaultValueFromMetaData(InDefaultValue) : InDefaultValue;
+
 	bool bSetPinDefaultValueSucceeded = false;
 	if (InPin->IsArray())
 	{
 		if (ShouldPinBeUnfolded(InPin))
 		{
-			TArray<FString> Elements = URigVMPin::SplitDefaultValue(InDefaultValue);
+			TArray<FString> Elements = URigVMPin::SplitDefaultValue(ClampedDefaultValue);
 
 			if (bResizeArrays)
 			{
@@ -6158,7 +6160,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	}
 	else if (InPin->IsStruct())
 	{
-		TArray<FString> MemberValuePairs = URigVMPin::SplitDefaultValue(InDefaultValue);
+		TArray<FString> MemberValuePairs = URigVMPin::SplitDefaultValue(ClampedDefaultValue);
 
 		for (const FString& MemberValuePair : MemberValuePairs)
 		{
@@ -6183,7 +6185,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	{
 		if (InPin->GetSubPins().Num() == 0)
 		{
-			InPin->DefaultValue = InDefaultValue;
+			InPin->DefaultValue = ClampedDefaultValue;
 			Notify(ERigVMGraphNotifType::PinDefaultValueChanged, InPin);
 			if (!bSuspendNotifications)
 			{
