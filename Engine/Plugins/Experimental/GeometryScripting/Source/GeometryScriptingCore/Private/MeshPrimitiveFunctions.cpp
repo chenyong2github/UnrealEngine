@@ -17,6 +17,7 @@
 #include "Generators/SweepGenerator.h"
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "Generators/RevolveGenerator.h"
+#include "Generators/StairGenerator.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
 
@@ -824,6 +825,78 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendTriangulatedP
 
 	return TargetMesh;
 }
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendLinearStairs(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	float StepWidth,
+	float StepHeight,
+	float StepDepth,
+	int NumSteps,
+	bool bFloating,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendLinearStairs", "AppendLinearStairs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TUniquePtr<FLinearStairGenerator> StairGenerator = (bFloating) ?
+		MakeUnique<FFloatingStairGenerator>() : MakeUnique<FLinearStairGenerator>();
+
+	StairGenerator->StepDepth = StepDepth;
+	StairGenerator->StepWidth = StepWidth;
+	StairGenerator->StepHeight = StepHeight;
+	StairGenerator->NumSteps = FMath::Max(1, NumSteps);
+	StairGenerator->bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	StairGenerator->bScaleUVByAspectRatio = (PrimitiveOptions.UVMode == EGeometryScriptPrimitiveUVMode::Uniform) ? true : false;
+	StairGenerator->Generate();
+	AppendPrimitive(TargetMesh, StairGenerator.Get(), Transform, PrimitiveOptions);
+
+	return TargetMesh;
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCurvedStairs(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	float StepWidth,
+	float StepHeight,
+	float InnerRadius,
+	float CurveAngle,
+	int NumSteps,
+	bool bFloating,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendCurvedStairs", "AppendCurvedStairs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TUniquePtr<FCurvedStairGenerator> StairGenerator = (bFloating) ?
+		MakeUnique<FSpiralStairGenerator>() : MakeUnique<FCurvedStairGenerator>();
+
+	StairGenerator->StepWidth = StepWidth;
+	StairGenerator->StepHeight = StepHeight;
+	StairGenerator->NumSteps = FMath::Max(1, NumSteps);
+	StairGenerator->InnerRadius = InnerRadius;
+	StairGenerator->CurveAngle = CurveAngle;
+	StairGenerator->bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	StairGenerator->bScaleUVByAspectRatio = (PrimitiveOptions.UVMode == EGeometryScriptPrimitiveUVMode::Uniform) ? true : false;
+	StairGenerator->Generate();
+	AppendPrimitive(TargetMesh, StairGenerator.Get(), Transform, PrimitiveOptions);
+
+	return TargetMesh;
+}
+
 
 
 
