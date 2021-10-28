@@ -8,6 +8,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include "MassSettings.h"
 #include "MassMovementSettings.h"
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
@@ -52,17 +53,20 @@ void FMassMovementConfigRefDetails::CustomizeChildren(TSharedRef<class IProperty
 
 void FMassMovementConfigRefDetails::OnProfileComboChange(int32 Idx)
 {
-	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
-	check(Settings);
-
 	if (Idx == -1)
 	{
+		const UMassSettings* MassSettings = GetDefault<UMassSettings>();
+		check(MassSettings);
+		
 		// Goto settings to create new Profile
-		FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(Settings->GetContainerName(), Settings->GetCategoryName(), Settings->GetSectionName());
+		FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer(MassSettings->GetContainerName(), MassSettings->GetCategoryName(), MassSettings->GetSectionName());
 		return;
 	}
 
-	TConstArrayView<FMassMovementConfig> MovementConfigs = Settings->GetMovementConfigs(); 
+	const UMassMovementSettings* MovementSettings = GetDefault<UMassMovementSettings>();
+	check(MovementSettings);
+
+	TConstArrayView<FMassMovementConfig> MovementConfigs = MovementSettings->GetMovementConfigs();
 	if (MovementConfigs.IsValidIndex(Idx))
 	{
 		const FMassMovementConfig& Config = MovementConfigs[Idx];

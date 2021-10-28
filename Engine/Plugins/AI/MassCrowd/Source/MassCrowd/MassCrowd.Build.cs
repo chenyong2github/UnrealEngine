@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"MassEntity",
 					"Core",
 					"CoreUObject",
-					"DeveloperSettings",
 					"Engine",
 					"MassActors",
 					"MassCommon",

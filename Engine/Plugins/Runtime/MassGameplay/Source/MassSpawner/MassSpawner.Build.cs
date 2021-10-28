@@ -29,7 +29,6 @@ namespace UnrealBuildTool.Rules
 					"MassEntity",
 					"MassCommon",
 					"MassSimulation",
-					"DeveloperSettings",
 					"StructUtils",
 					"ZoneGraph",
 				}

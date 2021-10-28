@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DeveloperSettings.h"
+#include "MassSettings.h"
 #include "MassAvoidanceSettings.generated.h"
 
 USTRUCT()
@@ -24,8 +24,8 @@ struct MASSAIMOVEMENT_API FMassAvoidanceVelocityFilter
 	float HighSpeed = 50.f;
 };
 
-UCLASS(config = Mass, defaultconfig, meta = (DisplayName = "Mass Avoidance"))
-class MASSAIMOVEMENT_API UMassAvoidanceSettings : public UDeveloperSettings
+UCLASS(config = Mass, defaultconfig, meta = (DisplayName = "Mass Avoidance"), dontCollapseCategories)
+class MASSAIMOVEMENT_API UMassAvoidanceSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 

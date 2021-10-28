@@ -29,7 +29,6 @@ namespace UnrealBuildTool.Rules
 					"MassCommon",
 					"NavigationSystem",
 					"MassEntity",
-					"DeveloperSettings",
 					"StructUtils",
 				}
 			);
