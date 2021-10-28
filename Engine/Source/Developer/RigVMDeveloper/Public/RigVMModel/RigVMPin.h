@@ -228,6 +228,9 @@ public:
 	// Returns true if the default value provided is valid
 	bool IsValidDefaultValue(const FString& InDefaultValue) const;
 
+	// Returns the default value clamped with the limit meta values defined by the UPROPERTY in URigVMUnitNodes 
+	FString ClampDefaultValueFromMetaData(const FString& InDefaultValue) const;
+
 	// Returns the name of a custom widget to be used
 	// for editing the Pin.
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)

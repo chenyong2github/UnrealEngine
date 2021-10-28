@@ -631,6 +631,34 @@ FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) co
 	return DefaultValue;
 }
 
+template< typename Type>
+static FString ClampValue(const FString& InValueString, const FString& InMinValueString, const FString& InMaxValueString)
+{
+	FString RetValString = InValueString;
+	Type RetVal;
+	TTypeFromString<Type>::FromString(RetVal, *RetValString);
+
+	// Enforce min
+	if(!InMinValueString.IsEmpty())
+	{
+		checkSlow(InMinValueString.IsNumeric());
+		Type MinValue;
+		TTypeFromString<Type>::FromString(MinValue, *InMinValueString);
+		RetVal = FMath::Max<Type>(MinValue, RetVal);
+	}
+	//Enforce max 
+	if(!InMaxValueString.IsEmpty())
+	{
+		checkSlow(InMaxValueString.IsNumeric());
+		Type MaxValue;
+		TTypeFromString<Type>::FromString(MaxValue, *InMaxValueString);
+		RetVal = FMath::Min<Type>(MaxValue, RetVal);
+	}
+
+	RetValString = TTypeToString<Type>::ToString(RetVal);
+	return RetValString;
+}
+
 bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 {
 	TArray<FString> DefaultValues; 
@@ -759,6 +787,76 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 	}
 
 	return true;
+}
+
+FString URigVMPin::ClampDefaultValueFromMetaData(const FString& InDefaultValue) const
+{
+	FString RetVal = InDefaultValue;
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
+	{
+		TArray<FString> RetVals;
+		TArray<FString> DefaultValues; 
+
+		if (IsArray())
+		{
+			DefaultValues = URigVMPin::SplitDefaultValue(InDefaultValue);
+		}
+		else
+		{
+			DefaultValues.Add(InDefaultValue);
+		}
+
+		FString MinValue, MaxValue;	
+		if (UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct())
+		{
+			if (FProperty* Property = ScriptStruct->FindPropertyByName(*GetName()))
+			{
+				MinValue = Property->GetMetaData(TEXT("ClampMin"));
+				MaxValue = Property->GetMetaData(TEXT("ClampMax"));
+			}
+		}
+		
+
+		FString BaseCPPType = GetCPPType()
+			.Replace(URigVMController::TArrayPrefix, TEXT(""))
+			.Replace(URigVMController::TObjectPtrPrefix, TEXT(""))
+			.Replace(TEXT(">"), TEXT(""));
+
+		RetVals.SetNumZeroed(DefaultValues.Num());
+		for (int32 Index = 0; Index < DefaultValues.Num(); ++Index)
+		{
+			const FString& Value = DefaultValues[Index]; 
+			
+			// perform single value validation
+			if (BaseCPPType == TEXT("float"))
+			{ 
+				RetVals[Index] = ClampValue<float>(Value, MinValue, MaxValue);
+			}
+			else if (BaseCPPType == TEXT("double"))
+			{ 
+				RetVals[Index] = ClampValue<double>(Value, MinValue, MaxValue);
+			}
+			else if (BaseCPPType == TEXT("int32"))
+			{ 
+				RetVals[Index] = ClampValue<int32>(Value, MinValue, MaxValue);
+			}
+			else
+			{
+				RetVals[Index] = Value;
+			}
+		}
+
+		if (IsArray())
+		{
+			RetVal = GetDefaultValueForArray(RetVals);
+		}
+		else
+		{
+			RetVal = RetVals[0];
+		}
+	}
+
+	return RetVal;
 }
 
 FName URigVMPin::GetCustomWidgetName() const
