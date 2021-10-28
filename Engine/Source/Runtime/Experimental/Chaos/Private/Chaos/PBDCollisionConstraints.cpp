@@ -123,6 +123,9 @@ namespace Chaos
 		, bEnableRestitution(true)
 		, bHandlesEnabled(true)
 		, bCanDisableContacts(true)
+		, GravityDirection(FVec3(0,0,-1))
+		, GravitySize(980)
+		, MaxPushOutVelocity(0)
 		, SolverType(EConstraintSolverType::GbfPbd)
 	{
 #if INTEL_ISPC
