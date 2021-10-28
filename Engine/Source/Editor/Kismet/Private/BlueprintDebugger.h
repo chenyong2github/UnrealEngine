@@ -4,6 +4,8 @@
 
 #include "Templates/UniquePtr.h"
 
+class UBlueprint;
+
 struct FBlueprintDebugger
 {
 	// Initializes the global state of the debugger (commands, tab spawners, etc):
