@@ -484,6 +484,10 @@ void USteamSocketsNetDriver::OnConnectionCreated(SteamSocketHandles ListenParent
 		FInternetAddrSteamSockets ConnectedAddr;
 		FSteamSocket* NewSocket = static_cast<FSteamSocket*>(Socket->Accept(TEXT("AcceptedSocket")));
 		NewSocket->InternalHandle = SocketHandle;
+
+		// Hotfix-safe version, should get refactored into a separate function that also sets InternalHandle
+		SocketSubsystem->GetSteamSocketsInterface()->SetConnectionPollGroup(SocketHandle, Socket->PollGroup);
+
 		NewSocket->GetPeerAddress(ConnectedAddr);
 		SocketSubsystem->AddSocket(ConnectedAddr, NewSocket, Socket);
 		SocketSubsystem->LinkNetDriver(NewSocket, this);
