@@ -16,7 +16,7 @@ Many third party headers require some care when importing. NNI third party inclu
 
 #ifdef PLATFORM_NNI_MICROSOFT
 #define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START \
-	__pragma(warning(disable: 4191)) /* C4191: 'reinterpret_cast': unsafe conversion from 'FARPROC' to 'void (__cdecl *)(PEXCEPTION_RECORD,PCONTEXT,DWORD) */ \
+	__pragma(warning(disable: 4191)) /* C4191: 'reinterpret_cast': unsafe conversion from unsafe conversion from 'X' to 'Y' */ \
 	__pragma(warning(disable: 4497)) /* C4497: nonstandard extension 'sealed' used: replace with 'final' */ \
 	__pragma(warning(disable: 6001)) /* C6001: Using uninitialized memory '*pNode'. */ \
 	__pragma(warning(disable: 6294)) /* C6294: Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed. */ \

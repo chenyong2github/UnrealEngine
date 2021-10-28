@@ -1,3 +1,5 @@
+PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
+
 // This file is part of Eigen, a lightweight C++ template library
 // for linear algebra.
 //
@@ -169,3 +171,5 @@ template<typename PlainObjectType, int MapOptions, typename StrideType> class Ma
 } // end namespace Eigen
 
 #endif // EIGEN_MAP_H
+
+PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE

@@ -5,10 +5,8 @@
 #include "core/framework/op_kernel.h"
 #include "core/platform/threadpool.h"
 #include "core/util/math_cpuonly.h"
-PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
 #include "Eigen/src/Core/Map.h"
 #include "Eigen/LU"
-PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE
 #include <functional>
 
 namespace onnxruntime {
