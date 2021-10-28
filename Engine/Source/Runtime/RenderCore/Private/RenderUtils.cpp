@@ -1117,13 +1117,17 @@ RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform P
 
 RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Platform)
 {
+	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
+	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
+
 	// SceneDepth is used on most mobile platforms when forward shading is enabled and always on IOS.
 	if (IsMetalMobilePlatform(Platform))
 	{
 		return true;
 	}
-	else if (!IsMobileDeferredShadingEnabled(Platform))
+	else if (!IsMobileDeferredShadingEnabled(Platform) && bMobileHDR)
 	{
+		// SceneDepthAux disabled when MobileHDR=false for non-IOS
 		return IsAndroidOpenGLESPlatform(Platform) || IsVulkanMobilePlatform(Platform) || IsSimulatedPlatform(Platform);
 	}
 	return false;
