@@ -130,6 +130,14 @@ public:
 	UPROPERTY()
 	bool bUseExternalClickDragBehavior = false;
 
+	/**
+	 * If the computation time for a single call to OnDragRectangleChanged ever exceeds this threshold then future calls
+	 * to this function (in the current drag sequence) will be deferred until the mouse button is released. This will
+	 * improve the responsiveness of the UI. The default value is set so this optimization is never triggered, if you
+	 * want it you can set this to a small value e.g., 1./60 (time elapsed by 1 frame at 60 fps)
+	 */
+	UPROPERTY()
+	double OnDragRectangleChangedDeferredThreshold = TNumericLimits<double>::Max(); // In seconds
 
 public:
 
@@ -198,4 +206,5 @@ private:
 
 	bool bIsEnabled;
 	bool bIsDragging;
+	bool bIsOnDragRectangleChangedDeferred;
 };

@@ -5,6 +5,7 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #include "Intersection/IntersectionQueries2.h"
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -179,6 +180,7 @@ void URectangleMarqueeMechanic::OnClickPress(const FInputDeviceRay& PressPos)
 	CameraRectangle.RectangleEndRay = PressPos;
 	CameraRectangle.Initialize();
 
+	bIsOnDragRectangleChangedDeferred = false;
 	OnDragRectangleStarted.Broadcast();
 }
 
@@ -193,11 +195,30 @@ void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 	CameraRectangle.RectangleEndRay = DragPos;
 	CameraRectangle.Initialize();
 	
+	if (bIsOnDragRectangleChangedDeferred)
+	{
+		return;
+	}
+	
+	double Time = 0.0;
+	FDurationTimer Timer(Time);
 	OnDragRectangleChanged.Broadcast(CameraRectangle);
+	Timer.Stop();
+	
+	if (Time > OnDragRectangleChangedDeferredThreshold)
+	{
+		bIsOnDragRectangleChangedDeferred = true;
+	}
 }
 
 void URectangleMarqueeMechanic::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
+	if (bIsOnDragRectangleChangedDeferred)
+	{
+		bIsOnDragRectangleChangedDeferred = false;
+		OnClickDrag(ReleasePos);
+	}
+	
 	bIsDragging = false;
 	OnDragRectangleFinished.Broadcast(CameraRectangle, false);
 }

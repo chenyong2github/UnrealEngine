@@ -280,6 +280,7 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	// This will be the target for the click drag behavior below
 	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>();
 	MarqueeMechanic->bUseExternalClickDragBehavior = true;
+	MarqueeMechanic->OnDragRectangleChangedDeferredThreshold = 1./60;
 	MarqueeMechanic->Setup(ParentToolIn);
 	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleStarted);
 	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleChanged);
@@ -733,6 +734,8 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 
 void UMeshSelectionMechanic::OnDragRectangleStarted()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleStarted); // Mark start of drag sequence
+	
 	if (CurrentSelection.Type != MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
 	{
 		ClearCurrentSelection();	
@@ -880,6 +883,8 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 
 void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle&, bool bCancelled)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnDragRectangleFinished); // Mark end of drag sequence
+
 	if (!bCancelled && (PreDragSelection != CurrentSelection))
 	{
 		UpdateCentroid();
