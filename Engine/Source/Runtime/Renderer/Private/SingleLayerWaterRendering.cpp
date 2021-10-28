@@ -833,13 +833,11 @@ void FSingleLayerWaterPassMeshProcessor::Process(
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	const bool bRenderSkylight = true;
-	const bool bPermutationSkyAtmosphereEnabled = false;
 	GetBasePassShaders<LightMapPolicyType>(
 		MaterialResource,
 		VertexFactory->GetType(),
 		NoLightmapPolicy,
 		FeatureLevel,
-		bPermutationSkyAtmosphereEnabled,
 		bRenderSkylight,
 		false,
 		&WaterPassShaders.VertexShader,
