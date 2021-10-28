@@ -377,6 +377,58 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshGenerationProperties
 	FRecastNavMeshGenerationProperties(const ARecastNavMesh& RecastNavMesh);
 };
 
+USTRUCT()
+struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
+{
+	GENERATED_BODY()
+	
+	FRecastNavMeshTileGenerationDebug();
+
+	/** If set, the selected internal debug data will be kept during tile generation to be displayed with the navmesh. */
+	UPROPERTY(Transient, EditAnywhere, Category = Debug)
+	uint32 bEnabled : 1;
+
+	/** Selected tile coordinate, only this tile will have it's internal data kept.
+	 *  Tip: displaying the navmesh using 'Draw Tile Labels' show tile coordinates. */ 
+	UPROPERTY(EditAnywhere, Category = Debug)
+	FIntVector TileCoordinate = FIntVector::ZeroValue;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bHeightfieldSolidFromRasterization : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bHeightfieldSolidPostRadiusFiltering : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bHeightfieldSolidPostHeightFiltering : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bCompactHeightfield : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bCompactHeightfieldEroded : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bCompactHeightfieldRegions : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bCompactHeightfieldDistances : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bTileCacheLayerAreas : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bTileCacheLayerRegions : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bTileCacheContours : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bTileCachePolyMesh : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bTileCacheDetailMesh : 1;
+};
 
 /**
  *	Structure to handle nav mesh tile's raw data persistence and releasing
@@ -528,6 +580,9 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	/** vertical offset added to navmesh's debug representation for better readability */
 	UPROPERTY(EditAnywhere, Category=Display, config)
 	float DrawOffset;
+
+	UPROPERTY(EditAnywhere, Category = Display)
+	FRecastNavMeshTileGenerationDebug TileGenerationDebug;
 	
 	//----------------------------------------------------------------------//
 	// NavMesh generation parameters

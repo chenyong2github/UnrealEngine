@@ -353,6 +353,24 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 	bFixedTilePoolSize = RecastNavMesh.bFixedTilePoolSize;
 }
 
+FRecastNavMeshTileGenerationDebug::FRecastNavMeshTileGenerationDebug()
+{
+	bEnabled = false;
+	TileCoordinate = FIntVector::ZeroValue;
+	bHeightfieldSolidFromRasterization = false;
+	bHeightfieldSolidPostRadiusFiltering = false;
+	bHeightfieldSolidPostHeightFiltering = false;
+	bCompactHeightfield = false;
+	bCompactHeightfieldEroded = false;
+	bCompactHeightfieldRegions = false;
+	bCompactHeightfieldDistances = false;
+	bTileCacheLayerAreas = false;
+	bTileCacheLayerRegions = false;
+	bTileCacheContours = false;
+	bTileCachePolyMesh = false;
+	bTileCacheDetailMesh = false;
+}
+
 ARecastNavMesh::FNavPolyFlags ARecastNavMesh::NavLinkFlag = ARecastNavMesh::FNavPolyFlags(0);
 
 ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
