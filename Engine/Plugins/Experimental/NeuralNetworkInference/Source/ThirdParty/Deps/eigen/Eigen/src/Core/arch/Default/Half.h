@@ -1,3 +1,5 @@
+PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
+
 // This file is part of Eigen, a lightweight C++ template library
 // for linear algebra.
 //
@@ -940,3 +942,5 @@ struct hash<Eigen::half> {
 #endif
 
 #endif // EIGEN_HALF_H
+
+PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE
