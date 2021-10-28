@@ -526,7 +526,6 @@ protected:
 	UPROPERTY()
 	FString AssetName = TEXT("GeneratedAsset");
 
-	UPROPERTY()
 	UWorld* TargetWorld;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
