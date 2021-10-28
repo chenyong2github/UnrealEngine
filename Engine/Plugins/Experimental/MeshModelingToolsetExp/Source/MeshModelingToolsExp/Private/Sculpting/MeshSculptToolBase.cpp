@@ -29,6 +29,62 @@ namespace
 }
 
 
+void FBrushToolRadius::InitializeWorldSizeRange(TInterval<float> Range, bool bValidateWorldRadius)
+{
+	WorldSizeRange = Range;
+	if (WorldRadius < WorldSizeRange.Min)
+	{
+		WorldRadius = WorldSizeRange.Interpolate(0.2);
+	}
+	else if (WorldRadius > WorldSizeRange.Max)
+	{
+		WorldRadius = WorldSizeRange.Interpolate(0.8);
+	}
+}
+
+float FBrushToolRadius::GetWorldRadius() const
+{
+	if (SizeType == EBrushToolSizeType::Adaptive)
+	{
+		return 0.5 * WorldSizeRange.Interpolate( FMath::Max(0, AdaptiveSize) );
+	}
+	else
+	{
+		return WorldRadius;
+	}
+}
+
+void FBrushToolRadius::IncreaseRadius(bool bSmallStep)
+{
+	float StepSize = (bSmallStep) ? 0.025f : 0.005f;
+	if (SizeType == EBrushToolSizeType::Adaptive)
+	{
+		AdaptiveSize = FMath::Clamp(AdaptiveSize + StepSize, 0.0f, 1.0f);
+	}
+	else
+	{
+		float dt = StepSize * 0.5 * WorldSizeRange.Size();
+		WorldRadius = FMath::Clamp(WorldRadius + dt, WorldSizeRange.Min, WorldSizeRange.Max);
+	}
+}
+
+void FBrushToolRadius::DecreaseRadius(bool bSmallStep)
+{
+	float StepSize = (bSmallStep) ? 0.025f : 0.005f;
+	if (SizeType == EBrushToolSizeType::Adaptive)
+	{
+		AdaptiveSize = FMath::Clamp(AdaptiveSize - StepSize, 0.0f, 1.0f);
+	}
+	else
+	{
+		float dt = StepSize * 0.5 * WorldSizeRange.Size();
+		WorldRadius = FMath::Clamp(WorldRadius - dt, WorldSizeRange.Min, WorldSizeRange.Max);
+	}
+}
+
+
+
+
 void UMeshSculptToolBase::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -41,7 +97,6 @@ void UMeshSculptToolBase::Setup()
 
 	BrushProperties = NewObject<USculptBrushProperties>(this);
 	BrushProperties->RestoreProperties(this);
-	BrushProperties->bShowStrength = false;
 	// Note that brush properties includes BrushRadius, which, when not used as a constant,
 	// serves as an output property based on target size and brush size, and so it would need
 	// updating after the RestoreProperties() call. But deriving classes will call 
@@ -266,9 +321,13 @@ void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponen
 
 
 
-
-void UMeshSculptToolBase::RegisterBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet)
+void UMeshSculptToolBase::RegisterBrushType(int32 Identifier, FText Name, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet)
 {
+	FBrushTypeInfo TypeInfo;
+	TypeInfo.Name = Name;
+	TypeInfo.Identifier = Identifier;
+	RegisteredPrimaryBrushTypes.Add(TypeInfo);
+
 	check(BrushOpPropSets.Contains(Identifier) == false && BrushOpFactories.Contains(Identifier) == false);
 	BrushOpPropSets.Add(Identifier, PropSet);
 	BrushOpFactories.Add(Identifier, MoveTemp(Factory));
@@ -277,8 +336,13 @@ void UMeshSculptToolBase::RegisterBrushType(int32 Identifier, TUniquePtr<FMeshSc
 	SetToolPropertySourceEnabled(PropSet, false);
 }
 
-void UMeshSculptToolBase::RegisterSecondaryBrushType(int32 Identifier, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet)
+void UMeshSculptToolBase::RegisterSecondaryBrushType(int32 Identifier, FText Name, TUniquePtr<FMeshSculptBrushOpFactory> Factory, UMeshSculptBrushOpProps* PropSet)
 {
+	FBrushTypeInfo TypeInfo;
+	TypeInfo.Name = Name;
+	TypeInfo.Identifier = Identifier;
+	RegisteredSecondaryBrushTypes.Add(TypeInfo);
+
 	check(SecondaryBrushOpPropSets.Contains(Identifier) == false && SecondaryBrushOpFactories.Contains(Identifier) == false);
 	SecondaryBrushOpPropSets.Add(Identifier, PropSet);
 	SecondaryBrushOpFactories.Add(Identifier, MoveTemp(Factory));
@@ -286,6 +350,7 @@ void UMeshSculptToolBase::RegisterSecondaryBrushType(int32 Identifier, TUniquePt
 	AddToolPropertySource(PropSet);
 	SetToolPropertySourceEnabled(PropSet, false);
 }
+
 
 
 void UMeshSculptToolBase::SaveAllBrushTypeProperties(UInteractiveTool* SaveFromTool)
@@ -399,6 +464,18 @@ void UMeshSculptToolBase::SetBrushOpPropsVisibility(bool bVisible)
 	}
 }
 
+
+void UMeshSculptToolBase::RegisterStandardFalloffTypes()
+{
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("Smooth", "Smooth"), TEXT("Smooth"), (int32)EMeshSculptFalloffType::Smooth});
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("Linear", "Linear"), TEXT("Linear"), (int32)EMeshSculptFalloffType::Linear } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("Inverse", "Inverse"), TEXT("Inverse"), (int32)EMeshSculptFalloffType::Inverse } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("Round", "Round"), TEXT("Round"), (int32)EMeshSculptFalloffType::Round } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("BoxSmooth", "BoxSmooth"), TEXT("BoxSmooth"), (int32)EMeshSculptFalloffType::BoxSmooth } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("BoxLinear", "BoxLinear"), TEXT("BoxLinear"), (int32)EMeshSculptFalloffType::BoxLinear } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("BoxInverse", "BoxInverse"), TEXT("BoxInverse"), (int32)EMeshSculptFalloffType::BoxInverse } );
+	RegisteredPrimaryFalloffTypes.Add( FFalloffTypeInfo{ LOCTEXT("BoxRound", "BoxRound"), TEXT("BoxRound"), (int32)EMeshSculptFalloffType::BoxRound } );
+}
 
 void UMeshSculptToolBase::SetPrimaryFalloffType(EMeshSculptFalloffType FalloffType)
 {
@@ -541,7 +618,7 @@ retry_frame_update:
 
 	if (InStroke() && BrushProperties->Lazyness > 0)
 	{
-		double t = FMathd::Lerp(1.0, 0.1, BrushProperties->Lazyness);
+		double t = FMathd::Lerp(1.0, 0.1, (double)BrushProperties->Lazyness);
 		LastBrushFrameWorld.Origin = UE::Geometry::Lerp(LastBrushFrameWorld.Origin, NewFrame.Origin, t);
 		LastBrushFrameWorld.Rotation = FQuaterniond(LastBrushFrameWorld.Rotation, NewFrame.Rotation, t);
 	}
@@ -810,21 +887,15 @@ void UMeshSculptToolBase::InitializeBrushSizeRange(const FAxisAlignedBox3d& Targ
 {
 	double MaxDimension = TargetBounds.MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension * 0.01, MaxDimension);
+	BrushProperties->BrushSize.InitializeWorldSizeRange(
+		TInterval<float>((float)BrushRelativeSizeRange.Min, (float)BrushRelativeSizeRange.Max));
 	CalculateBrushRadius();
 }
 
 
 void UMeshSculptToolBase::CalculateBrushRadius()
 {
-	CurrentBrushRadius = 0.5 * BrushRelativeSizeRange.Interpolate(BrushProperties->BrushSize);
-	if (BrushProperties->bSpecifyRadius)
-	{
-		CurrentBrushRadius = BrushProperties->BrushRadius;
-	}
-	else
-	{
-		BrushProperties->BrushRadius = CurrentBrushRadius;
-	}
+	CurrentBrushRadius = BrushProperties->BrushSize.GetWorldRadius();
 }
 
 
@@ -855,26 +926,22 @@ double UMeshSculptToolBase::GetCurrentBrushDepth()
 
 void UMeshSculptToolBase::IncreaseBrushRadiusAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize + 0.025f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.IncreaseRadius(false);
 }
 
 void UMeshSculptToolBase::DecreaseBrushRadiusAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize - 0.025f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.DecreaseRadius(false);
 }
 
 void UMeshSculptToolBase::IncreaseBrushRadiusSmallStepAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize + 0.005f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.IncreaseRadius(true);
 }
 
 void UMeshSculptToolBase::DecreaseBrushRadiusSmallStepAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize - 0.005f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.DecreaseRadius(true);
 }
 
 

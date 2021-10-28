@@ -147,10 +147,11 @@ void UDynamicMeshSculptTool::Setup()
 	double MaxDimension = DynamicMeshComponent->GetMesh()->GetBounds(true).MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<USculptBrushProperties>(this);
-	BrushProperties->bShowStrength = false;
 	BrushProperties->bShowFlowRate = false;
 	BrushProperties->bShowSpacing = false;
 	BrushProperties->bShowLazyness = false;
+	BrushProperties->BrushSize.InitializeWorldSizeRange(
+		TInterval<float>((float)BrushRelativeSizeRange.Min, (float)BrushRelativeSizeRange.Max));
 	CalculateBrushRadius();
 
 	// initialize other properties
@@ -484,15 +485,7 @@ void UDynamicMeshSculptTool::OnUpdateDrag(const FRay& WorldRay)
 
 void UDynamicMeshSculptTool::CalculateBrushRadius()
 {
-	CurrentBrushRadius = 0.5 * BrushRelativeSizeRange.Interpolate(BrushProperties->BrushSize);
-	if (BrushProperties->bSpecifyRadius)
-	{
-		CurrentBrushRadius = BrushProperties->BrushRadius;
-	}
-	else
-	{
-		BrushProperties->BrushRadius = CurrentBrushRadius;
-	}
+	CurrentBrushRadius = BrushProperties->BrushSize.GetWorldRadius();
 }
 
 void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
@@ -1131,7 +1124,7 @@ bool UDynamicMeshSculptTool::ApplyPullKelvinBrush(const FRay& WorldRay)
 
 	const EKelvinletBrushMode KelvinMode = EKelvinletBrushMode::PullKelvinlet;
 
-	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(KelvinMode, *KelvinBrushProperties, *BrushProperties);
+	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(KelvinMode, *KelvinBrushProperties, CurrentBrushRadius, BrushProperties->BrushFalloffAmount);
 	KelvinletBrushOpProperties.Direction = FVector(MoveVec.X, MoveVec.Y, MoveVec.Z);  //FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z);
 	KelvinletBrushOpProperties.Size *= 0.6;
 
@@ -1163,7 +1156,7 @@ bool UDynamicMeshSculptTool::ApplyPullSharpKelvinBrush(const FRay& WorldRay)
 
 	const EKelvinletBrushMode KelvinMode = EKelvinletBrushMode::SharpPullKelvinlet;
 
-	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(KelvinMode, *KelvinBrushProperties, *BrushProperties);
+	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(KelvinMode, *KelvinBrushProperties, CurrentBrushRadius, BrushProperties->BrushFalloffAmount);
 	KelvinletBrushOpProperties.Direction = FVector(MoveVec.X, MoveVec.Y, MoveVec.Z);  //FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z);
 	KelvinletBrushOpProperties.Size *= 0.6;
 
@@ -1189,7 +1182,7 @@ bool UDynamicMeshSculptTool::ApplyTwistKelvinBrush(const FRay& WorldRay)
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FKelvinletBrushOp KelvinBrushOp(*Mesh);
 
-	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::TwistKelvinlet, *KelvinBrushProperties, *BrushProperties);
+	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::TwistKelvinlet, *KelvinBrushProperties, CurrentBrushRadius, BrushProperties->BrushFalloffAmount);
 	KelvinletBrushOpProperties.Direction = UseSpeed * FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z); // twist about local normal
 	KelvinletBrushOpProperties.Size *= 0.35; // reduce the core size of this brush.
 	
@@ -1216,7 +1209,7 @@ bool UDynamicMeshSculptTool::ApplyScaleKelvinBrush(const FRay& WorldRay)
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FKelvinletBrushOp KelvinBrushOp(*Mesh);
 
-	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::ScaleKelvinlet, *KelvinBrushProperties, *BrushProperties);
+	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::ScaleKelvinlet, *KelvinBrushProperties, CurrentBrushRadius, BrushProperties->BrushFalloffAmount);
 	KelvinletBrushOpProperties.Direction = FVector(UseSpeed, 0., 0.); // it is a bit iffy, but we only use the first component for the scale
 	KelvinletBrushOpProperties.Size *= 0.35;
 
@@ -1468,7 +1461,8 @@ void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
-	BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 1.0f-BrushProperties->BrushFalloffAmount);
+	//BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 1.0f-BrushProperties->BrushFalloffAmount);
+	BrushIndicator->Update( (float)this->CurrentBrushRadius, (FVector)this->LastBrushPosWorld, (FVector)this->LastBrushPosNormalWorld, 0.5f);
 	if (BrushIndicatorMaterial)
 	{
 		double FixedDimScale = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(RenderCameraState, LastBrushPosWorld, 1.5f);
@@ -2202,27 +2196,23 @@ UPreviewMesh* UDynamicMeshSculptTool::MakeDefaultSphereMesh(UObject* Parent, UWo
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushRadiusAction()
-{
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize + 0.025f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+{	
+	BrushProperties->BrushSize.IncreaseRadius(false);
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize - 0.025f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.DecreaseRadius(false);
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushRadiusSmallStepAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize + 0.005f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.IncreaseRadius(true);
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusSmallStepAction()
 {
-	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize - 0.005f, 0.0f, 1.0f);
-	CalculateBrushRadius();
+	BrushProperties->BrushSize.DecreaseRadius(true);
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushSpeedAction()
@@ -2234,26 +2224,6 @@ void UDynamicMeshSculptTool::DecreaseBrushSpeedAction()
 {
 	SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed - 0.05f, 0.0f, 1.0f);
 }
-
-void UDynamicMeshSculptTool::IncreaseBrushFalloffAction()
-{
-	const float ChangeAmount = 0.1f;
-	const float OldValue = BrushProperties->BrushFalloffAmount;
-
-	float NewValue = OldValue + ChangeAmount;
-	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
-}
-
-void UDynamicMeshSculptTool::DecreaseBrushFalloffAction()
-{
-	const float ChangeAmount = 0.1f;
-	const float OldValue = BrushProperties->BrushFalloffAmount;
-
-	float NewValue = OldValue - ChangeAmount;
-	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
-}
-
-
 
 
 void UDynamicMeshSculptTool::NextHistoryBrushModeAction()
@@ -2292,20 +2262,6 @@ void UDynamicMeshSculptTool::RegisterActions(FInteractiveToolActionSet& ActionSe
 		LOCTEXT("SculptDecreaseRadiusTooltip", "Decrease radius of sculpting brush"),
 		EModifierKey::None, EKeys::LeftBracket,
 		[this]() { DecreaseBrushRadiusAction(); } );
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 12,
-		TEXT("BrushIncreaseFalloff"),
-		LOCTEXT("BrushIncreaseFalloff", "Increase Brush Falloff"),
-		LOCTEXT("BrushIncreaseFalloffTooltip", "Press this key to increase brush falloff by a fixed increment."),
-		EModifierKey::Shift | EModifierKey::Control, EKeys::RightBracket,
-		[this]() { IncreaseBrushFalloffAction(); });
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 13,
-		TEXT("BrushDecreaseFalloff"),
-		LOCTEXT("BrushDecreaseFalloff", "Decrease Brush Falloff"),
-		LOCTEXT("BrushDecreaseFalloffTooltip", "Press this key to decrease brush falloff by a fixed increment."),
-		EModifierKey::Shift | EModifierKey::Control, EKeys::LeftBracket,
-		[this]() { DecreaseBrushFalloffAction(); });
 
 
 	//ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 10,

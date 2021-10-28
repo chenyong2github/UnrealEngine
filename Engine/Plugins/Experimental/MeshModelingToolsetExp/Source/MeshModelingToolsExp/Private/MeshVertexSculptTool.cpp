@@ -153,6 +153,7 @@ void UMeshVertexSculptTool::Setup()
 
 	// initialize other properties
 	SculptProperties = NewObject<UVertexBrushSculptProperties>(this);
+	SculptProperties->Tool = this;
 	
 	// init state flags flags
 	ActiveVertexChange = nullptr;
@@ -176,75 +177,77 @@ void UMeshVertexSculptTool::Setup()
 		return GetBaseMeshNearest(VertexID, Position, MaxDist, PosOut, NormalOut);
 	};
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Smooth,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Smooth, LOCTEXT("SmoothBrush", "Smooth"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FSmoothBrushOp>>(),
 		NewObject<USmoothBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::SmoothFill,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::SmoothFill, LOCTEXT("SmoothFill", "SmoothFill"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FSmoothFillBrushOp>>(),
 		NewObject<USmoothFillBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Move,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Move, LOCTEXT("Move", "Move"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FMoveBrushOp>>(),
 		NewObject<UMoveBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Offset,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Offset, LOCTEXT("Offset", "SculptN"),
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FSurfaceSculptBrushOp>(BaseMeshQueryFunc); }),
 		NewObject<UStandardSculptBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::SculptView,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::SculptView, LOCTEXT("SculptView", "SculptV"),
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>( [this]() { return MakeUnique<FViewAlignedSculptBrushOp>(BaseMeshQueryFunc); } ),
 		NewObject<UViewAlignedSculptBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::SculptMax,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::SculptMax, LOCTEXT("SculptMax", "SculptMx"),
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FSurfaceMaxSculptBrushOp>(BaseMeshQueryFunc); }),
 		NewObject<USculptMaxBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Inflate,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Inflate, LOCTEXT("Inflate", "Inflate"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FInflateBrushOp>>(),
 		NewObject<UInflateBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Pinch,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Pinch, LOCTEXT("Pinch", "Pinch"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPinchBrushOp>>(),
 		NewObject<UPinchBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Flatten,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Flatten, LOCTEXT("Flatten", "Flatten"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FFlattenBrushOp>>(),
 		NewObject<UFlattenBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::Plane,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::Plane, LOCTEXT("Plane", "PlaneN"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPlaneBrushOp>>(),
 		NewObject<UPlaneBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::PlaneViewAligned,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::PlaneViewAligned, LOCTEXT("PlaneViewAligned", "PlaneV"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPlaneBrushOp>>(),
 		NewObject<UViewAlignedPlaneBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::FixedPlane,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::FixedPlane, LOCTEXT("FixedPlane", "PlaneW"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPlaneBrushOp>>(),
 		NewObject<UFixedPlaneBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::ScaleKelvin ,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::ScaleKelvin , LOCTEXT("ScaleKelvin", "Scale"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FScaleKelvinletBrushOp>>(),
 		NewObject<UScaleKelvinletBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullKelvin,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullKelvin, LOCTEXT("PullKelvin", "Grab"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPullKelvinletBrushOp>>(),
 		NewObject<UPullKelvinletBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullSharpKelvin,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullSharpKelvin, LOCTEXT("PullSharpKelvin", "GrabSharp"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FSharpPullKelvinletBrushOp>>(),
 		NewObject<USharpPullKelvinletBrushOpProps>(this));
 
-	RegisterBrushType((int32)EMeshVertexSculptBrushType::TwistKelvin,
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::TwistKelvin, LOCTEXT("TwistKelvin", "Twist"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FTwistKelvinletBrushOp>>(),
 		NewObject<UTwistKelvinletBrushOpProps>(this));
 
 	// secondary brushes
-	RegisterSecondaryBrushType((int32)EMeshVertexSculptBrushType::Smooth,
+	RegisterSecondaryBrushType((int32)EMeshVertexSculptBrushType::Smooth, LOCTEXT("Smooth", "Smooth"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FSmoothBrushOp>>(),
 		NewObject<USecondarySmoothBrushOpProps>(this));
 
+	// falloffs
+	RegisterStandardFalloffTypes();
 
 	AddToolPropertySource(UMeshSculptToolBase::GizmoProperties);
 	SetToolPropertySourceEnabled(UMeshSculptToolBase::GizmoProperties, false);
@@ -292,6 +295,38 @@ void UMeshVertexSculptTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 	CalculateBrushRadius();
 }
 
+void UMeshVertexSculptTool::SetActiveBrushType(int32 Identifier)
+{
+	EMeshVertexSculptBrushType NewBrushType =  static_cast<EMeshVertexSculptBrushType>(Identifier);
+	if (SculptProperties->PrimaryBrushType != NewBrushType)
+	{
+		SculptProperties->PrimaryBrushType = NewBrushType;
+		UpdateBrushType(SculptProperties->PrimaryBrushType);
+		SculptProperties->SilentUpdateWatched();
+	}
+
+	// this forces full rebuild of properties panel (!!)
+	//this->NotifyOfPropertyChangeByTool(SculptProperties);
+}
+
+void UMeshVertexSculptTool::SetActiveFalloffType(int32 Identifier)
+{
+	EMeshSculptFalloffType NewFalloffType = static_cast<EMeshSculptFalloffType>(Identifier);
+	if (SculptProperties->PrimaryFalloffType != NewFalloffType)
+	{
+		SculptProperties->PrimaryFalloffType = NewFalloffType;
+		SetPrimaryFalloffType(SculptProperties->PrimaryFalloffType);
+		SculptProperties->SilentUpdateWatched();
+	}
+
+	// this forces full rebuild of properties panel (!!)
+	//this->NotifyOfPropertyChangeByTool(SculptProperties);
+}
+
+void UMeshVertexSculptTool::SetRegionFilterType(int32 Identifier)
+{
+	SculptProperties->BrushFilter = static_cast<EMeshVertexSculptBrushFilterType>(Identifier);
+}
 
 
 void UMeshVertexSculptTool::OnBeginStroke(const FRay& WorldRay)

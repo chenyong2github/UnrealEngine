@@ -35,7 +35,7 @@ public:
 	virtual float GetDepth() override { return Depth; }
 
 	/** Axis filters restrict mesh movement to World X/Y/Z axes */
-	UPROPERTY(EditAnywhere, Category = MoveBrush, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = MoveBrush)
 	FModelingToolsAxisFilter AxisFilters;
 };
 

@@ -157,11 +157,11 @@ void UMeshGroupPaintTool::Setup()
 	FilterProperties->WatchProperty(FilterProperties->SubToolType,
 		[this](EMeshGroupPaintInteractionType NewType) { UpdateSubToolType(NewType); });
 	FilterProperties->WatchProperty(FilterProperties->BrushSize,
-		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize = NewSize; });
+		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize = NewSize; });
 	FilterProperties->WatchProperty(FilterProperties->bHitBackFaces,
 		[this](bool bNewValue) { UMeshSculptToolBase::BrushProperties->bHitBackFaces = bNewValue; });
 	FilterProperties->RestoreProperties(this);
-	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize;
+	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize;
 	FilterProperties->bHitBackFaces = UMeshSculptToolBase::BrushProperties->bHitBackFaces;
 	AddToolPropertySource(FilterProperties);
 
@@ -175,7 +175,7 @@ void UMeshGroupPaintTool::Setup()
 	CalculateBrushRadius();
 
 	PaintBrushOpProperties = NewObject<UGroupPaintBrushOpProps>(this);
-	RegisterBrushType((int32)EMeshGroupPaintBrushType::Paint,
+	RegisterBrushType((int32)EMeshGroupPaintBrushType::Paint, LOCTEXT("Paint", "Paint"),
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FGroupPaintBrushOp>(); }),
 		PaintBrushOpProperties);
 
@@ -183,7 +183,7 @@ void UMeshGroupPaintTool::Setup()
 	EraseBrushOpProperties = NewObject<UGroupEraseBrushOpProps>(this);
 	EraseBrushOpProperties->GetCurrentGroupLambda = [this]() { return PaintBrushOpProperties->GetGroup(); };
 
-	RegisterSecondaryBrushType((int32)EMeshGroupPaintBrushType::Erase,
+	RegisterSecondaryBrushType((int32)EMeshGroupPaintBrushType::Erase, LOCTEXT("Erase", "Erase"),
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FGroupEraseBrushOp>>(),
 		EraseBrushOpProperties);
 

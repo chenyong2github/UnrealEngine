@@ -5,8 +5,8 @@
 #include "MatrixTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Deformers/Kelvinlets.h"
-#include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
+#include "Sculpting/MeshSculptToolBase.h"
 #include "Async/ParallelFor.h"
 #include "KelvinletBrushOp.generated.h"
 
@@ -487,15 +487,15 @@ public:
 
 	struct FKelvinletBrushOpProperties
 	{
-		FKelvinletBrushOpProperties(const EKelvinletBrushMode& BrushMode, const UKelvinBrushProperties& Properties, const UBrushBaseProperties& Brush) 
+		FKelvinletBrushOpProperties(const EKelvinletBrushMode& BrushMode, const UKelvinBrushProperties& Properties, double BrushRadius, double BrushFalloff) 
 			: Mode(BrushMode)
 			, Direction(1.0, 0.0, 0.0)
 		{
 			Speed = 0.;
-			FallOff = Brush.BrushFalloffAmount;
+			FallOff = BrushFalloff;
 			Mu = FMath::Max(Properties.Stiffness, 0.f);
 			Nu = FMath::Clamp(0.5f * (1.f - 2.f * Properties.Incompressiblity), 0.f, 0.5f);
-			Size = FMath::Max(Brush.BrushRadius * Properties.FallOffDistance, 0.f);
+			Size = FMath::Max(BrushRadius * Properties.FallOffDistance, 0.f);
 			NumSteps = Properties.BrushSteps;
 		}
 
