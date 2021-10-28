@@ -23,6 +23,13 @@ enum class EGeometryScriptPrimitiveOriginMode : uint8
 	Base = 1
 };
 
+UENUM(BlueprintType)
+enum class EGeometryScriptPrimitiveUVMode : uint8
+{
+	Uniform = 0,
+	ScaleToFill = 1
+};
+
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPrimitiveOptions
@@ -34,6 +41,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bFlipOrientation = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptPrimitiveUVMode UVMode = EGeometryScriptPrimitiveUVMode::Uniform;
 };
 
 
@@ -304,6 +314,36 @@ public:
 		FTransform Transform,
 		const TArray<FVector2D>& PolygonVertices,
 		bool bAllowSelfIntersections = true,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendLinearStairs( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		float StepWidth = 100.0f,
+		float StepHeight = 20.0f,
+		float StepDepth = 30.0f,
+		int NumSteps = 8,
+		bool bFloating = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendCurvedStairs( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		float StepWidth = 100.0f,
+		float StepHeight = 20.0f,
+		float InnerRadius = 150.0f,
+		float CurveAngle = 90.0f,
+		int NumSteps = 8,
+		bool bFloating = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };
