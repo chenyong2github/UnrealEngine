@@ -19,6 +19,8 @@ void FUVLayoutOp::SetTransform(const FTransform& Transform) {
 
 void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVLayoutOp_CalculateResult);
+	
 	if (Progress && Progress->Cancelled())
 	{
 		return;

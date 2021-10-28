@@ -93,6 +93,8 @@ protected:
 
 bool FStandardChartPacker::FindBestPacking(TArray<FUVIsland>& Charts)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(StandardChartPacker_FindBestPacking);
+	
 	if ( (uint32)Charts.Num() > TextureResolution * TextureResolution)
 	{
 		// More charts than texels
@@ -398,6 +400,8 @@ void FStandardChartPacker::ScaleCharts( TArray<FUVIsland>& Charts, double UVScal
 
 bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale, double& OutEfficiency, TAtomic<bool>& bAbort)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(StandardChartPacker_PackCharts);
+	
 	ScaleCharts(Charts, UVScale);
 
 	FUVSpaceAllocator BestChartRaster(FUVSpaceAllocator::EMode::UsedSegments, TextureResolution, TextureResolution);
@@ -807,6 +811,8 @@ void FStandardChartPacker::RasterizeChart(const FUVIsland& Chart, uint32 RectW, 
 
 bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVPacker_StandardPack);
+	
 	using namespace UE::InternalUVPacking;
 	FStandardChartPacker Packer;
 
@@ -883,6 +889,8 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 
 bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVPacker_StackPack);
+	
 	double GutterWidth = (double)GutterSize / (double)TextureResolution;
 
 	int32 NumCharts = NumIslands;
@@ -952,6 +960,8 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(i
 
 void FUVPacker::GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, FAxisAlignedBox2d& IslandBoundsOut, double& IslandScaleFactorOut, double& UVAreaOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVPacker_GetIslandStats);
+
 	IslandBoundsOut = FAxisAlignedBox2d::Empty();
 	UVAreaOut = 0.0f;
 	double UVLengthSum = 0, WorldLengthSum = 0;

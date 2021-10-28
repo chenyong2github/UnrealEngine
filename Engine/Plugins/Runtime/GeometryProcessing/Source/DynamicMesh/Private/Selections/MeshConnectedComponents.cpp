@@ -8,6 +8,8 @@ using namespace UE::Geometry;
 
 void FMeshConnectedComponents::FindConnectedTriangles(TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshConnectedComponents_FindConnectedTriangles);
+	
 	// initial active set contains all valid triangles
 	// active values are as follows:   0: unprocessed,  1: in queue,  2: done,  3: invalid
 	TArray<uint8> ActiveSet;
@@ -30,6 +32,8 @@ void FMeshConnectedComponents::FindConnectedTriangles(TFunction<bool(int32, int3
 
 void FMeshConnectedComponents::FindConnectedTriangles(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshConnectedComponents_FindConnectedTriangles_Filtered);
+	
 	// initial active set contains all valid triangles
 	// active values are as follows:   0: unprocessed,  1: in queue,  2: done,  3: invalid
 	TArray<uint8> ActiveSet;
@@ -52,6 +56,8 @@ void FMeshConnectedComponents::FindConnectedTriangles(TFunctionRef<bool(int)> In
 
 void FMeshConnectedComponents::FindConnectedTriangles(const TArray<int>& TriangleROI, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshConnectedComponents_FindConnectedTriangles_TriangleROI);
+
 	// initial active set contains all valid triangles
 	// active values are as follows:   0: unprocessed,  1: in queue,  2: done,  3: invalid
 	TArray<uint8> ActiveSet;
@@ -75,6 +81,8 @@ void FMeshConnectedComponents::FindConnectedTriangles(const TArray<int>& Triangl
 
 void FMeshConnectedComponents::FindTrianglesConnectedToSeeds(const TArray<int>& SeedTriangles, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshConnectedComponents_FindConnectedTriangles_SeedTriangles);
+	
 	// initial active set contains all valid triangles
 	// active values are as follows:   0: unprocessed,  1: in queue,  2: done,  3: invalid
 	TArray<uint8> ActiveSet;
@@ -97,6 +105,8 @@ void FMeshConnectedComponents::FindTrianglesConnectedToSeeds(const TArray<int>& 
 
 void FMeshConnectedComponents::FindTriComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindTriComponents_ActiveRange);
+	
 	Components.Empty();
 
 	// temporary queue
@@ -136,6 +146,8 @@ void FMeshConnectedComponents::FindTriComponents(FInterval1i ActiveRange, TArray
 
 void FMeshConnectedComponents::FindTriComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindTriComponents_SeedList);
+	
 	Components.Empty();
 
 	// temporary queue
@@ -176,6 +188,8 @@ void FMeshConnectedComponents::FindTriComponents(const TArray<int32>& SeedList, 
 
 void FMeshConnectedComponents::FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindTriComponents_Component);
+
 	while (ComponentQueue.Num() > 0)
 	{
 		int32 CurTriangle = ComponentQueue.Pop(false);
@@ -200,6 +214,8 @@ void FMeshConnectedComponents::FindTriComponent(FComponent* Component, TArray<in
 void FMeshConnectedComponents::FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, 
 	TFunctionRef<bool(int32, int32)> TriConnectedPredicate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FindTriComponents_Component_Filtered);
+	
 	while (ComponentQueue.Num() > 0)
 	{
 		int32 CurTriangle = ComponentQueue.Pop(false);

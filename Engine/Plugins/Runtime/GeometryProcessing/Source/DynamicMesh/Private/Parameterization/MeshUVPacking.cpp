@@ -56,6 +56,8 @@ FDynamicMeshUVPacker::FDynamicMeshUVPacker(FDynamicMeshUVOverlay* UVOverlayIn)
 
 bool FDynamicMeshUVPacker::StandardPack()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshUVPacker_StandardPack);
+	
 	FUVPacker Packer;
 	Packer.bAllowFlips = bAllowFlips;
 	Packer.GutterSize = GutterSize;
@@ -78,6 +80,8 @@ bool FDynamicMeshUVPacker::StandardPack()
 
 bool FDynamicMeshUVPacker::StackPack()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshUVPacker_StackPack);
+	
 	FUVPacker Packer;
 	Packer.bAllowFlips = bAllowFlips;
 	Packer.GutterSize = GutterSize;
