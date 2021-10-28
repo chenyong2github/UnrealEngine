@@ -421,7 +421,7 @@ protected:
 	void DumpAsyncData();
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	bool IsTileToDebug();
+	bool IsTileDebugActive();
 #endif
 
 protected:
@@ -489,6 +489,8 @@ protected:
 	TNavStatArray<TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> > NavigationRelevantData;
 	TWeakObjectPtr<UNavigationSystemV1> NavSystem; 
 	FNavDataConfig NavDataConfig;
+
+	FRecastNavMeshTileGenerationDebug TileDebugSettings;
 
 #if RECAST_INTERNAL_DEBUG_DATA
 	FRecastInternalDebugData DebugData;
@@ -664,6 +666,8 @@ public:
 	FORCEINLINE class UWorld* GetWorld() const { return DestNavMesh->GetWorld(); }
 
 	const FRecastBuildConfig& GetConfig() const { return Config; }
+
+	const FRecastNavMeshTileGenerationDebug& GetTileDebugSettings() const { return DestNavMesh->TileGenerationDebug; } 
 
 	const TNavStatArray<FBox>& GetInclusionBounds() const { return InclusionBounds; }
 	
