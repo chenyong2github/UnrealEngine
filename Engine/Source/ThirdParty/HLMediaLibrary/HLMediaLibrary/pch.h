@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 #pragma once
+#include <iterator>
+
 #include <unknwn.h>
 #include <winrt/windows.foundation.h>
 #include <winrt/windows.foundation.collections.h>
