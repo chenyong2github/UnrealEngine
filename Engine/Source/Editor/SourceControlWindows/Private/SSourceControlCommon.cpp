@@ -2,6 +2,8 @@
 
 #include "SSourceControlCommon.h"
 
+#include "Algo/Count.h"
+#include "Algo/Find.h"
 #include "AssetData.h"
 #include "AssetToolsModule.h"
 #include "EditorStyleSet.h"
@@ -89,34 +91,20 @@ void FFileTreeItem::RefreshAssetInformation()
 
 	if (Assets.IsValid() && (Assets->Num() > 0))
 	{
-		FAssetData& AssetData = (*Assets)[0];
+		auto IsNotRedirector = [](const FAssetData& InAssetData) { return !InAssetData.IsRedirector(); };
+		int32 NumUserFacingAsset = Algo::CountIf(*Assets, IsNotRedirector);
 
-		TempAssetPath = AssetData.ObjectPath.ToString();
-
-		// Strip asset name from object path
-		int32 LastDot = -1;
-		if (TempAssetPath.FindLastChar('.', LastDot))
+		if (NumUserFacingAsset == 1)
 		{
-			TempAssetPath.LeftInline(LastDot);
-		}
+			const FAssetData& AssetData = *Algo::FindByPredicate(*Assets, IsNotRedirector);
 
-		// Find name, asset type & color only if there is exactly one asset
-		if (Assets->Num() == 1)
-		{
-			static FName NAME_ActorLabel(TEXT("ActorLabel"));
-			if (AssetData.FindTag(NAME_ActorLabel))
-			{
-				AssetData.GetTagValue(NAME_ActorLabel, TempAssetName);
-			}
-			else
-			{
-				TempAssetName = AssetData.AssetName.ToString();
-			}
-
+			TempAssetName = RetrieveAssetName(AssetData);
+			TempAssetPath = RetrieveAssetPath(AssetData);
 			TempAssetType = AssetData.AssetClass.ToString();
 
 			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
+
 			if (AssetTypeActions.IsValid())
 			{
 				TempAssetColor = AssetTypeActions->GetTypeColor();
@@ -128,6 +116,14 @@ void FFileTreeItem::RefreshAssetInformation()
 		}
 		else
 		{
+			TempAssetName = RetrieveAssetName((*Assets)[0]);
+			TempAssetPath = RetrieveAssetPath((*Assets)[0]);
+
+			for (int32 i = 1; i < Assets->Num(); ++i)
+			{
+				TempAssetName += TEXT(";") + RetrieveAssetName((*Assets)[i]);
+			}
+
 			TempAssetType = SSourceControlCommon::GetDefaultMultipleAsset().ToString();
 			TempAssetColor = FColor::White;
 		}
@@ -179,6 +175,37 @@ FText FFileTreeItem::GetAssetName()
 	}
 
 	return AssetName;
+}
+
+FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
+{
+	static FName NAME_ActorLabel(TEXT("ActorLabel"));
+
+	if (InAssetData.FindTag(NAME_ActorLabel))
+	{
+		FString ResultAssetName = TEXT("");
+		
+		InAssetData.GetTagValue(NAME_ActorLabel, ResultAssetName);
+		return ResultAssetName;
+	}
+	else
+	{
+		return InAssetData.AssetName.ToString();
+	}
+}
+
+FString FFileTreeItem::RetrieveAssetPath(const FAssetData& InAssetData) const
+{
+	int32 LastDot = -1;
+	FString Path = InAssetData.ObjectPath.ToString();
+
+	// Strip asset name from object path
+	if (Path.FindLastChar('.', LastDot))
+	{
+		Path.LeftInline(LastDot);
+	}
+
+	return Path;
 }
 
 //////////////////////////////////////////////////////////////////////////

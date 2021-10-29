@@ -166,6 +166,13 @@ struct FFileTreeItem : public IChangelistTreeItem
 
 	bool IsShelved() const { return GetTreeItemType() == IChangelistTreeItem::ShelvedFile; }
 
+private:
+	/** Returns a string representing the name of the asset represented by the given AssetData */
+	FString RetrieveAssetName(const FAssetData& InAssetData) const;
+
+	/** Returns a string representing the path of the asset represented by the given AssetData */
+	FString RetrieveAssetPath(const FAssetData& InAssetData) const;
+
 public:
 	/** Shared pointer to the source control state object itself */
 	FSourceControlStateRef FileState;
