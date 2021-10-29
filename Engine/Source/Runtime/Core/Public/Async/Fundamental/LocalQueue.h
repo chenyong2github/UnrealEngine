@@ -198,6 +198,7 @@ public:
 				if (bCpuBeginEventEmitted)
 				{
 					FCpuProfilerTrace::OutputEndEvent();
+					bCpuBeginEventEmitted = false;
 				}
 #endif
 				NumWorkersLookingForWork.fetch_sub(1, std::memory_order_release);
