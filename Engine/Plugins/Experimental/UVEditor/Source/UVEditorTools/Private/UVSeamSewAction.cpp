@@ -260,13 +260,21 @@ bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 
 	TArray<FDynamicMesh3::FMergeEdgesInfo> AllMergeInfo;
 	
+	// Note that currently, we don't really need to gather up the kept verts and call them out for an
+	// update, since no vert locations should have changed. But we'll do it anyway in case any of the
+	// code changes in some way that moves the remaining verts (for instance, to some halfway point).
+	TSet<int32> KeptVidsSet;
+
 	for (FIndex2i EdgePair : ResolvedEdgePairs)
 	{
 		FDynamicMesh3::FMergeEdgesInfo MergeInfo;
 		EMeshResult Result = MeshToSew.MergeEdges(EdgePair[0], EdgePair[1], MergeInfo, false);
 		if (Result == EMeshResult::Ok)
 		{
-			AllMergeInfo.Add(MergeInfo);
+			for (int i = 0; i < 2; ++i)
+			{
+				KeptVidsSet.Add(MergeInfo.KeptVerts[i]);
+			}
 		}
 		else
 		{
@@ -275,13 +283,15 @@ bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 	}
 	checkSlow(MeshToSew.CheckValidity(FDynamicMesh3::FValidityOptions(true, true))); // Allow nonmanifold verts and reverse orientation
 
-
 	TArray<int32> RemainingVids;
-	RemainingVids.SetNum(AllMergeInfo.Num() * 2);
-	int32 RemainingVidsIndex = 0;
-	for (FDynamicMesh3::FMergeEdgesInfo& MergeInfo : AllMergeInfo) {
-		RemainingVids[RemainingVidsIndex++] = MergeInfo.KeptVerts[0];
-		RemainingVids[RemainingVidsIndex++] = MergeInfo.KeptVerts[1];
+	for (int32 KeptVid : KeptVidsSet)
+	{
+		// We have to do this check because we may have performed multiple merge actions, so a "kept vert"
+		// from one action may have ended up getting removed in a later one.
+		if (MeshToSew.IsVertex(KeptVid))
+		{
+			RemainingVids.Add(KeptVid);
+		}
 	}
 
 	Targets[SelectionTargetIndex]->UpdateUnwrapCanonicalOverlayFromPositions(&RemainingVids, &SelectedTids);
