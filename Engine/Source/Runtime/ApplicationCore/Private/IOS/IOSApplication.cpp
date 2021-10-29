@@ -267,18 +267,20 @@ FAutoConsoleVariableRef IOSAccessibleAnnouncementDealyRef(
 	TEXT("We need to introduce a small delay to avoid iOS system accessibility announcements from stomping on our requested user announcement. Delays <= 0.05f are too short and result in the announcement being dropped. Dellays ~0.075f result in unstable delivery")
 );
 
-void FIOSApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+
+void FIOSApplication::OnAccessibleEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args)
 {
 	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
 	check(IsInGameThread());
 
-	const AccessibleWidgetId Id = Widget->GetId();
-	switch (Event)
+	const AccessibleWidgetId Id = Args.Widget->GetId();
+	switch (Args.Event)
 	{
 	case EAccessibleEvent::ParentChanged:
 	{
+		const AccessibleWidgetId NewParentId = Args.NewValue.GetValue<AccessibleWidgetId>();
 		dispatch_async(dispatch_get_main_queue(), ^{
-			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:NewValue.GetValue<AccessibleWidgetId>()];
+			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:NewParentId];
 		});
 		// LayoutChanged is to indicate things like "a widget became visible or hidden" while
 		// ScreenChanged is for large-scale UI changes. It can potentially take an NSString to read
@@ -299,7 +301,7 @@ void FIOSApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 		break;
 	case EAccessibleEvent::Notification:
 		{
-			NSString* Announcement = [NSString stringWithFString: NewValue.GetValue<FString>()];
+			NSString* Announcement = [NSString stringWithFString: Args.NewValue.GetValue<FString>()];
 			dispatch_async(dispatch_get_main_queue(), ^{
 				// If we don't sleep for a small period of time, system accessibility
 				// announcements can stomp on this announcement and so it's never made
@@ -313,3 +315,4 @@ void FIOSApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 	}
 }
 #endif
+

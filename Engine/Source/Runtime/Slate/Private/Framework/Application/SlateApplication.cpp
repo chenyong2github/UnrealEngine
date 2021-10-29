@@ -2823,7 +2823,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 		// Let previously-focused widget know that it's losing focus
 		OldFocusedWidget->OnFocusLost(FocusEvent);
 #if WITH_ACCESSIBILITY
-		GetAccessibleMessageHandler()->OnWidgetEventRaised(OldFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(OldFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false, User.GetUserIndex()));
 #endif
 	}
 
@@ -2860,7 +2860,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 		GetRelevantNavConfig(User.GetUserIndex())->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
 
 #if WITH_ACCESSIBILITY
-		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true, User.GetUserIndex()));
 #endif
 	}
 

@@ -173,29 +173,29 @@ void FWindowsUIAManager::OnAccessibilityDisabled()
 	}
 }
 
-void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+void FWindowsUIAManager::OnEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args)
 {
 	if (UiaClientsAreListening())
 	{
-		FScopedWidgetProvider ScopedProvider(GetWidgetProvider(Widget));
+		FScopedWidgetProvider ScopedProvider(GetWidgetProvider(Args.Widget));
 
-		switch (Event)
+		switch (Args.Event)
 		{
 		case EAccessibleEvent::FocusChange:
 		{
 			// On focus change, emit a generic FocusChanged event as well as a per-Provider PropertyChanged event
 			// todo: handle difference between any focus vs keyboard focus
-			if (Widget->HasFocus())
+			if (Args.Widget->HasFocus())
 			{
 				UiaRaiseAutomationEvent(&ScopedProvider.Provider, UIA_AutomationFocusChangedEventId);
 			}
-			EmitPropertyChangedEvent(&ScopedProvider.Provider, UIA_HasKeyboardFocusPropertyId, OldValue, NewValue);
+			EmitPropertyChangedEvent(&ScopedProvider.Provider, UIA_HasKeyboardFocusPropertyId, Args.OldValue, Args.NewValue);
 			break;
 		}
 		case EAccessibleEvent::Activate:
 			if (ScopedProvider.Provider.SupportsInterface(UIA_TogglePatternId))
 			{
-				EmitPropertyChangedEvent(&ScopedProvider.Provider, UIA_ToggleToggleStatePropertyId, OldValue, NewValue);
+				EmitPropertyChangedEvent(&ScopedProvider.Provider, UIA_ToggleToggleStatePropertyId, Args.OldValue, Args.NewValue);
 
 			}
 			else if (ScopedProvider.Provider.SupportsInterface(UIA_InvokePatternId))
@@ -232,7 +232,7 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 			}
 			if (NotificationFunc)
 			{
-				NotificationFunc(&ScopedProvider.Provider, NotificationKindEnum, NotificationProcessingEnum, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
+				NotificationFunc(&ScopedProvider.Provider, NotificationKindEnum, NotificationProcessingEnum, SysAllocString(*Args.NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
 			}
 			break;
 		}
@@ -241,8 +241,8 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 		// For now, I'm disabling this until we figure out if it's absolutely necessary.
 		//case EAccessibleEvent::ParentChanged:
 		//{
-		//	const AccessibleWidgetId OldId = OldValue.GetValue<AccessibleWidgetId>();
-		//	const AccessibleWidgetId NewId = NewValue.GetValue<AccessibleWidgetId>();
+		//	const AccessibleWidgetId OldId = Args.OldValue.GetValue<AccessibleWidgetId>();
+		//	const AccessibleWidgetId NewId = Args.NewValue.GetValue<AccessibleWidgetId>();
 		//	if (OldId != IAccessibleWidget::InvalidAccessibleWidgetId)
 		//	{
 		//		GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(OldId).ToSharedRef());

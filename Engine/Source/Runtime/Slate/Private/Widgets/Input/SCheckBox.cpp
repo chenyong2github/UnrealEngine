@@ -387,7 +387,8 @@ void SCheckBox::ToggleCheckedState()
 	}
 
 #if WITH_ACCESSIBILITY
-	FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(AsShared(), EAccessibleEvent::Activate, State == ECheckBoxState::Checked, IsCheckboxChecked.Get() == ECheckBoxState::Checked);
+	// @TODOAccessibility: Technically we should pass the Id of the user that toggled the checkbox, but we don't want to change the Slate API as much as possible
+	FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(AsShared(), EAccessibleEvent::Activate, State == ECheckBoxState::Checked, IsCheckboxChecked.Get() == ECheckBoxState::Checked));
 #endif
 }
 

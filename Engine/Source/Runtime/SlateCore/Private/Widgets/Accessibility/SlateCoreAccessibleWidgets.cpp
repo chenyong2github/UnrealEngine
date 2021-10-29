@@ -192,9 +192,9 @@ void FSlateAccessibleWidget::UpdateParent(TSharedPtr<IAccessibleWidget> NewParen
 	if (Parent != NewParent)
 	{
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->RaiseEvent(
-			AsShared(), EAccessibleEvent::ParentChanged,
+			FGenericAccessibleMessageHandler::FAccessibleEventArgs(AsShared(), EAccessibleEvent::ParentChanged,
 			Parent.IsValid() ? Parent.Pin()->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId,
-			NewParent.IsValid() ? NewParent->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId);
+			NewParent.IsValid() ? NewParent->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId));
 		Parent = StaticCastSharedPtr<FSlateAccessibleWidget>(NewParent);
 	}
 }

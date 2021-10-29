@@ -322,7 +322,7 @@ private:
 #endif
 
 #if WITH_ACCESSIBILITY
-	void OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue);
+	void OnAccessibleEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args);
 	#endif
 
 private:

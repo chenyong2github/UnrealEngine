@@ -894,8 +894,10 @@ public:
 			{
 				TSharedRef<SWidget> TableRowWidget = TableRow->AsWidget();
 				// We don't need to worry about raising a focus change event for the 
-				// widget with accessibility focus  as FSlateAccessibleMessageHandler will take care of signalling a focus lost event 
-				FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(TableRowWidget, EAccessibleEvent::FocusChange, false, true);
+				// widget with accessibility focus  as FSlateAccessibleMessageHandler will take care of signalling a focus lost event
+				// @TODOAccessibility: Technically we need to pass in the user Id that selected the row so the event can be routed to the correct user.
+				// But we don't want to change the Slate API drastically right now
+				FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(TableRowWidget, EAccessibleEvent::FocusChange, false, true));
 			}
 		}
 #endif
