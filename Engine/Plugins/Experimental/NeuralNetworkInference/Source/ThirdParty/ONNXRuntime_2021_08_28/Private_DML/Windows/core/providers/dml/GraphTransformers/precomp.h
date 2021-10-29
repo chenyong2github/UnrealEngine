@@ -16,9 +16,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include <wrl/implements.h>
 NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
-#ifndef WITH_UE
 #include <wil/wrl.h>
 #include <wil/result.h>
-#endif //WITH_UE
 
 #include <gsl/gsl>
