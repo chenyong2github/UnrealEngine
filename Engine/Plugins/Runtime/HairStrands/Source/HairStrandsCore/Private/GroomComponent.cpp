@@ -2852,6 +2852,11 @@ bool UGroomComponent::GetManualTick() const
 void UGroomComponent::ResetAnimationTime()
 {
 	ElapsedTime = 0.0f;
+	if (GroomCache && bRunning && GUseGroomCacheStreaming)
+	{
+		IGroomCacheStreamingManager::Get().PrefetchData(this);
+	}
+	UpdateGroomCache(ElapsedTime);
 }
 
 float UGroomComponent::GetAnimationTime() const
@@ -2945,7 +2950,8 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		MarkRenderTransformDirty();
 	}
 
-	if (GroomCache && bRunning && !bManualTick)
+	// Tick GroomCache only when playing
+	if (GroomCache && GetWorld()->AreActorsInitialized() && bRunning && !bManualTick)
 	{
 		ElapsedTime += DeltaTime;
 		UpdateGroomCache(ElapsedTime);
@@ -3093,6 +3099,11 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 
 #if WITH_EDITOR
+	if (bGroomCacheChanged)
+	{
+		ResetAnimationTime();
+	}
+
 	if (bAssetChanged)
 	{
 		if (GroomAsset)
