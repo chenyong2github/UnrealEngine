@@ -28,6 +28,9 @@ public:
 	/** @return Instance of the runtime storage that contains the default values */
 	const FInstancedStruct& GetRuntimeStorageDefaultValue() const { return RuntimeStorageDefaultValue; }
 
+	/** @return Number of items (Evaluators & Tasks) in the runtime storage. */
+	int32 GetRuntimeStorageItemCount() const { return RuntimeStorageOffsets.Num(); }
+
 	/** @return List of external items required by the state tree */
 	TConstArrayView<FStateTreeExternalItemDesc> GetExternalItems() const { return ExternalItems; }
 
@@ -65,9 +68,6 @@ protected:
 
 	/** Resolved references between data in the StateTree. */
 	void Link();
-	
-	/** @return Number of items (Evaluators & Tasks) in the runtime storage. */
-	int32 GetRuntimeStorageItemCount() const { return RuntimeStorageOffsets.Num(); }
 
 private:
 

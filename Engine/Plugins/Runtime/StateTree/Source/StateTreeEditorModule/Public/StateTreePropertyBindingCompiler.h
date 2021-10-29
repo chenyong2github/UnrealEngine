@@ -9,6 +9,7 @@
 #include "IPropertyAccessEditor.h"
 #include "StateTreeEditorPropertyBindings.h"
 #include "StateTreePropertyBindings.h"
+#include "StateTreeCompilerLog.h"
 #include "StateTreePropertyBindingCompiler.generated.h"
 
 /**
@@ -25,7 +26,7 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 	  * @param PropertyBindings - Reference to the Property Bindings where all the batches will be stored.
 	  * @return true on success.
 	  */
-	bool Init(FStateTreePropertyBindings& InPropertyBindings);
+	bool Init(FStateTreePropertyBindings& InPropertyBindings, FStateTreeCompilerLog& InLog);
 
 	/**
 	  * Compiles a batch of property copies.
@@ -58,16 +59,19 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 
 	/**
 	 * Resolves a string based property path in specified struct into segments of property names and access types.
+	 * If logging is required both, Log and LogContextStruct needs to be non-null.
 	 * @param InStructDesc Description of the struct in which the property path is valid.
 	 * @param InPath The property path in string format.
 	 * @param OutSegments The resolved property access path as segments.
 	 * @param OutLeafProperty The leaf property of the resolved path.
 	 * @param OutLeafArrayIndex The left array index (or INDEX_NONE if not applicable) of the resolved path.
-	 * @param bLogErrors Set to true to log errors during resolve into the console.
+	 * @param Log Pointer to compiler log, or null if no logging needed.
+	 * @param LogContextStruct Pointer to bindable struct desc where the property path belongs to.
 	 * @return True of the property was solved successfully.
 	 */
 	static bool ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath,
-									TArray<FStateTreePropertySegment>& OutSegments, FProperty*& OutLeafProperty, int32& OutLeafArrayIndex, const bool bLogErrors = false);
+									TArray<FStateTreePropertySegment>& OutSegments, const FProperty*& OutLeafProperty, int32& OutLeafArrayIndex,
+									FStateTreeCompilerLog* Log = nullptr, const FStateTreeBindableStructDesc* LogContextStruct = nullptr);
 
 	/**
 	 * Checks if two property types can are compatible for copying.
@@ -86,13 +90,15 @@ protected:
 
 	FStateTreePropertyBindings* PropertyBindings = nullptr;
 
+	FStateTreeCompilerLog* Log = nullptr;
+	
 	struct FResolvedPathResult
 	{
 		int32 PathIndex = INDEX_NONE;
-		FProperty* LeafProperty = nullptr;
+		const FProperty* LeafProperty = nullptr;
 		int32 LeafArrayIndex = INDEX_NONE;
 	};
 
-	EStateTreePropertyCopyType GetCopyType(FProperty* SourceProperty, int32 SourceArrayIndex, FProperty* TargetProperty, int32 TargetArrayIndex);
-	bool ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult);
+	EStateTreePropertyCopyType GetCopyType(const FProperty* SourceProperty, const int32 SourceArrayIndex, const FProperty* TargetProperty, const int32 TargetArrayIndex);
+	bool ResolvePropertyPath(const FStateTreeBindableStructDesc& InOwnerStructDesc, const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult);
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "StateTreeTypes.h"
 #include "StateTreePropertyBindingCompiler.h"
+#include "StateTreeCompilerLog.h"
 
 class UStateTree;
 class UStateTreeState;
@@ -20,16 +21,17 @@ struct FStateTreeStateLink;
 struct STATETREEEDITORMODULE_API FStateTreeBaker
 {
 public:
+
+	FStateTreeBaker(FStateTreeCompilerLog& InLog)
+		: Log(InLog)
+	{
+	}
+	
 	bool Bake(UStateTree& InStateTree);
 
 private:
-	enum class EBindingContainerType : uint8
-	{
-		Evaluator,
-		Task,
-	};
 
-	bool ResolveTransitionState(const UStateTreeState& SourceState, const TCHAR* ContextStr, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const;
+	bool ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const;
 	FStateTreeHandle GetStateHandle(const FGuid& StateID) const;
 
 	bool CreateStates();
@@ -39,6 +41,7 @@ private:
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
 
+	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
 	UStateTreeEditorData* TreeData = nullptr;
 	TMap<FGuid, int32> IDToState;

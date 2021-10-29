@@ -14,49 +14,6 @@
 #include "StateTreePropertyBindingCompiler.h"
 
 
-bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState, const TCHAR* ContextStr, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const 
-{
-	if (Link.Type == EStateTreeTransitionType::GotoState)
-	{
-		OutTransitionHandle = GetStateHandle(Link.ID);
-		if (!OutTransitionHandle.IsValid())
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to resolve %s to %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState.Name.ToString(), ContextStr, *Link.Name.ToString());
-			return false;
-		}
-	}
-	else if (Link.Type == EStateTreeTransitionType::NextState)
-	{
-		// Find next state.
-		const UStateTreeState* NextState = SourceState.GetNextSiblingState();
-		if (NextState == nullptr)
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to resolve default transition, there's no next State after %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState.Name.ToString(), ContextStr, *SourceState.Name.ToString());
-			return false;
-		}
-		OutTransitionHandle = GetStateHandle(NextState->ID);
-		if (!OutTransitionHandle.IsValid())
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to resolve default transition next state %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState.Name.ToString(), ContextStr, *Link.Name.ToString());
-			return false;
-		}
-	}
-	
-	return true;
-}
-
-FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
-{
-	const int32* Idx = IDToState.Find(StateID);
-	if (Idx == nullptr)
-	{
-		return FStateTreeHandle::Invalid;
-	}
-
-	return FStateTreeHandle(uint16(*Idx));
-}
-
-
 bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 {
 	StateTree = &InStateTree;
@@ -69,7 +26,7 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 	// Cleanup existing state
 	StateTree->ResetBaked();
 
-	BindingsCompiler.Init(StateTree->PropertyBindings);
+	BindingsCompiler.Init(StateTree->PropertyBindings, Log);
 
 	if (!CreateStates())
 	{
@@ -93,6 +50,17 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 	StateTree->InitRuntimeStorage();
 
 	return true;
+}
+
+FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
+{
+	const int32* Idx = IDToState.Find(StateID);
+	if (Idx == nullptr)
+	{
+		return FStateTreeHandle::Invalid;
+	}
+
+	return FStateTreeHandle(uint16(*Idx));
 }
 
 bool FStateTreeBaker::CreateStates()
@@ -121,13 +89,16 @@ bool FStateTreeBaker::CreateStateTransitions()
 		UStateTreeState* SourceState = SourceStates[i];
 		check(SourceState);
 
+		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
+		
 		// Enter conditions.
 		BakedState.EnterConditionsBegin = uint16(StateTree->Conditions.Num());
 		for (FStateTreeConditionItem& ConditionItem : SourceState->EnterConditions)
 		{
 			if (!CreateCondition(ConditionItem))
 			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create state enter condition."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString());
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("Failed to create state enter condition."));
 				return false;
 			}
 		}
@@ -142,7 +113,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 			BakedTransition.Type = Transition.State.Type;
 			BakedTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
 			BakedTransition.State = FStateTreeHandle::Invalid;
-			if (!ResolveTransitionState(*SourceState, TEXT("transition"), Transition.State, BakedTransition.State))
+			if (!ResolveTransitionState(*SourceState, Transition.State, BakedTransition.State))
 			{
 				return false;
 			}
@@ -153,7 +124,9 @@ bool FStateTreeBaker::CreateStateTransitions()
 			{
 				if (!CreateCondition(ConditionItem))
 				{
-					UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create transition condition to %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString(), *Transition.State.Name.ToString());
+					Log.Reportf(EMessageSeverity::Error,
+						TEXT("Failed to create condition for transition to %s."),
+						*Transition.State.Name.ToString());
 					return false;
 				}
 			}
@@ -162,6 +135,44 @@ bool FStateTreeBaker::CreateStateTransitions()
 		BakedState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - BakedState.TransitionsBegin);
 	}
 
+	// @todo: Add test to check that all success/failure transition is possible (see editor).
+	
+	return true;
+}
+
+bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const 
+{
+	if (Link.Type == EStateTreeTransitionType::GotoState)
+	{
+		OutTransitionHandle = GetStateHandle(Link.ID);
+		if (!OutTransitionHandle.IsValid())
+		{
+			Log.Reportf(EMessageSeverity::Error,
+				TEXT("Failed to resolve transition to state %s."),
+				*Link.Name.ToString());
+			return false;
+		}
+	}
+	else if (Link.Type == EStateTreeTransitionType::NextState)
+	{
+		// Find next state.
+		const UStateTreeState* NextState = SourceState.GetNextSiblingState();
+		if (NextState == nullptr)
+		{
+			Log.Reportf(EMessageSeverity::Error,
+				TEXT("Failed to resolve transition, there's no next state."));
+			return false;
+		}
+		OutTransitionHandle = GetStateHandle(NextState->ID);
+		if (!OutTransitionHandle.IsValid())
+		{
+			Log.Reportf(EMessageSeverity::Error,
+				TEXT("Failed to resolve transition next state, no handle found for %s."),
+				*NextState->Name.ToString());
+			return false;
+		}
+	}
+	
 	return true;
 }
 
@@ -209,12 +220,12 @@ bool FStateTreeBaker::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Stru
 {
 	bool bIsAnyEnum = false;
 	TArray<FStateTreePropertySegment> Segments;
-	FProperty* LeafProperty = nullptr;
+	const FProperty* LeafProperty = nullptr;
 	int32 LeafArrayIndex = INDEX_NONE;
 	const bool bResolved = FStateTreePropertyBindingCompiler::ResolvePropertyPath(Struct, Path, Segments, LeafProperty, LeafArrayIndex);
 	if (bResolved && LeafProperty)
 	{
-		if (FProperty* OwnerProperty = LeafProperty->GetOwnerProperty())
+		if (const FProperty* OwnerProperty = LeafProperty->GetOwnerProperty())
 		{
 			if (const FStructProperty* OwnerStructProperty = CastField<FStructProperty>(OwnerProperty))
 			{
@@ -241,7 +252,9 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 		const int32 SourceStructIdx = BindingsCompiler.GetSourceStructIndexByID(SourceStructID);
 		if (SourceStructIdx == INDEX_NONE)
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s': Failed to find container for path %s in %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *Binding.SourcePath.ToString(), *TargetStruct.Name.ToString());
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+						TEXT("Failed to find binding source %s:%s."),
+						*TargetStruct.Name.ToString(), *Binding.SourcePath.ToString());
 			return false;
 		}
 		const FStateTreeBindableStructDesc& SourceStruct = BindingsCompiler.GetSourceStructDesc(SourceStructIdx);
@@ -255,8 +268,9 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 			});
 		if (!SourceAccessible)
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s': %s:%s is not accessible to %s:%s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree),
-				*SourceStruct.Name.ToString(), *Binding.SourcePath.ToString(), *TargetStruct.Name.ToString(), *Binding.TargetPath.ToString());
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+        				TEXT("%s:%s is not accessible to %s:%s."),
+        				*SourceStruct.Name.ToString(), *Binding.SourcePath.ToString(), *TargetStruct.Name.ToString(), *Binding.TargetPath.ToString());
 			return false;
 		}
 
@@ -289,6 +303,8 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 
 bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
 {
+	FStateTreeCompilerLogStateScope LogStateScope(&State, Log);
+
 	const int32 StateIdx = StateTree->States.AddDefaulted();
 	FBakedStateTreeState& BakedState = StateTree->States[StateIdx];
 	BakedState.Name = State.Name;
