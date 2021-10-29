@@ -7,6 +7,7 @@
 
 #include "IKRigController.generated.h"
 
+struct FIKRigInputSkeleton;
 struct FReferenceSkeleton;
 struct FIKRigSkeleton;
 class UIKRigSolver;
@@ -34,12 +35,11 @@ public:
 	/** SKELETON
 	 * 
 	 */
-	/** Sets the preview mesh to use, can optionally reinitialize the skeleton with bReImportBone=true. */
-	void SetSourceSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bReImportBones) const;
+	/** Sets the preview mesh to use, can optionally reinitialize the skeleton with bReImportBone=true.
+	 * Returns true if the mesh was able to be set. False if it was incompatible for any reason. */
+	bool SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const;
 	/** Get the skeletal mesh asset this IK Rig was initialized with */
-	USkeletalMesh* GetSourceSkeletalMesh() const;
-	/** Initializes the skeleton to use the supplied bones / hierarchy */
-	void SetSkeleton(const FReferenceSkeleton& InSkeleton) const;
+	USkeletalMesh* GetSkeletalMesh() const;
 	/** Get read-access to the IKRig skeleton representation */
 	const FIKRigSkeleton& GetIKRigSkeleton() const;
 	/** Get the USkeleton asset this rig was initialized with */
@@ -49,7 +49,7 @@ public:
 	/** Returns true if the given Bone is excluded, false otherwise. */
 	bool GetBoneExcluded(const FName& BoneName) const;
 	/** Get the global-space retarget pose transform of the given Bone. Can only be called AFTER skeleton is initialized. */
-	FTransform GetBoneRetargetPose(const FName& BoneName) const;
+	FTransform GetRefPoseTransformOfBone(const FName& BoneName) const;
 	/** END SKELETON */
 
 	/** SOLVERS
@@ -71,6 +71,8 @@ public:
 	void SetRootBone(const FName& RootBoneName, int32 SolverIndex) const;
 	/** Get read-only access to the array of solvers. */
 	const TArray<UIKRigSolver*>& GetSolverArray() const;
+	/** Get unique label for a given solver. Returns dash separated index and name like so, "0 - SolverName". */
+	FString GetSolverUniqueName(int32 SolverIndex);
 	/** END SOLVERS */
 
 	/** GOALS
@@ -82,6 +84,8 @@ public:
 	bool RemoveGoal(const FName& GoalName) const;
 	/** Rename a Goal. Returns new name, which may be different after being sanitized. Returns NAME_None if this fails.*/
 	FName RenameGoal(const FName& OldName, const FName& PotentialNewName) const;
+	/** Modify a Goal for a transaction. Returns true if Goal found.*/
+	bool ModifyGoal(const FName& GoalName) const;
 	/** The the Bone that the given Goal should be parented to / associated with. */
 	bool SetGoalBone(const FName& GoalName, const FName& NewBoneName) const;
 	/** The the Bone associated with the given Goal. */
@@ -100,11 +104,11 @@ public:
 	const TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
 	/** Get read-only access to the Goal at the given index. */
 	const UIKRigEffectorGoal* GetGoal(int32 GoalIndex) const;
-	/** Get read-only access to the Goal with the given name. */
-	const UIKRigEffectorGoal* GetGoal(const FName& GoalName) const;
+	/** Get read-write access to the Goal with the given name. */
+	UIKRigEffectorGoal* GetGoal(const FName& GoalName) const;
 	/** Get the UObject for the settings associated with the given Goal in the given Solver.
 	 ** Solvers can define their own per-Goal settings depending on their needs. These are termed "Effectors". */
-	UObject* GetEffectorForGoal(const FName& GoalName, int32 SolverIndex) const;
+	UObject* GetGoalSettingsForSolver(const FName& GoalName, int32 SolverIndex) const;
 	/** Get the global-space transform of the given Goal. This may be set by the user in the editor, or at runtime. */
 	FTransform GetGoalCurrentTransform(const FName& GoalName) const;
 	/** Set the Goal to the given transform. */
@@ -162,10 +166,6 @@ public:
 	/** Sorts the Chains from Root to tip based on the Start Bone of each Chain. */
 	void SortRetargetChains() const;
 	/** END retarget chains */
-	
-	// BEGIN UObject
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-	// END UObject
 
 private:
 
@@ -192,7 +192,7 @@ private:
 
 	/** The actual IKRigDefinition asset that this Controller modifies. */
 	UPROPERTY(transient)
-	TObjectPtr<UIKRigDefinition> IKRigAsset = nullptr;
+	TObjectPtr<UIKRigDefinition> Asset = nullptr;
 
 	/** Lazy-generated map of Controllers to IK Rig Assets. Avoids duplicate controllers. */
 	static TMap<UIKRigDefinition*, UIKRigController*> AssetToControllerMap;

@@ -230,7 +230,17 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 		return;
 	}
 
-	// fill up node names
+	if (!IKRigProcessor)
+	{
+		return;
+	}
+
+	if (!IKRigProcessor->IsInitialized())
+	{
+		return;
+	}
+
+	// fill up node names, mapping the anim graph bone indices to the IK Rig bones
 	CompactPoseToRigIndices.Reset();
 	const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
 	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
@@ -245,7 +255,7 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 		
 		FCompactPoseBoneIndex CPIndex = RequiredBones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshBone));
 		const FName Name = RefSkeleton.GetBoneName(MeshBone);
-		CompactPoseToRigIndices.Add(CPIndex) = RigDefinitionAsset->Skeleton.GetBoneIndexFromName(Name);
+		CompactPoseToRigIndices.Add(CPIndex) = IKRigProcessor->GetSkeleton().GetBoneIndexFromName(Name);
 	}
 }
 

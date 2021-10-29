@@ -8,10 +8,7 @@
 #include "Retargeter/IKRetargeter.h"
 
 
-void FRetargetSkeleton::Initialize(
-	USkeletalMesh* InSkeletalMesh,
-	FIKRetargetPose* InRetargetPose,
-	const FName& RetargetRootBone)
+void FRetargetSkeleton::Initialize(USkeletalMesh* InSkeletalMesh)
 {	
 	// record which skeletal mesh this is running on
 	SkeletalMesh = InSkeletalMesh;
@@ -25,7 +22,7 @@ void FRetargetSkeleton::Initialize(
 	}
 
 	// update retarget pose to reflect custom offsets
-	GenerateRetargetPose(InRetargetPose, RetargetRootBone);
+	GenerateRetargetPose();
 }
 
 void FRetargetSkeleton::Reset()
@@ -37,7 +34,7 @@ void FRetargetSkeleton::Reset()
 	SkeletalMesh = nullptr;
 }
 
-void FRetargetSkeleton::GenerateRetargetPose(FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone)
+void FRetargetSkeleton::GenerateRetargetPose()
 {
 	// initialize retarget pose to the skeletal mesh reference pose
 	RetargetLocalPose = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
@@ -45,35 +42,6 @@ void FRetargetSkeleton::GenerateRetargetPose(FIKRetargetPose* InRetargetPose, co
 	RetargetGlobalPose = RetargetLocalPose;
 	// convert to global space
 	UpdateGlobalTransformsBelowBone(0, RetargetLocalPose, RetargetGlobalPose);
-
-	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
-	if (InRetargetPose && RetargetRootBone != NAME_None)
-	{
-		// apply root translation offset
-		const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
-		if (RootBoneIndex != INDEX_NONE)
-		{
-			FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
-			RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
-			UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
-			UpdateGlobalTransformsBelowBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
-		}
-
-		// apply bone rotation offsets
-		for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
-		{
-			const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
-			if (BoneIndex == INDEX_NONE)
-			{
-				continue;
-			}
-
-			FQuat BoneRotation = BoneRotationOffset.Value * RetargetGlobalPose[BoneIndex].GetRotation();
-			RetargetGlobalPose[BoneIndex].SetRotation(BoneRotation);
-			UpdateLocalTransformOfSingleBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
-			UpdateGlobalTransformsBelowBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
-		}
-	}
 }
 
 int32 FRetargetSkeleton::FindBoneIndexByName(const FName InName) const
@@ -167,16 +135,82 @@ int32 FRetargetSkeleton::GetParentIndex(const int32 BoneIndex) const
 
 void FTargetSkeleton::Initialize(
 	USkeletalMesh* InSkeletalMesh, 
-	FIKRetargetPose* RetargetPose,
-	const FName& RetargetRootBone)
+	const FIKRetargetPose* RetargetPose,
+	const FName& RetargetRootBone,
+	const TArray<FBoneChain>& TargetChains)
 {
-	FRetargetSkeleton::Initialize(InSkeletalMesh, RetargetPose, RetargetRootBone);
+	FRetargetSkeleton::Initialize(InSkeletalMesh);
 
 	// initialize storage for output pose (the result of the retargeting)
 	OutputGlobalPose = RetargetGlobalPose;
 
 	// make storage for per-bone "Is Retargeted" flag (used for hierarchy updates)
+	// these are bones that are in a target chain that is mapped to a source chain (ie, will actually be retargeted)
+	// these flags are actually set later in init phase when bone chains are mapped together
 	IsBoneRetargeted.Init(false, OutputGlobalPose.Num());
+
+	// determine set of bones referenced by one of the target bone chains to be retargeted
+	// this is the set of bones that will be affected by the retarget pose
+	IsBoneInAnyTargetChain.Init(false, OutputGlobalPose.Num());
+	for (const FBoneChain& TargetChain : TargetChains)
+	{
+		TArray<int32> BonesInChain;
+		if (FResolvedBoneChain(TargetChain, *this, BonesInChain).IsValid())
+		{
+			for (int32 BoneInChain : BonesInChain)
+			{
+				IsBoneInAnyTargetChain[BoneInChain] = true;
+			}
+		}
+	}
+
+	// generate the retarget pose (applies stored offsets)
+	// NOTE: this must be done AFTER generating IsBoneInAnyTargetChain array above
+	GenerateRetargetPose(RetargetPose, RetargetRootBone);
+}
+
+void FTargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone)
+{
+	// create a retarget pose by copying the ref pose
+	FRetargetSkeleton::GenerateRetargetPose();
+	
+	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
+	if (InRetargetPose && RetargetRootBone != NAME_None)
+	{
+		// apply root translation offset
+		const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
+		if (RootBoneIndex != INDEX_NONE)
+		{
+			FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
+			RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
+			UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
+			UpdateGlobalTransformsBelowBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
+		}
+
+		// apply bone rotation offsets
+		for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
+		{
+			const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
+			if (BoneIndex == INDEX_NONE)
+			{
+				// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
+				// target skeleton; ie, the retarget pose was generated from a different Skeletal Mesh with extra bones
+				continue;
+			}
+
+			if (!IsBoneInAnyTargetChain[BoneIndex])
+			{
+				// this can happen if a retarget pose includes bone edits from a bone chain that was subsequently removed,
+				// and the asset has not run through the "CleanChainMapping" operation yet (happens on load)
+				continue;
+			}
+
+			FQuat BoneRotation = BoneRotationOffset.Value * RetargetGlobalPose[BoneIndex].GetRotation();
+			RetargetGlobalPose[BoneIndex].SetRotation(BoneRotation);
+			UpdateLocalTransformOfSingleBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
+			UpdateGlobalTransformsBelowBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
+		}
+	}
 }
 
 void FTargetSkeleton::Reset()
@@ -197,6 +231,46 @@ void FTargetSkeleton::UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransf
 			UpdateGlobalTransformOfSingleBone(BoneIndex, RetargetLocalPose, InOutGlobalPose);
 		}
 	}
+}
+
+FResolvedBoneChain::FResolvedBoneChain(
+	const FBoneChain& BoneChain,
+	const FRetargetSkeleton& Skeleton,
+	TArray<int32> &OutBoneIndices)
+{
+	// validate start and end bones exist
+	const int32 StartIndex = Skeleton.FindBoneIndexByName(BoneChain.StartBone);
+	const int32 EndIndex = Skeleton.FindBoneIndexByName(BoneChain.EndBone);
+	bFoundStartBone = StartIndex != INDEX_NONE;
+	bFoundEndBone = EndIndex != INDEX_NONE;
+	
+	// validate end bone is child of start bone
+	bEndIsChildOfStart = true;
+	// record all bones in chain while walking up the hierarchy (tip to root of chain)
+	OutBoneIndices.Reset();
+	int32 NextBoneIndex = EndIndex;
+	while (true)
+	{
+		OutBoneIndices.Add(NextBoneIndex);
+		
+		if (NextBoneIndex == StartIndex)
+		{
+			break;
+		}
+
+		NextBoneIndex = Skeleton.GetParentIndex(NextBoneIndex);
+		
+		if (NextBoneIndex == 0)
+		{
+			// oops, we walked all the way up to the root without finding the start bone
+			bEndIsChildOfStart = false;
+			OutBoneIndices.Reset();
+			return;
+		}
+	}
+
+	// reverse the indices (we want root to tip order)
+	Algo::Reverse(OutBoneIndices);
 }
 
 void FTargetSkeleton::SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRetargeted)
@@ -553,53 +627,35 @@ bool FRetargetChainPair::ValidateBoneChainWithSkeletalMesh(
     const bool IsSource,
     const FBoneChain& BoneChain,
     const FRetargetSkeleton& RetargetSkeleton)
-{	
-	// validate start bone exists
-	const int32 StartIndex = RetargetSkeleton.FindBoneIndexByName(BoneChain.StartBone);
-	if (StartIndex == INDEX_NONE)
+{
+	// record the chain indices
+	TArray<int32>& BoneIndices = IsSource ? SourceBoneIndices : TargetBoneIndices;
+	
+	// resolve the bone bone to the skeleton
+	const FResolvedBoneChain ResolvedChain = FResolvedBoneChain(BoneChain, RetargetSkeleton, BoneIndices);
+	
+	// warn if START bone not found
+	if (!ResolvedChain.bFoundStartBone)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find start bone, %s in mesh %s"),
             *BoneChain.ChainName.ToString(), *BoneChain.StartBone.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
-		return false;
 	}
 	
-	// validate end bone exists
-	const int32 EndIndex = RetargetSkeleton.FindBoneIndexByName(BoneChain.EndBone);
-	if (EndIndex == INDEX_NONE)
+	// warn if END bone not found
+	if (!ResolvedChain.bFoundEndBone)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find end bone, %s in mesh %s"),
             *BoneChain.ChainName.ToString(), *BoneChain.EndBone.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
-		return false;
 	}
-	
-	// validate end bone is child of start bone
-	// record all bones in chain while walking up the hierarchy (tip to root of chain)
-	TArray<int>& BoneIndices = IsSource ? SourceBoneIndices : TargetBoneIndices;
-	BoneIndices.Reset();
-	int32 NextBoneIndex = EndIndex;
-	while (true)
+
+	// warn if END bone was not a child of START bone
+	if (!ResolvedChain.bEndIsChildOfStart)
 	{
-		BoneIndices.Add(NextBoneIndex);
-		
-		if (NextBoneIndex == StartIndex)
-		{
-			break;
-		}
-
-		NextBoneIndex = RetargetSkeleton.GetParentIndex(NextBoneIndex);
-		
-		if (NextBoneIndex == 0)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, '%s' has end bone, '%s' that is not a child of start bone, '%s' in mesh '%s'"),
-            *BoneChain.ChainName.ToString(), *BoneChain.EndBone.ToString(), *BoneChain.StartBone.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
-			return false;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, end bone, '%s' was not a child of the start bone '%s'."),
+			*BoneChain.ChainName.ToString(), *BoneChain.EndBone.ToString(), *BoneChain.StartBone.ToString());
 	}
-
-	// reverse the indices (we want root to tip order)
-	Algo::Reverse(BoneIndices);
 	
-	return true;
+	return ResolvedChain.IsValid();
 }
 
 bool FRetargetChainPairFK::Initialize(
@@ -789,55 +845,50 @@ void UIKRetargetProcessor::Initialize(
 		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
 		return;
 	}
-	if (!RetargeterAsset->SourceIKRigAsset)
+	if (!RetargeterAsset->GetSourceIKRig())
 	{
 		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing source IK Rig asset."));
 		return;
 	}
-	if (!RetargeterAsset->TargetIKRigAsset)
+	if (!RetargeterAsset->GetTargetIKRig())
 	{
 		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing target IK Rig asset."));
 		return;
 	}
-	if (!RetargeterAsset->RetargetPoses.Contains(RetargeterAsset->CurrentRetargetPose))
+	if (!RetargeterAsset->GetCurrentRetargetPose())
 	{
 		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize. Missing retarget pose."));
 		return;
 	}
 	
 	// initialize skeleton data for source and target
-	const TArray<FRetargetChainMap> DummySourceChainMapping;
-	SourceSkeleton.Initialize(
-		SourceSkeletalMesh,
-		nullptr,
-		NAME_None);
+	SourceSkeleton.Initialize(SourceSkeletalMesh);
 	TargetSkeleton.Initialize(
 		TargetSkeletalMesh,
-		&RetargeterAsset->RetargetPoses[RetargeterAsset->CurrentRetargetPose],
-		RetargeterAsset->TargetIKRigAsset->GetRetargetRoot());
+		RetargeterAsset->GetCurrentRetargetPose(),
+		RetargeterAsset->GetTargetIKRig()->GetRetargetRoot(),
+		RetargeterAsset->GetTargetIKRig()->GetRetargetChains());
 
 	// initialize roots
-	const bool bRootsInitialized = InitializeRoots();
+	bRootsInitialized = InitializeRoots();
 	if (!bRootsInitialized)
 	{
 		// couldn't match up any BoneChain pairs, no retargeting possible
 		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize one or more root bones on source, %s and target, %s"),
             *SourceSkeleton.SkeletalMesh->GetName(), *TargetSkeleton.SkeletalMesh->GetName());
-		return;
 	}
 
 	// initialize pairs of bone chains
-	const bool bAtLeastOneValidBoneChainPair = InitializeBoneChainPairs();
+	bAtLeastOneValidBoneChainPair = InitializeBoneChainPairs();
 	if (!bAtLeastOneValidBoneChainPair)
 	{
-		// couldn't match up any BoneChain pairs, no retargeting possible
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to create any Bone Chain pairs between source, %s and target, %s"),
+		// couldn't match up any BoneChain pairs, no limb retargeting possible
+		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to create any Bone Chain pairs between source, %s and target, %s"),
             *SourceSkeleton.SkeletalMesh->GetName(), *TargetSkeleton.SkeletalMesh->GetName());
-		return;
 	}
 
 	// initialize the IKRigProcessor for doing IK decoding
-	const bool bIKRigInitialized = InitializeIKRig(this, TargetSkeletalMesh->GetRefSkeleton());
+	bIKRigInitialized = InitializeIKRig(this, TargetSkeletalMesh->GetRefSkeleton());
 	if (!bIKRigInitialized)
 	{
 		// couldn't initialize the IK Rig, we don't disable the retargeter in this case, just warn the user
@@ -851,23 +902,21 @@ void UIKRetargetProcessor::Initialize(
 bool UIKRetargetProcessor::InitializeRoots()
 {
 	// initialize root encoder
-	const FName SourceRootBoneName = RetargeterAsset->SourceIKRigAsset->GetRetargetRoot();
+	const FName SourceRootBoneName = RetargeterAsset->GetSourceIKRig()->GetRetargetRoot();
 	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton);
 	if (!bRootEncoderInit)
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize source root, '%s' on skeletal mesh: '%s'"),
+		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to initialize source root, '%s' on skeletal mesh: '%s'"),
             *SourceRootBoneName.ToString(), *SourceSkeleton.SkeletalMesh->GetName());
-		return false;
 	}
 
 	// initialize root decoder
-	const FName TargetRootBoneName = RetargeterAsset->TargetIKRigAsset->GetRetargetRoot();
+	const FName TargetRootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
 	const bool bRootDecoderInit = RootRetargeter.InitializeTarget(TargetRootBoneName, TargetSkeleton);
 	if (!bRootDecoderInit)
 	{
-		UE_LOG(LogTemp, Error, TEXT("IK Retargeter unable to initialize target root, '%s' on skeletal mesh: '%s'"),
+		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter unable to initialize target root, '%s' on skeletal mesh: '%s'"),
             *TargetRootBoneName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
-		return false;
 	}
 
 	return true;
@@ -875,32 +924,26 @@ bool UIKRetargetProcessor::InitializeRoots()
 
 bool UIKRetargetProcessor::InitializeBoneChainPairs()
 {
-	check(RetargeterAsset->SourceIKRigAsset && RetargeterAsset->TargetIKRigAsset);
-	
-	for (const FRetargetChainMap& ChainSettings : RetargeterAsset->ChainMapping)
+	check(RetargeterAsset->GetSourceIKRig() && RetargeterAsset->GetTargetIKRig());
+
+	const TArray<FRetargetChainMap>& ChainMapping = RetargeterAsset->GetChainMapping();
+	for (const FRetargetChainMap& ChainMap : ChainMapping)
 	{
-		FName SourceChain = ChainSettings.SourceChain;
-		FName TargetChain = ChainSettings.TargetChain;
+		// get target bone chain
+		const FBoneChain* TargetBoneChain = RetargeterAsset->GetTargetIKRig()->GetRetargetChainByName(ChainMap.TargetChain);
+		ensureMsgf(TargetBoneChain, TEXT("IK Retargeter has mapping for a target bone chain that doesn't exist: %s"), *ChainMap.TargetChain.ToString());
 
 		// user opted to not map this to anything, we don't need to spam a warning about it
-		if (SourceChain == NAME_None)
+		if (ChainMap.SourceChain == NAME_None)
 		{
 			continue; 
 		}
 		
 		// get source bone chain
-		const FBoneChain* SourceBoneChain = RetargeterAsset->SourceIKRigAsset->GetRetargetChainByName(SourceChain);
+		const FBoneChain* SourceBoneChain = RetargeterAsset->GetSourceIKRig()->GetRetargetChainByName(ChainMap.SourceChain);
 		if (!SourceBoneChain)
 		{
-			UE_LOG(LogTemp, Error, TEXT("IK Retargeter missing source bone chain: %s"), *SourceChain.ToString());
-			continue;
-		}
-
-		// get target bone chain
-		const FBoneChain* TargetBoneChain = RetargeterAsset->TargetIKRigAsset->GetRetargetChainByName(TargetChain);
-		if (!TargetBoneChain)
-		{
-			UE_LOG(LogTemp, Error, TEXT("IK Retargeter missing target bone chain: %s"), *TargetChain.ToString());
+			UE_LOG(LogTemp, Error, TEXT("IK Retargeter missing source bone chain: %s"), *ChainMap.SourceChain.ToString());
 			continue;
 		}
 
@@ -953,7 +996,7 @@ bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const FReferenceSkele
 	{
 		IKRigProcessor = NewObject<UIKRigProcessor>(Outer);	
 	}
-	IKRigProcessor->Initialize(RetargeterAsset->TargetIKRigAsset, InRefSkeleton);
+	IKRigProcessor->Initialize(RetargeterAsset->GetTargetIKRig(), InRefSkeleton);
 	if (!IKRigProcessor->IsInitialized())
 	{
 		return false;
@@ -982,10 +1025,10 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	// in edit mode we just want to see the edited reference pose, not actually run the retargeting
 	// as long as the retargeter is reinitialized after every modification to the limb rotation offsets,
 	// then the TargetSkeleton.RetargetGlobalPose will contain the updated retarget pose.
-	if (RetargeterAsset->bEditRetargetPoseMode && RetargeterAsset->TargetIKRigAsset)
+	if (RetargeterAsset->IsInEditRetargetPoseMode() && RetargeterAsset->GetTargetIKRig())
 	{
-		const FName RootBoneName = RetargeterAsset->TargetIKRigAsset->GetRetargetRoot();
-		TargetSkeleton.GenerateRetargetPose(&RetargeterAsset->RetargetPoses[RetargeterAsset->CurrentRetargetPose], RootBoneName);
+		const FName RootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
+		TargetSkeleton.GenerateRetargetPose(RetargeterAsset->GetCurrentRetargetPose(), RootBoneName);
 		return TargetSkeleton.RetargetGlobalPose; 
 	}
 #endif
@@ -994,7 +1037,7 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	TargetSkeleton.OutputGlobalPose = TargetSkeleton.RetargetGlobalPose;
 
 	// ROOT retargeting
-	if (RetargeterAsset->bRetargetRoot)
+	if (RetargeterAsset->bRetargetRoot && bRootsInitialized)
 	{
 		RunRootRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose);
 		// update global transforms below root
@@ -1002,7 +1045,7 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	}
 	
 	// FK CHAIN retargeting
-	if (RetargeterAsset->bRetargetFK)
+	if (RetargeterAsset->bRetargetFK && bAtLeastOneValidBoneChainPair)
 	{
 		RunFKRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose);
 		// update all the bones that are not controlled by FK chains or root
@@ -1010,7 +1053,7 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	}
 	
 	// IK CHAIN retargeting
-	if (RetargeterAsset->bRetargetIK)
+	if (RetargeterAsset->bRetargetIK && bAtLeastOneValidBoneChainPair && bIKRigInitialized)
 	{
 		RunIKRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose);
 	}
@@ -1067,7 +1110,9 @@ void UIKRetargetProcessor::RunIKRetarget(
 			OutIKGoal.EndEffectorPosition,
 			OutIKGoal.EndEffectorRotation,
 			1.0f,
-			1.0f);
+			1.0f,
+			EIKRigGoalSpace::Component,
+			EIKRigGoalSpace::Component);
 		IKRigProcessor->SetIKGoal(Goal);
 	}
 
@@ -1091,10 +1136,15 @@ FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseGlobalTransform(const 
 void UIKRetargetProcessor::SetNeedsInitialized()
 {
 	bIsInitialized = false;
+	if (IKRigProcessor)
+	{
+		// may not be initialized yet (during setup as prerequisites are being created)
+		IKRigProcessor->SetNeedsInitialized();
+	}
 }
 
 void UIKRetargetProcessor::CopyTargetIKRigSettingsFromAsset()
 {
-	IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(RetargeterAsset->TargetIKRigAsset);
+	IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(RetargeterAsset->GetTargetIKRig());
 }
 #endif

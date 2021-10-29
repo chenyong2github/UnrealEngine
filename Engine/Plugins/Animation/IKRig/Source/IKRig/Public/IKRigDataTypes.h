@@ -89,8 +89,8 @@ struct IKRIG_API FIKRigGoal
 	Rotation(FRotator::ZeroRotator),
 	PositionAlpha(1.0f),
     RotationAlpha(1.0f),
-	PositionSpace(EIKRigGoalSpace::Component),
-	RotationSpace(EIKRigGoalSpace::Component),
+	PositionSpace(EIKRigGoalSpace::Additive),
+	RotationSpace(EIKRigGoalSpace::Additive),
 	FinalBlendedPosition(ForceInitToZero),
 	FinalBlendedRotation(FQuat::Identity){}
 	
@@ -100,26 +100,28 @@ struct IKRIG_API FIKRigGoal
 	Rotation(FRotator::ZeroRotator),
     PositionAlpha(1.0f),
     RotationAlpha(1.0f),
-	PositionSpace(EIKRigGoalSpace::Component),
-    RotationSpace(EIKRigGoalSpace::Component),
+	PositionSpace(EIKRigGoalSpace::Additive),
+    RotationSpace(EIKRigGoalSpace::Additive),
 	FinalBlendedPosition(ForceInitToZero),
     FinalBlendedRotation(FQuat::Identity){}
 
 	FIKRigGoal(
-        const FName& Name,
-        const FVector& Position,
-        const FQuat& Rotation,
-        const float PositionAlpha,
-        const float RotationAlpha)
-        : Name(Name),
-        Position(Position),
-        Rotation(Rotation.Rotator()),
-        PositionAlpha(PositionAlpha),
-        RotationAlpha(RotationAlpha),
-		PositionSpace(EIKRigGoalSpace::Component),
-		RotationSpace(EIKRigGoalSpace::Component),
-		FinalBlendedPosition(Position),
-		FinalBlendedRotation(Rotation){}
+        const FName& InName,
+        const FVector& InPosition,
+        const FQuat& InRotation,
+        const float InPositionAlpha,
+        const float InRotationAlpha,
+        EIKRigGoalSpace InPositionSpace,
+        EIKRigGoalSpace InRotationSpace)
+        : Name(InName),
+        Position(InPosition),
+        Rotation(InRotation.Rotator()),
+        PositionAlpha(InPositionAlpha),
+        RotationAlpha(InRotationAlpha),
+		PositionSpace(InPositionSpace),
+		RotationSpace(InRotationSpace),
+		FinalBlendedPosition(InPosition),
+		FinalBlendedRotation(InRotation){}
 
 	FIKRigGoal(const UIKRigEffectorGoal* InGoal)
 		: Name(InGoal->GoalName),
@@ -166,6 +168,8 @@ public:
 	const TArray<FIKRigGoal>& GetGoalArray() const { return Goals; };
 	
 private:
+
+	FIKRigGoal* FindGoalWriteable(const FName& GoalName) const;
 	
 	/** Array of Goals. Cannot contain duplicates (name is key). */
 	TArray<FIKRigGoal> Goals;

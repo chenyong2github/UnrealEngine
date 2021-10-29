@@ -2,7 +2,11 @@
 
 #include "RetargetEditor/IKRetargetEditorController.h"
 
+#include "EditorModeManager.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
+#include "RetargetEditor/IKRetargetEditMode.h"
+#include "RetargetEditor/IKRetargetEditor.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/IKRigController.h"
@@ -15,14 +19,14 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	AssetController = UIKRetargeterController::GetController(InAsset);
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
-	BindToIKRigAsset(AssetController->GetAsset()->SourceIKRigAsset);
-	BindToIKRigAsset(AssetController->GetAsset()->TargetIKRigAsset);
+	BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
+	BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
 
 	// bind callback when retargeter needs reinitialized
 	AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnRetargeterNeedsInitialized);
 }
 
-void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
+void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig) const
 {
 	if (!InIKRig)
 	{
@@ -37,14 +41,14 @@ void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
 	}
 }
 
-void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
+void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	const UIKRetargeter* Retargeter = AssetController->GetAsset();
 	
 	check(ModifiedIKRig && Retargeter)
 	 
-	const bool bIsSource = ModifiedIKRig == Retargeter->SourceIKRigAsset;
-	const bool bIsTarget = ModifiedIKRig == Retargeter->TargetIKRigAsset;
+	const bool bIsSource = ModifiedIKRig == Retargeter->GetSourceIKRig();
+	const bool bIsTarget = ModifiedIKRig == Retargeter->GetTargetIKRig();
 	if (!(bIsSource || bIsTarget))
 	{
 		return;
@@ -55,37 +59,44 @@ void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* Modi
 	RefreshAllViews();
 }
 
-void FIKRetargetEditorController::OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName)
+void FIKRetargetEditorController::OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const
 {
 	check(ModifiedIKRig)
 	
 	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
 }
 
-void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter)
+void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const
 {
+	// force edit pose mode to be off
+	AssetController->SetEditRetargetPoseMode(false, false); // turn off and don't reinitialize (avoid infinite loop)
+	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
+	// force reinit the runtime retarget processor
 	TargetAnimInstance->SetProcessorNeedsInitialized();
+	// refresh all the UI views
 	RefreshAllViews();
+	// keep playing animation
+	PlayPreviousAnimationAsset();
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
 {
-	if (!(AssetController && AssetController->GetAsset()->SourceIKRigAsset))
+	if (!(AssetController && AssetController->GetAsset()->GetSourceIKRig()))
 	{
 		return nullptr;
 	}
 
-	return AssetController->GetAsset()->SourceIKRigAsset->PreviewSkeletalMesh;
+	return AssetController->GetAsset()->GetSourceIKRig()->PreviewSkeletalMesh;
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 {
-	if (!(AssetController && AssetController->GetAsset()->TargetIKRigAsset))
+	if (!(AssetController && AssetController->GetAsset()->GetTargetIKRig()))
 	{
 		return nullptr;
 	}
 
-	return AssetController->GetAsset()->TargetIKRigAsset->PreviewSkeletalMesh;
+	return AssetController->GetTargetPreviewMesh();
 }
 
 FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& TargetBoneIndex) const
@@ -143,19 +154,6 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 	return true;
 }
 
-bool FIKRetargetEditorController::IsTargetBoneRetargeted(const int32& TargetBoneIndex)
-{
-	// get the runtime processor
-	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
-	check(Processor && Processor->IsInitialized())
-	
-	// get the target skeleton
-	const FTargetSkeleton& TargetSkeleton = Processor->GetTargetSkeleton();
-	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
-
-	return TargetSkeleton.IsBoneRetargeted[TargetBoneIndex];
-}
-
 const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() const
 {	
 	if(UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get())
@@ -166,8 +164,9 @@ const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() 
 	return nullptr;	
 }
 
-void FIKRetargetEditorController::RefreshAllViews()
+void FIKRetargetEditorController::RefreshAllViews() const
 {
+	Editor.Pin()->RegenerateMenusAndToolbars();
 	ChainsView.Get()->RefreshView();
 }
 
@@ -180,12 +179,147 @@ void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPla
 	}
 }
 
-void FIKRetargetEditorController::PlayPreviousAnimationAsset()
+void FIKRetargetEditorController::PlayPreviousAnimationAsset() const
 {
 	if (PreviousAsset)
 	{
 		SourceAnimInstance->SetAnimationAsset(PreviousAsset);
 	}
+}
+
+void FIKRetargetEditorController::HandleEditPose() const
+{
+	const bool bEditPoseMode = !AssetController->GetEditRetargetPoseMode();
+	AssetController->SetEditRetargetPoseMode(bEditPoseMode);
+	if (bEditPoseMode)
+	{
+		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditMode::ModeName);
+		SourceSkelMeshComponent->ShowReferencePose(true);
+	}
+	else
+	{
+		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
+		PlayPreviousAnimationAsset();
+	}
+}
+
+bool FIKRetargetEditorController::CanEditPose() const
+{
+	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
+	if (!Processor)
+	{
+		return false;
+	}
+
+	return Processor->IsInitialized();
+}
+
+bool FIKRetargetEditorController::IsEditingPose() const
+{
+	return AssetController->GetEditRetargetPoseMode();
+}
+
+void FIKRetargetEditorController::HandleNewPose()
+{
+	// get a unique pose name to use as suggestion
+	const FName DefaultNewPoseName = FName(LOCTEXT("NewRetargetPoseName", "CustomRetargetPose").ToString());
+	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultNewPoseName);
+	
+	SAssignNew(NewPoseWindow, SWindow)
+	.Title(LOCTEXT("NewRetargetPoseOptions", "Create New Retarget Pose"))
+	.ClientSize(FVector2D(250, 80))
+	.HasCloseButton(true)
+	.SupportsMinimize(false) .SupportsMaximize(false)
+	[
+		SNew(SBorder)
+		.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.Padding(4)
+			.AutoHeight()
+			[
+				SAssignNew(NewPoseEditableText, SEditableTextBox)
+				.Text(FText::FromName(UniqueNewPoseName))
+			]
+
+			+ SVerticalBox::Slot()
+			.Padding(4)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "Button")
+					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("OkButtonLabel", "Ok"))
+					.OnClicked(this, &FIKRetargetEditorController::CreateNewPose)
+				]
+				
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "Button")
+					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
+					.OnClicked_Lambda( [=]()
+					{
+						NewPoseWindow->RequestDestroyWindow();
+						return FReply::Handled();
+					})
+				]
+			]	
+		]
+	];
+
+	GEditor->EditorAddModalWindow(NewPoseWindow.ToSharedRef());
+	NewPoseWindow.Reset();
+}
+
+FReply FIKRetargetEditorController::CreateNewPose() const
+{
+	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
+	AssetController->AddRetargetPose(NewPoseName);
+	NewPoseWindow->RequestDestroyWindow();
+	Editor.Pin()->RegenerateMenusAndToolbars();
+	return FReply::Handled();
+}
+
+void FIKRetargetEditorController::HandleDeletePose() const
+{
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
+	AssetController->RemoveRetargetPose(CurrentPose);
+	Editor.Pin()->RegenerateMenusAndToolbars();
+}
+
+bool FIKRetargetEditorController::CanDeletePose() const
+{	
+	// cannot delete default pose
+	return AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
+}
+
+void FIKRetargetEditorController::HandleResetPose() const
+{
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
+	AssetController->ResetRetargetPose(CurrentPose);
+}
+
+FText FIKRetargetEditorController::GetCurrentPoseName() const
+{
+	return FText::FromName(AssetController->GetCurrentRetargetPoseName());
+}
+
+void FIKRetargetEditorController::OnPoseSelected(TSharedPtr<FName> InPosePose, ESelectInfo::Type SelectInfo) const
+{
+	AssetController->SetCurrentRetargetPose(*InPosePose.Get());
 }
 
 #undef LOCTEXT_NAMESPACE

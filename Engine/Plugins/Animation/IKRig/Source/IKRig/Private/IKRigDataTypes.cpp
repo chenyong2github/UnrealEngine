@@ -5,7 +5,7 @@
 
 void FIKRigGoalContainer::SetIKGoal(const FIKRigGoal& InGoal)
 {
-	FIKRigGoal* Goal = const_cast<FIKRigGoal*>(FindGoalByName(InGoal.Name));
+	FIKRigGoal* Goal = FindGoalWriteable(InGoal.Name);
 	if (!Goal)
 	{
 		// container hasn't seen this goal before, create new one, copying the input goal
@@ -19,7 +19,7 @@ void FIKRigGoalContainer::SetIKGoal(const FIKRigGoal& InGoal)
 
 void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
 {
-	FIKRigGoal* Goal = const_cast<FIKRigGoal*>(FindGoalByName(InEffectorGoal->GoalName));
+	FIKRigGoal* Goal = FindGoalWriteable(InEffectorGoal->GoalName);
 	if (!Goal)
 	{
 		// container hasn't seen this goal before, create new one, copying the Effector goal
@@ -55,4 +55,9 @@ void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
 const FIKRigGoal* FIKRigGoalContainer::FindGoalByName(const FName& GoalName) const
 {
 	return Goals.FindByPredicate([GoalName](const FIKRigGoal& Other)	{return Other.Name == GoalName;});
+}
+
+FIKRigGoal* FIKRigGoalContainer::FindGoalWriteable(const FName& GoalName) const
+{
+	return const_cast<FIKRigGoal*>(FindGoalByName(GoalName));
 }

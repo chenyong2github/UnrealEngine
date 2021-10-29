@@ -55,18 +55,20 @@ void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	{
 		return;
 	}
-	
+
 	const UIKRetargeter* Retargeter = Controller->AssetController->GetAsset();
-	
-	for (int32 BoneIndex = 0; BoneIndex<Retargeter->TargetIKRigAsset->Skeleton.BoneNames.Num(); ++BoneIndex)
-	{
+	const UIKRetargetProcessor* RetargetProcessor = Controller->GetRetargetProcessor();
+	const FTargetSkeleton& TargetSkeleton = RetargetProcessor->GetTargetSkeleton();
+
+	for (int32 BoneIndex = 0; BoneIndex<TargetSkeleton.BoneNames.Num(); ++BoneIndex)
+	{		
 		// filter out bones that are not part of a retargeted chain
-		if (!Controller->IsTargetBoneRetargeted(BoneIndex))
+		if (!TargetSkeleton.IsBoneInAnyTargetChain[BoneIndex])
 		{
 			continue;
 		}
 		
-		const FName BoneName = Retargeter->TargetIKRigAsset->Skeleton.BoneNames[BoneIndex];
+		const FName& BoneName = TargetSkeleton.BoneNames[BoneIndex];
 
 		// is this chain currently selected?
 		const bool bIsSelected = IsBoneSelected(BoneName);
@@ -294,7 +296,7 @@ bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, vo
 		return false; 
 	}
 
-	const int32 BoneIndex = Controller->AssetController->GetAsset()->TargetIKRigAsset->Skeleton.GetBoneIndexFromName(SelectedBones[0]);
+	const int32 BoneIndex = Controller->AssetController->GetAsset()->GetTargetIKRig()->Skeleton.GetBoneIndexFromName(SelectedBones[0]);
 	const FTransform CurrentTransform = Controller->GetTargetBoneTransform(BoneIndex);
 	InMatrix = CurrentTransform.ToMatrixNoScale().RemoveTranslation();
 	return true;

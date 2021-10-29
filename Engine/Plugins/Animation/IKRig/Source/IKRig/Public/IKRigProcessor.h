@@ -43,10 +43,10 @@ public:
 	 *  @param InRigAsset - the IK Rig defining the collection of solvers to execute and all the rig settings
 	 *  @param InputSkeleton - the skeleton in reference pose that you want to solve the IK on
 	 */
-	void Initialize(UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
+	void Initialize(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
 
 	/** Anim Graph: convenience to initialize directly from an FReferenceSkeleton. */
-	void Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton);
+	void Initialize(const UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton);
 
 	//
 	// BEGIN UPDATE SEQUENCE FUNCTIONS
@@ -86,13 +86,17 @@ public:
 	/** Get access to the internal skeleton data */
 	FIKRigSkeleton& GetSkeleton();
 
+
+	/** Used to determine if the IK Rig asset is compatible with a given skeleton. */
+	static bool IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
+
 	bool IsInitialized() const { return bInitialized; };
 
 	void SetNeedsInitialized();
 
 #if WITH_EDITOR
 	/** Used to propagate setting values from the source asset at runtime (settings that do not require re-initialization) */
-	void CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* SourceAsset);
+	void CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefinition* SourceAsset);
 #endif
 	
 private:

@@ -11,23 +11,19 @@
 
 #include "SIKRigSolverStack.h"
 
-#include "SIKRigSkeleton.generated.h"
-
 struct FIKRigSkeletonChain;
 class FIKRigEditorController;
 class SIKRigSkeleton;
 class FIKRigEditorToolkit;
 class USkeletalMesh;
 
-enum class IKRigTreeElementType { BONE, GOAL, EFFECTOR, BONE_SETTINGS };
+enum class IKRigTreeElementType { BONE, GOAL, SOLVERGOAL, BONE_SETTINGS };
 
 class FIKRigTreeElement : public TSharedFromThis<FIKRigTreeElement>
 {
 public:
 	
-	FIKRigTreeElement(
-		const FName& InKey,
-		IKRigTreeElementType InType);
+	FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType);
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(
 		TSharedRef<FIKRigEditorController> InEditorController,
@@ -36,18 +32,24 @@ public:
 		TSharedRef<FUICommandList> InCommandList,
 		TSharedPtr<SIKRigSkeleton> InHierarchy);
 
-	FName Key;
+	FText Key;
 	IKRigTreeElementType ElementType;
 	TSharedPtr<FIKRigTreeElement> Parent;
 	TArray<TSharedPtr<FIKRigTreeElement>> Children;
 
-	/** effector meta-data */
-	FName EffectorGoalName = NAME_None;
-	int32 EffectorSolverIndex = INDEX_NONE;
+	/** effector meta-data (if it is an effector) */
+	FName SolverGoalName = NAME_None;
+	int32 SolverGoalIndex = INDEX_NONE;
 
-	/** bone setting meta-data */
+	/** bone setting meta-data (if it is a bone setting) */
 	FName BoneSettingBoneName = NAME_None;
 	int32 BoneSettingsSolverIndex = INDEX_NONE;
+
+	/** name of bone if it is one */
+	FName BoneName = NAME_None;
+	
+	/** name of goal if it is one */
+	FName GoalName = NAME_None;
 
 	/** delegate for when the context menu requests a rename */
 	void RequestRename();
@@ -110,7 +112,7 @@ public:
 	{
 		for (const TTuple<TSharedPtr<FIKRigTreeElement>, FSparseItemInfo>& Pair : OldSparseItemInfos)
 		{
-			if (Pair.Key->Key == ItemPtr->Key)
+			if (Pair.Key->Key.EqualTo(ItemPtr->Key))
 			{
 				// the SparseItemInfos now reference the new element, but keep the same expansion state
 				SparseItemInfos.Add(ItemPtr, Pair.Value);
@@ -127,17 +129,6 @@ private:
 	
 	/** A temporary snapshot of the SparseItemInfos in STreeView, used during SIKRigSkeleton::RefreshTreeView() */
 	TSparseItemMap OldSparseItemInfos;
-};
-
-USTRUCT()
-struct FIKRigSkeletonImportSettings
-{
-	GENERATED_BODY()
-
-	FIKRigSkeletonImportSettings() : Mesh(nullptr) {}
-
-	UPROPERTY(EditAnywhere, Category = "Skeleton Import")
-	USkeletalMesh* Mesh;
 };
 
 class SIKRigSkeleton : public SCompoundWidget, public FEditorUndoClient

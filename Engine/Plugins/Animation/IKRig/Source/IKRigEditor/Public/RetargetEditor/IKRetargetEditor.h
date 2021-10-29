@@ -84,36 +84,14 @@ private:
 	
 	/** preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
-	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
 	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
 	void SetupAnimInstance();
 	/** END preview scene setup */
 
-	/** edit retarget pose */
-	void HandleEditPose() const;
-	bool CanEditPose() const;
-	bool IsEditingPose() const;
-	/** END edit retarget pose*/
-
-	/** new/delete retarget pose */
-	void HandleNewPose();
-	FReply CreateNewPose();
-	void HandleDeletePose();
-	bool CanDeletePose() const;
-	void HandleResetPose();
-	TSharedPtr<SWindow> NewPoseWindow;
-	TSharedPtr<SEditableTextBox> NewPoseEditableText;
-	/** END new/delete retarget pose */
-
-	TArray<TSharedPtr<FName>> PoseNames;
-	FText GetCurrentPoseName() const;
-	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo);
-	/* END edit reference pose */
-
 	void HandleSourceOrTargetIKRigAssetChanged();
 	
-	/** centralized management of across all views */
+	/** centralized management across all views */
 	TSharedRef<FIKRetargetEditorController> EditorController;
 	
 	friend FIKRetargetMode;

@@ -20,11 +20,11 @@ struct FPBIKDebug
 	GENERATED_BODY()
 
 	/** The scale of the debug drawing. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Debug")
 	float DrawScale = 1.0f;
 
 	/** If true, turns on debug drawing for the node. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Debug")
 	bool bDrawDebug = false;
 
 	void Draw(FControlRigDrawInterface* DrawInterface, FPBIKSolver* Solver) const
@@ -55,24 +55,24 @@ struct FPBIKEffector
 	FPBIKEffector()	: Bone(NAME_None) {}
 
 	/** The bone that this effector will pull on. */
-	UPROPERTY(meta = (Constant, CustomWidget = "BoneName"))
+	UPROPERTY(EditAnywhere, Category="Effector", meta = (Constant, CustomWidget = "BoneName"))
 	FName Bone;
 
 	/** The target location and rotation for this effector. The solver will try to get the specified bone to reach this location.*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Effector")
 	FTransform Transform;
 
 	/** Range 0-1 (default is 1.0). This blends the effector translation and rotation between its transform and the transform of the bone from the input pose.
 	 * At 0.0, the effector will be placed at the location of the bone in the input pose (effectively pinning the skeleton to the input pose).
 	 * At 1.0, the effector will be placed at the supplied location.*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Effector")
 	float OffsetAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
 	 * At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.
 	 * This can thus act as a "stabilizer" of sorts for parts of the body that you do not want to behave in a pure FK fashion.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Effector")
 	float StrengthAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0). When enabled (greater than 0.0), the solver internally partitions the skeleton into 'chains' which extend from the effector to the nearest fork in the skeleton.
@@ -80,12 +80,12 @@ struct FPBIKEffector
 	 *This can improve the results for sparse bone chains, and significantly improve convergence on dense bone chains.
 	 *But it may cause undesirable results in highly constrained bone chains (like robot arms).
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Effector")
 	float PullChainAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0).
 	 *Blends the effector bone rotation between the rotation of the effector transform (1.0) and the rotation of the input bone (0.0).*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Effector")
 	float PinRotation = 1.0f;
 };
 

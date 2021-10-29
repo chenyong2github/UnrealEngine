@@ -145,7 +145,19 @@ public:
 	/** The thickness of the Goals in the editor viewport.*/
 	UPROPERTY(EditAnywhere, Category = "Goal Drawing",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
 	float GoalThickness = 0.7f;
+
+	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> Controller;
 	
+#endif
+
+#if WITH_EDITOR
+	// This delegate is called when an edit operation is undone on the rig asset.
+	DECLARE_MULTICAST_DELEGATE(OnIKRigEditUndo);
+	OnIKRigEditUndo IKRigEditUndo;
+	
+	virtual void PostEditUndo() override;
 #endif
 
 	/** The skeletal mesh that was used as the source of the skeleton data. Also used for preview.

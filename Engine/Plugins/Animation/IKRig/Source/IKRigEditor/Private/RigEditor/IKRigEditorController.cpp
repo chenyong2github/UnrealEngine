@@ -4,6 +4,7 @@
 
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
+#include "Dialogs/CustomDialog.h"
 #include "Dialogs/Dialogs.h"
 
 #include "RigEditor/IKRigController.h"
@@ -55,7 +56,10 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 	// add a default solver if there isn't one already
 	if (AssetController->GetNumSolvers() == 0)
 	{
-		PromptToAddSolver();	
+		if (!PromptToAddSolver())
+		{
+			return; // user cancelled
+		}
 	}
 
 	// get selected solvers
@@ -163,11 +167,11 @@ int32 FIKRigEditorController::GetSelectedSolverIndex()
 	return SelectedSolvers[0]->IndexInStack;
 }
 
-void FIKRigEditorController::PromptToAddSolver() const
+bool FIKRigEditorController::PromptToAddSolver() const
 {
 	if (AssetController->GetNumSolvers() > 0)
 	{
-		return;
+		return true;
 	}
 
 	// prompt user to add a default solver
@@ -175,18 +179,27 @@ void FIKRigEditorController::PromptToAddSolver() const
 	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigAddFirstSolverSettings::StaticStruct(), (uint8*)&Settings));
 	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 	KismetInspector->ShowSingleStruct(StructToDisplay);
+	
+	TSharedRef<SCustomDialog> AddSolverDialog = SNew(SCustomDialog)
+		.Title(FText(LOCTEXT("EditorController_IKRigFirstSolver", "Add Default Solver")))
+		.DialogContent(KismetInspector)
+		.Buttons({
+			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
+			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+	});
 
-	SGenericDialogWidget::OpenDialog(
-        LOCTEXT("EditorController_IKRigFirstSolver", "Add Default Solver"), 
-        KismetInspector, 
-        SGenericDialogWidget::FArguments(), 
-        true);
+	if (AddSolverDialog->ShowModal() == 1)
+	{
+		return false; // cancelled
+	}
 
 	if (Settings.SolverType != nullptr)
 	{
 		AssetController->AddSolver(Settings.SolverType);
 		SolverStackView->RefreshStackView();
 	}
+
+	return true;
 }
 
 bool FIKRigEditorController::IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex)
@@ -200,7 +213,7 @@ bool FIKRigEditorController::IsElementConnectedToSolver(TSharedRef<FIKRigTreeEle
 	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
 	{
 		// is this bone affected by this solver?
-		return Solver->IsBoneAffectedBySolver(TreeElement->Key, AssetController->GetIKRigSkeleton());
+		return Solver->IsBoneAffectedBySolver(TreeElement->BoneName, AssetController->GetIKRigSkeleton());
 	}
 
 	if (TreeElement->ElementType == IKRigTreeElementType::BONE_SETTINGS)
@@ -212,13 +225,13 @@ bool FIKRigEditorController::IsElementConnectedToSolver(TSharedRef<FIKRigTreeEle
 	if (TreeElement->ElementType == IKRigTreeElementType::GOAL)
 	{
 		// is goal connected to the solver?
-		return AssetController->IsGoalConnectedToSolver(TreeElement->Key, SolverIndex);
+		return AssetController->IsGoalConnectedToSolver(TreeElement->GoalName, SolverIndex);
 	}
 
-	if (TreeElement->ElementType == IKRigTreeElementType::EFFECTOR)
+	if (TreeElement->ElementType == IKRigTreeElementType::SOLVERGOAL)
 	{
 		// is this an effector for this solver?
-		return TreeElement->EffectorSolverIndex == SolverIndex;
+		return TreeElement->SolverGoalIndex == SolverIndex;
 	}
 
 	checkNoEntry();
@@ -247,7 +260,7 @@ bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement>
 	}
 	
 	// is this bone excluded?
-	return AssetController->GetBoneExcluded(TreeElement->Key);
+	return AssetController->GetBoneExcluded(TreeElement->BoneName);
 }
 
 void FIKRigEditorController::ShowDetailsForBone(const FName BoneName)
@@ -265,16 +278,15 @@ void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, in
 
 void FIKRigEditorController::ShowDetailsForGoal(const FName GoalName)
 {
-	const UIKRigEffectorGoal* Goal = AssetController->GetGoal(GoalName);
-	DetailsView->SetObject(const_cast<UIKRigEffectorGoal*>(Goal));
+	DetailsView->SetObject(AssetController->GetGoal(GoalName));
 }
 
-void FIKRigEditorController::ShowDetailsForEffector(const FName GoalName, const int32 SolverIndex)
+void FIKRigEditorController::ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex)
 {
 	// get solver that owns this effector
 	if (const UIKRigSolver* SolverWithEffector = AssetController->GetSolver(SolverIndex))
 	{
-		if (UObject* EffectorSettings = SolverWithEffector->GetEffectorWithGoal(GoalName))
+		if (UObject* EffectorSettings = SolverWithEffector->GetGoalSettings(GoalName))
 		{
 			DetailsView->SetObject(EffectorSettings);
 		}
@@ -283,12 +295,12 @@ void FIKRigEditorController::ShowDetailsForEffector(const FName GoalName, const 
 
 void FIKRigEditorController::ShowDetailsForSolver(const int32 SolverIndex)
 {
-	DetailsView->SetObject(const_cast<UIKRigSolver*>(AssetController->GetSolver(SolverIndex)));
+	DetailsView->SetObject(AssetController->GetSolver(SolverIndex));
 }
 
 void FIKRigEditorController::ShowEmptyDetails()
 {
-	DetailsView->SetObject(const_cast<UIKRigDefinition*>(AssetController->GetAsset()));
+	DetailsView->SetObject(AssetController->GetAsset());
 }
 
 void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone)
@@ -311,6 +323,14 @@ void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FN
 		KismetInspector,
 		DialogArguments,
 		true);
+}
+
+void FIKRigEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
+{
+	if (AssetToPlay && AnimInstance)
+	{
+		AnimInstance->SetAnimationAsset(AssetToPlay);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -117,7 +117,7 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 
 	BatchContext.SourceMesh = Controller->GetSourceSkeletalMesh();
 	BatchContext.TargetMesh = Controller->GetTargetSkeletalMesh();
-	BatchContext.IKRetargetAsset = const_cast<UIKRetargeter*>(Controller->AssetController->GetAsset());
+	BatchContext.IKRetargetAsset = Controller->AssetController->GetAsset();
 	BatchContext.bRemapReferencedAssets = false;
 	BatchContext.NameRule.Suffix = "_Retargeted";
 

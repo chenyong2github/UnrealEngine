@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "ReferenceSkeleton.h"
 
 #include "IKRigSkeleton.generated.h"
 
 class UIKRigDefinition;
+class UIKRigSolver;
 
 USTRUCT()
 struct IKRIG_API FIKRigSkeletonChain
@@ -29,6 +31,8 @@ struct IKRIG_API FIKRigSkeletonChain
  *
  * You can however add additional bones, change the reference pose (including proportions) and the bone indices.
  * This allows you to run the same IK Rig asset on somewhat different skeletal meshes.
+ *
+ * To validate compatibility use UIKRigProcess::IsIKRigCompatibleWithSkeleton()
  */
 USTRUCT()
 struct IKRIG_API FIKRigInputSkeleton
@@ -39,7 +43,14 @@ struct IKRIG_API FIKRigInputSkeleton
 	TArray<int32> ParentIndices;
 	TArray<FTransform> LocalRefPose;
 
-	void InitializeFromRefSkeleton(const FReferenceSkeleton& RefSkeleton)
+	FIKRigInputSkeleton() = default;
+	
+	FIKRigInputSkeleton(const FReferenceSkeleton& RefSkeleton)
+	{
+		Initialize(RefSkeleton);
+	}
+
+	void Initialize(const FReferenceSkeleton& RefSkeleton)
 	{
 		Reset();
 		
@@ -89,9 +100,9 @@ struct IKRIG_API FIKRigSkeleton
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> RefPoseGlobal;
 
-	void Initialize(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones);
+	void SetInputSkeleton(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones);
 
-	void Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones);
+	void SetInputSkeleton(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones);
 
 	void Reset();
 	
@@ -102,8 +113,6 @@ struct IKRIG_API FIKRigSkeleton
 	int32 GetParentIndex(const int32 BoneIndex) const;
 
 	int32 GetParentIndexThatIsNotExcluded(const int32 BoneIndex) const;
-
-	bool CopyPosesFromInputSkeleton(const FIKRigInputSkeleton& InputSkeleton);
 
 	static void ConvertLocalPoseToGlobal(
 		const TArray<int32>& InParentIndices,

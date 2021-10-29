@@ -15,19 +15,31 @@ class IKRIG_API UIKRig_FBIKEffector : public UObject
 	GENERATED_BODY()
 
 public:
-
+	/** The Goal that is driving this effector's transform. */
 	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Effector")
 	FName GoalName;
-
+	
+	/** The bone that this effector will pull on. */
 	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Effector")
 	FName BoneName;
-	
+
+	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
+	* At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.
+	* This can thus act as a "stabilizer" for parts of the body that you do not want to behave in a pure FK fashion.
+	*/
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float StrengthAlpha = 1.0f;
-	
+
+	/** Range 0-1 (default is 1.0). When enabled (greater than 0.0), the solver internally partitions the skeleton into 'chains' which extend from the effector to the nearest fork in the skeleton.
+	*These chains are pre-rotated and translated, as a whole, towards the effector targets.
+	*This can improve the results for sparse bone chains, and significantly improve convergence on dense bone chains.
+	*But it may cause undesirable results in highly constrained bone chains (like robot arms).
+	*/
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PullChainAlpha = 1.0f;
 
+	/** Range 0-1 (default is 1.0).
+	*Blends the effector bone rotation between the rotation of the effector transform (1.0) and the rotation of the input bone (0.0).*/
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PinRotation = 1.0f;
 
@@ -56,37 +68,65 @@ public:
 		Z(EPBIKLimitType::Free),
 		PreferredAngles(FVector::ZeroVector){}
 
+	/** The bone these settings are applied to. */
 	UPROPERTY(VisibleAnywhere, Category = Bone, meta = (Constant, CustomWidget = "BoneName"))
 	FName Bone;
-
+	
+	/** Range is 0 to 1 (Default is 0). At higher values, the bone will resist rotating (forcing other bones to compensate). */
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float RotationStiffness = 0.0f;
+
+	/** Range is 0 to 1 (Default is 0). At higher values, the bone will resist translational motion (forcing other bones to compensate). */
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PositionStiffness = 0.0f;
 
+	/** Limit the rotation angle of the bone on the X axis.
+	 *Free: can rotate freely in this axis.
+	 *Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
+	 *Locked: no rotation is allowed in this axis (will remain at reference pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType X;
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "180", UIMin = "-180.0", UIMax = "180.0"))
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative X direction to allow when joint is in "Limited" mode. */
+	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinX = 0.0f;
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive X direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxX = 0.0f;
 
+	/** Limit the rotation angle of the bone on the Y axis.
+	*Free: can rotate freely in this axis.
+	*Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
+	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType Y;
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "180", UIMin = "-180.0", UIMax = "180.0"))
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Y direction to allow when joint is in "Limited" mode. */
+	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinY = 0.0f;
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Y direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxY = 0.0f;
 
+	/** Limit the rotation angle of the bone on the Z axis.
+	*Free: can rotate freely in this axis.
+	*Limited: rotation is clamped between the min/max angles relative to the Skeletal Mesh reference pose.
+	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType Z;
-	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "180", UIMin = "-180.0", UIMax = "180.0"))
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Z direction to allow when joint is in "Limited" mode. */
+	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinZ = 0.0f;
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Z direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxZ = 0.0f;
 
+	/**When true, this bone will "prefer" to rotate in the direction specified by the Preferred Angles when the chain it belongs to is compressed.
+	 * Preferred Angles should be the first method used to fix bones that bend in the wrong direction (rather than limits).
+	 * The resulting angles can be visualized on their own by temporarily setting the Solver iterations to 0 and moving the effectors.*/
 	UPROPERTY(EditAnywhere, Category = PreferredAngles)
 	bool bUsePreferredAngles = false;
+	/**The local Euler angles (in degrees) used to rotate this bone when the chain it belongs to is squashed.
+	 * This happens by moving the effector at the tip of the chain towards the root of the chain.
+	 * This can be used to coerce knees and elbows to bend in the anatomically "correct" direction without resorting to limits (which may require more iterations to converge).*/
 	UPROPERTY(EditAnywhere, Category = PreferredAngles)
 	FVector PreferredAngles;
 
@@ -134,35 +174,40 @@ class IKRIG_API UIKRigPBIKSolver : public UIKRigSolver
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Full-Body IK Settings")
+	/** All bones above this bone in the hierarchy will be completely ignored by the solver. Typically this is set to
+	 * the top-most skinned bone in the Skeletal Mesh (ie Pelvis, Hips etc), NOT the actual root of the entire skeleton.
+	 *
+	 * If you want to use the solver on a single chain of bones, and NOT translate the chain, ensure that "PinRoot" is
+	 * checked on to disable the root from translating to reach the effector goals.*/
+	UPROPERTY(VisibleAnywhere, Category = "Full Body IK Settings")
 	FName RootBone;
 
 	/** High iteration counts can help solve complex joint configurations with competing constraints, but will increase runtime cost. Default is 20. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings", meta = (ClampMin = "0", ClampMax = "1000", UIMin = "0.0", UIMax = "100.0"))
 	int32 Iterations = 20;
 
 	/** A global mass multiplier; higher values will make the joints more stiff, but require more iterations. Typical range is 0.0 to 10.0. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
 
 	/** Set this as low as possible while keeping the solve stable. Lower values improve convergence of effector targets. Default is 0.2. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MinMassMultiplier = 0.2f;
 
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bAllowStretch = false;
 
 	/** If true, solver will pull entire skeleton towards effectors BEFORE running constraint iterations. Default is true. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bPrePullRoot = true;
 
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bPinRoot = false;
 
 	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
-	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bStartSolveFromInputPose = true;
 	
 	UPROPERTY()
@@ -175,6 +220,10 @@ public:
 	// runtime
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) override;
+
+	virtual FName GetRootBone() const override { return RootBone; };
+	virtual void GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const override;
+	
 #if WITH_EDITOR
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 	virtual FText GetNiceName() const override;
@@ -185,7 +234,7 @@ public:
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
 	virtual bool IsGoalConnected(const FName& GoalName) const override;
-	virtual UObject* GetEffectorWithGoal(const FName& GoalName) const override;
+	virtual UObject* GetGoalSettings(const FName& GoalName) const override;
 	// bone settings
 	virtual void AddBoneSetting(const FName& BoneName) override;
 	virtual void RemoveBoneSetting(const FName& BoneName) override;
@@ -193,7 +242,7 @@ public:
 	virtual bool UsesBoneSettings() const override{ return true;};
 	virtual void DrawBoneSettings(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton, FPrimitiveDrawInterface* PDI) const override;
 	// root bone can be set on this solver
-	virtual bool CanSetRootBone() const override { return true; };
+	virtual bool RequiresRootBone() const override { return true; };
 	virtual void SetRootBone(const FName& RootBoneName) override;
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const override;
 	/** END UIKRigSolver interface */

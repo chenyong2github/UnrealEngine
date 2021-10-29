@@ -112,7 +112,7 @@ bool UIKRig_SetTransform::IsGoalConnected(const FName& GoalName) const
 	return Goal == GoalName;
 }
 
-UObject* UIKRig_SetTransform::GetEffectorWithGoal(const FName& GoalName) const
+UObject* UIKRig_SetTransform::GetGoalSettings(const FName& GoalName) const
 {
 	return Goal == GoalName ? Effector : nullptr;
 }

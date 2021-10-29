@@ -7,6 +7,7 @@
 #include "ISkeletonEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "PersonaTabs.h"
+#include "RigEditor/IKRigAssetBrowserTabSummoner.h"
 #include "RigEditor/IKRigSkeletonTabSummoner.h"
 #include "RigEditor/IKRigSolverStackTabSummoner.h"
 #include "RigEditor/IKRigRetargetChainTabSummoner.h"
@@ -32,15 +33,15 @@ FIKRigMode::FIKRigMode(
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
 	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, InPreviewScene));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleDetailsCreated)));
-	TabFactories.RegisterFactory(PersonaModule.CreateAnimationAssetBrowserTabFactory(InHostingApp, IKRigEditor->GetPersonaToolkit(), FOnOpenNewAsset::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleOpenNewAsset), FOnAnimationSequenceBrowserCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleAnimationSequenceBrowserCreated), true));
 
 	// register custom tabs
+	TabFactories.RegisterFactory(MakeShared<FIKRigAssetBrowserTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigSkeletonTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigSolverStackTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigRetargetChainTabSummoner>(IKRigEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.122")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.123")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -92,9 +93,9 @@ FIKRigMode::FIKRigMode(
                     (
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
-						->AddTab(FPersonaTabs::AssetBrowserID, ETabState::OpenedTab)
+						->AddTab(FIKRigAssetBrowserTabSummoner::TabID, ETabState::OpenedTab)
 						->AddTab(FIKRigRetargetChainTabSummoner::TabID, ETabState::OpenedTab)
-						->SetForegroundTab(FIKRigRetargetChainTabSummoner::TabID)
+						->SetForegroundTab(FIKRigAssetBrowserTabSummoner::TabID)
                     )
 				)
 			)
