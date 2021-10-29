@@ -503,17 +503,38 @@ public:
 class FGenericAccessibleMessageHandler
 {
 public:
-	/** A widget raised an event to pass to the native OS implementation. */
-	DECLARE_DELEGATE_FourParams(
-		FAccessibleEvent,
+	/**
+	 * The arguments for an accessible event that is raised by accessible widgets to be
+	 * passed to an accessibility event handler such as a native OS.
+	 * It is up to the client to create an instance of this struct and fill in the appropriate data members.
+	 * @see RaiseEvent
+	 */
+	struct FAccessibleEventArgs
+	{
+		FAccessibleEventArgs(TSharedRef<IAccessibleWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), int32 InUserId = 0)
+			: Widget(InWidget)
+			, Event(InEvent)
+			, OldValue(InOldValue)
+			, NewValue(InNewValue)
+			, UserId(InUserId)
+		{}
+		
 		/** The accessible widget that generated the event */
-		TSharedRef<IAccessibleWidget>,
+		TSharedRef<IAccessibleWidget> Widget;
 		/** The type of event generated */
-		EAccessibleEvent,
+		EAccessibleEvent Event;
 		/** If this was a property changed event, the 'before' value */
-		FVariant,
+		FVariant OldValue;
 		/** If this was a property changed event, the 'after' value. This may also be set for other events such as Notification. */
-		FVariant);
+		FVariant NewValue;
+		/** The Id of the user this event is intended for. Think of a hardware device such as a controller or keyboard/mouse. */
+		int32 UserId;
+	};
+	/**
+	 * A delegate accessible event handlers such as platform accessibility APIs can
+	 * listen for accessibility events raised by widgets.  .
+	 */
+	DECLARE_DELEGATE_OneParam(FAccessibleEvent, const FAccessibleEventArgs&);
 
 	FGenericAccessibleMessageHandler() : bApplicationIsAccessible(false), bIsActive(false) {}
 
@@ -573,14 +594,12 @@ public:
 	/**
 	 * Push an event from an accessible widget back to the platform layer.
 	 *
-	 * @param Widget The widget raising the event
-	 * @param Event The type of event being raised
-	 * @param OldValue See EAccessibleEvent documentation for more details.
-	 * @param NewValue See EAccessibleEvent documentation for more details.
+	 * @param Args The arguments to be passed to the accessible event delegate.
+	 * @see FAccessibleEventArgs
 	 */
-	void RaiseEvent(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue = FVariant(), FVariant NewValue = FVariant())
+	void RaiseEvent(const FAccessibleEventArgs& Args)
 	{
-		AccessibleEventDelegate.ExecuteIfBound(Widget, Event, OldValue, NewValue);
+		AccessibleEventDelegate.ExecuteIfBound(Args);
 	}
 
 	/**

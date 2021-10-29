@@ -2296,16 +2296,16 @@ float GMacAccessibleAnnouncementDelay = 0.1f;
 FAutoConsoleVariableRef MacAccessibleAnnouncementDealyRef(
 	TEXT("mac.AccessibleAnnouncementDelay"),
 	GMacAccessibleAnnouncementDelay,
-	TEXT("We need to introduce a small delay to avoid OSX system accessibility announcements from stomping on our requested user announcement. Delays <= 0.05f are too short and result in the announcement being dropped. Dellays ~0.075f result in unstable delivery")
+	TEXT("We need to introduce a small delay to avoid OSX system accessibility announcements from stomping on our requested user announcement. Delays <= 0.05f are too short and result in the announcement being dropped. Delays ~0.075f result in unstable delivery")
 );
 
-void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+void FMacApplication::OnAccessibleEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args)
 {
 	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
 	check(IsInGameThread());
 	
-	const AccessibleWidgetId Id = Widget->GetId();
-	switch (Event)
+	const AccessibleWidgetId Id = Args.Widget->GetId();
+	switch (Args.Event)
 	{
 		case EAccessibleEvent::FocusChange:
 		{
@@ -2314,11 +2314,12 @@ void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 		}
 		case EAccessibleEvent::ParentChanged:
 		{
+			FVariant NewValueCopy = Args.OldValue;
 			MainThreadCall(^{
 				FMacAccessibilityElement* Element = [[FMacAccessibilityManager AccessibilityManager] GetAccessibilityElement:Id];
 				if(Element)
 				{
-					const AccessibleWidgetId NewParentId = NewValue.GetValue<AccessibleWidgetId>();
+					const AccessibleWidgetId NewParentId = NewValueCopy.GetValue<AccessibleWidgetId>();
 					Element.ParentId = NewParentId;
 					FMacAccessibilityElement* NewParent = [[FMacAccessibilityManager AccessibilityManager]GetAccessibilityElement:NewParentId];
 					Element.accessibilityParent = NewParent;
@@ -2348,7 +2349,7 @@ void FMacApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 		}
 		case EAccessibleEvent::Notification:
 		{
-			NSString* Announcement = [NSString stringWithFString:NewValue.GetValue<FString>()];
+			NSString* Announcement = [NSString stringWithFString:Args.NewValue.GetValue<FString>()];
 			NSDictionary* AnnouncementInfo = @{NSAccessibilityAnnouncementKey: Announcement, NSAccessibilityPriorityKey: @(NSAccessibilityPriorityHigh)};
 			MainThreadCall(^{
 				// If we don't wait for a small period of time, system announcements can stomp on our announcement
