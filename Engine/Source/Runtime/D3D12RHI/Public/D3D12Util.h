@@ -10,6 +10,8 @@
 #include "Containers/Queue.h"
 #include "RenderUtils.h"
 
+class FD3D12Adapter;
+
 namespace D3D12RHI
 {
 	/**
@@ -51,7 +53,11 @@ namespace D3D12RHI
 
 	/** Returns a string for the provided DXGI format. */
 	const TCHAR* GetD3D12TextureFormatString(DXGI_FORMAT TextureFormat);
-}
+
+	/** Checks if given GPU virtual address corresponds to any known resource allocations and logs results */
+	void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
+	
+} // namespace D3D12RHI
 
 using namespace D3D12RHI;
 
