@@ -220,12 +220,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		return;
 	}
 
-	// We don't need a visual representation for the low level function library graph
-	if(InGraph->IsA<URigVMFunctionLibrary>())
-	{
-		return;
-	}
-
 	if(UControlRigGraphSchema* ControlRigSchema = (UControlRigGraphSchema*)GetControlRigGraphSchema())
 	{
 		ControlRigSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
