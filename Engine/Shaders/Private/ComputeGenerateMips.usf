@@ -39,6 +39,44 @@ void MainCS(uint3 DT_ID : SV_DispatchThreadID)
 #endif
 }
 
+uint2 TextureSize;
+uint Offset;
+uint NumMips;
+Buffer<uint> ConditionBuffer;
+RWBuffer<uint> RWIndirectDispatchArgsBuffer;
+
+[numthreads(8,1,1)]
+void BuildIndirectDispatchArgsCS(uint DT_ID : SV_DispatchThreadID)
+{
+	if (DT_ID < NumMips)
+	{
+		uint Condition = ConditionBuffer[Offset];
+		
+		// Generate mipmaps only when Condition > 0
+		const bool bShouldDispatchGenerateMips = (Condition > 0);
+
+		if (bShouldDispatchGenerateMips)
+		{
+
+			uint2 DestTextureSize = uint2(
+				max(TextureSize.x >> (DT_ID + 1), 1),
+				max(TextureSize.y >> (DT_ID + 1), 1));
+
+			DestTextureSize = (DestTextureSize + 8 - 1) / 8;
+
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 0] = DestTextureSize.x;
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 1] = DestTextureSize.y;
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 2] = 1;
+		}
+		else
+		{
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 0] = 0;
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 1] = 0;
+			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 2] = 0;
+		}
+	}
+}
+
 #else // !GENMIPS_COMPUTE
 
 float2 HalfTexelSize;
