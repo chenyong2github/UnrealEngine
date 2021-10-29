@@ -20,19 +20,29 @@ public:
 	UWorldSubsystem();
 
 	virtual UWorld* GetWorld() const override final;
+
+	/**
+	 * Returns a reference to the UWorld this subsystem is contained within.
+	 * @note This should not be called on default object since the method assumes a valid outer world.
+	 */
+	UWorld& GetWorldRef() const;
+
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	/** Called once all UWorldSubsystems have been initialized */
 	virtual void PostInitialize() {}
 	
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
-	virtual void OnWorldBeginPlay(UWorld& InWorld) {};
+	virtual void OnWorldBeginPlay(UWorld& InWorld) {}
+
+	/** Called after world components (e.g. line batcher and all level components) have been updated */
+	virtual void OnWorldComponentsUpdated(UWorld& World) {}
 
 	/** Updates sub-system required streaming levels (called by world's UpdateStreamingState function) */
 	virtual void UpdateStreamingState() {}
 
 protected:
-	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const;
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const;
 };
 
 /**
