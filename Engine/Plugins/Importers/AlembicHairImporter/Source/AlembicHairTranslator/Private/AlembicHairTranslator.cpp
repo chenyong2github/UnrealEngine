@@ -2,9 +2,10 @@
 
 #include "AlembicHairTranslator.h"
 
-#include "HairDescription.h"
 #include "GroomCache.h"
 #include "GroomImportOptions.h"
+#include "HAL/IConsoleManager.h"
+#include "HairDescription.h"
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
@@ -24,6 +25,12 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogAlembicHairImporter, Log, All);
+
+static float GGroomCacheImportFrameRate = 24.0f;
+static FAutoConsoleVariableRef CVarGroomCacheImportFrameRate(
+	TEXT("GroomCache.ImportFrameRate"),
+	GGroomCacheImportFrameRate,
+	TEXT("The frame rate at which to import a GroomCache"));
 
 namespace AlembicHairFormat
 {
@@ -490,7 +497,8 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex,
 			}
 		}
 
-		Alembic::Abc::ISampleSelector SampleSelector((Alembic::Abc::index_t) FrameIndex);
+		const float FrameRate = FMath::Max(1.f, GGroomCacheImportFrameRate);
+		Alembic::Abc::ISampleSelector SampleSelector((Alembic::Abc::chrono_t) (FrameIndex / FrameRate));
 		Alembic::AbcGeom::ICurves::schema_type::Sample Sample = Curves.getSchema().getValue(SampleSelector);
 
 		Alembic::Abc::FloatArraySamplePtr Widths = Curves.getSchema().getWidthsParam() ? Curves.getSchema().getWidthsParam().getExpandedValue(SampleSelector).getVals() : nullptr;
