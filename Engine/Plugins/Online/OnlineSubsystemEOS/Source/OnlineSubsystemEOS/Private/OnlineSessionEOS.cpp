@@ -1226,6 +1226,12 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 			bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_Sessions_OutOfSync;
 			if (bWasSuccessful)
 			{
+				TSharedPtr<FOnlineSessionInfoEOS> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoEOS>(Session->SessionInfo);
+				if (SessionInfo.IsValid())
+				{
+					SessionInfo->SessionId = FUniqueNetIdEOS::Create(Data->SessionId);
+				}
+
 				Session->SessionState = EOnlineSessionState::Pending;
 				BeginSessionAnalytics(Session);
 
