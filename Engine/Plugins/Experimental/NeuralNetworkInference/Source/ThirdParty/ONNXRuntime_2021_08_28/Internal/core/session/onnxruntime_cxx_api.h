@@ -329,9 +329,7 @@ struct SessionOptions : Base<OrtSessionOptions> {
 
   SessionOptions& SetIntraOpNumThreads(int intra_op_num_threads); ///< Wraps OrtApi::SetIntraOpNumThreads
   SessionOptions& SetInterOpNumThreads(int inter_op_num_threads); ///< Wraps OrtApi::SetInterOpNumThreads
-#ifdef WITH_UE
-  SessionOptions& SetPriorityOpThreads(EThreadPriority ThreadPri);
-#endif
+  SessionOptions& SetPriorityOpThreads(EThreadPriority ThreadPri); // WITH_UE
   SessionOptions& SetGraphOptimizationLevel(GraphOptimizationLevel graph_optimization_level); ///< Wraps OrtApi::SetSessionGraphOptimizationLevel
 
   SessionOptions& EnableCpuMemArena(); ///< Wraps OrtApi::EnableCpuMemArena
