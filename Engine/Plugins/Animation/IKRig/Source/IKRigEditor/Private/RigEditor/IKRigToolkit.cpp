@@ -32,6 +32,11 @@ FIKRigEditorToolkit::FIKRigEditorToolkit()
 {
 }
 
+FIKRigEditorToolkit::~FIKRigEditorToolkit()
+{
+	EditorController->SkelMeshComponent->SetSkeletalMesh(nullptr);
+}
+
 void FIKRigEditorToolkit::InitAssetEditor(
 	const EToolkitMode::Type Mode,
     const TSharedPtr<IToolkitHost>& InitToolkitHost, 
@@ -45,7 +50,7 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewSceneCreated);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs, EditorController->AssetController->GetSkeleton());
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs);
 	
 	// when/if preview mesh is changed, we need to reinitialize the anim instance
     PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewMeshChanged));
@@ -176,20 +181,6 @@ void FIKRigEditorToolkit::PostRedo(bool bSuccess)
 	EditorController->RefreshAllViews();
 }
 
-void FIKRigEditorToolkit::HandleOpenNewAsset(UObject* InNewAsset)
-{
-	if (UAnimationAsset* NewAnimationAsset = Cast<UAnimationAsset>(InNewAsset))
-	{
-		EditorController->AnimInstance->SetAnimationAsset(NewAnimationAsset);
-	}
-}
-
-void FIKRigEditorToolkit::HandleAnimationSequenceBrowserCreated(
-	const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
-{
-	EditorController->SequenceBrowser = InSequenceBrowser;
-}
-
 void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
@@ -205,7 +196,7 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	// set the skeletal mesh on the component
 	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* Mesh = EditorController->AssetController->GetSourceSkeletalMesh();
+	USkeletalMesh* Mesh = EditorController->AssetController->GetSkeletalMesh();
 	EditorController->SkelMeshComponent->SetSkeletalMesh(Mesh);
 
 	// apply mesh to the preview scene
@@ -219,18 +210,16 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh)
 {
-	if (!InOldSkeletalMesh)
-	{
-		return; // first time setup
-	}
-
 	if (InOldSkeletalMesh == InNewSkeletalMesh)
 	{
 		return; // already set to this skeletal mesh
 	}
 	
 	// update asset with new skeletal mesh (will copy new skeleton data)
-	EditorController->AssetController->SetSourceSkeletalMesh(InNewSkeletalMesh, false);
+	if (!EditorController->AssetController->SetSkeletalMesh(InNewSkeletalMesh))
+	{
+		return; // mesh was not set (incompatible for some reason) todo, show reason in UI someplace
+	}
 
 	// update anim instance to use new skeletal mesh
 	// this is required so that the bone containers passed around during update/eval are correctly sized
@@ -243,6 +232,8 @@ void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalM
 	}
 
 	EditorController->SkelMeshComponent->SetSkeletalMesh(InNewSkeletalMesh);
+	
+	EditorController->RefreshAllViews();
 }
 
 void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView)
@@ -255,7 +246,6 @@ void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsVi
 void FIKRigEditorToolkit::OnFinishedChangingDetails(
     const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UE_LOG(LogTemp, Log, TEXT("FIKRigEditorToolkit::OnFinishedChangingProperties"));
 }
 
 void FIKRigEditorToolkit::HandleReset()

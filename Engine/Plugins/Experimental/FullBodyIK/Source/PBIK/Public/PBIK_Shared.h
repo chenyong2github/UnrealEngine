@@ -46,10 +46,10 @@ struct PBIK_API FPBIKBoneSetting
 	 *Locked: no rotation is allowed in this axis (will remain at reference pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType X;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the negative X direction to allow when joint is in "Limited" mode. */
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative X direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinX = 0.0f;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the positive X direction to allow when joint is in "Limited" mode. */
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive X direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxX = 0.0f;
 
@@ -59,10 +59,10 @@ struct PBIK_API FPBIKBoneSetting
 	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType Y;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the negative Y direction to allow when joint is in "Limited" mode. */
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Y direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinY = 0.0f;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the positive Y direction to allow when joint is in "Limited" mode. */
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Y direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxY = 0.0f;
 
@@ -72,10 +72,10 @@ struct PBIK_API FPBIKBoneSetting
 	*Locked: no rotation is allowed in this axis (will remain at input pose angle). */
 	UPROPERTY(EditAnywhere, Category = Limits)
 	EPBIKLimitType Z;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the negative Z direction to allow when joint is in "Limited" mode. */
+	/**Range is -180 to 0 (Default is 0). Degrees of rotation in the negative Z direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "-180", ClampMax = "0", UIMin = "-180.0", UIMax = "0.0"))
 	float MinZ = 0.0f;
-	/**Range is -180 to 180 (Default is 0). Degrees of rotation in the positive Z direction to allow when joint is in "Limited" mode. */
+	/**Range is 0 to 180 (Default is 0). Degrees of rotation in the positive Z direction to allow when joint is in "Limited" mode. */
 	UPROPERTY(EditAnywhere, Category = Limits, meta = (ClampMin = "0", ClampMax = "180", UIMin = "0.0", UIMax = "180.0"))
 	float MaxZ = 0.0f;
 

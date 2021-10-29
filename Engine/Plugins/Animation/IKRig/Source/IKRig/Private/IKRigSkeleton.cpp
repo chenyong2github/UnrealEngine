@@ -2,31 +2,44 @@
 
 #include "IKRigSkeleton.h"
 
-#include "IKRigDefinition.h"
-#include "IKRigProcessor.h"
+void FIKRigSkeleton::SetInputSkeleton(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
+{
+	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(RefSkeleton);
+	SetInputSkeleton(InputSkeleton, InExcludedBones);
+}
 
-void FIKRigSkeleton::Initialize(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones)
+void FIKRigSkeleton::SetInputSkeleton(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones)
 {
 	check(InputSkeleton.BoneNames.Num() == InputSkeleton.ParentIndices.Num() &&
-		  InputSkeleton.BoneNames.Num() == InputSkeleton.LocalRefPose.Num())
+		InputSkeleton.BoneNames.Num() == InputSkeleton.LocalRefPose.Num())
 	
 	// reset all containers
 	Reset();
 	
-	// copy names, parent indices and excluded state into local storage
+	// we use the bone names and parent indices from the input skeleton
 	BoneNames = InputSkeleton.BoneNames;
 	ParentIndices = InputSkeleton.ParentIndices;
+	
+	// bones are excluded at the skeleton level, instead of per-solver
 	ExcludedBones = InExcludedBones;
+	
+	// get a compacted local ref pose based on the stored names
+	TArray<FTransform> CompactRefPoseLocal;
+	// copy a compacted reference pose using only the bones in the input skeleton
+	for (int32 BoneIndex=0; BoneIndex<InputSkeleton.BoneNames.Num(); ++BoneIndex)
+	{
+		// store ref pose of this bone
+		CompactRefPoseLocal.Add(InputSkeleton.LocalRefPose[BoneIndex]);
+	}
+	
+	// copy local ref pose to global
+	ConvertLocalPoseToGlobal(ParentIndices, CompactRefPoseLocal, RefPoseGlobal);
 
-	// copy all the poses out of the ref skeleton
-	CopyPosesFromInputSkeleton(InputSkeleton);
-}
+	// initialize CURRENT GLOBAL pose to reference pose
+	CurrentPoseGlobal = RefPoseGlobal;
 
-void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
-{
-	FIKRigInputSkeleton InputSkeleton;
-	InputSkeleton.InitializeFromRefSkeleton(RefSkeleton);
-	Initialize(InputSkeleton, InExcludedBones);
+	// initialize CURRENT LOCAL pose from global pose
+	UpdateAllLocalTransformFromGlobal();
 }
 
 void FIKRigSkeleton::Reset()
@@ -86,58 +99,6 @@ int32 FIKRigSkeleton::GetParentIndexThatIsNotExcluded(const int32 BoneIndex) con
 	}
 	
 	return ParentIndex;
-}
-
-bool FIKRigSkeleton::CopyPosesFromInputSkeleton(const FIKRigInputSkeleton& InputSkeleton)
-{
-	// get a compacted local ref pose based on the stored names
-	TArray<FTransform> CompactRefPoseLocal;
-
-	// validate all the bones in the input skeleton, comparing against the stored skeleton
-	for (int32 StoredBoneIndex=0; StoredBoneIndex<BoneNames.Num(); ++StoredBoneIndex)
-	{
-		const FName& BoneName = BoneNames[StoredBoneIndex];
-		const int32 InputBoneIndex = InputSkeleton.BoneNames.Find(BoneName);
-
-		// validate that input skeleton has required bone
-		if (InputBoneIndex == INDEX_NONE)
-		{
-			UE_LOG(LogTemp, Error, TEXT("IK Rig is running on a skeleton that is missing bone named, '%s'."), *BoneName.ToString());
-			return false;
-		}
-
-		// validate that input skeleton hierarchy is as expected
-		const int32 StoredParentIndex = ParentIndices[StoredBoneIndex];
-		if (StoredParentIndex != -1) // root bone has no parent
-		{
-			const FName& StoredParentName = BoneNames[StoredParentIndex];
-			const int32 InputParentIndex = InputSkeleton.ParentIndices[InputBoneIndex];
-			const FName& InputParentName = InputSkeleton.BoneNames[InputParentIndex];
-			if (StoredParentName != InputParentName)
-			{
-				UE_LOG(LogTemp, Error,
-					TEXT("IK Rig is running on a skeleton with a bone, '%s', that has a different parent '%s'. The expected parent was, '%s'."),
-					*BoneName.ToString(),
-					*InputParentName.ToString(),
-					*StoredParentName.ToString());
-				return false;
-			}	
-		}
-
-		// store ref pose of this bone
-		CompactRefPoseLocal.Add(InputSkeleton.LocalRefPose[InputBoneIndex]);
-	}
-	
-	// copy local ref pose to global
-	ConvertLocalPoseToGlobal(ParentIndices, CompactRefPoseLocal, RefPoseGlobal);
-
-	// initialize current GLOBAL pose to reference pose
-	CurrentPoseGlobal = RefPoseGlobal;
-
-	// initialize current LOCAL pose
-	UpdateAllLocalTransformFromGlobal();
-
-	return true; // supplied input skeleton had all the bones we are looking for
 }
 
 void FIKRigSkeleton::ConvertLocalPoseToGlobal(

@@ -38,7 +38,7 @@ UObject* UIKRigDefinitionFactory::FactoryCreateNew(
 	
 	// imports the skeleton data into the IK Rig
 	UIKRigController* Controller = UIKRigController::GetIKRigController(IKRig);
-	Controller->SetSourceSkeletalMesh(SkeletalMesh, true);
+	Controller->SetSkeletalMesh(SkeletalMesh);
 	
 	return IKRig;
 }

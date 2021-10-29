@@ -52,7 +52,7 @@ public:
 	/** get index of the first selected solver, return INDEX_None if nothing selected */
 	int32 GetSelectedSolverIndex();
 	/** right after importing a skeleton, we ask user what solver they want to use */
-	void PromptToAddSolver() const;
+	bool PromptToAddSolver() const;
 	/** determine if the element is connected to the selected solver */
 	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
 	/** determine if the element is connected to ANY solver */
@@ -67,7 +67,7 @@ public:
 	/** show GOAL settings in details view */
 	void ShowDetailsForGoal(const FName GoalName);
 	/** show EFFECTOR settings in details view */
-	void ShowDetailsForEffector(const FName GoalName, const int32 SolverIndex);
+	void ShowDetailsForGoalSettings(const FName GoalName, const int32 SolverIndex);
 	/** show SOLVER settings in details view */
 	void ShowDetailsForSolver(const int32 SolverIndex);
 	/** show nothing in details view */
@@ -75,6 +75,9 @@ public:
 
 	/** create a new retarget chain */
 	void AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone);
+
+	/** play preview animation on running anim instance in editor (before IK) */
+	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
 	
 	/** all modifications to the data model should go through this controller */
 	UIKRigController* AssetController;
@@ -85,9 +88,6 @@ public:
 	/** viewport anim instance */
 	UPROPERTY(transient, NonTransactional)
 	TObjectPtr<class UIKRigAnimInstance> AnimInstance;
-
-	/** Sequence Browser **/
-	TWeakPtr<class IAnimationSequenceBrowser> SequenceBrowser;
 
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;

@@ -26,8 +26,17 @@ public:
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) PURE_VIRTUAL("Solve");
 	//** END RUNTIME */
 
-#if WITH_EDITORONLY_DATA
+	//** ROOT BONE (optional, implement if your solver requires a root bone) */
+	/** if solver requires a root bone, then override this to return it. */
+	virtual FName GetRootBone() const { return NAME_None; };
+	/** override to support telling outside systems which bones this solver has setting for.
+	* NOTE: This must be overriden on solvers that use bone settings.
+	* NOTE: Only ADD to the incoming set, do not remove from it. */
+	virtual void GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const {};
 	
+	//** END ROOT BONE */
+
+#if WITH_EDITORONLY_DATA
 	/** callback whenever this solver is edited */
 	DECLARE_EVENT_OneParam(UIKRigSolver, FIKRigSolverModified, UIKRigSolver*);
 	FIKRigSolverModified& OnSolverModified(){ return IKRigSolverModified; };
@@ -60,14 +69,14 @@ public:
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) PURE_VIRTUAL("SetGoalBone");
 	/** override to support QUERY for a connected goal */
 	virtual bool IsGoalConnected(const FName& GoalName) const {return false;};
-	/** override to support supplying effector settings to outside systems for editing/UI */
-	virtual UObject* GetEffectorWithGoal(const FName& GoalName) const {return nullptr;};
+	/** override to support supplying goals settings specific to this solver to outside systems for editing/UI */
+	virtual UObject* GetGoalSettings(const FName& GoalName) const {return nullptr;};
 	//** END GOALS */
 
 	//** ROOT BONE (optional, implement if your solver requires a root bone) */
 	/** override to support SETTING ROOT BONE for the solver */
 	virtual void SetRootBone(const FName& RootBoneName){};
-	virtual bool CanSetRootBone() const { return false; };
+	virtual bool RequiresRootBone() const { return false; };
 	//** END ROOT BONE */
 
 	//** BONE SETTINGS (optional, implement if your solver supports per-bone settings) */
@@ -75,11 +84,13 @@ public:
 	virtual void AddBoneSetting(const FName& BoneName){};
 	/** override to support ADDING PER-BONE settings for this solver */
 	virtual void RemoveBoneSetting(const FName& BoneName){};
-	/** override to support supplying per-bone settings to outside systems for editing/UI */
-	virtual UObject* GetBoneSetting(const FName& BoneName) const { return nullptr; };
+	/** override to support supplying per-bone settings to outside systems for editing/UI
+	 ** NOTE: This must be overriden on solvers that use bone settings.*/
+	virtual UObject* GetBoneSetting(const FName& BoneName) const { ensure(!UsesBoneSettings()); return nullptr; };
+	
 	/** override to tell systems if this solver supports per-bone settings */
 	virtual bool UsesBoneSettings() const { return false;};
-	/** override to draw custom per-bone settings in the editor viewport */
+	/** todo override to draw custom per-bone settings in the editor viewport */
 	virtual void DrawBoneSettings(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton, FPrimitiveDrawInterface* PDI) const {};
 	/** return true if the supplied Bone is affected by this solver - this provides UI feedback for user */
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const { return false; };
@@ -97,6 +108,6 @@ private:
 
 	UPROPERTY()
 	bool bIsEnabled = true;
-
 #endif
+
 };

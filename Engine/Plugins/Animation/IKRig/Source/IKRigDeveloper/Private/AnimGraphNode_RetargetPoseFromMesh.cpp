@@ -62,25 +62,25 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 	}
 
 	// validate SOURCE IK Rig asset has been assigned
-	if (!Node.IKRetargeterAsset->SourceIKRigAsset)
+	if (!Node.IKRetargeterAsset->GetSourceIKRig())
 	{
 		MessageLog.Warning(TEXT("@@ has IK Retargeter that is missing a source IK Rig asset."), this);
 	}
 
 	// validate TARGET IK Rig asset has been assigned
-	if (!Node.IKRetargeterAsset->TargetIKRigAsset)
+	if (!Node.IKRetargeterAsset->GetTargetIKRig())
 	{
 		MessageLog.Warning(TEXT("@@ has IK Retargeter that is missing a target IK Rig asset."), this);
 	}
 
-	if (!(Node.IKRetargeterAsset->SourceIKRigAsset && Node.IKRetargeterAsset->TargetIKRigAsset))
+	if (!(Node.IKRetargeterAsset->GetSourceIKRig() && Node.IKRetargeterAsset->GetTargetIKRig()))
 	{
 		return;
 	}
 	
 	// validate that target bone chains exist on this skeleton
 	const FReferenceSkeleton &RefSkel = ForSkeleton->GetReferenceSkeleton();
-	const TArray<FBoneChain> &TargetBoneChains = Node.IKRetargeterAsset->TargetIKRigAsset->GetRetargetChains();
+	const TArray<FBoneChain> &TargetBoneChains = Node.IKRetargeterAsset->GetTargetIKRig()->GetRetargetChains();
     for (const FBoneChain &Chain : TargetBoneChains)
     {
         if (RefSkel.FindBoneIndex(Chain.StartBone) == INDEX_NONE)
@@ -102,8 +102,8 @@ void UAnimGraphNode_RetargetPoseFromMesh::PreloadRequiredAssets()
 	if (Node.IKRetargeterAsset)
 	{
 		PreloadObject(Node.IKRetargeterAsset);
-		PreloadObject(Node.IKRetargeterAsset->SourceIKRigAsset);
-		PreloadObject(Node.IKRetargeterAsset->TargetIKRigAsset);
+		PreloadObject(Node.IKRetargeterAsset->GetSourceIKRigWriteable());
+		PreloadObject(Node.IKRetargeterAsset->GetTargetIKRigWriteable());
 	}
 }
 

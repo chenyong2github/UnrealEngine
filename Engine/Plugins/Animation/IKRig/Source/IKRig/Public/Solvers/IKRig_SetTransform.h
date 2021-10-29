@@ -57,7 +57,7 @@ public:
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
 	virtual bool IsGoalConnected(const FName& GoalName) const override;
-	virtual UObject* GetEffectorWithGoal(const FName& GoalName) const override;
+	virtual UObject* GetGoalSettings(const FName& GoalName) const override;
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const override;
 #endif
 	/** END UIKRigSolver interface */

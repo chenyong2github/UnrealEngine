@@ -26,14 +26,11 @@ struct IKRIG_API FRetargetSkeleton
 	
 	USkeletalMesh* SkeletalMesh;
 
-	void Initialize(
-		USkeletalMesh* InSkeletalMesh, 
-		FIKRetargetPose* InRetargetPose,
-		const FName& RetargetRootBone);
+	void Initialize(USkeletalMesh* InSkeletalMesh);
 
 	void Reset();
 
-	void GenerateRetargetPose(FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
+	void GenerateRetargetPose();
 
 	int32 FindBoneIndexByName(const FName InName) const;
 
@@ -66,17 +63,39 @@ struct FTargetSkeleton : public FRetargetSkeleton
 {
 	TArray<FTransform> OutputGlobalPose;
 	TArray<bool> IsBoneRetargeted;
+	TArray<bool> IsBoneInAnyTargetChain;
 
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh, 
-		FIKRetargetPose* RetargetPose,
-		const FName& RetargetRootBone);
+		const FIKRetargetPose* RetargetPose,
+		const FName& RetargetRootBone,
+		const TArray<FBoneChain>& TargetChains);
+
+	void GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
 
 	void Reset();
 
 	void SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRetargeted);
 
 	void UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransform>& InOutGlobalPose);
+};
+
+/** resolving an FBoneChain to an actual skeleton, used to validate compatibility and get all chain indices */
+struct IKRIG_API FResolvedBoneChain
+{
+	FResolvedBoneChain(const FBoneChain& BoneChain, const FRetargetSkeleton& Skeleton, TArray<int32> &OutBoneIndices);
+
+	/* Does the START bone exist in the skeleton? */
+	bool bFoundStartBone = false;
+	/* Does the END bone exist in the skeleton? */
+	bool bFoundEndBone = false;
+	/* Is the END bone a child of the START bone? */
+	bool bEndIsChildOfStart = false;
+
+	bool IsValid() const
+	{
+		return bFoundStartBone && bFoundEndBone && bEndIsChildOfStart;
+	}
 };
 
 struct FRootSource
@@ -341,6 +360,15 @@ private:
 	/** Only true once Initialize() has successfully completed.*/
 	bool bIsInitialized = false;
 
+	/** true when roots are able to be retargeted */
+	bool bRootsInitialized = false;
+
+	/** true when at least one pair of bone chains is able to be retargeted */
+	bool bAtLeastOneValidBoneChainPair = false;
+
+	/** true when roots are able to be retargeted */
+	bool bIKRigInitialized = false;
+
 	/** The source asset this processor was initialized with. */
 	UIKRetargeter* RetargeterAsset = nullptr;
 
@@ -362,7 +390,7 @@ private:
 
 	/** The Source/Target pair of Root Bones retargeted with scaled translation */
 	FRootRetargeter RootRetargeter;
-
+	
 	/** Initializes the FRootRetargeter */
 	bool InitializeRoots();
 

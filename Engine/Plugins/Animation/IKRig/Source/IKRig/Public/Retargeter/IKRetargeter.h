@@ -72,12 +72,50 @@ struct IKRIG_API FIKRetargetPose
 	void AddTranslationDeltaToRoot(FVector TranslateDelta);
 };
 
+
 UCLASS(Blueprintable)
 class IKRIG_API UIKRetargeter : public UObject
 {
 	GENERATED_BODY()
-	
 public:
+
+	/** Get read-only access to the source IK Rig asset */
+	const UIKRigDefinition* GetSourceIKRig() const { return SourceIKRigAsset; };
+	/** Get read-only access to the target IK Rig asset */
+	const UIKRigDefinition* GetTargetIKRig() const { return TargetIKRigAsset; };
+	/** Get read-write access to the source IK Rig asset.
+	 * WARNING: do not use for editing the data model. Use Controller class instead. */
+	 UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset; };
+	/** Get read-write access to the target IK Rig asset.
+	 * WARNING: do not use for editing the data model. Use Controller class instead. */
+	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset; };
+	/** Get read-only access to the chain mapping */
+	const TArray<FRetargetChainMap>& GetChainMapping() const { return ChainMapping; };
+	/** Get read-only access to a retarget pose */
+	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
+
+	/* Get name of Source IK Rig property */
+	static const FName GetSourceIKRigPropertyName();
+	/* Get name of Target IK Rig property */
+	static const FName GetTargetIKRigPropertyName();
+#if WITH_EDITOR
+	/* Get name of Target Preview Mesh property */
+	static const FName GetTargetPreviewMeshPropertyName();
+#endif
+	/* Get name of default pose */
+	static const FName GetDefaultPoseName();
+
+#if WITH_EDITOR
+	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; };
+
+	// This delegate is called when an edit operation is undone on the rig asset.
+	DECLARE_MULTICAST_DELEGATE(OnIKRigEditUndo);
+	OnIKRigEditUndo IKRigEditUndo;
+	
+	virtual void PostEditUndo() override;
+#endif
+
+private:
 
 	/** The rig to copy animation FROM.*/
 	UPROPERTY(VisibleAnywhere, Category = Rigs)
@@ -87,6 +125,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Rigs)
 	TObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
 
+public:
+
+#if WITH_EDITORONLY_DATA
+	/** The Skeletal Mesh to preview the retarget on.*/
+	UPROPERTY(EditAnywhere, Category = Rigs)
+	TObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
+#endif
+	
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
 	UPROPERTY(EditAnywhere, Category = RetargetPhases)
 	bool bRetargetRoot = true;
@@ -116,6 +162,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = PoseEditSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
 	float BoneDrawThickness = 1.0f;
 
+private:
 	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,
 	* rather than actually running the retarget and outputting the retargeted pose. Used in Edit-Pose mode.*/
 	UPROPERTY()
@@ -125,7 +172,8 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> Controller;
 #endif
-	
+
+private:
 	/** The set of retarget poses available as options for retargeting.*/
 	UPROPERTY(VisibleAnywhere, Category = EditRetargetPoses)
 	TMap<FName, FIKRetargetPose> RetargetPoses;
@@ -138,6 +186,8 @@ public:
 	UPROPERTY()
 	FName CurrentRetargetPose = DefaultPoseName;
 	static const FName DefaultPoseName;
+
+	friend class UIKRetargeterController;
 };
 
 

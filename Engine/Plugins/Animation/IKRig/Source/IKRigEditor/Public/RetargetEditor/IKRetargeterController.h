@@ -27,6 +27,17 @@ public:
 	/** Get access to the retargeter asset.
 	 *@warning Do not make modifications to the asset directly. Use this API instead. */
 	UIKRetargeter* GetAsset() const;
+
+	/** SOURCE / TARGET
+	* 
+	*/
+	/** Set the IK Rig to use as the source (to copy animation FROM) */
+	void SetSourceIKRig(UIKRigDefinition* SourceIKRig);
+	/** Set the IK Rig to use as the target (to copy animation TO) */
+	void SetTargetIKRig(UIKRigDefinition* TargetIKRig);
+	/** Get target skeletal mesh */
+	USkeletalMesh* GetTargetPreviewMesh();
+	
 	/** Get the USkeleton used on the Source asset */
 	USkeleton* GetSourceSkeletonAsset() const;
 
@@ -78,14 +89,16 @@ public:
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
 	/** Set whether to output retarget pose. Will output current retarget pose if true, or run retarget otherwise. */
-	void SetEditRetargetPoseMode(bool bOutputRetargetPose) const;
+	void SetEditRetargetPoseMode(bool bOutputRetargetPose, bool bReinitializeAfter=true) const;
 	/** Get whether in mode to output retarget pose (true) or run retarget (false). */
 	bool GetEditRetargetPoseMode() const;
+	/** Add a numbered suffix to the given pose name to make it unique. */
+	FName MakePoseNameUnique(FName PoseName) const;
 	/** END RETARGET POSE EDITING */
 
 private:
-
-	/** Called whenever the rig is modified in such a way that would require re-initialization by dependent systems.*/
+	
+	/** Called whenever the retargeter is modified in such a way that would require re-initialization by dependent systems.*/
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, const UIKRetargeter*);
 	FOnRetargeterNeedsInitialized RetargeterNeedsInitialized;
 

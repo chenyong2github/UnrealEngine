@@ -10,6 +10,8 @@
 #include "RigEditor/IKRigHitProxies.h"
 #include "RigEditor/IKRigToolkit.h"
 
+#define LOCTEXT_NAMESPACE "IKRetargeterEditMode"
+
 FName FIKRigEditMode::ModeName("IKRigAssetEditMode");
 
 FIKRigEditMode::FIKRigEditMode()
@@ -29,10 +31,9 @@ bool FIKRigEditMode::GetCameraTarget(FSphere& OutTarget) const
 	if (!OutGoalNames.IsEmpty())
 	{
 		TArray<FVector> GoalPoints;
-		for (const auto& GoalName : OutGoalNames)
-		{
-			FTransform GoalTransform = Controller->AssetController->GetBoneRetargetPose(Controller->AssetController->GetGoal(GoalName)->BoneName);
-			GoalPoints.Add(GoalTransform.GetLocation());
+		for (const FName& GoalName : OutGoalNames)
+		{			
+			GoalPoints.Add(Controller->AssetController->GetGoal(GoalName)->CurrentTransform.GetLocation());
 		}
 
 		// create a sphere that contains all the goal points
@@ -194,7 +195,12 @@ bool FIKRigEditMode::StartTracking(FEditorViewportClient* InViewportClient, FVie
 	{
 		return false; // not manipulating a required axis
 	}
-	
+
+	GEditor->BeginTransaction(LOCTEXT("ManipulateGoal", "Manipulate IK Rig Goal"));
+	for (const FName& SelectedGoal : SelectedGoalNames)
+	{
+		Controller->AssetController->ModifyGoal(SelectedGoal);
+	}
 	Controller->bManipulatingGoals = true;
 	return true;
 }
@@ -212,6 +218,7 @@ bool FIKRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, FViewp
 		return false; // not handled
 	}
 
+	GEditor->EndTransaction();
 	Controller->bManipulatingGoals = false;
 	return true;
 }
@@ -330,3 +337,4 @@ void FIKRigEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* V
 	FEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
 }
 
+#undef LOCTEXT_NAMESPACE

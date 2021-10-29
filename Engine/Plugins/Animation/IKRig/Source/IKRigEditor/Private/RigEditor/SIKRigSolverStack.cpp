@@ -373,7 +373,7 @@ void SIKRigSolverStack::RefreshStackView()
 	for (int32 i=0; i<NumSolvers; ++i)
 	{
 		const UIKRigSolver* Solver = AssetController->GetSolver(i);
-		const FText DisplayName = Solver ? FText::FromString(Solver->GetNiceName().ToString()) : FText::FromString("Unknown Solver");
+		const FText DisplayName = Solver ? FText::FromString(AssetController->GetSolverUniqueName(i)) : FText::FromString("Unknown Solver");
 		TSharedPtr<FSolverStackElement> SolverItem = FSolverStackElement::Make(DisplayName, i);
 		ListViewItems.Add(SolverItem);
 	}

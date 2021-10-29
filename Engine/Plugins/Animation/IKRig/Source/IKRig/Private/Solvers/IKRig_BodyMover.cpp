@@ -244,7 +244,7 @@ bool UIKRig_BodyMover::IsGoalConnected(const FName& GoalName) const
 	return GetIndexOfGoal(GoalName) != INDEX_NONE;
 }
 
-UObject* UIKRig_BodyMover::GetEffectorWithGoal(const FName& GoalName) const
+UObject* UIKRig_BodyMover::GetGoalSettings(const FName& GoalName) const
 {
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
 	if (GoalIndex == INDEX_NONE)

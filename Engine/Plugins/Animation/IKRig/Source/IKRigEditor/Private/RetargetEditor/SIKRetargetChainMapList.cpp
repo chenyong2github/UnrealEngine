@@ -40,7 +40,7 @@ void SIKRetargetChainMapRow::Construct(
 	// NOTE: cannot just use FName because "None" is considered a null entry and removed from ComboBox.
 	SourceChainOptions.Reset();
 	SourceChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
-	const UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->AssetController->GetAsset()->SourceIKRigAsset;
+	const UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->AssetController->GetAsset()->GetSourceIKRig();
 	if (SourceIKRig)
 	{
 		const TArray<FBoneChain>& Chains = SourceIKRig->GetRetargetChains();
@@ -154,7 +154,7 @@ void SIKRetargetChainMapList::Construct(
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(this, &SIKRetargetChainMapList::GetSourceRootBone)
+				.Text(this, &SIKRetargetChainMapList::GetTargetRootBone)
 				.IsEnabled(false)
 			]
 				
@@ -175,7 +175,7 @@ void SIKRetargetChainMapList::Construct(
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(this, &SIKRetargetChainMapList::GetTargetRootBone)
+				.Text(this, &SIKRetargetChainMapList::GetSourceRootBone)
 				.IsEnabled(false)
 			]
 		]
@@ -261,9 +261,9 @@ bool SIKRetargetChainMapList::IsChainMapEnabled() const
 		return false; 
 	}
 	
-	if (RetargeterController->GetAsset()->TargetIKRigAsset)
+	if (RetargeterController->GetAsset()->GetTargetIKRig())
 	{
-		const TArray<FBoneChain>& Chains = RetargeterController->GetAsset()->TargetIKRigAsset->GetRetargetChains();
+		const TArray<FBoneChain>& Chains = RetargeterController->GetAsset()->GetTargetIKRig()->GetRetargetChains();
 		return Chains.Num() > 0;
 	}
 

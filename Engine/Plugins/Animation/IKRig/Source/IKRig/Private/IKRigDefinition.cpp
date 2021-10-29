@@ -18,6 +18,15 @@ FBoneChain* FRetargetDefinition::GetEditableBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
+
+#if WITH_EDITOR
+void UIKRigDefinition::PostEditUndo()
+{
+	Super::PostEditUndo();
+	IKRigEditUndo.Broadcast();
+}
+#endif
+
 const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) const
 {
 	for (const FBoneChain& Chain : RetargetDefinition.BoneChains)

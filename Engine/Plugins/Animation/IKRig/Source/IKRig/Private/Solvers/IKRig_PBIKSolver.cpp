@@ -130,6 +130,17 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	}
 }
 
+void UIKRigPBIKSolver::GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const
+{
+	for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
+	{
+		if (BoneSetting)
+		{
+			OutBonesWithSettings.Add(BoneSetting->Bone);
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
@@ -174,7 +185,7 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 
 FText UIKRigPBIKSolver::GetNiceName() const
 {
-	return FText(LOCTEXT("SolverName", "Full-Body IK"));
+	return FText(LOCTEXT("SolverName", "Full Body IK"));
 }
 
 bool UIKRigPBIKSolver::GetWarningMessage(FText& OutWarningMessage) const
@@ -251,7 +262,7 @@ void UIKRigPBIKSolver::SetRootBone(const FName& RootBoneName)
 	RootBone = RootBoneName;
 }
 
-UObject* UIKRigPBIKSolver::GetEffectorWithGoal(const FName& GoalName) const
+UObject* UIKRigPBIKSolver::GetGoalSettings(const FName& GoalName) const
 {
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
 	if (GoalIndex == INDEX_NONE)

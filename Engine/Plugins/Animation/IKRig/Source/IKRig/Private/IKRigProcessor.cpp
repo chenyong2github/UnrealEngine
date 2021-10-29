@@ -4,7 +4,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 
-void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
+void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
@@ -23,34 +23,18 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FIKRigInput
 	
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no skeleton: %s"), *InRigAsset->GetName());
+		UE_LOG(LogTemp, Error, TEXT("Trying to initialize IKRig that has no skeleton: %s"), *InRigAsset->GetName());
 		return;
 	}
 
-	if (InRigAsset->GetSolverArray().IsEmpty())
+	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, InputSkeleton))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no solvers: %s"), *InRigAsset->GetName());
+		UE_LOG(LogTemp, Error, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. %s"), *InRigAsset->GetName());
 		return;
 	}
 
-	if (InRigAsset->GetGoalArray().IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no goals: %s"), *InRigAsset->GetName());
-		return;
-	}
-
-	// copy skeleton data from IKRigDefinition
-	// we use the serialized bone names and parent indices (from when asset was initialized)
-	// but we use the CURRENT ref pose from the currently running skeletal mesh (RefSkeleton)
-	Skeleton.BoneNames = InRigAsset->Skeleton.BoneNames;
-	Skeleton.ParentIndices = InRigAsset->Skeleton.ParentIndices;
-	Skeleton.ExcludedBones = InRigAsset->Skeleton.ExcludedBones;
-	const bool bSkeletonIsCompatible = Skeleton.CopyPosesFromInputSkeleton(InputSkeleton);
-	if (!bSkeletonIsCompatible)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s trying to run on a skeleton that does not have the required bones."), *InRigAsset->GetName());
-		return;
-	}
+	// copy skeleton data from the actual skeleton we want to run on
+	Skeleton.SetInputSkeleton(InputSkeleton, InRigAsset->Skeleton.ExcludedBones);
 	
 	// initialize goals based on source asset
 	GoalContainer.Empty();
@@ -117,11 +101,91 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FIKRigInput
 	bInitialized = true;
 }
 
-void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
+void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
 {
-	FIKRigInputSkeleton InputSkeleton;
-	InputSkeleton.InitializeFromRefSkeleton(RefSkeleton);
+	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(RefSkeleton);
 	Initialize(InRigAsset, InputSkeleton);
+}
+
+bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
+{
+	// first we validate that all the required bones are in the input skeleton...
+	
+	TSet<FName> RequiredBones;
+	const TArray<UIKRigSolver*>& AssetSolvers = InRigAsset->GetSolverArray();
+	for (const UIKRigSolver* Solver : AssetSolvers)
+	{
+		const FName RootBone = Solver->GetRootBone();
+		if (RootBone != NAME_None)
+		{
+			RequiredBones.Add(RootBone);
+		}
+
+		Solver->GetBonesWithSettings(RequiredBones);
+	}
+
+	const TArray<UIKRigEffectorGoal*>& Goals = InRigAsset->GetGoalArray();
+	for (const UIKRigEffectorGoal* Goal : Goals)
+	{
+		RequiredBones.Add(Goal->BoneName);
+	}
+
+	bool bAllRequiredBonesFound = true;
+	for (const FName& RequiredBone : RequiredBones)
+	{
+		if (!InputSkeleton.BoneNames.Contains(RequiredBone))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("IK Rig, '%s' is missing a required bone in Skeletal Mesh: '%s'."), *InRigAsset->GetName(), *RequiredBone.ToString());
+			bAllRequiredBonesFound = false;
+		}
+	}
+
+	if (!bAllRequiredBonesFound)
+	{
+		return false;
+	}
+
+	// now we validate that hierarchy matches for all required bones...
+	bool bAllParentsValid = true;
+	
+	for (const FName& RequiredBone : RequiredBones)
+	{
+		const int32 InputBoneIndex = InputSkeleton.BoneNames.Find(RequiredBone);
+		const int32 AssetBoneIndex = InRigAsset->Skeleton.BoneNames.Find(RequiredBone);
+
+		// we shouldn't get this far otherwise due to early return above...
+		check(InputBoneIndex != INDEX_NONE && AssetBoneIndex != INDEX_NONE)
+
+		// validate that input skeleton hierarchy is as expected
+		const int32 AssetParentIndex = InRigAsset->Skeleton.ParentIndices[AssetBoneIndex];
+		if (InRigAsset->Skeleton.BoneNames.IsValidIndex(AssetParentIndex)) // root bone has no parent
+		{
+			const FName& AssetParentName = InRigAsset->Skeleton.BoneNames[AssetParentIndex];
+			const int32 InputParentIndex = InputSkeleton.ParentIndices[InputBoneIndex];
+			if (!InputSkeleton.BoneNames.IsValidIndex(InputParentIndex))
+			{
+				bAllParentsValid = false;
+				UE_LOG(LogTemp, Error,
+					TEXT("IK Rig is running on a skeleton with a required bone, '%s', that expected to have a valid parent. The expected parent was, '%s'."),
+					*RequiredBone.ToString(),
+					*AssetParentName.ToString());
+				continue;
+			}
+			const FName& InputParentName = InputSkeleton.BoneNames[InputParentIndex];
+			if (AssetParentName != InputParentName)
+			{
+				// we only warn about this, because it may be nice not to have the exact same hierarchy
+				UE_LOG(LogTemp, Warning,
+					TEXT("IK Rig is running on a skeleton with a required bone, '%s', that has a different parent '%s'. The expected parent was, '%s'."),
+					*InputParentName.ToString(),
+					*InputParentName.ToString(),
+					*AssetParentName.ToString());
+				continue;
+			}
+		}
+	}
+
+	return bAllParentsValid;
 }
 
 void UIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms) 
@@ -197,7 +261,7 @@ void UIKRigProcessor::SetNeedsInitialized()
 
 #if WITH_EDITOR
 
-void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* SourceAsset)
+void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefinition* SourceAsset)
 {
 	check(SourceAsset)
 	

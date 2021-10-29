@@ -257,7 +257,7 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 								return false;
 							}
 							
-							return BatchContext.IKRetargetAsset->SourceIKRigAsset != nullptr;
+							return BatchContext.IKRetargetAsset->GetSourceIKRig() != nullptr;
 						})
 						.ObjectPath(this, &SRetargetAnimAssetsWindow::GetCurrentSourceMeshPath)
 						.OnObjectChanged(this, &SRetargetAnimAssetsWindow::SourceMeshAssigned)
@@ -274,7 +274,7 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 								return true;
 							}
 							
-							USkeletalMesh* PreviewMesh = BatchContext.IKRetargetAsset->SourceIKRigAsset->GetPreviewMesh();
+							USkeletalMesh* PreviewMesh = BatchContext.IKRetargetAsset->GetSourceIKRig()->GetPreviewMesh();
 							if (!PreviewMesh)
 							{
 								return true;
@@ -332,7 +332,7 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 								return false;
 							}
 							
-							return BatchContext.IKRetargetAsset->TargetIKRigAsset != nullptr;
+							return BatchContext.IKRetargetAsset->GetTargetIKRig() != nullptr;
 						})
 						.ObjectPath(this, &SRetargetAnimAssetsWindow::GetCurrentTargetMeshPath)
 						.OnObjectChanged(this, &SRetargetAnimAssetsWindow::TargetMeshAssigned)
@@ -709,8 +709,8 @@ void SRetargetAnimAssetsWindow::RetargeterAssigned(const FAssetData& InAssetData
 {
 	UIKRetargeter* InRetargeter = Cast<UIKRetargeter>(InAssetData.GetAsset());
 	BatchContext.IKRetargetAsset = InRetargeter;
-	const UIKRigDefinition* SourceIKRig = InRetargeter ? InRetargeter->SourceIKRigAsset : nullptr;
-	const UIKRigDefinition* TargetIKRig = InRetargeter ? InRetargeter->TargetIKRigAsset : nullptr;
+	const UIKRigDefinition* SourceIKRig = InRetargeter ? InRetargeter->GetSourceIKRig() : nullptr;
+	const UIKRigDefinition* TargetIKRig = InRetargeter ? InRetargeter->GetTargetIKRig() : nullptr;
 	USkeletalMesh* SourceMesh =  SourceIKRig ? SourceIKRig->GetPreviewMesh() : nullptr;
 	USkeletalMesh* TargetMesh =  TargetIKRig ? TargetIKRig->GetPreviewMesh() : nullptr;
 	SourceMeshAssigned(FAssetData(SourceMesh));

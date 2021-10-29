@@ -7,6 +7,7 @@
 #include "IContentBrowserSingleton.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
+#include "RetargetEditor/IKRetargeterController.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Layout/SBorder.h"
 
@@ -41,7 +42,8 @@ UObject* UIKRetargetFactory::FactoryCreateNew(
 	}
 	
 	UIKRetargeter* Retargeter = NewObject<UIKRetargeter>(InParent, Class, Name, Flags);
-	Retargeter->SourceIKRigAsset = SourceIKRig;
+	UIKRetargeterController* Controller = UIKRetargeterController::GetController(Retargeter);
+	Controller->SetSourceIKRig(SourceIKRig);
 	return Retargeter;
 }
 

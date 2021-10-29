@@ -26,7 +26,15 @@ public:
         const float PositionAlpha,
         const float RotationAlpha)
 	{
-		GoalContainer.SetIKGoal(FIKRigGoal(GoalName, Position, Rotation, PositionAlpha, RotationAlpha));
+		GoalContainer.SetIKGoal(
+			FIKRigGoal(
+				GoalName,
+				Position,
+				Rotation,
+				PositionAlpha,
+				RotationAlpha,
+				EIKRigGoalSpace::Component,
+				EIKRigGoalSpace::Component));
 	};
 
 	/** Set an IK Rig Goal transform (assumed in Component Space of Skeletal Mesh) with separate alpha values. */
@@ -39,7 +47,15 @@ public:
 	{
 		const FVector Position = Transform.GetTranslation();
 		const FQuat Rotation = Transform.GetRotation();
-		GoalContainer.SetIKGoal(FIKRigGoal(GoalName, Position, Rotation, PositionAlpha, RotationAlpha));
+		GoalContainer.SetIKGoal(
+			FIKRigGoal(
+				GoalName,
+				Position,
+				Rotation,
+				PositionAlpha,
+				RotationAlpha,
+				EIKRigGoalSpace::Component,
+				EIKRigGoalSpace::Component));
 	};
 	
 	/** Apply a IKRigGoal and store it on this rig. Goal transform assumed in Component Space of Skeletal Mesh. */

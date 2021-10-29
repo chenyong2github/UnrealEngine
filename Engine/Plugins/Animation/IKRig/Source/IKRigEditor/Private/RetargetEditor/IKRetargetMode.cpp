@@ -31,7 +31,6 @@ FIKRetargetMode::FIKRetargetMode(
 	// register Persona tabs
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
-	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, InPreviewScene));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRetargetEditor.Get(), &FIKRetargetEditor::HandleDetailsCreated)));
 
 	// register custom tabs
@@ -39,7 +38,7 @@ FIKRetargetMode::FIKRetargetMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetAssetBrowserTabSummoner>(IKRetargetEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.006")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.007")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -66,7 +65,6 @@ FIKRetargetMode::FIKRetargetMode(
 					FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
 						->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
-						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
 						->SetForegroundTab(FPersonaTabs::DetailsID)
 					)
 					->Split
