@@ -160,6 +160,34 @@ static const char* GetClassCode()
 
  CORE_API FMacMallocCrashHandler* GCrashMalloc = nullptr;
 
+static void MacPlatformGetOSProductVersion(FString &OutOSVersion)
+{
+	SIZE_T OSProductVersionStringSize = 0;
+	if (0 == (sysctlbyname("kern.osproductversion", NULL, &OSProductVersionStringSize, NULL, 0)))
+	{
+		ANSICHAR *OSProductVersionCString = new ANSICHAR[OSProductVersionStringSize];
+		if (0 == (sysctlbyname("kern.osproductversion", OSProductVersionCString, &OSProductVersionStringSize, NULL, 0)))
+		{
+			OutOSVersion = ANSI_TO_TCHAR(OSProductVersionCString);
+		}
+		delete [] OSProductVersionCString;
+	}
+}
+
+static void MacPlatformGetOSVersion(FString &OutOSBuild)
+{
+	SIZE_T OSVersionStringSize = 0;
+	if (0 == (sysctlbyname("kern.osversion", NULL, &OSVersionStringSize, NULL, 0)))
+	{
+		ANSICHAR *OSVersionCString = new ANSICHAR[OSVersionStringSize];
+		if (0 == (sysctlbyname("kern.osversion", OSVersionCString, &OSVersionStringSize, NULL, 0)))
+		{
+			OutOSBuild = ANSI_TO_TCHAR(OSVersionCString);
+		}
+		delete [] OSVersionCString;
+	}
+}
+
 /**
  * Information that cannot be obtained during a signal-handler is initialised here.
  * This ensures that we only call safe functions within the crash reporting handler.
@@ -202,17 +230,12 @@ struct FMacApplicationInfo
 		
 		RunUUID = RunGUID();
 		
-		OSXVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
-		OSVersion = FString::Printf(TEXT("%ld.%ld.%ld"), OSXVersion.majorVersion, OSXVersion.minorVersion, OSXVersion.patchVersion);
+		MacPlatformGetOSProductVersion(OSVersion);
 		FCStringAnsi::Strcpy(OSVersionUTF8, PATH_MAX+1, TCHAR_TO_UTF8(*OSVersion));
 		
-		// macOS build number is only accessible on non-sandboxed applications as it resides outside the accessible sandbox
-		if(!bIsSandboxed)
-		{
-			NSDictionary* SystemVersion = [NSDictionary dictionaryWithContentsOfFile: @"/System/Library/CoreServices/SystemVersion.plist"];
-			OSBuild = FString((NSString*)[SystemVersion objectForKey: @"ProductBuildVersion"]);
-		}
+		MacPlatformGetOSVersion(OSBuild);
 
+		OSXVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
 		RunningOnMavericks = OSXVersion.majorVersion == 10 && OSXVersion.minorVersion == 9;
 
 		XcodeVersion.majorVersion = XcodeVersion.minorVersion = XcodeVersion.patchVersion = 0;
@@ -1575,13 +1598,15 @@ FGPUDriverInfo FMacPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescripti
 
 void FMacPlatformMisc::GetOSVersions( FString& out_OSVersionLabel, FString& out_OSSubVersionLabel )
 {
-	out_OSVersionLabel = GMacAppInfo.OSVersion;
-	out_OSSubVersionLabel = GMacAppInfo.OSBuild;
+	MacPlatformGetOSProductVersion(out_OSVersionLabel);
+	MacPlatformGetOSVersion(out_OSSubVersionLabel);
 }
 
 FString FMacPlatformMisc::GetOSVersion()
 {
-	return GMacAppInfo.OSVersion;
+	FString OSVersion;
+	MacPlatformGetOSProductVersion(OSVersion);
+	return OSVersion;
 }
 
 bool FMacPlatformMisc::GetDiskTotalAndFreeSpace(const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes)
