@@ -257,6 +257,11 @@ namespace Dml
             return m_impl->OnSessionInitializationEnd();
         }
 
+		onnxruntime::common::Status OnRunEnd(bool /*sync_stream*/) override // WITH_UE: Make sure that command lists are flushed when there's no copy from |GPU
+		{
+			return m_impl->OnSessionInitializationEnd();
+		}
+
         void Flush()
         {
             return m_impl->Flush();

@@ -261,20 +261,11 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 		// Input CPU + Network GPU + Output GPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 		{
-// @todo: Remove if/else (and else contents) once DX12 version of NNI (UEAndORT) is ready
-if (InBackEnd == ENeuralBackEnd::UEOnly /*|| true*/)
-{
 			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
 			InOutNetwork->Run();
 			InOutNetwork->OutputTensorsToCPU();
 			CPUGPUGPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
-}
-else
-{
-		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("FModelUnitTester::ModelAccuracyTest(): GPU output for UEAndORT back end not working yet. Uncomment this line to test it."));
-		CPUGPUGPUOutputs.Push(CPUGPUCPUOutputs[Index]);
-}
 		}
 		// Input GPU + Network GPU + Output CPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
