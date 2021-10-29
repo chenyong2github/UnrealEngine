@@ -11,6 +11,11 @@ UWorldSubsystem::UWorldSubsystem()
 
 }
 
+UWorld& UWorldSubsystem::GetWorldRef() const
+{
+	return *CastChecked<UWorld>(GetOuter(), ECastCheckedType::NullChecked);
+}
+
 UWorld* UWorldSubsystem::GetWorld() const
 {
 	return Cast<UWorld>(GetOuter());
@@ -28,7 +33,7 @@ bool UWorldSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	return DoesSupportWorldType(World->WorldType);
 }
 
-bool UWorldSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+bool UWorldSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	return WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE;
 }
