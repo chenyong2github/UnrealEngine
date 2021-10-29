@@ -119,7 +119,9 @@ public:
 private:
 
 	//we register this with sections.
-	void HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel);
+	void HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, const FName& InControlName, FMovieSceneControlRigSpaceChannel* Channel);
+	//we'll register this against all space channels
+	void HandleOnSpaceNoLongerUsed(FMovieSceneControlRigSpaceChannel* InChannel, const TArray<FRigElementKey>& InSpaces, FName InControlName);
 	//then send this event out to the track editor.
 	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent OnSpaceChannelAdded;
 

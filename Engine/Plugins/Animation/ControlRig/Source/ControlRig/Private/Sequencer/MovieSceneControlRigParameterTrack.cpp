@@ -8,6 +8,7 @@
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Rigs/RigHierarchyController.h"
 #define LOCTEXT_NAMESPACE "MovieSceneParameterControlRigTrack"
 
 
@@ -56,9 +57,37 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 	return  NewSection;
 }
 
-void UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel)
+void UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, const FName& InControlName, FMovieSceneControlRigSpaceChannel* Channel)
 {
-	OnSpaceChannelAdded.Broadcast(Section, Channel);
+	OnSpaceChannelAdded.Broadcast(Section, InControlName, Channel);
+
+	Channel->OnSpaceNoLongerUsed().RemoveAll(this);
+	Channel->OnSpaceNoLongerUsed().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceNoLongerUsed, InControlName);
+}
+
+void UMovieSceneControlRigParameterTrack::HandleOnSpaceNoLongerUsed(FMovieSceneControlRigSpaceChannel* InChannel, const TArray<FRigElementKey>& InSpaces, FName InControlName)
+{
+	if (InChannel && GetControlRig())
+	{
+		if(URigHierarchy* Hierarchy = GetControlRig()->GetHierarchy())
+		{
+			if(URigHierarchyController* Controller = Hierarchy->GetController())
+			{
+				const FRigElementKey ControlKey(InControlName, ERigElementType::Control);
+				if(Hierarchy->Find<FRigControlElement>(ControlKey))
+				{
+					FRigElementKey DefaultParent = Hierarchy->GetFirstParent(ControlKey);
+					for(const FRigElementKey& ParentToRemove : InSpaces)
+					{
+						if(DefaultParent != ParentToRemove)
+						{
+							Controller->RemoveParent(ControlKey, ParentToRemove, false, false, false);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void UMovieSceneControlRigParameterTrack::RemoveAllAnimationData()

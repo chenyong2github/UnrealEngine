@@ -42,11 +42,20 @@ void FMovieSceneControlRigSpaceChannel::DuplicateKeys(TArrayView<const FKeyHandl
 
 void FMovieSceneControlRigSpaceChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 {
+	TArray<FRigElementKey> BeforeKeys, AfterKeys;
+	GetUniqueSpaceList(&BeforeKeys);
+	
 	GetData().DeleteKeys(InHandles);
+
+	GetUniqueSpaceList(&AfterKeys);
+	BroadcastSpaceNoLongerUsed(BeforeKeys, AfterKeys);
 }
 
 void FMovieSceneControlRigSpaceChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
 {
+	TArray<FRigElementKey> BeforeKeys, AfterKeys;
+	GetUniqueSpaceList(&BeforeKeys);
+	
 	// Insert a key at the current time to maintain evaluation
 	if (GetData().GetTimes().Num() > 0)
 	{
@@ -56,6 +65,9 @@ void FMovieSceneControlRigSpaceChannel::DeleteKeysFrom(FFrameNumber InTime, bool
 	}
 
 	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+
+	GetUniqueSpaceList(&AfterKeys);
+	BroadcastSpaceNoLongerUsed(BeforeKeys, AfterKeys);
 }
 
 void FMovieSceneControlRigSpaceChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
@@ -83,6 +95,19 @@ void FMovieSceneControlRigSpaceChannel::Reset()
 void FMovieSceneControlRigSpaceChannel::Offset(FFrameNumber DeltaPosition)
 {
 	GetData().Offset(DeltaPosition);
+}
+
+void FMovieSceneControlRigSpaceChannel::GetUniqueSpaceList(TArray<FRigElementKey>* OutList)
+{
+	if(OutList)
+	{
+		OutList->Reset();
+		
+		for(const FMovieSceneControlRigSpaceBaseKey& KeyValue : KeyValues)
+		{
+			OutList->AddUnique(KeyValue.ControlRigElement);
+		}
+	}
 }
 
 //this will also delete any duplicated keys.
@@ -135,6 +160,30 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 		GetData().DeleteKeys(DeleteKeyHandles);
 	}
 	return Ranges;
+}
+
+void FMovieSceneControlRigSpaceChannel::BroadcastSpaceNoLongerUsed(const TArray<FRigElementKey>& BeforeKeys, const TArray<FRigElementKey>& AfterKeys)
+{
+	if(BeforeKeys == AfterKeys)
+	{
+		return;
+	}
+
+	if(!SpaceNoLongerUsedEvent.IsBound())
+	{
+		return;
+	}
+
+	TArray<FRigElementKey> SpacesNoLongerUsed;
+	for(const FRigElementKey& BeforeKey : BeforeKeys)
+	{
+		if(!AfterKeys.Contains(BeforeKey))
+		{
+			SpacesNoLongerUsed.Add(BeforeKey);
+		}
+	}
+
+	SpaceNoLongerUsedEvent.Broadcast(this, SpacesNoLongerUsed);
 }
 
 FName FMovieSceneControlRigSpaceBaseKey::GetName() const
