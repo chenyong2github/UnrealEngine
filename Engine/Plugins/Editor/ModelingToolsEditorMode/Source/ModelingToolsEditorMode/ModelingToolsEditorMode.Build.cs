@@ -64,6 +64,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"MeshLODToolset",
 				"ToolWidgets",
 				"EditorWidgets",
+				"ModelingEditorUI",
 				"StylusInput",
 				"DeveloperSettings"
 

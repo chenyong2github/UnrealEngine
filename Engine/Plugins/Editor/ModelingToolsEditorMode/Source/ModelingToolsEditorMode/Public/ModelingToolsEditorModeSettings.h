@@ -175,6 +175,24 @@ struct FModelingModeCustomToolColor
 };
 
 
+/**
+ * Defines a Named list/set of content-browser Collection names
+ */
+USTRUCT()
+struct FModelingModeAssetCollectionSet
+{
+	GENERATED_BODY()
+
+	/** Name of the set of collections */
+	UPROPERTY(EditAnywhere, Category = "CollectionSet")
+	FString Name;
+
+	/** List of Collection names */
+	UPROPERTY(EditAnywhere, Category = "CollectionSet")
+	TArray<FCollectionReference> Collections;
+};
+
+
 UCLASS(config=Editor)
 class MODELINGTOOLSEDITORMODE_API UModelingToolsModeCustomizationSettings : public UDeveloperSettings
 {
@@ -214,4 +232,12 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
 	TArray<FModelingModeCustomToolColor> ToolColors;
+
+
+	/**
+	 * A Brush Alpha Set is a named list of Content Browser Collections, which will be shown as a separate tab in 
+	 * the Texture Asset Picker used in various Modeling Mode Tools when selecting a Brush Alpha (eg in Sculpting)
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Tool Assets")
+	TArray<FModelingModeAssetCollectionSet> BrushAlphaSets;
 };

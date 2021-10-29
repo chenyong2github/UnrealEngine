@@ -16,6 +16,10 @@ public:
 	static TSharedPtr< class ISlateStyle > Get();
 
 	static FName GetStyleSetName();
+
+	// use to access icons defined by the style set by name, eg GetBrush("BrushFalloffIcons.Smooth")
+	static const FSlateBrush* GetBrush(FName PropertyName, const ANSICHAR* Specifier = NULL);
+
 private:
 	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
 
