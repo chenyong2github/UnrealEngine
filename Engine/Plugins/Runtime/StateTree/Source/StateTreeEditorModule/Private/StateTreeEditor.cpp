@@ -15,9 +15,14 @@
 #include "StateTreeBaker.h"
 #include "IDetailsView.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Customizations/StateTreeBindingExtension.h"
 #include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
 
+#include "Developer/MessageLog/Public/IMessageLogListing.h"
+#include "Developer/MessageLog/Public/MessageLogInitializationOptions.h"
+#include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -26,6 +31,8 @@ const FName StateTreeEditorAppName(TEXT("StateTreeEditorApp"));
 const FName FStateTreeEditor::SelectionDetailsTabId(TEXT("StateTreeEditor_SelectionDetails"));
 const FName FStateTreeEditor::AssetDetailsTabId(TEXT("StateTreeEditor_AssetDetails"));
 const FName FStateTreeEditor::StateTreeViewTabId(TEXT("StateTreeEditor_StateTreeView"));
+const FName FStateTreeEditor::StateTreeStatisticsTabId(TEXT("StateTreeEditor_StateTreeStatistics"));
+const FName FStateTreeEditor::CompilerResultsTabId(TEXT("StateTreeEditor_CompilerResults"));
 
 void FStateTreeEditor::PostUndo(bool bSuccess)
 {
@@ -64,7 +71,16 @@ void FStateTreeEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 		.SetDisplayName(NSLOCTEXT("StateTreeEditor", "StateTreeViewTab", "StateTree"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Outliner"));
+	InTabManager->RegisterTabSpawner(StateTreeStatisticsTabId, FOnSpawnTab::CreateSP(this, &FStateTreeEditor::SpawnTab_StateTreeStatistics))
+		.SetDisplayName(NSLOCTEXT("StateTreeEditor", "StatisticsTab", "StateTree Statistics"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Outliner"));
+	InTabManager->RegisterTabSpawner(CompilerResultsTabId, FOnSpawnTab::CreateSP(this, &FStateTreeEditor::SpawnTab_CompilerResults))
+		.SetDisplayName(NSLOCTEXT("StateTreeEditor", "CompilerResultsTab", "Compiler Results"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Outliner"));
 }
+
 
 void FStateTreeEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -73,6 +89,8 @@ void FStateTreeEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>
 	InTabManager->UnregisterTabSpawner(SelectionDetailsTabId);
 	InTabManager->UnregisterTabSpawner(AssetDetailsTabId);
 	InTabManager->UnregisterTabSpawner(StateTreeViewTabId);
+	InTabManager->UnregisterTabSpawner(StateTreeStatisticsTabId);
+	InTabManager->UnregisterTabSpawner(CompilerResultsTabId);
 }
 
 void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStateTree* InStateTree)
@@ -93,8 +111,20 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	StateTreeViewModel->GetOnAssetChanged().AddSP(this, &FStateTreeEditor::HandleModelAssetChanged);
 	StateTreeViewModel->GetOnSelectionChanged().AddSP(this, &FStateTreeEditor::HandleModelSelectionChanged);
 
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	FMessageLogInitializationOptions LogOptions;
+	// Show Pages so that user is never allowed to clear log messages
+	LogOptions.bShowPages = false;
+	LogOptions.bShowFilters = false;
+	LogOptions.bAllowClear = false;
+	LogOptions.MaxPageCount = 1;
+	CompilerResultsListing = MessageLogModule.CreateLogListing("StateTreeCompiler", LogOptions);
+	CompilerResults = MessageLogModule.CreateLogListingWidget(CompilerResultsListing.ToSharedRef());
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_StateTree_Layout_v2")
+	CompilerResultsListing->OnMessageTokenClicked().AddSP(this, &FStateTreeEditor::HandleMessageTokenClicked);
+
+	
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_StateTree_Layout_v3")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
@@ -103,16 +133,37 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 			FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal)
 			->Split
 			(
-				FTabManager::NewStack()
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
 				->SetSizeCoefficient(0.2f)
-				->AddTab(AssetDetailsTabId, ETabState::OpenedTab)
-				->SetForegroundTab(AssetDetailsTabId)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.65f)
+					->AddTab(AssetDetailsTabId, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.35f)
+					->AddTab(StateTreeStatisticsTabId, ETabState::OpenedTab)
+				)
 			)
 			->Split
 			(
-				FTabManager::NewStack()
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
 				->SetSizeCoefficient(0.5f)
-				->AddTab(StateTreeViewTabId, ETabState::OpenedTab)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.75f)
+					->AddTab(StateTreeViewTabId, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.25f)
+					->AddTab(CompilerResultsTabId, ETabState::ClosedTab)
+				)
 			)
 			->Split
 			(
@@ -156,10 +207,22 @@ FString FStateTreeEditor::GetWorldCentricTabPrefix() const
 	return NSLOCTEXT("StateTreeEditor", "WorldCentricTabPrefix", "State Tree").ToString();
 }
 
-
 FLinearColor FStateTreeEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor( 0.0f, 0.0f, 0.2f, 0.5f );
+}
+
+void FStateTreeEditor::HandleMessageTokenClicked(const TSharedRef<IMessageToken>& InMessageToken)
+{
+	if (InMessageToken->GetType() == EMessageToken::Object)
+	{
+		const TSharedRef<FUObjectToken> ObjectToken = StaticCastSharedRef<FUObjectToken>(InMessageToken);
+		UStateTreeState* State = Cast<UStateTreeState>(ObjectToken->GetObject().Get());
+		if (State)
+		{
+			StateTreeViewModel->SetSelection(State);
+		}
+	}
 }
 
 TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_StateTreeView(const FSpawnTabArgs& Args)
@@ -217,6 +280,55 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs
 		];
 
 	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_StateTreeStatistics(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == StateTreeStatisticsTabId);
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("StatisticsTitle", "StateTree Statistics"))
+		[
+			SNew(SMultiLineEditableTextBox)
+			.Padding(10)
+			.Style(FEditorStyle::Get(), "Log.TextBox")
+			.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
+			.ForegroundColor(FLinearColor::Gray)
+			.IsReadOnly(true)
+			.Text(this, &FStateTreeEditor::GetStatisticsText)
+		];
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_CompilerResults(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == CompilerResultsTabId);
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("CompilerResultsTitle", "Compiler Results"))
+		[
+			SNew(SBox)
+			[
+				CompilerResults.ToSharedRef()
+			]
+		];
+	return SpawnedTab;
+}
+
+FText FStateTreeEditor::GetStatisticsText() const
+{
+	if (!StateTree)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (const UScriptStruct* RuntimeStruct = StateTree->GetRuntimeStorageStruct())
+	{
+		const FText SizeText = FText::AsMemory((uint64)RuntimeStruct->GetStructureSize());
+		const FText NumItemsText = FText::AsNumber(StateTree->GetRuntimeStorageItemCount());
+
+		return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} items"), SizeText, NumItemsText);
+	}
+	
+	return FText::GetEmpty();
 }
 
 void FStateTreeEditor::HandleModelAssetChanged()
@@ -446,15 +558,28 @@ void FStateTreeEditor::UpdateAsset()
 	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
 	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
 
-	FStateTreeBaker Baker;
-	if (!Baker.Bake(*StateTree))
+	if (CompilerResultsListing.IsValid())
 	{
-		FMessageLog EditorErrors("StateTree");
-		EditorErrors.Error(FText::Format(LOCTEXT("StateTreeBakerFailed", "Failed to bake state tree asset {0}, see the log for details"), FText::FromString(StateTree->GetName())));
-		EditorErrors.Notify(FText::Format(LOCTEXT("StateTreeBakerFailed", "Failed to bake state tree asset {0}, see the log for details"), FText::FromString(StateTree->GetName())));
+		CompilerResultsListing->ClearMessages();
+	}
 
+	FStateTreeCompilerLog Log;
+	FStateTreeBaker Baker(Log);
+
+	const bool bSuccess = Baker.Bake(*StateTree);
+
+	if (CompilerResultsListing.IsValid())
+	{
+		Log.AppendToLog(CompilerResultsListing.Get());
+	}
+
+	if (!bSuccess)
+	{
 		// Make sure not to leave stale data on failed bake.
 		StateTree->ResetBaked();
+
+		// Show log
+		TabManager->TryInvokeTab(CompilerResultsTabId);
 	}
 }
 

@@ -66,7 +66,8 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 
 		StateB.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
-		FStateTreeBaker Baker;
+		FStateTreeCompilerLog Log;
+		FStateTreeBaker Baker(Log);
 		bool bResult = Baker.Bake(StateTree);
 
 		AITEST_TRUE("StateTree should get baked", bResult);
@@ -132,7 +133,8 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		StandTask.TicksToCompletion = 2;
 		StandOnLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
-		FStateTreeBaker Baker;
+		FStateTreeCompilerLog Log;
+		FStateTreeBaker Baker(Log);
 		bool bResult = Baker.Bake(StateTree);
 
 		AITEST_TRUE("StateTree should get baked", bResult);
@@ -224,7 +226,8 @@ struct FStateTreeTest_Sequence : FAITestBase
 		FTestTask_Stand& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
 		State2.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
-		FStateTreeBaker Baker;
+		FStateTreeCompilerLog Log;
+		FStateTreeBaker Baker(Log);
 		const bool bResult = Baker.Bake(StateTree);
 		AITEST_TRUE("StateTree should get baked", bResult);
 
@@ -284,7 +287,8 @@ struct FStateTreeTest_Select : FAITestBase
 		Task1A.TicksToCompletion = 2;
 		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
 
-		FStateTreeBaker Baker;
+		FStateTreeCompilerLog Log;
+		FStateTreeBaker Baker(Log);
 		const bool bResult = Baker.Bake(StateTree);
 		AITEST_TRUE("StateTree should get baked", bResult);
 

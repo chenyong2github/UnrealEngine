@@ -5,8 +5,9 @@
 #include "StateTreeTypes.h"
 #include "StateTreePropertyBindings.h"
 
-bool FStateTreePropertyBindingCompiler::Init(FStateTreePropertyBindings& InPropertyBindings)
+bool FStateTreePropertyBindingCompiler::Init(FStateTreePropertyBindings& InPropertyBindings, FStateTreeCompilerLog& InLog)
 {
+	Log = &InLog;
 	PropertyBindings = &InPropertyBindings;
 	PropertyBindings->Reset();
 	SourceStructs.Reset();
@@ -15,6 +16,7 @@ bool FStateTreePropertyBindingCompiler::Init(FStateTreePropertyBindings& InPrope
 
 bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStructDesc& TargetStruct, TConstArrayView<FStateTreeEditorPropertyBinding> EditorPropertyBindings, int32& OutBatchIndex)
 {
+	check(Log);
 	check(PropertyBindings);
 	OutBatchIndex = INDEX_NONE;
 
@@ -36,7 +38,8 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 			});
 		if (SourceStructIdx == INDEX_NONE)
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: Could not find a binding source for '%s'."), ANSI_TO_TCHAR(__FUNCTION__), *TargetStruct.Name.ToString());
+			Log->Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Could not find a binding source."));
 			return false;
 		}
 		const FStateTreeBindableStructDesc& SourceStruct = SourceStructs[SourceStructIdx];
@@ -45,17 +48,21 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 
 		// Resolve paths
 		FResolvedPathResult SourceResult;
-		if (!ResolvePropertyPath(SourceStruct, EditorBinding.SourcePath, SourceResult))
+		if (!ResolvePropertyPath(TargetStruct, SourceStruct, EditorBinding.SourcePath, SourceResult))
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: Could not resolve path to '%s:%s'."), ANSI_TO_TCHAR(__FUNCTION__), *SourceStruct.Name.ToString(), *EditorBinding.SourcePath.ToString());
+			Log->Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Could not resolve path to '%s:%s'."),
+				*SourceStruct.Name.ToString(), *EditorBinding.SourcePath.ToString());
 			return false;
 		}
 
 		// Destination container is set to 0, it is assumed to be passed in when doing the batch copy.
 		FResolvedPathResult TargetResult;
-		if (!ResolvePropertyPath(TargetStruct, EditorBinding.TargetPath, TargetResult))
+		if (!ResolvePropertyPath(TargetStruct, TargetStruct, EditorBinding.TargetPath, TargetResult))
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: Could not resolve path to '%s:%s'."), ANSI_TO_TCHAR(__FUNCTION__), *TargetStruct.Name.ToString(), *EditorBinding.TargetPath.ToString());
+			Log->Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Could not resolve path to '%s:%s'."),
+				*TargetStruct.Name.ToString(), *EditorBinding.TargetPath.ToString());
 			return false;
 		}
 
@@ -94,9 +101,9 @@ int32 FStateTreePropertyBindingCompiler::GetSourceStructIndexByID(const FGuid& I
 	return SourceStructs.IndexOfByPredicate([ID](const FStateTreeBindableStructDesc& Structs) { return (Structs.ID == ID); });
 }
 
-EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(FProperty* SourceProperty, int32 SourceArrayIndex, FProperty* TargetProperty, int32 TargetArrayIndex)
+EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const FProperty* SourceProperty, const int32 SourceArrayIndex, const FProperty* TargetProperty, const int32 TargetArrayIndex)
 {
-	if (FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(SourceProperty))
+	if (const FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(SourceProperty))
 	{
 		// use the array's inner property if we are not trying to copy the whole array
 		if (SourceArrayIndex != INDEX_NONE)
@@ -105,7 +112,7 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(FPrope
 		}
 	}
 
-	if (FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(TargetProperty))
+	if (const FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(TargetProperty))
 	{
 		// use the array's inner property if we are not trying to copy the whole array
 		if (TargetArrayIndex != INDEX_NONE)
@@ -114,7 +121,7 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(FPrope
 		}
 	}
 
-	EPropertyAccessCompatibility Compatibility = GetPropertyCompatibility(SourceProperty, TargetProperty);
+	const EPropertyAccessCompatibility Compatibility = GetPropertyCompatibility(SourceProperty, TargetProperty);
 
 	// Extract underlying types for enums
 	if (const FEnumProperty* EnumPropertyA = CastField<const FEnumProperty>(SourceProperty))
@@ -258,13 +265,13 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(FPrope
 	return EStateTreePropertyCopyType::None;
 }
 
-bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult)
+bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBindableStructDesc& InOwnerStructDesc, const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult)
 {
 	const int32 PathIndex = PropertyBindings->PropertyPaths.Num();
 	FStateTreePropertyPath& Path = PropertyBindings->PropertyPaths.AddDefaulted_GetRef();
 	Path.SegmentsBegin = PropertyBindings->PropertySegments.Num();
 
-	const bool bResult = ResolvePropertyPath(InStructDesc, InPath, PropertyBindings->PropertySegments, OutResult.LeafProperty, OutResult.LeafArrayIndex, /*bLogErrors*/true);
+	const bool bResult = ResolvePropertyPath(InStructDesc, InPath, PropertyBindings->PropertySegments, OutResult.LeafProperty, OutResult.LeafArrayIndex, Log, &InOwnerStructDesc);
 
 	Path.SegmentsEnd = PropertyBindings->PropertySegments.Num();
 	OutResult.PathIndex = PathIndex;
@@ -273,17 +280,22 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 }
 
 bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath,
-															TArray<FStateTreePropertySegment>& OutSegments, FProperty*& OutLeafProperty, int32& OutLeafArrayIndex,
-															const bool bLogErrors)
+															TArray<FStateTreePropertySegment>& OutSegments, const FProperty*& OutLeafProperty, int32& OutLeafArrayIndex,
+															FStateTreeCompilerLog* InLog, const FStateTreeBindableStructDesc* InLogContextStruct)
 {
 	if (!InPath.IsValid())
 	{
-		UE_CLOG(bLogErrors, LogStateTree, Error, TEXT("%s: Invalid path '%s:%s'."), ANSI_TO_TCHAR(__FUNCTION__), *InStructDesc.Name.ToString(), *InPath.ToString());
+		if (InLog != nullptr && InLogContextStruct != nullptr)
+		{
+			InLog->Reportf(EMessageSeverity::Error, *InLogContextStruct,
+					TEXT("Invalid path '%s:%s'."),
+					*InStructDesc.Name.ToString(), *InPath.ToString());
+		}
 		return false;
 	}
 
 	const UStruct* CurrentStruct = InStructDesc.Struct;
-	FProperty* LeafProperty = nullptr;
+	const FProperty* LeafProperty = nullptr;
 	int32 LeafArrayIndex = INDEX_NONE;
 	bool bResult = InPath.Path.Num() > 0;
 
@@ -296,24 +308,33 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 		PropertyPathHelpers::FindFieldNameAndArrayIndex(SegmentString.Len(), *SegmentString, PropertyNameLength, &PropertyNamePtr, ArrayIndex);
 		ensure(PropertyNamePtr != nullptr);
 		FString PropertyNameString(PropertyNameLength, PropertyNamePtr);
-		FName PropertyName = FName(*PropertyNameString, FNAME_Find);
+		const FName PropertyName = FName(*PropertyNameString, FNAME_Find);
 
 		const bool bFinalSegment = SegmentIndex == (InPath.Path.Num() - 1);
 
 		if (CurrentStruct == nullptr)
 		{
-			UE_CLOG(bLogErrors, LogStateTree, Error, TEXT("%s: Malformed path '%s:%s'."), ANSI_TO_TCHAR(__FUNCTION__), *InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")));
+			if (InLog != nullptr && InLogContextStruct != nullptr)
+			{
+				InLog->Reportf(EMessageSeverity::Error, *InLogContextStruct,
+						TEXT("Malformed path '%s:%s'."),
+						*InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")));
+			}
 			bResult = false;
 			break;
 		}
 
-		FProperty* Property = CurrentStruct->FindPropertyByName(PropertyName);
+		const FProperty* Property = CurrentStruct->FindPropertyByName(PropertyName);
 		if (Property == nullptr)
 		{
 			// TODO: use core redirects to fix up the name.
-			UE_CLOG(bLogErrors, LogStateTree, Error, TEXT("%s: Malformed path '%s:%s', could not find property '%s%s.%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")),
-				CurrentStruct->GetPrefixCPP(), *CurrentStruct->GetName(), *PropertyName.ToString());
+			if (InLog != nullptr && InLogContextStruct != nullptr)
+			{
+				InLog->Reportf(EMessageSeverity::Error, *InLogContextStruct,
+						TEXT("Malformed path '%s:%s', could not find property '%s%s.%s'."),
+						*InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")),
+						CurrentStruct->GetPrefixCPP(), *CurrentStruct->GetName(), *PropertyName.ToString());
+			}
 			bResult = false;
 			break;
 		}
@@ -323,17 +344,17 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 		Segment.ArrayIndex = ArrayIndex;
 
 		// Check to see if it is an array access first
-		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+		const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
 		if (ArrayProperty != nullptr && ArrayIndex != INDEX_NONE)
 		{
 			// It is an array, now check to see if this is an array of structures
-			if (FStructProperty* ArrayOfStructsProperty = CastField<FStructProperty>(ArrayProperty->Inner))
+			if (const FStructProperty* ArrayOfStructsProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 			{
 				Segment.Type = EStateTreePropertyAccessType::IndexArray;
 				CurrentStruct = ArrayOfStructsProperty->Struct;
 			}
 			// if it's not an array of structs, maybe it's an array of objects
-			else if (FObjectPropertyBase* ArrayOfObjectsProperty = CastField<FObjectPropertyBase>(ArrayProperty->Inner))
+			else if (const FObjectPropertyBase* ArrayOfObjectsProperty = CastField<FObjectPropertyBase>(ArrayProperty->Inner))
 			{
 				Segment.Type = EStateTreePropertyAccessType::IndexArray;
 				CurrentStruct = ArrayOfObjectsProperty->PropertyClass;
@@ -344,16 +365,16 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 					FStateTreePropertySegment& ExtraSegment = OutSegments.AddDefaulted_GetRef();
 					ExtraSegment.ArrayIndex = 0;
 					ExtraSegment.Type = EStateTreePropertyAccessType::Object;
-					FProperty* InnerProperty = ArrayProperty->Inner;
-					if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InnerProperty))
+					const FProperty* InnerProperty = ArrayProperty->Inner;
+					if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InnerProperty))
 					{
 						ExtraSegment.Type = EStateTreePropertyAccessType::Object;
 					}
-					else if (FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(InnerProperty))
+					else if (const FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(InnerProperty))
 					{
 						ExtraSegment.Type = EStateTreePropertyAccessType::WeakObject;
 					}
-					else if (FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(InnerProperty))
+					else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(InnerProperty))
 					{
 						ExtraSegment.Type = EStateTreePropertyAccessType::SoftObject;
 					}
@@ -373,33 +394,38 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 			CurrentStruct = nullptr;
 		}
 		// Check to see if this is a simple structure (eg. not an array of structures)
-		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			Segment.Type = EStateTreePropertyAccessType::Offset;
 			CurrentStruct = StructProperty->Struct;
 		}
 		// Check to see if this is a simple object (eg. not an array of objects)
-		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{
 			Segment.Type = EStateTreePropertyAccessType::Object;
 			CurrentStruct = ObjectProperty->PropertyClass;
 		}
 		// Check to see if this is a simple weak object property (eg. not an array of weak objects).
-		else if (FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
+		else if (const FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
 		{
 			Segment.Type = EStateTreePropertyAccessType::WeakObject;
 			CurrentStruct = WeakObjectProperty->PropertyClass;
 		}
 		// Check to see if this is a simple soft object property (eg. not an array of soft objects).
-		else if (FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+		else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
 		{
 			Segment.Type = EStateTreePropertyAccessType::SoftObject;
 			CurrentStruct = SoftObjectProperty->PropertyClass;
 		}
 		else
 		{
-			UE_CLOG(bLogErrors, LogStateTree, Error, TEXT("%s: Unsupported segment %s in path '%s:%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *Property->GetCPPType(), *InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")));
+			if (InLog != nullptr && InLogContextStruct != nullptr)
+			{
+				InLog->Reportf(EMessageSeverity::Error, *InLogContextStruct,
+						TEXT("Unsupported segment %s in path '%s:%s'."),
+						*InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")),
+						*Property->GetCPPType(), *InStructDesc.Name.ToString(), *InPath.ToString(SegmentIndex, TEXT("<"), TEXT(">")));
+			}
 			bResult = false;
 			break;
 		}

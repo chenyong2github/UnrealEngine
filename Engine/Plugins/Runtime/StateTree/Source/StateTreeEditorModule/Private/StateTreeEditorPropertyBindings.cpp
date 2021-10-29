@@ -70,7 +70,7 @@ void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, co
 			StructDesc.ID = Binding.TargetPath.StructID;
 		
 			TArray<FStateTreePropertySegment> Segments;
-			FProperty* LeafProperty = nullptr;
+			const FProperty* LeafProperty = nullptr;
 			int32 LeafArrayIndex = INDEX_NONE;
 			if (!FStateTreePropertyBindingCompiler::ResolvePropertyPath(StructDesc, Binding.TargetPath, Segments, LeafProperty, LeafArrayIndex))
 			{
@@ -125,13 +125,13 @@ const FProperty* FStateTreeBindingLookup::GetPropertyPathLeafProperty(const FSta
 	FStateTreeEditorPropertyBindings* EditorBindings = BindingOwner->GetPropertyEditorBindings();
 	check(EditorBindings);
 
-	FProperty* Result = nullptr;
+	const FProperty* Result = nullptr;
 	FStateTreeBindableStructDesc Struct;
 	if (BindingOwner->GetStructByID(InPath.StructID, Struct))
 	{
 		// TODO: Could use inline allocator here, since there are usually only few segments. Needs API change in ResolvePropertyPath().
 		TArray<FStateTreePropertySegment> Segments;
-		FProperty* LeafProperty = nullptr;
+		const FProperty* LeafProperty = nullptr;
 		int32 LeafArrayIndex = INDEX_NONE;
 		if (FStateTreePropertyBindingCompiler::ResolvePropertyPath(Struct, InPath, Segments, LeafProperty, LeafArrayIndex))
 		{

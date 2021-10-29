@@ -49,20 +49,23 @@ protected:
 
 private:
 
+	void HandleMessageTokenClicked(const TSharedRef<IMessageToken>& InMessageToken);
 	void HandleModelSelectionChanged(const TArray<UStateTreeState*>& SelectedStates);
 
 	/** Spawns the tab with the update graph inside */
 	TSharedRef<SDockTab> SpawnTab_StateTreeView(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectionDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
-
-private:
+	TSharedRef<SDockTab> SpawnTab_StateTreeStatistics(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_CompilerResults(const FSpawnTabArgs& Args);
 
 	void UpdateAsset();
 
 	void HandleModelAssetChanged();
 	void OnIdentifierChanged(const UStateTree& StateTree);
 	void OnSchemaChanged(const UStateTree& StateTree);
+
+	FText GetStatisticsText() const;
 
 	/* State Tree being edited */
 	UStateTree* StateTree;
@@ -76,9 +79,15 @@ private:
 	/** Tree View */
 	TSharedPtr<class SStateTreeView> StateTreeView;
 
+	/** Compiler Results log */
+	TSharedPtr<class SWidget> CompilerResults;
+	TSharedPtr<class IMessageLogListing> CompilerResultsListing;
+	
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 
 	static const FName StateTreeViewTabId;
 	static const FName SelectionDetailsTabId;
 	static const FName AssetDetailsTabId;
+	static const FName StateTreeStatisticsTabId;
+	static const FName CompilerResultsTabId;
 };
