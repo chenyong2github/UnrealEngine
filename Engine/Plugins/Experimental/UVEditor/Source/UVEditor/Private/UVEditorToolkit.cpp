@@ -16,12 +16,13 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "ToolMenus.h"
 #include "UVEditor.h"
+#include "UVEditor2DViewportClient.h"
+#include "UVEditor3DViewportClient.h"
 #include "UVEditorCommands.h"
 #include "UVEditorMode.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
-#include "UVEditor2DViewportClient.h"
-#include "UVEditor3DViewportClient.h"
+#include "UVEditorStyle.h"
 #include "UVToolContextObjects.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -436,7 +437,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		}),
 		LOCTEXT("UVEditorChannelMenu_Label", "Channels"),
 		LOCTEXT("UVEditorChannelMenu_ToolTip", "Change the selected UV Channel for each asset."),
-		FSlateIcon()
+		FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.ChannelSettings")
 	));
 
 	// Add the background settings button.
@@ -449,7 +450,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		}),
 		LOCTEXT("UVEditorBackgroundSettings_Label", "Background"),
 		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the visibility and other settings of the background."),
-		FSlateIcon()
+		FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.BackgroundSettings")
 	));
 
 

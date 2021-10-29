@@ -6,9 +6,9 @@
 
 #include "UVEditorCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "UVEditorStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "EditorStyleSet.h"
 
 void SUVEditor3DViewportToolBar::Construct(const FArguments& InArgs)
 {
@@ -62,12 +62,12 @@ TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FEx
 		// Orbit Camera
 		static FName OrbitCameraName = FName(TEXT("OrbitCamera"));
 		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().EnableOrbitCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(), 
-			TAttribute<FSlateIcon>(FSlateIcon(FEditorStyle::GetStyleSetName(), FName("EditorViewport.RotateMode"))), OrbitCameraName);
+			TAttribute<FSlateIcon>(FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.OrbitCamera")), OrbitCameraName);
 
 		// Fly Camera
 		static FName FlyCameraName = FName(TEXT("FlyCamera"));
-		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().EnableFlyCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(), 
-			TAttribute<FSlateIcon>(FSlateIcon(FEditorStyle::GetStyleSetName(), FName("EditorViewport.CamSpeedSetting"))), FlyCameraName);
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().EnableFlyCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+			TAttribute<FSlateIcon>(FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.FlyCamera")), FlyCameraName);
 
 		ToolbarBuilder.EndBlockGroup();
 	}
