@@ -48,6 +48,14 @@ public:
 	}
 
 	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
+	
+	/** (SM5+) Generate mips for the requested RDG texture using the compute pass conditionally.
+		if( uint(ConditionBuffer[Offset]) > 0)
+			Execute(...)
+	*/
+	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler,
+								 FRDGBufferRef ConditionBuffer, uint32 Offset = 0);
+
 	static void ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
 
 	//////////////////////////////////////////////////////////////////////////

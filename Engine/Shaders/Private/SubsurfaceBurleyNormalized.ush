@@ -432,10 +432,87 @@ float GetPdfInCM(float Radius, float L, float S)
 	return GetPdf(Radius *0.01f, L*0.01f, S);
 }
 
+// Get the history states
+// SubsurfaceInput2_Texture stores the encoded velocity
+// SubsurfaceInput1_Texture store the history state
+struct FHistoryState
+{
+	float4 History;
+	bool OffScreen;
+};
+
+FHistoryState GetHistoryState(float2 BufferUV)
+{
+	FHistoryState HistoryState = (FHistoryState)0;
+	float2 VelocityOffset = float2(0.0, 0.0);
+	float2 NearestBufferUV = BufferUV;
+	float2 ViewportUV = (BufferUV - SubsurfaceInput0_UVViewportMin.xy) * SubsurfaceInput0_UVViewportSizeInverse.xy;
+	bool OffScreen = false;
+
+	//	Get the history with reprojection
+	//  Implement a simplified version of temporal AA
+#if REPROJECTION
+
+	// Code adapted from temporal AA
+	float3 PosN;
+	PosN.xy = ViewportUVToScreenPos(ViewportUV);
+	PosN.z = SampleDepthTexture(BufferUV);// Direct sample without converting to world space;
+	float4 ThisClip = float4(PosN.xy, PosN.z, 1.0f);
+	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+	float2 PrevScreen = PrevClip.xy / PrevClip.w;
+	float2 BackN = PosN.xy - PrevScreen;
+
+	// Sample the velocity texture
+	float Velocity = 0;
+
+	float2 BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
+
+#if (ENABLE_VELOCITY)
+	{
+		float4 EncodedVelocity = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0);
+
+		if (EncodedVelocity.x > 0.0)
+		{
+			BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
+		}
+
+		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
+	}
+#endif
+
+	// Update velocity
+	Velocity = sqrt(dot(BackTemp, BackTemp));
+
+	float2 HistoryScreenPosition = (PosN.xy - BackN);
+
+	// Detect if HistoryBufferUV would be outside of the viewport.
+	OffScreen = max(abs(HistoryScreenPosition.x), abs(HistoryScreenPosition.y)) >= 1.0;
+
+	float4 History = 0;
+
+	BRANCH if (!OffScreen)
+	{
+		// ScreenPos to bufferUV
+		float2 HistoryUV = ScreenPosToViewportUV(HistoryScreenPosition);
+		// Convert history uv in viewport to buffer uv
+		float2 HistoryBufferUV = HistoryUV * SubsurfaceInput0_UVViewportSize.xy + SubsurfaceInput0_UVViewportMin.xy;
+		History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, HistoryBufferUV);
+	}
+
+#else
+	float4 History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, BufferUV);
+#endif
+
+	HistoryState.History = History;
+	HistoryState.OffScreen = OffScreen;
+
+	return HistoryState;
+}
+
 int GetNumOfSamplesBasedOnQuality(float2 UV)
 {
-
-	float4 QualityMatrix = Texture2DSample(SubsurfaceInput1_Texture, SharedSubsurfaceSampler1, UV);
+	FHistoryState HistoryState = GetHistoryState(UV);
+	float4 QualityMatrix = HistoryState.History;
 	float VariableVar = QualityMatrix.b;
 
 	float NumOfSamples = 0;
@@ -704,6 +781,12 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 {
 	float2 ClampedUV = clamp(CenterUV+ UVOffset, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
 	
+	// set mip level to 0 if the mipmap is not generated
+	if (!ShouldGenerateMipmaps(SUBSURFACE_TILE_TYPE_AFIS))
+	{
+		MipLevel = 0.0f;
+	}
+
 #if !(ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1))
 	#if STRATA_ENABLED
 	const uint2 CenterPos = ClampedUV * SubsurfaceInput0_Extent;
@@ -1093,72 +1176,16 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 
 float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 {
-	float Weight = EXPONENTIAL_WEIGHT;
-	float WeightFinal = Weight;
-	float4 NewHistory = 0;
-	float2 VelocityOffset = float2(0.0, 0.0);
-	float2 NearestBufferUV = BufferUV;
-	float2 ViewportUV = (BufferUV - SubsurfaceInput0_UVViewportMin.xy)*SubsurfaceInput0_UVViewportSizeInverse.xy;
+	float WeightFinal = EXPONENTIAL_WEIGHT;
+	FHistoryState HistoryState = GetHistoryState(BufferUV);
 
-	//	Get the history with reprojection
-	//  Implement a simplified version of temporal AA
-#if REPROJECTION
-
-	// Code adapted from temporal AA
-	float3 PosN;
-	PosN.xy = ViewportUVToScreenPos(ViewportUV);
-	PosN.z = SampleDepthTexture(BufferUV);// Direct sample without converting to world space;
-	float4 ThisClip = float4(PosN.xy, PosN.z, 1.0f);
-	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-	float2 PrevScreen = PrevClip.xy / PrevClip.w;
-	float2 BackN = PosN.xy - PrevScreen;
-
-	// Sample the velocity texture
-	float Velocity = 0;
-
-	float2 BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
-
-#if (ENABLE_VELOCITY)
+	float4 History = HistoryState.History;
+	if (HistoryState.OffScreen)
 	{
-		float4 EncodedVelocity = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0);
-		
-		if (EncodedVelocity.x > 0.0)
-		{
-			BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
-		}
-
-		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
-	}
-#endif
-
-	// Update velocity
-	Velocity = sqrt(dot(BackTemp, BackTemp));
-
-	float2 HistoryScreenPosition = (PosN.xy - BackN);
-
-	// Detect if HistoryBufferUV would be outside of the viewport.
-	bool OffScreen = max(abs(HistoryScreenPosition.x), abs(HistoryScreenPosition.y)) >= 1.0;
-
-	float4 History = 0;
-
-	WeightFinal = lerp(Weight, 0.2, saturate(Velocity / 40));
-
-	BRANCH if (!OffScreen)
-	{
-		// ScreenPos to bufferUV
-		float2 HistoryUV = ScreenPosToViewportUV(HistoryScreenPosition);
-		// Convert history uv in viewport to buffer uv
-		float2 HistoryBufferUV = HistoryUV * SubsurfaceInput0_UVViewportSize.xy + SubsurfaceInput0_UVViewportMin.xy;
-		History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, HistoryBufferUV);
-	}
-	else
-	{
-		WeightFinal = 1;
+		WeightFinal = 1.0f;
 	}
 
-#else
-	float4 History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, BufferUV);
-#endif
+	float4 NewHistory = (float4)0;
 
 	// Use the bilinear jitter-corrected lighting as the control variable (Constant CV coefficient = 1.0) to remove the variance over-estimation
 	// of spatial features, like peach fuzz, inside subsurface scattering region. It will not affect the output surface color.
