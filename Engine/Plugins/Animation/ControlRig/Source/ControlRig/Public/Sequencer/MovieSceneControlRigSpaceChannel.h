@@ -17,6 +17,9 @@
 #include "MovieSceneControlRigSpaceChannel.generated.h"
 
 class UControlRig;
+struct FMovieSceneControlRigSpaceChannel;
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneControlRigSpaceChannelSpaceNoLongerUsedEvent, FMovieSceneControlRigSpaceChannel*, const TArray<FRigElementKey>&);
 
 UENUM(Blueprintable)
 enum class EMovieSceneControlRigSpaceType : uint8
@@ -109,8 +112,14 @@ public:
 	virtual void Reset() override;
 	virtual void Offset(FFrameNumber DeltaPosition) override;
 
+	void GetUniqueSpaceList(TArray<FRigElementKey>* OutList);
+	FMovieSceneControlRigSpaceChannelSpaceNoLongerUsedEvent& OnSpaceNoLongerUsed() { return SpaceNoLongerUsedEvent; }
+
 	TArray <FSpaceRange> FindSpaceIntervals();
+
 private:
+
+	void BroadcastSpaceNoLongerUsed(const TArray<FRigElementKey>& BeforeKeys, const TArray<FRigElementKey>& AfterKeys);
 
 	/** Sorted array of key times */
 	UPROPERTY(meta = (KeyTimes))
@@ -121,6 +130,8 @@ private:
 	TArray<FMovieSceneControlRigSpaceBaseKey> KeyValues;
 
 	FMovieSceneKeyHandleMap KeyHandles;
+	
+	FMovieSceneControlRigSpaceChannelSpaceNoLongerUsedEvent SpaceNoLongerUsedEvent;
 };
 
 

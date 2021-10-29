@@ -1966,7 +1966,7 @@ UMovieSceneControlRigParameterTrack* FControlRigParameterTrackEditor::FindTrack(
 	return nullptr;
 }
 
-void FControlRigParameterTrackEditor::HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* SpaceChannel)
+void FControlRigParameterTrackEditor::HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, const FName& ControlName, FMovieSceneControlRigSpaceChannel* SpaceChannel)
 {
 	if (SpaceChannel)
 	{
@@ -2021,7 +2021,7 @@ void FControlRigParameterTrackEditor::PostUndo(bool bSuccess)
 			TArray<FSpaceControlNameAndChannel>& SpaceChannels = Section->GetSpaceChannels();
 			for(FSpaceControlNameAndChannel& Channel: SpaceChannels)
 			{ 
-				HandleOnSpaceAdded(Section, &(Channel.SpaceCurve));
+				HandleOnSpaceAdded(Section, Channel.ControlName, &(Channel.SpaceCurve));
 			}
 		}
 	}

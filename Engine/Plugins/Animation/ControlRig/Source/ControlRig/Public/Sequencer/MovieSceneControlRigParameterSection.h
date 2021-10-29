@@ -173,7 +173,7 @@ class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneP
 public:
 
 	/** Bindable event for when we add a space channel*/
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FSpaceChannelAddedEvent, UMovieSceneControlRigParameterSection*, FMovieSceneControlRigSpaceChannel*);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FSpaceChannelAddedEvent, UMovieSceneControlRigParameterSection*, const FName&, FMovieSceneControlRigSpaceChannel*);
 
 	void AddEnumParameterKey(FName InParameterName, FFrameNumber InTime, uint8 InValue);
 	void AddIntegerParameterKey(FName InParameterName, FFrameNumber InTime, int32 InValue);
