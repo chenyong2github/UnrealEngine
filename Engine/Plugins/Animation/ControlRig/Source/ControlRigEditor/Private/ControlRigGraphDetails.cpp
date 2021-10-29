@@ -514,6 +514,15 @@ void FControlRigArgumentDefaultNode::GenerateChildContent(IDetailChildrenBuilder
 	[
 		SAssignNew(OwnedNodeWidget, SControlRigGraphNode).GraphNodeObj(ControlRigGraphNode)
 	];
+
+	OwnedNodeWidget->SetIsEditable(true);
+	TArray< TSharedRef<SWidget> > Pins;
+	OwnedNodeWidget->GetPins(Pins);
+	for (TSharedRef<SWidget> Pin : Pins)
+	{
+		TSharedRef<SGraphPin> SPin = StaticCastSharedRef<SGraphPin>(Pin);
+		SPin->GetPinObj()->bNotConnectable = true;
+	}
 }
 
 void FControlRigArgumentDefaultNode::OnGraphChanged(const FEdGraphEditAction& InAction)
