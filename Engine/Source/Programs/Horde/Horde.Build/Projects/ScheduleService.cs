@@ -129,10 +129,13 @@ namespace HordeServer.Services
 			if (!DowntimeService.IsDowntimeActive)
 			{
 				Logger.LogInformation("Updating scheduled triggers...");
+				Stopwatch Stopwatch = Stopwatch.StartNew();
 				using (IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService Tick").StartActive())
 				{
 					NextTickTime = await UpdateSchedulesAsync();
 				}
+				Stopwatch.Stop();
+				Logger.LogInformation("Scheduling triggers took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
 			}
 			return NextTickTime;
 		}
