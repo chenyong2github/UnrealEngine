@@ -45,7 +45,7 @@ namespace {
 
 Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
   assert(pszPath != nullptr && pszPath[0] != L'\0');
-#if WINVER < _WIN32_WINNT_WIN8 && !defined(USE_PATHCCH_LIB) && !defined(__clang__) // WITH_UE: Added Clang define
+#if WINVER < _WIN32_WINNT_WIN8 && !defined(USE_PATHCCH_LIB)
   (void)cchPath;
   for (PCWSTR t = L"\0"; *t == L'\0'; t = PathRemoveBackslashW(pszPath))
     ;
@@ -72,7 +72,6 @@ Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
       ;
   return Status::OK();
 #else
-#ifndef __clang__ // WITH_UE
   // Remove any trailing backslashes
   auto result = PathCchRemoveBackslash(pszPath, cchPath);
   if (result == S_OK || result == S_FALSE) {
@@ -87,7 +86,6 @@ Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
       return Status::OK();
     }
   }
-#endif //__clang__
   return Status(common::ONNXRUNTIME, common::FAIL, "unexpected failure");
 #endif
 }
