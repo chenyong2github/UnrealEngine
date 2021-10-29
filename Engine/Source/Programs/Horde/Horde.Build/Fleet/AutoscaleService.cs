@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -117,6 +118,7 @@ namespace HordeServer.Services
 			DateTime NextTickTime = UtcNow + TimeSpan.FromMinutes(5.0);
 
 			Logger.LogInformation("Autoscaling pools...");
+			Stopwatch Stopwatch = Stopwatch.StartNew();
 
 			// Find all the current agents
 			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
@@ -224,6 +226,10 @@ namespace HordeServer.Services
 				DogStatsd.Gauge("agentpools.autoscale.target", TargetAgents, tags: new []{"pool:" + Pool.Name});
 				DogStatsd.Gauge("agentpools.autoscale.current", PoolData.Agents.Count, tags: new []{"pool:" + Pool.Name});
 			}
+			
+			Stopwatch.Stop();
+			Logger.LogInformation("Autoscaling pools took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
+			
 			return NextTickTime;
 		}
 
