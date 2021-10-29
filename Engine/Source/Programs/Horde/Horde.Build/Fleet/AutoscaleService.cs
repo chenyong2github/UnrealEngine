@@ -116,6 +116,8 @@ namespace HordeServer.Services
 			DateTime UtcNow = DateTime.UtcNow;
 			DateTime NextTickTime = UtcNow + TimeSpan.FromMinutes(5.0);
 
+			Logger.LogInformation("Autoscaling pools...");
+
 			// Find all the current agents
 			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
 
