@@ -12,6 +12,12 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "DetailsCustomizations/ModelingToolPropertyCustomizations.h"
+#include "DetailsCustomizations/ModelingToolsBrushSizeCustomization.h"
+#include "DetailsCustomizations/MeshVertexSculptToolCustomizations.h"
+
+#include "PropertySets/AxisFilterPropertyType.h"
+#include "MeshVertexSculptTool.h"
+
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeModule"
 
@@ -28,6 +34,20 @@ void FModelingToolsEditorModeModule::ShutdownModule()
 	FModelingToolsManagerCommands::Unregister();
 	FModelingModeActionCommands::Unregister();
 
+	// Unregister customizations
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		for (FName ClassName : ClassesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
+		}
+		for (FName PropertyName : PropertiesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(PropertyName);
+		}
+	}
+
 	// Unregister slate style overrides
 	FModelingToolsEditorModeStyle::Shutdown();
 }
@@ -42,9 +62,23 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	FModelingToolsManagerCommands::Register();
 	FModelingModeActionCommands::Register();
 
+	// same as ClassesToUnregisterOnShutdown but for properties, there is none right now
+	PropertiesToUnregisterOnShutdown.Reset();
+	ClassesToUnregisterOnShutdown.Reset();
+
+
 	// Register details view customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout("ModelingToolsAxisFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsAxisFilterCustomization::MakeInstance));
+	PropertiesToUnregisterOnShutdown.Add(FModelingToolsAxisFilter::StaticStruct()->GetFName());
+	PropertyModule.RegisterCustomPropertyTypeLayout("BrushToolRadius", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsBrushSizeCustomization::MakeInstance));
+	PropertiesToUnregisterOnShutdown.Add(FBrushToolRadius::StaticStruct()->GetFName());
+	PropertyModule.RegisterCustomClassLayout("SculptBrushProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FSculptBrushPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(USculptBrushProperties::StaticClass()->GetFName());
+	PropertyModule.RegisterCustomClassLayout("VertexBrushSculptProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FVertexBrushSculptPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UVertexBrushSculptProperties::StaticClass()->GetFName());
+	PropertyModule.RegisterCustomClassLayout("VertexBrushAlphaProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FVertexBrushAlphaPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UVertexBrushAlphaProperties::StaticClass()->GetFName());
 }
 
 #undef LOCTEXT_NAMESPACE
