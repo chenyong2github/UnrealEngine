@@ -4,14 +4,15 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/Commands/InputChord.h"
+#include "UVEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorCommands"
 	
 FUVEditorCommands::FUVEditorCommands()
-	: TCommands<FUVEditorCommands>("UVEditorCommands", 
-		NSLOCTEXT("Contexts", "UVEditorCommands", "UV Editor"), 
+	: TCommands<FUVEditorCommands>("UVEditor",
+		LOCTEXT("ContextDescription", "UV Editor"), 
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // TODO: What should go here?
+		FUVEditorStyle::Get().GetStyleSetName()
 		)
 {
 }

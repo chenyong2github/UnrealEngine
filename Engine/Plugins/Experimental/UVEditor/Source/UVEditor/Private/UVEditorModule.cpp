@@ -8,6 +8,7 @@
 #include "UVEditor.h"
 #include "UVEditorCommands.h"
 #include "UVEditorMode.h"
+#include "UVEditorStyle.h"
 #include "UVEditorSubsystem.h"
 #include "EditorModeRegistry.h"
 
@@ -17,6 +18,7 @@
 
 void FUVEditorModule::StartupModule()
 {
+	FUVEditorStyle::Get(); // Causes the constructor to be called
 	FUVEditorCommands::Register();
 
 	// Menus need to be registered in a callback to make sure the system is ready for them.
