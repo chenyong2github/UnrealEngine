@@ -75,7 +75,7 @@ private:
 	/** Scene components currently running geometry streaming. */
 	TArray<UGeometryCacheComponent*>	StreamingComponents;
 
-	mutable FCriticalSection CriticalSection;
+	mutable FRWLock StreamingGeometryCachesLock;
 
 	double LastTickTime;	
 };
@@ -107,6 +107,8 @@ void FGeometryCacheStreamingManager::UpdateResourceStreaming(float DeltaTime, bo
 	SCOPE_CYCLE_COUNTER(STAT_UpdateResourceStreaming)
 	check(IsInGameThread());
 
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
+	
 	//Phase zero: Clear ChunksNeeded
 	for (auto Iter = StreamingGeometryCaches.CreateIterator(); Iter; ++Iter)
 	{
@@ -174,6 +176,7 @@ int32 FGeometryCacheStreamingManager::BlockTillAllRequestsFinished(float TimeLim
 
 	int32 Result = 0;
 
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	if (TimeLimit == 0.0f)
 	{
 		for (auto Iter = StreamingGeometryCaches.CreateIterator(); Iter; ++Iter)
@@ -229,6 +232,8 @@ void FGeometryCacheStreamingManager::NotifyLevelOffset(class ULevel* Level, cons
 void FGeometryCacheStreamingManager::AddGeometryCache(UGeometryCacheTrackStreamable* Cache)
 {
 	check(IsInGameThread() || IsInAsyncLoadingThread());
+
+	FRWScopeLock WriteLock(StreamingGeometryCachesLock, SLT_Write);
 	FStreamingGeometryCacheData* &CacheData = StreamingGeometryCaches.FindOrAdd(Cache);
 	if (CacheData == nullptr)
 	{
@@ -239,6 +244,8 @@ void FGeometryCacheStreamingManager::AddGeometryCache(UGeometryCacheTrackStreama
 void FGeometryCacheStreamingManager::RemoveGeometryCache(UGeometryCacheTrackStreamable* Cache)
 {
 	check(IsInGameThread());
+
+	FRWScopeLock WriteLock(StreamingGeometryCachesLock, SLT_Write);
 	FStreamingGeometryCacheData** CacheData = StreamingGeometryCaches.Find(Cache);
 	if (CacheData != nullptr)
 	{
@@ -251,12 +258,16 @@ void FGeometryCacheStreamingManager::RemoveGeometryCache(UGeometryCacheTrackStre
 bool FGeometryCacheStreamingManager::IsManagedGeometryCache(const UGeometryCacheTrackStreamable* Cache) const
 {
 	check(IsInGameThread());
+
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	return StreamingGeometryCaches.Contains(Cache);
 }
 
 bool FGeometryCacheStreamingManager::IsStreamingInProgress(const UGeometryCacheTrackStreamable* Cache)
 {
 	check(IsInGameThread());
+
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	FStreamingGeometryCacheData** CacheData = StreamingGeometryCaches.Find(Cache);
 	if (CacheData != nullptr)
 	{
@@ -284,6 +295,8 @@ void FGeometryCacheStreamingManager::PrefetchDataInternal(UGeometryCacheComponen
 {
 	check(IsInGameThread());
 	check(IsManagedComponent(CacheComponent));
+
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	if (CacheComponent->GeometryCache)
 	{
 		for (UGeometryCacheTrack* Track : CacheComponent->GeometryCache->Tracks)
@@ -328,6 +341,7 @@ bool FGeometryCacheStreamingManager::IsManagedComponent(const UGeometryCacheComp
 
 const uint8* FGeometryCacheStreamingManager::MapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex, uint32* OutChunkSize)
 {
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	FStreamingGeometryCacheData** data = StreamingGeometryCaches.Find(Track);
 	if (data)
 	{
@@ -340,6 +354,7 @@ const uint8* FGeometryCacheStreamingManager::MapChunk(const UGeometryCacheTrackS
 
 void FGeometryCacheStreamingManager::UnmapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex)
 {
+	FRWScopeLock ReadLock(StreamingGeometryCachesLock, SLT_ReadOnly);
 	FStreamingGeometryCacheData** data = StreamingGeometryCaches.Find(Track);
 	if (data)
 	{
