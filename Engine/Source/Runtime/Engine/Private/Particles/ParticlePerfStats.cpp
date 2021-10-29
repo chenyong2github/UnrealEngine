@@ -214,7 +214,7 @@ void FParticlePerfStatsManager::Reset()
 		for (TObjectIterator<UFXSystemComponent> CompIt; CompIt; ++CompIt)
 		{
 			CompIt->ParticlePerfStats = nullptr;
-			CompIt->RecreateRenderState_Concurrent();
+			CompIt->MarkRenderStateDirty();
 		}
 		ComponentToPerfStats.Empty();
 	}
@@ -222,7 +222,7 @@ void FParticlePerfStatsManager::Reset()
 	{
 		for (TObjectIterator<UFXSystemComponent> CompIt; CompIt; ++CompIt)
 		{
-			CompIt->RecreateRenderState_Concurrent();
+			CompIt->MarkRenderStateDirty();
 		}
 	}
 #endif
@@ -240,7 +240,7 @@ void FParticlePerfStatsManager::Tick()
 		TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> ToRemove;
 		for (FParticlePerfStatsListenerPtr& Listener : Listeners)
 		{
-			if (Listener->Tick() == false)
+			if (Listener.IsValid() == false || Listener.IsUnique() || Listener->Tick() == false)
 			{
 				ToRemove.Add(Listener);
 			}

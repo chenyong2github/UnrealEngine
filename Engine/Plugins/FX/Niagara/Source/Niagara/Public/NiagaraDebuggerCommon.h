@@ -626,6 +626,22 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	// Message display error text color
 	UPROPERTY(EditAnywhere, Category = "Colors")
 	FLinearColor MessageErrorTextColor = FLinearColor(1.0f, 0.4, 0.3, 1.0f);
+	
+	/** Opacity of the system color background tile in overview table rows. */
+	UPROPERTY(Config, EditAnywhere, Category = "Colors")
+	float SystemColorTableOpacity = 0.2f;
+
+	/** Additional seed value for random system colors. Useful if current colors of systems are too similar. */
+	UPROPERTY(Config, EditAnywhere, Category = "Colors")
+	uint32 SystemColorSeed = 0;
+
+	/** Minimum HSV values for the random colors generated for each System. */
+	UPROPERTY(Config, EditAnywhere, Category = "Colors")
+	FVector SystemColorHSVMin = FVector(0, 200, 200);
+
+	/** Maximum HSV values for the random colors generated for each System. */
+	UPROPERTY(Config, EditAnywhere, Category = "Colors")
+	FVector SystemColorHSVMax = FVector(255, 255, 255);
 
 	UPROPERTY()
 	ENiagaraDebugPlaybackMode PlaybackMode = ENiagaraDebugPlaybackMode::Play;
