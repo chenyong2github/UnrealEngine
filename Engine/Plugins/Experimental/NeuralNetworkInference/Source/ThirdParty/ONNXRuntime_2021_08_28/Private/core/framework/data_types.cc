@@ -3,8 +3,6 @@
 
 #include "core/framework/data_types.h"
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-
 #include "boost/mp11.hpp"
 
 #include "core/framework/data_types_internal.h"
