@@ -560,6 +560,10 @@ static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D1
 	}
 }
 
+
+namespace D3D12RHI
+{
+
 void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress)
 {
 	if (InPageFaultAddress == 0)
@@ -631,6 +635,8 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 		}
 	}
 }
+
+} // namespace D3D12RHI
 
 void LogMemoryInfo(FD3D12Adapter* InAdapter)
 {

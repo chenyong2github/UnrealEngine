@@ -416,6 +416,12 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 							FormatStr += FCString::Strlen(FormatPrefix);
 						}
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Faulting resource format: %s (0x%x)"), FormatStr, (int32)ResourceFormat);
+
+						if (FaultInformation.faultingGpuVA)
+						{
+							FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+							D3D12RHI::LogPageFaultData(Adapter, D3D12_GPU_VIRTUAL_ADDRESS(FaultInformation.faultingGpuVA));
+						}
 					}
 					else
 					{
