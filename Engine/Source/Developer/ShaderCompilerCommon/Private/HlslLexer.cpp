@@ -405,6 +405,7 @@ namespace CrossCompiler
 				InsertToken(TEXT(","), EHlslToken::Comma);
 				InsertToken(TEXT("."), EHlslToken::Dot);
 				InsertToken(TEXT("struct"), EHlslToken::Struct);
+				InsertToken(TEXT("class"), EHlslToken::Struct); // Scan as equivalent to "struct"
 				InsertToken(TEXT("cbuffer"), EHlslToken::CBuffer);
 				InsertToken(TEXT("ConstantBuffer"), EHlslToken::ConstantBuffer);
 				InsertToken(TEXT("groupshared"), EHlslToken::GroupShared);
