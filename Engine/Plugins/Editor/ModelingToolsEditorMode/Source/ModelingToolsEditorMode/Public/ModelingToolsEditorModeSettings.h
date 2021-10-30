@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "Engine/EngineTypes.h"
 #include "ModelingToolsEditorModeSettings.generated.h"
 
 
