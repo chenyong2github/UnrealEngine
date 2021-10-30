@@ -53,7 +53,10 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 	FString FilePath;
 	if (!ReadConfigData(InViewport->GetId(), FilePath, OriginCompId, EasyBlendScale))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't read EasyBlend configuration from the config file"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't read EasyBlend configuration from the config file"));
+		}
 		return false;
 	}
 
@@ -165,7 +168,10 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(const FString&
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File);
+		}
 		return false;
 	}
 	
@@ -176,7 +182,10 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(const FString&
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin);
+		}
 	}
 
 	// Geometry scale (optional)
@@ -186,7 +195,10 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(const FString&
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale);
+		}
 	}
 
 	return true;

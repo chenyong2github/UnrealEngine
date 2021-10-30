@@ -41,7 +41,11 @@ bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(class IDisplayClust
 	// Get assigned screen ID
 	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::simple::Screen, ScreenId))
 	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		}
+
 		return false;
 	}
 

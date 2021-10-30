@@ -23,6 +23,14 @@ FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
 {
 }
 
+bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode()
+{
+	// Hide spam in logs when configuring VP in editor [UE-114493]
+	static const bool bIsEditorOperationMode = IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Editor;
+
+	return bIsEditorOperationMode;
+}
+
 bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
 {
 	if (InConfigurationProjectionPolicy->Parameters.Num() != Parameters.Num()) {
@@ -72,7 +80,10 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 
 		if (!PolicyOriginComp)
 		{
-			UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
+			if (!IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
+			}
 			return;
 		}
 

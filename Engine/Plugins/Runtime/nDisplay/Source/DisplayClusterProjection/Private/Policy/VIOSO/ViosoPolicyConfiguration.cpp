@@ -5,6 +5,7 @@
 #include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterProjectionLog.h"
 #include "Misc/DisplayClusterHelpers.h"
+#include "Policy/DisplayClusterProjectionPolicyBase.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FViosoPolicyConfiguration
@@ -42,7 +43,11 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::Origin);
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::Origin);
+		}
+
 		return false;
 	}
 
@@ -53,6 +58,16 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 
 		// Get full path to calibration file:
 		INIFile = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(CfgINIFile);
+
+		if (INIFile.IsEmpty())
+		{
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Vioso INI file empty string"));
+			}
+
+			return false;
+		}
 
 		// Test fullpath filename exist
 		if (!FPaths::FileExists(INIFile))
@@ -67,7 +82,11 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 		}
 		else
 		{
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName);
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName);
+			}
+
 			return false;
 		}
 
@@ -84,6 +103,16 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 		// Get full path to calibration file:
 		CalibrationFile = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(CfgCalibrationFile);
 
+		if (CalibrationFile.IsEmpty())
+		{
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Calibration file empty string"));
+			}
+
+			return false;
+		}
+
 		// Test fullpath filename exist
 		if (!FPaths::FileExists(CalibrationFile))
 		{
@@ -94,7 +123,11 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::File);
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::File);
+		}
+
 		return false;
 	}
 
@@ -115,7 +148,10 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 		else
 		{
 			CalibrationIndex = 0;
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' or '%s'  not found, Use default value - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, CalibrationIndex);
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' or '%s'  not found, Use default value - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, CalibrationIndex);
+			}
 		}
 	}
 
@@ -123,14 +159,21 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	{
 		if (BaseMatrix == FMatrix::Identity)
 		{
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' values read as Identity"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix);
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' values read as Identity"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix);
+			}
 		}
+
 		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix, *BaseMatrix.ToString());
 	}
 	else
 	{
 		BaseMatrix = FMatrix::Identity;
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found, Use default value - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix, *BaseMatrix.ToString());
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found, Use default value - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix, *BaseMatrix.ToString());
+		}
 	}
 
 
@@ -140,7 +183,10 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found. Assigned default value - '%f'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma, Gamma);
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found. Assigned default value - '%f'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma, Gamma);
+		}
 	}
 
 	return true;

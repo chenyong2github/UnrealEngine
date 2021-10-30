@@ -33,7 +33,11 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	FString File;
 	if (!ReadConfigData(InViewport->GetId(), File, OriginCompId, DomeprojectionChannel))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't read Domeprojection configuration from the config file"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't read Domeprojection configuration from the config file"));
+		}
+
 		return false;
 	}
 
@@ -146,7 +150,11 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::File);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::File);
+		}
+
 		return false;
 	}
 
@@ -157,7 +165,11 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Parameter <%s> not found in the config file"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Channel);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Parameter <%s> not found in the config file"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Channel);
+		}
+
 		return false;
 	}
 
@@ -168,7 +180,10 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: No <%s> parameter found for projection %s"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Origin, *OutOrigin);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: No <%s> parameter found for projection %s"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Origin, *OutOrigin);
+		}
 	}
 
 	return true;

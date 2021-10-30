@@ -59,7 +59,10 @@ bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayCluster
 
 	if (!CreateWarpMeshInterface(InViewport))
 	{
-		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
+		}
 
 		return false;
 	}
@@ -94,7 +97,11 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 		}
 #endif
 
-		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
+		}
+
 		return false;
 	}
 
