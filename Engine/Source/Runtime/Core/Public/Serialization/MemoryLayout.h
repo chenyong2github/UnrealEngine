@@ -2,13 +2,16 @@
 
 #pragma once
 
+#include "Concepts/StaticClassProvider.h"
+#include "Concepts/StaticStructProvider.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/StringFwd.h"
+#include "Misc/DelayedAutoRegister.h"
+#include "Templates/EnableIf.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsPolymorphic.h"
 #include "Templates/IsTriviallyDestructible.h"
-#include "Templates/EnableIf.h"
-#include "Misc/DelayedAutoRegister.h"
+#include "Templates/Models.h"
 
 class FHashedName;
 class FSHA1;
@@ -323,29 +326,10 @@ namespace Freeze
 	CORE_API FSHAHash HashLayout(const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams);
 }
 
-
-struct CProvidesStaticClass
-{
-	template<typename T>
-	auto Requires(const T&) -> decltype(T::StaticClass());
-};
-
-struct CProvidesStaticStruct
-{
-	template<typename T>
-	auto Requires(const T&) -> decltype(T::StaticStruct());
-};
-
 template<typename T>
 struct TUsePropertyFreezing
 {
-	static constexpr bool Value = (TModels<CProvidesStaticClass, T>::Value || TModels<CProvidesStaticStruct, T>::Value);
-};
-
-template<typename T>
-struct TProvidesStaticStruct
-{
-	static constexpr bool Value = TModels<CProvidesStaticStruct, T>::Value;
+	static constexpr bool Value = (TModels<CStaticClassProvider, T>::Value || TModels<CStaticStructProvider, T>::Value);
 };
 
 template <typename T, bool bUsePropertyFreezing=TUsePropertyFreezing<T>::Value>
@@ -354,7 +338,7 @@ struct TGetFreezeImageHelper
 	static FORCEINLINE FTypeLayoutDesc::FWriteFrozenMemoryImageFunc* Do() { return &Freeze::DefaultWriteMemoryImage; }
 };
 
-template <typename T, bool bProvidesStaticStruct=TProvidesStaticStruct<T>::Value>
+template <typename T, bool bProvidesStaticStruct=TModels<CStaticStructProvider, T>::Value>
 struct TGetFreezeImageFieldHelper
 {
 	static FORCEINLINE FFieldLayoutDesc::FWriteFrozenMemoryImageFunc* Do() { return &Freeze::DefaultWriteMemoryImageField; }
