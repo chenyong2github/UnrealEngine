@@ -585,17 +585,14 @@ namespace Chaos
 			for (auto& KeyValuePair : ShapePairConstraintMap)
 			{
 				FPBDCollisionConstraint* Constraint = KeyValuePair.Value;
-
-				if (!Constraint->IsSleeping())
+				
+				if (Constraint->GetContainerCookie().LastUsedEpoch < Epoch)
 				{
-					if (Constraint->GetContainerCookie().LastUsedEpoch < Epoch)
+					if(!Constraint->IsSleeping())
 					{
-						Constraint->GetContainerCookie().bIsInShapePairMap = false;
-
-						FreeConstraint(Constraint);
-
-						PrunedKeyList.Add(KeyValuePair.Key);
+						FreeConstraint(KeyValuePair.Value);
 					}
+					PrunedKeyList.Add(KeyValuePair.Key);
 				}
 			}
 
