@@ -326,6 +326,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				TraversalSettings.Random			= Random.xyz;
 				TraversalSettings.PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 				TraversalSettings.bUseOpaqueVisibility = false;
+				TraversalSettings.bCastShadow		= true;
 
 				const uint VoxelDescCount = VirtualVoxel.NodeDescCount;
 				for (uint VoxelDescIt=0; VoxelDescIt<VoxelDescCount; ++VoxelDescIt)

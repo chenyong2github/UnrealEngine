@@ -22,7 +22,18 @@ uint ComputeMipDensity(
 		((RawDensity5 & VOXEL_OPAQUE_MASK) >> VOXEL_OPAQUE_SHIFT) +
 		((RawDensity6 & VOXEL_OPAQUE_MASK) >> VOXEL_OPAQUE_SHIFT) +
 		((RawDensity7 & VOXEL_OPAQUE_MASK) >> VOXEL_OPAQUE_SHIFT);
-	const uint OutTotalOpaque = uint(clamp(TotalOpaque / 8.f, TotalOpaque > 0 ? 1 : 0, 0xFF)) << VOXEL_OPAQUE_SHIFT;
+	const uint OutTotalOpaque = uint(clamp(TotalOpaque / 8.f, TotalOpaque > 0 ? 1 : 0, 0x7F)) << VOXEL_OPAQUE_SHIFT;
+
+	// Propagate no shadow casting flag, only if other valid/non-empty voxels are also no-shadow caster
+	const bool bHasShadowCaster =
+		(RawDensity0 & VOXEL_HAIR_MASK) > 0 && (RawDensity0 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity1 & VOXEL_HAIR_MASK) > 0 && (RawDensity1 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity2 & VOXEL_HAIR_MASK) > 0 && (RawDensity2 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity3 & VOXEL_HAIR_MASK) > 0 && (RawDensity3 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity4 & VOXEL_HAIR_MASK) > 0 && (RawDensity4 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity5 & VOXEL_HAIR_MASK) > 0 && (RawDensity5 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity6 & VOXEL_HAIR_MASK) > 0 && (RawDensity6 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
+		(RawDensity7 & VOXEL_HAIR_MASK) > 0 && (RawDensity7 & VOXEL_CAST_NO_SHADOW_MASK)==0;
 
 	uint TotalHair = 
 		(RawDensity0 & VOXEL_HAIR_MASK) +
@@ -39,7 +50,7 @@ uint ComputeMipDensity(
 	// Insure that if a voxel contains some hair data, its total hair remains > 0 after averaging. 
 	// This is important for pruning invalid/empty page later on, to not remove non-empty page (which 
 	// could arise due to numerical precision).
-	return min(uint(VOXEL_HAIR_MASK), bHasData ? max(TotalHair, 1) : 0) | OutTotalOpaque;
+	return min(uint(VOXEL_HAIR_MASK), bHasData ? max(TotalHair, 1u) : 0u) | OutTotalOpaque | (bHasShadowCaster ? 0u : VOXEL_CAST_NO_SHADOW_MASK);
 }
 
 #if SHADER_MIP_VIRTUALVOXEL

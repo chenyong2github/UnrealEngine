@@ -1687,6 +1687,11 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 	OutVFInput.Strands.HairDensity = Instance->Strands.Modifier.HairShadowDensity;
 	OutVFInput.Strands.bScatterSceneLighting = Instance->Strands.Modifier.bScatterSceneLighting;
 	OutVFInput.Strands.bUseStableRasterization = Instance->Strands.Modifier.bUseStableRasterization;
+#if RHI_RAYTRACING
+	OutVFInput.Strands.bUseRaytracingGeometry = Instance->Strands.RenRaytracingResource != nullptr;
+#else
+	OutVFInput.Strands.bUseRaytracingGeometry = false;
+#endif
 
 	return OutVFInput;
 }

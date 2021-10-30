@@ -493,7 +493,8 @@ void MainPS(
 		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Shadow;
 		TraversalSettings.Random = Random;
 		TraversalSettings.PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
-		
+		TraversalSettings.bCastShadow = true;
+
 		if (bIsValid && RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f && HairPixelCoverage < CoverageThreshold)
 		{
 			Result = ComputeHairCountVirtualVoxel(

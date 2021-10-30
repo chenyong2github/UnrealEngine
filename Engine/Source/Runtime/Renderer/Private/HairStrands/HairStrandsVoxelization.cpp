@@ -1229,6 +1229,7 @@ class FVoxelRasterComputeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MaxRasterCount)
 		SHADER_PARAMETER(uint32, FrameIdMod8)
 		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
+		SHADER_PARAMETER(uint32, HairStrandsVF_bHasRaytracedGeometry)
 		SHADER_PARAMETER(float,	  HairStrandsVF_Density)
 		SHADER_PARAMETER(float,   HairStrandsVF_Radius)
 		SHADER_PARAMETER(float,   HairStrandsVF_RootScale)
@@ -1319,7 +1320,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->HairStrandsVF_TipScale = VFInput.Strands.HairTipScale;
 				PassParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
 				PassParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale();
-
+				PassParameters->HairStrandsVF_bHasRaytracedGeometry = VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
 				const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
 				PassParameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 

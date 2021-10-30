@@ -60,10 +60,11 @@ bool IsInVoxelBounds(float3 P, float3 MinP, float3 MaxP)
 #define INVALID_VOXEL_PAGE_INDEX 0xFFFFFFFF
 #define INVALID_MACRO_GROUP_ID 0xFF
 
-#define VOXEL_HAIR_MASK		0x00FFFFFF
-#define VOXEL_OPAQUE_MASK	0xFF000000
-#define VOXEL_OPAQUE_ADD	0xFF000000
-#define VOXEL_OPAQUE_SHIFT	24
+#define VOXEL_CAST_NO_SHADOW_MASK	0x80000000	// Bit mask for holding if the voxel does *not* cast hair shadow (i.e. cast only transmission). The invert/negative logic is for making hair voxelization more efficient.
+#define VOXEL_HAIR_MASK				0x00FFFFFF	// Bit mask for holding hair count/density
+#define VOXEL_OPAQUE_MASK			0x7F000000	// Bit mask for holding opaque geometry
+#define VOXEL_OPAQUE_ADD			0x7F000000
+#define VOXEL_OPAQUE_SHIFT			24
 
 struct FVirtualVoxelCommonDesc
 {
@@ -163,21 +164,17 @@ float GetInternalVoxelHairCount(uint RawDensity)
 	return Raw / VoxelFixPointScale;
 }
 
-FHairTraversalResult GetHairVirtualVoxelDensity(uint3 InVoxelPageCoord, Texture3D<uint> InPageTexture, uint MipIndex, float DensityScale)
+FHairTraversalResult GetHairVirtualVoxelDensity(uint3 InVoxelPageCoord, Texture3D<uint> InPageTexture, uint MipIndex, float DensityScale, bool bCastShadow)
 {
 	FHairTraversalResult Out = InitHairTraversalResult();
 	const uint RawDensity = InPageTexture.Load(uint4(InVoxelPageCoord >> MipIndex, MipIndex));
-	Out.HairCount  = GetInternalVoxelHairCount(RawDensity) * DensityScale;
-	Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);
-	return Out;
-}
 
-FHairTraversalResult GetHairVoxelDensity(uint3 InVolumeCoord, Texture3D<uint> InDensityTexture, uint MipIndex, float DensityScale)
-{
-	FHairTraversalResult Out = InitHairTraversalResult();
-	const uint RawDensity = InDensityTexture.Load(int4(InVolumeCoord, MipIndex));
-	Out.HairCount = GetInternalVoxelHairCount(RawDensity) * DensityScale;
-	Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);
+	const bool bValid = !bCastShadow || (bCastShadow && (RawDensity & VOXEL_CAST_NO_SHADOW_MASK) == 0);
+	if (bValid)
+	{
+		Out.HairCount  = GetInternalVoxelHairCount(RawDensity) * DensityScale;
+		Out.Visibility = GetInternalVoxelOpaqueVisibility(RawDensity);
+	}
 	return Out;
 }
 

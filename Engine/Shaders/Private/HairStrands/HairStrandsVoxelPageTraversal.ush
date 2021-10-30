@@ -129,6 +129,7 @@ struct FHairTraversalSettings
 	bool	bDebugEnabled;
 	bool	bIsPrimaryRay;
 	bool	bUseOccupancy;
+	bool	bCastShadow;	// True of the traversal is for casting (opaque) shadow, i.e., not for hair transmission
 };
 
 float GetHairTraversalMaxT()
@@ -152,6 +153,7 @@ FHairTraversalSettings InitHairTraversalSettings()
 	Out.bIsPrimaryRay = false;
 	Out.bUseOccupancy = false;
 	Out.ForcedMip = -1;
+	Out.bCastShadow = false;
 	return Out;
 }
 
@@ -270,7 +272,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 					MipLevel = InSettings.ForcedMip >= 0 ? InSettings.ForcedMip : MipLevel;
 					#endif
 
-					const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, uint(MipLevel), InSettings.DensityScale * HairCountScale);
+					const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, uint(MipLevel), InSettings.DensityScale * HairCountScale, InSettings.bCastShadow);
 					Acc(Out, StepResult);
 
 					if (InSettings.bIsPrimaryRay && StepResult.HairCount > 0)
@@ -468,7 +470,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 					}
 					#endif
 
-					const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, MipLevel, InSettings.DensityScale);
+					const FHairTraversalResult StepResult = GetHairVirtualVoxelDensity(VoxelPageCoord, InPageTexture, MipLevel, InSettings.DensityScale, InSetttings.bCastShadow);
 					Acc(Out, StepResult);
 
 					if (ShouldStopTraversal(Out, InSettings.CountThreshold))
