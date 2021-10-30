@@ -84,9 +84,9 @@ class MODELINGCOMPONENTS_API UTransformInputsToolProperties : public UInteractiv
 	GENERATED_BODY()
 
 public:
-	/** Show UI to allow changing translation, rotation and scale of input meshes */
-	UPROPERTY(EditAnywhere, Category = Transform)
-	bool bShowTransformUI = true;
+	/** Show transform gizmo in the viewport to allow changing translation, rotation and scale of input meshes. */
+	UPROPERTY(EditAnywhere, Category = Transform, meta = (DisplayName = "Show Gizmo"))
+	bool bShowTransformGizmo = true;
 };
 
 
