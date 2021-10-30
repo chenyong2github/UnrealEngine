@@ -272,7 +272,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
 	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
 
+#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	float3 GeoNormal = 0;
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(WorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
+#else
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+#endif
 	FPixelMaterialInputs PixelMaterialInputs;
 
 	{
@@ -561,7 +566,12 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 
 	CalcInterpolants(PackedPayload.GetRayCone(), Attributes, Interpolants);
 
+#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	float3 GeoNormal = 0;
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(WorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
+#else
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+#endif
 	FPixelMaterialInputs PixelMaterialInputs;
 
 	{
