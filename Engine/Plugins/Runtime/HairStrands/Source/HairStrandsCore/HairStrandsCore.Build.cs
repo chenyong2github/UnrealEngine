@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					ModuleDirectory + "/Private",
 					EngineDirectory + "/Source/Runtime/Renderer/Private",
+					EngineDirectory + "/Shaders/Shared",
 				});
 			PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
