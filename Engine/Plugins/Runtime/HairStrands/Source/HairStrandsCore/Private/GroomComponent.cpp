@@ -528,6 +528,7 @@ public:
 		}
 
 		const bool bWireframe = AllowDebugViewmodes() && Context.ReferenceViewFamily.EngineShowFlags.Wireframe;
+		const uint32 ViewRayTracingMask = Context.ReferenceViewFamily.EngineShowFlags.PathTracing ? EHairViewRayTracingMask::PathTracing : EHairViewRayTracingMask::RayTracing;
 		if (bWireframe)
 			return;
 
@@ -543,11 +544,13 @@ public:
 
 			FHairStrandsRaytracingResource* RTGeometry = nullptr;
 			uint8 RayTracingMask = RAY_TRACING_MASK_OPAQUE;
+			uint32 InstanceViewRayTracingMask = EHairViewRayTracingMask::PathTracing | EHairViewRayTracingMask::RayTracing;
 			switch (GeometryType)
 			{
 				case EHairGeometryType::Strands:
 				{
 					RTGeometry = Instance->Strands.RenRaytracingResource;
+					InstanceViewRayTracingMask = Instance->Strands.ViewRayTracingMask;
 					RayTracingMask = RAY_TRACING_MASK_THIN_SHADOW;
 					break;
 				}
@@ -561,6 +564,12 @@ public:
 					RTGeometry = Instance->Meshes.LODs[LODIndex].RaytracingResource;
 					break;
 				}
+			}
+
+			// If the view and the instance raytracing mask don't match skip this instance.
+			if ((InstanceViewRayTracingMask & ViewRayTracingMask) == 0)
+			{
+				continue;
 			}
 
 			if (RTGeometry && RTGeometry->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
@@ -2568,6 +2577,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			#if RHI_RAYTRACING
 			if (IsHairRayTracingEnabled() && HairGroupInstance->Strands.Modifier.bUseHairRaytracingGeometry && bVisibleInRayTracing)
 			{
+				HairGroupInstance->Strands.ViewRayTracingMask = EHairViewRayTracingMask::RayTracing | EHairViewRayTracingMask::PathTracing;
 				if (bNeedDynamicResources)
 				{
 					// Allocate dynamic raytracing resources (owned by the groom component/instance)

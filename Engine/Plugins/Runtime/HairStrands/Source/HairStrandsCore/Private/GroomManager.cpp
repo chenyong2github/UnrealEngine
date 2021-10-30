@@ -131,6 +131,12 @@ static void RunInternalHairStrandsInterpolation(
 {
 	check(IsInRenderingThread());
 
+	#if RHI_RAYTRACING
+	const uint32 ViewRayTracingMask = View->Family->EngineShowFlags.PathTracing ? EHairViewRayTracingMask::PathTracing : EHairViewRayTracingMask::RayTracing;
+	#else
+	const uint32 ViewRayTracingMask = 0u;
+	#endif
+
 	// Update dynamic mesh triangles
 	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
@@ -357,6 +363,7 @@ static void RunInternalHairStrandsInterpolation(
 				GraphBuilder, 
 				ShaderMap,
 				ViewUniqueID,
+				ViewRayTracingMask,
 				ShaderDrawData, 
 				ShaderPrintData,
 				Instance,
@@ -580,6 +587,22 @@ static void AddCopyHairStrandsPositionPass(
 #endif
 }
 
+#if RHI_RAYTRACING
+static void AllocateRaytracingResources(FHairGroupInstance* Instance)
+{
+	if (IsHairRayTracingEnabled() && !Instance->Strands.RenRaytracingResource)
+	{
+		check(Instance->Strands.Data);
+
+		// Allocate dynamic raytracing resources (owned by the groom component/instance)
+		FHairResourceName ResourceName(FName(Instance->Debug.GroomAssetName), Instance->Debug.GroupIndex);
+		Instance->Strands.RenRaytracingResource		 = new FHairStrandsRaytracingResource(*Instance->Strands.Data, ResourceName);
+		Instance->Strands.RenRaytracingResourceOwned = true;
+	}
+	Instance->Strands.ViewRayTracingMask |= EHairViewRayTracingMask::PathTracing;
+}
+#endif
+
 static void RunHairLODSelection(
 	FRDGBuilder& GraphBuilder, 
 	const FHairStrandsInstances& Instances, 
@@ -592,6 +615,19 @@ static void RunHairLODSelection(
 	{
 		ShaderPlatform = Views[0]->GetShaderPlatform();
 	}
+
+	// Detect if one of the current view has path tracing enabled for allocating raytracing resources
+#if RHI_RAYTRACING
+	bool bHasPathTracingView = false;
+	for (const FSceneView* View : Views)
+	{
+		if (View->Family->EngineShowFlags.PathTracing)
+		{
+			bHasPathTracingView = true;
+			break;
+		}
+	}
+#endif
 
 	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
@@ -753,6 +789,7 @@ static void RunHairLODSelection(
 			if (Instance->Strands.DeformedRootResource)		{ Instance->Strands.DeformedRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Strands.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
 			if (Instance->Strands.DeformedResource)			{ Instance->Strands.DeformedResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
 			#if RHI_RAYTRACING
+			if (bHasPathTracingView)						{ AllocateRaytracingResources(Instance); }
 			if (Instance->Strands.RenRaytracingResource)	{ Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
 			#endif
 			Instance->Strands.VertexFactory->InitResources();
