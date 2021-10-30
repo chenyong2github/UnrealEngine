@@ -72,6 +72,11 @@
 [shader("raygeneration")] void name()
 #endif // RAY_TRACING_ENTRY_RAYGEN
 
+#ifndef RAY_TRACING_ENTRY_INTERSECTION
+#define RAY_TRACING_ENTRY_INTERSECTION(name)\
+[shader("intersection")] void name()
+#endif //RAY_TRACING_ENTRY_INTERSECTION
+
 #ifndef RAY_TRACING_ENTRY_CLOSEST_HIT
 #define RAY_TRACING_ENTRY_CLOSEST_HIT(name, payload_type, payload_name, attributes_type, attributes_name)\
 [shader("closesthit")] void name(inout payload_type payload_name, in attributes_type attributes_name)

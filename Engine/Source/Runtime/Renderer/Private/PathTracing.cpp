@@ -603,7 +603,7 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
 
-template<bool UseAnyHitShader>
+template<bool UseAnyHitShader, bool UseIntersectionShader>
 class TPathTracingMaterial : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(TPathTracingMaterial, MeshMaterial);
@@ -616,7 +616,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		const bool bUseProceduralPrimitive = Parameters.VertexFactoryType->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(Parameters.Platform);
 		return Parameters.VertexFactoryType->SupportsRayTracing()
+			&& (UseIntersectionShader == bUseProceduralPrimitive)
 			&& ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode != BLEND_Opaque) == UseAnyHitShader)
 			&& ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 	}
@@ -625,6 +627,7 @@ public:
 	{
 		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_CLOSEST_HIT_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_ANY_HIT_SHADER"), UseAnyHitShader ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_INTERSECTION_SHADER"), UseIntersectionShader ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
 		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), 0); // TODO: expose a permutation so we can unify with GPULightmass?
@@ -654,12 +657,17 @@ public:
 	}
 };
 
-using FPathTracingMaterialCHS     = TPathTracingMaterial<false>;
-using FPathTracingMaterialCHS_AHS = TPathTracingMaterial<true>;
+using FPathTracingMaterialCHS        = TPathTracingMaterial<false, false>;
+using FPathTracingMaterialCHS_AHS    = TPathTracingMaterial<true , false>;
+using FPathTracingMaterialCHS_IS     = TPathTracingMaterial<false, true >;
+using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true >;
 
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
+
 
 
 bool FRayTracingMeshProcessor::ProcessPathTracing(
@@ -680,13 +688,20 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 
 	FMaterialShaderTypes ShaderTypes;
 
+	const bool bUseProceduralPrimitive = VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
 	if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
 	{
-		ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+		if (bUseProceduralPrimitive)
+			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+		else
+			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
 	}
 	else
 	{
-		ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+		if (bUseProceduralPrimitive)
+			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+		else
+			ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
 	}
 
 	FMaterialShaders Shaders;
