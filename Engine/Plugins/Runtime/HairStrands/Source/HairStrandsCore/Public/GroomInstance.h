@@ -77,6 +77,12 @@ enum class EHairLODSelectionType
 	Forced		// Forced LOD value
 };
 
+enum EHairViewRayTracingMask
+{
+	RayTracing  = 0x1, // Visible for raytracing effects (RT shadow, RT refleciton, Lumen, ...)
+	PathTracing = 0x2, // Visible for pathtracing rendering
+};
+
 // Represent/Describe data & resources of a hair group belonging to a groom
 struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 {
@@ -135,6 +141,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RenRaytracingResource = nullptr;
 		bool RenRaytracingResourceOwned = false;
+		uint32 ViewRayTracingMask = 0u;
 		float CachedHairScaledRadius = 0;
 		float CachedHairRootScale = 0;
 		float CachedHairTipScale = 0;

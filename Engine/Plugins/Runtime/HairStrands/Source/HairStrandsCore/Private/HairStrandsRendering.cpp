@@ -1687,10 +1687,12 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 	OutVFInput.Strands.HairDensity = Instance->Strands.Modifier.HairShadowDensity;
 	OutVFInput.Strands.bScatterSceneLighting = Instance->Strands.Modifier.bScatterSceneLighting;
 	OutVFInput.Strands.bUseStableRasterization = Instance->Strands.Modifier.bUseStableRasterization;
-#if RHI_RAYTRACING
-	OutVFInput.Strands.bUseRaytracingGeometry = Instance->Strands.RenRaytracingResource != nullptr;
-#else
 	OutVFInput.Strands.bUseRaytracingGeometry = false;
+#if RHI_RAYTRACING
+	// Flag bUseRaytracingGeometry only if RT geometry has been allocated for RayTracing view (not for PathTracing view). 
+	// This flag is used later for selecting if voxelization needs to flags voxel has shadow caster or if shadow casting is handled 
+	// by the RT geometry.
+	OutVFInput.Strands.bUseRaytracingGeometry = Instance->Strands.RenRaytracingResource != nullptr && (Instance->Strands.ViewRayTracingMask & EHairViewRayTracingMask::RayTracing) != 0;
 #endif
 
 	return OutVFInput;
@@ -1707,6 +1709,7 @@ void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const uint32 ViewUniqueID,
+	const uint32 ViewRayTracingMask,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FHairGroupInstance* Instance,
@@ -1965,9 +1968,9 @@ void ComputeHairStrandsInterpolation(
 				}
 			}
 
-			// 4. Update raytracing geometry
+			// 4. Update raytracing geometry (update only if the view mask and the RT geometry mask match)
 			#if RHI_RAYTRACING
-			if (Instance->Strands.RenRaytracingResource)
+			if (Instance->Strands.RenRaytracingResource && (Instance->Strands.ViewRayTracingMask & ViewRayTracingMask) != 0)
 			{
 				const float HairRadiusRT	= Instance->HairGroupPublicData->VFInput.Strands.HairRaytracingRadiusScale * Instance->HairGroupPublicData->VFInput.Strands.HairRadius;
 				const float HairRootScaleRT = Instance->HairGroupPublicData->VFInput.Strands.HairRootScale;
