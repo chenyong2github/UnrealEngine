@@ -14,6 +14,12 @@
 #include "GroomInstance.h"
 
 #define VF_STRANDS_SUPPORT_GPU_SCENE 0
+#define VF_STRANDS_CUSTOM_INTERSECTOR 1
+
+bool GetSupportHairStrandsProceduralPrimitive(EShaderPlatform InShaderPlatform)
+{
+	return VF_STRANDS_CUSTOM_INTERSECTOR && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(InShaderPlatform);
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -65,6 +71,7 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	Out.Radius 						= VFInput.Strands.HairRadius;
 	Out.RootScale 					= VFInput.Strands.HairRootScale;
 	Out.TipScale 					= VFInput.Strands.HairTipScale;
+	Out.RaytracingRadiusScale		= VFInput.Strands.HairRaytracingRadiusScale;
 	Out.Length 						= VFInput.Strands.HairLength;
 	Out.Density 					= VFInput.Strands.HairDensity;
 	Out.StableRasterization			= VFInput.Strands.bUseStableRasterization;
@@ -152,9 +159,10 @@ void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactor
 		// TODO: support GPUScene on mobile
 		&& !IsMobilePlatform(Parameters.Platform);
 #endif
+	const bool bUseProceduralIntersection = GetSupportHairStrandsProceduralPrimitive(Parameters.Platform);
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
-	OutEnvironment.SetDefine(TEXT("HAIR_STRAND_MESH_FACTORY"), TEXT("1"));
-	OutEnvironment.SetDefine(TEXT("ENABLE_CUSTOM_INTERSECTOR"), STRANDS_CUSTOM_INTERSECTOR);
+	OutEnvironment.SetDefine(TEXT("HAIR_STRAND_MESH_FACTORY"), 1);
+	OutEnvironment.SetDefine(TEXT("ENABLE_CUSTOM_INTERSECTOR"), bUseProceduralIntersection);
 }
 
 void FHairStrandsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -249,4 +257,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FHairStrandsVertexFactory, "/Engine/Private/HairSt
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| (VF_STRANDS_SUPPORT_GPU_SCENE ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsRayTracing
+	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
+	| (VF_STRANDS_CUSTOM_INTERSECTOR ? EVertexFactoryFlags::SupportsRayTracingProceduralPrimitive : EVertexFactoryFlags::None)
 );

@@ -47,6 +47,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER(float, TipScale)
 	SHADER_PARAMETER(float, Length)
 	SHADER_PARAMETER(float, Density)
+	SHADER_PARAMETER(float, RaytracingRadiusScale)
 	SHADER_PARAMETER(uint32, CullingEnable)
 	SHADER_PARAMETER(uint32, HasMaterial)
 	SHADER_PARAMETER(uint32, StableRasterization)

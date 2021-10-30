@@ -936,10 +936,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 						RayTracingScene.GeometriesToBuild.Add(Geometry);
 					}
 
-					// Thin geometries like hair don't have material, as they only support shadow at the moment.
+					// Validate the material/segment counts
 					if (!ensureMsgf(Instance.GetMaterials().Num() == Geometry->Initializer.Segments.Num() ||
-						(Geometry->Initializer.Segments.Num() == 0 && Instance.GetMaterials().Num() == 1) ||
-						(Instance.GetMaterials().Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0),
+						(Geometry->Initializer.Segments.Num() == 0 && Instance.GetMaterials().Num() == 1),
 						TEXT("Ray tracing material assignment validation failed for geometry '%s'. "
 							"Instance.GetMaterials().Num() = %d, Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
 						*Geometry->Initializer.DebugName.ToString(), Instance.GetMaterials().Num(),
@@ -2533,7 +2532,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ensureMsgf(!VirtualShadowMapArray.IsEnabled(), TEXT("Virtual shadow maps are not supported in the forward shading path"));
 		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 
-		if (bHairEnable)
+		if (bHairEnable && !bHasRayTracedOverlay)
 		{
 			RenderHairPrePass(GraphBuilder, Scene, Views, InstanceCullingManager);
 			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager);
@@ -2630,7 +2629,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Render hair
-	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
+	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform) && !bHasRayTracedOverlay)
 	{
 		RenderHairPrePass(GraphBuilder, Scene, Views, InstanceCullingManager);
 		RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager);

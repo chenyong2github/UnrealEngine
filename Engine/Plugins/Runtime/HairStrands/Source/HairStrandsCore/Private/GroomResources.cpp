@@ -1501,14 +1501,22 @@ void FHairCardsInterpolationResource::InternalRelease()
 // which used 6*float4 = 48 bytes per vertex
 // NOTE: the vertex buffer is a float4 because it is registered as a UAV for the compute shader to work
 // TODO: use a plain float vertex buffer with 3x the entries instead to save memory? (float3 UAVs are not allowed)
+bool GetSupportHairStrandsProceduralPrimitive(EShaderPlatform InShaderPlatform);
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsBulkData& InData, const FHairResourceName& ResourceName) :
-	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName),
-#if STRANDS_CUSTOM_INTERSECTOR
-	VertexCount(InData.GetNumPoints() * 2), bOwnBuffers(true) // only allocate space for primitive AABBs
-#else
-	VertexCount(InData.GetNumPoints() * 4), IndexCount(InData.GetNumPoints() * 8 * 3), bOwnBuffers(true)
-#endif
-{}
+	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName)
+{
+	bOwnBuffers = true;
+	bProceduralPrimitive = GetSupportHairStrandsProceduralPrimitive(GMaxRHIShaderPlatform);
+	if (bProceduralPrimitive)
+	{
+		VertexCount = InData.GetNumPoints() * 2; // only allocate space for primitive AABBs
+	}
+	else
+	{
+		VertexCount = InData.GetNumPoints() * 4;
+		IndexCount = InData.GetNumPoints() * 8 * 3;
+	}
+}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsBulkData& InData, const FHairResourceName& ResourceName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName),

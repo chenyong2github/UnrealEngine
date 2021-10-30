@@ -11,7 +11,8 @@
 #include "HairStrandsRendering.h"
 #include "HairCardsVertexFactory.h"
 #include "HairStrandsVertexFactory.h"
-#include "RayTracingInstanceUtils.h"
+#include "RayTracingInstance.h"
+#include "RayTracingDefinitions.h"
 #include "HairStrandsInterface.h"
 #include "UObject/UObjectIterator.h"
 #include "GlobalShader.h"
@@ -252,6 +253,12 @@ static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* M
 
 	return EHairMaterialCompatibility::Valid;
 }
+
+enum class EHairMeshBatchType
+{
+	Raster,
+	Raytracing
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -534,53 +541,51 @@ public:
 			const EHairGeometryType GeometryType = Instance->HairGroupPublicData->VFInput.GeometryType;
 			const uint32 LODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
 
-			if (GeometryType == EHairGeometryType::Strands)
+			FHairStrandsRaytracingResource* RTGeometry = nullptr;
+			uint8 RayTracingMask = RAY_TRACING_MASK_OPAQUE;
+			switch (GeometryType)
 			{
-				FHairStrandsRaytracingResource* RTGeometry = Instance->Strands.RenRaytracingResource ? Instance->Strands.RenRaytracingResource : nullptr;
-				if (RTGeometry && RTGeometry->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+				case EHairGeometryType::Strands:
 				{
-					for (const FRayTracingGeometrySegment& Segment : RTGeometry->RayTracingGeometry.Initializer.Segments)
-					{
-						check(Segment.VertexBuffer.IsValid());
-					}
-					AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
+					RTGeometry = Instance->Strands.RenRaytracingResource;
+					RayTracingMask = RAY_TRACING_MASK_THIN_SHADOW;
+					break;
+				}
+				case EHairGeometryType::Cards:
+				{
+					RTGeometry = Instance->Cards.LODs[LODIndex].RaytracingResource;
+					break;
+				}
+				case EHairGeometryType::Meshes:
+				{
+					RTGeometry = Instance->Meshes.LODs[LODIndex].RaytracingResource;
+					break;
 				}
 			}
-			else if (GeometryType == EHairGeometryType::Cards)
-			{
-				FHairStrandsRaytracingResource* RTGeometry = Instance->Cards.LODs[LODIndex].RaytracingResource ? Instance->Cards.LODs[LODIndex].RaytracingResource : nullptr;
-				if (RTGeometry && RTGeometry->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
-				{
-					for (const FRayTracingGeometrySegment& Segment : RTGeometry->RayTracingGeometry.Initializer.Segments)
-					{
-						check(Segment.VertexBuffer.IsValid());
-					}
-				
-					if (FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr))
-					{
-						TArray<FMeshBatch> MeshBatches;
-						MeshBatches.Add(*MeshBatch);
-						AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
-					}
 
+			if (RTGeometry && RTGeometry->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+			{
+				for (const FRayTracingGeometrySegment& Segment : RTGeometry->RayTracingGeometry.Initializer.Segments)
+				{
+					check(Segment.VertexBuffer.IsValid());
 				}
-			}
-			else if (GeometryType == EHairGeometryType::Meshes)
-			{
-				FHairStrandsRaytracingResource* RTGeometry = Instance->Meshes.LODs[LODIndex].RaytracingResource ? Instance->Meshes.LODs[LODIndex].RaytracingResource : nullptr;
-				if (RTGeometry && RTGeometry->RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+				// ViewFamily.EngineShowFlags.PathTracing
+				if (FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, EHairMeshBatchType::Raytracing, Instance, GroupIt, nullptr))
 				{
-					for (const FRayTracingGeometrySegment& Segment : RTGeometry->RayTracingGeometry.Initializer.Segments)
+					FRayTracingInstance RayTracingInstance;
+					RayTracingInstance.Geometry = &RTGeometry->RayTracingGeometry;
+					RayTracingInstance.Materials.Add(*MeshBatch);
+					RayTracingInstance.InstanceTransforms.Add(OverrideLocalToWorld);
+					RayTracingInstance.Mask = RayTracingMask;
+					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
+
+					// If thin shadow is requested, we ensure that regular shadow mask is not added.
+					if (RayTracingMask == RAY_TRACING_MASK_THIN_SHADOW)
 					{
-						check(Segment.VertexBuffer.IsValid());
+						RayTracingInstance.Mask &= ~RAY_TRACING_MASK_SHADOW;
 					}
 
-					if (FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr))
-					{
-						TArray<FMeshBatch> MeshBatches;
-						MeshBatches.Add(*MeshBatch);
-						AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
-					}
+					OutRayTracingInstances.Add(RayTracingInstance);
 				}
 			}
 		}
@@ -684,7 +689,7 @@ public:
 						Debug_MaterialProxy = DebugMaterial;
 					}
 
-					if (FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, Instances[GroupIt], GroupIt, Debug_MaterialProxy))
+					if (FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, EHairMeshBatchType::Raster, Instances[GroupIt], GroupIt, Debug_MaterialProxy))
 					{
 						Collector.AddMesh(ViewIndex, *MeshBatch);
 					}
@@ -706,6 +711,7 @@ public:
 		const FSceneView* View,
 		const FSceneViewFamily& ViewFamily,
 		FMeshElementCollector& Collector,
+		const EHairMeshBatchType MeshBatchType,
 		const FHairGroupInstance* Instance,
 		uint32 GroupIndex,
 		FMaterialRenderProxy* Debug_MaterialProxy) const
@@ -810,7 +816,7 @@ public:
 
 		const bool bUseCardsOrMeshes = GeometryType == EHairGeometryType::Cards || GeometryType == EHairGeometryType::Meshes;
 		Mesh.CastShadow = bUseCardsOrMeshes;
-		Mesh.bUseForMaterial  = bUseCardsOrMeshes;
+		Mesh.bUseForMaterial = MeshBatchType == EHairMeshBatchType::Raytracing || bUseCardsOrMeshes;
 		Mesh.bUseForDepthPass = bUseCardsOrMeshes;
 		Mesh.SegmentIndex = 0;
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
