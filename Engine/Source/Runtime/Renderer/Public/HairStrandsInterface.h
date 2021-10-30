@@ -268,6 +268,7 @@ public:
 			float HairDensity = 0;
 			bool bUseStableRasterization = false;
 			bool bScatterSceneLighting = false;
+			bool bUseRaytracingGeometry = false;
 		} Strands;
 
 		struct FCards

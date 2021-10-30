@@ -13,6 +13,7 @@ uint			MaxRasterCount;
 uint			FrameIdMod8;
 uint			MacroGroupId;
 uint			HairStrandsVF_bIsCullingEnable;
+uint			HairStrandsVF_bHasRaytracedGeometry;
 float			HairStrandsVF_Radius;
 float			HairStrandsVF_RootScale;
 float			HairStrandsVF_TipScale;
@@ -202,12 +203,21 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 			// Insure we don't write multiple time within the same voxel.
 			// This can happen for small hair segment, where both start & end points could be writtent into the same voxel.
 			const bool bRasterize = any(VoxelPageCoord != PreviousCoord);
-
-			const float HairCoverage = lerp(HairCoverage0, HairCoverage1, U);
 			if (bRasterize)
 			{
 				const float VoxelFixPointScale = GetVoxelDensityFixPointScale();
-				InterlockedAdd(OutPageTexture[VoxelPageCoord], HairCoverage * VoxelFixPointScale * HairStrandsVF_Density);
+				
+				const float HairCoverage = lerp(HairCoverage0, HairCoverage1, U);
+				uint RawData = HairCoverage * VoxelFixPointScale * HairStrandsVF_Density;
+				InterlockedAdd(OutPageTexture[VoxelPageCoord], RawData);
+
+				// Groom having raytraced geometry will cast-shadow on opaque geomtry with their RT-geometry, not with their 
+				// voxelization. To avoid for doubling/incorrect shadowing, we mark voxel with no-shadow casting flag. 
+				// This adds a significant cost when used.
+				if (HairStrandsVF_bHasRaytracedGeometry)
+				{
+					InterlockedOr(OutPageTexture[VoxelPageCoord], VOXEL_CAST_NO_SHADOW_MASK);
+				}
 			}
 			PreviousCoord = VoxelPageCoord;
 		}
