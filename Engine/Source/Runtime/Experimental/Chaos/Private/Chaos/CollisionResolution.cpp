@@ -2862,12 +2862,8 @@ namespace Chaos
 			FParticlePairCollisionConstraints* PairContacts = Context.CollisionAllocator->FindParticlePairConstraints(Particle0->Handle(), Particle1->Handle());
 			if (PairContacts != nullptr)
 			{
-				// @todo(chaos): eventually we shouldn't even be calling this function for sleeping pairs
-				const bool bIsAsleep0 = (Particle0->IsDynamic() && Particle0->Sleeping()) || (Particle0->IsKinematic() && !Particle0->KinematicTarget().IsSet()) || Particle0->IsStatic();
-				const bool bIsAsleep1 = (Particle1->IsDynamic() && Particle1->Sleeping()) || (Particle1->IsKinematic() && !Particle1->KinematicTarget().IsSet()) || Particle1->IsStatic();
-
 				// See if the particles have the same relative transform and can have their constraint fully restored
-				const bool bCanRestore = (bIsAsleep0 && bIsAsleep1) || IsWithinManifoldRestorationThreshold(PairContacts->GetParticle0Transform(), ParticleWorldTransform0, PairContacts->GetParticle1Transform(), ParticleWorldTransform1);
+				const bool bCanRestore = IsWithinManifoldRestorationThreshold(PairContacts->GetParticle0Transform(), ParticleWorldTransform0, PairContacts->GetParticle1Transform(), ParticleWorldTransform1);
 
 				if (bCanRestore)
 				{
