@@ -3,16 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "InteractiveToolBuilder.h"
-#include "Drawing/LineSetComponent.h"
 #include "BaseTools/BaseCreateFromSelectedTool.h"
-
 #include "CompositionOps/BooleanMeshesOp.h"
+#include "Drawing/LineSetComponent.h"
+#include "UObject/NoExportTypes.h"
 
 #include "CSGMeshesTool.generated.h"
 
-// predeclarations
+// Forward declarations
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
@@ -24,39 +22,39 @@ class MESHMODELINGTOOLS_API UCSGMeshesToolProperties : public UInteractiveToolPr
 {
 	GENERATED_BODY()
 public:
-	/** The type of operation */
-	UPROPERTY(EditAnywhere, Category = Operation)
+	/** Type of Boolean operation */
+	UPROPERTY(EditAnywhere, Category = Boolean)
 	ECSGOperation Operation = ECSGOperation::DifferenceAB;
 
-	/** Show boundary edges created by the CSG operation (often due to numerical error) */
-	UPROPERTY(EditAnywhere, Category = Operation)
-	bool bShowNewBoundaryEdges = true;
-
-	/** Automatically attempt to fill any holes left by CSG (e.g. due to numerical errors) */
-	UPROPERTY(EditAnywhere, Category = Operation)
-	bool bAttemptFixHoles = false;
+	/** Try to fill holes created by the Boolean operation, e.g. due to numerical errors */
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	bool bTryFixHoles = false;
 
 	/** Try to collapse extra edges created by the Boolean operation */
-	UPROPERTY(EditAnywhere, Category = Operation)
-	bool bCollapseExtraEdges = true;
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	bool bTryCollapseEdges = true;
 
-	/** Whether to show a translucent version of the subtracted mesh, to help visualize what is being removed */
-	UPROPERTY(EditAnywhere, Category = Display, meta = (EditCondition = "Operation == ECSGOperation::DifferenceAB || Operation == ECSGOperation::DifferenceBA", EditConditionHides))
+	/** Show boundary edges created by the Boolean operation, which might happen due to numerical errors */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowNewBoundaries = true;
+
+	/** Show a translucent version of the subtracted mesh, to help visualize geometry that is being removed */
+	UPROPERTY(EditAnywhere, Category = Display, meta = (EditCondition = "Operation == ECSGOperation::DifferenceAB || Operation == ECSGOperation::DifferenceBA"))
 	bool bShowSubtractedMesh = true;
 	
-	/** Opacity of translucent version of the selected mesh */
-	UPROPERTY(EditAnywhere, Category = Display, meta = (ClampMin = "0", ClampMax = "1", 
-		EditCondition = "bShowSubtractedMesh && Operation == ECSGOperation::DifferenceAB || bShowSubtractedMesh && Operation == ECSGOperation::DifferenceBA", EditConditionHides))
-	float OpacityOfSubtractedMesh = .2;
+	/** Opacity of the translucent subtracted mesh */
+	UPROPERTY(EditAnywhere, Category = Display, meta = (DisplayName = "Opacity Subtracted Mesh", ClampMin = "0", ClampMax = "1",
+		EditCondition = "bShowSubtractedMesh && Operation == ECSGOperation::DifferenceAB || bShowSubtractedMesh && Operation == ECSGOperation::DifferenceBA"))
+	float SubtractedMeshOpacity = 0.2f;
 	
-	/** Color of translucent version of the subtracted mesh */
-	UPROPERTY(EditAnywhere, Category = Display, meta = (
-		EditCondition = "bShowSubtractedMesh && Operation == ECSGOperation::DifferenceAB || bShowSubtractedMesh && Operation == ECSGOperation::DifferenceBA", EditConditionHides), AdvancedDisplay)
-	FLinearColor ColorOfSubtractedMesh = FLinearColor::Black;
+	/** Color of the translucent subtracted mesh */
+	UPROPERTY(EditAnywhere, Category = Display, meta = (DisplayName = "Color Subtracted Mesh", HideAlphaChannel, ClampMin = "0", ClampMax = "1",
+		EditCondition = "bShowSubtractedMesh && Operation == ECSGOperation::DifferenceAB || bShowSubtractedMesh && Operation == ECSGOperation::DifferenceBA"))
+	FLinearColor SubtractedMeshColor = FLinearColor::Black;
 
-	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
+	/** If true, only the first mesh will keep its material assignments, and all other faces will have the first material assigned */
 	UPROPERTY(EditAnywhere, Category = Materials)
-	bool bOnlyUseFirstMeshMaterials = false;
+	bool bUseFirstMeshMaterials = false;
 };
 
 
@@ -91,7 +89,6 @@ public:
 };
 
 
-
 /**
  * Simple Mesh Plane Cutting Tool
  */
@@ -123,8 +120,6 @@ protected:
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
-
-protected:
 
 	void UpdateVisualization();
 
@@ -161,8 +156,6 @@ protected:
 };
 
 
-
-
 UCLASS()
 class MESHMODELINGTOOLS_API UCSGMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
 {
@@ -192,6 +185,3 @@ public:
 		return Tool;
 	}
 };
-
-
-

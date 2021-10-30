@@ -14,26 +14,26 @@
 UENUM()
 enum class ECSGOperation : uint8
 {
-	/** Subtracts the first object from the second */
-	DifferenceAB = 0 UMETA(DisplayName = "A - B"),
+	/** Subtract the second object from the first object */
+	DifferenceAB = 0 UMETA(DisplayName = "Difference A - B"),
 
-	/** Subtracts the second object from the first */
-	DifferenceBA = 1 UMETA(DisplayName = "B - A"),
+	/** Subtract the first object from the second object */
+	DifferenceBA = 1 UMETA(DisplayName = "Difference B - A"),
 
-	/** intersection of two objects */
-	Intersect = 2 UMETA(DisplayName = "Intersect"),
+	/** Intersection of the two objects, i.e. where both objects overlap */
+	Intersect = 2 UMETA(DisplayName = "Intersection"),
 
-	/** union of two objects */
+	/** Union of the two objects, i.e. merger of both objects  */
 	Union = 3 UMETA(DisplayName = "Union"),
 };
 
 UENUM()
 enum class ETrimOperation : uint8
 {
-	/** Remove geometry from the first object using the second */
+	/** Remove geometry from the first object using the second object */
 	TrimA = 0 UMETA(DisplayName = "Trim A"),
 
-	/** Remove geometry from the second object using the first */
+	/** Remove geometry from the second object using the first object */
 	TrimB = 1 UMETA(DisplayName = "Trim B"),
 };
 
@@ -54,7 +54,7 @@ namespace Geometry
 class MODELINGOPERATORS_API FBooleanMeshesOp : public FDynamicMeshOperator
 {
 public:
-	virtual ~FBooleanMeshesOp() {}
+	virtual ~FBooleanMeshesOp() override = default;
 
 	// inputs
 	ECSGOperation CSGOperation;

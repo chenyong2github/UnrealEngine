@@ -166,7 +166,7 @@ void UBaseCreateFromSelectedTool::UpdateGizmoVisibility()
 	for (int32 GizmoIndex = 0; GizmoIndex < TransformGizmos.Num(); GizmoIndex++)
 	{
 		UCombinedTransformGizmo* Gizmo = TransformGizmos[GizmoIndex];
-		Gizmo->SetVisibility(TransformProperties->bShowTransformUI && GizmoIndex != GetHiddenGizmoIndex());
+		Gizmo->SetVisibility(TransformProperties->bShowTransformGizmo && GizmoIndex != GetHiddenGizmoIndex());
 	}
 }
 
@@ -301,7 +301,7 @@ FString UBaseCreateFromSelectedTool::PrefixWithSourceNameIfSingleSelection(const
 
 void UBaseCreateFromSelectedTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformInputsToolProperties, bShowTransformUI)))
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformInputsToolProperties, bShowTransformGizmo)))
 	{
 		UpdateGizmoVisibility();
 	}
