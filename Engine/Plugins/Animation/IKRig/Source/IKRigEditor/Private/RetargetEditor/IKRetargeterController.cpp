@@ -2,6 +2,7 @@
 
 #include "RetargetEditor/IKRetargeterController.h"
 
+#include "ScopedTransaction.h"
 #include "Algo/LevenshteinDistance.h"
 #include "Engine/SkeletalMesh.h"
 #include "Retargeter/IKRetargeter.h"
