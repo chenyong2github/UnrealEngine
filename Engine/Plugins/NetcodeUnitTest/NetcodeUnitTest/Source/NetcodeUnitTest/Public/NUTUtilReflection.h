@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Concepts/StaticStructProvider.h"
+#include "Templates/Models.h"
+#include "Templates/ValueOrError.h"
 #include "UObject/Class.h"
-#include "UObject/UnrealType.h"
 #include "UObject/Field.h"
 #include "UObject/StructOnScope.h"
-#include "Templates/ValueOrError.h"
+#include "UObject/UnrealType.h"
 
 class FStructOnScope;
 class FFuncReflection;
@@ -189,22 +191,6 @@ class FFuncReflection;
 //				Beyond the scope of the unit test tool, but (with much of the legwork done below) it's low hanging fruit,
 //				that'd make for a nice feature.
 //				If you (eventually) add autocomplete to the unit test tool log window, this would be the next logical feature.
-
-
-// @todo #JohnB: Perhaps move up to Core, and add a UCLASS version checking StaticClass (tested before, and it works)
-/**
- * Determines at compile-time, whether or not a type is defined as a USTRUCT, through TIsUStruct<Type>::Value
- */
-template<typename T>
-class TIsUStruct
-{
-	template<typename A> static uint8	Check(decltype(&A::StaticStruct));
-	template<typename B> static uint16	Check(...);
-
-public:
-	enum { Value = sizeof(Check<T>(0)) == sizeof(uint8) };
-};
-
 
 /**
  * Used for specifying the warning level, for reflection helpers
@@ -486,7 +472,7 @@ public:
 	template<typename T>
 	FORCEINLINE T* GetStructRef()
 	{
-		static_assert(TIsUStruct<T>::Value, "Only USTRUCT types can be passed to GetStructRef");
+		static_assert(TModels<CStaticStructProvider, T>::Value, "Only USTRUCT types can be passed to GetStructRef");
 
 		return (T*)(void*)(FVMReflection(*this)[TCHAR_TO_ANSI(*FString::Printf(TEXT("F%s"), *T::StaticStruct()->GetName()))]);
 	}
