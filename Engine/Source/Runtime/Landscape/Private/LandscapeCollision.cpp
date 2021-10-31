@@ -2973,93 +2973,123 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 	return Height;
 }
 
+struct FHeightFieldAccessor
+{
+	FHeightFieldAccessor(const ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef& InGeometryRef)
+	: GeometryRef(InGeometryRef)
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+	, NumX(InGeometryRef.RBHeightfield ? InGeometryRef.RBHeightfield->getNbColumns() : 0)
+	, NumY(InGeometryRef.RBHeightfield ? InGeometryRef.RBHeightfield->getNbRows() : 0)
+#elif WITH_CHAOS
+	, NumX(InGeometryRef.Heightfield.IsValid() ? InGeometryRef.Heightfield->GetNumCols() : 0)
+	, NumY(InGeometryRef.Heightfield.IsValid() ? InGeometryRef.Heightfield->GetNumRows() : 0)
+#endif
+	{
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+		const int32 CellCount = NumX * NumY;
+		if (CellCount > 0)
+		{
+			HFSamples.SetNumUninitialized(CellCount);
+			GeometryRef.RBHeightfield->saveCells(HFSamples.GetData(), CellCount * HFSamples.GetTypeSize());
+		}
+#endif
+	}
+
+	float GetUnscaledHeight(int32 X, int32 Y) const
+	{
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+		return float(HFSamples[NumX * (NumY - 1 - X) + Y].height);
+#elif WITH_CHAOS
+		return GeometryRef.Heightfield->GetHeight(X, Y);
+#else
+		return 0.0f;
+#endif
+	}
+
+	uint8 GetMaterialIndex(int32 X, int32 Y) const
+	{
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+		// we'll just use the sample from the first triangle
+		return HFSamples[NumX * (NumY - 1 - X) + Y].materialIndex0;
+#elif WITH_CHAOS
+		return GeometryRef.Heightfield->GetMaterialIndex(X, Y);
+#else
+		return 0;
+#endif
+	}
+
+	const ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef& GeometryRef;
+	const int32 NumX = 0;
+	const int32 NumY = 0;
+
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+private:
+	TArray<PxHeightFieldSample> HFSamples;
+#endif
+};
+
 bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> Heights, int32 Offset, int32 Stride) const
 {
-#if WITH_CHAOS
 	if (!IsValidRef(HeightfieldRef))
 	{
 		return false;
 	}
 
-	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
+	FHeightFieldAccessor Accessor(*HeightfieldRef.GetReference());
 
-	// If the heightfield data isn't valid, simply return
-	if (HeightFieldData.IsValid())
+	const int32 LastTiledIndex = Offset + FMath::Max(0, Accessor.NumX - 1) + Stride * FMath::Max(0, Accessor.NumY - 1);
+	if (!Heights.IsValidIndex(LastTiledIndex))
 	{
-		const int32 NumX = HeightFieldData->GetNumCols();
-		const int32 NumY = HeightFieldData->GetNumRows();
-
-		const int32 LastTiledIndex = Offset + FMath::Max(0, NumX - 1) + Stride * FMath::Max(0, NumY - 1);
-
-		if (!Heights.IsValidIndex(LastTiledIndex))
-		{
-			return false;
-		}
-
-		const FTransform& WorldTransform = GetComponentToWorld();
-		const float ZScale = WorldTransform.GetScale3D().Z * LANDSCAPE_ZSCALE;
-
-		// Write all values to output array
-		for (int32 y = 0; y < NumY; ++y)
-		{
-			for (int32 x = 0; x < NumX; ++x)
-			{
-				const float CurrHeight = HeightFieldData->GetHeight(x, y) * ZScale;
-				const float WorldHeight = WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z;
-
-				// write output
-				const int32 WriteIndex = Offset + y * Stride + x;
-				Heights[WriteIndex] = WorldHeight;
-			}
-		}
-
-		return true;
+		return false;
 	}
-#endif
 
-	return false;
+	const FTransform& WorldTransform = GetComponentToWorld();
+	const float ZScale = WorldTransform.GetScale3D().Z * LANDSCAPE_ZSCALE;
+
+	// Write all values to output array
+	for (int32 y = 0; y < Accessor.NumY; ++y)
+	{
+		for (int32 x = 0; x < Accessor.NumX; ++x)
+		{
+			const float CurrHeight = Accessor.GetUnscaledHeight(x, y);
+			const float WorldHeight = WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight * ZScale)).Z;
+
+			// write output
+			const int32 WriteIndex = Offset + y * Stride + x;
+			Heights[WriteIndex] = WorldHeight;
+		}
+	}
+
+	return true;
 }
 
 bool ULandscapeHeightfieldCollisionComponent::FillMaterialIndexTile(TArrayView<uint8> Materials, int32 Offset, int32 Stride) const
 {
-#if WITH_CHAOS
 	if (!IsValidRef(HeightfieldRef))
 	{
 		return false;
 	}
 
-	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
+	FHeightFieldAccessor Accessor(*HeightfieldRef.GetReference());
 
-	// If the heightfield data isn't valid, simply return
-	if (HeightFieldData.IsValid())
+	const int32 LastTiledIndex = Offset + FMath::Max(0, Accessor.NumX - 1) + Stride * FMath::Max(0, Accessor.NumY - 1);
+	if (!Materials.IsValidIndex(LastTiledIndex))
 	{
-		// material indices are stored per cell rather than per vertex
-		const int32 NumX = HeightFieldData->GetNumCols() - 1;
-		const int32 NumY = HeightFieldData->GetNumRows() - 1;
-
-		const int32 LastTiledIndex = Offset + FMath::Max(0, NumX - 1) + Stride * FMath::Max(0, NumY - 1);
-
-		if (!Materials.IsValidIndex(LastTiledIndex))
-		{
-			return false;
-		}
-
-		// Write all values to output array
-		for (int32 y = 0; y < NumY; ++y)
-		{
-			for (int32 x = 0; x < NumX; ++x)
-			{
-				// write output
-				const int32 WriteIndex = Offset + y * Stride + x;
-				Materials[WriteIndex] = HeightFieldData->GetMaterialIndex(x, y);
-			}
-		}
-
-		return true;
+		return false;
 	}
-#endif
 
-	return false;
+	// Write all values to output array
+	for (int32 y = 0; y < Accessor.NumY; ++y)
+	{
+		for (int32 x = 0; x < Accessor.NumX; ++x)
+		{
+			// write output
+			const int32 WriteIndex = Offset + y * Stride + x;
+			Materials[WriteIndex] = Accessor.GetMaterialIndex(x, y);
+		}
+	}
+
+	return true;
 }
 
 TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
