@@ -79,7 +79,7 @@ void FVulkanQueue::Submit(FVulkanCmdBuffer* CmdBuffer, uint32 NumSignalSemaphore
 
 	if (GWaitForIdleOnSubmit != 0)
 	{
-		FVulkanCommandBufferManager* CmdBufferMgr = Device->GetImmediateContext().GetCommandBufferManager();
+		FVulkanCommandBufferManager* CmdBufferMgr = &CmdBuffer->GetOwner()->GetMgr();
 
 		switch(GWaitForIdleOnSubmit)
 		{
