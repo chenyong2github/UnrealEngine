@@ -3,9 +3,9 @@
 #include "CoreMinimal.h"
 #include "HttpConnectionContext.h"
 #include "HttpServerHttpVersion.h"
+#include "HttpServerResponse.h"
 
 
-struct FHttpServerResponse;
 class FSocket;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHttpConnectionResponseWriteContext, Log, All);
