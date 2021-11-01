@@ -132,7 +132,7 @@ void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<F
 	}
 
 	TRange<FFrameTime> TailRange(LowerBound, Bounds.GetUpperBound());
-	if (!TailRange.IsEmpty() && !TailRange.IsDegenerate())
+	if (!TailRange.IsEmpty())
 	{
 		OutDissections.Add(TailRange);
 	}
