@@ -268,6 +268,9 @@ protected:
 	/* Flag to recreate shapes during tick */
 	bool bRecreateControlShapesRequired;
 
+	/* Flag to temporarily disable handling notifs from the hierarchy */
+	bool bSuspendHierarchyNotifs;
+
 	/** Shape actors */
 	TArray<AControlRigShapeActor*> ShapeActors;
 	UControlRigDetailPanelControlProxies* ControlProxy;

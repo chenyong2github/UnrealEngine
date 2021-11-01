@@ -138,6 +138,7 @@ FControlRigEditMode::FControlRigEditMode()
 	, bSelectionChanged(false)
 	, PivotTransform(FTransform::Identity)
 	, bRecreateControlShapesRequired(false)
+	, bSuspendHierarchyNotifs(false)
 	, CurrentViewportClient(nullptr)
 	, bIsChangingCoordSystem(false)
 {
@@ -2430,6 +2431,11 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 
 void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
+	if(bSuspendHierarchyNotifs)
+	{
+		return;
+	}
+	
 	switch(InNotif)
 	{
 		case ERigHierarchyNotification::ElementAdded:

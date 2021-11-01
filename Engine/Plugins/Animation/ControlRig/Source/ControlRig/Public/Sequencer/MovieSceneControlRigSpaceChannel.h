@@ -132,6 +132,8 @@ private:
 	FMovieSceneKeyHandleMap KeyHandles;
 	
 	FMovieSceneControlRigSpaceChannelSpaceNoLongerUsedEvent SpaceNoLongerUsedEvent;
+
+	friend struct FControlRigSpaceChannelHelpers;
 };
 
 

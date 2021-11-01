@@ -729,7 +729,18 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 			}
 
 			ControlRig->SetControlCustomization(InControlKey, ControlCustomization);
-			InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+
+			if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
+			{
+				const TGuardValue<bool> SuspendGuard(EditMode->bSuspendHierarchyNotifs, true);
+				InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+			}
+			else
+			{
+				InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+			}
+
+			SpacePickerWidget->RefreshContents();
 		}
 	}
 }
