@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Trace/Detail/Writer.inl"
+
 namespace UE {
 namespace Trace {
 namespace Private {
