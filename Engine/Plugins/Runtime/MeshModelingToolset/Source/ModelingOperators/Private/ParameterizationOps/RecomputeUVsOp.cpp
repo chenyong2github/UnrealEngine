@@ -8,6 +8,7 @@
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Parameterization/PatchBasedMeshUVGenerator.h"
+#include "Properties/RecomputeUVsProperties.h"
 
 #include "DynamicSubmesh3.h"
 
@@ -374,6 +375,64 @@ bool FRecomputeUVsOp::CalculateResult_RegionOptimization(FProgressCancel* Progre
 	}
 
 	return true;
+}
+
+
+/**
+ * Factory
+ */
+
+
+TUniquePtr<FDynamicMeshOperator> URecomputeUVsOpFactory::MakeNewOperator()
+{
+	FAxisAlignedBox3d MeshBounds = OriginalMesh->GetBounds();
+	TUniquePtr<FRecomputeUVsOp> RecomputeUVsOp = MakeUnique<FRecomputeUVsOp>();
+	RecomputeUVsOp->InputMesh = OriginalMesh;
+	RecomputeUVsOp->InputGroups = InputGroups;
+	RecomputeUVsOp->UVLayer = GetSelectedUVChannel();
+
+	RecomputeUVsOp->IslandMode = (UE::Geometry::ERecomputeUVsIslandMode)(int)Settings->IslandMode;
+	RecomputeUVsOp->UnwrapType = (UE::Geometry::ERecomputeUVsUnwrapType)(int)Settings->UnwrapType;
+
+	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBoxBounds);
+
+	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
+	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
+
+	RecomputeUVsOp->bMergingOptimization = Settings->bIslandMerging;
+	RecomputeUVsOp->MergingThreshold = Settings->MergingThreshold;
+	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MaxAngleDeviation;
+
+	RecomputeUVsOp->bPackUVs = Settings->bAutoPack;
+	if (Settings->bAutoPack)
+	{
+		RecomputeUVsOp->PackingTextureResolution = Settings->TextureResolution;
+		RecomputeUVsOp->bNormalizeAreas = false;
+		RecomputeUVsOp->AreaScaling = 1.0;
+	}
+	else
+	{
+		switch (Settings->UVScaleMode)
+		{
+		case ERecomputeUVsToolUVScaleMode::NoScaling:
+			RecomputeUVsOp->bNormalizeAreas = false;
+			RecomputeUVsOp->AreaScaling = 1.0;
+			break;
+		case ERecomputeUVsToolUVScaleMode::NormalizeToBounds:
+			RecomputeUVsOp->bNormalizeAreas = true;
+			RecomputeUVsOp->AreaScaling = Settings->UVScale / MeshBounds.MaxDim();
+			break;
+		case ERecomputeUVsToolUVScaleMode::NormalizeToWorld:
+			RecomputeUVsOp->bNormalizeAreas = true;
+			RecomputeUVsOp->AreaScaling = Settings->UVScale;
+			break;
+		}
+	}
+
+
+	RecomputeUVsOp->SetTransform(TargetTransform);
+
+	return RecomputeUVsOp;
 }
 
 

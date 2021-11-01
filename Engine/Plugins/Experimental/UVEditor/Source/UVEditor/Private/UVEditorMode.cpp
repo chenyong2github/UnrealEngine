@@ -26,6 +26,7 @@
 #include "UVEditorParameterizeMeshTool.h"
 #include "UVEditorLayerEditTool.h"
 #include "UVEditorSeamTool.h"
+#include "UVEditorRecomputeUVsTool.h"
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
@@ -181,6 +182,10 @@ void UUVEditorMode::RegisterTools()
 	UUVEditorSeamToolBuilder* UVEditorSeamToolBuilder = NewObject<UUVEditorSeamToolBuilder>();
 	UVEditorSeamToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginSeamTool, TEXT("UVSeamTool"), UVEditorSeamToolBuilder);
+
+	UUVEditorRecomputeUVsToolBuilder* UVEditorRecomputeUVsToolBuilder = NewObject<UUVEditorRecomputeUVsToolBuilder>();
+	UVEditorRecomputeUVsToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginRecomputeUVsTool, TEXT("UVRecomputeUVsTool"), UVEditorRecomputeUVsToolBuilder);
 }
 
 void UUVEditorMode::CreateToolkit()

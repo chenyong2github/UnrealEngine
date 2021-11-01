@@ -42,8 +42,14 @@ void URecomputeUVsTool::Setup()
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	FTransform TargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 
+	RecomputeUVsOpFactory = NewObject<URecomputeUVsOpFactory>();
+	RecomputeUVsOpFactory->OriginalMesh = InputMesh;
+	RecomputeUVsOpFactory->Settings = Settings;
+	RecomputeUVsOpFactory->TargetTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	RecomputeUVsOpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
+
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, this);
+	Preview->Setup(this->TargetWorld, RecomputeUVsOpFactory);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
@@ -154,6 +160,11 @@ void URecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->EndUndoTransaction();
 	}
 
+	if (RecomputeUVsOpFactory)
+	{
+		RecomputeUVsOpFactory = nullptr;
+	}
+
 }
 
 void URecomputeUVsTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -180,59 +191,11 @@ bool URecomputeUVsTool::CanAccept() const
 	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
-TUniquePtr<FDynamicMeshOperator> URecomputeUVsTool::MakeNewOperator()
+
+int32 URecomputeUVsTool::GetSelectedUVChannel() const
 {
-	FAxisAlignedBox3d MeshBounds = Preview->PreviewMesh->GetMesh()->GetBounds();
-	TUniquePtr<FRecomputeUVsOp> RecomputeUVsOp = MakeUnique<FRecomputeUVsOp>();
-	RecomputeUVsOp->InputMesh = InputMesh;
-	RecomputeUVsOp->InputGroups = ActiveGroupSet;
-	RecomputeUVsOp->UVLayer = UVChannelProperties->GetSelectedChannelIndex(true);
-	
-	RecomputeUVsOp->IslandMode = (UE::Geometry::ERecomputeUVsIslandMode)(int)Settings->IslandMode;
-	RecomputeUVsOp->UnwrapType = (UE::Geometry::ERecomputeUVsUnwrapType)(int)Settings->UnwrapType;
-
-	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBoxBounds);
-
-	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
-	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
-
-	RecomputeUVsOp->bMergingOptimization = Settings->bIslandMerging;
-	RecomputeUVsOp->MergingThreshold = Settings->MergingThreshold;
-	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MaxAngleDeviation;
-
-	RecomputeUVsOp->bPackUVs = Settings->bAutoPack;
-	if (Settings->bAutoPack)
-	{
-		RecomputeUVsOp->PackingTextureResolution = Settings->TextureResolution;
-		RecomputeUVsOp->bNormalizeAreas = false;
-		RecomputeUVsOp->AreaScaling = 1.0;
-	}
-	else
-	{
-		switch (Settings->UVScaleMode)
-		{
-		case ERecomputeUVsToolUVScaleMode::NoScaling:
-			RecomputeUVsOp->bNormalizeAreas = false;
-			RecomputeUVsOp->AreaScaling = 1.0;
-			break;
-		case ERecomputeUVsToolUVScaleMode::NormalizeToBounds:
-			RecomputeUVsOp->bNormalizeAreas = true;
-			RecomputeUVsOp->AreaScaling = Settings->UVScale / MeshBounds.MaxDim();
-			break;
-		case ERecomputeUVsToolUVScaleMode::NormalizeToWorld:
-			RecomputeUVsOp->bNormalizeAreas = true;
-			RecomputeUVsOp->AreaScaling = Settings->UVScale;
-			break;
-		}
-	}
-
-
-	RecomputeUVsOp->SetTransform(UE::ToolTarget::GetLocalToWorldTransform(Target));
-
-	return RecomputeUVsOp;
+	return UVChannelProperties ? UVChannelProperties->GetSelectedChannelIndex(true) : 0;
 }
-
-
 
 void URecomputeUVsTool::OnSelectedGroupLayerChanged()
 {
