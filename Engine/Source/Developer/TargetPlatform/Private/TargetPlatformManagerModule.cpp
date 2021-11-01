@@ -949,7 +949,7 @@ protected:
 			InstallManifestFile->Close();
 
 			
-			if (FileLines.Num() != 2)
+			if (FileLines.Num() != 2 && FileLines.Num() != 3)
 			{
 				UE_LOG(LogTargetPlatformManager, Warning, TEXT("Malformed install manifest file for Platform %s"), *AutoSDKPath);
 				return false;
