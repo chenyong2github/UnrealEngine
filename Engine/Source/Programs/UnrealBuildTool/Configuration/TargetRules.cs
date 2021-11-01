@@ -1013,7 +1013,7 @@ namespace UnrealBuildTool
 		public bool bDisableDebugInfoForGeneratedCode = false;
 
 		/// <summary>
-		/// Whether to disable debug info on PC in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
+		/// Whether to disable debug info on PC/Mac in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bOmitPCDebugInfoInDevelopment = false;

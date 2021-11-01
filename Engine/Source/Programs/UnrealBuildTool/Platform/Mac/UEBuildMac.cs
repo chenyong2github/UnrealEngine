@@ -17,16 +17,6 @@ namespace UnrealBuildTool
 	public class MacTargetRules
 	{
 		/// <summary>
-		/// Whether to generate dSYM files. Defaults to true for Shipping builds and false
-		/// for all other builds. -dsym will force generation of a dsym for other builds, 
-		/// -NoDsym will force it off for shipping.
-		/// </summary>
-		[CommandLine("-dSYM", Value = "true")]
-		[CommandLine("-NoDSYM", Value = "false")]
-		[XmlConfigFile(Category = "BuildConfiguration", Name = "bGeneratedSYMFile")]
-		public bool? bGenerateDsymFile;
-
-		/// <summary>
 		/// Enables address sanitizer (ASan).
 		/// </summary>
 		[CommandLine("-EnableASan")]
@@ -74,11 +64,6 @@ namespace UnrealBuildTool
 		#if !__MonoCS__
 		#pragma warning disable CS1591
 		#endif
-
-		public bool? bGenerateDsymFile
-		{
-			get { return Inner.bGenerateDsymFile; }
-		}
 
 		public bool bEnableAddressSanitizer
 		{
@@ -162,12 +147,7 @@ namespace UnrealBuildTool
 
 			Target.GlobalDefinitions.Add("GL_SILENCE_DEPRECATION=1");
 
-			bool IsBuildMachine = Environment.GetEnvironmentVariable("IsBuildMachine") == "1";
-
-			// If the user explicitly provided an option for dSYM's then do that. If they did not, then we want one for shipping builds or if we're a build machine
-			bool WantDsym = Target.MacPlatform.bGenerateDsymFile ?? (Target.Configuration == UnrealTargetConfiguration.Shipping || IsBuildMachine);
-
-			Target.bUsePDBFiles = !Target.bDisableDebugInfo && WantDsym;
+			Target.bUsePDBFiles = !Target.bDisableDebugInfo && ShouldCreateDebugInfo(new ReadOnlyTargetRules(Target));
 
 			// we always deploy - the build machines need to be able to copy the files back, which needs the full bundle
 			Target.bDeployAfterCompile = true;
@@ -370,7 +350,20 @@ namespace UnrealBuildTool
 		/// <returns>true if debug info should be generated, false if not</returns>
 		public override bool ShouldCreateDebugInfo(ReadOnlyTargetRules Target)
 		{
-			return true;
+			// Always generate debug symbols on the build machines.
+			bool IsBuildMachine = Environment.GetEnvironmentVariable("IsBuildMachine") == "1";
+
+			switch (Target.Configuration)
+			{
+				case UnrealTargetConfiguration.Development:
+				case UnrealTargetConfiguration.Shipping:
+				case UnrealTargetConfiguration.Test:
+					return !Target.bOmitPCDebugInfoInDevelopment || IsBuildMachine;
+				case UnrealTargetConfiguration.DebugGame:
+				case UnrealTargetConfiguration.Debug:
+				default:
+					return true;
+			};
 		}
 
 		/// <summary>
