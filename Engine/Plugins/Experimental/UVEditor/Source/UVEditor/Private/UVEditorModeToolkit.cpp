@@ -312,19 +312,10 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
 		.HAlign(HAlign_Fill)
 		.Padding(4)
 		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(2, 0, 0, 0)
+			SNew(SBox)			
+				.MinDesiredWidth(500)				
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					BackgroundDetailsContainer
-				]
+				BackgroundDetailsContainer				
 			]
 		];
 

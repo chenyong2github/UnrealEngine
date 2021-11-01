@@ -140,6 +140,11 @@ void UUVEditorMode::Enter()
 	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
 		[this](bool IsVisible) { UpdateTriangleMaterialBasedOnBackground(IsVisible); });
 
+	BackgroundVisualization->OnBackgroundMaterialChange.AddWeakLambda(this,
+		[this](TObjectPtr<UMaterialInstanceDynamic> MaterialInstance) {
+			UpdatePreviewMaterialBasedOnBackground();
+		});
+
 	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
 
 	RegisterTools();
@@ -581,6 +586,19 @@ void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVis
 				(FLinearColor)GetTriangleColorByTargetIndex(AssetID),
 				TriangleDepthOffset, 
 				TriangleOpacity));
+	}
+}
+
+void UUVEditorMode::UpdatePreviewMaterialBasedOnBackground()
+{
+	for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {
+		ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = nullptr;
+	}
+	if (BackgroundVisualization->Settings->bVisible)
+	{
+		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {
+			ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = BackgroundVisualization->BackgroundMaterial;
+		}
 	}
 }
 

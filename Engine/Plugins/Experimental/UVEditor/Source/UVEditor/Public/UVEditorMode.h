@@ -124,6 +124,7 @@ protected:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
+	void UpdatePreviewMaterialBasedOnBackground();
 
 	/**
 	 * Stores original input objects, for instance UStaticMesh pointers. AssetIDs on tool input 
