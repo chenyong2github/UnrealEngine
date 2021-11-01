@@ -19,7 +19,6 @@ namespace Private {
 static_assert(ETransport::Active == ETransport::TidPacketSync, "Tail-tracing is transport aware");
 
 ////////////////////////////////////////////////////////////////////////////////
-static void	StressRingPacket();
 uint32		GetEncodeMaxSize(uint32);
 int32		Encode(const void*, int32, void*, int32);
 void*		Writer_MemoryAllocate(SIZE_T, uint32);
@@ -266,6 +265,7 @@ void Writer_TailOnConnect()
 void Writer_InitializeTail(int32 BufferSize)
 {
 #if defined(STRESS_PACKET_RING)
+	static void	StressRingPacket();
 	StressRingPacket();
 #endif
 
