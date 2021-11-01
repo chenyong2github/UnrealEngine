@@ -346,7 +346,7 @@ void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 	Packet.ThreadId = FTidPacketBase::EncodedMarker;
 	Packet.ThreadId |= uint16(ThreadId & FTidPacketBase::ThreadIdMask);
 	Packet.DecodedSize = uint16(Size);
-	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
+	Packet.PacketSize = uint16(Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data)));
 	Packet.PacketSize += sizeof(FTidPacketEncoded);
 
 	Writer_SendDataImpl(&Packet, Packet.PacketSize);
@@ -611,8 +611,8 @@ static void Writer_InternalInitializeImpl()
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
 		<< NewTrace.StartCycle(GStartCycle)
 		<< NewTrace.CycleFrequency(TimeGetFrequency())
-		<< NewTrace.Endian(0x524d)
-		<< NewTrace.PointerSize(sizeof(void*));
+		<< NewTrace.Endian(uint16(0x524d))
+		<< NewTrace.PointerSize(uint8(sizeof(void*)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -721,7 +721,7 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 	Writer_InternalInitialize();
 
 	Port = Port ? Port : 1981;
-	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
+	UPTRINT DataHandle = TcpSocketConnect(Host, uint16(Port));
 	if (!DataHandle)
 	{
 		return false;

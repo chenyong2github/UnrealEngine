@@ -188,7 +188,7 @@ FTidPacketBase* FPacketRing::AppendImpl(uint32 InSize)
 
 	// Drop a packet from left.
 	auto* TidPacket = (FTidPacketBase*)(Data + Cursor);
-	TidPacket->PacketSize = InSize;
+	TidPacket->PacketSize = uint16(InSize);
 
 	Cursor = NextCursor;
 	return TidPacket;

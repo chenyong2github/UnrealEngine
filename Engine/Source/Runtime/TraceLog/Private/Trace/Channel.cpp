@@ -74,7 +74,7 @@ static uint32 GetChannelNameLength(const ANSICHAR* ChannelName)
 		}
 	}
 
-	return Len;
+	return uint32(Len);
 }
 
 
