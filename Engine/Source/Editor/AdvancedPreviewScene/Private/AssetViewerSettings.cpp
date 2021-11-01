@@ -44,7 +44,7 @@ UAssetViewerSettings* UAssetViewerSettings::Get()
 	return DefaultSettings;
 }
 
-void UAssetViewerSettings::Save()
+void UAssetViewerSettings::Save(bool bWarnIfFail)
 {
 	ULocalProfiles* LocalProfilesObject = GetMutableDefault<ULocalProfiles>();
 	USharedProfiles* SharedProfilesObject = GetMutableDefault<USharedProfiles>();
@@ -71,7 +71,7 @@ void UAssetViewerSettings::Save()
 	LocalProfilesObject->SaveConfig();
 
 	SharedProfilesObject->SaveConfig();
-	SharedProfilesObject->TryUpdateDefaultConfigFile();
+	SharedProfilesObject->TryUpdateDefaultConfigFile(FString(), bWarnIfFail);
 }
 
 void UAssetViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

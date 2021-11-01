@@ -167,8 +167,11 @@ public:
 
 	static UAssetViewerSettings* Get();
 	
-	/** Saves the config data out to the ini files */
-	void Save();
+	/**
+	 * Saves the config data out to the ini files
+	 * @param bWarnIfFail Should we log a warning if a ini file couldn't be saved.
+	 */
+	void Save(bool bWarnIfFail = true);
 
 	DECLARE_EVENT_OneParam(UAssetViewerSettings, FOnAssetViewerSettingsChangedEvent, const FName&);
 	FOnAssetViewerSettingsChangedEvent& OnAssetViewerSettingsChanged() { return OnAssetViewerSettingsChangedEvent; }
