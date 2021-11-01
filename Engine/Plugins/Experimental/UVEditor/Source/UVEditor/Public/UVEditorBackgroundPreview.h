@@ -9,6 +9,18 @@
 #include "GeometryBase.h"
 #include "UVEditorBackgroundPreview.generated.h"
 
+
+/**
+ * Enum to control the background visualiztion mode
+ */
+UENUM()
+enum class EUVEditorBackgroundSourceType
+{
+	Checkerboard,
+	Texture,
+	Material
+};
+
 /**
  * Visualization settings for the UUVEditorBackgroundPreview
  */
@@ -18,19 +30,19 @@ class UVEDITOR_API UUVEditorBackgroundPreviewProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 	/** Should the background be shown */
-	UPROPERTY(EditAnywhere, Category = Background)
+	UPROPERTY(EditAnywhere, Category = Background, meta = (DisplayName = "Display Background") )
 	bool bVisible = false;
 
-	/** Should the background show textures or materials */
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bVisible"))
-	bool bUseMaterials = false;
+	/** Source of background visuals */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bVisible", DisplayName = "Background Source"))
+	EUVEditorBackgroundSourceType SourceType = EUVEditorBackgroundSourceType::Checkerboard;
 
-	/** Used when bUseMaterials is false */
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "!bUseMaterials && bVisible"))
+	/** Display a background based on the selected texture */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "SourceType==EUVEditorBackgroundSourceType::Texture && bVisible", EditConditionHides = true))
 	TObjectPtr<UTexture2D> SourceTexture;
 
-	/** Used when bUseMaterials is true */
-	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "bUseMaterials && bVisible"))
+	/** Display a background based on the selected material */
+	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "SourceType==EUVEditorBackgroundSourceType::Material && bVisible", EditConditionHides = true))
 	TObjectPtr<UMaterial> SourceMaterial;
 };
 
@@ -63,6 +75,9 @@ public:
 	/** The active material being displayed for the background */
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> BackgroundMaterial;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBackgroundMaterialChange, TObjectPtr<UMaterialInstanceDynamic> MaterialInstance);
+	FOnBackgroundMaterialChange OnBackgroundMaterialChange;
 
 protected:
 	virtual void OnCreated() override;

@@ -448,8 +448,8 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		{
 			return UVModeToolkit->CreateBackgroundSettingsWidget();
 		}),
-		LOCTEXT("UVEditorBackgroundSettings_Label", "Background"),
-		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the visibility and other settings of the background."),
+		LOCTEXT("UVEditorBackgroundSettings_Label", "Display"),
+		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the background and other viewport display settings."),
 		FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.BackgroundSettings")
 	));
 

@@ -14,7 +14,7 @@ void UUVEditorBackgroundPreview::OnCreated()
 {
 	Settings = NewObject<UUVEditorBackgroundPreviewProperties>(this);
 	Settings->WatchProperty(Settings->bVisible, [this](bool) { bSettingsModified = true; });
-	Settings->WatchProperty(Settings->bUseMaterials, [this](bool) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->SourceType, [this](EUVEditorBackgroundSourceType) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->SourceTexture, [this](UTexture2D*) {bSettingsModified = true; });
 	Settings->WatchProperty(Settings->SourceMaterial, [this](UMaterial*) {bSettingsModified = true; });
 
@@ -60,21 +60,47 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/UVEditor/Materials/UVEditorBackground"));
 	check(Material);	
 	BackgroundMaterial = UMaterialInstanceDynamic::Create(Material, this);
-	if (Settings->bUseMaterials)
+	switch (Settings->SourceType)
 	{
-		if (Settings->SourceMaterial)
+		case EUVEditorBackgroundSourceType::Checkerboard:
 		{
-			BackgroundMaterial = UMaterialInstanceDynamic::Create(Settings->SourceMaterial.Get(), this);
+			// Do nothing, since the default material is already set up for a checkerboard.
 		}
-	}
-	else
-	{
-		if (Settings->SourceTexture)
+		break;
+
+		case EUVEditorBackgroundSourceType::Material:
 		{
-			BackgroundMaterial->SetTextureParameterValue(TEXT("BackgroundBaseMap"), Settings->SourceTexture);
+			if (Settings->SourceMaterial)
+			{
+				BackgroundMaterial = UMaterialInstanceDynamic::Create(Settings->SourceMaterial.Get(), this);
+			}
 		}
+		break;
+
+		case EUVEditorBackgroundSourceType::Texture:
+		{
+			if (Settings->SourceTexture)
+			{
+				if (Settings->SourceTexture->IsCurrentlyVirtualTextured())
+				{
+					BackgroundMaterial->SetTextureParameterValue(TEXT("BackgroundVTBaseMap"), Settings->SourceTexture);
+					BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundVirtualTextureSwitch"), 1);
+				}
+				else
+				{
+					BackgroundMaterial->SetTextureParameterValue(TEXT("BackgroundBaseMap"), Settings->SourceTexture);
+					BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundVirtualTextureSwitch"), 0);
+				}
+			}
+		}
+		break;
+
+		default:
+			ensure(false);
 	}
+
 	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), 0);
+	OnBackgroundMaterialChange.Broadcast(BackgroundMaterial);
 	BackgroundComponent->Clear();
 
 	for (int32 GridStepX = 0; GridStepX < GridCellCountX; ++GridStepX)
