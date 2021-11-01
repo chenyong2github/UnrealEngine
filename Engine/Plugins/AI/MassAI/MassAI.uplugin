@@ -35,7 +35,7 @@
 		},
 		{
 			"Name": "MassAIDebug",
-			"Type": "UncookedOnly"
+			"Type": "Runtime"
 		},
 		{
 			"Name": "MassAITestSuite",
