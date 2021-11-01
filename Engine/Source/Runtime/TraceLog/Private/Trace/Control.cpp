@@ -314,8 +314,8 @@ void Writer_InitializeControl()
 		}
 	);
 
-	Writer_ControlAddCommand("ToggleChannels", nullptr, 
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV) 
+	Writer_ControlAddCommand("ToggleChannels", nullptr,
+		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
 			if (ArgC < 2)
 			{

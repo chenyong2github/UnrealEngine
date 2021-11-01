@@ -6,7 +6,7 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #	include "Windows/WindowsHWrapper.h"
-#	define _WINSOCK_DEPRECATED_NO_WARNINGS  
+#	define _WINSOCK_DEPRECATED_NO_WARNINGS
 #	include <winsock2.h>
 #	include <ws2tcpip.h>
 #	pragma comment(lib, "ws2_32.lib")
@@ -255,7 +255,7 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 	DWORD Access = GENERIC_WRITE;
 	DWORD Share = FILE_SHARE_READ;
 	DWORD Disposition = CREATE_ALWAYS;
-	DWORD Flags = FILE_ATTRIBUTE_NORMAL;	
+	DWORD Flags = FILE_ATTRIBUTE_NORMAL;
 	HANDLE Out = CreateFile2((LPCWSTR)Path, Access, Share, Disposition, nullptr);
 	if (Out == INVALID_HANDLE_VALUE)
 	{

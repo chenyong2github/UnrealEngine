@@ -12,7 +12,7 @@ namespace UE {
 namespace Trace {
 
 /*
-	A named channel which can be used to filter trace events. Channels can be 
+	A named channel which can be used to filter trace events. Channels can be
 	combined using the '|' operator which allows expressions like
 
 	```
@@ -26,7 +26,7 @@ namespace Trace {
 	this phase are always emitted. In this method we disable all channels except
 	those specified on the command line using -tracechannels argument.
 */
-class FChannel 
+class FChannel
 {
 public:
 	struct Iter
@@ -35,7 +35,7 @@ public:
 		const FChannel*	GetNext();
 		void*			Inner[3];
 	};
-	
+
 	struct InitArgs
 	{
 		const ANSICHAR* 	Desc;		// User facing description string
