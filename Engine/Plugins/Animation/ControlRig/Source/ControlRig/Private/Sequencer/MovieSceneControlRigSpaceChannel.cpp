@@ -183,7 +183,10 @@ void FMovieSceneControlRigSpaceChannel::BroadcastSpaceNoLongerUsed(const TArray<
 		}
 	}
 
-	SpaceNoLongerUsedEvent.Broadcast(this, SpacesNoLongerUsed);
+	if(!SpacesNoLongerUsed.IsEmpty())
+	{
+		SpaceNoLongerUsedEvent.Broadcast(this, SpacesNoLongerUsed);
+	}
 }
 
 FName FMovieSceneControlRigSpaceBaseKey::GetName() const
