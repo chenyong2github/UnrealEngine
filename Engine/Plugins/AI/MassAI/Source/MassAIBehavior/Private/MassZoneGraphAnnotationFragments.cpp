@@ -24,17 +24,24 @@ bool FMassZoneGraphAnnotationVariableTickChunkFragment::UpdateChunk(FMassExecuti
 {
 	FMassZoneGraphAnnotationVariableTickChunkFragment& ChunkFrag = Context.GetMutableChunkFragment<FMassZoneGraphAnnotationVariableTickChunkFragment>();
 	ChunkFrag.TimeUntilNextTick -= Context.GetDeltaTimeSeconds();
+	if (!ChunkFrag.bInitialized)
+	{
+		const bool bOffLOD = FMassSimulationVariableTickChunkFragment::GetChunkLOD(Context) == EMassLOD::Off;
+		ChunkFrag.TimeUntilNextTick = FMath::RandRange(0.0f, bOffLOD ? UE::Mass::ZoneGraphAnnotations::OffLODMaxUpdateInterval : UE::Mass::ZoneGraphAnnotations::MaxUpdateInterval);
+		ChunkFrag.bInitialized = true;
+	}
+	else
+	{
+		ChunkFrag.TimeUntilNextTick -= Context.GetDeltaTimeSeconds();
+	}
+	
 	if (ChunkFrag.TimeUntilNextTick <= 0.0f)
 	{
-		// @todo Possible future optimization, right now it is faster but not by a whole lot.
-		if (FMassSimulationVariableTickChunkFragment::GetChunkLOD(Context) == EMassLOD::Off)
-		{
-			ChunkFrag.TimeUntilNextTick = FMath::RandRange(UE::Mass::ZoneGraphAnnotations::OffLODMinUpdateInterval, UE::Mass::ZoneGraphAnnotations::OffLODMaxUpdateInterval);
-		}
-		else
-		{
-			ChunkFrag.TimeUntilNextTick = FMath::RandRange(UE::Mass::ZoneGraphAnnotations::MinUpdateInterval, UE::Mass::ZoneGraphAnnotations::MaxUpdateInterval);
-		}
+		const bool bOffLOD = FMassSimulationVariableTickChunkFragment::GetChunkLOD(Context) == EMassLOD::Off;
+		ChunkFrag.TimeUntilNextTick = FMath::RandRange(
+			bOffLOD ? UE::Mass::ZoneGraphAnnotations::OffLODMinUpdateInterval : UE::Mass::ZoneGraphAnnotations::MinUpdateInterval, 
+			bOffLOD ? UE::Mass::ZoneGraphAnnotations::OffLODMaxUpdateInterval : UE::Mass::ZoneGraphAnnotations::MaxUpdateInterval);
+
 		return true;
 	}
 

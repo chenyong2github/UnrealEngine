@@ -64,7 +64,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 		}
 		for (const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
 		{			
-			FISMCSharedData* SharedData = ISMCSharedData.Find(MeshDesc.Mesh);
+			FISMCSharedData* SharedData = ISMCSharedData.Find(MeshDesc);
 			UInstancedStaticMeshComponent* ISMC = SharedData ? SharedData->ISMC : nullptr;
 			if (SharedData)
 			{
@@ -86,10 +86,11 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 				ISMC->SetCanEverAffectNavigation(false);
 				ISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 				ISMC->SetCastShadow(MeshDesc.bCastShadows);
+				ISMC->Mobility = MeshDesc.Mobility;
 				ISMC->SetReceivesDecals(false);
 				ISMC->RegisterComponent();
 
-				ISMCSharedData.Emplace(MeshDesc.Mesh, FISMCSharedData(ISMC));
+				ISMCSharedData.Emplace(MeshDesc, FISMCSharedData(ISMC));
 			}
 
 			Info.InstancedStaticMeshComponents.Add(ISMC);
@@ -133,7 +134,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 				const bool bAddMeshInRange = (Range.MinSignificance >= MeshDesc.MinLODSignificance && Range.MinSignificance < MeshDesc.MaxLODSignificance);
 				if (bAddMeshInRange)
 				{
-					Range.StaticMeshRefs.Add(MeshDesc.Mesh);
+					Range.StaticMeshRefs.Add(MeshDesc);
 				}
 			}
 		}
@@ -270,11 +271,11 @@ void UMassVisualizationComponent::EndVisualChanges()
 // FMassInstancedStaticMeshInfo
 //---------------------------------------------------------------
 
-void FMassInstancedStaticMeshInfo::ClearVisualInstance(TMap<UStaticMesh*, FISMCSharedData>& ISMCSharedData)
+void FMassInstancedStaticMeshInfo::ClearVisualInstance(FISMCSharedDataMap& ISMCSharedData)
 {
 	for (int i = 0; i < Desc.Meshes.Num(); i++)
 	{
-		FISMCSharedData* SharedData = ISMCSharedData.Find(Desc.Meshes[i].Mesh);
+		FISMCSharedData* SharedData = ISMCSharedData.Find(Desc.Meshes[i]);
 		if (SharedData)
 		{
 			SharedData->RefCount -= 1;
@@ -282,7 +283,7 @@ void FMassInstancedStaticMeshInfo::ClearVisualInstance(TMap<UStaticMesh*, FISMCS
 			{
 				SharedData->ISMC->ClearInstances();
 				SharedData->ISMC->DestroyComponent();
-				ISMCSharedData.Remove(Desc.Meshes[i].Mesh);
+				ISMCSharedData.Remove(Desc.Meshes[i]);
 			}
 		}
 	}

@@ -12,6 +12,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityConfigAsset.h"
 #include "EngineUtils.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
 
 namespace UE::MassSpawner
 {
@@ -178,6 +180,11 @@ void AMassSpawner::BeginDestroy()
 	UMassSimulationSubsystem::GetOnAdjustTickSchematics().Remove(TickSchematicsAdjustHandle);
 
 	DoDespawning();
+	
+	if (StreamingHandle.IsValid() && StreamingHandle->IsActive())
+	{
+		StreamingHandle->CancelHandle();
+	}
 
 	Super::BeginDestroy();
 }
@@ -269,7 +276,7 @@ void AMassSpawner::DoSpawning()
 		float TotalProportion = 0.0f;
 		for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
 		{
-		if (SpawnPointsGenerator.GeneratorInstance)
+		    if (SpawnPointsGenerator.GeneratorInstance)
 			{
 				SpawnPointsGenerator.bPointsGenerated = false;
 				TotalProportion += SpawnPointsGenerator.Proportion;
@@ -281,34 +288,66 @@ void AMassSpawner::DoSpawning()
 			UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("The total combined porportion of all the generator needs to be greater than 0.0f."));
 			return;
 		}
-
-		int32 SpawnPointCountRemaining = SpawnCount;
-		float ProportionRemaining = TotalProportion;
-		for(FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+		// Check if it needs loading
+		if (StreamingHandle.IsValid() && StreamingHandle->IsActive())
 		{
-			// Still needs to call the OnSpawnPointGenerationFinished for Generator we don't want to output Spawn Points for as the system will wait
-			// for the bPointsGenerated == true on every Generators before proceeding to the next steps.
-			if (SpawnPointsGenerator.Proportion == 0.0f || ProportionRemaining <= 0.0f || SpawnPointCountRemaining <= 0)
-			{
-				const TArray<FVector> EmptyLoc;
-				OnSpawnPointGenerationFinished(EmptyLoc, &SpawnPointsGenerator);
-				continue;
-			}
+			// @todo, instead of blindly canceling, we should remember what was asked to load with that handle and compare if more is needed?
+			StreamingHandle->CancelHandle();
+		}
+		TArray<FSoftObjectPath> AssetsToLoad;
+		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
+		{
+			const int32 EntityCount = int32(SpawnCount * EntityType.Proportion / TotalProportion);
+			if (EntityCount > 0)
 
-			if (SpawnPointsGenerator.GeneratorInstance)
 			{
-				const float ProportionRatio = FMath::Min(SpawnPointsGenerator.Proportion / ProportionRemaining, 1.0f);
-				const int32 SpawnPointCount = FMath::CeilToInt(SpawnPointCountRemaining * ProportionRatio);
-				if(SpawnPointCount > 0)
+				if (!EntityType.IsLoaded())
 				{
-					FFinishedGeneratingSpawnPointsSignature Delegate = FFinishedGeneratingSpawnPointsSignature::CreateUObject(this, &AMassSpawner::OnSpawnPointGenerationFinished, &SpawnPointsGenerator);
-					SpawnPointsGenerator.GeneratorInstance->GenerateSpawnPoints(*this, SpawnPointCount, Delegate);
-					SpawnPointCountRemaining -= SpawnPointCount;
-					ProportionRemaining -= SpawnPointsGenerator.Proportion;
+					AssetsToLoad.Add(EntityType.EntityConfig.ToSoftObjectPath());
 				}
 			}
 		}
+		auto GenerateSpawningPoints = [this, SpawnCount, TotalProportion]()
+		{
+			int32 SpawnPointCountRemaining = SpawnCount;
+			float ProportionRemaining = TotalProportion;
+			for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+			{
+				// Still needs to call the OnSpawnPointGenerationFinished for Generator we don't want to output Spawn Points for as the system will wait
+				// for the bPointsGenerated == true on every Generators before proceeding to the next steps.
+				if (SpawnPointsGenerator.Proportion == 0.0f || ProportionRemaining <= 0.0f || SpawnPointCountRemaining <= 0)
+				{
+					const TArray<FVector> EmptyLoc;
+					OnSpawnPointGenerationFinished(EmptyLoc, &SpawnPointsGenerator);
+					continue;
+				}
+
+				if (SpawnPointsGenerator.GeneratorInstance)
+				{
+					const float ProportionRatio = FMath::Min(SpawnPointsGenerator.Proportion / ProportionRemaining, 1.0f);
+					const int32 SpawnPointCount = FMath::CeilToInt(SpawnPointCountRemaining * ProportionRatio);
+					if (SpawnPointCount > 0)
+					{
+						FFinishedGeneratingSpawnPointsSignature Delegate = FFinishedGeneratingSpawnPointsSignature::CreateUObject(this, &AMassSpawner::OnSpawnPointGenerationFinished, &SpawnPointsGenerator);
+						SpawnPointsGenerator.GeneratorInstance->GenerateSpawnPoints(*this, SpawnPointCount, Delegate);
+						SpawnPointCountRemaining -= SpawnPointCount;
+						ProportionRemaining -= SpawnPointsGenerator.Proportion;
+					}
+				}
+			}
+		};
+		
+		if (AssetsToLoad.Num())
+		{
+			FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+			StreamingHandle = StreamableManager.RequestAsyncLoad(AssetsToLoad, GenerateSpawningPoints);
+		}
+		else
+		{
+			GenerateSpawningPoints();
+		}
 	}
+
 }
 
 void AMassSpawner::OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator)
@@ -328,9 +367,9 @@ void AMassSpawner::OnSpawnPointGenerationFinished(const TArray<FVector>& Locatio
 		bAllSpawnPointsGenerated &= SpawnPointsGenerator.bPointsGenerated;
 	}
 
-	checkf(bFoundFinishedGenerator, TEXT("Something went wrong, we are receiving a callback on an unknow spawn point generator"))
+	checkf(bFoundFinishedGenerator, TEXT("Something went wrong, we are receiving a callback on an unknow spawn point generator"));
 	
-	if(bAllSpawnPointsGenerated)
+	if (bAllSpawnPointsGenerated)
 	{
 		SpawnAtLocations(AllGeneratedLocations);
 	}
@@ -361,7 +400,7 @@ void AMassSpawner::SpawnAtLocations(const TArray<FVector>& Locations)
 	}
 
 	const int32 SpawnCount = GetSpawnCount();
-	if(SpawnCount > 0)
+	if (SpawnCount > 0)
 	{
 		float TotalProportion = 0.0f;
 		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
@@ -379,10 +418,10 @@ void AMassSpawner::SpawnAtLocations(const TArray<FVector>& Locations)
 
 		for (const FMassSpawnedEntityType& EntityType : EntityTypes)
 		{
-			if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
+			const int32 EntityCount = int32(SpawnCount * EntityType.Proportion / TotalProportion);
+			if (EntityCount > 0)
 			{
-				const int32 EntityCount = int32(SpawnCount * EntityType.Proportion / TotalProportion);
-				if(EntityCount > 0)
+				if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 				{
 					FMassSpawnConfigBase SpawnConfig;
 					SpawnConfig.MinNumber = EntityCount;
@@ -462,6 +501,11 @@ void AMassSpawner::UnloadConfig()
 	for (FMassSpawnedEntityType& EntityType : EntityTypes)
 	{
 		EntityType.UnloadEntityConfig();
+	}
+
+	if (StreamingHandle.IsValid() && StreamingHandle->IsActive())
+	{
+		StreamingHandle->CancelHandle();
 	}
 }
 

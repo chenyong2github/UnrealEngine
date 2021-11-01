@@ -5,6 +5,7 @@
 #include "MassStateTreeExecutionContext.h"
 #include "MassEntityView.h"
 #include "MassAIMovementTypes.h"
+#include "MassSimulationLOD.h"
 #include "MassComponentHitTypes.h"
 #include "MassSmartObjectTypes.h"
 #include "MassZoneGraphAnnotationTypes.h"
@@ -154,17 +155,13 @@ void UMassStateTreeFragmentInitializer::ConfigureQueries()
 
 void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
-	// The initializer provides that by sending a signal to all new entities that use StateTree.
-	TArray<FMassEntityHandle> EntitiesToSignal;
-
 	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
 
 	EntityQuery.ForEachEntityChunk(
 		EntitySubsystem,
 		Context,
-		[this, &StateTreeContext, &MassStateTreeSubsystem, &EntitiesToSignal](const FMassExecutionContext& Context)
+		[this, &StateTreeContext, &MassStateTreeSubsystem](const FMassExecutionContext& Context)
 		{
 			UE::MassBehavior::ForEachEntityInChunk(
 				StateTreeContext,
@@ -174,18 +171,7 @@ void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 					// Start the tree instance
 					StateTreeExecutionContext.Start(Storage);
 				});
-
-			// Append all entities of the current chunk to the consolidated list to send signal once
-			EntitiesToSignal.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
 		});
-
-	// Signal all entities inside the consolidated list
-	if (EntitiesToSignal.Num())
-	{
-		UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(EntitySubsystem.GetWorld());
-		checkf(SignalSubsystem != nullptr, TEXT("MassSignalSubsystem should exist when executing fragment initializers."));
-		SignalSubsystem->SignalEntities(UE::Mass::Signals::StateTreeInitializationRequested, EntitiesToSignal);
-	}
 }
 
 //----------------------------------------------------------------------//
@@ -221,6 +207,60 @@ void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsy
 					StateTreeExecutionContext.Stop(Storage);
 				});
 		});
+}
+
+//----------------------------------------------------------------------//
+// UMassStateTreeSignalRequestInitialization
+//----------------------------------------------------------------------//
+UMassStateTreeSignalRequestInitialization::UMassStateTreeSignalRequestInitialization()
+{
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);
+	MaxInitializationRequestsPerLOD[EMassLOD::High] = 250;
+	MaxInitializationRequestsPerLOD[EMassLOD::Medium] = 250;
+	MaxInitializationRequestsPerLOD[EMassLOD::Low] = 250;
+	MaxInitializationRequestsPerLOD[EMassLOD::Off] = 250;
+}
+void UMassStateTreeSignalRequestInitialization::Initialize(UObject& Owner)
+{
+	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
+}
+void UMassStateTreeSignalRequestInitialization::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddTagRequirement<FMassStateTreeInitializationRequestDone>(EMassFragmentPresence::None);
+	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly);
+}
+void UMassStateTreeSignalRequestInitialization::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+{
+	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
+	// The initializer provides that by sending a signal to all new entities that use StateTree.
+	TArray<FMassEntityHandle> EntitiesToSignal;
+	int32 InitializationRequestCounts[EMassLOD::Max] {0,0,0,0};
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitiesToSignal, &InitializationRequestCounts, MaxInitializationRequestsPerLOD = MaxInitializationRequestsPerLOD](FMassExecutionContext& Context)
+	{
+		const int32 NumEntities = Context.GetNumEntities();
+		// Check if we already reached the maximum for this frame
+		const EMassLOD::Type ChunkLOD = FMassSimulationVariableTickChunkFragment::GetChunkLOD(Context);
+		if (InitializationRequestCounts[ChunkLOD] > MaxInitializationRequestsPerLOD[ChunkLOD])
+		{
+			return;
+		}
+		InitializationRequestCounts[ChunkLOD] += NumEntities;
+		// Append all entities of the current chunk to the consolidated list to send signal once
+		EntitiesToSignal.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
+		// Adding a tag on each entities to remember we have sent the state tree initialization signal
+		for (int32 i = 0; i < NumEntities; ++i)
+		{
+			Context.Defer().AddTag<FMassStateTreeInitializationRequestDone>(Context.GetEntity(i));
+		}
+	});
+	// Signal all entities inside the consolidated list
+	if (EntitiesToSignal.Num())
+	{
+		checkf(SignalSubsystem != nullptr, TEXT("MassSignalSubsystem should exist when executing sending state tree initialization requests."));
+		SignalSubsystem->SignalEntities(UE::Mass::Signals::StateTreeInitializationRequested, EntitiesToSignal);
+	}
 }
 
 //----------------------------------------------------------------------//

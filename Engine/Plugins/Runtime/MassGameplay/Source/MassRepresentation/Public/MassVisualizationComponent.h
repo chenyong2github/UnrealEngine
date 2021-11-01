@@ -59,7 +59,7 @@ protected:
 	TArray<FMassInstancedStaticMeshInfo> InstancedStaticMeshInfos;
 	UE_MT_DECLARE_RW_RECURSIVE_ACCESS_DETECTOR(InstancedStaticMeshInfosDetector);
 
-	TMap<UStaticMesh*, FISMCSharedData> ISMCSharedData;
+	FISMCSharedDataMap ISMCSharedData;
 
 
 	/** Whether there is a need to create a StaticMeshComponent */

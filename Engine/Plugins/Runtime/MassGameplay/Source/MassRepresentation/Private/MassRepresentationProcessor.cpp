@@ -344,6 +344,8 @@ void UMassRepresentationProcessor::UpdateVisualization(FMassExecutionContext& Co
 
 FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibility(FMassExecutionContext& Context) const
 {
+	bool bFirstUpdate = false;
+
 	// Setup chunk fragment data about visibility
 	FMassVisualizationChunkFragment& ChunkData = Context.GetMutableChunkFragment<FMassVisualizationChunkFragment>();
 	EMassVisibility ChunkVisibility = ChunkData.GetVisibility();
@@ -352,6 +354,7 @@ FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibi
 		// The visibility on the chunk fragment data isn't set yet, let see if the Archetype has an visibility tag and set it on the ChunkData
 		ChunkVisibility = UE::MassRepresentation::GetVisibilityFromArchetype(Context);
 		ChunkData.SetVisibility(ChunkVisibility);
+		bFirstUpdate = true;
 	}
 	else
 	{
@@ -361,11 +364,19 @@ FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibi
 	if (ChunkVisibility == EMassVisibility::CulledByDistance)
 	{
 		float DeltaTime = ChunkData.GetDeltaTime();
-		if (DeltaTime < 0.0f)
+		if (bFirstUpdate)
 		{
-			DeltaTime += NotVisibleUpdateRate * (1.0f + FMath::RandRange(-0.1f, 0.1f));
+			// A DeltaTime of 0.0f means it will tick this frame.
+			DeltaTime = FMath::RandRange(0.0f, NotVisibleUpdateRate);
 		}
-		DeltaTime -= Context.GetDeltaTimeSeconds();
+		else 
+		{
+			if (DeltaTime < 0.0f)
+			{
+				DeltaTime += NotVisibleUpdateRate * (1.0f + FMath::RandRange(-0.1f, 0.1f));
+			}
+			DeltaTime -= Context.GetDeltaTimeSeconds();
+		}
 
 		ChunkData.Update(DeltaTime);
 	}

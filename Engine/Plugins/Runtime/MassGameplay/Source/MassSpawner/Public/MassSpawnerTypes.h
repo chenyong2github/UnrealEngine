@@ -64,6 +64,8 @@ struct FMassSpawnedEntityType
 	/** Proportion of the count that should be this agent type, (the proportions will be normalized with other sibling agent types) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Mass|Spawn", meta = (ClampMin = 0.0f, UIMin = 0.0f))
 	float Proportion = 1.0f;
+	
+	bool IsLoaded() const { return EntityConfigPtr != nullptr; }
 
 	void UnloadEntityConfig()
 	{

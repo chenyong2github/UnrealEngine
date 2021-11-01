@@ -27,4 +27,5 @@ struct FMassZoneGraphAnnotationVariableTickChunkFragment : public FMassChunkFrag
 	static bool UpdateChunk(FMassExecutionContext& Context);
 
 	float TimeUntilNextTick = 0.0f;
+	bool bInitialized = false;
 };

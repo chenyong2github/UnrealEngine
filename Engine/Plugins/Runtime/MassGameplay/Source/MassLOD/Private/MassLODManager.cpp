@@ -5,6 +5,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Engine/World.h"
+#include "MassSimulationSubsystem.h"
 
 namespace UE
 {
@@ -30,11 +31,20 @@ void UMassProcessor_LODBase::Initialize(UObject& Owner)
 
 void UMassLODManager::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Collection.InitializeDependency(UMassSimulationSubsystem::StaticClass());
+
 	Super::Initialize(Collection);
 	SynchronizeViewers();
+	
+	if (UWorld* World = GetWorld())
+	{
+		UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>();
+		check(SimSystem);
+		SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassLODManager::OnPrePhysicsPhaseStarted);
+	}
 }
 
-void UMassLODManager::Tick(float DeltaTime)
+void UMassLODManager::OnPrePhysicsPhaseStarted(float DeltaTime)
 {
 	SynchronizeViewers();
 }
@@ -53,6 +63,14 @@ void UMassLODManager::Deinitialize()
 		{
 			// Safe to remove while iterating as it is a sparse array with a free list
 			RemoveViewer(ViewerInfo.Handle);
+		}
+	}
+	
+	if (UWorld* World = GetWorld())
+	{
+		if (UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>())
+		{
+			SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).RemoveAll(this);
 		}
 	}
 }

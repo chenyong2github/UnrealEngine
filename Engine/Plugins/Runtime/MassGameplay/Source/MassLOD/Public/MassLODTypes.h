@@ -129,7 +129,7 @@ private:
 	bool bShouldTickThisFrame = true;
 	EMassLOD::Type LOD = EMassLOD::Max;
 	float TimeUntilNextTick = 0.0f;
-	int32 LastChunkSerialModificationNumber = -1;
+	int32 LastChunkSerialModificationNumber = INDEX_NONE;
 };
 
 enum class EMassVisibility : uint8
