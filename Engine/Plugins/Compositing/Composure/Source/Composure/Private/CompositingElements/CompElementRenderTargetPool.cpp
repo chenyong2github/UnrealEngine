@@ -2,6 +2,7 @@
 
 #include "CompositingElements/CompElementRenderTargetPool.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "RHI.h" // for GetMax2DTextureDimension()
 #include "Kismet/KismetRenderingLibrary.h" // for ReleaseRenderTarget2D()
 #include "ComposureInternals.h" // for the 'Composure' log category
 #include "HAL/IConsoleManager.h"
@@ -81,6 +82,26 @@ FCompElementRenderTargetPool::~FCompElementRenderTargetPool()
 UTextureRenderTarget2D* FCompElementRenderTargetPool::AssignTarget(UObject* Owner, FIntPoint Dimensions, ETextureRenderTargetFormat Format, const int32 UsageTags)
 {
 	UTextureRenderTarget2D* AssignedTarget = nullptr;
+
+	int32 MaxResolution = static_cast<int32>(GetMax2DTextureDimension());
+
+	// Scale down dimensions if they exceed the maximum allowed resolution, while maintaining the aspect ratio.
+	if (Dimensions.GetMax() > MaxResolution)
+	{
+		float Scale = 1.0f;
+		if (Dimensions.X >= Dimensions.Y)
+		{
+			Scale = MaxResolution / static_cast<float>(Dimensions.X);
+		}
+		else
+		{
+			Scale = MaxResolution / static_cast<float>(Dimensions.Y);
+		}
+		Dimensions.X = static_cast<int32>(Scale * Dimensions.X);
+		Dimensions.Y = static_cast<int32>(Scale * Dimensions.Y);
+
+		UE_LOG(Composure, Warning, TEXT("Requested texture exceeds the maximum allowed dimensions, resizing to: %dx%d"), Dimensions.X, Dimensions.Y);
+	}
 
 	FRenderTargetDesc TargetDesc = { Dimensions, Format };
 	FPooledTarget* PooledTargetPtr = RenderTargetPool.Find(TargetDesc);
