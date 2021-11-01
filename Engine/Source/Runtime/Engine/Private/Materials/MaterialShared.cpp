@@ -2278,7 +2278,7 @@ bool FMaterial::BeginCompileShaderMap(
 			delete UniformBufferStruct;
 		}
 
-		const bool bSkipCompilationForODSC = !IsDefaultMaterial() && GShaderCompilingManager->IsShaderCompilationSkipped();
+		const bool bSkipCompilationForODSC = !(IsSpecialEngineMaterial() || IsDefaultMaterial()) && GShaderCompilingManager->IsShaderCompilationSkipped();
 		if (bSkipCompilationForODSC)
 		{
 			// Force compilation off.
