@@ -1219,7 +1219,8 @@ void SDataprepEditorViewport::LoadDefaultSettings()
 		AssetViewerProfileIndex = DefaultSettings->Profiles.Num();
 
 		DefaultSettings->Profiles.Add( Profile );
-		DefaultSettings->Save();
+		const bool bWarnIfFail = false;
+		DefaultSettings->Save(bWarnIfFail);
 	}
 
 	// Update the profile with the settings for the project
