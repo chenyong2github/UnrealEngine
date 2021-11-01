@@ -95,6 +95,8 @@ public:
 
 	bool IsWidgetInActiveRoot(const UCommonActivatableWidget* Widget) const;
 
+	void SetActiveUIInputConfig(const FUIInputConfig& NewConfig);
+
 //COMMONUI_SCOPE:
 public:
 	//@todo DanH: Not loving this bit of coupling, it really should to be possible for any widget to accomplish this (and the CommonUserWidget just does it automatically)
@@ -139,7 +141,6 @@ private:
 	FActivatableTreeNodePtr FindNodeRecursive(const FActivatableTreeNodePtr& CurrentNode, const UCommonActivatableWidget& Widget) const;
 	FActivatableTreeNodePtr FindNodeRecursive(const FActivatableTreeNodePtr& CurrentNode, const TSharedPtr<SWidget>& Widget) const;
 
-	void SetActiveUIInputConfig(const FUIInputConfig& NewConfig); 
 	void ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh);
 	void SetActiveUICameraConfig(const FUICameraConfig& NewConfig);
 	

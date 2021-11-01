@@ -5,7 +5,9 @@
 #include "CommonActivatableWidget.h"
 #include "Input/CommonUIInputTypes.h"
 #include "CommonUIPrivatePCH.h"
+#include "CommonInputSettings.h"
 #include "CommonInputSubsystem.h"
+#include "ICommonInputModule.h"
 #include "Input/CommonUIInputSettings.h"
 #include "Engine/GameViewportClient.h"
 #include "Framework/Application/SlateApplication.h"
@@ -783,7 +785,7 @@ int32 FActivatableTreeNode::GetLastPaintLayer() const
 	return INDEX_NONE;
 }
 
-FUIInputConfig FActivatableTreeNode::FindDesiredInputConfig() const
+TOptional<FUIInputConfig> FActivatableTreeNode::FindDesiredInputConfig() const
 {
 	TOptional<FUIInputConfig> DesiredConfig = ensure(RepresentedWidget.IsValid()) ? RepresentedWidget->GetDesiredInputConfig() : TOptional<FUIInputConfig>();
 	if (!DesiredConfig.IsSet() && Parent.IsValid())
@@ -791,13 +793,7 @@ FUIInputConfig FActivatableTreeNode::FindDesiredInputConfig() const
 		DesiredConfig = Parent.Pin()->FindDesiredInputConfig();
 	}
 
-	if (DesiredConfig.IsSet())
-	{
-		return DesiredConfig.GetValue();
-	}
-
-	// If nobody in the entire tree cares about the config, fall back to the initial default
-	return FUIInputConfig();
+	return DesiredConfig;
 }
 
 FUICameraConfig FActivatableTreeNode::FindDesiredCameraConfig() const
@@ -1229,8 +1225,16 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 		{
 			UE_LOG(LogUIActionRouter, Display, TEXT("Applying input config for leaf-most node [%s]"), *PinnedLeafmostNode->GetWidget()->GetName());
 
-			FUIInputConfig DesiredConfig = PinnedLeafmostNode->FindDesiredInputConfig();
-			GetActionRouter().SetActiveUIInputConfig(DesiredConfig);
+			TOptional<FUIInputConfig> DesiredConfig = PinnedLeafmostNode->FindDesiredInputConfig();
+			if(DesiredConfig.IsSet())
+			{
+				GetActionRouter().SetActiveUIInputConfig(DesiredConfig.GetValue());
+			}
+			else if(ICommonInputModule::GetSettings().GetEnableDefaultInputConfig())
+			{
+				// Nobody in the entire tree cares about the config and the default is enabled so fall back to the default
+				GetActionRouter().SetActiveUIInputConfig(FUIInputConfig());
+			}
 
 			FocusLeafmostNode();
 		}

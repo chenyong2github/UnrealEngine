@@ -187,7 +187,7 @@ public:
 	bool IsExclusiveParentOfWidget(const TSharedPtr<SWidget>& SlateWidget) const;
 
 	int32 GetLastPaintLayer() const;
-	FUIInputConfig FindDesiredInputConfig() const;
+	TOptional<FUIInputConfig> FindDesiredInputConfig() const;
 	FUICameraConfig FindDesiredCameraConfig() const;
 
 	void AddScrollRecipient(const UWidget& ScrollRecipient);

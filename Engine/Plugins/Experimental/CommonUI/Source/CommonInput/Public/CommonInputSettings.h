@@ -47,6 +47,8 @@ public:
 
 	bool GetAllowOutOfFocusDeviceInput() const { return bAllowOutOfFocusDeviceInput; }
 
+	bool GetEnableDefaultInputConfig() const { return bEnableDefaultInputConfig; }
+
 private:
 	virtual void PostInitProperties() override;
 
@@ -74,6 +76,13 @@ private:
 
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	bool bAllowOutOfFocusDeviceInput = false;
+
+	/**
+	* Controls whether a default Input Config will be set when the active CommonActivatableWidgets do not specify a desired one.
+	* Disable this if you want to control the Input Mode via alternative means.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	bool bEnableDefaultInputConfig = true;
 
 private:
 	void LoadInputData();
