@@ -75,6 +75,23 @@ struct FIndex2i
 		return (A == Value) || (B == Value);
 	}
 
+	/** @return whichever of A or B is not Value, or IndexConstants::InvalidID if neither is Value */
+	int OtherElement(int Value) const
+	{
+		if (A == Value)
+		{
+			return B;
+		}
+		else if (B == Value)
+		{
+			return A;
+		}
+		else
+		{
+			return IndexConstants::InvalidID;
+		}
+	}
+
 	inline void Swap()
 	{
 		int tmp = A;
@@ -171,6 +188,25 @@ struct FIndex3i
 	{
 		return (A == Value) || (B == Value) || (C == Value);
 	}
+
+
+	/**
+	 * @return shifted triplet such that A=WantIndex0Value, and B,C values maintain the same relative ordering
+	 */
+	FIndex3i GetCycled(int32 WantIndex0Value) const
+	{
+		if (B == WantIndex0Value)
+		{
+			return FIndex3i(B, C, A);
+		}
+		else if (C == WantIndex0Value)
+		{
+			return FIndex3i(C, A, B);
+		}
+		return FIndex3i(A,B,C);
+	}
+
+
 
 	operator FIntVector() const
 	{
