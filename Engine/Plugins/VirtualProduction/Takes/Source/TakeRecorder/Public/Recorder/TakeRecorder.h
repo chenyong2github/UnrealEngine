@@ -130,6 +130,11 @@ public:
 	void Stop();
 
 	/**
+	 * Called to cancel the recording
+	 */
+	void Cancel();
+
+	/**
 	 * Retrieve a multi-cast delegate that is triggered before initialization occurs (ie. when the recording button is pressed and before the countdown starts)
 	 */
 	FOnTakeRecordingPreInitialize& OnRecordingPreInitialize();
@@ -160,6 +165,11 @@ private:
 	 * Called after PreRecord To Start
 	 */
 	void Start();
+
+	/*
+	 * Stop or cancel
+	 */
+	void StopInternal(const bool bCancelled);
 
 	/**
 	 * Ticked by a tickable game object to performe any necessary time-sliced logic

@@ -732,6 +732,25 @@ public:
 #endif
 	}
 
+	bool HandleCancelRecordTakeCommand(UWorld* InWorld, const TCHAR* InStr, FOutputDevice& Ar)
+	{
+#if WITH_EDITOR
+		if (UTakeRecorder* ActiveRecorder = UTakeRecorder::GetActiveRecorder())
+		{
+			ULevelSequence* ActiveSequence = ActiveRecorder->GetSequence();
+			if (ActiveSequence)
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(ActiveSequence);
+			}
+
+			ActiveRecorder->Cancel();
+		}
+		return true;
+#else
+		return false;
+#endif
+	}
+
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 #if WITH_EDITOR
@@ -742,6 +761,10 @@ public:
 		else if (FParse::Command(&Cmd, TEXT("StopRecordingTake")))
 		{
 			return HandleStopRecordTakeCommand(InWorld, Cmd, Ar);
+		}
+		else if (FParse::Command(&Cmd, TEXT("CancelRecordingTake")))
+		{
+			return HandleCancelRecordTakeCommand(InWorld, Cmd, Ar);
 		}
 #endif
 		return false;

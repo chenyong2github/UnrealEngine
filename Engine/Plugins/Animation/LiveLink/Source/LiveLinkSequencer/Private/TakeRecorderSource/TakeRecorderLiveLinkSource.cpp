@@ -63,7 +63,7 @@ void UTakeRecorderLiveLinkSource::StopRecording(class ULevelSequence* InSequence
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
 {
 	if (TrackRecorder)
 	{

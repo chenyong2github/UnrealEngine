@@ -45,6 +45,7 @@ protected:
 	// UMovieSceneTrackRecorder Interface
 	virtual void CreateTrackImpl() override;
 	virtual void FinalizeTrackImpl() override;
+	virtual void CancelTrackImpl() override;
 	virtual void RecordSampleImpl(const FQualifiedFrameTime& CurrentTime) override;
 	virtual void StopRecordingImpl() override;
 	virtual void SetSavedRecordingDirectory(const FString& InDirectory) override

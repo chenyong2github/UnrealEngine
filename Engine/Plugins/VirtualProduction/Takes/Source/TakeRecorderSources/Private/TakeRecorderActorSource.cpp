@@ -741,7 +741,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
 {
 	FTakeRecorderParameters Parameters;
 	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
@@ -765,33 +765,43 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 
 		// takerecorder-todo: Section Recorders should have display names, update this to use those.
 		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("FinalizingTrackRecorder", "Finalizing Section Recorder {0}/{1}"), SectionRecorderIndex, TrackRecorders.Num()));
-		SectionRecorder->FinalizeTrack();
-	}
-
-	if (Parameters.Project.bRecordTimecode)
-	{
-		ProcessRecordedTimes(InSequence);
-	}
-
-	// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
-	SequenceRecorderUtils::ExtendSequencePlaybackRange(InSequence);
-
-	if (Target.IsValid())
-	{
-		// Automatically add or update the camera cut track if there is a camera component
-		AActor* TargetActor = Target.Get();
-
-		if (TargetActor->GetComponentByClass(UCameraComponent::StaticClass()))
+		if (bCancelled)
 		{
-			FGuid RecordedCameraGuid = GetRecordedActorGuid(Target.Get());
-			FMovieSceneSequenceID RecordedCameraSequenceID = GetLevelSequenceID(Target.Get());
-			TakesUtils::CreateCameraCutTrack(InMasterSequence, RecordedCameraGuid, RecordedCameraSequenceID, InSequence->GetMovieScene()->GetPlaybackRange());
+			SectionRecorder->CancelTrack();
+		}
+		else
+		{
+			SectionRecorder->FinalizeTrack();
+		}
+	}
+
+	if (!bCancelled)
+	{
+		if (Parameters.Project.bRecordTimecode)
+		{
+			ProcessRecordedTimes(InSequence);
 		}
 
-		// Swap our target actor to the Editor actor (in case the recording was added while in PIE)
-		if (AActor* EditorActor = EditorUtilities::GetEditorWorldCounterpartActor(Target.Get()))
+		// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
+		SequenceRecorderUtils::ExtendSequencePlaybackRange(InSequence);
+
+		if (Target.IsValid())
 		{
-			Target = EditorActor;
+			// Automatically add or update the camera cut track if there is a camera component
+			AActor* TargetActor = Target.Get();
+
+			if (TargetActor->GetComponentByClass(UCameraComponent::StaticClass()))
+			{
+				FGuid RecordedCameraGuid = GetRecordedActorGuid(Target.Get());
+				FMovieSceneSequenceID RecordedCameraSequenceID = GetLevelSequenceID(Target.Get());
+				TakesUtils::CreateCameraCutTrack(InMasterSequence, RecordedCameraGuid, RecordedCameraSequenceID, InSequence->GetMovieScene()->GetPlaybackRange());
+			}
+
+			// Swap our target actor to the Editor actor (in case the recording was added while in PIE)
+			if (AActor* EditorActor = EditorUtilities::GetEditorWorldCounterpartActor(Target.Get()))
+			{
+				Target = EditorActor;
+			}
 		}
 	}
 

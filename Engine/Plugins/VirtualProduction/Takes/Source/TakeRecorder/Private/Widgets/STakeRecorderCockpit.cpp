@@ -56,6 +56,7 @@
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
 #include "ISettingsModule.h"
+#include "Dialogs/CustomDialog.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -337,6 +338,26 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 						.Text(this, &STakeRecorderCockpit::GetCountdownText)
 					]
 				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+					SNew(SComboButton)
+					.ContentPadding(2)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ComboButtonStyle(FTakeRecorderStyle::Get(), "ComboButton")
+					.ToolTipText(LOCTEXT("RecordingOptionsTooltip", "Recording options"))
+					.OnGetMenuContent(this, &STakeRecorderCockpit::OnRecordingOptionsMenu)
+					.HasDownArrow(false)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FEditorFontGlyphs::Caret_Down)
+					]
+				]
 			]
 		]
 
@@ -600,6 +621,23 @@ FText STakeRecorderCockpit::GetCountdownText() const
 	const bool           bIsCountingDown  = CurrentRecording && CurrentRecording->GetState() == ETakeRecorderState::CountingDown;
 
 	return bIsCountingDown ? FText::AsNumber(FMath::CeilToInt(CurrentRecording->GetCountdownSeconds())) : FText();
+}
+
+TSharedRef<SWidget> STakeRecorderCockpit::OnRecordingOptionsMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CancelRecording_Text", "Cancel Recording"),
+		LOCTEXT("CancelRecording_Tip", "Cancel the current recording, deleting any assets and resetting the take number"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &STakeRecorderCockpit::CancelRecording),
+			FCanExecuteAction::CreateLambda([this] { return Recording(); })
+		)
+	);
+
+	return MenuBuilder.MakeWidget();
 }
 
 void STakeRecorderCockpit::CacheMetaData()
@@ -960,6 +998,30 @@ void STakeRecorderCockpit::StopRecording()
 	if (CurrentRecording)
 	{
 		CurrentRecording->Stop();
+	}
+}
+
+void STakeRecorderCockpit::CancelRecording()
+{
+	UTakeRecorder* CurrentRecording = UTakeRecorder::GetActiveRecorder();
+	if (CurrentRecording)
+	{
+		TSharedRef<SCustomDialog> ConfirmDialog = SNew(SCustomDialog)
+			.Title(FText(LOCTEXT("ConfirmCancelRecordingTitle", "Cancel Recording?")))
+			.DialogContent( SNew(STextBlock).Text(LOCTEXT("ConfirmCancelRecording", "Are you sure you want to cancel the current recording?")))
+			.Buttons({
+				SCustomDialog::FButton(LOCTEXT("Yes", "Yes"), FSimpleDelegate::CreateLambda([WeakRecording = TWeakObjectPtr<UTakeRecorder>(CurrentRecording)]()
+					{ 
+						if (WeakRecording.IsValid())
+						{
+							WeakRecording.Get()->Cancel(); 
+						}
+					})),
+				SCustomDialog::FButton(LOCTEXT("No", "No"))
+			});
+
+		// Non modal so that the recording continues to update
+		ConfirmDialog->Show();
 	}
 }
 

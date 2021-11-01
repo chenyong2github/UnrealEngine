@@ -17,6 +17,7 @@ public class TakeTrackRecorders : ModuleRules
 				"TimeManagement",
 				"SequenceRecorder", // For access to the individual UProperty type recorders
 				"SerializedRecorderInterface",
+				"UnrealEd",
             }
         );
 

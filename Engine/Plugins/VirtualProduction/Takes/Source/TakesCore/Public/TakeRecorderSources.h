@@ -158,7 +158,7 @@ public:
 	* Stop recording pass
 	*
 	*/
-	void StopRecording(class ULevelSequence* InSequence);
+	void StopRecording(class ULevelSequence* InSequence, const bool bCancelled);
 
 public:
 	/*

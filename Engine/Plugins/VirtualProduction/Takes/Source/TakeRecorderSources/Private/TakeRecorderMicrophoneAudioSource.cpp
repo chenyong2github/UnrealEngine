@@ -21,6 +21,7 @@
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "ObjectTools.h"
 
 UTakeRecorderMicrophoneAudioSourceSettings::UTakeRecorderMicrophoneAudioSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -145,6 +146,8 @@ void UTakeRecorderMicrophoneAudioSource::StartRecording(const FTimecode& InSecti
 	AudioSettings.GainDb = AudioGain;
 	AudioSettings.bSplitChannels = bSplitAudioChannelsIntoSeparateTracks;
 
+	RecordedSoundWaves.Empty();
+	
 	AudioRecorder = Recorder.CreateAudioRecorder();
 	if (AudioRecorder)
 	{
@@ -161,64 +164,97 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 {
 	Super::StopRecording(InSequence);
 
-	TArray<USoundWave*> RecordedSoundWaves;
 	if (AudioRecorder)
 	{
-		AudioRecorder->Stop(RecordedSoundWaves);
+		TArray<USoundWave*> SoundWaves;
+		AudioRecorder->Stop(SoundWaves);
+
+		for (USoundWave* RecordedSoundWave : SoundWaves)
+		{
+			RecordedSoundWaves.Add(RecordedSoundWave);
+		}
 	}
 	AudioRecorder.Reset();
+}
 
+TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+{
 	if (!RecordedSoundWaves.Num())
 	{
-		return;
+		return TArray<UTakeRecorderSource*>();
 	}
 
-	for (auto RecordedSoundWave : RecordedSoundWaves)
+	TArray<UObject*> AssetsToCleanUp;
+	if (bCancelled)
 	{
-		RecordedSoundWave->MarkPackageDirty();
-		
-		FAssetRegistryModule::AssetCreated(RecordedSoundWave);
-	}
-
-	UMovieScene* MovieScene = InSequence->GetMovieScene();
-	check(CachedAudioTrack.IsValid());
-
-	FFrameRate TickResolution = MovieScene->GetTickResolution();
-	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-
-	if (bReplaceRecordedAudio)
-	{
-		CachedAudioTrack->RemoveAllAnimationData();
-	}
-
-	UTakeRecorderSources* Sources = GetTypedOuter<UTakeRecorderSources>();
-
-	for (USoundWave* RecordedAudio : RecordedSoundWaves)
-	{
-		int32 RowIndex = -1;
-		for (UMovieSceneSection* Section : CachedAudioTrack->GetAllSections())
+		for (TWeakObjectPtr<USoundWave> WeakRecordedSoundWave : RecordedSoundWaves)
 		{
-			RowIndex = FMath::Max(RowIndex, Section->GetRowIndex());
+			if (USoundWave* RecordedSoundWave = WeakRecordedSoundWave.Get())
+			{
+				AssetsToCleanUp.Add(RecordedSoundWave);
+			}
+		}
+	}
+	else
+	{
+		for (TWeakObjectPtr<USoundWave> WeakRecordedSoundWave : RecordedSoundWaves)
+		{
+			if (USoundWave* RecordedSoundWave = WeakRecordedSoundWave.Get())
+			{
+				RecordedSoundWave->MarkPackageDirty();
+		
+				FAssetRegistryModule::AssetCreated(RecordedSoundWave);
+			}
 		}
 
-		UMovieSceneAudioSection* NewAudioSection = NewObject<UMovieSceneAudioSection>(CachedAudioTrack.Get(), UMovieSceneAudioSection::StaticClass());
+		UMovieScene* MovieScene = InSequence->GetMovieScene();
+		check(CachedAudioTrack.IsValid());
 
-		FFrameNumber RecordStartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-		NewAudioSection->SetSound(RecordedAudio);
-		NewAudioSection->SetRange(TRange<FFrameNumber>(RecordStartFrame, RecordStartFrame + (RecordedAudio->GetDuration() * TickResolution).CeilToFrame()));
-		NewAudioSection->TimecodeSource = FTimecode::FromFrameNumber(RecordStartFrame, DisplayRate);
-
-		CachedAudioTrack->AddSection(*NewAudioSection);
-
-		if ((Sources && Sources->GetSettings().bSaveRecordedAssets) || GEditor == nullptr)
+		if (bReplaceRecordedAudio)
 		{
-			TakesUtils::SaveAsset(RecordedAudio);
+			CachedAudioTrack->RemoveAllAnimationData();
+		}
+
+		UTakeRecorderSources* Sources = GetTypedOuter<UTakeRecorderSources>();
+
+		for (TWeakObjectPtr<USoundWave> WeakRecordedSoundWave : RecordedSoundWaves)
+		{
+			if (USoundWave* RecordedSoundWave = WeakRecordedSoundWave.Get())
+			{
+				int32 RowIndex = -1;
+				for (UMovieSceneSection* Section : CachedAudioTrack->GetAllSections())
+				{
+					RowIndex = FMath::Max(RowIndex, Section->GetRowIndex());
+				}
+
+				UMovieSceneAudioSection* NewAudioSection = NewObject<UMovieSceneAudioSection>(CachedAudioTrack.Get(), UMovieSceneAudioSection::StaticClass());
+
+				FFrameNumber RecordStartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
+
+				NewAudioSection->SetSound(RecordedSoundWave);
+				NewAudioSection->SetRange(TRange<FFrameNumber>(RecordStartFrame, RecordStartFrame + (RecordedSoundWave->GetDuration() * TickResolution).CeilToFrame()));
+				NewAudioSection->TimecodeSource = FTimecode::FromFrameNumber(RecordStartFrame, DisplayRate);
+
+				CachedAudioTrack->AddSection(*NewAudioSection);
+
+				if ((Sources && Sources->GetSettings().bSaveRecordedAssets) || GEditor == nullptr)
+				{
+					TakesUtils::SaveAsset(RecordedSoundWave);
+				}
+			}
 		}
 	}
 
 	// Reset our audio track pointer
 	CachedAudioTrack = nullptr;
+	RecordedSoundWaves.Empty();
+	
+	ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+	
+	return TArray<UTakeRecorderSource*>();
 }
 
 FText UTakeRecorderMicrophoneAudioSource::GetDisplayTextImpl() const

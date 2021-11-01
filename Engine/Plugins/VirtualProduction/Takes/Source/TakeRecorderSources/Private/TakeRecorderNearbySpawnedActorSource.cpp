@@ -44,7 +44,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderNearbySpawnedActorSource::PreRecording
 	return TArray<UTakeRecorderSource*>();
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderNearbySpawnedActorSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderNearbySpawnedActorSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
 {
 	// Remove spawn delegates
 	for (auto It = ActorSpawningDelegateHandles.CreateConstIterator(); It; ++It)

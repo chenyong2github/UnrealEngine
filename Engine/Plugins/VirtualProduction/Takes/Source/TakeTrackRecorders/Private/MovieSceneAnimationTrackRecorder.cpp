@@ -15,6 +15,7 @@
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "ObjectTools.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneAnimationTrackRecorder"
 
@@ -216,6 +217,13 @@ void UMovieSceneAnimationTrackRecorder::FinalizeTrackImpl()
 	{
 		TakesUtils::SaveAsset(GetAnimSequence());
 	}
+}
+
+void UMovieSceneAnimationTrackRecorder::CancelTrackImpl()
+{
+	TArray<UObject*> AssetsToCleanUp;
+	AssetsToCleanUp.Add(GetAnimSequence());
+	ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
 }
 
 void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime& CurrentTime)
