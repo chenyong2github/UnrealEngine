@@ -8,6 +8,9 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Polygroups/PolygroupSet.h"
 
+#include "RecomputeUVsOp.generated.h"
+
+class URecomputeUVsToolProperties;
 
 namespace UE
 {
@@ -102,3 +105,29 @@ protected:
 
 } // end namespace UE::Geometry
 } // end namespace UE
+
+
+/**
+ * Can be hooked up to a UMeshOpPreviewWithBackgroundCompute to perform UV solving operations.
+ * 
+ * Inherits from UObject so that it can hold a strong pointer to the settings UObject, which
+ * needs to be a UObject to be displayed in the details panel.
+ */
+UCLASS()
+class MODELINGOPERATORS_API URecomputeUVsOpFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+{
+	GENERATED_BODY()
+
+public:
+
+	// IDynamicMeshOperatorFactory API
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+
+	UPROPERTY()
+	TObjectPtr<URecomputeUVsToolProperties> Settings = nullptr;
+
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
+	UE::Geometry::FTransform3d TargetTransform;
+};

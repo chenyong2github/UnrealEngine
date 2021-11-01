@@ -141,6 +141,7 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginParameterizeMeshTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginChannelEditTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginSeamTool);
+	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginRecomputeUVsTool);
 
 	// Hook in the tool palette
 	ToolButtonsContainer->SetContent(ToolbarBuilder.MakeWidget());
