@@ -871,7 +871,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				{
 					if (const UBlueprint* OldBlueprint = Cast<UBlueprint>(OldObject))
 					{
-						if (NewObject && CastChecked<UBlueprint>(NewObject)->GeneratedClass)
+						if (NewObject && CastChecked<UBlueprint>(NewObject)->GeneratedClass && OldBlueprint->GeneratedClass)
 						{
 							// Don't change the class on instances that are being thrown away by the reload code. If we update
 							// the class and recompile the old class ::ReplaceInstancesOfClass will experience some crosstalk 
