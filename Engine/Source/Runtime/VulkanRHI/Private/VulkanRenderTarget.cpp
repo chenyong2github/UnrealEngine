@@ -12,7 +12,9 @@
 #include "SceneUtils.h"
 #include "RHISurfaceDataConversion.h"
 
-static int32 GVulkanFlushOnMapStaging = 0;
+// Enable this by default for desktop platforms, but avoid it for others such as mobile due to a DEVICE LOST when alt+tabing
+// This is a workaround and may end up causing some hitches on the rendering thread
+static int32 GVulkanFlushOnMapStaging = PLATFORM_DESKTOP;
 static FAutoConsoleVariableRef CVarGVulkanFlushOnMapStaging(
 	TEXT("r.Vulkan.FlushOnMapStaging"),
 	GVulkanFlushOnMapStaging,
