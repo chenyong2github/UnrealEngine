@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
 #include "IMovieSceneTrackRecorderHost.h"
 #include "MovieSceneTrackRecorderSettings.h"
 #include "MovieSceneTrackRecorder.generated.h"
@@ -90,6 +91,23 @@ public:
 	}
 
 	/**
+	* This is called after recording has finished for each track. This allows a track recorder to do any post-processing it may
+	* require such as removing any sections that did not have any changes in them.
+	*/
+	void CancelTrack()
+	{
+		CancelTrackImpl();
+
+		if (UMovieSceneSection* Section = GetMovieSceneSection())
+		{
+			if (UMovieSceneTrack* Track = Cast<UMovieSceneTrack>(Section->GetOuter()))
+			{
+				Track->RemoveSection(*Section);
+			}
+		}
+	}
+
+	/**
 	* This is called each frame and specifies the qualified time that the sampled data should be recorded at. This is passed as 
 	* a FQualifiedFrameTime for better handling of mixed resolution sequences as a user may have modified a sub-sequence to be
 	* a different resolution than the parent sequence.
@@ -145,6 +163,7 @@ protected:
 	virtual void RecordSampleImpl(const FQualifiedFrameTime& CurrentTime) {}
 	virtual void StopRecordingImpl() {}
 	virtual void FinalizeTrackImpl() {}
+	virtual void CancelTrackImpl() {}
 	virtual UMovieSceneSection* GetMovieSceneSection() const { return nullptr; }
 
 protected:

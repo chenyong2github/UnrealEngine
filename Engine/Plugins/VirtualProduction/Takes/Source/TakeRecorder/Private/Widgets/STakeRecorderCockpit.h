@@ -62,6 +62,8 @@ public:
 
 	void StopRecording();
 
+	void CancelRecording();
+
 	void Refresh();
 
 private:
@@ -86,6 +88,8 @@ private:
 
 	EVisibility GetCountdownVisibility() const;
 	FText GetCountdownText() const;
+
+	TSharedRef<SWidget> OnRecordingOptionsMenu();
 
 	FText GetTimecodeText() const;
 

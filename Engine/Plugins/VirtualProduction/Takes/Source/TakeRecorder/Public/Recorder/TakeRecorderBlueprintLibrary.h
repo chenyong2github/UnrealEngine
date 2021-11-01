@@ -67,6 +67,13 @@ public:
 
 
 	/**
+	 * Cancel recording if there is a recorder currently active
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder")
+	static void CancelRecording();
+
+
+	/**
 	 * Get the currently open take recorder panel, if one is open
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Take Recorder")

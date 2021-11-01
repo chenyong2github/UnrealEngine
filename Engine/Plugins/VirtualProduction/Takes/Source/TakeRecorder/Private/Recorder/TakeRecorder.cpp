@@ -13,6 +13,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "MovieSceneTimeHelpers.h"
+#include "ObjectTools.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "TakeMetaData.h"
 #include "TakePreset.h"
@@ -1019,6 +1020,18 @@ void UTakeRecorder::Start()
 
 void UTakeRecorder::Stop()
 {
+	const bool bCancelled = false;
+	StopInternal(bCancelled);
+}
+
+void UTakeRecorder::Cancel()
+{
+	const bool bCancelled = true;
+	StopInternal(bCancelled);
+}
+
+void UTakeRecorder::StopInternal(const bool bCancelled)
+{
 	static bool bStoppedRecording = false;
 
 	if (bStoppedRecording)
@@ -1040,12 +1053,12 @@ void UTakeRecorder::Stop()
 
 	ManifestSerializer.Close();
 
-	const bool bDidEverStartRecording = State == ETakeRecorderState::Started;
-
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::BeginPIE.RemoveAll(this);
-
-	State = bDidEverStartRecording ? ETakeRecorderState::Stopped : ETakeRecorderState::Cancelled;
+	
+	const bool bDidEverStartRecording = State == ETakeRecorderState::Started;
+	const bool bRecordingFinished = !bCancelled && bDidEverStartRecording;
+	State = bRecordingFinished ? ETakeRecorderState::Stopped : ETakeRecorderState::Cancelled;
 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
@@ -1069,7 +1082,14 @@ void UTakeRecorder::Stop()
 		if (!ShouldShowNotifications())
 		{
 			// Log in lieu of the notification widget
-			UE_LOG(LogTakesCore, Log, TEXT("Stopped recording"));
+			if (bRecordingFinished)
+			{
+				UE_LOG(LogTakesCore, Log, TEXT("Stopped recording"));
+			}
+			else
+			{
+				UE_LOG(LogTakesCore, Log, TEXT("Recording cancelled"));
+			}
 		}
 
 		UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped();
@@ -1098,7 +1118,7 @@ void UTakeRecorder::Stop()
 		{
 			UTakeRecorderSources* Sources = SequenceAsset->FindMetaData<UTakeRecorderSources>();
 			check(Sources);
-			Sources->StopRecording(SequenceAsset);
+			Sources->StopRecording(SequenceAsset, bCancelled);
 		}
 
 		// Restore the playback range to what it was before recording.
@@ -1115,44 +1135,48 @@ void UTakeRecorder::Stop()
 			TakesUtils::ClampPlaybackRangeToEncompassAllSections(SequenceAsset->GetMovieScene(), bUpperBoundOnly);
 		}
 
-		// Lock the sequence so that it can't be changed without implicitly unlocking it now
-		if (Parameters.User.bAutoLock)
+		if (bRecordingFinished)
 		{
-			SequenceAsset->GetMovieScene()->SetReadOnly(true);
-		}
+			// Lock the sequence so that it can't be changed without implicitly unlocking it now
+			if (Parameters.User.bAutoLock)
+			{
+				SequenceAsset->GetMovieScene()->SetReadOnly(true);
+			}
 
-		UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
-		check(AssetMetaData);
+			UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
+			check(AssetMetaData);
 
-		if (MovieScene)
-		{
-			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-			FTimecode Timecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(CurrentFrameTime, TickResolution, DisplayRate).FloorToFrame(), DisplayRate);
+			if (MovieScene)
+			{
+				FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+				FFrameRate TickResolution = MovieScene->GetTickResolution();
+				FTimecode Timecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(CurrentFrameTime, TickResolution, DisplayRate).FloorToFrame(), DisplayRate);
 
-			AssetMetaData->SetTimecodeOut(Timecode);
-		}
+				AssetMetaData->SetTimecodeOut(Timecode);
+			}
 
-		if (GEditor && GEditor->GetEditorWorldContext().World())
-		{
-			AssetMetaData->SetLevelOrigin(GEditor->GetEditorWorldContext().World()->PersistentLevel);
-		}
+			if (GEditor && GEditor->GetEditorWorldContext().World())
+			{
+				AssetMetaData->SetLevelOrigin(GEditor->GetEditorWorldContext().World()->PersistentLevel);
+			}
 
-		// Lock the meta data so it can't be changed without implicitly unlocking it now
-		AssetMetaData->Lock();
+			// Lock the meta data so it can't be changed without implicitly unlocking it now
+			AssetMetaData->Lock();
 
-		if (Parameters.User.bSaveRecordedAssets)
-		{
-			TakesUtils::SaveAsset(SequenceAsset);
-		}
-		
-		// Rebuild sequencer because subsequences could have been added or bindings removed
-		if (Sequencer)
-		{
-			Sequencer->RefreshTree();
+			if (Parameters.User.bSaveRecordedAssets)
+			{
+				TakesUtils::SaveAsset(SequenceAsset);
+			}
+
+			// Rebuild sequencer because subsequences could have been added or bindings removed
+			if (Sequencer)
+			{
+				Sequencer->RefreshTree();
+			}
 		}
 	}
-	else if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
+
+	if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence && !bRecordingFinished)
 	{
 		if (GIsEditor)
 		{
@@ -1186,7 +1210,7 @@ void UTakeRecorder::Stop()
 		GetCurrentRecorder().Reset();
 		TickableTakeRecorder.WeakRecorder = nullptr;
 
-		if (bDidEverStartRecording)
+		if (bRecordingFinished)
 		{
 			OnRecordingFinishedEvent.Broadcast(this);
 			UTakeRecorderBlueprintLibrary::OnTakeRecorderFinished(SequenceAsset);

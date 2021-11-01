@@ -62,6 +62,7 @@ private:
 	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
+	virtual TArray<UTakeRecorderSource*> PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled) override;
 	virtual FText GetDisplayTextImpl() const override;
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	virtual bool CanAddSource(UTakeRecorderSources* InSources) const override;
@@ -69,6 +70,8 @@ private:
 
 private:
 	TWeakObjectPtr<class UMovieSceneAudioTrack> CachedAudioTrack;
+
+	TArray<TWeakObjectPtr<USoundWave>> RecordedSoundWaves;
 
 	TUniquePtr<ISequenceAudioRecorder> AudioRecorder;
 	

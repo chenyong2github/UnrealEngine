@@ -100,10 +100,10 @@ void UTakeRecorderCameraCutSource::TickRecording(const FQualifiedFrameTime& Curr
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
 {
 	// Build the camera cut track
-	if (CameraCutData.Num())
+	if (!bCancelled && CameraCutData.Num())
 	{
 		UMovieSceneTrack* CameraCutTrack = InMasterSequence->GetMovieScene()->GetCameraCutTrack();
 		if (!CameraCutTrack)

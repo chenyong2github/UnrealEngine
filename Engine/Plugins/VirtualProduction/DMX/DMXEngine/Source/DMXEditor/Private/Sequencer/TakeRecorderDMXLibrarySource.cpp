@@ -102,7 +102,7 @@ void UTakeRecorderDMXLibrarySource::StopRecording(class ULevelSequence* InSequen
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence, const bool bCancelled)
 {
 	if (TrackRecorder)
 	{

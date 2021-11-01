@@ -101,6 +101,15 @@ void UTakeRecorderBlueprintLibrary::StopRecording()
 	}
 }
 
+void UTakeRecorderBlueprintLibrary::CancelRecording()
+{
+	UTakeRecorder* Existing = UTakeRecorder::GetActiveRecorder();
+	if (Existing)
+	{
+		Existing->Cancel();
+	}
+}
+
 UTakeRecorderPanel* UTakeRecorderBlueprintLibrary::OpenTakeRecorderPanel()
 {
 	UTakeRecorderPanel* Existing = GetTakeRecorderPanel();
