@@ -11,6 +11,7 @@
 
 class UMassEntitySpawnPointsGeneratorConfigAsset;
 class UMassSchematic;
+struct FStreamableHandle;
 
 /** A spawner you can put on a map and configure it to spawn different things */
 UCLASS(hidecategories = (Object, Actor, Input, Rendering, LOD, Cooking, Collision, HLOD, Partition))
@@ -127,6 +128,8 @@ protected:
 	TArray<FSpawnedEntities> AllSpawnedEntities;
 
 	TArray<FVector> AllGeneratedLocations;
+
+	TSharedPtr<FStreamableHandle> StreamingHandle;
 
 #if WITH_EDITORONLY_DATA
 private:

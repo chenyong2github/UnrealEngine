@@ -23,6 +23,7 @@ void UMassAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
 	BuildContext.AddFragmentWithDefaultInitializer<FMassLODInfoFragment>();
 	BuildContext.AddFragmentWithDefaultInitializer<FMassSimulationLODFragment>();
+	BuildContext.AddTag<FMassOffLODTag>();
 	BuildContext.AddChunkFragment<FMassSimulationVariableTickChunkFragment>();
 
 	if (bUseZoneGraphMovement)

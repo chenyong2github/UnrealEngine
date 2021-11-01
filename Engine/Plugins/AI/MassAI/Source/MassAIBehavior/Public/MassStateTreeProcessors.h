@@ -5,6 +5,7 @@
 #include "MassSignals/Public/MassSignalProcessorBase.h"
 #include "MassStateTreeFragments.h"
 #include "MassTranslator.h"
+#include "MassLODTypes.h"
 #include "MassStateTreeProcessors.generated.h"
 
 struct FMassStateTreeExecutionContext;
@@ -40,6 +41,38 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	FMassEntityQuery EntityQuery;
+};
+
+/**
+ * Special tag to know if the state tree initialization request was signaled
+ */
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassStateTreeInitializationRequestDone : public FMassTag
+{
+	GENERATED_BODY()
+};
+/**
+ * Processor to signal initialization requests
+ */
+UCLASS()
+class MASSAIBEHAVIOR_API UMassStateTreeSignalRequestInitialization : public UMassProcessor
+{
+	GENERATED_BODY()
+public:
+	UMassStateTreeSignalRequestInitialization();
+protected:
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
+	UPROPERTY(Transient)
+	UMassSignalSubsystem* SignalSubsystem = nullptr;
+	
+	FMassEntityQuery EntityQuery;
+
+	/** The maximum number of entities to send State Tree initialization request per LOD for each update, -1 means no limit */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	int32 MaxInitializationRequestsPerLOD[EMassLOD::Max];
 };
 
 /** 

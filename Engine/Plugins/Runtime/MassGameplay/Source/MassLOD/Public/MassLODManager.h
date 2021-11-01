@@ -106,9 +106,11 @@ public:
 
 protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	virtual void Deinitialize() override;
+
+	/** Called at the start of the PrePhysics mass processing phase and calls SynchronizeViewers */ 
+	void OnPrePhysicsPhaseStarted(float DeltaTime);
 
 	/** Synchronizes the viewers from the engine PlayerController list */
 	void SynchronizeViewers();

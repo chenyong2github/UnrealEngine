@@ -88,6 +88,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 	bool bShouldTickThisFrame = true;
 	bool bWasChunkTicked = true;
 	const float DeltaTime = Context.GetDeltaTimeSeconds();
+	bool bFirstUpdate = false;
 
 	FMassVariableTickChunkFragment& ChunkData = Context.GetMutableChunkFragment<FVariableTickChunkFragment>();
 	EMassLOD::Type ChunkLOD = ChunkData.GetLOD();
@@ -96,6 +97,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 		// The LOD on the chunk fragment data isn't set yet, let see if the Archetype has an LOD tag and set it on the ChunkData
 		ChunkLOD = UE::MassLOD::GetLODFromArchetype(Context);
 		ChunkData.SetLOD(ChunkLOD);
+		bFirstUpdate = true;
 	}
 	else
 	{
@@ -107,11 +109,22 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 		float TimeUntilNextTick = ChunkData.GetTimeUntilNextTick();
 		bWasChunkTicked = ChunkData.ShouldTickThisFrame();
 
-		// Reset DeltaTime if we ticked last frame
-		if (bWasChunkTicked)
+		const int32 LastChunkSerialModificationNumber = ChunkData.GetLastChunkSerialModificationNumber();
+		const int32 ChunkSerialModificationNumber = Context.GetChunkSerialModificationNumber();
+
+		// Prevent the chunk modification tracking logic to trigger a tick until we actually tick from the first update tick calculation
+		int32 NewChunkSerialModificationNumber = (LastChunkSerialModificationNumber == INDEX_NONE) ? INDEX_NONE : ChunkSerialModificationNumber;
+
+		const float TickRate = TickRates[ChunkLOD];
+		if (bFirstUpdate)
 		{
-			const float TickRate = TickRates[ChunkLOD];
+			TimeUntilNextTick = FMath::RandRange(0.0f, TickRate);
+		}
+		else if(bWasChunkTicked)
+		{
+			// Reset DeltaTime if we ticked last frame and start tracking chunk modifications
 			TimeUntilNextTick = TickRate * (1.0f + FMath::RandRange(-0.1f, 0.1f));
+			NewChunkSerialModificationNumber = ChunkSerialModificationNumber;
 		}
 		else
 		{
@@ -120,9 +133,8 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 		}
 
 		// Should we tick this frame?
-		const int32 ChunkSerialModificationNumber = Context.GetChunkSerialModificationNumber();
-		bShouldTickThisFrame = ChunkData.GetLastChunkSerialModificationNumber() != ChunkSerialModificationNumber || TimeUntilNextTick <= 0.0f;
-		ChunkData.Update(bShouldTickThisFrame, TimeUntilNextTick, ChunkSerialModificationNumber);
+		bShouldTickThisFrame = TimeUntilNextTick <= 0.0f || LastChunkSerialModificationNumber != NewChunkSerialModificationNumber;
+		ChunkData.Update(bShouldTickThisFrame, TimeUntilNextTick, NewChunkSerialModificationNumber);
 	}
 
 	if (bWasChunkTicked)

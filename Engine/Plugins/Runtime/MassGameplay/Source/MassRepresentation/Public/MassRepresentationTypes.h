@@ -55,6 +55,10 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 	/** Controls whether the ISM can cast shadow or not */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	bool bCastShadows = false;
+	
+	/** Controls the mobility of the ISM */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	TEnumAsByte<EComponentMobility::Type> Mobility = EComponentMobility::Movable;
 
 	bool operator==(const FStaticMeshInstanceVisualizationMeshDesc& Other) const
 	{
@@ -62,7 +66,29 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 			MaterialOverrides == Other.MaterialOverrides && 
 			FMath::IsNearlyEqual(MinLODSignificance, Other.MinLODSignificance, KINDA_SMALL_NUMBER) &&
 			FMath::IsNearlyEqual(MaxLODSignificance, Other.MaxLODSignificance, KINDA_SMALL_NUMBER) &&
-			bCastShadows == Other.bCastShadows;
+			bCastShadows == Other.bCastShadows && 
+			Mobility == Other.Mobility;
+	}
+	
+	friend FORCEINLINE uint32 GetTypeHash(const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc)
+	{
+		uint32 Hash = 0x0;
+		Hash = PointerHash(MeshDesc.Mesh, Hash);
+		Hash = HashCombine(GetTypeHash(MeshDesc.bCastShadows), Hash);
+		Hash = HashCombine(GetTypeHash(MeshDesc.Mobility), Hash);
+		for (UMaterialInterface* MaterialOverride : MeshDesc.MaterialOverrides)
+		{
+			if (MaterialOverride)
+			{
+				Hash = PointerHash(MaterialOverride, Hash);
+			}
+		}
+		return Hash;
+	}
+
+	operator uint32() const
+	{
+		return GetTypeHash(*this);
 	}
 };
 
@@ -124,6 +150,8 @@ struct MASSREPRESENTATION_API FISMCSharedData
 	int32 WriteIterator = 0;
 };
 
+typedef TMap<uint32, FISMCSharedData> FISMCSharedDataMap;
+
 USTRUCT()
 struct MASSREPRESENTATION_API FMassLODSignificanceRange
 {
@@ -160,9 +188,9 @@ public:
 
 	/** The component handling these instances */
 	UPROPERTY()
-	TArray<UStaticMesh*> StaticMeshRefs;
+	TArray<uint32> StaticMeshRefs;
 
-	TMap<UStaticMesh*, FISMCSharedData>* ISMCSharedDataPtr = nullptr;
+	FISMCSharedDataMap* ISMCSharedDataPtr = nullptr;
 };
 
 USTRUCT()
@@ -181,6 +209,11 @@ public:
 	bool operator==(const FStaticMeshInstanceVisualizationDesc& OtherDesc) const
 	{
 		return Desc == OtherDesc;
+	}
+	
+	const FStaticMeshInstanceVisualizationDesc& GetDesc() const
+	{
+		return Desc;
 	}
 
 	/** Whether or not to transform the static meshes if not align the mass agent transform */
@@ -237,7 +270,7 @@ public:
 protected:
 
 	/** Destroy the visual instance */
-	void ClearVisualInstance(TMap<UStaticMesh*, FISMCSharedData>& ISMCSharedData);
+	void ClearVisualInstance(FISMCSharedDataMap& ISMCSharedData);
 
 	/** Information about this static mesh which will represent all instances */
 	UPROPERTY()

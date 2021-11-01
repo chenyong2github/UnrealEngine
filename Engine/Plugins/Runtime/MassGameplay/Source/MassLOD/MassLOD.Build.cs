@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"MassEntity",
 					"StructUtils",
 					"MassCommon",
+					"MassSimulation",
 				}
 			);
 
