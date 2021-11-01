@@ -58,7 +58,7 @@
 		},
 		{
 			"Name": "MassGameplayDebug",
-			"Type": "UncookedOnly"
+			"Type": "Runtime"
 		},
 		{
 			"Name": "MassGameplayEditor",
