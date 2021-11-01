@@ -62,7 +62,7 @@ static FPoolBlockList Writer_AddPageToPool(uint32 PageSize)
 	for (int i = 1, n = PageSize / GPoolBlockSize; ; ++i)
 	{
 		auto* Buffer = (FWriteBuffer*)Block;
-		Buffer->Size = BufferSize;
+		Buffer->Size = uint16(BufferSize);
 		if (i >= n)
 		{
 			break;

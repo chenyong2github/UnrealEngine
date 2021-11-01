@@ -84,7 +84,7 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 	auto* Packet = (FTidPacketEncoded*)(GCacheActiveBuffer->Data + Used);
 	uint32 OutputSize = Encode(Collector->Data, InputSize, Packet->Data, EncodeMaxSize);
 
-	Packet->PacketSize = OutputSize + sizeof(FTidPacketEncoded);
+	Packet->PacketSize = uint16(OutputSize + sizeof(FTidPacketEncoded));
 	Packet->ThreadId = FTidPacketBase::EncodedMarker | uint16(ETransportTid::Importants);
 	Packet->DecodedSize = uint16(InputSize);
 

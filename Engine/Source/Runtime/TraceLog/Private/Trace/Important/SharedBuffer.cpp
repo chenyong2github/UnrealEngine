@@ -102,13 +102,13 @@ static void Writer_RetireSharedBufferImpl()
 {
 	// Send any unsent data.
 	uint8* Data = (uint8*)GTailBuffer - GTailBuffer->Size + GTailPreSent;
-	if (uint32 SendSize = UPTRINT(GTailBuffer) - UPTRINT(Data) - GTailBuffer->Final)
+	if (auto SendSize = UPTRINT(GTailBuffer) - UPTRINT(Data) - GTailBuffer->Final)
 	{
 #if TRACE_PRIVATE_STATISTICS
 		GTraceStatistics.BytesTraced += SendSize;
 #endif
 
-		Writer_CacheData(Data, SendSize);
+		Writer_CacheData(Data, uint32(SendSize));
 	}
 
 	FSharedBuffer* Temp = GTailBuffer->Next;
