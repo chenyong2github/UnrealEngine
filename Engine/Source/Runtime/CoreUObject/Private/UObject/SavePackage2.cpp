@@ -1918,8 +1918,9 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 			}
 
 			// Add the uasset file to the list of output files
+			int64 DataSize = Writer->TotalSize();
 			SaveContext.AdditionalPackageFiles.Emplace(SaveContext.GetFilename(),
-				FLargeMemoryPtr(Writer->ReleaseOwnership()), Linker->FileRegions, Writer->TotalSize());
+				FLargeMemoryPtr(Writer->ReleaseOwnership()), Linker->FileRegions, DataSize);
 
 			for (FSavePackageOutputFile& Entry : SaveContext.AdditionalPackageFiles)
 			{
