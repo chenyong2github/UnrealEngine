@@ -70,6 +70,7 @@ public class UnrealEd : ModuleRules
 				"VirtualTexturingEditor",
 				"TextureBuild",
 				"ToolWidgets",
+				"CSVtoSVG"
 			}
 		);
 
@@ -266,6 +267,7 @@ public class UnrealEd : ModuleRules
 				"ClothPainter",
 				"Media",
 				"VirtualTexturingEditor",
+				"CSVtoSVG",
 			}
 		);
 
