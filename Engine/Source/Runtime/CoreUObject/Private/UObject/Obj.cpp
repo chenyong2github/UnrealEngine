@@ -2768,7 +2768,7 @@ bool UObject::TryUpdateDefaultConfigFile(const FString& SpecificFileLocation, bo
 {
 	FString ConfigFile = SpecificFileLocation.IsEmpty() ? GetDefaultConfigFilename() : SpecificFileLocation;
 
-	if (FPaths::FileExists(ConfigFile) && !IFileManager::Get().IsReadOnly(*ConfigFile))
+	if (!FPaths::FileExists(ConfigFile) || !IFileManager::Get().IsReadOnly(*ConfigFile))
 	{
 		UpdateSingleSectionOfConfigFile(ConfigFile);
 
