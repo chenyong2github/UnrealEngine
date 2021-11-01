@@ -31,7 +31,11 @@ void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo&
 	FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions)
 {
 	ValidatePackageName(Info.PackageName);
-	FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(ExportsArchive.ReleaseOwnership(), ExportsArchive.TotalSize(),
+	int64 DataSize= ExportsArchive.TotalSize();
+	checkf(DataSize > 0, TEXT("IPackageWriter->WritePackageData must not be called with an empty ExportsArchive"));
+	checkf(static_cast<uint64>(DataSize) >= Info.HeaderSize,
+		TEXT("IPackageWriter->WritePackageData must not be called with HeaderSize > ExportsArchive.TotalSize"));
+	FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(ExportsArchive.ReleaseOwnership(), DataSize,
 		FMemory::Free);
 	Package = FPackage{ Info, MoveTemp(Buffer), FileRegions };
 }

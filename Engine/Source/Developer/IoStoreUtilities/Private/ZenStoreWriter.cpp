@@ -317,7 +317,8 @@ FZenStoreWriter::~FZenStoreWriter()
 void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions)
 {
 	check(Info.ChunkId.IsValid());
-	FIoBuffer PackageData(FIoBuffer::AssumeOwnership, ExportsArchive.ReleaseOwnership(), ExportsArchive.TotalSize());
+	int64 DataSize = ExportsArchive.TotalSize();
+	FIoBuffer PackageData(FIoBuffer::AssumeOwnership, ExportsArchive.ReleaseOwnership(), DataSize);
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::WritePackageData);
 
