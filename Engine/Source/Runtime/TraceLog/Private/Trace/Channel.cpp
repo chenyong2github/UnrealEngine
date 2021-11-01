@@ -233,7 +233,7 @@ FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 bool FChannel::Toggle(bool bEnabled)
 {
 	using namespace Private;
-	int64 OldRefCnt = AtomicAddRelaxed(&Enabled, bEnabled ? 1 : -1);
+	AtomicAddRelaxed(&Enabled, bEnabled ? 1 : -1);
 
 	UE_TRACE_LOG(Trace, ChannelToggle, TraceLogChannel)
 		<< ChannelToggle.Id(Name.Hash)

@@ -20,7 +20,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
+UPTRINT ThreadCreate(const ANSICHAR*, void (*Entry)())
 {
 	DWORD (WINAPI *WinApiThunk)(void*) = [] (void* Param) -> DWORD
 	{
