@@ -156,7 +156,7 @@ void FChannel::Setup(const ANSICHAR* InChannelName, const InitArgs& InArgs)
 		}
 	}
 
-	// If channel is initialized after the all channels are disabled (post static init) 
+	// If channel is initialized after the all channels are disabled (post static init)
 	// this channel needs to be disabled.
 	if (GInitialized)
 	{

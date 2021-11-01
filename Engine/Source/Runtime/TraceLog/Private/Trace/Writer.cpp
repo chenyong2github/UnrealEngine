@@ -75,7 +75,7 @@ static bool						GInitialized;		// = false;
 FStatistics						GTraceStatistics;	// = {};
 uint64							GStartCycle;		// = 0;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
-// Counter of calls to Writer_WorkerUpdate to enable regular flushing of output buffers 
+// Counter of calls to Writer_WorkerUpdate to enable regular flushing of output buffers
 static uint32					GUpdateCounter;		// = 0;
 
 
@@ -541,7 +541,7 @@ static void Writer_WorkerUpdate()
 	Writer_SendSync();
 
 #if TRACE_PRIVATE_BUFFER_SEND
-	const uint32 FlushSendBufferCadenceMask = 8-1; // Flush every 8 calls 
+	const uint32 FlushSendBufferCadenceMask = 8-1; // Flush every 8 calls
 	if( (++GUpdateCounter & FlushSendBufferCadenceMask) == 0)
 	{
 		Writer_FlushSendBuffer();

@@ -19,7 +19,7 @@ enum : uint8
 {
 	/* Category */
 	Field_CategoryMask	= 0300,
-	Field_Integer		= 0000, 
+	Field_Integer		= 0000,
 	Field_Float			= 0100,
 	Field_Array			= 0200,
 
