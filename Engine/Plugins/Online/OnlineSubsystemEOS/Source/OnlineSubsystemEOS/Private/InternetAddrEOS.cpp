@@ -3,6 +3,7 @@
 #include "InternetAddrEOS.h"
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystemEOSTypes.h"
+#include "Containers/StringView.h"
 
 DEFINE_LOG_CATEGORY(LogSocketSubsystemEOS);
 
@@ -165,7 +166,7 @@ FString FInternetAddrEOS::ToString(bool bAppendPort) const
 
 uint32 FInternetAddrEOS::GetTypeHash() const
 {
-	return HashCombine(HashCombine(HashCombine(::GetTypeHash((void*)LocalUserId), ::GetTypeHash((void *)RemoteUserId)), ::GetTypeHash(SocketName)), Channel);
+	return HashCombine(HashCombine(HashCombine(::GetTypeHash((void*)LocalUserId), ::GetTypeHash((void*)RemoteUserId)), ::GetTypeHash(FAnsiStringView(SocketName, EOS_SOCKET_NAME_SIZE))), Channel);
 }
 
 bool FInternetAddrEOS::IsValid() const
