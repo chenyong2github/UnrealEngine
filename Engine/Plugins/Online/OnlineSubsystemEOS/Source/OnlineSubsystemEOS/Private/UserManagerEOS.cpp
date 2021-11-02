@@ -627,40 +627,78 @@ void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
 		return;
 	}
 
-	EOS_EpicAccountId AccountId = UserNumToAccountIdMap[LocalUserNum];
-	EOS_Auth_Token* AuthToken = nullptr;
-	EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
-	CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
-
-	EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
-	if (CopyResult == EOS_EResult::EOS_Success)
+	const FEOSSettings Settings = UEOSSettings::GetSettings();
+	if (Settings.bUseEAS)
 	{
-		EOS_Connect_Credentials Credentials = { };
-		Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
-		Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
-		Credentials.Token = AuthToken->AccessToken;
+		EOS_EpicAccountId AccountId = UserNumToAccountIdMap[LocalUserNum];
+		EOS_Auth_Token* AuthToken = nullptr;
+		EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
+		CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
 
-		EOS_Connect_LoginOptions Options = { };
-		Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
-		Options.Credentials = &Credentials;
-
-		FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
-		CallbackObj->CallbackLambda = [LocalUserNum, AccountId, this](const EOS_Connect_LoginCallbackInfo* Data)
+		EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
+		if (CopyResult == EOS_EResult::EOS_Success)
 		{
-			if (Data->ResultCode != EOS_EResult::EOS_Success)
-			{
-				UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-				Logout(LocalUserNum);
-			}
-		};
-		EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			EOS_Connect_Credentials Credentials = { };
+			Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+			Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
+			Credentials.Token = AuthToken->AccessToken;
 
-		EOS_Auth_Token_Release(AuthToken);
+			EOS_Connect_LoginOptions Options = { };
+			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+			Options.Credentials = &Credentials;
+
+			FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
+			CallbackObj->CallbackLambda = [LocalUserNum, AccountId, this](const EOS_Connect_LoginCallbackInfo* Data)
+			{
+				if (Data->ResultCode != EOS_EResult::EOS_Success)
+				{
+					UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+					Logout(LocalUserNum);
+				}
+			};
+			EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+
+			EOS_Auth_Token_Release(AuthToken);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
+			Logout(LocalUserNum);
+		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
-		Logout(LocalUserNum);
+		// Not using EAS so grab the platform auth token
+		GetPlatformAuthToken(LocalUserNum,
+			FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
+			{
+				if (!bWasSuccessful || !AuthToken.HasTokenData())
+				{
+					UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to the platform OSS giving an empty auth token"), LocalUserNum);
+					Logout(LocalUserNum);
+					return;
+				}
+
+				// Now login into our EOS account
+				check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+				const FOnlineAccountCredentials& Creds = *LocalUserNumToLastLoginCredentials[LocalUserNum];
+				EOS_EExternalCredentialType CredType = ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), Creds);
+				FConnectCredentials Credentials(CredType, AuthToken);
+				EOS_Connect_LoginOptions Options = { };
+				Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+				Options.Credentials = &Credentials;
+
+				FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
+				CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Connect_LoginCallbackInfo* Data)
+				{
+					if (Data->ResultCode != EOS_EResult::EOS_Success)
+					{
+						UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+						Logout(LocalUserNum);
+					}
+				};
+				EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			}));
 	}
 }
 
