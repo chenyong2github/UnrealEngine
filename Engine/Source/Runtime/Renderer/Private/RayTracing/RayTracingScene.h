@@ -102,6 +102,9 @@ private:
 	FBufferRHIRef InstanceUploadBuffer;
 	FShaderResourceViewRHIRef InstanceUploadSRV;
 
+	FBufferRHIRef TransformUploadBuffer;
+	FShaderResourceViewRHIRef TransformUploadSRV;
+
 	FByteAddressBuffer AccelerationStructureAddressesBuffer;
 
 	mutable FGraphEventRef FillInstanceUploadBufferTask;

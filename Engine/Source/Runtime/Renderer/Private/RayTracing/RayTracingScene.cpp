@@ -30,14 +30,19 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 
 	WaitForTasks();
 
-	TArray<uint32> GeometryIndices;
-	RayTracingSceneRHI = CreateRayTracingSceneWithGeometryInstances(Instances, RAY_TRACING_NUM_SHADER_SLOTS, RAY_TRACING_NUM_MISS_SHADER_SLOTS, GeometryIndices);
+	FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
+		Instances,
+		RAY_TRACING_NUM_SHADER_SLOTS,
+		RAY_TRACING_NUM_MISS_SHADER_SLOTS);
+
+	RayTracingSceneRHI = SceneWithGeometryInstances.Scene;
 
 	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingSceneRHI->GetInitializer();
 
 	// Round up number of instances to some multiple to avoid pathological growth reallocations.
 	static constexpr uint32 AllocationGranularity = 8 * 1024;
-	uint32 NumNativeInstancesAligned = FMath::DivideAndRoundUp(FMath::Max(SceneInitializer.NumNativeInstances, 1U), AllocationGranularity) * AllocationGranularity;
+	const uint32 NumNativeInstancesAligned = FMath::DivideAndRoundUp(FMath::Max(SceneInitializer.NumNativeInstances, 1U), AllocationGranularity) * AllocationGranularity;
+	const uint32 NumTransformsAligned = FMath::DivideAndRoundUp(FMath::Max(SceneWithGeometryInstances.NumNativeCPUInstances, 1U), AllocationGranularity) * AllocationGranularity;
 
 	SizeInfo = RHICalcRayTracingSceneSize(SceneInitializer.NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
 	FRayTracingAccelerationStructureSize SizeInfoAligned = RHICalcRayTracingSceneSize(NumNativeInstancesAligned, ERayTracingAccelerationStructureFlags::FastTrace);
@@ -92,7 +97,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		// Lock instance upload buffer (and resize if necessary)
+		// Create/resize instance upload buffer (if necessary)
 		const uint32 UploadBufferSize = NumNativeInstancesAligned * sizeof(FRayTracingInstanceDescriptorInput);
 
 		if (!InstanceUploadBuffer.IsValid()
@@ -105,23 +110,47 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	{
+		// Create/resize transform upload buffer (if necessary)
+		const uint32 UploadBufferSize = NumTransformsAligned * sizeof(FVector4f) * 3;
+
+		if (!TransformUploadBuffer.IsValid()
+			|| UploadBufferSize > TransformUploadBuffer->GetSize()
+			|| UploadBufferSize < TransformUploadBuffer->GetSize() / 2)
+		{
+			FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneTransformUploadBuffer"));
+			TransformUploadBuffer = RHICreateStructuredBuffer(sizeof(FVector4f), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+			TransformUploadSRV = RHICreateShaderResourceView(TransformUploadBuffer);
+		}
+	}
+
 	if (SceneInitializer.NumNativeInstances > 0)
 	{
-		const uint32 UploadBytes = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
+		const uint32 InstanceUploadBytes = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
+		const uint32 TransformUploadBytes = SceneWithGeometryInstances.NumNativeCPUInstances * 3 * sizeof(FVector4f);
 
-		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHILockBuffer(InstanceUploadBuffer, 0, UploadBytes, RLM_WriteOnly);
+		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHILockBuffer(InstanceUploadBuffer, 0, InstanceUploadBytes, RLM_WriteOnly);
+		FVector4f* TransformUploadData = (FVector4f*)RHILockBuffer(TransformUploadBuffer, 0, TransformUploadBytes, RLM_WriteOnly);
 
 		// Fill instance upload buffer on separate thread since results are only needed in RHI thread
 		FillInstanceUploadBufferTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[InstanceUploadData,
-			NumNativeInstances = SceneInitializer.NumNativeInstances,
+			[InstanceUploadData = MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
+			TransformUploadData = MakeArrayView(TransformUploadData, SceneWithGeometryInstances.NumNativeCPUInstances * 3),
+			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
 			Instances = MakeArrayView(Instances),
-			GeometryIndices = MoveTemp(GeometryIndices),
+			InstanceGeometryIndices = MoveTemp(SceneWithGeometryInstances.InstanceGeometryIndices),
+			BaseUploadBufferOffsets = MoveTemp(SceneWithGeometryInstances.BaseUploadBufferOffsets),
 			RayTracingSceneRHI = RayTracingSceneRHI]()
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
-
-			FillRayTracingInstanceUploadBuffer(Instances, GeometryIndices, RayTracingSceneRHI, MakeArrayView(InstanceUploadData, NumNativeInstances));
+			FillRayTracingInstanceUploadBuffer(
+				RayTracingSceneRHI,
+				Instances,
+				InstanceGeometryIndices,
+				BaseUploadBufferOffsets,
+				NumNativeCPUInstances,
+				InstanceUploadData,
+				TransformUploadData);
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
@@ -131,10 +160,16 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 			RDG_EVENT_NAME("BuildTLASInstanceBuffer"),
 			PassParams,
 			ERDGPassFlags::Compute,
-			[PassParams, this, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
+			[PassParams,
+			this,
+			&SceneInitializer,
+			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
+			GPUInstances = MoveTemp(SceneWithGeometryInstances.GPUInstances)
+			](FRHICommandListImmediate& RHICmdList)
 			{
 				WaitForTasks();
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
+				RHICmdList.UnlockBuffer(TransformUploadBuffer);
 
 				RHICmdList.EnqueueLambda([this, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
 					{
@@ -154,12 +189,14 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 						RHICmdList.UnlockBuffer(AccelerationStructureAddressesBuffer.Buffer);
 					});
 
-				::BuildRayTracingInstanceBuffer(
+				BuildRayTracingInstanceBuffer(
 					RHICmdList,
-					SceneInitializer.NumNativeInstances,
 					PassParams->InstanceBuffer->GetRHI(),
 					InstanceUploadSRV,
-					AccelerationStructureAddressesBuffer.SRV);
+					AccelerationStructureAddressesBuffer.SRV,
+					TransformUploadSRV,
+					NumNativeCPUInstances,
+					GPUInstances);
 			});
 	}
 }

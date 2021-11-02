@@ -16,15 +16,18 @@
 
 #if RHI_RAYTRACING
 
-FRayTracingSceneRHIRef CreateRayTracingSceneWithGeometryInstances(
+FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
 	TArrayView<FRayTracingGeometryInstance> Instances,
 	uint32 NumShaderSlotsPerGeometrySegment,
-	uint32 NumMissShaderSlots,
-	TArray<uint32>& OutGeometryIndices)
+	uint32 NumMissShaderSlots)
 {
 	const uint32 NumSceneInstances = Instances.Num();
 
-	OutGeometryIndices.SetNumUninitialized(NumSceneInstances);
+	FRayTracingSceneWithGeometryInstances Output;
+	Output.NumNativeCPUInstances = 0;
+	Output.NumNativeGPUInstances = 0;
+	Output.InstanceGeometryIndices.SetNumUninitialized(NumSceneInstances);
+	Output.BaseUploadBufferOffsets.SetNumUninitialized(NumSceneInstances);
 
 	FRayTracingSceneInitializer2 Initializer;
 	Initializer.DebugName = FName(TEXT("FRayTracingScene"));
@@ -62,31 +65,68 @@ FRayTracingSceneRHIRef CreateRayTracingSceneWithGeometryInstances(
 		Initializer.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
 
 		uint32 GeometryIndex = UniqueGeometries.FindOrAdd(InstanceDesc.GeometryRHI, Initializer.ReferencedGeometries.Num());
-		OutGeometryIndices[InstanceIndex] = GeometryIndex;
+		Output.InstanceGeometryIndices[InstanceIndex] = GeometryIndex;
 		if (GeometryIndex == Initializer.ReferencedGeometries.Num())
 		{
 			Initializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
+		}
+
+		if (bCpuInstance)
+		{
+			Output.BaseUploadBufferOffsets[InstanceIndex] = Output.NumNativeCPUInstances;
+
+			Output.NumNativeCPUInstances += InstanceDesc.NumTransforms;
+		}
+		else
+		{
+			Output.BaseUploadBufferOffsets[InstanceIndex] = Output.NumNativeGPUInstances;
+
+			if (InstanceDesc.NumTransforms)
+			{
+				FRayTracingGPUInstance GPUInstance;
+				GPUInstance.TransformSRV = InstanceDesc.GPUTransformsSRV;
+				GPUInstance.DescBufferOffset = Output.NumNativeGPUInstances;
+				GPUInstance.NumInstances = InstanceDesc.NumTransforms;
+				Output.GPUInstances.Add(GPUInstance);
+			}
+
+			Output.NumNativeGPUInstances += InstanceDesc.NumTransforms;
 		}
 
 		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstances;
 		Initializer.NumNativeInstances += InstanceDesc.NumTransforms;
 	}
 
-	return RHICreateRayTracingScene(MoveTemp(Initializer));
+	Output.Scene = RHICreateRayTracingScene(MoveTemp(Initializer));
+
+	return MoveTemp(Output);
 }
 
 void FillRayTracingInstanceUploadBuffer(
-	TConstArrayView<FRayTracingGeometryInstance> Instances,
-	TConstArrayView<uint32> InstancesGeometryIndex,
 	FRayTracingSceneRHIRef RayTracingSceneRHI,
-	TArrayView<FRayTracingInstanceDescriptorInput> OutInstanceUploadData)
+	TConstArrayView<FRayTracingGeometryInstance> Instances,
+	TConstArrayView<uint32> InstanceGeometryIndices,
+	TConstArrayView<uint32> BaseUploadBufferOffsets,
+	uint32 NumNativeCPUInstances,
+	TArrayView<FRayTracingInstanceDescriptorInput> OutInstanceUploadData,
+	TArrayView<FVector4f> OutTransformData)
 {
 	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingSceneRHI->GetInitializer();
 
 	int32 NumInactiveNativeInstances = 0;
 
 	const int32 NumSceneInstances = Instances.Num();
-	ParallelFor(NumSceneInstances, [OutInstanceUploadData, Instances, InstancesGeometryIndex, &SceneInitializer, &NumInactiveNativeInstances](int32 SceneInstanceIndex)
+	ParallelFor(NumSceneInstances, 
+		[
+			OutInstanceUploadData,
+			OutTransformData,
+			NumNativeCPUInstances,
+			Instances,
+			InstanceGeometryIndices,
+			BaseUploadBufferOffsets,
+			&SceneInitializer,
+			&NumInactiveNativeInstances
+		](int32 SceneInstanceIndex)
 		{
 			const FRayTracingGeometryInstance& SceneInstance = Instances[SceneInstanceIndex];
 
@@ -102,18 +142,23 @@ void FillRayTracingInstanceUploadBuffer(
 			const bool bGpuInstance = SceneInstance.GPUTransformsSRV != nullptr;
 			const bool bCpuInstance = !bGpuInstance;
 
-			const uint32 AccelerationStructureIndex = InstancesGeometryIndex[SceneInstanceIndex];
-
-			uint32 BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[SceneInstanceIndex];
+			const uint32 AccelerationStructureIndex = InstanceGeometryIndices[SceneInstanceIndex];
+			const uint32 BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[SceneInstanceIndex];
+			// GPU instance descriptors are stored after CPU instances
+			const uint32 BaseDescriptorIndex = BaseUploadBufferOffsets[SceneInstanceIndex] + (bGpuInstance ? NumNativeCPUInstances : 0);
+			const uint32 BaseTransformIndex = bCpuInstance ? BaseDescriptorIndex : 0;
 
 			int32 NumInactiveNativeInstancesThisSceneInstance = 0;
 			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 			{
-				FRayTracingInstanceDescriptorInput& InstanceDesc = OutInstanceUploadData[BaseInstanceIndex + TransformIndex];
+				FRayTracingInstanceDescriptorInput& InstanceDesc = OutInstanceUploadData[BaseDescriptorIndex + TransformIndex];
+
 				InstanceDesc.InstanceMaskAndFlags = SceneInstance.Mask | ((uint32)SceneInstance.Flags << 8);
 				InstanceDesc.InstanceContributionToHitGroupIndex = SceneInitializer.SegmentPrefixSum[SceneInstanceIndex] * RAY_TRACING_NUM_SHADER_SLOTS;
 				InstanceDesc.InstanceId = bUseUniqueUserData ? SceneInstance.UserData[TransformIndex] : SceneInstance.DefaultUserData;
 				//InstanceDesc.GPUSceneInstanceIndex = 0; // TODO
+				InstanceDesc.TransformIndex = BaseTransformIndex + TransformIndex;
+				InstanceDesc.OutputDescriptorIndex = BaseInstanceIndex + TransformIndex;
 
 				InstanceDesc.AccelerationStructureIndex = AccelerationStructureIndex;
 
@@ -128,14 +173,9 @@ void FillRayTracingInstanceUploadBuffer(
 				if (LIKELY(bCpuInstance))
 				{
 					const FMatrix44f LocalToWorld = SceneInstance.Transforms[TransformIndex].GetTransposed();
-					InstanceDesc.LocalToWorld[0] = *(FVector4f*)&LocalToWorld.M[0];
-					InstanceDesc.LocalToWorld[1] = *(FVector4f*)&LocalToWorld.M[1];
-					InstanceDesc.LocalToWorld[2] = *(FVector4f*)&LocalToWorld.M[2];
-				}
-				else
-				{
-					// #todo: GPU-based instances transform should be copied from GPUTransformsSRV
-					FMemory::Memset(&InstanceDesc.LocalToWorld, 0, sizeof(InstanceDesc.LocalToWorld));
+					OutTransformData[InstanceDesc.TransformIndex * 3 + 0] = *(FVector4f*)&LocalToWorld.M[0];
+					OutTransformData[InstanceDesc.TransformIndex * 3 + 1] = *(FVector4f*)&LocalToWorld.M[1];
+					OutTransformData[InstanceDesc.TransformIndex * 3 + 2] = *(FVector4f*)&LocalToWorld.M[2];
 				}
 			}
 
@@ -147,44 +187,18 @@ void FillRayTracingInstanceUploadBuffer(
 	SET_DWORD_STAT(STAT_RayTracingInstances, SceneInitializer.NumNativeInstances - NumInactiveNativeInstances);
 }
 
-struct FRayTracingInstanceCopyCS : public FGlobalShader
+struct FRayTracingBuildInstanceBufferCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FRayTracingInstanceCopyCS);
-	SHADER_USE_PARAMETER_STRUCT(FRayTracingInstanceCopyCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstancesDescriptors)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InstancesTransforms)
-		SHADER_PARAMETER(uint32, NumInstances)
-		SHADER_PARAMETER(uint32, DescBufferOffset)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static constexpr uint32 ThreadGroupSize = 64;
-	static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return (ShouldCompileRayTracingShadersForProject(Parameters.Platform) && RHISupportsComputeShaders(Parameters.Platform) && !(Parameters.Platform == EShaderPlatform::SP_METAL || Parameters.Platform == EShaderPlatform::SP_METAL_TVOS || IsMobilePlatform(Parameters.Platform)));
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceCopyCS, "/Engine/Private/Raytracing/RayTracingInstanceBufferUtil.usf", "RayTracingInstanceCopyShaderCS", SF_Compute);
-
-struct FRayTracingInstanceBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FRayTracingInstanceBufferCS);
-	SHADER_USE_PARAMETER_STRUCT(FRayTracingInstanceBufferCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FRayTracingBuildInstanceBufferCS);
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingBuildInstanceBufferCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_UAV(RWStructuredBuffer, InstancesDescriptors)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRayTracingInstanceDescriptorInput>, InputInstanceDescriptors)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, AccelerationStructureAddresses)
+		SHADER_PARAMETER_SRV(StructuredBuffer, InstanceTransforms)
 		SHADER_PARAMETER(uint32, NumInstances)
+		SHADER_PARAMETER(uint32, InputDescOffset)
 	END_SHADER_PARAMETER_STRUCT()
 		
 	static constexpr uint32 ThreadGroupSize = 64;
@@ -202,18 +216,27 @@ struct FRayTracingInstanceBufferCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingInstanceBufferCS, "/Engine/Private/Raytracing/RayTracingInstanceBufferUtil.usf", "RayTracingBuildInstanceBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingBuildInstanceBufferCS, "/Engine/Private/Raytracing/RayTracingInstanceBufferUtil.usf", "RayTracingBuildInstanceBufferCS", SF_Compute);
 
-void BuildRayTracingInstanceBuffer(FRHICommandList& RHICmdList, uint32 NumInstances, FUnorderedAccessViewRHIRef InstancesUAV, FShaderResourceViewRHIRef InstanceUploadSRV, FShaderResourceViewRHIRef AccelerationStructureAddressesSRV)
+void BuildRayTracingInstanceBuffer(
+	FRHICommandList& RHICmdList,
+	uint32 NumInstances,
+	uint32 InputDescOffset,
+	FUnorderedAccessViewRHIRef InstancesUAV,
+	FShaderResourceViewRHIRef InstanceUploadSRV,
+	FShaderResourceViewRHIRef AccelerationStructureAddressesSRV,
+	FShaderResourceViewRHIRef InstanceTransformSRV)
 {
-	FRayTracingInstanceBufferCS::FParameters PassParams;
+	FRayTracingBuildInstanceBufferCS::FParameters PassParams;
 	PassParams.InstancesDescriptors = InstancesUAV;
 	PassParams.InputInstanceDescriptors = InstanceUploadSRV;
 	PassParams.AccelerationStructureAddresses = AccelerationStructureAddressesSRV;
+	PassParams.InstanceTransforms = InstanceTransformSRV;
 	PassParams.NumInstances = NumInstances;
+	PassParams.InputDescOffset = InputDescOffset;
 
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FRayTracingInstanceBufferCS>();
-	const int32 GroupSize = FMath::DivideAndRoundUp(PassParams.NumInstances, FRayTracingInstanceBufferCS::ThreadGroupSize);
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FRayTracingBuildInstanceBufferCS>();
+	const int32 GroupSize = FMath::DivideAndRoundUp(PassParams.NumInstances, FRayTracingBuildInstanceBufferCS::ThreadGroupSize);
 
 	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
@@ -222,6 +245,44 @@ void BuildRayTracingInstanceBuffer(FRHICommandList& RHICmdList, uint32 NumInstan
 	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSize, 1, 1);
 
 	UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
+}
+
+void BuildRayTracingInstanceBuffer(
+	FRHICommandList& RHICmdList,
+	FUnorderedAccessViewRHIRef InstancesUAV,
+	FShaderResourceViewRHIRef InstanceUploadSRV,
+	FShaderResourceViewRHIRef AccelerationStructureAddressesSRV,
+	FShaderResourceViewRHIRef CPUInstanceTransformSRV,
+	uint32 NumNativeCPUInstances,
+	TConstArrayView<FRayTracingGPUInstance> GPUInstances)
+{
+	RHICmdList.BeginUAVOverlap(InstancesUAV);
+
+	BuildRayTracingInstanceBuffer(
+		RHICmdList,
+		NumNativeCPUInstances,
+		0,
+		InstancesUAV,
+		InstanceUploadSRV,
+		AccelerationStructureAddressesSRV,
+		CPUInstanceTransformSRV);
+
+	for (const auto& GPUInstance : GPUInstances)
+	{
+		// GPU instance input descriptors are stored after CPU instances
+		uint32 InputDescOffset = NumNativeCPUInstances + GPUInstance.DescBufferOffset;
+
+		BuildRayTracingInstanceBuffer(
+			RHICmdList,
+			GPUInstance.NumInstances,
+			InputDescOffset,
+			InstancesUAV,
+			InstanceUploadSRV,
+			AccelerationStructureAddressesSRV,
+			GPUInstance.TransformSRV);
+	}
+
+	RHICmdList.EndUAVOverlap(InstancesUAV);
 }
 
 #endif //RHI_RAYTRACING

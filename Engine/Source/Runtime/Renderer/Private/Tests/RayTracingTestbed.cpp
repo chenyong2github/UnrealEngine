@@ -115,10 +115,12 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	Instances[0].NumTransforms = NumTransforms;
 	Instances[0].Transforms = MakeArrayView(&FMatrix::Identity, 1);
 
-	TArray<uint32> GeometryIndices;
-	FRayTracingSceneRHIRef Scene = CreateRayTracingSceneWithGeometryInstances(Instances, RAY_TRACING_NUM_SHADER_SLOTS, 1, GeometryIndices);
+	FRayTracingSceneWithGeometryInstances RayTracingScene = CreateRayTracingSceneWithGeometryInstances(
+		Instances,
+		RAY_TRACING_NUM_SHADER_SLOTS,
+		1);
 
-	const FRayTracingSceneInitializer2& SceneInitializer = Scene->GetInitializer();
+	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene.Scene->GetInitializer();
 
 	ERayTracingAccelerationStructureFlags SceneBuildFlags = ERayTracingAccelerationStructureFlags::FastTrace;
 	FRayTracingAccelerationStructureSize SceneSizeInfo = RHICalcRayTracingSceneSize(1, SceneBuildFlags);
@@ -144,17 +146,34 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FBufferRHIRef InstanceUploadBuffer;
 	FShaderResourceViewRHIRef InstanceUploadSRV;
 	{
-
 		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
 		InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
+	}
+
+	const uint32 TransformUploadBufferSize = RayTracingScene.NumNativeCPUInstances * 3 * sizeof(FVector4f);
+	FBufferRHIRef TransformUploadBuffer;
+	FShaderResourceViewRHIRef TransformUploadSRV;
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
+		TransformUploadBuffer = RHICreateStructuredBuffer(sizeof(FVector4f), TransformUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+		TransformUploadSRV = RHICreateShaderResourceView(TransformUploadBuffer);
 	}
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	{
 		FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, InstanceUploadBufferSize, RLM_WriteOnly);
-		FillRayTracingInstanceUploadBuffer(Instances, GeometryIndices, Scene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
+		FVector4f* TransformUploadData = (FVector4f*)RHICmdList.LockBuffer(TransformUploadBuffer, 0, TransformUploadBufferSize, RLM_WriteOnly);
+		FillRayTracingInstanceUploadBuffer(
+			RayTracingScene.Scene,
+			Instances,
+			RayTracingScene.InstanceGeometryIndices,
+			RayTracingScene.BaseUploadBufferOffsets,
+			RayTracingScene.NumNativeCPUInstances,
+			MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
+			MakeArrayView(TransformUploadData, RayTracingScene.NumNativeCPUInstances * 3));
+		RHICmdList.UnlockBuffer(TransformUploadBuffer);
 		RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 	}
 
@@ -176,12 +195,14 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	BuildRayTracingInstanceBuffer(
 		RHICmdList,
-		SceneInitializer.NumNativeInstances,
 		InstanceBuffer.UAV,
 		InstanceUploadSRV,
-		AccelerationStructureAddressesBuffer.SRV);
+		AccelerationStructureAddressesBuffer.SRV,
+		TransformUploadSRV,
+		RayTracingScene.NumNativeCPUInstances,
+		{});
 
-	RHICmdList.BindAccelerationStructureMemory(Scene, SceneBuffer, 0);
+	RHICmdList.BindAccelerationStructureMemory(RayTracingScene.Scene, SceneBuffer, 0);
 
 	RHICmdList.BuildAccelerationStructure(Geometry);
 
@@ -189,7 +210,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	// RHICmdList.Transition(FRHITransitionInfo(Geometry.GetReference(), ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 
 	FRayTracingSceneBuildParams Params;
-	Params.Scene = Scene;
+	Params.Scene = RayTracingScene.Scene;
 	Params.ScratchBuffer = ScratchBuffer;
 	Params.ScratchBufferOffset = 0;
 	Params.InstanceBuffer = InstanceBuffer.Buffer;
@@ -197,10 +218,10 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	RHICmdList.BuildAccelerationStructure(Params);
 
-	RHICmdList.Transition(FRHITransitionInfo(Scene.GetReference(), ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
+	RHICmdList.Transition(FRHITransitionInfo(RayTracingScene.Scene.GetReference(), ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 
-	RHICmdList.RayTraceOcclusion(Scene, RayBufferView, OcclusionResultBufferView, NumRays);
-	RHICmdList.RayTraceIntersection(Scene, RayBufferView, IntersectionResultBufferView, NumRays);
+	RHICmdList.RayTraceOcclusion(RayTracingScene.Scene, RayBufferView, OcclusionResultBufferView, NumRays);
+	RHICmdList.RayTraceIntersection(RayTracingScene.Scene, RayBufferView, IntersectionResultBufferView, NumRays);
 
 	const bool bValidateResults = true;
 	bool bOcclusionTestOK = false;
