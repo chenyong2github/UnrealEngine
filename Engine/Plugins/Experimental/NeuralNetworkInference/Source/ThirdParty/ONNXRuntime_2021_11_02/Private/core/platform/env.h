@@ -71,8 +71,7 @@ struct ThreadOptions {
   // Set or unset denormal as zero.
   bool set_denormal_as_zero = false;
 
-  // WITH_UE: Unreal Engine thread priority level
-  EThreadPriority ThreadPri = EThreadPriority::TPri_Normal; // WITH_UE
+  EThreadPriority ThreadPri = EThreadPriority::TPri_Normal; // WITH_UE: Unreal Engine thread priority level
 };
 /// \brief An interface used by the onnxruntime implementation to
 /// access operating system functionality like the filesystem etc.

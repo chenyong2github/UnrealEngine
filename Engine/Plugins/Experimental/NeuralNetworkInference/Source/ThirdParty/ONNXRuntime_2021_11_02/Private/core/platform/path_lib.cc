@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "Misc/Paths.h" // WITH_UE
 #include "core/platform/path_lib.h"
 
 #include <cassert>
@@ -11,9 +12,6 @@
 
 #include "core/common/status.h"
 #include "core/common/common.h"
-
-#include "Misc/Paths.h" // WITH_UE
-
 #ifdef _WIN32
 
 #if defined(USE_PATHCCH_LIB)
@@ -27,11 +25,9 @@
 #include <PathCch.h>
 #pragma comment(lib, "PathCch.lib")
 #endif
-
 #elif defined(__PROSPERO__) // WITH_UE
 #include <stdlib.h>
 #include <sys/stat.h>
-
 #else
 #include <libgen.h>
 #include <stdlib.h>
@@ -124,7 +120,6 @@ using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
 
 }  // namespace
 
-
 #ifdef PLATFORM_SCARLET // WITH_UE
 std::wstring s2ws(const std::string& s)
 {
@@ -138,10 +133,8 @@ std::wstring s2ws(const std::string& s)
 }
 #endif //PLATFORM_SCARLET
 
-
 common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
                                       std::basic_string<ORTCHAR_T>& output) {
-
 #if defined(__PROSPERO__) || defined(PLATFORM_SCARLET) // WITH_UE
   FString IntputFString = FString(input.c_str());
   FString DirPath = FPaths::GetPath(IntputFString);
@@ -157,12 +150,10 @@ common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
   MallocdStringPtr s{strdup(input.c_str())};
   output = dirname(s.get());
 #endif // WITH_UE
-
   return Status::OK();
 }
 
 std::string GetLastComponent(const std::string& input) {
-
 #if defined(__PROSPERO__) || defined(PLATFORM_SCARLET) // WITH_UE
   FString IntputFString = FString(input.c_str());
   FString BaseName = FPaths::GetCleanFilename(IntputFString);
@@ -172,7 +163,6 @@ std::string GetLastComponent(const std::string& input) {
   MallocdStringPtr s{strdup(input.c_str())};
   std::string ret = basename(s.get());
 #endif // WITH_UE
-
   return ret;
 }
 
