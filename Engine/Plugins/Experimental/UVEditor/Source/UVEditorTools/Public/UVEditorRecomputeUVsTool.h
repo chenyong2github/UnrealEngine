@@ -25,7 +25,7 @@ class URecomputeUVsOpFactory;
  *
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorRecomputeUVsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class UVEDITORTOOLS_API UUVEditorRecomputeUVsToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
