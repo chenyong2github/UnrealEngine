@@ -218,8 +218,6 @@ namespace Dml
         ComPtr<ExecutionProviderImpl> m_impl;
     };
 
-    class OrtDMLGPUResourceAllocatorWrapper; // WITH_UE
-
     class ExecutionProvider : public onnxruntime::IExecutionProvider
     {
     public:
@@ -257,10 +255,10 @@ namespace Dml
             return m_impl->OnSessionInitializationEnd();
         }
 
-		onnxruntime::common::Status OnRunEnd(bool /*sync_stream*/) override // WITH_UE: Make sure that command lists are flushed when there's no copy from |GPU
-		{
-			return m_impl->OnSessionInitializationEnd();
-		}
+        onnxruntime::common::Status OnRunEnd(bool /*sync_stream*/) override // WITH_UE: Function added to make sure that command lists are flushed when there's no copy from GPU
+        {
+            return m_impl->OnSessionInitializationEnd();
+        }
 
         void Flush()
         {
@@ -294,7 +292,7 @@ namespace Dml
 
     private:
         ComPtr<ExecutionProviderImpl> m_impl;
-        std::unique_ptr<OrtDMLGPUResourceAllocatorWrapper> m_resourceAlloc; // WITH_UE
+        std::unique_ptr<class OrtDMLGPUResourceAllocatorWrapper> m_resourceAlloc; // WITH_UE
     };
 
 } // namespace Dml

@@ -507,9 +507,9 @@ public:
     GemmHelper(const Info_t& info, const Shape_t& shape)
     {
         ORT_UNUSED_PARAMETER(shape);
-        m_transA = info.template GetOptionalAttribute<int>(AttrName::TransA, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
-        m_transB = info.template GetOptionalAttribute<int>(AttrName::TransB, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
-        m_broadcast = info.template GetOptionalAttribute<int>(AttrName::Broadcast, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_transA = info.template GetOptionalAttribute<int>(AttrName::TransA, 0) != 0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_transB = info.template GetOptionalAttribute<int>(AttrName::TransB, 0) != 0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_broadcast = info.template GetOptionalAttribute<int>(AttrName::Broadcast, 0) != 0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
         m_alpha = info.template GetOptionalAttribute<float>(AttrName::Alpha, 1.0f);
         m_beta = info.template GetOptionalAttribute<float>(AttrName::Beta, 0.0f);
     }

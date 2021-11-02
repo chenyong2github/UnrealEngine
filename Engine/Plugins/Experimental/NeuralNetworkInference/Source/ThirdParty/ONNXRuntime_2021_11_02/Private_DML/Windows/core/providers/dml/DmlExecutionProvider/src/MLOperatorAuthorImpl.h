@@ -162,11 +162,7 @@ class OpNodeInfoWrapper : public Base1_t, public Base2_t, public Closable
         const EdgeShapes* inputShapesOverride,
         const AttributeMap* defaultAttributes,
         gsl::span<const uint32_t> requiredConstantCpuInputs,
-#ifdef WITH_UE
-        MLOperatorTensorGetter constantInputGetter) :
-#else //WITH_UE
         MLOperatorTensorGetter& constantInputGetter) :
-#endif //WITH_UE
             m_impl(impl), 
             m_inputShapesOverride(inputShapesOverride),
             m_constantInputGetter(constantInputGetter),

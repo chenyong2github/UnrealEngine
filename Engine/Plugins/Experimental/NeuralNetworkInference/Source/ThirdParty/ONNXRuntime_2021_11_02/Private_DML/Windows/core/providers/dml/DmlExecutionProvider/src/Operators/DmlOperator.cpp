@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "DmlOperator.h" // WITH_UE: Added missing include
 #include "precomp.h"
 #include "DmlOperator.h"
 
