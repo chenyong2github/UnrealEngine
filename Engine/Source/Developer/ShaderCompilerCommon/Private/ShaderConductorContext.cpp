@@ -283,6 +283,7 @@ namespace CrossCompiler
 	{
 		switch (Version)
 		{
+		case 20400: return "20400";
 		case 20300: return "20300";
 		case 20200: return "20200";
 		case 20100: return "20100";
