@@ -110,8 +110,6 @@ void FDebugCanvasDrawer::ReleaseResources()
 		{
 			ReleaseMe->ReleaseTexture();
 		});
-
-	FlushRenderingCommands();
 }
 
 FDebugCanvasDrawer::~FDebugCanvasDrawer()
