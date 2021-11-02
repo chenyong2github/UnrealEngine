@@ -6,9 +6,6 @@ Version: 4.27
 
 ### BuildConfiguration
 
-$ bGeneratedSYMFile : Whether to generate dSYM files. Defaults to true for Shipping builds and false for all other builds. -dsym will force generation of a dsym for other builds,
-        * NoDsym will force it off for shipping.
-
 $ bEnableAddressSanitizer : Enables address sanitizer (ASan)
 
 $ bEnableThreadSanitizer : Enables thread sanitizer (TSan)
@@ -91,7 +88,7 @@ $ bDisableDebugInfo : Whether to globally disable debug info generation; see Deb
 
 $ bDisableDebugInfoForGeneratedCode : Whether to disable debug info generation for generated files. This improves link times for modules that have a lot of generated glue code.
 
-$ bOmitPCDebugInfoInDevelopment : Whether to disable debug info on PC in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
+$ bOmitPCDebugInfoInDevelopment : Whether to disable debug info on PC/Mac in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
 
 $ bUsePDBFiles : Whether PDB files should be used for Visual C++ builds.
 

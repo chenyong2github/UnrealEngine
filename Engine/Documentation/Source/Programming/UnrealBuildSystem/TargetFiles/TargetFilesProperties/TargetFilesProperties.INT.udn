@@ -196,7 +196,7 @@ $ bDisableDebugInfo (Boolean): Whether to globally disable debug info generation
 
 $ bDisableDebugInfoForGeneratedCode (Boolean): Whether to disable debug info generation for generated files. This improves link times for modules that have a lot of generated glue code.
 
-$ bOmitPCDebugInfoInDevelopment (Boolean): Whether to disable debug info on PC in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
+$ bOmitPCDebugInfoInDevelopment (Boolean): Whether to disable debug info on PC/Mac in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
 
 $ bUsePDBFiles (Boolean): Whether PDB files should be used for Visual C++ builds.
 
