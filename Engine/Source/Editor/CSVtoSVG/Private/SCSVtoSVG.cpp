@@ -4,10 +4,13 @@
 #include "CSVtoSVGModule.h"
 #include "SStatList.h"
 #include "CSVtoSVGArguments.h"
+#include "DetailsViewArgs.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "CSVtoSVG"
 
