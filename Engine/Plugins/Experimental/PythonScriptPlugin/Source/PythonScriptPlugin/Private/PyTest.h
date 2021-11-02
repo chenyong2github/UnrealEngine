@@ -23,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPyTestMulticastDelegate, FString, I
 UENUM(BlueprintType)
 enum class EPyTestEnum : uint8
 {
-	One,
+	One UMETA(DisplayName = "Says One but my value is Zero"),
 	Two,
 };
 
