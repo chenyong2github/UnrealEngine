@@ -335,19 +335,19 @@ private:
 		return (GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen);
 	}
 
-	virtual bool AnyViewHasSupportingGIMethod() const override
+	virtual bool AnyViewHasGIMethodSupportingDFAO() const override
 	{
-		bool bAnyViewHasSupportingGIMethod = false;
+		bool bAnyViewHasGIMethodSupportingDFAO = false;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled || GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+			if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen)
 			{
-				bAnyViewHasSupportingGIMethod = true;
+				bAnyViewHasGIMethodSupportingDFAO = true;
 			}
 		}
 
-		return bAnyViewHasSupportingGIMethod;
+		return bAnyViewHasGIMethodSupportingDFAO;
 	}
 
 	static FGraphEventRef TranslucencyTimestampQuerySubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1];
