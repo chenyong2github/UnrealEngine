@@ -14,6 +14,7 @@
 #include "PlayerId.h"
 #include "IPixelStreamingSessions.h"
 #include "Async/Async.h"
+#include "CodecPacket.h"
 
 FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(const IPixelStreamingSessions* InPixelStreamingSessions, FEncoderContext* InContext)
 	: OwnerPlayerId(INVALID_PLAYER_ID)
@@ -325,7 +326,7 @@ void CreateH264FragmentHeader(uint8 const* CodedData, size_t CodedDataSize, webr
 }
 
 //Note: this is a free function on purpose as it is not tied to the object life cycle of a given PixelStreamingVideoEncoder
-void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
+void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacketImpl& InPacket)
 {
 	// During shutdown this can function can sometimes be called by a queued encode if timing is unfortunate and the context is null
 	if(Context == nullptr)
@@ -398,10 +399,22 @@ void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEn
 	FEncoderContext* ContextPtr = this->Context;
 	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) 
 	{
+
+		// Create a memory copy of the CodecPacket because the encoder will recycle InPacket.Data again after this.
+		AVEncoder::FCodecPacketImpl* CopyPacket = new AVEncoder::FCodecPacketImpl();
+		CopyPacket->DataSize = InPacket.DataSize;
+		CopyPacket->Data = static_cast<const uint8*>(FMemory::Malloc(InPacket.DataSize));
+		FMemory::BigBlockMemcpy(const_cast<uint8*>(CopyPacket->Data), InPacket.Data, InPacket.DataSize);
+		CopyPacket->IsKeyFrame = InPacket.IsKeyFrame;
+		CopyPacket->VideoQP = InPacket.VideoQP;
+		CopyPacket->Timings = InPacket.Timings;
+
 		// We do the actual work somewhere on the task graph so we are not locking up the encoder.
-		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [ContextPtr, InLayerIndex, InFrame, &InPacket] ()
+		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [ContextPtr, InLayerIndex, InFrame, CopyPacket] ()
 		{
-			OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); 
+			OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, *CopyPacket);
+			delete[] CopyPacket->Data;
+			delete CopyPacket;
 		}); 
 		
 	});
