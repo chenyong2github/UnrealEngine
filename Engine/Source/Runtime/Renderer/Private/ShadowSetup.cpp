@@ -1902,7 +1902,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 				DDM_AllOccluders,
 				false,
 				false,
-				&ProjectionStencilingContext);
+				&ProjectionStencilingContext,
+				true);
 
 			// Pre-shadows mask by receiver elements, self-shadow mask by subject elements.
 			// Note that self-shadow pre-shadows still mask by receiver elements.

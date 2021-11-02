@@ -886,13 +886,13 @@ bool FDepthPassMeshProcessor::Process(
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
-	if (!bDitheredLODFadingOutMaskPass)
+	if (!bDitheredLODFadingOutMaskPass && !bShadowProjection)
 	{
 		SetDepthPassDitheredLODTransitionState(ViewIfDynamicMeshCommand, MeshBatch, StaticMeshId, DrawRenderState);
 	}
 
 	// Use StencilMask for DecalOutput on mobile
-	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1 && !bShadowProjection)
 	{
 		SetMobileDepthPassRenderState(PrimitiveSceneProxy, DrawRenderState, MaterialResource, IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)));
 	}
@@ -1023,12 +1023,14 @@ FDepthPassMeshProcessor::FDepthPassMeshProcessor(const FScene* Scene,
 	const EDepthDrawingMode InEarlyZPassMode,
 	const bool InbEarlyZPassMovable,
 	const bool bDitheredLODFadingOutMaskPass,
-	FMeshPassDrawListContext* InDrawListContext)
+	FMeshPassDrawListContext* InDrawListContext,
+	const bool bInShadowProjection)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, bRespectUseAsOccluderFlag(InbRespectUseAsOccluderFlag)
 	, EarlyZPassMode(InEarlyZPassMode)
 	, bEarlyZPassMovable(InbEarlyZPassMovable)
 	, bDitheredLODFadingOutMaskPass(bDitheredLODFadingOutMaskPass)
+	, bShadowProjection(bInShadowProjection)
 {
 	PassDrawRenderState = InPassDrawRenderState;
 	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
