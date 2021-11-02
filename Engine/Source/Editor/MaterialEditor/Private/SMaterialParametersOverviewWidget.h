@@ -3,17 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "DetailColumnSizeData.h"
 #include "Engine/EngineTypes.h"
+#include "IDetailTreeNode.h"
+#include "MaterialPropertyHelpers.h"
+#include "Materials/Material.h"
+#include "PropertyCustomizationHelpers.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
-#include "Materials/Material.h"
-#include "IDetailTreeNode.h"
-#include "IDetailPropertyRow.h"
-#include "MaterialPropertyHelpers.h"
-#include "PropertyCustomizationHelpers.h"
+
 class IPropertyHandle;
 class SMaterialParametersOverviewTree;
 class UMaterialEditorPreviewParameters;

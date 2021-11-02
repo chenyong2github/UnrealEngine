@@ -3,15 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DetailColumnSizeData.h"
+#include "EditorUndoClient.h"
+#include "Framework/Text/SlateHyperlinkRun.h"
 #include "Layout/Visibility.h"
+#include "ToolMenuContext.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/Text/SlateHyperlinkRun.h"
-#include "EditorUndoClient.h"
 #include "Widgets/Views/SListView.h"
-#include "IDetailPropertyRow.h"
-#include "ToolMenuContext.h"
-
 
 class AActor;
 class FSCSEditorTreeNode;

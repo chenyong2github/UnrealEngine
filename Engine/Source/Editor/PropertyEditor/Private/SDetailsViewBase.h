@@ -4,25 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "AssetThumbnail.h"
-#include "IDetailsView.h"
-#include "IDetailsViewPrivate.h"
-#include "IPropertyUtilities.h"
+#include "DetailColumnSizeData.h"
 #include "DetailFilter.h"
 #include "DetailTreeNode.h"
 #include "DetailsViewConfig.h"
+#include "Framework/Commands/UICommandList.h"
+#include "IDetailsView.h"
+#include "IDetailsViewPrivate.h"
+#include "IPropertyUtilities.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "PropertyNode.h"
 #include "PropertyPath.h"
 #include "PropertyRowGenerator.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
-#include "Widgets/SWindow.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
 
 class FDetailCategoryImpl;
@@ -344,7 +345,7 @@ protected:
 	/** A mapping of type names to detail layout delegates, called when querying for custom detail layouts in this instance of the details view only */
 	FCustomPropertyTypeLayoutMap InstancedTypeToLayoutMap;
 	/** The current detail layout based on objects in this details panel.  There is one layout for each top level object node.*/
-	FDetailLayoutList DetailLayouts;
+	TArray<FDetailLayoutData> DetailLayouts;
 	/** Row for searching and view options */
 	TSharedPtr<SWidget> FilterRow;
 	/** Search box */

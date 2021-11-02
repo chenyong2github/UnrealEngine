@@ -487,8 +487,8 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
 						+ SSplitter::Slot()
-						.Value(ColumnSizeData.NameColumnWidth)
-						.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+						.Value(ColumnSizeData.GetNameColumnWidth())
+						.OnSlotResized(ColumnSizeData.GetOnNameColumnResized())
 						.Value(0.25f)
 						[
 							SNew(SHorizontalBox)
@@ -507,8 +507,8 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 							]
 						]
 						+ SSplitter::Slot()
-						.Value(ColumnSizeData.ValueColumnWidth)
-						.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
+						.Value(ColumnSizeData.GetValueColumnWidth())
+						.OnSlotResized(ColumnSizeData.GetOnValueColumnResized())
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()

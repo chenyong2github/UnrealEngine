@@ -3,90 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-
-#include "Layout/Visibility.h"
 #include "Framework/SlateDelegates.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
 #include "PropertyHandle.h"
-#include "Widgets/Layout/SSplitter.h"
-
 
 class FDetailWidgetRow;
 class FDetailWidgetDecl;
 class IDetailDragDropHandler;
-
-class FDetailColumnSizeData
-{
-public:
-	
-	FDetailColumnSizeData()
-	{
-		ValueColumnWidthValue = 0.7f;
-		RightColumnWidthValue = 0;
-		HoveredSplitterIndexValue = INDEX_NONE;
-
-		NameColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetNameColumnWidth);
-		ValueColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetValueColumnWidth);
-		PropertyColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetPropertyColumnWidth);
-		RightColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnWidth);
-		RightColumnMinWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnMinWidth);
-		HoveredSplitterIndex.BindRaw(this, &FDetailColumnSizeData::GetHoveredSplitterIndex);
-		OnValueColumnResized.BindRaw(this, &FDetailColumnSizeData::SetValueColumnWidth);
-		OnRightColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetRightColumnWidth);
-		OnSplitterHandleHovered.BindRaw(this, &FDetailColumnSizeData::OnSetHoveredSplitterIndex);
-
-		// these are intentionally left no-op, since the widths are derived from the other column width
-		OnPropertyColumnResized.BindLambda([](float) {});
-		OnNameColumnResized.BindLambda([](float) {}); 
-	}
-
-	// don't change these attributes directly - they're here only to be forwarded to the details view
-	TAttribute<float> NameColumnWidth;
-	TAttribute<float> ValueColumnWidth;
-	TAttribute<float> PropertyColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	TAttribute<float> RightColumnMinWidth;
-	TAttribute<int32> HoveredSplitterIndex;
-	SSplitter::FOnSlotResized OnNameColumnResized; 
-	SSplitter::FOnSlotResized OnValueColumnResized;
-	SSplitter::FOnSlotResized OnPropertyColumnResized; 
-	SSplitter::FOnSlotResized OnRightColumnResized;
-	SSplitter::FOnHandleHovered OnSplitterHandleHovered;
-
-	void SetValueColumnWidth(float NewWidth)
-	{ 
-		ensureAlways(NewWidth <= 1.0f);
-		ValueColumnWidthValue = NewWidth;
-	}
-
-	float GetRightColumnMinWidth() const { return RightColumnMinWidthValue; }
-	void SetRightColumnMinWidth(float NewWidth)
-	{ 
-		RightColumnMinWidthValue = NewWidth;
-	}
-
-private:
-	float ValueColumnWidthValue;
-	float RightColumnWidthValue;
-	float RightColumnMinWidthValue;
-	int HoveredSplitterIndexValue;
-
-	float GetNameColumnWidth() const { return 1.0f - (ValueColumnWidthValue + RightColumnWidthValue); }
-	float GetValueColumnWidth() const { return ValueColumnWidthValue; }
-	float GetRightColumnWidth() const { return RightColumnWidthValue; }
-	float GetPropertyColumnWidth() const { return 1.0f - RightColumnWidthValue; }
-	int32 GetHoveredSplitterIndex() const { return HoveredSplitterIndexValue; }
-	
-	void OnSetRightColumnWidth(float NewWidth)
-	{
-		RightColumnWidthValue = NewWidth;
-	}
-
-	void OnSetHoveredSplitterIndex(int32 HoveredIndex)
-	{
-		HoveredSplitterIndexValue = HoveredIndex;
-	}
-};
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsResetToDefaultVisible, TSharedPtr<IPropertyHandle> /* PropertyHandle */);
 DECLARE_DELEGATE_OneParam(FResetToDefaultHandler, TSharedPtr<IPropertyHandle> /* PropertyHandle*/);

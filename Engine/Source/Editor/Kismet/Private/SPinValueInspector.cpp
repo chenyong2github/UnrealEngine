@@ -8,7 +8,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
-#include "IDetailPropertyRow.h"
+#include "DetailColumnSizeData.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SToolTip.h"
 

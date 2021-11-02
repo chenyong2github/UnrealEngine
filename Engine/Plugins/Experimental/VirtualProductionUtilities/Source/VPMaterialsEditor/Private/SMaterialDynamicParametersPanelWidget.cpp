@@ -2,8 +2,7 @@
 
 #include "SMaterialDynamicParametersPanelWidget.h"
 
-#include "PropertyHandle.h"
-
+#include "DetailColumnSizeData.h"
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
 #include "IDetailPropertyRow.h"
@@ -11,6 +10,7 @@
 #include "IPropertyRowGenerator.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Materials/MaterialInstance.h"
@@ -376,8 +376,8 @@ void SMaterialDynamicParametersOverviewTreeItem::Construct(const FArguments& InA
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
 						+ SSplitter::Slot()
-						.Value(ColumnSizeData.NameColumnWidth)
-						.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+						.Value(ColumnSizeData.GetNameColumnWidth())
+						.OnSlotResized(ColumnSizeData.GetOnNameColumnResized())
 						.Value(0.25f)
 						[
 							SNew(SHorizontalBox)
@@ -396,8 +396,8 @@ void SMaterialDynamicParametersOverviewTreeItem::Construct(const FArguments& InA
 							]
 						]
 						+ SSplitter::Slot()
-						.Value(ColumnSizeData.ValueColumnWidth)
-						.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
+						.Value(ColumnSizeData.GetValueColumnWidth())
+						.OnSlotResized(ColumnSizeData.GetOnValueColumnResized()) 
 						[
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()

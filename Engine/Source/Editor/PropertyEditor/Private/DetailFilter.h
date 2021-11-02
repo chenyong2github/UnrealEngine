@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PropertyPath.h"
 
 /** Represents a filter which controls the visibility of items in the details view */
 struct FDetailFilter

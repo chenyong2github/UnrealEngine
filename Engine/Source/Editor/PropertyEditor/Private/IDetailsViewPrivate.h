@@ -145,7 +145,7 @@ public:
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) = 0;
 
 	/** Column width accessibility */
-	virtual FDetailColumnSizeData& GetColumnSizeData() = 0;
+	virtual class FDetailColumnSizeData& GetColumnSizeData() = 0;
 
 	/** Does this details view allow favoriting? */
 	virtual bool IsFavoritingEnabled() const = 0;

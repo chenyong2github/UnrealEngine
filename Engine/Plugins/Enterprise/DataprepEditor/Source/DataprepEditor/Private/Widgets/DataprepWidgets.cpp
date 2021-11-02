@@ -14,6 +14,7 @@
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
 #include "ContentBrowserModule.h"
+#include "DetailColumnSizeData.h"
 #include "DetailLayoutBuilder.h"
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
@@ -77,15 +78,15 @@ namespace DataprepWidgetUtils
 			ColumnSizeData = InArgs._ColumnSizeData;
 
 			AddSlot()
-			.Value(ColumnSizeData->NameColumnWidth)
-			.OnSlotResized(ColumnSizeData->OnNameColumnResized)
+			.Value(ColumnSizeData->GetNameColumnWidth())
+			.OnSlotResized(ColumnSizeData->GetOnNameColumnResized())
 			[
 				InArgs._NameWidget.ToSharedRef()
 			];
 
 			AddSlot()
-			.Value(InArgs._ColumnSizeData->ValueColumnWidth)
-			.OnSlotResized(ColumnSizeData->OnValueColumnResized)
+			.Value(InArgs._ColumnSizeData->GetValueColumnWidth())
+			.OnSlotResized(ColumnSizeData->GetOnValueColumnResized())
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -108,14 +109,14 @@ namespace DataprepWidgetUtils
 				const FVector2D AllottedSize = AllottedGeometry.GetLocalSize();
 
 				FVector2D LocalPosition = FVector2D::ZeroVector;
-				FVector2D LocalSize(  AllottedSize.X * ColumnSizeData->NameColumnWidth.Get(0.f), AllottedSize.Y );
+				FVector2D LocalSize(AllottedSize.X * ColumnSizeData->GetNameColumnWidth().Get(0), AllottedSize.Y);
 
 				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( LeftChild.GetWidget(), LocalPosition, LocalSize ));
 
 				const SSplitter::FSlot& RightChild = Children[1];
 
 				LocalPosition = FVector2D(LocalSize.X, 0.f);
-				LocalSize.X = AllottedSize.X * ColumnSizeData->ValueColumnWidth.Get(0.f);
+				LocalSize.X = AllottedSize.X * ColumnSizeData->GetValueColumnWidth().Get(0);
 
 				ArrangedChildren.AddWidget( EVisibility::Visible, AllottedGeometry.MakeChild( RightChild.GetWidget(), LocalPosition, LocalSize ));
 			}
