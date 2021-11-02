@@ -5,7 +5,7 @@
 #include "MassZoneGraphPathFollowTask.h"
 #include "MassZoneGraphFindSmartObjectTarget.generated.h"
 
-struct FDataFragment_SmartObjectUser;
+struct FMassSmartObjectUserFragment;
 struct FMassZoneGraphLaneLocationFragment;
 class UZoneGraphAnnotationSubsystem;
 
@@ -23,7 +23,7 @@ protected:
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
 

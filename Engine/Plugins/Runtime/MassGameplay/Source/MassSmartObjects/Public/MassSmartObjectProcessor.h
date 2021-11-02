@@ -15,7 +15,7 @@ class UZoneGraphSubsystem;
 class UZoneGraphAnnotationSubsystem;
 
 USTRUCT()
-struct MASSSMARTOBJECTS_API FDataFragment_SmartObjectUser : public FMassFragment
+struct MASSSMARTOBJECTS_API FMassSmartObjectUserFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

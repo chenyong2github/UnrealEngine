@@ -35,7 +35,7 @@ EStateTreeRunStatus FMassStateTreeTestTask::EnterState(FStateTreeExecutionContex
 EStateTreeRunStatus FMassStateTreeTestTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
 {
 	UMassStateTreeSubsystem& MassStateTreeSubSystem = Context.GetExternalItem(MassStateTreeSubSystemHandle);
-	const FDataFragment_SmartObjectUser* SmartObjectUser = Context.GetExternalItemPtr(SmartObjectUserHandle);
+	const FMassSmartObjectUserFragment* SmartObjectUser = Context.GetExternalItemPtr(SmartObjectUserHandle);
 	FDataFragment_Transform& Transform = Context.GetExternalItem(TransformHandle);
 
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 1.0f, FColor::Orange, *FString::Printf(TEXT("[%s] Time=%f X=%f\n"), *Name.ToString(), Time, Transform.GetTransform().GetLocation().X));

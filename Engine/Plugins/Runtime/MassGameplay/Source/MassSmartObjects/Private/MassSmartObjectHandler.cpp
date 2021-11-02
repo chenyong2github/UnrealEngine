@@ -18,7 +18,7 @@ struct FPayload
 
 void OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState State, FPayload Payload)
 {
-	FDataFragment_SmartObjectUser& User = Payload.EntitySubsystem->GetFragmentDataChecked<FDataFragment_SmartObjectUser>(Payload.Entity);
+	FMassSmartObjectUserFragment& User = Payload.EntitySubsystem->GetFragmentDataChecked<FMassSmartObjectUserFragment>(Payload.Entity);
 	if (USmartObjectSubsystem* SmartObjectSubsystem = Payload.SmartObjectSubsystem.Get())
 	{
 		SmartObjectSubsystem->Release(User.ClaimHandle);
@@ -96,7 +96,7 @@ void FMassSmartObjectHandler::RemoveRequest(const FMassSmartObjectRequestID& Req
 	ExecutionContext.Defer().DestroyEntity(RequestEntity);
 }
 
-EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestID& RequestID) const
+EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestID& RequestID) const
 {
 	if (!ensureMsgf(RequestID.IsSet(), TEXT("Trying to claim using an invalid request.")))
 	{
@@ -113,7 +113,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	return ClaimCandidate(Entity, User, RequestFragment.Result);
 }
 
-EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestResult& SearchRequestResult) const
+EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestResult& SearchRequestResult) const
 {
 	if (!ensureMsgf(SearchRequestResult.bProcessed, TEXT("Trying to claim using a search request that is not processed.")))
 	{
@@ -143,7 +143,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	return User.ClaimHandle.IsValid() ? EMassSmartObjectClaimResult::Succeeded : EMassSmartObjectClaimResult::Failed_NoAvailableCandidate;
 }
 
-bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FSmartObjectID& ObjectID) const
+bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectID& ObjectID) const
 {
 	FSmartObjectRequestFilter Filter;
 	Filter.BehaviorConfigurationClass = USmartObjectMassBehaviorConfig::StaticClass();
@@ -180,7 +180,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 
 bool FMassSmartObjectHandler::UseSmartObject(
 	const FMassEntityHandle Entity,
-	FDataFragment_SmartObjectUser& User,
+	FMassSmartObjectUserFragment& User,
 	const FDataFragment_Transform& Transform) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
@@ -207,7 +207,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 	return true;
 }
 
-void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const EMassSmartObjectInteractionStatus NewStatus) const
+void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus NewStatus) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),

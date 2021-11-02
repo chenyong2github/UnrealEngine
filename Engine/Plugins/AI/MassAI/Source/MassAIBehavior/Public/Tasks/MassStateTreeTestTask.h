@@ -7,7 +7,7 @@
 #include "MassStateTreeTestTask.generated.h"
 
 class UMassStateTreeSubsystem;
-struct FDataFragment_SmartObjectUser;
+struct FMassSmartObjectUserFragment;
 struct FDataFragment_Transform;
 
 /**
@@ -27,7 +27,7 @@ protected:
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
 	TStateTreeItemHandle<UMassStateTreeSubsystem> MassStateTreeSubSystemHandle;
-	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeItemHandle<FDataFragment_Transform> TransformHandle;
 
 	UPROPERTY()
