@@ -8,6 +8,7 @@
 
 bool FSmartObjectConfig::Validate() const
 {
+	bValid = false;
 	if (Slots.Num() == 0)
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("Need to provide at least one slot configuration"));
@@ -43,6 +44,7 @@ bool FSmartObjectConfig::Validate() const
 		}
 	}
 
+	bValid = true;
 	return true;
 }
 

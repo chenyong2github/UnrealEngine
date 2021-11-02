@@ -3,47 +3,49 @@
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectCollection.h"
-#include "GameFramework/Actor.h"
-#include "Model.h"
-#include "Engine/LevelBounds.h"
 #include "EngineUtils.h"
 #include "VisualLogger/VisualLogger.h"
 
+#if WITH_EDITOR
+#include "Engine/LevelBounds.h"
+#include "WorldPartition/WorldPartition.h"
+#endif
+
 namespace UE::SmartObject
 {
-USmartObjectComponent* FindSmartObjectComponent(const AActor& SmartObjectActor)
-{
-	return SmartObjectActor.FindComponentByClass<USmartObjectComponent>();
-}
+	USmartObjectComponent* FindSmartObjectComponent(const AActor& SmartObjectActor)
+	{
+		return SmartObjectActor.FindComponentByClass<USmartObjectComponent>();
+	}
 
-namespace Debug
-{
+	namespace Debug
+	{
 #if WITH_SMARTOBJECT_DEBUG
-	static FAutoConsoleCommandWithWorld RegisterAllSmartObjectsCmd(
-		TEXT("ai.debug.so.RegisterAllSmartObjects"),
-		TEXT("Force register all objects registered in the subsystem to simulate & debug runtime flows (will ignore already registered components)."),
-		FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
-		{
-			if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
+		static FAutoConsoleCommandWithWorld RegisterAllSmartObjectsCmd(
+			TEXT("ai.debug.so.RegisterAllSmartObjects"),
+			TEXT("Force register all objects registered in the subsystem to simulate & debug runtime flows (will ignore already registered components)."),
+			FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
 			{
-				Subsystem->DebugRegisterAllSmartObjects();
-			}
-		})
-	);
+				if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
+				{
+					Subsystem->DebugRegisterAllSmartObjects();
+				}
+			})
+		);
 
-	static FAutoConsoleCommandWithWorld UnregisterAllSmartObjectsCmd(
-		TEXT("ai.debug.so.UnregisterAllSmartObjects"),
-		TEXT("Force unregister all objects registered in the subsystem to simulate & debug runtime flows (will ignore already unregistered components)."),
-		FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
-		{
-			if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
+		static FAutoConsoleCommandWithWorld UnregisterAllSmartObjectsCmd(
+			TEXT("ai.debug.so.UnregisterAllSmartObjects"),
+			TEXT("Force unregister all objects registered in the subsystem to simulate & debug runtime flows (will ignore already unregistered components)."),
+			FConsoleCommandWithWorldDelegate::CreateLambda([](const UWorld* InWorld)
 			{
-				Subsystem->DebugUnregisterAllSmartObjects();
-			}
-		})
-	);
+				if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(InWorld))
+				{
+					Subsystem->DebugUnregisterAllSmartObjects();
+				}
+			})
+		);
 #endif // WITH_SMARTOBJECT_DEBUG
-}
+	}
 } // UE::SmartObject
 
 //----------------------------------------------------------------------//
@@ -62,64 +64,21 @@ USmartObjectSubsystem::USmartObjectSubsystem()
 	NextFreeUserID = InvalidID + 1;
 }
 
-void USmartObjectSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 {
-	Super::Initialize(Collection);
-
-	UWorld* World = GetWorld();
-	if (World == nullptr)
-	{
-		return;
-	}
-
-	FBox WorldBounds(ForceInitToZero);
-	FConstLevelIterator LevelIt = World->GetLevelIterator();
-	while (LevelIt)
-	{
-		const ALevelBounds* LevelBounds = (*LevelIt)->LevelBoundsActor.Get();
-		if (LevelBounds)
-		{
-			WorldBounds += LevelBounds->GetComponentsBoundingBox();
-		}
-		++LevelIt;
-	}
-
-	const UModel* WorldBSP = World->GetModel();
-	if (WorldBSP)
-	{
-		WorldBounds += WorldBSP->Bounds.GetBox();
-	}
-
-	if (WorldBounds.GetExtent().IsNearlyZero())
-	{
-		for (FActorIterator It(World); It; ++It)
-		{
-			WorldBounds += (*It)->GetComponentsBoundingBox();
-		}
-	}
-
-	FVector Center, Extents;
-	WorldBounds.GetCenterAndExtents(Center, Extents);
-
-	new(&SmartObjectOctree) FSmartObjectOctree(Center, Extents.Size2D());
-
-	// Register SmartObject data that we missed before the subsystem got initialized.
+	// Register collections that were unable to register since they got loaded before the subsystem got created/initialized.
 	RegisterCollectionInstances();
 
-#if WITH_SMARTOBJECT_DEBUG
-	check(!bInitialized);
-	bInitialized = true;
-#endif
-}
+#if WITH_EDITOR
+	SpawnMissingCollection();
 
-void USmartObjectSubsystem::Deinitialize()
-{
-#if WITH_SMARTOBJECT_DEBUG
-	check(bInitialized);
-	bInitialized = false;
+	if (!World.IsGameWorld())
+	{
+		ComputeBounds(World, *MainCollection);
+	}
 #endif
 
-	Super::Deinitialize();
+	UE_CVLOG_UELOG(!IsValid(MainCollection), this, LogSmartObject, Error, TEXT("Collection is expected to be set once world components are updated."));
 }
 
 USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
@@ -127,53 +86,26 @@ USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
 	return UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 }
 
-void USmartObjectSubsystem::AddToCollection(USmartObjectComponent& SOComponent) const
+void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const FSmartObjectConfig& Config, const FTransform& Transform, const FBox& Bounds)
 {
-	if (MainCollection == nullptr)
+	if (!ensureMsgf(ID.IsValid(), TEXT("SmartObject needs a valid ID to be added to the simulation")))
 	{
 		return;
 	}
 
-#if WITH_EDITOR
-	// For "build on demand collections" we wait an explicit build request to clear and repopulate
-	if (MainCollection->IsBuildOnDemand())
-	{
-		return;
-	}
-#endif // WITH_EDITOR
-
-	MainCollection->AddSmartObject(SOComponent);
-}
-
-void USmartObjectSubsystem::RemoveFromCollection(USmartObjectComponent& SOComponent) const
-{
-	if (MainCollection == nullptr)
+	if (!ensureMsgf(RuntimeSmartObjects.Find(ID) == nullptr, TEXT("ID '%s' already registered in runtime simulation"), *ID.Describe()))
 	{
 		return;
 	}
 
-#if WITH_EDITOR
-	// For "build on demand" collections" we wait an explicit build request to clear and repopulate
-	if (MainCollection->IsBuildOnDemand())
-	{
-		return;
-	}
-#endif // WITH_EDITOR
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *ID.Describe());
 
-	MainCollection->RemoveSmartObject(SOComponent);
-}
-
-void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Component)
-{
-	// @todo SO: for now we rely on the component to hold the config in memory but it will
-	// switch to class sparse data once the problem with component using sparse class data is fixed
-	const FSmartObjectID& ID = Component.GetRegisteredID();
-	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(ID, FSmartObjectRuntime(Component.GetConfig()));
+	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(ID, FSmartObjectRuntime(Config));
 	Runtime.SetRegisteredID(ID);
 
 	// Transfer spatial information to the runtime instance
-	Runtime.SetTransform(Component.GetComponentTransform());
-	Runtime.SetBounds(Component.GetSmartObjectBounds());
+	Runtime.SetTransform(Transform);
+	Runtime.SetBounds(Bounds);
 
 	// Insert instance in the octree
 	const FSmartObjectOctreeIDSharedRef SharedOctreeID = MakeShareable(new FSmartObjectOctreeID());
@@ -181,10 +113,20 @@ void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Compone
 	SmartObjectOctree.AddNode(Runtime.GetBounds(), ID, SharedOctreeID);
 }
 
-void USmartObjectSubsystem::RemoveFromSimulation(const USmartObjectComponent& SOComponent)
+void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const FSmartObjectConfig& Config)
 {
-	//@todo SO: this need to be handled as a runtime state instead
-	const FSmartObjectID ID = SOComponent.GetRegisteredID();
+	AddToSimulation(Entry.GetID(), Config, Entry.GetTransform(), Entry.GetBounds());
+}
+
+void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Component)
+{
+	AddToSimulation(Component.GetRegisteredID(), Component.GetConfig(), Component.GetComponentTransform(), Component.GetSmartObjectBounds());
+}
+
+void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectID ID)
+{
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *ID.Describe());
+
 	FSmartObjectRuntime SmartObjectRuntime;
 	if (RuntimeSmartObjects.RemoveAndCopyValue(ID, SmartObjectRuntime))
 	{
@@ -199,93 +141,123 @@ void USmartObjectSubsystem::RemoveFromSimulation(const USmartObjectComponent& SO
 	}
 }
 
-bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SOComponent)
+void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry)
 {
-	// By default (runtime) we register only spawned components to the collection 
-	// since the loaded one should have been stored in the collection
-	// @todo SO: allow spawned smart object to register at runtime
-	bool bShouldAddToCollection = false;
+	RemoveFromSimulation(Entry.GetID());
+}
+
+void USmartObjectSubsystem::RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent)
+{
+	RemoveFromSimulation(SmartObjectComponent.GetRegisteredID());
+}
+
+bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
+{
+	// Main collection may not assigned until world components are updated (active level set and actors registered)
+	// In this case objects will be part of the loaded collection or collection will be rebuilt from registered components
+	if (IsValid(MainCollection))
+	{
+		const UWorld& World = GetWorldRef();
+		bool bAddToCollection = true;
 
 #if WITH_EDITOR
-	UWorld* World = GetWorld();
-	if (!ensureMsgf(World != nullptr, TEXT("Expecting a valid world")))
-	{
-		return false;
-	}
-
-	// In Editor we need to make a distinction between game world (PIE) and the edition world
-	// since in the later case we keep track of all registrations
-	if (!World->IsGameWorld())
-	{
-		bShouldAddToCollection = true;
-	}
-
-	// In Editor, we have various potential loading orders (Collection actor vs SmartObject actors)
-	// so we make sure that we have gather the collection or spawn a missing one.
-	RegisterCollectionInstances();
-	SpawnMissingCollection();
-
-	if (RegisteredSOComponents.Find(&SOComponent) != INDEX_NONE)
-	{
-		UE_VLOG_UELOG(SOComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to register SmartObject %s more than once."), *GetNameSafe(SOComponent.GetOwner()));
-		return false;
-	}
-	RegisteredSOComponents.Add(&SOComponent);
+		if (!World.IsGameWorld())
+		{
+			// For "build on demand collections" we wait an explicit build request to clear and repopulate
+			if (MainCollection->IsBuildOnDemand())
+			{
+				bAddToCollection = false;
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+			}
+			// For partition world we don't alter the collection unless we are explicitly building the collection
+			else if(World.IsPartitionedWorld() && !MainCollection->IsBuildingForWorldPartition())
+			{
+				bAddToCollection = false;
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is owned by partitioned world."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+			}
+		}
 #endif // WITH_EDITOR
 
-	if (bShouldAddToCollection)
+		if (bAddToCollection)
+		{
+			const bool bIsNewEntry = MainCollection->AddSmartObject(SmartObjectComponent);
+
+			// At runtime we only add new collection entries to the simulation. All existing entries were added on WorldBeginPlay
+			if (World.IsGameWorld() && bInitialCollectionAddedToSimulation && bIsNewEntry)
+			{
+				RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredID());
+				AddToSimulation(SmartObjectComponent);
+			}
+		}
+	}
+
+#if WITH_EDITOR
+	if (RegisteredSOComponents.Find(&SmartObjectComponent) != INDEX_NONE)
 	{
-		ensureMsgf(MainCollection != nullptr, TEXT("Expecting collection to be registered at this point"));
-		AddToCollection(SOComponent);
-	}	
+		UE_VLOG_UELOG(SmartObjectComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to register SmartObject %s more than once."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+		return false;
+	}
+	RegisteredSOComponents.Add(&SmartObjectComponent);
+#endif // WITH_EDITOR
 
 #if WITH_SMARTOBJECT_DEBUG
-	DebugRegisteredComponents.Add(&SOComponent);
+	DebugRegisteredComponents.Add(&SmartObjectComponent);
 #endif
 
 	return true;
 }
 
-bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SOComponent)
+bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
-	// By default (runtime) we register only spawned components to the collection 
-	// since the loaded one should have been stored in the collection so we do
-	// the same for the unregister
-	// @todo SO: allow spawned smart object to unregister at runtime
-	bool bShouldRemoveFromCollection = false;
+	if (IsValid(MainCollection))
+	{
+		const UWorld& World = GetWorldRef();
+		bool bRemoveFromCollection = true;
 
 #if WITH_EDITOR
-	UWorld* World = GetWorld();
-	if (!ensureMsgf(World != nullptr, TEXT("A valid world is always expected")))
-	{
-		return false;
+		if (!World.IsGameWorld())
+		{
+			// For "build on demand collections" we wait an explicit build request to clear and repopulate
+			if (MainCollection->IsBuildOnDemand())
+			{
+				bRemoveFromCollection = false;
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+			}
+			// For partition world we never remove from the collection since it is built incrementally
+			else if(World.IsPartitionedWorld())
+			{
+				bRemoveFromCollection = false;
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is owned by partitioned world."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+			}
+		}
+#endif // WITH_EDITOR
+
+		// At runtime, only entries created outside the initial collection are removed from simulation and collection
+		if (World.IsGameWorld() && bInitialCollectionAddedToSimulation)
+		{
+			bRemoveFromCollection = RuntimeCreatedEntries.Find(SmartObjectComponent.GetRegisteredID()) != INDEX_NONE;
+			if (bRemoveFromCollection)
+			{
+				RemoveFromSimulation(SmartObjectComponent);
+			}
+		}
+
+		if (bRemoveFromCollection)
+		{
+			MainCollection->RemoveSmartObject(SmartObjectComponent);
+		}
 	}
 
-	if (!World->IsGameWorld())
+#if WITH_EDITOR
+	if (RegisteredSOComponents.Remove(&SmartObjectComponent) == 0)
 	{
-		bShouldRemoveFromCollection = true;
-	}
-
-	if (RegisteredSOComponents.Remove(&SOComponent) == 0)
-	{
-		UE_VLOG_UELOG(SOComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to unregister SmartObject %s but it wasn't registered."), *GetNameSafe(SOComponent.GetOwner()));
+		UE_VLOG_UELOG(SmartObjectComponent.GetOwner(), LogSmartObject, Error, TEXT("Trying to unregister SmartObject %s but it wasn't registered."), *GetNameSafe(SmartObjectComponent.GetOwner()));
 		return false;
 	}
 #endif // WITH_EDITOR
 
-	if (bShouldRemoveFromCollection)
-	{
-		ensureMsgf(MainCollection != nullptr, TEXT("Expecting collection to be registered at this point"));
-		RemoveFromCollection(SOComponent);
-	}
-
-	if (GetWorld()->IsGameWorld())
-	{
-		RemoveFromSimulation(SOComponent);
-	}
-
 #if WITH_SMARTOBJECT_DEBUG
-	DebugRegisteredComponents.Remove(&SOComponent);
+	DebugRegisteredComponents.Remove(&SmartObjectComponent);
 #endif // WITH_SMARTOBJECT_DEBUG
 
 	return true;
@@ -315,7 +287,7 @@ bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObject
 	return UnregisterSmartObject(*SOComponent);
 }
 
-FSmartObjectClaimHandle USmartObjectSubsystem::Claim(FSmartObjectID ID, const FSmartObjectRequestFilter& Filter)
+FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectID ID, const FSmartObjectRequestFilter& Filter)
 {
 	ensureMsgf(ID.IsValid(), TEXT("SmartObject ID should be valid: %s"), *(ID.Describe()));
 
@@ -669,20 +641,18 @@ FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectID I
 	{
 		return InvalidResult;
 	}
-	
+
 	return FSmartObjectRequestResult(ID, FoundIndex);
 }
 
 void USmartObjectSubsystem::RegisterCollectionInstances()
 {
-	UWorld* World = GetWorld();
-
-	for (TActorIterator<ASmartObjectCollection> It(World); It; ++It)
+	for (TActorIterator<ASmartObjectCollection> It(GetWorld()); It; ++It)
 	{
 		ASmartObjectCollection* Collection = (*It);
 		if (IsValid(Collection) && Collection->IsRegistered() == false)
 		{
-			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) USmartObjectSubsystem initialization - Succeeded"), *Collection->GetName(), UPTRINT(Collection));
+			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("Collection '%s' registers from USmartObjectSubsystem initialization - Succeeded"), *Collection->GetName());
 			RegisterCollection(*Collection);
 		}
 	}
@@ -697,24 +667,26 @@ void USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollect
 
 	if (InCollection.IsRegistered())
 	{
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Error, TEXT("Trying to register already registered SmartObjectCollection \'%s\'"), *InCollection.GetName());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Error, TEXT("Trying to register collection '%s' more than once"), *InCollection.GetName());
 		return;
 	}
 
 	if (InCollection.GetLevel()->IsPersistentLevel())
 	{
+		ensureMsgf(!IsValid(MainCollection), TEXT("Not expecting to set the main collection more than once"));
 		MainCollection = &InCollection;
 
 #if WITH_EDITOR
-		// For collection that are automatically updated we rebuild them on registration in the
-		// Edition world.
-		UWorld* World = GetWorld();
-		if (World != nullptr && !World->IsGameWorld() && !MainCollection->IsBuildOnDemand())
+		// For a collection that is automatically updated, it gets rebuilt on registration in the Edition world.
+		const UWorld& World = GetWorldRef();
+		if (!World.IsGameWorld() &&
+			!World.IsPartitionedWorld() &&
+			!MainCollection->IsBuildOnDemand())
 		{
 			RebuildCollection(InCollection);
 		}
 #endif // WITH_EDITOR
-		
+
 		InCollection.OnRegistered();
 	}
 	else
@@ -727,7 +699,7 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InColle
 {
 	if (MainCollection != &InCollection)
 	{
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of SmartObjectCollection \'%s\' since this is not the main collection."), *InCollection.GetName());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of collection '%s' since this is not the main collection."), *InCollection.GetName());
 		return;
 	}
 
@@ -736,45 +708,93 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InColle
 
 USmartObjectComponent* USmartObjectSubsystem::GetSmartObjectComponent(const FSmartObjectClaimHandle& ClaimHandle) const
 {
-	return ((MainCollection != nullptr) ? MainCollection->GetSmartObjectComponent(ClaimHandle.SmartObjectID) : nullptr);
+	return (IsValid(MainCollection) ? MainCollection->GetSmartObjectComponent(ClaimHandle.SmartObjectID) : nullptr);
 }
 
-void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 {
-	Super::OnWorldBeginPlay(InWorld);
+	Super::OnWorldBeginPlay(World);
 
-	if (MainCollection == nullptr)
+	if (!IsValid(MainCollection))
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("No registered SmartObjectCollection in \'%s\'."), *GetName());
+		if (MainCollection != nullptr && !MainCollection->bNetLoadOnClient && World.IsNetMode(NM_Client))
+		{
+			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Collection not loaded on client. Initialization skipped in %s."), ANSI_TO_TCHAR(__FUNCTION__));
+		}
+		else
+		{
+			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Missing collection during %s."), ANSI_TO_TCHAR(__FUNCTION__));
+		}
+
 		return;
 	}
 
+	// Initialize octree using collection bounds
+	FVector Center, Extents;
+	MainCollection->GetBounds().GetCenterAndExtents(Center, Extents);
+	new(&SmartObjectOctree) FSmartObjectOctree(Center, Extents.Size2D());
+
+	// Perform configuration validation at once since multiple entries can share the same config
+	MainCollection->ValidateConfigs();
+
 	// Build all runtime from collection
-	// @todo SO, we are still relying on the component for config and spatial information but this
-	// should be extracted into the collection so runtime will not require components to be loaded
 	for (const FSmartObjectCollectionEntry& Entry : MainCollection->GetEntries())
 	{
+		const FSmartObjectConfig* Config = MainCollection->GetConfigForEntry(Entry);
 		USmartObjectComponent* Component = Entry.GetComponent();
-		if (Component == nullptr)
-		{
-			UE_VLOG_UELOG(MainCollection, LogSmartObject, Warning, TEXT("Unable to build runtime data from null component for \'%s\' in SmartObjectCollection \'%s\'."), *Entry.Describe(), *MainCollection->GetName());
-			continue;
-		}
 
-		const FSmartObjectConfig& Config = Component->GetConfig();
-		if (Config.Validate() == false)
+		if (Config == nullptr || Config->IsValid() == false)
 		{
-			UE_VLOG_UELOG(Component->GetOwner(), LogSmartObject, Error, TEXT("Skipped runtime data creation for SmartObject %s: Invalid configuration"), *GetNameSafe(Component->GetOwner()));
+			UE_CVLOG_UELOG(Component != nullptr, Component->GetOwner(), LogSmartObject, Error,
+				TEXT("Skipped runtime data creation for SmartObject %s: Invalid configuration"), *GetNameSafe(Component->GetOwner()));
 			continue;
 		}
 
 		// Create a runtime instance of that config using that ID
-		Component->SetRegisteredID(Entry.GetID());
-		AddToSimulation(*Component);
+		if (Component != nullptr)
+		{
+			Component->SetRegisteredID(Entry.GetID());
+		}
+
+		AddToSimulation(Entry, *Config);
 	}
+
+	// Until this point all runtime entries were created from the collection, start tracking newly created
+	RuntimeCreatedEntries.Reset();
+
+	// Note that we use our own flag instead of relying on World.HasBegunPlay() since world might not be marked
+	// as BegunPlay immediately after subsystem OnWorldBeingPlay gets called (e.g. waiting game mode to be ready on clients)
+	bInitialCollectionAddedToSimulation = true;
 }
 
 #if WITH_EDITOR
+void USmartObjectSubsystem::ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const
+{
+	FBox Bounds(ForceInitToZero);
+
+	if (const UWorldPartition* WorldPartition = World.GetWorldPartition())
+	{
+		Bounds = WorldPartition->GetWorldBounds();
+	}
+	else if (const ULevel* PersistentLevel = World.PersistentLevel.Get())
+	{
+		if (PersistentLevel->LevelBoundsActor.IsValid())
+		{
+			Bounds = PersistentLevel->LevelBoundsActor.Get()->GetComponentsBoundingBox();
+		}
+		else
+		{
+			Bounds = ALevelBounds::CalculateLevelBounds(PersistentLevel);
+		}
+	}
+	else
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Unable to determine world bounds: no world partition or persistent level."));
+	}
+
+	Collection.SetBounds(Bounds);
+}
+
 void USmartObjectSubsystem::RebuildCollection(ASmartObjectCollection& InCollection)
 {
 	InCollection.RebuildCollection(RegisteredSOComponents);
@@ -782,20 +802,21 @@ void USmartObjectSubsystem::RebuildCollection(ASmartObjectCollection& InCollecti
 
 void USmartObjectSubsystem::SpawnMissingCollection()
 {
-	if (MainCollection != nullptr)
+	if (IsValid(MainCollection))
 	{
 		return;
 	}
 
-	UWorld* World = GetWorld();
+	UWorld& World = GetWorldRef();
 
 	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.OverrideLevel = World->PersistentLevel;
+	SpawnInfo.OverrideLevel = World.PersistentLevel;
 	SpawnInfo.bAllowDuringConstructionScript = true;
-	World->SpawnActor<ASmartObjectCollection>(ASmartObjectCollection::StaticClass(), SpawnInfo);
 
-	checkf(MainCollection != nullptr, TEXT("MainCollection must be assigned after spawning"));
-	MainCollection->RebuildCollection(RegisteredSOComponents);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Spawning missing collection for world '%s'."), *World.GetName());
+	World.SpawnActor<ASmartObjectCollection>(ASmartObjectCollection::StaticClass(), SpawnInfo);
+
+	checkf(IsValid(MainCollection), TEXT("MainCollection must be assigned after spawning"));
 }
 #endif // WITH_EDITOR
 

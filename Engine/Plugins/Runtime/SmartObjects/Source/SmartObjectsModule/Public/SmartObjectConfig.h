@@ -141,12 +141,16 @@ public:
 	/**
 	 *	Performs validation and logs errors if any. An object using an invalid configuration
 	 *	will not be registered in the simulation.
+	 *	The result of the validation is stored until next validation and can be retrieved using `IsValid`.
 	 *	@return true if the configuration is valid
 	 */
 	bool Validate() const;
 
 	/** Provides a description of the config */
 	FString Describe() const;
+
+	/** Returns result of the last validation if `Validate` was called; unset otherwise. */
+	TOptional<bool> IsValid() const { return bValid; }
 
 private:
 	/**
@@ -162,22 +166,24 @@ private:
 	 * Where SmartObject's user needs to stay to be able to activate it. These
 	 * will be used by AI to approach the object. Locations are relative to object's location.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (GetByRef))
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	TArray<FSmartObjectSlot> Slots;
 
 	/** List of behavior configurations of different types provided to SO's user if the slot does not provide one. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced, meta = (GetByRef))
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
 	TArray<USmartObjectBehaviorConfigBase*> DefaultBehaviorConfigurations;
 
 	/** This object is available only for users matching this query. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (GetByRef))
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagQuery UserTagFilter;
 
 	/** This object is available only when instance matches this query. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (GetByRef))
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagQuery ObjectTagFilter;
 
 	/** Tags identifying this Smart Object's use case. Can be used while looking for objects supporting given activity */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (GetByRef))
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagContainer ActivityTags;
+
+	mutable TOptional<bool> bValid;
 };

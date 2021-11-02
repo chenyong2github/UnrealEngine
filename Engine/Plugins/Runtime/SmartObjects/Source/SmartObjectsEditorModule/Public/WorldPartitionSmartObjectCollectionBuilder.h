@@ -1,0 +1,31 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "SmartObjectCollection.h"
+#include "WorldPartition/WorldPartitionBuilder.h"
+#include "WorldPartitionSmartObjectCollectionBuilder.generated.h"
+
+class ASmartObjectCollection;
+
+/**
+ * WorldPartitionBuilder dedicated to collect all smart object components from a world and store them in the collection.
+ */
+UCLASS()
+class SMARTOBJECTSEDITORMODULE_API UWorldPartitionSmartObjectCollectionBuilder : public UWorldPartitionBuilder
+{
+	GENERATED_UCLASS_BODY()
+
+protected:
+	virtual bool RequiresCommandletRendering() const override { return false; }
+	virtual ELoadingMode GetLoadingMode() const override { return IterativeCells; }
+	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual void OnPartitionBuildStarted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual void OnPartitionBuildCompleted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+
+	UPROPERTY(Transient)
+	ASmartObjectCollection* MainCollection;
+
+	uint32 NumSmartObjectsBefore = 0;
+	uint32 NumSmartObjectsTotal = 0;
+};

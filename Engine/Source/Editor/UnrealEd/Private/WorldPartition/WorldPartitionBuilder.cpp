@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Editor.h"
 #include "EditorWorldUtils.h"
-#include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 #include "StaticMeshCompiler.h"
 #include "Engine/World.h"
@@ -26,7 +25,7 @@ UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectI
 	bSubmit = FParse::Param(FCommandLine::Get(), TEXT("Submit"));
 }
 
-bool UWorldPartitionBuilder::RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World)
+bool UWorldPartitionBuilder::RunBuilder(const TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World)
 {
 	// Create builder instance
 	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(GetTransientPackage(), BuilderClass);
@@ -48,7 +47,7 @@ bool UWorldPartitionBuilder::RunBuilder(TSubclassOf<UWorldPartitionBuilder> Buil
 bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld* World)
 {
 	// Load configuration file & builder configuration
-	FString WorldConfigFilename = FPackageName::LongPackageNameToFilename(World->GetPackage()->GetName(), TEXT(".ini"));
+	const FString WorldConfigFilename = FPackageName::LongPackageNameToFilename(World->GetPackage()->GetName(), TEXT(".ini"));
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
 	{
 		Builder->LoadConfig(Builder->GetClass(), *WorldConfigFilename);
@@ -122,6 +121,15 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 
 bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
+	// Notify derived classes that partition building process starts
+	OnPartitionBuildStarted(World, PackageHelper);
+
+	// Notify derived classes on exit that partition building process completes
+	ON_SCOPE_EXIT
+	{
+		OnPartitionBuildCompleted(World, PackageHelper);
+	};
+
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 	// Properly Setup DataLayers for Builder
@@ -156,14 +164,14 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			WorldPartition->RefreshLoadedEditorCells(false);
 		}
 	}
-		
-	ELoadingMode LoadingMode = GetLoadingMode();
+
+	const ELoadingMode LoadingMode = GetLoadingMode();
 	if (LoadingMode == ELoadingMode::IterativeCells)
 	{
 		// do partial loading loop that calls RunInternal
-		FBox EditorBounds = WorldPartition->GetEditorWorldBounds();
+		const FBox EditorBounds = WorldPartition->GetEditorWorldBounds();
 
-		auto GetCellCoord = [](FVector InPos, int32 InCellSize)
+		auto GetCellCoord = [](const FVector InPos, const int32 InCellSize)
 		{
 			return FIntVector(
 				FMath::FloorToInt(InPos.X / InCellSize),

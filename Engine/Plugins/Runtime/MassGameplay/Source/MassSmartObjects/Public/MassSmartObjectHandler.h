@@ -43,7 +43,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param Location The center of the query
 	 * @return Request identifier that can be used to try claiming a result once available
 	 */
-	FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FVector& Location) const;
+	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FVector& Location) const;
 
 	/**
 	 * Creates an async request to build a list of compatible smart objects
@@ -53,7 +53,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param LaneLocation The lane location as reference for the query
 	 * @return Request identifier that can be used to try claiming a result once available
 	 */
-	FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FZoneGraphCompactLaneLocation& LaneLocation) const;
+	UE_NODISCARD FMassSmartObjectRequestID FindCandidatesAsync(const FMassEntityHandle RequestingEntity, const FZoneGraphCompactLaneLocation& LaneLocation) const;
 
 	/**
 	 * Provides the result of a previously created request from FindCandidatesAsync to indicate if it has been processed
@@ -61,7 +61,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param RequestID A valid request identifier (method will ensure otherwise)
 	 * @return The current request's result
 	 */
-	FMassSmartObjectRequestResult GetRequestResult(const FMassSmartObjectRequestID& RequestID) const;
+	UE_NODISCARD FMassSmartObjectRequestResult GetRequestResult(const FMassSmartObjectRequestID& RequestID) const;
 
 	/**
 	 * Deletes the request associated to the specified identifier
@@ -79,7 +79,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param RequestID A valid request identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestID& RequestID) const;
+	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestID& RequestID) const;
 
 	/**
 	 * Claims the first available smart object from the provided results.
@@ -88,7 +88,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param SearchRequestResult Results of completed search request
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
+	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
 
 	/**
 	 * Claims the first available slot holding any type of USmartObjectMassBehaviorConfig in the smart object

@@ -24,7 +24,7 @@ void USmartObjectComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	UWorld* World = GetWorld();
+	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
 		return;
@@ -43,8 +43,12 @@ void USmartObjectComponent::OnRegister()
 		return;
 	}
 
-	// We keep registering in non editor build to generate runtime data but this will
-	// no longer be required after moving that data to the SmartObjectCollection actor.
+	/** Skip components that were duplicated to hold template configuration in the Collection */
+	if (IsTemplateFromCollection())
+	{
+		return;
+	}
+
 	// Note: we don't report error or ensure on missing subsystem since it might happen
 	// in various scenarios (e.g. inactive world)
 	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
@@ -57,7 +61,7 @@ void USmartObjectComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	UWorld* World = GetWorld();
+	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
 		return;
@@ -72,6 +76,12 @@ void USmartObjectComponent::OnUnregister()
 #endif
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	/** Skip components that were duplicated to hold template configuration in the Collection */
+	if (IsTemplateFromCollection())
 	{
 		return;
 	}
@@ -90,7 +100,7 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	const AActor* Owner = GetOwner();
 	if (Owner == nullptr)
 	{
- 		return BoundingBox;
+		return BoundingBox;
 	}
 
 	const FTransform LocalToWorld = Owner->GetTransform();
@@ -103,4 +113,9 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	}
 
 	return BoundingBox;
+}
+
+bool USmartObjectComponent::IsTemplateFromCollection() const
+{
+	return Cast<ASmartObjectCollection>(GetOwner()) != nullptr;
 }
