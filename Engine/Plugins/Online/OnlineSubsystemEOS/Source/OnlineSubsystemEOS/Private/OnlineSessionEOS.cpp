@@ -2128,8 +2128,8 @@ void FOnlineSessionEOS::FindEOSSessionById(int32 LocalUserNum, const FUniqueNetI
 	FFindSessionsCallback* CallbackObj = new FFindSessionsCallback();
 	CallbackObj->CallbackLambda = [this, LocalUserNum, OnComplete = FOnSingleSessionResultCompleteDelegate(CompletionDelegate)](const EOS_SessionSearch_FindCallbackInfo* Data)
 	{
-		TSharedRef<FOnlineSessionSearch> CurrentSessionSearch = MakeShareable(new FOnlineSessionSearch());
-		CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
+		TSharedRef<FOnlineSessionSearch> LocalSessionSearch = MakeShareable(new FOnlineSessionSearch());
+		LocalSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
 
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
 		if (bWasSuccessful)
@@ -2147,17 +2147,17 @@ void FOnlineSessionEOS::FindEOSSessionById(int32 LocalUserNum, const FUniqueNetI
 				EOS_EResult Result = EOS_SessionSearch_CopySearchResultByIndex(CurrentSearchHandle->SearchHandle, &IndexOptions, &SessionHandle);
 				if (Result == EOS_EResult::EOS_Success)
 				{
-					AddSearchResult(SessionHandle, CurrentSessionSearch);
+					AddSearchResult(SessionHandle, LocalSessionSearch);
 				}
 			}
-			CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
+			LocalSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
 		}
 		else
 		{
-			CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
+			LocalSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
 			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_SessionSearch_Find() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 		}
-		OnComplete.ExecuteIfBound(LocalUserNum, CurrentSessionSearch->SearchState == EOnlineAsyncTaskState::Done, CurrentSessionSearch->SearchResults.Last());
+		OnComplete.ExecuteIfBound(LocalUserNum, LocalSessionSearch->SearchState == EOnlineAsyncTaskState::Done, LocalSessionSearch->SearchResults.Last());
 	};
 
 	EOS_SessionSearch_FindOptions FindOptions = { };
