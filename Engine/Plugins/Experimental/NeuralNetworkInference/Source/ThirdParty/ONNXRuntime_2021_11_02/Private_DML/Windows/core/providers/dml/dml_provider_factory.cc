@@ -143,9 +143,7 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(in
 
 #ifdef WITH_UE
 std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(OrtDMLProviderOptions* provider_options) {
-  return CreateExecutionProviderFactory_DML(provider_options->dml_device,
-                                            provider_options->cmd_queue,
-                                            provider_options->resource_allocator);
+  return CreateExecutionProviderFactory_DML(provider_options->dml_device, provider_options->cmd_queue, provider_options->resource_allocator);
 }
 #endif
 }  // namespace onnxruntime

@@ -16,7 +16,7 @@
 #include "GraphPartitioner.h"
 #include "core/graph/indexed_sub_graph.h"
 #include "core/framework/compute_capability.h"
-#include "core/providers/dml/dml_provider_factory.h" // WITH_UE
+#include "core/providers/dml/dml_provider_factory.h" // WITH_UE: For the UE structs added there
 
 #ifdef ERROR
 #undef ERROR
@@ -40,31 +40,27 @@ namespace Dml
     class OrtDMLGPUResourceAllocatorWrapper : public OrtDMLGPUResourceAllocator
     {
     public:
-
         OrtDMLGPUResourceAllocatorWrapper(const OrtMemoryInfo& gpuMemInfo)
             : m_memInfo(gpuMemInfo) {
             version = ORT_API_VERSION;
-            OrtDMLGPUResourceAllocator::GetProviderMemoryInfo =
-                [](const OrtDMLGPUResourceAllocator* this_) {
+            OrtDMLGPUResourceAllocator::GetProviderMemoryInfo = [](const OrtDMLGPUResourceAllocator* this_) {
                     return static_cast< const OrtDMLGPUResourceAllocatorWrapper* >(this_)->GetProviderMemoryInfo();
-                };
+            };
 
-            OrtDMLGPUResourceAllocator::GPUAllocationFromD3DResource =
-                [] (OrtDMLGPUResourceAllocator* this_, void* resHandle) -> void* {
+            OrtDMLGPUResourceAllocator::GPUAllocationFromD3DResource = [] (OrtDMLGPUResourceAllocator* this_, void* resHandle) -> void* {
                     return Dml::CreateGPUAllocationFromD3DResource(reinterpret_cast< ID3D12Resource* >(resHandle));
-                };
+            };
 
-            OrtDMLGPUResourceAllocator::FreeGPUAllocation =
-                [] (OrtDMLGPUResourceAllocator* this_, void* allocHandle) {
+            OrtDMLGPUResourceAllocator::FreeGPUAllocation = [] (OrtDMLGPUResourceAllocator* this_, void* allocHandle) {
                     Dml::FreeGPUAllocation(allocHandle);
-                };
+            };
         }
 
     private:
         const OrtMemoryInfo* GetProviderMemoryInfo() const {
             return &m_memInfo;
         }
-        const OrtMemoryInfo&    m_memInfo;
+        const OrtMemoryInfo& m_memInfo;
     };
 #endif
 

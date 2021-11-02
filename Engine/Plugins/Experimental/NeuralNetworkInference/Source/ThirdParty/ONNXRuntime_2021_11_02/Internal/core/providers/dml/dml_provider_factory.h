@@ -24,30 +24,6 @@
 extern "C" {
 #endif
 
-#ifdef WITH_UE
-/**
- * OrtDMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation
- */
-typedef struct OrtDMLGPUResourceAllocator {
-	uint32_t version;  // Initialize to ORT_API_VERSION
-	const struct OrtMemoryInfo* (ORT_API_CALL* GetProviderMemoryInfo)(const struct OrtDMLGPUResourceAllocator* this_);
-	void* (ORT_API_CALL* GPUAllocationFromD3DResource)(struct OrtDMLGPUResourceAllocator* this_, void* resource);
-	void (ORT_API_CALL* FreeGPUAllocation)(struct OrtDMLGPUResourceAllocator* this_, void* allocation);
-} OrtDMLGPUResourceAllocator;
-
-/**
- * Options for the DML provider that are passed to SessionOptionsAppendExecutionProviderWithOptions_DML
- */
-typedef struct OrtDMLProviderOptions {
-	// Input
-	IDMLDevice* dml_device;
-	ID3D12CommandQueue* cmd_queue;
-
-	// Output
-	OrtDMLGPUResourceAllocator** resource_allocator;
-} OrtDMLProviderOptions;
-#endif //WITH_UE
-
 /**
  * Creates a DirectML Execution Provider which executes on the hardware adapter with the given device_id, also known as
  * the adapter index. The device ID corresponds to the enumeration order of hardware adapters as given by 
@@ -69,44 +45,44 @@ ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderEx_DML, _In_ OrtSessionOp
                _In_ IDMLDevice* dml_device, _In_ ID3D12CommandQueue* cmd_queue);
 
 #ifdef WITH_UE
+/** OrtDMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation */
+typedef struct OrtDMLGPUResourceAllocator {
+    uint32_t version;  // Initialize to ORT_API_VERSION
+    const struct OrtMemoryInfo* (ORT_API_CALL* GetProviderMemoryInfo)(const struct OrtDMLGPUResourceAllocator* this_);
+    void* (ORT_API_CALL* GPUAllocationFromD3DResource)(struct OrtDMLGPUResourceAllocator* this_, void* resource);
+    void (ORT_API_CALL* FreeGPUAllocation)(struct OrtDMLGPUResourceAllocator* this_, void* allocation);
+} OrtDMLGPUResourceAllocator;
+
 /**
- * Create DirectML Execution Provider with specified options
+ * Options for the DML provider that are passed to SessionOptionsAppendExecutionProviderWithOptions_DML
  */
-ORT_EXPORT
-ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
-	_In_ OrtDMLProviderOptions* provider_options);
-#endif //WITH_UE
+typedef struct OrtDMLProviderOptions {
+    // Input
+    IDMLDevice* dml_device;
+    ID3D12CommandQueue* cmd_queue;
+    // Output
+    OrtDMLGPUResourceAllocator** resource_allocator;
+} OrtDMLProviderOptions;
 
-#ifdef __cplusplus
+/** Create DirectML Execution Provider with specified options */
+ORT_EXPORT ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options, _In_ OrtDMLProviderOptions* provider_options);
 
-#ifdef WITH_UE
 namespace Ort
 {
-/**
-  * DMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation
-  */
+/** DMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation. @TODO: Right now DMLGPUResourceAllocator is unused */
 class DMLGPUResourceAllocator
 {
 public:
-
-    DMLGPUResourceAllocator(OrtDMLGPUResourceAllocator* allocator = nullptr) : allocator_(allocator)
-    {
-    }
+    DMLGPUResourceAllocator(OrtDMLGPUResourceAllocator* allocator = nullptr) : allocator_(allocator) {}
 
     const OrtMemoryInfo* GetProviderMemoryInfo() const
     {
-        if (allocator_)
-            return allocator_->GetProviderMemoryInfo(allocator_);
-
-        return nullptr;
+        return (allocator_ ? allocator_->GetProviderMemoryInfo(allocator_) : nullptr);
     }
 
     void* GPUAllocationFromD3DResource(void* resource)
     {
-        if (allocator_)
-            return allocator_->GPUAllocationFromD3DResource(allocator_, resource);
-
-        return nullptr;
+        return (allocator_ ? allocator_->GPUAllocationFromD3DResource(allocator_, resource) : nullptr);
     }
 
     void FreeGPUAllocation(void* allocation)
@@ -115,27 +91,19 @@ public:
             return allocator_->FreeGPUAllocation(allocator_, allocation);
     }
 
-    void SetAllocator(OrtDMLGPUResourceAllocator* allocator)
-    {
-        allocator_ = allocator;
-    }
+    void SetAllocator(OrtDMLGPUResourceAllocator* allocator) { allocator_ = allocator; }
 
-	OrtDMLGPUResourceAllocator** GetAllocatorAddressOf()
-	{
-		return &allocator_;
-	}
+    OrtDMLGPUResourceAllocator** GetAllocatorAddressOf() { return &allocator_; }
 
-	bool IsValid() const
-	{
-		return allocator_ != nullptr;
-	}
+    bool IsValid() const { return allocator_ != nullptr; }
 
 private:
-
     OrtDMLGPUResourceAllocator* allocator_;
 };
 
 } // namspace Ort
 #endif // WITH_UE
+
+#ifdef __cplusplus
 }
 #endif

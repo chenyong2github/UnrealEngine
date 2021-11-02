@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "precomp.h" // WITH_UE
-
 namespace Dml
 {
     constexpr float DefaultEpsilon = 0.00001f;
