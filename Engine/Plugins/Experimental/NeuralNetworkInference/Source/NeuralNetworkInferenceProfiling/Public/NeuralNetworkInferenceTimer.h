@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-class NEURALNETWORKINFERENCE_API FNeuralNetworkInferenceTimer
+class NEURALNETWORKINFERENCEPROFILING_API FNeuralNetworkInferenceTimer
 {
 public:
 	void Tic();

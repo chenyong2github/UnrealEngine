@@ -30,6 +30,7 @@ public class NeuralNetworkInference : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"NeuralNetworkInferenceCore",
+				"NeuralNetworkInferenceProfiling",
 				// Internal (Backend-related)
 				"ModelProto"
 			}

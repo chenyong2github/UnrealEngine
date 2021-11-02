@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
 #include "NeuralTensor.h"
+#include "NeuralStats.h"
 #include "NeuralNetwork.generated.h"
 
 /**
@@ -175,6 +176,17 @@ public:
 	 */
 	void Run();
 
+	/**
+	 * Stats functions: 
+	 * - GetLastInferenceTime will provide the last inference time measured milliseconds
+	 * - GetInferenceStats, returns Inference time statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in milliseconds)
+	 * - GetInputMemoryTransferStats, returns Input Memory Transfer statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in milliseconds)
+	 */
+	float GetLastInferenceTime();
+	FNNIStatsData GetInferenceStats();
+	FNNIStatsData GetInputMemoryTransferStats();
+	void ResetStats();
+
 protected:
 	/**
 	 * Whether Run() will use CPU or GPU acceleration hardware.
@@ -262,6 +274,9 @@ private:
 	 */
 	FNeuralTensor& GetInputTensorMutable(const int32 InTensorIndex = 0);
 	FNeuralTensor& GetOutputTensorMutable(const int32 InTensorIndex = 0);
+
+	FNeuralStats ComputeStatsModule;
+	FNeuralStats InputMemoryTransferStatsModule;
 
 public:
 	/**
