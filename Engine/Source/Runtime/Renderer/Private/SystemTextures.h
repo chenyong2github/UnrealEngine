@@ -108,24 +108,24 @@ public:
 	// SRV for StencilDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> StencilDummySRV;
 
-	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetSobolSampling(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetSSAORandomization(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetPreintegratedGF(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetLTCMat(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetLTCAmp(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetDepthDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetStencilDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetGreenDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
-	FRDGTextureRef GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetSobolSampling(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetSSAORandomization(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetPreintegratedGF(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetLTCMat(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetLTCAmp(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetDepthDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetStencilDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetGreenDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
 
 protected:
 	/** Maximum feature level that the textures have been initialized up to */
