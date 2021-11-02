@@ -10,6 +10,12 @@
 #include "MassEntityView.h"
 #include "Engine/World.h"
 
+namespace UE::MassRepresentation
+{
+	int32 bAllowKeepActorExtraFrame = 1;
+	FAutoConsoleVariableRef CVarAllowKeepActorExtraFrame(TEXT("ai.massrepresentation.AllowKeepActorExtraFrame"), bAllowKeepActorExtraFrame, TEXT("Allow the mass representation to keep actor an extra frame when switching to ISM"), ECVF_Default);
+}
+
 //----------------------------------------------------------------------//
 // UMassRepresentationProcessor(); 
 //----------------------------------------------------------------------//
@@ -66,6 +72,8 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 	const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableFragmentView<FDataFragment_Actor>();
 
+	const bool bDoKeepActorExtraFrame = UE::MassRepresentation::bAllowKeepActorExtraFrame ? bKeepLowResActors : false;
+
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
@@ -75,6 +83,8 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 		FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
 		FDataFragment_Actor& ActorInfo = ActorList[EntityIdx];
 
+		// Keeping a copy of the that last calculated previous representation
+		const ERepresentationType PrevRepresentationCopy = Representation.PrevRepresentation;
 		Representation.PrevRepresentation = Representation.CurrentRepresentation;
 		
 		ERepresentationType WantedRepresentationType = LODRepresentation[FMath::Min((int32)RepresentationLOD.LOD, (int32)EMassLOD::Off)];
@@ -85,6 +95,37 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 		{
 			WantedRepresentationType = DefaultRepresentationType;
 		}
+		
+		auto DisableActorForISM = [&](AActor*& Actor)
+		{
+			if (!Actor || ActorInfo.IsOwnedByMass())
+			{
+				// Execute only if the high res is different than the low res Actor 
+				// Or if we do not wish to keep the low res actor while in ISM
+				if (Representation.HighResTemplateActorIndex != Representation.LowResTemplateActorIndex || !bKeepLowResActors)
+				{
+					// Try releasing the high actor or any high res spawning request
+					if (ReleaseActorOrCancelSpawning(MassAgent, ActorInfo, Representation.HighResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context))
+					{
+						Actor = ActorInfo.GetOwnedByMassMutable();
+					}
+					// Do not do the same with low res if indicated so
+					if (!bKeepLowResActors && ReleaseActorOrCancelSpawning(MassAgent, ActorInfo, Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context))
+					{
+						Actor = ActorInfo.GetOwnedByMassMutable();
+					}
+				}
+				// If we already queued spawn request but have changed our mind, continue with it but once we get the actor back, disable it immediately
+				if (Representation.ActorSpawnRequestHandle.IsValid())
+				{
+					Actor = GetOrSpawnActor(MassAgent, ActorInfo, TransformFragment.GetTransform(), Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, GetSpawnPriority(RepresentationLOD));
+				}
+			}
+			if (Actor != nullptr)
+			{
+				SetActorEnabled(EActorEnabledType::Disabled, *Actor, EntityIdx, Context);
+			}
+		};
 
 		// Process switch between representation if there is a change in the representation or there is a pending spawning request
 		if (WantedRepresentationType != Representation.CurrentRepresentation || Representation.ActorSpawnRequestHandle.IsValid())
@@ -92,6 +133,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 			if (Representation.CurrentRepresentation == ERepresentationType::None)
 			{
 				Representation.PrevTransform = TransformFragment.GetTransform();
+				Representation.PrevLODSignificance = RepresentationLOD.LODSignificance;
 			}
 
 			AActor* Actor = ActorInfo.GetMutable();
@@ -154,35 +196,12 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					break;
 				}
 				case ERepresentationType::StaticMeshInstance:
-					if (!Actor || ActorInfo.IsOwnedByMass())
+					if (!bDoKeepActorExtraFrame || 
+					   (Representation.PrevRepresentation != ERepresentationType::HighResSpawnedActor && Representation.PrevRepresentation != ERepresentationType::LowResSpawnedActor))
 					{
-						// If high res actor if it is different than the low res, 
-						if (Representation.HighResTemplateActorIndex != Representation.LowResTemplateActorIndex|| !bKeepLowResActors)
-						{
-							// Try releasing the high actor or any hig res spawning request
-							if (ReleaseActorOrCancelSpawning(MassAgent, ActorInfo, Representation.HighResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context))
-							{
-								Actor = ActorInfo.GetOwnedByMassMutable();
-							}
-
-							// Do not do the same with low res if indicated so
-							if (!bKeepLowResActors && ReleaseActorOrCancelSpawning(MassAgent, ActorInfo, Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context))
-							{
-								Actor = ActorInfo.GetOwnedByMassMutable();
-							}
-						}
-
-						// If we were in the process of spawning a low res actor, continue and keep it around disabled
-						if (Representation.ActorSpawnRequestHandle.IsValid())
-						{
-							Actor = GetOrSpawnActor(MassAgent, ActorInfo, TransformFragment.GetTransform(), Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, GetSpawnPriority(RepresentationLOD));
-						}
+						DisableActorForISM(Actor);
 					}
-
-					if (Actor != nullptr)
-					{
-						SetActorEnabled(EActorEnabledType::Disabled, *Actor, EntityIdx, Context);
-					}
+ 
 					Representation.CurrentRepresentation = ERepresentationType::StaticMeshInstance;
 					break;
 				case ERepresentationType::None:
@@ -202,6 +221,13 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					checkf(false, TEXT("Unsupported LOD type"));
 					break;
 			}
+		}
+		else if (bDoKeepActorExtraFrame && 
+				 Representation.PrevRepresentation == ERepresentationType::StaticMeshInstance &&
+			    (PrevRepresentationCopy == ERepresentationType::HighResSpawnedActor || PrevRepresentationCopy == ERepresentationType::LowResSpawnedActor))
+		{
+			AActor* Actor = ActorInfo.GetMutable();
+			DisableActorForISM(Actor);
 		}
 	}
 }
@@ -236,10 +262,10 @@ bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassEntit
 	// the spawning of whatever SpawnRequestHandle reference to
 	const bool bSuccess = bCancelSpawningOnly ? RepresentationSubsystem->CancelSpawning(MassAgent, TemplateActorIndex, SpawnRequestHandle) :
 			RepresentationSubsystem->ReleaseTemplateActorOrCancelSpawning(MassAgent, TemplateActorIndex, Actor, SpawnRequestHandle);
-	if(bSuccess)
+	if (bSuccess)
 	{
 		Actor = ActorInfo.GetOwnedByMassMutable();
-		if(Actor && RepresentationSubsystem->DoesActorMatchTemplate(*Actor, TemplateActorIndex))
+		if (Actor && RepresentationSubsystem->DoesActorMatchTemplate(*Actor, TemplateActorIndex))
 		{
 			ActorInfo.ResetNoHandleMapUpdate();
 			

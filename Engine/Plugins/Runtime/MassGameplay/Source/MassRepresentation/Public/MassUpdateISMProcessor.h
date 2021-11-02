@@ -18,7 +18,7 @@ class MASSREPRESENTATION_API UMassUpdateISMProcessor : public UMassProcessor
 public:
 	UMassUpdateISMProcessor();
 
-	static void UpdateISMTransform(int32 EntityId, FMassInstancedStaticMeshInfo& ISMInfo, const FTransform& Transform, const FTransform& PrevTransform, float LODSignificance);
+	static void UpdateISMTransform(int32 EntityId, FMassInstancedStaticMeshInfo& ISMInfo, const FTransform& Transform, const FTransform& PrevTransform, const float LODSignificance, const float PrevLODSignificance = -1.0f);
 
 protected:
 	/**

@@ -6,8 +6,8 @@
 
 void FMassLODBaseLogic::CacheViewerInformation(TConstArrayView<FViewerInfo> Viewers, const bool bLocalViewersOnly)
 {
-	NumOfViewers = Viewers.Num();
-	check(NumOfViewers <= UE::MassLOD::MaxNumOfViewers);
+	check(Viewers.Num() <= UE::MassLOD::MaxNumOfViewers);
+	NumOfViewers = FMath::Min(Viewers.Num(), UE::MassLOD::MaxNumOfViewers);
 
 	// Cache viewer info
 	for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)

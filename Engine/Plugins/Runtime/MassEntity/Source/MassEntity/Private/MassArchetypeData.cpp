@@ -215,8 +215,7 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const b
 
 	FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 
-	Chunk.RemoveInstance();
-	const int32 IndexToSwapFrom = Chunk.GetNumInstances();
+	const int32 IndexToSwapFrom = Chunk.GetNumInstances() - 1;
 
 	checkf(bDestroyFragments || UE::Mass::Core::bBitwiseRelocateFragments, TEXT("We allow not to destroy fragments only in bit wise relocation mode."));
 
@@ -266,6 +265,8 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const b
 			FragmentConfig.FragmentType->DestroyStruct(DyingFragmentPtr);
 		}
 	}
+	
+	Chunk.RemoveInstance();
 
 	// If the chunk itself is empty now, see if we can remove it entirely
 	// Note: This is only possible for trailing chunks, to avoid messing up the absolute indices in the entities map
@@ -759,10 +760,20 @@ void FMassArchetypeData::BindChunkFragmentRequirements(FMassExecutionContext& Ru
 
 SIZE_T FMassArchetypeData::GetAllocatedSize() const
 {
+	int32 NumAllocatedChunkBuffers = 0;
+	for (const FMassArchetypeChunk& Chunk : Chunks)
+	{
+		if (Chunk.GetRawMemory() != nullptr)
+		{
+			++NumAllocatedChunkBuffers;
+		}
+	}
+
 	return sizeof(FMassArchetypeData) +
+		ChunkFragmentTemplates.GetAllocatedSize() +
 		FragmentConfigs.GetAllocatedSize() +
 		Chunks.GetAllocatedSize() +
-		(Chunks.Num() * GetChunkAllocSize()) +
+		(NumAllocatedChunkBuffers * GetChunkAllocSize()) +
 		EntityMap.GetAllocatedSize() +
 		FragmentIndexMap.GetAllocatedSize();
 }

@@ -51,6 +51,6 @@ struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 
 	FTransform PrevTransform;
 
-	// @todo: Remove this when we address character movement
-	bool bControlCharacterMovement = true;
+	/** Value scaling from 0 to 3, 0 highest LOD we support and 3 being completely off LOD */
+	float PrevLODSignificance = -1.0f;
 };
