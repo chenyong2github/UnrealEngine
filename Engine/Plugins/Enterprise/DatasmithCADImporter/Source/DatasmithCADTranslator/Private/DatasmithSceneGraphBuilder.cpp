@@ -218,26 +218,6 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 	// application_name is something like "Catia V5"
 	DatasmithScene->SetVendor(TEXT("CoreTechnologie"));
 
-	if (FString* ProductVersion = Component.MetaData.Find(TEXT("KernelIOVersion")))
-	{
-		DatasmithScene->SetProductVersion(**ProductVersion);
-	}
-
-	FString* ProductName = Component.MetaData.Find(TEXT("Input_Format_and_Emitter"));
-	if(ProductName)
-	{
-		ProductName->TrimStartAndEndInline();
-		if (!ProductName->IsEmpty())
-		{
-			DatasmithScene->SetProductName(**ProductName);
-		}
-		else
-		{
-			ProductName = nullptr;
-		}
-	}
-
-	if(!ProductName)
 	{
 		if (rootFileDescription.Extension == TEXT("jt"))
 		{
@@ -295,6 +275,11 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 		{
 			DatasmithScene->SetProductName(TEXT("Unknown"));
 		}
+	}
+
+	if (FString* ProductVersion = Component.MetaData.Find(TEXT("Input_Format_and_Emitter")))
+	{
+		DatasmithScene->SetProductVersion(**ProductVersion);
 	}
 
 	return true;
