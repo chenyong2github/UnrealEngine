@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 				"AssetTools",
 				"EditorFramework",
 				"UnrealEd",
+				"SourceControl",
 				"AIModule",
 				"SmartObjectsModule",
 			}

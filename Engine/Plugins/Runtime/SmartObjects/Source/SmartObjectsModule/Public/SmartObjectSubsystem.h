@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SmartObjectCollection.h"
 #include "Templates/SubclassOf.h"
 #include "SmartObjectOctree.h"
 #include "SmartObjectTypes.h"
@@ -11,7 +12,6 @@
 #include "SmartObjectSubsystem.generated.h"
 
 class USmartObjectComponent;
-class ASmartObjectCollection;
 
 /**
  * Struct that can be used to filter results of a smart object request when trying to find or claim a smart object
@@ -23,15 +23,15 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 		, ActivityRequirements(InRequirements)
 	{}
 
-	FSmartObjectRequestFilter(const FGameplayTagContainer& InUserTags)
+	explicit FSmartObjectRequestFilter(const FGameplayTagContainer& InUserTags)
 		: UserTags(InUserTags)
 	{}
 
-	FSmartObjectRequestFilter(const FGameplayTagQuery& InRequirements)
+	explicit FSmartObjectRequestFilter(const FGameplayTagQuery& InRequirements)
 		: ActivityRequirements(InRequirements)
 	{}
 
-	FSmartObjectRequestFilter(TSubclassOf<USmartObjectBehaviorConfigBase> ConfigurationClass)
+	explicit FSmartObjectRequestFilter(const TSubclassOf<USmartObjectBehaviorConfigBase> ConfigurationClass)
 		: BehaviorConfigurationClass(ConfigurationClass)
 	{}
 
@@ -120,7 +120,7 @@ public:
 	 * @return First valid smart object in range. Not the closest one, just the one
 	 *		that happens to be retrieved first from the octree
 	 */
-	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request);
+	UE_NODISCARD FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request);
 
 	/**
 	 * Spatial lookup
@@ -132,16 +132,16 @@ public:
 	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
 	 * @return Identifier of a valid slot to use. Call IsValid on it to check if the search was successful.
 	 */
-	FSmartObjectRequestResult FindSlot(const FSmartObjectID ID, const FSmartObjectRequestFilter& Filter) const;
+	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectID ID, const FSmartObjectRequestFilter& Filter) const;
 
 	/**
 	 *	Claim smart object from a valid request result.
 	 *	@param RequestResult Valid request result for given smart object and slot index. Ensure when called with an invalid result.
 	 *	@return A claim handle binding the claimed smart object, its use index and a user id.
 	 */
-	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
+	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
 
-	FSmartObjectClaimHandle Claim(FSmartObjectID ID, const FSmartObjectRequestFilter& Filter = {});
+	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectID ID, const FSmartObjectRequestFilter& Filter = {});
 
 	/**
 	 *	Start using a claimed smart object slot.
@@ -237,9 +237,18 @@ public:
 	void UnregisterSlotInvalidationCallback(const FSmartObjectClaimHandle& ClaimHandle);
 
 protected:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	/**
+	 * Callback overriden to gather loaded collections, spawn missing one and set the main collection.
+	 * @note we use this method instead of `Initialize` or `PostInitialize` so active level is set and actors registered.
+	 */
+	virtual void OnWorldComponentsUpdated(UWorld& World) override;
+
+	/**
+	 * BeginPlay will push all objects stored in the collection to the runtime simulation
+	 * and initialize octree using collection bounds.
+	 */
+	virtual void OnWorldBeginPlay(UWorld& World) override;
 
 	/**
 	 * Goes through all defined slots of smart object represented by SmartObjectRuntime
@@ -257,40 +266,61 @@ protected:
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
-	void AddToCollection(USmartObjectComponent& SOComponent) const;
-	void RemoveFromCollection(USmartObjectComponent& SOComponent) const;
-
-	void AddToSimulation(const USmartObjectComponent& SOComponent);
-	void RemoveFromSimulation(const USmartObjectComponent& SOComponent);
+	void AddToSimulation(const FSmartObjectID ID, const FSmartObjectConfig& Config, const FTransform& Transform, const FBox& Bounds);
+	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const FSmartObjectConfig& Config);
+	void AddToSimulation(const USmartObjectComponent&);
+	void RemoveFromSimulation(const FSmartObjectID ID);
+	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);
+	void RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent);
 
 protected:
 	UPROPERTY()
 	ASmartObjectCollection* MainCollection;
 
-	TMap<FSmartObjectID, FSmartObjectRuntime> RuntimeSmartObjects;
 	FSmartObjectOctree SmartObjectOctree;
 
+	TMap<FSmartObjectID, FSmartObjectRuntime> RuntimeSmartObjects;
+
+	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */
+	TArray<FSmartObjectID> RuntimeCreatedEntries;
+
 	UE::SmartObject::ID NextFreeUserID;
+
+	/** Flag to indicate that all entries from the baked collection are registered and new registrations will be considered runtime entries (i.e. no persistence) */
+	bool bInitialCollectionAddedToSimulation = false;
 
 #if WITH_EDITOR
 	friend class ASmartObjectCollection;
 	void RebuildCollection(ASmartObjectCollection& InCollection);
 	void SpawnMissingCollection();
+
+	/**
+	 * Compute bounds from given world and store result in provided collection
+	 * @param World World from which the bounds must be computed
+	 * @param Collection Collection that will store computed bounds
+	 */
+	void ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const;
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	/** List of registered used to rebuild collection on demand */
+	UPROPERTY(Transient)
 	TArray<USmartObjectComponent*> RegisteredSOComponents;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_SMARTOBJECT_DEBUG
-	/** Debugging helpers to force unregister/register all available smart objects */
 public:
+	uint32 DebugGetNumRuntimeObjects() const { return RuntimeSmartObjects.Num(); }
+	const TMap<FSmartObjectID, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
+	uint32 DebugGetNumRegisteredComponents() const { return DebugRegisteredComponents.Num(); }
+
+	/** Debugging helper to remove all registered smart objects from the simulation */
 	void DebugUnregisterAllSmartObjects();
+
+	/** Debugging helpers to add all registered smart objects to the simulation */
 	void DebugRegisterAllSmartObjects();
 
 private:
 	TArray<TWeakObjectPtr<USmartObjectComponent>> DebugRegisteredComponents;
-	bool bInitialized = false;
 #endif // WITH_SMARTOBJECT_DEBUG
 };

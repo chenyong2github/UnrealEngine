@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SmartObjectConfig.h"
 #include "GameFramework/Actor.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectCollection.generated.h"
@@ -15,10 +16,14 @@ struct SMARTOBJECTSMODULE_API FSmartObjectCollectionEntry
 	GENERATED_BODY()
 public:
 	FSmartObjectCollectionEntry() = default;
-	FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent);
+	explicit FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 ConfigIndex);
 
-	USmartObjectComponent* GetComponent() const;
 	const FSmartObjectID& GetID() const { return ID; }
+	const FSoftObjectPath& GetPath() const	{ return Path; }
+	USmartObjectComponent* GetComponent() const;
+	FTransform GetTransform() const { return Transform; }
+	const FBox& GetBounds() const { return Bounds; }
+	uint32 GetConfigIndex() const { return ConfigIdx; }
 	FString Describe() const;
 
 protected:
@@ -31,6 +36,15 @@ protected:
 
 	UPROPERTY()
 	FSoftObjectPath Path;
+
+	UPROPERTY()
+	FTransform Transform;
+
+	UPROPERTY()
+	FBox Bounds = FBox(ForceInitToZero);
+
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	uint32 ConfigIdx = INDEX_NONE;
 };
 
 /** Actor holding smart object persistent data */
@@ -40,16 +54,24 @@ class SMARTOBJECTSMODULE_API ASmartObjectCollection : public AActor
 	GENERATED_BODY()
 
 public:
-	TConstArrayView<FSmartObjectCollectionEntry> GetEntries() const;
+	const TArray<FSmartObjectCollectionEntry>& GetEntries() const { return CollectionEntries; }
+	const FBox& GetBounds() const { return Bounds;	}
+	const FSmartObjectConfig* GetConfigForEntry(const FSmartObjectCollectionEntry& Entry) const;
+
+#if WITH_EDITOR
+	bool IsBuildingForWorldPartition() const { return bBuildingForWorldPartition;	}
+	void SetBuildingForWorldPartition(const bool bValue) { bBuildingForWorldPartition = bValue;	}
+	void ResetCollection();
+#endif
+
+	void ValidateConfigs();
 
 protected:
 	friend class USmartObjectSubsystem;
 
-	ASmartObjectCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	explicit ASmartObjectCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//~ Begin UObject/AActor Interface
 	virtual void PostActorCreated() override;
-	virtual void PostLoad() override;
 	virtual void Destroyed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PreRegisterAllComponents() override;
@@ -59,38 +81,46 @@ protected:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool SupportsExternalPackaging() const override { return false; }
-	//~ End UObject/AActor Interface
 	bool IsBuildOnDemand() const { return bBuildOnDemand; }
+
+	UFUNCTION(CallInEditor, Category = SmartObject)
+	void RebuildCollection();
+	void RebuildCollection(const TConstArrayView<USmartObjectComponent*> Components);
+	void SetBounds(const FBox InBounds) { Bounds = InBounds; }
 #endif // WITH_EDITOR
 
-	bool IsRegistered() const { return bRegistered; }
+	bool RegisterWithSubsystem(const FString& Context);
+	bool UnregisterWithSubsystem(const FString& Context);
+
 	void OnRegistered();
+	bool IsRegistered() const { return bRegistered; }
 	void OnUnregistered();
 
-	FSmartObjectID AddSmartObject(USmartObjectComponent& SOComponent);
-	void RemoveSmartObject(USmartObjectComponent& SOComponent);
+	bool AddSmartObject(USmartObjectComponent& SOComponent);
+	bool RemoveSmartObject(USmartObjectComponent& SOComponent);
 	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectID& SmartObjectID) const;
 
-protected:
-
-	bool RegisterWithSubsystem(const FString Context);
-	bool UnregisterWithSubsystem(const FString Context);
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	FBox Bounds = FBox(ForceInitToZero);
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	TArray<FSmartObjectCollectionEntry> CollectionEntries;
 
+	UPROPERTY()
 	TMap<FSmartObjectID, FSoftObjectPath> RegisteredIdToObjectMap;
 
-	bool bRegistered = false;
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	TMap<TSubclassOf<AActor>, uint32> ConfigLookup;
 
-#if WITH_EDITOR
-	UFUNCTION(CallInEditor, Category = SmartObject)
-	void RebuildCollection();
-	void RebuildCollection(TConstArrayView<USmartObjectComponent*> Components);
-#endif // WITH_EDITOR
+	UPROPERTY(VisibleAnywhere, Category = SmartObject)
+	TArray<TObjectPtr<USmartObjectComponent>> Configurations;
+
+	bool bRegistered = false;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = SmartObject)
 	bool bBuildOnDemand = false;
+
+	bool bBuildingForWorldPartition = false;
 #endif // WITH_EDITORONLY_DATA
 };

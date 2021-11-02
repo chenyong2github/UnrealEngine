@@ -29,7 +29,20 @@ public:
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) { return true; }
 
 protected:
+
+	/**
+	 * Overridable method for derived classed to perform operations when partition building process starts.
+	 * This is called before loading data (e.g. data layers, editor cells) and before calling `RunInternal`.
+	 */
+	virtual void OnPartitionBuildStarted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) {}
+
 	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
+
+	/**
+	 * Overridable method for derived classed to perform operations when partition building process completes.
+	 * This is called after loading all data (e.g. data layers, editor cells) and after calling `RunInternal` for all editor cells.
+	 */
+	virtual void OnPartitionBuildCompleted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) {}
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;

@@ -88,7 +88,7 @@ protected:
 	friend class USmartObjectSubsystem;
 	friend struct FSmartObjectRuntime;
 
-	FSmartObjectSlotRuntimeData(const FSmartObjectSlotIndex& InSlotIndex) : SlotIndex(InSlotIndex) {}
+	explicit FSmartObjectSlotRuntimeData(const FSmartObjectSlotIndex& InSlotIndex) : SlotIndex(InSlotIndex) {}
 
 	bool Claim(const FSmartObjectUserID& InUser);
 	
@@ -120,6 +120,7 @@ struct FSmartObjectRuntime
 public:
 	const FSmartObjectID& GetRegisteredID() const { return RegisteredID; }
 	const FTransform& GetTransform() const { return Transform; }
+	const FSmartObjectConfig& GetConfig() const { checkf(Config != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Config; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
@@ -129,15 +130,13 @@ private:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
 
-	explicit FSmartObjectRuntime(const FSmartObjectConfig & Config);
-
-	const FSmartObjectConfig& GetConfig() const { return Config; }
+	explicit FSmartObjectRuntime(const FSmartObjectConfig& Config);
 
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
 	void SetTransform(const FTransform& Value) { Transform = Value; }
 
-	void SetRegisteredID(FSmartObjectID Value) { RegisteredID = Value; }
+	void SetRegisteredID(const FSmartObjectID Value) { RegisteredID = Value; }
 
 	const FSmartObjectOctreeIDSharedRef& GetSharedOctreeID() const { return SharedOctreeID; }
 	void SetOctreeID(const FSmartObjectOctreeIDSharedRef Value) { SharedOctreeID = Value; }
@@ -181,7 +180,7 @@ private:
 	TArray<FSmartObjectSlotRuntimeData> SlotsRuntimeData;
 
 	/** Associated smart object configuration */
-	FSmartObjectConfig Config;
+	const FSmartObjectConfig* Config = nullptr;
 
 	/** Instance specific transform */
 	FTransform Transform;

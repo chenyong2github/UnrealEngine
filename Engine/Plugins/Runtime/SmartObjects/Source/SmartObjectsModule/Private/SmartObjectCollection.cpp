@@ -10,9 +10,12 @@
 //----------------------------------------------------------------------//
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
-FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent)
+FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 ConfigIndex)
 	: ID(SmartObjectID)
 	, Path(&SmartObjectComponent)
+	, Transform(SmartObjectComponent.GetComponentTransform())
+	, Bounds(SmartObjectComponent.GetSmartObjectBounds())
+	, ConfigIdx(ConfigIndex)
 {
 }
 
@@ -35,13 +38,6 @@ ASmartObjectCollection::ASmartObjectCollection(const FObjectInitializer& ObjectI
 	PrimaryActorTick.bCanEverTick = false;
 	bNetLoadOnClient = false;
 	SetCanBeDamaged(false);
-}
-
-void ASmartObjectCollection::PostLoad()
-{
-	// Handle Level load, PIE, SIE, game load, streaming.
-	Super::PostLoad();
-	RegisterWithSubsystem(ANSI_TO_TCHAR(__FUNCTION__));
 }
 
 void ASmartObjectCollection::Destroyed()
@@ -95,81 +91,139 @@ void ASmartObjectCollection::PostUnregisterAllComponents()
 	Super::PostUnregisterAllComponents();
 }
 
-bool ASmartObjectCollection::RegisterWithSubsystem(FString Context)
+bool ASmartObjectCollection::RegisterWithSubsystem(const FString& Context)
 {
 	if (bRegistered)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("\'%s\' (0x%llx) %s - Failed: already registered"), *GetName(), UPTRINT(this), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: already registered"), *GetName(), *Context);
 		return false;
 	}
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) %s - Failed: ignoring default object"), *GetName(), UPTRINT(this), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: ignoring default object"), *GetName(), *Context);
 		return false;
 	}
 
 	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(GetWorld());
 	if (SmartObjectSubsystem == nullptr)
 	{
-		// Collection might attempt to register before the subsystem is created but at creation it will gather all collection
-		// and register them. For this reason we use a log instead of an error
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) %s - Failed: unable to find smart object subsystem"), *GetName(), UPTRINT(this), *Context);
+		// Collection might attempt to register before the subsystem is created. At its initialization the subsystem gathers
+		// all collections and registers them. For this reason we use a log instead of an error.
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetName(), *Context);
 		return false;
 	}
 
 	SmartObjectSubsystem->RegisterCollection(*this);
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) %s - Succeeded"), *GetName(), UPTRINT(this), *Context);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetName(), *Context);
 	return true;
 }
 
-bool ASmartObjectCollection::UnregisterWithSubsystem(FString Context)
+bool ASmartObjectCollection::UnregisterWithSubsystem(const FString& Context)
 {
 	if (!bRegistered)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("\'%s\' (0x%llx) %s - Failed: not registered"), *GetName(), UPTRINT(this), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: not registered"), *GetName(), *Context);
 		return false;
 	}
 
 	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(GetWorld());
 	if (SmartObjectSubsystem == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) %s - Failed: unable to find smart object subsystem"), *GetName(), UPTRINT(this), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetName(), *Context);
 		return false;
 	}
 
 	SmartObjectSubsystem->UnregisterCollection(*this);
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) %s - Succeeded"), *GetName(), UPTRINT(this), *Context);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetName(), *Context);
 	return true;
 }
 
-FSmartObjectID ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
+bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 {
-	ensureMsgf(!SOComponent.GetWorld()->IsGameWorld(),
-		TEXT("Registration can't happen at runtime for loaded entities; they should be in the initial collection"));
+	const UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' can't be registered to collection '%s': no associated world"),
+			*GetNameSafe(SOComponent.GetOwner()), *GetName());
+		return false;
+	}
 
-	const FSoftObjectPath Path(&SOComponent);
-	FSmartObjectID ID(GetTypeHash(Path));
+	const FSoftObjectPath ObjectPath = &SOComponent;
+	FString AssetPathString = ObjectPath.GetAssetPathString();
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject %s [%s] to collection"), *SOComponent.GetName(), *ID.Describe());
+	// We are not using asset path for partitioned world since they are not stable between editor and runtime.
+	// SubPathString should be enough since all actors are part of the main level.
+	if (World->IsPartitionedWorld())
+	{
+		AssetPathString.Reset();
+	}
+#if WITH_EDITOR
+	else if (World->WorldType == EWorldType::PIE)
+	{
+		AssetPathString = UWorld::RemovePIEPrefix(ObjectPath.GetAssetPathString());
+	}
+#endif // WITH_EDITOR
+
+	// Compute hash manually from strings since GetTypeHash(FSoftObjectPath) relies on a FName which implements run-dependent hash computations.
+	FSmartObjectID ID = HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString()));
 	SOComponent.SetRegisteredID(ID);
-	CollectionEntries.Emplace(ID, SOComponent);
-	RegisteredIdToObjectMap.Add(ID, Path);
-	return ID;
+
+	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([ID](const FSmartObjectCollectionEntry& Entry)
+	{
+		return Entry.ID == ID;
+	});
+
+	if (ExistingEntry != nullptr)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("'%s[ID=%s]' already registered to collection '%s'"),
+			*GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
+		return false;
+	}
+
+	const TSubclassOf<AActor> OwnerClass = SOComponent.GetOwner()->GetClass();
+
+	uint32 ConfigIndex = INDEX_NONE;
+	if (const uint32* const ExistingConfigIndex = ConfigLookup.Find(OwnerClass))
+	{
+		ConfigIndex = *ExistingConfigIndex;
+	}
+	else
+	{
+		FObjectDuplicationParameters DuplicationParameters(&SOComponent, this);
+		DuplicationParameters.DestName = *FString::Printf(TEXT("ConfigPool_%d_%s"), Configurations.Num(), *OwnerClass->GetName());
+
+		// Ideally we would clone only the configuration but some inner instanced UObjects require a UObject parent in the chain.
+		USmartObjectComponent* TemplateComponent = Cast<USmartObjectComponent>(StaticDuplicateObjectEx(DuplicationParameters));
+		check(TemplateComponent != nullptr);
+
+		// make sure the duplicated component is not considered blueprint since it can't be reconstructed
+		TemplateComponent->CreationMethod = EComponentCreationMethod::Native;
+
+		// break any link to another component
+		TemplateComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding config '%s' to the shared pool"), *TemplateComponent->GetName());
+
+		ConfigIndex = Configurations.Add(TemplateComponent);
+		ConfigLookup.Add(OwnerClass, ConfigIndex);
+	}
+
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[ID=%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
+	CollectionEntries.Emplace(ID, SOComponent, ConfigIndex);
+	RegisteredIdToObjectMap.Add(ID, ObjectPath);
+	return true;
 }
 
-void ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponent)
+bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponent)
 {
-	ensureMsgf(!SOComponent.GetWorld()->IsGameWorld(),
-		TEXT("Registration can't happen at runtime for loaded components; they should be in the initial collection"));
-
 	FSmartObjectID ID = SOComponent.GetRegisteredID();
 	if (!ID.IsValid())
 	{
-		return;
+		return false;
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject %s [%s] from collection"), *SOComponent.GetName(), *ID.Describe());
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing '%s[ID=%s]' from collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
 	const int32 Index = CollectionEntries.IndexOfByPredicate(
 		[&ID](const FSmartObjectCollectionEntry& Entry)
 		{
@@ -183,33 +237,49 @@ void ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponen
 	}
 
 	SOComponent.SetRegisteredID(FSmartObjectID::Invalid);
+
+	return Index != INDEX_NONE;
 }
 
 USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSmartObjectID& SmartObjectID) const
 {
-	// @todo SO: see if the map worth it or a search in the array can be enough
 	const FSoftObjectPath* Path = RegisteredIdToObjectMap.Find(SmartObjectID);
 	return Path != nullptr ? CastChecked<USmartObjectComponent>(Path->ResolveObject(), ECastCheckedType::NullAllowed) : nullptr;
 }
 
-TConstArrayView<FSmartObjectCollectionEntry> ASmartObjectCollection::GetEntries() const
+const FSmartObjectConfig* ASmartObjectCollection::GetConfigForEntry(const FSmartObjectCollectionEntry& Entry) const
 {
-	return CollectionEntries;
+	const bool bIsValidIndex = Configurations.IsValidIndex(Entry.GetConfigIndex());
+	if (!bIsValidIndex)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Using invalid index (%d) to retrieve configuration from collection '%s'"), Entry.GetConfigIndex(), *GetName());	
+		return nullptr;
+	}
+
+	const USmartObjectComponent* Component = Configurations[Entry.GetConfigIndex()];
+	ensureMsgf(Component != nullptr, TEXT("Collection is expected to contain only valid configuration entries"));
+	return Component != nullptr ? &(Component->GetConfig()) : nullptr;
 }
 
 void ASmartObjectCollection::OnRegistered()
 {
 	bRegistered = true;
-	
-	for (const FSmartObjectCollectionEntry& Entry : CollectionEntries)
-	{
-		RegisteredIdToObjectMap.Add(Entry.ID, Entry.Path);
-	}
 }
 
 void ASmartObjectCollection::OnUnregistered()
 {
 	bRegistered = false;
+}
+
+void ASmartObjectCollection::ValidateConfigs()
+{
+	for (const USmartObjectComponent* Component : Configurations)
+	{
+		if (ensureMsgf(Component != nullptr, TEXT("Collection is expected to contain only valid configuration entries")))
+		{
+			Component->GetConfig().Validate();
+		}
+	}
 }
 
 #if WITH_EDITOR
@@ -249,14 +319,20 @@ void ASmartObjectCollection::RebuildCollection()
 	if (USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
 	{
 		SmartObjectSubsystem->RebuildCollection(*this);
+
+		// Dirty package since this is an explicit user action
+		MarkPackageDirty();
 	}
 }
 
-void ASmartObjectCollection::RebuildCollection(TConstArrayView<USmartObjectComponent*> Components)
+void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjectComponent*> Components)
 {
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("\'%s\' (0x%llx) Rebuilding collection"), *GetName(), UPTRINT(this));
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Rebuilding collection '%s' from component list"), *GetName());
 	CollectionEntries.Reset(Components.Num());
 	RegisteredIdToObjectMap.Empty(Components.Num());
+
+	ConfigLookup.Reset();
+	Configurations.Reset();
 
 	for (USmartObjectComponent* const Component : Components)
 	{
@@ -265,5 +341,20 @@ void ASmartObjectCollection::RebuildCollection(TConstArrayView<USmartObjectCompo
 			AddSmartObject(*Component);
 		}
 	}
+
+	CollectionEntries.Shrink();
+	RegisteredIdToObjectMap.Shrink();
+	ConfigLookup.Shrink();
+	Configurations.Shrink();
+}
+
+void ASmartObjectCollection::ResetCollection()
+{
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Reseting collection '%s'"), *GetName());
+
+	CollectionEntries.Reset();
+	RegisteredIdToObjectMap.Reset();
+	ConfigLookup.Reset();
+	Configurations.Reset();
 }
 #endif // WITH_EDITOR

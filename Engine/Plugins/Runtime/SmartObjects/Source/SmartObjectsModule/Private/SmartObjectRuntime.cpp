@@ -9,7 +9,7 @@ const FSmartObjectSlotRuntimeData FSmartObjectSlotRuntimeData::InvalidSlot = {};
 // FSmartObjectRuntime
 //----------------------------------------------------------------------//
 FSmartObjectRuntime::FSmartObjectRuntime(const FSmartObjectConfig& InConfig)
-	: Config(InConfig)
+	: Config(&InConfig)
 	, SharedOctreeID(MakeShareable(new FSmartObjectOctreeID()))
 {
 }
@@ -45,7 +45,7 @@ bool FSmartObjectRuntime::ClaimSlot(const FSmartObjectClaimHandle& ClaimHandle)
 	FSmartObjectSlotRuntimeData* ExistingEntry = SlotsRuntimeData.FindByPredicate(
 		[ClaimHandle](const FSmartObjectSlotRuntimeData& Entry){ return Entry.SlotIndex == ClaimHandle.SlotIndex; });
 
-	FSmartObjectSlotRuntimeData& SlotRuntimeData = ExistingEntry != nullptr ? *ExistingEntry : SlotsRuntimeData.Add_GetRef(ClaimHandle.SlotIndex);
+	FSmartObjectSlotRuntimeData& SlotRuntimeData = ExistingEntry != nullptr ? *ExistingEntry : SlotsRuntimeData.Add_GetRef(FSmartObjectSlotRuntimeData(ClaimHandle.SlotIndex));
 	const bool bClaimed = SlotRuntimeData.Claim(ClaimHandle.UserID);
 
 	return bClaimed;
