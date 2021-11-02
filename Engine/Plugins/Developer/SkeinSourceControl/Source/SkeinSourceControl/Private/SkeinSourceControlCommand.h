@@ -69,7 +69,7 @@ public:
 	/** Files to perform this operation on */
 	TArray<FString> Files;
 
-	/** Info and/or warning message message storage */
+	/** Info and/or warning message storage */
 	TArray<FString> InfoMessages;
 
 	/** Potential error message storage */

@@ -66,6 +66,21 @@ public:
 	TArray<FSkeinSourceControlState> States;
 };
 
+/** Revert any change to a file to its state on the local depot. */
+class FSkeinRevertWorker : public ISkeinSourceControlWorker
+{
+public:
+	virtual ~FSkeinRevertWorker() {}
+	/** ISkeinSourceControlWorker interface */
+	virtual FName GetName() const override;
+	virtual bool Execute(class FSkeinSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	/** Temporary states for results */
+	TArray<FSkeinSourceControlState> States;
+};
+
 /** Skein synchronize to the active snapshot set in WebUI. */
 class FSkeinSyncWorker : public ISkeinSourceControlWorker
 {

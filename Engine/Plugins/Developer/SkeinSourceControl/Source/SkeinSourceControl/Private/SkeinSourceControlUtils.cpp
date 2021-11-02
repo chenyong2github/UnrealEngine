@@ -5,27 +5,109 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "ISourceControlModule.h"
+#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonValue.h"
+#include "Misc/FileHelper.h"
 
 namespace SkeinSourceControlConstants
 {
 	/** The maximum number of files we submit in a single Skein command */
-	const int32 MaxFilesPerBatch = 50;
+	const int32 MaxFilesPerBatch = 1;
 }
 
 namespace SkeinSourceControlUtils
 {
 
-// Launch the Skein command line process and extract its results & errors
-static bool RunCommandInternalRaw(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FString& OutResults, FString& OutErrors)
+// Convert an array of FJsonObject statuses to FSkeinSourceControlStates
+static void ParseStatusOutput(const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, const TSharedPtr<FJsonObject> InStates, TArray<FSkeinSourceControlState>& OutStates)
 {
+	const FDateTime Now = FDateTime::Now();
+
+	// Build map of all states received
+	TMap<FString, FString> FileStates;
+
+	const TArray<TSharedPtr<FJsonValue>>& Entries = InStates->GetArrayField("Data");
+	for (const TSharedPtr<FJsonValue>& Entry : Entries)
+	{
+		const TSharedPtr<FJsonObject>* PathStatus;
+		if (Entry->TryGetObject(PathStatus))
+		{
+			FString RelativePath = (*PathStatus)->GetStringField(TEXT("file_path"));
+			FString AbsolutePath = FPaths::Combine(InSkeinProjectRoot, RelativePath);
+			FString State = (*PathStatus)->GetStringField(TEXT("file_state"));
+
+			FPaths::NormalizeFilename(AbsolutePath);
+
+			FileStates.Add(AbsolutePath, State);
+		}
+	}
+
+	// Iterate on all files explicitly listed in the command
+	for (const auto& File : InFiles)
+	{
+		FSkeinSourceControlState FileState(File);
+		FileState.TimeStamp = Now;
+		FileState.State = ESkeinState::Unknown;
+
+		FString* State = FileStates.Find(File);
+		if (State != nullptr)
+		{
+			if (*State == "unknown")
+			{
+				FileState.State = ESkeinState::Unknown;
+			}
+			else if (*State == "add")
+			{
+				FileState.State = ESkeinState::Added;
+			}
+			else if (*State == "remove")
+			{
+				FileState.State = ESkeinState::Deleted;
+			}
+			else if (*State == "modified")
+			{
+				FileState.State = ESkeinState::Modified;
+			}
+			else if (*State == "untracked")
+			{
+				FileState.State = ESkeinState::NotControlled;
+			}
+			else if (*State == "unchanged")
+			{
+				FileState.State = ESkeinState::Unchanged;
+			}
+			else
+			{
+				checkNoEntry();
+			}
+		}
+
+		OutStates.Add(FileState);
+	}
+}
+
+// The Skein command line process returns 'instance already running' when invoked in parallel.
+static FCriticalSection RunCriticalSection;
+
+// Launch the Skein command line process and extract its results & errors
+static bool RunCommandInternalRaw(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FString& OutMessage, TSharedPtr<FJsonObject>& OutData)
+{
+	FScopeLock Lock(&RunCriticalSection);
+
 	int32 ReturnCode = 0;
+	int32 StatusCode = 0;
 
 	FString FullCommand;
 	FString LoggableCommand; // short version of the command for logging purpose
 
 	// Append the Skein command itself
 	LoggableCommand += InCommand;
+
+	// Append the "--json" param to indicate we want Json output
+	LoggableCommand += TEXT(" ");
+	LoggableCommand += TEXT("--json");
 
 	// Append to the command all parameters, and then finally the files
 	for(const auto& Parameter : InParameters)
@@ -42,51 +124,67 @@ static bool RunCommandInternalRaw(const FString& InCommand, const FString& InSke
 
 	FullCommand += LoggableCommand;
 
-#if UE_BUILD_DEBUG
-	UE_LOG(LogSourceControl, Log, TEXT("RunCommandInternalRaw: 'skein %s'"), *LoggableCommand);
-#endif
+	UE_LOG(LogSourceControl, VeryVerbose, TEXT("RunCommandInternalRaw: 'skein %s'"), *LoggableCommand);
 
-	FPlatformProcess::ExecProcess(*InSkeinBinaryPath, *FullCommand, &ReturnCode, &OutResults, &OutErrors, *InSkeinProjectRoot);
-
-#if UE_BUILD_DEBUG
-
-	if (OutResults.IsEmpty())
-	{
-		UE_LOG(LogSourceControl, Log, TEXT("RunCommandInternalRaw: 'OutResults=n/a'"));
-	}
-	else
-	{
-		UE_LOG(LogSourceControl, Log, TEXT("RunCommandInternalRaw(%s): OutResults=\n%s"), *InCommand, *OutResults);
-	}
-
-	if(ReturnCode != 0)
-	{
-		if (OutErrors.IsEmpty())
-		{
-			UE_LOG(LogSourceControl, Warning, TEXT("RunCommandInternalRaw: 'OutErrors=n/a'"));
-		}
-		else
-		{
-			UE_LOG(LogSourceControl, Warning, TEXT("RunCommandInternalRaw(%s): OutErrors=\n%s"), *InCommand, *OutErrors);
-		}
-	}
-#endif
-
-	return ReturnCode == 0;
-}
-
-// Basic parsing or results & errors from the Skein command line process
-static bool RunCommandInternal(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
-{
-	bool bResult;
 	FString Results;
 	FString Errors;
 
-	bResult = RunCommandInternalRaw(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, Results, Errors);
-	Results.ParseIntoArray(OutResults, TEXT("\n"), true);
-	Errors.ParseIntoArray(OutErrorMessages, TEXT("\n"), true);
+	FPlatformProcess::ExecProcess(*InSkeinBinaryPath, *FullCommand, &ReturnCode, &Results, &Errors, *InSkeinProjectRoot);
 
-	return bResult;
+	if (!Results.IsEmpty())
+	{
+		UE_LOG(LogSourceControl, VeryVerbose, TEXT("RunCommandInternalRaw(%s): Results=\n%s"), *InCommand, *Results);
+	}
+	if (!Errors.IsEmpty())
+	{
+		UE_LOG(LogSourceControl, VeryVerbose, TEXT("RunCommandInternalRaw(%s): Errors=\n%s"), *InCommand, *Errors);
+	}
+
+	// Try to parse either the StdOut or StdErr stream as Json
+	FString OutputToParse = Results.IsEmpty() ? Errors : Results;
+	if (!OutputToParse.IsEmpty())
+	{
+		TSharedPtr<FJsonObject> JsonObject;
+		TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(*OutputToParse);
+		if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
+		{
+			OutMessage = JsonObject->GetStringField("Message");
+			OutData = JsonObject;
+			StatusCode = JsonObject->GetIntegerField("Code");
+		}
+	}
+
+	// If unsuccessful, construct a JsonObject to return
+	if (!OutData.IsValid())
+	{
+		if (Errors.IsEmpty())
+		{
+			OutMessage = FString::Format(TEXT("Internal error ('{0}')"), { ReturnCode });
+		}
+		else
+		{
+			OutMessage = Errors;
+		}
+
+		OutData = MakeShared<FJsonObject>();
+		OutData->SetBoolField(TEXT("OK"), false);
+		OutData->SetNumberField(TEXT("Code"), 500);
+		OutData->SetStringField(TEXT("Message"), OutMessage);
+		OutData->SetField(TEXT("Data"), MakeShared<FJsonValueNull>());
+	}
+
+ 	return ReturnCode == 0 && StatusCode == 200;
+}
+
+static bool RunCommandInternal(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FString& OutMessage, TSharedPtr<FJsonObject>& OutData)
+{
+	return RunCommandInternalRaw(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, OutMessage, OutData);
+}
+
+static bool RunCommandInternal(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FString& OutMessage)
+{
+	TSharedPtr<FJsonObject> RawData = MakeShared<FJsonObject>();
+	return RunCommandInternalRaw(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, OutMessage, RawData);
 }
 
 }
@@ -160,16 +258,34 @@ bool IsSkeinProjectFound(const FString& InPath, FString& OutProjectRoot, FString
 	OutProjectRoot = FindSkeinProjectRoot(InPath);
 	if (OutProjectRoot.IsEmpty())
 		return false;
-	
-	// SKEIN_TODO: grab project name from skein.yml
-	OutProjectName = "SKEIN_TODO";
+
+	FString Marker = TEXT("name:");
+	FString Filename = FPaths::Combine(OutProjectRoot, "skein.yml");
+
+	TArray<FString> Lines;
+	FFileHelper::LoadFileToStringArrayWithPredicate(Lines, *Filename,
+		[&] (const FString& Line)
+		{
+			return Line.StartsWith(Marker);
+		}
+	);
+
+	if (Lines.Num() == 1)
+	{
+		OutProjectName = Lines[0].RightChop(Marker.Len()).TrimStartAndEnd();
+	}
+	else
+	{
+		OutProjectName = "Unknown";
+	}
 
 	return true;
 }
 
-bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages)
+template <typename FunctionType>
+bool RunCommandBatched(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, FunctionType& OutCallback)
 {
-	bool bResult = true;
+	int NumErrors = 0;
 
 	if (InFiles.Num() > SkeinSourceControlConstants::MaxFilesPerBatch)
 	{
@@ -183,24 +299,74 @@ bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, cons
 				FilesInBatch.Add(InFiles[FileCount]);
 			}
 
-			TArray<FString> BatchResults;
-			TArray<FString> BatchErrors;
-			bResult &= RunCommandInternal(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, FilesInBatch, BatchResults, BatchErrors);
-			OutResults += BatchResults;
-			OutErrorMessages += BatchErrors;
+			FString BatchMessage;
+			TSharedPtr<FJsonObject> BatchData;
+			if (RunCommandInternal(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, FilesInBatch, BatchMessage, BatchData))
+			{
+				OutCallback(true, FilesInBatch, BatchMessage, BatchData);
+			}
+			else
+			{
+				OutCallback(false, FilesInBatch, BatchMessage, BatchData);
+				++NumErrors;
+			}
 		}
 	}
 	else
 	{
-		bResult &= RunCommandInternal(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, OutResults, OutErrorMessages);
+		FString Message;
+		TSharedPtr<FJsonObject> Data;
+		if (RunCommandInternal(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, Message, Data))
+		{
+			OutCallback(true, InFiles, Message, Data);
+		}
+		else
+		{
+			OutCallback(false, InFiles, Message, Data);
+			++NumErrors;
+		}
 	}
 
-	return bResult;
-}
-	
-bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrorMessages, TArray<FSkeinSourceControlState>& OutStates)
-{
-	return false;
+	return (NumErrors == 0);
 }
 
+bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrors)
+{
+	auto Callback = 
+		[&] (bool bBatchResult, const TArray<FString>& BatchFiles, const FString& BatchMessage, const TSharedPtr<FJsonObject>& BatchData)
+		{
+			if (bBatchResult)
+			{
+				OutResults.Add(BatchMessage);
+			}
+			else
+			{
+				OutErrors.Add(BatchMessage);
+			}
+		};
+
+	return RunCommandBatched(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, Callback);
+}
+	
+bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates)
+{
+	auto Callback = 
+		[&] (bool bBatchResult, const TArray<FString>& BatchFiles, const FString& BatchMessage, const TSharedPtr<FJsonObject>& BatchData)
+		{
+			if (bBatchResult)
+			{
+				ParseStatusOutput(InSkeinProjectRoot, InFiles, BatchData, OutStates);
+			}
+			else
+			{
+				OutErrors.Add(BatchMessage);
+			}
+		};
+
+	TArray<FString> Paths;
+	Paths.Add(InSkeinProjectRoot);
+
+	return RunCommandBatched(TEXT("projects status"), InSkeinBinaryPath, InSkeinProjectRoot, TArray<FString>(), Paths, Callback);
+}
+	
 }

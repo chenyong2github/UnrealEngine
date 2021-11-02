@@ -7,6 +7,7 @@
 #include "SkeinSourceControlModule.h"
 #include "SkeinSourceControlUtils.h"
 #include "SkeinSourceControlState.h"
+#include "Modules/ModuleManager.h"
 #include "SourceControlOperations.h"
 
 #define LOCTEXT_NAMESPACE "SkeinSourceControl"
@@ -48,17 +49,18 @@ bool FSkeinConnectWorker::Execute(FSkeinSourceControlCommand& InCommand)
 	if (InCommand.SkeinBinaryPath.IsEmpty())
 	{
 		StaticCastSharedRef<FConnect>(InCommand.Operation)->SetErrorText(LOCTEXT("SkeinNotAvailable", "The Skein Command Line application could not be found."));
-		return false;
+		InCommand.bCommandSuccessful = false;
+		return InCommand.bCommandSuccessful;
 	}
 
 	if (InCommand.SkeinProjectRoot.IsEmpty())
 	{
 		StaticCastSharedRef<FConnect>(InCommand.Operation)->SetErrorText(LOCTEXT("SkeinNotEnabled", "There is no Skein project initialized for this location."));
-		return false;
+		InCommand.bCommandSuccessful = false;
+		return InCommand.bCommandSuccessful;
 	}
 
 	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("auth login"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
-
 	return InCommand.bCommandSuccessful;
 }
 
@@ -105,7 +107,7 @@ bool FSkeinMarkForAddWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets add"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets track"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
 
@@ -130,7 +132,7 @@ bool FSkeinDeleteWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets rm"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets untrack"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
 
@@ -141,6 +143,29 @@ bool FSkeinDeleteWorker::UpdateStates() const
 {
 	check(IsInGameThread());
 
+	return UpdateCachedStates(States);
+}
+
+
+
+FName FSkeinRevertWorker::GetName() const
+{
+	return "Revert";
+}
+
+bool FSkeinRevertWorker::Execute(FSkeinSourceControlCommand& InCommand)
+{
+	check(InCommand.Operation->GetName() == GetName());
+
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets revert"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FSkeinRevertWorker::UpdateStates() const
+{
 	return UpdateCachedStates(States);
 }
 

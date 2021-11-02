@@ -9,6 +9,7 @@
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
 #include "Logging/MessageLog.h"
+#include "Misc/Paths.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
 #include "SSkeinSourceControlSettings.h"
