@@ -178,8 +178,6 @@ public:
 
 	void ReleasePendingState();
 
-	void* Hotfix = nullptr;
-
 protected:
 	FVulkanDynamicRHI* RHI;
 	FVulkanCommandListContext* Immediate;
