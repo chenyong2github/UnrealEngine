@@ -30,6 +30,11 @@ public:
 	/** Evaluators to use for per channel (RGBA) bakes */
 	TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> ChannelEvaluators[4];
 
+	//
+	// Analytics
+	//
+	double TotalBakeDuration = 0.0;
+
 public:	
 	//
 	// Bake
