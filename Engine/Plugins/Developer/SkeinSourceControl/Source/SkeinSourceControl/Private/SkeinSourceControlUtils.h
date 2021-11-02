@@ -45,11 +45,11 @@ bool IsSkeinProjectFound(const FString& InPath, FString& OutProjectRoot, FString
  * @param	InSkeinProjectRoot	The Skein project root from where to run the command
  * @param	InParameters		The parameters to the Skein command
  * @param	InFiles				The files to be operated on
- * @param	OutResults			The results (from StdOut) as an array per-line
- * @param	OutErrorMessages	Any errors (from StdErr) as an array per-line
+ * @param	OutResults			The results as an array per-line
+ * @param	OutErrors			The errors as an array per-line
  * @returns true if the command succeeded and returned no errors
  */
-bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrorMessages);
+bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutResults, TArray<FString>& OutErrors);
 	
 /**
  * Run a Skein "status" command and parse it
@@ -57,10 +57,9 @@ bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, cons
  * @param	InSkeinBinaryPath	The path to the Skein binary
  * @param	InSkeinProjectRoot	The Skein project root from where to run the command
  * @param	InFiles				The files to be operated on
- * @param	OutErrorMessages	Any errors (from StdErr) as an array per-line
+ * @param	OutErrors			Any errors as an array per-line
  * @param   OutStates           The state of each of the input files
  * @returns true if the command succeeded and returned no errors
  */
-bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrorMessages, TArray<FSkeinSourceControlState>& OutStates);
-
+bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates);
 }

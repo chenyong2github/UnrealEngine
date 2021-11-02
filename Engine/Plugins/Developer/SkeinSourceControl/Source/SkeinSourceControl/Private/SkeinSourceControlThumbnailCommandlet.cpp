@@ -2,6 +2,7 @@
 
 #include "SkeinSourceControlThumbnailCommandlet.h"
 #include "SkeinSourceControlThumbnail.h"
+#include "Misc/Paths.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeinThumbnailCommandlet, Log, All);
 
