@@ -961,8 +961,8 @@ bool FPropertyNode::IsEditConditionMet() const
 { 
 	if (HasEditCondition())
 	{
-		TOptional<bool> Result = EditConditionParser.Evaluate(*EditConditionExpression.Get(), *EditConditionContext.Get());
-		if (Result.IsSet())
+		TValueOrError<bool, FText> Result = EditConditionParser.Evaluate(*EditConditionExpression.Get(), *EditConditionContext.Get());
+		if (Result.IsValid())
 		{
 			return Result.GetValue();
 		}
