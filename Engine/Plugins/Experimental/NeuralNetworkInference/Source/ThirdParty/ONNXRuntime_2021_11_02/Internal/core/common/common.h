@@ -40,6 +40,15 @@
 #include <mimalloc.h>
 #endif
 
+#ifdef _WIN32 // WITH_UE
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+#include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END
+#endif // WITH_UE
+
 namespace onnxruntime {
 
 using TimePoint = std::chrono::high_resolution_clock::time_point;

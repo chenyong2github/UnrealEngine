@@ -972,4 +972,13 @@ struct CustomOpBase : OrtCustomOp {
 
 }  // namespace Ort
 
-#include "onnxruntime_cxx_inline.imp" // #ifdef WITH_UE: .h replaced by .imp
+#include "onnxruntime_cxx_inline.imp" // WITH_UE: .h replaced by .imp
+
+#ifdef WITH_UE // Added here rather than in "onnxruntime_cxx_inline.imp" to avoid modifying that file
+namespace Ort {
+  inline SessionOptions& SessionOptions::SetPriorityOpThreads(EThreadPriority ThreadPri) {
+    ThrowOnError(GetApi().SetPriorityOpThreads(p_, ThreadPri));
+    return *this;
+  }
+}  // namespace Ort
+#endif

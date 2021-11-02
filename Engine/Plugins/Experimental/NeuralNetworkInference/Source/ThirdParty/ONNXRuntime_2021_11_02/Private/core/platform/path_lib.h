@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #pragma once
-
 #include <string.h>
 #include <string>
 #include <sstream>

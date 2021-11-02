@@ -27,6 +27,14 @@
 #include <string.h>
 
 #include "GenericPlatform/GenericPlatformAffinity.h" // WITH_UE
+#ifdef _WIN32 // WITH_UE
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+#include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END
+#endif // WITH_UE
 
 /** \brief The API version defined in this header
 *
@@ -3032,8 +3040,7 @@ struct OrtApi {
 
   /// @}
 
-  // WITH_UE: Set the priority level of the threads used to compute. Put this at the very end of this OrtApi struct to avoid "Size of version X API cannot change" error
-  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri);
+  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri); // WITH_UE: Set the compute threads priority. Place at the end of this struct to avoid "Size of version X API cannot change" error
 };
 
 /*

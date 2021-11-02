@@ -2,14 +2,8 @@
 #include <algorithm>
 
 #ifdef _WIN32
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include <Windows.h>
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #endif
-
 #include <thread>
 #include "core/session/ort_apis.h"
 
@@ -34,9 +28,7 @@ CreateThreadPoolHelper(Env* env, OrtThreadPoolParams options) {
   }
   to.set_denormal_as_zero = options.set_denormal_as_zero;
 
-#ifdef WITH_UE
-  to.ThreadPri = options.ThreadPri;
-#endif //WITH_UE
+  to.ThreadPri = options.ThreadPri; // WITH_UE
 
   return std::make_unique<ThreadPool>(env, to, options.name, options.thread_pool_size,
                                               options.allow_spinning);
