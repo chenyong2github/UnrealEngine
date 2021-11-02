@@ -1373,8 +1373,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				RayTracingInstance.NumTransforms = NumInstances;
 
 				FRWBufferStructured InstanceGPUTransformsBuffer;
-				//InstanceGPUTransformsBuffer.Initialize(sizeof(FMatrix), NumInstances, BUF_Static);
-				InstanceGPUTransformsBuffer.Initialize(TEXT("InstanceGPUTransformsBuffer"), 3 * 4 * sizeof(float), NumInstances, BUF_Static);
+				InstanceGPUTransformsBuffer.Initialize(TEXT("InstanceGPUTransformsBuffer"), 4 * sizeof(float), 3 * NumInstances, BUF_Static);
 				RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
 
 				FNiagaraGPURayTracingTransformsCS::FParameters PassParameters;

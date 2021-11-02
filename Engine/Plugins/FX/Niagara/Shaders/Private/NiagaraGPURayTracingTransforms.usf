@@ -35,10 +35,12 @@ float4x4	LocalTransform;
 
 Buffer<float>	ParticleDataFloatBuffer;
 //Buffer<half>	ParticleDataHalfBuffer;
-Buffer<int>	ParticleDataIntBuffer;
+Buffer<int>		ParticleDataIntBuffer;
 Buffer<uint>	GPUInstanceCountBuffer;
 
-RWStructuredBuffer<float3x4> TLASTransforms;
+// Transforms are float3x4 row-major matrices stored as 3 float4
+// because of FXC matrix packing issues when using StructuredBuffer<float3x4>
+RWStructuredBuffer<float4> TLASTransforms;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper function for buffers
@@ -111,7 +113,7 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 			InstanceTransformTransposed = transpose(InstanceTransform);
 		}
 	}
-	TLASTransforms[InstanceIndex][0] = InstanceTransformTransposed[0];
-	TLASTransforms[InstanceIndex][1] = InstanceTransformTransposed[1];
-	TLASTransforms[InstanceIndex][2] = InstanceTransformTransposed[2];
+	TLASTransforms[InstanceIndex * 3 + 0] = InstanceTransformTransposed[0];
+	TLASTransforms[InstanceIndex * 3 + 1] = InstanceTransformTransposed[1];
+	TLASTransforms[InstanceIndex * 3 + 2] = InstanceTransformTransposed[2];
 }

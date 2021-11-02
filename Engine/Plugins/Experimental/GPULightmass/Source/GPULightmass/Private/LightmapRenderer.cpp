@@ -1004,8 +1004,12 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		{
 			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-			TArray<uint32> GeometryIndices;
-			RayTracingScene = CreateRayTracingSceneWithGeometryInstances(RayTracingGeometryInstances, RAY_TRACING_NUM_SHADER_SLOTS, 1, GeometryIndices);
+			FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
+				RayTracingGeometryInstances,
+				RAY_TRACING_NUM_SHADER_SLOTS,
+				1);
+
+			RayTracingScene = SceneWithGeometryInstances.Scene;
 
 			const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene->GetInitializer();
 
@@ -1030,14 +1034,32 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			FBufferRHIRef InstanceUploadBuffer;
 			FShaderResourceViewRHIRef InstanceUploadSRV;
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
+				FRHIResourceCreateInfo CreateInfo(TEXT("LightmassRayTracingInstanceUploadBuffer"));
 				InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 				InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
 			}
 
+			const uint32 TransformUploadBufferSize = SceneWithGeometryInstances.NumNativeCPUInstances * 3 * sizeof(FVector4f);
+			FBufferRHIRef TransformUploadBuffer;
+			FShaderResourceViewRHIRef TransformUploadSRV;
+			{
+				FRHIResourceCreateInfo CreateInfo(TEXT("LightmassRayTracingTransformUploadBuffer"));
+				TransformUploadBuffer = RHICreateStructuredBuffer(sizeof(FVector4f), TransformUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+				TransformUploadSRV = RHICreateShaderResourceView(TransformUploadBuffer);
+			}
+
 			{
 				FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, InstanceUploadBufferSize, RLM_WriteOnly);
-				FillRayTracingInstanceUploadBuffer(RayTracingGeometryInstances, GeometryIndices, RayTracingScene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
+				FVector4f* TransformUploadData = (FVector4f*)RHICmdList.LockBuffer(TransformUploadBuffer, 0, TransformUploadBufferSize, RLM_WriteOnly);
+				FillRayTracingInstanceUploadBuffer(
+					RayTracingScene,
+					RayTracingGeometryInstances,
+					SceneWithGeometryInstances.InstanceGeometryIndices,
+					SceneWithGeometryInstances.BaseUploadBufferOffsets,
+					SceneWithGeometryInstances.NumNativeCPUInstances,
+					MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
+					MakeArrayView(TransformUploadData, SceneWithGeometryInstances.NumNativeCPUInstances * 3));
+				RHICmdList.UnlockBuffer(TransformUploadBuffer);
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 			}
 
@@ -1059,10 +1081,12 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 			BuildRayTracingInstanceBuffer(
 				RHICmdList,
-				SceneInitializer.NumNativeInstances,
 				InstanceBuffer.UAV,
 				InstanceUploadSRV,
-				AccelerationStructureAddressesBuffer.SRV);
+				AccelerationStructureAddressesBuffer.SRV,
+				TransformUploadSRV,
+				SceneWithGeometryInstances.NumNativeCPUInstances,
+				{});
 
 			RHICmdList.BindAccelerationStructureMemory(RayTracingScene, RayTracingSceneBuffer, 0);
 
