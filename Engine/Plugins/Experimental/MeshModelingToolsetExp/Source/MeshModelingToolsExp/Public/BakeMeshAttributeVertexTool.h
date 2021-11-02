@@ -312,5 +312,54 @@ protected:
 
 	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
 	EBakeOpState UpdateResult_MultiTexture();
+
+	//
+	// Analytics
+	//
+	struct FBakeAnalytics
+	{
+		double TotalBakeDuration = 0.0;
+
+		struct FMeshSettings
+		{
+			int32 NumTargetMeshVerts = 0;
+			int32 NumTargetMeshTris = 0;
+			int32 NumDetailMesh = 0;
+			int64 NumDetailMeshTris = 0;
+		};
+		FMeshSettings MeshSettings;
+
+		FBakeSettings BakeSettings;
+		FBakeColorSettings BakeColorSettings;
+		FBakeChannelSettings BakeChannelSettings;
+		FOcclusionMapSettings OcclusionSettings;
+		FCurvatureMapSettings CurvatureSettings;
+	};
+	FBakeAnalytics BakeAnalytics;
+
+	/**
+	 * Computes the NumTargetMeshTris, NumDetailMesh and NumDetailMeshTris analytics.
+	 * @param Data the mesh analytics data to compute
+	 */
+	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data);
+
+	/**
+	 * Records bake timing and settings data for analytics.
+	 * @param Result the result of the bake.
+	 * @param Settings The bake settings used for the bake.
+	 * @param Data the output bake analytics struct.
+	 */
+	static void GatherAnalytics(const UE::Geometry::FMeshVertexBaker& Result,
+								const FBakeSettings& Settings,
+								const FBakeColorSettings& ColorSettings,
+								const FBakeChannelSettings& ChannelSettings,
+								FBakeAnalytics& Data);
+
+	/**
+	 * Outputs an analytics event using the given analytics struct.
+	 * @param Data the bake analytics struct to output.
+	 * @param EventName the name of the analytics event to output.
+	 */
+	static void RecordAnalytics(const FBakeAnalytics& Data, const FString& EventName);
 };
 

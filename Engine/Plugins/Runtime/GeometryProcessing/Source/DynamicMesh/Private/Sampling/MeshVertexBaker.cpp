@@ -3,6 +3,7 @@
 #include "Sampling/MeshVertexBaker.h"
 #include "Sampling/MeshBakerCommon.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -12,6 +13,9 @@ FMeshConstantMapEvaluator FMeshVertexBaker::OneEvaluator(1.0f);
 
 void FMeshVertexBaker::Bake()
 {
+	TotalBakeDuration = 0.0;
+	FScopedDurationTimer Timer(TotalBakeDuration);
+	
 	if (!ensure(TargetMesh && TargetMesh->HasAttributes() && TargetMesh->Attributes()->HasPrimaryColors()) ||
 		!ensure(DetailSampler))
 	{
