@@ -422,21 +422,53 @@
   RecursiveDir does not work in VS Mac (and maybe Linux?), so only use it in Windows. 
   See: https://developercommunity.visualstudio.com/content/problem/527478/recursivedir-causes-infinitely-nested-subdirectori.html -->
   <ItemGroup>
-    <Compile Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/**/*.cs">
-      <!-- Since RecursiveDir is bugged on VS Mac, we use the FullPath, and use Regex to pull out portions of the path to get Platform name -->
+    <!-- Use of '/**/' in Include path produce duplicate results and warnings when building this project with mono.
+         Instead of **, using * at multiple levels - hopefully sufficient to catch all files in practice -->
+
+    <!-- Since RecursiveDir is bugged on VS Mac, we use the FullPath, and use Regex to pull out portions of the path to get Platform name -->
+    <Compile Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/*.cs">
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
     </Compile>
-    <Compile Include="../../../Restricted/*/Platforms/*/Source/Programs/UnrealBuildTool/**/*.cs">
-      <!-- Restricted may or may not be in a Platforms dir, so just use the subdir directly, even tho it makes for a
-       messier directory structure for these few files -->
+    <Compile Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/*/*.cs">
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
     </Compile>
-    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/**/*.cs">
-      <!-- Restricted may or may not be in a Platforms dir, so just use the subdir directly, even tho it makes for a
-       messier directory structure for these few files -->
+    <Compile Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/*/*/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="../../../Platforms/*/Source/Programs/UnrealBuildTool/*/*/*/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+
+    <!-- Restricted may or may not be in a Platforms dir, so just use the subdir directly, even tho it makes for a messier directory structure for these few files -->
+    <Compile Include="../../../Restricted/*/Platforms/*/Source/Programs/UnrealBuildTool/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Platforms/*/Source/Programs/UnrealBuildTool/*/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Platforms/*/Source/Programs/UnrealBuildTool/*/*/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Platforms/*/Source/Programs/UnrealBuildTool/*/*/*/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
+    </Compile>
+
+
+    <!-- Restricted may or may not be in a Platforms dir, so just use the subdir directly, even tho it makes for a messier directory structure for these few files -->
+    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/*.cs">
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]UnrealBuildTool[\\/]', ''))</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/*/*.cs">
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]UnrealBuildTool[\\/]', ''))</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/*/*/*.cs">
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]UnrealBuildTool[\\/]', ''))</Link>
+    </Compile>
+    <Compile Include="../../../Restricted/*/Source/Programs/UnrealBuildTool/*/*/*/*.cs">
       <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]UnrealBuildTool[\\/]', ''))</Link>
     </Compile>
   </ItemGroup>
+  
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
