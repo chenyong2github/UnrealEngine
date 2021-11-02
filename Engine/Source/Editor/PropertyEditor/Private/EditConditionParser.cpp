@@ -25,9 +25,11 @@ namespace EditConditionParserTokens
 	const TCHAR* const FMultiply::Moniker = TEXT("*");
 	const TCHAR* const FDivide::Moniker = TEXT("/");
 	const TCHAR* const FBitwiseAnd::Moniker = TEXT("&");
+	const TCHAR* const FSubExpressionStart::Moniker = TEXT("(");
+	const TCHAR* const FSubExpressionEnd::Moniker = TEXT(")");
 }
 
-static const TCHAR PropertyBreakingChars[] = { '|', '=', '&', '>', '<', '!', '+', '-', '*', '/', ' ', '\t' };
+static const TCHAR PropertyBreakingChars[] = { '|', '=', '&', '>', '<', '!', '+', '-', '*', '/', ' ', '\t', '(', ')' };
 
 static TOptional<FExpressionError> ConsumeBool(FExpressionTokenConsumer& Consumer)
 {
@@ -634,6 +636,8 @@ FEditConditionParser::FEditConditionParser()
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FMultiply>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FDivide>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FBitwiseAnd>);
+	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FSubExpressionStart>);
+	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FSubExpressionEnd>);
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeNumber);
 	TokenDefinitions.DefineToken(&ConsumeNullPtr);
 	TokenDefinitions.DefineToken(&ConsumeBool);
@@ -653,6 +657,7 @@ FEditConditionParser::FEditConditionParser()
 	ExpressionGrammar.DefineBinaryOperator<FMultiply>(1);
 	ExpressionGrammar.DefineBinaryOperator<FDivide>(1);
 	ExpressionGrammar.DefinePreUnaryOperator<FNot>();
+	ExpressionGrammar.DefineGrouping<FSubExpressionStart, FSubExpressionEnd>();
 
 	// POINTER EQUALITY
 	OperatorJumpTable.MapBinary<FEqual>([](const FPropertyToken& A, const FPropertyToken& B, const IEditConditionContext* Context) -> FExpressionResult
@@ -687,7 +692,7 @@ FEditConditionParser::FEditConditionParser()
 	CreateEnumOperators(OperatorJumpTable);
 }
 
-TOptional<bool> FEditConditionParser::Evaluate(const FEditConditionExpression& Expression, const IEditConditionContext& Context) const
+TValueOrError<bool, FText> FEditConditionParser::Evaluate(const FEditConditionExpression& Expression, const IEditConditionContext& Context) const
 {
 	using namespace EditConditionParserTokens;
 	
@@ -697,7 +702,7 @@ TOptional<bool> FEditConditionParser::Evaluate(const FEditConditionExpression& E
 		const bool* BoolResult = Result.GetValue().Cast<bool>();
 		if (BoolResult != nullptr)
 		{
-			return *BoolResult;
+			return MakeValue(*BoolResult);
 		}
 
 		const FPropertyToken* PropertyResult = Result.GetValue().Cast<FPropertyToken>();
@@ -706,12 +711,12 @@ TOptional<bool> FEditConditionParser::Evaluate(const FEditConditionExpression& E
 			TOptional<bool> PropertyValue = Context.GetBoolValue(PropertyResult->PropertyName);
 			if (PropertyValue.IsSet())
 			{
-				return PropertyValue.GetValue();
+				return MakeValue(PropertyValue.GetValue());
 			}
 		}
 	}
 
-	return TOptional<bool>();
+	return MakeError(Result.GetError().Text);
 }
 
 TSharedPtr<FEditConditionExpression> FEditConditionParser::Parse(const FString& ExpressionString) const
