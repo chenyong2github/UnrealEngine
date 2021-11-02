@@ -5,6 +5,8 @@
 #include "Sampling/MeshMapBakerQueue.h"
 #include "Image/ImageOccupancyMap.h"
 #include "Image/ImageTile.h"
+#include "Algo/Count.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -13,8 +15,8 @@ using namespace UE::Geometry;
 // FMeshMapBaker
 //
 
-static const float BoxFilterRadius = 0.5f;
-static const float BCFilterRadius = 0.769f;
+static constexpr float BoxFilterRadius = 0.5f;
+static constexpr float BCFilterRadius = 0.769f;
 
 FBoxFilter FMeshMapBaker::BoxFilter(BoxFilterRadius);
 FBSplineFilter FMeshMapBaker::BSplineFilter(BCFilterRadius);
@@ -114,6 +116,9 @@ void FMeshMapBaker::InitBakeDefaults()
 void FMeshMapBaker::Bake()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMapBaker::Bake);
+
+	BakeAnalytics.Reset();
+	FScopedDurationTimer TotalBakeTimer(BakeAnalytics.TotalBakeDuration);
 	
 	if (Bakers.IsEmpty())
 	{
@@ -298,6 +303,8 @@ void FMeshMapBaker::Bake()
 		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
 		GutterTexelsPerTile[TileIdx] = OccupancyMap.GutterTexels;
 
+		BakeAnalytics.NumBakedPixels += Algo::CountIf(OccupancyMap.TexelInteriorSamples, [](const int32 Value){ return Value > 0; });
+
 		FMeshMapTileBuffer* TileBuffer = new FMeshMapTileBuffer(PaddedTile, BakeSampleBufferSize);
 
 		// Calculate interior texels
@@ -369,73 +376,80 @@ void FMeshMapBaker::Bake()
 		WriteQueuedOutput(OutputQueue);
 	}
 
-	// Normalize and convert ImageTileBuffer data to color data.
-	ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer](int32 TileIdx)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMapBaker::WriteToImageBuffer);
+		FScopedDurationTimer WriteToImageTimer(BakeAnalytics.WriteToImageDuration);
 		
-		const FImageTile Tile = Tiles.GetTile(TileIdx);
-		const int TileWidth = Tile.GetWidth();
-		const int TileHeight = Tile.GetHeight();
-		for (FVector2i TileCoords(0,0); TileCoords.Y < TileHeight; ++TileCoords.Y)
+		// Normalize and convert ImageTileBuffer data to color data.
+		ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer](int32 TileIdx)
 		{
-			for (TileCoords.X = 0; TileCoords.X < TileWidth; ++TileCoords.X)
+			TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMapBaker::WriteToImageBuffer);
+		
+			const FImageTile Tile = Tiles.GetTile(TileIdx);
+			const int TileWidth = Tile.GetWidth();
+			const int TileHeight = Tile.GetHeight();
+			for (FVector2i TileCoords(0,0); TileCoords.Y < TileHeight; ++TileCoords.Y)
 			{
-				if (CancelF())
+				for (TileCoords.X = 0; TileCoords.X < TileWidth; ++TileCoords.X)
 				{
-					return;
-				}
-
-				const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords);
-				const int64 ImageLinearIdx = Dimensions.GetIndex(ImageCoords);
-				const float& PixelWeight = ImageTileBuffer.GetPixelWeight(ImageLinearIdx);
-				float* PixelBuffer = ImageTileBuffer.GetPixel(ImageLinearIdx);
-
-				auto WriteToPixel = [this, &PixelBuffer, &ImageLinearIdx](TArray<int32>& BakeIds, float OneOverWeight)
-				{
-					for (const int32 Idx : BakeIds)
+					if (CancelF())
 					{
-						const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
-						const int32 NumData = Context.DataLayout.Num();
-						const int32 ResultOffset = BakeOffsets[Idx];
-						for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
-						{
-							const int32 ResultIdx = ResultOffset + DataIdx;
-							const int32 Offset = BakeSampleOffsets[ResultIdx];
-							float* BufferPtr = &PixelBuffer[Offset];
-							const FMeshMapEvaluator::EComponents Stride = Context.DataLayout[DataIdx];
-
-							// Apply weight to raw float data.
-							for (int32 FloatIdx = 0; FloatIdx < (int32)Stride; ++FloatIdx)
-							{
-								BufferPtr[FloatIdx] *= OneOverWeight;
-							}
-
-							// Convert float data to color.
-							FVector4f& Pixel = BakeResults[ResultIdx]->GetPixel(ImageLinearIdx);
-							Context.EvaluateColor(DataIdx, BufferPtr, Pixel, Context.EvalData);
-						}
+						return;
 					}
-				};
+
+					const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords);
+					const int64 ImageLinearIdx = Dimensions.GetIndex(ImageCoords);
+					const float& PixelWeight = ImageTileBuffer.GetPixelWeight(ImageLinearIdx);
+					float* PixelBuffer = ImageTileBuffer.GetPixel(ImageLinearIdx);
+
+					auto WriteToPixel = [this, &PixelBuffer, &ImageLinearIdx](TArray<int32>& BakeIds, float OneOverWeight)
+					{
+						for (const int32 Idx : BakeIds)
+						{
+							const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
+							const int32 NumData = Context.DataLayout.Num();
+							const int32 ResultOffset = BakeOffsets[Idx];
+							for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+							{
+								const int32 ResultIdx = ResultOffset + DataIdx;
+								const int32 Offset = BakeSampleOffsets[ResultIdx];
+								float* BufferPtr = &PixelBuffer[Offset];
+								const FMeshMapEvaluator::EComponents Stride = Context.DataLayout[DataIdx];
+
+								// Apply weight to raw float data.
+								for (int32 FloatIdx = 0; FloatIdx < (int32)Stride; ++FloatIdx)
+								{
+									BufferPtr[FloatIdx] *= OneOverWeight;
+								}
+
+								// Convert float data to color.
+								FVector4f& Pixel = BakeResults[ResultIdx]->GetPixel(ImageLinearIdx);
+								Context.EvaluateColor(DataIdx, BufferPtr, Pixel, Context.EvalData);
+							}
+						}
+					};
 				
-				if (PixelWeight > 0.0)
-				{
-					WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], 1.0f / PixelWeight);
+					if (PixelWeight > 0.0)
+					{
+						WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], 1.0f / PixelWeight);
+					}
+					WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], 1.0f);
 				}
-				WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], 1.0f);
 			}
-		}
-	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+		}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+	}
 
 	// Gutter Texel processing
 	if( bGutterEnabled )
 	{
+		FScopedDurationTimer WriteToGutterTimer(BakeAnalytics.WriteToGutterDuration);
+		
 		const int32 NumResults = BakeResults.Num();
 		ParallelFor(NumTiles, [this, &NumResults, &GutterTexelsPerTile](int32 TileIdx)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMapBaker::WriteGutterPixels);
-			
-			for (int64 GutterIdx = 0; GutterIdx < GutterTexelsPerTile[TileIdx].Num(); ++GutterIdx)
+
+			const int NumGutter = GutterTexelsPerTile[TileIdx].Num();
+			for (int64 GutterIdx = 0; GutterIdx < NumGutter; ++GutterIdx)
 			{
 				int64 GutterPixelTo;
 				int64 GutterPixelFrom;
@@ -445,6 +459,8 @@ void FMeshMapBaker::Bake()
 					BakeResults[Idx]->CopyPixel(GutterPixelFrom, GutterPixelTo);
 				}
 			}
+
+			BakeAnalytics.NumGutterPixels += NumGutter;
 		}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 	}
 }
@@ -544,7 +560,7 @@ int32 FMeshMapBaker::AddEvaluator(const TSharedPtr<FMeshMapEvaluator, ESPMode::T
 	return Bakers.Add(Eval);
 }
 
-FMeshMapEvaluator* FMeshMapBaker::GetEvaluator(const int32 EvalIdx)
+FMeshMapEvaluator* FMeshMapBaker::GetEvaluator(const int32 EvalIdx) const
 {
 	return Bakers[EvalIdx].Get();
 }

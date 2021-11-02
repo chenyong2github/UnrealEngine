@@ -148,6 +148,8 @@ protected:
 	// Begin UBakeMeshAttributeMapsToolBase interface
 	virtual void UpdateResult() override;
 	virtual void UpdateVisualization() override;
+
+	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data) override;
 	// End UBakeMeshAttributeMapsToolBase interface
 
 protected:
@@ -162,7 +164,6 @@ protected:
 	void UpdateDetailMesh();
 	bool bDetailMeshValid = false;
 
-	bool bInputsDirty = false;
 	void UpdateOnModeChange();
 
 	void InvalidateResults();

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "Sampling/MeshBaseBaker.h"
 #include "Sampling/MeshMapEvaluator.h"
 #include "Sampling/MeshSurfaceSampler.h"
@@ -34,7 +36,7 @@ public:
 	int32 AddEvaluator(const TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe>& Eval);
 
 	/** @return the evaluator at the given index. */
-	FMeshMapEvaluator* GetEvaluator(int32 EvalIdx);
+	FMeshMapEvaluator* GetEvaluator(int32 EvalIdx) const;
 
 	/** @return the number of bake evaluators on this baker. */
 	int32 NumEvaluators() const;
@@ -74,6 +76,28 @@ public:
 	int32 GetMultisampling() const { return Multisampling; }
 	EBakeFilterType GetFilter() const { return FilterType; }
 	int32 GetTileSize() const { return TileSize; }
+
+	//
+	// Analytics
+	//
+	struct FBakeAnalytics
+	{
+		double TotalBakeDuration = 0.0;
+		double WriteToImageDuration = 0.0;
+		double WriteToGutterDuration = 0.0;
+		std::atomic<int64> NumBakedPixels = 0;
+		std::atomic<int64> NumGutterPixels = 0;
+
+		void Reset()
+		{
+			TotalBakeDuration = 0.0;
+			WriteToImageDuration = 0.0;
+			WriteToGutterDuration = 0.0;
+			NumBakedPixels = 0;
+			NumGutterPixels = 0;
+		}
+	};
+	FBakeAnalytics BakeAnalytics;
 
 protected:
 	/** Evaluate this sample. */

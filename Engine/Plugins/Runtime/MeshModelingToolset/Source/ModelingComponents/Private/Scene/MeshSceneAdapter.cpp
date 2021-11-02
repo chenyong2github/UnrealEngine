@@ -282,7 +282,7 @@ public:
 		return true;
 	}
 
-	virtual int32 GetTriangleCount() override
+	virtual int32 GetTriangleCount() const override
 	{
 		return Mesh.TriangleCount();
 	}
@@ -670,7 +670,7 @@ public:
 		return false;
 	}
 
-	virtual int32 GetTriangleCount() override
+	virtual int32 GetTriangleCount() const override
 	{
 		if (!SourceMesh) return 0;
 		return Adapter->TriangleCount();

@@ -174,8 +174,12 @@ protected:
 	float SecondsBeforeWorkingMaterial = 0.75;
 
 protected:
-	/** To be invoked at end of client Setup methods. */
-	void SetupBaseToolProperties();
+	/**
+	 * Post-client setup function. Should be invoked at end of client Setup().
+	 * Initialize common base tool properties (ex. visualization properties) and
+	 * analytics.
+	 */
+	void PostSetup();
 	
 	/**
 	 * Process dirty props and update background compute.
@@ -189,6 +193,19 @@ protected:
 	 */
 	virtual void UpdateVisualization();
 
+	/**
+	 * Invalidates the background compute operator.
+	 */
+	void InvalidateCompute();
+
+	/**
+	 * Create texture assets from our result map of Texture2D
+	 * @param Textures the result map of textures to create
+	 * @param SourceWorld the source world to define where the texture assets will be stored.
+	 * @param SourceAsset if not null, result textures will be stored adjacent to this asset.
+	 */
+	void CreateTextureAssets(const TMap<EBakeMapType, TObjectPtr<UTexture2D>>& Textures, UWorld* SourceWorld, UObject* SourceAsset);
+
 
 protected:
 	//
@@ -200,11 +217,13 @@ protected:
 	UE::Geometry::FDynamicMesh3 BaseMesh;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
-	
+
+	bool bInputsDirty = false;
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 	struct FBakeCacheSettings
 	{
+		EBakeMapType SourceBakeMapTypes = EBakeMapType::None;
 		EBakeMapType BakeMapTypes = EBakeMapType::None;
 		FImageDimensions Dimensions;
 		EBakeTextureFormat SourceFormat = EBakeTextureFormat::ChannelBits8;
@@ -212,13 +231,15 @@ protected:
 		int32 DetailTimestamp = 0;
 		float Thickness = 3.0;
 		int32 Multisampling = 1;
+		bool bUseWorldSpace = false;
 
 		bool operator==(const FBakeCacheSettings& Other) const
 		{
 			return BakeMapTypes == Other.BakeMapTypes && Dimensions == Other.Dimensions &&
 				UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp &&
 				Thickness == Other.Thickness && Multisampling == Other.Multisampling &&
-				SourceFormat == Other.SourceFormat;
+				SourceFormat == Other.SourceFormat && SourceBakeMapTypes == Other.SourceBakeMapTypes &&
+				bUseWorldSpace == Other.bUseWorldSpace;
 		}
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;
@@ -245,7 +266,7 @@ protected:
 	 * 
 	 * @param NewResult the resulting FMeshMapBaker from the background Compute
 	 */
-	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult, EBakeTextureFormat Format);
+	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
 
 
 	/**
@@ -277,6 +298,63 @@ protected:
 	template <typename PropertySet>
 	static void UpdateUVLayerNames(PropertySet& Properties, const FDynamicMesh3& Mesh);
 
+
+	//
+	// Analytics
+	//
+	struct FBakeAnalytics
+	{
+		double TotalBakeDuration = 0.0;
+		double WriteToImageDuration = 0.0;
+		double WriteToGutterDuration = 0.0;
+		int64 NumBakedPixels = 0;
+		int64 NumGutterPixels = 0;
+
+		struct FMeshSettings
+		{
+			int32 NumTargetMeshTris = 0;
+			int32 NumDetailMesh = 0;
+			int64 NumDetailMeshTris = 0;
+		};
+		FMeshSettings MeshSettings;
+
+		FBakeCacheSettings BakeSettings;
+		FOcclusionMapSettings OcclusionSettings;
+		FCurvatureMapSettings CurvatureSettings;
+	};
+	FBakeAnalytics BakeAnalytics;
+
+	/**
+	 * Computes the NumTargetMeshTris, NumDetailMesh and NumDetailMeshTris analytics.
+	 * @param Data the mesh analytics data to compute
+	 */
+	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data);
+
+	/**
+	 * Records bake timing and settings data for analytics.
+	 * @param Result the result of the bake.
+	 * @param Settings The bake settings used for the bake.
+	 * @param Data the output bake analytics struct.
+	 */
+	static void GatherAnalytics(const UE::Geometry::FMeshMapBaker& Result,
+								const FBakeCacheSettings& Settings,
+								FBakeAnalytics& Data);
+
+	/**
+	 * Posts an analytics event using the given analytics struct.
+	 * @param Data the bake analytics struct to output.
+	 * @param EventName the name of the analytics event to output.
+	 */
+	static void RecordAnalytics(const FBakeAnalytics& Data, const FString& EventName);
+
+	
+	/**
+	 * @return the analytics event name for this tool.
+	 */
+	virtual FString GetAnalyticsEventName() const
+	{
+		return TEXT("BakeTexture");
+	}
 	
 	//
 	// Utilities

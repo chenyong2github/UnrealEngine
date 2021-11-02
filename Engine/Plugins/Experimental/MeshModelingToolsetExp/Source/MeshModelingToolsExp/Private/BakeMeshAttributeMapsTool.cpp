@@ -19,6 +19,8 @@
 #include "AssetUtils/Texture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
+#include "EngineAnalytics.h"
+
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -354,15 +356,14 @@ void UBakeMeshAttributeMapsTool::Setup()
 
 	UpdateOnModeChange();
 
-	bInputsDirty = true;
-	bDetailMeshValid = false;
+	UpdateDetailMesh();
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Bake Textures"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Bake Maps. Select Bake Mesh (LowPoly) first, then (optionally) Detail Mesh second. Texture Assets will be created on Accept. "),
 		EToolMessageLevel::UserNotification);
 
-	SetupBaseToolProperties();
+	PostSetup();
 }
 
 
@@ -471,16 +472,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 			SourceAsset = SkeletalMeshTarget ? SkeletalMeshTarget->GetSkeletalMesh() : nullptr;
 		}
 		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
-		const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
-
-		bool bCreatedAssetOK = true;
-		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
-		{
-			FString TexName;
-			GetTextureName(Result.Get<0>(), BaseName, TexName);
-			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, SourceComponent->GetWorld(), SourceAsset, TexName, Result.Get<1>() }).IsOK();
-		}
-		ensure(bCreatedAssetOK);
+		CreateTextureAssets(Settings->Result, SourceComponent->GetWorld(), SourceAsset);
 	}
 }
 
@@ -500,7 +492,7 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 		const FTransform3d WorldToBase = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
 	}
-	
+
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
 
@@ -544,18 +536,18 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 		}
 	});
 
+	bDetailMeshValid = true;
 	bInputsDirty = true;
+	CachedBakeCacheSettings = FBakeCacheSettings();
 	DetailMeshTimestamp++;
 }
 
 
 void UBakeMeshAttributeMapsTool::UpdateResult()
 {
-	if (bDetailMeshValid == false)
+	if (!bDetailMeshValid)
 	{
 		UpdateDetailMesh();
-		bDetailMeshValid = true;
-		CachedBakeCacheSettings = FBakeCacheSettings();
 	}
 
 	// bInputsDirty ensures that we only validate parameters once per param
@@ -578,8 +570,11 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	BakeCacheSettings.DetailTimestamp = this->DetailMeshTimestamp;
 	BakeCacheSettings.Thickness = Settings->Thickness;
 	BakeCacheSettings.Multisampling = (int32)Settings->Multisampling;
+	BakeCacheSettings.bUseWorldSpace = Settings->bUseWorldSpace;
 
-	// process the raw bitfield before caching which may add additional targets.
+	// Record the original map types and process the raw bitfield which may add
+	// additional targets.
+	BakeCacheSettings.SourceBakeMapTypes = static_cast<EBakeMapType>(Settings->MapTypes);
 	BakeCacheSettings.BakeMapTypes = GetMapTypes(Settings->MapTypes);
 
 	// update bake cache settings
@@ -639,19 +634,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 
 	// This should be the only point of compute invalidation to
 	// minimize synchronization issues.
-	bool bInvalidate = bInputsDirty || (bool)(OpState & EBakeOpState::Evaluate);
-	if (!Compute)
-	{
-		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
-		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult, CachedBakeCacheSettings.SourceFormat); });
-		Compute->InvalidateResult();
-	}
-	else if (bInvalidate)
-	{
-		Compute->InvalidateResult();
-	}
-	bInputsDirty = false;
+	InvalidateCompute();
 }
 
 
@@ -991,6 +974,18 @@ void UBakeMeshAttributeMapsTool::InvalidateResults()
 		Result.Get<1>() = nullptr;
 	}
 }
+
+
+void UBakeMeshAttributeMapsTool::GatherAnalytics(FBakeAnalytics::FMeshSettings& Data)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		Data.NumTargetMeshTris = BaseMesh.TriangleCount();
+		Data.NumDetailMesh = 1;
+		Data.NumDetailMeshTris = DetailMesh->TriangleCount();
+	}
+}
+
 
 
 

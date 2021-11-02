@@ -102,6 +102,9 @@ public:
 	/** Iterate over each mesh in the detail set. */
 	virtual void ProcessMeshes(TFunctionRef<void(const void*)> ProcessFn) const = 0;
 
+	/** @return the triangle count of a given mesh. */
+	virtual int32 GetTriangleCount(const void* Mesh) const = 0;
+
 	/** Associate a color map and UV layer index for a given mesh in the detail set */
 	virtual void SetColorMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
@@ -326,6 +329,12 @@ public:
 	virtual void ProcessMeshes(TFunctionRef<void(const void*)> ProcessFn) const override
 	{
 		ProcessFn(DetailMesh);
+	}
+
+	virtual int32 GetTriangleCount(const void* Mesh) const override
+	{
+		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
+		return DynamicMesh->TriangleCount();
 	}
 
 	virtual void SetColorMap(const void* Mesh, const FBakeDetailTexture& Map) override
