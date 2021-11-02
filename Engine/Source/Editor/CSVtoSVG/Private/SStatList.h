@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/SCompoundWidget.h"
+
+class ITableRow;
+class STableViewBase;
 
 class SStatList : public SCompoundWidget
 {

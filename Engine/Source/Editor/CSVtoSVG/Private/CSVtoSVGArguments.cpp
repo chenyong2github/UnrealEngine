@@ -2,6 +2,7 @@
 
 #include "CSVtoSVGArguments.h"
 #include "CSVtoSVGModule.h"
+#include "Misc/Paths.h"
 
 UCSVtoSVGArugments::UCSVtoSVGArugments(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

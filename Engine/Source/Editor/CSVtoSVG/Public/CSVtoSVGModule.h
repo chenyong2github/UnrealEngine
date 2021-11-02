@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
 #include "Modules/ModuleInterface.h"
 
 class SDockTab;
 class UCSVtoSVGArugments;
+class FSpawnTabArgs;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCSVtoSVG, Log, All);
 
