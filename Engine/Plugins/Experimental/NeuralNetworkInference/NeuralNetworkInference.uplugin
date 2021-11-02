@@ -36,11 +36,18 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "NeuralNetworkInferenceProfiling",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "ONNXRuntime",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
-				"Win64", "Linux", "Mac"
+				"Win64",
+				"Linux",
+				"Mac"
 			]
 		},
 		{

@@ -6,6 +6,13 @@
 #include "Misc/Paths.h"
 
 
+struct FNNIUnitTesterTimeData 
+{
+	FNNIStatsData ComputeTimeData;
+	FNNIStatsData InputCopyTimeData;
+	FNNIStatsData OutputCopyTimeData;
+};
+
 
 /* FModelUnitTester static public functions
  *****************************************************************************/
@@ -348,34 +355,54 @@ else
 	return bDidGlobalTestPassed;
 }
 
-#define MODEL_UNIT_TESTER_SPEED_TEST(OutCopyTimeInMilliSeconds, OutNetworkTimeInMilliSeconds, InRepetitions, bInIsGPU) \
-	/* Input/output copy speed */ \
-	Timer.Tic(); \
-	for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) \
-	{ \
-		InOutNetwork->SetInputFromArrayCopy(InputArray); \
-		CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); \
-	} \
-	const float OutCopyTimeInMilliSeconds = Timer.Toc() / InRepetitions; \
-	/* Forward() speed */ \
-	if (InRepetitions > 1) \
-	{ \
-		for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) \
-		{ \
-			InOutNetwork->Run(); \
-		} \
-	} \
-	Timer.Tic(); \
-	if (InRepetitions > 0) \
-	{ \
-		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) \
-		{ \
-			InOutNetwork->SetInputFromArrayCopy(InputArray); \
-			InOutNetwork->Run(); \
-			CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); \
-		} \
-	} \
-	const float OutNetworkTimeInMilliSeconds = Timer.Toc() / InRepetitions - OutCopyTimeInMilliSeconds
+FNNIUnitTesterTimeData GetTimeInformation(
+		const int32 InRepetitions,
+		FNeuralNetworkInferenceTimer& Timer,
+		UNeuralNetwork* InOutNetwork,
+		TArray<float>* InputArray,
+		TArray<float>* CPUGPUCPUOutput) 
+	{
+
+		FNeuralStats OutCopyingStats;
+
+		/* Input/output copy speed */ 
+		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
+		{ 
+			InOutNetwork->SetInputFromArrayCopy(*InputArray); 
+			Timer.Tic();
+			*CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>();
+			const float CurrentCopyingTime = Timer.Toc();
+			OutCopyingStats.StoreSample(CurrentCopyingTime);
+
+		} 
+
+		/* Forward() speed */ 
+		if (InRepetitions > 1) 
+		{ 
+			for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) 
+			{ 
+				InOutNetwork->Run(); 
+			} 
+		} 
+
+		FNeuralStats CurrentComputingStats;
+		if (InRepetitions > 0) 
+		{ 
+			for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
+			{ 
+				InOutNetwork->SetInputFromArrayCopy(*InputArray); 
+				InOutNetwork->Run();
+				*CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); 
+			} 
+		} 
+		FNNIUnitTesterTimeData NetworkTimeData;
+		NetworkTimeData.ComputeTimeData = InOutNetwork->GetInferenceStats();
+		NetworkTimeData.InputCopyTimeData = InOutNetwork->GetInputMemoryTransferStats();
+		NetworkTimeData.OutputCopyTimeData = OutCopyingStats.GetStats();
+
+		return NetworkTimeData;
+	}
+
 
 bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeuralDeviceType InDeviceType, const ENeuralBackEnd InBackEnd, const int32 InRepetitions)
 {
@@ -410,14 +437,20 @@ bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeural
 	FNeuralNetworkInferenceTimer Timer;
 	// Run profiling 1 time
 	InOutNetwork->SetDeviceType(InDeviceType);
-	MODEL_UNIT_TESTER_SPEED_TEST(CopyTimer1, NetworkTimer1, 1, /*bIsGPU*/false);
+	InOutNetwork->ResetStats();
+	FNNIUnitTesterTimeData TimeData1 = GetTimeInformation(1, Timer, InOutNetwork, &InputArray, &CPUGPUCPUOutput);
+
 	// Run profiling n times
 	InOutNetwork->SetDeviceType(InDeviceType);
-	MODEL_UNIT_TESTER_SPEED_TEST(CopyTimer, NetworkTimer, InRepetitions, /*bIsGPU*/false);
+	InOutNetwork->ResetStats();
+	FNNIUnitTesterTimeData TimeDataN = GetTimeInformation(InRepetitions, Timer, InOutNetwork, &InputArray, &CPUGPUCPUOutput);
+
 	// Display speed times
 	UE_LOG(LogNeuralNetworkInferenceQA, Display,
-		TEXT("%s-%s:\t1 time = %f+%f msec, avg(%d times) = %f+%f msec."),
-		*BackEndString, *DeviceTypeString, CopyTimer1, NetworkTimer1, InRepetitions, CopyTimer, NetworkTimer);
+		TEXT("%s-%s:, Times(msec)-> Inference = %f, Copy In = %f, Copy Out %f, avg(%d times) = Inference = %f, Copy In = %f, Copy Out %f."),
+		*BackEndString, *DeviceTypeString, TimeData1.ComputeTimeData.Average, TimeData1.InputCopyTimeData.Average, TimeData1.OutputCopyTimeData.Average,
+		InRepetitions, TimeDataN.ComputeTimeData.Average, TimeDataN.InputCopyTimeData.Average, TimeDataN.OutputCopyTimeData.Average);
+
 	// Reset to original network state
 	InOutNetwork->SetDeviceType(OriginalDeviceType);
 	InOutNetwork->SetBackEnd(OriginalBackEnd);

@@ -5,6 +5,7 @@
 #include "NeuralNetworkImplBackEndUEOnly.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "EditorFramework/AssetImportData.h"
+#include "NeuralNetworkInferenceTimer.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -193,6 +194,13 @@ void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 	}
 }
 
+void UNeuralNetwork::ResetStats()
+{
+	ComputeStatsModule.ResetStats();
+	InputMemoryTransferStatsModule.ResetStats();
+}
+
+
 bool UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd()
 {
 	return FImplBackEndUEAndORT::IsGPUConfigCompatible();
@@ -247,7 +255,9 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Call UNeuralNetwork::Load() to load a model first."));
 	}
-
+	
+	FNeuralNetworkInferenceTimer RunTimer;
+	RunTimer.Tic();
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
@@ -266,6 +276,9 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
+
+	InputMemoryTransferStatsModule.StoreSample(RunTimer.Toc());
+
 }
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
@@ -370,11 +383,14 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<FNeuralTensor>& InInputT
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): GetInputTensorNumber() == InInputTensorArray.Num() failed, %d != %d."), GetInputTensorNumber(), InInputTensorArray.Num());
 		return;
 	}
+	FNeuralNetworkInferenceTimer RunTimer;
+	RunTimer.Tic();
 	for (uint32 InputTensorIndex = 0; InputTensorIndex < GetInputTensorNumber(); ++InputTensorIndex)
 	{
 		FNeuralTensor& InputTensor = GetInputTensorMutable(InputTensorIndex);
 		InputTensor.SetFromUnderlyingUInt8ArrayCopy(InInputTensorArray[InputTensorIndex].GetUnderlyingUInt8ArrayRef());
 	}
+	InputMemoryTransferStatsModule.StoreSample(RunTimer.Toc());
 }
 
 TArray<FNeuralTensor> UNeuralNetwork::CreateOutputArrayCopy() const
@@ -482,7 +498,8 @@ void UNeuralNetwork::Run()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Call UNeuralNetwork::Load() to load a model first."));
 		return;
 	}
-
+	FNeuralNetworkInferenceTimer RunTimer;
+	RunTimer.Tic();
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
@@ -500,8 +517,9 @@ void UNeuralNetwork::Run()
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-}
 
+	ComputeStatsModule.StoreSample(RunTimer.Toc());
+}
 
 
 /* UNeuralNetwork private functions
@@ -530,6 +548,9 @@ bool UNeuralNetwork::Load()
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
+
+	// Reset Stats
+	ResetStats();
 
 	return bIsLoaded;
 }
@@ -635,3 +656,15 @@ void UNeuralNetwork::Serialize(FArchive& Archive)
 #endif // WITH_EDITORONLY_DATA
 	Super::Serialize(Archive);
 }
+
+float UNeuralNetwork::GetLastInferenceTime() {
+	return ComputeStatsModule.GetLastSample();
+};
+
+FNNIStatsData UNeuralNetwork::GetInferenceStats() {
+	return ComputeStatsModule.GetStats();
+};
+
+FNNIStatsData UNeuralNetwork::GetInputMemoryTransferStats() {
+	return InputMemoryTransferStatsModule.GetStats();
+};

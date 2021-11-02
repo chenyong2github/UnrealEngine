@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
-public class NeuralNetworkInferenceQA : ModuleRules
+public class NeuralNetworkInferenceProfiling : ModuleRules
 {
-	public NeuralNetworkInferenceQA( ReadOnlyTargetRules Target ) : base( Target )
+	public NeuralNetworkInferenceProfiling(ReadOnlyTargetRules Target) : base(Target)
 	{
-        ShortName = "NNIQA"; // Could be removed when plugin moves to Experimental, NFL path is too long
+
+		ShortName = "NNIProfiling"; 
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
@@ -19,20 +21,18 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			(
 			new string[] {
 				"Core",
-				"CoreUObject",
 				"Engine",
-				"NeuralNetworkInference"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-				"ModelProto",
-				"ModelProtoFileReader",
-				"NeuralNetworkInferenceCore",
-				"NeuralNetworkInferenceProfiling"
+				"ThirdPartyHelperAndDLLLoader",
+				"Boost"
 			}
 		);
+
+		PublicDefinitions.Add("WITH_NNI_STATS");
 	}
 }
