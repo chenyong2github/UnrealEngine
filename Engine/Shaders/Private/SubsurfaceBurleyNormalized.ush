@@ -1179,7 +1179,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 #endif
 
 	// The opacity works by reducing the radius based on opacity, but this runs into precision issues with low opacity values.
-	// So as the opacity goes from 0.02 to 0.01, we transition to fully disabling SSS by the time we get to 0.01.
+	// So as the opacity goes to SSSS_OPACITY_THRESHOLD_EPS, we transition to fully disabling SSS by the time we get there.
 	float LowOpacityEps = SSSS_OPACITY_THRESHOLD_EPS;
 
 	float OriginalLerp = saturate((BurleyParameter.SurfaceOpacity - LowOpacityEps) / LowOpacityEps);
