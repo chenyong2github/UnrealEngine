@@ -2007,7 +2007,7 @@ public:
 	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch);
 
 	virtual bool IsLumenEnabled(const FViewInfo& View) const { return false; }
-	virtual bool AnyViewHasSupportingGIMethod() const { return false; }
+	virtual bool AnyViewHasGIMethodSupportingDFAO() const { return false; }
 
 	/** Gets a readable light name for use with a draw event. */
 	static void GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy, FString& LightNameWithLevel);
