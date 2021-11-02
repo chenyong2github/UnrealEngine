@@ -10,6 +10,7 @@ public class DatasmithSDKTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		SolutionDirectory = "Programs/Datasmith";
+		bBuildInSolutionByDefault = false;
 
 		LaunchModuleName = "DatasmithSDK";
 		ExeBinariesSubFolder = "DatasmithSDK";
