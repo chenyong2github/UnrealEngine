@@ -125,9 +125,7 @@ void FExportContext::Update()
 	// Update transforms/names for Datasmith Actors and MeshActors, create these actors if needed
 	RootNode->Update(*this);
 
-	Materials.UpdateTextureUsage(); // Update usage of textures by materials before updating textures(to only update used textures)
-	Textures.Update();
-	Materials.Update(); // Update materials after textures are updated - some materials might end up using shared texture(in case it has same contents, which is determined in Textures Update)
+	Materials.Update();
 
 	// Wait for mesh export to complete
 	for(TFuture<bool>& Task: MeshExportTasks)
@@ -471,8 +469,6 @@ void FComponentInstanceCollection::LayerModified(DatasmithSketchUp::FEntityIDTyp
 
 void FMaterialCollection::PopulateFromModel(SUModelRef InModelRef)
 {
-	DefaultMaterial = FMaterial::CreateDefaultMaterial(Context);
-
 	// Get the number of material definitions in the SketchUp model.
 	size_t SMaterialDefinitionCount = 0;
 	SUModelGetNumMaterials(InModelRef, &SMaterialDefinitionCount); // we can ignore the returned SU_RESULT
@@ -498,7 +494,7 @@ FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType Mater
 {
 	if (NodeOccurrence->MaterialOverride)
 	{
-		NodeOccurrence->MaterialOverride->UnregisterInstance(NodeOccurrence);
+		NodeOccurrence->MaterialOverride->UnregisterInstance(Context, NodeOccurrence);
 	}
 
 	if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
@@ -506,19 +502,27 @@ FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType Mater
 		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
 		return &Material->RegisterInstance(NodeOccurrence);
 	}
-	return DefaultMaterial.Get();
+
+	return nullptr; // Don't use a material if material id is unknown(of default)
 }
 
 FMaterialOccurrence* FMaterialCollection::RegisterGeometry(FMaterialIDType MaterialID, DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry)
 {
 	if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
 	{
-		EntitiesGeometry->MaterialsUsed.Add(MaterialID);
-
 		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
+
+		EntitiesGeometry->MaterialsUsed.Add(Material.Get());
 		return &Material->RegisterGeometry(EntitiesGeometry);
 	}
-	return DefaultMaterial.Get();
+
+	// Use default material on static mesh in case material id not found in added materials(most likely id is 0 for Default itself)
+	if (!EntitiesGeometry->bDefaultMaterialUsed)
+	{
+		DefaultMaterial.RegisterGeometry(EntitiesGeometry);
+		EntitiesGeometry->bDefaultMaterialUsed = true;
+	}
+	return &DefaultMaterial; 
 }
 
 void FMaterialCollection::UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry)
@@ -526,18 +530,20 @@ void FMaterialCollection::UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometr
 	if (!EntitiesGeometry)
 	{
 		return;
-
 	}
 
-	TSet<FMaterialIDType>& MaterialsUsed = EntitiesGeometry->MaterialsUsed;
+	TSet<FMaterial*> MaterialsUsed = EntitiesGeometry->MaterialsUsed;
 
-	for (FMaterialIDType MaterialID : MaterialsUsed)
+	for (FMaterial* Ptr : MaterialsUsed)
 	{
-		if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
-		{
-			const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
-			Material->UnregisterGeometry(EntitiesGeometry);
-		}
+		DatasmithSketchUp::FMaterial& Material = *Ptr;
+		Material.UnregisterGeometry(Context, EntitiesGeometry);
+	}
+
+	if (EntitiesGeometry->bDefaultMaterialUsed)
+	{
+		DefaultMaterial.UnregisterGeometry(Context, EntitiesGeometry);
+		EntitiesGeometry->bDefaultMaterialUsed = false;
 	}
 
 	EntitiesGeometry->MaterialsUsed.Reset();
@@ -589,7 +595,7 @@ bool FMaterialCollection::InvalidateMaterial(FMaterialIDType MateriadId)
 	{
 		FMaterial& Material = **Ptr;
 
-		Material.Invalidate(Context);
+		Material.Invalidate();
 		return true;
 	}
 	return false;
@@ -608,10 +614,7 @@ bool FMaterialCollection::RemoveMaterial(FEntityIDType EntityId)
 
 bool FMaterialCollection::InvalidateDefaultMaterial()
 {
-	Context.DatasmithScene->RemoveMaterial(DefaultMaterial->DatasmithElement);
-
-	DefaultMaterial->DatasmithElement = FMaterial::CreateDefaultMaterialElement(Context);
-
-	return false;
+	DefaultMaterial.Invalidate(Context);
+	return true;
 }
 

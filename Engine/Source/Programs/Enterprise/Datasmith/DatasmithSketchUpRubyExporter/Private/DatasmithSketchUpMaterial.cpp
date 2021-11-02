@@ -228,7 +228,6 @@ namespace DatasmithSketchUp
 		// Return the Datasmith material element.
 		return DatasmithMaterialElementPtr;
 	}
-
 }
 
 FMaterial::FMaterial(SUMaterialRef InMaterialRef)
@@ -242,16 +241,9 @@ TSharedPtr<FMaterial> FMaterial::Create(FExportContext& Context, SUMaterialRef I
 	return Material;
 }
 
-void FMaterial::Invalidate(FExportContext& Context)
+void FMaterial::Invalidate()
 {
 	bInvalidated = true;
-}
-
-TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext& Context)
-{
-	TSharedPtr<FMaterialOccurrence> Result = MakeShared<FMaterialOccurrence>();
-	Result->DatasmithElement = CreateDefaultMaterialElement(Context);
-	return Result;
 }
 
 FLinearColor FMaterial::ConvertColor(const SUColor& C, bool bAlphaUsed)
@@ -299,14 +291,8 @@ TSharedRef<IDatasmithBaseMaterialElement> FMaterial::CreateDefaultMaterialElemen
 void FMaterial::Remove(FExportContext& Context)
 {
 
-	if (MaterialDirectlyAppliedToMeshes)
-	{
-		MaterialDirectlyAppliedToMeshes->RemoveDatasmithElement(Context);
-	}
-	if (MaterialInheritedByNodes)
-	{
-		MaterialInheritedByNodes->RemoveDatasmithElement(Context);
-	}
+	MaterialDirectlyAppliedToMeshes.RemoveDatasmithElement(Context);
+	MaterialInheritedByNodes.RemoveDatasmithElement(Context);
 
 	Context.Textures.UnregisterMaterial(this);
 }
@@ -346,35 +332,89 @@ void FMaterial::Update(FExportContext& Context)
 	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
 	EntityId = ExtractedMaterial.SketchupSourceID.EntityID;
 
-	if (MaterialDirectlyAppliedToMeshes)
+	MaterialDirectlyAppliedToMeshes.RemoveDatasmithElement(Context);
+	if (MaterialDirectlyAppliedToMeshes.HasUsers())
 	{
-		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, Texture, false);
-
-		MaterialDirectlyAppliedToMeshes->RemoveDatasmithElement(Context);
-		MaterialDirectlyAppliedToMeshes->DatasmithElement = Element;
+		MaterialDirectlyAppliedToMeshes.DatasmithElement = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, Texture, false);
 	}
 
-	if (MaterialInheritedByNodes)
+	MaterialInheritedByNodes.RemoveDatasmithElement(Context);
+	if (MaterialInheritedByNodes.HasUsers())
 	{
-		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, Texture, true);
-		MaterialInheritedByNodes->RemoveDatasmithElement(Context);
-		MaterialInheritedByNodes->DatasmithElement = Element;
+		MaterialInheritedByNodes.DatasmithElement = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, Texture, true);
 	}
 
-	for(FEntitiesGeometry* Geometry: MeshesMaterialDirectlyAppliedTo)
+	FMaterialIDType MaterialId = DatasmithSketchUpUtils::GetMaterialID(MaterialRef);
+	MaterialDirectlyAppliedToMeshes.Apply(MaterialId);
+	MaterialInheritedByNodes.Apply(MaterialId);
+
+	bInvalidated = false;
+}
+
+FMaterialOccurrence& FMaterial::RegisterGeometry(FEntitiesGeometry* Geom)
+{
+	MaterialDirectlyAppliedToMeshes.RegisterGeometry(Geom);
+
+	if (MaterialDirectlyAppliedToMeshes.IsInvalidated())
+	{
+		Invalidate(); // Invalidate material if occurrence is not built
+	}
+
+	return MaterialDirectlyAppliedToMeshes;
+}
+
+void FMaterial::UnregisterGeometry(FExportContext& Context, FEntitiesGeometry* Geom)
+{
+	MaterialDirectlyAppliedToMeshes.UnregisterGeometry(Context, Geom);
+}
+
+FMaterialOccurrence& FMaterial::RegisterInstance(FNodeOccurence* NodeOccurrence)
+{
+	MaterialInheritedByNodes.RegisterInstance(NodeOccurrence);
+
+	if (MaterialInheritedByNodes.IsInvalidated())
+	{
+		Invalidate(); // Invalidate material if occurrence is not built
+	}
+
+	NodeOccurrence->MaterialOverride = this;
+	return MaterialInheritedByNodes;
+}
+
+void FMaterial::UnregisterInstance(FExportContext& Context, FNodeOccurence* NodeOccurrence)
+{
+	MaterialInheritedByNodes.UnregisterInstance(Context, NodeOccurrence);
+
+	NodeOccurrence->MaterialOverride = nullptr;
+}
+
+const TCHAR* FMaterialOccurrence::GetName()
+{
+	if (!DatasmithElement)
+	{
+		return nullptr;
+	}
+
+	return DatasmithElement->GetName();
+}
+
+void FMaterialOccurrence::Apply(FMaterialIDType MaterialId)
+{
+	// Apply material to meshes
+	for (FEntitiesGeometry* Geometry : MeshesMaterialDirectlyAppliedTo)
 	{
 		//Geometry->SetMaterialElementName(DatasmithSketchUpUtils::GetMaterialID(MaterialRef), MaterialDirectlyAppliedToMeshes->GetName());
-		FMaterialIDType MaterialId = DatasmithSketchUpUtils::GetMaterialID(MaterialRef);
-		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh: Geometry->Meshes)
+		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh : Geometry->Meshes)
 		{
 			if (int32* SlotIdPtr = Mesh->SlotIdForMaterialID.Find(MaterialId))
 			{
-				Mesh->DatasmithMesh->SetMaterial(MaterialDirectlyAppliedToMeshes->GetName(), *SlotIdPtr);
+				Mesh->DatasmithMesh->SetMaterial(GetName(), *SlotIdPtr);
 			}
 		}
 	}
 
-	for(FNodeOccurence* NodePtr: NodesMaterialInheritedBy)
+	// Apply material to mesh actors
+	for (FNodeOccurence* NodePtr : NodesMaterialInheritedBy)
 	{
 		FNodeOccurence& Node = *NodePtr;
 		FDefinition* EntityDefinition = Node.Entity.GetDefinition();
@@ -391,54 +431,10 @@ void FMaterial::Update(FExportContext& Context)
 				// SketchUp has 'material override' only for single('Default') material. 
 				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
 				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
-				MeshActor->AddMaterialOverride(MaterialInheritedByNodes->GetName(), FMaterial::INHERITED_MATERIAL_ID.EntityID);
+				MeshActor->AddMaterialOverride(GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
 			}
 		}
 	}
-
-	bInvalidated = false;
-}
-
-FMaterialOccurrence& FMaterial::RegisterGeometry(FEntitiesGeometry* Geom)
-{
-	MeshesMaterialDirectlyAppliedTo.Add(Geom);
-	if (!MaterialDirectlyAppliedToMeshes)
-	{
-		MaterialDirectlyAppliedToMeshes = MakeShared<FMaterialOccurrence>();
-	}
-	return *MaterialDirectlyAppliedToMeshes;
-}
-
-void FMaterial::UnregisterGeometry(FEntitiesGeometry* Geom)
-{
-	MeshesMaterialDirectlyAppliedTo.Remove(Geom);
-}
-
-FMaterialOccurrence& FMaterial::RegisterInstance(FNodeOccurence* NodeOccurrence)
-{
-	NodesMaterialInheritedBy.Add(NodeOccurrence);
-	if (!MaterialInheritedByNodes)
-	{
-		MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>();
-	}
-	NodeOccurrence->MaterialOverride = this;
-	return *MaterialInheritedByNodes;
-}
-
-void FMaterial::UnregisterInstance(FNodeOccurence* NodeOccurrence)
-{
-	NodesMaterialInheritedBy.Remove(NodeOccurrence);
-	NodeOccurrence->MaterialOverride = nullptr;
-}
-
-const TCHAR* FMaterialOccurrence::GetName()
-{
-	if (!DatasmithElement)
-	{
-		return nullptr;
-	}
-
-	return DatasmithElement->GetName();
 }
 
 void FMaterialOccurrence::RemoveDatasmithElement(FExportContext& Context)
@@ -448,5 +444,93 @@ void FMaterialOccurrence::RemoveDatasmithElement(FExportContext& Context)
 		return;
 	}
 	Context.DatasmithScene->RemoveMaterial(DatasmithElement);
+	DatasmithElement.Reset();
+}
+
+bool FMaterialOccurrence::RemoveUser(FExportContext& Context)
+{
+	if(!ensure(UserCount != 0))
+	{
+		return true;
+	}
+
+	UserCount--;
+
+	if (UserCount != 0)
+	{
+		return false;
+	}
+
+	RemoveDatasmithElement(Context);
+	return true;
+}
+
+
+void FMaterialOccurrence::RegisterGeometry(FEntitiesGeometry* Geom)
+{
+	if (!MeshesMaterialDirectlyAppliedTo.Contains(Geom))
+	{
+		MeshesMaterialDirectlyAppliedTo.Add(Geom);
+		AddUser();
+	}
+}
+
+void FMaterialOccurrence::UnregisterGeometry(FExportContext& Context, FEntitiesGeometry* Geom)
+{
+	if (!MeshesMaterialDirectlyAppliedTo.Contains(Geom))
+	{
+		return;
+	}
+
+	MeshesMaterialDirectlyAppliedTo.Remove(Geom);
+	RemoveUser(Context);
+}
+
+void FMaterialOccurrence::RegisterInstance(FNodeOccurence* NodeOccurrence)
+{
+	NodesMaterialInheritedBy.Add(NodeOccurrence);
+	AddUser();
+}
+
+void FMaterialOccurrence::UnregisterInstance(FExportContext& Context, FNodeOccurence* NodeOccurrence)
+{
+	NodesMaterialInheritedBy.Remove(NodeOccurrence);
+	RemoveUser(Context);
+}
+
+void FMaterialCollection::Update()
+{
+	// Update usage of textures by materials before updating textures(to only update used textures)
+	for (TPair<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> IdAndMaterial : MaterialDefinitionMap)
+	{
+		FMaterial& Material = *IdAndMaterial.Value;
+		if (Material.IsUsed())
+		{
+			Material.UpdateTexturesUsage(Context);
+		}
+	}
+
+	Context.Textures.Update();
+
+	// Update materials after textures are updated - some materials might end up using shared texture(in case it has same contents, which is determined in Textures Update)
+	for (TPair<FMaterialIDType, TSharedPtr<FMaterial>> IdAndMaterial : MaterialDefinitionMap)
+	{
+		FMaterial& Material = *IdAndMaterial.Value;
+		if (Material.IsUsed())
+		{
+			Material.Update(Context);
+		}
+	}
+
+	if (DefaultMaterial.IsInvalidated() && DefaultMaterial.HasUsers())
+	{
+		DefaultMaterial.DatasmithElement = FMaterial::CreateDefaultMaterialElement(Context);
+		DefaultMaterial.Apply(FMaterial::INHERITED_MATERIAL_ID);
+	}
+}
+
+const TCHAR* FMaterialCollection::GetDefaultMaterialName()
+{
+	return DefaultMaterial.GetName();
 }
 

@@ -361,6 +361,12 @@ bool FEntitiesGeometry::IsMeshUsingInheritedMaterial(int32 MeshIndex)
 	return Meshes[MeshIndex]->bIsUsingInheritedMaterial;
 }
 
+int32 FEntitiesGeometry::GetInheritedMaterialOverrideSlotId()
+{
+	return 0;
+}
+
+
 const TCHAR* FEntitiesGeometry::GetMeshElementName(int32 MeshIndex)
 {
 	return Meshes[MeshIndex]->DatasmithMesh->GetName();
@@ -398,15 +404,17 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			// Create MeshElement or reuse existing
 			if (MeshCount < EntitiesGeometry->Meshes.Num())
 			{
-				Mesh = EntitiesGeometry->Meshes[MeshCount]; // Reuse existing DatasmithMeshElement
+				Mesh = EntitiesGeometry->Meshes[MeshCount];
 				Mesh->SlotIdForMaterialID.Reset();
 			}
 			else
 			{
 				Mesh = MakeShared<FDatasmithInstantiatedMesh>();
-				Mesh->DatasmithMesh = FDatasmithSceneFactory::CreateMesh(TEXT(""));
 				EntitiesGeometry->Meshes.Add(Mesh);
 			}
+			// todo: reuse DatasmithMesh when it allows to reset material slots
+			Mesh->DatasmithMesh = FDatasmithSceneFactory::CreateMesh(TEXT(""));
+
 			MeshCount++;
 
 			Mesh->DatasmithMesh->SetName(*MeshElementName);
@@ -416,6 +424,11 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			// Add the non-inherited materials used by the combined mesh triangles.
 			for (int32 SlotId = 0;SlotId < ExtractedMeshPtr->MaterialIDForSlotId.Num(); ++SlotId)
 			{
+				if (SlotId == 0 && !ExtractedMeshPtr->bHasFacesWithDefaultMaterial)
+				{
+					continue; // Skip adding Default material slot if it's not used
+				}
+
 				FMaterialIDType MeshMaterialID = ExtractedMeshPtr->MaterialIDForSlotId[SlotId];
 				Mesh->SlotIdForMaterialID.FindOrAdd(MeshMaterialID, SlotId);
 				// Default or (somehow)missing materials are also assigned to mesh(as a default material)
@@ -542,6 +555,7 @@ void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, FEntitiesGeometry& Geo
 		TSharedPtr<FDatasmithSketchUpMesh> ExtractedMeshPtr = MakeShared<FDatasmithSketchUpMesh>();
 		FDatasmithSketchUpMesh& ExtractedMesh = *ExtractedMeshPtr;
 		ExtractedMesh.GetOrCreateSlotForMaterial(FMaterial::INHERITED_MATERIAL_ID); // Add default material to Slot=0
+
 
 		// The source SketchUp face needs to be scanned once.
 		TArray<SUFaceRef> FacesToScan;
