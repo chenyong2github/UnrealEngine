@@ -548,15 +548,30 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 	{
 		if (InputFunctionCallNodePin->Direction == EEdGraphPinDirection::EGPD_Input && InputFunctionCallNodePin->bOrphanedPin)
 		{
-			FStackIssue InvalidInputError(
-				EStackIssueSeverity::Warning,
-				FText::Format(LOCTEXT("InvalidInputSummaryFormat", "Invalid Input: {0}"), FText::FromString(InputFunctionCallNodePin->PinName.ToString())),
-				FText::Format(LOCTEXT("InvalidInputFormat", "The input {0} was previously set but is no longer exposed by the function {1}.\nPress the fix button to remove this unused input data,\nor check the function definition to see why this input is no longer exposed."),
-					FText::FromString(InputFunctionCallNodePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
-				GetStackEditorDataKey(),
-				false,
-				GetResetPinFix(InputFunctionCallNodePin, LOCTEXT("RemoveInvalidInputPinFix", "Remove invalid input.")));
-			NewIssues.Add(InvalidInputError);
+			FNiagaraTypeDefinition InputType = UEdGraphSchema_Niagara::PinToTypeDefinition(InputFunctionCallNodePin);
+			if (InputType == FNiagaraTypeDefinition::GetParameterMapDef())
+			{
+				FStackIssue InvalidInputError(
+					EStackIssueSeverity::Warning,
+					FText::Format(LOCTEXT("InvalidParameterMapInputSummaryFormat", "Invalid Input: {0}"), FText::FromString(InputFunctionCallNodePin->PinName.ToString())),
+					FText::Format(LOCTEXT("InvalidParameterMapInputFormat", "The parameter map input {0} was removed from this module. Modules will not function without a valid parameter map input.  This must be fixed in the script that defines this module."),
+						FText::FromString(InputFunctionCallNodePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
+					GetStackEditorDataKey(),
+					false);
+				NewIssues.Add(InvalidInputError);
+			}
+			else
+			{
+				FStackIssue InvalidInputError(
+					EStackIssueSeverity::Warning,
+					FText::Format(LOCTEXT("InvalidInputSummaryFormat", "Invalid Input: {0}"), FText::FromString(InputFunctionCallNodePin->PinName.ToString())),
+					FText::Format(LOCTEXT("InvalidInputFormat", "The input {0} was previously set but is no longer exposed by the function {1}.\nPress the fix button to remove this unused input data,\nor check the function definition to see why this input is no longer exposed."),
+						FText::FromString(InputFunctionCallNodePin->PinName.ToString()), GetUserFriendlyFunctionName(InputFunctionCallNode)),
+					GetStackEditorDataKey(),
+					false,
+					GetResetPinFix(InputFunctionCallNodePin, LOCTEXT("RemoveInvalidInputPinFix", "Remove invalid input.")));
+				NewIssues.Add(InvalidInputError);
+			}
 		}
 	}
 }

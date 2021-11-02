@@ -1557,15 +1557,28 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UN
 	}
 	ModuleNodeCreator.Finalize();
 
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	if (NewModuleNode->FunctionScript == nullptr)
 	{
 		// If the module script is null, add parameter map inputs and outputs so that the node can be wired into the graph correctly.
-		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 		NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
 		NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
 		if (SuggestedName.IsEmpty())
 		{
 			SuggestedName = TEXT("InvalidScript");
+		}
+	}
+	else
+	{
+		// Make sure that the input and output pins are available to prevent failures in the connect module node.  Once the node is
+		// connected these missing pins will generate compile errors which the user can find and fix.
+		if (FNiagaraStackGraphUtilities::GetParameterMapInputPin(*NewModuleNode) == nullptr)
+		{
+			NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		}
+		if (FNiagaraStackGraphUtilities::GetParameterMapOutputPin(*NewModuleNode) == nullptr)
+		{
+			NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
 		}
 	}
 
