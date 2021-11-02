@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeinSourceControlUtils.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 #include "ISourceControlModule.h"
 
 namespace SkeinSourceControlConstants
