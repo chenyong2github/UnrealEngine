@@ -53,29 +53,27 @@
 								<option value="VBR">VBR</option>
 								<option value="ConstQP">ConstQP</option>
 							</select>
-							<br>
 							<label for="encoder-target-bitrate-text">Target Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="encoder-target-bitrate-text" value="0" min="0" max="100000" /><br>
+							<input type="number" class="form-control" id="encoder-target-bitrate-text" value="0" min="0" max="100000" />
 							<label for="encoder-max-bitrate-text">Max Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="encoder-max-bitrate-text" value="0" min="0" max="100000" /><br>
+							<input type="number" class="form-control" id="encoder-max-bitrate-text" value="0" min="0" max="100000" />
 							<label for="encoder-min-qp-text">Min QP</label>
-							<input type="number" class="form-control" id="encoder-min-qp-text" value="0" min="0" max="999" /><br>
+							<input type="number" class="form-control" id="encoder-min-qp-text" value="0" min="0" max="999" />
 							<label for="encoder-max-qp-text">Max QP</label>
-							<input type="number" class="form-control" id="encoder-max-qp-text" value="0" min="0" max="999" /><br>
-							<div class="settings-text">Filler Data</div>
-							<label class="tgl-switch">
-								<input type="checkbox" id="encoder-filler-data-tgl" class="tgl tgl-flat">
-								<div class="tgl-slider"></div>
-							</label>
-							<br>
+							<input type="number" class="form-control" id="encoder-max-qp-text" value="0" min="0" max="999" />
 							<label for="encoder-multipass" class="settings-text">Multipass</label>
 							<select id="encoder-multipass">
 								<option value="DISABLED" selected>DISABLED</option>
 								<option value="QUARTER">QUARTER</option>
 								<option value="FULL">FULL</option>
-							</select><br>
-							<input id="encoder-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
+							</select>
+							<div class="settings-text">Filler Data</div>
+							<label class="tgl-switch">
+								<input type="checkbox" id="encoder-filler-data-tgl" class="tgl tgl-flat">
+								<div class="tgl-slider"></div>
+							</label>
 						</div>
+						<input id="encoder-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
 					</div>
 					<br>
 				</section>
@@ -89,19 +87,19 @@
 								<option value="BALANCED">BALANCED</option>
 								<option value="MAINTAIN_FRAMERATE">MAINTAIN_FRAMERATE</option>
 								<option value="MAINTAIN_RESOLUTION">MAINTAIN_RESOLUTION</option>
-							</select><br>
+							</select>
 							<label for="webrtc-max-fps-text">Max FPS</label>
-							<input type="number" class="form-control" id="webrtc-max-fps-text" value="1" min="1" max="999" /><br>
+							<input type="number" class="form-control" id="webrtc-max-fps-text" value="1" min="1" max="999" />
 							<label for="webrtc-min-bitrate-text">Min Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0" max="100000" /><br>
+							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0" max="100000" />
 							<label for="webrtc-max-bitrate-text">Max Bitrate (kbps)</label>
-							<input type="number" class="form-control" id="webrtc-max-bitrate-text" value="0" min="0" max="100000" /><br>
+							<input type="number" class="form-control" id="webrtc-max-bitrate-text" value="0" min="0" max="100000" />
 							<label for="webrtc-low-qp-text">Low QP Threshold</label>
-							<input type="number" class="form-control" id="webrtc-low-qp-text" value="0" min="0" max="999" /><br>
+							<input type="number" class="form-control" id="webrtc-low-qp-text" value="0" min="0" max="999" />
 							<label for="webrtc-high-qp-text">High QP Threshold</label>
-							<input type="number" class="form-control" id="webrtc-high-qp-text" value="0" min="0" max="999" /><br>
-							<input id="webrtc-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
+							<input type="number" class="form-control" id="webrtc-high-qp-text" value="0" min="0" max="999" />
 						</div>
+						<input id="webrtc-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
 					</div>
 				</section>
 				<br>

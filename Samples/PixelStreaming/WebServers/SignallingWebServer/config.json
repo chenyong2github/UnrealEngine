@@ -4,7 +4,7 @@
 	"UseHTTPS": false,
 	"UseAuthentication": false,
 	"LogToFile": true,
-	"HomepageFile": "/public/player.html",
+	"HomepageFile": "/www/player.html",
 	"AdditionalRoutes": {},
 	"EnableWebserver": true,
 	"MatchmakerAddress": "",

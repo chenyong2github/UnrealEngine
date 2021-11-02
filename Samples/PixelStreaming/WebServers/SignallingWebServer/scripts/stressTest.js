@@ -140,6 +140,7 @@ function stressTest() {
             let pixelStreamingJS = streamIFrame.contentWindow;
     
             // Don't show the play button
+            pixelStreamingJS.connect_on_load = true;
             pixelStreamingJS.shouldShowPlayOverlay = false;
     
             // Create a hook for when webRTCPlayer is setup

@@ -370,7 +370,13 @@ function showTextOverlay(text) {
 
 function playVideoStream() {
     if (webRtcPlayerObj && webRtcPlayerObj.video) {
-        webRtcPlayerObj.video.play();
+
+        webRtcPlayerObj.video.play().catch(function(onRejectedReason){
+            console.error(onRejectedReason);
+            console.log("Browser does not support autoplaying video without interaction - to resolve this we are going to show the play button overlay.")
+            showPlayOverlay();
+        });
+
         requestInitialSettings();
         requestQualityControl();
         showFreezeFrameOverlay();
@@ -522,7 +528,11 @@ function setupWebRtcPlayer(htmlElement, config) {
             if (shouldShowPlayOverlay) {
                 showPlayOverlay();
                 resizePlayerStyle();
-            } 
+            }
+            else {
+                resizePlayerStyle();
+                playVideoStream();
+            }
         }
     };
 

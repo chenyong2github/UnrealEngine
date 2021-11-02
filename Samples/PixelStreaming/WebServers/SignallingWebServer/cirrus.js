@@ -20,9 +20,15 @@ const defaultConfig = {
 	UseHTTPS: false,
 	UseAuthentication: false,
 	LogToFile: true,
-	HomepageFile: 'player.html',
-	AdditionalRoutes: new Map(),
-	EnableWebserver: true
+	HomepageFile: "/www/player.html",
+	AdditionalRoutes: {},
+	EnableWebserver: true,
+	MatchmakerAddress: "",
+	MatchmakerPort: "9999",
+	PublicIp: "localhost",
+	HttpPort: 80,
+	HttpsPort: 443,
+	StreamerPort: 8888
 };
 
 const argv = require('yargs').argv;
@@ -197,7 +203,7 @@ if(config.UseAuthentication){
 
 if(config.EnableWebserver) {
 	//Setup folders
-	app.use(express.static(path.join(__dirname, '/public')))
+	app.use(express.static(path.join(__dirname, '/www')))
 	app.use('/images', express.static(path.join(__dirname, './images')))
 	app.use('/scripts', [isAuthenticated('/login'),express.static(path.join(__dirname, '/scripts'))]);
 	app.use('/', [isAuthenticated('/login'), express.static(path.join(__dirname, '/custom_html'))])
