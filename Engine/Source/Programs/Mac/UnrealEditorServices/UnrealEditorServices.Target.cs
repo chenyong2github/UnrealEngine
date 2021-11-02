@@ -25,5 +25,8 @@ public class UnrealEditorServicesTarget : TargetRules
 
 		// We still need to support old versions of the engine that are compatible with OS X 10.9
 		bEnableOSX109Support = true;
+
+		// Disable automation tests to avoid compilation errors related to alignas, caused by setting bEnableOSX109Support to true above. Old OSX versions do not fully support this until C++17
+		bForceDisableAutomationTests = true;
 	}
 }
