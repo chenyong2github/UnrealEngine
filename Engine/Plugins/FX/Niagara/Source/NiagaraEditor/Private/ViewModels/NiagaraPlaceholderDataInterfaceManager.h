@@ -31,7 +31,7 @@ private:
 		FGuid OwningEmitterHandleId;
 		TWeakObjectPtr<UNiagaraNodeFunctionCall> OwningFunctionCall;
 		FNiagaraParameterHandle InputHandle;
-		UNiagaraDataInterface* PlaceholderDataInterface;
+		TWeakObjectPtr<UNiagaraDataInterface> PlaceholderDataInterface;
 		TWeakObjectPtr<UNiagaraDataInterface> CachedOverrideDataInterface;
 		FGuid OverrideDataInterfaceGraphChangeId;
 		TWeakPtr<FNiagaraPlaceholderDataInterfaceHandle> PlaceholderDataInterfaceHandleWeak;
@@ -71,8 +71,8 @@ public:
 
 private:
 	FPlaceholderDataInterfaceInfo* GetPlaceholderDataInterfaceInfo(const FGuid& OwningEmitterHandleId, UNiagaraNodeFunctionCall& OwningFunctionCall, const FNiagaraParameterHandle& InputHandle);
-	void PlaceholderDataInterfaceChanged(UNiagaraDataInterface* PlaceholderDataInterface);
-	void PlaceholderHandleDeleted(UNiagaraDataInterface* PlaceholderDataInterface);
+	void PlaceholderDataInterfaceChanged(TWeakObjectPtr<UNiagaraDataInterface> PlaceholderDataInterfaceWeak);
+	void PlaceholderHandleDeleted(TWeakObjectPtr<UNiagaraDataInterface> PlaceholderDataInterfaceWeak);
 
 private:
 	TWeakPtr<FNiagaraSystemViewModel> OwningSystemViewModelWeak;
@@ -97,6 +97,6 @@ private:
 	friend FNiagaraPlaceholderDataInterfaceManager;
 
 	FNiagaraPlaceholderDataInterfaceManager* OwningManager;
-	UNiagaraDataInterface* DataInterface;
+	TWeakObjectPtr<UNiagaraDataInterface> DataInterface;
 	FSimpleDelegate OnDeleted;
 };
