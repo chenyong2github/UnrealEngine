@@ -11,7 +11,7 @@
 
 #include "Misc/FileHelper.h"
 
-namespace
+namespace DatasmithSceneGraphBuilderImpl
 {
 	void GetMainMaterial(const TMap<FString, FString>& InNodeMetaDataMap, ActorData& OutNodeData, bool bMaterialPropagationIsTopDown)
 	{
@@ -46,31 +46,7 @@ namespace
 		Actor->SetScale(LocalUETransform.GetScale3D());
 		Actor->SetRotation(LocalUETransform.GetRotation());
 	}
-
-	// Method to reduce the size of huge label. The length of the package path, based on label, cannot be bigger than ~256
-	void CleanName(FString& Label)
-	{
-		const int32 MaxLabelSize = 50; // If the label is smaller than this value, the label is not modified. This size of package name is "acceptable"
-		const int32 ReasonableLabelSize = 20; // If the label has to be cut, a label that is not too long is preferred. 
-		const int32 MinLabelSize = 5; // If the label is smaller than this value, the label is too much reduce. Therefore a ReasonableLabelSize is preferred 
-
-		if (Label.Len() < MaxLabelSize)
-		{
-			return;
-		}
-
-		FString NewLabel;
-		NewLabel = FPaths::GetCleanFilename(Label);
-		if ((NewLabel.Len() < MaxLabelSize) && (NewLabel.Len() > MinLabelSize))
-		{
-			Label = NewLabel;
-			return;
-		}
-
-		Label = Label.Right(ReasonableLabelSize);
-	}
 }
-
 
 FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(
 	TMap<uint32, FString>& InCADFileToUE4FileMap, 
@@ -157,7 +133,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	AddMetaData(ActorElement, InstanceNodeMetaDataMap, Component.MetaData);
 
 	ActorData ComponentData(*ActorUUID, ParentData);
-	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(ActorElement, Component, ComponentData);
 
@@ -351,12 +327,12 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 
 	ActorData InstanceData(*ActorUUID, ParentData);
 
-	GetMainMaterial(Instance.MetaData, InstanceData, bMaterialPropagationIsTopDown);
-	GetMainMaterial(Reference->MetaData, InstanceData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Instance.MetaData, InstanceData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Reference->MetaData, InstanceData, bMaterialPropagationIsTopDown);
 
 	AddChildren(Actor, *Reference, InstanceData);
 
-	AddTransformToActor(Instance, Actor, ImportParameters);
+	DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
 
 	if (SceneGraph != InstanceSceneGraph)
 	{
@@ -416,7 +392,6 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		OutName = "NoName";
 	}
-	CleanName(OutName);
 
 	CADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
@@ -467,7 +442,7 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneBaseGraphBuilder::BuildCompo
 	AddMetaData(Actor, InstanceNodeMetaDataMap, Component.MetaData);
 
 	ActorData ComponentData(*ActorUUID, ParentData);
-	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(Actor, Component, ComponentData);
 
