@@ -1110,6 +1110,11 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			
 			switch (VersionEnum)
 			{
+				case 7:
+				{
+					TargetDesc.Version = 20400;
+					break;
+				}
 				case 6:
 				{
 					TargetDesc.Version = 20300;
