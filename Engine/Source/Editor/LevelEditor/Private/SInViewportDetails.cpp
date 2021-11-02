@@ -135,8 +135,8 @@ public:
 				.PhysicalSplitterHandleSize(1.0f)
  				.HitDetectionSplitterHandleSize(5.0f)
  				+ SSplitter::Slot()
- 				.Value(ColumnSizeData.NameColumnWidth)
-				.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+ 				.Value(ColumnSizeData.GetNameColumnWidth())
+				.OnSlotResized(ColumnSizeData.GetOnNameColumnResized())
  				[
 					SNew(SBox)
 					.HAlign(HAlign_Left)
@@ -147,8 +147,8 @@ public:
 					]
  				]
  				+ SSplitter::Slot()
- 				.Value(ColumnSizeData.ValueColumnWidth)
- 				.OnSlotResized(ColumnSizeData.OnValueColumnResized)
+ 				.Value(ColumnSizeData.GetValueColumnWidth())
+ 				.OnSlotResized(ColumnSizeData.GetOnValueColumnResized())
  				[
  					SNew(SBox)
  					.Padding(2.0f)
@@ -157,8 +157,8 @@ public:
  					]
 				]
 				+ SSplitter::Slot()
-				.Value(ColumnSizeData.RightColumnWidth)
-				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
+				.Value(ColumnSizeData.GetRightColumnWidth())
+				.OnSlotResized(ColumnSizeData.GetOnRightColumnResized())
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()

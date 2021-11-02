@@ -1050,10 +1050,10 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 						.Style(FEditorStyle::Get(), "DetailsView.Splitter")
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
-						.HighlightedHandleIndex(Tree->ColumnSizeData.HoveredSplitterIndex)
+						.HighlightedHandleIndex(Tree->ColumnSizeData.GetHoveredSplitterIndex())
 						+ SSplitter::Slot()
-						.Value(Tree->ColumnSizeData.NameColumnWidth)
-						.OnSlotResized(Tree->ColumnSizeData.OnNameColumnResized)
+						.Value(Tree->ColumnSizeData.GetNameColumnWidth())
+						.OnSlotResized(Tree->ColumnSizeData.GetOnNameColumnResized())
 						.Value(0.25f)
 						[
 							SNew(SHorizontalBox)
@@ -1072,8 +1072,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 							]
 						]
 						+ SSplitter::Slot()
-						.Value(Tree->ColumnSizeData.ValueColumnWidth)
-						.OnSlotResized(Tree->ColumnSizeData.OnValueColumnResized)
+						.Value(Tree->ColumnSizeData.GetValueColumnWidth())
+						.OnSlotResized(Tree->ColumnSizeData.GetOnValueColumnResized())
 						[
 							SNew(SHorizontalBox)
 							.Clipping(EWidgetClipping::OnDemand)
@@ -1138,7 +1138,7 @@ FString SMaterialLayersFunctionsInstanceTreeItem::GetInstancePath(SMaterialLayer
 
 void SMaterialLayersFunctionsInstanceTree::Construct(const FArguments& InArgs)
 {
-	ColumnSizeData.OnValueColumnResized.Execute(0.5f);
+	ColumnSizeData.SetValueColumnWidth(0.5f);
 
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;
@@ -2540,8 +2540,8 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 						.PhysicalSplitterHandleSize(1.0f)
 						.HitDetectionSplitterHandleSize(5.0f)
 						+ SSplitter::Slot()
-						.Value(Tree->ColumnSizeData.NameColumnWidth)
-						.OnSlotResized(Tree->ColumnSizeData.OnNameColumnResized)
+						.Value(Tree->ColumnSizeData.GetNameColumnWidth())
+						.OnSlotResized(Tree->ColumnSizeData.GetOnNameColumnResized())
 						.Value(0.25f)
 						[
 							SNew(SHorizontalBox)
@@ -2560,8 +2560,8 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 							]
 						]
 						+ SSplitter::Slot()
-						.Value(Tree->ColumnSizeData.ValueColumnWidth)
-						.OnSlotResized(Tree->ColumnSizeData.OnValueColumnResized)
+						.Value(Tree->ColumnSizeData.GetValueColumnWidth())
+						.OnSlotResized(Tree->ColumnSizeData.GetOnValueColumnResized())
 						[
 							SNew(SHorizontalBox)
 							.Clipping(EWidgetClipping::OnDemand)
@@ -2608,7 +2608,7 @@ FString SMaterialLayersFunctionsMaterialTreeItem::GetInstancePath(SMaterialLayer
 
 void SMaterialLayersFunctionsMaterialTree::Construct(const FArguments& InArgs)
 {
-	ColumnSizeData.OnValueColumnResized.Execute(0.5f);
+	ColumnSizeData.SetValueColumnWidth(0.5f);
 
 	MaterialEditorInstance = InArgs._InMaterialEditorInstance;
 	Wrapper = InArgs._InWrapper;

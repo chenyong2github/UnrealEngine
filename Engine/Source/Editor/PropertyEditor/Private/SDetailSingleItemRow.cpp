@@ -375,8 +375,8 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
 					.PhysicalSplitterHandleSize(1.0f)
 					.HitDetectionSplitterHandleSize(5.0f)
-					.HighlightedHandleIndex(ColumnSizeData.HoveredSplitterIndex)
-					.OnHandleHovered(ColumnSizeData.OnSplitterHandleHovered);
+					.HighlightedHandleIndex(ColumnSizeData.GetHoveredSplitterIndex())
+					.OnHandleHovered(ColumnSizeData.GetOnSplitterHandleHovered());
 
 			Widget = SNew(SBorder)
 				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
@@ -481,8 +481,8 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				// create Name column:
 				// | Name | Value | Right |
 				Splitter->AddSlot()
-					.Value(ColumnSizeData.NameColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+					.Value(ColumnSizeData.GetNameColumnWidth())
+					.OnSlotResized(ColumnSizeData.GetOnNameColumnResized())
 					[
 						NameColumnBox
 					];
@@ -490,8 +490,8 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				// create Value column:
 				// | Name | Value | Right |
 				Splitter->AddSlot()
-					.Value(ColumnSizeData.ValueColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
+					.Value(ColumnSizeData.GetValueColumnWidth())
+					.OnSlotResized(ColumnSizeData.GetOnValueColumnResized())
 					[
 						SNew(SHorizontalBox)
 						.Clipping(EWidgetClipping::OnDemand)
@@ -527,8 +527,8 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					];
 
 				Splitter->AddSlot()
-					.Value(ColumnSizeData.PropertyColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
+					.Value(ColumnSizeData.GetWholeRowColumnWidth())
+					.OnSlotResized(ColumnSizeData.GetOnWholeRowColumnResized())
 					[
 						NameColumnBox
 					];
@@ -574,9 +574,9 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			}
 
 			Splitter->AddSlot()
-				.Value(ColumnSizeData.RightColumnWidth)
-				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
-				.MinSize(ColumnSizeData.RightColumnMinWidth)
+				.Value(ColumnSizeData.GetRightColumnWidth())
+				.OnSlotResized(ColumnSizeData.GetOnRightColumnResized())
+				.MinSize(ColumnSizeData.GetRightColumnMinWidth())
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))

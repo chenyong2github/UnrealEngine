@@ -529,7 +529,7 @@ void SDetailsViewBase::SetKeyframeHandler( TSharedPtr<class IDetailKeyframeHandl
 		ExtraWidth = -22;
 	}
 	
-	const float NewWidth = ColumnSizeData.GetRightColumnMinWidth() + ExtraWidth;
+	const float NewWidth = ColumnSizeData.GetRightColumnMinWidth().Get(0) + ExtraWidth;
 	ColumnSizeData.SetRightColumnMinWidth(NewWidth);
 
 	KeyframeHandler = InKeyframeHandler;
@@ -906,10 +906,10 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	HandlePendingCleanup();
 
 	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
-	if (ViewConfig != nullptr &&
-		ViewConfig->ValueColumnWidth != ColumnSizeData.ValueColumnWidth.Get(0))
+	if (ViewConfig != nullptr && 
+		ViewConfig->ValueColumnWidth != ColumnSizeData.GetValueColumnWidth().Get(0))
 	{
-		ViewConfig->ValueColumnWidth = ColumnSizeData.ValueColumnWidth.Get(0);
+		ViewConfig->ValueColumnWidth = ColumnSizeData.GetValueColumnWidth().Get(0);
 		SaveViewConfig();
 	}
 
