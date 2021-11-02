@@ -334,8 +334,19 @@ void UGeometryCacheTrackStreamable::GetChunksForTimeRange(float StartTime, float
 	// This may put more burden on codec implementors but could offer better performance as 
 	// they may have more info (for example knowing that chunks never overlap etc...)
 
-	check(Chunks.Num() > 0);
-	check(StartTime <= EndTime);
+	// Nothing to do if there is no chuncks
+	if (Chunks.Num() == 0)
+	{
+		return;
+	}
+
+	ensureMsgf(StartTime <= EndTime, TEXT("Start time %f is greater than end time %f. Animation duration is %f"), StartTime, EndTime, Duration);
+
+	// Correct wrap around if not in looping mode
+	if (!bLooping && EndTime < StartTime)
+	{
+		EndTime = StartTime;
+	}
 
 	// If the first sample is fairly offset in time and > prefetch time return set endtime to first sample time
 	if (Samples.Num() && EndTime < Samples[0].SampleTime)
@@ -346,6 +357,11 @@ void UGeometryCacheTrackStreamable::GetChunksForTimeRange(float StartTime, float
 	if (bLooping)
 	{
 		float IntervalDuration = EndTime - StartTime;
+		// Correct interval duration if there is a wrap around
+		if (IntervalDuration < 0.0f)
+		{
+			IntervalDuration = (Duration - StartTime) + EndTime;
+		}
 
 		// More than a whole loop just get the whole thing
 		if (IntervalDuration >= Duration)
