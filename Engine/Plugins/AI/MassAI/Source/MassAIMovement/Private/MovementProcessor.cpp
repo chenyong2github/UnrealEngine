@@ -197,29 +197,3 @@ void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsyst
 			}
 		});
 }
-
-
-//----------------------------------------------------------------------//
-//  UVelocityFragmentInitializer
-//----------------------------------------------------------------------//
-UVelocityFragmentInitializer::UVelocityFragmentInitializer()
-{
-	FragmentType = FMassVelocityFragment::StaticStruct();
-}
-
-void UVelocityFragmentInitializer::ConfigureQueries()
-{
-	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
-}
-
-void UVelocityFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-		{
-			const TArrayView<FMassVelocityFragment> VelocitiesList = Context.GetMutableFragmentView<FMassVelocityFragment>();
-			for (FMassVelocityFragment& VelocityFragment : VelocitiesList)
-			{
-				VelocityFragment.Value = FVector(FMath::FRandRange(-100.f, 100.f), FMath::FRandRange(-100.f, 100.f), 0);
-			}
-		});
-}

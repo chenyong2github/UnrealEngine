@@ -51,17 +51,3 @@ protected:
 
 	FMassEntityQuery EntityQuery;
 };
-
-UCLASS()
-class MASSAIMOVEMENT_API UVelocityFragmentInitializer : public UMassFragmentInitializer
-{
-	GENERATED_BODY()
-public:
-	UVelocityFragmentInitializer();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	FMassEntityQuery EntityQuery;
-};
