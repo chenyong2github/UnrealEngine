@@ -5454,6 +5454,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	LODResources.bHasDepthOnlyIndices = true;
 	LODResources.DepthOnlyIndexBuffer.SetIndices(DepthOnlyIndexBuffer, IndexBufferStride);
 	LODResources.DepthOnlyNumTriangles = NumTriangles;
+	LODResources.bHasColorVertexData = true;
 
 	// Fill reversed index buffer
 	TArray<uint32> ReversedIndexBuffer(IndexBuffer);
