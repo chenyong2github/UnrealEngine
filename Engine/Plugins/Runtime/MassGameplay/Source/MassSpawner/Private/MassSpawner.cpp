@@ -277,7 +277,7 @@ void AMassSpawner::DoSpawning()
 		float TotalProportion = 0.0f;
 		for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
 		{
-			if (SpawnPointsGenerator.GeneratorInstance)
+		    if (SpawnPointsGenerator.GeneratorInstance)
 			{
 				SpawnPointsGenerator.bPointsGenerated = false;
 				TotalProportion += SpawnPointsGenerator.Proportion;
@@ -308,6 +308,7 @@ void AMassSpawner::DoSpawning()
 				}
 			}
 		}
+
 		auto GenerateSpawningPoints = [this, SpawnCount, TotalProportion]()
 		{
 			int32 SpawnPointCountRemaining = SpawnCount;
@@ -348,7 +349,6 @@ void AMassSpawner::DoSpawning()
 			GenerateSpawningPoints();
 		}
 	}
-
 }
 
 void AMassSpawner::OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator)

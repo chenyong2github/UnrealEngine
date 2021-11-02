@@ -174,6 +174,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
 	bool bKeepLowResActors = true;
 
+	/** When switching to ISM keep the actor an extra frame, helps cover rendering glitches (i.e. occlusion query being one frame late) */
+	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
+	bool bKeepActorExtraFrame = false;
+
 	/** World Partition grid name to test collision against, default None will be the main grid */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
 	FName WorldPartitionGridNameContainingCollision;

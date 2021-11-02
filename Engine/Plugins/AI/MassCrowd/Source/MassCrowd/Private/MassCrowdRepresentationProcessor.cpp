@@ -146,7 +146,19 @@ void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transfor
 
 	if (const UCapsuleComponent* CapsuleComp = Actor.FindComponentByClass<UCapsuleComponent>())
 	{
-		RootTransform.AddToTranslation(FVector(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight()));
+		const FVector HalfHeight(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight());
+		RootTransform.AddToTranslation(HalfHeight);
+		const FVector RootLocation = RootTransform.GetLocation();
+		const FVector SweepOffset(0.0f, 0.0f, 20.0f);
+		const FVector Start = RootLocation + SweepOffset;
+		const FVector End = RootLocation - SweepOffset;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(&Actor);
+		FHitResult OutHit;
+		if (Actor.GetWorld()->SweepSingleByChannel(OutHit, Start, End, Transform.GetRotation(), CapsuleComp->GetCollisionObjectType(), CapsuleComp->GetCollisionShape(), Params))
+		{
+			RootTransform.SetLocation(OutHit.Location);
+		}
 	}
 	Super::TeleportActor(RootTransform, Actor, Context);
 }

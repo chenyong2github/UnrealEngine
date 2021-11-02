@@ -15,20 +15,27 @@ struct FMassArchetypeChunk
 {
 private:
 	uint8* RawMemory = nullptr;
+	int32 AllocSize = 0;
 	int32 NumInstances = 0;
 	int32 SerialModificationNumber = 0;
 	TArray<FInstancedStruct> ChunkFragmentData;
 
 public:
-	explicit FMassArchetypeChunk(int32 AllocSize, TConstArrayView<FInstancedStruct> InChunkFragmentTemplates)
-		: ChunkFragmentData(InChunkFragmentTemplates)
+	explicit FMassArchetypeChunk(int32 InAllocSize, TConstArrayView<FInstancedStruct> InChunkFragmentTemplates)
+		: AllocSize(InAllocSize)
+		, ChunkFragmentData(InChunkFragmentTemplates)
 	{
 		RawMemory = (uint8*)FMemory::Malloc(AllocSize);
 	}
 
 	~FMassArchetypeChunk()
 	{
-		FMemory::Free(RawMemory);
+		// Only release memory if it was not done already.
+		if (RawMemory != nullptr)
+		{
+			FMemory::Free(RawMemory);
+			RawMemory = nullptr;
+		}
 	}
 
 	// Returns the Entity array element at the specified index
@@ -58,6 +65,14 @@ public:
 		NumInstances -= Count;
 		check(NumInstances >= 0);
 		SerialModificationNumber++;
+
+		// Because we only remove trailing chunks to avoid messing up the absolute indices in the entities map,
+		// We are freeing the memory here to save memory
+		if (NumInstances == 0)
+		{
+			FMemory::Free(RawMemory);
+			RawMemory = nullptr;
+		}
 	}
 
 	void AddInstance()
@@ -90,6 +105,12 @@ public:
 		checkf(NumInstances == 0, TEXT("Recycling a chunk that is not empty."));
 		SerialModificationNumber++;
 		ChunkFragmentData = InChunkFragmentsTemplate;
+		
+		// If this chunk previously had entity and it does not anymore, we might have to reallocate the memory as it was freed to save memory
+		if (RawMemory == nullptr)
+		{
+			RawMemory = (uint8*)FMemory::Malloc(AllocSize);
+		}
 	}
 
 #if WITH_MASSENTITY_DEBUG

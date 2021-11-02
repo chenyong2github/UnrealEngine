@@ -28,6 +28,7 @@ UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 
 	bRequiresGameThreadExecution = true;
+	bKeepActorExtraFrame = true;
 }
 
 void UMassCrowdVisualizationProcessor::ConfigureQueries()

@@ -158,12 +158,12 @@ struct MASSREPRESENTATION_API FMassLODSignificanceRange
 	GENERATED_BODY()
 public:
 
-	void AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform);
+	void AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform, const TArray<uint32>& ExcludeStaticMeshRefs);
 
 	// Adds the specified struct reinterpreted as custom floats to our custom data. Individual members of the specified struct should always fit into a float.
 	// When adding any custom data, the custom data must be added for every instance.
 	template<typename InCustomDataType>
-	void AddBatchedCustomData(InCustomDataType InCustomData, int32 NumFloatsToPad = 0)
+	void AddBatchedCustomData(InCustomDataType InCustomData, const TArray<uint32>& ExcludeStaticMeshRefs, int32 NumFloatsToPad = 0)
 	{
 		check(ISMCSharedDataPtr);
 		static_assert((sizeof(InCustomDataType) % sizeof(float)) == 0, "AddBatchedCustomData: InCustomDataType should have a total size multiple of sizeof(float), and have members that fit in a float's boundaries");
@@ -171,6 +171,11 @@ public:
 		const size_t StructSizeInFloats = StructSize / sizeof(float);
 		for (int i = 0; i < StaticMeshRefs.Num(); i++)
 		{
+			if (ExcludeStaticMeshRefs.Contains(StaticMeshRefs[i]))
+			{
+				continue;
+			}
+
 			FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 			const int32 StartIndex = SharedData.StaticMeshInstanceCustomFloats.AddDefaulted(StructSizeInFloats + NumFloatsToPad);
 			InCustomDataType* CustomData = reinterpret_cast<InCustomDataType*>(&SharedData.StaticMeshInstanceCustomFloats[StartIndex]);
@@ -178,9 +183,9 @@ public:
 		}
 	}
 
-	void AddBatchedCustomDataFloats(const TArray<float>& CustomFloats);
+	void AddBatchedCustomDataFloats(const TArray<float>& CustomFloats, const TArray<uint32>& ExcludeStaticMeshRefs);
 
-	void WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float> CustomFloats, int32 FloatsPerInstance, int32 StartIndex);
+	void WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float>& CustomFloats, const int32 FloatsPerInstance, const int32 StartIndex, const TArray<uint32>& ExcludeStaticMeshRefs);
 
 	/** LOD Significance range */
 	float MinSignificance;
@@ -232,38 +237,70 @@ public:
 		return nullptr;
 	}
 
-	FORCEINLINE void AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform, float LODSignificance)
+	FORCEINLINE void AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform, const float LODSignificance, const float PrevLODSignificance = -1.0f)
 	{
 		if (FMassLODSignificanceRange* Range = GetLODSignificanceRange(LODSignificance))
 		{
-			Range->AddBatchedTransform(InstanceId, Transform, PrevTransform);
+			Range->AddBatchedTransform(InstanceId, Transform, PrevTransform, TArray<uint32>());
+			if(PrevLODSignificance >= 0.0f)
+			{
+				FMassLODSignificanceRange* PrevRange = GetLODSignificanceRange(PrevLODSignificance);
+				if (PrevRange != Range)
+				{
+					PrevRange->AddBatchedTransform(InstanceId, Transform, PrevTransform, Range->StaticMeshRefs);
+				}
+			}
 		}
 	}
 
 	// Adds the specified struct reinterpreted as custom floats to our custom data. Individual members of the specified struct should always fit into a float.
 	// When adding any custom data, the custom data must be added for every instance.
 	template<typename InCustomDataType>
-	void AddBatchedCustomData(InCustomDataType InCustomData, float LODSignificance, int32 NumFloatsToPad = 0)
+	void AddBatchedCustomData(InCustomDataType InCustomData, const float LODSignificance, const float PrevLODSignificance = -1.0f, int32 NumFloatsToPad = 0)
 	{
 		if (FMassLODSignificanceRange* Range = GetLODSignificanceRange(LODSignificance))
 		{
-			Range->AddBatchedCustomData(InCustomData, NumFloatsToPad);
+			Range->AddBatchedCustomData(InCustomData, TArray<uint32>(), NumFloatsToPad);
+			if(PrevLODSignificance >= 0.0f)
+			{
+				FMassLODSignificanceRange* PrevRange = GetLODSignificanceRange(PrevLODSignificance);
+				if (PrevRange != Range)
+				{
+					PrevRange->AddBatchedCustomData(InCustomData, Range->StaticMeshRefs, NumFloatsToPad);
+				}
+			}
 		}
 	}
 
-	FORCEINLINE void AddBatchedCustomDataFloats(const TArray<float>& CustomFloats, float LODSignificance)
+	FORCEINLINE void AddBatchedCustomDataFloats(const TArray<float>& CustomFloats, const float LODSignificance, const float PrevLODSignificance = -1.0f)
 	{
 		if (FMassLODSignificanceRange* Range = GetLODSignificanceRange(LODSignificance))
 		{
-			Range->AddBatchedCustomDataFloats(CustomFloats);
+			Range->AddBatchedCustomDataFloats(CustomFloats, TArray<uint32>());
+			if(PrevLODSignificance >= 0.0f)
+			{
+				FMassLODSignificanceRange* PrevRange = GetLODSignificanceRange(PrevLODSignificance);
+				if (PrevRange != Range)
+				{
+					PrevRange->AddBatchedCustomDataFloats(CustomFloats, Range->StaticMeshRefs);
+				}
+			}
 		}
 	}
 
-	FORCEINLINE void WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float> CustomFloats, float LODSignificance, int32 FloatsPerInstance, int32 FloatStartIndex)
+	FORCEINLINE void WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float>& CustomFloats, const float LODSignificance, const int32 FloatsPerInstance, const int32 FloatStartIndex, const float PrevLODSignificance = -1.0f)
 	{
 		if (FMassLODSignificanceRange* Range = GetLODSignificanceRange(LODSignificance))
 		{
-			Range->WriteCustomDataFloatsAtStartIndex(StaticMeshIndex, CustomFloats, FloatsPerInstance, FloatStartIndex);
+			Range->WriteCustomDataFloatsAtStartIndex(StaticMeshIndex, CustomFloats, FloatsPerInstance, FloatStartIndex, TArray<uint32>());
+			if(PrevLODSignificance >= 0.0f)
+			{
+				FMassLODSignificanceRange* PrevRange = GetLODSignificanceRange(PrevLODSignificance);
+				if (PrevRange != Range)
+				{
+					PrevRange->WriteCustomDataFloatsAtStartIndex(StaticMeshIndex, CustomFloats, FloatsPerInstance, FloatStartIndex, Range->StaticMeshRefs);
+				}
+			}
 		}
 	}
 

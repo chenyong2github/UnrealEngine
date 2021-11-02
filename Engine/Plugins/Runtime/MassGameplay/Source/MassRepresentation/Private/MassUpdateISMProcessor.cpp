@@ -62,15 +62,16 @@ void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 
 				if (Representation.CurrentRepresentation == ERepresentationType::StaticMeshInstance)
 				{
-					UpdateISMTransform(GetTypeHash(Context.GetEntity(EntityIdx)), ISMInfo[Representation.StaticMeshDescIndex], TransformFragment.GetTransform(), Representation.PrevTransform, RepresentationLOD.LODSignificance);
+					UpdateISMTransform(GetTypeHash(Context.GetEntity(EntityIdx)), ISMInfo[Representation.StaticMeshDescIndex], TransformFragment.GetTransform(), Representation.PrevTransform, RepresentationLOD.LODSignificance, Representation.PrevLODSignificance);
 				}
 				Representation.PrevTransform = TransformFragment.GetTransform();
+				Representation.PrevLODSignificance = RepresentationLOD.LODSignificance;
 			}
 		});
 	}
 }
 
-void UMassUpdateISMProcessor::UpdateISMTransform(int32 EntityId, FMassInstancedStaticMeshInfo& ISMInfo, const FTransform& Transform, const FTransform& PrevTransform, const float LODSignificance)
+void UMassUpdateISMProcessor::UpdateISMTransform(int32 EntityId, FMassInstancedStaticMeshInfo& ISMInfo, const FTransform& Transform, const FTransform& PrevTransform, const float LODSignificance, const float PrevLODSignificance/* = -1.0f*/)
 {
 	if (ISMInfo.ShouldUseTransformOffset())
 	{
@@ -78,10 +79,10 @@ void UMassUpdateISMProcessor::UpdateISMTransform(int32 EntityId, FMassInstancedS
 		const FTransform SMTransform = TransformOffset * Transform;
 		const FTransform SMPrevTransform = TransformOffset * PrevTransform;
 
-		ISMInfo.AddBatchedTransform(EntityId, SMTransform, SMPrevTransform, LODSignificance);
+		ISMInfo.AddBatchedTransform(EntityId, SMTransform, SMPrevTransform, LODSignificance, PrevLODSignificance);
 	}
 	else
 	{
-		ISMInfo.AddBatchedTransform(EntityId, Transform, PrevTransform, LODSignificance);
+		ISMInfo.AddBatchedTransform(EntityId, Transform, PrevTransform, LODSignificance, PrevLODSignificance);
 	}
 }

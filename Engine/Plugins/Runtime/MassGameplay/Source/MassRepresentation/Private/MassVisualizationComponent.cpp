@@ -296,11 +296,16 @@ void FMassInstancedStaticMeshInfo::ClearVisualInstance(FISMCSharedDataMap& ISMCS
 // FMassLODSignificanceRange
 //---------------------------------------------------------------
 
-void FMassLODSignificanceRange::AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform)
+void FMassLODSignificanceRange::AddBatchedTransform(const int32 InstanceId, const FTransform& Transform, const FTransform& PrevTransform, const TArray<uint32>& ExcludeStaticMeshRefs)
 {
 	check(ISMCSharedDataPtr);
 	for (int i = 0; i < StaticMeshRefs.Num(); i++)
 	{
+		if (ExcludeStaticMeshRefs.Contains(StaticMeshRefs[i]))
+		{
+			continue;
+		}
+
 		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 
 		SharedData.UpdateInstanceIds.Add(InstanceId);
@@ -309,21 +314,31 @@ void FMassLODSignificanceRange::AddBatchedTransform(const int32 InstanceId, cons
 	}
 }
 
-void FMassLODSignificanceRange::AddBatchedCustomDataFloats(const TArray<float>& CustomFloats)
+void FMassLODSignificanceRange::AddBatchedCustomDataFloats(const TArray<float>& CustomFloats, const TArray<uint32>& ExcludeStaticMeshRefs)
 {
 	check(ISMCSharedDataPtr);
 	for (int i = 0; i < StaticMeshRefs.Num(); i++)
 	{
+		if (ExcludeStaticMeshRefs.Contains(StaticMeshRefs[i]))
+		{
+			continue;
+		}
+
 		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 		SharedData.StaticMeshInstanceCustomFloats.Append(CustomFloats);
 	}
 }
 
-void FMassLODSignificanceRange::WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float> CustomFloats, int32 FloatsPerInstance, int32 StartFloatIndex)
+void FMassLODSignificanceRange::WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float>& CustomFloats, const int32 FloatsPerInstance, const int32 StartFloatIndex, const TArray<uint32>& ExcludeStaticMeshRefs)
 {
 	check(ISMCSharedDataPtr);
 	if (StaticMeshRefs.IsValidIndex(StaticMeshIndex))
 	{
+		if (ExcludeStaticMeshRefs.Contains(StaticMeshRefs[StaticMeshIndex]))
+		{
+			return;
+		}
+
 		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[StaticMeshIndex]];
 
 		int32 StartIndex = FloatsPerInstance * SharedData.WriteIterator + StartFloatIndex;
