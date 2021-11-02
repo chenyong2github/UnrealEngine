@@ -33,7 +33,7 @@ FDisplayClusterProjectionManualPolicy::~FDisplayClusterProjectionManualPolicy()
 bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
-	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
+	UE_LOG(LogDisplayClusterProjectionManual, Verbose, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
 
 	FString DataTypeInString;
 	if(DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Type), DataTypeInString))
@@ -42,14 +42,21 @@ bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClust
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'"), *DataTypeInString);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'"), *DataTypeInString);
+		}
+
 		return false;
 	}	
 
 	// Get view rotation
 	if (!DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Rotation), ViewRotation))
 	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		}
 	}
 
 	FString RenderType;
@@ -79,7 +86,11 @@ bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClust
 
 			if (!ExtractAngles(AnglesLeft, FrustumAngles[0]))
 			{
-				UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
+				if (!IsEditorOperationMode())
+				{
+					UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
+				}
+
 				return false;
 			}
 		}
@@ -90,13 +101,21 @@ bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClust
 
 			if (!ExtractAngles(AnglesLeft, FrustumAngles[0]))
 			{
-				UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
+				if (!IsEditorOperationMode())
+				{
+					UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
+				}
+
 				return false;
 			}
 
 			if (!ExtractAngles(AnglesRight, FrustumAngles[1]))
 			{
-				UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesRight);
+				if (!IsEditorOperationMode())
+				{
+					UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesRight);
+				}
+
 				return false;
 			}
 		}
@@ -199,7 +218,10 @@ FDisplayClusterProjectionManualPolicy::EManualDataType FDisplayClusterProjection
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'. Matrix by default"), *DataTypeInString);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'. Matrix by default"), *DataTypeInString);
+		}
 	}
 
 	return EManualDataType::Matrix;

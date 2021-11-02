@@ -20,7 +20,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 	check(InConfigurationProjectionPolicy != nullptr);
 
 #if PLATFORM_WINDOWS
-	UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+	UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
 	return  MakeShared<FDisplayClusterProjectionVIOSOPolicy, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 #endif
 

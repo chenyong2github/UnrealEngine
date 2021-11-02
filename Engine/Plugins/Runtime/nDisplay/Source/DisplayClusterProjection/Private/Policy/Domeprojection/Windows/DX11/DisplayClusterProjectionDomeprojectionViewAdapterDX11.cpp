@@ -2,6 +2,7 @@
 
 #include "Policy/Domeprojection/Windows/DX11/DisplayClusterProjectionDomeprojectionViewAdapterDX11.h"
 #include "Policy/Domeprojection/Windows/DX11/DisplayClusterProjectionDomeprojectionLibraryDX11.h"
+#include "Policy/DisplayClusterProjectionPolicyBase.h"
 
 #include "DisplayClusterProjectionLog.h"
 #include "Misc/DisplayClusterHelpers.h"
@@ -242,7 +243,21 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initiali
 
 	if (!DisplayClusterProjectionDomeprojectionLibraryDX11::Initialize())
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't link to the Domeprojection DLL"));
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't link to the Domeprojection DLL"));
+		}
+
+		return false;
+	}
+
+	if (InFile.IsEmpty())
+	{
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("File name is empty"));
+		}
+
 		return false;
 	}
 
@@ -273,4 +288,3 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initiali
 
 	return true;
 }
-

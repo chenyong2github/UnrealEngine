@@ -37,7 +37,11 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplay
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 		if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
 		{
-			UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+			if (!IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+			}
+
 			return false;
 		}
 	}
@@ -109,7 +113,11 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 	UStaticMeshComponent* MeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);
 	if (!MeshComponent)
 	{
-		UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+		}
+
 		return false;
 	}
 

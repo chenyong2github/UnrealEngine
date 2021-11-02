@@ -12,7 +12,9 @@
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
-
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterProjectionPolicyBase
+//////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: ProjectionPolicyId(InProjectionPolicyId)
 {
@@ -67,12 +69,16 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 			// Try to get a node specified in the config file
 			if (!OriginCompId.IsEmpty())
 			{
-				UE_LOG(LogDisplayClusterProjection, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
+				UE_LOG(LogDisplayClusterProjection, Verbose, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
 				PolicyOriginComp = RootActor->GetComponentByName<USceneComponent>(OriginCompId);
 
 				if (PolicyOriginComp == nullptr)
 				{
-					UE_LOG(LogDisplayClusterProjection, Error, TEXT("No custom origin set or component '%s' not found for policy '%s'. VR root will be used."), *OriginCompId, *GetId());
+					if (!IsEditorOperationMode())
+					{
+						UE_LOG(LogDisplayClusterProjection, Error, TEXT("No custom origin set or component '%s' not found for policy '%s'. VR root will be used."), *OriginCompId, *GetId());
+					}
+
 					PolicyOriginComp = RootActor->GetRootComponent();
 				}
 			}
@@ -95,4 +101,3 @@ void FDisplayClusterProjectionPolicyBase::ReleaseOriginComponent()
 {
 	PolicyOriginComponentRef.ResetSceneComponent();
 }
-

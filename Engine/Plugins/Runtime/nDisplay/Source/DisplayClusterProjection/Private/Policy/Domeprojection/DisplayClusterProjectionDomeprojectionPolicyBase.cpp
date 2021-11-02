@@ -41,6 +41,16 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 		return false;
 	}
 
+	if (File.IsEmpty())
+	{
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Domeprojection configuration file is empty"));
+		}
+
+		return false;
+	}
+
 	// Find origin component if it exists
 	InitializeOriginComponent(InViewport, OriginCompId);
 
@@ -57,11 +67,14 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	ViewAdapter = CreateViewAdapter(FDisplayClusterProjectionDomeprojectionViewAdapterBase::FInitParams{ MaxViewsAmount });
 	if (!(ViewAdapter && ViewAdapter->Initialize(FullFilePath)))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("An error occurred during Domeprojection viewport adapter initialization"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("An error occurred during Domeprojection viewport adapter initialization"));
+		}
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("A Domeprojection viewport adapter has been initialized"));
+	UE_LOG(LogDisplayClusterProjectionDomeprojection, Verbose, TEXT("A Domeprojection viewport adapter has been initialized"));
 
 	return true;
 }
@@ -97,7 +110,11 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(class IDis
 	FRotator OriginSpaceViewRotation = FRotator::ZeroRotator;
 	if (!ViewAdapter->CalculateView(InViewport, InContextNum, DomeprojectionChannel, OriginSpaceViewLocation, OriginSpaceViewRotation, ViewOffset, WorldToMeters, NCP, FCP))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *InViewport->GetId());
+		}
+
 		return false;
 	}
 
@@ -146,7 +163,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	// Domeprojection file (mandatory)
 	if (DisplayClusterHelpers::map::ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::domeprojection::File, OutFile))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::File, *OutFile);
+		UE_LOG(LogDisplayClusterProjectionDomeprojection, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::File, *OutFile);
 	}
 	else
 	{
@@ -161,7 +178,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	// Channel (mandatory)
 	if(DisplayClusterHelpers::map::ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::domeprojection::Channel, OutChannel))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Channel, OutChannel);
+		UE_LOG(LogDisplayClusterProjectionDomeprojection, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Channel, OutChannel);
 	}
 	else
 	{
@@ -176,7 +193,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	// Origin node (optional)
 	if (DisplayClusterHelpers::map::ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::domeprojection::Origin, OutOrigin))
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Origin, *OutOrigin);
+		UE_LOG(LogDisplayClusterProjectionDomeprojection, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Origin, *OutOrigin);
 	}
 	else
 	{

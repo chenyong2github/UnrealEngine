@@ -39,7 +39,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::Origin, OriginCompId))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Origin, *OriginCompId);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Origin, *OriginCompId);
 	}
 	else
 	{
@@ -54,7 +54,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	FString CfgINIFile;
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::INIFile, CfgINIFile))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::INIFile, *CfgINIFile);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::INIFile, *CfgINIFile);
 
 		// Get full path to calibration file:
 		INIFile = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(CfgINIFile);
@@ -78,7 +78,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 
 		if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName, ChannelName))
 		{
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName, *ChannelName);
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName, *ChannelName);
 		}
 		else
 		{
@@ -98,7 +98,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	FString CfgCalibrationFile;
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::File, CfgCalibrationFile))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::File, *CfgCalibrationFile);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::File, *CfgCalibrationFile);
 
 		// Get full path to calibration file:
 		CalibrationFile = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(CfgCalibrationFile);
@@ -133,7 +133,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex, CalibrationIndex))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex, CalibrationIndex);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex, CalibrationIndex);
 	}
 	else
 	if (CalibrationIndex < 0)
@@ -142,7 +142,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 		int AdapterIndex;
 		if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, AdapterIndex))
 		{
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, AdapterIndex);
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, AdapterIndex);
 			CalibrationIndex = -1 * AdapterIndex;
 		}
 		else
@@ -165,7 +165,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 			}
 		}
 
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix, *BaseMatrix.ToString());
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix, *BaseMatrix.ToString());
 	}
 	else
 	{
@@ -179,7 +179,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma, Gamma))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%f'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma, Gamma);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%f'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma, Gamma);
 	}
 	else
 	{

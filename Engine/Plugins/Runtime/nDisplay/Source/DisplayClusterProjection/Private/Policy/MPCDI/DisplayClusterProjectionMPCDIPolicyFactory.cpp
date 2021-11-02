@@ -16,7 +16,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 {
 	check(InConfigurationProjectionPolicy != nullptr);
 
-	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Instantiating projection policy <%s>...id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+	UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Instantiating projection policy <%s>...id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
 
 	if (InConfigurationProjectionPolicy->Type.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase))
 	{
