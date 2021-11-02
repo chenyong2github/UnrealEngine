@@ -2,6 +2,9 @@
 
 #include "SSkeinSourceControlSettings.h"
 #include "SkeinSourceControlModule.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SSkeinSourceControlSettings"
 
