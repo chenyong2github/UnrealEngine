@@ -29,7 +29,7 @@ protected:
 	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
 	TStateTreeItemHandle<FDataFragment_Transform> EntityTransformHandle;
-	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment, EStateTreeItemRequirement::Optional> LocationHandle;
 
 	/** The identifier of the search request send by the evaluator to find candidates */

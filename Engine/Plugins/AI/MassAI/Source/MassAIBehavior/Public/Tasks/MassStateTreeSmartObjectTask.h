@@ -9,7 +9,7 @@
 #include "MassStateTreeSmartObjectTask.generated.h"
 
 struct FStateTreeExecutionContext;
-struct FDataFragment_SmartObjectUser;
+struct FMassSmartObjectUserFragment;
 class USmartObjectSubsystem;
 struct FDataFragment_Transform;
 struct FMassMoveTargetFragment;
@@ -28,7 +28,7 @@ protected:
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 
-	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 
 	/** Result of the candidates search request (Input) */
@@ -57,7 +57,7 @@ protected:
 
 	TStateTreeItemHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeItemHandle<FDataFragment_Transform> EntityTransformHandle;
-	TStateTreeItemHandle<FDataFragment_SmartObjectUser> SmartObjectUserHandle;
+	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
 
 	/** Delay in seconds before trying to find & use another smart object */

@@ -9,7 +9,7 @@ class UMassEntitySubsystem;
 class USmartObjectSubsystem;
 struct FMassExecutionContext;
 struct FMassEntityHandle;
-struct FDataFragment_SmartObjectUser;
+struct FMassSmartObjectUserFragment;
 struct FDataFragment_Transform;
 struct FSmartObjectClaimHandle;
 struct FSmartObjectID;
@@ -79,7 +79,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param RequestID A valid request identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestID& RequestID) const;
+	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestID& RequestID) const;
 
 	/**
 	 * Claims the first available smart object from the provided results.
@@ -88,7 +88,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param SearchRequestResult Results of completed search request
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
+	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
 
 	/**
 	 * Claims the first available slot holding any type of USmartObjectMassBehaviorConfig in the smart object
@@ -98,7 +98,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param ObjectID A valid smart object identifier (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool ClaimSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FSmartObjectID& ObjectID) const;
+	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectID& ObjectID) const;
 
 	/**
 	 * Activates the mass gameplay behavior associated to the previously claimed smart object.
@@ -107,7 +107,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param Transform Fragment holding the transform of the user claiming
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool UseSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const FDataFragment_Transform& Transform) const;
+	bool UseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FDataFragment_Transform& Transform) const;
 
 	/**
 	 * Releases a claimed/in-use smart object and update user fragment.
@@ -115,7 +115,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param User Fragment of the user claiming
 	 * @param Status The new status for in-progress interaction
 	 */
-	void ReleaseSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const EMassSmartObjectInteractionStatus Status = EMassSmartObjectInteractionStatus::Unset) const;
+	void ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const EMassSmartObjectInteractionStatus Status = EMassSmartObjectInteractionStatus::Unset) const;
 
 private:
 	UMassEntitySubsystem& EntitySubsystem;

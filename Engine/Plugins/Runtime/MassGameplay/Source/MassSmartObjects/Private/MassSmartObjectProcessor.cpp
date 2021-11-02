@@ -268,7 +268,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 //----------------------------------------------------------------------//
 void UMassProcessor_SmartObjectTimedBehavior::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_SmartObjectUser>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassSmartObjectUserFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddTagRequirement<FMassSmartObjectTimedBehaviorTag>(EMassFragmentPresence::All);
 }
 
@@ -283,18 +283,18 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 	checkf(SmartObjectSubsystem != nullptr, TEXT("SmartObjectSubsystem should exist when executing processors."));
 	checkf(SignalSubsystem != nullptr, TEXT("MassSignalSubsystem should exist when executing processors."));
 
-	TArray<TTuple<FMassEntityHandle, FDataFragment_SmartObjectUser*>> ToRelease;
+	TArray<TTuple<FMassEntityHandle, FMassSmartObjectUserFragment*>> ToRelease;
 
 	QUICK_SCOPE_CYCLE_COUNTER(UMassProcessor_SmartObjectTestBehavior_Run);
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &ToRelease](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FDataFragment_SmartObjectUser> UserList = Context.GetMutableFragmentView<FDataFragment_SmartObjectUser>();
+		const TArrayView<FMassSmartObjectUserFragment> UserList = Context.GetMutableFragmentView<FMassSmartObjectUserFragment>();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
-			FDataFragment_SmartObjectUser& SOUser = UserList[i];
+			FMassSmartObjectUserFragment& SOUser = UserList[i];
 			if (SOUser.InteractionStatus != EMassSmartObjectInteractionStatus::InProgress)
 			{
 				// Only expecting in progress interaction status
@@ -334,12 +334,12 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 		}
 	});
 
-	for (const TTuple<FMassEntityHandle, FDataFragment_SmartObjectUser*> EntryToRelease : ToRelease)
+	for (const TTuple<FMassEntityHandle, FMassSmartObjectUserFragment*> EntryToRelease : ToRelease)
 	{
 		const FMassEntityHandle Entity = EntryToRelease.Get<0>();
 		SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, Entity);
 
-		FDataFragment_SmartObjectUser* User = EntryToRelease.Get<1>();
+		FMassSmartObjectUserFragment* User = EntryToRelease.Get<1>();
 		SmartObjectSubsystem->Release(User->ClaimHandle);
 		User->InteractionStatus = EMassSmartObjectInteractionStatus::Completed;
 		Context.Defer().RemoveTag<FMassSmartObjectTimedBehaviorTag>(Entity);
