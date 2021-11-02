@@ -206,6 +206,8 @@ protected:
 	// Begin UBakeMeshAttributeMapsToolBase interface
 	virtual void UpdateResult() override;
 	virtual void UpdateVisualization() override;
+
+	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data) override;
 	// End UBakeMeshAttributeMapsToolBase interface
 	
 
@@ -214,7 +216,6 @@ protected:
 
 	UE::Geometry::FMeshSceneAdapter DetailMeshScene;
 
-	bool bInputsDirty = false;
 	void UpdateOnModeChange();
 
 	void InvalidateResults();
@@ -228,4 +229,10 @@ protected:
 	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>>> CachedColorImages;
 	TArray<int> CachedColorUVLayers;
 	FTextureImageMap CachedMeshToColorImagesMap;
+
+	// Analytics
+	virtual FString GetAnalyticsEventName() const override
+	{
+		return TEXT("BakeAll");
+	}
 };

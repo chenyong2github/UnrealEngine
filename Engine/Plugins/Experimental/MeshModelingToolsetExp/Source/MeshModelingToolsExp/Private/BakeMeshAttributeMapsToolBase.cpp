@@ -19,8 +19,13 @@
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "ModelingToolTargetUtil.h"
+#include "ModelingObjectsCreationAPI.h"
+
+#include "EngineAnalytics.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+#include "Sampling/MeshCurvatureMapEvaluator.h"
+#include "Sampling/MeshResampleImageEvaluator.h"
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsToolBase"
@@ -113,11 +118,13 @@ void UBakeMeshAttributeMapsToolBase::Setup()
 	PreviewMesh->SetVisible(true);
 }
 
-void UBakeMeshAttributeMapsToolBase::SetupBaseToolProperties()
+void UBakeMeshAttributeMapsToolBase::PostSetup()
 {
 	VisualizationProps = NewObject<UBakedOcclusionMapVisualizationProperties>(this);
 	VisualizationProps->RestoreProperties(this);
 	AddToolPropertySource(VisualizationProps);
+
+	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
 void UBakeMeshAttributeMapsToolBase::Shutdown(EToolShutdownType ShutdownType)
@@ -172,13 +179,53 @@ void UBakeMeshAttributeMapsToolBase::SetWorld(UWorld* World)
 	TargetWorld = World;
 }
 
+
 void UBakeMeshAttributeMapsToolBase::UpdateResult()
 {
 }
 
+
 void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 {
 }
+
+
+void UBakeMeshAttributeMapsToolBase::InvalidateCompute()
+{
+	const bool bInvalidate = bInputsDirty || static_cast<bool>(OpState & EBakeOpState::Evaluate);
+	if (!Compute)
+	{
+		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
+		Compute->Setup(this);
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
+		Compute->InvalidateResult();
+	}
+	else if (bInvalidate)
+	{
+		Compute->InvalidateResult();
+	}
+	bInputsDirty = false;
+}
+
+
+void UBakeMeshAttributeMapsToolBase::CreateTextureAssets(const TMap<EBakeMapType, TObjectPtr<UTexture2D>>& Textures, UWorld* SourceWorld, UObject* SourceAsset)
+{
+	bool bCreatedAssetOK = true;
+	const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
+	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Textures)
+	{
+		FString TexName;
+		GetTextureName(Result.Get<0>(), BaseName, TexName);
+		bCreatedAssetOK = bCreatedAssetOK &&
+			UE::Modeling::CreateTextureObject(
+				GetToolManager(),
+				FCreateTextureObjectParams{ 0, SourceWorld, SourceAsset, TexName, Result.Get<1>() }).IsOK();
+	}
+	ensure(bCreatedAssetOK);
+
+	RecordAnalytics(BakeAnalytics, GetAnalyticsEventName());
+}
+
 
 
 void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMapType)
@@ -237,9 +284,10 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 }
 
 
-void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult, const EBakeTextureFormat Format)
+void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult)
 {
-	FImageDimensions BakeDimensions = NewResult->GetDimensions();
+	const FImageDimensions BakeDimensions = NewResult->GetDimensions();
+	const EBakeTextureFormat Format = CachedBakeCacheSettings.SourceFormat;
 	const int32 NumEval = NewResult->NumEvaluators();
 	for (int32 EvalIdx = 0; EvalIdx < NumEval; ++EvalIdx)
 	{
@@ -350,6 +398,7 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		}
 	}
 
+	GatherAnalytics(*NewResult, CachedBakeCacheSettings, BakeAnalytics);
 	UpdateVisualization();
 	GetToolManager()->PostInvalidation();
 }
@@ -515,5 +564,155 @@ void UBakeMeshAttributeMapsToolBase::InitializeEmptyMaps()
 	ColorBuilderWhite.Commit(false);
 	EmptyColorMapWhite = ColorBuilderWhite.GetTexture2D();
 }
+
+
+void UBakeMeshAttributeMapsToolBase::GatherAnalytics(FBakeAnalytics::FMeshSettings& Data)
+{
+	
+}
+
+
+void UBakeMeshAttributeMapsToolBase::GatherAnalytics(const FMeshMapBaker& Result, const FBakeCacheSettings& Settings, FBakeAnalytics& Data)
+{
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	Data.TotalBakeDuration = Result.BakeAnalytics.TotalBakeDuration;
+	Data.WriteToImageDuration = Result.BakeAnalytics.WriteToImageDuration;
+	Data.WriteToGutterDuration = Result.BakeAnalytics.WriteToGutterDuration;
+	Data.NumBakedPixels = Result.BakeAnalytics.NumBakedPixels;
+	Data.NumGutterPixels = Result.BakeAnalytics.NumGutterPixels;
+	Data.BakeSettings = Settings;
+
+	const int NumEvaluators = Result.NumEvaluators();
+	for (int EvalId = 0; EvalId < NumEvaluators; ++EvalId)
+	{
+		FMeshMapEvaluator* Eval = Result.GetEvaluator(EvalId);
+		switch(Eval->Type())
+		{
+		case EMeshMapEvaluatorType::Occlusion:
+		{
+			const FMeshOcclusionMapEvaluator* OcclusionEval = static_cast<FMeshOcclusionMapEvaluator*>(Eval);
+			Data.OcclusionSettings.OcclusionRays = OcclusionEval->NumOcclusionRays;
+			Data.OcclusionSettings.MaxDistance = OcclusionEval->MaxDistance;
+			Data.OcclusionSettings.SpreadAngle = OcclusionEval->SpreadAngle;
+			Data.OcclusionSettings.BiasAngle = OcclusionEval->BiasAngleDeg;
+			break;
+		}
+		case EMeshMapEvaluatorType::Curvature:
+		{
+			const FMeshCurvatureMapEvaluator* CurvatureEval = static_cast<FMeshCurvatureMapEvaluator*>(Eval);
+			Data.CurvatureSettings.CurvatureType = static_cast<int>(CurvatureEval->UseCurvatureType);
+			Data.CurvatureSettings.RangeMultiplier = CurvatureEval->RangeScale;
+			Data.CurvatureSettings.MinRangeMultiplier = CurvatureEval->MinRangeScale;
+			Data.CurvatureSettings.ColorMode = static_cast<int>(CurvatureEval->UseColorMode);
+			Data.CurvatureSettings.ClampMode = static_cast<int>(CurvatureEval->UseClampMode);
+			break;
+		}
+		default:
+			break;
+		};
+	}
+}
+
+
+void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data, const FString& EventName)
+{
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+
+	// General
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.Total.Seconds"), Data.TotalBakeDuration));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.WriteToImage.Seconds"), Data.WriteToImageDuration));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.WriteToGutter.Seconds"), Data.WriteToGutterDuration));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Stats.NumBakedPixels"), Data.NumBakedPixels));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Stats.NumGutterPixels"), Data.NumGutterPixels));
+
+	// Mesh data
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Input.TargetMesh.NumTriangles"), Data.MeshSettings.NumTargetMeshTris));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Input.DetailMesh.NumMeshes"), Data.MeshSettings.NumDetailMesh));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Input.DetailMesh.NumTriangles"), Data.MeshSettings.NumDetailMeshTris));
+
+	// Bake settings
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Image.Width"), Data.BakeSettings.Dimensions.GetWidth()));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Image.Height"), Data.BakeSettings.Dimensions.GetHeight()));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Multisampling"), Data.BakeSettings.Multisampling));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Thickness"), Data.BakeSettings.Thickness));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.UVLayer"), Data.BakeSettings.UVLayer));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.UseWorldSpace"), Data.BakeSettings.bUseWorldSpace));
+
+	// Map types
+	const bool bTangentSpaceNormal = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::TangentSpaceNormal);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.TangentSpaceNormal.Enabled"), bTangentSpaceNormal));
+
+	const bool bAmbientOcclusion = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::AmbientOcclusion);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AmbientOcclusion.Enabled"), bAmbientOcclusion));
+	if (bAmbientOcclusion)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AmbientOcclusion.OcclusionRays"), Data.OcclusionSettings.OcclusionRays));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AmbientOcclusion.MaxDistance"), Data.OcclusionSettings.MaxDistance));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AmbientOcclusion.SpreadAngle"), Data.OcclusionSettings.SpreadAngle));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AmbientOcclusion.BiasAngle"), Data.OcclusionSettings.BiasAngle));
+	}
+	const bool bBentNormal = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::BentNormal);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.BentNormal.Enabled"), bBentNormal));
+	if (bBentNormal)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.BentNormal.OcclusionRays"), Data.OcclusionSettings.OcclusionRays));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.BentNormal.MaxDistance"), Data.OcclusionSettings.MaxDistance));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.BentNormal.SpreadAngle"), Data.OcclusionSettings.SpreadAngle));
+	}
+
+	const bool bCurvature = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::Curvature);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.Enabled"), bCurvature));
+	if (bCurvature)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.CurvatureType"), Data.CurvatureSettings.CurvatureType));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.RangeMultiplier"), Data.CurvatureSettings.RangeMultiplier));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.MinRangeMultiplier"), Data.CurvatureSettings.MinRangeMultiplier));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.ClampMode"), Data.CurvatureSettings.ClampMode));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Curvature.ColorMode"), Data.CurvatureSettings.ColorMode));
+	}
+
+	const bool bObjectSpaceNormal = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::ObjectSpaceNormal);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.ObjectSpaceNormal.Enabled"), bObjectSpaceNormal));
+
+	const bool bFaceNormal = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::FaceNormal);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.FaceNormal.Enabled"), bFaceNormal));
+
+	const bool bPosition = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::Position);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Position.Enabled"), bPosition));
+
+	const bool bMaterialID = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::MaterialID);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MaterialID.Enabled"), bMaterialID));
+	
+	const bool bTexture = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::Texture);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Texture.Enabled"), bTexture));
+
+	const bool bMultiTexture = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::MultiTexture); 
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MultiTexture.Enabled"), bMultiTexture));
+
+	const bool bVertexColor = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::VertexColor);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.VertexColor.Enabled"), bVertexColor));
+
+	FEngineAnalytics::GetProvider().RecordEvent(FString(TEXT("Editor.Usage.ModelingTools.")) + EventName, Attributes);
+
+	constexpr bool bLogAnalytics = false; 
+	if constexpr (bLogAnalytics)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("[%s] %s = %s"), *EventName, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

@@ -20,6 +20,8 @@
 #include "AssetUtils/Texture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
+#include "EngineAnalytics.h"
+
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -109,6 +111,12 @@ public:
 			}
 		};
 		MeshScene->ProcessActorChildMeshes(ProcessChildMesh);
+	}
+
+	virtual int32 GetTriangleCount(const void* Mesh) const override
+	{
+		const IMeshSpatialWrapper* Spatial = static_cast<const IMeshSpatialWrapper*>(Mesh);
+		return Spatial->GetTriangleCount();
 	}
 
 	virtual void SetColorMap(const void* Mesh, const FBakeDetailTexture& Map) override
@@ -480,7 +488,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 		LOCTEXT("OnStartTool", "Bake Maps. Select Bake Mesh (LowPoly) first, then select Detail Meshes (HiPoly) to bake. Texture Assets will be created on Accept. "),
 		EToolMessageLevel::UserNotification);
 
-	SetupBaseToolProperties();
+	PostSetup();
 }
 
 
@@ -544,19 +552,10 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
-		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
-		check(StaticMeshAsset);
-		const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
-
-		bool bCreatedAssetOK = true;
-		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
-		{
-			FString TexName;
-			GetTextureName(Result.Get<0>(), BaseName, TexName);
-			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, TexName, Result.Get<1>() }).IsOK();
-		}
-		ensure(bCreatedAssetOK);
+		IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]);
+		UObject* SourceAsset = StaticMeshTarget ? StaticMeshTarget->GetStaticMesh() : nullptr;
+		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
+		CreateTextureAssets(Settings->Result, SourceComponent->GetWorld(), SourceAsset);
 	}
 }
 
@@ -583,7 +582,9 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	BakeCacheSettings.Thickness = Settings->Thickness;
 	BakeCacheSettings.Multisampling = (int32)Settings->Multisampling;
 
-	// process the raw bitfield before caching which may add additional targets.
+	// Record the original map types and process the raw bitfield which may add
+	// additional targets.
+	BakeCacheSettings.SourceBakeMapTypes = static_cast<EBakeMapType>(Settings->MapTypes);
 	BakeCacheSettings.BakeMapTypes = GetMapTypes(Settings->MapTypes);
 
 	// update bake cache settings
@@ -608,19 +609,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 
 	// This should be the only point of compute invalidation to
 	// minimize synchronization issues.
-	const bool bInvalidate = bInputsDirty || (bool)(OpState & EBakeOpState::Evaluate);
-	if (!Compute)
-	{
-		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
-		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult, CachedBakeCacheSettings.SourceFormat); });
-		Compute->InvalidateResult();
-	}
-	else if (bInvalidate)
-	{
-		Compute->InvalidateResult();
-	}
-	bInputsDirty = false;
+	InvalidateCompute();
 }
 
 
@@ -712,11 +701,31 @@ void UBakeMultiMeshAttributeMapsTool::UpdateOnModeChange()
 	OnMapTypesUpdated(Settings);
 }
 
+
 void UBakeMultiMeshAttributeMapsTool::InvalidateResults()
 {
 	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
 	{
 		Result.Get<1>() = nullptr;
+	}
+}
+
+
+void UBakeMultiMeshAttributeMapsTool::GatherAnalytics(FBakeAnalytics::FMeshSettings& Data)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		Data.NumTargetMeshTris = BaseMesh.TriangleCount();
+		Data.NumDetailMesh = 0;
+		Data.NumDetailMeshTris = 0;
+		DetailMeshScene.ProcessActorChildMeshes([&Data](const FActorAdapter* ActorAdapter, const FActorChildMesh* ChildMesh)
+		{
+			if (ChildMesh)
+			{
+				++Data.NumDetailMesh;
+				Data.NumDetailMeshTris += ChildMesh->MeshSpatial->GetTriangleCount();
+			}
+		});
 	}
 }
 

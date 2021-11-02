@@ -129,7 +129,7 @@ public:
 	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) = 0;
 
 	/*** @return triangle count for this mesh */
-	virtual int32 GetTriangleCount() = 0;
+	virtual int32 GetTriangleCount() const = 0;
 
 	/** Calculate bounding box for this Mesh */
 	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
