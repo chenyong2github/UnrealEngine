@@ -10,6 +10,8 @@
 #include "ITextureShareD3D11.h"
 #endif /*TEXTURESHARECORE_RHI*/
 
+#include "Misc/ScopeLock.h"
+
 namespace TextureShareItem
 {
 	static bool D3D11OpenSharedResource(ID3D11Device* pD3D11Device, void* SharedHandle, ID3D11Texture2D** OutSharedTexture)
@@ -24,7 +26,7 @@ namespace TextureShareItem
 		TRefCountPtr <ID3D11Device1> Device1;
 		CHECK_HR_DEFAULT(pD3D11Device->QueryInterface(__uuidof(ID3D11Device1), (void**)Device1.GetInitReference()));
 
-		DWORD   dwDesiredAccess = (OperationType == ETextureShareSurfaceOp::Read) ? DXGI_SHARED_RESOURCE_READ : DXGI_SHARED_RESOURCE_WRITE;
+		const DWORD   dwDesiredAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
 		CHECK_HR_DEFAULT(Device1->OpenSharedResourceByName(*SharedResourceName, dwDesiredAccess, __uuidof(ID3D11Texture2D), (LPVOID*)OutSharedTexture));
 
 		return true;
@@ -43,7 +45,7 @@ namespace TextureShareItem
 			case ETextureShareDevice::D3D11:
 			{
 				// DX11 -> DX11 : Try open DX11 shared handle
-				if (D3D11OpenSharedResource(pD3D11Device, LocalTextureData.SharingData.SharedHandle, &OpenedSharedResources[LocalTextureData.Index]))
+				if (D3D11OpenSharedResource(pD3D11Device, LocalTextureData.GetConnectionSharedHandle(), &OpenedSharedResources[LocalTextureData.Index]))
 				{
 					return true;
 				}
@@ -51,9 +53,9 @@ namespace TextureShareItem
 			}
 			case ETextureShareDevice::D3D12:
 			{
-				FString UniqueNTHandleId = FString::Printf(TEXT("Global\\%s"), *LocalTextureData.SharingData.SharedHandleGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
+				FString UniqueNTHandleId = FString::Printf(TEXT("Global\\%s"), *LocalTextureData.GetConnectionSharedHandleGuid().ToString(EGuidFormats::DigitsWithHyphensInBraces));
 				// DX12 -> DX11 : Try open DX12 shared NT handle
-				if (D3D12OpenSharedResource(pD3D11Device, LocalTextureData.SharingData.SharedHandle, UniqueNTHandleId, LocalTextureData.OperationType, &OpenedSharedResources[LocalTextureData.Index]))
+				if (D3D12OpenSharedResource(pD3D11Device, LocalTextureData.GetConnectionSharedHandle(), UniqueNTHandleId, LocalTextureData.OperationType, &OpenedSharedResources[LocalTextureData.Index]))
 				{
 					return true;
 				}
@@ -71,9 +73,9 @@ namespace TextureShareItem
 	FTextureShareItemD3D11::FTextureShareItemD3D11(const FString& ResourceName, FTextureShareSyncPolicy SyncMode, ETextureShareProcess ProcessType)
 		: FTextureShareItemBase(ResourceName, SyncMode, ProcessType)
 	{
-		for (int i = 0; i < MaxTextureShareItemTexturesCount; i++)
+		for (int32 TextureIndex = 0; TextureIndex < MaxTextureShareItemTexturesCount; TextureIndex++)
 		{
-			OpenedSharedResources[i] = nullptr;
+			OpenedSharedResources[TextureIndex] = nullptr;
 		}
 	}
 
@@ -84,18 +86,20 @@ namespace TextureShareItem
 
 	void FTextureShareItemD3D11::DeviceReleaseTextures()
 	{
+		FScopeLock DataLock(&DataLockGuard);
+
 		if (IsValid())
 		{
 			FSharedResourceProcessData& LocalData = GetLocalProcessData();
-			for (int i = 0; i < MaxTextureShareItemTexturesCount; i++)
+			for (int32 TextureIndex = 0; TextureIndex < MaxTextureShareItemTexturesCount; TextureIndex++)
 			{
-				if (OpenedSharedResources[i])
+				if (OpenedSharedResources[TextureIndex])
 				{
-					OpenedSharedResources[i]->Release();
-					OpenedSharedResources[i] = nullptr;
+					OpenedSharedResources[TextureIndex]->Release();
+					OpenedSharedResources[TextureIndex] = nullptr;
 				}
 
-				LocalData.Textures[i].ReleaseConnection();
+				LocalData.Textures[TextureIndex].ReleaseConnection();
 			}
 
 			//Server, only for UE4. implement via RHI:
@@ -110,6 +114,8 @@ namespace TextureShareItem
 
 	bool FTextureShareItemD3D11::UnlockTexture_RenderThread(const FString& TextureName)
 	{
+		FScopeLock DataLock(&DataLockGuard);
+
 		if (IsFrameValid())
 		{
 			FSharedResourceTexture TextureData;
@@ -124,6 +130,8 @@ namespace TextureShareItem
 
 	ID3D11Texture2D* FTextureShareItemD3D11::LockTexture_RenderThread(ID3D11Device* pD3D11Device, const FString& TextureName)
 	{
+		FScopeLock DataLock(&DataLockGuard);
+
 		if (IsFrameValid())
 		{
 			FSharedResourceTexture TextureData;
@@ -144,7 +152,7 @@ namespace TextureShareItem
 		bool bIsResourceChanged;
 		ID3D11Texture2D* LockedResource = nullptr;
 
-		int RemoteTextureIndex;
+		int32 RemoteTextureIndex;
 		if (TryTextureSync(LocalTextureData, RemoteTextureIndex) && LockTextureMutex(LocalTextureData))
 		{
 			if (IsClient())
@@ -190,7 +198,7 @@ namespace TextureShareItem
 		return LockedResource;
 	}
 
-	ID3D11Texture2D* FTextureShareItemD3D11::OpenSharedResource(ID3D11Device* pD3D11Device, FSharedResourceTexture& LocalTextureData, int RemoteTextureIndex, bool& bIsResourceChanged)
+	ID3D11Texture2D* FTextureShareItemD3D11::OpenSharedResource(ID3D11Device* pD3D11Device, FSharedResourceTexture& LocalTextureData, int32 RemoteTextureIndex, bool& bIsResourceChanged)
 	{
 		bIsResourceChanged = false;
 
@@ -207,7 +215,7 @@ namespace TextureShareItem
 				CloseSharedResource(LocalTextureData);
 				
 				// Copy sharing data (signal server process to close handle)
-				LocalTextureData.SharingData = RemoteTextureData.SharingData;
+				LocalTextureData.OpenConnection(RemoteTextureData);
 
 				// Open shared texture
 				if (!OpenSharedResource(pD3D11Device, LocalTextureData, RemoteData.DeviceType))
@@ -228,6 +236,8 @@ namespace TextureShareItem
 #if TEXTURESHARECORE_RHI
 	bool FTextureShareItemD3D11::LockClientRHITexture(FSharedResourceTexture& LocalTextureData, bool& bIsTextureChanged)
 	{
+		FScopeLock DataLock(&DataLockGuard);
+
 		bIsTextureChanged = false;
 
 		if (!IsFrameValid() || !IsClient())
@@ -238,7 +248,7 @@ namespace TextureShareItem
 		//Client RHI , only for UE4. implement via RHI:
 		FSharedRHITexture* SharedRHITexture = GetSharedRHITexture(LocalTextureData);
 
-		int RemoteTextureIndex = FindRemoteTextureIndex(LocalTextureData);
+		int32 RemoteTextureIndex = FindRemoteTextureIndex(LocalTextureData);
 
 		auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 		ID3D11Texture2D* LockedResource = OpenSharedResource(UE4D3DDevice, LocalTextureData, RemoteTextureIndex, bIsTextureChanged);
@@ -269,7 +279,7 @@ namespace TextureShareItem
 		}
 
 		// Empty local shared handle
-		LocalTextureData.SharingData.SharedHandle = nullptr;
+		LocalTextureData.ReleaseConnection();
 	}
 
 	bool FTextureShareItemD3D11::Impl_UnlockTexture_RenderThread(FSharedResourceTexture& LocalTextureData, bool bIsTextureChanged)

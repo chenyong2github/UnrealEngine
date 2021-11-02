@@ -87,7 +87,6 @@ struct FDisplayClusterConfigurationTextViewport : public FDisplayClusterConfigur
 	FIntPoint Size = FIntPoint::ZeroValue;
 	float     BufferRatio = 1.f;
 	int       GPUIndex = -1;                 // Force custom mgpu index for this viewport {view->bOverrideGPUMask=true; view->GPUMask=GPUIndex; }
-	bool      AllowCrossGPUTransfer = true;  // Control UE viewport mgpu transfer View->bAllowCrossGPUTransfer
 	bool      IsShared = false;              // Share this viewport for all (scene context textures, backbuffer)
 
 	virtual FString ToString() const override;

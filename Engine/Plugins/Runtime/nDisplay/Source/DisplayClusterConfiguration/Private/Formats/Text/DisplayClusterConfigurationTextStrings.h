@@ -77,7 +77,6 @@ namespace DisplayClusterConfigurationTextStrings
 				static constexpr auto BufferRatio = TEXT("buffer_ratio");
 				static constexpr auto GPUIndex    = TEXT("gpu_node");
 				static constexpr auto IsShared    = TEXT("share");
-				static constexpr auto AllowCrossGPUTransfer = TEXT("allow_gpu_transfer");
 				// + Id
 			}
 

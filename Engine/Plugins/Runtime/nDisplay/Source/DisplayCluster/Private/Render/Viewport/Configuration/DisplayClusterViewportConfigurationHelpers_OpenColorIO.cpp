@@ -82,7 +82,7 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraV
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
 	if (CameraSettings.AllNodesOCIOConfiguration.bIsEnabled)
 	{
-		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettings();
+		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettingsConstRef();
 
 		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
 		if (!ClusterNodeId.IsEmpty())

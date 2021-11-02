@@ -402,6 +402,25 @@ public:
 };
 
 USTRUCT()
+struct FDisplayClusterConfigurationJsonTextureShare_427
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	bool bIsEnabled = false;
+
+	UPROPERTY()
+	int SyncPolicy_Connection;
+
+	UPROPERTY()
+	int SyncPolicy_Frame;
+
+	UPROPERTY()
+	int SyncPolicy_Texture;
+};
+
+USTRUCT()
 struct FDisplayClusterConfigurationJsonViewport_427
 {
 	GENERATED_BODY()
@@ -417,10 +436,7 @@ public:
 	int GPUIndex;
 
 	UPROPERTY()
-	bool AllowCrossGPUTransfer;
-
-	UPROPERTY()
-	bool IsShared;
+	FDisplayClusterConfigurationJsonTextureShare_427 TextureShare;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonOverscan_427 Overscan;

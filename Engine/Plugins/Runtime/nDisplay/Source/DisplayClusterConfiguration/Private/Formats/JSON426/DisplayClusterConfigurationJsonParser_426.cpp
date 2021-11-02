@@ -198,6 +198,12 @@ namespace JSON426
 					Viewport->Region = FDisplayClusterConfigurationRectangle(CfgViewport.Value.Region.X, CfgViewport.Value.Region.Y, CfgViewport.Value.Region.W, CfgViewport.Value.Region.H);
 					Viewport->GPUIndex = CfgViewport.Value.GPUIndex;
 
+					// TextureShare
+					Viewport->TextureShare.bIsEnabled = CfgViewport.Value.TextureShare.bIsEnabled;
+					Viewport->TextureShare.SyncSettings.Connection = (ETextureShareSyncConnectDisplayCluster)((uint8)CfgViewport.Value.TextureShare.SyncPolicy_Connection);
+					Viewport->TextureShare.SyncSettings.Frame      = (ETextureShareSyncFrameDisplayCluster)((uint8)CfgViewport.Value.TextureShare.SyncPolicy_Frame);
+					Viewport->TextureShare.SyncSettings.Texture    = (ETextureShareSyncSurfaceDisplayCluster)((uint8)CfgViewport.Value.TextureShare.SyncPolicy_Texture);
+
 					// Projection policy
 					Viewport->ProjectionPolicy.Type = CfgViewport.Value.ProjectionPolicy.Type;
 					Viewport->ProjectionPolicy.Parameters = CfgViewport.Value.ProjectionPolicy.Parameters;

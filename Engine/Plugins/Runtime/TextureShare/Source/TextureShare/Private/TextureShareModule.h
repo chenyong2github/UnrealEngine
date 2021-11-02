@@ -5,6 +5,8 @@
 #include "ITextureShareCore.h"
 #include "TextureShareDisplayManager.h"
 
+#include "TextureShareInstance.h"
+
 struct IPooledRenderTarget;
 
 class FTextureShareModule 
@@ -41,33 +43,26 @@ public:
 
 	virtual void CastTextureShareBPSyncPolicy(const struct FTextureShareBPSyncPolicy& InSyncPolicy, struct FTextureShareSyncPolicy& OutSyncPolicy) override;
 
+public:
 	// Rendered callback (capture scene textures)
+	void OnBeginRenderViewFamily(FSceneViewFamily& InViewFamily);
 	void OnResolvedSceneColor_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily);
 	void OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneViewFamily& ViewFamily);
 
-protected:
-	bool SendTexture_RenderThread(FRHICommandListImmediate& RHICmdList, const TSharedPtr<ITextureShareItem>& ShareItem, const FString& TextureName, const TRefCountPtr<IPooledRenderTarget>& PooledRenderTargetRef);
+private:
+	void UpdateTextureSharesProxy();
 
-protected:
-	bool SendSceneContext_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily);
-	bool SendPostRender_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, class FSceneViewFamily& ViewFamily);
-
-	void RemoveSceneContextCallback(const FString& ShareName);
-	
-
-protected:
-	ETextureShareDevice GetTextureShareDeviceType() const;
+	bool FindTextureShare(const FString& ShareName, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
+	bool FindTextureShare(const TSharedPtr<ITextureShareItem>& ShareItem, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
+	bool FindTextureShare(int32 InStereoscopicPass, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
+		 
+	bool FindTextureShare_RenderThread(const FString& ShareName, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
+	bool FindTextureShare_RenderThread(const TSharedPtr<ITextureShareItem>& ShareItem, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
+	bool FindTextureShare_RenderThread(int32 InStereoscopicPass, TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>& OutTextureShare) const;
 
 private:
-	void ReleaseSharedResources();
-
-private:
-	ITextureShareCore& ShareCoreAPI;
 	TSharedPtr<FTextureShareDisplayManager, ESPMode::ThreadSafe> DisplayManager;
 
-	mutable FCriticalSection DataGuard;
-	/** Map Share name to stereoscopic pass */
-	mutable TMap<FString, int> TextureShareSceneContextCallback;
-	/** Use SubRect for stereoscopic pass (nDisplay viewport purpose) */
-	mutable TMap<int, FIntRect> BackbufferRects;
+	TArray<TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>> TextureShares;
+	TArray<TSharedPtr<FTextureShareInstance, ESPMode::ThreadSafe>> TextureSharesProxy;
 };

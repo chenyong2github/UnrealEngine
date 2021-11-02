@@ -18,6 +18,7 @@ class FTextureShareDisplayManager
 {
 public:
 	FTextureShareDisplayManager(FTextureShareModule& InTextureShareModule);
+	~FTextureShareDisplayManager();
 
 	/** Will return the extension associated to the desired viewport or create one if it's not tracked */
 	TSharedPtr<FTextureShareDisplayExtension, ESPMode::ThreadSafe> FindOrAddDisplayConfiguration(FViewport* InViewport);
@@ -34,8 +35,9 @@ public:
 	void EndSceneSharing();
 
 	/** Display extension global cb */
-	void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
-	void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
+	void OnBeginRenderViewFamily(FSceneViewFamily& InViewFamily);
+	void OnPreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
+	void OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
 
 
 private:

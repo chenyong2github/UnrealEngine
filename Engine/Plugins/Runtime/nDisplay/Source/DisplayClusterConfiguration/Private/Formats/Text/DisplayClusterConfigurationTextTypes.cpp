@@ -99,7 +99,7 @@ bool FDisplayClusterConfigurationTextWindow::DeserializeFromString(const FString
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigurationTextViewport::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d, %s=%f, %s=%d, %s=%s, %s=%s]"),
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d, %s=%f, %s=%d, %s=%s]"),
 		*FDisplayClusterConfigurationTextBase::ToString(),
 		DisplayClusterConfigurationTextStrings::cfg::data::Id, *Id,
 		DisplayClusterConfigurationTextStrings::cfg::data::viewport::Projection,            *ProjectionId,
@@ -110,7 +110,6 @@ FString FDisplayClusterConfigurationTextViewport::ToString() const
 		DisplayClusterConfigurationTextStrings::cfg::data::viewport::Height,                Size.Y,
 		DisplayClusterConfigurationTextStrings::cfg::data::viewport::BufferRatio,           BufferRatio,
 		DisplayClusterConfigurationTextStrings::cfg::data::viewport::GPUIndex,              GPUIndex,
-		DisplayClusterConfigurationTextStrings::cfg::data::viewport::AllowCrossGPUTransfer, *DisplayClusterHelpers::str::BoolToStr(AllowCrossGPUTransfer),
 		DisplayClusterConfigurationTextStrings::cfg::data::viewport::IsShared,              *DisplayClusterHelpers::str::BoolToStr(IsShared));
 }
 
@@ -125,7 +124,6 @@ bool FDisplayClusterConfigurationTextViewport::DeserializeFromString(const FStri
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::viewport::Height),                Size.Y);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::viewport::BufferRatio),           BufferRatio);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::viewport::GPUIndex),              GPUIndex);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::viewport::AllowCrossGPUTransfer), AllowCrossGPUTransfer);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::viewport::IsShared),              IsShared);
 
 	return FDisplayClusterConfigurationTextBase::DeserializeFromString(line);

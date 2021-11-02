@@ -80,7 +80,12 @@ namespace
 
 FTextureShareDisplayManager::FTextureShareDisplayManager(FTextureShareModule& InTextureShareModule)
 	: TextureShareModule(InTextureShareModule)
-{}
+{ }
+
+FTextureShareDisplayManager::~FTextureShareDisplayManager()
+{
+	EndSceneSharing();
+}
 
 TSharedPtr<FTextureShareDisplayExtension, ESPMode::ThreadSafe> FTextureShareDisplayManager::FindOrAddDisplayConfiguration(FViewport* InViewport)
 {
@@ -113,7 +118,12 @@ bool FTextureShareDisplayManager::IsTrackingViewport(const FViewport* InViewport
 	return DisplayExtensions.ContainsByPredicate([InViewport](const TSharedPtr<FTextureShareDisplayExtension, ESPMode::ThreadSafe>& Other) { return  Other.IsValid() && InViewport == Other->GetAssociatedViewport(); });
 }
 
-void FTextureShareDisplayManager::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void FTextureShareDisplayManager::OnBeginRenderViewFamily(FSceneViewFamily& InViewFamily)
+{
+	TextureShareModule.OnBeginRenderViewFamily(InViewFamily);
+}
+
+void FTextureShareDisplayManager::OnPreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
 {
 	// Save current viewfamily (Call from FTextureShareDisplayExtension::PreRenderViewFamily_RenderThread)
 	CurrentSceneViewFamily = &InViewFamily;
@@ -128,7 +138,7 @@ void FTextureShareDisplayManager::OnResolvedSceneColor_RenderThread(FRHICommandL
 	}
 }
 
-void FTextureShareDisplayManager::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void FTextureShareDisplayManager::OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
 {
 	// Forward resolved backbuffer cb (Call from FTextureShareDisplayExtension::PostRenderViewFamily_RenderThread)
 	CurrentSceneViewFamily = nullptr;

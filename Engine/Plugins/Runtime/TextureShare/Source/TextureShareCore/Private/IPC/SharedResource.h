@@ -27,13 +27,15 @@ namespace TextureShareItem
 		bool ReadRemoteData(FSharedResourceProcessData& OutRemoteData, uint32 MaxMillisecondsToWait)
 			{ return ReadData(OutRemoteData, false, MaxMillisecondsToWait); }
 
-		bool InitializeTextureMutex(int TextureIndex, const FString& TextureName);
-		void ReleaseTextureMutex(int TextureIndex, bool bDeleteISO);
+		bool InitializeTextureMutex(int32 TextureIndex, const FString& TextureName);
+		void ReleaseTextureMutex(int32 TextureIndex, bool bDeleteISO);
 		void ReleaseTexturesMutex(bool bDeleteISO);
 
-		bool LockTextureMutex(int TextureIndex, uint32 MaxMillisecondsToWait);
-		void UnlockTextureMutex(int TextureIndex);
+		bool LockTextureMutex(int32 TextureIndex, uint32 MaxMillisecondsToWait);
+		void UnlockTextureMutex(int32 TextureIndex);
 		void UnlockTexturesMutex();
+
+		bool WaitReadDataEvent(uint32 WaitTime, const bool bIgnoreThreadIdleStats = false);
 
 		const FString& GetName() const
 			{ return Name; }
@@ -44,7 +46,7 @@ namespace TextureShareItem
 
 	protected:
 		FString Name;
-		int     SessionIndex;
+		int32     SessionIndex;
 		ETextureShareProcess   ProcessType;
 		FSharedResourceMemory& ResourceMemory;
 	};

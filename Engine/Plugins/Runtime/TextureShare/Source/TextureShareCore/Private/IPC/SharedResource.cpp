@@ -116,7 +116,7 @@ namespace TextureShareItem
 		: Name(SharedResourceName)
 		, SessionIndex(-1)
 		, ProcessType(InProcessType)
-		, ResourceMemory(*(new FSharedResourceMemory()))
+		, ResourceMemory(*(new FSharedResourceMemory(InProcessType, SharedResourceName)))
 	{
 	}
 
@@ -166,7 +166,7 @@ namespace TextureShareItem
 		WriteLocalData(EmptyLocalData, DefaultMinMillisecondsToWait);
 	}
 
-	bool FSharedResource::InitializeTextureMutex(int TextureIndex, const FString& TextureName)
+	bool FSharedResource::InitializeTextureMutex(int32 TextureIndex, const FString& TextureName)
 	{
 		if (IsValid())
 		{
@@ -176,7 +176,7 @@ namespace TextureShareItem
 		return false;
 	}
 
-	void FSharedResource::ReleaseTextureMutex(int TextureIndex, bool bDeleteISO)
+	void FSharedResource::ReleaseTextureMutex(int32 TextureIndex, bool bDeleteISO)
 	{
 		ResourceMemory.ReleaseTextureMutex(TextureIndex, bDeleteISO);
 	}
@@ -185,13 +185,18 @@ namespace TextureShareItem
 	{
 		ResourceMemory.ReleaseTexturesMutex(bDeleteISO);
 	}
+
+	bool FSharedResource::WaitReadDataEvent(uint32 WaitTime, const bool bIgnoreThreadIdleStats)
+	{
+		return IsValid() && ResourceMemory.WaitReadDataEvent(WaitTime, bIgnoreThreadIdleStats);
+	}
 	
-	bool FSharedResource::LockTextureMutex(int TextureIndex, uint32 MaxMillisecondsToWait)
+	bool FSharedResource::LockTextureMutex(int32 TextureIndex, uint32 MaxMillisecondsToWait)
 	{
 		return IsValid() && ResourceMemory.LockTextureMutex(TextureIndex, MaxMillisecondsToWait);
 	}
 
-	void FSharedResource::UnlockTextureMutex(int TextureIndex)
+	void FSharedResource::UnlockTextureMutex(int32 TextureIndex)
 	{
 		ResourceMemory.UnlockTextureMutex(TextureIndex);
 	}

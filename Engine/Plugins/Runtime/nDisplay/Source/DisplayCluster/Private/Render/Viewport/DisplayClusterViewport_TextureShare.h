@@ -9,7 +9,10 @@
 #endif
 
 struct FDisplayClusterConfigurationTextureShare_Viewport;
+struct FTextureShareSyncPolicyDisplayCluster;
+struct FDisplayClusterTextureShareSettings;
 class FDisplayClusterViewport;
+class ITextureShareItem;
 
 class FDisplayClusterViewport_TextureShare
 {
@@ -52,8 +55,13 @@ public:
 	~FDisplayClusterViewport_TextureShare();
 
 public:
+	bool Get(TSharedPtr<ITextureShareItem>& OutTextureShareItem) const;
+
 	bool UpdateConfiguration(const FDisplayClusterViewport& InViewport, const FDisplayClusterConfigurationTextureShare_Viewport& InConfiguration);
 	bool UpdateLinkSceneContextToShare(const FDisplayClusterViewport& InViewport);
+
+	static bool BeginSyncFrame(const FDisplayClusterTextureShareSettings& InSettings);
+	static bool EndSyncFrame(const FDisplayClusterTextureShareSettings& InSettings);
 
 private:
 	bool ImplCreate(const FTextureShareConfiguration& InConfiguration);

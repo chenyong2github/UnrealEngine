@@ -274,6 +274,8 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 			return false;
 		}
 	}
+	const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = Configuration->GetRenderFrameSettingsConstRef();
+	const FDisplayClusterTextureShareSettings& TextureShareSettingsConstRef = Configuration->GetTextureShareSettingsConstRef();
 
 	// generate unique stereopass for each frame
 	uint32 ViewPassNum = 0;
@@ -285,7 +287,7 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 		TArray<FDisplayClusterViewport_Context> PrevContexts;
 		PrevContexts.Append(Viewport->GetContexts());
 
-		if (Viewport->UpdateFrameContexts(ViewPassNum, Configuration->GetRenderFrameSettings()))
+		if (Viewport->UpdateFrameContexts(ViewPassNum, RenderFrameSettingsConstRef))
 		{
 			ViewPassNum += Viewport->Contexts.Num();
 		}
@@ -297,21 +299,28 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 	UpdateSceneRenderTargetSize();
 
 	// Build new frame structure
-	if (!RenderFrameManager->BuildRenderFrame(InViewport, Configuration->GetRenderFrameSettings(), Viewports, OutRenderFrame))
+	if (!RenderFrameManager->BuildRenderFrame(InViewport, RenderFrameSettingsConstRef, Viewports, OutRenderFrame))
 	{
 		return false;
 	}
 
 	// Allocate resources for frame
-	if (!RenderTargetManager->AllocateRenderFrameResources(InViewport, Configuration->GetRenderFrameSettings(), Viewports, OutRenderFrame))
+	if (!RenderTargetManager->AllocateRenderFrameResources(InViewport, RenderFrameSettingsConstRef, Viewports, OutRenderFrame))
 	{
 		return false;
 	}
 
-	// Update TextureShare links
-	for (FDisplayClusterViewport* Viewport : Viewports)
+	// Support TextureShare:
+	if(TextureShareSettingsConstRef.bIsEnabled)
 	{
-		Viewport->TextureShare.UpdateLinkSceneContextToShare(*Viewport);
+		// Update TextureShare StereoContextIndex link for viewports
+		for (FDisplayClusterViewport* Viewport : Viewports)
+		{
+			Viewport->TextureShare.UpdateLinkSceneContextToShare(*Viewport);
+		}
+
+		// Synchronize global frame
+		FDisplayClusterViewport_TextureShare::BeginSyncFrame(TextureShareSettingsConstRef);
 	}
 
 	// Update desired views number
@@ -344,8 +353,8 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 		}
 	}
 
-	// Send render frame settings to rendering thread
-	ViewportManagerProxy->ImplUpdateRenderFrameSettings(Configuration->GetRenderFrameSettings());
+	// Send configuration settings to rendering thread
+	ViewportManagerProxy->ImplUpdateSettings(*Configuration.Get());
 
 	// Send updated viewports data to render thread proxy
 	ViewportManagerProxy->ImplUpdateViewports(Viewports);

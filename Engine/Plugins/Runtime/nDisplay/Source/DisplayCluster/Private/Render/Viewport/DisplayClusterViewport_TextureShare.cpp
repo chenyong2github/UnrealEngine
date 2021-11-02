@@ -2,17 +2,72 @@
 
 #include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
+#include "Render/Viewport/DisplayClusterViewportManager.h"
 
 #if PLATFORM_WINDOWS
-	#include "Containers/TextureShareCoreEnums.h"
-	#include "Blueprints/TextureShareContainers.h"
-	#include "ITextureShare.h"
-	#include "ITextureShareItem.h"
+#include "Containers/TextureShareCoreEnums.h"
+#include "Blueprints/TextureShareContainers.h"
+#include "ITextureShare.h"
+#include "ITextureShareCore.h"
+#include "ITextureShareItem.h"
 #endif
+
+#include "Render/Viewport/Containers/DisplayClusterTextureShareSettings.h"
+#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
 #include "DisplayClusterConfigurationTypes_TextureShare.h"
 #include "Misc/DisplayClusterLog.h"
 
+#if PLATFORM_WINDOWS
+static ITextureShare& GetTextureShareAPI()
+{
+	static ITextureShare& SingletonTextureShareApi = ITextureShare::Get();
+	return SingletonTextureShareApi;
+}
+
+static ITextureShareCore& GetTextureShareCoreAPI()
+{
+	static ITextureShareCore& SingletonTextureShareCoreApi = ITextureShareCore::Get();
+	return SingletonTextureShareCoreApi;
+}
+
+static FTextureShareSyncPolicy ImplGetSyncPolicy(const FTextureShareSyncPolicyDisplayCluster& InSyncPolicy)
+{
+	FTextureShareSyncPolicy SyncPolicy;
+
+	// sync settings
+	switch (InSyncPolicy.Connection)
+	{
+	case ETextureShareSyncConnectDisplayCluster::Default: SyncPolicy.ConnectionSync = ETextureShareSyncConnect::Default; break;
+	case ETextureShareSyncConnectDisplayCluster::None: SyncPolicy.ConnectionSync = ETextureShareSyncConnect::None; break;
+	case ETextureShareSyncConnectDisplayCluster::SyncSession: SyncPolicy.ConnectionSync = ETextureShareSyncConnect::SyncSession; break;
+	default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync connection type"));  break;
+	}
+
+	switch (InSyncPolicy.Frame)
+	{
+	case ETextureShareSyncFrameDisplayCluster::Default: SyncPolicy.FrameSync = ETextureShareSyncFrame::Default; break;
+	case ETextureShareSyncFrameDisplayCluster::None: SyncPolicy.FrameSync = ETextureShareSyncFrame::None; break;
+	case ETextureShareSyncFrameDisplayCluster::FrameSync: SyncPolicy.FrameSync = ETextureShareSyncFrame::FrameSync; break;
+	default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync frame type"));  break; break;
+	}
+
+	switch (InSyncPolicy.Texture)
+	{
+	case ETextureShareSyncSurfaceDisplayCluster::Default: SyncPolicy.TextureSync = ETextureShareSyncSurface::Default; break;
+	case ETextureShareSyncSurfaceDisplayCluster::None: SyncPolicy.TextureSync = ETextureShareSyncSurface::None; break;
+	case ETextureShareSyncSurfaceDisplayCluster::SyncRead: SyncPolicy.TextureSync = ETextureShareSyncSurface::SyncRead; break;
+	case ETextureShareSyncSurfaceDisplayCluster::SyncPairingRead: SyncPolicy.TextureSync = ETextureShareSyncSurface::SyncPairingRead; break;
+	default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync texture type"));  break;
+	}
+
+	return SyncPolicy;
+}
+#endif
+
+//-------------------------------------------------------------------------------
+// FDisplayClusterViewport_TextureShare
+//-------------------------------------------------------------------------------
 FDisplayClusterViewport_TextureShare::FDisplayClusterViewport_TextureShare()
 {
 
@@ -31,7 +86,7 @@ bool FDisplayClusterViewport_TextureShare::ImplDelete()
 		FString ExistTextureShareId = ExistConfiguration.TextureShareId;
 		ExistConfiguration.Empty();
 
-		if(ITextureShare::Get().ReleaseShare(ExistTextureShareId))
+		if(GetTextureShareAPI().ReleaseShare(ExistTextureShareId))
 		{
 			return true;
 		}
@@ -48,7 +103,7 @@ bool FDisplayClusterViewport_TextureShare::ImplCreate(const FTextureShareConfigu
 #if PLATFORM_WINDOWS
 	if (!ExistConfiguration.IsValid())
 	{
-		if (ITextureShare::Get().CreateShare(InConfiguration.TextureShareId, InConfiguration.SyncSettings, ETextureShareProcess::Server))
+		if (GetTextureShareAPI().CreateShare(InConfiguration.TextureShareId, InConfiguration.SyncSettings, ETextureShareProcess::Server))
 		{
 			ExistConfiguration = InConfiguration;
 			return true;
@@ -61,53 +116,58 @@ bool FDisplayClusterViewport_TextureShare::ImplCreate(const FTextureShareConfigu
 	return false;
 }
 
+bool FDisplayClusterViewport_TextureShare::Get(TSharedPtr<ITextureShareItem>& OutTextureShareItem) const
+{
+#if PLATFORM_WINDOWS
+	if (ExistConfiguration.IsValid())
+	{
+		return GetTextureShareAPI().GetShare(ExistConfiguration.TextureShareId, OutTextureShareItem);
+	}
+#endif
+
+	return false;
+}
+
 bool FDisplayClusterViewport_TextureShare::UpdateLinkSceneContextToShare(const FDisplayClusterViewport& InViewport)
 {
 #if PLATFORM_WINDOWS
-
 	const TArray<FDisplayClusterViewport_Context>& InContexts = InViewport.GetContexts();
 	// Now share only mono/left eye
 	if (InContexts.Num() > 0)
 	{
+		// This viewport in render
 		const FDisplayClusterViewport_Context& InContext = InContexts[0];
 		if (!InContext.bDisableRender)
 		{
-			// This viewport in render
-
 			// Update texture share configuration on fly
 			if (NewConfiguration.IsValid())
 			{
 				ImplDelete();
-				bool bIsTextureShareCreated = ImplCreate(NewConfiguration);
-
-				if(!bIsTextureShareCreated)
+				if (!ImplCreate(NewConfiguration))
 				{
 					// MU issue: on recompile destructor not called for ViewportManager from RootActor
-					// fix it
+					// fix it: delete
 					ExistConfiguration = NewConfiguration;
 					ImplDelete();
-					bool bIsTextureShareCreatedFixed = ImplCreate(NewConfiguration);
-					if (!bIsTextureShareCreatedFixed)
+					if (!ImplCreate(NewConfiguration))
 					{
 						return false;
 					}
 				}
-
 				NewConfiguration.Empty();
 			}
 
-			if(ExistConfiguration.IsValid())
+			if (ExistConfiguration.IsValid())
 			{
 				int PassType = InContext.StereoscopicPass;
 
-				static ITextureShare& TextureShareAPI = ITextureShare::Get();
 				TSharedPtr<ITextureShareItem> ShareItem;
-				if (TextureShareAPI.GetShare(ExistConfiguration.TextureShareId, ShareItem))
+				if (GetTextureShareAPI().GetShare(ExistConfiguration.TextureShareId, ShareItem))
 				{
-					if (TextureShareAPI.LinkSceneContextToShare(ShareItem, PassType, true))
+					if (GetTextureShareAPI().LinkSceneContextToShare(ShareItem, PassType, true))
 					{
 						// Map viewport rect to stereoscopic pass
-						TextureShareAPI.SetBackbufferRect(PassType, &InContext.RenderTargetRect);
+						GetTextureShareAPI().SetBackbufferRect(PassType, &InContext.RenderTargetRect);
 
 						// Begin share session
 						if (!ShareItem->IsSessionValid())
@@ -119,7 +179,7 @@ bool FDisplayClusterViewport_TextureShare::UpdateLinkSceneContextToShare(const F
 					}
 					else
 					{
-						UE_LOG(LogDisplayClusterViewport, Error, TEXT("failed link scene conext for share '%s'"), *ExistConfiguration.TextureShareId);
+						UE_LOG(LogDisplayClusterViewport, Error, TEXT("failed link scene context for share '%s'"), *ExistConfiguration.TextureShareId);
 					}
 				}
 				else
@@ -130,7 +190,7 @@ bool FDisplayClusterViewport_TextureShare::UpdateLinkSceneContextToShare(const F
 		}
 	}
 
-	//
+	// remove textureshare for invisible or disabled viewports
 	ImplDelete();
 	NewConfiguration.Empty();
 
@@ -144,39 +204,7 @@ bool FDisplayClusterViewport_TextureShare::UpdateConfiguration(const FDisplayClu
 #if PLATFORM_WINDOWS
 	if (InConfiguration.bIsEnabled)
 	{
-		FTextureShareSyncPolicy SyncPolicy;
-		FTextureShareBPSyncPolicy SyncSettings;
-
-		// sync settings
-		switch(InConfiguration.SyncSettings.Connection)
-		{
-			case ETextureShareSyncConnectDisplayCluster::Default: SyncSettings.Connection = ETextureShareBPSyncConnect::Default; break;
-			case ETextureShareSyncConnectDisplayCluster::None: SyncSettings.Connection = ETextureShareBPSyncConnect::None; break;
-			case ETextureShareSyncConnectDisplayCluster::SyncSession: SyncSettings.Connection = ETextureShareBPSyncConnect::SyncSession; break;
-			default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync connection type"));  break;
-		}
-
-		switch (InConfiguration.SyncSettings.Frame)
-		{
-			case ETextureShareSyncFrameDisplayCluster::Default: SyncSettings.Frame = ETextureShareBPSyncFrame::Default; break;
-			case ETextureShareSyncFrameDisplayCluster::None: SyncSettings.Frame = ETextureShareBPSyncFrame::None; break;
-			case ETextureShareSyncFrameDisplayCluster::FrameSync: SyncSettings.Frame = ETextureShareBPSyncFrame::FrameSync; break;
-			default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync frame type"));  break; break;
-		}
-
-		switch (InConfiguration.SyncSettings.Texture)
-		{
-			case ETextureShareSyncSurfaceDisplayCluster::Default: SyncSettings.Texture = ETextureShareBPSyncSurface::Default; break;
-			case ETextureShareSyncSurfaceDisplayCluster::None: SyncSettings.Texture = ETextureShareBPSyncSurface::None; break;
-			case ETextureShareSyncSurfaceDisplayCluster::SyncRead: SyncSettings.Texture = ETextureShareBPSyncSurface::SyncRead; break;
-			case ETextureShareSyncSurfaceDisplayCluster::SyncPairingRead: SyncSettings.Texture = ETextureShareBPSyncSurface::SyncPairingRead; break;
-			default: UE_LOG(LogDisplayClusterViewport, Error, TEXT("Unsupported texture share sync texture type"));  break;
-		}
-
-		static ITextureShare& TextureShareAPI = ITextureShare::Get();
-		TextureShareAPI.CastTextureShareBPSyncPolicy(SyncSettings, SyncPolicy);
-
-		FTextureShareConfiguration InCfg(InViewport.GetId(), SyncPolicy);
+		FTextureShareConfiguration InCfg(InViewport.GetId(), ImplGetSyncPolicy(InConfiguration.SyncSettings));
 		bool bIsConfigurationEqual = InCfg == ExistConfiguration;
 
 		if (!bIsConfigurationEqual || NewConfiguration.IsValid())
@@ -193,3 +221,28 @@ bool FDisplayClusterViewport_TextureShare::UpdateConfiguration(const FDisplayClu
 #endif
 	return false;
 }
+
+bool FDisplayClusterViewport_TextureShare::BeginSyncFrame(const FDisplayClusterTextureShareSettings& InSettings)
+{
+#if PLATFORM_WINDOWS
+	if (InSettings.bIsGlobalSyncEnabled && InSettings.bIsEnabled)
+	{
+		return GetTextureShareCoreAPI().BeginSyncFrame();
+	}
+#endif
+
+	return false;
+}
+
+bool FDisplayClusterViewport_TextureShare::EndSyncFrame(const FDisplayClusterTextureShareSettings& InSettings)
+{
+#if PLATFORM_WINDOWS
+	if (InSettings.bIsGlobalSyncEnabled && InSettings.bIsEnabled)
+	{
+		return GetTextureShareCoreAPI().EndSyncFrame();
+	}
+#endif
+
+	return false;
+}
+

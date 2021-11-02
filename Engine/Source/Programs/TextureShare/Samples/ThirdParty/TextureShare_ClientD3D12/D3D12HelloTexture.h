@@ -32,6 +32,9 @@ public:
     virtual void OnRender();
     virtual void OnDestroy();
 
+protected:
+	void ImplRenderTri(D3D12_VERTEX_BUFFER_VIEW* VertexBufferView, int SRVTextureIndex);
+
 private:
     static const UINT FrameCount = 2;
     static const UINT TextureWidth = 256;

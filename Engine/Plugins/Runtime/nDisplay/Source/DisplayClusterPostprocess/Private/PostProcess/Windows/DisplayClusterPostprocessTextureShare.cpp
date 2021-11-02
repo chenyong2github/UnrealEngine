@@ -24,8 +24,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 ITextureShare& TextureShareAPI()
 {
-	static ITextureShare& SingletoneApi = ITextureShare::Get();
-	return SingletoneApi;
+	static ITextureShare& SingletonTextureShareApi = ITextureShare::Get();
+	return SingletonTextureShareApi;
 }
 
 FString GetDisplayClusterViewportShareName(const FString& ShareName)

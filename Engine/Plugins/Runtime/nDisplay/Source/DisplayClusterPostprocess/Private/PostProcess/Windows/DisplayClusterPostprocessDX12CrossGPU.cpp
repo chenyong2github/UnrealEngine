@@ -25,8 +25,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 static bool GetCrossGPUHeap(TSharedPtr<ID3D12CrossGPUHeap>& OutCrossGPUHeap)
 {
-	static ITextureShareD3D12& SingletoneApi = ITextureShareD3D12::Get();
-	return SingletoneApi.GetCrossGPUHeap(OutCrossGPUHeap);
+	static ITextureShareD3D12& SingletonTextureShareD3D12Api = ITextureShareD3D12::Get();
+	return SingletonTextureShareD3D12Api.GetCrossGPUHeap(OutCrossGPUHeap);
 }
 
 bool FDisplayClusterPostprocessD3D12CrossGPU::CreateResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, const FDisplayClusterViewport& ResourceViewport, int ResourceViewportIndex, FRHITexture2D* ResourceTexture) const

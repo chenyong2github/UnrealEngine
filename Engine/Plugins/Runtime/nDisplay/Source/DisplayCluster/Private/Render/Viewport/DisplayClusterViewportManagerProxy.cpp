@@ -20,6 +20,7 @@
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportProxyData.h"
 
+#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
 // Enable/disable warp&blend
 static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
@@ -79,7 +80,7 @@ void FDisplayClusterViewportManagerProxy::ImplSafeRelease()
 	check(IsInGameThread());
 
 	// Remove viewport manager proxy on render_thread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportManagerProxy)(
+	ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_SafeRelease)(
 		[ViewportManagerProxy = this](FRHICommandListImmediate& RHICmdList)
 	{
 		delete ViewportManagerProxy;
@@ -92,7 +93,7 @@ void FDisplayClusterViewportManagerProxy::ImplCreateViewport(FDisplayClusterView
 
 	if (InViewportProxy)
 	{
-		ENQUEUE_RENDER_COMMAND(CreateDisplayClusterViewportProxy)(
+		ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_CreateViewport)(
 			[ViewportManagerProxy = this, ViewportProxy = InViewportProxy](FRHICommandListImmediate& RHICmdList)
 		{
 			ViewportManagerProxy->ViewportProxies.Add(ViewportProxy);
@@ -105,7 +106,7 @@ void FDisplayClusterViewportManagerProxy::ImplDeleteViewport(FDisplayClusterView
 	check(IsInGameThread());
 
 	// Remove viewport sceneproxy on renderthread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
+	ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_DeleteViewport)(
 		[ViewportManagerProxy = this, ViewportProxy = InViewportProxy](FRHICommandListImmediate& RHICmdList)
 	{
 		// Remove viewport obj from manager
@@ -119,18 +120,23 @@ void FDisplayClusterViewportManagerProxy::ImplDeleteViewport(FDisplayClusterView
 		delete ViewportProxy;
 	});
 }
-void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings)
+
+void FDisplayClusterViewportManagerProxy::ImplUpdateSettings(const FDisplayClusterViewportConfiguration& InConfiguration)
 {
 	check(IsInGameThread());
 
-	FDisplayClusterRenderFrameSettings* Settings = new FDisplayClusterRenderFrameSettings(InRenderFrameSettings);
+	FDisplayClusterRenderFrameSettings*   NewRenderFrameSettings = new FDisplayClusterRenderFrameSettings(InConfiguration.GetRenderFrameSettingsConstRef());
+	FDisplayClusterTextureShareSettings* NewTextureShareSettings = new FDisplayClusterTextureShareSettings(InConfiguration.GetTextureShareSettingsConstRef());
 
 	// Send frame settings to renderthread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = this, Settings](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_UpdateSettings)(
+		[ViewportManagerProxy = this, NewRenderFrameSettings, NewTextureShareSettings](FRHICommandListImmediate& RHICmdList)
 	{
-		ViewportManagerProxy->RenderFrameSettings = *Settings;
-		delete Settings;
+		ViewportManagerProxy->RenderFrameSettings = *NewRenderFrameSettings;
+		delete NewRenderFrameSettings;
+
+		ViewportManagerProxy->TextureShareSettings = *NewTextureShareSettings;
+		delete NewTextureShareSettings;
 	});
 }
 
@@ -145,7 +151,7 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateViewports(const TArray<FDisp
 	}
 
 	// Send viewports settings to renderthread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
+	ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_UpdateViewports)(
 		[ProxiesData = std::move(ViewportProxiesData)](FRHICommandListImmediate& RHICmdList)
 	{
 		for (FDisplayClusterViewportProxyData* It : ProxiesData)
@@ -161,7 +167,7 @@ DECLARE_GPU_STAT_NAMED(nDisplay_ViewportManager_RenderFrame, TEXT("nDisplay View
 
 void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 {
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
+	ENQUEUE_RENDER_COMMAND(DisplayClusterVMProxy_RenderFrame)(
 		[ViewportManagerProxy = this, InViewport](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
@@ -209,6 +215,12 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(FRHICommandListImmediate& RHICmdList) const
 {
 	check(IsInRenderingThread());
+
+	// Synchronize global frame for TextureShare
+	if (TextureShareSettings.bIsEnabled)
+	{
+		FDisplayClusterViewport_TextureShare::EndSyncFrame(TextureShareSettings);
+	}
 
 	TArray<FDisplayClusterViewportProxy*> OverridedViewports;
 	OverridedViewports.Reserve(ViewportProxies.Num());

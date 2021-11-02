@@ -76,6 +76,7 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
 
 			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
+			ImplUpdateTextureShareConfiguration();
 
 			// Set current rendering mode
 			RenderFrameSettings.RenderMode = InRenderMode;
@@ -114,6 +115,12 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 			ViewportIt->VisibilitySettings.SetRootActorHideList(RootActorHidePrimitivesList);
 		}
 	}
+}
+
+void FDisplayClusterViewportConfiguration::ImplUpdateTextureShareConfiguration()
+{
+	TextureShareSettings.bIsEnabled = true;
+	TextureShareSettings.bIsGlobalSyncEnabled = false;
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
@@ -229,6 +236,7 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(const FDis
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
+			ImplUpdateTextureShareConfiguration();
 
 			// Downscale resources with PreviewDownscaleRatio
 			RenderFrameSettings.PreviewRenderTargetRatioMult = InPreviewConfiguration.PreviewRenderTargetRatioMult;

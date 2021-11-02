@@ -38,7 +38,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	check(IsInGameThread());
 
 	// Only for preview modes:
-	switch (Configuration->GetRenderFrameSettings().RenderMode)
+	switch (Configuration->GetRenderFrameSettingsConstRef().RenderMode)
 	{
 	case EDisplayClusterRenderFrameMode::PreviewMono:
 		break;

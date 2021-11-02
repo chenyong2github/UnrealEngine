@@ -48,29 +48,29 @@ FTextureShareReceiverData ShareData1[] = { FTextureShareReceiverData(), FTexture
 // Call once, create TextureShare object, and register textures for send+receive
 void InitializeTextureShareClient(ID3D12Device* pD3D12Device, ID3D12GraphicsCommandList* pCmdList, ID3D12DescriptorHeap* pD3D12HeapSRV, ID3D12Resource* BackbufferRTTTexture)
 {
-	TextureShareClient = new FTextureShareD3D12Client(pD3D12Device, pCmdList, pD3D12HeapSRV);
-	TextureShareClient->CreateShare(ShareName1);
+	TextureShareClient = new FTextureShareD3D12Client(ShareName1, pD3D12Device, pCmdList, pD3D12HeapSRV);
+	TextureShareClient->CreateShare();
 
 	// Register receive textures:
-	TextureShareClient->RegisterTexture(ShareName1, ReceiveTextureNames[ESharedTextureName::SceneDepth], ETextureShareSurfaceOp::Read, 0, 0, DXGI_FORMAT_R10G10B10A2_UNORM);
-	TextureShareClient->RegisterTexture(ShareName1, ReceiveTextureNames[ESharedTextureName::BackBuffer], ETextureShareSurfaceOp::Read);
+	TextureShareClient->RegisterTexture(ReceiveTextureNames[ESharedTextureName::SceneDepth], ETextureShareSurfaceOp::Read, 0, 0, DXGI_FORMAT_R10G10B10A2_UNORM);
+	TextureShareClient->RegisterTexture(ReceiveTextureNames[ESharedTextureName::BackBuffer], ETextureShareSurfaceOp::Read);
 
 	// Register backbuffer texture size&format for send 
 	{
 		D3D12_RESOURCE_DESC DescRTT = BackbufferRTTTexture->GetDesc();
-		TextureShareClient->RegisterTexture(ShareName1, SendBackbufferTextureName, ETextureShareSurfaceOp::Write, (uint32)DescRTT.Width, (uint32)DescRTT.Height, DescRTT.Format);
+		TextureShareClient->RegisterTexture(SendBackbufferTextureName, ETextureShareSurfaceOp::Write, (uint32)DescRTT.Width, (uint32)DescRTT.Height, DescRTT.Format);
 	}
 
 	// Begin share session
-	TextureShareClient->BeginSession(ShareName1);
+	TextureShareClient->BeginSession();
 }
 
 void ReleaseTextureShareClient()
 {
 	if (TextureShareClient)
 	{
-		TextureShareClient->EndSession(ShareName1);
-		TextureShareClient->DeleteShare(ShareName1);
+		TextureShareClient->EndSession();
+		TextureShareClient->DeleteShare();
 		delete TextureShareClient;
 		TextureShareClient = nullptr;
 	}
@@ -80,7 +80,7 @@ void ReleaseTextureShareClient()
 bool UpdateTextureShareClient_RenderThread(ID3D12Resource* BackbufferRTTTexture)
 {
 	bool bResult = false;
-	if (TextureShareClient && TextureShareClient->BeginFrame_RenderThread(ShareName1))
+	if (TextureShareClient && TextureShareClient->BeginFrame_RenderThread())
 	{
 		// Receive all textures
 		for (int i = 0; i < ESharedTextureName::COUNT; i++)
@@ -89,23 +89,23 @@ bool UpdateTextureShareClient_RenderThread(ID3D12Resource* BackbufferRTTTexture)
 			int SRVIndex = i + 1;
 
 			// Read shared texture
-			if (TextureShareClient->ReadTextureFrame_RenderThread(ShareName1, ReceiveTextureNames[i], &ShareData1[i].TextureSRV, SRVIndex))
+			if (TextureShareClient->ReadTextureFrame_RenderThread(ReceiveTextureNames[i], &ShareData1[i].TextureSRV, SRVIndex))
 			{
 				bResult = true;
 			}
 		}
 
 		//Send backbuffer:
-		if (TextureShareClient->IsRemoteTextureUsed(ShareName1, SendBackbufferTextureName))
+		if (TextureShareClient->IsRemoteTextureUsed(SendBackbufferTextureName))
 		{
-			TextureShareClient->WriteTextureFrame_RenderThread(ShareName1, SendBackbufferTextureName, BackbufferRTTTexture);
+			TextureShareClient->WriteTextureFrame_RenderThread(SendBackbufferTextureName, BackbufferRTTTexture);
 		}
 
 		// Get frame data
 		FTextureShareSDKAdditionalData FrameData;
-		TextureShareClient->ReadAdditionalData(ShareName1, &FrameData);
+		TextureShareClient->ReadAdditionalData(&FrameData);
 
-		TextureShareClient->EndFrame_RenderThread(ShareName1);
+		TextureShareClient->EndFrame_RenderThread();
 	}
 
 	return bResult;
@@ -611,25 +611,20 @@ void D3D12HelloTexture::PopulateCommandList()
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	{
-		// Render Tri 1
-		int SRVTextureIndex = ShareData1[ESharedTextureName::SceneDepth].TextureSRV ? (ESharedTextureName::SceneDepth + 1) : 0;
-		BindTexture(SRVTextureIndex);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->DrawInstanced(3, 1, 0, 0);
-	}
-	{
-		// Render Tri 2
-		int SRVTextureIndex = ShareData1[ESharedTextureName::BackBuffer].TextureSRV ? (ESharedTextureName::BackBuffer + 1) : 0;
-		BindTexture(SRVTextureIndex);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView2);
-		m_commandList->DrawInstanced(3, 1, 0, 0);
-	}
+	ImplRenderTri(&m_vertexBufferView, ShareData1[ESharedTextureName::SceneDepth].TextureSRV ? (ESharedTextureName::SceneDepth + 1) : 0);
+	ImplRenderTri(&m_vertexBufferView2, ShareData1[ESharedTextureName::BackBuffer].TextureSRV ? (ESharedTextureName::BackBuffer + 1) : 0);
 
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	// Indicate that the back buffer will now be used to present.
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    ThrowIfFailed(m_commandList->Close());
+	ThrowIfFailed(m_commandList->Close());
+}
+
+void D3D12HelloTexture::ImplRenderTri(D3D12_VERTEX_BUFFER_VIEW* VertexBufferView, int SRVTextureIndex)
+{
+	BindTexture(SRVTextureIndex);
+	m_commandList->IASetVertexBuffers(0, 1, VertexBufferView);
+	m_commandList->DrawInstanced(3, 1, 0, 0);
 }
 
 void D3D12HelloTexture::WaitForPreviousFrame()

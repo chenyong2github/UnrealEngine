@@ -20,12 +20,9 @@ namespace TextureShareItem
 
 		virtual void Release() override;
 
-		virtual bool IsValid() const override
-			{ return SharedResource != nullptr; }
-		virtual bool IsSessionValid() const override
-			{ return IsValid() && bIsSessionStarted; }
-		virtual bool IsLocalFrameLocked() const override
-			{ return GetLocalProcessData().IsFrameLockedNow(); }
+		virtual bool IsValid() const override;
+		virtual bool IsSessionValid() const override;
+		virtual bool IsLocalFrameLocked() const override;
 
 		virtual bool IsClient() const override;
 		virtual const FString& GetName() const override;
@@ -34,16 +31,13 @@ namespace TextureShareItem
 
 		virtual bool SetTextureGPUIndex(const FString& TextureName, uint32 GPUIndex) override;
 		virtual bool SetDefaultGPUIndex(uint32 GPUIndex) override;
-		virtual void SetSyncWaitTime(float InSyncWaitTime) override;
+		virtual void SetSyncWaitTime(float InSyncWaitTime) override; // SyncWaitTime now is deprecated
 
-		virtual bool IsLocalTextureUsed(const FString& TextureName) const override
-			{ return IsTextureUsed(true, TextureName); }
-		virtual bool IsRemoteTextureUsed(const FString& TextureName) const override
-			{ return IsTextureUsed(false, TextureName); }
+		virtual bool IsLocalTextureUsed(const FString& TextureName) const override;
+		virtual bool IsRemoteTextureUsed(const FString& TextureName) const override;
 
 		/** Return remote process best fit shared texture info */
-		virtual bool GetRemoteTextureDesc(const FString& TextureName, FTextureShareSurfaceDesc& OutSharedTextureDesc) const override
-			{ return GetResampledTextureDesc(false, TextureName, OutSharedTextureDesc); }
+		virtual bool GetRemoteTextureDesc(const FString& TextureName, FTextureShareSurfaceDesc& OutSharedTextureDesc) const override;
 
 		virtual bool BeginSession() override;
 		virtual void EndSession() override;
@@ -53,7 +47,6 @@ namespace TextureShareItem
 		virtual bool GetRemoteAdditionalData(FTextureShareAdditionalData& OutAdditionalData) override;
 
 		virtual bool SetCustomProjectionData(const FTextureShareCustomProjectionData& InCustomProjectionData) override;
-
 
 		virtual ETextureShareDevice GetDeviceType() const override
 			{ return ETextureShareDevice::Undefined; }
@@ -82,6 +75,17 @@ namespace TextureShareItem
 		bool WriteLocalProcessData();
 		bool ReadRemoteProcessData();
 
+		/**
+		* Waits the specified amount of time for the other process data changed
+		*
+		* A wait time of MAX_uint32 is treated as infinite wait.
+		*
+		* @param WaitTime The time to wait (in milliseconds).
+		* @param bIgnoreThreadIdleStats If true, ignores ThreadIdleStats
+		* @return true if the data was changed, false if the wait timed out.
+		*/
+		bool WaitForRemoteProcessDataChanged(uint32 WaitTime, const bool bIgnoreThreadIdleStats = false);
+
 	protected:
 		bool IsFrameValid() const
 			{ return GetLocalProcessData().IsFrameLockedNow() && IsConnectionValid(); }
@@ -99,20 +103,20 @@ namespace TextureShareItem
 		const FSharedResourceProcessData& GetRemoteProcessData()const;
 
 		bool TryBeginFrame();
-		bool TryTextureSync(FSharedResourceTexture& LocalTextureData, int& OutRemoteTextureIndex);
+		bool TryTextureSync(FSharedResourceTexture& LocalTextureData, int32& OutRemoteTextureIndex);
 
 		bool BeginTextureOp(FSharedResourceTexture& LocalTextureData); /** Sync texture R\W */
 		bool LockTextureMutex(FSharedResourceTexture& LocalTextureData);
 		void UnlockTextureMutex(FSharedResourceTexture& LocalTextureData, bool bIsTextureChanged);
 
-		int FindTextureIndex(const FSharedResourceProcessData& Src, ESharedResourceTextureState TextureState, bool bNotEqual = false) const;
-		int FindTextureIndex(const FSharedResourceProcessData& Src, const FString& TextureName) const;
+		int32 FindTextureIndex(const FSharedResourceProcessData& Src, ESharedResourceTextureState TextureState, bool bNotEqual = false) const;
+		int32 FindTextureIndex(const FSharedResourceProcessData& Src, const FString& TextureName) const;
 
 		bool CheckTextureInfo(const FString& TextureName, const FIntPoint& InSize, ETextureShareFormat InFormat, uint32 InFormatValue) const;
 		bool IsTextureUsed(bool bIsLocal, const FString& TextureName) const;
 
 		/** Find paired remote texture index. Return -1, if texture not used */
-		int FindRemoteTextureIndex(const FSharedResourceTexture& LocalTextureData) const;
+		int32 FindRemoteTextureIndex(const FSharedResourceTexture& LocalTextureData) const;
 		/** Return best fit shared texture info */
 		bool GetResampledTextureDesc(bool bToLocal, const FString& TextureName, FTextureShareSurfaceDesc& OutSharedTextureDesc) const;
 		/** Fill undefined values in InOutTextureDescfrom InFillerTextureDesc*/
@@ -123,7 +127,7 @@ namespace TextureShareItem
 		virtual void DeviceReleaseTextures()
 		{}
 #if TEXTURESHARECORE_RHI
-		bool LockServerRHITexture(FSharedResourceTexture& LocalTextureData, bool& bIsTextureChanged, int RemoteTextureIndex);
+		bool LockServerRHITexture(FSharedResourceTexture& LocalTextureData, bool& bIsTextureChanged, int32 RemoteTextureIndex);
 		virtual bool LockClientRHITexture(FSharedResourceTexture& LocalTextureData, bool& bIsTextureChanged)
 			{ return false; }
 #endif
@@ -133,14 +137,18 @@ namespace TextureShareItem
 		FSharedResource*           SharedResource = nullptr;
 		bool                       bIsSessionStarted = false;
 		bool                       bRemoteConnectionValid = false;
-		float                      SyncWaitTime = 0.03f;
+
+	protected:
+		// Multithread access lock guard
+		mutable FCriticalSection DataLockGuard;
 
 	private:
 		mutable FCriticalSection FrameLockGuard;
 
 	private:
 		// Define default values globally
-		static FTextureShareSyncPolicySettings SyncPolicySettings[(int)ETextureShareProcess::COUNT];
+		static FTextureShareSyncPolicySettings GSyncPolicySettings[(uint8)ETextureShareProcess::COUNT];
+		static FCriticalSection GSyncPolicySettingsDataGuard;
 
 	public:
 		static const FTextureShareSyncPolicySettings& GetSyncPolicySettings(ETextureShareProcess Process);

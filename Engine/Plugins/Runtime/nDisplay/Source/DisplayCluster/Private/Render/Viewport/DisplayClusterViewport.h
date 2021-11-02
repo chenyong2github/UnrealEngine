@@ -192,6 +192,7 @@ protected:
 	friend FDisplayClusterRenderFrameManager;
 	friend FDisplayClusterViewportConfigurationCameraViewport;
 	friend FDisplayClusterViewportConfigurationCameraICVFX;
+	friend FDisplayClusterViewport_TextureShare;
 
 	friend FDisplayClusterViewportConfigurationICVFX;
 

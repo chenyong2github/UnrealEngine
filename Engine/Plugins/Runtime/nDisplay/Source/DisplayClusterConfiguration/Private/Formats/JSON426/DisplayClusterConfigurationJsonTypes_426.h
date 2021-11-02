@@ -352,6 +352,25 @@ struct FDisplayClusterConfigurationJsonProjectionPolicy_426
 };
 
 USTRUCT()
+struct FDisplayClusterConfigurationJsonTextureShare_426
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	bool bIsEnabled = false;
+
+	UPROPERTY()
+	int SyncPolicy_Connection;
+
+	UPROPERTY()
+	int SyncPolicy_Frame;
+
+	UPROPERTY()
+	int SyncPolicy_Texture;
+};
+
+USTRUCT()
 struct FDisplayClusterConfigurationJsonViewport_426
 {
 	GENERATED_BODY()
@@ -367,10 +386,7 @@ public:
 	int GPUIndex;
 
 	UPROPERTY()
-	bool AllowCrossGPUTransfer;
-
-	UPROPERTY()
-	bool IsShared;
+	FDisplayClusterConfigurationJsonTextureShare_426 TextureShare;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonRectangle_426 Region;

@@ -25,17 +25,18 @@ namespace TextureShareItem
 		virtual ID3D12Resource*  LockTexture_RenderThread(ID3D12Device* pD3D12Device, const FString& TextureName) override;
 		virtual bool             UnlockTexture_RenderThread(const FString& TextureName) override;
 
-		ID3D12Resource* OpenSharedResource(ID3D12Device* pD3D12Device, FSharedResourceTexture& LocalTextureData, int RemoteTextureIndex, bool& bIsResourceChanged);
-
 	protected:
 		virtual void DeviceReleaseTextures() override;
 #if TEXTURESHARECORE_RHI
 		virtual bool LockClientRHITexture(FSharedResourceTexture& LocalTextureData, bool& bIsTextureChanged) override;
 #endif
+
+	private:
+		ID3D12Resource* OpenSharedResource(ID3D12Device* pD3D12Device, FSharedResourceTexture& LocalTextureData, int32 RemoteTextureIndex, bool& bIsResourceChanged);
+
 		void CloseSharedResource(FSharedResourceTexture& LocalTextureData);
 		bool OpenSharedResource(ID3D12Device* pD3D12Device, FSharedResourceTexture& LocalTextureData, ETextureShareDevice RemoteDeviceType);
 
-	protected:
 		ID3D12Resource* Impl_LockTexture_RenderThread(ID3D12Device* pD3D12Device, FSharedResourceTexture& LocalTextureData);
 		bool Impl_UnlockTexture_RenderThread(FSharedResourceTexture& LocalTextureData, bool bIsTextureChanged);
 

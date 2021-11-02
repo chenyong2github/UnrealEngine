@@ -91,8 +91,7 @@ bool FTextureShareD3D12SharedResourceSecurityAttributes::Initialize()
 	ea[0].grfAccessMode = SET_ACCESS;
 	ea[0].grfInheritance = NO_INHERITANCE;
 	ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	//ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
-	ea[0].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	ea[0].Trustee.TrusteeType = TRUSTEE_IS_COMPUTER;// TRUSTEE_IS_GROUP;
 	ea[0].Trustee.ptstrName = (LPTSTR)pEveryoneSID;
 
 	// Create a SID for the BUILTIN\Administrators group.
@@ -114,7 +113,7 @@ bool FTextureShareD3D12SharedResourceSecurityAttributes::Initialize()
 	ea[1].grfAccessMode = SET_ACCESS;
 	ea[1].grfInheritance = NO_INHERITANCE;
 	ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	ea[1].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	ea[1].Trustee.TrusteeType = TRUSTEE_IS_COMPUTER;// TRUSTEE_IS_GROUP;
 	ea[1].Trustee.ptstrName = (LPTSTR)pAdminSID;
 
 	// Create a new ACL that contains the new ACEs.
