@@ -225,6 +225,9 @@ public:
 	FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName);
 	bool HandleVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage);
 
+	// SWidget Overrides
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+
 	friend class FRigTreeElement;
 	friend class SRigHierarchyItem;
 };

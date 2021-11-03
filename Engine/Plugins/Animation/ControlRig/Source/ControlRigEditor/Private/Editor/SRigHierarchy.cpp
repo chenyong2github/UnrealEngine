@@ -2005,7 +2005,12 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 		}
 		else
 		{
-			return ReparentOrMatchTransform(RigDragDropOp->GetElements(), TargetItem->Key, bReparentItems);
+			FRigElementKey TargetKey;
+			if (TargetItem.IsValid())
+			{
+				TargetKey = TargetItem->Key;
+			}
+			return ReparentOrMatchTransform(RigDragDropOp->GetElements(), TargetKey, bReparentItems);			
 		}
 
 	}
@@ -2070,6 +2075,11 @@ bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const 
 		}
 	}
 	return true;
+}
+
+FReply SRigHierarchy::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	return OnAcceptDrop(DragDropEvent, EItemDropZone::OntoItem, nullptr);
 }
 
 void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)

@@ -229,7 +229,6 @@ public:
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
 	bool AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
 	bool AddElement(const FRigBaseElement* InElement);
-	void AddSpacerElement();
 	bool ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
 	bool RemoveElement(FRigElementKey InKey);
 	void RefreshTreeView(bool bRebuildContent = true);
