@@ -2,9 +2,8 @@
 
 #pragma once
 
-static void DumpDebugBlobDetail(IDxcContainerReflection* Reflection, IDxcBlob* Blob, const TCHAR* BlobName)
+static void DumpDebugBlobDetail(IDxcBlob* Blob, const TCHAR* BlobName)
 {
-	check(Reflection != nullptr);
 	check(BlobName != nullptr);
 
 	if (!FPlatformMisc::IsDebuggerPresent())
@@ -15,6 +14,14 @@ static void DumpDebugBlobDetail(IDxcContainerReflection* Reflection, IDxcBlob* B
 	if (Blob == nullptr)
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Blob %s is NULL\n"), BlobName);
+		return;
+	}
+
+	TRefCountPtr<IDxcContainerReflection> Reflection;
+	DxcCreateInstance(CLSID_DxcContainerReflection, __uuidof(IDxcContainerReflection), (void**)Reflection.GetInitReference());
+	if (!Reflection.IsValid())
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Can't show debug detail for Blob %s - Failed to create IDxcContainerReflection\n"), BlobName);
 		return;
 	}
 
