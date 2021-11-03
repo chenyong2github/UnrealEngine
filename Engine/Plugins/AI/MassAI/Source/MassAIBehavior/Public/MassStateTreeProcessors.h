@@ -44,22 +44,21 @@ protected:
 };
 
 /**
- * Special tag to know if the state tree initialization request was signaled
+ * Special tag to know if the state tree has been activated
  */
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassStateTreeInitializationRequestDone : public FMassTag
+struct MASSAIBEHAVIOR_API FMassStateTreeActivated : public FMassTag
 {
 	GENERATED_BODY()
 };
 /**
- * Processor to signal initialization requests
- */
+ * Processor to send the activation signal to the state tree which will execute the first tick */
 UCLASS()
-class MASSAIBEHAVIOR_API UMassStateTreeSignalRequestInitialization : public UMassProcessor
+class MASSAIBEHAVIOR_API UMassStateTreeActivationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
-	UMassStateTreeSignalRequestInitialization();
+	UMassStateTreeActivationProcessor();
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
@@ -70,9 +69,9 @@ protected:
 	
 	FMassEntityQuery EntityQuery;
 
-	/** The maximum number of entities to send State Tree initialization request per LOD for each update, -1 means no limit */
+	/** The maximum number of entities to signal activation per LOD for each update, -1 means no limit */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
-	int32 MaxInitializationRequestsPerLOD[EMassLOD::Max];
+	int32 MaxActivationsPerLOD[EMassLOD::Max];
 };
 
 /** 
