@@ -81,7 +81,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit
 };
 
 /**
- * Retrieves the euler transform
+ * Retrieves a euler based transform from a quaternion based transform
  */
 USTRUCT(meta=(DisplayName="To Euler Transform", PrototypeName="ToEulerTransform", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase

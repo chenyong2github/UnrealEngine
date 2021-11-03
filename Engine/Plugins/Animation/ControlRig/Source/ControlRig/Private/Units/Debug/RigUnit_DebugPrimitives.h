@@ -46,7 +46,7 @@ struct CONTROLRIG_API FRigUnit_DebugRectangle : public FRigUnit_DebugBaseMutable
 };
 
 /**
- * Draws vectors on each bone in the viewport across the entire hierarchy
+ * Draws a rectangle in the viewport given a transform
  */
 USTRUCT(meta=(DisplayName="Draw Rectangle", Keywords="Draw Square"))
 struct CONTROLRIG_API FRigUnit_DebugRectangleItemSpace : public FRigUnit_DebugBaseMutable

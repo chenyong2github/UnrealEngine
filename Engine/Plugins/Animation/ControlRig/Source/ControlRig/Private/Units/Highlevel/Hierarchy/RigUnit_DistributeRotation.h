@@ -171,7 +171,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit
 };
 
 /**
- * Distributes rotations provided across a collection of items.
+ * Distributes rotations provided across a array of items.
  * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
  * Note: This node adds rotation in local space of each item!
  */

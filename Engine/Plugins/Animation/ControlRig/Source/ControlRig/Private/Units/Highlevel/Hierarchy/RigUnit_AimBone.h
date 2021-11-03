@@ -127,7 +127,7 @@ struct CONTROLRIG_API FRigUnit_AimBone_DebugSettings
 };
 
 /**
- * Aligns the rotation of a primary and secondary axis of an input transform to a world target.
+ * Outputs an aligned transform of a primary and secondary axis of an input transform to a world target.
  * Note: This node operates in world space!
  */
 USTRUCT(meta = (DisplayName = "Aim Math", Category = "Hierarchy", Keywords = "Lookat"))
