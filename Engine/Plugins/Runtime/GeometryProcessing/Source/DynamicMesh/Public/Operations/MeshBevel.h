@@ -222,6 +222,8 @@ protected:
 	void UnlinkJunctionVertex(FDynamicMesh3& Mesh, FBevelVertex& BevelVertex, FDynamicMeshChangeTracker* ChangeTracker);
 	void UnlinkTerminatorVertex(FDynamicMesh3& Mesh, FBevelVertex& BevelVertex, FDynamicMeshChangeTracker* ChangeTracker);
 
+	void FixUpUnlinkedBevelEdges(FDynamicMesh3& Mesh);
+
 	// Displace phase - move unlinked vertices to new positions
 
 	void DisplaceVertices(FDynamicMesh3& Mesh, double Distance);
