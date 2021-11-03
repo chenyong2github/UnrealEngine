@@ -520,3 +520,29 @@ struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : publ
 	
 };
 
+USTRUCT(meta = (DisplayName = "Parameter At Length Percentage", Category = "Spline"))
+struct CONTROLRIGSPLINE_API FRigUnit_ParameterAtPercentage : public FRigUnit_ControlRigSplineBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_ParameterAtPercentage()
+	{
+		Percentage = 0.f;
+		U = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Input))
+	float Percentage;
+
+	UPROPERTY(meta = (Output))
+	float U;
+	
+};
+
