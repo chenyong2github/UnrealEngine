@@ -457,6 +457,9 @@ struct STATETREEMODULE_API FStateTreeExternalItemDesc
  */
 struct FStateTreeLinker
 {
+	/** Sets base index for all external item handles. */
+	void SetItemBaseIndex(const int32 InItemBaseIndex) { ItemBaseIndex = InItemBaseIndex; }
+	
 	/**
 	 * Links reference to an external UObject.
 	 * @param Handle Reference to TStateTreeItemHandle<> with UOBJECT type to link to.
@@ -488,11 +491,12 @@ protected:
 		if (Index == INDEX_NONE)
 		{
 			Index = ItemDescs.Add(Desc);
-			ItemDescs[Index].Handle.ItemIndex = (uint8)Index;
+			check(FStateTreeItemHandle::IsValidIndex(Index + ItemBaseIndex));
+			ItemDescs[Index].Handle.ItemIndex = (uint8)(Index + ItemBaseIndex);
 		}
-		check(FStateTreeItemHandle::IsValidIndex(Index));
-		Handle.ItemIndex = (uint8)Index;
+		Handle.ItemIndex = (uint8)(Index + ItemBaseIndex);
 	}
 
+	int32 ItemBaseIndex = 0;
 	TArray<FStateTreeExternalItemDesc> ItemDescs;
 };

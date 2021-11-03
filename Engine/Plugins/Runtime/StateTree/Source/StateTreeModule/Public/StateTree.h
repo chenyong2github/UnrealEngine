@@ -31,6 +31,9 @@ public:
 	/** @return Number of items (Evaluators & Tasks) in the runtime storage. */
 	int32 GetRuntimeStorageItemCount() const { return RuntimeStorageOffsets.Num(); }
 
+	/** @return Number of linked items (Evaluators, Tasks, external items). */
+	int32 GetLinkedItemCount() const { return NumLinkedItems; }
+
 	/** @return List of external items required by the state tree */
 	TConstArrayView<FStateTreeExternalItemDesc> GetExternalItems() const { return ExternalItems; }
 
@@ -97,6 +100,9 @@ private:
 	/** List of external items required by the state tree, creating during linking. */
 	UPROPERTY(Transient)
 	TArray<FStateTreeExternalItemDesc> ExternalItems;
+
+	UPROPERTY(Transient)
+	int32 NumLinkedItems = 0;
 
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;
