@@ -140,7 +140,7 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearchArray : public FRigUnit_Colle
  * Creates a collection based on the direct or recursive children
  * of a provided parent item. Returns an empty collection for an invalid parent item.
  */
-USTRUCT(meta = (DisplayName = "Children", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying, Deprecated = "5.0"))
+USTRUCT(meta = (DisplayName = "Get Children", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
@@ -176,7 +176,7 @@ struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBa
 * Creates an item array based on the direct or recursive children
 * of a provided parent item. Returns an empty array for an invalid parent item.
 */
-USTRUCT(meta = (DisplayName = "Children", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying))
+USTRUCT(meta = (DisplayName = "Get Children", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying))
 struct CONTROLRIG_API FRigUnit_CollectionChildrenArray : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
