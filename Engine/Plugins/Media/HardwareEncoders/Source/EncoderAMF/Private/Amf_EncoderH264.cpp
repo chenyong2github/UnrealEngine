@@ -223,11 +223,6 @@ namespace AVEncoder
 			return nullptr;
 		}
 
-		if (ProcessFrameThread == nullptr)
-		{
-			ProcessFrameThread = MakeUnique<FThread>(TEXT("AmfFrameProcessingThread"), [this]() { ProcessFrameThreadFunc(); });
-		}
-
 		return layer;
 	}
 
@@ -240,14 +235,14 @@ namespace AVEncoder
 	{
 		// todo: reconfigure encoder
 		auto const amfFrame = static_cast<const FVideoEncoderInputFrameImpl*>(frame);
-		for (auto&& layer : Layers)
+		for (auto& layer : Layers)
 		{
-			auto const amfLayer = static_cast<FAMFLayer*>(layer);
+			FAMFLayer* amfLayer = static_cast<FAMFLayer*>(layer);
 			AMF_RESULT Res = amfLayer->Encode(amfFrame, options);
 
 			if (Res == AMF_OK)
 			{
-				FramesPending->Trigger();
+				amfLayer->FramesPending->Trigger();
 			}
 		}
 	}
@@ -271,15 +266,7 @@ namespace AVEncoder
 		}
 
 		Layers.Reset();
-
-		if (ProcessFrameThread != nullptr)
-		{
-			bShouldRunProcessingThread = false;
-			FramesPending->Trigger();
-			ProcessFrameThread->Join();
-			ProcessFrameThread = nullptr;
 		}
-	}
 
 	// --- Amf_EncoderH264::FLayer ------------------------------------------------------------
 	FVideoEncoderAmf_H264::FAMFLayer::FAMFLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderAmf_H264& encoder)
@@ -304,6 +291,11 @@ namespace AVEncoder
 		if (AmfEncoder == NULL)
 		{
 			Amf.CreateEncoder(AmfEncoder);
+		}
+
+		if (ProcessFrameThread == nullptr)
+		{
+			ProcessFrameThread = MakeUnique<FThread>(TEXT("AmfFrameProcessingThread"), [this]() { ProcessFrameThreadFunc(); });
 		}
 
 		return AmfEncoder != NULL;
@@ -369,6 +361,7 @@ namespace AVEncoder
 				Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FRAMERATE, frameRate);
 				CurrentFrameRate = CurrentConfig.MaxFramerate;
 
+				AmfEncoder->Flush();
 				Result = AmfEncoder->ReInit(CurrentConfig.Width, CurrentConfig.Height);
 				CurrentWidth = CurrentConfig.Width;
 				CurrentHeight = CurrentConfig.Height;
@@ -489,6 +482,14 @@ namespace AVEncoder
 		Flush();
 		CreatedSurfaces.Empty();
 
+		if (ProcessFrameThread != nullptr)
+		{
+			bShouldRunProcessingThread = false;
+			FramesPending->Trigger();
+			ProcessFrameThread->Join();
+			ProcessFrameThread = nullptr;
+		}
+
 		if (AmfEncoder != NULL)
 		{
 			AmfEncoder->Terminate();
@@ -496,7 +497,7 @@ namespace AVEncoder
 		}
 	}
 
-	void FVideoEncoderAmf_H264::ProcessFrameThreadFunc()
+	void FVideoEncoderAmf_H264::FAMFLayer::ProcessFrameThreadFunc()
 	{
 		bool bHasProcessedFrame = false;
 		while (bShouldRunProcessingThread)
@@ -505,17 +506,14 @@ namespace AVEncoder
 				FramesPending->Wait();
 			}
 
-			for (auto&& Layer : Layers)
+			if (PendingFrames.GetValue() > 0)
 			{
-				FAMFLayer* AmfLayer = static_cast<FAMFLayer*>(Layer);
-				if (AmfLayer->PendingFrames.GetValue() > 0)
-				{
-					AmfLayer->PendingFrames.Decrement();
+				PendingFrames.Decrement();
 
 					amf::AMFDataPtr data;
-					AMF_RESULT Result = AmfLayer->AmfEncoder->QueryOutput(&data);
+				AMF_RESULT Result = AmfEncoder->QueryOutput(&data);
 
-					if (Result == AMF_OK && data != NULL)
+				if (Result == AMF_OK)
 					{
 						AMFBufferPtr OutBuffer(data);
 
@@ -551,7 +549,7 @@ namespace AVEncoder
 						Packet.Timings.StartTs = FTimespan(StartTs);
 
 						Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
-						Packet.Framerate = AmfLayer->GetConfig().MaxFramerate;
+					Packet.Framerate = GetConfig().MaxFramerate;
 
 						FVideoEncoderInputFrameImpl* SourceFrame;
 						if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (intptr_t*)&SourceFrame) != AMF_OK)
@@ -559,15 +557,13 @@ namespace AVEncoder
 							UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
 						}
 
-						if (AmfLayer->Encoder.OnEncodedPacket)
+					if (Encoder.OnEncodedPacket)
 						{
-							AmfLayer->Encoder.OnEncodedPacket(AmfLayer->LayerIndex, SourceFrame, Packet);
+						Encoder.OnEncodedPacket(LayerIndex, SourceFrame, Packet);
 						}
 
 						bHasProcessedFrame = true;
 					}
-				}
-			}
 
 			if (!bHasProcessedFrame)
 			{
@@ -576,6 +572,7 @@ namespace AVEncoder
 
 			bHasProcessedFrame = false;
 		}
+	}
 	}
 
 	template<class T>
@@ -819,7 +816,6 @@ namespace AVEncoder
 		bool bSuccess = true;
 
 		AMF.InitializeContext(GDynamicRHI->GetName(), NULL);
-
 		EncoderInfo.CodecType = ECodecType::H264;
 		
 		// Create temp component
