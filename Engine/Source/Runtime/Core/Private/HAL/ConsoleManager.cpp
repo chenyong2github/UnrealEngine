@@ -2163,11 +2163,12 @@ static TAutoConsoleVariable<int32> CVarMobileSkyLightPermutation(
 	TEXT("2: Generate only skylight permutations"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarMobileForceFullPrecisionInPS(
-	TEXT("r.Mobile.ForceFullPrecisionInPS"),
+static TAutoConsoleVariable<int32> CVarMobileFloatPrecisionMode(
+	TEXT("r.Mobile.FloatPrecisionMode"),
 	0,
-	TEXT("0: Use precision specified in shader code (default)\n")
-	TEXT("1: Force use of high precision in pixel shaders.\n"),
+	TEXT("0: Use Half-precision (default)\n")
+	TEXT("1: Half precision, except Full precision for material expressions\n")
+	TEXT("2: Force use of high precision in pixel shaders.\n"),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarMobileAllowDitheredLODTransition(

@@ -2078,8 +2078,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_ATTRIBUTES"), (uint32)1);
 	AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_DUAL_SOURCE_BLENDING_SLOT_DECORATION"), (uint32)1);
 
-	const bool bUseFullPrecisionInPS = Input.Environment.CompilerFlags.Contains(CFLAG_UseFullPrecisionInPS);
-	if (bUseFullPrecisionInPS)
+	if (Input.Environment.FullPrecisionInPS)
 	{
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}
@@ -2128,7 +2127,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		// Only flatten structures inside UBs
 		CompilerInfo.CCFlags |= HLSLCC_FlattenUniformBufferStructures;
 
-		if (bUseFullPrecisionInPS)
+		if (Input.Environment.FullPrecisionInPS)
 		{
 			CompilerInfo.CCFlags |= HLSLCC_UseFullPrecisionInPS;
 		}

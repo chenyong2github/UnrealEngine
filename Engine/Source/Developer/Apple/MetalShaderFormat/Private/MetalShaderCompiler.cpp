@@ -1073,8 +1073,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	}
 	
 	// Force floats if the material requests it
-	const bool bUseFullPrecisionInPS = Input.Environment.CompilerFlags.Contains(CFLAG_UseFullPrecisionInPS);
-	if (bUseFullPrecisionInPS || (VersionEnum < 2)) // Too many bugs in Metal 1.0 & 1.1 with half floats the more time goes on and the compiler stack changes
+	if (Input.Environment.FullPrecisionInPS || (VersionEnum < 2)) // Too many bugs in Metal 1.0 & 1.1 with half floats the more time goes on and the compiler stack changes
 	{
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}

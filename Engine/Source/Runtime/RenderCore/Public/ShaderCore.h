@@ -421,6 +421,9 @@ struct FShaderCompilerEnvironment
 
 	const ITargetPlatform* TargetPlatform = nullptr;
 
+	// Used for mobile platforms to allow per shader/material precision modes
+	bool FullPrecisionInPS = 0;
+
 	/** Default constructor. */
 	FShaderCompilerEnvironment()
 	{
@@ -475,6 +478,7 @@ struct FShaderCompilerEnvironment
 		Ar << Environment.UniformBufferMap;
 		Ar << Environment.RemoteServerData;
 		Ar << Environment.ShaderFormatCVars;
+		Ar << Environment.FullPrecisionInPS;
 
 		return Ar;
 	}
@@ -506,6 +510,7 @@ struct FShaderCompilerEnvironment
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
 		RemoteServerData.Append(Other.RemoteServerData);
 		ShaderFormatCVars.Append(Other.ShaderFormatCVars);
+		FullPrecisionInPS = Other.FullPrecisionInPS;
 	}
 
 private:
