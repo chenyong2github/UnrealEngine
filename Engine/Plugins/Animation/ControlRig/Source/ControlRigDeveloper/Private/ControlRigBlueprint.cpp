@@ -58,6 +58,25 @@ FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
 	return UControlRig::GetPinTypeFromExternalVariable(Variable);
 }
 
+bool FControlRigPublicFunctionData::IsMutable() const
+{
+	for(const FControlRigPublicFunctionArg& Arg : Arguments)
+	{
+		if(!Arg.CPPTypeObjectPath.IsNone())
+		{
+			if(UScriptStruct* Struct = Cast<UScriptStruct>(
+				URigVMPin::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
+			{
+				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 TArray<UControlRigBlueprint*> UControlRigBlueprint::sCurrentlyOpenedRigBlueprints;
 
 UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectInitializer)
