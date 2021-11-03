@@ -101,6 +101,8 @@ struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionData
 
 	UPROPERTY()
 	TArray<FControlRigPublicFunctionArg> Arguments;
+
+	bool IsMutable() const;
 };
 
 USTRUCT()
