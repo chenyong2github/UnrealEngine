@@ -9,14 +9,14 @@ using namespace UE::Geometry;
 // explicit instantiations
 namespace PolygonTriangulation
 {
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector2<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector2<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector2<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector2<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill);
 
 	template GEOMETRYCORE_API void ComputePolygonPlane<float>(const TArray<TVector<float>>& VertexPositions, TVector<float>& NormalOut, TVector<float>& PlanePointOut);
 	template GEOMETRYCORE_API void ComputePolygonPlane<double>(const TArray<TVector<double>>& VertexPositions, TVector<double>& NormalOut, TVector<double>& PlanePointOut);
 
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill);
 }
 
 
@@ -27,7 +27,7 @@ namespace PolygonTriangulation
 // This is based on the 3D triangulation code from MeshDescription.cpp, simplified for 2D polygons
 // 
 template<typename T>
-void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
+void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill)
 {
 	struct Local
 	{
@@ -44,15 +44,15 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 
 
 	// compute signed area of polygon
-	double PolySignedArea = 0;
+	double PolySignedArea2 = 0;
 	for (int i = 0; i < PolygonVertexCount; ++i)
 	{
 		const TVector2<T>& v1 = VertexPositions[i];
 		const TVector2<T>& v2 = VertexPositions[(i + 1) % PolygonVertexCount];
-		PolySignedArea += v1.X*v2.Y - v1.Y*v2.X;
+		PolySignedArea2 += v1.X*v2.Y - v1.Y*v2.X;
 	}
-	PolySignedArea *= 0.5;
-	bool bIsClockwise = PolySignedArea < 0;
+
+	bool bIsClockwise = PolySignedArea2 < 0;
 	double OrientationSign = (bIsClockwise) ? -1.0 : 1.0;
 
 
@@ -62,7 +62,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 	// If perimeter has 3 vertices, just copy content of perimeter out 
 	if (PolygonVertexCount == 3)
 	{
-		OutTriangles.Add(FIndex3i(0, 1, 2));
+		OutTriangles.Add(bOrientAsHoleFill ? FIndex3i(0, 2, 1) : FIndex3i(0, 1, 2));
 		return;
 	}
 
@@ -129,11 +129,10 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 		{
 			// OK, we found an ear!  Let's save this triangle in our output buffer.
 			{
-				OutTriangles.Emplace();
-				FIndex3i& Triangle = OutTriangles.Last();
-				Triangle.A = PrevVertexNumbers[EarVertexNumber];
-				Triangle.B = EarVertexNumber;
-				Triangle.C = NextVertexNumbers[EarVertexNumber];
+				int32 A = PrevVertexNumbers[EarVertexNumber]
+					, B = EarVertexNumber
+					, C = NextVertexNumbers[EarVertexNumber];
+				OutTriangles.Add(bOrientAsHoleFill ? FIndex3i(A, C, B) : FIndex3i(A, B, C));
 			}
 
 			// Update our linked list.  We're effectively cutting off the ear by pointing the ear vertex's neighbors to
@@ -229,7 +228,7 @@ static bool PointInTriangle(const FVector& A, const FVector& B, const FVector& C
 // This is based on the 3D triangulation code from MeshDescription.cpp, simplified for 2D polygons
 // 
 template<typename T>
-void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
+void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill)
 {
 	struct Local3
 	{
@@ -264,7 +263,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& Ve
 	// If perimeter has 3 vertices, just copy content of perimeter out 
 	if (PolygonVertexCount == 3)
 	{
-		OutTriangles.Add(FIndex3i(0, 1, 2));
+		OutTriangles.Add(bOrientAsHoleFill ? FIndex3i(0, 2, 1) : FIndex3i(0, 1, 2));
 		return;
 	}
 
@@ -336,11 +335,10 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& Ve
 		{
 			// OK, we found an ear!  Let's save this triangle in our output buffer.
 			{
-				OutTriangles.Emplace();
-				FIndex3i& Triangle = OutTriangles.Last();
-				Triangle.A = PrevVertexNumbers[EarVertexNumber];
-				Triangle.B = EarVertexNumber;
-				Triangle.C = NextVertexNumbers[EarVertexNumber];
+				int32 A = PrevVertexNumbers[EarVertexNumber]
+					, B = EarVertexNumber
+					, C = NextVertexNumbers[EarVertexNumber];
+				OutTriangles.Add(bOrientAsHoleFill ? FIndex3i(A, C, B) : FIndex3i(A, B, C));
 			}
 
 			// Update our linked list.  We're effectively cutting off the ear by pointing the ear vertex's neighbors to

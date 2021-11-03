@@ -36,7 +36,7 @@ FMeshShapeGenerator& FPlanarPolygonMeshGenerator::Generate()
 	}
 
 	TArray<FIndex3i> TriangleList;
-	PolygonTriangulation::TriangulateSimplePolygon(Polygon.GetVertices(), TriangleList);
+	PolygonTriangulation::TriangulateSimplePolygon(Polygon.GetVertices(), TriangleList, false);
 
 	int NumTriangles = TriangleList.Num();
 	SetBufferSizes(NumVertices, NumTriangles, NumVertices, NumVertices);

@@ -146,6 +146,7 @@ struct TConstrainedDelaunay2
 	bool GEOMETRYALGORITHMS_API Triangulate(TFunctionRef<bool(const TArray<TVector2<RealType>>&, const FIndex3i&)> KeepTriangle);
 };
 
+/** Convenience function; invokes TConstrainedDelaunay2::Triangulate with most-often-used options */
 template<typename RealType>
 TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon);
 

@@ -97,8 +97,8 @@ bool FSimpleHoleFiller::Fill_EarClip(int GroupID)
 	{
 		FIndex3i MeshTriangle(
 			Loop.Vertices[PolyTriangle.A],
-			Loop.Vertices[PolyTriangle.C],
-			Loop.Vertices[PolyTriangle.B]);  // Reversing orientation here!!
+			Loop.Vertices[PolyTriangle.B],
+			Loop.Vertices[PolyTriangle.C]);
 		int32 NewTriangle = Mesh->AppendTriangle(MeshTriangle, GroupID);
 		if (NewTriangle >= 0)
 		{

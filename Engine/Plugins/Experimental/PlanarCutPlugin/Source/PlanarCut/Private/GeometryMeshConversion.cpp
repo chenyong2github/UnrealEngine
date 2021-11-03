@@ -888,7 +888,7 @@ namespace AugmentedDynamicMesh
 			{
 				VertexPositions.Add(Mesh.GetVertex(AllBoundaryVerts[Idx]));
 			}
-			PolygonTriangulation::TriangulateSimplePolygon(VertexPositions, Triangles);
+			PolygonTriangulation::TriangulateSimplePolygon(VertexPositions, Triangles, true);
 			double HoleArea = 0;
 			FVector3d LastNormal(0, 0, 0);
 			const double FlippedThreshold = -.5; // Allow some angle deviation but reject hole fills that are too folded
@@ -1016,11 +1016,11 @@ namespace AugmentedDynamicMesh
 				FVector3d P1 = Mesh.GetVertex(V1);
 				FVector3d P2 = Mesh.GetVertex(V2);
 
-				int32 TID = Mesh.AppendTriangle(V0, V2, V1);
+				int32 TID = Mesh.AppendTriangle(V0, V1, V2);
 				// append can fail from a non-manifold edge; in that case add new vertices and try again
 				if (TID == FDynamicMesh3::NonManifoldID)
 				{
-					int32 SeparatedVIDs[]{ V0, V2, V1 };
+					int32 SeparatedVIDs[]{ V0, V1, V2 };
 					for (int32 SubIdx = 0; SubIdx < 3; SubIdx++)
 					{
 						if (SeparatedVIDs[SubIdx] < PrevMaxVID)
@@ -1584,7 +1584,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 			Triangulation.Triangulate();
 			if (Triangulation.Triangles.Num() == 0) // fall back to ear clipping if the triangulation came back empty
 			{
-				PolygonTriangulation::TriangulateSimplePolygon(Polygon.GetVertices(), Triangulation.Triangles);
+				PolygonTriangulation::TriangulateSimplePolygon(Polygon.GetVertices(), Triangulation.Triangles, false);
 			}
 			if (ensure(Triangulation.Triangles.Num() > 0))
 			{

@@ -891,7 +891,7 @@ void FMeshBevel::AppendJunctionVertexPolygon(FDynamicMesh3& Mesh, FBevelVertex& 
 		int32 A = Vertex.Wedges[Tri.A].WedgeVertex;
 		int32 B = Vertex.Wedges[Tri.B].WedgeVertex;
 		int32 C = Vertex.Wedges[Tri.C].WedgeVertex;
-		int32 tid = Mesh.AppendTriangle(A, C, B, Vertex.NewGroupID);		// cycle orientation here because TriangulateSimplePolygon is wrong
+		int32 tid = Mesh.AppendTriangle(A, B, C, Vertex.NewGroupID);
 		if (Mesh.IsTriangle(tid))
 		{
 			Vertex.NewTriangles.Add(tid);

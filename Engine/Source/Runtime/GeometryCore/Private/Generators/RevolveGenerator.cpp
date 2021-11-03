@@ -279,7 +279,7 @@ FDynamicMesh3 FRevolvePlanarPathGenerator::GenerateMesh()
 			PolygonTriangulation::TriangulateSimplePolygon(VertexPositions, Triangles);
 			for (FIndex3i PolyTriangle : Triangles)
 			{
-				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.C], VertexLoop[PolyTriangle.B]);  // Reversing orientation here!!
+				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.B], VertexLoop[PolyTriangle.C]);
 				int32 NewTriangle = ResultMesh.AppendTriangle(MeshTriangle, NewGroupID);
 				if (NewTriangle >= 0)
 				{
@@ -469,7 +469,7 @@ FDynamicMesh3 FRevolvePlanarPolygonGenerator::GenerateMesh()
 			PolygonTriangulation::TriangulateSimplePolygon(VertexPositions, Triangles);
 			for (FIndex3i PolyTriangle : Triangles)
 			{
-				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.C], VertexLoop[PolyTriangle.B]);  // Reversing orientation here!!
+				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.B], VertexLoop[PolyTriangle.C]);
 				int32 NewTriangle = ResultMesh.AppendTriangle(MeshTriangle, NewGroupID);
 				if (NewTriangle >= 0)
 				{
@@ -657,7 +657,7 @@ FDynamicMesh3 FSpiralRevolvePlanarPolygonGenerator::GenerateMesh()
 			PolygonTriangulation::TriangulateSimplePolygon(VertexPositions, Triangles);
 			for (FIndex3i PolyTriangle : Triangles)
 			{
-				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.C], VertexLoop[PolyTriangle.B]);  // Reversing orientation here!!
+				FIndex3i MeshTriangle( VertexLoop[PolyTriangle.A], VertexLoop[PolyTriangle.B], VertexLoop[PolyTriangle.C]);
 				int32 NewTriangle = ResultMesh.AppendTriangle(MeshTriangle, NewGroupID);
 				if (NewTriangle >= 0)
 				{

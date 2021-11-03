@@ -161,8 +161,7 @@ void FWaterBooleanUtils::ExtractMesh(AVolume* Volume, FDynamicMesh3& Mesh)
 
 			for (FIndex3i Tri : PolyTriangles)
 			{
-				// flip orientation here...
-				Mesh.AppendTriangle(VertIndices[Tri.A], VertIndices[Tri.C], VertIndices[Tri.B]);
+				Mesh.AppendTriangle(VertIndices[Tri.A], VertIndices[Tri.B], VertIndices[Tri.C]);
 			}
 		}
 	}
