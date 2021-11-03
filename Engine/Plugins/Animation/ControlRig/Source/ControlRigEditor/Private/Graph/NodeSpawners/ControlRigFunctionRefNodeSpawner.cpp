@@ -287,6 +287,14 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 					}
 				}
 			}
+			else
+			{
+				// If the package is a template, do not remove the ControlRigGraphNode
+				// We might be spawning a node to populate the PROTO_ context menu for function declarations.
+				Controller->SuspendNotifications(true);
+				Controller->RemoveNode(ModelNode, false);
+				Controller->SuspendNotifications(false);
+			}
 
 			if (bUndo)
 			{

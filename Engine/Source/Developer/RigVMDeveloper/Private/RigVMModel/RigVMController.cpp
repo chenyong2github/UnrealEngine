@@ -8245,12 +8245,6 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 		return nullptr;
 	}
 
-	if (Graph->GetOutermost() == GetTransientPackage() && !bIsRunningUnitTest)
-	{
-		// don't allow linking to transient graphs, which usually mean template nodes
-		return nullptr;
-	}
-
 	if(!CanAddFunctionRefForDefinition(InFunctionDefinition, true))
 	{
 		return nullptr;
