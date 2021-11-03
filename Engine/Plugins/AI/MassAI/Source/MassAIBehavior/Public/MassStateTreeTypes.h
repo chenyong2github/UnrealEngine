@@ -12,7 +12,7 @@
  */
 namespace UE::Mass::Signals
 {
-	const FName StateTreeInitializationRequested = FName(TEXT("StateTreeInitializationRequested"));
+	const FName StateTreeActivate = FName(TEXT("StateTreeActivate"));
 	const FName LookAtFinished = FName(TEXT("LookAtFinished"));
 	const FName NewStateTreeTaskRequired = FName(TEXT("NewStateTreeTaskRequired"));
 	const FName StandTaskFinished = FName(TEXT("StandTaskFinished"));
