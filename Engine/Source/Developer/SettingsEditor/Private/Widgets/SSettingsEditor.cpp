@@ -72,7 +72,6 @@ void SSettingsEditor::Construct( const FArguments& InArgs, const ISettingsEditor
 	SettingsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 	SettingsView->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &SSettingsEditor::HandleSettingsViewVisibility));
 	SettingsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &SSettingsEditor::HandleSettingsViewEnabled));
-	SettingsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SSettingsEditor::IsPropertyVisible));
 
 	TSharedPtr<FSettingsDetailRootObjectCustomization> RootObjectCustomization = MakeShareable(new FSettingsDetailRootObjectCustomization(Model, SettingsView.ToSharedRef()));
 	RootObjectCustomization->Initialize();
@@ -557,6 +556,7 @@ bool SSettingsEditor::HandleSettingsViewEnabled() const
 	return (SelectedSection.IsValid() && SelectedSection->CanEdit()) || bShowingAllSettings;
 }
 
+
 EVisibility SSettingsEditor::HandleSettingsViewVisibility() const
 {
 	ISettingsSectionPtr SelectedSection = Model->GetSelectedSection();
@@ -569,22 +569,5 @@ EVisibility SSettingsEditor::HandleSettingsViewVisibility() const
 	return EVisibility::Hidden;
 }
 
-bool SSettingsEditor::IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const
-{
-	if (PropertyAndParent.Property.HasAllPropertyFlags(CPF_Config))
-	{
-		return true;
-	}
-
-	for (const FProperty* Property : PropertyAndParent.ParentProperties)
-	{
-		if (Property->HasAllPropertyFlags(CPF_Config))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
 
 #undef LOCTEXT_NAMESPACE
