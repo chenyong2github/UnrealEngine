@@ -325,9 +325,21 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 					.SortMode(this, &SSceneOutliner::GetColumnSortMode, ID)
 					.OnSort(this, &SSceneOutliner::OnColumnSortModeChanged);
 			}
-			
-			ColumnArgs.DefaultLabel(FText::FromName(ID));
 
+			if (SharedData->ColumnMap[ID].ColumnLabel.IsSet())
+			{
+				ColumnArgs.DefaultLabel(SharedData->ColumnMap[ID].ColumnLabel);
+			}
+			else
+			{
+				if (HeaderRow.GetVisibility() == EVisibility::Visible)
+				{
+					UE_LOG(LogSceneOutliner, Error, TEXT("Outliner Column %s does not have a localizable name, please specify one to FSceneOutlinerColumnInfo"), *ID.ToString());
+				}
+				
+				ColumnArgs.DefaultLabel(FText::FromName(ID));
+			}
+			
 			if (!SharedData->ColumnMap[ID].bCanBeHidden)
 			{
 				ColumnArgs.ShouldGenerateWidget(true);

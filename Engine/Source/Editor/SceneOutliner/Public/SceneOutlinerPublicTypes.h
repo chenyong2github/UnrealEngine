@@ -9,6 +9,8 @@
 
 #include "SceneOutlinerFilters.h"
 
+#define LOCTEXT_NAMESPACE "SceneOutlinerPublicTypes"
+
 class FExtender;
 struct FToolMenuContext;
 
@@ -27,11 +29,25 @@ struct FSceneOutlinerBuiltInColumnTypes
 		return Gutter;
 	}
 
+	/** Localizable FText name for the Gutter Column (pass into FSceneOutlinerColumnInfo) */
+	static const FText& Gutter_Localized()
+	{
+		static FText Gutter_Localized = LOCTEXT("VisibilityColumnName", "Visibility");
+		return Gutter_Localized;
+	}
+
 	/** The item label column */
 	static const FName& Label()
 	{
 		static FName Label("Item Label");
 		return Label;
+	}
+
+	/** Localizable FText name for the Item Label Column (pass into FSceneOutlinerColumnInfo) */
+	static const FText& Label_Localized()
+	{
+		static FText Label_Localized = LOCTEXT("ItemLabelColumnName", "Item Label");
+		return Label_Localized;
 	}
 
 	/** Generic actor info column */
@@ -41,16 +57,37 @@ struct FSceneOutlinerBuiltInColumnTypes
 		return ActorInfo;
 	}
 
+	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
+	static const FText& ActorInfo_Localized()
+	{
+		static FText ActorInfo_Localized = LOCTEXT("TypeColumnName", "Type");
+		return ActorInfo_Localized;
+	}
+
 	static FName& SourceControl()
 	{
 		static FName SourceControl("Source Control");
 		return SourceControl;
 	}
 
+	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
+	static const FText& SourceControl_Localized()
+	{
+		static FText SourceControl_Localized = LOCTEXT("SourceControlColumnName", "Source Control");
+		return SourceControl_Localized;
+	}
+
 	static FName& Pinned()
 	{
 		static FName Pinned("Pinned");
 		return Pinned;
+	}
+
+	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
+	static const FText& Pinned_Localized()
+	{
+		static FText Pinned_Localized = LOCTEXT("PinnedColumnName", "Pinned");
+		return Pinned_Localized;
 	}
 };
 
@@ -67,15 +104,16 @@ enum class ESceneOutlinerColumnVisibility : uint8
 /** Column information for the scene outliner */
 struct FSceneOutlinerColumnInfo
 {
-	FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility InVisibility, int32 InPriorityIndex, const FCreateSceneOutlinerColumn& InFactory = FCreateSceneOutlinerColumn(), bool inCanBeHidden = true, TOptional<float> InFillSize = TOptional<float>())
-		: Visibility(InVisibility), PriorityIndex(InPriorityIndex), bCanBeHidden(inCanBeHidden), Factory(InFactory), FillSize(InFillSize)
+	FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility InVisibility, int32 InPriorityIndex, const FCreateSceneOutlinerColumn& InFactory = FCreateSceneOutlinerColumn(), bool inCanBeHidden = true, TOptional<float> InFillSize = TOptional<float>()
+		, TAttribute<FText> InColumnLabel = TAttribute<FText>())
+		: Visibility(InVisibility), PriorityIndex(InPriorityIndex), bCanBeHidden(inCanBeHidden), Factory(InFactory), FillSize(InFillSize), ColumnLabel(InColumnLabel)
 	{
 	}
 
 	FSceneOutlinerColumnInfo() {}
 
 	FSceneOutlinerColumnInfo(const FSceneOutlinerColumnInfo& InColumnInfo)
-		: Visibility(InColumnInfo.Visibility), PriorityIndex(InColumnInfo.PriorityIndex), bCanBeHidden(InColumnInfo.bCanBeHidden), Factory(InColumnInfo.Factory), FillSize(InColumnInfo.FillSize)
+		: Visibility(InColumnInfo.Visibility), PriorityIndex(InColumnInfo.PriorityIndex), bCanBeHidden(InColumnInfo.bCanBeHidden), Factory(InColumnInfo.Factory), FillSize(InColumnInfo.FillSize), ColumnLabel(InColumnInfo.ColumnLabel)
 	{}
 
 	ESceneOutlinerColumnVisibility 	Visibility;
@@ -83,6 +121,7 @@ struct FSceneOutlinerColumnInfo
 	bool bCanBeHidden;
 	FCreateSceneOutlinerColumn	Factory;
 	TOptional< float > FillSize;
+	TAttribute<FText> ColumnLabel; // Override for the column name used instead of ID if specified (use this if you want the column name to be localizable)
 };
 
 /** Settings for the scene outliner which can be quieried publicly */
@@ -175,3 +214,5 @@ struct SCENEOUTLINER_API FSceneOutlinerVisibilityCache
 
 	bool GetVisibility(const ISceneOutlinerTreeItem& Item) const;
 };
+
+#undef LOCTEXT_NAMESPACE
