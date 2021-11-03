@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "UDynamicMesh.h"
+#include "Polygroups/PolygroupSet.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -265,6 +266,52 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMateri
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 
 	return TargetMesh;
+}
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetPolygroupMaterialID( 
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptGroupLayer GroupLayer,
+	int PolygroupID, 
+	int MaterialID,
+	bool& bIsValidPolygroupID,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{
+	bIsValidPolygroupID = false;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FPolygroupLayer InputGroupLayer{ GroupLayer.bDefaultLayer, GroupLayer.ExtendedLayerIndex };
+			if (InputGroupLayer.CheckExists(&EditMesh) == false)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetPolygroupMaterialID_MissingGroups", "SetPolygroupMaterialID: Specified Polygroup Layer does not exist"));
+				return;
+			}
+			FDynamicMeshMaterialAttribute* MaterialIDs = (EditMesh.HasAttributes() && EditMesh.Attributes()->HasMaterialID()) ? EditMesh.Attributes()->GetMaterialID() : nullptr;
+			if (MaterialIDs == nullptr)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetPolygroupMaterialID_NoMaterialID", "SetPolygroupMaterialID: MaterialID Attribute is not enabled"));
+				return;
+			}
+
+			FPolygroupSet Groups(&EditMesh, InputGroupLayer);
+			for (int32 tid : EditMesh.TriangleIndicesItr())
+			{
+				if (Groups.GetGroup(tid) == PolygroupID)
+				{
+					MaterialIDs->SetValue(tid, MaterialID);
+					bIsValidPolygroupID = true;
+				}
+			}
+
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;	
 }
 
 

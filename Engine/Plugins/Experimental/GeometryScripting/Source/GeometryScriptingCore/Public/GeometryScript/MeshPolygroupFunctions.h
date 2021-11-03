@@ -54,11 +54,37 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ConvertComponentsToPolygroups( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer,
+		UGeometryScriptDebug* Debug = nullptr );
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ComputePolygroupsFromAngleThreshold( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptGroupLayer GroupLayer,
 		float CreaseAngle = 15,
 		int MinGroupSize = 2,
 		UGeometryScriptDebug* Debug = nullptr );
+
+
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Material ID") int32
+	GetTrianglePolygroupID( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer, 
+		int TriangleID, 
+		bool& bIsValidTriangle );
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	DeleteTrianglesInPolygroup( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer,
+		int PolygroupID,
+		int& NumDeleted,
+		bool bDeferChangeNotifications = false,
+		UGeometryScriptDebug* Debug = nullptr);
 
 };
