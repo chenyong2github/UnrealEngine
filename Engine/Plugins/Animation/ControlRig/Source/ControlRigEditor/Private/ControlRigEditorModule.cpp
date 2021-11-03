@@ -1941,7 +1941,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									}
 
 									FString OldNameStr = Key.Name.ToString();
-									FString NewNameStr = OldNameStr.Replace(*Settings.OldName, *Settings.NewName, ESearchCase::CaseSensitive);
+									FString NewNameStr = OldNameStr.Replace(*Settings.SearchString, *Settings.ReplaceString, ESearchCase::CaseSensitive);
 									if(NewNameStr != OldNameStr)
 									{
 										Key.Name = *NewNameStr;

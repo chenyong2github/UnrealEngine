@@ -1611,13 +1611,13 @@ struct CONTROLRIG_API FRigMirrorSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TEnumAsByte<EAxis::Type> AxisToFlip;
 
-	// the string to replace all occurences of with New Name
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FString OldName;
+	// the string to search for
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, DisplayName = "Search")
+	FString SearchString;
 
-	// the string to replace all occurences of Old Name with
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FString NewName;
+	// the string to replace the search occurrences with
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, DisplayName = "Replace")
+	FString ReplaceString;
 
 	FTransform MirrorTransform(const FTransform& InTransform) const;
 	FVector MirrorVector(const FVector& InVector) const;
