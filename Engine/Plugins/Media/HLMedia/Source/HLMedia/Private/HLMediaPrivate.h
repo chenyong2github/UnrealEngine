@@ -2,9 +2,6 @@
 
 #pragma once
 
-#pragma warning(push)
-#pragma warning(disable : 4005)
-
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Engine/EngineTypes.h"
@@ -44,7 +41,12 @@ THIRD_PARTY_INCLUDES_START
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
+
+#pragma warning(push)
+#pragma warning(disable : 4005)
 #include "HLMediaLibrary/inc/HLMediaLibrary.h"
+#pragma warning(pop)
+
 THIRD_PARTY_INCLUDES_END
 
 #include "Microsoft/COMPointer.h"
@@ -52,8 +54,6 @@ THIRD_PARTY_INCLUDES_END
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
-
-#pragma warning(pop)
 
 // General Log
 DECLARE_LOG_CATEGORY_EXTERN(LogHLMediaModule, Log, All);
