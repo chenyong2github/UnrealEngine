@@ -388,7 +388,7 @@ namespace CrossCompiler
 		MetaDataPrintf(Strings.UniformBlocks, TEXT("%s(%u)"), ResourceName, BindingIndex);
 	}
 
-	EPackedTypeName FHlslccHeaderWriter::EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription)
+	EPackedTypeName FHlslccHeaderWriter::EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription, bool bHalfPrecision)
 	{
 		const SpvReflectTypeFlags ScalarTypeFlagsBitmask =
 		(
@@ -406,7 +406,15 @@ namespace CrossCompiler
 		case SPV_REFLECT_TYPE_FLAG_INT:
 			return (TypeDescription.traits.numeric.scalar.signedness ? EPackedTypeName::Int : EPackedTypeName::Uint);
 		case SPV_REFLECT_TYPE_FLAG_FLOAT:
-			return EPackedTypeName::HighP;
+			if (bHalfPrecision)
+			{
+				return EPackedTypeName::MediumP;
+			}
+			else
+			{
+				return EPackedTypeName::HighP;
+			}
+			
 		default:
 			checkf(false, TEXT("unsupported component type %d"), MaskedType);
 			return EPackedTypeName::LowP;

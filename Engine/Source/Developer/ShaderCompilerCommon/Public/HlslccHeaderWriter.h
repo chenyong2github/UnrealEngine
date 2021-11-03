@@ -46,7 +46,7 @@ namespace CrossCompiler
 
 		/** Returns the finalized meta data. */
 		FString ToString() const;
-		static EPackedTypeName EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription);
+		static EPackedTypeName EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription, bool bHalfPrecision = false);
 
 	private:
 		void WriteIOAttribute(FString& OutMetaData, const TCHAR* AttributeName, const TCHAR* TypeSpecifier, int32 Location, bool bLocationPrefix, bool bLocationSuffix);
