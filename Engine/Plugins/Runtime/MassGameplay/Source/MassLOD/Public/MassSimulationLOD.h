@@ -118,6 +118,10 @@ struct FMassSimulationLODConfig
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	float TickRates[EMassLOD::Max];
 
+	/** If true, will spread the first simulation update over TickRate period */
+	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
+	bool bSpreadFirstSimulationUpdate = false;
+
 	/** Runtime data for matching the LOD config */
 	FMassEntityQuery EntityQuery;
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
