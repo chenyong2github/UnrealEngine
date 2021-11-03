@@ -39,6 +39,8 @@ namespace UE::MassCrowd
 
 UMassCrowdVisualizationLODProcessor::UMassCrowdVisualizationLODProcessor()
 {
+	bAutoRegisterWithProcessingPhases = true;
+
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;

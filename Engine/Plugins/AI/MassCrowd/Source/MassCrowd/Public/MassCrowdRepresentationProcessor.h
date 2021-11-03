@@ -10,7 +10,7 @@
  * Overridden representation processor to make it tied to the crowd via the requirements.
  * It is also the base class for all the different type of crowd representation (Visualization & ServerSideRepresentation)
  */
-UCLASS(meta = (DisplayName = "Mass Crowd Visualization"))
+UCLASS(abstract)
 class MASSCROWD_API UMassCrowdRepresentationProcessor : public UMassRepresentationProcessor
 {
 	GENERATED_BODY()
