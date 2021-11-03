@@ -576,6 +576,7 @@ public:
 							if (bFill)
 							{
 								FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
+								FRequestBarrier AsyncBarrier(AsyncOwner);
 								AsyncOwner.KeepAlive();
 								for (int32 FillCacheIndex = 0; FillCacheIndex < InnerBackends.Num(); ++FillCacheIndex)
 								{
