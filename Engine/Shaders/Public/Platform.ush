@@ -207,6 +207,15 @@
 	#define fixed3x3 float3x3
 	#define fixed4x4 float4x4
 	#define fixed4x3 float4x3
+#elif (VULKAN_PROFILE || COMPILER_GLSL_ES3_1) && !COMPILER_HLSLCC
+	// For VULKAN and OPENGL ES31 use RelaxedPrecision for half floats
+	#define half min16float
+	#define half2 min16float2
+	#define half3 min16float3
+	#define half4 min16float4
+	#define half3x3 min16float3x3
+	#define half3x4 min16float3x4 
+	#define half4x4 min16float4x4
 #endif
 
 // ---------------------------------------------------- Profile config
@@ -463,7 +472,7 @@ void ShaderYield()
 #define COMPILER_SUPPORTS_GATHER_UINT 0
 #endif
 
-#if !COMPILER_HLSLCC && ES3_1_PROFILE
+#if ES3_1_PROFILE
 #define HALF_TYPE half
 #define HALF2_TYPE half2
 #define HALF3_TYPE half3
