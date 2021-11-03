@@ -76,6 +76,7 @@ public:
 	const TArray<FString>& GetMapPreviewNamesFunc();
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> MapPreviewNamesList;
+	TMap<FString, FString> MapPreviewNamesMap;
 
 	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
