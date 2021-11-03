@@ -342,7 +342,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
 				#if CLEAR_COAT_BOTTOM_NORMAL
-				const float2 oct1 = ((float2(GBufferData.CustomData.a, GBufferData.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
+				const float2 oct1 = ((float2(GBufferData.CustomData.a, GBufferData.CustomData.z) * 4) - (512.0/255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
 				BottomLayerWorldNormal = OctahedronToUnitVector(oct1);
 				#endif
 
@@ -806,7 +806,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					BottomLayerWorldTangent = TopLayerWorldTangent;
 					float4 CustomData = PackedPayload.GetCustomData();
 					#if CLEAR_COAT_BOTTOM_NORMAL
-					const float2 oct1 = ((float2(CustomData.a, CustomData.z) * 2) - (256.0 / 255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
+					const float2 oct1 = ((float2(CustomData.a, CustomData.z) * 4) - (512.0 / 255.0)) + UnitVectorToOctahedron(TopLayerWorldNormal);
 					BottomLayerWorldNormal = OctahedronToUnitVector(oct1);
 					#endif
 

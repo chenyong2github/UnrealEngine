@@ -380,7 +380,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 			#endif
 
 			float2 oct1 = UnitVectorToOctahedron(tempnormal);
-			float2 oct3 = ( (oct1 - oct2) *  0.5 ) + (128.0/255.0);
+			float2 oct3 = ( (oct1 - oct2) *  0.25 ) + (128.0/255.0);
 			Payload.CustomData.a = oct3.x;
 			Payload.CustomData.z = oct3.y;
 		#else
