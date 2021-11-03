@@ -338,18 +338,13 @@ namespace Chaos
 				ModificationResults.Reserve(GetConstraints().Num());
 				for (FPBDCollisionConstraintHandle* Handle : GetConstraintHandles())
 				{
-					ModificationResults.Emplace(Handle);
+					if (Handle)
+					{
+						ModificationResults.Emplace(Handle);
+					}
 				}
 
 				Modifier->ContactModification_Internal(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
-				
-				for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
-				{
-					if (Modification.GetResult() == ECollisionModifierResult::Disabled)
-					{
-						RemoveConstraint(Modification.GetHandle());
-					}
-				}
 			}
 		}
 	}
