@@ -141,12 +141,12 @@ Please read the leading comments before using the class.
 
 // More defines to accomodate compiler differences
 #if SAFEINT_COMPILER == GCC_COMPILER || SAFEINT_COMPILER == CLANG_COMPILER
-#define SAFEINT_NORETURN __attribute__((noreturn))
+#define SAFEINT_NORETURN /*__attribute__((noreturn))*/ // WITH_UE
 #define SAFEINT_STDCALL
 #define SAFEINT_VISIBLE __attribute__ ((__visibility__("default")))
 #define SAFEINT_WEAK __attribute__ ((weak))
 #else
-#define SAFEINT_NORETURN __declspec(noreturn)
+#define SAFEINT_NORETURN /*__declspec(noreturn)*/ // WITH_UE
 #define SAFEINT_STDCALL __stdcall
 #define SAFEINT_VISIBLE
 #define SAFEINT_WEAK
