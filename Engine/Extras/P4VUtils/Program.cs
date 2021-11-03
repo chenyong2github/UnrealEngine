@@ -44,16 +44,25 @@ namespace P4VUtils
 
 	class Program
 	{
+		// UEHelpersInRoot - commands that help with common but simple operations
+		public static IReadOnlyDictionary<string, Command> RootHelperCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
+		{
+			["describe"] = new DescribeCommand(),
+			["copyclnum"] = new CopyCLCommand(),
+		};
+
 		// UEHelpers - commands that help with common but simple operations
 		public static IReadOnlyDictionary<string, Command> HelperCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
 		{
-			["describe"] = new DescribeCommand(),
 			["findlastedit"] = new FindLastEditCommand(),
 			["findlasteditbyline"] = new P4BlameCommand(),
 			["snapshot"] = new SnapshotCommand(),
-			["copyclnum"] = new CopyCLCommand(),
 			["reconcilecode"] = new FastReconcileCodeEditsCommand(),
 			["reconcileall"] = new FastReconcileAllEditsCommand(),
+			["unshelvetocurrentrevision"] = new UnshelveToCurrentRevision(),
+			["unshelvemakedatawritable"] = new UnshelveMakeDataWritable(),
+			["convertcldatatolocalwritable"] = new ConvertCLDataToLocalWritable(),
+			["convertdatatolocalwritable"] = new ConvertDataToLocalWritable(),
 		};
 
 		// UEIntegrate Folder commands - complex commands to facilitate integrations/backout
@@ -74,7 +83,7 @@ namespace P4VUtils
 			["movewriteablepreflightandsubmit"] = new MoveWriteableFilesthenPreflightAndSubmitCommand(),
 		};
 
-		public static IDictionary<string, Command> Commands = HelperCommands.Concat(IntegrateCommands).Concat(HordeCommands).ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
+		public static IDictionary<string, Command> Commands = RootHelperCommands.Concat(HelperCommands).Concat(IntegrateCommands).Concat(HordeCommands).ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
 
 		static void PrintHelp(ILogger Logger)
 		{
@@ -238,7 +247,7 @@ namespace P4VUtils
 			return ToolsChecked == ToolsRemoved;
 		}
 
-		static void InstallCommandsListInFolder(string FolderName, IReadOnlyDictionary<string, Command> InputCommmands, XmlDocument Document, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
+		static void InstallCommandsListInFolder(string FolderName, bool AddFolderToContextMenu, IReadOnlyDictionary<string, Command> InputCommmands, XmlDocument Document, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
 		{
 			// <CustomToolDefList>				// list of custom tools (top level)
 			//  < CustomToolDef >				// loose custom tool in top level
@@ -257,6 +266,10 @@ namespace P4VUtils
 				XmlElement FolderDescription = Document.CreateElement("Name");
 				FolderDescription.InnerText = FolderName;
 				FolderDefinition.AppendChild(FolderDescription);
+
+				XmlElement FolderToContextMenu = Document.CreateElement("AddToContext");
+				FolderToContextMenu.InnerText = AddFolderToContextMenu ? "true" : "false";
+				FolderDefinition.AppendChild(FolderToContextMenu);
 
 				XmlElement FolderDefList = Document.CreateElement("CustomToolDefList");
 
@@ -403,9 +416,10 @@ namespace P4VUtils
 			// Insert new entries
 			if (bInstall)
 			{
-				InstallCommandsListInFolder("UEHelpers", HelperCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UEIntegrate", IntegrateCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UEHorde", HordeCommands, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UERootHelpers", false/*AddFolderToContextMenu*/, RootHelperCommands, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UEHelpers", true/*AddFolderToContextMenu*/, HelperCommands, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UEIntegrate", true/*AddFolderToContextMenu*/, IntegrateCommands, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UEHorde", true/*AddFolderToContextMenu*/, HordeCommands, Document, DotNetLocation, AssemblyLocation, Logger);
 			}
 
 			// Save the new document
