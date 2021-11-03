@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
+#include "Kismet2/CompilerResultsLog.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_IKRig 
@@ -29,6 +30,16 @@ FText UAnimGraphNode_IKRig::GetNodeTitle(ENodeTitleType::Type TitleType) const
 void UAnimGraphNode_IKRig::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
 {
 	FAnimNode_IKRig* IKRigNode = static_cast<FAnimNode_IKRig*>(InPreviewNode);
+}
+
+void UAnimGraphNode_IKRig::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+{
+	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+
+	if (!IsValid(Node.RigDefinitionAsset))
+	{
+		MessageLog.Warning(*LOCTEXT("NoRigDefinitionAsset", "@@ - Please select a Rig Definition Asset.").ToString(), this);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
