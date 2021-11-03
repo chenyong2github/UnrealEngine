@@ -1522,8 +1522,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}	
 		
 		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ForceFullPrecisionInPS"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_highp") : TEXT("");
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.FloatPrecisionMode"));
+			if(CVar && CVar->GetInt() > 0)
+			{
+				KeyString.Appendf(TEXT("_highp%d"), CVar->GetInt());
+			}
 		}
 
 		{

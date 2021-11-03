@@ -169,6 +169,22 @@ namespace EMobileAntiAliasingMethod
 	};
 }
 
+/** The default float precision for material's pixel shaders on mobile devices*/
+UENUM()
+namespace EMobileFloatPrecisionMode
+{
+	enum Type
+	{
+		/** Half precision, except explict 'float' in .ush/.usf*/
+		Half = 0 UMETA(DisplayName = "Use Half-precision"),
+		/** Half precision, except Full precision for material floats and explicit floats in .ush/.usf*/
+		Full_MaterialExpressionOnly = 1 UMETA(DisplayName = "Use Full-precision for MaterialExpressions only"),
+		/** All the floats are full-precision */
+		Full = 2 UMETA(DisplayName = "Use Full-precision for every float"),
+	};
+}
+
+
 namespace EDefaultBackBufferPixelFormat
 {
 	ENGINE_API EPixelFormat Convert2PixelFormat(EDefaultBackBufferPixelFormat::Type InDefaultBackBufferPixelFormat);
@@ -238,6 +254,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.Mobile.AntiAliasing", DisplayName = "Mobile Anti-Aliasing Method",
 		ToolTip = "The mobile default anti-aliasing method."))
 	TEnumAsByte<EMobileAntiAliasingMethod::Type> MobileAntiAliasing;
+
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.FloatPrecisionMode", DisplayName = "Mobile Float Precision Mode",
+		ToolTip = "Project wide mobile float precision mode for shaders and materials. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	TEnumAsByte<EMobileFloatPrecisionMode::Type> MobileFloatPrecisionMode;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta=(
 		ConsoleVariable="r.Mobile.AllowDitheredLODTransition", DisplayName="Allow Dithered LOD Transition",

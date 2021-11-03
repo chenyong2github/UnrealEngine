@@ -254,12 +254,14 @@ enum EBlendMode
 UENUM()
 enum EMaterialFloatPrecisionMode
 {
-	/** Half precision, except explict 'float' in .ush/.usf*/
-	MFPM_Half UMETA(DisplayName = "Half-precision"),
+	/** Uses project based precision mode setting */
+	MFPM_Default UMETA(DisplayName = "Default"),
 	/** Force full-precision for MaterialFloat only, no effect on shader codes in .ush/.usf*/
-	MFPM_Full_MaterialExpressionOnly UMETA(DisplayName = "Full-precision for MaterialExpressions only"),
+	MFPM_Full_MaterialExpressionOnly UMETA(DisplayName = "Use Full-precision for MaterialExpressions only"),
 	/** All the floats are full-precision */
-	MFPM_Full UMETA(DisplayName = "Full-precision for every float"),
+	MFPM_Full UMETA(DisplayName = "Use Full-precision for every float"),
+	/** Half precision, except explict 'float' in .ush/.usf*/
+	MFPM_Half UMETA(DisplayName = "Use Half-precision"),
 	MFPM_MAX,
 };
 

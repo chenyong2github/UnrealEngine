@@ -62,6 +62,7 @@
 #include "RenderUtils.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ClearReplacementShaders.h"
+#include "Engine/RendererSettings.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
 #if WITH_EDITOR
@@ -5761,11 +5762,8 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ForceFullPrecisionInPS"));
-		if (CVar && CVar->GetInt() != 0)
-		{
-			Input.Environment.CompilerFlags.Add(CFLAG_UseFullPrecisionInPS);
-		}
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.FloatPrecisionMode"));
+		Input.Environment.FullPrecisionInPS = CVar ? (CVar->GetInt() == EMobileFloatPrecisionMode::Full) : false;
 	}
 
 	{

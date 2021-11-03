@@ -1164,11 +1164,11 @@ uint32 FOpenGLFrontend::GetMaxSamplers(GLSLVersion Version)
 	return 16;
 }
 
-uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const TArray<uint32>& CompilerFlags)
+uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const bool bFullPrecisionInPS, const TArray<uint32>& CompilerFlags)
 {
 	uint32  CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniforms | HLSLCC_DX11ClipSpace | HLSLCC_RetainSizes;
 
-	if (CompilerFlags.Contains(CFLAG_UseFullPrecisionInPS))
+	if (bFullPrecisionInPS)
 	{
 		CCFlags |= HLSLCC_UseFullPrecisionInPS;
 	}
@@ -2753,7 +2753,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_ATTRIBUTES"), (uint32)0);
 	}
 
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_UseFullPrecisionInPS))
+	if (Input.Environment.FullPrecisionInPS)
 	{
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}
@@ -2817,7 +2817,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
 
-	uint32 CCFlags = CalculateCrossCompilerFlags(Version, Input.Environment.CompilerFlags);
+	uint32 CCFlags = CalculateCrossCompilerFlags(Version, Input.Environment.FullPrecisionInPS, Input.Environment.CompilerFlags);
 
 	// Required as we added the RemoveUniformBuffersFromSource() function (the cross-compiler won't be able to interpret comments w/o a preprocessor)
 	CCFlags &= ~HLSLCC_NoPreprocess;

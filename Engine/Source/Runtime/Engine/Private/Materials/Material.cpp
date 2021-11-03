@@ -967,7 +967,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 
 	bLoadedCachedExpressionData = false;
 
-	FloatPrecisionMode = EMaterialFloatPrecisionMode::MFPM_Half;
+	FloatPrecisionMode = EMaterialFloatPrecisionMode::MFPM_Default;
 }
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)

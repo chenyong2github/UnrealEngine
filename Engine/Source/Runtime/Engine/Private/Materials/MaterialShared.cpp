@@ -2059,15 +2059,17 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 	OutEnvironment.SetDefine(TEXT("MOBILE_HIGH_QUALITY_BRDF"), IsMobileHighQualityBRDFEnabled());
 
-	EMaterialFloatPrecisionMode FloatPrecisionMode = GetMaterialFloatPrecisionMode();
-	if (FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full)
-	{
-		OutEnvironment.CompilerFlags.Add(CFLAG_UseFullPrecisionInPS);
-	}
-	else if (FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full_MaterialExpressionOnly)
+	bool bFullPrecisionInMaterial = false;
+	bool bFullPrecisionInPS = false;
+
+	GetOutputPrecision(GetMaterialFloatPrecisionMode(), bFullPrecisionInPS, bFullPrecisionInMaterial);
+
+	if (bFullPrecisionInMaterial)
 	{
 		OutEnvironment.SetDefine(TEXT("FORCE_MATERIAL_FLOAT_FULL_PRECISION"), TEXT("1"));
 	}
+
+	OutEnvironment.FullPrecisionInPS = bFullPrecisionInPS;
 
 	switch(GetMaterialDomain())
 	{
@@ -2610,6 +2612,24 @@ TShaderRef<FShader> FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FV
 	}
 
 	return TShaderRef<FShader>(Shader, *RenderingThreadShaderMap);
+}
+
+void FMaterial::GetOutputPrecision(EMaterialFloatPrecisionMode FloatPrecisionMode, bool& FullPrecisionInPS, bool& FullPrecisionInMaterial)
+{
+	static const IConsoleVariable* CVarFloatPrecisionMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.FloatPrecisionMode"));
+
+	if (FloatPrecisionMode != EMaterialFloatPrecisionMode::MFPM_Default)
+	{
+		FullPrecisionInMaterial = FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full_MaterialExpressionOnly;
+		FullPrecisionInPS = FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full;
+	}
+	else if (CVarFloatPrecisionMode)
+	{
+		int MobilePrecisionMode = FMath::Clamp(CVarFloatPrecisionMode->GetInt(), (int32_t)EMobileFloatPrecisionMode::Half, (int32_t)EMobileFloatPrecisionMode::Full);
+
+		FullPrecisionInMaterial = MobilePrecisionMode == EMobileFloatPrecisionMode::Full_MaterialExpressionOnly;
+		FullPrecisionInPS = MobilePrecisionMode == EMobileFloatPrecisionMode::Full;
+	}
 }
 
 TRACE_DECLARE_INT_COUNTER(Shaders_OnDemandShaderRequests, TEXT("Shaders/OnDemandShaderRequests"));

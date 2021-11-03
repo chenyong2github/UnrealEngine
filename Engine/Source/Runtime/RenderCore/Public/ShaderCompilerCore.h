@@ -81,8 +81,6 @@ enum ECompilerFlags
 	CFLAG_BoundsChecking,
 	// Force removing unused interpolators for platforms that can opt out
 	CFLAG_ForceRemoveUnusedInterpolators,
-	// Set default precision to highp in a pixel shader (default is mediump on ES platforms)
-	CFLAG_UseFullPrecisionInPS,
 	// Hint that it is a vertex to geometry shader
 	CFLAG_VertexToGeometryShader,
 	// Hint that it is a vertex to primitive shader
