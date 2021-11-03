@@ -1279,7 +1279,14 @@ void GetSpvVarQualifier(const SpvReflectBlockVariable& Member, FString & Out)
 		Out = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u"));
 		break;
 	case SPV_REFLECT_TYPE_FLAG_FLOAT: 
-		Out = TEXT("h");
+		if (Member.decoration_flags & SPV_REFLECT_DECORATION_RELAXED_PRECISION)
+		{
+			Out = TEXT("m");
+		}
+		else
+		{
+			Out = TEXT("h");
+		}
 		break;
 	}
 }
@@ -1475,6 +1482,14 @@ void GetPackedUniformString(std::string& OutputString, const std::string& Unifor
 		OutputString += std::to_string(Index);
 		OutputString += "];\n";
 	}
+	else if (Key == TEXT("m"))
+	{
+		OutputString = "uniform mediump vec4 ";
+		OutputString += UniformPrefix;
+		OutputString += "_m[";
+		OutputString += std::to_string(Index);
+		OutputString += "];\n";
+	}
 }
 
 static bool CompileToGlslWithShaderConductor(
@@ -1494,7 +1509,7 @@ static bool CompileToGlslWithShaderConductor(
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
-
+	
 	// Convert input strings from FString to ANSI strings
 	std::string SourceData(TCHAR_TO_UTF8(*PreprocessedShader));
 	std::string FileName(TCHAR_TO_UTF8(*Input.VirtualSourceFilePath));
@@ -1627,6 +1642,7 @@ static bool CompileToGlslWithShaderConductor(
 		// Now perform reflection on the SPIRV and tweak any decorations that we need to.
 		// This used to be done via JSON, but that was slow and alloc happy so use SPIRV-Reflect instead.
 		spv_reflect::ShaderModule Reflection(SpirvData.Num() * sizeof(uint32), SpirvData.GetData());
+
 		check(Reflection.GetResult() == SPV_REFLECT_RESULT_SUCCESS);
 
 		SpvReflectResult SPVRResult = SPV_REFLECT_RESULT_NOT_READY;
@@ -1769,7 +1785,8 @@ static bool CompileToGlslWithShaderConductor(
 						continue;
 					}
 
-					CCHeaderWriter.WritePackedGlobal(ANSI_TO_TCHAR(member.name), CrossCompiler::FHlslccHeaderWriter::EncodePackedGlobalType(*(member.type_description)), GlobalOffsetSize, member.size);
+					bool bHalfPrecision = member.decoration_flags & SPV_REFLECT_DECORATION_RELAXED_PRECISION;
+					CCHeaderWriter.WritePackedGlobal(ANSI_TO_TCHAR(member.name), CrossCompiler::FHlslccHeaderWriter::EncodePackedGlobalType(*(member.type_description), bHalfPrecision), GlobalOffsetSize, member.size);
 					GlobalOffsetSize += Align(member.size, 16);
 
 					AddMemberToPackedUB(FrequencyPrefix,
@@ -1911,7 +1928,8 @@ static bool CompileToGlslWithShaderConductor(
 								continue;
 							}
 
-							CCHeaderWriter.WritePackedGlobal(ANSI_TO_TCHAR(member.name), CrossCompiler::FHlslccHeaderWriter::EncodePackedGlobalType(*(member.type_description)), GlobalOffsetSize, member.size);
+							bool bHalfPrecision = member.decoration_flags & SPV_REFLECT_DECORATION_RELAXED_PRECISION;
+							CCHeaderWriter.WritePackedGlobal(ANSI_TO_TCHAR(member.name), CrossCompiler::FHlslccHeaderWriter::EncodePackedGlobalType(*(member.type_description), bHalfPrecision), GlobalOffsetSize, member.size);
 							GlobalOffsetSize += Align(member.size, 16);
 
 							AddMemberToPackedUB(FrequencyPrefix,
@@ -2160,6 +2178,7 @@ static bool CompileToGlslWithShaderConductor(
 		default:
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
 
 			// If we have mobile multiview define set then set the view count and enable extension
 			const FString* MultiViewDefine = Input.Environment.GetDefinitions().Find(TEXT("MOBILE_MULTI_VIEW"));

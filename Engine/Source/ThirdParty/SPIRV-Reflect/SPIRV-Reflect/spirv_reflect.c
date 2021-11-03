@@ -118,6 +118,9 @@ typedef struct Decorations {
   bool                  is_noperspective;
   bool                  is_flat;
   bool                  is_non_writable;
+  /* UE Change Begin: Added reflection for relaxed precision */
+  bool                  is_relaxed_precision;
+  /* UE Change End: Added reflection for relaxed precision */
   NumberDecoration      set;
   NumberDecoration      binding;
   NumberDecoration      input_attachment_index;
@@ -495,6 +498,11 @@ static SpvReflectDecorationFlags ApplyDecorations(const Decorations* p_decoratio
   if (p_decoration_fields->is_non_writable) {
     decorations |= SPV_REFLECT_DECORATION_NON_WRITABLE;
   }
+  /* UE Change Begin: Added reflection for relaxed precision */
+  if (p_decoration_fields->is_relaxed_precision) {
+	  decorations |= SPV_REFLECT_DECORATION_RELAXED_PRECISION;
+  }
+  /* UE Change End: Added reflection for relaxed precision */
   return decorations;
 }
 
@@ -1460,6 +1468,14 @@ static SpvReflectResult ParseDecorations(Parser* p_parser)
     uint32_t decoration = (uint32_t)INVALID_VALUE;
     CHECKED_READU32(p_parser, p_node->word_offset + member_offset + 2, decoration);
 
+	/* UE Change Begin: Added reflection for relaxed precision */
+	// Only parse relaxed precision for Member decorations
+	if (decoration == SpvDecorationRelaxedPrecision && p_node->op != SpvOpMemberDecorate)
+	{
+		continue;
+	}
+	/* UE Change End: Added reflection for relaxed precision */
+
     // Filter out the decoration that do not affect reflection, otherwise
     // there will be random crashes because the nodes aren't found.
     bool skip = false;
@@ -1483,6 +1499,9 @@ static SpvReflectResult ParseDecorations(Parser* p_parser)
       case SpvDecorationDescriptorSet:
       case SpvDecorationOffset:
       case SpvDecorationInputAttachmentIndex:
+      /* UE Change Begin: Added reflection for relaxed precision */
+	  case SpvDecorationRelaxedPrecision:
+      /* UE Change End: Added reflection for relaxed precision */
       case SpvReflectDecorationHlslCounterBufferGOOGLE:
       case SpvReflectDecorationHlslSemanticGOOGLE: {
         skip = false;
@@ -1600,6 +1619,13 @@ static SpvReflectResult ParseDecorations(Parser* p_parser)
         p_target_decorations->input_attachment_index.word_offset = word_offset;
       }
       break;
+
+      /* UE Change Begin: Added reflection for relaxed precision */
+	  case SpvDecorationRelaxedPrecision: {
+		  p_target_decorations->is_relaxed_precision = true;
+	  }
+	  break;
+      /* UE Change End: Added reflection for relaxed precision */
 
       case SpvReflectDecorationHlslCounterBufferGOOGLE: {
         uint32_t word_offset = p_node->word_offset + member_offset+ 3;
