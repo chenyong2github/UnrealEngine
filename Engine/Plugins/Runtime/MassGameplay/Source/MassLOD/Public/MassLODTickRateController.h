@@ -17,9 +17,10 @@ public:
 
 	/**
 	 * Initializes the LOD trick rate controller, needed to be called once at initialization time (Only when FLODLogic::bDoVariableTickRate is enabled)
-	 * @Param InTickRate the rate at which entities should be ticked per LOD
+	 * @Param InTickRate the rate at which entities should be ticked per 
+	 * @Param bInShouldSpreadFirstUpdate over the period specified in InTickRate parameter
 	 */
-	void Initialize(const float InTickRate[EMassLOD::Max]);
+	void Initialize(const float InTickRate[EMassLOD::Max], const bool bInShouldSpreadFirstUpdate = false);
 
 	/**
 	 * Retrieve if it is needed to calculate the LOD for this chunk
@@ -49,10 +50,13 @@ protected:
 
 	/** Tick rate for each LOD */
 	TStaticArray<int32, EMassLOD::Max> TickRates;
+
+	/* Whether or not to spread the first update over the period specified in tick rate member for its LOD */
+	bool bShouldSpreadFirstUpdate = false;
 };
 
 template <typename FVariableTickChunkFragment, typename FLODLogic>
-void TMassLODTickRateController<FVariableTickChunkFragment,FLODLogic>::Initialize(const float InTickRates[EMassLOD::Max])
+void TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::Initialize(const float InTickRates[EMassLOD::Max], const bool bInShouldSpreadFirstUpdate/* = false*/)
 {
 	checkf(InTickRates, TEXT("You need to provide tick rate values to use this class."));
 	checkf(FLODLogic::bDoVariableTickRate, TEXT("You need to enalbe bDoVariableTickRate to use this class."));
@@ -62,6 +66,8 @@ void TMassLODTickRateController<FVariableTickChunkFragment,FLODLogic>::Initializ
 	{
 		TickRates[x] = InTickRates[x];
 	}
+
+	bShouldSpreadFirstUpdate = bInShouldSpreadFirstUpdate;
 }
 
 template <typename FVariableTickChunkFragment, typename FLODLogic>
@@ -97,7 +103,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 		// The LOD on the chunk fragment data isn't set yet, let see if the Archetype has an LOD tag and set it on the ChunkData
 		ChunkLOD = UE::MassLOD::GetLODFromArchetype(Context);
 		ChunkData.SetLOD(ChunkLOD);
-		bFirstUpdate = true;
+		bFirstUpdate = bShouldSpreadFirstUpdate;
 	}
 	else
 	{

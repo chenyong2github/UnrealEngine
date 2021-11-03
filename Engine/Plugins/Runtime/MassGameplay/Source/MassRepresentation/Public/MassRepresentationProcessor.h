@@ -178,6 +178,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
 	bool bKeepActorExtraFrame = false;
 
+	/** If true, will spread the first visualization update over the period specified in NotVisibleUpdateRate member */
+	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
+	bool bSpreadFirstVisualizationUpdate = false;
+
 	/** World Partition grid name to test collision against, default None will be the main grid */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
 	FName WorldPartitionGridNameContainingCollision;

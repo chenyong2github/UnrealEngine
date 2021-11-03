@@ -108,7 +108,7 @@ void UMassSimulationLODProcessor::Initialize(UObject& InOwner)
 	for (FMassSimulationLODConfig& LODConfig : LODConfigs)
 	{
 		LODConfig.LODCalculator.Initialize(LODConfig.LODDistance, LODConfig.BufferHysteresisOnDistancePercentage / 100.0f, LODConfig.LODMaxCount);
-		LODConfig.LODTickRateController.Initialize(LODConfig.TickRates);
+		LODConfig.LODTickRateController.Initialize(LODConfig.TickRates, LODConfig.bSpreadFirstSimulationUpdate);
 	}
 
 	Super::Initialize(InOwner);

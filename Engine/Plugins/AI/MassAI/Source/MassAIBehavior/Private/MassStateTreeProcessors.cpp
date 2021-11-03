@@ -216,10 +216,10 @@ UMassStateTreeSignalRequestInitialization::UMassStateTreeSignalRequestInitializa
 {
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
 	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);
-	MaxInitializationRequestsPerLOD[EMassLOD::High] = 250;
-	MaxInitializationRequestsPerLOD[EMassLOD::Medium] = 250;
-	MaxInitializationRequestsPerLOD[EMassLOD::Low] = 250;
-	MaxInitializationRequestsPerLOD[EMassLOD::Off] = 250;
+	MaxInitializationRequestsPerLOD[EMassLOD::High] = 100;
+	MaxInitializationRequestsPerLOD[EMassLOD::Medium] = 100;
+	MaxInitializationRequestsPerLOD[EMassLOD::Low] = 100;
+	MaxInitializationRequestsPerLOD[EMassLOD::Off] = 100;
 }
 void UMassStateTreeSignalRequestInitialization::Initialize(UObject& Owner)
 {
