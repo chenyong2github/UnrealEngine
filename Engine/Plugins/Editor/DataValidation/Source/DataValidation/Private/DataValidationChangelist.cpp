@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataValidationChangelist.h"
+
+#include "Algo/AnyOf.h"
+#include "Algo/Transform.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
-#include "Algo/AnyOf.h"
+#include "SourceControlOperations.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationChangelist"
 
@@ -110,9 +113,22 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 
 	bool bHasChangelistErrors = false;
 
-	for(FName& ExternalDependency : ExternalDependencies)
+	TArray<FString> ExternalDependenciesFilenames;
+
+	Algo::Transform(ExternalDependencies, ExternalDependenciesFilenames, [](const FName& InFilename) -> FString
 	{
-		FString ExternalPackageFilename = USourceControlHelpers::PackageFilename(ExternalDependency.ToString());
+		return USourceControlHelpers::PackageFilename(InFilename.ToString());
+	});
+
+	// Update External dependencies state in case it changed from what is in cache
+	SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), ExternalDependenciesFilenames);
+
+	check(ExternalDependenciesFilenames.Num() == ExternalDependencies.Num());
+
+	for (int32 i = 0; i < ExternalDependenciesFilenames.Num(); ++i)
+	{
+		const FString& ExternalPackageFilename = ExternalDependenciesFilenames[i];
+		const FName& ExternalDependency = ExternalDependencies[i];
 
 		FSourceControlStatePtr ExternalDependencyFileState = SourceControlProvider.GetState(ExternalPackageFilename, EStateCacheUsage::Use);
 

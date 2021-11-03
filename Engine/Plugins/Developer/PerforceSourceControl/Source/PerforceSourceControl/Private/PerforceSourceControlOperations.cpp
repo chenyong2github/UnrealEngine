@@ -456,6 +456,8 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		FText CachedDescription;
+		FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
+		FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
 
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
@@ -463,22 +465,22 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		TArray<FString> FilesToSubmit = InCommand.Files;
 
 		FPerforceSourceControlChangelist ChangeList(InCommand.Changelist);
+		FSourceControlChangelistStateRef ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
 		TArray<FString> ReopenedFiles;
 
 		InCommand.bCommandSuccessful = true;
 
+		// Adds changelist's files to FilesToSubmit so we can update their state after submit
+		if ((FilesToSubmit.Num() == 0) && (InCommand.Changelist.IsInitialized()))
+		{
+			Algo::Transform(ChangelistState->GetFilesStates(), FilesToSubmit, [](const FSourceControlStateRef& FileState)
+			{
+				return FileState->GetFilename();
+			});
+		}
+
 		if (InCommand.Changelist.IsDefault())
 		{
-			// If the command has specified the default changelist but no files, then get all files from the default changelist
-			if (FilesToSubmit.Num() == 0 && InCommand.Changelist.IsInitialized())
-			{
-				FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-				TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DefaultChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
-				Algo::Transform(DefaultChangelistState->Files, FilesToSubmit, [](const auto& FileState) {
-					return FileState->GetFilename();
-					});
-			}
-
 			int32 NewChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), TArray<FString>(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
 			if (NewChangeList > 0)
 			{
@@ -492,9 +494,6 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		}
 		else if (!Operation->GetDescription().IsEmpty())
 		{
-			FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-			FSourceControlChangelistStateRef ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
-
 			// Retrieves cached description to restore it in case of submit failure.
 			CachedDescription = ChangelistState->GetDescriptionText();
 
@@ -521,9 +520,6 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			if (InCommand.bCommandSuccessful)
 			{
 				// Remove any deleted files from status cache
-				FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-				FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
-
 				TArray<TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
 				Provider.GetState(FilesToSubmit, States, EStateCacheUsage::Use);
 				for (const auto& State : States)
