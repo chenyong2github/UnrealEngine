@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"MassMovement",
 					"MassSignals",
 					"MassSimulation",
+					"MassSpawner",
 					"SmartObjectsModule",
 					"StructUtils",
 					"ZoneGraph",

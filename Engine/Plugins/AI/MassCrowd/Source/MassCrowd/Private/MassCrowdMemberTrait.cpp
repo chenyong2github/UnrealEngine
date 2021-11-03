@@ -3,7 +3,6 @@
 #include "MassCrowdMemberTrait.h"
 #include "MassCrowdFragments.h"
 #include "MassEntityTemplateRegistry.h"
-#include "MassCrowdNavigationProcessor.h"
 
 void UMassCrowdMemberTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
