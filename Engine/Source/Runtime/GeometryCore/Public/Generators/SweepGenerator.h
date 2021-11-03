@@ -163,7 +163,6 @@ protected:
 					for (const FIndex3i& Triangle : OutTriangles)
 					{
 						bool Flipped = CapIdx == 0;
-						Flipped = !Flipped;
 						SetTriangle(TriIdx,
 							Triangle.A + VertOffset, Triangle.B + VertOffset, Triangle.C + VertOffset,
 							Flipped);

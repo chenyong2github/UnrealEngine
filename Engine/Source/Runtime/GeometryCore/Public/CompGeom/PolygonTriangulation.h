@@ -14,9 +14,10 @@ namespace PolygonTriangulation
 	 * Compute triangulation of simple 2D polygon using ear-clipping
 	 * @param VertexPositions ordered vertices of 2D polygon
 	 * @param OutTriangles computed triangulation. Each triangle is a tuple of indices into VertexPositions.
+	 * @param bOrientAsHoleFill if true, output triangles are wound opposite of the input polygon; this is typically desired when the polygon comes from the boundary of a hole
 	 */
 	template<typename RealType>
-	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector2<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector2<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill = true);
 
 
 	template<typename RealType>
@@ -27,8 +28,9 @@ namespace PolygonTriangulation
 	 * Compute triangulation of 3D simple polygon using ear-clipping
 	 * @param VertexPositions ordered vertices of 3D polygon
 	 * @param OutTriangles computed triangulation. Each triangle is a tuple of indices into VertexPositions.
+	 * @param bOrientAsHoleFill if true, output triangles are wound opposite of the input polygon; this is typically desired when the polygon comes from the boundary of a hole
 	 */
 	template<typename RealType>
-	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles, bool bOrientAsHoleFill = true);
 
 }
