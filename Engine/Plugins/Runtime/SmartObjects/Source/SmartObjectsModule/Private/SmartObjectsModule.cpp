@@ -3,8 +3,9 @@
 #include "SmartObjectsModule.h"
 
 #include "Modules/ModuleManager.h"
+#include "SmartObjectTypes.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 #include "GameplayDebugger.h"
 #include "GameplayDebuggerCategory_SmartObject.h"
 #endif
@@ -21,7 +22,7 @@ IMPLEMENT_MODULE(FSmartObjectsModule, SmartObjectsModule)
 
 void FSmartObjectsModule::StartupModule()
 {
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 	IGameplayDebugger& GameplayDebuggerModule = IGameplayDebugger::Get();
 	GameplayDebuggerModule.RegisterCategory("SmartObject",
 		IGameplayDebugger::FOnGetCategory::CreateStatic(&FGameplayDebuggerCategory_SmartObject::MakeInstance),
@@ -32,7 +33,7 @@ void FSmartObjectsModule::StartupModule()
 
 void FSmartObjectsModule::ShutdownModule()
 {
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 	if (IGameplayDebugger::IsAvailable())
 	{
 		IGameplayDebugger& GameplayDebuggerModule = IGameplayDebugger::Get();
