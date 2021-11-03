@@ -2475,7 +2475,7 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 	}
 
 	// correct the names
-	if (!InSettings.OldName.IsEmpty() && !InSettings.NewName.IsEmpty())
+	if (!InSettings.SearchString.IsEmpty() && !InSettings.ReplaceString.IsEmpty())
 	{
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
@@ -2484,7 +2484,7 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		{
 			FName OldName = OriginalKeys[Index].Name;
 			FString OldNameStr = OldName.ToString();
-			FString NewNameStr = OldNameStr.Replace(*InSettings.OldName, *InSettings.NewName, ESearchCase::CaseSensitive);
+			FString NewNameStr = OldNameStr.Replace(*InSettings.SearchString, *InSettings.ReplaceString, ESearchCase::CaseSensitive);
 			if (NewNameStr != OldNameStr)
 			{
 				Controller->RenameElement(DuplicatedKeys[Index], *NewNameStr, true);
@@ -2514,8 +2514,8 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 				*ArrayStr,
 				(InSettings.MirrorAxis.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.MirrorAxis.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
 				(InSettings.AxisToFlip.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.AxisToFlip.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
-				*InSettings.OldName,
-				*InSettings.NewName,
+				*InSettings.SearchString,
+				*InSettings.ReplaceString,
 				(bSelectNewElements) ? TEXT("True") : TEXT("False")));
 		}
 	}

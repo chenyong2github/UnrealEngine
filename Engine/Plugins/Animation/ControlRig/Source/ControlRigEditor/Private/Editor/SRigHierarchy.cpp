@@ -1601,7 +1601,7 @@ void SRigHierarchy::HandleMirrorItem()
 		KismetInspector->ShowSingleStruct(StructToDisplay);
 
 		TSharedRef<SCustomDialog> MirrorDialog = SNew(SCustomDialog)
-			.Title(FText(LOCTEXT("ControlRigHierarchyMirror", "Mirror Hierarchy")))
+			.Title(FText(LOCTEXT("ControlRigHierarchyMirror", "Mirror Selected Rig Elements")))
 			.DialogContent( KismetInspector)
 			.Buttons({
 				SCustomDialog::FButton(LOCTEXT("OK", "OK")),
