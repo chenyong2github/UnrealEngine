@@ -600,7 +600,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
 };
 
 /**
-* Returns the hierarchy's pose transform
+* Returns an array of transforms from a given hierarchy pose
 */
 USTRUCT(meta=(DisplayName="Get Pose Cache Transform Array", Keywords="Hierarchy,Pose,State", Varying))
 struct CONTROLRIG_API FRigUnit_PoseGetTransformArray : public FRigUnit_HierarchyBase
