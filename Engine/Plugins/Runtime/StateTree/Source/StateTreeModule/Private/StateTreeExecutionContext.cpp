@@ -48,8 +48,8 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 		StorageInstance = StateTree->RuntimeStorageDefaultValue;
 	}
 
-	// Initialize struct view for all possible source structs.
-	ItemViews.SetNum(StateTree->PropertyBindings.GetSourceStructNum());
+	// Initialize struct view for all possible source items.
+	ItemViews.SetNum(StateTree->GetLinkedItemCount());
 
 	// Initialize array to keep track of which states have been updated.
 	VisitedStates.Init(false, StateTree->States.Num());
