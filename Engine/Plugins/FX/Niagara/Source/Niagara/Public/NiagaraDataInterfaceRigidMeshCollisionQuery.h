@@ -167,12 +167,9 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, Category = "Static Mesh")
-	bool StaticMesh = true;
-
-	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "StaticMesh"))
 	FString Tag = TEXT("");
 
-	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "StaticMesh"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh")
 	bool OnlyUseMoveable = true;
 
 	UPROPERTY(EditAnywhere, Category = "General")
