@@ -405,6 +405,16 @@ FString FTypeProtoTensor::ToString(const FString& InLineStarted) const
 
 
 
+/* FTypeProtoMap structors
+ *****************************************************************************/
+
+FTypeProtoMap::FTypeProtoMap()
+	: KeyType(0)
+{
+}
+
+
+
 /* FSparseTensorProto public functions
  *****************************************************************************/
 

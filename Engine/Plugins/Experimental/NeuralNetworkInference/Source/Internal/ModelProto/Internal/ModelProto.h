@@ -316,13 +316,15 @@ public:
 	 * This field MUST refer to an integral type ([U]INT{8|16|32|64}) or STRING
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	int32 KeyType =  0;
+	int32 KeyType;
 
 	/**
 	 * This field MUST be present for this version of the IR.
 	 */
 	//UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	// FTypeProto ValueType; // Not implemented yet because of Circular-dependency
+
+	FTypeProtoMap();
 };
 
 /**
