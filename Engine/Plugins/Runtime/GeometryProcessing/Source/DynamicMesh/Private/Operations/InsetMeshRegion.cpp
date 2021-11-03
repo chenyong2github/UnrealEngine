@@ -11,6 +11,7 @@
 #include "Solvers/ConstrainedMeshDeformer.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/MeshTransforms.h"
+#include "Operations/PolyEditingEdgeUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -102,53 +103,20 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
 	{
 		int32 NumEdges = LoopPair.InnerEdges.Num();
+
 		TArray<FLine3d> InsetLines;
-		InsetLines.SetNum(NumEdges);
+		UE::Geometry::ComputeInsetLineSegmentsFromEdges(*Mesh, LoopPair.InnerEdges, InsetDistance, InsetLines);
 
-		for (int32 k = 0; k < NumEdges; ++k)
+		TArray<FVector3d> NewPositions;
+		UE::Geometry::SolveInsetVertexPositionsFromInsetLines(*Mesh, InsetLines, LoopPair.InnerVertices, NewPositions, true);
+
+		if (NewPositions.Num() == LoopPair.InnerVertices.Num())
 		{
-			const FDynamicMesh3::FEdge EdgeVT = Mesh->GetEdge(LoopPair.InnerEdges[k]);
-			FVector3d A = Mesh->GetVertex(EdgeVT.Vert[0]);
-			FVector3d B = Mesh->GetVertex(EdgeVT.Vert[1]);
-			FVector3d EdgeDir = Normalized(A - B);
-			FVector3d Midpoint = (A + B) * 0.5;
-			int32 EdgeTri = EdgeVT.Tri[0];
-			FVector3d Normal, Centroid; double Area;
-			Mesh->GetTriInfo(EdgeTri, Normal, Area, Centroid);
-
-			FVector3d InsetDir = Normal.Cross(EdgeDir);
-			if ((Centroid - Midpoint).Dot(InsetDir) < 0)
+			for (int32 k = 0; k < LoopPair.InnerVertices.Num(); ++k)
 			{
-				InsetDir = -InsetDir;
-			}
-
-			InsetLines[k] = FLine3d(Midpoint + InsetDistance * InsetDir, EdgeDir);
-		}
-
-		int32 NumVertices = LoopPair.InnerVertices.Num();
-		for (int32 vi = 0; vi < NumVertices; ++vi)
-		{
-			const FLine3d& PrevLine = InsetLines[(vi == 0) ? (NumEdges-1) : (vi-1)];
-			const FLine3d& NextLine = InsetLines[vi];
-
-			if (FMathd::Abs(PrevLine.Direction.Dot(NextLine.Direction)) > 0.999)
-			{
-				FVector3d CurPos = Mesh->GetVertex(LoopPair.InnerVertices[vi]);
-				FVector3d NewPos = NextLine.NearestPoint(CurPos);
-				Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
-			}
-			else
-			{
-				FDistLine3Line3d Distance(PrevLine, NextLine);
-				double DistSqr = Distance.GetSquared();
-
-				FVector3d CurPos = Mesh->GetVertex(LoopPair.InnerVertices[vi]);
-				FVector3d NewPos = 0.5 * (Distance.Line1ClosestPoint + Distance.Line2ClosestPoint);
-				Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
+				Mesh->SetVertex(LoopPair.InnerVertices[k], NewPositions[k]);
 			}
 		}
-
-
 	};
 
 	// stitch each loop
