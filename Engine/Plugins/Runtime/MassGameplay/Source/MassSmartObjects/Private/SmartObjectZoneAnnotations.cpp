@@ -23,7 +23,11 @@ void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 	{
 		OnMainCollectionChangedHandle = SmartObjectSubsystem->OnMainCollectionChanged.AddLambda([this]()
 		{
-			RebuildForAllGraphs();
+			const UWorld* World = GetWorld();
+			if (World != nullptr && !World->IsGameWorld())
+			{
+				RebuildForAllGraphs();
+			}
 		});
 	}
 
