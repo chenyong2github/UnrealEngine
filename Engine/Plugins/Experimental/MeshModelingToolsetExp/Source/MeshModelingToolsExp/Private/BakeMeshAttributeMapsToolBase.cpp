@@ -30,48 +30,6 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsToolBase"
 
-// Initialize map type name map. These names should match the
-// auto-generated enum names. 
-static const char* BakeType_TangentSpaceNormals = "Tangent Space Normal";
-static const char* BakeType_AmbientOcclusion = "Ambient Occlusion";
-static const char* BakeType_BentNormals = "Bent Normal";
-static const char* BakeType_Curvature = "Curvature";
-static const char* BakeType_Texture = "Texture";
-static const char* BakeType_ObjectSpaceNormals = "Object Space Normal";
-static const char* BakeType_FaceNormals = "Face Normal";
-static const char* BakeType_Position = "Position";
-static const char* BakeType_MaterialID = "Material ID";
-static const char* BakeType_MultiTexture = "Multi Texture";
-static const char* BakeType_VertexColors = "Vertex Color";
-
-TMap<FString, EBakeMapType> UBakeMeshAttributeMapsToolBase::NameToMapTypeMap = {
-	TTuple<FString, EBakeMapType>(BakeType_TangentSpaceNormals, EBakeMapType::TangentSpaceNormal),
-	TTuple<FString, EBakeMapType>(BakeType_AmbientOcclusion, EBakeMapType::AmbientOcclusion),
-	TTuple<FString, EBakeMapType>(BakeType_BentNormals, EBakeMapType::BentNormal),
-	TTuple<FString, EBakeMapType>(BakeType_Curvature, EBakeMapType::Curvature),
-	TTuple<FString, EBakeMapType>(BakeType_Texture, EBakeMapType::Texture),
-	TTuple<FString, EBakeMapType>(BakeType_ObjectSpaceNormals, EBakeMapType::ObjectSpaceNormal),
-	TTuple<FString, EBakeMapType>(BakeType_FaceNormals, EBakeMapType::FaceNormal),
-	TTuple<FString, EBakeMapType>(BakeType_Position, EBakeMapType::Position),
-	TTuple<FString, EBakeMapType>(BakeType_MaterialID, EBakeMapType::MaterialID),
-	TTuple<FString, EBakeMapType>(BakeType_MultiTexture, EBakeMapType::MultiTexture),
-	TTuple<FString, EBakeMapType>(BakeType_VertexColors, EBakeMapType::VertexColor)
-};
-
-TMap<EBakeMapType, FString> UBakeMeshAttributeMapsToolBase::MapTypeToNameMap = {
-	TTuple<EBakeMapType, FString>(EBakeMapType::TangentSpaceNormal, BakeType_TangentSpaceNormals),
-	TTuple<EBakeMapType, FString>(EBakeMapType::AmbientOcclusion, BakeType_AmbientOcclusion),
-	TTuple<EBakeMapType, FString>(EBakeMapType::BentNormal, BakeType_BentNormals),
-	TTuple<EBakeMapType, FString>(EBakeMapType::Curvature, BakeType_Curvature),
-	TTuple<EBakeMapType, FString>(EBakeMapType::Texture, BakeType_Texture),
-	TTuple<EBakeMapType, FString>(EBakeMapType::ObjectSpaceNormal, BakeType_ObjectSpaceNormals),
-	TTuple<EBakeMapType, FString>(EBakeMapType::FaceNormal, BakeType_FaceNormals),
-	TTuple<EBakeMapType, FString>(EBakeMapType::Position, BakeType_Position),
-	TTuple<EBakeMapType, FString>(EBakeMapType::MaterialID, BakeType_MaterialID),
-	TTuple<EBakeMapType, FString>(EBakeMapType::MultiTexture, BakeType_MultiTexture),
-	TTuple<EBakeMapType, FString>(EBakeMapType::VertexColor, BakeType_VertexColors)
-};
-
 
 void UBakeMeshAttributeMapsToolBase::Setup()
 {
@@ -225,7 +183,6 @@ void UBakeMeshAttributeMapsToolBase::CreateTextureAssets(const TMap<EBakeMapType
 
 	RecordAnalytics(BakeAnalytics, GetAnalyticsEventName());
 }
-
 
 
 void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMapType)

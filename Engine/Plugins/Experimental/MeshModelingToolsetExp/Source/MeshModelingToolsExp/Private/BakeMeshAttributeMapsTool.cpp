@@ -916,11 +916,7 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 		}
 	}
 
-	// Set the preview material according to the preview name.
-	if (const EBakeMapType* PreviewType = NameToMapTypeMap.Find(Settings->MapPreview))
-	{
-		UpdatePreview(*PreviewType);
-	}
+	UpdatePreview(Settings);
 }
 
 

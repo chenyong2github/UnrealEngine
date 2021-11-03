@@ -143,12 +143,14 @@ public:
 	void SetWorld(UWorld* World);
 
 public:
-	/** @return An enumerated map type from a bitfield */
+	/**
+	 * Process a bitfield into an EBakeMapType. This function
+	 * may inject additional map types based on the enabled bits.
+	 * For example, enabling AmbientOcclusion if BentNormal is
+	 * active.
+	 * @return An enumerated map type from a bitfield
+	 */
 	static EBakeMapType GetMapTypes(const int32& MapTypes);
-
-	/** Internal maps of name to BakeMapType */
-	static TMap<FString, EBakeMapType> NameToMapTypeMap;
-	static TMap<EBakeMapType, FString> MapTypeToNameMap;
 
 protected:
 	//
@@ -270,7 +272,16 @@ protected:
 
 
 	/**
-	 * Update the preview material parameters for a given a result index.
+	 * Update the preview material parameters for a given Bake type
+	 * display name.
+	 * @param PreviewDisplayName the display name of a Bake type to preview.
+	 */
+	template <typename PropertySet>
+	void UpdatePreview(PropertySet& Properties);
+
+
+	/**
+	 * Update the preview material parameters for a given a Bake type.
 	 * @param PreviewMapType EBakeMapType to preview
 	 */
 	void UpdatePreview(EBakeMapType PreviewMapType);
@@ -450,10 +461,26 @@ void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(PropertySet& Properties)
 
 
 template <typename PropertySet>
+void UBakeMeshAttributeMapsToolBase::UpdatePreview(PropertySet& Properties)
+{
+	const FString& PreviewDisplayName = Properties->MapPreview;
+	if (const FString* PreviewNameString = Properties->MapPreviewNamesMap.Find(PreviewDisplayName))
+	{
+		const int64 PreviewValue = StaticEnum<EBakeMapType>()->GetValueByNameString(*PreviewNameString);
+		if (PreviewValue != INDEX_NONE)
+		{
+			UpdatePreview(static_cast<EBakeMapType>(PreviewValue));
+		}
+	}
+}
+
+
+template <typename PropertySet>
 void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(PropertySet& Properties)
 {
 	// Update our preview names list.
 	Properties->MapPreviewNamesList.Reset();
+	Properties->MapPreviewNamesMap.Reset();
 	bool bFoundMapType = false;
 	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
 	{
@@ -461,13 +488,15 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(PropertySet& Properties)
 		// AO may have only been added for preview of other types (ex. BentNormal)
 		if (IsRequestedMapType(Properties, Map.Get<0>()))
 		{
-			if (const FString* MapTypeName = MapTypeToNameMap.Find(Map.Get<0>()))
+			const UEnum* BakeTypeEnum = StaticEnum<EBakeMapType>();
+			const int64 BakeEnumValue = static_cast<int64>(Map.Get<0>());
+			const FString BakeTypeDisplayName = BakeTypeEnum->GetDisplayNameTextByValue(BakeEnumValue).ToString();
+			const FString BakeTypeNameString = BakeTypeEnum->GetNameStringByValue(BakeEnumValue);
+			Properties->MapPreviewNamesList.Add(BakeTypeDisplayName);
+			Properties->MapPreviewNamesMap.Emplace(BakeTypeDisplayName, BakeTypeNameString);
+			if (Properties->MapPreview == Properties->MapPreviewNamesList.Last())
 			{
-				Properties->MapPreviewNamesList.Add(*MapTypeName);
-				if (Properties->MapPreview == Properties->MapPreviewNamesList.Last())
-				{
-					bFoundMapType = true;
-				}
+				bFoundMapType = true;
 			}
 		}
 	}
