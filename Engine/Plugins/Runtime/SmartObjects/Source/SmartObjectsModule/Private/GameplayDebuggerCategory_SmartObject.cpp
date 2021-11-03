@@ -4,7 +4,7 @@
 #include "SmartObjectSubsystem.h"
 #include "Engine/World.h"
 
-#if WITH_GAMEPLAY_DEBUGGER
+#if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 
 FGameplayDebuggerCategory_SmartObject::FGameplayDebuggerCategory_SmartObject()
 {
@@ -28,12 +28,8 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		return;
 	}
 
-	TOptional<uint32> NumRuntimeObjects;
-	TOptional<uint32> NumRegisteredComponents;
-#if WITH_SMARTOBJECT_DEBUG
-	NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
-	NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
-#endif
+	TOptional<uint32> NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
+	TOptional<uint32> NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
 
 	ASmartObjectCollection* MainCollection = Subsystem->GetMainCollection();
 	const uint32 NumCollectionEntries = MainCollection != nullptr ? MainCollection->GetEntries().Num() : 0;
@@ -71,4 +67,4 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	}
 }
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG

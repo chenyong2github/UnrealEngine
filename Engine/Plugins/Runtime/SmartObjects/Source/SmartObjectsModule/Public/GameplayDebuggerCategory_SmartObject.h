@@ -2,7 +2,9 @@
 
 #pragma once
 
-#if WITH_GAMEPLAY_DEBUGGER
+#include "SmartObjectTypes.h"
+
+#if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 
 #include "GameplayDebuggerCategory.h"
 
@@ -20,4 +22,4 @@ protected:
 	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER
+#endif // WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
