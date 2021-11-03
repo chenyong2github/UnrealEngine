@@ -243,7 +243,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 		Color = lerp( Color, float4(0,0,0,1), ClearCoat );
 
 #if CLEAR_COAT_BOTTOM_NORMAL
-		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
+		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 4) - (512.0/255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
 		const float3 ClearCoatUnderNormal = OctahedronToUnitVector(oct1);
 
 		const float3 BottomEffectiveNormal = ClearCoatUnderNormal;			

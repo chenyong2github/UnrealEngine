@@ -68,7 +68,7 @@ void SetGBufferForShadingModel(
 			float MaterialRoughnessToAverage = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileUInt).w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
 
 			// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
-			// get to SSSS_OPACITY_THRESHOLD_EPS, as opposed to 0.0.
+			// get to 0.01, as opposed to 0.0.
 			MaterialRoughnessToAverage = lerp(1.0f, MaterialRoughnessToAverage, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
 
 			GBuffer.Roughness = saturate(GBuffer.Roughness * MaterialRoughnessToAverage);
@@ -105,7 +105,7 @@ void SetGBufferForShadingModel(
 				#endif
 
 				float2 oct1 = UnitVectorToOctahedron(tempnormal);
-				float2 oct3 = ( (oct1 - oct2) *  0.5 ) + (128.0/255.0);
+				float2 oct3 = ( (oct1 - oct2) *  0.25 ) + (128.0/255.0);
 				GBuffer.CustomData.a = oct3.x;
 				GBuffer.CustomData.z = oct3.y;
 			#else

@@ -6,7 +6,7 @@ float3 GetClearCoatBottomNormal(FGBufferData GBuffer, float3 WorldNormal)
 {
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT && CLEAR_COAT_BOTTOM_NORMAL)
 	{
-		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 2) - (256.0 / 255.0)) + UnitVectorToOctahedron(WorldNormal);
+		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 4) - (512.0 / 255.0)) + UnitVectorToOctahedron(WorldNormal);
 		WorldNormal = OctahedronToUnitVector(oct1);
 	}
 
