@@ -1059,35 +1059,57 @@ namespace AutomationTool
 				Parallel.ForEach(ZipFiles,
 					(ZipFile) =>
 					{
-						int Retries = 3;
-						while (true)
+						// unzip the files manually instead of caling ZipFile.ExtractToDirectory() because we need to overwrite readonly files. Because of this, creating the directories is up to us as well.
+						List<string> ExtractedPaths = new List<string>();
+						int UnzipFileAttempts = 3;
+						while (UnzipFileAttempts-- > 0)
 						{
 							try
 							{
-								using (var ZipArchive = Ionic.Zip.ZipFile.Read(ZipFile.FullName))
+								int Retries = 3;
+								while (true)
 								{
-									// Overwrite silently is failing in some cases, so try to clear out any existing files in advance of extracting.
-									foreach (string EntryFileName in ZipArchive.EntryFileNames)
+									try
 									{
-										string ExtractedFilePath = Path.Combine(RootDir.FullName, EntryFileName);
-										if (File.Exists(ExtractedFilePath))
+										using (var ZipArchive = Ionic.Zip.ZipFile.Read(ZipFile.FullName))
 										{
-											File.Delete(ExtractedFilePath);
+											// Overwrite silently is failing in some cases, so try to clear out any existing files in advance of extracting.
+											foreach (string EntryFileName in ZipArchive.EntryFileNames)
+											{
+												string ExtractedFilePath = Path.Combine(RootDir.FullName, EntryFileName);
+												if (File.Exists(ExtractedFilePath))
+												{
+													File.Delete(ExtractedFilePath);
+												}
+											}
+											ZipArchive.ExtractAll(RootDir.FullName, Ionic.Zip.ExtractExistingFileAction.OverwriteSilently);
 										}
+										break;
 									}
-									ZipArchive.ExtractAll(RootDir.FullName, Ionic.Zip.ExtractExistingFileAction.OverwriteSilently);
+									catch (Exception Ex)
+									{
+										if (Retries-- == 0)
+										{
+											throw new AutomationException(Ex, "Failed to unzip '{0}' to '{1}'.", ZipFile.FullName, RootDir.FullName);
+										}
+
+										Log.TraceLog("Exception encountered while unzipped '{0}', {1} retries remain: {2}", ZipFile.FullName, Retries, Ex);
+										Thread.Sleep(TimeSpan.FromSeconds(5));
+									}
 								}
-								break;
 							}
 							catch (Exception Ex)
 							{
-								if (Retries-- == 0)
+								if (UnzipFileAttempts == 0)
 								{
-									throw new AutomationException(Ex, "Failed to unzip '{0}' to '{1}'.", ZipFile.FullName, RootDir.FullName);
+									throw;
 								}
 
-								Log.TraceLog("Exception encountered while unzipped '{0}', {1} retries remain: {2}", ZipFile.FullName, Retries, Ex);
-								Thread.Sleep(TimeSpan.FromSeconds(5));
+								// Some exceptions may be caused by networking hiccups. We want to retry in those cases.
+								if ((Ex is IOException || Ex is InvalidDataException))
+								{
+									Log.TraceWarning("Failed to unzip entries from '{0}' to '{1}', retrying.. (Error: {2})", ZipFile.FullName, RootDir.FullName, Ex.Message);
+								}
 							}
 						}
 					});
