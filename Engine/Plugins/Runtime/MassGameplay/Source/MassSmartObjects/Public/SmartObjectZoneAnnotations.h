@@ -107,6 +107,7 @@ protected:
 
 	FDelegateHandle OnAnnotationSettingsChangedHandle;
 	FDelegateHandle OnGraphDataChangedHandle;
+	FDelegateHandle OnMainCollectionChangedHandle;
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

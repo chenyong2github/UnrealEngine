@@ -18,6 +18,15 @@ void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 #if WITH_EDITOR
 	SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(GetWorld());
 
+	// Monitor collection changes to rebuild our lookup data
+	if (SmartObjectSubsystem != nullptr)
+	{
+		OnMainCollectionChangedHandle = SmartObjectSubsystem->OnMainCollectionChanged.AddLambda([this]()
+		{
+			RebuildForAllGraphs();
+		});
+	}
+
 	const UMassSmartObjectSettings* MassSmartObjectSettings = GetDefault<UMassSmartObjectSettings>();
 	BehaviorTag = MassSmartObjectSettings->SmartObjectTag;
 
@@ -97,7 +106,7 @@ FZoneGraphTagMask USmartObjectZoneAnnotations::GetAnnotationTags() const
 	return FZoneGraphTagMask(BehaviorTag);
 }
 
-const FSmartObjectAnnotationData* USmartObjectZoneAnnotations::GetAnnotationData(FZoneGraphDataHandle DataHandle) const
+const FSmartObjectAnnotationData* USmartObjectZoneAnnotations::GetAnnotationData(const FZoneGraphDataHandle DataHandle) const
 {
 	const int32 Index = DataHandle.Index;
 	if (!SmartObjectAnnotationDataArray.IsValidIndex(Index))
@@ -182,7 +191,7 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 	const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
 	if (Collection == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Attempting to rebuild data while main SmartObject collection is not set."));
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Attempting to rebuild data while main SmartObject collection is not set."));
 		return;
 	}
 
