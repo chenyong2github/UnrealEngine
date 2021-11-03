@@ -677,6 +677,8 @@ void USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollect
 		MainCollection = &InCollection;
 
 #if WITH_EDITOR
+		OnMainCollectionChanged.Broadcast();
+
 		// For a collection that is automatically updated, it gets rebuilt on registration in the Edition world.
 		const UWorld& World = GetWorldRef();
 		if (!World.IsGameWorld() &&

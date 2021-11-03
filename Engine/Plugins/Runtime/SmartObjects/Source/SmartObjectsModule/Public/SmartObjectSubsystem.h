@@ -13,6 +13,11 @@
 
 class USmartObjectComponent;
 
+#if WITH_EDITOR
+/** Called when main collection changed. */
+DECLARE_MULTICAST_DELEGATE(FOnMainCollectionChanged);
+#endif
+
 /**
  * Struct that can be used to filter results of a smart object request when trying to find or claim a smart object
  */
@@ -235,6 +240,10 @@ public:
 	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
 	 */
 	void UnregisterSlotInvalidationCallback(const FSmartObjectClaimHandle& ClaimHandle);
+
+#if WITH_EDITOR
+	mutable FOnMainCollectionChanged OnMainCollectionChanged;
+#endif
 
 protected:
 
