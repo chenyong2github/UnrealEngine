@@ -1196,7 +1196,57 @@ void UDynamicMeshComponent::UpdateCollision(bool bOnlyIfPending)
 
 void UDynamicMeshComponent::EnableComplexAsSimpleCollision()
 {
-	bEnableComplexCollision = true;
-	CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;
-	UpdateCollision(true);
+	SetComplexAsSimpleCollisionEnabled(true, true);
+}
+
+void UDynamicMeshComponent::SetComplexAsSimpleCollisionEnabled(bool bEnabled, bool bImmediateUpdate)
+{
+	bool bModified = false;
+	if (bEnabled)
+	{
+		if (bEnableComplexCollision == false)
+		{
+			bEnableComplexCollision = true;
+			bModified = true;
+		}
+		if (CollisionType != ECollisionTraceFlag::CTF_UseComplexAsSimple)
+		{
+			CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+			bModified = true;
+		}
+	}
+	else
+	{
+		if (bEnableComplexCollision == true)
+		{
+			bEnableComplexCollision = false;
+			bModified = true;
+		}
+		if (CollisionType == ECollisionTraceFlag::CTF_UseComplexAsSimple)
+		{
+			CollisionType = ECollisionTraceFlag::CTF_UseDefault;
+			bModified = true;
+		}
+	}
+	if (bModified)
+	{
+		InvalidatePhysicsData();
+	}
+	if (bImmediateUpdate)
+	{
+		UpdateCollision(true);
+	}
+}
+
+
+void UDynamicMeshComponent::SetDeferredCollisionUpdatesEnabled(bool bEnabled, bool bImmediateUpdate)
+{
+	if (bDeferCollisionUpdates != bEnabled)
+	{
+		bDeferCollisionUpdates = bEnabled;
+		if (bEnabled == false && bImmediateUpdate)
+		{
+			UpdateCollision(true);
+		}
+	}
 }

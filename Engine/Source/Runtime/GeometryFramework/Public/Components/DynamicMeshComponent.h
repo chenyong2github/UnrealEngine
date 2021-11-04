@@ -456,8 +456,27 @@ protected:
 	// Physics APIs
 	//
 public:
+	/**
+	 * calls SetComplexAsSimpleCollisionEnabled(true, true)
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	void EnableComplexAsSimpleCollision();
+
+	/**
+	 * If bEnabled=true, sets bEnableComplexCollision=true and CollisionType=CTF_UseComplexAsSimple
+	 * If bEnabled=true, sets bEnableComplexCollision=false and CollisionType=CTF_UseDefault
+	 * @param bImmediateUpdate if true, UpdateCollision(true) is called
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	void SetComplexAsSimpleCollisionEnabled(bool bEnabled, bool bImmediateUpdate = true);
+
+	/**
+	 * Set value of bDeferCollisionUpdates, when enabled, collision is not automatically recomputed each time the mesh changes.
+	 * @param bImmediateUpdate if true, UpdateCollision(true) is called if bEnabled=false, ie to force a collision rebuild
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	void SetDeferredCollisionUpdatesEnabled(bool bEnabled, bool bImmediateUpdate = true);
+
 
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
@@ -470,7 +489,8 @@ public:
 	 * Force an update of the Collision/Physics data for this Component.
 	 * @param bOnlyIfPending only update if a collision update is pending, ie the underlying DynamicMesh changed and bDeferCollisionUpdates is enabled
 	 */
-	virtual void UpdateCollision(bool bOnlyIfPending);
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void UpdateCollision(bool bOnlyIfPending = true);
 
 	/** Type of Collision Geometry to use for this Mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision")

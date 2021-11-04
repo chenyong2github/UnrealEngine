@@ -39,7 +39,7 @@ public:
 	 * meshes on this event, instead of doing so directly from the Construction Script.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, CallInEditor, Category = "Events")
-	void OnRebuildGeneratedMesh();
+	void OnRebuildGeneratedMesh(UDynamicMesh* TargetMesh);
 
 
 	/**
