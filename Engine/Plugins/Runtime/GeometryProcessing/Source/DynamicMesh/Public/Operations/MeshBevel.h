@@ -46,12 +46,40 @@ class DYNAMICMESH_API FMeshBevel
 {
 public:
 
+	//
+	// Inputs
+	// 
+
 	/** Distance that bevel edges/vertices are inset from their initial position. Not guaranteed to hold for all vertices, though. */
 	double InsetDistance = 5.0;
+	
+	/** Options for MaterialID assignment on the new triangles generated for the bevel */
+	enum class EMaterialIDMode
+	{
+		ConstantMaterialID,
+		InferMaterialID,
+		InferMaterialID_ConstantIfAmbiguous
+	};
+	/** Which MaterialID assignment mode to use */
+	EMaterialIDMode MaterialIDMode = EMaterialIDMode::ConstantMaterialID;
+	/** Constant MaterialID used for various MaterialIDMode settings */
+	int32 SetConstantMaterialID = 0;
 
 	/** Set this member to support progress/cancel in the computations below */
 	FProgressCancel* Progress = nullptr;
 
+
+	//
+	// Outputs
+	//
+
+	/** list of all new triangles created by the operation */
+	TArray<int32> NewTriangles;
+
+	/** status of the operation, warnings/errors may be returned here */
+	FGeometryResult ResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+
+public:
 	/**
 	 * Initialize the bevel with all edges of the given GroupTopology
 	 */
@@ -67,8 +95,7 @@ public:
 	 */
 	bool Apply(FDynamicMesh3& Mesh, FDynamicMeshChangeTracker* ChangeTracker);
 
-	/** status of the operation, warnings/errors may be returned here */
-	FGeometryResult ResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+
 
 
 public:
@@ -94,6 +121,7 @@ public:
 		// initial topological information that defines what happens in unlink/displace/mesh steps
 		TArray<int32> MeshVertices;		// sequential list of mesh vertex IDs along edge loop
 		TArray<int32> MeshEdges;		// sequential list of mesh edge IDs along edge loop
+		TArray<FIndex2i> MeshEdgeTris;	// the one or two triangles associated w/ each MeshEdges element in the input mesh
 
 		// new mesh topology computed during unlink step
 		TArray<int32> NewMeshVertices;		// list of new vertices on "other" side of unlinked edge, 1-1 with MeshVertices
@@ -115,6 +143,7 @@ public:
 		// initial topological information that defines what happens in unlink/displace/mesh steps
 		TArray<int32> MeshVertices;		// sequential list of mesh vertex IDs along edge
 		TArray<int32> MeshEdges;		// sequential list of mesh edge IDs along edge
+		TArray<FIndex2i> MeshEdgeTris;	// the one or two triangles associated w/ each MeshEdges element in the input mesh
 		int32 GroupEdgeID;				// ID of this edge in external topology (eg FGroupTopology)
 		FIndex2i GroupIDs;				// topological IDs of groups on either side of topological edge
 		bool bEndpointBoundaryFlag[2];	// flag defining whether vertex at start/end of MeshVertices was a boundary vertex
@@ -240,7 +269,8 @@ protected:
 	// Normals phase - calculate normals for new geometry
 
 	void ComputeNormals(FDynamicMesh3& Mesh);
-
+	void ComputeUVs(FDynamicMesh3& Mesh);
+	void ComputeMaterialIDs(FDynamicMesh3& Mesh);
 };
 
 

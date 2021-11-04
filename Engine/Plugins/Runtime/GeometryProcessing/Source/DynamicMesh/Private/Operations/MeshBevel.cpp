@@ -10,10 +10,40 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "Operations/PolyEditingEdgeUtil.h"
+#include "Operations/PolyEditingUVUtil.h"
 #include "Algo/Count.h"
 #include "Distance/DistLine3Line3.h"
 
 using namespace UE::Geometry;
+
+
+
+
+namespace UELocal
+{
+	static void QuadsToTris(const FDynamicMesh3& Mesh, const TArray<FIndex2i>& Quads, TArray<int32>& TrisOut, bool bReset)
+	{
+		int32 N = Quads.Num();
+		if (bReset)
+		{
+			TrisOut.Reset();
+			TrisOut.Reserve(2 * N);
+		}
+		for (const FIndex2i& Quad : Quads)
+		{
+			if (Mesh.IsTriangle(Quad.A))
+			{
+				TrisOut.Add(Quad.A);
+			}
+			if (Mesh.IsTriangle(Quad.B))
+			{
+				TrisOut.Add(Quad.B);
+			}
+		}
+	};
+
+}
+
 
 
 
@@ -113,6 +143,22 @@ bool FMeshBevel::Apply(FDynamicMesh3& Mesh, FDynamicMeshChangeTracker* ChangeTra
 		return false;
 	}
 
+	// build output list of triangles so it can be re-used in operations below if useful
+	NewTriangles.Reset();
+	for (FBevelVertex& Vertex : Vertices)
+	{
+		NewTriangles.Append(Vertex.NewTriangles);
+	}
+	for (FBevelEdge& Edge : Edges)
+	{
+		UELocal::QuadsToTris(Mesh, Edge.StripQuads, NewTriangles, false);
+	}
+	for (FBevelLoop& Loop : Loops)
+	{
+		UELocal::QuadsToTris(Mesh, Loop.StripQuads, NewTriangles, false);
+	}
+
+
 	// compute normals
 	ComputeNormals(Mesh);
 	if (ResultInfo.CheckAndSetCancelled(Progress))
@@ -120,7 +166,20 @@ bool FMeshBevel::Apply(FDynamicMesh3& Mesh, FDynamicMeshChangeTracker* ChangeTra
 		return false;
 	}
 
-	// todo: compute UVs, other attribs
+	// compute UVs
+	ComputeUVs(Mesh);
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return false;
+	}
+
+	ComputeMaterialIDs(Mesh);
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return false;
+	}
+
+	// todo: compute other attribs
 
 	ResultInfo.SetSuccess(true, Progress);
 	return true;
@@ -181,6 +240,13 @@ void FMeshBevel::AddBevelGroupEdge(const FDynamicMesh3& Mesh, const FGroupTopolo
 	Edge.MeshVertices.Append(Topology.Edges[GroupEdgeID].Span.Vertices);
 	Edge.GroupEdgeID = GroupEdgeID;
 	Edge.GroupIDs = Topology.Edges[GroupEdgeID].Groups;
+
+	Edge.MeshEdgeTris.Reserve(Edge.MeshEdges.Num());
+	for (int32 eid : Edge.MeshEdges)
+	{
+		Edge.MeshEdgeTris.Add(Mesh.GetEdgeT(eid));
+	}
+
 	Edges.Add(MoveTemp(Edge));
 }
 
@@ -199,6 +265,12 @@ void FMeshBevel::AddBevelEdgeLoop(const FDynamicMesh3& Mesh, const FEdgeLoop& Me
 	FBevelLoop Loop;
 	Loop.MeshEdges = MeshEdgeLoop.Edges;
 	Loop.MeshVertices = MeshEdgeLoop.Vertices;
+
+	Loop.MeshEdgeTris.Reserve(Loop.MeshEdges.Num());
+	for (int32 eid : Loop.MeshEdges)
+	{
+		Loop.MeshEdgeTris.Add(Mesh.GetEdgeT(eid));
+	}
 
 	Loops.Add(Loop);
 }
@@ -1149,6 +1221,8 @@ void FMeshBevel::CreateBevelMeshing(FDynamicMesh3& Mesh)
 
 
 
+
+
 void FMeshBevel::ComputeNormals(FDynamicMesh3& Mesh)
 {
 	if (Mesh.HasAttributes() == false)
@@ -1165,25 +1239,6 @@ void FMeshBevel::ComputeNormals(FDynamicMesh3& Mesh)
 		}
 	};
 
-	auto QuadsToTris = [](const FDynamicMesh3& Mesh, const TArray<FIndex2i>& Quads, TArray<int32>& TrisOut)
-	{
-		int32 N = Quads.Num();
-		TrisOut.Reset();
-		TrisOut.Reserve(2 * N);
-		for (const FIndex2i& Quad : Quads)
-		{
-			if (Mesh.IsTriangle(Quad.A))
-			{
-				TrisOut.Add(Quad.A);
-			}
-			if (Mesh.IsTriangle(Quad.B))
-			{
-				TrisOut.Add(Quad.B);
-			}
-		}
-	};
-
-
 	for (FBevelVertex& Vertex : Vertices)
 	{
 		SetNormalsOnTriRegion(Vertex.NewTriangles);
@@ -1192,12 +1247,208 @@ void FMeshBevel::ComputeNormals(FDynamicMesh3& Mesh)
 	TArray<int32> TriList;
 	for (FBevelEdge& Edge : Edges)
 	{
-		QuadsToTris(Mesh, Edge.StripQuads, TriList);
+		UELocal::QuadsToTris(Mesh, Edge.StripQuads, TriList, true);
 		SetNormalsOnTriRegion(TriList);
 	}
 	for (FBevelLoop& Loop : Loops)
 	{
-		QuadsToTris(Mesh, Loop.StripQuads, TriList);
+		UELocal::QuadsToTris(Mesh, Loop.StripQuads, TriList, true);
 		SetNormalsOnTriRegion(TriList);
 	}
+}
+
+
+
+void FMeshBevel::ComputeUVs(FDynamicMesh3& Mesh)
+{
+	if (Mesh.HasAttributes() == false)
+	{
+		return;
+	}
+	FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+
+	auto SetUVsOnTriRegion = [&Mesh, UVOverlay](const TArray<int32>& Triangles)
+	{
+		if (Triangles.Num() > 0)
+		{
+			UE::Geometry::ComputeArbitraryTrianglePatchUVs(Mesh, *UVOverlay, Triangles);
+		}
+	};
+
+
+	TArray<int32> TriList;
+	for (FBevelEdge& Edge : Edges)
+	{
+		UELocal::QuadsToTris(Mesh, Edge.StripQuads, TriList, true);
+		SetUVsOnTriRegion(TriList);
+	}
+	for (FBevelLoop& Loop : Loops)
+	{
+		UELocal::QuadsToTris(Mesh, Loop.StripQuads, TriList, true);
+		SetUVsOnTriRegion(TriList);
+	}
+
+	// do vertices last because until edges have UVs, the vertex polygons have no neighbour UVs islands
+	for (FBevelVertex& Vertex : Vertices)
+	{
+		SetUVsOnTriRegion(Vertex.NewTriangles);
+	}
+}
+
+
+
+void FMeshBevel::ComputeMaterialIDs(FDynamicMesh3& Mesh)
+{
+	if (Mesh.HasAttributes() == false || Mesh.Attributes()->HasMaterialID() == false)
+	{
+		return;
+	}
+	FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+
+	if (MaterialIDMode == EMaterialIDMode::ConstantMaterialID)
+	{
+		for (int32 tid : NewTriangles)
+		{
+			MaterialIDs->SetValue(tid, SetConstantMaterialID);
+		}
+	}
+	else
+	{
+		auto SetQuadMaterial = [&Mesh, MaterialIDs](const FIndex2i& Quad, int32 MaterialID)
+		{
+			if (Quad.A >= 0)
+			{
+				MaterialIDs->SetValue(Quad.A, MaterialID);
+			}
+			if (Quad.B >= 0)
+			{
+				MaterialIDs->SetValue(Quad.B, MaterialID);
+			}
+		};
+
+		// Try to set materials on the new triangles along a beveled edge based on the adjacent pre-bevel triangles.
+		// Could be improved to at least be more consistent in ambiguous cases
+		auto SetEdgeMaterials = [&Mesh, MaterialIDs, this, SetQuadMaterial](const TArray<FIndex2i>& StripQuads, const TArray<FIndex2i>& EdgeTris)
+		{
+			int32 NumEdges = EdgeTris.Num();
+			if (StripQuads.Num() == NumEdges)
+			{
+				TArray<int32> SawMaterialIDs;
+				TArray<int32> AmbiguousEdges;
+				for (int32 k = 0; k < StripQuads.Num(); ++k)
+				{
+					FIndex2i NbrTris = EdgeTris[k];
+					int MatIDA = MaterialIDs->GetValue(NbrTris.A);
+					int MatIDB = (NbrTris.A >= 0) ? MaterialIDs->GetValue(NbrTris.B) : MatIDA;
+					SawMaterialIDs.AddUnique(MatIDA);
+					SawMaterialIDs.AddUnique(MatIDB);
+					int SetMaterialID = (MatIDA == MatIDB) ? MatIDA : SetConstantMaterialID;
+					if (MatIDA != MatIDB)
+					{
+						if (MaterialIDMode == EMaterialIDMode::InferMaterialID_ConstantIfAmbiguous)
+						{
+							SetMaterialID = SetConstantMaterialID;
+						}
+						else
+						{
+							AmbiguousEdges.Add(k);
+						}
+					}
+					SetQuadMaterial(StripQuads[k], SetMaterialID);
+				}
+
+				if (AmbiguousEdges.Num() > 0)
+				{
+					SawMaterialIDs.Sort();
+					if (AmbiguousEdges.Num() == NumEdges)		// if all ambigous, just pick one
+					{
+						for (int32 k : AmbiguousEdges)
+						{
+							SetQuadMaterial(StripQuads[k], SawMaterialIDs[0]);
+						}
+					}
+					else
+					{
+						// TODO: what we probably want to do here is "infill" from known neighbours. 
+						// for now we will just punt and pick one
+						for (int32 k : AmbiguousEdges)
+						{
+							SetQuadMaterial(StripQuads[k], SawMaterialIDs[0]);
+						}
+					}
+				}
+
+			}
+			else
+			{
+				for (const FIndex2i& Quad : StripQuads)
+				{
+					SetQuadMaterial(Quad, SetConstantMaterialID);
+				}
+			}
+		};
+
+		for (FBevelEdge& Edge : Edges)
+		{
+			SetEdgeMaterials(Edge.StripQuads, Edge.MeshEdgeTris);
+		}
+		for (FBevelLoop& Loop : Loops)
+		{
+			SetEdgeMaterials(Loop.StripQuads, Loop.MeshEdgeTris);
+		}
+
+
+		// find all the unique material IDs of neighbours of the Triangles list (that are not in Triangles list) and
+		// return (MaterialID, NbrTriCount) tuples as a pair of lists
+		auto CountUniqueBorderMaterialIDs = [&](const FDynamicMesh3& Mesh, const FDynamicMeshMaterialAttribute& MaterialAttrib, const TArray<int32>& Triangles, TArray<int32>& MaterialIDs, TArray<int32>& Counts)
+		{
+			MaterialIDs.Reset(); Counts.Reset();
+			for (int32 tid : Triangles)
+			{
+				FIndex3i TriNbrs = Mesh.GetTriNeighbourTris(tid);
+				for (int32 j = 0; j < 3; ++j)
+				{
+					if (Triangles.Contains(TriNbrs[j]))
+					{
+						continue;
+					}
+					int MatID = MaterialAttrib.GetValue(TriNbrs[j]);
+					int32 Index = MaterialIDs.AddUnique(MatID);
+					if (Counts.Num() != MaterialIDs.Num())
+					{
+						Counts.Add(0);
+						Counts[Index]++;
+					}
+				}
+			}
+		};
+
+		// For each bevel-vertex-polygon, pick the nbr material ID that was most frequent.
+		// Terminator vertices are also handled this way, which is not ideal, should probably
+		// ignore the new 'edge' faces for the terminator vertex
+		for (FBevelVertex& Vertex : Vertices)
+		{
+			TArray<int32> NbrMaterialIDs, NbrMaterialIDCounts;
+			CountUniqueBorderMaterialIDs(Mesh, *MaterialIDs, Vertex.NewTriangles, NbrMaterialIDs, NbrMaterialIDCounts);
+			int32 SetMaterialID = SetConstantMaterialID;
+			if (NbrMaterialIDs.Num() > 0)
+			{
+				int32 MinIndex = 0;
+				for (int32 k = 1; k < NbrMaterialIDs.Num(); ++k)
+				{
+					if (NbrMaterialIDCounts[k] < NbrMaterialIDCounts[MinIndex])
+					{
+						MinIndex = k;
+					}
+				}
+				SetMaterialID = NbrMaterialIDs[MinIndex];
+			}
+			for (int32 tid : Vertex.NewTriangles)
+			{
+				MaterialIDs->SetValue(tid, SetMaterialID);
+			}
+
+		}
+	}
+
 }

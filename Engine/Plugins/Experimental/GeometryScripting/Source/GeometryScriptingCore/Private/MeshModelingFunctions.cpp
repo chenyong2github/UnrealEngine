@@ -11,8 +11,10 @@
 #include "Operations/JoinMeshLoops.h"
 #include "MeshBoundaryLoops.h"
 #include "DynamicMeshEditor.h"
+#include "GroupTopology.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Operations/OffsetMeshRegion.h"
+#include "Operations/MeshBevel.h"
 #include "UDynamicMesh.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -416,6 +418,38 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshExtrude(
 		Extruder.bOffsetFullComponentsAsSolids = Options.bSolidsToShells;
 
 		Extruder.Apply();
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBevel(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshBevelOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyMeshPolygroupBevel_InvalidInput", "ApplyMeshPolygroupBevel: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		UE::Geometry::FGroupTopology Topology(&EditMesh, true);
+
+		UE::Geometry::FMeshBevel Bevel;
+		Bevel.InsetDistance = Options.BevelDistance;
+		Bevel.MaterialIDMode = (Options.bInferMaterialID) ? FMeshBevel::EMaterialIDMode::InferMaterialID : FMeshBevel::EMaterialIDMode::ConstantMaterialID;
+		Bevel.SetConstantMaterialID = Options.SetMaterialID;
+		Bevel.InitializeFromGroupTopology(EditMesh, Topology);
+		Bevel.Apply(EditMesh, nullptr);
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
