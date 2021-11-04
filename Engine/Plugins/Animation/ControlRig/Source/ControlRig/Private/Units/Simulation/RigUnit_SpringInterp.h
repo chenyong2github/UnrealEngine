@@ -278,6 +278,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternionV2 : public FRigUnit_SimBas
 {
 	GENERATED_BODY()
 	
+	// RigUnit_SpringInterpQuaternion is redirected to RigUnit_SpringInterpQuaternionV2
 	FRigUnit_SpringInterpQuaternionV2()
 	{
 		bUseCurrentInput = false;
