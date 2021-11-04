@@ -548,8 +548,27 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", DisplayName="Show Particles Attributes With System"))
 	bool bShowParticlesVariablesWithSystem = false;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", DisplayName = "Show Particle Attributes Vertical"))
+	bool bShowParticleVariablesVertical = false;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
 	bool bUseMaxParticlesToDisplay = true;
+
+	/** When enabled we use the clip planes to narrow down which particles to display */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
+	bool bUseParticleDisplayClip = false;
+
+	/** Clipping planes used to display particle attributes. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", UIMin = "0", ClampMin = "0"))
+	FVector2D ParticleDisplayClip = FVector2D(0.0f, 10000.0f);
+
+	/** When enabled we use a radius from the display center to avoid showing too many particle attributes. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
+	bool bUseParticleDisplayCenterRadius = false;
+
+	/** Radius from screen center where 0 is center to 1.0 is edge to avoid display too many particle attributes. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", UIMin = "0", ClampMin = "0"))
+	float ParticleDisplayCenterRadius = 1.0f;
 
 	/**
 	When enabled, the maximum number of particles to show information about.
