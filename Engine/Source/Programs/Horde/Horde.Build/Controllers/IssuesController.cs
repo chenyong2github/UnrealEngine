@@ -190,7 +190,7 @@ namespace HordeServer.Controllers
 			foreach (IGrouping<StreamId, IIssueSpan> StreamSpans in Details.Spans.GroupBy(x => x.StreamId))
 			{
 				IStream? Stream = await StreamService.GetCachedStream(StreamSpans.Key);
-				AffectedStreams.Add(new GetIssueAffectedStreamResponse(Stream, StreamSpans));
+				AffectedStreams.Add(new GetIssueAffectedStreamResponse(Details, Stream, StreamSpans));
 			}
 			return new GetIssueResponse(Details, AffectedStreams, ShowDesktopAlerts);
 		}
