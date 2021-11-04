@@ -11,6 +11,8 @@
 #include "ShaderParameterUtils.h"
 #include "Rendering/RenderingCommon.h"
 #include "RHIStaticStates.h"
+#include "TextureResource.h"
+#include "RenderUtils.h"
 
 extern EColorVisionDeficiency GSlateColorDeficiencyType;
 extern int32 GSlateColorDeficiencySeverity;
@@ -127,8 +129,12 @@ public:
 	{
 		TextureParameter.Bind(Initializer.ParameterMap, TEXT("ElementTexture"));
 		TextureParameterSampler.Bind(Initializer.ParameterMap, TEXT("ElementTextureSampler"));
+		InPageTableTexture.Bind(Initializer.ParameterMap, TEXT("InPageTableTexture"));
+		VTPackedPageTableUniform.Bind(Initializer.ParameterMap, TEXT("VTPackedPageTableUniform"));
+		VTPackedUniform.Bind(Initializer.ParameterMap, TEXT("VTPackedUniform"));
 		ShaderParams.Bind(Initializer.ParameterMap, TEXT("ShaderParams"));
 		ShaderParams2.Bind(Initializer.ParameterMap, TEXT("ShaderParams2"));
+		VTShaderParams.Bind(Initializer.ParameterMap, TEXT("VTShaderParams"));
 		GammaAndAlphaValues.Bind(Initializer.ParameterMap,TEXT("GammaAndAlphaValues"));
 	}
 
@@ -143,6 +149,40 @@ public:
 	void SetTexture(FRHICommandList& RHICmdList, FRHITexture* InTexture, const FSamplerStateRHIRef SamplerState )
 	{
 		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameter, TextureParameterSampler, SamplerState, InTexture );
+	}
+
+	/**
+	 * Sets the texture used by this shader in case a VirtualTexture is used
+	 *
+	 * @param InVirtualTexture	Virtual Texture resource to use when this pixel shader is bound
+	 */
+	void SetVirtualTextureParameters(FRHICommandList& RHICmdList, FVirtualTexture2DResource* InVirtualTexture)
+	{
+		if (InVirtualTexture == nullptr)
+		{
+			return;
+		}
+
+		IAllocatedVirtualTexture* AllocatedVT = InVirtualTexture->AcquireAllocatedVT();
+		uint32 LayerIndex = 0;
+
+		FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV(LayerIndex, InVirtualTexture->bSRGB);
+		
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameter, PhysicalView);
+		SetSamplerParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureParameterSampler, InVirtualTexture->SamplerStateRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InPageTableTexture, AllocatedVT->GetPageTableTexture(0u));
+		
+		FUintVector4 PageTableUniform[2];
+		FUintVector4 Uniform;
+		// VTParams.X = MipLevel, VTParams.Y = LayerIndex
+		FVector4f VTParams{ 0.f, static_cast<float>(LayerIndex), 0.f, 0.f };
+
+		AllocatedVT->GetPackedPageTableUniform(PageTableUniform);
+		AllocatedVT->GetPackedUniform(&Uniform, LayerIndex);
+
+		SetShaderValueArray(RHICmdList, RHICmdList.GetBoundPixelShader(), VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), VTPackedUniform, Uniform);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), VTShaderParams, VTParams);
 	}
 
 	/**
@@ -173,15 +213,19 @@ private:
 	/** Texture parameter used by the shader */
 	LAYOUT_FIELD(FShaderResourceParameter, TextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, TextureParameterSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, InPageTableTexture);
+	LAYOUT_FIELD(FShaderParameter, VTPackedPageTableUniform);
+	LAYOUT_FIELD(FShaderParameter, VTPackedUniform);
 	LAYOUT_FIELD(FShaderParameter, ShaderParams);
 	LAYOUT_FIELD(FShaderParameter, ShaderParams2);
+	LAYOUT_FIELD(FShaderParameter, VTShaderParams);
 	LAYOUT_FIELD(FShaderParameter, GammaAndAlphaValues);
 };
 
 /** 
  * Pixel shader types for all elements
  */
-template<ESlateShader ShaderType, bool bDrawDisabledEffect, bool bUseTextureAlpha=true>
+template<ESlateShader ShaderType, bool bDrawDisabledEffect, bool bUseTextureAlpha=true, bool bIsVirtualTexture=false>
 class TSlateElementPS : public FSlateElementPS
 {
 	DECLARE_SHADER_TYPE( TSlateElementPS, Global );
@@ -208,6 +252,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("DRAW_DISABLED_EFFECT"), (uint32)( bDrawDisabledEffect ? 1 : 0 ));
 		OutEnvironment.SetDefine(TEXT("USE_TEXTURE_ALPHA"), (uint32)( bUseTextureAlpha ? 1 : 0 ));
 		OutEnvironment.SetDefine(TEXT("USE_MATERIALS"), (uint32)0);
+		OutEnvironment.SetDefine(TEXT("SAMPLE_VIRTUAL_TEXTURE"), (uint32)(bIsVirtualTexture ? 1 : 0));
 
 		FSlateElementPS::ModifyCompilationEnvironment( Parameters, OutEnvironment );
 	}

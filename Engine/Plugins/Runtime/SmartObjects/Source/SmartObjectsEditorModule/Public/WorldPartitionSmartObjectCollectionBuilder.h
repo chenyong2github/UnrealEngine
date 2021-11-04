@@ -20,8 +20,8 @@ protected:
 	virtual bool RequiresCommandletRendering() const override { return false; }
 	virtual ELoadingMode GetLoadingMode() const override { return IterativeCells; }
 	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
-	virtual void OnPartitionBuildStarted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
-	virtual void OnPartitionBuildCompleted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 
 	UPROPERTY(Transient)
 	ASmartObjectCollection* MainCollection;

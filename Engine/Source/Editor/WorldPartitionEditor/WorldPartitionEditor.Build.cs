@@ -12,8 +12,8 @@ public class WorldPartitionEditor : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
-            }
-        );
+			}
+		);
      
         PrivateDependencyModuleNames.AddRange(
             new string[] {
@@ -30,8 +30,11 @@ public class WorldPartitionEditor : ModuleRules
 				"MainFrame",
 				"PropertyEditor",
 				"DeveloperSettings",
-				"ToolMenus"
-            }
+				"ToolMenus",
+				"RenderCore",
+				"Renderer",
+				"RHI",
+			}
 		);
 
         DynamicallyLoadedModuleNames.AddRange(

@@ -807,7 +807,19 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				else
 #endif
 				{
-					PixelShader = GetTexturePixelShader(ShaderMap, ShaderType, DrawEffects);
+					bool bIsVirtualTexture = false;
+
+					if ((ShaderResource != nullptr) && (ResourceType == ESlateShaderResource::TextureObject))
+					{
+						FSlateBaseUTextureResource* TextureObjectResource = const_cast<FSlateBaseUTextureResource*>(static_cast<const FSlateBaseUTextureResource*>(ShaderResource));
+						
+						if (UTexture* TextureObj = TextureObjectResource->GetTextureObject())
+						{
+							bIsVirtualTexture = TextureObj->IsCurrentlyVirtualTextured();
+						}
+					}
+
+					PixelShader = GetTexturePixelShader(ShaderMap, ShaderType, DrawEffects, bIsVirtualTexture);
 				}
 
 #if WITH_SLATE_VISUALIZERS
@@ -861,6 +873,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 				FRHISamplerState* SamplerState = BilinearClamp;
 				FRHITexture* TextureRHI = GWhiteTexture->TextureRHI;
+				bool bIsVirtualTexture = false;
+				FTextureResource* TextureResource = nullptr;
+
 				if (ShaderResource)
 				{
 					ETextureSamplerFilter Filter = ETextureSamplerFilter::Bilinear;
@@ -868,7 +883,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					if (ResourceType == ESlateShaderResource::TextureObject)
 					{
 						FSlateBaseUTextureResource* TextureObjectResource = (FSlateBaseUTextureResource*)ShaderResource;
-						if (const UTexture* TextureObj = TextureObjectResource->GetTextureObject())
+						if (UTexture* TextureObj = TextureObjectResource->GetTextureObject())
 						{
 							TextureObjectResource->CheckForStaleResources();
 
@@ -884,7 +899,10 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								TextureRHI = GTransparentBlackTexture->TextureRHI;
 							}
 
+							TextureResource = TextureObj->GetResource();
+
 							Filter = GetSamplerFilter(TextureObj);
+							bIsVirtualTexture = TextureObj->IsCurrentlyVirtualTextured();
 						}
 					}
 					else
@@ -986,7 +1004,15 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					GlobalVertexShader->SetViewProjection(RHICmdList, ViewProjection);
 					GlobalVertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
-					PixelShader->SetTexture(RHICmdList, TextureRHI, SamplerState);
+					if (bIsVirtualTexture && (TextureResource != nullptr))
+					{
+						PixelShader->SetVirtualTextureParameters(RHICmdList, static_cast<FVirtualTexture2DResource*>(TextureResource));
+					}
+					else
+					{
+						PixelShader->SetTexture(RHICmdList, TextureRHI, SamplerState);
+					}
+					
 					PixelShader->SetShaderParams(RHICmdList, ShaderParams);
 					const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? (1.0f / EngineGamma) : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 					const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
@@ -1295,7 +1321,7 @@ ETextureSamplerFilter FSlateRHIRenderingPolicy::GetSamplerFilter(const UTexture*
 	return Filter;
 }
 
-TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects )
+TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects, bool bIsVirtualTexture )
 {
 	TShaderRef<FSlateElementPS> PixelShader;
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_GetTexturePixelShader);
@@ -1319,11 +1345,25 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 		case ESlateShader::Default:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true> >(ShaderMap);
+				if ( bIsVirtualTexture )
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, true> >(ShaderMap);
+				}
+				else
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, false> >(ShaderMap);
+				}
 			}
 			else
 			{
-				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false> >(ShaderMap);
+				if ( bIsVirtualTexture )
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, true> >(ShaderMap);
+				}
+				else
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, false> >(ShaderMap);
+				}
 			}
 			break;
 		case ESlateShader::Border:
@@ -1358,11 +1398,25 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 		case ESlateShader::Default:
 			if ( bUseTextureAlpha )
 			{
-				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true> >(ShaderMap);
+				if ( bIsVirtualTexture )
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, true> >(ShaderMap);
+				}
+				else
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, false> >(ShaderMap);
+				}
 			}
 			else
 			{
-				PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false> >(ShaderMap);
+				if ( bIsVirtualTexture )
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, true> >(ShaderMap);
+				}
+				else
+				{
+					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, false> >(ShaderMap);
+				}
 			}
 			break;
 		case ESlateShader::Border:

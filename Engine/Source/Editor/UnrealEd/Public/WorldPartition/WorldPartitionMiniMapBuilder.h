@@ -3,6 +3,8 @@
 #pragma once
 
 #include "WorldPartition/WorldPartitionBuilder.h"
+#include "WorldPartition/WorldPartitionMiniMap.h"
+
 #include "WorldPartitionMiniMapBuilder.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
@@ -13,15 +15,23 @@ class UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return true; }
-	virtual ELoadingMode GetLoadingMode() const override { return bUseOnlyHLODs ? ELoadingMode::Custom : ELoadingMode::EntireWorld; }
+	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells2D; }
+
 protected:
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
+
 	// UWorldPartitionBuilder interface end
 
-	UPROPERTY(config)
-	int32 MiniMapSize = 4096;
-
 private:
-	bool bUseOnlyHLODs;
+	/*MiniMap Texture Tiles for displaying on world partition window*/
+	UPROPERTY(Transient, VisibleAnywhere, Category = WorldPartitionMiniMap)
+	TArray<FMinimapTile> MiniMapTiles;
+
+	UPROPERTY(Transient, VisibleAnywhere, Category = WorldPartitionMiniMap)
+	TObjectPtr<AWorldPartitionMiniMap> WorldMiniMap = nullptr;
+	FBox EditorBounds;
+	int32 IterativeCellSize;
 	bool bAutoSubmit;
 };
