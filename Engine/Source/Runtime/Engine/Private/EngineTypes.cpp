@@ -248,6 +248,7 @@ FActorInstanceHandle::FActorInstanceHandle()
 FActorInstanceHandle::FActorInstanceHandle(AActor* InActor)
 	: Actor(InActor)
 	, InstanceIndex(INDEX_NONE)
+	, InstanceUID(0)
 {
 	if (InActor)
 	{
