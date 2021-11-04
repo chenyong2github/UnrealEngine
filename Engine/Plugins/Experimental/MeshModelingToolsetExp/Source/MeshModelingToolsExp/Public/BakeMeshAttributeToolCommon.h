@@ -274,9 +274,10 @@ struct FTexture2DImageSettings
  */
 enum class EBakeOpState
 {
-	Complete = 0,		// Inputs valid & Result is valid - no-op.
-	Evaluate = 1 << 0,	// Inputs valid & Result is invalid - re-evaluate.
-	Invalid	 = 1 << 1	// Inputs invalid - pause eval.
+	Clean              = 0,      // No-op - evaluation already launched/complete.
+	Evaluate           = 1 << 0, // Inputs are modified and valid, re-evaluate.
+	EvaluateDetailMesh = 1 << 1, // Detail mesh input is modified, re-evaluate the detail mesh.
+	Invalid            = 1 << 2  // Inputs are modified and invalid - retry eval until valid.
 };
 ENUM_CLASS_FLAGS(EBakeOpState);
 

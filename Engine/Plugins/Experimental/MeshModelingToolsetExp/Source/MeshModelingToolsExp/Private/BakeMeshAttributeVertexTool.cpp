@@ -295,53 +295,53 @@ void UBakeMeshAttributeVertexTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->VertexMode, [this](EBakeVertexMode) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->VertexMode, [this](EBakeVertexMode) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 	Settings->WatchProperty(Settings->VertexChannelPreview, [this](EBakeVertexChannel) { UpdateVisualization(); });
-	Settings->WatchProperty(Settings->Thickness, [this](float) { OpState = EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool)	{ bDetailMeshValid = false; OpState = EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState = EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState = EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->Thickness, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool)	{ OpState |= EBakeOpState::EvaluateDetailMesh; });
+	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
 
 	ColorSettings = NewObject<UBakeMeshAttributeVertexToolColorProperties>(this);
 	ColorSettings->RestoreProperties(this);
 	AddToolPropertySource(ColorSettings);
 	SetToolPropertySourceEnabled(ColorSettings, false);
-	ColorSettings->WatchProperty(ColorSettings->BakeType, [this](EBakeVertexTypeColor) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	ColorSettings->WatchProperty(ColorSettings->BakeType, [this](EBakeVertexTypeColor) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 
 	PerChannelSettings = NewObject<UBakeMeshAttributeVertexToolChannelProperties>(this);
 	PerChannelSettings->RestoreProperties(this);
 	AddToolPropertySource(PerChannelSettings);
 	SetToolPropertySourceEnabled(PerChannelSettings, false);
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeR, [this](EBakeVertexTypeChannel) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeG, [this](EBakeVertexTypeChannel) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeB, [this](EBakeVertexTypeChannel) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeA, [this](EBakeVertexTypeChannel) { OpState = EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeR, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeG, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeB, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeA, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 
 	OcclusionSettings = NewObject<UBakedOcclusionMapToolProperties>(this);
 	OcclusionSettings->RestoreProperties(this);
 	AddToolPropertySource(OcclusionSettings);
 	SetToolPropertySourceEnabled(OcclusionSettings, false);
-	OcclusionSettings->WatchProperty(OcclusionSettings->OcclusionRays, [this](int32) { OpState = EBakeOpState::Evaluate; });
-	OcclusionSettings->WatchProperty(OcclusionSettings->MaxDistance, [this](float) { OpState = EBakeOpState::Evaluate; });
-	OcclusionSettings->WatchProperty(OcclusionSettings->SpreadAngle, [this](float) { OpState = EBakeOpState::Evaluate; });
-	OcclusionSettings->WatchProperty(OcclusionSettings->BiasAngle, [this](float) { OpState = EBakeOpState::Evaluate; });
+	OcclusionSettings->WatchProperty(OcclusionSettings->OcclusionRays, [this](int32) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionSettings->WatchProperty(OcclusionSettings->MaxDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionSettings->WatchProperty(OcclusionSettings->SpreadAngle, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionSettings->WatchProperty(OcclusionSettings->BiasAngle, [this](float) { OpState |= EBakeOpState::Evaluate; });
 
 	CurvatureSettings = NewObject<UBakedCurvatureMapToolProperties>(this);
 	CurvatureSettings->RestoreProperties(this);
 	AddToolPropertySource(CurvatureSettings);
 	SetToolPropertySourceEnabled(CurvatureSettings, false);
-	CurvatureSettings->WatchProperty(CurvatureSettings->RangeMultiplier, [this](float) { OpState = EBakeOpState::Evaluate; });
-	CurvatureSettings->WatchProperty(CurvatureSettings->MinRangeMultiplier, [this](float) { OpState = EBakeOpState::Evaluate; });
-	CurvatureSettings->WatchProperty(CurvatureSettings->CurvatureType, [this](EBakedCurvatureTypeMode) { OpState = EBakeOpState::Evaluate; });
-	CurvatureSettings->WatchProperty(CurvatureSettings->ColorMode, [this](EBakedCurvatureColorMode) { OpState = EBakeOpState::Evaluate; });
-	CurvatureSettings->WatchProperty(CurvatureSettings->Clamping, [this](EBakedCurvatureClampMode) { OpState = EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->RangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->MinRangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->CurvatureType, [this](EBakedCurvatureTypeMode) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->ColorMode, [this](EBakedCurvatureColorMode) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->Clamping, [this](EBakedCurvatureClampMode) { OpState |= EBakeOpState::Evaluate; });
 
 	TextureSettings = NewObject<UBakedTexture2DImageProperties>(this);
 	TextureSettings->RestoreProperties(this);
 	AddToolPropertySource(TextureSettings);
 	SetToolPropertySourceEnabled(TextureSettings, false);
-	TextureSettings->WatchProperty(TextureSettings->UVLayer, [this](float) { OpState = EBakeOpState::Evaluate; });
-	TextureSettings->WatchProperty(TextureSettings->SourceTexture, [this](UTexture2D*) { OpState = EBakeOpState::Evaluate; });
+	TextureSettings->WatchProperty(TextureSettings->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	TextureSettings->WatchProperty(TextureSettings->SourceTexture, [this](UTexture2D*) { OpState |= EBakeOpState::Evaluate; });
 
 	MultiTextureSettings = NewObject<UBakedMultiTexture2DImageProperties>(this);
 	MultiTextureSettings->RestoreProperties(this);
@@ -474,8 +474,8 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
 
-	OpState = EBakeOpState::Evaluate;
-	bDetailMeshValid = true;
+	OpState &= ~EBakeOpState::EvaluateDetailMesh;
+	OpState |= EBakeOpState::Evaluate;
 	DetailMeshTimestamp++;
 }
 
@@ -613,7 +613,7 @@ void UBakeMeshAttributeVertexTool::UpdateColorTopology()
 
 void UBakeMeshAttributeVertexTool::UpdateResult()
 {
-	if (!bDetailMeshValid)
+	if (static_cast<bool>(OpState & EBakeOpState::EvaluateDetailMesh))
 	{
 		UpdateDetailMesh();
 	}
@@ -623,7 +623,7 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		UpdateColorTopology();
 	}
 
-	if (OpState == EBakeOpState::Complete)
+	if (OpState == EBakeOpState::Clean)
 	{
 		return;
 	}
@@ -663,7 +663,7 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 	}
 
 	// Clear our invalid bitflag to check again for valid inputs.
-	OpState = EBakeOpState::Evaluate;
+	OpState &= ~EBakeOpState::Invalid;
 
 	// Validate bake inputs
 	if (CachedBakeSettings.VertexMode == EBakeVertexMode::Color)
@@ -671,26 +671,26 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		switch(CachedColorSettings.BakeType)
 		{
 		case EBakeVertexTypeColor::TangentSpaceNormal:
-			OpState = UpdateResult_Normal();
+			OpState |= UpdateResult_Normal();
 			break;
 		case EBakeVertexTypeColor::AmbientOcclusion:
 		case EBakeVertexTypeColor::BentNormal:
-			OpState = UpdateResult_Occlusion();
+			OpState |= UpdateResult_Occlusion();
 			break;
 		case EBakeVertexTypeColor::Curvature:
-			OpState = UpdateResult_Curvature();
+			OpState |= UpdateResult_Curvature();
 			break;
 		case EBakeVertexTypeColor::ObjectSpaceNormal:
 		case EBakeVertexTypeColor::FaceNormal:
 		case EBakeVertexTypeColor::Position:
 		case EBakeVertexTypeColor::MaterialID:
-			OpState = UpdateResult_MeshProperty();
+			OpState |= UpdateResult_MeshProperty();
 			break;
 		case EBakeVertexTypeColor::Texture:
-			OpState = UpdateResult_Texture2DImage();
+			OpState |= UpdateResult_Texture2DImage();
 			break;
 		case EBakeVertexTypeColor::MultiTexture:
-			OpState = UpdateResult_MultiTexture();
+			OpState |= UpdateResult_MultiTexture();
 			break;
 		}
 	}
@@ -712,19 +712,18 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 	{
 		return;
 	}
-	else // ((bool)(OpState & EBakeOpState::Evaluate))
+
+	if (!Compute)
 	{
-		if (!Compute)
+		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshVertexBaker>>();
+		Compute->Setup(this);
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshVertexBaker>& NewResult)
 		{
-			Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshVertexBaker>>();
-			Compute->Setup(this);
-			Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshVertexBaker>& NewResult)
-			{
-				OnResultUpdated(NewResult);
-			});
-		}
-		Compute->InvalidateResult();
+			OnResultUpdated(NewResult);
+		});
 	}
+	Compute->InvalidateResult();
+	OpState = EBakeOpState::Clean;
 }
 
 void UBakeMeshAttributeVertexTool::OnResultUpdated(const TUniquePtr<FMeshVertexBaker>& NewResult)
@@ -749,8 +748,6 @@ void UBakeMeshAttributeVertexTool::OnResultUpdated(const TUniquePtr<FMeshVertexB
 	PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate, EMeshRenderAttributeFlags::VertexColors, false);
 	UpdateVisualization();
 
-	OpState = EBakeOpState::Complete;
-
 	GatherAnalytics(*NewResult, CachedBakeSettings, CachedColorSettings, CachedChannelSettings, BakeAnalytics);
 }
 
@@ -762,7 +759,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Normal()
 
 EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Occlusion()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	FOcclusionMapSettings OcclusionMapSettings;
 	OcclusionMapSettings.MaxDistance = (OcclusionSettings->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionSettings->MaxDistance;
@@ -780,7 +777,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Occlusion()
 
 EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Curvature()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	FCurvatureMapSettings CurvatureMapSettings;
 	CurvatureMapSettings.RangeMultiplier = CurvatureSettings->RangeMultiplier;
@@ -844,7 +841,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MeshProperty()
 
 EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Texture2DImage()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	FTexture2DImageSettings NewSettings;
 	NewSettings.UVLayer = 0;
@@ -882,7 +879,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Texture2DImage()
 
 EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	FTexture2DImageSettings NewSettings;
 	NewSettings.UVLayer = MultiTextureSettings->UVLayer;

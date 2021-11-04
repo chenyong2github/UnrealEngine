@@ -220,7 +220,6 @@ protected:
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
 
-	bool bInputsDirty = false;
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 	struct FBakeCacheSettings

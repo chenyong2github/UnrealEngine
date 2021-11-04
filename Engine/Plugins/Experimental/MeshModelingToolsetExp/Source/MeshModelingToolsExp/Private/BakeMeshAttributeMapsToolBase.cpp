@@ -150,7 +150,7 @@ void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 
 void UBakeMeshAttributeMapsToolBase::InvalidateCompute()
 {
-	const bool bInvalidate = bInputsDirty || static_cast<bool>(OpState & EBakeOpState::Evaluate);
+	const bool bInvalidate = static_cast<bool>(OpState & EBakeOpState::Evaluate);
 	if (!Compute)
 	{
 		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
@@ -162,7 +162,7 @@ void UBakeMeshAttributeMapsToolBase::InvalidateCompute()
 	{
 		Compute->InvalidateResult();
 	}
-	bInputsDirty = false;
+	OpState = EBakeOpState::Clean;
 }
 
 

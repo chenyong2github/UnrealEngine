@@ -431,13 +431,13 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	UpdateUVLayerNames(Settings, BaseMesh);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->MapTypes, [this](int32) { bInputsDirty = true; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->MapTypes, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
-	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->Thickness, [this](float) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { bInputsDirty = true; });
+	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->UVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->Thickness, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { OpState |= EBakeOpState::Evaluate; });
 
 	DetailProps = NewObject<UBakeMultiMeshDetailToolProperties>(this);
 	DetailProps->RestoreProperties(this);
@@ -475,13 +475,13 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 		DetailMeshProp.DetailMesh = DetailStaticMesh;
 		DetailMeshProp.DetailColorMap = DetailColorTexture;
 		DetailProps->DetailProperties.Add(DetailMeshProp);
-		DetailProps->WatchProperty(DetailProps->DetailProperties[Idx-1].DetailColorMap, [this](UTexture2D*) { bInputsDirty = true; });
-		DetailProps->WatchProperty(DetailProps->DetailProperties[Idx-1].DetailColorMapUVLayer, [this](int) { bInputsDirty = true; });
+		DetailProps->WatchProperty(DetailProps->DetailProperties[Idx-1].DetailColorMap, [this](UTexture2D*) { OpState |= EBakeOpState::Evaluate; });
+		DetailProps->WatchProperty(DetailProps->DetailProperties[Idx-1].DetailColorMapUVLayer, [this](int) { OpState |= EBakeOpState::Evaluate; });
 	}
 
 	UpdateOnModeChange();
 
-	bInputsDirty = true;
+	OpState |= EBakeOpState::Evaluate;
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Bake Textures"));
 	GetToolManager()->DisplayMessage(
@@ -562,9 +562,7 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 {
-	// bInputsDirty ensures that we only validate parameters once per param
-	// change. Parameter validation can be expensive (ex. UpdateResult_Texture2DImage).
-	if (!bInputsDirty)
+	if (OpState == EBakeOpState::Clean)
 	{
 		return;
 	}
@@ -595,7 +593,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	}
 
 	// Clear our invalid bitflag to check again for valid inputs.
-	OpState = EBakeOpState::Evaluate;
+	OpState &= ~EBakeOpState::Invalid;
 
 	// Update map type settings
 	OpState |= UpdateResult_DetailMeshes();
@@ -615,9 +613,6 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 
 EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 {
-	// This method will always force a re-evaluation.
-	EBakeOpState ResultState = EBakeOpState::Evaluate;
-
 	FBakeMultiMeshDetailSettings NewSettings;
 
 	// Iterate through our detail props to build our detail mesh data.
@@ -670,8 +665,9 @@ EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 		}
 	};
 	DetailMeshScene.ProcessActorChildMeshes(BuildMeshToDataMaps);
-	
-	return ResultState;
+
+	// This method will always force a re-evaluation.
+	return EBakeOpState::Evaluate;
 }
 
 

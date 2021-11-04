@@ -282,14 +282,14 @@ void UBakeMeshAttributeMapsTool::Setup()
 	UpdateUVLayerNames(Settings, BaseMesh);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->MapTypes, [this](int32) { bInputsDirty = true; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->MapTypes, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
-	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bDetailMeshValid = false; bInputsDirty = true; });
-	Settings->WatchProperty(Settings->Thickness, [this](float) { bInputsDirty = true; });
-	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { bInputsDirty = true; });
+	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->UVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
+	Settings->WatchProperty(Settings->Thickness, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { OpState |= EBakeOpState::Evaluate; });
 
 
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
@@ -304,15 +304,15 @@ void UBakeMeshAttributeMapsTool::Setup()
 	DetailMeshProps->DetailStaticMesh = DetailStaticMesh;
 	DetailMeshProps->DetailSkeletalMesh = DetailSkeletalMesh;
 	DetailMeshProps->DetailMeshNormalMap = nullptr;
-	DetailMeshProps->WatchProperty(DetailMeshProps->DetailNormalUVLayer, [this](int) { bInputsDirty = true; });
+	DetailMeshProps->WatchProperty(DetailMeshProps->DetailNormalUVLayer, [this](int) { OpState |= EBakeOpState::Evaluate; });
 	DetailMeshProps->WatchProperty(DetailMeshProps->DetailMeshNormalMap, [this](UTexture2D*)
 	{
 		// Only invalidate detail mesh if we need to recompute tangents.
 		if (!DetailMeshTangents)
 		{
-			bDetailMeshValid = false;
+			OpState |= EBakeOpState::EvaluateDetailMesh;
 		}
-		bInputsDirty = true;
+		OpState = EBakeOpState::Evaluate;
 	});
 	
 
@@ -320,39 +320,39 @@ void UBakeMeshAttributeMapsTool::Setup()
 	OcclusionMapProps->RestoreProperties(this);
 	AddToolPropertySource(OcclusionMapProps);
 	SetToolPropertySourceEnabled(OcclusionMapProps, false);
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->SpreadAngle, [this](float) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { bInputsDirty = true; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->SpreadAngle, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { OpState |= EBakeOpState::Evaluate; });
 
 
 	CurvatureMapProps = NewObject<UBakedCurvatureMapToolProperties>(this);
 	CurvatureMapProps->RestoreProperties(this);
 	AddToolPropertySource(CurvatureMapProps);
 	SetToolPropertySourceEnabled(CurvatureMapProps, false);
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->RangeMultiplier, [this](float) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->MinRangeMultiplier, [this](float) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->CurvatureType, [this](EBakedCurvatureTypeMode) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->ColorMode, [this](EBakedCurvatureColorMode) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->Clamping, [this](EBakedCurvatureClampMode) { bInputsDirty = true; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->RangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->MinRangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->CurvatureType, [this](EBakedCurvatureTypeMode) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->ColorMode, [this](EBakedCurvatureColorMode) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->Clamping, [this](EBakedCurvatureClampMode) { OpState |= EBakeOpState::Evaluate; });
 
 
 	Texture2DProps = NewObject<UBakedTexture2DImageProperties>(this);
 	Texture2DProps->RestoreProperties(this);
 	AddToolPropertySource(Texture2DProps);
 	SetToolPropertySourceEnabled(Texture2DProps, false);
-	Texture2DProps->WatchProperty(Texture2DProps->UVLayer, [this](float) { bInputsDirty = true; });
-	Texture2DProps->WatchProperty(Texture2DProps->SourceTexture, [this](UTexture2D*) { bInputsDirty = true; });
+	Texture2DProps->WatchProperty(Texture2DProps->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	Texture2DProps->WatchProperty(Texture2DProps->SourceTexture, [this](UTexture2D*) { OpState |= EBakeOpState::Evaluate; });
 
 	MultiTextureProps = NewObject<UBakedMultiTexture2DImageProperties>(this);
 	MultiTextureProps->RestoreProperties(this);
 	AddToolPropertySource(MultiTextureProps);
 	SetToolPropertySourceEnabled(MultiTextureProps, false);
 
-	auto SetDirtyCallback = [this](decltype(MultiTextureProps->MaterialIDSourceTextureMap)) { bInputsDirty = true; };
+	auto SetDirtyCallback = [this](decltype(MultiTextureProps->MaterialIDSourceTextureMap)) { OpState |= EBakeOpState::Evaluate; };
 	auto NotEqualsCallback = [](const decltype(MultiTextureProps->MaterialIDSourceTextureMap)& A, const decltype(MultiTextureProps->MaterialIDSourceTextureMap)& B) -> bool { return !(A.OrderIndependentCompareEqual(B)); };
 	MultiTextureProps->WatchProperty(MultiTextureProps->MaterialIDSourceTextureMap, SetDirtyCallback, NotEqualsCallback);
-	MultiTextureProps->WatchProperty(MultiTextureProps->UVLayer, [this](float) { bInputsDirty = true; });
+	MultiTextureProps->WatchProperty(MultiTextureProps->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
 
 	UpdateOnModeChange();
 
@@ -536,8 +536,9 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 		}
 	});
 
-	bDetailMeshValid = true;
-	bInputsDirty = true;
+	// Clear detail mesh evaluation flag and mark evaluation.
+	OpState &= ~EBakeOpState::EvaluateDetailMesh;
+	OpState |= EBakeOpState::Evaluate;
 	CachedBakeCacheSettings = FBakeCacheSettings();
 	DetailMeshTimestamp++;
 }
@@ -545,14 +546,12 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 
 void UBakeMeshAttributeMapsTool::UpdateResult()
 {
-	if (!bDetailMeshValid)
+	if (static_cast<bool>(OpState & EBakeOpState::EvaluateDetailMesh))
 	{
 		UpdateDetailMesh();
 	}
 
-	// bInputsDirty ensures that we only validate parameters once per param
-	// change. Parameter validation can be expensive (ex. UpdateResult_Texture2DImage).
-	if (!bInputsDirty)
+	if (OpState == EBakeOpState::Clean)
 	{
 		return;
 	}
@@ -590,7 +589,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	}
 
 	// Clear our invalid bitflag to check again for valid inputs.
-	OpState = EBakeOpState::Evaluate;
+	OpState &= ~EBakeOpState::Invalid;
 
 	OpState |= UpdateResult_DetailNormalMap();
 
@@ -640,7 +639,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 	
 	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(DetailMeshProps->DetailNormalUVLayer);
 	if (UVOverlay == nullptr)
@@ -678,7 +677,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Normal()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
@@ -697,7 +696,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Normal()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
@@ -720,7 +719,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Curvature()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
@@ -783,7 +782,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Curvature()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MeshProperty()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
@@ -802,7 +801,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MeshProperty()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
@@ -844,7 +843,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 {
-	EBakeOpState ResultState = EBakeOpState::Complete;
+	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	const int32 ImageSize = (int32)Settings->Resolution;
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
