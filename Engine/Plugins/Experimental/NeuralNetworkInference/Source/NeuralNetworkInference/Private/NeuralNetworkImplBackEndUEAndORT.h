@@ -4,6 +4,11 @@
 
 #include "NeuralNetwork.h"
 
+// RHI includes must happen before onnxruntime_cxx_api.h (both include Windows.h)
+#include "HAL/CriticalSection.h"
+#include "RHI.h"
+#include "DynamicRHI.h"
+
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check

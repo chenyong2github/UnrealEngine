@@ -9,22 +9,14 @@
 #include "RedirectCoutAndCerrToUeLog.h"
 
 #if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
-	#include "HAL/CriticalSection.h"
-	#include "RHI.h"
-	#include "DynamicRHI.h"
-	
 	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
 	#pragma push_macro("NOMINMAX")
 	#pragma push_macro("WIN32_LEAN_AND_MEAN")
-	#pragma push_macro("UE_MINIMAL_WINDOWS_INCLUDE")
 	#undef NOMINMAX
 	#undef WIN32_LEAN_AND_MEAN
-	#define UE_MINIMAL_WINDOWS_INCLUDE // Avoids Win64 Clang warning
 	#include "D3D12RHIPrivate.h"
-	#pragma pop_macro("UE_MINIMAL_WINDOWS_INCLUDE")
 	#pragma pop_macro("WIN32_LEAN_AND_MEAN")
 	#pragma pop_macro("NOMINMAX")
-
 #endif
 
 //#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
