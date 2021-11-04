@@ -4,10 +4,43 @@ import dashboard from "../../backend/Dashboard";
 import { projectStore } from "../../backend/ProjectStore";
 import { displayTimeZone } from "./timeUtils";
 
+export type IssueJira = {
+	description: string;
+	link: string;
+}
 
-export function getIssueStatus(issue: GetIssueResponse, showResolveTime?:boolean): string {
+const urlRegex = /([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#\.]?[\w-]+)*\/?/gm
 
-	let text = "";		
+export function getIssueJiras(issue: GetIssueResponse): IssueJira[] {
+
+	if (!issue.description) {
+		return [];
+	}
+
+	const jiras: IssueJira[] = [];
+
+	const matches = Array.from(issue.description.matchAll(urlRegex));
+
+	matches.forEach(m => {
+		m.forEach(match => {
+			// @todo: add jira match to server config
+			if (match.toLowerCase().startsWith("https://jira.it.epicgames.com")) {
+				const path = new URL(match).pathname.split("/");
+				if (path.length) {
+					jiras.push({link: match, description: path[path.length - 1]})
+				}
+				
+			}
+		})
+	})
+	
+	return jiras;
+
+}
+
+export function getIssueStatus(issue: GetIssueResponse, showResolveTime?: boolean): string {
+
+	let text = "";
 
 	if (issue.resolvedAt) {
 
@@ -17,7 +50,7 @@ export function getIssueStatus(issue: GetIssueResponse, showResolveTime?:boolean
 			resolvedText += ` in CL ${issue.fixChange}`;
 		}
 
-		resolvedText += ` by ${issue.resolvedBy ?? "Horde" }`;
+		resolvedText += ` by ${issue.resolvedBy ?? "Horde"}`;
 
 		if (!showResolveTime) {
 			return resolvedText;

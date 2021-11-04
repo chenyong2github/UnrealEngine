@@ -73,7 +73,7 @@ export const getIssueSummary = (issue?: GetIssueResponse, events?: GetLogEventRe
     }
 
     if (type === IssueType.Unknown || !summary || !events || !events.length) {
-        return summary ? summary : issue.details ?? "Issue has no summary or details";
+        return summary ? summary : "Issue has no summary or details";
     }
 
     if (type === IssueType.Compiler) {

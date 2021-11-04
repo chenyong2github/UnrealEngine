@@ -284,6 +284,7 @@ export type IssueQuery = {
 	count?: number;
 	userId?: string;
 	resolved?: boolean;
+	promoted?: boolean;
 }
 
 export type UsersQuery = {
@@ -2462,10 +2463,16 @@ export type GetIssueAffectedTemplateResponse = {
 	/**  Whether it has been resolved or not */
 	resolved: boolean;
 
+	/** Severity of this template */
+	severity: IssueSeverity;
+
 }
 
 /**Trace of a set of node failures across multiple steps */
-export type GetIssueNodeResponse = {
+export type GetIssueSpanResponse = {
+
+	/** Unique id of this span */
+	id: string;
 
 	/** The template containing this step */
 	templateId: string;
@@ -2496,7 +2503,7 @@ export type GetIssueStreamResponse = {
 	maxChange?: number;
 
 	/**Map of steps to (event signature id -> trace id) */
-	nodes: GetIssueNodeResponse[];
+	nodes: GetIssueSpanResponse[];
 }
 
 /**Outcome of a particular build */
@@ -2583,11 +2590,14 @@ export type GetIssueResponse = {
 	/**The summary text for this issue */
 	summary: string;
 
-	/**Details text describing the issue */
-	details?: string;
+	/**Description of the issue*/
+	description?: string;
 
 	/** Severity of this issue	*/
 	severity: IssueSeverity;
+	
+	/**Whether the issue is promoted */
+	promoted: boolean;
 
 	/**Owner of the issue */
 	owner?: string;
@@ -2655,6 +2665,19 @@ export type UpdateIssueRequest = {
 
 	/**Whether the issue should be marked as resolved */
 	resolved?: boolean;
+
+	/**Description of the issue*/
+	description?: string;
+
+	/**Whether the issue is promoted */
+	promoted?: boolean;
+
+	/**  List of spans to add to this issue	 */
+	addSpans?: string[];
+
+	/** List of spans to remove from this issue */
+	removeSpans?: string[];
+
 }
 
 export type GetUtilizationTelemetryStream = {
