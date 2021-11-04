@@ -923,7 +923,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 
 	const auto ExtractIfProduced = [&](FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>& OutTarget)
 	{
-		if (HasBeenProduced(Texture))
+		if (HasBeenProduced(Texture) && !EnumHasAnyFlags(Texture->Desc.Flags, TexCreate_Memoryless))
 		{
 			GraphBuilder.QueueTextureExtraction(Texture, &OutTarget);
 		}
