@@ -68,14 +68,28 @@ void AGeneratedDynamicMeshActor::ExecuteRebuildGeneratedMeshIfPending()
 {
 	if (bGeneratedMeshRebuildPending)
 	{
+		// Automatically defer collision updates during generated mesh rebuild. If we do not do this, then
+		// each mesh change will result in collision being rebuilt, which is very expensive !!
+		bool bEnabledDeferredCollision = false;
+		if (DynamicMeshComponent->bDeferCollisionUpdates == false)
+		{
+			DynamicMeshComponent->SetDeferredCollisionUpdatesEnabled(true, false);
+			bEnabledDeferredCollision = true;
+		}
+
 		if (bResetOnRebuild && DynamicMeshComponent && DynamicMeshComponent->GetDynamicMesh())
 		{
 			DynamicMeshComponent->GetDynamicMesh()->Reset();
 		}
 
 		FEditorScriptExecutionGuard Guard;
-		OnRebuildGeneratedMesh();
+		OnRebuildGeneratedMesh(DynamicMeshComponent->GetDynamicMesh());
 		bGeneratedMeshRebuildPending = false;
+
+		if (bEnabledDeferredCollision)
+		{
+			DynamicMeshComponent->SetDeferredCollisionUpdatesEnabled(false, true);
+		}
 	}
 }
 
