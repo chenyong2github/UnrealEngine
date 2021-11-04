@@ -2232,7 +2232,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 		const FLinearColor TextColor = ValidationErrors.Contains(NiagaraComponent) ? Settings.InWorldErrorTextColor : Settings.InWorldTextColor;
 
 		// Show particle data in world
-		if (!Settings.bShowParticlesVariablesWithSystem && bSystemSimulationValid)
+		if (!Settings.bShowParticlesVariablesWithSystem && bSystemSimulationValid && Canvas->SceneView)
 		{
 			const FCachedVariables& CachedVariables = GetCachedVariables(NiagaraSystem);
 			for (int32 iEmitter = 0; iEmitter < CachedVariables.ParticleVariables.Num(); ++iEmitter)
@@ -2262,32 +2262,55 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					continue;
 				}
 
+				FSceneView* SceneView = Canvas->SceneView;
+
 				const FTransform& SystemTransform = SystemInstance->GetWorldTransform();
 				const bool bParticlesLocalSpace = EmitterInstance->GetCachedEmitter()->bLocalSpace;
+				//const float ClipRadius = Settings.bUseParticleDisplayRadius ? 1.0f : 0.0f;
+				const float ParticleDisplayCenterRadiusSq = Settings.bUseParticleDisplayCenterRadius ? (Settings.ParticleDisplayCenterRadius * Settings.ParticleDisplayCenterRadius) : 0.0f;
+				const float ParticleDisplayClipNearPlane = Settings.bUseParticleDisplayClip ? FMath::Max(Settings.ParticleDisplayClip.X, 0.0f) : 0.0f;
+				const float ParticleDisplayClipFarPlane = Settings.bUseParticleDisplayClip ? FMath::Max(Settings.ParticleDisplayClip.Y, ParticleDisplayClipNearPlane) : FLT_MAX;
+				const uint32 MaxDisplayParticles = Settings.bUseMaxParticlesToDisplay ? Settings.MaxParticlesToDisplay : 0xFFFFFFFF;
+				uint32 NumDisplayedParticles = 0;
 
-				const uint32 NumParticles = Settings.bUseMaxParticlesToDisplay ? FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances()) : DataBuffer->GetNumInstances();
-				for (uint32 iInstance = 0; iInstance < NumParticles; ++iInstance)
+				for (uint32 iInstance = 0; iInstance < DataBuffer->GetNumInstances(); ++iInstance)
 				{
 					const FVector ParticalLocalPosition = PositionReader.Get(iInstance);
 					const FVector ParticleWorldPosition = bParticlesLocalSpace ? SystemTransform.TransformPosition(ParticalLocalPosition) : ParticalLocalPosition;
 
-					const FVector ParticleScreenLocation = Canvas->Project(ParticleWorldPosition);
-					if (!FMath::IsNearlyZero(ParticleScreenLocation.Z))
+					const FPlane ClipPosition = SceneView->Project(ParticleWorldPosition);
+					if ((ParticleDisplayCenterRadiusSq > 0) && (((ClipPosition.X * ClipPosition.X) + (ClipPosition.Y * ClipPosition.Y)) >= ParticleDisplayCenterRadiusSq))
 					{
-						TStringBuilder<1024> StringBuilder;
-						StringBuilder.Appendf(TEXT("Particle(%u) "), iInstance);
-						for (const auto& ParticleVariable : CachedVariables.ParticleVariables[iEmitter])
-						{
-							StringBuilder.Append(ParticleVariable.GetName().ToString());
-							StringBuilder.Append(TEXT("("));
-							ParticleVariable.StringAppend(StringBuilder, DataBuffer, iInstance);
-							StringBuilder.Append(TEXT(") "));
-						}
+						continue;
+					}
 
-						const TCHAR* FinalString = StringBuilder.ToString();
-						const TPair<FVector2D, FVector2D> SizeAndLocation = GetTextLocation(ParticleFont, FinalString, Settings.ParticleTextOptions, FVector2D(ParticleScreenLocation));
-						DrawCanvas->DrawTile(SizeAndLocation.Value.X - 1.0f, SizeAndLocation.Value.Y - 1.0f, SizeAndLocation.Key.X + 2.0f, SizeAndLocation.Key.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, Settings.DefaultBackgroundColor);
-						DrawCanvas->DrawShadowedString(SizeAndLocation.Value.X, SizeAndLocation.Value.Y, FinalString, ParticleFont, TextColor);
+					if ((ClipPosition.W <= ParticleDisplayClipNearPlane) || (ClipPosition.W > ParticleDisplayClipFarPlane))
+					{
+						continue;
+					}
+
+					const FVector ParticleScreenLocation = Canvas->Project(ParticleWorldPosition);
+
+					TStringBuilder<1024> StringBuilder;
+					StringBuilder.Appendf(TEXT("Particle(%u)"), iInstance);
+					for (const auto& ParticleVariable : CachedVariables.ParticleVariables[iEmitter])
+					{
+						StringBuilder.Append(Settings.bShowParticleVariablesVertical ? '\n' : ' ');
+						StringBuilder.Append(ParticleVariable.GetName().ToString());
+						StringBuilder.Append('(');
+						ParticleVariable.StringAppend(StringBuilder, DataBuffer, iInstance);
+						StringBuilder.Append(')');
+					}
+
+					const TCHAR* FinalString = StringBuilder.ToString();
+					const TPair<FVector2D, FVector2D> SizeAndLocation = GetTextLocation(ParticleFont, FinalString, Settings.ParticleTextOptions, FVector2D(ParticleScreenLocation));
+					DrawCanvas->DrawTile(SizeAndLocation.Value.X - 1.0f, SizeAndLocation.Value.Y - 1.0f, SizeAndLocation.Key.X + 2.0f, SizeAndLocation.Key.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, Settings.DefaultBackgroundColor);
+					DrawCanvas->DrawShadowedString(SizeAndLocation.Value.X, SizeAndLocation.Value.Y, FinalString, ParticleFont, TextColor);
+
+					++NumDisplayedParticles;
+					if (++NumDisplayedParticles >= MaxDisplayParticles)
+					{
+						break;
 					}
 				}
 			}
@@ -2325,12 +2348,20 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					{
 						StringBuilder.Appendf(TEXT("Pooled - %s\n"), *PoolingMethodEnum->GetNameStringByIndex((int32)NiagaraComponent->PoolingMethod));
 					}
-					if (bIsActive && NiagaraComponent->IsRegisteredWithScalabilityManager())
+					if (bIsActive)
 					{
-						StringBuilder.Appendf(TEXT("Scalability - %s\n"), *GetNameSafe(NiagaraSystem->GetEffectType()));
-						if (SystemInstance->SignificanceIndex != INDEX_NONE )
+						if (NiagaraComponent->IsRegisteredWithScalabilityManager())
 						{
-							StringBuilder.Appendf(TEXT("SignificanceIndex - %d\n"), SystemInstance->SignificanceIndex);
+							StringBuilder.Appendf(TEXT("Scalability - %s\n"), *GetNameSafe(NiagaraSystem->GetEffectType()));
+							if (SystemInstance->SignificanceIndex != INDEX_NONE)
+							{
+								StringBuilder.Appendf(TEXT("SignificanceIndex - %d\n"), SystemInstance->SignificanceIndex);
+							}
+						}
+						static UEnum* TickingGroupEnum = StaticEnum<ETickingGroup>();
+						if (TickingGroupEnum)
+						{
+							StringBuilder.Appendf(TEXT("TickGroup - %s\n"), *TickingGroupEnum->GetNameStringByValue(SystemInstance->CalculateTickGroup()));
 						}
 					}
 
