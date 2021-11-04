@@ -7,7 +7,7 @@
 #include "RigUnit_AlphaInterp.generated.h"
 
 /**
- * Adds a float value over time over and over again
+ * Takes in a float value and outputs an accumulated value with a customized scale and clamp
  */
 USTRUCT(meta=(DisplayName="Alpha Interpolate (float)", Keywords="Alpha,Lerp,LinearInterpolate", PrototypeName = "AlphaInterp"))
 struct CONTROLRIG_API FRigUnit_AlphaInterp : public FRigUnit_SimBase
@@ -80,7 +80,7 @@ struct CONTROLRIG_API FRigUnit_AlphaInterp : public FRigUnit_SimBase
 };
 
 /**
- * Adds a vector value over time over and over again
+ * Takes in a vector value and outputs an accumulated value with a customized scale and clamp
  */
 USTRUCT(meta=(DisplayName="Alpha Interpolate (Vector)", Keywords="Alpha,Lerp,LinearInterpolate", PrototypeName = "AlphaInterp", MenuDescSuffix = "(Vector)"))
 struct CONTROLRIG_API FRigUnit_AlphaInterpVector : public FRigUnit_SimBase
