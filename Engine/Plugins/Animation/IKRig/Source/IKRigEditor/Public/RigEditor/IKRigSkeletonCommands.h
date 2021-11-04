@@ -29,6 +29,9 @@ public:
 
 	/** set root bone on selected solvers */
 	TSharedPtr< FUICommandInfo > SetRootBoneOnSolvers;
+
+	/** set end bone on selected solvers (Pole Solvers only)*/
+	TSharedPtr< FUICommandInfo > SetEndBoneOnSolvers;
 	
 	/** add bone setting to bone */
 	TSharedPtr< FUICommandInfo > AddBoneSettings;

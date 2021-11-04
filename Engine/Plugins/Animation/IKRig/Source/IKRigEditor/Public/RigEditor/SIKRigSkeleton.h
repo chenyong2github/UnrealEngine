@@ -171,6 +171,12 @@ private:
 	bool CanSetRootBoneOnSolvers();
 	/** END setting root bone */
 
+	/** setting end bone */
+	void HandleSetEndBoneOnSolvers();
+	bool CanSetEndBoneOnSolvers() const;
+	bool HasEndBoneCompatibleSolverSelected() const;
+	/** END setting end bone */
+
 	/** per-bone settings */
 	void HandleAddBoneSettings();
 	bool CanAddBoneSettings();
@@ -193,7 +199,7 @@ private:
 	/** END retarget chains */
 
 	/** selection state queries */
-	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems);
+	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
 	void GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const;
 	void SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames);
 	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);

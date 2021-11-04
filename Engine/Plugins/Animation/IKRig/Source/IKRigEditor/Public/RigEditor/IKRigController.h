@@ -69,6 +69,8 @@ public:
 	int32 GetNumSolvers() const;
 	/** Set the root bone on a given solver. (not all solvers support root bones, checks CanSetRootBone() first) */
 	void SetRootBone(const FName& RootBoneName, int32 SolverIndex) const;
+	/** Set the end bone on a given solver. (not all solvers require extra end bones, checks CanSetEndBone() first) */
+	void SetEndBone(const FName& EndBoneName, int32 SolverIndex) const;
 	/** Get read-only access to the array of solvers. */
 	const TArray<UIKRigSolver*>& GetSolverArray() const;
 	/** Get unique label for a given solver. Returns dash separated index and name like so, "0 - SolverName". */
