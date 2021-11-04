@@ -874,10 +874,12 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 
 	// should we remember the skylight prep for the next frame?
 	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
-
-	if (!IsSkylightCachingEnabled)
+	FLinearColor SkyColor = Scene->SkyLight->GetEffectiveLightColor();
+	const bool bSkylightColorChanged = SkyColor != Scene->PathTracingSkylightColor;
+	if (!IsSkylightCachingEnabled || bSkylightColorChanged)
 	{
-		// we don't want any caching - release what we might have been holding onto
+		// we don't want any caching (or the light color changed)
+		// release what we might have been holding onto so we get the right texture for this frame
 		Scene->PathTracingSkylightTexture.SafeRelease();
 		Scene->PathTracingSkylightPdf.SafeRelease();
 	}
@@ -894,8 +896,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		return true;
 	}
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing SkylightPrepare");
-
-	FLinearColor SkyColor = Scene->SkyLight->GetEffectiveLightColor();
+	Scene->PathTracingSkylightColor = SkyColor;
 	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels
 	uint32 Size = FMath::RoundUpToPowerOfTwo(2 * Scene->SkyLight->CaptureCubeMapResolution);
 
@@ -1450,6 +1451,16 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		// if the mode changes we need to rebuild the importance table
 		Scene->PathTracingSkylightTexture.SafeRelease();
 		Scene->PathTracingSkylightPdf.SafeRelease();
+	}
+
+	// if the skylight has changed colors, reset both the path tracer and the importance tables
+	if (Scene->SkyLight && Scene->SkyLight->GetEffectiveLightColor() != Scene->PathTracingSkylightColor)
+	{
+		Scene->PathTracingSkylightTexture.SafeRelease();
+		Scene->PathTracingSkylightPdf.SafeRelease();
+		// reset last color here as well in case we don't reach PrepareSkyLightTexture
+		Scene->PathTracingSkylightColor = Scene->SkyLight->GetEffectiveLightColor();
+		View.ViewState->PathTracingInvalidate();
 	}
 
 	// If the scene has changed in some way (camera move, object movement, etc ...)

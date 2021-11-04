@@ -2789,9 +2789,12 @@ public:
 	 * The path tracer uses its own representation of the skylight. These textures
 	 * are updated lazily by the path tracer when missing. Any code that modifies
 	 * the skylight appearance should simply reset these pointers.
+	 * 
+	 * We also remember the last used color so we can detect changes that would require rebuilding the tables
 	 */
 	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightTexture;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightPdf;
+	FLinearColor PathTracingSkylightColor;
 
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FSkyLightSceneProxy*> SkyLightStack;
