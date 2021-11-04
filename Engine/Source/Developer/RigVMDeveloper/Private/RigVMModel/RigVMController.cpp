@@ -11546,7 +11546,10 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	else if (CollapseNode)
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
-		for (URigVMNode* ContainedNode : CollapseNode->GetContainedNodes())
+		// need to get a copy of the node array since the following function could remove nodes from the graph
+		// we don't want to remove elements from the array we are iterating over.
+		TArray<URigVMNode*> ContainedNodes = CollapseNode->GetContainedNodes();
+		for (URigVMNode* ContainedNode : ContainedNodes)
 		{
 			RepopulatePinsOnNode(ContainedNode, bFollowCoreRedirectors, bNotify, bSetupOrphanedPins);
 		}
