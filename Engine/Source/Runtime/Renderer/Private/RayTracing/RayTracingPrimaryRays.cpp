@@ -13,7 +13,7 @@
 #include "RHIResources.h"
 #include "PostProcess/PostProcessing.h"
 #include "RayTracing/RaytracingOptions.h"
-#include "Raytracing/RaytracingLighting.h"
+#include "RayTracing/RayTracingLighting.h"
 
 DECLARE_GPU_STAT(RayTracingPrimaryRays);
 

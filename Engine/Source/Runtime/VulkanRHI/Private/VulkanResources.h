@@ -1036,6 +1036,14 @@ protected:
 };
 
 #if VULKAN_RHI_RAYTRACING
+struct FVkRtAllocation
+{
+	VkDevice Device = VK_NULL_HANDLE;
+	VkDeviceMemory Memory = VK_NULL_HANDLE;
+	VkBuffer Buffer = VK_NULL_HANDLE;
+	VkDeviceAddress Address = 0;
+};
+
 class FVulkanAccelerationStructureBuffer : public FRHIBuffer
 {
 public:
@@ -1136,6 +1144,9 @@ public:
 		Callback(TEXT("FVulkanResourceMultiBuffer"), FName(), this, 0, GetCurrentSize() * GetNumBuffers(), 1, 1, VK_FORMAT_UNDEFINED);
 	}
 
+#if VULKAN_RHI_RAYTRACING
+	VkDeviceAddress GetDeviceAddress();
+#endif
 
 protected:
 	VkBufferUsageFlags BufferUsageFlags;
@@ -1580,11 +1591,13 @@ static FORCEINLINE typename TVulkanResourceTraits<TRHIType>::TConcreteType* Reso
 }
 
 #if VULKAN_RHI_RAYTRACING
+class FVulkanRayTracingScene;
 template<>
 struct TVulkanResourceTraits<FRHIRayTracingScene>
 {
 	typedef FVulkanRayTracingScene TConcreteType;
 };
+class FVulkanRayTracingGeometry;
 template<>
 struct TVulkanResourceTraits<FRHIRayTracingGeometry>
 {

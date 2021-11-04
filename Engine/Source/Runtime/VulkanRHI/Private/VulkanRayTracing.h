@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "VulkanRHIPrivate.h"
+
 #if VULKAN_RHI_RAYTRACING
 
 class FVulkanCommandListContext;
@@ -32,14 +34,6 @@ public:
 	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device);
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
-};
-
-struct FVkRtAllocation
-{
-	VkDevice Device = VK_NULL_HANDLE;
-	VkDeviceMemory Memory = VK_NULL_HANDLE;
-	VkBuffer Buffer = VK_NULL_HANDLE;
-	VkDeviceAddress Address = 0;
 };
 
 class FVulkanRayTracingAllocator

@@ -18,6 +18,10 @@ class FVulkanOcclusionQueryPool;
 class FOLDVulkanQueryPool;
 #endif
 
+#if VULKAN_RHI_RAYTRACING
+class FVulkanBasicRaytracingPipeline;
+#endif
+
 #define VULKAN_USE_DEBUG_NAMES 1
 
 #if VULKAN_USE_DEBUG_NAMES

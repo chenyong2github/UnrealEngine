@@ -17,7 +17,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "RayTracing/RaytracingOptions.h"
-#include "Raytracing/RaytracingLighting.h"
+#include "RayTracing/RayTracingLighting.h"
 
 
 static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(

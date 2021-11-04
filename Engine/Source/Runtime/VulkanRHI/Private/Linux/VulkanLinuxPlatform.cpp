@@ -2,12 +2,11 @@
 
 #include "VulkanLinuxPlatform.h"
 #include "../VulkanRHIPrivate.h"
+#include "../VulkanRayTracing.h"
 #include <dlfcn.h>
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include "Linux/LinuxPlatformApplicationMisc.h"
-
-
 
 // Vulkan function pointers
 #define DEFINE_VK_ENTRYPOINTS(Type,Func) Type VulkanDynamicAPI::Func = NULL;

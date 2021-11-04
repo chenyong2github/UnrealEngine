@@ -9,7 +9,7 @@
 #include "VulkanContext.h"
 #include "Containers/ResourceArray.h"
 #include "VulkanLLM.h"
-
+#include "VulkanRayTracing.h"
 
 static TMap<FVulkanResourceMultiBuffer*, VulkanRHI::FPendingBufferLock> GPendingLockIBs;
 static FCriticalSection GPendingLockIBsMutex;
