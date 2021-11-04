@@ -421,6 +421,13 @@ bool					GEnableVREditorHacks = false;
 
 bool CORE_API			GIsGPUCrashed = false;
 
+#if !UE_BUILD_SHIPPING
+
+/** Whether we should ignore the attached debugger. */
+CORE_API bool			GIgnoreDebugger = false;
+
+#endif // #if !UE_BUILD_SHIPPING
+
 bool GetEmitDrawEvents()
 {
 	return GEmitDrawEvents;

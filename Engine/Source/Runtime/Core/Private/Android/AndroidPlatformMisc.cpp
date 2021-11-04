@@ -2456,7 +2456,6 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetAndroidStartupSt
 #if !UE_BUILD_SHIPPING
 bool FAndroidMisc::IsDebuggerPresent()
 {
-	extern CORE_API bool GIgnoreDebugger;
 	if (GIgnoreDebugger)
 	{
 		return false;

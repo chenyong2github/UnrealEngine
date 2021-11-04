@@ -539,6 +539,13 @@ extern CORE_API bool GPumpingMessages;
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 extern CORE_API bool GEnableVREditorHacks;
 
+#if !UE_BUILD_SHIPPING
+
+/** Whether we should ignore the attached debugger. */
+extern CORE_API bool GIgnoreDebugger;
+
+#endif // #if !UE_BUILD_SHIPPING
+
 enum class ETaskTag : int32
 {
 	ENone						= 0 << 0,
