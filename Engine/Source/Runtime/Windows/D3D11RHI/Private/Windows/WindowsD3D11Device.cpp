@@ -1667,7 +1667,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 	if(!Direct3DDevice)
 	{
 		// Wait for the rendering thread to go idle.
-		SCOPED_SUSPEND_RENDERING_THREAD(false);
+		FlushRenderingCommands();
 
 		UE_LOG(LogD3D11RHI, Log, TEXT("Creating new Direct3DDevice"));
 		check(!GIsRHIInitialized);

@@ -822,7 +822,7 @@ void FD3D12Adapter::InitializeDevices()
 	check(IsInGameThread());
 
 	// Wait for the rendering thread to go idle.
-	SCOPED_SUSPEND_RENDERING_THREAD(false);
+	FlushRenderingCommands();
 
 	// If the device we were using has been removed, release it and the resources we created for it.
 	if (bDeviceRemoved)
