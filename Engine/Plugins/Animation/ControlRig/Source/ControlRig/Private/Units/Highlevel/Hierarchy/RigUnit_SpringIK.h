@@ -72,7 +72,7 @@ struct CONTROLRIG_API FRigUnit_SpringIK_WorkData
  * It support custom constraints including distance, length etc.
  * Note: This node operates in world space!
  */
-USTRUCT(meta=(DisplayName="Spring IK", Category="Hierarchy", Keywords="IK"))
+USTRUCT(meta=(DisplayName="Spring IK", Category="Hierarchy", Keywords="IK", NodeColor="0 1 1"))
 struct CONTROLRIG_API FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

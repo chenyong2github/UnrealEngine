@@ -179,7 +179,7 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
  * the Forward and Backward Reaching Inverse Kinematics algorithm.
  * For now this node supports single effector chains only.
  */
-USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK", NodeColor="0 1 1"))
 struct CONTROLRIG_API FRigUnit_FABRIKItemArray : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

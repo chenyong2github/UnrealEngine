@@ -8,7 +8,7 @@
 /**
  * SetControlBool is used to perform a change in the hierarchy by setting a single control's bool value.
  */
-USTRUCT(meta=(DisplayName="Set Control Bool", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlBool,SetGizmoBool", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Bool", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlBool,SetGizmoBool", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlBool : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -61,7 +61,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlBool_Entry
 /**
  * SetMultiControlBool is used to perform a change in the hierarchy by setting multiple controls' bool value.
  */
-USTRUCT(meta = (DisplayName = "Set Multiple Controls Bool", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsBool,SetControlBool,SetGizmoBool", PrototypeName = "SetMultiControlValue"))
+USTRUCT(meta = (DisplayName = "Set Multiple Controls Bool", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsBool,SetControlBool,SetGizmoBool", PrototypeName = "SetMultiControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetMultiControlBool : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -88,7 +88,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlBool : public FRigUnitMutable
 /**
  * SetControlFloat is used to perform a change in the hierarchy by setting a single control's float value.
  */
-USTRUCT(meta=(DisplayName="Set Control Float", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlFloat,SetGizmoFloat", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Float", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlFloat,SetGizmoFloat", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlFloat : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -149,7 +149,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlFloat_Entry
 /**
  * SetMultiControlFloat is used to perform a change in the hierarchy by setting multiple controls' float value.
  */
-USTRUCT(meta = (DisplayName = "Set Multiple Controls Float", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsFloat,SetControlFloat,SetGizmoFloat", PrototypeName = "SetMultiControlValue"))
+USTRUCT(meta = (DisplayName = "Set Multiple Controls Float", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsFloat,SetControlFloat,SetGizmoFloat", PrototypeName = "SetMultiControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetMultiControlFloat : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -185,7 +185,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlFloat : public FRigUnitMutable
 /**
  * SetControlInteger is used to perform a change in the hierarchy by setting a single control's int32 value.
  */
-USTRUCT(meta=(DisplayName="Set Control Integer", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlInteger,SetGizmoInteger", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Integer", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlInteger,SetGizmoInteger", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlInteger : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -246,7 +246,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlInteger_Entry
 /**
  * SetMultiControlInteger is used to perform a change in the hierarchy by setting multiple controls' integer value.
  */
-USTRUCT(meta = (DisplayName = "Set Multiple Controls Integer", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsInteger,SetControlInteger,SetGizmoInteger", PrototypeName = "SetMultiControlValue"))
+USTRUCT(meta = (DisplayName = "Set Multiple Controls Integer", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsInteger,SetControlInteger,SetGizmoInteger", PrototypeName = "SetMultiControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetMultiControlInteger : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -280,7 +280,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlInteger : public FRigUnitMutable
 /**
  * SetControlVector2D is used to perform a change in the hierarchy by setting a single control's Vector2D value.
  */
-USTRUCT(meta=(DisplayName="Set Control Vector2D", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector2D,SetGizmoVector2D", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Vector2D", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector2D,SetGizmoVector2D", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlVector2D : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -342,7 +342,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlVector2D_Entry
 /**
  * SetMultiControlVector2D is used to perform a change in the hierarchy by setting multiple controls' vector2D value.
  */
-USTRUCT(meta = (DisplayName = "Set Multiple Controls Vector2D", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsVector2D,SetControlVector2D,SetGizmoVector2D", PrototypeName = "SetMultiControlValue"))
+USTRUCT(meta = (DisplayName = "Set Multiple Controls Vector2D", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsVector2D,SetControlVector2D,SetGizmoVector2D", PrototypeName = "SetMultiControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetMultiControlVector2D : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -376,7 +376,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlVector2D : public FRigUnitMutable
 /**
  * SetControlVector is used to perform a change in the hierarchy by setting a single control's Vector value.
  */
-USTRUCT(meta=(DisplayName="Set Control Vector", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector,SetGizmoVector", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Vector", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector,SetGizmoVector", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlVector : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -424,7 +424,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVector : public FRigUnitMutable
 /**
  * SetControlRotator is used to perform a change in the hierarchy by setting a single control's Rotator value.
  */
-USTRUCT(meta=(DisplayName="Set Control Rotator", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlRotator,SetGizmoRotator", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Rotator", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlRotator,SetGizmoRotator", PrototypeName = "SetControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlRotator : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -503,7 +503,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlRotator_Entry
 /**
  * SetMultiControlRotator is used to perform a change in the hierarchy by setting multiple controls' rotator value.
  */
-USTRUCT(meta = (DisplayName = "Set Multiple Controls Rotator", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsRotator,SetControlRotator,SetGizmoRotator", PrototypeName = "SetMultiControlValue"))
+USTRUCT(meta = (DisplayName = "Set Multiple Controls Rotator", Category = "Hierarchy", DocumentationPolicy = "Strict", Keywords = "SetMultipleControlsRotator,SetControlRotator,SetGizmoRotator", PrototypeName = "SetMultiControlValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIG_API FRigUnit_SetMultiControlRotator : public FRigUnitMutable
 {
 	GENERATED_BODY()

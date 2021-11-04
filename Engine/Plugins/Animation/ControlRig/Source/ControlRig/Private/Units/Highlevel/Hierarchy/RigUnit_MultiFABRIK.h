@@ -118,7 +118,7 @@ struct CONTROLRIG_API FRigUnit_MultiFABRIK_EndEffector
  * the Forward and Backward Reaching Inverse Kinematics algorithm.
  * For now this node supports single effector chains only.
  */
-USTRUCT(meta=(DisplayName="Multi Effector FABRIK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain,IK"))
+USTRUCT(meta=(DisplayName="Multi Effector FABRIK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain,IK", NodeColor="0 1 1"))
 struct CONTROLRIG_API FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

@@ -207,7 +207,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMu
  * Solves the two bone IK given two bones.
  * Note: This node operates in world space!
  */
-USTRUCT(meta=(DisplayName="Basic IK", Category="Hierarchy", Keywords="TwoBone,IK"))
+USTRUCT(meta=(DisplayName="Basic IK", Category="Hierarchy", Keywords="TwoBone,IK", NodeColor="0 1 1"))
 struct CONTROLRIG_API FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -374,7 +374,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_Highleve
  * Solves the two bone IK given positions
  * Note: This node operates in world space!
  */
-USTRUCT(meta = (DisplayName = "Basic IK Positions", Category = "Hierarchy", Keywords = "TwoBone,IK"))
+USTRUCT(meta = (DisplayName = "Basic IK Positions", Category = "Hierarchy", Keywords = "TwoBone,IK", NodeColor = "0 1 1"))
 struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_HighlevelBase
 {
 	GENERATED_BODY()
@@ -452,7 +452,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_Highleve
  * Solves the two bone IK given transforms
  * Note: This node operates in world space!
  */
-USTRUCT(meta = (DisplayName = "Basic IK Transforms", Category = "Hierarchy", Keywords = "TwoBone,IK"))
+USTRUCT(meta = (DisplayName = "Basic IK Transforms", Category = "Hierarchy", Keywords = "TwoBone,IK", NodeColor = "0 1 1"))
 struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleTransforms : public FRigUnit_HighlevelBase
 {
 	GENERATED_BODY()

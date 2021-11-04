@@ -8,7 +8,7 @@
 /**
  * The Item node is used to share a specific item across the graph
  */
-USTRUCT(meta=(DisplayName="Item", Category="Hierarchy", DocumentationPolicy = "Strict", Constant))
+USTRUCT(meta=(DisplayName="Item", Category="Hierarchy", NodeColor = "0.4627450108528137 1.0 0.3294120132923126", DocumentationPolicy = "Strict", Constant))
 struct CONTROLRIG_API FRigUnit_Item : public FRigUnit
 {
 	GENERATED_BODY()

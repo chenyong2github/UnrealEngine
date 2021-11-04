@@ -259,7 +259,7 @@ struct CONTROLRIG_API FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutab
  * the Cyclic Coordinate Descent Inverse Kinematics algorithm.
  * For now this node supports single effector chains only.
  */
-USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK", NodeColor = "0 1 1"))
 struct CONTROLRIG_API FRigUnit_CCDIKItemArray : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
