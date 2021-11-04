@@ -334,7 +334,13 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a scene."));
 		return;
 	}	
-	
+
+	if (Template->IsReadyToRun() == false)
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the Niagara System is not ready to run."));
+		return;
+	}
+
 	FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem();
 	if (FXSystemInterface)
 	{
