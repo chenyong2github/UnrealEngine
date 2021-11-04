@@ -49,9 +49,6 @@ public class CrashReportClientTarget : TargetRules
 		// Epic Games Launcher needs to run on OS X 10.9, so CrashReportClient needs this as well
 		bEnableOSX109Support = true;
 
-		// Disable automation tests to avoid compilation errors related to alignas, caused by setting bEnableOSX109Support to true above. Old OSX versions do not fully support this until C++17
-		bForceDisableAutomationTests = true;
-
 		// Need to disable the bundled version of dbghelp so that CrashDebugHelper can load dbgeng.dll.
 		WindowsPlatform.bUseBundledDbgHelp = false;
 
