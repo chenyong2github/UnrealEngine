@@ -327,6 +327,12 @@ void SIKRigSkeleton::BindCommands()
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRootBoneOnSolvers),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRootBoneOnSolvers));
 
+	CommandList->MapAction(Commands.SetEndBoneOnSolvers,
+	FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetEndBoneOnSolvers),
+	FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetEndBoneOnSolvers),
+	FIsActionChecked(),
+	FIsActionButtonVisible::CreateSP(this, &SIKRigSkeleton::HasEndBoneCompatibleSolverSelected));
+
 	CommandList->MapAction(Commands.AddBoneSettings,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleAddBoneSettings),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddBoneSettings));
@@ -376,6 +382,7 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(Actions.AddBoneSettings);
 	MenuBuilder.AddMenuEntry(Actions.RemoveBoneSettings);
 	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolvers);
+	MenuBuilder.AddMenuEntry(Actions.SetEndBoneOnSolvers);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("IncludeExclude", LOCTEXT("IncludeExcludeOperations", "Exclude Bones"));
@@ -642,6 +649,73 @@ bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
 	}
 	
 	return false;
+}
+
+void SIKRigSkeleton::HandleSetEndBoneOnSolvers()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+    // get name of selected root bone
+    TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	const FName RootBoneName = SelectedBones[0]->BoneName;
+
+	// apply to all selected solvers (ignored on solvers that don't accept a root bone)
+	UIKRigController* AssetController = Controller->AssetController;
+	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+	Controller->GetSelectedSolvers(SelectedSolvers);
+	int32 SolverToShow = 0;
+	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
+	{
+		AssetController->SetEndBone(RootBoneName, Solver->IndexInStack);
+		SolverToShow = Solver->IndexInStack;
+	}
+
+	// show solver that had it's root bone updated
+	Controller->ShowDetailsForSolver(SolverToShow);
+	
+	// show new icon when bone has settings applied
+	RefreshTreeView();
+}
+
+bool SIKRigSkeleton::CanSetEndBoneOnSolvers() const
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
+	// must have at least 1 bone selected
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	if (SelectedBones.Num() != 1)
+	{
+		return false;
+	}
+
+	// must have at least 1 solver selected that accepts end bones
+	UIKRigController* AssetController = Controller->AssetController;
+	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+	Controller->GetSelectedSolvers(SelectedSolvers);
+	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
+	{
+		if (AssetController->GetSolver(Solver->IndexInStack)->RequiresEndBone())
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool SIKRigSkeleton::HasEndBoneCompatibleSolverSelected() const
+{
+	return CanSetEndBoneOnSolvers();
 }
 
 void SIKRigSkeleton::HandleAddBoneSettings()
@@ -919,7 +993,7 @@ bool SIKRigSkeleton::CanSetRetargetRoot()
 	return !SelectedBones.IsEmpty();
 }
 
-void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems)
+void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const
 {
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)

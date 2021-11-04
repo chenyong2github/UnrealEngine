@@ -524,6 +524,27 @@ void UIKRigController::SetRootBone(const FName& RootBoneName, int32 SolverIndex)
 	BroadcastNeedsReinitialized();
 }
 
+void UIKRigController::SetEndBone(const FName& EndBoneName, int32 SolverIndex) const
+{
+	if (!Asset->Solvers.IsValidIndex(SolverIndex))
+	{
+		return; // solver doesn't exist
+	}
+
+	if (Asset->Skeleton.GetBoneIndexFromName(EndBoneName) == INDEX_NONE)
+	{
+		return; // bone doesn't exist
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("SetEndBone_Label", "Set End Bone"));
+	UIKRigSolver* Solver = Asset->Solvers[SolverIndex];
+	Solver->Modify();
+
+	Solver->SetEndBone(EndBoneName);
+
+	BroadcastNeedsReinitialized();
+}
+
 const TArray<UIKRigSolver*>& UIKRigController::GetSolverArray() const
 {
 	return Asset->Solvers;

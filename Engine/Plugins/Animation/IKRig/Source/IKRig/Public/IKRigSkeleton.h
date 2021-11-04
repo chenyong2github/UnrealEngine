@@ -114,6 +114,8 @@ struct IKRIG_API FIKRigSkeleton
 
 	int32 GetParentIndexThatIsNotExcluded(const int32 BoneIndex) const;
 
+	int32 GetChildIndices(const int32 ParentBoneIndex, TArray<int32>& Children) const;
+
 	static void ConvertLocalPoseToGlobal(
 		const TArray<int32>& InParentIndices,
 		const TArray<FTransform>& InLocalPose,

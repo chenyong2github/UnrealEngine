@@ -101,6 +101,22 @@ int32 FIKRigSkeleton::GetParentIndexThatIsNotExcluded(const int32 BoneIndex) con
 	return ParentIndex;
 }
 
+int32 FIKRigSkeleton::GetChildIndices(const int32 ParentBoneIndex, TArray<int32>& Children) const
+{
+	Children.Reset();
+
+	const int32 NumBones = BoneNames.Num();
+	for (int32 BoneIndex = ParentBoneIndex + 1; BoneIndex < NumBones; BoneIndex++)
+	{
+		if (ParentBoneIndex == GetParentIndex(BoneIndex))
+		{
+			Children.Add(BoneIndex);
+		}
+	}
+
+	return Children.Num();
+}
+
 void FIKRigSkeleton::ConvertLocalPoseToGlobal(
 	const TArray<int32>& InParentIndices,
 	const TArray<FTransform>& InLocalPose,

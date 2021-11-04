@@ -79,6 +79,12 @@ public:
 	virtual bool RequiresRootBone() const { return false; };
 	//** END ROOT BONE */
 
+	//** ROOT BONE (optional, implement if your solver requires a end bone) */
+	/** override to support SETTING END BONE for the solver */
+	virtual void SetEndBone(const FName& EndBoneName){};
+	virtual bool RequiresEndBone() const { return false; };
+	//** END ROOT BONE */
+
 	//** BONE SETTINGS (optional, implement if your solver supports per-bone settings) */
 	/** override to support ADDING PER-BONE settings for this solver */
 	virtual void AddBoneSetting(const FName& BoneName){};
