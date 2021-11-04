@@ -143,7 +143,7 @@ struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMuta
 };
 
 /**
- * Performs point based simulation
+ * Drives an array of items through a harmonics spectrum
  */
 USTRUCT(meta=(DisplayName="Harmonics", Keywords="Sin,Wave"))
 struct CONTROLRIG_API FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMutable

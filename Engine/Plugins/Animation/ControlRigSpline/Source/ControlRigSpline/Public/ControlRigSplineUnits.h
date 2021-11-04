@@ -14,6 +14,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineBase : public FRigUnit
 	GENERATED_BODY()
 };
 
+/*
+ * Creates a Spline curve from an array of positions
+ */
 USTRUCT(meta = (DisplayName = "Spline From Points", Keywords="Spline From Positions", Category = "Spline", Varying, NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUnit_ControlRigSplineBase
 {
@@ -50,6 +53,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	FControlRigSpline Spline;
 };
 
+/*
+ * Set the points of a spline, given a spline and an array of positions
+ */
 USTRUCT(meta = (DisplayName = "Set Spline Points", Category = "Spline", Varying, NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
 {
@@ -71,6 +77,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
 	FControlRigSpline Spline;
 };
 
+/*
+ * Retrieves the position from a given Spline and U value
+ */
 USTRUCT(meta = (DisplayName = "Position From Spline", Keywords="Point From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
@@ -96,6 +105,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigU
 	FVector Position;
 };
 
+/*
+ * Retrieves the transform from a given Spline and U value based on the given Up Vector and Roll
+ */
 USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
@@ -129,6 +141,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	FTransform Transform;
 };
 
+/*
+ * Retrieves the tangent from a given Spline and U value
+ */
 USTRUCT(meta = (DisplayName = "Tangent From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
@@ -154,6 +169,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUn
 	FVector Tangent;
 };
 
+/*
+ * Draws the given spline in the viewport
+ */
 USTRUCT(meta = (DisplayName = "Draw Spline", Category = "Spline", NodeColor = "0.83077 0.846873 0.049707"))
 struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutable
 {
@@ -183,6 +201,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutab
 	int32 Detail;
 };
 
+/*
+ * Retrieves the length from a given Splin
+ */
 USTRUCT(meta = (DisplayName = "Get Length Of Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_GetLengthControlRigSpline : public FRigUnit
 {
@@ -494,6 +515,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChainItemArray : public FRi
 	FControlRigSpline Spline;	
 };
 
+/*
+ * Retrieves the closest U value from a given Spline and a position
+ */
 USTRUCT(meta = (DisplayName = "Closest Parameter From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
@@ -520,6 +544,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : publ
 	
 };
 
+/*
+ * Returns the U parameter of a spline given a length percentage (0.0 - 1.0)
+ */
 USTRUCT(meta = (DisplayName = "Parameter At Length Percentage", Category = "Spline"))
 struct CONTROLRIGSPLINE_API FRigUnit_ParameterAtPercentage : public FRigUnit_ControlRigSplineBase
 {

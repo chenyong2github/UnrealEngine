@@ -6,12 +6,7 @@
 #include "RigUnit_ProjectTransformToNewParent.generated.h"
 
 /**
- * Projects a child from a previous to a new parent. The child doesn't
- * have to be parented that way in the hierarchy however.
- * For example: If you want the pelvis to move with the head (even though
- * the hierarchical relationship is the opposite) you can set the child
- * the pelvis (initial), set the old parent to be the head (initial)
- * and set the new parent to the head as well (not-initial == current).
+ * Gets the relative offset between the child and the old parent, then multiplies by new parent's transform.
  */
 USTRUCT(meta=(DisplayName="Project to new Parent", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "ProjectTransformToNewParent,Relative,Reparent,Offset", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_ProjectTransformToNewParent : public FRigUnit
