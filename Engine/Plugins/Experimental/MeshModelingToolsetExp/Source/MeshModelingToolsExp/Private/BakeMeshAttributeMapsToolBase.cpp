@@ -658,7 +658,7 @@ void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data,
 	const bool bVertexColor = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::VertexColor);
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.VertexColor.Enabled"), bVertexColor));
 
-	FEngineAnalytics::GetProvider().RecordEvent(FString(TEXT("Editor.Usage.ModelingTools.")) + EventName, Attributes);
+	FEngineAnalytics::GetProvider().RecordEvent(FString(TEXT("Editor.Usage.MeshModelingMode.")) + EventName, Attributes);
 
 	constexpr bool bLogAnalytics = false; 
 	if constexpr (bLogAnalytics)
