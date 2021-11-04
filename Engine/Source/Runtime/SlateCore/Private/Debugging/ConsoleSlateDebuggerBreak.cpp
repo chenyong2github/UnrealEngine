@@ -281,7 +281,7 @@ void FConsoleSlateDebuggerBreak::HandleWidgetInvalidated(const FSlateDebuggingIn
 		if (EnumHasAnyFlags(Args.InvalidateWidgetReason, FoundItem->Reason))
 		{
 			UE_LOG(LogSlateDebugger, Log, TEXT("Widget '%s' was invalidated."), *FReflectionMetaData::GetWidgetPath(Args.WidgetInvalidated));
-			_DebugBreakAndPromptForRemote();
+			UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
 		}
 	}
 }
@@ -298,7 +298,7 @@ void FConsoleSlateDebuggerBreak::HandleBeginWidgetPaint(const SWidget* Widget, c
 	if (BreakOnBeginPaintElements.Contains(WidgetId))
 	{
 		UE_LOG(LogSlateDebugger, Log, TEXT("Widget '%s' was invalidated."), *FReflectionMetaData::GetWidgetPath(Widget));
-		_DebugBreakAndPromptForRemote();
+		UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
 	}
 }
 
@@ -314,7 +314,7 @@ void FConsoleSlateDebuggerBreak::HandleEndWidgetPaint(const SWidget* Widget, con
 	if (BreakOnEndPaintElements.Contains(WidgetId))
 	{
 		UE_LOG(LogSlateDebugger, Log, TEXT("Widget '%s' was invalidated."), *FReflectionMetaData::GetWidgetPath(Widget));
-		_DebugBreakAndPromptForRemote();
+		UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
 	}
 }
 

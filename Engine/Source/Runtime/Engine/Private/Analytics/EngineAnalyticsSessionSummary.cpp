@@ -366,9 +366,14 @@ bool FEngineAnalyticsSessionSummary::UpdateExternalProcessReporterState(bool bQu
 bool FEngineAnalyticsSessionSummary::UpdateDebuggerStates()
 {
 	bool bStateChanged = false;
+	bool bIgnoreDebugger = false;
+
+#if !UE_BUILD_SHIPPING
+	bIgnoreDebugger = GIgnoreDebugger;
+#endif // !UE_BUILD_SHIPPING
 
 	// Ignoring the debugger changes how IsDebuggerPresent() behave and masks the usage of the debugger if true.
-	if (!bDebuggerIgnored && GIgnoreDebugger)
+	if (!bDebuggerIgnored && bIgnoreDebugger)
 	{
 		bStateChanged = true;
 		bDebuggerIgnored = true;

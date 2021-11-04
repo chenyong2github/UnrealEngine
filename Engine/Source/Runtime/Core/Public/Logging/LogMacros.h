@@ -199,7 +199,7 @@ private:
 					UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 						{ \
 							FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, LCategoryName.GetCategoryName(), ELogVerbosity::Verbosity, LFormat, UE_LOG_Args...); \
-							_DebugBreakAndPromptForRemote(); \
+							UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
 							FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS()); \
 						}, \
 						{ \
@@ -256,7 +256,7 @@ private:
 				UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 					{ \
 						FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, Format,  ##__VA_ARGS__); \
-						_DebugBreakAndPromptForRemote(); \
+						UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
 						FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS()); \
 						CA_ASSUME(false); \
 					}, \
@@ -303,7 +303,7 @@ private:
 						UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 							{ \
 								FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, LCategoryName.GetCategoryName(), ELogVerbosity::Verbosity, LFormat, UE_LOG_Args...); \
-								_DebugBreakAndPromptForRemote(); \
+								UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
 								FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS()); \
 							}, \
 							{ \

@@ -170,10 +170,21 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 }
 
 #if !UE_BUILD_SHIPPING
-#define _DebugBreakAndPromptForRemote() \
+#define UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE() \
 	if (!FPlatformMisc::IsDebuggerPresent()) { FPlatformMisc::PromptForRemoteDebugging(false); } UE_DEBUG_BREAK();
 #else
-	#define _DebugBreakAndPromptForRemote()
+	#define UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE()
+#endif // !UE_BUILD_SHIPPING
+
+#define _DebugBreakAndPromptForRemote() \
+	DEPRECATED_MACRO(5.1, "Use UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE.")
+
+#if !UE_BUILD_SHIPPING
+	extern CORE_API bool GIgnoreDebugger;
+	// This is named with PLATFORM_ prefix because UE_DEBUG_BREAK* are conditional on a debugger being detected, and PLATFORM_BREAK isn't
+	#define PLATFORM_BREAK_IF_DESIRED() if (LIKELY(!GIgnoreDebugger)) { PLATFORM_BREAK(); }
+#else
+	#define PLATFORM_BREAK_IF_DESIRED() PLATFORM_BREAK();
 #endif // !UE_BUILD_SHIPPING
 
 
@@ -203,7 +214,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 					} \
 				}; \
 				Impl::ExecCheckImplInternal(); \
-				PLATFORM_BREAK(); \
+				PLATFORM_BREAK_IF_DESIRED(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -227,7 +238,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 				{ \
 					FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), format, ##__VA_ARGS__); \
 				}); \
-				PLATFORM_BREAK(); \
+				PLATFORM_BREAK_IF_DESIRED(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -339,7 +350,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 				return true; \
 			} \
 			return false; \
-		}) && ([] () { PLATFORM_BREAK(); } (), false)))
+		}) && ([] () { PLATFORM_BREAK_IF_DESIRED(); } (), false)))
 
 	#define ensure(           InExpression                ) UE_ENSURE_IMPL( , false, InExpression, TEXT(""))
 	#define ensureMsgf(       InExpression, InFormat, ... ) UE_ENSURE_IMPL(&, false, InExpression, InFormat, ##__VA_ARGS__)
@@ -406,7 +417,7 @@ CORE_API void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line
 		{ \
 			void* ProgramCounter = PLATFORM_RETURN_ADDRESS(); \
 			LowLevelFatalErrorHandler(__FILE__, __LINE__, ProgramCounter, Format, ##__VA_ARGS__); \
-			_DebugBreakAndPromptForRemote(); \
+			UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
 			FDebug::ProcessFatalError(ProgramCounter); \
 		}); \
 	}
