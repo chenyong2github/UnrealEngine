@@ -272,6 +272,7 @@ namespace HordeServer.Api
 		/// <param name="TemplateId"></param>
 		/// <param name="TemplateName"></param>
 		/// <param name="Resolved"></param>
+		/// <param name="Severity"></param>
 		public GetIssueAffectedTemplateResponse(string TemplateId, string TemplateName, bool Resolved, IssueSeverity Severity = IssueSeverity.Unspecified)
 		{
 			this.TemplateId = TemplateId;
