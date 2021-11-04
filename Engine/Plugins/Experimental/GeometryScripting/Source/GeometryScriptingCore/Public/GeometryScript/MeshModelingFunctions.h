@@ -57,6 +57,23 @@ public:
 
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshBevelOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float BevelDistance = 1.0;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bInferMaterialID = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int SetMaterialID = 0;
+};
+
+
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_MeshModeling"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshModelingFunctions : public UBlueprintFunctionLibrary
@@ -83,6 +100,13 @@ public:
 	ApplyMeshExtrude(
 		UDynamicMesh* TargetMesh,
 		FGeometryScriptMeshExtrudeOptions Options,
+		UGeometryScriptDebug* Debug = nullptr );
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyMeshPolygroupBevel(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshBevelOptions Options,
 		UGeometryScriptDebug* Debug = nullptr );
 
 };
