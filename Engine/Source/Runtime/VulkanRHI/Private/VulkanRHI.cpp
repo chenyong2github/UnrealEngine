@@ -737,11 +737,11 @@ void FVulkanDynamicRHI::InitInstance()
 {
 	check(IsInGameThread());
 
-	// Wait for the rendering thread to go idle.
-	SCOPED_SUSPEND_RENDERING_THREAD(false);
-
 	if (!Device)
 	{
+		// Wait for the rendering thread to go idle.
+		FlushRenderingCommands();
+
 		check(!GIsRHIInitialized);
 
 		FVulkanPlatform::OverridePlatformHandlers(true);
