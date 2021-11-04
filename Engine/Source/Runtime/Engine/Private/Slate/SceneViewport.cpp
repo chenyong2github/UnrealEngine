@@ -1634,6 +1634,10 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 		{
 			BeginInitResource(this);
 			
+			FRenderCommandFence InitResourceFence;
+			InitResourceFence.BeginFence();
+			InitResourceFence.Wait();
+
 			FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
 
 			TSharedPtr<SWidget> PinnedViewport = ViewportWidget.Pin();
