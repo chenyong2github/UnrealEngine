@@ -77,6 +77,7 @@ public:
 	void SetDrawnElementsTransform(const FTransform& Transform);
 
 	virtual const FDynamicMeshSelection& GetCurrentSelection() const;
+	void ChangeSelectionMode(const EMeshSelectionMechanicMode& TargetMode);
 	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
