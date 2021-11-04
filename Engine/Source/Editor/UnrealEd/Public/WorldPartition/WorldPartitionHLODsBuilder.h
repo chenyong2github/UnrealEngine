@@ -79,7 +79,7 @@ public:
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) override;
 protected:
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
 	bool IsDistributedBuild() const { return bDistributedBuild; }

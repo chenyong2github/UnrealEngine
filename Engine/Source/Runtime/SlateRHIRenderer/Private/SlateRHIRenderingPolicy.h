@@ -85,7 +85,7 @@ private:
 	 * @param DrawEffects	Draw effects being used
 	 * @return The pixel shader for use with the shader type and draw effects
 	 */
-	TShaderRef<FSlateElementPS> GetTexturePixelShader(FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects );
+	TShaderRef<FSlateElementPS> GetTexturePixelShader(FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects, bool bIsVirtualTexture);
 	TShaderRef<FSlateMaterialShaderPS> GetMaterialPixelShader( const class FMaterial* Material, ESlateShader ShaderType );
 	TShaderRef<FSlateMaterialShaderVS> GetMaterialVertexShader( const class FMaterial* Material, bool bUseInstancing );
 

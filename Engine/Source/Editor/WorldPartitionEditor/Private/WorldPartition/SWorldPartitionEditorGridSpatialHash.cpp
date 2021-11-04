@@ -25,6 +25,8 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Misc/HashBuilder.h"
+#include "EngineModule.h"
+#include "Renderer/Private/RendererModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
@@ -82,7 +84,12 @@ FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 	}
 
 	WorldMiniMap->Modify();
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), WorldMiniMap->MiniMapWorldBounds);
+
+	// Updating VT is not supported for now
+	WorldMiniMap->MiniMapTexture->VirtualTextureStreaming = false;
+	WorldMiniMap->UVOffset.bIsValid = false;
+
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), TEXT("MinimapTexture"), WorldMiniMap->MiniMapWorldBounds);
 
 	UpdateWorldMiniMapDetails();
 
@@ -97,6 +104,11 @@ void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 		WorldMiniMapBounds = FBox2D(FVector2D(WorldMiniMap->MiniMapWorldBounds.Min), FVector2D(WorldMiniMap->MiniMapWorldBounds.Max));
 		if (UTexture2D* MiniMapTexture = WorldMiniMap->MiniMapTexture)
 		{
+			if (MiniMapTexture->IsCurrentlyVirtualTextured())
+			{
+				WorldMiniMapBrush.SetUVRegion(WorldMiniMap->UVOffset);
+			}
+
 			WorldMiniMapBrush.SetImageSize(FVector2D(MiniMapTexture->GetSizeX(), MiniMapTexture->GetSizeY()));
 			WorldMiniMapBrush.SetResourceObject(MiniMapTexture);
 		}
@@ -144,7 +156,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	}
 
 	// Draw MiniMap image if any
-	if (WorldMiniMapBrush.HasUObject())
+	if (UTexture2D* Texture2D = Cast<UTexture2D>(WorldMiniMapBrush.GetResourceObject()))
 	{	
 		FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
 			WorldToScreen.TransformPoint(WorldMiniMapBounds.Min),
@@ -157,6 +169,31 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			WorldImageGeometry,
 			&WorldMiniMapBrush
 		);
+
+		if (Texture2D->IsCurrentlyVirtualTextured())
+		{
+			FVirtualTexture2DResource* VTResource = static_cast<FVirtualTexture2DResource*>(Texture2D->GetResource());
+			const FVector2D ViewportSize = AllottedGeometry.GetLocalSize();
+			const FVector2D ScreenSpaceSize = WorldImageGeometry.GetLocalSize();
+			const FVector2D ViewportPositon = -WorldImageGeometry.GetAccumulatedRenderTransform().GetTranslation() + AllottedGeometry.GetAbsolutePosition();
+
+			const FVector2D UV0 = WorldMiniMapBrush.GetUVRegion().Min;
+			const FVector2D UV1 = WorldMiniMapBrush.GetUVRegion().Max;
+
+			const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
+			const int32 MipLevel = -1;
+
+			ENQUEUE_RENDER_COMMAND(MakeTilesResident)(
+				[InFeatureLevel, VTResource, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel](FRHICommandListImmediate& RHICmdList)
+			{
+				// AcquireAllocatedVT() must happen on render thread
+				IAllocatedVirtualTexture* AllocatedVT = VTResource->AcquireAllocatedVT();
+
+				IRendererModule& RenderModule = GetRendererModule();
+				RenderModule.RequestVirtualTextureTilesForRegion(AllocatedVT, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel);
+				RenderModule.LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
+			});
+		}
 	}
 
 	struct FCellDesc2D

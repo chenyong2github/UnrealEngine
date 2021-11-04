@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Editor.h"
 #include "EditorWorldUtils.h"
+#include "EngineModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "StaticMeshCompiler.h"
 #include "Engine/World.h"
@@ -18,6 +19,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, Log, All);
 
+FCellInfo::FCellInfo()
+	: Location(ForceInitToZero)
+	, Bounds(ForceInitToZero)
+	, EditorBounds(ForceInitToZero)
+	, IterativeCellSize(102400)
+{
+}
 
 UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -122,14 +130,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	// Notify derived classes that partition building process starts
-	OnPartitionBuildStarted(World, PackageHelper);
-
-	// Notify derived classes on exit that partition building process completes
-	ON_SCOPE_EXIT
-	{
-		OnPartitionBuildCompleted(World, PackageHelper);
-	};
-
+	bool bResult = OnPartitionBuildStarted(World, PackageHelper);
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 	// Properly Setup DataLayers for Builder
@@ -166,11 +167,14 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	}
 
 	const ELoadingMode LoadingMode = GetLoadingMode();
-	if (LoadingMode == ELoadingMode::IterativeCells)
+	FCellInfo CellInfo;
+
+	CellInfo.EditorBounds = WorldPartition->GetEditorWorldBounds();
+	CellInfo.IterativeCellSize = IterativeCellSize;
+
+	if ((LoadingMode == ELoadingMode::IterativeCells) || (LoadingMode == ELoadingMode::IterativeCells2D))
 	{
 		// do partial loading loop that calls RunInternal
-		const FBox EditorBounds = WorldPartition->GetEditorWorldBounds();
-
 		auto GetCellCoord = [](const FVector InPos, const int32 InCellSize)
 		{
 			return FIntVector(
@@ -180,37 +184,53 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			);
 		};
 
-		const FIntVector MinCellCoords = GetCellCoord(EditorBounds.Min, IterativeCellSize);
-		const FIntVector MaxCellCoords = GetCellCoord(EditorBounds.Max, IterativeCellSize);
+		auto CanIterateZ = [](const bool bInResult, const ELoadingMode InLoadingMode, const int32 InZ, const int32 InMinZ, const int32 InMaxZ) -> bool
+		{
+			if (InLoadingMode == ELoadingMode::IterativeCells2D)
+			{
+				return bInResult && (InZ == InMinZ);
+			}
+
+			return bInResult && (InZ <= InMaxZ);
+		};
+
+		const FIntVector MinCellCoords = GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
+		const FIntVector MaxCellCoords = GetCellCoord(CellInfo.EditorBounds.Max, IterativeCellSize);
 
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iterative Cell Mode"));
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Cell Size %d"), IterativeCellSize);
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Cell Overlap %d"), IterativeCellOverlapSize);
-		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("WorldBounds: Min %s, Max %s"), *EditorBounds.Min.ToString(), *EditorBounds.Max.ToString());
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("WorldBounds: Min %s, Max %s"), *CellInfo.EditorBounds.Min.ToString(), *CellInfo.EditorBounds.Max.ToString());
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iteration Count: %d"), (MaxCellCoords.Z-MinCellCoords.Z) * (MaxCellCoords.Y-MinCellCoords.Y) * (MaxCellCoords.X - MinCellCoords.X));
 		
-
 		FBox LoadedBounds(ForceInit);
-		for (int32 z = MinCellCoords.Z; z <= MaxCellCoords.Z; z++)
+
+		for (int32 z = MinCellCoords.Z; CanIterateZ(bResult, LoadingMode, z, MinCellCoords.Z, MaxCellCoords.Z); z++)
 		{
-			for (int32 y = MinCellCoords.Y; y <= MaxCellCoords.Y; y++)
+			for (int32 y = MinCellCoords.Y; bResult && (y <= MaxCellCoords.Y); y++)
 			{
-				for (int32 x = MinCellCoords.X; x <= MaxCellCoords.X; x++)
+				for (int32 x = MinCellCoords.X; bResult && (x <= MaxCellCoords.X); x++)
 				{
-					const FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
-					const FVector Max = Min + FVector(IterativeCellSize);
+					FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
+					FVector Max = Min + FVector(IterativeCellSize);
+
+					if (LoadingMode == ELoadingMode::IterativeCells2D)
+					{
+						Min.Z = CellInfo.EditorBounds.Min.Z;
+						Max.Z = CellInfo.EditorBounds.Max.Z;
+					}
+
 					FBox BoundsToLoad(Min, Max);
 					BoundsToLoad = BoundsToLoad.ExpandBy(IterativeCellOverlapSize);
+
+					CellInfo.Location = FIntVector(x, y, z);
+					CellInfo.Bounds = BoundsToLoad;
 
 					UE_LOG(LogWorldPartitionBuilder, Verbose, TEXT("Loading Bounds: Min %s, Max %s"), *BoundsToLoad.Min.ToString(), *BoundsToLoad.Max.ToString());
 					WorldPartition->LoadEditorCells(BoundsToLoad, false);
 					LoadedBounds += BoundsToLoad;
 
-
-					if (!RunInternal(World, BoundsToLoad, PackageHelper))
-					{
-						return false;
-					}
+					bResult = RunInternal(World, CellInfo, PackageHelper);
 
 					if (FWorldPartitionHelpers::HasExceededMaxMemory())
 					{
@@ -225,12 +245,15 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 					if (IsAllowCommandletRendering())
 					{
 						FWorldPartitionHelpers::FakeEngineTick(World);
+
+						ENQUEUE_RENDER_COMMAND(VirtualTextureScalability_Release)([](FRHICommandList& RHICmdList)
+						{
+							GetRendererModule().ReleaseVirtualTexturePendingResources();
+						});
 					}
 				}
 			}
 		}
-
-		return true;
 	}
 	else
 	{
@@ -241,6 +264,10 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			WorldPartition->LoadEditorCells(BoundsToLoad, false);
 		}
 
-		return RunInternal(World, BoundsToLoad, PackageHelper);
+		CellInfo.Bounds = BoundsToLoad;
+
+		bResult = RunInternal(World, CellInfo, PackageHelper);
 	}
+
+	return OnPartitionBuildCompleted(World, PackageHelper, bResult);
 }

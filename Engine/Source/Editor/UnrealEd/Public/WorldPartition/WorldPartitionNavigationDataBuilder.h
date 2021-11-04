@@ -16,6 +16,6 @@ public:
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells; }
 
 protected:
-	virtual bool RunInternal(UWorld* World, const FBox& LoadedBounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

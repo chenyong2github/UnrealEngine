@@ -279,7 +279,7 @@ bool UWorldPartitionHLODsBuilder::PreWorldInitialization(FPackageSourceControlHe
 	return bRet;
 }
 
-bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
 	WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);

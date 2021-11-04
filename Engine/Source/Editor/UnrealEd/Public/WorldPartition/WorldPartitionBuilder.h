@@ -5,6 +5,36 @@
 #include "PackageSourceControlHelper.h"
 #include "WorldPartitionBuilder.generated.h"
 
+/**
+ * Structure containing information about a World Partition Builder cell
+ */
+USTRUCT()
+struct FCellInfo
+{
+	GENERATED_BODY()
+
+	FCellInfo();
+
+	/**
+	 * Location of the cell, expressed inside World Partition Builder space
+	 * (floor(Coordinate) / IterativeCellSize)
+	 */
+	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
+	FIntVector Location;
+
+	/** Bounds of the cell */
+	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
+	FBox Bounds;
+
+	/** Whole space */
+	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
+	FBox EditorBounds;
+
+	/** The size of a cell used by the World Partition Builder */
+	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
+	int32 IterativeCellSize;
+};
+
 UCLASS(Abstract, Config=Engine)
 class UNREALED_API UWorldPartitionBuilder : public UObject
 {
@@ -15,7 +45,8 @@ public:
 	{
 		Custom,
 		EntireWorld,
-		IterativeCells
+		IterativeCells,
+		IterativeCells2D,
 	};
 
 	static bool RunBuilder(UWorldPartitionBuilder* BuilderClass, UWorld* World);
@@ -29,20 +60,22 @@ public:
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) { return true; }
 
 protected:
-
 	/**
 	 * Overridable method for derived classed to perform operations when partition building process starts.
 	 * This is called before loading data (e.g. data layers, editor cells) and before calling `RunInternal`.
 	 */
-	virtual void OnPartitionBuildStarted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) {}
+	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
 
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
+
+	UE_DEPRECATED(5.0, "Use RunInternal version with FCellInfo instead")
 	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
 	/**
 	 * Overridable method for derived classed to perform operations when partition building process completes.
 	 * This is called after loading all data (e.g. data layers, editor cells) and after calling `RunInternal` for all editor cells.
 	 */
-	virtual void OnPartitionBuildCompleted(const UWorld* World, FPackageSourceControlHelper& PackageHelper) {}
+	virtual bool OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return true; }
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;

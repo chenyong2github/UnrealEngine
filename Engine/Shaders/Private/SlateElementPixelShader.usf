@@ -5,6 +5,17 @@
 #include "GammaCorrectionCommon.ush"
 #include "SlateShaderCommon.ush"
 
+#ifndef SAMPLE_VIRTUAL_TEXTURE
+#define SAMPLE_VIRTUAL_TEXTURE 0
+#endif
+
+#if SAMPLE_VIRTUAL_TEXTURE
+	#define NUM_VIRTUALTEXTURE_SAMPLES 1
+	// Workaround for unbound View uniform buffer
+	#define VT_DISABLE_VIEW_UNIFORM_BUFFER 1
+	#include "VirtualTextureCommon.ush"
+#endif
+
 /** Display gamma x:gamma curve adjustment, y:inverse gamma (1/GEngine->DisplayGamma), z:InvertAlpha, w:Contrast */
 half4 GammaAndAlphaValues;
 /** x:DrawDisabledEffect */
@@ -21,6 +32,13 @@ half4 DrawFlags;
 /** Texture for the element */
 Texture2D ElementTexture;
 SamplerState ElementTextureSampler;
+
+#if SAMPLE_VIRTUAL_TEXTURE
+Texture2D<uint4> InPageTableTexture;
+uint4 VTPackedPageTableUniform[2];
+uint4 VTPackedUniform;
+float4 VTShaderParams;
+#endif // SAMPLE_VIRTUAL_TEXTURE
 
 /**
  * Applys a contrast about a midpoint squeezing the colors towards dark or light depending on
@@ -130,7 +148,15 @@ half4 GetMaterialColor( VertexToPixelInterpolants InVertex, float2 MeshUV )
 #if !USE_MATERIALS
 half4 GetTextureColor( VertexToPixelInterpolants InVertex, float2 UV )
 {
-	half4 BaseColor = Texture2DSample(ElementTexture, ElementTextureSampler, UV );
+	half4 BaseColor;
+
+#if SAMPLE_VIRTUAL_TEXTURE
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), UV, VTADDRESSMODE_WRAP, VTADDRESSMODE_WRAP, VTShaderParams.x); 
+		BaseColor = TextureVirtualSampleLevel(ElementTexture, ElementTextureSampler, PageTableResult, (uint)VTShaderParams.y, VTUniform_Unpack(VTPackedUniform));
+#else
+	BaseColor = Texture2DSample(ElementTexture, ElementTextureSampler, UV );
+#endif
+
 #if !USE_TEXTURE_ALPHA
 	BaseColor.a = 1.0f;
 #endif

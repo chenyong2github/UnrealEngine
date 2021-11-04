@@ -22,7 +22,7 @@ UWorldPartitionFoliageBuilder::UWorldPartitionFoliageBuilder(const FObjectInitia
 	FParse::Value(FCommandLine::Get(), TEXT("NewGridSize="), NewGridSize);
 }
 
-bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {			
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	if (!WorldPartition)

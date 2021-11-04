@@ -15,6 +15,7 @@ AWorldPartitionMiniMap::AWorldPartitionMiniMap(const FObjectInitializer& ObjectI
 void AWorldPartitionMiniMap::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	MiniMapSize = FMath::Clamp<uint32>(FMath::RoundUpToPowerOfTwo(MiniMapSize), 256, 8192);
+	MiniMapTileSize = FMath::Clamp<uint32>(FMath::RoundUpToPowerOfTwo(MiniMapTileSize), 256, 8192);
 }
 #endif
 

@@ -52,16 +52,21 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 	return nullptr;
 }
 
-void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, FBox& OutWorldBounds)
+void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, const FString& InTextureName, FBox& OutWorldBounds)
+{
+	//Calculate bounds of the World
+	OutWorldBounds = InWorld->GetWorldPartition()->GetEditorWorldBounds();
+
+	CaptureBoundsMiniMapToTexture(InWorld, InOuterForTexture, InMiniMapSize, InOutMiniMapTexture, InTextureName, OutWorldBounds);
+}
+
+void FWorldPartitionMiniMapHelper::CaptureBoundsMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, const FString& InTextureName, const FBox& InBounds)
 {
 	// Before capturing the scene, make sure all assets are finished compiling
 	FAssetCompilingManager::Get().FinishAllCompilation();
 
-	//Calculate bounds of the World
-	OutWorldBounds = InWorld->GetWorldPartition()->GetEditorWorldBounds();
-	
 	//Calculate Viewport size
-	FBox2D WorldBounds2D(FVector2D(OutWorldBounds.Min), FVector2D(OutWorldBounds.Max));
+	FBox2D WorldBounds2D(FVector2D(InBounds.Min), FVector2D(InBounds.Max));
 	FVector2D ViewSize = WorldBounds2D.Max - WorldBounds2D.Min;
 	float AspectRatio = FMath::Abs(ViewSize.X) / FMath::Abs(ViewSize.Y);
 	uint32 ViewportWidth = InMiniMapSize * AspectRatio;
@@ -69,7 +74,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 
 	//Calculate Projection matrix based on world bounds.
 	FMatrix ProjectionMatrix;
-	FWorldPartitionMiniMapHelper::CalTopViewOfWorld(ProjectionMatrix, OutWorldBounds, ViewportWidth, ViewportHeight);
+	FWorldPartitionMiniMapHelper::CalTopViewOfWorld(ProjectionMatrix, InBounds, ViewportWidth, ViewportHeight);
 
 	//Using SceneCapture Actor capture the scene to buffer
 	UTextureRenderTarget2D* RenderTargetTexture = NewObject<UTextureRenderTarget2D>();
@@ -80,7 +85,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.ObjectFlags |= RF_Transient;
-	FVector CaptureActorLocation = FVector(OutWorldBounds.GetCenter().X, OutWorldBounds.GetCenter().Y, OutWorldBounds.GetCenter().Z + OutWorldBounds.GetExtent().Z);
+	FVector CaptureActorLocation = FVector(InBounds.GetCenter().X, InBounds.GetCenter().Y, InBounds.GetCenter().Z + InBounds.GetExtent().Z);
 	FRotator CaptureActorRotation = FRotator(-90.f, 0.f, -90.f);
 	ASceneCapture2D* CaptureActor = InWorld->SpawnActor<ASceneCapture2D>(CaptureActorLocation, CaptureActorRotation, SpawnInfo);
 	auto CaptureComponent = CaptureActor->GetCaptureComponent2D();
@@ -100,7 +105,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 	//Update the output texture
 	if (!InOutMiniMapTexture)
 	{
-		InOutMiniMapTexture = RenderTargetTexture->ConstructTexture2D(InOuterForTexture, "MiniMapTexture", RF_NoFlags, CTF_Default, NULL);
+		InOutMiniMapTexture = RenderTargetTexture->ConstructTexture2D(InOuterForTexture, InTextureName, RF_NoFlags, CTF_Default, NULL);
 	}
 	else
 	{

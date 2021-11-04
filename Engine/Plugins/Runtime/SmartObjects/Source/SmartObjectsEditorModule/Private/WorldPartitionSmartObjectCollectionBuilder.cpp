@@ -14,7 +14,7 @@ UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectio
 	IterativeCellSize = 51200;
 }
 
-void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(const UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	Super::OnPartitionBuildStarted(World, PackageHelper);
 
@@ -22,14 +22,14 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(const 
 	if (SmartObjectSubsystem == nullptr)
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("SmartObjectSubsystem not found."));
-		return;
+		return false;
 	}
 
 	MainCollection = SmartObjectSubsystem->GetMainCollection();
 	if (MainCollection == nullptr)
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("Main SmartObject collection not found."));
-		return;
+		return false;
 	}
 
 	NumSmartObjectsBefore = MainCollection->GetEntries().Num();
@@ -37,6 +37,8 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(const 
 	MainCollection->SetBuildingForWorldPartition(true);
 
 	NumSmartObjectsTotal = 0;
+
+	return true;
 }
 
 bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
@@ -56,14 +58,14 @@ bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, con
 	return true;
 }
 
-void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(const UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
 {
-	Super::OnPartitionBuildCompleted(World, PackageHelper);
+	Super::OnPartitionBuildCompleted(World, PackageHelper, bInRunSuccess);
 
 	if (MainCollection == nullptr)
 	{
 		// no need to report an error here, was already done in OnPartitionBuildStarted
-		return;
+		return false;
 	}
 	MainCollection->SetBuildingForWorldPartition(false);
 
@@ -98,7 +100,7 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(cons
 		if (!PackageHelper.Delete(Package))
 		{
 			UE_LOG(LogSmartObject, Error, TEXT("Error deleting package."));
-			return;
+			return false;
 		}
 	}
 
@@ -121,7 +123,7 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(cons
 					if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, /*bNewReadOnlyValue*/false))
 					{
 						UE_LOG(LogSmartObject, Error, TEXT("Error setting %s writable"), *PackageFilename);
-						return;
+						return false;
 					}
 				}
 			}
@@ -135,7 +137,7 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(cons
 			if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
 			{
 				UE_LOG(LogSmartObject, Error, TEXT("Error saving package %s."), *Package->GetName());
-				return;
+				return false;
 			}
 		}
 
@@ -147,10 +149,12 @@ void UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(cons
 			if (!PackageHelper.AddToSourceControl(Package))
 			{
 				UE_LOG(LogSmartObject, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-				return;
+				return false;
 			}
 		}
 
 		UPackage::WaitForAsyncFileWrites();
 	}
+
+	return true;
 }

@@ -704,7 +704,7 @@ void UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture(UWorld* World)
 		return;
 	}
 
-	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), WorldMiniMap->MiniMapWorldBounds);
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), TEXT("MinimapTexture"), WorldMiniMap->MiniMapWorldBounds);
 }
 
 int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
