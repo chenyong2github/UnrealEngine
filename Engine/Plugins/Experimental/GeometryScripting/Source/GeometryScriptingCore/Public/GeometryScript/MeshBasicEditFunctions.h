@@ -86,8 +86,8 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddVerticesToMesh( 
 		UDynamicMesh* TargetMesh, 
-		const TArray<FVector>& NewPositions, 
-		TArray<int>& NewIndices,
+		FGeometryScriptVectorList NewPositionsList, 
+		FGeometryScriptIndexList& NewIndicesList,
 		bool bDeferChangeNotifications = false );
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
@@ -102,7 +102,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteVerticesFromMesh( 
 		UDynamicMesh* TargetMesh, 
-		const TArray<int32>& VertexList,
+		FGeometryScriptIndexList VertexList,
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
@@ -122,8 +122,8 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddTrianglesToMesh( 
 		UDynamicMesh* TargetMesh, 
-		const TArray<FIntVector>& NewTriangles,
-		TArray<int>& NewIndices,
+		FGeometryScriptTriangleList NewTrianglesList,
+		FGeometryScriptIndexList& NewIndicesList,
 		int NewTriangleGroupID = 0,
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr );
@@ -140,7 +140,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteTrianglesFromMesh( 
 		UDynamicMesh* TargetMesh, 
-		const TArray<int32>& TriangleList,
+		FGeometryScriptIndexList TriangleList,
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
@@ -172,7 +172,7 @@ public:
 	AppendBuffersToMesh( 
 		UDynamicMesh* TargetMesh, 
 		const FGeometryScriptSimpleMeshBuffers& Buffers,
-		TArray<int>& NewTriangleIndices,
+		FGeometryScriptIndexList& NewTriangleIndicesList,
 		int MaterialID = 0,
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr );

@@ -138,7 +138,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::SplitMeshByMate
 UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromMesh(
 	UDynamicMesh* TargetMesh,
 	UDynamicMesh* StoreToSubmesh, 
-	const TArray<int>& TriangleList,
+	FGeometryScriptIndexList TriangleList,
 	UDynamicMesh*& StoreToSubmeshOut, 
 	UGeometryScriptDebug* Debug)
 {
@@ -150,6 +150,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromM
 	if (StoreToSubmesh == nullptr)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSubMeshFromMesh_InvalidInput2", "GetSubMeshFromMesh: Submesh is Null"));
+		return TargetMesh;
+	}
+	if (TriangleList.List.IsValid() == false || TriangleList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList", "GetSubMeshFromMesh: TriangleList is empty"));
 		return TargetMesh;
 	}
 
@@ -165,7 +170,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromM
 		FMeshIndexMappings Mappings;
 		FDynamicMeshEditResult EditResult;
 		FDynamicMeshEditor Editor(&Submesh);
-		Editor.AppendTriangles(&EditMesh, TriangleList, Mappings, EditResult);
+		Editor.AppendTriangles(&EditMesh, *TriangleList.List, Mappings, EditResult);
 	});
 
 	StoreToSubmesh->SetMesh(MoveTemp(Submesh));

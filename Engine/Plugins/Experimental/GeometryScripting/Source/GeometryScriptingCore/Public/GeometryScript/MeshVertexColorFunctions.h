@@ -30,7 +30,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	SetMeshPerVertexColors(
 		UDynamicMesh* TargetMesh,
-		UPARAM(ref) const TArray<FLinearColor>& VertexColors,
+		FGeometryScriptColorList VertexColorList,
 		UGeometryScriptDebug* Debug = nullptr);
 
 

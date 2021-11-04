@@ -174,6 +174,118 @@ public:
 
 
 //
+// List Types
+//
+
+UENUM(BlueprintType)
+enum class EGeometryScriptIndexType : uint8
+{
+	Unknown,
+	Triangle,
+	Vertex,
+	MaterialID,
+	PolygroupID
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Index List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptIndexList
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = IndexList)
+	EGeometryScriptIndexType IndexType = EGeometryScriptIndexType::Unknown;
+public:
+	TSharedPtr<TArray<int>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<int>>();
+		}
+		List->Reset();
+	}
+};
+
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Triangle List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTriangleList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FIntVector>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<FIntVector>>();
+		}
+		List->Reset();
+	}
+};
+
+
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Vector List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptVectorList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FVector>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<FVector>>();
+		}
+		List->Reset();
+	}
+};
+
+
+
+USTRUCT(BlueprintType, meta = (DisplayName = "UV List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptUVList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FVector2D>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<FVector2D>>();
+		}
+		List->Reset();
+	}
+};
+
+
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Color List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptColorList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FLinearColor>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<FLinearColor>>();
+		}
+		List->Reset();
+	}
+};
+
+
+
+
+//
 // Spatial data structures
 //
 

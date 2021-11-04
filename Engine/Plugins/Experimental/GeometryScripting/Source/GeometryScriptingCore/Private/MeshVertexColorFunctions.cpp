@@ -84,20 +84,26 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::SetMeshConstantVe
 
 UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::SetMeshPerVertexColors(
 	UDynamicMesh* TargetMesh,
-	const TArray<FLinearColor>& VertexColors,
+	FGeometryScriptColorList VertexColorList,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidInput", "SetMeshPerVertexColors: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidMesh", "SetMeshPerVertexColors: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (VertexColorList.List.IsValid() == false || VertexColorList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList", "SetMeshPerVertexColors: List is empty"));
 		return TargetMesh;
 	}
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
+		const TArray<FLinearColor>& VertexColors = *VertexColorList.List;
 		if (VertexColors.Num() < EditMesh.MaxVertexID())
 		{
-			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_IncorrectCount", "SetMeshPerVertexColors: size of provided VertexColors is smaller than MaxVertexID of Mesh"));
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_IncorrectCount", "SetMeshPerVertexColors: size of provided VertexColorList is smaller than MaxVertexID of Mesh"));
 		}
 		else
 		{
