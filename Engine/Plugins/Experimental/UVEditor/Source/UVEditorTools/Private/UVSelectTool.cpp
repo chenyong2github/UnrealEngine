@@ -532,27 +532,29 @@ void UUVSelectTool::UpdateGizmo()
 
 void UUVSelectTool::ConfigureSelectionModeFromControls()
 {
+	EMeshSelectionMechanicMode TargetMode;
 	switch (Settings->SelectionMode)
 	{
 	case EUVSelectToolSelectionMode::Island:
-		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Component;
+		TargetMode = EMeshSelectionMechanicMode::Component;
 		break;
 	case EUVSelectToolSelectionMode::Edge:
-		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Edge;
+		TargetMode = EMeshSelectionMechanicMode::Edge;
 		break;
 	case EUVSelectToolSelectionMode::Vertex:
-		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Vertex;
+		TargetMode = EMeshSelectionMechanicMode::Vertex;
 		break;
 	case EUVSelectToolSelectionMode::Triangle:
-		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Triangle;
+		TargetMode = EMeshSelectionMechanicMode::Triangle;
 		break;
 	case EUVSelectToolSelectionMode::Mesh:
-		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Mesh;
+		TargetMode = EMeshSelectionMechanicMode::Mesh;
 		break;
 	default:
 		ensure(false);
 		break;
 	}
+	SelectionMechanic->ChangeSelectionMode(TargetMode);
 }
 
 void UUVSelectTool::OnSelectionChanged()
