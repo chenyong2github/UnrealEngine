@@ -240,6 +240,11 @@ namespace UnrealBuildTool
 				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
 			}
 
+			if (CompileEnvironment.bEnableOSX109Support)
+			{
+				Result += " -faligned-new"; // aligned operator new is supported only on macOS 10.14 and above
+			}
+
 			Result += " -c";
 
 			// Pass through architecture and OS info
