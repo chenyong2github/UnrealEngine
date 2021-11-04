@@ -1183,6 +1183,9 @@ public:
 	/** Get the near clipping plane for this viewport. */
 	float GetNearClipPlane() const;
 
+	/** Override the near clipping plane. Set to a negative value to disable the override. */
+	void OverrideNearClipPlane(float InNearPlane);
+
 	/** Get the far clipping plane override for this viewport. */
 	float GetFarClipPlaneOverride() const;
 	
@@ -1319,9 +1322,6 @@ public:
 protected:
 	/** Invalidates the viewport widget (if valid) to register its active timer */
 	void InvalidateViewportWidget();
-
-	/** Subclasses may override the near clipping plane. Set to a negative value to disable the override. */
-	void OverrideNearClipPlane(float InNearPlane);
 
 	/** Constant for how much the camera safe zone rectangle is inset when being displayed in the editor */
 	static float const SafePadding;

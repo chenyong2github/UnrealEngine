@@ -23,6 +23,8 @@ bool FMinimalViewInfo::Equals(const FMinimalViewInfo& OtherInfo) const
 		(OrthoWidth == OtherInfo.OrthoWidth) &&
 		(OrthoNearClipPlane == OtherInfo.OrthoNearClipPlane) &&
 		(OrthoFarClipPlane == OtherInfo.OrthoFarClipPlane) &&
+		((PerspectiveNearClipPlane == OtherInfo.PerspectiveNearClipPlane) || //either they are the same or both don't override
+			(PerspectiveNearClipPlane <= 0.f && OtherInfo.PerspectiveNearClipPlane <= 0.f)) &&
 		(AspectRatio == OtherInfo.AspectRatio) &&
 		(bConstrainAspectRatio == OtherInfo.bConstrainAspectRatio) &&
 		(bUseFieldOfViewForLOD == OtherInfo.bUseFieldOfViewForLOD) &&
@@ -41,6 +43,7 @@ void FMinimalViewInfo::BlendViewInfo(FMinimalViewInfo& OtherInfo, float OtherWei
 	OrthoWidth = FMath::Lerp(OrthoWidth, OtherInfo.OrthoWidth, OtherWeight);
 	OrthoNearClipPlane = FMath::Lerp(OrthoNearClipPlane, OtherInfo.OrthoNearClipPlane, OtherWeight);
 	OrthoFarClipPlane = FMath::Lerp(OrthoFarClipPlane, OtherInfo.OrthoFarClipPlane, OtherWeight);
+	PerspectiveNearClipPlane = FMath::Lerp(PerspectiveNearClipPlane, OtherInfo.PerspectiveNearClipPlane, OtherWeight);
 	OffCenterProjectionOffset = FMath::Lerp(OffCenterProjectionOffset, OtherInfo.OffCenterProjectionOffset, OtherWeight);
 
 	AspectRatio = FMath::Lerp(AspectRatio, OtherInfo.AspectRatio, OtherWeight);
@@ -57,6 +60,7 @@ void FMinimalViewInfo::ApplyBlendWeight(const float& Weight)
 	OrthoWidth *= Weight;
 	OrthoNearClipPlane *= Weight;
 	OrthoFarClipPlane *= Weight;
+	PerspectiveNearClipPlane *= Weight;
 	AspectRatio *= Weight;
 	OffCenterProjectionOffset *= Weight;
 }
@@ -72,6 +76,7 @@ void FMinimalViewInfo::AddWeightedViewInfo(const FMinimalViewInfo& OtherView, co
 	OrthoWidth += OtherViewWeighted.OrthoWidth;
 	OrthoNearClipPlane += OtherViewWeighted.OrthoNearClipPlane;
 	OrthoFarClipPlane += OtherViewWeighted.OrthoFarClipPlane;
+	PerspectiveNearClipPlane += OtherViewWeighted.PerspectiveNearClipPlane;
 	AspectRatio += OtherViewWeighted.AspectRatio;
 	OffCenterProjectionOffset += OtherViewWeighted.OffCenterProjectionOffset;
 
@@ -105,12 +110,13 @@ FMatrix FMinimalViewInfo::CalculateProjectionMatrix() const
 	}
 	else
 	{
+		const float ClippingPlane = GetFinalPerspectiveNearClipPlane();
 		// Avoid divide by zero in the projection matrix calculation by clamping FOV
 		ProjectionMatrix = FReversedZPerspectiveMatrix(
 			FMath::Max(0.001f, FOV) * (float)PI / 360.0f,
 			AspectRatio,
 			1.0f,
-			GNearClippingPlane );
+			ClippingPlane);
 	}
 
 	if (!OffCenterProjectionOffset.IsZero())
@@ -201,14 +207,15 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 		}
 		else
 		{
+			const float ClippingPlane = ViewInfo.GetFinalPerspectiveNearClipPlane();
 			InOutProjectionData.ProjectionMatrix = FReversedZPerspectiveMatrix(
 				MatrixHalfFOV,
 				MatrixHalfFOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
-				GNearClippingPlane,
-				GNearClippingPlane
-				);
+				ClippingPlane,
+				ClippingPlane
+			);
 		}
 	}
 
