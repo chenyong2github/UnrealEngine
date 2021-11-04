@@ -290,9 +290,12 @@ public:
 
 	/**
 	 * Set the triangle to have InvalidID element IDs, decrementing element reference counts if needed.
-	 * Deletes elements that are no longer used after the triangle is unset.
+	 * 
+	 * @param bAllowElementFreeing If true, then any elements that were only referenced by this triangle
+	 *  become immediately unallocated. This can be set to false as part of a remeshing, but then it 
+	 *  should eventually be followed by a call to FreeUnusedElements().
 	 */
-	void UnsetTriangle(int TriangleID);
+	void UnsetTriangle(int TriangleID, bool bAllowElementFreeing = true);
 
 	/** @return true if this triangle was set */
 	bool IsSetTriangle(int TID) const

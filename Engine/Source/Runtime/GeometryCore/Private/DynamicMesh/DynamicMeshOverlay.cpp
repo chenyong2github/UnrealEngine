@@ -413,7 +413,7 @@ void UE::Geometry::TDynamicMeshOverlay<RealType, ElementSize>::FreeUnusedElement
 }
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
+void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID, bool bAllowElementFreeing)
 {
 	int i = 3 * TriangleID;
 	if (ElementTriangles[i] == FDynamicMesh3::InvalidID)
@@ -424,7 +424,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 	{
 		ElementsRefCounts.Decrement(ElementTriangles[i + SubIdx]);
 
-		if (ElementsRefCounts.GetRefCount(ElementTriangles[i + SubIdx]) == 1)
+		if (bAllowElementFreeing && ElementsRefCounts.GetRefCount(ElementTriangles[i + SubIdx]) == 1)
 		{
 			ElementsRefCounts.Decrement(ElementTriangles[i + SubIdx]);
 			ParentVertices[ElementTriangles[i + SubIdx]] = FDynamicMesh3::InvalidID;
