@@ -8,7 +8,7 @@
     "@blueprintjs/icons": "^3.13.0",
     "@datadog/browser-logs": "^1.12.4",
     "@fluentui/react": "^8.36.5",
-    "@fluentui/react-charting": "^5.0.22",
+    "@fluentui/react-charting": "^5.2.0",
     "crypto-js": "^4.0.0",
     "formik": "^2.1.1",
     "idb": "^6.0.0",
