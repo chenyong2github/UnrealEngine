@@ -163,7 +163,6 @@ protected:
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> DetailMeshTangents;
 	int32 DetailMeshTimestamp = 0;
 	void UpdateDetailMesh();
-	bool bDetailMeshValid = false;
 
 	void UpdateOnModeChange();
 

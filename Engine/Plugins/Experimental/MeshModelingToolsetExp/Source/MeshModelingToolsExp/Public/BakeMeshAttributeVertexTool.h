@@ -242,7 +242,6 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	int32 DetailMeshTimestamp = 0;
-	bool bDetailMeshValid = false;
 	void UpdateDetailMesh();
 
 	bool bColorTopologyValid = false;
