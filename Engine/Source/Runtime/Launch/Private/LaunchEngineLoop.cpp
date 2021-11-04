@@ -1579,6 +1579,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		FPlatformMisc::SetUTF8Output();
 	}
 
+#if !UE_BUILD_SHIPPING
+	if (FParse::Param(CmdLine, TEXT("IgnoreDebugger")))
+	{
+		GIgnoreDebugger = true;
+	}
+#endif // !UE_BUILD_SHIPPING
+
 	// Switch into executable's directory.
 	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
 

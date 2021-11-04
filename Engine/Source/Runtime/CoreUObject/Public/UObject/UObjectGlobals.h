@@ -2577,7 +2577,7 @@ struct FAssetMsg
 				FMsg::Logf_Internal(__FILE__, __LINE__, CategoryName.GetCategoryName(), ELogVerbosity::Verbosity, ASSET_LOG_FORMAT_STRING Format, *FormatPath, ##__VA_ARGS__); \
 				UE_LOG_EXPAND_IS_FATAL(Verbosity, \
 					{ \
-						_DebugBreakAndPromptForRemote(); \
+						UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE(); \
 						FDebug::AssertFailed("", __FILE__, __LINE__, TEXT("%s: ") Format, *FormatPath, ##__VA_ARGS__); \
 						CA_ASSUME(false); \
 					}, \
