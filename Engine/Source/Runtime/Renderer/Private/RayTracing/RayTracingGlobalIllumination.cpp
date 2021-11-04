@@ -17,7 +17,7 @@
 #include "ClearQuad.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "Raytracing/RaytracingOptions.h"
+#include "RayTracing/RaytracingOptions.h"
 #include "BlueNoise.h"
 #include "SceneTextureParameters.h"
 #include "RayTracingDefinitions.h"

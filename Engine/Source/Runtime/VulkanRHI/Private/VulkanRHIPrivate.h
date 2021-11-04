@@ -19,10 +19,6 @@
 // the configuration will set up anything not set up by the platform
 #include "VulkanConfiguration.h"
 
-#if VULKAN_RHI_RAYTRACING
-#include "VulkanRayTracing.h"
-#endif
-
 #if VULKAN_COMMANDWRAPPERS_ENABLE
 	#if VULKAN_DYNAMICALLYLOADED
 		// Vulkan API is defined in VulkanDynamicAPI namespace.

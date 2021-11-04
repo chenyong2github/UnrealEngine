@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VulkanRHIPrivate.h"
+#include "VulkanRayTracing.h"
+
+#if VULKAN_RHI_RAYTRACING
+
 #include "VulkanContext.h"
 #include "VulkanDescriptorSets.h"
 #include "BuiltInRayTracingShaders.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
-
-#if VULKAN_RHI_RAYTRACING
 
 // Define ray tracing entry points
 #define DEFINE_VK_ENTRYPOINTS(Type,Func) VULKANRHI_API Type VulkanDynamicAPI::Func = NULL;
@@ -81,6 +82,11 @@ static VkDeviceAddress GetDeviceAddress(VkDevice Device, VkBuffer Buffer)
 	ZeroVulkanStruct(DeviceAddressInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
 	DeviceAddressInfo.buffer = Buffer;
 	return vkGetBufferDeviceAddressKHR(Device, &DeviceAddressInfo);
+}
+
+VkDeviceAddress FVulkanResourceMultiBuffer::GetDeviceAddress()
+{
+	return ::GetDeviceAddress(Device->GetInstanceHandle(), GetHandle()) + GetOffset();
 }
 
 // Temporary brute force allocation helper, this should be handled by the memory sub-allocator
@@ -159,7 +165,7 @@ static void GetBLASBuildData(
 {
 	FVulkanResourceMultiBuffer* const IndexBuffer = ResourceCast(IndexBufferRHI.GetReference());
 	VkDeviceOrHostAddressConstKHR IndexBufferDeviceAddress = {};
-	IndexBufferDeviceAddress.deviceAddress = IndexBufferRHI ? GetDeviceAddress(Device, IndexBuffer->GetHandle()) : 0;
+	IndexBufferDeviceAddress.deviceAddress = IndexBufferRHI ? IndexBuffer->GetDeviceAddress() : 0;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < Segments.Num(); ++SegmentIndex)
 	{
@@ -167,7 +173,7 @@ static void GetBLASBuildData(
 
 		FVulkanResourceMultiBuffer* const VertexBuffer = ResourceCast(Segment.VertexBuffer.GetReference());
 		VkDeviceOrHostAddressConstKHR VertexBufferDeviceAddress = {};
-		VertexBufferDeviceAddress.deviceAddress = GetDeviceAddress(Device, VertexBuffer->GetHandle());
+		VertexBufferDeviceAddress.deviceAddress = VertexBuffer->GetDeviceAddress();
 
 		BuildData.VertexCounts.Add(Segment.MaxVertices);
 
@@ -420,19 +426,44 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(const FRayTracingSceneInitializer
 	InstanceGeometry.SetNumUninitialized(NumInstances);
 	for (const FRayTracingGeometryInstance& SceneInstance : Initializer.Instances)
 	{
-		const bool bUseUniqueUserData = SceneInstance.UserData.Num() > 1;
-		const uint32 CommonUserData = SceneInstance.UserData.Num() == 1 ? SceneInstance.UserData[0] : 0;
+		const bool bUseUniqueUserData = SceneInstance.UserData.Num() != 0;
 
 		for (int32 TransformIndex = 0; TransformIndex < SceneInstance.Transforms.Num(); ++TransformIndex)
 		{
 			InstanceGeometry[InstanceDescIndex] = ResourceCast(SceneInstance.GeometryRHI);
 
+			const FMatrix& Transform = SceneInstance.Transforms[TransformIndex];
+
 			VkAccelerationStructureInstanceKHR& InstanceDesc = InstanceDescs[InstanceDescIndex];
-			const FMatrix TransposedTransform = SceneInstance.Transforms[TransformIndex].GetTransposed();
-			FMemory::Memcpy(&InstanceDesc.transform, &TransposedTransform.M[0][0], sizeof(VkTransformMatrixKHR));
+			auto& Matrix = InstanceDesc.transform.matrix;
+
+			Matrix[0][0] = Transform.M[0][0];
+			Matrix[0][1] = Transform.M[1][0];
+			Matrix[0][2] = Transform.M[2][0];
+			Matrix[0][3] = Transform.M[3][0];
+
+			Matrix[1][0] = Transform.M[0][1];
+			Matrix[1][1] = Transform.M[1][1];
+			Matrix[1][2] = Transform.M[2][1];
+			Matrix[1][3] = Transform.M[3][1];
+
+			Matrix[2][0] = Transform.M[0][2];
+			Matrix[2][1] = Transform.M[1][2];
+			Matrix[2][2] = Transform.M[2][2];
+			Matrix[2][3] = Transform.M[3][2];
 
 			InstanceDesc.accelerationStructureReference = 0; // Set during TLAS build after the BLAS for the referenced geometry is built.
-			InstanceDesc.instanceCustomIndex = (bUseUniqueUserData) ? SceneInstance.UserData[TransformIndex] : CommonUserData;
+
+			// Set flag for deactivated instances
+			if (!SceneInstance.ActivationMask.IsEmpty())
+			{
+				if ((SceneInstance.ActivationMask[TransformIndex / 32] & (1 << (TransformIndex % 32))) == 0)
+				{
+					InstanceDesc.accelerationStructureReference = 0xFFFFFFFFFFFFFFFF;
+				}
+			}
+
+			InstanceDesc.instanceCustomIndex = bUseUniqueUserData ? SceneInstance.UserData[TransformIndex] : SceneInstance.DefaultUserData;
 			InstanceDesc.mask = SceneInstance.Mask;
 			InstanceDesc.instanceShaderBindingTableRecordOffset = 0; // Todo
 			InstanceDesc.flags = TranslateRayTracingInstanceFlags(SceneInstance.Flags);
@@ -463,7 +494,14 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(const FRayTracingSceneInitializer
 
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceDescs.Num(); ++InstanceIndex)
 		{
-			InstanceDescBuffer[InstanceIndex].accelerationStructureReference = InstanceGeometry[InstanceIndex]->GetAccelerationStructureAddress();
+			if (InstanceDescBuffer[InstanceIndex].accelerationStructureReference == 0xFFFFFFFFFFFFFFFF)
+			{
+				InstanceDescBuffer[InstanceIndex].accelerationStructureReference = 0;
+			}
+			else
+			{
+				InstanceDescBuffer[InstanceIndex].accelerationStructureReference = InstanceGeometry[InstanceIndex]->GetAccelerationStructureAddress();
+			}
 		}
 	}
 	vkUnmapMemory(Device->GetInstanceHandle(), InstanceBuffer.Memory);
@@ -524,7 +562,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 
 	if (bExternalScratchBuffer)
 	{
-		BuildData.GeometryInfo.scratchData.deviceAddress = GetDeviceAddress(Device->GetInstanceHandle(), InScratchBuffer->GetHandle()) + InScratchOffset;
+		BuildData.GeometryInfo.scratchData.deviceAddress = InScratchBuffer->GetDeviceAddress() + InScratchOffset;
 	}
 	else
 	{
@@ -812,7 +850,7 @@ FVulkanRayTracingPipelineState::FVulkanRayTracingPipelineState(FVulkanDevice* co
 	ShaderHandleStorage.AddUninitialized(SBTSize);
 	VERIFYVULKANRESULT(vkGetRayTracingShaderGroupHandlesKHR(InDevice->GetInstanceHandle(), Pipeline, 0, GroupCount, SBTSize, ShaderHandleStorage.GetData()));
 
-	auto CopyHanldlesToSBT = [InDevice, HandleSize, ShaderHandleStorage](FVkRtAllocation& Allocation, uint32 Offset)
+	auto CopyHandlesToSBT = [InDevice, HandleSize, ShaderHandleStorage](FVkRtAllocation& Allocation, uint32 Offset)
 	{
 		FVulkanRayTracingAllocator::Allocate(
 			InDevice->GetPhysicalHandle(),
@@ -830,9 +868,9 @@ FVulkanRayTracingPipelineState::FVulkanRayTracingPipelineState(FVulkanDevice* co
 		vkUnmapMemory(InDevice->GetInstanceHandle(), Allocation.Memory);
 	};
 
-	CopyHanldlesToSBT(RayGenShaderBindingTable, 0);
-	CopyHanldlesToSBT(MissShaderBindingTable, HandleSizeAligned);
-	CopyHanldlesToSBT(HitShaderBindingTable, HandleSizeAligned * 2);
+	CopyHandlesToSBT(RayGenShaderBindingTable, 0);
+	CopyHandlesToSBT(MissShaderBindingTable, HandleSizeAligned);
+	CopyHandlesToSBT(HitShaderBindingTable, HandleSizeAligned * 2);
 }
 
 FVulkanRayTracingPipelineState::~FVulkanRayTracingPipelineState()

@@ -34,7 +34,7 @@ static FAutoConsoleVariableRef CVarRayTracingSkyLight(
 #include "RayTracingDefinitions.h"
 #include "PathTracing.h"
 
-#include "Raytracing/RaytracingOptions.h"
+#include "RayTracing/RaytracingOptions.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "HairStrands/HairStrandsRendering.h"

@@ -12,7 +12,7 @@
 #include "RHIResources.h"
 #include "UniformBuffer.h"
 #include "RHI/Public/PipelineStateCache.h"
-#include "Raytracing/RaytracingOptions.h"
+#include "RayTracing/RaytracingOptions.h"
 #include "RayTracingMaterialHitShaders.h"
 #include "RayTracingDefinitions.h"
 #include "SceneTextureParameters.h"
