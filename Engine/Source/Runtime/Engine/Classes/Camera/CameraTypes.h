@@ -79,6 +79,10 @@ struct FMinimalViewInfo
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float OrthoFarClipPlane;
 
+	/** The near plane distance of the perspective view (in world units). Set to a negative value to use the default global value of GNearClippingPlane */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category=Camera)
+	float PerspectiveNearClipPlane;
+
 	// Aspect Ratio (Width/Height)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float AspectRatio;
@@ -118,6 +122,7 @@ struct FMinimalViewInfo
 		, OrthoWidth(512.0f)
 		, OrthoNearClipPlane(0.0f)
 		, OrthoFarClipPlane(WORLD_MAX)
+		, PerspectiveNearClipPlane(-1.0f)
 		, AspectRatio(1.33333333f)
 		, bConstrainAspectRatio(false)
 		, bUseFieldOfViewForLOD(true)
@@ -145,4 +150,10 @@ struct FMinimalViewInfo
 
 	/** Calculates the projection matrix (and potentially a constrained view rectangle) given a FMinimalViewInfo and partially configured projection data (must have the view rect already set) */
 	ENGINE_API static void CalculateProjectionMatrixGivenView(const FMinimalViewInfo& ViewInfo, TEnumAsByte<enum EAspectRatioAxisConstraint> AspectRatioAxisConstraint, class FViewport* Viewport, struct FSceneViewProjectionData& InOutProjectionData);
+
+	/** The near plane distance of the perspective view (in world units). Returns the value of PerspectiveNearClipPlane if positive, and GNearClippingPlane otherwise */
+	ENGINE_API FORCEINLINE float GetFinalPerspectiveNearClipPlane() const
+	{
+		return PerspectiveNearClipPlane > 0.0f ? PerspectiveNearClipPlane : GNearClippingPlane;
+	}
 };
