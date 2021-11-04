@@ -22,13 +22,6 @@ CORE_API bool GAlwaysReportCrash = false;
 /** Whether to use ClientReportClient rather than the old AutoReporter. */
 CORE_API bool GUseCrashReportClient = true;
 
-#if !UE_BUILD_SHIPPING
-
-/** Whether we should ignore the attached debugger. */
-CORE_API bool GIgnoreDebugger = false;
-
-#endif // !UE_BUILD_SHIPPING
-
 CORE_API TCHAR MiniDumpFilenameW[1024] = TEXT("");
 
 

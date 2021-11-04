@@ -22,8 +22,6 @@
 
 #define UE_DEBUG_BREAK_IMPL() PLATFORM_BREAK()
 
-extern CORE_API bool GIgnoreDebugger;
-
 #ifdef __OBJC__
 
 class FScopeAutoreleasePool
@@ -62,23 +60,7 @@ struct CORE_API FApplePlatformMisc : public FGenericPlatformMisc
 	static FString GetEnvironmentVariable(const TCHAR* VariableName);
 
 #if !UE_BUILD_SHIPPING
-	static bool IsDebuggerPresent()
-	{
-		// Based on http://developer.apple.com/library/mac/#qa/qa1361/_index.html
-
-		if (GIgnoreDebugger)
-		{
-			return false;
-		}
-
-		struct kinfo_proc Info;
-		int32 Mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
-		SIZE_T Size = sizeof(Info);
-
-		sysctl( Mib, sizeof( Mib ) / sizeof( *Mib ), &Info, &Size, NULL, 0 );
-
-		return ( Info.kp_proc.p_flag & P_TRACED ) != 0;
-	}
+	static bool IsDebuggerPresent();
 #endif
 
 	FORCEINLINE static void MemoryBarrier()

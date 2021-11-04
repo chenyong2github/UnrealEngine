@@ -13,13 +13,6 @@ extern CORE_API bool GAlwaysReportCrash;
 /** Whether to use ClientReportClient rather than AutoReporter. */
 extern CORE_API bool GUseCrashReportClient;
 
-#if !UE_BUILD_SHIPPING
-
-/** Whether we should ignore the attached debugger. */
-extern CORE_API bool GIgnoreDebugger;
-
-#endif // !UE_BUILD_SHIPPING
-
 extern CORE_API TCHAR MiniDumpFilenameW[1024];
 
 // #CrashReport: 2014-09-11 Move to PlatformExceptionHandling
