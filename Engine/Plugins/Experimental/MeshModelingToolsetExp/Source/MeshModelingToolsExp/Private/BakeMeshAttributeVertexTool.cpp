@@ -1107,7 +1107,7 @@ void UBakeMeshAttributeVertexTool::RecordAnalytics(const FBakeAnalytics& Data, c
 		}
 	}
 
-	FEngineAnalytics::GetProvider().RecordEvent(FString(TEXT("Editor.Usage.ModelingTools.")) + EventName, Attributes);
+	FEngineAnalytics::GetProvider().RecordEvent(FString(TEXT("Editor.Usage.MeshModelingMode.")) + EventName, Attributes);
 
 	constexpr bool bLogAnalytics = false; 
 	if constexpr (bLogAnalytics)
