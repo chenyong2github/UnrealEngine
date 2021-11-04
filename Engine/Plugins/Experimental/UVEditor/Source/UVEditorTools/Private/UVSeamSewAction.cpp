@@ -52,6 +52,8 @@ void UUVSeamSewAction::SetWorld(UWorld* WorldIn)
 
 void UUVSeamSewAction::Setup(UInteractiveTool* ParentToolIn)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_Setup);
+	
 	UUVToolAction::Setup(ParentToolIn);
 
 	SewEdgePairingLineSet = NewObject<ULineSetComponent>();
@@ -61,6 +63,8 @@ void UUVSeamSewAction::Setup(UInteractiveTool* ParentToolIn)
 
 void UUVSeamSewAction::Shutdown()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_Shutdown);
+
 	if (UnwrapPreviewGeometryActor)
 	{
 		UnwrapPreviewGeometryActor->Destroy();
@@ -87,6 +91,9 @@ void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geom
 
 	if (SelectionTargetIndex != -1 && CurrentSelection && CurrentSelection->Type == FDynamicMeshSelection::EType::Edge)
 	{
+		// TODO(Performance) This loop is very slow for large selections
+		TRACE_CPUPROFILER_EVENT_SCOPE(FindSewEdgeOppositePairing_Loop);
+
 		for (int32 Eid : CurrentSelection->SelectedIDs)
 		{
 			FIndex2i SewPairCandidate(Eid, FindSewEdgeOppositePairing(Eid));
@@ -130,7 +137,6 @@ void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 			FVector3d Vert1, Vert2;
 			Vert1 = UnwrapMesh->GetVertex(SewPair.A[0]);
 			Vert2 = UnwrapMesh->GetVertex(SewPair.A[1]);
-			UE_LOG(LogGeometry, Warning, TEXT("Red %d %d."), SewPair.A[0], SewPair.A[1]);
 			SewEdgePairingLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1),
 				MeshTransform.TransformPosition(Vert2),
@@ -138,7 +144,6 @@ void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 
 			Vert1 = UnwrapMesh->GetVertex(SewPair.B[0]);
 			Vert2 = UnwrapMesh->GetVertex(SewPair.B[1]);
-			UE_LOG(LogGeometry, Warning, TEXT("Green %d %d."), SewPair.B[0], SewPair.B[1]);
 			SewEdgePairingLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1),
 				MeshTransform.TransformPosition(Vert2),
@@ -179,7 +184,6 @@ int32 UUVSeamSewAction::FindSewEdgeOppositePairing(int32 UnwrapEid) const
 
 	if (!CurrentSelection->Mesh->IsBoundaryEdge(UnwrapEid))
 	{
-		UE_LOG(LogGeometry, Warning, TEXT("Selected edge is unsuitable for sewing - Is not a boundary edge in UV space"));
 		return IndexConstants::InvalidID;
 	}
 	int32 UVLayerIndex = Targets[SelectionTargetIndex]->UVLayerIndex;
@@ -225,6 +229,8 @@ int32 UUVSeamSewAction::FindSewEdgeOppositePairing(int32 UnwrapEid) const
 
 bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_ApplyAction);
+
 	FDynamicMesh3& MeshToSew = *(Targets[SelectionTargetIndex]->UnwrapCanonical);
 
 	TArray<int32> SelectedTids;

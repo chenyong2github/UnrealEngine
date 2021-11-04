@@ -85,6 +85,8 @@ namespace UVEditorSeamToolLocals
 		UPointSetComponent* UnwrapPointSet, UPointSetComponent* AppliedPointSet,
 		int32 AppliedVid, const TArray<int32>& UnwrapVids, const FColor& Color)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AddDisplayedPoints);
+
 		FTransform AppliedTransform = InputObject->AppliedPreview->PreviewMesh->GetTransform();
 		AppliedPointSet->AddPoint(FRenderablePoint(
 			InputObject->AppliedCanonical->GetVertex(AppliedVid), Color, PointSize));
@@ -100,6 +102,8 @@ namespace UVEditorSeamToolLocals
 		const TArray<int32>& NewPathVids, bool bPathIsFromUnwrap, 
 		const FColor& Color, float Thickness, float DepthBias)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AddDisplayedPath);
+
 		FTransform AppliedTransform = InputObject->AppliedPreview->PreviewMesh->GetTransform();
 		if (NewPathVids.Num() < 2)
 		{
@@ -296,6 +300,8 @@ void UUVEditorSeamTool::SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInpu
 
 void UUVEditorSeamTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Setup);
+
 	using namespace UVEditorSeamToolLocals;
 
 	UInteractiveTool::Setup();
@@ -474,6 +480,8 @@ void UUVEditorSeamTool::Setup()
 
 void UUVEditorSeamTool::ReconstructExistingSeamsVisualization()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_ReconstructExistingSeamsVisualization);
+
 	using namespace UVEditorSeamToolLocals;
 
 	ULineSetComponent* SeamLines = LivePreviewGeometry->FindLineSet(ExistingSeamsID);
@@ -498,6 +506,8 @@ void UUVEditorSeamTool::ReconstructExistingSeamsVisualization()
 
 void UUVEditorSeamTool::ReconstructLockedPathVisualization()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_ReconstructLockedPathVisualization);
+
 	using namespace UVEditorSeamToolLocals;
 
 	UPointSetComponent* UnwrapPointSet = UnwrapGeometry->FindPointSet(LockedPointSetID);
@@ -533,6 +543,8 @@ void UUVEditorSeamTool::ReconstructLockedPathVisualization()
 
 void UUVEditorSeamTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Shutdown);
+
 	UInteractiveTool::Shutdown(ShutdownType);
 
 	EmitChangeAPI = nullptr;
@@ -708,6 +720,8 @@ void UUVEditorSeamTool::ResetPreviewColors()
 
 void UUVEditorSeamTool::ApplyClick()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_ApplyClick);
+
 	using namespace UVEditorSeamToolLocals;
 
 	ClearHover();
@@ -807,6 +821,8 @@ void UUVEditorSeamTool::ApplyClick()
 
 void UUVEditorSeamTool::ApplySeam(const TArray<int32>& AppliedVidsIn)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_ApplySeam);
+
 	using namespace UVEditorSeamToolLocals;
 
 	UUVEditorToolMeshInput* ClickedTarget = Targets[ClickedMeshIndex];
@@ -858,6 +874,8 @@ void UUVEditorSeamTool::ApplySeam(const TArray<int32>& AppliedVidsIn)
 
 void UUVEditorSeamTool::ClearLockedPath(bool bEmitChange)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_ClearLockedPath);
+
 	using namespace UVEditorSeamToolLocals;
 
 	if (bEmitChange)
@@ -887,6 +905,8 @@ void UUVEditorSeamTool::ClearLockedPath(bool bEmitChange)
 
 int32 UUVEditorSeamTool::Get2DHitVertex(const FRay& WorldRayIn, int32* IndexOf2DSpatialOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Get2DHitVertex);
+
 	if (!ensure(WorldRayIn.Direction.Z != 0))
 	{
 		return IndexConstants::InvalidID;
@@ -942,6 +962,8 @@ int32 UUVEditorSeamTool::Get2DHitVertex(const FRay& WorldRayIn, int32* IndexOf2D
 
 int32 UUVEditorSeamTool::Get3DHitVertex(const FRay& WorldRayIn, int32* IndexOf3DSpatialOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Get3DHitVertex);
+
 	// When we hit a triangle, gives the closest vert in terms of angle to camera (kind of). Tests
 	// the three verts of the triangle we hit, and the closest vert to the hit location (to make it
 	// easier to hit verts in very thin/degenerate tris).

@@ -49,6 +49,8 @@ UInteractiveTool* UUVEditorParameterizeMeshToolBuilder::BuildTool(const FToolBui
 
 void UUVEditorParameterizeMeshTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_Setup);
+
 	check(Targets.Num() >= 1);
 
 	UInteractiveTool::Setup();
@@ -113,6 +115,8 @@ void UUVEditorParameterizeMeshTool::Setup()
 
 void UUVEditorParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_OnPropertyModified);
+
 	if (PropertySet != MaterialSettings)
 	{
 		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
@@ -131,6 +135,8 @@ void UUVEditorParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FPr
 
 void UUVEditorParameterizeMeshTool::OnMethodTypeChanged()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_OnMethodTypeChanged);
+	
 	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::UVAtlas);
 	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::XAtlas);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
@@ -144,6 +150,8 @@ void UUVEditorParameterizeMeshTool::OnMethodTypeChanged()
 
 void UUVEditorParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_Shutdown);
+
 	Settings->SaveProperties(this);
 	MaterialSettings->SaveProperties(this, TEXT("ModelingUVTools"));
 	UVAtlasProperties->SaveProperties(this);

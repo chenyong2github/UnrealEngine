@@ -236,6 +236,8 @@ void FParameterizeMeshOp::CopyNewUVsToMesh(
 
 bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<bool(float)>& Interrupter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_UVAtlas);
+
 	// the UVAtlas code is unhappy if you feed it a single degenerate triangle
 	bool bNonDegenerate = true;
 	if (Mesh.TriangleCount() == 1)
@@ -311,6 +313,8 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 
 bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool(float)>& Interrupter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_XAtlas);
+
 	// reverse mesh orientation
 	const bool bFixOrientation = true;
 	FDynamicMesh3 FlippedMesh(EMeshComponents::FaceGroups);
@@ -357,6 +361,8 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 
 bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FProgressCancel* ProgressCancel)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_PatchBuilder);
+	
 	FPatchBasedMeshUVGenerator UVGenerator;
 
 	TUniquePtr<FPolygroupSet> PolygroupConstraint;
@@ -394,6 +400,8 @@ bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FPro
 
 void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_CalculateResult);
+
 	if (!InputMesh.IsValid())
 	{
 		SetResultInfo(FGeometryResult::Failed());

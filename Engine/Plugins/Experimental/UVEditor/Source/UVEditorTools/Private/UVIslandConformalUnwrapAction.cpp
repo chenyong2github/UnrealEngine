@@ -29,12 +29,14 @@ void UUVIslandConformalUnwrapAction::SetWorld(UWorld* WorldIn)
 
 void UUVIslandConformalUnwrapAction::Setup(UInteractiveTool* ParentToolIn)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_Setup);
+
 	UUVToolAction::Setup(ParentToolIn);
 }
 
 void UUVIslandConformalUnwrapAction::Shutdown()
 {
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_Shutdown);
 }
 
 
@@ -73,6 +75,8 @@ bool UUVIslandConformalUnwrapAction::PreCheckAction()
 }
 
 bool UUVIslandConformalUnwrapAction::GatherIslandTids() {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_GatherIslandTids);
+
 	IslandStartIndices.Reset();
 	ConcatenatedIslandTids.Reset();
 	MaxIslandSize = 0;
@@ -105,6 +109,8 @@ bool UUVIslandConformalUnwrapAction::GatherIslandTids() {
 
 bool UUVIslandConformalUnwrapAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVIslandConformalUnwrapAction_ApplyAction);
+
 	FDynamicMesh3& MeshToUnwrap = *(Targets[SelectionTargetIndex]->AppliedCanonical);
 	FDynamicMeshUVOverlay* UVOverlay = MeshToUnwrap.Attributes()->GetUVLayer(Targets[SelectionTargetIndex]->UVLayerIndex);
 	FDynamicMeshUVEditor UVEditor(&MeshToUnwrap, Targets[SelectionTargetIndex]->UVLayerIndex, true);
