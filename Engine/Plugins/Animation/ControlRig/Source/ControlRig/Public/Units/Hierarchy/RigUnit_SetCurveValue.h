@@ -9,7 +9,7 @@
 /**
  * SetCurveValue is used to perform a change in the curve container by setting a single Curve value.
  */
-USTRUCT(meta=(DisplayName="Set Curve Value", Category="Curve", Keywords = "SetCurveValue"))
+USTRUCT(meta=(DisplayName="Set Curve Value", Category="Curve", Keywords = "SetCurveValue", NodeColor = "0.0 0.36470600962638855 1.0"))
 struct FRigUnit_SetCurveValue : public FRigUnitMutable
 {
 	GENERATED_BODY()

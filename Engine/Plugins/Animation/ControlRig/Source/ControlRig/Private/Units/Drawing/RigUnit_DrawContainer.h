@@ -8,7 +8,7 @@
 /**
  * Get Imported Draw Container curve transform and color
  */
-USTRUCT(meta=(DisplayName="Get Draw Instruction", Category="Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
+USTRUCT(meta=(DisplayName="Get Draw Instruction", Category="Drawing", NodeColor = "0.83077 0.846873 0.049707", Keywords = "Curve,Shape"))
 struct CONTROLRIG_API FRigUnit_DrawContainerGetInstruction : public FRigUnit
 {
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerGetInstruction : public FRigUnit
 /**
  * Set Imported Draw Container curve color
  */
-USTRUCT(meta = (DisplayName = "Set Draw Color", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
+USTRUCT(meta = (DisplayName = "Set Draw Color", Category = "Drawing", NodeColor = "0.83077 0.846873 0.049707", Keywords = "Curve,Shape"))
 struct CONTROLRIG_API FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -60,7 +60,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 /**
  * Set Imported Draw Container curve thickness
  */
-USTRUCT(meta = (DisplayName = "Set Draw Thickness", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
+USTRUCT(meta = (DisplayName = "Set Draw Thickness", Category = "Drawing", NodeColor = "0.83077 0.846873 0.049707", Keywords = "Curve,Shape"))
 struct CONTROLRIG_API FRigUnit_DrawContainerSetThickness : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -84,7 +84,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetThickness : public FRigUnitMutabl
 /**
  * Set Imported Draw Container curve transform
  */
-USTRUCT(meta = (DisplayName = "Set Draw Transform", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
+USTRUCT(meta = (DisplayName = "Set Draw Transform", Category = "Drawing", NodeColor = "0.83077 0.846873 0.049707", Keywords = "Curve,Shape"))
 struct CONTROLRIG_API FRigUnit_DrawContainerSetTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()

@@ -89,7 +89,10 @@ struct FPBIKEffector
 	float PinRotation = 1.0f;
 };
 
-USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB"))
+/*
+ * Based on a Position Based solver at core, this node can solve multi chains within a root using multi effectors
+ */
+USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB", NodeColor="0 1 1"))
 struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
