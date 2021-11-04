@@ -142,6 +142,25 @@ bool UGeometryScriptLibrary_MeshQueryFunctions::IsValidTriangleID( UDynamicMesh*
 	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) { return Mesh.IsTriangle(TriangleID); });
 }
 
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllTriangleIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& TriangleIDList, bool& bHasTriangleIDGaps)
+{
+	TriangleIDList.Reset();
+	bHasTriangleIDGaps = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			TriangleIDList.List->Reserve(ReadMesh.TriangleCount());
+			for (int32 tid : ReadMesh.TriangleIndicesItr())
+			{
+				TriangleIDList.List->Add(tid);
+			}
+			bHasTriangleIDGaps = ! ReadMesh.IsCompactT();
+		});
+	}
+	return TargetMesh;
+}
+
 FIntVector UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleIndices(UDynamicMesh* TargetMesh, int32 TriangleID, bool& bIsValidTriangle)
 {
 	return SimpleMeshQuery<FIntVector>(TargetMesh, FIntVector::NoneValue, [&](const FDynamicMesh3& Mesh) {
@@ -149,6 +168,40 @@ FIntVector UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleIndices(UDynami
 		return (bIsValidTriangle) ? (FIntVector)Mesh.GetTriangle(TriangleID) : FIntVector::NoneValue;
 	});
 }
+
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllTriangleIndices(UDynamicMesh* TargetMesh, FGeometryScriptTriangleList& TriangleList, bool bSkipGaps, bool& bHasTriangleIDGaps)
+{
+	TriangleList.Reset();
+	TArray<FIntVector>& Triangles = *TriangleList.List;
+	bHasTriangleIDGaps = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			if (bSkipGaps)
+			{
+				Triangles.Reserve(ReadMesh.TriangleCount());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
+				{
+					Triangles.Add( (FIntVector)ReadMesh.GetTriangle(tid) );
+				}
+				bHasTriangleIDGaps = false;
+			}
+			else
+			{
+				Triangles.Init(FIntVector::NoneValue, ReadMesh.MaxTriangleID());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
+				{
+					Triangles[tid] = (FIntVector)ReadMesh.GetTriangle(tid);
+				}
+				bHasTriangleIDGaps = ! ReadMesh.IsCompactT();
+			}
+		});
+	}
+
+	return TargetMesh;
+}
+
 
 void UGeometryScriptLibrary_MeshQueryFunctions::GetTrianglePositions(UDynamicMesh* TargetMesh, int32 TriangleID, bool& bIsValidTriangle, FVector& Vertex1, FVector& Vertex2, FVector& Vertex3)
 {
@@ -197,6 +250,25 @@ bool UGeometryScriptLibrary_MeshQueryFunctions::IsValidVertexID( UDynamicMesh* T
 	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) { return Mesh.IsVertex(VertexID); });
 }
 
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& VertexIDList, bool& bHasVertexIDGaps)
+{
+	VertexIDList.Reset();
+	bHasVertexIDGaps = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			VertexIDList.List->Reserve(ReadMesh.VertexCount());
+			for (int32 vid : ReadMesh.VertexIndicesItr())
+			{
+				VertexIDList.List->Add(vid);
+			}
+			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+		});
+	}
+	return TargetMesh;
+}
+
 FVector UGeometryScriptLibrary_MeshQueryFunctions::GetVertexPosition(UDynamicMesh* TargetMesh, int32 VertexID, bool& bIsValidVertex)
 {
 	return SimpleMeshQuery<FVector>(TargetMesh, FVector::ZeroVector, [&](const FDynamicMesh3& Mesh) {
@@ -205,20 +277,33 @@ FVector UGeometryScriptLibrary_MeshQueryFunctions::GetVertexPosition(UDynamicMes
 	});
 }
 
-UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexPositions(UDynamicMesh* TargetMesh, TArray<FVector>& VertexPositions, bool& bHasVertexIDGaps)
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexPositions(UDynamicMesh* TargetMesh, FGeometryScriptVectorList& PositionList, bool bSkipGaps, bool& bHasVertexIDGaps)
 {
-	VertexPositions.Reset();
+	PositionList.Reset();
+	TArray<FVector>& VertexPositions = *PositionList.List;
 	bHasVertexIDGaps = false;
 	if (TargetMesh)
 	{
 		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 		{
-			VertexPositions.Init(FVector::ZeroVector, ReadMesh.MaxVertexID());
-			for (int32 vid : ReadMesh.VertexIndicesItr())
+			if (bSkipGaps)
 			{
-				VertexPositions[vid] = (FVector)ReadMesh.GetVertex(vid);
+				VertexPositions.Reserve(ReadMesh.VertexCount());
+				for (int32 vid : ReadMesh.VertexIndicesItr())
+				{
+					VertexPositions.Add( (FVector)ReadMesh.GetVertex(vid) );
+				}
+				bHasVertexIDGaps = false;
 			}
-			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+			else
+			{
+				VertexPositions.Init(FVector::ZeroVector, ReadMesh.MaxVertexID());
+				for (int32 vid : ReadMesh.VertexIndicesItr())
+				{
+					VertexPositions[vid] = (FVector)ReadMesh.GetVertex(vid);
+				}
+				bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+			}
 		});
 	}
 	

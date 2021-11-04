@@ -102,6 +102,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::EnableMaterialIDs(
 
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::ClearMaterialIDs(
 	UDynamicMesh* TargetMesh,
+	int ClearValue,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -110,13 +111,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::ClearMaterialIDs(
 		return TargetMesh;
 	}
 
+	ClearValue = FMath::Max(0, ClearValue);
+
 	bool bHasMaterialIDs;
 	SimpleMeshMaterialEdit(TargetMesh, true, bHasMaterialIDs, 
-		[](FDynamicMesh3& Mesh, FDynamicMeshMaterialAttribute& MaterialIDs) 
+		[ClearValue](FDynamicMesh3& Mesh, FDynamicMeshMaterialAttribute& MaterialIDs) 
 	{
 		for (int32 TriangleID : Mesh.TriangleIndicesItr())
 		{
-			MaterialIDs.SetValue(TriangleID, 0);
+			MaterialIDs.SetValue(TriangleID, ClearValue);
 		}
 	});
 
@@ -155,6 +158,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(
 }
 
 
+
 int UGeometryScriptLibrary_MeshMaterialFunctions::GetMaxMaterialID( UDynamicMesh* TargetMesh, bool& bHasMaterialIDs )
 {
 	return SimpleMeshMaterialQuery<int32>(TargetMesh, bHasMaterialIDs, 0, [&](const FDynamicMesh3& Mesh, const FDynamicMeshMaterialAttribute& MaterialIDs) {
@@ -182,9 +186,11 @@ int32 UGeometryScriptLibrary_MeshMaterialFunctions::GetTriangleMaterialID(
 }
 
 
-UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetAllTriangleMaterialIDs(UDynamicMesh* TargetMesh, UPARAM(ref) TArray<int>& MaterialIDs, bool& bHasMaterialIDs)
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetAllTriangleMaterialIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& MaterialIDList, bool& bHasMaterialIDs)
 {
-	MaterialIDs.Reset();
+	MaterialIDList.Reset();
+	MaterialIDList.IndexType = EGeometryScriptIndexType::MaterialID;
+	TArray<int32>& MaterialIDs = *MaterialIDList.List;
 	bHasMaterialIDs = false;
 	SimpleMeshMaterialQuery<int32>(TargetMesh, bHasMaterialIDs, 0, [&](const FDynamicMesh3& Mesh, const FDynamicMeshMaterialAttribute& MaterialIDAttrib) {
 		int32 MaxTriangleID = Mesh.MaxTriangleID();
@@ -230,21 +236,27 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetTriangleMaterialI
 
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMaterialIDs(
 	UDynamicMesh* TargetMesh,
-	const TArray<int32>& TriangleMaterialIDs,
+	FGeometryScriptIndexList& TriangleMaterialIDList,
 	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidInput", "SetAllTriangleMaterialIDs: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidMesh", "SetAllTriangleMaterialIDs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (TriangleMaterialIDList.List.IsValid() == false || TriangleMaterialIDList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList", "SetAllTriangleMaterialIDs: List is empty"));
 		return TargetMesh;
 	}
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
+		const TArray<int32>& TriangleMaterialIDs = *TriangleMaterialIDList.List;
 		if (TriangleMaterialIDs.Num() < EditMesh.MaxTriangleID())
 		{
-			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_IncorrectCount", "SetAllTriangleMaterialIDs: size of provided TriangleMaterialIDs is smaller than MaxTriangleID of Mesh"));
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_IncorrectCount", "SetAllTriangleMaterialIDs: size of provided TriangleMaterialIDList is smaller than MaxTriangleID of Mesh"));
 		}
 		else
 		{

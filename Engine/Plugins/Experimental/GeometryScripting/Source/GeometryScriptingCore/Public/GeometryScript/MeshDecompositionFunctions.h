@@ -38,7 +38,7 @@ public:
 	GetSubMeshFromMesh(  
 		UDynamicMesh* TargetMesh, 
 		UPARAM(DisplayName = "Copy To Submesh", ref) UDynamicMesh* StoreToSubmesh, 
-		const TArray<int>& TriangleList,
+		FGeometryScriptIndexList TriangleList,
 		UPARAM(DisplayName = "Copy To Submesh") UDynamicMesh*& StoreToSubmeshOut, 
 		UGeometryScriptDebug* Debug = nullptr);
 

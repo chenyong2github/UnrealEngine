@@ -71,19 +71,24 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddVertexToMesh(
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddVerticesToMesh(
 	UDynamicMesh* TargetMesh,
-	const TArray<FVector>& NewPositions, 
-	TArray<int>& NewIndices,
+	FGeometryScriptVectorList NewPositionsList, 
+	FGeometryScriptIndexList& NewIndicesList,
 	bool bDeferChangeNotifications)
 {
-	NewIndices.Reset();
+	if (NewPositionsList.List.IsValid() == false || NewPositionsList.List->Num() == 0)
+	{
+		return TargetMesh;
+	}
+
+	NewIndicesList.Reset();
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
-			for (FVector Position : NewPositions)
+			for (FVector Position : *NewPositionsList.List)
 			{
 				int32 NewVertexIndex = EditMesh.AppendVertex(Position);
-				NewIndices.Add(NewVertexIndex);
+				NewIndicesList.List->Add(NewVertexIndex);
 			}
 		
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
@@ -114,16 +119,21 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteVertexFromMes
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteVerticesFromMesh(
 	UDynamicMesh* TargetMesh,
-	const TArray<int32>& VertexList,
+	FGeometryScriptIndexList VertexList,
 	int& NumDeleted,
 	bool bDeferChangeNotifications)
 {
+	if (VertexList.List.IsValid() == false || VertexList.List->Num() == 0)
+	{
+		return TargetMesh;
+	}
+
 	NumDeleted = 0;
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
-			for (int32 VertexID : VertexList)
+			for (int32 VertexID : *VertexList.List)
 			{
 				EMeshResult Result = EditMesh.RemoveVertex(VertexID);
 				if (Result == EMeshResult::Ok)
@@ -186,26 +196,32 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddTriangleToMesh(
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddTrianglesToMesh(
 	UDynamicMesh* TargetMesh,
-	const TArray<FIntVector>& NewTriangles,
-	TArray<int>& NewIndices,
+	FGeometryScriptTriangleList NewTrianglesList,
+	FGeometryScriptIndexList& NewIndicesList,
 	int32 NewTriangleGroupID,
 	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
-	NewIndices.Reset();
+	if (NewTrianglesList.List.IsValid() == false || NewTrianglesList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AddTrianglesToMesh_InvalidList", "AddTrianglesToMesh: NewTrianglesList is empty"));
+		return TargetMesh;
+	}
+
+	NewIndicesList.Reset();
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
-			for (FIntVector Triangle : NewTriangles)
+			for (FIntVector Triangle : *NewTrianglesList.List)
 			{
 				int32 NewTriangleIndex = EditMesh.AppendTriangle((FIndex3i)Triangle, NewTriangleGroupID);
-				NewIndices.Add(NewTriangleIndex);
+				NewIndicesList.List->Add(NewTriangleIndex);
 			}
 
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 
-		for (int32& NewTriangleIndex : NewIndices)
+		for (int32& NewTriangleIndex : *NewIndicesList.List)
 		{
 			if (NewTriangleIndex < 0)
 			{
@@ -256,16 +272,21 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteTriangleFromM
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteTrianglesFromMesh(
 	UDynamicMesh* TargetMesh,
-	const TArray<int32>& TriangleList,
+	FGeometryScriptIndexList TriangleList,
 	int& NumDeleted,
 	bool bDeferChangeNotifications)
 {
+	if (TriangleList.List.IsValid() == false || TriangleList.List->Num() == 0)
+	{
+		return TargetMesh;
+	}
+
 	NumDeleted = 0;
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
-			for (int32 TriangleID : TriangleList)
+			for (int32 TriangleID : *TriangleList.List)
 			{
 				EMeshResult Result = EditMesh.RemoveTriangle(TriangleID);
 				if (Result == EMeshResult::Ok)
@@ -378,12 +399,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendBuffersToMesh(
 	UDynamicMesh* TargetMesh,
 	const FGeometryScriptSimpleMeshBuffers& Buffers,
-	TArray<int>& NewTriangleIndices,
+	FGeometryScriptIndexList& NewTriangleIndicesList,
 	int MaterialID,
 	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
-	NewTriangleIndices.Reset();
+	NewTriangleIndicesList.Reset();
 	if (TargetMesh == nullptr)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshRepeated_InvalidInput1", "AppendMeshRepeated: TargetMesh is Null"));
@@ -421,6 +442,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendBuffersToMesh
 			return FIndex3i(VertexIDMap[Triangle.X], VertexIDMap[Triangle.Y], VertexIDMap[Triangle.Z]);
 		};
 
+		TArray<int32>& NewTriangleIndices = *NewTriangleIndicesList.List;
 		int32 NumTriangles = Buffers.Triangles.Num();
 		bool bHaveGroups = Buffers.TriGroupIDs.Num() == NumTriangles;
 		int32 ConstantGroupID = EditMesh.AllocateTriangleGroup();
