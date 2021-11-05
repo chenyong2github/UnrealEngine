@@ -42,25 +42,6 @@ void URecomputeUVsTool::Setup()
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	FTransform TargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 
-	RecomputeUVsOpFactory = NewObject<URecomputeUVsOpFactory>();
-	RecomputeUVsOpFactory->OriginalMesh = InputMesh;
-	RecomputeUVsOpFactory->Settings = Settings;
-	RecomputeUVsOpFactory->TargetTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
-	RecomputeUVsOpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
-
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(this->TargetWorld, RecomputeUVsOpFactory);
-	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
-	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
-	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()) );
-	Preview->PreviewMesh->SetTransform(TargetTransform);
-
-	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
-	{
-		OnPreviewMeshUpdated();
-	});
-
 	UE::ToolTarget::HideSourceObject(Target);
 
 	// initialize our properties
@@ -92,6 +73,26 @@ void URecomputeUVsTool::Setup()
 	AddToolPropertySource(MaterialSettings);
 	// force update
 	MaterialSettings->UpdateMaterials();
+
+	RecomputeUVsOpFactory = NewObject<URecomputeUVsOpFactory>();
+	RecomputeUVsOpFactory->OriginalMesh = InputMesh;
+	RecomputeUVsOpFactory->Settings = Settings;
+	RecomputeUVsOpFactory->TargetTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	RecomputeUVsOpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
+
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
+	Preview->Setup(this->TargetWorld, RecomputeUVsOpFactory);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
+	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+	Preview->PreviewMesh->SetTransform(TargetTransform);
+
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
+		{
+			OnPreviewMeshUpdated();
+		});
+
 	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 
 	if (bCreateUVLayoutViewOnSetup)
