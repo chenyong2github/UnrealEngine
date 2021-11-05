@@ -66,6 +66,10 @@ static void ParseStatusOutput(const FString& InSkeinProjectRoot, const TArray<FS
 			{
 				FileState.State = ESkeinState::Deleted;
 			}
+			else if (*State == "missing")
+			{
+				FileState.State = ESkeinState::Missing;
+			}
 			else if (*State == "modified")
 			{
 				FileState.State = ESkeinState::Modified;
