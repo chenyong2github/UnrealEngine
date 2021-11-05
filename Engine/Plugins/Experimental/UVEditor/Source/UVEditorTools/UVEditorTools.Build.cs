@@ -26,7 +26,7 @@ public class UVEditorTools : ModuleRules
 			new string[]
 			{
 				"Core",
-				
+				"CoreUObject",
 				"InteractiveToolsFramework",
 				
 				// ... add other public dependencies that you statically link with here ...
@@ -40,7 +40,6 @@ public class UVEditorTools : ModuleRules
 				// NOTE: UVEditorTools is a separate module so that it doesn't rely on the editor.
 				// So, do not add editor dependencies here.
 				
-				"CoreUObject",
 				"Engine",
 				"Slate",
 				"SlateCore",
@@ -49,7 +48,7 @@ public class UVEditorTools : ModuleRules
 				"DynamicMesh",
 				"GeometryCore",
 				"ModelingComponents",
-				"ModelingOperators",				
+				"ModelingOperators",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
