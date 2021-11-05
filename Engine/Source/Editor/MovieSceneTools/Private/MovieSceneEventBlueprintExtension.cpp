@@ -72,6 +72,7 @@ void UMovieSceneEventBlueprintExtension::HandleGenerateFunctionGraphs(FKismetCom
 	// Don't remove while transacting because it can remove when an undo is in progress
 	if (!GIsTransacting)
 	{
-		FMovieSceneEventUtils::RemoveUnusedCustomEvents(EventSections, CompilerContext->Blueprint);
+		///// Temporarily disabled for UE-132130
+		/////FMovieSceneEventUtils::RemoveUnusedCustomEvents(EventSections, CompilerContext->Blueprint);
 	}
 }
