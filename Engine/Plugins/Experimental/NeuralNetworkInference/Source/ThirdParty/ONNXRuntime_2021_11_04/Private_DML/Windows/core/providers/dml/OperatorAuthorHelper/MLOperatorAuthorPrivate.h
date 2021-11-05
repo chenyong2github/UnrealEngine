@@ -5,7 +5,6 @@
 
 interface IDMLOperation;
 interface IDMLOperator;
-// enum DML_TENSOR_DATA_TYPE; // WITH_UE: Commented out to avoid warning C4471: 'DML_TENSOR_DATA_TYPE': a forward declaration of an unscoped enumeration must have an underlying type
 struct DML_OPERATOR_DESC;
 
 struct MLOperatorKernelDmlProperties
