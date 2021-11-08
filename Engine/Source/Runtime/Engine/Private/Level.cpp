@@ -970,7 +970,7 @@ void ULevel::UpdateLevelComponents(bool bRerunConstructionScripts, FRegisterComp
  *	Sorts actors such that parent actors will appear before children actors in the list
  *	Stable sort
  */
-static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
+static void SortActorsHierarchy(TArray<AActor*>& Actors, ULevel* Level)
 {
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -979,7 +979,7 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 
 	DepthMap.Reserve(Actors.Num());
 
-	TFunction<int32(AActor*)> CalcAttachDepth = [&DepthMap, &VisitedActors, &CalcAttachDepth](AActor* Actor)
+	TFunction<int32(AActor*)> CalcAttachDepth = [&DepthMap, &VisitedActors, &CalcAttachDepth, DefaultBrush = Level->GetDefaultBrush()](AActor* Actor)
 	{
 		int32 Depth = 0;
 		if (int32* FoundDepth = DepthMap.Find(Actor))
@@ -988,7 +988,17 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 		}
 		else
 		{
-			if (AActor* ParentActor = Actor->GetAttachParentActor())
+			// WorldSettings is expected to be the first element in the sorted Actors array
+			if (Actor->IsA<AWorldSettings>())
+			{
+				Depth = TNumericLimits<int32>::Lowest();
+			}
+			// The default brush is expected to be the second element in the sorted Actors array
+			else if (Actor == DefaultBrush)
+			{
+				Depth = TNumericLimits<int32>::Lowest() + 1;
+			}
+			else if (AActor* ParentActor = Actor->GetAttachParentActor())
 			{
 				if (VisitedActors.Contains(ParentActor))
 				{
