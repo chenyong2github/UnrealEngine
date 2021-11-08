@@ -6,19 +6,6 @@
 
 #define NDICOLLISIONQUERY_USE_GBUFFER_NORMAL    (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 
-float NDICollisionQuery_GetSceneDepth(float2 ScreenUV)
-{
-#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
-	#if MOBILE_DEFERRED_SHADING
-		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r);
-	#else
-		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a);
-	#endif
-#else
-		return CalcSceneDepth(ScreenUV);
-#endif
-}
-
 float NDICollisionQuery_GetCustomSceneDepth(float2 ScreenUV)
 {
 #if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
@@ -45,15 +32,15 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, out float Out_
 	{
 		// Sample the depth buffer to get a world position near the sample position.
 		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-		float SceneDepth = NDICollisionQuery_GetSceneDepth(ScreenUV);
+		float SceneDepth = CalcSceneDepth(ScreenUV);
 		float3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
 
 #if NDICOLLISIONQUERY_USE_GBUFFER_NORMAL
 		float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
 #else
 		float CollisionDepthBounds = 500.0f;
-		float SceneDepth0 = NDICollisionQuery_GetSceneDepth(ScreenUV + float2(View.BufferSizeAndInvSize.z, 0.0));
-		float SceneDepth1 = NDICollisionQuery_GetSceneDepth(ScreenUV + float2(0.0, View.BufferSizeAndInvSize.w));
+		float SceneDepth0 = CalcSceneDepth(ScreenUV + float2(View.BufferSizeAndInvSize.z, 0.0));
+		float SceneDepth1 = CalcSceneDepth(ScreenUV + float2(0.0, View.BufferSizeAndInvSize.w));
 		// When using the forward shading, the normal of the pixel is approximated by the derivative of the world position
 		// of the pixel. But in on the visible edge this derivative can become very high, making CollisionPlane almost
 		// perpendicular to the view plane. In these case the particle may collide the visible edges of the diferent meshes
