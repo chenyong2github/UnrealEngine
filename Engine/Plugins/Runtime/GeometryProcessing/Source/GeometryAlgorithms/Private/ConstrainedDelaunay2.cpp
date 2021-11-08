@@ -469,7 +469,7 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 
 	return !bBoundaryTrackingFailure;
 }
-//
+
 template<typename RealType>
 TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon)
 {
@@ -477,6 +477,16 @@ TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangu
 	Triangulation.FillRule = TConstrainedDelaunay2<RealType>::EFillRule::Positive;
 	Triangulation.Add(GeneralPolygon);
 	Triangulation.Triangulate();
+	return Triangulation.Triangles;
+}
+template<typename RealType>
+TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulateWithVertices(const TGeneralPolygon2<RealType>& GeneralPolygon, TArray<TVector2<RealType>>& OutVertices)
+{
+	TConstrainedDelaunay2<RealType> Triangulation;
+	Triangulation.FillRule = TConstrainedDelaunay2<RealType>::EFillRule::Positive;
+	Triangulation.Add(GeneralPolygon);
+	Triangulation.Triangulate();
+	OutVertices = MoveTemp(Triangulation.Vertices);
 	return Triangulation.Triangles;
 }
 
@@ -487,6 +497,8 @@ namespace Geometry
 
 template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<double>& GeneralPolygon);
 template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<float>& GeneralPolygon);
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulateWithVertices(const TGeneralPolygon2<double>& GeneralPolygon, TArray<TVector2<double>>& Vertices);
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulateWithVertices(const TGeneralPolygon2<float>& GeneralPolygon, TArray<TVector2<float>>& Vertices);
 
 
 
