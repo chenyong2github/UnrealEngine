@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BuildGraph xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../../Build/Graph/Schema.xsd" xmlns="http://www.epicgames.com/BuildGraph">
+  <Property Name="TestNames" Value="HeadlessChaos" />
+  <Property Name="HeadlessChaosShort" Value="Headless Chaos" />
+  <Property Name="HeadlessChaosTarget" Value="HeadlessChaos" />
+  <Property Name="HeadlessChaosBinariesRelative" Value="Engine\Binaries" />
+  <Property Name="HeadlessChaosResources" Value="" />
+  <Property Name="HeadlessChaosResourcesDest" Value="" />
+  <Option Name="RunHeadlessChaosTests" DefaultValue="False" Description="Run Headless Chaos Tests" />
+  <Property Name="HeadlessChaosSupportedPlatforms" Value="Win64" />
+</BuildGraph>

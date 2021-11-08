@@ -4,8 +4,13 @@ using System.IO;
 using UnrealBuildTool;
 
 [SupportedPlatforms("Win64")]
-public class HeadlessChaos : ModuleRules
+public class HeadlessChaos : LowLevelTests
 {
+	public override string TestName => "HeadlessChaos";
+	public override string TestShortName => "Headless Chaos";
+
+	public override bool UsesCatch2 => false;
+
 	public HeadlessChaos(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicIncludePaths.Add("Runtime/Launch/Public");
@@ -50,12 +55,5 @@ public class HeadlessChaos : ModuleRules
 		}
 
 		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
-		
-		LowLevelTests.UpdateGeneratedPropertiesScriptFile(
-			typeof(HeadlessChaos),
-			"HeadlessChaos",
-			"Headless Chaos",
-			Target.LaunchModuleName,
-			Path.Combine("Engine", "Binaries"));
 	}
 }

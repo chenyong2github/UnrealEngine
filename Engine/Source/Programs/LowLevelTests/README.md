@@ -16,9 +16,7 @@ Catch2 is a modern C++ test framework designed with multi-platform support and i
 ## <a name="CreateTestModule"/>Create a test module
 Create a module that inherits from `LowLevelTests`.
 
-Include a call to `UpdateGeneratedPropertiesScriptFile` - this method generates test flag metadata required when running tests with BuildGraph.
-
-Update *Engine\Restricted\NotForLicensees\Build\LowLevelTests.xml* (details below)
+Override TestName and TestShortName with appropriate values.
 
 **MyModuleTests.Build.cs**
 ```csharp
@@ -26,6 +24,9 @@ using UnrealBuildTool;
 
 public class MyModuleTests : LowLevelTests
 {
+	public override string TestName => "MyModule";
+	public override string TestShortName => "My Module";
+
 	public MyModuleTests(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(
@@ -37,12 +38,6 @@ public class MyModuleTests : LowLevelTests
 		);
 		
 		// Other types of dependencies minimally required to test a specific module
-
-		UpdateGeneratedPropertiesScriptFile(typeof(MyModuleTests),
-			"MyModuleTestName",
-			"My Module Short Name",
-			Target.LaunchModuleName,
-			Path.Combine("Path", "To", "Binaries"));
 	}
 }
 
@@ -84,7 +79,7 @@ You can now build the generated project and the executable will be placed in the
 
 **Buildgraph**
 
-The buildgraph file *Engine\Restricted\NotForLicensees\Build\LowLevelTests.xml* needs to be updated with an option to run the new test module we just added.
+The buildgraph file *Engine\Restricted\NotForLicensees\Build\LowLevelTests.xml* has an option to run the new test module we just added.
 
 This option can be used to selectively include or exclude the test when running via BuildGraph.
 
