@@ -119,11 +119,7 @@ struct FBokehModel
 inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
 {
 	// Only compile diaphragm DOF on platform it has been tested to ensure this is not blocking anyone else.
-	return 
-		ShaderPlatform == SP_PCD3D_SM5 ||
-		IsVulkanSM5Platform(ShaderPlatform) ||
-		IsMetalSM5Platform(ShaderPlatform) ||
-		FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
 }
 
 
