@@ -10,7 +10,7 @@ void UEditorGeometryGenerationManager::Tick(float DeltaTime)
 	// rebuild all valid generated actors, if necessary
 	for (AGeneratedDynamicMeshActor* Actor : ActiveGeneratedActors)
 	{
-		if (Actor->IsValidLowLevel() && !Actor->IsPendingKillOrUnreachable() &&  Actor->GetLevel() != nullptr)
+		if (Actor->IsValidLowLevel() && IsValid(Actor) && !Actor->IsUnreachable() && Actor->GetLevel() != nullptr)
 		{
 			Actor->ExecuteRebuildGeneratedMeshIfPending();
 		}
