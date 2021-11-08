@@ -173,23 +173,16 @@ namespace UnrealBuildTool
 
 		static bool IsBuildProductWithArch(string Name, string[] NamePrefixes, string[] NameSuffixes, string Extension)
 		{
-			// Strip off the extension, then a GPU suffix, then a CPU suffix, before testing whether it matches a build product name.
+			// Strip off the extension, then a CPU suffix, before testing whether it matches a build product name.
 			if (Name.EndsWith(Extension, StringComparison.InvariantCultureIgnoreCase))
 			{
 				int ExtensionEndIdx = Name.Length - Extension.Length;
-				foreach (string GpuSuffix in AndroidToolChain.AllGpuSuffixes)
+				foreach (string CpuSuffix in AndroidToolChain.AllCpuSuffixes)
 				{
-					int GpuIdx = ExtensionEndIdx - GpuSuffix.Length;
-					if (GpuIdx > 0 && String.Compare(Name, GpuIdx, GpuSuffix, 0, GpuSuffix.Length, StringComparison.InvariantCultureIgnoreCase) == 0)
+					int CpuIdx = ExtensionEndIdx - CpuSuffix.Length;
+					if (CpuIdx > 0 && String.Compare(Name, CpuIdx, CpuSuffix, 0, CpuSuffix.Length, StringComparison.InvariantCultureIgnoreCase) == 0)
 					{
-						foreach (string CpuSuffix in AndroidToolChain.AllCpuSuffixes)
-						{
-							int CpuIdx = GpuIdx - CpuSuffix.Length;
-							if (CpuIdx > 0 && String.Compare(Name, CpuIdx, CpuSuffix, 0, CpuSuffix.Length, StringComparison.InvariantCultureIgnoreCase) == 0)
-							{
-								return IsBuildProductName(Name, 0, CpuIdx, NamePrefixes, NameSuffixes);
-							}
-						}
+						return IsBuildProductName(Name, 0, CpuIdx, NamePrefixes, NameSuffixes);
 					}
 				}
 			}
@@ -330,26 +323,22 @@ namespace UnrealBuildTool
 			AndroidToolChain ToolChain = CreateToolChain(Target) as AndroidToolChain;
 
 			List<string> Architectures = ToolChain.GetAllArchitectures();
-			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
 			// make multiple output binaries
 			List<FileReference> AllBinaries = new List<FileReference>();
 			foreach (string Architecture in Architectures)
 			{
-				foreach (string GPUArchitecture in GPUArchitectures)
+				string BinaryPath;
+				if (Target.bShouldCompileAsDLL)
 				{
-					string BinaryPath;
-					if (Target.bShouldCompileAsDLL)
-					{
-						BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUnreal.so");
-					}
-					else
-					{
-						BinaryPath = AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture, GPUArchitecture);
-					}
-
-					AllBinaries.Add(new FileReference(BinaryPath));
+					BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUnreal.so");
 				}
+				else
+				{
+					BinaryPath = AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture);
+				}
+
+				AllBinaries.Add(new FileReference(BinaryPath));
 			}
 
 			return AllBinaries;

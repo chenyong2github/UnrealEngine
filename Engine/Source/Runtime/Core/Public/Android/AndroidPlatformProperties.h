@@ -71,11 +71,7 @@ struct FAndroidPlatformProperties
 
 	static FORCEINLINE bool SupportsLowQualityLightmaps()
 	{
-#if PLATFORM_ANDROIDGL4
-		return false;
-#else
 		return true;
-#endif
 	}
 
 	static FORCEINLINE bool SupportsDistanceFieldShadows()
