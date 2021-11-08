@@ -229,6 +229,13 @@ protected:
 private:
 	bool bIsLoaded;
 
+	/**
+	 * Whether an inference pass (i.e., Run) is happening.
+	 * This variable is thread safe as long as only "Run" modifies it. Other functions can safely read it at any time.
+	 * If other functions outside of Run() have to modify it, consider using mutexes.
+	 */
+	std::atomic<bool> bIsRunningNetwork;
+
 	UPROPERTY()
 	TArray<uint8> ModelReadFromFileInBytes;
 
@@ -310,5 +317,6 @@ private:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Archive) override;
+	virtual bool IsReadyForFinishDestroy() override;
 	//~End of UObject interface
 };
