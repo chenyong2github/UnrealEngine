@@ -39,6 +39,16 @@ namespace DatasmithSolidworks
 			DatasmithScene = InScene;
 		}
 
+		public EActorType? GetExportedActorType(string InActorName)
+		{
+			Tuple<EActorType, FDatasmithFacadeActor> ActorInfo = null;
+			if (ExportedActorsMap.TryGetValue(InActorName, out ActorInfo))
+			{
+				return ActorInfo.Item1;
+			}
+			return null;
+		}
+
 		public void ExportOrUpdateActor(FDatasmithActorExportInfo InExportInfo)
 		{
 			FDatasmithFacadeActor Actor = null;
@@ -430,7 +440,7 @@ namespace DatasmithSolidworks
 
             if (!string.IsNullOrEmpty(InMaterial.Texture) && File.Exists(InMaterial.Texture))
             {
-                string TextureName = Path.GetFileNameWithoutExtension(InMaterial.Texture);
+                string TextureName = SanitizeName(Path.GetFileNameWithoutExtension(InMaterial.Texture));
 
 				FDatasmithFacadeTexture TextureElement = null;
                 if (!ExportedTexturesMap.TryGetValue(InMaterial.Texture, out TextureElement))
@@ -449,7 +459,6 @@ namespace DatasmithSolidworks
 
                 FDatasmithFacadeMaterialsUtils.FWeightedMaterialExpressionParameters WeightedExpressionParameters = new FDatasmithFacadeMaterialsUtils.FWeightedMaterialExpressionParameters(1f);
 				FDatasmithFacadeMaterialsUtils.FUVEditParameters UVParameters = new FDatasmithFacadeMaterialsUtils.FUVEditParameters();
-				//TextureName = DatasmithExporter.SanitizeName(textureName);
                 FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(PBR, "Diffuse Map", TextureName, UVParameters);
 				WeightedExpressionParameters.SetColorsRGB(InMaterial.PrimaryColor.R, InMaterial.PrimaryColor.G, InMaterial.PrimaryColor.B, 255);
                 WeightedExpressionParameters.SetExpression(TextureExpression);
@@ -464,7 +473,7 @@ namespace DatasmithSolidworks
 
             if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && File.Exists(InMaterial.BumpTextureFileName))
             {
-                string TextureName = Path.GetFileNameWithoutExtension(InMaterial.BumpTextureFileName);
+                string TextureName = SanitizeName(Path.GetFileNameWithoutExtension(InMaterial.BumpTextureFileName));
 
 				FDatasmithFacadeTexture TextureElement = null;
                 if (!ExportedTexturesMap.TryGetValue(InMaterial.BumpTextureFileName, out TextureElement))

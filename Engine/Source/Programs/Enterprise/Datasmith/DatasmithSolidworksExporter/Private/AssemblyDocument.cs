@@ -24,14 +24,15 @@ namespace DatasmithSolidworks
 		class FSyncState
 		{
 			public Dictionary<string, FPartDocument> PartsMap = new Dictionary<string, FPartDocument>();
-			public Dictionary<string, FObjectMaterials> ComponentsMaterialsMap = new Dictionary<string, FObjectMaterials>();
+			public ConcurrentDictionary<string, FObjectMaterials> ComponentsMaterialsMap = new ConcurrentDictionary<string, FObjectMaterials>();
 			public Dictionary<string, string> ComponentToPartMap = new Dictionary<string, string>();
 			public HashSet<string> CleanComponents = new HashSet<string>();
 			public Dictionary<string, uint> DirtyComponents = new Dictionary<string, uint>();
 			public HashSet<string> ComponentsToDelete = new HashSet<string>();
 		}
 
-		private AssemblyDoc SwAsmDoc = null;
+		public AssemblyDoc SwAsmDoc { get; private set; } = null;
+
 		private FSyncState SyncState = new FSyncState();
 
 		public FAssemblyDocument(int InDocId, AssemblyDoc InSwDoc, FDatasmithExporter InExporter) : base(InDocId, InSwDoc as ModelDoc2, InExporter)
@@ -56,8 +57,6 @@ namespace DatasmithSolidworks
 				Exporter.RemoveActor(ActorName);
 			}
 
-			SetExportStatus("Materials");
-			SyncState.ComponentsMaterialsMap = FObjectMaterials.LoadDocumentMaterials(this, swDisplayStateOpts_e.swThisDisplayState, null);
 			Configuration CurrentConfig = SwDoc.GetActiveConfiguration() as Configuration;
 
 			SetExportStatus("");
@@ -70,24 +69,18 @@ namespace DatasmithSolidworks
 			ExportComponentRecursive(Root, null, ref MeshesToExportMap);
 
 			// Export materials
-			ConcurrentDictionary<Component2, FObjectMaterials> ComponentMaterialsMap = new ConcurrentDictionary<Component2, FObjectMaterials>();
-
 			SetExportStatus($"Component Materials");
-			Parallel.ForEach(MeshesToExportMap, KVP => 
+
+			HashSet<string> ComponentNamesToExportSet = new HashSet<string>();
+			foreach (var KVP in MeshesToExportMap)
 			{
-				Component2 Comp = KVP.Key;
-
-				FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(this, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
-				if (ComponentMaterials == null && Comp.GetModelDoc2() is PartDoc)
+				if (!ComponentNamesToExportSet.Contains(KVP.Key.Name))
 				{
-					ComponentMaterials = FObjectMaterials.LoadPartMaterials(this, Comp.GetModelDoc2() as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+					ComponentNamesToExportSet.Add(KVP.Key.Name);
 				}
-				if (ComponentMaterials != null)
-				{
-					ComponentMaterialsMap.TryAdd(Comp, ComponentMaterials);
-				}
-			});
-
+				
+			}
+			SyncState.ComponentsMaterialsMap = FObjectMaterials.LoadAssemblyMaterials(this, ComponentNamesToExportSet, swDisplayStateOpts_e.swThisDisplayState, null);
 			Exporter.ExportMaterials(ExportedMaterialsMap);
 
 			// Export meshes
@@ -98,7 +91,7 @@ namespace DatasmithSolidworks
 				Component2 Comp = KVP.Key;
 
 				FObjectMaterials ComponentMaterials = null;
-				ComponentMaterialsMap.TryGetValue(Comp, out ComponentMaterials);
+				SyncState.ComponentsMaterialsMap?.TryGetValue(Comp.Name2, out ComponentMaterials);
 
 				ConcurrentBag<FBody> Bodies = FBody.FetchBodies(Comp);
 				FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ComponentMaterials);
@@ -128,42 +121,12 @@ namespace DatasmithSolidworks
 
 		public override bool HasMaterialUpdates()
 		{
-			Dictionary<string, FObjectMaterials> CurrentDocMaterialsMap = FObjectMaterials.LoadDocumentMaterials(this, swDisplayStateOpts_e.swThisDisplayState, null);
-
 			// Dig into part level materials (they wont be read by LoadDocumentMaterials)
 			HashSet<string> AllExportedComponents = new HashSet<string>();
 			AllExportedComponents.UnionWith(SyncState.CleanComponents);
 			AllExportedComponents.UnionWith(SyncState.DirtyComponents.Keys);
 
-			foreach (string CompName in AllExportedComponents)
-			{
-				if (!CurrentDocMaterialsMap?.ContainsKey(CompName) ?? false)
-				{
-					Component2 Comp = SwAsmDoc.GetComponentByName(CompName);
-					if (Comp == null)
-					{
-						continue;
-					}
-
-					object ComponentDoc = (object)Comp.GetModelDoc2();
-
-					// Check for part level materials
-					FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(this, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
-					if (ComponentMaterials == null && (object)Comp.GetModelDoc2() is PartDoc)
-					{
-						ComponentMaterials = FObjectMaterials.LoadPartMaterials(this, ComponentDoc as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-					}
-
-					if (ComponentMaterials != null)
-					{
-						if (CurrentDocMaterialsMap == null)
-						{
-							CurrentDocMaterialsMap = new Dictionary<string, FObjectMaterials>();
-						}
-						CurrentDocMaterialsMap[CompName] = ComponentMaterials;
-					}
-				}
-			}
+			ConcurrentDictionary<string, FObjectMaterials> CurrentDocMaterialsMap = FObjectMaterials.LoadAssemblyMaterials(this, AllExportedComponents, swDisplayStateOpts_e.swThisDisplayState, null);
 
 			if (CurrentDocMaterialsMap == null && SyncState.ComponentsMaterialsMap == null)
 			{
@@ -246,7 +209,7 @@ namespace DatasmithSolidworks
 				ActorExportInfo.Name = ComponentName;
 				ActorExportInfo.ParentName = InParent?.Name2;
 				ActorExportInfo.bVisible = true;
-				ActorExportInfo.Type = EActorType.SimpleActor;
+				ActorExportInfo.Type = Exporter.GetExportedActorType(ComponentName) ?? EActorType.SimpleActor;
 
 				if (ComponentTransform != null)
 				{
