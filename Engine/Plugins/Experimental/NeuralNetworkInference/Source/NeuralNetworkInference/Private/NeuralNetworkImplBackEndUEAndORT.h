@@ -8,6 +8,16 @@
 #include "HAL/CriticalSection.h"
 #include "RHI.h"
 #include "DynamicRHI.h"
+#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
+	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
+	#pragma push_macro("NOMINMAX")
+	#pragma push_macro("WIN32_LEAN_AND_MEAN")
+	#undef NOMINMAX
+	#undef WIN32_LEAN_AND_MEAN
+	#include "D3D12RHIPrivate.h"
+	#pragma pop_macro("WIN32_LEAN_AND_MEAN")
+	#pragma pop_macro("NOMINMAX")
+#endif
 
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
