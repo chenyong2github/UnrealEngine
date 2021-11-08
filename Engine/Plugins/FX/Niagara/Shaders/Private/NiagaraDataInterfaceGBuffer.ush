@@ -174,11 +174,7 @@ void DIGBuffer_DecodeDepth(in float2 ScreenUV, in bool bApplyViewportOffset, out
 	OutValue = GBufferData.Depth;
 #elif NDIGBUFFER_IS_MOBILE
 	IsValid = true;
-	#if MOBILE_DEFERRED_SHADING
-		OutValue = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r);
-	#else
-		OutValue = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a);
-	#endif
+	OutValue = CalcSceneDepth(ScreenUV);
 #else
 	IsValid = false;
 	OutValue = 0;

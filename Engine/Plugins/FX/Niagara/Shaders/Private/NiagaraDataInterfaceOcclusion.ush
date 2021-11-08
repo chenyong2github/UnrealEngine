@@ -4,19 +4,6 @@
 
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
-float DIOcclusion_CalcSceneDepth(float2 ScreenUV)
-{
-#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
-	#if MOBILE_DEFERRED_SHADING
-		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r);
-	#else
-		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a);
-	#endif
-#else
-		return CalcSceneDepth(ScreenUV);
-#endif
-}
-
 void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
 	// we need to project the camera vector to a plane to compare it with scene depth
@@ -56,7 +43,7 @@ void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_Sample
 					continue;
 				}
 				
-				float Depth = DIOcclusion_CalcSceneDepth(float2(SampleX, SampleY));
+				float Depth = CalcSceneDepth(float2(SampleX, SampleY));
 				if (Depth < CameraDistance) 
 				{
 					OccludedSamples++;
@@ -86,7 +73,7 @@ void DIOcclusion_Circle(in float3 In_SampleCenterWorldPos, in float In_SampleWin
 
 	if (ScreenUV.x <= 1 && ScreenUV.x >= 0 && ScreenUV.y <= 1 && ScreenUV.y >= 0)
 	{
-		float Depth = DIOcclusion_CalcSceneDepth(ScreenUV);
+		float Depth = CalcSceneDepth(ScreenUV);
 		if (Depth < CameraDistance) 
 		{
 			OccludedSamples++;

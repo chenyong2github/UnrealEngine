@@ -142,13 +142,13 @@ float LookupDeviceZ( float2 ScreenUV )
 #elif FORCE_DEPTH_TEXTURE_READS || COMPILER_SWITCH
 	// native Depth buffer lookup
 	return Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r;
-#elif (POST_PROCESS_MATERIAL || POST_PROCESS_MATERIAL_MOBILE) && !POST_PROCESS_AR_PASSTHROUGH
+#elif (POST_PROCESS_MATERIAL || POST_PROCESS_MATERIAL_MOBILE || COMPUTESHADER) && !POST_PROCESS_AR_PASSTHROUGH
 	#if MOBILE_DEFERRED_SHADING
-		return Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r;
+		return Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r;
 	#else
 		// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass
 		// instead fetch DeviceZ from SceneDepthAuxTexture
-		return Texture2DSample(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, ScreenUV);
+		return Texture2DSampleLevel(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, ScreenUV, 0);
 	#endif
 #elif COMPILER_GLSL_ES3_1 && PIXELSHADER
 	return DepthbufferFetchES2();
