@@ -244,6 +244,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	UPROPERTY()
 	uint8 NextSectionID;
 
+	/** ID incremented every time a montage is played, used to trigger replication when the same montage is played multiple times. This ID wraps around when it reaches its max value. */
+	UPROPERTY()
+	uint8 PlayInstanceId;
+
 	/** flag indicating we should serialize the position or the current section id */
 	UPROPERTY()
 	uint8 bRepPosition : 1;
@@ -252,10 +256,6 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	UPROPERTY()
 	uint8 IsStopped : 1;
 	
-	/** Bit flipped every time a new Montage is played. To trigger replication when the same montage is played again. */
-	UPROPERTY()
-	uint8 ForcePlayBit : 1;
-
 	/** Stops montage position from replicating at all to save bandwidth */
 	UPROPERTY()
 	uint8 SkipPositionCorrection : 1;
@@ -277,9 +277,9 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	Position(0.f),
 	BlendTime(0.f),
 	NextSectionID(0),
+	PlayInstanceId(0),
 	bRepPosition(true),
 	IsStopped(true),
-	ForcePlayBit(0),
 	SkipPositionCorrection(false),
 	bSkipPlayRate(false),
 	SectionIdToPlay(0)
@@ -308,7 +308,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityLocalAnimMontage
 	GENERATED_USTRUCT_BODY()
 
 	FGameplayAbilityLocalAnimMontage()
-		: AnimMontage(nullptr), PlayBit(false), AnimatingAbility(nullptr)
+		: AnimMontage(nullptr), PlayInstanceId(0), AnimatingAbility(nullptr)
 	{
 	}
 
@@ -316,9 +316,9 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityLocalAnimMontage
 	UPROPERTY()
 	UAnimMontage* AnimMontage;
 
-	/** Rather the montage is actively playing */
+	/** ID tied to a particular play of a montage, used to trigger replication when the same montage is played multiple times. This ID wraps around when it reaches its max value.  */
 	UPROPERTY()
-	bool PlayBit;
+	uint8 PlayInstanceId;
 
 	/** Prediction key that started the montage play */
 	UPROPERTY()

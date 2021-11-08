@@ -118,7 +118,7 @@ bool FAutoPackageBackup::ShouldBackupPackage( const UPackage& InPackage, FString
 	{
 		GWarn->StatusUpdate( -1, -1, NSLOCTEXT("UnrealEd", "PackageBackup_ValidityWarning", "Determining asset backup validity...") );
 
-		bShouldBackup =	FPackageName::DoesPackageExist( InPackage.GetName(), NULL, &OutFilename );	// Make sure the file already exists (no sense in backing up a new package)
+		bShouldBackup =	FPackageName::DoesPackageExist( InPackage.GetName(), &OutFilename );	// Make sure the file already exists (no sense in backing up a new package)
 	}
 	
 	// If the package passed the initial backup checks, proceed to check more specific conditions

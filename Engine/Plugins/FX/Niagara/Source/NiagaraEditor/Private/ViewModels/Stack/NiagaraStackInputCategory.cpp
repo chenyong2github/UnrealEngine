@@ -7,16 +7,12 @@
 
 void UNiagaraStackInputCategory::Initialize(
 	FRequiredEntryData InRequiredEntryData,
-	UNiagaraNodeFunctionCall& InModuleNode,
-	UNiagaraNodeFunctionCall& InInputFunctionCallNode,
+	FString InputCategoryStackEditorDataKey,
 	FText InCategoryName,
 	FString InOwnerStackItemEditorDataKey)
 {
 	bool bCategoryIsAdvanced = false;
-	FString InputCategoryStackEditorDataKey = FString::Printf(TEXT("%s-InputCategory-%s"), *InInputFunctionCallNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens), *InCategoryName.ToString());
 	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, InputCategoryStackEditorDataKey);
-	ModuleNode = &InModuleNode;
-	InputFunctionCallNode = &InInputFunctionCallNode;
 	CategoryName = InCategoryName;
 	bShouldShowInStack = true;
 	
@@ -34,9 +30,9 @@ void UNiagaraStackInputCategory::ResetInputs()
 	Inputs.Empty();
 }
 
-void UNiagaraStackInputCategory::AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, bool bIsInputHidden, bool bIsChildInput)
+void UNiagaraStackInputCategory::AddInput(UNiagaraNodeFunctionCall* InModuleNode, UNiagaraNodeFunctionCall* InInputFunctionCallNode, FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, TOptional<FText> InOptionalDisplayName, bool bIsInputHidden, bool bIsChildInput)
 {
-	Inputs.Add({ InInputParameterHandle, InInputType, InParameterBehavior, bIsInputHidden, bIsChildInput });
+	Inputs.Add({ InModuleNode, InInputFunctionCallNode, InInputParameterHandle, InInputType, InParameterBehavior, InOptionalDisplayName, bIsInputHidden, bIsChildInput });
 }
 
 void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
@@ -45,17 +41,18 @@ void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraSt
 	{
 		UNiagaraStackFunctionInput* InputChild = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInput>(CurrentChildren, [&](UNiagaraStackFunctionInput* CurrentInput) 
 		{ 
-			return CurrentInput->GetInputParameterHandle() == Input.ParameterHandle && CurrentInput->GetInputFunctionCallInitialScript() == InputFunctionCallNode->FunctionScript; 
+			return CurrentInput->GetInputParameterHandle() == Input.ParameterHandle && CurrentInput->GetInputFunctionCallInitialScript() == Input.InputFunctionCallNode->FunctionScript;
 		});
 
 		if (InputChild == nullptr)
 		{
 			InputChild = NewObject<UNiagaraStackFunctionInput>(this);
-			InputChild->Initialize(CreateDefaultChildRequiredData(), *ModuleNode, *InputFunctionCallNode,
+			InputChild->Initialize(CreateDefaultChildRequiredData(), *Input.ModuleNode, *Input.InputFunctionCallNode,
 				Input.ParameterHandle, Input.Type, Input.ParameterBehavior, GetOwnerStackItemEditorDataKey());
 		}
 		InputChild->SetIsHidden(Input.bIsHidden);
 		InputChild->SetSemanticChild(Input.bIsChildInput);
+		InputChild->SetSummaryViewDisiplayName(Input.DisplayName);
 		NewChildren.Add(InputChild);
 	}
 }
@@ -81,7 +78,15 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackInputCategory::GetStackRowStyle(
 
 bool UNiagaraStackInputCategory::GetIsEnabled() const
 {
-	return InputFunctionCallNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
+	for (const auto& Input : Inputs)
+	{
+		if (Input.InputFunctionCallNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraStackInputCategory::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const

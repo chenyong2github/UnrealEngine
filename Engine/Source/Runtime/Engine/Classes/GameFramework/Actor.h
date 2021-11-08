@@ -800,6 +800,8 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
 	TArray<FActorDataLayer> DataLayers;
 
+	TArray<FActorDataLayer> PreEditChangeDataLayers;
+
 public:
 	/** The copy/paste id used to remap actors during copy operations */
 	uint32 CopyPasteId;
@@ -824,6 +826,12 @@ public:
 	 * @param bShouldDirty should dirty or not the level package
 	 */
 	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
+
+	/**
+	 * Determine how this actor should be referenced by the level when external (saved in its own package).
+	 / @return true if the level should keep a reference to the actor even if it's saved in its own package.
+	 */
+	virtual bool ShouldLevelKeepRefIfExternal() const { return false; }
 
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
@@ -1124,7 +1132,7 @@ public:
 	TArray<const UDataLayer*> GetDataLayerObjects(const AWorldDataLayers* WorldDataLayers) const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
-	void FixupDataLayers();
+	void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
 #endif
 
 	//~=============================================================================

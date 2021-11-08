@@ -317,15 +317,15 @@ FStreamedAudioChunk& FAudioChunkCache::FChunkKey::GetChunk(uint32 InChunkIndex) 
 
 	// the Weakptr should be valid here since it's from a shared ptr up the stack
 	check(ProxyPtr.IsValid());
-	check((ChunkIndex < (uint32)ProxyPtr->GetNumChunks()));
-
-	check(ProxyPtr->RunningPlatformData);
+	check(ProxyPtr->SoundWaveDataPtr);
 
 	// This function shouldn't be called on audio marked "ForceInline."
-	ensureMsgf(ProxyPtr->RunningPlatformData, TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
+	ensureMsgf(ProxyPtr->GetLoadingBehavior() != ESoundWaveLoadingBehavior::ForceInline, TEXT("Calling GetNumChunks on a FSoundWaveProxy that is Force-Inlined is not allowed! SoundWave: %s - %s")
 		, *ProxyPtr->GetFName().ToString(), EnumToString(ProxyPtr->GetLoadingBehavior()));
 
-	return ProxyPtr->RunningPlatformData->Chunks[ChunkIndex];
+	check((ChunkIndex < (uint32)ProxyPtr->GetNumChunks()));
+
+	return ProxyPtr->SoundWaveDataPtr->RunningPlatformData.Chunks[ChunkIndex];
 }
 
 uint32 FAudioChunkCache::FChunkKey::GetNumChunks() const

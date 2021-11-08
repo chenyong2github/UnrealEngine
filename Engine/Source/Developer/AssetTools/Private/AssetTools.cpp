@@ -706,7 +706,7 @@ void UAssetToolsImpl::GenerateAdvancedCopyDestinations(FAdvancedCopyParams& InPa
 
 		const FString& PackageNameString = PackageName.ToString();
 		FString SrcFilename;
-		if (FPackageName::DoesPackageExist(PackageNameString, nullptr, &SrcFilename))
+		if (FPackageName::DoesPackageExist(PackageNameString, &SrcFilename))
 		{
 			bool bFileOKToCopy = true;
 
@@ -855,7 +855,7 @@ bool UAssetToolsImpl::ValidateFlattenedAdvancedCopyDestinations(const TMap<FStri
 
 		// Check for valid copy locations
 		FString SrcFilename;
-		if (!FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
+		if (!FPackageName::DoesPackageExist(PackageName, &SrcFilename))
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("AdvancedCopyPackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName)));
 			return false;
@@ -930,7 +930,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 			const FString& DestFilename = Package.Value;
 			FString SrcFilename;
 
-			if (FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
+			if (FPackageName::DoesPackageExist(PackageName, &SrcFilename))
 			{
 				LoopProgress.EnterProgressFrame();
 				UPackage* Pkg = LoadPackage(nullptr, *PackageName, LOAD_None);
@@ -1440,7 +1440,7 @@ bool UAssetToolsImpl::AssetUsesGenericThumbnail( const FAssetData& AssetData ) c
 		// It would be more correct here to find the rendering info for the generated class,
 		// but instead we are simply seeing if there is a thumbnail saved on disk for this asset
 		FString PackageFilename;
-		if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), nullptr, &PackageFilename) )
+		if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename) )
 		{
 			TSet<FName> ObjectFullNames;
 			FThumbnailMap ThumbnailMap;
@@ -1501,7 +1501,7 @@ void UAssetToolsImpl::DiffAgainstDepot( UObject* InObject, const FString& InPack
 	{
 		// Get the file name of package
 		FString RelativeFileName;
-		if(FPackageName::DoesPackageExist(InPackagePath, nullptr, &RelativeFileName))
+		if(FPackageName::DoesPackageExist(InPackagePath, &RelativeFileName))
 		{
 			if(SourceControlState->GetHistorySize() > 0)
 			{
@@ -2958,7 +2958,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 			const FString& PackageName = PackageDataIt->Name;
 			FString SrcFilename;
 			
-			if (!FPackageName::DoesPackageExist(PackageName, nullptr, &SrcFilename))
+			if (!FPackageName::DoesPackageExist(PackageName, &SrcFilename))
 			{
 				const FText ErrorMessage = FText::Format(LOCTEXT("MigratePackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName));
 				UE_LOG(LogAssetTools, Warning, TEXT("%s"), *ErrorMessage.ToString());
@@ -3340,7 +3340,7 @@ void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAnd
 		FString SrcFilename;
 		UObject* ExistingObject = nullptr;
 
-		if (FPackageName::DoesPackageExist(OriginalNameString, nullptr, &SrcFilename))
+		if (FPackageName::DoesPackageExist(OriginalNameString, &SrcFilename))
 		{
 			UPackage* Pkg = LoadPackage(nullptr, *OriginalNameString, LOAD_None);
 			if (Pkg)

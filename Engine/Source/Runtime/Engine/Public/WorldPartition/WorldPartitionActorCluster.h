@@ -26,7 +26,7 @@ struct FActorCluster
 	FDataLayersID				DataLayersID;
 
 	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
-	void Add(const FActorCluster& InActorCluster, const struct FActorContainerInstance& ContainerInstance);
+	void Add(const FActorCluster& InActorCluster, const TMap<FGuid, FWorldPartitionActorDescView>& InActorDescViewMap);
 
 };
 
@@ -99,15 +99,15 @@ struct ENGINE_API FActorInstance
 /**
  * Class used to generate the actor clustering. 
  */
-class FActorClusterContext
+class ENGINE_API FActorClusterContext
 {
 public:
-	typedef TFunctionRef<bool(const FWorldPartitionActorDescView&)> FFilterPredicate;
+	typedef TFunction<bool(const FWorldPartitionActorDescView&)> FFilterActorDescViewFunc;
 
 	/**
 	 * Create the actor clusters from the root World Partition. Optionally filtering some actors and including child Containers. 
 	 */
-	FActorClusterContext(UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate = TOptional<FFilterPredicate>(), bool bInIncludeChildContainers = true);
+	FActorClusterContext(UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, FFilterActorDescViewFunc InFilterActorDescViewFunc = nullptr, bool bInIncludeChildContainers = true);
 				
 	/**
 	 * Returns the list of cluster instances of this context. 
@@ -116,15 +116,18 @@ public:
 	
 	FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer);
 
+	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters);
+
 private:
 	void CreateActorClusters();
 	void CreateContainerInstanceRecursive(uint64 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* ActorDescContainer, const TSet<FName>& DataLayers, FBox& ParentBounds);
-	const TArray<FActorCluster>& CreateActorClustersImpl(const FActorContainerInstance& ContainerInstance);
+	const TArray<FActorCluster>& CreateActorClusters(const FActorContainerInstance& ContainerInstance);
+	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters, FFilterActorDescViewFunc InFilterActorDescViewFunc);
 	
 	// Init data
 	UWorldPartition* WorldPartition;
 	const UWorldPartitionRuntimeHash* RuntimeHash;
-	TOptional<FFilterPredicate> FilterPredicate;
+	FFilterActorDescViewFunc FilterActorDescViewFunc;
 	bool bIncludeChildContainers;
 
 	// Generated data

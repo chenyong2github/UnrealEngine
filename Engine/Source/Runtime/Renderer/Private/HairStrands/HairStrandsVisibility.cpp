@@ -2594,7 +2594,7 @@ static void AddHairAuxilaryPass(
 	PermutationVector.Set<FHairVisibilityDepthPS::FOutputType>(OutputType);
 	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const FIntRect Viewport = View.ViewRect;
-	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
+	const FIntPoint Resolution = OutDepthTexture->Desc.Extent; //-V522
 	const bool bUseTile = TileData.IsValid();
 
 	GraphBuilder.AddPass(

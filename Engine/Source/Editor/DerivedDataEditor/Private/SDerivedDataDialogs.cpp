@@ -35,7 +35,6 @@ void SDerivedDataRemoteStoreDialog::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(0, 20, 0, 0)
@@ -276,8 +275,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Loaded", "Loaded"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Loaded", "Loaded"))
 		];
 
 
@@ -287,8 +286,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Built", "Built"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Built", "Built"))
 		];
 
 	Row++;
@@ -299,7 +298,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Asset", "Asset"))
+		.Justification(ETextJustify::Left)
+		.Text(LOCTEXT("ResourceType", "Resource Type"))
 		];
 
 	Panel->AddSlot(1, Row)
@@ -309,8 +309,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Count", "Count"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Count", "Count"))
 		];
 
 	Panel->AddSlot(2, Row)
@@ -319,8 +319,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Time (Sec)", "Time (Sec)"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Time (Sec)", "Time (Sec)"))
 		];
 
 	Panel->AddSlot(3, Row)
@@ -329,8 +329,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Size (MB)", "Size (MB)"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Size (MB)", "Size (MB)"))
 		];
 
 	Panel->AddSlot(4, Row)
@@ -339,8 +339,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Count", "Count"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Count", "Count"))
 		];
 
 	Panel->AddSlot(5, Row)
@@ -349,8 +349,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Time (Sec)", "Time (Sec)"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Time (Sec)", "Time (Sec)"))
 		];
 
 	Panel->AddSlot(6, Row)
@@ -359,8 +359,8 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Size (MB)", "Size (MB)"))
 		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Size (MB)", "Size (MB)"))
 		];
 
 	Row++;
@@ -431,8 +431,9 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Text(FText::FromString(DDCResourceStatsTotal.AssetType))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
 			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
 			.Justification(ETextJustify::Left)
 		];
@@ -441,60 +442,60 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(FString::Printf(TEXT("%u"), DDCResourceStatsTotal.LoadCount)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(FString::Printf(TEXT("%u"), DDCResourceStatsTotal.LoadCount)))
 		];
 
 	Panel->AddSlot(2, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.LoadTimeSec)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.LoadTimeSec)))
 		];
 
 	Panel->AddSlot(3, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.LoadSizeMB)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.LoadSizeMB)))
 		];
 
 	Panel->AddSlot(4, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(FString::Printf(TEXT("%u"), DDCResourceStatsTotal.BuildCount)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(FString::Printf(TEXT("%u"), DDCResourceStatsTotal.BuildCount)))
 		];
 
 	Panel->AddSlot(5, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.BuildTimeSec)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.BuildTimeSec)))
 		];
 
 	Panel->AddSlot(6, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.BuildSizeMB)))
-			.ColorAndOpacity(FStyleColors::AccentWhite)
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
 			.Justification(ETextJustify::Center)
+			.Text(FText::FromString(SingleDecimalFormat(DDCResourceStatsTotal.BuildSizeMB)))
 		];
 
 	return Panel;
@@ -503,13 +504,34 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 
 void SDerivedDataCacheStatisticsDialog::Construct(const FArguments& InArgs)
 {
+	const float RowMargin = 0.0f;
+	const float TitleMargin = 10.0f;
+	const float ColumnMargin = 10.0f;
+	const FSlateColor TitleColour = FStyleColors::AccentWhite;
+	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-
+		+ SVerticalBox::Slot()
+		.Padding(0, 20, 0, 0)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)		
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+				.ColorAndOpacity(TitleColour)
+				.Font(TitleFont)
+				.Justification(ETextJustify::Left)
+				.Text( FText::FromString(GetDerivedDataCache()->GetGraphName()))
+			]		
+		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 20, 0, 0)
+		.Padding(0, 5, 0, 0)
 		.Expose(GridSlot)
 		[
 			GetGridPanel()
@@ -562,10 +584,10 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+		.Text(LOCTEXT("Cache", "Cache"))
 		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Name", "Name"))
+		.Text(LOCTEXT("CacheType", "Cache Type"))
 	];
 
 	Panel->AddSlot(1, Row)
@@ -575,7 +597,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
 		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("HitPercentage", "Hit%"))
+		.Text(LOCTEXT("Location", "Location"))
 	];
 
 	Panel->AddSlot(2, Row)
@@ -585,28 +607,49 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
 		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Read", "Read"))
+		.Text(LOCTEXT("HitPercentage", "Hit%"))
 	];
 
 	Panel->AddSlot(3, Row)
-		[
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Left)
+		.Text(LOCTEXT("Read", "Read"))
+	];
+
+	Panel->AddSlot(4, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Center)
+		.Text(LOCTEXT("Read", "Read"))
+	];
+
+	Panel->AddSlot(5, Row)
+	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
 		.Justification(ETextJustify::Left)
 		.Text(LOCTEXT("Write", "Write"))
-		];
+	];
 
-	Panel->AddSlot(4, Row)
-		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-			.ColorAndOpacity(TitleColor)
-			.Font(TitleFont)
-			.Justification(ETextJustify::Left)
-			.Text(LOCTEXT("Details", "Details"))
-		];
+	Panel->AddSlot(6, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Left)
+		.Text(LOCTEXT("Details", "Details"))
+	];
+
 	Row++;
 
 	double SumTotalGetMB =0.0;
@@ -614,22 +657,20 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 	for (TSharedRef<const FDerivedDataCacheStatsNode> Node : LeafUsageStats)
 	{
-		FDerivedDataCacheUsageStats Stats;
-
 		const FDerivedDataBackendInterface* Backend = Node->GetBackendInterface();
 
-		if (Backend->IsWrapper())
-		{
-			// Skip over wrappers
+		if (Backend->GetDisplayName().Equals("Memory") || Backend->IsWrapper())
 			continue;
-		}
 
 		TSharedRef<FDerivedDataCacheStatsNode> Usage = Backend->GatherUsageStats();
+		FDerivedDataCacheUsageStats Stats;
+
 		for (const auto& KVP : Usage->Stats)
 		{
 			Stats.Combine(KVP.Value);
 		}
 
+		
 		const int64 TotalGetBytes = Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
 		const int64 TotalPutBytes = Stats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
 		const int64 TotalPrefetchBytes = Stats.PrefetchStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
@@ -639,97 +680,110 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 		const int64 TotalRequests = TotalGets_Hit + TotalGets_Miss;
 
-		//if (TotalGetBytes > 0 || TotalPutBytes > 0)
-		{
-			Panel->AddSlot(0, Row)
-				.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(Backend->GetDisplayName()))
-			];
+		Panel->AddSlot(0, Row)
+			.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text(FText::FromString(Backend->GetDisplayName()))
+		];
 
-			const double HitPercentage = TotalRequests > 0 ? (100.0 * (TotalGets_Hit / (double)TotalRequests)) : 0.0;
+		Panel->AddSlot(1, Row)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text( FText::FromString((Backend->GetSpeedClass() == FDerivedDataBackendInterface::ESpeedClass::Local) ? "Local" : "Remote" ))
+		];
 
-			Panel->AddSlot(1, Row)
-				.HAlign(HAlign_Left)
-				[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(SingleDecimalFormat(HitPercentage) + TEXT(" %")))
-				];
+		const double HitPercentage = TotalRequests > 0 ? (100.0 * (TotalGets_Hit / (double)TotalRequests)) : 0.0;
 
-			const double TotalGetMB = FUnitConversion::Convert(TotalGetBytes, EUnit::Bytes, EUnit::Megabytes);
-
-			SumTotalGetMB += TotalGetMB;
-
-			Panel->AddSlot(2, Row)
+		Panel->AddSlot(2, Row)
 			.HAlign(HAlign_Left)
 			[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(SingleDecimalFormat(TotalGetMB) + TEXT(" MB")))
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text(FText::FromString(SingleDecimalFormat(HitPercentage) + TEXT(" %")))
 			];
 
-			const double TotalPutMB = FUnitConversion::Convert(TotalPutBytes, EUnit::Bytes, EUnit::Megabytes);
+		const double TotalGetMB = FUnitConversion::Convert(TotalGetBytes, EUnit::Bytes, EUnit::Megabytes);
 
-			SumTotalPutMB += TotalPutMB;
+		SumTotalGetMB += TotalGetMB;
 
-			Panel->AddSlot(3, Row)
-			.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(SingleDecimalFormat(TotalPutMB) + TEXT(" MB")))
-			];
+		Panel->AddSlot(3, Row)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text(FText::FromString(SingleDecimalFormat(TotalGetMB) + TEXT(" MB")))
+		];
 
-			Panel->AddSlot(4, Row)
-			.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Margin(FMargin(ColumnMargin, RowMargin))
-				.Justification(ETextJustify::Left)
-				.Text(FText::FromString(Backend->GetName()))
-			];
+		const double TotalPutMB = FUnitConversion::Convert(TotalPutBytes, EUnit::Bytes, EUnit::Megabytes);
 
-			Row++;
-		}
+		SumTotalPutMB += TotalPutMB;
+
+		Panel->AddSlot(4, Row)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text(FText::FromString(SingleDecimalFormat(TotalPutMB) + TEXT(" MB")))
+		];
+
+		Panel->AddSlot(5, Row)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Right)
+			.Text(FText::FromString(SingleDecimalFormat(TotalPutMB) + TEXT(" MB")))
+		];
+
+		Panel->AddSlot(6, Row)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+			.Justification(ETextJustify::Left)
+			.Text(FText::FromString(Backend->GetName()))
+		];
+
+		Row++;
 	}
 
 	Panel->AddSlot(0, Row)
 		[
 			SNew(STextBlock)
-			.Text(FText::FromString(TEXT("Total")))
 			.Margin(FMargin(ColumnMargin, RowMargin))
 			.ColorAndOpacity(TitleColor)
 			.Font(TitleFont)
-			.Justification(ETextJustify::Left)	
-		];
-
-	Panel->AddSlot(2, Row)
-		.HAlign(HAlign_Right)
-		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
 			.Justification(ETextJustify::Left)
-			.ColorAndOpacity(TitleColor)
-			.Font(TitleFont)
-			.Text(FText::FromString(SingleDecimalFormat(SumTotalGetMB) + TEXT(" MB")))
+			.Text(FText::FromString(TEXT("Total")))	
 		];
 
 	Panel->AddSlot(3, Row)
 		.HAlign(HAlign_Right)
 		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Justification(ETextJustify::Left)
-			.ColorAndOpacity(TitleColor)
-			.Font(TitleFont)
-			.Text(FText::FromString(SingleDecimalFormat(SumTotalPutMB) + TEXT(" MB")))
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Right)
+		.Text(FText::FromString(SingleDecimalFormat(SumTotalGetMB) + TEXT(" MB")))
+		];
+
+	Panel->AddSlot(4, Row)
+		.HAlign(HAlign_Right)
+		[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Justification(ETextJustify::Right)
+		.Text(FText::FromString(SingleDecimalFormat(SumTotalPutMB) + TEXT(" MB")))
 		];
 
 	return Panel;

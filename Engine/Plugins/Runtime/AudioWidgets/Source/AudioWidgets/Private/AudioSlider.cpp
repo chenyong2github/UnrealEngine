@@ -1,16 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioSlider.h"
+#include "AudioWidgets.h"
 #include "SAudioSlider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 #define LOCTEXT_NAMESPACE "AUDIO_UMG"
 
-// UAudioSliderBase
+static FAudioSliderStyle* DefaultAudioSliderStyle = nullptr;
+static FAudioSliderStyle* EditorAudioSliderStyle = nullptr;
 
+// UAudioSliderBase
 UAudioSliderBase::UAudioSliderBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if (DefaultAudioSliderStyle == nullptr)
+	{
+		DefaultAudioSliderStyle = new FAudioSliderStyle(FAudioSliderStyle::GetDefault());
+
+		// Unlink UMG default colors.
+		DefaultAudioSliderStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultAudioSliderStyle;
+
+#if WITH_EDITOR 
+	if (EditorAudioSliderStyle == nullptr)
+	{
+		FModuleManager::LoadModuleChecked<FAudioWidgetsModule>("AudioWidgets");
+		EditorAudioSliderStyle = new FAudioSliderStyle(FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle")->GetWidgetStyle<FAudioSliderStyle>("AudioSlider.Style"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorAudioSliderStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorAudioSliderStyle;
+
+		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
+		PostEditChange();
+	}
+#endif // WITH_EDITOR
+
+
 	Value = 0.0f;
 	UnitsText = FText::FromString("units");
 	ShowLabelOnlyOnHover = false;
@@ -162,6 +195,7 @@ void UAudioSliderBase::SetWidgetBackgroundColor(FLinearColor InValue)
 TSharedRef<SWidget> UAudioSliderBase::RebuildWidget()
 {
 	MyAudioSlider = SNew(SAudioSliderBase)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 
 	return MyAudioSlider.ToSharedRef();
@@ -193,6 +227,7 @@ void UAudioSlider::SynchronizeProperties()
 TSharedRef<SWidget> UAudioSlider::RebuildWidget()
 {
 	MyAudioSlider = SNew(SAudioSlider)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 
 	return MyAudioSlider.ToSharedRef();
@@ -226,6 +261,7 @@ UAudioFrequencySlider::UAudioFrequencySlider(const FObjectInitializer& ObjectIni
 TSharedRef<SWidget> UAudioFrequencySlider::RebuildWidget()
 {
 	MyAudioSlider = SNew(SAudioFrequencySlider)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 	StaticCastSharedPtr<SAudioFrequencySlider>(MyAudioSlider)->SetOutputRange(OutputRange);
 

@@ -7,27 +7,27 @@
 UMovieSceneDataLayerSection::UMovieSceneDataLayerSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	DesiredState = EDataLayerState::Loaded;
-	PrerollState = EDataLayerState::Loaded;
+	DesiredState = EDataLayerRuntimeState::Loaded;
+	PrerollState = EDataLayerRuntimeState::Loaded;
 	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::RestoreState);
 }
 
-EDataLayerState UMovieSceneDataLayerSection::GetDesiredState() const
+EDataLayerRuntimeState UMovieSceneDataLayerSection::GetDesiredState() const
 {
 	return DesiredState;
 }
 
-void UMovieSceneDataLayerSection::SetDesiredState(EDataLayerState InDesiredState)
+void UMovieSceneDataLayerSection::SetDesiredState(EDataLayerRuntimeState InDesiredState)
 {
 	DesiredState = InDesiredState;
 }
 
-EDataLayerState UMovieSceneDataLayerSection::GetPrerollState() const
+EDataLayerRuntimeState UMovieSceneDataLayerSection::GetPrerollState() const
 {
 	return PrerollState;
 }
 
-void UMovieSceneDataLayerSection::SetPrerollState(EDataLayerState InPrerollState)
+void UMovieSceneDataLayerSection::SetPrerollState(EDataLayerRuntimeState InPrerollState)
 {
 	PrerollState = InPrerollState;
 }

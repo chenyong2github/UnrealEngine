@@ -82,7 +82,7 @@ inline bool TryGetDefaultTargetName(const FString& ProjectFile, EBuildTargetType
 /**
 * Implements a simple profile which controls the desired output of the Launcher for simple
 */
-class FLauncherSimpleProfile
+class FLauncherSimpleProfile final
 	: public ILauncherSimpleProfile
 {
 public:

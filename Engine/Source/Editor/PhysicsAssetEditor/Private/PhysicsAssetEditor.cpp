@@ -139,6 +139,11 @@ FPhysicsAssetEditor::~FPhysicsAssetEditor()
 
 	GEditor->UnregisterForUndo(this);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.Remove(OnAssetReimportDelegateHandle);
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
+	}
 }
 
 static void FillAddShapeMenu(FMenuBuilder& InSubMenuBuilder)

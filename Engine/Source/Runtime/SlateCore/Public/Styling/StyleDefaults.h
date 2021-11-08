@@ -60,11 +60,7 @@ public:
 	/**
 	 * @return - Returns no brush.
 	 */
-	static const FSlateBrush* GetNoBrush()
-	{
-		static const FSlateNoResource NoBrush;
-		return &NoBrush;
-	}
+	static const FSlateBrush* GetNoBrush();
 
 	/**
 	 * Get default font.

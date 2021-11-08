@@ -365,15 +365,6 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 		const bool bMapProperty = ParentProperty && ParentProperty->IsA<FMapProperty>();
 		const bool bSetProperty = ParentProperty && ParentProperty->IsA<FSetProperty>();
 
-		TArray<TWeakObjectPtr<UObject> > Objects;
-		if (RootPropertyNode->AsObjectNode())
-		{
-			for (int32 ObjectIndex = 0; ObjectIndex < RootPropertyNode->AsObjectNode()->GetNumObjects(); ++ObjectIndex)
-			{
-				Objects.Add(RootPropertyNode->AsObjectNode()->GetUObject(ObjectIndex));
-			}
-		}
-
 		for( int32 ChildIndex = 0; ChildIndex < RootPropertyNode->GetNumChildNodes(); ++ChildIndex )
 		{
 			TSharedPtr<FPropertyNode> ChildNode = RootPropertyNode->GetChildNode(ChildIndex);
@@ -386,7 +377,7 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 					GenerateChildrenForPropertyNode( ChildNode, OutChildren );
 				}
 				// Only struct children can have custom visibility that is different from their parent.
-				else if ( !bStructProperty || LayoutBuilder.IsPropertyVisible( FPropertyAndParent( PropertyEditorHelpers::GetPropertyHandle(ChildNode.ToSharedRef(), nullptr, nullptr).ToSharedRef(), Objects ) ) )
+				else if ( !bStructProperty || LayoutBuilder.IsPropertyVisible(FPropertyAndParent(ChildNode.ToSharedRef())) )
 				{	
 					TArray<TSharedRef<FDetailTreeNode>> PropNodes;
 					bool bHasKeyNode = false;

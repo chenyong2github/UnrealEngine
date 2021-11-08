@@ -20,7 +20,7 @@ FSteamSocket::FSteamSocket(ESocketType InSocketType, const FString& InSocketDesc
 	SocketSubsystem = static_cast<FSteamSocketsSubsystem*>(ISocketSubsystem::Get(STEAM_SOCKETS_SUBSYSTEM));
 	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
 #if !PLATFORM_MAC
-	PollGroup = SocketInterface->CreatePollGroup();
+	PollGroup = k_HSteamNetPollGroup_Invalid;
 #endif // PLATFORM_MAC
 }
 
@@ -34,7 +34,10 @@ FSteamSocket::~FSteamSocket()
 
 #if !PLATFORM_MAC
 	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
-	SocketInterface->DestroyPollGroup(PollGroup);
+	if (PollGroup != k_HSteamNetPollGroup_Invalid)
+	{
+		SocketInterface->DestroyPollGroup(PollGroup);
+	}
 #endif // PLATFORM_MAC
 
 	Close();
@@ -138,9 +141,7 @@ bool FSteamSocket::Connect(const FInternetAddr& Addr)
 	{
 		UE_LOG(LogSockets, Verbose, TEXT("SteamSockets: Connection to %s initiated"), *Addr.ToString(false));
 		SocketSubsystem->AddSocket(Addr, this);
-#if !PLATFORM_MAC
-		SocketInterface->SetConnectionPollGroup(InternalHandle, PollGroup);
-#endif // PLATFORM_MAC
+
 		return true;
 	}
 
@@ -177,6 +178,11 @@ bool FSteamSocket::Listen(int32 MaxBacklog)
 	{
 		bWasSuccessful = true;
 		SocketSubsystem->AddSocket(BindAddress, this);
+
+#if !PLATFORM_MAC
+		PollGroup = SocketInterface->CreatePollGroup();
+		SocketInterface->SetConnectionPollGroup(InternalHandle, PollGroup);
+#endif // PLATFORM_MAC
 	}
 
 	return bWasSuccessful;

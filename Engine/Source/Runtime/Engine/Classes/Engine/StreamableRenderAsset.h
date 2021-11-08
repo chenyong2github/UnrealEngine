@@ -38,6 +38,10 @@ class UStreamableRenderAsset : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	/** Destructor */
+	ENGINE_API virtual ~UStreamableRenderAsset() {};
+
 	/** Get an integer representation of the LOD group */
 	virtual int32 GetLODGroupForStreaming() const
 	{

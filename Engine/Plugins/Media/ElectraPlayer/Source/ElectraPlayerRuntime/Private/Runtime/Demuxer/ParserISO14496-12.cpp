@@ -6288,7 +6288,7 @@ private:
 					}
 
 					// As long as the time is before the local timestamp we're looking for we're taking it.
-					int64 thisTime = GetDTS();
+					int64 thisTime = GetPTS();
 					if (thisTime < localTime)
 					{
 						Best.AssignFrom(*this);
@@ -6303,7 +6303,7 @@ private:
 						else if (SearchMode == FParserISO14496_12::ITrackIterator::ESearchMode::Before)
 						{
 							// Is the best time we found so far less than or equal to what we're looking for?
-							if (Best.GetDTS() <= localTime)
+							if (Best.GetPTS() <= localTime)
 							{
 								// Yes, get the best values back into this instance and return.
 								AssignFrom(Best);
@@ -6315,7 +6315,7 @@ private:
 						else
 						{
 							// Should pick the closest one.
-							if (localTime - Best.GetDTS() < GetDTS() - localTime)
+							if (localTime - Best.GetPTS() < GetPTS() - localTime)
 							{
 								AssignFrom(Best);
 							}
@@ -6327,7 +6327,7 @@ private:
 			// If there is only a single sync sample that was before the time we're looking for we get here.
 			if (Best.IsValid())
 			{
-				if (SearchMode == FParserISO14496_12::ITrackIterator::ESearchMode::Before && Best.GetDTS() > localTime)
+				if (SearchMode == FParserISO14496_12::ITrackIterator::ESearchMode::Before && Best.GetPTS() > localTime)
 				{
 					return UEMEDIA_ERROR_INSUFFICIENT_DATA;
 				}
@@ -7135,7 +7135,7 @@ private:
 								{
 									bIsSupported = false;
 								}
-								else if (Error != UEMEDIA_ERROR_OK)
+								else if (Error != UEMEDIA_ERROR_OK) //-V547
 								{
 									return Error;
 								}
@@ -7148,7 +7148,7 @@ private:
 								{
 									bIsSupported = false;
 								}
-								else if (Error != UEMEDIA_ERROR_OK)
+								else if (Error != UEMEDIA_ERROR_OK) //-V547
 								{
 									return Error;
 								}
@@ -7161,7 +7161,7 @@ private:
 								{
 									bIsSupported = false;
 								}
-								else if (Error != UEMEDIA_ERROR_OK)
+								else if (Error != UEMEDIA_ERROR_OK) //-V547
 								{
 									return Error;
 								}

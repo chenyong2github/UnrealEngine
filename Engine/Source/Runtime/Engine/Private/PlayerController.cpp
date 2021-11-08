@@ -2279,85 +2279,106 @@ void APlayerController::FlushPressedKeys()
 
 bool APlayerController::InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad)
 {
+	FInputKeyParams Params;
+	Params.Key = Key;
+	Params.Event = EventType;
+	Params.Delta.X = AmountDepressed;
 	
-	if (GEngine->XRSystem.IsValid())
+	return InputKey(Params);
+}
+
+bool APlayerController::InputKey(const FInputKeyParams& Params)
+{
+	bool bResult = false;
+
+	// Any analog values can simply be passed to the UPlayerInput
+	if(Params.Key.IsAnalog())
 	{
-		auto XRInput = GEngine->XRSystem->GetXRInput();
-		if (XRInput && XRInput->HandleInputKey(PlayerInput, Key, EventType, AmountDepressed, bGamepad))
+		if(PlayerInput)
 		{
-			return true;
+			bResult = PlayerInput->InputKey(Params);
 		}
 	}
-
-	bool bResult = false;
-	if (PlayerInput)
+	// But we need special case XR handling for non-analog values...
+	else
 	{
-		bResult = PlayerInput->InputKey(Key, EventType, AmountDepressed, bGamepad);
-		if (bEnableClickEvents && (ClickEventKeys.Contains(Key) || ClickEventKeys.Contains(EKeys::AnyKey)))
+		if (GEngine->XRSystem.IsValid())
 		{
-			FVector2D MousePosition;
-			UGameViewportClient* ViewportClient = CastChecked<ULocalPlayer>(Player)->ViewportClient;
-			if (ViewportClient && ViewportClient->GetMousePosition(MousePosition))
+			auto XRInput = GEngine->XRSystem->GetXRInput();
+			if (XRInput && XRInput->HandleInputKey(PlayerInput, Params.Key, Params.Event, Params.Delta.X, Params.Key.IsGamepadKey()))
 			{
-				UPrimitiveComponent* ClickedPrimitive = NULL;
-				if (bEnableMouseOverEvents)
+				return true;
+			}
+		}
+
+		if (PlayerInput)
+		{
+			bResult = PlayerInput->InputKey(Params);
+			if (bEnableClickEvents && (ClickEventKeys.Contains(Params.Key) || ClickEventKeys.Contains(EKeys::AnyKey)))
+			{
+				FVector2D MousePosition;
+				UGameViewportClient* ViewportClient = CastChecked<ULocalPlayer>(Player)->ViewportClient;
+				if (ViewportClient && ViewportClient->GetMousePosition(MousePosition))
 				{
-					ClickedPrimitive = CurrentClickablePrimitive.Get();
-				}
-				else
-				{
-					FHitResult HitResult;
-					const bool bHit = GetHitResultAtScreenPosition(MousePosition, CurrentClickTraceChannel, true, HitResult);
-					if (bHit)
+					UPrimitiveComponent* ClickedPrimitive = nullptr;
+					if (bEnableMouseOverEvents)
 					{
-						ClickedPrimitive = HitResult.Component.Get();
+						ClickedPrimitive = CurrentClickablePrimitive.Get();
 					}
-				}
-				if( GetHUD() )
-				{
-					if (GetHUD()->UpdateAndDispatchHitBoxClickEvents(MousePosition, EventType))
+					else
 					{
-						ClickedPrimitive = NULL;
+						FHitResult HitResult;
+						const bool bHit = GetHitResultAtScreenPosition(MousePosition, CurrentClickTraceChannel, true, HitResult);
+						if (bHit)
+						{
+							ClickedPrimitive = HitResult.Component.Get();
+						}
 					}
-				}
-
-				if (ClickedPrimitive)
-				{
-					switch(EventType)
+					if(GetHUD())
 					{
-					case IE_Pressed:
-					case IE_DoubleClick:
-						ClickedPrimitive->DispatchOnClicked(Key);
-						break;
-
-					case IE_Released:
-						ClickedPrimitive->DispatchOnReleased(Key);
-						break;
-
-					case IE_Axis:
-					case IE_Repeat:
-						break;
+						if (GetHUD()->UpdateAndDispatchHitBoxClickEvents(MousePosition, Params.Event))
+						{
+							ClickedPrimitive = nullptr;
+						}
 					}
-				}
 
-				bResult = true;
+					if (ClickedPrimitive)
+					{
+						switch(Params.Event)
+						{
+						case IE_Pressed:
+						case IE_DoubleClick:
+							ClickedPrimitive->DispatchOnClicked(Params.Key);
+							break;
+
+						case IE_Released:
+							ClickedPrimitive->DispatchOnReleased(Params.Key);
+							break;
+
+						case IE_Axis:
+						case IE_Repeat:
+							break;
+						}
+					}
+
+					bResult = true;
+				}
 			}
 		}
 	}
-
+	
 	return bResult;
 }
 
 bool APlayerController::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
-	bool bResult = false;
-	
-	if (PlayerInput)
-	{
-		bResult = PlayerInput->InputAxis(Key, Delta, DeltaTime, NumSamples, bGamepad);
-	}
+	FInputKeyParams Params;
+	Params.Key = Key;
+	Params.Delta = FVector(static_cast<double>(Delta), 0.0, 0.0);
+	Params.NumSamples = NumSamples;
+	Params.DeltaTime = DeltaTime;
 
-	return bResult;
+	return InputKey(Params);
 }
 
 bool APlayerController::InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
@@ -3529,12 +3550,7 @@ void APlayerController::ServerMutePlayer_Implementation(FUniqueNetIdRepl PlayerI
 
 bool APlayerController::ServerMutePlayer_Validate(FUniqueNetIdRepl PlayerId)
 {
-	if (!PlayerId.IsValid())
-	{
-		return false;
-	}
-
-	return true;
+	return PlayerId.IsValid();
 }
 
 void APlayerController::ServerUnmutePlayer_Implementation(FUniqueNetIdRepl PlayerId)
@@ -3544,22 +3560,53 @@ void APlayerController::ServerUnmutePlayer_Implementation(FUniqueNetIdRepl Playe
 
 bool APlayerController::ServerUnmutePlayer_Validate(FUniqueNetIdRepl PlayerId)
 {
-	if (!PlayerId.IsValid())
-	{
-		return false;
-	}
-
-	return true;
+	return PlayerId.IsValid();
 }
 
 void APlayerController::ClientMutePlayer_Implementation(FUniqueNetIdRepl PlayerId)
 {
-	MuteList.ClientMutePlayer(this, PlayerId);
+	// Use the local player to determine the controller id
+	ULocalPlayer* LP = Cast<ULocalPlayer>(Player);
+	UWorld* World = GetWorld();
+
+	if (LP != NULL && World)
+	{
+		// Have the voice subsystem mute this player
+		UOnlineEngineInterface::Get()->MuteRemoteTalker(World, LP->GetControllerId(), *PlayerId, false);
+	}
 }
 
 void APlayerController::ClientUnmutePlayer_Implementation(FUniqueNetIdRepl PlayerId)
 {
-	MuteList.ClientUnmutePlayer(this, PlayerId);
+	// Use the local player to determine the controller id
+	ULocalPlayer* LP = Cast<ULocalPlayer>(Player);
+	UWorld* World = GetWorld();
+
+	if (LP != NULL && World)
+	{
+		// Have the voice subsystem unmute this player
+		UOnlineEngineInterface::Get()->UnmuteRemoteTalker(World, LP->GetControllerId(), *PlayerId, false);
+	}
+}
+
+void APlayerController::ServerBlockPlayer_Implementation(FUniqueNetIdRepl PlayerId)
+{
+	MuteList.ServerBlockPlayer(this, PlayerId);
+}
+
+bool APlayerController::ServerBlockPlayer_Validate(FUniqueNetIdRepl PlayerId)
+{
+	return PlayerId.IsValid() && PlayerState->GetUniqueId().IsValid();
+}
+
+void APlayerController::ServerUnblockPlayer_Implementation(FUniqueNetIdRepl PlayerId)
+{
+	MuteList.ServerUnblockPlayer(this, PlayerId);
+}
+
+bool APlayerController::ServerUnblockPlayer_Validate(FUniqueNetIdRepl PlayerId)
+{
+	return PlayerId.IsValid() && PlayerState->GetUniqueId().IsValid();
 }
 
 /// @endcond

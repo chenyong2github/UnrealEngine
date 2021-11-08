@@ -873,8 +873,8 @@ UK2Node::ERedirectType UK2Node::DoPinsMatchForReconstruction(const UEdGraphPin* 
 {
 	ERedirectType RedirectType = ERedirectType_None;
 
-	// if the pin names do match
-	if (NewPin->PinName == OldPin->PinName)
+	// if the pin names and directions do match
+	if (NewPin->PinName == OldPin->PinName && NewPin->Direction == OldPin->Direction)
 	{
 		// If the old pin had a default value, only match the new pin if the type is compatible:
 		const UEdGraphSchema_K2* K2Schema = Cast<const UEdGraphSchema_K2>(GetSchema());

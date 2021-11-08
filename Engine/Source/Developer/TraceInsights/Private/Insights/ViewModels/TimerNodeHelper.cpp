@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimerNodeHelper.h"
-#include "EditorStyleSet.h"
+
+// Insights
+#include "Insights/InsightsStyle.h"
 
 #define LOCTEXT_NAMESPACE "TimerNode"
 
@@ -39,24 +41,9 @@ FText TimerNodeTypeHelper::ToDescription(const ETimerNodeType NodeType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName TimerNodeTypeHelper::ToBrushName(const ETimerNodeType NodeType)
-{
-	static_assert(static_cast<int>(ETimerNodeType::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
-	switch (NodeType)
-	{
-		case ETimerNodeType::GpuScope:		return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO: "Icons.GpuTimer"
-		case ETimerNodeType::ComputeScope:	return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO: "Icons.ComputeTimer"
-		case ETimerNodeType::CpuScope:		return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO: "Icons.CpuTimer"
-		case ETimerNodeType::Group:			return TEXT("Profiler.Misc.GenericGroup"); //TODO: "Icons.GenericGroup"
-		default:							return NAME_None;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const FSlateBrush* TimerNodeTypeHelper::GetIconForGroup()
 {
-	return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GenericGroup"));
+	return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,10 +53,10 @@ const FSlateBrush* TimerNodeTypeHelper::GetIconForTimerNodeType(const ETimerNode
 	static_assert(static_cast<int>(ETimerNodeType::InvalidOrMax) == 4, "Not all cases are handled in switch below!?");
 	switch (NodeType)
 	{
-		case ETimerNodeType::GpuScope:		return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GpuTimer"));
-		case ETimerNodeType::ComputeScope:	return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.ComputeTimer"));
-		case ETimerNodeType::CpuScope:		return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.CpuTimer"));
-		case ETimerNodeType::Group:			return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GenericGroup"));
+		case ETimerNodeType::GpuScope:		return FInsightsStyle::GetBrush("Icons.GpuTimer.TreeItem");
+		case ETimerNodeType::ComputeScope:	return FInsightsStyle::GetBrush("Icons.GpuTimer.TreeItem");
+		case ETimerNodeType::CpuScope:		return FInsightsStyle::GetBrush("Icons.CpuTimer.TreeItem");
+		case ETimerNodeType::Group:			return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 		default:							return nullptr;
 	}
 }
@@ -109,24 +96,6 @@ FText TimerNodeGroupingHelper::ToDescription(const ETimerGroupingMode GroupingMo
 		case ETimerGroupingMode::ByTotalInclusiveTime:	return LOCTEXT("Grouping_Desc_TotalInclusiveTime",	"Creates one group for each logarithmic range ie. 0.001 - 0.01, 0.01 - 0.1, 0.1 - 1.0, 1.0 - 10.0 etc");
 		case ETimerGroupingMode::ByTotalExclusiveTime:	return LOCTEXT("Grouping_Desc_TotalExclusiveTime",	"Creates one group for each logarithmic range ie. 0.001 - 0.01, 0.01 - 0.1, 0.1 - 1.0, 1.0 - 10.0 etc");
 		default:										return LOCTEXT("InvalidOrMax", "InvalidOrMax");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FName TimerNodeGroupingHelper::ToBrushName(const ETimerGroupingMode GroupingMode)
-{
-	static_assert(static_cast<int>(ETimerGroupingMode::InvalidOrMax) == 7, "Not all cases are handled in switch below!?");
-	switch (GroupingMode)
-	{
-		case ETimerGroupingMode::Flat:					return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.Flat"
-		case ETimerGroupingMode::ByName:				return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.ByName"
-		case ETimerGroupingMode::ByMetaGroupName:		return TEXT("Profiler.FiltersAndPresets.StatNameIcon"); //TODO
-		case ETimerGroupingMode::ByType:				return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO
-		case ETimerGroupingMode::ByInstanceCount:		return TEXT("Profiler.FiltersAndPresets.StatValueIcon"); //TODO
-		case ETimerGroupingMode::ByTotalInclusiveTime:	return TEXT("Profiler.FiltersAndPresets.StatValueIcon"); //TODO
-		case ETimerGroupingMode::ByTotalExclusiveTime:	return TEXT("Profiler.FiltersAndPresets.StatValueIcon"); //TODO
-		default:										return NAME_None;
 	}
 }
 

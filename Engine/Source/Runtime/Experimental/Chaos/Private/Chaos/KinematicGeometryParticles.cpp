@@ -20,24 +20,11 @@ namespace Chaos
 		return static_cast<TKinematicGeometryParticlesImp<T, d, SimType>::THandleType*>(TGeometryParticlesImp<T, d, SimType>::Handle(Index));
 	}
 
-
-	template<class T, int d, EGeometryParticlesSimType SimType>
-	CHAOS_API TKinematicGeometryParticlesImp<T, d, SimType>::~TKinematicGeometryParticlesImp<T, d, SimType>()
-	{
-
-	}
-
 }
 
-#ifdef __clang__
-template class CHAOS_API Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::RigidBodySim>;
-template class CHAOS_API Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::Other>;
-template class CHAOS_API Chaos::TKinematicTarget<Chaos::FReal, 3>;
-#else
 template class Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::RigidBodySim>;
 template class Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::Other>;
 template class Chaos::TKinematicTarget<Chaos::FReal, 3>;
-#endif
 
 // Re-enable when double precision is able to compile
 //template Chaos::TKinematicGeometryParticlesImp<double, 3>;

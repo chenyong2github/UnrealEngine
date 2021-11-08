@@ -286,10 +286,6 @@ struct FPathTracingState {
 	TRefCountPtr<IPooledRenderTarget> NormalRT;
 	TRefCountPtr<IPooledRenderTarget> RadianceDenoisedRT;
 
-	TRefCountPtr<IPooledRenderTarget> GGXSpecEnergyTable;
-	TRefCountPtr<IPooledRenderTarget> GGXGlassEnergyTable;
-	TRefCountPtr<IPooledRenderTarget> ClothEnergyTable;
-
 	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
 	uint32 SampleIndex = 0;
 
@@ -461,45 +457,6 @@ class FPathTracingBuildLightGridCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingBuildLightGridCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildLightGrid.usf"), TEXT("PathTracingBuildLightGridCS"), SF_Compute);
 
-
-class FPathTracingBuildEnergyTableCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FPathTracingBuildEnergyTableCS)
-	SHADER_USE_PARAMETER_STRUCT(FPathTracingBuildEnergyTableCS, FGlobalShader)
-
-	enum class EEnergyTableType {
-		GGXSpecular = 0,
-		GGXGlass    = 1,
-		Cloth       = 2,
-		MAX
-	};
-
-	class FEnergyTableDim : SHADER_PERMUTATION_ENUM_CLASS("BUILD_ENERGY_TABLE", EEnergyTableType);
-
-	using FPermutationDomain = TShaderPermutationDomain<FEnergyTableDim>;
-
-		
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
-		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
-		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
-		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture2D)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutputTexture3D)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingBuildEnergyTableCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildEnergyTable.usf"), TEXT("PathTracingBuildEnergyTableCS") , SF_Compute);
-
 class FPathTracingRG : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
@@ -560,12 +517,6 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 		// Used by multi-GPU rendering
 		SHADER_PARAMETER(FIntVector, TileOffset)
-
-		// GGX Energy conservation
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float2>, GGXSpecEnergyTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D<float2>, GGXGlassEnergyTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float2>, ClothEnergyTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, EnergySampler)
 
 		// extra parameters required for path compacting kernel
 		SHADER_PARAMETER(int, Bounce)
@@ -899,7 +850,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	Scene->PathTracingSkylightColor = SkyColor;
 	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels
 	uint32 Size = FMath::RoundUpToPowerOfTwo(2 * Scene->SkyLight->CaptureCubeMapResolution);
-
+	
 	RDG_GPU_MASK_SCOPE(GraphBuilder, 
 		IsSkylightCachingEnabled ? FRHIGPUMask::All() : GraphBuilder.RHICmdList.GetGPUMask());
 
@@ -1486,82 +1437,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	Config.PathTracingData.Iteration = PathTracingState->SampleIndex;
 	Config.PathTracingData.BlendFactor = 1.0f / (Config.PathTracingData.Iteration + 1);
 
-	// Prepare energy conservation tables
-	FRDGTexture* GGXSpecEnergyTexture = nullptr;
-	FRDGTexture* GGXGlassEnergyTexture = nullptr;
-	FRDGTexture* ClothEnergyTexture = nullptr;
-	if (PathTracingState->GGXSpecEnergyTable)
-	{
-		GGXSpecEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->GGXSpecEnergyTable, TEXT("PathTracer.GGXSpecEnergy"));
-		GGXGlassEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->GGXGlassEnergyTable, TEXT("PathTracer.GGXGlassEnergy"));
-		ClothEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->ClothEnergyTable, TEXT("PathTracer.ClothEnergy"));
-	}
-	else
-	{
-		// first time through, bake the data we need
-		const int Size = PATHTRACER_ENERGY_TABLE_RESOLUTION;
-		GGXSpecEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(
-			FIntPoint(Size, Size),
-			PF_G32R32F,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXSpecEnergy"), ERDGTextureFlags::MultiFrame);
-		GGXGlassEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create3D(
-			FIntVector(Size, Size, Size),
-			PF_G32R32F,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXGlassEnergy"), ERDGTextureFlags::MultiFrame);
-		ClothEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(
-			FIntPoint(Size, Size),
-			PF_G32R32F,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXSpecEnergy"), ERDGTextureFlags::MultiFrame);
-
-		{
-			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::GGXSpecular);
-			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
-			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
-			PassParameters->OutputTexture2D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GGXSpecEnergyTexture, 0));
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("BuildGGXSpecTable"),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
-		}
-		{
-			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::GGXGlass);
-			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
-			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
-			PassParameters->OutputTexture3D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GGXGlassEnergyTexture, 0));
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("BuildGGXGlassTable"),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntVector(Size, Size, Size), FIntVector(FComputeShaderUtils::kGolden2DGroupSize, FComputeShaderUtils::kGolden2DGroupSize, 1)));
-		}
-		{
-			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::Cloth);
-			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
-			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
-			PassParameters->OutputTexture2D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ClothEnergyTexture, 0));
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("BuildClothTable"),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
-		}
-
-		GraphBuilder.QueueTextureExtraction(GGXSpecEnergyTexture , &PathTracingState->GGXSpecEnergyTable );
-		GraphBuilder.QueueTextureExtraction(GGXGlassEnergyTexture, &PathTracingState->GGXGlassEnergyTable);
-		GraphBuilder.QueueTextureExtraction(ClothEnergyTexture   , &PathTracingState->ClothEnergyTable);
-	}
-	
-
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
 	FRDGTexture* AlbedoTexture = nullptr;
@@ -1653,12 +1528,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			// TODO: in multi-gpu case, split image into tiles
 			PassParameters->TileOffset.X = 0;
 			PassParameters->TileOffset.Y = 0;
-
-			// energy compensation tabulated data
-			PassParameters->GGXSpecEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(GGXSpecEnergyTexture));
-			PassParameters->GGXGlassEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(GGXGlassEnergyTexture));
-			PassParameters->ClothEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ClothEnergyTexture));
-			PassParameters->EnergySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			if (bUseCompaction)
 			{

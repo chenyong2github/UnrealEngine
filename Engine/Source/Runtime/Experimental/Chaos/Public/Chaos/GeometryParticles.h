@@ -36,7 +36,7 @@ namespace Chaos
 		~FPerShapeData();
 		FPerShapeData(const FPerShapeData& Other) = delete;
 		
-		void UpdateShapeBounds(const FRigidTransform3& WorldTM);
+		void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
 
 		static FPerShapeData* SerializationFactory(FChaosArchive& Ar, FPerShapeData*);
 		void Serialize(FChaosArchive& Ar);
@@ -69,13 +69,31 @@ namespace Chaos
 		void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			Geometry = InGeometry;
+			UpdateLeafGeometry();
 		}
 
 		const TAABB<FReal,3>& GetWorldSpaceInflatedShapeBounds() const { return WorldSpaceInflatedShapeBounds; }
-		void SetWorldSpaceInflatedShapeBounds(const TAABB<FReal,3>& InWorldSpaceInflatedShapeBounds)
+
+		void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
-			WorldSpaceInflatedShapeBounds = InWorldSpaceInflatedShapeBounds;
+			if (GetGeometry()->HasBoundingBox())
+			{
+				UpdateShapeBounds(WorldTransform, BoundsExpansion);
+			}
+			LeafWorldTransform = LeafRelativeTransform * WorldTransform;
 		}
+
+		// The leaf shape (with transformed and implicit wrapper removed)
+		const FImplicitObject* GetLeafGeometry() const { return LeafGeometry; }
+
+		// The actor-relative transform of the leaf geometry
+		const FRigidTransform3& GetLeafRelativeTransform() const { return LeafRelativeTransform; }
+
+		// The world-space transform of the leaf geometry (from the last call to UpdateWorldSpaceState)
+		const FRigidTransform3& GetLeafWorldTransform() const { return LeafWorldTransform; }
+
+		// The margin to use with the leaf shape (which could be from its Instanced wrapper if it had one)
+		const FReal GetLeafMargin() const { return LeafMargin; }
 
 		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
 		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
@@ -228,6 +246,8 @@ namespace Chaos
 
 	private:
 
+		void UpdateLeafGeometry();
+
 		class IPhysicsProxyBase* Proxy;
 		FShapeDirtyFlags DirtyFlags;
 		int32 ShapeIdx;
@@ -237,6 +257,11 @@ namespace Chaos
 
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal,3> WorldSpaceInflatedShapeBounds;
+
+		const FImplicitObject* LeafGeometry;
+		FRigidTransform3 LeafRelativeTransform;
+		FRigidTransform3 LeafWorldTransform;
+		FReal LeafMargin;
 		
 		// use CreatePerShapeData
 		FPerShapeData(int32 InShapeIdx);
@@ -494,38 +519,45 @@ namespace Chaos
 		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
 		{
 			check(!SharedGeometry(Index));	// If shared geometry exists we should not be setting dynamic geometry on top
-			MGeometry[Index] = MakeSerializable(InUnique);
+			SetGeometryImpl(Index, MakeSerializable(InUnique));
 			MDynamicGeometry[Index] = MoveTemp(InUnique);
-			UpdateShapesArray(Index);
-			MapImplicitShapes(Index);
 		}
 
 		// Set a shared geometry. Note that X and R must be initialized before calling this function.
 		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top
-			MGeometry[Index] = MakeSerializable(InShared);
+			SetGeometryImpl(Index, MakeSerializable(InShared));
 			MSharedGeometry[Index] = InShared;
-			UpdateShapesArray(Index);
-			MapImplicitShapes(Index);
 		}
 		
 		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
+			SetGeometryImpl(Index, InGeometry);
+		}
+
+	private:
+		CHAOS_API void SetGeometryImpl(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
+		{
 			MGeometry[Index] = InGeometry;
-			if (InGeometry)
-			{
-				MHasBounds[Index] = InGeometry->HasBoundingBox();
-				MLocalBounds[Index] = InGeometry->BoundingBox();
-				// world space inflated bounds needs to take v into account - this is done in integrate for dynamics anyway, so
-				// this computation is mainly for statics
-				MWorldSpaceInflatedBounds[Index] = MLocalBounds[Index].TransformedAABB(TRigidTransform<FReal, 3>(X(Index), R(Index)));
-			}
+
 			UpdateShapesArray(Index);
 			MapImplicitShapes(Index);
+
+			MHasBounds[Index] = (InGeometry && InGeometry->HasBoundingBox());
+			if (MHasBounds[Index])
+			{
+				MLocalBounds[Index] = InGeometry->BoundingBox();
+
+				// Update the world-space stat of all the shapes - must be called after UpdateShapesArray
+				// world space inflated bounds needs to take expansion into account - this is done in integrate for dynamics anyway, so
+				// this computation is mainly for statics
+				UpdateWorldSpaceState(Index, TRigidTransform<FReal, 3>(X(Index), R(Index)), FVec3(0));
+			}
 		}
+	public:
 
 		CHAOS_API const TAABB<T,d>& LocalBounds(const int32 Index) const
 		{
@@ -574,19 +606,26 @@ namespace Chaos
 			return MWorldSpaceInflatedBounds[Index];
 		}
 
-		CHAOS_API void SetWorldSpaceInflatedBounds(const int32 Index, const TAABB<T, d>& Bounds)
+		CHAOS_API void UpdateWorldSpaceState(const int32 Index, const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
-			MWorldSpaceInflatedBounds[Index] = Bounds;
+			// NOTE: Particle bounds are expanded for use by the spatial partitioning and broad phase but individual
+			// shape bounds are not. If expanded Shape bounds are required, the expansion should be done at the calling end.
+			FAABB3 WorldBounds = FAABB3::EmptyAABB();
 
 			const FShapesArray& Shapes = ShapesArray(Index);
 			for (const auto& Shape : Shapes)
 			{
-				if (Shape->GetGeometry()->HasBoundingBox())
-				{
-					const TRigidTransform<FReal, 3> ActorTM(X(Index), R(Index));
-					Shape->UpdateShapeBounds(ActorTM);
-				}
+				Shape->UpdateWorldSpaceState(WorldTransform, BoundsExpansion);
+				WorldBounds.GrowToInclude(Shape->GetWorldSpaceInflatedShapeBounds());
 			}
+
+			MWorldSpaceInflatedBounds[Index] = WorldBounds;
+		}
+
+		void UpdateWorldSpaceStateSwept(const int32 Index, const FRigidTransform3& EndWorldTransform, const FVec3& BoundsExpansion, const FVec3& DeltaX)
+		{
+			UpdateWorldSpaceState(Index, EndWorldTransform, BoundsExpansion);
+			MWorldSpaceInflatedBounds[Index].GrowByVector(DeltaX);
 		}
 
 		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
@@ -695,7 +734,7 @@ public:
 				{
 					for (int32 Idx = 0; Idx < MShapesArray.Num(); ++Idx)
 					{
-						SetWorldSpaceInflatedBounds(Idx, MWorldSpaceInflatedBounds[Idx]);
+						UpdateWorldSpaceState(Idx, FRigidTransform3(X(Idx), R(Idx)), FVec3(0));
 					}
 				}
 			}
@@ -709,7 +748,7 @@ public:
 					{
 						MLocalBounds[Idx] = MGeometry[Idx]->BoundingBox();
 						//ignore velocity too, really just trying to get something reasonable)
-						SetWorldSpaceInflatedBounds(Idx, MLocalBounds[Idx].TransformedAABB(TRigidTransform<T,d>(X(Idx), R(Idx))));
+						UpdateWorldSpaceState(Idx, TRigidTransform<T,d>(X(Idx), R(Idx)), FVec3(0));
 					}
 				}
 			}
@@ -791,9 +830,9 @@ public:
 			MapImplicitShapes(Index);
 		}
 
-		void MapImplicitShapes();
+		CHAOS_API void MapImplicitShapes();
 
-		void MapImplicitShapes(int32 Index);
+		CHAOS_API void MapImplicitShapes(int32 Index);
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
 		friend class TGeometryParticlesImp;
@@ -825,13 +864,5 @@ public:
 
 	template<>
 	TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* Particles);
-
-#if PLATFORM_MAC || PLATFORM_LINUX
-	extern template class CHAOS_API TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
-	extern template class CHAOS_API TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
-#else
-	extern template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
-	extern template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
-#endif
 
 }

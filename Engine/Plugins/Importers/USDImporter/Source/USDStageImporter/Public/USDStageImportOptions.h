@@ -106,9 +106,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Processing")
 	bool bPrimPathFolderStructure;
 
-	/** Attempt to combine assets and components whenever possible */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Processing", meta=(DisplayName="Collapse assets and components"))
-	bool bCollapse;
+	/**
+	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
+	 * like multiple Mesh prims into a single Static Mesh
+	 */
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "Processing", meta = ( Bitmask, BitmaskEnum = EUsdDefaultKind ) )
+	int32 KindsToCollapse;
 
 	/** When true, if a prim has a "LOD" variant set with variants named "LOD0", "LOD1", etc. where each contains a UsdGeomMesh, the importer will attempt to parse the meshes as separate LODs of a single UStaticMesh. When false, only the selected variant will be parsed as LOD0 of the UStaticMesh.  */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category="Processing", meta=(DisplayName="Interpret LOD variant sets", EditCondition=bImportGeometry) )

@@ -1040,7 +1040,7 @@ bool SDetailSingleItemRow::CanFavorite() const
 {
 	if (Customization->HasPropertyNode())
 	{
-		return Customization->GetPropertyNode()->CanDisplayFavorite();
+		return true;
 	}
 
 	if (Customization->HasCustomBuilder())
@@ -1067,24 +1067,21 @@ bool SDetailSingleItemRow::IsFavorite() const
 		if (OwnerTreeNodePinned.IsValid())
 		{
 			TSharedPtr<FDetailCategoryImpl> ParentCategory = OwnerTreeNodePinned->GetParentCategory();
-			if (ParentCategory.IsValid())
+			if (ParentCategory.IsValid() && ParentCategory->IsFavoriteCategory())
 			{
-				if (ParentCategory->IsFavoriteCategory())
-				{
-					return true;
-				}
+				return true;
+			}
 
-				TSharedPtr<IPropertyHandle> PropertyHandle = Customization->CustomBuilderRow->GetPropertyHandle();
-				if (PropertyHandle.IsValid())
-				{
-					return PropertyHandle->GetPropertyNode()->IsFavorite();
-				}
+			TSharedPtr<IPropertyHandle> PropertyHandle = Customization->CustomBuilderRow->GetPropertyHandle();
+			if (PropertyHandle.IsValid())
+			{
+				return PropertyHandle->GetPropertyNode()->IsFavorite();
+			}
 
-				const FString& OriginalPath = Customization->CustomBuilderRow->GetOriginalPath();
-				if (!OriginalPath.IsEmpty())
-				{
-					return OwnerTreeNodePinned->GetDetailsView()->IsCustomBuilderFavorite(OriginalPath);
-				}
+			const FString& OriginalPath = Customization->CustomBuilderRow->GetOriginalPath();
+			if (!OriginalPath.IsEmpty())
+			{
+				return OwnerTreeNodePinned->GetDetailsView()->IsCustomBuilderFavorite(OriginalPath);
 			}
 		}
 	}

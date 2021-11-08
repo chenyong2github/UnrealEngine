@@ -94,7 +94,7 @@ void UPlayerInput::FlushPressedKeys()
 {
 	APlayerController* PlayerController = GetOuterAPlayerController();
 	ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player);
-	if ( LocalPlayer != NULL )
+	if (LocalPlayer != nullptr)
 	{
 		TArray<FKey> PressedKeys;
 
@@ -109,14 +109,14 @@ void UPlayerInput::FlushPressedKeys()
 
 		// we may have gotten here as a result of executing an input bind.  in order to ensure that the simulated IE_Released events
 		// we're about to fire are actually propagated to the game, we need to clear the bExecutingBindCommand flag
-		if ( PressedKeys.Num() > 0 )
+		if (PressedKeys.Num() > 0)
 		{
 			bExecutingBindCommand = false;
-
-			for ( int32 KeyIndex = 0; KeyIndex < PressedKeys.Num(); KeyIndex++ )
+			
+			for (int32 KeyIndex = 0; KeyIndex < PressedKeys.Num(); KeyIndex++)
 			{
 				FKey& Key = PressedKeys[KeyIndex];
-				InputKey(Key, IE_Released, 0, Key.IsGamepadKey());
+				InputKey(FInputKeyParams(Key, IE_Released, 0.0));
 			}
 		}
 	}
@@ -171,11 +171,11 @@ void UPlayerInput::FlushPressedActionBindingKeys(FName ActionName)
 		// we may have gotten here as a result of executing an input bind.  in order to ensure that the simulated IE_Released events
 		// we're about to fire are actually propagated to the game, we need to clear the bExecutingBindCommand flag
 		bExecutingBindCommand = false;
-
+		
 		//go through all the keys, releasing them
 		for (const FKey& Key : AssociatedPressedKeys)
 		{
-			InputKey(Key, IE_Released, 0, Key.IsGamepadKey());
+			InputKey(FInputKeyParams(Key, IE_Released, 0.0));
 		}
 
 		UWorld* World = GetWorld();
@@ -199,146 +199,179 @@ void UPlayerInput::FlushPressedActionBindingKeys(FName ActionName)
 
 bool UPlayerInput::InputKey(FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
 {
-	// first event associated with this key, add it to the map
-	FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
-	UWorld* World = GetWorld();
-	check(World);
-
-	switch(Event)
-	{
-	case IE_Pressed:
-	case IE_Repeat:
-		KeyState.RawValueAccumulator.X = AmountDepressed;
-		KeyState.EventAccumulator[Event].Add(++EventCount);
-		if (KeyState.bDownPrevious == false)
-		{
-			// check for doubleclick
-			// note, a tripleclick will currently count as a 2nd double click.
-			const float WorldRealTimeSeconds = World->GetRealTimeSeconds();
-			if ((WorldRealTimeSeconds - KeyState.LastUpDownTransitionTime) < GetDefault<UInputSettings>()->DoubleClickTime)
-			{
-				KeyState.EventAccumulator[IE_DoubleClick].Add(++EventCount);
-			}
-
-			// just went down
-			KeyState.LastUpDownTransitionTime = WorldRealTimeSeconds;
-		}
-		break;
-	case IE_Released:
-		KeyState.RawValueAccumulator.X = 0.f;
-		KeyState.EventAccumulator[IE_Released].Add(++EventCount);
-		break;
-	case IE_DoubleClick:
-		KeyState.RawValueAccumulator.X = AmountDepressed;
-		KeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
-		KeyState.EventAccumulator[IE_DoubleClick].Add(++EventCount);
-		break;
-	}
-	KeyState.SampleCountAccumulator++;
-
-#if !UE_BUILD_SHIPPING
-	CurrentEvent		= Event;
-
-	const FString Command = GetBind(Key);
-	if(Command.Len())
-	{
-		return ExecInputCommands(World, *Command,*GLog);
-	}
-#endif
-
-	if( Event == IE_Pressed )
-	{
-		return IsKeyHandledByAction( Key );
-	}
-
-	return true;
+	FInputKeyParams Params;
+	Params.Key = Key;
+	Params.Event = Event;
+	Params.Delta = FVector((double)AmountDepressed, 0.0, 0.0);
+	
+	return InputKey(Params);
 }
 
-bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad )
+bool UPlayerInput::InputKey(const FInputKeyParams& Params)
 {
-	ensure((Key != EKeys::MouseX && Key != EKeys::MouseY) || NumSamples > 0);
+	const bool bGamepad = Params.IsGamepad();
 
-	auto TestEventEdges = [this, &Delta](FKeyState& TestKeyState, float EdgeValue)
+	// MouseX and MouseY should not be treated as analog if there are no samples, as they need their EventAccumulator to be incremented 
+	// in the case of a IE_Pressed or IE_Released
+	const bool bTreatAsAnalog =
+		Params.Key.IsAnalog() &&
+		((Params.Key != EKeys::MouseX && Params.Key != EKeys::MouseY) || Params.NumSamples > 0);
+	
+	if(bTreatAsAnalog)
 	{
-		// look for event edges
-		if (EdgeValue == 0.f && Delta != 0.f)
-		{
-			TestKeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
-		}
-		else if (EdgeValue != 0.f && Delta == 0.f)
-		{
-			TestKeyState.EventAccumulator[IE_Released].Add(++EventCount);
-		}
-		else
-		{
-			TestKeyState.EventAccumulator[IE_Repeat].Add(++EventCount);
-		}
-	};
+		ensure((Params.Key != EKeys::MouseX && Params.Key != EKeys::MouseY) || Params.NumSamples > 0);
 
+		auto TestEventEdges = [this, &Params](FKeyState& TestKeyState, float EdgeValue)
+		{
+			// look for event edges
+			if (EdgeValue == 0.f && Params.Delta.Size() != 0.f)
+			{
+				TestKeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
+			}
+			else if (EdgeValue != 0.f && Params.Delta.Size() == 0.f)
+			{
+				TestKeyState.EventAccumulator[IE_Released].Add(++EventCount);
+			}
+			else
+			{
+				TestKeyState.EventAccumulator[IE_Repeat].Add(++EventCount);
+			}
+		};
+
+		{
+			// first event associated with this key, add it to the map
+			FKeyState& KeyState = KeyStateMap.FindOrAdd(Params.Key);
+
+			TestEventEdges(KeyState, KeyState.Value.X);
+
+			// accumulate deltas until processed next
+			KeyState.SampleCountAccumulator += Params.NumSamples;
+			KeyState.RawValueAccumulator += Params.Delta;
+		}
+
+		// Mirror the key press to any associated paired axis
+		FKey PairedKey = Params.Key.GetPairedAxisKey();
+		if (PairedKey.IsValid())
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Spotted axis %s which is paired to %s"), *Key.GetDisplayName().ToString(), Key.GetPairedAxisKey().IsValid() ? *Key.GetPairedAxisKey().GetDisplayName().ToString() : TEXT("NONE"));
+
+			EPairedAxis PairedAxis = Params.Key.GetPairedAxis();
+			FKeyState& PairedKeyState = KeyStateMap.FindOrAdd(PairedKey);
+
+			// The FindOrAdd can invalidate KeyState, so we must look it back up
+			FKeyState& KeyState = KeyStateMap.FindChecked(Params.Key);
+
+			// Update accumulator for the appropriate axis
+			if (PairedAxis == EPairedAxis::X)
+			{
+				PairedKeyState.RawValueAccumulator.X = KeyState.RawValueAccumulator.X;
+				PairedKeyState.PairSampledAxes |= 0b001;
+			}
+			else if (PairedAxis == EPairedAxis::Y)
+			{
+				PairedKeyState.RawValueAccumulator.Y = KeyState.RawValueAccumulator.X;
+				PairedKeyState.PairSampledAxes |= 0b010;
+			}
+			else if (PairedAxis == EPairedAxis::Z)
+			{
+				PairedKeyState.RawValueAccumulator.Z = KeyState.RawValueAccumulator.X;
+				PairedKeyState.PairSampledAxes |= 0b100;
+			}
+			else
+			{
+				checkf(false, TEXT("Key %s has paired axis key %s but no valid paired axis!"), *Params.Key.GetFName().ToString(), *Params.Key.GetPairedAxisKey().GetFName().ToString());
+			}
+
+			PairedKeyState.SampleCountAccumulator = FMath::Max(PairedKeyState.SampleCountAccumulator, KeyState.SampleCountAccumulator);	// Take max count of each contributing axis.
+
+			// TODO: Will trigger multiple times for the paired axis key. Not desirable.
+			TestEventEdges(PairedKeyState, PairedKeyState.Value.Size());
+		}
+
+	#if !UE_BUILD_SHIPPING
+		CurrentEvent		= IE_Axis;
+
+		const FString Command = GetBind(Params.Key);
+		if(Command.Len())
+		{
+			UWorld* World = GetWorld();
+			check(World);
+			ExecInputCommands( World, *Command,*GLog);
+			return true;
+		}
+	#endif
+
+		return false;
+	}
+	// Non-analog key
+	else
 	{
 		// first event associated with this key, add it to the map
-		FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
-
-		TestEventEdges(KeyState, UE_REAL_TO_FLOAT(KeyState.Value.X));
-
-		// accumulate deltas until processed next
-		KeyState.SampleCountAccumulator += (uint8)NumSamples;
-		KeyState.RawValueAccumulator.X += Delta;
-	}
-
-	// Mirror the key press to any associated paired axis
-	FKey PairedKey = Key.GetPairedAxisKey();
-	if (PairedKey.IsValid())
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("Spotted axis %s which is paired to %s"), *Key.GetDisplayName().ToString(), Key.GetPairedAxisKey().IsValid() ? *Key.GetPairedAxisKey().GetDisplayName().ToString() : TEXT("NONE"));
-
-		EPairedAxis PairedAxis = Key.GetPairedAxis();
-		FKeyState& PairedKeyState = KeyStateMap.FindOrAdd(PairedKey);
-
-		// The FindOrAdd can invalidate KeyState, so we must look it back up
-		FKeyState& KeyState = KeyStateMap.FindChecked(Key);
-
-		// Update accumulator for the appropriate axis
-		if (PairedAxis == EPairedAxis::X)
-		{
-			PairedKeyState.RawValueAccumulator.X = KeyState.RawValueAccumulator.X;
-			PairedKeyState.PairSampledAxes |= 0b001;
-		}
-		else if (PairedAxis == EPairedAxis::Y)
-		{
-			PairedKeyState.RawValueAccumulator.Y = KeyState.RawValueAccumulator.X;
-			PairedKeyState.PairSampledAxes |= 0b010;
-		}
-		else if (PairedAxis == EPairedAxis::Z)
-		{
-			PairedKeyState.RawValueAccumulator.Z = KeyState.RawValueAccumulator.X;
-			PairedKeyState.PairSampledAxes |= 0b100;
-		}
-		else
-		{
-			checkf(false, TEXT("Key %s has paired axis key %s but no valid paired axis!"), *Key.GetFName().ToString(), *Key.GetPairedAxisKey().GetFName().ToString());
-		}
-
-		PairedKeyState.SampleCountAccumulator = FMath::Max(PairedKeyState.SampleCountAccumulator, KeyState.SampleCountAccumulator);	// Take max count of each contributing axis.
-
-		// TODO: Will trigger multiple times for the paired axis key. Not desirable.
-		TestEventEdges(PairedKeyState, PairedKeyState.Value.Size());
-	}
-
-#if !UE_BUILD_SHIPPING
-	CurrentEvent		= IE_Axis;
-
-	const FString Command = GetBind(Key);
-	if(Command.Len())
-	{
+		FKeyState& KeyState = KeyStateMap.FindOrAdd(Params.Key);
 		UWorld* World = GetWorld();
 		check(World);
-		ExecInputCommands( World, *Command,*GLog);
+
+		switch(Params.Event)
+		{
+		case IE_Pressed:
+		case IE_Repeat:
+			KeyState.RawValueAccumulator.X = Params.Delta.X;
+			KeyState.EventAccumulator[Params.Event].Add(++EventCount);
+			if (KeyState.bDownPrevious == false)
+			{
+				// check for doubleclick
+				// note, a tripleclick will currently count as a 2nd double click.
+				const float WorldRealTimeSeconds = World->GetRealTimeSeconds();
+				if ((WorldRealTimeSeconds - KeyState.LastUpDownTransitionTime) < GetDefault<UInputSettings>()->DoubleClickTime)
+				{
+					KeyState.EventAccumulator[IE_DoubleClick].Add(++EventCount);
+				}
+
+				// just went down
+				KeyState.LastUpDownTransitionTime = WorldRealTimeSeconds;
+			}
+			break;
+		case IE_Released:
+			KeyState.RawValueAccumulator.X = 0.f;
+			KeyState.EventAccumulator[IE_Released].Add(++EventCount);
+			break;
+		case IE_DoubleClick:
+			KeyState.RawValueAccumulator.X = Params.Delta.X;
+			KeyState.EventAccumulator[IE_Pressed].Add(++EventCount);
+			KeyState.EventAccumulator[IE_DoubleClick].Add(++EventCount);
+			break;
+		}
+		KeyState.SampleCountAccumulator++;
+
+	#if !UE_BUILD_SHIPPING
+		CurrentEvent		= Params.Event;
+
+		const FString Command = GetBind(Params.Key);
+		if(Command.Len())
+		{
+			return ExecInputCommands(World, *Command,*GLog);
+		}
+	#endif
+
+		if(Params.Event == IE_Pressed)
+		{
+			return IsKeyHandledByAction( Params.Key);
+		}
+
 		return true;
 	}
-#endif
-
+	
 	return false;
+}
+
+bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	FInputKeyParams Params;
+	Params.Key = Key;
+	Params.Delta = FVector((double)Delta, 0.0, 0.0);
+	Params.NumSamples = NumSamples;
+	
+	return InputKey(Params);
 }
 
 bool UPlayerInput::InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex)

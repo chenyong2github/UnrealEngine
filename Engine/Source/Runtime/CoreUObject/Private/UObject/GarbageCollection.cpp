@@ -79,6 +79,8 @@ FThreadSafeBool GIsGarbageCollecting(false);
 
 int32 FGCReferenceTokenStream::MaxStackSize = 1;
 
+const FGCReferenceInfo FGCReferenceInfo::EndOfStreamToken(GCRT_EndOfStream, 0);
+
 /**
 * Call back into the async loading code to inform of the destruction of serialized objects
 */
@@ -801,7 +803,7 @@ public:
 	 * @param ReferencingObject UObject which owns the reference (can be NULL)
 	 * @param bAllowReferenceElimination	Whether to allow NULL'ing the reference if RF_PendingKill is set
 	*/
-	FORCEINLINE void HandleObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, const UObject * const ReferencingObject, UObject*& Object, const bool bAllowReferenceElimination)
+	FORCEINLINE void HandleObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, const UObject * const ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, const bool bAllowReferenceElimination)
 	{
 		if (Object == nullptr)
 		{
@@ -936,7 +938,7 @@ public:
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed.
 	*/
-	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 #if ENABLE_GC_OBJECT_CHECKS
 		if (Object && IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(&Object)))
@@ -967,7 +969,7 @@ public:
 			}
 		}
 #endif // ENABLE_GC_OBJECT_CHECKS
-		HandleObjectReference(ObjectsToSerializeStruct, ReferencingObject, Object, bAllowReferenceElimination);
+		HandleObjectReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex, TokenType, bAllowReferenceElimination);
 	}
 };
 
@@ -976,11 +978,12 @@ FGCCollector<Options>::FGCCollector(FGCReferenceProcessor<Options>& InProcessor,
 		: ReferenceProcessor(InProcessor)
 		, ObjectArrayStruct(InObjectArrayStruct)
 		, bAllowEliminatingReferences(true)
+		, bIsProcessingNativeReferences(true)
 {
 }
 
 template <EFastReferenceCollectorOptions Options>
-FORCEINLINE void FGCCollector<Options>::InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
+FORCEINLINE void FGCCollector<Options>::InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty, const EGCTokenType InTokenType)
 {
 #if ENABLE_GC_OBJECT_CHECKS
 		if (Object && !Object->IsValidLowLevelFast())
@@ -991,23 +994,26 @@ FORCEINLINE void FGCCollector<Options>::InternalHandleObjectReference(UObject*& 
 				ReferencingProperty ? *ReferencingProperty->GetFullName() : TEXT("NULL"));
 		}
 #endif // ENABLE_GC_OBJECT_CHECKS
-		ReferenceProcessor.HandleObjectReference(ObjectArrayStruct, const_cast<UObject*>(ReferencingObject), Object, bAllowEliminatingReferences);
+		const int32 InvalidTokenIndex = -1; // this reference is coming from a native AddReferencedObjects so no valid token index is available
+		ReferenceProcessor.HandleObjectReference(ObjectArrayStruct, const_cast<UObject*>(ReferencingObject), Object, InvalidTokenIndex, InTokenType, bAllowEliminatingReferences);
 }
 
 template <EFastReferenceCollectorOptions Options>
 void FGCCollector<Options>::HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
 {
-		InternalHandleObjectReference(Object, ReferencingObject, ReferencingProperty);
+	const EGCTokenType TokenType = bIsProcessingNativeReferences ? EGCTokenType::Native : EGCTokenType::NonNative;
+	InternalHandleObjectReference(Object, ReferencingObject, ReferencingProperty, TokenType);
 }
 
 template <EFastReferenceCollectorOptions Options>
 void FGCCollector<Options>::HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
 {
-		for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
-		{
-			UObject*& Object = InObjects[ObjectIndex];
-			InternalHandleObjectReference(Object, InReferencingObject, InReferencingProperty);
-		}
+	const EGCTokenType TokenType = bIsProcessingNativeReferences ? EGCTokenType::Native : EGCTokenType::NonNative;
+	for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
+	{
+		UObject*& Object = InObjects[ObjectIndex];
+		InternalHandleObjectReference(Object, InReferencingObject, InReferencingProperty, TokenType);
+	}
 }
 #endif	// UE_WITH_GC
 
@@ -2864,6 +2870,10 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 			AddReferencedObjectsFn = ClassAddReferencedObjects;
 #endif
 			ReferenceTokenStream.Fixup(AddReferencedObjectsFn, bKeepOuter, bKeepClass);
+
+			// Make sure all Blueprint properties are marked as non-native
+			const EGCTokenType TokenType = GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) ? EGCTokenType::NonNative : EGCTokenType::Native;
+			ReferenceTokenStream.SetTokenType(TokenType);
 		}
 
 		if (ReferenceTokenStream.IsEmpty())
@@ -2873,7 +2883,7 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 
 		// Emit end of stream token.
 		static const FName EOSDebugName("EndOfStreamToken");
-		EmitObjectReference(0, EOSDebugName, GCRT_EndOfStream);
+		ReferenceTokenStream.EmitReferenceInfo(FGCReferenceInfo::EndOfStreamToken, EOSDebugName);
 
 		// Shrink reference token stream to proper size.
 		ReferenceTokenStream.Shrink();
@@ -2895,8 +2905,7 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 void FGCReferenceTokenStream::PrependStream( const FGCReferenceTokenStream& Other )
 {
 	// Remove embedded EOS token if needed.
-	FGCReferenceInfo EndOfStream(GCRT_EndOfStream, 0);
-	int32 NumTokensToPrepend = (Other.Tokens.Num() && Other.Tokens.Last() == EndOfStream) ? (Other.Tokens.Num() - 1) : Other.Tokens.Num();
+	int32 NumTokensToPrepend = (Other.Tokens.Num() && Other.Tokens.Last() == FGCReferenceInfo::EndOfStreamToken) ? (Other.Tokens.Num() - 1) : Other.Tokens.Num();
 
 	TArray<uint32> TempTokens;
 	TempTokens.Reserve(NumTokensToPrepend + Tokens.Num());

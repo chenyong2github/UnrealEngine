@@ -113,6 +113,8 @@ namespace SavePackageUtilities
 	COREUOBJECT_API void IncrementOutstandingAsyncWrites();
 	COREUOBJECT_API void DecrementOutstandingAsyncWrites();
 
+	COREUOBJECT_API void ResetCookStats();
+	COREUOBJECT_API int32 GetNumPackagesSaved();
 }
 }
 

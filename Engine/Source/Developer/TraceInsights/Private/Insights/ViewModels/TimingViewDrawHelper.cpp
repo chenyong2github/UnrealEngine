@@ -5,7 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
@@ -30,7 +30,7 @@ FTimingEventsTrackDrawStateBuilder::FTimingEventsTrackDrawStateBuilder(FTimingEv
 	, MaxDepth(-1)
 	, LastEventX2()
 	, LastBox()
-	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 	DrawState.Reset();
 }
@@ -275,7 +275,7 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDrawContext, 
 	, ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f)
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
 	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
-	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, ValidAreaX(0.0f)
 	, ValidAreaW(0.0f)
 	, NumEvents(0)

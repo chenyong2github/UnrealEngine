@@ -140,6 +140,7 @@ FDetailCategoryImpl::FDetailCategoryImpl(FName InCategoryName, TSharedRef<FDetai
 	, bIsCategoryVisible(true)
 	, bFavoriteCategory(false)
 	, bShowOnlyChildren(false)
+	, bHasVisibleAdvanced(false)
 {
 	const UStruct* BaseStruct = InDetailLayout->GetRootNode()->GetBaseStructure();
 
@@ -528,7 +529,7 @@ FDetailLayoutCustomization* FDetailCategoryImpl::GetDefaultCustomization(TShared
 	return Customization;
 }
 
-bool FDetailCategoryImpl::ShouldShowAdvanced() const
+bool FDetailCategoryImpl::ShouldAdvancedBeExpanded() const
 {
 	return bUserShowAdvanced || bForceAdvanced;
 }
@@ -551,6 +552,11 @@ void FDetailCategoryImpl::SetSortOrder(int32 InSortOrder)
 bool FDetailCategoryImpl::IsAdvancedDropdownEnabled() const
 {
 	return !bForceAdvanced;
+}
+
+bool FDetailCategoryImpl::ShouldAdvancedBeVisible() const
+{
+	return ShouldAdvancedBeExpanded() && bHasVisibleAdvanced;
 }
 
 void FDetailCategoryImpl::RequestItemExpanded(TSharedRef<FDetailTreeNode> TreeNode, bool bShouldBeExpanded)
@@ -871,7 +877,7 @@ void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLa
 		if (Customization.IsValidCustomization())
 		{
 			// if a property is customized, skip the default customization
-			if (!IsCustomProperty(Customization.GetPropertyNode()) || Customization.bCustom)
+			if (!IsCustomProperty(Customization.GetPropertyNode()) || Customization.bCustom || bFavoriteCategory)
 			{
 				TSharedRef<FDetailItemNode> NewNode = MakeShareable(new FDetailItemNode(Customization, AsShared(), IsParentEnabled));
 				// Discard nodes that don't pass the property permission test. There is a special check here for properties in structs that do not have a
@@ -921,20 +927,20 @@ void FDetailCategoryImpl::GenerateChildrenForLayouts()
 	// Generate nodes for advanced dropdowns
 	if (AdvancedChildNodes.Num() > 0)
 	{
+		TAttribute<bool> IsExpanded(this, &FDetailCategoryImpl::ShouldAdvancedBeExpanded);
 		TAttribute<bool> IsEnabled(this, &FDetailCategoryImpl::IsAdvancedDropdownEnabled);
-		TAttribute<bool> IsExpanded(this, &FDetailCategoryImpl::ShouldShowAdvanced);
+		TAttribute<bool> IsVisible(this, &FDetailCategoryImpl::ShouldAdvancedBeVisible);
 
-		AdvancedDropdownNode = MakeShared<FAdvancedDropdownNode>(AsShared(), IsExpanded, IsEnabled, AdvancedChildNodes.Num() > 0);
+		AdvancedDropdownNode = MakeShared<FAdvancedDropdownNode>(AsShared(), IsExpanded, IsEnabled, IsVisible);
 	}
 }
-
 
 void FDetailCategoryImpl::GetChildren(FDetailNodeList& OutChildren)
 {
 	GetGeneratedChildren(OutChildren, false, false);
 }
 
-void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, bool bIgnoreVisibility, bool bIgnoreAdvancedDropdown)
+void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, bool bIgnoreVisibility, bool bIgnoreAdvanced)
 {
 	for (TSharedRef<FDetailTreeNode>& Child : SimpleChildNodes)
 	{
@@ -951,14 +957,14 @@ void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, boo
 		}
 	}
 
-	if (!bIgnoreAdvancedDropdown)
+	if (!bIgnoreAdvanced)
 	{
 		if (AdvancedChildNodes.Num() > 0 && AdvancedDropdownNode.IsValid())
 		{
 			OutChildren.Add(AdvancedDropdownNode.ToSharedRef());
 		}
 
-		if (ShouldShowAdvanced())
+		if (ShouldAdvancedBeExpanded())
 		{
 			for (TSharedRef<FDetailTreeNode>& Child : AdvancedChildNodes)
 			{
@@ -981,17 +987,18 @@ void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, boo
 void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 {
 	bHasFilterStrings = InFilter.FilterStrings.Num() > 0;
-	bForceAdvanced = bFavoriteCategory || bHasFilterStrings || InFilter.bShowAllAdvanced == true || ContainsOnlyAdvanced();
+	bForceAdvanced = bFavoriteCategory || InFilter.bShowAllAdvanced == true || ContainsOnlyAdvanced();
 
 	bHasVisibleDetails = false;
+	bHasVisibleAdvanced = false;
 
 	if (bFavoriteCategory && !InFilter.bShowFavoritesCategory)
 	{
 		return;
 	}
 
-	// only apply the section filter if the user hasn't typed anything
-	if (InFilter.FilterStrings.IsEmpty() && !InFilter.VisibleSections.IsEmpty())
+	// only apply the section filter if the user hasn't typed anything and this isn't the favorites category
+	if (InFilter.FilterStrings.IsEmpty() && !InFilter.VisibleSections.IsEmpty() && !bFavoriteCategory)
 	{
 		const UStruct* BaseStruct = GetParentBaseStructure();
 		if (BaseStruct != nullptr)
@@ -1010,7 +1017,8 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 			bool bFound = false;
 			for (const TSharedPtr<FPropertySection>& Section : PropertySections)
 			{
-				if (InFilter.VisibleSections.Contains(Section->GetName()))
+				if (Section->HasAddedCategory(CategoryName) &&
+					InFilter.VisibleSections.Contains(Section->GetName()))
 				{
 					bFound = true; 
 					break;
@@ -1047,6 +1055,8 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 		if (Child->GetVisibility() == ENodeVisibility::Visible)
 		{
 			bHasVisibleDetails = true;
+			bHasVisibleAdvanced = true;
+			bForceAdvanced = true;
 			RequestItemExpanded(Child, Child->ShouldBeExpanded());
 		}
 	}

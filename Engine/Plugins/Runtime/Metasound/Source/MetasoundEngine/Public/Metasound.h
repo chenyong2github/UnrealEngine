@@ -79,6 +79,8 @@ namespace Metasound
 	template <typename TMetaSoundObject>
 	void PreSaveAsset(TMetaSoundObject& InMetaSound, FObjectPreSaveContext InSaveContext)
 	{
+		using namespace Metasound::Frontend;
+
 		// If not editor and cooking, no need to force re-registering as if its already registered,
 		// no edits have been made between last registration and this one if a parent asset has requested
 		// it to register.
@@ -131,6 +133,7 @@ namespace Metasound
 	void SetMetaSoundRegistryAssetClassInfo(TMetaSoundObject& InMetaSound, const Metasound::Frontend::FNodeClassInfo& InClassInfo)
 	{
 		using namespace Metasound;
+		using namespace Metasound::Frontend;
 
 		check(AssetTags::AssetClassID == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, AssetClassID));
 		check(AssetTags::RegistryInputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryInputTypes));
@@ -192,8 +195,8 @@ public:
 	UPROPERTY()
 	TSet<FString> ReferencedAssetClassKeys;
 
-	UPROPERTY(Transient)
-	TSet<UObject*> ReferenceAssetClassCache;
+	UPROPERTY()
+	TSet<FSoftObjectPath> ReferenceAssetClassCache;
 
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid AssetClassID;
@@ -251,7 +254,8 @@ public:
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void Serialize(FArchive& InArchive) override;
 
-	virtual TSet<UObject*>& GetReferencedAssetClassCache() override;
+	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() override;
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const override;
 
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;

@@ -179,9 +179,6 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 	int32 NumReqBones = BoneIndicesArray.Num();
 	CompactPoseParentBones.Reset(NumReqBones);
 
-	CompactPoseRefPoseBones.Reset(NumReqBones);
-	CompactPoseRefPoseBones.AddUninitialized(NumReqBones);
-
 	CompactPoseToSkeletonIndex.Reset(NumReqBones);
 	CompactPoseToSkeletonIndex.AddUninitialized(NumReqBones);
 
@@ -189,7 +186,6 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 
 	VirtualBoneCompactPoseData.Reset(RefSkeleton->GetVirtualBoneRefData().Num());
 
-	const TArray<FTransform>& RefPoseArray = RefSkeleton->GetRefBonePose();
 	TArray<int32>& MeshIndexToCompactPoseIndex = FBoneContainerScratchArea::Get().MeshIndexToCompactPoseIndex;
 	MeshIndexToCompactPoseIndex.Reset(PoseToSkeletonBoneIndexArray.Num());
 	MeshIndexToCompactPoseIndex.AddUninitialized(PoseToSkeletonBoneIndexArray.Num());
@@ -209,13 +205,6 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 		const int32 CompactParentIndex = ParentIndex == INDEX_NONE ? INDEX_NONE : MeshIndexToCompactPoseIndex[ParentIndex];
 
 		CompactPoseParentBones.Add(FCompactPoseBoneIndex(CompactParentIndex));
-	}
-
-	//Ref Pose
-	for (int32 CompactBoneIndex = 0; CompactBoneIndex < NumReqBones; ++CompactBoneIndex)
-	{
-		FBoneIndexType MeshPoseIndex = BoneIndicesArray[CompactBoneIndex];
-		CompactPoseRefPoseBones[CompactBoneIndex] = RefPoseArray[MeshPoseIndex];
 	}
 
 	for (int32 CompactBoneIndex = 0; CompactBoneIndex < NumReqBones; ++CompactBoneIndex)
@@ -452,7 +441,7 @@ const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(con
 		// Build Cached Data for OrientAndScale retargeting.
 
 		const TArray<FTransform>& AuthoredOnRefSkeleton = InRetargetTransforms;
-		const TArray<FTransform>& PlayingOnRefSkeleton = GetRefPoseCompactArray();
+		const TArray<FTransform>& PlayingOnRefSkeleton = GetRefPoseArray(); 
 		const int32 CompactPoseNumBones = GetCompactPoseNumBones();
 
 		RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex.Reset();
@@ -464,7 +453,15 @@ const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(con
 			if (AssetSkeleton->GetBoneTranslationRetargetingMode(SkeletonBoneIndex) == EBoneTranslationRetargetingMode::OrientAndScale)
 			{
 				const FVector SourceSkelTrans = AuthoredOnRefSkeleton[SkeletonBoneIndex].GetTranslation();
-				const FVector TargetSkelTrans = PlayingOnRefSkeleton[CompactBoneIndex].GetTranslation();
+				FVector TargetSkelTrans;
+				if (RefPoseOverride.IsValid())
+				{
+					TargetSkelTrans = RefPoseOverride->RefBonePoses[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
+				}
+				else
+				{
+					TargetSkelTrans = PlayingOnRefSkeleton[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
+				}
 
 				// If translations are identical, we don't need to do any retargeting
 				if (!SourceSkelTrans.Equals(TargetSkelTrans, BONE_TRANS_RT_ORIENT_AND_SCALE_PRECISION))

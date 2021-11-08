@@ -239,6 +239,18 @@ namespace
 			FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, ExistingObject, ProcessObjectDependency, LocalisationNamespace);
 		}
 	}
+	
+	int32 AddOrFindObjectReference(FWorldSnapshotData& WorldData, const FSoftObjectPath& ObjectPath)
+	{
+		if (const int32* ExistingIndex = WorldData.ReferenceToIndex.Find(ObjectPath))
+		{
+			return *ExistingIndex;
+		}
+		
+		const int32 Index = WorldData.SerializedObjectReferences.Add(ObjectPath);
+		WorldData.ReferenceToIndex.Add(ObjectPath, Index);
+		return Index;
+	}
 }
 
 UObject* SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
@@ -335,7 +347,7 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForClassDefaultObject(FWor
 int32 SnapshotUtil::Object::AddObjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, bool bCheckWhetherSubobject)
 {
 	// Even if FSnapshotRestorability::IsSubobjectDesirableForCapture later returns false for this object, we want to track it
-	const int32 Result = WorldData.SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
+	const int32 Result = AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
 
 	if (bCheckWhetherSubobject && ReferenceFromOriginalObject && ReferenceFromOriginalObject->GetTypedOuter<AActor>())
 	{
@@ -343,4 +355,54 @@ int32 SnapshotUtil::Object::AddObjectDependency(FWorldSnapshotData& WorldData, U
 	}
 	
 	return Result;
+}
+
+int32 SnapshotUtil::Object::AddCustomSubobjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject)
+{
+	if (!ensure(ReferenceFromOriginalObject))
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 SubobjectIndex = AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
+	if (WorldData.CustomSubobjectSerializationData.Find(SubobjectIndex) == nullptr)
+	{
+		WorldData.CustomSubobjectSerializationData.Add(SubobjectIndex);
+	}
+	else
+	{
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Object %s was already added as dependency. Investigate"), *ReferenceFromOriginalObject->GetName());
+		UE_DEBUG_BREAK();
+	}
+		
+	return SubobjectIndex;
+}
+
+FCustomSerializationData* SnapshotUtil::Object::FindCustomSubobjectData(FWorldSnapshotData& WorldData,const FSoftObjectPath& ReferenceFromOriginalObject)
+{
+	const int32 SubobjectIndex = WorldData.SerializedObjectReferences.Find(ReferenceFromOriginalObject);
+	return WorldData.CustomSubobjectSerializationData.Find(SubobjectIndex);
+}
+
+const FCustomSerializationData* SnapshotUtil::Object::FindCustomActorOrSubobjectData(const FWorldSnapshotData& WorldData,UObject* OriginalObject)
+{
+	// Is it an actor?
+	if (const FActorSnapshotData* SavedActorData = WorldData.ActorData.Find(OriginalObject))
+	{
+		return &SavedActorData->GetCustomActorSerializationData();
+	}
+	if (Cast<AActor>(OriginalObject))
+	{
+		// Return immediately to avoid searching the entire array below.
+		return nullptr;
+	}
+
+	// If not an actor, it is a subobject
+	const int32 ObjectReferenceIndex = WorldData.SerializedObjectReferences.Find(OriginalObject);
+	if (ObjectReferenceIndex != INDEX_NONE)
+	{
+		return WorldData.CustomSubobjectSerializationData.Find(ObjectReferenceIndex);
+	}
+
+	return nullptr;
 }

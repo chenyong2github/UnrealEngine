@@ -204,12 +204,12 @@ void FDatasmithImporterHelper::ImportInternal(UFactory* FactoryCDO)
 	{
 		TArray<TSharedRef<FExternalSource>> Sources;
 		Sources.Reserve(OpenedFiles.Num());
-		IUriManager* UriManager = IExternalSourceModule::Get().GetManager();
+		IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
 
 		for (const FString& OpenedFile : OpenedFiles)
 		{
 			FSourceUri SourceUri = FSourceUri::FromFilePath(OpenedFile);
-			if (TSharedPtr<FExternalSource> FileExternalSource = UriManager->GetOrCreateExternalSource(SourceUri))
+			if (TSharedPtr<FExternalSource> FileExternalSource = UriManager.GetOrCreateExternalSource(SourceUri))
 			{
 				Sources.Add(FileExternalSource.ToSharedRef());
 			}
@@ -256,19 +256,6 @@ FString FDatasmithImporterHelper::GetFilterStringInternal(UFactory* Factory)
 	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
 	return FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
-}
-
-TSharedPtr<UE::DatasmithImporter::FExternalSource> FDatasmithImporterHelper::TryGetExternalSourceFromFilepath(const FString& Filepath)
-{
-	using namespace UE::DatasmithImporter;
-
-	if (IUriManager* Manager = IExternalSourceModule::Get().GetManager())
-	{
-		FSourceUri SourceUri = FSourceUri::FromFilePath(Filepath);
-		return Manager->GetOrCreateExternalSource(SourceUri);
-	}
-
-	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

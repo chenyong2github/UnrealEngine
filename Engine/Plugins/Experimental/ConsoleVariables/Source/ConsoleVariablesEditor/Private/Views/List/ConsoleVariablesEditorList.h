@@ -11,19 +11,18 @@ class FConsoleVariablesEditorList : public TSharedFromThis<FConsoleVariablesEdit
 {
 public:
 
-	FConsoleVariablesEditorList();
+	FConsoleVariablesEditorList(){};
 
 	~FConsoleVariablesEditorList();
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	void RefreshList(UConsoleVariablesAsset* InAsset) const;
+	void RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo = "") const;
 
-	void UpdateExistingValuesFromConsoleManager() const;
+	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
+	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 private:
 
 	TSharedPtr<SConsoleVariablesEditorList> ListWidget;
-
-	FConsoleCommandDelegate OnCommandEntered;
 };

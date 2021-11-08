@@ -50,7 +50,14 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 {
 	PreloadObject((UObject*)InputAction);
 
-	ForEachEventPinName([this](ETriggerEvent Event, FName PinName) { CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName); });
+	ForEachEventPinName([this](ETriggerEvent Event, FName PinName)
+	{
+		static const UEnum* EventEnum = StaticEnum<ETriggerEvent>();
+
+		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+		NewPin->PinToolTip = EventEnum->GetToolTipTextByIndex((int32)Event).ToString();
+	});
+	
 	HideEventPins(nullptr);
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 	

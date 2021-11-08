@@ -28,16 +28,32 @@ void ShowLogMessages(const TArray<GLTF::FLogMessage>& Errors)
 	if (Errors.Num() > 0)
 	{
 #if WITH_EDITOR
-		FMessageLogModule&             MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-		TSharedRef<IMessageLogListing> LogListing       = MessageLogModule.GetLogListing("LoadErrors");
-		LogListing->ClearMessages();
-		for (const GLTF::FLogMessage& Error : Errors)
+		if (IsInGameThread())
 		{
-			EMessageSeverity::Type Severity =
-				Error.Get<0>() == GLTF::EMessageSeverity::Error ? EMessageSeverity::Error : EMessageSeverity::Warning;
-			LogListing->AddMessage(FTokenizedMessage::Create(Severity, FText::FromString(Error.Get<1>())));
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+			TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing("LoadErrors");
+			LogListing->ClearMessages();
+			for (const GLTF::FLogMessage& Error : Errors)
+			{
+				EMessageSeverity::Type Severity = Error.Get<0>() == GLTF::EMessageSeverity::Error ? EMessageSeverity::Error : EMessageSeverity::Warning;
+				LogListing->AddMessage(FTokenizedMessage::Create(Severity, FText::FromString(Error.Get<1>())));
+			}
+			MessageLogModule.OpenMessageLog("LoadErrors");
 		}
-		MessageLogModule.OpenMessageLog("LoadErrors");
+		else
+		{
+			for (const GLTF::FLogMessage& LogError : Errors)
+			{
+				if (LogError.Get<0>() == GLTF::EMessageSeverity::Error)
+				{
+					UE_LOG(LogDatasmithGLTFImport, Error, TEXT("%s"), *LogError.Get<1>());
+				}
+				else
+				{
+					UE_LOG(LogDatasmithGLTFImport, Warning, TEXT("%s"), *LogError.Get<1>());
+				}
+			}
+		}
 #else
 		for (const GLTF::FLogMessage& LogError : Errors)
 		{

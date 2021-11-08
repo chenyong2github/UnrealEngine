@@ -6,7 +6,6 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptVariable.h"
 
-
 UNiagaraParameterDefinitions::UNiagaraParameterDefinitions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -31,35 +30,7 @@ void UNiagaraParameterDefinitions::PostLoad()
 	Super::PostLoad();
 	if (HasAnyFlags(RF_ClassDefaultObject) == false && GetPackage() != GetTransientPackage())
 	{
-		TArray<UNiagaraParameterDefinitions*>& ReservedDefinitions = FNiagaraEditorModule::Get().GetReservedDefinitions();
-		ReservedDefinitions.AddUnique(this);
-
-		bool bMakeUniqueId = false;
-		if (UniqueId.IsValid() == false)
-		{
-			bMakeUniqueId = true;
-		}
-		else
-		{
-			for (UNiagaraParameterDefinitions* ReservedDefinition : ReservedDefinitions)
-			{
-				if (ReservedDefinition == nullptr || ReservedDefinition == this)
-				{
-					continue;
-				}
-				if (ReservedDefinition->GetDefinitionsUniqueId() == UniqueId)
-				{
-					bMakeUniqueId = true;
-					break;
-				}
-			}
-		}
-
-		if(bMakeUniqueId)
-		{
-			UniqueId = FGuid::NewGuid();
-		}
-
+		FNiagaraEditorModule::Get().EnsureReservedDefinitionUnique(UniqueId);
 		SynchronizeWithSubscribedParameterDefinitions();
 	}
 }

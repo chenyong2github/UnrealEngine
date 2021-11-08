@@ -26,7 +26,7 @@ struct FChildEntityFactory
 
 	int32 GetCurrentIndex() const;
 
-	void Apply(UMovieSceneEntitySystemLinker* Linker, const FEntityAllocation* ParentAllocation);
+	void Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAllocationProxy ParentAllocationProxy);
 	
 	void Add(int32 EntityIndex)
 	{

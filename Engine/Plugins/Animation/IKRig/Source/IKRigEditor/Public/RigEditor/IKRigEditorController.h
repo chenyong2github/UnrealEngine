@@ -35,7 +35,9 @@ public:
 	/** get array of the names of currently selected goals */
 	const TArray<FName>& GetSelectedGoals() const {return SelectedGoals;};
 	/** return true if a goal with the given name is selected */
-	bool IsGoalSelected(const FName& GoalName);
+	bool IsGoalSelected(const FName& GoalName) const;
+	/** when goal is renamed, update selection list */
+	void ReplaceGoalInSelection(const FName& OldName, const FName& NewName);
 	/** return number of goals that are currently selected */
 	int32 GetNumSelectedGoals();
 	/** callback when goal is selected in the viewport */

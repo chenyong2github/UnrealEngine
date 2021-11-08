@@ -2342,7 +2342,7 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 	SCOPED_GPU_STAT(RHICmdList, ShadowProjection);
 
 	// render shadowmaps for relevant lights.
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
@@ -2398,7 +2398,7 @@ void FMobileSceneRenderer::RenderMobileShadowProjections(
 	AddClearRenderTargetPass(GraphBuilder, ScreenShadowMaskTexture);
 
 	const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

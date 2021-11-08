@@ -120,7 +120,12 @@ void UMetaSound::SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegi
 	ReferencedAssetClassKeys = MoveTemp(InKeys);
 }
 
-TSet<UObject*>& UMetaSound::GetReferencedAssetClassCache()
+TSet<FSoftObjectPath>& UMetaSound::GetReferencedAssetClassCache()
+{
+	return ReferenceAssetClassCache;
+}
+
+const TSet<FSoftObjectPath>& UMetaSound::GetReferencedAssetClassCache() const
 {
 	return ReferenceAssetClassCache;
 }

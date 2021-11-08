@@ -6,11 +6,6 @@
 #include "EngineUtils.h"
 #include "Serialization/Archive.h"
 
-void FNetworkObjectList::AddInitialObjects(UWorld* const World, const FName NetDriverName)
-{
-	AddInitialObjects(World, GEngine->FindNamedNetDriver(World, NetDriverName));
-}
-
 void FNetworkObjectList::AddInitialObjects(UWorld* const World, UNetDriver* NetDriver)
 {
 	if (World == nullptr || NetDriver == nullptr)
@@ -41,18 +36,6 @@ TSharedPtr<FNetworkObjectInfo> FNetworkObjectList::Find(AActor* const Actor)
 	}
 
 	return TSharedPtr<FNetworkObjectInfo>();
-}
-
-TSharedPtr<FNetworkObjectInfo>* FNetworkObjectList::FindOrAdd(AActor* const Actor, const FName NetDriverName, bool* OutWasAdded)
-{
-	if (Actor != nullptr)
-	{
-		return FindOrAdd(Actor, GEngine->FindNamedNetDriver(Actor->GetWorld(), NetDriverName), OutWasAdded);
-	}
-	else
-	{
-		return nullptr;
-	}
 }
 
 TSharedPtr<FNetworkObjectInfo>* FNetworkObjectList::FindOrAdd(AActor* const Actor, UNetDriver* NetDriver, bool* OutWasAdded)
@@ -142,14 +125,6 @@ void FNetworkObjectList::Remove(AActor* const Actor)
 	check((ActiveNetworkObjects.Num() + ObjectsDormantOnAllConnections.Num()) == AllNetworkObjects.Num());
 }
 
-void FNetworkObjectList::MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, const FName NetDriverName)
-{
-	if (Actor)
-	{
-		MarkDormant(Actor, Connection, NumConnections, GEngine->FindNamedNetDriver(Actor->GetWorld(), NetDriverName));
-	}
-}
-
 void FNetworkObjectList::MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, UNetDriver* NetDriver)
 {
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = FindOrAdd(Actor, NetDriver);
@@ -197,18 +172,6 @@ void FNetworkObjectList::MarkDormant(AActor* const Actor, UNetConnection* const 
 	}
 
 	check((ActiveNetworkObjects.Num() + ObjectsDormantOnAllConnections.Num()) == AllNetworkObjects.Num());
-}
-
-bool FNetworkObjectList::MarkActive(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName)
-{
-	if (Actor != nullptr)
-	{
-		return MarkActive(Actor, Connection, GEngine->FindNamedNetDriver(Actor->GetWorld(), NetDriverName));
-	}
-	else
-	{
-		return false;
-	}
 }
 
 bool FNetworkObjectList::MarkActive(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver)
@@ -264,14 +227,6 @@ void FNetworkObjectList::MarkDirtyForReplay(AActor* const Actor)
 	}
 }
 
-void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName)
-{
-	if (Actor != nullptr)
-	{
-		ClearRecentlyDormantConnection(Actor, Connection, GEngine->FindNamedNetDriver(Actor->GetWorld(), NetDriverName));
-	}
-}
-
 void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver)
 {
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = FindOrAdd(Actor, NetDriver);
@@ -323,14 +278,6 @@ int32 FNetworkObjectList::GetNumDormantActorsForConnection(UNetConnection* const
 	return (Count != nullptr) ? *Count : 0;
 }
 
-void FNetworkObjectList::ForceActorRelevantNextUpdate(AActor* const Actor, const FName NetDriverName)
-{
-	if (Actor)
-	{
-		ForceActorRelevantNextUpdate(Actor, GEngine->FindNamedNetDriver(Actor->GetWorld(), NetDriverName));
-	}
-}
-
 void FNetworkObjectList::ForceActorRelevantNextUpdate(AActor* const Actor, UNetDriver* NetDriver)
 {
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = FindOrAdd(Actor, NetDriver);
@@ -358,11 +305,6 @@ void FNetworkObjectInfo::CountBytes(FArchive& Ar) const
 {
 	DormantConnections.CountBytes(Ar);
 	RecentlyDormantConnections.CountBytes(Ar);
-}
-
-static void CountBytesForNetworkObjectSet(const FNetworkObjectList::FNetworkObjectSet& Set, FArchive& Ar)
-{
-	
 }
 
 void FNetworkObjectList::CountBytes(FArchive& Ar) const

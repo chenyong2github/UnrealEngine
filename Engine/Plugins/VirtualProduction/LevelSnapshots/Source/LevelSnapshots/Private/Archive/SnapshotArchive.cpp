@@ -66,7 +66,16 @@ FArchive& FSnapshotArchive::operator<<(FName& Value)
 	}
 	else
 	{
-		int32 NameIndex = SharedData.SerializedNames.Add(Value);
+		int32 NameIndex;
+		if (const int32* ExistingIndex = SharedData.NameToIndex.Find(Value))
+		{
+			NameIndex = *ExistingIndex;
+		}
+		else
+		{
+			NameIndex = SharedData.SerializedNames.Add(Value);
+			SharedData.NameToIndex.Add(Value, NameIndex);
+		}
 		*this << NameIndex;
 	}
 	

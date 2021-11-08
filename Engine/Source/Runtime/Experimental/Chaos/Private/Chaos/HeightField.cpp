@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/HeightField.h"
+#include "Chaos/Collision/ContactPoint.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Core.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Box.h"
@@ -1245,6 +1248,129 @@ namespace Chaos
 		return false;
 	}
 
+	template <typename GeomType>
+	bool FHeightField::ContactManifoldImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
+			FPBDCollisionConstraint& Constraint)
+		{
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
+
+			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
+
+			FTriangle TriangleConvex(A, B, C);
+			Collisions::ConstructConvexConvexOneShotManifold(QueryGeom, QueryTM, TriangleConvex, FRigidTransform3::Identity, 0, Constraint);
+		};
+
+		auto InsertSorted = [&](const FContactPoint& ContactPoint)
+		{
+			int32 PointIndex = 0;
+			bool done = false;
+			const FReal SamePointErrorMarginSqr = 0.01f;
+			
+			int32 ContactPointsNum = ContactPoints.Num();
+			for( ; PointIndex < ContactPointsNum; PointIndex++ )
+			{
+				FVec3 DiffVector = ContactPoint.ShapeContactPoints[1] - ContactPoints[PointIndex].ShapeContactPoints[1];
+				// Check if point is the same (or close)
+				if (DiffVector.SizeSquared() < SamePointErrorMarginSqr)
+				{
+					done = true;
+					break;
+				}
+
+				if (ContactPoint.Phi < ContactPoints[PointIndex].Phi)
+				{
+					ContactPoints.Insert(ContactPoint, PointIndex);
+					done = true;
+					break;
+				}
+			}
+
+			if (!done)
+			{
+				ContactPoints.Add(ContactPoint);
+			}
+		};		
+		
+		bool bResult = false;
+		FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		QueryBounds.Thicken(Thickness);
+		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
+
+		FBounds2D FlatQueryBounds;
+		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+
+		TArray<TVec2<int32>> Intersections;
+		FVec3 Points[4];
+
+		GetGridIntersections(FlatQueryBounds, Intersections);
+
+		FReal MinContactPhi = FLT_MAX;
+		FVec3 LocalContactLocation, LocalContactNormal;
+		for (const TVec2<int32>& Cell : Intersections)
+		{
+			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
+			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
+
+			// Check for holes and skip checking if we'll never collide
+			if (GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
+			{
+				continue;
+			}
+
+			// The triangle is solid so proceed to test it
+			GeomData.GetPointsScaled(SingleIndex, Points);
+			// First Triangle
+			{
+				FPBDCollisionConstraint Constraint;
+				OverlapTriangle(Points[0], Points[1], Points[3], Constraint);
+				for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+				{
+					InsertSorted(ManifoldPoint.ContactPoint);
+				}
+			}
+			// Second Triangle
+			{
+				FPBDCollisionConstraint Constraint;
+				OverlapTriangle(Points[0], Points[3], Points[2], Constraint);
+				for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+				{
+					InsertSorted(ManifoldPoint.ContactPoint);
+				}
+			}
+		}
+
+		// Remove all points (except for the deepest one, and ones with phis similar to it)
+		const FReal CullMargin = 0.1f;
+		int32 NewContactPointCount = ContactPoints.Num() > 0 ? 1 : 0;
+		for (int32 Index = 1; Index < ContactPoints.Num(); Index++)
+		{
+			if (ContactPoints[Index].Phi < 0 || ContactPoints[Index].Phi - ContactPoints[0].Phi < CullMargin)
+			{
+				NewContactPointCount++;
+			}
+			else
+			{
+				break;
+			}
+		}
+		ContactPoints.SetNum(NewContactPointCount, false);
+
+		// Reduce to only 4 contact points from here
+		Collisions::ReduceManifoldContactPointsTriangeMesh(ContactPoints);
+
+		for (FContactPoint& ContactPoint : ContactPoints)
+		{
+			ContactPoint.ContactNormalOwnerIndex = 1; // To be removed
+			ContactPoint.ShapeMargins[0] = 0.0f;
+			ContactPoint.ShapeMargins[1] = 0.0f;
+		}
+
+		return true;
+	}
 
 	template <typename GeomType>
 	bool FHeightField::GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness,
@@ -1424,6 +1550,40 @@ namespace Chaos
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
 	}
 
+	bool FHeightField::ContactManifold(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}
+
+	/*bool FHeightField::ContactManifold(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}*/
+
+	bool FHeightField::ContactManifold(const FCapsule& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}
+
+	bool FHeightField::ContactManifold(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}
+
+	bool FHeightField::ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}	
+
+	bool FHeightField::ContactManifold(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}
+
+	bool FHeightField::ContactManifold(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
+	}
 
 	template <typename QueryGeomType>
 	bool FHeightField::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const

@@ -88,8 +88,6 @@ private:
 	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
 	void SetupAnimInstance();
 	/** END preview scene setup */
-
-	void HandleSourceOrTargetIKRigAssetChanged();
 	
 	/** centralized management across all views */
 	TSharedRef<FIKRetargetEditorController> EditorController;

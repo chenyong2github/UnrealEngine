@@ -653,6 +653,14 @@ void UK2Node_PromotableOperator::AutowireNewNode(UEdGraphPin* ChangedPin)
 	EvaluatePinsFromChange(ChangedPin);
 }
 
+void UK2Node_PromotableOperator::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
+{
+	Super::GetPinHoverText(Pin, HoverTextOut);
+
+	static const FText RightClickToConv = LOCTEXT("RightClickToConvTooltip", "\n\nRight click this pin to convert its type.");
+	HoverTextOut += RightClickToConv.ToString();
+}
+
 ///////////////////////////////////////////////////////////
 // IK2Node_AddPinInterface
 

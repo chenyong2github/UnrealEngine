@@ -9,19 +9,21 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Core",
-					"AudioExtensions"
+					"AudioExtensions",
+					"Core"
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CoreUObject",
-					"Engine",
 					"AudioMixer",
-					"SignalProcessing",
-					"DeveloperSettings"
+					"CoreUObject",
+					"DeveloperSettings",
+					"Engine",
+					"MetasoundFrontend",
+					"MetasoundGraphCore",
+					"SignalProcessing"
 				}
 			);
 
@@ -31,7 +33,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"Slate",
-						"SlateCore",
+						"SlateCore"
 					}
 				);
 			}

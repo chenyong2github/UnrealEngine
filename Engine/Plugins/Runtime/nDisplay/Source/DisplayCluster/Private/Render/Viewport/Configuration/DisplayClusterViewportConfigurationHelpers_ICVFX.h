@@ -16,6 +16,7 @@ class UDisplayClusterICVFXCameraComponent;
 struct FDisplayClusterConfigurationICVFX_ChromakeySettings;
 struct FDisplayClusterConfigurationICVFX_ChromakeyMarkers;
 struct FDisplayClusterConfigurationICVFX_LightcardSettings;
+struct FDisplayClusterConfigurationICVFX_CameraCustomFrustum;
 struct FOpenColorIODisplayConfiguration;
 
 struct FCameraContext_ICVFX
@@ -50,6 +51,8 @@ public:
 	static void UpdateCameraSettings_ChromakeyMarkers(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeyMarkers& InChromakeyMarkers);
 
 	static bool IsShouldUseLightcard(const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings);
+
+	static void UpdateCameraCustomFrustum(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraCustomFrustum& InCameraCustomFrustum);
 
 private:
 	static FDisplayClusterViewport* ImplCreateViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId, TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);

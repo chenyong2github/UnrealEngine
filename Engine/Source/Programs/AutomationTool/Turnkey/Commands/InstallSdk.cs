@@ -191,31 +191,20 @@ namespace Turnkey.Commands
 					return 0;
 				});
 
+
+				// loop through Sdks that are left, and get the best one for all types
+				Dictionary<FileSource.SourceType, FileSource> BestByType = new Dictionary<FileSource.SourceType, FileSource>();
+				foreach (FileSource.SourceType Type in (FileSource.SourceType[])Enum.GetValues(typeof(FileSource.SourceType)))
+				{
+					BestByType[Type] = FileSource.ChooseBest(Sdks.Where(x => x.Type == Type).ToList(), SDK);
+				}
+				BestByType = BestByType.Where(x => x.Value != null).ToDictionary(x => x.Key, x => x.Value);
+
 				if (bBestAvailable && Sdks.Count > 0)
 				{
-					// loop through Sdks that are left, and install the best one available
-					Dictionary<FileSource.SourceType, FileSource> BestByType = new Dictionary<FileSource.SourceType, FileSource>();
-
-					foreach (FileSource Sdk in Sdks)
-					{
-						if (!BestByType.ContainsKey(Sdk.Type))
-						{
-							BestByType[Sdk.Type] = Sdk;
-						}
-						else
-						{
-							// bigger version is better
-							UInt64 VersionA, VersionB;
-							if (SDK.TryConvertVersionToInt(Sdk.Version, out VersionA) && SDK.TryConvertVersionToInt(BestByType[Sdk.Type].Version, out VersionB) && VersionA > VersionB)
-							{
-								BestByType[Sdk.Type] = Sdk;
-							}
-						}
-					}
-
 					// get the best for all types
 					Sdks.Clear();
-					Sdks.AddRange(BestByType.Values);
+					Sdks.AddRange(BestByType.Values.Where(x => x != null));
  				}
 				// if we are not doing best available Sdks, then let used choose one
 				else
@@ -235,14 +224,7 @@ namespace Turnkey.Commands
 					List<string> Options = new List<string>();
 					foreach (FileSource Sdk in Sdks)
 					{
-						string Current = SDK.GetInstalledVersion();
-						if (Sdk.Type == FileSource.SourceType.Flash)
-						{
-							// look for default device, or matching device [put this in a function!]
-							DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
-							Current = Device == null ? "N/A" : Device.SoftwareVersion;
-						}
-						Options.Add(string.Format("[{0}] {1} [Current: {2}]", string.Join(",", Sdk.GetPlatforms()), Sdk.Name, Current));
+						Options.Add(string.Format("[{0}] {1}", string.Join(",", Sdk.GetPlatforms()), Sdk.Name));
 					}
 
 					if (bAddShowMoreOption)
@@ -250,12 +232,49 @@ namespace Turnkey.Commands
 						Options.Add("Show Invalid Sdks");
 					}
 
-					string Prompt = $"Select an Sdk to install:";
+					int BestVersionIndex = Sdks.IndexOf(BestByType.First().Value);
+
+					string Current, MinVersion, MaxVersion;
+					if (DesiredType == FileSource.SourceType.Flash)
+					{
+						SDK.GetValidSoftwareVersionRange(out MinVersion, out MaxVersion);
+						DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
+						Current = Device == null ? "N/A" : Device.SoftwareVersion;
+					}
+					else
+					{
+						SDK.GetValidVersionRange(out MinVersion, out MaxVersion);
+						Current = SDK.GetInstalledVersion();
+					}
 					//if (bStrippedDevices)
 					//{
 					//	Prompt += "\nNOTE: Some Flash Sdks were removed because no devices were found";
 					//}
-					int Choice = TurnkeyUtils.ReadInputInt(Prompt, Options, true);
+
+					MinVersion = MinVersion == null ? "" : MinVersion;
+					MaxVersion = MaxVersion == null ? "" : MaxVersion;
+
+					string Prompt;
+					string TypeString = DesiredType == FileSource.SourceType.Flash ? "Flash" : "Sdk";
+					
+					if (MinVersion == MaxVersion)
+					{
+						Prompt = $"Select an {TypeString} to install [Current Version: {Current}, Required: {MinVersion}]";
+					}
+					else
+					{
+						if (DesiredType == FileSource.SourceType.Flash)
+						{
+							Prompt = $"Select an {TypeString} to install [Current: {Current}, Valid Range: {MinVersion} - {MaxVersion}]";
+						}
+						else
+						{
+							Prompt = $"Select an {TypeString} to install [Current: {Current}, Main: {SDK.GetMainVersion()}, Valid Range: {MinVersion} - {MaxVersion}]";
+						}
+					}
+
+
+					int Choice = TurnkeyUtils.ReadInputInt(Prompt, Options, true, BestVersionIndex >= 0 ?  (BestVersionIndex + 1) : -1);
 
 					if (Choice == 0)
 					{

@@ -118,7 +118,8 @@ int32 FIOSAudioSoundBuffer::GetCurrentChunkOffset() const
 
 bool FIOSAudioSoundBuffer::ReadCompressedInfo(USoundWave* InWave)
 {
-	check(DecompressionState != nullptr)
+	check(DecompressionState != nullptr);
+	check(InWave->SoundWaveDataPtr.IsValid());
 
 	FSoundQualityInfo QualityInfo = { 0 };
 	if(bStreaming)
@@ -127,13 +128,13 @@ bool FIOSAudioSoundBuffer::ReadCompressedInfo(USoundWave* InWave)
 	}
 
 	InWave->InitAudioResource(FName(TEXT("ADPCM")));
-	if (!InWave->ResourceData || InWave->ResourceSize <= 0)
+	if (InWave->SoundWaveDataPtr->ResourceSize <= 0)
 	{
 		InWave->RemoveAudioResource();
 		return false;
 	}
 
-	return DecompressionState->ReadCompressedInfo(InWave->ResourceData, InWave->ResourceSize, &QualityInfo);
+	return DecompressionState->ReadCompressedInfo(InWave->GetResourceData(), InWave->SoundWaveDataPtr->GetResourceSize(), &QualityInfo);
 }
 
 bool FIOSAudioSoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFramesToDecode, bool bLooping )

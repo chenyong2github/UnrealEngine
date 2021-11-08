@@ -608,7 +608,7 @@ static bool SaveWorld(UWorld* World,
 	FString	CleanFilename;
 
 	// Does a filename already exist for this package?
-	const bool bPackageExists = FPackageName::DoesPackageExist( PackageName, NULL, &ExistingFilename );
+	const bool bPackageExists = FPackageName::DoesPackageExist( PackageName, &ExistingFilename );
 
 	if ( ForceFilename )
 	{
@@ -754,13 +754,13 @@ static bool SaveWorld(UWorld* World,
 					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 					{
 						WorldDataLayers->ForEachDataLayer([](UDataLayer* DataLayer)
+						{
+							if (!DataLayer->IsLoadedInEditor())
 							{
-								if (!DataLayer->IsDynamicallyLoadedInEditor())
-								{
-									DataLayer->SetIsDynamicallyLoadedInEditor(true, false);
-								}
-								return true;
-							});
+								DataLayer->SetIsLoadedInEditor(true, /*bFromUserChange*/false);
+							}
+							return true;
+						});
 					}
 					// Make sure AlwaysLoaded DL cells get loaded
 					WorldPartition->RefreshLoadedEditorCells(false);
@@ -1526,7 +1526,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 				}
 				
 				FString Filename;
-				if (FPackageName::DoesPackageExist(Package->GetName(), NULL, &Filename))
+				if (FPackageName::DoesPackageExist(Package->GetName(), &Filename))
 				{
 					if (IFileManager::Get().IsReadOnly(*Filename))
 					{
@@ -1580,7 +1580,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 		bool bPkgReadOnly = true;
 		bool bCareAboutReadOnly = SourceControlProvider.UsesLocalReadOnlyState();
 		// Find the filename for this package
-		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), NULL, &Filename);
+		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), &Filename);
 		if (bFoundFile)
 		{
 			// determine if the package file is read only
@@ -1813,7 +1813,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 					UPackage* PackageToMakeWritable = *PkgsToMakeWritableIter;
 					FString Filename;
 
-					bool bFoundFile = FPackageName::DoesPackageExist( PackageToMakeWritable->GetName(), NULL, &Filename );
+					bool bFoundFile = FPackageName::DoesPackageExist( PackageToMakeWritable->GetName(), &Filename );
 					if( bFoundFile )
 					{
 						// If we're ignoring the package due to the user ignoring it for saving, remove it from the ignore list
@@ -1978,7 +1978,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 					{
 						// Cannot add unsaved packages to source control
 						FString Filename;
-						if (FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), nullptr, &Filename))
+						if (FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), &Filename))
 						{
 							bShowCheckoutError = false;
 							FinalPackageMarkForAddList.Add(PackageToCheckOut);
@@ -2107,7 +2107,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 			const FString& PackageToCheckOutName = *PkgsToCheckOutIter;
 
 			FString PackageFilename;
-			if(FPackageName::DoesPackageExist(PackageToCheckOutName, nullptr, &PackageFilename))
+			if(FPackageName::DoesPackageExist(PackageToCheckOutName, &PackageFilename))
 			{
 				PkgsToCheckOutFilenames.Add(PackageFilename);
 			}
@@ -2127,7 +2127,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 
 			// The SCC needs the filename
 			FString PackageFilename;
-			FPackageName::DoesPackageExist(PackageToCheckOutName, nullptr, &PackageFilename);
+			FPackageName::DoesPackageExist(PackageToCheckOutName, &PackageFilename);
 
 			FSourceControlStatePtr SourceControlState;
 			if(!PackageFilename.IsEmpty())
@@ -2180,7 +2180,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 		for (const FString& PackageName : PackageNames)
 		{
 			FString PackageFilename;
-			if (FPackageName::DoesPackageExist(PackageName, nullptr, &PackageFilename))
+			if (FPackageName::DoesPackageExist(PackageName, &PackageFilename))
 			{
 				Filenames.Add(PackageFilename);
 			}
@@ -2229,7 +2229,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 
 				// The SCC needs the filename
 				FString PackageFilename;
-				FPackageName::DoesPackageExist(CurPackageName, nullptr, &PackageFilename);
+				FPackageName::DoesPackageExist(CurPackageName, &PackageFilename);
 
 				FSourceControlStatePtr SourceControlState;
 				if(!PackageFilename.IsEmpty())
@@ -3158,7 +3158,7 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 		bAttemptSave = true;
 
 		FString ExistingFilename;
-		const bool bPackageAlreadyExists = FPackageName::DoesPackageExist(PackageName, NULL, &ExistingFilename);
+		const bool bPackageAlreadyExists = FPackageName::DoesPackageExist(PackageName, &ExistingFilename);
 		if (!bPackageAlreadyExists)
 		{
 			// Construct a filename from long package name.
@@ -3494,7 +3494,7 @@ static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bo
 
 		// Check if a file exists for this package
 		FString Filename;
-		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), NULL, &Filename);
+		bool bFoundFile = FPackageName::DoesPackageExist(CurPackage->GetName(), &Filename);
 		if (bFoundFile)
 		{
 			// determine if the package file is read only
@@ -4440,7 +4440,7 @@ bool FEditorFileUtils::IsMapPackageAsset(const FString& ObjectPath, FString& Map
 	if ( PackageName.Len() > 0 )
 	{
 		FString PackagePath;
-		if ( FPackageName::DoesPackageExist(PackageName, NULL, &PackagePath) )
+		if ( FPackageName::DoesPackageExist(PackageName, &PackagePath) )
 		{
 			const FString FileExtension = FPaths::GetExtension(PackagePath, true);
 			if ( FileExtension == FPackageName::GetMapPackageExtension() )

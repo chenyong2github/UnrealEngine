@@ -838,9 +838,7 @@ void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects)
 }
 } // end namespace SavePackageUtilities
 
-namespace UE
-{
-namespace SavePackageUtilities
+namespace UE::SavePackageUtilities
 {
 
 bool IsUpdatingLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
@@ -928,7 +926,22 @@ void DecrementOutstandingAsyncWrites()
 	OutstandingAsyncWrites.Decrement();
 }
 
+void ResetCookStats()
+{
+#if ENABLE_COOK_STATS
+	FSavePackageStats::NumPackagesSaved = 0;
+#endif
 }
+
+int32 GetNumPackagesSaved()
+{
+#if ENABLE_COOK_STATS
+	return FSavePackageStats::NumPackagesSaved;
+#else
+	return 0;
+#endif
+}
+
 } // end namespace UE::SavePackageUtilities
 
 FObjectSaveContextData::FObjectSaveContextData(UPackage* Package, const ITargetPlatform* InTargetPlatform, const TCHAR* InTargetFilename, uint32 InSaveFlags)

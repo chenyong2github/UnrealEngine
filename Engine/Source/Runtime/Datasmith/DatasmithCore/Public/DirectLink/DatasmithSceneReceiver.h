@@ -40,6 +40,9 @@ public:
 private: // DirectLink::ISceneReceiver API
 	virtual void FinalSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot) override;
 
+	struct FSceneState;
+	TUniquePtr<FSceneState> ParseSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot);
+
 private:
 	struct FDatasmithElementPointers : public DirectLink::IReferenceResolutionProvider
 	{

@@ -59,6 +59,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		HashSet<DirectoryReference>? SourceDirectories;
 
+		/// <summary>
+		/// Verse source code directory associated with this module
+		/// </summary>
+		DirectoryReference? AssociatedVerseDirectory;
+
+		/// <summary>
+		/// The Verse source code directory associated with this module if any
+		/// </summary>
+		public override DirectoryReference? VerseDirectory
+		{
+			get { return AssociatedVerseDirectory; }
+		}
+
 		protected override void GetReferencedDirectories(HashSet<DirectoryReference> Directories)
 		{
 			base.GetReferencedDirectories(Directories);
@@ -175,6 +188,14 @@ namespace UnrealBuildTool
 			: base(Rules, IntermediateDirectory)
 		{
 			this.GeneratedCodeDirectory = GeneratedCodeDirectory;
+
+			// Check for a Verse directory next to the rules file
+			DirectoryReference MaybeVerseDirectory = DirectoryReference.Combine(Rules.File.Directory, "Verse");
+			if (DirectoryReference.Exists(MaybeVerseDirectory))
+			{
+				this.AssociatedVerseDirectory = MaybeVerseDirectory;
+				this.bDependsOnVerse = true;
+			}
 
 			foreach (string Def in PublicDefinitions)
 			{
@@ -307,6 +328,13 @@ namespace UnrealBuildTool
 			if(bAddGeneratedCodeIncludePath || (ProjectFileGenerator.bGenerateProjectFiles && GeneratedCodeDirectory != null))
 			{
 				IncludePaths.Add(GeneratedCodeDirectory!);
+
+				// If this module has Verse code, also add a VNI subdirectory in the generated code directory
+				if (bHasVerse)
+				{
+					DirectoryReference VNIGeneratedCodeDirectory = DirectoryReference.Combine(GeneratedCodeDirectory!, "VNI");
+					IncludePaths.Add(VNIGeneratedCodeDirectory);
+				}
 
 				if (Rules.AdditionalCodeGenDirectories != null)
 				{

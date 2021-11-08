@@ -14,6 +14,7 @@
 #include "Components/MeshComponent.h"
 #include "Containers/SortedMap.h"
 #include "LODSyncInterface.h"
+#include "BoneContainer.h"
 #include "SkinnedMeshComponent.generated.h"
 
 enum class ESkinCacheUsage : uint8;
@@ -195,14 +196,6 @@ private:
 	void CleanUpOverrideSkinWeights();
 };
 
-/** Struct used to store per-component ref pose override */
-struct FSkelMeshRefPoseOverride
-{
-	/** Inverse of (component space) ref pose matrices  */
-	TArray<FMatrix44f> RefBasesInvMatrix;
-	/** Per bone transforms (local space) for new ref pose */
-	TArray<FTransform> RefBonePoses;
-};
 
 USTRUCT(BlueprintType)
 struct FVertexOffsetUsage
@@ -365,7 +358,7 @@ public:
 
 protected:
 	/** Information for current ref pose override, if present */
-	FSkelMeshRefPoseOverride* RefPoseOverride;
+	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 
 public:
 
@@ -1081,7 +1074,7 @@ public:
 	virtual void SetRefPoseOverride(const TArray<FTransform>& NewRefPoseTransforms);
 
 	/** Accessor for RefPoseOverride */
-	virtual const FSkelMeshRefPoseOverride* GetRefPoseOverride() const { return RefPoseOverride; }
+	virtual const TSharedPtr<FSkelMeshRefPoseOverride>& GetRefPoseOverride() const { return RefPoseOverride; }
 
 	/** Clear any applied ref pose override */
 	virtual void ClearRefPoseOverride();

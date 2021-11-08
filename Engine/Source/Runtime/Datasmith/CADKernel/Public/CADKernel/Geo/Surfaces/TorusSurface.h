@@ -47,16 +47,12 @@ namespace CADKernel
 			, MajorRadius(InMajorRadius)
 			, MinorRadius(InMinorRadius)
 		{
-			SetMinToleranceIso();
+			ComputeMinToleranceIso();
 		}
 
-		FTorusSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FTorusSurface() = default;
 
-		virtual void SetMinToleranceIso() override
+		void ComputeMinToleranceIso()
 		{
 			double Tolerance2DU = Tolerance3D / MajorRadius;
 			double Tolerance2DV = Tolerance3D / MinorRadius;

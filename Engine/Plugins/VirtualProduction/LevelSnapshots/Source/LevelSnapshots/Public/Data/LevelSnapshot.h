@@ -42,10 +42,11 @@ public:
 	 * HasChangedSinceSnapshotWasTaken should be faster in most cases.
 	 */
 	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const;
+
+	/** Gets the display label of the path of the actor */
+	FString GetActorLabel(const FSoftObjectPath& OriginalActorPath) const;
 	
-	
-	
-	/* Given an actor path in the world, gets the equivalent actor from the snapshot. */
+	/** Given an actor path in the world, gets the equivalent actor from the snapshot. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
 	
 	
@@ -84,6 +85,8 @@ public:
 	//~ End UObject Interface
 	
 private:
+
+	FString GenerateDebugLogInfo() const;
 
 	void EnsureWorldInitialised();
 	void DestroyWorld();

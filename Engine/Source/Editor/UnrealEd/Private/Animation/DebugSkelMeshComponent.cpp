@@ -659,7 +659,7 @@ void UDebugSkelMeshComponent::SendRenderDynamicData_Concurrent()
 			TargetProxy->DynamicData = NewDynamicData;
 		}
 		);
-	}
+	} //-V773
 }
 
 void UDebugSkelMeshComponent::SetShowMorphTargetVerts(bool bNewShowMorphTargetVerts)

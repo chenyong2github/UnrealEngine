@@ -101,7 +101,7 @@ namespace UE
 					return;
 				}
 
-				pxr::UsdShadeMaterialBindingAPI BindingAPI( MeshPrim );
+				pxr::UsdShadeMaterialBindingAPI BindingAPI = pxr::UsdShadeMaterialBindingAPI::Apply( MeshPrim );
 
 				// If this mesh prim already has a binding to a *child* material with the 'unreal' render context,
 				// just write our material there and early out

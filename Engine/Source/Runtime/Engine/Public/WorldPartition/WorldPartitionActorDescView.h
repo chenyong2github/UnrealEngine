@@ -41,7 +41,7 @@ public:
 	const TArray<FGuid>& GetReferences() const;
 	uint32 GetTag() const;
 
-	bool GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
+	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{

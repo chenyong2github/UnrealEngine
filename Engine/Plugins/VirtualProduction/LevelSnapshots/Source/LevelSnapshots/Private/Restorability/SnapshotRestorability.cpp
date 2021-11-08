@@ -112,6 +112,12 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
         ;	
 }
 
+bool FSnapshotRestorability::IsActorRestorable(const AActor* Actor)
+{
+	const bool bIsChildActor = Actor->GetParentComponent() != nullptr;
+	return !bIsChildActor && IsActorDesirableForCapture(Actor);
+}
+
 bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponent* Component)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsComponentDesirableForCapture);
@@ -132,11 +138,18 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 			return false;
 		}
 	}
-	
-	return bSomebodyAllowed
-		// Components created in construction script are not supported
-		|| (Component->CreationMethod != EComponentCreationMethod::UserConstructionScript
-			&& DoesComponentHaveSupportedClassForCapture(Component));
+
+	const bool bIsAllowed =
+			// Components created in construction script are not supported
+			Component->CreationMethod != EComponentCreationMethod::UserConstructionScript
+			&& DoesComponentHaveSupportedClassForCapture(Component)
+			&& !Component->HasAnyFlags(RF_Transient)
+#if WITH_EDITORONLY_DATA
+			// E.g. a sprite or camera mesh in viewport
+			&& !Component->IsVisualizationComponent()
+#endif
+	;
+	return bSomebodyAllowed || bIsAllowed;
 }
 
 bool FSnapshotRestorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
@@ -154,7 +167,8 @@ bool FSnapshotRestorability::IsSubobjectDesirableForCapture(const UObject* Subob
 		return IsComponentDesirableForCapture(Component);	
 	}
 
-	return Subobject ? IsSubobjectClassDesirableForCapture(Subobject->GetClass()) : false;
+	return IsSubobjectClassDesirableForCapture(Subobject->GetClass()) 
+		&& !Subobject->HasAnyFlags(RF_Transient);
 }
 
 bool FSnapshotRestorability::IsPropertyDesirableForCapture(const FProperty* Property)

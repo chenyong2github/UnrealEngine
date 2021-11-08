@@ -222,7 +222,7 @@ void UMeshAttributePaintTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Paint WeightMaps"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartAttribPaint", "Paint per-vertex attribute maps. Ctrl to Erase/Subtract, Shift to Smooth"),
+		LOCTEXT("OnStartAttribPaint", "Paint per-vertex attribute maps. Ctrl to Erase/Subtract, Shift to Smooth. [/] to change Brush Size."),
 		EToolMessageLevel::UserNotification);
 
 	ColorMapper = MakeUnique<FFloatAttributeColorMapper>();
@@ -241,7 +241,10 @@ void UMeshAttributePaintTool::Setup()
 	}
 
 	InitializeAttributes();
-	PendingNewSelectedIndex = 0;
+	if (AttribProps->Attributes.Num() > 0)
+	{
+		PendingNewSelectedIndex = 0;
+	}
 
 	SelectedAttributeWatcher.Initialize([this]() { AttribProps->ValidateSelectedAttribute(true);  return AttribProps->GetSelectedAttributeIndex(); },
 		[this](int32 NewValue) { PendingNewSelectedIndex = NewValue; }, AttribProps->GetSelectedAttributeIndex());

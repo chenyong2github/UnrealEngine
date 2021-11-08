@@ -34,9 +34,11 @@ namespace Electra
 		{ }
 		virtual void SetRenderer(TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> InRenderer) override
 		{ }
-		virtual EAUpushResult AUdataPushAU(FAccessUnit* AccessUnit) override
-		{ return EAUpushResult::Error; }
+		virtual void AUdataPushAU(FAccessUnit* AccessUnit) override
+		{ }
 		virtual void AUdataPushEOD() override
+		{ }
+		virtual void AUdataClearEOD() override
 		{ }
 		virtual void AUdataFlushEverything() override
 		{ }

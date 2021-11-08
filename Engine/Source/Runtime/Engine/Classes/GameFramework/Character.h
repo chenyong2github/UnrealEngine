@@ -823,6 +823,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="OnStartCrouch", ScriptName="OnStartCrouch"))
 	void K2_OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 
+	/** Calculates the crouched eye height based on movement component settings */
+	void RecalculateCrouchedEyeHeight();
+
 	/**
 	 * Called from CharacterMovementComponent to notify the character that the movement mode has changed.
 	 * @param	PrevMovementMode	Movement mode before the change

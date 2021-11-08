@@ -20,8 +20,8 @@ public:
 		DecimalNumberFormattingRules.NegativePrefixString = TEXT("-");
 		DecimalNumberFormattingRules.PlusString = TEXT("+");
 		DecimalNumberFormattingRules.MinusString = TEXT("-");
-		DecimalNumberFormattingRules.GroupingSeparatorCharacter = ',';
-		DecimalNumberFormattingRules.DecimalSeparatorCharacter = '.';
+		DecimalNumberFormattingRules.GroupingSeparatorCharacter = TEXT(',');
+		DecimalNumberFormattingRules.DecimalSeparatorCharacter = TEXT('.');
 		DecimalNumberFormattingRules.PrimaryGroupingSize = 3;
 		DecimalNumberFormattingRules.SecondaryGroupingSize = 3;
 
@@ -32,8 +32,8 @@ public:
 		PercentFormattingRules.PositiveSuffixString = TEXT("%");
 		PercentFormattingRules.PlusString = TEXT("+");
 		PercentFormattingRules.MinusString = TEXT("-");
-		PercentFormattingRules.GroupingSeparatorCharacter = ',';
-		PercentFormattingRules.DecimalSeparatorCharacter = '.';
+		PercentFormattingRules.GroupingSeparatorCharacter = TEXT(',');
+		PercentFormattingRules.DecimalSeparatorCharacter = TEXT('.');
 		PercentFormattingRules.PrimaryGroupingSize = 3;
 		PercentFormattingRules.SecondaryGroupingSize = 3;
 
@@ -43,8 +43,8 @@ public:
 		BaseCurrencyFormattingRules.PositivePrefixString = TEXT("$");
 		BaseCurrencyFormattingRules.PlusString = TEXT("+");
 		BaseCurrencyFormattingRules.MinusString = TEXT("-");
-		BaseCurrencyFormattingRules.GroupingSeparatorCharacter = ',';
-		BaseCurrencyFormattingRules.DecimalSeparatorCharacter = '.';
+		BaseCurrencyFormattingRules.GroupingSeparatorCharacter = TEXT(',');
+		BaseCurrencyFormattingRules.DecimalSeparatorCharacter = TEXT('.');
 		BaseCurrencyFormattingRules.PrimaryGroupingSize = 3;
 		BaseCurrencyFormattingRules.SecondaryGroupingSize = 3;
 

@@ -487,9 +487,7 @@ ICompressionFormat * CreateOodleDataCompressionFormat()
 				}
 				else
 				{
-					// GetDllExport is GetProcAddress or dlsym on Mac
-					//  LinuxPlatformProcess::GetDllExport seems to be missing ?
-					//OodleCompressFuncPtr = GetProcAddress( (HMODULE)OodleDLLHandle, "OodleLZ_Compress" );
+					// GetDllExport is GetProcAddress or dlsym on Mac/Linux
 					OodleCompressFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodleLZ_Compress") );
 					if ( OodleCompressFuncPtr == nullptr )
 					{
@@ -497,6 +495,8 @@ ICompressionFormat * CreateOodleDataCompressionFormat()
 					}
 					OodleSetAllocatorsFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodlePlugins_SetAllocators") );
 				}
+
+				// OodleDLLHandle is never freed
 			}
 		}
 	}

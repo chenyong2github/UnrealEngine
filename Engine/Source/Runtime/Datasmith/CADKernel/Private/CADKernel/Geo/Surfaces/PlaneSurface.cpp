@@ -17,7 +17,7 @@ CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const
 
 	InverseMatrix = Matrix;
 	InverseMatrix.Inverse();
-	SetMinToleranceIso();
+	ComputeMinToleranceIso();
 }
 
 CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FPoint& InPosition, FPoint InNormal, const FSurfacicBoundary& InBoundary)
@@ -28,7 +28,7 @@ CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const
 
 	InverseMatrix = Matrix;
 	InverseMatrix.Inverse();
-	SetMinToleranceIso();
+	ComputeMinToleranceIso();
 }
 
 CADKernel::FPlane CADKernel::FPlaneSurface::GetPlane() const

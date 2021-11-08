@@ -42,3 +42,41 @@ public class MacCookedEditor : MacPlatform
 
 }
 
+
+public class WindowsCookedCooker : Win64Platform
+{
+	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
+	{
+		return "WindowsCookedCooker";
+	}
+	public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
+	{
+		return new TargetPlatformDescriptor(TargetPlatformType, "CookedCooker");
+	}
+}
+
+public class LinuxCookedCooker : GenericLinuxPlatform
+{
+	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
+	{
+		return "LinuxCookedCooker";
+	}
+	public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
+	{
+		return new TargetPlatformDescriptor(TargetPlatformType, "CookedCooker");
+	}
+
+}
+
+public class MacCookedCooker : MacPlatform
+{
+	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
+	{
+		return "MacCookedCooker";
+	}
+	public override TargetPlatformDescriptor GetTargetPlatformDescriptor()
+	{
+		return new TargetPlatformDescriptor(TargetPlatformType, "CookedCooker");
+	}
+
+}

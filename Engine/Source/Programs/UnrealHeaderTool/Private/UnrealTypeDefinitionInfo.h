@@ -482,7 +482,6 @@ public:
 	 */
 	virtual int32 GetLineNumber() const override
 	{
-		check(HasSource());
 		return LineNumber;
 	}
 

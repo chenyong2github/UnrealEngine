@@ -3,6 +3,7 @@
 #include "OculusHMDModule.h"
 #include "OculusHMD.h"
 #include "OculusHMDPrivateRHI.h"
+#include "OculusHMDRuntimeSettings.h"
 #include "Containers/StringConv.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"
@@ -175,7 +176,8 @@ bool FOculusHMDModule::PreInit()
 bool FOculusHMDModule::IsHMDConnected()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
-	if (FApp::CanEverRender() && OculusHMD::IsOculusHMDConnected())
+	UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+	if (FApp::CanEverRender() && OculusHMD::IsOculusHMDConnected() && HMDSettings->XrApi != EOculusXrApi::NativeOpenXR)
 	{
 		return true;
 	}
@@ -284,6 +286,29 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe >  FOculusH
 	return nullptr;
 }
 
+FString FOculusHMDModule::GetDeviceProfileName()
+{
+#if OCULUS_HMD_SUPPORTED_PLATFORMS
+	ovrpSystemHeadset SystemHeadset;
+	if (OVRP_SUCCESS(PluginWrapper.GetSystemHeadsetType2(&SystemHeadset)))
+	{
+		switch (SystemHeadset)
+		{
+		case ovrpSystemHeadset_Oculus_Quest:
+			return FString("Oculus_Quest");
+
+		case ovrpSystemHeadset_Oculus_Quest_2:
+			return FString("Oculus_Quest2");
+
+		default:
+			return FString("Oculus_Quest");
+		}
+	}
+	return FString();
+#else
+	return FString();
+#endif
+}
 
 bool FOculusHMDModule::IsStandaloneStereoOnlyDevice()
 {
@@ -308,11 +333,25 @@ void* FOculusHMDModule::GetOVRPluginHandle()
 #endif
 
 	FPlatformProcess::PushDllDirectory(*BinariesPath);
-	OVRPluginHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "OVRPlugin.dll"));
+
+	FString XrApi;
+	// Treat no XrApi value as LegacyOVRPlugin so that older games upgrading to newer engine versions don't change XrApis
+	if (!GConfig->GetString(TEXT("/Script/OculusHMD.OculusHMDRuntimeSettings"), TEXT("XrApi"), XrApi, GEngineIni) || XrApi.Equals(FString("LegacyOVRPlugin")))
+	{
+	    OVRPluginHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "OVRPlugin.dll"));
+	}
+	else if (XrApi.Equals(FString("OVRPluginOpenXR")))
+	{
+#if PLATFORM_64BITS
+		OVRPluginHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "OpenXR/OVRPlugin.dll"));
+#else
+		UE_LOG(LogHMD, Error, TEXT("OVRPlugin OpenXR only supported on 64-bit Windows. Please switch to Legacy OVRPlugin instead."));
+#endif
+	}
 	FPlatformProcess::PopDllDirectory(*BinariesPath);
 #elif PLATFORM_ANDROID
 	OVRPluginHandle = FPlatformProcess::GetDllHandle(TEXT("libOVRPlugin.so"));
-#endif
+#endif // PLATFORM_ANDROID
 
 	return OVRPluginHandle;
 }

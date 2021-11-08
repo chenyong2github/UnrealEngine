@@ -6,6 +6,7 @@
 #include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
+#include "Algo/ForEach.h"
 #include "DerivedDataCacheKey.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveCrc32.h"
@@ -378,7 +379,7 @@ uint32 UHLODProxy::GetCRC(UTexture* InTexture, uint32 InCRC)
      return FCrc::StrCrc32(*InTexture->GetPathName(), InCRC);
 }
 
-uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
+uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC, bool bInConsiderPhysicData)
 {
 	FArchiveCrc32 Ar(InCRC);
 
@@ -389,12 +390,13 @@ uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 	int32 LightMapCoordinateIndex = InStaticMesh->GetLightMapCoordinateIndex();
 	Ar << LightMapCoordinateIndex;
 
-	if(InStaticMesh->GetBodySetup())
+	if (bInConsiderPhysicData)
 	{
-		// Incorporate physics data - Avoid relying on BodySetupGuid as it is sometime resetted during loading
-		FString BodySetupDDCKey;
-		InStaticMesh->GetBodySetup()->GetGeometryDDCKey(BodySetupDDCKey);
-		Ar << BodySetupDDCKey;
+		if (UBodySetup* BodySetup = InStaticMesh->GetBodySetup())
+		{
+			// Incorporate physics data
+			Ar << InStaticMesh->GetBodySetup()->BodySetupGuid;
+		}
 	}
 
 	return Ar.GetCrc();
@@ -492,6 +494,17 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 {
 	FString Key = HLOD_PROXY_BASE_KEY;
 
+	UWorld* LODActorWorld = LODActor->GetLevel()->GetTypedOuter<UWorld>();
+	const TArray<FHierarchicalSimplification>& HierarchicalLODSetups = LODActorWorld->GetWorldSettings()->GetHierarchicalLODSetup();
+
+	// If the HLOD aren't created with collision data, no need to consider this when computing the checksum
+	bool bConsiderPhysicData = false;
+	if (HierarchicalLODSetups.IsValidIndex(LODActor->LODLevel - 1))
+	{
+		const FHierarchicalSimplification& HLODSettings = HierarchicalLODSetups[LODActor->LODLevel - 1];
+		bConsiderPhysicData = HLODSettings.bSimplifyMesh ? HLODSettings.ProxySetting.bCreateCollision : HLODSettings.MergeSetting.bMergePhysicsData;
+	}
+	
 	// Base us off the unique object ID
 	{
 		const UObject* Obj = LODActor->ProxyDesc ? ToRawPtr(Cast<const UObject>(LODActor->ProxyDesc)) : Cast<const UObject>(LODActor);
@@ -586,7 +599,7 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 				if(UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 				{
 					// CRC static mesh
-					ComponentCRC = GetCRC(StaticMesh, ComponentCRC);
+					ComponentCRC = GetCRC(StaticMesh, ComponentCRC, bConsiderPhysicData);
 
 					// CRC materials
 					const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
@@ -689,6 +702,8 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 	UStaticMesh* StaticMesh = const_cast<UStaticMesh*>(ProxyMesh.GetStaticMesh());
 	if (StaticMesh)
 	{
+		FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(StaticMesh);
+
 		// Destroy every materials
 		for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 		{
@@ -717,13 +732,11 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 		if (StaticMesh->GetOutermost() == Outermost)
 		{
 			DestroyObject(StaticMesh);
-		}
 
-		// Notify the LOD Actor that the static mesh just marked for deletion is no longer usable,
-		// so that it regenerates its render thread state to no longer point to the deleted mesh.
-		if (ALODActor* LODActor = ProxyMesh.GetLODActor().Get())
-		{
-			LODActor->SetStaticMesh(nullptr);
+			Algo::ForEach(RecreateRenderStateContext.GetComponentsUsingMesh(StaticMesh), [](UStaticMeshComponent* Component)
+			{
+				Component->SetStaticMesh(nullptr);
+			});
 		}
 	}
 }

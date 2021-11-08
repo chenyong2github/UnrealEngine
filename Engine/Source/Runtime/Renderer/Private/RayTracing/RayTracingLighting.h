@@ -70,7 +70,7 @@ static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size."
 
 FRayTracingLightData CreateRayTracingLightData(
 	FRHICommandListImmediate& RHICmdList,
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View, EUniformBufferUsage Usage);
 
 #endif

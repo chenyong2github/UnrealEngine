@@ -221,13 +221,13 @@ Loop:
 	{ 
 		--InputPos;
 	}
-	else if (Char == '\n')
+	else if (Char == TEXT('\n'))
 	{
 		++InputLine;
 	}
-	else if (Char == '/')
+	else if (Char == TEXT('/'))
 	{
-		if (!bLiteral && Input[InputPos] == '*')
+		if (!bLiteral && Input[InputPos] == TEXT('*'))
 		{
 			ClearComment();
 			const TCHAR* CommentStart = &Input[InputPos - 1];
@@ -240,11 +240,11 @@ Loop:
 					ClearComment();
 					Throwf(TEXT("End of class header encountered inside comment"));
 				}
-				else if (CommentChar == '\n')
+				else if (CommentChar == TEXT('\n'))
 				{
 					++InputLine;
 				}
-				else if (CommentChar == '*' && *CommentEnd == '/')
+				else if (CommentChar == TEXT('*') && *CommentEnd == TEXT('/'))
 				{
 					int32 Length = int32(CommentEnd - CommentStart);
 					PrevComment.AppendChars(CommentStart, Length + 1);
@@ -272,7 +272,7 @@ void FBaseParser::UngetChar()
 //
 TCHAR FBaseParser::PeekChar()
 {
-	return (InputPos < InputLen) ? Input[InputPos] : 0;
+	return (InputPos < InputLen) ? Input[InputPos] : TEXT('\0');
 }
 
 void FBaseParser::SkipWhitespaceAndComments()
@@ -289,18 +289,18 @@ void FBaseParser::SkipWhitespaceAndComments()
 			--Pos;
 			break;
 		}
-		else if (Char == '\n')
+		else if (Char == TEXT('\n'))
 		{
 			bGotNewlineBetweenComments |= bGotInlineComment;
 			++InputLine;
 		}
-		else if (Char == '\r' || Char == '\t' || Char == ' ')
+		else if (Char == TEXT('\r') || Char == TEXT('\t') || Char == TEXT(' '))
 		{
 		}
-		else if (Char == '/')
+		else if (Char == TEXT('/'))
 		{
 			TCHAR NextChar = *Pos;
-			if (NextChar == '*')
+			if (NextChar == TEXT('*'))
 			{
 				ClearComment();
 				const TCHAR* CommentStart = Pos - 1;
@@ -313,11 +313,11 @@ void FBaseParser::SkipWhitespaceAndComments()
 						ClearComment();
 						Throwf(TEXT("End of class header encountered inside comment"));
 					}
-					else if (CommentChar == '\n')
+					else if (CommentChar == TEXT('\n'))
 					{
 						++InputLine;
 					}
-					else if (CommentChar == '*' && *Pos == '/')
+					else if (CommentChar == TEXT('*') && *Pos == TEXT('/'))
 					{
 						++Pos;
 						break;
@@ -325,7 +325,7 @@ void FBaseParser::SkipWhitespaceAndComments()
 				}
 				PrevComment.AppendChars(CommentStart, int32(Pos - CommentStart));
 			}
-			else if (NextChar == '/')
+			else if (NextChar == TEXT('/'))
 			{
 				if (bGotNewlineBetweenComments)
 				{
@@ -345,10 +345,10 @@ void FBaseParser::SkipWhitespaceAndComments()
 						--Pos;
 						break;
 					}
-					if (CommentChar == '\r')
+					if (CommentChar == TEXT('\r'))
 					{
 					} 
-					else if (CommentChar == '\n')
+					else if (CommentChar == TEXT('\n'))
 					{
 						++InputLine;
 						break;
@@ -416,12 +416,12 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	TCHAR c = *Pos++;
 
 	// Identifier
-	if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_')
+	if ((c >= TEXT('A') && c <= TEXT('Z')) || (c >= TEXT('a') && c <= TEXT('z')) || c == TEXT('_'))
 	{
 		for (;; ++Pos)
 		{
 			c = *Pos;
-			if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+			if (!((c >= TEXT('A') && c <= TEXT('Z')) || (c >= TEXT('a') && c <= TEXT('z')) || (c >= TEXT('0') && c <= TEXT('9')) || c == TEXT('_')))
 			{
 				break;
 			}
@@ -460,7 +460,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	}
 
 	// if const values are allowed, determine whether the non-identifier token represents a const
-	else if (!bNoConsts && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && (*Pos >= '0' && *Pos <= '9'))))
+	else if (!bNoConsts && ((c >= TEXT('0') && c <= TEXT('9')) || ((c == TEXT('+') || c == TEXT('-')) && (*Pos >= TEXT('0') && *Pos <= TEXT('9')))))
 	{
 		// Integer or floating point constant.
 
@@ -479,7 +479,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 			c = FChar::ToUpper(*Pos++);
 		} while ((c >= TEXT('0') && c <= TEXT('9')) || (!bIsFloat && c == TEXT('.')) || (!bIsHex && c == TEXT('X')) || (bIsHex && c >= TEXT('A') && c <= TEXT('F')));
 
-		if (!bIsFloat || c != 'F')
+		if (!bIsFloat || c != TEXT('F'))
 		{
 			--Pos;
 		}
@@ -502,16 +502,16 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	}
 
 	// Escaped character constant
-	else if (c == '\'')
+	else if (c == TEXT('\''))
 	{
 
 		// We try to skip the character constant value. But if it is backslash, we have to skip another character
-		if (*Pos++ == '\\')
+		if (*Pos++ == TEXT('\\'))
 		{
 			++Pos;
 		}
 
-		if (*Pos++ != '\'')
+		if (*Pos++ != TEXT('\''))
 		{
 			Throwf(TEXT("Unterminated character constant"));
 		}
@@ -528,30 +528,30 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	}
 
 	// String contant
-	else if (c == '"')
+	else if (c == TEXT('"'))
 	{
 		c = *Pos++;
 		int32 EscapeCount = 0;
-		while( (c!='"') && !IsEOL(c) )
+		while( (c != TEXT('"')) && !IsEOL(c) )
 		{
-			if( c=='\\' )
+			if( c == TEXT('\\') )
 			{
 				c = *Pos++;
 				if( IsEOL(c) )
 				{
 					break;
 				}
-				else if(c == 'n')
+				else if(c == TEXT('n'))
 				{
 					// Newline escape sequence.
-					c = '\n';
+					c = TEXT('\n');
 				}
 				++EscapeCount;
 			}
 			c = *Pos++;
 		}
 
-		if( c != '"' )
+		if( c != TEXT('"') )
 		{
 			Throwf(TEXT("Unterminated string constant"));
 		}
@@ -575,7 +575,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	else
 	{
 		// Handle special 2-character symbols.
-#define PAIR(cc,dd) ((c==cc)&&(d==dd)) /* Comparison macro for convenience */
+#define PAIR(cc,dd) ((c==TEXT(cc))&&(d==TEXT(dd))) /* Comparison macro for convenience */
 		TCHAR d = *Pos++;
 		if
 		(	PAIR('<','<')
@@ -598,7 +598,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		||	PAIR(':',':')
 		)
 		{
-			if (c=='>' && d=='>' &&  *Pos == '>')
+			if (c == TEXT('>') && d == TEXT('>') &&  *Pos == TEXT('>'))
 			{
 				++Pos;
 			}
@@ -607,7 +607,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		{
 			--Pos;
 		}
-		#undef PAIR
+#undef PAIR
 
 		Token.TokenType = ETokenType::Symbol;
 		Token.Value = FStringView(Start, int32(Pos - Start));
@@ -631,12 +631,12 @@ bool FBaseParser::GetRawStringRespectingQuotes(FTokenString& String, TCHAR StopC
 
 	while( !IsEOL(c) && ((c != StopChar) || bInQuote) )
 	{
-		if( !bInQuote && ( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') ) )
+		if( !bInQuote && ( (c == TEXT('/') && PeekChar() == TEXT('/')) || (c == TEXT('/') && PeekChar() == TEXT('*')) ) )
 		{
 			break;
 		}
 
-		if (c == '"')
+		if (c == TEXT('"'))
 		{
 			bInQuote = !bInQuote;
 		}
@@ -659,11 +659,11 @@ bool FBaseParser::GetRawStringRespectingQuotes(FTokenString& String, TCHAR StopC
 	}
 
 	// Get rid of trailing whitespace.
-	while( Length>0 && (String.String[Length-1]==' ' || String.String[Length-1]==9 ) )
+	while( Length>0 && (String.String[Length-1] == TEXT(' ') || String.String[Length-1]==9 ) )
 	{
 		Length--;
 	}
-	String.String[Length]=0;
+	String.String[Length] = TEXT('\0');
 
 	return Length>0;
 }
@@ -684,7 +684,7 @@ bool FBaseParser::GetRawString( FTokenString& String, TCHAR StopChar /* = TCHAR(
 	TCHAR c = GetLeadingChar();
 	while( !IsEOL(c) && c != StopChar )
 	{
-		if( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') )
+		if( (c == TEXT('/') && PeekChar() == TEXT('/')) || (c == TEXT('/') && PeekChar() == TEXT('*')) )
 		{
 			break;
 		}
@@ -698,11 +698,11 @@ bool FBaseParser::GetRawString( FTokenString& String, TCHAR StopChar /* = TCHAR(
 	UngetChar();
 
 	// Get rid of trailing whitespace.
-	while( Length>0 && (String.String[Length-1]==' ' || String.String[Length-1]==9 ) )
+	while( Length>0 && (String.String[Length-1] == TEXT(' ') || String.String[Length-1]==9 ) )
 	{
 		Length--;
 	}
-	String.String[Length]=0;
+	String.String[Length] = TEXT('\0');
 
 	return Length>0;
 }

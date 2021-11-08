@@ -2,11 +2,10 @@
 
 #include "SInsightsSettings.h"
 
-#include "EditorStyleSet.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -19,6 +18,7 @@
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsSettings.h"
+#include "Insights/InsightsStyle.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -76,7 +76,7 @@ void SInsightsSettings::AddTitle(const FText& TitleText, const TSharedRef<SGridP
 	.Padding(2.0f)
 	[
 		SNew(STextBlock)
-		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+		.Font(FAppStyle::Get().GetFontStyle("HeadingExtraSmall"))
 		.Text(TitleText)
 	];
 	RowPos++;
@@ -104,7 +104,7 @@ void SInsightsSettings::AddHeader(const FText& HeaderText, const TSharedRef<SGri
 	.Padding(2.0f)
 	[
 		SNew(STextBlock)
-		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+		.Font(FAppStyle::Get().GetFontStyle("Font.Large.Bold"))
 		.Text(HeaderText)
 	];
 	RowPos++;
@@ -148,14 +148,14 @@ void SInsightsSettings::AddOption(const FText& OptionName, const FText& OptionDe
 		[
 			SNew(SButton)
 			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to default"))
-			.ButtonStyle(FEditorStyle::Get(), TEXT("NoBorder"))
+			.ButtonStyle(FAppStyle::Get(), TEXT("NoBorder"))
 			.ContentPadding(0.0f)
 			.Visibility(this, &SInsightsSettings::OptionDefault_GetDiffersFromDefaultAsVisibility, (const bool*)&Value, (const bool*)&Default)
 			.OnClicked(this, &SInsightsSettings::OptionDefault_OnClicked, (bool*)&Value, (const bool*)&Default)
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				.Image(FInsightsStyle::GetBrush("Icons.DiffersFromDefault"))
 			]
 		]
 	];
@@ -190,7 +190,7 @@ void SInsightsSettings::AddFooter(const TSharedRef<SGridPanel>& Grid, int32& Row
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Profiler.Misc.Save16"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Save"))
 				]
 
 				+SHorizontalBox::Slot()
@@ -218,7 +218,7 @@ void SInsightsSettings::AddFooter(const TSharedRef<SGridPanel>& Grid, int32& Row
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Profiler.Misc.Reset16"))
+					.Image(FInsightsStyle::GetBrush("Icons.ResetToDefault"))
 				]
 
 				+SHorizontalBox::Slot()

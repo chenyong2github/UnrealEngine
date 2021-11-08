@@ -58,6 +58,11 @@ FSkeletonEditor::~FSkeletonEditor()
 	{
 		Editor->UnregisterForUndo(this);
 	}
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
+	}
 }
 
 void FSkeletonEditor::HandleOpenNewAsset(UObject* InNewAsset)

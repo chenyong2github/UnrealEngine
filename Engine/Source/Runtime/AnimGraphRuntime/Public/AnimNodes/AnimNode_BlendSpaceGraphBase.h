@@ -22,7 +22,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Bas
 	const UBlendSpace* GetBlendSpace() const { return BlendSpace; }
 
 	// @return the current sample coordinates that this node is using to sample the blendspace
-	FVector GetPosition() const { return FVector(X, Y, Z); }
+	FVector GetPosition() const { return FVector(X, Y, 0); }
 
 	// @return the current sample coordinates after going through the filtering
 	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
@@ -40,10 +40,6 @@ protected:
 	// The Y coordinate to sample in the blendspace
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Coordinates, meta = (PinShownByDefault, AllowPrivateAccess))
 	float Y = 0.0f;
-
-	// The Z coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Coordinates, meta = (PinHiddenByDefault, AllowPrivateAccess))
-	float Z = 0.0f;
 
 	// The group name that we synchronize with. All nodes employing sync beyond this in the anim graph will implicitly use this sync group.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sync, meta = (NeverAsPin, AllowPrivateAccess))

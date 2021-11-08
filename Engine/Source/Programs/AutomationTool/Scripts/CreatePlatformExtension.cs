@@ -157,6 +157,10 @@ class CreatePlatformExtension : BuildCommand
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
 				Log.TraceInformation(System.Environment.NewLine);
+				Log.TraceWarning("*** It is strongly recommended that each file is manually verified! ***");
+				Log.TraceInformation(System.Environment.NewLine);
+				Log.TraceInformation(System.Environment.NewLine);
+				Log.TraceInformation(System.Environment.NewLine);
 
 				// remove everything if requested (for debugging etc)
 				if (bIsTest)
@@ -301,7 +305,7 @@ class CreatePlatformExtension : BuildCommand
 
 				// select all modules that need child module references for this platform
 				IEnumerable<ModuleDescriptor> ModuleDescs = ParentPlugin.Modules?.Where( ModuleDesc => ShouldCreateChildReferenceForModule(ModuleDesc, bHasPlatform, Platform));
-				if (ModuleDescs.Any() )
+				if (ModuleDescs != null && ModuleDescs.Any() )
 				{
 					ChildPlugin.WriteArrayStart("Modules");
 					foreach (ModuleDescriptor ParentModuleDesc in ModuleDescs)
@@ -314,7 +318,7 @@ class CreatePlatformExtension : BuildCommand
 						{
 							ChildPlugin.WriteStringArrayField("PlatformAllowList", new string[] { Platform.ToString() } );
 						}
-						if (NeedsPlatformReference(ParentModuleDesc.PlatformDenyList, ParentModuleDesc.bHasExplicitPlatforms))
+						else if (NeedsPlatformReference(ParentModuleDesc.PlatformDenyList, ParentModuleDesc.bHasExplicitPlatforms))
 						{
 							ChildPlugin.WriteStringArrayField("PlatformDenyList", new string[] { Platform.ToString() } );
 						}
@@ -342,7 +346,7 @@ class CreatePlatformExtension : BuildCommand
 
 				// select all plugins that need child plugin references for this platform
 				IEnumerable<PluginReferenceDescriptor> PluginDescs = ParentPlugin.Plugins?.Where( PluginDesc => ShouldCreateChildReferenceForDependentPlugin(PluginDesc, bHasPlatform, Platform ) );
-				if (PluginDescs.Any() )
+				if (PluginDescs != null && PluginDescs.Any() )
 				{
 					ChildPlugin.WriteArrayStart("Plugins");
 					foreach (PluginReferenceDescriptor ParentPluginDesc in PluginDescs)
@@ -454,6 +458,13 @@ class CreatePlatformExtension : BuildCommand
 		if (Index != -1)
 		{
 			BaseModuleName = BaseModuleName.Substring(0, Index);
+		}
+		BaseModuleName = BaseModuleName.TrimEnd( new char[] {':'} ).Trim(); // trim off any : suffix
+
+		// ignore if it is the default namespace for build rules
+		if (ParentNamespace == "UnrealBuildTool.Rules." && ModuleExtension.Equals(".build.cs", System.StringComparison.InvariantCultureIgnoreCase ))
+		{
+			ParentNamespace = "";
 		}
 
 		// load template and generate the platform extension files

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IDirectLinkManager.h"
-#include "DirectLinkExtensionModule.h"
 
 #include "SourceUri.h"
 #include "Containers/Map.h"
@@ -12,12 +11,12 @@
 #include "DirectLinkEndpoint.h"
 #include "HAL/CriticalSection.h"
 #include "IUriResolver.h"
-#include "ObjectTools.h"
 
 struct FAssetData;
 
 namespace UE::DatasmithImporter
 {
+	class FDirectLinkAssetObserver;
 	class FDirectLinkExternalSource;
 	struct FAutoReimportInfo;
 
@@ -36,22 +35,25 @@ namespace UE::DatasmithImporter
 		virtual TSharedPtr<FDirectLinkExternalSource> GetOrCreateExternalSource(const FSourceUri& Uri) override;
 		virtual DirectLink::FEndpoint& GetEndpoint() override;
 		virtual FSourceUri GetUriFromSourceHandle(const DirectLink::FSourceHandle& SourceHandle) override;
-		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnableAutoReimport) override;
+#if WITH_EDITOR
+		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const override;
+		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnabled) override;
+#endif //WITH_EDITOR
 		virtual TArray<TSharedRef<FDirectLinkExternalSource>> GetExternalSourceList() const override;
 		virtual void UnregisterDirectLinkExternalSource(FName InName) override;
 	protected:
 		virtual void RegisterDirectLinkExternalSource(FDirectLinkExternalSourceRegisterInformation&& ExternalSourceClass) override;
 		// IDirectLinkManager interface end
 
-	private:
+	public:
+
 		/**
-		 * Try to extract the SourceUri from the AssetData tags.
-		 * @param AssetData	The asset data.
-		 * @param OutUri	Out parameter containing the resulting SourceUri
-		 * @return True if the FSourceUri was successfully extracted.
+		 * Update the internal registration a given asset registered for auto-reimport.
+		 * Modified assets may no longer have a DirectLink source and we must keep track of such changes.
 		 */
-		bool GetAssetSourceUri(const FAssetData& AssetData, FSourceUri& OutUri) const;
-		
+		void UpdateModifiedRegisteredAsset(UObject* InAsset);
+
+	private:
 		/**
 		 * Remove a DirectLink source from cache and invalidate its associated DirectLinkExternalSource object.
 		 * @param InvalidSourceId	The SourceHandle of the invalid DirectLink source.
@@ -70,6 +72,12 @@ namespace UE::DatasmithImporter
 		 */
 		void UpdateSourceCache();
 
+		bool EnableAssetAutoReimport(UObject* InAsset);
+
+		bool DisableAssetAutoReimport(UObject* InAsset);
+
+		void TriggerAutoReimportOnAsset(const FAssetData& AssetData);
+
 	private:
 		/**
 		 * Cached DirectLink state.
@@ -82,6 +90,8 @@ namespace UE::DatasmithImporter
 		mutable FRWLock RawInfoLock;
 
 		TUniquePtr<DirectLink::FEndpoint> Endpoint;
+
+		TUniquePtr<FDirectLinkAssetObserver> AssetObserver;
 
 		TArray<FDirectLinkExternalSourceRegisterInformation> RegisteredExternalSourcesInfo;
 		

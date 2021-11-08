@@ -10,10 +10,6 @@
 
 #include "Virtualization/VirtualizationSystem.h"
 
-// TODO: Do we want to keep this header public for UE5 release? If the only interaction should be
-//		 via FVirtualizedUntypedBulkData or other such classes we might not want to expose this 
-//		 at all.
-
 /**
  * Configuring the backend hierarchy
  * 
@@ -46,6 +42,36 @@
  * fatal error without this value.
  */
 
+/**
+ * Filtering
+ * 
+ * When pushing a payload it can be filtered based on the path of the package it belongs to. The filtering options 
+ * are set up via the config files. 
+ * Note that this only affects pushing a payload, if the filtering for a project is changed to exclude a package that
+ * is already virtualized it will still be able to pull it's payloads as needed but will store them locally in the 
+ * package the next time that it is saved.
+ * @see ShouldVirtualizePackage for implementation details.
+ * 
+ * Basic Setup:
+ * 
+ * [Core.ContentVirtualization]
+ * FilterEngineContent=True/False			When true any payload from a package under Engine/Content/.. will be excluded from virtualization
+ * FilterEnginePluginContent=True/False		When true any payload from a package under Engine/Plugins/../Content/.. will be excluded from virtualization
+ * 
+ * PackagePath Setup:
+ * 
+ * The path given can either be to a directory or a specific package. It can be added to the config files for
+ * a GameFeature (commonly used to exclude all content in that game feature from being virtualized) in addition 
+ * to the project's config files.
+ * Note that these paths will be stored in the ini files under the Saved directory. To remove a path make sure to 
+ * use the - syntax to remove the entry from the array, rather than removing the line itself. Otherwise it will
+ * persist until the saved config file has been reset.
+ *
+ * [/Script/Virtualization.VirtualizationFilterSettings]
+ * +ExcludePackagePaths="/MountPoint/PathToExclude/"				Excludes any package found under '/MountPoint/PathToExclude/'
+ * +ExcludePackagePaths="/MountPoint/PathTo/ThePackageToExclude"	Excludes the specific package '/MountPoint/PathTo/ThePackageToExclude'
+ */
+
 namespace UE::Virtualization
 {
 class IVirtualizationBackend;
@@ -68,15 +94,17 @@ public:
 	/** 
 	 * Push a payload to the virtualization backends.
 	 * 
-	 * @param	Id			The identifier of the payload being pushed.
-	 * @param	Payload		The payload itself in FCompressedBuffer form, it is 
-	 *						assumed that if the buffer is to be compressed that
-	 *						it will have been done by the caller.
-	 * @param	StorageType	The type of storage to push the payload to, see EStorageType
-	 *						for details.
+	 * @param	Id				The identifier of the payload being pushed.
+	 * @param	Payload			The payload itself in FCompressedBuffer form, it is 
+	 *							assumed that if the buffer is to be compressed that
+	 *							it will have been done by the caller.
+	 * @param	StorageType		The type of storage to push the payload to, see EStorageType
+	 *							for details.
+	 * @param	PackageContext	Name of the owning package, this will be used for filtering and
+	 *							to provide better logging messages. @see ShouldVirtualizePackage
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType) override;
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext) override;
 
 	/** 
 	 * Pull a payload from the virtualization backends.
@@ -112,6 +140,17 @@ private:
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
 
+	/** 
+	 * Determines if a package should be virtualized or not based on it's package path and the current 
+	 * filtering set up for the project.
+	 * 
+	 * @param PackagePath	The path of the package to check. This can be empty which would indicate that
+	 *						a payload is not owned by a specific package.
+	 * @return				True if the package should be virtualized and false if the package path is 
+	 *						excluded by the projects current filter set up.
+	 */
+	bool ShouldVirtualizePackage(const FPackagePath& PackagePath) const;
+	
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
 
@@ -123,6 +162,12 @@ private:
 
 	/** The name of the backend graph to load from the config ini file that will describe the backend hierarchy */
 	FString BackendGraphName;
+
+	/** Should payloads in engine content packages before filtered out and never virtualized */
+	bool bFilterEngineContent;
+	
+	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
+	bool bFilterEnginePluginContent;
 
 	/** Debugging option: When enabled all public operations will be performed as single threaded. This is intended to aid debugging and not for production use.*/
 	bool bForceSingleThreaded;

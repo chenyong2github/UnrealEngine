@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "IUriManager.h"
+
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -9,7 +11,8 @@
 
 namespace UE::DatasmithImporter
 {
-	class IUriManager;
+	class FExternalSource;
+	class FSourceUri;
 }
 
 class IExternalSourceModule : public IModuleInterface
@@ -25,5 +28,10 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(EXTERNALSOURCE_MODULE_NAME);
 	}
 
-	virtual UE::DatasmithImporter::IUriManager* GetManager() const = 0;
+	virtual UE::DatasmithImporter::IUriManager& GetManager() const = 0;
+
+	static TSharedPtr<UE::DatasmithImporter::FExternalSource> GetOrCreateExternalSource(const UE::DatasmithImporter::FSourceUri& Uri)
+	{
+		return Get().GetManager().GetOrCreateExternalSource(Uri);
+	}
 };

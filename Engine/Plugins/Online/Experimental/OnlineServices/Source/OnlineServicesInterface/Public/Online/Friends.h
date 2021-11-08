@@ -122,7 +122,7 @@ public:
 	 * @param Params for the GetFriends call
 	 * @return
 	 */
-	virtual TOnlineResult<FGetFriends::Result> GetFriends(FGetFriends::Params&& Params) = 0;
+	virtual TOnlineResult<FGetFriends> GetFriends(FGetFriends::Params&& Params) = 0;
 
 	/**
 	 * Add a user to the friends list
@@ -155,6 +155,11 @@ inline const TCHAR* LexToString(EFriendInviteStatus FriendInviteStatus)
 
 namespace Meta {
 // TODO: Move to Friends_Meta.inl file?
+
+BEGIN_ONLINE_STRUCT_META(FFriend)
+	ONLINE_STRUCT_FIELD(FFriend, UserId),
+	ONLINE_STRUCT_FIELD(FFriend, InviteStatus)
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryFriends::Params)
 	ONLINE_STRUCT_FIELD(FQueryFriends::Params, LocalUserId)

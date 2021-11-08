@@ -39,13 +39,13 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FMemoryProfilerCommands::Get().ToggleTimingViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FMemoryProfilerCommands::Get().ToggleMemInvestigationViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemInvestigationView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemInvestigationView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FMemoryProfilerCommands::Get().ToggleMemTagTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -56,7 +56,7 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo,
 					NAME_None, FText(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}

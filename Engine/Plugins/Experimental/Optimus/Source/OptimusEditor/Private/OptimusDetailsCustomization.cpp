@@ -327,8 +327,8 @@ TSharedRef<IPropertyTypeCustomization> FOptimusType_ShaderTextCustomization::Mak
 
 
 FOptimusType_ShaderTextCustomization::FOptimusType_ShaderTextCustomization() :
-	SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create(FOptimusHLSLSyntaxHighlighter::FSyntaxTextStyle())),
-	SyntaxHighlighterMain(FOptimusHLSLSyntaxHighlighter::Create(FOptimusHLSLSyntaxHighlighter::FSyntaxTextStyle()))
+	SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create()),
+	SyntaxHighlighterMain(FOptimusHLSLSyntaxHighlighter::Create())
 {
 	
 }

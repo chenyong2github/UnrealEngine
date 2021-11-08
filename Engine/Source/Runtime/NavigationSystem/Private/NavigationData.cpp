@@ -524,6 +524,13 @@ void ANavigationData::RebuildAll()
 	
 	if (NavDataGenerator.IsValid())
 	{
+#if WITH_EDITOR		
+		if (!IsBuildingOnLoad())
+		{
+			MarkPackageDirty();
+		}
+#endif // WITH_EDITOR
+
 		NavDataGenerator->RebuildAll();
 	}
 }

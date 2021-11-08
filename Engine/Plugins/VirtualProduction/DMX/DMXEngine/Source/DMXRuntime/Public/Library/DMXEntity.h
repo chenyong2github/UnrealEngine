@@ -24,10 +24,22 @@ public:
 	FString Name;
 
 public:
+	/** Constructor, for default objects only */
 	UDMXEntity();
+
+	/** Constructor that specifies the outer Library */
+	UDMXEntity(UDMXLibrary* InParentLibrary);
+
+	//~ Begin UObject interface
+	virtual void PostInitProperties() override;
+	//~ End UObject interface
+
+	/** Destroys the Entity */
+	void Destroy();
 
 	/**  Returns the entity name to be used in UI elements */
 	FString GetDisplayName() const;
+
 	/**  Updates this Entity's name and the UI friendly display name */
 	void SetName(const FString& InNewName);
 
@@ -48,13 +60,18 @@ public:
 		return IsValidEntity(OutReason);
 	}
 
+	UE_DEPRECATED(5.0, "The library should not be set explicitly anymore. Enties register themselves with the DMXLibrary on creation.")
 	void SetParentLibrary(UDMXLibrary* InParent);
+
+	/** Gets the library the Entity resides in */
 	UDMXLibrary* GetParentLibrary() const { return ParentLibrary.Get(); }
 
 	/** This Entity's unique ID */
 	const FGuid& GetID() const { return Id; }
+
 	/** Used by DMX Library to resolve ID conflicts among entities */
 	void RefreshID();
+
 	/** Copy another Entity's ID. Used when copying, to not lose the original Entity's reference  */
 	void ReplicateID(UDMXEntity* Other);
 

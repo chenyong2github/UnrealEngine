@@ -346,6 +346,7 @@ struct FEventContext
 		Added,
 		Removed,
 		Updated,
+		UpdatedOnDisk,
 	};
 	TOptional<IAssetRegistry::FFileLoadProgressUpdateData> ProgressUpdateData;
 	TArray<TPair<FString, EEvent>> PathEvents;

@@ -4,57 +4,36 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SButton.h"
 #include "SDataLayerOutliner.h"
+#include "DataLayersActorDescTreeItem.h"
 #include "DataLayerActorTreeItem.h"
 #include "DataLayerTreeItem.h"
 #include "DataLayerMode.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
-#include "DataLayerOutlinerIsDynamicallyLoadedColumn.h"
+#include "DataLayerOutlinerIsVisibleColumn.h"
+#include "DataLayerOutlinerIsLoadedInEditorColumn.h"
 #include "DataLayerOutlinerDeleteButtonColumn.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
+#include "SceneOutlinerTextInfoColumn.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
 void SDataLayerBrowser::Construct(const FArguments& InArgs)
 {
-	Mode = GetDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowDataLayerContent() ? EDataLayerBrowserMode::DataLayerContents : EDataLayerBrowserMode::DataLayers;
-
-	auto ToggleDataLayerContents = [this]()
-	{
-		const EDataLayerBrowserMode NewMode = Mode == EDataLayerBrowserMode::DataLayers ? EDataLayerBrowserMode::DataLayerContents : EDataLayerBrowserMode::DataLayers;
-		SetupDataLayerMode(NewMode);
-		return FReply::Handled();
-	};
-
-	auto GetToggleModeButtonImageBrush = [this]()
-	{
-		static const FName ExploreDataLayerContents("DataLayerBrowser.ExploreDataLayerContents");
-		static const FName ReturnToDataLayersList("DataLayerBrowser.ReturnToDataLayersList");
-		return (Mode == EDataLayerBrowserMode::DataLayers) ? FEditorStyle::GetBrush(ExploreDataLayerContents) : FEditorStyle::GetBrush(ReturnToDataLayersList);
-	};
-
-	auto GetToggleModeButtonText = [this]()
-	{
-		return (Mode == EDataLayerBrowserMode::DataLayers) ? LOCTEXT("SeeContentsLabel", "See Contents") : LOCTEXT("HideContentsLabel", "Hide Contents");
-	};
-
-	auto GetInvertedForegroundIfHovered = [this]()
-	{
-		static const FName InvertedForegroundName("InvertedForeground");
-		return (ToggleModeButton.IsValid() && (ToggleModeButton->IsHovered() || ToggleModeButton->IsPressed())) ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FSlateColor::UseForeground();
-	};
-
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs Args;
 	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	Args.bAllowSearch = false;
+	Args.bAllowSearch = true;
+	Args.bAllowFavoriteSystem = true;
 	Args.bHideSelectionTip = true;
-	Args.bShowObjectLabel = false;
+	Args.bShowObjectLabel = true;
+	Args.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+	Args.ColumnWidth = 0.5f;
 	DetailsWidget = PropertyModule.CreateDetailView(Args);
 	DetailsWidget->SetVisibility(EVisibility::Visible);
 
@@ -62,59 +41,47 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	//	DataLayer Contents Header
 	SAssignNew(DataLayerContentsHeader, SBorder)
 	.BorderImage(FEditorStyle::GetBrush("DataLayerBrowser.DataLayerContentsQuickbarBackground"))
-	.Visibility(EVisibility::Visible)
-	.Content()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(FMargin(0, 0, 2, 0))
-		[
-			SAssignNew(ToggleModeButton, SButton)
-			.ContentPadding(FMargin(2, 0, 2, 0))
-			.ButtonStyle(FEditorStyle::Get(), "DataLayerBrowserButton")
-			.OnClicked_Lambda(ToggleDataLayerContents)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			.Content()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Padding(0, 1, 3, 1)
-				[
-					SNew(SImage)
-					.Image_Lambda(GetToggleModeButtonImageBrush)
-					.ColorAndOpacity_Lambda(GetInvertedForegroundIfHovered)
-				]
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text_Lambda(GetToggleModeButtonText)
-					.ColorAndOpacity_Lambda(GetInvertedForegroundIfHovered)
-				]
-			]
-		]
-	];
+	.Visibility(EVisibility::Visible);
 
 	//////////////////////////////////////////////////////////////////////////
 	//	DataLayer Contents Section
+
+	FGetTextForItem InternalNameInfoText = FGetTextForItem::CreateLambda([](const ISceneOutlinerTreeItem& Item) -> FString
+	{
+		if (const FDataLayerTreeItem* DataLayerItem = Item.CastTo<FDataLayerTreeItem>())
+		{
+			if (const UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
+			{
+				return DataLayer->GetFName().ToString();
+			}
+		}
+		else if (const FDataLayerActorTreeItem* DataLayerActorTreeItem = Item.CastTo<FDataLayerActorTreeItem>())
+		{
+			if (const AActor* Actor = DataLayerActorTreeItem->GetActor())
+			{
+				return Actor->GetFName().ToString();
+			}
+		}
+		else if (const FDataLayerActorDescTreeItem* ActorDescItem = Item.CastTo<FDataLayerActorDescTreeItem>())
+		{
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc())
+			{
+				return ActorDesc->GetActorName().ToString();
+			}
+		}
+		return FString();
+	});
+
 	FSceneOutlinerInitializationOptions InitOptions;
-	InitOptions.bShowHeaderRow = false;
+	InitOptions.bShowHeaderRow = true;
 	InitOptions.bShowParentTree = true;
 	InitOptions.bShowCreateNewFolder = false;
 	InitOptions.ModeFactory = FCreateSceneOutlinerMode::CreateLambda([this](SSceneOutliner* Outliner) { return new FDataLayerMode(FDataLayerModeParams(Outliner, this, nullptr)); });
-	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Gutter(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
-	InitOptions.ColumnMap.Add(FDataLayerOutlinerIsDynamicallyLoadedColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 1, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerIsDynamicallyLoadedColumn(InSceneOutliner)); })));
+	InitOptions.ColumnMap.Add(FDataLayerOutlinerIsVisibleColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerIsVisibleColumn(InSceneOutliner)); })));
+	InitOptions.ColumnMap.Add(FDataLayerOutlinerIsLoadedInEditorColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 1, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerIsLoadedInEditorColumn(InSceneOutliner)); })));
 	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 2));
-	InitOptions.ColumnMap.Add(FDataLayerOutlinerDeleteButtonColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 20, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerDeleteButtonColumn(InSceneOutliner)); })));
+	InitOptions.ColumnMap.Add(FDataLayerOutlinerDeleteButtonColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerDeleteButtonColumn(InSceneOutliner)); })));
+	InitOptions.ColumnMap.Add("ID Name", FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Invisible, 20, FCreateSceneOutlinerColumn::CreateStatic(&FTextInfoColumn::CreateTextInfoColumn, FName("ID Name"), InternalNameInfoText)));
 	DataLayerOutliner = SNew(SDataLayerOutliner, InitOptions).IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
 	SAssignNew(DataLayerContentsSection, SBorder)
@@ -139,6 +106,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(2, 4, 0, 0)
 			[
 				DetailsWidget.ToSharedRef()
 			]
@@ -153,7 +121,22 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 		.IsEnabled_Lambda([]() { return GWorld ? UWorld::HasSubsystem<UWorldPartitionSubsystem>(GWorld) : false; })
 	];
 
-	SetupDataLayerMode(Mode);
+	InitializeDataLayerBrowser();
+}
+
+void SDataLayerBrowser::SyncDataLayerBrowserToDataLayer(const UDataLayer* DataLayer)
+{
+	FSceneOutlinerTreeItemPtr Item = DataLayerOutliner->GetTreeItem(DataLayer);
+	if (Item.IsValid())
+	{
+		DataLayerOutliner->SetItemSelection(Item, true, ESelectInfo::OnMouseClick);
+		FSceneOutlinerTreeItemPtr Parent = Item->GetParent();
+		while(Parent.IsValid())
+		{
+			DataLayerOutliner->SetItemExpansion(Parent, true);
+			Parent = Parent->GetParent();
+		};
+	}
 }
 
 void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>>& InSelectedDataLayersSet)
@@ -165,17 +148,14 @@ void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>
 		if (WeakDataLayer.IsValid())
 		{
 			UDataLayer* DataLayer = const_cast<UDataLayer*>(WeakDataLayer.Get());
-			if (!DataLayer->IsLocked())
-			{
-				SelectedDataLayers.Add(DataLayer);
-			}
+			SelectedDataLayers.Add(DataLayer);
 		}
 	}
 	DetailsWidget->SetObjects(SelectedDataLayers, /*bForceRefresh*/ true);
 }
 
 
-void SDataLayerBrowser::SetupDataLayerMode(EDataLayerBrowserMode InNewMode)
+void SDataLayerBrowser::InitializeDataLayerBrowser()
 {
 	ContentAreaBox->ClearChildren();
 	ContentAreaBox->AddSlot()
@@ -192,12 +172,6 @@ void SDataLayerBrowser::SetupDataLayerMode(EDataLayerBrowserMode InNewMode)
 	[
 		DataLayerContentsHeader.ToSharedRef()
 	];
-
-	Mode = InNewMode;
-	
-	GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetShowDataLayerContent(Mode == EDataLayerBrowserMode::DataLayerContents);
-
-	ModeChanged.Broadcast(Mode);
 }
 
 #undef LOCTEXT_NAMESPACE

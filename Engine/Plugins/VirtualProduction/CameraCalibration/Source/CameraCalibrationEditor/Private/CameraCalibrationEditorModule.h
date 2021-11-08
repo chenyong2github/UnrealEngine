@@ -31,6 +31,12 @@ private:
 	/** Unregister items in Place Actors panel */
 	void UnregisterPlacementModeItems();
 
+	/** Register overlay materials to use in the calibration tool */
+	void RegisterOverlayMaterials();
+
+	/** Unregister overlay materials */
+	void UnregisterOverlayMaterials();
+
 	/** Gathers the Info on the Virtual Production Place Actors Category */
 	const FPlacementCategoryInfo* GetVirtualProductionCategoryRegisteredInfo() const;
 

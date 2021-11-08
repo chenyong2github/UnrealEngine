@@ -251,7 +251,7 @@ int32 IntegralToString_UInt64ToString(
 	{
 		InBufferToFill[FinalBufferIndex] = TmpBuffer[StringLen - FinalBufferIndex - 1];
 	}
-	InBufferToFill[StringLen] = 0;
+	InBufferToFill[StringLen] = TEXT('\0');
 
 	return StringLen;
 }
@@ -398,7 +398,7 @@ void IntegralToString(const bool bIsNegative, const uint64 InVal, const FDecimal
 			FractionalPartBuffer[FractionalPartLen++] = InFormattingRules.DigitCharacters[0];
 		}
 	}
-	FractionalPartBuffer[FractionalPartLen] = 0;
+	FractionalPartBuffer[FractionalPartLen] = TEXT('\0');
 
 	BuildFinalString(bIsNegative, InFormattingOptions.AlwaysSign, InFormattingRules, IntegralPartBuffer, IntegralPartLen, FractionalPartBuffer, FractionalPartLen, OutString);
 }

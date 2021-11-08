@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include <type_traits>
+
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
 
 namespace Audio
 {
@@ -11,7 +17,7 @@ namespace Audio
 	class IProxyData;
 }
 
-using FMetasoundDataTypeId = void const * ;
+using FMetasoundDataTypeId = void const*;
 
 namespace Metasound
 {
@@ -90,10 +96,7 @@ namespace Metasound
 	class IDataReference
 	{
 		public:
-
-		virtual ~IDataReference() 
-		{
-		}
+		virtual ~IDataReference() = default;
 
 		/** Returns the name of the data type. */
 		virtual const FName& GetDataTypeName() const = 0;
@@ -356,7 +359,7 @@ namespace Metasound
 		{
 			typedef TDataReadReference<DataType> FDataReadReference;
 
-			return MakeUnique< FDataReadReference >(*this);
+			return MakeUnique<FDataReadReference>(*this);
 		}
 	};
 }

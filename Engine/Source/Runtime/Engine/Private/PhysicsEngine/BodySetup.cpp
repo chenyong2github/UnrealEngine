@@ -1746,21 +1746,27 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 			for (int32 ElementIndex = 0; ElementIndex < AggGeom.ConvexElems.Num(); ElementIndex++)
 			{
 				FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
-				TArray<uint8> Data;
-				FMemoryWriter MemAr(Data);
-				Chaos::FChaosArchive ChaosAr(MemAr);
-				ConvexElem.GetChaosConvexMesh()->Serialize(ChaosAr);
-				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+				if (ConvexElem.GetChaosConvexMesh() != nullptr)
+				{
+					TArray<uint8> Data;
+					FMemoryWriter MemAr(Data);
+					Chaos::FChaosArchive ChaosAr(MemAr);
+					ConvexElem.GetChaosConvexMesh()->Serialize(ChaosAr);
+					CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+				}
 			}
 		}
 
 		for (auto& TriMesh : ChaosTriMeshes)
 		{
-			TArray<uint8> Data;
-			FMemoryWriter MemAr(Data);
-			Chaos::FChaosArchive ChaosAr(MemAr);
-			TriMesh.Get()->Serialize(ChaosAr);
-			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+			if (TriMesh.Get() != nullptr)
+			{
+				TArray<uint8> Data;
+				FMemoryWriter MemAr(Data);
+				Chaos::FChaosArchive ChaosAr(MemAr);
+				TriMesh.Get()->Serialize(ChaosAr);
+				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+			}
 		}
 	}
 #endif

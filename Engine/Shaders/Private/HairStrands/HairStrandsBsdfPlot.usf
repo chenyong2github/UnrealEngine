@@ -38,7 +38,7 @@ float DefaultLit(float3 N, float3 V, float3 L, float InRoughnesss)
 	GBuffer.DiffuseColor = 0;
 
 	FAreaLight AreaLight;
-	AreaLight.bIsRect = false;
+	AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
 	AreaLight.FalloffColor = 1;
 	AreaLight.SphereSinAlpha = 0;
 	AreaLight.SphereSinAlphaSoft = 0;

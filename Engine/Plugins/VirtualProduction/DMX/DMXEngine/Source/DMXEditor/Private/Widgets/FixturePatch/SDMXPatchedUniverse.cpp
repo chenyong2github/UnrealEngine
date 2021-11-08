@@ -226,10 +226,10 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 	check(NewStartingChannel + NewChannelSpan - 1 <= DMX_UNIVERSE_SIZE);
 
 	// Unpatch from the old universe
-	TSharedPtr<SDMXPatchedUniverse> OldUniverse = Node->GetUniverse();
-	if (OldUniverse.IsValid())
+	TSharedPtr<SDMXPatchedUniverse> OldUniverseWidget = Node->GetUniverseWidget();
+	if (OldUniverseWidget.IsValid())
 	{
-		OldUniverse->Unpatch(Node);
+		OldUniverseWidget->Unpatch(Node);
 	}
 
 	// Assign the node to this universe

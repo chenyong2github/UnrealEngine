@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "USDSkeletalDataConversion.h"
 
 #include "UnrealUSDWrapper.h"
@@ -331,23 +330,6 @@ namespace SkelDataConversionImpl
 		}
 
 		return true;
-	}
-
-	FString GetUniqueName( FString Prefix, TSet<FString>& UsedNames)
-	{
-		if ( !UsedNames.Contains( Prefix ) )
-		{
-			return Prefix;
-		}
-
-		int32 Suffix = 0;
-		FString Result;
-		do
-		{
-			Result = FString::Printf( TEXT( "%s_%d" ), *Prefix, Suffix++ );
-		} while ( UsedNames.Contains( Result ) );
-
-		return Result;
 	}
 
 	/**
@@ -681,8 +663,8 @@ namespace UnrealToUsdImpl
 		pxr::UsdPrim MeshPrim = UsdLODPrimGeomMesh.GetPrim();
 		pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
 
-		// In 21.05 we now must apply the skel binding API to this mesh prim, or else the joints/etc. attributes may be ignored
-		if ( !pxr::UsdSkelBindingAPI::Apply( MeshPrim ) )
+		pxr::UsdSkelBindingAPI SkelBindingAPI = pxr::UsdSkelBindingAPI::Apply( MeshPrim );
+		if ( !SkelBindingAPI )
 		{
 			return;
 		}
@@ -794,7 +776,6 @@ namespace UnrealToUsdImpl
 
 			// Joint indices & weights
 			{
-				pxr::UsdSkelBindingAPI SkelBindingAPI{ UsdLODPrimGeomMesh };
 				const int32 NumInfluencesPerVertex = LODModel.GetMaxBoneInfluences();
 
 				const bool bConstantPrimvar = false;
@@ -1152,7 +1133,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	using namespace pxr;
 
 	const UsdPrim& SkinningPrim = SkinningQuery.GetPrim();
-	UsdSkelBindingAPI SkelBinding(SkinningPrim);
+	UsdSkelBindingAPI SkelBindingAPI(SkinningPrim);
 
 	// Ref. FFbxImporter::FillSkelMeshImporterFromFbx
 	UsdGeomMesh UsdMesh = UsdGeomMesh(SkinningPrim);
@@ -1394,7 +1375,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 	TArray< FUVSet > UVSets;
 
-	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames );
+	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, RenderContext );
 
 	int32 UVChannelIndex = 0;
 	while ( true )
@@ -1635,7 +1616,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	if ( pxr::UsdSkelAnimMapperRefPtr AnimMapper = SkinningQuery.GetJointMapper() )
 	{
 		VtArray<int> SkeletonBoneIndices;
-		if ( pxr::UsdSkelSkeleton BoundSkeleton = SkelBinding.GetInheritedSkeleton() )
+		if ( pxr::UsdSkelSkeleton BoundSkeleton = SkelBindingAPI.GetInheritedSkeleton() )
 		{
 			if ( pxr::UsdAttribute SkeletonJointsAttr = BoundSkeleton.GetJointsAttr() )
 			{
@@ -2059,7 +2040,7 @@ bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape
 	// Note that we can't just use the prim path here and need an index to guarantee uniqueness,
 	// because although the path is usually unique, USD has case sensitive paths and the FNames of the
 	// UMorphTargets are case insensitive
-	FString PrimaryName = SkelDataConversionImpl::GetUniqueName(
+	FString PrimaryName = UsdUtils::GetUniqueName(
 		SkelDataConversionImpl::SanitizeObjectName( UsdToUnreal::ConvertString( UsdBlendShape.GetPrim().GetName() ) ),
 		UsedMorphTargetNames );
 	FString PrimaryPath = UsdToUnreal::ConvertPath( UsdBlendShape.GetPrim().GetPath() );
@@ -2092,7 +2073,7 @@ bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape
 
 		FString OrigInbetweenName = UsdToUnreal::ConvertString( Inbetween.GetAttr().GetName() );
 		FString InbetweenPath = FString::Printf(TEXT("%s_%s"), *PrimaryPath, *OrigInbetweenName );
-		FString InbetweenName = SkelDataConversionImpl::GetUniqueName(
+		FString InbetweenName = UsdUtils::GetUniqueName(
 			SkelDataConversionImpl::SanitizeObjectName( FPaths::GetCleanFilename( InbetweenPath ) ),
 			UsedMorphTargetNames );
 
@@ -2597,7 +2578,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 	}
 
 	// Create and fill skeleton
-	pxr::UsdSkelBindingAPI SkelBindingAPI{ SkelRoot };
+	pxr::UsdSkelBindingAPI SkelBindingAPI = pxr::UsdSkelBindingAPI::Apply( SkelRootPrim );
 	{
 		pxr::UsdPrim SkeletonPrim = Stage->DefinePrim(
 			SkelRootPrim.GetPath().AppendChild( UnrealToUsd::ConvertToken(TEXT("Skel")).Get() ),
@@ -2709,9 +2690,9 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 				EditContext.Emplace( VariantSets.GetVariantSet( UnrealIdentifiers::LOD ).GetVariantEditContext() );
 			}
 
-			pxr::UsdSkelBindingAPI LODMeshBindingAPI{ UsdLODPrimGeomMesh };
-			LODMeshBindingAPI.CreateBlendShapeTargetsRel().SetTargets( AddedBlendShapeTargets );
-			LODMeshBindingAPI.CreateBlendShapesAttr().Set( AddedBlendShapes );
+			pxr::UsdSkelBindingAPI LODMeshSkelBindingAPI = pxr::UsdSkelBindingAPI::Apply( UsdLODPrim );
+			LODMeshSkelBindingAPI.CreateBlendShapeTargetsRel().SetTargets( AddedBlendShapeTargets );
+			LODMeshSkelBindingAPI.CreateBlendShapesAttr().Set( AddedBlendShapes );
 		}
 	}
 

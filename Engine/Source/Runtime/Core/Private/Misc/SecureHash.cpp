@@ -476,7 +476,7 @@ void LexFromString(FMD5Hash& Hash, const TCHAR* Buffer)
 {
 	auto HexCharacterToDecimalValue = [](const TCHAR InHexChar, uint8& OutDecValue) -> bool
 	{
-		TCHAR Base = 0;
+		TCHAR Base = TEXT('\0');
 		if (InHexChar >= '0' && InHexChar <= '9')
 		{
 			OutDecValue = (uint8)(InHexChar - '0');

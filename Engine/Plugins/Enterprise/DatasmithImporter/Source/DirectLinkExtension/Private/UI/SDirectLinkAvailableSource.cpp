@@ -3,6 +3,8 @@
 #include "SDirectLinkAvailableSource.h"
 #include "DirectLinkExternalSource.h"
 #include "DirectLinkUriResolver.h"
+#include "DirectLinkExtensionModule.h"
+#include "IDirectLinkManager.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
@@ -188,7 +190,7 @@ namespace UE::DatasmithImporter
 
 	void SDirectLinkAvailableSource::GenerateDirectLinkExternalSourceInfos()
 	{
-		for (const TSharedRef<FDirectLinkExternalSource>& ExternalSource : IDirectLinkExtensionModule::Get().GetManager()->GetExternalSourceList())
+		for (const TSharedRef<FDirectLinkExternalSource>& ExternalSource : IDirectLinkExtensionModule::Get().GetManager().GetExternalSourceList())
 		{
 			DirectLinkExternalSourceInfos.Add(MakeShared<FDirectLinkExternalSourceInfo>(ExternalSource));
 		}

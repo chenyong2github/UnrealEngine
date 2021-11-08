@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorCommandInfo.h"
 #include "Widgets/Input/SCheckBox.h"
 
 class SConsoleVariablesEditorList;
@@ -25,22 +25,22 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	void FlushReferences();
 	
-	FConsoleVariablesEditorListRow(const FConsoleVariablesUiCommandInfo InCommandInfo, const FText& InSource, const EConsoleVariablesEditorListRowType InRowType, 
+	FConsoleVariablesEditorListRow(const TWeakPtr<FConsoleVariablesEditorCommandInfo> InCommandInfo, const FString& InPresetValue, const EConsoleVariablesEditorListRowType InRowType, 
 		const ECheckBoxState StartingWidgetCheckboxState, const TSharedRef<SConsoleVariablesEditorList>& InListView, 
 		const TWeakPtr<FConsoleVariablesEditorListRow>& InDirectParentRow)
 	: CommandInfo(InCommandInfo)
-	, Source(InSource)
+	, PresetValue(InPresetValue)
 	, RowType(InRowType)
 	, WidgetCheckedState(StartingWidgetCheckboxState)
 	, ListViewPtr(InListView)
 	, DirectParentRow(InDirectParentRow)
 	{};
 
-	FConsoleVariablesUiCommandInfo& GetCommandInfo();
+	[[nodiscard]] TWeakPtr<FConsoleVariablesEditorCommandInfo> GetCommandInfo() const;
 
-	EConsoleVariablesEditorListRowType GetRowType() const;
+	[[nodiscard]] EConsoleVariablesEditorListRowType GetRowType() const;
 
-	int32 GetChildDepth() const;
+	[[nodiscard]] int32 GetChildDepth() const;
 
 	void SetChildDepth(const int32 InDepth);
 
@@ -48,21 +48,23 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	void SetDirectParentRow(const TWeakPtr<FConsoleVariablesEditorListRow>& InDirectParentRow);
 	
 	/* bHasGeneratedChildren must be true to get actual children. */
-	const TArray<FConsoleVariablesEditorListRowPtr>& GetChildRows() const;
+	[[nodiscard]] const TArray<FConsoleVariablesEditorListRowPtr>& GetChildRows() const;
 	/* bHasGeneratedChildren must be true to get an accurate value. */
-	int32 GetChildCount() const;
+	[[nodiscard]] int32 GetChildCount() const;
 	void SetChildRows(const TArray<FConsoleVariablesEditorListRowPtr>& InChildRows);
 	void AddToChildRows(const FConsoleVariablesEditorListRowPtr& InRow);
 	void InsertChildRowAtIndex(const FConsoleVariablesEditorListRowPtr& InRow, const int32 AtIndex = 0);
 
-	bool GetIsTreeViewItemExpanded() const;
+	[[nodiscard]] bool GetIsTreeViewItemExpanded() const;
 	void SetIsTreeViewItemExpanded(const bool bNewExpanded);
+	
+	[[nodiscard]] bool GetShouldFlashOnScrollIntoView() const;
+	void SetShouldFlashOnScrollIntoView(const bool bNewShouldFlashOnScrollIntoView);
 
-	bool GetShouldExpandAllChildren() const;
+	[[nodiscard]] bool GetShouldExpandAllChildren() const;
 	void SetShouldExpandAllChildren(const bool bNewShouldExpandAllChildren);
-
-	FText GetSource() const;
-	void SetSource(const FString& InSource);
+	
+	[[nodiscard]] const FString& GetPresetValue() const;
 
 	/* If bMatchAnyTokens is false, only nodes that match all terms will be returned. */
 	bool MatchSearchTokensToSearchTerms(const TArray<FString> InTokens, const bool bMatchAnyTokens = false);
@@ -71,27 +73,40 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	void ExecuteSearchOnChildNodes(const FString& SearchString) const;
 	void ExecuteSearchOnChildNodes(const TArray<FString>& Tokens) const;
 
-	ECheckBoxState GetWidgetCheckedState() const;
+	[[nodiscard]] ECheckBoxState GetWidgetCheckedState() const;
 	void SetWidgetCheckedState(const ECheckBoxState NewState, const bool bShouldUpdateHierarchyCheckedStates = false);
 
-	EVisibility GetDesiredVisibility() const;
+	[[nodiscard]] bool IsRowChecked() const;
 
-	TWeakPtr<SConsoleVariablesEditorList> GetListViewPtr() const
+	[[nodiscard]] EVisibility GetDesiredVisibility() const;
+
+	[[nodiscard]] bool HasVisibleChildren() const
+	{
+		return false;
+	}
+
+	[[nodiscard]] TWeakPtr<SConsoleVariablesEditorList> GetListViewPtr() const
 	{
 		return ListViewPtr;
 	}
 
 	FReply OnRemoveButtonClicked();
+	
+	void ResetToPresetValue() const;
 
 private:
 
-	FConsoleVariablesUiCommandInfo CommandInfo;
-	FText Source;
+	TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo;
+	FString PresetValue = "";
 	EConsoleVariablesEditorListRowType RowType = SingleCommand;
 	TArray<FConsoleVariablesEditorListRowPtr> ChildRows;
+	
 	bool bIsTreeViewItemExpanded = false;
+	bool bShouldFlashOnScrollIntoView = false;
 
 	int32 ChildDepth = 0;
+
+	bool bDoesRowMatchSeachTerms = true;
 	
 	ECheckBoxState WidgetCheckedState = ECheckBoxState::Checked;
 

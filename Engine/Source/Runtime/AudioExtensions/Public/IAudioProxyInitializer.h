@@ -13,9 +13,6 @@
  * to check downcasts.
  */
 
-// This can be set to 1 to double check proxies.
-#define CHECK_AUDIOPROXY_TYPES !(UE_BUILD_SHIPPING || UE_BUILD_TEST || UE_BUILD_DEVELOPMENT)
-
 #define  IMPL_AUDIOPROXY_CLASS(FClassName) \
 	static FName GetAudioProxyTypeName() \
 	{ \
@@ -31,9 +28,6 @@ namespace Audio
 {
 	// Forward Declarations
 	class IProxyData;
-
-	constexpr bool bShouldCheckAudioProxyTypes = CHECK_AUDIOPROXY_TYPES;
-
 	using IProxyDataPtr = TUniquePtr<IProxyData>;
 
 	/*
@@ -49,15 +43,8 @@ namespace Audio
 		template<typename ProxyType>
 		bool CheckTypeCast() const
 		{
-			if (bShouldCheckAudioProxyTypes)
-			{
-				FName DestinationTypeName = ProxyType::GetAudioProxyTypeName();
-				return ensureAlwaysMsgf(ProxyTypeName == DestinationTypeName, TEXT("Tried to downcast type %s to %s!"), *ProxyTypeName.ToString(), *DestinationTypeName.ToString());
-			}
-			else
-			{
-				return true;
-			}
+			const FName DestinationTypeName = ProxyType::GetAudioProxyTypeName();
+			return ensureAlwaysMsgf(ProxyTypeName == DestinationTypeName, TEXT("Tried to downcast type %s to %s!"), *ProxyTypeName.ToString(), *DestinationTypeName.ToString());
 		}
 
 		FName GetProxyTypeName() const

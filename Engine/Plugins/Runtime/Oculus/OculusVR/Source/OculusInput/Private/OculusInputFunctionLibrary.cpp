@@ -12,6 +12,49 @@ UOculusInputFunctionLibrary::UOculusInputFunctionLibrary(const FObjectInitialize
 {
 }
 
+UOculusInputFunctionLibrary::FHandMovementFilterDelegate UOculusInputFunctionLibrary::HandMovementFilter;
+
+EOculusFinger UOculusInputFunctionLibrary::ConvertBoneToFinger(const EBone Bone)
+{
+	switch (Bone)
+	{
+	case EBone::Index_1:
+	case EBone::Index_2:
+	case EBone::Index_3:
+	case EBone::Index_Tip:
+		return EOculusFinger::Index;
+	case EBone::Middle_1:
+	case EBone::Middle_2:
+	case EBone::Middle_3:
+	case EBone::Middle_Tip:
+		return EOculusFinger::Middle;
+	case EBone::Pinky_0:
+	case EBone::Pinky_1:
+	case EBone::Pinky_2:
+	case EBone::Pinky_3:
+	case EBone::Pinky_Tip:
+		return EOculusFinger::Pinky;
+	case EBone::Ring_1:
+	case EBone::Ring_2:
+	case EBone::Ring_3:
+	case EBone::Ring_Tip:
+		return EOculusFinger::Ring;
+	case EBone::Thumb_0:
+	case EBone::Thumb_1:
+	case EBone::Thumb_2:
+	case EBone::Thumb_3:
+	case EBone::Thumb_Tip:
+		return EOculusFinger::Thumb;
+	default:
+		return EOculusFinger::Invalid;
+	}
+}
+
+ETrackingConfidence UOculusInputFunctionLibrary::GetFingerTrackingConfidence(const EOculusHandType DeviceHand, const EOculusFinger Finger, const int32 ControllerIndex)
+{
+	return OculusInput::FOculusHandTracking::GetFingerTrackingConfidence(ControllerIndex, DeviceHand, (OculusInput::EOculusHandAxes)(uint8)Finger);
+}
+
 bool UOculusInputFunctionLibrary::GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, EOculusHandType SkeletonType, EOculusHandType MeshType, float WorldToMeters)
 {
 	return OculusInput::FOculusHandTracking::GetHandSkeletalMesh(HandSkeletalMesh, SkeletonType, MeshType, WorldToMeters);
@@ -64,6 +107,11 @@ EOculusHandType UOculusInputFunctionLibrary::GetDominantHand(const int32 Control
 bool UOculusInputFunctionLibrary::IsHandTrackingEnabled()
 {
 	return OculusInput::FOculusHandTracking::IsHandTrackingEnabled();
+}
+
+bool UOculusInputFunctionLibrary::IsHandPositionValid(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+{
+	return OculusInput::FOculusHandTracking::IsHandPositionValid(ControllerIndex, DeviceHand);
 }
 
 FString UOculusInputFunctionLibrary::GetBoneName(EBone BoneId)

@@ -75,9 +75,8 @@ public:
 
 	/// @brief Set a new position of the node in the graph UI.
 	/// @param InPosition The coordinates of the new position.
-	/// @param bInNotify The call will notify interested parties about the position change.
 	/// @return true if the position setting was successful (i.e. the coordinates are valid).
-	bool SetGraphPositionDirect(const FVector2D &InPosition, bool bInNotify = true);
+	bool SetGraphPositionDirect(const FVector2D &InPosition);
 
 	/// @brief Returns the absolute path of the node. This can be passed to the root
 	/// IOptimusNodeGraphCollectionOwner object to resolve to a node object.
@@ -222,6 +221,9 @@ protected:
 
 	// Set the current error state
 	void SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel);
+
+	// A sentinel to indicate whether sending notifications is allowed.
+	bool bSendNotifications = true;
 	
 private:
 	void IncrementRevision();
@@ -261,7 +263,7 @@ private:
 	TSet<FName> ExpandedPins;
 
 	UPROPERTY()
-	EOptimusDiagnosticLevel DiagnosticLevel = EOptimusDiagnosticLevel::Ignore;
+	EOptimusDiagnosticLevel DiagnosticLevel = EOptimusDiagnosticLevel::None;
 
 	// The revision number. Incremented each time Modify is called. Can be used to check
 	// if the object is now different and may need to be involved in updating the compute graph.
@@ -272,9 +274,6 @@ private:
 
 	// A sentinel to indicate we're doing node construction.
 	bool bConstructingNode = false;
-
-	// A sentinel to indicate whether sending notifications is allowed.
-	bool bSendNotifications = true;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

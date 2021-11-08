@@ -29,7 +29,7 @@ public:
 
 protected:
 	/** FTextFilterExpressionEvaluator Interface */
-	virtual void ConstructExpressionParser() override;
+	virtual void ConstructExpressionParser() override final;
 	virtual bool EvaluateCompiledExpression(const ExpressionParser::CompileResultType& InCompiledResult, const ITextFilterExpressionContext& InContext, FText* OutErrorText) const override;
 	/** End FTextFilterExpressionEvaluator Interface */
 

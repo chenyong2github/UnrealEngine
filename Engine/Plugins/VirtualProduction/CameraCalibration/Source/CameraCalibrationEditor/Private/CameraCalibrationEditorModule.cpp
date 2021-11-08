@@ -7,14 +7,15 @@
 #include "AssetEditor/CameraCalibrationCommands.h"
 #include "AssetEditor/Curves/LensDataCurveModel.h"
 #include "AssetEditor/SCameraCalibrationCurveEditorView.h"
-#include "CameraCalibrationEditorLog.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
+#include "CameraCalibrationEditorLog.h"
+#include "CameraCalibrationSubsystem.h"
 #include "CameraCalibrationTypes.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
-#include "IPlacementModeModule.h"
 #include "ICurveEditorModule.h"
+#include "IPlacementModeModule.h"
 #include "LensFile.h"
 #include "LevelEditor.h"
 #include "Misc/App.h"
@@ -56,6 +57,8 @@ void FCameraCalibrationEditorModule::StartupModule()
 	FCameraCalibrationMenuEntry::Register();
 
 	RegisterPlacementModeItems();
+
+	RegisterOverlayMaterials();
 
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 	FLensDataCurveModel::ViewId = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
@@ -160,6 +163,40 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 	}
 }
 
+void FCameraCalibrationEditorModule::RegisterOverlayMaterials()
+{
+	auto RegisterOverlays = [this]()
+	{
+		// Register all overlay materials defined in this module
+		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+		SubSystem->RegisterOverlayMaterial(TEXT("Crosshair"), TEXT("/CameraCalibration/Materials/M_Crosshair.M_Crosshair"));
+	};
+
+	if (FApp::CanEverRender())
+	{
+		if (GEngine && GEngine->IsInitialized())
+		{
+			RegisterOverlays();
+		}
+		else
+		{
+			PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(RegisterOverlays);
+		}
+	}
+}
+
+void FCameraCalibrationEditorModule::UnregisterOverlayMaterials()
+{
+	if (GEngine)
+	{
+		// Unregister all overlay materials defined in this module
+		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
+		{
+			SubSystem->UnregisterOverlayMaterial(TEXT("Crosshair"));
+		}
+	}
+}
+
 void FCameraCalibrationEditorModule::ShutdownModule()
 {
 	if (!IsEngineExitRequested() && GEditor && UObjectInitialized())
@@ -184,6 +221,8 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 		FCameraCalibrationCommands::Unregister();
 
 		UnregisterPlacementModeItems();
+
+		UnregisterOverlayMaterials();
 	}
 
 	if (PostEngineInitHandle.IsValid())

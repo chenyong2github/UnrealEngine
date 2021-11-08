@@ -20,14 +20,10 @@ namespace CADKernel
 		{
 			Curves[0] = InCurveU;
 			Curves[1] = InCurveV;
-			SetMinToleranceIso();
+			ComputeDefaultMinToleranceIso();
 		}
 
-		FRuledSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FRuledSurface() = default;
 
 	public:
 

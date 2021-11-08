@@ -34,6 +34,7 @@ enum class ETakeRecorderState : uint8
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingPreInitialize, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingInitialized, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStarted, UTakeRecorder*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStopped, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingFinished, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingCancelled, UTakeRecorder*);
 
@@ -143,6 +144,11 @@ public:
 	 * Retrieve a multi-cast delegate that is triggered when this recording starts
 	 */
 	FOnTakeRecordingStarted& OnRecordingStarted();
+
+	/**
+	 * Retrieve a multi-cast delegate that is triggered when this recording is stopped
+	 */
+	FOnTakeRecordingStopped& OnRecordingStopped();
 
 	/**
 	 * Retrieve a multi-cast delegate that is triggered when this recording finishes
@@ -264,11 +270,14 @@ private:
 	/** Triggered when this recorder starts */
 	FOnTakeRecordingStarted OnRecordingStartedEvent;
 
+	/** Triggered when this recorder is stopped */
+	FOnTakeRecordingStopped OnRecordingStoppedEvent;
+
 	/** Triggered when this recorder finishes */
 	FOnTakeRecordingFinished OnRecordingFinishedEvent;
 
 	/** Triggered when this recorder is cancelled */
-	FOnTakeRecordingFinished OnRecordingCancelledEvent;
+	FOnTakeRecordingCancelled OnRecordingCancelledEvent;
 
 	/** Sequencer ptr that controls playback of the desination asset during the recording */
 	TWeakPtr<ISequencer> WeakSequencer;

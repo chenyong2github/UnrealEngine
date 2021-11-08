@@ -108,7 +108,13 @@ void UCameraLensDistortionAlgoCheckerboard::Initialize(ULensDistortionTool* InTo
 
 	FIntPoint Size = StepsController->GetCompRenderTargetSize();
 	CvCoverage = cv::Mat(cv::Size(Size.X, Size.Y), CV_8UC4);
+	CoverageTexture = FOpenCVHelper::TextureFromCvMat(CvCoverage, CoverageTexture);
 #endif
+
+	if (UMaterialInstanceDynamic* OverlayMID = Tool->GetOverlayMID())
+	{
+		OverlayMID->SetTextureParameterValue(FName(TEXT("CoverageTexture")), CoverageTexture);
+	}
 }
 
 void UCameraLensDistortionAlgoCheckerboard::Shutdown()
@@ -305,10 +311,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		cv::drawChessboardCorners(CvCoverage, CheckerboardSize, Corners, true);
 
 		CoverageTexture = FOpenCVHelper::TextureFromCvMat(CvCoverage, CoverageTexture);
-
-		UMaterialInterface* CoverageOverlay = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_Coverage.M_Coverage"))).LoadSynchronous();
-		StepsController->SetOverlayMaterial(CoverageOverlay, bShouldShowOverlay);
-		StepsController->SetOverlayTextureParameter(FName(TEXT("CoverageTexture")), CoverageTexture);
+		StepsController->RefreshOverlay();
 
 		// Show the detection to the user
 		if (bShouldShowDetectionWindow)
@@ -884,6 +887,11 @@ ACameraCalibrationCheckerboard* UCameraLensDistortionAlgoCheckerboard::GetCalibr
 	return Calibrator.Get();
 }
 
+UMaterialInterface* UCameraLensDistortionAlgoCheckerboard::GetOverlayMaterial() const
+{
+	return TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_Coverage.M_Coverage"))).LoadSynchronous();
+}
+
 void UCameraLensDistortionAlgoCheckerboard::OnDistortionSavedToLens()
 {
 	// Since the calibration result was saved, there is no further use for the current samples.
@@ -933,9 +941,7 @@ void UCameraLensDistortionAlgoCheckerboard::RefreshCoverage()
 
 	CoverageTexture = FOpenCVHelper::TextureFromCvMat(CvCoverage, CoverageTexture);
 
-	UMaterialInterface* CoverageOverlay = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_Coverage.M_Coverage"))).LoadSynchronous();
-	StepsController->SetOverlayMaterial(CoverageOverlay, bShouldShowOverlay);
-	StepsController->SetOverlayTextureParameter(FName(TEXT("CoverageTexture")), CoverageTexture);
+	StepsController->RefreshOverlay();
 #endif
 }
 

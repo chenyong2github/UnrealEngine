@@ -18,13 +18,9 @@ namespace CADKernel
 	private:
 		TArray<TSharedPtr<FShell>> Shells;
 
-		FBody()
-			: FTopologicalEntity()
-		{
-		}
+		FBody() = default;
 
 		FBody(const TArray<TSharedPtr<FShell>>& InShells)
-			: FTopologicalEntity()
 		{
 			for (TSharedPtr<FShell> Shell : InShells)
 			{
@@ -35,18 +31,13 @@ namespace CADKernel
 			}
 		}
 
-		FBody(FCADKernelArchive& Archive)
-			: FTopologicalEntity()
-		{
-			Serialize(Archive);
-		}
-
 	public:
+
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
 			FTopologicalEntity::Serialize(Ar);
 			SerializeIdents(Ar, Shells);
-			SerializeMetadata(Ar);
+			FMetadataDictionary::Serialize(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override

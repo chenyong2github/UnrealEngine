@@ -431,6 +431,11 @@ namespace ActorPlacementUtils
 {
 	bool IsLevelValidForActorPlacement(ULevel* InLevel, TArray<FTransform>& InActorTransforms)
 	{
+		// Checks below don't apply to partitioned world
+		if (InLevel && InLevel->GetWorldPartition())
+		{
+			return true;
+		}
 		if (FLevelUtils::IsLevelLocked(InLevel))
 		{
 			FNotificationInfo Info(NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));

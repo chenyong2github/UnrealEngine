@@ -9,275 +9,30 @@
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "Data/Util/ActorHashUtil.h"
 #include "Data/Util/SnapshotObjectUtil.h"
-#include "Data/Util/SnapshotUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "LoadSnapshotObjectArchive.h"
 #include "PropertySelectionMap.h"
 #include "RestorationEvents/ApplySnapshotToActorScope.h"
-#include "RestorationEvents/RemoveComponentScope.h"
 #include "SnapshotConsoleVariables.h"
 #include "SnapshotRestorability.h"
+#include "Util/EquivalenceUtil.h"
+#include "Util/Component/SnapshotComponentUtil.h"
 
 #include "Components/ActorComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "Modules/ModuleManager.h"
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
 #include "UObject/Script.h"
-#include "Util/EquivalenceUtil.h"
 
 #if USE_STABLE_LOCALIZATION_KEYS
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #endif
 
-#if WITH_EDITOR
-#include "LevelEditor.h"
-#endif
-
 namespace
 {
-	using FPreCreateComponent = TFunction<void(FName ComponentName, UClass* ComponentClass, EComponentCreationMethod CreationMethod)>;
-	using FPostCreateComponent = TFunction<void(FSubobjectSnapshotData& Data, UActorComponent* Component)>;
-
-	UObject* FindOrAllocateComponentForComponentOuter(const FSoftObjectPath& ComponentOuterPath, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* Actor, const FPreCreateComponent& PreCreateComponent, const FPostCreateComponent& PostCreateComponent);
-	
-	UActorComponent* FindOrAllocateComponent(FSubobjectSnapshotData& SubobjectData, const FComponentSnapshotData& ComponentData, const FSoftObjectPath& ComponentPath, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* Actor, const FPreCreateComponent& PreCreateComponent, const FPostCreateComponent& PostCreateComponent)
-	{
-		UActorComponent* Component = SnapshotUtil::FindMatchingComponent(Actor, ComponentPath);
-		if (!Component)
-		{
-			bool bIsOwnedByComponent;
-			const FSoftObjectPath& ComponentOuterPath = WorldData.SerializedObjectReferences[SubobjectData.OuterIndex];
-			TOptional<FActorSnapshotData*> ComponentOuterData = SnapshotUtil::FindSavedActorDataUsingObjectPath(WorldData.ActorData, ComponentOuterPath, bIsOwnedByComponent);
-			const bool bIsOwnedByOtherActor = ComponentOuterData.Get(nullptr) != &SnapshotData;
-			if (!ensureAlwaysMsgf(ComponentOuterData, TEXT("Failed to recreate component %s because its outer %s did not have any associated actor data. Investigate."), *ComponentPath.ToString(), *ComponentOuterPath.ToString())
-				|| !ensureMsgf(!bIsOwnedByOtherActor, TEXT("Failed to recreate component %s because saved data indicates it is owned by another actor %s. Components normally are owned by the actor they're attached to. Investigate."), *ComponentPath.ToString(), *ComponentOuterPath.ToString()))
-			{
-				return nullptr;
-			}
-			UObject* ComponentOuter = bIsOwnedByComponent ? FindOrAllocateComponentForComponentOuter(ComponentOuterPath, SnapshotData, WorldData, Actor, PreCreateComponent, PostCreateComponent) : Actor;
-			if (!ComponentOuter)
-			{
-				return nullptr;
-			}
-
-			UClass* ComponentClass = SubobjectData.Class.TryLoadClass<UActorComponent>();
-			const FName ComponentName = *SnapshotUtil::ExtractLastSubobjectName(ComponentPath);
-			
-			const EObjectFlags ObjectFlags = SubobjectData.GetObjectFlags();
-			const bool bIsObjectFromSnapshotWorld = ComponentOuter->GetPackage()->HasAnyFlags(RF_Transient);
-			if (bIsObjectFromSnapshotWorld)
-			{
-				PreCreateComponent(ComponentName, ComponentClass, ComponentData.CreationMethod);
-				// Objects in transient snapshot world should not transact
-				Component = NewObject<UActorComponent>(ComponentOuter, ComponentClass, ComponentName, ObjectFlags & ~RF_Transactional);
-				PostCreateComponent(SubobjectData, Component);
-			}
-			else
-			{
-				PreCreateComponent(ComponentName, ComponentClass, ComponentData.CreationMethod);
-				// RF_Transactional must be set when the object is created so the creation transacted correctly
-				Component = NewObject<UActorComponent>(ComponentOuter, ComponentClass, ComponentName, ObjectFlags | RF_Transactional);
-				Component->SetFlags(ObjectFlags);
-				PostCreateComponent(SubobjectData, Component);
-			}
-		}
-			
-		// UActorComponent::PostInitProperties implicitly calls AddOwnedComponent but we have to manually add it to the other arrays
-		if (Component->CreationMethod != ComponentData.CreationMethod)
-		{
-			Component->CreationMethod = ComponentData.CreationMethod;
-			switch(Component->CreationMethod)
-			{
-			case EComponentCreationMethod::Instance:
-				Actor->AddInstanceComponent(Component);
-				break;
-			case EComponentCreationMethod::SimpleConstructionScript:
-				Actor->BlueprintCreatedComponents.AddUnique(Component);
-				break;
-			case EComponentCreationMethod::UserConstructionScript:
-				checkf(false, TEXT("Component created in construction script currently unsupported"));
-				break;
-						
-			case EComponentCreationMethod::Native:
-			default:
-				break;
-			}
-		}
-		return Component;
-	}
-	
-	UObject* FindOrAllocateComponentForComponentOuter(const FSoftObjectPath& ComponentOuterPath, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* Actor, const FPreCreateComponent& PreCreateComponent, const FPostCreateComponent& PostCreateComponent)
-	{
-		for (auto CompIt = SnapshotData.ComponentData.CreateConstIterator(); CompIt; ++CompIt)
-		{
-			const FSoftObjectPath& SavedComponentPath = WorldData.SerializedObjectReferences[CompIt->Key];
-			if (SavedComponentPath == ComponentOuterPath)
-			{
-				const int32 ReferenceIndex = CompIt->Key;
-				FSubobjectSnapshotData* SubobjectData = WorldData.Subobjects.Find(ReferenceIndex); 
-				return ensure(SubobjectData) ? FindOrAllocateComponent(*SubobjectData, CompIt->Value, ComponentOuterPath, SnapshotData, WorldData, Actor, PreCreateComponent, PostCreateComponent) : nullptr;
-			}
-		}
-
-		UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to find outer for component %s"), *ComponentOuterPath.ToString());
-		return nullptr;
-	}
-	
-	void RecreateSavedComponents(const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* Actor, FPreCreateComponent PreCreateComponent, FPostCreateComponent PostCreateComponent)
-	{
-		TInlineComponentArray<UActorComponent*> DefaultSnapshotComps(Actor);
-		for (auto CompIt = SnapshotData.ComponentData.CreateConstIterator(); CompIt; ++CompIt)
-		{
-			const int32 ReferenceIndex = CompIt->Key;
-			FSubobjectSnapshotData* SubobjectData = WorldData.Subobjects.Find(ReferenceIndex); 
-			if (ensure(SubobjectData))
-			{
-				const FSoftObjectPath& ComponentPath = WorldData.SerializedObjectReferences[ReferenceIndex];
-				FindOrAllocateComponent(*SubobjectData, CompIt->Value, ComponentPath, SnapshotData, WorldData, Actor, PreCreateComponent, PostCreateComponent);
-			}
-		}
-	}
-	
-	void AllocateAllMissingComponentsInSnapshotWorld(const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* SnapshotActor)
-	{
-		RecreateSavedComponents(SnapshotData, WorldData, SnapshotActor,
-			[](FName, UClass*, EComponentCreationMethod){},
-			[](FSubobjectSnapshotData& SubobjectData, UActorComponent* RecreatedComponent)
-			{
-				SubobjectData.SnapshotObject = RecreatedComponent;
-			});
-	}
-
-	void AllocateAllMissingComponentsInEditorWorld(const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* EditorActor)
-	{
-		RecreateSavedComponents(SnapshotData, WorldData, EditorActor,
-			[](FName, UClass*, EComponentCreationMethod){},
-			[](FSubobjectSnapshotData& SubobjectData, UActorComponent* RecreatedComponent)
-			{
-				SubobjectData.EditorObject = RecreatedComponent;
-				RecreatedComponent->RegisterComponent();
-			});
-	}
-
-	TPair<int32, const FComponentSnapshotData*> FindMatchingSubobjectIndex(const FActorSnapshotData& SnapshotData, const FWorldSnapshotData& WorldData, const FString& ComponentName)
-	{
-		for (auto CompIt = SnapshotData.ComponentData.CreateConstIterator(); CompIt; ++CompIt)
-		{
-			const int32 ReferenceIndex = CompIt->Key;
-			const FSoftObjectPath& SavedComponentPath = WorldData.SerializedObjectReferences[ReferenceIndex];
-			const FString SavedComponentName = SnapshotUtil::ExtractLastSubobjectName(SavedComponentPath);
-			if (SavedComponentName.Equals(ComponentName))
-			{
-				return TPair<int32, const FComponentSnapshotData*>(ReferenceIndex, &CompIt->Value);
-			}
-		}
-
-		return TPair<int32, const FComponentSnapshotData*>(INDEX_NONE, nullptr);
-	}
-
-	void UpdateDetailsViewAfterUpdatingComponents()
-	{
-#if WITH_EDITOR
-		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditor.BroadcastComponentsEdited();
-#endif
-	}
-	
-	void RemovedNewComponents(const FAddedAndRemovedComponentInfo& ComponentSelection)
-	{
-		for (const TWeakObjectPtr<UActorComponent>& ComponentToRemove : ComponentSelection.EditorWorldComponentsToRemove)
-		{
-			// Evil user might have manually deleted the component between filtering and applying the snapshot
-			if (ComponentToRemove.IsValid())
-			{
-				ComponentToRemove->Modify();
-				const FRemoveComponentScope NotifySnapshotListeners(ComponentToRemove.Get());
-				// Subscribers to ISnapshotListener::PreRemoveComponent are allowed to manually remove the component
-				if (ComponentToRemove.IsValid())
-				{
-					ComponentToRemove->DestroyComponent();
-				}
-			}
-		}
-	}
-	
-	void RecreateMissingComponents(const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData, AActor* Actor, const FAddedAndRemovedComponentInfo& ComponentSelection, const FPropertySelectionMap& SelectionMap, UPackage* LocalisationSnapshotPackage)
-	{
-		struct FDeferredComponentSerializationTask
-		{
-			FSubobjectSnapshotData* SubobjectData;
-			UActorComponent* Snapshot;
-			UActorComponent* Original;
-
-			FDeferredComponentSerializationTask(FSubobjectSnapshotData* SubobjectData, UActorComponent* Snapshot, UActorComponent* Original)
-				:
-				SubobjectData(SubobjectData),
-				Snapshot(Snapshot),
-				Original(Original)
-			{}
-		};
-		
-		// 1. Recreate missing components
-		TArray<FDeferredComponentSerializationTask> DeferredSerializationsTasks;
-		// Edge case: a component in SnapshotComponentsToAdd has an outer which is not in SnapshotComponentsToAdd.
-		// In this case, the outer components will be recreated even if they are not in SnapshotComponentsToAdd.  
-		for (const TWeakObjectPtr<UActorComponent>& CurrentComponentToRestore : ComponentSelection.SnapshotComponentsToAdd)
-		{
-			const FName NameOfComponentToRecreate = CurrentComponentToRestore->GetFName();
-			const TPair<int32, const FComponentSnapshotData*> ComponentInfo = FindMatchingSubobjectIndex(SnapshotData, WorldData, NameOfComponentToRecreate.ToString());
-			const int32 ReferenceIndex = ComponentInfo.Key;
-			FSubobjectSnapshotData* SubobjectData = WorldData.Subobjects.Find(ReferenceIndex); 
-			if (ensure(SubobjectData))
-			{
-				const FSoftObjectPath& ComponentPath = WorldData.SerializedObjectReferences[ReferenceIndex];
-				FindOrAllocateComponent(*SubobjectData, *ComponentInfo.Value, ComponentPath, SnapshotData, WorldData, Actor,
-					[Actor](FName ComponentName, UClass* ComponentClass, EComponentCreationMethod CreationMethod)
-					{
-						FLevelSnapshotsModule::GetInternalModuleInstance().OnPreRecreateComponent({ Actor, ComponentName, ComponentClass, CreationMethod });
-					},
-					[&DeferredSerializationsTasks, &CurrentComponentToRestore, ComponentPath](FSubobjectSnapshotData& SubobjectData, UActorComponent* RecreatedComponent)
-					{
-						UActorComponent* SnapshotComponent = SnapshotUtil::FindMatchingComponent(CurrentComponentToRestore->GetOwner(), ComponentPath);
-						check(SnapshotComponent);
-						
-						SubobjectData.EditorObject = RecreatedComponent;
-						FLevelSnapshotsModule::GetInternalModuleInstance().OnPostRecreateComponent(RecreatedComponent);
-						DeferredSerializationsTasks.Add({ &SubobjectData, SnapshotComponent, RecreatedComponent });
-						
-						RecreatedComponent->RegisterComponent();
-					});
-			}
-		}
-
-		// 2. Serialize saved data into components
-		for (const FDeferredComponentSerializationTask& Task : DeferredSerializationsTasks)
-		{
-			const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_EditorWorld(Task.Snapshot, Task.Original, WorldData, SelectionMap, LocalisationSnapshotPackage);
-			FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(*Task.SubobjectData, WorldData, Task.Original, Task.Snapshot, SelectionMap); 
-		}
-	}
-
-	void AddAndRemoveSelectedComponentsForRestore(
-		const FActorSnapshotData& SnapshotData,
-		FWorldSnapshotData& WorldData,
-		AActor* Actor,
-		const FAddedAndRemovedComponentInfo& ComponentSelection,
-		const FPropertySelectionMap& SelectionMap,
-		UPackage* LocalisationSnapshotPackage)
-	{
-		RemovedNewComponents(ComponentSelection);
-		RecreateMissingComponents(SnapshotData, WorldData, Actor, ComponentSelection, SelectionMap, LocalisationSnapshotPackage);
-
-		const bool bChangedHierarchy = ComponentSelection.SnapshotComponentsToAdd.Num() > 0 || ComponentSelection.EditorWorldComponentsToRemove.Num() > 0;
-		if (bChangedHierarchy)
-		{
-			UpdateDetailsViewAfterUpdatingComponents();
-		}
-	}
-
 	void ConditionBreakOnActor(AActor* Actor)
 	{
 		const FString NameToSearchFor = SnapshotCVars::CVarBreakOnSnapshotActor.GetValueOnAnyThread();
@@ -322,6 +77,9 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 	}
 
 	SnapshotUtil::PopulateActorHash(Result.Hash, OriginalActor);
+#if WITH_EDITORONLY_DATA
+	Result.ActorLabel = OriginalActor->GetActorLabel();
+#endif
 	return Result;
 }
 
@@ -376,7 +134,8 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 		// Hide this actor so external systems can see that this components should not render, i.e. make USceneComponent::ShouldRender return false
 		CachedSnapshotActor->SetIsTemporarilyHiddenInEditor(true);
 #endif
-		AllocateAllMissingComponentsInSnapshotWorld(*this, WorldData, CachedSnapshotActor.Get());
+
+		SnapshotUtil::Component::AllocateMissingComponentsForSnapshotActor(CachedSnapshotActor.Get(), *this, WorldData);
 	}
 
 	return CachedSnapshotActor.IsValid() ? TOptional<AActor*>(CachedSnapshotActor.Get()) : TOptional<AActor*>();
@@ -385,11 +144,11 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData, const FSoftObjectPath& OriginalActorPath, UPackage* InLocalisationSnapshotPackage)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(GetDeserialized);
-	
 	if (bReceivedSerialisation && CachedSnapshotActor.IsValid())
 	{
 		return CachedSnapshotActor.Get();
 	}
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Get Deserialized %s =========="), *OriginalActorPath.ToString());
 
 	const TOptional<AActor*> Preallocated = GetPreallocated(SnapshotWorld, WorldData);
 	if (!Preallocated)
@@ -406,6 +165,9 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 	{
 		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_SnapshotWorld(PreallocatedActor, CustomActorSerializationData, WorldData, ProcessObjectDependency, InLocalisationSnapshotPackage);
 		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, ProcessObjectDependency, InLocalisationSnapshotPackage);
+#if WITH_EDITOR
+		UE_LOG(LogLevelSnapshots, Verbose, TEXT("ActorLabel is \"%s\" for \"%s\" (editor object path \"%s\")"), *PreallocatedActor->GetActorLabel(), *PreallocatedActor->GetPathName(), *OriginalActorPath.ToString());
+#endif
 	}
 
 	DeserializeComponents(PreallocatedActor, WorldData,
@@ -541,12 +303,11 @@ namespace ActorSnapshotData
 
 void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Apply existing %s =========="), *OriginalActor->GetPathName());
 	const bool bWasRecreated = false;
 	const FApplySnapshotToActorScope NotifyExternalListeners({ OriginalActor, SelectedProperties, bWasRecreated });
-	if (const FAddedAndRemovedComponentInfo* ComponentSelection = SelectedProperties.GetObjectSelection(OriginalActor).GetComponentSelection())
-	{
-		AddAndRemoveSelectedComponentsForRestore(*this, WorldData, OriginalActor, *ComponentSelection, SelectedProperties, InLocalisationSnapshotPackage);
-	}
+	
+	SnapshotUtil::Component::AddAndRemoveComponentsSelectedForRestore(OriginalActor, *this, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
 
 	auto DeserializeActor = [this, &WorldData, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
@@ -572,9 +333,11 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 
 void FActorSnapshotData::DeserializeIntoRecreatedEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Apply recreated %s =========="), *OriginalActor->GetPathName());
 	const bool bWasRecreated = true;
 	const FApplySnapshotToActorScope NotifyExternalListeners({ OriginalActor, SelectedProperties, bWasRecreated });
-	AllocateAllMissingComponentsInEditorWorld(*this, WorldData, OriginalActor);
+	
+	SnapshotUtil::Component::AllocateMissingComponentsForRecreatedActor(OriginalActor, *this, WorldData);
 
 	auto DeserializeActor = [this, &WorldData, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
@@ -600,6 +363,9 @@ void FActorSnapshotData::DeserializeIntoEditorWorldActor(UWorld* SnapshotWorld, 
 
 	const AActor* AttachParentBeforeRestore = OriginalActor->GetAttachParentActor();
 	SerializeActor(OriginalActor, *Deserialized);
+#if WITH_EDITOR
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("ActorLabel is \"%s\" for \"%s\""), *OriginalActor->GetActorLabel(), *OriginalActor->GetPathName());
+#endif
 
 	TInlineComponentArray<UActorComponent*> DeserializedComponents;
 	Deserialized.GetValue()->GetComponents(DeserializedComponents);

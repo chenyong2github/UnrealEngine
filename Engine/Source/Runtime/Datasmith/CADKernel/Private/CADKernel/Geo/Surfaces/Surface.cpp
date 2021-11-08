@@ -50,7 +50,8 @@ namespace CADKernel
 
 	void FSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& OutCoordinates)
 	{
-		FSurfaceSamplerOnParam Sampler(*this, InBoundaries, Tolerance3D * 10, Tolerance3D, OutCoordinates);
+		FPolyline3D TemporaryPolyline;
+		FSurfaceSamplerOnParam Sampler(*this, InBoundaries, Tolerance3D * 10, Tolerance3D, TemporaryPolyline, OutCoordinates);
 		Sampler.Sample();
 	}
 

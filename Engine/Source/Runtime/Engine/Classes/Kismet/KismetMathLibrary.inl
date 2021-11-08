@@ -2812,6 +2812,20 @@ FBox2D UKismetMathLibrary::MakeBox2D(FVector2D Min, FVector2D Max)
 }
 
 KISMET_MATH_FORCEINLINE
+FBoxSphereBounds UKismetMathLibrary::MakeBoxSphereBounds(FVector Origin, FVector BoxExtent, float SphereRadius)
+{
+	return FBoxSphereBounds(Origin, BoxExtent, SphereRadius);
+}
+
+KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakBoxSphereBounds(const FBoxSphereBounds& InBoxSphereBounds, FVector& Origin, FVector& BoxExtent, float& SphereRadius)
+{
+	Origin = InBoxSphereBounds.Origin;
+	BoxExtent = InBoxSphereBounds.BoxExtent;
+	SphereRadius = (float)InBoxSphereBounds.SphereRadius;
+}
+
+KISMET_MATH_FORCEINLINE
 FRotator UKismetMathLibrary::MakeRotator(float Roll, float Pitch, float Yaw)
 {
 	return FRotator(Pitch,Yaw,Roll);

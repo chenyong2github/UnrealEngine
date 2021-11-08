@@ -9,6 +9,7 @@
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
 #include "Chaos/GJK.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
 #include "Chaos/BVHParticles.h"
 
@@ -39,8 +40,9 @@ namespace Chaos
 		}
 
 		FRigidBodyContactKey(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
-			: Key(GenerateHash(Particle0, Implicit0, Simplicial0, Particle1, Implicit1, Simplicial1))
+			: Key(0)
 		{
+			GenerateHash(Particle0, Implicit0, Simplicial0, Particle1, Implicit1, Simplicial1);
 		}
 
 		uint32 GetKey() const
@@ -64,14 +66,16 @@ namespace Chaos
 		}
 
 	private:
-		uint32 GenerateHash(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
+		void GenerateHash(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
 		{
-			// @todo(chaos): Particle handles can be reused - this needs to use a global ID or something (not available in this stream)
-			const uint32 ParticlesHash = HashCombine(::GetTypeHash(Particle0), ::GetTypeHash(Particle1));
+			// @todo(chaos): We should use ShapeIndex rather than Implicit/Simplicial pointers
+			const uint32 Particle0Hash = HashCombine(::GetTypeHash(Particle0->ParticleID().GlobalID), ::GetTypeHash(Particle0->ParticleID().LocalID));
+			const uint32 Particle1Hash = HashCombine(::GetTypeHash(Particle1->ParticleID().GlobalID), ::GetTypeHash(Particle1->ParticleID().LocalID));
+			const uint32 ParticlesHash = HashCombine(::GetTypeHash(Particle0Hash), ::GetTypeHash(Particle1Hash));
 			const uint32 ImplicitHash = HashCombine(::GetTypeHash(Implicit0), ::GetTypeHash(Implicit1));
 			const uint32 SimplicialHash = HashCombine(::GetTypeHash(Simplicial0), ::GetTypeHash(Simplicial1));
-			const uint32 ParticleImplicitHash = HashCombine(ParticlesHash, ImplicitHash);
-			return HashCombine(ParticleImplicitHash, SimplicialHash);
+			const uint32 ShapesHash = HashCombine(ImplicitHash, SimplicialHash);
+			Key = HashCombine(ParticlesHash, ShapesHash);
 		}
 
 		uint32 Key;
@@ -211,7 +215,9 @@ namespace Chaos
 
 
 	/**
-	 * @brief Information used by the constraint allocator to determine which parts of a previous tick's contact can be reused (if any)
+	 * @brief Information used by the constraint allocator
+	 * This includes any information used for optimizations like array indexes etc
+	 * as well as data for managing lifetime and pruning.
 	*/
 	class FPBDCollisionConstraintContainerCookie
 	{
@@ -221,6 +227,8 @@ namespace Chaos
 			, CreationEpoch(INDEX_NONE)
 			, LastUsedEpoch(INDEX_NONE)
 			, ConstraintIndex(INDEX_NONE)
+			, SweptConstraintIndex(INDEX_NONE)
+			, bIsInShapePairMap(false)
 			, bIsSleeping(false)
 		{
 		}
@@ -232,7 +240,8 @@ namespace Chaos
 		*/
 		void ClearContainerData()
 		{
-			ConstraintIndex = INDEX_NONE;			
+			ConstraintIndex = INDEX_NONE;
+			SweptConstraintIndex = INDEX_NONE;
 		}
 
 		/**
@@ -242,7 +251,7 @@ namespace Chaos
 		{
 			Key = InKey;
 			CreationEpoch = InEpoch;
-			LastUsedEpoch = InEpoch;
+			LastUsedEpoch = INDEX_NONE;
 			bIsSleeping = false;
 		}
 
@@ -257,19 +266,19 @@ namespace Chaos
 		}
 
 		/**
+		 * @brief Called each tick by the container for swept constraints
+		*/
+		void UpdateSweptIndex(const int32 InIndex)
+		{
+			SweptConstraintIndex = InIndex;
+		}
+
+		/**
 		 * @brief Change the sleeping state (used by the Island Manager)
 		*/
 		void SetIsSleeping(const bool bInIsSleeping)
 		{
 			bIsSleeping = bInIsSleeping;
-		}
-
-		/**
-		* @brief Change the awaken state (used by the Island Manager)
-		*/
-		void SetWasAwakened(const bool bInWasAwakened)
-		{
-			bWasAwakened = bInWasAwakened;
 		}
 
 		// A hash of the colliding object pair to uniquely identify a contact and allow recovery next tick
@@ -284,11 +293,14 @@ namespace Chaos
 		// The index in the container - this changes every tick
 		int32 ConstraintIndex;
 
+		// The index in swept constraints - this changes every tick
+		int32 SweptConstraintIndex;
+
+		// Whether the Constraint is in the container's maps
+		bool bIsInShapePairMap;
+
 		// Whether the constraint is in a sleeping island (this is used to prevent culling because Epoch is not updated for sleepers)
 		bool bIsSleeping;
-
-		// Whether the constraint has just been awaken in an island
-		bool bWasAwakened;
 	};
 
 
@@ -364,6 +376,9 @@ namespace Chaos
 		static FPBDCollisionConstraint MakeResimCache(
 			const FPBDCollisionConstraint& Source);
 
+		static void Destroy(
+			FPBDCollisionConstraint* Constraint,
+			FCollisionConstraintAllocator& Allocator);
 
 		FPBDCollisionConstraint();
 
@@ -396,11 +411,8 @@ namespace Chaos
 		void SetDisabled(bool bInDisabled) { Manifold.bDisabled = bInDisabled; }
 		bool GetDisabled() const { return Manifold.bDisabled; }
 
-		void SetIsSleeping(const bool bInIsSleeping) override { ContainerCookie.SetIsSleeping(bInIsSleeping); }
-		bool IsSleeping() const override { return ContainerCookie.bIsSleeping; }
-
-		void SetWasAwakened(const bool bInWasAwakened) override { ContainerCookie.SetWasAwakened(bInWasAwakened); }
-		bool WasAwakened() const override { return ContainerCookie.bWasAwakened; }
+		virtual void SetIsSleeping(const bool bInIsSleeping) override;
+		virtual bool IsSleeping() const override { return ContainerCookie.bIsSleeping; }
 
 		void SetNormal(const FVec3& InNormal) { Manifold.Normal = InNormal; }
 		FVec3 GetNormal() const { return Manifold.Normal; }
@@ -425,6 +437,9 @@ namespace Chaos
 		bool GetUseManifold() const { return bUseManifold; }
 		
 		bool GetUseIncrementalCollisionDetection() const { return !bUseManifold || bUseIncrementalManifold; }
+
+		void SetNumActivePositionIterations(const int32 InNumActivePositionIterations) { NumActivePositionIterations = InNumActivePositionIterations; }
+		int32 GetNumActivePositionIterations() const { return NumActivePositionIterations; }
 
 		/**
 		 * @brief Clear the current and previous manifolds
@@ -580,6 +595,8 @@ namespace Chaos
 		TArray<FManifoldPoint> PrevManifoldPoints;
 
 		bool bWasManifoldRestored;
+
+		int32 NumActivePositionIterations;
 	};
 
 

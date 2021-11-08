@@ -107,7 +107,7 @@ private:
 };
 
 
-class FFieldGroupDragDropOp : public FDecoratedDragDropOp
+class FFieldGroupDragDropOp final : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FFieldGroupDragDropOp, FDragDropOperation)

@@ -3,12 +3,12 @@
 #include "NetworkingProfilerCommands.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ FNetworkingProfilerCommands::FNetworkingProfilerCommands()
 		TEXT("NetworkingProfilerCommand"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "NetworkingProfilerCommand", "Networking Insights"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
 	)
 {
 }

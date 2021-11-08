@@ -2,7 +2,6 @@
 
 #include "ProxyLODMeshAttrTransfer.h"
 #include "ProxyLODBarycentricUtilities.h" // for some of the barycentric stuff
-#include "Templates/CheckValueCast.h"
 
 
 template<int Size>
@@ -20,10 +19,10 @@ FColor AverageColor(const FColor(&Colors)[Size])
 	for (int i = 0; i < 4; ++i) Tmp[i] *= 1.f / float(Size);
 	
 	FColor Result;
-	Result.R = CheckValueCast<uint8>( (int)(0.5f + Tmp[0] ) );
-	Result.G = CheckValueCast<uint8>( (int)(0.5f + Tmp[1] ) );
-	Result.B = CheckValueCast<uint8>( (int)(0.5f + Tmp[2] ) );
-	Result.A = CheckValueCast<uint8>( (int)(0.5f + Tmp[3] ) );
+	Result.R = IntCastChecked<uint8>( (int)(0.5f + Tmp[0] ) );
+	Result.G = IntCastChecked<uint8>( (int)(0.5f + Tmp[1] ) );
+	Result.B = IntCastChecked<uint8>( (int)(0.5f + Tmp[2] ) );
+	Result.A = IntCastChecked<uint8>( (int)(0.5f + Tmp[3] ) );
 
 	return Result;
 }

@@ -78,8 +78,8 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30"), Category = "Function Settings")
 	int64 DefaultValue;
 
-	/** This function's starting channel */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", DisplayPriority = "2"), Category = "Function Settings")
+	/** This function's starting channel (use editor above to make changes) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", DisplayPriority = "2"), Category = "Function Settings")
 	int32 Channel;
 
 	/** DEPRECATED 5.0. Instead the 'Channel' property is EditAnywhere so any function can be assigned freely */
@@ -239,13 +239,6 @@ struct DMXRUNTIME_API FDMXFixtureMode
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (ClampMin = "4", ClampMax = "512", DisplayPriority = "40", EditCondition = "!bAutoChannelSpan"))
 	int32 ChannelSpan = 0;
 
-	/** 
-	 * Modulators applied right before a patch of this type is received. 
-	 * NOTE: Modulators only affect the patch's normalized values! Untouched values are still available when accesing raw values. 
-	 */
-	UPROPERTY(EditAnywhere, Instanced, Category = "Mode Settings", meta = (DisplayPriority = "50"))
-	TArray<UDMXModulator*> InputModulators;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (DisplayPriority = "60"))
 	bool bFixtureMatrixEnabled = false;
 
@@ -277,6 +270,11 @@ class DMXRUNTIME_API UDMXEntityFixtureType
 {
 	GENERATED_BODY()
 
+public:
+	/** Creates a new fixture patch in the DMX Library using the specified Fixture Type */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName = TEXT(""));
+
 	//~ Begin UObject interface
 protected:
 	virtual void Serialize(FArchive& Ar) override;
@@ -288,6 +286,7 @@ public:
 	virtual void PostEditUndo() override;
 #endif
 	//~ End UObject interface
+
 
 public:
 #if WITH_EDITOR
@@ -308,6 +307,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
 	TArray<FDMXFixtureMode> Modes;
+
+	/** 
+	 * Modulators applied right before a patch of this type is received. 
+	 * NOTE: Modulators only affect the patch's normalized values! Untouched values are still available when accesing raw values. 
+	 */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Mode Settings", meta = (DisplayPriority = "50"))
+	TArray<UDMXModulator*> InputModulators;
 
 private:
 	/** Delegate that should be broadcast whenever a fixture type changed */
@@ -526,9 +532,6 @@ public:
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "FixtureMatrixEnabled is deprecated. Instead now each Mode has a FixtureMatrixEnabled property."))
 	bool bFixtureMatrixEnabled = false;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Fixture Type's 'Input Modulators' property is deprecated. Instead now each Mode has its own Input Modulators."))
-	TArray<UDMXModulator*> InputModulators;
 
 private:
 #if WITH_EDITOR

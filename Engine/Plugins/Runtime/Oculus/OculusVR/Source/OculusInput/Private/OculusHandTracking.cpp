@@ -98,6 +98,27 @@ ETrackingConfidence FOculusHandTracking::GetTrackingConfidence(const int32 Contr
 	return ETrackingConfidence::Low;
 }
 
+ETrackingConfidence FOculusHandTracking::GetFingerTrackingConfidence(const int32 ControllerIndex, const EOculusHandType DeviceHand, const EOculusHandAxes Finger)
+{
+	TSharedPtr<FOculusInput> OculusInputModule = StaticCastSharedPtr<FOculusInput>(IOculusInputModule::Get().GetInputDevice());
+	if (OculusInputModule.IsValid())
+	{
+		TArray<FOculusControllerPair> ControllerPairs = OculusInputModule.Get()->ControllerPairs;
+		for (const FOculusControllerPair& HandPair : ControllerPairs)
+		{
+			if (HandPair.UnrealControllerIndex == ControllerIndex)
+			{
+				if (DeviceHand != EOculusHandType::None)
+				{
+					ovrpHand Hand = DeviceHand == EOculusHandType::HandLeft ? ovrpHand_Left : ovrpHand_Right;
+					return HandPair.HandControllerStates[Hand].FingerConfidences[(int)Finger];
+				}
+			}
+		}
+	}
+	return ETrackingConfidence::Low;
+}
+
 FTransform FOculusHandTracking::GetPointerPose(const int32 ControllerIndex, const EOculusHandType DeviceHand, const float WorldToMeters)
 {
 #if OCULUS_INPUT_SUPPORTED_PLATFORMS
@@ -177,6 +198,27 @@ bool FOculusHandTracking::IsHandDominant(const int32 ControllerIndex, const EOcu
 		}
 	}
 #endif
+	return false;
+}
+
+bool FOculusHandTracking::IsHandPositionValid(int32 ControllerIndex, EOculusHandType DeviceHand)
+{
+	TSharedPtr<FOculusInput> OculusInputModule = StaticCastSharedPtr<FOculusInput>(IOculusInputModule::Get().GetInputDevice());
+	if (OculusInputModule.IsValid())
+	{
+		TArray<FOculusControllerPair> ControllerPairs = OculusInputModule.Get()->ControllerPairs;
+		for (const FOculusControllerPair& HandPair : ControllerPairs)
+		{
+			if (HandPair.UnrealControllerIndex == ControllerIndex)
+			{
+				if (DeviceHand != EOculusHandType::None)
+				{
+					ovrpHand Hand = DeviceHand == EOculusHandType::HandLeft ? ovrpHand_Left : ovrpHand_Right;
+					return HandPair.HandControllerStates[Hand].bIsPositionValid;
+				}
+			}
+		}
+	}
 	return false;
 }
 

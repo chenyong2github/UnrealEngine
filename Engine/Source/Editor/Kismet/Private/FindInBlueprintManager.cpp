@@ -398,7 +398,7 @@ namespace FiBSerializationHelpers
 			// Determine the editor object version that the asset package was last serialized with
 			FString PackageFilename;
 			const FString PackageName = FPackageName::ObjectPathToPackageName(InAssetPath);
-			if (ensureMsgf(FPackageName::DoesPackageExist(PackageName, nullptr, &PackageFilename), TEXT("FiB: Failed to map package to filename.")))
+			if (ensureMsgf(FPackageName::DoesPackageExist(PackageName, &PackageFilename), TEXT("FiB: Failed to map package to filename.")))
 			{
 				// Open a new file archive for reading
 				FArchive* PackageFile = IFileManager::Get().CreateFileReader(*PackageFilename);
@@ -2412,7 +2412,7 @@ void FFindInBlueprintSearchManager::OnBlueprintUnloaded(UBlueprint* InBlueprint)
 						if (FPackagePath::TryFromPackageName(PackageName, PackagePath))
 						{
 							FPackagePath OutPackagePath;
-							const FPackageName::EPackageLocationFilter PackageLocation = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Any, nullptr, /*bMatchCaseOnDisk*/ false, &OutPackagePath);
+							const FPackageName::EPackageLocationFilter PackageLocation = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Any, /*bMatchCaseOnDisk*/ false, &OutPackagePath);
 							if (PackageLocation != FPackageName::EPackageLocationFilter::None)
 							{
 								if (PackageLocation == FPackageName::EPackageLocationFilter::Uncooked && OutPackagePath.HasLocalPath())

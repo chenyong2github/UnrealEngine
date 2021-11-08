@@ -608,7 +608,7 @@ FEditorFileUtils::EPromptReturnCode PackageRestore::PromptToRestorePackages(cons
 		const FString& AutoSavePath = It.Value();
 
 		FString PackageFilename;
-		if(FPackageName::DoesPackageExist(PackageFullPath, nullptr, &PackageFilename))
+		if(FPackageName::DoesPackageExist(PackageFullPath, &PackageFilename))
 		{
 			FPackageRestoreItemPtr PackageItemPtr = MakeShared<FPackageRestoreItem>(PackageFullPath, PackageFilename, AutoSaveDir / AutoSavePath, true/*bIsExistingPackage*/);
 			PackageRestoreItems.Add(PackageItemPtr);

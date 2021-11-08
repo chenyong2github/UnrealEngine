@@ -2,7 +2,6 @@
 
 #include "SStatsTableCell.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -79,7 +78,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 		[
 			SNew(SImage)
 			.Visibility(this, &SStatsTableCell::GetHintIconVisibility)
-			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+			.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
 			.ToolTip(GetRowToolTip(TableRow))
 		]
 
@@ -112,7 +111,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(STextBlock)
 			.Text(this, &SStatsTableCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)
 		]
@@ -127,7 +126,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(STextBlock)
 			.Visibility(this, &SStatsTableCell::HasExtraDisplayName)
 			.Text(this, &SStatsTableCell::GetExtraDisplayName)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetExtraColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)
 		]
@@ -165,7 +164,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArgumen
 		[
 			SNew(STextBlock)
 			.Text(this, &SStatsTableCell::GetValueAsText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)
 		]

@@ -90,6 +90,9 @@ FTextureRHIRef FD3D12CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, u
 	case RRT_Texture2D:
 		return DynamicRHI->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags | TexCreate_Shared, InBinding, (ID3D12Resource*) InTexture).GetReference();
 
+	case RRT_Texture2DArray:
+		return DynamicRHI->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags | TexCreate_Shared, InBinding, (ID3D12Resource*)InTexture).GetReference();
+
 	case RRT_TextureCube:
 		return DynamicRHI->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags | TexCreate_Shared, InBinding, (ID3D12Resource*) InTexture).GetReference();
 

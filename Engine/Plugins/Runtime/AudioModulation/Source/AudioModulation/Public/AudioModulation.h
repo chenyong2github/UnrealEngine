@@ -10,6 +10,7 @@
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "SoundModulationGenerator.h"
+#include "SoundModulationParameter.h"
 #include "Stats/Stats.h"
 
 
@@ -18,7 +19,6 @@ DECLARE_STATS_GROUP(TEXT("AudioModulation"), STATGROUP_AudioModulation, STATCAT_
 
 // Tracks the time for the full render block 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Modulators"), STAT_AudioModulationProcessModulators, STATGROUP_AudioModulation, AUDIOMODULATION_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Controls"), STAT_AudioModulationProcessControls, STATGROUP_AudioModulation, AUDIOMODULATION_API);
 
 namespace AudioModulation
 {
@@ -81,6 +81,7 @@ namespace AudioModulation
 		virtual Audio::FModulatorTypeId RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter) override;
 		virtual void RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId) override;
 		virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const override;
+		virtual bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const override;
 		virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) override;
 
 	private:

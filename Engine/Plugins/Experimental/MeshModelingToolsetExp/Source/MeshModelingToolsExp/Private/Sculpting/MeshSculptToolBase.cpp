@@ -56,7 +56,7 @@ float FBrushToolRadius::GetWorldRadius() const
 
 void FBrushToolRadius::IncreaseRadius(bool bSmallStep)
 {
-	float StepSize = (bSmallStep) ? 0.025f : 0.005f;
+	float StepSize = (bSmallStep) ? 0.005f : 0.025f;
 	if (SizeType == EBrushToolSizeType::Adaptive)
 	{
 		AdaptiveSize = FMath::Clamp(AdaptiveSize + StepSize, 0.0f, 1.0f);
@@ -70,7 +70,7 @@ void FBrushToolRadius::IncreaseRadius(bool bSmallStep)
 
 void FBrushToolRadius::DecreaseRadius(bool bSmallStep)
 {
-	float StepSize = (bSmallStep) ? 0.025f : 0.005f;
+	float StepSize = (bSmallStep) ? 0.005f : 0.025f;
 	if (SizeType == EBrushToolSizeType::Adaptive)
 	{
 		AdaptiveSize = FMath::Clamp(AdaptiveSize - StepSize, 0.0f, 1.0f);
@@ -927,21 +927,25 @@ double UMeshSculptToolBase::GetCurrentBrushDepth()
 void UMeshSculptToolBase::IncreaseBrushRadiusAction()
 {
 	BrushProperties->BrushSize.IncreaseRadius(false);
+	CalculateBrushRadius();
 }
 
 void UMeshSculptToolBase::DecreaseBrushRadiusAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(false);
+	CalculateBrushRadius();
 }
 
 void UMeshSculptToolBase::IncreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.IncreaseRadius(true);
+	CalculateBrushRadius();
 }
 
 void UMeshSculptToolBase::DecreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(true);
+	CalculateBrushRadius();
 }
 
 
@@ -1307,22 +1311,6 @@ void UMeshSculptToolBase::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 
 void UMeshSculptToolBase::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::IncreaseBrushSize,
-		TEXT("SculptIncreaseRadius"),
-		LOCTEXT("SculptIncreaseRadius", "Increase Sculpt Radius"),
-		LOCTEXT("SculptIncreaseRadiusTooltip", "Increase radius of sculpting brush"),
-		EModifierKey::None, EKeys::RightBracket,
-		[this]() { IncreaseBrushRadiusAction(); });
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::DecreaseBrushSize,
-		TEXT("SculptDecreaseRadius"),
-		LOCTEXT("SculptDecreaseRadius", "Decrease Sculpt Radius"),
-		LOCTEXT("SculptDecreaseRadiusTooltip", "Decrease radius of sculpting brush"),
-		EModifierKey::None, EKeys::LeftBracket,
-		[this]() { DecreaseBrushRadiusAction(); });
-
-
-
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
 		TEXT("NextBrushMode"),
 		LOCTEXT("SculptNextBrushMode", "Next Brush Type"),
@@ -1380,6 +1368,34 @@ void UMeshSculptToolBase::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("SculptDecreaseSize", "Decrease Size"),
 		LOCTEXT("SculptDecreaseSizeTooltip", "Decrease Brush Size"),
 		EModifierKey::Shift, EKeys::S,
+		[this]() { DecreaseBrushRadiusSmallStepAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::IncreaseBrushSize,
+		TEXT("SculptIncreaseRadius"),
+		LOCTEXT("SculptIncreaseRadius", "Increase Radius"),
+		LOCTEXT("SculptIncreaseRadiusTooltip", "Increase Brush Radius"),
+		EModifierKey::None, EKeys::RightBracket,
+		[this]() { IncreaseBrushRadiusAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::DecreaseBrushSize,
+		TEXT("SculptDecreaseRadius"),
+		LOCTEXT("SculptDecreaseRadius", "Decrease Radius"),
+		LOCTEXT("SculptDecreaseRadiusTooltip", "Decrease Brush Radius"),
+		EModifierKey::None, EKeys::LeftBracket,
+		[this]() { DecreaseBrushRadiusAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 54,
+		TEXT("SculptIncreaseRadiusSmallStep"),
+		LOCTEXT("SculptIncreaseRadius", "Increase Radius"),
+		LOCTEXT("SculptIncreaseRadiusTooltip", "Increase Brush Radius"),
+		EModifierKey::Shift, EKeys::RightBracket,
+		[this]() { IncreaseBrushRadiusSmallStepAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 55,
+		TEXT("SculptDecreaseRadiusSmallStemp"),
+		LOCTEXT("SculptDecreaseRadius", "Decrease Radius"),
+		LOCTEXT("SculptDecreaseRadiusTooltip", "Decrease Brush Radius"),
+		EModifierKey::Shift, EKeys::LeftBracket,
 		[this]() { DecreaseBrushRadiusSmallStepAction(); });
 
 

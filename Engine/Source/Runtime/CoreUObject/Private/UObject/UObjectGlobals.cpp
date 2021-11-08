@@ -1246,7 +1246,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		{
 			FUObjectSerializeContext* InOutLoadContext = LoadContext;
-			Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, nullptr, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
+			Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
 			if (InOutLoadContext != LoadContext && InOutLoadContext)
 			{
 				// The linker already existed and was associated with another context
@@ -2603,6 +2603,16 @@ UObject* StaticAllocateObject
 			// Check that the object hasn't been destroyed yet.
 			if(!Obj->HasAnyFlags(RF_FinishDestroyed))
 			{
+				if (FPlatformProperties::RequiresCookedData())
+				{
+					ensureAlwaysMsgf(!Obj->HasAnyFlags(RF_NeedLoad|RF_WasLoaded),
+						TEXT("Replacing a loaded public object is not supported with cooked data: %s (Flags=0x%08x, InternalObjectFlags=0x%08x)"),
+						*Obj->GetFullName(),
+						InOuter ? *InOuter->GetFullName() : TEXT("NULL"),
+						(int32)Obj->GetFlags(),
+						(int32)Obj->GetInternalFlags());
+				}
+
 				// Get the name before we start the destroy, as destroy renames it
 				FString OldName = Obj->GetFullName();
 
@@ -2741,6 +2751,13 @@ UObject::UObject(const FObjectInitializer& ObjectInitializer)
 }
 
 
+static int32 GVerifyUObjectsAreNotFGCObjects = 1;
+static FAutoConsoleVariableRef CVarVerifyUObjectsAreNotFGCObjects(
+	TEXT("gc.VerifyUObjectsAreNotFGCObjects"),
+	GVerifyUObjectsAreNotFGCObjects,
+	TEXT("If true, the engine will throw a warning when it detects a UObject-derived class which also derives from FGCObject or any of its members is derived from FGCObject"),
+	ECVF_Default
+);
 
 FObjectInitializer::FObjectInitializer()
 	: Obj(nullptr)
@@ -2748,6 +2765,7 @@ FObjectInitializer::FObjectInitializer()
 	, bCopyTransientsFromClassDefaults(false)
 	, bShouldInitializePropsFromArchetype(false)
 	, InstanceGraph(nullptr)
+	, PropertyInitCallback([](){})
 {
 	Construct_Internal();
 }	
@@ -2758,6 +2776,7 @@ FObjectInitializer::FObjectInitializer(UObject* InObj, const FStaticConstructObj
 	, bCopyTransientsFromClassDefaults(StaticConstructParams.bCopyTransientsFromClassDefaults)
 	, bShouldInitializePropsFromArchetype(true)
 	, InstanceGraph(StaticConstructParams.InstanceGraph)
+	, PropertyInitCallback(StaticConstructParams.PropertyInitCallback)
 {
 	if (StaticConstructParams.SubobjectOverrides)
 	{
@@ -2767,13 +2786,14 @@ FObjectInitializer::FObjectInitializer(UObject* InObj, const FStaticConstructObj
 	Construct_Internal();
 }	
 
-FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph)
+FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, EObjectInitializerOptions InOptions, struct FObjectInstancingGraph* InInstanceGraph)
 	: Obj(InObj)
 	, ObjectArchetype(InObjectArchetype)
 	  // if the SubobjectRoot NULL, then we want to copy the transients from the template, otherwise we are doing a duplicate and we want to copy the transients from the class defaults
-	, bCopyTransientsFromClassDefaults(bInCopyTransientsFromClassDefaults)
-	, bShouldInitializePropsFromArchetype(bInShouldInitializeProps)
+	, bCopyTransientsFromClassDefaults(!!(InOptions & EObjectInitializerOptions::CopyTransientsFromClassDefaults))
+	, bShouldInitializePropsFromArchetype(!!(InOptions & EObjectInitializerOptions::InitializeProperties))
 	, InstanceGraph(InInstanceGraph)
+	, PropertyInitCallback([](){})
 {
 	Construct_Internal();
 }
@@ -2791,25 +2811,57 @@ void FObjectInitializer::Construct_Internal()
 	{
 		Obj->GetClass()->SetupObjectInitializer(*this);
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (GIsEditor && GVerifyUObjectsAreNotFGCObjects && FGCObject::GGCObjectReferencer && 
+		// We can limit the test to native CDOs only
+		Obj && Obj->HasAnyFlags(RF_ClassDefaultObject) && !Obj->GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+	{
+		OnGCObjectCreatedHandle = FGCObject::GGCObjectReferencer->GetGCObjectAddedDelegate().AddRaw(this, &FObjectInitializer::OnGCObjectCreated);
+	}
+#endif // WITH_EDITORONLY_DATA
 }
+
+#if WITH_EDITORONLY_DATA
+void FObjectInitializer::OnGCObjectCreated(FGCObject* InGCObject)
+{
+	check(Obj);
+	uint8* ObjectAddress = (uint8*)Obj;
+	uint8* GCObjectAddress = (uint8*)InGCObject;
+
+	// Look for FGCObjects whose address is within the memory bounds of the object being initialized 
+	if (GCObjectAddress >= ObjectAddress && GCObjectAddress < (ObjectAddress + Obj->GetClass()->GetPropertiesSize()))
+	{
+		// We can't report this FGCObject immediately as it's not fully constructed yet, so we're going to store it in a list for processing later
+		CreatedGCObjects.Add(InGCObject);
+	}
+}
+#endif // WITH_EDITORONLY_DATA
 
 /**
  * Destructor for internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
 FObjectInitializer::~FObjectInitializer()
 {
+#if WITH_EDITORONLY_DATA
+	if (OnGCObjectCreatedHandle.IsValid())
+	{
+		FGCObject::GGCObjectReferencer->GetGCObjectAddedDelegate().Remove(OnGCObjectCreatedHandle);
+		for (FGCObject* CreatedObj : CreatedGCObjects)
+		{
+			// FObjectInitializer destructor runs after the UObject it initialized has had its constructors called so it's now safe to 
+			// access GetReferencerName() function
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("Class %s contains an FGCObject (%s) member or is derived from it"), *Obj->GetClass()->GetPathName(), *CreatedObj->GetReferencerName());
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	// if we're not at the top of ObjectInitializers, then this is most 
-	// likely a deferred FObjectInitializer that's a copy of one that was used 
-	// in a constructor (that has already been popped)
 	if (!bIsDeferredInitializer)
 	{
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-		check(ThreadContext.TopInitializer() == this);
-		ThreadContext.PopInitializer();
-		
 		// Let the FObjectFinders know we left the constructor.
 		ThreadContext.IsInConstructor--;
 		check(ThreadContext.IsInConstructor >= 0);
@@ -2867,6 +2919,19 @@ FObjectInitializer::~FObjectInitializer()
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	{
 		PostConstructInit();
+	}
+
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	// if we're not at the top of ObjectInitializers, then this is most 
+	// likely a deferred FObjectInitializer that's a copy of one that was used 
+	// in a constructor (that has already been popped)
+	// We're not popping this initializer from the stack in the same place where we decrement IsInConstructor
+	// because we still want to be able to access the current initializer from PostConstructInit or any of its callbacks
+	if (!bIsDeferredInitializer)
+	{
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING		
+		check(ThreadContext.TopInitializer() == this);
+		ThreadContext.PopInitializer();
 	}
 }
 
@@ -3009,6 +3074,12 @@ void FObjectInitializer::PostConstructInit()
 	if (bNeedInstancing || bNeedSubobjectInstancing)
 	{
 		InstanceSubobjects(Class, bNeedInstancing, bNeedSubobjectInstancing);
+	}
+
+	// Allow custom property initialization to happen before PostInitProperties is called
+	if (PropertyInitCallback)
+	{
+		PropertyInitCallback();
 	}
 
 	// Make sure subobjects knows that they had their properties overwritten
@@ -4251,7 +4322,7 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 	}
 
 	// Try to convert this to a file path
-	if (FPackageName::DoesPackageExist(AssetPath, 0, &FilePath) == false)
+	if (FPackageName::DoesPackageExist(AssetPath, &FilePath) == false)
 	{
 		// if failed, assume we were given something that's a file path (e.g. ../../../Game/Whatever)
 		FilePath = AssetPath;
@@ -4996,6 +5067,11 @@ namespace UECodeGen_Private
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		NewPackage->SetGuid(FGuid(Params.BodyCRC, Params.DeclarationsCRC, 0u, 0u));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+		// Store the CRC in UPackage::PersistentGuid since UPackage::Guid will be removed.
+		// Replace the PersistentGuid generated from UPackage::PostInitProperties() that changes every time.
+		NewPackage->SetPersistentGuid(FGuid(Params.BodyCRC, Params.DeclarationsCRC, 0u, 0u));
+#endif
 
 #if WITH_RELOAD
 		TArray<UFunction*> Delegates;

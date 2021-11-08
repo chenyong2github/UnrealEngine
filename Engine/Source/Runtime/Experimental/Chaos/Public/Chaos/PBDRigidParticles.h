@@ -219,12 +219,6 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	TArrayCollectionArray<int32> MSolverBodyIndex;	// Transient for use in constraint solver
 };
 
-#if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API TPBDRigidParticles<FReal,3>;
-#else
-extern template class TPBDRigidParticles<FReal,3>;
-#endif
-
 using FPBDRigidParticles = TPBDRigidParticles<FReal, 3>;
 
 template <typename T, int d>

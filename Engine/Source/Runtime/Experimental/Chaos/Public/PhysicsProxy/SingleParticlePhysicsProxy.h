@@ -938,6 +938,13 @@ public:
 				SetV(FVec3(0), bInvalidate);
 				SetW(FVec3(0), bInvalidate);
 			}
+
+			if (InState == EObjectStateType::Kinematic && Rigid->ObjectState() != EObjectStateType::Kinematic)
+			{
+				// NOTE: using ClearKinematicTarget() here would just clean the dirty flag, but we actually
+				// want to make sure the kinematic target mode is set to "None", which is how it's default constructed.
+				SetKinematicTarget(Chaos::TKinematicTarget<Chaos::FReal, 3>(), bInvalidate);
+			}
 		}
 
 		SetObjectStateBase(InState, bAllowEvents, bInvalidate);

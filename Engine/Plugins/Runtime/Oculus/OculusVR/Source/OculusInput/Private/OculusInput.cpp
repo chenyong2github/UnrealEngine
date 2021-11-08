@@ -23,6 +23,7 @@ const FKey FOculusKey::OculusTouch_Left_FaceButton1("OculusTouch_Left_FaceButton
 const FKey FOculusKey::OculusTouch_Left_FaceButton2("OculusTouch_Left_FaceButton2");
 const FKey FOculusKey::OculusTouch_Left_IndexPointing("OculusTouch_Left_IndexPointing");
 const FKey FOculusKey::OculusTouch_Left_ThumbUp("OculusTouch_Left_ThumbUp");
+const FKey FOculusKey::OculusTouch_Left_ThumbRest("OculusTouch_Left_ThumbRest");
 
 const FKey FOculusKey::OculusTouch_Right_Thumbstick("OculusTouch_Right_Thumbstick");
 const FKey FOculusKey::OculusTouch_Right_Trigger("OculusTouch_Right_Trigger");
@@ -30,6 +31,7 @@ const FKey FOculusKey::OculusTouch_Right_FaceButton1("OculusTouch_Right_FaceButt
 const FKey FOculusKey::OculusTouch_Right_FaceButton2("OculusTouch_Right_FaceButton2");
 const FKey FOculusKey::OculusTouch_Right_IndexPointing("OculusTouch_Right_IndexPointing");
 const FKey FOculusKey::OculusTouch_Right_ThumbUp("OculusTouch_Right_ThumbUp");
+const FKey FOculusKey::OculusTouch_Right_ThumbRest("OculusTouch_Right_ThumbRest");
 
 const FKey FOculusKey::OculusRemote_DPad_Down("OculusRemote_DPad_Down");
 const FKey FOculusKey::OculusRemote_DPad_Up("OculusRemote_DPad_Up");
@@ -74,6 +76,7 @@ const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Left_FaceButton1("Oculu
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Left_FaceButton2("OculusTouch_Left_FaceButton2");
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Left_IndexPointing("OculusTouch_Left_IndexPointing");
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Left_ThumbUp("OculusTouch_Left_ThumbUp");
+const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Left_ThumbRest("OculusTouch_Left_ThumbRest");
 
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_Thumbstick("OculusTouch_Right_Thumbstick");
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_Trigger("OculusTouch_Right_Trigger");
@@ -81,6 +84,7 @@ const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_FaceButton1("Ocul
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_FaceButton2("OculusTouch_Right_FaceButton2");
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_IndexPointing("OculusTouch_Right_IndexPointing");
 const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_ThumbUp("OculusTouch_Right_ThumbUp");
+const FOculusKeyNames::Type FOculusKeyNames::OculusTouch_Right_ThumbRest("OculusTouch_Right_ThumbRest");
 
 const FOculusKeyNames::Type FOculusKeyNames::OculusRemote_DPad_Down("OculusRemote_DPad_Down");
 const FOculusKeyNames::Type FOculusKeyNames::OculusRemote_DPad_Up("OculusRemote_DPad_Up");
@@ -177,6 +181,7 @@ void FOculusInput::PreInit()
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_FaceButton2, LOCTEXT("OculusTouch_Left_FaceButton2", "Oculus Touch (L) Y Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_IndexPointing, LOCTEXT("OculusTouch_Left_IndexPointing", "Oculus Touch (L) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_ThumbUp, LOCTEXT("OculusTouch_Left_ThumbUp", "Oculus Touch (L) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_ThumbRest, LOCTEXT("OculusTouch_Left_ThumbRest", "Oculus Touch (L) Thumb Rest CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_Thumbstick, LOCTEXT("OculusTouch_Right_Thumbstick", "Oculus Touch (R) Thumbstick CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton1, LOCTEXT("OculusTouch_Right_FaceButton1", "Oculus Touch (R) A Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
@@ -184,6 +189,7 @@ void FOculusInput::PreInit()
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton2, LOCTEXT("OculusTouch_Right_FaceButton2", "Oculus Touch (R) B Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_IndexPointing, LOCTEXT("OculusTouch_Right_IndexPointing", "Oculus Touch (R) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_ThumbUp, LOCTEXT("OculusTouch_Right_ThumbUp", "Oculus Touch (R) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_ThumbRest, LOCTEXT("OculusTouch_Right_ThumbRest", "Oculus Touch (R) Thumb Rest CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 
 	EKeys::AddMenuCategoryDisplayInfo("OculusRemote", LOCTEXT("OculusRemoteSubCategory", "Oculus Remote"), TEXT("GraphEditor.PadEvent_16x"));
 
@@ -613,6 +619,12 @@ void FOculusInput::SendControllerEvents()
 									CurrentAxisVal = (OvrpControllerState.NearTouches & mask) != 0 ? 0.f : 1.f;
 									break;
 								}
+								case EOculusTouchCapacitiveAxes::ThumbRest:
+								{
+									const uint32 mask = (bIsLeft) ? ovrpTouch_LThumbRest : ovrpTouch_RThumbRest;
+									CurrentAxisVal = (OvrpControllerState.Touches & mask) != 0 ? 1.f : 0.f;
+									break;
+								}
 								default:
 									check(0);
 								}
@@ -707,6 +719,12 @@ void FOculusInput::SendControllerEvents()
 
 								State.bIsDominantHand = (HandState.Status & ovrpHandStatus_DominantHand) != 0;
 								
+								// Poll for finger confidence
+								for (uint32 FingerIndex = 0; FingerIndex < (int32)EOculusHandAxes::TotalAxisCount; FingerIndex++)
+								{
+									State.FingerConfidences[FingerIndex] = FOculusHandTracking::ToETrackingConfidence(HandState.FingerConfidences[FingerIndex]);
+								}
+
 								// Poll for finger pinches
 								for (uint32 FingerIndex = 0; FingerIndex < (uint32)EOculusHandButton::TotalButtonCount; FingerIndex++)
 								{
@@ -985,7 +1003,14 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 										OutOrientation = OutPose.Orientation.Rotator();
 									}
 
-									return true;
+									auto bSuccess = true;
+									UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
+										DeviceHand,
+										&OutPosition,
+										&OutOrientation,
+										&bSuccess);
+
+									return bSuccess;
 								}
 							}
 						}
@@ -997,7 +1022,13 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 		}
 	}
 
-	return false;
+	auto bSuccess = false;
+	UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
+		DeviceHand,
+		&OutPosition,
+		&OutOrientation,
+		&bSuccess);
+	return bSuccess;
 }
 
 ETrackingStatus FOculusInput::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const

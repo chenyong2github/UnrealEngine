@@ -26,6 +26,12 @@ struct FGeometry;
 struct FLensFileEvalData;
 struct FPointerEvent;
 
+/** Enumeration of overlay passes used to indicate which overlay pass to interact with */
+enum class EOverlayPassType : uint8
+{
+	ToolOverlay = 0,
+	UserOverlay = 1
+};
 
 /**
  * Controller for SCameraCalibrationSteps, where the calibration steps are hosted in.
@@ -122,37 +128,16 @@ public:
 	bool ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const;
 
 	/** Returns true if the overlay transform pass is currently enabled */
-	bool IsOverlayEnabled() const;
+	bool IsOverlayEnabled(EOverlayPassType OverlayPass = EOverlayPassType::ToolOverlay) const;
 
 	/** Sets the enabled state of the overlay transform pass */
-	void SetOverlayEnabled(const bool bEnabled = true);
+	void SetOverlayEnabled(const bool bEnabled = true, EOverlayPassType OverlayPass = EOverlayPassType::ToolOverlay);
 
 	/** Sets the overlay material to be used by the overlay transform pass */
-	void SetOverlayMaterial(UMaterialInterface* OverlayMaterial, bool bShowOverlay = true);
+	void SetOverlayMaterial(UMaterialInterface* OverlayMaterial, bool bShowOverlay = true, EOverlayPassType OverlayPass = EOverlayPassType::ToolOverlay);
 
-	/** Gets the overlay material currently used by the overlay transform pass */
-	const UMaterialInterface* const GetOverlayMaterial() const;
-
-	/** Get the current value of the input parameter from the overlay material */
-	bool GetOverlayScalarParameterValue(const FName& ParameterName, float& OutValue) const;
-
-	/** Get the min value of the input parameter from the overlay material */
-	bool GetOverlayScalarParameterMinMax(const FName& ParameterName, float& OutMinValue, float& OutMaxValue) const;
-
-	/** Get the value of the input parameter from the overlay material */
-	bool GetOverlayVectorParameterValue(const FName& ParameterName, FLinearColor& OutValue) const;
-
-	/** Get the value of the input parameter from the overlay material */
-	bool GetOverlayTextureParameterValue(const FName& ParameterName, UTexture*& OutValue) const;
-
-	/** Set the value of the input scalar parameter on the overlay material */
-	void SetOverlayScalarParameter(const FName& ParameterName, const float NewValue);
-
-	/** Set the value of the input vector parameter on the overlay material */
-	void SetOverlayVectorParameter(const FName& ParameterName, const FLinearColor& NewValue);
-
-	/** Set the value of the input texture parameter on the overlay material */
-	void SetOverlayTextureParameter(const FName& ParameterName, UTexture* NewValue);
+	/** Redraw the overlay material used by the input overlay pass */
+	void RefreshOverlay(EOverlayPassType OverlayPass = EOverlayPassType::ToolOverlay);
 
 public:
 
@@ -190,6 +175,18 @@ private:
 
 	/** Finds and creates the available calibration steps */
 	void CreateSteps();
+
+	/** Create a new material transform pass to represent an overlay and add it to the master comp */
+	void CreateOverlayPass(FName PassName, TWeakObjectPtr<UCompositingElementMaterialPass>& OverlayPass, TWeakObjectPtr<UTextureRenderTarget2D>& OverlayRenderTarget);
+
+	/** Returns the overlay material pass associated with the input overlay pass type */
+	UCompositingElementMaterialPass* GetOverlayMaterialPass(EOverlayPassType OverlayPassType) const;
+
+	/** Returns the overlay render target used by the input overlay pass type */
+	UTextureRenderTarget2D* GetOverlayRenderTarget(EOverlayPassType OverlayPassType) const;
+
+	/** Returns the overlay material used by the input overlay pass type */
+	UMaterialInterface* GetOverlayMaterial(EOverlayPassType OverlayPass) const;
 
 private:
 
@@ -229,8 +226,23 @@ private:
 	/** The material pass the does the CG + MediaPlate composite with a wiper weight */
 	TWeakObjectPtr<UCompositingElementMaterialPass> MaterialPass;
 
-	/** The material pass that renders an overlay on top of the composite */
-	TWeakObjectPtr<UCompositingElementMaterialPass> OverlayPass;
+	/** A material pass set by one of the calibration steps that renders an overlay on top of the composite */
+	TWeakObjectPtr<UCompositingElementMaterialPass> ToolOverlayPass;
+
+	/** A material pass set by the user (via the editor UI) that renders an overlay on top of the composite */
+	TWeakObjectPtr<UCompositingElementMaterialPass> UserOverlayPass;
+
+	/** The material used to render the overlay for the tool overlay pass */
+	TWeakObjectPtr<UMaterialInterface> ToolOverlayMaterial;
+
+	/** The material used to render the overlay for the user overlay pass */
+	TWeakObjectPtr<UMaterialInterface> UserOverlayMaterial;
+
+	/** The render target used as input to the tool overlay material */
+	TWeakObjectPtr<UTextureRenderTarget2D> ToolOverlayRenderTarget;
+
+	/** The render target used as input to the user overlay material */
+	TWeakObjectPtr<UTextureRenderTarget2D> UserOverlayRenderTarget;
 
 	/** The currently selected camera */
 	TWeakObjectPtr<ACameraActor> Camera;

@@ -6,7 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 
-namespace
+namespace LevelSnapshots
 {
 	using namespace SnapshotUtil::Property;
 	
@@ -68,7 +68,7 @@ namespace
 
 void SnapshotUtil::Property::FollowPropertyChain(void* ContainerPtr, const FArchiveSerializedPropertyChain* PropertyChain, const FProperty* LeafProperty, FHandleValuePtr Callback)
 {
-	RecursiveFollowPropertyChain(0, ContainerPtr, PropertyChain, LeafProperty, Callback);
+	LevelSnapshots::RecursiveFollowPropertyChain(0, ContainerPtr, PropertyChain, LeafProperty, Callback);
 }
 
 bool SnapshotUtil::Property::FollowPropertyChainUntilPredicateIsTrue(void* ContainerPtr, const FArchiveSerializedPropertyChain* PropertyChain, const FProperty* LeafProperty, FValuePtrPredicate Callback)

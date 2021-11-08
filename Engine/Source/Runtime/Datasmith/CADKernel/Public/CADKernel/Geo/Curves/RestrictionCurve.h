@@ -8,7 +8,7 @@ namespace CADKernel
 {
 	/**
 	 * A restriction curve is the curve carrying an edge
-	 * 
+	 *
 	 * It's defined by
 	 * - A surfacic curve defined by a 2D curve (@see Curve2D) and the carrier surface (@see CarrierSurface) of the TopologicalFace containing the edge:
 	 * - A linear approximation of the surfacic curve (@see Polyline) respecting the System Geometrical Tolerance (@see FKernelParameters::GeometricalTolerance)
@@ -35,12 +35,7 @@ namespace CADKernel
 			MinLinearTolerance = Boundary.ComputeMinimalTolerance();
 		}
 
-		FRestrictionCurve(FCADKernelArchive& Archive)
-			: FSurfacicCurve()
-		{
-			Serialize(Archive);
-			MinLinearTolerance = Boundary.ComputeMinimalTolerance();
-		}
+		FRestrictionCurve() = default;
 
 	public:
 
@@ -48,6 +43,10 @@ namespace CADKernel
 		{
 			FSurfacicCurve::Serialize(Ar);
 			Polyline.Serialize(Ar);
+			if (Ar.IsLoading())
+			{
+				MinLinearTolerance = Boundary.ComputeMinimalTolerance();
+			}
 		}
 
 #ifdef CADKERNEL_DEV
@@ -72,7 +71,7 @@ namespace CADKernel
 
 		/**
 		 * Fast computation of the point in the parametric space of the carrier surface.
-		 * This approximation is based on FSurfacicPolyline::Polyline 
+		 * This approximation is based on FSurfacicPolyline::Polyline
 		 */
 		FPoint2D Approximate2DPoint(double InCoordinate) const
 		{
@@ -148,7 +147,7 @@ namespace CADKernel
 		 * A check is done to verify that:
 		 * - the curve is degenerated in the parametric space of the carrier surface i.e. the 2D length of the curve is not nearly equal to zero
 		 * - the curve is degenerated in 3D i.e. the 3D length of the curve is not nearly equal to zero
-		 * 
+		 *
 		 * A curve can be degenerated in 3D and not in 2D in the case of locally degenerated carrier surface.
 		 */
 		void CheckIfDegenerated(const FLinearBoundary& InBoundary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const
@@ -206,7 +205,7 @@ namespace CADKernel
 		}
 
 		/**
-		 * Samples the sub curve limited by the boundary respecting the input Desired segment length 
+		 * Samples the sub curve limited by the boundary respecting the input Desired segment length
 		 */
 		void Sample(const FLinearBoundary& InBoundary, const double DesiredSegmentLength, TArray<double>& OutCoordinates) const
 		{

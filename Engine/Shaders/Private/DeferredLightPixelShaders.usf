@@ -11,6 +11,12 @@
 
 #include "LargeWorldCoordinates.ush"
 
+#if STRATA_ENABLED
+	#define USE_ENERGY_CONSERVATION 1
+#else
+	#define USE_ENERGY_CONSERVATION 0
+#endif
+
 #include "DeferredShadingCommon.ush"
 #include "DeferredLightingCommon.ush"
 
@@ -229,7 +235,6 @@ void DeferredLightPixelMain(
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
-		float SurfaceShadow = 1.0f;
 
 		float3 V =-DerivedParams.CameraVector;
 		float3 L = LightData.Direction;	// Already normalized
@@ -252,7 +257,6 @@ void DeferredLightPixelMain(
 			const float FakeContactShadowOpacity = 1.0f;
 			GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
 				LightData, DerivedParams.TranslatedWorldPosition, L, LightAttenuation, Dither, ShadowTerms);
-			SurfaceShadow = ShadowTerms.SurfaceShadow;
 
 			Radiance = StrataDeferredLighting(
 				LightData,

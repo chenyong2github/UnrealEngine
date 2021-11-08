@@ -17,6 +17,7 @@
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "SRigSpacePickerWidget.h"
 #include "Containers/SortedMap.h"
+#include "KeyBarCurveModel.h"
 
 struct FKeyHandle;
 struct FKeyDrawParams;
@@ -57,6 +58,8 @@ struct FControlRigSpaceChannelHelpers
 	static void DeleteTransformKeysAtThisTime(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* Section, FName ControlName, FFrameNumber Time);
 	static FLinearColor GetColor(const FMovieSceneControlRigSpaceBaseKey& Key);
 	static FReply OpenBakeDialog(ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, int32 KeyIndex, UMovieSceneSection* SectionToKey);
+	static TArray<FKeyBarCurveModel::FBarRange> FindRanges(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Section);
+
 };
 
 //template specialization
@@ -66,13 +69,13 @@ FKeyHandle AddOrUpdateKey(FMovieSceneControlRigSpaceChannel* Channel, UMovieScen
 bool CanCreateKeyEditor(const FMovieSceneControlRigSpaceChannel*       Channel);
 TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>&        Channel, UMovieSceneSection* Section, const FGuid& InObjectBindingID, TWeakPtr<FTrackInstancePropertyBindings> PropertyBindings, TWeakPtr<ISequencer> Sequencer);
 
+/** Key drawing overrides */
+void DrawKeys(FMovieSceneControlRigSpaceChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams);
+void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Owner, const FGeometry& AllottedGeometry,FSequencerSectionPainter& Painter);
 
 //UMovieSceneKeyStructType* IstanceGeneratedStruct(FMovieSceneControlRigSpaceChannel* Channel, FSequencerKeyStructGenerator* Generator);
 
-//void PostConstructKeystance(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& ChannelHandle, FKeyHandle InHandle, FStructOnScope* Struct);
-
-/** Key drawing overrides */
-//void DrawKeys(FMovieSceneControlRigSpaceChannel*    Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams);
+//void PostConstructKeystance(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& ChannelHandle, FKeyHandle InHandle, FStructOnScope* Struct)
 
 /** Context menu overrides */
 //void ExtendSectionMenu(FMenuBuilder& OuterMenuBuilder, TArray<TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>>&& Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer);

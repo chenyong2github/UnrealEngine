@@ -2,7 +2,6 @@
 
 #include "SNetStatsViewTooltip.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -12,6 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/NetworkingProfiler/ViewModels/NetEventNode.h"
@@ -38,7 +38,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetTableTooltip(const Insights::FTabl
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDisplayName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -47,7 +47,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetTableTooltip(const Insights::FTabl
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -69,7 +69,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetColumnTooltip(const Insights::FTab
 			[
 				SNew(STextBlock)
 				.Text(Column.GetTitleName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -78,7 +78,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetColumnTooltip(const Insights::FTab
 			[
 				SNew(STextBlock)
 				.Text(Column.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -135,14 +135,14 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Event Type Index:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(FText::AsNumber(NetEventNodePtr->GetEventTypeIndex()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					// Name: [Name]
@@ -151,7 +151,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
@@ -160,7 +160,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 						.WrapTextAt(512.0f)
 						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(NetEventNodePtr->GetName()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					//// Group: [MetaGroupName]
@@ -169,7 +169,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					//[
 					//	SNew(STextBlock)
 					//	.Text(LOCTEXT("TT_Group", "Group:"))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+					//	.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					//]
 					//+ SGridPanel::Slot(1, 2)
 					//.Padding(2.0f)
@@ -178,7 +178,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					//	.WrapTextAt(512.0f)
 					//	.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 					//	.Text(FText::FromName(NetEventNodePtr->GetMetaGroupName()))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+					//	.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					//]
 
 					// Net Event Type: [Type]
@@ -187,14 +187,14 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 3)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(NetEventNodeTypeHelper::ToText(NetEventNodePtr->GetType()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 				]
 
@@ -217,14 +217,14 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_NumInstances", "Num Instances:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(InstanceCountText)
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 				]
 
@@ -248,7 +248,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_InclusiveSize", "Inclusive"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(2, 0)
 					.Padding(FMargin(8.0f, 2.0f, 2.0f, 2.0f))
@@ -256,7 +256,7 @@ TSharedPtr<SToolTip> SNetStatsViewTooltip::GetRowTooltip(const TSharedPtr<FNetEv
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_ExclusiveSize", "Exclusive"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 
 					// Stats are added here.
@@ -289,7 +289,7 @@ void SNetStatsViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, 
 		[
 			SNew(STextBlock)
 			.Text(Name)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 		];
 
 	Grid->AddSlot(1, Row)
@@ -298,7 +298,7 @@ void SNetStatsViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, 
 		[
 			SNew(STextBlock)
 			.Text(Value1)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		];
 
 	Grid->AddSlot(2, Row)
@@ -307,7 +307,7 @@ void SNetStatsViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, 
 		[
 			SNew(STextBlock)
 			.Text(Value2)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		];
 
 	Row++;

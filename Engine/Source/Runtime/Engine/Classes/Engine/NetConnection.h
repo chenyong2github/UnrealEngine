@@ -309,6 +309,9 @@ public:
 		bForceInitialDirty = bValue;
 	}
 
+	/** Destructor */
+	ENGINE_API virtual ~UNetConnection() {};
+
 private:
 	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
 	uint32 bReplay : 1;			// Flag to indicate a replay connection, independent of reliability

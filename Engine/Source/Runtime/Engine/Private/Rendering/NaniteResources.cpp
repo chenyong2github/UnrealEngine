@@ -208,7 +208,7 @@ void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) cons
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(PageDependencies.GetAllocatedSize());
 }
 
-class FVertexFactory : public ::FVertexFactory
+class FVertexFactory final : public ::FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
 

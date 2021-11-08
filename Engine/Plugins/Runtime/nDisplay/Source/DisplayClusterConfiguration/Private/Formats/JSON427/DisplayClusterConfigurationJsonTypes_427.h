@@ -383,6 +383,9 @@ struct FDisplayClusterConfigurationJsonOverscan_427
 
 public:
 	UPROPERTY()
+	bool bEnabled = false;
+
+	UPROPERTY()
 	FString Mode = "";
 
 	UPROPERTY()

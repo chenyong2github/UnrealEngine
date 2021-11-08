@@ -42,7 +42,7 @@ static FString WriteBackup(UPackage& Package, const FString& Directory, const FS
 	{
 		const FString DestinationFilename = Directory + FString("/") + Filename;
 		FString OriginalFilename;
-		if (FPackageName::DoesPackageExist(Package.GetName(), nullptr, &OriginalFilename))
+		if (FPackageName::DoesPackageExist(Package.GetName(), &OriginalFilename))
 		{
 			if (IFileManager::Get().Copy(*DestinationFilename, *OriginalFilename) == COPY_OK)
 			{

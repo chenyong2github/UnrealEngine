@@ -11,7 +11,7 @@
 /**
  * Simple projection policy screen component
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Screen"))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Screen"), HideCategories=(StaticMesh, Materials, ComponentTick, Physics, Collision, Lighting, Navigation, VirtualTexture, ComponentReplication, Cooking, LOD, MaterialParameters, HLOD, RayTracing, TextureStreaming, Mobile))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 	: public UStaticMeshComponent
 {

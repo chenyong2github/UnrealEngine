@@ -47,6 +47,15 @@
 			]
 		},
 		{
+			"Name": "OculusOpenXRHMD",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Android"
+			]
+		},
+		{
 			"Name": "OculusEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
@@ -58,6 +67,10 @@
 	"Plugins": [
 		{
 			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		},
+		{
+			"Name": "OpenXR",
 			"Enabled": true
 		}
 	]

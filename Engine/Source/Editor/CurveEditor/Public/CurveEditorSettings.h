@@ -48,6 +48,21 @@ struct FCustomColorForChannel
 
 };
 
+/** Custom Color Object*/
+USTRUCT()
+struct FCustomColorForSpaceSwitch
+{
+	GENERATED_BODY()
+
+	FCustomColorForSpaceSwitch() : Color(1.0f, 1.0f, 1.0f, 1.0f) {};
+
+	UPROPERTY(EditAnywhere, Category = "Space Switch Colors")
+	FString ControlName;
+	UPROPERTY(EditAnywhere, Category = "Space Switch Colors")
+	FLinearColor Color;
+
+};
+
 /** Serializable options for curve editor. */
 UCLASS(config=EditorPerProjectUserSettings)
 class CURVEEDITOR_API UCurveEditorSettings : public UObject
@@ -94,6 +109,13 @@ public:
 	/** Delete Custom Color for the specified parameters. */
 	void DeleteCustomColor(UClass* InClass, const FString& InPropertyName);
 
+	/** Get custom color for space name. Parent and World are reserved names and will be used instead of the specified control name. */
+	TOptional<FLinearColor> GetSpaceSwitchColor(const FString& InControlName) const;
+	/** Set Custom Space SwitchColor for the specified control name. */
+	void SetSpaceSwitchColor(const FString& InControlName, FLinearColor InColor);
+	/** Delete Custom Space Switch Color for the specified control name. */
+	void DeleteSpaceSwitchColor(const FString& InControlName);
+
 	/** Helper function to get next random linear color*/
 	static FLinearColor GetNextRandomColor();
 
@@ -120,4 +142,13 @@ protected:
 
 	UPROPERTY(config, EditAnywhere, Category="Curve Editor")
 	TArray<FCustomColorForChannel> CustomColors;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	FLinearColor ParentSpaceCustomColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	FLinearColor WorldSpaceCustomColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	TArray<FCustomColorForSpaceSwitch> ControlSpaceCustomColors;
 };

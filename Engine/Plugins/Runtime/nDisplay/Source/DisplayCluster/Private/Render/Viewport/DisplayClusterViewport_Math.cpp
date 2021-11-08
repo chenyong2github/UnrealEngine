@@ -111,11 +111,32 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 		GetNonZeroFrustumRange(b, t, n);
 	}
 
+	// Support custom frustum rendering
+	const float OrigValues[] = {l, r, t, b};
+	if (CustomFrustumRendering.UpdateProjectionAngles(l, r, t, b))
+	{
+		const bool bIsValidLimits =  FMath::IsWithin(l, -MaxValue, MaxValue)
+							&& FMath::IsWithin(r, -MaxValue, MaxValue)
+							&& FMath::IsWithin(t, -MaxValue, MaxValue)
+							&& FMath::IsWithin(b, -MaxValue, MaxValue);
+
+		if (!bIsValidLimits)
+		{
+			// overscan out of frustum : disable
+			CustomFrustumRendering.Disable();
+
+			// restore orig values
+			l = OrigValues[0];
+			r = OrigValues[1];
+			t = OrigValues[2];
+			b = OrigValues[3];
+		}
+	}
+
 	Contexts[InContextNum].ProjectionMatrix = ImplCreateProjectionMatrix(l, r, t, b, n, f);
 
 	if (OverscanRendering.UpdateProjectionAngles(l, r, t, b))
 	{
-		//@todo : disable overscan if frustum out of limits.
 		if (FMath::IsWithin(l, -MaxValue, MaxValue) &&
 			FMath::IsWithin(r, -MaxValue, MaxValue) &&
 			FMath::IsWithin(t, -MaxValue, MaxValue) &&

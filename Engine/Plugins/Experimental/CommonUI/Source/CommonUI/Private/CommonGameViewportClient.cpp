@@ -28,27 +28,6 @@ UCommonGameViewportClient::~UCommonGameViewportClient()
 {
 }
 
-void UCommonGameViewportClient::PostInitProperties()
-{
-	if (!IsTemplate())
-	{
-		if (!OnRerouteInput().IsBound())
-		{
-			OnRerouteInput().BindUObject(this, &UCommonGameViewportClient::HandleRerouteInput);
-		}
-		if (!OnRerouteAxis().IsBound())
-		{
-			OnRerouteAxis().BindUObject(this, &UCommonGameViewportClient::HandleRerouteAxis);
-		}
-		if (!OnRerouteTouch().IsBound())
-		{
-			OnRerouteTouch().BindUObject(this, &UCommonGameViewportClient::HandleRerouteTouch);
-		}
-	}
-
-	Super::PostInitProperties();
-}
-
 bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
 	const FInputKeyEventArgs& EventArgs = InEventArgs;
@@ -64,7 +43,11 @@ bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 #endif
 	{		
 		FReply Result = FReply::Unhandled();
-		OnRerouteInput().ExecuteIfBound(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, Result);
+		if (!OnRerouteInput().ExecuteIfBound(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, Result))
+		{
+			HandleRerouteInput(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, Result);
+		}
+
 		if (Result.IsEventHandled())
 		{
 			return true;
@@ -79,7 +62,11 @@ bool UCommonGameViewportClient::InputAxis(FViewport* InViewport, int32 UserId, F
 	int32 ControllerId = UserId;
 	FReply RerouteResult = FReply::Unhandled();
 
-	OnRerouteAxis().ExecuteIfBound(ControllerId, Key, Delta, RerouteResult);
+	if (!OnRerouteAxis().ExecuteIfBound(ControllerId, Key, Delta, RerouteResult))
+	{
+		HandleRerouteAxis(ControllerId, Key, Delta, RerouteResult);
+	}
+
 	if (RerouteResult.IsEventHandled())
 	{
 		return true;
@@ -93,14 +80,15 @@ bool UCommonGameViewportClient::InputTouch(FViewport* InViewport, int32 Controll
 	if (ViewportConsole != NULL && (ViewportConsole->ConsoleState != NAME_Typing) && (ViewportConsole->ConsoleState != NAME_Open))
 #endif
 	{
-		if (OnRerouteTouch().IsBound())
+		FReply Result = FReply::Unhandled();
+		if (OnRerouteTouch().ExecuteIfBound(ControllerId, Handle, Type, TouchLocation, Result))
 		{
-			FReply Result = FReply::Unhandled();
-			OnRerouteTouch().Execute(ControllerId, Handle, Type, TouchLocation, Result);
-			if (Result.IsEventHandled())
-			{
-				return true;
-			}
+			HandleRerouteTouch(ControllerId, Handle, Type, TouchLocation, Result);
+		}
+
+		if (Result.IsEventHandled())
+		{
+			return true;
 		}
 	}
 

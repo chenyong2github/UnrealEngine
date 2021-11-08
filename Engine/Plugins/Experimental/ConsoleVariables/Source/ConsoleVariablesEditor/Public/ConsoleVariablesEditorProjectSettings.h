@@ -12,9 +12,10 @@ public:
 	
 	UConsoleVariablesEditorProjectSettings(const FObjectInitializer& ObjectInitializer)
 	{
-		bUseAwesomenessDetection = true;
+		bAddAllChangedConsoleVariablesToCurrentPreset = true;
 	}
 
-	UPROPERTY(EditAnywhere, Category="Console Variables")
-	bool bUseAwesomenessDetection;
+	/** If true, any console variable changes will be added to the current preset as long as the plugin is loaded. */
+	UPROPERTY(Config, EditAnywhere, Category="Console Variables")
+	bool bAddAllChangedConsoleVariablesToCurrentPreset;
 };

@@ -2265,17 +2265,17 @@ namespace Audio
 				float VolumeDestination = SourceInfo.VolumeSourceDestination;
 				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 				{
-					const bool bIsFirstProcessCall = SourceInfo.VolumeModulation.GetHasProcessed();
+					const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
 					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
 					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
 					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
-					if (bIsFirstProcessCall)
+					if (bHasProcessed)
 					{
-						VolumeStart *= ModVolumeEnd;
+						VolumeStart *= ModVolumeStart;
 					}
 					else
 					{
-						VolumeStart *= ModVolumeStart;
+						VolumeStart *= ModVolumeEnd;
 					}
 					VolumeDestination *= ModVolumeEnd;
 				}
@@ -2300,17 +2300,17 @@ namespace Audio
 				float VolumeDestination = SourceInfo.VolumeSourceDestination;
 				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 				{
-					const bool bIsFirstProcessCall = SourceInfo.VolumeModulation.GetHasProcessed();
+					const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
 					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
 					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
 					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
-					if (bIsFirstProcessCall)
+					if (bHasProcessed)
 					{
-						VolumeStart *= ModVolumeEnd;
+						VolumeStart *= ModVolumeStart;
 					}
 					else
 					{
-						VolumeStart *= ModVolumeStart;
+						VolumeStart *= ModVolumeEnd;
 					}
 					VolumeDestination *= ModVolumeEnd;
 				}

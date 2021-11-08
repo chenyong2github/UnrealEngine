@@ -377,7 +377,7 @@ private:
 	FOctreeNodeContext RootNodeContext;
 	TArray<FNode> TreeNodes;
 	TArray<FNodeIndex> ParentLinks;
-	TArray<ElementArrayType> TreeElements;
+	TArray<ElementArrayType, TAlignedHeapAllocator<alignof(ElementArrayType)>> TreeElements;
 
 	class FFreeList
 	{

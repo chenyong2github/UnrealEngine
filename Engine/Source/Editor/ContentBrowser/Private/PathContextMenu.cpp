@@ -129,7 +129,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 						FUIAction(),
 						EUserInterfaceActionType::Button,
 						false,
-						FSlateIcon()
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
 					);
 				}
 			}
@@ -141,7 +141,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					"Explore",
 					ContentBrowserUtils::GetExploreFolderText(),
 					LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.BrowseContent"),
 					FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteExplore ) )
 					);
 			}
@@ -164,7 +164,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					LOCTEXT("SetColorTooltip", "Sets the color this folder should appear as."),
 					FNewToolMenuDelegate::CreateRaw( this, &FPathContextMenu::MakeSetColorSubMenu ),
 					false,
-					FSlateIcon()
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Color")
 					);
 			}
 			else
@@ -174,7 +174,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					"SetColor",
 					LOCTEXT("SetColor", "Set Color"),
 					LOCTEXT("SetColorTooltip", "Sets the color this folder should appear as."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Color"),
 					FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecutePickColor ) )
 					);
 			}			
@@ -187,7 +187,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					"RemoveFromFavorites",
 					LOCTEXT("RemoveFromFavorites", "Remove From Favorites"),
 					LOCTEXT("RemoveFromFavoritesTooltip", "Removes this folder from the favorites section."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Favorites_Disabled"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.Favorites_Disabled"),
 					FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteFavorite))
 				);
 			}
@@ -198,7 +198,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					"AddToFavorites",
 					LOCTEXT("AddToFavorites", "Add To Favorites"),
 					LOCTEXT("AddToFavoritesTooltip", "Adds this folder to the favorites section for easy access."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Star"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Star"),
 					FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteFavorite))
 				);
 			}

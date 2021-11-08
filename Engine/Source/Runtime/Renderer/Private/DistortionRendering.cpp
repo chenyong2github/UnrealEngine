@@ -205,6 +205,9 @@ public:
 			// use same path for scene textures as post-process material
 			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), 1);
 		}
+
+		// Skip the material clip if depth test should not be done
+		OutEnvironment.SetDefine(TEXT("MATERIAL_SHOULD_DISABLE_DEPTH_TEST"), Parameters.MaterialParameters.bShouldDisableDepthTest ? 1 : 0);
 	}
 };
 
@@ -233,7 +236,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
 	return false;
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FDistortionPassParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FDistortionPassParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDistortionPassUniformParameters, Pass)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
@@ -921,13 +924,15 @@ bool FDistortionMeshProcessor::Process(
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(DistortionPassShaders.VertexShader, DistortionPassShaders.PixelShader);
 
+	const bool bDisableDepthTest = MaterialResource.ShouldDisableDepthTest();
+
 	BuildMeshDrawCommands(
 		MeshBatch,
 		BatchElementMask,
 		PrimitiveSceneProxy,
 		MaterialRenderProxy,
 		MaterialResource,
-		PassDrawRenderState,
+		bDisableDepthTest ? PassDrawRenderStateNoDepthTest : PassDrawRenderState,
 		DistortionPassShaders,
 		MeshFillMode,
 		MeshCullMode,
@@ -938,9 +943,15 @@ bool FDistortionMeshProcessor::Process(
 	return true;
 }
 
-FDistortionMeshProcessor::FDistortionMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
+FDistortionMeshProcessor::FDistortionMeshProcessor(
+	const FScene* Scene,
+	const FSceneView* InViewIfDynamicMeshCommand,
+	const FMeshPassProcessorRenderState& InPassDrawRenderState,
+	const FMeshPassProcessorRenderState& InDistortionPassStateNoDepthTest,
+	FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
+	, PassDrawRenderStateNoDepthTest(InDistortionPassStateNoDepthTest)
 {}
 
 FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
@@ -967,7 +978,15 @@ FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSc
 		DistortionPassState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
 	}
 
-	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, InDrawListContext);
+	FMeshPassProcessorRenderState DistortionPassStateNoDepthTest = DistortionPassState;
+	DistortionPassStateNoDepthTest.SetDepthStencilState(TStaticDepthStencilState<
+		false, CF_Always,
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+		kStencilMaskBit, kStencilMaskBit>::GetRHI());
+	DistortionPassStateNoDepthTest.SetStencilRef(kStencilMaskBit);
+
+	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassStateNoDepthTest, InDrawListContext);
 }
 
 FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
@@ -988,7 +1007,7 @@ FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, con
 		DistortionPassState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
 	}
 
-	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, InDrawListContext);
+	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterDistortionPass(&CreateDistortionPassProcessor, EShadingPath::Deferred, EMeshPass::Distortion, EMeshPassFlags::MainView);

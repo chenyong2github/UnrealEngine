@@ -231,20 +231,20 @@ namespace BlueprintActionFilterImpl
 	 * 
 	 * @param  Filter			Holds the TagetClass context for this test.
 	 * @param  BlueprintAction	The action you wish to query.
-	 * @param  Flags			Filter flags that may modify this test.
-	 * @return 
+	 * @param  Flags			Filter flags that may modify this test (@see FBlueprintActionFilter::EFlags).
+	 * @return True if the action should be rejected.
 	 */
 	static bool IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, uint32 Flags);
 
 	/**
-	 * Rejection test that checks to see if the node-spawner represents a field
+	 * Rejection test that checks to see if the node-spawner represents an object
 	 * that does NOT exist within the scope of the editor's current import set.
 	 *
 	 * @param  Filter			The filter context for this test.
-	 * @param  BlueprintAction	The action you wish to query.
-	 * @return True if the action is associated with a member field that is not included in any imported or global namespace.
+	 * @param  InObject			The associated object you wish to query.
+	 * @return True if the action is associated with an object that is not included in any imported or global namespace.
 	 */
-	static bool IsNonImportedField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
+	static bool IsNonImportedObject(FBlueprintActionFilter const& Filter, const UObject* InObject);
 
 	/**
 	 * Rejection test that checks to see if the node-spawner is associated with 
@@ -421,9 +421,10 @@ namespace BlueprintActionFilterImpl
 	 * 
 	 * @param  Filter			Holds the graph context for this test.
 	 * @param  BlueprintAction	The action you wish to query.
+	 * @param  Flags			Filter flags that may modify this test (@see FBlueprintActionFilter::EFlags).
 	 * @return True if the macro instance is incompatible with the current graph context
 	 */
-	static bool IsIncompatibleMacroInstance(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
+	static bool IsIncompatibleMacroInstance(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, uint32 Flags);
 
 	/**
 	 * Rejection test to help unblock common crashes, where programmers forget 
@@ -881,13 +882,12 @@ static bool BlueprintActionFilterImpl::IsDeprecated(FBlueprintActionFilter const
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsNonImportedField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
+static bool BlueprintActionFilterImpl::IsNonImportedObject(FBlueprintActionFilter const& Filter, const UObject* InObject)
 {
-	// All fields are considered to be imported if there is no context.
+	// All objects are considered to be imported if there is no context.
 	bool bIsFilteredOut = false;
 
-	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
-	if (Field.IsValid())
+	if (InObject)
 	{
 		// @todo_namespaces - Maybe cache this as part of the filter context, or decouple queries from the editor?
 		TArray<TSharedPtr<IBlueprintEditor>> BlueprintEditors;
@@ -903,7 +903,7 @@ static bool BlueprintActionFilterImpl::IsNonImportedField(FBlueprintActionFilter
 
 		for (const TSharedPtr<IBlueprintEditor>& BlueprintEditor : BlueprintEditors)
 		{
-			if (BlueprintEditor->IsNonImportedField(Field))
+			if (BlueprintEditor->IsNonImportedObject(InObject))
 			{
 				bIsFilteredOut = true;
 				break;
@@ -924,7 +924,17 @@ static bool BlueprintActionFilterImpl::IsRejectedGlobalField(FBlueprintActionFil
 	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
 	if (Field.IsValid() && IsGloballyAccessible(Field))
 	{
-		bIsFilteredOut = bRejectAllGlobalFields || (bRejectNonImportedFields && IsNonImportedField(Filter, BlueprintAction));
+		const UStruct* OuterType = nullptr;
+		if (const UField* FieldAsUObject = Cast<UField>(Field.ToUObject()))
+		{
+			OuterType = FieldAsUObject->GetOwnerStruct();
+		}
+		else
+		{
+			OuterType = Field.ToField()->GetOwnerStruct();
+		}
+
+		bIsFilteredOut = bRejectAllGlobalFields || (bRejectNonImportedFields && OuterType && IsNonImportedObject(Filter, OuterType));
 		
 		UClass* FieldClass = Field.GetOwnerClass();
 		if (bIsFilteredOut && (FieldClass != nullptr))
@@ -1780,14 +1790,21 @@ static bool BlueprintActionFilterImpl::IsExtraneousInterfaceCall(FBlueprintActio
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsIncompatibleMacroInstance(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
+static bool BlueprintActionFilterImpl::IsIncompatibleMacroInstance(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, uint32 Flags)
 {
 	bool bIsFilteredOut = false;
+
+	const bool bRejectNonImportedMacros = ((Flags & FBlueprintActionFilter::EFlags::BPFILTER_RejectNonImportedFields) != 0);
 
 	if(BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_MacroInstance>())
 	{
 		if(const UBlueprint* MacroBP = Cast<const UBlueprint>(BlueprintAction.GetActionOwner()))
 		{
+			if (bRejectNonImportedMacros && IsNonImportedObject(Filter, MacroBP))
+			{
+				return true;
+			}
+
 			if (!ensure(MacroBP->ParentClass != nullptr))
 			{
 				return true;
@@ -2061,7 +2078,7 @@ FBlueprintActionFilter::FBlueprintActionFilter(uint32 Flags/*= 0x00*/)
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleWithGraphType));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsSchemaIncompatible));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsExtraneousInterfaceCall));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleMacroInstance));
+	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleMacroInstance, Flags));
 
 	if (!(Flags & BPFILTER_PermitDeprecated))
 	{

@@ -2,7 +2,6 @@
 
 #include "SNetStatsTableCell.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -13,6 +12,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetStatsTableRow.h"
@@ -78,7 +78,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 		[
 			SNew(SImage)
 			.Visibility(this, &SNetStatsTableCell::GetHintIconVisibility)
-			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+			.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
 			.ToolTip(GetRowToolTip(TableRow))
 		]
 
@@ -92,7 +92,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(STextBlock)
 			.Text(this, &SNetStatsTableCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SNetStatsTableCell::GetColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
 		]
@@ -107,7 +107,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(STextBlock)
 			.Visibility(this, &SNetStatsTableCell::HasExtraDisplayName)
 			.Text(this, &SNetStatsTableCell::GetExtraDisplayName)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SNetStatsTableCell::GetExtraColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
 		]
@@ -145,7 +145,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForStatsColumn(const FArgu
 		[
 			SNew(STextBlock)
 			.Text(this, &SNetStatsTableCell::GetValueAsText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &SNetStatsTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
 		]

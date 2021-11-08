@@ -238,11 +238,13 @@ public:
 
 	/**
 	 * Compute geodesic center of given Mesh
+	 * @return true if a central vertex was found (but if false, will still give a frame for *some* vertex as long as there is at least one vertex in the mesh)
 	 */
 	static bool EstimateGeodesicCenterFrameVertex(const FDynamicMesh3& Mesh, FFrame3d& FrameOut, int32 &VertexIDOut, bool bAlignToUnitAxes = true);
 
 	/**
 	 * Compute geodesic center of given Mesh triangles (assumes they are connected)
+	 * @return true if a central vertex was found (but if false, will still give a frame for *some* vertex as long as there is at least one triangle)
 	 */
 	static bool EstimateGeodesicCenterFrameVertex(const FDynamicMesh3& Mesh, const TArray<int32>& Triangles, FFrame3d& FrameOut, int32& VertexIDOut, bool bAlignToUnitAxes = true);
 

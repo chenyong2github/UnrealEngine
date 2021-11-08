@@ -1992,6 +1992,22 @@ uint32 SSceneOutliner::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) c
 	return Mode->GetTypeSortPriority(Item);
 }
 
+void SSceneOutliner::ExpandAll()
+{
+	for (FSceneOutlinerTreeItemPtr& Item : RootTreeItems)
+	{
+		SetItemExpansionRecursive(Item, true);
+	}
+}
+
+void SSceneOutliner::CollapseAll()
+{
+	for (FSceneOutlinerTreeItemPtr& Item : RootTreeItems)
+	{
+		SetItemExpansionRecursive(Item, false);
+	}
+}
+
 void SSceneOutliner::SetItemExpansionRecursive(FSceneOutlinerTreeItemPtr Model, bool bInExpansionState)
 {
 	if (Model.IsValid())

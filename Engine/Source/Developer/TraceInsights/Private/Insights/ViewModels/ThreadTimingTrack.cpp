@@ -907,8 +907,9 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
-							Context.AddFilterData<int64>(static_cast<int32>(EFilterField::EventType), 0);
 							Context.AddFilterData<FString>(static_cast<int32>(EFilterField::TrackName), this->GetName());
+							Context.AddFilterData<int64>(static_cast<int32>(EFilterField::TimerId), 0);
+							Context.AddFilterData<int64>(static_cast<int32>(EFilterField::TimerName), 0);
 						}
 					};
 					Params.Callback = [this, &Builder, TimerReader, &FilteredEvents, &FilterContexts](double StartTime, double EndTime, uint32 Depth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
@@ -920,7 +921,9 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 							Context.SetFilterData<double>(static_cast<int32>(EFilterField::StartTime), StartTime);
 							Context.SetFilterData<double>(static_cast<int32>(EFilterField::EndTime), EndTime);
 							Context.SetFilterData<double>(static_cast<int32>(EFilterField::Duration), EndTime - StartTime);
-							Context.SetFilterData<int64>(static_cast<int32>(EFilterField::EventType), Timer->Id);
+							// The TimerName filter also translates to the numeric Id for performance reasons.
+							Context.SetFilterData<int64>(static_cast<int32>(EFilterField::TimerId), Timer->Id);
+							Context.SetFilterData<int64>(static_cast<int32>(EFilterField::TimerName), Timer->Id);
 
 							if (FilterConfigurator->ApplyFilters(Context))
 							{
@@ -1442,7 +1445,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("FilterTrack", "Filter Track..."),
 			FText(),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Filter"),
 			FUIAction(FilterTrackAction, FCanExecuteAction::CreateLambda([]() { return true; })),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -1476,7 +1479,9 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParamet
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
-	FilterConfiguratorContext.AddFilterData<int64>(static_cast<int32>(EFilterField::EventType), 0);
+	FilterConfiguratorContext.AddFilterData<FString>(static_cast<int32>(EFilterField::TrackName), this->GetName());
+	FilterConfiguratorContext.AddFilterData<int64>(static_cast<int32>(EFilterField::TimerId), 0);
+	FilterConfiguratorContext.AddFilterData<int64>(static_cast<int32>(EFilterField::TimerName), 0);
 
 	return TTimingEventSearch<TraceServices::FTimingProfilerEvent>::Search(
 		InParameters,
@@ -1537,7 +1542,9 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParamet
 						FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::StartTime), EventStartTime);
 						FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::EndTime), EventEndTime);
 						FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::Duration), EventEndTime - EventStartTime);
-						FilterConfiguratorContext.SetFilterData<int64>(static_cast<int32>(EFilterField::EventType), Timer->Id);
+						FilterConfiguratorContext.SetFilterData<int64>(static_cast<int32>(EFilterField::TimerId), Timer->Id);
+						// The TimerName filter also translates to the numeric Id for performance reasons.
+						FilterConfiguratorContext.SetFilterData<int64>(static_cast<int32>(EFilterField::TimerName), Timer->Id);
 					}
 					return InParameters.FilterExecutor->ApplyFilters(FilterConfiguratorContext);
 				}
@@ -1611,7 +1618,7 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EventType), LOCTEXT("Type", "Type"), LOCTEXT("Type", "Type"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::TimerId), LOCTEXT("TimerId", "Timer Id"), LOCTEXT("TimerId", "Timer Id"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
 
 		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddLambda([this]()
 			{

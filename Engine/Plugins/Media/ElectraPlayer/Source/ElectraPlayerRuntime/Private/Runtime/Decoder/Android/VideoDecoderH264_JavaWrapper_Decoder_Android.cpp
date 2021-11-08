@@ -36,8 +36,33 @@
 namespace Electra
 {
 
-	namespace
+	class FAndroidJavaH264VideoDecoder : public IAndroidJavaH264VideoDecoder
+		, public FJavaClassObject
 	{
+	public:
+
+		FAndroidJavaH264VideoDecoder(IPlayerSessionServices* InPlayerSessionServices);
+		virtual ~FAndroidJavaH264VideoDecoder();
+
+		virtual int32 CreateDecoder() override;
+		virtual int32 InitializeDecoder(const FCreateParameters& InCreateParams) override;
+		virtual int32 SetOutputSurface(jobject InNewOutputSurface) override;
+		virtual int32 ReleaseDecoder() override;
+		virtual const FDecoderInformation* GetDecoderInformation() override;
+		virtual int32 Start() override;
+		virtual int32 Stop() override;
+		virtual int32 Flush() override;
+		virtual int32 Reset() override;
+		virtual int32 DequeueInputBuffer(int32 InTimeoutUsec) override;
+		virtual int32 QueueInputBuffer(int32 InBufferIndex, const void* InAccessUnitData, int32 InAccessUnitSize, int64 InTimestampUSec) override;
+		virtual int32 QueueCSDInputBuffer(int32 InBufferIndex, const void* InCSDData, int32 InCSDSize, int64 InTimestampUSec) override;
+		virtual int32 QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec) override;
+		virtual int32 GetOutputFormatInfo(FOutputFormatInfo& OutFormatInfo, int32 InOutputBufferIndex) override;
+		virtual int32 DequeueOutputBuffer(FOutputBufferInfo& OutBufferInfo, int32 InTimeoutUsec) override;
+		virtual int32 GetOutputBuffer(void*& OutBufferDataPtr, int32 OutBufferDataSize, const FOutputBufferInfo& InOutBufferInfo) override;
+		virtual int32 ReleaseOutputBuffer(int32 BufferIndex, int32 ValidCount, bool bRender, int64 releaseAt) override;
+
+	private:
 		//-----------------------------------------------------------------------------
 		/**
 		 * Posts an error to the session service error listeners.
@@ -78,37 +103,23 @@ namespace Electra
 				PlayerSessionServices->PostLog(Facility::EFacility::H264Decoder, Level, Message);
 			}
 		}
-	}
 
 
+		//-----------------------------------------------------------------------------
+		/**
+		 * Checks for and clears Java exceptions
+		 *
+		 * @param JEnv
+		 */
+		static void GClearException(JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv())
+		{
+			if (JEnv->ExceptionCheck())
+			{
+				JEnv->ExceptionDescribe();
+				JEnv->ExceptionClear();
+			}
+		}
 
-
-
-	class FAndroidJavaH264VideoDecoder : public IAndroidJavaH264VideoDecoder
-		, public FJavaClassObject
-	{
-	public:
-
-		FAndroidJavaH264VideoDecoder(IPlayerSessionServices* InPlayerSessionServices);
-		virtual ~FAndroidJavaH264VideoDecoder();
-
-		virtual int32 InitializeDecoder(const FCreateParameters& InCreateParams) override;
-		virtual int32 ReleaseDecoder() override;
-		virtual const FDecoderInformation* GetDecoderInformation() override;
-		virtual int32 Start() override;
-		virtual int32 Stop() override;
-		virtual int32 Flush() override;
-		virtual int32 Reset() override;
-		virtual int32 DequeueInputBuffer(int32 InTimeoutUsec) override;
-		virtual int32 QueueInputBuffer(int32 InBufferIndex, const void* InAccessUnitData, int32 InAccessUnitSize, int64 InTimestampUSec) override;
-		virtual int32 QueueCSDInputBuffer(int32 InBufferIndex, const void* InCSDData, int32 InCSDSize, int64 InTimestampUSec) override;
-		virtual int32 QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec) override;
-		virtual int32 GetOutputFormatInfo(FOutputFormatInfo& OutFormatInfo, int32 InOutputBufferIndex) override;
-		virtual int32 DequeueOutputBuffer(FOutputBufferInfo& OutBufferInfo, int32 InTimeoutUsec) override;
-		virtual int32 GetOutputBuffer(void*& OutBufferDataPtr, int32 OutBufferDataSize, const FOutputBufferInfo& InOutBufferInfo) override;
-		virtual int32 ReleaseOutputBuffer(int32 BufferIndex, int32 ValidCount, bool bRender, int64 releaseAt) override;
-
-	private:
 		static FName GetClassName()
 		{
 			return FName("com/epicgames/unreal/ElectraVideoDecoderH264");
@@ -146,15 +157,19 @@ namespace Electra
 			return RawBuffer;
 		}
 
+		void SetupDecoderInformation();
+
 		int32 release();
 
 		//
-		IPlayerSessionServices* PlayerSessionServices;
+		IPlayerSessionServices* PlayerSessionServices = nullptr;
 
 	public:
 		// Java methods
 		FJavaClassMethod	CreateDecoderFN;
 		FJavaClassMethod	ReleaseDecoderFN;
+		FJavaClassMethod	ConfigureDecoderFN;
+		FJavaClassMethod	SetOutputSurfaceFN;
 		FJavaClassMethod	ReleaseFN;
 		FJavaClassMethod	StartFN;
 		FJavaClassMethod	StopFN;
@@ -182,9 +197,6 @@ namespace Electra
 		jfieldID			FCreateParameters_bNeedTunneling;
 		jfieldID			FCreateParameters_CSD0;
 		jfieldID			FCreateParameters_CSD1;
-		jfieldID			FCreateParameters_ExternalRenderTextureID;
-		jfieldID			FCreateParameters_bRetainRenderer;
-		jfieldID			FCreateParameters_bSwizzleTexture;
 		jfieldID			FCreateParameters_NativeDecoderID;
 		jfieldID			FCreateParameters_VideoCodecSurface;
 		jfieldID			FCreateParameters_bSurfaceIsView;
@@ -192,6 +204,8 @@ namespace Electra
 		// FDecoderInformation member field IDs
 		jclass				FDecoderInformationClass;
 		jfieldID			FDecoderInformation_bIsAdaptive;
+		jfieldID			FDecoderInformation_ApiLevel;
+		jfieldID			FDecoderInformation_bCanUse_SetOutputSurface;
 
 		// FOutputFormatInfo member field IDs
 		jclass				FOutputFormatInfoClass;
@@ -214,11 +228,11 @@ namespace Electra
 		jfieldID			FOutputBufferInfo_bIsConfig;
 
 		// Internal state
-		FMediaCriticalSection						MutexLock;
+		FMediaCriticalSection			MutexLock;
 		TUniquePtr<FDecoderInformation>	CurrentDecoderInformation;
-		int32							CurrentValidCount;
-		bool							bHaveDecoder;
-		bool							bIsStarted;
+		int32							CurrentValidCount = 0;
+		bool							bHaveDecoder = false;
+		bool							bIsStarted = false;
 	};
 
 
@@ -241,8 +255,10 @@ namespace Electra
 	FAndroidJavaH264VideoDecoder::FAndroidJavaH264VideoDecoder(IPlayerSessionServices* InPlayerSessionServices)
 		: FJavaClassObject(GetClassName(), "()V")
 		, PlayerSessionServices(InPlayerSessionServices)
-		, CreateDecoderFN(GetClassMethod("CreateDecoder", "(Lcom/epicgames/unreal/ElectraVideoDecoderH264$FCreateParameters;)I"))
+		, CreateDecoderFN(GetClassMethod("CreateDecoder", "()I"))
 		, ReleaseDecoderFN(GetClassMethod("ReleaseDecoder", "()I"))
+		, ConfigureDecoderFN(GetClassMethod("ConfigureDecoder", "(Lcom/epicgames/unreal/ElectraVideoDecoderH264$FCreateParameters;)I"))
+		, SetOutputSurfaceFN(GetClassMethod("SetOutputSurface", "(Landroid/view/Surface;)I"))
 		, ReleaseFN(GetClassMethod("release", "()I"))
 		, StartFN(GetClassMethod("Start", "()I"))
 		, StopFN(GetClassMethod("Stop", "()I"))
@@ -274,9 +290,6 @@ namespace Electra
 		FCreateParameters_bNeedTunneling = FindField(JEnv, FCreateParametersClass, "bNeedTunneling", "Z", false);
 		FCreateParameters_CSD0 = FindField(JEnv, FCreateParametersClass, "CSD0", "[B", false);
 		FCreateParameters_CSD1 = FindField(JEnv, FCreateParametersClass, "CSD1", "[B", false);
-		FCreateParameters_ExternalRenderTextureID = FindField(JEnv, FCreateParametersClass, "ExternalRenderTextureID", "I", false);
-		FCreateParameters_bRetainRenderer = FindField(JEnv, FCreateParametersClass, "bRetainRenderer", "Z", false);
-		FCreateParameters_bSwizzleTexture = FindField(JEnv, FCreateParametersClass, "bSwizzleTexture", "Z", false);
 		FCreateParameters_NativeDecoderID = FindField(JEnv, FCreateParametersClass, "NativeDecoderID", "I", false);
 		FCreateParameters_VideoCodecSurface = FindField(JEnv, FCreateParametersClass, "VideoCodecSurface", "Landroid/view/Surface;", false);
 		FCreateParameters_bSurfaceIsView = FindField(JEnv, FCreateParametersClass, "bSurfaceIsView", "Z", false);
@@ -286,6 +299,8 @@ namespace Electra
 		FDecoderInformationClass = (jclass)JEnv->NewGlobalRef(localDecoderInformationClass);
 		JEnv->DeleteLocalRef(localDecoderInformationClass);
 		FDecoderInformation_bIsAdaptive = FindField(JEnv, FDecoderInformationClass, "bIsAdaptive", "Z", false);
+		FDecoderInformation_ApiLevel = FindField(JEnv, FDecoderInformationClass, "ApiLevel", "I", false);
+		FDecoderInformation_bCanUse_SetOutputSurface = FindField(JEnv, FDecoderInformationClass, "bCanUse_SetOutputSurface", "Z", false);
 
 		// Get field IDs for FOutputFormatInfo class members
 		jclass localOutputFormatInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraVideoDecoderH264$FOutputFormatInfo");
@@ -311,11 +326,8 @@ namespace Electra
 		FOutputBufferInfo_bIsEOS = FindField(JEnv, FOutputBufferInfoClass, "bIsEOS", "Z", false);
 		FOutputBufferInfo_bIsConfig = FindField(JEnv, FOutputBufferInfoClass, "bIsConfig", "Z", false);
 
-
-		// Internal state
-		CurrentValidCount = 0;
-		bHaveDecoder = false;
-		bIsStarted = false;
+		// Set up the initial decoder information.
+		SetupDecoderInformation();
 	}
 
 
@@ -340,7 +352,60 @@ namespace Electra
 
 	//-----------------------------------------------------------------------------
 	/**
-	 * Creates and initializes a Java instance of an H.264 video decoder.
+	 * Sets up the current decoder information.
+	 */
+	void FAndroidJavaH264VideoDecoder::SetupDecoderInformation()
+	{
+		// Create an instance of the init param structure and fill in the members.
+		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
+		jobject OutputInfo = JEnv->CallObjectMethod(Object, GetDecoderInformationFN.Method);
+		GClearException(JEnv);
+		// Failure will return no object.
+		check(OutputInfo != nullptr);
+		if (OutputInfo != nullptr)
+		{
+			CurrentDecoderInformation = MakeUnique<FDecoderInformation>();
+			CurrentDecoderInformation->ApiLevel = JEnv->GetIntField(OutputInfo, FDecoderInformation_ApiLevel);
+			CurrentDecoderInformation->bIsAdaptive = JEnv->GetBooleanField(OutputInfo, FDecoderInformation_bIsAdaptive);
+			CurrentDecoderInformation->bCanUse_SetOutputSurface = JEnv->GetBooleanField(OutputInfo, FDecoderInformation_bCanUse_SetOutputSurface);
+			JEnv->DeleteLocalRef(OutputInfo);
+		}
+	}
+
+
+	//-----------------------------------------------------------------------------
+	/**
+	 * Creates a Java instance of an H.264 video decoder.
+	 *
+	 * @return 0 if successful, 1 on error.
+	 */
+	int32 FAndroidJavaH264VideoDecoder::CreateDecoder()
+	{
+		FMediaCriticalSection::ScopedLock Lock(MutexLock);
+		int32 result = -1;
+
+		check(!bHaveDecoder);
+
+		CurrentDecoderInformation.Reset();
+
+		// Create and initialize a decoder instance.
+		result = CallMethod<int>(CreateDecoderFN);
+		GClearException();
+		if (result != 0)
+		{
+			return 1;
+		}
+
+		// Get decoder information
+		SetupDecoderInformation();
+
+		bHaveDecoder = true;
+		return 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	/**
+	 * Initializes the video decoder instance.
 	 *
 	 * @param InCreateParams
 	 *
@@ -349,86 +414,88 @@ namespace Electra
 	int32 FAndroidJavaH264VideoDecoder::InitializeDecoder(const FCreateParameters& InCreateParams)
 	{
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
-		int32 result = -1;
-
-		// Already have a decoder?
 		if (bHaveDecoder)
 		{
-			// Do not care about potential error return values here.
-			Stop();
-			ReleaseDecoder();
-			bHaveDecoder = false;
-		}
+			int32 result = -1;
 
-		CurrentDecoderInformation.Reset();
+			// Create an instance of the init param structure and fill in the members.
+			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
+			jobject CreateParams = JEnv->NewObject(FCreateParametersClass, FCreateParametersCTOR);
+			JEnv->SetIntField(CreateParams, FCreateParameters_MaxWidth, InCreateParams.MaxWidth);
+			JEnv->SetIntField(CreateParams, FCreateParameters_MaxHeight, InCreateParams.MaxHeight);
+			JEnv->SetIntField(CreateParams, FCreateParameters_MaxFPS, InCreateParams.MaxFrameRate);
+			//JEnv->SetBooleanField(CreateParams, FCreateParameters_bNeedSecure, false);
+			//JEnv->SetBooleanField(CreateParams, FCreateParameters_bNeedTunneling, false);
+			JEnv->SetIntField(CreateParams, FCreateParameters_NativeDecoderID, InCreateParams.NativeDecoderID);
 
-		// Create an instance of the init param structure and fill in the members.
-		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-		jobject CreateParams = JEnv->NewObject(FCreateParametersClass, FCreateParametersCTOR);
-		JEnv->SetIntField(CreateParams, FCreateParameters_MaxWidth, InCreateParams.MaxWidth);
-		JEnv->SetIntField(CreateParams, FCreateParameters_MaxHeight, InCreateParams.MaxHeight);
-		JEnv->SetIntField(CreateParams, FCreateParameters_MaxFPS, InCreateParams.MaxFrameRate);
-		//JEnv->SetBooleanField(CreateParams, FCreateParameters_bNeedSecure, false);
-		//JEnv->SetBooleanField(CreateParams, FCreateParameters_bNeedTunneling, false);
-		JEnv->SetIntField(CreateParams, FCreateParameters_NativeDecoderID, InCreateParams.NativeDecoderID);
+			JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, InCreateParams.VideoCodecSurface);
 
-		JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, InCreateParams.VideoCodecSurface);
-
-		if (InCreateParams.CodecData.IsValid())
-		{
-			JEnv->SetIntField(CreateParams, FCreateParameters_Width, InCreateParams.CodecData->ParsedInfo.GetResolution().Width);
-			JEnv->SetIntField(CreateParams, FCreateParameters_Height, InCreateParams.CodecData->ParsedInfo.GetResolution().Height);
-
-			MPEG::FAVCDecoderConfigurationRecord avc;
-			avc.SetRawData(InCreateParams.CodecData->RawCSD.GetData(), InCreateParams.CodecData->RawCSD.Num());
-			if (avc.Parse())
+			if (InCreateParams.CodecData.IsValid())
 			{
-				jbyteArray CSD0 = MakeJavaByteArray(avc.GetCodecSpecificDataSPS().GetData(), avc.GetCodecSpecificDataSPS().Num());
-				jbyteArray CSD1 = MakeJavaByteArray(avc.GetCodecSpecificDataPPS().GetData(), avc.GetCodecSpecificDataPPS().Num());
-				JEnv->SetObjectField(CreateParams, FCreateParameters_CSD0, CSD0);
-				JEnv->SetObjectField(CreateParams, FCreateParameters_CSD1, CSD1);
-				JEnv->DeleteLocalRef(CSD0);
-				JEnv->DeleteLocalRef(CSD1);
+				JEnv->SetIntField(CreateParams, FCreateParameters_Width, InCreateParams.CodecData->ParsedInfo.GetResolution().Width);
+				JEnv->SetIntField(CreateParams, FCreateParameters_Height, InCreateParams.CodecData->ParsedInfo.GetResolution().Height);
+
+				MPEG::FAVCDecoderConfigurationRecord avc;
+				avc.SetRawData(InCreateParams.CodecData->RawCSD.GetData(), InCreateParams.CodecData->RawCSD.Num());
+				if (avc.Parse())
+				{
+					jbyteArray CSD0 = MakeJavaByteArray(avc.GetCodecSpecificDataSPS().GetData(), avc.GetCodecSpecificDataSPS().Num());
+					jbyteArray CSD1 = MakeJavaByteArray(avc.GetCodecSpecificDataPPS().GetData(), avc.GetCodecSpecificDataPPS().Num());
+					JEnv->SetObjectField(CreateParams, FCreateParameters_CSD0, CSD0);
+					JEnv->SetObjectField(CreateParams, FCreateParameters_CSD1, CSD1);
+					JEnv->DeleteLocalRef(CSD0);
+					JEnv->DeleteLocalRef(CSD1);
+				}
 			}
-		}
 
-		// Pass along decoder output surface
-		JEnv->SetBooleanField(CreateParams, FCreateParameters_bRetainRenderer, InCreateParams.bRetainRenderer);
-		JEnv->SetBooleanField(CreateParams, FCreateParameters_bSurfaceIsView, InCreateParams.bSurfaceIsView);
+			// Pass along decoder output surface
+			JEnv->SetBooleanField(CreateParams, FCreateParameters_bSurfaceIsView, InCreateParams.bSurfaceIsView);
 
-		// Create and initialize a decoder instance.
-		result = CallMethod<int>(CreateDecoderFN, CreateParams);
-		JEnv->DeleteLocalRef(CreateParams);
-		if (JEnv->ExceptionCheck())
-		{
-			JEnv->ExceptionDescribe();
-			JEnv->ExceptionClear();
+			// Create and initialize a decoder instance.
+			result = CallMethod<int>(ConfigureDecoderFN, CreateParams);
+			JEnv->DeleteLocalRef(CreateParams);
+			GClearException(JEnv);
+			if (result != 0)
+			{
+				return 1;
+			}
+
+			return 0;
 		}
-		if (result != 0)
+		else
 		{
 			return 1;
 		}
-
-		// Get decoder information
-		jobject OutputInfo = JEnv->CallObjectMethod(Object, GetDecoderInformationFN.Method);
-		if (JEnv->ExceptionCheck())
-		{
-			JEnv->ExceptionDescribe();
-			JEnv->ExceptionClear();
-		}
-		// Failure will return no object.
-		check(OutputInfo != nullptr);
-		if (OutputInfo != nullptr)
-		{
-			CurrentDecoderInformation = MakeUnique<FDecoderInformation>();
-			CurrentDecoderInformation->bIsAdaptive = JEnv->GetBooleanField(OutputInfo, FDecoderInformation_bIsAdaptive);
-			JEnv->DeleteLocalRef(OutputInfo);
-		}
-
-		bHaveDecoder = true;
-		return 0;
 	}
 
+
+	//-----------------------------------------------------------------------------
+	/**
+	 * Attempts to set a new output surface on an existing and configured decoder.
+	 * 
+	 * @param InNewOutputSurface
+	 * 
+	 * @return 0 if successful, 1 on error.
+	 */
+	int32 FAndroidJavaH264VideoDecoder::SetOutputSurface(jobject InNewOutputSurface)
+	{
+		FMediaCriticalSection::ScopedLock Lock(MutexLock);
+		if (bHaveDecoder)
+		{
+			int32 result = -1;
+			result = CallMethod<int>(SetOutputSurfaceFN, InNewOutputSurface);
+			GClearException();
+			if (result != 0)
+			{
+				return 1;
+			}
+			return 0;
+		}
+		else
+		{
+			return 1;
+		}
+	}
 
 
 	//-----------------------------------------------------------------------------
@@ -443,12 +510,7 @@ namespace Electra
 		if (bHaveDecoder)
 		{
 			int32 result = CallMethod<int>(ReleaseDecoderFN);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			bHaveDecoder = false;
 			return result ? 1 : 0;
 		}
@@ -467,12 +529,7 @@ namespace Electra
 		Stop();
 
 		int32 result = CallMethod<int>(ReleaseFN);
-		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-		if (JEnv->ExceptionCheck())
-		{
-			JEnv->ExceptionDescribe();
-			JEnv->ExceptionClear();
-		}
+		GClearException();
 		return result ? 1 : 0;
 	}
 
@@ -501,12 +558,7 @@ namespace Electra
 		if (bHaveDecoder && !bIsStarted)
 		{
 			int32 result = CallMethod<int>(StartFN);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			if (result)
 			{
 				return result;
@@ -530,12 +582,7 @@ namespace Electra
 		if (bHaveDecoder && bIsStarted)
 		{
 			int32 result = CallMethod<int>(StopFN);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			if (result)
 			{
 				return result;
@@ -565,12 +612,7 @@ namespace Electra
 		if (bHaveDecoder && bIsStarted)
 		{
 			int32 result = CallMethod<int>(FlushFN);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			return result;
 		}
 		return 1;
@@ -590,12 +632,7 @@ namespace Electra
 		if (bHaveDecoder && !bIsStarted)
 		{
 			int32 result = CallMethod<int>(ResetFN);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			return result ? 1 : 0;
 		}
 		return 1;
@@ -616,12 +653,7 @@ namespace Electra
 		if (bHaveDecoder)
 		{
 			int32 result = CallMethod<int>(DequeueInputBufferFN, InTimeoutUsec);
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			return result;
 		}
 		return -1;
@@ -648,11 +680,7 @@ namespace Electra
 			jbyteArray  InData = MakeJavaByteArray((const uint8*)InAccessUnitData, InAccessUnitSize);
 			int32 result = CallMethod<int>(QueueInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
 			JEnv->DeleteLocalRef(InData);
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException(JEnv);
 			return result ? 1 : 0;
 		}
 		return 1;
@@ -679,11 +707,7 @@ namespace Electra
 			jbyteArray  InData = MakeJavaByteArray((const uint8*)InCSDData, InCSDSize);
 			int32 result = CallMethod<int>(QueueCSDInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
 			JEnv->DeleteLocalRef(InData);
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException(JEnv);
 			return result ? 1 : 0;
 		}
 		return 1;
@@ -704,13 +728,8 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder)
 		{
-			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 			int32 result = CallMethod<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException();
 			return result ? 1 : 0;
 		}
 		return 1;
@@ -733,11 +752,7 @@ namespace Electra
 		{
 			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 			jobject OutputInfo = JEnv->CallObjectMethod(Object, GetOutputFormatInfoFN.Method, InOutputBufferIndex);
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException(JEnv);
 			// Failure will return no object.
 			if (OutputInfo != nullptr)
 			{
@@ -773,11 +788,7 @@ namespace Electra
 		{
 			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 			jobject OutputInfo = JEnv->CallObjectMethod(Object, DequeueOutputBufferFN.Method, InTimeoutUsec);
-			if (JEnv->ExceptionCheck())
-			{
-				JEnv->ExceptionDescribe();
-				JEnv->ExceptionClear();
-			}
+			GClearException(JEnv);
 			// Failure will return no object.
 			if (OutputInfo != nullptr)
 			{
@@ -814,11 +825,7 @@ namespace Electra
 			{
 				JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 				jbyteArray RawDecoderArray = (jbyteArray)JEnv->CallObjectMethod(Object, GetOutputBufferFN.Method, InOutBufferInfo.BufferIndex);
-				if (JEnv->ExceptionCheck())
-				{
-					JEnv->ExceptionDescribe();
-					JEnv->ExceptionClear();
-				}
+				GClearException(JEnv);
 
 				if (RawDecoderArray != nullptr && OutBufferDataPtr != nullptr)
 				{
@@ -827,11 +834,11 @@ namespace Electra
 
 					check(RawBufferSize == InOutBufferInfo.Size);
 					check(RawBufferSize <= OutBufferDataSize)
-						if (RawDataPtr != nullptr)
-						{
-							memcpy(OutBufferDataPtr, RawDataPtr, RawBufferSize <= OutBufferDataSize ? RawBufferSize : OutBufferDataSize);
-							JEnv->ReleaseByteArrayElements(RawDecoderArray, RawDataPtr, JNI_ABORT);
-						}
+					if (RawDataPtr != nullptr)
+					{
+						FMemory::Memcpy(OutBufferDataPtr, RawDataPtr, RawBufferSize <= OutBufferDataSize ? RawBufferSize : OutBufferDataSize);
+						JEnv->ReleaseByteArrayElements(RawDecoderArray, RawDataPtr, JNI_ABORT);
+					}
 
 					JEnv->DeleteLocalRef(RawDecoderArray);
 				}
@@ -866,13 +873,8 @@ namespace Electra
 			if (ValidCount == CurrentValidCount)
 			{
 				// Yes...
-				JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 				int32 result = CallMethod<int>(ReleaseOutputBufferFN, BufferIndex, bRender, (long)releaseAt);
-				if (JEnv->ExceptionCheck())
-				{
-					JEnv->ExceptionDescribe();
-					JEnv->ExceptionClear();
-				}
+				GClearException();
 				return result ? 1 : 0;
 			}
 			else

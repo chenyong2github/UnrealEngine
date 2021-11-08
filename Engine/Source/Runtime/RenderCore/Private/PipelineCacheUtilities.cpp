@@ -158,7 +158,7 @@ namespace Private
 					if (Id.IsValidId())
 					{
 						int32 Index = Id.AsInteger();
-						WriteVarUIntToArchive(InnerArchive, uint64(Index + 1));
+						WriteVarUIntToArchive(InnerArchive, uint64(Index) + 1);
 					}
 					else
 					{

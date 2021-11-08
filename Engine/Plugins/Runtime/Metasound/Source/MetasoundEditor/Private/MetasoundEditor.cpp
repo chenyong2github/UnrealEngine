@@ -1562,6 +1562,14 @@ namespace Metasound
 							bNotifyReferenceLoop = true;
 							NodesToRemove.Add(GraphNode);
 						}
+						else
+						{
+							FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
+							if (!NewHandle->IsValid())
+							{
+								NodesToRemove.Add(GraphNode);
+							}
+						}
 					}
 					else
 					{

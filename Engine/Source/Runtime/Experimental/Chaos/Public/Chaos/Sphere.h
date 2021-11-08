@@ -213,9 +213,16 @@ namespace Chaos
 			return Center * Scale;
 		}
 
-		virtual const TAABB<T, d> BoundingBox() const
+		virtual const TAABB<T, d> BoundingBox() const override
 		{
 			return TAABB<T,d>(Center - TVector<T,d>(GetRadius()),Center + TVector<T,d>(GetRadius()));
+		}
+
+		virtual FAABB3 CalculateTransformedBounds(const FRigidTransform3& Transform) const override
+		{
+			const FVec3 TransformedCenter = Transform.TransformPosition(Center);
+			const FVec3 Extents = FVec3(GetRadius());
+			return FAABB3(TransformedCenter - Extents, TransformedCenter + Extents);
 		}
 
 		T GetArea() const 

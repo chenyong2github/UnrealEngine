@@ -50,21 +50,6 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "ShaderCompilerCore.h"
 
-#if ENABLE_COOK_STATS
-#include "ProfilingDebugging/ScopedTimers.h"
-namespace MaterialInstanceCookStats
-{
-	static double UpdateCachedExpressionDataSec = 0.0;
-
-	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
-		{
-			AddStat(TEXT("MaterialInstance"), FCookStatsManager::CreateKeyValueArray(
-				TEXT("UpdateCachedExpressionDataSec"), UpdateCachedExpressionDataSec
-			));
-		});
-}
-#endif
-
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_MaterialInstance_CopyUniformParamsInternal, STATGROUP_Shaders);
@@ -565,11 +550,11 @@ bool UMaterialInstance::UpdateParameters()
 
 		if (StaticParameters.bHasMaterialLayers && Parent)
 		{
-			const FMaterialLayersFunctions* ParentLayers = Parent->GetMaterialLayers();
-			if (ParentLayers)
+			FMaterialLayersFunctions ParentLayers;
+			if (Parent->GetMaterialLayers(ParentLayers))
 			{
 				TArray<int32> RemapLayerIndices;
-				if (StaticParameters.MaterialLayers.ResolveParent(*ParentLayers, RemapLayerIndices))
+				if (StaticParameters.MaterialLayers.ResolveParent(ParentLayers, RemapLayerIndices))
 				{
 					RemapLayerParameterIndicesArray(ScalarParameterValues, RemapLayerIndices);
 					RemapLayerParameterIndicesArray(VectorParameterValues, RemapLayerIndices);
@@ -725,10 +710,15 @@ void UMaterialInstance::InitResources()
 
 	checkf(SafeParent, TEXT("Invalid parent on %s"), *GetFullName());
 
+	// TODO - should merge all of render commands sent to initialize resource into a single command
 	// Set the material instance's parent on its resources.
 	if (Resource != nullptr)
 	{
 		Resource->GameThread_SetParent(SafeParent);
+		if (CachedData)
+		{
+			Resource->GameThread_UpdateCachedData(*CachedData);
+		}
 	}
 
 	GameThread_InitMIParameters(*this);
@@ -1685,12 +1675,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 		}
 	}
 
-	const FMaterialLayersFunctions* Layers = GetMaterialLayers();
-	if (Layers)
-	{
-		OutStaticParameters.bHasMaterialLayers = true;
-		OutStaticParameters.MaterialLayers = *Layers;
-	}
+	OutStaticParameters.bHasMaterialLayers = GetMaterialLayers(OutStaticParameters.MaterialLayers);
 
 	// Custom parameters.
 	CustomStaticParametersGetters.Broadcast(OutStaticParameters, this);
@@ -1864,7 +1849,7 @@ void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*
 #if WITH_EDITOR
 void UMaterialInstance::ForceRecompileForRendering()
 {
-	UpdateCachedLayerParameters();
+	UpdateCachedData();
 	CacheResourceShadersForRendering();
 }
 #endif // WITH_EDITOR
@@ -2134,7 +2119,7 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 #endif
 
 #if WITH_EDITOR
-	UpdateCachedLayerParameters();
+	UpdateCachedData();
 #endif
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
@@ -2162,21 +2147,30 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 	}
 }
 
-const FMaterialLayersFunctions* UMaterialInstance::GetMaterialLayers(TMicRecursionGuard RecursionGuard) const
+bool UMaterialInstance::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard) const
 {
 	if (StaticParameters.bHasMaterialLayers)
 	{
-		return &StaticParameters.MaterialLayers;
+		OutLayers = StaticParameters.MaterialLayers;
+		return true;
 	}
+
 	if (Parent)
 	{
 		if (!RecursionGuard.Contains(this))
 		{
 			RecursionGuard.Set(this);
-			return Parent->GetMaterialLayers(RecursionGuard);
+			if (Parent->GetMaterialLayers(OutLayers, RecursionGuard))
+			{
+#if WITH_EDITOR
+				// If we got layers from our parent, mark them as linked to our parent
+				OutLayers.LinkAllLayersToParent();
+#endif // WITH_EDITOR
+				return true;
+			}
 		}
 	}
-	return nullptr;
+	return false;
 }
 
 bool UMaterialInstance::GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const
@@ -2211,13 +2205,33 @@ bool UMaterialInstance::GetTerrainLayerWeightParameterValue(const FHashedMateria
 #if WITH_EDITOR
 bool UMaterialInstance::SetMaterialLayers(const FMaterialLayersFunctions& LayersValue)
 {
+	bool bUpdatedLayers = false;
 	if (!StaticParameters.bHasMaterialLayers || StaticParameters.MaterialLayers != LayersValue)
 	{
-		StaticParameters.bHasMaterialLayers = true;
-		StaticParameters.MaterialLayers = LayersValue;
-		return true;
+		bool bMatchesParentLayers = false;
+		if (Parent)
+		{
+			FMaterialLayersFunctions ParentLayers;
+			if (Parent->GetMaterialLayers(ParentLayers))
+			{
+				bMatchesParentLayers = LayersValue.MatchesParent(ParentLayers);
+			}
+		}
+
+		if (bMatchesParentLayers)
+		{
+			bUpdatedLayers = StaticParameters.bHasMaterialLayers; // if we previously had layers, but are now clearing them to match parent
+			StaticParameters.bHasMaterialLayers = false;
+			StaticParameters.MaterialLayers.Empty();
+		}
+		else
+		{
+			bUpdatedLayers = true;
+			StaticParameters.bHasMaterialLayers = true;
+			StaticParameters.MaterialLayers = LayersValue;
+		}
 	}
-	return false;
+	return bUpdatedLayers;
 }
 #endif // WITH_EDITOR
 
@@ -2600,7 +2614,7 @@ void UMaterialInstance::PostLoad()
 	}
 
 #if WITH_EDITOR
-	UpdateCachedLayerParameters();
+	UpdateCachedData();
 #endif
 
 	// called before we cache the uniform expression as a call to SubsurfaceProfileRT affects the dta in there
@@ -2745,13 +2759,13 @@ void UMaterialInstance::AddReferencedObjects(UObject* InThis, FReferenceCollecto
 	Super::AddReferencedObjects(This, Collector);
 }
 
-void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool RecacheShaders)
+bool UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool RecacheShaders)
 {
+	bool bSetParent = false;
 	if (!Parent || Parent != NewParent)
 	{
 		// Check if the new parent is already an existing child
 		UMaterialInstance* ParentAsMaterialInstance = Cast<UMaterialInstance>(NewParent);
-		bool bSetParent = false;
 
 		if (ParentAsMaterialInstance != nullptr && ParentAsMaterialInstance->IsChildOf(this))
 		{
@@ -2798,10 +2812,8 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 		{
 			InitResources();
 		}
-#if WITH_EDITOR
-		UpdateCachedLayerParameters();
-#endif
 	}
+	return bSetParent;
 }
 
 bool UMaterialInstance::SetVectorParameterByIndexInternal(int32 ParameterIndex, FLinearColor Value)
@@ -2836,7 +2848,7 @@ FMaterialInstanceParameterUpdateContext::FMaterialInstanceParameterUpdateContext
 	}
 	else
 	{
-		StaticParameters = InInstance->GetStaticParameters();
+		InInstance->GetStaticParameterValues(StaticParameters);
 	}
 
 	BasePropertyOverrides = InInstance->BasePropertyOverrides;
@@ -3234,6 +3246,20 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 	TrimToOverriddenOnly(CompareParameters.StaticComponentMaskParameters);
 	TrimToOverriddenOnly(CompareParameters.TerrainLayerWeightParameters);
 
+	// Check to see if the material layers being assigned match values from the parent
+	if (CompareParameters.bHasMaterialLayers && Parent)
+	{
+		FMaterialLayersFunctions ParentLayers;
+		if (Parent->GetMaterialLayers(ParentLayers))
+		{
+			if (CompareParameters.MaterialLayers.MatchesParent(ParentLayers))
+			{
+				CompareParameters.bHasMaterialLayers = false;
+				CompareParameters.MaterialLayers.Empty();
+			}
+		}
+	}
+
 	const bool bParamsHaveChanged = StaticParameters != CompareParameters;
 	const bool bBasePropertyOverridesHaveChanged = BasePropertyOverrides != NewBasePropertyOverrides;
 
@@ -3254,7 +3280,7 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		bHasStaticPermutationResource = bWantsStaticPermutationResource;
 		StaticParameters = CompareParameters;
 
-		UpdateCachedLayerParameters();
+		UpdateCachedData();
 		CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::None);
 		RecacheUniformExpressions(true);
 
@@ -3299,43 +3325,9 @@ void UMaterialInstance::GetReferencedTexturesAndOverrides(TSet<const UTexture*>&
 	}
 }
 
-void UMaterialInstance::UpdateCachedLayerParameters()
+void UMaterialInstance::UpdateCachedData()
 {
-	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
-
-	// Don't need to rebuild cached data if it was serialized
-	if (!bLoadedCachedData)
-	{
-		UMaterialInstance* ParentInstance = nullptr;
-		FMaterialCachedExpressionData CachedExpressionData;
-		CachedExpressionData.Reset();
-		if (Parent)
-		{
-			CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
-			ParentInstance = Cast<UMaterialInstance>(Parent);
-		}
-
-		const FMaterialLayersFunctions* Layers = GetMaterialLayers();
-		const FMaterialLayersFunctions* ParentLayers = Parent ? Parent->GetMaterialLayers() : nullptr;
-
-		if (Layers)
-		{
-			FMaterialCachedExpressionContext Context;
-			CachedExpressionData.UpdateForLayerFunctions(Context, *Layers);
-		}
-
-		if (!CachedData)
-		{
-			CachedData = new FMaterialInstanceCachedData();
-		}
-		CachedData->Initialize(MoveTemp(CachedExpressionData), Layers, ParentLayers);
-		if (Resource)
-		{
-			Resource->GameThread_UpdateCachedData(*CachedData);
-		}
-	}
-
-	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+	// Overriden for MIC/MID
 }
 
 void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialUpdateContext* MaterialUpdateContext)
@@ -3391,7 +3383,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		RecacheMaterialInstanceUniformExpressions(this, false);
 	}
 
-	UpdateCachedLayerParameters();
+	UpdateCachedData();
 
 	if (GIsEditor)
 	{

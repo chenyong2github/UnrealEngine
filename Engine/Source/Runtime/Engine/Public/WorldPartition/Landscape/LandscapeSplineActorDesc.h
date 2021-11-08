@@ -18,7 +18,7 @@ public:
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void OnRegister() override;
+	virtual void OnRegister(UWorld* InWorld) override;
 	virtual void OnUnregister() override;
 #endif
 };

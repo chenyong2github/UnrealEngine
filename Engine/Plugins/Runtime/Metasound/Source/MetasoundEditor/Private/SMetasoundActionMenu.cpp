@@ -53,12 +53,12 @@ namespace Metasound
 				if (ActionPtr.IsValid())
 				{
 					ChildSlot
-					.Padding(TAttribute<FMargin>(this, &SMetasoundActionMenuExpanderArrow::GetCustomIndentPadding))
-					[
-						SNullWidget::NullWidget
-						// TODO: Add favorites
-						// SNew(SMetasoundActionFavoriteToggle, ActionMenuData)
-					];
+						.Padding(TAttribute<FMargin>(this, &SMetasoundActionMenuExpanderArrow::GetCustomIndentPadding))
+						[
+							SNullWidget::NullWidget
+							// TODO: Add favorites support
+							// SNew(SMetasoundActionFavoriteToggle, ActionMenuData)
+						];
 				}
 				else
 				{
@@ -77,8 +77,9 @@ namespace Metasound
 
 			TWeakPtr<FEdGraphSchemaAction> ActionPtr;
 		};
-	}
-}
+	} // namespace Editor
+} // namespace Metasound
+
 
 SMetasoundActionMenu::~SMetasoundActionMenu()
 {

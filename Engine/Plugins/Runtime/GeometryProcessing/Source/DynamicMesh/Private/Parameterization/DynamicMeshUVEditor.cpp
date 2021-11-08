@@ -373,9 +373,9 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 	}
 
 	FFrame3d SeedFrame;
-	int32 FrameVertexID;
+	int32 FrameVertexID = FDynamicMesh3::InvalidID;
 	bool bFrameOK = EstimateGeodesicCenterFrameVertex(Submesh, SeedFrame, FrameVertexID, true);
-	if (!bFrameOK)
+	if (!Submesh.IsVertex(FrameVertexID))
 	{
 		return false;
 	}
@@ -416,7 +416,9 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 		Result->NewUVElements = MoveTemp(NewElementIDs);
 	}
 
-	return (NumFailed == 0);
+	// If we started from a bad frame, always report this as a failure because the quality will be very bad
+	// Otherwise report failure if some of the triangle UVs were not set
+	return bFrameOK && (NumFailed == 0);
 }
 
 

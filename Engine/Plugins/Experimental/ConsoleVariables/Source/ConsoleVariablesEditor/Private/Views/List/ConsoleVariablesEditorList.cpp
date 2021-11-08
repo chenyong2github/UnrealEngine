@@ -4,14 +4,9 @@
 
 #include "Views/List/SConsoleVariablesEditorList.h"
 
-FConsoleVariablesEditorList::FConsoleVariablesEditorList()
-{
-	OnCommandEntered = FConsoleCommandDelegate::CreateRaw(this, &FConsoleVariablesEditorList::UpdateExistingValuesFromConsoleManager);
-}
-
 FConsoleVariablesEditorList::~FConsoleVariablesEditorList()
 {
-	OnCommandEntered.Unbind();
+	
 }
 
 TSharedRef<SWidget> FConsoleVariablesEditorList::GetOrCreateWidget()
@@ -21,23 +16,21 @@ TSharedRef<SWidget> FConsoleVariablesEditorList::GetOrCreateWidget()
 		SAssignNew(ListWidget, SConsoleVariablesEditorList);
 	}
 
-	FAutoConsoleVariableSink CVarMySink(OnCommandEntered);
-
 	return ListWidget.ToSharedRef();
 }
 
-void FConsoleVariablesEditorList::RefreshList(UConsoleVariablesAsset* InAsset) const
+void FConsoleVariablesEditorList::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo) const
 {
 	if (ListWidget.IsValid())
 	{
-		ListWidget->RefreshList(InAsset);
+		ListWidget->RefreshList(InAsset, InConsoleCommandToScrollTo);
 	}
 }
 
-void FConsoleVariablesEditorList::UpdateExistingValuesFromConsoleManager() const
+void FConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const
 {
 	if (ListWidget.IsValid())
 	{
-		ListWidget->UpdateExistingValuesFromConsoleManager();
+		ListWidget->UpdatePresetValuesForSave(InAsset);
 	}
 }

@@ -276,6 +276,9 @@ protected:
 
 	void UpdateShowGizmoState(bool bNewVisibility);
 
+	// whether to allow the draw plane to be updated in the UI -- returns false if there is an in-progress shape relying on the current draw plane
+	bool AllowDrawPlaneUpdates();
+
 	// polygon drawing
 
 	bool bAbortActivePolygonDraw;

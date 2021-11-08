@@ -12,6 +12,9 @@ using EpicGames.Core;
 using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
+using System.Reflection;
+using System.ComponentModel;
 
 namespace AutomationTool
 {
@@ -82,11 +85,6 @@ namespace AutomationTool
 		public Node[] OrderDependencies;
 
 		/// <summary>
-		/// The trigger which controls whether this node will be executed
-		/// </summary>
-		public ManualTrigger ControllingTrigger;
-
-		/// <summary>
 		/// Tokens which must be acquired for this node to run
 		/// </summary>
 		public FileReference[] RequiredTokens;
@@ -94,7 +92,7 @@ namespace AutomationTool
 		/// <summary>
 		/// List of tasks to execute
 		/// </summary>
-		public List<CustomTask> Tasks = new List<CustomTask>();
+		public List<TaskInfo> TaskInfos = new List<TaskInfo>();
 
 		/// <summary>
 		/// List of email addresses to notify if this node fails.
@@ -124,9 +122,8 @@ namespace AutomationTool
 		/// <param name="InOutputNames">Names of the outputs that this node produces</param>
 		/// <param name="InInputDependencies">Nodes which this node is dependent on for its inputs</param>
 		/// <param name="InOrderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
-		/// <param name="InControllingTrigger">The trigger which this node is behind</param>
 		/// <param name="InRequiredTokens">Optional tokens which must be required for this node to run</param>
-		public Node(string InName, NodeOutput[] InInputs, string[] InOutputNames, Node[] InInputDependencies, Node[] InOrderDependencies, ManualTrigger InControllingTrigger, FileReference[] InRequiredTokens)
+		public Node(string InName, NodeOutput[] InInputs, string[] InOutputNames, Node[] InInputDependencies, Node[] InOrderDependencies, FileReference[] InRequiredTokens)
 		{
 			Name = InName;
 			Inputs = InInputs;
@@ -138,7 +135,6 @@ namespace AutomationTool
 
 			InputDependencies = InInputDependencies;
 			OrderDependencies = InOrderDependencies;
-			ControllingTrigger = InControllingTrigger;
 			RequiredTokens = InRequiredTokens;
 		}
 
@@ -148,92 +144,6 @@ namespace AutomationTool
 		public NodeOutput DefaultOutput
 		{
 			get { return Outputs[0]; }
-		}
-
-		/// <summary>
-		/// Build all the tasks for this node
-		/// </summary>
-		/// <param name="Job">Information about the current job</param>
-		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include. Should be set to contain the node inputs on entry.</param>
-		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
-		public bool Build(JobContext Job, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
-		{
-			// Run each of the tasks in order
-			HashSet<FileReference> BuildProducts = TagNameToFileSet[DefaultOutput.TagName];
-			for(int Idx = 0; Idx < Tasks.Count; Idx++)
-			{
-				using (IScope Scope = GlobalTracer.Instance.BuildSpan("Task").WithTag("resource", Tasks[Idx].GetTraceName()).StartActive())
-				{
-					ITaskExecutor Executor = Tasks[Idx].GetExecutor();
-					if (Executor == null)
-					{
-						// Execute this task directly
-						try
-						{
-							Tasks[Idx].GetTraceMetadata(Scope.Span, "");
-							Tasks[Idx].Execute(Job, BuildProducts, TagNameToFileSet);
-						}
-						catch (Exception Ex)
-						{
-							ExceptionUtils.AddContext(Ex, "while executing task {0}", Tasks[Idx].GetTraceString());
-							if (Tasks[Idx].SourceLocation != null)
-							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", GetReadablePathForDiagnostics(Tasks[Idx].SourceLocation.Item1), Tasks[Idx].SourceLocation.Item2);
-							}
-							throw;
-						}
-					}
-					else
-					{
-						Tasks[Idx].GetTraceMetadata(Scope.Span, "1.");
-
-						// The task has a custom executor, which may be able to execute several tasks simultaneously. Try to add the following tasks.
-						int FirstIdx = Idx;
-						while (Idx + 1 < Tasks.Count && Executor.Add(Tasks[Idx + 1]))
-						{
-							Idx++;
-							Tasks[Idx].GetTraceMetadata(Scope.Span, string.Format("{0}.", 1 + Idx - FirstIdx));
-						}
-						try
-						{
-							Executor.Execute(Job, BuildProducts, TagNameToFileSet);
-						}
-						catch (Exception Ex)
-						{
-							for (int TaskIdx = FirstIdx; TaskIdx <= Idx; TaskIdx++)
-							{
-								ExceptionUtils.AddContext(Ex, "while executing {0}", Tasks[TaskIdx].GetTraceString());
-							}
-							if (Tasks[FirstIdx].SourceLocation != null)
-							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", GetReadablePathForDiagnostics(Tasks[FirstIdx].SourceLocation.Item1), Tasks[FirstIdx].SourceLocation.Item2);
-							}
-							throw;
-						}
-					}
-				}
-			}
-
-			// Remove anything that doesn't exist, since these files weren't explicitly tagged
-			BuildProducts.RemoveWhere(x => !FileReference.Exists(x));
-			return true;
-		}
-
-		/// <summary>
-		/// Converts a file into a more readable form for diangostic messages
-		/// </summary>
-		/// <param name="File">Path to the file</param>
-		/// <returns>Readable form of the path</returns>
-		static string GetReadablePathForDiagnostics(FileReference File)
-		{
-			if(File.IsUnderDirectory(Unreal.RootDirectory))
-			{
-				return File.MakeRelativeTo(Unreal.RootDirectory);
-			}
-			else
-			{
-				return File.FullName;
-			}
 		}
 
 		/// <summary>
@@ -262,23 +172,6 @@ namespace AutomationTool
 				DirectDependencies.ExceptWith(OrderDependency.OrderDependencies);
 			}
 			return DirectDependencies;
-		}
-
-		/// <summary>
-		/// Checks whether this node is behind the given trigger
-		/// </summary>
-		/// <param name="Trigger">The trigger to check</param>
-		/// <returns>True if the node is directly or indirectly behind the given trigger, false otherwise</returns>
-		public bool IsBehind(ManualTrigger Trigger)
-		{
-			for(ManualTrigger OtherTrigger = ControllingTrigger; OtherTrigger != Trigger; OtherTrigger = OtherTrigger.Parent)
-			{
-				if(OtherTrigger == null)
-				{
-					return false;
-				}
-			}
-			return true;
 		}
 
 		/// <summary>
@@ -318,7 +211,7 @@ namespace AutomationTool
 				Writer.WriteAttributeString("RunEarly", bRunEarly.ToString());
 			}
 
-			foreach (CustomTask Task in Tasks)
+			foreach (TaskInfo Task in TaskInfos)
 			{
 				Task.Write(Writer);
 			}

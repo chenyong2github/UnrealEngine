@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "UnrealUSDWrapper.h"
-#include "SkeletalMeshExporterUSDOptions.h"
+#include "USDAssetOptions.h"
+#include "USDStageOptions.h"
 
 #include "Engine/EngineTypes.h"
-#include "USDStageOptions.h"
 
 #include "AnimSequenceExporterUSDOptions.generated.h"
 
@@ -20,14 +19,14 @@ class USDEXPORTER_API UAnimSequenceExporterUSDOptions : public UObject
 
 public:
 	/** Export options to use for the layer where the animation is emitted */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( ShowOnlyInnerProperties ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options", meta = ( ShowOnlyInnerProperties ) )
 	FUsdStageOptions StageOptions;
 
 	/** Whether to also export the skeletal mesh data of the preview mesh */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Mesh options" )
 	bool bExportPreviewMesh;
 
 	/** Export options to use for the preview mesh, if enabled */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( EditCondition=bExportPreviewMesh ) )
-	FSkeletalMeshExporterUSDInnerOptions PreviewMeshOptions;
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Mesh options", meta = ( ShowOnlyInnerProperties, EditCondition = bExportPreviewMesh ) )
+	FUsdMeshAssetOptions PreviewMeshOptions;
 };

@@ -246,7 +246,7 @@ namespace InternalEditorLevelLibrary
 				}
 
 				// Rename should do it, but will suggest another location via a Modal
-				if (FPackageName::DoesPackageExist(NewAssetPackageName, nullptr, nullptr))
+				if (FPackageName::DoesPackageExist(NewAssetPackageName))
 				{
 					UE_LOG(LogEditorScripting, Error, TEXT("%s. Failed to validate the destination for asset '%s'. There's alreay an asset at the destination."), CommandName, *NewAssetPackageName);
 					OutObjectInfos.Reset();
@@ -757,7 +757,7 @@ namespace InternalEditorLevelLibrary
 		}
 
 		// DuplicateAsset does it, but failed with a Modal
-		if (FPackageName::DoesPackageExist(DestinationObjectPath, nullptr, nullptr))
+		if (FPackageName::DoesPackageExist(DestinationObjectPath))
 		{
 			UE_LOG(LogEditorScripting, Error, TEXT("DuplicateAsset. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *DestinationObjectPath);
 			return nullptr;
@@ -883,7 +883,7 @@ namespace InternalEditorLevelLibrary
 		}
 
 		// Rename should do it, but will suggest another location via a Modal
-		if (FPackageName::DoesPackageExist(DestinationObjectPath, nullptr, nullptr))
+		if (FPackageName::DoesPackageExist(DestinationObjectPath))
 		{
 			UE_LOG(LogEditorScripting, Error, TEXT("RenameAsset. Failed to validate the destination %s. There's alreay an asset at the destination."), *DestinationAssetPath);
 			return false;

@@ -146,55 +146,37 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Private\Animations\AnimationExtractor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="..\Private\Addin.cs" />
+    <Compile Include="..\Private\Animation.cs" />
+    <Compile Include="..\Private\AnimationExtractor.cs" />
+    <Compile Include="..\Private\AssemblyDocument.cs" />
+    <Compile Include="..\Private\Body.cs" />
+    <Compile Include="..\Private\BoundingBox.cs" />
+    <Compile Include="..\Private\ConfigurationManager.cs" />
+    <Compile Include="..\Private\ConstructionGeometry.cs" />
     <Compile Include="..\Private\DatasmithExporter.cs" />
-    <Compile Include="..\Private\Engine\CommandQueue.cs" />
-    <Compile Include="..\Private\Engine\MeshFactory.cs" />
-    <Compile Include="..\Private\Engine\Processor.cs" />
-    <Compile Include="..\Private\EventHandling.cs" />
-    <Compile Include="..\Private\Geometry\BoundingBox.cs" />
-    <Compile Include="..\Private\Geometry\ConstructionGeometry.cs" />
-    <Compile Include="..\Private\Geometry\Geometry.cs" />
-    <Compile Include="..\Private\Geometry\GeometryChunk.cs" />
-    <Compile Include="..\Private\Geometry\MathUtil.cs" />
-    <Compile Include="..\Private\Geometry\Matrix4.cs" />
-    <Compile Include="..\Private\Geometry\StripGeometry.cs" />
-    <Compile Include="..\Private\Geometry\StripUnion.cs" />
-    <Compile Include="..\Private\Geometry\StripVector.cs" />
-    <Compile Include="..\Private\Geometry\Triangle.cs" />
-    <Compile Include="..\Private\Geometry\TriangleStrip.cs" />
-    <Compile Include="..\Private\Geometry\UVPlane.cs" />
-    <Compile Include="..\Private\Geometry\Vec2.cs" />
-    <Compile Include="..\Private\Geometry\Vec3.cs" />
-    <Compile Include="..\Private\Geometry\Vertex.cs" />
-    <Compile Include="..\Private\Materials\MaterialMapper.cs" />
-    <Compile Include="..\Private\Materials\Utility.cs" />
-    <Compile Include="..\Private\PMPHandler.cs" />
-    <Compile Include="..\Private\SwAddin.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="..\Private\SwNotifications.cs" />
-    <Compile Include="..\Private\SwObjects\SwAnimation.cs" />
-    <Compile Include="..\Private\SwObjects\SwAnimationChannel.cs" />
-    <Compile Include="..\Private\SwObjects\SwAnimationKeyframe.cs" />
-    <Compile Include="..\Private\SwObjects\SwAnimationIntermediateChannel.cs" />
-    <Compile Include="..\Private\SwObjects\SwAnimationIntermediateKeyframe.cs" />
-    <Compile Include="..\Private\SwObjects\SwAssemblyDoc.cs" />
-    <Compile Include="..\Private\SwObjects\SwBody.cs" />
-    <Compile Include="..\Private\SwObjects\SwCamera.cs" />
-    <Compile Include="..\Private\SwObjects\SwFace.cs" />
-    <Compile Include="..\Private\SwObjects\SwFeature.cs" />
-    <Compile Include="..\Private\SwObjects\SwLightweightMaterial.cs" />
-    <Compile Include="..\Private\SwObjects\SwMaterial.cs" />
-    <Compile Include="..\Private\SwObjects\SwMetaDataManager.cs" />
-    <Compile Include="..\Private\SwObjects\SwPartDoc.cs" />
-    <Compile Include="..\Private\SwObjects\SwScene.cs" />
-    <Compile Include="..\Private\SwSingleton.cs" />
-    <Compile Include="..\Private\UserPMPage.cs" />
-    <Compile Include="..\Private\Utility.cs" />
+    <Compile Include="..\Private\Document.cs" />
+    <Compile Include="..\Private\GeometryChunk.cs" />
+    <Compile Include="..\Private\Material.cs" />
+    <Compile Include="..\Private\MaterialUtils.cs" />
+    <Compile Include="..\Private\MathUtils.cs" />
+    <Compile Include="..\Private\Matrix4.cs" />
+    <Compile Include="..\Private\MeshData.cs" />
+    <Compile Include="..\Private\MetadataManager.cs" />
+    <Compile Include="..\Private\ObjectMaterials.cs" />
+    <Compile Include="..\Private\PartDocument.cs" />
+    <Compile Include="..\Private\StripGeometry.cs" />
+    <Compile Include="..\Private\StripUnion.cs" />
+    <Compile Include="..\Private\StripVector.cs" />
+    <Compile Include="..\Private\Triangle.cs" />
+    <Compile Include="..\Private\TriangleStrip.cs" />
+    <Compile Include="..\Private\UVPlane.cs" />
+    <Compile Include="..\Private\Vec2.cs" />
+    <Compile Include="..\Private\Vec3.cs" />
+    <Compile Include="..\Private\Vertex.cs" />
     <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
     </Compile>

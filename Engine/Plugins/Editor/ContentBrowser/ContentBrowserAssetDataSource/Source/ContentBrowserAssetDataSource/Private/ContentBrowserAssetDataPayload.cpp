@@ -104,7 +104,7 @@ const FString& FContentBrowserAssetFileItemDataPayload::GetFilename() const
 		const FString PackageNameStr = AssetData.PackageName.ToString();
 
 		// Get the filename by finding it on disk first
-		if (!FPackageName::DoesPackageExist(PackageNameStr, nullptr, &CachedFilename))
+		if (!FPackageName::DoesPackageExist(PackageNameStr, &CachedFilename))
 		{
 			if (const UPackage* Package = GetPackage())
 			{

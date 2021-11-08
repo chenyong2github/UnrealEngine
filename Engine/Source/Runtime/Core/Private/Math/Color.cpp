@@ -8,7 +8,6 @@
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
 #include "Math/Float16Color.h"
-#include "Templates/CheckValueCast.h"
 
 // Common colors.
 const FLinearColor FLinearColor::White(1.f,1.f,1.f);
@@ -122,10 +121,10 @@ FColor FLinearColor::ToRGBE() const
 		
 		FColor	Color;
 		// no clamp needed, should always fit in uint8 :
-		Color.R = CheckValueCast<uint8>( (int)(NonNegativeR * Scale) );
-		Color.G = CheckValueCast<uint8>( (int)(NonNegativeG * Scale) );
-		Color.B = CheckValueCast<uint8>( (int)(NonNegativeB * Scale) );
-		Color.A = CheckValueCast<uint8>( Exponent + 128 );
+		Color.R = IntCastChecked<uint8>( (int)(NonNegativeR * Scale) );
+		Color.G = IntCastChecked<uint8>( (int)(NonNegativeG * Scale) );
+		Color.B = IntCastChecked<uint8>( (int)(NonNegativeB * Scale) );
+		Color.A = IntCastChecked<uint8>( Exponent + 128 );
 		return Color;
 	}
 }

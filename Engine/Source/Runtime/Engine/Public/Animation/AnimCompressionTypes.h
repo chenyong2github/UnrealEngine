@@ -740,6 +740,12 @@ public:
 	// The size of the raw data used to create the compressed data
 	int32 CompressedRawDataSize;
 
+	//Temp debug DDC issues
+#if WITH_EDITOR
+	TArray<FRawAnimSequenceTrack> CompressedRawData; //Temp debug DDC issues
+	FName OwnerName;
+#endif
+
 	FCompressedAnimSequence()
 		: BoneCompressionCodec(nullptr)
 		, CurveCompressionCodec(nullptr)

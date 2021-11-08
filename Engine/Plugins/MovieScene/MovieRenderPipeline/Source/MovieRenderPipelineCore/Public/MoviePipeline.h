@@ -179,7 +179,9 @@ public:
 	int32 GetCurrentShotIndex() const { return CurrentShotIndex; }
 	const FMoviePipelineFrameOutputState& GetOutputState() const { return CachedOutputState; }
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
+
 	EMovieRenderPipelineState GetPipelineState() const { return PipelineState; }
 	FMoviePipelineOutputData GetOutputDataParams();
 

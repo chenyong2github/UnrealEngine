@@ -34,11 +34,10 @@ public:
 		this->SetIsPersistent(bIsPersistent);
 	}
 
-	~FBufferReaderBase()
-	{
-		Close();
-	}
-	bool Close()
+	// Abstract to force implementors to call Close() themselves, since it's a virtual function.
+	virtual ~FBufferReaderBase() = 0;
+
+	virtual bool Close() override
 	{
 		if (bFreeOnClose)
 		{
@@ -86,6 +85,10 @@ protected:
 	bool	bFreeOnClose;
 };
 
+inline FBufferReaderBase::~FBufferReaderBase()
+{
+}
+
 /**
  * Similar to FMemoryReader, but able to internally
  * manage the memory for the buffer.
@@ -105,6 +108,11 @@ public:
 	FBufferReader( void* Data, int64 Size, bool bInFreeOnClose, bool bIsPersistent = false )
 		: FBufferReaderBase(Data, Size, bInFreeOnClose, bIsPersistent)
 	{
+	}
+
+	virtual ~FBufferReader() override
+	{
+		Close();
 	}
 
 	virtual FString GetArchiveName() const { return TEXT("FBufferReader"); }

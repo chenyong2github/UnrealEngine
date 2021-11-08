@@ -2,14 +2,15 @@
 
 package com.epicgames.unreal;
 
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
+
 import android.os.Build;
 import java.io.IOException;
 import java.util.ArrayList;
 import android.util.Log;
 import android.util.SparseArray;
 
-import android.opengl.*;
-import android.graphics.SurfaceTexture;
 import android.view.Surface;
 import android.media.AudioFormat;
 import android.media.MediaCodecList;
@@ -19,6 +20,9 @@ import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaFormat;
 import java.nio.ByteBuffer;
+
+import com.epicgames.unreal.ElectraDecoderQuirks;
+
 
 
 /**
@@ -44,32 +48,28 @@ public class ElectraVideoDecoderH264
 		public boolean bNeedTunneling;
 		public byte[] CSD0;
 		public byte[] CSD1;
-		public int ExternalRenderTextureID;
-		public boolean bRetainRenderer;
-		public boolean bSwizzleTexture;
 		public int NativeDecoderID;
 		public android.view.Surface VideoCodecSurface;
 		public boolean bSurfaceIsView;
 		public FCreateParameters()
 		{
-			MaxWidth				= 0;
-			MaxHeight   			= 0;
-			Width   				= 0;
-			Height  				= 0;
-			MaxFPS  				= 0;
-			bNeedSecure 			= false;
-			bNeedTunneling  		= false;
-			ExternalRenderTextureID = 0;
-			bRetainRenderer 		= false;
-			bSwizzleTexture 		= false;
-			NativeDecoderID			= 0;
-			VideoCodecSurface		= null;
+			MaxWidth = 0;
+			MaxHeight = 0;
+			Width = 0;
+			Height = 0;
+			MaxFPS = 0;
+			bNeedSecure = false;
+			bNeedTunneling = false;
+			NativeDecoderID = 0;
+			VideoCodecSurface = null;
 		}
 	}
 
 	public static class FDecoderInformation
 	{
+		public int ApiLevel = 0;
 		public boolean bIsAdaptive = false;
+		public boolean bCanUse_SetOutputSurface = false;
 	}
 
 	public class FOutputFormatInfo
@@ -96,164 +96,142 @@ public class ElectraVideoDecoderH264
 
 	private static class FCodecInformation
 	{
-		MediaCodecInfo						Info;
-		MediaCodecInfo.CodecCapabilities	Caps;
+		MediaCodecInfo Info;
+		MediaCodecInfo.CodecCapabilities Caps;
 	}
 
 
-	public class FFrameUpdateInfo
+	private static class FH264DecoderInfo
 	{
-		public java.nio.Buffer Buffer;
-		public long Timestamp = 0;
-		public long Duration = 0;
-		public boolean bFrameReady = false;
-		public boolean bRegionChanged = false;
-		public float UScale = 0.0f;
-		public float UOffset = 0.0f;
-		public float VScale = 0.0f;
-		public float VOffset = 0.0f;
-		public int NumPending = 0;
-	}
-
-
-	private FCreateParameters CreationParameters = null;
-	private FDecoderInformation DecoderInformation = null;
-	private MediaCodec DecoderHandle = null;
-	private boolean bIsInitialized = false;
-
-	private SparseArray<MediaCodec.BufferInfo> OutputBufferInfos = null;
-	private FOutputFormatInfo CurrentOutputFormatInfo = null;
-
-	private boolean bDecoderHasSurface = false;
-
-	private static FCodecInformation selectCodec(String mimeType)
-	{
-		/*
-		If we knew what to put into the media format exactly we could perhaps use findDecoderForFormat().
-			@see: https://developer.android.com/reference/android/media/MediaCodec.html#creation
-		Since we do not have an extractor to get the track format from, after all we are decoding an elementary stream here,
-		we have no idea what would normally be found and what properties are _required_ in the format.
-
-			MediaFormat testFmt = new MediaFormat();
-			String thisOne = cl.findDecoderForFormat(testFmt);
-		*/
-
-		MediaCodecList cl = new MediaCodecList(MediaCodecList.ALL_CODECS);
-		MediaCodecInfo[] codecInfos = cl.getCodecInfos();
-		int numCodecs = codecInfos.length;
-		for(int i=0; i<numCodecs; ++i)
+		private static final FH264DecoderInfo Singleton = new FH264DecoderInfo();
+		private FCodecInformation CodecInfo;
+		private FH264DecoderInfo()
 		{
-			if (codecInfos[i].isEncoder())
-			{
-				continue;
-			}
+			CodecInfo = selectCodec("video/avc");
+		}
+		private static final FCodecInformation selectCodec(String mimeType)
+		{
+			/*
+			If we knew what to put into the media format exactly we could perhaps use findDecoderForFormat().
+				@see: https://developer.android.com/reference/android/media/MediaCodec.html#creation
+			Since we do not have an extractor to get the track format from, after all we are decoding an elementary stream here,
+			we have no idea what would normally be found and what properties are _required_ in the format.
 
-			String[] types = codecInfos[i].getSupportedTypes();
-			for(int j=0; j<types.length; ++j)
+				MediaFormat testFmt = new MediaFormat();
+				String thisOne = cl.findDecoderForFormat(testFmt);
+			*/
+
+			MediaCodecList cl = new MediaCodecList(MediaCodecList.ALL_CODECS);
+			MediaCodecInfo[] codecInfos = cl.getCodecInfos();
+			int numCodecs = codecInfos.length;
+			for(int i=0; i<numCodecs; ++i)
 			{
-				if (types[j].equalsIgnoreCase(mimeType))
+				if (codecInfos[i].isEncoder())
 				{
-					// Rumor has it that the codec list is sorted from "best" to "worst".
-					// Assuming this to be true we just return the first one matching the MIME type.
-					FCodecInformation Info = new FCodecInformation();
-					Info.Info = codecInfos[i];
-					Info.Caps = codecInfos[i].getCapabilitiesForType(types[j]);
-					return Info;
+					continue;
+				}
+
+				String[] types = codecInfos[i].getSupportedTypes();
+				for(int j=0; j<types.length; ++j)
+				{
+					if (types[j].equalsIgnoreCase(mimeType))
+					{
+						// Rumor has it that the codec list is sorted from "best" to "worst".
+						// Assuming this to be true we just return the first one matching the MIME type.
+						FCodecInformation Info = new FCodecInformation();
+						Info.Info = codecInfos[i];
+						Info.Caps = codecInfos[i].getCapabilitiesForType(types[j]);
+						return Info;
+					}
 				}
 			}
+			return null;
 		}
-		return null;
+
+		public static FCodecInformation GetDecoderInfo()
+		{
+			return Singleton.CodecInfo;
+		}
 	}
+
+
+	private FCodecInformation PlatformCodecInfo;
+	private ElectraDecoderQuirks.FDecoderQuirks PlatformCodecQuirks;
+
+	private FCreateParameters CreationParameters;
+	private FDecoderInformation DecoderInformation;
+	private MediaCodec DecoderHandle;
+	private boolean bIsInitialized;
+
+	private SparseArray<MediaCodec.BufferInfo> OutputBufferInfos;
+	private FOutputFormatInfo CurrentOutputFormatInfo;
+	private boolean bDecoderHasSurface;
+
 
 	public ElectraVideoDecoderH264()
 	{
+		PlatformCodecInfo = FH264DecoderInfo.GetDecoderInfo();
+		PlatformCodecQuirks =  ElectraDecoderQuirks.GetDecoderQuirks();
+		CreationParameters = null;
 		DecoderHandle = null;
+		OutputBufferInfos = new SparseArray<>();
+		CurrentOutputFormatInfo = new FOutputFormatInfo();
+		bDecoderHasSurface = false;
+		bIsInitialized = false;
+
+		// Create the initial decoder information, which at this point contains the quirks only.
+		DecoderInformation = new FDecoderInformation();
+		SetupDecoderQuirks();
+	}
+
+	private void SetupDecoderQuirks()
+	{
+		if (DecoderInformation != null && PlatformCodecQuirks != null)
+		{
+			DecoderInformation.ApiLevel = Build.VERSION.SDK_INT;
+			DecoderInformation.bCanUse_SetOutputSurface = PlatformCodecQuirks.bCanUse_SetOutputSurface;
+		}
+	}
+
+	public int CreateDecoder()
+	{
+		// Clear out everything in case this is called repeatedly.
+		DecoderHandle = null;
+		DecoderInformation = null;
 		bIsInitialized = false;
 		OutputBufferInfos = new SparseArray<>();
 		CurrentOutputFormatInfo = new FOutputFormatInfo();
-	}
 
-	public int CreateDecoder(FCreateParameters InCreateParams)
-	{
 		try
 		{
-			CreationParameters = InCreateParams;
-
-			FCodecInformation DecoderInfo = selectCodec("video/avc");
-			if (DecoderInfo != null)
+			if (PlatformCodecInfo != null)
 			{
-				String DecoderName = DecoderInfo.Info.getName();
+				String DecoderName = PlatformCodecInfo.Info.getName();
 
 				// This is how we get information on the decoder's capabilities.
 				// For now we do not use those. We merely assume the decoder is capable of what we want.
 				// Caution must be exercised with profile/level values as they are defined with other values in Android than they are by the standard!
 				// Eg. High profile per the standard is identified by the value 100 while Android defines it as 8 (MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)
-				boolean bAdaptive   						= DecoderInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
-				boolean bSecure 							= DecoderInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
-				boolean bTunneled   						= DecoderInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
-				int [] ColorFmts							= DecoderInfo.Caps.colorFormats;
-				MediaCodecInfo.CodecProfileLevel [] ProfLev = DecoderInfo.Caps.profileLevels;
+				boolean bAdaptive   						= PlatformCodecInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
+				//boolean bSecure 							= PlatformCodecInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+				//boolean bTunneled   						= PlatformCodecInfo.Caps.isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+				//int [] ColorFmts							= PlatformCodecInfo.Caps.colorFormats;
+				//MediaCodecInfo.CodecProfileLevel [] ProfLev = PlatformCodecInfo.Caps.profileLevels;
 
-
-				// Create decoder configuration object
-				int MaxWidth  =  InCreateParams.MaxWidth > 0 ? InCreateParams.MaxWidth  : 1920;
-				int MaxHeight = InCreateParams.MaxHeight > 0 ? InCreateParams.MaxHeight : 1088;
-				int Width  = InCreateParams.Width > 0  ? InCreateParams.Width : MaxWidth;
-				int Height = InCreateParams.Height > 0 ? InCreateParams.Height : MaxHeight;
-				MediaFormat Format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, Width, Height);
-				// Add additional keys
-				if (bAdaptive)
-				{
-					// See: https://developer.android.com/reference/android/media/MediaFormat.html
-					Format.setInteger(MediaFormat.KEY_MAX_WIDTH, MaxWidth);
-					Format.setInteger(MediaFormat.KEY_MAX_HEIGHT, MaxHeight);
-				}
-				else
-				{
-					// Non-adaptive decoders need the CSD set in the configuration.
-					if (InCreateParams.CSD0 != null && InCreateParams.CSD0.length != 0)
-					{
-						ByteBuffer Csd0 = ByteBuffer.wrap(InCreateParams.CSD0);
-						Format.setByteBuffer("csd-0", Csd0);
-						// Set CSD1 only when it exists and we have set CSD0
-						if (InCreateParams.CSD1 != null && InCreateParams.CSD1.length != 0)
-						{
-							ByteBuffer Csd1 = ByteBuffer.wrap(InCreateParams.CSD1);
-							Format.setByteBuffer("csd-1", Csd1);
-						}
-					}
-				}
-
-				if (InCreateParams.MaxFPS > 0)
-				{
-					Format.setInteger(MediaFormat.KEY_FRAME_RATE, InCreateParams.MaxFPS);
-				}
-// Wishful thinking?
-//				Format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-
-				// Create and configure the decoder
+				// Create the decoder
 				DecoderHandle = MediaCodec.createByCodecName(DecoderName);
 				if (DecoderHandle != null)
 				{
-					android.view.Surface OutputSurface = null;
-
-					if (InCreateParams.bRetainRenderer == false)
-					{
-						OutputSurface = InCreateParams.VideoCodecSurface;
-					}
-
-					bDecoderHasSurface = (OutputSurface != null);
-
-					DecoderHandle.configure(Format, OutputSurface, null, 0);
-					bIsInitialized = true;
+					// Remember the decoder capabilities
+					DecoderInformation = new FDecoderInformation();
+					DecoderInformation.bIsAdaptive = bAdaptive;
+					SetupDecoderQuirks();
 				}
-
-				// We are not storing any outside surface reference (we only hand it through to the decoder)
-				CreationParameters.VideoCodecSurface = null;
-
-				// Remember the decoder capabilities
-				DecoderInformation = new FDecoderInformation();
-				DecoderInformation.bIsAdaptive = bAdaptive;
+				else
+				{
+					Log.w(TAG, "ElectraVideoDecoderH264: Failed to create decoder by name");
+					return 1;
+				}
 			}
 			else
 			{
@@ -271,6 +249,92 @@ public class ElectraVideoDecoderH264
 		return 0;
 	}
 
+	
+	public int ConfigureDecoder(FCreateParameters InCreateParams)
+	{
+		if (DecoderHandle == null || DecoderInformation == null || PlatformCodecInfo == null)
+		{
+			Log.w(TAG, "ElectraVideoDecoderH264: No decoder instance to configure has been created yet");
+			return 1;
+		}
+
+		try
+		{
+			CreationParameters = InCreateParams;
+
+			// Create decoder configuration object
+			int MaxWidth  =  InCreateParams.MaxWidth > 0 ? InCreateParams.MaxWidth  : 1920;
+			int MaxHeight = InCreateParams.MaxHeight > 0 ? InCreateParams.MaxHeight : 1088;
+			int Width  = InCreateParams.Width > 0  ? InCreateParams.Width : MaxWidth;
+			int Height = InCreateParams.Height > 0 ? InCreateParams.Height : MaxHeight;
+			MediaFormat Format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, Width, Height);
+			// Add additional keys
+			if (DecoderInformation.bIsAdaptive)
+			{
+				// See: https://developer.android.com/reference/android/media/MediaFormat.html
+				Format.setInteger(MediaFormat.KEY_MAX_WIDTH, MaxWidth);
+				Format.setInteger(MediaFormat.KEY_MAX_HEIGHT, MaxHeight);
+			}
+			else
+			{
+				// Non-adaptive decoders need the CSD set in the configuration.
+				if (InCreateParams.CSD0 != null && InCreateParams.CSD0.length != 0)
+				{
+					ByteBuffer Csd0 = ByteBuffer.wrap(InCreateParams.CSD0);
+					Format.setByteBuffer("csd-0", Csd0);
+					// Set CSD1 only when it exists and we have set CSD0
+					if (InCreateParams.CSD1 != null && InCreateParams.CSD1.length != 0)
+					{
+						ByteBuffer Csd1 = ByteBuffer.wrap(InCreateParams.CSD1);
+						Format.setByteBuffer("csd-1", Csd1);
+					}
+				}
+			}
+
+			// Configure the decoder
+			android.view.Surface OutputSurface = null;
+			OutputSurface = InCreateParams.VideoCodecSurface;
+			bDecoderHasSurface = (OutputSurface != null);
+			DecoderHandle.configure(Format, OutputSurface, null, 0);
+			bIsInitialized = true;
+
+			// We are not storing any outside surface reference (we only hand it through to the decoder)
+			CreationParameters.VideoCodecSurface = null;
+		}
+		catch(Exception e)
+		{
+			Log.w(TAG, "ElectraVideoDecoderH264: Failed to configure the decoder");
+			e.printStackTrace();
+			return 1;
+		}
+		return 0;
+	}
+
+
+	@TargetApi(23)
+	public int SetOutputSurface(android.view.Surface NewVideoCodecSurface)
+	{
+		if (Build.VERSION.SDK_INT >= 23 && bIsInitialized && NewVideoCodecSurface != null)
+		{
+			try
+			{
+				bDecoderHasSurface = true;
+				DecoderHandle.setOutputSurface(NewVideoCodecSurface);
+			}
+			catch(Exception e)
+			{
+				Log.w(TAG, "ElectraVideoDecoderH264: Failed to set decoder output surface");
+				e.printStackTrace();
+				return 1;
+			}
+			return 0;
+		}
+		else
+		{
+			return 1;
+		}
+	}
+
 
 	public int ReleaseDecoder()
 	{
@@ -278,7 +342,6 @@ public class ElectraVideoDecoderH264
 		{
 			bIsInitialized = false;
 
-			// Note: Do not release the texture renderer here as we might be able to reuse it later.
 			try
 			{
 				// Release the decoder
@@ -297,6 +360,7 @@ public class ElectraVideoDecoderH264
 			return 1;
 		}
 	}
+
 
 	public int release()
 	{
@@ -381,6 +445,7 @@ public class ElectraVideoDecoderH264
 		}
 	}
 
+	
 	public int Reset()
 	{
 		if (bIsInitialized)
@@ -659,6 +724,7 @@ public class ElectraVideoDecoderH264
 		return Data;
 	}
 
+	
 	public int ReleaseOutputBuffer(int InOutputBufferIndex, boolean bRender, long releaseAt)
 	{
 		if (bIsInitialized && InOutputBufferIndex >= 0)
@@ -709,6 +775,4 @@ public class ElectraVideoDecoderH264
 		}
 		return 1;
 	}
-
-
 }

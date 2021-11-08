@@ -151,7 +151,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 	FLightSceneInfo* DirectionalLightSceneInfo = NULL;
 
 	// Gather lights that need to evaluate light functions
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

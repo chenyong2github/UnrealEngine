@@ -3249,30 +3249,36 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		.OnSelectionChanged(this, &FLevelOfDetailSettingsLayout::OnImportLOD)
 	];
 
-	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
+	TAttribute<bool> IsMinLODEnabled = TAttribute<bool>::CreateLambda([this]() { return FLevelOfDetailSettingsLayout::GetLODCount() > 1 && !GEngine->UseStaticMeshMinLODPerQualityLevels; });
 
-	bool bDisablePerPlatformMinLod = GEngine->UseStaticMeshMinLODPerQualityLevels;
 	{
-		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames));
+		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames);
+
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
-		Args.NameWidget =
-			SNew(STextBlock)
-			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1 && !bDisablePerPlatformMinLod)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("MinLOD", "Minimum LOD"));
+		Args.FilterText = LOCTEXT("MinLOD", "Minimum LOD");
+		Args.OnGenerateNameWidget = FOnGetContent::CreateLambda([]()
+			{
+				return SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(LOCTEXT("MinLOD", "Minimum LOD"));
+			}
+		);
 
 		Args.PlatformOverrideNames = PlatformOverrideNames;
 		Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride);
 		Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride);
 		Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODWidget);
-		Args.IsEnabled = TAttribute<bool>(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+		Args.IsEnabled = IsMinLODEnabled;
 
 		LODSettingsCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 	}
 
+	TAttribute<bool> IsQualityLevelLODEnabled = TAttribute<bool>::CreateLambda([this]() { return FLevelOfDetailSettingsLayout::GetLODCount() > 1 && GEngine->UseStaticMeshMinLODPerQualityLevels; });
+
 	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
-	.Visibility(bDisablePerPlatformMinLod ? EVisibility::Visible : EVisibility::Collapsed)
+	.Visibility(GEngine->UseStaticMeshMinLODPerQualityLevels ? EVisibility::Visible : EVisibility::Collapsed)
 	.RowTag("QualityLevelMinLOD")
+	.IsEnabled(IsQualityLevelLODEnabled)
 	.NameContent()
 		[
 			SNew(STextBlock)
@@ -3284,7 +3290,6 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1)*125.0f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
-			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1 && bDisablePerPlatformMinLod)
 			.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget)
 			.OnAddEntry(this, &FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride)
 			.OnRemoveEntry(this, &FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride)
@@ -3292,19 +3297,23 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		];
 
 	{
-		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames));
+		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames);
+
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
-		Args.NameWidget =
-			SNew(STextBlock)
-			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("NumStreamdLODs", "Num Streamed LODs"));
+		Args.FilterText = LOCTEXT("NumStreamdLODs", "Num Streamed LODs");
+		Args.OnGenerateNameWidget = FOnGetContent::CreateLambda([]()
+			{
+				return SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(LOCTEXT("NumStreamdLODs", "Num Streamed LODs"));
+			}
+		);
 
 		Args.PlatformOverrideNames = PlatformOverrideNames;
 		Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride);
 		Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride);
 		Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget);
-		Args.IsEnabled = TAttribute<bool>(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+		Args.IsEnabled = TAttribute<bool>::CreateLambda([this]() { return GetLODCount() > 1; });
 
 		LODSettingsCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 	}
@@ -3608,17 +3617,23 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 			TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizePlatformOverrideNames, LODIndex));
 
 			FPerPlatformPropertyCustomNodeBuilderArgs Args;
-			Args.NameWidget =
-				SNew(STextBlock)
-				.IsEnabled(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(LOCTEXT("ScreenSizeName", "Screen Size"));
+			Args.FilterText = LOCTEXT("ScreenSizeName", "Screen Size");
+
+			TAttribute<bool> IsScreenSizeEnabled = TAttribute<bool>::CreateSP(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize);
+
+			Args.OnGenerateNameWidget = FOnGetContent::CreateLambda([IsScreenSizeEnabled]()
+				{
+					return SNew(STextBlock)
+						.IsEnabled(IsScreenSizeEnabled)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Text(LOCTEXT("ScreenSizeName", "Screen Size"));
+				});
 
 			Args.PlatformOverrideNames = PlatformOverrideNames;
 			Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::AddLODScreenSizePlatformOverride, LODIndex);
 			Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FLevelOfDetailSettingsLayout::RemoveLODScreenSizePlatformOverride, LODIndex);
 			Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget, LODIndex);
-			Args.IsEnabled = TAttribute<bool>(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize);
+			Args.IsEnabled = IsScreenSizeEnabled;
 
 			LODCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 

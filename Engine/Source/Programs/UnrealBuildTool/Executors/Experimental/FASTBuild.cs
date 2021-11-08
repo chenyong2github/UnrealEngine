@@ -542,8 +542,13 @@ namespace UnrealBuildTool
 			string ResponseFilePath = "";
 			List<string> AllTokens = new List<string>();
 
+
 			int ResponseFileTokenIndex = Array.FindIndex(RawTokens, RawToken => RawToken.StartsWith("@\""));
-			if (ResponseFileTokenIndex > 0) //Response files are in 4.13 by default. Changing VCToolChain to not do this is probably better.
+			if (ResponseFileTokenIndex == -1)
+			{
+				ResponseFileTokenIndex = Array.FindIndex(RawTokens, RawToken => RawToken.StartsWith("@"));
+			}
+			if (ResponseFileTokenIndex > -1) //Response files are in 4.13 by default. Changing VCToolChain to not do this is probably better.
 			{
 				string responseCommandline = RawTokens[ResponseFileTokenIndex];
 
@@ -561,7 +566,7 @@ namespace UnrealBuildTool
 					responseCommandline += " " + RawTokens[i];
 				}
 
-				ResponseFilePath = responseCommandline.Substring(2, responseCommandline.Length - 3); // bit of a bodge to get the @"response.txt" path...
+				ResponseFilePath = responseCommandline.TrimStart('"', '@').TrimEnd('"');
 				try
 				{
 					if (!File.Exists(ResponseFilePath))
@@ -732,6 +737,11 @@ namespace UnrealBuildTool
 				{
 					++i;
 				}
+				else if (Token.StartsWith("/sourceDependencies"))
+				{
+					++i;
+					++i;
+				}
 				else if (Token == "/we4668")
 				{
 					// Replace this to make Windows builds compile happily
@@ -857,6 +867,7 @@ namespace UnrealBuildTool
 				switch (VCEnv.Compiler)
 				{
 					case WindowsCompiler.VisualStudio2019:
+					case WindowsCompiler.VisualStudio2022:
 						// For now we are working with the 140 version, might need to change to 141 or 150 depending on the version of the Toolchain you chose
 						// to install
 						platformVersionNumber = "140";
@@ -869,18 +880,30 @@ namespace UnrealBuildTool
 						throw new BuildException(exceptionString);
 				}
 
-                AddText($"\t.CompilerFamily  = 'custom'\n");
-                AddText($"}}\n\n");
+				AddText($"\t.CompilerFamily  = 'custom'\n");
+				AddText($"}}\n\n");
 
 				AddText("Compiler('UECompiler') \n{\n");
+
+				bool UsingCLFilter = VCEnv.ToolChainVersion < VersionNumber.Parse("14.27");
 
 				DirectoryReference CLFilterDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "cl-filter");
 
 				AddText($"\t.Root = '{VCEnv.GetToolPath()}'\n");
-				AddText($"\t.CLFilterRoot = '{CLFilterDirectory.FullName}'\n");
-				AddText($"\t.Executable = '$CLFilterRoot$\\cl-filter.exe'\n");
+				if (UsingCLFilter)
+				{
+					AddText($"\t.CLFilterRoot = '{CLFilterDirectory.FullName}'\n");
+					AddText($"\t.Executable = '$CLFilterRoot$\\cl-filter.exe'\n");
+				}
+				else
+				{
+					AddText($"\t.Executable = '$Root$\\{VCEnv.CompilerPath.GetFileName()}'\n");
+				}
 				AddText($"\t.ExtraFiles =\n\t{{\n");
-				AddText($"\t\t'$Root$/cl.exe'\n");
+				if (UsingCLFilter)
+				{
+					AddText($"\t\t'$Root$/cl.exe'\n");
+				}
 				AddText($"\t\t'$Root$/c1.dll'\n");
 				AddText($"\t\t'$Root$/c1xx.dll'\n");
 				AddText($"\t\t'$Root$/c2.dll'\n");
@@ -889,7 +912,14 @@ namespace UnrealBuildTool
 				string cluiSubDirName = "1033";
 				if (File.Exists(VCEnv.GetToolPath() + "{cluiSubDirName}/clui.dll")) //Check English first...
 				{
-					AddText("\t\t'$CLFilterRoot$/{cluiSubDirName}/clui.dll'\n");
+					if (UsingCLFilter)
+					{
+						AddText("\t\t'$CLFilterRoot$/{cluiSubDirName}/clui.dll'\n");
+					}
+					else
+					{
+						AddText("\t\t'$Root$/{cluiSubDirName}/clui.dll'\n");
+					}
 					cluiDllPath = new FileReference(VCEnv.GetToolPath() + "{cluiSubDirName}/clui.dll");
 				}
 				else
@@ -899,14 +929,21 @@ namespace UnrealBuildTool
 					if (cluiDirectories.Any())
 					{
 						cluiSubDirName = Path.GetFileName(cluiDirectories.First());
-						AddText(string.Format("\t\t'$CLFilterRoot$/{0}/clui.dll'\n", cluiSubDirName));
+						if (UsingCLFilter)
+						{
+							AddText(string.Format("\t\t'$CLFilterRoot$/{0}/clui.dll'\n", cluiSubDirName));
+						}
+						else
+						{
+							AddText(string.Format("\t\t'$Root$/{0}/clui.dll'\n", cluiSubDirName));
+						}
 						cluiDllPath = new FileReference(cluiDirectories.First() + "/clui.dll");
 					}
 				}
 
 				// FASTBuild only preserves the directory structure of compiler files for files in the same directory or sub-directories of the primary executable
 				// Since our primary executable is cl-filter.exe and we need clui.dll in a sub-directory on the worker, we need to copy it to cl-filter's subdir
-				if (cluiDllPath != null)
+				if (UsingCLFilter && cluiDllPath != null)
 				{
 					Directory.CreateDirectory(Path.Combine(CLFilterDirectory.FullName, cluiSubDirName));
 					File.Copy(cluiDllPath.FullName, Path.Combine(CLFilterDirectory.FullName, cluiSubDirName, "clui.dll"), true);

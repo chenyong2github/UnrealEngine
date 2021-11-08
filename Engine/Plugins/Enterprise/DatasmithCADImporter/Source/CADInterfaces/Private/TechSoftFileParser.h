@@ -9,8 +9,6 @@
 #include "CADOptions.h"
 #include "CADSceneGraph.h"
 
-#include "TechSoftInterface.h"
-
 typedef void A3DAsmModelFile;
 typedef void A3DAsmPartDefinition;
 typedef void A3DAsmProductOccurrence;
@@ -46,57 +44,57 @@ namespace CADLibrary
 
 	enum EModellerType : uint32
 	{
-		kA3DModellerUnknown = 0,              /*!< User modeller. */
-		kA3DModellerCatia = 2,                /*!< CATIA modeller. */
-		kA3DModellerCatiaV5 = 3,              /*!< CATIA V5 modeller. */
-		kA3DModellerCadds = 4,                /*!< CADDS modeller. */
-		kA3DModellerUnigraphics = 5,          /*!< Unigraphics modeller. */
-		kA3DModellerParasolid = 6,            /*!< Parasolid modeller. */
-		kA3DModellerEuclid = 7,               /*!< Euclid modeller. */
-		kA3DModellerIges = 9,                 /*!< IGES modeller. */
-		kA3DModellerUnisurf = 10,             /*!< Unisurf modeller. */
-		kA3DModellerVda = 11,                 /*!< VDA modeller. */
-		kA3DModellerStl = 12,                 /*!< STL modeller. */
-		kA3DModellerWrl = 13,                 /*!< WRL modeller. */
-		kA3DModellerDxf = 14,                 /*!< DXF modeller. */
-		kA3DModellerAcis = 15,                /*!< ACIS modeller. */
-		kA3DModellerProE = 16,                /*!< Pro/E modeller. */
-		kA3DModellerStep = 18,                /*!< STEP modeller. */
-		kA3DModellerIdeas = 19,               /*!< I-DEAS modeller. */
-		kA3DModellerJt = 20,                  /*!< JT modeller. */
-		kA3DModellerSlw = 22,                 /*!< SolidWorks modeller. */
-		kA3DModellerCgr = 23,                 /*!< CGR modeller. */
-		kA3DModellerPrc = 24,                 /*!< PRC modeller. */
-		kA3DModellerXvl = 25,                 /*!< XVL modeller. */
-		kA3DModellerHpgl = 26,                /*!< HPGL modeller. */
-		kA3DModellerTopSolid = 27,            /*!< TopSolid modeller. */
-		kA3DModellerOneSpaceDesigner = 28,    /*!< OneSpace designer modeller. */
-		kA3DModeller3dxml = 29,               /*!< 3DXML modeller. */
-		kA3DModellerInventor = 30,            /*!< Inventor modeller. */
-		kA3DModellerPostScript = 31,          /*!< Postscript modeller. */
-		kA3DModellerPDF = 32,                 /*!< PDF modeller. */
-		kA3DModellerU3D = 33,                 /*!< U3D modeller. */
-		kA3DModellerIFC = 34,                 /*!< IFC modeller. */
-		kA3DModellerDWG = 35,                 /*!< DWG modeller. */
-		kA3DModellerDWF = 36,                 /*!< DWF modeller. */
-		kA3DModellerSE = 37,                  /*!< SolidEdge modeller. */
-		kA3DModellerOBJ = 38,                 /*!< OBJ modeller. */
-		kA3DModellerKMZ = 39,                 /*!< KMZ modeller. */
-		kA3DModellerDAE = 40,                 /*!< COLLADA modeller. */
-		kA3DModeller3DS = 41,                 /*!< 3DS modeller. */
-		kA3DModellerRhino = 43,               /*!< Rhino modeller. */
-		kA3DModellerXML = 44,                 /*!< XML modeller. */
-		kA3DModeller3mf = 45,                 /*!< 3MF modeller. */
-		kA3DModellerScs = 46,                 /*!< SCS modeller. */
-		kA3DModeller3dHtml = 47,              /*!< 3DHTML modeller. */
-		kA3DModellerHsf = 48,                 /*!< Hsf modeller. */
-		kA3DModellerGltf = 49,                /*!< GL modeller. */
-		kA3DModellerRevit = 50,               /*!< Revit modeller. */
-		kA3DModellerFBX = 51,                 /*!< FBX modeller. */
-		kA3DModellerStepXML = 52,             /*!< StepXML modeller. */
-		kA3DModellerPLMXML = 53,              /*!< PLMXML modeller. */
-		kA3DModellerNavisworks = 54,			/*!< For Future Use: Navisworks modeller. */
-		kA3DModellerLast
+		ModellerUnknown = 0,              /*!< User modeller. */
+		ModellerCatia = 2,                /*!< CATIA modeller. */
+		ModellerCatiaV5 = 3,              /*!< CATIA V5 modeller. */
+		ModellerCadds = 4,                /*!< CADDS modeller. */
+		ModellerUnigraphics = 5,          /*!< Unigraphics modeller. */
+		ModellerParasolid = 6,            /*!< Parasolid modeller. */
+		ModellerEuclid = 7,               /*!< Euclid modeller. */
+		ModellerIges = 9,                 /*!< IGES modeller. */
+		ModellerUnisurf = 10,             /*!< Unisurf modeller. */
+		ModellerVda = 11,                 /*!< VDA modeller. */
+		ModellerStl = 12,                 /*!< STL modeller. */
+		ModellerWrl = 13,                 /*!< WRL modeller. */
+		ModellerDxf = 14,                 /*!< DXF modeller. */
+		ModellerAcis = 15,                /*!< ACIS modeller. */
+		ModellerProE = 16,                /*!< Pro/E modeller. */
+		ModellerStep = 18,                /*!< STEP modeller. */
+		ModellerIdeas = 19,               /*!< I-DEAS modeller. */
+		ModellerJt = 20,                  /*!< JT modeller. */
+		ModellerSlw = 22,                 /*!< SolidWorks modeller. */
+		ModellerCgr = 23,                 /*!< CGR modeller. */
+		ModellerPrc = 24,                 /*!< PRC modeller. */
+		ModellerXvl = 25,                 /*!< XVL modeller. */
+		ModellerHpgl = 26,                /*!< HPGL modeller. */
+		ModellerTopSolid = 27,            /*!< TopSolid modeller. */
+		ModellerOneSpaceDesigner = 28,    /*!< OneSpace designer modeller. */
+		Modeller3dxml = 29,               /*!< 3DXML modeller. */
+		ModellerInventor = 30,            /*!< Inventor modeller. */
+		ModellerPostScript = 31,          /*!< Postscript modeller. */
+		ModellerPDF = 32,                 /*!< PDF modeller. */
+		ModellerU3D = 33,                 /*!< U3D modeller. */
+		ModellerIFC = 34,                 /*!< IFC modeller. */
+		ModellerDWG = 35,                 /*!< DWG modeller. */
+		ModellerDWF = 36,                 /*!< DWF modeller. */
+		ModellerSE = 37,                  /*!< SolidEdge modeller. */
+		ModellerOBJ = 38,                 /*!< OBJ modeller. */
+		ModellerKMZ = 39,                 /*!< KMZ modeller. */
+		ModellerDAE = 40,                 /*!< COLLADA modeller. */
+		Modeller3DS = 41,                 /*!< 3DS modeller. */
+		ModellerRhino = 43,               /*!< Rhino modeller. */
+		ModellerXML = 44,                 /*!< XML modeller. */
+		Modeller3mf = 45,                 /*!< 3MF modeller. */
+		ModellerScs = 46,                 /*!< SCS modeller. */
+		Modeller3dHtml = 47,              /*!< 3DHTML modeller. */
+		ModellerHsf = 48,                 /*!< Hsf modeller. */
+		ModellerGltf = 49,                /*!< GL modeller. */
+		ModellerRevit = 50,               /*!< Revit modeller. */
+		ModellerFBX = 51,                 /*!< FBX modeller. */
+		ModellerStepXML = 52,             /*!< StepXML modeller. */
+		ModellerPLMXML = 53,              /*!< PLMXML modeller. */
+		ModellerNavisworks = 54,			/*!< For Future Use: Navisworks modeller. */
+		ModellerLast
 	};
 
 	struct FEntityBehaviour
@@ -126,6 +124,9 @@ namespace CADLibrary
 		FFileDescriptor ExternalFile;
 	};
 
+
+	class FTechSoftInterface;
+	
 	class CADINTERFACES_API FTechSoftFileParser : public ICADFileParser
 	{
 	public:
@@ -134,10 +135,7 @@ namespace CADLibrary
 		 * @param InCADData TODO
 		 * @param EnginePluginsPath Full Path of EnginePlugins. Mandatory to set KernelIO to import DWG, or DGN files
 		 */
-		FTechSoftFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath = TEXT(""))
-			: CADFileData(InCADData)
-		{
-		}
+		FTechSoftFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath = TEXT(""));
 
 #ifndef USE_TECHSOFT_SDK
 		virtual ECADParsingResult Process() override
@@ -175,11 +173,11 @@ namespace CADLibrary
 		// TODO for SW //void TraverseConfiguration(const A3DAsmProductOccurrence* OccurrConfigurationence, FEntityData& ParentMetaData);
 		FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
 		void TraversePrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, FMatrix& OutPrototypeMatrix);
-		FCadId TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition);
-		FCadId TraverseRepresentationSet(const A3DRiSet* pSet);
-		FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem);
-		FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel);
-		FCadId TraversePolyBRepModel(const A3DRiPolyBrepModel* PolygonalBrepModel);
+		void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component);
+		FCadId TraverseRepresentationSet(const A3DRiSet* pSet, FEntityMetaData& PartMetaData);
+		FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, FEntityMetaData& PartMetaData);
+		FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, FEntityMetaData& PartMetaData);
+		FCadId TraversePolyBRepModel(const A3DRiPolyBrepModel* PolygonalBrepModel, FEntityMetaData& PartMetaData);
 
 		// Tessellation methods
 		void MeshRepresentationWithTechSoft(A3DRiRepresentationItem* RepresentationItem, FArchiveBody& Body);
@@ -190,12 +188,19 @@ namespace CADLibrary
 		// MetaData
 		void TraverseMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
 		void TraverseSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData);
-		FString DefineEntityName(TMap<FString, FString>& OutMetaData, EComponentType EntityType);
+
+		void BuildInstanceName(TMap<FString, FString>& MetaData);
+		void BuildReferenceName(TMap<FString, FString>& MetaData);
+		void BuildPartName(TMap<FString, FString>& MetaData);
+		void BuildBodyName(TMap<FString, FString>& MetaData);
 
 		// Graphic properties
-		void TraverseGraphics(const A3DGraphics* Graphics, FEntityBehaviour& GraphicsBehaviour);
+		void TraverseGraphics(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);
+		void TraverseGraphStyleData(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
 		void TraverseMaterialProperties(const A3DEntity* Entity);
 		void TraverseLayer(const A3DAsmProductOccurrence* Occurrence);
+		FArchiveColor& FindOrAddColor(uint32 ColorIndex, uint8 Alpha);
+		FArchiveMaterial& FindOrAddMaterial(uint32 MaterialIndex);
 
 		// Transform
 		FMatrix TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
@@ -220,13 +225,14 @@ namespace CADLibrary
 		uint32 ComponentCount[EComponentType::LastType] = {0};
 
 		FCADFileData& CADFileData;
-		TSharedPtr<ITechSoftInterface> TechSoftInterface;
+		FTechSoftInterface& TechSoftInterface;
+
+		ECADFormat Format;
 
 		EModellerType ModellerType;
 		double FileUnit = 1;
 		FCadId LastEntityId = 1;
 	};
-} // ns CADLibrary
 
 namespace TechSoftFileParserImpl
 {
@@ -279,3 +285,4 @@ namespace TechSoftFileParserImpl
 	};
 
 }
+} // ns CADLibrary

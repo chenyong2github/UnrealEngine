@@ -261,7 +261,7 @@ namespace Chaos
 			Collisions::UpdateSwept(Constraint, IterationParameters.Dt);
 			
 			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.RestitutionVelocityThreshold, true, ParticleParameters.Collided };
-			if (Constraint.TimeOfImpact == 1)
+			if (Constraint.TimeOfImpact >= 1)
 			{
 				// If TOI = 1 (normal constraint) we don't want to split timestep at TOI.
 				ApplyImpl(Constraint, IterationParameters, CCDParticleParamaters);

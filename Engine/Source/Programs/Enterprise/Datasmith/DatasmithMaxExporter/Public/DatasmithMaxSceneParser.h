@@ -106,6 +106,8 @@ public:
 	int Status;
 	bool bOnlySelection;
 
+	static bool HasCollisionName(INode* Node);
+
 private:
 	void NodeEnum(INode* InNode, bool bSelectedOnly, TSharedPtr< class FDatasmithMaxProgressManager >& ProgressManager);
 	void MaterialEnum(Mtl* Material, bool bAddMat);
@@ -115,7 +117,6 @@ private:
 	void ParseForestNode(INode* ForestNode);
 	void ParseRailcloneNode(INode* RailCloneNode);
 	bool GetActualInstances(INode *pINode, INodeTab* InstanceAndRef);
-	bool HasCollisionName(INode* Node);
 
 
 	TArray<FMaxRendereableNode> RenderableNodes;

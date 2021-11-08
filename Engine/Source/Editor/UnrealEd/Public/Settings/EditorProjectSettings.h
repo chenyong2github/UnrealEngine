@@ -238,6 +238,12 @@ public:
 	 * 
 	 */
 	UPROPERTY(EditAnywhere, config, Category= Warnings)
+	bool RecommendEveryoneSetupAGlobalSharedDDCPath=false;
+
+	/**
+	 * 
+	 */
+	UPROPERTY(EditAnywhere, config, Category= Warnings)
 	bool RecommendEveryoneSetupAGlobalS3DDCPath = false;
 
 	/**

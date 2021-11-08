@@ -3235,14 +3235,6 @@ bool AActor::SupportsExternalPackaging() const
 
 	if (!IsTemplate())
 	{
-		if (const ULevel* Level = GetLevel())
-		{
-			if (this == Level->GetDefaultBrush())
-			{
-				return false;
-			}
-		}
-
 		if (IsChildActor())
 		{
 			return false;

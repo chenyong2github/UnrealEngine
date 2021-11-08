@@ -4,7 +4,7 @@
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -23,7 +23,7 @@
 FTrackHeader::FTrackHeader(FBaseTimingTrack& InParentTrack)
 	: ParentTrack(InParentTrack)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 	Reset();
 }

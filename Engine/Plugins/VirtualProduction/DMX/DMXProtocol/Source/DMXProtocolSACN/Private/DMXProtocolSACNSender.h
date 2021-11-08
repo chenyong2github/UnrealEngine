@@ -149,4 +149,7 @@ private:
 
 	/** Is a Multicast sender ? */
 	const bool bIsMulticast;
+
+	/** Buffer of delayed dmx signals */
+	TQueue<FDMXSignal> DelayedBuffer;
 };

@@ -2,10 +2,9 @@
 
 #include "Insights/ViewModels/GraphTrack.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBox.h"
 
 // Insights
@@ -36,9 +35,9 @@ FGraphTrack::FGraphTrack()
 	: FBaseTimingTrack()
 	//, AllSeries()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
+	, PointBrush(FInsightsStyle::GetBrush("Graph.Point"))
 	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, EnabledOptions(EGraphOptions::DefaultEnabledOptions)
 	, VisibleOptions(EGraphOptions::DefaultVisibleOptions)
 	, EditableOptions(EGraphOptions::DefaultEditableOptions)
@@ -57,9 +56,9 @@ FGraphTrack::FGraphTrack(const FString& InName)
 	: FBaseTimingTrack(InName)
 	//, AllSeries()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
+	, PointBrush(FInsightsStyle::GetBrush("Graph.Point"))
 	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, EnabledOptions(EGraphOptions::DefaultEnabledOptions)
 	, VisibleOptions(EGraphOptions::DefaultVisibleOptions)
 	, EditableOptions(EGraphOptions::DefaultEditableOptions)

@@ -140,6 +140,8 @@ namespace UnrealBuildTool.Rules
                 string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
                 AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "ElectraPlayerRuntime_UPL.xml"));
 
+				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
+
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Android");
 
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Android");

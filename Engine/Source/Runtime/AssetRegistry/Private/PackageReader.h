@@ -18,13 +18,22 @@ public:
 
 	enum class EOpenPackageResult : uint8
 	{
+		/** The package summary loaded successfully */
 		Success,
+		/** The package reader was not given a valid archive to load from */
 		NoLoader,
+		/** The package tag could not be found, the package is probably corrupted */
 		MalformedTag,
+		/** The package is too old to be loaded */
 		VersionTooOld,
+		/** The package is from a newer version of the engine */
 		VersionTooNew,
+		/** The package contains an unknown custom version */
 		CustomVersionMissing,
+		/** The package contains a custom version that failed it's validator */
 		CustomVersionInvalid,
+		/** Package was unversioned but the process cannot load unversioned packages */
+		Unversioned,
 	};
 
 	/** Creates a loader for the filename */

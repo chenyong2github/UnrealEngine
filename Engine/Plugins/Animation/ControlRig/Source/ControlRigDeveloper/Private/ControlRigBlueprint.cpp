@@ -563,6 +563,11 @@ void UControlRigBlueprint::PostLoad()
 
 		CDO->ShapeLibraries = ShapeLibraries;
 		CDO->GizmoLibrary_DEPRECATED.Reset();
+		if(CDO->GetHierarchy())
+		{
+			CDO->GetHierarchy()->CopyHierarchy(Hierarchy);
+			CDO->Initialize(true);
+		}
 
 		TArray<UObject*> ArchetypeInstances;
 		CDO->GetArchetypeInstances(ArchetypeInstances);
@@ -572,6 +577,11 @@ void UControlRigBlueprint::PostLoad()
 			{
 				InstanceRig->ShapeLibraries = ShapeLibraries;
 				InstanceRig->GizmoLibrary_DEPRECATED.Reset();
+				if(InstanceRig->GetHierarchy())
+				{
+					InstanceRig->GetHierarchy()->CopyHierarchy(Hierarchy);
+					InstanceRig->Initialize(true);
+				}
 			}
 		}
 
@@ -1984,6 +1994,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+	RecompileVM();
 }
 
 FRigVMGraphModifiedEvent& UControlRigBlueprint::OnModified()

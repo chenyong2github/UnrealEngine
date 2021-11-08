@@ -142,7 +142,7 @@ public:
 	{
 	}
 
-	void ShutdownPoolable() override;
+	void ShutdownPoolable() override final;
 
 	virtual EOutputType GetOutputType() const override
 	{

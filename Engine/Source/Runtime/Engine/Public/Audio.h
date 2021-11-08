@@ -203,6 +203,9 @@ private:
 	/** Volume attenuation due to distance. */
 	float DistanceAttenuation;
 
+	/** Volume attenuation due to occlusion. */
+	float OcclusionAttenuation;
+
 	/** Current volume multiplier - used to zero the volume without stopping the source */
 	float VolumeMultiplier;
 
@@ -353,21 +356,12 @@ public:
 	/** The playback time of the wave instance. Updated from active sound. */
 	float PlaybackTime;
 
-	/** The reverb send method to use. */
-	EReverbSendMethod ReverbSendMethod;
+	/** The output reverb send level to use for tje wave instance. */
+	float ReverbSendLevel;
 
-	/** Reverb distance-based wet-level amount range. */
-	FVector2D ReverbSendLevelRange;
-
-	/** Reverb distance-based wet-level distance/radial range. */
-	FVector2D ReverbSendLevelDistanceRange;
-
-	/** Custom reverb send curve. */
-	FRuntimeFloatCurve CustomRevebSendCurve;
-
-	/** The manual send level to use if the sound is set to use manual send level. */
+	/** TODO remove */
 	float ManualReverbSendLevel;
-
+	
 	/** The submix send settings to use. */
 	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
 
@@ -404,6 +398,7 @@ public:
 	/** Setters for various values on wave instances. */
 	void SetVolume(const float InVolume) { Volume = InVolume; }
 	void SetDistanceAttenuation(const float InDistanceAttenuation) { DistanceAttenuation = InDistanceAttenuation; }
+	void SetOcclusionAttenuation(const float InOcclusionAttenuation) { OcclusionAttenuation = InOcclusionAttenuation; }
 	void SetPitch(const float InPitch) { Pitch = InPitch; }
 	void SetVolumeMultiplier(const float InVolumeMultiplier) { VolumeMultiplier = InVolumeMultiplier; }
 
@@ -422,10 +417,10 @@ public:
 	float GetActualVolume() const;
 
 	/** Returns the volume of the sound including distance attenuation. */
-	float GetVolumeWithDistanceAttenuation() const;
+	float GetVolumeWithDistanceAndOcclusionAttenuation() const;
 
 	/** Returns the distance attenuation of the source voice. */
-	float GetDistanceAttenuation() const;
+	float GetDistanceAndOcclusionAttenuation() const;
 
 	/** Returns the dynamic volume of the sound */
 	float GetDynamicVolume() const;
@@ -480,7 +475,7 @@ public:
 
 	ENGINE_API virtual ~FSoundBuffer();
 
-	virtual int32 GetSize() PURE_VIRTUAL(FSoundBuffer::GetSize,return 0;);
+	ENGINE_API virtual int32 GetSize() PURE_VIRTUAL(FSoundBuffer::GetSize,return 0;);
 
 	/**
 	 * Describe the buffer (platform can override to add to the description, but should call the base class version)
@@ -546,7 +541,7 @@ class FSoundSource
 {
 public:
 	/** Constructor */
-	FSoundSource(FAudioDevice* InAudioDevice)
+	ENGINE_API FSoundSource(FAudioDevice* InAudioDevice)
 		: AudioDevice(InAudioDevice)
 		, WaveInstance(nullptr)
 		, Buffer(nullptr)
@@ -578,7 +573,7 @@ public:
 	}
 
 	/** Destructor */
-	virtual ~FSoundSource() {}
+	ENGINE_API virtual ~FSoundSource() {}
 
 	/* Prepares the source voice for initialization. This may parse a compressed asset header on some platforms */
 	virtual bool PrepareForInitialization(FWaveInstance* InWaveInstance) { return true; }

@@ -9,7 +9,7 @@
 #include "HAL/PlatformTime.h"
 #include "Rendering/DrawElements.h"
 #include "TraceServices/Model/NetProfiler.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBar.h"
 
 // Insights
@@ -652,7 +652,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+	FSlateFontInfo SummaryFont = FAppStyle::Get().GetFontStyle("SmallFont");
 
 	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 

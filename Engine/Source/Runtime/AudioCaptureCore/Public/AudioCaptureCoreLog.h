@@ -4,4 +4,4 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAudioCaptureCore, Log, All);
+AUDIOCAPTURECORE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioCaptureCore, Log, All);

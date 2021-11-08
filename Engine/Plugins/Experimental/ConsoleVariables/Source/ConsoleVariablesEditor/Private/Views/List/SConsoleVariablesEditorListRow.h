@@ -4,8 +4,14 @@
 
 #include "SConsoleVariablesEditorList.h"
 
+#include "CoreMinimal.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SConsoleVariablesEditorListValueInput;
 class SConsoleVariablesEditorListRowHoverWidgets;
 
 class SConsoleVariablesEditorListRow : public SCompoundWidget
@@ -19,6 +25,8 @@ public:
 	
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const FConsoleVariablesEditorListSplitterManagerPtr& InSplitterManagerPtr);
 
+	void FlashRow() const;
+	
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
@@ -43,6 +51,10 @@ private:
 	TSharedPtr<SSplitter> NestedSplitterPtr;
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
+
+	TSharedPtr<SBorder> BorderPtr;
+
+	TSharedPtr<SConsoleVariablesEditorListValueInput> ValueChildInputWidget;
 
 	/* For splitter sync */
 

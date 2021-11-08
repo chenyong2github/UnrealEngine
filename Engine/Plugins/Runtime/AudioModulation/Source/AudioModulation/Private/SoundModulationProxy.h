@@ -126,7 +126,7 @@ namespace AudioModulation
 		/*
 		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap.  Creates new proxy if it doesn't exist.
 		 */
-		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(const ProxySettings& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem)
+		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(ProxySettings&& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem)
 		{
 			const IdType ObjectId = static_cast<IdType>(InSettings.GetId());
 
@@ -134,21 +134,21 @@ namespace AudioModulation
 			if (!NewHandle.IsValid())
 			{
 				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), ObjectId, *InSettings.GetName());
-				OutProxyMap.Add(ObjectId, ProxyType(InSettings, OutModSystem));
+				OutProxyMap.Add(ObjectId, ProxyType(MoveTemp(InSettings), OutModSystem));
 				NewHandle = TProxyHandle<IdType, ProxyType, ProxySettings>(ObjectId, OutProxyMap);
 			}
 
 			return NewHandle;
 		}
 
-		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(const ProxySettings& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem, TFunction<void(ProxyType&)> OnCreateProxy)
+		static TProxyHandle<IdType, ProxyType, ProxySettings> Create(ProxySettings&& InSettings, TMap<IdType, ProxyType>& OutProxyMap, FAudioModulationSystem& OutModSystem, TFunction<void(ProxyType&)> OnCreateProxy)
 		{
 			const IdType ObjectId = static_cast<IdType>(InSettings.GetId());
 			TProxyHandle<IdType, ProxyType, ProxySettings> NewHandle = Get(InSettings.GetId(), OutProxyMap);
 			if (!NewHandle.IsValid())
 			{
 				UE_LOG(LogAudioModulation, Verbose, TEXT("Proxy created: Id '%u' for object '%s'."), NewHandle.Id, *InSettings.GetName());
-				OutProxyMap.Add(ObjectId, ProxyType(InSettings, OutModSystem));
+				OutProxyMap.Add(ObjectId, ProxyType(MoveTemp(InSettings), OutModSystem));
 				NewHandle = TProxyHandle<IdType, ProxyType, ProxySettings>(ObjectId, OutProxyMap);
 				OnCreateProxy(NewHandle.FindProxy());
 			}

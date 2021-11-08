@@ -16,14 +16,12 @@
 #include "NiagaraSystemScriptViewModel.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "SequencerSettings.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraHLSLSyntaxHighlighter.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGeneratedCodeView"
@@ -35,6 +33,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 	TabState = 0;
 	ScriptEnum = StaticEnum<ENiagaraScriptUsage>();
 	ensure(ScriptEnum);
+	SyntaxHighlighter = FNiagaraHLSLSyntaxHighlighter::Create();
 
 	SystemViewModel = InSystemViewModel;
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &SNiagaraGeneratedCodeView::SystemSelectionChanged);
@@ -522,11 +521,8 @@ void SNiagaraGeneratedCodeView::UpdateUI_Internal()
 						SAssignNew(GeneratedCode[i].Text, SMultiLineEditableTextBox)
 						.ClearTextSelectionOnFocusLoss(false)
 						.IsReadOnly(true)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.CodeView.Hlsl.Normal")
-						.BackgroundColor(FLinearColor::Black)
+						.Marshaller(SyntaxHighlighter)
 						.SearchText(this, &SNiagaraGeneratedCodeView::GetSearchText)
-						.HScrollBar(GeneratedCode[i].HorizontalScrollBar)
-						.VScrollBar(GeneratedCode[i].VerticalScrollBar)
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()

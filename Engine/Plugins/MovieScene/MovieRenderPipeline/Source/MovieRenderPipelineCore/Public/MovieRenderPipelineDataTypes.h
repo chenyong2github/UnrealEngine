@@ -940,9 +940,6 @@ public:
 
 	FVector2D OverlappedSubpixelShift;
 
-	MoviePipeline::FTileWeight1D WeightFunctionX;
-	MoviePipeline::FTileWeight1D WeightFunctionY;
-
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 
 	FOpenColorIODisplayConfiguration* OCIOConfiguration;
@@ -981,11 +978,53 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	int32 SortingOrder;
 	bool bCompositeToFinalImage;
 
+	/** If specified, use this as the output filename (not including output directory) when using debug write samples to disk */
+	FString Debug_OverrideFilename;
+
 	FImagePixelDataPayload()
 		: bRequireTransparentOutput(false)
 		, SortingOrder(TNumericLimits<int32>::Max())
 		, bCompositeToFinalImage(false)
 	{}
+
+	virtual TSharedRef<FImagePixelDataPayload> Copy() const
+	{
+		return MakeShared<FImagePixelDataPayload>(*this);
+	}
+
+	virtual FIntPoint GetAccumulatorSize() const
+	{
+		return FIntPoint(SampleState.TileSize.X * SampleState.TileCounts.X, SampleState.TileSize.Y * SampleState.TileCounts.Y);
+	}
+
+	virtual FIntPoint GetOverlappedOffset() const
+	{
+		return SampleState.OverlappedOffset;
+	}
+
+	virtual FVector2D GetOverlappedSubpixelShift() const
+	{
+		return SampleState.OverlappedSubpixelShift;
+	}
+
+	virtual void GetWeightFunctionParams(MoviePipeline::FTileWeight1D& WeightFunctionX, MoviePipeline::FTileWeight1D& WeightFunctionY) const
+	{
+		WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
+		WeightFunctionY.InitHelper(SampleState.OverlappedPad.Y, SampleState.TileSize.Y, SampleState.OverlappedPad.Y);
+	}
+
+	virtual FIntPoint GetOverlapPaddedSize() const
+	{
+		return FIntPoint(
+			(SampleState.TileSize.X + 2 * SampleState.OverlappedPad.X),
+			(SampleState.TileSize.Y + 2 * SampleState.OverlappedPad.Y));
+	}
+
+	virtual bool GetOverlapPaddedSizeIsValid(const FIntPoint InRawSize) const
+	{
+		return (SampleState.TileSize.X + 2 * SampleState.OverlappedPad.X == InRawSize.X)
+			&& (SampleState.TileSize.Y + 2 * SampleState.OverlappedPad.Y == InRawSize.Y);
+	}
 
 	/** Is this the first tile of an image and we should start accumulating? */
 	FORCEINLINE bool IsFirstTile() const
@@ -1051,6 +1090,19 @@ namespace MoviePipeline
 {
 	struct MOVIERENDERPIPELINECORE_API IMoviePipelineOverlappedAccumulator : public TSharedFromThis<IMoviePipelineOverlappedAccumulator>
 	{
+	};
+
+	struct IMoviePipelineOutputMerger : public TSharedFromThis<IMoviePipelineOutputMerger>
+	{
+		virtual FMoviePipelineMergerOutputFrame& QueueOutputFrame_GameThread(const FMoviePipelineFrameOutputState& CachedOutputState) = 0;
+		virtual void OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData) = 0;
+		virtual void OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData) = 0;
+		virtual void AbandonOutstandingWork() = 0;
+		virtual int32 GetNumOutstandingFrames() const = 0;
+
+		virtual ~IMoviePipelineOutputMerger()
+		{
+		}
 	};
 
 	struct FAudioState

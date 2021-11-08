@@ -22,15 +22,20 @@
 #include "MetasoundTrigger.h"
 #include "NodeFactory.h"
 #include "PropertyCustomizationHelpers.h"
-#include "ScopedTransaction.h"
+#include "SAudioRadialSlider.h"
+#include "SAudioSlider.h"
 #include "SCommentBubble.h"
+#include "ScopedTransaction.h"
 #include "SGraphNode.h"
 #include "SGraphPin.h"
+#include "SGraphPinComboBox.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "SMetasoundEnumPin.h"
 #include "Styling/AppStyle.h"
-#include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateColor.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "TutorialMetaData.h"
+#include "UObject/ScriptInterface.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
@@ -39,9 +44,6 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SGraphPinComboBox.h"
-#include "SMetasoundEnumPin.h"
-#include "UObject/ScriptInterface.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphNode"
 
@@ -121,11 +123,30 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateTriggerSimulationWidget(UMetasoun
 	];
 }
 
+void SMetasoundGraphNode::CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox)
+{
+	TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
+		LOCTEXT("MetasoundGraphNode_AddPinInputButton", "Add Input"),
+		LOCTEXT("MetasoundGraphNode_AddPinInputButton_Tooltip", "Add an input to the parent Metasound node.")
+	);
+
+	FMargin AddPinPadding = Settings->GetOutputPinPadding();
+	AddPinPadding.Top += 6.0f;
+
+	InputBox->AddSlot()
+	.AutoHeight()
+	.VAlign(VAlign_Center)
+	.Padding(AddPinPadding)
+	[
+		AddPinButton
+	];
+}
+
 void SMetasoundGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox)
 {
 	TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
-		LOCTEXT("MetasoundGraphNode_AddPinButton", "Add input"),
-		LOCTEXT("MetasoundGraphNode_AddPinButton_Tooltip", "Add an input to the parent Metasound node.")
+		LOCTEXT("MetasoundGraphNode_AddPinOutputButton", "Add Output"),
+		LOCTEXT("MetasoundGraphNode_AddPinOutputButton_Tooltip", "Add an output to the parent Metasound node.")
 	);
 
 	FMargin AddPinPadding = Settings->GetOutputPinPadding();
@@ -526,38 +547,105 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 		{
 			if (UMetasoundEditorGraphInputFloat* InputFloat = Cast<UMetasoundEditorGraphInputFloat>(GraphInput->Literal))
 			{
-				if (InputFloat->InputWidgetType == EMetasoundInputWidget::Slider)
+				if (InputFloat->InputWidgetType != EMetasoundInputWidget::None)
 				{
+					const float InputWidgetPadding = 3.0f;
+					const FVector2D SliderDesiredSizeVertical = FVector2D(30.0f, 250.0f);
+					const FVector2D RadialSliderDesiredSize = FVector2D(56.0f, 87.0f);
 					IsFloatInputNode = true;
-					// Create slider 
+
 					auto OnValueChangedLambda = [InputFloat, GraphInput, this](float Value)
 					{
-						if (InputSlider.IsValid())
+						if (InputWidget.IsValid())
 						{
-							float Output = InputSlider->GetOutputValue(Value);
+							float Output = InputWidget->GetOutputValue(Value);
 							InputFloat->SetDefault(Output);
 							GraphInput->UpdateDocumentInput();
 						}
 					};
-					if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Frequency)
+					if (InputFloat->InputWidgetType == EMetasoundInputWidget::Slider)
 					{
-						SAssignNew(InputSlider, SAudioFrequencySlider)
-							.OnValueChanged_Lambda(OnValueChangedLambda);
+						// Create slider 
+						if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Frequency)
+						{
+							SAssignNew(InputWidget, SAudioFrequencySlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+						}
+						else if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Volume)
+						{
+							SAssignNew(InputWidget, SAudioVolumeSlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+						}
+						else
+						{
+							SAssignNew(InputWidget, SAudioSlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+							InputWidget->SetShowUnitsText(false);
+						}
+						// Slider layout 
+						if (InputFloat->InputWidgetOrientation == Orient_Vertical)
+						{
+							SAssignNew(OuterContentBox, SVerticalBox)
+							+ SVerticalBox::Slot()
+							.HAlign(HAlign_Right)
+							.VAlign(VAlign_Center)
+							.AutoHeight()
+							[
+								ContentBox
+							]
+							+ SVerticalBox::Slot()
+							.HAlign(HAlign_Fill)
+							.VAlign(VAlign_Top)
+							.Padding(InputWidgetPadding, 0.0f, InputWidgetPadding, InputWidgetPadding)
+							.AutoHeight()
+							[
+								InputWidget.ToSharedRef()
+							];
+							InputWidget->SetDesiredSizeOverride(SliderDesiredSizeVertical);
+						}
+						else // horizontal orientation
+						{
+							SAssignNew(OuterContentBox, SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.HAlign(HAlign_Fill)
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								InputWidget.ToSharedRef()
+							]
+							+SHorizontalBox::Slot()
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Fill)
+							.Padding(InputWidgetPadding, 0.0f, 0.0f, InputWidgetPadding)
+							.AutoWidth()
+							[
+								ContentBox
+							];
+							InputWidget->SetDesiredSizeOverride(FVector2D(SliderDesiredSizeVertical.Y, SliderDesiredSizeVertical.X));
+						}
+						// safe downcast because the ptr was just assigned above 
+						StaticCastSharedPtr<SAudioSliderBase>(InputWidget)->SetOrientation(InputFloat->InputWidgetOrientation);
 					}
-					else if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Volume)
+					else if (InputFloat->InputWidgetType == EMetasoundInputWidget::RadialSlider)
 					{
-						SAssignNew(InputSlider, SAudioVolumeSlider)
-							.OnValueChanged_Lambda(OnValueChangedLambda);
-					}
-					else
-					{
-						SAssignNew(InputSlider, SAudioSlider)
-							.OnValueChanged_Lambda(OnValueChangedLambda);
-						InputSlider->SetShowUnitsText(false);
-					}
-					// Slider layout 
-					if (InputFloat->InputWidgetOrientation == Orient_Vertical)
-					{
+						// Create slider 
+						if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Frequency)
+						{
+							SAssignNew(InputWidget, SAudioFrequencyRadialSlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+						}
+						else if (InputFloat->InputWidgetValueType == EMetasoundInputWidgetValueType::Volume)
+						{
+							SAssignNew(InputWidget, SAudioVolumeRadialSlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+						}
+						else
+						{
+							SAssignNew(InputWidget, SAudioRadialSlider)
+								.OnValueChanged_Lambda(OnValueChangedLambda);
+							InputWidget->SetShowUnitsText(false);
+						}
+						// Only vertical layout for radial slider
 						SAssignNew(OuterContentBox, SVerticalBox)
 						+ SVerticalBox::Slot()
 						.HAlign(HAlign_Right)
@@ -569,32 +657,16 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 						+ SVerticalBox::Slot()
 						.HAlign(HAlign_Fill)
 						.VAlign(VAlign_Top)
+						.Padding(InputWidgetPadding, 0.0f, InputWidgetPadding, InputWidgetPadding)
 						.AutoHeight()
 						[
-							InputSlider.ToSharedRef()
+							InputWidget.ToSharedRef()
 						];
-						InputSlider->SetDesiredSizeOverride(FVector2D(30.0f, 250.0f));
+						InputWidget->SetDesiredSizeOverride(RadialSliderDesiredSize);
 					}
-					else // horizontal orientation
-					{
-						SAssignNew(OuterContentBox, SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							InputSlider.ToSharedRef()
-						]
-						+SHorizontalBox::Slot()
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Fill)
-						.AutoWidth()
-						[
-							ContentBox
-						];
-						InputSlider->SetDesiredSizeOverride(FVector2D(250.0f, 30.0f));
-					}
-
+					InputWidget->SetOutputRange(InputFloat->GetRange());
+					InputWidget->SetUnitsTextReadOnly(true);
+					InputWidget->SetValue(InputWidget->GetLinValue(InputFloat->GetDefault()));
 					// setup delegates 
 					// clear delegate if necessary (ex. if was just saved) 
 					if (InputSliderOnValueChangedDelegateHandle.IsValid())
@@ -602,12 +674,12 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 						InputFloat->OnDefaultValueChanged.Remove(InputSliderOnValueChangedDelegateHandle);
 						InputSliderOnValueChangedDelegateHandle.Reset();
 					}
-					InputSliderOnValueChangedDelegateHandle = InputFloat->OnDefaultValueChanged.AddLambda([InputSlider = this->InputSlider](float Value)
+					InputSliderOnValueChangedDelegateHandle = InputFloat->OnDefaultValueChanged.AddLambda([InputWidget = this->InputWidget](float Value)
 					{
-						if (InputSlider.IsValid())
+						if (InputWidget.IsValid())
 						{
-							const float LinValue = InputSlider->GetLinValue(Value);
-							InputSlider->SetValue(LinValue);
+							const float LinValue = InputWidget->GetLinValue(Value);
+							InputWidget->SetValue(LinValue);
 						}
 					});
 
@@ -616,18 +688,13 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 						InputFloat->OnRangeChanged.Remove(InputSliderOnRangeChangedDelegateHandle);
 						InputSliderOnRangeChangedDelegateHandle.Reset();
 					}
-					InputSliderOnRangeChangedDelegateHandle = InputFloat->OnRangeChanged.AddLambda([InputSlider = this->InputSlider](FVector2D Range)
+					InputSliderOnRangeChangedDelegateHandle = InputFloat->OnRangeChanged.AddLambda([InputWidget = this->InputWidget](FVector2D Range)
 					{
-						if (InputSlider.IsValid())
+						if (InputWidget.IsValid())
 						{
-							InputSlider->SetOutputRange(Range);
+							InputWidget->SetOutputRange(Range);
 						}
 					});
-
-					InputSlider->SetOutputRange(InputFloat->GetRange());
-					InputSlider->SetOrientation(InputFloat->InputWidgetOrientation);
-					InputSlider->SetUnitsTextReadOnly(true);
-					InputSlider->SetValue(InputSlider->GetLinValue(InputFloat->GetDefault()));
 				}
 			}
 		}

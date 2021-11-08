@@ -146,6 +146,12 @@ TArray<FName> ISoundfieldEndpointFactory::GetAllSoundfieldEndpointTypes()
 	return SoundfieldFormatNames;
 }
 
+FName ISoundfieldEndpointFactory::DefaultSoundfieldEndpointName()
+{
+	static FName DefaultEndpointName = FName(TEXT("Default Soundfield Endpoint"));
+	return DefaultEndpointName;
+}
+
 TUniquePtr<ISoundfieldDecoderStream> ISoundfieldEndpointFactory::CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings)
 {
 	// Endpoint soundfield formats don't ever get decoded in our audio engine, since they are external sends.

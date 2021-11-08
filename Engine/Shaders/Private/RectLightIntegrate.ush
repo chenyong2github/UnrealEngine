@@ -231,7 +231,9 @@ FAreaLightIntegrateContext CreateRectIntegrateContext( float Roughness, half3 N,
 	Out.AreaLight.FalloffColor = 1;
 	Out.AreaLight.Rect = Rect;
 	Out.AreaLight.Texture = SourceTexture;
-	Out.AreaLight.bIsRect = false;
+	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
+	SetIsRectLight(Out.AreaLight, false);
+	SetAreaLightDiffuseMicroReflWeight(Out.AreaLight, 0.0);
 	Out.L = L;
 	Out.NoL = NoL;
 	Out.Falloff = Falloff;
@@ -242,7 +244,9 @@ FAreaLightIntegrateContext CreateRectIntegrateContext( float Roughness, half3 N,
 	Out.AreaLight.FalloffColor = FalloffColor;
 	Out.AreaLight.Rect = Rect;
 	Out.AreaLight.Texture = SourceTexture;
-	Out.AreaLight.bIsRect = true;
+	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
+	SetIsRectLight(Out.AreaLight, true);
+	SetAreaLightDiffuseMicroReflWeight(Out.AreaLight, 0.0);
 	Out.L = L;
 	Out.NoL = NoL;
 	Out.Falloff = Falloff;

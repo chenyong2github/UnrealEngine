@@ -1845,7 +1845,9 @@ bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* Sour
 	if (bIgnoreChangeId || (DestScriptVar->GetChangeId() != SourceScriptVar->GetChangeId()) )
 	{
 		// UNiagaraScriptVariable Properties
-		if(DestScriptVar->GetIsOverridingParameterDefinitionsDefaultValue() == false)
+		// Only notify that the scriptvariable change needs to be synchronized in the graph if a default value change occurs: if we are only synchronizing metadata changes, do not dirty the graph.
+		bool bRequiresSync = false;
+		if(DestScriptVar->GetIsOverridingParameterDefinitionsDefaultValue() == false && UNiagaraScriptVariable::DefaultsAreEquivalent(SourceScriptVar, DestScriptVar) == false)
 		{ 
 			DestScriptVar->DefaultMode = SourceScriptVar->DefaultMode;
 			DestScriptVar->DefaultBinding = SourceScriptVar->DefaultBinding;
@@ -1853,6 +1855,7 @@ bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* Sour
 			{
 				DestScriptVar->SetDefaultValueData(SourceScriptVar->GetDefaultValueData());
 			}
+			bRequiresSync = true;
 		}
 		DestScriptVar->SetChangeId(SourceScriptVar->GetChangeId());
 
@@ -1873,12 +1876,12 @@ bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* Sour
 		}
 
 		// Notify the script variable has changed to propagate the default value to the graph node.
-		if (DestScriptVar->GetIsOverridingParameterDefinitionsDefaultValue() == false)
+		if (bRequiresSync)
 		{ 
 			ScriptVariableChanged(DestScriptVar->Variable);
 		}
 
-		return true;
+		return bRequiresSync;
 	}
 	return false;
 }

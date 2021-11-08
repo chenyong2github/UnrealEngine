@@ -2,12 +2,14 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+
+#include "AssetToolsModule.h"
+#include "AssetTools/ImgMediaSourceActions.h"
+#include "Customizations/ImgMediaSourceCustomization.h"
+#include "IAssetTools.h"
+#include "ImgMediaSource.h"
 #include "PropertyEditorModule.h"
 #include "UObject/NameTypes.h"
-
-#include "ImgMediaSource.h"
-
-#include "Customizations/ImgMediaSourceCustomization.h"
 
 
 /**
@@ -23,10 +25,12 @@ public:
 	virtual void StartupModule() override
 	{
 		RegisterCustomizations();
+		RegisterAssetTools();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UnregisterAssetTools();
 		UnregisterCustomizations();
 	}
 
@@ -52,10 +56,37 @@ protected:
 		}
 	}
 
+	void RegisterAssetTools()
+	{
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		TSharedRef<IAssetTypeActions> Action = MakeShared<FImgMediaSourceActions>();
+		AssetTools.RegisterAssetTypeActions(Action);
+		RegisteredAssetTypeActions.Add(Action);
+	}
+
+	void UnregisterAssetTools()
+	{
+		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+
+		if (AssetToolsModule != nullptr)
+		{
+			IAssetTools& AssetTools = AssetToolsModule->Get();
+
+			for (const TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
+			{
+				AssetTools.UnregisterAssetTypeActions(Action);
+			}
+		}
+	}
+
 private:
 
 	/** Class names. */
 	FName ImgMediaSourceName;
+
+	/** The collection of registered asset type actions. */
+	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
 
 

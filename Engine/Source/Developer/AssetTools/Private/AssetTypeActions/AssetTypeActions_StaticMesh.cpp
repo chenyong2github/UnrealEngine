@@ -49,7 +49,7 @@ void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects,
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_NaniteTooltip", "Nanite Options and Tools"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetNaniteMenu, Meshes),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust")
 	);
 
 	Section.AddSubMenu(
@@ -58,14 +58,14 @@ void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects,
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODTooltip", "LOD Options and Tools"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetLODMenu, Meshes),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
-		);
-
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.LOD")
+	);
+	
 	Section.AddMenuEntry(
 		"ObjectContext_ClearVertexColors",
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_ClearVertexColors", "Remove Vertex Colors"),
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_ClearVertexColorsTooltip", "Removes vertex colors from all LODS in all selected meshes."),
-		FSlateIcon(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.RemoveVertexColors"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_StaticMesh::ExecuteRemoveVertexColors, Meshes)
 		)

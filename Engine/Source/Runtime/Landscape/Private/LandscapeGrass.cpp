@@ -2966,9 +2966,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 											{
 												// we're ready to generate but our textures need streaming in
 												DesiredForceStreamedTextures.Add(Component->GetHeightmap());
-												TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+												const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 												
-												for (auto WeightmapTexture : ComponentWeightmapTextures)
+												for (UTexture2D* WeightmapTexture : ComponentWeightmapTextures)
 												{
 													DesiredForceStreamedTextures.Add(WeightmapTexture);
 												}
@@ -3147,9 +3147,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 								// Force stream in other heightmaps but only if we're not waiting for the textures 
 								// near the camera to stream in
 								DesiredForceStreamedTextures.Add(Component->GetHeightmap());
-								TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+								const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 								
-								for (auto WeightmapTexture : ComponentWeightmapTextures)
+								for (UTexture2D* WeightmapTexture : ComponentWeightmapTextures)
 								{
 									DesiredForceStreamedTextures.Add(WeightmapTexture);
 								}

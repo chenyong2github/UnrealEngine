@@ -70,11 +70,34 @@ public:
 
 	virtual void SetReadyBufferListener(IDecoderOutputBufferListener* Listener) override;
 
-	virtual IAccessUnitBufferInterface::EAUpushResult AUdataPushAU(FAccessUnit* InAccessUnit) override;
+	virtual void AUdataPushAU(FAccessUnit* InAccessUnit) override;
 	virtual void AUdataPushEOD() override;
+	virtual void AUdataClearEOD() override;
 	virtual void AUdataFlushEverything() override;
 
 private:
+	struct FDecoderInput
+	{
+		~FDecoderInput()
+		{
+			ReleasePayload();
+		}
+		void ReleasePayload()
+		{
+			FAccessUnit::Release(AccessUnit);
+			AccessUnit = nullptr;
+		}
+
+		FAccessUnit*	AccessUnit = nullptr;
+		bool			bHasBeenPrepared = false;
+		int64			PTS = 0;
+		int64			EndPTS = 0;
+		FTimeValue		AdjustedPTS;
+		FTimeValue		AdjustedDuration;
+		FTimeValue		StartOverlapDuration;
+		FTimeValue		EndOverlapDuration;
+	};
+
 	void StartThread();
 	void StopThread();
 	void WorkerThread();
@@ -89,8 +112,9 @@ private:
 
 	void NotifyReadyBufferListener(bool bHaveOutput);
 
-	bool Decode(FAccessUnit* InAccessUnit);
-	bool IsDifferentFormat(const FAccessUnit* Data);
+	void PrepareAU(TSharedPtrTS<FDecoderInput> AU);
+	bool Decode(TSharedPtrTS<FDecoderInput> AU);
+	bool IsDifferentFormat(TSharedPtrTS<FDecoderInput> AU);
 
 	void PostError(OSStatus ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
@@ -139,7 +163,7 @@ private:
 private:
 	FInstanceConfiguration													Config;
 
-	FAccessUnitBuffer														AccessUnits;
+	TAccessUnitQueue<TSharedPtrTS<FDecoderInput>>							NextAccessUnits;
 
 	FMediaEvent																TerminateThreadSignal;
 	FMediaEvent																FlushDecoderSignal;
@@ -161,6 +185,8 @@ private:
 	bool																	bHaveDiscontinuity;
 
 	FAudioConverterInstance*												DecoderInstance;
+
+	TArray<TSharedPtrTS<FDecoderInput>>										InDecoderInput;
 
 	IMediaRenderer::IBuffer*												CurrentOutputBuffer;
 	FParamDict																BufferAcquireOptions;
@@ -186,10 +212,6 @@ IAudioDecoderAAC::FSystemConfiguration::FSystemConfiguration()
 	ThreadConfig.Decoder.Priority 	   = TPri_Normal;
 	ThreadConfig.Decoder.StackSize	   = 65536;
 	ThreadConfig.Decoder.CoreAffinity    = -1;
-	// Not needed, but setting meaningful values anyway.
-	ThreadConfig.PassOn.Priority  	   = TPri_Normal;
-	ThreadConfig.PassOn.StackSize 	   = 32768;
-	ThreadConfig.PassOn.CoreAffinity     = -1;
 }
 
 IAudioDecoderAAC::FInstanceConfiguration::FInstanceConfiguration()
@@ -318,7 +340,7 @@ bool FAudioDecoderAAC::CreateDecodedSamplePool()
 	FParamDict poolOpts;
 	uint32 frameSize = sizeof(int16) * 8 * 2048;
 	poolOpts.Set("max_buffer_size", FVariantValue((int64) frameSize));
-	poolOpts.Set("num_buffers",     FVariantValue((int64) 8));
+	poolOpts.Set("num_buffers", FVariantValue((int64) 8));
 
 	UEMediaError Error = Renderer->CreateBufferPool(poolOpts);
 	check(Error == UEMEDIA_ERROR_OK);
@@ -355,12 +377,6 @@ void FAudioDecoderAAC::DestroyDecodedSamplePool()
 void FAudioDecoderAAC::Open(const IAudioDecoderAAC::FInstanceConfiguration& InConfig)
 {
 	Config = InConfig;
-
-	// Set a large enough size to hold a single access unit. Since we will be asking for a new AU on
-	// demand there is no need to overly restrict ourselves here. But it must be large enough to
-	// hold at least the largest expected access unit.
-	AccessUnits.CapacitySet(FAccessUnitBuffer::FConfiguration(2 << 20, 60.0));
-
 	StartThread();
 }
 
@@ -448,18 +464,13 @@ void FAudioDecoderAAC::StopThread()
  *
  * @param InAccessUnit
  */
-IAccessUnitBufferInterface::EAUpushResult FAudioDecoderAAC::AUdataPushAU(FAccessUnit* InAccessUnit)
+void FAudioDecoderAAC::AUdataPushAU(FAccessUnit* InAccessUnit)
 {
-	// Add a ref count to the AU before adding it to the buffer. If it can be added successfully it could be
-	// used immediately by the worker thread and it would be too late for us to increase the count then.
 	InAccessUnit->AddRef();
-	bool bOk = AccessUnits.Push(InAccessUnit);
-	if (!bOk)
-	{
-		// Could not add. Undo the refcount increase.
-		FAccessUnit::Release(InAccessUnit);
-	}
-	return bOk ? IAccessUnitBufferInterface::EAUpushResult::Ok : IAccessUnitBufferInterface::EAUpushResult::Full;
+
+	TSharedPtrTS<FDecoderInput> NextAU = MakeSharedTS<FDecoderInput>();
+	NextAU->AccessUnit = InAccessUnit;
+	NextAccessUnits.Enqueue(MoveTemp(NextAU));
 }
 
 
@@ -469,7 +480,17 @@ IAccessUnitBufferInterface::EAUpushResult FAudioDecoderAAC::AUdataPushAU(FAccess
  */
 void FAudioDecoderAAC::AUdataPushEOD()
 {
-	AccessUnits.PushEndOfData();
+	NextAccessUnits.SetEOD();
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Notifies the decoder that there may be further access units.
+ */
+void FAudioDecoderAAC::AUdataClearEOD()
+{
+	NextAccessUnits.ClearEOD();
 }
 
 
@@ -499,9 +520,9 @@ void FAudioDecoderAAC::NotifyReadyBufferListener(bool bHaveOutput)
 	{
 		IDecoderOutputBufferListener::FDecodeReadyStats stats;
 		stats.MaxDecodedElementsReady = MaxDecodeBufferSize;
-		stats.NumElementsInDecoder    = CurrentOutputBuffer ? 1 : 0;
-		stats.bOutputStalled		  = !bHaveOutput;
-		stats.bEODreached   		  = AccessUnits.IsEndOfData() && stats.NumDecodedElementsReady == 0 && stats.NumElementsInDecoder == 0;
+		stats.NumElementsInDecoder = CurrentOutputBuffer ? 1 : 0;
+		stats.bOutputStalled = !bHaveOutput;
+		stats.bEODreached = NextAccessUnits.ReachedEOD() && stats.NumDecodedElementsReady == 0 && stats.NumElementsInDecoder == 0;
 		ListenerMutex.Lock();
 		if (ReadyBufferListener)
 		{
@@ -682,12 +703,22 @@ OSStatus FAudioDecoderAAC::FAudioConverterInstance::AudioToolbox_ComplexInputCal
 //-----------------------------------------------------------------------------
 /**
  * Decodes an access unit
+ *
+ * @param AU
  */
-bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
+bool FAudioDecoderAAC::Decode(TSharedPtrTS<FDecoderInput> AU)
 {
 	FTimeValue CurrentPTS;
-	CurrentPTS = InAccessUnit->PTS;
+	CurrentPTS = AU->AdjustedPTS;
+	check(CurrentPTS.IsValid());
+	if (!CurrentPTS.IsValid())
+	{
+		CurrentPTS = AU->AccessUnit->PTS;
+	}
 
+	void* CurrentOutputBufferAddr = PCMBuffer;
+	int32 CurrentOutputBufferAvailSize = PCMBufferSize;
+	int32 NumSamplesProduced = 0;
 	uint32 nDataOffset = 0;
 	// Loop until all data has been consumed.
 	bool bAllInputConsumed = false;
@@ -719,7 +750,7 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 		NotifyReadyBufferListener(bHaveAvailSmpBlk);
 		if (bHaveAvailSmpBlk)
 		{
-			if (DecoderInstance && !InAccessUnit->bIsDummyData)
+			if (DecoderInstance && !AU->AccessUnit->bIsDummyData)
 			{
 				if (bInDummyDecodeMode)
 				{
@@ -728,12 +759,9 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 				}
 
 				DecoderInstance->WorkData.Clear();
-				DecoderInstance->WorkData.InputData = Electra::AdvancePointer(InAccessUnit->AUData, nDataOffset);
-				DecoderInstance->WorkData.InputSize = InAccessUnit->AUSize - nDataOffset;
+				DecoderInstance->WorkData.InputData = Electra::AdvancePointer(AU->AccessUnit->AUData, nDataOffset);
+				DecoderInstance->WorkData.InputSize = AU->AccessUnit->AUSize - nDataOffset;
 
-				void* CurrentOutputBufferAddr = PCMBuffer;
-				int32 CurrentOutputBufferAvailSize = PCMBufferSize;
-				int32 NumSamplesProduced = 0;
 				uint32 NumberOfChannels   = DecoderInstance->OutputDescr.mChannelsPerFrame;
 				uint32 SamplingRate       = DecoderInstance->InputDescr.mSampleRate;
 				while(1)
@@ -789,9 +817,9 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 
 				}
 				nDataOffset += DecoderInstance->WorkData.InputConsumed;
-				bAllInputConsumed = nDataOffset >= InAccessUnit->AUSize;
+				bAllInputConsumed = nDataOffset >= AU->AccessUnit->AUSize;
 
-				if (NumSamplesProduced)
+				if (bAllInputConsumed && NumSamplesProduced)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
 					CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
@@ -826,28 +854,55 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 					}
 
 
-					int32 CurrentRenderOutputBufferSize = (int32)CurrentOutputBuffer->GetBufferProperties().GetValue("size").GetInt64();
-					void* CurrentRenderOutputBufferAddress = CurrentOutputBuffer->GetBufferProperties().GetValue("address").GetPointer();
 					int32 NumDecodedBytes = PCMBufferSize - CurrentOutputBufferAvailSize;
+					int32 nBytesPerSample = NumberOfChannels * sizeof(int16);
+
+					int32 ByteOffsetToFirstSample = 0;
+					if (AU->StartOverlapDuration.GetAsHNS() || AU->EndOverlapDuration.GetAsHNS())
+					{
+						int32 SkipStartSampleNum = (int32) (AU->StartOverlapDuration.GetAsHNS() * SamplingRate / 10000000);
+						int32 SkipEndSampleNum = (int32) (AU->EndOverlapDuration.GetAsHNS() * SamplingRate / 10000000);
+
+						if (SkipStartSampleNum + SkipEndSampleNum < NumSamplesProduced)
+						{
+							ByteOffsetToFirstSample = SkipStartSampleNum * nBytesPerSample;
+							NumSamplesProduced -= SkipStartSampleNum;
+							NumSamplesProduced -= SkipEndSampleNum;
+							NumDecodedBytes -= (SkipStartSampleNum + SkipEndSampleNum) * nBytesPerSample;
+						}
+						else
+						{
+							NumSamplesProduced = 0;
+							NumDecodedBytes = 0;
+						}
+					}
+
 					int32 NumDecodedSamplesPerChannel = NumDecodedBytes / (sizeof(int16) * NumberOfChannels);
-					ChannelMapper.MapChannels(CurrentRenderOutputBufferAddress, CurrentRenderOutputBufferSize, PCMBuffer, NumDecodedBytes, NumDecodedSamplesPerChannel);
+					if (NumDecodedSamplesPerChannel)
+					{
+						int32 CurrentRenderOutputBufferSize = (int32)CurrentOutputBuffer->GetBufferProperties().GetValue("size").GetInt64();
+						void* CurrentRenderOutputBufferAddress = CurrentOutputBuffer->GetBufferProperties().GetValue("address").GetPointer();
+						ChannelMapper.MapChannels(CurrentRenderOutputBufferAddress, CurrentRenderOutputBufferSize, AdvancePointer(PCMBuffer, ByteOffsetToFirstSample), NumDecodedBytes, NumDecodedSamplesPerChannel);
 
-					FTimeValue Duration;
-					Duration.SetFromND(NumSamplesProduced, SamplingRate);
+						FTimeValue Duration;
+						Duration.SetFromND(NumSamplesProduced, SamplingRate);
 
-					OutputBufferSampleProperties.Clear();
-					OutputBufferSampleProperties.Set("num_channels",  FVariantValue((int64)ChannelMapper.GetNumTargetChannels()));
-					OutputBufferSampleProperties.Set("byte_size",     FVariantValue((int64)(ChannelMapper.GetNumTargetChannels() * NumDecodedSamplesPerChannel * sizeof(int16))));
-					OutputBufferSampleProperties.Set("sample_rate",   FVariantValue((int64) SamplingRate));
-					OutputBufferSampleProperties.Set("duration",      FVariantValue(Duration));
-					OutputBufferSampleProperties.Set("pts",           FVariantValue(CurrentPTS));
-					OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
+						OutputBufferSampleProperties.Clear();
+						OutputBufferSampleProperties.Set("num_channels", FVariantValue((int64)ChannelMapper.GetNumTargetChannels()));
+						OutputBufferSampleProperties.Set("byte_size", FVariantValue((int64)(ChannelMapper.GetNumTargetChannels() * NumDecodedSamplesPerChannel * sizeof(int16))));
+						OutputBufferSampleProperties.Set("sample_rate", FVariantValue((int64) SamplingRate));
+						OutputBufferSampleProperties.Set("duration", FVariantValue(Duration));
+						OutputBufferSampleProperties.Set("pts", FVariantValue(CurrentPTS));
+						OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
 
-					Renderer->ReturnBuffer(CurrentOutputBuffer, true, OutputBufferSampleProperties);
-					CurrentOutputBuffer = nullptr;
+						Renderer->ReturnBuffer(CurrentOutputBuffer, true, OutputBufferSampleProperties);
+						CurrentOutputBuffer = nullptr;
+					}
+					else
+					{
+						ReturnUnusedOutputBuffer();
+					}
 					bHaveDiscontinuity = false;
-
-					CurrentPTS += Duration;
 				}
 			}
 			else
@@ -877,27 +932,34 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 					SamplesPerBlock = ConfigRecord->SBRSignal > 0 ? 2048 : 1024;
 				}
 
-				FTimeValue Duration;
-				Duration.SetFromND(SamplesPerBlock, (uint32) SampleRate);
+				// A partial sample block has fewer samples.
+				if (AU->AdjustedDuration.IsValid())
+				{
+					SamplesPerBlock = AU->AdjustedDuration.GetAsHNS() * SampleRate / 10000000;
+				}
 
-				// Note: The duration in the AU should be an exact multiple of the "SamplesPerBlock / SampleRate" as this is how it gets set
-				//       up in the stream reader. Should there ever be any discrepancy such that "Duration > pData->mDuration" it is simply
-				//       possible to recalculate "SamplesPerBlock" such that we return a buffer with less than the usual 1024 or 2048 samples.
-				OutputBufferSampleProperties.Clear();
-				OutputBufferSampleProperties.Set("num_channels",  FVariantValue(NumChannels));
-				OutputBufferSampleProperties.Set("sample_rate",   FVariantValue(SampleRate));
-				OutputBufferSampleProperties.Set("byte_size",     FVariantValue((int64)(NumChannels * sizeof(int16) * SamplesPerBlock)));
-				OutputBufferSampleProperties.Set("duration",      FVariantValue(Duration));
-				OutputBufferSampleProperties.Set("pts",           FVariantValue(CurrentPTS));
-				OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
+				if (SamplesPerBlock)
+				{
+					FTimeValue Duration;
+					Duration.SetFromND(SamplesPerBlock, (uint32) SampleRate);
 
-				Renderer->ReturnBuffer(CurrentOutputBuffer, true, OutputBufferSampleProperties);
-				CurrentOutputBuffer = nullptr;
+					OutputBufferSampleProperties.Clear();
+					OutputBufferSampleProperties.Set("num_channels", FVariantValue(NumChannels));
+					OutputBufferSampleProperties.Set("sample_rate", FVariantValue(SampleRate));
+					OutputBufferSampleProperties.Set("byte_size", FVariantValue((int64)(NumChannels * sizeof(int16) * SamplesPerBlock)));
+					OutputBufferSampleProperties.Set("duration", FVariantValue(Duration));
+					OutputBufferSampleProperties.Set("pts", FVariantValue(CurrentPTS));
+					OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
+
+					Renderer->ReturnBuffer(CurrentOutputBuffer, true, OutputBufferSampleProperties);
+					CurrentOutputBuffer = nullptr;
+				}
+				else
+				{
+					ReturnUnusedOutputBuffer();
+				}
 				bHaveDiscontinuity = false;
-
-				CurrentPTS += Duration;
-				InAccessUnit->Duration -= Duration;
-				bAllInputConsumed = InAccessUnit->Duration <= FTimeValue::GetZero();
+				bAllInputConsumed = true;
 			}
 		}
 		else
@@ -915,17 +977,70 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 /**
  * Checks if the codec specific format has changed.
  *
- * @param Data
+ * @param AU
  *
  * @return
  */
-bool FAudioDecoderAAC::IsDifferentFormat(const FAccessUnit* Data)
+bool FAudioDecoderAAC::IsDifferentFormat(TSharedPtrTS<FDecoderInput> AU)
 {
-	if (Data->AUCodecData.IsValid() && (!CurrentCodecData.IsValid() || CurrentCodecData->CodecSpecificData != Data->AUCodecData->CodecSpecificData))
+	if (AU.IsValid() && AU->AccessUnit->AUCodecData.IsValid() && (!CurrentCodecData.IsValid() || CurrentCodecData->CodecSpecificData != AU->AccessUnit->AUCodecData->CodecSpecificData))
 	{
 		return true;
 	}
 	return false;
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Prepares the AU for decoding and calculates sample trimming time values.
+ */
+void FAudioDecoderAAC::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
+{
+	if (!AU->bHasBeenPrepared)
+	{
+		AU->bHasBeenPrepared = true;
+
+		// Does this AU fall (partially) outside the range for rendering?
+		FTimeValue StartTime = AU->AccessUnit->PTS;
+		FTimeValue EndTime = AU->AccessUnit->PTS + AU->AccessUnit->Duration;
+		AU->PTS = StartTime.GetAsHNS();		// The PTS we give the decoder no matter any adjustment.
+		AU->EndPTS = EndTime.GetAsHNS();	// End PTS we need to check the PTS value returned by the decoder against.
+		AU->StartOverlapDuration.SetToZero();
+		AU->EndOverlapDuration.SetToZero();
+		if (AU->AccessUnit->EarliestPTS.IsValid())
+		{
+			// If the end time of the AU is before the earliest render PTS we do not need to decode it.
+			if (EndTime <= AU->AccessUnit->EarliestPTS)
+			{
+				StartTime.SetToInvalid();
+			}
+			else if (StartTime < AU->AccessUnit->EarliestPTS)
+			{
+				AU->StartOverlapDuration = AU->AccessUnit->EarliestPTS - StartTime;
+				StartTime = AU->AccessUnit->EarliestPTS;
+			}
+		}
+		if (StartTime.IsValid() && AU->AccessUnit->LatestPTS.IsValid())
+		{
+			// If the start time is behind the latest render PTS we donot need to decode it.
+			if (StartTime >= AU->AccessUnit->LatestPTS)
+			{
+				StartTime.SetToInvalid();
+			}
+			else if (EndTime >= AU->AccessUnit->LatestPTS)
+			{
+				AU->EndOverlapDuration = EndTime - AU->AccessUnit->LatestPTS;
+				EndTime = AU->AccessUnit->LatestPTS;
+			}
+		}
+		AU->AdjustedPTS = StartTime;
+		AU->AdjustedDuration = EndTime - StartTime;
+		if (AU->AdjustedDuration <= FTimeValue::GetZero())
+		{
+			AU->AdjustedPTS.SetToInvalid();
+		}
+	}
 }
 
 
@@ -937,11 +1052,11 @@ void FAudioDecoderAAC::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 
-	FAccessUnit*	CurrentAccessUnit = nullptr;
-	bool			bError			  = false;
+	TOptional<int64> SequenceIndex;
+	bool bError = false;
 
-	PCMBufferSize   = sizeof(int16) * 8 * 2048 * 2;			// max. of 8 channels decoding HE-AAC with twice the room to assemble packets
-	PCMBuffer   	= (int16*)FMemory::Malloc(PCMBufferSize, 32);
+	PCMBufferSize = sizeof(int16) * 8 * 2048 * 2;				// max. of 8 channels decoding HE-AAC with twice the room to assemble packets
+	PCMBuffer = (int16*)FMemory::Malloc(PCMBufferSize, 32);
 	CurrentOutputBuffer = nullptr;
 	bInDummyDecodeMode = false;
 	bHaveDiscontinuity = false;
@@ -952,18 +1067,13 @@ void FAudioDecoderAAC::WorkerThread()
 	while(!TerminateThreadSignal.IsSignaled())
 	{
 		// Notify the buffer listener that we will now be needing an AU for our input buffer.
-		if (!bError && InputBufferListener && AccessUnits.Num() == 0)
+		if (!bError && InputBufferListener && NextAccessUnits.IsEmpty())
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
-			FAccessUnitBufferInfo	sin;
 			IAccessUnitBufferListener::FBufferStats	stats;
-			AccessUnits.GetStats(sin);
-			stats.NumAUsAvailable  = sin.NumCurrentAccessUnits;
-			stats.NumBytesInBuffer = sin.CurrentMemInUse;
-			stats.MaxBytesOfBuffer = sin.MaxDataSize;
-			stats.bEODSignaled     = sin.bEndOfData;
-			stats.bEODReached      = sin.bEndOfData && sin.NumCurrentAccessUnits == 0;
+			stats.bEODSignaled = NextAccessUnits.GetEOD();
+			stats.bEODReached = NextAccessUnits.ReachedEOD();
 			ListenerMutex.Lock();
 			if (InputBufferListener)
 			{
@@ -972,13 +1082,22 @@ void FAudioDecoderAAC::WorkerThread()
 			ListenerMutex.Unlock();
 		}
 		// Get the AU to be decoded if one is there.
-		bool bHaveData = AccessUnits.WaitForData(1000 * 10);
+		bool bHaveData = NextAccessUnits.Wait(1000 * 10);
 		if (bHaveData)
 		{
-			AccessUnits.Pop(CurrentAccessUnit);
+			TSharedPtrTS<FDecoderInput> CurrentAccessUnit;
+			bool bOk = NextAccessUnits.Dequeue(CurrentAccessUnit);
+			MEDIA_UNUSED_VAR(bOk);
+			check(bOk);
+
+			PrepareAU(CurrentAccessUnit);
+			if (!SequenceIndex.IsSet())
+			{
+				SequenceIndex = CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
+			}
 
 			// Check if the format has changed such that we need to destroy and re-create the decoder.
-			if (CurrentAccessUnit->bTrackChangeDiscontinuity || IsDifferentFormat(CurrentAccessUnit) || (CurrentAccessUnit->bIsDummyData && !bInDummyDecodeMode))
+			if (CurrentAccessUnit->AccessUnit->bTrackChangeDiscontinuity || IsDifferentFormat(CurrentAccessUnit) || (CurrentAccessUnit->AccessUnit->bIsDummyData && !bInDummyDecodeMode) || SequenceIndex.GetValue() != CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
 				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
@@ -991,6 +1110,7 @@ void FAudioDecoderAAC::WorkerThread()
 				ConfigRecord.Reset();
 				CurrentCodecData.Reset();
 				ChannelMapper.Reset();
+				InDecoderInput.Empty();
 			}
 
 			// Parse the CSD into a configuration record.
@@ -998,9 +1118,9 @@ void FAudioDecoderAAC::WorkerThread()
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
 				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
-				if (CurrentAccessUnit->AUCodecData.IsValid())
+				if (CurrentAccessUnit->AccessUnit->AUCodecData.IsValid())
 				{
-					CurrentCodecData = CurrentAccessUnit->AUCodecData;
+					CurrentCodecData = CurrentAccessUnit->AccessUnit->AUCodecData;
 					ConfigRecord = MakeShared<MPEG::FAACDecoderConfigurationRecord, ESPMode::ThreadSafe>();
 					if (!ConfigRecord->ParseFrom(CurrentCodecData->CodecSpecificData.GetData(), CurrentCodecData->CodecSpecificData.Num()))
 					{
@@ -1027,42 +1147,50 @@ void FAudioDecoderAAC::WorkerThread()
 				}
 			}
 
-			// Check if this audio packet is to be dropped
-			if (!CurrentAccessUnit->DropState)
+			SequenceIndex = CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
+			// Is this audio packet to be dropped?
+			if (!CurrentAccessUnit->AdjustedPTS.IsValid())
 			{
-				// Need to create a decoder instance?
-				if (DecoderInstance == nullptr && !bError)
-				{
-					if (!InternalDecoderCreate())
-					{
-						bError = true;
-					}
-				}
+				CurrentAccessUnit.Reset();
+				continue;
+			}
 
-				// Decode if not in error, otherwise just spend some idle time.
-				if (!bError)
+			// Need to create a decoder instance?
+			if (DecoderInstance == nullptr && !bError)
+			{
+				if (!InternalDecoderCreate())
 				{
-					if (!Decode(CurrentAccessUnit))
-					{
-						bError = true;
-					}
-				}
-				else
-				{
-					// Pace ourselves in consuming any more data until we are being stopped.
-					FMediaRunnable::SleepMicroseconds(CurrentAccessUnit->Duration.GetAsMicroseconds());
+					bError = true;
 				}
 			}
 
-			// We're done with this access unit. Delete it.
-			FAccessUnit::Release(CurrentAccessUnit);
-			CurrentAccessUnit = nullptr;
+			// Decode if not in error, otherwise just spend some idle time.
+			if (!bError)
+			{
+				if (!Decode(CurrentAccessUnit))
+				{
+					bError = true;
+				}
+			}
+			else
+			{
+				// Pace ourselves in consuming any more data until we are being stopped.
+				FMediaRunnable::SleepMicroseconds(CurrentAccessUnit->AccessUnit->Duration.GetAsMicroseconds());
+			}
+
+			// AU payload is no longer needed, just the information. Release the payload.
+			if (CurrentAccessUnit.IsValid())
+			{
+				CurrentAccessUnit->ReleasePayload();
+			}
+			CurrentAccessUnit.Reset();
 		}
 		else
 		{
 			// No data. Is the buffer at EOD?
-			if (AccessUnits.IsEndOfData())
+			if (NextAccessUnits.ReachedEOD())
 			{
+				InDecoderInput.Empty();
 				NotifyReadyBufferListener(true);
 				FMediaRunnable::SleepMilliseconds(20);
 			}
@@ -1074,7 +1202,9 @@ void FAudioDecoderAAC::WorkerThread()
 			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			ReturnUnusedOutputBuffer();
-			AccessUnits.Flush();
+			NextAccessUnits.Empty();
+			InDecoderInput.Empty();
+			SequenceIndex.Reset();
 
 			FlushDecoderSignal.Reset();
 			DecoderFlushedSignal.Signal();
@@ -1087,8 +1217,8 @@ void FAudioDecoderAAC::WorkerThread()
 	DestroyDecodedSamplePool();
 
 	// Flush any remaining input data.
-	AccessUnits.Flush();
-	AccessUnits.CapacitySet(0);
+	NextAccessUnits.Empty();
+	InDecoderInput.Empty();
 
 	CurrentCodecData.Reset();
 	ConfigRecord.Reset();

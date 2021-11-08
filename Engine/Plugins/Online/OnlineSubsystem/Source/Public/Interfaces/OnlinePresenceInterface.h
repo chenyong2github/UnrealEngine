@@ -293,7 +293,7 @@ typedef FOnPresenceArrayUpdated::FDelegate FOnPresenceArrayUpdatedDelegate;
 /**
  *	Interface class for getting and setting rich presence information.
  */
-class IOnlinePresence
+class ONLINESUBSYSTEM_API IOnlinePresence
 {
 public:
 	/** Virtual destructor to force proper child cleanup */
@@ -323,7 +323,7 @@ public:
 	 * @param Status The collection of state and key/value pairs to set as the user's presence data.
 	 * @param Delegate The delegate to be executed when the potentially asynchronous set operation completes.
 	 */
-	virtual void ONLINESUBSYSTEM_API SetPresence(const FUniqueNetId& User, FOnlinePresenceSetPresenceParameters&& Parameters, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate());
+	virtual void SetPresence(const FUniqueNetId& User, FOnlinePresenceSetPresenceParameters&& Parameters, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate());
 
 	/**
 	 * Starts an async operation that will update the cache with presence data from all users in the Users array.

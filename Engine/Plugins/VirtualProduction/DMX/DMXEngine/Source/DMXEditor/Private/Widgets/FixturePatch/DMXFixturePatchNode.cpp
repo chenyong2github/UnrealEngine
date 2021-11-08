@@ -114,13 +114,13 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 	return NewNode;
 }
 
-void FDMXFixturePatchNode::Update(TSharedPtr<SDMXPatchedUniverse> NewUniverse, int32 NewStartingChannel, int32 NewChannelSpan)
+void FDMXFixturePatchNode::Update(TSharedPtr<SDMXPatchedUniverse> NewUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan)
 {
-	check(NewUniverse.IsValid());
+	check(NewUniverseWidget.IsValid());
 	check(NewStartingChannel > 0 && NewStartingChannel <= DMX_UNIVERSE_SIZE);
 	check(NewChannelSpan > 0);
 
-	Universe = NewUniverse;
+	UniverseWidget = NewUniverseWidget;
 	StartingChannel = NewStartingChannel;
 	ChannelSpan = NewChannelSpan;
 
@@ -175,28 +175,41 @@ void FDMXFixturePatchNode::CommitPatch(bool bTransacted)
 
 		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("FixturePatchAssigned", "Patched Fixture"));
 		FixturePatch->Modify();
+		FixturePatch->PreEditChange(nullptr);
 
-		FixturePatch->SetUniverseID(Universe->GetUniverseID());
+		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
 		FixturePatch->SetManualStartingAddress(StartingChannel);
 
-		LastTransactedUniverseID = Universe->GetUniverseID();
+		FixturePatch->PostEditChange();
+	
+		LastTransactedUniverseID = UniverseWidget->GetUniverseID();
 		LastTransactedChannelID = StartingChannel;
 	}
 	else
 	{
-		FixturePatch->SetUniverseID(Universe->GetUniverseID());
+		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
 		FixturePatch->SetManualStartingAddress(StartingChannel);
 	}
 }
 
 bool FDMXFixturePatchNode::IsPatched() const
 {
-	return Universe.IsValid();
+	return UniverseWidget.IsValid();
 }
 
 bool FDMXFixturePatchNode::IsSelected() const
 {
 	return bSelected;
+}
+
+int32 FDMXFixturePatchNode::GetUniverseID() const
+{
+	if (UniverseWidget.IsValid())
+	{
+		return UniverseWidget->GetUniverseID();
+	}
+
+	return -1;
 }
 
 void FDMXFixturePatchNode::OnSelectionChanged()

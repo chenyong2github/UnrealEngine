@@ -275,10 +275,13 @@ void FNiagaraSystemInstance::SetActualExecutionState(ENiagaraExecutionState InSt
 
 void FNiagaraSystemInstance::Dump()const
 {
-	GetSystemSimulation()->DumpInstance(this);
-	for (auto& Emitter : Emitters)
+	if (GetSystemSimulation())
 	{
-		Emitter->Dump();
+		GetSystemSimulation()->DumpInstance(this);
+		for (auto& Emitter : Emitters)
+		{
+			Emitter->Dump();
+		}
 	}
 }
 

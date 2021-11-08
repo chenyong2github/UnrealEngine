@@ -587,21 +587,43 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Writes the data to the given file, if it's different from what's there already
+		/// Writes the data to the given file, if it's different from what's there already.
+		/// Returns true if contents were written.
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
 		/// <param name="Contents">Contents of the file</param>
-		public static void WriteAllBytesIfDifferent(FileReference Location, byte[] Contents)
+		public static bool WriteAllBytesIfDifferent(FileReference Location, byte[] Contents)
 		{
 			if(FileReference.Exists(Location))
 			{
 				byte[] CurrentContents = FileReference.ReadAllBytes(Location);
 				if(Contents.AsSpan().SequenceEqual(CurrentContents))
 				{
-					return;
+					return false;
 				}
 			}
 			WriteAllBytes(Location, Contents);
+			return true;
+		}
+
+		/// <summary>
+		/// Writes the string to the given file, if it's different from what's there already.
+		/// Returns true if contents were written.
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		public static bool WriteAllTextIfDifferent(FileReference Location, string Contents)
+		{
+			if(FileReference.Exists(Location))
+			{
+				string CurrentContents = FileReference.ReadAllText(Location);
+				if (String.Equals(Contents, CurrentContents))
+				{
+					return false;
+				}
+			}
+			WriteAllText(Location, Contents);
+			return true;
 		}
 
 		/// <summary>

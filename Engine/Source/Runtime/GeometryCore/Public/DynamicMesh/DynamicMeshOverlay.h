@@ -43,7 +43,7 @@ class FDynamicMesh3;
  * you wish to use in the block at the top of DynamicMeshOverlay.cpp
  */
 template<typename RealType, int ElementSize>
-class TDynamicMeshOverlay
+class GEOMETRYCORE_API TDynamicMeshOverlay
 {
 
 protected:

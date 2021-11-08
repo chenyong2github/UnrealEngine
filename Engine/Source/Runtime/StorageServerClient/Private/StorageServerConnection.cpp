@@ -442,7 +442,10 @@ bool FStorageServerConnection::Initialize(TArrayView<const FString> InHostAddres
 	}
 	else
 	{
-		OplogPath.Append(FPlatformProperties::PlatformName());
+		TArray<FString> TargetPlatformNames;
+		FPlatformMisc::GetValidTargetPlatforms(TargetPlatformNames);
+		check(TargetPlatformNames.Num() > 0);
+		OplogPath.Append(TCHAR_TO_ANSI(*TargetPlatformNames[0]));
 	}
 
 	const int32 ServerVersion = HandshakeRequest(HostAddresses);
@@ -468,6 +471,13 @@ int32 FStorageServerConnection::HandshakeRequest(TArrayView<const TSharedPtr<FIn
 		ServerAddr = Addr;
 		
 		UE_LOG(LogStorageServerConnection, Display, TEXT("Trying to handshake with Zen at '%s'"), *Addr->ToString(true));
+
+		FSocket* ConnectSocket = AcquireNewSocket();
+		if (!ConnectSocket)
+		{
+			continue;
+		}
+		ReleaseSocket(ConnectSocket, true);
 
 		FStorageServerRequest Request("GET", *ResourceBuilder, Hostname);
 		if (FSocket* Socket = Request.Send(*this))

@@ -203,7 +203,7 @@ public:
 	NIAGARAEDITOR_API void GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter);
 	NIAGARAEDITOR_API void GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info);
 
-	TArray<UNiagaraParameterDefinitions*>& GetReservedDefinitions() { return ReservedDefinitions; };
+	NIAGARAEDITOR_API void EnsureReservedDefinitionUnique(FGuid& UniqueId);
 
 	FNiagaraGraphDataCache& GetGraphDataCache() const { return *GraphDataCache.Get(); }
 
@@ -260,8 +260,6 @@ private:
 	{
 		StackIssueGenerators.Add(StructName) = Generator;
 	}
-
-	void PreloadAllParameterDefinitions();
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -346,8 +344,8 @@ private:
 
 	UNiagaraReservedParametersManager* ReservedParametersManagerSingleton;
 
-	// Set of Parameter Definitions assets to reconcile the unique Id for Definitions that are duplicated from each other.
-	TArray<UNiagaraParameterDefinitions*> ReservedDefinitions;
+	// Set of Parameter Definitions Ids
+	TSet<FGuid> ReservedDefinitionIds;
 
 	TUniquePtr<FNiagaraGraphDataCache> GraphDataCache;
 };

@@ -289,7 +289,7 @@ struct FOpenGLCommonState
 
 	virtual ~FOpenGLCommonState()
 	{
-		CleanupResources();
+		FOpenGLCommonState::CleanupResources();
 	}
 
 	// NumCombinedTextures must be greater than or equal to FOpenGL::GetMaxCombinedTextureImageUnits()
@@ -318,7 +318,7 @@ struct FOpenGLCommonState
 	}
 };
 
-struct FOpenGLContextState : public FOpenGLCommonState
+struct FOpenGLContextState final : public FOpenGLCommonState
 {
 	FOpenGLRasterizerStateData		RasterizerState;
 	FOpenGLDepthStencilStateData	DepthStencilState;

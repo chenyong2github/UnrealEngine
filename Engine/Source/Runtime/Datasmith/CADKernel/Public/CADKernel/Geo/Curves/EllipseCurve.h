@@ -36,11 +36,7 @@ namespace CADKernel
 		{
 		}
 
-		FEllipseCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FEllipseCurve() = default;
 
 	public:
 

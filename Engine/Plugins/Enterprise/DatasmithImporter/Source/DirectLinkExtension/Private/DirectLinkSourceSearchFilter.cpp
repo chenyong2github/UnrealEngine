@@ -33,7 +33,7 @@ public:
 bool FFrontendFilter_DirectLinkSource::PassesFilter(FAssetFilterType InItem) const
 {
 	using namespace UE::DatasmithImporter;
-	FContentBrowserItemDataAttributeValue SourceUriAttribute = InItem.GetItemAttribute("SourceUri");
+	FContentBrowserItemDataAttributeValue SourceUriAttribute = InItem.GetItemAttribute(FSourceUri::GetAssetDataTag());
 	if (SourceUriAttribute.IsValid())
 	{
 		FSourceUri SourceUri(SourceUriAttribute.GetValueString());

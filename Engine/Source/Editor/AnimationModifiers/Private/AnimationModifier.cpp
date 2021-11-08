@@ -73,7 +73,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
 	}
 
-	IAnimationDataController& Controller = CurrentAnimSequence->GetController();
+	IAnimationDataController& Controller = CurrentAnimSequence->GetController(); //-V595
 
 	{
 		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
@@ -101,7 +101,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		if (UE::Anim::FApplyModifiersScope::ScopesOpened == 0 || !ScopeReturnType.IsSet() || ScopeReturnType.GetValue() != EAppReturnType::Type::Ok)
 		{
 			const FText ErrorMessageFormat = FText::FormatOrdered(LOCTEXT("ModifierErrorDescription", "Modifier: {0}\nAsset: {1}\n{2}\nResolve the errors before trying to apply again."), FText::FromString(GetClass()->GetPathName()),
-				FText::FromString(CurrentAnimSequence ? CurrentAnimSequence->GetPathName() : CurrentSkeleton->GetPathName()), FText::FromString(OutputLog));
+				FText::FromString(CurrentAnimSequence->GetPathName()), FText::FromString(OutputLog));
 			
 			EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::Ok, ErrorMessageFormat, &MessageTitle);
 			UE::Anim::FApplyModifiersScope::SetReturnType(this, ReturnValue);
@@ -114,7 +114,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		if (UE::Anim::FApplyModifiersScope::ScopesOpened == 0 || !ScopeReturnType.IsSet())
 		{
 			const FText WarningMessage = FText::FormatOrdered(LOCTEXT("ModifierWarningDescription", "Modifier: {0}\nAsset: {1}\n{2}\nAre you sure you want to apply it?"), FText::FromString(GetClass()->GetPathName()),
-				FText::FromString(CurrentAnimSequence ? CurrentAnimSequence->GetPathName() : CurrentSkeleton->GetPathName()), FText::FromString(OutputLog));
+				FText::FromString(CurrentAnimSequence->GetPathName()), FText::FromString(OutputLog));
 
 			EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, WarningMessage, &MessageTitle);
 			bShouldRevert = ReturnValue == EAppReturnType::No || ReturnValue == EAppReturnType::NoAll;

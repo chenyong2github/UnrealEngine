@@ -158,12 +158,18 @@ public:
 	 */
 	bool ExpandSelectionByEdgeRings(FGroupTopologySelection& Selection);
 
+	enum ECornerDrawStyle
+	{
+		Circle,
+		Point
+	};
+
 	/**
 	 * Render the given selection with the default settings of the FToolDataVisualizer.
-	 * Selected edges are drawn as lines, and selected corners are drawn as small view-facing circles.
+	 * Selected edges are drawn as lines, and selected corners are drawn as points or small, view-facing circles, based on the CornerDrawStyle parameter.
 	 * (Currently seleced faces are not draw)
 	 */
-	void DrawSelection(const FGroupTopologySelection& Selection, FToolDataVisualizer* Renderer, const FViewCameraState* CameraState);
+	void DrawSelection(const FGroupTopologySelection& Selection, FToolDataVisualizer* Renderer, const FViewCameraState* CameraState, ECornerDrawStyle CornerDrawStyle = ECornerDrawStyle::Point);
 
 
 public:

@@ -5,7 +5,11 @@
 #include "Widgets/SDMXEntityTreeViewBase.h"
 
 class FDMXEntityTreeEntityNode;
+class FDMXFixtureTypeSharedData;
 class SDMXFixtureTypeTreeFixtureTypeRow;
+class UDMXEntity;
+class UDMXEntityFixtureType;
+class UDMXLibrary;
 
 
 /**
@@ -19,15 +23,6 @@ public:
 	{}
 		/** The DMX Editor that owns this widget */
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
-
-		/** Exectued when entites were added to the DMXEditor's library */
-		SLATE_EVENT(FSimpleDelegate, OnEntitiesAdded)
-
-		/** Exectued when entites were reorderd in the list, and potentially in the library */
-		SLATE_EVENT(FSimpleDelegate, OnEntityOrderChanged)
-
-		/** Exectued when entites were removed from the DMXEditor's library */
-		SLATE_EVENT(FSimpleDelegate, OnEntitiesRemoved)
 
 	SLATE_END_ARGS()
 
@@ -45,7 +40,8 @@ protected:
 	virtual TSharedRef<SWidget> GenerateAddNewEntityButton();
 	virtual void RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>& InRootNode);
 	virtual TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXEntityTreeNodeBase> Node, const TSharedRef<STableViewBase>& OwnerTable);
-	virtual TSharedPtr<SWidget> OnContextMenuOpen() override;
+	virtual TSharedPtr<SWidget> OnContextMenuOpen();
+	virtual void OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo);
 	virtual void OnCutSelectedNodes();
 	virtual bool CanCutNodes() const;
 	virtual void OnCopySelectedNodes();
@@ -61,8 +57,22 @@ protected:
 	//~ End SDMXEntityTreeViewBase interface
 
 private:
+	/** Called when Fixture Types were selected in Fixture Type Shared Data */
+	void OnFixtureTypesSelected();
+
+	/** Called when Fixture Patches were selected in Fixture Patch Shared Data */
+	void OnFixturePatchesSelected();
+
+	/** Called when an Entity was added fromt he edited DMX Library */
+	void OnEntitiesAdded(UDMXLibrary* Library, TArray<UDMXEntity*> Entities);
+
+	/** Called when an Entity was removed from the edited DMX Library */
+	void OnEntitiesRemoved(UDMXLibrary* Library, TArray<UDMXEntity*> Entities);
+
+	/** Called when a Fixture Type changed */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
+
 	/** Called when the selection changed */
-	void OnEntitySelected(const TArray<UDMXEntity*>& NewSelection);
 
 	/** Called when the Add button was clicked */
 	FReply OnAddNewFixtureTypeClicked();
@@ -70,6 +80,12 @@ private:
 	/** Returns the row that corresponds to the node */
 	TSharedPtr<SDMXFixtureTypeTreeFixtureTypeRow> FindEntityRowByNode(const TSharedRef<FDMXEntityTreeEntityNode>& EntityNode);
 
+	/** True while the widget is changing the selection */
+	bool bChangingSelection = false;
+
 	/** Map of entity nodes and their row in the tree */
 	TMap<TSharedRef<FDMXEntityTreeEntityNode>, TSharedRef<SDMXFixtureTypeTreeFixtureTypeRow>> EntityNodeToEntityRowMap;
+
+	/** Shared Data for Fixture Types */
+	TSharedPtr<FDMXFixtureTypeSharedData> FixtureTypeSharedData;
 };

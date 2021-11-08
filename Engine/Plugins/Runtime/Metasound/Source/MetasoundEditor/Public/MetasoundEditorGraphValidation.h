@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Algo/NoneOf.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 
@@ -41,11 +41,10 @@ namespace Metasound
 			// Returns whether or not the graph is in a valid state
 			bool IsValid() const
 			{
-				auto NodeIsInvalid = [](const FGraphNodeValidationResult& Result)
+				return Algo::NoneOf(NodeResults, [](const FGraphNodeValidationResult& Result)
 				{
 					return Result.bIsInvalid;
-				};
-				return !NodeResults.ContainsByPredicate(NodeIsInvalid);
+				});
 			}
 		};
 	} // namespace Editor

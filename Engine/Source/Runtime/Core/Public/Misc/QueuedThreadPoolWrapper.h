@@ -118,7 +118,7 @@ public:
 
 /** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the task graph.
   */
-class CORE_API FQueuedThreadPoolTaskGraphWrapper : public FQueuedThreadPool
+class CORE_API FQueuedThreadPoolTaskGraphWrapper final : public FQueuedThreadPool
 {
 public:
 	/**

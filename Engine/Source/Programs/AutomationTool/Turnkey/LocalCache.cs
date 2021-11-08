@@ -2,15 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Reflection;
-using EpicGames.Core;
-using AutomationTool;
+using System.Text.Json;
 
 namespace Turnkey
 {
@@ -151,7 +144,7 @@ namespace Turnkey
 
 		static void SerializeObject(SavedCache Object, string Filename)
 		{
-			string Str = Json_DEPRECATED.Serialize(Object);
+			string Str = JsonSerializer.Serialize(Object);
 			File.WriteAllText(Filename, Str);
 
 // 			using (FileStream Stream = new FileStream(Filename, FileMode.Create))
@@ -172,7 +165,7 @@ namespace Turnkey
 				string Str = File.ReadAllText(Filename);
 				if (!string.IsNullOrEmpty(Str))
 				{
-					return Json_DEPRECATED.Deserialize<SavedCache>(Str);
+					return JsonSerializer.Deserialize<SavedCache>(Str);
 				}
 
 // 				if (File.Exists(Filename))

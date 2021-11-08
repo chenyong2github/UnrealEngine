@@ -18,11 +18,12 @@ class FFriendsEOS : public FFriendsCommon
 {
 public:
 	FFriendsEOS(FOnlineServicesEOS& InServices);
-	
+
+	virtual void Initialize() override;
 	virtual void PreShutdown() override;
 
 	virtual TOnlineAsyncOpHandle<FQueryFriends> QueryFriends(FQueryFriends::Params&& Params) override;
-	virtual TOnlineResult<FGetFriends::Result> GetFriends(FGetFriends::Params&& Params) override;
+	virtual TOnlineResult<FGetFriends> GetFriends(FGetFriends::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAddFriend> AddFriend(FAddFriend::Params&& Params) override;
 
 protected:

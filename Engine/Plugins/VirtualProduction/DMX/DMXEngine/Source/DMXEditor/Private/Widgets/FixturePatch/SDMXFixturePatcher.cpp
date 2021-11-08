@@ -29,8 +29,8 @@
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 {
+
 	DMXEditorPtr = InArgs._DMXEditor;
-	OnPatched = InArgs._OnPatched;
 
 	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
 	{
@@ -140,7 +140,10 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 				]
 			];
 
-		// Bind to selection
+		// Bind to fixture patch changes
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatcher::OnFixturePatchChanged);
+
+		// Bind to selection changes
 		SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnFixturePatchSelectionChanged);
 		SharedData->OnUniverseSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnUniverseSelectionChanged);
 
@@ -160,8 +163,22 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 		// Bind to tabs being switched
 		FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
 
-		// Bind to entity updates
-		Library->GetOnEntitiesUpdated().AddSP(this, &SDMXFixturePatcher::OnEntitiesUpdated);
+		// Bind to entity changes
+		Library->GetOnEntitiesAdded().AddLambda([this](UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+			{
+				if (DMXLibrary == GetDMXLibrary())
+				{
+					RefreshFromLibrary();
+				}
+			});
+
+		Library->GetOnEntitiesRemoved().AddLambda([this](UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+			{
+				if (DMXLibrary == GetDMXLibrary())
+				{
+					RefreshFromLibrary();
+				}
+			});
 
 		GEditor->RegisterForUndo(this);
 
@@ -195,27 +212,12 @@ void SDMXFixturePatcher::NotifyPropertyChanged(const FPropertyChangedEvent& Prop
 
 void SDMXFixturePatcher::RefreshFromProperties()
 {
-	if (IsUniverseSelectionEnabled())
-	{
-		ShowSelectedUniverse();
-	}
-	else
-	{
-		ShowAllPatchedUniverses();
-	}
+	RefreshFixturePatchState = EDMXRefreshFixturePatcherState::RefreshFromProperties;
 }
 
 void SDMXFixturePatcher::RefreshFromLibrary()
 {
-	bool bForceReconstructWidget = true;
-	if (IsUniverseSelectionEnabled())
-	{
-		ShowSelectedUniverse(bForceReconstructWidget);
-	}
-	else
-	{
-		ShowAllPatchedUniverses(bForceReconstructWidget);
-	}
+	RefreshFixturePatchState = EDMXRefreshFixturePatcherState::RefreshFromLibrary;
 }
 
 void SDMXFixturePatcher::SelectUniverseThatContainsSelectedPatches()
@@ -264,14 +266,25 @@ void SDMXFixturePatcher::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActiv
 	}
 }
 
-void SDMXFixturePatcher::OnEntitiesUpdated(UDMXLibrary* DMXLibrary)
-{
-	check(DMXLibrary == GetDMXLibrary());
-	RefreshFromLibrary();
-}
-
 void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	// Refresh if requested
+	if (RefreshFixturePatchState != EDMXRefreshFixturePatcherState::NoRefreshRequested)
+	{
+		const bool bForceReconstructWidget = RefreshFixturePatchState == EDMXRefreshFixturePatcherState::RefreshFromLibrary;
+		if (IsUniverseSelectionEnabled())
+		{
+			ShowSelectedUniverse(bForceReconstructWidget);
+		}
+		else
+		{
+			ShowAllPatchedUniverses(bForceReconstructWidget);
+		}
+
+		RefreshFixturePatchState = EDMXRefreshFixturePatcherState::NoRefreshRequested;
+	}
+
+	// Set Universe if requested
 	if (UniverseToSetNextTick != INDEX_NONE)
 	{
 		SharedData->SelectUniverse(UniverseToSetNextTick);
@@ -407,8 +420,6 @@ FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, 
 			bool bCreateTransaction = true;
 			if (Universe->Patch(DraggedNode, ChannelID, bCreateTransaction))
 			{
-				OnPatched.ExecuteIfBound();
-
 				return FReply::Handled().EndDragDrop();
 			}
 		}
@@ -526,16 +537,27 @@ TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::FindPatchNodeOfType(UDMXEnt
 	return nullptr;
 }
 
-void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
+void SDMXFixturePatcher::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
-	check(SharedData.IsValid());
-	UniverseToSetNextTick = NewUniverseID;
-}
+	if (IsValid(FixturePatch))
+	{
+		// Const cast is ok here, as long as this function only updates the widget
+		UDMXEntityFixturePatch* NonConstFixturePatch = const_cast<UDMXEntityFixturePatch*>(FixturePatch);
 
-int32 SDMXFixturePatcher::GetSelectedUniverse() const
-{
-	check(SharedData.IsValid());
-	return UniverseToSetNextTick != INDEX_NONE ? UniverseToSetNextTick : SharedData->GetSelectedUniverse();
+		if (const TSharedPtr<FDMXFixturePatchNode> PatchNode = FindPatchNode(NonConstFixturePatch))
+		{
+			if (FixturePatch->GetUniverseID() != PatchNode->GetUniverseID() ||
+				FixturePatch->GetStartingChannel() != PatchNode->GetStartingChannel() ||
+				FixturePatch->GetChannelSpan() != PatchNode->GetChannelSpan())
+			{
+				RefreshFromProperties();
+			}
+		}
+		else if (FixturePatch->GetParentLibrary() == GetDMXLibrary())
+		{
+			RefreshFromProperties();
+		}
+	}
 }
 
 void SDMXFixturePatcher::OnFixturePatchSelectionChanged()
@@ -549,7 +571,7 @@ void SDMXFixturePatcher::OnFixturePatchSelectionChanged()
 	{
 		if (!FindPatchNode(Patch).IsValid())
 		{
-			RefreshFromProperties(); 
+			RefreshFromProperties();
 			break;
 		}
 	}
@@ -567,12 +589,24 @@ void SDMXFixturePatcher::OnUniverseSelectionChanged()
 	{
 		// The newly selected universe is not yet shown and may contain a patch.
 		// If so, show all universes anew, to include the newly selected universe.
-		check(SharedData.IsValid());		
+		check(SharedData.IsValid());
 		if (!PatchedUniversesByID.Contains(SharedData->GetSelectedUniverse()))
 		{
 			ShowAllPatchedUniverses();
 		}
 	}
+}
+
+void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
+{
+	check(SharedData.IsValid());
+	UniverseToSetNextTick = NewUniverseID;
+}
+
+int32 SDMXFixturePatcher::GetSelectedUniverse() const
+{
+	check(SharedData.IsValid());
+	return UniverseToSetNextTick != INDEX_NONE ? UniverseToSetNextTick : SharedData->GetSelectedUniverse();
 }
 
 void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
@@ -799,8 +833,11 @@ void SDMXFixturePatcher::DisableAutoAssignAdress(TWeakObjectPtr<UDMXEntityFixtur
 		);
 
 		FixturePatch->Modify();
+		FixturePatch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked()));
 
 		FixturePatch->SetAutoAssignAddressUnsafe(false);
+
+		FixturePatch->PostEditChange();
 	}
 }
 

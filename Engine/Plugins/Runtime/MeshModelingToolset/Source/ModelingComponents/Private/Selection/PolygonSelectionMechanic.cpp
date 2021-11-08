@@ -69,8 +69,12 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PolyEdgesRenderer.LineThickness = 2.0;
 	HilightRenderer.LineColor = FLinearColor::Green;
 	HilightRenderer.LineThickness = 4.0f;
+	HilightRenderer.PointColor = FLinearColor::Green;
+	HilightRenderer.PointSize = 5.0f;
 	SelectionRenderer.LineColor = LinearColors::Gold3f();
 	SelectionRenderer.LineThickness = 4.0f;
+	SelectionRenderer.PointColor = LinearColors::Gold3f();
+	SelectionRenderer.PointSize = 5.0f;
 
 	float HighlightedFacePercentDepthOffset = 0.5f;
 	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFacePercentDepthOffset);
@@ -239,7 +243,7 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 	HilightRenderer.BeginFrame(RenderAPI, RenderCameraState);
 	HilightRenderer.SetTransform(Transform);
-	TopoSelector->DrawSelection(HilightSelection, &HilightRenderer, &RenderCameraState);
+	TopoSelector->DrawSelection(HilightSelection, &HilightRenderer, &RenderCameraState, FGroupTopologySelector::ECornerDrawStyle::Circle);
 	HilightRenderer.EndFrame();
 }
 

@@ -2,6 +2,7 @@
 
 #include "Chaos/CollisionOneShotManifolds.h"
 
+#include "Chaos/Box.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Convex.h"
@@ -9,39 +10,13 @@
 #include "Chaos/GJK.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Transform.h"
+#include "Chaos/Triangle.h"
 #include "Chaos/Utilities.h"
 #include "ChaosStats.h"
 
 #include "HAL/IConsoleManager.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
-
-#if 0
-DECLARE_STATS_GROUP(TEXT("ChaosManifold"), STATGROUP_ChaosManifold, STATCAT_Advanced);
-
-DECLARE_CYCLE_STAT(TEXT("Manifold::Manifold"), STAT_Collisions_Manifold, STATGROUP_ChaosManifold);
-DECLARE_CYCLE_STAT(TEXT("Manifold::ManifoldGJK"), STAT_Collisions_ManifoldGJK, STATGROUP_ChaosManifold);
-DECLARE_CYCLE_STAT(TEXT("Manifold::ManifoldEdgeEdge"), STAT_Collisions_ManifoldEdgeEdge, STATGROUP_ChaosManifold);
-DECLARE_CYCLE_STAT(TEXT("Manifold::ManifoldClip"), STAT_Collisions_ManifoldClip, STATGROUP_ChaosManifold);
-DECLARE_CYCLE_STAT(TEXT("Manifold::ManifoldReduce"), STAT_Collisions_ManifoldReduce, STATGROUP_ChaosManifold);
-DECLARE_CYCLE_STAT(TEXT("Manifold::ManifoldFaceVertex"), STAT_Collisions_ManifoldFaceVertex, STATGROUP_ChaosManifold);
-#define SCOPE_CYCLE_COUNTER_MANIFOLD() SCOPE_CYCLE_COUNTER(STAT_Collisions_Manifold)
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_GJK() SCOPE_CYCLE_COUNTER(STAT_Collisions_ManifoldGJK)
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_ADDEDGEEDGE() SCOPE_CYCLE_COUNTER(STAT_Collisions_ManifoldEdgeEdge)
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_CLIP() SCOPE_CYCLE_COUNTER(STAT_Collisions_ManifoldClip)
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_REDUCE() SCOPE_CYCLE_COUNTER(STAT_Collisions_ManifoldReduce)
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_ADDFACEVERTEX() SCOPE_CYCLE_COUNTER(STAT_Collisions_ManifoldFaceVertex)
-#else
-#define SCOPE_CYCLE_COUNTER_MANIFOLD()
-#define SCOPE_CYCLE_COUNTER_MANIFOLDGJK()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_GJK()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_ADDEDGEEDGE()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_CLIP()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_REDUCE()
-#define SCOPE_CYCLE_COUNTER_MANIFOLD_ADDFACEVERTEX()
-#endif
-
 
 namespace Chaos
 {
@@ -467,6 +442,82 @@ namespace Chaos
 			return OutPointCount; // This should always be 4
 		}
 
+		// Reduce the number of contact points (in place)
+		// Prerequisites to calling this function:
+		// ContactPoints are sorted on phi (ascending)
+		void ReduceManifoldContactPointsTriangeMesh(TArray<FContactPoint>& ContactPoints)
+		{
+			if (ContactPoints.Num() <= 4)
+			{
+				return;
+			}
+
+			// Point 1) is the deepest contact point
+			// It is already in position
+			
+			// Point 2) Find the point with the largest distance to the deepest contact point
+			{
+				uint32 FarthestPointIndex = 1;
+				FReal FarthestPointDistanceSQR = -1.0f;
+				for (int32 PointIndex = 1; PointIndex < ContactPoints.Num(); PointIndex++)
+				{
+					FReal PointAToPointBSizeSQR = (ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1]).SizeSquared();
+					if (PointAToPointBSizeSQR > FarthestPointDistanceSQR)
+					{
+						FarthestPointIndex = PointIndex;
+						FarthestPointDistanceSQR = PointAToPointBSizeSQR;
+					}
+				}
+				// Farthest point will be added now
+				Swap(ContactPoints[1], ContactPoints[FarthestPointIndex]);
+			}
+
+			// Point 3) Largest triangle area
+			{
+				uint32 LargestTrianglePointIndex = 2;
+				FReal LargestTrianglePointSignedArea = 0.0f; // This will actually be double the signed area
+				FVec3 P0to1 = ContactPoints[1].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1];
+				for (int32 PointIndex = 2; PointIndex < ContactPoints.Num(); PointIndex++)
+				{
+					FReal TriangleSignedArea = FVec3::DotProduct(FVec3::CrossProduct(P0to1, ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1]), ContactPoints[0].ShapeContactNormal);
+					if (FMath::Abs(TriangleSignedArea) > FMath::Abs(LargestTrianglePointSignedArea))
+					{
+						LargestTrianglePointIndex = PointIndex;
+						LargestTrianglePointSignedArea = TriangleSignedArea;
+					}
+				}
+				// Point causing the largest triangle will be added now
+				Swap(ContactPoints[2], ContactPoints[LargestTrianglePointIndex]);
+				// Ensure the winding order is consistent
+				if (LargestTrianglePointSignedArea < 0)
+				{
+					Swap(ContactPoints[0], ContactPoints[1]);
+				}
+			}
+
+			// Point 4) Find the largest triangle connecting with our current triangle
+			{
+				uint32 LargestTrianglePointIndex = 3;
+				FReal LargestPositiveTrianglePointSignedArea = 0.0f;
+				for (int32 PointIndex = 3; PointIndex < ContactPoints.Num(); PointIndex++)
+				{
+					for (uint32 EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
+					{
+						FReal TriangleSignedArea = FVec3::DotProduct(FVec3::CrossProduct(ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[EdgeIndex].ShapeContactPoints[1], ContactPoints[(EdgeIndex + 1) % 3].ShapeContactPoints[1] - ContactPoints[EdgeIndex].ShapeContactPoints[1]), ContactPoints[0].ShapeContactNormal);
+						if (TriangleSignedArea > LargestPositiveTrianglePointSignedArea)
+						{
+							LargestTrianglePointIndex = PointIndex;
+							LargestPositiveTrianglePointSignedArea = TriangleSignedArea;
+						}
+					}
+				}
+				// Point causing the largest positive triangle area will be added now
+				Swap(ContactPoints[3], ContactPoints[LargestTrianglePointIndex]);
+			}
+
+			ContactPoints.SetNum(4); // Will end up with 4 points
+		}
+
 		// This function will clip the input vertices by a reference shape's planes
 		// more vertices may be added to outputVertexBuffer by this function
 		// This is the core of the Sutherland-Hodgman algorithm
@@ -609,7 +660,7 @@ namespace Chaos
 			return Contact;
 		}
 
-		// Select one of the planes on the convex to use as the contact plane, given an estimated contact posiiton and opposing 
+		// Select one of the planes on the convex to use as the contact plane, given an estimated contact position and opposing 
 		// normal from GJK with margins (which gives the shapes rounded corners/edges).
 		template <typename ConvexImplicitType>
 		int32 SelectContactPlane(
@@ -654,7 +705,7 @@ namespace Chaos
 				}
 			}
 
-			// Malformed convexes or half-spaces could have all planes rejected above.
+			// Malformed convexes or half-spaces or capsules could have all planes rejected above.
 			// If that happens, select the most opposing plane including those that
 			// may point the same direction as N. 
 			if (BestPlaneIndex == INDEX_NONE)
@@ -680,6 +731,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER_MANIFOLD();
 
 			const uint32 SpaceDimension = 3;
+			const bool bConvex1IsCapsule = (Convex1.GetType() & ~(ImplicitObjectType::IsInstanced | ImplicitObjectType::IsScaled)) == ImplicitObjectType::Capsule;
 
 			// We only build one shot manifolds once
 			// All convexes are pre-scaled, or wrapped in TImplicitObjectScaled
@@ -692,7 +744,7 @@ namespace Chaos
 			// Get the adjusted margins for each convex
 			FReal Margin1 = Convex1.GetMargin();
 			FReal Margin2 = Convex2.GetMargin();
-			if (bChaos_Collision_Manifold_UseMinMargin)
+			if (bChaos_Collision_Manifold_UseMinMargin && !bConvex1IsCapsule)
 			{
 				// Use the smaller of the two margins for both shapes
 				Margin1 = FMath::Min(Margin1, Margin2);
@@ -701,7 +753,10 @@ namespace Chaos
 			if (Chaos_Collision_Manifold_MaxMargin >= 0.0f)
 			{
 				// Clamp the margin
-				Margin1 = FMath::Min(Margin1, Chaos_Collision_Manifold_MaxMargin);
+				if (!bConvex1IsCapsule)
+				{
+					Margin1 = FMath::Min(Margin1, Chaos_Collision_Manifold_MaxMargin);
+				}
 				Margin2 = FMath::Min(Margin2, Chaos_Collision_Manifold_MaxMargin);
 			}
 
@@ -723,7 +778,7 @@ namespace Chaos
 			const FVec3 SeparationDirectionLocalConvex1 = Convex1Transform.InverseTransformVectorNoScale(GJKContactPoint.Normal);
 			const int32 MostOpposingPlaneIndexConvex1 = SelectContactPlane(Convex1, GJKContactPoint.ShapeContactPoints[0], SeparationDirectionLocalConvex1, Margin1);
 			const TPlaneConcrete<FReal, 3> BestPlaneConvex1 = Convex1.GetPlane(MostOpposingPlaneIndexConvex1);
-			const FReal BestPlaneDotNormalConvex1 = FVec3::DotProduct(-SeparationDirectionLocalConvex1, BestPlaneConvex1.Normal());
+			const FReal BestPlaneDotNormalConvex1 = !bConvex1IsCapsule ? FVec3::DotProduct(-SeparationDirectionLocalConvex1, BestPlaneConvex1.Normal()) : -FLT_MAX;
 
 			// Now for Convex2
 			const FVec3 SeparationDirectionLocalConvex2 = Convex2Transform.InverseTransformVectorNoScale(GJKContactPoint.Normal);
@@ -754,6 +809,11 @@ namespace Chaos
 
 				FVec3 ShapeEdgePos1 = Convex1.GetClosestEdgePosition(MostOpposingPlaneIndexConvex1, GJKContactPoint.ShapeContactPoints[0]);
 				FVec3 ShapeEdgePos2 = Convex2.GetClosestEdgePosition(MostOpposingPlaneIndexConvex2, GJKContactPoint.ShapeContactPoints[1]);
+				if (bConvex1IsCapsule)
+				{
+					ShapeEdgePos1 -= Margin1 * SeparationDirectionLocalConvex1;
+				}
+
 				FVec3 EdgePos1 = Convex1Transform.TransformPosition(ShapeEdgePos1);
 				FVec3 EdgePos2 = Convex2Transform.TransformPosition(ShapeEdgePos2);
 				FReal EdgePhi = FVec3::DotProduct(EdgePos1 - EdgePos2, GJKContactPoint.Normal);
@@ -855,7 +915,11 @@ namespace Chaos
 				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
 				{
 					FContactPoint ContactPoint;
-					const FVec3 VertexInReferenceCoordinates = ClippedVertices[ContactPointIndex];
+					FVec3 VertexInReferenceCoordinates = ClippedVertices[ContactPointIndex];
+					if (bConvex1IsCapsule)
+					{
+						VertexInReferenceCoordinates -= Margin1 * RefSeparationDirection;
+					}
 					FVec3 PointProjectedOntoReferenceFace = VertexInReferenceCoordinates - FVec3::DotProduct(VertexInReferenceCoordinates - RefPlanePosition, RefPlaneNormal) * RefPlaneNormal;
 					FVec3 ClippedPointInOtherCoordinates = ConvexOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCoordinates);
 
@@ -878,7 +942,7 @@ namespace Chaos
 					}
 
 					ContactPoint.Normal = GJKContactPoint.Normal;
-					ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);
+					ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);				
 
 					Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 				}
@@ -1035,6 +1099,115 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<FImplicitBox3, FTriangle>(
+			const FImplicitBox3& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FTriangle& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, FTriangle>(
+			const FImplicitConvex3& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FTriangle& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<class TBox<FReal, 3>, 1>, FTriangle>(
+			const TImplicitObjectScaled<class Chaos::TBox<FReal, 3>, 1>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FTriangle& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<class FConvex, 1>, FTriangle>(
+			const Chaos::TImplicitObjectScaled<class FConvex, 1>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FTriangle& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, class FConvex>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FConvex& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, TImplicitObjectScaled<class FConvex, 1>>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectScaled<class FConvex, 1>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, class TImplicitObjectInstanced<class FConvex>>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<class FConvex>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, class TBox<FReal, 3>>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TBox<FReal, 3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, TImplicitObjectScaled<class TBox<FReal, 3>, 1>>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectScaled<class TBox<FReal, 3>, 1>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<class FCapsule, class TImplicitObjectInstanced<class TBox<FReal, 3>>>(
+			const FCapsule& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<class TBox<FReal, 3>>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal Dt,
+			FPBDCollisionConstraint& Constraint);
+
+		template
+			void ConstructConvexConvexOneShotManifold<class FCapsule, FTriangle>(
+				const FCapsule& Implicit1,
+				const FRigidTransform3& Convex1Transform, //world
+				const FTriangle& Implicit2,
+				const FRigidTransform3& Convex2Transform, //world
+				const FReal Dt,
+				FPBDCollisionConstraint& Constraint);
+
+		template
+			void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<class FCapsule, 1>, class FTriangle>(
+				const TImplicitObjectScaled<class FCapsule, 1>& Implicit1,
+				const FRigidTransform3& Convex1Transform, //world
+				const FTriangle& Implicit2,
+				const FRigidTransform3& Convex2Transform, //world
+				const FReal Dt,
+				FPBDCollisionConstraint& Constraint);
+		
 	}
 }
 

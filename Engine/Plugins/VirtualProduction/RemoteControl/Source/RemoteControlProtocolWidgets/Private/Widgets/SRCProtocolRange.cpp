@@ -2,6 +2,7 @@
 
 #include "SRCProtocolRange.h"
 
+#include "EditorStyleSet.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailTreeNode.h"
 #include "IStructureDetailsView.h"
@@ -76,7 +77,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 		.IsFocusable(false)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Use"))
+			.Image(FEditorStyle::Get().GetBrush("Icons.Use"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	]

@@ -12,7 +12,7 @@ class UToolMenu;
 namespace SceneOutliner
 {
 	/** Get a description of a world to display in the scene outliner */
-	FText GetWorldDescription(UWorld* World);
+	FText SCENEOUTLINER_API GetWorldDescription(UWorld* World);
 }
 
 /** A tree item that represents an entire world */

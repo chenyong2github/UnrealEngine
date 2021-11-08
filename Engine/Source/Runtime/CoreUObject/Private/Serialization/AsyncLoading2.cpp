@@ -506,16 +506,38 @@ struct FGlobalImportStore
 			{
 				PublicExportKeys.Emplace(PublicExportKey);
 #if DO_CHECK
-				UObject* PublicExportObject = PublicExportObjects.FindRef(PublicExportKey);
-				checkf(PublicExportObject, TEXT("Missing entry in ImportStore for object %s with id 0x%llX:%d"),
-					*Item.Value->GetPathName(),
-					PublicExportKey.GetPackageId().Value(),
-					PublicExportKey.GetExportHash());
-				int32 ObjectIndex2 = GUObjectArray.ObjectToIndex(PublicExportObject);
-				checkf(ObjectIndex2 == ObjectIndex, TEXT("Mismatch in ImportStore for %s with id 0x%llX:%d"),
-					*Item.Value->GetPathName(),
-					PublicExportKey.GetPackageId().Value(),
-					PublicExportKey.GetExportHash());
+				{
+					UObject* GCObject = Item.Value;
+
+					checkf(GCObject->HasAllFlags(RF_WasLoaded | RF_Public),
+						TEXT("The serialized GC Object '%s' with (ObjectFlags=%x, InternalObjectFlags=%x)and id 0x%llX:%u is currently missing RF_WasLoaded or RF_Public. ")
+						TEXT("The flags must have been altered incorrectly by a higher level system after the object was loaded. ")
+						TEXT("This may cause memory corruption."),
+						*GCObject->GetFullName(),
+						GCObject->GetFlags(),
+						GCObject->GetInternalFlags(),
+						PublicExportKey.GetPackageId().Value(), PublicExportKey.GetExportHash());
+
+					UObject* ExistingObject = PublicExportObjects.FindRef(PublicExportKey);
+					checkf(ExistingObject,
+						TEXT("The serialized GC object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:%u is missing in ImportStore. ")
+						TEXT("Reason unknown. Double delete? Bug or hash collision?"),
+						*GCObject->GetFullName(),
+						GCObject->GetFlags(),
+						GCObject->GetInternalFlags(),
+						PublicExportKey.GetPackageId().Value(),
+						PublicExportKey.GetExportHash());
+
+					checkf(ExistingObject && ExistingObject == GCObject,
+						TEXT("The serialized GC Object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:%u is not matching the object '%s' in ImportStore. "),
+						TEXT("Reason unknown. Overwritten after it was added? Bug or hash collision?"),
+						*GCObject->GetFullName(),
+						GCObject->GetFlags(),
+						GCObject->GetInternalFlags(),
+						PublicExportKey.GetPackageId().Value(),
+						PublicExportKey.GetExportHash(),
+						*ExistingObject->GetFullName());
+				}
 #endif
 			}
 		}
@@ -564,6 +586,33 @@ struct FGlobalImportStore
 		check(ExportHash != 0);
 		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
 		FPublicExportKey Key = FPublicExportKey::MakeKey(PackageId, ExportHash);
+#if DO_CHECK
+		{
+			UObject* ExistingObject = PublicExportObjects.FindRef(Key);
+			if (ExistingObject)
+			{
+				checkf(ExistingObject == Object,
+					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:%u collides with the object '%s' in ImportStore. ")
+					TEXT("Reason unknown. Bug or hash collision?"),
+					Object ? *Object->GetFullName() : TEXT("null"),
+					ObjectIndex,
+					Key.GetPackageId().Value(), Key.GetExportHash(),
+					ExistingObject ? *ExistingObject->GetFullName() : TEXT("null"));
+			}
+
+			FPublicExportKey* ExistingKey = ObjectIndexToPublicExport.Find(ObjectIndex);
+			if (ExistingKey)
+			{
+				checkf(*ExistingKey == Key,
+					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:%u collides with the object '%s' in ImportStore. ")
+					TEXT("Reason unknown. Bug or hash collision?"),
+					Object ? *Object->GetFullName() : TEXT("null"),
+					ObjectIndex,
+					Key.GetPackageId().Value(), Key.GetExportHash(),
+					ExistingObject ? *ExistingObject->GetFullName() : TEXT("null"));
+			}
+		}
+#endif
 		PublicExportObjects.Add(Key, Object);
 		ObjectIndexToPublicExport.Add(ObjectIndex, Key);
 	}
@@ -2207,7 +2256,6 @@ public:
 		const FPackagePath& InPackagePath,
 		FName InCustomName,
 		FLoadPackageAsyncDelegate InCompletionDelegate,
-		const FGuid* InGuid,
 		EPackageFlags InPackageFlags,
 		int32 InPIEInstanceID,
 		int32 InPackagePriority,
@@ -3486,11 +3534,14 @@ EAsyncPackageState::Type FAsyncPackage2::Event_SetupDependencies(FAsyncLoadingTh
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_SetupDependencies);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::SetupDependencies);
 	
-	if (GIsInitialLoad)
+	if (!Package->bLoadHasFailed)
 	{
-		Package->SetupScriptDependencies();
+		if (GIsInitialLoad)
+		{
+			Package->SetupScriptDependencies();
+		}
+		Package->SetupSerializedArcs();
 	}
-	Package->SetupSerializedArcs();
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessExportBundles;
 	for (int32 ExportBundleIndex = 0, ExportBundleCount = Package->Data.ExportInfo.ExportBundleCount; ExportBundleIndex < ExportBundleCount; ++ExportBundleIndex)
 	{
@@ -5330,7 +5381,9 @@ FORCENOINLINE static void FilterUnreachableObjects(
 	for (FUObjectItem* ObjectItem : UnreachableObjects)
 	{
 		UObject* Object = static_cast<UObject*>(ObjectItem->Object);
-		if (Object->HasAllFlags(RF_WasLoaded | RF_Public))
+		// Including all objects is slow,
+		// but allows RemovePublicExports to check for serialized public exports that have unintentionally lost their flags
+		if (DO_CHECK || Object->HasAllFlags(RF_WasLoaded | RF_Public))
 		{
 			if (Object->GetOuter())
 			{
@@ -5883,7 +5936,7 @@ void FAsyncPackage2::AddCompletionCallback(TUniquePtr<FLoadPackageAsyncDelegate>
 	CompletionCallbacks.Emplace(MoveTemp(Callback));
 }
 
-int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, const FGuid* InGuid, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext*)
+int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext*)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackage);
 

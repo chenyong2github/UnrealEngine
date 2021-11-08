@@ -11,7 +11,9 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Containers/StringView.h"
 #include "EditorDomain/EditorDomain.h"
+#include "Engine/Console.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformTime.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/Paths.h"
 #include "Misc/PreloadableFile.h"
@@ -22,12 +24,16 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 
-namespace UE
-{
-namespace Cook
+namespace UE::Cook
 {
 
-
+	float GPollAsyncPeriod = .100f;
+	static FAutoConsoleVariableRef CVarPollAsyncPeriod(
+		TEXT("cook.PollAsyncPeriod"),
+		GPollAsyncPeriod,
+		TEXT("Minimum time in seconds between PollPendingCookedPlatformDatas."),
+		ECVF_Default);
+	
 	//////////////////////////////////////////////////////////////////////////
 	// FPackageData
 	FPackageData::FPlatformData::FPlatformData()
@@ -37,7 +43,8 @@ namespace Cook
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: GeneratedOwner(nullptr), PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
-		, PreloadableFileFormat(EPackageFormat::Binary), bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0)
+		, PreloadableFileFormat(EPackageFormat::Binary), Instigator(EInstigator::NotYetRequested), bIsUrgent(0)
+		, bIsVisited(0), bIsPreloadAttempted(0)
 		, bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0)
 		, bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 		, bInitializedGeneratorSave(0), bCompletedGeneration(0), bGenerated(0)
@@ -181,7 +188,7 @@ namespace Cook
 	}
 
 	void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms,
-		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, bool bAllowUpdateUrgency)
+		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, FInstigator&& InInstigator, bool bAllowUpdateUrgency)
 	{
 		if (IsInProgress())
 		{
@@ -210,13 +217,13 @@ namespace Cook
 		}
 		else if (InRequestedPlatforms.Num() > 0)
 		{
-			SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback));
+			SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback), MoveTemp(Instigator));
 			SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 		}
 	}
 
 	void FPackageData::SetRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms,
-		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback)
+		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, FInstigator&& InInstigator)
 	{
 		check(!CompletionCallback);
 		check(GetNumRequestedPlatforms() == 0)
@@ -226,6 +233,10 @@ namespace Cook
 		SetPlatformsRequested(InRequestedPlatforms, true);
 		SetIsUrgent(bInIsUrgent);
 		AddCompletionCallback(MoveTemp(InCompletionCallback));
+		if (Instigator.Category == EInstigator::NotYetRequested)
+		{
+			Instigator = MoveTemp(InInstigator);
+		}
 	}
 
 	void FPackageData::ClearInProgressData()
@@ -1521,6 +1532,7 @@ namespace Cook
 
 	FPackageDatas::FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer)
 		: CookOnTheFlyServer(InCookOnTheFlyServer)
+		, LastPollAsyncTime(0)
 	{
 	}
 
@@ -1858,6 +1870,15 @@ namespace Cook
 			return;
 		}
 
+		// ProcessAsyncResults and IsCachedCookedPlatformDataLoaded can be expensive to call
+		// Cap the frequency at which we call them.
+		double CurrentTime = FPlatformTime::Seconds();
+		if (CurrentTime < LastPollAsyncTime + GPollAsyncPeriod)
+		{
+			return;
+		}
+		LastPollAsyncTime = CurrentTime;
+
 		GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
 			false /* bBlockOnGlobalShaderCompletion */);
 		FAssetCompilingManager::Get().ProcessAsyncTasks(true);
@@ -2062,5 +2083,4 @@ namespace Cook
 	}
 #endif
 
-}
 }

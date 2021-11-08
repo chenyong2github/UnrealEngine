@@ -2,17 +2,18 @@
 
 #include "STimerTreeView.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SToolTip.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
@@ -33,7 +34,11 @@ class FTimerTreeViewCommands : public TCommands<FTimerTreeViewCommands>
 {
 public:
 	FTimerTreeViewCommands()
-		: TCommands<FTimerTreeViewCommands>(TEXT("FTimerTreeViewCommands"), NSLOCTEXT("FTimerTreeViewCommands", "Timer Tree View Commands", "Timer Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FTimerTreeViewCommands>(
+			TEXT("FTimerTreeViewCommands"),
+			NSLOCTEXT("FTimerTreeViewCommands", "Timer Tree View Commands", "Timer Tree View Commands"),
+			NAME_None,
+			FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -224,7 +229,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddSubMenu
@@ -233,7 +238,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"),
 			FNewMenuDelegate::CreateSP(this, &STimerTreeView::TreeView_BuildSortByMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -246,7 +251,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"),
 			FNewMenuDelegate::CreateSP(this, &STimerTreeView::TreeView_BuildViewColumnMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
 		);
 
 		FUIAction Action_ShowAllColumns
@@ -258,7 +263,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowAllColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -273,7 +278,7 @@ TSharedPtr<SWidget> STimerTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ResetColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -330,7 +335,7 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -346,7 +351,7 @@ void STimerTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -463,7 +468,7 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -479,7 +484,7 @@ TSharedRef<SWidget> STimerTreeView::TreeViewHeaderRow_GenerateColumnMenu(const I
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton

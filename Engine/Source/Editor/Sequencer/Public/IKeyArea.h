@@ -19,6 +19,7 @@ struct FSequencerPasteEnvironment;
 struct ISequencerChannelInterface;
 struct FMovieSceneChannelMetaData;
 struct FMovieSceneClipboardEnvironment;
+struct FGeometry;
 
 class SWidget;
 class ISequencer;
@@ -28,6 +29,7 @@ class ISequencerSection;
 class UMovieSceneSection;
 class FMovieSceneClipboardBuilder;
 class FMovieSceneClipboardKeyTrack;
+class FSequencerSectionPainter;
 
 /**
  * Interface that should be implemented for the UI portion of a key area within a section
@@ -238,6 +240,16 @@ public:
 	 * @param KeyMask          A specific set of keys to copy
 	 */
 	void CopyKeys(FMovieSceneClipboardBuilder& ClipboardBuilder, TArrayView<const FKeyHandle> KeyMask) const;
+
+
+
+	/**
+	 * Draw additional content in addition to keys for a particular IKeyArea
+	 *
+	 * @param Painter			 The painter to add the created geometry
+	 * @param KeyGeometry		 Allocated geometry to draw in
+	 */
+	void DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const;
 
 
 	/**

@@ -52,6 +52,7 @@ public:
 	FTimeValue												AST = FTimeValue::GetZero();						//!< Value of AST to add to all time to generate wallclock time
 	FTimeValue												AdditionalAdjustmentTime = FTimeValue::GetZero();	//!< Sum of any other time corrections
 	bool													bInsertFillerData = false;							//!< true to insert empty access units into the buffer instead of reading actual data.
+	int64													TimestampSequenceIndex = 0;							//!< Sequence index to set in all timestamp values of the decoded access unit.
 
 	// UTC wallclock times during which this segment can be fetched;
 	FTimeValue												ASAST;
@@ -65,13 +66,11 @@ public:
 
 	// Internal work variables
 	TSharedPtrTS<FBufferSourceInfo>							SourceBufferInfo;
-	FPlayerLoopState										PlayerLoopState;
 	int32													NumOverallRetries = 0;								//!< Number of retries for this _segment_ across all possible quality levels and CDNs.
 	uint32													CurrentPlaybackSequenceID = ~0U;					//!< Set by the player before adding the request to the stream reader.
 
 	Metrics::FSegmentDownloadStats							DownloadStats;
 	HTTP::FConnectionInfo									ConnectionInfo;
-	FTimeValue												NextLargestExpectedTimestamp;						//!< Largest timestamp of all samples (plus its duration) across all tracks.
 
 	bool													bWarnedAboutTimescale = false;
 };

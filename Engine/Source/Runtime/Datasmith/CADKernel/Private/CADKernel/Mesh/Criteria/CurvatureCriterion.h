@@ -14,16 +14,7 @@ namespace CADKernel
 		
 	protected:
 
-		FCurvatureCriterion()
-			: FCriterion(ECriterion::CADCurvature)
-		{
-		}
-
-		FCurvatureCriterion(FCADKernelArchive& Archive, ECriterion InCriterionType)
-			: FCriterion(InCriterionType)
-		{
-			Serialize(Archive);
-		}
+		FCurvatureCriterion()  = default;
 
 	public:
 
@@ -61,6 +52,12 @@ namespace CADKernel
 		{
 			// Do nothing
 		}
+
+		virtual ECriterion GetCriterionType() const override
+		{
+			return ECriterion::CADCurvature;
+		}
+
 
 	protected:
 

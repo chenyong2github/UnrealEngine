@@ -487,7 +487,7 @@ namespace CADKernel
 
 		TFunction<void(EIso)> Decrease = [&](EIso Iso)
 		{
-			if (Index[Iso] > 1)
+			if (Index[Iso] > 1) //-V547
 			{
 				Index[Iso]--;
 				GlobalIndex -= Iso == EIso::IsoU ? 1 : CuttingCount[EIso::IsoU];

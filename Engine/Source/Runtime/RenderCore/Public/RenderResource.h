@@ -40,6 +40,23 @@ public:
 		ResourceListIterationActive.Decrement();
 	}
 
+	template<typename FunctionType>
+	static void ForAllResourcesReverse(const FunctionType& Function)
+	{
+		const TArray<FRenderResource*>& ResourceList = GetResourceList();
+		ResourceListIterationActive.Increment();
+		for (int32 Index = ResourceList.Num() - 1; Index >= 0; --Index)
+		{
+			FRenderResource* Resource = ResourceList[Index];
+			if (Resource)
+			{
+				checkSlow(Resource->ListIndex == Index);
+				Function(Resource);
+			}
+		}
+		ResourceListIterationActive.Decrement();
+	}
+
 	static void InitRHIForAllResources()
 	{
 		ForAllResources([](FRenderResource* Resource) { Resource->InitRHI(); });
@@ -49,8 +66,8 @@ public:
 
 	static void ReleaseRHIForAllResources()
 	{
-		ForAllResources([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
-		ForAllResources([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
+		ForAllResourcesReverse([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
+		ForAllResourcesReverse([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
 	}
 
 	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);

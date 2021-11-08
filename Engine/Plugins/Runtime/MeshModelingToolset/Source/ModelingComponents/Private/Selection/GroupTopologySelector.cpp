@@ -833,23 +833,37 @@ bool GetQuadOppositeEdge(const FGroupTopology& Topology, int32 EdgeIDIn, int32 G
 }
 
 
-void FGroupTopologySelector::DrawSelection(const FGroupTopologySelection& Selection, FToolDataVisualizer* Renderer, const FViewCameraState* CameraState)
+void FGroupTopologySelector::DrawSelection(const FGroupTopologySelection& Selection, FToolDataVisualizer* Renderer, const FViewCameraState* CameraState, ECornerDrawStyle CornerDrawStyle)
 {
 	FLinearColor UseColor = Renderer->LineColor;
 	float LineWidth = Renderer->LineThickness;
 
-	for (int CornerID : Selection.SelectedCornerIDs)
+	if (CornerDrawStyle == ECornerDrawStyle::Point)
 	{
-		int VertexID = Topology->GetCornerVertexID(CornerID);
-		FVector Position = (FVector)Mesh->GetVertex(VertexID);
-		FVector WorldPosition = Renderer->TransformP(Position);
-		
-		// Depending on whether we're in an orthographic view or not, we set the radius based on visual angle or based on ortho 
-		// viewport width (divided into 90 segments like the FOV is divided into 90 degrees).
-		float Radius = (CameraState->bIsOrthographic) ? CameraState->OrthoWorldCoordinateWidth * 0.5 / 90.0
-			: (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(*CameraState, (FVector3d)WorldPosition, 0.5);
-		Renderer->DrawViewFacingCircle(Position, Radius, 16, UseColor, LineWidth, false);
+		for (int CornerID : Selection.SelectedCornerIDs)
+		{
+			int VertexID = Topology->GetCornerVertexID(CornerID);
+			FVector Position = (FVector)Mesh->GetVertex(VertexID);
+
+			Renderer->DrawPoint(Position, Renderer->PointColor, Renderer->PointSize, false);
+		}
 	}
+	else // ECornerDrawStyle::Circle
+	{
+		for (int CornerID : Selection.SelectedCornerIDs)
+		{
+			int VertexID = Topology->GetCornerVertexID(CornerID);
+			FVector Position = (FVector)Mesh->GetVertex(VertexID);
+			FVector WorldPosition = Renderer->TransformP(Position);
+
+			// Depending on whether we're in an orthographic view or not, we set the radius based on visual angle or based on ortho 
+			// viewport width (divided into 90 segments like the FOV is divided into 90 degrees).
+			float Radius = (CameraState->bIsOrthographic) ? CameraState->OrthoWorldCoordinateWidth * 0.5 / 90.0
+				: (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(*CameraState, (FVector3d)WorldPosition, 0.5);
+			Renderer->DrawViewFacingCircle(Position, Radius, 16, UseColor, LineWidth, false);
+		}
+	}
+
 
 	for (int EdgeID : Selection.SelectedEdgeIDs)
 	{

@@ -340,6 +340,8 @@ protected:
 	void AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context);
 	void FlushTickBatch(FNiagaraSystemSimulationTickContext& Context);
 
+	void Tick_GameThread_Internal(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+
 	TArray<FNiagaraSystemInstance*>& GetSystemInstances(ENiagaraSystemInstanceState State) { check(State != ENiagaraSystemInstanceState::None); return SystemInstancesPerState[int32(State)]; }
 
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
@@ -430,4 +432,6 @@ protected:
 	FNiagaraGpuComputeDispatchInterface* DispatchInterface = nullptr;
 
 	static bool bUseLegacyExecContexts;
+
+	float FixedDeltaTickAge = 0;
 };

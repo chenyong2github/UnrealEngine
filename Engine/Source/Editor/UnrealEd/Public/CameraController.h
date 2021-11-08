@@ -265,8 +265,12 @@ public:
 		FVector& InOutCameraEuler,
 		float& InOutCameraFOV );
 
-	/**true if this camera currently has rotational velocity*/
+	/** @return True if this camera currently has rotational velocity. */
 	bool IsRotating (void) const;
+
+	/** Reset the different camera velocity. */
+	UNREALED_API void ResetVelocity();
+
 private:
 
 	/**

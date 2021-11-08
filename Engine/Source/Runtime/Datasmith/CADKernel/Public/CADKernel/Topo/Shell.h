@@ -43,10 +43,7 @@ namespace CADKernel
 		TArray<FOrientedFace> TopologicalFaces;
 		TWeakPtr<FBody> HostedBy;
 
-		FShell()
-			: FTopologicalEntity()
-		{
-		}
+		FShell() = default;
 
 		FShell(const TArray<FOrientedFace> InTopologicalFaces, bool bIsInnerShell = false)
 			: FTopologicalEntity()
@@ -62,11 +59,6 @@ namespace CADKernel
 
 		FShell(const TArray<TSharedPtr<FTopologicalFace>>& InTopologicalFaces, const TArray<EOrientation>& InOrientations, bool bIsInnerShell = true);
 
-		FShell(FCADKernelArchive& Archive)
-			: FTopologicalEntity()
-		{
-			Serialize(Archive);
-		}
 
 	public:
 
@@ -75,7 +67,7 @@ namespace CADKernel
 			FTopologicalEntity::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
 			SerializeIdent(Ar, HostedBy);
-			SerializeMetadata(Ar);
+			FMetadataDictionary::Serialize(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override

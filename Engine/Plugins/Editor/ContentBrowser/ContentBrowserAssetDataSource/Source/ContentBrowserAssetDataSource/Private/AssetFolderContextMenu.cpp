@@ -89,7 +89,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					"FixUpRedirectorsInFolder",
 					LOCTEXT("FixUpRedirectorsInFolder", "Fix Up Redirectors in Folder"),
 					LOCTEXT("FixUpRedirectorsInFolderTooltip", "Finds referencers to all redirectors in the selected folders and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust"),
 					FUIAction(FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteFixUpRedirectorsInFolder))
 					);
 				Entry.InsertPosition = FToolMenuInsert("Delete", EToolMenuInsertType::After);
@@ -102,7 +102,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					"MigrateFolder",
 					LOCTEXT("MigrateFolder", "Migrate..."),
 					LOCTEXT("MigrateFolderTooltip", "Copies assets found in this folder and their dependencies to another game content folder."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.Migrate"),
 					FUIAction( FExecuteAction::CreateSP( this, &FAssetFolderContextMenu::ExecuteMigrateFolder ) )
 					);
 				Entry.InsertPosition = FToolMenuInsert("FixUpRedirectorsInFolder", EToolMenuInsertType::After);
@@ -175,7 +175,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					"FolderSCCConnect",
 					LOCTEXT("FolderSCCConnect", "Connect To Source Control"),
 					LOCTEXT("FolderSCCConnectTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCConnect),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCConnect)
@@ -306,7 +306,7 @@ void FAssetFolderContextMenu::ExecuteSCCOpenForAdd()
 
 			// Make sure the file actually exists on disk before adding it
 			FString Filename;
-			if ( !FPackageName::DoesPackageExist(*PackageIt, NULL, &Filename) )
+			if ( !FPackageName::DoesPackageExist(*PackageIt, &Filename) )
 			{
 				UPackage* Package = FindPackage(NULL, **PackageIt);
 				if ( Package )

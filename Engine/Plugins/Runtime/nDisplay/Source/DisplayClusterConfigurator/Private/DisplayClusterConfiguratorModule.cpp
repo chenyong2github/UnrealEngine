@@ -11,6 +11,8 @@
 #include "Views/Details/DisplayClusterConfiguratorBaseTypeCustomization.h"
 #include "Views/Details/DisplayClusterEditorPropertyReferenceTypeCustomization.h"
 #include "Views/Details/DisplayClusterConfiguratorBaseDetailCustomization.h"
+#include "Views/Details/Cluster/DisplayClusterConfiguratorDataDetailsCustomization.h"
+#include "Views/Details/Cluster/DisplayClusterConfiguratorClusterDetailsCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorExternalImageTypeCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorGenerateMipsCustomization.h"
 #include "Views/Details/Cluster/DisplayClusterConfiguratorNodeSelectionCustomization.h"
@@ -166,8 +168,8 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 	 * CLASSES
 	 */
 	REGISTER_OBJECT_LAYOUT(ADisplayClusterRootActor, FDisplayClusterRootActorDetailsCustomization);
-	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationData, FDisplayClusterConfiguratorBaseDetailCustomization);
-	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationCluster, FDisplayClusterConfiguratorBaseDetailCustomization);
+	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationData, FDisplayClusterConfiguratorDataDetailsCustomization);
+	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationCluster, FDisplayClusterConfiguratorClusterDetailsCustomization);
 	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationClusterNode, FDisplayClusterConfiguratorBaseDetailCustomization);
 	REGISTER_OBJECT_LAYOUT(UDisplayClusterConfigurationViewport, FDisplayClusterConfiguratorViewportDetailsCustomization);
 	REGISTER_OBJECT_LAYOUT(UDisplayClusterScreenComponent, FDisplayClusterConfiguratorScreenDetailsCustomization);	

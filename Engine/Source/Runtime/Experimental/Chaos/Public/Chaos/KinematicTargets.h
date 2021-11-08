@@ -22,7 +22,7 @@ namespace Chaos
 	 * Data used to integrate kinematic bodies
 	 */
 	template<class T, int d>
-	class CHAOS_API TKinematicTarget
+	class TKinematicTarget
 	{
 	public:
 		TKinematicTarget()

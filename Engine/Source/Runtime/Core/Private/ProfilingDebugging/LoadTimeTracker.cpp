@@ -24,6 +24,12 @@ FLoadTimeTracker::FLoadTimeTracker()
 	bAccumulating = false;
 }
 
+FLoadTimeTracker& FLoadTimeTracker::Get()
+{
+	static FLoadTimeTracker Singleton;
+	return Singleton;
+}
+
 void FLoadTimeTracker::ReportScopeTime(double ScopeTime, const FName ScopeLabel)
 {
 	check(IsInGameThread());

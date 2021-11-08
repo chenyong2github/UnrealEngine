@@ -216,7 +216,7 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldPartition);
 
-	UWorldPartition* WorldPartition = UWorldPartition::CreateWorldPartition(MainWorldSettings, EditorHashClass, RuntimeHashClass);
+	UWorldPartition* WorldPartition = UWorldPartition::CreateOrRepairWorldPartition(MainWorldSettings, EditorHashClass, RuntimeHashClass);
 		
 	// Read the conversion config file
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*LevelConfigFilename))
@@ -867,39 +867,51 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	OnWorldLoaded(MainWorld);
 
-	UActorPartitionSubsystem* ActorPartitionSubsystem = MainWorld->GetSubsystem<UActorPartitionSubsystem>();
-	auto PartitionFoliage = [this, MainWorld, ActorPartitionSubsystem](AInstancedFoliageActor* IFA)
+	auto PartitionFoliage = [this, MainWorld](AInstancedFoliageActor* IFA)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PartitionFoliage);
 
-		IFA->ForEachFoliageInfo([IFA, ActorPartitionSubsystem, MainWorld](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+		TMap<UFoliageType*, TArray<FFoliageInstance>> FoliageToAdd;
+		int32 NumInstances = 0;
+		int32 NumInstancesProcessed = 0;
+
+		IFA->ForEachFoliageInfo([IFA, &FoliageToAdd, &NumInstances](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
 			if (FoliageInfo.Type == EFoliageImplType::Actor)
 			{
 				// We don't support Actor Foliage in WP
 				FoliageInfo.ExcludeActors();
+				return true;
 			}
-			else if (FoliageInfo.Instances.Num())
+
+			if (FoliageInfo.Instances.Num() > 0)
 			{
-				FBox InstanceBounds = FoliageInfo.GetApproximatedInstanceBounds();
-				FActorPartitionGridHelper::ForEachIntersectingCell(AInstancedFoliageActor::StaticClass(), InstanceBounds, MainWorld->PersistentLevel, [IFA, &FoliageInfo, ActorPartitionSubsystem](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FBox& InCellBounds)
-				{
-					TArray<int32> Indices;
-					FoliageInfo.GetInstancesInsideBounds(InCellBounds, Indices);
-					if (Indices.Num())
-					{
-						AInstancedFoliageActor* CellIFA = Cast<AInstancedFoliageActor>(ActorPartitionSubsystem->GetActor(AInstancedFoliageActor::StaticClass(), InCellCoord, true));
-						check(CellIFA);
-						FoliageInfo.MoveInstances(CellIFA, TSet<int32>(Indices), false);
-					}
-					return true;
-				});
-				check(!FoliageInfo.Instances.Num());
+				check(FoliageType->GetTypedOuter<AInstancedFoliageActor>() == nullptr);
+				FoliageToAdd.FindOrAdd(FoliageType).Append(FoliageInfo.Instances);
+			
+				NumInstances += FoliageInfo.Instances.Num();
+
+				UE_LOG(LogWorldPartitionConvertCommandlet, Display, TEXT("FoliageType: %s Count: %d"), *FoliageType->GetName(), FoliageInfo.Instances.Num());
 			}
-			return true; // continue iterating
+			return true;
 		});
 
 		IFA->GetLevel()->GetWorld()->DestroyActor(IFA);
+
+		// Add Foliage to those actors
+		for (auto& InstancesPerFoliageType : FoliageToAdd)
+		{
+			for (const FFoliageInstance& Instance : InstancesPerFoliageType.Value)
+			{
+				AInstancedFoliageActor* GridIFA = AInstancedFoliageActor::Get(MainWorld, /*bCreateIfNone=*/true, MainWorld->PersistentLevel, Instance.Location);
+				FFoliageInfo* NewFoliageInfo = nullptr;
+				UFoliageType* NewFoliageType = GridIFA->AddFoliageType(InstancesPerFoliageType.Key, &NewFoliageInfo);
+				NewFoliageInfo->AddInstance(NewFoliageType, Instance);
+				NumInstancesProcessed++;
+			}
+		}
+
+		check(NumInstances == NumInstancesProcessed);
 	};
 
 	auto PartitionLandscape = [this, MainWorld](ULandscapeInfo* LandscapeInfo)
@@ -1017,7 +1029,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 							{
 								DataLayer = MainWorldDataLayers->CreateDataLayer();
 								DataLayer->SetDataLayerLabel(Layer);
-								DataLayer->SetIsDynamicallyLoaded(false);
+								DataLayer->SetIsRuntime(false);
 							}
 							Actor->AddDataLayer(DataLayer);
 						}

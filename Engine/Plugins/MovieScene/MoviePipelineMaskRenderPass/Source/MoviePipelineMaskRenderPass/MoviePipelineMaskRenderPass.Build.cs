@@ -21,8 +21,9 @@ public class MoviePipelineMaskRenderPass : ModuleRules
 				"MovieRenderPipelineRenderPasses",
 				"RenderCore",
                 "RHI",
-				"ActorLayerUtilities"
-            }
-        );
+				"ActorLayerUtilities",
+				"OpenColorIO",
+			}
+		);
 	}
 }

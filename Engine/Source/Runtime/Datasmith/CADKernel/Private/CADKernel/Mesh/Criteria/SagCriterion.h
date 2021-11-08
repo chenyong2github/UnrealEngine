@@ -13,16 +13,9 @@ namespace CADKernel
 	protected:
 		double MaxSag;
 
-		FSagCriterion(double InSag)
-			: FCriterion(ECriterion::Sag)
-			, MaxSag(InSag)
+		FSagCriterion(double InSag = 0.2)
+			: MaxSag(InSag)
 		{
-		}
-		
-		FSagCriterion(FCADKernelArchive& Archive, ECriterion InCriterionType)
-			: FCriterion(InCriterionType)
-		{
-			Serialize(Archive);
 		}
 
 	public:
@@ -40,8 +33,14 @@ namespace CADKernel
 
 		static double DefaultValue()
 		{
-			return 0.15;
+			return 0.2;
 		}
+
+		virtual ECriterion GetCriterionType() const override
+		{
+			return ECriterion::Sag;
+		}
+
 
 	protected:
 

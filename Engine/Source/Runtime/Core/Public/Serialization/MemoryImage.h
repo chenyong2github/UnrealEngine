@@ -585,17 +585,33 @@ public:
 		{
 			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true, Alignment);
 		}
+		FORCEINLINE int32 CalculateSlackReserve(int32 NumElements, int32 NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true, AlignmentOfElement);
+		}
 		FORCEINLINE int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
+		}
+		FORCEINLINE int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true, AlignmentOfElement);
 		}
 		FORCEINLINE int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
 		}
+		FORCEINLINE int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true, AlignmentOfElement);
+		}
 		FORCEINLINE void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, SIZE_T NumBytesPerElement)
 		{
 			FMemoryImageAllocatorBase::ResizeAllocation(PreviousNumElements, NumElements, NumBytesPerElement, Alignment);
+		}
+		FORCEINLINE void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement)
+		{
+			FMemoryImageAllocatorBase::ResizeAllocation(PreviousNumElements, NumElements, NumBytesPerElement, AlignmentOfElement);
 		}
 
 		FORCEINLINE void WriteMemoryImage(FMemoryImageWriter& Writer, const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements) const
@@ -625,6 +641,7 @@ struct TAllocatorTraits<TMemoryImageAllocator<Alignment>> : TAllocatorTraitsBase
 	enum { SupportsMove = true };
 	enum { IsZeroConstruct = true };
 	enum { SupportsFreezeMemoryImage = true };
+	enum { SupportsElementAlignment = true };
 };
 
 using FMemoryImageAllocator = TMemoryImageAllocator<>;

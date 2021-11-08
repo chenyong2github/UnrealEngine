@@ -70,12 +70,7 @@ namespace UnrealBuildTool
 
 			// set up logging (taken from BuildMode)
 			FileReference LogFile = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
-			// find the StartupTraceListener in the listeners that was added super early on
-			StartupTraceListener StartupListener = Trace.Listeners.OfType<StartupTraceListener>().First();
-			Log.TraceInformation($"Log will be written to {LogFile}");
-			TextWriterTraceListener LogTraceListener = Log.AddFileWriter("DefaultLogTraceListener", LogFile);
-			StartupListener.CopyTo(LogTraceListener);
-			Trace.Listeners.Remove(StartupListener);
+			Log.AddFileWriter("DefaultLogTraceListener", LogFile);
 
 			// Parse rocket-specific arguments.
 			FileReference ProjectFile;

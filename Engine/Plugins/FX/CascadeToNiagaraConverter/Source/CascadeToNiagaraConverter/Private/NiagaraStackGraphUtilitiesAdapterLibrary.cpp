@@ -295,12 +295,19 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 		, DynamicInputScriptContext->GetScript());
 	
 	// copy over the original function inputs to the new dynamic input script associated with this clipboard function input
-	NewInput->Dynamic->Inputs = DynamicInputScriptContext->GetClipboardFunctionInputs();
-	const FNiagaraTypeDefinition& TargetTypeDef = UNiagaraClipboardEditorScriptingUtilities::GetRegisteredTypeDefinitionByName(InputTypeName);
-	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, InputType, TargetTypeDef);
-	Input->StackMessages = DynamicInputScriptContext->GetStackMessages();
-	return Input;
+	if (NewInput)
+	{
+		NewInput->Dynamic->Inputs = DynamicInputScriptContext->GetClipboardFunctionInputs();
+		const FNiagaraTypeDefinition& TargetTypeDef = UNiagaraClipboardEditorScriptingUtilities::GetRegisteredTypeDefinitionByName(InputTypeName);
+		UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
+		Input->Init(NewInput, InputType, TargetTypeDef);
+		Input->StackMessages = DynamicInputScriptContext->GetStackMessages();
+		return Input;
+	}
+	else 
+	{
+		return nullptr;
+	}
 }
 
 UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScriptInputDI(UNiagaraDataInterface* Value)

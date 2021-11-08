@@ -39,7 +39,10 @@ FString GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(UEdGraphPin*
 			}
 			else if (const UK2Node_VariableSet* VariableSetNode = Cast<UK2Node_VariableSet>(OwningNode))
 			{
-				FilterString = TagManager.GetCategoriesMetaFromField(VariableSetNode->GetPropertyForVariable());
+				if (FProperty* SetVariable = VariableSetNode->GetPropertyForVariable())
+				{
+					FilterString = TagManager.GetCategoriesMetaFromField(SetVariable);
+				}
 			}
 			else if (const UK2Node_FunctionTerminator* FuncTermNode = Cast<UK2Node_FunctionTerminator>(OwningNode))
 			{

@@ -3,6 +3,7 @@
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioCompressionSettings.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "HAL/PlatformMisc.h"
 
 #define ENABLE_PLATFORM_COMPRESSION_OVERRIDES 1
 
@@ -82,6 +83,8 @@ const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::
 
 void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TCHAR* InPlatformName=nullptr)
 {
+	SCOPED_NAMED_EVENT(CacheAudioCookOverrides, FColor::Blue);
+
 	// if the platform was passed in, use it, otherwise, get the runtime platform's name for looking up DDPI
 	FString PlatformName = InPlatformName ? FString(InPlatformName) : FString(FPlatformProperties::IniPlatformName());
 	

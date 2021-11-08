@@ -170,7 +170,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 								NAME_None,
 								ReimportLabel,
 								ReimportLabelTooltip,
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 								FUIAction(
 									FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteReimportWithNewFile, SourceFileIndex),
 									FCanExecuteAction()
@@ -183,7 +183,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 								NAME_None,
 								ReimportLabel,
 								ReimportLabelTooltip,
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 								FUIAction(
 									FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteReimport, SourceFileIndex),
 									FCanExecuteAction()
@@ -202,13 +202,17 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 					"Reimport",
 					LOCTEXT("Reimport", "Reimport"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, false) );
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, false),
+					false,
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"));
 				//With new file
 				Section.AddSubMenu(
 					"ReimportWithNewFile",
 					LOCTEXT("ReimportWithNewFile", "Reimport With New File"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, true));
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, true),
+					false,
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"));
 			}
 			else
 			{
@@ -216,7 +220,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 					"Reimport",
 					LOCTEXT("Reimport", "Reimport"),
 					LOCTEXT("ReimportTooltip", "Reimport the selected asset(s) from the source file on disk."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteReimport, (int32)INDEX_NONE),
 						FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
@@ -229,7 +233,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 						"ReimportWithNewFile",
 						LOCTEXT("ReimportWithNewFile", "Reimport With New File"),
 						LOCTEXT("ReimportWithNewFileTooltip", "Reimport the selected asset from a new source file on disk."),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteReimportWithNewFile, (int32)INDEX_NONE),
 							FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
@@ -243,7 +247,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 				"FindSourceFile",
 				LOCTEXT("FindSourceFile", "Open Source Location"),
 				LOCTEXT("FindSourceFileTooltip", "Opens the folder containing the source of the selected asset(s)."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenSourceLocation"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.OpenSourceLocation"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteFindSourceInExplorer, ResolvedFilePaths),
 					FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteImportedAssetActions, ResolvedFilePaths)
@@ -255,7 +259,7 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 				"OpenInExternalEditor",
 				LOCTEXT("OpenInExternalEditor", "Open In External Editor"),
 				LOCTEXT("OpenInExternalEditorTooltip", "Open the selected asset(s) in the default external editor."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.OpenInExternalEditor"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteOpenInExternalEditor, ResolvedFilePaths),
 					FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteImportedAssetActions, ResolvedFilePaths)
@@ -291,7 +295,7 @@ bool FAssetFileContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 				),
 			EUserInterfaceActionType::Button,
 			false, 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust")
 			);
 
 		// Asset Localization sub-menu
@@ -303,7 +307,7 @@ bool FAssetFileContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 			FUIAction(),
 			EUserInterfaceActionType::Button,
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetLocalization")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Localization")
 			);
 	}
 
@@ -325,7 +329,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 				"CreateBlueprintUsing",
 				LOCTEXT("CreateBlueprintUsing", "Create Blueprint Using This..."),
 				LOCTEXT("CreateBlueprintUsingTooltip", "Create a new Blueprint and add this asset to it"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
+				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteCreateBlueprintUsing),
 					FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteCreateBlueprintUsing)
@@ -341,7 +345,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 				"CaptureThumbnail",
 				LOCTEXT("CaptureThumbnail", "Capture Thumbnail"),
 				LOCTEXT("CaptureThumbnailTooltip", "Captures a thumbnail from the active viewport."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.CreateThumbnail"),
+				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteCaptureThumbnail),
 					FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteCaptureThumbnail)
@@ -356,7 +360,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 				"ClearCustomThumbnail",
 				LOCTEXT("ClearCustomThumbnail", "Clear Thumbnail"),
 				LOCTEXT("ClearCustomThumbnailTooltip", "Clears all custom thumbnails for selected assets."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.DeleteThumbnail"),
+				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteClearThumbnail))
 			);
 		}
@@ -426,7 +430,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 			"MigrateAsset",
 			LOCTEXT("MigrateAsset", "Migrate..."),
 			LOCTEXT("MigrateAssetTooltip", "Copies all selected assets and their dependencies to another project"),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.Migrate"),
 			FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteMigrateAsset ) )
 			);
 	}
@@ -809,7 +813,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 	if (SelectedAssets.Num() == 1)
 	{
 		FString PackageFilename;
-		if (FPackageName::DoesPackageExist(SelectedAssets[0].PackageName.ToString(), nullptr, &PackageFilename))
+		if (FPackageName::DoesPackageExist(SelectedAssets[0].PackageName.ToString(), &PackageFilename))
 		{
 			FToolMenuSection& Section = Menu->AddSection("LocalizationCache", LOCTEXT("LocalizationCacheHeading", "Localization Cache"));
 			{
@@ -834,7 +838,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				"ShowSourceAsset",
 				LOCTEXT("ShowSourceAsset", "Show Source Asset"),
 				LOCTEXT("ShowSourceAssetTooltip", "Show the source asset in the Content Browser."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteFindInAssetTree, SourceAssetsState.CurrentAssets.Array()))
 				);
 
@@ -842,7 +846,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				"EditSourceAsset",
 				LOCTEXT("EditSourceAsset", "Edit Source Asset"),
 				LOCTEXT("EditSourceAssetTooltip", "Edit the source asset."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Edit"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteOpenEditorsForAssets, SourceAssetsState.CurrentAssets.Array()))
 				);
 		}
@@ -859,9 +863,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				LOCTEXT("CreateLocalizedAssetTooltip", "Create a new localized asset."),
 				FNewToolMenuDelegate::CreateSP(this, &FAssetFileContextMenu::MakeCreateLocalizedAssetSubMenu, SourceAssetsState.SelectedAssets, LocalizedAssetsState),
 				FUIAction(),
-				EUserInterfaceActionType::Button,
-				false,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Duplicate")
+				EUserInterfaceActionType::Button
 				);
 
 			int32 NumLocalizedAssets = 0;
@@ -878,9 +880,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 					LOCTEXT("ShowLocalizedAssetTooltip", "Show the localized asset in the Content Browser."),
 					FNewToolMenuDelegate::CreateSP(this, &FAssetFileContextMenu::MakeShowLocalizedAssetSubMenu, LocalizedAssetsState),
 					FUIAction(),
-					EUserInterfaceActionType::Button,
-					false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser")
+					EUserInterfaceActionType::Button
 					);
 
 				Section.AddSubMenu(
@@ -889,9 +889,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 					LOCTEXT("EditLocalizedAssetTooltip", "Edit the localized asset."),
 					FNewToolMenuDelegate::CreateSP(this, &FAssetFileContextMenu::MakeEditLocalizedAssetSubMenu, LocalizedAssetsState),
 					FUIAction(),
-					EUserInterfaceActionType::Button,
-					false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit")
+					EUserInterfaceActionType::Button
 					);
 			}
 		}
@@ -1065,7 +1063,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 						"GoToCodeForAsset",
 						FText::Format( LOCTEXT("GoToCodeForAsset", "Open {0}"), FText::FromString( CodeFileName ) ),
 						FText::Format( LOCTEXT("GoToCodeForAsset_ToolTip", "Opens the header file for this asset ({0}) in a code editing program"), FText::FromString( CodeFileName ) ),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GoToCodeForAsset"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++"),
 						FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToCodeForAsset, SelectedClass ) )
 						);
 				}
@@ -1087,7 +1085,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForAssetWithClass",
 								FText::Format( LOCTEXT("GoToDocsForAssetWithClass", "View Documentation - {0}"), SelectedClass->GetDisplayNameText() ),
 								FText::Format( LOCTEXT("GoToDocsForAssetWithClass_ToolTip", "Click to open documentation for {0}"), SelectedClass->GetDisplayNameText() ),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, SelectedClass ) )
 								);
 						}
@@ -1103,7 +1101,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForMacroBlueprint",
 								LOCTEXT("GoToDocsForMacroBlueprint", "View Documentation - Function Library"),
 								LOCTEXT("GoToDocsForMacroBlueprint_ToolTip", "Click to open documentation on blueprint function libraries"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_FunctionLibrary")) ) )
 								);
 							break;
@@ -1112,7 +1110,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForInterfaceBlueprint",
 								LOCTEXT("GoToDocsForInterfaceBlueprint", "View Documentation - Interface"),
 								LOCTEXT("GoToDocsForInterfaceBlueprint_ToolTip", "Click to open documentation on blueprint interfaces"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_Interface")) ) )
 								);
 							break;
@@ -1121,7 +1119,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForMacroLibrary",
 								LOCTEXT("GoToDocsForMacroLibrary", "View Documentation - Macro"),
 								LOCTEXT("GoToDocsForMacroLibrary_ToolTip", "Click to open documentation on blueprint macros"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint_Macro")) ) )
 								);
 							break;
@@ -1130,7 +1128,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 								"GoToDocsForBlueprint",
 								LOCTEXT("GoToDocsForBlueprint", "View Documentation - Blueprint"),
 								LOCTEXT("GoToDocsForBlueprint_ToolTip", "Click to open documentation on blueprints"),
-								FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Help" ),
+								FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 								FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, UBlueprint::StaticClass(), FString(TEXT("UBlueprint")) ) )
 								);
 						}
@@ -1141,7 +1139,7 @@ bool FAssetFileContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 							"GoToDocsForAsset",
 							LOCTEXT("GoToDocsForAsset", "View Documentation"),
 							LOCTEXT("GoToDocsForAsset_ToolTip", "Click to open documentation"),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "HelpIcon.Hovered" ),
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Documentation" ),
 							FUIAction( FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteGoToDocsForAsset, SelectedClass ) )
 							);
 					}
@@ -1170,7 +1168,7 @@ bool FAssetFileContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 				),
 			EUserInterfaceActionType::Button,
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.StatusIcon.On")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On")
 			);
 	}
 	else
@@ -1179,7 +1177,7 @@ bool FAssetFileContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 			"SCCConnectToSourceControl",
 			LOCTEXT("SCCConnectToSourceControl", "Connect To Source Control..."),
 			LOCTEXT("SCCConnectToSourceControlTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteEnableSourceControl ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSourceControlActions )
@@ -1194,7 +1192,7 @@ bool FAssetFileContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 			"DiffSelected",
 			LOCTEXT("DiffSelected", "Diff Selected"),
 			LOCTEXT("DiffSelectedTooltip", "Diff the two assets that you have selected."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Diff"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteDiffSelected)
 			)
@@ -1228,7 +1226,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCSync",
 			LOCTEXT("SCCSync", "Sync"),
 			LOCTEXT("SCCSyncTooltip", "Updates the item to the latest version in source control."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Sync"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCSync ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCSync )
@@ -1242,7 +1240,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCCheckOut",
 			LOCTEXT("SCCCheckOut", "Check Out"),
 			LOCTEXT("SCCCheckOutTooltip", "Checks out the selected asset from source control."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.CheckOut"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCCheckOut ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCCheckOut )
@@ -1256,7 +1254,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCOpenForAdd",
 			LOCTEXT("SCCOpenForAdd", "Mark For Add"),
 			LOCTEXT("SCCOpenForAddTooltip", "Adds the selected asset to source control."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Add"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Add"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCOpenForAdd ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCOpenForAdd )
@@ -1270,7 +1268,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCCheckIn",
 			LOCTEXT("SCCCheckIn", "Check In"),
 			LOCTEXT("SCCCheckInTooltip", "Checks in the selected asset to source control."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCCheckIn ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCCheckIn )
@@ -1282,7 +1280,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 		"SCCRefresh",
 		LOCTEXT("SCCRefresh", "Refresh"),
 		LOCTEXT("SCCRefreshTooltip", "Updates the source control status of the asset."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Refresh"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCRefresh ),
 			FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCRefresh )
@@ -1295,7 +1293,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCHistory",
 			LOCTEXT("SCCHistory", "History"),
 			LOCTEXT("SCCHistoryTooltip", "Displays the source control revision history of the selected asset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.History"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCHistory ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCHistory )
@@ -1306,7 +1304,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCDiffAgainstDepot",
 			LOCTEXT("SCCDiffAgainstDepot", "Diff Against Depot"),
 			LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between your version of the asset and that in source control."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Diff"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCDiffAgainstDepot ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCDiffAgainstDepot )
@@ -1320,7 +1318,7 @@ void FAssetFileContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCRevert",
 			LOCTEXT("SCCRevert", "Revert"),
 			LOCTEXT("SCCRevertTooltip", "Reverts the asset to the state it was before it was checked out."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Revert"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetFileContextMenu::ExecuteSCCRevert ),
 				FCanExecuteAction::CreateSP( this, &FAssetFileContextMenu::CanExecuteSCCRevert )
@@ -2090,7 +2088,7 @@ void FAssetFileContextMenu::ExecuteSCCOpenForAdd()
 
 			// Make sure the file actually exists on disk before adding it
 			FString Filename;
-			if ( !FPackageName::DoesPackageExist(*PackageIt, NULL, &Filename) )
+			if ( !FPackageName::DoesPackageExist(*PackageIt, &Filename) )
 			{
 				UPackage* Package = FindPackage(NULL, **PackageIt);
 				if ( Package )

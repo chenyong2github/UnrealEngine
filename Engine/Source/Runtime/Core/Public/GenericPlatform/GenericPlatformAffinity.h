@@ -125,7 +125,7 @@ public:
 
 	// @todo what do we think about having this as a function in this class? Should be make a whole new one? 
 	// scrap it and force the priority like before?
-	static EThreadPriority GetRenderingThreadPriority()
+	static CORE_API EThreadPriority GetRenderingThreadPriority()
 	{
 		return TPri_Normal;
 	}
@@ -135,7 +135,7 @@ public:
 		return EThreadCreateFlags::None;
 	}
 	
-	static EThreadPriority GetRHIThreadPriority()
+	static CORE_API EThreadPriority GetRHIThreadPriority()
 	{
 		return TPri_Normal;
 	}

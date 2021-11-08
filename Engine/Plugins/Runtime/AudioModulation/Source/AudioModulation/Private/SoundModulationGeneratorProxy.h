@@ -25,9 +25,23 @@ namespace AudioModulation
 	{
 		FGeneratorPtr Generator;
 
-		FModulationGeneratorSettings(const USoundModulationGenerator& InGenerator, Audio::FDeviceId AudioDeviceId)
+		FModulationGeneratorSettings() = default;
+
+		FModulationGeneratorSettings(const USoundModulationGenerator& InGenerator, Audio::FDeviceId InDeviceId)
 			: TModulatorBase<FGeneratorId>(InGenerator.GetName(), InGenerator.GetUniqueID())
-			, Generator(InGenerator.CreateInstance(AudioDeviceId))
+			, Generator(InGenerator.CreateInstance(InDeviceId))
+		{
+		}
+
+		FModulationGeneratorSettings(const FModulationGeneratorSettings& InSettings)
+			: TModulatorBase<FGeneratorId>(InSettings.GetName(), InSettings.GetId())
+			, Generator(InSettings.Generator.IsValid() ? InSettings.Generator->Clone() : nullptr)
+		{
+		}
+
+		FModulationGeneratorSettings(FModulationGeneratorSettings&& InSettings)
+			: TModulatorBase<FGeneratorId>(InSettings.GetName(), InSettings.GetId())
+			, Generator(MoveTemp(InSettings.Generator))
 		{
 		}
 	};
@@ -38,9 +52,9 @@ namespace AudioModulation
 
 	public:
 		FModulatorGeneratorProxy() = default;
-		FModulatorGeneratorProxy(const FModulationGeneratorSettings& InSettings, FAudioModulationSystem& InModSystem);
+		FModulatorGeneratorProxy(FModulationGeneratorSettings&& InSettings, FAudioModulationSystem& InModSystem);
 		
-		FModulatorGeneratorProxy& operator =(const FModulationGeneratorSettings& InSettings);
+		FModulatorGeneratorProxy& operator =(FModulationGeneratorSettings&& InSettings);
 
 		float GetValue() const
 		{

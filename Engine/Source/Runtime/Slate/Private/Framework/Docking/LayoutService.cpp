@@ -11,7 +11,23 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLayoutService, Log, All);
 
-const TCHAR* EditorLayoutsSectionName = TEXT("EditorLayouts");
+static const TCHAR* GetEditorLayoutsSectionName()
+{
+	static FString EditorLayoutsSectionName;
+
+	if (EditorLayoutsSectionName.IsEmpty())
+	{
+		GConfig->GetString(TEXT("Slate"), TEXT("EditorLayoutsSectionName"), EditorLayoutsSectionName, GEditorIni);
+		EditorLayoutsSectionName.TrimStartAndEndInline();
+		if (EditorLayoutsSectionName.IsEmpty())
+		{
+			EditorLayoutsSectionName = TEXT("EditorLayouts");
+		}
+	}
+	
+	return *EditorLayoutsSectionName;
+}
+
 
 static FString PrepareLayoutStringForIni(const FString& LayoutString)
 {
@@ -158,7 +174,7 @@ void FLayoutSaveRestore::SaveToConfig( const FString& InConfigFileName, const TS
 	if (InLayoutToSave->GetLayoutName() != FTabManager::FLayout::NullLayout->GetLayoutName())
 	{
 		const FString LayoutAsString = PrepareLayoutStringForIni(InLayoutToSave->ToString());
-		GConfig->SetString(EditorLayoutsSectionName, *InLayoutToSave->GetLayoutName().ToString(), *LayoutAsString, InConfigFileName);
+		GConfig->SetString(GetEditorLayoutsSectionName(), *InLayoutToSave->GetLayoutName().ToString(), *LayoutAsString, InConfigFileName);
 
 		SaveLayoutToJson(InConfigFileName, InLayoutToSave);
 	}
@@ -190,8 +206,8 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 	if (!LoadLayoutFromJson(InConfigFileName, LayoutNameString, UserLayout))
 	{
 		FString IniLayoutString;
-		// If the Key (InDefaultLayout->GetLayoutName()) already exists in the section EditorLayoutsSectionName of the file InConfigFileName, try to load the layout from that file
-		GConfig->GetString(EditorLayoutsSectionName, *LayoutNameString, IniLayoutString, InConfigFileName);
+		// If the Key (InDefaultLayout->GetLayoutName()) already exists in the section GetEditorLayoutsSectionName() of the file InConfigFileName, try to load the layout from that file
+		GConfig->GetString(GetEditorLayoutsSectionName(), *LayoutNameString, IniLayoutString, InConfigFileName);
 		bool bIsJson = false;
 		UserLayout = FTabManager::FLayout::NewFromString( GetLayoutStringFromIni( IniLayoutString, bIsJson ) );
 	}
@@ -211,7 +227,7 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 	else if (bInRemoveOlderLayoutVersions)
 	{
 		// If File and Section exist
-		if (FConfigSection* ConfigSection = GConfig->GetSectionPrivate(EditorLayoutsSectionName, /*Force*/false, /*Const*/true, InConfigFileName))
+		if (FConfigSection* ConfigSection = GConfig->GetSectionPrivate(GetEditorLayoutsSectionName(), /*Force*/false, /*Const*/true, InConfigFileName))
 		{
 			// If Key does not exist (i.e., Section does but not contain that Key)
 			if (!ConfigSection->Find(*LayoutNameString))
@@ -239,10 +255,10 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 				// Remove older versions of this Key
 				for (const FString& KeyToRemove : OutRemovedOlderLayoutVersions)
 				{
-					GConfig->RemoveKey(EditorLayoutsSectionName, *KeyToRemove, InConfigFileName);
+					GConfig->RemoveKey(GetEditorLayoutsSectionName(), *KeyToRemove, InConfigFileName);
 					UE_LOG(LogLayoutService, Warning, TEXT("While key \"%s\" was not found, and older version exists (key \"%s\"). This means section \"%s\" was"
 						" created with a previous version of UE and is no longer compatible. The old key has been removed and updated with the new one."),
-						*LayoutNameString, *KeyToRemove, EditorLayoutsSectionName);
+						*LayoutNameString, *KeyToRemove, GetEditorLayoutsSectionName());
 				}
 			}
 		}
@@ -256,7 +272,7 @@ void FLayoutSaveRestore::SaveSectionToConfig(const FString& InConfigFileName, co
 	FString StrValue;
 	FTextStringHelper::WriteToBuffer(StrValue, InSectionValue);
 
-	GConfig->SetString(EditorLayoutsSectionName, *InSectionName, *StrValue, InConfigFileName);
+	GConfig->SetString(GetEditorLayoutsSectionName(), *InSectionName, *StrValue, InConfigFileName);
 
 	const FString JsonFileName = GetLayoutJsonFileName(InConfigFileName);
 	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(JsonFileName);
@@ -279,11 +295,11 @@ FText FLayoutSaveRestore::LoadSectionFromConfig(const FString& InConfigFileName,
 
 	if (ValueString.IsEmpty())
 	{
-		GConfig->GetString(EditorLayoutsSectionName, *InSectionName, ValueString, InConfigFileName);
+		GConfig->GetString(GetEditorLayoutsSectionName(), *InSectionName, ValueString, InConfigFileName);
 	}
 
 	FText ValueText;
-	FTextStringHelper::ReadFromBuffer(*ValueString, ValueText, EditorLayoutsSectionName);
+	FTextStringHelper::ReadFromBuffer(*ValueString, ValueText, GetEditorLayoutsSectionName());
 	
 	return ValueText;
 }
@@ -301,7 +317,7 @@ bool FLayoutSaveRestore::DuplicateConfig(const FString& SourceConfigFileName, co
 
 	// convert this layout to a JSON file
 	TArray<FString> SectionPairs;
-	GConfig->GetSection(EditorLayoutsSectionName, SectionPairs, TargetConfigFileName);
+	GConfig->GetSection(GetEditorLayoutsSectionName(), SectionPairs, TargetConfigFileName);
 
 	TSharedPtr<FJsonObject> RootObject = ConvertSectionToJson(SectionPairs);
 
@@ -316,7 +332,7 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	TArray<FString> OldSectionStrings;
 
 	// check whether any layout configuration needs to be migrated
-	if (!GConfig->GetSection(EditorLayoutsSectionName, OldSectionStrings, OldConfigFileName) || (OldSectionStrings.Num() == 0))
+	if (!GConfig->GetSection(GetEditorLayoutsSectionName(), OldSectionStrings, OldConfigFileName) || (OldSectionStrings.Num() == 0))
 	{
 		return;
 	}
@@ -324,7 +340,7 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	TArray<FString> NewSectionStrings;
 
 	// migrate old configuration if a new layout configuration does not yet exist
-	if (!GConfig->GetSection(EditorLayoutsSectionName, NewSectionStrings, NewConfigFileName) || (NewSectionStrings.Num() == 0))
+	if (!GConfig->GetSection(GetEditorLayoutsSectionName(), NewSectionStrings, NewConfigFileName) || (NewSectionStrings.Num() == 0))
 	{
 		FString Key, Value;
 
@@ -332,13 +348,13 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 		{
 			if (SectionString.Split(TEXT("="), &Key, &Value))
 			{
-				GConfig->SetString(EditorLayoutsSectionName, *Key, *Value, NewConfigFileName);
+				GConfig->SetString(GetEditorLayoutsSectionName(), *Key, *Value, NewConfigFileName);
 			}
 		}
 	}
 
 	// remove old configuration
-	GConfig->EmptySection(EditorLayoutsSectionName, OldConfigFileName);
+	GConfig->EmptySection(GetEditorLayoutsSectionName(), OldConfigFileName);
 	GConfig->Flush(false, OldConfigFileName);
 	GConfig->Flush(false, NewConfigFileName);
 
@@ -355,7 +371,7 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 
 bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName)
 {
-	if (GConfig->DoesSectionExist(EditorLayoutsSectionName, *InConfigFileName))
+	if (GConfig->DoesSectionExist(GetEditorLayoutsSectionName(), *InConfigFileName))
 	{
 		return true;
 	}

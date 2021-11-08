@@ -30,13 +30,26 @@ inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal MinBoundsThicknes
 
 inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal MinBoundsThickness, FReal BoundsVelocityInflation)
 {
-	// See comments in ComputeBoundsThickness<THandle> below
-	FReal MaxBoundsThickness = TNumericLimits<FReal>::Max();
 	const bool bIsBounded = InParticles.HasBounds(BodyIndex);
 	const bool bIsCCD = InParticles.CCDEnabled(BodyIndex);
-	if (bIsBounded && !bIsCCD)
+
+	if (!bIsCCD && (BoundsVelocityInflation == FReal(0)))
 	{
-		MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * InParticles.LocalBounds(BodyIndex).Extents().GetMax();
+		return FVec3(MinBoundsThickness);
+	}
+
+	// See comments in ComputeBoundsThickness<THandle> below
+	FReal MaxBoundsThickness = TNumericLimits<FReal>::Max();
+	if (bIsBounded)
+	{
+		if (bIsCCD)
+		{
+			BoundsVelocityInflation = FMath::Max(FReal(1), BoundsVelocityInflation);
+		}
+		else
+		{
+			MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * InParticles.LocalBounds(BodyIndex).Extents().GetMax();
+		}
 	}
 
 	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, MinBoundsThickness, MaxBoundsThickness, BoundsVelocityInflation);
@@ -47,16 +60,28 @@ FVec3 ComputeBoundsThickness(const THandle& ParticleHandle, FReal Dt, FReal MinB
 {
 	const typename THandle::FDynamicParticleHandleType* RigidParticle = ParticleHandle.CastToRigidParticle();
 	const typename THandle::FKinematicParticleHandleType* KinematicParticle = ParticleHandle.CastToKinematicParticle();
+	const bool bIsBounded = ParticleHandle.HasBounds();
+	const bool bIsCCD = (RigidParticle != nullptr) && RigidParticle->CCDEnabled();
+
+	if (!bIsCCD && (BoundsVelocityInflation == FReal(0)))
+	{
+		return FVec3(MinBoundsThickness);
+	}
 
 	// Limit the bounds expansion based on the size of the object. This prevents objects that are moved a large
 	// distance without resetting physics from having excessive bounds. Objects that move more than their size per
 	// tick without CCD enabled will have simulation issues anyway, so expanding bounds beyond this is unnecessary.
 	FReal MaxBoundsThickness = TNumericLimits<FReal>::Max();
-	const bool bIsBounded = ParticleHandle.HasBounds();
-	const bool bIsCCD = (RigidParticle != nullptr) && RigidParticle->CCDEnabled();
-	if (bIsBounded && !bIsCCD)
+	if (bIsBounded)
 	{
-		MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * ParticleHandle.LocalBounds().Extents().GetMax();
+		if (bIsCCD)
+		{
+			BoundsVelocityInflation = FMath::Max(FReal(1), BoundsVelocityInflation);
+		}
+		else
+		{
+			MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * ParticleHandle.LocalBounds().Extents().GetMax();
+		}
 	}
 
 	FVec3 Vel(0);

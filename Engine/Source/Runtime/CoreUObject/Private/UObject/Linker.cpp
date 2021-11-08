@@ -653,7 +653,7 @@ FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkip
 
 #if WITH_IOSTORE_IN_EDITOR 
 	// Only look for non cooked packages on disk
-	bool DoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, nullptr, false, &PackagePath) != FPackageName::EPackageLocationFilter::None;
+	bool DoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, false, &PackagePath) != FPackageName::EPackageLocationFilter::None;
 #else
 	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
 #endif
@@ -697,7 +697,7 @@ COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* In
 	UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, FUObjectSerializeContext** InOutLoadContext,
 	FLinkerLoad* ImportLinker, const FLinkerInstancingContext* InstancingContext)
 {
-	return GetPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, InOutLoadContext, ImportLinker, InstancingContext);
+	return GetPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, InReaderOverride, InOutLoadContext, ImportLinker, InstancingContext);
 }
 
 //
@@ -709,7 +709,6 @@ FLinkerLoad* GetPackageLinker
 	const FPackagePath& InPackagePath,
 	uint32			LoadFlags,
 	UPackageMap*	Sandbox,
-	FGuid*			CompatibleGuid,
 	FArchive*		InReaderOverride,
 	FUObjectSerializeContext** InOutLoadContext,
 	FLinkerLoad*	ImportLinker,
@@ -808,7 +807,7 @@ FLinkerLoad* GetPackageLinker
 #else
 		bool bMatchCaseOnDisk = false;
 #endif
-		bool bPackageExists = FPackageName::DoesPackageExist(PackagePath, CompatibleGuid, bMatchCaseOnDisk, &PackagePath);
+		bool bPackageExists = FPackageName::DoesPackageExist(PackagePath, bMatchCaseOnDisk, &PackagePath);
 		PackageName = PackagePath.GetPackageName();
 		if (!bPackageExists)
 		{
@@ -894,14 +893,14 @@ FLinkerLoad* GetPackageLinker
 	return Result;
 }
 
-FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback)
+FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback)
 {
 	FLinkerLoad* Linker = nullptr;
 	TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 	BeginLoad(LoadContext);
 	{
 		FUObjectSerializeContext* InOutLoadContext = LoadContext;
-		Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, &InOutLoadContext);
+		Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, Sandbox, InReaderOverride, &InOutLoadContext);
 		if (InOutLoadContext != LoadContext)
 		{
 			// The linker already existed and was associated with another context
@@ -916,19 +915,19 @@ FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePat
 	return Linker;
 }
 
-FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride)
+FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, UPackageMap* Sandbox, FArchive* InReaderOverride)
 {
-	return LoadPackageLinker(InOuter, PackagePath, LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, [](FLinkerLoad* InLinker) {});
+	return LoadPackageLinker(InOuter, PackagePath, LoadFlags, Sandbox, InReaderOverride, [](FLinkerLoad* InLinker) {});
 }
 
 FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, TFunctionRef<void(FLinkerLoad* LoadedLinker)> LinkerLoadedCallback)
 {
-	return LoadPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, LinkerLoadedCallback);
+	return LoadPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, InReaderOverride, LinkerLoadedCallback);
 }
 
 FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride)
 {
-	return LoadPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, [](FLinkerLoad* InLinker) {});
+	return LoadPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, InReaderOverride, [](FLinkerLoad* InLinker) {});
 }
 
 

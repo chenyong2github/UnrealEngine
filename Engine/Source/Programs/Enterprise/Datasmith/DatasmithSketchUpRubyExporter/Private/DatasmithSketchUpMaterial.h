@@ -23,8 +23,55 @@ namespace DatasmithSketchUp
 	class FNodeOccurence;
 	class FEntitiesGeometry;
 	class FMaterial;
-	class FMaterialOccurrence;
 	class FTexture;
+
+	class FMaterialOccurrence : FNoncopyable
+	{
+	public:
+
+		TSharedPtr<IDatasmithBaseMaterialElement> DatasmithElement;
+
+		const TCHAR* GetName();
+
+		void RemoveDatasmithElement(FExportContext& Context);
+
+		void Invalidate(FExportContext& Context)
+		{
+			RemoveDatasmithElement(Context);
+		}
+
+		bool IsInvalidated()
+		{
+			return !DatasmithElement;
+		}
+
+		void AddUser()
+		{
+			UserCount++;
+		}
+
+		// Returns true if material has no users
+		bool RemoveUser(FExportContext& Context);
+
+		bool HasUsers()
+		{
+			return UserCount != 0;
+		}
+
+		void RegisterGeometry(FEntitiesGeometry* Geom); // Tie material to a geometry it's used on
+		void UnregisterGeometry(FExportContext& Context, FEntitiesGeometry* Geom);
+
+		void RegisterInstance(FNodeOccurence* NodeOccurrence); // Tie material to an instance it's used on
+		void UnregisterInstance(FExportContext& Context, FNodeOccurence* NodeOccurrence);
+
+		void Apply(FMaterialIDType MaterialId); // Apply material to meshes/instances
+
+		TSet<FEntitiesGeometry*> MeshesMaterialDirectlyAppliedTo;
+		TSet<FNodeOccurence*> NodesMaterialInheritedBy;
+
+	private:
+		int32 UserCount = 0;
+	};
 
 	// Associates SketchUp material with its Datasmith occurrences
 	// A SketchUp material can have two instances in Datasmith scene - when it's directly applied to a face and when inherited from Component
@@ -40,31 +87,29 @@ namespace DatasmithSketchUp
 
 		static TSharedPtr<FMaterial> Create(FExportContext& Context, SUMaterialRef InMaterialRef);
 
-		static TSharedPtr<FMaterialOccurrence> CreateDefaultMaterial(FExportContext& Context);
 		static TSharedRef<IDatasmithBaseMaterialElement> CreateDefaultMaterialElement(FExportContext& Context);
 
 		// Convert the SketchUp sRGB color to a Datasmith linear color.
 		static FLinearColor ConvertColor(const SUColor& C, bool bAlphaUsed = false);
 
-
 		// Indicate that this material is used as directly applied on a mesh
 		FMaterialOccurrence& RegisterGeometry(FEntitiesGeometry*);
-		void UnregisterGeometry(FEntitiesGeometry*);
+		void UnregisterGeometry(FExportContext&, FEntitiesGeometry*);
 
 		// Indicate that this material is used as directly applied on an instance occurrence
 		// Note - this is not per 'instance' as every instance can be in separate place in scene multiple times possibly resulting in different inherited materials
 		FMaterialOccurrence& RegisterInstance(FNodeOccurence*);
-		void UnregisterInstance(FNodeOccurence* NodeOccurrence);
+		void UnregisterInstance(FExportContext&, FNodeOccurence* NodeOccurrence);
 
 
-		void Invalidate(FExportContext& Context);
+		void Invalidate();
 		void UpdateTexturesUsage(FExportContext& Context);
 		void Update(FExportContext& Context); // create datasmith elements for material occurrences
 		void Remove(FExportContext& Context);
 
 		bool IsUsed()
 		{
-			return MeshesMaterialDirectlyAppliedTo.Num() || NodesMaterialInheritedBy.Num();
+			return MaterialDirectlyAppliedToMeshes.HasUsers() || MaterialInheritedByNodes.HasUsers();
 		}
 
 		FTexture* GetTexture()
@@ -81,29 +126,13 @@ namespace DatasmithSketchUp
 		FTexture* Texture = nullptr;
 
 		// Material can be directly applied to a face in SketchUp
-		TSharedPtr<FMaterialOccurrence> MaterialDirectlyAppliedToMeshes;
-		TSet<FEntitiesGeometry*> MeshesMaterialDirectlyAppliedTo;
-
+		FMaterialOccurrence MaterialDirectlyAppliedToMeshes;
 		// In case face has Default material assigned it inherits material set to it's parent(in general - first non-Default material in ancestors chain)
-		TSharedPtr<FMaterialOccurrence> MaterialInheritedByNodes;
-		TSet<FNodeOccurence*> NodesMaterialInheritedBy;
+		FMaterialOccurrence MaterialInheritedByNodes;
 
 		uint8 bInvalidated : 1;
 
 		friend class FMaterialOccurrence;
 	};
-
-	class FMaterialOccurrence : FNoncopyable
-	{
-	public:
-
-		TSharedPtr<IDatasmithBaseMaterialElement> DatasmithElement;
-
-		const TCHAR* GetName();
-
-		void RemoveDatasmithElement(FExportContext& Context);
-
-	};
-
 
 }

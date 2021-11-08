@@ -22,6 +22,8 @@ DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, class UCanvas*, class APlayerCont
 class FDebugRenderSceneProxy : public FPrimitiveSceneProxy
 {
 public:
+	ENGINE_API virtual ~FDebugRenderSceneProxy() {};
+	
 	ENGINE_API SIZE_T GetTypeHash() const override;
 
 	enum EDrawType
@@ -31,6 +33,8 @@ public:
 		SolidAndWireMeshes = 2,
 	};
 	ENGINE_API FDebugRenderSceneProxy(const UPrimitiveComponent* InComponent);
+	ENGINE_API FDebugRenderSceneProxy(FDebugRenderSceneProxy const&) = default;
+
 	// FPrimitiveSceneProxy interface.
 
 	/** 

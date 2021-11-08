@@ -12,7 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "ImagePlateEditor"
 
-class FImagePlateEditorStyle : public FSlateStyleSet
+class FImagePlateEditorStyle final : public FSlateStyleSet
 {
 public:
 	FImagePlateEditorStyle() : FSlateStyleSet("ImagePlateEditorStyle")

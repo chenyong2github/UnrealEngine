@@ -2,10 +2,9 @@
 
 #include "SFilterConfiguratorRow.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -64,7 +63,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					SAssignNew(FilterTypeComboBox, SComboBox<TSharedPtr<FFilter>>)
@@ -88,7 +87,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					SAssignNew(FilterOperatorComboBox, SComboBox<TSharedPtr<IFilterOperator>>)
@@ -153,7 +152,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FCoreStyle::Get().GetBrush("Icons.Delete"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 				]
 			];
 	}
@@ -177,7 +176,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 				[
 					SAssignNew(FilterGroupOperatorComboBox, SComboBox<TSharedPtr<FFilterGroupOperator>>)
@@ -210,7 +209,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FCoreStyle::Get().GetBrush("Icons.Filter"))
+						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
 					]
 
 					+ SHorizontalBox::Slot()
@@ -242,7 +241,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Outliner"))
+						.Image(FInsightsStyle::GetBrush("Icons.FilterAddGroup"))
 					]
 
 					+ SHorizontalBox::Slot()
@@ -270,7 +269,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FCoreStyle::Get().GetBrush("Icons.Delete"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 				]
 			];
 	}
@@ -292,19 +291,19 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 			.HAlign(EHorizontalAlignment::HAlign_Fill)
 			.BorderBackgroundColor(FLinearColor::Black)
-			.BorderImage(FEditorStyle::GetBrush("Border"))
+			.BorderImage(FAppStyle::Get().GetBrush("Border"))
 			[
 				RightBox
 			]
 		];
 
-	return	SNew(SBorder)
-			.Padding(FMargin(2))
-			.BorderBackgroundColor(FLinearColor::Black)
-			.BorderImage(FEditorStyle::GetBrush("Border"))
-			[
-				GeneratedWidget
-			];
+	return SNew(SBorder)
+		.Padding(FMargin(2))
+		.BorderBackgroundColor(FLinearColor::Black)
+		.BorderImage(FAppStyle::Get().GetBrush("Border"))
+		[
+			GeneratedWidget
+		];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -507,7 +506,7 @@ void SFilterConfiguratorRow::OnTextBoxValueCommitted(const FText& InNewText, ETe
 
 FText SFilterConfiguratorRow::GetTextBoxTooltipText() const
 {
-	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
 	if (Converter.IsValid())
 	{
 		return Converter->GetTooltipText();
@@ -520,7 +519,7 @@ FText SFilterConfiguratorRow::GetTextBoxTooltipText() const
 
 FText SFilterConfiguratorRow::GetTextBoxHintText() const
 {
-	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
 	if (Converter.IsValid())
 	{
 		return Converter->GetHintText();
@@ -533,7 +532,7 @@ FText SFilterConfiguratorRow::GetTextBoxHintText() const
 
 bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage)
 {
-	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
 	if (Converter.IsValid())
 	{
 		int64 Value;

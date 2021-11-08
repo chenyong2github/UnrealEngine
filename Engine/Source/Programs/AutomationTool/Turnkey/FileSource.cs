@@ -249,6 +249,49 @@ namespace Turnkey
 			return Sources.FirstOrDefault(x => x.ShouldExecute())?.GetOperation();
 		}
 
+		static public FileSource ChooseBest(List<FileSource> Sdks, UEBuildPlatformSDK PlatformSDK)
+		{
+			if (Sdks == null)
+			{
+				return null;
+			}
+
+			FileSource Best = null;
+			UInt64 MainVersionInt;
+			PlatformSDK.TryConvertVersionToInt(PlatformSDK.GetMainVersion(), out MainVersionInt);
+
+			foreach (FileSource Sdk in Sdks)
+			{
+				if (Best == null)
+				{
+					Best = Sdk;
+				}
+				else
+				{
+					// bigger version is better
+					UInt64 ThisVersion, BestVersion;
+					if (PlatformSDK.TryConvertVersionToInt(Sdk.Version, out ThisVersion) && PlatformSDK.TryConvertVersionToInt(Best.Version, out BestVersion))
+					{
+						// there is no MainVersion for flash (yet), so don't take it into account
+						if (Sdk.Type == SourceType.Flash)
+						{
+							if (ThisVersion > BestVersion)
+							{
+								Best = Sdk;
+							}
+						}
+						// always use MainVersion, otherwise, use largest version if MainVersion hasn't been found
+						else if (ThisVersion == MainVersionInt || (BestVersion != MainVersionInt && ThisVersion > BestVersion))
+						{
+							Best = Sdk;
+						}
+					}
+				}
+			}
+
+			return Best;
+		}
+
 		static public FileSource FindMatchingSdk(AutomationTool.Platform Platform, SourceType[] TypePriority, bool bSelectBest, string DeviceType = null)
 		{
 			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.PlatformType.ToString());
@@ -283,29 +326,7 @@ namespace Turnkey
 				}
 
 				// the best for a AutoSdk is the one that matches the desired version exactly
-				FileSource Best = null;
-				if (Type == SourceType.AutoSdk)
-				{
-					UInt64 AutoSdkVersion;
-					if (SDK.TryConvertVersionToInt(SDK.GetMainVersion(), out AutoSdkVersion))
-					{
-						Best = Sdks.FirstOrDefault(x => { UInt64 IntVer; return SDK.TryConvertVersionToInt(x.Version, out IntVer) && IntVer == AutoSdkVersion; });
-					}
-				}
-
-				// find best one
-				if (Best == null)
-				{
-					foreach (FileSource Sdk in Sdks)
-					{
-						// bigger version is better
-						UInt64 VersionA, VersionB;
-						if (Best == null || SDK.TryConvertVersionToInt(Sdk.Version, out VersionA) && SDK.TryConvertVersionToInt(Best.Version, out VersionB) && VersionA > VersionB)
-						{
-							Best = Sdk;
-						}
-					}
-				}
+				FileSource Best = ChooseBest(Sdks, SDK);
 
 				if (bSelectBest)
 				{

@@ -199,6 +199,11 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input '%s'."), *WriteToString<64>(FUTF8ToTCHAR(Source.GetName())));
 		return false;
 	}
+	if ( InputBuffer.GetSize() == 0 )
+	{
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Input size zero '%s'."), *WriteToString<64>(FUTF8ToTCHAR(Source.GetName())));
+		return false;
+	}
 
 	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Source["CompressionFormat"].AsUInt8();
 	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Source["SourceFormat"].AsUInt8();

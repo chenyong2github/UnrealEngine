@@ -16,8 +16,8 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FOnPlatformOverrideAction, FName);
 
 struct FPerPlatformPropertyCustomNodeBuilderArgs
 {
-	/** Handle to the default value */
-	TSharedPtr<SWidget> NameWidget;
+	/** Callback to generate the name widget. */
+	FOnGetContent OnGenerateNameWidget;
 
 	/** List of platforms that can override the default value */
 	TAttribute<TArray<FName>> PlatformOverrideNames;
@@ -31,6 +31,8 @@ struct FPerPlatformPropertyCustomNodeBuilderArgs
 	FOnPlatformOverrideAction OnAddPlatformOverride;
 
 	FOnPlatformOverrideAction OnRemovePlatformOverride;
+
+	FText FilterText;
 };
 
 class DETAILCUSTOMIZATIONS_API FPerPlatformPropertyCustomNodeBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FPerPlatformPropertyCustomNodeBuilder>

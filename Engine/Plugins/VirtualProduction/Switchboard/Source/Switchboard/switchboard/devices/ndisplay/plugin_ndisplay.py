@@ -281,6 +281,10 @@ class DeviceWidgetnDisplay(DeviceWidgetUnreal):
 
     signal_device_widget_master = QtCore.Signal(object)
 
+    def _add_control_buttons(self):
+        self._autojoin_visible = False
+        super()._add_control_buttons()
+
     def add_widget_to_layout(self, widget):
         ''' DeviceWidget base class method override. '''
 
@@ -498,6 +502,12 @@ class DevicenDisplay(DeviceUnreal):
             nice_name="Disable Ensures",
             value=True,
             tool_tip="When checked, disables the handling of ensure errors - which are non-fatal and may cause hitches."
+        ),
+        'disable_all_screen_messages': BoolSetting(
+            attr_name='disable_all_screen_messages',
+            nice_name="Disable All Screen Messages",
+            value=True,
+            tool_tip="When checked, adds DisableAllScreenMessages to ExecCmds"
         ),
     }
 
@@ -818,7 +828,10 @@ class DevicenDisplay(DeviceUnreal):
         exec_cmds = str(
             self.csettings["ndisplay_exec_cmds"].get_value(
                 self.name)).strip().split(',')
-        exec_cmds.append('DisableAllScreenMessages')
+
+        if DevicenDisplay.csettings['disable_all_screen_messages'].get_value():
+            exec_cmds.append('DisableAllScreenMessages')
+            
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
         if len(exec_cmds):
@@ -841,15 +854,17 @@ class DevicenDisplay(DeviceUnreal):
             ])
 
         # MultiUser parameters
-        if CONFIG.MUSERVER_AUTO_JOIN:
+        if CONFIG.MUSERVER_AUTO_JOIN.get_value() and self.autojoin_mu_server.get_value():
             args.extend([
                 '-CONCERTRETRYAUTOCONNECTONERROR',
-                '-CONCERTAUTOCONNECT',
-                f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
-                f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}',
-                f'-CONCERTDISPLAYNAME={self.name}',
-                '-CONCERTISHEADLESS',
-            ])
+                '-CONCERTAUTOCONNECT'])
+
+        args.extend([
+            f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
+            f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}',
+            f'-CONCERTDISPLAYNAME={self.name}',
+            '-CONCERTISHEADLESS',
+        ])
 
         args.append(self.csettings['logging'].get_command_line_arg(
             override_device_name=self.name))

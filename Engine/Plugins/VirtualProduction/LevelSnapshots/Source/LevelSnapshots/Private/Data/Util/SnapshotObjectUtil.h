@@ -7,6 +7,8 @@
 
 class AActor;
 class UObject;
+
+struct FCustomSerializationData;
 struct FPropertySelectionMap;
 struct FWorldSnapshotData;
 
@@ -37,6 +39,21 @@ namespace SnapshotUtil
 		 * @param bCheckWhetherSubobject If true, this will check the the object is a subobject of an actor and call AddSubobjectDependency.
 		 */
 		int32 AddObjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, bool bCheckWhetherSubobject = true);
+
+
+
+		
+		/**
+		 * Adds a subobject to SerializedObjectReferences and CustomSubobjectSerializationData.
+		 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
+		 */
+		int32 AddCustomSubobjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject);
+
+		/** Tries to find custom serialisation data. Use this when you already know that ReferenceFromOriginalObject is not an actor. */
+		FCustomSerializationData* FindCustomSubobjectData(FWorldSnapshotData& WorldData, const FSoftObjectPath& ReferenceFromOriginalObject);
+		
+		/** Tries to find custom serialisation data. Use when OriginalObject might be an actor . */
+		const FCustomSerializationData* FindCustomActorOrSubobjectData(const FWorldSnapshotData& WorldData, UObject* OriginalObject);
 	}
 }
 

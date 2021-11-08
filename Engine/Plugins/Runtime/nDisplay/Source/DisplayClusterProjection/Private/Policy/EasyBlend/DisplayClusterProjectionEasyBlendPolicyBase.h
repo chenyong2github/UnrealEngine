@@ -50,7 +50,6 @@ private:
 	FString OriginCompId;
 	float EasyBlendScale = 1.f;
 	bool bInitializeOnce = false;
-	bool bEasyBlendInitializeOnce = false;
 
 	// RHI depended view adapter (different RHI require different DLL/API etc.)
 	TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> ViewAdapter;

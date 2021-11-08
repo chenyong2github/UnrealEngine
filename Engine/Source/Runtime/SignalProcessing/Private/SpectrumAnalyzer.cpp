@@ -37,7 +37,8 @@ namespace Audio
 				,	OutIndex(InOutIndex)
 				,	PowerSpectrumScale(1.f)
 				{
-					Update(InSettings, InSpectrumSettings);
+					// TODO: Check this: not calling virtual function from constructor
+					FBandSpec::Update(InSettings, InSpectrumSettings);
 				}
 
 				virtual ~FBandSpec() {}

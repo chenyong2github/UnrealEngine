@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
@@ -127,7 +127,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("PreviousPacketToolTip", "Previous Packet"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindPrevious"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindPrevious.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 
@@ -151,7 +151,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("NextPacketToolTip", "Next Packet"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindNext"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindNext.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 	}
@@ -174,7 +174,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("FindFirstEventToolTip", "First Event"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindFirst"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindFirst.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 
@@ -183,7 +183,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("FindPreviousEventToolTip", "Previous Event"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindPrevious"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindPrevious.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 
@@ -192,7 +192,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("FindNextEventToolTip", "Next Event"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindNext"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindNext.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 
@@ -201,7 +201,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 			NAME_None,
 			TAttribute<FText>(),
 			LOCTEXT("FindLastEventToolTip", "Last Event"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindLast"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FindLast.ToolBar"),
 			EUserInterfaceActionType::Button
 		);
 	}
@@ -1102,7 +1102,7 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	if (bShouldDisplayDebugInfo)
 	{
 		const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
-		FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+		FSlateFontInfo SummaryFont = FAppStyle::Get().GetFontStyle("SmallFont");
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;

@@ -27,16 +27,21 @@
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserModule.h"
+#include "DatasmithContentModule.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepAssetUserData.h"
 #include "DataprepCoreUtils.h"
+#include "DirectLinkExtensionModule.h"
+#include "DirectLinkUriResolver.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorStyleSet.h"
 #include "Engine/StaticMesh.h"
+#include "ExternalSourceModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IAssetTools.h"
 #include "IDirectLinkManager.h"
+#include "IUriManager.h"
 #include "LevelEditor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -74,12 +79,7 @@ public:
 			SetupMenuEntry();
 			SetupContentBrowserContextMenuExtender();
 			SetupLevelEditorContextMenuExtender();
-
-			IDatasmithContentEditorModule& DatasmithContentEditorModule = FModuleManager::LoadModuleChecked< IDatasmithContentEditorModule >( TEXT("DatasmithContentEditor") );
-			FOnSpawnDatasmithSceneActors SpawnSceneActorsDelegate = FOnSpawnDatasmithSceneActors::CreateStatic( UActorFactoryDatasmithScene::SpawnRelatedActors );
-			SpawnSceneActorsDelegateHandle = SpawnSceneActorsDelegate.GetHandle();
-
-			DatasmithContentEditorModule.RegisterSpawnDatasmithSceneActorsHandler( SpawnSceneActorsDelegate );
+			SetupDatasmithContentDelegates();
 
 			// Register the details customizer
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
@@ -97,13 +97,7 @@ public:
 		if (UToolMenus::IsToolMenuUIEnabled())
 		{
 			RemoveDataprepMenuEntryForDatasmithSceneAsset();
-
-			if ( SpawnSceneActorsDelegateHandle.IsValid() && FModuleManager::Get().IsModuleLoaded( TEXT("DatasmithContentEditor") ) )
-			{
-				IDatasmithContentEditorModule& DatasmithContentEditorModule = FModuleManager::GetModuleChecked< IDatasmithContentEditorModule >( TEXT("DatasmithContentEditor") );
-				DatasmithContentEditorModule.UnregisterDatasmithImporter(this);
-			}
-
+			RemoveDatasmithContentDelegates();
 			RemoveLevelEditorContextMenuExtender();
 			RemoveContentBrowserContextMenuExtender();
 
@@ -160,12 +154,19 @@ private:
 	void SetupLevelEditorContextMenuExtender();
 	void RemoveLevelEditorContextMenuExtender();
 
+	void SetupDatasmithContentDelegates();
+	void RemoveDatasmithContentDelegates();
+
 	static TSharedPtr<IDataprepImporterInterface> CreateDatasmithImportHandler();
 
 	FDelegateHandle ContentBrowserExtenderDelegateHandle;
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
 	FDelegateHandle SpawnSceneActorsDelegateHandle;
 	FDelegateHandle CreateDatasmithImportHandlerDelegateHandle;
+
+	FDelegateHandle SetAssetAutoReimportHandle;
+	FDelegateHandle IsAssetAutoReimportSupportedHandle;
+	FDelegateHandle IsAssetAutoReimportEnabledHandle;
 };
 
 void FDatasmithImporterModule::SetupMenuEntry()
@@ -725,6 +726,85 @@ void FDatasmithImporterModule::ApplyCustomActionOnAssets(TArray< FAssetData > Se
 TSharedPtr< IDataprepImporterInterface > FDatasmithImporterModule::CreateDatasmithImportHandler()
 {
 	return nullptr;
+}
+
+void FDatasmithImporterModule::SetupDatasmithContentDelegates()
+{
+	IDatasmithContentEditorModule& DatasmithContentEditorModule = FModuleManager::LoadModuleChecked< IDatasmithContentEditorModule >(TEXT("DatasmithContentEditor"));
+
+	FOnSpawnDatasmithSceneActors SpawnSceneActorsDelegate = FOnSpawnDatasmithSceneActors::CreateStatic(UActorFactoryDatasmithScene::SpawnRelatedActors);
+	SpawnSceneActorsDelegateHandle = SpawnSceneActorsDelegate.GetHandle();
+	DatasmithContentEditorModule.RegisterSpawnDatasmithSceneActorsHandler(SpawnSceneActorsDelegate);
+
+	{
+		FOnSetAssetAutoReimport SetAssetAutoReimport = FOnSetAssetAutoReimport::CreateLambda(
+			[](UObject* Asset, bool bEnabled)
+			{
+				using namespace UE::DatasmithImporter;
+				const FAssetData AssetData(Asset);
+				const FSourceUri SourceUri = FSourceUri::FromAssetData(AssetData);
+
+				if (bEnabled && !SourceUri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme()))
+				{
+					return false;
+				}
+
+				return IDirectLinkExtensionModule::Get().GetManager().SetAssetAutoReimport(Asset, bEnabled);
+			});
+		SetAssetAutoReimportHandle = SetAssetAutoReimport.GetHandle();
+		DatasmithContentEditorModule.RegisterSetAssetAutoReimportHandler(MoveTemp(SetAssetAutoReimport));
+	}
+
+	{
+		FOnIsAssetAutoReimportAvailable IsAssetAutoReimportAvailable = FOnIsAssetAutoReimportAvailable::CreateLambda(
+			[](UObject* Asset)
+			{
+				using namespace UE::DatasmithImporter;
+				const FAssetData AssetData(Asset);
+				const FSourceUri SourceUri = FSourceUri::FromAssetData(AssetData);
+
+				if (!SourceUri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme()))
+				{
+					return false;
+				}
+
+				TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
+				return ExternalSource && ExternalSource->IsAvailable();
+			});
+		IsAssetAutoReimportSupportedHandle = IsAssetAutoReimportAvailable.GetHandle();
+		DatasmithContentEditorModule.RegisterIsAssetAutoReimportAvailableHandler(MoveTemp(IsAssetAutoReimportAvailable));
+	}
+
+	{
+		FOnIsAssetAutoReimportEnabled IsAssetAutoReimportEnabled = FOnIsAssetAutoReimportEnabled::CreateLambda(
+			[](UObject* Asset)
+			{
+				using namespace UE::DatasmithImporter;
+				const FAssetData AssetData(Asset);
+				const FSourceUri SourceUri = FSourceUri::FromAssetData(AssetData);
+
+				if (!SourceUri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme()))
+				{
+					return false;
+				}
+
+				return IDirectLinkExtensionModule::Get().GetManager().IsAssetAutoReimportEnabled(Asset);
+			});
+		IsAssetAutoReimportEnabledHandle = IsAssetAutoReimportEnabled.GetHandle();
+		DatasmithContentEditorModule.RegisterIsAssetAutoReimportEnabledHandler(MoveTemp(IsAssetAutoReimportEnabled));
+	}
+}
+
+void FDatasmithImporterModule::RemoveDatasmithContentDelegates()
+{
+	if (SpawnSceneActorsDelegateHandle.IsValid() && FModuleManager::Get().IsModuleLoaded(TEXT("DatasmithContentEditor")))
+	{
+		IDatasmithContentEditorModule& DatasmithContentEditorModule = FModuleManager::GetModuleChecked< IDatasmithContentEditorModule >(TEXT("DatasmithContentEditor"));
+		DatasmithContentEditorModule.UnregisterDatasmithImporter(this);
+		DatasmithContentEditorModule.UnregisterSetAssetAutoReimportHandler(SetAssetAutoReimportHandle);
+		DatasmithContentEditorModule.UnregisterIsAssetAutoReimportAvailableHandler(IsAssetAutoReimportSupportedHandle);
+		DatasmithContentEditorModule.UnregisterIsAssetAutoReimportEnabledHandler(IsAssetAutoReimportEnabledHandle);
+	}
 }
 
 IMPLEMENT_MODULE(FDatasmithImporterModule, DatasmithImporter);

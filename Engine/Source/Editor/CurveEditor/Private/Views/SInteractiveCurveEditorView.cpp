@@ -965,8 +965,11 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 			// Add a key to the closest curve to the mouse
 			if (TOptional<FCurveModelID> HoveredCurve = GetHoveredCurve())
 			{
+				// Don't allow adding keys when shift is held down with selected keys since that is for dragging keys in a constrained axis
+				const bool bDraggingKeys = MouseEvent.IsShiftDown() && !CurveEditor->GetSelection().GetAll().IsEmpty();
+
 				FCurveModel* CurveToAddTo = CurveEditor->FindCurve(HoveredCurve.GetValue());
-				if (CurveToAddTo && !CurveToAddTo->IsReadOnly())
+				if (CurveToAddTo && !CurveToAddTo->IsReadOnly() && !bDraggingKeys)
 				{
 					FScopedTransaction Transaction(LOCTEXT("InsertKey", "Insert Key"));
 
@@ -975,8 +978,8 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					double MouseTime = CurveSpace.ScreenToSeconds(MousePixel.X);
 					double MouseValue = CurveSpace.ScreenToValue(MousePixel.Y);
 
-					// If shift is pressed. Keep the curve unchanged
-					if (MouseEvent.IsShiftDown())
+					// If control is pressed. Keep the curve unchanged
+					if (MouseEvent.IsControlDown())
 					{
 						KeyAttributes.SetTangentMode(RCTM_User);
 

@@ -636,7 +636,7 @@ namespace ClosableMpscQueueTests
 					int NumProduced = 0;
 					int LocalIndex = Index.load(std::memory_order_acquire);
 
-					while (LocalIndex != Num && Queues[LocalIndex].Enqueue((void*)(intptr_t)(NumProduced + 1)))
+					while (LocalIndex != Num && Queues[LocalIndex].Enqueue((void*)((intptr_t)NumProduced + 1)))
 					{
 						++NumProduced;
 						LocalIndex = Index.load(std::memory_order_acquire);

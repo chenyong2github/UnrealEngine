@@ -33,6 +33,13 @@ if (APPLE)
 endif()
 # UE Change End: Replace @rpath with 'install_name_tool' after deployment.
 
+# UE Change Begin: Allow explicit DllShutdown to prevent dangling mutex on Linux
+option(SC_EXPLICIT_DLLSHUTDOWN "Enable explicit DllShutdown" OFF)
+if(SC_EXPLICIT_DLLSHUTDOWN)
+  add_definitions(-DSC_EXPLICIT_DLLSHUTDOWN)
+endif()
+# UE Change End: Allow explicit DllShutdown to prevent dangling mutex on Linux
+
 set(LIB_NAME ShaderConductor)
 
 set(SOURCE_FILES

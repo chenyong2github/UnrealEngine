@@ -23,11 +23,15 @@ public:
 	TOnlineComponent(const FString& ComponentName, FOnlineServicesCommon& InServices)
 		: Services(InServices)
 		, WeakThis(TSharedPtr<ComponentType>(InServices.AsShared(), static_cast<ComponentType*>(this)))
-		, ConfigName(ComponentName)
+		, InterfaceName(ComponentName)
 		{
 		}
 
-	virtual void Initialize() override {}
+	virtual void Initialize() override
+	{
+		Services.RegisterExecHandler(InterfaceName, MakeUnique<TOnlineComponentExecHandler<TOnlineComponent<ComponentType>>>(this));
+		RegisterCommands();
+	}
 	virtual void PostInitialize() override {}
 	virtual void LoadConfig() override {}
 	virtual void Tick(float DeltaSeconds) override {}
@@ -40,7 +44,7 @@ public:
 		return static_cast<const ComponentType*>(this)->GetServices()->LoadConfig(Struct, GetConfigName(), OperationName);
 	}
 
-	const FString& GetConfigName() const { return ConfigName; }
+	const FString& GetConfigName() const { return InterfaceName; }
 
 	template <typename OpType>
 	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params)
@@ -65,21 +69,6 @@ public:
 		return Services;
 	}
 
-	// TSharedFromThis-like behaviour
-	TSharedRef<ComponentType> AsShared()
-	{
-		TSharedPtr<ComponentType> SharedThis(WeakThis.Pin());
-		check(SharedThis.Get() == this);
-		return MoveTemp(SharedThis).ToSharedRef();
-	}
-
-	TSharedRef<ComponentType const> AsShared() const
-	{
-		TSharedPtr<ComponentType const> SharedThis(WeakThis.Pin());
-		check(SharedThis.Get() == this);
-		return MoveTemp(SharedThis).ToSharedRef();
-	}
-
 	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString())
 	{
 		TArray<FString> SectionHeiarchy;
@@ -95,6 +84,56 @@ public:
 			SectionHeiarchy.Add(SectionName);
 		}
 		return SectionHeiarchy;
+	}
+
+	virtual void RegisterCommands() {}
+
+	// Default handler: generic parsing of Params, log Result
+	template <typename T>
+	void RegisterCommand(T MemberFunction)
+	{
+		using InterfaceType = typename Private::TOnlineInterfaceOperationMemberFunctionPtrTraits<T>::InterfaceType;
+		static_assert(std::is_base_of_v<ComponentType, InterfaceType> || std::is_same_v<ComponentType, InterfaceType>);
+		
+		TOnlineInterfaceOperationExecHandler<T>* Handler = new TOnlineInterfaceOperationExecHandler<T>(static_cast<InterfaceType*>(this), MemberFunction);
+
+		const TCHAR* Name = Private::TOnlineInterfaceOperationMemberFunctionPtrTraits<T>::OpType::Name;
+		ExecCommands.Emplace(Name, Handler);
+	}
+
+	// Custom handler
+	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler)
+	{
+		ExecCommands.Emplace(Name, MoveTemp(Handler));
+	}
+
+	bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		FString Command;
+		if (FParse::Token(Cmd, Command, false))
+		{
+			if (TUniquePtr<IOnlineExecHandler>* ExecHandler = ExecCommands.Find(Command))
+			{
+				return (*ExecHandler)->Exec(World, Cmd, Ar);
+			}
+		}
+
+		return false;
+	}
+
+	// TSharedFromThis-like behavior
+	TSharedRef<ComponentType> AsShared()
+	{
+		TSharedPtr<ComponentType> SharedThis(WeakThis.Pin());
+		check(SharedThis.Get() == this);
+		return MoveTemp(SharedThis).ToSharedRef();
+	}
+
+	TSharedRef<ComponentType const> AsShared() const
+	{
+		TSharedPtr<ComponentType const> SharedThis(WeakThis.Pin());
+		check(SharedThis.Get() == this);
+		return MoveTemp(SharedThis).ToSharedRef();
 	}
 
 protected:
@@ -114,7 +153,8 @@ protected:
 
 private:
 	TWeakPtr<ComponentType> WeakThis;
-	FString ConfigName;
+	FString InterfaceName;
+	TMap<FString, TUniquePtr<IOnlineExecHandler>> ExecCommands;
 };
 
 /* UE::Online */ }

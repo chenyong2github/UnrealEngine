@@ -584,7 +584,7 @@ private:
 	void RenderLightArrayForOverlapViewmode(
 		FRHICommandList& RHICmdList,
 		FRHITexture* LightingChannelsTexture,
-		const TSparseArray<FLightSceneInfoCompact>& LightArray);
+		const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& LightArray);
 
 	/** Render stationary light overlap as complexity to scene color. */
 	void RenderStationaryLightOverlap(

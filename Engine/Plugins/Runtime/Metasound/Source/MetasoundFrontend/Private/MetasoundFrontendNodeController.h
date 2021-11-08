@@ -29,126 +29,126 @@ namespace Metasound
 			/** Construct a base node controller. */
 			FBaseNodeController(const FInitParams& InParams);
 
-			bool IsValid() const override;
+			virtual bool IsValid() const override;
 
 			// Owning graph info
-			FGuid GetOwningGraphClassID() const override;
-			FGraphHandle GetOwningGraph() override;
-			FConstGraphHandle GetOwningGraph() const override;
+			virtual FGuid GetOwningGraphClassID() const override;
+			virtual FGraphHandle GetOwningGraph() override;
+			virtual FConstGraphHandle GetOwningGraph() const override;
 
 			// Info about this node.
-			FGuid GetID() const override;
-			FGuid GetClassID() const override;
+			virtual FGuid GetID() const override;
+			virtual FGuid GetClassID() const override;
 
-			bool ClearInputLiteral(FGuid InVertexID) override;
-			const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override;
-			void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override;
+			virtual bool ClearInputLiteral(FGuid InVertexID) override;
+			virtual const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override;
+			virtual void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override;
 
-			const FMetasoundFrontendClassInterface& GetClassInterface() const override;
-			const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
-			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
-			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
-			const FMetasoundFrontendClassStyle& GetClassStyle() const override;
+			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const override;
+			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
+			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
+			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
+			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const override;
 
 			/** Description of the given node. */
-			const FText& GetDescription() const override;
+			virtual const FText& GetDescription() const override;
 
-			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
-			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
+			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
+			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
 
-			bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override;
+			virtual bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override;
 
-			bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const override;
-			FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override;
-			FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override;
-			FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override;
+			virtual bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const override;
+			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override;
+			virtual FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override;
+			virtual FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override;
 
-			const FVertexName& GetNodeName() const override;
+			virtual const FVertexName& GetNodeName() const override;
 
 			// This only exists to allow for transform fix-ups to easily cleanup input/output node names.
-			void SetNodeName(const FVertexName& InName) override { checkNoEntry(); }
+			virtual void SetNodeName(const FVertexName& InName) override { checkNoEntry(); }
 
 			/** Returns the readable display name of the given node (Used only within MetaSound
 			  * Editor context, and not guaranteed to be a unique identifier). */
-			FText GetDisplayName() const override;
+			virtual FText GetDisplayName() const override;
 
 			/** Sets the description of the node. */
-			void SetDescription(const FText& InDescription) override { }
+			virtual void SetDescription(const FText& InDescription) override { }
 
 			/** Sets the display name of the node. */
-			void SetDisplayName(const FText& InDisplayName) override { };
+			virtual void SetDisplayName(const FText& InDisplayName) override { };
 
 			/** Returns the title of the given node (what to label in visual node). */
-			const FText& GetDisplayTitle() const override;
+			virtual const FText& GetDisplayTitle() const override;
 
-			bool CanAddInput(const FVertexName& InVertexName) const override;
-			FInputHandle AddInput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
-			bool RemoveInput(FGuid InVertexID) override;
+			virtual bool CanAddInput(const FVertexName& InVertexName) const override;
+			virtual FInputHandle AddInput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
+			virtual bool RemoveInput(FGuid InVertexID) override;
 
-			bool CanAddOutput(const FVertexName& InVertexName) const override;
-			FInputHandle AddOutput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
-			bool RemoveOutput(FGuid InVertexID) override;
-
-			/** Returns all node inputs. */
-			TArray<FInputHandle> GetInputs() override;
+			virtual bool CanAddOutput(const FVertexName& InVertexName) const override;
+			virtual FInputHandle AddOutput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
+			virtual bool RemoveOutput(FGuid InVertexID) override;
 
 			/** Returns all node inputs. */
-			TArray<FConstInputHandle> GetConstInputs() const override;
+			virtual TArray<FInputHandle> GetInputs() override;
 
-			void IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const override;
-			void IterateConstOutputs(TUniqueFunction<void(FConstOutputHandle)> InFunction) const override;
+			/** Returns all node inputs. */
+			virtual TArray<FConstInputHandle> GetConstInputs() const override;
 
-			void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) override;
-			void IterateOutputs(TUniqueFunction<void(FOutputHandle)> InFunction) override;
+			virtual void IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const override;
+			virtual void IterateConstOutputs(TUniqueFunction<void(FConstOutputHandle)> InFunction) const override;
 
-			int32 GetNumInputs() const override;
-			int32 GetNumOutputs() const override;
+			virtual void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) override;
+			virtual void IterateOutputs(TUniqueFunction<void(FOutputHandle)> InFunction) override;
 
-			FInputHandle GetInputWithVertexName(const FVertexName& InName) override;
-			FConstInputHandle GetConstInputWithVertexName(const FVertexName& InName) const override;
+			virtual int32 GetNumInputs() const override;
+			virtual int32 GetNumOutputs() const override;
+
+			virtual FInputHandle GetInputWithVertexName(const FVertexName& InName) override;
+			virtual FConstInputHandle GetConstInputWithVertexName(const FVertexName& InName) const override;
 
 			/** Returns all node outputs. */
-			TArray<FOutputHandle> GetOutputs() override;
+			virtual TArray<FOutputHandle> GetOutputs() override;
 
 			/** Returns all node outputs. */
-			TArray<FConstOutputHandle> GetConstOutputs() const override;
+			virtual TArray<FConstOutputHandle> GetConstOutputs() const override;
 
-			FOutputHandle GetOutputWithVertexName(const FVertexName& InName) override;
-			FConstOutputHandle GetConstOutputWithVertexName(const FVertexName& InName) const override;
+			virtual FOutputHandle GetOutputWithVertexName(const FVertexName& InName) override;
+			virtual FConstOutputHandle GetConstOutputWithVertexName(const FVertexName& InName) const override;
 
-			bool IsRequired() const override;
+			virtual bool IsRequired() const override;
 
 			/** Returns an input with the given id. 
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			FInputHandle GetInputWithID(FGuid InVertexID) override;
+			virtual FInputHandle GetInputWithID(FGuid InVertexID) override;
 
 			/** Returns an input with the given name. 
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			FConstInputHandle GetInputWithID(FGuid InVertexID) const override;
+			virtual FConstInputHandle GetInputWithID(FGuid InVertexID) const override;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			FOutputHandle GetOutputWithID(FGuid InVertexID) override;
+			virtual FOutputHandle GetOutputWithID(FGuid InVertexID) override;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			FConstOutputHandle GetOutputWithID(FGuid InVertexID) const override;
+			virtual FConstOutputHandle GetOutputWithID(FGuid InVertexID) const override;
 
-			FGraphHandle AsGraph() override;
-			FConstGraphHandle AsGraph() const override;
+			virtual FGraphHandle AsGraph() override;
+			virtual FConstGraphHandle AsGraph() const override;
 
 		protected:
 
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
 			FNodeAccessPtr NodePtr;
 			FConstClassAccessPtr ClassPtr;
@@ -177,8 +177,6 @@ namespace Metasound
 			virtual bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const;
 			virtual bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const;
 
-		private:
-
 			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const = 0;
 			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const = 0;
 		};
@@ -186,8 +184,9 @@ namespace Metasound
 		/** Represents an external node (defined in either code or by an asset's root graph). */
 		class FNodeController : public FBaseNodeController
 		{
+		protected:
 
-			// Private token only allows members or friends to call constructor.
+			// Private token only allows members, friends or derived classes to call constructor.
 			enum EPrivateToken { Token };
 
 		public:
@@ -206,13 +205,13 @@ namespace Metasound
 			// on error
 			FNodeController(EPrivateToken InToken, const FInitParams& InParams);
 
-			/** Create a node handle for a external or subgraph node. 
+			/** Create a node handle for an external node. 
 			 *
 			 * @return A Node handle. On error, an invalid node handle is returned. 
 			 */
 			static FNodeHandle CreateNodeHandle(const FInitParams& InParams);
 
-			/** Create a node handle for a external or subgraph node. 
+			/** Create a node handle for an external node. 
 			 *
 			 * @return A Node handle. On error, an invalid node handle is returned. 
 			 */
@@ -220,16 +219,16 @@ namespace Metasound
 
 			virtual ~FNodeController() = default;
 
-			bool IsValid() const override;
+			virtual bool IsValid() const override;
 
 		protected:
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
+			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
+			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 		private:
-			FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
-			FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 			FGraphAccessPtr GraphPtr;
 		};
@@ -273,25 +272,25 @@ namespace Metasound
 
 			virtual ~FOutputNodeController() = default;
 
-			bool IsValid() const override;
-			const FText& GetDescription() const override;
-			FText GetDisplayName() const override;
-			const FText& GetDisplayTitle() const override;
-			void SetDescription(const FText& InDescription) override;
-			void SetDisplayName(const FText& InText) override;
-			void SetNodeName(const FVertexName& InName) override;
-			bool IsRequired() const override;
+			virtual bool IsValid() const override;
+			virtual const FText& GetDescription() const override;
+			virtual FText GetDisplayName() const override;
+			virtual const FText& GetDisplayTitle() const override;
+			virtual void SetDescription(const FText& InDescription) override;
+			virtual void SetDisplayName(const FText& InText) override;
+			virtual void SetNodeName(const FVertexName& InName) override;
+			virtual bool IsRequired() const override;
 
 		protected:
 
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
+			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
+
+			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 		private:
-			FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
-
-			FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 			FGraphAccessPtr GraphPtr;
 			FConstClassOutputAccessPtr OwningGraphClassOutputPtr; 
@@ -335,33 +334,76 @@ namespace Metasound
 
 			virtual ~FInputNodeController() = default;
 
-			const FText& GetDescription() const override;
-			FText GetDisplayName() const override;
-			const FText& GetDisplayTitle() const override;
-			bool IsRequired() const override;
-			bool IsValid() const override;
-			void SetDescription(const FText& InDescription) override;
-			void SetDisplayName(const FText& InText) override;
-			void SetNodeName(const FVertexName& InName) override;
+			virtual const FText& GetDescription() const override;
+			virtual FText GetDisplayName() const override;
+			virtual const FText& GetDisplayTitle() const override;
+			virtual bool IsRequired() const override;
+			virtual bool IsValid() const override;
+			virtual void SetDescription(const FText& InDescription) override;
+			virtual void SetDisplayName(const FText& InText) override;
+			virtual void SetNodeName(const FVertexName& InName) override;
 
 			// No-ops as inputs do not handle literals the same way as other nodes
-			bool ClearInputLiteral(FGuid InVertexID) override { return false; }
-			const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override { return nullptr; }
-			void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override { }
+			virtual bool ClearInputLiteral(FGuid InVertexID) override { return false; }
+			virtual const FMetasoundFrontendLiteral* GetInputLiteral(const FGuid& InVertexID) const override { return nullptr; }
+			virtual void SetInputLiteral(const FMetasoundFrontendVertexLiteral& InVertexLiteral) override { }
 
 		protected:
 
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
+			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
+
+			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 		private:
-			FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
-
-			FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 			FGraphAccessPtr GraphPtr;
+		};
+
+		/** Represents an variable node */
+		class FVariableNodeController : public FNodeController
+		{
+			using Super = FNodeController;
+
+			// Private token only allows members or friends to call constructor.
+			enum EPrivateToken { Token };
+
+		public:
+			using FInitParams = FNodeController::FInitParams;
+
+			// Constructor takes a private token so it can only be instantiated by
+			// using the static creation functions. This protects against some
+			// error conditions which would result in a zombie object. The creation
+			// methods can detect the error conditions and return an invalid controller
+			// on error
+			FVariableNodeController(EPrivateToken InToken, const FInitParams& InParams);
+
+			/** Create a node handle for a variable node. 
+			 *
+			 * @return A Node handle. On error, an invalid node handle is returned. 
+			 */
+			static FNodeHandle CreateNodeHandle(const FInitParams& InParams);
+
+			/** Create a node handle for a variable node.
+			 *
+			 * @return A Node handle. On error, an invalid node handle is returned. 
+			 */
+			static FConstNodeHandle CreateConstNodeHandle(const FInitParams& InParams);
+
+			virtual ~FVariableNodeController() = default;
+
+		protected:
+
+			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
+			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
+
+		private:
+
+			static bool IsSupportedClassType(EMetasoundFrontendClassType InClassType);
+			static bool IsVariableDataType(const FName& InTypeName);
 		};
 	}
 }

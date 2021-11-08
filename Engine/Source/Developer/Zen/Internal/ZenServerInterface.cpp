@@ -10,11 +10,17 @@
 #include "HAL/FileManager.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformTime.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
+#include "Misc/ScopedSlowTask.h"
+#include "Misc/ScopeExit.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryValidation.h"
 #include "String/LexFromString.h"
 
 #if PLATFORM_WINDOWS
@@ -25,6 +31,69 @@
 #endif
 
 namespace UE::Zen {
+
+static bool
+ReadCbLockFile(FStringView FileName, FCbObject& OutLockObject)
+{
+#if PLATFORM_WINDOWS
+	// Windows specific lock reading path
+	// Uses share flags that are unique to windows to allow us to read file contents while the file may be open for write AND delete by another process (zenserver).
+
+	uint32 Access = GENERIC_READ;
+	uint32 WinFlags = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+	uint32 Create = OPEN_EXISTING;
+
+	TStringBuilder<MAX_PATH> FullFileNameBuilder;
+	FPathViews::ToAbsolutePath(FileName, FullFileNameBuilder);
+	for (TCHAR& Char : MakeArrayView(FullFileNameBuilder))
+	{
+		if (Char == '/')
+		{
+			Char = '\\';
+		}
+	}
+	if (FullFileNameBuilder.Len() >= MAX_PATH)
+	{
+		FullFileNameBuilder.Prepend(TEXT("\\\\?\\"_SV));
+	}
+	HANDLE Handle = CreateFileW(FullFileNameBuilder.ToString(), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (Handle != INVALID_HANDLE_VALUE)
+	{
+		ON_SCOPE_EXIT { CloseHandle(Handle); };
+		LARGE_INTEGER LI;
+		if (GetFileSizeEx(Handle, &LI))
+		{
+			checkf(LI.QuadPart == LI.u.LowPart, TEXT("Lock file exceeds supported 2GB limit."));
+			int32 FileSize32 = LI.u.LowPart;
+			FUniqueBuffer FileBytes = FUniqueBuffer::Alloc(FileSize32);
+			DWORD ReadBytes = 0;
+			if (ReadFile(Handle, FileBytes.GetData(), FileSize32, &ReadBytes, NULL) && (ReadBytes == FileSize32))
+			{
+				if (ValidateCompactBinary(FileBytes, ECbValidateMode::Default) == ECbValidateError::None)
+				{
+					OutLockObject = FCbObject(FileBytes.MoveToShared());
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+#else
+	// Generic lock reading path
+	if (TUniquePtr<FArchive> Ar{FileManager.CreateFileReader(*FileName, FILEREAD_AllowWrite | FILEREAD_Silent)})
+	{
+		*Ar << OutLockObject;
+		FMemoryView View;
+		if (Ar.Close() &&
+			OutLockObject.TryGetView(View) &&
+			ValidateCompactBinary(View, ECbValidateMode::Default) == ECbValidateError::None)
+		{
+			return true;
+		}
+	}
+	return false;
+#endif
+}
 
 DEFINE_LOG_CATEGORY_STATIC(LogZenServiceInstance, Log, All);
 
@@ -345,8 +414,9 @@ FZenServiceInstance::PromptUserToStopRunningServerInstance(const FString& Server
 		return;
 	}
 
-	FString UserPrompt = FString::Printf(TEXT("Please shutdown currently running Unreal editor and tools using zenserver at '%s' so that it can be upgraded to a new version."), *ServerFilePath);
-	FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *UserPrompt, TEXT("Upgrade required"));
+	FText ZenUpdatePromptTitle = NSLOCTEXT("Zen", "Zen_UpdatePromptTitle", "Update required");
+	FText ZenUpdatePromptText = FText::Format(NSLOCTEXT("Zen", "Zen_UpdatePromptText", "ZenServer needs to be updated to a new version. Please shut down Unreal Editor and any tools that are using the ZenServer at '{0}'"), FText::FromString(ServerFilePath));
+	FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ZenUpdatePromptText.ToString(), *ZenUpdatePromptTitle.ToString());
 }
 
 FString
@@ -431,20 +501,14 @@ FZenServiceInstance::AutoLaunch()
 bool
 FZenServiceInstance::AutoLaunch(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
 {
-	HostName = TEXT("localhost");
-	// For now assuming that we get to run on the port we want
-	Port = DesiredPort;
+	IFileManager& FileManager = IFileManager::Get();
+	FString LockFilePath = FPaths::Combine(Settings.AutoLaunchSettings.DataPath, TEXT(".lock"));
+	FileManager.Delete(*LockFilePath, false, false, true);
 
 	FString FinalExecutablePath(MoveTemp(AutoLaunchExecutablePath));
 	FString FinalParms;
 	FinalParms.Appendf(TEXT("--owner-pid %d "),
 		FPlatformProcess::GetCurrentProcessId());
-#if PLATFORM_WINDOWS
-	const TCHAR* ReadyEventName = TEXT("Local\\ZenAutoLaunchReadyCheck");
-	HANDLE ReadyEvent = ::CreateEvent(NULL, false, false, ReadyEventName);
-	FinalParms.Appendf(TEXT(" --child-id \"%s\" "),
-		ReadyEventName);
-#endif
 	FinalParms += MoveTemp(AutoLaunchArguments);
 
 	FProcHandle Proc;
@@ -517,19 +581,80 @@ FZenServiceInstance::AutoLaunch(FStringView AutoLaunchExecutablePath, FStringVie
 	}
 #endif
 
-	if (!Proc.IsValid())
+	HostName = TEXT("localhost");
+	// Default to assuming that we get to run on the port we want
+	Port = DesiredPort;
+
+	if (Proc.IsValid())
+	{
+
+		FScopedSlowTask WaitForZenReadySlowTask(0, NSLOCTEXT("Zen", "Zen_WaitingForReady", "Waiting for ZenServer to be ready"));
+		uint64 ZenWaitStartTime = FPlatformTime::Cycles64();
+		enum class EWaitDurationPhase
+		{
+			Short,
+			Medium,
+			Long
+		} DurationPhase = EWaitDurationPhase::Short;
+		bool bIsReady = false;
+		while (!bIsReady)
+		{
+			FCbObject LockObject;
+			if (ReadCbLockFile(LockFilePath, LockObject))
+			{
+				bIsReady = LockObject["ready"].AsBool();
+				if (bIsReady)
+				{
+					Port = LockObject["port"].AsUInt16(DesiredPort);
+					break;
+				}
+			}
+
+			double ZenWaitDuration = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - ZenWaitStartTime);
+			if (ZenWaitDuration < 1.0)
+			{
+				// Initial 1 second window of higher frequency checks
+				FPlatformProcess::Sleep(0.01f);
+			}
+			else
+			{
+				if (DurationPhase == EWaitDurationPhase::Short)
+				{
+					// Insist after 1 second that the lock file must exist by now otherwise there has been a failure to launch.
+					// The file existing does not mean that it is ready to use, just that it is running.  It may be performing scrubbing.
+					checkf(FileManager.FileExists(*LockFilePath), TEXT("ZenServer did not launch in the expected duration."));// Note that the dialog may not show up when zenserver is needed early in the launch cycle, but this will at least ensure
+					// the splash screen is refreshed with the appropriate text status message.
+					WaitForZenReadySlowTask.MakeDialog(true, false);
+					UE_LOG(LogZenServiceInstance, Display, TEXT("Waiting for ZenServer to be ready..."));
+					DurationPhase = EWaitDurationPhase::Medium;
+				}
+				else if (!FApp::IsUnattended() && ZenWaitDuration > 10.0 && (DurationPhase == EWaitDurationPhase::Medium))
+				{
+					FText ZenLongWaitPromptTitle = NSLOCTEXT("Zen", "Zen_LongWaitPromptTitle", "Wait for ZenServer?");
+					FText ZenLongWaitPromptText = NSLOCTEXT("Zen", "Zen_LongWaitPromptText", "ZenServer is taking a long time to launch. It may be performing maintenance. Keep waiting?");
+					if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *ZenLongWaitPromptText.ToString(), *ZenLongWaitPromptTitle.ToString()) == EAppReturnType::No)
+					{
+						FPlatformMisc::RequestExit(true);
+						return false;
+					}
+					DurationPhase = EWaitDurationPhase::Long;
+				}
+
+				if (WaitForZenReadySlowTask.ShouldCancel())
+				{
+					FPlatformMisc::RequestExit(true);
+					return false;
+				}
+				FPlatformProcess::Sleep(0.1f);
+			}
+		}
+
+		return bIsReady;
+	}
+	else
 	{
 		return false;
 	}
-#if PLATFORM_WINDOWS
-	if (ReadyEvent)
-	{
-		UE_LOG(LogZenServiceInstance, Display, TEXT("Waiting for Zen service to come online..."));
-		bool bIsReady = WAIT_OBJECT_0 == ::WaitForSingleObject(ReadyEvent, 4000);
-		::CloseHandle(ReadyEvent);
-		UE_CLOG(!bIsReady, LogZenServiceInstance, Warning, TEXT("AutoLaunched Zen service was not ready after 4 seconds"));
-	}
-#endif
 	return true;
 }
 
@@ -575,14 +700,14 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 		UpstreamStats.TotalUploadedMB = 0.0;
 		UpstreamStats.TotalDownloadedMB = 0.0;
 
-		FCbObjectView UpstreamGetsObjectView = RootObjectView["upstream_gets"].AsObjectView();
-		FZenRequestStats& UpstreamGetsStats = stats.UpstreamGetsStats;
+		FCbObjectView UpstreamRequestObjectView = RootObjectView["upstream_gets"].AsObjectView();
+		FZenRequestStats& UpstreamRequestStats = stats.UpstreamRequestStats;
 
-		UpstreamGetsStats.Count = UpstreamGetsObjectView["count"].AsInt64();
-		UpstreamGetsStats.RateMean = UpstreamGetsObjectView["rate_mean"].AsDouble();
-		UpstreamGetsStats.TAverage = UpstreamGetsObjectView["t_avg"].AsDouble();
-		UpstreamGetsStats.TMin = UpstreamGetsObjectView["t_min"].AsDouble();
-		UpstreamGetsStats.TMax = UpstreamGetsObjectView["t_max"].AsDouble();
+		UpstreamRequestStats.Count = UpstreamRequestObjectView["count"].AsInt64();
+		UpstreamRequestStats.RateMean = UpstreamRequestObjectView["rate_mean"].AsDouble();
+		UpstreamRequestStats.TAverage = UpstreamRequestObjectView["t_avg"].AsDouble();
+		UpstreamRequestStats.TMin = UpstreamRequestObjectView["t_min"].AsDouble();
+		UpstreamRequestStats.TMax = UpstreamRequestObjectView["t_max"].AsDouble();
 
 		FCbArrayView EndpPointArrayView = UpstreamObjectView["endpoints"].AsArrayView();
 

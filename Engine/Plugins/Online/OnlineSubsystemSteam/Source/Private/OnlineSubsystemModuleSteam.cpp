@@ -21,7 +21,7 @@ void* HackDeleteFunctionPointer = (void*)(void(*)(void*))(::operator delete[]);
 /**
  * Class responsible for creating instance(s) of the subsystem
  */
-class FOnlineFactorySteam : public IOnlineFactory
+class FOnlineFactorySteam final : public IOnlineFactory
 {
 
 private:
@@ -29,7 +29,7 @@ private:
 	/** Single instantiation of the STEAM interface */
 	static FOnlineSubsystemSteamPtr SteamSingleton;
 
-	virtual void DestroySubsystem()
+	void DestroySubsystem()
 	{
 		if (SteamSingleton.IsValid())
 		{

@@ -255,6 +255,8 @@ protected:
 		int32				Oper = 0;
 		/** Array: Size of each item in the array */
 		int32				ElementSize = 0;
+		/** Array: Alignment of each item in the array */
+		uint32				ElementAlignment = 0;
 		/** Array: DefaultConstructor for each item in the array */
 		STRUCT_DC			DefaultConstructor;
 		/** Array: Serializer to use for each item in the array */
@@ -280,7 +282,7 @@ protected:
 
 		// Constructors.
 		FObjectRecord() = default;
-		FObjectRecord( FTransaction* Owner, UObject* InObject, TUniquePtr<FChange> InCustomChange, FScriptArray* InArray, int32 InIndex, int32 InCount, int32 InOper, int32 InElementSize, STRUCT_DC InDefaultConstructor, STRUCT_AR InSerializer, STRUCT_DTOR InDestructor );
+		FObjectRecord( FTransaction* Owner, UObject* InObject, TUniquePtr<FChange> InCustomChange, FScriptArray* InArray, int32 InIndex, int32 InCount, int32 InOper, int32 InElementSize, uint32 InElementAlignment, STRUCT_DC InDefaultConstructor, STRUCT_AR InSerializer, STRUCT_DTOR InDestructor );
 
 	private:
 		// Non-copyable
@@ -635,7 +637,7 @@ public:
 	
 	// FTransactionBase interface.
 	virtual void SaveObject( UObject* Object ) override;
-	virtual void SaveArray( UObject* Object, FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor ) override;
+	virtual void SaveArray( UObject* Object, FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, uint32 ElementAlignment, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor ) override;
 	virtual void StoreUndo( UObject* Object, TUniquePtr<FChange> UndoChange ) override;
 	virtual void SetPrimaryObject(UObject* InObject) override;
 	virtual void SnapshotObject( UObject* InObject, TArrayView<const FProperty*> Properties ) override;

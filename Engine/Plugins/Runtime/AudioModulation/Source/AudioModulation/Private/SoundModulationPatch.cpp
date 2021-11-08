@@ -8,28 +8,21 @@
 #include "AudioModulationSystem.h"
 #include "SoundControlBus.h"
 #include "SoundModulationTransform.h"
+#include "SoundModulatorAssetProxy.h"
 
 
 #define LOCTEXT_NAMESPACE "SoundModulationPatch"
 
-namespace AudioModulation
-{
-	template <typename T>
-	void ClampPatchInputs(TArray<T>& Inputs)
-	{
-		for (T& Input : Inputs)
-		{
-			if (Input.Transform.InputMin > Input.Transform.InputMax)
-			{
-				Input.Transform.InputMin = Input.Transform.InputMax;
-			}
-		}
-	}
-} // namespace AudioModulation
 
 USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+TUniquePtr<Audio::IProxyData> USoundModulationPatch::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	using namespace AudioModulation;
+	return MakeUnique<TSoundModulatorAssetProxy<USoundModulationPatch>>(*this);
 }
 
 #if WITH_EDITOR
@@ -69,5 +62,4 @@ const USoundControlBus& FSoundControlModulationInput::GetBusChecked() const
 	check(Bus);
 	return *Bus;
 }
-
 #undef LOCTEXT_NAMESPACE // SoundModulationPatch

@@ -18,24 +18,16 @@ struct FScreenPassTexture;
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER(FVector2D, GGXEnergyLUTScaleBias)
-	SHADER_PARAMETER_TEXTURE(Texture3D<float3>, GGXEnergyLUT3DTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GGXEnergyLUT2DTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GGXEnergyLUTSampler)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER(FVector2D, GGXEnergyLUTScaleBias)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ClassificationTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerNormalTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
-	SHADER_PARAMETER_TEXTURE(Texture3D<float3>, GGXEnergyLUT3DTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GGXEnergyLUT2DTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GGXEnergyLUTSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 enum EStrataTileMaterialType : uint32
@@ -44,6 +36,8 @@ enum EStrataTileMaterialType : uint32
 	EComplex = 1,
 	ECount
 };
+
+const TCHAR* ToString(EStrataTileMaterialType Type);
 
 struct FStrataSceneData
 {
@@ -67,12 +61,6 @@ struct FStrataSceneData
 	FRDGTextureRef SSSTexture;
 
 	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters{};
-
-	// Resources computed once for multiple frames
-
-	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT3DTexture;
-	TRefCountPtr<IPooledRenderTarget> GGXEnergyLUT2DTexture;
-
 
 	FStrataSceneData()
 	{
@@ -141,7 +129,3 @@ class FStrataTilePassVS : public FGlobalShader
 void FillUpTiledPassData(EStrataTileMaterialType Type, const FViewInfo& View, FStrataTilePassVS::FParameters& ParametersVS, EPrimitiveType& PrimitiveType);
 
 };
-
-
-
-

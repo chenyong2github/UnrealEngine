@@ -83,22 +83,16 @@ namespace Chaos
 	public:
 		using FAccelerationStructure = ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>;
 
-		FSpatialAccelerationBroadPhase(const FPBDRigidsSOAs& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InCullDistance)
+		FSpatialAccelerationBroadPhase(const FPBDRigidsSOAs& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation)
 			: FBroadPhase(InBoundsExpansion, InVelocityInflation)
 			, Particles(InParticles)
 			, SpatialAcceleration(nullptr)
-			, CullDistance(InCullDistance)
 		{
 		}
 
 		void SetSpatialAcceleration(const FAccelerationStructure* InSpatialAcceleration)
 		{
 			SpatialAcceleration = InSpatialAcceleration;
-		}
-
-		void SetCullDistance(FReal InCullDistance)
-		{
-			CullDistance = InCullDistance;
 		}
 
 		/**
@@ -154,7 +148,7 @@ namespace Chaos
 		{
 			OverlapView.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
 			{
-				FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
+				FGenericParticleHandleImp GenericHandle(Particle1.Handle());
 				ProduceParticleOverlaps<bNeedsResim,bOnlyRigid>(Dt,GenericHandle, InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
 			},bDisableCollisionParallelFor);
 		}
@@ -216,14 +210,18 @@ namespace Chaos
 					SCOPE_CYCLE_COUNTER(STAT_Collisions_AABBTree);
 					if (bBody1Bounded)
 					{
+						// @todo(chaos): cache this on the particle?
 						FCollisionFilterData ParticleSimData;
 						FAccelerationStructureHandle::ComputeParticleSimFilterDataFromShapes(Particle1, ParticleSimData);
 
-						const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
-						const FAABB3 Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1).ThickenSymmetrically(FVec3(Box1Thickness));
+						const FAABB3 Box1 = Particle1.WorldSpaceInflatedBounds();
 
-						FSimOverlapVisitor OverlapVisitor(Particle1.UniqueIdx(), ParticleSimData, PotentialIntersections);
-						InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
+						{
+							PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_BroadPhase);
+							FSimOverlapVisitor OverlapVisitor(Particle1.UniqueIdx(), ParticleSimData, PotentialIntersections);
+							InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
+						}
+						
 					}
 					else
 					{
@@ -239,6 +237,7 @@ namespace Chaos
 
 				SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
 				const int32 NumPotentials = PotentialIntersections.Num();
+				int32 NumIntoNarrowPhase = 0;
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
@@ -363,36 +362,69 @@ namespace Chaos
 						continue;
 					}
 
-					// Try to restore all the contacts for this pair. This will only succeed if they have not moved (within some threshold)
+					// Constraints have a key generated from the Particle IDs and we don't want to have to deal with constraint being created in the two orders.
+					// Since particles can change type (between Kinematic and Dynamic) we may visit them in different orders at different times, but if we allow
+					// that it would break Resim and constraint re-use. Also, if only one particle is Dynamic, we want it in first position. This isn't a strtct 
+					// requirement but some downstream systems assume this is true.
+					TGeometryParticleHandle<FReal, 3>* ParticleA = Particle1.Handle();
+					TGeometryParticleHandle<FReal, 3>* ParticleB = Particle2.Handle();
+					bool bSwapOrder = !FConstGenericParticleHandle(ParticleA)->IsDynamic() || !bIsParticle1Preferred;
+					if (bSwapOrder)
 					{
-						SCOPE_CYCLE_COUNTER(STAT_Collisions_Restore);
-						if (NarrowPhase.TryRestoreCollisions(Dt, Particle1.Handle(), Particle2.Handle()))
-						{
-							continue;
-						}
+						Swap(ParticleA, ParticleB);
 					}
-					
-					// If we get here, we need to run the narrow phase to possibly generate new contacts, or refresh existing ones
+
+					bool bDidRunNarrowPhase = RunNarrowPhaseOrRestore(Dt, ParticleA, ParticleB, NarrowPhase);
+
+					if (bDidRunNarrowPhase)
 					{
-						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
-
-						// We move the bodies during contact resolution and it may be in any direction
-						// @todo(chaos): this expansion can be very large for some objects - we may want to consider extending only along
-						// the velocity direction if CCD is not enabled for either object.
-						const FReal CullDistance1 = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
-						FReal CullDistance2 = 0.0f;
-						if (FKinematicGeometryParticleHandle* KinematicParticle2 = Particle2.CastToKinematicParticle())
-						{
-							CullDistance2 = ComputeBoundsThickness(*KinematicParticle2, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
-						}
-						const FReal NetCullDistance = CullDistance + CullDistance1 + CullDistance2;
-
-						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
-						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(Dt, Particle1.Handle(), Particle2.Handle(), NetCullDistance, false);
+						++NumIntoNarrowPhase;
 					}
 				}
+
+				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumPotentialContacts, NumIntoNarrowPhase, ECsvCustomStatOp::Accumulate);
+				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
+
 			}
+		}
+
+		bool RunNarrowPhaseOrRestore(
+			const FReal Dt, 
+			TGeometryParticleHandle<FReal, 3>* Particle1,
+			TGeometryParticleHandle<FReal, 3>* Particle2,
+			FNarrowPhase& NarrowPhase)
+		{
+			// Try to restore all the contacts for this pair. This will only succeed if they have not moved (within some threshold)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Collisions_Restore);
+				PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_RestoreCollision);
+				if (NarrowPhase.TryRestoreCollisions(Dt, Particle1, Particle2))
+				{
+					return false;
+				}
+			}
+
+			// If we get here, we need to run the narrow phase to possibly generate new contacts, or refresh existing ones
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
+				PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_NarrowPhase);
+
+				// We move the bodies during contact resolution and it may be in any direction
+				// NOTE: We use 0 BoundsThickness here - it is already accounted for in CullDistance
+				const FReal CullDistance1 = ComputeBoundsThickness(*Particle1, Dt, FReal(0), BoundsThicknessVelocityInflation).Size();
+				FReal CullDistance2 = 0.0f;
+				if (FKinematicGeometryParticleHandle* KinematicParticle2 = Particle2->CastToKinematicParticle())
+				{
+					CullDistance2 = ComputeBoundsThickness(*KinematicParticle2, Dt, FReal(0), BoundsThicknessVelocityInflation).Size();
+				}
+				const FReal NetCullDistance = GetBoundsThickness() + CullDistance1 + CullDistance2;
+
+				// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
+				// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
+				NarrowPhase.GenerateCollisions(Dt, Particle1, Particle2, NetCullDistance, false);
+			}
+
+			return true;
 		}
 
 		const FPBDRigidsSOAs& Particles;

@@ -71,37 +71,58 @@ namespace CADKernel
 		EEntity Type = EEntity::NullEntity;
 		Archive << Type;
 
+		TSharedPtr<FEntity> Entity;
 		switch (Type)
 		{
 		case EEntity::Body:
-			return FEntity::MakeShared<FBody>(Archive);
+			Entity = FEntity::MakeShared<FBody>(Archive);
+			break;
 		case EEntity::Curve:
-			return FCurve::Deserialize(Archive);
+			Entity = FCurve::Deserialize(Archive);
+			break;
 		case EEntity::Criterion:
-			return FCriterion::Deserialize(Archive);
+			Entity = FCriterion::Deserialize(Archive);
+			break;
 		case EEntity::EdgeLink:
-			return FEntity::MakeShared<FEdgeLink>(Archive);
+			Entity = FEntity::MakeShared<FEdgeLink>(Archive);
+			break;
 		case EEntity::Group:
-			return FEntity::MakeShared<FGroup>(Archive);
+			Entity = FEntity::MakeShared<FGroup>(Archive);
+			break;
 		case EEntity::Model:
-			return FEntity::MakeShared<FModel>(Archive);
+			Entity = FEntity::MakeShared<FModel>(Archive);
+			break;
 		case EEntity::Shell:
-			return FEntity::MakeShared<FShell>(Archive);
+			Entity = FEntity::MakeShared<FShell>(Archive);
+			break;
 		case EEntity::Surface:
-			return FSurface::Deserialize(Archive);
+			Entity = FSurface::Deserialize(Archive);
+			break;
 		case EEntity::TopologicalEdge:
-			return FEntity::MakeShared<FTopologicalEdge>(Archive);
+			Entity = FEntity::MakeShared<FTopologicalEdge>(Archive);
+			break;
 		case EEntity::TopologicalFace:
-			return FEntity::MakeShared<FTopologicalFace>(Archive);
+			Entity = FEntity::MakeShared<FTopologicalFace>(Archive);
+			break;
 		case EEntity::TopologicalLoop:
-			return FEntity::MakeShared<FTopologicalLoop>(Archive);
+			Entity = FEntity::MakeShared<FTopologicalLoop>(Archive);
+			break;
 		case EEntity::TopologicalVertex:
-			return FEntity::MakeShared<FTopologicalVertex>(Archive);
+			Entity = FEntity::MakeShared<FTopologicalVertex>(Archive);
+			break;
 		case EEntity::VertexLink:
-			return FEntity::MakeShared<FVertexLink>(Archive);
+			Entity = FEntity::MakeShared<FVertexLink>(Archive);
+			break;
 		default:
-			return TSharedPtr<FEntity>();
+			break;
 		}
+
+		if (Entity.IsValid())
+		{
+			Entity->Serialize(Archive);
+			Archive.AddEntityFromArchive(Entity);
+		}
+		return Entity;
 	}
 
 #ifdef CADKERNEL_DEV

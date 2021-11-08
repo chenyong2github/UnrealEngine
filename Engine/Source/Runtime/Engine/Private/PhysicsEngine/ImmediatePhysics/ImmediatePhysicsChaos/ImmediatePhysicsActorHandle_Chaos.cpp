@@ -260,7 +260,7 @@ namespace ImmediatePhysics_Chaos
 				{
 					ParticleHandle->SetHasBounds(true);
 					ParticleHandle->SetLocalBounds(Geometry->BoundingBox());
-					ParticleHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedAABB(FRigidTransform3(ParticleHandle->X(), ParticleHandle->R())));
+					ParticleHandle->UpdateWorldSpaceState(FRigidTransform3(ParticleHandle->X(), ParticleHandle->R()), FVec3(0));
 				}
 
 				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())

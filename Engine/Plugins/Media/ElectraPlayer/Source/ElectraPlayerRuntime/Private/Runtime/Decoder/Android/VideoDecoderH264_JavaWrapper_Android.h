@@ -24,22 +24,23 @@ public:
 
 	struct FCreateParameters
 	{
-		int32   										MaxWidth		= 0;
-		int32   										MaxHeight   	= 0;
-		int32   										MaxProfile  	= 0;
-		int32   										MaxProfileLevel = 0;
-		int32   										MaxFrameRate	= 0;
-		TSharedPtrTS<const FAccessUnit::CodecData>		CodecData;
-		bool											bRetainRenderer = false;
-		uint32											NativeDecoderID = 0;
-		bool											bUseVideoCodecSurface = false;
-		jobject											VideoCodecSurface = nullptr; // global reference expected
-		bool											bSurfaceIsView = false;
+		int32 MaxWidth = 0;
+		int32 MaxHeight = 0;
+		int32 MaxProfile = 0;
+		int32 MaxProfileLevel = 0;
+		int32 MaxFrameRate= 0;
+		TSharedPtrTS<const FAccessUnit::CodecData> CodecData;
+		uint32 NativeDecoderID = 0;
+		bool bUseVideoCodecSurface = false;
+		jobject VideoCodecSurface = nullptr; // global reference expected
+		bool bSurfaceIsView = false;
 	};
 
 	struct FDecoderInformation
 	{
-		bool		bIsAdaptive = false;
+		int32 ApiLevel = 0;
+		bool bIsAdaptive = false;
+		bool bCanUse_SetOutputSurface = false;
 	};
 
 	struct FOutputFormatInfo
@@ -51,13 +52,13 @@ public:
 
 		void Clear()
 		{
-			Width   	= 0;
-			Height  	= 0;
-			CropTop 	= 0;
-			CropBottom  = 0;
-			CropLeft	= 0;
-			CropRight   = 0;
-			Stride  	= 0;
+			Width = 0;
+			Height = 0;
+			CropTop = 0;
+			CropBottom = 0;
+			CropLeft = 0;
+			CropRight = 0;
+			Stride = 0;
 			SliceHeight = 0;
 			ColorFormat = 0;
 		}
@@ -67,23 +68,23 @@ public:
 			return Width != 0 && Height != 0;
 		}
 
-		int32	Width;
-		int32	Height;
-		int32	CropTop;
-		int32	CropBottom;
-		int32	CropLeft;
-		int32	CropRight;
-		int32	Stride;
-		int32	SliceHeight;
-		int32	ColorFormat;
+		int32 Width;
+		int32 Height;
+		int32 CropTop;
+		int32 CropBottom;
+		int32 CropLeft;
+		int32 CropRight;
+		int32 Stride;
+		int32 SliceHeight;
+		int32 ColorFormat;
 	};
 
 	struct FOutputBufferInfo
 	{
 		enum EBufferIndexValues
 		{
-			MediaCodec_INFO_TRY_AGAIN_LATER 	   = -1,
-			MediaCodec_INFO_OUTPUT_FORMAT_CHANGED  = -2,
+			MediaCodec_INFO_TRY_AGAIN_LATER = -1,
+			MediaCodec_INFO_OUTPUT_FORMAT_CHANGED = -2,
 			MediaCodec_INFO_OUTPUT_BUFFERS_CHANGED = -3
 		};
 
@@ -95,30 +96,46 @@ public:
 		void Clear()
 		{
 			PresentationTimestamp = -1;
-			BufferIndex 		  = -1;
-			Size				  = 0;
-			ValidCount  		  = -1;
-			bIsEOS  			  = false;
-			bIsConfig   		  = false;
+			BufferIndex = -1;
+			Size = 0;
+			ValidCount = -1;
+			bIsEOS = false;
+			bIsConfig = false;
 		}
 
-		int64	PresentationTimestamp;
-		int32	BufferIndex;
-		int32	Size;
-		int32	ValidCount;
-		bool	bIsEOS;
-		bool	bIsConfig;
+		int64 PresentationTimestamp;
+		int32 BufferIndex;
+		int32 Size;
+		int32 ValidCount;
+		bool bIsEOS;
+		bool bIsConfig;
 	};
 
 
 	/**
-	 * Creates and initializes a Java instance of an H.264 video decoder.
+	 * Creates a Java instance of an H.264 video decoder.
+	 *
+	 * @return 0 if successful, 1 on error.
+	 */
+	virtual int32 CreateDecoder() = 0;
+
+	/**
+	 * Initializes the video decoder instance.
 	 *
 	 * @param InCreateParams
 	 *
 	 * @return 0 if successful, 1 on error.
 	 */
 	virtual int32 InitializeDecoder(const FCreateParameters& InCreateParams) = 0;
+
+	/**
+	 * Attempts to set a new output surface on an existing and configured decoder.
+	 * 
+	 * @param InNewOutputSurface
+	 * 
+	 * @return 0 if successful, 1 on error.
+	 */
+	virtual int32 SetOutputSurface(jobject InNewOutputSurface) = 0;
 
 	/**
 	 * Releases (destroys) the Java video decoder instance.

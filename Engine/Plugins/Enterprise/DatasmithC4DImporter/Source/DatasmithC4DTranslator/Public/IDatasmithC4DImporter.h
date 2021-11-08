@@ -42,7 +42,7 @@
 #include "StaticMeshOperations.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#include "ImathMatrixAlgo.h"
+#include "Imath/ImathMatrixAlgo.h"
 
 class FDatasmithSceneExporter;
 class IDatasmithActorElement;

@@ -103,12 +103,12 @@ public:
 		FreeChunks(nullptr);
 	}
 
-	FORCEINLINE uint8* PushBytes(int32 AllocSize, int32 Alignment)
+	FORCEINLINE uint8* PushBytes(size_t AllocSize, size_t Alignment)
 	{
-		return (uint8*)Alloc(AllocSize, FMath::Max(AllocSize >= 16 ? (int32)16 : (int32)8, Alignment));
+		return (uint8*)Alloc(AllocSize, FMath::Max(AllocSize >= 16 ? (size_t)16 : (size_t)8, Alignment));
 	}
 
-	FORCEINLINE void* Alloc(int32 AllocSize, int32 Alignment)
+	FORCEINLINE void* Alloc(size_t AllocSize, size_t Alignment)
 	{
 		// Debug checks.
 		checkSlow(AllocSize>=0);
@@ -159,12 +159,18 @@ public:
 
 	// Friends.
 	friend class FMemMark;
-	friend void* operator new(size_t Size, FMemStackBase& Mem, int32 Count, int32 Align);
-	friend void* operator new(size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count, int32 Align);
-	friend void* operator new(size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count, int32 Align);
-	friend void* operator new[](size_t Size, FMemStackBase& Mem, int32 Count, int32 Align);
-	friend void* operator new[](size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count, int32 Align);
-	friend void* operator new[](size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count, int32 Align);
+	friend void* operator new(size_t Size, FMemStackBase& Mem, int32 Count);
+	friend void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, int32 Count);
+	friend void* operator new(size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count);
+	friend void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemZeroed Tag, int32 Count);
+	friend void* operator new(size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count);
+	friend void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemOned Tag, int32 Count);
+	friend void* operator new[](size_t Size, FMemStackBase& Mem, int32 Count);
+	friend void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, int32 Count);
+	friend void* operator new[](size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count);
+	friend void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemZeroed Tag, int32 Count);
+	friend void* operator new[](size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count);
+	friend void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemOned Tag, int32 Count);
 
 	// Types.
 	struct FTaggedMemory
@@ -244,54 +250,104 @@ template <class T> inline T* NewOned(FMemStackBase& Mem, int32 Count = 1, int32 
 -----------------------------------------------------------------------------*/
 
 // Operator new for typesafe memory stack allocation.
-inline void* operator new(size_t Size, FMemStackBase& Mem, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
+inline void* operator new(size_t Size, FMemStackBase& Mem, int32 Count = 1)
 {
 	// Get uninitialized memory.
 	const size_t SizeInBytes = Size * Count;
 	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	return Mem.PushBytes( (int32)SizeInBytes, Align );
+	return Mem.PushBytes( SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
 }
-inline void* operator new(size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
-{
-	// Get zero-filled memory.
-	const size_t SizeInBytes = Size * Count;
-	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
-	FMemory::Memzero( Result, SizeInBytes );
-	return Result;
-}
-inline void* operator new(size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
-{
-	// Get one-filled memory.
-	const size_t SizeInBytes = Size * Count;
-	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
-	FMemory::Memset( Result, 0xff, SizeInBytes );
-	return Result;
-}
-inline void* operator new[](size_t Size, FMemStackBase& Mem, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
+inline void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, int32 Count = 1) // c++17
 {
 	// Get uninitialized memory.
 	const size_t SizeInBytes = Size * Count;
 	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	return Mem.PushBytes( (int32)SizeInBytes, Align );
+	return Mem.PushBytes(SizeInBytes, (size_t)Align);
 }
-inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
+inline void* operator new(size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1)
 {
 	// Get zero-filled memory.
 	const size_t SizeInBytes = Size * Count;
 	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	uint8* Result = Mem.PushBytes( SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
 	FMemory::Memzero( Result, SizeInBytes );
 	return Result;
 }
-inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
+inline void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1) // c++17
+{
+	// Get zero-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes(SizeInBytes, (size_t)Align);
+	FMemory::Memzero(Result, SizeInBytes);
+	return Result;
+}
+inline void* operator new(size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1)
 {
 	// Get one-filled memory.
 	const size_t SizeInBytes = Size * Count;
 	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
-	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	uint8* Result = Mem.PushBytes( SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
 	FMemory::Memset( Result, 0xff, SizeInBytes );
+	return Result;
+}
+inline void* operator new(size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1) // c++17
+{
+	// Get one-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes(SizeInBytes, (size_t)Align);
+	FMemory::Memset(Result, 0xff, SizeInBytes);
+	return Result;
+}
+inline void* operator new[](size_t Size, FMemStackBase& Mem, int32 Count = 1)
+{
+	// Get uninitialized memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	return Mem.PushBytes( SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+}
+inline void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, int32 Count = 1) // c++17
+{
+	// Get uninitialized memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	return Mem.PushBytes(SizeInBytes, (size_t)Align);
+}
+inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1)
+{
+	// Get zero-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes(SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	FMemory::Memzero( Result, SizeInBytes );
+	return Result;
+}
+inline void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1) // c++17
+{
+	// Get zero-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes(SizeInBytes, (size_t)Align);
+	FMemory::Memzero(Result, SizeInBytes);
+	return Result;
+}
+inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1)
+{
+	// Get one-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes( SizeInBytes, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	FMemory::Memset( Result, 0xff, SizeInBytes );
+	return Result;
+}
+inline void* operator new[](size_t Size, std::align_val_t Align, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1) // c++17
+{
+	// Get one-filled memory.
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= (size_t)TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes(SizeInBytes, (size_t)Align);
+	FMemory::Memset(Result, 0xff, SizeInBytes);
 	return Result;
 }
 

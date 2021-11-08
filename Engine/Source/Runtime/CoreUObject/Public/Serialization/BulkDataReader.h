@@ -22,9 +22,10 @@ public:
 	{
 	}
 
-	~FBulkDataReader()
+	~FBulkDataReader() override
 	{
 		BulkData.Unlock();
+		Close();
 	}
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override

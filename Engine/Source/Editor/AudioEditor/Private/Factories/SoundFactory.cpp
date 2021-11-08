@@ -233,7 +233,7 @@ UObject* USoundFactory::CreateObject
 			// Resource data is required to exist, if it hasn't been loaded yet,
 			// to properly flush compressed data.  This allows the new version
 			// to be auditioned in the editor properly.
-			if (!ExistingSound->ResourceData)
+			if (!ExistingSound->GetResourceData())
 			{
 				if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
 				{

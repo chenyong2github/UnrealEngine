@@ -3167,7 +3167,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			HeightmapTexture->ClearFlags(RF_Standalone); // Remove when there is no reference for this Heightmap...
 		}
 
-		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+		const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 
 		for (UTexture2D* WeightmapTexture : ComponentWeightmapTextures)
 		{

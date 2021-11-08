@@ -2,6 +2,7 @@
 
 #include "Archive/LoadSnapshotObjectArchive.h"
 
+#include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "WorldSnapshotData.h"
 #include "Data/Util/SnapshotObjectUtil.h"
@@ -27,6 +28,8 @@ void FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData&
 
 void FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, FProcessObjectDependency ProcessObjectDependency, const FString& InLocalisationNamespace)
 {
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("Loading snapshot object %s (class %s)"), *InObjectToRestore->GetPathName(), *InObjectToRestore->GetClass()->GetPathName());
+	
 	FLoadSnapshotObjectArchive Archive(InObjectData, InSharedData, InObjectToRestore, MoveTemp(ProcessObjectDependency));
 #if USE_STABLE_LOCALIZATION_KEYS
 	Archive.SetLocalizationNamespace(InLocalisationNamespace);

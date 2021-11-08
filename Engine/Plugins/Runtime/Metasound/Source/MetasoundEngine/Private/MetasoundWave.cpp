@@ -33,7 +33,7 @@ namespace Metasound
 				// should we be getting handed a SharedPtr here?
 				SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
 
-				if (SoundWaveProxy.IsValid())
+				if (ensureAlways(SoundWaveProxy.IsValid()))
 				{
 					// TODO HACK: Prime the sound for playback.
 					//
@@ -90,19 +90,6 @@ namespace Audio
 
 		if (InWave.IsValid())
 		{
-			// validate data
-			if (!ensureAlwaysMsgf(InWave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)")))
-			{
-				Wave.Reset();
-				Input.Reset();
-				Output.Reset();
-				Decoder.Reset();
-				bDecoderIsDone = false;
-
-				return false;
-			}
-
-
 			// Determine which values differ so that correct things can be updated.
 			const bool bIsDifferentWave = (InWave.Get() != Wave.Get());
 			const bool bUpdateNumChannels = (InWave->GetNumChannels() != NumChannels);

@@ -755,6 +755,8 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 		Options = GetMutableDefault<ULevelSequenceExporterUsdOptions>();
 		if ( Options )
 		{
+			Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
+
 			const bool bIsImport = false;
 			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
 			if ( !bContinue )
@@ -838,6 +840,9 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 	}
 
 	LevelSequenceExporterImpl::ExportMovieSceneSequence( Context, *LevelSequence, TargetFileName );
+
+	// Set this back to Stopped or else it will keep the editor viewport controls permanently hidden
+	TempSequencer->SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
 
 	return true;
 #else

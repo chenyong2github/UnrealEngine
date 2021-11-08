@@ -7,6 +7,9 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 
 #include "MovieSceneObjectBindingID.h"
+#include "ProfilingDebugging/CountersTrace.h"
+
+DECLARE_CYCLE_STAT(TEXT("UnlinkStaleObjectBindings"), MovieSceneEval_UnlinkStaleObjectBindings, STATGROUP_MovieSceneECS);
 
 UMovieSceneEntityInstantiatorSystem::UMovieSceneEntityInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -17,6 +20,8 @@ UMovieSceneEntityInstantiatorSystem::UMovieSceneEntityInstantiatorSystem(const F
 void UMovieSceneEntityInstantiatorSystem::UnlinkStaleObjectBindings(UE::MovieScene::TComponentTypeID<FGuid> BindingType)
 {
 	using namespace UE::MovieScene;
+
+	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_UnlinkStaleObjectBindings);
 
 	check(Linker);
 

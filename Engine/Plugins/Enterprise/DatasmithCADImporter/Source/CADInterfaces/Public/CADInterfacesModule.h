@@ -6,7 +6,7 @@
 
 #define CADINTERFACES_MODULE_NAME TEXT("CADInterfaces")
 
-DECLARE_LOG_CATEGORY_EXTERN(CADInterfaces, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogCADInterfaces, Log, All);
 
 enum class ECADInterfaceAvailability
 {

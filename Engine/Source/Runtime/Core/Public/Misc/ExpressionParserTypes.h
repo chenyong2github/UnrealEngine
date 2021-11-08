@@ -217,7 +217,7 @@ private:
 
 	/** TypeID - 16 bytes */
 	FGuid TypeId;
-	uint8 InlineBytes[MaxStackAllocationSize];
+	alignas(__STDCPP_DEFAULT_NEW_ALIGNMENT__) uint8 InlineBytes[MaxStackAllocationSize];
 };
 
 /** A specific token in a stream. Comprises an expression node, and the stream token it was created from */

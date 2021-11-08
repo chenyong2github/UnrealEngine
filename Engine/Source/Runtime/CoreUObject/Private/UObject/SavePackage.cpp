@@ -4194,7 +4194,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FileInfo.PackageName = InOuter->GetFName();
 							FileInfo.Filename = *Writer.GetArchiveName();
 
-							FIoBuffer FileData(FIoBuffer::Wrap, Writer.GetData(), Size);
+							FIoBuffer FileData(FIoBuffer::AssumeOwnership, Writer.ReleaseOwnership(), Size);
 
 							PackageWriter->WriteAdditionalFile(FileInfo, FileData);
 						}

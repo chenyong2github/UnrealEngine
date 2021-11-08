@@ -31,12 +31,11 @@ void FDatasmithExternalSourceModule::StartupModule()
 
 	Datasmith::RegisterTranslator<FDatasmithDirectLinkTranslator>();
 
-	IDirectLinkExtensionModule::Get().GetManager()->RegisterDirectLinkExternalSource<FDatasmithDirectLinkExternalSource>(UE::DatasmithExternalSourceModule::DatasmithDirectLinkExternalSourceName);
+	IDirectLinkManager& DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager();
+	DirectLinkManager.RegisterDirectLinkExternalSource<FDatasmithDirectLinkExternalSource>(UE::DatasmithExternalSourceModule::DatasmithDirectLinkExternalSourceName);
 	
-	if (IUriManager* UriManager = IExternalSourceModule::Get().GetManager())
-	{
-		UriManager->RegisterResolver(UE::DatasmithExternalSourceModule::FileUriResolverName, MakeShared<FDatasmithFileUriResolver>());
-	}
+	IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
+	UriManager.RegisterResolver(UE::DatasmithExternalSourceModule::FileUriResolverName, MakeShared<FDatasmithFileUriResolver>());
 }
 
 void FDatasmithExternalSourceModule::ShutdownModule()
@@ -45,12 +44,14 @@ void FDatasmithExternalSourceModule::ShutdownModule()
 
 	if (IDirectLinkExtensionModule::IsAvailable())
 	{
-		IDirectLinkExtensionModule::Get().GetManager()->UnregisterDirectLinkExternalSource(UE::DatasmithExternalSourceModule::DatasmithDirectLinkExternalSourceName);
+		IDirectLinkManager& DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager();
+		DirectLinkManager.UnregisterDirectLinkExternalSource(UE::DatasmithExternalSourceModule::DatasmithDirectLinkExternalSourceName);
 	}
 
 	if (IExternalSourceModule::IsAvailable())
 	{
-		IExternalSourceModule::Get().GetManager()->RegisterResolver(UE::DatasmithExternalSourceModule::FileUriResolverName, MakeShared<FDatasmithFileUriResolver>());
+		IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
+		UriManager.RegisterResolver(UE::DatasmithExternalSourceModule::FileUriResolverName, MakeShared<FDatasmithFileUriResolver>());
 	}
 
 	Datasmith::UnregisterTranslator<FDatasmithDirectLinkTranslator>();

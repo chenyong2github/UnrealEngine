@@ -2,7 +2,6 @@
 
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraModule.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEvents.h"
 #include "NiagaraSettings.h"
@@ -17,7 +16,6 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraCrashReporterHandler.h"
-#include "NiagaraSystemGpuComputeProxy.h"
 
 
 // Niagara Async Ticking Sequence
@@ -120,6 +118,14 @@ static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTickTaskShouldWait(
 	TEXT("fx.Niagara.SystemSimulation.TickTaskShouldWait"),
 	GNiagaraSystemSimulationTickTaskShouldWait,
 	TEXT("When enabled the tick task will wait for concurrent work to complete, when disabled the task is complete once the GT tick is complete."),
+	ECVF_Default
+);
+
+static int32 GNiagaraSystemSimulationMaxTickSubsteps = 100;
+static FAutoConsoleVariableRef CVarNiagaraSystemSimulationMaxTickSubsteps(
+	TEXT("fx.Niagara.SystemSimulation.MaxTickSubsteps"),
+	GNiagaraSystemSimulationMaxTickSubsteps,
+	TEXT("The max number of possible substeps per frame when a system uses a fixed tick delta."),
 	ECVF_Default
 );
 
@@ -1106,6 +1112,27 @@ void FNiagaraSystemSimulation::FlushTickBatch(FNiagaraSystemSimulationTickContex
 /** First phase of system sim tick. Must run on GameThread. */
 void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	if (System->HasFixedTickDelta())
+	{
+		float FixedDelta = System->GetFixedTickDeltaTime();
+		float Budget = FixedDelta > 0 ? FMath::Fmod(FixedDeltaTickAge, FixedDelta) + DeltaSeconds : 0;
+		int32 Ticks = FixedDelta > 0 ? FMath::Min(Budget / FixedDelta, GNiagaraSystemSimulationMaxTickSubsteps) : 0;
+		for (int i = 0; i < Ticks; i++)
+		{
+			//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
+			Tick_GameThread_Internal(FixedDelta, nullptr);
+			Budget -= FixedDelta;
+		}
+		FixedDeltaTickAge += DeltaSeconds;
+	}
+	else
+	{
+		Tick_GameThread_Internal(DeltaSeconds, MyCompletionGraphEvent);
+	}
+}
+
+void FNiagaraSystemSimulation::Tick_GameThread_Internal(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
+{
 	TArray<FNiagaraSystemInstance*>& SystemInstances = GetSystemInstances(ENiagaraSystemInstanceState::Running);
 	TArray<FNiagaraSystemInstance*>& PendingSystemInstances = GetSystemInstances(ENiagaraSystemInstanceState::PendingSpawn);
 
@@ -1150,7 +1177,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	check(GetSystemInstances(ENiagaraSystemInstanceState::Spawning).Num() == SpawningDataSet.GetCurrentDataChecked().GetNumInstances());
 	check(GetSystemInstances(ENiagaraSystemInstanceState::Paused).Num() == PausedDataSet.GetCurrentDataChecked().GetNumInstances());
 
-	if (MaxDeltaTime.IsSet())
+	if (MaxDeltaTime.IsSet() && !System->HasFixedTickDelta())
 	{
 		DeltaSeconds = FMath::Clamp(DeltaSeconds, 0.0f, MaxDeltaTime.GetValue());
 	}
@@ -1394,6 +1421,10 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 	if (MaxDeltaTime.IsSet())
 	{
 		DeltaSeconds = FMath::Clamp(DeltaSeconds, 0.0f, MaxDeltaTime.GetValue());
+	}
+	if (System->HasFixedTickDelta())
+	{
+		DeltaSeconds = System->GetFixedTickDeltaTime();
 	}
 
 #if WITH_EDITOR

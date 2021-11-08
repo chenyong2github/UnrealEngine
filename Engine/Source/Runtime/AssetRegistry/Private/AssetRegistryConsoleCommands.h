@@ -196,7 +196,7 @@ public:
 			const FAssetData& AssetData = AllAssets[AssetIdx];
 
 			FString PackageFilename;
-			if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename) )
+			if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename) )
 			{
 				if ( FPaths::GetExtension(PackageFilename, true) == FPackageName::GetAssetPackageExtension() && !AssetData.IsUAsset())
 				{

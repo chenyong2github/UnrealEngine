@@ -698,7 +698,7 @@ void FAsyncAudioDecompressWorker::DoWork()
 		FSoundQualityInfo QualityInfo = { 0 };
 
 		// Parse the audio header for the relevant information
-		if (AudioInfo->ReadCompressedInfo(Wave->ResourceData, Wave->ResourceSize, &QualityInfo))
+		if (AudioInfo->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &QualityInfo))
 		{
 			FScopeCycleCounterUObject WaveObject( Wave );
 
@@ -769,7 +769,9 @@ void FAsyncAudioDecompressWorker::DoWork()
 
 		if (Wave->DecompressionType == DTYPE_Native)
 		{
-			UE_CLOG(Wave->OwnedBulkDataPtr && Wave->OwnedBulkDataPtr->GetMappedRegion(), LogAudio, Warning, TEXT("Mapped audio (%s) was discarded after decompression. This is not ideal as it takes more load time and doesn't save memory."), *Wave->GetName());
+			FOwnedBulkDataPtr* BulkDataPtr = Wave->GetOwnedBulkData();
+			UE_CLOG(BulkDataPtr && BulkDataPtr->GetMappedRegion(), LogAudio, Warning, TEXT("Mapped audio (%s) was discarded after decompression. This is not ideal as it takes more load time and doesn't save memory."), *Wave->GetName());
+
 			// Delete the compressed data
 			Wave->RemoveAudioResource();
 		}

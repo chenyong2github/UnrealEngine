@@ -5,7 +5,9 @@
 #include "MaterialExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
+#include "USDGeomMeshConversion.h"
 #include "USDMemory.h"
+#include "USDOptionsWindow.h"
 #include "USDShadeConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
@@ -50,49 +52,43 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 		return false;
 	}
 
-	// Get export options
-	UMaterialExporterUSDOptions* ExportOptions = nullptr;
+	UMaterialExporterUSDOptions* Options = nullptr;
+	if ( ExportTask )
 	{
-		if ( ExportTask )
+		Options = Cast<UMaterialExporterUSDOptions>( ExportTask->Options );
+	}
+	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+	{
+		Options = GetMutableDefault<UMaterialExporterUSDOptions>();
+		if ( Options )
 		{
-			ExportOptions = Cast<UMaterialExporterUSDOptions>( ExportTask->Options );
-		}
+			Options->MaterialBakingOptions.TexturesDir.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Textures" ) );
 
-		if ( !ExportOptions )
-		{
-			ExportOptions = DuplicateObject( GetMutableDefault<UMaterialExporterUSDOptions>(), GetTransientPackage() );
-			ExportOptions->TexturesDir.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Textures" ) );
-		}
-
-		if ( !ExportTask || !ExportTask->bAutomated )
-		{
-			// Use the baking module's options window because it has some useful customizations for FPropertyEntry properties.
-			IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>( TEXT( "MaterialBaking" ) );
-
-			// Sadly we have to set this property here or else there is some custom logic in SMaterialOptions::OnConfirm that could cause baking to fail
-			UMaterialOptions* UnusedOptions = GetMutableDefault<UMaterialOptions>();
-			if( UnusedOptions->LODIndices.Num() == 0)
+			const bool bIsImport = false;
+			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+			if ( !bContinue )
 			{
-				UnusedOptions->LODIndices.Add( 0 );
-			}
-
-			const int32 NumLODs = 1;
-			TArray<TWeakObjectPtr<UObject>> SettingsObjects = { ExportOptions };
-			bool bProceed = Module.SetupMaterialBakeSettings( SettingsObjects, NumLODs );
-			if ( !bProceed )
-			{
-				return true; // True because the operation was canceled, so we technically succeeded
+				return false;
 			}
 		}
 	}
 
-	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UExporter::CurrentFilename );
+	return UMaterialExporterUsd::ExportMaterial( *Material, Options->MaterialBakingOptions, FFilePath{ UExporter::CurrentFilename } );
+#else
+	return false;
+#endif // #if USE_USD_SDK
+}
+
+bool UMaterialExporterUsd::ExportMaterial( const UMaterialInterface& Material, const FUsdMaterialBakingOptions& Options, const FFilePath& FilePath )
+{
+#if USE_USD_SDK
+	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *FilePath.FilePath );
 	if ( !UsdStage )
 	{
 		return false;
 	}
 
-	FString RootPrimPath = ( TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *Material->GetName() ) );
+	FString RootPrimPath = TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *Material.GetName() );
 
 	UE::FUsdPrim RootPrim = UsdStage.DefinePrim( UE::FSdfPath( *RootPrimPath ), TEXT( "Material" ) );
 	if ( !RootPrim )
@@ -102,12 +98,88 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 
 	UsdStage.SetDefaultPrim( RootPrim );
 
-	UnrealToUsd::ConvertMaterialToBakedSurface( *Material, ExportOptions->Properties, ExportOptions->DefaultTextureSize, ExportOptions->TexturesDir, RootPrim );
+	UnrealToUsd::ConvertMaterialToBakedSurface(
+		Material,
+		Options.Properties,
+		Options.DefaultTextureSize,
+		Options.TexturesDir,
+		RootPrim
+	);
 
 	UsdStage.GetRootLayer().Save();
 
 	return true;
 #else
 	return false;
-#endif // #if USE_USD_SDK
+#endif // USE_USD_SDK
+}
+
+bool UMaterialExporterUsd::ExportMaterialsForStage(
+	const TArray<UMaterialInterface*>& Materials,
+	const FUsdMaterialBakingOptions& Options,
+	const UE::FUsdStage& Stage,
+	bool bIsAssetLayer,
+	bool bUsePayload,
+	bool bRemoveUnrealMaterials )
+{
+#if USE_USD_SDK
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	if ( Materials.Num() == 0 )
+	{
+		return true;
+	}
+
+	const UE::FSdfLayer RootLayer = Stage.GetRootLayer();
+	const FString RootLayerPath = RootLayer.GetRealPath();
+	const FString ExtensionNoDot = FPaths::GetExtension( RootLayerPath );
+
+	// If we have multiple materials *within this mesh* that want to be emitted to the same filepath we'll append
+	// a suffix, but we will otherwise overwrite any unrelated existing files that were there before we began the export.
+	// This allows the workflow of repeatedly exporting over the same files to update the results
+	TSet<FString> UsedFilePathsWithoutExt;
+
+	TMap<FString, FString> MaterialPathNameToFilePath;
+	for ( const UMaterialInterface* Material : Materials )
+	{
+		if ( !Material )
+		{
+			continue;
+		}
+
+		// "/Game/ContentFolder/Blue.Blue"
+		FString MaterialPathName = Material->GetPathName();
+
+		// "C:/MyFolder/Export/Blue"
+		FString MaterialFilePath = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), FPaths::GetBaseFilename( MaterialPathName ) );
+
+		// "C:/MyFolder/Export/Blue_4"
+		FString FinalPathNoExt = UsdUtils::GetUniqueName( MaterialFilePath, UsedFilePathsWithoutExt );
+
+		// "C:/MyFolder/Export/Blue_4.usda"
+		FString FinalPath = FString::Printf( TEXT( "%s.%s" ), *FinalPathNoExt, *ExtensionNoDot );
+
+		if ( UMaterialExporterUsd::ExportMaterial( *Material, Options, FFilePath{ FinalPath } ) )
+		{
+			UsedFilePathsWithoutExt.Add( FinalPathNoExt );
+			MaterialPathNameToFilePath.Add( MaterialPathName, FinalPath );
+		}
+	}
+
+	UsdUtils::ReplaceUnrealMaterialsWithBaked(
+		Stage,
+		RootLayer,
+		MaterialPathNameToFilePath,
+		bIsAssetLayer,
+		bUsePayload,
+		bRemoveUnrealMaterials
+	);
+
+	return true;
+#else
+	return false;
+#endif // USE_USD_SDK
 }

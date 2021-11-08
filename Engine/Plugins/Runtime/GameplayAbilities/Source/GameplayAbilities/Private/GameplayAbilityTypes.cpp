@@ -8,6 +8,7 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "GameplayPrediction.h"
+#include "Misc/NetworkVersion.h"
 
 //----------------------------------------------------------------------
 
@@ -405,13 +406,15 @@ bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMa
 		Ar.SerializeBits(&SectionIdToPlay, 7);
 	}
 
+	if (Ar.EngineNetVer() < HISTORY_MONTAGE_PLAY_INST_ID_SERIALIZATION)
+	{
+		uint8 bForcePlayBit = 0;
+		Ar.SerializeBits(&bForcePlayBit, 1);
+	}	
+
 	uint8 bIsStopped = IsStopped;
 	Ar.SerializeBits(&bIsStopped, 1);
 	IsStopped = bIsStopped & 1;
-
-	uint8 bForcePlayBit = ForcePlayBit;
-	Ar.SerializeBits(&bForcePlayBit, 1);
-	ForcePlayBit = bForcePlayBit & 1;
 
 	uint8 bSkipPositionCorrection = SkipPositionCorrection;
 	Ar.SerializeBits(&bSkipPositionCorrection, 1);
@@ -425,6 +428,10 @@ bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMa
 	Ar << PlayRate;
 	Ar << BlendTime;
 	Ar << NextSectionID;
+	if (Ar.EngineNetVer() >= HISTORY_MONTAGE_PLAY_INST_ID_SERIALIZATION)
+	{
+		Ar << PlayInstanceId;
+	}
 	PredictionKey.NetSerialize(Ar, Map, bOutSuccess);
 
 	bOutSuccess = true;

@@ -498,6 +498,11 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("RenderContext", "Render Context"),
 			LOCTEXT("RenderContext_ToolTip", "Choose which render context to use when parsing materials"),
 			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillRenderContextSubMenu));
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "Collapsing", "Collapsing" ),
+			LOCTEXT( "Collapsing_ToolTip", "Whether to try to combine individual assets and components of the same type on a Kind-per-Kind basis, like multiple Mesh prims into a single Static Mesh" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillCollapsingSubMenu ) );
 	}
 	MenuBuilder.EndSection();
 
@@ -691,6 +696,54 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 	{
 		AddRenderContextEntry( RenderContext );
 	}
+}
+
+void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
+{
+	auto AddKindToCollapseEntry = [&](const EUsdDefaultKind Kind, const FText& Text)
+	{
+		MenuBuilder.AddMenuEntry(
+			Text,
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda( [this, Text, Kind]()
+				{
+					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						FScopedTransaction Transaction( FText::Format(
+							LOCTEXT( "ToggleCollapsingTransaction", "Toggle asset and component collapsing for kind '{0}' on USD stage actor '{1}'" ),
+							Text,
+							FText::FromString( StageActor->GetActorLabel() )
+						) );
+
+						int32 NewKindsToCollapse = ( int32 ) ( ( EUsdDefaultKind ) StageActor->KindsToCollapse ^ Kind );
+						StageActor->SetKindsToCollapse( NewKindsToCollapse );
+					}
+				}),
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					return ViewModel.UsdStageActor.Get() != nullptr;
+				}),
+				FIsActionChecked::CreateLambda( [this, Kind]()
+				{
+					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						return EnumHasAllFlags( ( EUsdDefaultKind ) StageActor->KindsToCollapse, Kind );
+					}
+					return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	};
+
+	AddKindToCollapseEntry( EUsdDefaultKind::Model, LOCTEXT( "ModelKind", "Model" ) );
+	AddKindToCollapseEntry( EUsdDefaultKind::Component, LOCTEXT( "ModelComponent", "Component" ) );
+	AddKindToCollapseEntry( EUsdDefaultKind::Group, LOCTEXT( "ModelGroup", "Group" ) );
+	AddKindToCollapseEntry( EUsdDefaultKind::Assembly, LOCTEXT( "ModelAssembly", "Assembly" ) );
+	AddKindToCollapseEntry( EUsdDefaultKind::Subcomponent, LOCTEXT( "ModelSubcomponent", "Subcomponent" ) );
 }
 
 void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )

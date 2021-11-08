@@ -86,12 +86,6 @@
 
 #define STRATA_ENABLED					(PROJECT_STRATA && MATERIAL_IS_STRATA)
 
-#if STRATA_TRANSLUCENT_ENABLED
-#define STRATA_USE_ENV_BRDF_APPROX (MATERIAL_USE_PREINTEGRATED_GF == 0)
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-#include "/Engine/Private/Strata/StrataForwardLighting.ush"
-#endif
-
 float NormalCurvatureToRoughness(float3 WorldNormal)
 {
     float3 dNdx = ddx(WorldNormal);
@@ -151,8 +145,14 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 
 #include "ThinTranslucentCommon.ush"
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER || STRATA_TRANSLUCENT_ENABLED
 #include "ForwardLightingCommon.ush"
+#endif
+
+#if STRATA_TRANSLUCENT_ENABLED
+#define STRATA_USE_ENV_BRDF_APPROX (MATERIAL_USE_PREINTEGRATED_GF == 0)
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
+#include "/Engine/Private/Strata/StrataForwardLighting.ush"
 #endif
 
 #if !FORWARD_SHADING
@@ -1590,13 +1590,19 @@ void FPixelShaderInOut_MainPS(
 	//FORWARD_SHADING
 	if (StrataData.LayerCount > 0)
 	{
+		float2 ScreenUV = ScreenPositionToBufferUV(MaterialParameters.ScreenPosition);
+		float2 NearestResolvedDepthScreenUV = CalculateNearestResolvedDepthScreenUV(ScreenUV, MaterialParameters.ScreenPosition.w);
+
 		float3 L = ResolvedView.DirectionalLightDirection;
 		float3 V = MaterialParameters.CameraVector;
 		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(
-			MaterialParameters.WorldNormal,
+			In.SvPosition.xy,
+			LWCToFloat(MaterialParameters.AbsoluteWorldPosition),
+			GBuffer.Depth,
+			NearestResolvedDepthScreenUV,
 			V,
 			L,
 			LightColor,

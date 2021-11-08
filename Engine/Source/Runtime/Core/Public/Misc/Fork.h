@@ -23,6 +23,13 @@ class CORE_API FForkProcessHelper
 public:
 
 	/**
+	 * Returns true if the server process was launched with the intention to fork.
+	 * This could be a process on a fork-supported platform that will launch real child processes. (-WaitAndFork is set)
+	 * Or it could be a process that will simulate forking by tranforming itself into a child process via fake forking (-FakeForking is set)
+	 */
+	static bool IsForkRequested();
+
+	/**
 	 * Are we a forked process that supports multithreading
 	 * This only becomes true after its safe to be multithread.
 	 * Since a process can be forked mid-tick, there is a period of time where IsForkedChildProcess is true but IsForkedMultithreadInstance will be false
@@ -68,12 +75,6 @@ public:
 		uint64 InThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask(),
 		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None
 	);
-
-private:
-
-	static bool bIsForkedMultithreadInstance;
-
-	static bool bIsForkedChildProcess;
 };
 
 

@@ -51,7 +51,7 @@ public:
 	/** 
 	 * Construct a package manager for the given TP
 	 */
-	static TUniquePtr<ICookedEditorPackageManager> FactoryForTargetPlatform(ITargetPlatform* TP);
+	static TUniquePtr<ICookedEditorPackageManager> FactoryForTargetPlatform(ITargetPlatform* TP, bool bIsCookedCooker);
 
 	virtual ~ICookedEditorPackageManager()
 	{
@@ -90,6 +90,10 @@ public:
 	 */
 	virtual bool AllowProjectPluginContentToBeCooked(const TSharedRef<IPlugin>) const = 0;
 
+	/**
+	 * Gathers the packages this PackageManager wants to manage (ie cook)
+	 */
+	virtual void GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const = 0;
 
 protected:
 
@@ -112,12 +116,12 @@ protected:
 	 */
 	virtual void FilterGatheredPackages(TArray<FName>& PackageNames) const;
 
-public:
+protected:
 
 	/**
-	 * Meat of this class, this calls other functions that generally will be overridden, but this can be overridden if nededed
+	 * Meat of this class, this calls other functions that generally will be overridden - subclass needs to pass in disabled plugins
 	 */
-	virtual void GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const;
+	void GatherAllPackagesExceptDisabled(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform, const TArray<FString>& DisabledPlugins) const;
 };
 
 
@@ -130,12 +134,19 @@ class COOKEDEDITOR_API FIniCookedEditorPackageManager : public ICookedEditorPack
 {
 	TArray<FString> EngineAssetPaths;
 	TArray<FString> ProjectAssetPaths;
+	TArray<FString> DisabledPlugins;
 	TArray<UClass*> DisallowedObjectClassesToLoad;
 	TArray<UClass*> DisallowedAssetClassesToGather;
 	TArray<FString> DisallowedPathsToGather;
+
+	// true if this is a cooked cooker (false for cooker editor)
+	bool bIsCookedCooker;
+
+	// gets an array from two sections, depending on bIsCookedCooker setting
+	TArray<FString> GetConfigArray(const TCHAR* Key) const;
 public:
 
-	FIniCookedEditorPackageManager();
+	FIniCookedEditorPackageManager(bool bIsCookedCooker);
 
 	virtual void FilterGatheredPackages(TArray<FName>& PackageNames) const override;
 	virtual void GetEnginePackagesToCook(TArray<FName>& PackagesToCook) const override;
@@ -144,4 +155,6 @@ public:
 	virtual bool AllowAssetToBeGathered(const struct FAssetData& AssetData) const override;
 	virtual bool AllowEnginePluginContentToBeCooked(const TSharedRef<IPlugin>) const override;
 	virtual bool AllowProjectPluginContentToBeCooked(const TSharedRef<IPlugin>) const override;
+	
+	virtual void GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const override;
 };

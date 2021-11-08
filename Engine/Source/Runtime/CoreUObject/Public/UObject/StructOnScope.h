@@ -41,7 +41,7 @@ public:
 		, SampleStructMemory(nullptr)
 		, OwnsMemory(false)
 	{
-		Initialize();
+		Initialize(); //-V1053
 	}
 
 	FStructOnScope(const UStruct* InScriptStruct, uint8* InData)
@@ -149,7 +149,7 @@ public:
 
 	virtual ~FStructOnScope()
 	{
-		Destroy();
+		Destroy(); //-V1053
 	}
 
 	/** Re-initializes the scope with a specified UStruct */

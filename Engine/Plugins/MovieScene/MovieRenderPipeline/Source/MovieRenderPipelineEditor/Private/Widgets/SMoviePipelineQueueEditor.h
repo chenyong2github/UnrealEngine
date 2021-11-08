@@ -8,6 +8,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STreeView.h"
 #include "Types/SlateEnums.h"
+#include "EditorUndoClient.h"
 
 struct FAssetData;
 struct IMoviePipelineQueueTreeItem;
@@ -29,7 +30,7 @@ DECLARE_DELEGATE_OneParam(FOnMoviePipelineJobSelection, const TArray<UMoviePipel
 /**
  * Widget used to edit a Movie Pipeline Queue
  */
-class SMoviePipelineQueueEditor : public SCompoundWidget
+class SMoviePipelineQueueEditor : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	
@@ -54,6 +55,12 @@ private:
 	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 	// ~SWidget Interface
+
+	// FEditorUndoClient
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// ~FEditorUndoClient
+
 private:
 	void OnCreateJobFromAsset(const FAssetData& InAsset);
 

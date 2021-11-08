@@ -126,24 +126,29 @@ struct SRC_STATE_tag
 	const float		*saved_data ;
 } ;
 
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
 /* In src_sinc.c */
 const char* sinc_get_name (int src_enum) ;
 const char* sinc_get_description (int src_enum) ;
 
 enum SRC_ERR sinc_set_converter (SRC_STATE *state, int src_enum) ;
+#endif
 
+#ifndef LIBSAMPLERATE_WITHOUT_LINEAR
 /* In src_linear.c */
 const char* linear_get_name (int src_enum) ;
 const char* linear_get_description (int src_enum) ;
 
 enum SRC_ERR linear_set_converter (SRC_STATE *state, int src_enum) ;
+#endif
 
+#ifndef LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD
 /* In src_zoh.c */
 const char* zoh_get_name (int src_enum) ;
 const char* zoh_get_description (int src_enum) ;
 
 enum SRC_ERR zoh_set_converter (SRC_STATE *state, int src_enum) ;
-
+#endif
 /*----------------------------------------------------------
 **	Common static inline functions.
 */

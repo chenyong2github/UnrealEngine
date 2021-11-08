@@ -3,15 +3,7 @@
 #include "SNiagaraGraphNodeCustomHlsl.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraGraph.h"
-#include "Framework/Commands/Commands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
-#include "ScopedTransaction.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
-#include "ISinglePropertyView.h"
-#include "Modules/ModuleManager.h"
 #include "GraphEditorSettings.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
@@ -25,6 +17,7 @@ SNiagaraGraphNodeCustomHlsl::SNiagaraGraphNodeCustomHlsl() : SNiagaraGraphNode()
 void SNiagaraGraphNodeCustomHlsl::Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode)
 {
 	GraphNode = InGraphNode;
+	SyntaxHighlighter = FNiagaraHLSLSyntaxHighlighter::Create();
 	RegisterNiagaraGraphNode(InGraphNode);
 	UpdateGraphNode();
 }
@@ -82,10 +75,12 @@ void SNiagaraGraphNodeCustomHlsl::CreateBelowPinControls(TSharedPtr<SVerticalBox
 	FOnTextCommitted TextCommit;
 	TextCommit.BindUObject(CustomNode, &UNiagaraNodeCustomHlsl::OnCustomHlslTextCommitted);
 
-	TSharedRef<SMultiLineEditableTextBox> TextBox = SNew(SMultiLineEditableTextBox)
+	SAssignNew(ShaderTextBox, SMultiLineEditableTextBox)
 		.AutoWrapText(false)
 		.Margin(FMargin(5, 5, 5, 5))
 		.Text(GetText)
+		.Marshaller(SyntaxHighlighter)
+		.OnKeyCharHandler(this, &SNiagaraGraphNodeCustomHlsl::OnShaderTextKeyChar)
 		.OnTextCommitted(TextCommit);
 	MainBox->AddSlot()[
 		SNew(SHorizontalBox)
@@ -93,9 +88,23 @@ void SNiagaraGraphNodeCustomHlsl::CreateBelowPinControls(TSharedPtr<SVerticalBox
 		.AutoWidth()
 		.Padding(FMargin(10.f, 5.f, 10.f, 10.f))
 		[
-			TextBox
+			ShaderTextBox.ToSharedRef()
 		]
 	];
+}
+
+FReply SNiagaraGraphNodeCustomHlsl::OnShaderTextKeyChar(const FGeometry&, const FCharacterEvent& InCharacterEvent)
+{
+	const TCHAR Character = InCharacterEvent.GetCharacter();
+	if (Character == TEXT('\t'))
+	{
+		// Convert tab to four spaces
+		ShaderTextBox->InsertTextAtCursor(TEXT("    "));
+		return FReply::Handled();
+	}
+	
+	// Let SMultiLineEditableTextBox::OnKeyChar handle it.
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

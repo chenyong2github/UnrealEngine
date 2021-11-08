@@ -172,8 +172,6 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			InstanceData->bStartNewOverlapGroup = bStartNewOverlapGroup;
 			bStartNewOverlapGroup = false;
 
-			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled; /* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/
-
 			// @todo-threadsafety Think of a better way to do this!
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
 			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
@@ -192,12 +190,14 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			}
 
 			// Gather number of iterations for each stage, and if the stage should run or not
+			InstanceData->bHasMultipleStages = false;
 			InstanceData->NumIterationsPerStage.Reserve(GPUContext->SimStageInfo.Num());
 			for ( FSimulationStageMetaData& SimStageMetaData : GPUContext->SimStageInfo )
 			{
 				int32 NumIterations = SimStageMetaData.NumIterations;
 				if (SimStageMetaData.ShouldRunStage(InstanceData->bResetData))
 				{
+					InstanceData->bHasMultipleStages = true;
 					if (!SimStageMetaData.NumIterationsBinding.IsNone())
 					{
 						FNiagaraParameterStore& BoundParamStore = EmitterInstance->GetRendererBoundVariables();

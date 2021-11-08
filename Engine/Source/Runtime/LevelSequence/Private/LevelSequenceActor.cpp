@@ -221,23 +221,29 @@ void ALevelSequenceActor::PostLoad()
 		bAutoPlay_DEPRECATED = false;
 	}
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// We intentionally do not attempt to load any asset in PostLoad other than by way of LoadPackageAsync
-	// since under some circumstances it is possible for the sequence to only be partially loaded.
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	UWorld* LocalWorld = GetWorld();
-	if (LevelSequence.IsValid() && LocalWorld && LocalWorld->IsGameWorld())
+#if WITH_EDITORONLY_DATA
+	if (LevelSequence_DEPRECATED.IsValid())
 	{
-		// If we're async loading and we don't have the sequence asset loaded, schedule a load for it
-		ULevelSequence* LevelSequenceAsset = GetSequence();
-		if (!LevelSequenceAsset && IsAsyncLoading())
+		if (!LevelSequenceAsset)
 		{
-			LoadPackageAsync(LevelSequence.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateUObject(this, &ALevelSequenceActor::OnSequenceLoaded));
+			LevelSequenceAsset = Cast<ULevelSequence>(LevelSequence_DEPRECATED.ResolveObject());
+		}
+
+		// If we don't have the sequence asset loaded, schedule a load for it
+		if (LevelSequenceAsset)
+		{
+			LevelSequence_DEPRECATED.Reset();
+		}
+		else
+		{
+			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			// We intentionally do not attempt to load any asset in PostLoad other than by way of LoadPackageAsync
+			// since under some circumstances it is possible for the sequence to only be partially loaded.
+			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			LoadPackageAsync(LevelSequence_DEPRECATED.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateUObject(this, &ALevelSequenceActor::OnSequenceLoaded));
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
 	// Fix sprite component so that it's attached to the root component. In the past, the sprite component was the root component.
 	UBillboardComponent* SpriteComponent = FindComponentByClass<UBillboardComponent>();
 	if (SpriteComponent && SpriteComponent->GetAttachParent() != RootComponent)
@@ -249,19 +255,14 @@ void ALevelSequenceActor::PostLoad()
 
 ULevelSequence* ALevelSequenceActor::GetSequence() const
 {
-	return Cast<ULevelSequence>(LevelSequence.ResolveObject());
-}
-
-ULevelSequence* ALevelSequenceActor::LoadSequence() const
-{
-	return Cast<ULevelSequence>(LevelSequence.TryLoad());
+	return LevelSequenceAsset;
 }
 
 void ALevelSequenceActor::SetSequence(ULevelSequence* InSequence)
 {
 	if (!SequencePlayer->IsPlaying())
 	{
-		LevelSequence = InSequence;
+		LevelSequenceAsset = InSequence;
 
 		// cbb: should ideally null out the template and player when no sequence is assigned, but that's currently not possible
 		if (InSequence)
@@ -273,29 +274,12 @@ void ALevelSequenceActor::SetSequence(ULevelSequence* InSequence)
 
 void ALevelSequenceActor::InitializePlayer()
 {
-	if (LevelSequence.IsValid() && GetWorld()->IsGameWorld())
+	if (LevelSequenceAsset && GetWorld()->IsGameWorld())
 	{
-		// Attempt to resolve the asset without loading it
-		ULevelSequence* LevelSequenceAsset = GetSequence();
-		if (LevelSequenceAsset)
+		// Level sequence is already loaded. Initialize the player if it's not already initialized with this sequence
+		if (LevelSequenceAsset != SequencePlayer->GetSequence())
 		{
-			// Level sequence is already loaded. Initialize the player if it's not already initialized with this sequence
-			if (LevelSequenceAsset != SequencePlayer->GetSequence())
-			{
-				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
-			}
-		}
-		else if (!IsAsyncLoading())
-		{
-			LevelSequenceAsset = LoadSequence();
-			if (LevelSequenceAsset != SequencePlayer->GetSequence())
-			{
-				SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
-			}
-		}
-		else
-		{
-			LoadPackageAsync(LevelSequence.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateUObject(this, &ALevelSequenceActor::OnSequenceLoaded));
+			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
 		}
 	}
 }
@@ -304,11 +288,13 @@ void ALevelSequenceActor::OnSequenceLoaded(const FName& PackageName, UPackage* P
 {
 	if (Result == EAsyncLoadingResult::Succeeded)
 	{
-		ULevelSequence* LevelSequenceAsset = GetSequence();
-		if (SequencePlayer && SequencePlayer->GetSequence() != LevelSequenceAsset)
+#if WITH_EDITORONLY_DATA
+		if (LevelSequence_DEPRECATED.IsValid())
 		{
-			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
+			LevelSequenceAsset = Cast<ULevelSequence>(LevelSequence_DEPRECATED.ResolveObject());
+			LevelSequence_DEPRECATED.Reset();
 		}
+#endif
 	}
 }
 
@@ -549,8 +535,6 @@ void ALevelSequenceActor::UpdateObjectFromProxy(FStructOnScope& Proxy, IProperty
 
 bool ALevelSequenceActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 {
-	ULevelSequence* LevelSequenceAsset = LoadSequence();
-
 	if (LevelSequenceAsset)
 	{
 		Objects.Add(LevelSequenceAsset);

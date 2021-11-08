@@ -55,6 +55,14 @@ void UMovieSceneEventSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FS
 	}
 }
 
+void UMovieSceneEventSystem::OnUnlink()
+{
+	if (!ensure(EventsByRoot.Num() == 0))
+	{
+		EventsByRoot.Reset();
+	}
+}
+
 void UMovieSceneEventSystem::TriggerAllEvents()
 {
 	using namespace UE::MovieScene;

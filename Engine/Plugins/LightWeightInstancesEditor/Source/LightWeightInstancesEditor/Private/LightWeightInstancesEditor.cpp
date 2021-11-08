@@ -90,7 +90,7 @@ TSharedRef<FExtender> FLightWeightInstancesEditorModule::CreateLevelViewportCont
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("ConvertSelectedActorsToLWIsText", "Convert {0} To Light Weight Instances"), ActorName),
 					LOCTEXT("ConvertSelectedActorsToLWIsTooltip", "Convert the selected actors to light weight instances."),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Convert"),
 					FUIAction(
 						FExecuteAction::CreateRaw(this, &FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction, InActors),
 						FCanExecuteAction::CreateLambda([bCanExecute]() { return bCanExecute; }))

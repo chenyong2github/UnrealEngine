@@ -113,7 +113,7 @@ typedef TConstRepDataBuffer<ERepDataBufferType::ObjectBuffer> FConstRepObjectDat
 typedef TConstRepDataBuffer<ERepDataBufferType::ShadowBuffer> FConstRepShadowDataBuffer;
 
 /** Stores meta data about a given Replicated property. */
-class FRepChangedParent
+class UE_DEPRECATED(5.0, "No longer used") FRepChangedParent
 {
 public:
 	FRepChangedParent():
@@ -183,12 +183,27 @@ public:
 	virtual void CountBytes(FArchive& Ar) const override;
 	//~ End IRepChangedPropertyTracker Interface
 
-	/** Activation data for top level Properties on the given Actor / Object. */
-	TArray<FRepChangedParent>	Parents;
+	void InitActiveParents(int32 ParentCount)
+	{
+		ActiveParents.Init(true, ParentCount);
+	}
+
+	bool IsParentActive(int32 ParentIndex) const 
+	{ 
+		return ActiveParents[ParentIndex]; 
+	}
+
+	int32 GetParentCount() const
+	{
+		return ActiveParents.Num();
+	}
 
 private:
 	/** Whether or not this is being used for a client replay recording. */
 	bool bIsClientReplayRecording;
+
+	/** Activation data for top level Properties on the given Actor / Object. */
+	TBitArray<> ActiveParents;
 
 public:
 	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")

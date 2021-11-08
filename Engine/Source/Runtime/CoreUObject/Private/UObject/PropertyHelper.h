@@ -206,7 +206,7 @@ namespace DelegatePropertyTools
 			{
 				FuncName[i++] = *Buffer;
 			}
-			FuncName[i] = '\0';                
+			FuncName[i] = TEXT('\0');
 		}
 		else
 		{

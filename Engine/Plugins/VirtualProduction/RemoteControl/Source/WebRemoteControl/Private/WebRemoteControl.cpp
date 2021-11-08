@@ -120,7 +120,9 @@ namespace WebRemoteControlStructUtils
 		FWebRCGenerateStructArgs Args;
 		Args.ArrayProperties.Emplace(Prop_PropertyValues, CustomContainer);
 		Args.StructProperties.Emplace(Prop_ExposedPropertyDescription, FRCExposedPropertyDescription::StaticStruct());
-		return UE::WebRCReflectionUtils::GenerateStruct(Struct_GetPropertyResponse, Args);
+		
+		const FString StructName = FString::Format(TEXT("{0}_{1}"), { *Struct_GetPropertyResponse.ToString(), *CustomContainer->GetFName().ToString()});
+		return UE::WebRCReflectionUtils::GenerateStruct(*StructName, Args);
 	}
 
 	FStructOnScope CreateGetPropertyOnScope(const TSharedPtr<FRemoteControlProperty>& RCProperty, const FRCObjectReference& ObjectReference, FStructOnScope&& PropertyValueOnScope)

@@ -31,8 +31,8 @@ namespace Chaos
 		bool bChaos_PBDCollisionSolver_Position_NegativePushOutEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 0.5f;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionLerpRate = 0.1f;
-		//float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.01f;
-		//float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.01f;
+		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.0001f;		// cms
+		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.0001f;		// rads
 
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_SolveEnabled(TEXT("p.Chaos.PBDCollisionSolver.Position.SolveEnabled"), bChaos_PBDCollisionSolver_Position_SolveEnabled, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_UseShockPropagation(TEXT("p.Chaos.PBDCollisionSolver.Position.ShockPropagationIterations"), Chaos_PBDCollisionSolver_Position_ShockPropagationIterations, TEXT(""));
@@ -41,8 +41,8 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_NormalTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.NormalTolerance"), Chaos_PBDCollisionSolver_Position_NormalTolerance, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_StaticFrictionStiffness(TEXT("p.Chaos.PBDCollisionSolver.Position.StaticFriction.Stiffness"), Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_StaticFrictionLerpRate(TEXT("p.Chaos.PBDCollisionSolver.Position.StaticFriction.LerpRate"), Chaos_PBDCollisionSolver_Position_StaticFrictionLerpRate, TEXT(""));
-		//FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_PositionSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.PositionTolerance"), Chaos_PBDCollisionSolver_Position_PositionSolverTolerance, TEXT(""));
-		//FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_RotationSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.RotationTolerance"), Chaos_PBDCollisionSolver_Position_RotationSolverTolerance, TEXT(""));
+		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_PositionSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.PositionTolerance"), Chaos_PBDCollisionSolver_Position_PositionSolverTolerance, TEXT(""));
+		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_RotationSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.RotationTolerance"), Chaos_PBDCollisionSolver_Position_RotationSolverTolerance, TEXT(""));
 
 		bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled = true;
 		int32 Chaos_PBDCollisionSolver_Velocity_ShockPropagationIterations = 1;
@@ -133,7 +133,7 @@ namespace Chaos
 		FVec3 PushOut = Stiffness * ContactMass * ModifiedContactError;
 
 		// If we ended up with a negative normal pushout, disable friction
-		const FVec3 NetPushOut = InOutNetPushOut + PushOut;
+		FVec3 NetPushOut = InOutNetPushOut + PushOut;
 		const FReal NetPushOutNormal = FVec3::DotProduct(NetPushOut, ContactNormal);
 		bool bInsideStaticFrictionCone = true;
 		if (NetPushOutNormal < FReal(SMALL_NUMBER))
@@ -154,9 +154,12 @@ namespace Chaos
 		if (bInsideStaticFrictionCone)
 		{
 			const FReal MaxPushOutTangentSq = FMath::Square(StaticFriction * StaticFrictionMax);
-			const FReal NetPushOutTangentSq = (NetPushOut - NetPushOutNormal * ContactNormal).SizeSquared();
+			const FVec3 NetPushOutTangent = (NetPushOut - NetPushOutNormal * ContactNormal);
+			const FReal NetPushOutTangentSq = NetPushOutTangent.SizeSquared();
 			if (NetPushOutTangentSq > MaxPushOutTangentSq)
 			{
+				NetPushOut = NetPushOutNormal * ContactNormal + (StaticFriction * StaticFrictionMax) * NetPushOutTangent / FMath::Sqrt(NetPushOutTangentSq);
+				PushOut = NetPushOut - InOutNetPushOut;
 				bInsideStaticFrictionCone = false;
 			}
 		}
@@ -206,9 +209,7 @@ namespace Chaos
 				ManifoldPoint.StaticFrictionMax,			// Out
 				ManifoldPoint.bInsideStaticFrictionCone);	// Out
 		}
-		
-		// If friction is disabled or we tried to add friction but left the friction cone...
-		if ((StaticFriction == 0) || !ManifoldPoint.bInsideStaticFrictionCone)
+		else
 		{
 			CalculatePositionCorrectionWithoutFriction(
 				Stiffness,
@@ -341,6 +342,8 @@ namespace Chaos
 		, DynamicFriction(0)
 		, Stiffness(1)
 		, BodyEpochs{ INDEX_NONE, INDEX_NONE }
+		, NumPositionSolves(0)
+		, NumVelocitySolves(0)
 		, bIsSolved(false)
 	{
 	}
@@ -357,6 +360,8 @@ namespace Chaos
 		const FVec3& InCoMAnchorPoint1,
 		const FVec3& InWorldContactNormal)
 	{
+		NetPushOut = FVec3(0);
+		NetImpulse = FVec3(0);
 		UpdateContact(Body0, Body1, InCoMAnchorPoint0, InCoMAnchorPoint1, InWorldContactNormal);
 		UpdateMass(Body0, Body1);
 	}
@@ -366,8 +371,6 @@ namespace Chaos
 		const bool bInEnableStaticFriction,
 		const FReal InStaticFrictionMax)
 	{
-		NetPushOut = FVec3(0);
-		NetImpulse = FVec3(0);
 		StaticFrictionMax = InStaticFrictionMax;
 		bInsideStaticFrictionCone = bInEnableStaticFriction;
 		WorldContactVelocityTargetNormal = InWorldContactVelocityTargetNormal;
@@ -599,11 +602,14 @@ namespace Chaos
 		}
 
 		// We are solved if we did not move the bodies within some tolerance
-		State.bIsSolved = (Body0.LastChangeEpoch() == State.BodyEpochs[0]) && (Body1.LastChangeEpoch() == State.BodyEpochs[1]);
+		// NOTE: we can't claim to be solved until we have done at least one friction iteration because we can't early out
+		// before friction has been applied.
+		// @todo(chaos): better early-out system
+		State.bIsSolved = bApplyStaticFriction && (Body0.LastChangeEpoch() == State.BodyEpochs[0]) && (Body1.LastChangeEpoch() == State.BodyEpochs[1]);
 		State.BodyEpochs[0] = Body0.LastChangeEpoch();
 		State.BodyEpochs[1] = Body1.LastChangeEpoch();
+		State.NumPositionSolves = State.NumPositionSolves + 1;
 
-		// @todo(chaos): support early-out
 		return !State.bIsSolved;
 	}
 
@@ -629,12 +635,11 @@ namespace Chaos
 			//SolverManifoldPoint.UpdateContactPoint(Body0, Body1, State.Constraint->GetManifoldPoints()[PointIndex]);
 			//SolverManifoldPoint.UpdateContactMass(Body0, Body1);
 
-			FVec3 ContactVelocityDelta;
-			FReal ContactVelocityDeltaNormal;
-			SolverManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
-
 			if (!SolverManifoldPoint.NetPushOut.IsNearlyZero())
 			{
+				FVec3 ContactVelocityDelta;
+				FReal ContactVelocityDeltaNormal;
+				SolverManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
 				ApplyVelocityCorrection(
 					Stiffness,
 					Dt,
@@ -647,7 +652,11 @@ namespace Chaos
 			}
 		}
 
-		// @todo(chaos): support early-out
+		State.NumVelocitySolves = State.NumVelocitySolves + 1;
+
+		// Early-out support for the velocity solve is not currently very important because we
+		// only run one iteration in the velocity solve phase.
+		// @todo(chaos): support early-out in velocity solve if necessary
 		return true;
 	}
 }

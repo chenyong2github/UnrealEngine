@@ -454,7 +454,7 @@ public:
 					RecordText = FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} actors with Take Recorder"), SelectedActors.Num());
 				}
 
-				MenuBuilder.AddMenuEntry(FTakeRecorderSourcesCommands::Get().RecordSelectedActors, NAME_None, RecordText);
+				MenuBuilder.AddMenuEntry(FTakeRecorderSourcesCommands::Get().RecordSelectedActors, NAME_None, RecordText, TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.TakeRecorder"));
 			}
 			
 			));

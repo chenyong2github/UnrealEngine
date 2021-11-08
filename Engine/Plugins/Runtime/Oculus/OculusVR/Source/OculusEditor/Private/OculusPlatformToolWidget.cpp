@@ -8,11 +8,14 @@
 #include "Internationalization/Regex.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Images/SImage.h"
 #include "HAL/FileManagerGeneric.h"
 #include "DOM/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "OculusHMDModule.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
+#include "Interfaces/IPluginManager.h"
+#include "SHyperlinkLaunchURL.h"
 
 #define LOCTEXT_NAMESPACE "OculusPlatformToolWidget"
 #define TEXT_INDENT_OFFSET 20.0f
@@ -97,6 +100,17 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 			OptionalSettings.Get()->ClearChildren();
 		}
 	}
+
+	FString ODHIconPath = IPluginManager::Get().FindPlugin(TEXT("OculusVR"))->GetBaseDir() / TEXT("Resources/odhIcon128.png");
+	const FName BrushName(*ODHIconPath);
+	FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(BrushName);
+	ODHIconDynamicImageBrush = MakeShareable(new FSlateDynamicImageBrush(BrushName, FVector2D(60.0f, 60.0f)));
+
+#if PLATFORM_MAC
+	FString odhLink = "https://developer.oculus.com/downloads/package/oculus-developer-hub-mac/?source=unreal";
+#else
+	FString odhLink = "https://developer.oculus.com/downloads/package/oculus-developer-hub-win/?source=unreal";
+#endif
 
 	ChildSlot
 	[
@@ -190,6 +204,46 @@ void SOculusPlatformToolWidget::Construct(const FArguments& InArgs)
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					logTextBox
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(2.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SBox)
+						.WidthOverride(60.0f)
+						.HeightOverride(60.0f)
+						[
+							SNew(SImage)
+							.Image(ODHIconDynamicImageBrush.IsValid() ? ODHIconDynamicImageBrush.Get() : nullptr)
+						]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.0f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().Padding(2.0f)
+						[
+							SNew(SRichTextBlock)
+							.Text(LOCTEXT("ODHCallout",
+								"<RichTextBlock.Bold>Oculus Developer Hub</> is a desktop companion tool that can upload builds, manage apps and reduce friction in daily Quest development."))
+							.DecoratorStyleSet(&FEditorStyle::Get())
+							.AutoWrapText(true)
+						]
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(SBox)
+							.HAlign(HAlign_Left)
+							[
+								SNew(SHyperlinkLaunchURL, odhLink)
+								.Text(LOCTEXT("ODHDownloadPage", "Download Oculus Developer Hub"))
+								.ToolTipText(LOCTEXT("ODHDownloadPageTooltip", "Opens a page that provides the download link for Oculus Developer Hub"))
+							]
+						]
+					]
 				]
 			]
 		]

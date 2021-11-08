@@ -10,7 +10,7 @@ ISnapshotRestorabilityOverrider::ERestorabilityOverride FClassRestorationSkipper
 	const FSkippedClassList& SkippedClasses = GetSkippedClassListCallback.Execute();
 	for (UClass* ActorClass = Actor->GetClass(); ActorClass; ActorClass = ActorClass->GetSuperClass())
 	{
-		if (SkippedClasses.ActorClasses.Contains(ActorClass))
+		if (SkippedClasses.SkippedClasses.Contains(ActorClass))
 		{
 			return ERestorabilityOverride::Disallow;
 		}
@@ -24,7 +24,7 @@ ISnapshotRestorabilityOverrider::ERestorabilityOverride FClassRestorationSkipper
 	const FSkippedClassList& SkippedClasses = GetSkippedClassListCallback.Execute();
 	for (UClass* ComponentClass = Component->GetClass(); ComponentClass; ComponentClass = ComponentClass->GetSuperClass())
 	{
-		if (SkippedClasses.ComponentClasses.Contains(ComponentClass))
+		if (SkippedClasses.SkippedClasses.Contains(ComponentClass))
 		{
 			return ERestorabilityOverride::Disallow;
 		}

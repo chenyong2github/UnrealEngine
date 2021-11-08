@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+from switchboard.config import CONFIG
 from switchboard.switchboard_widgets import FramelessQLineEdit
 from switchboard.devices.device_base import DeviceStatus
 import switchboard.switchboard_widgets as sb_widgets
@@ -24,6 +25,49 @@ class DeviceWidgetItem(QtWidgets.QWidget):
         opt.initFrom(self)
         painter = QtGui.QPainter(self)
         self.style().drawPrimitive(QtWidgets.QStyle.PE_Widget, opt, painter, self)
+
+class DeviceAutoJoinMUServerUI(QtCore.QObject):
+    signal_device_widget_autojoin_mu = QtCore.Signal(object)
+
+    autojoin_mu_default = True
+
+    def __init__(self, name, parent = None):
+        super().__init__(parent)
+        self.name = name
+
+    def is_autojoin_enabled(self):
+        return self._button.isChecked()
+
+    def set_autojoin_mu(self, is_checked):
+        if is_checked is not self.is_autojoin_enabled():
+            self._button.setChecked(is_checked)
+            self._set_autojoin_mu(is_checked)
+
+    def _set_autojoin_mu(self, is_checked):
+        self.signal_device_widget_autojoin_mu.emit(self)
+
+    def get_button(self):
+        return self._button
+
+    def disable_enable_based_on_global(self):
+        self._button.setEnabled(CONFIG.MUSERVER_AUTO_JOIN.get_value())
+
+    def make_button(self, parent):
+        """
+        Make a new device setting push button.
+        """
+        self._button = sb_widgets.ControlQPushButton.create(
+                icon_size=QtCore.QSize(15, 15),
+                tool_tip=f'Toggle Auto-join for Multi-user Server',
+                hover_focus=False,
+                name='autojoin'
+        )
+
+        self.set_autojoin_mu(self.autojoin_mu_default)
+        self._button.toggled.connect(self._set_autojoin_mu)
+        CONFIG.MUSERVER_AUTO_JOIN.signal_setting_changed.connect(self.disable_enable_based_on_global)
+        self.disable_enable_based_on_global()
+        return self._button
 
 
 class DeviceWidget(QtWidgets.QWidget):
@@ -248,14 +292,16 @@ class DeviceWidget(QtWidgets.QWidget):
         else:
             self.ip_address_line_edit.show()
 
+    def assign_button_to_name(self, name, button):
+        if name:
+            self.control_buttons[name] = button
+
     def add_control_button(self, *args, name: Optional[str] = None, **kwargs):
         button = sb_widgets.ControlQPushButton.create(*args, name=name,
                                                       **kwargs)
         self.add_widget_to_layout(button)
 
-        if name:
-            self.control_buttons[name] = button
-
+        self.assign_button_to_name(name, button)
         return button
 
 

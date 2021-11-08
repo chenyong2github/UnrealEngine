@@ -33,9 +33,10 @@ globallycoherent RWTexture2D<uint> ProbeAtlasSampleMaskOutput;
 
 //------------------------------------------------------- LDS
 
+#if COMPUTESHADER
 groupshared float4 SharedTraceLighting[8 * 8];
 groupshared uint SharedTraceSampleMask[8 * 8];
-
+#endif
 
 //------------------------------------------------------- FUNCTIONS
 

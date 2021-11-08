@@ -910,6 +910,8 @@ void SGraphEditorImpl::AddContextMenuCommentSection(UToolMenu* InMenu)
 				NodeCommentBox->AddSlot()
 					.VAlign(VAlign_Center)
 					.FillWidth(1.0f)
+					.MaxWidth(250.0f)
+					.Padding(FMargin(10.0f, 0.0f))
 					[
 						SNew(SMultiLineEditableTextBox)
 						.Text(NodeCommentText)
@@ -917,6 +919,7 @@ void SGraphEditorImpl::AddContextMenuCommentSection(UToolMenu* InMenu)
 						.OnTextCommitted_Static(&Local::OnNodeCommentTextCommitted, SelectedNodeWeakPtr)
 						.SelectAllTextWhenFocused(true)
 						.RevertTextOnEscape(true)
+						.AutoWrapText(true)						
 						.ModiferKeyForNewLine(EModifierKey::Control)
 					];
 			}

@@ -4,11 +4,21 @@
 
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
+#include "OptimusEditorCommands.h"
 
 #include "OptimusDataType.h"
+#include "OptimusEditorGraphCommands.h"
 #include "OptimusNode.h"
+#include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+
+#include "Framework/Commands/GenericCommands.h"
 #include "Logging/TokenizedMessage.h"
+#include "ToolMenu.h"
+
+
+#define LOCTEXT_NAMESPACE "OptimusEditorGraphNode"
+
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
@@ -197,7 +207,7 @@ void UOptimusEditorGraphNode::SyncDiagnosticStateWithModelNode()
 	const EOptimusDiagnosticLevel DiagnosticLevel = ModelNode->GetDiagnosticLevel();
 	switch(DiagnosticLevel)
 	{
-	case EOptimusDiagnosticLevel::Ignore:
+	case EOptimusDiagnosticLevel::None:
 	case EOptimusDiagnosticLevel::Info:
 		bHasCompilerMessage = false;
 		ErrorType = EMessageSeverity::Info;
@@ -223,6 +233,34 @@ FText UOptimusEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 
 	return {};
 }
+
+
+void UOptimusEditorGraphNode::GetNodeContextMenuActions(
+	UToolMenu* InMenu,
+	UGraphNodeContextMenuContext* InContext
+	) const
+{
+	if (InContext->Pin)
+	{
+		
+	}
+	else if (InContext->Node)
+	{
+		FToolMenuSection& Clipboard = InMenu->AddSection("OptimusNodeClipboard", LOCTEXT("NodeMenuClipboardHeader", "Clipboard"));
+		Clipboard.AddMenuEntry(FGenericCommands::Get().Copy);
+		Clipboard.AddMenuEntry(FGenericCommands::Get().Cut);
+		Clipboard.AddMenuEntry(FGenericCommands::Get().Paste);
+		Clipboard.AddMenuEntry(FGenericCommands::Get().Duplicate);
+		
+		FToolMenuSection& PackagingSection = InMenu->AddSection("OptimusNodePackaging", LOCTEXT("NodeMenuPackagingHeader", "Packaging"));
+
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().PackageNodes);
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().UnpackageNodes);
+
+		// FIXME: Add alignment.
+	}
+}
+
 
 bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	const UOptimusNodePin* InModelPin,
@@ -369,3 +407,5 @@ void UOptimusEditorGraphNode::UpdateTopLevelPins()
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

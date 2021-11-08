@@ -16,6 +16,7 @@ TAutoConsoleVariable<bool> CVarEnableSpatialHashValidation(TEXT("wp.Editor.Enabl
 UWorldPartitionEditorSpatialHash::UWorldPartitionEditorSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
+	, CellSize(12800)
 	, bBoundsDirty(false)
 	, AlwaysLoadedCell(nullptr)
 #endif
@@ -34,14 +35,12 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 		FHashBuilder EditorGridConfigHashBuilder;
 		static uint32 Version = 2;
 		EditorGridConfigHashBuilder << Version << CellSize;
-		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(EditorGridConfigHashBuilder.GetHash());
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(GetWorld(), EditorGridConfigHashBuilder.GetHash());
 	}
 }
 
 void UWorldPartitionEditorSpatialHash::SetDefaultValues()
-{
-	CellSize = 12800;
-}
+{}
 
 FName UWorldPartitionEditorSpatialHash::GetWorldPartitionEditorName()
 {

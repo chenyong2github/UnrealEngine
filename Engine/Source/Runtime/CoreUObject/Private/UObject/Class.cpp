@@ -3877,8 +3877,6 @@ UObject* UClass::CreateDefaultObject()
 				// the CDO as RF_ArchetypeObject in order to propagate that flag to any default sub objects.
 				ClassDefaultObject = StaticAllocateObject(this, GetOuter(), NAME_None, EObjectFlags(RF_Public|RF_ClassDefaultObject|RF_ArchetypeObject));
 				check(ClassDefaultObject);
-				// Blueprint CDOs have their properties always initialized.
-				const bool bShouldInitializeProperties = !HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic);
 				// Register the offsets of any sparse delegates this class introduces with the sparse delegate storage
 				for (TFieldIterator<FMulticastSparseDelegateProperty> SparseDelegateIt(this, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated); SparseDelegateIt; ++SparseDelegateIt)
 				{
@@ -3893,7 +3891,13 @@ UObject* UClass::CreateDefaultObject()
 						(*(DynamicClass->DynamicClassInitializer))(DynamicClass);
 					}
 				}
-				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, false, bShouldInitializeProperties));
+				EObjectInitializerOptions InitOptions = EObjectInitializerOptions::None;
+				if (!HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic))
+				{
+					// Blueprint CDOs have their properties always initialized.
+					InitOptions |= EObjectInitializerOptions::InitializeProperties;
+				}
+				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, InitOptions));
 				if (bDoNotify)
 				{
 					NotifyRegistrationEvent(*PackageName, *CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Finished);
@@ -6013,8 +6017,9 @@ bool FStructUtils::ArePropertiesTheSame(const FProperty* A, const FProperty* B, 
 
 bool FStructUtils::TheSameLayout(const UStruct* StructA, const UStruct* StructB, bool bCheckPropertiesNames)
 {
-	bool bResult = false;
-	if (StructA 
+	bool bResult = (StructA == StructB);
+	if (!bResult
+		&& StructA 
 		&& StructB 
 		&& (StructA->GetPropertiesSize() == StructB->GetPropertiesSize())
 		&& (StructA->GetMinAlignment() == StructB->GetMinAlignment()))

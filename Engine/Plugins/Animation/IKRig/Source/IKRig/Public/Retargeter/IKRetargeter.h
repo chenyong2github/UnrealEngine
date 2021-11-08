@@ -175,7 +175,7 @@ private:
 
 private:
 	/** The set of retarget poses available as options for retargeting.*/
-	UPROPERTY(VisibleAnywhere, Category = EditRetargetPoses)
+	UPROPERTY()
 	TMap<FName, FIKRetargetPose> RetargetPoses;
 
 	/** Mapping of chains to copy animation between source and target rigs.*/

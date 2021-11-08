@@ -101,7 +101,7 @@ static FUObjectAnnotationSparse<UE::MoviePipeline::FObjectIdAccelerationData, tr
 // Forward Declare
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams);
+	static void AccumulateSampleObjectId_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams);
 }
 extern const TSparseArray<HHitProxy*>& GetAllHitProxies();
 
@@ -478,7 +478,7 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 			FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumArgsInner = MoveTemp(AccumAgs), bFinalSample, SampleAccumulator]() mutable
 			{
 				// Enqueue a encode for this frame onto our worker thread.
-				MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), MoveTemp(AccumArgsInner));
+				MoviePipeline::AccumulateSampleObjectId_TaskThread(MoveTemp(PixelData), MoveTemp(AccumArgsInner));
 				if (bFinalSample)
 				{
 					SampleAccumulator->bIsActive = false;
@@ -507,7 +507,7 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams)
+	static void AccumulateSampleObjectId_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateMaskSample_TaskThread);
 		const double TotalSampleBeginTime = FPlatformTime::Seconds();
@@ -605,10 +605,12 @@ namespace MoviePipeline
 			const float ElapsedRemapMs = float((RemapEndTime - RemapBeginTime) * 1000.0f);
 
 			const double AccumulateBeginTime = FPlatformTime::Seconds();
-
+			MoviePipeline::FTileWeight1D WeightFunctionX;
+			MoviePipeline::FTileWeight1D WeightFunctionY;
+			FramePayload->GetWeightFunctionParams(/*Out*/ WeightFunctionX, /*Out*/ WeightFunctionY);
 			{
 				InParams.Accumulator->AccumulatePixelData((float*)(IdData.GetData()), RawSize, FramePayload->SampleState.OverlappedOffset, FramePayload->SampleState.OverlappedSubpixelShift,
-					FramePayload->SampleState.WeightFunctionX, FramePayload->SampleState.WeightFunctionY);
+					WeightFunctionX, WeightFunctionY);
 			}
 
 			const double AccumulateEndTime = FPlatformTime::Seconds();
@@ -638,10 +640,8 @@ namespace MoviePipeline
 			for (int32 Index = 0; Index < InParams.NumOutputLayers; Index++)
 			{			
 				// We unfortunately can't share ownership of the payload from the last sample due to the changed pass identifiers.
-				TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> NewPayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+				TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> NewPayload = FramePayload->Copy();
 				NewPayload->PassIdentifier = FMoviePipelinePassIdentifier(FramePayload->PassIdentifier.Name + FString::Printf(TEXT("%02d"), Index));
-				NewPayload->SampleState = FramePayload->SampleState;
-				NewPayload->SortingOrder = FramePayload->SortingOrder;
 
 				TUniquePtr<TImagePixelData<FLinearColor>> FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), MoveTemp(OutputLayers[Index]), NewPayload);
 

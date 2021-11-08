@@ -35,7 +35,8 @@ namespace AudioModulation
 			{
 				if (Generator)
 				{
-					GeneratorSettings.Emplace(FModulationGeneratorSettings(*Generator, InDeviceId));
+					FModulationGeneratorSettings Settings(*Generator, InDeviceId);
+					GeneratorSettings.Add(MoveTemp(Settings));
 				}
 			}
 		}
@@ -45,9 +46,9 @@ namespace AudioModulation
 	{
 	public:
 		FControlBusProxy();
-		FControlBusProxy(const FControlBusSettings& InSettings, FAudioModulationSystem& InModSystem);
+		FControlBusProxy(FControlBusSettings&& InSettings, FAudioModulationSystem& InModSystem);
 
-		FControlBusProxy& operator =(const FControlBusSettings& InSettings);
+		FControlBusProxy& operator =(FControlBusSettings&& InSettings);
 
 		float GetDefaultValue() const;
 		const TArray<FGeneratorHandle>& GetGeneratorHandles() const;
@@ -60,7 +61,7 @@ namespace AudioModulation
 		void Reset();
 
 	private:
-		void Init(const FControlBusSettings& InSettings);
+		void Init(FControlBusSettings&& InSettings);
 		float Mix(float ValueA) const;
 
 		float DefaultValue;

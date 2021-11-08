@@ -790,6 +790,38 @@ TArray<FString> UDataTable::CreateTableFromOtherTable(const UDataTable* InTable)
 	return OutProblems;
 }
 
+TArray<FString> UDataTable::CreateTableFromRawData(TMap<FName, const uint8*>& DataMap, UScriptStruct* InRowStruct)
+{
+	DATATABLE_CHANGE_SCOPE();
+
+	// Array used to store problems about table creation
+	TArray<FString> OutProblems;
+
+	if (InRowStruct == nullptr)
+	{
+		OutProblems.Add(TEXT("No input struct provided"));
+		return OutProblems;
+	}
+
+	if (RowStruct && RowMap.Num() > 0)
+	{
+		EmptyTable();
+	}
+
+	RowStruct = InRowStruct;
+
+	UScriptStruct& EmptyUsingStruct = GetEmptyUsingStruct();
+	for (TMap<FName, const uint8*>::TConstIterator RowMapIter(DataMap.CreateConstIterator()); RowMapIter; ++RowMapIter)
+	{
+		uint8* NewRawRowData = static_cast<uint8*>(FMemory::Malloc(EmptyUsingStruct.GetStructureSize()));
+		EmptyUsingStruct.InitializeStruct(NewRawRowData);
+		EmptyUsingStruct.CopyScriptStruct(NewRawRowData, RowMapIter.Value());
+		RowMap.Add(RowMapIter.Key(), NewRawRowData);
+	}
+
+	return OutProblems;
+}
+
 #if WITH_EDITOR
 
 TArray<FString> UDataTable::GetColumnTitles() const

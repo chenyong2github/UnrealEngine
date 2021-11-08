@@ -70,6 +70,7 @@ public:
 /** Global uniform buffer containing the default precomputed lighting data. */
 extern TGlobalResource< FEmptyIndirectLightingCacheUniformBuffer > GEmptyIndirectLightingCacheUniformBuffer;
 
+RENDERER_API bool MobileUsesNoLightMapPermutation(const FMeshMaterialShaderPermutationParameters& Parameters);
 
 /**
  * A policy for shaders without a lightmap.
@@ -78,6 +79,10 @@ struct FNoLightMapPolicy
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (IsMobilePlatform(Parameters.Platform))
+		{
+			return MobileUsesNoLightMapPermutation(Parameters);
+		}
 		return true;
 	}
 

@@ -885,6 +885,10 @@ bool FS3DerivedDataBackend::IsUsable() const
 
 bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Exist);
+	TRACE_COUNTER_ADD(S3DDC_Exist, int64(1));
+	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+
 	const FBundle* Bundle;
 	const FBundleEntry* BundleEntry;
 
@@ -898,6 +902,9 @@ bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache miss on %s (probably)"), CacheKey);
 		return false;
 	}
+
+	TRACE_COUNTER_ADD(S3DDC_ExistHit, int64(1));
+	COOK_STAT(Timer.AddHit(BundleEntry->Length));
 	return true;
 }
 
@@ -919,6 +926,8 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Bundle->LocalFile));
 		if (Reader.IsValid() && !Reader->IsError())
 		{
+			TRACE_COUNTER_ADD(S3DDC_GetHit, int64(1));
+			COOK_STAT(Timer.AddHit(BundleEntry->Length));
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache hit on %s"), CacheKey);
 			OutData.SetNum(BundleEntry->Length);
 			Reader->Seek(BundleEntry->Offset);

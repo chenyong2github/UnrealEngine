@@ -181,6 +181,8 @@ FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FAr
 	, ImportParameters(InImportParameters)
 	, ImportParametersHash(ImportParameters.GetHash())
 	, RootFileDescription(*InSource.GetSourceFile())
+	, bPreferMaterial(false)
+	, bMaterialPropagationIsTopDown(ImportParameters.GetPropagation() == CADLibrary::EDisplayDataPropagationMode::TopDown)
 {
 	if (InSceneGraph)
 	{
@@ -393,16 +395,16 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	FString& OutName
 )
 {
-	const FString* InstanceKernelIOName = InInstanceNodeMetaDataMap.Find(TEXT("CTName"));
+	const FString* InstanceSDKName = InInstanceNodeMetaDataMap.Find(TEXT("SDKName"));
 	const FString* InstanceCADName = InInstanceNodeMetaDataMap.Find(TEXT("Name"));
 	const FString* InstanceUUID = InInstanceNodeMetaDataMap.Find(TEXT("UUID"));
 
-	const FString* ReferenceKernelIOName = InReferenceNodeMetaDataMap.Find(TEXT("CTName"));
+	const FString* ReferenceSDKName = InReferenceNodeMetaDataMap.Find(TEXT("SDKName"));
 	const FString* ReferenceCADName = InReferenceNodeMetaDataMap.Find(TEXT("Name"));
 	const FString* ReferenceUUID = InReferenceNodeMetaDataMap.Find(TEXT("UUID"));
 
 	// Outname Name
-	// IName and RName are KernelIO build Name. Original names (CAD system name) are preferred
+	// Instance SDK Name and Reference SDName are build Name. Original names (CAD system name / "Name") are preferred
 	if (InstanceCADName && !InstanceCADName->IsEmpty())
 	{
 		OutName = *InstanceCADName;
@@ -411,13 +413,13 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		OutName = *ReferenceCADName;
 	}
-	else if (InstanceKernelIOName && !InstanceKernelIOName->IsEmpty())
+	else if (InstanceSDKName && !InstanceSDKName->IsEmpty())
 	{
-		OutName = *InstanceKernelIOName;
+		OutName = *InstanceSDKName;
 	}
-	else if (ReferenceKernelIOName && !ReferenceKernelIOName->IsEmpty())
+	else if (ReferenceSDKName && !ReferenceSDKName->IsEmpty())
 	{
-		OutName = *ReferenceKernelIOName;
+		OutName = *ReferenceSDKName;
 	}
 	else
 	{
@@ -435,9 +437,9 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceCADName));
 	}
-	if (InstanceKernelIOName)
+	if (InstanceSDKName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceKernelIOName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*InstanceSDKName));
 	}
 
 	if (ReferenceUUID)
@@ -448,9 +450,9 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceCADName));
 	}
-	if (ReferenceKernelIOName)
+	if (ReferenceSDKName)
 	{
-		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceKernelIOName));
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*ReferenceSDKName));
 	}
 
 	OutUEUUID = FString::Printf(TEXT("0x%08x"), UEUUID);

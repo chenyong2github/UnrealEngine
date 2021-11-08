@@ -786,6 +786,14 @@ private:
 	/** Called when the SearchText changes */
 	void OnFilterTextChanged(const FText& InFilterText);
 
+	/**
+	 * Walks the sub-menus and adds new searchable blocks representing the flattened structure of any nested sub-menus.
+	 * Enables recursive search over sub-menus. Allows work of traversing sub-menus to be deferred until search is requested.
+	 * 
+	 * @param MaxRecursionLevels Maximum depth of nested sub-menus to walk when flattening
+	 */
+	void FlattenSubMenusRecursive(uint32 MaxRecursionLevels);
+
 private:
 	/** A preview of a block being dragged */
 	struct FDraggedMultiBlockPreview
@@ -841,6 +849,12 @@ private:
 	/** An array of widgets used for an STileView if used */
 	TArray< TSharedPtr<SWidget> > TileViewWidgets;
 
+	/** Box panel used for horizontally-oriented boxes, e.g., horizontal toolbar or menu bar */
+	TSharedPtr<SHorizontalBox> MainHorizontalBox;
+
+	/** Box panel used for vertically-oriented boxes, e.g., vertical toolbar or menu */
+	TSharedPtr<SVerticalBox> MainVerticalBox;
+
 	/** Specialized box widget to handle clipping of toolbars and menubars */
 	TSharedPtr<class SClippingHorizontalBox> ClippedHorizontalBox;
 
@@ -855,6 +869,9 @@ private:
 
 	/** The set of searchable blocks found in this multibox sub-menus that were collected and flatten in this multibox to support recursively searching this multibox hierarchy. */
 	TMap<TSharedPtr<const FMultiBlock>, TSharedPtr<FFlattenSearchableBlockInfo>> FlattenSearchableBlocks;
+
+	/** Whether the set in FlattenSearchableBlocks has already been populated. */
+	bool bDidFlattenSearchableBlocks = false;
 
 	/** The set of searchable blocks widgets that were added from the list of flatten blocks collecteto display search results from this multibox hierarchy. */
 	TMap<TSharedPtr<SWidget>, TSharedPtr<FFlattenSearchableBlockInfo>> FlattenSearchableWidgets;

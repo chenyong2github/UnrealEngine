@@ -19,8 +19,11 @@ namespace CADKernel
 	protected:
 		double Size;
 
-		FSizeCriterion(double Size, ECriterion Type);
-		FSizeCriterion(FCADKernelArchive& Archive, ECriterion InCriterionType);
+		FSizeCriterion(double InSize = 1.)
+			: Size(InSize)
+		{
+		}
+
 
 	public:
 
@@ -29,8 +32,6 @@ namespace CADKernel
 			FCriterion::Serialize(Ar);
 			Ar << Size;
 		}
-
-		void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
 
 		double Value() const override
 		{
@@ -49,9 +50,46 @@ namespace CADKernel
 			return 0;
 		}
 
-		void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
+		void ApplyOnParameters(const TArray<double>& TabU, const TArray<FCurvePoint>& tabPt, TArray<double>& tabDeltaU, TFunction<void(double, double&)> Compare) const;
+	};
 
-		void ApplyOnEdgeParameters(const TArray<double>& TabU, const TArray<FCurvePoint>& tabPt, TArray<double>& tabDeltaU, TFunction<void(double, double&)> Compare) const;
+	class FMinSizeCriterion : public FSizeCriterion
+	{
+		friend class FEntity;
+	protected:
+		FMinSizeCriterion(double InSize = 0.05)
+			: FSizeCriterion(InSize)
+		{
+		}
+
+	public:
+
+		virtual ECriterion GetCriterionType() const override
+		{
+			return ECriterion::MinSize;
+		}
+
+		virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
+		virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
+	};
+
+	class FMaxSizeCriterion : public FSizeCriterion
+	{
+		friend class FEntity;
+	protected:
+		FMaxSizeCriterion(double InSize = 10000.)
+			: FSizeCriterion(InSize)
+		{
+		}
+
+	public:
+		virtual ECriterion GetCriterionType() const override
+		{
+			return ECriterion::MaxSize;
+		}
+
+		virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const override;
+		virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const override;
 	};
 
 } // namespace CADKernel

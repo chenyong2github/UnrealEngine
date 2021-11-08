@@ -735,10 +735,10 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 							UE_LOG(LogAutomationController, Display, AutomationTestStarting, *Test->GetDisplayName(), *Test->GetFullTestPath());
 							TestResults.State = EAutomationState::InProcess;
 
-							if (JsonTestPassResults.IsRequired)
+							if (JsonTestPassResults.IsRequired && bResumeRunTest)
 							{
 								JsonTestPassResults.UpdateTestResultStatus(NextTest, TestResults.State);
-								// Save the whole pass report so that if the next test triggers a critical failure we are not left with no pass report.
+								// Save the whole pass report so that if the next test triggers a critical failure we are not left with no pass report and we can resume.
 								GenerateJsonTestPassSummary(JsonTestPassResults);
 							}
 

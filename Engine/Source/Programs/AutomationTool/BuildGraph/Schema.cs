@@ -147,8 +147,6 @@ namespace AutomationTool
 	enum ScriptSchemaStandardType
 	{
 		Graph,
-		Trigger,
-		TriggerBody,
 		Agent,
 		AgentBody,
 		Node,
@@ -336,8 +334,6 @@ namespace AutomationTool
 			NewSchema.ElementFormDefault = XmlSchemaForm.Qualified;
 			NewSchema.Items.Add(CreateSchemaElement(RootElementName, ScriptSchemaStandardType.Graph));
 			NewSchema.Items.Add(CreateGraphType());
-			NewSchema.Items.Add(CreateTriggerType());
-			NewSchema.Items.Add(CreateTriggerBodyType());
 			NewSchema.Items.Add(CreateAgentType());
 			NewSchema.Items.Add(CreateAgentBodyType());
 			NewSchema.Items.Add(CreateNodeType());
@@ -501,7 +497,6 @@ namespace AutomationTool
 			GraphChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
 			GraphChoice.Items.Add(CreateSchemaElement("Macro", ScriptSchemaStandardType.Macro));
 			GraphChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
-			GraphChoice.Items.Add(CreateSchemaElement("Trigger", ScriptSchemaStandardType.Trigger));
 			GraphChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
 			GraphChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
 			GraphChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));
@@ -519,54 +514,6 @@ namespace AutomationTool
 			GraphType.Name = GetTypeName(ScriptSchemaStandardType.Graph);
 			GraphType.Particle = GraphChoice;
 			return GraphType;
-		}
-
-		/// <summary>
-		/// Creates the schema type representing the trigger type
-		/// </summary>
-		/// <returns>Type definition for a trigger</returns>
-		static XmlSchemaType CreateTriggerType()
-		{
-			XmlSchemaComplexContentExtension Extension = new XmlSchemaComplexContentExtension();
-			Extension.BaseTypeName = GetQualifiedTypeName(ScriptSchemaStandardType.TriggerBody);
-			Extension.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.QualifiedName, XmlSchemaUse.Required));
-			Extension.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
-
-			XmlSchemaComplexContent ContentModel = new XmlSchemaComplexContent();
-			ContentModel.Content = Extension;
-
-			XmlSchemaComplexType ComplexType = new XmlSchemaComplexType();
-			ComplexType.Name = GetTypeName(ScriptSchemaStandardType.Trigger);
-			ComplexType.ContentModel = ContentModel;
-			return ComplexType;
-		}
-
-		/// <summary>
-		/// Creates the schema type representing the contents of a trigger type
-		/// </summary>
-		/// <returns>Type definition for an agent</returns>
-		static XmlSchemaType CreateTriggerBodyType()
-		{
-			XmlSchemaChoice TriggerChoice = new XmlSchemaChoice();
-			TriggerChoice.MinOccurs = 0;
-			TriggerChoice.MaxOccursString = "unbounded";
-			TriggerChoice.Items.Add(CreateSchemaElement("Property", ScriptSchemaStandardType.Property));
-			TriggerChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
-			TriggerChoice.Items.Add(CreateSchemaElement("EnvVar", ScriptSchemaStandardType.EnvVar));
-			TriggerChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
-			TriggerChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
-			TriggerChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
-			TriggerChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
-			TriggerChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
-			TriggerChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));
-			TriggerChoice.Items.Add(CreateDoElement(ScriptSchemaStandardType.TriggerBody));
-			TriggerChoice.Items.Add(CreateSwitchElement(ScriptSchemaStandardType.TriggerBody));
-			TriggerChoice.Items.Add(CreateForEachElement(ScriptSchemaStandardType.TriggerBody));
-
-			XmlSchemaComplexType TriggerType = new XmlSchemaComplexType();
-			TriggerType.Name = GetTypeName(ScriptSchemaStandardType.TriggerBody);
-			TriggerType.Particle = TriggerChoice;
-			return TriggerType;
 		}
 
 		/// <summary>
@@ -753,7 +700,6 @@ namespace AutomationTool
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Targets", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Except", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Nodes", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
-			AggregateType.Attributes.Add(CreateSchemaAttribute("Triggers", ScriptSchemaStandardType.NameList, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Reports", ScriptSchemaStandardType.NameList, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Users", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			AggregateType.Attributes.Add(CreateSchemaAttribute("Submitters", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
@@ -890,7 +836,6 @@ namespace AutomationTool
 			MacroChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
 			MacroChoice.Items.Add(CreateSchemaElement("Macro", ScriptSchemaStandardType.Macro));
 			MacroChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
-			MacroChoice.Items.Add(CreateSchemaElement("Trigger", ScriptSchemaStandardType.Trigger));
 			MacroChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
 			MacroChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
 			MacroChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));

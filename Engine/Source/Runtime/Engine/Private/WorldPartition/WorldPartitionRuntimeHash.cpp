@@ -22,29 +22,7 @@ UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer&
 {}
 
 #if WITH_EDITOR
-bool UWorldPartitionRuntimeHash::GenerateRuntimeStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate)
-{
-	FWorldPartitionReference LoadedWorldDataLayers;
-	if (Mode == EWorldPartitionStreamingMode::EditorStandalone)
-	{
-		// Pre-load AWorldDataLayer as it is necessary for GenerateStreaming to world properly
-		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
-		{
-			if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
-			{
-				if (ensure(!LoadedWorldDataLayers.IsLoaded()))
-				{
-					LoadedWorldDataLayers = FWorldPartitionReference(WorldPartition, ActorDescIterator->GetGuid());
-				}
-			}
-		}
-	}
-
-	return GenerateStreaming(Mode, Policy, OutPackagesToGenerate);
-}
-
-void UWorldPartitionRuntimeHash::OnBeginPlay(EWorldPartitionStreamingMode Mode)
+void UWorldPartitionRuntimeHash::OnBeginPlay()
 {
 	// Mark always loaded actors so that the Level will force reference to these actors for PIE.
 	// These actor will then be duplicated for PIE during the PIE world duplication process

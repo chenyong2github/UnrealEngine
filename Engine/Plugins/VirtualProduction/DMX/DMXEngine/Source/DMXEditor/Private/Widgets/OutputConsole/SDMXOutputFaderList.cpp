@@ -694,7 +694,45 @@ FReply SDMXOutputFaderList::HandleAddFadersClicked()
 
 void SDMXOutputFaderList::OnFaderRequestsDelete(TSharedRef<SDMXFader> FaderToDelete)
 {
-	DeleteSelectedFader();
+	if (ensureMsgf(Faders.Contains(FaderToDelete), TEXT("Trying to delete fader that is no longer referenced by the DMX Output Console.")))
+	{
+		// Send 0 Values to the channel of the fader before deleting ît
+		TMap<int32, uint8> FragmentMap;
+		for (int32 Address = FaderToDelete->GetStartingAddress(); Address <= FaderToDelete->GetEndingAddress(); Address++)
+		{
+			FragmentMap.FindOrAdd(Address) = 0;
+		}
+
+		for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+		{
+			OutputPort->SendDMX(FaderToDelete->GetUniverseID(), FragmentMap);
+		}
+
+		// If the Fader was selected, select the next best fader
+		int32 SelectedIndex = INDEX_NONE;
+		if (TSharedPtr<SDMXFader> SelectedFader = WeakSelectedFader.Pin())
+		{
+			if (FaderToDelete == SelectedFader)
+			{
+				SelectedIndex = Faders.IndexOfByKey(SelectedFader);
+				if (SelectedIndex != INDEX_NONE)
+				{
+					if (Faders.IsValidIndex(SelectedIndex - 1))
+					{
+						SelectFader(Faders[SelectedIndex - 1]);
+					}
+					else if (Faders.IsValidIndex(SelectedIndex + 1))
+					{
+						SelectFader(Faders[SelectedIndex + 1]);
+					}
+				}
+			}
+		}
+
+		// Remove widgets and release the fader
+		Faders.Remove(FaderToDelete);
+		FaderScrollBox->RemoveSlot(FaderToDelete);
+	}
 }
 
 void SDMXOutputFaderList::OnFaderRequestsSelect(TSharedRef<SDMXFader> FaderToSelect)

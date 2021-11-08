@@ -254,7 +254,7 @@ bool FCbFieldView::AsBool(const bool bDefault)
 	FCbValue Accessor = GetValue();
 	const bool bIsBool = FCbFieldType::IsBool(Accessor.GetType());
 	Error = bIsBool ? ECbFieldError::None : ECbFieldError::TypeError;
-	return (uint8(bIsBool) & Accessor.AsBool()) | ((!bIsBool) & bDefault);
+	return (uint8(bIsBool) & Accessor.AsBool()) | ((!bIsBool) & bDefault); //-V564 //-V792
 }
 
 FIoHash FCbFieldView::AsObjectAttachment(const FIoHash& Default)

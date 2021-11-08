@@ -13,11 +13,11 @@ namespace UE
 namespace MovieScene
 {
 
-struct FEntityAllocationIteratorItem;
+struct FEntityAllocationProxy;
 
 struct FPreAnimatedTrackerParams
 {
-	MOVIESCENE_API FPreAnimatedTrackerParams(FEntityAllocationIteratorItem Item);
+	MOVIESCENE_API FPreAnimatedTrackerParams(FEntityAllocationProxy Item);
 
 	int32 Num;
 	bool bWantsRestoreState;

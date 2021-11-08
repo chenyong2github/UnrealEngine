@@ -2,13 +2,13 @@
 
 #include "SMemTagTreeViewTableRow.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeViewTableCell.h"
@@ -54,7 +54,7 @@ TSharedRef<SWidget> SMemTagTreeViewTableRow::GenerateWidgetForColumn(const FName
 		.Padding(0.0f)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Profiler.LineGraphArea"))
+			.Image(FInsightsStyle::GetBrush("TreeTable.RowBackground"))
 			.ColorAndOpacity(this, &SMemTagTreeViewTableRow::GetBackgroundColorAndOpacity)
 		]
 
@@ -137,26 +137,12 @@ FSlateColor SMemTagTreeViewTableRow::GetOutlineColorAndOpacity() const
 
 const FSlateBrush* SMemTagTreeViewTableRow::GetOutlineBrush(const FName ColumnId) const
 {
-	EHorizontalAlignment Result = HAlign_Center;
+	EHorizontalAlignment HAlign = HAlign_Center;
 	if (IsColumnVisibleDelegate.IsBound())
 	{
-		Result = GetColumnOutlineHAlignmentDelegate.Execute(ColumnId);
+		HAlign = GetColumnOutlineHAlignmentDelegate.Execute(ColumnId);
 	}
-
-	const FSlateBrush* Brush = nullptr;
-	if (Result == HAlign_Left)
-	{
-		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.L");
-	}
-	else if (Result == HAlign_Right)
-	{
-		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.R");
-	}
-	else
-	{
-		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.TB");
-	}
-	return Brush;
+	return FInsightsStyle::GetOutlineBrush(HAlign);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

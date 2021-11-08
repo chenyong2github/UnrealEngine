@@ -489,6 +489,8 @@ private:
 
 	int64 CalcBlockSize(int32 BlockIndex) const;
 	int64 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
+	int64 CalcBlockSize(const FTextureSourceBlock& Block) const;
+	int64 CalcLayerSize(const FTextureSourceBlock& Block, int32 LayerIndex) const;
 
 	void InitLayeredImpl(
 		int32 NewSizeX,
@@ -502,6 +504,8 @@ private:
 		const FTextureSourceBlock* InBlocks,
 		int32 InNumLayers,
 		int32 InNumBlocks);
+
+	bool EnsureBlocksAreSorted();
 
 public:
 	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
@@ -581,6 +585,14 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = TextureSource)
 	TArray<FTextureSourceBlock> Blocks;
 
+	/**
+	 * Offsets of each block (including Block0) in the bulk data.
+	 * Blocks are not necessarily stored in order, since block indices are sorted by X/Y location.
+	 * For non-UDIM textures, this will always have a single entry equal to 0
+	 */
+	UPROPERTY()
+	TArray<int64> BlockDataOffsets;
+
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -645,6 +657,45 @@ struct FTexturePlatformData
 	/** The key associated with this derived data. */
 	TVariant<FString, UE::DerivedData::FCacheKeyProxy> DerivedDataKey;
 
+	// Stores information about how we generated this encoded texture.
+	// Mostly relevant to Oodle, however notably does actually tell
+	// you _which_ encoder was used.
+	struct FTextureEncodeResultMetadata
+	{
+		// Returned from ITextureFormat
+		FName Encoder;
+
+		// This struct is not always filled out, allow us to check for invalid data.
+		bool bIsValid = false;
+
+		// If this is false, the remaining fields are invalid (as encode speed governs
+		// the various Oodle specific values right now.)
+		bool bSupportsEncodeSpeed = false;
+
+		enum class OodleRDOSource : uint8
+		{
+			Default,	// We defaulted back to the project settings
+			LODGroup,	// We used the LCA off the LOD group to generate a lambda
+			Texture,	// We used the LCA off the texture to generate a lambda.
+		};
+
+		OodleRDOSource RDOSource = OodleRDOSource::Default;
+
+		// The resulting RDO lambda, 0 means no RDO.
+		uint8 OodleRDO = 0;
+
+		// enum ETextureEncodeEffort
+		uint8 OodleEncodeEffort = 0;
+
+		// enum ETextureUniversalTiling
+		uint8 OodleUniversalTiling = 0;
+
+		// Which encode speed we ended up using. Must be either ETextureEncodeSpeed::Final or ETextureEncodeSpeed::Fast.
+		uint8 EncodeSpeed = 0;
+	};
+
+	FTextureEncodeResultMetadata ResultMetadata;
+
 	struct FStructuredDerivedDataKey
 	{
 		FIoHash BuildDefinitionKey;
@@ -674,8 +725,6 @@ struct FTexturePlatformData
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;
 
-	// Which encode speed we ended up using. Must be either ETextureEncodeSpeed::Final or ETextureEncodeSpeed::Fast.
-	uint8 UsedEncodeSpeed;
 #endif
 
 	/** Default constructor. */
@@ -785,6 +834,8 @@ public:
 		class UTexture& InTexture,
 		const struct FTextureBuildSettings* InSettingsPerLayerFetchFirst,
 		const struct FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
+		const FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadataPerLayerFetchFirst,
+		const FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadataPerLayerFetchOrBuild,
 		uint32 InFlags,
 		class ITextureCompressorModule* Compressor);
 	void FinishCache();
@@ -1166,6 +1217,10 @@ public:
 	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead.")
 	TFieldPtrAccessor<FTextureResource> Resource;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual ~UTexture() {};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/** Set texture's resource, can be NULL */
 	ENGINE_API void SetResource(FTextureResource* Resource);
 

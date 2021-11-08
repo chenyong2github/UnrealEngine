@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
-
+#include "USDAssetOptions.h"
 #include "USDStageOptions.h"
 
 #include "AssetExportTask.h"
@@ -18,54 +18,30 @@ struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 	GENERATED_BODY()
 
 	/** Whether to export only the selected actors, and assets used by them */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
     bool bSelectionOnly = false;
 
-	/** Whether to bake UE materials and add material bindings to the baked assets */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
-    bool bBakeMaterials = false;
-
-	/** Resolution to use when baking materials into textures */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials", ClampMin = "1" ) )
-	FIntPoint BakeResolution = FIntPoint( 512, 512 );
-
-	/** Whether to remove the 'unrealMaterial' attribute after binding the corresponding baked material */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials" ) )
-	bool bRemoveUnrealMaterials = false;
-
-	/** If true, the actual static/skeletal mesh data is exported in "payload" files, and referenced via the payload composition arc */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
-	bool bUsePayload = false;
-
-	/** USD format to use for exported payload files */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bUsePayload", GetOptions = GetUsdExtensions ) )
-	FString PayloadFormat;
-
-	/** Lowest of the LOD indices to export static and skeletal meshes with (use 0 for maximum detail) */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
-	int32 LowestMeshLOD = 0;
-
-	/** Highest of the LOD indices to export static and skeletal meshes with */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
-	int32 HighestMeshLOD = MAX_MESH_LOD_COUNT - 1;
-
 	/** Whether to use UE actor folders as empty prims */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
     bool bExportActorFolders = false;
 
+	/** Options to use for all exported assets when appropriate (e.g. static and skeletal meshes, materials, etc.) */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Asset options", meta = ( ShowOnlyInnerProperties ) )
+	FUsdMeshAssetOptions AssetOptions;
+
 	/** Lowest of the LOD indices to export landscapes with (use 0 for full resolution) */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Landscape options", meta = ( ClampMin = "0" ) )
 	int32 LowestLandscapeLOD = 0;
 
 	/**
 	 * Highest of the LOD indices to export landscapes with. Each value above 0 halves resolution.
 	 * The max value depends on the number of components and sections per component of each landscape, and may be clamped.
 	 */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Landscape options", meta = ( ClampMin = "0" ) )
 	int32 HighestLandscapeLOD = 0;
 
 	/** Resolution to use when baking landscape materials into textures  */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "1" ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Landscape options", meta = ( ClampMin = "1" ) )
 	FIntPoint LandscapeBakeResolution = FIntPoint( 1024, 1024 );
 
 	/** If true, and if we have a level sequence animating the level during export, it will revert any actor or component to its unanimated state before writing to USD */

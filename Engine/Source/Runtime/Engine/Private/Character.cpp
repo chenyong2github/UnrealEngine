@@ -85,8 +85,9 @@ ACharacter::ACharacter(const FObjectInitializer& ObjectInitializer)
 	if (CharacterMovement)
 	{
 		CharacterMovement->UpdatedComponent = CapsuleComponent;
-		CrouchedEyeHeight = CharacterMovement->CrouchedHalfHeight * 0.80f;
 	}
+
+	RecalculateCrouchedEyeHeight();
 
 	Mesh = CreateOptionalDefaultSubobject<USkeletalMeshComponent>(ACharacter::MeshComponentName);
 	if (Mesh)
@@ -444,6 +445,16 @@ void ACharacter::OnStartCrouch( float HeightAdjust, float ScaledHeightAdjust )
 	}
 
 	K2_OnStartCrouch(HeightAdjust, ScaledHeightAdjust);
+}
+
+void ACharacter::RecalculateCrouchedEyeHeight()
+{
+	if (CharacterMovement != nullptr)
+	{
+		constexpr float EyeHeightRatio = 0.8f;	// how high the character's eyes are, relative to the crouched height
+
+		CrouchedEyeHeight = CharacterMovement->GetCrouchedHalfHeight() * EyeHeightRatio;
+	}
 }
 
 void ACharacter::ApplyDamageMomentum(float DamageTaken, FDamageEvent const& DamageEvent, APawn* PawnInstigator, AActor* DamageCauser)

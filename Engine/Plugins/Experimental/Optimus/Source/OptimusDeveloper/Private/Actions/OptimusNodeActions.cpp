@@ -3,8 +3,11 @@
 #include "OptimusNodeActions.h"
 
 #include "IOptimusNodeGraphCollectionOwner.h"
+#include "OptimusHelpers.h"
 #include "OptimusNode.h"
+#include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+
 
 FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
 	UOptimusNode* InNode, 

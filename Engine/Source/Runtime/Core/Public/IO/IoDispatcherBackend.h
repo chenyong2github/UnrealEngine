@@ -115,6 +115,7 @@ struct IIoDispatcherFileBackend
 {
 	virtual TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) = 0;
 	virtual bool Unmount(const TCHAR* ContainerPath) = 0;
+	virtual void ReopenAllFileHandles() = 0;
 };
 
 CORE_API TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend();

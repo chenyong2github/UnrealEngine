@@ -15,7 +15,7 @@ namespace Chaos
 	public:
 		FCollisionContext()
 			: bFilteringEnabled(true)
-			, bDeferUpdate(true)
+			, bDeferUpdate(false)
 			, bAllowManifolds(false)
 			, bForceDisableCCD(false)
 			, CollisionAllocator(nullptr)

@@ -247,6 +247,38 @@ public class ElectraAudioDecoderAAC
 	}
 
 
+	public int QueueEOSInputBuffer(int InBufferIndex, long InTimestampUSec)
+	{
+		if (bIsInitialized)
+		{
+			if (InBufferIndex >= 0)
+			{
+				try
+				{
+					ByteBuffer Buffer = DecoderHandle.getInputBuffer(InBufferIndex);
+					Buffer.clear();
+					DecoderHandle.queueInputBuffer(InBufferIndex, 0, 0, InTimestampUSec, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+				}
+				catch(Exception e)
+				{
+					Log.w(TAG,"ElectraVideoDecoderAAC: Failed to queue EOS input buffer");
+					e.printStackTrace();
+					return -10000;
+				}
+				return 0;
+			}
+			else
+			{
+				return -10002;
+			}
+		}
+		else
+		{
+			return -10001;
+		}
+	}
+
+
 	public FOutputFormatInfo GetOutputFormatInfo(int InOutputBufferIndex)
 	{
 		//FOutputFormatInfo OutputFormatInfo = new FOutputFormatInfo();

@@ -20,6 +20,7 @@ public:
 	virtual FTimeValue GetAnchorTime() const override;
 	virtual FTimeRange GetTotalTimeRange() const override;
 	virtual FTimeRange GetSeekableTimeRange() const override;
+	virtual FTimeRange GetPlaybackRange() const override;
 	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
 	virtual FTimeValue GetDuration() const override;
 	virtual FTimeValue GetDefaultStartTime() const override;

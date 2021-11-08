@@ -819,10 +819,30 @@ TArray<FName> FAssetManagerEditorModule::GetContentBrowserSelectedAssetPackages(
 
 void FAssetManagerEditorModule::CreateAssetContextMenu(FToolMenuSection& InSection)
 {
-	InSection.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewReferences);
-	InSection.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewSizeMap);
-	InSection.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewAssetAudit);
-	InSection.AddMenuEntry(FAssetManagerEditorCommands::Get().ViewShaderCookStatistics);
+	InSection.AddMenuEntry(
+		FAssetManagerEditorCommands::Get().ViewReferences,
+		TAttribute<FText>(), // Use command Label
+		TAttribute<FText>(), // Use command tooltip
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.ReferenceViewer")
+	);
+	InSection.AddMenuEntry(
+		FAssetManagerEditorCommands::Get().ViewSizeMap,
+		TAttribute<FText>(), // Use command Label
+		TAttribute<FText>(), // Use command tooltip
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.SizeMap")
+	);
+	InSection.AddMenuEntry(
+		FAssetManagerEditorCommands::Get().ViewAssetAudit,
+		TAttribute<FText>(), // Use command Label
+		TAttribute<FText>(), // Use command tooltip
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Audit")
+	);
+	InSection.AddMenuEntry(
+		FAssetManagerEditorCommands::Get().ViewShaderCookStatistics,
+		TAttribute<FText>(), // Use command Label
+		TAttribute<FText>(), // Use command tooltip
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.CookContent")
+	);
 }
 
 void FAssetManagerEditorModule::OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate)

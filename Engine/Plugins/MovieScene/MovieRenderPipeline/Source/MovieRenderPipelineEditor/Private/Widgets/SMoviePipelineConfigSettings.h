@@ -8,6 +8,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/ObjectKey.h"
 #include "Styling/SlateTypes.h" 
+#include "EditorUndoClient.h"
 
 class ITableRow;
 class FUICommandList;
@@ -25,7 +26,7 @@ DECLARE_DELEGATE_TwoParams(
 )
 
 /** Main widget for the Movie Render Shot Config panel */
-class SMoviePipelineConfigSettings : public SCompoundWidget
+class SMoviePipelineConfigSettings : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 
@@ -45,6 +46,11 @@ private:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	void SetSelectedSettings_Impl(const TArray<UMoviePipelineSetting*>& Settings);
+
+	// FEditorUndoClient
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// ~FEditorUndoClient
 
 private:
 

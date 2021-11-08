@@ -1471,6 +1471,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 
 				Representation->ID = MPDRepresentation->GetID();
 				Representation->Bitrate = MPDRepresentation->GetBandwidth();
+				Representation->CodecInfo.SetBitrate(Representation->Bitrate);
 
 				// Propagate the language code from the AdaptationSet into the codec info
 				Representation->CodecInfo.SetStreamLanguageCode(AdaptationSet->Language);
@@ -2370,6 +2371,13 @@ void FManifestDASHInternal::EndPresentationAt(const FTimeValue& EndsAt, const FS
 
 
 
+void FManifestDASHInternal::PrepareDefaultStartTime()
+{
+	FTimeRange PlaybackRange = GetPlayTimesFromURI();
+	DefaultStartTime = PlaybackRange.Start;
+}
+
+
 FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 {
 	FTimeRange FromTo;
@@ -2392,7 +2400,8 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 		return FromTo;
 	}
 
-	FTimeRange Seekable = GetSeekableTimeRange();
+//	FTimeRange AvailableTimeRange = GetSeekableTimeRange();
+	FTimeRange AvailableTimeRange = GetTotalTimeRange();
 	// Is the time specified as a POSIX time?
 	TArray<FString> TimeRange;
 	const TCHAR* const TimeDelimiter = TEXT(",");
@@ -2400,13 +2409,12 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 	{
 		Time.RightChopInline(6);
 		Time.ParseIntoArray(TimeRange, TimeDelimiter, false);
-		// There needs to be a start time in the range. If there is only an end time we do nothing.
+		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		if (TimeRange.Num() && !TimeRange[0].IsEmpty())
 		{
 			// Is the start time the special time 'now'?
 			if (TimeRange[0].Equals(TEXT("now")))
 			{
-				FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 				/*
 				FTimeValue LastEnd = GetLastPeriodEndTime();
 				if (LastEnd.IsValid() && Now > LastEnd)
@@ -2418,18 +2426,36 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 			}
 			else
 			{
-				int64 s = 0;
-				LexFromString(s, *TimeRange[0]);
-				FromTo.Start.SetFromSeconds(s);
+				FTimeValue s;
+				if (UnixEpoch::ParseFloatString(s, *TimeRange[0]))
+				{
+					FromTo.Start = s;
+				}
+			}
+		}
+		if (TimeRange.Num() > 1 && !TimeRange[1].IsEmpty())
+		{
+			if (TimeRange[1].Equals(TEXT("now")))
+			{
+				FromTo.End = Now;
+			}
+			else
+			{
+				FTimeValue e;
+				if (UnixEpoch::ParseFloatString(e, *TimeRange[1]))
+				{
+					FromTo.End= e;
+				}
 			}
 		}
 	}
 	else
 	{
+		FTimeValue PeriodStart;
 		// If there is no period specified then the period is the one with the earliest start time
 		if (PeriodID.IsEmpty())
 		{
-			FromTo.Start = Periods[0]->GetStart();
+			PeriodStart = Periods[0]->GetStart();
 		}
 		else
 		{
@@ -2438,31 +2464,37 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 			{
 				if (Periods[i]->GetID().Equals(PeriodID))
 				{
-					FromTo.Start = Periods[i]->GetStart();
+					PeriodStart = Periods[i]->GetStart();
 					break;
 				}
 			}
 			// If the named period wasn't found use the first one.
 			if (!FromTo.Start.IsValid())
 			{
-				FromTo.Start = Periods[0]->GetStart();
+				PeriodStart = Periods[0]->GetStart();
 			}
 		}
 
-		FromTo.Start += GetAnchorTime();
+		PeriodStart += GetAnchorTime();
+		FromTo.Start = PeriodStart;
 		// If there is no t specified we are done, otherwise we need to parse it.
 		if (!Time.IsEmpty())
 		{
+			FTimeValue Offset;
 			// We need to parse out the 't' and add it to the period.
 			Time.ParseIntoArray(TimeRange, TimeDelimiter, false);
-			// There needs to be a start time in the range. If there is only an end time we do nothing.
 			if (TimeRange.Num() && !TimeRange[0].IsEmpty())
 			{
-				// When there is no POSIX time these values here are NPT
-				FTimeValue Offset;
 				if (RFC2326::ParseNPTTime(Offset, TimeRange[0]))
 				{
-					FromTo.Start += Offset;
+					FromTo.Start = PeriodStart + Offset;
+				}
+			}
+			if (TimeRange.Num() > 1 && !TimeRange[1].IsEmpty())
+			{
+				if (RFC2326::ParseNPTTime(Offset, TimeRange[1]))
+				{
+					FromTo.End = PeriodStart + Offset;
 				}
 			}
 		}
@@ -2470,14 +2502,14 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 	// Need to clamp this into the seekable range to prevent any issues.
 	if (FromTo.Start.IsValid())
 	{
-		if (Seekable.Start.IsValid() && FromTo.Start < Seekable.Start)
+		if (AvailableTimeRange.Start.IsValid() && FromTo.Start < AvailableTimeRange.Start)
 		{
-			FromTo.Start = Seekable.Start;
+			FromTo.Start = AvailableTimeRange.Start;
 		}
 		/*
-		else if (Seekable.End.IsValid() && FromTo.Start > Seekable.End)
+		else if (AvailableTimeRange.End.IsValid() && FromTo.Start > AvailableTimeRange.End)
 		{
-			FromTo.Start = Seekable.End;
+			FromTo.Start = AvailableTimeRange.End;
 		}
 		*/
 	}
@@ -2486,13 +2518,12 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 
 FTimeValue FManifestDASHInternal::GetDefaultStartTime() const
 {
-	FTimeRange FromTo = GetPlayTimesFromURI();
-	return FromTo.Start;
+	return DefaultStartTime;
 }
 
 void FManifestDASHInternal::ClearDefaultStartTime()
 {
-	URLFragmentComponents.Empty();
+	DefaultStartTime.SetToInvalid();
 }
 
 

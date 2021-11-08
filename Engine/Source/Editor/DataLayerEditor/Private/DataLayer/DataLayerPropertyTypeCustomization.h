@@ -12,6 +12,8 @@ class SWidget;
 class FDragDropOperation;
 class FDataLayerDragDropOp;
 class UDataLayer;
+struct FSlateColor;
+struct FSlateBrush;
 
 struct FDataLayerPropertyTypeCustomization : public IPropertyTypeCustomization
 {
@@ -24,9 +26,12 @@ private:
 
 	UDataLayer* GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult = nullptr) const;
 	FText GetDataLayerText() const;
+	FSlateColor GetForegroundColor() const;
+	const FSlateBrush* GetDataLayerIcon() const;
 	EVisibility GetSelectDataLayerVisibility() const;
 
 	TSharedRef<SWidget> OnGetDataLayerMenu();
+	void OnBrowse();
 	FReply OnSelectDataLayer();
 	FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	bool OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop);

@@ -949,9 +949,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	if (!bNeedsSlowPath && WidgetsNeedingPreUpdate->Num() > 0)
 	{
 		SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_PreUpdate, FColor::Blue);
-#if WITH_SLATE_DEBUGGING
-		FScopedDurationTimer TmpPerformance(PerformanceStat.WidgetsPreUpdate);
-#endif
 
 		ProcessPreUpdate();
 	}

@@ -37,11 +37,11 @@ public:
 	bool bOverrideExportRange = false;
 
 	/** Initial frame of the level sequence to bake out to USD (inclusive) */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence", meta = ( EditCondition = "bOverrideExportRange", EditConditionHides ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence", meta = ( EditCondition = "bOverrideExportRange" ) )
 	int32 StartFrame = 0;
 
 	/** Final frame of the level sequence to bake out to USD (inclusive) */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence", meta = ( EditCondition = "bOverrideExportRange", EditConditionHides ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence", meta = ( EditCondition = "bOverrideExportRange" ) )
 	int32 EndFrame = 0;
 
 	/**
@@ -57,15 +57,15 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence" )
 	bool bExportLevel = false;
 
-	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel", EditConditionHides ) )
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel" ) )
 	TWeakObjectPtr<UWorld> Level = nullptr;
 
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel", EditConditionHides ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel" ) )
 	FLevelExporterUSDOptionsInner LevelExportOptions;
 
 	/**
 	 * If checked this will also add the exported level as a sublayer to the USD files emitted for all exported level sequences
 	 */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel", EditConditionHides ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel" ) )
 	bool bUseExportedLevelAsSublayer = false;
 };

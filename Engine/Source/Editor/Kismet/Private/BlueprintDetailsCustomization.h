@@ -758,7 +758,6 @@ protected:
 	void OnShowingImportSuggestions(const FString& InputText, TArray<FString>& OutSuggestions);
 
 private:
-	TSet<FString> AvailableNamespaces;
 	TSharedPtr<SSuggestionTextBox> ImportEntryTextBox;
 };
 

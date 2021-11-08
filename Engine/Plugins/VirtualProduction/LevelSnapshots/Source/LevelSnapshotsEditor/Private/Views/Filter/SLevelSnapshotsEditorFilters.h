@@ -31,10 +31,9 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+	void Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* EditorData);
 
 	ULevelSnapshotsEditorData* GetEditorData() const;
-	TSharedPtr<FLevelSnapshotsEditorFilters> GetFiltersModel() const;
 	const TSharedPtr<IDetailsView>& GetFilterDetailsView() const;
 	bool IsResizingDetailsView() const;
 	
@@ -62,6 +61,5 @@ private:
 	/* Splits filters and details panel */
 	TSharedPtr<SCustomSplitter> DetailsSplitter;
 
-	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorDataPtr;
 };

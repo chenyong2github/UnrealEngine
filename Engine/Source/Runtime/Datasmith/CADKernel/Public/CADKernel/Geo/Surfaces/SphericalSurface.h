@@ -43,16 +43,12 @@ namespace CADKernel
 			, Matrix(InMatrix)
 			, Radius(InRadius)
 		{
-			SetMinToleranceIso();
+			ComputeMinToleranceIso();
 		}
 
-		FSphericalSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FSphericalSurface() = default;
 
-		virtual void SetMinToleranceIso() override
+		void ComputeMinToleranceIso()
 		{
 			double Tolerance2D = Tolerance3D / Radius;
 

@@ -8,6 +8,7 @@
 #include "Containers/RingBuffer.h"
 #include "Containers/UnrealString.h"
 #include "CookTypes.h"
+#include "Engine/ICookInfo.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
@@ -15,9 +16,7 @@
 class FEvent;
 class ITargetPlatform;
 
-namespace UE
-{
-namespace Cook
+namespace UE::Cook
 {
 
 	/**
@@ -30,20 +29,25 @@ namespace Cook
 		FName Filename;
 		TArray<const ITargetPlatform*> Platforms;
 		FCompletionCallback CompletionCallback;
+		FInstigator Instigator;
 
 	public:
 		FFilePlatformRequest() = default;
 
-		FFilePlatformRequest(const FName& InFilename);
-		FFilePlatformRequest(const FName& InFilename, const ITargetPlatform* InPlatform, FCompletionCallback&& InCompletionCallback = FCompletionCallback());
-		FFilePlatformRequest(const FName& InFilename, const TArrayView<const ITargetPlatform* const>& InPlatforms, FCompletionCallback&& InCompletionCallback = FCompletionCallback());
-		FFilePlatformRequest(const FName& InFilename, TArray<const ITargetPlatform*>&& InPlatforms, FCompletionCallback&& InCompletionCallback = FCompletionCallback());
+		FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator);
+		FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator, const ITargetPlatform* InPlatform,
+			FCompletionCallback&& InCompletionCallback = FCompletionCallback());
+		FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator,
+			const TArrayView<const ITargetPlatform* const>& InPlatforms, FCompletionCallback&& InCompletionCallback = FCompletionCallback());
+		FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator,
+			TArray<const ITargetPlatform*>&& InPlatforms, FCompletionCallback&& InCompletionCallback = FCompletionCallback());
 		FFilePlatformRequest(const FFilePlatformRequest& InFilePlatformRequest);
 		FFilePlatformRequest(FFilePlatformRequest&& InFilePlatformRequest);
 		FFilePlatformRequest& operator=(FFilePlatformRequest&& InFileRequest);
 
 		void SetFilename(FString InFilename);
 		const FName& GetFilename() const;
+		FInstigator& GetInstigator();
 
 		const TArray<const ITargetPlatform*>& GetPlatforms() const;
 		TArray<const ITargetPlatform*>& GetPlatforms();
@@ -129,5 +133,4 @@ namespace Cook
 		FCriticalSection RequestLock;
 		int32 RequestCount = 0;
 	};
-}
 }

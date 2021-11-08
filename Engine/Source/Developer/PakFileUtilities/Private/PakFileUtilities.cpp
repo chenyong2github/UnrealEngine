@@ -2856,6 +2856,10 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 		{
 			UE_LOG(LogPakFile, Fatal, TEXT("Missing encryption key %s for pak file \"%s\"."), *PakFile.GetInfo().EncryptionKeyGuid.ToString(), InPakFilename);
 		}
+		else if (LegacyListIoStoreContainer(InPakFilename, SizeFilter, CSVFilename, bExtractToMountPoint, InKeyChain))
+		{
+			return true;
+		}
 		else
 		{
 			UE_LOG(LogPakFile, Fatal, TEXT("Unable to open pak file \"%s\"."), InPakFilename);
@@ -3553,7 +3557,7 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 							{
 								UncompressCopyFile(*FileHandle, PakReader.GetArchive(), Entry, PersistantCompressionBuffer, CompressionBufferSize, InKeyChain, PakFile);
 							}
-							UE_LOG(LogPakFile, Display, TEXT("Extracted \"%s\" to \"%s\" Offset %d."), *EntryFileName, *DestFilename, Entry.Offset);
+							UE_LOG(LogPakFile, Display, TEXT("Extracted \"%s\" to \"%s\" Offset %lld."), *EntryFileName, *DestFilename, Entry.Offset);
 							ExtractedCount++;
 
 							if (OutOrderMap != nullptr)
@@ -3598,8 +3602,39 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 		}
 		else
 		{
-			UE_LOG(LogPakFile, Error, TEXT("Unable to open pak file \"%s\"."), *PakFilename);
-			return false;
+			TMap<FString, uint64> IoStoreContainerOrderMap;
+			bool bIoStoreContainerIsSigned;
+			if (!ExtractFilesFromIoStoreContainer(
+				*PakFilename,
+				InDestPath,
+				bUseMountPoint,
+				InKeyChain,
+				InFilter,
+				OutOrderMap ? &IoStoreContainerOrderMap : nullptr,
+				OutUsedEncryptionKeys,
+				&bIoStoreContainerIsSigned))
+			{
+				UE_LOG(LogPakFile, Error, TEXT("Unable to open pak file \"%s\"."), *PakFilename);
+				return false;
+			}
+
+			if (OutEntries)
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Generating response files from IoStore containers is not supported."));
+			}
+
+			if (OutOrderMap)
+			{
+				for (const auto& KV : IoStoreContainerOrderMap)
+				{
+					OutOrderMap->AddOffset(KV.Key, KV.Value);
+				}
+			}
+
+			if (OutAnyPakSigned)
+			{
+				*OutAnyPakSigned |= bIoStoreContainerIsSigned;
+			}
 		}
 	}
 
@@ -3628,7 +3663,14 @@ bool DumpPakInfo(const FString& InPakFilename, const FKeyChain& InKeyChain)
 
 	if (!PakFile.IsValid())
 	{
-		return false;
+		if (DumpIoStoreContainerInfo(*InPakFilename, InKeyChain))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 
@@ -3658,7 +3700,6 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 	int32 NumEqualContents = 0;
 
 	TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-	UE_LOG(LogPakFile, Log, TEXT("FileEventType, FileName, Size1, Size2"));
 
 	TRefCountPtr<FPakFile> PakFilePtr1 = new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *InPakFilename1, false);
 	FPakFile& PakFile1 = *PakFilePtr1;
@@ -3666,6 +3707,8 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 	FPakFile& PakFile2 = *PakFilePtr2;
 	if (PakFile1.IsValid() && PakFile2.IsValid())
 	{		
+		UE_LOG(LogPakFile, Log, TEXT("FileEventType, FileName, Size1, Size2"));
+
 		FSharedPakReader PakReader1 = PakFile1.GetSharedReader(NULL);
 		FSharedPakReader PakReader2 = PakFile2.GetSharedReader(NULL);
 
@@ -3792,11 +3835,17 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 
 		FMemory::Free(Buffer);
 		Buffer = nullptr;
+
+		UE_LOG(LogPakFile, Log, TEXT("Comparison complete"));
+		UE_LOG(LogPakFile, Log, TEXT("Unique to first pak: %i, Unique to second pak: %i, Num Different: %i, NumEqual: %i"), NumUniquePAK1, NumUniquePAK2, NumDifferentContents, NumEqualContents);
+		return true;
+	}
+	else if (LegacyDiffIoStoreContainers(*InPakFilename1, *InPakFilename2, bLogUniques1, bLogUniques2, InKeyChain))
+	{
+		return true;
 	}
 
-	UE_LOG(LogPakFile, Log, TEXT("Comparison complete"));
-	UE_LOG(LogPakFile, Log, TEXT("Unique to first pak: %i, Unique to second pak: %i, Num Different: %i, NumEqual: %i"), NumUniquePAK1, NumUniquePAK2, NumDifferentContents, NumEqualContents);	
-	return true;
+	return false;
 }
 
 void GenerateHashForFile(uint8* ByteBuffer, uint64 TotalSize, FFileInfo& FileHash)
@@ -4934,14 +4983,21 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		bool bExtractToMountPoint = FParse::Param(CmdLine, TEXT("ExtractToMountPoint"));
 		TMap<FString, FFileInfo> EmptyMap;
 		TArray<FPakInputPair> ResponseContent;
+		TArray<FPakInputPair>* UsedResponseContent = nullptr;
 		TArray<FPakInputPair> DeletedContent;
+		TArray<FPakInputPair>* UsedDeletedContent = nullptr;
+		if (bGenerateResponseFile)
+		{
+			UsedResponseContent = &ResponseContent;
+			UsedDeletedContent = &DeletedContent;
+		}
 		FPakOrderMap OrderMap;
 		FPakOrderMap* UsedOrderMap = nullptr;
 		if (bGenerateOrderMap)
 		{
 			UsedOrderMap = &OrderMap;
 		}
-		if (ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr, &ResponseContent, &DeletedContent, UsedOrderMap) == false)
+		if (ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr, UsedResponseContent, UsedDeletedContent, UsedOrderMap) == false)
 		{
 			return false;
 		}

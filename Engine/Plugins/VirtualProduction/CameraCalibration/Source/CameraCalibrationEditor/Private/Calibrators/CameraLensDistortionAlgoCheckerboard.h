@@ -63,6 +63,8 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual FName FriendlyName() const override { return TEXT("Lens Distortion Checkerboard"); };
+	virtual UMaterialInterface* GetOverlayMaterial() const override;
+	virtual bool IsOverlayEnabled() const override { return bShouldShowOverlay; };
 	virtual void OnDistortionSavedToLens() override;
 	virtual bool GetLensDistortion(
 		float& OutFocus,

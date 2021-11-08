@@ -5796,16 +5796,14 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			}
 			else
 			{
-				const FGuid* const Guid = Desc.Guid.IsValid() ? &Desc.Guid : nullptr;
-
 				bool bDoesPackageExist = false;
 				{
 					SCOPED_LOADTIMER(CreateLinker_DoesExist);
 #if WITH_IOSTORE_IN_EDITOR 
 					// Only look for non cooked packages on disk
-					bDoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, Guid, false /* bMatchCaseOnDisk */, &PackagePath) != FPackageName::EPackageLocationFilter::None;
+					bDoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, false /* bMatchCaseOnDisk */, &PackagePath) != FPackageName::EPackageLocationFilter::None;
 #else
-					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, Guid, false /* bMatchCaseOnDisk */, &PackagePath);
+					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, false /* bMatchCaseOnDisk */, &PackagePath);
 #endif
 				}
 
@@ -6954,7 +6952,7 @@ void FAsyncPackage::UpdateLoadPercentage()
 	LoadPercentage = FMath::Max(NewLoadPercentage, LoadPercentage);
 }
 
-int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, const FGuid* InGuid, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InstancingContext)
+int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName InCustomName, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InstancingContext)
 {
 	static bool bOnce = false;
 	if (!bOnce && GEventDrivenLoaderEnabled)
@@ -6990,7 +6988,7 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 	}
 
 	// Add new package request
-	FAsyncPackageDesc PackageDesc(RequestID, PackageName, InPackagePath, InGuid ? *InGuid : FGuid(), MoveTemp(CompletionDelegatePtr), InPackageFlags, InPIEInstanceID, InPackagePriority);
+	FAsyncPackageDesc PackageDesc(RequestID, PackageName, InPackagePath, MoveTemp(CompletionDelegatePtr), InPackageFlags, InPIEInstanceID, InPackagePriority);
 	if (InstancingContext)
 	{
 		PackageDesc.SetInstancingContext(*InstancingContext);

@@ -160,7 +160,8 @@ void UGameFeatureData::ReloadConfigs(FConfigFile& PluginConfig) const
 				UObject* PerObjConfigObj = StaticFindObject(ObjClass, ANY_PACKAGE, *ObjectName, true);
 				if (PerObjConfigObj)
 				{
-					PerObjConfigObj->ReloadConfig();
+					// Intentionally using LoadConfig instead of ReloadConfig, since we do not want to call modify/preeditchange/posteditchange on the objects changed when GIsEditor
+					PerObjConfigObj->LoadConfig(nullptr, nullptr, UE::LCPF_ReloadingConfigData | UE::LCPF_ReadParentSections, nullptr);
 				}
 			}
 			else
@@ -183,7 +184,8 @@ void UGameFeatureData::ReloadConfigs(FConfigFile& PluginConfig) const
 				{
 					if (IsValid(CurFoundObj))
 					{
-						CurFoundObj->ReloadConfig();
+						// Intentionally using LoadConfig instead of ReloadConfig, since we do not want to call modify/preeditchange/posteditchange on the objects changed when GIsEditor
+						CurFoundObj->LoadConfig(nullptr, nullptr, UE::LCPF_ReloadingConfigData | UE::LCPF_ReadParentSections, nullptr);
 					}
 				}
 			}

@@ -220,9 +220,10 @@ namespace GeometryCollectionTest
 
 	}
 
-	// CollisionGroup == 0 : Collide_With_Everything
-	// CollisionGroup == INDEX_NONE : Disabled collisions
-	// CollisionGroup_A != CollisionGroup_B : Skip Check
+	// CollisionGroup == 0 : Collide With Everything Except CollisionGroup=-1
+	// CollisionGroup == -1 : Collide With Nothing Including CollisionGroup=0
+	// CollisionGroup_A == CollisionGroup_B : Collide With Each Other
+	// CollisionGroup_A != CollisionGroup_B : Don't Collide With Each Other
 	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_CollisionGroup)
 	{
 
@@ -254,6 +255,11 @@ namespace GeometryCollectionTest
 		{
 			if (Frame == 1)
 			{
+				// Object 0 collides with everything except Object 4
+				// Objects 1,2 collide with each other and Object 0 plus the ground
+				// Object 3 collides with Object 0 plus the ground
+				// Object 4 collides with nothing
+				// We should end up with 2 stacks on the ground (0,1,2), (0,3) and one free-falling object (4)
 				GCParticles[0]->SetCollisionGroup(0);
 				GCParticles[1]->SetCollisionGroup(1);
 				GCParticles[2]->SetCollisionGroup(1);
@@ -270,9 +276,9 @@ namespace GeometryCollectionTest
 			if (Frame == 100)
 			{
 				EXPECT_NEAR(Transform[0].GetTranslation().Z, 50.0f, 1.0f);
-				EXPECT_NEAR(Transform[1].GetTranslation().Z, 50.0f, 1.0f);
-				EXPECT_NEAR(Transform[2].GetTranslation().Z, 50.0f, 1.0f);
-				EXPECT_FALSE(Transform[0].GetRotation() == FQuat::Identity); 
+				EXPECT_NEAR(Transform[1].GetTranslation().Z, 150.0f, 1.0f);
+				EXPECT_NEAR(Transform[2].GetTranslation().Z, 250.0f, 1.0f);
+				EXPECT_FALSE(Transform[0].GetRotation() == FQuat::Identity);
 				EXPECT_FALSE(Transform[1].GetRotation() == FQuat::Identity);
 				EXPECT_FALSE(Transform[2].GetRotation() == FQuat::Identity);
 				EXPECT_FALSE(Transform[3].GetRotation() == FQuat::Identity);
@@ -282,9 +288,9 @@ namespace GeometryCollectionTest
 		}
 
 		EXPECT_NEAR(Transform[0].GetTranslation().Z, 50.0f, 1.0f);
-		EXPECT_NEAR(Transform[1].GetTranslation().Z, 50.0f, 1.0f);
-		EXPECT_NEAR(Transform[2].GetTranslation().Z, 50.0f, 1.0f);
-		EXPECT_NEAR(Transform[3].GetTranslation().Z, 50.0f, 1.0f);
+		EXPECT_NEAR(Transform[1].GetTranslation().Z, 150.0f, 1.0f);
+		EXPECT_NEAR(Transform[2].GetTranslation().Z, 250.0f, 1.0f);
+		EXPECT_NEAR(Transform[3].GetTranslation().Z, 150.0f, 1.0f);
 		EXPECT_FALSE(Transform[3].GetRotation() == FQuat::Identity);
 		EXPECT_TRUE(Transform[4].GetRotation() == FQuat::Identity); // Phased through everything, good.
 		EXPECT_LT(Transform[4].GetTranslation().Z, -100.0f);

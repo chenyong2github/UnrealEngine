@@ -93,7 +93,7 @@ public:
 				.Font(TextFont)
 				.Text(InArgs._Text)
 			]
-			.ContentPadding(FMargin(4.0f, 0.0f))
+			.ContentPadding(FMargin(6.0f, 0.0f))
 			.MenuContent()
 			[
 				MenuBuilder.MakeWidget()

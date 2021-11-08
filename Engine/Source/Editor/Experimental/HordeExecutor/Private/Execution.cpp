@@ -7,6 +7,7 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/CompactBinary.h"
 
 
@@ -29,11 +30,19 @@ namespace UE::RemoteExecution
 
 	TFuture<EStatusCode> FExecution::AddTasksAsync(const FString& ChannelId, const FAddTasksRequest& AddTaskRequest)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<EStatusCode> UnloadedPromise;
+			UnloadedPromise.SetValue(EStatusCode::BadRequest);
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(ChannelId);
 		const FString Route = FString::Format(TEXT("/api/v1/compute/{0}"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb(TEXT("POST"));
 		Request->SetURL(BaseURL + Route);
 		Request->SetHeader(TEXT("Content-Type"), TEXT("application/x-ue-cb"));
@@ -66,12 +75,20 @@ namespace UE::RemoteExecution
 
 	TFuture<TPair<EStatusCode, FGetTaskUpdatesResponse>> FExecution::GetUpdatesAsync(const FString& ChannelId, const int32 WaitSeconds)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<TPair<EStatusCode, FGetTaskUpdatesResponse>> UnloadedPromise;
+			UnloadedPromise.EmplaceValue(TPair<EStatusCode, FGetTaskUpdatesResponse>(EStatusCode::BadRequest, FGetTaskUpdatesResponse()));
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(ChannelId);
 		Args.Add(WaitSeconds);
 		const FString Route = FString::Format(TEXT("/api/v1/compute/{0}/updates?wait={1}"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb(TEXT("POST"));
 		Request->SetURL(BaseURL + Route);
 		Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));

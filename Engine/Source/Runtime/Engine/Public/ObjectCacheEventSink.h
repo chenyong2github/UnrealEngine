@@ -5,7 +5,7 @@
 
 #if WITH_EDITOR
 
-struct FObjectCacheEventSink
+struct ENGINE_API FObjectCacheEventSink
 {
 	// For parallel processing.  Calling BeginQueueNotifyEvents will prevent notify events from being processed, an instead placed in a list for later processing.
 	// While other threads are actively updating the events, the main thread should process those events using this ProcessQueuedNotifyEvents

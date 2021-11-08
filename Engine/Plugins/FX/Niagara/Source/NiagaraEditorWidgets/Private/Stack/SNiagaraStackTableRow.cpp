@@ -8,13 +8,17 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraEditorWidgetsUtilities.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraNodeFunctionCall.h"
 #include "NiagaraStackCommandContext.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "Styling/StyleColors.h"
+#include "NiagaraEmitterEditorData.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -454,6 +458,24 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 			FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::CollapseChildren)));
 		MenuBuilder.EndSection();
 
+
+		if (IsValidForSummaryView())
+		{
+			FUIAction ShowHideSummaryViewAction(
+			FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::ToggleShowInSummaryView),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SNiagaraStackTableRow::ShouldShowInSummaryView));
+		
+			MenuBuilder.BeginSection("SummaryViewActions", LOCTEXT("SummaryViewActions", "Summary View"));
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SummaryViewShow", "Show In Summary View"),
+				LOCTEXT("SummaryViewShowTooltip", "Should this parameter be visible in the summary view?"),
+				FSlateIcon(),
+				ShowHideSummaryViewAction,
+				NAME_None, EUserInterfaceActionType::ToggleButton);
+			MenuBuilder.EndSection();
+		}
+
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 		return FReply::Handled();
@@ -587,6 +609,69 @@ const FSlateBrush* SNiagaraStackTableRow::GetSearchResultBorderBrush() const
 void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 {
 	OwnerTree->RequestNavigateToItem(Item, 0);
+}
+
+bool SNiagaraStackTableRow::IsValidForSummaryView() const
+{
+	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
+	if (FunctionInput && FunctionInput->GetEmitterViewModel())
+	{
+		UNiagaraEmitter* Emitter = FunctionInput->GetEmitterViewModel()->GetEmitter();
+		UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::FindTopMostParentFunctionInput(FunctionInput);			
+		if (Emitter && FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput).IsSet())
+		{
+			return true;	
+		}
+	}	
+	return false;
+}
+
+void SNiagaraStackTableRow::ToggleShowInSummaryView()
+{
+	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
+	if (FunctionInput && FunctionInput->GetEmitterViewModel())
+	{
+		UNiagaraEmitter* Emitter = FunctionInput->GetEmitterViewModel()->GetEmitter();
+		if (Emitter)
+		{
+			UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::FindTopMostParentFunctionInput(FunctionInput);		
+			TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+			if (Key.IsSet())
+			{
+				UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
+				if (EditorData)
+				{
+					FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+					SummaryViewMetaData.bVisible = !SummaryViewMetaData.bVisible;			
+					EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
+				}
+			}			
+		}
+	}
+}
+
+bool SNiagaraStackTableRow::ShouldShowInSummaryView() const
+{
+	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
+	if (FunctionInput && FunctionInput->GetEmitterViewModel())
+	{
+		UNiagaraEmitter* Emitter = FunctionInput->GetEmitterViewModel()->GetEmitter();
+		if (Emitter)
+		{
+			UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::FindTopMostParentFunctionInput(FunctionInput);			
+			TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+			if (Key.IsSet())
+			{
+				UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
+				if (EditorData)
+				{
+					return EditorData->GetSummaryViewMetaData(Key.GetValue()).bVisible;
+				}
+			}			
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

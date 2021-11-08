@@ -6,6 +6,10 @@
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
 #include "OculusHMD.h"
 
+#include "VulkanRHIPrivate.h"
+#include "VulkanPendingState.h"
+#include "VulkanContext.h"
+
 #if PLATFORM_WINDOWS
 #ifndef WINDOWS_PLATFORM_TYPES_GUARD
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -60,6 +64,9 @@ FVulkanCustomPresent::FVulkanCustomPresent(FOculusHMD* InOculusHMD) :
 	}
 */
 #endif
+	FVulkanDynamicRHI* const DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+
+	bSupportsSubsampled = DynamicRHI->GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2;
 }
 
 
@@ -112,6 +119,19 @@ void* FVulkanCustomPresent::GetOvrpCommandQueue() const
 FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags)
 {
 	CheckInRenderThread();
+
+	VkImageSubresourceRange SubresourceRangeAll = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+	FVulkanCommandListContext& ImmediateContext = GVulkanRHI->GetDevice()->GetImmediateContext();
+	FVulkanCmdBuffer* CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetActiveCmdBuffer();
+
+	if (EnumHasAnyFlags(InTexCreateFlags,TexCreate_RenderTargetable))
+	{
+		GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), (VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, SubresourceRangeAll);
+	}
+	else if (EnumHasAnyFlags(InTexCreateFlags,TexCreate_Foveation))
+	{
+		GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), (VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT, SubresourceRangeAll);
+	}
 
 	switch (InResourceType)
 	{

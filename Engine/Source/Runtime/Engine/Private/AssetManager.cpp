@@ -8,6 +8,7 @@
 #include "Containers/StringView.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/ICookInfo.h"
 #include "Interfaces/IPluginManager.h"
 #include "MoviePlayerProxy.h"
 #include "UObject/ConstructorHelpers.h"
@@ -3884,7 +3885,7 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 
 			// Treat DevAlwaysCook as AlwaysCook, may get excluded in VerifyCanCookPackage
 			bool bAlwaysCook = (CookRule == EPrimaryAssetCookRule::AlwaysCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook);
-			bool bCanCook = VerifyCanCookPackage(PackageName, false);
+			bool bCanCook = VerifyCanCookPackage(nullptr, PackageName, false);
 
 			if (bAlwaysCook && bCanCook && !TypeInfo.bIsEditorOnly)
 			{
@@ -3969,15 +3970,29 @@ EPrimaryAssetCookRule UAssetManager::GetPackageCookRule(FName PackageName) const
 	return BestRules.CookRule;
 }
 
+bool UAssetManager::VerifyCanCookPackage(UE::Cook::ICookInfo* CookInfo, FName PackageName, bool bLogError) const
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	DeprecationSupportCookInfo = CookInfo;
+	bool bResult = VerifyCanCookPackage(PackageName, bLogError);
+	DeprecationSupportCookInfo = nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	return bResult;
+}
+
 bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	UE::Cook::ICookInfo* CookInfo = DeprecationSupportCookInfo;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	bool bRetVal = true;
 	EPrimaryAssetCookRule CookRule = UAssetManager::Get().GetPackageCookRule(PackageName);
 	if (CookRule == EPrimaryAssetCookRule::NeverCook)
 	{
 		if (bLogError)
 		{
-			UE_LOG(LogAssetManager, Error, TEXT("Package %s is set to NeverCook, but something is trying to cook it!"), *PackageName.ToString());
+			UE_LOG(LogAssetManager, Error, TEXT("Package %s is set to NeverCook, but something is trying to cook it! Instigator: { %s }"),
+				*PackageName.ToString(), CookInfo ? *CookInfo->GetInstigator(PackageName).ToString() : TEXT("<NoCookInfo>"));
 		}
 		
 		bRetVal = false;
@@ -3986,10 +4001,16 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 	{
 		if (bLogError)
 		{
-			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true!"), *PackageName.ToString());
+			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true! Instigator: { %s }"),
+				*PackageName.ToString(), CookInfo ? *CookInfo->GetInstigator(PackageName).ToString() : TEXT("<NoCookInfo>"));
 		}
 
 		bRetVal = false;
+	}
+	else if (CookInfo)
+	{
+		UE_LOG(LogAssetManager, Verbose, TEXT("Cooking package %s with instigator { %s }."),
+			*PackageName.ToString(), *CookInfo->GetInstigator(PackageName).ToString());
 	}
 
 	if (!bRetVal && bLogError)

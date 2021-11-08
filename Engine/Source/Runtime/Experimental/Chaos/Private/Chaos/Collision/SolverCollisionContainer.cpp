@@ -92,7 +92,8 @@ namespace Chaos
 
 			for (int32 ManifoldPointIndex = BeginPointIndex; ManifoldPointIndex < EndPointIndex; ++ManifoldPointIndex)
 			{
-				const FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoints()[ManifoldPointIndex];
+				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
+				const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
 				// The world-space contact normal
 				FVec3 WorldContactNormal;
@@ -114,7 +115,7 @@ namespace Chaos
 					WorldContactNormal);
 
 				// Calculate the target normal velocity based on restitution
-				FReal WorldContactVelocityTargetNormal = FReal(0);
+				FReal WorldContactVelocityTargetNormal = FReal(0); // If two particles are already separating, this can zero out their normal velocity and cause loss of momentum. 
 				if (Restitution > FReal(0))
 				{
 					const FVec3 ContactVelocity = Solver.GetManifoldPoint(ManifoldPointIndex).CalculateContactVelocity(Solver.SolverBody0(), Solver.SolverBody1());
@@ -122,6 +123,10 @@ namespace Chaos
 					if (ContactVelocityNormal < -RestitutionVelocityThreshold)
 					{
 						WorldContactVelocityTargetNormal = -Restitution * ContactVelocityNormal;
+					}
+					else if (ContactVelocityNormal > RestitutionVelocityThreshold)
+					{
+						WorldContactVelocityTargetNormal = ContactVelocityNormal; // @todo(zhenglin): Ideally we should not apply impulse in this case.
 					}
 				}
 
@@ -145,7 +150,9 @@ namespace Chaos
 			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
 			{
 				const FPBDCollisionSolver::FSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
-				FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoints()[PointIndex];
+
+				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
+				FManifoldPoint& ManifoldPoint = ManifoldPoints[PointIndex];
 
 				ManifoldPoint.NetPushOut = SolverManifoldPoint.NetPushOut;
 				ManifoldPoint.NetPushOutNormal = FVec3::DotProduct(SolverManifoldPoint.NetPushOut, SolverManifoldPoint.WorldContactNormal);
@@ -167,6 +174,7 @@ namespace Chaos
 			}
 
 			Constraint->AccumulatedImpulse = AccumulatedImpulse;
+			Constraint->SetNumActivePositionIterations(Solver.NumPositionSolves());
 
 			Constraint->SetSolverBodies(nullptr, nullptr);
 			Constraint = nullptr;

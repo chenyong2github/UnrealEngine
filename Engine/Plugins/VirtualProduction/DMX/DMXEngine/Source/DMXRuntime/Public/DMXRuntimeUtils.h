@@ -7,7 +7,9 @@
 #include "CoreMinimal.h"
 #include "JsonObjectConverter.h"
 
+class UDMXEntity;
 class UDMXEntityFixturePatch;
+class UDMXLibrary;
 
 
 class DMXRUNTIME_API FDMXRuntimeUtils
@@ -18,6 +20,15 @@ public:
 	 * existing names. If InBaseName is an empty String, it returns "Default name".
 	 */
 	static FString GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName);
+
+	/**
+	 * Creates an unique name for an Entity from a specific type, using the type name as base.
+	 * @param InLibrary		The DMXLibrary object the entity will belong to.
+	 * @param InEntityClass	The class of the Entity, to check the name against others from same type.
+	 * @param InBaseName	Optional base name to use instead of the type name.
+	 * @return Unique name for an Entity amongst others from the same type.
+	 */
+	static FString FindUniqueEntityName(const UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> InEntityClass, const FString& InBaseName = TEXT(""));
 
 	/**
 	 * Utility to separate a name from an index at the end.

@@ -136,8 +136,14 @@ public:
 	/** Add a category to this section. */
 	virtual void AddCategory(FName CategoryName);
 
-	/** Does this section contain the given category. */
-	virtual bool ContainsCategory(FName CategoryName) const;
+	/** Remove a category from this section. */
+	virtual void RemoveCategory(FName CategoryName);
+
+	/** Does this section add the given category? */
+	virtual bool HasAddedCategory(FName CategoryName) const;
+
+	/** Does this section remove the given category? */
+	virtual bool HasRemovedCategory(FName CategoryName) const;
 
 	/** Get the internal name of this property section. */
 	virtual FName GetName() const { return Name; }
@@ -153,15 +159,21 @@ private:
 	/** The display name to use for this section. */
 	FText DisplayName;
 	
-	/** A mapping of category to the sections that it should be added to. */
-	TSet<FName> Categories;
+	/** The set of categories that are added to this section. */
+	TSet<FName> AddedCategories;
+
+	/** 
+	 * The set of categories that are removed from this section. 
+	 * This exists to allow users to prevent sections from being crowded when inheriting.
+	 */
+	TSet<FName> RemovedCategories;
 };
 
 /** A mapping of categories to section names for a given class. */
 class FClassSectionMapping
 {
 public:
-	FClassSectionMapping() = default;
+	FClassSectionMapping(FName ClassName);
 	FClassSectionMapping(const FClassSectionMapping&) = default;
 
 	/**
@@ -175,6 +187,11 @@ public:
 	TSharedRef<FPropertySection> FindOrAddSection(FName SectionName, FText DisplayName);
 
 	/** 
+	 * Remove a section of the given name.
+	 */
+	void RemoveSection(FName SectionName);
+
+	/** 
 	 * Get the sections that the given category belongs to and append them to OutSections. 
 	 * @param CategoryName	The category name to search for.
 	 * @param OutSections	The array to append any found sections. The array will not be cleared.
@@ -185,6 +202,8 @@ public:
 private:
 
 	friend class FPropertyEditorModule;
+
+	FName ClassName;
 
 	/** The sections defined for this class. */
 	TMap<FName, TSharedPtr<FPropertySection>> DefinedSections;
@@ -293,6 +312,13 @@ public:
 	 * @param OutSections	Sections will be appended to this parameter. The array will not be cleared beforehand.
 	 */
 	virtual void GetAllSections(const UStruct* Struct, TArray<TSharedPtr<FPropertySection>>& OutSections) const;
+
+	/**
+	 * Remove a given section from the given class.
+	 * @param ClassName		The class to remove the section from.
+	 * @param SectionName	The section to remove.
+	 */
+	virtual void RemoveSection(FName ClassName, FName SectionName);
 
 	/**
 	 * Customization modules should call this when that module has been unloaded, loaded, etc...

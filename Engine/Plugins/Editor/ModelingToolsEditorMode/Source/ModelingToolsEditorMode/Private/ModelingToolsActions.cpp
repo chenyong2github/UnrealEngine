@@ -6,6 +6,7 @@
 #include "EditMeshMaterialsTool.h"
 #include "MeshVertexSculptTool.h"
 #include "MeshGroupPaintTool.h"
+#include "MeshAttributePaintTool.h"
 #include "MeshInspectorTool.h"
 #include "CubeGridTool.h"
 #include "DrawPolygonTool.h"
@@ -85,6 +86,7 @@ void FModelingToolActionCommands::RegisterAllToolActions()
 	FSculptToolActionCommands::Register();
 	FVertexSculptToolActionCommands::Register();
 	FMeshGroupPaintToolActionCommands::Register();
+	FMeshAttributePaintToolActionCommands::Register();
 	FDrawPolygonToolActionCommands::Register();
 	FTransformToolActionCommands::Register();
 	FMeshSelectionToolActionCommands::Register();
@@ -101,6 +103,7 @@ void FModelingToolActionCommands::UnregisterAllToolActions()
 	FSculptToolActionCommands::Unregister();
 	FVertexSculptToolActionCommands::Unregister();
 	FMeshGroupPaintToolActionCommands::Unregister();
+	FMeshAttributePaintToolActionCommands::Unregister();
 	FDrawPolygonToolActionCommands::Unregister();
 	FTransformToolActionCommands::Unregister();
 	FMeshSelectionToolActionCommands::Unregister();
@@ -133,6 +136,10 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 	else if (ExactCast<UMeshGroupPaintTool>(Tool) != nullptr)
 	{
 		UPDATE_BINDING(FMeshGroupPaintToolActionCommands);
+	}
+	else if (ExactCast<UMeshAttributePaintTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FMeshAttributePaintToolActionCommands);
 	}
 	else if (ExactCast<UDrawPolygonTool>(Tool) != nullptr)
 	{
@@ -186,6 +193,7 @@ void CommandsClassName::GetToolDefaultObjectList(TArray<UInteractiveTool*>& Tool
 DEFINE_TOOL_ACTION_COMMANDS(FSculptToolActionCommands, "ModelingToolsSculptTool", "Modeling Tools - Sculpt Tool", UDynamicMeshSculptTool);
 DEFINE_TOOL_ACTION_COMMANDS(FVertexSculptToolActionCommands, "ModelingToolsVertexSculptTool", "Modeling Tools - Vertex Sculpt Tool", UMeshVertexSculptTool);
 DEFINE_TOOL_ACTION_COMMANDS(FMeshGroupPaintToolActionCommands, "ModelingToolsMeshGroupPaintTool", "Modeling Tools - Group Paint Tool", UMeshGroupPaintTool);
+DEFINE_TOOL_ACTION_COMMANDS(FMeshAttributePaintToolActionCommands, "ModelingToolsMeshAttributePaintTool", "Modeling Tools - Attribute Paint Tool", UMeshAttributePaintTool);
 DEFINE_TOOL_ACTION_COMMANDS(FTransformToolActionCommands, "ModelingToolsTransformTool", "Modeling Tools - Transform Tool", UTransformMeshesTool);
 DEFINE_TOOL_ACTION_COMMANDS(FDrawPolygonToolActionCommands, "ModelingToolsDrawPolygonTool", "Modeling Tools - Draw Polygon Tool", UDrawPolygonTool);
 DEFINE_TOOL_ACTION_COMMANDS(FMeshSelectionToolActionCommands, "ModelingToolsMeshSelectionTool", "Modeling Tools - Mesh Selection Tool", UMeshSelectionTool);

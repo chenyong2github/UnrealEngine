@@ -724,56 +724,6 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 
 		BlockWidget = FlattenWidget;
 	}
-	// If the added block is searchable and the search is allowed to walk down sub-menus recursively. (This is the first pass building the multibox widget)
-	else if (GetSearchable() && Block.GetSearchable() && Block.GetType() == EMultiBlockType::MenuEntry && static_cast<const FMenuEntryBlock&>(Block).IsSubMenu() && static_cast<const FMenuEntryBlock&>(Block).IsRecursivelySearchable())
-	{
-		// If the block widget being added displays a searchable text.
-		const TArray<FText>* SearchableTextHierarchy = MultiBoxWidgets.Find(BlockWidget);
-		const FText& ThisBlockDisplayText = UE::MultiBoxUtils::GetBlockWidgetDisplayText(*SearchableTextHierarchy);
-		if (!ThisBlockDisplayText.IsEmpty())
-		{
-			// Expand the block widget into its sub-menu (as if the user clicked on the block widget to expand it).
-			check(BlockWidget->GetTypeAsString() == TEXT("SMenuEntryBlock"));
-			TSharedRef<SWidget> SubMenuWidget = StaticCastSharedRef<SMenuEntryBlock>(BlockWidget)->MakeNewMenuWidget();
-
-			// If the sub-menu widget is a multibox widget.
-			if (SubMenuWidget->GetTypeAsString() == TEXT("SMultiBoxWidget"))
-			{
-				// Scan this expanded menu widgets.
-				TSharedRef<SMultiBoxWidget> SubMenuMultiboxWidget = StaticCastSharedRef<SMultiBoxWidget>(SubMenuWidget);
-				for (const TPair<TSharedPtr<SWidget>, TArray<FText>>& Pair : SubMenuMultiboxWidget->MultiBoxWidgets)
-				{
-					const TSharedPtr<SWidget>& ChildBlockWidget = Pair.Key;     // The widget.
-					const TArray<FText>& ChildBlockSearchTextHierarchy = Pair.Value;  // The text displayed by the widget to the user along with all ancestor menus. Ex. "["Shapes", "Cube"]
-					const FText& ChildBlockDisplayText =  UE::MultiBoxUtils::GetBlockWidgetDisplayText(ChildBlockSearchTextHierarchy); // The text displayed by the widget to the user. Ex "Cube"
-
-					// Skip if the widget has no searcheable text or if this is the 'search' text entry widget.
-					if(ChildBlockDisplayText.IsEmpty() || ChildBlockWidget == SubMenuMultiboxWidget->GetSearchTextWidget())
-					{
-						continue; // Skip over, not searchable.
-					}
-
-					TSharedPtr<const FMultiBlock> ChildBlock = StaticCastSharedPtr<SMultiBlockBaseWidget>(ChildBlockWidget)->GetBlock();
-					if (ChildBlock->GetSearchable())
-					{
-						// The algorithm to flatten the structure is recursive. It walks down to create/expand the tree and then walk up to collect and flatten the children blocks that have a displayable text.
-						// For example if the blocks were organized as below, A would create B, which would create C1 and C2, then B would collect and merge it children C1 and C2 as B/C1 and B/C2, then A would
-						// collect its children B, B/C1, B/C2 as A/B, A/B/C1 and A/B/C2.
-						// A
-						// |- B
-						//    |- C1
-						//    |- C2
-						TSharedPtr<FFlattenSearchableBlockInfo> FlattenSearchableBlockInfo = MakeShared<FFlattenSearchableBlockInfo>();
-						FlattenSearchableBlockInfo->SearchableTextHierarchyComponents.Add(ThisBlockDisplayText);             // If the multibox was adding the block displayed as "A" in the example, this would be "A".
-						FlattenSearchableBlockInfo->SearchableTextHierarchyComponents.Append(ChildBlockSearchTextHierarchy); // If the multibox was adding the block displayed as "A" and visiting the child ["B", "C1"], that would generate ["A", "B", "C1"] path.
-
-						// The widget corresponding to this flatten block is not added to this multibox yet, preserve the hierarchy information to update the widget searchable hierarchy once the block is added and the widget created.
-						FlattenSearchableBlocks.Emplace(ChildBlock, MoveTemp(FlattenSearchableBlockInfo));
-					}
-				}
-			}
-		}
-	}
 
 	const ISlateStyle* const StyleSet = MultiBox->GetStyleSet();
 
@@ -1272,6 +1222,10 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	[
 		RootBorder.ToSharedRef()
 	];
+
+	// Save pointers to horizontal/vertical box so that we can insert more blocks later if necessary (e.g. FlattenSubMenusRecursive)
+	MainHorizontalBox = HorizontalBox;
+	MainVerticalBox = VerticalBox;
 }
 
 TSharedRef<SWidget> SMultiBoxWidget::OnWrapButtonClicked()
@@ -1623,6 +1577,100 @@ void SMultiBoxWidget::ResetSearch()
 	}
 }
 
+void SMultiBoxWidget::FlattenSubMenusRecursive(uint32 MaxRecursionLevels)
+{
+	// Only flatten once (should happen the first time menu search is invoked).
+	// If we reached MaxRecursionLevels of 0, then don't continue flattening sub-menus to prevent infinite recursion.
+	if (bDidFlattenSearchableBlocks || !GetSearchable() || MaxRecursionLevels == 0)
+	{
+		return;
+	}
+
+	bDidFlattenSearchableBlocks = true;
+
+	// Do a first pass and find/process all blocks that are submenus. This pass ends up being recursive.
+	for (auto It = MultiBoxWidgets.CreateConstIterator(); It; ++It)
+	{
+		const TSharedPtr<SWidget>& BlockWidget = It.Key();
+		const TArray<FText> SearchableTextHierarchy = It.Value();
+
+		// Skip non-submenu blocks
+		if (BlockWidget->GetTypeAsString() != TEXT("SMenuEntryBlock"))
+		{
+			continue;
+		}
+
+		// If the block widget being added displays a searchable text.
+		const FText& ThisBlockDisplayText = UE::MultiBoxUtils::GetBlockWidgetDisplayText(SearchableTextHierarchy);
+		if (!ThisBlockDisplayText.IsEmpty())
+		{
+			// If the underlying block is searchable and the search is allowed to walk down sub-menus recursively.
+			TSharedPtr<SMenuEntryBlock> MenuEntryBlockWidget = StaticCastSharedPtr<SMenuEntryBlock>(BlockWidget);
+			TSharedPtr<const FMultiBlock> Block = MenuEntryBlockWidget->GetBlock();
+			if (!Block->GetSearchable() || Block->GetType() != EMultiBlockType::MenuEntry || !static_cast<const FMenuEntryBlock&>(*Block.Get()).IsSubMenu() || !static_cast<const FMenuEntryBlock&>(*Block.Get()).IsRecursivelySearchable())
+			{
+				continue;
+			}
+
+			// Expand the block widget into its sub-menu (as if the user clicked on the block widget to expand it).
+			TSharedRef<SWidget> SubMenuWidget = StaticCastSharedPtr<SMenuEntryBlock>(BlockWidget)->MakeNewMenuWidget();
+
+			// If the sub-menu widget is a multibox widget.
+			if (SubMenuWidget->GetTypeAsString() == TEXT("SMultiBoxWidget"))
+			{
+				// Scan this expanded menu widgets.
+				TSharedRef<SMultiBoxWidget> SubMenuMultiboxWidget = StaticCastSharedRef<SMultiBoxWidget>(SubMenuWidget);
+
+				// Force all the sub-menus contained, in turn, by this submenu to be flattened so that we can flatten them into our searchable hierarchy.
+				// Each time we recurse, we should decrease MaxRecursionLevels to prevent infinite recursion (e.g., in dynamic sub-menus which could go on forever).
+				SubMenuMultiboxWidget->FlattenSubMenusRecursive(MaxRecursionLevels - 1);
+
+				for (const TPair<TSharedPtr<SWidget>, TArray<FText>>& Pair : SubMenuMultiboxWidget->MultiBoxWidgets)
+				{
+					const TSharedPtr<SWidget>& ChildBlockWidget = Pair.Key;     // The widget.
+					const TArray<FText>& ChildBlockSearchTextHierarchy = Pair.Value;  // The text displayed by the widget to the user along with all ancestor menus. Ex. "["Shapes", "Cube"]
+					const FText& ChildBlockDisplayText = UE::MultiBoxUtils::GetBlockWidgetDisplayText(ChildBlockSearchTextHierarchy); // The text displayed by the widget to the user. Ex "Cube"
+
+					// Skip if the widget has no searcheable text or if this is the 'search' text entry widget.
+					if (ChildBlockDisplayText.IsEmpty() || ChildBlockWidget == SubMenuMultiboxWidget->GetSearchTextWidget())
+					{
+						continue; // Skip over, not searchable.
+					}
+
+					TSharedPtr<const FMultiBlock> ChildBlock = StaticCastSharedPtr<SMultiBlockBaseWidget>(ChildBlockWidget)->GetBlock();
+					if (ChildBlock->GetSearchable())
+					{
+						// The algorithm to flatten the structure is recursive. It walks down to create/expand the tree and then walk up to collect and flatten the children blocks that have a displayable text.
+						// For example if the blocks were organized as below, A would create B, which would create C1 and C2, then B would collect and merge it children C1 and C2 as B/C1 and B/C2, then A would
+						// collect its children B, B/C1, B/C2 as A/B, A/B/C1 and A/B/C2.
+						// A
+						// |- B
+						//    |- C1
+						//    |- C2
+						TSharedPtr<FFlattenSearchableBlockInfo> FlattenSearchableBlockInfo = MakeShared<FFlattenSearchableBlockInfo>();
+						FlattenSearchableBlockInfo->SearchableTextHierarchyComponents.Add(ThisBlockDisplayText);             // If the multibox was adding the block displayed as "A" in the example, this would be "A".
+						FlattenSearchableBlockInfo->SearchableTextHierarchyComponents.Append(ChildBlockSearchTextHierarchy); // If the multibox was adding the block displayed as "A" and visiting the child ["B", "C1"], that would generate ["A", "B", "C1"] path.
+
+						// The widget corresponding to this flatten block is not added to this multibox yet, preserve the hierarchy information to update the widget searchable hierarchy once the block is added and the widget created.
+						FlattenSearchableBlocks.Emplace(ChildBlock, MoveTemp(FlattenSearchableBlockInfo));
+					}
+				}
+			}
+		}
+	}
+
+	// The first loop above added the multibox blocks and discovered/collected all sub-menus blocks. This second loops adds all sub-menu blocks discovered in the first pass.
+	for (const TPair<TSharedPtr<const FMultiBlock>, TSharedPtr<FFlattenSearchableBlockInfo>>& Pair : FlattenSearchableBlocks)
+	{
+		// Do not add a block if it is being dragged
+		if (!IsBlockBeingDragged(Pair.Key))
+		{
+			TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock;
+			AddBlockWidget(*Pair.Key, MainHorizontalBox, MainVerticalBox, EMultiBlockLocation::None, /*bSectionContainsIcons*/false, OptionsBlock);
+		}
+	}
+}
+
 void SMultiBoxWidget::FilterMultiBoxEntries()
 {
 	VisibleFlattenHierarchyTips.Empty();
@@ -1651,6 +1699,9 @@ void SMultiBoxWidget::FilterMultiBoxEntries()
 
 		return;
 	}
+
+	// Index 5 levels of nested sub-menus (this doesn't do anything if we already flattened)
+	FlattenSubMenusRecursive(/*MaxRecursionLevels*/ 5);
 
 	for(auto It = MultiBoxWidgets.CreateConstIterator(); It; ++It)
 	{

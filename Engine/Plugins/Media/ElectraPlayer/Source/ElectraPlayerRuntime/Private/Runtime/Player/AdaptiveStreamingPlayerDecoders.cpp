@@ -324,7 +324,7 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 		if (VideoDecoder.Decoder == nullptr)
 		{
 			FAccessUnit* AccessUnit = nullptr;
-			bool bOk = MultiStreamBufferVid.PeekAndAddRef(AccessUnit);
+			bool bOk = GetCurrentOutputStreamBuffer(type).IsValid() && GetCurrentOutputStreamBuffer(type)->PeekAndAddRef(AccessUnit);
 			if (AccessUnit)
 			{
 				FTimeValue DecodeTime = AccessUnit->PTS;
@@ -332,6 +332,8 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				if (AccessUnit->AUCodecData.IsValid())
 				{
 					VideoDecoder.CurrentCodecInfo = AccessUnit->AUCodecData->ParsedInfo;
+					VideoDecoder.LastSentAUCodecData = AccessUnit->AUCodecData;
+					DispatchEvent(FMetricEvent::ReportCodecFormatChange(VideoDecoder.CurrentCodecInfo));
 				}
 				FAccessUnit::Release(AccessUnit);
 
@@ -447,13 +449,15 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 		if (AudioDecoder.Decoder == nullptr)
 		{
 			FAccessUnit* AccessUnit = nullptr;
-			bool bOk = MultiStreamBufferAud.PeekAndAddRef(AccessUnit);
+			bool bOk = GetCurrentOutputStreamBuffer(type).IsValid() && GetCurrentOutputStreamBuffer(type)->PeekAndAddRef(AccessUnit);
 			if (AccessUnit)
 			{
 				AudioDecoder.CurrentCodecInfo.Clear();
 				if (AccessUnit->AUCodecData.IsValid())
 				{
 					AudioDecoder.CurrentCodecInfo = AccessUnit->AUCodecData->ParsedInfo;
+					AudioDecoder.LastSentAUCodecData = AccessUnit->AUCodecData;
+					DispatchEvent(FMetricEvent::ReportCodecFormatChange(AudioDecoder.CurrentCodecInfo));
 				}
 				FAccessUnit::Release(AccessUnit);
 
@@ -490,13 +494,15 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 		if (SubtitleDecoder.Decoder == nullptr)
 		{
 			FAccessUnit* AccessUnit = nullptr;
-			bool bOk = MultiStreamBufferTxt.PeekAndAddRef(AccessUnit);
+			bool bOk = GetCurrentOutputStreamBuffer(type).IsValid() && GetCurrentOutputStreamBuffer(type)->PeekAndAddRef(AccessUnit);
 			if (AccessUnit)
 			{
 				SubtitleDecoder.CurrentCodecInfo.Clear();
 				if (AccessUnit->AUCodecData.IsValid())
 				{
 					SubtitleDecoder.CurrentCodecInfo = AccessUnit->AUCodecData->ParsedInfo;
+					SubtitleDecoder.LastSentAUCodecData = AccessUnit->AUCodecData;
+					DispatchEvent(FMetricEvent::ReportCodecFormatChange(SubtitleDecoder.CurrentCodecInfo));
 				}
 				FAccessUnit::Release(AccessUnit);
 
@@ -583,16 +589,20 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 	// Feeds access units from the subtitle buffer to the subtitle decoder.
 	// Since this is very small and sparse data the decoder does not run in a dedicated thread like
 	// the video and audio decoders do.
-	if (SubtitleDecoder.Decoder && !MultiStreamBufferTxt.IsDeselected())
+	if (SubtitleDecoder.Decoder && !bIsTextDeselected)
 	{
+		TSharedPtrTS<FMultiTrackAccessUnitBuffer> CurrentTxtOutputBuffer = GetCurrentOutputStreamBuffer(EStreamType::Subtitle);
 		FAccessUnit* PeekedAU = nullptr;
-		MultiStreamBufferTxt.PeekAndAddRef(PeekedAU);
+		if (CurrentTxtOutputBuffer.IsValid())
+		{
+			CurrentTxtOutputBuffer->PeekAndAddRef(PeekedAU);
+		}
 		FTimeValue NextPTS = PeekedAU ? PeekedAU->PTS - SubtitleDecoder.Decoder->GetStreamedDeliveryTimeOffset() : FTimeValue::GetInvalid();
 		FAccessUnit::Release(PeekedAU);
 		FTimeValue CurrentPos = GetCurrentPlayTime();
 		if (NextPTS.IsValid() && CurrentPos >= NextPTS)
 		{
-			FeedDecoder(EStreamType::Subtitle, MultiStreamBufferTxt, SubtitleDecoder.Decoder, false);
+			FeedDecoder(EStreamType::Subtitle, SubtitleDecoder.Decoder, false);
 		}
 
 		if (CurrentPos.IsValid() && RenderClock->IsRunning())
@@ -625,7 +635,7 @@ void FAdaptiveStreamingPlayer::VideoDecoderInputNeeded(const IAccessUnitBufferLi
 		EDecoderState decState = DecoderState;
 		if (decState == EDecoderState::eDecoder_Running)
 		{
-			FeedDecoder(EStreamType::Video, MultiStreamBufferVid, VideoDecoder.Decoder, true);
+			FeedDecoder(EStreamType::Video, VideoDecoder.Decoder, true);
 		}
 	}
 }
@@ -634,6 +644,13 @@ void FAdaptiveStreamingPlayer::VideoDecoderOutputReady(const IDecoderOutputBuffe
 {
 	DiagnosticsCriticalSection.Lock();
 	VideoBufferStats.DecoderOutputBuffer = currentReadyStats;
+	// When the output is not stalled we need to update the stall duration immediately to reset the counter.
+	// Otherwise we may miss the not stalled transition when stalled -> not stalled -> stalled
+	if (!currentReadyStats.bOutputStalled)
+	{
+		// The time here is irrelevant.
+		VideoBufferStats.UpdateStalledDuration(0);
+	}
 	DiagnosticsCriticalSection.Unlock();
 }
 
@@ -646,7 +663,7 @@ void FAdaptiveStreamingPlayer::AudioDecoderInputNeeded(const IAccessUnitBufferLi
 	EDecoderState decState = DecoderState;
 	if (decState == EDecoderState::eDecoder_Running)
 	{
-		FeedDecoder(EStreamType::Audio, MultiStreamBufferAud, AudioDecoder.Decoder, true);
+		FeedDecoder(EStreamType::Audio, AudioDecoder.Decoder, true);
 	}
 }
 
@@ -654,6 +671,13 @@ void FAdaptiveStreamingPlayer::AudioDecoderOutputReady(const IDecoderOutputBuffe
 {
 	DiagnosticsCriticalSection.Lock();
 	AudioBufferStats.DecoderOutputBuffer = currentReadyStats;
+	// When the output is not stalled we need to update the stall duration immediately to reset the counter.
+	// Otherwise we may miss the not stalled transition when stalled -> not stalled -> stalled
+	if (!currentReadyStats.bOutputStalled)
+	{
+		// The time here is irrelevant.
+		AudioBufferStats.UpdateStalledDuration(0);
+	}
 	DiagnosticsCriticalSection.Unlock();
 }
 
@@ -666,21 +690,23 @@ void FAdaptiveStreamingPlayer::AudioDecoderOutputReady(const IDecoderOutputBuffe
  * message is sent to the worker thread.
  *
  * @param Type
- * @param FromMultistreamBuffer
  * @param Decoder
  * @param bHandleUnderrun
  */
-void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder, bool bHandleUnderrun)
+void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferInterface* Decoder, bool bHandleUnderrun)
 {
-	// Lock the AU buffer for the duration of this function to ensure this can never clash with a Flush() call
-	// since we are checking size, eod state and subsequently popping an AU, for which the buffer must stay consistent inbetween!
-	// Also to ensure the active buffer doesn't get changed from one track to another.
-	FMultiTrackAccessUnitBuffer::FScopedLock lock(FromMultistreamBuffer);
+	TSharedPtrTS<FMultiTrackAccessUnitBuffer> FromMultistreamBuffer = GetCurrentOutputStreamBuffer(Type);
+	if (!FromMultistreamBuffer.IsValid())
+	{
+		return;
+	}
 
 	FBufferStats* pStats = nullptr;
 	Metrics::FDataAvailabilityChange* pAvailability = nullptr;
 	FStreamCodecInformation* CurrentCodecInfo = nullptr;
+	TSharedPtrTS<FAccessUnit::CodecData>* LastSentAUCodecData = nullptr;
 	bool bCodecChangeDetected = false;
+	bool bIsDeselected = false;
 
 	switch(Type)
 	{
@@ -688,34 +714,45 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 			pStats = &VideoBufferStats;
 			pAvailability = &DataAvailabilityStateVid;
 			CurrentCodecInfo = &VideoDecoder.CurrentCodecInfo;
+			LastSentAUCodecData = &VideoDecoder.LastSentAUCodecData;
+			bIsDeselected = bIsVideoDeselected;
 			break;
 		case EStreamType::Audio:
 			pStats = &AudioBufferStats;
 			pAvailability = &DataAvailabilityStateAud;
 			CurrentCodecInfo = &AudioDecoder.CurrentCodecInfo;
+			LastSentAUCodecData = &AudioDecoder.LastSentAUCodecData;
+			bIsDeselected = bIsAudioDeselected;
 			break;
 		case EStreamType::Subtitle:
 			pStats = &TextBufferStats;
 			pAvailability = &DataAvailabilityStateTxt;
 			CurrentCodecInfo = &SubtitleDecoder.CurrentCodecInfo;
+			LastSentAUCodecData = &SubtitleDecoder.LastSentAUCodecData;
+			bIsDeselected = bIsTextDeselected;
 			break;
 		default:
 			checkNoEntry();
 			return;
 	}
 
+	// Lock the AU buffer for the duration of this function to ensure this can never clash with a Flush() call
+	// since we are checking size, eod state and subsequently popping an AU, for which the buffer must stay consistent inbetween!
+	// Also to ensure the active buffer doesn't get changed from one track to another.
+	FMultiTrackAccessUnitBuffer::FScopedLock lock(FromMultistreamBuffer);
+
 	// Is the buffer (the Type of elementary stream actually) active/selected?
-	if (!FromMultistreamBuffer.IsDeselected())
+	if (!bIsDeselected)
 	{
 		// Check for buffer underrun.
 		if (bHandleUnderrun && !bRebufferPending && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
 		{
-			bool bEODSet = FromMultistreamBuffer.IsEODFlagSet();
-			if (!bEODSet && FromMultistreamBuffer.Num() == 0)
+			bool bEODSet = FromMultistreamBuffer->IsEODFlagSet();
+			if (!bEODSet && FromMultistreamBuffer->Num() == 0)
 			{
 				// Buffer underrun.
 				bRebufferPending = true;
-				FTimeValue LastKnownPTS = FromMultistreamBuffer.GetLastPoppedPTS();
+				FTimeValue LastKnownPTS = FromMultistreamBuffer->GetLastPoppedPTS();
 				// Only set the 'rebuffer at' time if we have a valid last known PTS. If we don't
 				// then maybe this is a cascade failure from a previous rebuffer attempt for which
 				// we then try that time once more.
@@ -728,7 +765,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 		}
 
 		FAccessUnit* PeekedAU = nullptr;
-		FromMultistreamBuffer.PeekAndAddRef(PeekedAU);
+		FromMultistreamBuffer->PeekAndAddRef(PeekedAU);
 		if (PeekedAU)
 		{
 			// Change in codec?
@@ -779,7 +816,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 			{
 				// Release peeked AU and actually pop it
 				FAccessUnit* AccessUnit = nullptr;
-				FromMultistreamBuffer.Pop(AccessUnit);
+				FromMultistreamBuffer->Pop(AccessUnit);
 				check(PeekedAU == AccessUnit);
 				FAccessUnit::Release(PeekedAU);
 				PeekedAU = nullptr;
@@ -802,10 +839,21 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 
 				if (Decoder)
 				{
-				// The decoder has asked to be fed a new AU so it better be able to accept it.
-					/*IAccessUnitBufferInterface::EAUpushResult auPushRes =*/ Decoder->AUdataPushAU(AccessUnit);
+					Decoder->AUdataPushAU(AccessUnit);
 				}
 
+				// If there is any pertinent format change, emit an event.
+				if (AccessUnit->AUCodecData.IsValid() && LastSentAUCodecData && LastSentAUCodecData->IsValid() && *LastSentAUCodecData != AccessUnit->AUCodecData)
+				{
+					bool bFormatChanged = AccessUnit->AUCodecData->ParsedInfo.GetBitrate() != (*LastSentAUCodecData)->ParsedInfo.GetBitrate() || !AccessUnit->AUCodecData->ParsedInfo.Equals((*LastSentAUCodecData)->ParsedInfo);
+					if (bFormatChanged)
+					{
+						DispatchEvent(FMetricEvent::ReportCodecFormatChange(AccessUnit->AUCodecData->ParsedInfo));
+					}
+					*LastSentAUCodecData = AccessUnit->AUCodecData;
+				}
+				
+				// Notify of any change in data availability.
 				if (pAvailability)
 				{
 					UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataAvailable);
@@ -816,7 +864,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 	}
 	// An AU is not tagged as being "the last" one. Instead the EOD is handled separately and must be dealt with
 	// by the decoders accordingly.
-	if (!bCodecChangeDetected && FromMultistreamBuffer.IsEODFlagSet() && FromMultistreamBuffer.Num() == 0)
+	if (!bCodecChangeDetected && FromMultistreamBuffer->IsEODFlagSet() && FromMultistreamBuffer->Num() == 0)
 	{
 		if (pStats && !pStats->DecoderInputBuffer.bEODSignaled)
 		{
@@ -832,6 +880,44 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 	}
 }
 
+
+void FAdaptiveStreamingPlayer::ClearAllDecoderEODs()
+{
+	VideoDecoder.ClearEOD();
+	AudioDecoder.ClearEOD();
+	SubtitleDecoder.ClearEOD();
+	DiagnosticsCriticalSection.Lock();
+	VideoBufferStats.DecoderInputBuffer.bEODReached = false;
+	VideoBufferStats.DecoderInputBuffer.bEODSignaled = false;
+	VideoBufferStats.DecoderOutputBuffer.bEODreached = false;
+	AudioBufferStats.DecoderInputBuffer.bEODReached = false;
+	AudioBufferStats.DecoderInputBuffer.bEODSignaled = false;
+	AudioBufferStats.DecoderOutputBuffer.bEODreached = false;
+	TextBufferStats.DecoderInputBuffer.bEODReached = false;
+	TextBufferStats.DecoderInputBuffer.bEODSignaled = false;
+	TextBufferStats.DecoderOutputBuffer.bEODreached = false;
+	DiagnosticsCriticalSection.Unlock();
+}
+
+
+
+bool FAdaptiveStreamingPlayer::IsSeamlessBufferSwitchPossible(EStreamType InStreamType, const TSharedPtrTS<FStreamDataBuffers>& InFromStreamBuffers)
+{
+	TSharedPtrTS<FMultiTrackAccessUnitBuffer> Buffer = GetStreamBuffer(InStreamType, InFromStreamBuffers);
+	if (Buffer.IsValid())
+	{
+		//
+		FAccessUnit* PeekedAU = nullptr;
+		Buffer->PeekAndAddRef(PeekedAU);
+		if (PeekedAU)
+		{
+			bool bFirstIsRenderedKeyframe = PeekedAU->bIsSyncSample && ((!PeekedAU->EarliestPTS.IsValid() && PeekedAU->DropState == 0) || (PeekedAU->EarliestPTS.IsValid() && PeekedAU->PTS >= PeekedAU->EarliestPTS));
+			FAccessUnit::Release(PeekedAU);
+			return bFirstIsRenderedKeyframe;
+		}
+	}
+	return false;
+}
 
 
 } // namespace Electra

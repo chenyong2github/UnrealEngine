@@ -173,6 +173,27 @@ namespace UnrealBuildTool
 		public readonly Dictionary<string, string> AliasRestrictedFolders;
 
 		/// <summary>
+		/// The Verse source code directory associated with this module if any
+		/// </summary>
+		public virtual DirectoryReference? VerseDirectory
+		{
+			get { return null; }
+		}
+
+		/// <summary>
+		/// If this module has Verse code associated with it (convenience function)
+		/// </summary>
+		public bool bHasVerse
+		{
+			get { return VerseDirectory != null; }
+		}
+
+		/// <summary>
+		/// If this module or any of its dependencies has Verse code associated with it
+		/// </summary>
+		public bool bDependsOnVerse = false;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Rules">Rules for this module</param>
@@ -997,7 +1018,7 @@ namespace UnrealBuildTool
 
 			// Recursively create all the public include path modules. These modules may not be added to the target (and we don't process their referenced 
 			// dependencies), but they need to be created to set up their include paths.
-			RecursivelyCreateIncludePathModulesByName(Rules.PublicIncludePathModuleNames, ref PublicIncludePathModules, CreateModule, NextReferenceChain);
+			RecursivelyCreateIncludePathModulesByName(Rules.PublicIncludePathModuleNames, ref PublicIncludePathModules, ref bDependsOnVerse, CreateModule, NextReferenceChain);
 
 			// Create all the referenced modules. This path can be recursive, so we check against PrivateIncludePathModules to ensure we don't recurse through the 
 			// same module twice (it produces better errors if something fails).
@@ -1015,13 +1036,13 @@ namespace UnrealBuildTool
 				}
 
 				// Create the private include path modules
-				RecursivelyCreateIncludePathModulesByName(Rules.PrivateIncludePathModuleNames, ref PrivateIncludePathModules, CreateModule, NextReferenceChain);
+				RecursivelyCreateIncludePathModulesByName(Rules.PrivateIncludePathModuleNames, ref PrivateIncludePathModules, ref bDependsOnVerse, CreateModule, NextReferenceChain);
 
 				// Create all the dependency modules - pass through the reference stack so we can check for cycles
-				RecursivelyCreateModulesByName(Rules.PublicDependencyModuleNames, ref PublicDependencyModules, CreateModule, NextReferenceChain, ReferenceStack);
-				RecursivelyCreateModulesByName(Rules.PrivateDependencyModuleNames, ref PrivateDependencyModules, CreateModule, NextReferenceChain, ReferenceStack);
+				RecursivelyCreateModulesByName(Rules.PublicDependencyModuleNames, ref PublicDependencyModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, ReferenceStack);
+				RecursivelyCreateModulesByName(Rules.PrivateDependencyModuleNames, ref PrivateDependencyModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, ReferenceStack);
 				// Dynamic loads aren't considered a reference chain so start with an empty stack
-				RecursivelyCreateModulesByName(Rules.DynamicallyLoadedModuleNames, ref DynamicallyLoadedModules, CreateModule, NextReferenceChain, new List<UEBuildModule>());
+				RecursivelyCreateModulesByName(Rules.DynamicallyLoadedModuleNames, ref DynamicallyLoadedModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, new List<UEBuildModule>());
 			}
 
 			// pop us off the current stack
@@ -1037,7 +1058,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void RecursivelyCreateModulesByName(List<string> ModuleNames, ref List<UEBuildModule>? Modules, CreateModuleDelegate CreateModule, string ReferenceChain, List<UEBuildModule> ReferenceStack)
+		private static void RecursivelyCreateModulesByName(List<string> ModuleNames, ref List<UEBuildModule>? Modules, ref bool bDependsOnVerse, CreateModuleDelegate CreateModule, string ReferenceChain, List<UEBuildModule> ReferenceStack)
 		{
 			// Check whether the module list is already set. We set this immediately (via the ref) to avoid infinite recursion.
 			if (Modules == null)
@@ -1050,12 +1071,13 @@ namespace UnrealBuildTool
 					{
 						Module.RecursivelyCreateModules(CreateModule, ReferenceChain, ReferenceStack);
 						Modules.Add(Module);
+						bDependsOnVerse |= Module.bDependsOnVerse;
 					}
 				}
 			}
 		}
 
-		private static void RecursivelyCreateIncludePathModulesByName(List<string> ModuleNames, ref List<UEBuildModule>? Modules, CreateModuleDelegate CreateModule, string ReferenceChain)
+		private static void RecursivelyCreateIncludePathModulesByName(List<string> ModuleNames, ref List<UEBuildModule>? Modules, ref bool bDependsOnVerse, CreateModuleDelegate CreateModule, string ReferenceChain)
 		{
 			// Check whether the module list is already set. We set this immediately (via the ref) to avoid infinite recursion.
 			if (Modules == null)
@@ -1064,8 +1086,9 @@ namespace UnrealBuildTool
 				foreach (string ModuleName in ModuleNames)
 				{
 					UEBuildModule Module = CreateModule(ModuleName, ReferenceChain);
-					RecursivelyCreateIncludePathModulesByName(Module.Rules.PublicIncludePathModuleNames, ref Module.PublicIncludePathModules, CreateModule, ReferenceChain);
+					RecursivelyCreateIncludePathModulesByName(Module.Rules.PublicIncludePathModuleNames, ref Module.PublicIncludePathModules, ref Module.bDependsOnVerse, CreateModule, ReferenceChain);
 					Modules.Add(Module);
+					bDependsOnVerse |= Module.bDependsOnVerse;
 				}
 			}
 		}

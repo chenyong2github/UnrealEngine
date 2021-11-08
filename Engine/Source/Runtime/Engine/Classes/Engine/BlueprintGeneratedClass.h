@@ -648,7 +648,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Used to check if this class has sparse data that can be serialized. This will be false when loading the data if it hasn't already been saved out. */
 	UPROPERTY()
-	uint32 bIsSparseClassDataSerializable : 1;
+	uint8 bIsSparseClassDataSerializable:1;
 #endif // WITH_EDITORONLY_DATA
 
 private:

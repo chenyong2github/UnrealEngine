@@ -68,7 +68,7 @@ call "%_enginePythonPlatformDir%\python.exe" -m venv "%_pyVenvDir%"
 call "%_pyVenvDir%\Scripts\activate"
 
 call:echo "2/5 : Installing PySide2"
-python.exe -m pip install -Iv pyside2==5.15.0
+python.exe -m pip install -Iv pyside2==5.15.2
 
 call:echo "3/5 : Installing python-osc"
 python.exe -m pip install -Iv python-osc==1.7.4

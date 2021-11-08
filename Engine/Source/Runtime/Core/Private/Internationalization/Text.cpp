@@ -1082,6 +1082,19 @@ FText FText::FromString( FString&& String )
 	return NewText;
 }
 
+FText FText::FromStringView(FStringView InString)
+{
+	FText NewText = InString.IsEmpty() ? FText::GetEmpty() : FText(FString(InString));
+
+	if (!GIsEditor)
+	{
+		NewText.Flags |= ETextFlag::CultureInvariant;
+	}
+	NewText.Flags |= ETextFlag::InitializedFromString;
+
+	return NewText;
+}
+
 FText FText::AsCultureInvariant( const FString& String )
 {
 	FText NewText = String.IsEmpty() ? FText::GetEmpty() : FText(CopyTemp(String));

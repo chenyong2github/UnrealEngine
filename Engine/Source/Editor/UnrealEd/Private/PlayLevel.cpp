@@ -986,6 +986,21 @@ bool UEditorEngine::SaveMapsForPlaySession()
 	return true;
 }
 
+bool UEditorEngine::SetPIEWorldsPaused(bool Paused)
+{
+	bool WasPausedOrUnpaused = false;
+	for (const FWorldContext& PieContext : GetWorldContexts())
+	{
+		UWorld * PieContextWorld = PieContext.World();
+		if (PieContextWorld && PieContextWorld->IsGameWorld() && PieContextWorld->bDebugPauseExecution != Paused)
+		{
+			PieContextWorld->bDebugPauseExecution = Paused;
+			WasPausedOrUnpaused = true;
+		}
+	}
+	return WasPausedOrUnpaused;
+}
+
 void UEditorEngine::PlaySessionPaused()
 {
 	FEditorDelegates::PausePIE.Broadcast(PlayInEditorSessionInfo->OriginalRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);

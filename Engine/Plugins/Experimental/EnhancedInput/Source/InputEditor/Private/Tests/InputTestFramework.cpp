@@ -171,11 +171,11 @@ void AKeyIsActuated(UControllablePlayer& PlayerData, FKey Key, float Delta)
 {
 	if (Key.IsAnalog())
 	{
-		PlayerData.Player->InputAxis(Key, Delta, 1 / 60.f, 1, Key.IsGamepadKey());
+		PlayerData.Player->InputKey(FInputKeyParams(Key, Delta, 1 / 60.f, 1));
 	}
 	else
 	{
-		PlayerData.Player->InputKey(Key, EInputEvent::IE_Pressed, 1.f, Key.IsGamepadKey());
+		PlayerData.Player->InputKey(FInputKeyParams(Key, EInputEvent::IE_Pressed, 1.0));
 	}
 }
 
@@ -183,11 +183,11 @@ void AKeyIsReleased(UControllablePlayer& PlayerData, FKey Key)
 {
 	if (Key.IsAnalog())
 	{
-		PlayerData.Player->InputAxis(Key, 0.f, 1 / 60.f, 1, Key.IsGamepadKey());
+		PlayerData.Player->InputKey(FInputKeyParams(Key, 0.f, 1 / 60.f, 1, Key.IsGamepadKey()));
 	}
 	else
 	{
-		PlayerData.Player->InputKey(Key, EInputEvent::IE_Released, 0.f, Key.IsGamepadKey());
+		PlayerData.Player->InputKey(FInputKeyParams(Key, EInputEvent::IE_Released, 0.0));
 	}
 }
 

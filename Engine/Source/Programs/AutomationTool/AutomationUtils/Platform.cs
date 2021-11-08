@@ -191,6 +191,15 @@ namespace AutomationTool
 			return new TargetPlatformDescriptor(TargetPlatformType, "");
 		}
 
+		/// <summary>
+		/// Allows a platform to add runtime dependencies to UAT that may not be referenced in other ways, but are needed for staging UAT
+		/// </summary>
+		/// <param name="Dependencies"></param>
+		public virtual void GetPlatformUATDependencies(DirectoryReference ProjectDirectory, List<FileReference> Dependencies)
+		{
+
+		}
+
 
 		#region Turnkey
 

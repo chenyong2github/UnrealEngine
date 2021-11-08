@@ -461,6 +461,16 @@ namespace Electra
 			return CSD;
 		}
 
+		void SetBitrate(int32 InBitrate)
+		{
+			Bitrate = InBitrate;
+		}
+		
+		int32 GetBitrate() const
+		{
+			return Bitrate;
+		}
+
 		FParamDict& GetExtras()
 		{
 			return Extras;
@@ -484,6 +494,7 @@ namespace Electra
 			FrameRate = FTimeFraction::GetInvalid();
 			ProfileLevel.Clear();
 			StreamLanguageCode.Empty();
+			Bitrate = 0;
 			SampleRate = 0;
 			NumChannels = 0;
 			ChannelConfiguration = 0;
@@ -574,6 +585,7 @@ namespace Electra
 		FTimeFraction	FrameRate;					//!< Frame rate, if this is a video stream
 		FProfileLevel	ProfileLevel;
 		FString			StreamLanguageCode;			//!< Language code from the stream itself, if present.
+		int32			Bitrate;
 		int32			SampleRate;					//!< Decoded sample rate, if this is an audio stream.
 		int32			NumChannels;				//!< Number of decoded channels, if this is an audio stream.
 		uint32			ChannelConfiguration;		//!< Format specific audio channel configuration
@@ -785,21 +797,17 @@ namespace Electra
 
 
 
-	struct FPlayerLoopState
+	struct FPlayerSequenceState
 	{
-		FPlayerLoopState()
+		FPlayerSequenceState()
 		{
 			Reset();
 		}
 		void Reset()
 		{
-			LoopBasetime.SetToZero();
-			LoopCount = 0;
-			bLoopEnabled = false;
+			SequenceIndex = 0;
 		}
-		FTimeValue	LoopBasetime;				//!< Base time added to the play position to have it monotonously increasing. Subtract this from the current play position to get the local time into the media.
-		int32		LoopCount;					//!< Number of times playback jumped back to loop. 0 on first playthrough, 1 on first loop, etc.
-		bool		bLoopEnabled;
+		int64	SequenceIndex;
 	};
 
 

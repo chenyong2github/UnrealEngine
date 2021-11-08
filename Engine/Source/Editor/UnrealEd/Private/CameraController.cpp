@@ -91,6 +91,14 @@ void FEditorCameraController::UpdateSimulation(
 }
 
 
+void FEditorCameraController::ResetVelocity()
+{
+	MovementVelocity = FVector::ZeroVector;
+	FOVVelocity = 0.f;
+	RotationVelocityEuler = FVector::ZeroVector;
+}
+
+
 /**true if this camera currently has rotational velocity*/
 bool FEditorCameraController::IsRotating (void) const
 {

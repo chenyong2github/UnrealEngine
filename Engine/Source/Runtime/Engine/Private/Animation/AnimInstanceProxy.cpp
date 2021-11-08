@@ -43,14 +43,14 @@ const FName NAME_AnimGraph(TEXT("AnimGraph"));
 
 void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
-	TRACE_SCOPED_ANIM_GRAPH(InContext);
-	TRACE_SCOPED_ANIM_NODE(InContext);
-
 	UpdateAnimationNode_WithRoot(InContext, RootNode, NAME_AnimGraph);
 }
 
 void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
 {
+	TRACE_SCOPED_ANIM_GRAPH(InContext)
+	TRACE_SCOPED_ANIM_NODE(InContext)
+	
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
 	{
@@ -985,36 +985,8 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 	RequiredBones.InitializeTo(Component->RequiredBones, FCurveEvaluationOption(Component->GetAllowedAnimCurveEvaluate(), &Component->GetDisallowedAnimCurvesEvaluation(), Component->GetPredictedLODLevel()), *Asset);
 
 	// If there is a ref pose override, we want to replace ref pose in RequiredBones
-	const FSkelMeshRefPoseOverride* RefPoseOverride = Component->GetRefPoseOverride();
-	if (RefPoseOverride)
-	{
-		// Get ref pose override info
-		// Get indices of required bones
-		const TArray<FBoneIndexType>& BoneIndicesArray = RequiredBones.GetBoneIndicesArray();
-		// Get number of required bones
-		int32 NumReqBones = BoneIndicesArray.Num();
-
-		// Build new array of ref pose transforms for required bones
-		TArray<FTransform> NewCompactRefPose;
-		NewCompactRefPose.AddUninitialized(NumReqBones);
-
-		for (int32 CompactBoneIndex = 0; CompactBoneIndex < NumReqBones; ++CompactBoneIndex)
-		{
-			FBoneIndexType MeshPoseIndex = BoneIndicesArray[CompactBoneIndex];
-
-			if (RefPoseOverride->RefBonePoses.IsValidIndex(MeshPoseIndex))
-			{
-				NewCompactRefPose[CompactBoneIndex] = RefPoseOverride->RefBonePoses[MeshPoseIndex];
-			}
-			else
-			{
-				NewCompactRefPose[CompactBoneIndex] = FTransform::Identity;
-			}
-		}
-
-		// Update ref pose in required bones structure
-		RequiredBones.SetRefPoseCompactArray(NewCompactRefPose);
-	}
+	// Update ref pose in required bones structure (either set it, or clear it, depending on if one is set on the Component)
+	RequiredBones.SetRefPoseOverride(Component->GetRefPoseOverride());
 
 	// If this instance can accept input poses, initialise the input pose container
 	if(DefaultLinkedInstanceInputNode)
@@ -1202,13 +1174,12 @@ void FAnimInstanceProxy::PreEvaluateAnimation(UAnimInstance* InAnimInstance)
 
 void FAnimInstanceProxy::EvaluateAnimation(FPoseContext& Output)
 {
-	TRACE_SCOPED_ANIM_GRAPH(Output);
-
 	EvaluateAnimation_WithRoot(Output, RootNode);
 }
 
 void FAnimInstanceProxy::EvaluateAnimation_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode)
 {
+	TRACE_SCOPED_ANIM_GRAPH(Output);
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	ANIM_MT_SCOPE_CYCLE_COUNTER(EvaluateAnimInstance, !IsInGameThread());
@@ -1298,6 +1269,7 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 
 			if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 			{
+				Output.SetNodeId(INDEX_NONE);
 				Output.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
 			}
 		}
@@ -2469,24 +2441,12 @@ bool FAnimInstanceProxy::WasAnimNotifyNameTriggeredInStateMachine(int32 MachineI
 
 const FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const
 {
-	const FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;
-	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* StateMachine = GetStateMachineInstance(MachineIndex))
 	{
-		float MaxWeight = 0.0f;
-		const FBakedAnimationState& State = MachineInstance->GetStateInfo(StateIndex);
-		for(const int32& PlayerIdx : State.PlayerNodeIndices)
-		{
-			if(const FAnimNode_AssetPlayerBase* Player = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
-			{
-				if(!Player->GetIgnoreForRelevancyTest() && Player->GetCachedBlendWeight() > MaxWeight)
-				{
-					MaxWeight = Player->GetCachedBlendWeight();
-					ResultPlayer = Player;
-				}
-			}
-		}
+		return StateMachine->GetRelevantAssetPlayerFromState(this, StateMachine->GetStateInfo(StateIndex));
 	}
-	return ResultPlayer;
+
+	return nullptr;
 }
 
 const FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstance(int32 MachineIndex) const

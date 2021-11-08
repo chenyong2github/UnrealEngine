@@ -51,9 +51,10 @@ protected:
 	virtual bool IsAntiAliasingSupported() const { return !bDisableMultisampleEffects; }
 	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
 	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulatorIncludesAlpha; }
-	virtual FSceneViewStateInterface* GetSceneViewStateInterface() override;
-	virtual UTextureRenderTarget2D* GetViewRenderTarget() const override;
+	virtual FSceneViewStateInterface* GetSceneViewStateInterface(IViewCalcPayload* OptPayload = nullptr) override;
+	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const override;
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
+	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const override;
 	// ~UMoviePipelineRenderPass
 
 	// FGCObject Interface
@@ -263,49 +264,3 @@ public:
 
 	virtual bool IsAntiAliasingSupported() const { return false; }
 };
-
-struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFromThis<FAccumulatorPool>
-{
-	struct FAccumulatorInstance
-	{
-		FAccumulatorInstance(TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> InAccumulator)
-		{
-			Accumulator = InAccumulator;
-			ActiveFrameNumber = INDEX_NONE;
-			bIsActive = false;
-		}
-
-
-		bool IsActive() const;
-		void SetIsActive(const bool bInIsActive);
-
-		TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
-		int32 ActiveFrameNumber;
-		FMoviePipelinePassIdentifier ActivePassIdentifier;
-		FThreadSafeBool bIsActive;
-		FGraphEventRef TaskPrereq;
-	};
-
-	TArray<TSharedPtr<FAccumulatorInstance, ESPMode::ThreadSafe>> Accumulators;
-	FCriticalSection CriticalSection;
-
-
-	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMoviePipelinePassIdentifier& InPassIdentifier);
-};
-
-template<typename AccumulatorType>
-struct TAccumulatorPool : FAccumulatorPool
-{
-	TAccumulatorPool(int32 InNumAccumulators)
-		: FAccumulatorPool()
-	{
-		for (int32 Index = 0; Index < InNumAccumulators; Index++)
-		{
-			// Create a new instance of the accumulator
-			TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator = MakeShared<AccumulatorType, ESPMode::ThreadSafe>();
-			Accumulators.Add(MakeShared<FAccumulatorInstance, ESPMode::ThreadSafe>(Accumulator));
-		}
-
-	}
-};
-

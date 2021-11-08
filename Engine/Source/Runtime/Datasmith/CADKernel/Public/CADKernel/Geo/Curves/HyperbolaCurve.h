@@ -25,11 +25,7 @@ namespace CADKernel
 		{
 		}
 
-		FHyperbolaCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FHyperbolaCurve() = default;
 
 	public:
 

@@ -203,7 +203,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateHeaderRowContent(FD
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(FText::FromString(TEXT("Layers")))
+			.Text(LOCTEXT("LayersLabel", "Layers"))
 		];
 
 	if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes & ELandscapeToolTargetTypeMask::Weightmap)
@@ -458,7 +458,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateChildContent(IDetai
 		TargetLayerList->SetDropIndicator_Above(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Above"));
 		TargetLayerList->SetDropIndicator_Below(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Below"));
 
-		ChildrenBuilder.AddCustomRow(FText::FromString(FString(TEXT("Layers"))))
+		ChildrenBuilder.AddCustomRow(LOCTEXT("LayersLabel", "Layers"))
 			.Visibility(EVisibility::Visible)
 			[
 				TargetLayerList.ToSharedRef()

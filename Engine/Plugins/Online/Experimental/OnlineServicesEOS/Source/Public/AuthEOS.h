@@ -20,18 +20,19 @@ public:
 	using Super = FAuthCommon;
 
 	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem);
+	virtual void Initialize() override;
 	virtual void PreShutdown() override;
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthGenerateAuth> GenerateAuth(FAuthGenerateAuth::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByAccountId::Result> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
+	virtual TOnlineResult<FAuthGetAccountByLocalUserNum> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) override;
+	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
 
 	bool IsLoggedIn(const FAccountId& AccountId) const;
 
 protected:
 	void OnEOSLoginStatusChanged(FAccountId LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus);
-	TOnlineResult<FAccountId> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
+	TResult<FAccountId, FOnlineError> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
 
 	class FAccountInfoEOS : public FAccountInfo
 	{

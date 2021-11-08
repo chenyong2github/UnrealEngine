@@ -66,6 +66,7 @@ void FPBDIslandSolver::AddConstraint(FConstraintHandle* ConstraintHandle)
 
 void FPBDIslandSolver::RemoveConstraint(FConstraintHandle* ConstraintHandle)
 {
+	// @todo(chaos): store the Island Constraint Index as a cookie on the constraint
 	if (ConstraintHandle)
 	{
 		IslandConstraints.Remove(ConstraintHandle);
@@ -94,9 +95,9 @@ inline bool ConstraintSortPredicate(const FConstraintHandle& L, const FConstrain
 		//sort constraints by the smallest particle idx in them first
 		//if the smallest particle idx is the same for both, use the other idx
 
-		if (CollisionConstraintL->GetType() != CollisionConstraintL->GetType())
+		if (CollisionConstraintL->GetType() != CollisionConstraintR->GetType())
 		{
-			return CollisionConstraintL->GetType() < CollisionConstraintL->GetType();
+			return CollisionConstraintL->GetType() < CollisionConstraintR->GetType();
 		}
 
 		const FParticleID ParticleIdxsL[] = { CollisionConstraintL->Particle[0]->ParticleID(), CollisionConstraintL->Particle[1]->ParticleID() };
@@ -119,11 +120,17 @@ inline bool ConstraintSortPredicate(const FConstraintHandle& L, const FConstrain
 	return false;
 }
 
+inline bool ConstraintHolderSortPredicate(const FConstraintHandleHolder& L, const FConstraintHandleHolder& R)
+{
+	return ConstraintSortPredicate(*L.Get(), *R.Get());
+}
+
+
 void FPBDIslandSolver::SortConstraints()
 {
 	if(!IsSleeping())
 	{
-		IslandConstraints.Sort(ConstraintSortPredicate);
+		IslandConstraints.Sort(ConstraintHolderSortPredicate);
 	}
 }
 

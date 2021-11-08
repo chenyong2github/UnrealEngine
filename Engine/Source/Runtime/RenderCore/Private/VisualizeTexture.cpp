@@ -217,7 +217,7 @@ void FVisualizeTexture::ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar)
 
 		DisplayPoolResourceListToLog(SortBy);
 	}
-	else if (Command == ECommand::DisplayResourceList)
+	else if (Command == ECommand::DisplayResourceList) //-V547
 	{
 		bool bListAllocated = false;
 		ESortBy SortBy = ESortBy::Index;

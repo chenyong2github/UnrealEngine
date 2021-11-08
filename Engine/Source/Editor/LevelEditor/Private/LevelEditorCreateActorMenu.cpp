@@ -425,7 +425,9 @@ void LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(FToolMenuSect
 			"AddActor",
 			NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor") , 
 			NSLOCTEXT("LevelViewportContextMenu", "AddActorMenu_ToolTip", "Templates for adding a new actor to the world"),
-			FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add));
+			FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add),
+			false, // default value
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.PlaceActors"));
 	}
 
 	if (bCanReplaceActors)
@@ -434,7 +436,9 @@ void LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(FToolMenuSect
 			"ReplaceActor",
 			NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorHeading", "Replace Selected Actors with") , 
 			NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorMenu_ToolTip", "Templates for replacing selected with new actors in the world"),
-			FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace));
+			FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace),
+			false, // default value
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ReplaceActor"));
 	}
 }
 

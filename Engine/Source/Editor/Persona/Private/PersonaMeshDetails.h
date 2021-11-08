@@ -123,7 +123,7 @@ private:
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool RequiresTick() const override { return false; }
-	virtual FName GetName() const override { static FName MeshBuildSettings("MeshBuildSettings"); return MeshBuildSettings; }
+	virtual FName GetName() const override { static FName MeshReductionSettings("MeshReductionSettings"); return MeshReductionSettings; }
 	virtual bool InitiallyCollapsed() const override { return true; }
 
 	bool IsReductionEnabled() const;

@@ -239,12 +239,9 @@ namespace ChaosTest
 			{
 				for (int32 Col = 0; Col < NumCols; ++Col)
 				{
-					Boxes->SetGeometry(Idx, MakeSerializable(Box));
 					Boxes->X(Idx) = FVec3(Col * 100, Row * 100, Height * 100) + Offset;
 					Boxes->R(Idx) = FRotation3::Identity;
-					Boxes->LocalBounds(Idx) = Box->BoundingBox();
-					Boxes->HasBounds(Idx) = true;
-					Boxes->SetWorldSpaceInflatedBounds(Idx, Box->BoundingBox().TransformedAABB(FRigidTransform3(Boxes->X(Idx), Boxes->R(Idx))));
+					Boxes->SetGeometry(Idx, MakeSerializable(Box));
 					++Idx;
 				}
 			}
@@ -349,9 +346,9 @@ namespace ChaosTest
 				//create a new box
 				const int32 NewIdx = Boxes->Size();
 				Boxes->AddParticles(1);
-				Boxes->SetGeometry(NewIdx, MakeSerializable(Box));
 				Boxes->X(NewIdx) = FVec3(-20, 0, 0);
 				Boxes->R(NewIdx) = FRotation3::Identity;
+				Boxes->SetGeometry(NewIdx, MakeSerializable(Box));
 				NewBounds = Boxes->Geometry(NewIdx)->template GetObject<TBox<FReal, 3>>()->BoundingBox().TransformedAABB(FRigidTransform3(Boxes->X(NewIdx), Boxes->R(NewIdx)));
 				Spatial2->UpdateElementIn(NewIdx, NewBounds, true, SpatialIdx);
 				FVisitor Visitor6(FVec3(-20, 0, 0), FVec3(0, 1, 0), 0, *Boxes);
@@ -458,12 +455,9 @@ namespace ChaosTest
 			{
 				for (int32 Col = 0; Col < NumCols; ++Col)
 				{
-					Boxes.SetGeometry(Idx, MakeSerializable(Box));
 					Boxes.X(Idx) = FVec3(Col * 100, Row * 100, Height * 100);
 					Boxes.R(Idx) = FRotation3::Identity;
-					Boxes.LocalBounds(Idx) = Box->BoundingBox();
-					Boxes.HasBounds(Idx) = true;
-					Boxes.SetWorldSpaceInflatedBounds(Idx, Box->BoundingBox().TransformedAABB(FRigidTransform3(Boxes.X(Idx), Boxes.R(Idx))));
+					Boxes.SetGeometry(Idx, MakeSerializable(Box));
 					++Idx;
 				}
 			}
@@ -830,11 +824,9 @@ namespace ChaosTest
 
 		// Construct a particle and set HasBounds to false.
 		int32 Idx = 0;
-		Boxes->SetGeometry(Idx, MakeSerializable(Box));
 		Boxes->X(Idx) = FVec3(0);
 		Boxes->R(Idx) = FRotation3::Identity;
-		Boxes->LocalBounds(Idx) = Box->BoundingBox();
-		Boxes->SetWorldSpaceInflatedBounds(Idx, Box->BoundingBox().TransformedAABB(FRigidTransform3(Boxes->X(Idx), Boxes->R(Idx))));
+		Boxes->SetGeometry(Idx, MakeSerializable(Box));
 
 		// Tell BV we have no bounds, this used to cause issues.
 		Boxes->HasBounds(Idx) = false;
@@ -887,19 +879,16 @@ namespace ChaosTest
 					FGeometryParticle* GTParticle = ParticleHandles[Idx]->GTGeometryParticle();
 					FPBDRigidParticleHandle* Handle = ParticleHandles[Idx];
 
-					Handle->SetGeometry(MakeSerializable(Box));
-					Handle->ShapesArray()[0]->SetQueryData(FilterData);
-					GTParticle->SetGeometry(Box);
-					GTParticle->ShapesArray()[0]->SetQueryData(FilterData);
 					Handle->SetX(FVec3(Col * BoxSize, Row * BoxSize, Height * BoxSize));
 					GTParticle->SetX(FVec3(Col * BoxSize, Row * BoxSize, Height * BoxSize));
 					Handle->SetR(FRotation3::Identity);
 					GTParticle->SetR(FRotation3::Identity);
+					Handle->SetGeometry(MakeSerializable(Box));
+					Handle->ShapesArray()[0]->SetQueryData(FilterData);
+					GTParticle->SetGeometry(Box);
+					GTParticle->ShapesArray()[0]->SetQueryData(FilterData);
 					Handle->SetUniqueIdx(FUniqueIdx(Idx));
 					GTParticle->SetUniqueIdx(FUniqueIdx(Idx));
-					Handle->SetLocalBounds(Box->BoundingBox());
-					Handle->SetHasBounds(true);
-					Handle->SetWorldSpaceInflatedBounds(Box->BoundingBox().TransformedAABB(FRigidTransform3(GTParticle->X(), GTParticle->R())));
 					++Idx;
 				}
 			}

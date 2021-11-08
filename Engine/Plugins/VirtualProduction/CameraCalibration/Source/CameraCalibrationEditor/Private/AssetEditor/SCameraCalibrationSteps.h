@@ -79,6 +79,12 @@ private:
 	/** List of overlay names for the combox box options */
 	TArray<TSharedPtr<FName>> SharedOverlayNames;
 
+	/** Map of overlay names to MIDs to use for those overlays */
+	TMap<FName, TObjectPtr<UMaterialInstanceDynamic>> OverlayMIDs;
+
+	/** Current overlay MID in use, set by the overlay combo box */
+	TObjectPtr<UMaterialInstanceDynamic> CurrentOverlayMID;
+
 	/** Widget switcher to only display the UI of the selected step */
 	TSharedPtr<SWidgetSwitcher> StepWidgetSwitcher;
 

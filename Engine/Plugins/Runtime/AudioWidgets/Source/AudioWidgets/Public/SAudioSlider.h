@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
 #include "Misc/Attribute.h"
-#include "Styling/CoreStyle.h"
+#include "SAudioInputWidget.h"
 #include "SAudioTextBox.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/SlateWidgetStyleAsset.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
@@ -24,7 +23,7 @@
  * This is a nativized version of the previous Audio Fader widget. 
  */
 class AUDIOWIDGETS_API SAudioSliderBase
-	: public SCompoundWidget 
+	: public SAudioInputWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SAudioSliderBase)
@@ -35,13 +34,16 @@ public:
 		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
 		if (ensure(AudioWidgetsStyle))
 		{
-			_SliderBackgroundColor = AudioWidgetsStyle->GetColor("AudioSlider.DefaultBackgroundColor");
-			_SliderBarColor = AudioWidgetsStyle->GetColor("AudioSlider.DefaultBarColor");
-			_SliderThumbColor = AudioWidgetsStyle->GetColor("AudioSlider.DefaultThumbColor");
-			_WidgetBackgroundColor = AudioWidgetsStyle->GetColor("AudioSlider.DefaultWidgetBackgroundColor");
-			_LabelBackgroundColor = AudioWidgetsStyle->GetColor("AudioSlider.DefaultLabelBackgroundColor");
+			_Style = &AudioWidgetsStyle->GetWidgetStyle<FAudioSliderStyle>("AudioSlider.Style");
+			_SliderBackgroundColor = _Style->SliderBackgroundColor;
+			_SliderBarColor = _Style->SliderBarColor;
+			_SliderThumbColor = _Style->SliderThumbColor;
+			_WidgetBackgroundColor = _Style->WidgetBackgroundColor;
 		}
 	}
+		/** The style used to draw the audio slider. */
+		SLATE_STYLE_ARGUMENT(FAudioSliderStyle, Style)
+
 		/** A value representing the audio slider value. */
 		SLATE_ATTRIBUTE(float, Value)
 
@@ -53,9 +55,6 @@ public:
 
 		/** The color to draw the slider background in. */
 		SLATE_ATTRIBUTE(FSlateColor, SliderBackgroundColor)
-
-		/** The color to draw the text label background in. */
-		SLATE_ATTRIBUTE(FSlateColor, LabelBackgroundColor)
 
 		/** The color to draw the slider bar in. */
 		SLATE_ATTRIBUTE(FSlateColor, SliderBarColor)
@@ -112,6 +111,8 @@ public:
 	void SetShowUnitsText(const bool bShowUnitsText);
 
 protected:
+	const FAudioSliderStyle* Style;
+
 	// Holds the slider's current linear value, from 0.0 - 1.0f
 	TAttribute<float> ValueAttribute;
 	// Holds the slider's orientation
@@ -129,20 +130,15 @@ protected:
 	// Widget components
 	TSharedPtr<SSlider> Slider;
 	TSharedPtr<SAudioTextBox> Label;
-	TSharedPtr<SImage> SliderBackgroundTopCapImage;
-	TSharedPtr<SImage> SliderBackgroundLeftCapImage;
-	TSharedPtr<SImage> SliderBackgroundBottomCapImage;
-	TSharedPtr<SImage> SliderBackgroundRightCapImage;
-	TSharedPtr<SImage> SliderBackgroundRectangleImage;
-	TSharedPtr<SImage> SliderBarTopCapImage;
-	TSharedPtr<SImage> SliderBarBottomCapImage;
-	TSharedPtr<SImage> SliderBarRectangleImage;
+	TSharedPtr<SImage> SliderBackgroundImage;
 	TSharedPtr<SImage> WidgetBackgroundImage;
 
 	// Range for output, currently only used for frequency sliders and sliders without curves
 	FVector2D OutputRange = FVector2D(0.0f, 1.0f);
 	static const FVector2D LinearRange;
 private:
+	FSlateBrush SliderBackgroundBrush;
+	FVector2D SliderBackgroundSize;
 	/** Switches between the vertical and horizontal views */
 	TSharedPtr<SWidgetSwitcher> LayoutWidgetSwitcher;
 

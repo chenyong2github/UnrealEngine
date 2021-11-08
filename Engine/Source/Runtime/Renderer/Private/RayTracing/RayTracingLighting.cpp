@@ -63,7 +63,7 @@ DECLARE_GPU_STAT_NAMED(LightCullingVolumeCompute, TEXT("RT Light Culling Volume 
 
 
 static void SelectRaytracingLights(
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View,
 	TArray<int32>& OutSelectedLights
 )
@@ -90,7 +90,7 @@ static int32 GetCellsPerDim()
 
 static void CreateRaytracingLightCullingStructure(
 	FRHICommandListImmediate& RHICmdList,
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View,
 	const TArray<int32>& LightIndices,
 	FRayTracingLightData& OutLightingData)
@@ -180,7 +180,7 @@ static void CreateRaytracingLightCullingStructure(
 
 static void SetupRaytracingLightDataPacked(
 	FRHICommandListImmediate& RHICmdList,
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const TArray<int32>& LightIndices,
 	const FViewInfo& View,
 	FRaytracingLightDataPacked* LightData,
@@ -361,7 +361,7 @@ static void SetupRaytracingLightDataPacked(
 
 FRayTracingLightData CreateRayTracingLightData(
 	FRHICommandListImmediate& RHICmdList,
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
+	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View, EUniformBufferUsage Usage)
 {
 	FRayTracingLightData LightingData;

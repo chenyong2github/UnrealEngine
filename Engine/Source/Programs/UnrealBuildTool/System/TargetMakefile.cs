@@ -5,10 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
@@ -23,7 +19,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 25;
+		public const int CurrentVersion = 26;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -156,6 +152,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		public List<UHTModuleHeaderInfo> UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
 
+#if __VPROJECT_AVAILABLE__
+		/// <summary>
+		/// All build modules containing Verse code
+		/// </summary>
+		public List<VNIModuleInfo> VNIModules;
+#endif
+
 		/// <summary>
 		/// List of config settings in generated config files
 		/// </summary>
@@ -215,6 +218,9 @@ namespace UnrealBuildTool
 			this.CandidatesForWorkingSet = new HashSet<FileItem>();
 			this.UObjectModules = new List<UHTModuleInfo>();
 			this.UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
+#if __VPROJECT_AVAILABLE__
+			this.VNIModules = new List<VNIModuleInfo>();
+#endif
 			this.PluginFiles = new HashSet<FileItem>();
 			this.ExternalDependencies = new HashSet<FileItem>();
 			this.InternalDependencies = new HashSet<FileItem>();
@@ -253,6 +259,9 @@ namespace UnrealBuildTool
 			CandidatesForWorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			UObjectModules = Reader.ReadList(() => new UHTModuleInfo(Reader));
 			UObjectModuleHeaders = Reader.ReadList(() => new UHTModuleHeaderInfo(Reader));
+#if __VPROJECT_AVAILABLE__
+			VNIModules = Reader.ReadList(() => new VNIModuleInfo(Reader));
+#endif
 			PluginFiles = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			ExternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			InternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
@@ -290,6 +299,9 @@ namespace UnrealBuildTool
 			Writer.WriteHashSet(CandidatesForWorkingSet, x => Writer.WriteFileItem(x));
 			Writer.WriteList(UObjectModules, e => e.Write(Writer));
 			Writer.WriteList(UObjectModuleHeaders, x => x.Write(Writer));
+#if __VPROJECT_AVAILABLE__
+			Writer.WriteList(VNIModules, e => e.Write(Writer));
+#endif
 			Writer.WriteHashSet(PluginFiles, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(ExternalDependencies, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(InternalDependencies, x => Writer.WriteFileItem(x));
@@ -306,6 +318,11 @@ namespace UnrealBuildTool
 			using(BinaryArchiveWriter Writer = new BinaryArchiveWriter(Location))
 			{
 				Writer.WriteInt(CurrentVersion);
+#if __VPROJECT_AVAILABLE__
+				Writer.WriteBool(true);
+#else
+				Writer.WriteBool(false);
+#endif
 				Write(Writer);
 			}
 		}
@@ -391,6 +408,16 @@ namespace UnrealBuildTool
 						if(Version != CurrentVersion)
 						{
 							ReasonNotLoaded = "makefile version does not match";
+							return null;
+						}
+						bool bVProjectAvailable = Reader.ReadBool();
+#if __VPROJECT_AVAILABLE__
+						if (!bVProjectAvailable)
+#else
+						if (bVProjectAvailable)
+#endif
+						{
+							ReasonNotLoaded = "makefile VProject availability does not match";
 							return null;
 						}
 						Makefile = new TargetMakefile(Reader, MakefileInfo.LastWriteTimeUtc);

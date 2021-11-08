@@ -12,12 +12,15 @@
 #include "Templates/RefCounting.h"
 #include "TickableEditorObject.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/PackageResourceManager.h"
 
 class FAssetPackageData;
 class FEditorDomainSaveClient;
 class IAssetRegistry;
+class UObject;
 class UPackage;
+struct FAssetData;
 namespace UE::EditorDomain
 {
 	typedef FIoHash FPackageDigest;
@@ -122,7 +125,7 @@ private:
 	FEditorDomain(const FEditorDomain& Other) = delete;
 	FEditorDomain(FEditorDomain&& Other) = delete;
 
-	/** Read the PackageSource data (domain&digest) from PackageSources, or from the asset registry if not in PackageSources. */
+	/** Read the PackageSource data from PackageSources, or from the asset registry if not in PackageSources. */
 	bool TryFindOrAddPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource);
 	/** Return the PackageSource data in PackageSources, if it exists */
 	TRefCountPtr<FPackageSource> FindPackageSource(const FPackagePath& PackagePath);
@@ -134,6 +137,11 @@ private:
 	void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
 	/** For each of the now-loaded packages, if we had to load from workspace domain, save into the editor domain. */
 	void FilterKeepPackagesToSave(TArray<UPackage*>& InOutLoadedPackages);
+	/** PackageSaved context to invalidate our information about where it should be loaded from. */
+	void OnPackageSavedWithContext(const FString& PackageFileName, UPackage* Package,
+		FObjectPostSaveContext ObjectSaveContext);
+	/** AssetUpdated event to invalidate our information about where it should be loaded from. */
+	void OnAssetUpdatedOnDisk(const FAssetData& AssetData);
 
 	/** Subsystem used to request the save of missing packages into the EditorDomain from a separate process. */
 	TUniquePtr<FEditorDomainSaveClient> SaveClient;

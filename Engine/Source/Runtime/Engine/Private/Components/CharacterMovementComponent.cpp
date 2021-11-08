@@ -563,7 +563,7 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	
 	Mass = 100.0f;
 	bJustTeleported = true;
-	CrouchedHalfHeight = 40.0f;
+	SetCrouchedHalfHeight(40.0f);
 	Buoyancy = 1.0f;
 	LastUpdateRotation = FQuat::Identity;
 	LastUpdateVelocity = FVector::ZeroVector;
@@ -2770,6 +2770,20 @@ bool UCharacterMovementComponent::CanCrouchInCurrentState() const
 	return (IsFalling() || IsMovingOnGround()) && UpdatedComponent && !UpdatedComponent->IsSimulatingPhysics();
 }
 
+void UCharacterMovementComponent::SetCrouchedHalfHeight(const float NewValue)
+{
+	CrouchedHalfHeight = NewValue;
+
+	if (CharacterOwner != nullptr)
+	{
+		CharacterOwner->RecalculateCrouchedEyeHeight();
+	}
+}
+
+float UCharacterMovementComponent::GetCrouchedHalfHeight() const
+{ 
+	return CrouchedHalfHeight; 
+}
 
 void UCharacterMovementComponent::Crouch(bool bClientSimulation)
 {
@@ -9545,9 +9559,10 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		if (bServerIsFalling && bLastServerIsWalking && !bTeleportedSinceLastUpdate)
 		{
 			float ClientForwardFactor = 1.f;
-			if (IsValid(LastServerMovementBase) && MovementBaseUtility::IsDynamicBase(LastServerMovementBase) && MaxWalkSpeed > KINDA_SMALL_NUMBER)
+			UPrimitiveComponent* LastServerMovementBasePtr = LastServerMovementBase.Get();
+			if (IsValid(LastServerMovementBasePtr) && MovementBaseUtility::IsDynamicBase(LastServerMovementBasePtr) && MaxWalkSpeed > KINDA_SMALL_NUMBER)
 			{
-				const FVector LastBaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(LastServerMovementBase, LastServerMovementBaseBoneName);
+				const FVector LastBaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(LastServerMovementBasePtr, LastServerMovementBaseBoneName);
 				RelativeVelocity = Velocity - LastBaseVelocity;
 				const FVector BaseDirection = LastBaseVelocity.GetSafeNormal2D();
 				const FVector RelativeDirection = RelativeVelocity * (1.f / MaxWalkSpeed);
@@ -9555,11 +9570,11 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 				ClientForwardFactor = FMath::Clamp(FVector::DotProduct(BaseDirection, RelativeDirection), 0.f, 1.f);
 
 				// To improve position syncing, use old base for take-off
-				if (MovementBaseUtility::UseRelativeLocation(LastServerMovementBase))
+				if (MovementBaseUtility::UseRelativeLocation(LastServerMovementBasePtr))
 				{
 					FVector BaseLocation;
 					FQuat BaseQuat;
-					MovementBaseUtility::GetMovementBaseTransform(LastServerMovementBase, LastServerMovementBaseBoneName, BaseLocation, BaseQuat);
+					MovementBaseUtility::GetMovementBaseTransform(LastServerMovementBasePtr, LastServerMovementBaseBoneName, BaseLocation, BaseQuat);
 
 					// Relative Location
 					RelativeLocation = UpdatedComponent->GetComponentLocation() - BaseLocation;
@@ -9645,7 +9660,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 			if (bDeferServerCorrectionsWhenFalling && bUseLastBase)
 			{
 				ServerData->PendingAdjustment.NewVel = RelativeVelocity;
-				ServerData->PendingAdjustment.NewBase = LastServerMovementBase;
+				ServerData->PendingAdjustment.NewBase = LastServerMovementBase.Get();
 				ServerData->PendingAdjustment.NewBaseBoneName = LastServerMovementBaseBoneName;
 				ServerData->PendingAdjustment.NewLoc = RelativeLocation;
 			}

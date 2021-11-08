@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "NiagaraEditorCommon.generated.h"
 
 NIAGARAEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, Log, All);
 
@@ -173,3 +174,65 @@ enum class EParameterDefinitionMatchState : uint8
 	MatchingDefinitionNameButNotType,
 };
 
+
+USTRUCT()
+struct NIAGARAEDITOR_API FFunctionInputSummaryViewKey
+{
+	GENERATED_BODY()
+
+private:
+	UPROPERTY()
+	FGuid FunctionGuid;
+
+	UPROPERTY()
+	FGuid InputGuid;
+
+public:
+
+	FFunctionInputSummaryViewKey() { }
+
+	FFunctionInputSummaryViewKey(const FGuid& InFunctionGuid, const FGuid& InInputGuid)
+		: FunctionGuid(InFunctionGuid), InputGuid(InInputGuid)
+	{ }
+
+	bool operator==(const FFunctionInputSummaryViewKey& Other) const
+	{
+		return FunctionGuid == Other.FunctionGuid && InputGuid == Other.InputGuid;
+	}
+
+	friend uint32 GetTypeHash(const FFunctionInputSummaryViewKey& Key)
+	{
+		return HashCombine(GetTypeHash(Key.FunctionGuid), GetTypeHash(Key.InputGuid));
+	}
+};
+
+USTRUCT()
+struct NIAGARAEDITOR_API FFunctionInputSummaryViewMetadata
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	bool bVisible;
+	UPROPERTY()
+	FName DisplayName;
+	UPROPERTY()
+	FName Category;
+	UPROPERTY()
+	int32 SortIndex;
+	
+	FFunctionInputSummaryViewMetadata()
+		: bVisible(false)
+		, SortIndex(0)
+	{		
+	}
+
+	bool operator==(const FFunctionInputSummaryViewMetadata& Other) const
+	{
+		return
+			bVisible == Other.bVisible &&
+			DisplayName == Other.DisplayName &&
+			Category == Other.Category &&
+			SortIndex == Other.SortIndex;
+	}
+};

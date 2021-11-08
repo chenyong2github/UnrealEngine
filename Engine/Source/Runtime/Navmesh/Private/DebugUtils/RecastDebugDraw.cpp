@@ -298,9 +298,9 @@ void duDebugDrawCompactHeightfieldDistance(duDebugDraw* dd, const rcCompactHeigh
 	const duReal cs = chf.cs;
 	const duReal ch = chf.ch;
 			
-	float maxd = chf.maxDistance;
+	duReal maxd = chf.maxDistance;
 	if (maxd < 1.0f) maxd = 1;
-	const float dscale = 255.0f / maxd;
+	const duReal dscale = 255.0f / maxd;
 	
 	dd->begin(DU_DRAW_QUADS);
 	
@@ -663,7 +663,7 @@ namespace RecastDrawFunc
 			center[1] += (duReal)v[1];
 			center[2] += (duReal)v[2];
 		}
-		const duReal s = 1.0f / cont->nverts;
+		const duReal s = duReal(1.) / cont->nverts;
 		center[0] *= s * cs;
 		center[1] *= s * ch;
 		center[2] *= s * cs;

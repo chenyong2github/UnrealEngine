@@ -135,10 +135,10 @@ struct FBoundObjectTask
 	FBoundObjectTask(UMovieSceneEntitySystemLinker* InLinker);
 	virtual ~FBoundObjectTask(){}
 
-	virtual FObjectFactoryBatch& AddBatch(const FEntityAllocation* Parent) = 0;
+	virtual FObjectFactoryBatch& AddBatch(FEntityAllocationProxy ParentProxy) = 0;
 	virtual void Apply() = 0;
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings);
+	void ForEachAllocation(FEntityAllocationProxy AllocationProxy, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings);
 
 	void PostTask();
 
@@ -169,25 +169,24 @@ struct TBoundObjectTask : FBoundObjectTask
 
 private:
 
-	virtual FObjectFactoryBatch& AddBatch(const FEntityAllocation* Parent) override
+	virtual FObjectFactoryBatch& AddBatch(FEntityAllocationProxy ParentProxy) override
 	{
-		return Batches.Add(Parent);
+		return Batches.Add(ParentProxy);
 	}
 
 	virtual void Apply() override
 	{
-		for (TTuple<const FEntityAllocation*, BatchType>& Pair : Batches)
+		for (TTuple<FEntityAllocationProxy, BatchType>& Pair : Batches)
 		{
 			// Determine the type for the new entities
-			const FEntityAllocation* ParentAllocation = Pair.Key;
 			if (Pair.Value.Num() != 0)
 			{
-				Pair.Value.Apply(Linker, ParentAllocation);
+				Pair.Value.Apply(Linker, Pair.Key);
 			}
 		}
 	}
 
-	TMap<const FEntityAllocation*, BatchType> Batches;
+	TMap<FEntityAllocationProxy, BatchType> Batches;
 };
 
 

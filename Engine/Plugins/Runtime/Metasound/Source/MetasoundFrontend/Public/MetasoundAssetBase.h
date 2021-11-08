@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MetasoundAccessPtr.h"
+#include "MetasoundAssetManager.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -17,83 +18,6 @@
 class FMetasoundAssetBase;
 class UEdGraph;
 
-namespace Metasound
-{
-	namespace AssetTags
-	{
-		extern const FString METASOUNDFRONTEND_API ArrayDelim;
-
-		extern const FName METASOUNDFRONTEND_API AssetClassID;
-		extern const FName METASOUNDFRONTEND_API RegistryVersionMajor;
-		extern const FName METASOUNDFRONTEND_API RegistryVersionMinor;
-
-#if WITH_EDITORONLY_DATA
-		extern const FName METASOUNDFRONTEND_API RegistryInputTypes;
-		extern const FName METASOUNDFRONTEND_API RegistryOutputTypes;
-#endif // WITH_EDITORONLY_DATA
-	} // namespace AssetTags
-} // namespace Metasound
-
-struct METASOUNDFRONTEND_API FMetaSoundAssetRegistrationOptions
-{
-	// If true, forces a re-register of this class (and all class dependencies
-	// if the following option 'bRegisterDependencies' is enabled).
-	bool bForceReregister = true;
-
-	// If true, recursively attempts to register dependencies.
-	bool bRegisterDependencies = false;
-
-	// Attempt to auto-update (Only runs if class not registered or set to force re-register.
-	// Will not respect being set to true if project-level MetaSoundSettings specify to not run auto-update.)
-	bool bAutoUpdate = true;
-
-	// Attempt to rebuild referenced class keys (only run if class not registered or set to force re-register)
-	bool bRebuildReferencedAssetClassKeys = true;
-};
-
-class METASOUNDFRONTEND_API IMetaSoundAssetManager
-{
-	static IMetaSoundAssetManager* Instance;
-
-public:
-	static void Set(IMetaSoundAssetManager& InInterface)
-	{
-		if (!InInterface.IsTesting())
-		{
-			check(!Instance);
-		}
-		Instance = &InInterface;
-	}
-
-	static IMetaSoundAssetManager* Get()
-	{
-		return Instance;
-	}
-
-	static IMetaSoundAssetManager& GetChecked()
-	{
-		check(Instance);
-		return *Instance;
-	}
-
-	// Whether or not manager is being used to run tests or not (enabling instances to be reset without asserting.)
-	virtual bool IsTesting() const { return false; }
-
-	// Whether or not the class is eligible for auto-update
-	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;
-
-	// Returns asset associated with the given key (null if key is not registered with the AssetManager or was not loaded from asset)
-	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
-
-	// Returns path associated with the given key (null if key is not registered with the AssetManager or was not loaded from asset)
-	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
-
-	// Rescans settings for denied assets not to run reference auto-update against.
-	virtual void RescanAutoUpdateDenyList() = 0;
-
-	// Attempts to load an FMetasoundAssetBase from the given path, or returns it if its already loaded
-	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const = 0;
-};
 
 /** FMetasoundAssetBase is intended to be a mix-in subclass for UObjects which utilize
  * Metasound assets.  It provides consistent access to FMetasoundFrontendDocuments, control
@@ -135,7 +59,7 @@ public:
 	virtual bool ConformObjectDataToArchetype() = 0;
 
 	// Registers the root graph of the given asset with the MetaSound Frontend.
-	void RegisterGraphWithFrontend(FMetaSoundAssetRegistrationOptions InRegistrationOptions = FMetaSoundAssetRegistrationOptions());
+	void RegisterGraphWithFrontend(Metasound::Frontend::FMetaSoundAssetRegistrationOptions InRegistrationOptions = Metasound::Frontend::FMetaSoundAssetRegistrationOptions());
 
 	// Unregisters the root graph of the given asset with the MetaSound Frontend.
 	void UnregisterGraphWithFrontend();
@@ -162,26 +86,23 @@ public:
 	// Returns all the class keys of this asset's referenced assets
 	virtual const TSet<FString>& GetReferencedAssetClassKeys() const = 0;
 
-	// Returns set of cached class references required by this class
-	// to persist during the duration of this class being registered.
-	// TODO: May no longer be needed, but leaving for now to avoid
-	// potential edge cases with GC/UObject references.  Could potentially
-	// move to cook only and making auto-update optional (to avoid large
-	// MetaSound patches caused by references being updated).
-	virtual TSet<UObject*>& GetReferencedAssetClassCache() = 0;
+	// Returns set of cached class references set on last registration
+	// prior to serialize. Used at runtime to hint where to load referenced
+	// class if sound loads before AssetManager scan is completed.  Can be
+	// superseded by another asset class with the same key it is already
+	// registered in the MetaSoundAssetManager.
+	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() = 0;
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const = 0;
 
 	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const;
 	void ConvertFromPreset();
-	TArray<FMetasoundAssetBase*> FindOrLoadReferencedAssets() const;
 	bool IsRegistered() const;
-	void RebuildReferencedAssetClassKeys();
 
 	// Imports data from a JSON string directly
 	bool ImportFromJSON(const FString& InJSON);
 
 	// Imports the asset from a JSON file at provided path
 	bool ImportFromJSONAsset(const FString& InAbsolutePath);
-
 
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FDocumentHandle GetDocumentHandle();
@@ -213,6 +134,12 @@ public:
 		Metasound::FVertexName VertexName;
 	};
 
+	// Returns the owning asset responsible for transactions applied to MetaSound
+	virtual UObject* GetOwningAsset() = 0;
+
+	// Returns the owning asset responsible for transactions applied to MetaSound
+	virtual const UObject* GetOwningAsset() const = 0;
+
 protected:
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) = 0;
 
@@ -228,12 +155,6 @@ protected:
 
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
-
-	// Returns the owning asset responsible for transactions applied to MetaSound
-	virtual UObject* GetOwningAsset() = 0;
-
-	// Returns the owning asset responsible for transactions applied to MetaSound
-	virtual const UObject* GetOwningAsset() const = 0;
 
 	FString GetOwningAssetName() const;
 

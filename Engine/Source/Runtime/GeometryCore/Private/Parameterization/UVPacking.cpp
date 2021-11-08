@@ -920,8 +920,7 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(i
 	double TargetHeight = 1.0 - 2 * GutterWidth;
 	double WidthScale = TargetWidth / MaxWidth;
 	double HeightScale = TargetWidth / MaxHeight;
-	double UseUniformScale = (FMathd::Min(WidthScale, HeightScale) > 1) ?
-		FMathd::Min(WidthScale, HeightScale) : FMathd::Max(WidthScale, HeightScale);
+	double UseUniformScale = FMathd::Min(WidthScale, HeightScale);
 
 	// transform them
 	TSet<int32> IslandElements;

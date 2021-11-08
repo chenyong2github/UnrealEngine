@@ -250,8 +250,8 @@ namespace AutomationToolDriver
 					{"-AllowStdOutLogVerbosity", ""},
 					{"-NoAutoSDK", ""},
 					{"-Compile", "Force all script modules to be compiled"},
-					{"-NoCompileUAT", "Do not attempt to compile any script modules - attempts to run with whatever is up to date" },
-					{"-IgnoreBuildRecords", "Ignore build record (.uatbuildrecord) files when determining if script modules are up to date" },
+					{"-NoCompile", "Do not attempt to compile any script modules - attempts to run with whatever is up to date" },
+					{"-IgnoreBuildRecords", "Ignore build records (Intermediate/ScriptModule/ProjectName.json) files when determining if script modules are up to date" },
 					{"-UseLocalBuildStorage", @"Allows you to use local storage for your root build storage dir {default of P:\Builds {on PC} is changed to Engine\Saved\LocalBuilds}. Used for local testing."},
 					{"-WaitForDebugger", "Waits for a debugger to be attached, and breaks once debugger successfully attached."},
 					{"-BuildMachine", "" },
@@ -413,14 +413,14 @@ namespace AutomationToolDriver
 			string ScriptsForProject = (string)AutomationToolCommandLine.GetValueUnchecked("-ScriptsForProject");
 			List<string> AdditionalScriptDirs = (List<string>) AutomationToolCommandLine.GetValueUnchecked("-ScriptDir");
 			bool bForceCompile = AutomationToolCommandLine.IsSetGlobal("-Compile");
-			bool bNoCompile = AutomationToolCommandLine.IsSetGlobal("-NoCompileUAT");
+			bool bNoCompile = AutomationToolCommandLine.IsSetGlobal("-NoCompile");
 			bool bUseBuildRecords = !AutomationToolCommandLine.IsSetGlobal("-IgnoreBuildRecords");
 			List<CommandInfo> Commands = AutomationToolCommandLine.IsSetGlobal("-List")
 				? null
 				: AutomationToolCommandLine.CommandsToExecute;
 			bool bBuildSuccess;
 			HashSet<FileReference> ScriptModuleAssemblyPaths = InitializeScriptModules(
-					ScriptsForProject, AdditionalScriptDirs, bForceCompile, bNoCompile,bUseBuildRecords, out bBuildSuccess);
+					ScriptsForProject, AdditionalScriptDirs, bForceCompile, bNoCompile, bUseBuildRecords, out bBuildSuccess);
 
 			if (!bBuildSuccess)
             {

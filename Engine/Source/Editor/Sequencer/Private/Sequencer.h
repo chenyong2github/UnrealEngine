@@ -956,7 +956,7 @@ protected:
 	void OnScrubPositionParentChanged(FMovieSceneSequenceID InScrubPositionParent);
 
 	/** Exports sequence to a FBX file */
-	void ExportFBXInternal(const FString& Filename, TArray<FGuid>& Bindings);
+	void ExportFBXInternal(const FString& Filename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks);
 
 protected:
 

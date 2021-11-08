@@ -324,6 +324,64 @@ public:
 };
 
 
+/** Paramaters to be considered when calling UPlayerInput::InputKey. */
+struct ENGINE_API FInputKeyParams
+{
+	FInputKeyParams() = default;
+	
+	FInputKeyParams(FKey InKey, enum EInputEvent InEvent, FVector InDelta, bool bGamepadOverride = false)
+		: Key(InKey)
+		, Event(InEvent)
+		, Delta(InDelta)
+		, bIsGamepadOverride(bGamepadOverride)
+	{};
+
+	FInputKeyParams(FKey InKey, enum EInputEvent InEvent, double InDelta, bool bGamepadOverride = false)
+		: Key(InKey)
+		, Event(InEvent)
+		, Delta(FVector(InDelta, 0.0, 0.0))
+		, bIsGamepadOverride(bGamepadOverride)
+	{};
+	
+	FInputKeyParams(FKey InKey, double InDelta, float InDeltaTime, int32 InNumSamples, bool bGamepadOverride = false)
+		: Key(InKey)
+		, NumSamples(InNumSamples)
+		, DeltaTime(InDeltaTime)
+		, Delta(FVector(InDelta, 0.0, 0.0))
+		, bIsGamepadOverride(bGamepadOverride)
+	{};
+
+	/** The key that has been pressed */
+	FKey Key = EKeys::Invalid;
+
+	/** The event that has caused a Button key to be considered */
+	enum EInputEvent Event = EInputEvent::IE_Pressed;
+
+	/** The number of samples to be taken into account with the FKeyState::SampleCountAccumulator */
+	int32 NumSamples = 0;
+
+	/** The time between the previous frame and the current one */
+	float DeltaTime = 1 / 60.f;
+	
+	/** The Delta that the given key/axis has been changed by */
+	FVector Delta = FVector::ZeroVector;
+
+	/** If set to true, treat this input event as if it were from a gamepad, whether the FKey is a gamepad key or not. */
+	bool bIsGamepadOverride = false;
+
+	/** Returns true if the Key used for this input is a gamepad key */
+	bool IsGamepad() const { return Key.IsGamepadKey() || bIsGamepadOverride; }
+
+	/** Get the delta of the given axis for 1D axis */
+	double Get1DAxisDelta() const { return Delta.X; }
+
+	/** Get the delta of the given axis for 2D axis */
+	FVector2D Get2DAxisDelta() const { return FVector2D((float)Delta.X, (float)Delta.Y); }
+
+	/** Get the delta of the given axis for 3D axis */
+	FVector Get3DAxisDelta() const { return Delta; }
+};
+
 /**
  * Object within PlayerController that processes player input.
  * Only exists on the client in network games.
@@ -497,9 +555,14 @@ public:
 	void FlushPressedActionBindingKeys(FName ActionName);
 
 	/** Handles a key input event.  Returns true if there is an action that handles the specified key. */
+	UE_DEPRECATED(5.0, "This version of InputKey has been deprecated, please use that which takes in FInputKeyParams")
 	virtual bool InputKey(FKey Key, enum EInputEvent Event, float AmountDepressed, bool bGamepad);
 
+	/** Handles a key input event.  Returns true if there is an action that handles the specified key. */
+	virtual bool InputKey(const FInputKeyParams& Params);
+	
 	/** Handles an axis input event.  Returns true if a legacy key bind handled the input, otherwise false. */
+	UE_DEPRECATED(5.0, "InputAxis has been deprecated, please use the version of InputKey which takes in FInputKeyParams")
 	bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
 
 	/** Handles a touch input event.  Returns true. */

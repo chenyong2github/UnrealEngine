@@ -882,7 +882,7 @@ FString FPaths::GetPathLeaf(FString&& InPath)
 FString FPaths::ChangeExtension(const FString& InPath, const FString& InNewExtension)
 {
 	int32 Pos = INDEX_NONE;
-	if (InPath.FindLastChar('.', Pos))
+	if (InPath.FindLastChar(TEXT('.'), Pos))
 	{
 		const int32 PathEndPos = InPath.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
 		if (PathEndPos != INDEX_NONE && PathEndPos > Pos)
@@ -912,7 +912,7 @@ FString FPaths::ChangeExtension(const FString& InPath, const FString& InNewExten
 FString FPaths::SetExtension(const FString& InPath, const FString& InNewExtension)
 {
 	int32 Pos = INDEX_NONE;
-	if (InPath.FindLastChar('.', Pos))
+	if (InPath.FindLastChar(TEXT('.'), Pos))
 	{
 		const int32 PathEndPos = InPath.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
 		if (PathEndPos != INDEX_NONE && PathEndPos > Pos)
@@ -1079,7 +1079,7 @@ void FPaths::NormalizeDirectoryName(FString& InPath)
 	if (InPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive) && !InPath.EndsWith(TEXT("//"), ESearchCase::CaseSensitive) && !InPath.EndsWith(TEXT(":/"), ESearchCase::CaseSensitive))
 	{
 		// overwrite trailing slash with terminator
-		InPath.GetCharArray()[InPath.Len() - 1] = 0;
+		InPath.GetCharArray()[InPath.Len() - 1] = TEXT('\0');
 		// shrink down
 		InPath.TrimToNullTerminator();
 	}
@@ -1424,7 +1424,7 @@ FString FPaths::MakeValidFileName(const FString& InString, const TCHAR InReplace
 		}
 	}
 
-	Output[InLen] = 0;
+	Output[InLen] = TEXT('\0');
 
 	if (InReplacementChar == 0)
 	{
@@ -1455,7 +1455,7 @@ FString FPaths::MakeValidFileName(const FString& InString, const TCHAR InReplace
 				{
 					// take this char and null it out
 					Output[iChar] = Output[iFill];
-					Output[iFill] = 0;
+					Output[iFill] = TEXT('\0');
 				}
 			}
 		}
@@ -1501,7 +1501,7 @@ bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 		}
 
 		// Check for invalid characters
-		TCHAR CharString[] = { '\0', '\0' };
+		TCHAR CharString[] = { TEXT('\0'), TEXT('\0') };
 		FString MatchedInvalidChars;
 		for(const TCHAR* InvalidCharacters = *RestrictedChars; *InvalidCharacters; ++InvalidCharacters)
 		{

@@ -1023,7 +1023,7 @@ static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT(" 1: Force new compiler for all shaders (default)"),
 	ECVF_ReadOnly);
 
-int32 GCreateShadersOnLoad = 0;
+ENGINE_API int32 GCreateShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("r.CreateShadersOnLoad"),
 	GCreateShadersOnLoad,
@@ -5754,6 +5754,12 @@ void GlobalBeginCompileShader(
 		static IConsoleVariable* CVarBackCompatibility = IConsoleManager::Get().FindConsoleVariable(TEXT("r.StrataBackCompatibility"));
 		const bool bStrataBackCompatibility = CVarBackCompatibility && CVarBackCompatibility->GetInt() > 0;
 		Input.Environment.SetDefine(TEXT("PROJECT_STRATA_BACKCOMPATIBILITY"), bStrataBackCompatibility ? 1 : 0);
+	}
+
+	{
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Material.RoughDiffuse"));
+		const bool bMaterialRoughDiffuse = CVar && CVar->GetInt() != 0;
+		Input.Environment.SetDefine(TEXT("MATERIAL_ROUGHDIFFUSE"), bMaterialRoughDiffuse ? 1 : 0);
 	}
 
 	{

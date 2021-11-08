@@ -2,88 +2,53 @@
 
 #include "ConsoleVariablesAsset.h"
 
+#include "ConsoleVariablesEditorCommandInfo.h"
+
 #include "Algo/Find.h"
-#include "Editor.h"
-
-void FConsoleVariablesUiCommandInfo::ExecuteCommand() const
-{
-	GEngine->Exec(GEditor->GetWorld(), *FString::Printf(TEXT("%s %s"), *Command, *ValueAsString));
-}
-
-void UConsoleVariablesAsset::SetVariableCollectionName(const FName& InVariableCollectionName)
-{
-	VariableCollectionName = InVariableCollectionName;
-}
 
 void UConsoleVariablesAsset::SetVariableCollectionDescription(const FString& InVariableCollectionDescription)
 {
 	VariableCollectionDescription = InVariableCollectionDescription;
 }
 
-bool UConsoleVariablesAsset::FindCommandInfoByCommandString(const FString& InCommand, FConsoleVariablesUiCommandInfo& OutCommandInfo)
+void UConsoleVariablesAsset::ReplaceSavedCommandsAndValues(const TMap<FString, FString>& InMap)
 {
-	FConsoleVariablesUiCommandInfo* MatchedInfo = Algo::FindByPredicate(
-	SavedCommandsAndValues, [&InCommand](const FConsoleVariablesUiCommandInfo& Info)
-	{
-		return Info.Command.Equals(InCommand);
-	});
-
-	if (MatchedInfo)
-	{
-		OutCommandInfo = *MatchedInfo;
-	}
-
-	return MatchedInfo ? true : false;
+	SavedCommandsAndValues = InMap;
 }
 
-void UConsoleVariablesAsset::AddOrSetConsoleVariableSavedValue(const FConsoleVariablesUiCommandInfo InCommandInfo)
+bool UConsoleVariablesAsset::FindSavedValueByCommandString(const FString& InCommandString, FString& OutValue) const
 {
-	const int32 IndexOfMatch = SavedCommandsAndValues.IndexOfByPredicate([&InCommandInfo](const FConsoleVariablesUiCommandInfo& Comparator)
-	{
-		return Comparator.SimilarTo(InCommandInfo);
-	});
+	TArray<FString> KeyArray;
+	SavedCommandsAndValues.GetKeys(KeyArray);
 
-	if (IndexOfMatch > -1)
+	if (const bool bMatchFound = KeyArray.Contains(InCommandString))
 	{
-		SavedCommandsAndValues[IndexOfMatch] = InCommandInfo;
+		OutValue = SavedCommandsAndValues[InCommandString];
 	}
-	else
-	{
-		SavedCommandsAndValues.Add(InCommandInfo);
-	}
-}
-
-bool UConsoleVariablesAsset::RemoveConsoleVariable(const FConsoleVariablesUiCommandInfo InCommandInfo)
-{
-	const int32 IndexOfMatch = SavedCommandsAndValues.IndexOfByPredicate([&InCommandInfo](const FConsoleVariablesUiCommandInfo& Comparator)
-	{
-		return Comparator.SimilarTo(InCommandInfo);
-	});
-
-	if (IndexOfMatch > -1)
-	{
-		SavedCommandsAndValues.RemoveAt(IndexOfMatch);
-
-		return true;
-	}
-
+	
 	return false;
 }
 
-const FText& UConsoleVariablesAsset::GetSource() const
+void UConsoleVariablesAsset::AddOrSetConsoleVariableSavedValue(const FString& InCommandString, const FString& InNewValue)
 {
-	return Source;
+	SavedCommandsAndValues.Add(InCommandString, InNewValue);
 }
 
-void UConsoleVariablesAsset::SetSource(const FText& InSourceText)
+bool UConsoleVariablesAsset::RemoveConsoleVariable(const FString& InCommandString)
 {
-	Source = InSourceText;
+	TArray<FString> KeyArray;
+	SavedCommandsAndValues.GetKeys(KeyArray);
+
+	if (const bool bMatchFound = KeyArray.Contains(InCommandString))
+	{
+		return SavedCommandsAndValues.Remove(InCommandString) > 0;
+	}
+	
+	return false;
 }
 
 void UConsoleVariablesAsset::CopyFrom(UConsoleVariablesAsset* InAssetToCopy)
 {
-	VariableCollectionName = InAssetToCopy->VariableCollectionName;
 	VariableCollectionDescription = InAssetToCopy->VariableCollectionDescription;
 	SavedCommandsAndValues = InAssetToCopy->SavedCommandsAndValues;
-	Source = InAssetToCopy->Source;
 }

@@ -908,7 +908,7 @@ void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Mess
 	if ( IsInStep() )
 	{
 		FullMessage.Append(TEXT(" in step: "));
-		FString StepName = TEXT("");
+		FString StepName = GetCurrentStepName();
 		if ( StepName.IsEmpty() )
 		{
 			StepName = TEXT("<UN-NAMED STEP>");

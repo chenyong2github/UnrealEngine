@@ -24,6 +24,7 @@ public:
 	static FQuat GetBoneRotation(const int32 ControllerIndex, const EOculusHandType DeviceHand, const EBone BoneId);
 	static float GetHandScale(const int32 ControllerIndex, const EOculusHandType DeviceHand);
 	static ETrackingConfidence GetTrackingConfidence(const int32 ControllerIndex, const EOculusHandType DeviceHand);
+	static ETrackingConfidence GetFingerTrackingConfidence(const int32 ControllerIndex, const EOculusHandType DeviceHand, const EOculusHandAxes Finger); // OCULUS STRIKE
 	static FTransform GetPointerPose(const int32 ControllerIndex, const EOculusHandType DeviceHand, const float WorldToMeters = 100.f);
 	static bool IsPointerPoseValid(const int32 ControllerIndex, const EOculusHandType DeviceHand);
 	static bool GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, const EOculusHandType SkeletonType, const EOculusHandType MeshType, const float WorldToMeters = 100.f);
@@ -31,6 +32,7 @@ public:
 	static ETrackingConfidence ToETrackingConfidence(ovrpTrackingConfidence Confidence);
 	static bool IsHandTrackingEnabled();
 	static bool IsHandDominant(const int32 ControllerIndex, const EOculusHandType DeviceHand);
+	static bool IsHandPositionValid(int32 ControllerIndex, EOculusHandType DeviceHand);
 
 	// Helper functions
 	static ovrpBoneId ToOvrBone(EBone Bone);

@@ -823,7 +823,7 @@ void FAssetTypeActions_Skeleton::DetectReadOnlyPackages(TArray<FAssetToRemapSkel
 		{
 			// Find the package filename
 			FString Filename;
-			if ( FPackageName::DoesPackageExist(Package->GetName(), NULL, &Filename) )
+			if ( FPackageName::DoesPackageExist(Package->GetName(), &Filename) )
 			{
 				// If the file is read only
 				if ( IFileManager::Get().IsReadOnly(*Filename) )

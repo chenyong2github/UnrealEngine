@@ -37,11 +37,7 @@ namespace CADKernel
 
 		FCompositeCurve(const TArray<TSharedPtr<FCurve>>& Curves, bool bDoInversions = false);
 
-		FCompositeCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FCompositeCurve() = default;
 
 	public:
 

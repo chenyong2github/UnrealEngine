@@ -1484,7 +1484,7 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 	bool bIsRayTracing = FGPUSkinCache::IsGPUSkinCacheRayTracingSupported();
 	if (bIsRayTracing && SkeletalMesh)
 	{
-		bIsRayTracing = SkeletalMesh->bSupportRayTracing;
+		bIsRayTracing = SkeletalMesh->GetSupportRayTracing();
 	}
 
 	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
@@ -2715,17 +2715,9 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 		return;
 	}
 
-	// If override exists, reset info
-	if (RefPoseOverride)
-	{
-		RefPoseOverride->RefBasesInvMatrix.Reset();
-		RefPoseOverride->RefBonePoses.Reset();
-	}
-	// If not, allocate new struct to keep info
-	else
-	{
-		RefPoseOverride = new FSkelMeshRefPoseOverride();
-	}
+	// Always allocate new struct to keep info.
+	// previously allocated RefPoseOverride, if there was one, will potentially be used on other threads by BoneContainer for one frame
+	RefPoseOverride = MakeShared<FSkelMeshRefPoseOverride>();
 
 	// Copy input transforms into override data
 	RefPoseOverride->RefBonePoses = NewRefPoseTransforms;
@@ -2775,7 +2767,6 @@ void USkinnedMeshComponent::ClearRefPoseOverride()
 	// Release mem for override info
 	if (RefPoseOverride)
 	{
-		delete RefPoseOverride;
 		RefPoseOverride = nullptr;
 	}
 }
@@ -3386,7 +3377,6 @@ void USkinnedMeshComponent::BeginDestroy()
 	// Release ref pose override if allocated
 	if (RefPoseOverride)
 	{
-		delete RefPoseOverride;
 		RefPoseOverride = nullptr;
 	}
 

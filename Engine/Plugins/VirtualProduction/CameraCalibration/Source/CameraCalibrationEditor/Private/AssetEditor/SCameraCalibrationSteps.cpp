@@ -309,6 +309,11 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildOverlayWidget()
 	for (const FName& Name : SubSystem->GetOverlayMaterialNames())
 	{
 		SharedOverlayNames.Add(MakeShared<FName>(Name));
+
+		if (UMaterialInterface* OverlayMaterial = SubSystem->GetOverlayMaterial(Name))
+		{
+			OverlayMIDs.Add(Name, UMaterialInstanceDynamic::Create(OverlayMaterial, GetTransientPackage()));
+		}
 	}
 
 	SharedOverlayNames.Sort([](const TSharedPtr<FName>& LHS, const TSharedPtr<FName>& RHS) { return LHS->Compare(*RHS) <= 0; });
@@ -319,22 +324,12 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildOverlayWidget()
 		.OptionsSource(&SharedOverlayNames)
 		.OnSelectionChanged_Lambda([&](TSharedPtr<FName> NewValue, ESelectInfo::Type Type) -> void
 		{
-			if (!CalibrationStepsController.IsValid())
+			if (CalibrationStepsController.IsValid())
 			{
-				return;
+				CurrentOverlayMID = OverlayMIDs.FindRef(*NewValue).Get();
+				CalibrationStepsController.Pin()->SetOverlayMaterial(CurrentOverlayMID, true, EOverlayPassType::UserOverlay);
+				UpdateOverlayMaterialParameterWidget();
 			}
-				
-			if (NewValue->Compare(FName(TEXT("None"))) == 0.0f)
-			{
-				CalibrationStepsController.Pin()->SetOverlayEnabled(false);
-			}
-			else
-			{
-				UMaterialInterface* OverlayMaterial = SubSystem->GetOverlayMaterial(*NewValue);
-				CalibrationStepsController.Pin()->SetOverlayMaterial(OverlayMaterial);
-			}
-
-			UpdateOverlayMaterialParameterWidget();
 		})
 		.OnGenerateWidget_Lambda([&](TSharedPtr<FName> InOption) -> TSharedRef<SWidget>
 		{
@@ -370,15 +365,15 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 		return;
 	}
 
-	if (CalibrationStepsController.Pin()->IsOverlayEnabled())
+	if (CalibrationStepsController.Pin()->IsOverlayEnabled(EOverlayPassType::UserOverlay))
 	{
-		if (const UMaterialInterface* const OverlayMaterial = CalibrationStepsController.Pin()->GetOverlayMaterial())
+		if (CurrentOverlayMID)
 		{
 			TMap<FMaterialParameterInfo, FMaterialParameterMetadata> ScalarParams;
-			OverlayMaterial->GetAllParametersOfType(EMaterialParameterType::Scalar, ScalarParams);
+			CurrentOverlayMID->GetAllParametersOfType(EMaterialParameterType::Scalar, ScalarParams);
 
 			TMap<FMaterialParameterInfo, FMaterialParameterMetadata> VectorParams;
-			OverlayMaterial->GetAllParametersOfType(EMaterialParameterType::Vector, VectorParams);
+			CurrentOverlayMID->GetAllParametersOfType(EMaterialParameterType::Vector, VectorParams);
 
 			// Early-exit if there are no material parameters to display
 			if (ScalarParams.Num() + VectorParams.Num() == 0)
@@ -413,9 +408,9 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 						{ 
 							float ScalarValue = 0.0f;
 							
-							if (CalibrationStepsController.IsValid())
+							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
-								CalibrationStepsController.Pin()->GetOverlayScalarParameterValue(ParameterInfo.Name, ScalarValue);
+								Overlay->GetScalarParameterValue(ParameterInfo.Name, ScalarValue);
 							}
 
 							return ScalarValue;
@@ -425,9 +420,9 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 							float MinValue = 0.0f;
 							float MaxValue = 0.0f;
 
-							if (CalibrationStepsController.IsValid())
+							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
-								CalibrationStepsController.Pin()->GetOverlayScalarParameterMinMax(ParameterInfo.Name, MinValue, MaxValue);
+								Overlay->GetScalarParameterSliderMinMax(ParameterInfo.Name, MinValue, MaxValue);
 							}
 
 							return MinValue;
@@ -437,25 +432,35 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 							float MinValue = 0.0f;
 							float MaxValue = 0.0f;
 								
-							if (CalibrationStepsController.IsValid())
+							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
-								CalibrationStepsController.Pin()->GetOverlayScalarParameterMinMax(ParameterInfo.Name, MinValue, MaxValue);
+								Overlay->GetScalarParameterSliderMinMax(ParameterInfo.Name, MinValue, MaxValue);
 							}
 
 							return MaxValue;
 						})
 						.OnValueChanged_Lambda([=](float NewValue) 
 						{ 
-							if (CalibrationStepsController.IsValid())
+							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
-								CalibrationStepsController.Pin()->SetOverlayScalarParameter(ParameterInfo.Name, NewValue);
+								Overlay->SetScalarParameterValue(ParameterInfo.Name, NewValue);
+
+								if (CalibrationStepsController.IsValid())
+								{
+									CalibrationStepsController.Pin()->RefreshOverlay(EOverlayPassType::UserOverlay);
+								}
 							}
 						})
 						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type)	
 						{
-							if (CalibrationStepsController.IsValid())
+							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
-								CalibrationStepsController.Pin()->SetOverlayScalarParameter(ParameterInfo.Name, NewValue);
+								Overlay->SetScalarParameterValue(ParameterInfo.Name, NewValue);
+
+								if (CalibrationStepsController.IsValid())
+								{
+									CalibrationStepsController.Pin()->RefreshOverlay(EOverlayPassType::UserOverlay);
+								}
 							}
 						})
 					]
@@ -495,18 +500,23 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 								{
 									FLinearColor ColorValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 										
-									if (CalibrationStepsController.IsValid())
+									if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 									{
-										CalibrationStepsController.Pin()->GetOverlayVectorParameterValue(ParameterInfo.Name, ColorValue);
+										Overlay->GetVectorParameterValue(ParameterInfo.Name, ColorValue);
 									}
 
 									return ColorValue;
 								})
 								.OnColorCommitted_Lambda([=](FLinearColor NewColor) 
 								{
-									if (CalibrationStepsController.IsValid())
+									if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 									{
-										CalibrationStepsController.Pin()->SetOverlayVectorParameter(ParameterInfo.Name, NewColor);
+										Overlay->SetVectorParameterValue(ParameterInfo.Name, NewColor);
+
+										if (CalibrationStepsController.IsValid())
+										{
+											CalibrationStepsController.Pin()->RefreshOverlay(EOverlayPassType::UserOverlay);
+										}
 									}
 								});
 						})
@@ -519,9 +529,9 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 							{
 								FLinearColor ColorValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-								if (CalibrationStepsController.IsValid())
+								if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 								{
-									CalibrationStepsController.Pin()->GetOverlayVectorParameterValue(ParameterInfo.Name, ColorValue);
+									Overlay->GetVectorParameterValue(ParameterInfo.Name, ColorValue);
 								}
 
 								return ColorValue;

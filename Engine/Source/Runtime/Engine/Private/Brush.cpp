@@ -213,6 +213,12 @@ bool ABrush::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
 	return false;
 }
 
+bool ABrush::SupportsExternalPackaging() const
+{
+	// Base class ABrush actors do not support OFPA
+	return GetClass() != ABrush::StaticClass();
+}
+
 void ABrush::PostLoad()
 {
 	Super::PostLoad();

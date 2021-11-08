@@ -50,7 +50,7 @@ namespace UE::Zen {
 		FZenRequestStats RequestStats;
 		FZenCacheStats CacheStats;
 		FZenUpstreamStats UpstreamStats;
-		FZenRequestStats UpstreamGetsStats;
+		FZenRequestStats UpstreamRequestStats;
 
 	};
 

@@ -23,7 +23,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorTransaction, Log, All);
 	A single transaction.
 -----------------------------------------------------------------------------*/
 
-FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObject, TUniquePtr<FChange> InCustomChange, FScriptArray* InArray, int32 InIndex, int32 InCount, int32 InOper, int32 InElementSize, STRUCT_DC InDefaultConstructor, STRUCT_AR InSerializer, STRUCT_DTOR InDestructor)
+FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObject, TUniquePtr<FChange> InCustomChange, FScriptArray* InArray, int32 InIndex, int32 InCount, int32 InOper, int32 InElementSize, uint32 InElementAlignment, STRUCT_DC InDefaultConstructor, STRUCT_AR InSerializer, STRUCT_DTOR InDestructor)
 	:	Object				( InObject )
 	,	CustomChange		( MoveTemp( InCustomChange ) )
 	,	Array				( InArray )
@@ -31,6 +31,7 @@ FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObjec
 	,	Count				( InCount )
 	,	Oper				( InOper )
 	,	ElementSize			( InElementSize )
+	,	ElementAlignment	( InElementAlignment )
 	,	DefaultConstructor	( InDefaultConstructor )
 	,	Serializer			( InSerializer )
 	,	Destructor			( InDestructor )
@@ -97,7 +98,7 @@ void FTransaction::FObjectRecord::SerializeContents( FArchive& Ar, int32 InOper 
 				{
 					Destructor( (uint8*)Array->GetData() + i*ElementSize );
 				}
-				Array->Remove( Index, Count, ElementSize );
+				Array->Remove( Index, Count, ElementSize, ElementAlignment );
 			}
 		}
 		else
@@ -105,7 +106,7 @@ void FTransaction::FObjectRecord::SerializeContents( FArchive& Ar, int32 InOper 
 			// "Undo/Redo Modify" or "Saving remove order" or "Undoing remove order" or "Redoing add order".
 			if( InOper==-1 && Ar.IsLoading() )
 			{
-				Array->InsertZeroed( Index, Count, ElementSize );
+				Array->InsertZeroed( Index, Count, ElementSize, ElementAlignment );
 				for( int32 i=Index; i<Index+Count; i++ )
 				{
 					DefaultConstructor( (uint8*)Array->GetData() + i*ElementSize );
@@ -839,17 +840,18 @@ void FTransaction::SaveObject( UObject* Object )
 	if (ObjectRecords.Records.Num() == 0)
 	{
 		// Save the object.
-		FObjectRecord* UndoRecord = ObjectRecords.Records.Add_GetRef(new FObjectRecord(this, Object, nullptr, nullptr, 0, 0, 0, 0, nullptr, nullptr, nullptr));
+		FObjectRecord* UndoRecord = ObjectRecords.Records.Add_GetRef(new FObjectRecord(this, Object, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr));
 		Records.Add(UndoRecord);
 	}
 	++ObjectRecords.SaveCount;
 }
 
-void FTransaction::SaveArray( UObject* Object, FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor )
+void FTransaction::SaveArray( UObject* Object, FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, uint32 ElementAlignment, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor )
 {
 	check(Object);
 	check(Array);
 	check(ElementSize);
+	check(ElementAlignment);
 	check(DefaultConstructor);
 	check(Serializer);
 	check(Object->IsValidLowLevel());
@@ -863,7 +865,7 @@ void FTransaction::SaveArray( UObject* Object, FScriptArray* Array, int32 Index,
 	if( Object->HasAnyFlags(RF_Transactional) && !Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 	{
 		// Save the array.
-		Records.Add(new FObjectRecord( this, Object, nullptr, Array, Index, Count, Oper, ElementSize, DefaultConstructor, Serializer, Destructor ));
+		Records.Add(new FObjectRecord( this, Object, nullptr, Array, Index, Count, Oper, ElementSize, ElementAlignment, DefaultConstructor, Serializer, Destructor ));
 	}
 }
 
@@ -874,7 +876,7 @@ void FTransaction::StoreUndo(UObject* Object, TUniquePtr<FChange> UndoChange)
 
 	// Save the undo record
 	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(FPersistentObjectRef(Object));
-	FObjectRecord* UndoRecord = ObjectRecords.Records.Add_GetRef(new FObjectRecord(this, Object, MoveTemp(UndoChange), nullptr, 0, 0, 0, 0, nullptr, nullptr, nullptr));
+	FObjectRecord* UndoRecord = ObjectRecords.Records.Add_GetRef(new FObjectRecord(this, Object, MoveTemp(UndoChange), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr));
 	Records.Add(UndoRecord);
 }
 

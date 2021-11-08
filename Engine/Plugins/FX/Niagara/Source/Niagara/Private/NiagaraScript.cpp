@@ -842,12 +842,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 						break;
 					}
 				}
-
-				// disable attribute trimming if shader stages are enabled
-				if (OuterEmitter->bDeprecatedShaderStagesEnabled)
-				{
-					TrimAttributes = false;
-				}
 			}
 
 			if (TrimAttributes)
@@ -928,9 +922,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			Id.bUsesRapidIterationParams = true;
 		}
 
-		if (Emitter->bSimulationStagesEnabled)
+		// Has simulation stages
 		{
-			Id.AdditionalDefines.Add(TEXT("Emitter.UseSimulationStages"));
 
 			FSHA1 HashState;
 			FNiagaraCompileHashVisitor Visitor(HashState);
@@ -2624,6 +2617,13 @@ void UNiagaraScript::BeginDestroy()
 			// if there was nothing to release, then we don't need to wait for anything
 			ReleasedByRT = true;
 		}
+
+#if WITH_EDITORONLY_DATA
+		for (FVersionedNiagaraScript& VersionedScript : VersionedScriptAdapters)
+		{
+			VersionedScript.CleanupDefinitionsSubscriptions();
+		}
+#endif
 	}
 	else
 	{

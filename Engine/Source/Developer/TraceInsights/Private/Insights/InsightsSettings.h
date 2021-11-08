@@ -30,10 +30,6 @@ public:
 
 	~FInsightsSettings()
 	{
-		if (!bIsDefault)
-		{
-			SaveToConfig();
-		}
 	}
 
 	void LoadFromConfig()

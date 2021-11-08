@@ -609,7 +609,7 @@ namespace ObjectTools
 			if ( !ExistingPackage )
 			{
 				FString Filename;
-				if ( FPackageName::DoesPackageExist(FullPackageName, NULL, &Filename) )
+				if ( FPackageName::DoesPackageExist(FullPackageName, &Filename) )
 				{
 					// There is an unloaded package file at the destination.
 					ExistingPackage = LoadPackage(NULL, *FullPackageName, LOAD_None);
@@ -2043,7 +2043,7 @@ namespace ObjectTools
 			UPackage* Package = PackagesToDelete[PackageIdx];
 
 			FString PackageFilename;
-			if( !FPackageName::DoesPackageExist( Package->GetName(), NULL, &PackageFilename ) )
+			if( !FPackageName::DoesPackageExist( Package->GetName(), &PackageFilename ) )
 			{
 				// Could not determine filename for package so we can not delete
 				PackagesToDelete.RemoveAt(PackageIdx);
@@ -2079,7 +2079,7 @@ namespace ObjectTools
 				{
 					const UPackage* Package = PackagesToDelete[PackageIdx];
 					FString PackageFilename;
-					if(FPackageName::DoesPackageExist(Package->GetName(), NULL, &PackageFilename))
+					if(FPackageName::DoesPackageExist(Package->GetName(), &PackageFilename))
 					{
 						FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*PackageFilename, false);
 					}
@@ -2136,7 +2136,7 @@ namespace ObjectTools
 				UPackage* CurrentPackage = Cast<UPackage>(Package);
 
 				FString PackageFilename;
-				if( Package != nullptr && FPackageName::DoesPackageExist( Package->GetName(), NULL, &PackageFilename ) )
+				if( Package != nullptr && FPackageName::DoesPackageExist( Package->GetName(), &PackageFilename ) )
 				{
 					PackageFilesToDelete.Add(PackageFilename);
 					CurrentPackage->SetDirtyFlag(false);
@@ -2315,7 +2315,7 @@ namespace ObjectTools
 			{
 				// ... In this cases there is no underlying asset or type so remove the package itself directly after confirming it's valid to do so.
 				FString PackageFilename;
-				if( !FPackageName::DoesPackageExist( AssetData.PackageName.ToString(), NULL, &PackageFilename ) )
+				if( !FPackageName::DoesPackageExist( AssetData.PackageName.ToString(), &PackageFilename ) )
 				{
 					// Could not determine filename for package so we can not delete
 					continue;
@@ -2587,7 +2587,7 @@ namespace ObjectTools
 			check(ObjectPackage != nullptr);
 
 			FString PackageFilename;
-			if (FPackageName::DoesPackageExist(ObjectPackage->GetName(), nullptr, &PackageFilename))
+			if (FPackageName::DoesPackageExist(ObjectPackage->GetName(), &PackageFilename))
 			{
 				if (IFileManager::Get().IsReadOnly(*PackageFilename))
 				{
@@ -3380,7 +3380,7 @@ namespace ObjectTools
 			else
 			{
 				FString PackageFilename;
-				if ( FPackageName::DoesPackageExist(PackageName, NULL, &PackageFilename) )
+				if ( FPackageName::DoesPackageExist(PackageName, &PackageFilename) )
 				{
 					NewPackage = LoadPackage(NULL, *PackageFilename, LOAD_None);
 				}
@@ -3434,7 +3434,7 @@ namespace ObjectTools
 						else
 						{
 							FString PackageFilename;
-							if ( FPackageName::DoesPackageExist(PackageName, NULL, &PackageFilename) )
+							if ( FPackageName::DoesPackageExist(PackageName, &PackageFilename) )
 							{
 								NewPackage = LoadPackage(NULL, *PackageFilename, LOAD_None);
 							}
@@ -3601,7 +3601,7 @@ namespace ObjectTools
 			FString OriginPackageFilename;
 			// If the object was is in a localized directory.  SoundWaves in non localized package file paths should  be able to move anywhere.
 			bool bOriginPackageInLocalizedDir = false;
-			if ( FPackageName::DoesPackageExist( Object->GetOutermost()->GetName(), NULL, &OriginPackageFilename ) )
+			if ( FPackageName::DoesPackageExist( Object->GetOutermost()->GetName(), &OriginPackageFilename ) )
 			{
 				// if the language specific path cant be found in the origin package filename, this package is not in a directory for only localized packages
 				bOriginPackageInLocalizedDir = (OriginPackageFilename.Contains( LanguageSpecificPath ) );
@@ -3610,7 +3610,7 @@ namespace ObjectTools
 			// Filename of the package we are moving to
 			FString DestPackageName;
 			// Find the package filename of the package we are moving to.
-			bPackageIsNew = !FPackageName::DoesPackageExist( NewPackageName, NULL, &DestPackageName );
+			bPackageIsNew = !FPackageName::DoesPackageExist( NewPackageName, &DestPackageName );
 			if( !bPackageIsNew && bOriginPackageInLocalizedDir && !DestPackageName.Contains( LanguageSpecificPath ) )
 			{
 				// Skip new packages or packages not in localized dirs (objects in these can move anywhere)
@@ -3651,7 +3651,7 @@ namespace ObjectTools
 				FString ExistingOutermostPackageFilename;
 				if ( ExistingOutermostPackage )
 				{
-					FPackageName::DoesPackageExist( ExistingOutermostPackage->GetName(), NULL, &ExistingOutermostPackageFilename );
+					FPackageName::DoesPackageExist( ExistingOutermostPackage->GetName(), &ExistingOutermostPackageFilename );
 				}
 
 				// Fully load the ref objects package
@@ -4784,7 +4784,7 @@ namespace ThumbnailTools
 		FString PackageName = GetPackageNameForObject( InFullName );
 
 		// Ask the package file cache for the full path to this package
-		if( PackageName.IsEmpty() || !FPackageName::DoesPackageExist( PackageName, NULL, &OutPackageFileName ) )
+		if( PackageName.IsEmpty() || !FPackageName::DoesPackageExist( PackageName, &OutPackageFileName ) )
 		{
 			// Couldn't find the package
 			return false;

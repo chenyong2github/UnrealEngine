@@ -85,6 +85,7 @@ protected:
 	void ApplyLandscape(const FNiagaraSystemInstance& SystemInstance, FNDILandscapeData_GameThread& InstanceData) const;
 	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance, ALandscape* Hint) const;
 
+	static const FName GetBaseColorName;
 	static const FName GetHeightName;
 	static const FName GetWorldNormalName;
 	static const FName GetPhysicalMaterialIndexName;

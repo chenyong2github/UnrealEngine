@@ -112,7 +112,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		PreRegister(*ActorDescIterator);
-		ActorDescIterator->OnRegister();
+		ActorDescIterator->OnRegister(World);
 	}
 
 	RegisterEditorDelegates();
@@ -317,7 +317,7 @@ void UActorDescContainer::UnregisterEditorDelegates()
 
 void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
-	NewActorDesc->OnRegister();
+	NewActorDesc->OnRegister(World);
 
 	OnActorDescAddedEvent.Broadcast(NewActorDesc);
 }

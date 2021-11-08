@@ -51,6 +51,7 @@ public:
 
 	FTimeValue()
 		: HNS(0)
+		, SequenceIndex(0)
 		, bIsValid(false)
 		, bIsInfinity(false)
 	{
@@ -58,6 +59,7 @@ public:
 
 	FTimeValue(const FTimeValue& rhs)
 		: HNS(rhs.HNS)
+		, SequenceIndex(rhs.SequenceIndex)
 		, bIsValid(rhs.bIsValid)
 		, bIsInfinity(rhs.bIsInfinity)
 	{
@@ -65,22 +67,23 @@ public:
 
 	FTimeValue& operator=(const FTimeValue& rhs)
 	{
-		HNS 		= rhs.HNS;
-		bIsValid	= rhs.bIsValid;
+		HNS = rhs.HNS;
+		SequenceIndex = rhs.SequenceIndex;
+		bIsValid = rhs.bIsValid;
 		bIsInfinity = rhs.bIsInfinity;
 		return *this;
 	}
 
-	explicit FTimeValue(int64 InHNS) : HNS(InHNS), bIsValid(true), bIsInfinity(false)
+	explicit FTimeValue(int64 InHNS, int64 InSequenceIndex=0) : HNS(InHNS), SequenceIndex(InSequenceIndex), bIsValid(true), bIsInfinity(false)
 	{
 	}
-	explicit FTimeValue(double Seconds)
+	explicit FTimeValue(double Seconds, int64 InSequenceIndex=0)
 	{
-		SetFromSeconds(Seconds);
+		SetFromSeconds(Seconds, InSequenceIndex);
 	}
-	explicit FTimeValue(int64 Numerator, uint32 Denominator)
+	explicit FTimeValue(int64 Numerator, uint32 Denominator, int64 InSequenceIndex=0)
 	{
-		SetFromND(Numerator, Denominator);
+		SetFromND(Numerator, Denominator, InSequenceIndex);
 	}
 
 	bool IsValid() const
@@ -147,29 +150,32 @@ public:
 
 	FTimeValue& SetToInvalid()
 	{
-		HNS 		= 0;
-		bIsValid	= false;
+		HNS = 0;
+		SequenceIndex = 0;
+		bIsValid = false;
 		bIsInfinity = false;
 		return *this;
 	}
 
-	FTimeValue& SetToZero()
+	FTimeValue& SetToZero(int64 InSequenceIndex=0)
 	{
-		HNS 		= 0;
-		bIsValid	= true;
+		HNS = 0;
+		SequenceIndex = InSequenceIndex;
+		bIsValid = true;
 		bIsInfinity = false;
 		return *this;
 	}
 
-	FTimeValue& SetToPositiveInfinity()
+	FTimeValue& SetToPositiveInfinity(int64 InSequenceIndex=0)
 	{
-		HNS 		= 0x7fffffffffffffffLL;
-		bIsValid	= true;
+		HNS = 0x7fffffffffffffffLL;
+		SequenceIndex = InSequenceIndex;
+		bIsValid = true;
 		bIsInfinity = true;
 		return *this;
 	}
 
-	FTimeValue& SetFromSeconds(double Seconds)
+	FTimeValue& SetFromSeconds(double Seconds, int64 InSequenceIndex=0)
 	{
 		if ((bIsInfinity = (Seconds == std::numeric_limits<double>::infinity())) == true)
 		{
@@ -188,11 +194,12 @@ public:
 				HNS = 0;
 			}
 		}
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 
 
-	FTimeValue& SetFromMilliseconds(int64 Milliseconds)
+	FTimeValue& SetFromMilliseconds(int64 Milliseconds, int64 InSequenceIndex=0)
 	{
 		bIsInfinity = false;
 		if ((bIsValid = Milliseconds >= -922337203685477 && Milliseconds <= 922337203685477) == true)
@@ -204,10 +211,11 @@ public:
 			check(!"Value cannot be represented!");
 			HNS = 0;
 		}
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 
-	FTimeValue& SetFromMicroseconds(int64 Microseconds)
+	FTimeValue& SetFromMicroseconds(int64 Microseconds, int64 InSequenceIndex=0)
 	{
 		bIsInfinity = false;
 		if ((bIsValid = Microseconds >= -922337203685477580 && Microseconds <= 922337203685477580) == true)
@@ -219,29 +227,68 @@ public:
 			check(!"Value cannot be represented!");
 			HNS = 0;
 		}
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 
-	FTimeValue& SetFromHNS(int64 InHNS)
+	FTimeValue& SetFromHNS(int64 InHNS, int64 InSequenceIndex=0)
 	{
-		HNS 		= InHNS;
-		bIsValid	= true;
+		HNS = InHNS;
+		bIsValid = true;
 		bIsInfinity = false;
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 
-	FTimeValue& SetFrom90kHz(int64 Ticks)
+	FTimeValue& SetFrom90kHz(int64 Ticks, int64 InSequenceIndex=0)
 	{
-		HNS 		= Ticks * 1000 / 9;
-		bIsValid	= true;
+		HNS = Ticks * 1000 / 9;
+		bIsValid = true;
 		bIsInfinity = false;
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 
-	FTimeValue& SetFromND(int64 Numerator, uint32 Denominator);
+	FTimeValue& SetFromND(int64 Numerator, uint32 Denominator, int64 InSequenceIndex=0);
 
-	FTimeValue& SetFromTimeFraction(const FTimeFraction& TimeFraction);
+	FTimeValue& SetFromTimeFraction(const FTimeFraction& TimeFraction, int64 InSequenceIndex=0);
 
+
+	FTimeValue& SetFromTimespan(const FTimespan& InTimespan, int64 InSequenceIndex=0)
+	{
+		SequenceIndex = InSequenceIndex;
+		bIsValid = true;
+		if (InTimespan == FTimespan::MaxValue())
+		{
+			HNS = 0x7fffffffffffffffLL;
+			bIsInfinity = true;
+		}
+		else
+		{
+			HNS = InTimespan.GetTicks();
+			bIsInfinity = false;
+		}
+		return *this;
+	}
+
+	void SetSequenceIndex(int64 InSequenceIndex)
+	{
+		SequenceIndex = InSequenceIndex;
+	}
+	
+	int64 GetSequenceIndex() const
+	{
+		return SequenceIndex;
+	}
+
+	/*
+		Note: We MUST NOT compare the SequenceIndex in any of the relational operators!
+		      It is considered to be a kind of "user value".
+
+			  It is also not really possible to perform calculations on time values of different
+			  sequence indices.
+			  What should the result be for eg. (HNS=1234,SequenceIndex=4) + (HNS=987,SequenceIndex=5) ?
+	*/
 
 	bool operator == (const FTimeValue& rhs) const
 	{
@@ -451,8 +498,8 @@ public:
 	}
 
 private:
-
 	int64	HNS;
+	int64	SequenceIndex;
 	bool	bIsValid;
 	bool	bIsInfinity;
 };
@@ -473,7 +520,7 @@ struct FTimeRange
 
 	bool Contains(const FTimeValue& Value)
 	{
-		return Value >= Start && Value < End;
+		return Value >= Start && (!End.IsValid() || Value < End);
 	}
 
 	bool Overlaps(const FTimeRange& OtherRange)

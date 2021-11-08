@@ -3,6 +3,7 @@
 #include "SourceUri.h"
 
 #include "Misc/Paths.h"
+#include "AssetRegistry/AssetData.h"
 
 namespace UE::DatasmithImporter
 {
@@ -64,5 +65,23 @@ namespace UE::DatasmithImporter
 		const FString AbsoluteFilePath = FPaths::ConvertRelativePathToFull(FilePath);
 
 		return FSourceUri(GetFileScheme(), AbsoluteFilePath);
+	}
+
+	FSourceUri FSourceUri::FromAssetData(const FAssetData& AssetData)
+	{
+		const FAssetTagValueRef ValueRef = AssetData.TagsAndValues.FindTag(GetAssetDataTag());
+
+		if (ValueRef.IsSet())
+		{
+			return FSourceUri(ValueRef.GetValue());
+		}
+
+		return FSourceUri();
+	}
+
+	FName FSourceUri::GetAssetDataTag()
+	{
+		static const FName SourceUriTag(TEXT("SourceUri"));
+		return SourceUriTag;
 	}
 }

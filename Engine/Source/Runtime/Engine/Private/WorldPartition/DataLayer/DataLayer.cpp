@@ -6,6 +6,7 @@
 
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -16,12 +17,12 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 , bIsVisible(true)
 , bIsInitiallyVisible(true)
 , bIsInitiallyLoadedInEditor(true)
-, bIsDynamicallyLoadedInEditor(true)
+, bIsLoadedInEditor(true)
 , bIsLocked(false)
 #endif
 , DataLayerLabel(GetFName())
-, InitialState(EDataLayerState::Unloaded)
-, bIsDynamicallyLoaded(false)
+, bIsRuntime(false)
+, InitialRuntimeState(EDataLayerRuntimeState::Unloaded)
 , DebugColor(FColor::Black)
 {
 }
@@ -33,7 +34,7 @@ void UDataLayer::PostLoad()
 #if WITH_EDITORONLY_DATA
 	if (bIsInitiallyActive_DEPRECATED)
 	{
-		InitialState = EDataLayerState::Activated;
+		InitialRuntimeState = EDataLayerRuntimeState::Activated;
 	}
 
 	// Initialize bIsVisible with persistent flag bIsInitiallyVisible
@@ -51,6 +52,11 @@ void UDataLayer::PostLoad()
 		DebugColor = FColor(R, G, B);
 	}
 #endif
+
+	if (Parent)
+	{
+		Parent->AddChild(this);
+	}
 }
 
 bool UDataLayer::IsInitiallyVisible() const
@@ -77,7 +83,142 @@ FName UDataLayer::GetSanitizedDataLayerLabel(FName InDataLayerLabel)
 	return FName(InDataLayerLabel.ToString().TrimStartAndEnd().Replace(TEXT("\""), TEXT("")));
 }
 
+bool UDataLayer::IsEffectiveVisible() const
+{
 #if WITH_EDITOR
+	bool bResult = IsVisible();
+	const UDataLayer* ParentDataLayer = GetParent();
+	while (ParentDataLayer && bResult)
+	{
+		bResult = bResult && ParentDataLayer->IsVisible();
+		ParentDataLayer = ParentDataLayer->GetParent();
+	}
+	return bResult;
+#else
+	return false;
+#endif
+}
+
+void UDataLayer::AddChild(UDataLayer* InDataLayer)
+{
+	Modify();
+	checkSlow(!Children.Contains(InDataLayer));
+	Children.Add(InDataLayer);
+#if WITH_EDITOR
+	if (IsRuntime())
+	{
+		InDataLayer->SetIsRuntime(true);
+	}
+#endif
+}
+
+#if WITH_EDITOR
+
+bool UDataLayer::IsEffectiveLoadedInEditor() const
+{
+	bool bResult = IsLoadedInEditor();
+	const UDataLayer* ParentDataLayer = GetParent();
+	while (ParentDataLayer && bResult)
+	{
+		bResult = bResult && ParentDataLayer->IsLoadedInEditor();
+		ParentDataLayer = ParentDataLayer->GetParent();
+	}
+	return bResult;
+}
+
+bool UDataLayer::IsLocked() const
+{
+	if (bIsLocked)
+	{
+		return true;
+	}
+
+	return IsRuntime() && !GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing;
+}
+
+bool UDataLayer::CanEditChange(const FProperty* InProperty) const
+{
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayer, bIsRuntime)) ||
+		(InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayer, InitialRuntimeState)) ||
+		(InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayer, DebugColor)))
+	{
+		if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayer, bIsRuntime))
+		{
+			// If DataLayer is Runtime because of its parent being Runtime, we don't allow modifying 
+			if (Parent && Parent->IsRuntime())
+			{
+				check(IsRuntime());
+				return false;
+			}
+		}
+		return GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing;
+	}
+
+	return Super::CanEditChange(InProperty);
+}
+
+void UDataLayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	static const FName NAME_IsRuntime = GET_MEMBER_NAME_CHECKED(UDataLayer, bIsRuntime);
+	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
+	if (MemberPropertyName == NAME_IsRuntime)
+	{
+		PropagateIsRuntime();
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+bool UDataLayer::CanParent(const UDataLayer* InParent) const
+{
+	return (this != InParent) && (Parent != InParent);
+}
+
+void UDataLayer::SetParent(UDataLayer* InParent)
+{
+	if (!CanParent(InParent))
+	{
+		return;
+	}
+
+	Modify();
+	if (Parent)
+	{
+		Parent->RemoveChild(this);
+	}
+	Parent = InParent;
+	if (Parent)
+	{
+		Parent->AddChild(this);
+	}
+}
+
+void UDataLayer::SetChildParent(UDataLayer* InParent)
+{
+	if (this == InParent)
+	{
+		return;
+	}
+
+	Modify();
+	while (Children.Num())
+	{
+		Children[0]->SetParent(InParent);
+	};
+}
+
+void UDataLayer::RemoveChild(UDataLayer* InDataLayer)
+{
+	Modify();
+	check(Children.Contains(InDataLayer));
+	Children.RemoveSingle(InDataLayer);
+}
+
+const TCHAR* UDataLayer::GetDataLayerIconName() const
+{
+	return IsRuntime() ? TEXT("DataLayer.Runtime") : TEXT("DataLayer.Editor");
+}
+
 void UDataLayer::SetDataLayerLabel(FName InDataLayerLabel)
 {
 	FName DataLayerLabelSanitized = UDataLayer::GetSanitizedDataLayerLabel(InDataLayerLabel);
@@ -108,22 +249,35 @@ void UDataLayer::SetIsInitiallyVisible(bool bInIsInitiallyVisible)
 	}
 }
 
-void UDataLayer::SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded)
+void UDataLayer::SetIsRuntime(bool bInIsRuntime)
 {
-	if (bIsDynamicallyLoaded != bInIsDynamicallyLoaded)
+	if (bIsRuntime != bInIsRuntime)
 	{
 		Modify();
-		bIsDynamicallyLoaded = bInIsDynamicallyLoaded;
+		bIsRuntime = bInIsRuntime;
+
+		PropagateIsRuntime();
 	}
 }
 
-void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor, bool bInFromUserChange)
+void UDataLayer::PropagateIsRuntime()
 {
-	if (bIsDynamicallyLoadedInEditor != bInIsDynamicallyLoadedInEditor)
+	if (IsRuntime())
+	{
+		for (UDataLayer* Child : Children)
+		{
+			Child->SetIsRuntime(true);
+		}
+	}
+}
+
+void UDataLayer::SetIsLoadedInEditor(bool bInIsLoadedInEditor, bool bInFromUserChange)
+{
+	if (bIsLoadedInEditor != bInIsLoadedInEditor)
 	{
 		Modify(false);
-		bIsDynamicallyLoadedInEditor = bInIsDynamicallyLoadedInEditor;
-		bIsDynamicallyLoadedInEditorChangedByUserOperation |= bInFromUserChange;
+		bIsLoadedInEditor = bInIsLoadedInEditor;
+		bIsLoadedInEditorChangedByUserOperation |= bInFromUserChange;
 	}
 }
 

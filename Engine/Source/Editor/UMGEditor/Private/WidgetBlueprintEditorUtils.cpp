@@ -101,6 +101,23 @@ public:
 	TMap<FName, UWidgetSlotPair*> MissingSlotData;
 };
 
+FName SanitizeWidgetName(const FString& NewName, const FName CurrentName)
+{
+	FString GeneratedName = SlugStringForValidName(NewName);
+
+	// If the new name is empty (for example, because it was composed entirely of invalid characters).
+	// then we'll use the current name
+	if (GeneratedName.IsEmpty())
+	{
+		return CurrentName;
+	}
+
+	const FName GeneratedFName(*GeneratedName);
+	check(GeneratedFName.IsValidXName(INVALID_OBJECTNAME_CHARACTERS));
+
+	return GeneratedFName;
+}
+
 bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlueprintEditor> BlueprintEditor, FWidgetReference Widget, const FText& NewName, FText& OutErrorMessage)
 {
 	if (NewName.IsEmptyOrWhitespace())
@@ -126,7 +143,7 @@ bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlu
 	}
 
 	// Slug the new name down to a valid object name
-	const FName NewNameSlug = MakeObjectNameFromDisplayLabel(NewNameString, RenamedTemplateWidget->GetFName());
+	const FName NewNameSlug = SanitizeWidgetName(NewNameString, RenamedTemplateWidget->GetFName());
 
 	UWidgetBlueprint* Blueprint = BlueprintEditor->GetWidgetBlueprintObj();
 	UWidget* ExistingTemplate = Blueprint->WidgetTree->FindWidget(NewNameSlug);
@@ -213,8 +230,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 
 	TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FKismetNameValidator(Blueprint));
 
-	// Get the new FName slug from the given display name
-	const FName NewFName = MakeObjectNameFromDisplayLabel(NewDisplayName, Widget->GetFName());
+	const FName NewFName = SanitizeWidgetName(NewDisplayName, Widget->GetFName());
 
 	FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(ParentClass->FindPropertyByName(NewFName));
 	const bool bBindWidget = ExistingProperty && FWidgetBlueprintEditorUtils::IsBindWidgetProperty(ExistingProperty) && Widget->IsA(ExistingProperty->PropertyClass);
@@ -770,6 +786,28 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 	const FScopedTransaction Transaction(LOCTEXT("WrapWidgets", "Wrap Widgets"));
 
 	TSharedPtr<FWidgetTemplateClass> Template = MakeShareable(new FWidgetTemplateClass(WidgetClass));
+	
+	// When selecting multiple widgets, we only want to create a new wrapping widget around the root-most set of widgets
+	// So find any that children of other selected widgets, and skip them (because their parents will be wrapped)
+	TSet<FWidgetReference> WidgetsToRemove;
+	for (FWidgetReference& Item : Widgets)
+	{
+		int32 OutIndex;
+		UPanelWidget* CurrentParent = BP->WidgetTree->FindWidgetParent(Item.GetTemplate(), OutIndex);
+		for (FWidgetReference& OtherItem : Widgets)
+		{
+			if (OtherItem.GetTemplate() == CurrentParent)
+			{
+				WidgetsToRemove.Add(Item);
+				break;
+			}
+		}
+	}
+	for (FWidgetReference& Item : WidgetsToRemove)
+	{
+		Widgets.Remove(Item);
+	}
+	WidgetsToRemove.Empty();
 
 	// Old Parent -> New Parent Map
 	TMap<UPanelWidget*, UPanelWidget*> OldParentToNewParent;
@@ -819,7 +857,11 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 				CurrentParent->SetFlags(RF_Transactional);
 				CurrentParent->Modify();
 				CurrentParent->ReplaceChildAt(OutIndex, NewWrapperWidget);
+			}
 
+			if (NewWrapperWidget != nullptr && NewWrapperWidget->CanAddMoreChildren())
+			{
+				NewWrapperWidget->Modify();
 				NewWrapperWidget->AddChild(Widget);
 			}
 		}

@@ -8,6 +8,7 @@
 #include "CookRequests.h"
 #include "CookTypes.h"
 #include "CookOnTheFlyServerInterface.h"
+#include "Engine/ICookInfo.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UnrealTemplate.h"
@@ -22,6 +23,12 @@ namespace UE
 namespace Cook
 {
 	struct FPackageDatas;
+
+	struct FPackageWithInstigator
+	{
+		FInstigator Instigator;
+		UPackage* Package;
+	};
 
 	template<typename Type>
 	struct FThreadSafeQueue
@@ -174,7 +181,7 @@ namespace Cook
 		~FPackageTracker();
 
 		/* Returns all packages that have been loaded since the last time GetNewPackages was called */
-		TArray<UPackage*> GetNewPackages();
+		TArray<FPackageWithInstigator> GetNewPackages();
 
 		virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
 		virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
@@ -184,13 +191,13 @@ namespace Cook
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 		// This is the set of packages which have already had PostLoadFixup called 
-		TSet<UPackage*>			PostLoadFixupPackages;
+		TSet<UPackage*> PostLoadFixupPackages;
 
 		// This is a complete list of currently loaded UPackages
 		TFastPointerSet<UPackage*> LoadedPackages;
 
 		// This list contains the UPackages loaded since last call to GetNewPackages
-		TArray<UPackage*>		NewPackages;
+		TArray<FPackageWithInstigator> NewPackages;
 
 		/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
 		FPackageData* LoadingPackageData = nullptr;

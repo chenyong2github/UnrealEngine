@@ -21,7 +21,7 @@ UWorldThumbnailRenderer::UWorldThumbnailRenderer(const FObjectInitializer& Objec
 
 bool UWorldThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
-	if ( bAllowWorldThumbnails )
+	if (bAllowWorldThumbnails)
 	{
 		UWorld* World = Cast<UWorld>(Object);
 		if (World && World->PersistentLevel)

@@ -22,6 +22,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
+#include "Algo/StableSort.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "Editor.h"
 #include "EditorWorldUtils.h"
@@ -30,6 +31,9 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "CollectionManagerModule.h"
+#include "ICollectionManager.h"
+#include "CollectionManagerTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 
@@ -379,6 +383,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 
 	bool bFillCache = Switches.Contains("FILL");   // do the equivalent of a "loadpackage -all" to fill the DDC
 	bool bStartupOnly = Switches.Contains("STARTUPONLY");   // regardless of any other flags, do not iterate packages
+	const bool bDryRun = Switches.Contains("DRYRUN");   // build a list of stuff to process but don't start loading any packages
 
 	// Subsets for parallel processing
 	uint32 SubsetMod = 0;
@@ -397,7 +402,6 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded);
 
 		Tokens.Empty(2);
-		Tokens.Add(FString("*") + FPackageName::GetAssetPackageExtension());
 
 		FString MapList;
 		if(FParse::Value(*Params, TEXT("Map="), MapList))
@@ -412,10 +416,6 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 				Tokens.Add(MapList.Mid(StartIdx, EndIdx - StartIdx) + FPackageName::GetMapPackageExtension());
 				StartIdx = EndIdx + 1;
 			}
-		}
-		else
-		{
-			Tokens.Add(FString("*") + FPackageName::GetMapPackageExtension());
 		}
 
 		// support MapIniSection parameter
@@ -446,6 +446,44 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 
 				Tokens += MapsFromIniSection;
 			}
+		}
+
+		TArray<FString> CommandLinePackageNames;
+
+		// Allow adding collections to the list of packages to process
+		if (FString CollectionArg; FParse::Value(*Params, TEXT("COLLECTION="), CollectionArg))
+		{
+			ICollectionManager& CollectionManager = FModuleManager::LoadModuleChecked<FCollectionManagerModule>("CollectionManager").Get();
+
+			TArray<FString> Collections;
+			CollectionArg.ParseIntoArray(Collections, TEXT("+"));
+			for (const FString& CollectionName : Collections)
+			{
+				TArray<FCollectionNameType> FoundCollections;
+				CollectionManager.GetCollections(*CollectionName, FoundCollections);
+				if (FoundCollections.Num() == 0)
+				{
+					UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Found no collections for command line argument %s"), *CollectionName);
+					continue;
+				}
+
+				TArray<FName> FoundAssets;
+				CollectionManager.GetAssetsInCollection(*CollectionName, ECollectionShareType::CST_All, FoundAssets, ECollectionRecursionFlags::SelfAndChildren);
+				Tokens.Reserve(Tokens.Num() + FoundAssets.Num());
+				for (FName AssetName : FoundAssets)
+				{
+					CommandLinePackageNames.Add(FPackageName::ObjectPathToPackageName(AssetName.ToString()));
+				}
+			}
+		}
+
+		// Add defaults if we haven't specifically found anything on the command line 
+		if (Tokens.IsEmpty() && CommandLinePackageNames.IsEmpty())
+		{
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Adding default search tokens for all assets and maps"));
+
+			Tokens.Add(FString("*") + FPackageName::GetAssetPackageExtension());
+			Tokens.Add(FString("*") + FPackageName::GetMapPackageExtension());
 		}
 
 		uint8 PackageFilter = NORMALIZE_DefaultFlags;
@@ -485,6 +523,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			FilesInPath.Append(TokenFiles);
 		}
 
+
 		TArray<TPair<FString, FName>> PackagePaths;
 		PackagePaths.Reserve(FilesInPath.Num());
 		for (FString& Filename : FilesInPath)
@@ -493,10 +532,34 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			FString FailureReason;
 			if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, &FailureReason))
 			{
-				UE_LOG(LogDerivedDataCacheCommandlet, Warning, TEXT("Unable to resolve filename %s to package name because: %s"), *Filename, *FailureReason);
+				UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Unable to resolve filename %s to package name because: %s"), *Filename, *FailureReason);
 				continue;
 			}
 			PackagePaths.Emplace(MoveTemp(Filename), FName(*PackageName));
+		}
+
+		if (!CommandLinePackageNames.IsEmpty())
+		{
+			if (!NormalizePackageNames(CommandLinePackageNames, Unused, TEXT(""), PackageFilter))
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Failed to normalize command line package names"));
+			}
+			else
+			{
+				for( const FString& PackageName : CommandLinePackageNames )
+				{
+					FString Filename;
+					if (FPackageName::DoesPackageExist(PackageName, &Filename))
+					{
+						PackagePaths.Emplace(MoveTemp(Filename), FName(*PackageName));
+					}
+					else
+					{
+						UE_LOG(LogDerivedDataCacheCommandlet, Warning, TEXT("Unable to resolve filename from package name %s"), *PackageName);
+						continue;
+					}
+				}
+			}
 		}
 
 		// Respect settings that instruct us not to enumerate some paths
@@ -587,7 +650,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 				}
 
 				FString SoftRefFilename;
-				if (FPackageName::DoesPackageExist(SoftRefName.ToString(), nullptr, &SoftRefFilename))
+				if (FPackageName::DoesPackageExist(SoftRefName.ToString(), &SoftRefFilename))
 				{
 					PackagePaths.Push(TPair<FString, FName>(SoftRefFilename, SoftRefName));
 					PackagesToProcess.Add(SoftRefName);
@@ -608,6 +671,12 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 				}
 			}
 		}
+
+		// Sort maps to the end of the list of packages to process to maximize the chance of sharded instances populating the DDC from individual packages.
+		Algo::StableSortBy(PackagePaths, 
+			[](TPair<FString, FName>& Pair){ return Pair.Get<0>().EndsWith(FPackageName::GetMapPackageExtension()); },
+			TLess<bool>()
+		);
 
 		// If work is distributed, skip packages that are meant to be process by other machines
 		// Do this before the main loop so that we don't filter soft refs that we enqueue 
@@ -637,6 +706,11 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 					UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT(" %d) %s"), Index + 1, *Pair.Get<1>().ToString());
 				}
 			}
+		}
+
+		if (bDryRun)
+		{
+			PackagePaths.Empty();
 		}
 
 		// Process each package
@@ -692,7 +766,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 					{
 						PackagesToProcess.Add(SoftRefName);
 						FString SoftRefFilename;
-						if (FPackageName::DoesPackageExist(SoftRefName.ToString(), nullptr, &SoftRefFilename))
+						if (FPackageName::DoesPackageExist(SoftRefName.ToString(), &SoftRefFilename))
 						{
 							UE_LOG(LogDerivedDataCacheCommandlet, Log, TEXT("Queueing soft reference '%s' for later processing"), *SoftRefName.ToString());
 							PackagePaths.Push(TPair<FString, FName>(SoftRefFilename, SoftRefName));

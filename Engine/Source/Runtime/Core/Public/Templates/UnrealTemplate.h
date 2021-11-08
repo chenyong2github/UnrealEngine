@@ -158,6 +158,32 @@ constexpr FORCEINLINE const T (&AsConst(T (&Array)[N]))[N]
 	return Array;
 }
 
+/** Test if value can make a lossless static_cast roundtrip via OutType without a sign change */
+template<typename OutType, typename InType>
+constexpr bool IntFitsIn(InType In)
+{
+	static_assert(std::is_integral_v<InType> && std::is_integral_v<OutType>, "Only integers supported");
+	
+	OutType Out = static_cast<OutType>(In);
+	bool bRoundtrips = In == static_cast<InType>(Out);
+	
+	// Signed <-> unsigned cast requires sign test, signed -> smaller signed is covered by roundtrip sign-extension.
+	if constexpr ((static_cast<InType>(-1) < InType{}) != (static_cast<OutType>(-1) < OutType{}))
+	{
+		return bRoundtrips && (In < InType{} == Out < OutType{});
+	}
+	
+	return bRoundtrips;
+}
+
+/** Cast and check that value fits in OutType */
+template<typename OutType, typename InType>
+OutType IntCastChecked(InType In)
+{
+	check(IntFitsIn<OutType>(In));
+	return static_cast<OutType>(In);
+}
+
 /*----------------------------------------------------------------------------
 	Standard macros.
 ----------------------------------------------------------------------------*/

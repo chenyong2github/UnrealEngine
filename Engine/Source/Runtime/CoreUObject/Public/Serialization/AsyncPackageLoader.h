@@ -97,7 +97,7 @@ public:
 
 	virtual void StartThread() = 0;
 
-	UE_DEPRECATED(5.0, "Call the version that takes a FPackagePath instead")
+	UE_DEPRECATED(5.0, "Call the version that takes a FPackagePath without a FGuid instead")
 	COREUOBJECT_API int32 LoadPackage(
 		const FString& InPackageName,
 		const FGuid* InGuid,
@@ -114,7 +114,6 @@ public:
 	 * @param	PackagePath		Name of package to load. The package is created if it does not already exist.
 	 * @param	CustomName				If not none, this is the name of the package to load into (and create if not yet existing). If none, the name is take from PackagePath.
 	 * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
-	 * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
 	 * @param	InPackageFlags			Package flags used to construct loaded package in memory
 	 * @param	InPIEInstanceID			Play in Editor instance ID
 	 * @param	InPackagePriority		Loading priority
@@ -124,7 +123,6 @@ public:
 			const FPackagePath& PackagePath,
 			FName CustomPackageName,
 			FLoadPackageAsyncDelegate InCompletionDelegate,
-			const FGuid* InGuid,
 			EPackageFlags InPackageFlags,
 			int32 InPIEInstanceID,
 			int32 InPackagePriority,

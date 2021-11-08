@@ -42,9 +42,9 @@ void FLandscapeActorDesc::Unload()
 	FPartitionActorDesc::Unload();
 }
 
-void FLandscapeActorDesc::OnRegister()
+void FLandscapeActorDesc::OnRegister(UWorld* InWorld)
 {
-	FPartitionActorDesc::OnRegister();
+	FPartitionActorDesc::OnRegister(InWorld);
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), GridGuid))
 	{

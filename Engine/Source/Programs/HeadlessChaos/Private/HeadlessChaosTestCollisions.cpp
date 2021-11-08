@@ -49,6 +49,7 @@ namespace ChaosTest {
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box1->UpdateWorldSpaceState(FRigidTransform3(Box1->X(), Box1->R()), FVec3(0));
 
 		auto Box2 = AppendDynamicParticleBox(Particles);
 		Box2->X() = FVec3(1.5f, 1.5f, 1.9f);
@@ -56,6 +57,7 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box2->UpdateWorldSpaceState(FRigidTransform3(Box2->X(), Box2->R()), FVec3(0));
 
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 1, 1);
 		Collisions.ComputeConstraints(0.f);
@@ -99,6 +101,7 @@ namespace ChaosTest {
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box1->UpdateWorldSpaceState(FRigidTransform3(Box1->X(), Box1->R()), FVec3(0));
 
 		auto Box2 = AppendDynamicParticleBox(Particles, FVec3(1.f) );
 		Box2->X() = FVec3(1.25f, 0.f, 0.f);
@@ -106,6 +109,7 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box2->UpdateWorldSpaceState(FRigidTransform3(Box2->X(), Box2->R()), FVec3(0));
 
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 1, 1);
 		Collisions.ComputeConstraints(0.f);
@@ -150,6 +154,7 @@ namespace ChaosTest {
 		Box->X() = Box->P() - Box->V() * Dt;
 		Box->R() = Box->Q();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box->UpdateWorldSpaceState(FRigidTransform3(Box->P(), Box->Q()), FVec3(0));
 
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 2, 5);
 
@@ -157,6 +162,9 @@ namespace ChaosTest {
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
 		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
+		EXPECT_TRUE(Constraint.Particle[0] != nullptr);
+		EXPECT_TRUE(Constraint.Particle[1] != nullptr);
+
 		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
@@ -233,6 +241,7 @@ namespace ChaosTest {
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box->UpdateWorldSpaceState(FRigidTransform3(Box->P(), Box->Q()), FVec3(0));
 
 		const FReal Dt = FReal(1) / FReal(24.);
 
@@ -314,6 +323,7 @@ namespace ChaosTest {
 		Box->X() = Box->P() - Box->V() * Dt;
 		Box->R() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box->UpdateWorldSpaceState(FRigidTransform3(Box->P(), Box->Q()), FVec3(0));
 
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 2, 5);
 
@@ -392,7 +402,8 @@ namespace ChaosTest {
 		Box->X() = Box->P() - Box->V() * Dt;
 		Box->R() = Box->Q();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
-		
+		Box->UpdateWorldSpaceState(FRigidTransform3(Box->P(), Box->Q()), FVec3(0));
+
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 2, 5);
 
 		Collisions.ComputeConstraints(Dt);
@@ -473,6 +484,7 @@ namespace ChaosTest {
 		DynamicCube->X() = DynamicCube->P() - DynamicCube->V() * Dt;
 		DynamicCube->R() = DynamicCube->Q();
 		DynamicCube->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		DynamicCube->UpdateWorldSpaceState(FRigidTransform3(DynamicCube->P(), DynamicCube->Q()), FVec3(0));
 
 		FPBDCollisionConstraintAccessor Collisions(Particles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, 2, 5);
 
@@ -532,6 +544,7 @@ namespace ChaosTest {
 		auto StaticBox = AppendStaticParticleBox(Particles);
 		StaticBox->X() = FVec3(-0.05f, -0.05f, -0.1f);
 		StaticBox->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		StaticBox->UpdateWorldSpaceState(FRigidTransform3(StaticBox->X(), StaticBox->R()), FVec3(0));
 
 		FReal Dt = FReal(1) / FReal(24.);
 
@@ -543,6 +556,7 @@ namespace ChaosTest {
 		Box2->PreV() = Box2->V();
 		Box2->X() = Box2->P() - Box2->V() * Dt;
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
+		Box2->UpdateWorldSpaceState(FRigidTransform3(Box2->P(), Box2->Q()), FVec3(0));
 
 		FBox Region(FVector(FReal(.2)), FVector(FReal(.5)));
 

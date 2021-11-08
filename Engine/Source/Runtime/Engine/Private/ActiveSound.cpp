@@ -755,7 +755,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			{
 				check(WaveInstance);
 
-				float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
+				float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAndOcclusionAttenuation() * WaveInstance->GetDynamicVolume();
 				if (WaveInstanceVolume > VolumeConcurrency)
 				{
 					VolumeConcurrency = WaveInstanceVolume;
@@ -1646,8 +1646,8 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 			CheckOcclusion(ListenerPosition, ParseParams.Transform.GetTranslation(), Settings);
 
 			// Apply the volume attenuation due to occlusion (using the interpolating dynamic parameter)
-			ParseParams.DistanceAttenuation *= CurrentOcclusionVolumeAttenuation.GetValue();
-
+			ParseParams.DistanceAttenuation = CurrentOcclusionVolumeAttenuation.GetValue();
+			ParseParams.OcclusionAttenuation = CurrentOcclusionVolumeAttenuation.GetValue();
 			ParseParams.bIsOccluded = bIsOccluded;
 			ParseParams.OcclusionFilterFrequency = CurrentOcclusionFilterFrequency.GetValue();
 		}

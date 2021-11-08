@@ -21,7 +21,7 @@ CADKernel::FCompositeSurface::FCompositeSurface(const double InToleranceGeometri
 		const FSurfacicBoundary& Bounds = Surface->GetBoundary();
 		NativeUVBoundaries.Emplace(Bounds);
 	}
-	SetMinToleranceIso();
+	ComputeDefaultMinToleranceIso();
 }
 
 void CADKernel::FCompositeSurface::InitBoundary()

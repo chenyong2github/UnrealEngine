@@ -24,7 +24,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
-					"UEOpenExr",
+					"Imath",
 				}
 			);
 

@@ -49,6 +49,8 @@ BuildShaderConductor()
       -DSC_ARCH_NAME=x64 \
       -DPYTHON_EXECUTABLE=$(which python3) \
       -DSPIRV_CROSS_ENABLE_TESTS=OFF \
+      -DSC_EXPLICIT_DLLSHUTDOWN=ON \
+      -DDXC_EXPLICIT_DLLSHUTDOWN=ON \
       ${SCRIPT_DIR}/ShaderConductor
     set +x
 

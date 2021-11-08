@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "SceneOutlinerFwd.h"
-#include "SDataLayerBrowser.h"
 #include "ISceneOutlinerHierarchy.h"
 #include "DataLayer/DataLayerAction.h"
 
@@ -22,6 +21,10 @@ public:
 	virtual void CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const override;
 	virtual void CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const override {}
 	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
+	void SetShowingEditorDataLayers(bool bInShowingEditorDataLayers) { bShowingEditorDataLayers = bInShowingEditorDataLayers; }
+	void SetShowingRuntimeDataLayers(bool bInShowingRuntimeDataLayers) { bShowingRuntimeDataLayers = bInShowingRuntimeDataLayers; }
+	void SetShowingDataLayerActors(bool bInShowingDataLayerActors) { bShowingDataLayerActors = bInShowingDataLayerActors; }
+	void SetShowingUnloadedActors(bool bInShowingUnloadedActors) { bShowingUnloadedActors = bInShowingUnloadedActors; }
 
 private:
 	FDataLayerHierarchy(FDataLayerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
@@ -42,9 +45,11 @@ private:
 	void OnActorDescRemoved(FWorldPartitionActorDesc* InActorDesc);
 	void OnActorDataLayersChanged(const TWeakObjectPtr<AActor>& InActor);
 	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
-	void OnDataLayerBrowserModeChanged(EDataLayerBrowserMode InMode);
 	void FullRefreshEvent();
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
-	TWeakPtr<SDataLayerBrowser> DataLayerBrowser;
+	bool bShowingEditorDataLayers;
+	bool bShowingRuntimeDataLayers;
+	bool bShowingDataLayerActors;
+	bool bShowingUnloadedActors;
 };

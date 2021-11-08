@@ -1120,7 +1120,7 @@ namespace UnrealBuildTool
 			// Get the generated config file too. EditorSettings overrides this from 
 			if (Type == ConfigHierarchyType.EditorSettings)
 			{
-				yield return FileReference.Combine(GetGameAgnosticSavedDir(), "Config", PlatformName, BaseIniName + ".ini");
+				yield return FileReference.Combine(GetGameAgnosticSavedDir(), "Config", PlatformName + "Editor", BaseIniName + ".ini");
 			}
 			else
 			{

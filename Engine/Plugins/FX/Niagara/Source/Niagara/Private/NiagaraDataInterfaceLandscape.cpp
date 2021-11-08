@@ -41,6 +41,7 @@ namespace NiagaraDataInterfaceLandscape
 	};
 }
 
+const FName UNiagaraDataInterfaceLandscape::GetBaseColorName(TEXT("GetBaseColor"));
 const FName UNiagaraDataInterfaceLandscape::GetHeightName(TEXT("GetHeight"));
 const FName UNiagaraDataInterfaceLandscape::GetWorldNormalName(TEXT("GetWorldNormal"));
 const FName UNiagaraDataInterfaceLandscape::GetPhysicalMaterialIndexName(TEXT("GetPhysicalMaterialIndex"));
@@ -159,6 +160,8 @@ struct FNDILandscapeData_GameThread
 {
 	TWeakObjectPtr<ALandscape> Landscape;
 	FNDI_Landscape_SharedResourceHandle SharedResourceHandle;
+	bool BaseColorVirtualTextureSRGB = false;
+	int32 BaseColorVirtualTextureIndex = INDEX_NONE;
 	int32 HeightVirtualTextureIndex = INDEX_NONE;
 	int32 NormalVirtualTextureIndex = INDEX_NONE;
 	ERuntimeVirtualTextureMaterialType NormalVirtualTextureMode = ERuntimeVirtualTextureMaterialType::Count;
@@ -170,6 +173,8 @@ struct FNDILandscapeData_GameThread
 	{
 		Landscape = nullptr;
 		SharedResourceHandle = FNDI_Landscape_SharedResourceHandle();
+		BaseColorVirtualTextureSRGB = false;
+		BaseColorVirtualTextureIndex = INDEX_NONE;
 		HeightVirtualTextureIndex = INDEX_NONE;
 		NormalVirtualTextureIndex = INDEX_NONE;
 		NormalVirtualTextureMode = ERuntimeVirtualTextureMaterialType::Count;
@@ -182,9 +187,12 @@ struct FNDILandscapeData_GameThread
 // Landscape data used on the render thread
 struct FNDILandscapeData_RenderThread
 {
+	TWeakObjectPtr<const URuntimeVirtualTexture> BaseColorVirtualTexture;
 	TWeakObjectPtr<const URuntimeVirtualTexture> HeightVirtualTexture;
 	TWeakObjectPtr<const URuntimeVirtualTexture> NormalVirtualTexture;
 	const FLandscapeTextureResource* TextureResources = nullptr;
+	bool BaseColorVirtualTextureSRGB = false;
+	FVector4 BaseColorVirtualTextureWorldToUvParameters[3];
 	FVector4 HeightVirtualTextureWorldToUvParameters[4];
 	FVector4 NormalVirtualTextureWorldToUvParameters[3];
 	FMatrix CachedHeightTextureWorldToUvTransform = FMatrix::Identity;
@@ -728,6 +736,21 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 {
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetBaseColorName;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bSupportsCPU = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Landscape")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldPos")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Color")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
+
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetHeightName;
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
@@ -815,6 +838,18 @@ void UNiagaraDataInterfaceLandscape::ProvidePerInstanceDataForRenderThread(void*
 		TargetData->CachedHeightTextureGridSize = SourceResource.TextureWorldGridSize;
 	}
 
+	if (SourceData.BaseColorVirtualTextureIndex != INDEX_NONE)
+	{
+		if (const URuntimeVirtualTexture* VirtualTexture = SourceData.Landscape->RuntimeVirtualTextures[SourceData.BaseColorVirtualTextureIndex])
+		{
+			TargetData->BaseColorVirtualTexture = VirtualTexture;
+			TargetData->BaseColorVirtualTextureSRGB = SourceData.BaseColorVirtualTextureSRGB;
+			TargetData->BaseColorVirtualTextureWorldToUvParameters[0] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0);
+			TargetData->BaseColorVirtualTextureWorldToUvParameters[1] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1);
+			TargetData->BaseColorVirtualTextureWorldToUvParameters[2] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2);
+		}
+	}
+
 	if (SourceData.HeightVirtualTextureIndex != INDEX_NONE)
 	{
 		if (const URuntimeVirtualTexture* VirtualTexture = SourceData.Landscape->RuntimeVirtualTextures[SourceData.HeightVirtualTextureIndex])
@@ -875,7 +910,13 @@ bool UNiagaraDataInterfaceLandscape::GetFunctionHLSL(const FNiagaraDataInterface
 		{TEXT("NDIGetContextName"), TEXT("NDILANDSCAPE_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
 	};
 
-	if (FunctionInfo.DefinitionName == GetHeightName)
+	if (FunctionInfo.DefinitionName == GetBaseColorName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(in float3 InWorldPos, out float3 OutBaseColor, out bool OutIsValid) { {NDIGetContextName} NDILandscape_GetBaseColor(DIContext, InWorldPos, OutBaseColor, OutIsValid); }\n");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetHeightName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(in float3 InWorldPos, out float OutHeight, out bool OutIsValid) { {NDIGetContextName} NDILandscape_GetHeight(DIContext, InWorldPos, OutHeight, OutIsValid); }\n");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -978,6 +1019,7 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 	}
 
 	InstanceData.Landscape = Landscape;
+	InstanceData.BaseColorVirtualTextureIndex = INDEX_NONE;
 	InstanceData.HeightVirtualTextureIndex = INDEX_NONE;
 	InstanceData.NormalVirtualTextureIndex = INDEX_NONE;
 
@@ -993,6 +1035,13 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 
 				switch (VirtualMaterialType)
 				{
+				case ERuntimeVirtualTextureMaterialType::BaseColor:
+					if (InstanceData.BaseColorVirtualTextureIndex == INDEX_NONE)
+					{
+						InstanceData.BaseColorVirtualTextureIndex = TextureIt;
+						InstanceData.BaseColorVirtualTextureSRGB = true;
+					}
+					break;
 				case ERuntimeVirtualTextureMaterialType::WorldHeight:
 					if (InstanceData.HeightVirtualTextureIndex == INDEX_NONE)
 					{
@@ -1007,6 +1056,13 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 					{
 						InstanceData.NormalVirtualTextureIndex = TextureIt;
 						InstanceData.NormalVirtualTextureMode = VirtualMaterialType;
+					}
+					if (InstanceData.BaseColorVirtualTextureIndex == INDEX_NONE)
+					{
+						InstanceData.BaseColorVirtualTextureIndex = TextureIt;
+						InstanceData.BaseColorVirtualTextureSRGB =
+							(VirtualMaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness) ||
+							(VirtualMaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular);
 					}
 					break;
 				}
@@ -1026,10 +1082,16 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 	bool SystemRequiresPhysMatGpu = false;
 	SystemInstance.EvaluateBoundFunction(GetPhysicalMaterialIndexName, SystemRequiresPhysMatCpu, SystemRequiresPhysMatGpu);
 
+	bool SystemRequiresBaseColorCpu = false;
+	bool SystemRequiresBaseColorGpu = false;
+	SystemInstance.EvaluateBoundFunction(GetBaseColorName, SystemRequiresBaseColorCpu, SystemRequiresBaseColorGpu);
+
 	// we need to create our own copy of the collision geometry if either the heights are needed, and they're not
 	// provided by a virtual texture or if the normals are needed and they're not provided by a virtual texture
-	InstanceData.RequiresCollisionCacheGpu = (SystemRequiresHeightsGpu && InstanceData.HeightVirtualTextureIndex == INDEX_NONE)
-		|| (SystemRequiresNormalsGpu && InstanceData.NormalVirtualTextureIndex == INDEX_NONE);
+	InstanceData.RequiresCollisionCacheGpu =
+		(SystemRequiresBaseColorGpu && InstanceData.BaseColorVirtualTextureIndex == INDEX_NONE) ||
+		(SystemRequiresHeightsGpu && InstanceData.HeightVirtualTextureIndex == INDEX_NONE) ||
+		(SystemRequiresNormalsGpu && InstanceData.NormalVirtualTextureIndex == INDEX_NONE);
 
 	InstanceData.RequiresPhysMatCacheGpu = SystemRequiresPhysMatGpu;
 }
@@ -1105,6 +1167,16 @@ private:
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
+		BaseColorVirtualTextureParam.Bind(ParameterMap, *(BaseColorVirtualTextureName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTexturePageTableParam.Bind(ParameterMap, *(BaseColorVirtualTexturePageTableName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTextureSamplerParam.Bind(ParameterMap, *(BaseColorVirtualTextureSamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTextureWorldToUvTransformParam.Bind(ParameterMap, *(BaseColorVirtualTextureWorldToUvTransformName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTextureSRGBParam.Bind(ParameterMap, *(BaseColorVirtualTextureSRGBName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTextureEnabledParam.Bind(ParameterMap, *(BaseColorVirtualTextureEnabledName + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTexturePageTableUniform0Param.Bind(ParameterMap, *(BaseColorVirtualTexturePageTableUniform0Name + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTexturePageTableUniform1Param.Bind(ParameterMap, *(BaseColorVirtualTexturePageTableUniform1Name + ParameterInfo.DataInterfaceHLSLSymbol));
+		BaseColorVirtualTextureUniformsParam.Bind(ParameterMap, *(BaseColorVirtualTextureUniformsName + ParameterInfo.DataInterfaceHLSLSymbol));
+
 		HeightVirtualTextureParam.Bind(ParameterMap, *(HeightVirtualTextureName + ParameterInfo.DataInterfaceHLSLSymbol));
 		HeightVirtualTexturePageTableParam.Bind(ParameterMap, *(HeightVirtualTexturePageTableName + ParameterInfo.DataInterfaceHLSLSymbol));
 		HeightVirtualTextureSamplerParam.Bind(ParameterMap, *(HeightVirtualTextureSamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -1136,6 +1208,82 @@ public:
 		PointClampedSamplerParam.Bind(ParameterMap, *(PointClampedSamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedPhysMatTextureParam.Bind(ParameterMap, *(CachedPhysMatTextureName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedPhysMatTextureDimensionParam.Bind(ParameterMap, *(CachedPhysMatTextureDimensionName + ParameterInfo.DataInterfaceHLSLSymbol));
+	}
+
+	bool SetBaseColorVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
+	{
+		const IAllocatedVirtualTexture* BaseColorAllocatedTexture = ProxyData.BaseColorVirtualTexture.IsValid()
+			? ProxyData.BaseColorVirtualTexture->GetAllocatedVirtualTexture()
+			: nullptr;
+
+		if (!BaseColorAllocatedTexture)
+		{
+			return false;
+		}
+
+		// todo - need to figure out a way to confirm that this is in fact the best/only option for the basecolor
+		constexpr uint32 BaseColorVirtualTextureLayerIndex = 0;
+		constexpr uint32 BaseColorVirtualTexturePageIndex = 0;
+		constexpr bool BaseColorVirtualTextureSrgb = false;
+
+		FRHIShaderResourceView* PhysicalTextureSrv = BaseColorAllocatedTexture->GetPhysicalTextureSRV(BaseColorVirtualTextureLayerIndex, BaseColorVirtualTextureSrgb);
+		if (!PhysicalTextureSrv)
+		{
+			return false;
+		}
+
+		FRHITexture* PageTableTexture = nullptr;
+
+		if (FRHITexture* PageTable = BaseColorAllocatedTexture->GetPageTableTexture(BaseColorVirtualTexturePageIndex))
+		{
+			if (FRHITextureReference* TextureReference = PageTable->GetTextureReference())
+			{
+				PageTableTexture = TextureReference->GetReferencedTexture();
+			}
+		}
+
+		if (!PageTableTexture)
+		{
+			return false;
+		}
+
+		FMatrix44f WorldToUvTransform(
+			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[0]),
+			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[1]),
+			FVector3f(ProxyData.BaseColorVirtualTextureWorldToUvParameters[2]),
+			FVector3f(0, 0, 0));
+
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureParam, PhysicalTextureSrv);
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableParam, PageTableTexture);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureWorldToUvTransformParam, WorldToUvTransform);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureSRGBParam, ProxyData.BaseColorVirtualTextureSRGB ? 1 : 0);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureEnabledParam, 1 /* true */);
+
+		FUintVector4 BaseColorVirtualTexturePageTableUniforms[2];
+		FUintVector4 BaseColorVirtualTextureUniforms;
+
+		BaseColorAllocatedTexture->GetPackedPageTableUniform(BaseColorVirtualTexturePageTableUniforms);
+		BaseColorAllocatedTexture->GetPackedUniform(&BaseColorVirtualTextureUniforms, BaseColorVirtualTextureLayerIndex);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableUniform0Param, BaseColorVirtualTexturePageTableUniforms[0]);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableUniform1Param, BaseColorVirtualTexturePageTableUniforms[1]);
+
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureUniformsParam, BaseColorVirtualTextureUniforms);
+
+		return true;
+	}
+
+	void SetBaseColorVirtualTextureParameters_Default(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI) const
+	{
+		FUintVector4 DummyUint4(ForceInitToZero);
+
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureParam, GBlackTextureWithSRV->ShaderResourceViewRHI);
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableParam, GBlackTexture->TextureRHI);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureWorldToUvTransformParam, FMatrix44f::Identity);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureSRGBParam, 0 /* false */);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureEnabledParam, 0 /* false */);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableUniform0Param, DummyUint4);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTexturePageTableUniform1Param, DummyUint4);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureUniformsParam, DummyUint4);
 	}
 
 	bool SetHeightVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
@@ -1394,16 +1542,23 @@ public:
 
 		// global samplers
 		FRHISamplerState* BilinearSamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		SetSamplerParameter(RHICmdList, ComputeShaderRHI, BaseColorVirtualTextureSamplerParam, BilinearSamplerState);
 		SetSamplerParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTextureSamplerParam, BilinearSamplerState);
 		SetSamplerParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTextureSamplerParam, BilinearSamplerState);
 		SetSamplerParameter(RHICmdList, ComputeShaderRHI, CachedHeightTextureSamplerParam, BilinearSamplerState);
 
+		bool ApplyBaseColorVirtualTextureDefaults = true;
 		bool ApplyHeightVirtualTextureDefaults = true;
 		bool ApplyNormalVirtualTextureDefaults = true;
 		bool ApplyCachedHeightTextureDefaults = true;
 
 		if (ProxyData)
 		{
+			if (SetBaseColorVirtualTextureParameters(RHICmdList, ComputeShaderRHI, *ProxyData))
+			{
+				ApplyBaseColorVirtualTextureDefaults = false;
+			}
+
 			if (SetHeightVirtualTextureParameters(RHICmdList, ComputeShaderRHI, *ProxyData))
 			{
 				ApplyHeightVirtualTextureDefaults = false;
@@ -1418,6 +1573,11 @@ public:
 			{
 				ApplyCachedHeightTextureDefaults = false;
 			}
+		}
+
+		if (ApplyBaseColorVirtualTextureDefaults)
+		{
+			SetBaseColorVirtualTextureParameters_Default(RHICmdList, ComputeShaderRHI);
 		}
 
 		if (ApplyHeightVirtualTextureDefaults)
@@ -1437,6 +1597,17 @@ public:
 	}
 
 private:
+	// virtual texture parameters - basecolor
+	LAYOUT_FIELD(FShaderResourceParameter, BaseColorVirtualTextureParam);
+	LAYOUT_FIELD(FShaderResourceParameter, BaseColorVirtualTexturePageTableParam);
+	LAYOUT_FIELD(FShaderResourceParameter, BaseColorVirtualTextureSamplerParam);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTextureWorldToUvTransformParam);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTextureSRGBParam);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTextureEnabledParam);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTexturePageTableUniform0Param);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTexturePageTableUniform1Param);
+	LAYOUT_FIELD(FShaderParameter, BaseColorVirtualTextureUniformsParam);
+
 	// virtual texture parameters - height
 	LAYOUT_FIELD(FShaderResourceParameter, HeightVirtualTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightVirtualTexturePageTableParam);
@@ -1474,6 +1645,16 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, CachedPhysMatTextureParam);
 	LAYOUT_FIELD(FShaderParameter, CachedPhysMatTextureDimensionParam);
 
+	static const FString BaseColorVirtualTextureSRGBName;
+	static const FString BaseColorVirtualTextureEnabledName;
+	static const FString BaseColorVirtualTextureName;
+	static const FString BaseColorVirtualTexturePageTableName;
+	static const FString BaseColorVirtualTexturePageTableUniform0Name;
+	static const FString BaseColorVirtualTexturePageTableUniform1Name;
+	static const FString BaseColorVirtualTextureSamplerName;
+	static const FString BaseColorVirtualTextureUniformsName;
+	static const FString BaseColorVirtualTextureWorldToUvTransformName;
+
 	static const FString HeightVirtualTextureEnabledName;
 	static const FString HeightVirtualTextureName;
 	static const FString HeightVirtualTexturePageTableName;
@@ -1506,6 +1687,17 @@ private:
 	static const FString CachedPhysMatTextureName;
 	static const FString CachedPhysMatTextureDimensionName;
 };
+
+// virtual texture parameters - basecolor
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureSRGBName(TEXT("BaseColorVirtualTextureSRGB_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureEnabledName(TEXT("BaseColorVirtualTextureEnabled_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureName(TEXT("BaseColorVirtualTexture_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTexturePageTableName(TEXT("BaseColorVirtualTexturePageTable_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTexturePageTableUniform0Name(TEXT("BaseColorVirtualTexturePackedUniform0_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTexturePageTableUniform1Name(TEXT("BaseColorVirtualTexturePackedUniform1_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureSamplerName(TEXT("BaseColorVirtualTextureSampler_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureUniformsName(TEXT("BaseColorVirtualTextureUniforms_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::BaseColorVirtualTextureWorldToUvTransformName(TEXT("BaseColorVirtualTextureWorldToUvTransform_"));
 
 // virtual texture parameters - height
 const FString FNiagaraDataInterfaceParametersCS_Landscape::HeightVirtualTextureEnabledName(TEXT("HeightVirtualTextureEnabled_"));

@@ -105,9 +105,20 @@ void FIKRigEditorController::DeleteGoal(const FName& GoalToDelete)
 	SelectedGoals.Remove(GoalToDelete);
 }
 
-bool FIKRigEditorController::IsGoalSelected(const FName& GoalName)
+bool FIKRigEditorController::IsGoalSelected(const FName& GoalName) const
 {
 	return SelectedGoals.Contains(GoalName);
+}
+
+void FIKRigEditorController::ReplaceGoalInSelection(const FName& OldName, const FName& NewName)
+{
+	const int32 GoalIndex = SelectedGoals.IndexOfByKey(OldName);
+	if (GoalIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	SelectedGoals[GoalIndex] = NewName;
 }
 
 int32 FIKRigEditorController::GetNumSelectedGoals()

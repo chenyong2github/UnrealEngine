@@ -97,15 +97,6 @@ FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
 
-static int32 AllowReverbForMultichannelSources = 1;
-FAutoConsoleVariableRef CvarAllowReverbForMultichannelSources(
-	TEXT("au.AllowReverbForMultichannelSources"),
-	AllowReverbForMultichannelSources,
-	TEXT("Controls if we allow Reverb processing for sources with channel counts > 2.\n")
-	TEXT("0: Disable, >0: Enable"),
-	ECVF_Default);
-
-
 bool IsAudioPluginEnabled(EAudioPlugin PluginType)
 {
 	switch (PluginType)
@@ -161,8 +152,14 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 		}
 		break;
 
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+		{
+			return nullptr;
+		}
+		break;
+
 		default:
-			static_assert(static_cast<uint32>(EAudioPlugin::COUNT) == 4, "Possible missing audio plugin type case coverage");
+			static_assert(static_cast<uint32>(EAudioPlugin::COUNT) == 5, "Possible missing audio plugin type case coverage");
 		break;
 	}
 
@@ -333,17 +330,13 @@ bool FSoundSource::IsGameOnly() const
 
 bool FSoundSource::SetReverbApplied(bool bHardwareAvailable)
 {
+	// TODO: REMOVE THIS WHEN LEGACY BACKENDS ARE DELETED
+	
 	// Do not apply reverb if it is explicitly disallowed
 	bReverbApplied = WaveInstance->bReverb && bHardwareAvailable;
 
 	// Do not apply reverb to music
 	if (WaveInstance->bIsMusic)
-	{
-		bReverbApplied = false;
-	}
-
-	// Do not apply reverb to multichannel sounds
-	if (!AllowReverbForMultichannelSources && (WaveInstance->WaveData->NumChannels > 2))
 	{
 		bReverbApplied = false;
 	}
@@ -783,6 +776,7 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, ActiveSound(&InActiveSound)
 	, Volume(0.0f)
 	, DistanceAttenuation(1.0f)
+	, OcclusionAttenuation(1.0f)
 	, VolumeMultiplier(1.0f)
 	, EnvelopValue(0.0f)
 	, EnvelopeFollowerAttackTime(10)
@@ -832,9 +826,7 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, ListenerToSoundDistanceForPanning(0.0f)
 	, AbsoluteAzimuth(0.0f)
 	, PlaybackTime(0.0f)
-	, ReverbSendMethod(EReverbSendMethod::Linear)
-	, ReverbSendLevelRange(0.0f, 0.0f)
-	, ReverbSendLevelDistanceRange(0.0f, 0.0f)
+	, ReverbSendLevel(0.0f)
 	, ManualReverbSendLevel(0.0f)
 	, TypeHash(0)
 	, WaveInstanceHash(InWaveInstanceHash)
@@ -864,7 +856,7 @@ bool FWaveInstance::IsPlaying() const
 		return true;
 	}
 
-	const float WaveInstanceVolume = Volume * VolumeMultiplier * DistanceAttenuation * GetDynamicVolume();
+	const float WaveInstanceVolume = Volume * VolumeMultiplier * GetDistanceAndOcclusionAttenuation() * GetDynamicVolume();
 	if (WaveInstanceVolume > KINDA_SMALL_NUMBER)
 	{
 		return true;
@@ -958,7 +950,7 @@ void FWaveInstance::AddReferencedObjects( FReferenceCollector& Collector )
 float FWaveInstance::GetActualVolume() const
 {
 	// Include all volumes
-	float ActualVolume = GetVolume() * DistanceAttenuation;
+	float ActualVolume = GetVolume() * GetDistanceAndOcclusionAttenuation();
 	if (ActualVolume != 0.0f)
 	{
 		ActualVolume *= GetDynamicVolume();
@@ -974,10 +966,9 @@ float FWaveInstance::GetActualVolume() const
 	return ActualVolume;
 }
 
-float FWaveInstance::GetDistanceAttenuation() const
+float FWaveInstance::GetDistanceAndOcclusionAttenuation() const
 {
-	// Only includes volume attenuation due do distance
-	return DistanceAttenuation;
+	return DistanceAttenuation * OcclusionAttenuation;
 }
 
 float FWaveInstance::GetDynamicVolume() const
@@ -1011,9 +1002,9 @@ float FWaveInstance::GetDynamicVolume() const
 	return OutVolume;
 }
 
-float FWaveInstance::GetVolumeWithDistanceAttenuation() const
+float FWaveInstance::GetVolumeWithDistanceAndOcclusionAttenuation() const
 {
-	return GetVolume() * DistanceAttenuation;
+	return GetVolume() * GetDistanceAndOcclusionAttenuation();
 }
 
 float FWaveInstance::GetPitch() const
@@ -1042,7 +1033,7 @@ float FWaveInstance::GetVolumeWeightedPriority() const
 	}
 
 	// This will result in zero-volume sounds still able to be sorted due to priority but give non-zero volumes higher priority than 0 volumes
-	float ActualVolume = GetVolumeWithDistanceAttenuation();
+	float ActualVolume = GetVolumeWithDistanceAndOcclusionAttenuation();
 	if (ActualVolume > 0.0f)
 	{
 		// Only check for bypass if the actual volume is greater than 0.0

@@ -416,7 +416,11 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
-		if (InSoundWave->UseBinkAudio())
+		if (!ensure(InSoundWave.IsValid()))
+		{
+			return nullptr;
+		}
+		else if (InSoundWave->UseBinkAudio())
 		{
 			return new FBinkAudioInfo();
 		}

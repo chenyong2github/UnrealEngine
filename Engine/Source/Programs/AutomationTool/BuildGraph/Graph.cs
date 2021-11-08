@@ -60,11 +60,6 @@ namespace AutomationTool
 		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
 		/// </summary>
 		public Agent EnclosingAgent;
-
-		/// <summary>
-		/// The trigger that this diagnostic is declared in. If this trigger is not being run, the message will not be displayed.
-		/// </summary>
-		public ManualTrigger EnclosingTrigger;
 	}
 
 	/// <summary>
@@ -126,39 +121,29 @@ namespace AutomationTool
 		public List<Agent> Agents = new List<Agent>();
 
 		/// <summary>
-		/// All manual triggers that are part of this graph
-		/// </summary>
-		public Dictionary<string, ManualTrigger> NameToTrigger = new Dictionary<string, ManualTrigger>(StringComparer.InvariantCultureIgnoreCase);
-
-		/// <summary>
 		/// Mapping from name to agent
 		/// </summary>
-		public Dictionary<string, Agent> NameToAgent = new Dictionary<string, Agent>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, Agent> NameToAgent = new Dictionary<string, Agent>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding node.
 		/// </summary>
-		public Dictionary<string, Node> NameToNode = new Dictionary<string,Node>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, Node> NameToNode = new Dictionary<string,Node>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding report.
 		/// </summary>
-		public Dictionary<string, Report> NameToReport = new Dictionary<string, Report>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, Report> NameToReport = new Dictionary<string, Report>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to their corresponding node output.
 		/// </summary>
-		public HashSet<string> LocalTagNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-
-		/// <summary>
-		/// Mapping of names to their corresponding node output.
-		/// </summary>
-		public Dictionary<string, NodeOutput> TagNameToNodeOutput = new Dictionary<string,NodeOutput>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, NodeOutput> TagNameToNodeOutput = new Dictionary<string,NodeOutput>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of aggregate names to their respective nodes
 		/// </summary>
-		public Dictionary<string, Aggregate> NameToAggregate = new Dictionary<string, Aggregate>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, Aggregate> NameToAggregate = new Dictionary<string, Aggregate>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// List of badges that can be displayed for this build
@@ -323,9 +308,6 @@ namespace AutomationTool
 				Node.OrderDependencies = Node.OrderDependencies.Where(x => RetainNodes.Contains(x)).ToArray();
 			}
 
-			// Create a new list of triggers from all the nodes which are left
-			NameToTrigger = RetainNodes.Where(x => x.ControllingTrigger != null).Select(x => x.ControllingTrigger).Distinct().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
-
 			// Create a new list of aggregates for everything that's left
 			Dictionary<string, Aggregate> NewNameToAggregate = new Dictionary<string, Aggregate>(NameToAggregate.Comparer);
 			foreach(Aggregate Aggregate in NameToAggregate.Values)
@@ -353,32 +335,6 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Skips the given triggers, collapsing everything inside them into their parent trigger.
-		/// </summary>
-		/// <param name="Triggers">Set of triggers to skip</param>
-		public void SkipTriggers(HashSet<ManualTrigger> Triggers)
-		{
-			foreach(ManualTrigger Trigger in Triggers)
-			{
-				NameToTrigger.Remove(Trigger.Name);
-			}
-			foreach(Node Node in NameToNode.Values)
-			{
-				while(Triggers.Contains(Node.ControllingTrigger))
-				{
-					Node.ControllingTrigger = Node.ControllingTrigger.Parent;
-				}
-			}
-			foreach(GraphDiagnostic Diagnostic in Diagnostics)
-			{
-				while(Triggers.Contains(Diagnostic.EnclosingTrigger))
-				{
-					Diagnostic.EnclosingTrigger = Diagnostic.EnclosingTrigger.Parent;
-				}
-			}
-		}
-
-		/// <summary>
 		/// Writes a preprocessed build graph to a script file
 		/// </summary>
 		/// <param name="File">The file to load</param>
@@ -400,18 +356,7 @@ namespace AutomationTool
 
 				foreach (Agent Agent in Agents)
 				{
-					Agent.Write(Writer, null);
-				}
-
-				foreach (ManualTrigger ControllingTrigger in Agents.SelectMany(x => x.Nodes).Where(x => x.ControllingTrigger != null).Select(x => x.ControllingTrigger).Distinct())
-				{
-					Writer.WriteStartElement("Trigger");
-					Writer.WriteAttributeString("Name", ControllingTrigger.QualifiedName);
-					foreach (Agent Agent in Agents)
-					{
-						Agent.Write(Writer, ControllingTrigger);
-					}
-					Writer.WriteEndElement();
+					Agent.Write(Writer);
 				}
 
 				foreach (Aggregate Aggregate in NameToAggregate.Values)
@@ -489,15 +434,14 @@ namespace AutomationTool
 		/// Export the build graph to a Json file, for parallel execution by the build system
 		/// </summary>
 		/// <param name="File">Output file to write</param>
-		/// <param name="Trigger">The trigger whose nodes to run. Null for the default nodes.</param>
 		/// <param name="CompletedNodes">Set of nodes which have been completed</param>
-		public void Export(FileReference File, ManualTrigger Trigger, HashSet<Node> CompletedNodes)
+		public void Export(FileReference File, HashSet<Node> CompletedNodes)
 		{
 			// Find all the nodes which we're actually going to execute. We'll use this to filter the graph.
 			HashSet<Node> NodesToExecute = new HashSet<Node>();
 			foreach(Node Node in Agents.SelectMany(x => x.Nodes))
 			{
-				if(!CompletedNodes.Contains(Node) && Node.IsBehind(Trigger))
+				if(!CompletedNodes.Contains(Node))
 				{
 					NodesToExecute.Add(Node);
 				}
@@ -512,7 +456,7 @@ namespace AutomationTool
 				JsonWriter.WriteArrayStart("Groups");
 				foreach(Agent Agent in Agents)
 				{
-					Node[] Nodes = Agent.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					Node[] Nodes = Agent.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if(Nodes.Length > 0)
 					{
 						JsonWriter.WriteObjectStart();
@@ -528,7 +472,7 @@ namespace AutomationTool
 						{
 							JsonWriter.WriteObjectStart();
 							JsonWriter.WriteValue("Name", Node.Name);
-							JsonWriter.WriteValue("DependsOn", String.Join(";", Node.GetDirectOrderDependencies().Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger)));
+							JsonWriter.WriteValue("DependsOn", String.Join(";", Node.GetDirectOrderDependencies().Where(x => NodesToExecute.Contains(x))));
 							JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
 							JsonWriter.WriteObjectStart("Notify");
 							JsonWriter.WriteValue("Default", String.Join(";", Node.NotifyUsers));
@@ -547,7 +491,7 @@ namespace AutomationTool
 				JsonWriter.WriteArrayStart("Badges");
 				foreach (Badge Badge in Badges)
 				{
-					Node[] Dependencies = Badge.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					Node[] Dependencies = Badge.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if (Dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
@@ -578,7 +522,7 @@ namespace AutomationTool
 				JsonWriter.WriteArrayStart("Reports");
 				foreach (Report Report in NameToReport.Values)
 				{
-					Node[] Dependencies = Report.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					Node[] Dependencies = Report.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if (Dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
@@ -594,37 +538,6 @@ namespace AutomationTool
 						JsonWriter.WriteValue("DirectDependencies", String.Join(";", DirectDependencies.Select(x => x.Name)));
 						JsonWriter.WriteValue("Notify", String.Join(";", Report.NotifyUsers));
 						JsonWriter.WriteValue("IsTrigger", false);
-						JsonWriter.WriteObjectEnd();
-					}
-				}
-				foreach (ManualTrigger DownstreamTrigger in NameToTrigger.Values)
-				{
-					if(DownstreamTrigger.Parent == Trigger)
-					{
-						// Find all the nodes that this trigger is dependent on
-						HashSet<Node> Dependencies = new HashSet<Node>();
-						foreach(Node NodeToExecute in NodesToExecute)
-						{
-							if(NodeToExecute.IsBehind(DownstreamTrigger))
-							{
-								Dependencies.UnionWith(NodeToExecute.OrderDependencies.Where(x => x.ControllingTrigger == Trigger));
-							}
-						}
-
-						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<Node> DirectDependencies = new HashSet<Node>(Dependencies);
-						foreach(Node Dependency in Dependencies)
-						{
-							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
-						}
-
-						// Write out the object
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", DownstreamTrigger.Name);
-						JsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => Dependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("DirectDependencies", String.Join(";", Dependencies.Where(x => DirectDependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("Notify", String.Join(";", DownstreamTrigger.NotifyUsers));
-						JsonWriter.WriteValue("IsTrigger", true);
 						JsonWriter.WriteObjectEnd();
 					}
 				}
@@ -807,78 +720,38 @@ namespace AutomationTool
 				}
 			}
 
-			// Get a list of all the triggers, including the null global one
-			List<ManualTrigger> AllTriggers = new List<ManualTrigger>();
-			AllTriggers.Add(null);
-			AllTriggers.AddRange(NameToTrigger.Values.OrderBy(x => x.QualifiedName));
-
 			// Output all the triggers in order
 			CommandUtils.LogInformation("");
 			CommandUtils.LogInformation("Graph:");
-			foreach(ManualTrigger Trigger in AllTriggers)
+			foreach(Agent Agent in Agents)
 			{
-				// Filter everything by this trigger
-				Dictionary<Agent, Node[]> FilteredAgentToNodes = new Dictionary<Agent,Node[]>();
-				foreach(Agent Agent in Agents)
+				CommandUtils.LogInformation("        Agent: {0} ({1})", Agent.Name, String.Join(";", Agent.PossibleTypes));
+				foreach(Node Node in Agent.Nodes)
 				{
-					Node[] Nodes = Agent.Nodes.Where(x => x.ControllingTrigger == Trigger).ToArray();
-					if(Nodes.Length > 0)
+					CommandUtils.LogInformation("            Node: {0}{1}", Node.Name, CompletedNodes.Contains(Node)? " (completed)" : Node.bRunEarly? " (early)" : "");
+					if(PrintOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
-						FilteredAgentToNodes[Agent] = Nodes;
-					}
-				}
-
-				// Skip this trigger if there's nothing to display
-				if(FilteredAgentToNodes.Count == 0)
-				{
-					continue;
-				}
-
-				// Print the trigger name
-				CommandUtils.LogInformation("    Trigger: {0}", (Trigger == null)? "None" : Trigger.QualifiedName);
-				if(Trigger != null && PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
-				{
-					foreach(string User in Trigger.NotifyUsers)
-					{
-						CommandUtils.LogInformation("            notify> {0}", User);
-					}
-				}
-
-				// Output all the agents for this trigger
-				foreach(Agent Agent in Agents)
-				{
-					Node[] Nodes;
-					if(FilteredAgentToNodes.TryGetValue(Agent, out Nodes))
-					{
-						CommandUtils.LogInformation("        Agent: {0} ({1})", Agent.Name, String.Join(";", Agent.PossibleTypes));
-						foreach(Node Node in Nodes)
+						HashSet<Node> InputDependencies = new HashSet<Node>(Node.GetDirectInputDependencies());
+						foreach(Node InputDependency in InputDependencies)
 						{
-							CommandUtils.LogInformation("            Node: {0}{1}", Node.Name, CompletedNodes.Contains(Node)? " (completed)" : Node.bRunEarly? " (early)" : "");
-							if(PrintOptions.HasFlag(GraphPrintOptions.ShowDependencies))
-							{
-								HashSet<Node> InputDependencies = new HashSet<Node>(Node.GetDirectInputDependencies());
-								foreach(Node InputDependency in InputDependencies)
-								{
-									CommandUtils.LogInformation("                input> {0}", InputDependency.Name);
-								}
-								HashSet<Node> OrderDependencies = new HashSet<Node>(Node.GetDirectOrderDependencies());
-								foreach(Node OrderDependency in OrderDependencies.Except(InputDependencies))
-								{
-									CommandUtils.LogInformation("                after> {0}", OrderDependency.Name);
-								}
-							}
-							if(PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
-							{
-								string Label = Node.bNotifyOnWarnings? "warnings" : "errors";
-								foreach(string User in Node.NotifyUsers)
-								{
-									CommandUtils.LogInformation("                {0}> {1}", Label, User);
-								}
-								foreach(string Submitter in Node.NotifySubmitters)
-								{
-									CommandUtils.LogInformation("                {0}> submitters to {1}", Label, Submitter);
-								}
-							}
+							CommandUtils.LogInformation("                input> {0}", InputDependency.Name);
+						}
+						HashSet<Node> OrderDependencies = new HashSet<Node>(Node.GetDirectOrderDependencies());
+						foreach(Node OrderDependency in OrderDependencies.Except(InputDependencies))
+						{
+							CommandUtils.LogInformation("                after> {0}", OrderDependency.Name);
+						}
+					}
+					if(PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
+					{
+						string Label = Node.bNotifyOnWarnings? "warnings" : "errors";
+						foreach(string User in Node.NotifyUsers)
+						{
+							CommandUtils.LogInformation("                {0}> {1}", Label, User);
+						}
+						foreach(string Submitter in Node.NotifySubmitters)
+						{
+							CommandUtils.LogInformation("                {0}> submitters to {1}", Label, Submitter);
 						}
 					}
 				}

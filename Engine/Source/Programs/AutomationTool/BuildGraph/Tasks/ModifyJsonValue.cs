@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
@@ -9,6 +8,7 @@ using System.IO;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Text.Json;
 
 namespace BuildGraph.Tasks
 {
@@ -78,7 +78,7 @@ namespace BuildGraph.Tasks
 
 				CurrObj[Keys[Keys.Length - 1]] = Parameters.NewValue;
 
-				var NewContents = Json_DEPRECATED.Serialize(ParamObj, JsonSerializeOptions_DEPRECATED.PrettyPrint);
+				var NewContents = JsonSerializer.Serialize(ParamObj, new JsonSerializerOptions { WriteIndented = true });
 				File.WriteAllText(JsonFile, NewContents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 			}
 		}

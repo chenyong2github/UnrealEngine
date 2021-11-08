@@ -240,17 +240,25 @@ namespace Sequencer
 		return Handle.GetValue();
 	}
 
-
 	/**
 	 * Gather key draw information from a channel for a specific set of keys
 	 *
-	 * @param InChannel          The channel to duplicate keys in
-	 * @param InHandles          Array of key handles that should be deleted
+	 * @param InChannel          The channel to draw keys
+	 * @param InHandles          Array of key handles that should be displayed
 	 * @param InOwner            The owning movie scene section for this channel
-	 * @param OutKeyDrawParams   Array to receive key draw information. Must be exactly the size of InHandles.
+	 * @param OutKeyDrawParams   Array to receive key draw information. Must be exactly the size of InHandles
 	 */
 	SEQUENCER_API void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams);
 
+	/**
+	 * Draw additional content in addition to keys for a particular channel
+	 *
+	 * @param InChannel          The channel to draw extra display information for
+	 * @param InOwner            The owning movie scene section for this channel
+	 * @param InKeyGeometry      Allocated geometry to draw in
+	 * @param Painter			 The painter to add the created geometry to
+	 */
+	SEQUENCER_API void DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FGeometry& KeyGeometry, FSequencerSectionPainter& Painter);
 
 	/**
 	 * Copy the specified keys from a channel

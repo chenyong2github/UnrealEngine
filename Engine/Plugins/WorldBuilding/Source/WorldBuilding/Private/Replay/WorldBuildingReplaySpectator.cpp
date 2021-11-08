@@ -26,8 +26,8 @@ void AWorldBuildingReplaySpectator::GetPlayerViewPoint(FVector& out_Location, FR
 
 			if (Index != INDEX_NONE)
 			{
-				out_Location = WorldPartition->GetInstanceTransform().TransformPosition(StreamingSources[Index].Location);
-				out_Rotation = WorldPartition->GetInstanceTransform().TransformRotation(StreamingSources[Index].Rotation.Quaternion()).Rotator();
+				out_Location = StreamingSources[Index].Location;
+				out_Rotation = StreamingSources[Index].Rotation;
 				return;
 			}
 		}

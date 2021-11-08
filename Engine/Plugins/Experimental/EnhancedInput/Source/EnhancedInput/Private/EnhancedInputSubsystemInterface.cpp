@@ -565,12 +565,12 @@ void InjectKey(T* InjectVia, FKey Key, const FInputActionValue& Value, float Del
 	// TODO: Multi axis FKey support
 	if (Key.IsAnalog())
 	{
-		InjectVia->InputAxis(Key, Value.Get<float>(), DeltaTime, 1, Key.IsGamepadKey());
+		InjectVia->InputKey(FInputKeyParams(Key, static_cast<double>(Value.Get<float>()), DeltaTime, 1, Key.IsGamepadKey()));
 	}
 	else
 	{
 		// TODO: IE_Repeat support. Ideally ticking at whatever rate the application platform is sending repeat key messages.
-		InjectVia->InputKey(Key, IE_Pressed, Value.Get<float>(), Key.IsGamepadKey());
+		InjectVia->InputKey(FInputKeyParams(Key, IE_Pressed, static_cast<double>(Value.Get<float>()), Key.IsGamepadKey()));
 	}
 }
 
@@ -631,14 +631,19 @@ void IEnhancedInputSubsystemInterface::RemoveForcedInput(FKey Key)
 
 	if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 	{
+		FInputKeyParams Params;
+		Params.Key = Key;
+		Params.Delta = FVector::ZeroVector;
+		Params.Event = EInputEvent::IE_Released;
+		
 		// Prefer sending the key released event via a player controller if one is available.
 		if (APlayerController* Controller = Cast<APlayerController>(PlayerInput->GetOuter()))
 		{
-			Controller->InputKey(Key, EInputEvent::IE_Released, 0.f, Key.IsGamepadKey());
+			Controller->InputKey(Params);
 		}
 		else
 		{
-			PlayerInput->InputKey(Key, EInputEvent::IE_Released, 0.f, Key.IsGamepadKey());
+			PlayerInput->InputKey(Params);
 		}
 	}
 }

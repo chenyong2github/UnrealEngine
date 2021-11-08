@@ -109,7 +109,7 @@ bool UWorldPartitionStreamingSourceComponent::IsStreamingCompleted() const
 	QuerySource.bUseGridLoadingRange = true;
 	QuerySource.Radius = 0.f;
 	QuerySource.bDataLayersOnly = false;
-	QuerySource.DataLayers = (TargetState == EStreamingSourceTargetState::Loaded) ? DataLayerSubsystem->GetLoadedDataLayerNames().Array() : DataLayerSubsystem->GetActiveDataLayerNames().Array();
+	QuerySource.DataLayers = (TargetState == EStreamingSourceTargetState::Loaded) ? DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().Array() : DataLayerSubsystem->GetEffectiveActiveDataLayerNames().Array();
 
 	// Execute query
 	const EWorldPartitionRuntimeCellState QueryState = (TargetState == EStreamingSourceTargetState::Loaded) ? EWorldPartitionRuntimeCellState::Loaded : EWorldPartitionRuntimeCellState::Activated;

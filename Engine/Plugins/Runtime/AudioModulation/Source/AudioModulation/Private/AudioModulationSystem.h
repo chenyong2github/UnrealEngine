@@ -6,6 +6,7 @@
 #include "AudioModulation.h"
 #include "Containers/Queue.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
 #include "IAudioModulation.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
@@ -58,7 +59,7 @@ namespace AudioModulation
 		void Initialize(const FAudioPluginInitializationParams& InitializationParams);
 
 		void ActivateBus(const USoundControlBus& InBus);
-		void ActivateBusMix(const FModulatorBusMixSettings& InSettings);
+		void ActivateBusMix(FModulatorBusMixSettings&& InSettings);
 		void ActivateBusMix(const USoundControlBusMix& InBusMix);
 		void ActivateGenerator(const USoundModulationGenerator& InGenerator);
 
@@ -84,7 +85,12 @@ namespace AudioModulation
 		/* Register new handle with given Id with a modulator that is already active (i.e. registered). Used primarily for copying modulation handles. */
 		void RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId);
 
+		/* Attempts to get the modulator value from the AudioRender Thread. */
 		bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const;
+
+		/* Attempts to get the modulator value from any thread (lock contentious).*/
+		bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const;
+
 		void UnregisterModulator(const Audio::FModulatorHandle& InHandle);
 
 		/* Saves mix to .ini profile for fast iterative development that does not require re-cooking a mix */
@@ -140,12 +146,12 @@ namespace AudioModulation
 
 			if (const TModType* Mod = Cast<TModType>(InModulatorBase))
 			{
-				RunCommandOnProcessingThread([this, Modulator = TModSettings(*Mod, AudioDeviceId), InHandleId, PassedProxyMap = &OutProxyMap, PassedModMap = &OutModMap]()
+				RunCommandOnProcessingThread([this, Modulator = TModSettings(*Mod, AudioDeviceId), InHandleId, PassedProxyMap = &OutProxyMap, PassedModMap = &OutModMap]() mutable
 				{
 					check(PassedProxyMap);
 					check(PassedModMap);
 
-					THandleType Handle = THandleType::Create(Modulator, *PassedProxyMap, *this);
+					THandleType Handle = THandleType::Create(MoveTemp(Modulator), *PassedProxyMap, *this);
 					PassedModMap->FindOrAdd(Handle).Add(InHandleId);
 				});
 
@@ -178,6 +184,11 @@ namespace AudioModulation
 		}
 
 		FReferencedProxies RefProxies;
+
+		// Critical section & map of copied, computed modulation values for
+		// use from the decoder threads & respective MetaSound getter nodes.
+		mutable FCriticalSection ThreadSafeModValueCritSection;
+		TMap<Audio::FModulatorId, float> ThreadSafeModValueMap;
 
 		TSet<FBusHandle> ManuallyActivatedBuses;
 		TSet<FBusMixHandle> ManuallyActivatedBusMixes;
@@ -251,7 +262,7 @@ namespace AudioModulation
 #endif // !UE_BUILD_SHIPPING
 
 		void ActivateBus(const USoundControlBus& InBus) { }
-		void ActivateBusMix(const FModulatorBusMixSettings& InSettings) { }
+		void ActivateBusMix(FModulatorBusMixSettings&& InSettings) { }
 		void ActivateBusMix(const USoundControlBusMix& InBusMix) { }
 		void ActivateGenerator(const USoundModulationGenerator& InGenerator) { }
 
@@ -272,6 +283,7 @@ namespace AudioModulation
 		Audio::FModulatorTypeId RegisterModulator(Audio::FModulatorHandleId InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter) { return INDEX_NONE; }
 		void RegisterModulator(Audio::FModulatorHandleId InHandleId, Audio::FModulatorId InModulatorId) { }
 		bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
+		bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
 		void UnregisterModulator(const Audio::FModulatorHandle& InHandle) { }
 
 		void UpdateMix(const USoundControlBusMix& InMix, float InFadeTime) { }

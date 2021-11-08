@@ -77,7 +77,9 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 		if (ProtocolName == OutputPortConfig.GetProtocolName() &&
 			DeviceAddress == OutputPortConfig.GetDeviceAddress() &&
 			DestinationAddress == OutputPortConfig.GetDestinationAddress() &&
-			CommunicationType == OutputPortConfig.GetCommunicationType())
+			CommunicationType == OutputPortConfig.GetCommunicationType() &&
+			Priority == OutputPortConfig.GetPriority() &&
+			Delay == OutputPortConfig.GetDelay())
 		{
 			return false;
 		}	
@@ -109,6 +111,7 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 	NumUniverses = OutputPortConfig.GetNumUniverses();
 	PortName = OutputPortConfig.GetPortName();
 	Priority = OutputPortConfig.GetPriority();
+	Delay = OutputPortConfig.GetDelay();
 
 	CommunicationDeterminator.SetLoopbackToEngine(OutputPortConfig.NeedsLoopbackToEngine());
 
@@ -188,6 +191,7 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			Signal->ExternUniverseID = ExternUniverseID;
 			Signal->Timestamp = FPlatformTime::Seconds();
 			Signal->Priority = Priority;
+			Signal->Delay = Delay;
 
 			// Send DMX
 			if (bNeedsSendDMX)
@@ -237,6 +241,8 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 
 			Signal->ExternUniverseID = RemoteUniverse;
 			Signal->Timestamp = FPlatformTime::Seconds();
+			Signal->Priority = Priority;
+			Signal->Delay = Delay;
 
 			// Send via the protocol's sender
 			if (bNeedsSendDMX)

@@ -433,17 +433,17 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
 #if WITH_ENGINE
+		static const FName NAME_OGG(TEXT("OGG"));
+
 		if (!ensure(InSoundWave.IsValid()))
 		{
 			return nullptr;
 		}
-
-		if (InSoundWave->UseBinkAudio())
+		else if (InSoundWave->UseBinkAudio())
 		{
 			return new FBinkAudioInfo();
 		}
-
-		if (InSoundWave->IsSeekableStreaming())
+		else if (InSoundWave->IsSeekableStreaming())
 		{
 			return new FADPCMAudioInfo();
 		}
@@ -451,8 +451,19 @@ namespace Audio
 		{
 			return new FOpusAudioInfo();
 		}
+		else if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
+		{
+			ICompressedAudioInfo* CompressedInfo = new FVorbisAudioInfo();
+			if (!CompressedInfo)
+			{
+				UE_LOG(LogAudio, Error, TEXT("Failed to create new FVorbisAudioInfo for SoundWave %s: out of memory."), *InSoundWave->GetFName().ToString());
+				return nullptr;
+			}
+			return CompressedInfo;
+		}
 
 #endif // WITH_ENGINE
+
 		return nullptr;
 	}
 

@@ -153,7 +153,7 @@ void FLoadingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsM
 			FOnSpawnTab::CreateRaw(this, &FLoadingProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FLoadingProfilerManager::CanSpawnTab))
 			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("LoadingProfilerTabTitle", "Asset Loading Insights"))
 			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
-			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
+			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.LoadingProfiler"));
 
 		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 		TabSpawnerEntry.SetGroup(Group);

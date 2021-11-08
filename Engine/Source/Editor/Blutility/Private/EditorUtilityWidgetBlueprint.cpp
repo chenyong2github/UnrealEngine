@@ -77,7 +77,12 @@ TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 		{
 			CreatedUMGWidget->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty);
 		}
-		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);		
+		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);
+		if (CreatedUMGWidget)
+		{
+			// Editor Utility is flagged as transient to prevent from dirty the World it's created in when a property added to the Utility Widget is changed
+			CreatedUMGWidget->SetFlags(RF_Transient);
+		}
 	}
 
 	if (CreatedUMGWidget)

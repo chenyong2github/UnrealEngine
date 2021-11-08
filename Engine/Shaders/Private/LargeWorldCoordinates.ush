@@ -323,6 +323,26 @@ float4x4 LWCMultiplyTranslation(FLWCMatrix Lhs, FLWCVector3 Rhs)
 	return Result;
 }
 
+FLWCMatrix LWCMultiplyTranslation(float4x4 Lhs, FLWCVector3 Rhs)
+{
+	FLWCMatrix Result = MakeLWCMatrix(LWCGetTile(Rhs), Lhs);
+	Result.M[3].xyz += Rhs.Offset;
+	return Result;
+}
+
+float4x4 LWCMultiplyTranslation(FLWCVector3 Lhs, FLWCInverseMatrix Rhs)
+{
+	float3 Offset = (LWCGetTile(Lhs) + LWCGetTile(Rhs)) * UE_LWC_RENDER_TILE_SIZE + Lhs.Offset;
+	return mul(MakeTranslationMatrix(Offset), Rhs.M);
+}
+
+FLWCInverseMatrix LWCMultiplyTranslation(FLWCVector3 Lhs, float4x4 Rhs)
+{
+	FLWCInverseMatrix Result = MakeLWCInverseMatrix(-LWCGetTile(Lhs), Rhs);
+	Result.M = mul(MakeTranslationMatrix(Lhs.Offset), Result.M);
+	return Result;
+}
+
 FLWCVector3 LWCGetOrigin(FLWCMatrix InMatrix)
 {
 	return MakeLWCVector3(LWCGetTile(InMatrix), InMatrix.M[3].xyz);

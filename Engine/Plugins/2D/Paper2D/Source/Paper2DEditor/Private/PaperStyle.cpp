@@ -213,6 +213,7 @@ void FPaperStyle::Initialize()
 		StyleSet->Set("SpriteEditor.EnterSourceRegionEditMode.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_Paper2D_EditSourceRegion_40x", Icon20x20));
 		StyleSet->Set("SpriteEditor.EnterRenderingEditMode", new IMAGE_PLUGIN_BRUSH("Icons/icon_Paper2D_RenderGeom_40x", Icon40x40));
 		StyleSet->Set("SpriteEditor.EnterRenderingEditMode.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_Paper2D_RenderGeom_40x", Icon20x20));
+		StyleSet->Set("SpriteEditor.SpriteActions", new IMAGE_PLUGIN_BRUSH_SVG(TEXT("Icons/SpriteActions"), Icon16x16));
 	}
 
 	// Sprite geometry editor (shared between the sprite editor, tile set editor, etc...)

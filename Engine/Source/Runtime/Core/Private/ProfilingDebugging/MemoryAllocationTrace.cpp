@@ -209,11 +209,13 @@ void FAllocationTrace::Free(void* Address, HeapId RootHeap)
 			{
 				UE_TRACE_LOG(Memory, FreeSystem, MemAllocChannel)
 					<< FreeSystem.Address(uint64(Address));
+				break;
 			}
 		case EMemoryTraceRootHeap::VideoMemory:
 			{
 				UE_TRACE_LOG(Memory, FreeVideo, MemAllocChannel)
 					<< FreeVideo.Address(uint64(Address));
+				break;
 			}
 		default:
 			{
@@ -243,6 +245,7 @@ void FAllocationTrace::ReallocAlloc(void* Address, size_t Size, uint32 Alignment
 				<< ReallocAllocSystem.Address(uint64(Address))
 				<< ReallocAllocSystem.Size(uint32(Size >> SizeShift))
 				<< ReallocAllocSystem.AlignmentPow2_SizeLower(uint8(Alignment_SizeLower));
+			break;
 		}
 	default:
 		{

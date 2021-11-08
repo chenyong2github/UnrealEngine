@@ -23,7 +23,8 @@ SDMXPatchTool::~SDMXPatchTool()
 	// Unbind from library changes
 	if (PreviouslySelectedLibrary.IsValid())
 	{
-		PreviouslySelectedLibrary->GetOnEntitiesUpdated().RemoveAll(this);
+		PreviouslySelectedLibrary->GetOnEntitiesAdded().RemoveAll(this);
+		PreviouslySelectedLibrary->GetOnEntitiesRemoved().RemoveAll(this);
 	}
 }
 
@@ -338,14 +339,16 @@ void SDMXPatchTool::OnLibrarySelected(UDMXLibrary* SelectedLibrary, ESelectInfo:
 	// Unbind from previously selected library changes
 	if (PreviouslySelectedLibrary.IsValid())
 	{
-		PreviouslySelectedLibrary->GetOnEntitiesUpdated().RemoveAll(this);
+		PreviouslySelectedLibrary->GetOnEntitiesAdded().RemoveAll(this);
+		PreviouslySelectedLibrary->GetOnEntitiesRemoved().RemoveAll(this);
 	}
 	PreviouslySelectedLibrary = SelectedLibrary;
 
 	if (IsValid(SelectedLibrary))
 	{
 		// Bind to library edits
-		SelectedLibrary->GetOnEntitiesUpdated().AddSP(this, &SDMXPatchTool::OnLibraryEdited);
+		SelectedLibrary->GetOnEntitiesAdded().AddSP(this, &SDMXPatchTool::OnEntitiesAddedOrRemoved);
+		SelectedLibrary->GetOnEntitiesRemoved().AddSP(this, &SDMXPatchTool::OnEntitiesAddedOrRemoved);
 
 		SelectedLibraryTextBlock->SetText(FText::FromString(SelectedLibrary->GetName()));
 	}
@@ -378,7 +381,7 @@ void SDMXPatchTool::OnFixturePatchSelected(UDMXEntityFixturePatch* SelectedFixtu
 	}
 }
 
-void SDMXPatchTool::OnLibraryEdited(UDMXLibrary* Library)
+void SDMXPatchTool::OnEntitiesAddedOrRemoved(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
 {
 	check(FixturePatchComboBox.IsValid());
 

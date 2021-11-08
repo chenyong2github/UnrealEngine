@@ -1633,7 +1633,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Builds the target, appending list of output files and returns building result.
 		/// </summary>
-		public TargetMakefile Build(BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, List<FileReference> SpecificFilesToCompile)
+		public TargetMakefile Build(BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, TargetDescriptor TargetDescriptor)
 		{
 			CppConfiguration CppConfiguration = GetCppConfiguration(Configuration);
 
@@ -1749,8 +1749,10 @@ namespace UnrealBuildTool
 			// On Mac and Linux we have actions that should be executed after all the binaries are created
 			TargetToolChain.SetupBundleDependencies(Binaries, TargetName);
 
-			// Generate headers
+			// Gather modules we might want to generate headers for
 			HashSet<UEBuildModuleCPP> ModulesToGenerateHeadersFor = GatherDependencyModules(OriginalBinaries.ToList());
+
+			// Prepare cached data for UHT header generation
 			using (GlobalTracer.Instance.BuildSpan("ExternalExecution.SetupUObjectModules()").StartActive())
 			{
 				ExternalExecution.SetupUObjectModules(ModulesToGenerateHeadersFor, Rules.Platform, ProjectDescriptor, Makefile.UObjectModules, Makefile.UObjectModuleHeaders, Rules.GeneratedCodeVersion, MetadataCache);
@@ -1774,6 +1776,24 @@ namespace UnrealBuildTool
 			{
 				ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet);
 			}
+
+#if __VPROJECT_AVAILABLE__
+			// Prepare cached data for VNI header generation
+			if (Rules.bUseVerse)
+			{
+				using (Timeline.ScopeEvent("ExternalExecution.SetupVNIModules()"))
+				{
+					VNIExecution.SetupVNIModules(ModulesToGenerateHeadersFor, out Makefile.VNIModules);
+				}
+			}
+
+			// NOTE: Even in Gather mode, we need to run VNI to make sure the files exist for the static action graph to be setup correctly.  This is because VNI generates .cpp
+			// files that are injected as top level prerequisites.  If VNI only emitted included header files, we wouldn't need to run it during the Gather phase at all.
+			if (Makefile.VNIModules.Count > 0)
+			{
+				VNIExecution.ExecuteVNITool(Makefile, TargetDescriptor);
+			}
+#endif
 
 			// Find all the shared PCHs.
 			if (Rules.bUseSharedPCHs)
@@ -1804,7 +1824,7 @@ namespace UnrealBuildTool
 
 			// Find the set of binaries to build. If we're compiling only specific files, filter the list of binaries to only include the files we're interested in.
 			List<UEBuildBinary> BuildBinaries = Binaries;
-			foreach (FileReference SpecificFile in SpecificFilesToCompile)
+			foreach (FileReference SpecificFile in TargetDescriptor.SpecificFilesToCompile)
 			{
 				UEBuildBinary? Binary = Binaries.Find(x => x.Modules.Any(y => y.ContainsFile(SpecificFile)));
 
@@ -1825,7 +1845,7 @@ namespace UnrealBuildTool
 			{
 				foreach (UEBuildBinary Binary in BuildBinaries)
 				{
-					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, SpecificFilesToCompile, WorkingSet, ExeDir, Makefile);
+					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, TargetDescriptor.SpecificFilesToCompile, WorkingSet, ExeDir, Makefile);
 					Makefile.OutputItems.AddRange(BinaryOutputItems);
 				}
 			}
@@ -2871,7 +2891,10 @@ namespace UnrealBuildTool
 				const string PrecompileReferenceChain = "allmodules option";
 				UEBuildModuleCPP Module = (UEBuildModuleCPP)FindOrCreateModuleByName(ModuleName, PrecompileReferenceChain);
 				Module.RecursivelyCreateModules(FindOrCreateModuleByName, PrecompileReferenceChain);
-				ValidModules.Add(Module);
+				if (!Module.bDependsOnVerse || Rules.bUseVerse)
+				{
+					ValidModules.Add(Module);
+				}
 			}
 
 			// Make sure precompiled modules don't reference any non-precompiled modules
@@ -3638,6 +3661,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_COREUOBJECT=0");
 			}
 
+			if (Rules.bUseVerse)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=0");
+			}
+
 			if (Rules.bCompileWithStatsWithoutEngine)
 			{
 				GlobalCompileEnvironment.Definitions.Add("USE_STATS_WITHOUT_ENGINE=1");
@@ -4072,6 +4104,12 @@ namespace UnrealBuildTool
 				// Now, go ahead and create the module builder instance
 				Module = InstantiateModule(RulesObject, GeneratedCodeDirectory);
 				Modules.Add(Module.Name, Module);
+
+				// Module must not have Verse if Verse is not enabled
+				if (Module.bHasVerse && !Rules.bUseVerse && !Rules.bBuildAllModules && !ProjectFileGenerator.bGenerateProjectFiles)
+				{
+					Log.TraceWarning("Module '{0}' has associated Verse code but target '{1}' does not have Verse enabled. C++ include errors are likely to follow.", Module.Name, TargetName);
+				}
 			}
 
 			// Warn if the module reference has incorrect text case

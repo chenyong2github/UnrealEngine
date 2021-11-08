@@ -17,10 +17,15 @@
 #include "Containers/Queue.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 #include "Nodes/OptimusNode_DataInterface.h"
+#include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Templates/Function.h"
 #include "UObject/Package.h"
 
 #include <limits>
+
+#include "Nodes/OptimusNode_ComputeKernelFunction.h"
+#include "Nodes/OptimusNode_CustomComputeKernel.h"
+
 
 FString UOptimusNodeGraph::GetGraphPath() const
 {
@@ -66,7 +71,7 @@ UOptimusNode* UOptimusNodeGraph::AddNodeInternal(
 			{
 				InNodeConfigFunc(InNode);
 			}
-			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+			return InNode->SetGraphPositionDirect(InPosition); 
 		});
 	if (!GetActionStack()->RunAction(AddNodeAction))
 	{
@@ -192,12 +197,12 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*>& InNodes, const 
 	TSet<int32> AllLinkIndexes;
 
 	// Get all unique links for all the given nodes and remove them *before* we remove the nodes.
-	for (UOptimusNode* Node : InNodes)
+	for (const UOptimusNode* Node : InNodes)
 	{
 		AllLinkIndexes.Append(GetAllLinkIndexesToNode(Node));
 	}
 
-	for (int32 LinkIndex : AllLinkIndexes)
+	for (const int32 LinkIndex : AllLinkIndexes)
 	{
 		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
 	}
@@ -226,7 +231,7 @@ UOptimusNode* UOptimusNodeGraph::DuplicateNode(
 	FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
 		this, InNode, NodeName,
 		[InPosition](UOptimusNode *InNode) {
-			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+			return InNode->SetGraphPositionDirect(InPosition); 
 		});
 	if (!GetActionStack()->RunAction(DuplicateNodeAction))
 	{
@@ -336,7 +341,7 @@ bool UOptimusNodeGraph::DuplicateNodes(
 		FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
 			this, Node, NewNodeNameMap[Node],
 			[InPosition, Node, NodeOffset](UOptimusNode *InNode) {
-				return InNode->SetGraphPositionDirect(Node->GraphPosition + NodeOffset, /*Notify=*/false); 
+				return InNode->SetGraphPositionDirect(Node->GraphPosition + NodeOffset); 
 		});
 		
 		Action->AddSubAction(DuplicateNodeAction);
@@ -457,6 +462,113 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 }
 
 
+UOptimusNode* UOptimusNodeGraph::ConvertCustomKernelToFunction(UOptimusNode* InCustomKernel)
+{
+	UOptimusNode_CustomComputeKernel* CustomKernelNode = Cast<UOptimusNode_CustomComputeKernel>(InCustomKernel);
+	if (!CustomKernelNode)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("%s: Not a custom kernel node."), *InCustomKernel->GetName());
+		return nullptr;
+	}
+
+	// The node has to have at least one input and one output binding.
+	if (CustomKernelNode->InputBindings.IsEmpty() || CustomKernelNode->OutputBindings.IsEmpty())
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("%s: Need at least one input binding and one output binding."), *CustomKernelNode->GetName());
+		return nullptr;
+	}
+
+	// FIXME: We need to have a "compiled" state on the node, so that we know it's been successfully compiled.
+	if (CustomKernelNode->GetDiagnosticLevel() == EOptimusDiagnosticLevel::Error)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("%s: Node has an error on it."), *CustomKernelNode->GetName());
+		return nullptr;
+	}
+	
+	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Create Kernel Function"));
+
+	// Remove all links from the old node but keep their paths so that we can re-connect once the
+	// packaged node has been created with the same pins.
+	TArray<TPair<FString, FString>> LinkPaths;
+	for (const int32 LinkIndex : GetAllLinkIndexesToNode(CustomKernelNode))
+	{
+		UOptimusNodeLink* Link = Links[LinkIndex];
+		LinkPaths.Emplace(Link->GetNodeOutputPin()->GetPinPath(), Links[LinkIndex]->GetNodeInputPin()->GetPinPath());
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+	}
+
+	Action->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(CustomKernelNode);
+
+	FOptimusNodeGraphAction_PackageKernelFunction* PackageNodeAction = new FOptimusNodeGraphAction_PackageKernelFunction(CustomKernelNode, CustomKernelNode->GetFName()); 
+	Action->AddSubAction(PackageNodeAction);
+
+	for (const TPair<FString, FString>& LinkInfo: LinkPaths)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(LinkInfo.Key, LinkInfo.Value);
+	}
+
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return nullptr;
+	}
+	
+	return PackageNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNode* UOptimusNodeGraph::ConvertFunctionToCustomKernel(UOptimusNode* InKernelFunction)
+{
+	UOptimusNode_ComputeKernelFunction* KernelFunctionNode = Cast<UOptimusNode_ComputeKernelFunction>(InKernelFunction);
+	if (!KernelFunctionNode)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("%s: Not a kernel function node."), *InKernelFunction->GetName());
+		return nullptr;
+	}
+
+	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Unpack Kernel Function"));
+
+	// Remove all links from the old node but keep their paths so that we can re-connect once the
+	// packaged node has been created with the same pins.
+	TArray<TPair<FString, FString>> LinkPaths;
+	for (const int32 LinkIndex : GetAllLinkIndexesToNode(KernelFunctionNode))
+	{
+		UOptimusNodeLink* Link = Links[LinkIndex];
+		LinkPaths.Emplace(Link->GetNodeOutputPin()->GetPinPath(), Links[LinkIndex]->GetNodeInputPin()->GetPinPath());
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+	}
+
+	Action->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(KernelFunctionNode);
+
+	FOptimusNodeGraphAction_UnpackageKernelFunction* UnpackageNodeAction = new FOptimusNodeGraphAction_UnpackageKernelFunction(KernelFunctionNode, KernelFunctionNode->GetFName()); 
+	Action->AddSubAction(UnpackageNodeAction);
+
+	for (const TPair<FString, FString>& LinkInfo: LinkPaths)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(LinkInfo.Key, LinkInfo.Value);
+	}
+
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return nullptr;
+	}
+	
+	return UnpackageNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+bool UOptimusNodeGraph::IsCustomKernel(UOptimusNode* InNode) const
+{
+	return Cast<UOptimusNode_CustomComputeKernel>(InNode) != nullptr;
+}
+
+
+bool UOptimusNodeGraph::IsKernelFunction(UOptimusNode* InNode) const
+{
+	return Cast<UOptimusNode_ComputeKernelFunction>(InNode) != nullptr;
+}
+
+
+
 UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 	const UClass* InNodeClass,
 	FName InName,
@@ -468,11 +580,16 @@ UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName, RF_Transactional);
 
 	// Configure the node as needed.
-	if (InConfigureNodeFunc && !InConfigureNodeFunc(NewNode))
+	if (InConfigureNodeFunc)
 	{
-		NewNode->Rename(nullptr, GetTransientPackage());
-		NewNode->MarkPendingKill();
-		return nullptr;
+		// Suppress notifications for this node while we're calling its configure callback. 
+		TGuardValue<bool> SuppressNotifications(NewNode->bSendNotifications, false);
+		
+		if (!InConfigureNodeFunc(NewNode))
+		{
+			NewNode->Rename(nullptr, GetTransientPackage());
+			return nullptr;
+		}
 	}
 
 	NewNode->PostCreateNode();
@@ -548,7 +665,6 @@ bool UOptimusNodeGraph::RemoveNodeDirect(
 
 	// Unparent this node to a temporary storage and mark it for kill.
 	InNode->Rename(nullptr, GetTransientPackage());
-	InNode->MarkPendingKill();
 
 	return true;
 }
@@ -730,7 +846,6 @@ void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 
 	// Unparent the link to a temporary storage and mark it for kill.
 	Link->Rename(nullptr, GetTransientPackage());
-	Link->MarkPendingKill();
 }
 
 

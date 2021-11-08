@@ -140,6 +140,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	EBlueprintBreakpointReloadMethod BreakpointReloadMethod;
 
+	/** If enabled, pin tooltips during PIE will be interactive */
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	bool bEnablePinValueInspectionTooltips;
+
 // Experimental
 public:
 	/** Whether to enable namespace filtering features in the Blueprint editor */

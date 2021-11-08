@@ -79,9 +79,92 @@ void UColorConverterOutputPass::InternalReset()
 #include "CompositingElements/CompositingElementTransforms.h" // for UCompositingTonemapPass
 #include "UObject/UObjectIterator.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif //WITH_EDITOR
+
+namespace CompositingMediaCaptureOutputUtil
+{
+
+#if WITH_EDITOR
+	/**
+	 * Class made to handle PIE events and cache active MediaCaptures to put it back how it was when PIE ends
+	 */
+	class FMediaCapturePIEEventHandler
+	{
+	public:
+
+		static FMediaCapturePIEEventHandler* Get()
+		{
+			static FMediaCapturePIEEventHandler Instance;
+			return &Instance;
+		}
+
+		/** Disallow Copying / Moving */
+		UE_NONCOPYABLE(FMediaCapturePIEEventHandler);
+
+		~FMediaCapturePIEEventHandler()
+		{
+			FEditorDelegates::PreBeginPIE.RemoveAll(this);
+			FEditorDelegates::EndPIE.RemoveAll(this);
+		}
+
+	private:
+
+		FMediaCapturePIEEventHandler()
+		{
+			FEditorDelegates::PreBeginPIE.AddRaw(this, &FMediaCapturePIEEventHandler::OnPreBeginPIE);
+			FEditorDelegates::EndPIE.AddRaw(this, &FMediaCapturePIEEventHandler::OnPIEEnded);
+		}
+
+		void OnPreBeginPIE(const bool bIsSimulatingInEditor)
+		{
+			for (TObjectIterator<UCompositingMediaCaptureOutput> MediaOutIt; MediaOutIt; ++MediaOutIt)
+			{
+				UCompositingMediaCaptureOutput* CompositingMediaCapture = *MediaOutIt;
+				if (CompositingMediaCapture)
+				{
+					// Cache instances that are currently capturing
+					if (CompositingMediaCapture->IsCapturing())
+					{
+						CompositingOutputToEnable.Add(CompositingMediaCapture);
+					}
+				}
+			}
+		}
+
+		void OnPIEEnded(const bool bIsSimulatingInEditor)
+		{
+			for (const TWeakObjectPtr<UCompositingMediaCaptureOutput>& CachedOutput : CompositingOutputToEnable)
+			{
+				// Make sure all instances that were enabled prior to PIE are still turned on
+				if (UCompositingMediaCaptureOutput* Output = CachedOutput.Get())
+				{
+					Output->SetPassEnabled(true);
+				}
+			}
+			CompositingOutputToEnable.Empty();
+		}
+
+	private:
+
+		TArray<TWeakObjectPtr<UCompositingMediaCaptureOutput>> CompositingOutputToEnable;
+	};
+
+#endif //WITH_EDITOR
+}
+
 UCompositingMediaCaptureOutput::UCompositingMediaCaptureOutput()
 {
 	DefaultConverterClass = UCompositingTonemapPass::StaticClass();
+
+#if WITH_EDITOR
+	if (IsTemplate() == false)
+	{
+		//Instanciate util to track PIE media capture state
+		CompositingMediaCaptureOutputUtil::FMediaCapturePIEEventHandler::Get();
+	}
+#endif //WITH_EDITOR
 }
 
 bool UCompositingMediaCaptureOutput::IsCapturing() const

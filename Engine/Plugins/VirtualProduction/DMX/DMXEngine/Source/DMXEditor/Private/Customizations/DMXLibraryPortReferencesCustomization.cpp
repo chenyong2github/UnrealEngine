@@ -15,7 +15,7 @@
 #include "EditorStyleSet.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h" 
+#include "IDetailPropertyRow.h"
 #include "IPropertyUtilities.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/SCompoundWidget.h"
@@ -51,7 +51,7 @@ namespace
 
 			PortReferenceHandle = InArgs._PortReferenceHandle;
 
-			PortReferenceType PortReference = GetPortReferenceChecked();
+			const PortReferenceType PortReference = GetPortReferenceChecked();
 
 			const FDMXPortSharedRef& Port = FDMXPortManager::Get().FindPortByGuidChecked(PortReference.GetPortGuid());
 			bool bEnabledFlagSet = PortReference.IsEnabledFlagSet();
@@ -183,7 +183,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeHeader(TSharedRef<IPropert
 	HeaderRow
 		.NameContent()
 		[
-			StructPropertyHandle->CreatePropertyNameWidget(DisplayNameOverride, DisplayToolTipOverride, bDisplayResetToDefault)
+			SNullWidget::NullWidget
 		];
 }
 
@@ -198,8 +198,9 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 	// Hide the 'reset to default' option
 	LibraryPortReferencesHandle->MarkResetToDefaultCustomized();
 
+
 	// Customize input port refrences view in the ports struct
-	ChildBuilder		
+	ChildBuilder
 		.AddCustomRow(LOCTEXT("InputPortReferenceTitleRowSearchString", "InputPorts"))
 		.NameContent()
 		.HAlign(HAlign_Left)
@@ -247,15 +248,15 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 		];
 
 	// Bind to port reference array changes
-	TSharedPtr<IPropertyHandle> InputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, InputPortReferences));
-	TSharedPtr<IPropertyHandleArray> InputPortReferencesHandleArray = InputPortReferencesHandle->AsArray();
+	const TSharedPtr<IPropertyHandle> InputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, InputPortReferences));
+	const TSharedPtr<IPropertyHandleArray> InputPortReferencesHandleArray = InputPortReferencesHandle->AsArray();
 	check(InputPortReferencesHandleArray.IsValid());
 
 	FSimpleDelegate OnInputPortArrayChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets);
 	InputPortReferencesHandleArray->SetOnNumElementsChanged(OnInputPortArrayChangedDelegate);
 
-	TSharedPtr<IPropertyHandle> OutputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, OutputPortReferences));
-	TSharedPtr<IPropertyHandleArray> OutputPortReferencesHandleArray = OutputPortReferencesHandle->AsArray();
+	const TSharedPtr<IPropertyHandle> OutputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, OutputPortReferences));
+	const TSharedPtr<IPropertyHandleArray> OutputPortReferencesHandleArray = OutputPortReferencesHandle->AsArray();
 	check(OutputPortReferencesHandleArray.IsValid());
 
 	FSimpleDelegate OnOutputPortArrayChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets);
@@ -282,10 +283,10 @@ void FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets()
 	check(OutputPortReferenceContentBorder.IsValid());
 
 	// Add the Input Port Reference widgets
-	TSharedRef<SVerticalBox> InputPortReferencesWidget = SNew(SVerticalBox);
+	const TSharedRef<SVerticalBox> InputPortReferencesWidget = SNew(SVerticalBox);
 	
-	TSharedPtr<IPropertyHandle> InputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, InputPortReferences));
-	TSharedPtr<IPropertyHandleArray> InputPortReferencesHandleArray = InputPortReferencesHandle->AsArray();
+	const TSharedPtr<IPropertyHandle> InputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, InputPortReferences));
+	const TSharedPtr<IPropertyHandleArray> InputPortReferencesHandleArray = InputPortReferencesHandle->AsArray();
 	check(InputPortReferencesHandleArray.IsValid());
 
 	uint32 NumInputPortRefElements = 0;
@@ -317,10 +318,10 @@ void FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets()
 	InputPortReferenceContentBorder->SetContent(InputPortReferencesWidget);
 
 	// Add the Output Port Reference widgets
-	TSharedRef<SVerticalBox> OutputPortReferencesWidget = SNew(SVerticalBox);
+	const TSharedRef<SVerticalBox> OutputPortReferencesWidget = SNew(SVerticalBox);
 
-	TSharedPtr<IPropertyHandle> OutputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, OutputPortReferences));
-	TSharedPtr<IPropertyHandleArray> OutputPortReferencesHandleArray = OutputPortReferencesHandle->AsArray();
+	const TSharedPtr<IPropertyHandle> OutputPortReferencesHandle = LibraryPortReferencesHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXLibraryPortReferences, OutputPortReferences));
+	const TSharedPtr<IPropertyHandleArray> OutputPortReferencesHandleArray = OutputPortReferencesHandle->AsArray();
 	check(OutputPortReferencesHandleArray.IsValid());
 
 	uint32 NumOutputPortRefElements = 0;
@@ -359,8 +360,8 @@ TSharedRef<SWidget> FDMXLibraryPortReferencesCustomization::GeneratePortInfoWidg
 		IDMXProtocolPtr Protocol = Port->GetProtocol();
 		if(Protocol.IsValid())
 		{
-			FSlateFontInfo PropertyWindowNormalFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
-			FLinearColor FontColor = FLinearColor(0.6f, 0.6f, 0.6f);
+			static const FSlateFontInfo PropertyWindowNormalFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+			static const FLinearColor FontColor = FLinearColor(0.6f, 0.6f, 0.6f);
 
 			const int32 LocalUniverseStart = Port->GetLocalUniverseStart();
 			const int32 LocalUniverseEnd = Port->GetLocalUniverseEnd();
@@ -468,7 +469,7 @@ TSharedRef<SWidget> FDMXLibraryPortReferencesCustomization::GeneratePortInfoWidg
 FDMXInputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetInputPort(const TSharedPtr<IPropertyHandle>& InputPortReferenceHandle)
 {
 	check(InputPortReferenceHandle.IsValid());
-	TSharedPtr<IPropertyHandle> PortGuidHandle = InputPortReferenceHandle->GetChildHandle(FDMXInputPortReference::GetPortGuidPropertyName());
+	const TSharedPtr<IPropertyHandle> PortGuidHandle = InputPortReferenceHandle->GetChildHandle(FDMXInputPortReference::GetPortGuidPropertyName());
 	
 	check(PortGuidHandle.IsValid());
 
@@ -480,7 +481,7 @@ FDMXInputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetInputPort(cons
 		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
 		if (PortGuidPtr && PortGuidPtr->IsValid())
 		{
-			FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(*PortGuidPtr);
+			const FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(*PortGuidPtr);
 			if (InputPort.IsValid())
 			{
 				return InputPort;
@@ -494,7 +495,7 @@ FDMXInputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetInputPort(cons
 FDMXOutputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetOutputPort(const TSharedPtr<IPropertyHandle>& OutputPortReferenceHandle)
 {
 	check(OutputPortReferenceHandle.IsValid());
-	TSharedPtr<IPropertyHandle> PortGuidHandle = OutputPortReferenceHandle->GetChildHandle(FDMXOutputPortReference::GetPortGuidPropertyName());
+	const TSharedPtr<IPropertyHandle> PortGuidHandle = OutputPortReferenceHandle->GetChildHandle(FDMXOutputPortReference::GetPortGuidPropertyName());
 
 	check(PortGuidHandle.IsValid());
 
@@ -506,7 +507,7 @@ FDMXOutputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetOutputPort(co
 		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
 		if (PortGuidPtr && PortGuidPtr->IsValid())
 		{
-			FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(*PortGuidPtr);
+			const FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(*PortGuidPtr);
 			if (OutputPort.IsValid())
 			{
 				return OutputPort;

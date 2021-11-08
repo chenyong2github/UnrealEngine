@@ -25,7 +25,7 @@ struct FCommonUILayoutWidget
 	ECommonUILayoutZOrder ZOrder = ECommonUILayoutZOrder::Middle;
 
 	/** Custom z order used to draw this widget. (Higher numbered z order widget are drawn in front of lower numbered one) */
-	UPROPERTY(EditDefaultsOnly, Category = "Common UI Layout", meta = (EditCondition = "ZOrder == EDynamicHUDZOrder::Custom"))
+	UPROPERTY(EditDefaultsOnly, Category = "Common UI Layout", meta = (EditCondition = "ZOrder == ECommonUILayoutZOrder::Custom"))
 	int32 CustomZOrder = (int32)ECommonUILayoutZOrder::Custom;
 
 	/** Flag to use the unique ID system. */

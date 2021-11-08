@@ -177,7 +177,7 @@ namespace DatasmithRevitExporter
 			}
 
 			// Keep track of the active Revit document being exported.
-			PushDocument(RevitDocument);
+			PushDocument(RevitDocument, null);
 
 			// Add a new camera actor to the Datasmith scene for the 3D view camera.
 			AddCameraActor(ViewToExport, InViewNode.GetCameraInfo());
@@ -330,7 +330,7 @@ namespace DatasmithRevitExporter
 			if (LinkedDocument != null)
 			{
 				// Keep track of the linked document being processed.
-				PushDocument(LinkedDocument, false);
+				PushDocument(LinkedDocument, CurrentInstanceType.UniqueId);
 			}
 
 			return (CurrentInstanceType != null && LinkedDocument != null) ? RenderNodeAction.Proceed : RenderNodeAction.Skip;
@@ -588,7 +588,7 @@ namespace DatasmithRevitExporter
 
 		private void PushDocument(
 			Document InDocument,
-			bool bInAddLocationActors = true
+			string InLinkedDocumentId
 		)
 		{
 			if (DocumentDataStack.Count > 0 && DirectLink != null)
@@ -599,12 +599,13 @@ namespace DatasmithRevitExporter
 			}
 
 			// Check if we have cache for this document.
-			FDocumentData DocumentData = new FDocumentData(InDocument, ref MessageList, DirectLink);
+			FDocumentData DocumentData = new FDocumentData(InDocument, ref MessageList, DirectLink, InLinkedDocumentId);
 
 			DocumentDataStack.Push(DocumentData);
 
-			if (bInAddLocationActors)
+			if (InLinkedDocumentId == null)
 			{
+				// Top level document
 				DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
 			}
 

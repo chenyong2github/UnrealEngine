@@ -6,6 +6,7 @@
 #include "Chaos/GJK.h"
 #include "ImplicitObject.h"
 #include "Plane.h"
+#include "Chaos/Plane.h"
 
 namespace Chaos
 {
@@ -39,6 +40,101 @@ namespace Chaos
 		{
 			return TPlane<FReal, 3>(A, GetNormal());
 		}
+
+		// Face index is ignored since we only have one face
+		// Used for manifold generation
+		FORCEINLINE TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		{
+			return TPlaneConcrete < FReal, 3> (A, GetNormal());
+		}
+
+		// Get the nearest point on an edge
+		// Used for manifold generation
+		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const
+		{
+			FVec3 ClosestEdgePosition = FVec3(0);
+			FReal ClosestDistanceSq = FLT_MAX;
+
+			int32 PlaneVerticesNum = 3;
+			
+			FVec3 P0 = C;
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
+			{
+				TVector<FReal, 3> P1;
+				switch (PlaneVertexIndex)
+				{
+				case 0:
+					P1 = A; break;
+				case 1:
+					P1 = B; break;
+				case 2:
+					P1 = C; break;
+				}
+				
+				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
+
+				if (EdgeDistanceSq < ClosestDistanceSq)
+				{
+					ClosestDistanceSq = EdgeDistanceSq;
+					ClosestEdgePosition = EdgePosition;
+				}
+
+				P0 = P1;
+			}
+
+			return ClosestEdgePosition;
+		}
+
+		// The number of vertices that make up the corners of the specified face
+		// Used for manifold generation
+		int32 NumPlaneVertices(int32 PlaneIndex) const
+		{
+			return 3;
+		}
+
+		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
+		// Used for manifold generation
+		FORCEINLINE FReal GetWindingOrder() const
+		{
+			return 1.0f;
+		}
+
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
+		// Used for manifold generation
+		const FVec3 GetVertex(int32 VertexIndex) const
+		{
+			FVec3 Result;
+
+			switch (VertexIndex)
+			{
+			case 0:
+				Result = A; break;
+			case 1:
+				Result = B; break;
+			case 2:
+				Result = C; break;
+			}
+
+			return Result;
+		}
+
+		// Get the index of the plane that most opposes the normal
+		int32 GetMostOpposingPlane(const FVec3& Normal) const
+		{
+			return 0; // Only have one plane
+		}
+
+		// Get the vertex index of one of the vertices making up the corners of the specified face
+		// Used for manifold generation
+		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		{
+			return PlaneVertexIndex;
+		}
+
+		// Triangle is just one plane
+		// Used for manifold generation
+		int32 NumPlanes() const { return 1; }
 
 		FORCEINLINE FReal PhiWithNormal(const FVec3& InSamplePoint, FVec3& OutNormal) const
 		{

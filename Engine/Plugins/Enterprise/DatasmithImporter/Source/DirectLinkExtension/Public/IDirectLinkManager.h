@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "DirectLinkExtensionModule.h"
-
 #include "SourceUri.h"
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
@@ -104,6 +102,8 @@ namespace UE::DatasmithImporter
 		 * @return	True if the operation was successful.
 		 */
 		virtual bool SetAssetAutoReimport(UObject* Asset, bool bEnableAutoReimport) = 0;
+
+		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const = 0;
 
 	protected:
 		/**

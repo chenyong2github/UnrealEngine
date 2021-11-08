@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/TriangleMeshImplicitObject.h"
+#include "Chaos/Collision/ContactPoint.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Triangle.h"
@@ -325,6 +328,122 @@ bool FTriangleMeshImplicitObject::Raycast(const FVec3& StartPoint, const FVec3& 
 	}
 }
 
+template <typename GeomType>
+bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal WorldThickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const
+{
+	ensure(TriMeshScale != FVec3(0.0f));
+	bool bResult = false;
+
+	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+
+	TRigidTransform<FReal, 3> WorldScaleQueryTM;
+	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
+
+	auto InsertSorted = [&](const FContactPoint& ContactPoint)
+	{
+		int32 PointIndex = 0;
+		bool done = false;
+		const FReal ErrorMarginSqr = 0.01f;
+
+		int32 ContactPointsNum = ContactPoints.Num();
+		for (; PointIndex < ContactPointsNum; PointIndex++)
+		{
+			FVec3 DiffVector = ContactPoint.ShapeContactPoints[1] - ContactPoints[PointIndex].ShapeContactPoints[1];
+			// Check if point is the same (or close)
+			if (DiffVector.SizeSquared() < ErrorMarginSqr)
+			{
+				done = true;
+				break;
+			}
+
+			if (ContactPoint.Phi < ContactPoints[PointIndex].Phi)
+			{
+				ContactPoints.Insert(ContactPoint, PointIndex);
+				done = true;
+				break;
+			}
+		}
+
+		if (!done)
+		{
+			ContactPoints.Add(ContactPoint);
+		}
+	};
+
+	auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
+		FPBDCollisionConstraint& Constraint)
+	{
+		const FVec3 AB = B - A;
+		const FVec3 AC = C - A;
+
+		const FVec3 Offset = FVec3::CrossProduct(AB, AC);
+
+		FTriangle TriangleConvex(A, B, C);
+		Collisions::ConstructConvexConvexOneShotManifold(QueryGeom, QueryTM, TriangleConvex, FRigidTransform3::Identity, 0, Constraint);
+	};
+
+	auto LambdaHelper = [&](const auto& Elements)
+	{
+		FReal LocalContactPhi = FLT_MAX;
+		FVec3 LocalContactLocation, LocalContactNormal;
+
+		// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space becaused you can't non-uniformly scale all shapes)
+		// We must apply the local-space scaled thickness after transforming the world bounds into local space
+		const FVec3 LocalThickness = FVec3(WorldThickness / TriMeshScale.X, WorldThickness / TriMeshScale.Y, WorldThickness / TriMeshScale.Z);
+
+		FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
+		QueryBounds.ThickenSymmetrically(LocalThickness);
+		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+
+		for (int32 TriIdx : PotentialIntersections)
+		{
+			FVec3 A, B, C;
+			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
+			FPBDCollisionConstraint Constraint;
+			OverlapTriangle(A, B, C, Constraint);
+			for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+			{
+				InsertSorted(ManifoldPoint.ContactPoint);
+			}
+
+		}
+
+		// Remove all points (except for the deepest one, and ones with phis similar to it)
+		const FReal CullMargin = 0.1f;
+		int32 NewContactPointCount = ContactPoints.Num() > 0 ? 1 : 0;
+		for (int32 Index = 1; Index < ContactPoints.Num(); Index++)
+		{
+			if (ContactPoints[Index].Phi < 0 || ContactPoints[Index].Phi - ContactPoints[0].Phi < CullMargin)
+			{
+				NewContactPointCount++;
+			}
+			else
+			{
+				break;
+			}
+		}
+		ContactPoints.SetNum(NewContactPointCount, false);
+
+		// Reduce to only 4 contact points from here
+		Collisions::ReduceManifoldContactPointsTriangeMesh(ContactPoints);
+
+		for (FContactPoint& ContactPoint : ContactPoints)
+		{
+			ContactPoint.ContactNormalOwnerIndex = 1; // To be removed
+			ContactPoint.ShapeMargins[0] = 0.0f;
+			ContactPoint.ShapeMargins[1] = 0.0f;
+		}
+
+		return true;
+	};
+
+	if (MElements.RequiresLargeIndices())
+	{
+		return LambdaHelper(MElements.GetLargeIndexBuffer());
+	}
+	return LambdaHelper(MElements.GetSmallIndexBuffer());
+}
 
 template <typename QueryGeomType>
 bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal WorldThickness, FVec3& Location, FVec3& Normal, FReal& OutContactPhi, FVec3 TriMeshScale) const
@@ -438,6 +557,41 @@ bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< F
 bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal WorldThickness, FVec3& Location, FVec3& Normal, FReal& ContactPhi, FVec3 TriMeshScale) const
 {
 	return GJKContactPointImp(QueryGeom, QueryTM, WorldThickness, Location, Normal, ContactPhi, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::ContactManifold(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, FVec3(1));
+}
+
+bool FTriangleMeshImplicitObject::ContactManifold(const FCapsule& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, FVec3(1));
+}
+
+bool FTriangleMeshImplicitObject::ContactManifold(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, FVec3(1));
+}
+
+bool FTriangleMeshImplicitObject::ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, TriMeshScale);
+}
+
+/*bool FTriangleMeshImplicitObject::ContactManifold(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, TriMeshScale);
+}*/
+
+bool FTriangleMeshImplicitObject::ContactManifold(const TImplicitObjectScaled<FCapsule >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::ContactManifold(const TImplicitObjectScaled<FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const
+{
+	return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints, TriMeshScale);
 }
 
 int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const

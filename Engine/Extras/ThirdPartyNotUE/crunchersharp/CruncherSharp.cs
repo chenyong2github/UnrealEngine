@@ -14,9 +14,8 @@ namespace CruncherSharp
         public CruncherSharp()
         {
             InitializeComponent();
-			BindControlMouseClicks(this);
-			m_CruncherData = new CruncherData();
-            bindingSourceSymbols.DataSource = m_CruncherData.m_table;
+            m_table = CreateDataTable();
+            bindingSourceSymbols.DataSource = m_table;
             dataGridSymbols.DataSource = bindingSourceSymbols;
 
             dataGridSymbols.Columns[0].Width = 271;
@@ -31,57 +30,247 @@ namespace CruncherSharp
         {
             if (openPdbDialog.ShowDialog() == DialogResult.OK)
             {
+                m_symbols.Clear();
+
+                m_source = new DiaSourceClass();
+                try
+                {
+                    Cursor.Current = Cursors.WaitCursor;
+                    m_source.loadDataFromPdb(openPdbDialog.FileName);
+                    m_source.openSession(out m_session);
+                    Cursor.Current = Cursors.Default;
+                }
+                catch (System.Runtime.InteropServices.COMException exc)
+                {
+                    MessageBox.Show(this, exc.ToString());
+                    return;
+                }
+
+                Cursor.Current = Cursors.WaitCursor;
+                IDiaEnumSymbols allSymbols;
+                m_session.findChildren(m_session.globalScope, SymTagEnum.SymTagUDT, null, 0, out allSymbols);
+
 				// Temporarily clear the filter so, if current filter is invalid, we don't generate a ton of exceptions while populating the table
 				var preExistingFilter = textBoxFilter.Text;
 				textBoxFilter.Text = "";
-				bUpdateStack = false;
 
-				Cursor.Current = Cursors.WaitCursor;
-				string result = m_CruncherData.loadDataFromPdb(openPdbDialog.FileName);
-				if (result != null)
 				{
-					MessageBox.Show(this, result);
+					PopulateDataTable(m_table, allSymbols);
+					Cursor.Current = Cursors.Default;
+
+					// Sort by name by default (ascending)
+					dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
+					bindingSourceSymbols.Filter = null;// "Symbol LIKE '*rde*'";
 				}
 
-				this.Text = "Cruncher # - " + System.IO.Path.GetFileName(openPdbDialog.FileName);
-
-				// Sort by name by default (ascending)
-				dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
-				bindingSourceSymbols.Filter = null;// "Symbol LIKE '*rde*'";
-				Cursor.Current = Cursors.Default;
-
 				// Restore the filter now that the table is populated
-				bUpdateStack = true;
 				textBoxFilter.Text = preExistingFilter;
 
 				ShowSelectedSymbolInfo();
-			}
-		}
+            }
+        }
 
-        private ulong GetCacheLineSize()
+        DataTable CreateDataTable()
+        {
+            DataTable table = new DataTable("Symbols");
+
+            DataColumn column = new DataColumn();
+            column.ColumnName = "Symbol";
+            column.ReadOnly = true;
+            table.Columns.Add(column);
+            column = new DataColumn();
+            column.ColumnName = "Size";
+            column.ReadOnly = true;
+            column.DataType = System.Type.GetType("System.Int32");
+            table.Columns.Add(column);
+            column = new DataColumn();
+            column.ColumnName = "Padding";
+            column.ReadOnly = true;
+            column.DataType = System.Type.GetType("System.Int32");
+            table.Columns.Add(column);
+            column = new DataColumn();
+            column.ColumnName = "Padding/Size";
+            column.ReadOnly = true;
+            column.DataType = System.Type.GetType("System.Double");
+            table.Columns.Add(column);
+
+            return table;
+        }
+
+        void PopulateDataTable(DataTable table, IDiaEnumSymbols symbols)
+        {
+            ulong cacheLineSize = GetCacheLineSize();
+            table.Rows.Clear();
+
+			table.BeginLoadData();
+            foreach (IDiaSymbol sym in symbols)
+            {
+                if (sym.length > 0 && !HasSymbol(sym.name))
+                {
+                    SymbolInfo info = new SymbolInfo();
+                    info.Set(sym.name, "", sym.length, 0);
+                    info.ProcessChildren(sym);
+
+                    long totalPadding = info.CalcTotalPadding();
+
+                    DataRow row = table.NewRow();
+                    string symbolName = sym.name;
+                    row["Symbol"] = symbolName;
+                    row["Size"] = info.m_size;
+                    row["Padding"] = totalPadding;
+                    row["Padding/Size"] = (double)totalPadding / info.m_size;
+                    table.Rows.Add(row);
+
+                    m_symbols.Add(info.m_name, info);
+                }
+            }
+			table.EndLoadData();
+
+        }
+        bool HasSymbol(string name)
+        {
+            return m_symbols.ContainsKey(name);
+        }
+        ulong GetCacheLineSize()
         {
             return Convert.ToUInt32(textBoxCache.Text);
         }
 
+        class SymbolInfo
+        {
+            public void ProcessChildren(IDiaSymbol symbol)
+            {
+                IDiaEnumSymbols children;
+                symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out children);
+                foreach (IDiaSymbol child in children)
+                {
+                    SymbolInfo childInfo;
+                    if (ProcessChild(child, out childInfo))
+                        AddChild(childInfo);
+                }
+                // Sort children by offset, recalc padding.
+                // Sorting is not needed normally (for data fields), but sometimes base class order is wrong.
+                if (HasChildren())
+                {
+                    m_children.Sort(CompareOffsets);
+                    for (int i = 0; i < m_children.Count; ++i)
+                    {
+                        SymbolInfo child = m_children[i];
+                        child.m_padding = CalcPadding(child.m_offset, i);
+                    }
+                    m_padding = CalcPadding((long)m_size, m_children.Count);
+                }
+            }
+            bool ProcessChild(IDiaSymbol symbol, out SymbolInfo info)
+            {
+                info = new SymbolInfo();
+                if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
+                {
+                    return false;
+                }
+                // LocIsThisRel || LocIsNull || LocIsBitField
+                if (symbol.locationType != 4 && symbol.locationType != 0 && symbol.locationType != 6)
+                    return false;
+
+                ulong len = symbol.length;
+                IDiaSymbol typeSymbol = symbol.type;
+                if (typeSymbol != null)
+                    len = typeSymbol.length;
+
+                string symbolName = symbol.name;
+                if (symbol.symTag == (uint)SymTagEnum.SymTagBaseClass)
+                    symbolName = "Base: " + symbolName;
+
+                info.Set(symbolName, (typeSymbol != null ? typeSymbol.name : ""), len, symbol.offset);
+
+                return true;
+            }
+            long CalcPadding(long offset, int index)
+            {
+                long padding = 0;
+                if (HasChildren() && index > 0)
+                {
+                    SymbolInfo lastInfo = m_children[index - 1];
+                    padding = offset - (lastInfo.m_offset + (long)lastInfo.m_size);
+                }
+                return padding > 0 ? padding : 0;
+            }
+
+            public void Set(string name, string typeName, ulong size, long offset)
+            {
+                m_name = name;
+                m_typeName = typeName;
+                m_size = size;
+                m_offset = offset;
+            }
+            public bool HasChildren() { return m_children != null; }
+            public long CalcTotalPadding()
+            {
+                long totalPadding = m_padding;
+                if (HasChildren())
+                {
+                    foreach (SymbolInfo info in m_children)
+                        totalPadding += info.m_padding;
+                }
+                return totalPadding;
+            }
+            void AddChild(SymbolInfo child)
+            {
+                if (m_children == null)
+                    m_children = new List<SymbolInfo>();
+                m_children.Add(child);
+            }
+            public bool IsBase()
+            {
+                return m_name.IndexOf("Base: ") == 0;
+            }
+
+            private static int CompareOffsets(SymbolInfo x, SymbolInfo y)
+            {
+                // Base classes have to go first.
+                if (x.IsBase() && !y.IsBase())
+                    return -1;
+                if (!x.IsBase() && y.IsBase())
+                    return 1;
+
+                if (x.m_offset == y.m_offset)
+                {
+                    return (x.m_size == y.m_size ? 0 : (x.m_size < y.m_size) ? -1 : 1);
+                }
+                else return (x.m_offset < y.m_offset) ? -1 : 1;
+            }
+
+            public string m_name;
+            public string m_typeName;
+            public ulong m_size;
+            public long m_offset;
+            public long m_padding;
+            public List<SymbolInfo> m_children;
+        };
+
         SymbolInfo FindSelectedSymbolInfo()
         {
             if (dataGridSymbols.SelectedRows.Count == 0)
-            {
                 return null;
-            }
 
             DataGridViewRow selectedRow = dataGridSymbols.SelectedRows[0];
             string symbolName = selectedRow.Cells[0].Value.ToString();
 
-            SymbolInfo info = m_CruncherData.FindSymbolInfo(symbolName);
+            SymbolInfo info = FindSymbolInfo(symbolName);
+            return info;
+        }
+        SymbolInfo FindSymbolInfo(string name)
+        {
+            SymbolInfo info;
+            m_symbols.TryGetValue(name, out info);
             return info;
         }
 
-		CruncherData m_CruncherData;
+        IDiaDataSource m_source;
+        IDiaSession m_session;
+        Dictionary<string, SymbolInfo> m_symbols = new Dictionary<string, SymbolInfo>();
+        DataTable m_table = null;
         long m_prefetchStartOffset = 0;
-		Stack<string> UndoStack = new Stack<string>();
-		Stack<string> RedoStack = new Stack<string>();
-		bool bUpdateStack = true;
 
         private void dataGridSymbols_SelectionChanged(object sender, EventArgs e)
         {
@@ -94,40 +283,33 @@ namespace CruncherSharp
             dataGridViewSymbolInfo.Rows.Clear();
             SymbolInfo info = FindSelectedSymbolInfo();
             if (info != null)
-            {
                 ShowSymbolInfo(info);
-            }
         }
-
-        delegate void InsertCachelineBoundaryRowsDelegate(long nextOffset);
 
         void ShowSymbolInfo(SymbolInfo info)
         {
             dataGridViewSymbolInfo.Rows.Clear();
-            if (!info.HasChildren)
-            {
+            if (!info.HasChildren())
                 return;
-            }
-
-			if (bUpdateStack && (UndoStack.Count == 0 || info.m_name != UndoStack.Peek()))
-			{
-				RedoStack.Clear();
-				UndoStack.Push(info.m_name);
-			}
 
             long cacheLineSize = (long)GetCacheLineSize();
             long prevCacheBoundaryOffset = m_prefetchStartOffset;
 
             if (prevCacheBoundaryOffset > (long)info.m_size)
-            {
                 prevCacheBoundaryOffset = (long)info.m_size;
-            }
 
             long numCacheLines = 0;
-
-            InsertCachelineBoundaryRowsDelegate InsertCachelineBoundaryRows = (nextOffset) =>
+            foreach (SymbolInfo child in info.m_children)
             {
-                while (nextOffset - prevCacheBoundaryOffset >= cacheLineSize)
+                if (child.m_padding > 0)
+                {
+                    long paddingOffset = child.m_offset - child.m_padding;
+                    string[] paddingRow = { "Padding", paddingOffset.ToString(), child.m_padding.ToString() };
+                    dataGridViewSymbolInfo.Rows.Add(paddingRow);
+                }
+
+//                long childEndOffset = child.m_offset + (long)child.m_size;
+                while (child.m_offset - prevCacheBoundaryOffset >= cacheLineSize)
                 {
                     numCacheLines = numCacheLines + 1;
                     long cacheLineOffset = numCacheLines * cacheLineSize + m_prefetchStartOffset;
@@ -135,21 +317,6 @@ namespace CruncherSharp
                     dataGridViewSymbolInfo.Rows.Add(boundaryRow);
                     prevCacheBoundaryOffset = cacheLineOffset;
                 }
-            };
-
-            foreach (SymbolInfo child in info.m_children)
-            {
-                if (child.m_padding > 0)
-                {
-                    long paddingOffset = child.m_offset - child.m_padding;
-
-                    InsertCachelineBoundaryRows(paddingOffset);
-
-                    string[] paddingRow = { "*Padding*", paddingOffset.ToString(), child.m_padding.ToString() };
-                    dataGridViewSymbolInfo.Rows.Add(paddingRow);
-                }
-
-                InsertCachelineBoundaryRows(child.m_offset);
 
                 string[] row = { child.m_name, child.m_offset.ToString(), child.m_size.ToString() };
                 dataGridViewSymbolInfo.Rows.Add(row);
@@ -163,7 +330,7 @@ namespace CruncherSharp
             if (info.m_padding > 0)
             {
                 long paddingOffset = (long)info.m_size - info.m_padding;
-                string[] paddingRow = { "*Padding*", paddingOffset.ToString(), info.m_padding.ToString() };
+                string[] paddingRow = { "Padding", paddingOffset.ToString(), info.m_padding.ToString() };
                 dataGridViewSymbolInfo.Rows.Add(paddingRow);
             }
         }
@@ -183,44 +350,26 @@ namespace CruncherSharp
 
         private void dataGridViewSymbolInfo_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
-            for (int i = 0; i < dataGridViewSymbolInfo.Rows.Count; ++i)
+            foreach (DataGridViewRow row in dataGridViewSymbolInfo.Rows)
             {
-                DataGridViewRow row = dataGridViewSymbolInfo.Rows[i];
                 DataGridViewCell cell = row.Cells[0];
-                string CellValue = cell.Value.ToString();
-
-                if (CellValue == "*Padding*")
+                if (cell.Value.ToString() == "Padding")
                 {
                     cell.Style.BackColor = Color.LightPink;
                     row.Cells[1].Style.BackColor = Color.LightPink;
                     row.Cells[2].Style.BackColor = Color.LightPink;
                 }
-                else if (CellValue.IndexOf("Base: ") == 0)
+                else if (cell.Value.ToString().IndexOf("Base: ") == 0)
                 {
                     cell.Style.BackColor = Color.LightGreen;
                     row.Cells[1].Style.BackColor = Color.LightGreen;
                     row.Cells[2].Style.BackColor = Color.LightGreen;
                 }
-                else if (CellValue == "Cacheline boundary")
+                else if (cell.Value.ToString() == "Cacheline boundary")
                 {
                     cell.Style.BackColor = Color.LightGray;
                     row.Cells[1].Style.BackColor = Color.LightGray;
                     row.Cells[2].Style.BackColor = Color.LightGray;
-                }
-                else if (i + 1 < dataGridViewSymbolInfo.Rows.Count)
-                {
-                    if (dataGridViewSymbolInfo.Rows[i+1].Cells[0].Value.ToString() == "Cacheline boundary")
-                    {
-                        UInt64 CachelineBoundary = UInt64.Parse(dataGridViewSymbolInfo.Rows[i + 1].Cells[1].Value.ToString());
-                        UInt64 MemberStart = UInt64.Parse(row.Cells[1].Value.ToString());
-                        UInt64 MemberSize = UInt64.Parse(row.Cells[2].Value.ToString());
-                        if (MemberStart + MemberSize > CachelineBoundary)
-                        {
-                            cell.Style.BackColor = Color.LightYellow;
-                            row.Cells[1].Style.BackColor = Color.LightYellow;
-                            row.Cells[2].Style.BackColor = Color.LightYellow;
-                        }
-                    }
                 }
             }
         }
@@ -229,14 +378,10 @@ namespace CruncherSharp
         {
 			try
 			{
-                if (textBoxFilter.Text.Length == 0)
-                {
-                    bindingSourceSymbols.Filter = null;
-                }
-                else
-                {
-                    bindingSourceSymbols.Filter = "Symbol LIKE '" + textBoxFilter.Text + "'";
-                }
+				if (textBoxFilter.Text.Length == 0)
+					bindingSourceSymbols.Filter = null;
+				else
+					bindingSourceSymbols.Filter = "Symbol LIKE '" + textBoxFilter.Text + "'";
 
 				textBoxFilter.BackColor = Color.Empty;
 				textBoxFilter.ForeColor = Color.Empty;
@@ -250,13 +395,39 @@ namespace CruncherSharp
 			}
 		}
 
+        void dumpSymbolInfo(System.IO.TextWriter tw, SymbolInfo info)
+        {
+            tw.WriteLine("Symbol: " + info.m_name);
+            tw.WriteLine("Size: " + info.m_size.ToString());
+            tw.WriteLine("Total padding: " + info.CalcTotalPadding().ToString());
+            tw.WriteLine("Members");
+            tw.WriteLine("-------");
+
+            foreach (SymbolInfo child in info.m_children)
+            {
+                if (child.m_padding > 0)
+                {
+                    long paddingOffset = child.m_offset - child.m_padding;
+                    tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, child.m_padding));
+                }
+
+                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", child.m_name, child.m_offset, child.m_size));
+            }
+            // Final structure padding.
+            if (info.m_padding > 0)
+            {
+                long paddingOffset = (long)info.m_size - info.m_padding;
+                tw.WriteLine(String.Format("{0,-40} {1,5} {2,5}", "****Padding", paddingOffset, info.m_padding));
+            }
+        }
+
         private void copyTypeLayoutToClipboardToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SymbolInfo info = FindSelectedSymbolInfo();
             if (info != null)
             {
                 System.IO.StringWriter tw = new System.IO.StringWriter();
-				m_CruncherData.dumpSymbolInfo(tw, info);
+                dumpSymbolInfo(tw, info);
                 Clipboard.SetText(tw.ToString());
             }
         }
@@ -264,9 +435,7 @@ namespace CruncherSharp
         private void textBoxCache_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == (char)Keys.Enter || e.KeyChar == (char)Keys.Escape)
-            {
                 ShowSelectedSymbolInfo();
-            }
             base.OnKeyPress(e);
         }
 
@@ -292,70 +461,24 @@ namespace CruncherSharp
             {
                 DataGridViewRow selectedRow = dataGridViewSymbolInfo.SelectedRows[0];
                 SymbolInfo info = selectedRow.Tag as SymbolInfo;
-                if (info != null && info.m_typeName != null)
+                if (info != null)
                 {
-                    textBoxFilter.Text = info.m_typeName.Replace("*", "[*]");
+                    SelectSymbol(info.m_typeName);
                 }
             }
         }
 
-		private void buttonHistoryBack_Click(object sender, EventArgs e)
-		{
-			if (UndoStack.Count > 1)
-			{
-				RedoStack.Push(UndoStack.Pop());
-
-				bUpdateStack = false;
-				textBoxFilter.Text = UndoStack.Peek();
-				bUpdateStack = true;
-			}
-		}
-
-		private void buttonHistoryForward_Click(object sender, EventArgs e)
-		{
-			if (RedoStack.Count > 0)
-			{
-				UndoStack.Push(RedoStack.Pop());
-
-				bUpdateStack = false;
-				textBoxFilter.Text = UndoStack.Peek();
-				bUpdateStack = true;
-			}
-		}
-
-		private void CruncherSharp_MouseDown(object sender, MouseEventArgs e)
-		{
-			if (e.Button == MouseButtons.XButton1)
-			{
-				buttonHistoryBack.PerformClick();
-			}
-			else if (e.Button == MouseButtons.XButton2)
-			{
-				buttonHistoryForward.PerformClick();
-			}
-		}
-
-		private void BindControlMouseClicks(Control con)
-		{
-			con.MouseClick += delegate (object sender, MouseEventArgs e)
-			{
-				TriggerMouseClicked(sender, e);
-			};
-			// bind to controls already added
-			foreach (Control i in con.Controls)
-			{
-				BindControlMouseClicks(i);
-			}
-			// bind to controls added in the future
-			con.ControlAdded += delegate (object sender, ControlEventArgs e)
-			{
-				BindControlMouseClicks(e.Control);
-			};
-		}
-
-		private void TriggerMouseClicked(object sender, MouseEventArgs e)
-		{
-			CruncherSharp_MouseDown(sender, e);
-		}
-	}
+        void SelectSymbol(string name)
+        {
+            foreach (DataGridViewRow dr in dataGridSymbols.Rows)
+            {
+                DataGridViewCell dc = dr.Cells[0];  // name
+                if (dc.Value.ToString() == name)
+                {
+                    dataGridSymbols.CurrentCell = dc;
+                    break;
+                }
+            }
+        }
+    }
 }

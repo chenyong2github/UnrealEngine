@@ -365,7 +365,6 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	AnalyticsAggregator()
 ,   World(nullptr)
 ,   Notify(nullptr)
-,	Time( 0.f )
 ,	ElapsedTime( 0.0 )
 ,	bInTick(false)
 ,	bPendingDestruction(false)
@@ -1927,9 +1926,6 @@ void UNetDriver::TickDispatch( float DeltaTime )
 	}
 
 	// Get new time.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Time += DeltaTime;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ElapsedTime += DeltaTime;
 
 	// Checks for standby cheats if enabled	
@@ -4366,10 +4362,7 @@ void UNetDriver::ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectI
 			ActorInfo->NextUpdateTime = World->TimeSeconds + UpdateDelayRandomStream.FRand() * ServerTickTime + NextUpdateDelta;
 
 			// and mark when the actor first requested an update
-			//@note: using Time because it's compared against UActorChannel.LastUpdateTime which also uses that value
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			ActorInfo->LastNetUpdateTime = ElapsedTime;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			//@note: using ElapsedTime because it's compared against UActorChannel.LastUpdateTime which also uses that value
 			ActorInfo->LastNetUpdateTimestamp = ElapsedTime;
 		}
 

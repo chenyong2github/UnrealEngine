@@ -63,20 +63,21 @@ namespace CADKernel
 		ECriterion CriterionType = ECriterion::None;
 		Archive << CriterionType;
 
+		TSharedPtr<FEntity> Entity;
 		switch (CriterionType)
 		{
-		case ECriterion::Size:
 		case ECriterion::MinSize:
+			return FEntity::MakeShared<FMinSizeCriterion>(Archive);
 		case ECriterion::MaxSize:
-			return FEntity::MakeShared<FSizeCriterion>(Archive, CriterionType);
+			return FEntity::MakeShared<FMaxSizeCriterion>(Archive);
 		case ECriterion::CADCurvature:
-			return FEntity::MakeShared<FCurvatureCriterion>(Archive, CriterionType);
+			return FEntity::MakeShared<FCurvatureCriterion>(Archive);
 		case ECriterion::Sag:
-			return FEntity::MakeShared<FSagCriterion>(Archive, CriterionType);
+			return FEntity::MakeShared<FSagCriterion>(Archive);
 		case ECriterion::Angle:
-			return FEntity::MakeShared<FAngleCriterion>(Archive, CriterionType);
+			return FEntity::MakeShared<FAngleCriterion>(Archive);
 		default:
-			return nullptr;
+			return TSharedPtr<FCriterion>();
 		}
 	}
 
@@ -85,8 +86,9 @@ namespace CADKernel
 		switch (Type)
 		{
 		case ECriterion::MinSize:
+			return FEntity::MakeShared<FMinSizeCriterion>(Value);
 		case ECriterion::MaxSize:
-			return FEntity::MakeShared<FSizeCriterion>(Value, Type);
+			return FEntity::MakeShared<FMaxSizeCriterion>(Value);
 		case ECriterion::Sag:
 			return FEntity::MakeShared<FSagCriterion>(Value);
 		case ECriterion::Angle:

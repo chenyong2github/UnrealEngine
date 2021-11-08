@@ -479,7 +479,7 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformAndroid::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
-		if (!ensure(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		if (!ensure(InSoundWave.IsValid()))
 		{
 			return nullptr;
 		}

@@ -861,6 +861,8 @@ namespace NDIStaticMeshLocal
 			InstanceData->Rotation		= FromGameThread->Rotation;
 			InstanceData->PrevRotation	= FromGameThread->PrevRotation;
 			InstanceData->DeltaSeconds	= FromGameThread->DeltaSeconds;
+
+			FromGameThread->~FInstanceData_FromGameThread();
 		}
 
 		virtual int32 PerInstanceDataPassedToRenderThreadSize() const override

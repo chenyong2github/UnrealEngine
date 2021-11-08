@@ -2459,7 +2459,7 @@ float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility,
 
 			LocalAnimMontageInfo.AnimMontage = NewAnimMontage;
 			LocalAnimMontageInfo.AnimatingAbility = InAnimatingAbility;
-			LocalAnimMontageInfo.PlayBit = !LocalAnimMontageInfo.PlayBit;
+			LocalAnimMontageInfo.PlayInstanceId = (LocalAnimMontageInfo.PlayInstanceId < UINT8_MAX ? LocalAnimMontageInfo.PlayInstanceId + 1 : 0);
 			
 			if (InAnimatingAbility)
 			{
@@ -2479,7 +2479,7 @@ float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility,
 
 				// Those are static parameters, they are only set when the montage is played. They are not changed after that.
 				MutableRepAnimMontageInfo.AnimMontage = NewAnimMontage;
-				MutableRepAnimMontageInfo.ForcePlayBit = !bool(MutableRepAnimMontageInfo.ForcePlayBit);
+				MutableRepAnimMontageInfo.PlayInstanceId = (MutableRepAnimMontageInfo.PlayInstanceId < UINT8_MAX ? MutableRepAnimMontageInfo.PlayInstanceId + 1 : 0);
 
 				MutableRepAnimMontageInfo.SectionIdToPlay = 0;
 				if (MutableRepAnimMontageInfo.AnimMontage && StartSectionName != NAME_None)
@@ -2590,7 +2590,7 @@ void UAbilitySystemComponent::AnimMontage_UpdateReplicatedData(FGameplayAbilityR
 
 void UAbilitySystemComponent::AnimMontage_UpdateForcedPlayFlags(FGameplayAbilityRepAnimMontage& OutRepAnimMontageInfo)
 {
-	OutRepAnimMontageInfo.ForcePlayBit = LocalAnimMontageInfo.PlayBit;
+	OutRepAnimMontageInfo.PlayInstanceId = LocalAnimMontageInfo.PlayInstanceId;
 }
 
 void UAbilitySystemComponent::OnPredictiveMontageRejected(UAnimMontage* PredictiveMontage)
@@ -2646,14 +2646,14 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 		if (DebugMontage)
 		{
 			ABILITY_LOG( Warning, TEXT("\n\nOnRep_ReplicatedAnimMontage, %s"), *GetNameSafe(this));
-			ABILITY_LOG( Warning, TEXT("\tAnimMontage: %s\n\tPlayRate: %f\n\tPosition: %f\n\tBlendTime: %f\n\tNextSectionID: %d\n\tIsStopped: %d\n\tForcePlayBit: %d"),
+			ABILITY_LOG( Warning, TEXT("\tAnimMontage: %s\n\tPlayRate: %f\n\tPosition: %f\n\tBlendTime: %f\n\tNextSectionID: %d\n\tIsStopped: %d\n\tPlayInstanceId: %d"),
 				*GetNameSafe(ConstRepAnimMontageInfo.AnimMontage),
 				ConstRepAnimMontageInfo.PlayRate,
 				ConstRepAnimMontageInfo.Position,
 				ConstRepAnimMontageInfo.BlendTime,
 				ConstRepAnimMontageInfo.NextSectionID,
 				ConstRepAnimMontageInfo.IsStopped,
-				ConstRepAnimMontageInfo.ForcePlayBit);
+				ConstRepAnimMontageInfo.PlayInstanceId);
 			ABILITY_LOG( Warning, TEXT("\tLocalAnimMontageInfo.AnimMontage: %s\n\tPosition: %f"),
 				*GetNameSafe(LocalAnimMontageInfo.AnimMontage), AnimInstance->Montage_GetPosition(LocalAnimMontageInfo.AnimMontage));
 		}
@@ -2661,10 +2661,10 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 		if(ConstRepAnimMontageInfo.AnimMontage )
 		{
 			// New Montage to play
-			const bool ReplicatedPlayBit = bool(ConstRepAnimMontageInfo.ForcePlayBit);
-			if ((LocalAnimMontageInfo.AnimMontage != ConstRepAnimMontageInfo.AnimMontage) || (LocalAnimMontageInfo.PlayBit != ReplicatedPlayBit))
+			if ((LocalAnimMontageInfo.AnimMontage != ConstRepAnimMontageInfo.AnimMontage) || 
+			    (LocalAnimMontageInfo.PlayInstanceId != ConstRepAnimMontageInfo.PlayInstanceId))
 			{
-				LocalAnimMontageInfo.PlayBit = ReplicatedPlayBit;
+				LocalAnimMontageInfo.PlayInstanceId = ConstRepAnimMontageInfo.PlayInstanceId;
 				PlayMontageSimulated(ConstRepAnimMontageInfo.AnimMontage, ConstRepAnimMontageInfo.PlayRate);
 			}
 

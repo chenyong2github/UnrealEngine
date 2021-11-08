@@ -23,7 +23,7 @@ FMemAllocGroupingBySize::FMemAllocGroupingBySize()
 		LOCTEXT("Grouping_BySize_ShortName", "Size"),
 		LOCTEXT("Grouping_BySize_TitleName", "By Size"),
 		LOCTEXT("Grouping_BySize_Desc", "Group allocations based on their size."),
-		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"),
+		TEXT("Icons.Group.TreeItem"),
 		nullptr)
 {
 	ResetThresholdsPow2();

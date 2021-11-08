@@ -282,6 +282,14 @@ static TAutoConsoleVariable<int32> CVarSupportPointLightWholeSceneShadows(
 	TEXT("Enables shadowcasting point lights."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static bool MobileUsesPerspectiveCorrectShadowPermutation(EShaderPlatform ShaderPlatform)
+{
+	// Required only for spotlight shadows on mobile
+	static FShaderPlatformCachedIniValue<bool> MobileEnableMovableSpotlightsShadowIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
+	const bool bMobileEnableMovableSpotlightsShadow = (MobileEnableMovableSpotlightsShadowIniValue.Get(ShaderPlatform) != 0);
+	return bMobileEnableMovableSpotlightsShadow;
+}
+
 /**
 * A vertex shader for rendering the depth of a mesh.
 */
@@ -300,6 +308,14 @@ public:
 		const bool bSupportPointLightWholeSceneShadows = CVarSupportPointLightWholeSceneShadows.GetValueOnAnyThread() != 0 || bForceAllPermutations;
 		const bool bRHISupportsShadowCastingPointLights = RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform);
 
+		// Mobile only needs OutputDepth, and optionally PerspectiveCorrect
+		if (!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
+			!(ShaderMode == VertexShadowDepth_OutputDepth || 
+				(ShaderMode == VertexShadowDepth_PerspectiveCorrect && MobileUsesPerspectiveCorrectShadowPermutation(Platform))))
+		{
+			return false;
+		}
+		
 		if (bIsForGeometryShader && ShaderMode == VertexShadowDepth_VSLayer)
 		{
 			return false;
@@ -500,8 +516,10 @@ public:
 	{
 		const EShaderPlatform Platform = Parameters.Platform;
 		
-		// Only compile one pass point light shaders for feature levels >= SM5
-		if (ShaderMode == PixelShadowDepth_OnePassPointLight && !IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+		// Mobile only needs NonPerspectiveCorrect, and optionally PerspectiveCorrect
+		if (!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
+			!(ShaderMode == PixelShadowDepth_NonPerspectiveCorrect || 
+				(ShaderMode == PixelShadowDepth_PerspectiveCorrect && MobileUsesPerspectiveCorrectShadowPermutation(Platform))))
 		{
 			return false;
 		}

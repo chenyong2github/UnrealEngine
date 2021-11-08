@@ -110,6 +110,9 @@ private:
 	FString OAuthSecret;
 	FCriticalSection AccessCs;
 	FDerivedDataCacheUsageStats UsageStats;
+	FBackendDebugOptions DebugOptions;
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
 	TUniquePtr<struct FRequestPool> GetRequestPools[2];
 	TUniquePtr<struct FRequestPool> PutRequestPools[2];
 	TUniquePtr<struct FHttpAccessToken> Access;
@@ -122,6 +125,7 @@ private:
 	bool IsServiceReady();
 	bool AcquireAccessToken();
 	bool ShouldRetryOnError(int64 ResponseCode);
+	bool ShouldSimulateMiss(const TCHAR* InKey);
 };
 
 } // UE::DerivedData::Backends

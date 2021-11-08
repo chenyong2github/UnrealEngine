@@ -4,6 +4,7 @@
 
 #include "DatasmithSketchUpCommon.h"
 
+#include "DatasmithSketchUpMaterial.h"
 #include "DatasmithSketchUpCamera.h"
 
 #include "Misc/SecureHash.h"
@@ -176,7 +177,6 @@ namespace DatasmithSketchUp
 		void PopulateFromModel(
 			SUModelRef InSModelRef // model containing SketchUp material definitions
 		);
-		void UpdateTextureUsage();
 		void Update();
 
 		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
@@ -208,7 +208,7 @@ namespace DatasmithSketchUp
 
 		TMap<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> MaterialDefinitionMap;
 
-		TSharedPtr<FMaterialOccurrence> DefaultMaterial;
+		FMaterialOccurrence DefaultMaterial;
 	};
 
 	// Holds all the data needed during export and incremental updates

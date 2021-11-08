@@ -6,6 +6,7 @@
 ** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
 */
 
+#ifndef LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD
 
 #include "CoreMinimal.h"
 #include <stdio.h>
@@ -218,3 +219,5 @@ zoh_copy (SRC_STATE *from, SRC_STATE *to)
 
 	return SRC_ERR_NO_ERROR ;
 } /* zoh_copy */
+
+#endif // LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD

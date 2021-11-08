@@ -1829,7 +1829,15 @@ TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInfor
 		const FString ClassRedirectString = FString::Printf(TEXT("(OldClassName=\"%s\",NewClassName=\"%s\")"), *Rename.Key, *Rename.Value);
 		ConfigValuesToSet.Emplace(TEXT("DefaultEngine.ini"), TEXT("/Script/Engine.Engine"), TEXT("+ActiveClassRedirects"), *ClassRedirectString, /*InShouldReplaceExistingValue=*/false);
 	}
-	
+
+	// Add the PreferredAccessor in-case the default gets overridden
+	FString PreferredAccessor;
+	bool bFound = GConfig->GetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), PreferredAccessor, GEngineIni);
+	if (bFound)
+	{
+		ConfigValuesToSet.Emplace(TEXT("DefaultEngine.ini"), TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), *PreferredAccessor, /*InShouldReplaceExistingValue=*/false);
+	}
+
 	SlowTask.EnterProgressFrame();
 
 	if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))

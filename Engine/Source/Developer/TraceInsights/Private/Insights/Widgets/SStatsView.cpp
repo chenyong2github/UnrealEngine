@@ -2,12 +2,12 @@
 
 #include "SStatsView.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -48,7 +48,11 @@ class FStatsViewCommands : public TCommands<FStatsViewCommands>
 {
 public:
 	FStatsViewCommands()
-		: TCommands<FStatsViewCommands>(TEXT("FStatsViewCommands"), NSLOCTEXT("FStatsViewCommands", "Stats View Commands", "Stats View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FStatsViewCommands>(
+			TEXT("FStatsViewCommands"),
+			NSLOCTEXT("FStatsViewCommands", "Stats View Commands", "Stats View Commands"),
+			NAME_None,
+			FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -177,7 +181,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
-					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.HAlign(HAlign_Center)
 					.Padding(3.0f)
 					.OnCheckStateChanged(this, &SStatsView::FilterOutZeroCountStats_OnCheckStateChanged)
@@ -185,7 +189,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.ToolTipText(LOCTEXT("FilterOutZeroCountStats_Tooltip", "Filter out the counters having zero total instance count (aggregated stats)."))
 					[
 						SNew(SImage)
-						.Image(FInsightsStyle::Get().GetBrush("ZeroCountFilter.Icon.Small"))
+						.Image(FInsightsStyle::Get().GetBrush("Icons.ZeroCountFilter"))
 					]
 				]
 			]
@@ -405,7 +409,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack", "Remove series from graph track"),
 					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of this counter from the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -417,7 +421,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack", "Add series to graph track"),
 					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack_Desc", "Add a series containing event instances of this counter to the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -435,7 +439,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -448,7 +452,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column."),
 			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildSortByMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -461,7 +465,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns."),
 			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildViewColumnMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
 		);
 
 		FUIAction Action_ShowAllColumns
@@ -473,7 +477,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowAllColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -488,7 +492,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowMinMaxMedColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -503,7 +507,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ResetColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -562,7 +566,7 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -578,7 +582,7 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -690,7 +694,7 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -706,7 +710,7 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -971,7 +975,7 @@ void SStatsView::HandleItemToStringArray(const FStatsNodePtr& FStatsNodePtr, TAr
 TSharedRef<SWidget> SStatsView::GetToggleButtonForNodeType(const EStatsNodeType NodeType)
 {
 	return SNew(SCheckBox)
-		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
 		.OnCheckStateChanged(this, &SStatsView::FilterByStatsType_OnCheckStateChanged, NodeType)
@@ -1003,7 +1007,7 @@ TSharedRef<SWidget> SStatsView::GetToggleButtonForNodeType(const EStatsNodeType 
 TSharedRef<SWidget> SStatsView::GetToggleButtonForDataType(const EStatsNodeDataType DataType)
 {
 	return SNew(SCheckBox)
-		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
 		.OnCheckStateChanged(this, &SStatsView::FilterByStatsDataType_OnCheckStateChanged, DataType)

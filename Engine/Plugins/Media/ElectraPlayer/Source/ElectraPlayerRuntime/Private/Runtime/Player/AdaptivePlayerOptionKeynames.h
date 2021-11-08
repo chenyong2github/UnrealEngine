@@ -6,9 +6,28 @@
 
 namespace Electra
 {
-	const TCHAR* const OptionKeyMimeType = TEXT("mime_type");										//!< (FString) mime type of URL to load
-	const TCHAR* const OptionKeyInitialBitrate = TEXT("initial_bitrate");							//!< (int64) value indicating the bitrate to start with.
-	const TCHAR* const OptionKeyLiveSeekableEndOffset = TEXT("seekable_range_live_end_offset");		//!< (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end.
+	//! (FString) mime type of URL to load
+	const TCHAR* const OptionKeyMimeType = TEXT("mime_type");										
+
+	//! (int64) value indicating the bitrate to start with.
+	const TCHAR* const OptionKeyInitialBitrate = TEXT("initial_bitrate");							
+
+	//! (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end.
+	const TCHAR* const OptionKeyLiveSeekableEndOffset = TEXT("seekable_range_live_end_offset");		
+
+	//! (bool) absolute end time (excluding) of the range to limit playback to
+	const TCHAR* const OptionRebufferingContinuesLoading = TEXT("rebuffering_continues_loading");
+
+	//! (bool) true to perform frame accurate seeks (slow as decoding and discarding data from a preceeding keyframe is required)
+	const TCHAR* const OptionKeyFrameAccurateSeek = TEXT("frame_accurate_seeking");
+	
+	//! (FTimeValue) absolute start time (including) of the range to limit playback to
+	const TCHAR* const OptionPlayRangeStart = TEXT("play_range_start");
+
+	//! (FTimeValue) absolute end time (excluding) of the range to limit playback to
+	const TCHAR* const OptionPlayRangeEnd = TEXT("play_range_end");
+
+
 
 	const TCHAR* const OptionKeyCurrentAvgStartingVideoBitrate = TEXT("current:avg_video_bitrate");
 

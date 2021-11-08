@@ -12,6 +12,7 @@
 
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;
+class FShaderCompilerFlags;
 
 enum GLSLVersion 
 {
@@ -59,7 +60,7 @@ protected:
 	// what is the max number of samplers the shader platform can use?
 	virtual uint32 GetMaxSamplers(GLSLVersion Version);
 
-	virtual uint32 CalculateCrossCompilerFlags(GLSLVersion Version, const bool bFullPrecisionInPS, const TArray<uint32>& CompilerFlags);
+	virtual uint32 CalculateCrossCompilerFlags(GLSLVersion Version, const bool bFullPrecisionInPS, const FShaderCompilerFlags& CompilerFlags);
 
 	// set up compilation information like defines and HlslCompileTarget
 	virtual void SetupPerVersionCompilationEnvironment(GLSLVersion Version, class FShaderCompilerDefinitions& AdditionalDefines, EHlslCompileTarget& HlslCompilerTarget);

@@ -278,7 +278,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			GEditor->GetReferencedAssetsForEditorSelection(ReferencedAssets);
 
 			// Asset type icon is used in multiple places below
-			FSlateIcon AssetIcon = ReferencedAssets.Num() == 1 ? FSlateIconFinder::FindIconForClass(ReferencedAssets[0]->GetClass()) : FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Default");
+			FSlateIcon AssetIcon = ReferencedAssets.Num() == 1 ? FSlateIconFinder::FindIconForClass(ReferencedAssets[0]->GetClass()) : FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Default");
 
 			// Edit and Find entries (a) always appear in main menu, and (b) appear in right-click menu if referenced asset is available
 			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::MainMenu || ReferencedAssets.Num() > 0)
@@ -324,14 +324,19 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 					LOCTEXT("AssetToolsSubMenuToolTip", "Tools for the asset associated with the selected actor"),
 					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillAssetToolsMenu),
 					/*bInOpenSubMenuOnClick*/ false,
-					AssetIcon);
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust"));
 
-				Section.AddMenuEntry(FLevelEditorCommands::Get().CopyActorFilePathtoClipboard);
+				Section.AddMenuEntry(
+					FLevelEditorCommands::Get().CopyActorFilePathtoClipboard,
+					TAttribute<FText>(), // use command's label
+					TAttribute<FText>(), // use command's tooltip
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
+				);
 
 				// This is an invisible entry used as an extension point for "Convert SomeActor To SomeType" entries
 				FUIAction Action;
 				Action.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([]() { return false; });
-				Section.AddMenuEntry("ActorConvert", TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), Action, EUserInterfaceActionType::None);
+				Section.AddMenuEntry("ActorConvert", TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Convert"), Action, EUserInterfaceActionType::None);
 			}
 
 			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(Section, LevelEditorContext);
@@ -349,11 +354,27 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			{
 				FUIAction GoHereAction;
 				GoHereAction.ExecuteAction = FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::GoHere_Clicked, ClickLocation);
-				Section.AddMenuEntry(FLevelEditorCommands::Get().GoHere);
+				Section.AddMenuEntry(
+					FLevelEditorCommands::Get().GoHere,
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.GoHere")
+				);
 			}
 
-			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapCameraToObject);
-			Section.AddMenuEntry(FLevelEditorCommands::Get().SnapObjectToCamera);
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().SnapCameraToObject,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.SnapViewToObject")
+			);
+
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().SnapObjectToCamera,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.SnapObjectToView")
+			);
 
 			if (SelectedActors.Num() == 1)
 			{
@@ -396,31 +417,41 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				"EditSubMenu",
 				LOCTEXT("EditSubMenu", "Edit"),
 				FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit"));
 
 			Section.AddSubMenu(
 				"VisibilitySubMenu",
 				LOCTEXT("VisibilitySubMenu", "Visibility"),
 				LOCTEXT("VisibilitySubMenu_ToolTip", "Selected actor visibility options"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Visibility"));
 
 			Section.AddSubMenu(
 				"TransformSubMenu",
 				LOCTEXT("TransformSubMenu", "Transform"),
 				LOCTEXT("TransformSubMenu_ToolTip", "Actor transform utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Transform"));
 
 			Section.AddSubMenu(
 				"SnapAlignSubMenu",
 				LOCTEXT("SnapAlignSubMenu", "Snapping"),
 				LOCTEXT("SnapAlignSubMenu_ToolTip", "Actor snap/align utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Snap"));
 
 			Section.AddSubMenu(
 				"PivotSubMenu",
 				LOCTEXT("PivotSubMenu", "Pivot"),
 				LOCTEXT("PivotSubMenu_ToolTip", "Actor pivoting utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.SetShowPivot"));
 
 			// Build the menu for grouping actors - this is either the Group item or Groups submenu
 			BuildGroupMenu(Section, SelectionInfo);
@@ -430,8 +461,15 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				"ActorAttachToSubMenu",
 				LOCTEXT("ActorAttachToSubMenu", "Attach To"),
 				LOCTEXT("ActorAttachToSubMenu_ToolTip", "Attach Actor as child"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu));
-			Section.AddMenuEntry(FLevelEditorCommands::Get().DetachFromParent);
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.Attach"));
+
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().DetachFromParent,
+				TAttribute<FText>(), // Use command title
+				TAttribute<FText>(), // Use command tooltip
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Actors.Detach"));
 
 			// Add/jump to event should go in main menu only
 			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::MainMenu)
@@ -451,13 +489,17 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				"MergeActorsSubMenu",
 				FText::Format(LOCTEXT("MergeActorsSubMenu", "Merge Actors ({0})"), FText::AsNumber(SelectedActors.Num())),
 				LOCTEXT("MergeActorsSubMenu_ToolTip", "Merge actors utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillMergeActorsMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillMergeActorsMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Merge"));
 
 			Section.AddSubMenu(
 				"LevelSubMenu",
 				LOCTEXT("LevelSubMenu", "Level"),
 				LOCTEXT("LevelSubMenu_ToolTip", "Options for interacting with this actor's level"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu),
+				false, // default value
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Level"));
 		}
 
 		// General-purpose extension point for tools that only appear for certain types of actors
@@ -490,7 +532,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 						FExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::StartPlayFromHere));
 
 					const FText PlayFromHereLabel = GEditor->OnlyLoadEditorVisibleLevelsInPIE() ? LOCTEXT("PlayFromHereVisible", "Play From Here (visible levels)") : LOCTEXT("PlayFromHere", "Play From Here");
-					Section.AddMenuEntry(NAME_None, PlayFromHereLabel, LOCTEXT("PlayFromHere_ToolTip", "Starts a game preview from the clicked location"), FSlateIcon(), PlayFromHereAction);
+					Section.AddMenuEntry(NAME_None, PlayFromHereLabel, LOCTEXT("PlayFromHere_ToolTip", "Starts a game preview from the clicked location"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Play"), PlayFromHereAction);
 				}
 			}
 
@@ -962,12 +1004,14 @@ void FLevelEditorContextMenu::BuildGroupMenu(FToolMenuSection& Section, const FS
 				"GroupMenu",
 				LOCTEXT("GroupMenu", "Groups"),
 				LOCTEXT("GroupMenu_ToolTip", "Opens the actor grouping menu"),
-				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu));
+				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu),
+				false, // default
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.GroupActors"));
 		}
 		else
 		{
 			Section.AddMenuEntry(
-				FLevelEditorCommands::Get().RegroupActors, FLevelEditorCommands::Get().GroupActors->GetLabel(), FLevelEditorCommands::Get().GroupActors->GetDescription());
+				FLevelEditorCommands::Get().RegroupActors, FLevelEditorCommands::Get().GroupActors->GetLabel(), FLevelEditorCommands::Get().GroupActors->GetDescription(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.GroupActors"));
 		}
 	}
 }
@@ -1338,7 +1382,8 @@ void FLevelEditorContextMenuImpl::FillAssetToolsMenu(UToolMenu* Menu)
 
 		Section.AddMenuEntry(FLevelEditorCommands::Get().GoToCodeForActor,
 			GoToCodeForActorLabel,
-			GoToCodeForActorToolTip);
+			GoToCodeForActorToolTip,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.C++"));
 	}
 
 	{
@@ -1366,7 +1411,7 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 			NAME_None,
 			Tool->GetTooltipText(),
 			Tool->GetTooltipText(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), Tool->GetIconName()),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), Tool->GetIconName()),
 			MergeActorToolAction);
 	}
 
@@ -1379,14 +1424,16 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 		FLevelEditorCommands::Get().OpenMergeActor,
 		LOCTEXT("OpenMergeActor", "Merge Actors Settings"),
 		LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"));
 }
 
 void FLevelEditorContextMenuImpl::AddSourceControlMenu(FToolMenuSection& Section)
 {
 	Section.AddSubMenu(TEXT("SourceControlSubMenu"), LOCTEXT("SourceControlSubMenu", "Source Control"),
 					   LOCTEXT("SourceControlSubMenu_ToolTip", "Opens the Source Control sub menu"),
-					   FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSourceControlMenu));
+					   FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSourceControlMenu),
+					   false, // default value
+					   FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"));
 }
 
 void FLevelEditorContextMenuImpl::FillSourceControlMenu(UToolMenu* Menu)
@@ -1441,7 +1488,9 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(FToolMenuSection&
 			{
 				return bAnyEventCanBeAdded;
 			})),
-		EUserInterfaceActionType::Button
+		EUserInterfaceActionType::Button,
+		false, // default value
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Event")
 	);
 
 	Section.AddSubMenu(
@@ -1454,7 +1503,9 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(FToolMenuSection&
 			{
 				return bAnyEventExists;
 			})),
-		EUserInterfaceActionType::Button
+		EUserInterfaceActionType::Button,
+		false, // default value
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.JumpToEvent")
 				);
 }
 

@@ -353,7 +353,7 @@ namespace CreateAssetHelper
 				if (bSuccessful)
 				{
 					FString PackageFilename;
-					if (FPackageName::DoesPackageExist(AssetPackage->GetName(), NULL, &PackageFilename))
+					if (FPackageName::DoesPackageExist(AssetPackage->GetName(), &PackageFilename))
 					{
 						TArray<UPackage*> PackagesToDelete;
 						PackagesToDelete.Add(AssetPackage);

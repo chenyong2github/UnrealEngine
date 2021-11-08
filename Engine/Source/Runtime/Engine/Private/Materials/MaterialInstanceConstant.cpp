@@ -5,8 +5,26 @@
 =============================================================================*/
 
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceSupport.h"
+#include "ProfilingDebugging/CookStats.h"
 #if WITH_EDITOR
 #include "MaterialEditor/DEditorScalarParameterValue.h"
+#include "ObjectCacheEventSink.h"
+#endif
+
+#if ENABLE_COOK_STATS
+#include "ProfilingDebugging/ScopedTimers.h"
+namespace MaterialInstanceCookStats
+{
+static double UpdateCachedExpressionDataSec = 0.0;
+
+static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	{
+		AddStat(TEXT("MaterialInstance"), FCookStatsManager::CreateKeyValueArray(
+			TEXT("UpdateCachedExpressionDataSec"), UpdateCachedExpressionDataSec
+		));
+	});
+}
 #endif
 
 UMaterialInstanceConstant::UMaterialInstanceConstant(const FObjectInitializer& ObjectInitializer)
@@ -58,7 +76,10 @@ void UMaterialInstanceConstant::PostEditChangeProperty(FPropertyChangedEvent& Pr
 void UMaterialInstanceConstant::SetParentEditorOnly(UMaterialInterface* NewParent, bool RecacheShader)
 {
 	check(GIsEditor || IsRunningCommandlet());
-	SetParentInternal(NewParent, RecacheShader);
+	if (SetParentInternal(NewParent, RecacheShader))
+	{
+		UpdateCachedData();
+	}
 }
 
 void UMaterialInstanceConstant::CopyMaterialUniformParametersEditorOnly(UMaterialInterface* Source, bool bIncludeStaticParams)
@@ -125,4 +146,48 @@ void UMaterialInstanceConstant::ClearParameterValuesEditorOnly()
 	check(GIsEditor || IsRunningCommandlet());
 	ClearParameterValuesInternal();
 }
+
+void UMaterialInstanceConstant::UpdateCachedData()
+{
+	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
+
+	// Don't need to rebuild cached data if it was serialized
+	if (!bLoadedCachedData)
+	{
+		UMaterialInstance* ParentInstance = nullptr;
+		FMaterialCachedExpressionData CachedExpressionData;
+		CachedExpressionData.Reset();
+		if (Parent)
+		{
+			CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
+			ParentInstance = Cast<UMaterialInstance>(Parent);
+		}
+
+		FMaterialLayersFunctions Layers;
+		const bool bHasLayers = GetMaterialLayers(Layers);
+		if (bHasLayers)
+		{
+			FMaterialCachedExpressionContext Context;
+			CachedExpressionData.UpdateForLayerFunctions(Context, Layers);
+		}
+
+		if (!CachedData)
+		{
+			CachedData = new FMaterialInstanceCachedData();
+		}
+
+		FMaterialLayersFunctions ParentLayers;
+		const bool bParentHasLayers = Parent && Parent->GetMaterialLayers(ParentLayers);
+		CachedData->InitializeForConstant(MoveTemp(CachedExpressionData),
+			bHasLayers ? &Layers : nullptr,
+			bParentHasLayers ? &ParentLayers : nullptr);
+		if (Resource)
+		{
+			Resource->GameThread_UpdateCachedData(*CachedData);
+		}
+	}
+
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+}
+
 #endif // #if WITH_EDITOR

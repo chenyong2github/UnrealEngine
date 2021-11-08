@@ -2,6 +2,8 @@
 
 #include "SLogWidget.h"
 #include "Framework/Text/SlateTextRun.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LiveCodingConsoleStyle.h"
 #include "SlateOptMacros.h"
 #include "HAL/FileManager.h"

@@ -61,11 +61,10 @@ protected:
 	// Performed after PlayRateBasis.
 	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const { static FInputScaleBiasClampConstants Dummy; return Dummy; }
 
-	// The start up position, it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
+	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	virtual float GetStartPosition() const { return 0.0f; }
 
-	// Should the animation continue looping when it reaches the end?
+	// Should the animation loop back to the start when it reaches the end?
 	virtual bool GetLoopAnimation() const { return true; }
 
 	// Use pose matching to choose the start position. Requires experimental PoseSearch plugin.
@@ -127,12 +126,11 @@ protected:
 	UPROPERTY()
 	FInputScaleBiasClamp PlayRateScaleBiasClamp_DEPRECATED;
 
-	// The start up position, it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
+	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
 	float StartPosition = 0.0f;
 
-	// Should the animation continue looping when it reaches the end?
+	// Should the animation loop back to the start when it reaches the end?
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
 	bool bLoopAnimation = true;
 
@@ -207,12 +205,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName="PlayRateScaleBiasClamp"))
 	FInputScaleBiasClampConstants PlayRateScaleBiasClampConstants;
 
-	// The start up position, it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
+	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	float StartPosition = 0.0f;
 
-	// Should the animation continue looping when it reaches the end?
+	// Should the animation loop back to the start when it reaches the end?
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	bool bLoopAnimation = true;
 

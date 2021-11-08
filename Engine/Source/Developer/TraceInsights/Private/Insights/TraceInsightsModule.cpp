@@ -45,6 +45,9 @@ void FTraceInsightsModule::StartupModule()
 	TraceModuleService = TraceServicesModule.GetModuleService();
 
 	FInsightsStyle::Initialize();
+#if !WITH_EDITOR
+	FAppStyle::SetAppStyleSet(FInsightsStyle::Get());
+#endif
 
 	// Register FInsightsManager first, as the main component (first to init, last to shutdown).
 	RegisterComponent(FInsightsManager::CreateInstance(TraceAnalysisService.ToSharedRef(), TraceModuleService.ToSharedRef()));
@@ -79,6 +82,8 @@ void FTraceInsightsModule::ShutdownModule()
 		Components[ComponentIndex]->Shutdown();
 	}
 	Components.Reset();
+
+	FInsightsStyle::Shutdown();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,6 +196,8 @@ void FTraceInsightsModule::CreateSessionBrowser(const FCreateSessionBrowserParam
 		.AutoCenter(EAutoCenter::PreferredWorkArea)
 		.ClientSize(ClientSize)
 		.AdjustInitialSizeAndPositionForDPIScale(false);
+
+	//RootWindow->GetTitleBar()->SetAllowMenuBar(true);
 
 	const bool bShowRootWindowImmediately = false;
 	FSlateApplication::Get().AddWindow(RootWindow, bShowRootWindowImmediately);

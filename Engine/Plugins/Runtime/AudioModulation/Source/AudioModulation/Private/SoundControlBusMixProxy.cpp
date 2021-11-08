@@ -39,13 +39,13 @@ namespace AudioModulation
 		}
 	}
 
-	FModulatorBusMixStageProxy::FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem)
+	FModulatorBusMixStageProxy::FModulatorBusMixStageProxy(FModulatorBusMixStageSettings&& InSettings, FAudioModulationSystem& OutModSystem)
 		: TModulatorBase<FBusId>(InSettings.BusSettings.GetName(), InSettings.BusSettings.GetId())
-		, Address(InSettings.Address)
+		, Address(MoveTemp(InSettings.Address))
 		, ParamClassId(InSettings.ParamClassId)
 		, ParamId(InSettings.ParamId)
 		, Value(InSettings.Value)
-		, BusHandle(FBusHandle::Create(InSettings.BusSettings, OutModSystem.RefProxies.Buses, OutModSystem))
+		, BusHandle(FBusHandle::Create(MoveTemp(InSettings.BusSettings), OutModSystem.RefProxies.Buses, OutModSystem))
 	{
 	}
 
@@ -68,15 +68,21 @@ namespace AudioModulation
 		}
 	}
 
-	FModulatorBusMixProxy::FModulatorBusMixProxy(const FModulatorBusMixSettings& InSettings, FAudioModulationSystem& OutModSystem)
-		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), OutModSystem)
+	FModulatorBusMixSettings::FModulatorBusMixSettings(FModulatorBusMixSettings&& InBusMixSettings)
+		: TModulatorBase<FBusMixId>(InBusMixSettings.GetName(), InBusMixSettings.GetId())
+		, Stages(MoveTemp(InBusMixSettings.Stages))
 	{
-		SetEnabled(InSettings);
 	}
 
-	FModulatorBusMixProxy& FModulatorBusMixProxy::operator =(const FModulatorBusMixSettings& InSettings)
+	FModulatorBusMixProxy::FModulatorBusMixProxy(FModulatorBusMixSettings&& InSettings, FAudioModulationSystem& OutModSystem)
+		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), OutModSystem)
 	{
-		SetEnabled(InSettings);
+		SetEnabled(MoveTemp(InSettings));
+	}
+
+	FModulatorBusMixProxy& FModulatorBusMixProxy::operator=(FModulatorBusMixSettings&& InSettings)
+	{
+		SetEnabled(MoveTemp(InSettings));
 
 		return *this;
 	}
@@ -91,7 +97,7 @@ namespace AudioModulation
 		Stages.Reset();
 	}
 
-	void FModulatorBusMixProxy::SetEnabled(const FModulatorBusMixSettings& InSettings)
+	void FModulatorBusMixProxy::SetEnabled(FModulatorBusMixSettings&& InSettings)
 	{
 		check(ModSystem);
 
@@ -100,17 +106,16 @@ namespace AudioModulation
 
 		Status = EStatus::Enabled;
 		Stages.Reset();
-		for (const FModulatorBusMixStageSettings& StageSettings : InSettings.Stages)
+		for (FModulatorBusMixStageSettings& StageSettings : InSettings.Stages)
 		{
-			FModulatorBusMixStageProxy StageProxy(StageSettings, *ModSystem);
-
 			const FBusId BusId = StageSettings.GetId();
+			FModulatorBusMixStageProxy StageProxy(MoveTemp(StageSettings), *ModSystem);
 			if (const FModulatorBusMixStageProxy* CachedStage = CachedStages.Find(BusId))
 			{
 				StageProxy.Value.SetCurrentValue(CachedStage->Value.GetCurrentValue());
 			}
 
-			Stages.Emplace(BusId, StageProxy);
+			Stages.Add(BusId, MoveTemp(StageProxy));
 		}
 	}
 

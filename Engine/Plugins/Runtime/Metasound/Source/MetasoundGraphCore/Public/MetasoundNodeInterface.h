@@ -13,8 +13,8 @@
 
 namespace Metasound
 {
-	static const FText PluginAuthor = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultAuthor", "Epic Games, Inc.");
-	static const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingNodePrompt", "The node was likely removed, renamed, or the Metasound plugin is not loaded.");
+	extern const FText METASOUNDGRAPHCORE_API PluginAuthor;
+	extern const FText METASOUNDGRAPHCORE_API PluginNodeMissingPrompt;
 
 	/**
 	 * Node style data

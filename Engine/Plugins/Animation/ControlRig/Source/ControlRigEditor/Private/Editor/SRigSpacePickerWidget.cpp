@@ -92,7 +92,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			TopLevelListBox,
 			ESpacePickerType_Parent,
 			URigHierarchy::GetDefaultParentKey(),
-			FEditorStyle::GetBrush("EditorViewport.RelativeCoordinateSystem_Local"),
+			FAppStyle::Get().GetBrush("Icons.Transform"),
 			LOCTEXT("Parent", "Parent"),
 			FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleParentSpaceClicked)
 		);

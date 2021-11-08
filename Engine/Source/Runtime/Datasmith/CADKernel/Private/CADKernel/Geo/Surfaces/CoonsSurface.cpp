@@ -8,7 +8,7 @@
 CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurves[4])
 	: FCoonsSurface(InToleranceGeometric, InCurves[0], InCurves[1], InCurves[2], InCurves[3])
 {
-	SetMinToleranceIso();
+	ComputeDefaultMinToleranceIso();
 }
 
 CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurve1, TSharedPtr<FCurve> InCurve2, TSharedPtr<FCurve> InCurve3, TSharedPtr<FCurve> InCurve4)
@@ -25,7 +25,7 @@ CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TShar
 	Corners[2] = Curves[1]->EvaluatePoint(Curves[1]->GetUMin()) * 0.5 + Curves[2]->EvaluatePoint(Curves[2]->GetUMax()) * 0.5;
 	Corners[3] = Curves[1]->EvaluatePoint(Curves[1]->GetUMax()) * 0.5 + Curves[3]->EvaluatePoint(Curves[3]->GetUMax()) * 0.5;
 
-	SetMinToleranceIso();
+	ComputeDefaultMinToleranceIso();
 }
 
 void CADKernel::FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const

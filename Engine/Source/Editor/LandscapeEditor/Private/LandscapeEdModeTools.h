@@ -970,7 +970,9 @@ public:
 				float Contribution = (LandscapeDataAccess::GetLocalHeight(Data[i]) - LandscapeDataAccess::GetLocalHeight(BottomLayersData[i])) * InverseAlpha;
 				DataContribution[i] = LandscapeDataAccess::GetTexHeight(Contribution);
 			}
-			check(EditingLayerGuid == Landscape->GetEditingLayer());
+			checkf(EditingLayerGuid == Landscape->GetEditingLayer(), TEXT("EditingLayer has changed between Initialize and Write. Was: %s (%s). Is now: %s (%s)"), 
+				Landscape->GetLayer(EditingLayerGuid) ? *(Landscape->GetLayer(EditingLayerGuid)->Name.ToString()) : TEXT("<unknown>"), *EditingLayerGuid.ToString(),
+				Landscape->GetLayer(Landscape->GetEditingLayer()) ? *(Landscape->GetLayer(Landscape->GetEditingLayer())->Name.ToString()) : TEXT("<unknown>"), *Landscape->GetEditingLayer().ToString());
 
 			// Restore layers visibility
 			SetLayersVisibility(BackupLayerVisibility);

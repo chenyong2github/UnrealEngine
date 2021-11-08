@@ -34,14 +34,14 @@ public:
 public:
 	ENGINE_API SIZE_T GetTypeHash() const override;
 
-	FSceneProxyBase(UPrimitiveComponent* Component)
+	ENGINE_API FSceneProxyBase(UPrimitiveComponent* Component)
 	: FPrimitiveSceneProxy(Component)
 	{
 		bIsNaniteMesh  = true;
 		bAlwaysVisible = true;
 	}
 
-	virtual ~FSceneProxyBase() = default;
+	ENGINE_API virtual ~FSceneProxyBase() = default;
 
 	static bool IsNaniteRenderable(FMaterialRelevance MaterialRelevance)
 	{

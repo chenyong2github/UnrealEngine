@@ -3,7 +3,7 @@
 #include "SLevelSnapshotsEditorResultsRow.h"
 
 #include "LevelSnapshotsEditorModule.h"
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "LevelSnapshotsEditorSettings.h"
 #include "LevelSnapshotsEditorStyle.h"
 
 #include "Editor.h"
@@ -440,9 +440,8 @@ FReply SLevelSnapshotsEditorResultsRow::OnMouseButtonUp(const FGeometry& MyGeome
 		if (AActor* Actor = Cast<AActor>(Item.Pin()->GetWorldObject()))
 		{
 			const FLevelSnapshotsEditorModule& Module = FLevelSnapshotsEditorModule::Get();
-			const TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> Settings = Module.GetLevelSnapshotsUserSettings();
 				
-			if (Settings.IsValid() && Settings.Get()->bClickActorGroupToSelectActorInScene && GEditor)
+			if (ULevelSnapshotsEditorSettings::Get()->bClickActorGroupToSelectActorInScene && GEditor)
 			{
 				GEditor->SelectNone(false, true, false);
 				GEditor->SelectActor( Actor, true, true, true );

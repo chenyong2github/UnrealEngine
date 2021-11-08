@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LightSceneInfo.h"
 
 class FLightSceneInfo;
 class FLightSceneInfoCompact;
@@ -44,7 +45,7 @@ public:
 	void DisableAllOtherChannels(int32 EnabledChannelIndex);
 
 	// Update channel usage based on the current enabled channels. Channels with light of MaxPriority or more will be disabled.
-	void UpdateAvailableChannels(const TSparseArray<FLightSceneInfoCompact>& Lights, FLightSceneInfo* LightInfo);
+	void UpdateAvailableChannels(const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights, FLightSceneInfo* LightInfo);
 
 	int32 GetBestAvailableChannel() const;
 

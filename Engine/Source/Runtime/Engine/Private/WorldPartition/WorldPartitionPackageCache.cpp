@@ -121,7 +121,7 @@ void FWorldPartitionPackageCache::LoadPackageAsyncInternal(FName InPackageName, 
 	{
 		UWorld::WorldTypePreLoadMap.FindOrAdd(InPackageName) = EWorldType::Editor;
 	}
-	::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback, nullptr, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext);
+	::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext);
 }
 
 UPackage* FWorldPartitionPackageCache::FindPackage(FName InPackageName)

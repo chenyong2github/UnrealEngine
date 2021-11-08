@@ -349,7 +349,7 @@ void FMobileSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdLi
 	{
 		// Check for modulated shadows. 
 		bModulatedShadowsInUse = false;
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt && bModulatedShadowsInUse == false; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt && bModulatedShadowsInUse == false; ++LightIt)
 		{
 			const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 			FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

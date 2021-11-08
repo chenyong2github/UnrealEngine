@@ -1303,7 +1303,7 @@ bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, cons
 		TArray<FPinTypeTreeItem> ValidChildren;
 
 		const bool bHasChildrenMatchingSearch = GetChildrenMatchingSearch(InSearchText, Item->Children, ValidChildren);
-		bool bFilterMatches = true;
+		bool bFilterMatches = bIsEmptySearch;
 
 		// If children match the search filter, there's no need to do any additional checks
 		if (!bHasChildrenMatchingSearch)
@@ -1311,7 +1311,7 @@ bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, cons
 			// If valid, attempt to match the custom filter
 			if (CustomFilter.IsValid())
 			{
-				bFilterMatches &= CustomFilter->ShouldShowPinTypeTreeItem(Item);
+				bFilterMatches = CustomFilter->ShouldShowPinTypeTreeItem(Item);
 			}
 
 			// If we didn't match the custom filter, or it's an empty search, let's not do any checks against the FilterTerms
@@ -1334,7 +1334,6 @@ bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, cons
 			}
 		}
 		if( bHasChildrenMatchingSearch
-			|| bIsEmptySearch
 			|| bFilterMatches )
 		{
 			NewInfo->Children = ValidChildren;

@@ -46,9 +46,9 @@ class HEADMOUNTEDDISPLAY_API IMotionController : public IModularFeature
 public:
 	virtual ~IMotionController() {}
 
+	static inline FName FeatureName = FName(TEXT("MotionController"));
 	static FName GetModularFeatureName()
 	{
-		static FName FeatureName = FName(TEXT("MotionController"));
 		return FeatureName;
 	}
 

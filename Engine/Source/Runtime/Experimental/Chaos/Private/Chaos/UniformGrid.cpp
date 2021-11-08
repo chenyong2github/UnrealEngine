@@ -257,15 +257,9 @@ bool Chaos::TUniformGrid<T, 3>::IsValid(const TVector<int32, 3>& X) const
 	return X == ClampIndex(X);
 }
 
-#ifdef __clang__
-template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
-template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
-template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
-#else
 template class Chaos::TUniformGridBase<Chaos::FReal, 3>;
 template class Chaos::TUniformGrid<Chaos::FReal, 3>;
 template class Chaos::TUniformGrid<Chaos::FReal, 2>;
-#endif // __clang__
 
 template FVec3 Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<FVec3>(const TArrayND<FVec3, 3>&, const FVec3&) const;
-template CHAOS_API Chaos::FReal Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<Chaos::FReal>(const TArrayND<Chaos::FReal, 3>&, const FVec3&) const;
+template Chaos::FReal Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<Chaos::FReal>(const TArrayND<Chaos::FReal, 3>&, const FVec3&) const;

@@ -413,7 +413,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 		if (ResolveParams.DestRect.IsValid())
 		{
-			CopyCaptureToTargetSetViewportFn = [ResolveParams, bNeedsFlippedFinalColor, &ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
+			CopyCaptureToTargetSetViewportFn = [ResolveParams, bNeedsFlippedFinalColor, ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 

@@ -470,6 +470,11 @@ public:
 	static FText FromString( FString&& String );
 
 	/**
+	 * Generate a FText representing the passed string view
+	 */
+	static FText FromStringView(FStringView InString);
+
+	/**
 	 * Generate a culture invariant FText representing the passed in string
 	 */
 	static FText AsCultureInvariant( const FString& String );

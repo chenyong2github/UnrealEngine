@@ -211,6 +211,7 @@ struct NIAGARA_API FNiagaraConstants
 	static const FString SystemNamespaceString;
 	static const FString UserNamespaceString;
 
+	static const int32 MaxCategoryNameLength;
 	static const int32 MaxParameterLength;
 	static const int32 MaxScriptNameLength;
 private:

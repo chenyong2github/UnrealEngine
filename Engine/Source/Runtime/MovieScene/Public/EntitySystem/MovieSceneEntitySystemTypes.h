@@ -824,6 +824,65 @@ public:
 
 
 /**
+ * A wrapper around an FEntityAllocation that provides access to other pieces of
+ * information such as its component mask.
+ */
+struct FEntityAllocationProxy
+{
+	/** Gets the entity allocation */
+	MOVIESCENE_API const FEntityAllocation* GetAllocation() const;
+
+	/** Gets the entity allocation */
+	MOVIESCENE_API FEntityAllocation* GetAllocation();
+
+	/** Gets the entity allocation component mask */
+	MOVIESCENE_API const FComponentMask& GetAllocationType() const;
+
+	/** Implicit cast to an entity allocation */
+	operator const FEntityAllocation*() const
+	{
+		return GetAllocation();
+	}
+
+	/** Implicit cast to an entity allocation */
+	operator FEntityAllocation*()
+	{
+		return GetAllocation();
+	}
+
+	/** Implicit cast to a component mask */
+	operator const FComponentMask&() const
+	{
+		return GetAllocationType();
+	}
+	
+	friend bool operator==(const FEntityAllocationProxy& A, const FEntityAllocationProxy& B)
+	{
+		return A.Manager == B.Manager && A.AllocationIndex == B.AllocationIndex;
+	}
+	
+	/** Hashing function for storing handles in maps */
+	friend uint32 GetTypeHash(FEntityAllocationProxy Proxy)
+	{
+		return Proxy.AllocationIndex;
+	}
+
+private:
+	friend struct FEntityAllocationIterator;
+
+	FEntityAllocationProxy(const FEntityManager* InManager, int32 InAllocationIndex)
+		: Manager(InManager), AllocationIndex(InAllocationIndex)
+	{}
+
+	/** Entity manager being iterated */
+	const FEntityManager* Manager;
+
+	/** Current allocation index or Manager->EntityAllocationMasks.GetMaxIndex() when finished */
+	int32 AllocationIndex;
+};
+
+
+/**
  * Defines a contiguous range of entities within an allocation
  */
 struct FEntityRange

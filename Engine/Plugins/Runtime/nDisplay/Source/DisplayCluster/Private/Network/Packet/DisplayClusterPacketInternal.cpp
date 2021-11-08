@@ -145,7 +145,6 @@ bool FDisplayClusterPacketInternal::RecvPacket(FDisplayClusterSocketOperations& 
 	check(PacketHeader.PacketBodyLength > 0);
 
 	// Read packet body
-	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(DataBuffer, PacketHeader.PacketBodyLength, FString("recv-internal-chunk-body")))
 	{
 		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s couldn't receive packet body"), *SocketOps.GetConnectionName());

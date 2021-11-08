@@ -224,6 +224,10 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Utilities|Platform")
 	static FString GetDeviceId();
 
+	/** Converts an object into a class */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "Cast To Class", CompactNodeTitle = "->", DeterminesOutputType = "Class"), Category="Utilities")
+	static UClass* Conv_ObjectToClass(UObject* Object, TSubclassOf<UObject> Class);
+
 	/** Converts an interfance into an object */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Object (Interface)", CompactNodeTitle = "->"), Category="Utilities")
 	static UObject* Conv_InterfaceToObject(const FScriptInterface& Interface); 

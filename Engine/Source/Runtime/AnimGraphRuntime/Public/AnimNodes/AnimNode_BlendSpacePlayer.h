@@ -43,22 +43,18 @@ private:
 	bool bIgnoreForRelevancyTest = false;
 	
 	// The X coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, Category=Coordinates, meta=(PinShownByDefault, FoldProperty))
+	UPROPERTY(EditAnywhere, Category = Coordinates, meta = (PinShownByDefault, FoldProperty))
 	float X = 0.0f;
 
 	// The Y coordinate to sample in the blendspace
 	UPROPERTY(EditAnywhere, Category = Coordinates, meta = (PinShownByDefault, FoldProperty))
 	float Y = 0.0f;
 
-	// The Z coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, Category = Coordinates, meta = (PinHiddenByDefault, FoldProperty))
-	float Z = 0.0f;
-
 	// The play rate multiplier. Can be negative, which will cause the animation to play in reverse.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DefaultValue = "1.0", PinHiddenByDefault, FoldProperty))
 	float PlayRate = 1.0f;
 
-	// Should the animation continue looping when it reaches the end?
+	// Should the animation loop back to the start when it reaches the end?
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DefaultValue = "true", PinHiddenByDefault, FoldProperty))
 	bool bLoop = true;
 
@@ -66,8 +62,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
 	bool bResetPlayTimeWhenBlendSpaceChanges = true;
 
-	// The start up position in [0, 1], it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
+	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (DefaultValue = "0.f", PinHiddenByDefault, FoldProperty))
 	float StartPosition = 0.0f;
 
@@ -126,14 +121,13 @@ public:
 	// Get the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
 	float GetPlayRate() const;
 
-	// Should the animation continue looping when it reaches the end?
+	// Should the animation loop back to the start when it reaches the end?
 	bool GetLoop() const;
 
 	// Get whether we should reset the current play time when the blend space changes
 	bool ShouldResetPlayTimeWhenBlendSpaceChanges() const;
 
-	// Get the start up position in [0, 1], it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
+	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	float GetStartPosition() const;
 
 	// Get the blendspace asset to play

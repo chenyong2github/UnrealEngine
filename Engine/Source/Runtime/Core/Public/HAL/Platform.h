@@ -1111,30 +1111,33 @@ namespace TypeTests
 #include COMPILED_PLATFORM_HEADER(PlatformCompilerSetup.h)
 
 
+#define UTF8TEXT_PASTE(x)  u8 ## x
+#define UTF16TEXT_PASTE(x) u ## x
+#define WIDETEXT_PASTE(x)  L ## x
+
 // If we don't have a platform-specific define for the TEXT macro, define it now.
 #if !defined(TEXT) && !UE_BUILD_DOCS
 	#if PLATFORM_TCHAR_IS_CHAR16
-		#define TEXT_PASTE(x) u ## x
+		#define TEXT_PASTE(x) UTF16TEXT_PASTE(x)
 	#else
-		#define TEXT_PASTE(x) L ## x
+		#define TEXT_PASTE(x) WIDETEXT_PASTE(x)
 	#endif
-		#define TEXT(x) TEXT_PASTE(x)
+	#define TEXT(x) TEXT_PASTE(x)
 #endif
-
-#define UTF8TEXT_PASTE(x) u8 ## x
 
 #if defined(__cpp_char8_t)
 	#define UTF8TEXT(x) UTF8TEXT_PASTE(x)
 #else
 	namespace UE::Core::Private
 	{
+		// Can't be constexpr because it involves casts
 		template <SIZE_T N>
 		FORCEINLINE auto ToUTF8Literal(const char(&Array)[N]) -> const UTF8CHAR(&)[N]
 		{
 			return (const UTF8CHAR(&)[N])Array;
 		}
 
-		FORCEINLINE UTF8CHAR ToUTF8Literal(unsigned long long Ch)
+		FORCEINLINE constexpr UTF8CHAR ToUTF8Literal(unsigned long long Ch)
 		{
 			return (UTF8CHAR)Ch;
 		}
@@ -1142,3 +1145,5 @@ namespace TypeTests
 
 	#define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
 #endif
+
+#define WIDETEXT(str) WIDETEXT_PASTE(str)

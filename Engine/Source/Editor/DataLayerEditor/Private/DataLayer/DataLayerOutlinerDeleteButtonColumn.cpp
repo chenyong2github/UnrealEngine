@@ -17,13 +17,15 @@
 
 FName FDataLayerOutlinerDeleteButtonColumn::GetID()
 {
-	static FName DataLayeDeleteButton("DataLayeDeleteButton");
+	static FName DataLayeDeleteButton("Remove Actor");
 	return DataLayeDeleteButton;
 }
 
 SHeaderRow::FColumn::FArguments FDataLayerOutlinerDeleteButtonColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
+	.FixedWidth(40.f)
+	.DefaultTooltip(FText::FromName(GetColumnID()))
 	[
 		SNew(SSpacer)
 	];
@@ -38,6 +40,12 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 			.VAlign(VAlign_Center)
 			.ButtonStyle(FEditorStyle::Get(), "DataLayerBrowserButton")
 			.ContentPadding(0)
+			.Visibility_Lambda([this, TreeItem, DataLayerActorItem]()
+			{
+				AActor* Actor = DataLayerActorItem->GetActor();
+				const UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
+				return (Actor && DataLayer && !DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
+			})
 			.OnClicked_Lambda([this, TreeItem, DataLayerActorItem]()
 			{
 				AActor* Actor = DataLayerActorItem->GetActor();

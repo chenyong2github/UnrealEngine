@@ -19,13 +19,20 @@ namespace AudioModulation
 
 	struct FModulationInputSettings
 	{
-		const FControlBusSettings BusSettings;
-		const FSoundModulationTransform Transform;
-		const uint8 bSampleAndHold : 1;
+		FControlBusSettings BusSettings;
+		FSoundModulationTransform Transform;
+		uint8 bSampleAndHold : 1;
 
 		FModulationInputSettings(const FSoundControlModulationInput& InInput, Audio::FDeviceId InDeviceId)
 			: BusSettings(InInput.GetBusChecked(), InDeviceId)
 			, Transform(InInput.Transform)
+			, bSampleAndHold(InInput.bSampleAndHold)
+		{
+		}
+
+		FModulationInputSettings(FSoundControlModulationInput&& InInput, Audio::FDeviceId InDeviceId)
+			: BusSettings(InInput.GetBusChecked(), InDeviceId)
+			, Transform(MoveTemp(InInput.Transform))
 			, bSampleAndHold(InInput.bSampleAndHold)
 		{
 		}
@@ -36,7 +43,7 @@ namespace AudioModulation
 	{
 	public:
 		FModulationInputProxy() = default;
-		FModulationInputProxy(const FModulationInputSettings& InSettings, FAudioModulationSystem& OutModSystem);
+		FModulationInputProxy(FModulationInputSettings&& InSettings, FAudioModulationSystem& OutModSystem);
 
 		FBusHandle BusHandle;
 
@@ -128,7 +135,7 @@ namespace AudioModulation
 	{
 	public:
 		FModulationPatchProxy() = default;
-		FModulationPatchProxy(const FModulationPatchSettings& InSettings, FAudioModulationSystem& InModSystem);
+		FModulationPatchProxy(FModulationPatchSettings&& InSettings, FAudioModulationSystem& InModSystem);
 
 		/** Whether or not the patch is bypassed (effectively just returning the default value) */
 		bool IsBypassed() const;
@@ -140,7 +147,7 @@ namespace AudioModulation
 		void Update();
 
 	protected:
-		void Init(const FModulationPatchSettings& InSettings, FAudioModulationSystem& InModSystem);
+		void Init(FModulationPatchSettings&& InSettings, FAudioModulationSystem& InModSystem);
 
 	private:
 		/** Default value of patch */
@@ -161,13 +168,13 @@ namespace AudioModulation
 		friend class FAudioModulationSystem;
 	};
 
-	class FModulationPatchRefProxy : public FModulationPatchProxy, public TModulatorProxyRefType<FPatchId, FModulationPatchRefProxy, FModulationPatchSettings>
+	class FModulationPatchRefProxy : public TModulatorProxyRefType<FPatchId, FModulationPatchRefProxy, FModulationPatchSettings>, public FModulationPatchProxy
 	{
 	public:
 		FModulationPatchRefProxy();
-		FModulationPatchRefProxy(const FModulationPatchSettings& InSettings, FAudioModulationSystem& OutModSystem);
+		FModulationPatchRefProxy(FModulationPatchSettings&& InSettings, FAudioModulationSystem& OutModSystem);
 
-		FModulationPatchRefProxy& operator =(const FModulationPatchSettings& InSettings);
+		FModulationPatchRefProxy& operator=(FModulationPatchSettings&& InSettings);
 	};
 
 	using FPatchProxyMap = TMap<FPatchId, FModulationPatchRefProxy>;

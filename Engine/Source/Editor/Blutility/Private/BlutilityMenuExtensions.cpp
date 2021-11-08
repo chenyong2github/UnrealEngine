@@ -205,7 +205,8 @@ void FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu(FMenuBuilder& Men
 
 			return false;
 		},
-		SelectedSupportedActors
+		SelectedSupportedActors,
+		"Actors.ScripterActorActions"
 	);
 }
 
@@ -225,7 +226,8 @@ void FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu(FMenuBuilder& Men
 
 			return false;
 		},
-		SelectedSupportedAssets
+		SelectedSupportedAssets,
+		"Actors.ScripterActorActions"
 	);	
 }
 
@@ -295,7 +297,7 @@ void FBlutilityMenuExtensions::ExtractFunctions(TMap<class IEditorUtilityExtensi
 }
 
 template<typename SelectionType>
-void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<IEditorUtilityExtension*, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty * Property)> IsValidPropertyType, const TArray<SelectionType> Selection)
+void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<IEditorUtilityExtension*, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty * Property)> IsValidPropertyType, const TArray<SelectionType> Selection, const FName& IconName)
 {
 	TMap<FString, TArray<FFunctionAndUtil>> CategoryFunctions;
 	ExtractFunctions(Utils, CategoryFunctions);
@@ -441,7 +443,7 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 				}
 			}),
 			false,
-			FSlateIcon("EditorStyle", "GraphEditor.Event_16x")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), IconName)
 		);
 	}
 }

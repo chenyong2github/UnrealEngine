@@ -224,7 +224,7 @@ public:
 
 		if (bNullTerminate)
 		{
-			Dest[Count * 2] = 0;
+			Dest[Count * 2] = TEXT('\0');
 		}
 	}
 
@@ -478,7 +478,7 @@ CORE_API void appOnFailSHAVerification(const TCHAR* FailedPathname, bool bFailed
  * Similar to FBufferReader, but will verify the contents of the buffer on close (on close to that 
  * we know we don't need the data anymore)
  */
-class FBufferReaderWithSHA : public FBufferReaderBase
+class FBufferReaderWithSHA final : public FBufferReaderBase
 {
 public:
 	/**
@@ -506,12 +506,12 @@ public:
 	{
 	}
 
-	~FBufferReaderWithSHA()
+	~FBufferReaderWithSHA() override
 	{
 		Close();
 	}
 
-	bool Close() final
+	bool Close() override
 	{
 		// don't redo if we were already closed
 		if (ReaderData)

@@ -143,8 +143,12 @@ private:
 	static const EReadPacketState ReadPacket(FArchive& Archive, TArray<uint8>& OutBuffer, const EReadPacketMode Mode);
 
 	void CacheNetGuids(UNetConnection* Connection);
+	void CacheDeletedActors(UNetConnection* Connection);
 
 	bool SerializeGuidCache(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
+	bool SerializeDeletedStartupActors(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
+	bool SerializeDeltaDynamicDestroyed(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
+	bool SerializeDeltaClosedChannels(UNetConnection* Connection, const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
 
 	/**
 	* Replicates the given prioritized actors, so their packets can be captured for recording.
@@ -234,7 +238,10 @@ private:
 	{
 		Idle,
 		ProcessCheckpointActors,
+		CacheDeletedActors,
 		SerializeDeletedStartupActors,
+		SerializeDeltaDynamicDestroyed,
+		SerializeDeltaClosedChannels,
 		CacheNetGuids,
 		SerializeGuidCache,
 		SerializeNetFieldExportGroupMap,
@@ -267,7 +274,7 @@ private:
 			, TotalCheckpointActors(0)
 			, CheckpointOffset(0)
 			, GuidCacheSize(0)
-			, NextNetGuidForRecording(0)
+			, NextAmortizedItem(0)
 			, NumNetGuidsForRecording(0)
 			, NetGuidsCountPos(0)
 		{}
@@ -284,11 +291,14 @@ private:
 		uint32				GuidCacheSize;
 
 		FDeltaCheckpointData DeltaCheckpointData;
+		TArray<FNetworkGUID> DeltaChannelCloseKeys;
 
 		TArray<FNetGuidCacheItem> NetGuidCacheSnapshot;
-		int32 NextNetGuidForRecording;
+		int32 NextAmortizedItem;
 		int32 NumNetGuidsForRecording;
 		FArchivePos NetGuidsCountPos;
+
+		TSet<FString> DeletedNetStartupActors;
 
 		TMap<FName, uint32> NameTableMap;
 
@@ -458,7 +468,6 @@ private:
 	TSharedPtr<IAnalyticsProvider> AnalyticsProvider;
 
 	void ReadDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, TSet<FString>& DeletedStartupActors);
-	void WriteDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, const TSet<FString>& DeletedStartupActors);
 
 	ECheckpointSaveState GetCheckpointSaveState() const { return CheckpointSaveContext.CheckpointSaveState; }
 

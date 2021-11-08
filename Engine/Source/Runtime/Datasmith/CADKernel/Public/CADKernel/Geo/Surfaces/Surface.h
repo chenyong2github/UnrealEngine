@@ -72,7 +72,7 @@ namespace CADKernel
 			Boundary.Set(UMin, UMax, VMin, VMax);
 		}		
 
-		virtual void SetMinToleranceIso()
+		void ComputeDefaultMinToleranceIso()
 		{
 			MinToleranceIso.Set(Boundary[EIso::IsoU].ComputeMinimalTolerance(), Boundary[EIso::IsoV].ComputeMinimalTolerance());
 		}
@@ -126,7 +126,6 @@ namespace CADKernel
 		void ExtendBoundaryTo(const FSurfacicBoundary MaxLimit)
 		{
 			Boundary.ExtendTo(MaxLimit);
-			SetMinToleranceIso();
 		}
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const = 0;

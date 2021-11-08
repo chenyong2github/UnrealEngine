@@ -97,7 +97,7 @@ private:
 };
 
 
-class FLayerDragDropOp : public FDecoratedDragDropOp
+class FLayerDragDropOp final : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FLayerDragDropOp, FDecoratedDragDropOp)

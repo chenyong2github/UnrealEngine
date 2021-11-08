@@ -208,7 +208,7 @@ public:
 			LOCTEXT("SpriteActionsSubMenuToolTip", "Sprite-related actions for this texture."),
 			FNewMenuDelegate::CreateStatic(&FPaperContentBrowserExtensions_Impl::PopulateSpriteActionsMenu, SelectedAssets),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperSprite")
+			FSlateIcon(FPaperStyle::Get()->GetStyleSetName(), "ClassIcon.PaperSprite")
 		);
 	}
 

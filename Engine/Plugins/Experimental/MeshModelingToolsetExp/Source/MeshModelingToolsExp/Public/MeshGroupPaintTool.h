@@ -127,7 +127,7 @@ public:
 	/** Relative size of brush */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", 
 		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso"))
-	float BrushSize;
+	float BrushSize = 0.25f;
 
 	/** When Volumetric, all faces inside the brush sphere are selected, otherwise only connected faces are selected */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Area Mode",
@@ -336,6 +336,12 @@ public:
 	void ApplyVisibilityFilter(const TArray<int32>& Triangles, TArray<int32>& VisibleTriangles);
 	void ApplyVisibilityFilter(TSet<int32>& Triangles, TArray<int32>& ROIBuffer, TArray<int32>& OutputBuffer);
 
+	// we override these so we can update the separate BrushSize property added for this tool
+	virtual void IncreaseBrushRadiusAction();
+	virtual void DecreaseBrushRadiusAction();
+	virtual void IncreaseBrushRadiusSmallStepAction();
+	virtual void DecreaseBrushRadiusSmallStepAction();
+
 protected:
 	// UMeshSculptToolBase API
 	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() { return DynamicMeshComponent; }
@@ -347,6 +353,8 @@ protected:
 
 	virtual void OnBeginStroke(const FRay& WorldRay) override;
 	virtual void OnEndStroke() override;
+
+	virtual TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
 	// end UMeshSculptToolBase API
 
 
@@ -422,6 +430,12 @@ protected:
 	UE::Geometry::FDynamicMeshOctree3 Octree;
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
+
+	bool GetInEraseStroke()
+	{
+		// Re-use the smoothing stroke key (shift) for erase stroke in the group paint tool
+		return GetInSmoothingStroke();
+	}
 
 
 	bool bPendingPickGroup = false;

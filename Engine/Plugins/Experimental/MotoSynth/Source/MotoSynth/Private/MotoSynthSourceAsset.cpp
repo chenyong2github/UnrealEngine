@@ -445,9 +445,6 @@ void UMotoSynthSource::BuildGrainTableByRPMEstimation()
 		return;
 	}
 
-	// Prepare grain table for new entries
-	GrainTable.Reset();
-
 	if (SourceSampleRate <= 0)
 	{
 		UE_LOG(LogMotoSynth, Error, TEXT("Unable to build grain table for moto synth soruce, source sample rate is invalid (%d)"), SourceSampleRate);

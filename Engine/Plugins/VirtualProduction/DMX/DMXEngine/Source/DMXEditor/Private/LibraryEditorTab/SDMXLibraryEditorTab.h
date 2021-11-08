@@ -32,9 +32,6 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	/** Details view for the library */
-	TSharedPtr<IDetailsView> DMXLibraryDetailsView;
-
 	/** The DMXEditor that owns this tab */
 	TWeakPtr<FDMXEditor> DMXEditor;
 };

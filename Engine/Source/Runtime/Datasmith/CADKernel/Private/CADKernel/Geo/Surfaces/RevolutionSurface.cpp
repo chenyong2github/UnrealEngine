@@ -18,7 +18,7 @@ CADKernel::FRevolutionSurface::FRevolutionSurface(const double InToleranceGeomet
 	// Compute rotation axis
 	RotationAxis = Axis->GetEndPoint() - Axis->GetStartPoint();
 	RotationAxis.Normalize();
-	SetMinToleranceIso();
+	ComputeDefaultMinToleranceIso();
 }
 
 void CADKernel::FRevolutionSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const

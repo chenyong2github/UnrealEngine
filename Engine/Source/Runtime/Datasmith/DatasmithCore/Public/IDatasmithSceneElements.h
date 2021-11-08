@@ -1578,6 +1578,11 @@ public:
 	virtual void RemoveMesh(const TSharedPtr< IDatasmithMeshElement >& InMesh) = 0;
 
 	/**
+	 * Removes from the scene the Mesh element at the specified index.
+	 */
+	virtual void RemoveMeshAt(int32 InIndex) = 0;
+
+	/**
 	* Remove all meshes from the scene
 	*/
 	virtual void EmptyMeshes() = 0;
@@ -1606,6 +1611,11 @@ public:
 	virtual void RemoveActor(const TSharedPtr< IDatasmithActorElement >& InActor, EDatasmithActorRemovalRule RemoveRule) = 0;
 
 	/**
+	 * Removes from the scene the Actor at the specified index.
+	 */
+	virtual void RemoveActorAt(int32 InIndex, EDatasmithActorRemovalRule RemoveRule) = 0;
+
+	/**
 	 * Adds a new Material to the scene (it won't be applied to any mesh).
 	 *
 	 * @param InMaterial the Material that will be added
@@ -1623,6 +1633,11 @@ public:
 	 * @param InMaterial the Material Element to remove
 	 */
 	virtual void RemoveMaterial(const TSharedPtr< IDatasmithBaseMaterialElement >& InMaterial) = 0;
+
+	/**
+	 * Removes from the scene the Material Element at the specified index.
+	 */
+	virtual void RemoveMaterialAt(int32 InIndex) = 0;
 
 	/**
 	 * Remove all materials from the scene
@@ -1647,6 +1662,11 @@ public:
 	 * @param InTexture the Texture Element that will be removed
 	 */
 	virtual void RemoveTexture(const TSharedPtr< IDatasmithTextureElement >& InTexture) = 0;
+
+	/**
+	 * Removes from the scene the Texture element at the specified index.
+	 */
+	virtual void RemoveTextureAt(int32 InIndex) = 0;
 
 	/**
 	* Remove all textures from the scene
@@ -1684,6 +1704,7 @@ public:
 	virtual TSharedPtr< IDatasmithMetaDataElement > GetMetaData(const TSharedPtr<IDatasmithElement>& Element) = 0;
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(const TSharedPtr<IDatasmithElement>& Element) const = 0;
 	virtual void RemoveMetaData( const TSharedPtr<IDatasmithMetaDataElement>& Element ) = 0;
+	virtual void RemoveMetaDataAt(int32 InIndex) = 0;
 
 	/**
 	 * Adds a level sequence to the scene.
@@ -1697,6 +1718,7 @@ public:
 
 	/** Returns the level sequence using this index */
 	virtual TSharedPtr< IDatasmithLevelSequenceElement > GetLevelSequence(int32 InIndex) = 0;
+	virtual const TSharedPtr< IDatasmithLevelSequenceElement >& GetLevelSequence(int32 InIndex) const = 0;
 
 	/**
 	 * Removes a level sequence from the scene.
@@ -1704,6 +1726,11 @@ public:
 	 * @param InSequence the level sequence to remove
 	 */
 	virtual void RemoveLevelSequence(const TSharedRef< IDatasmithLevelSequenceElement>& InSequence) = 0;
+
+	/**
+	 * Removes from the scene the level sequence at the specified index.
+	 */
+	virtual void RemoveLevelSequenceAt(int32 InIndex) = 0;
 
 	/**
 	 * Adds a LevelVariantSets to the scene.
@@ -1717,6 +1744,7 @@ public:
 
 	/** Returns the LevelVariantSets using this index */
 	virtual TSharedPtr< IDatasmithLevelVariantSetsElement > GetLevelVariantSets(int32 InIndex) = 0;
+	virtual const TSharedPtr< IDatasmithLevelVariantSetsElement >& GetLevelVariantSets(int32 InIndex) const = 0;
 
 	/**
 	 * Removes a LevelVariantSets from the scene.
@@ -1724,6 +1752,11 @@ public:
 	 * @param InLevelVariantSets the LevelVariantSets to remove
 	 */
 	virtual void RemoveLevelVariantSets(const TSharedPtr< IDatasmithLevelVariantSetsElement>& InLevelVariantSets) = 0;
+
+	/**
+	 * Removes from the scene the LevelVariantSets at the specified index.
+	 */
+	virtual void RemoveLevelVariantSetsAt(int32 InIndex) = 0;
 
 	/** Attach the actor to his new parent. Detach the actor if he was already attach. */
 	virtual void AttachActor(const TSharedPtr< IDatasmithActorElement >& NewParent, const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) = 0;

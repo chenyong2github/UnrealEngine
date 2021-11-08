@@ -4,6 +4,7 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/ModuleService.h"
 #include "Misc/Paths.h"
@@ -67,7 +68,7 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 
 	TabManager->RegisterTabSpawner(FSessionInfoTabs::SessionInfoID, FOnSpawnTab::CreateRaw(this, &SSessionInfoWindow::SpawnTab_SessionInfo))
 		.SetDisplayName(LOCTEXT("SessionInfo", "Session Info"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SessionInfo"))
 		.SetGroup(AppMenuGroup);
 
 	TSharedRef<FTabManager::FLayout> Layout = []() -> TSharedRef<FTabManager::FLayout>
@@ -148,7 +149,7 @@ void SSessionInfoWindow::AddSectionLine(TSharedPtr<SVerticalBox> InVerticalBox, 
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0.03f, 0.03f, 0.03f, 1.0f))
-			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
 			.Padding(FMargin(0.0f, 4.0f, 0.0f, 4.0f))
 			[
 				SNew(SBox)

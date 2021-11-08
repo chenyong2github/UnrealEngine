@@ -379,6 +379,52 @@ int32 FShaderValueType::GetResourceElementSize() const
 }
 
 
+FString FShaderValueType::GetZeroValueAsString() const
+{
+	FString FundamentalZeroConstant;
+	switch(Type)
+	{
+	case EShaderFundamentalType::None:
+		checkNoEntry();
+		break;
+	case EShaderFundamentalType::Bool:
+		FundamentalZeroConstant = TEXT("false");
+		break;
+	case EShaderFundamentalType::Int:
+	case EShaderFundamentalType::Uint:
+		FundamentalZeroConstant = TEXT("0");
+		break;
+	case EShaderFundamentalType::Float:
+		FundamentalZeroConstant = TEXT("0.0f");
+		break;
+	case EShaderFundamentalType::Struct:
+		checkf(Type != EShaderFundamentalType::Struct, TEXT("Structs not supported yet.")); //-V547
+		break;
+	}
+
+	int32 ValueCount = 0;
+	switch(DimensionType)
+	{
+	case EShaderFundamentalDimensionType::Scalar:
+		ValueCount = 1;
+		break;
+		
+	case EShaderFundamentalDimensionType::Vector:
+		ValueCount = VectorElemCount;
+		break;
+		
+	case EShaderFundamentalDimensionType::Matrix:
+		ValueCount = MatrixRowCount * MatrixColumnCount;
+		break;
+	}
+
+	TArray<FString> ValueArray;
+	ValueArray.Init(FundamentalZeroConstant, ValueCount);
+
+	return FString::Printf(TEXT("%s(%s)"), *ToString(), *FString::Join(ValueArray, TEXT(", ")));
+}
+
+
 FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 {
 	FShaderValueType ValueTypeTemp;

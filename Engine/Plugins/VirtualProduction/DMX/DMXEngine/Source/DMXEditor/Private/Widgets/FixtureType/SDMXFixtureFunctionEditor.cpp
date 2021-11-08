@@ -20,6 +20,7 @@ void SDMXFixtureFunctionEditor::Construct(const FArguments& InArgs, const TShare
 	FixtureTypeSharedData = InDMXEditor->GetFixtureTypeSharedData();
 
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixtureFunctionEditor::OnFixtureTypePropertiesChanged);
+	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureFunctionEditor::Refresh);
 	FixtureTypeSharedData->OnModesSelected.AddSP(this, &SDMXFixtureFunctionEditor::Refresh);
 	FixtureTypeSharedData->OnFunctionsSelected.AddSP(this, &SDMXFixtureFunctionEditor::Refresh);
 
@@ -215,7 +216,6 @@ bool SDMXFixtureFunctionEditor::IsPropertyVisible(const FPropertyAndParent& Prop
 		PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, ChannelSpan) ||
 		PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig) ||
 		PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions) ||
-		PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, InputModulators) ||
 		PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, ModeName))
 	{
 		return false;

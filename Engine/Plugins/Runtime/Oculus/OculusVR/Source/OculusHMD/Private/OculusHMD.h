@@ -213,7 +213,8 @@ public:
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual int32 GetPriority() const override;
-
+//	virtual bool LateLatchingEnabled() const override;
+//	virtual void PreLateLatchingViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 
 public:
 	FOculusHMD(const FAutoRegister&);
@@ -343,6 +344,8 @@ public:
 
 	OCULUSHMD_API void UpdateRTPoses();
 
+	void HandleLayerDeferredDeletionQueue_RenderThread();
+
 protected:
 	FConsoleCommands ConsoleCommands;
 	void UpdateOnRenderThreadCommandHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar);
@@ -364,6 +367,8 @@ protected:
 protected:
 	void UpdateHMDWornState();
 	EHMDWornState::Type HMDWornState = EHMDWornState::Unknown;
+
+	void UpdateHMDEvents();
 
 	union
 	{
@@ -395,6 +400,12 @@ protected:
 		uint64 Raw;
 	} OCFlags;
 
+	struct LayerDeletionEntry
+	{
+		FLayerPtr Layer;
+		uint32 FrameEnqueued;
+	};
+
 	TRefCountPtr<FCustomPresent> CustomPresent;
 	FSplashPtr Splash;
 	IRendererModule* RendererModule;
@@ -425,6 +436,7 @@ protected:
 	FSettingsPtr Settings_RenderThread;
 	FGameFramePtr Frame_RenderThread; // Valid from BeginRenderViewFamily to PostRenderViewFamily_RenderThread
 	TArray<FLayerPtr> Layers_RenderThread;
+	TArray<LayerDeletionEntry> LayerDeletionDeferredQueue;
 	FLayerPtr EyeLayer_RenderThread; // Valid to be accessed from game thread, since updated only when game thread is waiting
 	bool bNeedReAllocateDepthTexture_RenderThread;
 	bool bNeedReAllocateFoveationTexture_RenderThread;

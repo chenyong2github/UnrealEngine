@@ -267,6 +267,8 @@ public class UnrealEd : ModuleRules
 				"ClothPainter",
 				"Media",
 				"VirtualTexturingEditor",
+				"WorldPartitionEditor",
+				"WorldPartitionHLODUtilities",
 				"CSVtoSVG",
 			}
 		);

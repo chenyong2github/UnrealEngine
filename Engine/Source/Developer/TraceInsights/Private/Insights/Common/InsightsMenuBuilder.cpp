@@ -59,7 +59,7 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenWidgetReflector", "Widget Reflector"),
 			LOCTEXT("OpenWidgetReflectorToolTip", "Opens the Widget Reflector, a handy tool for diagnosing problems with live widgets."),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "WidgetReflector.Icon"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "WidgetReflector.Icon"),
 			FUIAction(FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->TryInvokeTab(WidgetReflectorTabId); })));
 		MenuBuilder.EndSection();
 	}
@@ -76,7 +76,7 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
 			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Test"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Test"),
 			OpenStarshipSuiteAction,
 			NAME_None,
 			EUserInterfaceActionType::Button

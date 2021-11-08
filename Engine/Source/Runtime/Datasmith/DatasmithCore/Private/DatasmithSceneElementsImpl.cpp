@@ -1122,6 +1122,14 @@ const TSharedPtr< IDatasmithMeshElement >& FDatasmithSceneImpl::GetMesh(int32 In
 	}
 }
 
+void FDatasmithSceneImpl::RemoveMeshAt(int32 InIndex)
+{
+	if (Meshes.IsValidIndex(InIndex))
+	{
+		Meshes.RemoveAt(InIndex);
+	}
+}
+
 static const TSharedPtr< IDatasmithMetaDataElement > InvalidMetaData;
 
 TSharedPtr< IDatasmithMetaDataElement > FDatasmithSceneImpl::GetMetaData(int32 InIndex)
@@ -1181,6 +1189,49 @@ void FDatasmithSceneImpl::RemoveMetaData( const TSharedPtr<IDatasmithMetaDataEle
 	}
 }
 
+void FDatasmithSceneImpl::RemoveMetaDataAt(int32 InIndex)
+{
+	RemoveMetaData(GetMetaData(InIndex));
+}
+
+TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithSceneImpl::GetLevelSequence(int32 InIndex)
+{
+	return LevelSequences.IsValidIndex(InIndex) ? LevelSequences[InIndex] : nullptr;
+}
+
+const TSharedPtr<IDatasmithLevelSequenceElement>& FDatasmithSceneImpl::GetLevelSequence(int32 InIndex) const
+{
+	static TSharedPtr<IDatasmithLevelSequenceElement> InvalidLevelSequence;
+	return LevelSequences.IsValidIndex(InIndex) ? LevelSequences[InIndex] : InvalidLevelSequence;
+}
+
+void FDatasmithSceneImpl::RemoveLevelSequenceAt(int32 InIndex)
+{
+	if (LevelSequences.IsValidIndex(InIndex))
+	{
+		LevelSequences.RemoveAt(InIndex);
+	}
+}
+
+TSharedPtr<IDatasmithLevelVariantSetsElement> FDatasmithSceneImpl::GetLevelVariantSets(int32 InIndex)
+{
+	return LevelVariantSets.IsValidIndex(InIndex) ? LevelVariantSets[InIndex] : nullptr;
+}
+
+const TSharedPtr<IDatasmithLevelVariantSetsElement>& FDatasmithSceneImpl::GetLevelVariantSets(int32 InIndex) const
+{
+	static TSharedPtr<IDatasmithLevelVariantSetsElement> InvalidLevelVariantSets;
+	return LevelVariantSets.IsValidIndex(InIndex) ? LevelVariantSets[InIndex] : InvalidLevelVariantSets;
+}
+
+void FDatasmithSceneImpl::RemoveLevelVariantSetsAt(int32 InIndex)
+{
+	if (LevelVariantSets.IsValidIndex(InIndex))
+	{
+		LevelVariantSets.RemoveAt(InIndex);
+	}
+}
+
 namespace DatasmithSceneImplInternal
 {
 	template<typename ContainerType, typename SharedPtrElementType>
@@ -1234,9 +1285,66 @@ namespace DatasmithSceneImplInternal
 	}
 }
 
+TSharedPtr<IDatasmithActorElement> FDatasmithSceneImpl::GetActor(int32 InIndex)
+{
+	return Actors.IsValidIndex(InIndex) ? Actors[InIndex] : nullptr;
+}
+
+const TSharedPtr<IDatasmithActorElement>& FDatasmithSceneImpl::GetActor(int32 InIndex) const 
+{
+	static TSharedPtr<IDatasmithActorElement> InvalidActor;
+	return Actors.IsValidIndex(InIndex) ? Actors[InIndex] : InvalidActor;
+}
+
 void FDatasmithSceneImpl::RemoveActor(const TSharedPtr< IDatasmithActorElement >& InActor, EDatasmithActorRemovalRule RemoveRule)
 {
 	DatasmithSceneImplInternal::RemoveActor(this, Actors, InActor, RemoveRule);
+}
+
+void FDatasmithSceneImpl::RemoveActorAt(int32 InIndex, EDatasmithActorRemovalRule RemoveRule)
+{
+	if (Actors.IsValidIndex(InIndex))
+	{
+		RemoveActor(Actors[InIndex], RemoveRule);
+	}
+}
+
+TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithSceneImpl::GetMaterial(int32 InIndex)
+{
+	return Materials.IsValidIndex(InIndex) ? Materials[InIndex] : nullptr;
+}
+
+const TSharedPtr<IDatasmithBaseMaterialElement>& FDatasmithSceneImpl::GetMaterial(int32 InIndex) const
+{
+	static TSharedPtr<IDatasmithBaseMaterialElement> InvalidBaseMaterial;
+	return Materials.IsValidIndex(InIndex) ? Materials[InIndex] : InvalidBaseMaterial;
+}
+
+void FDatasmithSceneImpl::RemoveMaterialAt(int32 InIndex)
+{
+	if (Materials.IsValidIndex(InIndex))
+	{
+		Materials.RemoveAt(InIndex);
+	}
+}
+
+TSharedPtr<IDatasmithTextureElement> FDatasmithSceneImpl::GetTexture(int32 InIndex)
+{
+	return Textures.IsValidIndex(InIndex) ? Textures[InIndex] : nullptr;
+}
+
+const TSharedPtr<IDatasmithTextureElement>& FDatasmithSceneImpl::GetTexture(int32 InIndex) const
+{
+	static TSharedPtr<IDatasmithTextureElement> InvalidTexture;
+	return Textures.IsValidIndex(InIndex) ? Textures[InIndex] : InvalidTexture;
+}
+
+void FDatasmithSceneImpl::RemoveTextureAt(int32 InIndex)
+{
+	if (Textures.IsValidIndex(InIndex))
+	{
+		Textures.RemoveAt(InIndex);
+	}
 }
 
 namespace DatasmithSceneImplInternal

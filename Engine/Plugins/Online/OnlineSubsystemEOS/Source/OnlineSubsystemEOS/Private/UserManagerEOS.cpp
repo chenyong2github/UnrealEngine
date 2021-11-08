@@ -536,8 +536,33 @@ void FUserManagerEOS::LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token)
 struct FConnectCredentials :
 	public EOS_Connect_Credentials
 {
-	FConnectCredentials(EOS_EExternalCredentialType InType, const TArray<uint8>& InToken)
-		: EOS_Connect_Credentials()
+	FConnectCredentials(EOS_EExternalCredentialType InType, const FExternalAuthToken& AuthToken) :
+		EOS_Connect_Credentials()
+	{
+		if (AuthToken.HasTokenData())
+		{
+			Init(InType, AuthToken.TokenData);
+		}
+		else if (AuthToken.HasTokenString())
+		{
+			Init(InType, AuthToken.TokenString);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("FConnectCredentials object cannot be constructed with invalid FExternalAuthToken parameter"));
+		}
+	}
+
+	void Init(EOS_EExternalCredentialType InType, const FString& InTokenString)
+	{
+		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		Token = TokenAnsi;
+		Type = InType;
+
+		FCStringAnsi::Strncpy(TokenAnsi, TCHAR_TO_UTF8(*InTokenString), InTokenString.Len() + 1);
+	}
+
+	void Init(EOS_EExternalCredentialType InType, const TArray<uint8>& InToken)
 	{
 		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
 		Token = TokenAnsi;
@@ -546,6 +571,7 @@ struct FConnectCredentials :
 		uint32_t InOutBufferLength = EOS_MAX_TOKEN_SIZE;
 		EOS_ByteArray_ToString(InToken.GetData(), InToken.Num(), TokenAnsi, &InOutBufferLength);
 	}
+
 	char TokenAnsi[EOS_MAX_TOKEN_SIZE];
 };
 
@@ -554,15 +580,16 @@ bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
 	GetPlatformAuthToken(LocalUserNum,
 		FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
 		{
-			if (!bWasSuccessful || !AuthToken.HasTokenData())
+			if (!bWasSuccessful || !AuthToken.IsValid())
 			{
 				UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to the platform OSS giving an empty auth token"), LocalUserNum);
 				return;
 			}
 
 			// Now login into our EOS account
+
 			check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
-			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken.TokenData);
+			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken);
 			EOS_Connect_LoginOptions Options = { };
 			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 			Options.Credentials = &Credentials;
@@ -648,40 +675,78 @@ void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
 		return;
 	}
 
-	EOS_EpicAccountId AccountId = UserNumToAccountIdMap[LocalUserNum];
-	EOS_Auth_Token* AuthToken = nullptr;
-	EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
-	CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
-
-	EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
-	if (CopyResult == EOS_EResult::EOS_Success)
+	const FEOSSettings Settings = UEOSSettings::GetSettings();
+	if (Settings.bUseEAS)
 	{
-		EOS_Connect_Credentials Credentials = { };
-		Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
-		Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
-		Credentials.Token = AuthToken->AccessToken;
+		EOS_EpicAccountId AccountId = UserNumToAccountIdMap[LocalUserNum];
+		EOS_Auth_Token* AuthToken = nullptr;
+		EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
+		CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
 
-		EOS_Connect_LoginOptions Options = { };
-		Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
-		Options.Credentials = &Credentials;
-
-		FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
-		CallbackObj->CallbackLambda = [LocalUserNum, AccountId, this](const EOS_Connect_LoginCallbackInfo* Data)
+		EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
+		if (CopyResult == EOS_EResult::EOS_Success)
 		{
-			if (Data->ResultCode != EOS_EResult::EOS_Success)
-			{
-				UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-				Logout(LocalUserNum);
-			}
-		};
-		EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			EOS_Connect_Credentials Credentials = { };
+			Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+			Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
+			Credentials.Token = AuthToken->AccessToken;
 
-		EOS_Auth_Token_Release(AuthToken);
+			EOS_Connect_LoginOptions Options = { };
+			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+			Options.Credentials = &Credentials;
+
+			FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
+			CallbackObj->CallbackLambda = [LocalUserNum, AccountId, this](const EOS_Connect_LoginCallbackInfo* Data)
+			{
+				if (Data->ResultCode != EOS_EResult::EOS_Success)
+				{
+					UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+					Logout(LocalUserNum);
+				}
+			};
+			EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+
+			EOS_Auth_Token_Release(AuthToken);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
+			Logout(LocalUserNum);
+		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
-		Logout(LocalUserNum);
+		// Not using EAS so grab the platform auth token
+		GetPlatformAuthToken(LocalUserNum,
+			FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
+			{
+				if (!bWasSuccessful || !AuthToken.HasTokenData())
+				{
+					UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to the platform OSS giving an empty auth token"), LocalUserNum);
+					Logout(LocalUserNum);
+					return;
+				}
+
+				// Now login into our EOS account
+				check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+				const FOnlineAccountCredentials& Creds = *LocalUserNumToLastLoginCredentials[LocalUserNum];
+				EOS_EExternalCredentialType CredType = ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), Creds);
+				FConnectCredentials Credentials(CredType, AuthToken);
+				EOS_Connect_LoginOptions Options = { };
+				Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+				Options.Credentials = &Credentials;
+
+				FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
+				CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Connect_LoginCallbackInfo* Data)
+				{
+					if (Data->ResultCode != EOS_EResult::EOS_Success)
+					{
+						UE_LOG_ONLINE(Error, TEXT("Failed to refresh ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+						Logout(LocalUserNum);
+					}
+				};
+				EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+			}));
 	}
 }
 
@@ -1125,7 +1190,7 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	}
 	else
 	{
-		UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+		UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful for ProductUserId (%s). Finished with EOS_EResult %s"), *LexToString(ProductUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 	}
 
 	return bResult;
@@ -1153,22 +1218,18 @@ void FUserManagerEOS::GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUser
 		FConnectQueryProductUserIdMappingsCallback* CallbackObj = new FConnectQueryProductUserIdMappingsCallback();
 		CallbackObj->CallbackLambda = [this, ProductUserId, Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data)
 		{
+			EOS_EpicAccountId AccountId = nullptr;
+
 			if (Data->ResultCode == EOS_EResult::EOS_Success)
 			{
-				EOS_EpicAccountId AccountId;
-				if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
-				{
-					Callback(ProductUserId, AccountId);
-				}
-				else
-				{
-					UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] Unable to get Epic account for ProductUserId (%s)."), *LexToString(ProductUserId));
-				}
+				GetEpicAccountIdFromProductUserId(ProductUserId, AccountId);
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful. Finished with EOS_EResult %s."), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+				UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful for ProductUserId (%s). Finished with EOS_EResult %s."), *LexToString(ProductUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 			}
+
+			Callback(ProductUserId, AccountId);
 		};
 
 		EOS_Connect_QueryProductUserIdMappings(EOSSubsystem->ConnectHandle, &QueryProductUserIdMappingsOptions, CallbackObj, CallbackObj->GetCallbackPtr());

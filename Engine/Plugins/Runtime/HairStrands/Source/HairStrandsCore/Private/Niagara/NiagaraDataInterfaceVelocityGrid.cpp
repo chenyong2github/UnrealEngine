@@ -637,6 +637,7 @@ void FNDIVelocityGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	{
 		UE_LOG(LogVelocityGrid, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
 	}
+	SourceData->~FNDIVelocityGridData();
 }
 
 //------------------------------------------------------------------------------------------------------------

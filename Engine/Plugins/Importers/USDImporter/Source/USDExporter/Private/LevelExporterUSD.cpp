@@ -19,79 +19,6 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
 #include "IPythonScriptPlugin.h"
-#include "ISequencer.h"
-#include "LevelEditorSequencerIntegration.h"
-
-namespace UE
-{
-	namespace LevelExporterUSD
-	{
-		namespace Private
-		{
-			/**
-			 * Fully streams in all levels whose names are not in LevelsToIgnore, returning a list of all levels that were streamed in.
-			 */
-			TArray<ULevel*> StreamInRequiredLevels( UWorld* World, const TSet<FString>& LevelsToIgnore )
-			{
-				TArray<ULevel*> Result;
-				if ( !World )
-				{
-					return Result;
-				}
-
-				// Make sure all streamed levels are loaded so we can query their visibility
-				const bool bForce = true;
-				World->LoadSecondaryLevels( bForce );
-
-				if ( ULevel* PersistentLevel = World->PersistentLevel )
-				{
-					const FString LevelName = TEXT( "Persistent Level" );
-					if ( !PersistentLevel->bIsVisible && !LevelsToIgnore.Contains( LevelName ) )
-					{
-						Result.Add( PersistentLevel );
-					}
-				}
-
-				for ( ULevelStreaming* StreamingLevel : World->GetStreamingLevels() )
-				{
-					if ( StreamingLevel )
-					{
-						if ( ULevel* Level = StreamingLevel->GetLoadedLevel() )
-						{
-							const FString LevelName = Level->GetTypedOuter<UWorld>()->GetName();
-							if ( !Level->bIsVisible && !LevelsToIgnore.Contains( LevelName ) )
-							{
-								Result.Add( Level );
-							}
-						}
-					}
-				}
-
-				TArray<bool> ShouldBeVisible;
-				ShouldBeVisible.SetNumUninitialized(Result.Num());
-				for ( bool& bVal : ShouldBeVisible )
-				{
-					bVal = true;
-				}
-
-				const bool bForceLayersVisible = true;
-				EditorLevelUtils::SetLevelsVisibility( Result, ShouldBeVisible, bForceLayersVisible, ELevelVisibilityDirtyMode::DontModify );
-
-				return Result;
-			}
-
-			/** Streams out LevelsToStreamOut from World */
-			void StreamOutLevels( const TArray<ULevel*>& LevelsToStreamOut )
-			{
-				TArray<bool> ShouldBeVisible;
-				ShouldBeVisible.SetNumZeroed( LevelsToStreamOut.Num() );
-
-				const bool bForceLayersVisible = false;
-				EditorLevelUtils::SetLevelsVisibility( LevelsToStreamOut, ShouldBeVisible, bForceLayersVisible, ELevelVisibilityDirtyMode::DontModify );
-			}
-		}
-	}
-}
 
 ULevelExporterUSD::ULevelExporterUSD()
 {
@@ -127,71 +54,45 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 		Options = Cast<ULevelExporterUSDOptions>( ExportTask->Options );
 	}
 
-	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+	if ( !Options )
 	{
 		Options = GetMutableDefault<ULevelExporterUSDOptions>();
-		if ( Options )
-		{
-			// There is a dedicated "Export selected" option that sets this, so let's sync to it
-			if ( ExportTask )
-			{
-				Options->Inner.bSelectionOnly = ExportTask->bSelected;
-			}
-
-			const bool bIsImport = false;
-			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
-			if ( !bContinue )
-			{
-				return false;
-			}
-		}
 	}
-
 	if ( !Options )
 	{
 		return false;
 	}
 
-	// The more robust thing is to force-stream-in all levels that are currently invisible/unloaded but we check to export.
-	// Not only to force actors to spawn, but also to make sure that when we want to bake a landscape it is visible
-	TArray<ULevel*> StreamedInLevels = UE::LevelExporterUSD::Private::StreamInRequiredLevels( World, Options->Inner.LevelsToIgnore );
-
-	if ( Options->Inner.bIgnoreSequencerAnimations )
+	if ( Options && ExportTask )
 	{
-		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
+		// Set this early so that we can use the Object from it (the world/level to export) when showing
+		// the level export options dialog.
+		// Note that we must also consider how LevelSequenceExporterUSD may call down to us and provide the
+		// export task that we must use. In that case we will be an automated export too
+		Options->CurrentTask = ExportTask;
+
+		// There is a dedicated "Export selected" option that sets this, so let's sync to it
+		Options->Inner.bSelectionOnly = ExportTask->bSelected;
+	}
+
+	// Manual export: Show dialog options
+	if ( !ExportTask || !ExportTask->bAutomated )
+	{
+		const bool bIsImport = false;
+		const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+		if ( !bContinue )
 		{
-			if ( TSharedPtr<ISequencer> PinnedSequencer = Sequencer.Pin() )
-			{
-				PinnedSequencer->EnterSilentMode();
-				PinnedSequencer->RestorePreAnimatedState();
-			}
+			return false;
 		}
 	}
 
 	// Note how we don't explicitly pass the Options down to Python here: We stash our desired export options on the CDO, and
 	// those are read from Python by executing export_with_cdo_options().
-	Options->CurrentTask = ExportTask;
 	if ( IPythonScriptPlugin::Get()->IsPythonAvailable() )
 	{
 		IPythonScriptPlugin::Get()->ExecPythonCommand( TEXT( "import usd_unreal.level_exporter; usd_unreal.level_exporter.export_with_cdo_options()" ) );
 	}
 	Options->CurrentTask = nullptr;
-
-	if ( Options->Inner.bIgnoreSequencerAnimations )
-	{
-		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
-		{
-			if ( TSharedPtr<ISequencer> PinnedSequencer = Sequencer.Pin() )
-			{
-				PinnedSequencer->InvalidateCachedData();
-				PinnedSequencer->ForceEvaluate();
-				PinnedSequencer->ExitSilentMode();
-			}
-		}
-	}
-
-	// Return the newly streamed in levels to their old visibilities
-	UE::LevelExporterUSD::Private::StreamOutLevels( StreamedInLevels );
 
 	return true;
 #else

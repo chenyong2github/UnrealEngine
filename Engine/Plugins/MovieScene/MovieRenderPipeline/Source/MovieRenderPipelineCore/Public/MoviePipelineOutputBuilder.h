@@ -10,7 +10,7 @@ class UMoviePipeline;
 
 
 
-class MOVIERENDERPIPELINECORE_API FMoviePipelineOutputMerger
+class MOVIERENDERPIPELINECORE_API FMoviePipelineOutputMerger : public MoviePipeline::IMoviePipelineOutputMerger
 {
 public:
 	FMoviePipelineOutputMerger(UMoviePipeline* InOwningMoviePipeline)
@@ -19,12 +19,11 @@ public:
 	}
 
 public:
-	FMoviePipelineMergerOutputFrame& QueueOutputFrame_GameThread(const FMoviePipelineFrameOutputState& CachedOutputState);
-	void OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData);
-	void OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData);
-	void AbandonOutstandingWork();
-
-	int32 GetNumOutstandingFrames() const { return PendingData.Num(); }
+	virtual FMoviePipelineMergerOutputFrame& QueueOutputFrame_GameThread(const FMoviePipelineFrameOutputState& CachedOutputState) override;
+	virtual void OnCompleteRenderPassDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData) override;
+	virtual void OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData) override;
+	virtual void AbandonOutstandingWork() override;
+	virtual int32 GetNumOutstandingFrames() const override { return PendingData.Num(); }
 
 public:
 	TQueue<FMoviePipelineMergerOutputFrame> FinishedFrames;

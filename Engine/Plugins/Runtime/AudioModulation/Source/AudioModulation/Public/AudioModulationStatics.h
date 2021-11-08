@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioModulation.h"
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
@@ -15,6 +13,7 @@
 // Forward Declarations
 namespace AudioModulation
 {
+	class FAudioModulation;
 	class FAudioModulationSystem;
 } // namespace AudioModulation
 
@@ -141,7 +140,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Modulation Generator", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "bus modulation modulator generator")
-)
+	)
 	static void DeactivateGenerator(const UObject* WorldContextObject, USoundModulationGenerator* Generator);
 
 	/** Saves control bus mix to a profile, serialized to an ini file.  If mix is loaded, uses current proxy's state.

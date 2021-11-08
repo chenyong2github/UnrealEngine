@@ -91,6 +91,17 @@ FSkeletalMeshEditor::~FSkeletalMeshEditor()
 	{
 		Editor->UnregisterForUndo(this);
 	}
+
+	// Reset the preview scene mesh before closing the toolkit or destroying the preview scene so the viewports can clean up properly.
+	// This is due to the viewports directly needing to use delegates on a nested USkeletalMesh parented to a debug component the editor uses.
+	// The USkeletalMesh persists beyond the lifetime of the debug component used by the toolkit or viewports,
+	// which can cause issues for viewports with delegates for on change notifications on the skeletal mesh to track undo/redo for things like floor mesh movement,
+	// since the floor mesh position is stored on the skeletal mesh, and not the debug component.
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
+	}
 }
 
 bool IsReductionParentBaseLODUseSkeletalMeshBuildWorkflow(USkeletalMesh* SkeletalMesh, int32 TestLODIndex)

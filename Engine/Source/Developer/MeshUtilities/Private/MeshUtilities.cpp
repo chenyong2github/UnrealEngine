@@ -6315,7 +6315,7 @@ TSharedRef<FExtender> FMeshUtilities::GetLevelViewportContextMenuExtender(const 
 			MenuBuilder.AddMenuEntry(
 				FText::Format(LOCTEXT("ConvertSelectedActorsToStaticMeshText", "Convert {0} To Static Mesh"), ActorName),
 				LOCTEXT("ConvertSelectedActorsToStaticMeshTooltip", "Convert the selected actor's meshes to a new Static Mesh asset. Supports static and skeletal meshes."),
-				FSlateIcon(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Convert"),
 				FUIAction(
 					FExecuteAction::CreateRaw(this, &FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction, InActors),
 					FCanExecuteAction::CreateLambda([bCanExecute]() { return bCanExecute; }))

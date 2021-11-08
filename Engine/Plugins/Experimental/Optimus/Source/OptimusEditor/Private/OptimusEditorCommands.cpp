@@ -2,7 +2,11 @@
 
 #include "OptimusEditorCommands.h"
 
+#include "EditorStyleSet.h"
+
+
 #define LOCTEXT_NAMESPACE "OptimusEditorCommands"
+
 
 FOptimusEditorCommands::FOptimusEditorCommands() 
 	: TCommands<FOptimusEditorCommands>(
@@ -20,5 +24,6 @@ void FOptimusEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(Compile, "Compile", "Compile the current deformer graph into a compute kernel graph.", EUserInterfaceActionType::Button, FInputChord(EKeys::F7));
 }
+
 
 #undef LOCTEXT_NAMESPACE

@@ -4,16 +4,19 @@
 
 #include "Data/PropertySelection.h"
 #include "LevelSnapshotsLog.h"
+#include "Styling/AppStyle.h"
 #include "Views/Results/LevelSnapshotsEditorResultsRow.h"
-
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 void LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandledByPropertyRowGenerator(
 	TFieldPath<FProperty> InFieldPath,
-	UObject* InSnapshotObject,
-	UObject* InWorldObject, 
+	TObjectPtr<UObject> InSnapshotObject,
+	TObjectPtr<UObject> InWorldObject, 
 	const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView,
 	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow)
 {
@@ -21,9 +24,27 @@ void LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandle
 	{
 		return;
 	}
+	
+	const TObjectPtr<FProperty> Property = InFieldPath.Get();
+
+	if (!ensureAlwaysMsgf(Property,
+		TEXT("%hs: Property was not able to be retrieved from InFieldPath. Please ensure InFieldPath is valid before calling this function. InFieldPath: %s"),
+		__FUNCTION__, *InFieldPath.ToString()))
+	{
+		return;
+	}
+
+	if (CastField<FStructProperty>(Property))
+	{
+		// Don't generate widgets for FStructProperty
+		return;
+	}
 
 	TSharedPtr<SWidget> CustomSnapshotWidget;
 	TSharedPtr<SWidget> CustomWorldWidget;
+
+	const void* WorldPropertyValue = GetPropertyValueFromProperty(Property, InWorldObject);
+	const void* SnapshotPropertyValue = GetPropertyValueFromProperty(Property, InSnapshotObject);
 
 	if (InFieldPath->GetName() == "AttachParent")
 	{
@@ -31,24 +52,24 @@ void LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandle
 		{
 			if (const USceneComponent* AsSceneComponent = Cast<USceneComponent>(InPropertyObject))
 			{
-				if (const AActor* OwningActor = AsSceneComponent->GetOwner())
+				if (const TObjectPtr<AActor> OwningActor = AsSceneComponent->GetOwner())
 				{
 					return FString::Printf(TEXT("%s.%s"), *OwningActor->GetActorLabel(), *InWidgetText);
 				}
 			}
 
-			return InWidgetText;
+			return LOCTEXT("LevelSnapshotsEditorResults_AttachParentInvalidText","No Attach Parent found.").ToString();
 		};
 		
-		CustomSnapshotWidget = GenerateObjectPropertyWidget(InFieldPath, InSnapshotObject, WidgetTextEditLambda);
-		CustomWorldWidget = GenerateObjectPropertyWidget(InFieldPath, InWorldObject, WidgetTextEditLambda);
+		CustomSnapshotWidget = GenerateObjectPropertyWidget(SnapshotPropertyValue, WidgetTextEditLambda);
+		CustomWorldWidget = GenerateObjectPropertyWidget(WorldPropertyValue, WidgetTextEditLambda);
 	}
 	else
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("%hs: Unsupported Property found named '%s' with FieldPath: %s"), __FUNCTION__, *InFieldPath->GetAuthoredName(), *InFieldPath.ToString());
 		
-		CustomSnapshotWidget = GenerateGenericPropertyWidget(InFieldPath, InSnapshotObject, nullptr);
-		CustomWorldWidget = GenerateGenericPropertyWidget(InFieldPath, InWorldObject, nullptr);
+		CustomSnapshotWidget = DeterminePropertyTypeAndReturnWidget(Property, SnapshotPropertyValue, InSnapshotObject);
+		CustomWorldWidget = DeterminePropertyTypeAndReturnWidget(Property, WorldPropertyValue, InWorldObject);
 	}
 
 	if (!CustomSnapshotWidget.IsValid() && !CustomWorldWidget.IsValid())
@@ -67,129 +88,165 @@ void LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandle
 	InDirectParentRow.Pin()->AddToChildRows(NewProperty);
 }
 
-TSharedPtr<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::GenerateGenericPropertyWidget(
-	TFieldPath<FProperty> InFieldPath, UObject* InObject,
-	TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda)
+void* LevelSnapshotsEditorCustomWidgetGenerator::GetPropertyValueFromProperty(const TObjectPtr<FProperty> InProperty, const TObjectPtr<UObject> InObject)
 {
-	const FProperty* Property = InFieldPath.Get();
-
-	if (CastField<FStructProperty>(Property))
-	{
-		// Don't generate widgets for FStructProperty
-		return nullptr;
-	}
-
+	void* PropertyValue = nullptr;
+	
 	if (InObject->IsValidLowLevel())
 	{
-		void* PropertyValue = nullptr;
+		const TOptional<FLevelSnapshotPropertyChain> OutChain =
+			FLevelSnapshotPropertyChain::FindPathToProperty(InProperty, InObject->GetClass(), true);
 
-		UObject* ParentObject = Property->GetOwner<UObject>();
-		check(ParentObject);
-
-		const FName OwnerObjectName = ParentObject->GetFName();
-
-		// Owning object is an FProperty (usually for members of a collection
-		// I.E., Property is an item in array/set/map, so OwnerProperty is the collection property)
-		if (const FProperty* OwnerProperty = FindFProperty<FProperty>(InObject->GetClass(), OwnerObjectName))
+		// Owning object is an FProperty (usually for members of a collection)
+		// I.E., Property is an item in array/set/map/struct, so OwnerProperty is the collection property)
+		if (OutChain.IsSet() && OutChain.GetValue().GetNumProperties() > 0)
 		{
-			void* OwnerPropertyValue = OwnerProperty->ContainerPtrToValuePtr<void>(InObject);
-			PropertyValue = OwnerProperty->ContainerPtrToValuePtr<void>(OwnerPropertyValue);
-		}
-		else if (const UScriptStruct* ParentScriptStruct = Cast<UScriptStruct>(ParentObject)) 
-		{
-			// For members of a struct, the struct is a UScriptStruct object rather than the FStructProperty.
-			// In this case, we need to go through the Class tree an generate a PropertyChain, e.g. FStructProperty->FStructProperty->LeafProperty
+			PropertyValue = InObject;
 
-			UStruct* IterableStruct;
-
-			if (UScriptStruct* AsScriptStruct = Cast<UScriptStruct>(InObject))
+			for (int32 ChainItr = 0; ChainItr < OutChain->GetNumProperties(); ChainItr++)
 			{
-				IterableStruct = AsScriptStruct;
-			}
-			else
-			{
-				IterableStruct = InObject->GetClass();
-			}
-			check(IterableStruct);
-
-			TOptional<FLevelSnapshotPropertyChain> OutChain = FLevelSnapshotPropertyChain::FindPathToProperty(Property, IterableStruct);
-
-			if (OutChain.IsSet())
-			{
-				void* ChainIterationPropertyPtr = InObject;
-
-				const int32 ChainLength = OutChain.GetValue().GetNumProperties(); 
-
-				for (int32 ChainIndex = 0; ChainIndex < ChainLength; ChainIndex++)
+				if (const FProperty* ChainProperty = OutChain->GetPropertyFromRoot(ChainItr))
 				{
-					const FProperty* IteratedProperty = OutChain.GetValue().GetPropertyFromRoot(ChainIndex);
-
-					ChainIterationPropertyPtr = IteratedProperty->ContainerPtrToValuePtr<void>(ChainIterationPropertyPtr);
+					PropertyValue = ChainProperty->ContainerPtrToValuePtr<void>(PropertyValue);
+					
+					continue;
 				}
-
-				PropertyValue = ChainIterationPropertyPtr;
-			}
 			
-		}
-		else if (Property->GetOwner<UClass>()) // This means the property is a surface-level property in a class, so it's not in a struct or collection
-		{
-			PropertyValue = Property->ContainerPtrToValuePtr<void>(InObject);
-		}
-
-		// We should have found a value ptr in the methods above, but we ensure in case of a missed scenario
-		if (ensure(PropertyValue != nullptr))
-		{
-			FString ValueText;
-			Property->ExportTextItem(ValueText, PropertyValue, nullptr, ParentObject, PPF_None);
-
-			if (InWidgetTextEditLambda)
-			{
-				ValueText = InWidgetTextEditLambda(ValueText, InObject);
+				UE_LOG(LogLevelSnapshots, Error, TEXT("%hs: Property named %s: PropertyChain with length of %i returned but FProperty at index %i from root is null."),
+					__FUNCTION__, *InProperty->GetName(), OutChain->GetNumProperties(), ChainItr);
+				PropertyValue = nullptr;
 			}
-
-			return SNew(STextBlock)
-				.Text(FText::FromString(ValueText))
-				.Font(FEditorStyle::GetFontStyle("BoldFont"))
-				.ToolTipText(FText::FromString(ValueText));
 		}
+		else if (InProperty->GetOwner<UClass>()) // Owning object is something else, make sure it has UClass
+		{
+			PropertyValue = InProperty->ContainerPtrToValuePtr<void>(InObject);
+		}
+		else
+		{
+			const TObjectPtr<UObject> Owner = InProperty->GetOwner<UObject>();
+			const FString OwnerName = Owner ? Owner->GetName() : "None";
+			UE_LOG(LogLevelSnapshots, Warning,
+				TEXT("%hs: Property named %s with owner named '%s' does not have an owning FProperty or an owning UClass."),
+				__FUNCTION__, *InProperty->GetName(), *OwnerName);
+		}
+	}
+
+	return PropertyValue;
+}
+
+TSharedPtr<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::GenerateGenericPropertyWidget(
+	const TObjectPtr<FProperty> InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject,
+	const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda)
+{
+	// We should have found a value ptr in the methods above, but we ensure in case of a missed scenario
+	if (ensure(InPropertyValue && InObject))
+	{
+		FString ValueText;
+		InProperty->ExportTextItem(ValueText, InPropertyValue, 0, InObject, PPF_None);
+
+		if (InWidgetTextEditLambda)
+		{
+			ValueText = InWidgetTextEditLambda(ValueText, InObject);
+		}
+
+		return SNew(STextBlock)
+			.Text(FText::FromString(ValueText))
+			.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
+			.ToolTipText(FText::FromString(ValueText));
 	}
 
 	return nullptr;
 }
 
 TSharedPtr<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::GenerateObjectPropertyWidget(
-	TFieldPath<FProperty> InFieldPath, const UObject* InObject, TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda)
+	const void* InPropertyValue, const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda)
 {
-	if (InObject->IsValidLowLevel())
+	if (const TObjectPtr<UObject> PropertyObject = (UObject*)InPropertyValue)
 	{
-		if (const FObjectProperty* AsAttachParentObjectProperty = CastField<FObjectProperty>(InFieldPath.Get()))
+		FString WidgetText = PropertyObject->GetName();
+
+		if (InWidgetTextEditLambda)
 		{
-			const UObject* PropertyObject = AsAttachParentObjectProperty->GetObjectPropertyValue_InContainer(InObject);
-
-			if (PropertyObject->IsValidLowLevel())
-			{
-				FString WidgetText = PropertyObject->GetName();
-
-				if (InWidgetTextEditLambda)
-				{
-					WidgetText = InWidgetTextEditLambda(WidgetText, PropertyObject);
-				}
-
-				return SNew(STextBlock)
-				.Text(FText::FromString(WidgetText))
-				.Font(FEditorStyle::GetFontStyle("BoldFont"))
-				.ToolTipText(FText::FromString(WidgetText));
-
-			}
-			else
-			{
-				return SNew(STextBlock)
-				.Text(LOCTEXT("LevelSnapshotsEditorResults_AttachParentInvalidText","No Attach Parent found."));
-			}
+			WidgetText = InWidgetTextEditLambda(WidgetText, PropertyObject);
 		}
+
+		return MakeComboBoxWithSelection(WidgetText, FText::FromString(WidgetText));
 	}
 
 	return nullptr;
+}
+
+TSharedPtr<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::DeterminePropertyTypeAndReturnWidget(
+	const TObjectPtr<FProperty> InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject)
+{
+	if (!ensure(InPropertyValue))
+	{
+		return nullptr;
+	}
+	
+	// Then let's get the class name
+	const FText ToolTipText = FText::FromString(InProperty->GetClass()->GetName());
+
+	// Then we'll iterate over relevant property types to see what kind of widget we should create
+	if (const TObjectPtr<FNumericProperty> NumericProperty = CastField<FNumericProperty>(InProperty))
+	{
+		if (const TObjectPtr<FFloatProperty> FloatProperty = CastField<FFloatProperty>(InProperty))
+		{
+			const float Value = FloatProperty->GetFloatingPointPropertyValue(InPropertyValue);
+			return SNew(SNumericEntryBox<float>)
+				.ToolTipText(ToolTipText)
+				.Value(Value)
+				.AllowSpin(false)
+				.MinSliderValue(Value)
+				.MaxSliderValue(Value);
+		}
+		else if (const TObjectPtr<FDoubleProperty> DoubleProperty = CastField<FDoubleProperty>(InProperty))
+		{
+			const double Value = DoubleProperty->GetFloatingPointPropertyValue(InPropertyValue);
+			return SNew(SNumericEntryBox<double>)
+				.ToolTipText(ToolTipText)
+				.Value(Value)
+				.AllowSpin(false)
+				.MinSliderValue(Value)
+				.MaxSliderValue(Value);
+		}
+		else // Not a float or double? Then some kind of integer (byte, int8, int16, int32, int64, uint8, uint16 ...)
+		{
+			const int64 Value = NumericProperty->GetUnsignedIntPropertyValue(InPropertyValue);
+			return SNew(SNumericEntryBox<int64>)
+				.ToolTipText(ToolTipText)
+				.Value(Value)
+				.AllowSpin(false)
+				.MinSliderValue(Value)
+				.MaxSliderValue(Value);
+		}
+	}
+	else if (const TObjectPtr<FBoolProperty> BoolProperty = CastField<FBoolProperty>(InProperty))
+	{
+		return SNew(SCheckBox)
+				.IsChecked(BoolProperty->GetPropertyValue(InPropertyValue))
+				.ToolTipText(ToolTipText);
+	}
+	else if (CastField<FObjectPropertyBase>(InProperty))
+	{
+		return GenerateObjectPropertyWidget(InPropertyValue);
+	}
+	else
+	{
+		// If the property is not supported, use this as a fallback
+		return GenerateGenericPropertyWidget(InProperty, InPropertyValue, InObject);
+	}
+}
+
+TSharedRef<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::MakeComboBoxWithSelection(const FString& InString, const FText& InToolTipText)
+{
+	return SNew(SComboBox<TSharedPtr<FString>>)
+		   [
+			   SNew(STextBlock)
+				.ToolTipText(InToolTipText)
+				.Text(FText::FromString(InString))
+				.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
+		   ];
 }
 
 #undef LOCTEXT_NAMESPACE

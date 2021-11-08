@@ -43,7 +43,7 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* Heig
 			if (ImageWrapper->GetFormat() != ERGBFormat::Gray)
 			{
 				Result.ResultCode = ELandscapeImportResult::Warning;
-				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileColorPng", "The heightmap file appears to be a color png, grayscale is expected. The import *can* continue, but the result may not be what you expect...");
+				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileColorPng", "The imported layer is not Grayscale. Results in-Editor will not be consistent with the source file.");
 			}
 			else if (ImageWrapper->GetBitDepth() != 16)
 			{
@@ -94,7 +94,7 @@ FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Png::Import(const TCH
 			if (ImageWrapper->GetFormat() != ERGBFormat::Gray)
 			{
 				Result.ResultCode = ELandscapeImportResult::Warning;
-				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileColorPng", "The heightmap file appears to be a color png, grayscale is expected. The import *can* continue, but the result may not be what you expect...");
+				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileColorPng", "The imported layer is not Grayscale. Results in-Editor will not be consistent with the source file.");
 			}
 			else if (ImageWrapper->GetBitDepth() != 16)
 			{
@@ -182,7 +182,7 @@ FLandscapeFileInfo FLandscapeWeightmapFileFormat_Png::Validate(const TCHAR* Weig
 			if (ImageWrapper->GetFormat() != ERGBFormat::Gray)
 			{
 				Result.ResultCode = ELandscapeImportResult::Warning;
-				Result.ErrorMessage = LOCTEXT("Import_LayerColorPng", "The layer file appears to be a color png, grayscale is expected. The import *can* continue, but the result may not be what you expect...");
+				Result.ErrorMessage = LOCTEXT("Import_LayerColorPng", "The imported layer is not Grayscale. Results in-Editor will not be consistent with the source file.");
 			}
 			FLandscapeFileResolution ImportResolution;
 			ImportResolution.Width = ImageWrapper->GetWidth();
@@ -229,7 +229,7 @@ FLandscapeImportData<uint8> FLandscapeWeightmapFileFormat_Png::Import(const TCHA
 			if (ImageWrapper->GetFormat() != ERGBFormat::Gray)
 			{
 				Result.ResultCode = ELandscapeImportResult::Warning;
-				Result.ErrorMessage = LOCTEXT("Import_LayerColorPng", "The layer file appears to be a color png, grayscale is expected. The import *can* continue, but the result may not be what you expect...");
+				Result.ErrorMessage = LOCTEXT("Import_LayerColorPng", "The imported layer is not Grayscale. Results in-Editor will not be consistent with the source file.");
 			}
 		}
 	}

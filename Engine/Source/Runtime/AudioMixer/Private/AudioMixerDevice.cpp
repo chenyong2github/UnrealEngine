@@ -444,6 +444,11 @@ namespace Audio
 					{
 						ReverbPluginInterface->Initialize(PluginInitializationParams);
 					}
+
+					if (SourceDataOverridePluginInterface.IsValid())
+ 					{
+ 						SourceDataOverridePluginInterface->Initialize(PluginInitializationParams);
+ 					}
 				}
 
 				// Need to set these up before we start the audio stream.

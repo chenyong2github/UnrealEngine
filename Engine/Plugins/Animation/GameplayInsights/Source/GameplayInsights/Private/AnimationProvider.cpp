@@ -19,6 +19,23 @@ FAnimationProvider::FAnimationProvider(TraceServices::IAnalysisSession& InSessio
 	GameplayProvider.OnObjectEndPlay().AddRaw(this, &FAnimationProvider::HandleObjectEndPlay);
 }
 
+void FAnimationProvider::EnumerateSkeletalMeshPoseTimelines(TFunctionRef<void(uint64 ObjectId, const SkeletalMeshPoseTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+	
+	for(auto& IndexMapping : ObjectIdToSkeletalMeshPoseTimelines)
+	{
+		for (const TSharedRef<TraceServices::TIntervalTimeline<FAnimGraphMessage>>& Timeline : AnimGraphTimelines)
+		{
+			const TSharedPtr<FSkeletalMeshTimelineStorage>& TimelineStorage = SkeletalMeshPoseTimelineStorage[IndexMapping.Value];
+			if (TimelineStorage->Timeline.IsValid())
+			{
+				Callback(IndexMapping.Key, *TimelineStorage->Timeline);
+			}
+		}
+	}
+}
+
 bool FAnimationProvider::ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&, bool)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -123,6 +140,19 @@ bool FAnimationProvider::ReadTickRecordTimeline(uint64 InObjectId, TFunctionRef<
 	}
 
 	return false;
+}
+
+void FAnimationProvider::EnumerateAnimGraphTimelines(TFunctionRef<void(uint64 ObjectId, const AnimGraphTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+	
+	for(auto& IndexMapping : ObjectIdToAnimGraphTimelines)
+	{
+		for (const TSharedRef<TraceServices::TIntervalTimeline<FAnimGraphMessage>>& Timeline : AnimGraphTimelines)
+		{
+			Callback(IndexMapping.Key, AnimGraphTimelines[IndexMapping.Value].Get());
+		}
+	}
 }
 
 bool FAnimationProvider::ReadAnimGraphTimeline(uint64 InObjectId, TFunctionRef<void(const AnimGraphTimeline&)> Callback) const

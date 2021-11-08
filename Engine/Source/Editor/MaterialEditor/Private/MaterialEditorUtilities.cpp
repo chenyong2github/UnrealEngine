@@ -523,10 +523,10 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 		//VisibleExpressions.AddUnique(ParameterInfo);
 
 		// TODO: We only need to traverse a solo Layer[0] or the final Blend[N-1] here it will recurse anyway
-		const FMaterialLayersFunctions* LayersValue = MaterialInstance->GetMaterialLayers();
-		if (LayersValue)
+		FMaterialLayersFunctions LayersValue;
+		if (MaterialInstance->GetMaterialLayers(LayersValue))
 		{
-			LayersExpression->OverrideLayerGraph(LayersValue);
+			LayersExpression->OverrideLayerGraph(&LayersValue);
 			if (LayersExpression->bIsLayerGraphBuilt)
 			{
 				for (auto& Layer : LayersExpression->LayerCallers)

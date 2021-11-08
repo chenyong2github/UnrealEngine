@@ -20,11 +20,7 @@ namespace CADKernel
 		{
 		}
 
-		FBoundedCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FBoundedCurve() = default;
 
 	public:
 

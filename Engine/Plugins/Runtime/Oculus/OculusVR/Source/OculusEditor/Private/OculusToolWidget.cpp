@@ -224,6 +224,7 @@ void SOculusToolWidget::RebuildLayout()
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMultiView")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMSAA")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobilePostProcessing")));
+	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileVulkan")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidManifest")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidPackaging")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("AndroidQuestArch")));
@@ -420,6 +421,18 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	SimpleSettings.Find(FName("MobilePostProcessing"))->actions.Add(
 		{ LOCTEXT("MobileHDRButton", "Disable Mobile HDR"),
 		&SOculusToolWidget::MobilePostProcessingDisable }
+	);
+
+	SimpleSettings.Add(FName("MobileVulkan"), {
+		FName("MobileVulkan"),
+		LOCTEXT("MobileVulkanDescription", "Oculus recommends using Vulkan as the rendering backend for all mobile apps."),
+		&SOculusToolWidget::MobileVulkanVisibility,
+		TArray<SimpleSettingAction>(),
+		(int)SupportFlags::SupportMobile
+		});
+	SimpleSettings.Find(FName("MobileVulkan"))->actions.Add(
+		{ LOCTEXT("MobileVulkanButton", "Use Vulkan Rendering Backend"),
+		&SOculusToolWidget::MobileVulkanEnable }
 	);
 
 	SimpleSettings.Add(FName("AndroidManifest"), {
@@ -718,6 +731,22 @@ EVisibility SOculusToolWidget::MobileMSAAVisibility(FName tag) const
 	const bool bMobileMSAAValid = Settings->MobileAntiAliasing == EMobileAntiAliasingMethod::MSAA && Settings->MSAASampleCount == ECompositingSampleCount::Four;
 
 	return bMobileMSAAValid ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FReply SOculusToolWidget::MobileVulkanEnable(bool text)
+{
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	Settings->bSupportsVulkan = true;
+	Settings->bBuildForES31 = false;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkan)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), Settings->GetDefaultConfigFilename());
+	return FReply::Handled();
+}
+
+EVisibility SOculusToolWidget::MobileVulkanVisibility(FName tag) const
+{
+	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
+	return Settings->bSupportsVulkan && !Settings->bBuildForES31 ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 FReply SOculusToolWidget::MobilePostProcessingDisable(bool text)

@@ -41,11 +41,6 @@ public:
 	{
 	}
 
-	virtual ~FLandscapeVertexFactoryMobile()
-	{
-		ReleaseResource();
-	}
-
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory? 
 	*/
@@ -96,7 +91,7 @@ public:
 	/** Destructor. */
 	virtual ~FLandscapeVertexBufferMobile()
 	{
-		ReleaseResource();
+		FVertexBuffer::ReleaseResource();
 		DEC_DWORD_STAT_BY(STAT_LandscapeVertexMem, DataSize);
 	}
 

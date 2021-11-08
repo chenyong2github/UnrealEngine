@@ -56,7 +56,11 @@ namespace Audio
 
 		// Create new converter
 		int32 Error = 0;
+#ifdef LIBSAMPLERATE_WITHOUT_SINC
+		SRC_STATE* Converter = src_new(SRC_LINEAR, InParameters.NumChannels, &Error);
+#else
 		SRC_STATE* Converter = src_new(SRC_SINC_BEST_QUALITY, InParameters.NumChannels, &Error);
+#endif
 		if (Converter == nullptr || Error != 0)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Error creating sample converter: %s"), src_strerror(Error));

@@ -26,21 +26,14 @@ namespace CADKernel
 		TArray<TSharedPtr<FEntity>> Entities;
 
 		FGroup()
-			: FEntity()
-			, Origin(EGroupOrigin::Unknown)
+			: Origin(EGroupOrigin::Unknown)
 		{
 		}
 
 		FGroup(TArray<TSharedPtr<FEntity>>& InEntities)
-			: FEntity()
-			, Origin(EGroupOrigin::Unknown)
+			: Origin(EGroupOrigin::Unknown)
 		{
 			Entities.Append(InEntities);
-		}
-
-		FGroup(FCADKernelArchive& Archive)
-		{
-			Serialize(Archive);
 		}
 
 	public:
@@ -117,7 +110,7 @@ namespace CADKernel
 
 		EEntity GetGroupType() const;
 
-		void GetValidEntities(TArray<TSharedPtr<FEntity>>& OutEntities)
+		void GetValidEntities(TArray<TSharedPtr<FEntity>>& OutEntities) const
 		{
 			for (TSharedPtr<FEntity> Entity : Entities)
 			{

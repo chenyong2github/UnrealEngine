@@ -702,8 +702,11 @@ bool FPluginUtils::ValidateNewPluginNameAndLocation(const FString& PluginName, c
 	return true;
 }
 
-bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReason/* = nullptr*/)
+bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReason /*=nullptr*/, const FText* PluginTermReplacement /*=nullptr*/)
 {
+	static const FText PluginTerm = LOCTEXT("PluginTerm", "Plugin");
+	const FText& PluginTermToUse = PluginTermReplacement ? *PluginTermReplacement : PluginTerm;
+
 	bool bIsNameValid = true;
 
 	// Cannot be empty
@@ -712,7 +715,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 		bIsNameValid = false;
 		if (FailReason)
 		{
-			*FailReason = LOCTEXT("PluginNameIsEmpty", "Plugin name cannot be empty");
+			*FailReason = FText::Format(LOCTEXT("PluginNameIsEmpty", "{0} name cannot be empty"), PluginTermToUse);
 		}
 	}
 
@@ -722,7 +725,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 		bIsNameValid = false;
 		if (FailReason)
 		{
-			*FailReason = LOCTEXT("PluginNameMustBeginWithAlphabetic", "Plugin name must begin with an alphabetic character");
+			*FailReason = FText::Format(LOCTEXT("PluginNameMustBeginWithAlphabetic", "{0} name must begin with an alphabetic character"), PluginTermToUse);
 		}
 	}
 
@@ -747,9 +750,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 			bIsNameValid = false;
 			if (FailReason)
 			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("IllegalCharacters"), FText::FromString(IllegalCharacters));
-				*FailReason = FText::Format(LOCTEXT("PluginNameContainsIllegalCharacters", "Plugin name cannot contain characters such as \"{IllegalCharacters}\""), Args);
+				*FailReason = FText::Format(LOCTEXT("PluginNameContainsIllegalCharacters", "{0} name cannot contain characters such as \"{1}\""), PluginTermToUse, FText::FromString(IllegalCharacters));
 			}
 		}
 	}

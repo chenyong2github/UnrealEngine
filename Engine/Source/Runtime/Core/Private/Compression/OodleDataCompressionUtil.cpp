@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Compression/OodleDataCompressionUtil.h"
-#include "Templates/CheckValueCast.h"
 
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -19,12 +18,12 @@ namespace FOodleCompressedArray
 		int32 HeaderSizeNeeded = sizeof(int32) * 2;
 
 		// Size the array so that it fits our header and the memory oodle requires to do the work.
-		int32 CompSizeNeeded = CheckValueCast<int32>(FOodleDataCompression::CompressedBufferSizeNeeded(InDataSize));
-		OutCompressed.SetNum( CheckValueCast<int32>( HeaderSizeNeeded + CompSizeNeeded) );
+		int32 CompSizeNeeded = IntCastChecked<int32>(FOodleDataCompression::CompressedBufferSizeNeeded(InDataSize));
+		OutCompressed.SetNum( IntCastChecked<int32>( HeaderSizeNeeded + CompSizeNeeded) );
 
 		// We compress in to the buffer past our header, then write the header below.
 		void* CompPtr = OutCompressed.GetData() + HeaderSizeNeeded;
-		int32 CompressedSize = CheckValueCast<int32>(FOodleDataCompression::Compress(CompPtr, CompSizeNeeded, InData, InDataSize, InCompressor, InLevel));
+		int32 CompressedSize = IntCastChecked<int32>(FOodleDataCompression::Compress(CompPtr, CompSizeNeeded, InData, InDataSize, InCompressor, InLevel));
 		if ( CompressedSize <= 0 )
 		{
 			// Probably a bad parameter.
@@ -43,7 +42,7 @@ namespace FOodleCompressedArray
 #endif
 
 		// Trim off the end working space Oodle needed to do the compress work.
-		OutCompressed.SetNum( CheckValueCast<int32>(CompressedSize + HeaderSizeNeeded) , false);
+		OutCompressed.SetNum( IntCastChecked<int32>(CompressedSize + HeaderSizeNeeded) , false);
 		return true;
 	}
 	bool CORE_API CompressData64(TArray64<uint8>& OutCompressed, const void* InData, int64 InDataSize, FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InLevel)

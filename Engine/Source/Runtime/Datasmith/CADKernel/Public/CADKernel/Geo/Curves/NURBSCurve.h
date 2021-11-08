@@ -44,11 +44,7 @@ namespace CADKernel
 		FNURBSCurve(FNurbsCurveData& NurbsCurveData);
 		FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs);
 
-		FNURBSCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FNURBSCurve() = default;
 
 	public:
 

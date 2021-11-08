@@ -896,6 +896,9 @@ void SMoviePipelineQueueEditor::Construct(const FArguments& InArgs)
 			TreeView.ToSharedRef()
 		]
 	];
+
+	// When undo occurs, get a notification so we can make sure our view is up to date
+	GEditor->RegisterForUndo(this);
 }
 
 
@@ -1079,6 +1082,11 @@ void SMoviePipelineQueueEditor::Tick(const FGeometry& AllottedGeometry, const do
 		SetSelectedJobs_Impl(PendingJobsToSelect);
 		PendingJobsToSelect.Empty();
 	}
+}
+
+void SMoviePipelineQueueEditor::PostUndo(bool bSuccess)
+{
+	CachedQueueSerialNumber++;
 }
 
 void SMoviePipelineQueueEditor::ReconstructTree()

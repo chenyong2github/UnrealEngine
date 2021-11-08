@@ -22,7 +22,8 @@ class TLockFreeFixedSizeAllocator_TLSCacheBase : public FNoncopyable
 {
 	enum
 	{
-		NUM_PER_BUNDLE = 32,
+		SIZE_PER_BUNDLE = 65536,
+		NUM_PER_BUNDLE = SIZE_PER_BUNDLE / SIZE
 	};
 public:
 
@@ -65,7 +66,7 @@ public:
 				TLS.PartialBundle = GlobalFreeListBundles.Pop();
 				if (!TLS.PartialBundle)
 				{
-					TLS.PartialBundle = (void**)FMemory::MallocPersistentAuxiliary(SIZE * NUM_PER_BUNDLE);
+					TLS.PartialBundle = (void**)FMemory::MallocPersistentAuxiliary(SIZE_PER_BUNDLE);
 					void **Next = TLS.PartialBundle;
 					for (int32 Index = 0; Index < NUM_PER_BUNDLE - 1; Index++)
 					{

@@ -101,6 +101,8 @@ struct FUsdStageActorImpl
 		// We parse these even when opening the stage now, as they are used in the skeletal animation tracks
 		TranslationContext->bAllowParsingSkeletalAnimations = true;
 
+		TranslationContext->KindsToCollapse = (EUsdDefaultKind) StageActor->KindsToCollapse;
+
 		UE::FSdfPath UsdPrimPath( *PrimPath );
 		UUsdPrimTwin* ParentUsdPrimTwin = StageActor->GetRootPrimTwin()->Find( UsdPrimPath.GetParentPath().GetString() );
 
@@ -549,6 +551,7 @@ struct FUsdStageActorImpl
 			TArray<FAnalyticsEventAttribute> EventAttributes;
 
 			EventAttributes.Emplace( TEXT( "InitialLoadSet" ), LexToString( (uint8)StageActor->InitialLoadSet ) );
+			EventAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( StageActor->KindsToCollapse ) );
 			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
 			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
 
@@ -627,6 +630,7 @@ TMap<UBlueprint*, FDelegateHandle> FRecompilationTracker::RecompilingBlueprints;
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
+	, KindsToCollapse( (int32) EUsdDefaultKind::Component )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, Time( 0.0f )
 	, bIsTransitioningIntoPIE( false )
@@ -1240,6 +1244,14 @@ void AUsdStageActor::SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet )
 	Modify();
 
 	InitialLoadSet = NewLoadSet;
+	LoadUsdStage();
+}
+
+void AUsdStageActor::SetKindsToCollapse( int32 NewKindsToCollapse )
+{
+	Modify();
+
+	KindsToCollapse = NewKindsToCollapse;
 	LoadUsdStage();
 }
 
@@ -2315,6 +2327,10 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) )
 	{
 		SetInitialLoadSet( InitialLoadSet );
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, KindsToCollapse ) )
+	{
+		SetKindsToCollapse( KindsToCollapse );
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
 	{

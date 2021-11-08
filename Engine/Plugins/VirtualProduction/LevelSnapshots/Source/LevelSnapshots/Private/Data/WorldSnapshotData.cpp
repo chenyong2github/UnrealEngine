@@ -18,6 +18,7 @@
 #include "Serialization/BufferArchive.h"
 #include "Stats/StatsMisc.h"
 #include "UObject/Package.h"
+#include "Util/PropertyIterator.h"
 #include "Util/SnapshotUtil.h"
 #if WITH_EDITOR
 #include "Editor.h"
@@ -26,6 +27,7 @@
 #include "Engine/Selection.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/ScopedSlowTask.h"
+#include "ScopedTransaction.h"
 #include "UnrealEdGlobals.h"
 #endif
 
@@ -65,6 +67,8 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 	SerializedObjectReferences.Empty();
 	Subobjects.Empty();
 	CustomSubobjectSerializationData.Empty();
+	NameToIndex.Empty();
+	ReferenceToIndex.Empty();
 	
 	SnapshotVersionInfo.Initialize();
 
@@ -92,6 +96,12 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 
 void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 {
+	// Certain custom compilers, such as nDisplay, may reset the transaction context. That would cause a crash.
+	PreloadClassesForRestore(PropertiesToSerialize);
+#if WITH_EDITOR
+	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
+#endif
+	
 	if (WorldToApplyTo == nullptr)
 	{
 		return;
@@ -156,6 +166,19 @@ bool FWorldSnapshotData::HasMatchingSavedActor(const FSoftObjectPath& OriginalOb
 	return ActorData.Contains(OriginalObjectPath);
 }
 
+FString FWorldSnapshotData::GetActorLabel(const FSoftObjectPath& OriginalObjectPath) const
+{
+#if WITH_EDITORONLY_DATA
+	const FActorSnapshotData* SerializedActor = ActorData.Find(OriginalObjectPath);
+	if (SerializedActor && !SerializedActor->ActorLabel.IsEmpty())
+	{
+		return SerializedActor->ActorLabel;
+	}
+#endif
+
+	return SnapshotUtil::ExtractLastSubobjectName(OriginalObjectPath); 
+}
+
 namespace WorldSnapshotData
 {
 	static void ConditionallyRerunConstructionScript(FWorldSnapshotData& This, const TOptional<AActor*>& RequiredActor, const TArray<int32>& OriginalObjectDependencies, UPackage* LocalisationSnapshotPackage)
@@ -200,65 +223,6 @@ TOptional<FObjectSnapshotData*> FWorldSnapshotData::GetSerializedClassDefaults(U
 {
 	FObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Class);
 	return ClassDefaultData ? ClassDefaultData : TOptional<FObjectSnapshotData*>();
-}
-
-int32 FWorldSnapshotData::AddCustomSubobjectDependency(UObject* ReferenceFromOriginalObject)
-{
-	if (!ensure(ReferenceFromOriginalObject))
-	{
-		return INDEX_NONE;
-	}
-
-	int32 SubobjectIndex = SerializedObjectReferences.Find(ReferenceFromOriginalObject);
-	if (SubobjectIndex == INDEX_NONE)
-	{
-		SubobjectIndex = SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
-	}
-	
-	if (CustomSubobjectSerializationData.Find(SubobjectIndex) == nullptr)
-	{
-		CustomSubobjectSerializationData.Add(SubobjectIndex);
-	}
-	else
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Object %s was already added as dependency. Investigate"), *ReferenceFromOriginalObject->GetName());
-		UE_DEBUG_BREAK();
-	}
-		
-	return SubobjectIndex;
-}
-
-FCustomSerializationData* FWorldSnapshotData::GetCustomSubobjectData_ForSubobject(const FSoftObjectPath& ReferenceFromOriginalObject)
-{
-	const int32 SubobjectIndex = SerializedObjectReferences.Find(ReferenceFromOriginalObject);
-	if (FCustomSerializationData* Data = CustomSubobjectSerializationData.Find(SubobjectIndex))
-	{
-		return Data;
-	}
-	return nullptr;
-}
-
-const FCustomSerializationData* FWorldSnapshotData::GetCustomSubobjectData_ForActorOrSubobject(UObject* OriginalObject) const
-{
-	// Is it an actor?
-	if (const FActorSnapshotData* SavedActorData = ActorData.Find(OriginalObject))
-	{
-		return &SavedActorData->GetCustomActorSerializationData();
-	}
-	if (Cast<AActor>(OriginalObject))
-	{
-		// Return immediately to avoid searching the entire array below.
-		return nullptr;
-	}
-
-	// If not an actor, it is a subobject
-	const int32 ObjectReferenceIndex = SerializedObjectReferences.Find(OriginalObject);
-	if (ObjectReferenceIndex != INDEX_NONE)
-	{
-		return CustomSubobjectSerializationData.Find(ObjectReferenceIndex);
-	}
-
-	return nullptr;
 }
 
 void FWorldSnapshotData::AddClassDefault(UClass* Class)
@@ -335,6 +299,18 @@ const FSnapshotVersionInfo& FWorldSnapshotData::GetSnapshotVersionInfo() const
 	return SnapshotVersionInfo;
 }
 
+bool FWorldSnapshotData::Serialize(FArchive& Ar)
+{
+	// When this struct is saved, the save algorithm collects references. It's faster if we just give it the info directly.
+	if (Ar.IsObjectReferenceCollector())
+	{
+		CollectReferencesAndNames(Ar);
+		return true;
+	}
+	
+	return false;
+}
+
 void FWorldSnapshotData::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading() && !SnapshotVersionInfo.IsInitialized())
@@ -346,6 +322,78 @@ void FWorldSnapshotData::PostSerialize(const FArchive& Ar)
 	}
 }
 
+void FWorldSnapshotData::CollectReferencesAndNames(FArchive& Ar)
+{
+	// References
+	Ar << SerializedObjectReferences;
+	CollectActorReferences(Ar);
+	CollectClassDefaultReferences(Ar);
+
+	// Names
+	Ar << SerializedNames;
+	Ar << SnapshotVersionInfo.CustomVersions;
+
+	// They're required... these names are for some reason not discovered by default...
+	TArray<FName> RequiredNames = { FName("UInt16Property"), EName::DoubleProperty};
+	for (FName Name : RequiredNames)
+	{
+		Ar << Name;
+	}
+
+	auto ProcessProperty = [&Ar](const FProperty* Property)
+	{
+		FName PropertyName = Property->GetFName();
+		Ar << PropertyName;
+	};
+	auto ProcessStruct = [&Ar](UStruct* Struct)
+	{
+		FName StructName = Struct->GetFName();
+		Ar << StructName;
+	};
+	
+	FPropertyIterator(StaticStruct(), ProcessProperty, ProcessStruct);
+	FPropertyIterator(FSnapshotVersionInfo::StaticStruct(), ProcessProperty, ProcessStruct);
+	FPropertyIterator(FActorSnapshotData::StaticStruct(), ProcessProperty, ProcessStruct);
+	FPropertyIterator(FSubobjectSnapshotData::StaticStruct(), ProcessProperty, ProcessStruct);
+	FPropertyIterator(FCustomSerializationData::StaticStruct(), ProcessProperty, ProcessStruct);
+}
+
+void FWorldSnapshotData::CollectActorReferences(FArchive& Ar)
+{
+	for (auto ActorIt = ActorData.CreateConstIterator(); ActorIt; ++ActorIt)
+	{
+		FSoftObjectPath SavedActorPath = ActorIt->Key; 
+		Ar << SavedActorPath;
+
+		FSoftClassPath ActorClass = ActorIt->Value.ActorClass;
+		Ar << ActorClass;
+	}
+}
+
+void FWorldSnapshotData::CollectClassDefaultReferences(FArchive& Ar)
+{
+	for (auto ClassDefaultIt = ClassDefaults.CreateConstIterator(); ClassDefaultIt; ++ClassDefaultIt)
+	{
+		FSoftClassPath Class = ClassDefaultIt->Key;
+		Ar << Class;
+	}
+}
+
+void FWorldSnapshotData::PreloadClassesForRestore(const FPropertySelectionMap& SelectionMap)
+{
+	// Class required for respawning
+	for (const FSoftObjectPath& OriginalRemovedActorPath : SelectionMap.GetDeletedActorsToRespawn())
+	{
+		FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalRemovedActorPath);
+		if (ensure(ActorSnapshot))
+		{
+			UClass* ActorClass = ActorSnapshot->GetActorClass().TryLoadClass<AActor>();
+			UE_CLOG(ActorClass != nullptr, LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->GetActorClass().ToString());
+		}
+	}
+
+	// Technically we also have to load all component classes... we can skip it for now because the only problematic compiler right now is the nDisplay one.
+}
 
 void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize)
 {
@@ -549,16 +597,14 @@ void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActo
 				OriginalWorldActor = ResolvedObject->GetTypedOuter<AActor>();
 			}
 
-			if (ensure(OriginalWorldActor))
+			if (ensure(OriginalWorldActor)
+				&& FSnapshotRestorability::IsActorRestorable(OriginalWorldActor) && !EvaluatedActors.Contains(OriginalWorldActor))
 			{
-				if (!EvaluatedActors.Contains(OriginalWorldActor))
+				EvaluatedActors.Add(OriginalWorldActor);
+				FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalWorldActor);
+				if (ensure(ActorSnapshot))
 				{
-					if (FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalWorldActor))
-					{
-						ActorSnapshot->DeserializeIntoExistingWorldActor(TempActorWorld.Get(), OriginalWorldActor, *this, LocalisationSnapshotPackage, PropertiesToSerialize);
-					}
-					
-					EvaluatedActors.Add(OriginalWorldActor);
+					ActorSnapshot->DeserializeIntoExistingWorldActor(TempActorWorld.Get(), OriginalWorldActor, *this, LocalisationSnapshotPackage, PropertiesToSerialize);
 				}
 			}
 		}

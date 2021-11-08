@@ -21,7 +21,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "GlobalDistanceField.h"
 
-CSV_DEFINE_CATEGORY(DistanceField, false);
+CSV_DEFINE_CATEGORY(DistanceField, true);
 
 extern int32 GDFReverseAtlasAllocationOrder;
 extern int32 GDFShadowOffsetDataStructure;

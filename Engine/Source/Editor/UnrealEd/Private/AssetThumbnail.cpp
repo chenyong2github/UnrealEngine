@@ -576,7 +576,7 @@ private:
 		
 		// Unloaded blueprint or asset that may have a custom thumbnail, check to see if there is a thumbnail in the package to render
 		FString PackageFilename;
-		if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename) )
+		if ( FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename) )
 		{
 			TSet<FName> ObjectFullNames;
 			FThumbnailMap ThumbnailMap;
@@ -1189,7 +1189,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 	{
 		// If we don't have a cached thumbnail, try to find it on disk
 		FString PackageFilename;
-		if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename))
+		if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename))
 		{
 			TSet<FName> ObjectFullNames;
 

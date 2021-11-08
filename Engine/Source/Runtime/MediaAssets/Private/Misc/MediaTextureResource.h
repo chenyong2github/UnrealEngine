@@ -48,7 +48,7 @@ public:
 	 * @param bEnableGenMips If true mips generation will be enabled (possibly optimizing for NumMips == 1 case)
 	 * @param InNumMips The initial number of mips to be generated for the output texture
 	 */
-	FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
+	MEDIAASSETS_API FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
 
 	/** Virtual destructor. */
 	virtual ~FMediaTextureResource() 

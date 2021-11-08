@@ -490,7 +490,7 @@ public:
 		{
 			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 			const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetReference.ToString());
-			return AssetData.GetAsset();
+			return AssetData.GetAsset(); //-V558
 		}
 		return nullptr;
 	}
@@ -5642,7 +5642,7 @@ void UEdGraphSchema_K2::DroppedAssetsOnPin(const TArray<FAssetData>& Assets, con
 		if(PinClass != NULL)
 		{
 			// Find first asset of type of the pin
-			UObject* Asset = FAssetData::GetFirstAssetDataOfClass(Assets, PinClass).GetAsset();
+			UObject* Asset = FAssetData::GetFirstAssetDataOfClass(Assets, PinClass).GetAsset(); //-V758
 			if(Asset != NULL)
 			{
 				TrySetDefaultObject(*Pin, Asset);

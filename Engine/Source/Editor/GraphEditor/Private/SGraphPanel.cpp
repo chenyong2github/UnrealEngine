@@ -1060,6 +1060,8 @@ void SGraphPanel::OnBeginMakingConnection(FGraphPinHandle PinHandle)
 {
 	if (PinHandle.IsValid())
 	{
+		DismissContextMenu();
+
 		PreviewConnectorFromPins.Add(PinHandle);
 	}
 }
@@ -1142,6 +1144,8 @@ TSharedPtr<SWidget> SGraphPanel::SummonContextMenu(const FVector2D& WhereToSummo
 			FocusedContent.OnMenuDismissed.Broadcast();
 		}
 
+		ContextMenu = Menu;
+
 		return FocusedContent.WidgetToFocus;
 	}
 
@@ -1170,6 +1174,16 @@ void SGraphPanel::SummonCreateNodeMenuFromUICommand(uint32 NumNodesAdded)
 		FSlateApplication::Get().SetKeyboardFocus(CreateNodeMenuWidget);
 		return;
 	}
+}
+
+void SGraphPanel::DismissContextMenu()
+{
+	if (TSharedPtr<IMenu> ContextMenuPinned = ContextMenu.Pin())
+	{
+		ContextMenuPinned->Dismiss();
+	}
+
+	ContextMenu.Reset();
 }
 
 void SGraphPanel::AttachGraphEvents(TSharedPtr<SGraphNode> CreatedSubNode)

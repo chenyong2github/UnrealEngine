@@ -2,7 +2,13 @@
 
 #include "Util/TakeSnapshotUtil.h"
 
+#include "Data/LevelSnapshotsEditorData.h"
+#include "LevelSnapshot.h"
+#include "LevelSnapshotsEditorSettings.h"
+#include "LevelSnapshotsEditorModule.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsLog.h"
+#include "Widgets/SLevelSnapshotsEditorCreationForm.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -10,18 +16,12 @@
 #include "IAssetTools.h"
 #include "Editor.h"
 #include "Engine/World.h"
-#include "LevelSnapshot.h"
-#include "LevelSnapshotsEditorModule.h"
-#include "LevelSnapshotsEditorStyle.h"
 #include "ObjectTools.h"
-#include "Data/LevelSnapshotsEditorData.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameplayMediaEncoder/Private/GameplayMediaEncoderCommon.h"
-#include "Logging/MessageLog.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/Package.h"
-#include "Widgets/SLevelSnapshotsEditorCreationForm.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotEditorLibrary"
@@ -30,26 +30,22 @@ namespace
 {
 	void HandleFormReply(const FText& InDescription, bool bShouldUseOverrides, bool bSaveAsync)
 	{
-		FLevelSnapshotsEditorModule& Module = FLevelSnapshotsEditorModule::Get();
-		TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettings = Module.GetLevelSnapshotsUserSettings();
-		TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataMangementSettings = Module.GetLevelSnapshotsDataManagementSettings();
-		
 		UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
-		if (!ensure(World && ProjectSettings.IsValid() && DataMangementSettings.IsValid()))
+		if (!ensure(World))
 		{
 			return;
 		}
 		
-		ULevelSnapshotsEditorDataManagementSettings* DataManagementSettings = DataMangementSettings.Get();
+		ULevelSnapshotsEditorSettings* DataManagementSettings = ULevelSnapshotsEditorSettings::Get();
 		DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 		DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 
-		const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
+		const FText& NewSnapshotDir = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
 			FText::FromString(FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, DataManagementSettings->LevelSnapshotSaveDir)),
 			World->GetName()
 			);
 		const FString& DescriptionString = bShouldUseOverrides && DataManagementSettings->IsNameOverridden() ?	DataManagementSettings->GetNameOverride() : DataManagementSettings->DefaultLevelSnapshotName;
-		const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
+		const FText& NewSnapshotName = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
 				FText::FromString(DescriptionString),
 				World->GetName()
 				);
@@ -71,19 +67,13 @@ namespace
 void SnapshotEditor::TakeSnapshotWithOptionalForm()
 {
 	FLevelSnapshotsEditorModule& Module = FLevelSnapshotsEditorModule::Get();
-	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettings = Module.GetLevelSnapshotsUserSettings();
-	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataMangementSettings = Module.GetLevelSnapshotsDataManagementSettings();
-	
-	if (ProjectSettings.Get()->bUseCreationForm)
+	if (ULevelSnapshotsEditorSettings::Get()->bUseCreationForm)
 	{
 		TSharedRef<SWidget> CreationForm = SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
 			FCloseCreationFormDelegate::CreateLambda([](const FText& Description, bool bSaveAsync)
 			{
 				HandleFormReply(Description, true, bSaveAsync);
-			}),
-			ProjectSettings.Get(),
-			DataMangementSettings.Get()
-			);
+			}));
 	}
 	else
 	{

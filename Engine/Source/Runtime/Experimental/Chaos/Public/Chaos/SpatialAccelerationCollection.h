@@ -149,12 +149,12 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TSpatialCollectionBucket<TObj>& Buc
 }
 
 template <typename... TRemaining>
-struct CHAOS_API TSpatialTypeTuple
+struct TSpatialTypeTuple
 {
 };
 
 template <typename TAcceleration, typename... TRemaining>
-struct CHAOS_API TSpatialTypeTuple<TAcceleration, TRemaining...>
+struct TSpatialTypeTuple<TAcceleration, TRemaining...>
 {
 	using FirstType = TAcceleration;
 	TSpatialCollectionBucket<TAcceleration*> First;
@@ -166,20 +166,20 @@ struct CHAOS_API TSpatialTypeTuple<TAcceleration, TRemaining...>
 };
 
 template<int Idx, typename ... Rest>
-struct CHAOS_API TSpatialTypeTupleGetter
+struct TSpatialTypeTupleGetter
 {
 
 };
 
 template<int Idx, typename First, typename... Rest>
-struct CHAOS_API TSpatialTypeTupleGetter<Idx, First, Rest...>
+struct TSpatialTypeTupleGetter<Idx, First, Rest...>
 {
 	static auto& Get(TSpatialTypeTuple<First, Rest...>& Types) { return TSpatialTypeTupleGetter<Idx - 1, Rest...>::Get(Types.Remaining); }
 	static const auto& Get(const TSpatialTypeTuple<First, Rest...>& Types) { return TSpatialTypeTupleGetter<Idx - 1, Rest...>::Get(Types.Remaining); }
 };
 
 template<typename First, typename... Rest>
-struct CHAOS_API TSpatialTypeTupleGetter<0, First, Rest...>
+struct TSpatialTypeTupleGetter<0, First, Rest...>
 {
 	static auto& Get(TSpatialTypeTuple<First, Rest...>& Types) { return Types.First; }
 	static const auto& Get(const TSpatialTypeTuple<First, Rest...>& Types) { return Types.First; }

@@ -2,7 +2,6 @@
 
 #include "ContextSwitchesSharedState.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -15,6 +14,7 @@
 #include "Insights/ContextSwitches/ViewModels/CpuCoreTimingTrack.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -34,7 +34,7 @@ FContextSwitchesStateCommands::FContextSwitchesStateCommands()
 		TEXT("FContextSwitchesStateCommands"),
 		NSLOCTEXT("FContextSwitchesStateCommands", "Context Switches State Commands", "Context Switches Commands"),
 		NAME_None,
-		FEditorStyle::Get().GetStyleSetName())
+		FInsightsStyle::GetStyleSetName())
 {
 }
 

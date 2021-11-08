@@ -5,6 +5,13 @@
 =============================================================================*/
   
 #include "Common.ush"
+
+#if STRATA_ENABLED
+	#define USE_ENERGY_CONSERVATION 1
+#else
+	#define USE_ENERGY_CONSERVATION 0
+#endif
+
 #include "DeferredShadingCommon.ush"  
 #include "BRDF.ush"
 #include "ReflectionEnvironmentShared.ush"
@@ -146,6 +153,12 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	float3 SkyLightingNormal = GetClearCoatBottomNormal(GBuffer, GBuffer.WorldNormal);
 	FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(SkyLightingNormal, GBuffer.WorldNormal, GBuffer.GBufferAO, AmbientOcclusion, BentNormal);
 
+	const float3 N = GBuffer.WorldNormal;
+	const float3 V = -normalize(mul(float3(ScreenPosition, 1), LWCToFloat3x3(PrimaryView.ScreenToWorld)).xyz);
+	const float NoV = saturate(dot(V, N));
+	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(GBuffer.Roughness, NoV, GBuffer.SpecularColor);
+	float3 DiffuseWeight = ComputeEnergyPreservation(EnergyTerms);
+
 	BRANCH
 	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
@@ -164,12 +177,11 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	BRANCH
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
-		float3 N = GBuffer.WorldNormal;
-		float3 V = -normalize(mul(float3(ScreenPosition, 1), LWCToFloat3x3(PrimaryView.ScreenToWorld)).xyz);
 		float3 L = normalize(V - N * dot(V, N));
 		SkyVisData.SkyDiffuseLookUpNormal = L;
 		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
 		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+		DiffuseWeight = 1.0f;
 	}
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)
@@ -182,7 +194,7 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	float3 DiffuseLookup = GetSkySHDiffuse(SkyVisData.SkyDiffuseLookUpNormal) * View.SkyLightColor.rgb;
 
 	// And accumulate the lighting
-	Lighting += (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * DiffuseColor;
+	Lighting += (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * DiffuseColor * DiffuseWeight;
 	Lighting *= View.PreExposure;
 
 	//Lighting = (Texture2DSampleLevel(BentNormalAOTexture, BentNormalAOSampler, UV, 0).xyz);
@@ -268,6 +280,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	uint NumCulledReflectionCaptures = 0;
 #endif
 
+	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(GBuffer.Roughness, NoV, GBuffer.SpecularColor);
+
 	//Top of regular reflection or bottom layer of clear coat.
 	Color.rgb += View.PreExposure * GatherRadiance(Color.a, TranslatedWorldPosition, R, GBuffer.Roughness, BentNormal, IndirectIrradiance, GBuffer.ShadingModelID, NumCulledReflectionCaptures, DataStartIndex);
 
@@ -286,12 +300,20 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 		R = GetOffSpecularPeakReflectionDir(N, R, ClearCoatRoughness);
 
 		// TODO EnvBRDF should have a mask param
-		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, GBuffer.Roughness), 0 ).rg;
-		Color.rgb *= SpecularColor * AB.x + AB.y * saturate( 50 * SpecularColor.g ) * (1 - ClearCoat);
-		
+		#if USE_ENERGY_CONSERVATION
+		Color.rgb *= EnergyTerms.E * (1 - ClearCoat);
+		#else
+		Color.rgb *= EnvBRDF(SpecularColor, GBuffer.Roughness, NoV) * (1 - ClearCoat);
+		#endif
+
 		// F_Schlick
-		float F = EnvBRDF( 0.04, ClearCoatRoughness, NoV ).x;
-		
+		const float CoatF0 = 0.04f;
+		#if USE_ENERGY_CONSERVATION
+		float F = ComputeGGXSpecEnergyTerms(ClearCoatRoughness, NoV, CoatF0).E;
+		#else
+		float F = EnvBRDF(CoatF0, ClearCoatRoughness, NoV).x;
+		#endif
+
 		F *= ClearCoat;
 			
 		float LayerAttenuation = (1 - F);		
@@ -314,7 +336,11 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	}
 	else
 	{
+		#if USE_ENERGY_CONSERVATION
+		Color.rgb *= EnergyTerms.E;
+		#else
 		Color.rgb *= EnvBRDF( SpecularColor, GBuffer.Roughness, NoV );
+		#endif
 	}
 
 	// Transform NaNs to black, transform negative colors to black.

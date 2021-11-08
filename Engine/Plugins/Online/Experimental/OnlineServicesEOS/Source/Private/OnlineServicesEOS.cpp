@@ -10,8 +10,51 @@
 
 namespace UE::Online {
 
-FOnlineServicesEOS::FOnlineServicesEOS()
+struct FEOSPlatformConfig
 {
+	FString ProductId;
+	FString SandboxId;
+	FString DeploymentId;
+	FString ClientId;
+	FString ClientSecret;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FEOSPlatformConfig)
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ProductId),
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, SandboxId),
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, DeploymentId),
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientId),
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientSecret)
+END_ONLINE_STRUCT_META()
+
+/* Meta */ }
+
+FOnlineServicesEOS::FOnlineServicesEOS()
+	: FOnlineServicesCommon(TEXT("EOS"))
+{
+}
+
+void FOnlineServicesEOS::RegisterComponents()
+{
+	Components.Register<FAuthEOS>(*this);
+	Components.Register<FFriendsEOS>(*this);
+	Components.Register<FPresenceEOS>(*this);
+	FOnlineServicesCommon::RegisterComponents();
+}
+
+void FOnlineServicesEOS::Initialize()
+{
+	FEOSPlatformConfig EOSPlatformConfig;
+	LoadConfig(EOSPlatformConfig);
+
+	FTCHARToUTF8 ProductId(*EOSPlatformConfig.ProductId);
+	FTCHARToUTF8 SandboxId(*EOSPlatformConfig.SandboxId);
+	FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
+	FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
+	FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
+
 	// Init EOS SDK
 	EOS_Platform_Options PlatformOptions = {};
 	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
@@ -24,26 +67,20 @@ FOnlineServicesEOS::FOnlineServicesEOS()
 	FCStringAnsi::Strncpy(CacheDirectory, TCHAR_TO_UTF8(*(FPlatformProcess::UserDir() / FString(TEXT("CacheDir")))), 512);
 	PlatformOptions.CacheDirectory = CacheDirectory;
 
-	PlatformOptions.ProductId = "";
-	PlatformOptions.SandboxId = "";
-	PlatformOptions.DeploymentId = "";
+	PlatformOptions.ProductId = ProductId.Get();
+	PlatformOptions.SandboxId = SandboxId.Get();
+	PlatformOptions.DeploymentId = DeploymentId.Get();
 
-	PlatformOptions.ClientCredentials.ClientId = "";
-	PlatformOptions.ClientCredentials.ClientSecret = "";
+	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
+	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
 
 	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
 	if (ensure(SDKManager))
 	{
 		EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	}
-}
 
-void FOnlineServicesEOS::RegisterComponents()
-{
-	Components.Register<FAuthEOS>(*this);
-	Components.Register<FFriendsEOS>(*this);
-	Components.Register<FPresenceEOS>(*this);
-	FOnlineServicesCommon::RegisterComponents();
+	FOnlineServicesCommon::Initialize();
 }
 
 FAccountId FOnlineServicesEOS::CreateAccountId(FString&& InAccountIdString)

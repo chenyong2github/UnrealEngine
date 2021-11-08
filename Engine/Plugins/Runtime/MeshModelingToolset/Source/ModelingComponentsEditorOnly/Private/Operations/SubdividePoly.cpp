@@ -21,9 +21,9 @@
 #endif
 
 #pragma warning(push, 0)     
-#include "far/topologyRefiner.h"
-#include "far/topologyDescriptor.h"
-#include "far/primvarRefiner.h"
+#include "opensubdiv/far/topologyRefiner.h"
+#include "opensubdiv/far/topologyDescriptor.h"
+#include "opensubdiv/far/primvarRefiner.h"
 #pragma warning(pop)     
 
 #if LOCAL_M_PI
@@ -61,19 +61,23 @@ namespace SubdividePolyLocal
 	struct SubdUVVertex
 	{
 		FVector2f VertexUV;
+		bool bIsValid;
 
-		SubdUVVertex(const FVector2f& InVertexUV) :
-			VertexUV{ InVertexUV }
+		SubdUVVertex(const FVector2f& InVertexUV, bool bInIsValid) :
+			VertexUV{ InVertexUV },
+			bIsValid(bInIsValid)
 		{}
 
 		void Clear()
 		{
-			VertexUV = FVector2f();
+			VertexUV = FVector2f::Zero();
+			bIsValid = true;
 		}
 
 		void AddWithWeight(SubdUVVertex const& Src, float Weight)
 		{
 			VertexUV += Weight * Src.VertexUV;
+			bIsValid &= Src.bIsValid;
 		}
 	};
 
@@ -247,6 +251,7 @@ namespace SubdividePolyLocal
 
 					if (ElementIDToUVBufferIndex.Contains(CornerElementID))
 					{
+						// CornerElementID has already been added to the buffer
 						if constexpr (bBuildingIndexBuffer)
 						{
 							CornerUVIndices.Add(ElementIDToUVBufferIndex[CornerElementID]);
@@ -254,7 +259,10 @@ namespace SubdividePolyLocal
 					}
 					else
 					{
-						ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+						if (CornerElementID != FDynamicMesh3::InvalidID)
+						{
+							ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+						}
 
 						if constexpr (bBuildingIndexBuffer)
 						{
@@ -263,9 +271,17 @@ namespace SubdividePolyLocal
 
 						if constexpr (bBuildingCoordBuffer)
 						{
-							TStaticArray<FVector2f, 3> TriangleUVs;
-							UVOverlay.GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
-							OutUVs->Add(SubdUVVertex{ TriangleUVs[TriVertexIndex] });
+							FIndex3i ElementIndices = UVOverlay.GetTriangle(TriangleID);
+							if ( ElementIndices[TriVertexIndex] == FDynamicMesh3::InvalidID)
+							{
+								// Missing UV data for the triangle
+								OutUVs->Add(SubdUVVertex{ FVector2f{0,0}, false });
+							}
+							else
+							{
+								FVector2f UV = UVOverlay.GetElement(ElementIndices[TriVertexIndex]);
+								OutUVs->Add(SubdUVVertex{ UV, true });
+							}
 						}
 
 						++UVVertexIndex;
@@ -340,7 +356,10 @@ namespace SubdividePolyLocal
 				}
 				else
 				{
-					ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+					if (CornerElementID != FDynamicMesh3::InvalidID)
+					{
+						ElementIDToUVBufferIndex.Add(CornerElementID, UVVertexIndex);
+					}
 
 					if constexpr (bBuildingIndexBuffer)
 					{
@@ -349,9 +368,18 @@ namespace SubdividePolyLocal
 
 					if constexpr (bBuildingCoordBuffer)
 					{
-						TStaticArray<FVector2f, 3> TriangleUVs;
-						UVOverlay.GetTriElements(TriangleID, TriangleUVs[0], TriangleUVs[1], TriangleUVs[2]);
-						OutUVs->Add(SubdUVVertex{ TriangleUVs[I] });
+						FIndex3i ElementIndices = UVOverlay.GetTriangle(TriangleID);
+						if (ElementIndices[I] == FDynamicMesh3::InvalidID)
+						{
+							// Missing UV data for the triangle
+							OutUVs->Add(SubdUVVertex{ FVector2f{0,0}, false });
+						}
+						else
+						{
+							FVector2f UV = UVOverlay.GetElement(ElementIndices[I]);
+							OutUVs->Add(SubdUVVertex{ UV, true });
+						}
+
 					}
 
 					++UVVertexIndex;
@@ -411,7 +439,10 @@ namespace SubdividePolyLocal
 				const FIndex3i MeshTriVertices = Mesh->GetTriangle(TriangleIndex);
 				for (int I = 0; I < 3; ++I)
 				{
-					UVOverlay->SetParentVertex(UVTri[I], MeshTriVertices[I]);
+					if (UVTri[I] != FDynamicMesh3::InvalidID)
+					{
+						UVOverlay->SetParentVertex(UVTri[I], MeshTriVertices[I]);
+					}
 				}
 			}
 
@@ -767,6 +798,19 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	TArray<FVector2f> UVElements;
 	TArray<FIndex3i> UVTriangles;
 
+
+	auto AddUVTriangleIfValid = [&UVTriangles, &RefinedUVs](const FIndex3i& UVTri)
+	{
+		if (RefinedUVs[UVTri[0]].bIsValid && RefinedUVs[UVTri[1]].bIsValid && RefinedUVs[UVTri[2]].bIsValid)
+		{
+			UVTriangles.Add(UVTri);
+		}
+		else
+		{
+			UVTriangles.Add(FIndex3i{ FDynamicMesh3::InvalidID,FDynamicMesh3::InvalidID,FDynamicMesh3::InvalidID });
+		}
+	};
+
 	for (int FaceID = 0; FaceID < FinalLevel.GetNumFaces(); ++FaceID)
 	{
 		int GroupID = RefinedGroupIDs[FaceID];
@@ -786,10 +830,10 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 				OpenSubdiv::Far::ConstIndexArray FaceUVIndices = FinalLevel.GetFaceFVarValues(FaceID);
 				
 				FIndex3i UVTriA{ FaceUVIndices[0], FaceUVIndices[1], FaceUVIndices[3] };
-				UVTriangles.Add(UVTriA);
+				AddUVTriangleIfValid(UVTriA);
 
 				FIndex3i UVTriB{ FaceUVIndices[2], FaceUVIndices[3], FaceUVIndices[1] };
-				UVTriangles.Add(UVTriB);
+				AddUVTriangleIfValid(UVTriB);
 			}
 		}
 		else
@@ -801,14 +845,21 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 			{
 				OpenSubdiv::Far::ConstIndexArray FaceUVIndices = FinalLevel.GetFaceFVarValues(FaceID);
 				FIndex3i UVTri{ FaceUVIndices[0], FaceUVIndices[1], FaceUVIndices[2] };
-				UVTriangles.Add(UVTri);
+				AddUVTriangleIfValid(UVTri);
 			}
 		}
 	}
 
 	for (const SubdividePolyLocal::SubdUVVertex& UVVertex : RefinedUVs)
 	{
-		UVElements.Add(UVVertex.VertexUV);
+		if (UVVertex.bIsValid)
+		{
+			UVElements.Add(UVVertex.VertexUV);
+		}
+		else
+		{
+			UVElements.Add(FVector2f::Zero());
+		}
 	}
 
 	if (NormalComputationMethod != ESubdivisionOutputNormals::None)

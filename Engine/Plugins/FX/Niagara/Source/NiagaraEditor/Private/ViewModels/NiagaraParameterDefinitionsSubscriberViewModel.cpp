@@ -183,7 +183,7 @@ TArray<UNiagaraParameterDefinitions*> INiagaraParameterDefinitionsSubscriberView
 		for (int32 Idx = OutParameterDefinitions.Num() - 1; Idx > -1; --Idx)
 		{
 			const UNiagaraParameterDefinitions* Definition = OutParameterDefinitions[Idx];
-			if (Subscriptions.ContainsByPredicate([Definition](const FParameterDefinitionsSubscription& Subscription) { return Subscription.DefinitionsId == Definition->GetDefinitionsUniqueId(); }))
+			if (Subscriptions.ContainsByPredicate([Definition](const FParameterDefinitionsSubscription& Subscription) { return Subscription.Definitions == Definition; }))
 			{
 				OutParameterDefinitions.RemoveAtSwap(Idx);
 			}

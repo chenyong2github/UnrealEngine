@@ -179,6 +179,12 @@ typedef enum {
   // If true, the overlay will use the VrApi supersample flag, which can be helpful but is extremely expensive.
   ovrpOverlayFlag_ExpensiveSuperSample = 0x00000008,
 
+
+
+
+
+
+
   // Use left 5 - 8 bits for shape flags
   ovrpOverlayFlag_ShapeShift = 4,
   ovrpOverlayFlag_Quad = (ovrpShape_Quad << ovrpOverlayFlag_ShapeShift),

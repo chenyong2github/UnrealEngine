@@ -48,6 +48,7 @@ struct FNewLevelTemplateItem
 	FTemplateMapInfo TemplateMapInfo;
 	FText Name;
 	TUniquePtr<FSlateBrush> ThumbnailBrush;
+	UTexture2D* ThumbnailAsset = nullptr;
 
 	enum NewLevelType
 	{
@@ -213,7 +214,7 @@ private:
  * Main widget class showing a table of level templates as labeled thumbnails
  * for the user to select by clicking.
  */
-class SNewLevelDialog : public SCompoundWidget
+class SNewLevelDialog : public SCompoundWidget, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS(SNewLevelDialog) {}
@@ -317,6 +318,24 @@ public:
 	bool IsPartitionedWorld() const { return bIsPartitionedWorld; }
 	bool IsTemplateChosen() const { return bUserClickedOkay; }
 
+	//~ Begin FGCObject Interface.
+	virtual void AddReferencedObjects(FReferenceCollector& Collector)  override
+	{
+		for (const TSharedPtr<FNewLevelTemplateItem>& It : TemplateItemsList)
+		{
+			if (It.IsValid() && It->ThumbnailAsset)
+			{
+				Collector.AddReferencedObject(It->ThumbnailAsset);
+			}
+		}
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SNewLevelDialog");
+	}
+	//~ End FGCObject Interface.
+
 private:
 	static TArray<TSharedPtr<FNewLevelTemplateItem>> MakeTemplateItems(bool bShowPartitionedTemplates, const TArray<FTemplateMapInfo>& TemplateMapInfos)
 	{
@@ -334,9 +353,43 @@ private:
 			Item->TemplateMapInfo = TemplateMapInfo;
 			Item->Type = FNewLevelTemplateItem::NewLevelType::Template;
 			Item->Name = TemplateMapInfo.DisplayName;
-			
-			if (const TObjectPtr<UTexture2D>& ThumbnailTexture = TemplateMapInfo.ThumbnailTexture)
+
+			UTexture2D* ThumbnailTexture = nullptr;
+			if (!TemplateMapInfo.Thumbnail.IsEmpty())
 			{
+				FSoftObjectPath SoftObjectPath(TemplateMapInfo.Thumbnail);
+				ThumbnailTexture = Cast<UTexture2D>(SoftObjectPath.ResolveObject());
+				if (!ThumbnailTexture)
+				{
+					ThumbnailTexture = Cast<UTexture2D>(SoftObjectPath.TryLoad());
+					if (ThumbnailTexture)
+					{
+						// Newly loaded texture requires async work to complete before being rendered in modal dialog
+						ThumbnailTexture->FinishCachePlatformData();
+						ThumbnailTexture->UpdateResource();
+					}
+				}
+			}
+			else if (!TemplateMapInfo.ThumbnailTexture.IsNull())
+			{
+				ThumbnailTexture = TemplateMapInfo.ThumbnailTexture.Get();
+				if (!ThumbnailTexture)
+				{
+					ThumbnailTexture = TemplateMapInfo.ThumbnailTexture.LoadSynchronous();
+					if (ThumbnailTexture)
+					{
+						// Newly loaded texture requires async work to complete before being rendered in modal dialog
+						ThumbnailTexture->FinishCachePlatformData();
+						ThumbnailTexture->UpdateResource();
+					}
+				}
+			}
+
+			if (ThumbnailTexture)
+			{
+				// Reference to prevent garbage collection
+				Item->ThumbnailAsset = ThumbnailTexture;
+
 				// Level with thumbnail
 				Item->ThumbnailBrush = MakeUnique<FSlateImageBrush>(
 					ThumbnailTexture,

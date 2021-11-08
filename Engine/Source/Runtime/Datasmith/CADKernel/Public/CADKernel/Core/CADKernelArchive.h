@@ -109,12 +109,12 @@ namespace CADKernel
 		void SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TSharedPtr<FEntity>& Entity);
 
 		void AddEntityToSave(FIdent Id);
-		void AddEntityFromArchive(TSharedRef<FEntity>& Entity);
+		void AddEntityFromArchive(TSharedPtr<FEntity>& Entity);
 
 		template<typename EntityType>
-		void AddEntityFromArchive(TSharedRef<EntityType>& Entity)
+		void AddEntityFromArchive(TSharedPtr<EntityType>& Entity)
 		{
-			AddEntityFromArchive((TSharedRef<FEntity>&) Entity);
+			AddEntityFromArchive((TSharedPtr<FEntity>&) Entity);
 		}
 
 		int64 TotalSize()

@@ -919,7 +919,7 @@ bool UIKRetargetProcessor::InitializeRoots()
             *TargetRootBoneName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
 	}
 
-	return true;
+	return bRootEncoderInit && bRootDecoderInit;
 }
 
 bool UIKRetargetProcessor::InitializeBoneChainPairs()
@@ -983,7 +983,10 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 	}
 
 	// root is updated before IK as well
-	TargetSkeleton.SetBoneIsRetargeted(RootRetargeter.Target.BoneIndex, true);
+	if (bRootsInitialized)
+	{
+		TargetSkeleton.SetBoneIsRetargeted(RootRetargeter.Target.BoneIndex, true);	
+	}
 
 	// return true if at least 1 pair of bone chains were initialized
 	return !(ChainPairsIK.IsEmpty() && ChainPairsFK.IsEmpty());

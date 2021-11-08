@@ -22,7 +22,7 @@ limitations under the License.
 #endif
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 59
+#define OVRP_MINOR_VERSION 65
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
@@ -78,6 +78,9 @@ typedef int ovrpBool;
 /// Byte
 typedef unsigned char ovrpByte;
 
+/// UInt32
+typedef unsigned int ovrpUInt32;
+
 /// Int16
 typedef short ovrpInt16;
 
@@ -98,6 +101,7 @@ typedef enum {
   /// Success
   ovrpSuccess = 0,
   ovrpSuccess_EventUnavailable = 1,
+  ovrpSuccess_Pending = 2,
 
   /// Failure
   ovrpFailure = -1000,
@@ -149,6 +153,9 @@ typedef enum {
 
 
 
+
+  /// Enable Application SpaceWarp support
+  ovrpInitializeFlag_SupportAppSpaceWarp = (1 << 6),
 
   ovrpInitializeFlag_EnumSize = 0x7fffffff
 
@@ -240,6 +247,7 @@ typedef enum {
 
 
 
+  ovrpTrackingOrigin_View = 4,
   ovrpTrackingOrigin_Count,
   ovrpTrackingOrigin_EnumSize = 0x7fffffff
 } ovrpTrackingOrigin;
@@ -850,12 +858,12 @@ typedef enum {
   ovrpShape_EyeFov = 3,
   ovrpShape_OffcenterCubemap = 4,
   ovrpShape_Equirect = 5,
-
-
-
-
-
+  ovrpShape_ReconstructionPassthrough = 7,
+  ovrpShape_SurfaceProjectedPassthrough = 8,
   ovrpShape_Fisheye = 9,
+
+
+
   ovrpShape_EnumSize = 0xF
 } ovrpShape;
 
@@ -918,7 +926,13 @@ typedef enum {
   /// Allocate layer using subsampled layout
   ovrpLayerFlag_Subsampled = (1 << 12),
   /// if non-static, allocate 4 elements in a swapchain
-  ovrpLayerFlag_4DeepSwapchain = (1 << 13)
+  ovrpLayerFlag_4DeepSwapchain = (1 << 13),
+
+
+
+
+  /// The layer is created through ovrp_EnqueueSetupLayer()
+  ovrpLayerFlag_LegacyOverlay = (1 << 15),
 } ovrpLayerFlags;
 
 /// Layer description used by ovrp_SetupLayer to create the layer
@@ -947,7 +961,7 @@ typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Cubemap;
 
 
 
-
+typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_InsightPassthrough;
 
 typedef struct {
   OVRP_LAYER_DESC_TYPE;
@@ -979,7 +993,7 @@ typedef union {
 
 
 
-
+  ovrpLayerDesc_InsightPassthrough InsightPassthrough;
 } ovrpLayerDescUnion;
 
 #undef OVRP_LAYER_DESC
@@ -999,8 +1013,6 @@ typedef enum {
   ovrpLayerSubmitFlag_InverseAlpha = (1 << 4),
   /// Combine the submitted layer with the layers generated from OVROverlay commands
   ovrpLayerSubmitFlag_CombineLayerSubmits = (1 << 5),
-  /// Enable Space warp on Fov layer
-  ovrpLayerSubmitFlag_SpaceWarp_Deprecated = (1 << 7), // [JianZhang] Todo: deprecated, will be cleaned up in next version.
   /// Enable VrApi "Expensive" SuperSample Flag.
   ovrpLayerSubmitFlag_ExpensiveSuperSample = (1 << 8),
   /// Enable per-overlay show/hide functionality.
@@ -1009,7 +1021,23 @@ typedef enum {
   ovrpLayerSubmitFlag_IgnoreSourceAlpha = (1 << 10),
   /// Enable Space warp on Fov layer
   ovrpLayerSubmitFlag_SpaceWarp = (1 << 11),
+
+
+
+
+
+
 } ovrpLayerSubmitFlags;
+
+/// Factors used for source and dest alpha to make up the blend function.
+typedef enum {
+  ovrpBlendFactorZero = 0,
+  ovrpBlendFactorOne = 1,
+  ovrpBlendFactorSrcAlpha = 2,
+  ovrpBlendFactorOneMinusSrcAlpha = 3,
+  ovrpBlendFactorDstAlpha = 4,
+  ovrpBlendFactorOneMinusDstAlpha = 5
+} ovrpBlendFactor;
 
 /// Layer state to submit to ovrp_EndFrame
 #define OVRP_LAYER_SUBMIT                         \
@@ -1026,6 +1054,16 @@ typedef enum {
     ovrpBool OverrideTextureRectMatrix;           \
     ovrpTextureRectMatrixf TextureRectMatrix;     \
     ovrpBool OverridePerLayerColorScaleAndOffset; \
+    /* Added in 1.60 */                           \
+    /* If blend factors are present (signaled by `HasBlendFactors == true`),*/\
+    /* they override the default blend function and all other influences    */\
+    /* like the layer submit flags `ovrpLayerSubmitFlag_InverseAlpha` and   */\
+    /* `ovrpLayerSubmitFlag_IgnoreSourceAlpha`.                             */\
+    /* Blend factors are not supported by CAPI and are ignored in the CAPI  */\
+    /* implementation.                                                      */\
+    ovrpBool HasBlendFactors;                     \
+    ovrpBlendFactor SrcBlendFactor;               \
+    ovrpBlendFactor DstBlendFactor;               \
   }
 
 typedef OVRP_LAYER_SUBMIT ovrpLayerSubmit;
@@ -1069,8 +1107,9 @@ typedef struct {
   // added in 1.49
   float MotionVectorDepthNear;
   float MotionVectorDepthFar;
-  ovrpVector2f MotionVectorScale;
-  ovrpVector2f MotionVectorOffset;
+  ovrpVector4f MotionVectorScale;
+  ovrpVector4f MotionVectorOffset;
+  ovrpPosef AppSpaceDeltaPose;
 } ovrpLayerSubmit_EyeFov;
 
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_OffcenterCubemap;
@@ -1557,7 +1596,18 @@ typedef enum ovrpColorSpace_ {
 typedef enum ovrpEventType_ {
   ovrpEventType_None = 0,
   /// Refresh rate changed event
-  ovrpEventType_DisplayRefreshRateChange = 1
+  ovrpEventType_DisplayRefreshRateChange = 1,
+
+
+
+
+
+
+
+
+
+
+
 } ovrpEventType;
 
 // biggest event that OVRPlugin can use
@@ -1571,6 +1621,203 @@ typedef struct ovrpEventDisplayRefreshRateChange_ {
   float FromRefreshRate;
   float ToRefreshRate;
 } ovrpEventDisplayRefreshRateChange;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-----------------------------------------------------------------
+// Insight Passthrough
+//-----------------------------------------------------------------
+typedef enum {
+  ovrpInsightPassthroughColorMapType_None = 0,
+  ovrpInsightPassthroughColorMapType_MonoToRgba = 1,
+  ovrpInsightPassthroughColorMapType_MonoToMono = 2,
+  ovrpInsightPassthroughColorMapType_HandsContrast = 3,
+  ovrpInsightPassthroughColorMapType_EnumSize = 0x7fffffff
+} ovrpInsightPassthroughColorMapType;
+
+typedef enum {
+  ovrpInsightPassthroughStyleFlags_HasTextureOpacityFactor = 1 << 0,
+  ovrpInsightPassthroughStyleFlags_HasEdgeColor = 1 << 1,
+  ovrpInsightPassthroughStyleFlags_HasTextureColorMap = 1 << 2,
+  ovrpInsightPassthroughStyleFlags_EnumSize = 0x7fffffff
+} ovrpInsightPassthroughStyleFlags;
+
+typedef struct {
+  /// The flags determine which fields of the struct have been initialize and
+  /// should be read. The values of fields which are not indicated to be
+  /// present by the flags should not be accessed. This is used to establish
+  /// backward: When new fields are added to the struct, callers of an older
+  /// version will only initialize the memory of previously known fields and
+  //  indicate which ones those are in the flags.
+  ovrpInsightPassthroughStyleFlags Flags;
+
+  /// Opacity of the (main) passthrough texture.
+  float TextureOpacityFactor;
+
+  /// Color of the edge rendering effect. The effect is disabled if the alpha
+  /// value is set to 0.
+  ovrpColorf EdgeColor;
+
+  /// The texture color map assigns a new color for each input (image) color.
+  /// The contents of `TextureColorMapData` is determined by
+  /// `TextureColorMapType`:
+  /// - For `MonoToRgba`, it is an array of 256 MrColorf values, i.e. one
+  ///   float color tuple for each 8 bit grayscale input value.
+  /// - For `MonoToMono`, it is an array of 256 uint8 values, i.e. one
+  ///   8 bit grayscale output value for each input value.
+  /// - For `HandsContrast`, it is an array of 4 float values.
+  ovrpInsightPassthroughColorMapType TextureColorMapType;
+  unsigned int TextureColorMapDataSize;
+  unsigned char* TextureColorMapData;
+} ovrpInsightPassthroughStyle;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

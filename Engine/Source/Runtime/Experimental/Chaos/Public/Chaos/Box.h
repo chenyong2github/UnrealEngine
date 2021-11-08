@@ -6,6 +6,7 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/AABB.h"
 #include "Chaos/ConvexHalfEdgeStructureData.h"
+#include "Chaos/Plane.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"

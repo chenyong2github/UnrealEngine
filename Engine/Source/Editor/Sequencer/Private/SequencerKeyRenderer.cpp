@@ -90,6 +90,11 @@ FKeyRenderer::FKeyDrawBatch::FKeyDrawBatch(const FSectionLayoutElement& LayoutEl
 	}
 }
 
+void FKeyRenderer::FCachedKeyDrawInformation::DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const
+{
+	CachedKeyPositions.GetKeyArea()->DrawExtra(Painter, KeyGeometry);
+}
+
 FKeyRenderer::ECacheFlags FKeyRenderer::FCachedKeyDrawInformation::UpdateViewIndependentData(FFrameRate TickResolution)
 {
 	const bool bDataChanged = CachedKeyPositions.Update(TickResolution);
@@ -630,6 +635,12 @@ void FKeyRenderer::FKeyDrawBatch::DrawCurve(FSequencer* Sequencer, FSequencerSec
 	);
 
 	Painter.LayerId = KeyLayer + 2;
+
+	for (const FCachedKeyDrawInformation& CachedKeyDrawInfo : KeyDrawInfo)
+	{
+		CachedKeyDrawInfo.DrawExtra(Painter,KeyGeometry);
+	}
+
 	Painter.DrawElements.GetClippingManager().PushClippingState(PreviousClipState.GetValue());
 }
 

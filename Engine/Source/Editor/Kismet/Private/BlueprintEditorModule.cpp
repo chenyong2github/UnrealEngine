@@ -30,6 +30,7 @@
 #include "WatchPointViewer.h"
 #include "KismetCompiler.h"
 #include "KismetWidgets.h"
+#include "BlueprintNamespaceRegistry.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -181,6 +182,8 @@ void FBlueprintEditorModule::StartupModule()
 
 	BlueprintDebugger = MakeUnique<FBlueprintDebugger>();
 
+	FBlueprintNamespaceRegistry::Get().Initialize();
+
 	// Have to check GIsEditor because right now editor modules can be loaded by the game
 	// Once LoadModule is guaranteed to return NULL for editor modules in game, this can be removed
 	// Without this check, loading the level editor in the game will crash
@@ -256,6 +259,8 @@ void FBlueprintEditorModule::ShutdownModule()
 	UnregisterSCSEditorCustomization("InstancedStaticMeshComponent");
 
 	UEdGraphPin::ShutdownVerification();
+
+	FBlueprintNamespaceRegistry::Get().Shutdown();
 }
 
 TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UBlueprint* Blueprint, bool bShouldOpenInDefaultsMode)

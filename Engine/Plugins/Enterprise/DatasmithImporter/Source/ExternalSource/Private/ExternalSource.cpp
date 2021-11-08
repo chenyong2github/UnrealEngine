@@ -10,6 +10,10 @@
 #include "DatasmithUtils.h"
 #include "Misc/AsyncTaskNotification.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif //WITH_EDITOR
+
 #define LOCTEXT_NAMESPACE "ExternalSource"
 
 DEFINE_LOG_CATEGORY(LogExternalSource);
@@ -17,6 +21,21 @@ DEFINE_LOG_CATEGORY(LogExternalSource);
 
 namespace UE::DatasmithImporter
 {
+	FExternalSource::FExternalSource(const FSourceUri& InSourceUri)
+		: SourceUri(InSourceUri)
+	{
+#if WITH_EDITOR
+		OnPIEEndHandle = FEditorDelegates::EndPIE.AddRaw(this, &FExternalSource::OnEndPIE);
+#endif //WITH_EDITOR
+	}
+
+	FExternalSource::~FExternalSource()
+	{
+#if WITH_EDITOR
+		FEditorDelegates::EndPIE.Remove(OnPIEEndHandle);
+#endif //WITH_EDITOR
+	}
+
 	const TSharedPtr<IDatasmithTranslator>& FExternalSource::GetAssetTranslator()
 	{
 		if (!AssetTranslator)
@@ -164,7 +183,7 @@ namespace UE::DatasmithImporter
 
 	void FExternalSource::ClearOnExternalSourceLoadedDelegates()
 	{
-		OnExternalSourceLoaded.Clear();
+		OnExternalSourceChanged.Clear();
 
 		// Set value of all pending TPromise to null, to avoid creating deadlocks.
 		{
@@ -187,26 +206,40 @@ namespace UE::DatasmithImporter
 
 	void FExternalSource::TriggerOnExternalSourceChanged()
 	{
-		if (AsyncTaskNotification.IsValid())
-		{
-			AsyncTaskNotification->SetComplete(true);
-			AsyncTaskNotification.Reset();
-		}
+		TSharedRef<FExternalSource> ThisRef = AsShared();
 
-		TSharedPtr<IDatasmithScene> Scene = GetDatasmithScene();
+		Async(EAsyncExecution::TaskGraphMainThread, [this, ThisRef = MoveTemp(ThisRef)]() {
+#if WITH_EDITOR
+			// If we're in PIE, delay the callbacks until we exit that mode.
+			if (GIsEditor && FApp::IsGame())
+			{
+				bChangedDuringPIE = true;
+				UE_LOG(LogExternalSource, Warning, TEXT("The DirectLink source \"%s\" received an update while in PIE mode. The reimport will be triggered when exiting PIE."), *GetSourceName());
+				return;
+			}
+#endif //WITH_EDITOR
 
-		if (Scene.IsValid())
-		{
-			Scene->SetName(*GetSceneName());			
-			ValidateDatasmithVersion();
-			OnExternalSourceLoaded.Broadcast(AsShared());
-		}
+			if (AsyncTaskNotification.IsValid())
+			{
+				AsyncTaskNotification->SetComplete(true);
+				AsyncTaskNotification.Reset();
+			}
 
-		FOptionalScenePromise CurrentPromise;
-		while (PendingPromiseQueue.Dequeue(CurrentPromise))
-		{
-			CurrentPromise->SetValue(Scene);
-		}
+			TSharedPtr<IDatasmithScene> Scene = GetDatasmithScene();
+
+			if (Scene.IsValid())
+			{
+				Scene->SetName(*GetSceneName());
+				ValidateDatasmithVersion();
+				OnExternalSourceChanged.Broadcast(ThisRef);
+			}
+
+			FOptionalScenePromise CurrentPromise;
+			while (PendingPromiseQueue.Dequeue(CurrentPromise))
+			{
+				CurrentPromise->SetValue(Scene);
+			}
+		});
 	}
 
 	void FExternalSource::ValidateDatasmithVersion() const
@@ -235,6 +268,18 @@ namespace UE::DatasmithImporter
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	void FExternalSource::OnEndPIE(bool bIsSimulating)
+	{
+		if (bChangedDuringPIE)
+		{
+			// Trigger the event held off during PIE.
+			bChangedDuringPIE = false;
+			TriggerOnExternalSourceChanged();
+		}
+	}
+#endif //WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

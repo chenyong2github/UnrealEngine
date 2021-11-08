@@ -69,12 +69,12 @@ public:
 		return AllCores;
 	}
 
-	static EThreadPriority GetRenderingThreadPriority()
+	static CORE_API EThreadPriority GetRenderingThreadPriority()
 	{
 		return TPri_SlightlyBelowNormal;
 	}
 
-	static EThreadPriority GetRHIThreadPriority()
+	static CORE_API EThreadPriority GetRHIThreadPriority()
 	{
 		return TPri_Normal;
 	}

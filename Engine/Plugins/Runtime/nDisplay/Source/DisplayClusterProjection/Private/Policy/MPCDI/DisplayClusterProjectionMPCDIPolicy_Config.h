@@ -12,6 +12,8 @@
 
 #include "WarpBlend/DisplayClusterWarpEnums.h"
 
+#include "Policy/DisplayClusterProjectionPolicyBase.h"
+
 struct FConfigParser
 {
 	FString  MPCDIFileName; // Single mpcdi file name
@@ -40,7 +42,16 @@ struct FConfigParser
 		FString MPCDITypeKey;
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, MPCDITypeKey))
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, *MPCDITypeKey);
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found Argument '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, *MPCDITypeKey);
+		}
+
+		if (MPCDITypeKey.IsEmpty())
+		{
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Undefined mpcdi type key '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, *MPCDITypeKey);
+			}
+			return false;
 		}
 
 		if (MPCDITypeKey.Compare(DisplayClusterProjectionStrings::cfg::mpcdi::TypeMPCDI) == 0)
@@ -64,7 +75,7 @@ private:
 		FString LocalMPCDIFileName;
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::File, LocalMPCDIFileName))
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found mpcdi file name for %s:%s - %s"), *BufferId, *RegionId, *LocalMPCDIFileName);
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found mpcdi file name for %s:%s - %s"), *BufferId, *RegionId, *LocalMPCDIFileName);
 			MPCDIFileName = LocalMPCDIFileName;
 		}
 
@@ -76,9 +87,13 @@ private:
 		// Buffer
 		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Buffer, BufferId))
 		{
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterProjectionStrings::cfg::mpcdi::Buffer);
-				return false;
 			}
+
+			return false;
+		}
 
 		if (BufferId.IsEmpty())
 		{
@@ -88,9 +103,13 @@ private:
 		// Region
 		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Region, RegionId))
 		{
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterProjectionStrings::cfg::mpcdi::Region);
-				return false;
 			}
+
+			return false;
+		}
 
 		if (RegionId.IsEmpty())
 		{
@@ -98,7 +117,7 @@ private:
 		}
 
 		return true;
-		}
+	}
 
 	inline bool ImplLoadPFMConfig(const TMap<FString, FString>& InConfigParameters)
 	{
@@ -106,7 +125,7 @@ private:
 		FString LocalPFMFile;
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::FilePFM, LocalPFMFile))
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found Argument '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::FilePFM, *LocalPFMFile);
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found Argument '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::FilePFM, *LocalPFMFile);
 			PFMFile = LocalPFMFile;
 		}
 
@@ -115,67 +134,67 @@ private:
 			return false;
 		}
 
-			// MPCDIType (optional)
-			FString MPCDITypeStr;
-			if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::MPCDIType, MPCDITypeStr))
-			{
-				MPCDIType = EDisplayClusterWarpProfileType::warp_A3D;
-			}
-			else
-			{
-				MPCDIType = EDisplayClusterWarpProfileType::Invalid;
+		// MPCDIType (optional)
+		FString MPCDITypeStr;
+		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::MPCDIType, MPCDITypeStr))
+		{
+			MPCDIType = EDisplayClusterWarpProfileType::warp_A3D;
+		}
+		else
+		{
+			MPCDIType = EDisplayClusterWarpProfileType::Invalid;
 
-				static const TArray<FString> Profiles({ "2d","3d","a3d","sl" });
-				for (int i = 0; i < Profiles.Num(); ++i)
+			static const TArray<FString> Profiles({ "2d","3d","a3d","sl" });
+			for (int i = 0; i < Profiles.Num(); ++i)
+			{
+				if (!MPCDITypeStr.Compare(Profiles[i], ESearchCase::IgnoreCase))
 				{
-					if (!MPCDITypeStr.Compare(Profiles[i], ESearchCase::IgnoreCase))
-					{
-						MPCDIType = (EDisplayClusterWarpProfileType)i;
-						break;
-					}
-				}
-
-				if (MPCDIType == EDisplayClusterWarpProfileType::Invalid)
-				{
-					UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' has unknown value '%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDIType, *MPCDITypeStr);
-					return false;
+					MPCDIType = (EDisplayClusterWarpProfileType)i;
+					break;
 				}
 			}
 
-			// Default is UE scale, cm
-			PFMFileScale = 1;
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::WorldScale, PFMFileScale))
+			if (MPCDIType == EDisplayClusterWarpProfileType::Invalid)
 			{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found WorldScale value - %.f"), PFMFileScale);
+				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' has unknown value '%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDIType, *MPCDITypeStr);
+				return false;
 			}
+		}
 
-			bIsUnrealGameSpace = false;
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::UseUnrealAxis, bIsUnrealGameSpace))
-			{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found bIsUnrealGameSpace value - %s"), bIsUnrealGameSpace ? TEXT("true") : TEXT("false"));
-			}
+		// Default is UE scale, cm
+		PFMFileScale = 1;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::WorldScale, PFMFileScale))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found WorldScale value - %.f"), PFMFileScale);
+		}
 
-			// AlphaFile file (optional)
-			FString LocalAlphaFile;
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::FileAlpha, LocalAlphaFile))
-			{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found external AlphaMap file - %s"), *LocalAlphaFile);
-				AlphaFile = LocalAlphaFile;
-			}
+		bIsUnrealGameSpace = false;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::UseUnrealAxis, bIsUnrealGameSpace))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found bIsUnrealGameSpace value - %s"), bIsUnrealGameSpace ? TEXT("true") : TEXT("false"));
+		}
 
-			AlphaGamma = 1;
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::AlphaGamma, AlphaGamma))
-			{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found AlphaGamma value - %.f"), AlphaGamma);
-			}
+		// AlphaFile file (optional)
+		FString LocalAlphaFile;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::FileAlpha, LocalAlphaFile))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found external AlphaMap file - %s"), *LocalAlphaFile);
+			AlphaFile = LocalAlphaFile;
+		}
 
-			// BetaFile file (optional)
-			FString LocalBetaFile;
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::FileBeta, LocalBetaFile))
-			{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found external BetaMap file - %s"), *LocalBetaFile);
-				BetaFile = LocalBetaFile;
-			}
+		AlphaGamma = 1;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::AlphaGamma, AlphaGamma))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found AlphaGamma value - %.f"), AlphaGamma);
+		}
+
+		// BetaFile file (optional)
+		FString LocalBetaFile;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::FileBeta, LocalBetaFile))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found external BetaMap file - %s"), *LocalBetaFile);
+			BetaFile = LocalBetaFile;
+		}
 
 		return true;
 	}
@@ -185,17 +204,20 @@ private:
 		// Origin node (optional)
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Origin, OriginType))
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found origin node - %s"), *OriginType);
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found origin node - %s"), *OriginType);
 		}
 		else
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("No origin node found. VR root will be used as default."));
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("No origin node found. VR root will be used as default."));
+			}
 		}
 
 		bEnablePreview = false;
 		if (DisplayClusterHelpers::map::template ExtractValueFromString(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::EnablePreview, bEnablePreview))
 		{
-			UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found EnablePreview value - %s"), bEnablePreview ? TEXT("true") : TEXT("false"));
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Verbose, TEXT("Found EnablePreview value - %s"), bEnablePreview ? TEXT("true") : TEXT("false"));
 		}
 
 		return true;

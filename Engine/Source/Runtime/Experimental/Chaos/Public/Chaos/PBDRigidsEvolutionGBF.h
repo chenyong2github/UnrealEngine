@@ -15,6 +15,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "Chaos/CCDUtilities.h"
 #include "Chaos/PBDSuspensionConstraints.h"
 
 namespace Chaos
@@ -28,6 +29,8 @@ namespace Chaos
 	{
 		CHAOS_API extern FRealSingle HackMaxAngularVelocity;
 		CHAOS_API extern FRealSingle HackMaxVelocity;
+		CHAOS_API extern FRealSingle CCDEnableThresholdBoundsScale;
+		CHAOS_API extern bool bChaosCollisionCCDUseTightBoundingBox;
 	}
 
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
@@ -97,7 +100,7 @@ namespace Chaos
 		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 1;
 		static constexpr FRealSingle DefaultCollisionMarginFraction = 0.1f;
 		static constexpr FRealSingle DefaultCollisionMarginMax = 100.0f;
-		static constexpr FRealSingle DefaultCollisionCullDistance = 5.0f;
+		static constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;
 		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
 		static constexpr int32 DefaultNumJointPairIterations = 1;
 		static constexpr int32 DefaultNumJointPushOutPairIterations = 1;
@@ -168,6 +171,8 @@ namespace Chaos
 		FORCEINLINE FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
 		FORCEINLINE const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
 
+		void DestroyConstraint(FConstraintHandle* Constraint);
+
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
@@ -186,6 +191,7 @@ namespace Chaos
 			FPerParticleEtherDrag EtherDragRule;
 			FPerParticlePBDEulerStep EulerStepRule;
 
+			const FReal BoundsThickness = GetBroadPhase().GetBoundsThickness();
 			const FReal MaxAngularSpeedSq = CVars::HackMaxAngularVelocity * CVars::HackMaxAngularVelocity;
 			const FReal MaxSpeedSq = CVars::HackMaxVelocity * CVars::HackMaxVelocity;
 			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) {
@@ -227,15 +233,30 @@ namespace Chaos
 
 					EulerStepRule.Apply(Particle, Dt);
 
-					if (Particle.HasBounds())
+					if (!Particle.CCDEnabled())
 					{
-						const FAABB3& LocalBounds = Particle.LocalBounds();
-						FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
-						if (Particle.CCDEnabled())
+						Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness));
+					}
+					else
+					{
+						const FReal MinBoundsAxis = Particle.LocalBounds().Extents().Min();
+						const FReal LengthCCDThreshold = MinBoundsAxis *  CVars::CCDEnableThresholdBoundsScale;
+						const FReal PXSizeSquared = (Particle.P() - Particle.X()).SizeSquared();
+						if (PXSizeSquared > LengthCCDThreshold * LengthCCDThreshold)
 						{
-							WorldSpaceBounds.ThickenSymmetrically(Particle.V() * Dt);
+							if (CVars::bChaosCollisionCCDUseTightBoundingBox)
+							{
+								Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness), Particle.X() - Particle.P());
+							}
+							else
+							{
+								Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness) + Particle.V() * Dt);
+							}
 						}
-						Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+						else
+						{
+							Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness));
+						}
 					}
 				}
 			});
@@ -245,9 +266,6 @@ namespace Chaos
 				Base::DirtyParticle(Particle);
 			}
 		}
-
-		// Pre-solver phase for handling special constraints (used for CCD)
-		void ApplyConstraintsPhase0(const FReal Dt, int32 Island);
 
 		// First phase of constraint solver
 		// For GBF this is the velocity solve phase
@@ -279,9 +297,6 @@ namespace Chaos
 		void GatherSolverInput(FReal Dt, int32 Island);
 		void ScatterSolverOutput(FReal Dt, int32 Island);
 
-		/** @brief Add the contacts stored in the sleeping island to the constraint allocator */
-		void AddSleepingContacts();
-		
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{
 			return CurrentStepResimCacheImp;
@@ -301,9 +316,6 @@ namespace Chaos
 		FNarrowPhase NarrowPhase;
 		FSpatialAccelerationCollisionDetector CollisionDetector;
 
-		// @todo(chaos): these are transient and the arrays should belong in the Island when we have one...
-		TArray<FSolverBodyContainer> IslandSolverBodies;
-
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
 		FPBDRigidsEvolutionCallback PreApplyCallback;
@@ -312,6 +324,8 @@ namespace Chaos
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 		FEvolutionResimCache* CurrentStepResimCacheImp;
 		const TArray<ISimCallbackObject*>* CollisionModifiers;
+
+		FCCDManager CCDManager;
 	};
 
 }

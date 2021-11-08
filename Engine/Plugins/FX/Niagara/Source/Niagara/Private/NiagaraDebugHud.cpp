@@ -1813,23 +1813,33 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 		FSimpleTableDraw SimpleTable;
 		SimpleTable.AddColumns(3, 200.0f);
 		SimpleTable.AddColumns(3, 100.0f);
-		SimpleTable.GetColumnText(0).Append(TEXT("SystemName"));
-		SimpleTable.GetColumnText(1).Append(TEXT("EmitterName"));
-		SimpleTable.GetColumnText(2).Append(TEXT("StageName"));
-		SimpleTable.GetColumnText(3).Append(TEXT("Avg Instances"));
-		SimpleTable.GetColumnText(4).Append(TEXT("Avg us"));
-		SimpleTable.GetColumnText(5).Append(TEXT("Max us"));
-		SimpleTable.RowComplete();
 
+		bool bFirst = true;
 		for (auto SystemIt = GpuUsagePerSystem.CreateIterator(); SystemIt; ++SystemIt)
 		{
-			if ( SystemIt.Value().bShowDetailed == false )
+			const FGpuUsagePerSystem& SystemUsage = SystemIt.Value();
+			if ( SystemUsage.bShowDetailed == false )
 			{
 				continue;
 			}
 
+			if (!bFirst)
+			{
+				SimpleTable.RowComplete();
+			}
+			bFirst = false;
+
 			UNiagaraSystem* OwnerSystem = SystemIt.Key().Get();
 			check(OwnerSystem);
+
+			SimpleTable.GetColumnText(0).Append(TEXT("System Name"));
+			SimpleTable.GetColumnText(1).Append(TEXT("Emitter Name"));
+			SimpleTable.GetColumnText(2).Append(TEXT("Stage Name"));
+			SimpleTable.GetColumnText(3).Append(TEXT("Avg Instances"));
+			SimpleTable.GetColumnText(4).Append(TEXT("Avg us"));
+			SimpleTable.GetColumnText(5).Append(TEXT("Max us"));
+			SimpleTable.RowComplete();
+
 			for (auto EmitterIt = SystemIt.Value().Emitters.CreateIterator(); EmitterIt; ++EmitterIt)
 			{
 				UNiagaraEmitter* OwnerEmitter = EmitterIt.Key().Get();
@@ -1846,6 +1856,12 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 					SimpleTable.RowComplete();
 				}
 			}
+
+			SimpleTable.GetColumnText(2).Append(TEXT("Total"));
+			SimpleTable.GetColumnText(3).Appendf(TEXT("%4.1f"), SystemUsage.InstanceCount.GetAverage<float>());
+			SimpleTable.GetColumnText(4).Appendf(TEXT("%llu"), SystemUsage.Microseconds.GetAverage());
+			SimpleTable.GetColumnText(5).Appendf(TEXT("%llu"), SystemUsage.Microseconds.GetMax());
+			SimpleTable.RowComplete();
 		}
 		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor, BackgroundColor);
 		TextLocation.Y += fAdvanceHeight;

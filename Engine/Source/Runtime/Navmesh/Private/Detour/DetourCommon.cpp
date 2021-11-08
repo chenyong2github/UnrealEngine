@@ -224,7 +224,7 @@ void dtCalcPolyCenter(dtReal* tc, const unsigned short* idx, int nidx, const dtR
 		tc[1] += v[1];
 		tc[2] += v[2];
 	}
-	const dtReal s = 1.0f / nidx;
+	const dtReal s = dtReal(1.) / nidx;
 	tc[0] *= s;
 	tc[1] *= s;
 	tc[2] *= s;
@@ -401,7 +401,7 @@ void dtRandomPointInConvexPoly(const dtReal* pts, const int npts, dtReal* areas,
 // @UE BEGIN
 dtRotation dtSelectRotation(dtReal rotationDeg)
 {
-	rotationDeg = dtfMod(rotationDeg, (dtReal)360.f);
+	rotationDeg = dtfMod(rotationDeg, dtReal(360.));
 	if (rotationDeg < 0)
 		rotationDeg += 360.f;
 

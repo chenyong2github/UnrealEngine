@@ -21,9 +21,11 @@ uint NumCullGridCells;
 #define THREADGROUP_SIZE 1
 #endif
 
+#if COMPUTESHADER
 groupshared uint NumGroupObjects;
 groupshared uint GroupBaseIndex;
 groupshared uint GroupObjectIndices[THREADGROUP_SIZE];
+#endif
 
 RWBuffer<uint> RWObjectIndexBuffer;
 
@@ -32,6 +34,7 @@ float LengthSq(float3 X)
 	return dot(X, X);
 }
 
+#if COMPUTESHADER
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void CullMeshSDFObjectsForViewCS(
 	uint3 GroupId : SV_GroupID,
@@ -115,7 +118,7 @@ void CullMeshSDFObjectsForViewCS(
 
 #endif
 }
-
+#endif // COMPUTESHADER
 
 struct FObjectCullVertexOutput
 {

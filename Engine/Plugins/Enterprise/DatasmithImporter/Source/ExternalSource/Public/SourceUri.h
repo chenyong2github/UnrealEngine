@@ -6,6 +6,8 @@
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 
+struct FAssetData;
+
 namespace UE::DatasmithImporter
 {
 	/**
@@ -35,6 +37,16 @@ namespace UE::DatasmithImporter
 		 * Return the scheme used for file URIs : "file"
 		 */
 		static const FString& GetFileScheme();
+
+		/**
+		 * Try to get the FSourceUri registered in the AssetData. If no SourceUri is registered, an invalid FSourceUri is returned.
+		 */
+		static FSourceUri FromAssetData(const FAssetData& AssetData);
+
+		/**
+		 * Returns the Tag that should be used for registering the SourceUri of an asset in its corresponding FAssetData.
+		 */
+		static FName GetAssetDataTag();
 
 		/**
 		 * Return if the FSourceUri is a properly structure valid uri.

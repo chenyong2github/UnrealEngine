@@ -494,17 +494,19 @@ FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim, FFieldVaria
 
 bool IsInputParameter(const FProperty* InParam)
 {
+	const bool bIsParam = InParam->HasAnyPropertyFlags(CPF_Parm);
 	const bool bIsReturnParam = InParam->HasAnyPropertyFlags(CPF_ReturnParm);
 	const bool bIsReferenceParam = InParam->HasAnyPropertyFlags(CPF_ReferenceParm);
 	const bool bIsOutParam = InParam->HasAnyPropertyFlags(CPF_OutParm) && !InParam->HasAnyPropertyFlags(CPF_ConstParm);
-	return !bIsReturnParam && (!bIsOutParam || bIsReferenceParam);
+	return bIsParam && !bIsReturnParam && (!bIsOutParam || bIsReferenceParam);
 }
 
 bool IsOutputParameter(const FProperty* InParam)
 {
+	const bool bIsParam = InParam->HasAnyPropertyFlags(CPF_Parm);
 	const bool bIsReturnParam = InParam->HasAnyPropertyFlags(CPF_ReturnParm);
 	const bool bIsOutParam = InParam->HasAnyPropertyFlags(CPF_OutParm) && !InParam->HasAnyPropertyFlags(CPF_ConstParm);
-	return !bIsReturnParam && bIsOutParam;
+	return bIsParam && !bIsReturnParam && bIsOutParam;
 }
 
 void ImportDefaultValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue)

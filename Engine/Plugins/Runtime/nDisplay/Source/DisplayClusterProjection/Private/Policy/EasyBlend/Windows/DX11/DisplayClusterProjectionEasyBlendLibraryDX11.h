@@ -55,4 +55,5 @@ struct DisplayClusterProjectionEasyBlendLibraryDX11
 private:
 	static void* DllHandle;
 	static FCriticalSection CritSec;
+	static bool bInitializeOnce;
 };

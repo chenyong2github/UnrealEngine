@@ -99,6 +99,10 @@ private:
 
 	void NavigateTo(UNiagaraStackEntry* Item);
 
+	bool IsValidForSummaryView() const;
+	void ToggleShowInSummaryView();
+	bool ShouldShowInSummaryView() const;
+
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;

@@ -386,7 +386,7 @@ namespace Metasound
 				if (bInterfaceManaged)
 				{
 					const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassMetadata);
-					PresetReferencedMetaSoundAsset = IMetaSoundAssetManager::GetChecked().FindAssetFromKey(RegistryKey);
+					PresetReferencedMetaSoundAsset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(RegistryKey);
 					return;
 				}
 
@@ -418,7 +418,7 @@ namespace Metasound
 					FMetasoundFrontendClassMetadata ParentMetadata = InDocument->GetRootGraphClass().Metadata;
 					ParentMetadata.SetType(EMetasoundFrontendClassType::External);
 					const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ParentMetadata);
-					FMetasoundAssetBase* ParentMetaSoundAsset = IMetaSoundAssetManager::GetChecked().FindAssetFromKey(RegistryKey);
+					FMetasoundAssetBase* ParentMetaSoundAsset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(RegistryKey);
 					if (ensure(ParentMetaSoundAsset))
 					{
 						ParentMetaSoundAsset->ConformObjectDataToArchetype();

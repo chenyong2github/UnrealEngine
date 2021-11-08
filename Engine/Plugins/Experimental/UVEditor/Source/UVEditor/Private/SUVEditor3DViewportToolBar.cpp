@@ -5,6 +5,7 @@
 #include "SUVEditor3DViewportToolBar.h"
 
 #include "UVEditorCommands.h"
+#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UVEditorStyle.h"
 #include "Widgets/Layout/SBorder.h"

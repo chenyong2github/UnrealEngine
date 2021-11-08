@@ -48,7 +48,7 @@ void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, 
 			"Texture2D_CreateVolumeTexture",
 			LOCTEXT("Texture2D_CreateVolumeTexture", "Create Volume Texture"),
 			LOCTEXT("Texture2D_CreateVolumeTextureToolTip", "Creates a new volume texture using this texture."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Sphere"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.VolumeTexture"),
 			FUIAction(FExecuteAction::CreateSP( this, &FAssetTypeActions_Texture2D::ExecuteCreateVolumeTexture, Textures ), FCanExecuteAction())
 			);
 	}

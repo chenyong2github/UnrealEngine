@@ -11,7 +11,7 @@
 
 template<typename ItemType> class STableRow;
 
-/** A column for the SceneOutliner that displays the item label */
+/** A column for the SceneOutliner that displays the pin icon */
 class FSceneOutlinerPinnedColumn : public ISceneOutlinerColumn
 {
 	struct FSceneOutlinerPinnedStateCache

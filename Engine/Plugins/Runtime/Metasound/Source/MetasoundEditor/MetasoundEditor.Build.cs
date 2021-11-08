@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"MetasoundFrontend",
 					"MetasoundGraphCore",
 					"ToolMenus",
+					"ToolWidgets",
 					"AudioWidgets",
 					"AudioSynesthesia"
 				}

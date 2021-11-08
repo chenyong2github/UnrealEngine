@@ -1636,7 +1636,7 @@ private:
 		/** Initialization constructor. */
 		FORCEINLINE TBaseKeyIterator(SetType& InSet, KeyArgumentType InKey)
 		:	Set(InSet)
-		,	Key(InKey)
+		,	Key(InKey) //-V1041
 		{
 			// The set's hash needs to be initialized to find the elements with the specified key.
 			Set.ConditionalRehash(Set.Elements.Num());

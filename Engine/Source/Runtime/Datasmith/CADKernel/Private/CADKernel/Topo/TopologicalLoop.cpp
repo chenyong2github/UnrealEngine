@@ -55,9 +55,7 @@ TSharedPtr<CADKernel::FTopologicalLoop> CADKernel::FTopologicalLoop::Make(const 
 }
 
 CADKernel::FTopologicalLoop::FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections)
-	: FTopologicalEntity()
-	, Face(TSharedPtr<FTopologicalFace>())
-	, bExternalLoop(true)
+	: bExternalLoop(true)
 {
 	Edges.Reserve(InEdges.Num());
 	for(int32 Index = 0; Index < InEdges.Num(); ++Index)

@@ -236,9 +236,24 @@ void UAnimGraphNode_BlendSpaceGraphBase::JumpToDefinition() const
 
 void UAnimGraphNode_BlendSpaceGraphBase::CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder)
 {
-	IDetailCategoryBuilder& BlendSpaceCategory = InDetailBuilder.EditCategory("Blend Space");
-	IDetailPropertyRow* BlendSpaceRow = BlendSpaceCategory.AddExternalObjects( { BlendSpace } );
-	BlendSpaceRow->ShouldAutoExpand(true);
+	if (BlendSpace)
+	{
+		IDetailCategoryBuilder& BlendSpaceCategory = InDetailBuilder.EditCategory("Blend Space");
+		IDetailPropertyRow* BlendSpaceRow = BlendSpaceCategory.AddExternalObjects( { BlendSpace } );
+		BlendSpaceRow->ShouldAutoExpand(true);
+
+		TSharedRef<IPropertyHandle> XHandle = InDetailBuilder.GetProperty(TEXT("Node.X"), GetClass());
+		XHandle->SetPropertyDisplayName(FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName));
+		TSharedRef<IPropertyHandle> YHandle = InDetailBuilder.GetProperty(TEXT("Node.Y"), GetClass());
+		if (BlendSpace->IsA<UBlendSpace1D>())
+		{
+			InDetailBuilder.HideProperty(YHandle);
+		}
+		else
+		{
+			YHandle->SetPropertyDisplayName(FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName));
+		}
+	}
 }
 
 TArray<UEdGraph*> UAnimGraphNode_BlendSpaceGraphBase::GetSubGraphs() const

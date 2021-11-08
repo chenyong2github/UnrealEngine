@@ -30,6 +30,12 @@ void ULensDistortionTool::Initialize(TWeakPtr<FCameraCalibrationStepsController>
 		{
 			const UCameraLensDistortionAlgo* Algo = CastChecked<UCameraLensDistortionAlgo>(AlgoIt->GetDefaultObject());
 			AlgosMap.Add(Algo->FriendlyName(), TSubclassOf<UCameraLensDistortionAlgo>(*AlgoIt));
+
+			// If the algo uses an overlay material, create a new MID to use with that algo
+			if (UMaterialInterface* OverlayMaterial = Algo->GetOverlayMaterial())
+			{
+				AlgoOverlayMIDs.Add(Algo->FriendlyName(), UMaterialInstanceDynamic::Create(OverlayMaterial, GetTransientPackage()));
+			}
 		}
 	}
 }
@@ -138,6 +144,14 @@ void ULensDistortionTool::SetAlgo(const FName& AlgoName)
 	{
 		CurrentAlgo->Initialize(this);
 	}
+
+	// Set the tool overlay pass' material to the MID associate with the current algo
+	if (CameraCalibrationStepsController.IsValid())
+	{
+		TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin();
+		StepsController->SetOverlayEnabled(false);
+		StepsController->SetOverlayMaterial(GetOverlayMID());
+	}
 }
 
 UCameraLensDistortionAlgo* ULensDistortionTool::GetAlgo() const
@@ -245,5 +259,24 @@ bool ULensDistortionTool::IsActive() const
 	return bIsActive;
 }
 
+UMaterialInstanceDynamic* ULensDistortionTool::GetOverlayMID() const
+{
+	if (CurrentAlgo)
+	{
+		return AlgoOverlayMIDs.FindRef(CurrentAlgo->FriendlyName()).Get();
+	}
+
+	return nullptr;
+}
+
+bool ULensDistortionTool::IsOverlayEnabled() const
+{
+	if (CurrentAlgo)
+	{
+		return CurrentAlgo->IsOverlayEnabled();
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

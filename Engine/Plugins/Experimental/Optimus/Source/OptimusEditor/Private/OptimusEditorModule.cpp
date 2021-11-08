@@ -2,26 +2,26 @@
 
 #include "OptimusEditorModule.h"
 
+#include "OptimusComputeComponentBroker.h"
 #include "OptimusDataType.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
+#include "OptimusEditorClipboard.h"
 #include "OptimusEditorCommands.h"
+#include "OptimusEditorGraphCommands.h"
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
+#include "OptimusResourceDescription.h"
 #include "SOptimusEditorGraphExplorer.h"
-#include "OptimusComputeComponentBroker.h"
-#include "OptimusEditorClipboard.h"
-
 #include "Types/OptimusType_ShaderText.h"
 
-#include "IAssetTools.h"
 #include "AssetToolsModule.h"
-#include "EdGraphUtilities.h"
-#include "OptimusResourceDescription.h"
-#include "PropertyEditorModule.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
+#include "EdGraphUtilities.h"
+#include "IAssetTools.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -46,6 +46,7 @@ void FOptimusEditorModule::StartupModule()
 	FComponentAssetBrokerage::RegisterBroker(ComputeGraphComponentBroker, UComputeGraphComponent::StaticClass(), true, true);
 	
 	FOptimusEditorCommands::Register();
+	FOptimusEditorGraphCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
 	FOptimusEditorStyle::Register();
 
@@ -67,6 +68,7 @@ void FOptimusEditorModule::ShutdownModule()
 
 	FOptimusEditorStyle::Unregister();
 	FOptimusEditorGraphExplorerCommands::Unregister();
+	FOptimusEditorGraphCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 	
 	if (UObjectInitialized())

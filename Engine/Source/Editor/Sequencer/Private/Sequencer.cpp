@@ -12658,6 +12658,8 @@ void FSequencer::ExportFBX()
 		
 		// Select selected nodes if there are selected nodes
 		TArray<FGuid> Bindings;
+		TArray<UMovieSceneTrack*> MasterTracks;
+		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 		for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
 		{
 			if (Node->GetType() == ESequencerNode::Object)
@@ -12676,12 +12678,21 @@ void FSequencer::ExportFBX()
 					}
 				}
 			}
+			else if (Node->GetType() == ESequencerNode::Track)
+			{
+				TSharedRef<const FSequencerTrackNode> TrackNode = StaticCastSharedRef<const FSequencerTrackNode>(Node);
+				UMovieSceneTrack* Track = TrackNode->GetTrack();
+				if (Track && MovieScene->IsAMasterTrack(*Track))
+				{
+					MasterTracks.Add(Track);
+				}
+			}
 		}
 
 		FString FileExtension = FPaths::GetExtension(ExportFilename);
 		if (FileExtension == TEXT("fbx"))
 		{
-			ExportFBXInternal(ExportFilename, Bindings);
+			ExportFBXInternal(ExportFilename, Bindings, (Bindings.Num() + MasterTracks.Num()) > 0 ? MasterTracks : MovieScene->GetMasterTracks());
 		}
 		else
 		{
@@ -12718,7 +12729,7 @@ void FSequencer::ExportFBX()
 }
 
 
-void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>& Bindings)
+void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks)
 {
 	{
 		UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
@@ -12741,7 +12752,7 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 					SetLocalTimeDirectly(UE::MovieScene::DiscreteInclusiveLower(GetTimeBounds()));
 				}
 
-				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
+				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, MasterTracks, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
 				{
 					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXSucceeded", "FBX Export Succeeded."));
 					Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString InFilename) { FPlatformProcess::ExploreFolder(*InFilename); }, ExportFilename);

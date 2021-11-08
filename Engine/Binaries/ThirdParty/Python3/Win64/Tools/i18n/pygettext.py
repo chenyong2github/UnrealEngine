@@ -52,8 +52,8 @@ Python of course has no preprocessor so this doesn't work so well.  Thus,
 pygettext searches only for _() by default, but see the -k/--keyword flag
 below for how to augment this.
 
- [1] http://www.python.org/workshops/1997-10/proceedings/loewis.html
- [2] http://www.gnu.org/software/gettext/gettext.html
+ [1] https://www.python.org/workshops/1997-10/proceedings/loewis.html
+ [2] https://www.gnu.org/software/gettext/gettext.html
 
 NOTE: pygettext attempts to be option and feature compatible with GNU
 xgettext where ever possible. However some options are still missing or are
@@ -561,9 +561,8 @@ def main():
     # initialize list of strings to exclude
     if options.excludefilename:
         try:
-            fp = open(options.excludefilename)
-            options.toexclude = fp.readlines()
-            fp.close()
+            with open(options.excludefilename) as fp:
+                options.toexclude = fp.readlines()
         except IOError:
             print(_(
                 "Can't read --exclude-file: %s") % options.excludefilename, file=sys.stderr)

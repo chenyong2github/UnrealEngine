@@ -199,7 +199,7 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 					const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
 					for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 					{
-						if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
+						if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Activated)))
 						{
 							if (Source.TargetState == EStreamingSourceTargetState::Loaded)
 							{
@@ -211,7 +211,7 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 								OutActivateCells.AddCell(Cell, Info);
 							}
 						}
-						else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
+						else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Loaded))
 						{
 							OutLoadCells.AddCell(Cell, Info);
 						}
@@ -233,12 +233,12 @@ void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* 
 		{
 			for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 			{
-				if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
+				if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Activated)))
 				{
 					check(Cell->IsAlwaysLoaded() || Cell->HasDataLayers());
 					OutActivateCells.Add(Cell);
 				}
-				else if(DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
+				else if(DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Loaded))
 				{
 					check(Cell->HasDataLayers());
 					OutLoadCells.Add(Cell);
@@ -260,8 +260,8 @@ void FSpatialHashStreamingGrid::GetFilteredCellsForDebugDraw(const FSpatialHashS
 				EStreamingStatus StreamingStatus = GridCell->GetStreamingStatus();
 				const TArray<FName>& DataLayers = GridCell->GetDataLayers();
 				return (!DataLayers.Num() || 
-						DataLayerSubsystem->IsAnyDataLayerInState(DataLayers, EDataLayerState::Loaded) || 
-						DataLayerSubsystem->IsAnyDataLayerInState(DataLayers, EDataLayerState::Activated) ||
+						DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(DataLayers, EDataLayerRuntimeState::Loaded) ||
+						DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(DataLayers, EDataLayerRuntimeState::Activated) ||
 						((StreamingStatus != LEVEL_Unloaded) && (StreamingStatus != LEVEL_UnloadedButStillAround)));
 			}
 			return false;
@@ -280,8 +280,9 @@ EWorldPartitionRuntimeCellVisualizeMode FSpatialHashStreamingGrid::GetStreamingC
 	return VisualizeMode;
 }
 
-void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const
+void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources) const
 {
+	const FTransform& Transform = FTransform::Identity;
 	const EWorldPartitionRuntimeCellVisualizeMode VisualizeMode = GetStreamingCellVisualizeMode();
 	const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
 	TMap<FName, FColor> DataLayerDebugColors;
@@ -654,9 +655,11 @@ FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor
 
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 {
+	check(!Grids.Num());
+
 	FSpatialHashRuntimeGrid& MainGrid = Grids.AddDefaulted_GetRef();
 	MainGrid.GridName = TEXT("MainGrid");
-	MainGrid.CellSize = 3200;
+	MainGrid.CellSize = 12800;
 	MainGrid.LoadingRange = 25600;
 	MainGrid.DebugColor = FLinearColor::Gray;
 }
@@ -676,7 +679,7 @@ void UWorldPartitionRuntimeSpatialHash::ImportFromWorldComposition(UWorldComposi
 			{
 				Grid = &Grids.AddDefaulted_GetRef();
 				Grid->GridName = GridName;
-				Grid->CellSize = 3200;
+				Grid->CellSize = 12800;
 				Grid->DebugColor = FLinearColor::MakeRandomColor();
 			}
 			// World Composition Layer Streaming Distance always wins over existing value (config file)
@@ -697,7 +700,7 @@ void UWorldPartitionRuntimeSpatialHash::ImportFromWorldComposition(UWorldComposi
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
@@ -765,7 +768,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	{
 		const FSpatialHashRuntimeGrid& Grid = AllGrids[GridIndex];
 		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActors[GridIndex]);
-		if (!CreateStreamingGrid(Grid, PartionedActors, Mode, StreamingPolicy, OutPackagesToGenerate))
+		if (!CreateStreamingGrid(Grid, PartionedActors, StreamingPolicy, OutPackagesToGenerate))
 		{
 			return false;
 		}
@@ -841,7 +844,7 @@ void UWorldPartitionRuntimeSpatialHash::UpdateActorDescViewMap(const FBox& World
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateStreamingGrid);
 
@@ -898,7 +901,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							continue;
 						}
 
-						if (bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE || Mode == EWorldPartitionStreamingMode::EditorStandalone))
+						if (bIsMainWorldPartition && !IsRunningCookCommandlet())
 						{
 							const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 
@@ -969,7 +972,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 					if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
 					{
-						if (Actor->GetPackage()->IsDirty())
+						if (ModifiedActorDescListForPIE.GetActorDesc(ActorDescView.GetGuid()) != nullptr)
 						{
 							// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
 							StreamingCell->ActorContainer = NewObject<UActorContainer>(StreamingCell);
@@ -993,7 +996,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					UE_LOG(LogWorldPartition, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
 				}
 
-				if (Mode == EWorldPartitionStreamingMode::Cook)
+				if (IsRunningCookCommandlet())
 				{
 					UE_LOG(LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
 
@@ -1238,11 +1241,6 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 	return EWorldPartitionStreamingPerformance::Good;
 }
 
-FVector2D UWorldPartitionRuntimeSpatialHash::GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const
-{
-	return FVector2D(CanvasSize.X * GetFilteredStreamingGrids().Num(), CanvasSize.Y);
-}
-
 void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, FVector2D& Offset) const
 {
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids = GetFilteredStreamingGrids();
@@ -1321,11 +1319,10 @@ void UWorldPartitionRuntimeSpatialHash::Draw3D(const TArray<FWorldPartitionStrea
 	UWorld* World = GetWorld();
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	FTransform Transform = WorldPartition->GetInstanceTransform();
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids = GetFilteredStreamingGrids();
 	for (const FSpatialHashStreamingGrid* StreamingGrid : FilteredStreamingGrids)
 	{
-		StreamingGrid->Draw3D(World, Sources, Transform);
+		StreamingGrid->Draw3D(World, Sources);
 	}
 }
 

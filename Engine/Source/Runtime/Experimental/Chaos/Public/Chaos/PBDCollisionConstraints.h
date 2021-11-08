@@ -136,6 +136,10 @@ public:
 	*/
 	void RemoveConstraint(FPBDCollisionConstraintHandle* ConstraintHandle);
 
+	/**
+	 * Set the sleeping state of the constraint. When awaking, reactivates the constraint.
+	*/
+	void SetConstraintIsSleeping(FPBDCollisionConstraint& Constraint, bool bInIsSleeping);
 
 	//
 	// General Rule API
@@ -167,7 +171,6 @@ public:
 	void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData);
 	void GatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
-	void ApplySwept(const FReal Dt, FPBDIslandSolverData& SolverData);
 	bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 	bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 

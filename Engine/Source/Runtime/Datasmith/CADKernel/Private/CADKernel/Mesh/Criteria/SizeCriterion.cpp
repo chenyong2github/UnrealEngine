@@ -6,20 +6,9 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-CADKernel::FSizeCriterion::FSizeCriterion(double InSize, ECriterion InType)
-	: FCriterion(InType)
-	, Size(InSize)
-{
-}
+using namespace CADKernel;
 
-CADKernel::FSizeCriterion::FSizeCriterion(FCADKernelArchive& Archive, ECriterion InType)
-	: FCriterion(InType)
-{
-	Serialize(Archive);
-}
-
-
-void CADKernel::FSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
+void CADKernel::FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 {
 	double NumericPrecision = Edge.GetTolerance3D();
 	if (Edge.Length() <= NumericPrecision)
@@ -27,34 +16,34 @@ void CADKernel::FSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, co
 		return;
 	}
 
-	switch (CriterionType)
-	{
-	case ECriterion::MaxSize:
-		ApplyOnEdgeParameters(Coordinates, Points, Edge.GetDeltaUMaxs(), [](double NewValue, double& AbacusValue)
+	ApplyOnParameters(Coordinates, Points, Edge.GetDeltaUMins(), [](double NewValue, double& AbacusValue)
+		{
+			if (NewValue > AbacusValue)
 			{
-				if (NewValue < AbacusValue)
-				{
-					AbacusValue = NewValue;
-				}
-			});
-		break;
-
-	case ECriterion::MinSize:
-		ApplyOnEdgeParameters(Coordinates, Points, Edge.GetDeltaUMins(), [](double NewValue, double& AbacusValue)
-			{
-				if (NewValue > AbacusValue)
-				{
-					AbacusValue = NewValue;
-				}
-			});
-		break;
-
-	default:
-		break;
-	}
+				AbacusValue = NewValue;
+			}
+		});
 }
 
-void CADKernel::FSizeCriterion::ApplyOnEdgeParameters(const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points, TArray<double>& DeltaUArray, TFunction<void(double, double&)> Compare) const
+
+void CADKernel::FMaxSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
+{
+	double NumericPrecision = Edge.GetTolerance3D();
+	if (Edge.Length() <= NumericPrecision)
+	{
+		return;
+	}
+
+	ApplyOnParameters(Coordinates, Points, Edge.GetDeltaUMaxs(), [](double NewValue, double& AbacusValue)
+		{
+			if (NewValue < AbacusValue)
+			{
+				AbacusValue = NewValue;
+			}
+		});
+}
+
+void CADKernel::FSizeCriterion::ApplyOnParameters(const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points, TArray<double>& DeltaUArray, TFunction<void(double, double&)> Compare) const
 {
 	double DeltaUMax = Coordinates[Coordinates.Num() - 1] - Coordinates[0];
 
@@ -68,37 +57,31 @@ void CADKernel::FSizeCriterion::ApplyOnEdgeParameters(const TArray<double>& Coor
 	}
 }
 
-void CADKernel::FSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
+void CADKernel::FMinSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
 {
 	if (ChordLength < KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	switch (CriterionType)
+	double DeltaU = InDeltaU * Size / ChordLength;
+	if (DeltaU > OutSagDeltaUMin)
 	{
-	case ECriterion::MaxSize:
-		{
-			double DeltaU = InDeltaU * Size / ChordLength;
-			if (DeltaU < OutSagDeltaUMax)
-			{
-				OutSagDeltaUMax = DeltaU;
-			}
-		}
-		break;
+		OutSagDeltaUMin = DeltaU;
+	}
+}
 
-	case ECriterion::MinSize:
-		{
-			double DeltaU = InDeltaU * Size / ChordLength;
-			if (DeltaU > OutSagDeltaUMin)
-			{
-				OutSagDeltaUMin = DeltaU;
-			}
-		}
-		break;
+void CADKernel::FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
+{
+	if (ChordLength < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
 
-	default:
-		break;
+	double DeltaU = InDeltaU * Size / ChordLength;
+	if (DeltaU < OutSagDeltaUMax)
+	{
+		OutSagDeltaUMax = DeltaU;
 	}
 }
 

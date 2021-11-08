@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InputCore",
 					"MainFrame",
+					"Projects",
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",

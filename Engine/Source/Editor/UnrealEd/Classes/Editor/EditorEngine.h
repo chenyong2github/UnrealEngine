@@ -1670,7 +1670,8 @@ public:
 	/** Cancel request to start a play session */
 	void CancelRequestPlaySession();
 
-
+	/** Pause or unpause all PIE worlds. Returns true if successful */
+	bool SetPIEWorldsPaused(bool Paused);
 
 	/** Makes a request to start a play from a Slate editor session */
 	void RequestToggleBetweenPIEandSIE() { bIsToggleBetweenPIEandSIEQueued = true; }

@@ -11,23 +11,35 @@ class FPropertyPath;
 struct FPropertyChangedEvent;
 class IDetailCustomization;
 class IDetailTreeNode;
-class IPropertyHandle;
 class IPropertyTypeIdentifier;
 class IPropertyTypeCustomization;
 class SWidget;
 
 struct FPropertyAndParent
 {
-	FPropertyAndParent(const TSharedRef<IPropertyHandle>& InPropertyHandle, const TArray< TWeakObjectPtr< UObject > >& InObjects);
+	explicit FPropertyAndParent(const TSharedRef<class IPropertyHandle>& InPropertyHandle);
+	explicit FPropertyAndParent(const TSharedRef<class FPropertyNode>& InPropertyNode);
 
 	/** The property always exists */
 	const FProperty& Property;
 
+	/** The array index of this property if applicable, otherwise INDEX_NONE. */
+	int32 ArrayIndex;
+
 	/** The entire chain of parent properties, all the way to the property root. ParentProperties[0] is the immediate parent.*/
 	TArray< const FProperty* > ParentProperties;
 
+	/**
+	 * Array indices in parent properties where applicable, otherwise INDEX_NONE.
+	 * The size of this array is always equal to the size of ParentProperties.
+	 */
+	TArray<int32> ParentArrayIndices;
+
 	/** The objects for these properties */
 	TArray< TWeakObjectPtr< UObject > > Objects;
+
+private:
+	void Initialize(const TSharedRef<FPropertyNode>& InPropertyNode);
 };
 
 /** Delegate called to see if a property should be visible */

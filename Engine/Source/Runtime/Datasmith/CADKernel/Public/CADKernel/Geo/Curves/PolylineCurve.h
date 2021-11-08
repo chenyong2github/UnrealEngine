@@ -48,11 +48,9 @@ namespace CADKernel
 			Boundary.Set(0, CurvilineLength);
 		}
 
-		TPolylineCurve(FCADKernelArchive& Archive)
-			: FCurve()
-			, Approximator(this->Coordinates, this->Points)
+		TPolylineCurve()
+			: Approximator(this->Coordinates, this->Points)
 		{
-			Serialize(Archive);
 		}
 
 	public:
@@ -140,10 +138,7 @@ namespace CADKernel
 		{
 		}
 
-		FPolylineCurve(FCADKernelArchive& Archive)
-			: TPolylineCurve<FPoint, FCurvePoint>(Archive)
-		{
-		}
+		FPolylineCurve() = default;
 
 	public:
 
@@ -183,10 +178,7 @@ namespace CADKernel
 		{
 		}
 
-		FPolyline2DCurve(FCADKernelArchive& Archive)
-			: TPolylineCurve<FPoint2D, FCurvePoint2D>(Archive)
-		{
-		}
+		FPolyline2DCurve() = default;
 
 	public:
 

@@ -25,7 +25,7 @@
 #define TTF_FONT( RelativePath, ... ) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".ttf")), __VA_ARGS__)
 #define OTF_FONT( RelativePath, ... ) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".otf")), __VA_ARGS__)
 
-struct FBinkMediaPlayerEditorStyle : FSlateStyleSet
+struct FBinkMediaPlayerEditorStyle final : FSlateStyleSet
 {
 	FBinkMediaPlayerEditorStyle() : FSlateStyleSet("BinkMediaPlayerEditorStyle")
 	{

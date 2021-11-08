@@ -204,6 +204,7 @@ public:
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
+	virtual void ReleaseResource() override final { FVertexFactory::ReleaseResource(); }
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -262,7 +263,7 @@ struct FLandscapeVertex
 //
 // FLandscapeVertexBuffer
 //
-class FLandscapeVertexBuffer : public FVertexBuffer
+class FLandscapeVertexBuffer final : public FVertexBuffer
 {
 	ERHIFeatureLevel::Type FeatureLevel;
 	int32 NumVertices;

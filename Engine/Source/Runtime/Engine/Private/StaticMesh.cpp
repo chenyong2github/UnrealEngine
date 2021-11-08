@@ -5503,47 +5503,61 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 		if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels && bConvertMinLODData)
 		{
-			//assign the default value
-			PerQualityLevelData.Default = PerPlatformData.Default;
-
 			// get the platform groups
 			const TArray<FName>& PlatformGroupNameArray = PlatformInfo::GetAllPlatformGroupNames();
 
-			// iterate over all platform and platform group entry: ex: XBOXONE = 2, CONSOLE=1, MOBILE = 3
-			if (PerQualityLevelData.PerQuality.Num() == 0)
+			// Make sure all platforms and groups are known before updating any of them. Missing platforms would not properly be converted to PerQuality if some of them were known and others were not.
+			bool bAllPlatformsKnown = true;
+			for (const TPair<FName, int32>& Pair : PerPlatformData.PerPlatform)
 			{
-				TMap<FName, int32> SortedPerPlatforms = PerPlatformData.PerPlatform;
-				SortedPerPlatforms.KeySort([&](const FName& A, const FName& B) { return (PlatformGroupNameArray.Contains(A) > PlatformGroupNameArray.Contains(B)); });
-
-				for (const TPair<FName, int32>& Pair : SortedPerPlatforms)
+				const bool bIsPlatformGroup = PlatformGroupNameArray.Contains(Pair.Key);
+				const bool bIsKnownPlatform = (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(Pair.Key).IniPlatformName.IsNone() == false);
+				if (!bIsPlatformGroup && !bIsKnownPlatform)
 				{
-					bool bIsPlatformGroup = PlatformGroupNameArray.Contains(Pair.Key);
+					bAllPlatformsKnown = false;
+					break;
+				}
+			}
 
-					FSupportedQualityLevelArray QualityLevels;
-					FString PlatformEntry = Pair.Key.ToString();
+			if (bAllPlatformsKnown)
+			{
+				//assign the default value
+				PerQualityLevelData.Default = PerPlatformData.Default;
 
-					QualityLevels = QualityLevelProperty::PerPlatformOverrideMapping(PlatformEntry);
+				// iterate over all platform and platform group entry: ex: XBOXONE = 2, CONSOLE=1, MOBILE = 3
+				if (PerQualityLevelData.PerQuality.Num() == 0)
+				{
+					TMap<FName, int32> SortedPerPlatforms = PerPlatformData.PerPlatform;
+					SortedPerPlatforms.KeySort([&](const FName& A, const FName& B) { return (PlatformGroupNameArray.Contains(A) > PlatformGroupNameArray.Contains(B)); });
 
-					// we now have a range of quality levels supported on that platform or from that group
-					// note: 
-					// -platform group overrides will be applied first
-					// -platform override sharing the same quality level will take the smallest MinLOD value between them
-					// -ex: if XboxOne and PS4 maps to high and XboxOne MinLOD = 2 and PS4 MINLOD = 1, MINLOD 1 will be selected
-					for (int32& QLKey : QualityLevels)
+					for (const TPair<FName, int32>& Pair : SortedPerPlatforms)
 					{
-						int32* Value = PerQualityLevelData.PerQuality.Find(QLKey);
-						if (Value != nullptr)
+						FSupportedQualityLevelArray QualityLevels;
+						FString PlatformEntry = Pair.Key.ToString();
+
+						QualityLevels = QualityLevelProperty::PerPlatformOverrideMapping(PlatformEntry);
+
+						// we now have a range of quality levels supported on that platform or from that group
+						// note: 
+						// -platform group overrides will be applied first
+						// -platform override sharing the same quality level will take the smallest MinLOD value between them
+						// -ex: if XboxOne and PS4 maps to high and XboxOne MinLOD = 2 and PS4 MINLOD = 1, MINLOD 1 will be selected
+						for (int32& QLKey : QualityLevels)
 						{
-							*Value = FMath::Min(Pair.Value, *Value);
-						}
-						else
-						{
-							PerQualityLevelData.PerQuality.Add(QLKey, Pair.Value);
+							int32* Value = PerQualityLevelData.PerQuality.Find(QLKey);
+							if (Value != nullptr)
+							{
+								*Value = FMath::Min(Pair.Value, *Value);
+							}
+							else
+							{
+								PerQualityLevelData.PerQuality.Add(QLKey, Pair.Value);
+							}
 						}
 					}
 				}
+				SetQualityLevelMinLOD(PerQualityLevelData);
 			}
-			SetQualityLevelMinLOD(PerQualityLevelData);
 		}
 #endif
 
@@ -5954,6 +5968,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	LODResources.bHasDepthOnlyIndices = true;
 	LODResources.DepthOnlyIndexBuffer.SetIndices(DepthOnlyIndexBuffer, IndexBufferStride);
 	LODResources.DepthOnlyNumTriangles = NumTriangles;
+	LODResources.bHasColorVertexData = true;
 
 	// Fill reversed index buffer
 	TArray<uint32> ReversedIndexBuffer(IndexBuffer);

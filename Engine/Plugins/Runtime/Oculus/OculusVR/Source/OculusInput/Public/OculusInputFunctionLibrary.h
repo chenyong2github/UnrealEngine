@@ -23,6 +23,17 @@ enum class ETrackingConfidence : uint8
 	High
 };
 
+UENUM(BlueprintType)
+enum class EOculusFinger : uint8
+{
+	Thumb,
+	Index,
+	Middle,
+	Ring,
+	Pinky,
+	Invalid
+};
+
 /**
 * EBone is enum representing the Bone Ids that come from the Oculus Runtime. 
 */
@@ -86,6 +97,12 @@ class OCULUSINPUT_API UOculusInputFunctionLibrary : public UBlueprintFunctionLib
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking")
+	static EOculusFinger ConvertBoneToFinger(const EBone Bone);
+	
+	DECLARE_MULTICAST_DELEGATE_FourParams(FHandMovementFilterDelegate, EControllerHand, FVector*, FRotator*, bool*);
+	static FHandMovementFilterDelegate HandMovementFilter; /// Called to modify Hand position and orientation whenever it is queried
 	
 	/**
 	 * Creates a new runtime hand skeletal mesh.
@@ -146,6 +163,16 @@ public:
 	static ETrackingConfidence GetTrackingConfidence(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
+	* Get the tracking confidence of a finger
+	*
+	* @param DeviceHand				(in) The hand to get tracking confidence of
+	* @param ControllerIndex			(in) Optional different controller index
+	* @param Finger			(in) The finger to get tracking confidence of
+	*/
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	static ETrackingConfidence GetFingerTrackingConfidence(const EOculusHandType DeviceHand, const EOculusFinger Finger, const int32 ControllerIndex = 0);
+
+	/**
 	 * Get the scale of the hand
 	 *
 	 * @param DeviceHand				(in) The hand to get scale of
@@ -167,6 +194,15 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
 	static bool IsHandTrackingEnabled();
+
+	/**
+	* Check if the hand position is valid
+	*
+	* @param DeviceHand				(in) The hand to get the position from
+	* @param ControllerIndex			(in) Optional different controller index
+	*/
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	static bool IsHandPositionValid(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
 	 * Get the bone name from the bone index

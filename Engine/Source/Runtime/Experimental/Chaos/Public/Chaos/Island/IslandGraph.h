@@ -45,21 +45,21 @@ public:
 	 * @param NodeItem Node Item to be stored in the graph node
 	 * @param bValidNode Check if a node should be considered for graph partitioning
 	 * @param IslandIndex Potential island index we want the node to belong to
-	 * @param bDiscardNode Node to check if a node will be dicarded ot not for island splitting
+	 * @param bStationaryNode Boolean to check if a node is steady or not
 	 * @return Node index that has just been added
 	 */
-	int32 AddNode(const NodeType& NodeItem, const bool bValidNode = true, const int32 IslandIndex = INDEX_NONE, const bool bDiscardNode = false);
+	int32 AddNode(const NodeType& NodeItem, const bool bValidNode = true, const int32 IslandIndex = INDEX_NONE, const bool bStationaryNode = false);
 
 	/**
 	* Given a node item, update the graph node information (valid,discard...)
 	* @param NodeItem Node Item to be stored in the graph node
 	* @param bValidNode Check if a node should be considered for graph partitioning
 	* @param IslandIndex Potential island index we want the node to belong to
-	* @param bDiscardNode Node to check if a node will be dicarded ot not for island splitting
+	* @param bStationaryNode Boolean to check if a node is steady or not
 	*  @param NodeIndex Index to consider to update the graph node information
 	* @return Node index that has just been added
 	*/
-	void UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bDiscardNode, const int32 NodeIndex);
+	void UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode, const int32 NodeIndex);
 
 	/**
 	 * Remove a node from the graph nodes list
@@ -90,9 +90,9 @@ public:
 
 	/**
 	 * Remove an edge from the graph edges list
-	 * @param EdgeItem Item to be removed from the edges list
+	 * @param EdgeIndex Index of the edge to be removed from the edges list
 	 */
-	void RemoveEdge(const EdgeType& EdgeItem);
+	void RemoveEdge(const int32 EdgeIndex);
 
 	/**
 	* Remove all the edges from the graph
@@ -134,8 +134,8 @@ public:
 		/** Check if a node is valid (checked for graph partitionning) */
 		bool bValidNode = true;
 
-		/** Check if a node will be dicarded for graph splitting */
-		bool bDiscardNode = true;
+		/** Check if a node is steady */
+		bool bStationaryNode = true;
 
 		/** Node counter to filter nodes already processed */
 		int32 NodeCounter = 0;
@@ -181,7 +181,7 @@ public:
 		/** Number of edges per islands*/
 		int32 NumEdges = 0;
 
-		/** Number of nodes per islands*/
+		/** Number of valid nodes per islands*/
 		int32 NumNodes = 0;
 
 		/** Island counter to filter islands already processed */

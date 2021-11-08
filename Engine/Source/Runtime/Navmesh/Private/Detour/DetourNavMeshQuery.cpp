@@ -3027,7 +3027,7 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 		// Unpack portal limits.
 		if (link->bmin != 0 || link->bmax != 255)
 		{
-			const dtReal s = 1.0f/255.0f;
+			const dtReal s = dtReal(1.)/255.0f;
 			const dtReal tmin = link->bmin*s;
 			const dtReal tmax = link->bmax*s;
 			dtVlerp(left, &fromTile->verts[v0*3], &fromTile->verts[v1*3], tmin);
@@ -3266,7 +3266,7 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const dtReal* startPos, con
 //@UE END
 			{
 				// Calculate link size.
-				const dtReal s = 1.0f/255.0f;
+				const dtReal s = dtReal(1.)/255.0f;
 				dtReal lmin = left[2] + (right[2] - left[2])*(link.bmin*s);
 				dtReal lmax = left[2] + (right[2] - left[2])*(link.bmax*s);
 				if (lmin > lmax) dtSwap(lmin, lmax);
@@ -3284,7 +3284,7 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const dtReal* startPos, con
 //@UE END
 			{
 				// Calculate link size.
-				const dtReal s = 1.0f/255.0f;
+				const dtReal s = dtReal(1.)/255.0f;
 				dtReal lmin = left[0] + (right[0] - left[0])*(link.bmin*s);
 				dtReal lmax = left[0] + (right[0] - left[0])*(link.bmax*s);
 				if (lmin > lmax) dtSwap(lmin, lmax);
@@ -3566,7 +3566,7 @@ dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const dtReal* 
 	dtReal centerPos[3] = {0,0,0};
 	for (int i = 0; i < nverts; ++i)
 		dtVadd(centerPos,centerPos,&verts[i*3]);
-	dtVscale(centerPos,centerPos,1.0f/nverts);
+	dtVscale(centerPos,centerPos,dtReal(1.)/nverts);
 
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, centerPos);
@@ -4221,8 +4221,8 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 			// Portal segment.
 			if (storePortals && ints[k].ref)
 			{
-				const dtReal tmin = ints[k].tmin/255.0f; 
-				const dtReal tmax = ints[k].tmax/255.0f;
+				const dtReal tmin = ints[k].tmin/dtReal(255.); 
+				const dtReal tmax = ints[k].tmax/dtReal(255.);
 				if (n < maxSegments)
 				{
 					dtReal* seg = &segmentVerts[n*6];
@@ -4243,8 +4243,8 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 			const int imax = ints[k].tmin;
 			if (imin != imax)
 			{
-				const dtReal tmin = imin/255.0f;
-				const dtReal tmax = imax/255.0f;
+				const dtReal tmin = imin/dtReal(255.);
+				const dtReal tmax = imax/dtReal(255.);
 				if (n < maxSegments)
 				{
 					dtReal* seg = &segmentVerts[n*6];

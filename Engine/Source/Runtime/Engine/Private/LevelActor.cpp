@@ -1504,7 +1504,7 @@ void UWorld::LoadSecondaryLevels(bool bForce, TSet<FName>* FilenamesToSkip)
 				const FString StreamingLevelWorldAssetPackageName = StreamingLevel->GetWorldAssetPackageName();
 				if (FilenamesToSkip)
 				{
-					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &PackageFilename))
+					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, &PackageFilename))
 					{
 						bSkipFile |= FilenamesToSkip->Contains( FName(*PackageFilename) );
 					}

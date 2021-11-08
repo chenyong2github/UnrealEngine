@@ -1354,6 +1354,11 @@ public:
 		return FLinearColor::White; 
 	}
 
+	virtual void SetViewMode(EViewModeIndex Index) override final
+	{
+		FEditorViewportClient::SetViewMode(Index);
+	}
+
 	// End of FEditorViewportClient
 
 	void UpdateLighting()

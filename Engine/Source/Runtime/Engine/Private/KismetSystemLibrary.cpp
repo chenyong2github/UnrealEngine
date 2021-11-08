@@ -256,6 +256,11 @@ FString UKismetSystemLibrary::GetDeviceId()
 	return FPlatformMisc::GetDeviceId();
 }
 
+UClass* UKismetSystemLibrary::Conv_ObjectToClass(UObject* Object, TSubclassOf<UObject> Class)
+{
+	return Cast<UClass>(Object);
+}
+
 UObject* UKismetSystemLibrary::Conv_InterfaceToObject(const FScriptInterface& Interface)
 {
 	return Interface.GetObject();

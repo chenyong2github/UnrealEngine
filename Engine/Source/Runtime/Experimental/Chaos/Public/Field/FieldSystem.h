@@ -46,7 +46,7 @@ struct CHAOS_API FFieldContextIndex
 };
 
 /** Enum to specify on which array the final field output will be stored for future use in rban/cloth*/
-enum class CHAOS_API EFieldCommandOutputType : uint8
+enum class EFieldCommandOutputType : uint8
 {
 	LinearForce = 0,
 	LinearVelocity = 1,
@@ -56,7 +56,7 @@ enum class CHAOS_API EFieldCommandOutputType : uint8
 };
 
 /** Enum to specify on which array the intermediate fields results are going to be stored */
-enum class CHAOS_API EFieldCommandResultType : uint8
+enum class EFieldCommandResultType : uint8
 {
 	FinalResult = 0,
 	TransientResult = 1,
@@ -64,7 +64,7 @@ enum class CHAOS_API EFieldCommandResultType : uint8
 };
 
 /** Enum to specify on whjich array the particle handles are going to be stored */
-enum class CHAOS_API EFieldCommandHandlesType : uint8
+enum class EFieldCommandHandlesType : uint8
 {
 	FilteredHandles = 0,
 	InsideHandles = 1,

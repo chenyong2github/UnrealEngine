@@ -12,6 +12,7 @@
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 #include "Widgets/Colors/SColorPicker.h"
 
 
@@ -19,8 +20,9 @@ class FSinglePropertyUtilities : public IPropertyUtilities
 {
 public:
 
-	FSinglePropertyUtilities( const TWeakPtr< SSingleProperty >& InView )
+	FSinglePropertyUtilities( const TWeakPtr< SSingleProperty >& InView, bool bInShouldDisplayThumbnail )
 		: View( InView )
+		, bShouldHideAssetThumbnail(bInShouldDisplayThumbnail)
 	{
 	}
 
@@ -67,8 +69,7 @@ public:
 
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override
 	{
-		// not implemented
-		return NULL;
+		return bShouldHideAssetThumbnail ? nullptr : UThumbnailManager::Get().GetSharedThumbnailPool();
 	}
 
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override
@@ -99,6 +100,7 @@ public:
 
 private:
 	TWeakPtr< SSingleProperty > View;
+	bool bShouldHideAssetThumbnail = false;
 };
 
 void SSingleProperty::Construct( const FArguments& InArgs )
@@ -109,7 +111,7 @@ void SSingleProperty::Construct( const FArguments& InArgs )
 	NotifyHook = InArgs._NotifyHook;
 	PropertyFont = InArgs._PropertyFont;
 
-	PropertyUtilities = MakeShareable( new FSinglePropertyUtilities( SharedThis( this ) ) );
+	PropertyUtilities = MakeShareable( new FSinglePropertyUtilities( SharedThis( this ), InArgs._bShouldHideAssetThumbnail ) );
 
 	SetObject( InArgs._Object );
 }

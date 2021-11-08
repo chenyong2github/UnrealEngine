@@ -255,6 +255,19 @@ namespace
             }
         }
 
+		// UE Change Begin: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+#if defined(SC_EXPLICIT_DLLSHUTDOWN)
+		void Shutdown()
+		{
+			if (m_dllShutdownFunc)
+			{
+				m_dllShutdownFunc();
+				m_dllShutdownFunc = nullptr;
+			}
+		}
+#endif
+		// UE Change End: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+
     private:
         Dxcompiler()
         {
@@ -292,6 +305,9 @@ namespace
                 m_createInstanceFunc = (DxcCreateInstanceProc)::GetProcAddress(m_dxcompilerDll, functionName);
 #else
                 m_createInstanceFunc = (DxcCreateInstanceProc)::dlsym(m_dxcompilerDll, functionName);
+#if defined(SC_EXPLICIT_DLLSHUTDOWN)
+				m_dllShutdownFunc = (DxcDllShutdownProc)::dlsym(m_dxcompilerDll, "DllShutdown");
+#endif
 #endif
 
                 if (m_createInstanceFunc != nullptr)
@@ -329,6 +345,13 @@ namespace
         // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
         CComPtr<IDxcRewriter> m_rewriter;
         // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
+
+		// UE Change Begin: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+#if defined(SC_EXPLICIT_DLLSHUTDOWN)
+		typedef void(*DxcDllShutdownProc)();
+		DxcDllShutdownProc m_dllShutdownFunc = nullptr;
+#endif
+		// UE Change End: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
 
         bool m_linkerSupport;
     };
@@ -1744,6 +1767,15 @@ namespace ShaderConductor
         source.stage = modules.stage;
         return ConvertBinary(binaryResult, source, options, target);
     }
+
+	// UE Change Begin: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+	void Compiler::Shutdown()
+	{
+#if defined(SC_EXPLICIT_DLLSHUTDOWN)
+		Dxcompiler::Instance().Shutdown();
+#endif
+	}
+	// UE Change End: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
 } // namespace ShaderConductor
 
 #ifdef _WIN32

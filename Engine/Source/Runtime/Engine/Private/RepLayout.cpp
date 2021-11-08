@@ -990,13 +990,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
 {
-	FRepChangedParent& Parent = Parents[RepIndex];
+	FBitReference Active = ActiveParents[RepIndex];
 
-	Parent.OldActive = Parent.Active;
-	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
+	const bool bOldActive = Active;
+	Active = (bIsActive || bIsClientReplayRecording);
 
 #if WITH_PUSH_MODEL
-	if (!Parent.OldActive && Parent.Active)
+	if (!bOldActive && Active)
 	{
 		FNetPrivatePushIdHelper::MarkPropertyDirty(OwningObject, RepIndex);
 	}
@@ -1018,8 +1018,7 @@ void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
 {
 	// Include our size here, because the caller won't know.
 	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
-	Parents.CountBytes(Ar);
-
+	ActiveParents.CountBytes(Ar);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ExternalData.CountBytes(Ar);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1383,7 +1382,7 @@ static bool CompareParentProperty(
 	// If the property is inactive, we can skip comparing it because we know it won't be sent.
 	// Further, this will keep the last active state of the property in the shadow buffer,
 	// meaning the next time the property becomes active it will be sent to all connections.
-	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->Parents[ParentIndex].Active;
+	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->IsParentActive(ParentIndex);
 	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
 	if (bShouldSkip)
@@ -6955,12 +6954,7 @@ void FRepLayout::RebuildConditionalProperties(
 
 void FRepLayout::InitChangedTracker(FRepChangedPropertyTracker* ChangedTracker) const
 {
-	ChangedTracker->Parents.SetNum(Parents.Num());
-
-	for (int32 i = 0; i < Parents.Num(); i++)
-	{
-		ChangedTracker->Parents[i].IsConditional = ((Parents[i].Flags & ERepParentFlags::IsConditional) != ERepParentFlags::None) ? 1 : 0;
-	}
+	ChangedTracker->InitActiveParents(Parents.Num());
 }
 
 FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBuffer Source) const
@@ -7021,7 +7015,7 @@ TUniquePtr<FRepState> FRepLayout::CreateRepState(
 	// will be stored in the ChangelistManager for this object once for all connections.
 	if (InRepChangedPropertyTracker.IsValid())
 	{
-		check(InRepChangedPropertyTracker->Parents.Num() == Parents.Num());
+		check(InRepChangedPropertyTracker->GetParentCount() == Parents.Num());
 
 		RepState->SendingRepState.Reset(new FSendingRepState());
 		RepState->SendingRepState->RepChangedPropertyTracker = InRepChangedPropertyTracker;

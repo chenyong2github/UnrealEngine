@@ -421,6 +421,12 @@ class FTextureFormatDXT : public ITextureFormat
 		return true;
 	}
 
+	virtual FName GetEncoderName(FName Format) const override
+	{
+		static const FName DXTName("EngineDXT");
+		return DXTName;
+	}
+
 	virtual uint16 GetVersion(
 		FName Format,
 		const struct FTextureBuildSettings* BuildSettings = nullptr

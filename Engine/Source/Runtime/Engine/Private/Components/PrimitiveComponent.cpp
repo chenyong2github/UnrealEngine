@@ -295,6 +295,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 {
 	LastRenderTime = -1000.0f;
 	LastRenderTimeOnScreen = -1000.0f;
+	OcclusionBoundsSlack = 0.f;
 	BoundsScale = 1.0f;
 	MinDrawDistance = 0.0f;
 	DepthPriorityGroup = SDPG_World;
@@ -3704,6 +3705,15 @@ void UPrimitiveComponent::UpdateBounds()
 	}
 }
 #endif
+
+void UPrimitiveComponent::UpdateOcclusionBoundsSlack(float NewSlack)
+{
+	if (SceneProxy && GetWorld() && GetWorld()->Scene && NewSlack != OcclusionBoundsSlack)
+	{
+		GetWorld()->Scene->UpdatePrimitiveOcclusionBoundsSlack(this, NewSlack);
+		OcclusionBoundsSlack = NewSlack;
+	}
+}
 
 void UPrimitiveComponent::UpdatePhysicsVolume( bool bTriggerNotifiers )
 {

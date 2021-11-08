@@ -45,6 +45,10 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "Containers/Ticker.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "ImageWrapperHelper.h"
+#include "Misc/FileHelper.h"
 
 #if WITH_EDITOR
 #include "SLevelViewport.h"
@@ -1211,6 +1215,78 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 	}
 #endif
 	return Task;
+}
+
+bool UAutomationBlueprintFunctionLibrary::CompareImageAgainstReference(FString InImagePath, FString ComparisonName, EComparisonTolerance InTolerance, FString InNotes, UObject* WorldContextObject)
+{
+#if WITH_AUTOMATION_TESTS
+	if (GIsAutomationTesting)
+	{
+		const FString ImageExtension = FPaths::GetExtension(InImagePath);
+		const EImageFormat ImageFormat = ImageWrapperHelper::GetImageFormat(ImageExtension);
+
+		IImageWrapperModule& ImageWrapperModule = FModuleManager::GetModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+		TSharedPtr<IImageWrapper> ImageReader = ImageWrapperModule.CreateImageWrapper(ImageFormat);
+		if (!ImageReader.IsValid())
+		{
+			UE_LOG(AutomationFunctionLibrary, Error, TEXT("Unable to locate image processor for {0} file format"), *ImageExtension);
+			return false;
+		}
+
+		TArray64<uint8> ImageData;
+		const bool OpenSuccess = FFileHelper::LoadFileToArray(ImageData, *InImagePath);
+
+		if (!OpenSuccess)
+		{
+			UE_LOG(AutomationFunctionLibrary, Error, TEXT("Unable to read image {0}"), *InImagePath);
+			return false;
+		}
+
+		if (!ImageReader->SetCompressed(ImageData.GetData(), ImageData.Num()))
+		{
+			UE_LOG(AutomationFunctionLibrary, Error, TEXT("Unable to parse image {0}"), *InImagePath);
+			return false;
+		}
+
+		if (ImageReader->GetBitDepth() != 8)
+		{
+			UE_LOG(AutomationFunctionLibrary, Error, TEXT("Automation can only compare 8bit depth channel. {0} has {1}bit per channel."), *InImagePath, *FString::FromInt(ImageReader->GetBitDepth()));
+			return false;
+		}
+
+		const int32 Width = ImageReader->GetWidth();
+		const int32 Height = ImageReader->GetHeight();
+		TArray<FColor> ImageDataDecompressed;
+		ImageDataDecompressed.SetNum(Width * Height);
+
+		if (!ImageReader->GetRaw(ERGBFormat::BGRA, 8, TArrayView64<uint8>((uint8*)ImageDataDecompressed.GetData(), ImageDataDecompressed.Num() * 4)))
+		{
+			UE_LOG(AutomationFunctionLibrary, Error, TEXT("Unable to decompress image {0}"), *InImagePath);
+			return false;
+		}
+
+		if (ComparisonName.IsEmpty())
+		{
+			ComparisonName = FPaths::GetBaseFilename(InImagePath);
+		}
+
+		FString Context = TEXT("");
+		if (FFunctionalTestBase::IsFunctionalTestRunning() && WorldContextObject != nullptr)
+		{
+			// Functional tests have a different rule to name their test, mainly because part of the full test name is a path.
+			// So, to keep name short and still comprehensible, we are going to use the map name + the actor label instead.
+			UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+			Context = World != nullptr ? World->GetName() : TEXT("UnknownMap");
+			Context += TEXT(".") + FFunctionalTestBase::GetRunningTestName();
+		}
+
+		RequestImageComparison(ComparisonName, Width, Height, ImageDataDecompressed, (EAutomationComparisonToleranceLevel)InTolerance, Context, InNotes);
+
+		return true;
+	}
+#endif
+	UE_LOG(AutomationFunctionLibrary, Warning, TEXT("Can compare image only during test automation."));
+	return false;
 }
 
 void UAutomationBlueprintFunctionLibrary::AddTestTelemetryData(FString DataPoint, float Measurement, FString Context)

@@ -5455,6 +5455,28 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveActor__SWIG_1(voi
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveActorAt__SWIG_0(void * jarg1, int jarg2, int jarg3) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  FDatasmithFacadeScene::EActorRemovalRule arg3 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  arg3 = (FDatasmithFacadeScene::EActorRemovalRule)jarg3; 
+  (arg1)->RemoveActorAt(arg2,arg3);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveActorAt__SWIG_1(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveActorAt(arg2);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_AddMaterial(void * jarg1, void * jarg2) {
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   FDatasmithFacadeBaseMaterial *arg2 = (FDatasmithFacadeBaseMaterial *) 0 ;
@@ -5498,6 +5520,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMaterial(void * j
   arg1 = (FDatasmithFacadeScene *)jarg1; 
   arg2 = (FDatasmithFacadeBaseMaterial *)jarg2; 
   (arg1)->RemoveMaterial(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMaterialAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveMaterialAt(arg2);
 }
 
 
@@ -5611,6 +5643,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMesh(void * jarg1
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMeshAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveMeshAt(arg2);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_AddTexture(void * jarg1, void * jarg2) {
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   FDatasmithFacadeTexture *arg2 = (FDatasmithFacadeTexture *) 0 ;
@@ -5654,6 +5696,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveTexture(void * ja
   arg1 = (FDatasmithFacadeScene *)jarg1; 
   arg2 = (FDatasmithFacadeTexture *)jarg2; 
   (arg1)->RemoveTexture(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveTextureAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveTextureAt(arg2);
 }
 
 
@@ -5703,6 +5755,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveLevelVariantSets(
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveLevelVariantSetsAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveLevelVariantSetsAt(arg2);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_AddLevelSequence(void * jarg1, void * jarg2) {
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   FDatasmithFacadeLevelSequence *arg2 = (FDatasmithFacadeLevelSequence *) 0 ;
@@ -5746,6 +5808,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveLevelSequence(voi
   arg1 = (FDatasmithFacadeScene *)jarg1; 
   arg2 = (FDatasmithFacadeLevelSequence *)jarg2; 
   (arg1)->RemoveLevelSequence(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveLevelSequenceAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveLevelSequenceAt(arg2);
 }
 
 
@@ -5806,6 +5878,16 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMetaData(void * j
   arg1 = (FDatasmithFacadeScene *)jarg1; 
   arg2 = (FDatasmithFacadeMetaData *)jarg2; 
   (arg1)->RemoveMetaData(arg2);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_RemoveMetaDataAt(void * jarg1, int jarg2) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  int32 arg2 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (int32)jarg2; 
+  (arg1)->RemoveMetaDataAt(arg2);
 }
 
 

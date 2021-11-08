@@ -358,7 +358,7 @@ int32 UGenerateDistillFileSetsCommandlet::Main( const FString& InParams )
 			if (bSimpleTxtOutput)
 			{
 				FString ActualFile;
-				if (FPackageName::DoesPackageExist(PackageName, NULL, &ActualFile))
+				if (FPackageName::DoesPackageExist(PackageName, &ActualFile))
 				{
 					ActualFile = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ActualFile);
 					AllFileSets += FString::Printf(TEXT("%s") LINE_TERMINATOR, *ActualFile);

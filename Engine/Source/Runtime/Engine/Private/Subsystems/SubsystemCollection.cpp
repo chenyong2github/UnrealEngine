@@ -250,6 +250,16 @@ void FSubsystemCollectionBase::RemoveAndDeinitializeSubsystem(USubsystem* Subsys
 	Subsystem->InternalOwningSubsystem = nullptr;
 }
 
+void FSubsystemCollectionBase::ActivateExternalSubsystem(UClass* SubsystemClass)
+{
+	AddAllInstances(SubsystemClass);
+}
+
+void FSubsystemCollectionBase::DeactivateExternalSubsystem(UClass* SubsystemClass)
+{
+	RemoveAllInstances(SubsystemClass);
+}
+
 void FSubsystemCollectionBase::AddAllInstances(UClass* SubsystemClass)
 {
 	//non-thread-safe use of Global lists, must be from GameThread:

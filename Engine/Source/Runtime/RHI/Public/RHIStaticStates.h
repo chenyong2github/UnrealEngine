@@ -92,6 +92,10 @@ private:
 			check(!GIsRHIInitialized || !GRHISupportsRHIThread);
 			StateRHI.SafeRelease();
 		}
+		virtual void ReleaseResource() override final
+		{
+			FRenderResource::ReleaseResource();
+		}
 
 		~FStaticStateResource()
 		{

@@ -21,6 +21,8 @@ struct ENGINE_API FActorDataLayer
 	FORCEINLINE bool operator==(const FActorDataLayer& Other) const { return Name == Other.Name; }
 	FORCEINLINE bool operator<(const FActorDataLayer& Other) const { return Name.FastLess(Other.Name); }
 
+	FORCEINLINE operator FName () const { return Name; }
+
 	/** The name of this layer */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = DataLayer)
 	FName Name;

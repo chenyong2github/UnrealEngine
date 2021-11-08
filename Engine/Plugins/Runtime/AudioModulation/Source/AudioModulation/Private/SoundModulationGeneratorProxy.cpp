@@ -9,23 +9,23 @@ namespace AudioModulation
 {
 	const FGeneratorId InvalidGeneratorId = INDEX_NONE;
 
-	FModulatorGeneratorProxy::FModulatorGeneratorProxy(const FModulationGeneratorSettings& InSettings, FAudioModulationSystem& InModSystem)
+	FModulatorGeneratorProxy::FModulatorGeneratorProxy(FModulationGeneratorSettings&& InSettings, FAudioModulationSystem& InModSystem)
 		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), InModSystem)
-		, Generator(InSettings.Generator)
+		, Generator(MoveTemp(InSettings.Generator))
 	{
 	}
 
-	FModulatorGeneratorProxy& FModulatorGeneratorProxy::operator =(const FModulationGeneratorSettings& InSettings)
+	FModulatorGeneratorProxy& FModulatorGeneratorProxy::operator =(FModulationGeneratorSettings&& InSettings)
 	{
-		if (IGenerator* OtherGenerator = InSettings.Generator.Get())
+		if (ensure(InSettings.Generator.IsValid()))
 		{
-			if (Generator->UpdateGenerator(*OtherGenerator))
-			{
-				return *this;
-			}
+			Generator->UpdateGenerator(MoveTemp(InSettings.Generator));
+		}
+		else
+		{
+			Generator.Reset();
 		}
 
-		Generator = InSettings.Generator;
 		return *this;
 	}
 

@@ -31,11 +31,16 @@ class COREUOBJECT_API UGCObjectReferencer : public UObject
 	FCriticalSection ReferencedObjectsCritical;
 	/** True if we are currently inside AddReferencedObjects */
 	bool bIsAddingReferencedObjects = false;
+	/** True if the list of referenced objects has changed since we last ran VerifyGCObjectNames */
+	bool bReferencedObjectsChangedSinceLastNameVerify = false;
 	/** Currently serializing FGCObject*, only valid if bIsAddingReferencedObjects */
 	FGCObject* CurrentlySerializingObject = nullptr;
 
 public:
-	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UGCObjectReferencer, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API);
+	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API_NO_CTOR(UGCObjectReferencer, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API);
+
+	UGCObjectReferencer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UGCObjectReferencer(FVTableHelper& Helper) : Super(Helper) {};
 
 	/**
 	 * Adds an object to the referencer list
@@ -75,6 +80,37 @@ public:
 	 * be as late as from the destructor.
 	 */
 	virtual void FinishDestroy() override;
+
+	/**
+	 * Verifies that all FGCObjects have specified names
+	 */
+	void VerifyGCObjectNames();
+
+	/**
+	 * Returns the currently serializing object
+	 */
+	FGCObject* GetCurrentlySerializingObject() const
+	{
+		return CurrentlySerializingObject;
+	}
+
+#if WITH_EDITORONLY_DATA
+	/** Called when a new FGCObject is added to this referencer */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FGCObjectAddedDelegate, FGCObject*);
+
+private:
+
+	/** Called when a new FGCObject is added to this referencer */
+	FGCObjectAddedDelegate OnGCObjectAdded;
+
+public:
+
+	/** Returns a delegate called when a new FGCObject is added to this referencer */
+	FGCObjectAddedDelegate& GetGCObjectAddedDelegate()
+	{
+		return OnGCObjectAdded;
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 
@@ -106,6 +142,9 @@ public:
 	 * garbage collectible non-UObject objects.
 	 */
 	static UGCObjectReferencer* GGCObjectReferencer;
+
+	/** Default name for unnamed FGCObjects */
+	static const TCHAR* UnknownGCObjectName;
 
 	/**
 	 * Initializes the global object referencer and adds it to the root set.
@@ -170,7 +209,7 @@ public:
 	 */
 	virtual FString GetReferencerName() const
 	{
-		return "Unknown FGCObject";
+		return UnknownGCObjectName;
 	}
 
 	/**

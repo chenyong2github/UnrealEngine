@@ -950,4 +950,11 @@ namespace CrossCompiler
 		}
 	}
 
+	void FShaderConductorContext::Shutdown()
+	{
+#if PLATFORM_LINUX
+		ShaderConductor::Compiler::Shutdown();
+#endif
+	}
+
 } // namespace CrossCompiler

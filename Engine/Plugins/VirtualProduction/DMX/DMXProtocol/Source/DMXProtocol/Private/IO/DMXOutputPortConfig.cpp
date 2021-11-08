@@ -21,6 +21,7 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 	, NumUniverses(OutputPortConfig.GetNumUniverses())
 	, ExternUniverseStart(OutputPortConfig.GetExternUniverseStart())
 	, Priority(OutputPortConfig.GetPriority())
+	, Delay(OutputPortConfig.GetDelay())
 {}
 
 
@@ -51,6 +52,7 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	, NumUniverses(InitializationData.NumUniverses)
 	, ExternUniverseStart(InitializationData.ExternUniverseStart)
 	, Priority(InitializationData.Priority)
+	, Delay(InitializationData.Delay)
 	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).

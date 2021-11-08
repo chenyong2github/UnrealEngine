@@ -54,7 +54,7 @@ public:
 
 	static uint32 GetCRC(UMaterialInterface* InMaterialInterface, uint32 InCRC = 0);
 	static uint32 GetCRC(UTexture* InTexture, uint32 InCRC = 0);
-	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0);
+	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0, bool bInConsiderPhysicData = false);
 	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0, const FTransform& TransformComponents = FTransform::Identity);
 
 	virtual void PostLoad() override;

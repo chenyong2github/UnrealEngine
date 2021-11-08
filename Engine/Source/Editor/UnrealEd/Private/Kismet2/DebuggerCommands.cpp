@@ -236,10 +236,7 @@ protected:
  */
 static void LeaveDebuggingMode()
 {
-	if (GUnrealEd->PlayWorld != NULL)
-	{
-		GUnrealEd->PlayWorld->bDebugPauseExecution = false;
-	}
+	GUnrealEd->SetPIEWorldsPaused(false);
 
 	// Determine whether or not we are resuming play.
 	const bool bIsResumingPlay = !FKismetDebugUtilities::IsSingleStepping() && !GEditor->ShouldEndPlayMap();
@@ -820,7 +817,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 		}
 
 		// quick launch on devices
- 		ITurnkeySupportModule::Get().MakeQuickLaunchItems(Menu, FOnQuickLaunchSelected::CreateStatic(&RememberQuickLaunch));
+		ITurnkeySupportModule::Get().MakeQuickLaunchItems(Menu, FOnQuickLaunchSelected::CreateStatic(&RememberQuickLaunch));
 
 		// tip section
 		{
@@ -966,9 +963,10 @@ void FPlayWorldCommandCallbacks::PausePlaySession_Clicked()
 {
 	if (HasPlayWorld())
 	{
-		GUnrealEd->PlayWorld->bDebugPauseExecution = true;
+		GUnrealEd->SetPIEWorldsPaused(true);
 		GUnrealEd->PlaySessionPaused();
-		if (IsInPIE()) {
+		if (IsInPIE())
+		{
 			FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
 			FSlateApplication::Get().ResetToDefaultInputSettings();
 
@@ -1757,9 +1755,10 @@ void FInternalPlayWorldCommandCallbacks::TogglePlayPause_Clicked()
 		}
 		else
 		{
-			GUnrealEd->PlayWorld->bDebugPauseExecution = true;
+			GUnrealEd->SetPIEWorldsPaused(true);
 			GUnrealEd->PlaySessionPaused();
-			if (IsInPIE()) {
+			if (IsInPIE()) 
+			{
 				FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
 				FSlateApplication::Get().ResetToDefaultInputSettings();
 

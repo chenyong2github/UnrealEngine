@@ -24,8 +24,7 @@ class NIAGARAEDITOR_API UNiagaraStackInputCategory : public UNiagaraStackItemCon
 public:
 	void Initialize(
 		FRequiredEntryData InRequiredEntryData,
-		UNiagaraNodeFunctionCall& InModuleNode,
-		UNiagaraNodeFunctionCall& InInputFunctionCallNode, 
+		FString InputCategoryStackEditorDataKey,
 		FText InCategoryName,
 		FString InOwnerStackItemEditorDataKey);
 	
@@ -33,7 +32,7 @@ public:
 
 	void ResetInputs();
 
-	void AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, bool bIsHidden, bool bIsChildInput);
+	void AddInput(UNiagaraNodeFunctionCall* InModuleNode, UNiagaraNodeFunctionCall* InInputFunctionCallNode, FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, TOptional<FText> InOptionalDisplayName, bool bIsHidden, bool bIsChildInput);
 
 	//~ UNiagaraStackEntry interface
 	virtual FText GetDisplayName() const override;
@@ -62,15 +61,17 @@ private:
 private:
 	struct FInputParameterHandleAndType
 	{
+		UNiagaraNodeFunctionCall* ModuleNode;
+		UNiagaraNodeFunctionCall* InputFunctionCallNode;
 		FName ParameterHandle;
 		FNiagaraTypeDefinition Type;
 		EStackParameterBehavior ParameterBehavior;
+		TOptional<FText> DisplayName;
 		bool bIsHidden;
 		bool bIsChildInput;
 	};
 
-	UNiagaraNodeFunctionCall* ModuleNode;
-	UNiagaraNodeFunctionCall* InputFunctionCallNode;
+	TOptional<FText> DisplayName;
 	FText CategoryName;
 	TArray<FInputParameterHandleAndType> Inputs;
 	bool bShouldShowInStack;

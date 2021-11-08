@@ -16,7 +16,7 @@ CADKernel::FCylinderSurface::FCylinderSurface(const double InToleranceGeometric,
 , Matrix(InMatrix)
 , Radius(InRadius)
 {
-	SetMinToleranceIso();
+	ComputeMinToleranceIso();
 }
 
 void CADKernel::FCylinderSurface::InitBoundary()

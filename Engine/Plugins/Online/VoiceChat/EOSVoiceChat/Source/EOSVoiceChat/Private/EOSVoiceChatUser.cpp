@@ -122,9 +122,14 @@ void FEOSVoiceChatUser::SetSetting(const FString& Name, const FString& Value)
 				ChannelSession.bIsNotListening = bIsNotListening;
 				ApplySendingOptions(ChannelSession, true);
 				ApplyReceivingOptions(ChannelSession);
-				for (TPair<FString, FChannelParticipant>& ChannelParticipant : ChannelSession.Participants)
+				for (TPair<FString, FChannelParticipant>& ChannelParticipantPair : ChannelSession.Participants)
 				{
-					ApplyPlayerReceivingOptions(GetGlobalParticipant(ChannelParticipant.Key), ChannelSession, ChannelParticipant.Value, true);
+					const FString& ChannelParticipantName = ChannelParticipantPair.Key;
+					FChannelParticipant& ChannelParticipant = ChannelParticipantPair.Value;
+					if (!ChannelSession.IsLocalUser(ChannelParticipant))
+					{
+						ApplyPlayerReceivingOptions(GetGlobalParticipant(ChannelParticipantName), ChannelSession, ChannelParticipant, true);
+					}
 				}
 			}
 		}
@@ -2607,6 +2612,11 @@ FEOSVoiceChatUser::FChannelSession::~FChannelSession()
 	check(OnAudioBeforeSendNotificationId == EOS_INVALID_NOTIFICATIONID);
 	check(OnAudioBeforeRenderNotificationId == EOS_INVALID_NOTIFICATIONID);
 	check(OnAudioInputStateNotificationId == EOS_INVALID_NOTIFICATIONID);
+}
+
+bool FEOSVoiceChatUser::FChannelSession::IsLocalUser(const FChannelParticipant& Participant)
+{
+	return PlayerName == Participant.PlayerName;
 }
 
 bool FEOSVoiceChatUser::FChannelSession::IsLobbySession() const

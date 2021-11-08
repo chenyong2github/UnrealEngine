@@ -123,9 +123,6 @@ namespace Chaos
 		/** Called once per tick to allow constraint containers to create/alter their constraints based on particle position */
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
 
-		/** Called once per tick (usually in parallel per island) to handle solving any constraints that must be solved before the main solver loop. Used for CCD. */
-		virtual void ApplySwept(const FReal Dt, int32 Island) {}
-
 		/** Apply all corrections for constraints in the specified island. Return true if more iterations are needed. */
 		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
 
@@ -278,8 +275,6 @@ namespace Chaos
 
 		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) override;
 
-		virtual void ApplySwept(const FReal Dt, int32 Island) override;
-
 		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
 
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& InConstraints)
@@ -326,8 +321,3 @@ namespace Chaos
 	};
 
 }
-
-// Only way to make this compile at the moment due to visibility attribute issues. TODO: Change this once a fix for this problem is applied.
-#if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API Chaos::TPBDConstraintColorRule<Chaos::FPBDCollisionConstraints>;
-#endif

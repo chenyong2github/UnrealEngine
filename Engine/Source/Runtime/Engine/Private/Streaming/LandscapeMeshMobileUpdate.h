@@ -113,9 +113,8 @@ protected:
 
 	bool HasPendingIORequests() const;
 
-	void GetIOPackagePath(const FContext& Context, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment);
 	void SetAsyncFileCallback(const FContext& Context);
-	void SetIORequest(const FContext& Context, const FPackagePath& PackagePath, EPackageSegment PackageSegment);
+	void SetIORequest(const FContext& Context);
 	void GetIORequestResults(const FContext& Context);
 	void ClearIORequest(const FContext& Context);
 	void CancelIORequest();

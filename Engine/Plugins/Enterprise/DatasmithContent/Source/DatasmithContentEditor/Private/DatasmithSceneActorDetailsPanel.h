@@ -24,6 +24,12 @@ public:
 protected:
 	FReply OnExecuteAction();
 
+	void OnAutoReimportStateChanged(ECheckBoxState NewState);
+
+	ECheckBoxState GetAutoReimportIsChecked() const;
+
+	bool GetAutoReimportIsEnabled() const;
+
 private:
 	TArray< TWeakObjectPtr< UObject > > SelectedObjectsList;
 	bool bReimportDeletedActors;

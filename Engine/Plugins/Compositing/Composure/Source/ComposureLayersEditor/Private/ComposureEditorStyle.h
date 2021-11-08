@@ -11,7 +11,7 @@
 #define TTF_FONT(RelativePath, ...) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".ttf")), __VA_ARGS__)
 #define OTF_FONT(RelativePath, ...) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".otf")), __VA_ARGS__)
 
-class FComposureEditorStyle
+class FComposureEditorStyle final
 	: public FSlateStyleSet
 {
 public:

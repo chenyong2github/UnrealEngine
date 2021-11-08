@@ -19,37 +19,37 @@ FSettings::FSettings() :
 	, PixelDensityMax(1.0f)
 	, SystemHeadset(ovrpSystemHeadset_None)
 	, FFRLevel(EFixedFoveatedRenderingLevel::FFR_Off)
-	, FFRDynamic(false)
+	, FFRDynamic(true)
 	, CPULevel(2)
 	, GPULevel(3)
-	, bEnableSpecificColorGamut(false)
-	, ColorSpace(EOculusColorSpace::Unknown)
+	, XrApi(EOculusXrApi::LegacyOVRPlugin)
+	, ColorSpace(EOculusColorSpace::Rift_CV1)
 	, HandTrackingSupport(EHandTrackingSupport::ControllersOnly)
+	, HandTrackingFrequency(EHandTrackingFrequency::LOW)
 	, ColorScale(ovrpVector4f{1,1,1,1})
 	, ColorOffset(ovrpVector4f{0,0,0,0})
 	, bApplyColorScaleAndOffsetToAllLayers(false)
+	, bLateLatching(false)
 	, bPhaseSync(false)
 {
 	Flags.Raw = 0;
 	Flags.bHMDEnabled = true;
-	Flags.bChromaAbCorrectionEnabled = false;
 	Flags.bUpdateOnRT = true;
 	Flags.bHQBuffer = false;
-	Flags.bDirectMultiview = true;
-	Flags.bIsUsingDirectMultiview = false;
 #if PLATFORM_ANDROID
 	Flags.bCompositeDepth = false;
 	Flags.bsRGBEyeBuffer = true;
 	//oculus mobile is always-on stereo, no need for enableStereo codepaths
 	Flags.bStereoEnabled = true;
+	CurrentShaderPlatform = EShaderPlatform::SP_VULKAN_ES3_1_ANDROID;
 #else
 	Flags.bCompositeDepth = true;
 	Flags.bsRGBEyeBuffer = false;
 	Flags.bStereoEnabled = false;
+	CurrentShaderPlatform = EShaderPlatform::SP_PCD3D_SM5;
 #endif
 
 	Flags.bSupportsDash = true;
-	Flags.bRecenterHMDWithController = true;
 	Flags.bFocusAware = true;
 	Flags.bRequiresSystemKeyboard = false;
 	EyeRenderViewport[0] = EyeRenderViewport[1] = FIntRect(0, 0, 0, 0);

@@ -35,13 +35,6 @@ enum class EWorldPartitionStreamingPerformance : uint8;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
-enum class EWorldPartitionStreamingMode
-{
-	PIE,				// Used for PIE
-	EditorStandalone,	// Used when running with -game
-	Cook				// Used by cook commandlet
-};
-
 enum class EWorldPartitionInitState
 {
 	Uninitialized,
@@ -84,7 +77,10 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 
 #if WITH_EDITOR
 public:
-	static UWorldPartition* CreateWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
+	static UWorldPartition* CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
+	
+	DECLARE_MULTICAST_DELEGATE_OneParam(FCancelWorldPartitionUpdateEditorCellsDelegate, UWorldPartition*);
+	FCancelWorldPartitionUpdateEditorCellsDelegate OnCancelWorldPartitionUpdateEditorCells;
 
 private:
 
@@ -96,7 +92,7 @@ private:
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnPrePIEEnded(bool bWasSimulatingInEditor);
 	void OnCancelPIE();
-	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
+	void OnBeginPlay();
 	void OnEndPlay();
 
 	// UActorDescContainer events
@@ -129,7 +125,7 @@ public:
 	bool RefreshLoadedEditorCells(bool bIsFromUserChange);
 
 	// PIE/Game/Cook Methods
-	bool GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate = nullptr);
+	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
 	// Cook Methods
@@ -140,8 +136,6 @@ public:
 	FBox GetEditorWorldBounds() const;
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
 	void GenerateNavigationData(const FBox& LoadedBounds);
-
-	const UActorDescContainer* RegisterActorDescContainer(FName PackageName);
 
 	// Debugging Methods
 	void DrawRuntimeHashPreview();
@@ -157,10 +151,6 @@ public:
 	bool IsInitialized() const;
 	virtual void Uninitialize() override;
 
-	void CleanupWorldPartition();
-
-	const FTransform& GetInstanceTransform() const { return InstanceTransform; }
-
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
 	bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const;
@@ -173,7 +163,6 @@ public:
 
 	// Debugging Methods
 	bool CanDrawRuntimeHash() const;
-	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
 	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset);
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
@@ -207,13 +196,10 @@ public:
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
-
-	TMap<FName, TWeakObjectPtr<UActorDescContainer>> ActorDescContainers;
 #endif
 
 private:
 	EWorldPartitionInitState InitState;
-	FTransform InstanceTransform;
 
 	UPROPERTY()
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;

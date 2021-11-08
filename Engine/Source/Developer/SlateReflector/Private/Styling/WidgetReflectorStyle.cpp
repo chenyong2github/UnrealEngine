@@ -46,20 +46,24 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	{
-		StyleSet->Set("Icon.FocusPicking", new IMAGE_BRUSH("Icons/SlateReflector/FocusPicking_24x", Icon24x24));
-		StyleSet->Set("Icon.HitTestPicking", new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon24x24));
-		StyleSet->Set("Icon.VisualPicking", new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon24x24));
-		StyleSet->Set("Icon.LoadSnapshot", new IMAGE_BRUSH("Icons/GeneralTools/Import_40x", Icon24x24));
-
+#if SLATE_REFLECTOR_HAS_DESKTOP_PLATFORM
+		if (!FPlatformProperties::RequiresCookedData())
+		{
+			StyleSet->Set("Icon.FocusPicking", new IMAGE_BRUSH("Icons/SlateReflector/FocusPicking_24x", Icon24x24));
+			StyleSet->Set("Icon.HitTestPicking", new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon24x24));
+			StyleSet->Set("Icon.VisualPicking", new IMAGE_BRUSH("Icons/GeneralTools/Paint_40x", Icon24x24));
+			StyleSet->Set("Icon.TakeSnapshot", new IMAGE_BRUSH_SVG("Starship/Common/SaveThumbnail", Icon24x24));
+			StyleSet->Set("WidgetReflector.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Widget", Icon16x16));
+		}
+#endif // SLATE_REFLECTOR_HAS_DESKTOP_PLATFORM
+		
+		StyleSet->Set("Icon.LoadSnapshot", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Import", Icon24x24));
 		StyleSet->Set("Icon.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon24x24));
-		StyleSet->Set("Icon.TakeSnapshot", new IMAGE_BRUSH_SVG("Starship/Common/SaveThumbnail", Icon24x24));
 
 		StyleSet->Set("Symbols.LeftArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-left", Icon24x24));
 		StyleSet->Set("Symbols.RightArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-right", Icon24x24));
 		StyleSet->Set("Symbols.UpArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-up", Icon24x24));
-		StyleSet->Set("Symbols.DownArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-down", Icon24x24));
-
-		StyleSet->Set("WidgetReflector.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Widget", Icon16x16));
+		StyleSet->Set("Symbols.DownArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-down", Icon24x24));		
 		StyleSet->Set("Icon.Ellipsis", new CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
 	}
 

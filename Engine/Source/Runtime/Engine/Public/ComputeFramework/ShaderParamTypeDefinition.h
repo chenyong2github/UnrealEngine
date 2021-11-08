@@ -173,9 +173,15 @@ struct ENGINE_API FShaderValueType
 	/** Returns the type declaration if this type is a struct, or the empty string if not. */
 	FString GetTypeDeclaration() const;
 
-	// Returns the size in bytes required to hold one element of this type using HLSL sizing
-	// (which may be different from packed sizing in C++).
+	/** Returns the size in bytes required to hold one element of this type using HLSL sizing
+	  * (which may be different from packed sizing in C++).
+	  */
 	int32 GetResourceElementSize() const;
+
+	/** Returns a zero value for the type as a string, suitable for use as a constant in HLSL
+	  * code.
+	  */   
+	FString GetZeroValueAsString() const;
 	
 	UPROPERTY()
 	EShaderFundamentalType Type = EShaderFundamentalType::Bool;

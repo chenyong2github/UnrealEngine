@@ -11,6 +11,7 @@
 #define TEST_CONSTRUCT_DELEGATE_SYNTAX_UOBJECT 0
 #define TEST_ASYNCOPCACHE_SYNTAX 1
 #define TEST_CONFIG_SYNTAX 1
+#define TEST_TOLOGSTRING_SYNTAX 1
 
 namespace UE::Online {
 
@@ -400,7 +401,6 @@ inline void TestAsyncOpCacheSyntax(FOnlineServicesCommon& Services, Test::FTestI
 
 #endif // TEST_ASYNCOPCACHE_SYNTAX
 
-
 #if TEST_CONFIG_SYNTAX
 
 struct FTestConfig
@@ -429,3 +429,33 @@ void TestLoadConfigSyntax(UE::Online::IOnlineConfigProvider& ConfigProvider)
 }
 
 #endif // TEST_CONFIG_SYNTAX
+
+#if TEST_TOLOGSTRING_SYNTAX
+
+#include "Online/OnlineUtils.h"
+#include "Online/AuthCommon.h"
+
+namespace {
+
+void TestToLogStringSyntax()
+{
+	using UE::Online::ToLogString;
+
+	ToLogString(FString());
+	ToLogString(UE::Online::FAuthLogin::Params());
+	ToLogString(UE::Online::FAuthLogin::Result());
+	ToLogString(UE::Online::FAuthLogout::Params());
+	ToLogString(UE::Online::FAuthLogout::Result());
+	ToLogString(UE::Online::FAuthGenerateAuth::Params());
+	ToLogString(UE::Online::FAuthGenerateAuth::Result());
+	ToLogString(UE::Online::FAuthGetAccountByLocalUserNum::Params());
+	ToLogString(UE::Online::FAuthGetAccountByLocalUserNum::Result());
+	ToLogString(UE::Online::FAuthGetAccountByAccountId::Params());
+	ToLogString(UE::Online::FAuthGetAccountByAccountId::Result());
+	ToLogString(UE::Online::FLoginStatusChanged());
+}
+
+/* unnamed namespace */ }
+
+
+#endif // TEST_TOLOGSTRING_SYNTAX

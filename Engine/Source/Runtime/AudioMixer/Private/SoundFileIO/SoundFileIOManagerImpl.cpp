@@ -1009,7 +1009,7 @@ namespace Audio
 			return ESoundFileError::Type::NONE;
 		}
 
-		ESoundFileError::Type Release() override
+		ESoundFileError::Type Release() override final
 		{
 			SoundData = nullptr;
 

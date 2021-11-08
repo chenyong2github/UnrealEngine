@@ -55,6 +55,8 @@ public:
 
 	virtual void BeginDestroy() override;
 
+	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+
 	const Audio::FModulationMixFunction GetMixFunction() const;
 
 	float GetDefaultNormalizedValue() const { return Parameter ? Parameter->Settings.ValueNormalized : 1.0f; }

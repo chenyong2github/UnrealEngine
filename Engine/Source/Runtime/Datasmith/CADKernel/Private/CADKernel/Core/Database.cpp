@@ -150,7 +150,7 @@ void CADKernel::FCADKernelArchive::AddEntityToSave(FIdent Id)
 	Session.Database.AddEntityToSave(Id);
 }
 
-void CADKernel::FCADKernelArchive::AddEntityFromArchive(TSharedRef<FEntity>& Entity)
+void CADKernel::FCADKernelArchive::AddEntityFromArchive(TSharedPtr<FEntity>& Entity)
 {
 	Session.Database.AddEntityFromArchive(Entity);
 }

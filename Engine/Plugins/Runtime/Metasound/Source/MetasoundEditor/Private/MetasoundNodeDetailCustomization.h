@@ -4,6 +4,7 @@
 #include "Components/Widget.h"
 #include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
@@ -26,6 +27,7 @@ class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SCheckBox;
 class STextComboBox;
+class SSearchableComboBox;
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -133,34 +135,37 @@ namespace Metasound
 			TWeakObjectPtr<UClass> ProxyGenClass;
 		};
 
-		class FMetasoundDataTypeSelector
+		class FMetasoundDataTypeSelector : public TSharedFromThis<FMetasoundDataTypeSelector>
 		{
 		public:
 			void AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayoutBuilder, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, bool bIsRequired);
-
 			void OnDataTypeArrayChanged(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, ECheckBoxState InNewState);
-			ECheckBoxState OnGetDataTypeArrayCheckState(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember) const;
-			void OnBaseDataTypeChanged(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
 
 		protected:
+			ECheckBoxState OnGetDataTypeArrayCheckState(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember) const;
+			void OnDataTypeSelected(FName InSelectedTypeName);
+			FName GetDataType() const;
+
 			TFunction<void()> OnDataTypeChanged;
 		
 		private:
-				TSharedPtr<SCheckBox> DataTypeArrayCheckbox;
-				TSharedPtr<STextComboBox> DataTypeComboBox;
-				TArray<TSharedPtr<FString>> DataTypeNames;
+			TWeakObjectPtr<UMetasoundEditorGraphMember> GraphMember;
+			TSharedPtr<SCheckBox> DataTypeArrayCheckbox;
+			TSharedPtr<SSearchableComboBox> DataTypeComboBox;
+			TArray<TSharedPtr<FString>> ComboOptions;
 
-				IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
+			IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
 		};
 
 		template <typename GraphMemberType>
-		class TMetasoundGraphMemberDetailCustomization : public IDetailCustomization, public FMetasoundDataTypeSelector
+		class TMetasoundGraphMemberDetailCustomization : public IDetailCustomization
 		{
 		public:
 			TMetasoundGraphMemberDetailCustomization(const FText& InGraphMemberLabel)
 				: IDetailCustomization()
 				, GraphMemberLabel(InGraphMemberLabel)
 			{
+				DataTypeSelector = MakeShared<FMetasoundDataTypeSelector>();
 			}
 
 		protected:
@@ -169,6 +174,8 @@ namespace Metasound
 			TWeakObjectPtr<GraphMemberType> GraphMember;
 			TSharedPtr<SEditableTextBox> NameEditableTextBox;
 			TSharedPtr<SEditableTextBox> DisplayNameEditableTextBox;
+			TSharedPtr<FMetasoundDataTypeSelector> DataTypeSelector;
+
 			bool bIsNameInvalid = false;
 
 			// IDetailCustomization interface

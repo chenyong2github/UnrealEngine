@@ -2,10 +2,12 @@
 
 #include "SConsoleVariablesEditorList.h"
 
+#include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorModule.h"
 #include "SConsoleVariablesEditorListRow.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -16,8 +18,8 @@
 void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 {
 	DefaultNameText = LOCTEXT("ConsoleVariables", "Console Variables");
-	
-	FMenuBuilder ShowOptionsMenuBuilder = BuildShowOptionsMenu();
+
+	HeaderDummyInfo = MakeShared<FConsoleVariablesEditorCommandInfo>("", nullptr, "");
 
 	ChildSlot
 		[
@@ -32,28 +34,8 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 				+SHorizontalBox::Slot()
 				[
 					SAssignNew(ListSearchBoxPtr, SSearchBox)
-					.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search actors, components, properties..."))
+					.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
 					.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
-				]
-
-				+SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew(SComboButton)
-					.ContentPadding(0)
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
-					.MenuContent()
-					[
-						ShowOptionsMenuBuilder.MakeWidget()
-					]
-					.ButtonContent()
-					[
-						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
-					]
 				]
 			]
 
@@ -94,9 +76,9 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 						.OnExpansionChanged_Raw(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, false)
 						.OnSetExpansionRecursive(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, true)
 						.Visibility_Lambda([this]()
-							{
-								return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
-							})
+						{
+							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+						})
 					]
 				]
 
@@ -168,47 +150,49 @@ void SConsoleVariablesEditorList::RefreshScroll() const
 	TreeViewPtr->RequestListRefresh();
 }
 
-void SConsoleVariablesEditorList::RefreshList(UConsoleVariablesAsset* InAsset)
+void SConsoleVariablesEditorList::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo)
 {
 	GenerateTreeView(InAsset);
-}
 
-void SConsoleVariablesEditorList::UpdateExistingValuesFromConsoleManager()
-{
-	const IConsoleManager& ConsoleManager = IConsoleManager::Get();
-
-	for (TSharedPtr<FConsoleVariablesEditorListRow> CommandRow : TreeViewRootObjects)
+	if (!InConsoleCommandToScrollTo.IsEmpty())
 	{
-		if (CommandRow.IsValid())
-		{
-			const TCHAR* CommandName = *CommandRow->GetCommandInfo().Command;
-			if (ConsoleManager.IsNameRegistered(CommandName))
-			{
-				IConsoleVariable* AsVariable = ConsoleManager.FindConsoleVariable(CommandName);
+		FConsoleVariablesEditorListRowPtr ScrollToItem = nullptr;
 
-				if (AsVariable)
-				{
-					CommandRow->GetCommandInfo().ValueAsString = AsVariable->GetString();
-				}
+		for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
+		{
+			if (Item->GetCommandInfo().Pin()->Command.Equals(InConsoleCommandToScrollTo))
+			{
+				ScrollToItem = Item;
+				break;
 			}
+		}
+
+		if (ScrollToItem.IsValid())
+		{
+			ScrollToItem->SetShouldFlashOnScrollIntoView(true);
+			TreeViewPtr->RequestScrollIntoView(ScrollToItem);
 		}
 	}
 }
 
-void SConsoleVariablesEditorList::PropagateRowValueChangesBackToEditingAsset()
+void SConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const
 {
-	TWeakObjectPtr<UConsoleVariablesAsset> Asset = GetEditedAsset();
-
-	if (Asset.IsValid())
+	TMap<FString, FString> NewSavedValueMap;
+	
+	for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
 	{
-		for (TSharedPtr<FConsoleVariablesEditorListRow> CommandRow : TreeViewRootObjects)
+		const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = Item->GetCommandInfo();
+		
+		if (CommandInfo.IsValid())
 		{
-			if (CommandRow.IsValid())
+			if (const TObjectPtr<IConsoleVariable> Variable = CommandInfo.Pin()->ConsoleVariablePtr)
 			{
-				Asset->AddOrSetConsoleVariableSavedValue(CommandRow->GetCommandInfo());
+				NewSavedValueMap.Add(CommandInfo.Pin()->Command, Variable->GetString());
 			}
 		}
 	}
+
+	InAsset->ReplaceSavedCommandsAndValues(NewSavedValueMap);
 }
 
 FString SConsoleVariablesEditorList::GetSearchStringFromSearchInputField() const
@@ -224,19 +208,28 @@ void SConsoleVariablesEditorList::GenerateTreeView(UConsoleVariablesAsset* InAss
 		return;
 	}
 	
-	FlushMemory(false);
+	FlushMemory(true);
 
 	EditedAsset = InAsset;
 	
 	SplitterManagerPtr = MakeShared<FConsoleVariablesEditorListSplitterManager>(FConsoleVariablesEditorListSplitterManager());
 
-	for (const FConsoleVariablesUiCommandInfo& CommandInfo : InAsset->GetSavedCommandsAndValues())
+	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+
+	for (const TPair<FString, FString>& CommandAndValue : InAsset->GetSavedCommandsAndValues())
 	{
-		FConsoleVariablesEditorListRowPtr NewRow = 
-			MakeShared<FConsoleVariablesEditorListRow>(
-				FConsoleVariablesEditorListRow(CommandInfo, InAsset->GetSource(), FConsoleVariablesEditorListRow::SingleCommand, 
-					ECheckBoxState::Checked, SharedThis(this), nullptr));
-		TreeViewRootObjects.Add(NewRow);
+		TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = ConsoleVariablesEditorModule.FindCommandInfoByName(CommandAndValue.Key);
+		
+		if (CommandInfo.IsValid())
+		{
+			CommandInfo.Pin()->ExecuteCommand(CommandAndValue.Value);
+			
+			FConsoleVariablesEditorListRowPtr NewRow = 
+				MakeShared<FConsoleVariablesEditorListRow>(
+						CommandInfo.Pin(), CommandAndValue.Value, FConsoleVariablesEditorListRow::SingleCommand, 
+						ECheckBoxState::Checked, SharedThis(this), nullptr);
+			TreeViewRootObjects.Add(NewRow);
+		}
 	}
 
 	if (TreeViewRootObjects.Num() > 0)
@@ -244,16 +237,38 @@ void SConsoleVariablesEditorList::GenerateTreeView(UConsoleVariablesAsset* InAss
 		// Header
 		HeaderRow = 
 			MakeShared<FConsoleVariablesEditorListRow>(
-				FConsoleVariablesEditorListRow(FConsoleVariablesUiCommandInfo(), InAsset->GetSource(), FConsoleVariablesEditorListRow::HeaderRow, 
-					ECheckBoxState::Checked, SharedThis(this), nullptr));
+					HeaderDummyInfo, "", FConsoleVariablesEditorListRow::HeaderRow, ECheckBoxState::Checked, SharedThis(this), nullptr
+			);
 
 		HeaderBoxPtr->SetContent(SNew(SConsoleVariablesEditorListRow, HeaderRow, SplitterManagerPtr));
+
+		SortTreeViewObjects(SelectedSortType);
+
+		TreeViewPtr->RequestListRefresh();
+
+		// Apply last search
+		ExecuteListViewSearchOnAllRows(GetSearchStringFromSearchInputField());
 	}
+}
 
-	TreeViewPtr->RequestListRefresh();
+void SConsoleVariablesEditorList::SortTreeViewObjects(EConsoleVariablesEditorSortType InSortType)
+{
+	auto SortByVariableName = [](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
+	{
+		return A->GetCommandInfo().Pin()->Command < B->GetCommandInfo().Pin()->Command;
+	};
 
-	// Apply last search
-	ExecuteListViewSearchOnAllActors(GetSearchStringFromSearchInputField());
+	switch (InSortType)
+	{
+		case EConsoleVariablesEditorSortType::SortByVariableName:
+			TreeViewRootObjects.StableSort(SortByVariableName);
+			break;
+
+		default:
+			break;
+	};
+	
+	
 }
 
 FReply SConsoleVariablesEditorList::SetAllGroupsCollapsed()
@@ -277,10 +292,10 @@ FReply SConsoleVariablesEditorList::SetAllGroupsCollapsed()
 
 void SConsoleVariablesEditorList::OnListViewSearchTextChanged(const FText& Text) const
 {
-	ExecuteListViewSearchOnAllActors(Text.ToString());
+	ExecuteListViewSearchOnAllRows(Text.ToString());
 }
 
-void SConsoleVariablesEditorList::ExecuteListViewSearchOnAllActors(const FString& SearchString) const
+void SConsoleVariablesEditorList::ExecuteListViewSearchOnAllRows(const FString& SearchString) const
 {
 	TArray<FString> Tokens;
 	
@@ -300,6 +315,8 @@ void SConsoleVariablesEditorList::ExecuteListViewSearchOnAllActors(const FString
 		// If the name doesn't match, then we need to evaluate each child.
 		ChildRow->ExecuteSearchOnChildNodes(bGroupMatch ? "" : SearchString);
 	}
+
+	TreeViewPtr->RequestTreeRefresh();
 }
 
 bool SConsoleVariablesEditorList::DoesTreeViewHaveVisibleChildren() const

@@ -620,7 +620,7 @@ static void SetupRenderVolumetricCloudGlobalParametersHZB(FRDGBuilder& GraphBuil
 
 	const float kHZBTestMaxMipmap = 9.0f;
 	const float HZBMipmapCounts = FMath::Log2(FMath::Max<float>(ViewInfo.HZBMipmap0Size.X, ViewInfo.HZBMipmap0Size.Y));
-	const FVector HZBUvFactor(
+	const FVector3f HZBUvFactor(
 		float(ViewInfo.ViewRect.Width()) / float(2 * ViewInfo.HZBMipmap0Size.X),
 		float(ViewInfo.ViewRect.Height()) / float(2 * ViewInfo.HZBMipmap0Size.Y),
 		FMath::Max(HZBMipmapCounts - kHZBTestMaxMipmap, 0.0f)
@@ -864,9 +864,9 @@ public:
 		TArray<FDynamicMeshVertex> Vertices;
 
 		// Vertex position constructed in the shader
-		Vertices.Add(FDynamicMeshVertex(FVector(0.0f, 0.0f, 0.0f)));
-		Vertices.Add(FDynamicMeshVertex(FVector(0.0f, 0.0f, 0.0f)));
-		Vertices.Add(FDynamicMeshVertex(FVector(0.0f, 0.0f, 0.0f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
 
 		Buffers.PositionVertexBuffer.Init(Vertices.Num());
 		Buffers.StaticMeshVertexBuffer.Init(Vertices.Num(), 1);
@@ -876,7 +876,7 @@ public:
 			const FDynamicMeshVertex& Vertex = Vertices[i];
 
 			Buffers.PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
-			Buffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
+			Buffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector3f(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector3f());
 			Buffers.StaticMeshVertexBuffer.SetVertexUV(i, 0, Vertex.TextureCoordinate[0]);
 		}
 	}
@@ -898,7 +898,7 @@ public:
 
 static TGlobalResource<FSingleTriangleMeshVertexBuffer> GSingleTriangleMeshVertexBuffer;
 
-class FSingleTriangleMeshVertexFactory : public FLocalVertexFactory
+class FSingleTriangleMeshVertexFactory final : public FLocalVertexFactory
 {
 public:
 	FSingleTriangleMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
@@ -1436,7 +1436,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 			}
 			else
 			{
-				CloudGlobalShaderParams.CloudLayerCenterKm = FVector(0.0f, 0.0f, -PlanetRadiusKm);
+				CloudGlobalShaderParams.CloudLayerCenterKm = FVector3f(0.0f, 0.0f, -PlanetRadiusKm);
 			}
 			CloudGlobalShaderParams.PlanetRadiusKm = PlanetRadiusKm;
 			CloudGlobalShaderParams.BottomRadiusKm = PlanetRadiusKm + CloudProxy.LayerBottomAltitudeKm;
@@ -1492,8 +1492,8 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				// Setup cloud shadow constants
 				if (AtmosphericLight)
 				{
-					const FVector AtmopshericLightDirection = AtmosphericLight->GetDirection();
-					const FVector UpVector = FMath::Abs(FVector::DotProduct(AtmopshericLightDirection, FVector::UpVector)) > 0.99f ? FVector::ForwardVector : FVector::UpVector;
+					const FVector3f AtmopshericLightDirection = AtmosphericLight->GetDirection();
+					const FVector3f UpVector = FMath::Abs(FVector3f::DotProduct(AtmopshericLightDirection, FVector3f::UpVector)) > 0.99f ? FVector3f::ForwardVector : FVector3f::UpVector;
 
 					const float SphereRadius = GetVolumetricCloudShadowMapExtentKm(AtmosphericLight) * KilometersToCentimeters;
 					const float SphereDiameter = SphereRadius * 2.0f;
@@ -1503,8 +1503,8 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					const float ZOffset = -NearPlane;
 
 					// TODO Make it work for all views
-					FVector LookAtPosition = FVector::ZeroVector;
-					FVector PlanetToCameraNormUp = FVector::UpVector;
+					FVector3f LookAtPosition = FVector3f::ZeroVector;
+					FVector3f PlanetToCameraNormUp = FVector3f::UpVector;
 					if (Views.Num() > 0)
 					{
 						FViewInfo& View = Views[0];
@@ -1515,7 +1515,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 						PlanetToCameraNormUp = LookAtPosition;
 						LookAtPosition = (CloudGlobalShaderParams.CloudLayerCenterKm + LookAtPosition * PlanetRadiusKm) * KilometersToCentimeters;
 						// Light position is positioned away from the look at position in the light direction according to the shadowmap radius.
-						const FVector LightPosition = LookAtPosition - AtmopshericLightDirection * SphereRadius;
+						const FVector3f LightPosition = LookAtPosition - AtmopshericLightDirection * SphereRadius;
 
 						float WorldSizeSnap = CVarVolumetricCloudShadowMapSnapLength.GetValueOnAnyThread() * KilometersToCentimeters;
 						LookAtPosition.X = (FMath::FloorToFloat((LookAtPosition.X + 0.5f * WorldSizeSnap) / WorldSizeSnap)) * WorldSizeSnap; // offset by 0.5 to not snap around origin
@@ -1523,7 +1523,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 						LookAtPosition.Z = (FMath::FloorToFloat((LookAtPosition.Z + 0.5f * WorldSizeSnap) / WorldSizeSnap)) * WorldSizeSnap;
 					}
 
-					const FVector LightPosition = LookAtPosition - AtmopshericLightDirection * SphereRadius;
+					const FVector3f LightPosition = LookAtPosition - AtmopshericLightDirection * SphereRadius;
 					FReversedZOrthoMatrix ShadowProjectionMatrix(SphereDiameter, SphereDiameter, ZScale, ZOffset);
 					FLookAtMatrix ShadowViewMatrix(LightPosition, LookAtPosition, UpVector);
 					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = ShadowViewMatrix * ShadowProjectionMatrix;
@@ -1538,7 +1538,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					const float CloudShadowRaySampleBaseCount = 16.0f;
 					const float CloudShadowRayMapSampleCount = FMath::Max(4.0f, FMath::Min(CloudShadowRaySampleBaseCount * CloudShadowRaySampleCountScale, CVarVolumetricCloudShadowMapRaySampleMaxCount.GetValueOnAnyThread()));
 					const float RaySampleHorizonFactor = FMath::Max(0.0f, CVarVolumetricCloudShadowMapRaySampleHorizonMultiplier.GetValueOnAnyThread()-1.0f);
-					const float HorizonFactor = FMath::Clamp(0.2f / FMath::Abs(FVector::DotProduct(PlanetToCameraNormUp, -AtmopshericLightDirection)), 0.0f, 1.0f);
+					const float HorizonFactor = FMath::Clamp(0.2f / FMath::Abs(FVector3f::DotProduct(PlanetToCameraNormUp, -AtmopshericLightDirection)), 0.0f, 1.0f);
 					CloudGlobalShaderParams.CloudShadowmapSampleCount[LightIndex] = FVector4f(CloudShadowRayMapSampleCount + RaySampleHorizonFactor * CloudShadowRayMapSampleCount * HorizonFactor, 0.0f, 0.0f, 0.0f);
 				}
 				else
@@ -1546,8 +1546,8 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					const FVector4f UpVector = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
 					const FVector4f ZeroVector = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 					const FVector4f OneVector = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
-					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = FMatrix::Identity;
-					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrixInv[LightIndex] = FMatrix::Identity;
+					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = FMatrix44f::Identity;
+					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrixInv[LightIndex] = FMatrix44f::Identity;
 					CloudGlobalShaderParams.CloudShadowmapLightDir[LightIndex] = UpVector;
 					CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex] = ZeroVector;
 					CloudGlobalShaderParams.CloudShadowmapLightAnchorPos[LightIndex] = ZeroVector;
@@ -1574,7 +1574,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				const float ZOffset = -NearPlane;
 
 				// TODO Make it work for all views
-				FVector LookAtPosition = FVector::ZeroVector;
+				FVector3f LookAtPosition = FVector3f::ZeroVector;
 				if (Views.Num() > 0)
 				{
 					FViewInfo& View = Views[0];
@@ -1591,11 +1591,11 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				}
 
 				// Trace direction is towards the ground
-				FVector TraceDirection =  CloudGlobalShaderParams.CloudLayerCenterKm * KilometersToCentimeters - LookAtPosition;
+				FVector3f TraceDirection =  CloudGlobalShaderParams.CloudLayerCenterKm * KilometersToCentimeters - LookAtPosition;
 				TraceDirection.Normalize();
 
-				const FVector UpVector = FMath::Abs(FVector::DotProduct(TraceDirection, FVector::UpVector)) > 0.99f ? FVector::ForwardVector : FVector::UpVector;
-				const FVector LightPosition = LookAtPosition - TraceDirection * VolumeDepthRange;
+				const FVector3f UpVector = FMath::Abs(FVector::DotProduct(TraceDirection, FVector3f::UpVector)) > 0.99f ? FVector3f::ForwardVector : FVector3f::UpVector;
+				const FVector3f LightPosition = LookAtPosition - TraceDirection * VolumeDepthRange;
 				FReversedZOrthoMatrix ShadowProjectionMatrix(SphereDiameter, SphereDiameter, ZScale, ZOffset);
 				FLookAtMatrix ShadowViewMatrix(LightPosition, LookAtPosition, UpVector);
 				CloudGlobalShaderParams.CloudSkyAOWorldToLightClipMatrix = ShadowViewMatrix * ShadowProjectionMatrix;
@@ -1628,7 +1628,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					FViewInfo& ViewInfo = Views[ViewIndex];
-					FVector ViewOrigin = ViewInfo.ViewMatrices.GetViewOrigin();
+					FVector3f ViewOrigin = ViewInfo.ViewMatrices.GetViewOrigin();
 
 					FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
 					SetVolumeShadowingDefaultShaderParameters(GraphBuilder, LightShadowShaderParams0);
@@ -1763,7 +1763,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 								FTemporalRenderTargetState& CloudShadowTemporalRT = ViewInfo.ViewState->VolumetricCloudShadowRenderTarget[LightIndex];
 								FRDGTextureRef CurrentShadowTexture = CloudShadowTemporalRT.GetOrCreateCurrentRT(GraphBuilder);
 
-								const bool bLightRotationCutHistory = FVector::DotProduct(ViewInfo.ViewState->VolumetricCloudShadowmapPreviousAtmosphericLightDir[LightIndex], AtmosphericLight->GetDirection()) < LightRotationCutCosAngle;
+								const bool bLightRotationCutHistory = FVector3f::DotProduct(ViewInfo.ViewState->VolumetricCloudShadowmapPreviousAtmosphericLightDir[LightIndex], AtmosphericLight->GetDirection()) < LightRotationCutCosAngle;
 								const bool bHistoryValid = CloudShadowTemporalRT.GetHistoryValid() && !bLightRotationCutHistory;
 
 								FCloudShadowTemporalProcessCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCloudShadowTemporalProcessCS::FParameters>();

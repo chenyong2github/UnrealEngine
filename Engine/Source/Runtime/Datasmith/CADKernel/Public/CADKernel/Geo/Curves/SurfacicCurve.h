@@ -25,16 +25,7 @@ namespace CADKernel
 			ensureCADKernel(Curve2D.IsValid());
 		}
 
-		FSurfacicCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
-
-		FSurfacicCurve()
-			: FCurve()
-		{
-		}
+		FSurfacicCurve() = default;
 
 	public:
 

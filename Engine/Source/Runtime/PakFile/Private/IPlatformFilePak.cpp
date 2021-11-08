@@ -6888,13 +6888,13 @@ bool FPakFile::RecreatePakReaders(IPlatformFile* LowerLevel)
 	// Create a new PakReader *per* instance that was already mapped
 	for (const FArchiveAndLastAccessTime& Reader : Readers)
 	{
-		FArchive* PakReader = CreatePakReader(LowerLevel, *GetFilename());
+		TUniquePtr<FArchive> PakReader = TUniquePtr<FArchive>(CreatePakReader(LowerLevel, *GetFilename()));
 		if (!PakReader)
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Unable to re-create pak \"%s\" handle"), *GetFilename());
 			return false;
 		}
-		TempReaders.Add(FArchiveAndLastAccessTime{ TUniquePtr<FArchive>{ PakReader }, Reader.LastAccessTime });
+		TempReaders.Add(FArchiveAndLastAccessTime{ MoveTemp(PakReader), Reader.LastAccessTime });
 	}
 
 	// replace the current Readers with the newly created pak readers leaving them to out of scope
@@ -7734,6 +7734,11 @@ bool FPakPlatformFile::ReloadPakReaders()
 		{
 			return false;
 		}
+	}
+
+	if (IoDispatcherFileBackend)
+	{
+		IoDispatcherFileBackend->ReopenAllFileHandles();
 	}
 
 	return true;

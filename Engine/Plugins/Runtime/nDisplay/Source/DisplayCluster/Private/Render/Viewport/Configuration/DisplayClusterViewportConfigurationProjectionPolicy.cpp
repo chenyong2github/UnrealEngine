@@ -53,6 +53,12 @@ bool FDisplayClusterViewportConfigurationProjectionPolicy::UpdateCameraPolicy(FD
 		return true;
 	}
 
+	if (CameraComponentId.IsEmpty())
+	{
+		UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Viewport '%s': referenced camera '' (empty name)."), *DstViewport.GetId());
+		return false;
+	}
+
 	// Get ICVFX camera component
 	TArray<UDisplayClusterICVFXCameraComponent*> ICVFXCameraComps;
 	RootActor.GetComponents<UDisplayClusterICVFXCameraComponent>(ICVFXCameraComps);

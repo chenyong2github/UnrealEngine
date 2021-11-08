@@ -23,7 +23,7 @@ public:
 
 	TCookedEditorTargetPlatform()
 	{
-		PackageManager = ICookedEditorPackageManager::FactoryForTargetPlatform(this);
+		PackageManager = ICookedEditorPackageManager::FactoryForTargetPlatform(this, false);
 	}
 
 	/** Allows for a custom target platform module to initialize this TargetPlatform with an existing
@@ -111,5 +111,122 @@ public:
 protected:
 
 	TUniquePtr<ICookedEditorPackageManager> PackageManager;
+
+};
+
+
+template<typename Base>
+class TCookedCookerTargetPlatform : public Base
+{
+public:
+
+	TCookedCookerTargetPlatform()
+	{
+		PackageManager = ICookedEditorPackageManager::FactoryForTargetPlatform(this, true);
+	}
+
+	TCookedCookerTargetPlatform(ICookedEditorPackageManager* ExistingManager)
+	{
+		PackageManager = MoveTemp(ExistingManager);
+	}
+
+	~TCookedCookerTargetPlatform()
+	{
+		delete PackageManager;
+	}
+
+
+	virtual FString PlatformName() const override
+	{
+		static FString CachedPlatformName = this->IniPlatformName() + TEXT("CookedCooker");
+		return CachedPlatformName;
+	}
+
+	virtual FString CookingDeviceProfileName() const override
+	{
+		return Base::PlatformName();
+	}
+
+	virtual bool AllowsEditorObjects() const override
+	{
+		return true;
+	}
+
+	virtual bool AllowObject(const UObject* Obj) const override
+	{
+		// probably don't need this check, but it can't hurt
+		if (!AllowsEditorObjects())
+		{
+			return true;
+		}
+
+		return PackageManager->AllowObjectToBeCooked(Obj);
+	}
+	
+	virtual void GetExtraPackagesToCook(TArray<FName>& PackageNames) const override
+	{
+		if (AllowsEditorObjects())
+		{
+			PackageManager->GatherAllPackages(PackageNames, this);
+		}
+	}
+
+
+	//////////////////////////////////////////////////////////////////
+	// Disabling stuff since it's just a cooker
+	//////////////////////////////////////////////////////////////////
+
+	virtual void GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const override
+	{
+		// no shaders please
+	}
+
+	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const override
+	{
+		// no shaders please
+	}
+
+	virtual void GetTextureFormats(const class UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override
+	{
+		// no textures please
+	}
+
+	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override
+	{
+		// no textures please
+	}
+
+	virtual bool SupportsVariants() const override
+	{
+		return false;
+	}
+
+	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override
+	{
+		switch (Feature)
+		{
+		case ETargetPlatformFeatures::AudioStreaming:
+		case ETargetPlatformFeatures::MemoryMappedAudio:
+			return false;
+
+		case ETargetPlatformFeatures::Packaging:
+			return true;
+
+		default:
+			return Base::SupportsFeature(Feature);
+		}
+	}
+
+	virtual bool AllowAudioVisualData() const override
+	{
+		return false;
+	}
+
+	virtual bool IsRunningPlatform() const override
+	{
+		return false;
+	}
+
+	ICookedEditorPackageManager* PackageManager;
 
 };

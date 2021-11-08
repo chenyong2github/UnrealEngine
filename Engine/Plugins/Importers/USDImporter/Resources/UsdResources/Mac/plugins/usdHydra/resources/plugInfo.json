@@ -12,7 +12,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdHydra.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdHydra.dylib", 
             "Name": "usdHydra", 
             "ResourcePath": "resources", 
             "Root": "..", 

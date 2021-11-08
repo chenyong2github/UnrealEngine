@@ -4,17 +4,20 @@
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraScriptMergeManager.h"
 #include "Misc/SecureHash.h"
 #include "ScopedTransaction.h"
 
+class UNiagaraStackItemGroup;
 const FName UNiagaraStackEntry::FExecutionCategoryNames::System = TEXT("System");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Emitter = TEXT("Emitter");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Particle = TEXT("Particle");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Render = TEXT("Render");
 
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Settings = TEXT("Settings");
+const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Summary = TEXT("Summary");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn = TEXT("Spawn");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Update = TEXT("Update");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Event = TEXT("Event");
@@ -644,7 +647,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	// they weren't reused.
 	for (UNiagaraStackEntry* Child : Children)
 	{
-		if (NewChildren.Contains(Child) == false && Child->GetOuter() == this)
+		if (!NewChildren.Contains(Child) && Child->GetOuter() == this && !Child->IsA<UNiagaraStackItemGroup>())
 		{
 			Child->Finalize();
 		}

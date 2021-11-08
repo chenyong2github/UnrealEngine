@@ -3,15 +3,16 @@
 #pragma once
 
 #include "ContentBrowserDelegates.h"
-#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class ULevelSnapshotsEditorData;
+class UWorld;
+class SToolTip;
+
 struct FAssetData;
 struct FAssetViewCustomColumn;
-class UWorld;
 struct FSnapshotEditorViewData;
-class SToolTip;
 
 class SLevelSnapshotsEditorBrowser : public SCompoundWidget
 {
@@ -24,10 +25,11 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FSnapshotEditorViewData& InViewBuildData);
+	void Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* InEditorData);
 	void SelectAsset(const FAssetData& InAssetData) const;
 
 private:
+	
 	TSharedRef<SToolTip> CreateCustomTooltip(FAssetData& AssetData);
 	TArray<FAssetViewCustomColumn> GetCustomColumns() const;
 	void OnAssetDoubleClicked(const FAssetData& InAssetData) const;
@@ -36,5 +38,5 @@ private:
 
 	TAttribute<FSoftObjectPath> OwningWorldPathAttribute;
 
-	FSnapshotEditorViewData ViewBuildData;
+	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
 };

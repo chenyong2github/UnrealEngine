@@ -328,6 +328,21 @@ namespace UnrealBuildTool
 			#endif
 			public string? Mode = null;
 
+			// The following Log settings exists in this location because, at the time of writing, EpicGames.Core does
+			// not have access to XmlConfigFileAttribute.
+			
+			/// <summary>
+			/// Whether to backup an existing log file, rather than overwriting it.
+			/// </summary>
+			[XmlConfigFile(Category = "Log")] 
+			public bool bBackupLogFiles = Log.BackupLogFiles;
+			
+			/// <summary>
+			/// The number of log file backups to preserve. Older backups will be deleted.
+			/// </summary>
+			[XmlConfigFile(Category = "Log")]
+			public int LogFileBackupCount = Log.LogFileBackupCount;
+			
 			/// <summary>
 			/// Initialize the options with the given command line arguments
 			/// </summary>
@@ -461,13 +476,6 @@ namespace UnrealBuildTool
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
 
-				// Add the log writer if requested. When building a target, we'll create the writer for the default log file later.
-				if(Options.LogFileName != null)
-				{
-					Log.TraceInformation($"Log will be written to {Options.LogFileName}");
-					Log.AddFileWriter("LogTraceListener", Options.LogFileName);
-				}
-
 				// Ensure we can resolve any external assemblies that are not in the same folder as our assembly.
 				AssemblyUtils.InstallAssemblyResolver(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()));
 
@@ -520,6 +528,17 @@ namespace UnrealBuildTool
 							XmlConfig.ReadConfigFiles(XmlConfigCache);
 						}
 					}
+				
+					XmlConfig.ApplyTo(Options);
+				}
+				
+				Log.BackupLogFiles = Options.bBackupLogFiles;
+				Log.LogFileBackupCount = Options.LogFileBackupCount;
+
+				// Add the log writer if requested. When building a target, we'll create the writer for the default log file later.
+				if(Options.LogFileName != null)
+				{
+					Log.AddFileWriter("LogTraceListener", Options.LogFileName);
 				}
 
 				// Acquire a lock for this branch

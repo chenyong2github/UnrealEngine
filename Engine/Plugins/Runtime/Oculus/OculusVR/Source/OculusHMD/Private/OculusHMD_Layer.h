@@ -67,6 +67,7 @@ public:
 	const ovrpLayerSubmit* UpdateLayer_RHIThread(const FSettings* Settings, const FGameFrame* Frame, const int LayerIndex);
 	void IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent);
 	void ReleaseResources_RHIThread();
+	bool IsVisible() { return (Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0; }
 
 	bool bNeedsTexSrgbCreate;
 

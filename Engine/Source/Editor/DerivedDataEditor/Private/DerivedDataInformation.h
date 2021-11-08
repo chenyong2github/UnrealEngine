@@ -20,6 +20,8 @@ public:
 	static double				GetCacheActivityTimeSeconds(bool bGet, bool bLocal);
 	static double				GetCacheActivitySizeBytes(bool bGet, bool bLocal);
 	static bool					GetHasRemoteCache();
+	static bool					GetHasZenCache();
+	static bool					GetHasHordeStorageCache();
 	static ERemoteCacheState	GetRemoteCacheState() { return RemoteCacheState; }
 	static FText				GetRemoteCacheStateAsText();
 	static FText				GetRemoteCacheWarningMessage() { return RemoteCacheWarningMessage; }

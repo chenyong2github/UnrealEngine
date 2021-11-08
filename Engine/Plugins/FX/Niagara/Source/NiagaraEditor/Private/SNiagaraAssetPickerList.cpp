@@ -139,16 +139,30 @@ TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& 
 
 	auto AddUserDefinedCategory = [&Categories, &Item]() {
 		FText UserDefinedCategory;
-		bool bFoundCategoryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, Category), UserDefinedCategory);
-
-		if (bFoundCategoryTag == false)
+		
+		if(Item.GetClass() == UNiagaraEmitter::StaticClass())
 		{
-			if (Item.IsAssetLoaded())
+			bool bFoundCategoryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, Category), UserDefinedCategory);
+			
+			if (bFoundCategoryTag == false && Item.IsAssetLoaded())
 			{
 				UNiagaraEmitter* EmitterAsset = Cast<UNiagaraEmitter>(Item.GetAsset());
 				if (EmitterAsset != nullptr)
 				{
 					UserDefinedCategory = EmitterAsset->Category;
+				}
+			}
+		}
+		else if(Item.GetClass() == UNiagaraSystem::StaticClass())
+		{
+			bool bFoundCategoryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraSystem, Category), UserDefinedCategory);
+
+			if (bFoundCategoryTag == false && Item.IsAssetLoaded())
+			{
+				UNiagaraSystem* SystemAsset = Cast<UNiagaraSystem>(Item.GetAsset());
+				if (SystemAsset != nullptr)
+				{
+					UserDefinedCategory = SystemAsset->Category;
 				}
 			}
 		}

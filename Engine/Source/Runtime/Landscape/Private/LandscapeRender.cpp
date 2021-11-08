@@ -1331,9 +1331,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	bSupportsHeightfieldRepresentation = FeatureLevel > ERHIFeatureLevel::ES3_1;
 
 #if WITH_EDITOR
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
-	
-	for (auto& Allocation : ComponentWeightmapLayerAllocations)
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
+	for (const FWeightmapLayerAllocationInfo& Allocation : ComponentWeightmapLayerAllocations)
 	{
 		if (Allocation.LayerInfo != nullptr)
 		{

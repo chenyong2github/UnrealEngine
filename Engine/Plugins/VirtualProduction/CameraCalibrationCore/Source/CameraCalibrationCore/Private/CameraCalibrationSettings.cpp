@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraCalibrationSettings.h"
+#include "CameraCalibrationSubsystem.h"
 
 #include "SphericalLensDistortionModelHandler.h"
 
@@ -9,6 +10,22 @@ UCameraCalibrationSettings::UCameraCalibrationSettings()
 	DefaultUndistortionDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibrationCore/Materials/M_SphericalUndistortionDisplacementMap.M_SphericalUndistortionDisplacementMap"))));
 	DefaultDistortionDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibrationCore/Materials/M_SphericalDistortionDisplacementMap.M_SphericalDistortionDisplacementMap"))));
 	DefaultDistortionMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibrationCore/Materials/M_DistortionPostProcess.M_DistortionPostProcess"))));
+
+#if WITH_EDITORONLY_DATA
+	auto InitOverlayOverrides = [this]()
+	{
+		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+		for (const FName& OverlayName : SubSystem->GetOverlayMaterialNames())
+		{
+			if (!CalibrationOverlayMaterialOverrides.Contains(OverlayName))
+			{
+				CalibrationOverlayMaterialOverrides.Add(OverlayName, nullptr);
+			}
+		}
+	};
+
+	PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(InitOverlayOverrides);
+#endif
 }
 
 FName UCameraCalibrationSettings::GetCategoryName() const
@@ -78,19 +95,19 @@ void UCameraCalibrationSettings::PostEditChangeChainProperty(struct FPropertyCha
 	}
 }
 
-TArray<FName> UCameraCalibrationSettings::GetDefaultCalibrationOverlayNames() const
+TArray<FName> UCameraCalibrationSettings::GetCalibrationOverlayMaterialOverrideNames() const
 {
 	TArray<FName> OutKeys;
 #if WITH_EDITORONLY_DATA
-	DefaultCalibrationOverlayMaterials.GetKeys(OutKeys);
+	CalibrationOverlayMaterialOverrides.GetKeys(OutKeys);
 #endif
 	return OutKeys;
 }
 
-UMaterialInterface* UCameraCalibrationSettings::GetDefaultCalibrationOverlayMaterial(const FName OverlayName) const
+UMaterialInterface* UCameraCalibrationSettings::GetCalibrationOverlayMaterialOverride(const FName OverlayName) const
 {
 #if WITH_EDITORONLY_DATA
-	const TSoftObjectPtr<UMaterialInterface>* OverlayMaterial = DefaultCalibrationOverlayMaterials.Find(OverlayName);
+	const TSoftObjectPtr<UMaterialInterface>* OverlayMaterial = CalibrationOverlayMaterialOverrides.Find(OverlayName);
 	if (!OverlayMaterial)
 	{
 		return nullptr;

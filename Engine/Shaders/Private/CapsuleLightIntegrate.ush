@@ -97,13 +97,19 @@ FAreaLightIntegrateContext CreateCapsuleIntegrateContext(float Roughness, half3 
 	Roughness = max( Roughness, View.MinRoughness );
 	float a = Pow2( Roughness );
     
+	// Diffuse micro refelction contribution will softly fade out when th light become an area light.
+	// We only based this assumption based on the light size.
+	const float SizeFadesOutDiffuseMicroRefl = 20.0;
+
 	Out.AreaLight.SphereSinAlpha = saturate( Capsule.Radius * InvDist * (1 - a) );
 	Out.AreaLight.SphereSinAlphaSoft = saturate( Capsule.SoftRadius * InvDist );
 	Out.AreaLight.LineCosSubtended = LineCosSubtended;
 	Out.AreaLight.FalloffColor = 1;
 	Out.AreaLight.Rect = (FRect)0;
-	Out.AreaLight.bIsRect = false;
 	Out.AreaLight.Texture = InitRectTexture(DummyRectLightTextureForCapsuleCompilerWarning);
+	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
+	SetIsRectLight(Out.AreaLight, false);
+	SetAreaLightDiffuseMicroReflWeight(Out.AreaLight, saturate(1.0f - max(Capsule.Length, Capsule.Radius) / SizeFadesOutDiffuseMicroRefl));
 	Out.NoL = NoL;
 	Out.Falloff = Falloff;	
 	Out.L = L;

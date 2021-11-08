@@ -13,6 +13,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "ClassViewerFilter.h"
+#include "BlueprintNamespacePathTree.h"
+#include "BlueprintNamespaceUtilities.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintNamespaceHelper"
 
@@ -175,15 +177,25 @@ private:
 
 FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBlueprint)
 {
-	// Default namespace paths implicitly imported by every Blueprint.
+	// Instance the path tree used to store/retrieve namespaces.
+	NamespacePathTree = MakeUnique<FBlueprintNamespacePathTree>();
+
+	// Add the default namespace paths implicitly imported by every Blueprint.
 	AddNamespaces(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
 	AddNamespaces(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
 
 	if (InBlueprint)
 	{
-		AddNamespace(InBlueprint->BlueprintNamespace);
+		// Add the namespace for the given Blueprint.
+		AddNamespace(FBlueprintNamespaceUtilities::GetObjectNamespace(InBlueprint));
+
+		// Also add the namespace for the Blueprint's parent class.
+		AddNamespace(FBlueprintNamespaceUtilities::GetObjectNamespace(InBlueprint->ParentClass));
+
+		// Additional namespaces that are explicitly imported by this Blueprint.
 		AddNamespaces(InBlueprint->ImportedNamespaces);
 
+		// If enabled, also inherit namespaces that are explicitly imported by all ancestor BPs.
 		const bool bAddParentClassNamespaces = CVarBPImportParentClassNamespaces.GetValueOnGameThread();
 		if(bAddParentClassNamespaces)
 		{
@@ -192,12 +204,11 @@ FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBluepri
 			{
 				if (const UBlueprint* ParentClassBlueprint = UBlueprint::GetBlueprintFromClass(ParentClass))
 				{
-					AddNamespace(ParentClassBlueprint->BlueprintNamespace);
 					AddNamespaces(ParentClassBlueprint->ImportedNamespaces);
 				}
-				else if (const FString* ParentClassNamespace = ParentClass->FindMetaData(FBlueprintMetadata::MD_Namespace))
+				else
 				{
-					AddNamespace(*ParentClassNamespace);
+					break;
 				}
 
 				ParentClass = ParentClass->GetSuperClass();
@@ -205,8 +216,22 @@ FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBluepri
 		}
 	}
 
+	// Instance the filters that can be used with type pickers, etc.
 	ClassViewerFilter = MakeShared<FClassViewerNamespaceFilter>(this);
 	PinTypeSelectorFilter = MakeShared<FPinTypeSelectorNamespaceFilter>(this);
+}
+
+FBlueprintNamespaceHelper::~FBlueprintNamespaceHelper()
+{
+}
+
+void FBlueprintNamespaceHelper::AddNamespace(const FString& Namespace)
+{
+	if (!Namespace.IsEmpty())
+	{
+		// Add the path corresponding to the given namespace identifier.
+		NamespacePathTree->AddPath(Namespace);
+	}
 }
 
 bool FBlueprintNamespaceHelper::IsIncludedInNamespaceList(const FString& TestNamespace) const
@@ -217,57 +242,21 @@ bool FBlueprintNamespaceHelper::IsIncludedInNamespaceList(const FString& TestNam
 		return true;
 	}
 
-	// Check recursively to see if X.Y.Z is present, and if not X.Y (which contains X.Y.Z), and so on until we run out of path segments
-	if (FullyQualifiedListOfNamespaces.Contains(TestNamespace))
-	{
-		return true;
-	}
-	else
-	{
-		int32 RightmostDotIndex;
-		if (TestNamespace.FindLastChar(TEXT('.'), /*out*/ RightmostDotIndex))
-		{
-			if (RightmostDotIndex > 0)
-			{
-				return IsIncludedInNamespaceList(TestNamespace.Left(RightmostDotIndex));
-			}
-		}
-	}
+	// Check to see if X is added, followed by X.Y (which contains X.Y.Z), and so on until we run out of path segments
+	const bool bMatchFirstInclusivePath = true;
+	TSharedPtr<FBlueprintNamespacePathTree::FNode> PathNode = NamespacePathTree->FindPathNode(TestNamespace, bMatchFirstInclusivePath);
 
-	return false;
-}
-
-bool FBlueprintNamespaceHelper::IsImportedType(const UField* InType) const
-{
-	if (InType)
-	{
-		if (const FString* TypeNamespace = InType->FindMetaData(FBlueprintMetadata::MD_Namespace))
-		{
-			return IsIncludedInNamespaceList(*TypeNamespace);
-		}
-	}
-
-	// Types exist in the global scope if we can't determine otherwise, which means it's always imported.
-	return true;
+	// Return true if this is a valid path that was explicitly added
+	return PathNode.IsValid();
 }
 
 bool FBlueprintNamespaceHelper::IsImportedObject(const UObject* InObject) const
 {
-	if (const UField* Type = Cast<UField>(InObject))
-	{
-		return IsImportedType(Type);
-	}
-	else if (const UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
-	{
-		return IsImportedType(Blueprint->GeneratedClass);
-	}
-	else if(InObject)
-	{
-		return IsImportedType(InObject->GetClass());
-	}
+	// Determine the object's namespace identifier.
+	FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(InObject);
 
-	// Objects exist in the global scope if we can't determine otherwise, which means it's always imported.
-	return true;
+	// Return whether or not the namespace was added, explicitly or otherwise.
+	return IsIncludedInNamespaceList(Namespace);
 }
 
 bool FBlueprintNamespaceHelper::IsImportedObject(const FSoftObjectPath& InObjectPath) const
@@ -277,27 +266,24 @@ bool FBlueprintNamespaceHelper::IsImportedObject(const FSoftObjectPath& InObject
 		return IsImportedObject(Object);
 	}
 	
+	FString ObjectPathAsString = InObjectPath.ToString();
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*InObjectPath.ToString());
-	if (AssetData.IsValid())
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
+	if (!AssetData.IsValid() && ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
 	{
-		if (const UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString()))
-		{
-			if (AssetClass->IsChildOf<UBlueprint>())
-			{
-				FString OutNamespaceString;
-				if (AssetData.GetTagValue<FString>(GET_MEMBER_NAME_STRING_CHECKED(UBlueprint, BlueprintNamespace), OutNamespaceString))
-				{
-					return IsIncludedInNamespaceList(OutNamespaceString);
-				}
-			}
-
-			// @todo_namespaces - Add cases for unloaded UDS/UDE assets once they have a searchable namespace member property.
-		}
+		AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
 	}
 
-	// Objects exist in the global scope if we can't determine otherwise, which means it's always imported.
-	return true;
+	return IsImportedAsset(AssetData);
+}
+
+bool FBlueprintNamespaceHelper::IsImportedAsset(const FAssetData& InAssetData) const
+{
+	// Determine the asset's namespace identifier.
+	FString Namespace = FBlueprintNamespaceUtilities::GetAssetNamespace(InAssetData);
+
+	// Return whether or not the namespace was added, explicitly or otherwise.
+	return IsIncludedInNamespaceList(Namespace);
 }
 
 #undef LOCTEXT_NAMESPACE

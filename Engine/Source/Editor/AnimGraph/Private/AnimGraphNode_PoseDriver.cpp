@@ -127,9 +127,9 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 	{
 		MessageLog.Warning(*LOCTEXT("SourceBoneNotFound", "@@ - Entry in SourceBones not found").ToString(), this);
 	}
-
+	
 	TArray<FRBFTarget> RBFTargets;
-	Node.GetRBFTargets(RBFTargets);
+	Node.GetRBFTargets(RBFTargets, nullptr);
 	TArray<int> InvalidTargets;
 	if (!FRBFSolver::ValidateTargets(Node.RBFParams, RBFTargets, InvalidTargets))
 	{
@@ -495,26 +495,31 @@ FLinearColor UAnimGraphNode_PoseDriver::GetColorFromWeight(float InWeight)
 
 void UAnimGraphNode_PoseDriver::AutoSetTargetScales(float &OutMaxDistance)
 {
-	TArray<FRBFTarget> RBFTargets;
-	Node.GetRBFTargets(RBFTargets);
-
-	// Find distances from targets to nearest neighbours
-	TArray<float> Distances;
-	bool bSuccess = FRBFSolver::FindTargetNeighbourDistances(Node.RBFParams, RBFTargets, Distances);
-	if (bSuccess)
+	if (LastPreviewComponent && LastPreviewComponent->AnimScriptInstance)
 	{
-		// Find overall largest distance 
-		OutMaxDistance = KINDA_SMALL_NUMBER; // ensure result > 0
-		for (float Distance : Distances)
-		{
-			OutMaxDistance = FMath::Max(OutMaxDistance, Distance);
-		}
+		const FBoneContainer& RequiredBones = LastPreviewComponent->AnimScriptInstance->GetRequiredBones();
 
-		// Set scales so largest distance is 1.0, and others are less than that
-		for (int32 TargetIdx = 0; TargetIdx < Node.PoseTargets.Num(); TargetIdx++)
+		TArray<FRBFTarget> RBFTargets;
+		Node.GetRBFTargets(RBFTargets, &RequiredBones);
+
+		// Find distances from targets to nearest neighbours
+		TArray<float> Distances;
+		bool bSuccess = FRBFSolver::FindTargetNeighbourDistances(Node.RBFParams, RBFTargets, Distances);
+		if (bSuccess)
 		{
-			FPoseDriverTarget& PoseTarget = Node.PoseTargets[TargetIdx];
-			PoseTarget.TargetScale = Distances[TargetIdx] / OutMaxDistance;
+			// Find overall largest distance 
+			OutMaxDistance = KINDA_SMALL_NUMBER; // ensure result > 0
+			for (float Distance : Distances)
+			{
+				OutMaxDistance = FMath::Max(OutMaxDistance, Distance);
+			}
+
+			// Set scales so largest distance is 1.0, and others are less than that
+			for (int32 TargetIdx = 0; TargetIdx < Node.PoseTargets.Num(); TargetIdx++)
+			{
+				FPoseDriverTarget& PoseTarget = Node.PoseTargets[TargetIdx];
+				PoseTarget.TargetScale = Distances[TargetIdx] / OutMaxDistance;
+			}
 		}
 	}
 }

@@ -4,33 +4,14 @@
 #include "SceneOutlinerGutter.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "Editor.h"
-#include "ScopedTransaction.h"
 #include "Widgets/Views/STreeView.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerMode.h"
 #include "SortHelper.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerGutter"
-
-namespace SceneOutliner
-{
-	void OnSetItemVisibility(ISceneOutlinerTreeItem& Item, const bool bNewVisibility)
-	{
-		// Apply the same visibility to the children
-		Item.OnVisibilityChanged(bNewVisibility);
-		for (auto& ChildPtr : Item.GetChildren())
-		{
-			auto Child = ChildPtr.Pin();
-			if (Child.IsValid())
-			{
-				OnSetItemVisibility(*Child, bNewVisibility);
-			}
-		}
-	}
-}
 
 bool FSceneOutlinerVisibilityCache::RecurseChildren(const ISceneOutlinerTreeItem& Item) const
 {
@@ -110,223 +91,218 @@ public:
 	}
 };
 
-/** Widget responsible for managing the visibility for a single item */
-class SVisibilityWidget : public SImage
+//
+// SVisibilityWidget
+//
+
+void SVisibilityWidget::Construct(const FArguments& InArgs, TWeakPtr<FSceneOutlinerGutter> InWeakColumn, TWeakPtr<ISceneOutliner> InWeakOutliner, TWeakPtr<ISceneOutlinerTreeItem> InWeakTreeItem, const STableRow<FSceneOutlinerTreeItemPtr>* InRow)
 {
-public:
-	SLATE_BEGIN_ARGS(SVisibilityWidget){}
-	SLATE_END_ARGS()
+	WeakTreeItem = InWeakTreeItem;
+	WeakOutliner = InWeakOutliner;
+	WeakColumn = InWeakColumn;
 
-	/** Construct this widget */
-	void Construct(const FArguments& InArgs, TWeakPtr<FSceneOutlinerGutter> InWeakColumn, TWeakPtr<ISceneOutliner> InWeakOutliner, TWeakPtr<ISceneOutlinerTreeItem> InWeakTreeItem, const STableRow<FSceneOutlinerTreeItemPtr>* InRow)
+	Row = InRow;
+
+	SImage::Construct(
+		SImage::FArguments()
+		.IsEnabled(this, &SVisibilityWidget::IsEnabled)
+		.ColorAndOpacity(this, &SVisibilityWidget::GetForegroundColor)
+		.Image(this, &SVisibilityWidget::GetBrush)
+	);
+
+
+	static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
+	static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
+	static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
+	static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
+
+	VisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush);
+	VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
+
+	NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush);
+	NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
+
+}
+
+FReply SVisibilityWidget::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		WeakTreeItem = InWeakTreeItem;
-		WeakOutliner = InWeakOutliner;
-		WeakColumn = InWeakColumn;
-
-		Row = InRow;
-
-		SImage::Construct(
-			SImage::FArguments()
-			.ColorAndOpacity(this, &SVisibilityWidget::GetForegroundColor)
-			.Image(this, &SVisibilityWidget::GetBrush)
-		);
-
-
-		static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
-		static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
-		static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
-		static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
-
-		VisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleHoveredBrush);
-		VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_VisibleNotHoveredBrush);
-
-		NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleHoveredBrush);
-		NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NAME_NotVisibleNotHoveredBrush);
-
+		return FReply::Handled().BeginDragDrop(FVisibilityDragDropOp::New(!IsVisible(), UndoTransaction));
 	}
-
-private:
-
-	/** Start a new drag/drop operation for this widget */
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	else
 	{
-		if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
-		{
-			return FReply::Handled().BeginDragDrop(FVisibilityDragDropOp::New(!IsVisible(), UndoTransaction));
-		}
-		else
-		{
-			return FReply::Unhandled();
-		}
+		return FReply::Unhandled();
 	}
+}
 
-	/** If a visibility drag drop operation has entered this widget, set its item to the new visibility state */
-	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+/** If a visibility drag drop operation has entered this widget, set its item to the new visibility state */
+void SVisibilityWidget::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	auto VisibilityOp = DragDropEvent.GetOperationAs<FVisibilityDragDropOp>();
+	if (VisibilityOp.IsValid())
 	{
-		auto VisibilityOp = DragDropEvent.GetOperationAs<FVisibilityDragDropOp>();
-		if (VisibilityOp.IsValid())
-		{
-			SetIsVisible(!VisibilityOp->bHidden);
-		}
+		SetIsVisible(!VisibilityOp->bHidden);
 	}
+}
 
-	FReply HandleClick()
+FReply SVisibilityWidget::HandleClick()
+{
+	if (!IsEnabled())
 	{
-		auto Outliner = WeakOutliner.Pin();
-		auto TreeItem = WeakTreeItem.Pin();
-		auto Column = WeakColumn.Pin();
-		
-		if (!Outliner.IsValid() || !TreeItem.IsValid() || !Column.IsValid())
-		{
-			return FReply::Unhandled();
-		}
-
-		// Open an undo transaction
-		UndoTransaction.Reset(new FScopedTransaction(LOCTEXT("SetOutlinerItemVisibility", "Set Item Visibility")));
-
-		const auto& Tree = Outliner->GetTree();
-
-		const bool bVisible = !IsVisible();
-
-		// We operate on all the selected items if the specified item is selected
-		if (Tree.IsItemSelected(TreeItem.ToSharedRef()))
-		{
-			for (auto& SelectedItem : Tree.GetSelectedItems())
-			{
-				if (IsVisible(SelectedItem, Column) != bVisible)
-				{
-					SceneOutliner::OnSetItemVisibility(*SelectedItem, bVisible);
-				}		
-			}
-
-			GEditor->RedrawAllViewports();
-		}
-		else
-		{
-			SetIsVisible(bVisible);
-		}
-
-		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
-	}
-
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
-	{
-		return HandleClick();
-	}
-
-	/** Called when the mouse button is pressed down on this widget */
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
-	{
-		if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
-		{
-			return FReply::Unhandled();
-		}
-
-		return HandleClick();
-	}
-
-	/** Process a mouse up message */
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
-	{
-		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-		{
-			UndoTransaction.Reset();
-			return FReply::Handled();
-		}
-
 		return FReply::Unhandled();
 	}
 
-	/** Called when this widget had captured the mouse, but that capture has been revoked for some reason. */
-	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override
+	auto Outliner = WeakOutliner.Pin();
+	auto TreeItem = WeakTreeItem.Pin();
+	auto Column = WeakColumn.Pin();
+		
+	if (!Outliner.IsValid() || !TreeItem.IsValid() || !Column.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	// Open an undo transaction
+	UndoTransaction.Reset(new FScopedTransaction(LOCTEXT("SetOutlinerItemVisibility", "Set Item Visibility")));
+
+	const auto& Tree = Outliner->GetTree();
+
+	const bool bVisible = !IsVisible();
+
+	// We operate on all the selected items if the specified item is selected
+	if (Tree.IsItemSelected(TreeItem.ToSharedRef()))
+	{
+		for (auto& SelectedItem : Tree.GetSelectedItems())
+		{
+			if (IsVisible(SelectedItem, Column) != bVisible)
+			{
+				OnSetItemVisibility(*SelectedItem, bVisible);
+			}		
+		}
+
+		GEditor->RedrawAllViewports();
+	}
+	else
+	{
+		SetIsVisible(bVisible);
+	}
+
+	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+}
+
+FReply SVisibilityWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	return HandleClick();
+}
+
+/** Called when the mouse button is pressed down on this widget */
+FReply SVisibilityWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	{
+		return FReply::Unhandled();
+	}
+
+	return HandleClick();
+}
+
+/** Process a mouse up message */
+FReply SVisibilityWidget::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+{
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		UndoTransaction.Reset();
+		return FReply::Handled();
 	}
 
-	/** Get the brush for this widget */
-	const FSlateBrush* GetBrush() const
+	return FReply::Unhandled();
+}
+
+/** Called when this widget had captured the mouse, but that capture has been revoked for some reason. */
+void SVisibilityWidget::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	UndoTransaction.Reset();
+}
+
+/** Get the brush for this widget */
+const FSlateBrush* SVisibilityWidget::GetBrush() const
+{
+	if (IsVisible())
 	{
-		if (IsVisible())
-		{
-			return IsHovered() ? VisibleHoveredBrush : VisibleNotHoveredBrush;
-		}
-		else
-		{
-			return IsHovered() ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
-		}
+		return IsHovered() ? VisibleHoveredBrush : VisibleNotHoveredBrush;
+	}
+	else
+	{
+		return IsHovered() ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
+	}
+}
+
+FSlateColor SVisibilityWidget::GetForegroundColor() const
+{
+
+	auto Outliner = WeakOutliner.Pin();
+	auto TreeItem = WeakTreeItem.Pin();
+
+	const bool bIsSelected = Outliner->GetTree().IsItemSelected(TreeItem.ToSharedRef());
+
+	// make the foreground brush transparent if it is not selected and it is visible
+	if (IsVisible() && !Row->IsHovered() && !bIsSelected)
+	{
+		return FLinearColor::Transparent;
+	}
+	else if (IsHovered() && !bIsSelected)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.ForegroundHover");
 	}
 
-	virtual FSlateColor GetForegroundColor() const
+	return FSlateColor::UseForeground();
+}
+
+/** Check if the specified item is visible */
+bool SVisibilityWidget::IsVisible(const FSceneOutlinerTreeItemPtr& Item, const TSharedPtr<FSceneOutlinerGutter>& Column)
+{
+	return Column.IsValid() && Item.IsValid() ? Column->IsItemVisible(*Item) : false;
+}
+
+/** Check if our wrapped tree item is visible */
+bool SVisibilityWidget::IsVisible() const
+{
+	return SVisibilityWidget::IsVisible(WeakTreeItem.Pin(), WeakColumn.Pin());
+}
+
+/** Set the item this widget is responsible for to be hidden or shown */
+void SVisibilityWidget::SetIsVisible(const bool bVisible)
+{
+	TSharedPtr<ISceneOutlinerTreeItem> TreeItem = WeakTreeItem.Pin();
+	TSharedPtr<ISceneOutliner> Outliner = WeakOutliner.Pin();
+
+	if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
 	{
-
-		auto Outliner = WeakOutliner.Pin();
-		auto TreeItem = WeakTreeItem.Pin();
-
-		const bool bIsSelected = Outliner->GetTree().IsItemSelected(TreeItem.ToSharedRef());
-
-		// make the foreground brush transparent if it is not selected and it is visible
-		if (IsVisible() && !Row->IsHovered() && !bIsSelected)
-		{
-			return FLinearColor::Transparent;
-		}
-		else if (IsHovered() && !bIsSelected)
-		{
-			return FAppStyle::Get().GetSlateColor("Colors.ForegroundHover");
-		}
-
-		return FSlateColor::UseForeground();
-	}
-
-	/** Check if the specified item is visible */
-	static bool IsVisible(const FSceneOutlinerTreeItemPtr& Item, const TSharedPtr<FSceneOutlinerGutter>& Column)
-	{
-		return Column.IsValid() && Item.IsValid() ? Column->IsItemVisible(*Item) : false;
-	}
-
-	/** Check if our wrapped tree item is visible */
-	bool IsVisible() const
-	{
-		return IsVisible(WeakTreeItem.Pin(), WeakColumn.Pin());
-	}
-
-	/** Set the item this widget is responsible for to be hidden or shown */
-	void SetIsVisible(const bool bVisible)
-	{
-		TSharedPtr<ISceneOutlinerTreeItem> TreeItem = WeakTreeItem.Pin();
-		TSharedPtr<ISceneOutliner> Outliner = WeakOutliner.Pin();
-
-		if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
-		{
-			SceneOutliner::OnSetItemVisibility(*TreeItem, bVisible);
+		OnSetItemVisibility(*TreeItem, bVisible);
 			
-			Outliner->Refresh();
+		Outliner->Refresh();
 
-			GEditor->RedrawAllViewports();
+		GEditor->RedrawAllViewports();
+	}
+}
+
+void SVisibilityWidget::OnSetItemVisibility(ISceneOutlinerTreeItem& Item, const bool bNewVisibility)
+{
+	// Apply the same visibility to the children
+	Item.OnVisibilityChanged(bNewVisibility);
+
+	if (ShouldPropagateVisibilityChangeOnChildren())
+	{
+		for (auto& ChildPtr : Item.GetChildren())
+		{
+			auto Child = ChildPtr.Pin();
+			if (Child.IsValid())
+			{
+				OnSetItemVisibility(*Child, bNewVisibility);
+			}
 		}
 	}
-
-	/** The tree item we relate to */
-	TWeakPtr<ISceneOutlinerTreeItem> WeakTreeItem;
-	
-	/** Reference back to the outliner so we can set visibility of a whole selection */
-	TWeakPtr<ISceneOutliner> WeakOutliner;
-
-	/** Weak pointer back to the column */
-	TWeakPtr<FSceneOutlinerGutter> WeakColumn;
-
-	/** Weak pointer back to the row */
-	const STableRow<FSceneOutlinerTreeItemPtr>* Row;
-
-	/** Scoped undo transaction */
-	TUniquePtr<FScopedTransaction> UndoTransaction;
-
-	/** Visibility brushes for the various states */
-	const FSlateBrush* VisibleHoveredBrush;
-	const FSlateBrush* VisibleNotHoveredBrush;
-	const FSlateBrush* NotVisibleHoveredBrush;
-	const FSlateBrush* NotVisibleNotHoveredBrush;
-};
+}
 
 FSceneOutlinerGutter::FSceneOutlinerGutter(ISceneOutliner& Outliner)
 {

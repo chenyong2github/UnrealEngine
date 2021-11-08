@@ -32,6 +32,7 @@ FCustomPresent::FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType 
 	, RenderAPI(InRenderAPI)
 	, DefaultPixelFormat(InDefaultPixelFormat)
 	, bSupportsSRGB(bInSupportsSRGB)
+    , bSupportsSubsampled(false)
 	, bIsStandaloneStereoDevice(false)
 {
 	CheckInGameThread();
@@ -317,7 +318,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 
 	FRHITexture2D* DstTexture2D = DstTexture->GetTexture2D();
 	FRHITextureCube* DstTextureCube = DstTexture->GetTextureCube();
-	FRHITexture2D* SrcTexture2D = SrcTexture->GetTexture2D();
+	FRHITexture2D* SrcTexture2D = SrcTexture->GetTexture2DArray() ? SrcTexture->GetTexture2DArray() : SrcTexture->GetTexture2D();
 	FRHITextureCube* SrcTextureCube = SrcTexture->GetTextureCube();
 
 	FIntPoint DstSize;

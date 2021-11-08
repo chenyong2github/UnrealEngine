@@ -1149,12 +1149,15 @@ bool FSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Viewpor
 
 				if (bAllowDuplication)
 				{
-					if (DuplicateDelay < MaxDuplicationDelay)
+					float SmallestGridSize = 1.0f;
+					const TArray<float>& PosGridSizes = GEditor->GetCurrentPositionGridArray();
+					if (PosGridSizes.IsValidIndex(0))
 					{
-						DuplicateDelay++;
-						DuplicateDelayAccumulatedDrag += DeltaTranslate;
+						SmallestGridSize = PosGridSizes[0];
 					}
-					else
+
+					// When grid size is set to a value other than the smallest grid size, do not delay duplication
+					if (DuplicateDelay >= MaxDuplicationDelay || GEditor->GetGridSize() > SmallestGridSize)
 					{
 						Drag += DuplicateDelayAccumulatedDrag;
 						DuplicateDelayAccumulatedDrag = FVector::ZeroVector;
@@ -1163,6 +1166,11 @@ bool FSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Viewpor
 						bDuplicatingSplineKey = true;
 
 						DuplicateKeyForAltDrag(Drag);
+					}
+					else
+					{ 
+						DuplicateDelay++;
+						DuplicateDelayAccumulatedDrag += DeltaTranslate;
 					}
 				}
 				else
@@ -2158,8 +2166,6 @@ void FSplineComponentVisualizer::OnAddKeyToSegment()
 	USplineComponent* SplineComp = GetEditedSplineComponent();
 	check(SplineComp != nullptr);
 	check(SelectionState);
-	const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
-	int32 LastKeyIndexSelected = SelectionState->GetVerifiedLastKeyIndexSelected(SplineComp->GetNumberOfSplinePoints());
 	check(SelectionState->GetSelectedTangentHandle() == INDEX_NONE);
 	check(SelectionState->GetSelectedTangentHandleType() == ESelectedTangentHandle::None);
 
@@ -2253,7 +2259,9 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 	// Split existing segment or add new segment
 	if (SegmentIndex >= 0 && SegmentIndex < NumSegments)
 	{
-		SplitSegment(WorldPos, SegmentIndex);
+		bool bCopyFromSegmentBeginIndex = (LastKeyIndexSelected == SegmentIndex);
+		SplitSegment(WorldPos, SegmentIndex, bCopyFromSegmentBeginIndex);
+
 	}
 	else
 	{
@@ -2299,7 +2307,7 @@ float FSplineComponentVisualizer::FindNearest(const FVector& InLocalPos, int32 I
 	return t;
 }
 
-void FSplineComponentVisualizer::SplitSegment(const FVector& InWorldPos, int32 InSegmentIndex)
+void FSplineComponentVisualizer::SplitSegment(const FVector& InWorldPos, int32 InSegmentIndex, bool bCopyFromSegmentBeginIndex /* = true */)
 {
 	USplineComponent* SplineComp = GetEditedSplineComponent();
 	check(SplineComp != nullptr);
@@ -2365,12 +2373,15 @@ void FSplineComponentVisualizer::SplitSegment(const FVector& InWorldPos, int32 I
 	FInterpCurvePoint<FQuat>& NextRot = SplineRotation.Points[SegmentEndIndex];
 	NewRot = FMath::Lerp(PrevRot.OutVal, NextRot.OutVal, t);
 
+	// Determine which index to use when copying interp mode
+	int32 SourceIndex = bCopyFromSegmentBeginIndex ? SegmentBeginIndex : SegmentEndIndex;
+
 	FInterpCurvePoint<FVector> NewPoint(
 		SegmentSplitIndex,
 		SplinePos,
 		FVector::ZeroVector,
 		FVector::ZeroVector,
-		CIM_CurveAuto);
+		SplinePosition.Points[SourceIndex].InterpMode);
 
 	FInterpCurvePoint<FQuat> NewRotPoint(
 		SegmentSplitIndex,

@@ -7,13 +7,13 @@
 #include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 #include "UObject/ObjectKey.h"
 #include "IAssetTypeActions.h"
+#include "NiagaraEmitterEditorData.h"
 
 class UNiagaraEmitter;
 class UNiagaraScript;
 class FNiagaraSystemViewModel;
 class FNiagaraScriptViewModel;
 class FNiagaraScriptGraphViewModel;
-class UNiagaraEmitterEditorData;
 class FNiagaraEmitterInstance;
 struct FNiagaraVariable;
 struct FNiagaraParameterStore;
@@ -115,7 +115,7 @@ public:
 	const UNiagaraEmitterEditorData& GetEditorData() const;
 
 	/** Gets editor specific data which is stored per emitter.  If this data hasn't been created then it will be created. */
-	UNiagaraEmitterEditorData& GetOrCreateEditorData();
+	NIAGARAEDITOR_API UNiagaraEmitterEditorData& GetOrCreateEditorData();
 
 	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
 	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);

@@ -24,6 +24,7 @@ namespace Turnkey.Commands
 			bool bForceDeviceInstall = TurnkeyUtils.ParseParam("ForceDeviceInstall", CommandOptions);
 			bool bUpdateIfNeeded = bForceSdkInstall || bForceDeviceInstall || TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
 			bool bSkipPlatformCheck = TurnkeyUtils.ParseParam("SkipPlatform", CommandOptions);
+			bool bAutoChooseBest = bUnattended || bUpdateIfNeeded;
 
 			List<UnrealTargetPlatform> PlatformsToCheck;
 			List<DeviceInfo> DevicesToCheck;
@@ -131,11 +132,11 @@ namespace Turnkey.Commands
 					// find the best Sdk, prioritizing as request
 					if (bPreferFullSdk)
 					{
-						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Full, FileSource.SourceType.BuildOnly, FileSource.SourceType.AutoSdk }, bSelectBest: bUnattended);
+						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Full, FileSource.SourceType.BuildOnly, FileSource.SourceType.AutoSdk }, bSelectBest: bAutoChooseBest);
 					}
 					else
 					{
-						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.AutoSdk, FileSource.SourceType.BuildOnly, FileSource.SourceType.Full }, bSelectBest: bUnattended);
+						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.AutoSdk, FileSource.SourceType.BuildOnly, FileSource.SourceType.Full }, bSelectBest: bAutoChooseBest);
 					}
 
 					if (BestSdk == null)

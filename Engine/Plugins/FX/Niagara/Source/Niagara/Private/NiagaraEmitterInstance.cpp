@@ -238,12 +238,6 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 		{
 			return false;
 		}
-
-		// Don't allow deprecated shader stages to run
-		if ( CachedEmitter->bDeprecatedShaderStagesEnabled )
-		{
-			return false;
-		}
 	}
 
 	if (UNiagaraComponentSettings::ShouldSuppressEmitterActivation(this))

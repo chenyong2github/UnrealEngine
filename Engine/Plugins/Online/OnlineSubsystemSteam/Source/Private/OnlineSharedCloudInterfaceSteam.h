@@ -157,7 +157,7 @@ public:
 
 	// IOnlineSharedCloud
 	virtual bool GetSharedFileContents(const FSharedContentHandle& SharedHandle, TArray<uint8>& FileContents) override;
-	virtual bool ClearSharedFiles() override;
+	virtual bool ClearSharedFiles() override final;
 	virtual bool ClearSharedFile(const FSharedContentHandle& SharedHandle) override;
 	virtual bool ReadSharedFile(const FSharedContentHandle& SharedHandle) override;
 	virtual bool WriteSharedFile(const FUniqueNetId& UserId, const FString& Filename, TArray<uint8>& FileContents) override;

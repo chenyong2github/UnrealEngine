@@ -77,6 +77,12 @@ enum EGCReferenceType
 	GCRT_ArrayMulticastDelegate,
 };
 
+enum class EGCTokenType : uint32
+{
+	Native = 0,
+	NonNative = 1	
+};
+
 /** 
  * Convenience struct containing all necessary information for a reference.
  */
@@ -88,13 +94,14 @@ struct FGCReferenceInfo
 	 * @param InType	type of reference
 	 * @param InOffset	offset into object/ struct
 	 */
-	FORCEINLINE FGCReferenceInfo( EGCReferenceType InType, uint32 InOffset )
-	:	ReturnCount( 0 )
-	,	Type( InType )
-	,	Offset( InOffset )	
+	FORCEINLINE FGCReferenceInfo(EGCReferenceType InReferenceType, uint32 InOffset)
+		: ReturnCount(0)
+		, Type(InReferenceType)
+		, Offset(InOffset)
 	{
-		check( InType != GCRT_None );
-		check( (InOffset & ~0x7FFFF) == 0 );
+		checkf(InReferenceType != GCRT_None && InReferenceType <= 0x1F, TEXT("Invalid GC Token Reference Type (%d)"), (uint32)InReferenceType);
+		const uint32 MaxOffset = 0x7FFFF;
+		checkf((InOffset & ~MaxOffset) == 0, TEXT("Invalid GC Token Offset (%d), max is %d"), InOffset, MaxOffset);
 	}
 	/**
 	 * Constructor
@@ -130,6 +137,9 @@ struct FGCReferenceInfo
 		/** uint32 value of reference info, used for easy conversion to/ from uint32 for token array */
 		uint32 Value;
 	};
+
+	/** End of token stream token */
+	static const FGCReferenceInfo EndOfStreamToken;
 };
 
 /** 
@@ -257,6 +267,22 @@ struct COREUOBJECT_API FGCReferenceTokenStream
 	int32 GetStackSize() const
 	{
 		return StackSize;
+	}
+
+	/**
+	 * Sets token type this stream contains
+	 */
+	void SetTokenType(EGCTokenType InType)
+	{
+		TokenType = InType;
+	}
+
+	/**
+	 * Returns token type this stream contains
+	 */
+	FORCEINLINE EGCTokenType GetTokenType() const
+	{
+		return TokenType;
 	}
 
 	/**
@@ -458,6 +484,8 @@ private:
 	TArray<uint32> Tokens;
 	/** Stack size required by this token stream */
 	int32 StackSize = 0;
+	/** Type of tokens in this stream (native / non-native) */
+	EGCTokenType TokenType = EGCTokenType::Native;
 	/** Maximum stack size for TFastReferenceCollector */
 	static int32 MaxStackSize;
 #if ENABLE_GC_OBJECT_CHECKS
@@ -508,6 +536,7 @@ class FGCCollector : public FReferenceCollector
 	FGCReferenceProcessor<Options>& ReferenceProcessor;
 	FGCArrayStruct& ObjectArrayStruct;
 	bool bAllowEliminatingReferences;
+	bool bIsProcessingNativeReferences;
 
 	constexpr FORCEINLINE bool IsParallel() const
 	{
@@ -544,9 +573,14 @@ public:
 		ObjectArrayStruct.WeakReferences.Add(WeakReference);
 		return true;
 	}
+	virtual void SetIsProcessingNativeReferences(bool bIsNative) override 
+	{
+		bIsProcessingNativeReferences = bIsNative;
+	}
+
 private:
 
-	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty);
+	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty, const EGCTokenType InTokenType);
 };
 
 /**

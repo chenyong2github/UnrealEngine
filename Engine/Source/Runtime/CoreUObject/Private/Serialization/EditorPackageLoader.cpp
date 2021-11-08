@@ -57,7 +57,6 @@ public:
 		const FPackagePath& PackagePath,
 		FName CustomPackageName,
 		FLoadPackageAsyncDelegate InCompletionDelegate,
-		const FGuid* InGuid,
 		EPackageFlags InPackageFlags,
 		int32 InPIEInstanceID,
 		int32 InPackagePriority,
@@ -68,12 +67,12 @@ public:
 			FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None)
 		{
 			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading uncooked package '%s' from filesystem"), *PackagePath.GetDebugName());
-			return UncookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+			return UncookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 		}
 		else
 		{
 			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading cooked package '%s' from I/O Store"), *PackagePath.GetDebugName());
-			return CookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+			return CookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 		}
 	}
 

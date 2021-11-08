@@ -39,7 +39,8 @@ public:
 	FOptimusNodePinsChanged& OnNodePinsChanged() { return NodePinsChanged; }
 	
 	// UEdGraphNode overrides
-	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	FText GetNodeTitle(ENodeTitleType::Type InTitleType) const override;
+	void GetNodeContextMenuActions(UToolMenu* InMenu, UGraphNodeContextMenuContext* InContext) const override;
 
 	
 	// FIXME: Move to private and add accessor function.

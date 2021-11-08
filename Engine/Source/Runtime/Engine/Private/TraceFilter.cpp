@@ -16,7 +16,7 @@
 #include "Logging/LogMacros.h"
 #include "ObjectTrace.h"
 
-struct FTraceFilterObjectAnnotation
+struct ENGINE_API FTraceFilterObjectAnnotation
 {
 	FTraceFilterObjectAnnotation()
 		: bIsTraceable(false)

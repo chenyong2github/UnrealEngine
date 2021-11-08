@@ -12,6 +12,7 @@
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -653,7 +654,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 		TArray< FUVSet > UVSets;
 
-		TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames );
+		TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, RenderContext );
 
 		int32 HighestAddedUVChannel = 0;
 		for ( int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex )
@@ -1831,6 +1832,252 @@ bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool(
 
 	LODVariantSet.SetVariantSelection( OriginalVariant );
 	return bHasValidVariant;
+}
+
+void UsdUtils::ReplaceUnrealMaterialsWithBaked(
+	const UE::FUsdStage& Stage,
+	const UE::FSdfLayer& LayerToAuthorIn,
+	const TMap<FString, FString>& BakedMaterials,
+	bool bIsAssetLayer,
+	bool bUsePayload,
+	bool bRemoveUnrealMaterials
+)
+{
+	FScopedUsdAllocs Allocs;
+
+	struct FMaterialScopePrim
+	{
+		FMaterialScopePrim( pxr::UsdStageRefPtr ScopeStage, pxr::UsdPrim ParentPrim )
+		{
+			pxr::SdfPath Path = ParentPrim.GetPrimPath().AppendPath( pxr::SdfPath{ "Materials" } );
+			Prim = ScopeStage->DefinePrim( Path, UnrealToUsd::ConvertToken( TEXT( "Scope" ) ).Get() );
+		}
+
+		pxr::UsdPrim Prim;
+		TSet<FString> UsedPrimNames;
+		TMap<FString, pxr::UsdPrim> BakedFileNameToMatPrim;
+	};
+	TOptional<FMaterialScopePrim> StageMatScope;
+
+	pxr::UsdStageRefPtr UsdStage{ Stage };
+
+	// UsedLayers here instead of layer stack because we may be exporting using payloads, and payload layers
+	// don't show up on the layer stack list but do show up on the UsedLayers list
+	std::vector<pxr::SdfLayerHandle> LayersToTraverse = UsdStage->GetUsedLayers();
+
+	// Recursively traverses the stage, doing the material assignment replacements.
+	// This handles Mesh prims as well as GeomSubset prims.
+	// Note how we receive the stage as an argument instead of capturing it from the outer scope:
+	// This ensures the inner function doesn't hold a reference to the stage
+	TFunction<void( pxr::UsdStageRefPtr StageToTraverse, pxr::UsdPrim Prim, TOptional<FMaterialScopePrim> MatPrimScope, TOptional<pxr::UsdVariantSet> OuterVariantSet )> TraverseForMaterialReplacement;
+	TraverseForMaterialReplacement =
+		[
+			&TraverseForMaterialReplacement,
+			&LayersToTraverse,
+			&LayerToAuthorIn,
+			&BakedMaterials,
+			bIsAssetLayer,
+			bUsePayload,
+			bRemoveUnrealMaterials,
+			&StageMatScope
+		]
+		(
+			pxr::UsdStageRefPtr StageToTraverse,
+			pxr::UsdPrim Prim,
+			TOptional<FMaterialScopePrim> MatPrimScope,
+			TOptional<pxr::UsdVariantSet> OuterVariantSet
+		)
+		{
+			// Recurse into children before doing anything as we may need to parse LODs
+			pxr::UsdVariantSet VarSet = Prim.GetVariantSet( UnrealIdentifiers::LOD );
+			std::vector<std::string> LODs = VarSet.GetVariantNames();
+			if ( LODs.size() > 0 )
+			{
+				TOptional<std::string> OriginalSelection = VarSet.HasAuthoredVariantSelection() ? VarSet.GetVariantSelection() : TOptional<std::string>{};
+
+				// Prims within variant sets can't have relationships to prims outside the scope of the prim that
+				// contains the variant set itself.This means we'll need a new material scope prim if we're stepping
+				// into a variant within an asset layer, so that any material proxy prims we author are contained within it.
+				// Note that we only do this for asset layers : If we're parsing the root layer, any LOD variant sets we can step into
+				// are brought in via references to asset files, and we know that referenced subtree only has relationships to
+				// things within that same subtree( which will be entirely brought in to the root layer ).This means we can
+				// just keep inner_mat_prim_scope as Noneand default to using the layer's mat scope prim if we need one
+				TOptional<FMaterialScopePrim> InnerMatPrimScope = bIsAssetLayer ? FMaterialScopePrim{ StageToTraverse, Prim } : TOptional<FMaterialScopePrim>{};
+
+				// Switch into each of the LOD variants the prim has, and recurse into the child prims
+				for ( const std::string& Variant : LODs )
+				{
+					{
+						pxr::UsdEditContext Context{ StageToTraverse, StageToTraverse->GetSessionLayer() };
+						VarSet.SetVariantSelection( Variant );
+					}
+
+					for ( const pxr::UsdPrim& Child : Prim.GetChildren() )
+					{
+						TraverseForMaterialReplacement( StageToTraverse, Child, InnerMatPrimScope, VarSet );
+					}
+				}
+
+				// Restore the variant selection to what it originally was
+				pxr::UsdEditContext Context{ StageToTraverse, StageToTraverse->GetSessionLayer() };
+				if ( OriginalSelection.IsSet() )
+				{
+					VarSet.SetVariantSelection( OriginalSelection.GetValue() );
+				}
+				else
+				{
+					VarSet.ClearVariantSelection();
+				}
+			}
+			else
+			{
+				for ( const pxr::UsdPrim& Child : Prim.GetChildren() )
+				{
+					TraverseForMaterialReplacement( StageToTraverse, Child, MatPrimScope, OuterVariantSet );
+				}
+			}
+
+			std::string MaterialPathName;
+			pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::MaterialAssignment );
+			if ( !Attr || !Attr.Get<std::string>( &MaterialPathName ) )
+			{
+				return;
+			}
+
+			FString BakedFilename = BakedMaterials.FindRef( UsdToUnreal::ConvertString( MaterialPathName ) );
+
+			// If we have a valid unrealMaterial but just haven't baked it, leave unrealMaterials alone and abort
+			if ( MaterialPathName.size() > 0 && BakedFilename.IsEmpty() )
+			{
+				return;
+			}
+
+			pxr::SdfPath AttrPath = Attr.GetPath();
+
+			// Find out if we need to remove / author material bindings within an actual variant or outside of it, as an over.
+			// We don't do this when using payloads because our override prims aren't inside the actual LOD variants : They just
+			// directly override a mesh called e.g. 'LOD3' as if it's a child prim, so that the override automatically only
+			// does anything when we happen to have the variant that enables the LOD3 Mesh
+			const bool bAuthorInsideVariants = OuterVariantSet.IsSet() && bIsAssetLayer && !bUsePayload;
+
+			if ( bAuthorInsideVariants )
+			{
+				pxr::UsdVariantSet& OuterVariantSetValue = OuterVariantSet.GetValue();
+
+				pxr::SdfPath VarPrimPath = OuterVariantSetValue.GetPrim().GetPath();
+				if ( AttrPath.HasPrefix( VarPrimPath ) )
+				{
+					// This builds a path like '/MyMesh{LOD=LOD0}LOD0.unrealMaterial',
+					// or '/MyMesh{LOD=LOD0}LOD0/Section1.unrealMaterial'.This is required because we'll query the layer
+					// for a spec path below, and this path must contain the variant selection in it, which the path returned
+					// from attr.GetPath() doesn't contain
+					pxr::SdfPath VarPrimPathWithVar = VarPrimPath.AppendVariantSelection( OuterVariantSetValue.GetName(), OuterVariantSetValue.GetVariantSelection() );
+					AttrPath = AttrPath.ReplacePrefix( VarPrimPath, VarPrimPathWithVar );
+				}
+			}
+
+			// We always want to replace the actual attribute in whatever layer it was authored, and not just override with
+			// a stronger opinion.So search through all sublayers to find the ones with unrealMaterial attribute specs
+			for ( pxr::SdfLayerHandle Layer : LayersToTraverse )
+			{
+				pxr::SdfAttributeSpecHandle AttrSpec = Layer->GetAttributeAtPath( AttrPath );
+				if ( !AttrSpec )
+				{
+					continue;
+				}
+
+				pxr::UsdEditContext Context{ StageToTraverse, Layer };
+
+				if ( bRemoveUnrealMaterials )
+				{
+					TOptional<pxr::UsdEditContext> VarContext;
+					if ( bAuthorInsideVariants )
+					{
+						VarContext.Emplace( OuterVariantSet.GetValue().GetVariantEditContext() );
+					}
+					Prim.RemoveProperty( UnrealIdentifiers::MaterialAssignment );
+				}
+
+				// It was just an empty unrealMaterial attribute, so just cancel now as our baked_filename
+				// can't possibly be useful
+				if ( MaterialPathName.size() == 0 )
+				{
+					continue;
+				}
+
+				// Get the proxy prim for the material within this layer
+				// (or create one outside the variant edit context)
+				pxr::UsdPrim MatPrim;
+				{
+					pxr::UsdEditContext MatContext( StageToTraverse, pxr::SdfLayerRefPtr{ LayerToAuthorIn } );
+
+					FMaterialScopePrim* MatPrimScopePtr = nullptr;
+
+					// On-demand create a *single* material scope prim for the stage, if we're not inside a variant set
+					if ( MatPrimScope.IsSet() )
+					{
+						MatPrimScopePtr = &MatPrimScope.GetValue();
+					}
+					else
+					{
+						if ( !StageMatScope.IsSet() )
+						{
+							// If a prim from a stage references another layer, USD's composition will effectively
+							// paste the default prim of the referenced layer over the referencing prim. Because of
+							// this, the subprims within the hierarchy of that default prim can't ever have
+							// relationships to other prims outside that of that same hierarchy, as those prims
+							// will not be present on the referencing stage at all. This is why we author our stage
+							// materials scope under the default prim, and not the pseudoroot
+							StageMatScope = FMaterialScopePrim{ StageToTraverse, StageToTraverse->GetDefaultPrim() };
+						}
+						MatPrimScopePtr = &StageMatScope.GetValue();
+					}
+
+					// This should never happen
+					if ( !ensure(MatPrimScopePtr) )
+					{
+						continue;
+					}
+
+					// Fetch (or create) a material proxy prim for this material
+					if ( pxr::UsdPrim* FoundPrim = MatPrimScopePtr->BakedFileNameToMatPrim.Find( BakedFilename ) )
+					{
+						MatPrim = *FoundPrim;
+					}
+					else
+					{
+						std::string MaterialName = MaterialPathName.substr( MaterialPathName.find_last_of( "\\/" ) + 1 );
+						MaterialName = MaterialName.substr( 0, MaterialName.find_last_of( "." ) );
+						FString MatName = UsdToUnreal::ConvertString( pxr::TfMakeValidIdentifier( MaterialName ) );
+						FString MatPrimName = UsdUtils::GetUniqueName( MatName, MatPrimScopePtr->UsedPrimNames );
+						MatPrimScopePtr->UsedPrimNames.Add( MatPrimName );
+
+						MatPrim = StageToTraverse->DefinePrim(
+							MatPrimScopePtr->Prim.GetPath().AppendChild( UnrealToUsd::ConvertToken( *MatPrimName ).Get() ),
+							UnrealToUsd::ConvertToken( TEXT( "Material" ) ).Get()
+						);
+
+						UE::FUsdPrim UEMatPrim{ MatPrim };
+						UsdUtils::AddReference( UEMatPrim, *BakedFilename );
+						MatPrimScopePtr->BakedFileNameToMatPrim.Add( BakedFilename, MatPrim );
+					}
+				}
+
+				// Reference the mat proxy prim as a material binding
+				{
+					TOptional<pxr::UsdEditContext> VarContext;
+					if ( bAuthorInsideVariants )
+					{
+						VarContext.Emplace( OuterVariantSet.GetValue().GetVariantEditContext() );
+					}
+					pxr::UsdShadeMaterialBindingAPI ShadeAPI{ Prim };
+					ShadeAPI.Bind( pxr::UsdShadeMaterial{ MatPrim } );
+				}
+			}
+		};
+
+	pxr::UsdPrim Root = Stage.GetPseudoRoot();
+	TraverseForMaterialReplacement( UsdStage, Root, {}, {} );
 }
 
 #undef LOCTEXT_NAMESPACE

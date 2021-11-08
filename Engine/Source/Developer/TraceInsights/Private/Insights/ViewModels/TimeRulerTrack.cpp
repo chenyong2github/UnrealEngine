@@ -7,7 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include <limits>
 
 // Insights
@@ -28,7 +28,7 @@ INSIGHTS_IMPLEMENT_RTTI(FTimeRulerTrack)
 FTimeRulerTrack::FTimeRulerTrack()
 	: FBaseTimingTrack(TEXT("Time Ruler"))
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, CrtMousePosTime(0.0)
 	, CrtMousePosTextWidth(0.0f)
 {

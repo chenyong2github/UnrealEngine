@@ -286,7 +286,7 @@ bool ULevelEditorSubsystem::NewLevel(const FString& AssetPath)
 		return false;
 	}
 
-	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
+	if (FPackageName::DoesPackageExist(ObjectPath))
 	{
 		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevel. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
 		return false;
@@ -340,7 +340,7 @@ bool ULevelEditorSubsystem::NewLevelFromTemplate(const FString& AssetPath, const
 	}
 
 	// DuplicateAsset does it, but failed with a Modal
-	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
+	if (FPackageName::DoesPackageExist(ObjectPath))
 	{
 		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
 		return false;

@@ -260,6 +260,7 @@ private:
 	TUniquePtr<FInstanceRegistry> InstanceRegistry;
 
 	TSparseArray<UMovieSceneEntitySystem*> EntitySystemsByGlobalGraphID;
+	TMap<UClass*, UMovieSceneEntitySystem*> EntitySystemsRecyclingPool;
 
 	struct FActiveRunnerInfo
 	{

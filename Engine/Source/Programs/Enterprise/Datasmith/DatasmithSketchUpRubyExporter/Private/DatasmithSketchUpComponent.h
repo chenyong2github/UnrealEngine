@@ -269,13 +269,15 @@ namespace DatasmithSketchUp
 		}
 
 		const TCHAR* GetMeshElementName(int32 MeshIndex);
-		void UpdateMesh(FExportContext& Context, FDatasmithInstantiatedMesh& Mesh, TSharedPtr<IDatasmithMeshElement>& DatasmithMesh, const TSet<FEntityIDType>& MaterialsUsed);
 		bool IsMeshUsingInheritedMaterial(int32 MeshIndex);
+		int32 GetInheritedMaterialOverrideSlotId();
 
 		TArray<TSharedPtr<FDatasmithInstantiatedMesh>> Meshes;
 		TSet<int32> FaceIds; // EntityId of all the VISIBLE faces composing the mesh
 		TSet<DatasmithSketchUp::FEntityIDType> Layers; // EntityId of all layers assigned to geometry faces(needed to identify if geometry needs to be rebuilt when layer visibility changes)
-		TSet<FMaterialIDType> MaterialsUsed;
+
+		TSet<FMaterial*> MaterialsUsed;
+		bool bDefaultMaterialUsed = false;
 
 		// todo: update reusing datasmith elements? 
 		// todo: merge ALL faces that are present in Entities into single mesh? do we really need separate mesh for every isolated set of faces?

@@ -18,7 +18,7 @@ namespace TextureShareItem
 		virtual ~FTextureShareItemBase()
 			{ Release(); }
 
-		virtual void Release() override;
+		virtual void Release() override final;
 
 		virtual bool IsValid() const override
 			{ return SharedResource != nullptr; }

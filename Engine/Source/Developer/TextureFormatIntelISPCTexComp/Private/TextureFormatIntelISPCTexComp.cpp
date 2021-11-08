@@ -560,6 +560,11 @@ public:
 	{
 		return true;
 	}
+	virtual FName GetEncoderName(FName Format) const override
+	{
+		static const FName IntelName("IntelISPC");
+		return IntelName;
+	}
 
 	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
 	{

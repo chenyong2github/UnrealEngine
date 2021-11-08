@@ -196,7 +196,24 @@ private:
 	TVariant<SuccessType, ErrorType> Storage;
 };
 
-template <typename SuccessType>
-using TOnlineResult = TResult<SuccessType, FOnlineError>;
+template <typename OpType>
+class TOnlineResult : public TResult<typename OpType::Result, FOnlineError>
+{
+public:
+	using TResult<typename OpType::Result, FOnlineError>::TResult;
+};
+
+template <typename T>
+FString ToLogString(const TOnlineResult<T>& Result)
+{
+	if (Result.IsOk())
+	{
+		return ToLogString(Result.GetOkValue());
+	}
+	else
+	{
+		return ToLogString(Result.GetErrorValue());
+	}
+}
 
 /* UE::Online */ }

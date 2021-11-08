@@ -28,6 +28,8 @@ namespace SnapshotUtil
 
 	/** Tries to find an actor component by following its full outer path, e.g. /Game/Map.Map:PersistentLevel.SomeActor.SomeParentComp.SomeChildComp will find SomeChildComp with an outer SomeParentComp. */
 	UActorComponent* FindMatchingComponent(AActor* ActorToSearchOn, const FSoftObjectPath& ComponentPath);
+
+	
 	
 	/** Checks whether the original actor has any properties that changed since the snapshot was taken.  */
 	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(const FWorldSnapshotData& WorldData, AActor* SnapshotActor, AActor* WorldActor);

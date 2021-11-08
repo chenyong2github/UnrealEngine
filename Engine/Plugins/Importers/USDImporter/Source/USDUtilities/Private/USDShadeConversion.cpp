@@ -40,6 +40,7 @@
 	#include "MaterialEditingLibrary.h"
 	#include "MaterialOptions.h"
 	#include "MaterialUtilities.h"
+	#include "ObjectTools.h"
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
@@ -1284,10 +1285,6 @@ namespace UE
 				Module.SetLinearBake( bLinearBake );
 				Module.BakeMaterials( { &MatSet }, { &MeshSettings }, BakeOutputs );
 
-				// It's recommended to set this back to false as it's a global option
-				bLinearBake = false;
-				Module.SetLinearBake( bLinearBake );
-
 				if ( BakeOutputs.Num() < 1 )
 				{
 					return false;
@@ -1327,7 +1324,11 @@ namespace UE
 					FString TrimmedPropertyName = PropertyName.ToString();
 					TrimmedPropertyName.RemoveFromStart( TEXT( "MP_" ) );
 
-					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "T_%s_%s.png" ), *TextureNamePrefix, *TrimmedPropertyName ) );
+					// Final FilePath will be something like "C:/TexturesFolder/Game_ContentFolder_Materials_Red_BaseColor.png", which automatically guarantees
+					// it won't overwrite another texture from the same export, but will overwrite old textures from previous exports
+					FString TextureFileName = ObjectTools::SanitizeObjectName( FPaths::ChangeExtension( TextureNamePrefix, TEXT( "" ) ) );
+					TextureFileName.RemoveFromStart( TEXT( "_" ) );
+					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "%s_%s.png" ), *ObjectTools::SanitizeObjectName( TextureFileName ), *TrimmedPropertyName ) );
 
 					// For some reason the baked samples always have zero alpha and there is nothing we can do about it... It seems like the material baking module is made
 					// with the intent that the data ends up in UTexture2Ds, where they can be set to be compressed without alpha and have the value ignored.
@@ -2095,7 +2096,7 @@ bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMat
 	}
 
 	UsdShadeConversionImpl::FBakedMaterialView View{ BakedData };
-	TMap<EMaterialProperty, FString> WrittenTextures = UsdShadeConversionImpl::WriteTextures( View, InMaterial.GetName(), InTexturesDir );
+	TMap<EMaterialProperty, FString> WrittenTextures = UsdShadeConversionImpl::WriteTextures( View, InMaterial.GetPathName(), InTexturesDir );
 
 	// Manually add user supplied constant values. Can't place these in InMaterial as they're floats, and baked data is just quantized FColors
 	TMap<EMaterialProperty, float> UserConstantValues;

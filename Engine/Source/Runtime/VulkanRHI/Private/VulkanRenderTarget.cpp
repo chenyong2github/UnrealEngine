@@ -12,7 +12,9 @@
 #include "SceneUtils.h"
 #include "RHISurfaceDataConversion.h"
 
-static int32 GVulkanFlushOnMapStaging = 0;
+// Enable this by default for desktop platforms, but avoid it for others such as mobile due to a DEVICE LOST when alt+tabing
+// This is a workaround and may end up causing some hitches on the rendering thread
+static int32 GVulkanFlushOnMapStaging = PLATFORM_DESKTOP;
 static FAutoConsoleVariableRef CVarGVulkanFlushOnMapStaging(
 	TEXT("r.Vulkan.FlushOnMapStaging"),
 	GVulkanFlushOnMapStaging,
@@ -80,6 +82,15 @@ static void SetupCopyOrResolveRegion(RegionType& Region, const FVulkanSurface& S
 {
 	FMemory::Memzero(Region);
 	ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
+
+	if(ResolveParams.Rect.X1 >= 0 && ResolveParams.Rect.Y1 >= 0 && ResolveParams.DestRect.X1 >= 0 && ResolveParams.DestRect.Y1 >= 0)
+	{
+		Region.srcOffset.x = ResolveParams.Rect.X1;
+		Region.srcOffset.y = ResolveParams.Rect.Y1;
+		Region.dstOffset.x = ResolveParams.DestRect.X1;
+		Region.dstOffset.y = ResolveParams.DestRect.Y1;
+	}
+
 	Region.extent.width = FMath::Max(1u, SrcSurface.Width >> ResolveParams.MipIndex);
 	Region.extent.height = FMath::Max(1u, SrcSurface.Height >> ResolveParams.MipIndex);
 	Region.extent.depth = 1;

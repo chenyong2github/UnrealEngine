@@ -15,6 +15,7 @@
 #include "IDetailCustomization.h"
 #include "ISettingsModule.h"
 #include "Metasound.h"
+#include "MetasoundAssetSubsystem.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundDetailCustomization.h"
@@ -76,7 +77,7 @@ namespace Metasound
 			AssetArray.Add(AssetActionBase);
 		}
 
-		class FSlateStyle : public FSlateStyleSet
+		class FSlateStyle final : public FSlateStyleSet
 		{
 		public:
 			FSlateStyle()
@@ -309,7 +310,7 @@ namespace Metasound
 						continue;
 					}
 
-					if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+					if (Class->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
 					{
 						continue;
 					}
@@ -433,7 +434,7 @@ namespace Metasound
 						UClass* ClassToUse = DataTypeRegistry.GetUClassForDataType(DataTypeName);
 						PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
 
-						DataTypeInfo.Emplace(DataTypeName, FEditorDataType(MoveTemp(PinType), RegistryInfo));
+						DataTypeInfo.Emplace(DataTypeName, FEditorDataType(MoveTemp(PinType), MoveTemp(RegistryInfo)));
 					}
 				}
 			}
@@ -450,6 +451,22 @@ namespace Metasound
 
 					FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 				}
+			}
+
+			virtual void RegisterExplicitProxyClass(const UClass& InClass) override
+			{
+				using namespace Metasound::Frontend;
+
+				const IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
+				FDataTypeRegistryInfo RegistryInfo;
+				ensureAlways(DataTypeRegistry.IsUObjectProxyFactory(InClass.GetDefaultObject()));
+
+				ExplicitProxyClasses.Add(&InClass);
+			}
+
+			virtual bool IsExplicitProxyClass(const UClass& InClass) const override
+			{
+				return ExplicitProxyClasses.Contains(&InClass);
 			}
 
 			virtual TUniquePtr<IMetaSoundInputLiteralCustomization> CreateInputLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& InDefaultCategoryBuilder) const override
@@ -484,14 +501,6 @@ namespace Metasound
 				{
 					InDataTypeFunction(Pair.Value);
 				}
-			}
-
-			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
-			{
-				const bool bIsArray = InRegistryInfo.IsArrayType();
-				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
-				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, ContainerType, false, FEdGraphTerminalType());
-				DataTypeInfo.Emplace(InRegistryInfo.DataTypeName, Editor::FEditorDataType(MoveTemp(PinType), InRegistryInfo));
 			}
 
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const override
@@ -574,6 +583,8 @@ namespace Metasound
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 				AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FModule::OnAssetScanFinished);
+
+				RegisterExplicitProxyClass(*USoundWave::StaticClass());
 			}
 
 			virtual void ShutdownModule() override
@@ -628,6 +639,8 @@ namespace Metasound
 			TSharedPtr<FGraphPanelPinConnectionFactory> GraphConnectionFactory;
 			TSharedPtr<FMetasoundGraphPanelPinFactory> GraphPanelPinFactory;
 			TSharedPtr<FSlateStyleSet> StyleSet;
+
+			TSet<const UClass*> ExplicitProxyClasses;
 		};
 	} // namespace Editor
 } // namespace Metasound

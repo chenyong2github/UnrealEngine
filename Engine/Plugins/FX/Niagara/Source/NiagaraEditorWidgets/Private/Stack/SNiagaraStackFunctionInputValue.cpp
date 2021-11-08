@@ -2,10 +2,13 @@
 
 #include "Stack/SNiagaraStackFunctionInputValue.h"
 
+#include <ViewModels/Stack/NiagaraStackSummaryViewInputCollection.h>
+
 #include "AssetRegistryModule.h"
 #include "EditorFontGlyphs.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "IStructureDetailsView.h"
+#include "NiagaraConstants.h"
 #include "NiagaraActions.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
@@ -30,8 +33,11 @@
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
+#include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
@@ -43,6 +49,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -55,6 +62,8 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 	FunctionInput = InFunctionInput;
 	FunctionInput->OnValueChanged().AddSP(this, &SNiagaraStackFunctionInputValue::OnInputValueChanged);
 
+	TSharedPtr<SHorizontalBox> ChildrenBox;
+	
 	ChildSlot
 	[
 		SNew(SDropTarget)
@@ -66,7 +75,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 		.Content()
 		[
 			// Values
-			SNew(SHorizontalBox)
+			SAssignNew(ChildrenBox, SHorizontalBox)
 			.IsEnabled(this, &SNiagaraStackFunctionInputValue::GetInputEnabled)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -154,9 +163,31 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 					.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 				]
-			]
+			]			
 		]
 	];
+
+	if (GetFilteredViewContextButtonVisibility() == EVisibility::Visible)
+	{
+		ChildrenBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(3, 0, 0, 0)
+		[
+
+			SNew(SComboButton)
+			.ContentPadding(0)
+			.ForegroundColor(FLinearColor::Transparent)
+			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesContent)
+			.Visibility(this, &SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibility)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(this, &SNiagaraStackFunctionInputValue::GetFilteredViewIcon)
+			]
+		];
+	}
 
 	ValueModeForGeneratedWidgets = FunctionInput->GetValueMode();
 }
@@ -1236,5 +1267,288 @@ void SNiagaraStackFunctionInputValue::TriggerRefresh(const TMap<EScriptSource, b
 
 	ActionSelector->ExpandTree();
 }
+
+const FSlateBrush* SNiagaraStackFunctionInputValue::GetFilteredViewIcon() const
+{
+	return GetFilteredViewVisibility() == ECheckBoxState::Checked ? FEditorStyle::GetBrush(TEXT("TextureEditor.GreenChannel.Small")) : FEditorStyle::GetBrush(TEXT("TextureEditor.AlphaChannel.Small"));
+}
+
+EVisibility SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibility() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+		
+	if (!EditorData || EditorData->ShouldShowSummaryView())
+	{
+		return EVisibility::Hidden;
+	}
+
+	// Only show if we aren't a child input, and if we're in the summary view category
+	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::FindTopMostParentFunctionInput(FunctionInput);
+	if (FunctionInput == ParentInput)
+	{
+		UObject* Outer = FunctionInput->GetOuter();
+		while (Outer)
+		{
+			if (Outer->IsA<UNiagaraStackSummaryViewObject>())
+			{
+				return EVisibility::Visible;
+			}
+			Outer = Outer->GetOuter();
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesContent()
+{
+	FMenuBuilder MenuBuilder(false, MakeShared<FUICommandList>());
+	MenuBuilder.BeginSection("SummaryViewDetails", LOCTEXT("SummaryViewDetails", "Emitter Summary Details"));
+
+	// Is Enabled
+	TSharedRef<SWidget> IsEnabledWidget =
+		SNew(SBox)
+		.WidthOverride(100)
+		.Padding(FMargin(5, 0, 0, 0))
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &SNiagaraStackFunctionInputValue::GetFilteredViewVisibility)
+		.OnCheckStateChanged(this, &SNiagaraStackFunctionInputValue::OnFilteredViewVisibilityChanged)
+		];
+	MenuBuilder.AddWidget(IsEnabledWidget, LOCTEXT("FilteredViewIsEnabled", "Is Enabled"));
+
+
+	// Display Name
+	TSharedRef<SWidget> NameWidget =
+		SNew(SBox)
+		.WidthOverride(100)
+		.Padding(FMargin(5, 0, 0, 0))
+		[
+			SNew(SEditableTextBox)
+			.Text(this, &SNiagaraStackFunctionInputValue::GetFilteredViewDisplayName)
+		.OnVerifyTextChanged(this, &SNiagaraStackFunctionInputValue::VerifyFilteredViewDisplayName)
+		.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::FilteredViewDisplayNameTextCommitted)
+		];
+	MenuBuilder.AddWidget(NameWidget, LOCTEXT("FilteredViewDisplayName", "Display Name"));
+
+
+	// Category
+	TSharedRef<SWidget> CategoryWidget =
+		SNew(SBox)
+		.WidthOverride(100)
+		.Padding(FMargin(5, 0, 0, 0))
+		[
+			SNew(SEditableTextBox)
+			.Text(this, &SNiagaraStackFunctionInputValue::GetFilteredViewCategory)
+			.OnVerifyTextChanged(this, &SNiagaraStackFunctionInputValue::VerifyFilteredViewCategory)
+			.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::FilteredViewCategoryTextCommitted)
+		];
+	MenuBuilder.AddWidget(CategoryWidget, LOCTEXT("FilteredViewCategory", "Category"));
+
+
+	// Sort Index
+	TSharedRef<SWidget> SortIndexWidget =
+		SNew(SBox)
+		.WidthOverride(100)
+		.Padding(FMargin(5, 0, 0, 0))
+		[
+			SNew(SSpinBox<int32>)
+			//.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterSpinBox")
+			//.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
+			.MinValue(0)
+			.MaxValue(TOptional<int32>())
+			.MaxSliderValue(0)
+			.MinSliderValue(100)
+			.Delta(1)
+			.Value(this, &SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex)
+			.OnValueChanged(this, &SNiagaraStackFunctionInputValue::FilteredViewSortIndexChanged)
+			.OnValueCommitted(this, &SNiagaraStackFunctionInputValue::FilteredViewSortIndexCommitted)
+		];
+	MenuBuilder.AddWidget(SortIndexWidget, LOCTEXT("FilteredViewSortIndex", "Sort Index"));
+
+
+
+	return MenuBuilder.MakeWidget();
+}
+
+ECheckBoxState SNiagaraStackFunctionInputValue::GetFilteredViewVisibility() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			return EditorData->GetSummaryViewMetaData(Key.GetValue()).bVisible ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+	}
+
+	return ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputValue::OnFilteredViewVisibilityChanged(ECheckBoxState NewState)
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+			SummaryViewMetaData.bVisible = NewState == ECheckBoxState::Checked;				
+			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);	
+		}
+	}
+}
+
+FText SNiagaraStackFunctionInputValue::GetFilteredViewDisplayName() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FName DisplayName = EditorData->GetSummaryViewMetaData(Key.GetValue()).DisplayName;
+
+			return (DisplayName != NAME_None) ? FText::FromName(DisplayName) : FunctionInput->GetDisplayName();
+		}
+	}
+
+	return FText();
+}
+
+bool SNiagaraStackFunctionInputValue::VerifyFilteredViewDisplayName(const FText& InText, FText& OutErrorMessage) const
+{
+	FString DisplayName = InText.ToString();
+
+	if (DisplayName.Len() >= FNiagaraConstants::MaxCategoryNameLength)
+	{
+		OutErrorMessage = FText::FormatOrdered(LOCTEXT("FilteredViewDisplayNameTooLong", "Display name name cannot exceed {0} characters."), FNiagaraConstants::MaxCategoryNameLength);
+		return false;
+	}
+
+	return true;
+}
+
+void SNiagaraStackFunctionInputValue::FilteredViewDisplayNameTextCommitted(const FText& Text, ETextCommit::Type CommitType)
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FName NewName = (Text.IsEmptyOrWhitespace() || Text.EqualTo(FunctionInput->GetDisplayName()))? NAME_None : FName(Text.ToString());
+			
+			FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+			if (NewName != SummaryViewMetaData.DisplayName)
+			{
+				SummaryViewMetaData.DisplayName = NewName;
+				EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
+			}
+		}
+	}
+}
+
+FText GetFunctionInputCategory(UNiagaraStackFunctionInput* Input)
+{
+	UNiagaraStackInputCategory* Category = Cast<UNiagaraStackInputCategory>(Input->GetOuter());
+
+	return Category && !Category->GetCategoryName().EqualTo(UNiagaraStackFunctionInputCollectionBase::UncategorizedName)? Category->GetCategoryName() : FText();
+}
+
+FText SNiagaraStackFunctionInputValue::GetFilteredViewCategory() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FName CategoryName = EditorData->GetSummaryViewMetaData(Key.GetValue()).Category;
+
+			return (CategoryName != NAME_None) ? FText::FromName(CategoryName) : GetFunctionInputCategory(FunctionInput);
+		}
+	}
+
+	return FText();
+}
+
+bool SNiagaraStackFunctionInputValue::VerifyFilteredViewCategory(const FText& InText, FText& OutErrorMessage) const
+{
+	FString CategoryName = InText.ToString();
+
+	if (CategoryName.Len() >= FNiagaraConstants::MaxCategoryNameLength)
+	{
+		OutErrorMessage = FText::FormatOrdered(LOCTEXT("FilteredViewCategoryNameTooLong", "Category name cannot exceed {0} characters."), FNiagaraConstants::MaxCategoryNameLength);
+		return false;
+	}
+
+	return true;
+}
+
+void SNiagaraStackFunctionInputValue::FilteredViewCategoryTextCommitted(const FText& Text, ETextCommit::Type CommitType)
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FName NewCategory = (Text.IsEmptyOrWhitespace() || Text.EqualTo(GetFunctionInputCategory(FunctionInput)))? NAME_None : FName(Text.ToString());
+			
+			FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+			if (NewCategory != SummaryViewMetaData.Category)
+			{
+				SummaryViewMetaData.Category = NewCategory;
+				EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
+			}
+		}
+	}
+}
+
+
+int32 SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			return EditorData->GetSummaryViewMetaData(Key.GetValue()).SortIndex;
+		}
+	}
+
+	return 0;
+}
+
+void SNiagaraStackFunctionInputValue::FilteredViewSortIndexChanged(int32 Value)
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+		if (Key.IsSet())
+		{
+			FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+
+			if (SummaryViewMetaData.SortIndex != Value)
+			{
+				SummaryViewMetaData.SortIndex = Value;			
+				EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
+			}
+		}
+	}
+}
+
+void SNiagaraStackFunctionInputValue::FilteredViewSortIndexCommitted(int32 Value, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnEnter || CommitInfo == ETextCommit::OnUserMovedFocus)
+	{
+		FilteredViewSortIndexChanged(Value);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

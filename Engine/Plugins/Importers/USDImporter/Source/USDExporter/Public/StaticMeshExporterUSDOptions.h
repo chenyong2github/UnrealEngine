@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "LevelExporterUSDOptions.h"
-#include "UnrealUSDWrapper.h"
+#include "USDAssetOptions.h"
 #include "USDStageOptions.h"
 
 #include "Engine/EngineTypes.h"
-#include "RHIDefinitions.h"
 
 #include "StaticMeshExporterUSDOptions.generated.h"
 
@@ -20,22 +18,9 @@ class USDEXPORTER_API UStaticMeshExporterUSDOptions : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( ShowOnlyInnerProperties ) )
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options", meta = ( ShowOnlyInnerProperties ) )
 	FUsdStageOptions StageOptions;
 
-	/** If true, the mesh data is exported to yet another "payload" file, and referenced via a payload composition arc */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings )
-	bool bUsePayload;
-
-	/** USD format to use for exported payload files */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( EditCondition = "bUsePayload", GetOptions = "USDExporter.LevelExporterUSDOptions.GetUsdExtensions" ) )
-	FString PayloadFormat;
-
-	/** Lowest of the LOD indices to export static and skeletal meshes with (use 0 for maximum detail) */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
-	int32 LowestMeshLOD = 0;
-
-	/** Highest of the LOD indices to export static and skeletal meshes with */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
-	int32 HighestMeshLOD = MAX_MESH_LOD_COUNT - 1;
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Mesh options", meta = ( ShowOnlyInnerProperties ) )
+	FUsdMeshAssetOptions MeshAssetOptions;
 };

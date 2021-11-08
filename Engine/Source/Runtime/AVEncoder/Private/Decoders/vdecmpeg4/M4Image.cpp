@@ -154,9 +154,9 @@ void M4Image::Black()
 	M4CHECK(mImage.texture.y && mImage.texture.u && mImage.texture.v);
 	M4CHECK(mImage.texWidth > 0 && mImage.texHeight > 0);
 
-	FMemory::Memset(mImage.texture.y, 16,  (size_t)( mImage.texWidth*mImage.texHeight));
-	FMemory::Memset(mImage.texture.u, 128, (size_t)((mImage.texWidth*mImage.texHeight)>>2));
-	FMemory::Memset(mImage.texture.v, 128, (size_t)((mImage.texWidth*mImage.texHeight)>>2));
+	FMemory::Memset(mImage.texture.y, 16,  (size_t)( (size_t)mImage.texWidth*(size_t)mImage.texHeight));
+	FMemory::Memset(mImage.texture.u, 128, (size_t)(((size_t)mImage.texWidth*(size_t)mImage.texHeight)>>2));
+	FMemory::Memset(mImage.texture.v, 128, (size_t)(((size_t)mImage.texWidth*(size_t)mImage.texHeight)>>2));
 }
 
 

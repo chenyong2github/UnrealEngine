@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.66";
+        private static string VersionString = "4.67";
 
         public static string Get() { return VersionString; }
     };
@@ -93,6 +93,7 @@ namespace PerfReportTool
 			"       -cleanCsvOut <filename> : write a standard format CSV after event stripping with metadata stripped out.\n"+
 			"          Not available in bulk mode.\n" +
 			"       -noSmooth : disable smoothing on all graphs\n" +
+			"       -listSummaryTables: lists available summary tables from the current report XML\n" +
 			"\n" +
 			"Performance args:\n" +
 			"       -perfLog : output performance logging information\n" +
@@ -276,6 +277,18 @@ namespace PerfReportTool
 
 			// Load the report + graph XML data
 			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false));
+
+			if (GetBoolArg("listSummaryTables"))
+			{
+				Console.WriteLine("Listing summary tables:");
+				List<string> summaryTableNames=reportXML.GetSummaryTableNames();
+
+				foreach (string name in summaryTableNames)
+				{
+					Console.WriteLine("  "+name);
+				}
+				return;
+			}
 			statDisplaynameMapping = reportXML.GetDisplayNameMapping();
 
 			SummaryTableCacheStats summaryTableCacheStats = new SummaryTableCacheStats();

@@ -141,6 +141,15 @@ private:
 		 */
 		void CacheViewDependentData(const TRange<double>& VisibleRange, ECacheFlags CacheFlags);
 
+
+		/**
+		 * Draw additional content in addition to keys for a particular IKeyArea
+		 *
+		 * @param Painter			 The painter to add the created geometry
+		 * @param KeyGeometry		 Allocated geometry to draw in
+		 */
+		void DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const;
+
 	public:
 
 		/** Index into the array views for the next unhandled key */

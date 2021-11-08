@@ -96,6 +96,9 @@ struct FExistingSkelMeshData
 
 	FVector PositiveBoundsExtension;
 	FVector NegativeBoundsExtension;
+
+	bool bExistingSupportRayTracing;
+	int32 ExistingRayTracingMinLOD;
 };
 
 /** 

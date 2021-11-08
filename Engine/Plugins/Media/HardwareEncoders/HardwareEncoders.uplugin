@@ -16,13 +16,13 @@
 			"Name": "EncoderAMF",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "EncoderNVENC",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 	]
 }

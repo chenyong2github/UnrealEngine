@@ -1513,7 +1513,8 @@ bool FDerivedAudioDataCompressor::Build(TArray<uint8>& OutData)
 
 void USoundWave::CleanupCachedRunningPlatformData()
 {
-	RunningPlatformData.Reset();
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->RunningPlatformData = FStreamedAudioPlatformData();
 }
 
 
@@ -1554,32 +1555,28 @@ void USoundWave::SerializeCookedPlatformData(FArchive& Ar)
 #endif // #if WITH_EDITORONLY_DATA
 	{
 		check(!FPlatformProperties::IsServerOnly());
+		check(SoundWaveDataPtr);
 
 		CleanupCachedRunningPlatformData();
-		check(RunningPlatformData == NULL);
 
 		// Don't serialize streaming data on servers, even if this platform supports streaming in theory
-		RunningPlatformData = MakeShared<FStreamedAudioPlatformData>();
-		RunningPlatformData->Serialize(Ar, this);
+		SoundWaveDataPtr->RunningPlatformData.Serialize(Ar, this);
 	}
 }
 
 #if WITH_EDITORONLY_DATA
 void USoundWave::CachePlatformData(bool bAsyncCache)
 {
+	check(SoundWaveDataPtr);
+
 	FString DerivedDataKey;
 	FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
 	const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 	GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-	if (RunningPlatformData == NULL || RunningPlatformData->DerivedDataKey != DerivedDataKey)
+	if (SoundWaveDataPtr->RunningPlatformData.DerivedDataKey != DerivedDataKey)
 	{
-		if (RunningPlatformData == NULL)
-		{
-			RunningPlatformData = MakeShared<FStreamedAudioPlatformData>();
-		}
-
-		RunningPlatformData->Cache(*this, CompressionOverrides, AudioFormat, bAsyncCache ? EStreamedAudioCacheFlags::Async : EStreamedAudioCacheFlags::None);
+		SoundWaveDataPtr->RunningPlatformData.Cache(*this, CompressionOverrides, AudioFormat, bAsyncCache ? EStreamedAudioCacheFlags::Async : EStreamedAudioCacheFlags::None);
 	}
 }
 
@@ -1723,13 +1720,16 @@ void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 
 	// TODO: We can clear these arrays if we never need to cook again.
 	RawData.RemoveBulkData();
-	CompressedFormatData.FlushData();
+
+	check(SoundWaveDataPtr);
+	SoundWaveDataPtr->CompressedFormatData.FlushData();
 }
 #endif
 
 void USoundWave::FinishCachePlatformData()
 {
-	if (RunningPlatformData == NULL)
+	check(SoundWaveDataPtr);
+	if (SoundWaveDataPtr->RunningPlatformData.NumChunks == 0)
 	{
 		// begin cache never called, but we are running with, or targeting platforms that need, audio redner data
 		if (WillNeedAudioVisualData())
@@ -1740,34 +1740,33 @@ void USoundWave::FinishCachePlatformData()
 	else
 	{
 		// make sure async requests are finished
-		RunningPlatformData->FinishCache();
+		SoundWaveDataPtr->RunningPlatformData.FinishCache();
 	}
 
 #if DO_CHECK
 	// If we're allowing cooked data to be loaded then the derived data key will not have been serialized, so won't match and that's fine
-	if (!GAllowCookedDataInEditorBuilds && RunningPlatformData != nullptr)
+	if (!GAllowCookedDataInEditorBuilds && SoundWaveDataPtr->RunningPlatformData.NumChunks)
 	{
 		FString DerivedDataKey;
 		FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
 		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-		UE_CLOG(RunningPlatformData->DerivedDataKey != DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *RunningPlatformData->DerivedDataKey, *DerivedDataKey);
+		UE_CLOG(SoundWaveDataPtr->RunningPlatformData.DerivedDataKey != DerivedDataKey, LogAudio, Warning, TEXT("Audio was cooked with the DDC key %s but should've had the DDC key %s. the cook overrides/codec used may be incorrect."), *SoundWaveDataPtr->RunningPlatformData.DerivedDataKey, *DerivedDataKey);
 	}
 #endif
 }
 
 void USoundWave::ForceRebuildPlatformData()
 {
-	if (RunningPlatformData)
-	{
-		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
-		RunningPlatformData->Cache(
-			*this,
-			CompressionOverrides,
-			GetWaveFormatForRunningPlatform(*this),
-			EStreamedAudioCacheFlags::ForceRebuild
-			);
-	}
+	check(SoundWaveDataPtr);
+	const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
+
+	SoundWaveDataPtr->RunningPlatformData.Cache(
+		*this,
+		CompressionOverrides,
+		GetWaveFormatForRunningPlatform(*this),
+		EStreamedAudioCacheFlags::ForceRebuild
+		);
 }
 #endif //WITH_EDITORONLY_DATA

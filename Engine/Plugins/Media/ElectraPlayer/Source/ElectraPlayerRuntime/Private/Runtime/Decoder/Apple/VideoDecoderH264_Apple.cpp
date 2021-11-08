@@ -56,35 +56,12 @@ public:
 
     virtual void SetResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) override;
 
-	virtual IAccessUnitBufferInterface::EAUpushResult AUdataPushAU(FAccessUnit* AccessUnit) override;
+	virtual void AUdataPushAU(FAccessUnit* AccessUnit) override;
 	virtual void AUdataPushEOD() override;
+	virtual void AUdataClearEOD() override;
 	virtual void AUdataFlushEverything() override;
 
 private:
-	bool InternalDecoderCreate(CMFormatDescriptionRef InputFormatDescription);
-	void InternalDecoderDestroy();
-	void RecreateDecoderSession();
-	void StartThread();
-	void StopThread();
-	void WorkerThread();
-
-	bool CreateDecodedImagePool();
-	void DestroyDecodedImagePool();
-
-	void NotifyReadyBufferListener(bool bHaveOutput);
-
-	bool AcquireOutputBuffer(IMediaRenderer::IBuffer*& RenderOutputBuffer);
-
-	void PrepareAU(FAccessUnit* AccessUnit, bool& bOutIsIDR, bool& bOutIsDiscardable);
-
-	struct FDecodedImage;
-	void ProcessOutput(bool bFlush = false);
-
-private:
-	bool FlushDecoder();
-	void ClearInDecoderInfos();
-	void FlushPendingImages();
-
 	enum EDecodeResult
 	{
 		Ok,
@@ -92,26 +69,44 @@ private:
 		SessionLost
 	};
 
-	EDecodeResult Decode(FAccessUnit* AccessUnit, bool bRecreatingSession);
-	bool DecodeDummy(FAccessUnit* AccessUnit);
-
-	void PostError(int32_t ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
-	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
-
-private:
 	enum
 	{
 		NumImagesHoldBackForPTSOrdering = 5,	// Number of frames held back to ensure proper PTS-ordering of decoder output
 		MaxImagesHoldBackForPTSOrdering = 5		// Maximum number of frames to be held in the buffer before we stall the decoder
 	};
 
-	void DecodeCallback(void* pSrcRef, OSStatus status, VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer, CMTime presentationTimeStamp, CMTime presentationDuration);
-	static void _DecodeCallback(void* pUser, void* pSrcRef, OSStatus status, VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer, CMTime presentationTimeStamp, CMTime presentationDuration)
+	struct FDecoderInput : public TSharedFromThis<FDecoderInput, ESPMode::ThreadSafe>
 	{
-		static_cast<FVideoDecoderH264*>(pUser)->DecodeCallback(pSrcRef, status, infoFlags, imageBuffer, presentationTimeStamp, presentationDuration);
-	}
+		~FDecoderInput()
+		{
+			ReleasePayload();
+		}
+		void ReleasePayload()
+		{
+			FAccessUnit::Release(AccessUnit);
+			AccessUnit = nullptr;
+		}
 
-	bool CreateFormatDescription(CMFormatDescriptionRef& OutFormatDescription, const FAccessUnit* InputAccessUnit);
+		FAccessUnit*	AccessUnit = nullptr;
+		bool			bHasBeenPrepared = false;
+		bool			bIsIDR = false;
+		bool			bIsDiscardable = false;
+		int64			PTS = 0;
+		int64			EndPTS = 0;
+		FTimeValue		AdjustedPTS;
+		FTimeValue		AdjustedDuration;
+
+		int32			Width = 0;
+		int32			Height = 0;
+		int32			TotalWidth = 0;
+		int32			TotalHeight = 0;
+		int32			CropLeft = 0;
+		int32			CropRight = 0;
+		int32			CropTop = 0;
+		int32			CropBottom = 0;
+		int32			AspectX = 0;
+		int32			AspectY = 0;
+	};
 
 	struct FDecoderFormatInfo
 	{
@@ -119,9 +114,9 @@ private:
 		{
 			CurrentCodecData.Reset();
 		}
-		bool IsDifferentFrom(const FAccessUnit* InputAccessUnit);
+		bool IsDifferentFrom(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
 
-		TSharedPtrTS<const FAccessUnit::CodecData>		CurrentCodecData;
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
 	};
 
 	struct FDecoderHandle
@@ -165,14 +160,6 @@ private:
 		}
 		CMFormatDescriptionRef		FormatDescription;
 		VTDecompressionSessionRef	DecompressionSession;
-	};
-
-	struct FInDecoderInfo : public TSharedFromThis<FInDecoderInfo, ESPMode::ThreadSafe>
-	{
-		FStreamCodecInformation		ParsedInfo;
-		FTimeValue					PTS;
-		FTimeValue					DTS;
-		FTimeValue					Duration;
 	};
 
 	struct FDecodedImage
@@ -233,7 +220,7 @@ private:
 				CFRelease(ImageBufferRef);
 			}
 		}
-		TSharedPtr<FInDecoderInfo, ESPMode::ThreadSafe>	SourceInfo;
+		TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>	SourceInfo;
 	private:
 		void InternalCopy(const FDecodedImage& rhs)
 		{
@@ -243,6 +230,44 @@ private:
 
 		CVImageBufferRef			ImageBufferRef;
 	};
+
+	bool InternalDecoderCreate(CMFormatDescriptionRef InputFormatDescription);
+	void InternalDecoderDestroy();
+	void RecreateDecoderSession();
+	void StartThread();
+	void StopThread();
+	void WorkerThread();
+
+	bool CreateDecodedImagePool();
+	void DestroyDecodedImagePool();
+
+	void NotifyReadyBufferListener(bool bHaveOutput);
+
+	bool AcquireOutputBuffer(IMediaRenderer::IBuffer*& RenderOutputBuffer);
+
+	void PrepareAU(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
+
+	void ProcessOutput(bool bFlush = false);
+
+	bool FlushDecoder();
+	void ClearInDecoderInfos();
+	void FlushPendingImages();
+
+	EDecodeResult Decode(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU, bool bRecreatingSession);
+	bool DecodeDummy(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
+
+	void PostError(int32_t ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
+	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
+
+
+	void DecodeCallback(void* pSrcRef, OSStatus status, VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer, CMTime presentationTimeStamp, CMTime presentationDuration);
+	static void _DecodeCallback(void* pUser, void* pSrcRef, OSStatus status, VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer, CMTime presentationTimeStamp, CMTime presentationDuration)
+	{
+		static_cast<FVideoDecoderH264*>(pUser)->DecodeCallback(pSrcRef, status, infoFlags, imageBuffer, presentationTimeStamp, presentationDuration);
+	}
+
+	bool CreateFormatDescription(CMFormatDescriptionRef& OutFormatDescription, TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
+
 
 	FInstanceConfiguration								Config;
 
@@ -257,8 +282,8 @@ private:
 
     TWeakPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe> ResourceDelegate;
 
-	FAccessUnitBuffer									AccessUnitBuffer;
-	FAccessUnitBuffer									ReplayAccessUnitBuffer;
+	TAccessUnitQueue<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>>		NextAccessUnits;
+	TAccessUnitQueue<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>>		ReplayAccessUnits;
 	bool												bDrainForCodecChange;
 
 	FMediaCriticalSection								ListenerMutex;
@@ -267,8 +292,8 @@ private:
 
 	FDecoderFormatInfo									CurrentStreamFormatInfo;
 	FDecoderHandle*										DecoderHandle;
-	TArray<TSharedPtr<FInDecoderInfo, ESPMode::ThreadSafe>> InDecoderInfos;
-	FMediaCriticalSection								InDecoderInfoMutex;
+	FMediaCriticalSection								InDecoderInputMutex;
+	TArray<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>>					InDecoderInput;
 
 	int32												MaxDecodeBufferSize;
 	bool												bError;
@@ -306,10 +331,6 @@ IVideoDecoderH264::FSystemConfiguration::FSystemConfiguration()
 	ThreadConfig.Decoder.Priority 	= TPri_Normal;
 	ThreadConfig.Decoder.StackSize	= 64 << 10;
 	ThreadConfig.Decoder.CoreAffinity = -1;
-	// Render thread is needed here!
-	ThreadConfig.PassOn.Priority  	= TPri_Normal;
-	ThreadConfig.PassOn.StackSize 	= 64 << 10;
-	ThreadConfig.PassOn.CoreAffinity  = -1;
 }
 
 IVideoDecoderH264::FInstanceConfiguration::FInstanceConfiguration()
@@ -431,12 +452,6 @@ void FVideoDecoderH264::SetPlayerSessionServices(IPlayerSessionServices* InSessi
 void FVideoDecoderH264::Open(const IVideoDecoderH264::FInstanceConfiguration& InConfig)
 {
 	Config = InConfig;
-
-	// Set a large enough size to hold a single access unit. Since we will be asking for a new AU on
-	// demand there is no need to overly restrict ourselves here. But it must be large enough to
-	// hold at least the largest expected access unit.
-	AccessUnitBuffer.CapacitySet(FAccessUnitBuffer::FConfiguration(16 << 20, 60.0));
-
 	StartThread();
 }
 
@@ -612,16 +627,13 @@ void FVideoDecoderH264::DestroyDecodedImagePool()
  *
  * @param AccessUnit
  */
-IAccessUnitBufferInterface::EAUpushResult FVideoDecoderH264::AUdataPushAU(FAccessUnit* AccessUnit)
+void FVideoDecoderH264::AUdataPushAU(FAccessUnit* InAccessUnit)
 {
-	AccessUnit->AddRef();
-	bool bOk = AccessUnitBuffer.Push(AccessUnit);
-	if (!bOk)
-	{
-		FAccessUnit::Release(AccessUnit);
-	}
+	InAccessUnit->AddRef();
 
-	return bOk ? IAccessUnitBufferInterface::EAUpushResult::Ok : IAccessUnitBufferInterface::EAUpushResult::Full;
+	TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> NextAU = MakeShared<FDecoderInput, ESPMode::ThreadSafe>();
+	NextAU->AccessUnit = InAccessUnit;
+	NextAccessUnits.Enqueue(MoveTemp(NextAU));
 }
 
 
@@ -631,7 +643,16 @@ IAccessUnitBufferInterface::EAUpushResult FVideoDecoderH264::AUdataPushAU(FAcces
  */
 void FVideoDecoderH264::AUdataPushEOD()
 {
-	AccessUnitBuffer.PushEndOfData();
+	NextAccessUnits.SetEOD();
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Notifies the decoder that there may be further access units.
+ */
+void FVideoDecoderH264::AUdataClearEOD()
+{
 }
 
 
@@ -734,34 +755,27 @@ void FVideoDecoderH264::RecreateDecoderSession()
 	InternalDecoderDestroy();
 	// Likewise anything that was still pending we also no longer need.
 	ClearInDecoderInfos();
-
 	// Do we have replay data?
-	if (ReplayAccessUnitBuffer.Num())
+	if (!ReplayAccessUnits.IsEmpty())
 	{
-		TMediaQueueDynamicNoLock<FAccessUnit *>	ReprocessedAUs;
+		TAccessUnitQueue<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>> ReprocessedAUs;
 
+		TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU;
 		bool bDone = false;
-		FAccessUnit* AccessUnit = nullptr;
 		bool bFirst = true;
 		while(!bError && !bDone)
 		{
-			AccessUnit = nullptr;
-			if (ReplayAccessUnitBuffer.Pop(AccessUnit))
+			if (ReplayAccessUnits.Dequeue(AU))
 			{
-				check(AccessUnit != nullptr);
-				ReprocessedAUs.Push(AccessUnit);
+				ReprocessedAUs.Enqueue(AU);
 				// Create the format description from the first replay AU.
 				if (bFirst)
 				{
 					bFirst = false;
 					CMFormatDescriptionRef NewFormatDescr = nullptr;
-					if (CreateFormatDescription(NewFormatDescr, AccessUnit))
+					if (CreateFormatDescription(NewFormatDescr, AU))
 					{
-						if (InternalDecoderCreate(NewFormatDescr))
-						{
-							// Ok
-						}
-						else
+						if (!InternalDecoderCreate(NewFormatDescr))
 						{
 							bError = true;
 						}
@@ -773,7 +787,7 @@ void FVideoDecoderH264::RecreateDecoderSession()
 					}
 				}
 				// Decode
-				EDecodeResult DecRes = Decode(AccessUnit, true);
+				EDecodeResult DecRes = Decode(AU, true);
 				// On failure or yet another loss of decoder session, leave...
 				if (DecRes != EDecodeResult::Ok)
 				{
@@ -788,14 +802,13 @@ void FVideoDecoderH264::RecreateDecoderSession()
 		// Even in case of an error we need to get all replay AUs into our processed FIFO and
 		// from there back into the replay buffer. We may need them again and they need to
 		// stay in the original order.
-		while(ReplayAccessUnitBuffer.Pop(AccessUnit))
+		while(ReplayAccessUnits.Dequeue(AU))
 		{
-			ReprocessedAUs.Push(AccessUnit);
+			ReprocessedAUs.Enqueue(AU);
 		}
-		while(!ReprocessedAUs.IsEmpty())
+		while(ReprocessedAUs.Dequeue(AU))
 		{
-			AccessUnit = ReprocessedAUs.Pop();
-			ReplayAccessUnitBuffer.Push(AccessUnit);
+			ReplayAccessUnits.Enqueue(AU);
 		}
 	// Flush the decoder to get it idle and discard any accumulated source infos.
 	FlushDecoder();
@@ -818,9 +831,9 @@ void FVideoDecoderH264::NotifyReadyBufferListener(bool bHaveOutput)
 	{
 		IDecoderOutputBufferListener::FDecodeReadyStats stats;
 		stats.MaxDecodedElementsReady = MaxDecodeBufferSize;
-		stats.NumElementsInDecoder    = InDecoderInfos.Num();
-		stats.bOutputStalled		  = !bHaveOutput;
-		stats.bEODreached   		  = AccessUnitBuffer.IsEndOfData() && stats.NumDecodedElementsReady == 0 && stats.NumElementsInDecoder == 0;
+		stats.NumElementsInDecoder = InDecoderInput.Num();
+		stats.bOutputStalled = !bHaveOutput;
+		stats.bEODreached = NextAccessUnits.ReachedEOD() && stats.NumDecodedElementsReady == 0 && stats.NumElementsInDecoder == 0;
 		ListenerMutex.Lock();
 		if (ReadyBufferListener)
 		{
@@ -835,74 +848,126 @@ void FVideoDecoderH264::NotifyReadyBufferListener(bool bHaveOutput)
 /**
  * Prepares the passed access unit to be sent to the decoder.
  *
- * @param AccessUnit
- * @param bOutIsIDR
- * @param bOutIsDiscardable
+ * @param AU
  */
-void FVideoDecoderH264::PrepareAU(FAccessUnit* AccessUnit, bool& bOutIsIDR, bool& bOutIsDiscardable)
+void FVideoDecoderH264::PrepareAU(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
 {
-	bOutIsIDR = false;
-	bOutIsDiscardable = true;
-	if (!AccessUnit->bHasBeenPrepared)
+	if (!AU->bHasBeenPrepared)
 	{
-		AccessUnit->bHasBeenPrepared = true;
+		AU->bHasBeenPrepared = true;
 
-		// Process NALUs
-		// Note: With VideoToolbox the data must be in avcc format, that is no startcodes but the
-		//       length of each NALU. We already have that so there is not a lot to do here.
-		uint32* CurrentNALU = (uint32 *)AccessUnit->AUData;
-		uint32* LastNALU    = (uint32 *)Electra::AdvancePointer(CurrentNALU, AccessUnit->AUSize);
-		while(CurrentNALU < LastNALU)
+		const FStreamCodecInformation::FResolution& res = AU->AccessUnit->AUCodecData->ParsedInfo.GetResolution();
+		const FStreamCodecInformation::FAspectRatio& ar = AU->AccessUnit->AUCodecData->ParsedInfo.GetAspectRatio();
+		const FStreamCodecInformation::FCrop& crop = AU->AccessUnit->AUCodecData->ParsedInfo.GetCrop();
+		AU->Width = res.Width;
+		AU->Height = res.Height;
+		AU->TotalWidth = res.Width + crop.Left + crop.Right;
+		AU->TotalHeight = res.Height + crop.Top + crop.Bottom;
+		AU->CropLeft = crop.Left;
+		AU->CropRight = crop.Right;
+		AU->CropTop = crop.Top;
+		AU->CropBottom = crop.Bottom;
+		AU->AspectX = ar.Width ? ar.Width : 1;
+		AU->AspectY = ar.Height ? ar.Height : 1;
+
+		if (!AU->AccessUnit->bIsDummyData)
 		{
-			// Check the nal_ref_idc in the NAL unit for dependencies.
-			uint8 nal = *(const uint8 *)(CurrentNALU + 1);
-			check((nal & 0x80) == 0);
-			if ((nal >> 5) != 0)
+			// Process NALUs
+			AU->bIsDiscardable = true;
+			AU->bIsIDR = AU->AccessUnit->bIsSyncSample;
+			uint32* NALU = (uint32 *)AU->AccessUnit->AUData;
+			uint32* End  = (uint32 *)Electra::AdvancePointer(NALU, AU->AccessUnit->AUSize);
+			while(NALU < End)
 			{
-				bOutIsDiscardable = false;
-			}
-			// IDR frame?
-			if ((nal & 0x1f) == 5)
-			{
-				bOutIsIDR = true;
-			}
+				// Check the nal_ref_idc in the NAL unit for dependencies.
+				uint8 nal = *(const uint8 *)(NALU + 1);
+				check((nal & 0x80) == 0);
+				if ((nal >> 5) != 0)
+				{
+					AU->bIsDiscardable = false;
+				}
+				// IDR frame?
+				if ((nal & 0x1f) == 5)
+				{
+					AU->bIsIDR = true;
+				}
 
-			// SEI message(s)?
-			if ((nal & 0x1f) == 6)
-			{
-				// TODO: we might need to set aside any SEI messages carrying 608 or 708 caption data.
-			}
+				// SEI message(s)?
+				if ((nal & 0x1f) == 6)
+				{
+					// ...
+				}
 
-			uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*CurrentNALU) + 4;
-			CurrentNALU = Electra::AdvancePointer(CurrentNALU, naluLen);
+				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU) + 4;
+				NALU = Electra::AdvancePointer(NALU, naluLen);
+			}
+		}
+
+		// Does this AU fall (partially) outside the range for rendering?
+		FTimeValue StartTime = AU->AccessUnit->PTS;
+		FTimeValue EndTime = AU->AccessUnit->PTS + AU->AccessUnit->Duration;
+		AU->PTS = StartTime.GetAsHNS();				// The PTS we give the decoder no matter any adjustment.
+		AU->EndPTS = EndTime.GetAsHNS();			// End PTS we need to check the PTS value returned by the decoder against.
+		if (AU->AccessUnit->EarliestPTS.IsValid())
+		{
+			// If the end time of the AU is before the earliest render PTS we need to decode it, but not display it.
+			if (EndTime <= AU->AccessUnit->EarliestPTS)
+			{
+				StartTime.SetToInvalid();
+			}
+			else if (StartTime < AU->AccessUnit->EarliestPTS)
+			{
+				StartTime = AU->AccessUnit->EarliestPTS;
+			}
+		}
+		if (StartTime.IsValid() && AU->AccessUnit->LatestPTS.IsValid())
+		{
+			// If the start time is behind the latest render PTS we do not need to decode at all.
+			if (StartTime >= AU->AccessUnit->LatestPTS)
+			{
+				StartTime.SetToInvalid();
+				AU->bIsDiscardable = true;
+			}
+			else if (EndTime >= AU->AccessUnit->LatestPTS)
+			{
+				EndTime = AU->AccessUnit->LatestPTS;
+			}
+		}
+		AU->AdjustedPTS = StartTime;
+		AU->AdjustedDuration = EndTime - StartTime;
+		if (AU->AdjustedDuration <= FTimeValue::GetZero())
+		{
+			AU->AdjustedPTS.SetToInvalid();
 		}
 
 		// Is there codec specific data?
-		if (AccessUnit->AUCodecData.IsValid())
+		if (!AU->AccessUnit->bIsDummyData && AU->AccessUnit->AUCodecData.IsValid())
 		{
 			// Yes.
-			if (bOutIsIDR || AccessUnit->bIsSyncSample || AccessUnit->bIsFirstInSequence)
+			if (AU->bIsIDR || AU->AccessUnit->bIsSyncSample || AU->AccessUnit->bIsFirstInSequence)
 			{
 				// Have to re-allocate the AU memory to preprend the codec data
-				uint64 nb = AccessUnit->AUSize + AccessUnit->AUCodecData->CodecSpecificData.Num();
-				void* pD = AccessUnit->AllocatePayloadBuffer(nb);
-				void* pP = pD;
-				FMemory::Memcpy(pP, AccessUnit->AUCodecData->CodecSpecificData.GetData(), AccessUnit->AUCodecData->CodecSpecificData.Num());
-				pP = Electra::AdvancePointer(pP, AccessUnit->AUCodecData->CodecSpecificData.Num());
-				FMemory::Memcpy(pP, AccessUnit->AUData, AccessUnit->AUSize);
-				AccessUnit->AdoptNewPayloadBuffer(pD, nb);
-				// New codec data makes this AU non-discardable.
-				bOutIsDiscardable = false;
-
-				// Get the NALUs from the CSD.
-				TArray<MPEG::FNaluInfo>	NALUs;
-				MPEG::ParseBitstreamForNALUs(NALUs, AccessUnit->AUCodecData->CodecSpecificData.GetData(), AccessUnit->AUCodecData->CodecSpecificData.Num());
-				// Replace the startcodes in the CSD with length values
-				for(int32 i=0; i<NALUs.Num(); ++i)
+				if (AU->AccessUnit->AUCodecData->CodecSpecificData.Num())
 				{
-					uint8* NALU = (uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset);
-					*(uint32*)NALU = MEDIA_TO_BIG_ENDIAN((uint32)NALUs[i].Size);
+					uint64 nb = AU->AccessUnit->AUSize + AU->AccessUnit->AUCodecData->CodecSpecificData.Num();
+					void* pD = AU->AccessUnit->AllocatePayloadBuffer(nb);
+					void* pP = pD;
+					FMemory::Memcpy(pP, AU->AccessUnit->AUCodecData->CodecSpecificData.GetData(), AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					pP = Electra::AdvancePointer(pP, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					FMemory::Memcpy(pP, AU->AccessUnit->AUData, AU->AccessUnit->AUSize);
+					AU->AccessUnit->AdoptNewPayloadBuffer(pD, nb);
+
+					// Get the NALUs from the CSD.
+					TArray<MPEG::FNaluInfo>	NALUs;
+					MPEG::ParseBitstreamForNALUs(NALUs, AU->AccessUnit->AUCodecData->CodecSpecificData.GetData(), AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					// Replace the startcodes in the CSD with length values
+					for(int32 i=0; i<NALUs.Num(); ++i)
+					{
+						uint8* NALU = (uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset);
+						*(uint32*)NALU = MEDIA_TO_BIG_ENDIAN((uint32)NALUs[i].Size);
+					}
 				}
+				AU->bIsDiscardable = false;
 			}
 		}
 	}
@@ -974,8 +1039,8 @@ bool FVideoDecoderH264::FlushDecoder()
  */
 void FVideoDecoderH264::ClearInDecoderInfos()
 {
-	FMediaCriticalSection::ScopedLock lock(InDecoderInfoMutex);
-	InDecoderInfos.Empty();
+	FMediaCriticalSection::ScopedLock lock(InDecoderInputMutex);
+	InDecoderInput.Empty();
 }
 
 
@@ -985,29 +1050,22 @@ void FVideoDecoderH264::ClearInDecoderInfos()
  * Dummy access units are created when stream data is missing to ensure the data
  * pipeline does not run dry and exhibits no gaps in the timeline.
  *
- * @param AccessUnit
+ * @param AU
  *
  * @return true if successful, false otherwise
  */
-bool FVideoDecoderH264::DecodeDummy(FAccessUnit* AccessUnit)
+bool FVideoDecoderH264::DecodeDummy(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
 {
-	check(AccessUnit->Duration.IsValid());
+	if (AU.IsValid() && AU->AdjustedPTS.IsValid())
+	{
+		FDecodedImage NextImage;
+		NextImage.SourceInfo = AU;
 
-    FDecodedImage NextImage;
-    NextImage.SourceInfo = TSharedPtr<FInDecoderInfo, ESPMode::ThreadSafe>(new FInDecoderInfo);
-    NextImage.SourceInfo->DTS = AccessUnit->DTS;
-    NextImage.SourceInfo->PTS = AccessUnit->PTS;
-    NextImage.SourceInfo->Duration = AccessUnit->Duration;
-    if (AccessUnit->AUCodecData.IsValid())
-    {
-        NextImage.SourceInfo->ParsedInfo = AccessUnit->AUCodecData->ParsedInfo;
-    }
-
-	ReadyImageMutex.Lock();
-	ReadyImages.Add(NextImage);
-	ReadyImages.Sort();
-	ReadyImageMutex.Unlock();
-
+		ReadyImageMutex.Lock();
+		ReadyImages.Add(NextImage);
+		ReadyImages.Sort();
+		ReadyImageMutex.Unlock();
+	}
     return true;
 }
 
@@ -1027,13 +1085,15 @@ void FVideoDecoderH264::FlushPendingImages()
 /**
  * Checks if the codec specific data has changed.
  *
+ * @param AU
+ *
  * @return false if the format is still the same, true if it has changed.
  */
-bool FVideoDecoderH264::FDecoderFormatInfo::IsDifferentFrom(const FAccessUnit* InputAccessUnit)
+bool FVideoDecoderH264::FDecoderFormatInfo::IsDifferentFrom(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
 {
-	if (InputAccessUnit->AUCodecData.IsValid() && InputAccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
+	if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
 	{
-		CurrentCodecData = InputAccessUnit->AUCodecData;
+		CurrentCodecData = AU->AccessUnit->AUCodecData;
 		return true;
 	}
 	return false;
@@ -1046,17 +1106,17 @@ bool FVideoDecoderH264::FDecoderFormatInfo::IsDifferentFrom(const FAccessUnit* I
  * the codec specific data (CSD) attached to the input access unit.
  *
  * @param OutFormatDescription
- * @param InputAccessUnit
+ * @param AU
  *
  * @return true if successful, false otherwise.
  */
-bool FVideoDecoderH264::CreateFormatDescription(CMFormatDescriptionRef& OutFormatDescription, const FAccessUnit* InputAccessUnit)
+bool FVideoDecoderH264::CreateFormatDescription(CMFormatDescriptionRef& OutFormatDescription, TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
 {
-	if (InputAccessUnit && InputAccessUnit->AUCodecData.IsValid() && InputAccessUnit->AUCodecData->CodecSpecificData.Num())
+	if (AU.IsValid() && AU->AccessUnit && AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData.Num())
 	{
 		// Get the NALUs from the CSD.
 		TArray<MPEG::FNaluInfo>	NALUs;
-		MPEG::ParseBitstreamForNALUs(NALUs, InputAccessUnit->AUCodecData->CodecSpecificData.GetData(), InputAccessUnit->AUCodecData->CodecSpecificData.Num());
+		MPEG::ParseBitstreamForNALUs(NALUs, AU->AccessUnit->AUCodecData->CodecSpecificData.GetData(), AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
 		if (NALUs.Num())
 		{
 			int32 NumRecords = NALUs.Num();
@@ -1066,7 +1126,7 @@ bool FVideoDecoderH264::CreateFormatDescription(CMFormatDescriptionRef& OutForma
 				SIZE_T*          DataSizes    = new SIZE_T [NumRecords];
 				for(int32 i=0; i<NumRecords; ++i)
 				{
-					DataPointers[i] = Electra::AdvancePointer(InputAccessUnit->AUCodecData->CodecSpecificData.GetData(), NALUs[i].Offset + NALUs[i].UnitLength);
+					DataPointers[i] = Electra::AdvancePointer(AU->AccessUnit->AUCodecData->CodecSpecificData.GetData(), NALUs[i].Offset + NALUs[i].UnitLength);
 					DataSizes[i]    = NALUs[i].Size;
 				}
 				OSStatus res = CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, NumRecords, DataPointers, DataSizes, 4, &OutFormatDescription);
@@ -1110,31 +1170,31 @@ bool FVideoDecoderH264::CreateFormatDescription(CMFormatDescriptionRef& OutForma
 void FVideoDecoderH264::DecodeCallback(void* pSrcRef, OSStatus status, VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer, CMTime presentationTimeStamp, CMTime presentationDuration)
 {
 	// Remove the source info even if there ultimately was a decode error or if the frame was dropped.
-	TSharedPtr<FInDecoderInfo, ESPMode::ThreadSafe> SourceInfo;
-	InDecoderInfoMutex.Lock();
-	int32 NumCurrentDecodeInfos = InDecoderInfos.Num();
-	for(int32 i=0; i<NumCurrentDecodeInfos; ++i)
+	TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> MatchingInput;
+	InDecoderInputMutex.Lock();
+	int32 NumCurrentDecodeInputs = InDecoderInput.Num();
+	for(int32 i=0; i<NumCurrentDecodeInputs; ++i)
 	{
-		if (InDecoderInfos[i].Get() == pSrcRef)
+		if (InDecoderInput[i].Get() == pSrcRef)
 		{
-			SourceInfo = InDecoderInfos[i];
-			InDecoderInfos.RemoveSingle(SourceInfo);
+			MatchingInput = InDecoderInput[i];
+			InDecoderInput.RemoveSingle(MatchingInput);
 			break;
 		}
 	}
-	InDecoderInfoMutex.Unlock();
+	InDecoderInputMutex.Unlock();
 
-	if (!SourceInfo.IsValid())
+	if (!MatchingInput.IsValid())
 	{
-		LogMessage(IInfoLog::ELevel::Error, FString::Printf(TEXT("FVideoDecoderH264::DecodeCallback(): No source info found for decoded srcref %p in %d pending infos (OSStatus %d, infoFlags %d)"), pSrcRef, NumCurrentDecodeInfos, (int32)status, (int32)infoFlags));
+		LogMessage(IInfoLog::ELevel::Error, FString::Printf(TEXT("FVideoDecoderH264::DecodeCallback(): No source info found for decoded srcref %p in %d pending infos (OSStatus %d, infoFlags %d)"), pSrcRef, NumCurrentDecodeInputs, (int32)status, (int32)infoFlags));
 	}
 
 	if (status == 0)
 	{
-		if (imageBuffer != nullptr && (infoFlags & kVTDecodeInfo_FrameDropped) == 0 && SourceInfo.IsValid())
+		if (imageBuffer != nullptr && (infoFlags & kVTDecodeInfo_FrameDropped) == 0 && MatchingInput.IsValid())
 		{
 			FDecodedImage NextImage;
-			NextImage.SourceInfo = SourceInfo;
+			NextImage.SourceInfo = MatchingInput;
 			NextImage.SetImageBufferRef(imageBuffer);
 
 			// Recall decoded frame for later processing
@@ -1157,27 +1217,23 @@ void FVideoDecoderH264::DecodeCallback(void* pSrcRef, OSStatus status, VTDecodeI
 /**
  * Sends an access unit to the decoder for decoding.
  *
- * @param AccessUnit
+ * @param AU
  * @param bRecreatingSession
  *
  * @return
  */
-FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUnit, bool bRecreatingSession)
+FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU, bool bRecreatingSession)
 {
 	if (!DecoderHandle || !DecoderHandle->DecompressionSession)
 	{
 		return EDecodeResult::Fail;
 	}
 
-	check(AccessUnit->Duration.IsValid());
-	check(AccessUnit->PTS.IsValid());
-	check(AccessUnit->DTS.IsValid());
-
 	// Create a memory block for the access unit. We pass it the memory we already have and ensure that by setting the block allocator
 	// to kCFAllocatorNull no one will attempt to deallocate the memory!
 	CMBlockBufferRef AUDataBlock = nullptr;
-	SIZE_T AUDataSize = AccessUnit->AUSize;
-	OSStatus res = CMBlockBufferCreateWithMemoryBlock(nullptr, AccessUnit->AUData, AUDataSize, kCFAllocatorNull, nullptr, 0, AUDataSize, 0, &AUDataBlock);
+	SIZE_T AUDataSize = AU->AccessUnit->AUSize;
+	OSStatus res = CMBlockBufferCreateWithMemoryBlock(nullptr, AU->AccessUnit->AUData, AUDataSize, kCFAllocatorNull, nullptr, 0, AUDataSize, 0, &AUDataBlock);
 	if (res)
 	{
 		PostError(res, "Failed to create video data block buffer", ERRCODE_INTERNAL_APPLE_FAILED_TO_CREATE_BLOCK_BUFFER);
@@ -1187,9 +1243,9 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUn
 	// Set up the timing info with DTS, PTS and duration.
 	CMSampleTimingInfo TimingInfo;
 	const int64_t HNS_PER_S = 10000000;
-	TimingInfo.decodeTimeStamp       = CMTimeMake(AccessUnit->DTS.GetAsHNS(), HNS_PER_S);
-	TimingInfo.presentationTimeStamp = CMTimeMake(AccessUnit->PTS.GetAsHNS(), HNS_PER_S);
-	TimingInfo.duration              = CMTimeMake(AccessUnit->Duration.GetAsHNS(), HNS_PER_S);
+	TimingInfo.decodeTimeStamp = CMTimeMake(AU->AccessUnit->DTS.GetAsHNS(), HNS_PER_S);
+	TimingInfo.presentationTimeStamp = CMTimeMake(AU->AccessUnit->PTS.GetAsHNS(), HNS_PER_S);
+	TimingInfo.duration = CMTimeMake(AU->AccessUnit->Duration.GetAsHNS(), HNS_PER_S);
 
 	CMSampleBufferRef SampleBufferRef = nullptr;
 	res = CMSampleBufferCreate(kCFAllocatorDefault, AUDataBlock, true, nullptr, nullptr, DecoderHandle->FormatDescription, 1, 1, &TimingInfo, 1, &AUDataSize, &SampleBufferRef);
@@ -1201,17 +1257,9 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUn
 		return EDecodeResult::Fail;
 	}
 
-	TSharedPtr<FInDecoderInfo, ESPMode::ThreadSafe> SourceInfo(new FInDecoderInfo);
-	SourceInfo->DTS = AccessUnit->DTS;
-	SourceInfo->PTS = AccessUnit->PTS;
-	SourceInfo->Duration = AccessUnit->Duration;
-	if (AccessUnit->AUCodecData.IsValid())
-	{
-		SourceInfo->ParsedInfo = AccessUnit->AUCodecData->ParsedInfo;
-	}
-	InDecoderInfoMutex.Lock();
-	InDecoderInfos.Push(SourceInfo);
-	InDecoderInfoMutex.Unlock();
+	InDecoderInputMutex.Lock();
+	InDecoderInput.Add(AU);
+	InDecoderInputMutex.Unlock();
 
 	// Decode
 /*
@@ -1234,7 +1282,7 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUn
 */
 // FIXME: This will require access to the decoder that should be granted by some arbitrator.
 //        Especially for iOS/padOS/tvos where the app can be backgrounded and the decoder potentially becoming inaccessible
-	res = VTDecompressionSessionDecodeFrame(DecoderHandle->DecompressionSession, SampleBufferRef, DecodeFlags, SourceInfo.Get(), &InfoFlags);
+	res = VTDecompressionSessionDecodeFrame(DecoderHandle->DecompressionSession, SampleBufferRef, DecodeFlags, AU.Get(), &InfoFlags);
 	CFRelease(SampleBufferRef);
 	if (res == 0)
 	{
@@ -1243,9 +1291,9 @@ FVideoDecoderH264::EDecodeResult FVideoDecoderH264::Decode(FAccessUnit* AccessUn
 	}
 	else
 	{
-		InDecoderInfoMutex.Lock();
-		InDecoderInfos.RemoveSingle(SourceInfo);
-		InDecoderInfoMutex.Unlock();
+		InDecoderInputMutex.Lock();
+		InDecoderInput.RemoveSingle(AU);
+		InDecoderInputMutex.Unlock();
 		if (res == kVTInvalidSessionErr)
 		{
 			// Lost the decoder session due to being backgrounded and returning to the foreground.
@@ -1265,17 +1313,12 @@ void FVideoDecoderH264::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 
+	TOptional<int64> SequenceIndex;
 	bool bDone  = false;
     bool bGotLastSequenceAU = false;
+	bool bInDummyDecodeMode = false;
 
 	bError = false;
-
-	// If the application is suspended and resumed we will lose out decoder session and cannot continue
-	// decoding at the point of interruption. We have to keep the access units from the previous IDR frame
-	// and run them through a new decoder session again, discarding all output, after which we can resume
-	// decoding from the point of interruption.
-	// Configure the playback AU buffer to be large enough to hold the access units to be replayed.
-	ReplayAccessUnitBuffer.CapacitySet(FAccessUnitBuffer::FConfiguration(64 << 20, 360.0));
 
 	// Create decoded image pool.
 	if (!CreateDecodedImagePool())
@@ -1288,18 +1331,13 @@ void FVideoDecoderH264::WorkerThread()
 		if (!bDrainForCodecChange)
 		{
 			// Notify optional buffer listener that we will now be needing an AU for our input buffer.
-			if (!bError && InputBufferListener && AccessUnitBuffer.Num() == 0)
+			if (!bError && InputBufferListener && NextAccessUnits.IsEmpty())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_VideoH264Decode);
 				CSV_SCOPED_TIMING_STAT(ElectraPlayer, VideoH264Decode);
-				FAccessUnitBufferInfo	sin;
 				IAccessUnitBufferListener::FBufferStats	stats;
-				AccessUnitBuffer.GetStats(sin);
-				stats.NumAUsAvailable  = sin.NumCurrentAccessUnits;
-				stats.NumBytesInBuffer = sin.CurrentMemInUse;
-				stats.MaxBytesOfBuffer = sin.MaxDataSize;
-				stats.bEODSignaled     = sin.bEndOfData;
-				stats.bEODReached      = sin.bEndOfData && sin.NumCurrentAccessUnits == 0;
+				stats.bEODSignaled = NextAccessUnits.GetEOD();
+				stats.bEODReached = NextAccessUnits.ReachedEOD();
 				ListenerMutex.Lock();
 				if (InputBufferListener)
 				{
@@ -1308,17 +1346,14 @@ void FVideoDecoderH264::WorkerThread()
 				ListenerMutex.Unlock();
 			}
 			// Wait for data.
-			bool bHaveData = AccessUnitBuffer.WaitForData(1000 * 5);
+			bool bHaveData = NextAccessUnits.Wait(1000 * 5);
 
 			// Only send new data to the decoder if we know we got enough room (to avoid accumulating too many frames in our internal PTS-sort queue)
 			bool bTooManyImagesWaiting = false;
 			if (bHaveData)
 			{
 				// When there is data, even and especially after a previous EOD, we are no longer done and idling.
-				if (bDone)
-				{
-					bDone = false;
-				}
+				bDone = false;
 
 				ReadyImageMutex.Lock();
 				bTooManyImagesWaiting = (ReadyImages.Num() > MaxImagesHoldBackForPTSOrdering);
@@ -1340,49 +1375,54 @@ void FVideoDecoderH264::WorkerThread()
 							break;
 						}
 
-						FMediaRunnable::SleepMilliseconds(20);
+						FMediaRunnable::SleepMilliseconds(10);
 					}
 				}
 			}
 
 			if (bHaveData && !bTooManyImagesWaiting)
 			{
-				FAccessUnit* AccessUnit = nullptr;
-				bool bOk = AccessUnitBuffer.Pop(AccessUnit);
+				TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> CurrentAccessUnit;
+				bool bOk = NextAccessUnits.Dequeue(CurrentAccessUnit);
 				MEDIA_UNUSED_VAR(bOk);
 				check(bOk);
 
-				if (!AccessUnit->bIsDummyData)
+				PrepareAU(CurrentAccessUnit);
+				if (!CurrentAccessUnit->AccessUnit->bIsDummyData)
 				{
-					bool bIsKeyframe, bIsDiscardable;
-					PrepareAU(AccessUnit, bIsKeyframe, bIsDiscardable);
+					bInDummyDecodeMode = false;
+
 					// An IDR frame means we can start decoding there, so we can purge any accumulated replay AUs.
-					if (bIsKeyframe)
+					if (CurrentAccessUnit->bIsIDR)
 					{
-						ReplayAccessUnitBuffer.Flush();
+						ReplayAccessUnits.Empty();
 					}
 
-					bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(AccessUnit) || bGotLastSequenceAU;
+					bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(CurrentAccessUnit) || bGotLastSequenceAU;
 					bool bNeedNewDecoder = false;
-					bGotLastSequenceAU = AccessUnit->bIsLastInPeriod;
+
+					if (!SequenceIndex.IsSet())
+					{
+						SequenceIndex = CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
+					}
+					bNeedNewDecoder |= SequenceIndex.GetValue() != CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
+					SequenceIndex = CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
+
+					bGotLastSequenceAU = CurrentAccessUnit->AccessUnit->bIsLastInPeriod;
 					if (bStreamFormatChanged || !DecoderHandle)
 					{
 						SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_VideoH264Decode);
 						CSV_SCOPED_TIMING_STAT(ElectraPlayer, VideoH264Decode);
 
 						CMFormatDescriptionRef NewFormatDescr = nullptr;
-						if (CreateFormatDescription(NewFormatDescr, AccessUnit))
+						if (CreateFormatDescription(NewFormatDescr, CurrentAccessUnit))
 						{
-							bNeedNewDecoder = DecoderHandle == nullptr || !DecoderHandle->IsCompatibleWith(NewFormatDescr);
+							bNeedNewDecoder |= DecoderHandle == nullptr || !DecoderHandle->IsCompatibleWith(NewFormatDescr);
 							if (bNeedNewDecoder)
 							{
 								FlushDecoder();
 								InternalDecoderDestroy();
-								if (InternalDecoderCreate(NewFormatDescr))
-								{
-									// Ok
-								}
-								else
+								if (!InternalDecoderCreate(NewFormatDescr))
 								{
 									bError = true;
 								}
@@ -1395,10 +1435,18 @@ void FVideoDecoderH264::WorkerThread()
 						}
 					}
 
+					// If this AU falls outside the range where it is to be rendered and it is also discardable
+					// we do not need to concern ourselves with it at all.
+					if (CurrentAccessUnit->bIsDiscardable && !CurrentAccessUnit->AdjustedPTS.IsValid())
+					{
+						CurrentAccessUnit.Reset();
+						continue;
+					}
+
 					// Decode
 					if (!bError && DecoderHandle && DecoderHandle->DecompressionSession)
 					{
-						EDecodeResult DecRes = Decode(AccessUnit, false);
+						EDecodeResult DecRes = Decode(CurrentAccessUnit, false);
 
 						// Process any output we might have pending
 						ProcessOutput();
@@ -1407,14 +1455,9 @@ void FVideoDecoderH264::WorkerThread()
 						if (DecRes == EDecodeResult::Ok)
 						{
 							// Yes, add to the replay buffer if it is not a discardable access unit.
-							if (!bIsDiscardable)
+							if (!CurrentAccessUnit->bIsDiscardable)
 							{
-								AccessUnit->AddRef();
-								if (!ReplayAccessUnitBuffer.Push(AccessUnit))
-								{
-									// FIXME: Is this cause for a playback error? For now we just forget about the replay AU and take any possible decoding artefacts.
-									FAccessUnit::Release(AccessUnit);
-								}
+								ReplayAccessUnits.Enqueue(CurrentAccessUnit);
 							}
 						}
 						// Lost the decoder session?
@@ -1434,21 +1477,32 @@ void FVideoDecoderH264::WorkerThread()
 				}
 				else
 				{
-					if (!DecodeDummy(AccessUnit))
+					if (!bInDummyDecodeMode)
+					{
+						bInDummyDecodeMode = true;
+						FlushDecoder();
+					}
+
+					if (!DecodeDummy(CurrentAccessUnit))
 					{
 						bError = true;
 					}
+					// DecodeDummy() went through most of the regular path, but has returned the output buffer immediately
+					// and can thus always get a new one with no waiting. To avoid draining the player buffer by consuming
+					// the dummy AUs at rapid pace we put ourselves to sleep for the duration the AU was supposed to last.
+					FMediaRunnable::SleepMicroseconds(CurrentAccessUnit->AdjustedDuration.GetAsMicroseconds());
+
+					ProcessOutput();
 				}
 
-				FAccessUnit::Release(AccessUnit);
-				AccessUnit = nullptr;
+				CurrentAccessUnit.Reset();
 			}
 			else
 			{
 				ProcessOutput();
 
 				// No data. Is the buffer at EOD?
-				if (AccessUnitBuffer.IsEndOfData())
+				if (NextAccessUnits.ReachedEOD())
 				{
 					NotifyReadyBufferListener(true);
 					// Are we done yet?
@@ -1486,8 +1540,9 @@ void FVideoDecoderH264::WorkerThread()
 			InternalDecoderDestroy();
 			FlushPendingImages();
 			ClearInDecoderInfos();
-			AccessUnitBuffer.Flush();
-			ReplayAccessUnitBuffer.Flush();
+			NextAccessUnits.Empty();
+			ReplayAccessUnits.Empty();
+			SequenceIndex.Reset();
 
 			FlushDecoderSignal.Reset();
 			DecoderFlushedSignal.Signal();
@@ -1501,10 +1556,8 @@ void FVideoDecoderH264::WorkerThread()
 	FlushPendingImages();
 	DestroyDecodedImagePool();
 	ClearInDecoderInfos();
-	AccessUnitBuffer.Flush();
-	AccessUnitBuffer.CapacitySet(0);
-	ReplayAccessUnitBuffer.Flush();
-	ReplayAccessUnitBuffer.CapacitySet(0);
+	NextAccessUnits.Empty();
+	ReplayAccessUnits.Empty();
 	if (bDrainForCodecChange)
 	{
 		// Notify the player that we have finished draining.
@@ -1556,8 +1609,6 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
 		{
 			if (RenderOutputBuffer)
 			{
-                double PixelAspectRatio = 1.0;
-
                 // Note that the ImageBuffer reference below might be null if this is a dummy frame!
                 CVImageBufferRef ImageBufferRef = NextImage.ReleaseImageBufferRef();
 
@@ -1565,14 +1616,8 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
 				if (ImageBufferRef)
 				{
 					// Start with a safe 1:1 aspect ratio assumption.
-					long ax = 1;
-					long ay = 1;
-					// Get the initial aspect ratio from the parsed codec info.
-					if (NextImage.SourceInfo->ParsedInfo.GetAspectRatio().IsSet())
-					{
-						ax = NextImage.SourceInfo->ParsedInfo.GetAspectRatio().Width;
-						ay = NextImage.SourceInfo->ParsedInfo.GetAspectRatio().Height;
-					}
+					long ax = NextImage.SourceInfo->AspectX;
+					long ay = NextImage.SourceInfo->AspectY;
 					// If there is aspect ratio information on the image itself and it's valid, use that instead.
 					NSDictionary* Dict = (NSDictionary*)CVBufferGetAttachments(ImageBufferRef, kCVAttachmentMode_ShouldPropagate);
 					if (Dict)
@@ -1594,27 +1639,29 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
 							}
 						}
 					}
-					PixelAspectRatio = (double)ax / (double)ay;
+					double PixelAspectRatio = (double)ax / (double)ay;
 
-					OutputBufferSampleProperties->Set("width",        FVariantValue((int64) NextImage.SourceInfo->ParsedInfo.GetResolution().Width));
-					OutputBufferSampleProperties->Set("height",       FVariantValue((int64) NextImage.SourceInfo->ParsedInfo.GetResolution().Height));
-					OutputBufferSampleProperties->Set("crop_left",    FVariantValue((int64) 0));
-					OutputBufferSampleProperties->Set("crop_right",   FVariantValue((int64) 0));
-					OutputBufferSampleProperties->Set("crop_top",     FVariantValue((int64) 0));
-					OutputBufferSampleProperties->Set("crop_bottom",  FVariantValue((int64) 0));
+					OutputBufferSampleProperties->Set("width", FVariantValue((int64) NextImage.SourceInfo->Width));
+					OutputBufferSampleProperties->Set("height", FVariantValue((int64) NextImage.SourceInfo->Height));
+					OutputBufferSampleProperties->Set("crop_left", FVariantValue((int64) 0));
+					OutputBufferSampleProperties->Set("crop_right", FVariantValue((int64) 0));
+					OutputBufferSampleProperties->Set("crop_top", FVariantValue((int64) 0));
+					OutputBufferSampleProperties->Set("crop_bottom", FVariantValue((int64) 0));
 					OutputBufferSampleProperties->Set("aspect_ratio", FVariantValue((double) PixelAspectRatio));
-					OutputBufferSampleProperties->Set("aspect_w",     FVariantValue((int64) ax));
-					OutputBufferSampleProperties->Set("aspect_h",     FVariantValue((int64) ay));
-					OutputBufferSampleProperties->Set("fps_num",      FVariantValue((int64) 0 ));
-					OutputBufferSampleProperties->Set("fps_denom",    FVariantValue((int64) 0 ));
-					OutputBufferSampleProperties->Set("pixelfmt",     FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
+					OutputBufferSampleProperties->Set("aspect_w", FVariantValue((int64) ax));
+					OutputBufferSampleProperties->Set("aspect_h", FVariantValue((int64) ay));
+					OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64) 0 ));
+					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64) 0 ));
+					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
 				}
 				else
 				{
 					OutputBufferSampleProperties->Set("is_dummy", FVariantValue(true));
 				}
-				OutputBufferSampleProperties->Set("pts",          FVariantValue(NextImage.SourceInfo->PTS));
-				OutputBufferSampleProperties->Set("duration",     FVariantValue(NextImage.SourceInfo->Duration));
+				OutputBufferSampleProperties->Set("pts", FVariantValue(NextImage.SourceInfo->AdjustedPTS));
+				OutputBufferSampleProperties->Set("duration", FVariantValue(NextImage.SourceInfo->AdjustedDuration));
+
+				bool bRender = NextImage.SourceInfo->AdjustedPTS.IsValid();
 
 				TSharedPtr<FElectraPlayerVideoDecoderOutputApple, ESPMode::ThreadSafe> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputApple>();
 
@@ -1625,7 +1672,7 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
                 }
 
 				// Return the buffer to the renderer.
-				Renderer->ReturnBuffer(RenderOutputBuffer, true, *OutputBufferSampleProperties);
+				Renderer->ReturnBuffer(RenderOutputBuffer, bRender, *OutputBufferSampleProperties);
 			}
 		}
 	}

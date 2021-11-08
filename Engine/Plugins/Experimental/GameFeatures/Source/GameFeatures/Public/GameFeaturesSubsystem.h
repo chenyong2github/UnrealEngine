@@ -188,7 +188,7 @@ public:
 	bool GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent) const;
 
 	/** Determines if a plugin is in the Active state.*/
-	bool IsGameFeaturePluginActive(const FString& PluginURL) const;
+	bool IsGameFeaturePluginActive(const FString& PluginURL, bool bCheckForActivating = false) const;
 
 	/** Deactivates the specified plugin */
 	void DeactivateGameFeaturePlugin(const FString& PluginURL);

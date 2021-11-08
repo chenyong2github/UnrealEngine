@@ -49,7 +49,7 @@ namespace UnrealBuildTool.Rules
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonSourceTPSDir, "libs"));
-					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "python37.dll"), Path.Combine(PythonBinaryTPSDir, "python37.dll"));
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "python39.dll"), Path.Combine(PythonBinaryTPSDir, "python39.dll"));
 
 					// USD
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
@@ -81,7 +81,7 @@ namespace UnrealBuildTool.Rules
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "lib"));
 					PrivateRuntimeLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "bin"));
-					RuntimeDependencies.Add(Path.Combine(PythonBinaryTPSDir, "bin", "python3.7m"));
+					RuntimeDependencies.Add(Path.Combine(PythonBinaryTPSDir, "bin", "python3.9"));
 
 					// USD
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
@@ -89,7 +89,7 @@ namespace UnrealBuildTool.Rules
 					PrivateRuntimeLibraryPaths.Add(USDBinDir);
 					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.so*", SearchOption.AllDirectories))
 					{
-						if(LibPath.EndsWith(".so")) // Don't add all versions of libboost_python37.so as they're duplicates
+						if(LibPath.EndsWith(".so")) // Don't add all versions of libboost_python39.so as they're duplicates
 						{
 							PublicAdditionalLibraries.Add(LibPath);
 						}
@@ -116,7 +116,7 @@ namespace UnrealBuildTool.Rules
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "lib"));
 					PrivateRuntimeLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "bin"));
-					RuntimeModulePaths.Add(Path.Combine(PythonBinaryTPSDir, "lib", "libpython3.7.dylib"));
+					RuntimeModulePaths.Add(Path.Combine(PythonBinaryTPSDir, "lib", "libpython3.9.dylib"));
 
 					// USD
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));

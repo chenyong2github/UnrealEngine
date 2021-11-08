@@ -53,15 +53,14 @@ public:
 	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
 private:
-	UWorldPartition* GetMainWorldPartition();
-	const UWorldPartition* GetMainWorldPartition() const;
-	void RegisterWorldPartition(UWorldPartition* WorldPartition);
-	void UnregisterWorldPartition(UWorldPartition* WorldPartition);
+#if WITH_EDITOR
+	bool IsRunningConvertWorldPartitionCommandlet() const;
+#endif
+
+	UWorldPartition* GetWorldPartition();
+	const UWorldPartition* GetWorldPartition() const;
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
 	friend class UWorldPartition;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
 	FDelegateHandle	DrawHandle;
 

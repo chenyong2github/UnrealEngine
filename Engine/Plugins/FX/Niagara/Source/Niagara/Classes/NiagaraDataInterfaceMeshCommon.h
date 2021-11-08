@@ -17,7 +17,7 @@ struct FMeshTriCoordinate
 	int32 Tri;
 
 	UPROPERTY(EditAnywhere, Category="Coordinate")
-	FVector BaryCoord;
+	FVector3f BaryCoord;
 
 	FMeshTriCoordinate()
 	: Tri(INDEX_NONE)

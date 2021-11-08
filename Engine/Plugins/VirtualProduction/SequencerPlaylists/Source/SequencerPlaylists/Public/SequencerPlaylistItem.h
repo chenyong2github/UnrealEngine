@@ -1,0 +1,38 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "SequencerPlaylistItem.generated.h"
+
+
+class ISequencer;
+class UMovieSceneSection;
+
+
+UCLASS(BlueprintType, Abstract, Within=SequencerPlaylist)
+class USequencerPlaylistItem : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual FText GetDisplayName() PURE_VIRTUAL(USequencerPlaylistItem::GetDisplayName, return FText::GetEmpty(); )
+
+public:
+	UPROPERTY(EditAnywhere, Category="SequencerPlaylists")
+	int32 StartFrameOffset;
+
+	UPROPERTY(EditAnywhere, Category="SequencerPlaylists")
+	int32 EndFrameOffset;
+
+	/**
+	 * If true, the sequence will be inserted immediately on recording start and any time Reset()
+	 * is called, paused at the first frame indefinitely until either triggered or stopped.
+	 */
+	UPROPERTY(EditAnywhere, Category="SequencerPlaylists")
+	bool bHoldAtFirstFrame;
+
+	/** 0 is single playthrough, >= 1 is (n+1) playthroughs. */
+	UPROPERTY(EditAnywhere, Category="SequencerPlaylists")
+	int32 NumLoops;
+};

@@ -2,6 +2,7 @@
 
 #include "DatasmithCADTranslatorModule.h"
 
+#include "CADOptions.h"
 #include "CADToolsModule.h"
 #include "DatasmithCADTranslator.h"
 
@@ -25,10 +26,11 @@ void FDatasmithCADTranslatorModule::StartupModule()
 		IFileManager::Get().DeleteDirectory(*OldCacheDir, true, true);
 	}
 
-	if (CADLibrary::FImportParameters::bGEnableCADCache)
+	CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), *FString::FromInt(CacheVersion)));
+	if (!IFileManager::Get().MakeDirectory(*CacheDir, true))
 	{
-		CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), *FString::FromInt(CacheVersion)));
-		IFileManager::Get().MakeDirectory(*CacheDir);
+		CacheDir.Empty();
+		CADLibrary::FImportParameters::bGEnableCADCache = false; // very weak protection: user could turn that on later, while the cache path is invalid
 	}
 
 	Datasmith::RegisterTranslator<FDatasmithCADTranslator>();

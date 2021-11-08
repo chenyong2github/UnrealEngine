@@ -56,6 +56,10 @@ public:
 
 	FTimeValue											FirstPTS;					//!< The PTS of the first sample
 	FTimeValue											SegmentDuration;
+
+	FTimeValue											EarliestPTS;				//!< PTS of the first sample to be presented.
+	FTimeValue											LastPTS;					//!< PTS at which no further samples are to be presented.
+
 	EStreamType											PrimaryStreamType;
 	int64												FileStartOffset;			//!< Where to start in the file
 	int64												FileEndOffset;				//!< Where to end in the file (for HTTP range GET requests)
@@ -69,12 +73,11 @@ public:
 
 	bool												bAllTracksAtEOS;
 
-	FPlayerLoopState									PlayerLoopState;
+	int64												TimestampSequenceIndex;		//!< Sequence index to set in all timestamp values of the decoded access unit.
 	int32												NumOverallRetries;			//!< Number of retries
 
 	Metrics::FSegmentDownloadStats						DownloadStats;
 	HTTP::FConnectionInfo								ConnectionInfo;
-	FTimeValue											NextLargestExpectedTimestamp;	//!< Largest timestamp of all samples (plus its duration) across all tracks.
 	int64												CurrentIteratorBytePos;
 };
 
@@ -148,7 +151,7 @@ private:
 	struct FSelectedTrackData
 	{
 		FSelectedTrackData()
-			: StreamType(EStreamType::Video), bGotKeyframe(false), bIsSelectedTrack(false), bIsFirstInSequence(true)
+			: StreamType(EStreamType::Video), Bitrate(0), bGotKeyframe(false), bIsSelectedTrack(false), bIsFirstInSequence(true), bReadPastLastPTS(false)
 		{
 			DurationSuccessfullyRead.SetToZero();
 			DurationSuccessfullyDelivered.SetToZero();
@@ -156,9 +159,11 @@ private:
 		TSharedPtrTS<FAccessUnit::CodecData>	CSD;
 		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfo;
 		EStreamType								StreamType;
+		int32									Bitrate;
 		bool									bGotKeyframe;
 		bool									bIsSelectedTrack;
 		bool									bIsFirstInSequence;
+		bool									bReadPastLastPTS;
 		FTimeValue								DurationSuccessfullyRead;
 		FTimeValue								DurationSuccessfullyDelivered;
 	};

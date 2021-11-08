@@ -431,16 +431,7 @@ public:
 
 	void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
-	static FDebugDrawQueue& GetInstance()
-	{
-		static FDebugDrawQueue* PSingleton = nullptr;
-		if (PSingleton == nullptr)
-		{
-			static FDebugDrawQueue Singleton;
-			PSingleton = &Singleton;
-		}
-		return *PSingleton;
-	}
+	static FDebugDrawQueue& GetInstance();
 
 	static bool IsDebugDrawingEnabled()
 	{

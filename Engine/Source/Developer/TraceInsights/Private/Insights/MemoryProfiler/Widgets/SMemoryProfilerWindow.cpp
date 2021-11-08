@@ -9,7 +9,7 @@
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -434,7 +434,7 @@ TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAlloc
 		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(LastMemAllocTableTreeViewIndex));
 		TabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, LastMemAllocTableTreeViewIndex))
 			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
-			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemAllocTableTreeView.Icon.Small"))
+			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemAllocTableTreeView"))
 			.SetGroup(AppMenuGroup.ToSharedRef());
 
 		TSharedPtr<Insights::FQueryTargetWindowSpec> NewTarget = MakeShared<Insights::FQueryTargetWindowSpec>(TabId, MemAllocTableTreeViewTabDisplayName);
@@ -480,17 +480,17 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_TimingView))
 		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView"))
 		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemInvestigationViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemInvestigationView))
 		.SetDisplayName(LOCTEXT("MemInvestigationViewTabTitle", "Investigation"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemInvestigationView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemInvestigationView"))
 		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemTagTreeViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemTagTreeView))
 		.SetDisplayName(LOCTEXT("MemTagTreeViewTabTitle", "LLM Tags"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView"))
 		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
@@ -590,7 +590,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		[
 			SNew(SBorder)
 			.Visibility(this, &SMemoryProfilerWindow::IsSessionOverlayVisible)
-			.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
 			.Padding(8.0f)
 			[
 				SNew(STextBlock)

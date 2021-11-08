@@ -14,12 +14,22 @@ void FSnapshotFileVersionInfo::Initialize()
 	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
 
+FString FSnapshotFileVersionInfo::ToString() const
+{
+	return FString::Printf(TEXT("FileVersionUE4=%d FileVersionUE5=%d Licensee=%d"), FileVersionUE4, FileVersionUE5, FileVersionLicensee);;
+}
+
 void FSnapshotEngineVersionInfo::Initialize(const FEngineVersion& InVersion)
 {
 	Major = InVersion.GetMajor();
 	Minor = InVersion.GetMinor();
 	Patch = InVersion.GetPatch();
 	Changelist = InVersion.GetChangelist();
+}
+
+FString FSnapshotEngineVersionInfo::ToString() const
+{
+	return FString::Printf(TEXT("%u.%u.%u %u"), Major, Minor, Patch, Changelist);
 }
 
 void FSnapshotCustomVersionInfo::Initialize(const FCustomVersion& InVersion)
@@ -65,6 +75,11 @@ void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 		EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
 	}
 	Archive.SetCustomVersions(EngineCustomVersions);
+}
+
+FString FSnapshotVersionInfo::ToString() const
+{
+	return FString::Printf(TEXT("%s %s"), *EngineVersion.ToString(), *FileVersion.ToString());
 }
 
 int32 FSnapshotVersionInfo::GetSnapshotCustomVersion() const

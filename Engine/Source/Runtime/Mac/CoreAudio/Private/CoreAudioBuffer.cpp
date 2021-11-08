@@ -155,6 +155,7 @@ void FCoreAudioSoundBuffer::Seek( const float SeekTime )
 FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::CreateQueuedBuffer( FCoreAudioDevice* CoreAudioDevice, USoundWave* Wave )
 {
 	check(Wave->GetPrecacheState() == ESoundWavePrecacheState::Done);
+	check(Wave->SoundWaveDataPtr.IsValid());
 
 	// Always create a new buffer for real time decompressed sounds
 	FCoreAudioSoundBuffer* Buffer = new FCoreAudioSoundBuffer( CoreAudioDevice, SoundFormat_PCMRT );
@@ -165,12 +166,12 @@ FCoreAudioSoundBuffer* FCoreAudioSoundBuffer::CreateQueuedBuffer( FCoreAudioDevi
 	Buffer->DecompressionState = CoreAudioDevice->CreateCompressedAudioInfo(Wave);
 
 	// If the buffer was precached as native, the resource data will have been lost and we need to re-initialize it
-	if (Wave->ResourceData == nullptr)
+	if (Wave->SoundWaveDataPtr->ResourceData.GetView().GetData() == nullptr)
 	{
 		Wave->InitAudioResource(CoreAudioDevice->GetRuntimeFormat(Wave));
 	}
 
-	if (Buffer->DecompressionState->ReadCompressedInfo( Wave->ResourceData, Wave->ResourceSize, &QualityInfo ))
+	if (Buffer->DecompressionState->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &QualityInfo ))
 	{
 		// Clear out any dangling pointers
 		Buffer->PCMData = NULL;

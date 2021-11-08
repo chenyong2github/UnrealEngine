@@ -30,18 +30,10 @@ namespace Audio
 			}
 			else
 			{
-				// FSoundWaveProxy needs to be updated to support non-streaming audio
-				return nullptr;
-
-// 				if (Wave->ResourceData == nullptr)
-// 				{
-// 					Wave->InitAudioResource(Wave->GetRuntimeFormat());
-// 				}
-// 
-// 				if (!OldInfoObject->ReadCompressedInfo(Wave->ResourceData, Wave->ResourceSize, &Info))
-// 				{
-// 					return nullptr;
-// 				}
+				if (!OldInfoObject->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &Info))
+				{
+					return nullptr;
+				}
 			}
 
 			Desc.NumChannels		= Info.NumChannels;

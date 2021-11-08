@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosCachingEditorPlugin.h"
-
+#include "Chaos/ChaosCachingEditorStyle.h"
 #include "AssetToolsModule.h"
 #include "Chaos/Adapters/CacheAdapter.h"
 #include "Chaos/AssetTypeActions_ChaosCacheCollection.h"
@@ -89,7 +89,9 @@ void IChaosCachingEditorPlugin::RegisterMenus()
 						{
 							return IsCreateCacheManagerVisible() || IsSetAllPlayVisible() || IsSetAllRecordVisible();
 						})),
-						EUserInterfaceActionType::Button);
+						EUserInterfaceActionType::Button,
+						false,
+						FSlateIcon(FChaosCachingEditorStyle::Get().GetStyleSetName(), "ChaosCachingEditor.Fracture"));
 }
 
 void IChaosCachingEditorPlugin::RegisterCachingSubMenu(UToolMenu* InMenu, FToolMenuSection* InSection)

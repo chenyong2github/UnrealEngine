@@ -72,11 +72,13 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Simple Array Case
 	{
 		const FString InputString = 
-			TEXT("[")
-			TEXT(	"{")
-			TEXT(		"\"Value\":\"Some String\"")
-			TEXT(	"}")
-			TEXT("]");
+			TEXT(
+				"["
+					"{"
+						"\"Value\":\"Some String\""
+					"}"
+				"]"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
@@ -99,17 +101,19 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Object Array Case
 	{
 		const FString InputString =
-			TEXT("[")
-			TEXT(	"{")
-			TEXT(		"\"Value\":\"Some String1\"")
-			TEXT(	"},")
-			TEXT(	"{")
-			TEXT(		"\"Value\":\"Some String2\"")
-			TEXT(	"},")
-			TEXT(	"{")
-			TEXT(		"\"Value\":\"Some String3\"")
-			TEXT(	"}")
-			TEXT("]");
+			TEXT(
+				"["
+					"{"
+						"\"Value\":\"Some String1\""
+					"},"
+					"{"
+						"\"Value\":\"Some String2\""
+					"},"
+					"{"
+						"\"Value\":\"Some String3\""
+					"}"
+				"]"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(InputString);
 
@@ -143,12 +147,14 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Number Array Case
 	{
 		const FString InputString =
-			TEXT("[")
-			TEXT("10,")
-			TEXT("20,")
-			TEXT("30,")
-			TEXT("40")
-			TEXT("]");
+			TEXT(
+				"["
+					"10,"
+					"20,"
+					"30,"
+					"40"
+				"]"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(InputString);
 
@@ -182,12 +188,14 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// String Array Case
 	{
 		const FString InputString =
-			TEXT("[")
-			TEXT("\"Some String1\",")
-			TEXT("\"Some String2\",")
-			TEXT("\"Some String3\",")
-			TEXT("\"Some String4\"")
-			TEXT("]");
+			TEXT(
+				"["
+					"\"Some String1\","
+					"\"Some String2\","
+					"\"Some String3\","
+					"\"Some String4\""
+				"]"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(InputString);
 
@@ -221,19 +229,21 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Complex Array Case
 	{
 		const FString InputString =
-			TEXT("[")
-			TEXT(	"\"Some String1\",")
-			TEXT(	"10,")
-			TEXT(	"{")
-			TEXT(		"\"Value\":\"Some String3\"")
-			TEXT(	"},")
-			TEXT(	"[")
-			TEXT(		"\"Some String4\",")
-			TEXT(		"\"Some String5\"")
-			TEXT(	"],")
-			TEXT(	"true,")
-			TEXT(	"null")
-			TEXT("]");
+			TEXT(
+				"["
+					"\"Some String1\","
+					"10,"
+					"{"
+						"\"Value\":\"Some String3\""
+					"},"
+					"["
+						"\"Some String4\","
+						"\"Some String5\""
+					"],"
+					"true,"
+					"null"
+				"]"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(InputString);
 
@@ -283,9 +293,11 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// String Test
 	{
 		const FString InputString =
-			TEXT("{")
-			TEXT(	"\"Value\":\"Some String, Escape Chars: \\\\, \\\", \\/, \\b, \\f, \\n, \\r, \\t, \\u002B\"")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Value\":\"Some String, Escape Chars: \\\\, \\\", \\/, \\b, \\f, \\n, \\r, \\t, \\u002B\""
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
@@ -303,22 +315,26 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 
 		const FString TestOutput =
-			TEXT("{")
-			TEXT(	"\"Value\":\"Some String, Escape Chars: \\\\, \\\", /, \\b, \\f, \\n, \\r, \\t, +\"")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Value\":\"Some String, Escape Chars: \\\\, \\\", /, \\b, \\f, \\n, \\r, \\t, +\""
+				"}"
+			);
 		check(OutputString == TestOutput);
 	}
 
 	// Number Test
 	{
 		const FString InputString =
-			TEXT("{")
-			TEXT(	"\"Value1\":2.544e+15,")
-			TEXT(	"\"Value2\":-0.544E-2,")
-			TEXT(	"\"Value3\":251e3,")
-			TEXT(	"\"Value4\":-0.0,")
-			TEXT(	"\"Value5\":843")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Value1\":2.544e+15,"
+					"\"Value2\":-0.544E-2,"
+					"\"Value3\":251e3,"
+					"\"Value4\":-0.0,"
+					"\"Value5\":843"
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
@@ -341,13 +357,15 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		// %g isn't standardized, so we use the same %g format that is used inside PrintJson instead of hardcoding the values here
 		const FString TestOutput = FString::Printf(
-			TEXT("{")
-			TEXT(	"\"Value1\":%.17g,")
-			TEXT(	"\"Value2\":%.17g,")
-			TEXT(	"\"Value3\":%.17g,")
-			TEXT(	"\"Value4\":%.17g,")
-			TEXT(	"\"Value5\":%.17g")
-			TEXT("}"),
+			TEXT(
+				"{"
+					"\"Value1\":%.17g,"
+					"\"Value2\":%.17g,"
+					"\"Value3\":%.17g,"
+					"\"Value4\":%.17g,"
+					"\"Value5\":%.17g"
+				"}"
+			),
 			TestValues[0], TestValues[1], TestValues[2], TestValues[3], TestValues[4]);
 		check(OutputString == TestOutput);
 	}
@@ -355,13 +373,15 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Boolean/Null Test
 	{
 		const FString InputString =
-			TEXT("{")
-			TEXT(	"\"Value1\":true,")
-			TEXT(	"\"Value2\":true,")
-			TEXT(	"\"Value3\":faLsE,")
-			TEXT(	"\"Value4\":null,")
-			TEXT(	"\"Value5\":NULL")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Value1\":true,"
+					"\"Value2\":true,"
+					"\"Value3\":faLsE,"
+					"\"Value4\":null,"
+					"\"Value5\":NULL"
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
@@ -392,37 +412,43 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 
 		const FString TestOutput =
-			TEXT("{")
-			TEXT(	"\"Value1\":true,")
-			TEXT(	"\"Value2\":true,")
-			TEXT(	"\"Value3\":false,")
-			TEXT(	"\"Value4\":null,")
-			TEXT(	"\"Value5\":null")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Value1\":true,"
+					"\"Value2\":true,"
+					"\"Value3\":false,"
+					"\"Value4\":null,"
+					"\"Value5\":null"
+				"}"
+			);
 		check(OutputString == TestOutput);
 	}
 
 	// Object Test && extra whitespace test
 	{
 		const FString InputStringWithExtraWhitespace =
-			TEXT("		\n\r\n	   {")
-			TEXT(	"\"Object\":")
-			TEXT(	"{")
-			TEXT(		"\"NestedValue\":null,")
-			TEXT(		"\"NestedObject\":{}")
-			TEXT(	"},")
-			TEXT(	"\"Value\":true")
-			TEXT("}		\n\r\n	   ");
+			TEXT(
+				"		\n\r\n	   {"
+					"\"Object\":"
+					"{"
+						"\"NestedValue\":null,"
+						"\"NestedObject\":{}"
+					"},"
+					"\"Value\":true"
+				"}		\n\r\n	   "
+			);
 
 		const FString InputString =
-			TEXT("{")
-			TEXT(	"\"Object\":")
-			TEXT(	"{")
-			TEXT(		"\"NestedValue\":null,")
-			TEXT(		"\"NestedObject\":{}")
-			TEXT(	"},")
-			TEXT(	"\"Value\":true")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Object\":"
+					"{"
+						"\"NestedValue\":null,"
+						"\"NestedObject\":{}"
+					"},"
+					"\"Value\":true"
+				"}"
+			);
 
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputStringWithExtraWhitespace );
 
@@ -469,19 +495,21 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Array Test
 	{
 		const FString InputString =
-			TEXT("{")
-			TEXT(	"\"Array\":")
-			TEXT(	"[")
-			TEXT(		"[],")
-			TEXT(		"\"Some String\",")
-			TEXT(		"\"Another String\",")
-			TEXT(		"null,")
-			TEXT(		"true,")
-			TEXT(		"false,")
-			TEXT(		"45,")
-			TEXT(		"{}")
-			TEXT(	"]")
-			TEXT("}");
+			TEXT(
+				"{"
+					"\"Array\":"
+					"["
+						"[],"
+						"\"Some String\","
+						"\"Another String\","
+						"null,"
+						"true,"
+						"false,"
+						"45,"
+						"{}"
+					"]"
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
@@ -526,24 +554,26 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Pretty Print Test
 	{
 		const FString InputString =
-			TEXT("{")									LINE_TERMINATOR
-			TEXT("	\"Data1\": \"value\",")				LINE_TERMINATOR
-			TEXT("	\"Data2\": \"value\",")				LINE_TERMINATOR
-			TEXT("	\"Array\": [")						LINE_TERMINATOR
-			TEXT("		{")								LINE_TERMINATOR
-			TEXT("			\"InnerData1\": \"value\"")	LINE_TERMINATOR
-			TEXT("		},")							LINE_TERMINATOR
-			TEXT("		[],")							LINE_TERMINATOR
-			TEXT("		[ 1, 2, 3, 4 ],")				LINE_TERMINATOR
-			TEXT("		{")								LINE_TERMINATOR
-			TEXT("		},")							LINE_TERMINATOR
-			TEXT("		\"value\",")					LINE_TERMINATOR
-			TEXT("		\"value\"")						LINE_TERMINATOR
-			TEXT("	],")								LINE_TERMINATOR
-			TEXT("	\"Object\":")						LINE_TERMINATOR
-			TEXT("	{")									LINE_TERMINATOR
-			TEXT("	}")									LINE_TERMINATOR
-			TEXT("}");
+			TEXT(
+				"{"											LINE_TERMINATOR_ANSI
+					"	\"Data1\": \"value\","				LINE_TERMINATOR_ANSI
+					"	\"Data2\": \"value\","				LINE_TERMINATOR_ANSI
+					"	\"Array\": ["						LINE_TERMINATOR_ANSI
+					"		{"								LINE_TERMINATOR_ANSI
+					"			\"InnerData1\": \"value\""	LINE_TERMINATOR_ANSI
+					"		},"								LINE_TERMINATOR_ANSI
+					"		[],"							LINE_TERMINATOR_ANSI
+					"		[ 1, 2, 3, 4 ],"				LINE_TERMINATOR_ANSI
+					"		{"								LINE_TERMINATOR_ANSI
+					"		},"								LINE_TERMINATOR_ANSI
+					"		\"value\","						LINE_TERMINATOR_ANSI
+					"		\"value\""						LINE_TERMINATOR_ANSI
+					"	],"									LINE_TERMINATOR_ANSI
+					"	\"Object\":"						LINE_TERMINATOR_ANSI
+					"	{"									LINE_TERMINATOR_ANSI
+					"	}"									LINE_TERMINATOR_ANSI
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
@@ -559,17 +589,19 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 	// Line and Character # test
 	{
 		const FString InputString =
-			TEXT("{")									LINE_TERMINATOR
-			TEXT("	\"Data1\": \"value\",")				LINE_TERMINATOR
-			TEXT("	\"Array\":")						LINE_TERMINATOR
-			TEXT("	[")									LINE_TERMINATOR
-			TEXT("		12345,")						LINE_TERMINATOR
-			TEXT("		True")							LINE_TERMINATOR
-			TEXT("	],")								LINE_TERMINATOR
-			TEXT("	\"Object\":")						LINE_TERMINATOR
-			TEXT("	{")									LINE_TERMINATOR
-			TEXT("	}")									LINE_TERMINATOR
-			TEXT("}");
+			TEXT(
+				"{"											LINE_TERMINATOR_ANSI
+					"	\"Data1\": \"value\","				LINE_TERMINATOR_ANSI
+					"	\"Array\":"							LINE_TERMINATOR_ANSI
+					"	["									LINE_TERMINATOR_ANSI
+					"		12345,"							LINE_TERMINATOR_ANSI
+					"		True"							LINE_TERMINATOR_ANSI
+					"	],"									LINE_TERMINATOR_ANSI
+					"	\"Object\":"						LINE_TERMINATOR_ANSI
+					"	{"									LINE_TERMINATOR_ANSI
+					"	}"									LINE_TERMINATOR_ANSI
+				"}"
+			);
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		EJsonNotation Notation = EJsonNotation::Null;
@@ -598,38 +630,49 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 	// Values in Object without identifiers
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Value1\",")
-		TEXT(	"\"Value2\",")
-		TEXT(	"43")
-		TEXT("}"));
+		TEXT(
+			"{"
+				"\"Value1\","
+				"\"Value2\","
+				"43"
+			"}"
+		)
+	);
 
 	// Unexpected End Of Input Found
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Object\":")
-		TEXT(	"{")
-		TEXT(		"\"NestedValue\":null,"));
+		TEXT(
+			"{"
+				"\"Object\":"
+				"{"
+					"\"NestedValue\":null,")
+	);
 
 	// Missing first brace
 	FailureInputs.Add(
-		TEXT(	"\"Object\":")
-		TEXT(		"{")
-		TEXT(		"\"NestedValue\":null,")
-		TEXT(		"\"NestedObject\":{}")
-		TEXT(	"},")
-		TEXT(	"\"Value\":true")
-		TEXT("}"));
+		TEXT(
+			"\"Object\":"
+			"{"
+				"\"NestedValue\":null,"
+				"\"NestedObject\":{}"
+			"},"
+		"\"Value\":true"
+		"}"
+		)
+	);
 
 	// Missing last character
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Object\":")
-		TEXT(	"{")
-		TEXT(		"\"NestedValue\":null,")
-		TEXT(		"\"NestedObject\":{}")
-		TEXT(	"},")
-		TEXT(	"\"Value\":true"));
+		TEXT(
+			"{"
+				"\"Object\":"
+				"{"
+					"\"NestedValue\":null,"
+					"\"NestedObject\":{}"
+				"},"
+				"\"Value\":true"
+		)
+	);
 
 	// Missing curly brace
 	FailureInputs.Add(TEXT("}"));
@@ -639,30 +682,39 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 	// Extra last character
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Object\":")
-		TEXT(	"{")
-		TEXT(		"\"NestedValue\":null,")
-		TEXT(		"\"NestedObject\":{}")
-		TEXT(	"},")
-		TEXT(	"\"Value\":true")
-		TEXT("}0"));
+		TEXT(
+			"{"
+				"\"Object\":"
+				"{"
+					"\"NestedValue\":null,"
+					"\"NestedObject\":{}"
+				"},"
+				"\"Value\":true"
+			"}0"
+		)
+	);
 
 	// Missing comma
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Value1\":null,")
-		TEXT(	"\"Value2\":\"string\"")
-		TEXT(	"\"Value3\":65.3")
-		TEXT("}"));
+		TEXT(
+			"{"
+				"\"Value1\":null,"
+				"\"Value2\":\"string\""
+				"\"Value3\":65.3"
+			"}"
+		)
+	);
 
 	// Extra comma
 	FailureInputs.Add(
-		TEXT("{")
-		TEXT(	"\"Value1\":null,")
-		TEXT(	"\"Value2\":\"string\",")
-		TEXT(	"\"Value3\":65.3,")
-		TEXT("}"));
+		TEXT(
+			"{"
+				"\"Value1\":null,"
+				"\"Value2\":\"string\","
+				"\"Value3\":65.3,"
+			"}"
+		)
+	);
 
 	// Badly formed true/false/null
 	FailureInputs.Add(TEXT("{\"Value\":tru}"));

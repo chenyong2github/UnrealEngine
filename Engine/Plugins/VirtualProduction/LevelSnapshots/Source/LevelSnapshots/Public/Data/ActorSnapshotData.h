@@ -77,6 +77,9 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	/** Whether the saved data was different from the world counterpart, the last time we compared. */
 	UPROPERTY(Transient)
 	bool bCachedHadChanges {};
+
+	UPROPERTY()
+	FString ActorLabel;
 #endif
 	
 

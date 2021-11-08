@@ -151,6 +151,8 @@ public:
 #endif
 
 	protected:
+	FAudioRadialSliderStyle WidgetStyle;
+
 	/** Native Slate Widget */
 	TSharedPtr<SAudioRadialSlider> MyAudioRadialSlider;
 

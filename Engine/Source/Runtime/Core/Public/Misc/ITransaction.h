@@ -358,11 +358,12 @@ public:
 	 * @param Count 
 	 * @param Oper
 	 * @param ElementSize
+	 * @param ElementAlignment
 	 * @param Serializer
 	 * @param Destructor
 	 * @see SaveObject
 	 */
-	virtual void SaveArray( UObject* Object, class FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor ) = 0;
+	virtual void SaveArray( UObject* Object, class FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, uint32 ElementAlignment, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor ) = 0;
 
 	/**
 	 * Saves an UObject to the transaction.

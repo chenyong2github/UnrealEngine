@@ -1506,6 +1506,111 @@ namespace Metasound
 
 			return Access;
 		}
+
+		// 
+		// FVariableNodeController
+		//
+		FVariableNodeController::FVariableNodeController(EPrivateToken InToken, const FVariableNodeController::FInitParams& InParams)
+		: FNodeController(FNodeController::EPrivateToken::Token, InParams)
+		{
+		}
+
+		FNodeHandle FVariableNodeController::CreateNodeHandle(const FVariableNodeController::FInitParams& InParams)
+		{
+			if (const FMetasoundFrontendNode* Node = InParams.NodePtr.Get())
+			{
+				if (const FMetasoundFrontendClass* Class = InParams.ClassPtr.Get())
+				{
+					// Cannot make a valid node handle if the node description and class description differ
+					if (Node->ClassID == Class->ID)
+					{
+						EMetasoundFrontendClassType ClassType = Class->Metadata.GetType();
+
+						// Class type must be one of the associated variable class types.
+						if (ensure(IsSupportedClassType(ClassType)))
+						{
+							return MakeShared<FVariableNodeController>(EPrivateToken::Token, InParams);
+						}
+					}
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+					}
+				}
+			}
+			return INodeController::GetInvalidHandle();
+		}
+
+		FConstNodeHandle FVariableNodeController::CreateConstNodeHandle(const FVariableNodeController::FInitParams& InParams)
+		{
+			if (const FMetasoundFrontendNode* Node = InParams.NodePtr.Get())
+			{
+				if (const FMetasoundFrontendClass* Class = InParams.ClassPtr.Get())
+				{
+					// Cannot make a valid node handle if the node description and class description differ
+					if (Node->ClassID == Class->ID)
+					{
+						EMetasoundFrontendClassType ClassType = Class->Metadata.GetType();
+
+						// Class type must be one of the associated variable class types.
+						if (ensure(IsSupportedClassType(ClassType)))
+						{
+							return MakeShared<const FVariableNodeController>(EPrivateToken::Token, InParams);
+						}
+					}
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+					}
+				}
+			}
+			return INodeController::GetInvalidHandle();
+		}
+
+		FInputHandle FVariableNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		{
+			if (const FMetasoundFrontendClassInput* ClassInput = InClassInputPtr.Get())
+			{
+				if (IsVariableDataType(ClassInput->TypeName))
+				{
+					FGraphAccessPtr SuperGraphPtr = ConstCastAccessPtr<FGraphAccessPtr>(Super::ShareAccess().ConstGraph);
+
+					return MakeShared<FVariableInputController>(FVariableInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, SuperGraphPtr, InOwningNode});
+				}
+			}
+			return Super::CreateInputController(InVertexID, InNodeVertexPtr, InClassInputPtr, InOwningNode);
+		}
+
+		FOutputHandle FVariableNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		{
+			if (const FMetasoundFrontendClassOutput* ClassOutput = InClassOutputPtr.Get())
+			{
+				if (IsVariableDataType(ClassOutput->TypeName))
+				{
+					FGraphAccessPtr SuperGraphPtr = ConstCastAccessPtr<FGraphAccessPtr>(Super::ShareAccess().ConstGraph);
+					return MakeShared<FVariableOutputController>(FVariableOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, SuperGraphPtr, InOwningNode});
+				}
+			}
+			return Super::CreateOutputController(InVertexID, InNodeVertexPtr, InClassOutputPtr, InOwningNode);
+		}
+
+		bool FVariableNodeController::IsSupportedClassType(EMetasoundFrontendClassType InClassType)
+		{
+			const bool bIsVariableNode = (InClassType == EMetasoundFrontendClassType::Variable)
+				|| (InClassType == EMetasoundFrontendClassType::VariableAccessor)
+				|| (InClassType == EMetasoundFrontendClassType::VariableMutator);
+			return bIsVariableNode;
+		}
+
+		bool FVariableNodeController::IsVariableDataType(const FName& InTypeName)
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			if (ensure(IDataTypeRegistry::Get().GetDataTypeInfo(InTypeName, DataTypeInfo)))
+			{
+				return DataTypeInfo.bIsVariable;
+			}
+			return false;
+		}
 	}
 }
 #undef LOCTEXT_NAMESPACE

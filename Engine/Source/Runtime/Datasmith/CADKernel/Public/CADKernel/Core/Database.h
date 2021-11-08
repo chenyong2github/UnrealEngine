@@ -112,8 +112,13 @@ namespace CADKernel
 		 * All Entities are saved in the session map that allows to retrieve them according to their Id
 		 * This process is automatically done during the entity creation (FEntity::MakeShared)
 		 */
-		void AddEntity(TSharedRef<FEntity> Entity)
+		void AddEntity(TSharedPtr<FEntity> Entity)
 		{
+			if (!Entity.IsValid())
+			{
+				return;
+			}
+
 			if (Entity->GetId() > 0)
 			{
 				return;
@@ -129,7 +134,7 @@ namespace CADKernel
 		 * Archive's entities are also saved in a temporary map for the load purpose (c.f. FEntity::Serialize)
 		 * This process is automatically done during the entity creation (FEntity::MakeShared)
 		 */
-		void AddEntityFromArchive(TSharedRef<FEntity>Entity)
+		void AddEntityFromArchive(TSharedPtr<FEntity>Entity)
 		{
 			FIdent ArchiveId = Entity->GetId();
 			ensureCADKernel(ArchiveEntities.Num() > (int32)ArchiveId);
@@ -166,10 +171,9 @@ namespace CADKernel
 				TArray<FEntity**>& WaitingList = ArchiveIdToWaitingPointers[ArchiveId];
 				if (WaitingList.Num() > 0)
 				{
-					FEntity& EntityPtr = Entity.Get();
 					for (FEntity** Ptr : WaitingList)
 					{
-						*Ptr = &Entity.Get();
+						*Ptr = &*Entity;
 					}
 					WaitingList.Empty();
 				}

@@ -14,6 +14,9 @@ class IDatasmithMeshElement;
 class IDatasmithScene;
 struct FDatasmithMeshElementPayload;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogCADTranslator, Log, All);
+
+
 class FDatasmithCADTranslator : public FParametricSurfaceTranslator
 {
 public:

@@ -5,7 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
@@ -29,7 +29,7 @@ FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketCo
 	, MaxDepth(-1)
 	, LastEventX2()
 	, LastBox()
-	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 	DrawState.Reset();
 }
@@ -308,7 +308,7 @@ FPacketContentViewDrawHelper::FPacketContentViewDrawHelper(const FDrawContext& I
 	, EventBorderBrush(FInsightsStyle::Get().GetBrush("EventBorder"))
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
-	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 }
 

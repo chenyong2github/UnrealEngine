@@ -124,6 +124,11 @@ namespace Metasound
 			return bSuccess;
 		}
 
+		bool FBaseOutputController::IsConnectionUserModifiable() const 
+		{
+			return true;
+		}
+
 		FConnectability FBaseOutputController::CanConnectTo(const IInputController& InController) const
 		{
 			return InController.CanConnectTo(*this);
@@ -346,6 +351,11 @@ namespace Metasound
 			}
 		}
 
+		bool FOutputNodeOutputController::IsConnectionUserModifiable() const 
+		{
+			return false;
+		}
+
 		FConnectability FOutputNodeOutputController::CanConnectTo(const IInputController& InController) const 
 		{
 			// Cannot connect to a graph's output.
@@ -361,6 +371,18 @@ namespace Metasound
 
 		bool FOutputNodeOutputController::ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName)
 		{
+			return false;
+		}
+
+		FVariableOutputController::FVariableOutputController(const FInitParams& InParams)
+		: FBaseOutputController(InParams)
+		{
+		}
+
+		bool FVariableOutputController::IsConnectionUserModifiable() const
+		{
+			// Variable connections are managed by the graph and cannot be modified
+			// by the user.
 			return false;
 		}
 	}

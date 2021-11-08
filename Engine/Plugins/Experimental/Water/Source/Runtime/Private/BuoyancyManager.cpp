@@ -5,6 +5,7 @@
 #include "PBDRigidsSolver.h"
 #include "WaterSubsystem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Engine/Engine.h"
 
 ABuoyancyManager::ABuoyancyManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

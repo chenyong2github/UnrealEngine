@@ -54,7 +54,7 @@ public:
 	static TSharedPtr<FDMXFixturePatchNode> Create(TWeakPtr<FDMXEditor> InDMXEditor, TWeakObjectPtr<UDMXEntityFixturePatch> InFixturePatch);
 	
 	/** Updates the patch node. NewUniverse can be nullptr */
-	void Update(TSharedPtr<SDMXPatchedUniverse> NewUniverse, int32 NewStartingChannel, int32 NewChannelSpan);
+	void Update(TSharedPtr<SDMXPatchedUniverse> NewUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan);
 
 	/** Commits the patch to the object */
 	void CommitPatch(bool bTransacted);
@@ -72,23 +72,32 @@ public:
 	TWeakObjectPtr<UDMXEntityFixturePatch> GetFixturePatch() const { return FixturePatch; }
 
 	/** Returns the universe this node resides in */
-	const TSharedPtr<SDMXPatchedUniverse>& GetUniverse() const { return Universe; }
+	const TSharedPtr<SDMXPatchedUniverse>& GetUniverseWidget() const { return UniverseWidget; }
 
 	/** Returns fragmented widgets to visualize the node in a grid */
 	const TArray<TSharedPtr<SDMXFixturePatchFragment>>& GetFragmentedWidgets() const { return FragmentedWidgets; }
+
+	/** Returns the Universe ID the Node currently resides in. Returns a negative Value if not assigned to a Universe. */
+	int32 GetUniverseID() const;
+
+	/** Returns the Starting Channel the Node currently resides on */
+	int32 GetStartingChannel() const { return StartingChannel; }
+
+	/** Returns the Channel Span the Node currently occupies */
+	int32 GetChannelSpan() const { return ChannelSpan; }
 
 private:
 	/** Called when a patch node was selected */
 	void OnSelectionChanged();
 
 	/** Universe the patch is assigned to */
-	TSharedPtr<SDMXPatchedUniverse> Universe;
+	TSharedPtr<SDMXPatchedUniverse> UniverseWidget;
 
 	/** Starting channel of the patch */
-	int32 StartingChannel;
+	int32 StartingChannel = 0;
 
 	/** Channel span of the patch */
-	int32 ChannelSpan;
+	int32 ChannelSpan = 0;
 
 	/** Last transacted Universe ID, required for propert undo/redo */
 	int32 LastTransactedUniverseID;

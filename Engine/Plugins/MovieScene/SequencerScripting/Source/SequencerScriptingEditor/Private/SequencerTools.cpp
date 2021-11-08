@@ -181,7 +181,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 	return BoundObjects;
 }
 
-bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName, UMovieSceneSequencePlayer* Player)
+bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& MasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName, UMovieSceneSequencePlayer* Player)
 {
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 	//Show the fbx export dialog options
@@ -212,7 +212,7 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
 		}
 
-		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
+		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, MasterTracks, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
 	}
 
 	Player->Stop();
@@ -221,7 +221,7 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	return bDidExport;
 }
 
-bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
+bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
 {
 	ALevelSequenceActor* OutActor;
 	FMovieSceneSequencePlaybackSettings Settings;
@@ -229,7 +229,7 @@ bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULeve
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
 	Player->Initialize(Sequence, World->PersistentLevel, Settings, CameraSettings);
 	
-	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, OverrideOptions, InFBXFileName, Player);
+	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, InMasterTracks, OverrideOptions, InFBXFileName, Player);
 	World->DestroyActor(OutActor);
 
 	return bSuccess;
@@ -242,7 +242,7 @@ bool USequencerToolsFunctionLibrary::ExportTemplateSequenceFBX(UWorld* World, UT
 	UTemplateSequencePlayer* Player = UTemplateSequencePlayer::CreateTemplateSequencePlayer(World, Sequence, Settings, OutActor);
 	Player->Initialize(Sequence, World, Settings);
 	
-	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, OverrideOptions, InFBXFileName, Player);
+	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, TArray<UMovieSceneTrack*>(), OverrideOptions, InFBXFileName, Player);
 	World->DestroyActor(OutActor);
 
 	return bSuccess;

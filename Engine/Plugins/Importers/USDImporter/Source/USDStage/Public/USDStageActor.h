@@ -44,6 +44,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
 
+	/**
+	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
+	 * like multiple Mesh prims into a single Static Mesh
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdDefaultKind))
+	int32 KindsToCollapse;
+
 	/* Only load prims with these specific purposes from the USD file */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
@@ -57,6 +64,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
+
+	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
+	USDSTAGE_API void SetKindsToCollapse( int32 NewKindsToCollapse );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetPurposesToLoad( int32 NewPurposesToLoad );

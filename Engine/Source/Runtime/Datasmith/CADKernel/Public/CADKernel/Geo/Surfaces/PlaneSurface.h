@@ -38,13 +38,9 @@ namespace CADKernel
 		 */
 		FPlaneSurface(const double InToleranceGeometric, const FPoint& Position, FPoint Normal, const FSurfacicBoundary& InBoundary);
 
-		FPlaneSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FPlaneSurface() = default;
 		
-		virtual void SetMinToleranceIso() override
+		void ComputeMinToleranceIso()
 		{
 			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
 

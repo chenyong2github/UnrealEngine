@@ -13,29 +13,17 @@ static TAutoConsoleVariable<int> CVarDisplayClusterRenderOverscanEnable(
 	ECVF_RenderThreadSafe
 );
 
-///////////////////////////////////////////////////////////////////////////////////////
-//          FImplDisplayClusterViewport_Overscan
-///////////////////////////////////////////////////////////////////////////////////////
-inline float ImplClampPercent(float InValue)
-{
-	// @todo: check range, now limits is maximal 0..100%
-	// change max value 1 to lower
-	static const float MaxOverscanValue = 1.f;
-
-	return FMath::Clamp(InValue, 0.f, MaxOverscanValue);
-}
-
 bool FImplDisplayClusterViewport_Overscan::UpdateProjectionAngles(float& InOutLeft, float& InOutRight, float& InOutTop, float& InOutBottom)
 {
 	if (RuntimeSettings.bIsEnabled)
 	{
-		float dh = InOutRight - InOutLeft;
-		float dv = InOutTop - InOutBottom;
+		float Horizontal = InOutRight - InOutLeft;
+		float Vertical = InOutTop - InOutBottom;
 
-		InOutLeft   -= dh * RuntimeSettings.OverscanPercent.Left;
-		InOutRight  += dh * RuntimeSettings.OverscanPercent.Right;
-		InOutBottom -= dv * RuntimeSettings.OverscanPercent.Bottom;
-		InOutTop    += dv * RuntimeSettings.OverscanPercent.Top;
+		InOutLeft   -= Horizontal * RuntimeSettings.OverscanPercent.Left;
+		InOutRight  += Horizontal * RuntimeSettings.OverscanPercent.Right;
+		InOutBottom -= Vertical * RuntimeSettings.OverscanPercent.Bottom;
+		InOutTop    += Vertical * RuntimeSettings.OverscanPercent.Top;
 
 		return true;
 	}
@@ -59,10 +47,10 @@ void FImplDisplayClusterViewport_Overscan::Update(FDisplayClusterViewport& Viewp
 	{
 		RuntimeSettings.bIsEnabled = true;
 
-		RuntimeSettings.OverscanPercent.Left   = ImplClampPercent(OverscanSettings.Left);
-		RuntimeSettings.OverscanPercent.Right  = ImplClampPercent(OverscanSettings.Right);
-		RuntimeSettings.OverscanPercent.Top    = ImplClampPercent(OverscanSettings.Top);
-		RuntimeSettings.OverscanPercent.Bottom = ImplClampPercent(OverscanSettings.Bottom);
+		RuntimeSettings.OverscanPercent.Left   = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Left);
+		RuntimeSettings.OverscanPercent.Right  = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Right);
+		RuntimeSettings.OverscanPercent.Top    = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Top);
+		RuntimeSettings.OverscanPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Bottom);
 		break;
 	}
 
@@ -70,10 +58,10 @@ void FImplDisplayClusterViewport_Overscan::Update(FDisplayClusterViewport& Viewp
 	{
 		RuntimeSettings.bIsEnabled = true;
 
-		RuntimeSettings.OverscanPercent.Left   = ImplClampPercent(OverscanSettings.Left   / Size.X);
-		RuntimeSettings.OverscanPercent.Right  = ImplClampPercent(OverscanSettings.Right  / Size.X);
-		RuntimeSettings.OverscanPercent.Top    = ImplClampPercent(OverscanSettings.Top    / Size.Y);
-		RuntimeSettings.OverscanPercent.Bottom = ImplClampPercent(OverscanSettings.Bottom / Size.Y);
+		RuntimeSettings.OverscanPercent.Left   = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Left   / Size.X);
+		RuntimeSettings.OverscanPercent.Right  = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Right  / Size.X);
+		RuntimeSettings.OverscanPercent.Top    = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Top    / Size.Y);
+		RuntimeSettings.OverscanPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(OverscanSettings.Bottom / Size.Y);
 
 		break;
 	}

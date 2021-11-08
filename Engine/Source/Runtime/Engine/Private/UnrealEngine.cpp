@@ -410,6 +410,77 @@ static FAutoConsoleVariableRef GDelayTrimMemoryDuringMapLoadModeCVar(
 	ECVF_Default
 );
 
+#if !UE_BUILD_SHIPPING
+class FDisplayCVarListExecHelper : public FSelfRegisteringExec
+{
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		if (FParse::Command(&Cmd, TEXT("DisplayCVarList")))
+		{
+			ConsoleVariablesToVisualize.Empty();
+
+			FString CVarList(Cmd);
+			if (!CVarList.IsEmpty())
+			{
+				TArray<FString> CVars;
+				CVarList.ParseIntoArray(CVars, TEXT(","));
+
+				for (FString& CVarString : CVars)
+				{
+					CVarString.TrimStartAndEndInline();
+
+					IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
+						[this](const TCHAR* Key, IConsoleObject* ConsoleObject)
+						{
+							if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
+							{
+								ConsoleVariablesToVisualize.Add(FString(Key), AsVariable);
+							}
+
+						}),
+						*CVarString);
+				}
+			}
+
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("LogCVarList")))
+		{
+			FString CVarList(Cmd);
+			if (!CVarList.IsEmpty())
+			{
+				TArray<FString> CVars;
+				CVarList.ParseIntoArray(CVars, TEXT(","));
+
+				Ar.Logf(TEXT("Name, Value"));
+
+				for (FString& CVarString : CVars)
+				{
+					CVarString.TrimStartAndEndInline();
+
+					IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
+						[this, &Ar](const TCHAR* Key, IConsoleObject* ConsoleObject)
+						{
+							if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
+							{
+								Ar.Logf(TEXT("%s, %s"), Key, *AsVariable->GetString());
+							}
+						}),
+						*CVarString);
+				}
+			}
+
+			return true;
+		}
+		return false;
+	}
+
+public:
+	TMap<FString, IConsoleVariable*> ConsoleVariablesToVisualize;
+};
+static FDisplayCVarListExecHelper GDisplayCVarListExecHelper;
+#endif // !UE_BUILD_SHIPPING
+
 /** Whether texture memory has been corrupted because we ran out of memory in the pool. */
 bool GIsTextureMemoryCorrupted = false;
 
@@ -6974,8 +7045,8 @@ bool UEngine::HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& A
 					ClothVertexBufferKB,
 					bSkinCachedLODEnabled ? TEXT("Y") : TEXT("N"),
 					*RecomputeTangentSections,
-					Mesh->bSupportRayTracing ? TEXT("Y") : TEXT("N"),
-					Mesh->RayTracingMinLOD);
+					Mesh->GetSupportRayTracing() ? TEXT("Y") : TEXT("N"),
+					Mesh->GetRayTracingMinLOD());
 			}
 		}
 
@@ -10027,7 +10098,7 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	}
 	UPackage* PackageToReset = nullptr;
 
-	FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
+	FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LoadFlags, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
 	{
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{
@@ -11286,6 +11357,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			SmallTextItem.Text = LOCTEXT("DisableAllScreenMessagesToSuppress", "'DisableAllScreenMessages' to suppress");
 			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX + 50, MessageY));
 			MessageY += 16;
+		}
+
+		// Draw the specified CVars values
+		{
+			if (GDisplayCVarListExecHelper.ConsoleVariablesToVisualize.Num())
+			{
+				for (const auto& CVarToVisualize : GDisplayCVarListExecHelper.ConsoleVariablesToVisualize)
+				{
+					Canvas->DrawShadowedString(MessageX, MessageY, *FString::Printf(TEXT("%s : %s"), *CVarToVisualize.Key, *CVarToVisualize.Value->GetString()), GEngine->GetSmallFont(), FLinearColor::White);
+ 					MessageY += FontSizeY;
+				}
+			}
 		}
 	}
 #endif // UE_BUILD_SHIPPING 
@@ -14133,11 +14216,11 @@ void UEngine::LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoa
 				FString SFPackageName = PackagesInfo.PackagesToLoad[PackageIndex].ToString() + STANDALONE_SEEKFREE_SUFFIX;
 				bool bFoundFile = false;
 				FString PackagePath;
-				if (FPackageName::DoesPackageExist(SFPackageName, NULL, &PackagePath))
+				if (FPackageName::DoesPackageExist(SFPackageName, &PackagePath))
 				{
 					bFoundFile = true;
 				}
-				else if ( (FPackageName::DoesPackageExist(PackagesInfo.PackagesToLoad[PackageIndex].ToString(), NULL, &PackagePath)) )
+				else if ( (FPackageName::DoesPackageExist(PackagesInfo.PackagesToLoad[PackageIndex].ToString(), &PackagePath)) )
 				{
 					bFoundFile = true;
 				}
@@ -15501,9 +15584,11 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	FFindInstancedReferenceSubobjectHelper::Duplicate(OldObject, NewObject, ReferenceReplacementMap, ComponentsOnNewObject);
 
 	// Replace anything with an outer of the old object with NULL, unless it already has a replacement or is marked pending kill
-	ForEachObjectWithOuter(OldObject, [&ReferenceReplacementMap](UObject* ObjectInOuter)
+	// Also, if requested, leave pointers to instances of renewed classes intact, assuming we are in the midst of reinstancing, and those will be reinstanced
+	ForEachObjectWithOuter(OldObject, [&ReferenceReplacementMap, &Params](UObject* ObjectInOuter)
 	{
-		if (!ReferenceReplacementMap.Contains(ObjectInOuter))
+		if (!ReferenceReplacementMap.Contains(ObjectInOuter)
+			&& (!Params.bDontClearReferenceIfNewerClassExists || !ObjectInOuter->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists)))
 		{
 			ReferenceReplacementMap.Add(ObjectInOuter, nullptr);
 		}

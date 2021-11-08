@@ -717,7 +717,7 @@ private:
 			while (NameNone != NameStore[Idx] && Name != NameStore[Idx])
 			{
 				Idx = (Idx + Probe) & Mask;
-				Probe *= 2u;
+				Probe++;
 			}
 
 			if (NameNone != NameStore[Idx])
@@ -743,6 +743,7 @@ private:
 
 			const uint32 OldCapacity = Capacity;
 			Capacity = NewCapacity;
+			NumElements = 0;
 
 			for (uint32 Idx = 0; Idx < OldCapacity; ++Idx)
 			{

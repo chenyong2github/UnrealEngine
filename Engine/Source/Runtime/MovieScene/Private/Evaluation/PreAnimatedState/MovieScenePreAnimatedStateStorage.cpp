@@ -10,7 +10,7 @@ namespace UE
 namespace MovieScene
 {
 
-FPreAnimatedTrackerParams::FPreAnimatedTrackerParams(FEntityAllocationIteratorItem Item)
+FPreAnimatedTrackerParams::FPreAnimatedTrackerParams(FEntityAllocationProxy Item)
 {
 	Num = Item.GetAllocation()->Num();
 	bWantsRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);

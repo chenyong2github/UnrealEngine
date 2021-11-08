@@ -403,6 +403,62 @@ inline FArchive& operator<<(FArchive& Ar, FUniformBufferEntry& Entry)
 
 using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
 
+// Simple wrapper for a uint64 bitfield; doesn't use TBitArray as it is fixed size and doesn't need dynamic memory allocations
+class FShaderCompilerFlags
+{
+public:
+	FShaderCompilerFlags(uint64 InData = 0)
+		: Data(InData)
+	{
+	}
+
+	inline void Append(const FShaderCompilerFlags& In)
+	{
+		Data |= In.Data;
+	}
+
+	inline void Add(uint32 InFlag)
+	{
+		const uint64 FlagBit = (uint64)1 << (uint64)InFlag;
+		Data = Data | FlagBit;
+	}
+
+	inline bool Contains(uint32 InFlag) const
+	{
+		const uint64 FlagBit = (uint64)1 << (uint64)InFlag;
+		return (Data & FlagBit) == FlagBit;
+	}
+
+	inline void Iterate(TFunction<void(uint32)> Callback) const
+	{
+		uint64 Remaining = Data;
+		uint32 Index = 0;
+		while (Remaining)
+		{
+			if (Remaining & (uint64)1)
+			{
+				Callback(Index);
+			}
+			++Index;
+			Remaining = Remaining >> (uint64)1;
+		}
+	}
+
+	friend inline FArchive& operator << (FArchive& Ar, FShaderCompilerFlags& F)
+	{
+		Ar << F.Data;
+		return Ar;
+	}
+
+	inline uint64 GetData() const
+	{
+		return Data;
+	}
+
+private:
+	uint64 Data;
+};
+
 /** The environment used to compile a shader. */
 struct FShaderCompilerEnvironment
 {
@@ -412,7 +468,7 @@ struct FShaderCompilerEnvironment
 	
 	TMap<FString, FThreadSafeSharedStringPtr> IncludeVirtualPathToExternalContentsMap;
 
-	TArray<uint32> CompilerFlags;
+	FShaderCompilerFlags CompilerFlags;
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
 	TMap<FString, FResourceTableEntry> ResourceTableMap;
 	TMap<FString, FUniformBufferEntry> UniformBufferMap;

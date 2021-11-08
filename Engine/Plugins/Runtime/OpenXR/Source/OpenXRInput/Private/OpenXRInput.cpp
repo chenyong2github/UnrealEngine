@@ -583,6 +583,7 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 		Profile.next = nullptr;
 		XR_ENSURE(xrGetCurrentInteractionProfile(Session, Subaction, &Profile));
 
+		TSet<FName> ActivatedKeys;
 		TPair<XrPath, XrPath> Key(Profile.interactionProfile, Subaction);
 		for (FOpenXRAction& Action : Actions)
 		{
@@ -592,8 +593,9 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 			GetInfo.subactionPath = Subaction;
 			GetInfo.action = Action.Handle;
 
+			// Find the action key and check if it has already been fired this frame.
 			FName* ActionKey = Action.KeyMap.Find(Key);
-			if (!ActionKey)
+			if (!ActionKey || ActivatedKeys.Contains(*ActionKey))
 			{
 				continue;
 			}
@@ -606,9 +608,10 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 				State.type = XR_TYPE_ACTION_STATE_BOOLEAN;
 				State.next = nullptr;
 				XrResult Result = xrGetActionStateBoolean(Session, &GetInfo, &State);
-				if (Result >= XR_SUCCESS && State.changedSinceLastSync)
+				if (XR_SUCCEEDED(Result) && State.changedSinceLastSync)
 				{
-					if (State.currentState && State.isActive)
+					ActivatedKeys.Add(*ActionKey);
+					if (State.isActive && State.currentState)
 					{
 						MessageHandler->OnControllerButtonPressed(*ActionKey, 0, /*IsRepeat =*/false);
 					}
@@ -631,9 +634,17 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 				State.type = XR_TYPE_ACTION_STATE_FLOAT;
 				State.next = nullptr;
 				XrResult Result = xrGetActionStateFloat(Session, &GetInfo, &State);
-				if (Result >= XR_SUCCESS && State.isActive && State.changedSinceLastSync)
+				if (XR_SUCCEEDED(Result) && State.changedSinceLastSync)
 				{
-					MessageHandler->OnControllerAnalog(*ActionKey, 0, State.currentState);
+					ActivatedKeys.Add(*ActionKey);
+					if (State.isActive)
+					{
+						MessageHandler->OnControllerAnalog(*ActionKey, 0, State.currentState);
+					}
+					else
+					{
+						MessageHandler->OnControllerAnalog(*ActionKey, 0, 0.0f);
+					}
 
 					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
 					if (Delegate)

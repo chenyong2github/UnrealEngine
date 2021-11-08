@@ -2,7 +2,6 @@
 
 #include "SAdvancedFilter.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"

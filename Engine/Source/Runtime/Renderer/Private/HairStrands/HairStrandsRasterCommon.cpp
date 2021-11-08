@@ -146,8 +146,16 @@ public:
 	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, bool bCullingEnable);
 
 private:
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material);
+
 	template<typename VertexShaderType, typename PixelShaderType>
-	void Process(
+	bool Process(
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -163,9 +171,31 @@ private:
 
 void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, bool bCullingEnable)
 {
+	const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+	while (MaterialRenderProxy)
+	{
+		const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+		if (Material)
+		{
+			if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+			{
+				break;
+			}
+		}
+
+		MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
+	}
+}
+
+bool FHairRasterMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material)
+{
 	// Determine the mesh's material and blend mode.
-	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 	bool bIsCompatible = IsCompatibleWithHairStrands(&Material, FeatureLevel);
 	if (bIsCompatible && PrimitiveSceneProxy && (RasterPassType == EHairStrandsRasterPassType::FrontDepth || RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap))
 	{
@@ -176,22 +206,23 @@ void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 	{
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material, OverrideSettings) : CM_None;
 
 		if (RasterPassType == EHairStrandsRasterPassType::FrontDepth)
-			Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
+			return Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 		else if (RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap)
-			Process<FDeepShadowDomMeshVS, FDeepShadowDomMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
+			return Process<FDeepShadowDomMeshVS, FDeepShadowDomMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 	}
+
+	return true;
 }
 
 // Vertex is either FDeepShadowDepthMeshVS or FDeepShadowDomMeshVS
 // Pixel  is either FDeepShadowDepthMeshPS or FDeepShadowDomMeshPS
 template<typename VertexShaderType, typename PixelShaderType>
-void FHairRasterMeshProcessor::Process(
+bool FHairRasterMeshProcessor::Process(
 	const FMeshBatch& MeshBatch,
 	uint64 BatchElementMask,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -204,6 +235,16 @@ void FHairRasterMeshProcessor::Process(
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<VertexShaderType>();
+	ShaderTypes.AddShaderType<PixelShaderType>();
+
+	FMaterialShaders Shaders;
+	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+	{
+		return false;
+	}
+
 	TMeshProcessorShaders<
 		VertexShaderType,
 		PixelShaderType> PassShaders;
@@ -211,10 +252,10 @@ void FHairRasterMeshProcessor::Process(
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
 		if (!bIsHairStrandsFactory)
-			return;
+			return true;	// Skip adding this batch if the VF type does not match.
 
-		PassShaders.VertexShader = MaterialResource.GetShader<VertexShaderType>(VertexFactoryType);
-		PassShaders.PixelShader = MaterialResource.GetShader<PixelShaderType>(VertexFactoryType);
+		Shaders.TryGetVertexShader(PassShaders.VertexShader);
+		Shaders.TryGetPixelShader(PassShaders.PixelShader);
 	}
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
@@ -235,6 +276,8 @@ void FHairRasterMeshProcessor::Process(
 		FMeshDrawCommandSortKey::Default,
 		EMeshPassFeatures::Default,
 		ShaderElementData);
+
+	return true;
 }
 
 FHairRasterMeshProcessor::FHairRasterMeshProcessor(

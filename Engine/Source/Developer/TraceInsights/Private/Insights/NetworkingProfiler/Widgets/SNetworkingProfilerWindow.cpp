@@ -8,7 +8,7 @@
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -215,17 +215,17 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 
 	TabManager->RegisterTabSpawner(FNetworkingProfilerTabs::PacketViewID, FOnSpawnTab::CreateRaw(this, &SNetworkingProfilerWindow::SpawnTab_PacketView))
 		.SetDisplayName(LOCTEXT("PacketViewTabTitle", "Packet View"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "PacketView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.PacketView"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(FNetworkingProfilerTabs::PacketContentViewID, FOnSpawnTab::CreateRaw(this, &SNetworkingProfilerWindow::SpawnTab_PacketContentView))
 		.SetDisplayName(LOCTEXT("PacketContentViewTabTitle", "Packet Content"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "PacketContentView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.PacketContentView"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(FNetworkingProfilerTabs::NetStatsViewID, FOnSpawnTab::CreateRaw(this, &SNetworkingProfilerWindow::SpawnTab_NetStatsView))
 		.SetDisplayName(LOCTEXT("NetStatsViewTabTitle", "Net Stats"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetStatsView.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.NetStatsView"))
 		.SetGroup(AppMenuGroup);
 
 	TSharedPtr<FNetworkingProfilerManager> NetworkingProfilerManager = FNetworkingProfilerManager::Get();
@@ -337,7 +337,7 @@ void SNetworkingProfilerWindow::Construct(const FArguments& InArgs, const TShare
 		[
 			SNew(SBorder)
 			.Visibility(this, &SNetworkingProfilerWindow::IsSessionOverlayVisible)
-			.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
 			.Padding(8.0f)
 			[
 				SNew(STextBlock)

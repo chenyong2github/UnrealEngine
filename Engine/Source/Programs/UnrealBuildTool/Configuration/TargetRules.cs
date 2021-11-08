@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
@@ -1119,7 +1120,7 @@ namespace UnrealBuildTool
 		public bool bDisableDebugInfoForGeneratedCode = false;
 
 		/// <summary>
-		/// Whether to disable debug info on PC in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
+		/// Whether to disable debug info on PC/Mac in development builds (for faster developer iteration, as link times are extremely fast with debug info disabled).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bOmitPCDebugInfoInDevelopment = false;
@@ -1774,12 +1775,18 @@ namespace UnrealBuildTool
 		protected void SetDefaultsForCookedEditor(bool bIsCookedCooker, bool bIsForExternalUse)
 		{
 			LinkType = TargetLinkType.Monolithic;
+			// enable > 4gb pdb file support, which needs an up-to-date compiler and can make pdbs a little bigger, so we 
+			// only enable it when needed
+			WindowsPlatform.AdditionalLinkerOptions = "/PDBPAGESIZE:8192";
 
-			bBuildAdditionalConsoleApp = false;
+			if (!bIsCookedCooker)
+			{
+				bBuildAdditionalConsoleApp = false;
+				GlobalDefinitions.Add("ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR=1");
+			}
 			bUseLoggingInShipping = true;
 
 			GlobalDefinitions.Add("UE_IS_COOKED_EDITOR=1");
-			GlobalDefinitions.Add("ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR=1");
 
 			// remove some insecure things external users may not want
 			if (bIsForExternalUse)
@@ -1797,28 +1804,34 @@ namespace UnrealBuildTool
 
 			ConfigHierarchy ProjectGameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile?.Directory, Platform);
 			List<string>? DisabledPlugins;
-			// disable them, and remove them from Enabled in case they were there
+			List<string> AllDisabledPlugins = new List<string>();
+
 			if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPlugins", out DisabledPlugins))
 			{
-				if (Configuration == UnrealTargetConfiguration.Shipping)
+				AllDisabledPlugins.AddRange(DisabledPlugins);
+			}
+			if (ProjectGameIni.GetArray("CookedEditorSettings" + (bIsCookedCooker ? "_CookedCooker" : "_CookedEditor"), "DisabledPlugins", out DisabledPlugins))
+			{
+				AllDisabledPlugins.AddRange(DisabledPlugins);
+			}
+			if (Configuration == UnrealTargetConfiguration.Shipping)
+			{
+				if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPluginsInShipping", out DisabledPlugins))
 				{
-					List<string>? DisabledPluginsShipping;
-					if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPluginsInShipping", out DisabledPluginsShipping))
-					{
-						DisabledPlugins.AddRange(DisabledPluginsShipping);
-					}
+					AllDisabledPlugins.AddRange(DisabledPlugins);
 				}
-
-				foreach (string PluginName in DisabledPlugins)
+				if (ProjectGameIni.GetArray("CookedEditorSettings" + (bIsCookedCooker ? "_CookedCooker" : "_CookedEditor"), "DisabledPluginsInShipping", out DisabledPlugins))
 				{
-					DisablePlugins.Add(PluginName);
-					EnablePlugins.Remove(PluginName);
+					AllDisabledPlugins.AddRange(DisabledPlugins);
 				}
 			}
 
-			// enable > 4gb pdb file support, which needs an up-to-date compiler and can make pdbs a little bigger, so we 
-			// only enable it when needed
-			WindowsPlatform.AdditionalLinkerOptions = "/PDBPAGESIZE:8192";
+			// disable them, and remove them from Enabled in case they were there
+			foreach (string PluginName in AllDisabledPlugins)
+			{
+				DisablePlugins.Add(PluginName);
+				EnablePlugins.Remove(PluginName);
+			}
 		}
 
 		/// <summary>
@@ -2221,12 +2234,12 @@ namespace UnrealBuildTool
 
 		public bool bCompileISPC
 		{
-			get { return Inner.bCompileISPC && GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
+			get { return Inner.bCompileISPC && GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }   // LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
 		}
 
 		public bool bLWCDisabled 
 		{
-			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	
+			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }
 		}
 		
 		public bool bCompilePython
@@ -2996,7 +3009,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string RelativeEnginePath
 		{
-			get { return Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()); }
+			get { return Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()) + Path.DirectorySeparatorChar; }
 		}
 
 		/// <summary>

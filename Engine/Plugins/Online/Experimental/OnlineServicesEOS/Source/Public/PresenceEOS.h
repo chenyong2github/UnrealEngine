@@ -18,11 +18,12 @@ class FPresenceEOS : public FPresenceCommon
 {
 public:
 	FPresenceEOS(FOnlineServicesEOS& InServices);
-	
+
+	virtual void Initialize() override;
 	virtual void PreShutdown() override;
 
 	virtual TOnlineAsyncOpHandle<FQueryPresence> QueryPresence(FQueryPresence::Params&& Params) override;
-	virtual TOnlineResult<FGetPresence::Result> GetPresence(FGetPresence::Params&& Params) override;
+	virtual TOnlineResult<FGetPresence> GetPresence(FGetPresence::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUpdatePresence> UpdatePresence(FUpdatePresence::Params&& Params) override;
 
 protected:

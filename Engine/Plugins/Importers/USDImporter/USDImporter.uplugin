@@ -44,11 +44,6 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "USDImporter",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "USDStageImporter",
 			"Type": "Editor",
 			"LoadingPhase": "Default"

@@ -31,11 +31,7 @@
 class CORE_API FLoadTimeTracker
 {
 public:
-	static FLoadTimeTracker& Get()
-	{
-		static FLoadTimeTracker Singleton;
-		return Singleton;
-	}
+	static FLoadTimeTracker& Get();
 
 	/** Adds a scoped time for a given label.  Records each instance individually */
 	void ReportScopeTime(double ScopeTime, const FName ScopeLabel);

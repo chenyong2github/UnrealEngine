@@ -1919,6 +1919,9 @@ public:
 	/** 3rd party audio spatialization interface. */
 	TAudioSpatializationPtr SpatializationPluginInterface;
 
+	/** 3rd party source data override interface. */
+	TAudioSourceDataOverridePtr SourceDataOverridePluginInterface;
+
 	/** 3rd party reverb interface. */
 	TAudioReverbPtr ReverbPluginInterface;
 

@@ -403,6 +403,10 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformSDL::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
 #if WITH_ENGINE
+		if (!InSoundWave.IsValid())
+		{
+			return nullptr;
+		}
 
 #if WITH_BINK_AUDIO
 		if (InSoundWave->UseBinkAudio())
@@ -421,7 +425,13 @@ namespace Audio
 			return new FOpusAudioInfo();
 		}
 
-		return nullptr;
+		static FName NAME_OGG(TEXT("OGG"));
+		if (InSoundWave->HasCompressedData(NAME_OGG))
+		{
+			return new FVorbisAudioInfo();
+		}
+
+		return new FADPCMAudioInfo();
 #else
 		checkNoEntry();
 		return nullptr;

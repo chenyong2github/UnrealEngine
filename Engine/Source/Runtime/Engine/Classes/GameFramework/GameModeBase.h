@@ -543,17 +543,15 @@ protected:
 	 * Notifies all clients to travel to the specified URL.
 	 *
 	 * @param	URL				a string containing the mapname (or IP address) to travel to, along with option key/value pairs
-	 * @param	NextMapGuid		the GUID of the server's version of the next map
 	 * @param	bSeamless		indicates whether the travel should use seamless travel or not.
 	 * @param	bAbsolute		indicates which type of travel the server will perform (i.e. TRAVEL_Relative or TRAVEL_Absolute)
 	 */
+	virtual APlayerController* ProcessClientTravel(FString& URL, bool bSeamless, bool bAbsolute);
+
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use ProcessClientTravel without a NextMapGuid.")
-	virtual APlayerController* ProcessClientTravel(FString& URL, FGuid NextMapGuid, bool bSeamless, bool bAbsolute);
-	virtual APlayerController* ProcessClientTravel(FString& URL, bool bSeamless, bool bAbsolute)
+	virtual APlayerController* ProcessClientTravel(FString& URL, FGuid NextMapGuid, bool bSeamless, bool bAbsolute)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return ProcessClientTravel(URL, FGuid(), bSeamless, bAbsolute);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return ProcessClientTravel(URL, bSeamless, bAbsolute);
 	}
 
 	/** Handles initializing a seamless travel player, handles logic similar to InitNewPlayer */

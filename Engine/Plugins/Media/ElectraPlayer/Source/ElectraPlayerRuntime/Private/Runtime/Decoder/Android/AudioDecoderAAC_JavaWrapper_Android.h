@@ -129,6 +129,16 @@ public:
 	virtual int32 QueueInputBuffer(int32 InBufferIndex, const void* InAccessUnitData, int32 InAccessUnitSize, int64 InTimestampUSec) = 0;
 
 	/**
+	 * Queues end of stream for the buffer with a previously dequeued (calling DequeueInputBuffer()) index.
+	 *
+	 * @param InBufferIndex Index of the buffer to put the EOS flag into and enqueue for decoding (see DequeueInputBuffer()).
+	 * @param InTimestampUSec Timestamp the previous data had. Can be 0.
+	 *
+	 * @return 0 if successful, 1 on error.
+	 */
+	virtual int32 QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec) = 0;
+
+	/**
 	 * Returns format information of the decoded samples.
 	 *
 	 * @param OutFormatInfo

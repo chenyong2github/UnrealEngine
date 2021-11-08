@@ -140,5 +140,20 @@ FOptionalComponentWriter FEntityAllocation::TryWriteComponentsErased(FComponentT
 	return FOptionalComponentWriter();
 }
 
+const FEntityAllocation* FEntityAllocationProxy::GetAllocation() const
+{
+	return Manager->EntityAllocations[AllocationIndex];
+}
+
+FEntityAllocation* FEntityAllocationProxy::GetAllocation()
+{
+	return Manager->EntityAllocations[AllocationIndex];
+}
+
+const FComponentMask& FEntityAllocationProxy::GetAllocationType() const
+{
+	return Manager->EntityAllocationMasks[AllocationIndex];
+}
+
 } // namespace MovieScene
 } // namespace UE

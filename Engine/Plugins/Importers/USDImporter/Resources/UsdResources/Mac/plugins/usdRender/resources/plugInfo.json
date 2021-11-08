@@ -65,7 +65,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdRender.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdRender.dylib", 
             "Name": "usdRender", 
             "ResourcePath": "resources", 
             "Root": "..", 

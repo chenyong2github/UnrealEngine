@@ -21,10 +21,6 @@ void SDMXEntityTreeViewBase::Construct(const FArguments& InArgs)
 {
 	// Initialize Widget input variables
 	DMXEditor = InArgs._DMXEditor;
-	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
-	OnEntitiesAdded = InArgs._OnEntitiesAdded;
-	OnEntityOrderChanged = InArgs._OnEntityOrderChanged;
-	OnEntitiesRemoved = InArgs._OnEntitiesRemoved;
 
 	// listen to common editor shortcuts for copy/paste etc
 	CommandList = MakeShared<FUICommandList>();
@@ -134,12 +130,42 @@ SDMXEntityTreeViewBase::~SDMXEntityTreeViewBase()
 	GEditor->UnregisterForUndo(this);
 }
 
-void SDMXEntityTreeViewBase::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
+void SDMXEntityTreeViewBase::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	check(EntitiesTreeWidget.IsValid());
+	if (RefreshTreeViewState != EDMXRefreshTreeViewState::NoRefreshRequested)
+	{
+		const bool bRegenerateNodes = RefreshTreeViewState == EDMXRefreshTreeViewState::RegenerateNodes;
+		UpdateTreeInternal(bRegenerateNodes);
 
+		RefreshTreeViewState = EDMXRefreshTreeViewState::NoRefreshRequested;
+	}
+
+	if (PendingSelection.Num() > 0)
+	{
+		// Clear search filter
+		FilterBox->SetText(FText::GetEmpty());
+
+		// Expand the parent nodes
+		for (const TSharedPtr<FDMXEntityTreeNodeBase>& SelectedNode : PendingSelection)
+		{
+			for (TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = SelectedNode->GetParent().Pin(); ParentNode.IsValid(); ParentNode = ParentNode->GetParent().Pin())
+			{
+				EntitiesTreeWidget->SetItemExpansion(ParentNode, true);
+			}
+		}
+
+		EntitiesTreeWidget->ClearSelection();
+		EntitiesTreeWidget->SetItemSelection(PendingSelection, true, ESelectInfo::OnMouseClick);
+		EntitiesTreeWidget->RequestScrollIntoView(PendingSelection[0]);
+
+		PendingSelection.Reset();
+	}
+}
+
+void SDMXEntityTreeViewBase::UpdateTreeInternal(bool bRegenerateTreeNodes /*= true*/)
+{
 	// the DMXEditor may have been closed, no need to update the tree
-	if (DMXEditor.IsValid())
+	if (DMXEditor.IsValid() && EntitiesTreeWidget.IsValid())
 	{
 		if (bRegenerateTreeNodes)
 		{
@@ -149,12 +175,6 @@ void SDMXEntityTreeViewBase::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
 
 			// Obtain the list of selected items
 			TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedTreeNodes = EntitiesTreeWidget->GetSelectedItems();
-
-			// Clear the current tree
-			if (SelectedTreeNodes.Num() != 0)
-			{
-				EntitiesTreeWidget->ClearSelection();
-			}
 
 			RootNode->ClearChildren();
 			RebuildNodes(RootNode);
@@ -174,47 +194,22 @@ void SDMXEntityTreeViewBase::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
 					EntitiesTreeWidget->SetItemExpansion(NodeToExpandPtr, true);
 				}
 			}
-
-			if (SelectedTreeNodes.Num() > 0)
-			{
-				// Restore the previous selection state on the new tree nodes
-				for (int32 i = 0; i < SelectedTreeNodes.Num(); ++i)
-				{
-					if (SelectedTreeNodes[i]->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::EntityNode)
-					{
-						TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = StaticCastSharedPtr<FDMXEntityTreeEntityNode>(SelectedTreeNodes[i]);
-						TSharedPtr<FDMXEntityTreeEntityNode> NodeToSelectPtr = FindNodeByEntity(EntityNode->GetEntity());
-						if (NodeToSelectPtr.IsValid())
-						{
-							EntitiesTreeWidget->SetItemSelection(NodeToSelectPtr, true, ESelectInfo::Direct);
-						}
-					}
-				}
-			}
 		}
 
 		// Refresh the Tree Widget
 		EntitiesTreeWidget->RequestTreeRefresh();
+	}
+}
 
-		// If no entity is selected, select first available one, if any
-		if (EntitiesTreeWidget->GetNumItemsSelected() == 0)
-		{
-			UDMXLibrary* Library = GetDMXLibrary();
-			check(Library != nullptr);
-
-			// Find the first non filtered out entity
-			for (UDMXEntity* Entity : Library->GetEntities())
-			{
-				if (TSharedPtr<FDMXEntityTreeNodeBase> EntityNode = FindNodeByEntity(Entity))
-				{
-					if (!EntityNode->IsFlaggedForFiltration())
-					{
-						EntitiesTreeWidget->SetSelection(EntityNode, ESelectInfo::OnMouseClick);
-						break;
-					}
-				}
-			}
-		}
+void SDMXEntityTreeViewBase::UpdateTree(bool bRegenerateTreeNodes)
+{
+	if (bRegenerateTreeNodes)
+	{
+		RefreshTreeViewState = EDMXRefreshTreeViewState::RegenerateNodes;
+	}
+	else
+	{
+		RefreshTreeViewState = EDMXRefreshTreeViewState::UpdateNodes;
 	}
 }
 
@@ -254,7 +249,7 @@ TSharedPtr<FDMXEntityTreeEntityNode> SDMXEntityTreeViewBase::FindNodeByEntity(co
 			}
 		}
 
-		// Test children recursive
+		// Test children 
 		for (const TSharedPtr<FDMXEntityTreeNodeBase>& ChildNode : StartNode->GetChildren())
 		{
 			TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = FindNodeByEntity(Entity, ChildNode);
@@ -304,21 +299,7 @@ TSharedPtr<FDMXEntityTreeNodeBase> SDMXEntityTreeViewBase::FindNodeByName(const 
 
 void SDMXEntityTreeViewBase::SelectItemByNode(const TSharedRef<FDMXEntityTreeNodeBase>& Node, ESelectInfo::Type SelectInfo)
 {
-	// If Node is filtered out, we won't be able to select it
-	if (Node->IsFlaggedForFiltration())
-	{
-		FilterBox->SetText(FText::GetEmpty());
-	}
-
-	// Expand the parent nodes
-	for (TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = Node->GetParent().Pin(); ParentNode.IsValid(); ParentNode = ParentNode->GetParent().Pin())
-	{
-		EntitiesTreeWidget->SetItemExpansion(ParentNode, true);
-	}
-
-	EntitiesTreeWidget->SetSelection(Node, SelectInfo);
-	EntitiesTreeWidget->RequestScrollIntoView(Node);
-	FSlateApplication::Get().SetKeyboardFocus(EntitiesTreeWidget, EFocusCause::SetDirectly);
+	PendingSelection = { Node };
 }
 
 void SDMXEntityTreeViewBase::SelectItemByEntity(const UDMXEntity* Entity, ESelectInfo::Type SelectInfo /*= ESelectInfo::Direct*/)
@@ -333,67 +314,30 @@ void SDMXEntityTreeViewBase::SelectItemByEntity(const UDMXEntity* Entity, ESelec
 		const TSharedPtr<FDMXEntityTreeNodeBase>& ItemNode = FindNodeByEntity(Entity);
 		if (ItemNode.IsValid())
 		{
-			// If ItemNode is filtered out, we won't be able to select it
-			if (ItemNode->IsFlaggedForFiltration())
-			{
-				FilterBox->SetText(FText::GetEmpty());
-			}
-
-			// Expand the parent nodes
-			for (TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = ItemNode->GetParent().Pin(); ParentNode.IsValid(); ParentNode = ParentNode->GetParent().Pin())
-			{
-				EntitiesTreeWidget->SetItemExpansion(ParentNode, true);
-			}
-
-			EntitiesTreeWidget->SetSelection(ItemNode, SelectInfo);
-			EntitiesTreeWidget->RequestScrollIntoView(ItemNode);
-			FSlateApplication::Get().SetKeyboardFocus(EntitiesTreeWidget, EFocusCause::SetDirectly);
+			PendingSelection = { ItemNode };
 		}
 	}
 }
 
 void SDMXEntityTreeViewBase::SelectItemsByEntities(const TArray<UDMXEntity*>& InEntities, ESelectInfo::Type SelectInfo /*= ESelectInfo::Direct*/)
 {
-	EntitiesTreeWidget->ClearSelection();
-
-	if (InEntities.Num() > 0)
+	// Check if the tree is being told to clear
+	if (InEntities.Num() == 0)
 	{
-		TSharedPtr<FDMXEntityTreeNodeBase> FirstNode;
+		EntitiesTreeWidget->ClearSelection();
+	}
+	else
+	{
 		TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedNodes;
 		for (UDMXEntity* Entity : InEntities)
 		{
-			if (Entity == nullptr)
-			{
-				continue;
-			}
-
-			// Find the Entity node for this Entity
-
 			if (TSharedPtr<FDMXEntityTreeNodeBase> EntityNode = FindNodeByEntity(Entity))
 			{
+				const TSharedPtr<FDMXEntityTreeNodeBase>& ItemNode = FindNodeByEntity(Entity);
 				SelectedNodes.Add(EntityNode);
-
-				if (!FirstNode.IsValid())
-				{
-					FirstNode = EntityNode;
-				}
 			}
 		}
-		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true, ESelectInfo::OnMouseClick);
-
-		// Scroll the first selected node into view
-		if (FirstNode.IsValid())
-		{
-			EntitiesTreeWidget->RequestScrollIntoView(FirstNode);
-		}
-
-		// Notify about the new selection
-		if (SelectInfo != ESelectInfo::Direct)
-		{
-			UpdateSelectionFromNodes(EntitiesTreeWidget->GetSelectedItems());
-		}
-
-		FSlateApplication::Get().SetKeyboardFocus(EntitiesTreeWidget, EFocusCause::SetDirectly);
+		PendingSelection = SelectedNodes;
 	}
 }
 
@@ -409,21 +353,7 @@ void SDMXEntityTreeViewBase::SelectItemByName(const FString& ItemName, ESelectIn
 		const TSharedPtr<FDMXEntityTreeNodeBase>& ItemNode = FindNodeByName(FText::FromString(ItemName));
 		if (ItemNode.IsValid())
 		{
-			// If ItemNode is filtered out, we won't be able to select it
-			if (ItemNode->IsFlaggedForFiltration())
-			{
-				FilterBox->SetText(FText::GetEmpty());
-			}
-
-			// Expand the parent nodes
-			for (TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = ItemNode->GetParent().Pin(); ParentNode.IsValid(); ParentNode = ParentNode->GetParent().Pin())
-			{
-				EntitiesTreeWidget->SetItemExpansion(ParentNode, true);
-			}
-
-			EntitiesTreeWidget->SetSelection(ItemNode, SelectInfo);
-			EntitiesTreeWidget->RequestScrollIntoView(ItemNode);
-			FSlateApplication::Get().SetKeyboardFocus(EntitiesTreeWidget, EFocusCause::SetDirectly);
+			PendingSelection = { ItemNode };
 		}
 	}
 }
@@ -579,14 +509,6 @@ void SDMXEntityTreeViewBase::OnExpansionChanged(TSharedPtr<FDMXEntityTreeNodeBas
 	}
 }
 
-void SDMXEntityTreeViewBase::OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo)
-{
-	if (SelectInfo != ESelectInfo::Direct)
-	{
-		UpdateSelectionFromNodes(EntitiesTreeWidget->GetSelectedItems());
-	}
-}
-
 bool SDMXEntityTreeViewBase::RefreshFilteredState(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bRecursive)
 {
 	FString FilterText = FText::TrimPrecedingAndTrailing(GetFilterText()).ToString();
@@ -623,16 +545,6 @@ bool SDMXEntityTreeViewBase::RefreshFilteredState(TSharedPtr<FDMXEntityTreeNodeB
 
 	RefreshFilteredState_Inner::RefreshFilteredState(Node, FilterTerms, bRecursive);
 	return Node->IsFlaggedForFiltration();
-}
-
-void SDMXEntityTreeViewBase::UpdateSelectionFromNodes(const TArray<TSharedPtr<FDMXEntityTreeNodeBase>>& SelectedNodes)
-{
-	bUpdatingSelection = true;
-
-	// Notify that the selection has updated
-	OnSelectionChangedDelegate.ExecuteIfBound(GetSelectedEntities());
-
-	bUpdatingSelection = false;
 }
 
 void SDMXEntityTreeViewBase::OnFilterTextChanged(const FText& InFilterText)
@@ -706,10 +618,6 @@ void SDMXEntityTreeViewBase::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyA
 	if (IsInTab(NewlyActivated))
 	{
 		UpdateTree();
-
-		// Refresh selected entities' properties on the inspector panel by issuing a selection update.
-		// Some properties might have been changed on a previously selected tab.
-		UpdateSelectionFromNodes(EntitiesTreeWidget->GetSelectedItems());
 	}
 }
 

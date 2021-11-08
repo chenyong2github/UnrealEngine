@@ -27,10 +27,6 @@ bool FOculusBuildAnalytics::IsOculusHMDAvailable()
 
 void FOculusBuildAnalytics::Shutdown()
 {
-	if (instance != NULL)
-	{
-		FOculusHMDModule::GetPluginWrapper().SetDeveloperMode(false);
-	}
 }
 
 FOculusBuildAnalytics::FOculusBuildAnalytics()

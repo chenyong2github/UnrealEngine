@@ -21,10 +21,6 @@
 #define IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD 0
 #endif
 
-#ifndef DEFAULT_FORK_PROCESS_MULTITHREAD
-	#define DEFAULT_FORK_PROCESS_MULTITHREAD 0
-#endif
-
 DEFINE_STAT( STAT_EventWaitWithId );
 DEFINE_STAT( STAT_EventTriggerWithId );
 
@@ -1124,7 +1120,7 @@ public:
 		return bWasSuccessful;
 	}
 
-	virtual void Destroy() override
+	virtual void Destroy() override final
 	{
 		if (SynchQueue)
 		{
@@ -1496,59 +1492,6 @@ protected:
 		}
 	}
 };
-
-//-------------------------------------------------------------------------------
-// ForkableThreadHelper
-//-------------------------------------------------------------------------------
-
-bool FForkProcessHelper::bIsForkedMultithreadInstance = false;
-bool FForkProcessHelper::bIsForkedChildProcess = false;
-
-bool FForkProcessHelper::IsForkedChildProcess()
-{
-	return bIsForkedChildProcess;
-}
-
-void FForkProcessHelper::SetIsForkedChildProcess()
-{
-	bIsForkedChildProcess = true;
-}
-
-void FForkProcessHelper::OnForkingOccured()
-{
-	if( SupportsMultithreadingPostFork() )
-	{
-		ensureMsgf(GMalloc->IsInternallyThreadSafe(), TEXT("The BaseAllocator %s is not threadsafe. Switch to a multithread allocator or ensure the FMallocThreadSafeProxy wraps it."), GMalloc->GetDescriptiveName());
-
-		bIsForkedMultithreadInstance = true;
-
-		// Use a local list of forkable threads so we don't keep a lock on the global list during thread creation
-		auto ForkableThreads = FThreadManager::Get().GetForkableThreads();
-		for (FRunnableThread* ForkableThread : ForkableThreads)
-		{
-			ForkableThread->OnPostFork();
-		}
-	}
-}
-
-bool FForkProcessHelper::IsForkedMultithreadInstance()
-{
-	return bIsForkedMultithreadInstance;
-}
-
-bool FForkProcessHelper::SupportsMultithreadingPostFork()
-{
-	check(FCommandLine::IsInitialized());
-#if DEFAULT_FORK_PROCESS_MULTITHREAD
-	// Always multi thread unless manually turned off via command line
-	static bool bSupportsMT = FParse::Param(FCommandLine::Get(), TEXT("DisablePostForkThreading")) == false;
-	return bSupportsMT;
-#else
-	// Always single thread unless manually turned on via command line
-	static bool bSupportsMT = FParse::Param(FCommandLine::Get(), TEXT("PostForkThreading")) == true;
-	return bSupportsMT;
-#endif
-}
 
 FRunnableThread* FForkProcessHelper::CreateForkableThread(class FRunnable* InRunnable, const TCHAR* InThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags)
 {

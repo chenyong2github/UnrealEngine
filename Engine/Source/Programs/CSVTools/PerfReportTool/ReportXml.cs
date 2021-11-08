@@ -92,7 +92,7 @@ namespace PerfReportTool
 					baseDirectory = Path.Combine(baseDirectory, baseXMLDirectoryOverride);
 				}
 			}
-			Console.Out.WriteLine("BaseDir: " + baseDirectory);
+			Console.Out.WriteLine("BaseDir:   " + baseDirectory);
 
 			baseXmlDirectory = baseDirectory;
 
@@ -110,6 +110,7 @@ namespace PerfReportTool
 					reportTypeXmlFilename = Path.Combine(baseDirectory, reportXMLFilenameIn);
 				}
 			}
+			Console.Out.WriteLine("ReportXML: " + reportTypeXmlFilename);
 			XDocument reportTypesDoc = XDocument.Load(reportTypeXmlFilename);
 			rootElement = reportTypesDoc.Element("root");
 			if (rootElement == null)
@@ -150,9 +151,7 @@ namespace PerfReportTool
 
 			}
 
-
-
-
+			Console.Out.WriteLine("GraphXML:  " + graphsXMLFilename+"\n");
 			XDocument reportGraphsDoc = XDocument.Load(graphsXMLFilename);
 			graphGroupsElement = reportGraphsDoc.Element("graphGroups");
 
@@ -437,6 +436,16 @@ namespace PerfReportTool
 		public void ApplyDerivedMetadata(CsvMetadata csvMetadata)
 		{
 			derivedMetadataMappings.ApplyMapping(csvMetadata);
+		}
+
+		public List<string> GetSummaryTableNames()
+		{
+			return summaryTables.Keys.ToList();
+		}
+
+		public string GetReportXmlFilename()
+		{
+			return reportTypeXmlFilename;
 		}
 
 

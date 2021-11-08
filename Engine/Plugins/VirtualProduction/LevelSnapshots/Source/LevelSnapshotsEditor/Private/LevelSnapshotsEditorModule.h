@@ -5,13 +5,15 @@
 #include "CoreMinimal.h"
 
 #include "ISettingsSection.h"
+#include "LevelSnapshotsEditorSettings.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Docking/SDockTab.h"
 
-class ULevelSnapshotsEditorProjectSettings;
-class ULevelSnapshotsEditorDataManagementSettings;
+class ULevelSnapshotsSettings;
+class ULevelSnapshotsEditorSettings;
 class FToolBarBuilder;
-class FLevelSnapshotsEditorToolkit;
+class SLevelSnapshotsEditor;
 class ULevelSnapshotsEditorData;
 
 class FLevelSnapshotsEditorModule : public IModuleInterface
@@ -26,40 +28,33 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	bool GetUseCreationForm() const;
-	void SetUseCreationForm(bool bInUseCreationForm);
-	void ToggleUseCreationForm() { SetUseCreationForm(!GetUseCreationForm()); }
+	static bool GetUseCreationForm() { return ULevelSnapshotsEditorSettings::Get()->bUseCreationForm; }
+	static void SetUseCreationForm(bool bInUseCreationForm) { ULevelSnapshotsEditorSettings::Get()->bUseCreationForm = bInUseCreationForm; }
+	static void ToggleUseCreationForm() { SetUseCreationForm(!GetUseCreationForm()); }
 
 	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData);
-
-	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> GetLevelSnapshotsUserSettings() const { return ProjectSettingsObjectPtr; }
-	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> GetLevelSnapshotsDataManagementSettings() const { return DataMangementSettingsObjectPtr; }
+	void OpenSnapshotsEditor();
 
 private:
-	
-	void PostEngineInit();
 
-	void RegisterMenuItem();
-	bool RegisterProjectSettings();
+	void RegisterTabSpawner();
+	void UnregisterTabSpawner();
+
+	TSharedRef<SDockTab> SpawnLevelSnapshotsTab(const FSpawnTabArgs& SpawnTabArgs);
+	ULevelSnapshotsEditorData* AllocateTransientPreset();
+	
 	bool HandleModifiedProjectSettings();
 	
 	void RegisterEditorToolbar();
 	void MapEditorToolbarActions();
 	TSharedRef<SWidget> FillEditorToolbarComboButtonMenuOptions(TSharedPtr<class FUICommandList> Commands);
 
-	void OpenSnapshotsEditor();
-	ULevelSnapshotsEditorData* AllocateTransientPreset();
-
 	
 	/** Command list (for combo button sub menu options) */
 	TSharedPtr<FUICommandList> EditorToolbarButtonCommandList;
 
 	/** Lives for as long as the UI is open. */
-	TWeakPtr<FLevelSnapshotsEditorToolkit> SnapshotEditorToolkit;
+	TWeakPtr<SLevelSnapshotsEditor> WeakSnapshotEditor;
 
-	TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr;
-	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingsObjectPtr;
-	
 	TSharedPtr<ISettingsSection> DataMangementSettingsSectionPtr;
-	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataMangementSettingsObjectPtr;
 };

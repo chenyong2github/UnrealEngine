@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -47,23 +47,16 @@ namespace AutomationTool
 		/// Writes this agent group out to a file, filtering nodes by a controlling trigger
 		/// </summary>
 		/// <param name="Writer">The XML writer to output to</param>
-		/// <param name="ControllingTrigger">The controlling trigger to filter by</param>
-		public void Write(XmlWriter Writer, ManualTrigger ControllingTrigger)
+		public void Write(XmlWriter Writer)
 		{
-			if (Nodes.Any(x => x.ControllingTrigger == ControllingTrigger))
+			Writer.WriteStartElement("Agent");
+			Writer.WriteAttributeString("Name", Name);
+			Writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
+			foreach (Node Node in Nodes)
 			{
-				Writer.WriteStartElement("Agent");
-				Writer.WriteAttributeString("Name", Name);
-				Writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
-				foreach (Node Node in Nodes)
-				{
-					if (Node.ControllingTrigger == ControllingTrigger)
-					{
-						Node.Write(Writer);
-					}
-				}
-				Writer.WriteEndElement();
+				Node.Write(Writer);
 			}
+			Writer.WriteEndElement();
 		}
 	}
 }

@@ -50,6 +50,8 @@ void AWorldDataLayers::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& O
 
 	DOREPLIFETIME(AWorldDataLayers, RepLoadedDataLayerNames);
 	DOREPLIFETIME(AWorldDataLayers, RepActiveDataLayerNames);
+	DOREPLIFETIME(AWorldDataLayers, RepEffectiveLoadedDataLayerNames);
+	DOREPLIFETIME(AWorldDataLayers, RepEffectiveActiveDataLayerNames);
 }
 
 void AWorldDataLayers::BeginPlay()
@@ -60,7 +62,7 @@ void AWorldDataLayers::BeginPlay()
 	// Unfortunately this can't be tested in the PostLoad as the World doesn't have a demo driver yet.
 	if (GetWorld()->IsPlayingReplay())
 	{
-		ResetDataLayerStates();
+		ResetDataLayerRuntimeStates();
 	}
 }
 
@@ -69,10 +71,10 @@ void AWorldDataLayers::RewindForReplay()
 	Super::RewindForReplay();
 
 	// Same as BeginPlay when rewinding we want to reset our state to CDO (empty) and rely on Replay/Replication.
-	ResetDataLayerStates();
+	ResetDataLayerRuntimeStates();
 }
 
-void AWorldDataLayers::InitializeDataLayerStates()
+void AWorldDataLayers::InitializeDataLayerRuntimeStates()
 {
 	check(ActiveDataLayerNames.IsEmpty() && LoadedDataLayerNames.IsEmpty());
 
@@ -80,13 +82,13 @@ void AWorldDataLayers::InitializeDataLayerStates()
 	{
 		ForEachDataLayer([this](class UDataLayer* DataLayer)
 		{
-			if (DataLayer && DataLayer->IsDynamicallyLoaded())
+			if (DataLayer && DataLayer->IsRuntime())
 			{
-				if (DataLayer->GetInitialState() == EDataLayerState::Activated)
+				if (DataLayer->GetInitialRuntimeState() == EDataLayerRuntimeState::Activated)
 				{
 					ActiveDataLayerNames.Add(DataLayer->GetFName());
 				}
-				else if (DataLayer->GetInitialState() == EDataLayerState::Loaded)
+				else if (DataLayer->GetInitialRuntimeState() == EDataLayerRuntimeState::Loaded)
 				{
 					LoadedDataLayerNames.Add(DataLayer->GetFName());
 				}
@@ -97,39 +99,56 @@ void AWorldDataLayers::InitializeDataLayerStates()
 		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
 		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
 
-		UE_LOG(LogWorldPartition, Log, TEXT("Initial Data Layer States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepLoadedDataLayerNames));
+		ForEachDataLayer([this](class UDataLayer* DataLayer)
+		{
+			if (DataLayer && DataLayer->IsRuntime())
+			{
+				ResolveEffectiveRuntimeState(DataLayer, /*bNotifyChange*/false);
+			}
+			return true;
+		});
+
+		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
+		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
+
+		UE_LOG(LogWorldPartition, Log, TEXT("Initial Data Layer Effective States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepEffectiveActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepEffectiveLoadedDataLayerNames));
 	}
 }
 
-void AWorldDataLayers::ResetDataLayerStates()
+void AWorldDataLayers::ResetDataLayerRuntimeStates()
 {
 	ActiveDataLayerNames.Reset();
 	LoadedDataLayerNames.Reset();
 	RepActiveDataLayerNames.Reset();
 	RepLoadedDataLayerNames.Reset();
+
+	EffectiveActiveDataLayerNames.Reset();
+	EffectiveLoadedDataLayerNames.Reset();
+	RepEffectiveActiveDataLayerNames.Reset();
+	RepEffectiveLoadedDataLayerNames.Reset();
 }
 
-void AWorldDataLayers::SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState)
+void AWorldDataLayers::SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDataLayerRuntimeState InState)
 {
 	if (ensure(GetLocalRole() == ROLE_Authority))
 	{
 		const UDataLayer* DataLayer = GetDataLayerFromName(InDataLayer.Name);
-		if (!DataLayer || !DataLayer->IsDynamicallyLoaded())
+		if (!DataLayer || !DataLayer->IsRuntime())
 		{
 			return;
 		}
 
-		EDataLayerState CurrentState = GetDataLayerStateByName(InDataLayer.Name);
+		EDataLayerRuntimeState CurrentState = GetDataLayerRuntimeStateByName(InDataLayer.Name);
 		if (CurrentState != InState)
 		{
 			LoadedDataLayerNames.Remove(InDataLayer.Name);
 			ActiveDataLayerNames.Remove(InDataLayer.Name);
 
-			if (InState == EDataLayerState::Loaded)
+			if (InState == EDataLayerRuntimeState::Loaded)
 			{
 				LoadedDataLayerNames.Add(InDataLayer.Name);
 			}
-			else if (InState == EDataLayerState::Activated)
+			else if (InState == EDataLayerRuntimeState::Activated)
 			{
 				ActiveDataLayerNames.Add(InDataLayer.Name);
 			}
@@ -142,18 +161,18 @@ void AWorldDataLayers::SetDataLayerState(FActorDataLayer InDataLayer, EDataLayer
 
 			UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' state changed: %s -> %s"), 
 				*DataLayer->GetDataLayerLabel().ToString(), 
-				*StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString(),
-				*StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)InState).ToString());
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString(),
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)InState).ToString());
 
-			OnDataLayerStateChanged(DataLayer, InState);
+			ResolveEffectiveRuntimeState(DataLayer);
 		}
 	}
 }
 
-void AWorldDataLayers::OnDataLayerStateChanged_Implementation(const UDataLayer* InDataLayer, EDataLayerState InState)
+void AWorldDataLayers::OnDataLayerRuntimeStateChanged_Implementation(const UDataLayer* InDataLayer, EDataLayerRuntimeState InState)
 {
 	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	DataLayerSubsystem->OnDataLayerStateChanged.Broadcast(InDataLayer, InState);
+	DataLayerSubsystem->OnDataLayerRuntimeStateChanged.Broadcast(InDataLayer, InState);
 }
 
 void AWorldDataLayers::OnRep_ActiveDataLayerNames()
@@ -168,24 +187,187 @@ void AWorldDataLayers::OnRep_LoadedDataLayerNames()
 	LoadedDataLayerNames.Append(RepLoadedDataLayerNames);
 }
 
-EDataLayerState AWorldDataLayers::GetDataLayerStateByName(FName InDataLayerName) const
+EDataLayerRuntimeState AWorldDataLayers::GetDataLayerRuntimeStateByName(FName InDataLayerName) const
 {
 	if (ActiveDataLayerNames.Contains(InDataLayerName))
 	{
 		check(!LoadedDataLayerNames.Contains(InDataLayerName));
-		return EDataLayerState::Activated;
+		return EDataLayerRuntimeState::Activated;
 	}
 	else if (LoadedDataLayerNames.Contains(InDataLayerName))
 	{
 		check(!ActiveDataLayerNames.Contains(InDataLayerName));
-		return EDataLayerState::Loaded;
+		return EDataLayerRuntimeState::Loaded;
 	}
 
-	return EDataLayerState::Unloaded;
+	return EDataLayerRuntimeState::Unloaded;
+}
+
+void AWorldDataLayers::OnRep_EffectiveActiveDataLayerNames()
+{
+	EffectiveActiveDataLayerNames.Reset();
+	EffectiveActiveDataLayerNames.Append(RepEffectiveActiveDataLayerNames);
+}
+
+void AWorldDataLayers::OnRep_EffectiveLoadedDataLayerNames()
+{
+	EffectiveLoadedDataLayerNames.Reset();
+	EffectiveLoadedDataLayerNames.Append(RepEffectiveLoadedDataLayerNames);
+}
+
+EDataLayerRuntimeState AWorldDataLayers::GetDataLayerEffectiveRuntimeStateByName(FName InDataLayerName) const
+{
+	if (EffectiveActiveDataLayerNames.Contains(InDataLayerName))
+	{
+		check(!EffectiveLoadedDataLayerNames.Contains(InDataLayerName));
+		return EDataLayerRuntimeState::Activated;
+	}
+	else if (EffectiveLoadedDataLayerNames.Contains(InDataLayerName))
+	{
+		check(!EffectiveActiveDataLayerNames.Contains(InDataLayerName));
+		return EDataLayerRuntimeState::Loaded;
+	}
+
+	return EDataLayerRuntimeState::Unloaded;
+}
+
+void AWorldDataLayers::ResolveEffectiveRuntimeState(const UDataLayer* InDataLayer, bool bInNotifyChange)
+{
+	check(InDataLayer);
+	const FName DataLayerName = InDataLayer->GetFName();
+	EDataLayerRuntimeState CurrentEffectiveRuntimeState = GetDataLayerEffectiveRuntimeStateByName(DataLayerName);
+	EDataLayerRuntimeState NewEffectiveRuntimeState = GetDataLayerRuntimeStateByName(DataLayerName);
+	const UDataLayer* Parent = InDataLayer->GetParent();
+	while (Parent && (NewEffectiveRuntimeState != EDataLayerRuntimeState::Unloaded))
+	{
+		if (Parent->IsRuntime())
+		{
+			// Apply min logic with parent DataLayers
+			NewEffectiveRuntimeState = (EDataLayerRuntimeState)FMath::Min((int32)NewEffectiveRuntimeState, (int32)GetDataLayerRuntimeStateByName(Parent->GetFName()));
+		}
+		Parent = Parent->GetParent();
+	};
+
+	if (CurrentEffectiveRuntimeState != NewEffectiveRuntimeState)
+	{
+		EffectiveLoadedDataLayerNames.Remove(DataLayerName);
+		EffectiveActiveDataLayerNames.Remove(DataLayerName);
+
+		if (NewEffectiveRuntimeState == EDataLayerRuntimeState::Loaded)
+		{
+			EffectiveLoadedDataLayerNames.Add(DataLayerName);
+		}
+		else if (NewEffectiveRuntimeState == EDataLayerRuntimeState::Activated)
+		{
+			EffectiveActiveDataLayerNames.Add(DataLayerName);
+		}
+
+		// Update Replicated Properties
+		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
+		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
+
+		++DataLayersStateEpoch;
+
+		if (bInNotifyChange)
+		{
+			UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' effective state changed: %s -> %s"),
+				*InDataLayer->GetDataLayerLabel().ToString(),
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)CurrentEffectiveRuntimeState).ToString(),
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)NewEffectiveRuntimeState).ToString());
+
+			OnDataLayerRuntimeStateChanged(InDataLayer, NewEffectiveRuntimeState);
+		}
+
+		for (const UDataLayer* Child : InDataLayer->GetChildren())
+		{
+			ResolveEffectiveRuntimeState(Child);
+		}
+	}
+}
+
+void AWorldDataLayers::DumpDataLayerRecursively(const UDataLayer* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const
+{
+	auto GetDataLayerRuntimeStateString = [this](const UDataLayer* DataLayer)
+	{
+		if (DataLayer->IsRuntime())
+		{
+			if (!DataLayer->GetWorld()->IsGameWorld())
+			{
+				return FString::Printf(TEXT("(Initial State = %s)"), GetDataLayerRuntimeStateName(DataLayer->GetInitialRuntimeState()));
+			}
+			else
+			{
+				return FString::Printf(TEXT("(Effective State = %s | Target State = %s)"),
+					GetDataLayerRuntimeStateName(GetDataLayerEffectiveRuntimeStateByName(DataLayer->GetFName())),
+					GetDataLayerRuntimeStateName(GetDataLayerRuntimeStateByName(DataLayer->GetFName()))
+				);
+			}
+		}
+		return FString("");
+	};
+
+	OutputDevice.Logf(TEXT(" %s%s%s %s"),
+		*Prefix,
+		(DataLayer->GetChildren().IsEmpty() && DataLayer->GetParent()) ? TEXT("") : TEXT("[+]"),
+		*DataLayer->GetDataLayerLabel().ToString(),
+		*GetDataLayerRuntimeStateString(DataLayer));
+
+	for (const UDataLayer* Child : DataLayer->GetChildren())
+	{
+		DumpDataLayerRecursively(Child, Prefix + TEXT(" | "), OutputDevice);
+	}
+};
+
+void AWorldDataLayers::DumpDataLayers(FOutputDevice& OutputDevice) const
+{
+	OutputDevice.Logf(TEXT("===================================================="));
+	OutputDevice.Logf(TEXT(" Data Layers for World %s"), *GetWorld()->GetName());
+	OutputDevice.Logf(TEXT("===================================================="));
+	OutputDevice.Logf(TEXT(""));
+
+	if (GetWorld()->IsGameWorld())
+	{
+		auto DumpDataLayersRuntimeState = [this, &OutputDevice](const TCHAR* InStateName, const TSet<FName>& InDataLayers)
+		{
+			if (InDataLayers.Num())
+			{
+				OutputDevice.Logf(TEXT(" - %s Data Layers:"), InStateName);
+				for (const FName& DataLayerName : InDataLayers)
+				{
+					if (const UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
+					{
+						OutputDevice.Logf(TEXT("    - %s"), *DataLayer->GetDataLayerLabel().ToString());
+					}
+				}
+			}
+		};
+
+		if (EffectiveLoadedDataLayerNames.Num() || EffectiveActiveDataLayerNames.Num())
+		{
+			OutputDevice.Logf(TEXT("----------------------------------------------------"));
+			OutputDevice.Logf(TEXT(" Data Layers Runtime States"));
+			DumpDataLayersRuntimeState(TEXT("Loaded"), EffectiveLoadedDataLayerNames);
+			DumpDataLayersRuntimeState(TEXT("Active"), EffectiveActiveDataLayerNames);
+			OutputDevice.Logf(TEXT("----------------------------------------------------"));
+			OutputDevice.Logf(TEXT(""));
+		}
+	}
+	
+	OutputDevice.Logf(TEXT("----------------------------------------------------"));
+	OutputDevice.Logf(TEXT(" Data Layers Hierarchy"));
+	ForEachDataLayer([this, &OutputDevice](UDataLayer* DataLayer)
+	{
+		if (DataLayer && !DataLayer->GetParent())
+		{
+			DumpDataLayerRecursively(DataLayer, TEXT(""), OutputDevice);
+		}
+		return true;
+	});
+	OutputDevice.Logf(TEXT("----------------------------------------------------"));
 }
 
 #if WITH_EDITOR
-void AWorldDataLayers::OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiveDataLayers, TArray<FActorDataLayer>* InLoadedDataLayers)
+void AWorldDataLayers::OverwriteDataLayerRuntimeStates(TArray<FActorDataLayer>* InActiveDataLayers, TArray<FActorDataLayer>* InLoadedDataLayers)
 {
 	if (GetLocalRole() == ROLE_Authority)
 	{
@@ -194,9 +376,13 @@ void AWorldDataLayers::OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiv
 		if (InActiveDataLayers)
 		{
 			ActiveDataLayerNames.Empty(InActiveDataLayers->Num());
-			for (const FActorDataLayer& DataLayer : *InActiveDataLayers)
+			for (const FActorDataLayer& ActorDataLayer : *InActiveDataLayers)
 			{
-				ActiveDataLayerNames.Add(DataLayer.Name);
+				const UDataLayer* DataLayer = GetDataLayerFromName(ActorDataLayer);
+				if (DataLayer && DataLayer->IsRuntime())
+				{
+					ActiveDataLayerNames.Add(ActorDataLayer);
+				}
 			}
 			RepActiveDataLayerNames = ActiveDataLayerNames.Array();
 		}
@@ -204,14 +390,32 @@ void AWorldDataLayers::OverwriteDataLayerStates(TArray<FActorDataLayer>* InActiv
 		if (InLoadedDataLayers)
 		{
 			LoadedDataLayerNames.Empty(InLoadedDataLayers->Num());
-			for (const FActorDataLayer& DataLayer : *InLoadedDataLayers)
+			for (const FActorDataLayer& ActorDataLayer : *InLoadedDataLayers)
 			{
-				LoadedDataLayerNames.Add(DataLayer.Name);
+				const UDataLayer* DataLayer = GetDataLayerFromName(ActorDataLayer);
+				if (DataLayer && DataLayer->IsRuntime())
+				{
+					LoadedDataLayerNames.Add(ActorDataLayer);
+				}
 			}
 			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
 		}
 
 		UE_LOG(LogWorldPartition, Log, TEXT("Overwrite Data Layer States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepLoadedDataLayerNames));
+
+		ForEachDataLayer([this](class UDataLayer* DataLayer)
+		{
+			if (DataLayer && DataLayer->IsRuntime())
+			{
+				ResolveEffectiveRuntimeState(DataLayer, /*bNotifyChange*/false);
+			}
+			return true;
+		});
+
+		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
+		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
+
+		UE_LOG(LogWorldPartition, Log, TEXT("Overwrite Data Layer Effective States Activated(%s) Loaded(%s)"), *JoinDataLayerLabelsFromNames(this, RepEffectiveActiveDataLayerNames), *JoinDataLayerLabelsFromNames(this, RepEffectiveLoadedDataLayerNames));
 	}
 }
 
@@ -311,11 +515,12 @@ UDataLayer* AWorldDataLayers::CreateDataLayer(FName InName, EObjectFlags InObjec
 bool AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers)
 {
 	bool bIsModified = false;
-	for (const UDataLayer* DataLayer : InDataLayers)
+	for (UDataLayer* DataLayer : InDataLayers)
 	{
 		if (ContainsDataLayer(DataLayer))
 		{
 			Modify();
+			DataLayer->SetChildParent(DataLayer->GetParent());
 			WorldDataLayers.Remove(const_cast<UDataLayer*>(DataLayer));
 			bIsModified = true;
 		}
@@ -411,19 +616,40 @@ void AWorldDataLayers::PostLoad()
 	GetWorld()->SetWorldDataLayers(this);
 
 #if WITH_EDITOR
+	// Remove all Editor Data Layers when cooking or when in a game world
+	if (IsRunningCookCommandlet() || GetWorld()->IsGameWorld())
+	{
+		ForEachDataLayer([](UDataLayer* DataLayer)
+		{
+			DataLayer->ConditionalPostLoad();
+			return true;
+		});
+
+		TArray<UDataLayer*> EditorDataLayers;
+		ForEachDataLayer([&EditorDataLayers](UDataLayer* DataLayer)
+		{
+			if (DataLayer && !DataLayer->IsRuntime())
+			{
+				EditorDataLayers.Add(DataLayer);
+			}
+			return true;
+		});
+		RemoveDataLayers(EditorDataLayers);
+	}
+
 	// Setup defaults before overriding with user settings
 	for (UDataLayer* DataLayer : WorldDataLayers)
 	{
-		DataLayer->SetIsDynamicallyLoadedInEditor(DataLayer->IsInitiallyLoadedInEditor(), false);
+		DataLayer->SetIsLoadedInEditor(DataLayer->IsInitiallyLoadedInEditor(), /*bFromUserChange*/false);
 	}
 
-	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
+	// Initialize DataLayer's IsLoadedInEditor based on DataLayerEditorPerProjectUserSettings
 	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
 	for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor)
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
 		{
-			DataLayer->SetIsDynamicallyLoadedInEditor(false, false);
+			DataLayer->SetIsLoadedInEditor(false, /*bFromUserChange*/false);
 		}
 	}
 
@@ -432,8 +658,8 @@ void AWorldDataLayers::PostLoad()
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
 		{
-			DataLayer->SetIsDynamicallyLoadedInEditor(true, false);
-}
+			DataLayer->SetIsLoadedInEditor(true, /*bFromUserChange*/false);
+		}
 	}
 
 	bListedInSceneOutliner = true;
@@ -446,7 +672,7 @@ void AWorldDataLayers::PostLoad()
 	}
 #endif
 
-	InitializeDataLayerStates();
+	InitializeDataLayerRuntimeStates();
 }
 
 #undef LOCTEXT_NAMESPACE

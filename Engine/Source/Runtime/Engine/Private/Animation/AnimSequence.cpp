@@ -2320,18 +2320,8 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 	
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = ResampledAnimationTrackData;
 
-	// Presize outgoing arrays
-	const int32 NumAnimationTracks = DataModel->GetNumBoneTracks();
-	NewRawTracks.Reset(NumAnimationTracks);
-	NewAnimationTrackNames.Reset(NumAnimationTracks);
-	NewTrackToSkeletonMapTable.Reset(NumAnimationTracks);
-
-	for (const FBoneAnimationTrack& Track : BoneAnimationTracks)
+	for (FRawAnimSequenceTrack& RawTrack : NewRawTracks)
 	{
-		FRawAnimSequenceTrack& RawTrack = NewRawTracks.Add_GetRef(Track.InternalTrackData);
-		NewAnimationTrackNames.Add(Track.Name);
-		NewTrackToSkeletonMapTable.Add(Track.BoneTreeIndex);
-
 		UE::Anim::Compression::SanitizeRawAnimSequenceTrack(RawTrack);
 	}
 
@@ -4886,12 +4876,12 @@ void UAnimSequence::SynchronousAnimatedBoneAttributesCompression()
 
 void UAnimSequence::MoveAttributesToModel()
 {
-	WaitOnExistingCompression(false);
-
 	USkeleton* TargetSkeleton = GetSkeleton();
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (TargetSkeleton && PerBoneCustomAttributeData.Num())
 	{
+		WaitOnExistingCompression();
+
 		IAnimationDataController::FScopedBracket Bracket(Controller, LOCTEXT("MoveAttributesToModel", "Moving legacy Custom Attributes to Model"));
 
 		for (const FCustomAttributePerBoneData& PerBoneData : PerBoneCustomAttributeData)

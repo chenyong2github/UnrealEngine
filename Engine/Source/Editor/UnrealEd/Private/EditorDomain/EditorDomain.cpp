@@ -2,6 +2,7 @@
 
 #include "EditorDomain/EditorDomain.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/AsyncFileHandleNull.h"
@@ -95,11 +96,16 @@ FEditorDomain::FEditorDomain()
 		OnPostEngineInit();
 	}
 	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FEditorDomain::OnEndLoadPackage);
+	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FEditorDomain::OnPackageSavedWithContext);
+	AssetRegistry->OnAssetUpdatedOnDisk().AddRaw(this, &FEditorDomain::OnAssetUpdatedOnDisk);
 }
 
 FEditorDomain::~FEditorDomain()
 {
 	FScopeLock ScopeLock(&Locks->Lock);
+	// AssetRegistry has already been destructed by this point, do not try to access it.
+	// AssetRegistry->OnAssetUpdatedOnDisk().RemoveAll(this);
+	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	Locks->Owner = nullptr;
@@ -526,3 +532,25 @@ void FEditorDomain::FilterKeepPackagesToSave(TArray<UPackage*>& InOutPackagesToS
 	}
 }
 
+void FEditorDomain::OnPackageSavedWithContext(const FString& PackageFileName, UPackage* Package,
+	FObjectPostSaveContext ObjectSaveContext)
+{
+	if (!ObjectSaveContext.IsUpdatingLoadedPath())
+	{
+		return;
+	}
+	FName PackageName = Package->GetFName();
+	FScopeLock ScopeLock(&Locks->Lock);
+	PackageSources.Remove(PackageName);
+}
+
+void FEditorDomain::OnAssetUpdatedOnDisk(const FAssetData& AssetData)
+{
+	FName PackageName = AssetData.PackageName;
+	if (PackageName.IsNone())
+	{
+		return;
+	}
+	FScopeLock ScopeLock(&Locks->Lock);
+	PackageSources.Remove(PackageName);
+}

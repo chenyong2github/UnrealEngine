@@ -234,23 +234,24 @@ void FMemoryGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 // LLM Tag Series
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::GetMemTagSeries(Insights::FMemoryTagId MemTagId)
+TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::GetMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
-	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([MemTagId](const TSharedPtr<FGraphSeries>& Series)
+	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([InMemTrackerId, InMemTagId](const TSharedPtr<FGraphSeries>& Series)
 	{
 		//TODO: if (Series->Is<FMemoryGraphSeries>())
 		const TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
 		return MemorySeries->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag &&
-			   MemorySeries->GetTagId() == MemTagId;
+			   MemorySeries->GetTrackerId() == InMemTrackerId &&
+			   MemorySeries->GetTagId() == InMemTagId;
 	});
 	return (Ptr != nullptr) ? StaticCastSharedPtr<FMemoryGraphSeries>(*Ptr) : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::AddMemTagSeries(Insights::FMemoryTrackerId MemTrackerId, Insights::FMemoryTagId MemTagId)
+TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::AddMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
-	TSharedPtr<FMemoryGraphSeries> Series = GetMemTagSeries(MemTagId);
+	TSharedPtr<FMemoryGraphSeries> Series = GetMemTagSeries(InMemTrackerId, InMemTagId);
 
 	if (!Series.IsValid())
 	{
@@ -259,8 +260,8 @@ TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::AddMemTagSeries(Insights::FMem
 		Series->SetName(TEXT("LLM Tag"));
 		Series->SetDescription(TEXT("Low Level Memory Tag"));
 
-		Series->SetTrackerId(MemTrackerId);
-		Series->SetTagId(MemTagId);
+		Series->SetTrackerId(InMemTrackerId);
+		Series->SetTagId(InMemTagId);
 		Series->SetValueRange(0.0f, 0.0f);
 
 		Series->SetBaselineY(GetHeight() - 1.0f);
@@ -275,15 +276,16 @@ TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::AddMemTagSeries(Insights::FMem
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 FMemoryGraphTrack::RemoveMemTagSeries(Insights::FMemoryTagId MemTagId)
+int32 FMemoryGraphTrack::RemoveMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
 	SetDirtyFlag();
-	return AllSeries.RemoveAll([MemTagId](const TSharedPtr<FGraphSeries>& GraphSeries)
+	return AllSeries.RemoveAll([InMemTrackerId, InMemTagId](const TSharedPtr<FGraphSeries>& GraphSeries)
 	{
 		//TODO: if (GraphSeries->Is<FMemoryGraphSeries>())
 		const TSharedPtr<FMemoryGraphSeries> Series = StaticCastSharedPtr<FMemoryGraphSeries>(GraphSeries);
 		return Series->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag &&
-			   Series->GetTagId() == MemTagId;
+			   Series->GetTrackerId() == InMemTrackerId &&
+			   Series->GetTagId() == InMemTagId;
 	});
 }
 
@@ -641,87 +643,6 @@ void FMemoryGraphTrack::UpdateAllocationsTimelineSeries(FMemoryGraphSeries& Seri
 			{
 				Builder.AddEvent(TimelineEvent.Time, TimelineEvent.Duration, TimelineEvent.Value);
 			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FMemoryGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
-{
-	FGraphTrack::Draw(Context);
-
-	// Show warnings for series using llm tag id with incompatible tracker.
-	{
-		int WarningCount = 0;
-		float X = 12.0f;
-		float Y = GetPosY() + 12.0f;
-		const float MaxY = GetPosY() + GetHeight() - 8.0f;
-		for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
-		{
-			if (Series->IsVisible())
-			{
-				if (Y > MaxY)
-				{
-					break;
-				}
-
-				//TODO: if (Series->Is<FMemoryGraphSeries>())
-				TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
-
-				if (MemorySeries->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag)
-				{
-					const Insights::FMemoryTag* Tag = SharedState.GetTagList().GetTagById(MemorySeries->GetTagId());
-					const uint64 TrackerFlag = 1ULL << MemorySeries->GetTrackerId();
-
-					if ((Tag->GetTrackers() & TrackerFlag) != TrackerFlag)
-					{
-						FDrawContext& DrawContext = Context.GetDrawContext();
-						const FSlateBrush* Brush = Context.GetHelper().GetWhiteBrush();
-
-						if (WarningCount == 0)
-						{
-							const FText WarningText1 = FText::Format(LOCTEXT("WarningFmt1", "Warning: One or more LLM tags in this graph are not used by the current tracker ({0})!"),
-								SharedState.GetCurrentTracker() ? FText::FromString(SharedState.GetCurrentTracker()->GetName()) : FText::GetEmpty());
-							const FLinearColor WarningTextColor1(1.0f, 0.2f, 0.2f, 1.0f);
-							DrawContext.DrawText(DrawContext.LayerId, X, Y, WarningText1.ToString(), Font, WarningTextColor1);
-							Y += 12.0f;
-
-							const FText WarningText2 = FText::Format(LOCTEXT("WarningLine2", "In order to see graph series for these LLM tags, change the current tracker to one that uses the LLM tag."),
-								SharedState.GetCurrentTracker() ? FText::FromString(SharedState.GetCurrentTracker()->GetName()) : FText::GetEmpty());
-							const FLinearColor WarningTextColor2(0.75f, 0.5f, 0.25f, 1.0f);
-							DrawContext.DrawText(DrawContext.LayerId, X, Y, WarningText2.ToString(), Font, WarningTextColor2);
-							Y += 12.0f;
-						}
-
-						if (Tag->GetTrackers() != 0)
-						{
-							const FText Conjunction = LOCTEXT("WarningTrackersConjunction", " and the ");
-							const FText Text = FText::Format(LOCTEXT("WarningFmt2", "The {0} LLM tag is only used by the {1} tracker(s)."),
-								FText::FromString(Tag->GetStatName()),
-								FText::FromString(SharedState.TrackersToString(Tag->GetTrackers(), *Conjunction.ToString())));
-							const FLinearColor TextColor(1.0f, 0.75f, 0.5f, 1.0f);
-							DrawContext.DrawText(DrawContext.LayerId, X, Y, Text.ToString(), Font, TextColor);
-							Y += 12.0f;
-						}
-						else
-						{
-							const FText Text = FText::Format(LOCTEXT("WarningFmt3", "The {0} LLM tag is not used by any tracker."),
-								FText::FromString(Tag->GetStatName()));
-							const FLinearColor TextColor(1.0f, 0.75f, 0.5f, 1.0f);
-							DrawContext.DrawText(DrawContext.LayerId, X, Y, Text.ToString(), Font, TextColor);
-							Y += 12.0f;
-						}
-
-						++WarningCount;
-					}
-				}
-			}
-		}
-		if (WarningCount > 0)
-		{
-			FDrawContext& DrawContext = Context.GetDrawContext();
-			DrawContext.LayerId++;
 		}
 	}
 }
@@ -1201,7 +1122,7 @@ void FMemoryGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimi
 
 		if (Series->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag)
 		{
-			FString SubTitle = FString::Printf(TEXT("(tag id %lli, tracker id %lli)"), (int64)Series->GetTagId(), (int64)Series->GetTrackerId());
+			FString SubTitle = FString::Printf(TEXT("(tag id 0x%X, tracker id %i)"), (uint64)Series->GetTagId(), (int32)Series->GetTrackerId());
 			InOutTooltip.AddTitle(SubTitle, Series->GetColor());
 		}
 

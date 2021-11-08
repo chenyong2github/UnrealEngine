@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StatsNodeHelper.h"
-#include "EditorStyleSet.h"
+
+// Insights
+#include "Insights/InsightsStyle.h"
 
 #define LOCTEXT_NAMESPACE "StatsNode"
 
@@ -37,23 +39,9 @@ FText StatsNodeTypeHelper::ToDescription(const EStatsNodeType NodeType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName StatsNodeTypeHelper::ToBrushName(const EStatsNodeType NodeType)
-{
-	static_assert(static_cast<int>(EStatsNodeType::InvalidOrMax) == 3, "Not all cases are handled in switch below!?");
-	switch (NodeType)
-	{
-		case EStatsNodeType::Counter:	return TEXT("Profiler.FiltersAndPresets.StatTypeIcon");
-		case EStatsNodeType::Stat:		return TEXT("Profiler.FiltersAndPresets.StatTypeIcon");
-		case EStatsNodeType::Group:		return TEXT("Profiler.Misc.GenericGroup");
-		default:						return NAME_None;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const FSlateBrush* StatsNodeTypeHelper::GetIconForGroup()
 {
-	return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GenericGroup"));
+	return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,9 +51,9 @@ const FSlateBrush* StatsNodeTypeHelper::GetIcon(const EStatsNodeType NodeType)
 	static_assert(static_cast<int>(EStatsNodeType::InvalidOrMax) == 3, "Not all cases are handled in switch below!?");
 	switch (NodeType)
 	{
-		case EStatsNodeType::Counter:	return FEditorStyle::GetBrush(TEXT("Profiler.FiltersAndPresets.StatTypeIcon"));
-		case EStatsNodeType::Stat:		return FEditorStyle::GetBrush(TEXT("Profiler.FiltersAndPresets.StatTypeIcon"));
-		case EStatsNodeType::Group:		return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup"));
+		case EStatsNodeType::Counter:	return FInsightsStyle::GetBrush("Icons.Counter.TreeItem");
+		case EStatsNodeType::Stat:		return FInsightsStyle::GetBrush("Icons.StatCounter.TreeItem");
+		case EStatsNodeType::Group:		return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 		default:						return nullptr;
 	}
 }
@@ -102,28 +90,14 @@ FText StatsNodeDataTypeHelper::ToDescription(const EStatsNodeDataType DataType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName StatsNodeDataTypeHelper::ToBrushName(const EStatsNodeDataType DataType)
-{
-	static_assert(static_cast<int>(EStatsNodeDataType::InvalidOrMax) == 3, "Not all cases are handled in switch below!?");
-	switch (DataType)
-	{
-	case EStatsNodeDataType::Double:	return TEXT("Profiler.Type.NumberFloat");
-	case EStatsNodeDataType::Int64:		return TEXT("Profiler.Type.NumberInt");
-	case EStatsNodeDataType::Undefined:	return TEXT("Profiler.Type.NumberFloat");
-	default:							return NAME_None;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const FSlateBrush* StatsNodeDataTypeHelper::GetIcon(const EStatsNodeDataType DataType)
 {
 	static_assert(static_cast<int>(EStatsNodeDataType::InvalidOrMax) == 3, "Not all cases are handled in switch below!?");
 	switch (DataType)
 	{
-	case EStatsNodeDataType::Double:	return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.StatsType.Float"));
-	case EStatsNodeDataType::Int64:		return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberInt")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.StatsType.Int64"));
-	case EStatsNodeDataType::Undefined:	return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.StatsType.Float"));
+	case EStatsNodeDataType::Double:	return FInsightsStyle::GetBrush("Icons.DataTypeDouble.TreeItem");
+	case EStatsNodeDataType::Int64:		return FInsightsStyle::GetBrush("Icons.DataTypeInt64.TreeItem");
+	case EStatsNodeDataType::Undefined:	return FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
 	default:							return nullptr;
 	}
 }
@@ -161,23 +135,6 @@ FText StatsNodeGroupingHelper::ToDescription(const EStatsGroupingMode GroupingMo
 		case EStatsGroupingMode::ByDataType:		return LOCTEXT("Grouping_Desc_DataType",		"Creates one group for each data type.");
 		case EStatsGroupingMode::ByCount:			return LOCTEXT("Grouping_Desc_Count",			"Creates one group for each logarithmic range ie. 0, [1 .. 10), [10 .. 100), [100 .. 1K), etc.");
 		default:									return LOCTEXT("InvalidOrMax", "InvalidOrMax");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FName StatsNodeGroupingHelper::ToBrushName(const EStatsGroupingMode GroupingMode)
-{
-	static_assert(static_cast<int>(EStatsGroupingMode::InvalidOrMax) == 6, "Not all cases are handled in switch below!?");
-	switch (GroupingMode)
-	{
-		case EStatsGroupingMode::Flat:				return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.Flat"
-		case EStatsGroupingMode::ByName:			return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.ByName"
-		case EStatsGroupingMode::ByMetaGroupName:	return TEXT("Profiler.FiltersAndPresets.StatNameIcon"); //TODO
-		case EStatsGroupingMode::ByType:			return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO
-		case EStatsGroupingMode::ByDataType:		return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO
-		case EStatsGroupingMode::ByCount:			return TEXT("Profiler.FiltersAndPresets.StatValueIcon"); //TODO
-		default:									return NAME_None;
 	}
 }
 

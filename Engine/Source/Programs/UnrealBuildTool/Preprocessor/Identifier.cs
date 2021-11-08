@@ -102,6 +102,7 @@ namespace UnrealBuildTool
 		public static readonly Identifier __COUNTER__ = Identifier.FindOrAdd("__COUNTER__");
 		public static readonly Identifier Sizeof = Identifier.FindOrAdd("sizeof");
 		public static readonly Identifier Alignof = Identifier.FindOrAdd("alignof");
+		public static readonly Identifier __has_builtin = Identifier.FindOrAdd("__has_builtin");
 		public static readonly Identifier __has_feature = Identifier.FindOrAdd("__has_feature");
 		public static readonly Identifier __building_module = Identifier.FindOrAdd("__building_module");
 		public static readonly Identifier __pragma = Identifier.FindOrAdd("__pragma");

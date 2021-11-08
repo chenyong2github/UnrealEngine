@@ -32,7 +32,7 @@ struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FFrameNumber StartFrame;
 
-	UPROPERTY(EditAnywhere, Category = "Settings") // meta = (ShowOnlyInnerProperties)?
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FFrameNumber EndFrame;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")

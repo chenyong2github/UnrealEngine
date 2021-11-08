@@ -10,7 +10,6 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EditorStyleSet.h"
 #include "UserInterface/SMessageLogMessageListRow.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "HAL/PlatformApplicationMisc.h"

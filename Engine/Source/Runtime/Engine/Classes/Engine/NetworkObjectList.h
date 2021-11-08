@@ -31,8 +31,6 @@ struct FNetworkObjectInfo
 
 	/** Last time this actor was updated for replication via NextUpdateTime
 	* @warning: internal net driver time, not related to WorldSettings.TimeSeconds */
-	UE_DEPRECATED(4.25, "Please use LastNetUpdateTimestamp instead.")
-	float LastNetUpdateTime;
 	double LastNetUpdateTimestamp;
 
 	/** List of connections that this actor is dormant on */
@@ -46,10 +44,6 @@ struct FNetworkObjectInfo
 
 	/** Is this object still pending a full net update due to clients that weren't able to replicate the actor at the time of LastNetUpdateTime */
 	uint8 bPendingNetUpdate : 1;
-
-	/** Force this object to be considered relevant for at least one update */
-	UE_DEPRECATED(4.23, "Use the ForceRelevantFrame variable since this variable is not set anymore.")
-	uint8 bForceRelevantNextUpdate : 1;
 
 	/** Should this object be considered for replay checkpoint writes */
 	uint8 bDirtyForReplay : 1;
@@ -65,10 +59,8 @@ struct FNetworkObjectInfo
 		, NextUpdateTime(0.0)
 		, LastNetReplicateTime(0.0)
 		, OptimalNetUpdateDelta(0.0f)
-		, LastNetUpdateTime(0.0f)
 		, LastNetUpdateTimestamp(0.0)
 		, bPendingNetUpdate(false)
-		, bForceRelevantNextUpdate(false)
 		, bDirtyForReplay(false)
 		, bSwapRolesOnReplicate(false) {}
 
@@ -78,10 +70,8 @@ struct FNetworkObjectInfo
 		, NextUpdateTime(0.0)
 		, LastNetReplicateTime(0.0)
 		, OptimalNetUpdateDelta(0.0f) 
-		, LastNetUpdateTime(0.0f)
 		, LastNetUpdateTimestamp(0.0)
 		, bPendingNetUpdate(false)
-		, bForceRelevantNextUpdate(false)
 		, bDirtyForReplay(false)
 		, bSwapRolesOnReplicate(false) {}
 
@@ -130,32 +120,9 @@ public:
 	 * been added to the world.
 	 *
 	 * @param World The world from which actors are added.
-	 * @param NetDriverName The name of the net driver to which this object list belongs.
-	 */
-	UE_DEPRECATED(4.22, "Please use the AddInitialObjects which takes a net driver instead.")
-	void AddInitialObjects(UWorld* const World, const FName NetDriverName);
-
-	/**
-	 * Adds replicated actors in World to the internal set of replicated actors.
-	 * Used when a net driver is initialized after some actors may have already
-	 * been added to the world.
-	 *
-	 * @param World The world from which actors are added.
 	 * @param NetDriver The net driver to which this object list belongs.
 	 */
 	void AddInitialObjects(UWorld* const World, UNetDriver* NetDriver);
-
-	/**
-	 * Attempts to find the Actor's FNetworkObjectInfo.
-	 * If no info is found, then the Actor will be added to the list, and will assumed to be active.
-	 *
-	 * If the Actor is dormant when this is called, it is the responsibility of the caller to call
-	 * MarkDormant immediately.
-	 *
-	 * If info cannot be found or created, nullptr will be returned.
-	 */
-	UE_DEPRECATED(4.22, "Please use the FindOrAdd which takes a net driver instead.")
-	TSharedPtr<FNetworkObjectInfo>* FindOrAdd(AActor* const Actor, const FName NetDriverName, bool* OutWasAdded=nullptr);
 
 	/**
 	 * Attempts to find the Actor's FNetworkObjectInfo.
@@ -183,25 +150,13 @@ public:
 	void Remove(AActor* const Actor);
 
 	/** Marks this object as dormant for the passed in connection */
-	UE_DEPRECATED(4.22, "Please use the MarkDormant which takes a net driver instead.")
-	void MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, const FName NetDriverName);
-
-	/** Marks this object as dormant for the passed in connection */
 	void MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, UNetDriver* NetDriver);
-
-	/** Marks this object as active for the passed in connection */
-	UE_DEPRECATED(4.22, "Please use the MarkActive which takes a net driver instead.")
-	bool MarkActive(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName);
 
 	/** Marks this object as active for the passed in connection */
 	bool MarkActive(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 
 	/** Marks this object dirty for replays using delta checkpoints */
 	void MarkDirtyForReplay(AActor* const Actor);
-
-	/** Removes the recently dormant status from the passed in connection */
-	UE_DEPRECATED(4.22, "Please use the ClearRecentlyDormantConnection which takes a net driver instead.")
-	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, const FName NetDriverName);
 
 	/** Removes the recently dormant status from the passed in connection */
 	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
@@ -226,10 +181,6 @@ public:
 	const FNetworkObjectSet& GetDormantObjectsOnAllConnections() const { return ObjectsDormantOnAllConnections; }
 
 	int32 GetNumDormantActorsForConnection( UNetConnection* const Connection ) const;
-
-	/** Force this actor to be relevant for at least one update */
-	UE_DEPRECATED(4.22, "Please use the ForceActorRelevantNextUpdate which takes a net driver instead.")
-	void ForceActorRelevantNextUpdate(AActor* const Actor, const FName NetDriverName);
 
 	/** Force this actor to be relevant for at least one update */
 	void ForceActorRelevantNextUpdate(AActor* const Actor, UNetDriver* NetDriver);

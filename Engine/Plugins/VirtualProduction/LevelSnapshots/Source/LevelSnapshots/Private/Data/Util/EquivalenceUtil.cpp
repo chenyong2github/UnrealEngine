@@ -158,11 +158,10 @@ UActorComponent* SnapshotUtil::FindMatchingComponent(AActor* ActorToSearchOn, co
 		return nullptr;
 	}
 
-	const FName ComponentName = *SnapshotUtil::ExtractLastSubobjectName(ComponentPath);
 	for (UActorComponent* Component : ActorToSearchOn->GetComponents())
 	{
-		if (Component->GetFName() == ComponentName // Not logically required but reduces number of string operations
-			&& RootToLeafPath.Equals( ExtractRootToLeafComponentPath(Component)))
+		const FString OtherRootToLeaf = ExtractRootToLeafComponentPath(Component);
+		if (RootToLeafPath.Equals(OtherRootToLeaf))
 		{
 			return Component;
 		}

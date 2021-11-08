@@ -75,7 +75,7 @@ public:
 
 	FName GetActorName() const;
 
-	virtual bool GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
+	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{
@@ -144,7 +144,7 @@ public:
 protected:
 	FWorldPartitionActorDesc();
 
-	void TransformInstance(const FString& From, const FString& To, const FTransform& Transform);
+	void TransformInstance(const FString& From, const FString& To);
 
 	inline void TransferRefCounts(const FWorldPartitionActorDesc* From) const
 	{
@@ -154,7 +154,7 @@ protected:
 
 	virtual void Serialize(FArchive& Ar);
 
-	virtual void OnRegister() {}
+	virtual void OnRegister(UWorld* InWorld) {}
 	virtual void OnUnregister() {}
 
 	// Persistent

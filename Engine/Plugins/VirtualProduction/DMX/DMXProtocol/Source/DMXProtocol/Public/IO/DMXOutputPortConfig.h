@@ -32,6 +32,7 @@ struct DMXPROTOCOL_API FDMXOutputPortConfigParams
 	int32 NumUniverses;
 	int32 ExternUniverseStart;
 	int32 Priority;
+	float Delay;
 };
 
 /** 
@@ -68,6 +69,7 @@ public:
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
 	FORCEINLINE int32 GetPriority() const { return Priority; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
+	FORCEINLINE int32 GetDelay() const { return Delay; }
 
 #if WITH_EDITOR
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, ProtocolName); }
@@ -121,6 +123,10 @@ protected:
 	/** Priority on which packets are being sent */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 Priority = 100;
+
+	/** Delay the sending of packets */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", meta = (ClampMin = 0, ClampMax = 60))
+	float Delay = 0;
 
 protected:
 	/** Generates a unique port name (unique for those stored in project settings) */

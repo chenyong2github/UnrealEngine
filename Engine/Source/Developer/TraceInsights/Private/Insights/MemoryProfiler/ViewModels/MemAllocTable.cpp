@@ -476,7 +476,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
-		TSharedRef<IFilterValueConvertor> Converter = MakeShared<FMemoryFilterValueConverter>();
+		TSharedRef<IFilterValueConverter> Converter = MakeShared<FMemoryFilterValueConverter>();
 		Column.SetValueConverter(Converter);
 
 		Column.SetAggregation(ETableColumnAggregation::Sum);

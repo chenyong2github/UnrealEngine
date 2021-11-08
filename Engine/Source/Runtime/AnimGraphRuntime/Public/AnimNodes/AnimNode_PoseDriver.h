@@ -243,7 +243,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	bool IsBoneDriven(FName BoneName) const;
 
 	/** Return array of FRBFTarget structs, derived from PoseTargets array and DriveSource setting */
-	void GetRBFTargets(TArray<FRBFTarget>& OutTargets) const;
+	void GetRBFTargets(TArray<FRBFTarget>& OutTargets, const FBoneContainer* BoneContainer) const;
 
 	/* Rebuild Pose List*/
 	virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset) override;
@@ -252,5 +252,4 @@ private:
 	TSharedPtr<const FRBFSolverData> SolverData;
 	FRBFEntry RBFInput;
 	TArray<FRBFTarget> RBFTargets;
-	TArray<FTransform> RefPoseCompact;
 };

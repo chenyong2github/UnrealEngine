@@ -84,9 +84,6 @@ void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 	const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
 
-	// Get RefPose
-	RefPoseCompact = BoneContainer.GetRefPoseCompactArray();
-
 	// Init bone refs
 	for (FBoneReference& SourceBoneRef : SourceBones)
 	{
@@ -182,7 +179,7 @@ bool FAnimNode_PoseDriver::IsBoneDriven(FName BoneName) const
 }
 
 
-void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
+void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets, const FBoneContainer* BoneContainer) const
 {
 	OutTargets.Reset();
 	OutTargets.AddZeroed(PoseTargets.Num());
@@ -203,12 +200,12 @@ void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 
 				// Get Ref Transform
 				FTransform RefBoneTransform = FTransform::Identity;
-				if (bEvalFromRefPose)
+				if (bEvalFromRefPose && BoneContainer)
 				{
-					const int32 CompactPoseIndex = SourceBones[SourceIdx].CachedCompactPoseIndex.GetInt();
-					if (RefPoseCompact.IsValidIndex(CompactPoseIndex))
+					const FCompactPoseBoneIndex CompactPoseIndex = SourceBones[SourceIdx].CachedCompactPoseIndex;
+					if (CompactPoseIndex < BoneContainer->GetCompactPoseNumBones())
 					{
-						RefBoneTransform = RefPoseCompact[CompactPoseIndex];
+						RefBoneTransform = BoneContainer->GetRefPoseTransform(CompactPoseIndex);
 					}
 				}
 
@@ -309,9 +306,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				else
 				{
 					// Relative to Ref Pose
-					if (bEvalFromRefPose && RefPoseCompact.IsValidIndex(SourceCompactIndex.GetInt()))
+					if (bEvalFromRefPose && SourceCompactIndex.GetInt() < BoneContainer.GetCompactPoseNumBones())
 					{
-						SourceBoneTM = SourceData.Pose[SourceCompactIndex].GetRelativeTransform(RefPoseCompact[SourceCompactIndex.GetInt()]);
+						SourceBoneTM = SourceData.Pose[SourceCompactIndex].GetRelativeTransform(BoneContainer.GetRefPoseTransform(SourceCompactIndex));
 					}
 					else
 					{
@@ -357,7 +354,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 #endif
 		{
 			// Get target array as RBF types
-			GetRBFTargets(RBFTargets);
+			GetRBFTargets(RBFTargets, &BoneContainer);
 
 			if (!SolverData.IsValid() || !FRBFSolver::IsSolverDataValid(*SolverData, RBFParams, RBFTargets))
 			{

@@ -61,7 +61,7 @@ void FTurnkeyEditorSupport::AddEditorOptions(FToolMenuSection& Section)
 		NAME_None,
 		LOCTEXT("OpenPackagingSettings", "Packaging Settings..."),
 		LOCTEXT("OpenPackagingSettings_ToolTip", "Opens the settings for project packaging."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon"),
+		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([] { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Project", "Packaging"); }))
 	);
 

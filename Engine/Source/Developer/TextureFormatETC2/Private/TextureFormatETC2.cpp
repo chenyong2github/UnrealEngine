@@ -144,6 +144,12 @@ class FTextureFormatETC2 : public ITextureFormat
 		return 0;
 	}
 
+	virtual FName GetEncoderName(FName Format) const override
+	{
+		static const FName ETC2Name("ETC2");
+		return ETC2Name;
+	}
+
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
 		for (int32 i = 0; i < UE_ARRAY_COUNT(GSupportedTextureFormatNames); ++i)

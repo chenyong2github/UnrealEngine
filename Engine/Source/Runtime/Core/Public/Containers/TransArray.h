@@ -51,7 +51,7 @@ public:
 		const int32 Index = Super::AddUninitialized( Count );
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, 1, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, 1, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 		return Index;
 	}
@@ -61,7 +61,7 @@ public:
 		Super::InsertUninitialized( Index, Count );
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, 1, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, 1, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 	}
 
@@ -69,7 +69,7 @@ public:
 	{
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, -1, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, Count, -1, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 		Super::RemoveAt( Index, Count );
 	}
@@ -78,7 +78,7 @@ public:
 	{
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, 0, this->ArrayNum, -1, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, 0, this->ArrayNum, -1, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 		Super::Empty( Slack );
 	}
@@ -150,7 +150,7 @@ public:
 	{
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, 1, 0, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, Index, 1, 0, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 	}
 
@@ -158,7 +158,7 @@ public:
 	{
 		if( GUndo )
 		{
-			GUndo->SaveArray( Owner, (FScriptArray*)this, 0, this->Num(), 0, sizeof(T), DefaultConstructItem, SerializeItem, DestructItem );
+			GUndo->SaveArray( Owner, (FScriptArray*)this, 0, this->Num(), 0, sizeof(T), alignof(T), DefaultConstructItem, SerializeItem, DestructItem );
 		}
 	}
 

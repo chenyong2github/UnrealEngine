@@ -2677,6 +2677,7 @@ public:
 		bool bSkipCompilerGeneratedDefaults;
 		bool bNotifyObjectReplacement;
 		bool bClearReferences;
+		bool bDontClearReferenceIfNewerClassExists;
 
 		FCopyPropertiesForUnrelatedObjectsParams()
 			: bAggressiveDefaultSubobjectReplacement(false)
@@ -2688,6 +2689,7 @@ public:
 			, bSkipCompilerGeneratedDefaults(false)
 			, bNotifyObjectReplacement(false)
 			, bClearReferences(true)
+			, bDontClearReferenceIfNewerClassExists(false)
 		{}
 	};
 	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params = FCopyPropertiesForUnrelatedObjectsParams());//bool bAggressiveDefaultSubobjectReplacement = false, bool bDoDelta = true);

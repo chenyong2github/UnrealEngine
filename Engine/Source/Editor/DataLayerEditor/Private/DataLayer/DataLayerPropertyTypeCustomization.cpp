@@ -4,6 +4,7 @@
 #include "DataLayer/DataLayerPropertyTypeCustomizationHelper.h"
 #include "DataLayer/DataLayerDragDropOp.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
+#include "DataLayerEditorModule.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
 #include "Algo/Accumulate.h"
@@ -17,9 +18,12 @@
 #include "Widgets/Text/STextBlock.h"
 #include "SDropTarget.h"
 #include "Editor.h"
+#include "LevelEditor.h"
 #include "EditorFontGlyphs.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "PropertyCustomizationHelpers.h"
+#include "SceneOutlinerStandaloneTypes.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -47,8 +51,8 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("DataLayer.Icon16x")))
-				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(this, &FDataLayerPropertyTypeCustomization::GetDataLayerIcon)
+				.ColorAndOpacity(this, &FDataLayerPropertyTypeCustomization::GetForegroundColor)
 			]
 
 			+ SHorizontalBox::Slot()
@@ -57,6 +61,12 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			.FillWidth(1.0f)
 			[
 				SNew(SComboButton)
+				.IsEnabled_Lambda([this]
+				{
+					FPropertyAccess::Result PropertyAccessResult;
+					const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+					return (!DataLayer || !DataLayer->IsLocked());
+				})
 				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a Data Layer onto this property, or choose one from the drop down."))
 				.OnGetMenuContent(this, &FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu)
 				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
@@ -66,7 +76,24 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				[
 					SNew(STextBlock)
 					.Text(this, &FDataLayerPropertyTypeCustomization::GetDataLayerText)
+					.ColorAndOpacity(this, &FDataLayerPropertyTypeCustomization::GetForegroundColor)
 				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Visibility_Lambda([this] 
+				{
+					FPropertyAccess::Result PropertyAccessResult;
+					const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+					return (DataLayer && DataLayer->IsLocked()) ? EVisibility::Visible : EVisibility::Collapsed;
+				})
+				.ColorAndOpacity(this, &FDataLayerPropertyTypeCustomization::GetForegroundColor)
+				.Image(FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked")))
+				.ToolTipText(LOCTEXT("LockedRuntimeDataLayerEditing", "Locked editing. (To allow editing, in Data Layer Outliner, go to Advanced -> Allow Runtime Data Layer Editing)"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -80,15 +107,31 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 				.OnClicked(this, &FDataLayerPropertyTypeCustomization::OnSelectDataLayer)
 				.Visibility(this, &FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility)
 				.ForegroundColor(FSlateColor::UseForeground())
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-					.Text(FEditorFontGlyphs::Sign_In)
-				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.Padding(2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FDataLayerPropertyTypeCustomization::OnBrowse), LOCTEXT("BrowseDataLayer", "Browse in Data Layer Outliner"))
 			]
 		]
 	];
 	HeaderRow.IsEnabled(TAttribute<bool>(StructPropertyHandle, &IPropertyHandle::IsEditable));
+}
+
+void FDataLayerPropertyTypeCustomization::OnBrowse()
+{
+	FPropertyAccess::Result PropertyAccessResult;
+	if (const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("LevelEditorDataLayerBrowser"));
+
+		FDataLayerEditorModule& DataLayerEditorModule = FModuleManager::LoadModuleChecked<FDataLayerEditorModule>("DataLayerEditor");
+		DataLayerEditorModule.SyncDataLayerBrowserToDataLayer(DataLayer);
+	}
 }
 
 UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(FPropertyAccess::Result* OutPropertyAccessResult) const
@@ -107,6 +150,21 @@ UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(
 	return nullptr;
 }
 
+const FSlateBrush* FDataLayerPropertyTypeCustomization::GetDataLayerIcon() const
+{
+	FPropertyAccess::Result PropertyAccessResult;
+	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	if (!DataLayer)
+	{
+		return FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
+	}
+	if (PropertyAccessResult == FPropertyAccess::MultipleValues)
+	{
+		return FEditorStyle::GetBrush(TEXT("LevelEditor.Tabs.DataLayers"));
+	}
+	return FEditorStyle::GetBrush(DataLayer->GetDataLayerIconName());
+}
+
 FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const
 {
 	FPropertyAccess::Result PropertyAccessResult;
@@ -116,6 +174,17 @@ FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const
 		return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
 	}
 	return UDataLayer::GetDataLayerText(DataLayer);
+}
+
+FSlateColor FDataLayerPropertyTypeCustomization::GetForegroundColor() const
+{
+	FPropertyAccess::Result PropertyAccessResult;
+	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle(&PropertyAccessResult);
+	if (DataLayer && DataLayer->IsLocked())
+	{
+		return FSceneOutlinerCommonLabelData::DarkColor;
+	}
+	return FSlateColor::UseForeground();
 }
 
 TSharedRef<SWidget> FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu()

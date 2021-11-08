@@ -161,10 +161,19 @@ public:
 	virtual bool IsLive() const = 0;
 	virtual FTimespan GetSeekableDuration() const = 0;
 
+	struct FPlaybackRange
+	{
+		TOptional<FTimespan> Start;
+		TOptional<FTimespan> End;
+	};
+	virtual void SetPlaybackRange(const FPlaybackRange& InPlaybackRange) = 0;
+	virtual void GetPlaybackRange(FPlaybackRange& OutPlaybackRange) const = 0;
+
 	virtual float GetRate() const = 0;
 	virtual bool SetRate(float Rate) = 0;
 
 	virtual bool Seek(const FTimespan& Time) = 0;
+	virtual void SetFrameAccurateSeekMode(bool bEnableFrameAccuracy) = 0;
 
 	struct FAudioTrackFormat
 	{
@@ -201,6 +210,16 @@ public:
 	virtual FString GetTrackLanguage(EPlayerTrackType TrackType, int32 TrackIndex) const = 0;
 	virtual FString GetTrackName(EPlayerTrackType TrackType, int32 TrackIndex) const = 0;
 	virtual bool SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex) = 0;
+
+	struct FVideoStreamFormat
+	{
+		FIntPoint Resolution;
+		double FrameRate;
+		int32 Bitrate;
+	};
+	virtual int32 GetNumVideoStreams(int32 TrackIndex) const = 0;
+	virtual bool GetVideoStreamFormat(FVideoStreamFormat& OutFormat, int32 InTrackIndex, int32 InStreamIndex) const = 0;
+	virtual bool GetActiveVideoStreamFormat(FVideoStreamFormat& OutFormat) const = 0;
 
 	virtual void NotifyOfOptionChange() = 0;
 

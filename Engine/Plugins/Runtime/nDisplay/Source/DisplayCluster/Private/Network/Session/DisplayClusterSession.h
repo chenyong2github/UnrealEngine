@@ -130,7 +130,7 @@ protected:
 		return 0;
 	}
 
-	virtual void Stop() override
+	virtual void Stop() override final
 	{
 		GetSocket()->Close();
 		ThreadObj->WaitForCompletion();

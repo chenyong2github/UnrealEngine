@@ -16,9 +16,12 @@ public:
 
 	FFriendsCommon(FOnlineServicesCommon& InServices);
 
+	// TOnlineComponent
+	virtual void RegisterCommands() override;
+
 	// IFriends
 	virtual TOnlineAsyncOpHandle<FQueryFriends> QueryFriends(FQueryFriends::Params&& Params) override;
-	virtual TOnlineResult<FGetFriends::Result> GetFriends(FGetFriends::Params&& Params) override;
+	virtual TOnlineResult<FGetFriends> GetFriends(FGetFriends::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAddFriend> AddFriend(FAddFriend::Params&& Params) override;
 	virtual TOnlineEvent<void(const FFriendsListUpdated&)> OnFriendsListUpdated() override;
 

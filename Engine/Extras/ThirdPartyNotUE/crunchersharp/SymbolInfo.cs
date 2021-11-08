@@ -1,246 +1,493 @@
+﻿using Dia2Lib;
+using System;
 using System.Collections.Generic;
-using Dia2Lib;
+using System.IO;
+using System.Linq;
 
 namespace CruncherSharp
 {
-	/**
-	* @brief	Represents data inside of a symbol loaded from a PDB. 
-	*			Used to calculate padding, offsets, and child symbols
-	*/
-	public class SymbolInfo
-	{
-		public string Name { get; }
-		public string TypeName { get; }
+    public class SymbolInfo
+    {
+        public string Name { get; private set; }
+        public string TypeName { get; set; }
+        public ulong Size { get; set; }
+        public ulong NewSize { get; set; }
+        public ulong EndPadding { get; set; }
+        public ulong Padding => (ulong)((long)EndPadding + Members.Sum(info => (long)info.PaddingBefore)); // This is the local (intrinsic) padding
+        public ulong PaddingZonesCount => (ulong)((EndPadding > 0 ? 1 : 0) + Members.Sum(info => info.PaddingBefore > 0 ? 1 : 0));
+        public ulong? TotalPadding { get; set; } // Includes padding from base classes and members
+        public ulong NumInstances { get; set; }
+        public ulong TotalCount { get; set; }
+        public bool IsAbstract { get; set; }
+        public bool IsTemplate { get; set; }
+        public List<SymbolMemberInfo> Members { get; set; }
+        public List<SymbolFunctionInfo> Functions { get; set; }
+        public List<SymbolInfo> DerivedClasses { get; set; }
 
-		public bool IsBase { get; }
+        private const string PaddingMarker = "****Padding";
 
-		/** Total size of this symbol in bytes */
-		public ulong Size { get; set; }
+        public SymbolInfo(string name, string typeName, ulong size)
+        {
+            Name = name;
+            TypeName = typeName;
+            Size = size;
+            EndPadding = 0;
+            TotalPadding = null;
+            Members = new List<SymbolMemberInfo>();
+            Functions = new List<SymbolFunctionInfo>();
+            IsAbstract = false;
+            if (Name.Contains("<") && Name.Contains(">"))
+                IsTemplate = true;
+        }
 
-		/** Offset of this symbol in bytes */
-		public long Offset { get; set; }
+        private void AddMember(SymbolMemberInfo member)
+        {
+            Members.Add(member);
+        }
 
-		/** Total padding of this symbol in bytes */
-		public long Padding { get; set; }
-		public List<SymbolInfo> Children { get; }
+        private void AddFunction(SymbolFunctionInfo function)
+        {
+            Functions.Add(function);
+        }
 
-		public bool HasChildren { get { return Children.Count > 0; } }
+        private bool ComputeOffsetCollision(int index)
+        {
+            return index > 0 && Members[index].Offset == Members[index - 1].Offset;
+        }
 
-		public SymbolInfo(string name, string typeName, ulong size, long offset, IDiaSymbol symbol)
-		{
-			Name = name;
-			TypeName = typeName;
-			Size = size;
-			Offset = offset;
-			IsBase = Name.IndexOf("Base: ") == 0;			
-			Children = new List<SymbolInfo>();
+        public bool HasVtable
+        {
+            get
+            {
+                foreach (var member in Members)
+                {
+                    if (member.Category == SymbolMemberInfo.MemberCategory.VTable)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
 
-			if(symbol != null)
-			{
-				ProcessChildren(symbol);
-			}
-		}
+        public bool HasBaseClass
+        {
+            get
+            {
+                foreach (var member in Members)
+                {
+                    if (member.Category == SymbolMemberInfo.MemberCategory.Base)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
 
-		public SymbolInfo(IDiaSymbol symbol)
-		{
-			if (symbol == null)
-			{
-				throw new System.NullReferenceException("ERROR: Symbol info is null");
-			}
+        public bool HasMSVCExtraPadding
+        {
+            get
+            {
+                if (HasBaseClass)
+                    return false;
+                if (!HasVtable)
+                    return false;
+                if (Members.Count < 2)
+                    return false;
+                return Members[1].Size == 8 && Members[1].Offset == 16;
+            }
+        }
 
-			Name = symbol.name;
-			Size = symbol.length;
-			ProcessChildren(symbol);
+        public bool HasMSVCEmptyBaseClass
+        {
+            get
+            {
+                var n = 1;
+                while (n + 2 < Members.Count)
+                {
+                    if (Members[n - 1].IsBase && Members[n].IsBase && Members[n].Size == 1 && Members[n].Offset > Members[n - 1].Offset && Members[n + 1].Offset > Members[n].Offset)
+                        return true;
+                    n++;
+                }
+                return false;
 
-			TypeName = "";	
-			Offset = 0;
-			Children = new List<SymbolInfo>();
-		}
+            }
+        }
 
-		private void ProcessChildren(IDiaSymbol symbol)
-		{
-			IDiaEnumSymbols children;
-			symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out children);
+        private ulong ComputePadding(int index)
+        {
+            if (index < 1 || index > Members.Count)
+            {
+                return 0;
+            }
+            if (index < Members.Count && Members[index].AlignWithPrevious)
+            {
+                return 0;
+            }
+            int previousIndex = index - 1;
+            ulong biggestSize = Members[previousIndex].Size;
+            while (Members[previousIndex].AlignWithPrevious && previousIndex > 0)
+            {
+                previousIndex--;
+                if (biggestSize < Members[previousIndex].Size)
+                    biggestSize = Members[previousIndex].Size;
+            }
 
-			foreach (IDiaSymbol child in children)
-			{
-				SymbolInfo childInfo = ProcessChild(child);
-				if (childInfo != null)
-				{
-					Children.Add(childInfo);
-				}
-			}
+            ulong currentOffset = index > Members.Count - 1 ? Size : Members[index].Offset;
+            ulong previousEnd = Members[previousIndex].Offset + biggestSize;
+            return currentOffset > previousEnd ? currentOffset - previousEnd : 0;
+        }
 
-			// Sort children by offset, recalculate padding.
-			// Sorting is not needed normally (for data fields), but sometimes base class order is wrong.
-			if (HasChildren)
-			{
-				Children.Sort(CompareOffsets);
-				for (int i = 0; i < Children.Count; ++i)
-				{
-					SymbolInfo child = Children[i];
-					child.Padding = CalcPadding(child.Offset, i);
-				}
-				Padding = CalcPadding((long)Size, Children.Count);
-			}
-		}
+        private ulong ComputeBitPadding(int index)
+        {
+            if (index > Members.Count)
+            {
+                return 0;
+            }
+            if (!Members[index].BitField)
+            {
+                return 0;
+            }
+            if (index + 1 < Members.Count)
+            {
+                if (Members[index + 1].BitField && Members[index + 1].Offset == Members[index].Offset)
+                    return 0;
+            }
+            return (8 * Members[index].Size) - (Members[index].BitPosition + Members[index].BitSize);
+        }
 
-		/**
-		*  If this symbol is a basic type in C/C++ we can extract that data to a string version
-		*  See https://docs.microsoft.com/en-us/visualstudio/debugger/debug-interface-access/basictype?view=vs-2015&redirectedfrom=MSDN
-		*  for more definitions. This can work for function return types/paramaters, or regular member 
-		*  variables
-		*/
-		public static string GetBaseType(IDiaSymbol typeSymbol)
-		{
-			switch (typeSymbol.baseType)
-			{
-				case 0:
-					return string.Empty;
-				case 1:
-					return "void";
-				case 2:
-					return "char";
-				case 3:
-					return "wchar";
-				// signed int
-				case 6:
-					{
-						switch (typeSymbol.length)
-						{
-							case 1:
-								return "int8";
-							case 2:
-								return "int16";
-							case 4:
-								return "int32";
-							case 8:
-								return "int64";
-							default:
-								return "int";
-						}
-					}
-				// unsigned int
-				case 7:
-					switch (typeSymbol.length)
-					{
-						case 1:
-							return "uint8";
-						case 2:
-							return "uint16";
-						case 4:
-							return "uint32";
-						case 8:
-							return "uint64";
-						default:
-							return "uint";
-					}
-				case 8:
-					return "float";
-				case 9:
-					return "BCS";
-				case 10:
-					return "bool";
-				case 13:
-					return "int32";
-				case 14:
-					return "uint32";
-				case 29:
-					return "bit";
-				default:
-					return $"Unhandled: {typeSymbol.baseType}";
-			}
-		}
+        private ulong ComputeEndPadding()
+        {
+            return ComputePadding(Members.Count);
+        }
 
-		/**
-		* @brief	 Returns true if this is a valid symbol for us to display
-		*/
-		private static bool IsValidDIASymbol(IDiaSymbol symbol)
-		{
-			if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
-			{
-				return false;
-			}
+        public ulong ComputeTotalPadding(SymbolAnalyzer symbolAnalyzer)
+        {
+            if (TotalPadding.HasValue)
+            {
+                return TotalPadding.Value;
+            }
+            TotalPadding = (ulong)((long)Padding + Members.Sum(info =>
+            {
+                if (info.AlignWithPrevious)
+                    return 0;
+                if (info.Category == SymbolMemberInfo.MemberCategory.Member)
+                    return 0;
+                if (info.TypeName == Name)
+                    return 0; // avoid infinite loops
+                var referencedInfo = symbolAnalyzer.FindSymbolInfo(info.TypeName);
+                if (referencedInfo == null)
+                {
+                    return 0;
+                }
+                return (long)referencedInfo.ComputeTotalPadding(symbolAnalyzer);
+            }));
+            return TotalPadding.Value;
+        }
 
-			if (symbol.locationType != LocationType.IsThisRel && symbol.locationType != LocationType.IsNull && symbol.locationType != LocationType.IsBitField)
-			{
-				return false;
-			}
+        public void UpdateBaseClass(SymbolAnalyzer symbolAnalyzer)
+        {
+            foreach (var member in Members)
+            {
+                if (member.Category == SymbolMemberInfo.MemberCategory.Base)
+                {
+                    var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.Name);
+                    if (referencedInfo != null)
+                    {
+                        if (referencedInfo.DerivedClasses == null)
+                            referencedInfo.DerivedClasses = new List<SymbolInfo>();
+                        referencedInfo.DerivedClasses.Add(this);
+                    }
+                }
+            }
+        }
 
-			return true;
-		}
+        public void CheckOverride()
+        {
+            foreach (var function in Functions)
+            {
+                if (function.Virtual && function.Category == SymbolFunctionInfo.FunctionCategory.Function && DerivedClasses != null)
+                {
+                    foreach(var derivedClass in DerivedClasses)
+                    {
+                        if (derivedClass.IsOverloadingFunction(function))
+                        {
+                            function.IsOverloaded = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
-		/**
-		* 
-		*/
-		private SymbolInfo ProcessChild(IDiaSymbol symbol)
-		{
-			if(!IsValidDIASymbol(symbol))
-			{
-				return null;
-			}
+        public void CheckMasking()
+        {
+            foreach (var function in Functions)
+            {
+                if (function.Virtual == false && function.Category == SymbolFunctionInfo.FunctionCategory.Function && DerivedClasses != null)
+                {
+                    foreach (var derivedClass in DerivedClasses)
+                    {
+                        derivedClass.CheckMasking(function);
+                    }
+                }
+            }
+        }
 
-			ulong len = symbol.length;
-			IDiaSymbol typeSymbol = symbol.type;
-			if (typeSymbol != null)
-			{
-				len = typeSymbol.length;
-			}
+        private void CheckMasking(SymbolFunctionInfo func)
+        {
+            foreach (var function in Functions)
+            {
+                if (function.Virtual == false && function.Name == func.Name)
+                {
+                    function.IsMasking = true;
 
-			string symbolName = symbol.name;
-			if (symbol.symTag == (uint)SymTagEnum.SymTagBaseClass)
-			{
-				symbolName = "Base: " + symbolName;
-			}
+                    if (DerivedClasses != null)
+                    {
+                        foreach (var derivedClass in DerivedClasses)
+                        {
+                            derivedClass.CheckMasking(func);
+                        }
+                    }
+                }
+            }
+        }
 
-			return new SymbolInfo(symbolName, (typeSymbol != null ? typeSymbol.name : ""), len, symbol.offset, null);
-		}
+        private bool IsOverloadingFunction(SymbolFunctionInfo func)
+        {
+            foreach (var function in Functions)
+            {
+                if (function.Name == func.Name)
+                    return true;
+            }
+            if (DerivedClasses != null)
+            {
+                foreach (var derivedClass in DerivedClasses)
+                {
+                    if (derivedClass.IsOverloadingFunction(func))
+                        return true;
+                }
+            }
+            return false;
+        }
 
-		/** Padding of only this local symbol, does not include children */
-		private long CalcPadding(long offset, int index)
-		{
-			long padding = 0;
-			if (HasChildren && index > 0)
-			{
-				SymbolInfo lastInfo = Children[index - 1];
-				padding = offset - (lastInfo.Offset + (long)lastInfo.Size);
-			}
-			return padding > 0 ? padding : 0;
-		}
+        public void UpdateTotalCount(SymbolAnalyzer symbolAnalyzer, ulong count)
+        {
+            foreach (var member in Members)
+            {
+                if (member.Category != SymbolMemberInfo.MemberCategory.VTable)
+                {
+                    var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.TypeName);
+                    if (referencedInfo != null)
+                    {
+                        referencedInfo.TotalCount += count;
+                        referencedInfo.UpdateTotalCount(symbolAnalyzer,count);
+                    }
+                }
+            }
+        }
 
-		/** Total padding of this symbol which includes all children */
-		public long CalcTotalPadding()
-		{
-			long totalPadding = Padding;
-			if (HasChildren)
-			{
-				foreach (SymbolInfo info in Children)
-				{
-					totalPadding += info.Padding;
-				}
-			}
-			return totalPadding;
-		}
+        public void ProcessChildren(IDiaSymbol symbol)
+        {
+            symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out var children);
+            if (children == null)
+                return;
+            foreach (IDiaSymbol child in children)
+            {
+                if (child.symTag == (uint)SymTagEnum.SymTagFunction)
+                {
+                    var functionInfo = ProcessFunction(child);
+                    if (functionInfo != null)
+                    {
+                        AddFunction(functionInfo);
+                        if (functionInfo.IsPure)
+                            IsAbstract = true;
+                    }
+                }
+                else
+                {
+                    var memberInfo = ProcessMember(child);
+                    if (memberInfo != null)
+                    {
+                        AddMember(memberInfo);
+                    }
+                }
+            }
+            // Sort members by offset, recompute padding.
+            // Sorting is usually not needed (for data fields), but sometimes base class order is wrong.
+            Members.Sort(SymbolMemberInfo.CompareOffsets);
+            for (int i = 0; i < Members.Count; ++i)
+            {
+                var member = Members[i];
+                member.AlignWithPrevious = ComputeOffsetCollision(i);
+                member.PaddingBefore = ComputePadding(i);
+                member.BitPaddingAfter = ComputeBitPadding(i);
+            }
+            EndPadding = ComputeEndPadding();
+        }
 
-		/**
-		* @brief	Sorting method used for comparing two symbols
-		*/
-		private static int CompareOffsets(SymbolInfo x, SymbolInfo y)
-		{
-			// Base classes have to go first.
-			if ((x.IsBase && !y.IsBase) || (!x.IsBase && y.IsBase))
-			{
-				return -1;
-			}
+        public SymbolMemberInfo ProcessMember(IDiaSymbol symbol)
+        {
+            if (symbol.symTag == (uint)SymTagEnum.SymTagVTable)
+            {
+                return new SymbolMemberInfo(SymbolMemberInfo.MemberCategory.VTable, string.Empty, string.Empty, 8, 0, (ulong)symbol.offset, symbol.bitPosition);
+            }
 
-			if (x.Offset == y.Offset)
-			{
-				return (x.Size == y.Size ? 0 : (x.Size < y.Size) ? -1 : 1);
-			}
-			else
-			{
-				return (x.Offset < y.Offset) ? -1 : 1;
-			}
-		}
-	};
+            if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
+            {
+                return null;
+            }
+
+            // LocIsThisRel || LocIsNull || LocIsBitField
+            if (symbol.locationType != 4 && symbol.locationType != 0 && symbol.locationType != 6)
+            {
+                return null;
+            }
+
+            var typeSymbol = symbol.type;
+
+            var typeName = GetType(typeSymbol);
+
+            var symbolName = symbol.name;
+            var category = SymbolMemberInfo.MemberCategory.Member;
+
+            if ((SymTagEnum)symbol.symTag == SymTagEnum.SymTagBaseClass)
+                category = SymbolMemberInfo.MemberCategory.Base;
+            else if ((SymTagEnum)typeSymbol.symTag == SymTagEnum.SymTagUDT)
+                category = SymbolMemberInfo.MemberCategory.UDT;
+            else if ((SymTagEnum)typeSymbol.symTag == SymTagEnum.SymTagPointerType)
+                category = SymbolMemberInfo.MemberCategory.Pointer;
+
+            var info = new SymbolMemberInfo(category, symbolName, typeName, typeSymbol.length, symbol.length, (ulong)symbol.offset, symbol.bitPosition);
+
+            if (typeSymbol.volatileType == 1)
+                info.Volatile = true;
+            if (symbol.locationType == 6)
+                info.BitField = true;
+
+            return info;
+        }
+
+        public SymbolFunctionInfo ProcessFunction(IDiaSymbol symbol)
+        {
+            if (symbol.compilerGenerated > 0)
+                return null;
+
+            var info = new SymbolFunctionInfo();
+            if (symbol.isStatic > 0)
+            {
+                info.Category = SymbolFunctionInfo.FunctionCategory.StaticFunction;
+            }
+            else if (symbol.classParent.name.EndsWith(symbol.name))
+            {
+                info.Category = SymbolFunctionInfo.FunctionCategory.Constructor;
+            }
+            else if (symbol.name.StartsWith("~"))
+            {
+                info.Category = SymbolFunctionInfo.FunctionCategory.Destructor;
+            }
+            else
+            {
+                info.Category = SymbolFunctionInfo.FunctionCategory.Function;
+            }
+
+            info.Virtual = (symbol.@virtual == 1);
+            info.IsOverride = info.Virtual && (symbol.intro == 0);
+            info.IsPure = info.Virtual && (symbol.pure != 0);
+            info.IsConst = symbol.constType != 0;
+            if (symbol.wasInlined == 0 && symbol.inlSpec != 0)
+                info.WasInlineRemoved = true;
+
+            info.Name = GetType(symbol.type.type) + " " + symbol.name;
+
+            symbol.type.findChildren(SymTagEnum.SymTagFunctionArgType, null, 0, out var syms);
+            if (syms.count == 0)
+            {
+                info.Name += "(void)";
+            }
+            else
+            {
+                var parameters = new List<string>();
+                foreach (IDiaSymbol argSym in syms)
+                {
+                    parameters.Add(GetType(argSym.type));
+                }
+                info.Name += "(" + string.Join(",", parameters) + ")";
+            }
+            return info;
+        }
+
+        private string GetType(IDiaSymbol typeSymbol)
+        {
+            switch ((SymTagEnum)typeSymbol.symTag)
+            {
+                case SymTagEnum.SymTagFunctionType:
+                    var returnType = GetType(typeSymbol.type);
+
+                    typeSymbol.findChildren(SymTagEnum.SymTagFunctionArgType, null, 0, out var syms);
+                    if (syms.count == 0)
+                    {
+                        returnType += "(void)";
+                    }
+                    else
+                    {
+                        var parameters = new List<string>();
+                        foreach (IDiaSymbol argSym in syms)
+                        {
+                            parameters.Add(GetType(argSym.type));
+                        }
+                        returnType += "(" + string.Join(",",parameters) + ")";
+                    }
+                    return returnType;
+                case SymTagEnum.SymTagPointerType:
+                    return typeSymbol.reference != 0 ? $"{GetType(typeSymbol.type)}&" : $"{GetType(typeSymbol.type)}*";
+                case SymTagEnum.SymTagBaseType:
+                    if (typeSymbol.constType != 0)
+                        return "const " + SymbolMemberInfo.GetBaseType(typeSymbol);
+                    return SymbolMemberInfo.GetBaseType(typeSymbol);
+                case SymTagEnum.SymTagArrayType:
+                    // get array dimension:
+                    var dimension = typeSymbol.count.ToString();
+                    return $"{GetType(typeSymbol.type)}[{dimension}]";
+                case SymTagEnum.SymTagUDT:
+                    return typeSymbol.name;
+                case SymTagEnum.SymTagEnum:
+                    return $"enum {typeSymbol.name}";
+                default:
+                    return string.Empty;
+            }
+        }
+
+        public override string ToString()
+        {
+            var sw = new StringWriter();
+
+            sw.WriteLine($"Symbol: {Name}");
+            sw.WriteLine($"TypeName: {TypeName}");
+            sw.WriteLine($"Size: {Size}");
+            sw.WriteLine($"Padding: {Padding}");
+            sw.WriteLine($"Total padding: {TotalPadding}");
+            sw.WriteLine("Members:");
+            sw.WriteLine("-------");
+
+            foreach (var member in Members)
+            {
+                if (member.PaddingBefore > 0)
+                {
+                    var paddingOffset = member.Offset - member.PaddingBefore;
+                    sw.WriteLine($"{PaddingMarker,-40} {paddingOffset,5} {member.PaddingBefore,5}");
+                }
+                sw.WriteLine($"{member.DisplayName,-40} {member.Offset,5} {member.Size,5}");
+            }
+
+            if (EndPadding > 0)
+            {
+                var endPaddingOffset = Size - EndPadding;
+                sw.WriteLine($"{PaddingMarker,-40} {endPaddingOffset,5} {EndPadding,5}");
+            }
+
+            return sw.ToString();
+        }
+    }
 }

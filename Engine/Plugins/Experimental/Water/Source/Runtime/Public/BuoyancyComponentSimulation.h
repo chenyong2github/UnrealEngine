@@ -20,6 +20,7 @@ struct FBuoyancyPhysicsState
 		, ForwardSpeedKmh(0.f)
 		, RightSpeed(0.f)
 		, NumPontoonsInWater(0)
+		, RiverPontoonIndex(-1)
 		, bIsInWaterBody(false)
 	{ }
 	FVector UpDir;
@@ -27,14 +28,15 @@ struct FBuoyancyPhysicsState
 	FVector RightDir;
 	FVector LinearVelocity;
 	FVector AngularVelocityRad;
+	TArray<TPair<FSphericalPontoon, EBuoyancyEvent>> Events;
 	float LinearSpeed;
 	float LinearSpeedKmh;
 	float ForwardSpeed; // Current speed in the direction of the forward axis of the body instance's transform (not steering forward direction)
 	float ForwardSpeedKmh;
 	float RightSpeed; // Current speed in the direction of the right axis
 	int32 NumPontoonsInWater;
+	int32 RiverPontoonIndex;
 	bool bIsInWaterBody;
-	TArray<TPair<FSphericalPontoon, EBuoyancyEvent>> Events;
 };
 
 struct FBuoyancyComponentBaseAsyncAux : public FBuoyancyComponentAsyncAux
@@ -110,10 +112,80 @@ public:
 			FBuoyancyComponentSim::ApplyLinearDrag(Body, BuoyancyData, State);
 			FBuoyancyComponentSim::ApplyAngularDrag(Body, BuoyancyData, State);
 		}
+
 		FBuoyancyComponentSim::ApplyBuoyancy(Body, Aux, State);
-		FBuoyancyComponentSim::ApplyWaterForce(Body, BuoyancyData, State, Aux, DeltaSeconds);
+
+		if (BuoyancyData.bApplyRiverForces)
+		{
+			State.RiverPontoonIndex = -1;
+
+			// Attempt to use the specified pontoon
+			if (Aux.Pontoons.Num() > BuoyancyData.RiverPontoonIndex)
+			{
+				const FSolverSafeWaterBodyData* WaterBody = Aux.Pontoons[BuoyancyData.RiverPontoonIndex].SolverWaterBody;
+				if (WaterBody && WaterBody->WaterBodyType == EWaterBodyType::River)
+				{
+					State.RiverPontoonIndex = BuoyancyData.RiverPontoonIndex;
+				}
+			}
+
+			// If it is not in a river, use any pontoon that is in a river
+			if (State.RiverPontoonIndex == -1)
+			{
+				for (int i = 0; i < Aux.Pontoons.Num(); ++i)
+				{
+					const FSolverSafeWaterBodyData* WaterBody = Aux.Pontoons[i].SolverWaterBody;
+					if (WaterBody && WaterBody->WaterBodyType == EWaterBodyType::River)
+					{
+						State.RiverPontoonIndex = i;
+						break;
+					}
+				}
+			}
+
+			if (BuoyancyData.bApplyDownstreamAngularRotation)
+			{
+				FBuoyancyComponentSim::ApplyTorqueForDownstreamAngularRotation(DeltaSeconds, Body, State, BuoyancyData, Aux);
+			}
+	
+			FBuoyancyComponentSim::ApplyWaterForce(Body, BuoyancyData, State, Aux, DeltaSeconds);
+		}
+		
 		// Copy into the output state
 		Out = TOut(State);
+	}
+
+
+	// Computes torque to rotate the object downstream
+	template <typename TBody, typename TState, typename TAux>
+	static void ApplyTorqueForDownstreamAngularRotation(const float DeltaSeconds, TBody* Body, TState& State, const FBuoyancyData& BuoyancyData, TAux& Aux)
+	{
+		FVector AddedTorque(FVector::ZeroVector);
+
+		if (State.RiverPontoonIndex != -1 && Aux.Pontoons.Num() > State.RiverPontoonIndex)
+		{
+			const float RotationModifier = BuoyancyData.DownstreamRotationStrength;
+			const float Stiffness = BuoyancyData.DownstreamRotationStiffness;
+			const float Damping = BuoyancyData.DownstreamRotationAngularDamping;
+			const float MaxAccel = BuoyancyData.DownstreamMaxAcceleration;
+
+			const FVector DownstreamWaterVelocity = Aux.Pontoons[State.RiverPontoonIndex].WaterVelocity;
+			const FVector DesiredRotation = GetWorldTM(Body).TransformVectorNoScale(BuoyancyData.DownstreamAxisOfRotation);
+			const FVector AxisOfAlignment = DesiredRotation;
+			const FQuat CurUpToTargetUp = FQuat::FindBetweenNormals(AxisOfAlignment, DownstreamWaterVelocity);
+			const FVector Axis = CurUpToTargetUp.GetRotationAxis();
+			
+			float Angle = CurUpToTargetUp.GetAngle();
+			Angle = FMath::RadiansToDegrees(FMath::UnwindRadians(Angle));
+			
+			float Strength = (Angle * Stiffness - FVector::DotProduct(State.AngularVelocityRad, Axis) * Damping);
+			Strength *= RotationModifier;
+			Strength = FMath::Clamp(Strength, -MaxAccel, MaxAccel);
+
+			AddedTorque = Axis * Strength;
+		}
+
+		AddTorque(Body, AddedTorque);
 	}
 
 	static float GetWaterHeight(const TArray<FSolverSafeWaterBodyData*>& WaterBodies, FVector Position, float InWaveReferenceTime, const TMap<const FSolverSafeWaterBodyData*, float>& SplineKeyMap, float DefaultHeight, FSolverSafeWaterBodyData*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves = true)
@@ -166,30 +238,69 @@ public:
 
 	static FVector ComputeWaterForce(FSphericalPontoon& Pontoon, const FBuoyancyData& BuoyancyData, const FVector& BodyVelocity, float DeltaTime)
 	{
-		FSolverSafeWaterBodyData* WaterBody = Pontoon.SolverWaterBody;
+		FVector FinalAcceleration = FVector::ZeroVector;
+
+		const FSolverSafeWaterBodyData* WaterBody = Pontoon.SolverWaterBody;
 		if (WaterBody && WaterBody->WaterBodyType == EWaterBodyType::River)
 		{
 			float InputKey = Pontoon.SolverSplineInputKeys[Pontoon.SolverWaterBody];
-			const float WaterSpeed = WaterBody->GetWaterVelocityAtSplineInputKey(InputKey);
-
 			const FVector SplinePointLocation = WaterBody->WaterSpline.GetLocationAtSplineInputKey(InputKey);
-			// Move away from spline
-			const FVector ShoreDirection = (Pontoon.CenterLocation - SplinePointLocation).GetSafeNormal2D();
+			FVector LateralPushDirection = FVector::ZeroVector;
 
-			const float WaterShorePushFactor = BuoyancyData.WaterShorePushFactor;
-			const FVector WaterDirection = WaterBody->WaterSpline.GetDirectionAtSplineInputKey(InputKey)* (1 - WaterShorePushFactor)
-				+ ShoreDirection * (WaterShorePushFactor);
-			const FVector WaterVelocity = WaterDirection * WaterSpeed;
-			const float BodySpeedInWaterDir = FMath::Abs(FVector::DotProduct(BodyVelocity, WaterDirection));
-			if (BodySpeedInWaterDir < WaterSpeed)
+			float LateralDistanceScale = 1.0f;
+
+			if (BuoyancyData.WaterShorePushFactor >= 0.0f)
 			{
-				const FVector Acceleration = (WaterVelocity / DeltaTime) * BuoyancyData.WaterVelocityStrength;
-				const float MaxWaterAcceleration = BuoyancyData.MaxWaterForce;
-				return Acceleration.GetClampedToSize(-MaxWaterAcceleration, MaxWaterAcceleration);
+				const FVector ShoreDirection = (Pontoon.CenterLocation - SplinePointLocation).GetSafeNormal2D();
+				LateralPushDirection = ShoreDirection;
 			}
-		
+			else
+			{
+				const FVector CenterRiverLocation = FVector(SplinePointLocation.X, SplinePointLocation.Y, 0);
+				const FVector CenterPontoonLocation = FVector(Pontoon.CenterLocation.X, Pontoon.CenterLocation.Y, 0);
+				const FVector CenterRiverDirection = (CenterRiverLocation - CenterPontoonLocation).GetSafeNormal2D();
+				LateralPushDirection = CenterRiverDirection;
+
+				const float DistanceFromCenter = FVector::Distance(CenterRiverLocation, CenterPontoonLocation);
+				const float DistanceFromPath = DistanceFromCenter - BuoyancyData.RiverTraversalPathWidth;
+				
+				if (DistanceFromPath > 0)
+				{
+					// Apply a force inwards towards the path
+					LateralDistanceScale = FMath::Lerp(0.0f, 1.0f, DistanceFromPath / BuoyancyData.RiverTraversalPathWidth);
+				}
+				else
+				{
+					// Apply a drag to any horizontal movement for stabilization within the path. Stronger drag closer to center of path, and at faster speeds.
+					const float BodySpeedInLateralDir = FVector::DotProduct(BodyVelocity, LateralPushDirection.GetSafeNormal());
+					const float BodySpeedLateralDrag = -FMath::Lerp(0.0f, 1.0f, BodySpeedInLateralDir / BuoyancyData.MaxWaterForce);
+					const float CentralProximityDragMultiplier = FMath::Lerp(0.0f, 1.0f, (2.0f * DistanceFromCenter) / BuoyancyData.RiverTraversalPathWidth);
+					LateralDistanceScale = BodySpeedLateralDrag * CentralProximityDragMultiplier;
+				}
+			}
+
+
+			const FVector WaterVelocity = WaterBody->GetWaterVelocityVectorAtSplineInputKey(InputKey) * BuoyancyData.WaterVelocityStrength;
+			const float RiverWaterSpeed = WaterBody->GetWaterVelocityAtSplineInputKey(InputKey);
+			const float BodySpeedInWater = FVector::DotProduct(BodyVelocity, WaterVelocity.GetSafeNormal());
+			const float BodySpeedInWaterDir = BuoyancyData.bAllowCurrentWhenMovingFastUpstream ? BodySpeedInWater : FMath::Abs(BodySpeedInWater);
+			const bool bApplyRiverForces = (BodySpeedInWaterDir < RiverWaterSpeed);
+
+			if (bApplyRiverForces || BuoyancyData.bAlwaysAllowLateralPush)
+			{
+				const FVector LateralVelocity = LateralPushDirection * LateralDistanceScale * FMath::Abs(BuoyancyData.WaterShorePushFactor);
+				const FVector LateralAcceleration = LateralVelocity / DeltaTime;
+				FinalAcceleration = FinalAcceleration + LateralAcceleration.GetClampedToSize(-BuoyancyData.MaxShorePushForce, BuoyancyData.MaxShorePushForce);
+			}
+
+			if (bApplyRiverForces)
+			{
+				const FVector WaterAcceleration = (WaterVelocity / DeltaTime);
+				FinalAcceleration = FinalAcceleration + WaterAcceleration.GetClampedToSize(-BuoyancyData.MaxWaterForce, BuoyancyData.MaxWaterForce);
+			}
 		}
-		return FVector::ZeroVector;
+
+		return FinalAcceleration;
 	}
 
 	static void ComputeBuoyancy(const FBuoyancyData& BuoyancyData, FSphericalPontoon& Pontoon, float ForwardSpeedKmh, float VelocityZ)
@@ -434,14 +545,12 @@ public:
 	static void ApplyWaterForce(TBody* Body, const FBuoyancyData& BuoyancyData, const TState& State, TAux& Aux, float DeltaSeconds)
 	{
 		FVector WaterForce = FVector::ZeroVector;
-		for (FSphericalPontoon& Pontoon : Aux.Pontoons)
+		
+		if (State.RiverPontoonIndex != -1 && Aux.Pontoons.Num() > State.RiverPontoonIndex)
 		{
-			if (Pontoon.SolverWaterBody)
-			{
-				WaterForce = ComputeWaterForce(Pontoon, BuoyancyData, State.LinearVelocity, DeltaSeconds);
-				break;
-			}
+			WaterForce = ComputeWaterForce(Aux.Pontoons[State.RiverPontoonIndex], BuoyancyData, State.LinearVelocity, DeltaSeconds);
 		}
+
 		AddForce(Body, WaterForce);
 	}
 

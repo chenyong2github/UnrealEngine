@@ -89,7 +89,8 @@ protected:
 
 FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
-	// DEPRECATED UE5 (now in FDMXRuntimeUtils)
+	// DEPRECATED 5.0
+
 	if (!InBaseName.IsEmpty() && !InExistingNames.Contains(InBaseName))
 	{
 		return InBaseName;
@@ -132,6 +133,8 @@ FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InE
 
 FString FDMXEditorUtils::FindUniqueEntityName(const UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> InEntityClass, const FString& InBaseName /*= TEXT("")*/)
 {
+	// DEPRECATED 5.0
+
 	check(InLibrary != nullptr);
 
 	// Get existing names for the current entity type
@@ -144,9 +147,9 @@ FString FDMXEditorUtils::FindUniqueEntityName(const UDMXLibrary* InLibrary, TSub
 	FString BaseName = InBaseName;
 
 	// If no base name was set, use the entity class name as base
-	if (BaseName.IsEmpty())
+	if (BaseName.IsEmpty() && InEntityClass.Get())
 	{
-		BaseName = InEntityClass->GetDisplayNameText().ToString();
+		BaseName = InEntityClass.Get()->GetDisplayNameText().ToString();
 	}
 
 	return FDMXRuntimeUtils::GenerateUniqueNameFromExisting(EntityNames, BaseName);
@@ -154,6 +157,8 @@ FString FDMXEditorUtils::FindUniqueEntityName(const UDMXLibrary* InLibrary, TSub
 
 void FDMXEditorUtils::SetNewFixtureFunctionsNames(UDMXEntityFixtureType* InFixtureType)
 {
+	// DEPRECATED 5.0
+
 	check(InFixtureType != nullptr);
 
 	// We'll only populate this Set if we find an item with no name.
@@ -211,6 +216,8 @@ void FDMXEditorUtils::SetNewFixtureFunctionsNames(UDMXEntityFixtureType* InFixtu
 
 bool FDMXEditorUtils::AddEntity(UDMXLibrary* InLibrary, const FString& NewEntityName, TSubclassOf<UDMXEntity> NewEntityClass, UDMXEntity** OutNewEntity /*= nullptr*/)
 {
+	// DEPRECATED 5.0
+
 	// Don't allow entities with empty names
 	if (NewEntityName.IsEmpty())
 	{
@@ -221,8 +228,10 @@ bool FDMXEditorUtils::AddEntity(UDMXLibrary* InLibrary, const FString& NewEntity
 	const FScopedTransaction NewEntityTransaction(LOCTEXT("NewEntityTransaction", "Add new Entity to DMX Library"));
 	InLibrary->Modify();
 
-	// Create new entity
+	// Create new entity 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	*OutNewEntity = InLibrary->GetOrCreateEntityObject(NewEntityName, NewEntityClass);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return true;
 }
@@ -396,7 +405,7 @@ void FDMXEditorUtils::RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEn
 
 			InLibrary->Modify();
 			EntityToDelete->Modify(); // Take a snapshot of the entity before setting its ParentLibrary to null
-			InLibrary->RemoveEntity(EntityToDelete);
+			EntityToDelete->Destroy();
 		}
 	}
 }

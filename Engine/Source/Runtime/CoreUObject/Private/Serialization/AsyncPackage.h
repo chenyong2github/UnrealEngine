@@ -8,7 +8,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
-#include "Misc/Guid.h"
 #include "Misc/PackagePath.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/LinkerInstancingContext.h"
@@ -21,8 +20,6 @@ struct FAsyncPackageDesc
 	FName Name;
 	/** PackagePath of the package to load. */
 	FPackagePath PackagePath;
-	/** GUID of the package to load, or the zeroed invalid GUID for "don't care" */
-	FGuid Guid;
 	/** Delegate called on completion of loading. This delegate can only be created and consumed on the game thread */
 	TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate;
 	/** The flags that should be applied to the package */
@@ -43,11 +40,10 @@ struct FAsyncPackageDesc
 	void SetInstancingContext(FLinkerInstancingContext) {}
 #endif 
 
-	FAsyncPackageDesc(int32 InRequestID, const FName& InName, const FPackagePath& InPackagePath, const FGuid& InGuid = FGuid(), TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPriority = 0)
+	FAsyncPackageDesc(int32 InRequestID, const FName& InName, const FPackagePath& InPackagePath, TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPriority = 0)
 		: RequestID(InRequestID)
 		, Name(InName)
 		, PackagePath(InPackagePath)
-		, Guid(InGuid)
 		, PackageLoadedDelegate(MoveTemp(InCompletionDelegate))
 		, PackageFlags(InPackageFlags)
 		, Priority(InPriority)
@@ -61,7 +57,6 @@ struct FAsyncPackageDesc
 		: RequestID(OldPackage.RequestID)
 		, Name(OldPackage.Name)
 		, PackagePath(OldPackage.PackagePath)
-		, Guid(OldPackage.Guid)
 		, PackageFlags(OldPackage.PackageFlags)
 		, Priority(OldPackage.Priority)
 		, PIEInstanceID(OldPackage.PIEInstanceID)

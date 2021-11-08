@@ -50,6 +50,21 @@
 -keep class com.epicgames.unreal.ElectraVideoDecoderH264$FOutputBufferInfo {
 	public *;
 }
+-keep class com.epicgames.unreal.ElectraVideoDecoderH265 {
+	public *;
+}
+-keep class com.epicgames.unreal.ElectraVideoDecoderH265$FCreateParameters {
+	public *;
+}
+-keep class com.epicgames.unreal.ElectraVideoDecoderH265$FDecoderInformation {
+	public *;
+}
+-keep class com.epicgames.unreal.ElectraVideoDecoderH265$FOutputFormatInfo {
+	public *;
+}
+-keep class com.epicgames.unreal.ElectraVideoDecoderH265$FOutputBufferInfo {
+	public *;
+}
 		</insert>
 	</proguardAdditions>
 

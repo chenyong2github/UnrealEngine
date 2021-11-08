@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
@@ -892,12 +890,11 @@ namespace DatasmithRevitExporter
 
 			private string GetActorName(bool bEnsureUnique)
 			{
-				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
 				string ActorName;
 
 				if (InstanceDataStack.Count == 0)
 				{
-					ActorName = $"{DocumentName}:{CurrentElement.UniqueId}";
+					ActorName = $"{DocumentData.DocumentId}:{CurrentElement.UniqueId}";
 				}
 				else
 				{
@@ -924,8 +921,6 @@ namespace DatasmithRevitExporter
 				// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts, 
 				// but adding the CurrentElement unique id ensures we get unique name string in the end.
 
-				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
-
 				StringBuilder ChildCounts = new StringBuilder();
 
 				for (int ElemIndex = 1; ElemIndex < InstanceDataStack.Count; ++ElemIndex)
@@ -938,16 +933,14 @@ namespace DatasmithRevitExporter
 				ChildCounts.AppendFormat(":{0}", ChildElements.Count);
 
 				FBaseElementData Instance = InstanceDataStack.Peek();
-				return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}{ChildCounts.ToString()}";
+				return $"{DocumentData.DocumentId}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}{ChildCounts.ToString()}";
 			}
 
 			private string GetMeshName()
 			{
-				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
-
 				if (InstanceDataStack.Count == 0)
 				{
-					return $"{DocumentName}:{CurrentElement.UniqueId}";
+					return $"{DocumentData.DocumentId}:{CurrentElement.UniqueId}";
 				}
 				else
 				{
@@ -960,7 +953,7 @@ namespace DatasmithRevitExporter
 					else
 					{
 						// Generate instanced mesh name
-						return $"{DocumentName}:{Instance.BaseElementType.UniqueId}";
+						return $"{DocumentData.DocumentId}:{Instance.BaseElementType.UniqueId}";
 					}
 				}
 			}
@@ -1059,7 +1052,6 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-
 		public Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>> 
 														MeshMap = new Dictionary<string, Tuple<FDatasmithFacadeMeshElement, Task<bool>>>();
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
@@ -1070,6 +1062,8 @@ namespace DatasmithRevitExporter
 		private string									CurrentMaterialName = null;
 		private List<string>							MessageList = null;
 
+		public  string									DocumentId { get; private set; } = "";
+
 		public bool										bSkipMetadataExport { get; private set; } = false;
 		public Document									CurrentDocument { get; private set; } = null;
 		public FDirectLink								DirectLink { get; private set; } = null;
@@ -1079,7 +1073,8 @@ namespace DatasmithRevitExporter
 		public FDocumentData(
 			Document InDocument,
 			ref List<string> InMessageList,
-			FDirectLink InDirectLink
+			FDirectLink InDirectLink,
+			string InLinkedDocumentId
 		)
 		{
 			DirectLink = InDirectLink;
@@ -1108,6 +1103,11 @@ namespace DatasmithRevitExporter
 					BoundingBoxXYZ BBox = SectionBox.get_BoundingBox(CurrentDocument.ActiveView);
 					SectionBoxOutlines.Add(GetOutline(BBox.Transform, BBox));
 				}
+			}
+
+			if (InLinkedDocumentId != null)
+			{
+				DocumentId = InLinkedDocumentId;
 			}
 		}
 

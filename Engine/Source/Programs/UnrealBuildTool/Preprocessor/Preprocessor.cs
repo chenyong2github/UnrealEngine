@@ -142,7 +142,7 @@ namespace UnrealBuildTool
 				ValueTokens.AddRange(Tokens.Skip(2));
 			}
 
-			PreprocessorMacro Macro = new PreprocessorMacro(Tokens[0].Identifier!, null, Tokens);
+			PreprocessorMacro Macro = new PreprocessorMacro(Tokens[0].Identifier!, null, ValueTokens);
 			State.DefineMacro(Macro);
 		}
 

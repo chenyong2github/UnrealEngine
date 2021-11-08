@@ -17,6 +17,21 @@
 void UNodalOffsetTool::Initialize(TWeakPtr<FCameraCalibrationStepsController> InCameraCalibrationStepController)
 {
 	CameraCalibrationStepsController = InCameraCalibrationStepController;
+
+	UCameraCalibrationSubsystem* Subsystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+	check(Subsystem);
+
+	for (const FName& AlgoName : Subsystem->GetCameraNodalOffsetAlgos())
+	{
+		TSubclassOf<UCameraNodalOffsetAlgo> AlgoClass = Subsystem->GetCameraNodalOffsetAlgo(AlgoName);
+		const UCameraNodalOffsetAlgo* Algo = CastChecked<UCameraNodalOffsetAlgo>(AlgoClass->GetDefaultObject());
+
+		// If the algo uses an overlay material, create a new MID to use with that algo
+		if (UMaterialInterface* OverlayMaterial = Algo->GetOverlayMaterial())
+		{
+			AlgoOverlayMIDs.Add(Algo->FriendlyName(), UMaterialInstanceDynamic::Create(OverlayMaterial, GetTransientPackage()));
+		}
+	}
 }
 
 void UNodalOffsetTool::Shutdown()
@@ -119,6 +134,18 @@ void UNodalOffsetTool::SetNodalOffsetAlgo(const FName& AlgoName)
 	{
 		NodalOffsetAlgo->Initialize(this);
 	}
+
+	// Set the tool overlay pass' material to the MID associate with the current algo
+	if (CameraCalibrationStepsController.IsValid())
+	{
+		TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin();
+		StepsController->SetOverlayEnabled(false);
+
+		if (UMaterialInstanceDynamic* OverlayMID = GetOverlayMID())
+		{
+			StepsController->SetOverlayMaterial(OverlayMID);
+		}
+	}
 }
 
 UCameraNodalOffsetAlgo* UNodalOffsetTool::GetNodalOffsetAlgo() const
@@ -192,6 +219,16 @@ FCameraCalibrationStepsController* UNodalOffsetTool::GetCameraCalibrationStepsCo
 bool UNodalOffsetTool::IsActive() const
 {
 	return bIsActive;
+}
+
+UMaterialInstanceDynamic* UNodalOffsetTool::GetOverlayMID() const
+{
+	return AlgoOverlayMIDs.FindRef(NodalOffsetAlgo->FriendlyName()).Get();
+}
+
+bool UNodalOffsetTool::IsOverlayEnabled() const
+{
+	return NodalOffsetAlgo->IsOverlayEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE

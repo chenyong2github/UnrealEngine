@@ -859,6 +859,23 @@ FOnActiveDeviceProfileChanged& UDeviceProfileManager::OnActiveDeviceProfileChang
 }
 
 
+void UDeviceProfileManager::GetProfileConfigFiles(OUT TArray<FString>& OutConfigFiles)
+{
+	TSet<FString> SetOfPaths;
+
+	// Make sure generic platform is first
+	const FString RelativeConfigFilePath = FString::Printf(TEXT("%sDefault%ss.ini"), *FPaths::SourceConfigDir(), *UDeviceProfile::StaticClass()->GetName());
+	SetOfPaths.Add(RelativeConfigFilePath);
+
+	for (int32 DeviceProfileIndex = 0; DeviceProfileIndex < Profiles.Num(); ++DeviceProfileIndex)
+	{
+		UDeviceProfile* CurrentProfile = CastChecked<UDeviceProfile>(Profiles[DeviceProfileIndex]);
+		SetOfPaths.Add(CurrentProfile->GetDefaultConfigFilename());
+	}
+	
+	OutConfigFiles = SetOfPaths.Array();
+}
+
 void UDeviceProfileManager::LoadProfiles()
 {
 	if( !HasAnyFlags( RF_ClassDefaultObject ) )

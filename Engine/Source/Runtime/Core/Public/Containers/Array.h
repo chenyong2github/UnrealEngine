@@ -1180,7 +1180,7 @@ public:
 		if (!Ar.IsError() && SerializeNum > 0 && ensure(!Ar.IsNetArchive() || SerializeNum <= MaxNetArraySerialize))
 		{
 			// if we don't need to perform per-item serialization, just read it in bulk
-			if (sizeof(ElementType) == 1 || TCanBulkSerialize<ElementType>::Value)
+			if constexpr (sizeof(ElementType) == 1 || TCanBulkSerialize<ElementType>::Value)
 			{
 				A.ArrayNum = SerializeNum;
 
@@ -2713,43 +2713,90 @@ private:
 #endif
 
 private:
+	void AllocatorResizeAllocation(SizeType CurrentArrayNum, SizeType NewArrayMax)
+	{
+		if constexpr (TAllocatorTraits<AllocatorType>::SupportsElementAlignment)
+		{
+			AllocatorInstance.ResizeAllocation(CurrentArrayNum, NewArrayMax, sizeof(ElementType), alignof(ElementType));
+		}
+		else
+		{
+			AllocatorInstance.ResizeAllocation(CurrentArrayNum, NewArrayMax, sizeof(ElementType));
+		}
+	}
+
+	SizeType AllocatorCalculateSlackShrink(SizeType CurrentArrayNum, SizeType NewArrayMax)
+	{
+		if constexpr (TAllocatorTraits<AllocatorType>::SupportsElementAlignment)
+		{
+			return AllocatorInstance.CalculateSlackShrink(CurrentArrayNum, NewArrayMax, sizeof(ElementType), alignof(ElementType));
+		}
+		else
+		{
+			return AllocatorInstance.CalculateSlackShrink(CurrentArrayNum, NewArrayMax, sizeof(ElementType));
+		}
+	}
+
+	SizeType AllocatorCalculateSlackGrow(SizeType CurrentArrayNum, SizeType NewArrayMax)
+	{
+		if constexpr (TAllocatorTraits<AllocatorType>::SupportsElementAlignment)
+		{
+			return AllocatorInstance.CalculateSlackGrow(CurrentArrayNum, NewArrayMax, sizeof(ElementType), alignof(ElementType));
+		}
+		else
+		{
+			return AllocatorInstance.CalculateSlackGrow(CurrentArrayNum, NewArrayMax, sizeof(ElementType));
+		}
+	}
+
+	SizeType AllocatorCalculateSlackReserve(SizeType NewArrayMax)
+	{
+		if constexpr (TAllocatorTraits<AllocatorType>::SupportsElementAlignment)
+		{
+			return AllocatorInstance.CalculateSlackReserve(NewArrayMax, sizeof(ElementType), alignof(ElementType));
+		}
+		else
+		{
+			return AllocatorInstance.CalculateSlackReserve(NewArrayMax, sizeof(ElementType));
+		}
+	}
 
 	FORCENOINLINE void ResizeGrow(SizeType OldNum)
 	{
-		ArrayMax = AllocatorInstance.CalculateSlackGrow(ArrayNum, ArrayMax, sizeof(ElementType));
-		AllocatorInstance.ResizeAllocation(OldNum, ArrayMax, sizeof(ElementType));
+		ArrayMax = AllocatorCalculateSlackGrow(ArrayNum, ArrayMax);
+		AllocatorResizeAllocation(OldNum, ArrayMax);
 	}
 	FORCENOINLINE void ResizeShrink()
 	{
-		const SizeType NewArrayMax = AllocatorInstance.CalculateSlackShrink(ArrayNum, ArrayMax, sizeof(ElementType));
+		const SizeType NewArrayMax = AllocatorCalculateSlackShrink(ArrayNum, ArrayMax);
 		if (NewArrayMax != ArrayMax)
 		{
 			ArrayMax = NewArrayMax;
 			check(ArrayMax >= ArrayNum);
-			AllocatorInstance.ResizeAllocation(ArrayNum, ArrayMax, sizeof(ElementType));
+			AllocatorResizeAllocation(ArrayNum, ArrayMax);
 		}
 	}
 	FORCENOINLINE void ResizeTo(SizeType NewMax)
 	{
 		if (NewMax)
 		{
-			NewMax = AllocatorInstance.CalculateSlackReserve(NewMax, sizeof(ElementType));
+			NewMax = AllocatorCalculateSlackReserve(NewMax);
 		}
 		if (NewMax != ArrayMax)
 		{
 			ArrayMax = NewMax;
-			AllocatorInstance.ResizeAllocation(ArrayNum, ArrayMax, sizeof(ElementType));
+			AllocatorResizeAllocation(ArrayNum, ArrayMax);
 		}
 	}
 	FORCENOINLINE void ResizeForCopy(SizeType NewMax, SizeType PrevMax)
 	{
 		if (NewMax)
 		{
-			NewMax = AllocatorInstance.CalculateSlackReserve(NewMax, sizeof(ElementType));
+			NewMax = AllocatorCalculateSlackReserve(NewMax);
 		}
 		if (NewMax > PrevMax)
 		{
-			AllocatorInstance.ResizeAllocation(0, NewMax, sizeof(ElementType));
+			AllocatorResizeAllocation(0, NewMax);
 			ArrayMax = NewMax;
 		}
 		else

@@ -240,7 +240,14 @@ protected:
 		FGraphEventRef PreloadEvent;
 		void* Code = nullptr;
 		uint32 FramePreloadStarted = ~0u;
-		uint32 NumRefs = 0u;
+		uint32 NumRefs : 31;
+		uint32 bNeverToBePreloaded : 1;
+
+		FShaderPreloadEntry()
+			: NumRefs(0)
+			, bNeverToBePreloaded(0)
+		{
+		}
 	};
 
 	bool WaitForPreload(FShaderPreloadEntry& ShaderPreloadEntry);
@@ -341,7 +348,14 @@ private:
 		FGraphEventRef PreloadEvent;
 		FIoRequest IoRequest;
 		uint32 FramePreloadStarted = ~0u;
-		uint32 NumRefs = 0u;
+		uint32 NumRefs : 31;
+		uint32 bNeverToBePreloaded : 1;
+
+		FShaderPreloadEntry()
+			: NumRefs(0)
+			, bNeverToBePreloaded(0)
+		{
+		}
 	};
 
 	FIoStoreShaderCodeArchive(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);

@@ -55,7 +55,8 @@ public:
 		{
 			return FDecoderTimeStamp(FTimespan::Zero(), 0);
 		}
-		return FDecoderTimeStamp(FTimespan(ParamDict->GetValue("pts").GetTimeValue().GetAsHNS()), 0);
+		Electra::FTimeValue pts(ParamDict->GetValue("pts").GetTimeValue());
+		return FDecoderTimeStamp(pts.GetAsTimespan(), pts.GetSequenceIndex());
 	}
 
 	FTimespan GetDuration() const

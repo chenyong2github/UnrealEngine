@@ -35,25 +35,24 @@ public class LevelSnapshots : ModuleRules
             }
             );
 
-
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-	            "ApplicationCore",
 	            "Core",
                 "CoreUObject",
                 "Engine",
-                "Slate",
-                "SlateCore",
                 "Landscape",
                 "LevelSnapshotFilters"
             }
             );
 
-		// This is needed for undo / redo system in editor
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange( new string[]
+			{
+				"UnrealEd", // This is needed for undo / redo system in editor
+				"Settings"	// For registering settings
+			});
 		}
 	}
 }

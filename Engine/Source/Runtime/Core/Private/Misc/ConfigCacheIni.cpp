@@ -1421,7 +1421,7 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 						// missing file just add the current config file to the cache
 						if ( bShouldCache )
 						{
-								HierarchyCache.Add(IniToLoad.CacheKey, ConfigFile);
+							HierarchyCache.Add(IniToLoad.CacheKey, ConfigFile);
 						}
 #endif
 						continue;
@@ -1608,9 +1608,9 @@ bool FConfigFile::IsADefaultIniWrite(const FString& Filename, int32& OutIniCombi
 
 bool FConfigFile::WriteInternal(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder)
 {
-	if( !Dirty || NoSave || FParse::Param( FCommandLine::Get(), TEXT("nowrite")) || 
-		(FParse::Param( FCommandLine::Get(), TEXT("Multiprocess"))  && !FParse::Param( FCommandLine::Get(), TEXT("MultiprocessSaveConfig"))) // Is can be useful to save configs with multiprocess if they are given INI overrides
-		) 
+	if (!Dirty || NoSave || FParse::Param(FCommandLine::Get(), TEXT("nowrite")) ||
+		(FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) && !FParse::Param(FCommandLine::Get(), TEXT("MultiprocessSaveConfig"))) // Is can be useful to save configs with multiprocess if they are given INI overrides
+		)
 	{
 		return true;
 	}
@@ -1742,7 +1742,7 @@ void FConfigFile::WriteToStringInternal(FString& InOutText, bool bIsADefaultIniW
 					if( bIsADefaultIniWrite )
 					{
 						ProcessPropertyAndWriteForDefaults(IniCombineThreshold, CompletePropertyToWrite, InOutText, SectionName, PropertyName.ToString());
-						}
+					}
 					else
 					{
 						PropertyNameString.Reset(FName::StringBufferSize);
@@ -1836,7 +1836,7 @@ void FConfigFile::WriteToStringInternal(FString& InOutText, bool bIsADefaultIniW
 	{
 		InOutText.Append(LINE_TERMINATOR);
 	}
-	}
+}
 
 /** Adds any properties that exist in InSourceFile that this config file is missing */
 void FConfigFile::AddMissingProperties( const FConfigFile& InSourceFile )
@@ -3904,7 +3904,7 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 	FString UsedProjectDir = FPaths::GetPath(FPaths::GetPath(SourceProjectConfigDir));
 
 	// get the platform name
-	const FString PlatformName(InPlatformName ? InPlatformName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+	const FString LocalPlatformName(InPlatformName ? InPlatformName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 
 	// string that can have a reference to it, lower down
 	const FString DedicatedServerString = IsRunningDedicatedServer() ? TEXT("DedicatedServer") : TEXT("");
@@ -3965,7 +3965,7 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 				bool bGenerateCacheKey = EnumHasAnyFlags(Layer.Flag, EConfigLayerFlags::GenerateCacheKey) && ExpansionIndex == UE_ARRAY_COUNT(GConfigExpansions) - 1;
 				checkfSlow(!(bGenerateCacheKey && bHasPlatformTag), TEXT("EConfigLayerFlags::GenerateCacheKey shouldn't have a platform tag"));
 
-				const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+				const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(LocalPlatformName);
 
 				// go over parents, and then this platform, unless there's no platform tag, then we simply want to run through the loop one time to add it to the
 				int32 NumPlatforms = bHasPlatformTag ? Info.IniParentChain.Num() + 1 : 1;
@@ -3984,7 +3984,7 @@ void FConfigFile::AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const T
 				{
 					const FString& CurrentPlatform = 
 						(PlatformIndex == DedicatedServerIndex) ? DedicatedServerString :
-						(PlatformIndex == CurrentPlatformIndex) ? PlatformName : 
+						(PlatformIndex == CurrentPlatformIndex) ? LocalPlatformName :
 						Info.IniParentChain[PlatformIndex];
 
 					FString PlatformPath = PerformFinalExpansions(ExpandedPath, CurrentPlatform, *UsedEngineDir, *UsedProjectDir);
@@ -4497,6 +4497,8 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		LoadAnIniFile(*SourceIniFilename, ConfigFile);
 
 		ConfigFile.Name = IniName;
+		ConfigFile.PlatformName.Reset();
+		ConfigFile.bHasPlatformName = false;
 	}
 	else
 	{
@@ -4535,6 +4537,8 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		bool bNeedsWrite = GenerateDestIniFile(ConfigFile, DestIniFilename, ConfigFile.SourceIniHierarchy, bAllowGeneratedIniWhenCooked, bWriteDestIni);
 
 		ConfigFile.Name = IniName;
+		ConfigFile.PlatformName = Platform;
+		ConfigFile.bHasPlatformName = true;
 
 		// don't write anything to disk in cooked builds - we will always use re-generated INI files anyway.
 		// Note: Unfortunately bAllowGeneratedIniWhenCooked is often true even in shipping builds with cooked data
@@ -4604,6 +4608,7 @@ FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)
 	Ar << static_cast<FConfigFile::Super&>(ConfigFile);
 	Ar << ConfigFile.Dirty;
 	Ar << ConfigFile.NoSave;
+	Ar << ConfigFile.bHasPlatformName;
 	Ar << ConfigFile.Name;
 	Ar << ConfigFile.SourceIniHierarchy;
 	Ar << ConfigFile.SourceEngineConfigDir;
@@ -4620,6 +4625,7 @@ FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)
 	}
 	Ar << ConfigFile.SourceProjectConfigDir;
 	Ar << ConfigFile.CacheKey;
+	Ar << ConfigFile.PlatformName;
 	Ar << ConfigFile.PerObjectConfigArrayOfStructKeys;
 
 	return Ar;

@@ -108,6 +108,8 @@ public:
 	};
 
 public:
+	ENGINE_API ISceneViewExtension() {}
+	
 	virtual ~ISceneViewExtension() {}
 
 	/**

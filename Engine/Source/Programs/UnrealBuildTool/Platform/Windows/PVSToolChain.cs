@@ -489,6 +489,12 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
+			// Ignore generated files
+			if (InputFiles.All(x => x.Location.GetFileName().EndsWith(".gen.cpp")))
+			{
+				return new CPPOutput();
+			}
+
 			// Use a subdirectory for PVS output, to avoid clobbering regular build artifacts
 			OutputDir = DirectoryReference.Combine(OutputDir, "PVS");
 
@@ -598,7 +604,7 @@ namespace UnrealBuildTool
 				AnalyzeAction.PrerequisiteItems.AddRange(InputFiles); // Add the InputFiles as PrerequisiteItems so that in SingleFileCompile mode the PVSAnalyze step is not filtered out
 				AnalyzeAction.ProducedItems.Add(OutputFileItem);
 				AnalyzeAction.DeleteItems.Add(OutputFileItem); // PVS Studio will append by default, so need to delete produced items
-				AnalyzeAction.bCanExecuteRemotely = true;
+				AnalyzeAction.bCanExecuteRemotely = false;
 
 				Result.ObjectFiles.AddRange(AnalyzeAction.ProducedItems);
 			}

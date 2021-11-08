@@ -2,15 +2,17 @@
 
 #include "Widgets/SLevelSnapshotsEditorCreationForm.h"
 
+#include "DetailLayoutBuilder.h"
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "Settings/LevelSnapshotsEditorProjectSettings.h"
-#include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
+#include "LevelSnapshotsEditorSettings.h"
 
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
+#include "IDetailCustomization.h"
 #include "IDetailsView.h"
+#include "LevelSnapshotsSettings.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Images/SImage.h"
@@ -20,19 +22,36 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
+#include "SPrimaryButton.h"
 
-TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
-	const FCloseCreationFormDelegate& CallOnClose, 
-	ULevelSnapshotsEditorProjectSettings* InProjectSettings,
-	ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
+namespace LevelSnapshotsEditor
 {
-	check(InProjectSettings);
-	check(InDataManagementSettings);
-	
-	// Compute centered window position based on max window size, which include when all categories are expanded
-	const FVector2D LastSize = InProjectSettings->GetLastCreationWindowSize();
-	const FVector2D BaseWindowSize = FVector2D(LastSize.X, LastSize.Y); // Max window size it can get based on current slate
+	class FShowOnlyDataManagementsDetailsCustomization : public IDetailCustomization
+	{
+	public:
+		
+		virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+		{
+			// Iterate through all categories in case somebody adds a new category and forgets to update this
+			const FString DataCategory("Data");
+			for (TFieldIterator<FProperty> PropertyIt(ULevelSnapshotsEditorSettings::StaticClass()); PropertyIt; ++PropertyIt)
+			{
+				const FString Category = PropertyIt->HasMetaData(TEXT("Category")) ? PropertyIt->GetMetaData(TEXT("Category")) : FString();
+				if (!Category.Equals(DataCategory))
+				{
+					DetailBuilder.HideCategory(*Category);
+				}
+			}
+		}
+	};
+}
 
+
+TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(const FCloseCreationFormDelegate& CallOnClose)
+{
+	// Compute centered window position based on max window size, which include when all categories are expanded
+	const FVector2D LastSize = ULevelSnapshotsEditorSettings::Get()->GetLastCreationWindowSize();
+	const FVector2D BaseWindowSize = FVector2D(LastSize.X, LastSize.Y); // Max window size it can get based on current slate
 
 	const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
 	const FVector2D DisplayTopLeft(WorkAreaRect.Left, WorkAreaRect.Top);
@@ -50,7 +69,7 @@ TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 		.SupportsMaximize(false)
 		.ScreenPosition(WindowPosition);
 
-	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings, InDataManagementSettings);
+	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose);
 	Window->SetContent
 	(
 		CreationForm
@@ -64,20 +83,11 @@ TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 void SLevelSnapshotsEditorCreationForm::Construct(
 	const FArguments& InArgs,
 	TWeakPtr<SWindow> InWidgetWindow,
-	const FCloseCreationFormDelegate& CallOnClose, 
-	ULevelSnapshotsEditorProjectSettings* InProjectSettings,
-	ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
+	const FCloseCreationFormDelegate& CallOnClose)
 {
-	check(InProjectSettings);
-	check(InDataManagementSettings);
-	
-	ProjectSettingsObjectPtr = InProjectSettings;
-	DataManagementSettingsObjectPtr = InDataManagementSettings;
-	
 	WidgetWindow = InWidgetWindow;
 	CallOnCloseDelegate = CallOnClose;
-
-	bNameDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsNameOverridden();
+	bNameDiffersFromDefault = ULevelSnapshotsEditorSettings::Get()->IsNameOverridden();
 	
 	ChildSlot
 	[
@@ -216,16 +226,9 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
 				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.ForegroundColor(FSlateColor::UseForeground())
+					SNew(SPrimaryButton)
 					.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnCreateButtonPressed)
-					[
-						SNew(STextBlock)
-						.Justification(ETextJustify::Center)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Text(NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreationForm_CreateSnapshotButton", "Create Level Snapshot"))
-					]
+					.Text(NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreationForm_CreateSnapshotButton", "Create Level Snapshot"))
 				]
 			]
 		]
@@ -234,8 +237,6 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 
 TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSettingsDetailsWidget() const
 {
-	check(ProjectSettingsObjectPtr.IsValid());
-	
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bUpdatesFromSelection = false;
@@ -246,7 +247,12 @@ TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSetting
 	DetailsViewArgs.bShowScrollBar = false;
 
 	TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-	const TArray<UObject*> ProjectSettingsObjects = {DataManagementSettingsObjectPtr.Get()};
+	const TArray<UObject*> ProjectSettingsObjects = { ULevelSnapshotsEditorSettings::Get() };
+	// By requirement, we're only supposed to show the data management settings
+	Details->RegisterInstancedCustomPropertyLayout(
+		ULevelSnapshotsEditorSettings::StaticClass(),
+		FOnGetDetailCustomizationInstance::CreateLambda([](){ return MakeShared<LevelSnapshotsEditor::FShowOnlyDataManagementsDetailsCustomization>(); })
+		);
 	Details->SetObjects(ProjectSettingsObjects);
 	Details->SetEnabled(true);
 
@@ -260,30 +266,26 @@ SLevelSnapshotsEditorCreationForm::~SLevelSnapshotsEditorCreationForm()
 
 FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 {
-	check(DataManagementSettingsObjectPtr.IsValid());
-
 	UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
-	if (!ensure(World && DataManagementSettingsObjectPtr.IsValid()))
+	if (!ensure(World))
 	{
-		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride());
+		return FText::FromString(ULevelSnapshotsEditorSettings::Get()->GetNameOverride());
 	}
 
-	return 	ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
-		FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride()),
+	return ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
+		FText::FromString(ULevelSnapshotsEditorSettings::Get()->GetNameOverride()),
 		World->GetName()
 		);
 }
 
 void SLevelSnapshotsEditorCreationForm::SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType)
 {
-	check(DataManagementSettingsObjectPtr.IsValid());
-
 	FString NameAsString = InNewText.ToString();
-	ULevelSnapshotsEditorDataManagementSettings::SanitizePathInline(NameAsString, true);
+	ULevelSnapshotsEditorSettings::SanitizePathInline(NameAsString, true);
 
-	DataManagementSettingsObjectPtr->SetNameOverride(NameAsString);
-
-	bNameDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsNameOverridden();
+	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	Settings->SetNameOverride(NameAsString);
+	bNameDiffersFromDefault = Settings->IsNameOverridden();
 }
 
 void SLevelSnapshotsEditorCreationForm::SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType)
@@ -298,10 +300,7 @@ EVisibility SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibi
 
 FReply SLevelSnapshotsEditorCreationForm::OnResetNameClicked()
 {
-	check(DataManagementSettingsObjectPtr.IsValid());
-
-	SetNameOverrideText(FText::FromString(DataManagementSettingsObjectPtr.Get()->DefaultLevelSnapshotName), ETextCommit::OnEnter);
-
+	SetNameOverrideText(FText::FromString(ULevelSnapshotsEditorSettings::Get()->DefaultLevelSnapshotName), ETextCommit::OnEnter);
 	return FReply::Handled();
 }
 
@@ -317,18 +316,10 @@ FReply SLevelSnapshotsEditorCreationForm::OnCreateButtonPressed()
 
 void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const
 {
-	if (ProjectSettingsObjectPtr.IsValid())
-	{
-		const FVector2D WindowSize = ParentWindow->GetClientSizeInScreen();
-		
-		ProjectSettingsObjectPtr->SetLastCreationWindowSize(WindowSize);
-		ProjectSettingsObjectPtr->SaveConfig();
-	}
-	
-	if (DataManagementSettingsObjectPtr.IsValid())
-	{
-		DataManagementSettingsObjectPtr->SaveConfig();
-	}
+	const FVector2D WindowSize = ParentWindow->GetClientSizeInScreen();
+	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	Settings->SetLastCreationWindowSize(WindowSize);
+	Settings->SaveConfig();
 
 	if (bWasCreateSnapshotPressed)
 	{

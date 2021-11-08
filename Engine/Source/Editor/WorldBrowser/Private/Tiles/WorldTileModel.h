@@ -23,7 +23,7 @@ typedef TArray<TSharedPtr<class FWorldTileModel>> FWorldTileModelList;
 /**
  * The non-UI presentation logic for a single Level (Tile) in world composition
  */
-class FWorldTileModel 
+class WORLDBROWSER_API  FWorldTileModel
 	: public FLevelModel	
 {
 public:

@@ -166,11 +166,6 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The Z axis is used in screen space as 'y' and the distance cannot be zero."));
 		bIsValidMeshAxis = false;
 		}
-	if (FMath::Abs(Size.X) > KINDA_SMALL_NUMBER)
-	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The X axis is not used, all points must be in the same plane ZY"));
-		bIsValidMeshAxis = false;
-	}
 	if (bIsValidMeshAxis)
 	{
 		// Checking for strange aspect ratio

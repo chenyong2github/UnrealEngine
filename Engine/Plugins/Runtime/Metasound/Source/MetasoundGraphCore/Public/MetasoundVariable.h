@@ -59,5 +59,19 @@ namespace Metasound
 		FWriteReference DelayedDataReference;
 		FReadReference DataReference;
 	};
+
+	/** Template to determine if data type is a variable. */
+	template<typename DataType>
+	struct TIsVariable
+	{
+		static constexpr bool Value = false;
+	};
+
+	/** Template specialization to determine if data type is a variable. */
+	template<typename UnderlyingDataType>
+	struct TIsVariable<TVariable<UnderlyingDataType>>
+	{
+		static constexpr bool Value = true;
+	};
 }
 

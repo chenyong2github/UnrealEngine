@@ -712,7 +712,7 @@ bool UDatasmithConsumer::BuildContexts()
 
 	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( DatasmithSceneWeakPtr->GetName() + TEXT( ".udatasmith" ) ) );
 	const FSourceUri FileUri = FSourceUri::FromFilePath( FilePath );
-	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource( FileUri );
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource( FileUri );
 	check( ExternalSource.IsValid() );
 
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( ExternalSource.ToSharedRef(), false, TEXT("DatasmithImport"), LOCTEXT("DatasmithImportFactoryDescription", "Datasmith") );

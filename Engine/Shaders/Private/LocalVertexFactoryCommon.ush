@@ -164,31 +164,35 @@ void SetLightmapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 }
 
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
-void SetInstanceLocalToWorld(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4x4 InstanceLocalToWorld)
+void SetInstanceLocalToWorld(inout FVertexFactoryInterpolantsVSToPS Interpolants, FLWCMatrix InstanceLocalToWorld)
 {
-	float4x4 InstanceLocalToWorldT = transpose(InstanceLocalToWorld);
-	Interpolants.InstanceLocalToWorld[0] = InstanceLocalToWorldT[0];
-	Interpolants.InstanceLocalToWorld[1] = InstanceLocalToWorldT[1];
-	Interpolants.InstanceLocalToWorld[2] = InstanceLocalToWorldT[2];
+	float4x4 InstanceLocalToTranslatedWorld = LWCMultiplyTranslation(InstanceLocalToWorld, ResolvedView.PrevPreViewTranslation);
+	float4x4 InstanceLocalToTranslatedWorldT = transpose(InstanceLocalToTranslatedWorld);
+	Interpolants.InstanceLocalToWorld[0] = InstanceLocalToTranslatedWorldT[0];
+	Interpolants.InstanceLocalToWorld[1] = InstanceLocalToTranslatedWorldT[1];
+	Interpolants.InstanceLocalToWorld[2] = InstanceLocalToTranslatedWorldT[2];
 }
 
-float4x4 GetInstanceLocalToWorld(FVertexFactoryInterpolantsVSToPS Interpolants)
+FLWCMatrix GetInstanceLocalToWorld(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	return transpose(float4x4(Interpolants.InstanceLocalToWorld[0], Interpolants.InstanceLocalToWorld[1], Interpolants.InstanceLocalToWorld[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4x4 InstanceLocalToTranslatedWorld = transpose(float4x4(Interpolants.InstanceLocalToWorld[0], Interpolants.InstanceLocalToWorld[1], Interpolants.InstanceLocalToWorld[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	return LWCMultiplyTranslation(InstanceLocalToTranslatedWorld, LWCNegate(ResolvedView.PrevPreViewTranslation));
 }
 #endif
 
 #if HAS_INSTANCE_WORLD_TO_LOCAL_PS
-void SetInstanceWorldToLocal(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4x4 InstanceWorldToLocal)
+void SetInstanceWorldToLocal(inout FVertexFactoryInterpolantsVSToPS Interpolants, FLWCInverseMatrix InstanceWorldToLocal)
 {
-	float4x4 InstanceWorldToLocalT = transpose(InstanceWorldToLocal);
-	Interpolants.InstanceWorldToLocal[0] = InstanceWorldToLocalT[0];
-	Interpolants.InstanceWorldToLocal[1] = InstanceWorldToLocalT[1];
-	Interpolants.InstanceWorldToLocal[2] = InstanceWorldToLocalT[2];
+	float4x4 InstanceTranslatedWorldToLocal = LWCMultiplyTranslation(LWCNegate(ResolvedView.PrevPreViewTranslation), InstanceWorldToLocal);
+	float4x4 InstanceTranslatedWorldToLocalT = transpose(InstanceTranslatedWorldToLocal);
+	Interpolants.InstanceWorldToLocal[0] = InstanceTranslatedWorldToLocalT[0];
+	Interpolants.InstanceWorldToLocal[1] = InstanceTranslatedWorldToLocalT[1];
+	Interpolants.InstanceWorldToLocal[2] = InstanceTranslatedWorldToLocalT[2];
 }
 
-float4x4 GetInstanceWorldToLocal(FVertexFactoryInterpolantsVSToPS Interpolants)
+FLWCInverseMatrix GetInstanceWorldToLocal(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	return transpose(float4x4(Interpolants.InstanceWorldToLocal[0], Interpolants.InstanceWorldToLocal[1], Interpolants.InstanceWorldToLocal[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4x4 InstanceTranslatedWorldToLocal = transpose(float4x4(Interpolants.InstanceWorldToLocal[0], Interpolants.InstanceWorldToLocal[1], Interpolants.InstanceWorldToLocal[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	return LWCMultiplyTranslation(ResolvedView.PrevPreViewTranslation, InstanceTranslatedWorldToLocal);
 }
 #endif

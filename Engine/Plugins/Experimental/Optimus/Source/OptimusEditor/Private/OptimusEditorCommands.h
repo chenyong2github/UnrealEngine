@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 
 
 /// Optimus editor command set.
-class FOptimusEditorCommands : public TCommands<FOptimusEditorCommands>
+class FOptimusEditorCommands :
+	public TCommands<FOptimusEditorCommands>
 {
 public:
 	FOptimusEditorCommands();

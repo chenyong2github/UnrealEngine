@@ -2,6 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
+#include "ViewModels/Stack/NiagaraStackSummaryViewInputCollection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraEmitter.h"
@@ -153,6 +154,58 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 	}
 }
 
+
+
+
+
+void UNiagaraStackEmitterSummaryItem::Initialize(FRequiredEntryData InRequiredEntryData)
+{
+	Super::Initialize(InRequiredEntryData, TEXT("EmitterParameters"));
+	Emitter = GetEmitterViewModel()->GetEmitter();
+}
+
+FText UNiagaraStackEmitterSummaryItem::GetDisplayName() const
+{
+
+	return LOCTEXT("EmitterSummaryName", "Emitter Summary");
+}
+
+FText UNiagaraStackEmitterSummaryItem::GetTooltipText() const
+{
+
+	return LOCTEXT("EmitterSummaryTooltip", "Subset of parameters from the stack, summarized here for easier access.");
+}
+
+const FSlateBrush* UNiagaraStackEmitterSummaryItem::GetIconBrush() const
+{
+	if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
+	{
+		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.CPUIcon");
+	}
+	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		return FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
+	}
+	return FEditorStyle::GetBrush("NoBrush");
+}
+
+void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
+
+	if (FilteredObject == nullptr)
+	{
+		FilteredObject = NewObject<UNiagaraStackSummaryViewObject>(this);
+		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
+		FilteredObject->Initialize(RequiredEntryData, Emitter.Get(), GetStackEditorDataKey());
+	}
+
+	NewChildren.Add(FilteredObject);
+	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+
+
+
 UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()
 	: PropertiesItem(nullptr)
 {
@@ -165,10 +218,66 @@ void UNiagaraStackEmitterSettingsGroup::RefreshChildrenInternal(const TArray<UNi
 		PropertiesItem = NewObject<UNiagaraStackEmitterPropertiesItem>(this);
 		PropertiesItem->Initialize(CreateDefaultChildRequiredData());
 	}
-
 	NewChildren.Add(PropertiesItem);
 
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
+
+UNiagaraStackEmitterSummaryGroup::UNiagaraStackEmitterSummaryGroup()
+	: SummaryItem(nullptr)
+{
+}
+
+void UNiagaraStackEmitterSummaryGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
+	if (SummaryItem == nullptr)
+	{
+		SummaryItem = NewObject<UNiagaraStackEmitterSummaryItem>(this);
+		SummaryItem->Initialize(CreateDefaultChildRequiredData());
+	}
+	NewChildren.Add(SummaryItem);
+
+	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+
+
+
+void UNiagaraStackSummaryViewCollapseButton::Initialize(FRequiredEntryData InRequiredEntryData)
+{
+	Super::Initialize(InRequiredEntryData, TEXT("ShowAdvanced"));
+}
+
+FText UNiagaraStackSummaryViewCollapseButton::GetDisplayName() const
+{
+	return LOCTEXT("SummaryCollapseButtonTooltip", "Show Advanced");
+}
+
+UNiagaraStackEntry::EStackRowStyle UNiagaraStackSummaryViewCollapseButton::GetStackRowStyle() const
+{
+	return EStackRowStyle::GroupHeader;
+}
+
+FText UNiagaraStackSummaryViewCollapseButton::GetTooltipText() const 
+{
+	return LOCTEXT("SummaryCollapseButtonTooltip", "Expand/Collapse detailed view.");
+}
+
+bool UNiagaraStackSummaryViewCollapseButton::GetIsEnabled() const
+{
+	return true;
+}
+
+void UNiagaraStackSummaryViewCollapseButton::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+{
+	
+}
+
+
+
+
+
+
+
 
 #undef LOCTEXT_NAMESPACE

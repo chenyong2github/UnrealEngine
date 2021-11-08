@@ -208,7 +208,7 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 };
 
 template<class T>
-class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
+class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 {
 	using TUniformGridBase<T, 3>::MCells;
 	using TUniformGridBase<T, 3>::MMinCorner;
@@ -247,11 +247,5 @@ FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
 	Value.Serialize(Ar);
 	return Ar;
 }
-
-#if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
-extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
-extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
-#endif // __clang__
 
 }

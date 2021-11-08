@@ -49,7 +49,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarDisableCulledContacts(TEXT("p.CollisionDisableCulledContacts"), CollisionDisableCulledContacts, TEXT("Allow the PBDRigidsEvolutionGBF collision constraints to throw out contacts mid solve if they are culled."));
 
 		// @todo(chaos): this should be 0 but we need it for CCD atm
-		FRealSingle BoundsThicknessVelocityMultiplier = 1.0f;	// @todo(chaos): more to FChaosSolverConfiguration. The required value depends on the solver type
+		FRealSingle BoundsThicknessVelocityMultiplier = 0.0f;
 		FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
 
 		FRealSingle SmoothedPositionLerpRate = 0.1f;
@@ -57,6 +57,16 @@ namespace Chaos
 
 		int DisableParticleUpdateVelocityParallelFor = 0;
 		FAutoConsoleVariableRef CVarDisableParticleUpdateVelocityParallelFor(TEXT("p.DisableParticleUpdateVelocityParallelFor"), DisableParticleUpdateVelocityParallelFor, TEXT("Disable Particle Update Velocity ParallelFor and run the update on a single thread"));
+
+		bool bChaosUseCCD = true;
+		FAutoConsoleVariableRef  CVarChaosUseCCD(TEXT("p.Chaos.CCD.UseCCD"), bChaosUseCCD , TEXT("Global flag to turn CCD on or off. Default is true"));
+
+		FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
+		FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
+
+		bool bChaosCollisionCCDUseTightBoundingBox = true; 
+		FAutoConsoleVariableRef  CVarChaosCollisionCCDUseTightBoundingBox(TEXT("p.Chaos.Collision.CCD.UseTightBoundingBox"), bChaosCollisionCCDUseTightBoundingBox , TEXT(""));
+
 
 		int32 ChaosSolverCollisionPriority = 0;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionPriority(TEXT("p.Chaos.Solver.Collision.Priority"), ChaosSolverCollisionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
@@ -76,10 +86,10 @@ namespace Chaos
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::KinematicTargets"), STAT_Evolution_KinematicTargets, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PostIntegrateCallback"), STAT_Evolution_PostIntegrateCallback, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CollisionModifierCallback"), STAT_Evolution_CollisionModifierCallback, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CCD"), STAT_Evolution_CCD, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::GraphColor"), STAT_Evolution_GraphColor, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Gather"), STAT_Evolution_Gather, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Scatter"), STAT_Evolution_Scatter, STATGROUP_Chaos);
-		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase0"), STAT_Evolution_ApplyConstraintsPhase0, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1"), STAT_Evolution_ApplyConstraintsPhase1, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evolution_UpdateVelocites, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase2"), STAT_Evolution_ApplyConstraintsPhase2, STATGROUP_Chaos);
@@ -167,37 +177,6 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt,const FReal MaxStepDt,const 
 		UnprepareTick();
 	}
 }
-	
-void FPBDRigidsEvolutionGBF::AddSleepingContacts()
-{
-	FCollisionConstraintAllocator& ConstraintAllocator = CollisionDetector.GetCollisionContainer().GetConstraintAllocator();
-
-	
-	for(int32 IslandIndex = 0; IslandIndex < ConstraintGraph.NumIslands(); ++IslandIndex)
-	{
-		if( FPBDIslandSolver* IslandSolver = ConstraintGraph.GetSolverIsland(IslandIndex))
-		{
-			//bool bNeedsResorting = false;
-			for( auto& ConstraintHandle : IslandSolver->GetConstraints())
-			{
-				if(ConstraintHandle->WasAwakened())
-				{
-					if( FPBDCollisionConstraint* CollisionConstraint = ConstraintHandle->As<FPBDCollisionConstraint>())
-					{
-						ConstraintAllocator.AddConstraintHandle(CollisionConstraint);
-						//bNeedsResorting = true;
-					}
-				}
-			}
-			// For now we don't need to sort the constraints twice since they are already sorted before pushing them to the graph
-			// @todo : remove the allocator sorting to use the island one. but will need to sort the graph as well which for now requires some overhead
-			// if(!IslandSolver->IsSleeping() && bNeedsResorting)
-			// {
-			// 	IslandSolver->SortConstraints();
-			// }
-		}
-	}
-}
 
 void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt,const FSubStepInfo& SubStepInfo)
 {
@@ -239,11 +218,13 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Integrate);
 		Integrate(Particles.GetActiveParticlesView(), Dt);
 	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_KinematicTargets);
 		ApplyKinematicTargets(Dt, SubStepInfo.PseudoFraction);
 	}
 
@@ -255,15 +236,18 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateConstraintPositionBasedState);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_UpdateConstraintPositionBasedState);
 		UpdateConstraintPositionBasedState(Dt);
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ComputeIntermediateSpatialAcceleration);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_ComputeIntermediateSpatialAcceleration);
 		Base::ComputeIntermediateSpatialAcceleration();
 	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_DetectCollisions);
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration);
 
 		CollisionDetector.DetectCollisions(Dt, GetCurrentStepResimCache());
@@ -286,20 +270,23 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers);
 	}
 
-	
+	if (bChaosUseCCD)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCD);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, CCD);
+		CCDManager.ApplyConstraintsPhaseCCD(Dt, NarrowPhase.GetContext().CollisionAllocator, Particles.GetActiveParticlesView().Num());
+	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateConstraintGraph);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_CreateConstraintGraph);
 		CreateConstraintGraph();
 	}
 	//CollisionDetector.GetCollisionContainer().GetConstraintAllocator().SortConstraintsHandles();
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateIslands);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_CreateIslands);
 		CreateIslands();
-	}
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_AddSleepingContacts);
-		AddSleepingContacts();
 	}
 	if (PreApplyCallback != nullptr)
 	{
@@ -347,18 +334,15 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				// Update constraint graphs, coloring etc as required by the different constraint types in this island
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_GraphColor);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_GraphColor);
 					UpdateAccelerationStructures(Dt, Island);
 				}
 
 				// Collect all the data that the constraint solvers operate on
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
 					GatherSolverInput(Dt, Island);
-				}
-
-				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase0);
-					ApplyConstraintsPhase0(Dt, Island);
 				}
 
 				// Run the first phase of the constraint solvers
@@ -367,6 +351,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase1);
 					CSV_SCOPED_TIMING_STAT(Chaos, ApplyConstraints);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Apply);
 					ApplyConstraintsPhase1(Dt, Island);
 				}
 
@@ -378,6 +363,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				// Update implicit velocities from results of constraint solver phase 1
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateVelocites);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_UpdateVelocities);
 					SetImplicitVelocities(Dt, Island);
 				}
 
@@ -387,6 +373,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				// For QPBD this is the velocity solve step
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase2);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_ApplyPushOut);
 					ApplyConstraintsPhase2(Dt, Island);
 				}
 
@@ -394,6 +381,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 				// that is accessed externally (net impusles, break info, etc)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Scatter);
 					ScatterSolverOutput(Dt, Island);
 				}
 
@@ -443,6 +431,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_SavePostSolve);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_SavePostSolve);
 		FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
 		if (ResimCache)
 		{
@@ -464,6 +453,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_DeactivateSleep);
 		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 		{
 			if (SleepedIslands[Island])
@@ -549,14 +539,6 @@ void FPBDRigidsEvolutionGBF::ScatterSolverOutput(FReal Dt, int32 Island)
 	ConstraintGraph.GetSolverIsland(Island)->GetBodyContainer().ScatterOutput();
 }
 
-void FPBDRigidsEvolutionGBF::ApplyConstraintsPhase0(const FReal Dt, int32 Island)
-{
-	for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
-	{
-		ConstraintRule->ApplySwept(Dt, Island);
-	}
-}
-
 void FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1(const FReal Dt, int32 Island)
 {
 	int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
@@ -608,7 +590,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	, SuspensionConstraintRule(SuspensionConstraints, ChaosSolverSuspensionPriority)
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, DefaultNumCollisionPairIterations, DefaultNumCollisionPushOutPairIterations, DefaultRestitutionThreshold)
 	, CollisionRule(CollisionConstraints, ChaosSolverCollisionPriority)
-	, BroadPhase(InParticles, DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier, DefaultCollisionCullDistance)
+	, BroadPhase(InParticles, DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier)
 	, NarrowPhase()
 	, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	, PostIntegrateCallback(nullptr)
@@ -617,6 +599,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	, PostApplyPushOutCallback(nullptr)
 	, CurrentStepResimCacheImp(nullptr)
 	, CollisionModifiers(InCollisionModifiers)
+	, CCDManager()
 {
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 
@@ -653,7 +636,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	SetInternalParticleInitilizationFunction([](const FGeometryParticleHandle*, const FGeometryParticleHandle*) {});
 
 	NarrowPhase.GetContext().bFilteringEnabled = true;
-	NarrowPhase.GetContext().bDeferUpdate = true;
+	NarrowPhase.GetContext().bDeferUpdate = false;
 	NarrowPhase.GetContext().bAllowManifolds = false;
 	NarrowPhase.GetContext().CollisionAllocator = &CollisionConstraints.GetConstraintAllocator();
 }

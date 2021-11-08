@@ -39,7 +39,11 @@
         {
             "Name": "nDisplaySupport",
             "Type": "Runtime",
-            "LoadingPhase": "PostDefault"
+            "LoadingPhase": "PostDefault",
+            "PlatformAllowList": [
+              "Win64",
+              "Linux"
+            ]
         } 
 	]
 }

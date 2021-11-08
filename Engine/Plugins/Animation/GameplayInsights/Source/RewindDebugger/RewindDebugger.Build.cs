@@ -35,7 +35,8 @@ namespace UnrealBuildTool.Rules
 				"TraceServices",
 				"TraceInsights",
 				"UnrealEd",
-				"RewindDebuggerInterface"
+				"RewindDebuggerInterface",
+				"ToolWidgets",
 			});
 		}
 	}

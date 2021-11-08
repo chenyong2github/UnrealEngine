@@ -59,7 +59,7 @@ namespace ChaosTest
 		Dynamic->V() = FVec3(0, 0, -InitialSpeed);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		Static->SetWorldSpaceInflatedBounds(SmallBox->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(Static->X(), Static->R()), FVec3(0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -120,7 +120,7 @@ namespace ChaosTest
 		Dynamic->V() = FVec3(0, 0, -InitialSpeed);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		Static->SetWorldSpaceInflatedBounds(SmallBox->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(Static->X(), Static->R()), FVec3(0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -184,7 +184,7 @@ namespace ChaosTest
 		Dynamic->V() = FVec3(0, 0, -InitialSpeed);
 		
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		Static->SetWorldSpaceInflatedBounds(Sphere->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(Static->X(), Static->R()), FVec3(0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -270,12 +270,12 @@ namespace ChaosTest
 		Dynamic->X() = FVec3(0, 0, 0);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		ContainerFaces[0]->SetWorldSpaceInflatedBounds(ContainerFaceX->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[0]->X(), ContainerFaces[0]->R())));
-		ContainerFaces[1]->SetWorldSpaceInflatedBounds(ContainerFaceX->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[1]->X(), ContainerFaces[1]->R())));
-		ContainerFaces[2]->SetWorldSpaceInflatedBounds(ContainerFaceY->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[2]->X(), ContainerFaces[2]->R())));
-		ContainerFaces[3]->SetWorldSpaceInflatedBounds(ContainerFaceY->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[3]->X(), ContainerFaces[3]->R())));
-		ContainerFaces[4]->SetWorldSpaceInflatedBounds(ContainerFaceZ->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[4]->X(), ContainerFaces[4]->R())));
-		ContainerFaces[5]->SetWorldSpaceInflatedBounds(ContainerFaceZ->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(ContainerFaces[5]->X(), ContainerFaces[5]->R())));
+		ContainerFaces[0]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[0]->X(), ContainerFaces[0]->R()), FVec3(0));
+		ContainerFaces[1]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[1]->X(), ContainerFaces[1]->R()), FVec3(0));
+		ContainerFaces[2]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[2]->X(), ContainerFaces[2]->R()), FVec3(0));
+		ContainerFaces[3]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[3]->X(), ContainerFaces[3]->R()), FVec3(0));
+		ContainerFaces[4]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[4]->X(), ContainerFaces[4]->R()), FVec3(0));
+		ContainerFaces[5]->UpdateWorldSpaceState(TRigidTransform<FReal, 3>(ContainerFaces[5]->X(), ContainerFaces[5]->R()), FVec3(0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Dynamic });
 		::ChaosTest::SetParticleSimDataToCollide({ ContainerFaces });

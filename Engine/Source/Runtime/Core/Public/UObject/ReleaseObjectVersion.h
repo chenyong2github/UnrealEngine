@@ -144,7 +144,7 @@ struct CORE_API FReleaseObjectVersion
 
 		// bake center of mass into chaos cache
 		GeometryCollectionCacheRemovesMassToLocal,
-
+			
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

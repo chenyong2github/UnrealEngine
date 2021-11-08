@@ -94,6 +94,8 @@ private:
 	/**
 	 * Ducking factor to apply per older voice instance (generation), which compounds based on scaling mode
 	 * and (optionally) revives them as they stop according to the provided attack/release times.
+	 * 
+	 * Note: This is not applied until after StopQuietest rules are evaluated, in order to avoid thrashing sounds.
 	 *
 	 * AppliedVolumeScale = Math.Pow(DuckingScale, VoiceGeneration)
 	 */

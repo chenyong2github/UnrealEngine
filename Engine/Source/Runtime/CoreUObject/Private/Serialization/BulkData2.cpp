@@ -427,7 +427,7 @@ private:
 };
 static FCriticalSection FBulkDataIoDispatcherRequestEvent;
 
-class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
+class FBulkDataIoDispatcherRequest final : public IBulkDataIORequest
 {
 public:
 	FBulkDataIoDispatcherRequest(const FIoChunkId& InChunkID, int64 InOffsetInBulkData, int64 InBytesToRead, int32 Priority, FBulkDataIORequestCallBack* InCompleteCallback, uint8* InUserSuppliedMemory)
@@ -455,7 +455,7 @@ public:
 
 	virtual ~FBulkDataIoDispatcherRequest()
 	{
-		WaitCompletion(0.0f); // Wait for ever as we cannot leave outstanding requests
+		FBulkDataIoDispatcherRequest::WaitCompletion(0.0f); // Wait for ever as we cannot leave outstanding requests
 
 		// Free the data is no caller has taken ownership of it and it was allocated by FBulkDataIoDispatcherRequest
 		if (UserSuppliedMemory == nullptr)
@@ -1313,6 +1313,19 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFla
 
 IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
+#if !UE_KEEP_INLINE_RELOADING_CONSISTENT	
+	// Note that we only want the ensure to trigger if we have a valid offset (the bulkdata references data from disk)
+	ensureMsgf(	!IsInlined() || BulkDataOffset == INDEX_NONE || ShouldIgnoreInlineDataReloadEnsures(),
+				TEXT("Attempting to stream inline BulkData! This operation is not supported by the IoDispatcher and so will eventually stop working."
+				" The calling code should be fixed to retain the inline data in memory and re-use it rather than discard it and then try to reload from disk!"));
+#endif //!UE_KEEP_INLINE_RELOADING_CONSISTENT
+
+	if (!CanLoadFromDisk())
+	{
+		UE_LOG(LogSerialization, Error, TEXT("Attempting to stream a BulkData object that cannot be loaded from disk"));
+		return nullptr;
+	}
+
 	if (IsUsingIODispatcher())
 	{
 		checkf(OffsetInBulkData + BytesToRead <= BulkDataSize, TEXT("Attempting to read past the end of BulkData"));
@@ -1899,58 +1912,54 @@ void FBulkDataAllocation::Free(FBulkDataBase* Owner)
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
-		FMemory::Free(Allocation);
-		Allocation = nullptr;
+		FMemory::Free(Allocation.RawData); //-V611 We know this was allocated via FMemory::Malloc if ::IsDataMemoryMapped returned false
+		Allocation.RawData = nullptr;
 	}
 	else
 	{
-		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
-		delete Ptr;
-
-		Allocation = nullptr;
+		delete Allocation.MemoryMappedData;
+		Allocation.MemoryMappedData = nullptr;
 	}
 }
 
 void* FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
 {
-	checkf(Allocation == nullptr, TEXT("Trying to allocate a BulkData object without freeing it first!"));
+	checkf(Allocation.RawData == nullptr, TEXT("Trying to allocate a BulkData object without freeing it first!"));
 
-	Allocation = FMemory::Malloc(SizeInBytes, DEFAULT_ALIGNMENT);
+	Allocation.RawData = FMemory::Malloc(SizeInBytes, DEFAULT_ALIGNMENT);
 
-	return Allocation;
+	return Allocation.RawData;
 }
 
 void* FBulkDataAllocation::ReallocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
 {
 	checkf(!Owner->IsDataMemoryMapped(),  TEXT("Trying to reallocate a memory mapped BulkData object without freeing it first!"));
 
-	Allocation = FMemory::Realloc(Allocation, SizeInBytes, DEFAULT_ALIGNMENT);
+	Allocation.RawData = FMemory::Realloc(Allocation.RawData, SizeInBytes, DEFAULT_ALIGNMENT);
 
-	return Allocation;
+	return Allocation.RawData;
 }
 
 void FBulkDataAllocation::SetData(FBulkDataBase* Owner, void* Buffer)
 {
-	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
+	checkf(Allocation.RawData == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
 
-	Allocation = Buffer;
+	Allocation.RawData = Buffer;
 }
 
 void FBulkDataAllocation::SetMemoryMappedData(FBulkDataBase* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion)
 {
-	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
-	FOwnedBulkDataPtr* Ptr = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
+	checkf(Allocation.MemoryMappedData == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
+	Allocation.MemoryMappedData = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
 
 	Owner->SetRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
-
-	Allocation = Ptr;
 }
 
 void* FBulkDataAllocation::GetAllocationForWrite(const FBulkDataBase* Owner) const
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
-		return Allocation;
+		return Allocation.RawData;
 	}
 	else
 	{
@@ -1962,12 +1971,11 @@ const void* FBulkDataAllocation::GetAllocationReadOnly(const FBulkDataBase* Owne
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
-		return Allocation;
+		return Allocation.RawData;
 	}
-	else if (Allocation != nullptr)
+	else if (Allocation.MemoryMappedData != nullptr)
 	{
-		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
-		return Ptr->GetPointer();
+		return Allocation.MemoryMappedData->GetPointer();
 	}
 	else
 	{
@@ -1980,15 +1988,16 @@ FOwnedBulkDataPtr* FBulkDataAllocation::StealFileMapping(FBulkDataBase* Owner)
 	FOwnedBulkDataPtr* Ptr;
 	if (!Owner->IsDataMemoryMapped())
 	{
-		Ptr = new FOwnedBulkDataPtr(Allocation);	
+		Ptr = new FOwnedBulkDataPtr(Allocation.RawData);
 	}
 	else
 	{
-		Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
+		Ptr = Allocation.MemoryMappedData;
 		Owner->ClearRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
 	}	
 
-	Allocation = nullptr;
+	Allocation.RawData = nullptr;
+
 	return Ptr;
 }
 
@@ -1996,19 +2005,17 @@ void FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
-		::Swap(*DstBuffer, Allocation);
+		::Swap(*DstBuffer, Allocation.RawData);
 	}
 	else
 	{
-		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
-
 		const int64 BulkDataSize = Owner->GetBulkDataSize();
 
 		*DstBuffer = FMemory::Malloc(BulkDataSize, DEFAULT_ALIGNMENT);
-		FMemory::Memcpy(*DstBuffer, Ptr->GetPointer(), BulkDataSize);
+		FMemory::Memcpy(*DstBuffer, Allocation.MemoryMappedData->GetPointer(), BulkDataSize);
 
-		delete Ptr;
-		Allocation = nullptr;
+		delete Allocation.MemoryMappedData;
+		Allocation.MemoryMappedData = nullptr;
 
 		Owner->ClearRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
 	}	

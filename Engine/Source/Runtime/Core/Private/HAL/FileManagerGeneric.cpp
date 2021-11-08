@@ -62,7 +62,7 @@ FArchive* FFileManagerGeneric::CreateFileReaderInternal( const TCHAR* InFilename
 * Dummy archive that doesn't actually write anything
 * it just updates the file pos when seeking
 */
-class FArchiveFileWriterDummy : public FArchive
+class FArchiveFileWriterDummy final : public FArchive
 {
 public:
 	FArchiveFileWriterDummy()

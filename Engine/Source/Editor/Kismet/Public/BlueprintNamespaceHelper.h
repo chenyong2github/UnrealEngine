@@ -6,53 +6,97 @@
 
 class IClassViewerFilter;
 class IPinTypeSelectorFilter;
+struct FAssetData;
+struct FBlueprintNamespacePathTree;
 
-// Utility class for extracting namespace info from a specified Blueprint context.
+/**
+ * A helper class for managing namespace info for a single Blueprint context.
+ */
 class KISMET_API FBlueprintNamespaceHelper
 {
 public:
+	/**
+	 * Default constructor.
+	 * 
+	 * @param InBlueprint	The Blueprint object being edited.
+	 */
 	explicit FBlueprintNamespaceHelper(const class UBlueprint* InBlueprint);
 
-	void AddNamespace(const FString& Namespace)
-	{
-		if (!Namespace.IsEmpty())
-		{
-			FullyQualifiedListOfNamespaces.Add(Namespace);
-		}
-	}
+	/** Note: We explicitly declare/implement the dtor so that forward-declared types can be destroyed. */
+	virtual ~FBlueprintNamespaceHelper();
 
+	/**
+	 * Add a namespace identifier into the Blueprint editor context that's managed by this instance.
+	 *
+	 * @param Namespace		The namespace identifier string to add. Should resemble "X.Y.Z" as the format.
+	 */
+	void AddNamespace(const FString& Namespace);
+
+	/**
+	 * Add multiple namespace identifiers into the Blueprint editor context that's managed by this instance.
+	 *
+	 * @param NamespaceList	A container type containing one or more namespace identifier strings. Each entry should resemble "X.Y.Z" as the format.
+	 */
 	template<typename ContainerType>
 	void AddNamespaces(const ContainerType& NamespaceList)
 	{
-		if (NamespaceList.Num() > 0)
+		for (const FString& Namespace : NamespaceList)
 		{
-			FullyQualifiedListOfNamespaces.Reserve(FullyQualifiedListOfNamespaces.Num() + NamespaceList.Num());
-			for (const FString& Namespace : NamespaceList)
-			{
-				AddNamespace(Namespace);
-			}
+			AddNamespace(Namespace);
 		}
 	}
 
+	/**
+	 * Tests a namespace identifier to see if it's been imported. 
+	 *
+	 * @param TestNamespace	A namespace identifier string. Should resemble "X.Y.Z" as the format.
+	 * @return TRUE if the namespace identifier exists within the Blueprint editor context that's managed by this instance.
+	 */
 	bool IsIncludedInNamespaceList(const FString& TestNamespace) const;
 
-	bool IsImportedType(const UField* InType) const;
+	/**
+	 * Tests an asset's namespace to see if it's been imported.
+	 *
+	 * @param InAssetData	Asset data context.
+	 * @return TRUE if the asset's underlying namespace was imported into the Blueprint editor context that's managed by this instance.
+	 */
+	bool IsImportedAsset(const FAssetData& InAssetData) const;
+
+	/**
+	 * Tests an object's namespace to see if it's been imported.
+	 *
+	 * @param InObject	Hard reference to a (loaded) object.
+	 * @return TRUE if the object's underlying namespace was imported into the Blueprint editor context that's managed by this instance.
+	 */
 	bool IsImportedObject(const UObject* InObject) const;
+
+	/**
+	 * Tests an object's namespace to see if it's been imported.
+	 *
+	 * @param InObjectPath	Soft reference to an object. May be loaded or unloaded.
+	 * @return TRUE if the object's underlying namespace was imported into the Blueprint editor context that's managed by this instance.
+	 */
 	bool IsImportedObject(const FSoftObjectPath& InObjectPath) const;
 
+	/**
+	 * @return A class viewer filter that can be used with class picker widgets to filter out class types whose namespaces were not imported into the Blueprint editor context that's managed by this instance.
+	 */
 	TSharedPtr<IClassViewerFilter> GetClassViewerFilter() const
 	{
 		return ClassViewerFilter;
 	}
 
+	/**
+	 * @return A pin type selection filter that can be used with pin type selector widgets to filter out pin types whose namespaces were not imported into the Blueprint editor context that's managed by this instance.
+	 */
 	TSharedPtr<IPinTypeSelectorFilter> GetPinTypeSelectorFilter() const
 	{
 		return PinTypeSelectorFilter;
 	}
 
 private:
-	// Complete list of all fully-qualified namespace path identifiers for the associated Blueprint.
-	TSet<FString> FullyQualifiedListOfNamespaces;
+	// Path tree that stores imported namespace identifiers for the associated Blueprint.
+	TUniquePtr<FBlueprintNamespacePathTree> NamespacePathTree;
 
 	// For use with the class viewer widget in order to filter class type items by namespace.
 	TSharedPtr<IClassViewerFilter> ClassViewerFilter;

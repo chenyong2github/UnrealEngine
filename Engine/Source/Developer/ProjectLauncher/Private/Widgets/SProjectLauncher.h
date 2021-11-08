@@ -96,9 +96,6 @@ private:
 	/** Callback for clicking the Add New Launch Profile. */
 	void OnAddCustomLaunchProfileClicked();
 
-	/** Profile wizard menu visibility (hidden if there are no registered wizards). */
-	EVisibility GetProfileWizardsMenuVisibility() const;
-
 	/** Callback for filling profile wizard menu. */
 	TSharedRef<SWidget> MakeProfileWizardsMenu();
 

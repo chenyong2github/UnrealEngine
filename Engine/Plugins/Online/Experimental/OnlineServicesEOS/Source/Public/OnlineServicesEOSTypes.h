@@ -16,6 +16,7 @@ class TEOSCallback
 	using CallbackFuncType = void (EOS_CALL*)(const CallbackType*);
 public:
 	TEOSCallback() = default;
+	TEOSCallback(TPromise<const CallbackType*>&& InPromise) : Promise(MoveTemp(InPromise)) {}
 	virtual ~TEOSCallback() = default;
 
 	operator CallbackFuncType()
@@ -52,6 +53,13 @@ TFuture<const TEOSResult*> EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEOSFn EO
 	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>();
 	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
 	return Callback->GetFuture();
+}
+
+template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn, typename TAsyncOpType>
+void EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
+{
+	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>(MoveTemp(Promise));
+	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
 }
 
 // TEMP until Net Id Registry is done

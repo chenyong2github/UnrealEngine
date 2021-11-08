@@ -1196,7 +1196,7 @@ void FAssetRenameManager::DetectReadOnlyPackages(TArray<FAssetRenameDataWithRefe
 		{
 			// Find the package filename
 			FString Filename;
-			if (FPackageName::DoesPackageExist(Package->GetName(), nullptr, &Filename))
+			if (FPackageName::DoesPackageExist(Package->GetName(), &Filename))
 			{
 				// If the file is read only
 				if (IFileManager::Get().IsReadOnly(*Filename))

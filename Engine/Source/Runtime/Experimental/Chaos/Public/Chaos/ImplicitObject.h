@@ -5,6 +5,7 @@
 #include "Chaos/Serializable.h"
 #include "Chaos/Core.h"
 #include "Chaos/ImplicitFwd.h"
+#include "Chaos/AABB.h"
 
 #include <functional>
 
@@ -222,6 +223,13 @@ public:
 	}
 
 	virtual const FAABB3 BoundingBox() const;
+
+	// Calculate the tight-fitting world-space bounding box
+	virtual FAABB3 CalculateTransformedBounds(const FRigidTransform3& Transform) const
+	{
+		check(HasBoundingBox());
+		return BoundingBox().TransformedAABB(Transform);
+	}
 
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 

@@ -29,7 +29,7 @@ void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayer*>& 
 	DataLayers.Reserve(InDataLayers.Num());
 	for (const UDataLayer* DataLayer : InDataLayers)
 	{
-		check(DataLayer->IsDynamicallyLoaded());
+		check(DataLayer->IsRuntime());
 		DataLayers.Add(DataLayer->GetFName());
 	}
 	DataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });

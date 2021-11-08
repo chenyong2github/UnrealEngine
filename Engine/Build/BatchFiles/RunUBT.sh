@@ -26,13 +26,18 @@ if [ "$(uname)" = "Linux" ]; then
 	source "$BASE_PATH/Linux/SetupEnvironment.sh" $EnvironmentType "$BASE_PATH/Linux"
 fi
 
-if [ -f "$BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then 
-  dotnet msbuild /restore /target:build /property:Configuration=Development /nologo $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj /verbosity:quiet
+if [[ "$*" != *-SkipUBTBuild* ]]; then
+  if [ -f "$BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then 
+    echo "Building UBT..."
+    dotnet msbuild /restore /target:build /property:Configuration=Development /nologo $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj /verbosity:quiet
 
-  if [ $? -ne 0 ]; then
-    echo RunUBT ERROR: Failed to build UnrealBuildTool
-    exit 1
+    if [ $? -ne 0 ]; then
+      echo RunUBT ERROR: Failed to build UnrealBuildTool
+      exit 1
+    fi
   fi
+else
+  echo "Skipping UBT build..."
 fi
 
 # pass all parameters to UBT

@@ -104,8 +104,7 @@ namespace UnrealBuildTool
 
 			if (HostPlatform == UnrealTargetPlatform.Win64)
 			{
-				Processed = Processed.Replace("\\", "\\\\");
-				Processed = Processed.Replace("/", "\\\\");
+				Processed = Processed.Replace("/", "\\");
 			}
 			else
 			{
@@ -123,7 +122,7 @@ namespace UnrealBuildTool
 			{
 				if (HostPlatform == UnrealTargetPlatform.Win64 && InQuoteType == EQuoteType.Double)
 				{
-					Processed = "\\\"" + Processed + "\\\"";
+					Processed = "\"" + Processed + "\"";
 				}
 				else
 				{
@@ -211,12 +210,12 @@ namespace UnrealBuildTool
 
 			public void AddField(string Name, string Value)
 			{
-				Lines.Add(TabString + Quoted(Name) + ": " + Quoted(Value) + ",");
+				Lines.Add(TabString + Quoted(Name) + ": " + Quoted(JsonWriter.EscapeString(Value)) + ",");
 			}
 
 			public void AddUnnamedField(string Value)
 			{
-				Lines.Add(TabString + Quoted(Value) + ",");
+				Lines.Add(TabString + Quoted(JsonWriter.EscapeString(Value)) + ",");
 			}
 
 			public void Write(FileReference File)
@@ -828,7 +827,7 @@ namespace UnrealBuildTool
 
 					Writer.WriteObjectStart();
 					Writer.WriteValue("file", MakePathString(File, bInAbsolute: true, bForceSkipQuotes: true));
-					Writer.WriteValue("command", String.Format("{0} @\"{1}\"", CompilerPath, ResponseFile.FullName));
+					Writer.WriteValue("command", String.Format("{0} @{1}", MakePathString(CompilerPath, bInAbsolute: true), MakePathString(ResponseFile, bInAbsolute: true)));
 					Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
 					Writer.WriteObjectEnd();
 				}

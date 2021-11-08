@@ -3,12 +3,14 @@
 #pragma once
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
-#include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
-#include "Render/Viewport/DisplayClusterViewport_VisibilitySettings.h"
-#include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
 
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CameraMotionBlur.h"
+#include "Render/Viewport/Containers/ImplDisplayClusterViewport_CustomFrustum.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_Overscan.h"
+
+#include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
+#include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
+#include "Render/Viewport/DisplayClusterViewport_VisibilitySettings.h"
 
 #include "SceneViewExtensionContext.h"
 #include "OpenColorIODisplayExtension.h"
@@ -151,6 +153,7 @@ public:
 		VisibilitySettings.ResetConfiguration();
 		CameraMotionBlur.ResetConfiguration();
 		OverscanRendering.ResetConfiguration();
+		CustomFrustumRendering.ResetConfiguration();
 	}
 
 
@@ -184,6 +187,7 @@ public:
 	// Additional features:
 	FImplDisplayClusterViewport_CameraMotionBlur CameraMotionBlur;
 	FImplDisplayClusterViewport_Overscan         OverscanRendering;
+	FImplDisplayClusterViewport_CustomFrustum    CustomFrustumRendering;
 
 protected:
 	friend FDisplayClusterViewportProxy;

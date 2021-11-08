@@ -217,7 +217,7 @@ bool FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
 
 FVector FAnimNode_BlendSpacePlayer::GetPosition() const
 {
-	return FVector(GET_ANIM_NODE_DATA(float, X), GET_ANIM_NODE_DATA(float, Y), GET_ANIM_NODE_DATA(float, Z));
+	return FVector(GET_ANIM_NODE_DATA(float, X), GET_ANIM_NODE_DATA(float, Y), 0.0f);
 }
 
 float FAnimNode_BlendSpacePlayer::GetPlayRate() const

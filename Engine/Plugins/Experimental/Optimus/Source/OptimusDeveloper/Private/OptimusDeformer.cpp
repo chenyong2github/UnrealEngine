@@ -2,11 +2,13 @@
 
 #include "OptimusDeformer.h"
 
+#include "Actions/OptimusNodeActions.h"
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
 #include "Containers/Queue.h"
 #include "OptimusActionStack.h"
+#include "OptimusKernelSource.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusResourceDescription.h"
@@ -16,16 +18,19 @@
 #include "OptimusNodePin.h"
 #include "OptimusDeveloperModule.h"
 #include "OptimusObjectVersion.h"
+#include "Types/OptimusType_ShaderText.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
-#include "Nodes/OptimusNode_ComputeKernel.h"
 #include "Nodes/OptimusNode_DataInterface.h"
+#include "IOptimusComputeKernelProvider.h"
 #include "Misc/UObjectToken.h"
 
 #include "RenderingThread.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 #include "UObject/Package.h"
 #include "Internationalization/Regex.h"
+#include "Nodes/OptimusNode_ComputeKernelFunction.h"
+#include "Nodes/OptimusNode_CustomComputeKernel.h"
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
@@ -636,9 +641,9 @@ bool UOptimusDeformer::Compile()
 
 			NodeDataInterfaceMap.Add(Node, DataInterface);
 		}
-		else if (const UOptimusNode_ComputeKernel* KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
+		else if (Cast<const IOptimusComputeKernelProvider>(Node) != nullptr)
 		{
-			for (const UOptimusNodePin* Pin: KernelNode->GetPins())
+			for (const UOptimusNodePin* Pin: Node->GetPins())
 			{
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Output &&
 					ensure(Pin->GetStorageType() == EOptimusNodePinStorageType::Resource) &&
@@ -647,7 +652,7 @@ bool UOptimusDeformer::Compile()
 					for (const UOptimusNodePin* ConnectedPin: UpdateGraph->GetConnectedPins(Pin))
 					{
 						// Make sure it connects to another kernel node.
-						if (Cast<const UOptimusNode_ComputeKernel>(ConnectedPin->GetNode()) &&
+						if (Cast<const IOptimusComputeKernelProvider>(ConnectedPin->GetNode()) != nullptr &&
 							ensure(Pin->GetDataType().IsValid()))
 						{
 							UTransientBufferDataInterface* TransientBufferDI =
@@ -680,7 +685,7 @@ bool UOptimusDeformer::Compile()
 	TArray<FKernelWithDataBindings> BoundKernels;
 	for (const UOptimusNode* Node: ConnectedNodes)
 	{
-		if (const UOptimusNode_ComputeKernel *KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
+		if (const IOptimusComputeKernelProvider *KernelProvider = Cast<const IOptimusComputeKernelProvider>(Node))
 		{
 			FOptimus_KernelParameterBindingList KernelParameterBindings;
 			FKernelWithDataBindings BoundKernel;
@@ -688,7 +693,7 @@ bool UOptimusDeformer::Compile()
 			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
-			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(
+			UComputeKernelSource *KernelSource = KernelProvider->CreateComputeKernel(
 				BoundKernel.Kernel,
 				NodeDataInterfaceMap, LinkDataInterfaceMap, ValueNodeSet,
 				KernelParameterBindings, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
@@ -830,30 +835,22 @@ void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TA
 			UOptimusNodeGraph const* Graph = Graphs[GraphIndex];
 			if (ensure(Graph != nullptr && NodeIndex < Graph->Nodes.Num()))
 			{
-				UOptimusNode_ComputeKernel* KernelNode = Cast<UOptimusNode_ComputeKernel>(Graph->Nodes[NodeIndex]);
-				if (ensure(KernelNode != nullptr))
+				IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Graph->Nodes[NodeIndex]);
+				if (ensure(KernelProvider != nullptr))
 				{
-					KernelNode->ShaderSource.Diagnostics.Reset();
+					TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
 
-					EOptimusDiagnosticLevel NodeLevel = EOptimusDiagnosticLevel::Ignore;
-					
 					// This is a compute kernel as expected so broadcast the compile errors.
 					for (FString const& CompileError : InCompileErrors)
 					{
-						const EOptimusDiagnosticLevel MessageLevel = ProcessCompilationMessage(KernelNode, CompileError);
-						if (MessageLevel > NodeLevel)
+						FOptimusType_CompilerDiagnostic Diagnostic = ProcessCompilationMessage(Graph->Nodes[NodeIndex], CompileError);
+						if (Diagnostic.Level != EOptimusDiagnosticLevel::None)
 						{
-							NodeLevel = MessageLevel;
+							Diagnostics.Add(Diagnostic);
 						}
 					}
 
-					KernelNode->SetDiagnosticLevel(NodeLevel);
-					FProperty* DiagnosticsProperty = FOptimusType_ShaderText::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(FOptimusType_ShaderText, Diagnostics));
-					if (DiagnosticsProperty)
-					{
-						FPropertyChangedEvent PropertyChangedEvent(DiagnosticsProperty, EPropertyChangeType::ValueSet, {KernelNode});
-						KernelNode->PostEditChangeProperty(PropertyChangedEvent);
-					}
+					KernelProvider->SetCompilationDiagnostics(Diagnostics);
 				}
 			}
 		}
@@ -861,7 +858,10 @@ void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TA
 }
 
 
-EOptimusDiagnosticLevel UOptimusDeformer::ProcessCompilationMessage(UOptimusNode_ComputeKernel* InKernelNode, const FString& InMessage)
+FOptimusType_CompilerDiagnostic UOptimusDeformer::ProcessCompilationMessage(
+		const UOptimusNode* InKernelNode,
+		const FString& InMessage
+		)
 {
 	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
 	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
@@ -874,7 +874,7 @@ EOptimusDiagnosticLevel UOptimusDeformer::ProcessCompilationMessage(UOptimusNode
 	if (!Matcher.FindNext())
 	{
 		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Cannot parse message from shader compiler: [%s]"), *InMessage);
-		return EOptimusDiagnosticLevel::Ignore;
+		return {};
 	}
 
 	// FString NodeName = Matcher.GetCaptureGroup(1);
@@ -893,9 +893,6 @@ EOptimusDiagnosticLevel UOptimusDeformer::ProcessCompilationMessage(UOptimusNode
 		Severity = EMessageSeverity::Warning;
 	}
 
-	FOptimusType_CompilerDiagnostic Diagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
-	InKernelNode->ShaderSource.Diagnostics.Add(Diagnostic);
-
 	// Set a dummy lambda for token activation because the default behavior for FUObjectToken is
 	// to pop up the asset browser :-/
 	static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
@@ -904,7 +901,7 @@ EOptimusDiagnosticLevel UOptimusDeformer::ProcessCompilationMessage(UOptimusNode
 	Message->AddToken(FUObjectToken::Create(InKernelNode)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
 	CompileMessageDelegate.Broadcast(Message);
 
-	return Level;
+	return FOptimusType_CompilerDiagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
 }
 
 

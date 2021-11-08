@@ -27,25 +27,23 @@ namespace UE::DatasmithImporter
 		{
 			DirectLinkManager = MakeUnique<FDirectLinkManager>();
 
-			if (IUriManager* UriManager = IExternalSourceModule::Get().GetManager())
-			{
-				UriManager->RegisterResolver(DirectLinkUriResolverName, MakeShared<FDirectLinkUriResolver>());
-			}
+			IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
+			UriManager.RegisterResolver(DirectLinkUriResolverName, MakeShared<FDirectLinkUriResolver>());
 		}
 
 		virtual void ShutdownModule() override
 		{
-			if (IUriManager* UriManager = IExternalSourceModule::Get().GetManager())
+			if (IExternalSourceModule::IsAvailable())
 			{
-				UriManager->UnregisterResolver(DirectLinkUriResolverName);
+				IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
+				UriManager.UnregisterResolver(DirectLinkUriResolverName);
 			}
-
-			DirectLinkManager.Reset();
 		}
 
-		virtual IDirectLinkManager* GetManager() const override
+		virtual IDirectLinkManager& GetManager() const override
 		{
-			return DirectLinkManager.Get();
+			check(DirectLinkManager.IsValid());
+			return *DirectLinkManager;
 		}
 
 		virtual TSharedPtr<FDirectLinkExternalSource> DisplayDirectLinkSourcesDialog() override;
@@ -66,7 +64,10 @@ namespace UE::DatasmithImporter
 
 		TSharedRef<SWindow> Window = SNew(SWindow)
 			.Title(LOCTEXT("DirectLinkEditorAvailableSourcesTitle", "DirectLink Available Sources"))
-			.SizingRule(ESizingRule::Autosized);
+			.SizingRule(ESizingRule::UserSized)
+			.AutoCenter(EAutoCenter::PreferredWorkArea)
+			.ClientSize(FVector2D(600, 200))
+			.SupportsMinimize(false);
 
 		TSharedPtr<SDirectLinkAvailableSource> AvailableSourceWindow;
 		Window->SetContent

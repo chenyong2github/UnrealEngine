@@ -317,6 +317,24 @@ void InitCodeView(TSharedRef< FSlateStyleSet > Style)
 		.SetColorAndOpacity(FLinearColor(FColor(0xffffffff)))
 		.SetSelectedBackgroundColor(FLinearColor(FColor(0xff666666)));
 	Style->Set("NiagaraEditor.CodeView.Hlsl.Normal", NormalLogText);
+
+
+	const FTextBlockStyle ErrorText = FTextBlockStyle(NormalText)
+		.SetUnderlineBrush(IMAGE_BRUSH("White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
+		.SetColorAndOpacity(FLinearColor::Red);
+		
+	Style->Set("TextEditor.NormalText", NormalText);
+
+	Style->Set("SyntaxHighlight.HLSL.Normal", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(189, 183, 107))));
+	Style->Set("SyntaxHighlight.HLSL.Operator", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(220, 220, 220))));
+	Style->Set("SyntaxHighlight.HLSL.Keyword", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(86, 156, 214))));
+	Style->Set("SyntaxHighlight.HLSL.String", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(214, 157, 133))));
+	Style->Set("SyntaxHighlight.HLSL.Number", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(181, 206, 168))));
+	Style->Set("SyntaxHighlight.HLSL.Comment", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(87, 166, 74))));
+	Style->Set("SyntaxHighlight.HLSL.PreProcessorKeyword", FTextBlockStyle(NormalText).SetColorAndOpacity(FLinearColor(FColor(188, 98, 171))));
+
+	Style->Set("SyntaxHighlight.HLSL.Error", ErrorText); 
+		
 }
 
 void InitSelectedEmitter(TSharedRef< FSlateStyleSet > Style)

@@ -444,7 +444,7 @@ public:
 	 * Get the material layers stack
 	 * @return - material layers stack, or nullptr if material has no layers
 	 */
-	virtual const FMaterialLayersFunctions* GetMaterialLayers(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const PURE_VIRTUAL(UMaterialInterface::GetMaterialLayers, return nullptr;);
+	virtual bool GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const PURE_VIRTUAL(UMaterialInterface::GetMaterialLayers, return false;);
 
 #if WITH_EDITORONLY_DATA
 

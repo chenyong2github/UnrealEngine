@@ -201,7 +201,7 @@ namespace CADKernel
 		for (int32 Column = 0; Column < Rank; Column++)
 		{
 			int32 Row = Column;
-			while (Column < Rank)
+			while (Row < Rank)
 			{
 				if (ColumnToRow[Row] == Column)
 				{

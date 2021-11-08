@@ -101,14 +101,14 @@ void FMemTagNodeSortingByTracker::Sort(TArray<Insights::FBaseTreeNodePtr>& Nodes
 			ensure(B.IsValid() && B->GetTypeName() == FMemTagNode::TypeName);
 			const FMemTagNodePtr MemTagNodeB = StaticCastSharedPtr<FMemTagNode, Insights::FBaseTreeNode>(B);
 
-			if (MemTagNodeA->GetTrackers() == MemTagNodeB->GetTrackers())
+			if (MemTagNodeA->GetMemTrackerId() == MemTagNodeB->GetMemTrackerId())
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by trackers (ascending).
-				return MemTagNodeA->GetTrackers() < MemTagNodeB->GetTrackers();
+				return int32(MemTagNodeA->GetMemTrackerId()) < int32(MemTagNodeB->GetMemTrackerId());
 			}
 		});
 	}
@@ -122,14 +122,14 @@ void FMemTagNodeSortingByTracker::Sort(TArray<Insights::FBaseTreeNodePtr>& Nodes
 			ensure(B.IsValid() && B->GetTypeName() == FMemTagNode::TypeName);
 			const FMemTagNodePtr MemTagNodeB = StaticCastSharedPtr<FMemTagNode, Insights::FBaseTreeNode>(B);
 
-			if (MemTagNodeA->GetTrackers() == MemTagNodeB->GetTrackers())
+			if (MemTagNodeA->GetMemTrackerId() == MemTagNodeB->GetMemTrackerId())
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by trackers (descending).
-				return MemTagNodeB->GetTrackers() < MemTagNodeA->GetTrackers();
+				return int32(MemTagNodeB->GetMemTrackerId()) < int32(MemTagNodeA->GetMemTrackerId());
 			}
 		});
 	}

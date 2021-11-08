@@ -34,6 +34,7 @@ public:
 	virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	// End of UK2Node interface
 
 	// IK2Node_AddPinInterface interface

@@ -10,6 +10,7 @@
 #include "DMXTypes.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatchCache.h"
+#include "Library/DMXEntityReference.h"
 
 #include "Tickable.h"
 
@@ -22,6 +23,8 @@ class UDMXModulator;
 
 struct FPropertyChangedEvent;
 
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnFixturePatchChangedDelegate, const UDMXEntityFixturePatch* /** ChangedFixturePatch */);
 
 /** 
  * A DMX fixture patch that can be patch to channels in a DMX Universe via the DMX Library Editor. 
@@ -40,6 +43,10 @@ class DMXRUNTIME_API UDMXEntityFixturePatch
 public:
 	UDMXEntityFixturePatch();
 
+	/** Creates a new fixture patch in the DMX Library using the specified Fixture Type */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static UDMXEntityFixturePatch* CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName = TEXT(""));
+
 	// ~Begin UObject Interface
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
@@ -50,6 +57,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
 	// ~End UObject Interface
 
@@ -62,6 +70,9 @@ protected:
 	// ~End FTickableGameObject interface
 
 public:
+	/** Returns a delegate that is and should be broadcast whenever a Fixture Type changed */
+	static FDMXOnFixturePatchChangedDelegate& GetOnFixturePatchChanged();
+
 	/**  Send DMX using attribute names and integer values. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SendDMX(TMap<FDMXAttributeName, int32> AttributeMap);
@@ -193,12 +204,15 @@ protected:
 	int32 AutoStartingAddress;
 
 	/** Property to point to the template parent fixture for details panel purposes */
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
 	UDMXEntityFixtureType* ParentFixtureTypeTemplate;
 
 	/** The Index of the Mode in the Fixture Type the Patch uses */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	int32 ActiveMode;
+
+	/** Delegate broadcast when a Fixture Patch changed */
+	static FDMXOnFixturePatchChangedDelegate OnFixturePatchChangedDelegate;
 
 public:
 	/** Custom tags for filtering patches  */

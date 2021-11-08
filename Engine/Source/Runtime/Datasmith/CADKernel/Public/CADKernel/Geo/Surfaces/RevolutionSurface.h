@@ -32,11 +32,7 @@ namespace CADKernel
 		 */
 		FRevolutionSurface(const double InToleranceGeometric, TSharedRef<FSegmentCurve> Axe, TSharedRef<FCurve> Generatrix, double MinAngle, double MaxAngle);
 
-		FRevolutionSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FRevolutionSurface() = default;
 
 	public:
 
