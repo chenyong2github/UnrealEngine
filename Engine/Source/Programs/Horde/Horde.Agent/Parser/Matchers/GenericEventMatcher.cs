@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -19,12 +20,12 @@ namespace HordeAgent.Parser.Matchers
 	class GenericEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			Match? Match;
 			if (Cursor.TryMatch(@"^\s*(FATAL|fatal error):", out Match))
 			{
-				return new LogEventBuilder(Cursor).ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
+				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
 			}
 			if (Cursor.TryMatch(@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ", out Match))
 			{
@@ -36,15 +37,15 @@ namespace HordeAgent.Parser.Matchers
 				}
 
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Cursor.IsMatch(Builder.MaxOffset + 1, String.Format(@"^({0} | *$)", ExtractIndent(Cursor[0]!))))
+				while (Builder.Current.IsMatch(1, String.Format(@"^({0} | *$)", ExtractIndent(Cursor[0]!))))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 				}
-				return Builder.ToLogEvent(LogEventPriority.Lowest, Level, KnownLogEvents.Generic);
+				return Builder.ToMatch(LogEventPriority.Lowest, Level, KnownLogEvents.Generic);
 			}
 			if (Cursor.IsMatch(@"[Ee]rror [A-Z]\d+\s:"))
 			{
-				return new LogEventBuilder(Cursor).ToLogEvent(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
+				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
 			}
 			return null;
 		}

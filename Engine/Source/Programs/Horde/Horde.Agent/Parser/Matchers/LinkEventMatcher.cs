@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -19,7 +20,7 @@ namespace HordeAgent.Parser.Matchers
 	class LinkEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			int LineCount = 0;
 			bool bIsError = false;
@@ -32,17 +33,25 @@ namespace HordeAgent.Parser.Matchers
 			}
 			if (LineCount > 0)
 			{
+				LogEventBuilder Builder = new LogEventBuilder(Cursor);
+
+				bool bHasSymbol = AddSymbolMarkupForLine(Builder);
+				for (int Idx = 1; Idx < LineCount; Idx++)
+				{
+					Builder.MoveNext();
+					bHasSymbol |= AddSymbolMarkupForLine(Builder);
+				}
 				for (; ; )
 				{
-					if (Cursor.IsMatch(LineCount, "ld:"))
+					if (Builder.Next.IsMatch("ld:"))
 					{
 						break;
 					}
-					else if (Cursor.IsMatch(LineCount, "error:"))
+					else if (Builder.Next.IsMatch("error:"))
 					{
 						bIsError = true;
 					}
-					else if (Cursor.IsMatch(LineCount, "warning:"))
+					else if (Builder.Next.IsMatch("warning:"))
 					{
 						bIsWarning = true;
 					}
@@ -50,132 +59,125 @@ namespace HordeAgent.Parser.Matchers
 					{
 						break;
 					}
-					LineCount++;
+
+					bHasSymbol |= AddSymbolMarkupForLine(Builder);
+					Builder.MoveNext();
 				}
 
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.LineCount = LineCount;
-				EventId EventId = AddSymbolMarkup(Builder) ? KnownLogEvents.Linker_UndefinedSymbol : KnownLogEvents.Linker;
-				return Builder.ToLogEvent(LogEventPriority.Normal, (bIsError || !bIsWarning)? LogLevel.Error : LogLevel.Warning, EventId);
+				LogLevel Level = (bIsError || !bIsWarning) ? LogLevel.Error : LogLevel.Warning;
+				EventId EventId = bHasSymbol ? KnownLogEvents.Linker_UndefinedSymbol : KnownLogEvents.Linker;
+				return Builder.ToMatch(LogEventPriority.Normal, Level, EventId);
 			}
 
 			Match? Match;
 			if (Cursor.TryMatch(@"^(\s*)Undefined symbols for architecture", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
+				AddSymbolMarkupForLine(Builder);
 
 				string Prefix = $"^(?<prefix>{Match.Groups[1].Value}\\s+)";
-				if (Cursor.TryMatch(Builder.MaxOffset + 1, Prefix + @"""(?<symbol>[^""]+)""", out Match))
+				if (Builder.Next.TryMatch(Prefix + @"""(?<symbol>[^""]+)""", out Match))
 				{
 					Prefix = $"^{Match.Groups["prefix"].Value}\\s+";
 
-					Builder.MaxOffset++;
-					Builder.Lines[Builder.MaxOffset].AddSpan(Match.Groups["symbol"]).MarkAsSymbol();
+					Builder.MoveNext();
+					Builder.AnnotateSymbol(Match.Groups["symbol"]);
 
-					while(Cursor.TryMatch(Builder.MaxOffset + 1, Prefix + "(?<symbol>[^ ].*) in ", out Match))
+					while(Builder.Next.TryMatch(Prefix + "(?<symbol>[^ ].*) in ", out Match))
 					{
-						Builder.MaxOffset++;
-//						Builder.Lines[Builder.MaxOffset].AddSpan(Match.Groups["symbol"]).MarkAsSymbol();
+						Builder.MoveNext();
+						Builder.AnnotateSymbol(Match.Groups["symbol"]);
 					}
 				}
 
-				Builder.MaxOffset = Cursor.MatchForwards(Builder.MaxOffset, @"^\s*(ld|clang):");
+				while (Builder.Next.IsMatch(@"^\s*(ld|clang):"))
+				{
+					Builder.MoveNext();
+				}
 
-				AddSymbolMarkup(Builder);
-				return Builder.ToLogEvent(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
+				return Builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 			}
 			if (Cursor.TryMatch(@"error (?<code>LNK\d+):", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-
-				LogEventLine FirstLine = Builder.Lines[0];
+				AddSymbolMarkupForLine(Builder);
 
 				Group CodeGroup = Match.Groups["code"];
-				FirstLine.AddSpan(CodeGroup).MarkAsErrorCode();
-				AddSymbolMarkup(Builder);
+				Builder.Annotate(CodeGroup, LogEventMarkup.ErrorCode);
 
 				if (CodeGroup.Value.Equals("LNK2001", StringComparison.Ordinal) || CodeGroup.Value.Equals("LNK2019", StringComparison.Ordinal))
 				{
-					return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
+					return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 				}
 				else if (CodeGroup.Value.Equals("LNK2005", StringComparison.Ordinal) || CodeGroup.Value.Equals("LNK4022", StringComparison.Ordinal))
 				{
-					return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
+					return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
 				}
 				else
 				{
-					return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker);
+					return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker);
 				}
 			}
 
 			return null;
 		}
 
-		static bool AddSymbolMarkup(LogEventBuilder Builder)
+		static bool AddSymbolMarkupForLine(LogEventBuilder Builder)
 		{
 			bool bHasSymbols = false;
 
-			const string SpanName = "symbol";
-			foreach (LogEventLine Line in Builder.Lines)
+			string? Message = Builder.Current.CurrentLine;
+
+			// Mac link error:
+			//   Undefined symbols for architecture arm64:
+			//     "Foo::Bar() const", referenced from:
+			Match SymbolMatch = Regex.Match(Message, "^  \"(?<symbol>.+)\"");
+			if (SymbolMatch.Success)
 			{
-				if(Line.Spans.ContainsKey(SpanName))
-				{
-					continue;
-				}
+				Builder.AnnotateSymbol(SymbolMatch.Groups[1]);
+				bHasSymbols = true;
+			}
 
-				string Message = Line.Text;
+			// Android link error:
+			//   Foo.o:(.data.rel.ro + 0x5d88): undefined reference to `Foo::Bar()'
+			Match UndefinedReference = Regex.Match(Message, ": undefined reference to [`'](?<symbol>[^`']+)");
+			if (UndefinedReference.Success)
+			{
+				Builder.AnnotateSymbol(UndefinedReference.Groups[1]);
+				bHasSymbols = true;
+			}
 
-				// Mac link error:
-				//   Undefined symbols for architecture arm64:
-				//     "Foo::Bar() const", referenced from:
-				Match SymbolMatch = Regex.Match(Message, "^  \"(.+)\"");
-				if (SymbolMatch.Success)
-				{
-					Line.AddSpan(SymbolMatch.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
+			// LLD link error:
+			//   ld.lld.exe: error: undefined symbol: Foo::Bar() const
+			Match LldMatch = Regex.Match(Message, "error: undefined symbol:\\s*(?<symbol>.+)");
+			if (LldMatch.Success)
+			{
+				Builder.AnnotateSymbol(LldMatch.Groups[1]);
+				bHasSymbols = true;
+			}
 
-				// Android link error:
-				//   Foo.o:(.data.rel.ro + 0x5d88): undefined reference to `Foo::Bar()'
-				Match UndefinedReference = Regex.Match(Message, ": undefined reference to [`']([^`']+)");
-				if (UndefinedReference.Success)
-				{
-					Line.AddSpan(UndefinedReference.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
+			// Link error:
+			//   Link: error: L0039: reference to undefined symbol `Foo::Bar() const' in file
+			Match LinkMatch = Regex.Match(Message, ": reference to undefined symbol [`'](?<symbol>[^`']+)");
+			if (LinkMatch.Success)
+			{
+				Builder.AnnotateSymbol(LinkMatch.Groups[1]);
+				bHasSymbols = true;
+			}
+			Match LinkMultipleMatch = Regex.Match(Message, @": (?<symbol>[^\s]+) already defined in");
+			if (LinkMultipleMatch.Success)
+			{
+				Builder.AnnotateSymbol(LinkMultipleMatch.Groups[1]);
+				bHasSymbols = true;
+			}
 
-				// LLD link error:
-				//   ld.lld.exe: error: undefined symbol: Foo::Bar() const
-				Match LldMatch = Regex.Match(Message, "error: undefined symbol:\\s*(.+)");
-				if (LldMatch.Success)
-				{
-					Line.AddSpan(LldMatch.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
-
-				// Link error:
-				//   Link: error: L0039: reference to undefined symbol `Foo::Bar() const' in file
-				Match LinkMatch = Regex.Match(Message, ": reference to undefined symbol [`']([^`']+)");
-				if (LinkMatch.Success)
-				{
-					Line.AddSpan(LinkMatch.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
-				Match LinkMultipleMatch = Regex.Match(Message, @": ([^\s]+) already defined in");
-				if (LinkMultipleMatch.Success)
-				{
-					Line.AddSpan(LinkMultipleMatch.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
-
-				// Microsoft linker error:
-				//   Foo.cpp.obj : error LNK2001: unresolved external symbol \"private: virtual void __cdecl UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(class UStruct const *,void const *,struct FAssetBundleData &,class FName,class TSet<void const *,struct DefaultKeyFuncs<void const *,0>,class FDefaultSetAllocator> &)const \" (?InitializeAssetBundlesFromMetadata_Recursive@UAssetManager@@EEBAXPEBVUStruct@@PEBXAEAUFAssetBundleData@@VFName@@AEAV?$TSet@PEBXU?$DefaultKeyFuncs@PEBX$0A@@@VFDefaultSetAllocator@@@@@Z)",
-				Match MicrosoftMatch = Regex.Match(Message, " symbol \"([^\"]*)\"");
-				if (MicrosoftMatch.Success)
-				{
-					Line.AddSpan(MicrosoftMatch.Groups[1], SpanName).MarkAsSymbol();
-					bHasSymbols = true;
-				}
+			// Microsoft linker error:
+			//   Foo.cpp.obj : error LNK2001: unresolved external symbol \"private: virtual void __cdecl UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(class UStruct const *,void const *,struct FAssetBundleData &,class FName,class TSet<void const *,struct DefaultKeyFuncs<void const *,0>,class FDefaultSetAllocator> &)const \" (?InitializeAssetBundlesFromMetadata_Recursive@UAssetManager@@EEBAXPEBVUStruct@@PEBXAEAUFAssetBundleData@@VFName@@AEAV?$TSet@PEBXU?$DefaultKeyFuncs@PEBX$0A@@@VFDefaultSetAllocator@@@@@Z)",
+			Match MicrosoftMatch = Regex.Match(Message, " symbol \"(?<symbol>[^\"]*)\"");
+			if (MicrosoftMatch.Success)
+			{
+				Builder.AnnotateSymbol(MicrosoftMatch.Groups[1]);
+				bHasSymbols = true;
 			}
 
 			return bHasSymbols;

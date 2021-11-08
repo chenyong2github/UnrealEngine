@@ -57,11 +57,11 @@ namespace HordeServer.IssueHandlers.Impl
 		/// <param name="UnitTestNames">Receives a set of the unit test names</param>
 		private static void GetUnitTestNames(ILogEventData EventData, HashSet<string> UnitTestNames)
 		{
-			string? Group = null;
-			string? Name = null;
-
 			foreach (ILogEventLine Line in EventData.Lines)
 			{
+				string? Group = null;
+				string? Name = null;
+
 				string? Value;
 				if (Line.Data.TryGetNestedProperty("properties.group", out Value))
 				{
@@ -71,11 +71,11 @@ namespace HordeServer.IssueHandlers.Impl
 				{
 					Name = Value;
 				}
-			}
 
-			if(Group != null && Name != null)
-			{
-				UnitTestNames.Add($"{UnitTestPrefix}:{Group}/{Name}");
+				if (Group != null && Name != null)
+				{
+					UnitTestNames.Add($"{UnitTestPrefix}:{Group}/{Name}");
+				}
 			}
 		}
 

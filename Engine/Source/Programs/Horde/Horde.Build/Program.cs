@@ -81,7 +81,7 @@ namespace HordeServer
 
 	class DatadogLogEnricher : ILogEventEnricher
 	{
-		public void Enrich(LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
+		public void Enrich(Serilog.Events.LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
 		{
 			ISpan? Span = GlobalTracer.Instance?.ActiveSpan;
 			if (Span != null)

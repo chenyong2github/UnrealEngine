@@ -9,11 +9,14 @@ using Microsoft.VisualStudio.TestPlatform.Common.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NuGet.Frameworks;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace HordeAgentTests
@@ -21,50 +24,31 @@ namespace HordeAgentTests
 	[TestClass]
 	public class LogParserTests
 	{
-		[DebuggerDisplay("{Text}")]
-		class CapturedEvent
-		{
-			public EventId Id { get; }
-			public string Text { get; }
-			public LogLevel Level { get; }
-			public int LineIndex { get; }
-			public int LineCount { get; }
-			public Dictionary<string, object> Properties { get; }
-
-			public CapturedEvent(EventId Id, LogLevel Level, int LineIndex, int LineCount, string Text, IEnumerable<KeyValuePair<string, object>> Properties)
-			{
-				this.Id = Id;
-				this.Level = Level;
-				this.LineIndex = LineIndex;
-				this.LineCount = LineCount;
-				this.Text = Text;
-				this.Properties = new Dictionary<string, object>(Properties);
-			}
-		}
+		const string LogLine = "LogLine";
 
 		class LoggerCapture : ILogger
 		{
-			int LineIndex;
+			int LogLineIndex;
 
-			public List<CapturedEvent> Events = new List<CapturedEvent>();
+			public List<LogEvent> Events = new List<LogEvent>();
 
 			public IDisposable? BeginScope<TState>(TState State) => null;
 
 			public bool IsEnabled(LogLevel LogLevel) => true;
 
-			public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+			public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception?, string> Formatter)
 			{
-				string Message = Formatter(State, Exception);
-				int LineCount = Message.Count(x => x == '\n') + 1;
-
-				IEnumerable<KeyValuePair<string, object>>? Properties = State as IEnumerable<KeyValuePair<string, object>>;
-				if (LogLevel != LogLevel.Information || EventId.Id != 0 || Properties != null || State is JsonLogEvent)
+				if (State is LogEvent Event)
 				{
-					Properties ??= new Dictionary<string, object>();
-					Events.Add(new CapturedEvent(EventId, LogLevel, LineIndex, LineCount, Message, Properties));
+					Event.Properties ??= new Dictionary<string, object>();
+					Event.Properties.Add(LogLine, LogLineIndex);
+					Events.Add(Event);
 				}
-
-				LineIndex += LineCount;
+				else if(LogLevel != LogLevel.Information || EventId.Id != 0)
+				{
+					Events.Add(LogEvent.FromState(LogLevel, EventId, State, Exception, Formatter));
+				}
+				LogLineIndex++;
 			}
 		}
 
@@ -79,30 +63,25 @@ namespace HordeAgentTests
 				"{\"Timestamp\":\"2021-10-28T05:36:15\",\"Level\":\"Error\",\"RenderedMessage\":\" Build...\"}",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(4, Events.Count);
+			List<LogEvent> Events = Parse(Lines);
+			Assert.AreEqual(3, Events.Count);
 
 			int Idx = 0;
 
-			CapturedEvent Event = Events[Idx++];
+			LogEvent Event = Events[Idx++];
 			Assert.AreEqual(LogLevel.Information, Event.Level);
 			Assert.AreEqual(new EventId(123), Event.Id);
-			Assert.AreEqual("Hello 123", Event.Text);
-
-			Event = Events[Idx++];
-			Assert.AreEqual(LogLevel.Information, Event.Level);
-			Assert.AreEqual(new EventId(0), Event.Id);
-			Assert.AreEqual("Building 43 projects (see Log \u0027Engine/Programs/AutomationTool/Saved/Logs/Log.txt\u0027 for more details)", Event.Text);
+			Assert.AreEqual("Hello 123", Event.Message);
 
 			Event = Events[Idx++];
 			Assert.AreEqual(LogLevel.Warning, Event.Level);
 			Assert.AreEqual(new EventId(0), Event.Id);
-			Assert.AreEqual(" Restore...", Event.Text);
+			Assert.AreEqual(" Restore...", Event.Message);
 
 			Event = Events[Idx++];
 			Assert.AreEqual(LogLevel.Error, Event.Level);
 			Assert.AreEqual(new EventId(0), Event.Id);
-			Assert.AreEqual(" Build...", Event.Text);
+			Assert.AreEqual(" Build...", Event.Message);
 		}
 
 		[TestMethod]
@@ -116,13 +95,8 @@ namespace HordeAgentTests
 				@"BUILD FAILED"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Generic, Events[0].Id);
-
-			Assert.AreEqual(1, Events[0].LineIndex);
-			Assert.AreEqual(3, Events[0].LineCount);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 1, 3, LogLevel.Error, KnownLogEvents.Generic);
 		}
 
 		[TestMethod]
@@ -147,17 +121,13 @@ namespace HordeAgentTests
 			};
 
 			{
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(LogLevel.Error, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Engine_Crash, Events[0].Id);
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
+				CheckEventGroup(Events, 0, 14, LogLevel.Error, KnownLogEvents.Engine_Crash);
 			}
 
 			{
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines).Replace("Error:", "Warning:"));
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Engine_Crash, Events[0].Id);
+				List<LogEvent> Events = Parse(String.Join("\n", Lines).Replace("Error:", "Warning:"));
+				CheckEventGroup(Events, 0, 14, LogLevel.Warning, KnownLogEvents.Engine_Crash);
 			}
 		}
 
@@ -170,13 +140,8 @@ namespace HordeAgentTests
 				@"Took 620.820352s to run UE4Editor-Cmd.exe, ExitCode=30",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.AutomationTool_CrashExitCode, Events[0].Id);
-
-			Assert.AreEqual(0, Events[0].LineIndex);
-			Assert.AreEqual(1, Events[0].LineCount);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.AutomationTool_CrashExitCode);
 		}
 
 		[TestMethod]
@@ -195,24 +160,23 @@ namespace HordeAgentTests
 					@"  C:\Horde\Sync\Engine\Source\Runtime\Core\Public\Delegates/DelegateSignatureImpl.inl(871): note: see declaration of 'TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject'",
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(LogLevel.Error, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-				Assert.AreEqual("C2664", Events[0].Properties["code"].ToString());
-				Assert.AreEqual("78", Events[0].Properties["line"].ToString());
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
+				CheckEventGroup(Events, 0, 7, LogLevel.Error, KnownLogEvents.Compiler);
 
-				LogEventSpan FileProperty = (LogEventSpan)Events[0].Properties["file"];
+				Assert.AreEqual("C2664", Events[0].Properties!["code"].ToString());
+				Assert.AreEqual("78", Events[0].Properties!["line"].ToString());
+
+				LogValue FileProperty = (LogValue)Events[0].Properties!["file"];
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", FileProperty.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty.Properties["type"].ToString());
-				Assert.AreEqual(@"Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", FileProperty.Properties["relativePath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty.Type);
+				Assert.AreEqual(@"Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", FileProperty.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp@12345", FileProperty.Properties["depotPath"].ToString());
 
-				LogEventSpan NoteProperty1 = (LogEventSpan)Events[0].Properties["note1"];
+				LogValue NoteProperty1 = (LogValue)Events[5].Properties!["file"];
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", NoteProperty1.Text);
-				Assert.AreEqual(@"SourceFile", NoteProperty1.Properties["type"].ToString());
+				Assert.AreEqual(@"SourceFile", NoteProperty1.Type);
 
-				LogEventSpan NoteProperty2 = (LogEventSpan)Events[0].Properties["note2"];
+				LogValue NoteProperty2 = (LogValue)Events[6].Properties!["file"];
 				Assert.AreEqual(@"C:\Horde\Sync\Engine\Source\Runtime\Core\Public\Delegates/DelegateSignatureImpl.inl", NoteProperty2.Text);
 
 				// FIXME: Fails on Linux. Properties dict is empty
@@ -233,11 +197,8 @@ namespace HordeAgentTests
 					@"Stripping symbols: d:\build\++UE5\Sync\Engine\Plugins\Runtime\GoogleVR\GoogleVRHMD\Binaries\Win64\UnrealEditor-GoogleVRHMD.pdb -> d:\build\++UE5\Sync\ArchiveForUGS\Staging\Engine\Plugins\Runtime\GoogleVR\GoogleVRHMD\Binaries\Win64\UnrealEditor-GoogleVRHMD.pdb",
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-				Assert.AreEqual(1, Events.Count);
-
-				Assert.AreEqual(LogLevel.Information, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Systemic_PdbUtil, Events[0].Id);
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
+				CheckEventGroup(Events, 1, 1, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
 		}
 
@@ -252,29 +213,27 @@ namespace HordeAgentTests
 					@"  Utilities.cs(16,7): error CS0246: The type or namespace name 'Org' could not be found (are you missing a using directive or an assembly reference?) [c:\Horde\Engine\Source\Programs\IOS\iPhonePackager\iPhonePackager.csproj]"
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
 				Assert.AreEqual(2, Events.Count);
 
-				Assert.AreEqual(LogLevel.Error, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-				Assert.AreEqual("CS0246", Events[0].Properties["code"].ToString());
-				Assert.AreEqual("22", Events[0].Properties["line"].ToString());
+				CheckEventGroup(Events.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
+				Assert.AreEqual("CS0246", Events[0].Properties!["code"].ToString());
+				Assert.AreEqual("22", Events[0].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty1 = (LogEventSpan)Events[0].Properties["file"];
+				LogValue FileProperty1 = (LogValue)Events[0].Properties!["file"];
 				Assert.AreEqual(@"GenerateSigningRequestDialog.cs", FileProperty1.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty1.Properties["type"].ToString());
-				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/GenerateSigningRequestDialog.cs", FileProperty1.Properties["relativePath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty1.Type);
+				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/GenerateSigningRequestDialog.cs", FileProperty1.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Engine/Source/Programs/IOS/iPhonePackager/GenerateSigningRequestDialog.cs@12345", FileProperty1.Properties["depotPath"].ToString());
 
-				Assert.AreEqual(LogLevel.Error, Events[1].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[1].Id);
-				Assert.AreEqual("CS0246", Events[1].Properties["code"].ToString());
-				Assert.AreEqual("16", Events[1].Properties["line"].ToString());
+				CheckEventGroup(Events.Slice(1, 1), 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
+				Assert.AreEqual("CS0246", Events[1].Properties!["code"].ToString());
+				Assert.AreEqual("16", Events[1].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty2 = (LogEventSpan)Events[1].Properties["file"];
+				LogValue FileProperty2 = (LogValue)Events[1].Properties!["file"];
 				Assert.AreEqual(@"Utilities.cs", FileProperty2.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty2.Properties["type"].ToString());
-				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/Utilities.cs", FileProperty2.Properties["relativePath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty2.Type);
+				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/Utilities.cs", FileProperty2.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Engine/Source/Programs/IOS/iPhonePackager/Utilities.cs@12345", FileProperty2.Properties["depotPath"].ToString());
 			}
 		}
@@ -289,19 +248,17 @@ namespace HordeAgentTests
 					@"  Configuration\TargetRules.cs(1497,58): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Horde\Engine\Source\Programs\UnrealBuildTool\UnrealBuildTool.csproj]",
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-				Assert.AreEqual(1, Events.Count);
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
+				CheckEventGroup(Events, 0, 1, LogLevel.Warning, KnownLogEvents.Compiler);
 
-				Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-				Assert.AreEqual("CS8625", Events[0].Properties["code"].ToString());
-				Assert.AreEqual("1497", Events[0].Properties["line"].ToString());
+				Assert.AreEqual("CS8625", Events[0].Properties!["code"].ToString());
+				Assert.AreEqual("1497", Events[0].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty = (LogEventSpan)Events[0].Properties["file"];
+				LogValue FileProperty = (LogValue)Events[0].Properties!["file"];
 				Assert.AreEqual(@"Configuration\TargetRules.cs", FileProperty.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty.Properties["type"].ToString());
-				Assert.AreEqual(@"Engine/Source/Programs/UnrealBuildTool/Configuration/TargetRules.cs", FileProperty.Properties["relativePath"].ToString());
-				Assert.AreEqual(@"//UE4/Main/Engine/Source/Programs/UnrealBuildTool/Configuration/TargetRules.cs@12345", FileProperty.Properties["depotPath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty.Type);
+				Assert.AreEqual(@"Engine/Source/Programs/UnrealBuildTool/Configuration/TargetRules.cs", FileProperty.Properties!["relativePath"].ToString());
+				Assert.AreEqual(@"//UE4/Main/Engine/Source/Programs/UnrealBuildTool/Configuration/TargetRules.cs@12345", FileProperty.Properties!["depotPath"].ToString());
 			}
 		}
 
@@ -316,30 +273,28 @@ namespace HordeAgentTests
 					@"  WARNING: C:\horde\Engine\Source\Runtime\CoreOnline\CoreOnline.Build.cs(4,7): warning CS0246: The type or namespace name 'Tools' could not be found (are you missing a using directive or an assembly reference?)"
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
 				Assert.AreEqual(2, Events.Count);
 
-				Assert.AreEqual(LogLevel.Error, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-				Assert.AreEqual("CS0246", Events[0].Properties["code"].ToString());
-				Assert.AreEqual("4", Events[0].Properties["line"].ToString());
+				CheckEventGroup(Events.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
+				Assert.AreEqual("CS0246", Events[0].Properties!["code"].ToString());
+				Assert.AreEqual("4", Events[0].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty = (LogEventSpan)Events[0].Properties["file"];
+				LogValue FileProperty = (LogValue)Events[0].Properties!["file"];
 				Assert.AreEqual(@"c:\Horde\Engine\Source\Runtime\CoreOnline\CoreOnline.Build.cs", FileProperty.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty.Properties["type"].ToString());
-				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", FileProperty.Properties["relativePath"].ToString());
-				Assert.AreEqual(@"//UE4/Main/Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs@12345", FileProperty.Properties["depotPath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty.Type);
+				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", FileProperty.Properties!["relativePath"].ToString());
+				Assert.AreEqual(@"//UE4/Main/Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs@12345", FileProperty.Properties!["depotPath"].ToString());
 
-				Assert.AreEqual(LogLevel.Warning, Events[1].Level);
-				Assert.AreEqual(KnownLogEvents.Compiler, Events[1].Id);
-				Assert.AreEqual("CS0246", Events[1].Properties["code"].ToString());
-				Assert.AreEqual("4", Events[1].Properties["line"].ToString());
+				CheckEventGroup(Events.Slice(1, 1), 1, 1, LogLevel.Warning, KnownLogEvents.Compiler);
+				Assert.AreEqual("CS0246", Events[1].Properties!["code"].ToString());
+				Assert.AreEqual("4", Events[1].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty1 = (LogEventSpan)Events[1].Properties["file"];
+				LogValue FileProperty1 = (LogValue)Events[1].Properties!["file"];
 				Assert.AreEqual(@"C:\horde\Engine\Source\Runtime\CoreOnline\CoreOnline.Build.cs", FileProperty1.Text);
-				Assert.AreEqual(@"SourceFile", FileProperty1.Properties["type"].ToString());
-				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", FileProperty1.Properties["relativePath"].ToString());
-				Assert.AreEqual(@"//UE4/Main/Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs@12345", FileProperty1.Properties["depotPath"].ToString());
+				Assert.AreEqual(@"SourceFile", FileProperty1.Type);
+				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", FileProperty1.Properties!["relativePath"].ToString());
+				Assert.AreEqual(@"//UE4/Main/Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs@12345", FileProperty1.Properties!["depotPath"].ToString());
 			}
 		}
 
@@ -351,11 +306,8 @@ namespace HordeAgentTests
 				@"WARNING: Failed to resolve binaries for artifact fe1b277b-7751-4a52-8059-ec3f943811de:xsx with error: fe1b277b-7751-4a52-8059-ec3f943811de:xsx Failed.Unexpected error retrieving response.BaseUrl = https://content-service-latest-gamedev.cdae.dev.use1a.on.epicgames.com/api. Status = Timeout. McpConfig = ValkyrieDevLatest."
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Generic, Events[0].Id);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			CheckEventGroup(Events, 0, 1, LogLevel.Warning, KnownLogEvents.Generic);
 		}
 
 		[TestMethod]
@@ -370,35 +322,32 @@ namespace HordeAgentTests
 					@" CSC : error CS2012: Cannot open 'D:\Build\++UE4\Sync\Engine\Source\Programs\Enterprise\Datasmith\DatasmithRevitExporter\Resources\obj\Release\DatasmithRevitResources.dll' for writing -- 'The process cannot access the file 'D:\Build\++UE4\Sync\Engine\Source\Programs\Enterprise\Datasmith\DatasmithRevitExporter\Resources\obj\Release\DatasmithRevitResources.dll' because it is being used by another process.' [D:\Build\++UE4\Sync\Engine\Source\Programs\Enterprise\Datasmith\DatasmithRevitExporter\Resources\DatasmithRevitResources.csproj]"
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
 				Assert.AreEqual(3, Events.Count);
 
 				// 0
-				Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Microsoft, Events[0].Id);
-				Assert.AreEqual("TL2012", Events[0].Properties["code"].ToString());
-				Assert.AreEqual("20", Events[0].Properties["line"].ToString());
+				CheckEventGroup(Events.Slice(0, 1), 0, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
+				Assert.AreEqual("TL2012", Events[0].Properties!["code"].ToString());
+				Assert.AreEqual("20", Events[0].Properties!["line"].ToString());
 
-				LogEventSpan FileProperty0 = (LogEventSpan)Events[0].Properties["file"];
-				Assert.AreEqual(@"SourceFile", FileProperty0.Properties["type"].ToString());
-				Assert.AreEqual(@"Foo/Bar.txt", FileProperty0.Properties["relativePath"].ToString());
+				LogValue FileProperty0 = (LogValue)Events[0].Properties!["file"];
+				Assert.AreEqual(@"SourceFile", FileProperty0.Type);
+				Assert.AreEqual(@"Foo/Bar.txt", FileProperty0.Properties!["relativePath"].ToString());
 
 				// 1
-				Assert.AreEqual(LogLevel.Warning, Events[1].Level);
-				Assert.AreEqual(KnownLogEvents.Microsoft, Events[1].Id);
-				Assert.AreEqual("TL2034", Events[1].Properties["code"].ToString());
-				Assert.AreEqual("20", Events[1].Properties["line"].ToString());
-				Assert.AreEqual("30", Events[1].Properties["column"].ToString());
+				CheckEventGroup(Events.Slice(1, 1), 1, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
+				Assert.AreEqual("TL2034", Events[1].Properties!["code"].ToString());
+				Assert.AreEqual("20", Events[1].Properties!["line"].ToString());
+				Assert.AreEqual("30", Events[1].Properties!["column"].ToString());
 
-				LogEventSpan FileProperty1 = (LogEventSpan)Events[1].Properties["file"];
-				Assert.AreEqual(@"SourceFile", FileProperty1.Properties["type"].ToString());
-				Assert.AreEqual(@"Foo/Bar.txt", FileProperty1.Properties["relativePath"].ToString());
+				LogValue FileProperty1 = (LogValue)Events[1].Properties!["file"];
+				Assert.AreEqual(@"SourceFile", FileProperty1.Type);
+				Assert.AreEqual(@"Foo/Bar.txt", FileProperty1.Properties!["relativePath"].ToString());
 
 				// 2
-				Assert.AreEqual(LogLevel.Error, Events[2].Level);
-				Assert.AreEqual(KnownLogEvents.Microsoft, Events[2].Id);
-				Assert.AreEqual("CS2012", Events[2].Properties["code"].ToString());
-				Assert.AreEqual("CSC", Events[2].Properties["tool"].ToString());
+				CheckEventGroup(Events.Slice(2, 1), 2, 1, LogLevel.Error, KnownLogEvents.Microsoft);
+				Assert.AreEqual("CS2012", Events[2].Properties!["code"].ToString());
+				Assert.AreEqual("CSC", Events[2].Properties!["tool"].ToString());
 			}
 		}
 
@@ -416,26 +365,24 @@ namespace HordeAgentTests
 					@"..\Plugins\Editor\EditorScriptingUtilities\Source\EditorScriptingUtilities\Public\EditorLevelLibrary.h(190): note: see declaration of 'UEditorLevelLibrary::EditorSetGameView'"
 				};
 
-				List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-				Assert.AreEqual(2, Events.Count);
+				List<LogEvent> Events = Parse(String.Join("\n", Lines));
+				Assert.AreEqual(5, Events.Count);
+				CheckEventGroup(Events.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
+				CheckEventGroup(Events.Slice(1, 2), 1, 2, LogLevel.Error, KnownLogEvents.Compiler);
+				CheckEventGroup(Events.Slice(3, 2), 3, 2, LogLevel.Error, KnownLogEvents.Compiler);
 
-				for (int Idx = 0; Idx < Events.Count; Idx++)
-				{
-					CapturedEvent Event = Events[Idx];
+				LogEvent Event = Events[1];
+				Assert.AreEqual("C4996", Event.Properties!["code"].ToString());
+				Assert.AreEqual(LogLevel.Error, Event.Level);
 
-					Assert.AreEqual(LogLevel.Error, Event.Level);
-					Assert.AreEqual(KnownLogEvents.Compiler, Event.Id);
-					Assert.AreEqual("C4996", Event.Properties["code"].ToString());
+				LogValue FileProperty = (LogValue)Event.Properties["file"];
 
-					LogEventSpan FileProperty = (LogEventSpan)Event.Properties["file"];
-					
-					// FIXME: Fails on Linux. Properties dict is empty
-					//Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Experimental/VirtualCamera/Source/VirtualCamera/Private/VCamBlueprintFunctionLibrary.cpp@12345", FileProperty.Properties["depotPath"].ToString());
+				// FIXME: Fails on Linux. Properties dict is empty
+				//Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Experimental/VirtualCamera/Source/VirtualCamera/Private/VCamBlueprintFunctionLibrary.cpp@12345", FileProperty.Properties["depotPath"].ToString());
 
-					LogEventSpan NoteProperty1 = (LogEventSpan)Event.Properties["note1"];
-					Assert.AreEqual(@"SourceFile", NoteProperty1.Properties["type"].ToString());
-					Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Editor/EditorScriptingUtilities/Source/EditorScriptingUtilities/Public/EditorLevelLibrary.h@12345", NoteProperty1.Properties["depotPath"].ToString());
-				}
+				LogValue NoteProperty1 = (LogValue)Events[2].Properties!["file"];
+				Assert.AreEqual(@"SourceFile", NoteProperty1.Type);
+				Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Editor/EditorScriptingUtilities/Source/EditorScriptingUtilities/Public/EditorLevelLibrary.h@12345", NoteProperty1.Properties!["depotPath"].ToString());
 			}
 		}
 
@@ -452,12 +399,8 @@ namespace HordeAgentTests
 				@"  1 error generated."
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-			Assert.AreEqual(0, Events[0].LineIndex);
-			Assert.AreEqual(5, Events[0].LineCount);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			CheckEventGroup(Events, 0, 5, LogLevel.Error, KnownLogEvents.Compiler);
 		}
 
 		[TestMethod]
@@ -475,34 +418,28 @@ namespace HordeAgentTests
 				@"        ^"
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines), new DirectoryReference("/Users/build/Build/++UE4/Sync"));
-			Assert.AreEqual(1, Events.Count);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines), new DirectoryReference("/Users/build/Build/++UE4/Sync"));
+			CheckEventGroup(Events, 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
 
-			CapturedEvent Event = Events[0];
-			Assert.AreEqual(LogLevel.Error, Event.Level);
-			Assert.AreEqual(KnownLogEvents.Compiler, Event.Id);
-			Assert.AreEqual(1, Event.LineIndex);
-			Assert.AreEqual(1, Event.LineCount);
-			Assert.AreEqual("7", Event.Properties["line"].ToString());
-			Assert.AreEqual("48", Event.Properties["column"].ToString());
+			LogEvent Event = Events[0];
+			Assert.AreEqual("7", Event.Properties!["line"].ToString());
+			Assert.AreEqual("48", Event.Properties!["column"].ToString());
 
-			LogEventSpan FileProperty = (LogEventSpan)Event.Properties["file"];
-			Assert.AreEqual("//UE4/Main/Engine/Plugins/Runtime/AR/AzureSpatialAnchorsForARKit/Source/AzureSpatialAnchorsForARKit/Private/AzureSpatialAnchorsForARKit.cpp@12345", FileProperty.Properties["depotPath"]);
+			LogValue FileProperty = (LogValue)Event.Properties["file"];
+			Assert.AreEqual("//UE4/Main/Engine/Plugins/Runtime/AR/AzureSpatialAnchorsForARKit/Source/AzureSpatialAnchorsForARKit/Private/AzureSpatialAnchorsForARKit.cpp@12345", FileProperty.Properties!["depotPath"]);
 		}
 
 		[TestMethod]
 		public void LinkerEventMatcher()
 		{
 			{
-				List<CapturedEvent> Events = Parse(@"  TP_VehicleAdvPawn.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)"" (__imp_?GetPrivateStaticClass@UPhysicalMaterial@@CAPEAVUClass@@XZ) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)");
-				Assert.AreEqual(1, Events.Count);
-				Assert.AreEqual(LogLevel.Error, Events[0].Level);
-				Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
-				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", Events[0].Properties["symbol"].ToString());
+				List<LogEvent> Events = Parse(@"  TP_VehicleAdvPawn.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)"" (__imp_?GetPrivateStaticClass@UPhysicalMaterial@@CAPEAVUClass@@XZ) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)");
+				CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
+				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", Events[0].Properties!["symbol"].ToString());
 			}
 
 			{
-				List<CapturedEvent> Events = Parse(@"  D:\Build\++UE4\Sync\Templates\TP_VehicleAdv\Binaries\Win64\UE4Editor-TP_VehicleAdv.dll : fatal error LNK1120: 1 unresolved externals");
+				List<LogEvent> Events = Parse(@"  D:\Build\++UE4\Sync\Templates\TP_VehicleAdv\Binaries\Win64\UE4Editor-TP_VehicleAdv.dll : fatal error LNK1120: 1 unresolved externals");
 				Assert.AreEqual(1, Events.Count);
 				Assert.AreEqual(LogLevel.Error, Events[0].Level);
 			}
@@ -518,47 +455,43 @@ namespace HordeAgentTests
 				@"  Engine\Binaries\Win64\UE4Game.exe: fatal error LNK1169: one or more multiply defined symbols found"
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
 			Assert.AreEqual(2, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_DuplicateSymbol, Events[0].Id);
-			Assert.AreEqual("tf_select_table", Events[0].Properties["symbol"].ToString());
 
-			Assert.AreEqual(LogLevel.Error, Events[1].Level);
-			Assert.AreEqual(KnownLogEvents.Linker, Events[1].Id);
+			CheckEventGroup(Events.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
+			Assert.AreEqual("tf_select_table", Events[0].Properties!["symbol"].ToString());
+
+			CheckEventGroup(Events.Slice(1, 1), 2, 1, LogLevel.Error, KnownLogEvents.Linker);
 		}
 
 		[TestMethod]
 		public void SourceFileLineEventMatcher()
 		{
-			List<CapturedEvent> Events = Parse("ERROR: C:\\Horde\\InstalledEngineBuild.xml(50): Some error");
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.AutomationTool_SourceFileLine, Events[0].Id);
-			Assert.AreEqual("ERROR", Events[0].Properties["severity"].ToString());
-			Assert.AreEqual("C:\\Horde\\InstalledEngineBuild.xml", Events[0].Properties["file"].ToString());
-			Assert.AreEqual("50", Events[0].Properties["line"].ToString());
+			List<LogEvent> Events = Parse("ERROR: C:\\Horde\\InstalledEngineBuild.xml(50): Some error");
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.AutomationTool_SourceFileLine);
+
+			Assert.AreEqual("ERROR", Events[0].Properties!["severity"].ToString());
+			Assert.AreEqual("C:\\Horde\\InstalledEngineBuild.xml", Events[0].Properties!["file"].ToString());
+			Assert.AreEqual("50", Events[0].Properties!["line"].ToString());
 		}
 
 		[TestMethod]
 		public void SourceFileEventMatcher()
 		{
-			List<CapturedEvent> Events = Parse("  WARNING: Engine\\Plugins\\Test\\Foo.cpp: Missing copyright boilerplate");
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.AutomationTool_MissingCopyright, Events[0].Id);
-			Assert.AreEqual("WARNING", Events[0].Properties["severity"].ToString());
-			Assert.AreEqual("Engine\\Plugins\\Test\\Foo.cpp", Events[0].Properties["file"].ToString());
+			List<LogEvent> Events = Parse("  WARNING: Engine\\Plugins\\Test\\Foo.cpp: Missing copyright boilerplate");
+			CheckEventGroup(Events, 0, 1, LogLevel.Warning, KnownLogEvents.AutomationTool_MissingCopyright);
+
+			Assert.AreEqual("WARNING", Events[0].Properties!["severity"].ToString());
+			Assert.AreEqual("Engine\\Plugins\\Test\\Foo.cpp", Events[0].Properties!["file"].ToString());
 		}
 
 		[TestMethod]
 		public void MSBuildEventMatcher()
 		{
-			List<CapturedEvent> Events = Parse(@"  C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(4207,5): warning MSB3026: Could not copy ""obj\Development\DotNETUtilities.dll"" to ""..\..\..\..\Binaries\DotNET\DotNETUtilities.dll"". Beginning retry 2 in 1000ms. The process cannot access the file '..\..\..\..\Binaries\DotNET\DotNETUtilities.dll' because it is being used by another process. The file is locked by: ""UnrealAutomationTool(13236)"" [C:\Horde\Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj]");
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Information, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Systemic_MSBuild, Events[0].Id);
-			Assert.AreEqual("warning", Events[0].Properties["severity"].ToString());
+			List<LogEvent> Events = Parse(@"  C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(4207,5): warning MSB3026: Could not copy ""obj\Development\DotNETUtilities.dll"" to ""..\..\..\..\Binaries\DotNET\DotNETUtilities.dll"". Beginning retry 2 in 1000ms. The process cannot access the file '..\..\..\..\Binaries\DotNET\DotNETUtilities.dll' because it is being used by another process. The file is locked by: ""UnrealAutomationTool(13236)"" [C:\Horde\Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj]");
+			CheckEventGroup(Events, 0, 1, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
+
+			Assert.AreEqual("warning", Events[0].Properties!["severity"].ToString());
 			
 			// FIXME: Fails on Linux. Properties dict is empty
 			//Assert.AreEqual(@"Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj", GetSubProperty(Events[0], "file", "relativePath"));
@@ -573,9 +506,8 @@ namespace HordeAgentTests
 				@"  /Users/build/Build/++UE4/Sync/Engine/Source/Programs/AutomationTool/Gauntlet/Gauntlet.Automation.csproj: error : /Users/build/Build/++UE4/Sync/Engine/Source/Programs/AutomationTool/Gauntlet/Gauntlet.Automation.csproj: /Users/build/Build/++UE4/Sync/Engine/Source/Programs/AutomationTool/Gauntlet/Gauntlet.Automation.csproj could not import ""../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/*.Gauntlet.targets""",
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			CheckEventGroup(Events, 1, 1, LogLevel.Error, KnownLogEvents.Generic);
 		}
 
 		[TestMethod]
@@ -590,10 +522,8 @@ namespace HordeAgentTests
 				@"  clang: error: linker command failed with exit code 1 (use -v to see invocation)",
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			CheckEventGroup(Events, 0, 5, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 		}
 
 		[TestMethod]
@@ -605,16 +535,15 @@ namespace HordeAgentTests
 				@"  ld.lld.exe: error: undefined symbol: Foo::Bar2() const",
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			Assert.AreEqual(2, Events.Count);
+			CheckEventGroup(Events, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 
-			LogEventSpan SymbolProperty2 = (LogEventSpan)Events[0].Properties["symbol_2"];
-			Assert.AreEqual("Foo::Bar2", SymbolProperty2.Properties["identifier"].ToString());
+			LogValue SymbolProperty2 = (LogValue)Events[1].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar2", SymbolProperty2.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -628,13 +557,11 @@ namespace HordeAgentTests
 				@"  prospero-clang: error: linker command failed with exit code 1 (use -v to see invocation)"
 			};
 
-			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(String.Join("\n", Lines));
+			CheckEventGroup(Events, 0, 4, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("USkeleton::GetBlendProfile", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("USkeleton::GetBlendProfile", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -646,13 +573,12 @@ namespace HordeAgentTests
 				@"     ""Foo::Bar() const"", referenced from:"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[1].Properties!["symbol"];
+			Assert.AreEqual("symbol", SymbolProperty.Type);
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -666,18 +592,11 @@ namespace HordeAgentTests
 				@"  clang++: error: linker command failed with exit code 1 (use -v to see invocation)"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(2, Events.Count);
-			
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker, Events[0].Id);
-			Assert.AreEqual(0, Events[0].LineIndex);
-			Assert.AreEqual(2, Events[0].LineCount);
+			List<LogEvent> Events = Parse(Lines);
+			Assert.AreEqual(4, Events.Count);
 
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker, Events[1].Id);
-			Assert.AreEqual(2, Events[1].LineIndex);
-			Assert.AreEqual(2, Events[1].LineCount);
+			CheckEventGroup(Events.Slice(0, 2), 0, 2, LogLevel.Error, KnownLogEvents.Linker);
+			CheckEventGroup(Events.Slice(2, 2), 2, 2, LogLevel.Error, KnownLogEvents.Linker);
 		}
 
 		[TestMethod]
@@ -688,13 +607,11 @@ namespace HordeAgentTests
 				@"   Foo.o:(.data.rel.ro + 0x5d88): undefined reference to `Foo::Bar()'"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -711,10 +628,8 @@ namespace HordeAgentTests
 				@"  ld.lld: warning: found local symbol '__bss_start' in global part of symbol table in file D:/Build/++UE4/Sync/Engine/Plugins/Runtime/GooglePAD/Source/ThirdParty/play-core-native-sdk/libs/arm64-v8a/ndk21.3.6528147/c++_shared\libplaycore.so",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 7, LogLevel.Warning, KnownLogEvents.Linker);
 		}
 
 		[TestMethod]
@@ -768,11 +683,14 @@ namespace HordeAgentTests
 				@"    Something else"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(9, Events[0].LineIndex);
-			Assert.AreEqual(Lines.Length, Events[0].LineIndex + Events[0].LineCount + 2);
+			List<LogEvent> Events = Parse(Lines);
+			Assert.AreEqual(33, Events.Count);
+			for(int Idx = 0; Idx < 33; Idx++)
+			{
+				Assert.AreEqual(LogLevel.Error, Events[Idx].Level);
+			}
+			Assert.AreEqual(9, Events[0].Properties![LogLine]);
+			Assert.AreEqual(Lines.Length, (int)Events[0].Properties![LogLine] + Events[0].LineCount + 2);
 		}
 
 		[TestMethod]
@@ -783,13 +701,11 @@ namespace HordeAgentTests
 				@"   ld.lld.exe: error: undefined symbol: Foo::Bar() const",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -800,13 +716,11 @@ namespace HordeAgentTests
 				@"   Link: error: L0039: reference to undefined symbol `Foo::Bar() const' in file",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -817,13 +731,11 @@ namespace HordeAgentTests
 				@"   Foo.cpp.obj : error LNK2001: unresolved external symbol ""private: virtual void __cdecl Foo::Bar(class UStruct const *,void const *,struct FAssetBundleData &,class FName,class TSet<void const *,struct DefaultKeyFuncs<void const *,0>,class FDefaultSetAllocator> &)const "" (?InitializeAssetBundlesFromMetadata_Recursive@UAssetManager@@EEBAXPEBVUStruct@@PEBXAEAUFAssetBundleData@@VFName@@AEAV?$TSet@PEBXU?$DefaultKeyFuncs@PEBX$0A@@@VFDefaultSetAllocator@@@@@Z)"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker_UndefinedSymbol, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogEventSpan SymbolProperty = (LogEventSpan)Events[0].Properties["symbol"];
-			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties["identifier"].ToString());
+			LogValue SymbolProperty = (LogValue)Events[0].Properties!["symbol"];
+			Assert.AreEqual("Foo::Bar", SymbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]
@@ -836,7 +748,7 @@ namespace HordeAgentTests
 				@"  <-- Resume Log Parsing -->"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
+			List<LogEvent> Events = Parse(Lines);
 			Assert.AreEqual(0, Events.Count);
 		}
 
@@ -867,12 +779,8 @@ namespace HordeAgentTests
 				@"    21 of 24 tests passed"
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-
-			CapturedEvent Event = Events[0];
-			Assert.AreEqual(LogLevel.Error, Event.Level);
-			Assert.AreEqual(KnownLogEvents.Gauntlet, Event.Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 20, LogLevel.Error, KnownLogEvents.Gauntlet);
 		}
 
 		[TestMethod]
@@ -891,13 +799,8 @@ namespace HordeAgentTests
 				@"#14 8.643 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o lbaselib.o lbaselib.c",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Compiler, Events[0].Id);
-			Assert.AreEqual(2, Events[0].LineIndex);
-			Assert.AreEqual(1, Events[0].LineCount);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 2, 1, LogLevel.Warning, KnownLogEvents.Compiler);
 		}
 
 		[TestMethod]
@@ -911,11 +814,8 @@ namespace HordeAgentTests
 				@"  #14 9.447 loslib.c:(.text+0x280): warning: the use of `tmpnam' is dangerous, better use `mkstemp'",
 				@"  #14 9.448 cc -O2 -Wall -DLUA_ANSI -DENABLE_CJSON_GLOBAL -DREDIS_STATIC=''    -c -o luac.o luac.c"
 			};
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-
-			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Linker, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 2, 2, LogLevel.Warning, KnownLogEvents.Linker);
 		}
 
 		[TestMethod]
@@ -981,26 +881,20 @@ namespace HordeAgentTests
 			};
 
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(3, Events.Count);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 55, LogLevel.Error, KnownLogEvents.Gauntlet_UnitTest);
 
-			Assert.AreEqual(LogLevel.Error, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Gauntlet_UnitTest, Events[0].Id);
-			Assert.AreEqual("HLOD", Events[0].Properties["group"].ToString());
-			Assert.AreEqual("SectionFlags", Events[0].Properties["name"].ToString());
-			Assert.AreEqual("SectionFlags", Events[0].Properties["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", Events[29].Properties!["group"].ToString());
+			Assert.AreEqual("SectionFlags", Events[29].Properties!["name"].ToString());
+			Assert.AreEqual("SectionFlags", Events[29].Properties!["friendly_name"].ToString());
 
-			Assert.AreEqual(LogLevel.Error, Events[1].Level);
-			Assert.AreEqual(KnownLogEvents.Gauntlet_UnitTest, Events[1].Id);
-			Assert.AreEqual("HLOD", Events[1].Properties["group"].ToString());
-			Assert.AreEqual("SimpleMerge", Events[1].Properties["name"].ToString());
-			Assert.AreEqual("SimpleMerge", Events[1].Properties["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", Events[34].Properties!["group"].ToString());
+			Assert.AreEqual("SimpleMerge", Events[34].Properties!["name"].ToString());
+			Assert.AreEqual("SimpleMerge", Events[34].Properties!["friendly_name"].ToString());
 
-			Assert.AreEqual(LogLevel.Error, Events[2].Level);
-			Assert.AreEqual(KnownLogEvents.Gauntlet_UnitTest, Events[2].Id);
-			Assert.AreEqual("HLOD", Events[2].Properties["group"].ToString());
-			Assert.AreEqual("SingleLODMerge", Events[2].Properties["name"].ToString());
-			Assert.AreEqual("SingleLODMerge", Events[2].Properties["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", Events[46].Properties!["group"].ToString());
+			Assert.AreEqual("SingleLODMerge", Events[46].Properties!["name"].ToString());
+			Assert.AreEqual("SingleLODMerge", Events[46].Properties!["friendly_name"].ToString());
 		}
 
 		[TestMethod]
@@ -1008,13 +902,11 @@ namespace HordeAgentTests
 		{
 			string Text = @"  Error: LogAutomationController: Error: Screenshot 'ActorMerging_SectionFlags_LOD_0_None' test failed, Screenshots were different!  Global Difference = 0.058361, Max Local Difference = 0.821376 [D:\Build\++UE5\Sync\Engine\Source\Runtime\Core\Public\Delegates\DelegateInstancesImpl.h(546)]";
 
-			List<CapturedEvent> Events = Parse(Text);
-			Assert.AreEqual(1, Events.Count);
+			List<LogEvent> Events = Parse(Text);
+			CheckEventGroup(Events, 0, 1, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
 
-			CapturedEvent Event = Events[0];
-			Assert.AreEqual(LogLevel.Error, Event.Level);
-			Assert.AreEqual(KnownLogEvents.Gauntlet_ScreenshotTest, Event.Id);
-			Assert.AreEqual("ActorMerging_SectionFlags_LOD_0_None", Event.Properties["screenshot"].ToString());
+			LogEvent Event = Events[0];
+			Assert.AreEqual("ActorMerging_SectionFlags_LOD_0_None", Event.Properties!["screenshot"].ToString());
 		}
 
 		[TestMethod]
@@ -1025,10 +917,8 @@ namespace HordeAgentTests
 				@"    LogDerivedDataCache: Warning: Access to //epicgames.net/root/DDC-Global-UE4 appears to be slow. 'Touch' will be disabled and queries/writes will be limited."
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(1, Events.Count);
-			Assert.AreEqual(LogLevel.Information, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Systemic_SlowDDC, Events[0].Id);
+			List<LogEvent> Events = Parse(Lines);
+			CheckEventGroup(Events, 0, 1, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);
 		}
 
 		[TestMethod]
@@ -1046,21 +936,16 @@ namespace HordeAgentTests
 				@"    LogXGEController: Warning: XGE's background service (BuildService.exe) is not running - service is likely disabled on this machine.",
 			};
 
-			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(3, Events.Count);
-			Assert.AreEqual(LogLevel.Information, Events[0].Level);
-			Assert.AreEqual(KnownLogEvents.Systemic_Xge_Standalone, Events[0].Id);
-
-			Assert.AreEqual(LogLevel.Information, Events[1].Level);
-			Assert.AreEqual(KnownLogEvents.Systemic_Xge, Events[1].Id);
-
-			Assert.AreEqual(LogLevel.Information, Events[2].Level);
-			Assert.AreEqual(KnownLogEvents.Systemic_Xge_ServiceNotRunning, Events[2].Id);
+			List<LogEvent> Events = Parse(Lines);
+			Assert.AreEqual(7, Events.Count);
+			CheckEventGroup(Events.Slice(0, 3), 0, 3, LogLevel.Information, KnownLogEvents.Systemic_Xge_Standalone);
+			CheckEventGroup(Events.Slice(3, 3), 3, 3, LogLevel.Information, KnownLogEvents.Systemic_Xge);
+			CheckEventGroup(Events.Slice(6, 1), 7, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
 		}
 
-		string GetSubProperty(CapturedEvent Event, string SpanName, string Name)
+		string GetSubProperty(LogEvent Event, string SpanName, string Name)
 		{
-			LogEventSpan Span = (LogEventSpan)Event.Properties[SpanName];
+			LogEventSpan Span = (LogEventSpan)Event.Properties![SpanName];
 			Console.WriteLine("DUMP\n\n\n");
 			foreach (KeyValuePair<string, object> kvp in Span.Properties)
 			{
@@ -1069,17 +954,17 @@ namespace HordeAgentTests
 			return Span.Properties[Name].ToString()!;
 		}
 
-		List<CapturedEvent> Parse(IEnumerable<string> Lines)
+		List<LogEvent> Parse(IEnumerable<string> Lines)
 		{
 			return Parse(String.Join("\n", Lines));
 		}
 
-		List<CapturedEvent> Parse(string Text)
+		List<LogEvent> Parse(string Text)
 		{
 			return Parse(Text, new DirectoryReference("C:\\Horde".Replace('\\', Path.DirectorySeparatorChar)));
 		}
 
-		List<CapturedEvent> Parse(string Text, DirectoryReference WorkspaceDir)
+		List<LogEvent> Parse(string Text, DirectoryReference WorkspaceDir)
 		{
 			LogParserContext Context = new LogParserContext();
 			Context.WorkspaceDir = WorkspaceDir;
@@ -1099,11 +984,28 @@ namespace HordeAgentTests
 				while(Pos < TextBytes.Length)
 				{
 					int Len = Math.Min((int)(Generator.NextDouble() * 256), TextBytes.Length - Pos);
-					Parser.WriteData(TextBytes.AsMemory(Pos, Len), Pos + Len == TextBytes.Length);
+					Parser.WriteData(TextBytes.AsMemory(Pos, Len));
 					Pos += Len;
 				}
 			}
 			return Logger.Events;
+		}
+
+		void CheckEventGroup(IEnumerable<LogEvent> Events, int Index, int Count, LogLevel Level, EventId EventId = default)
+		{
+			IEnumerator<LogEvent> Enumerator = Events.GetEnumerator();
+			for (int Idx = 0; Idx < Count; Idx++)
+			{
+				Assert.IsTrue(Enumerator.MoveNext());
+
+				LogEvent Event = Enumerator.Current;
+				Assert.AreEqual(Level, Event.Level);
+				Assert.AreEqual(EventId, Event.Id);
+				Assert.AreEqual(Idx, Event.LineIndex);
+				Assert.AreEqual(Count, Event.LineCount);
+				Assert.AreEqual(Index + Idx, Event.Properties![LogLine]);
+			}
+			Assert.IsFalse(Enumerator.MoveNext());
 		}
 	}
 }

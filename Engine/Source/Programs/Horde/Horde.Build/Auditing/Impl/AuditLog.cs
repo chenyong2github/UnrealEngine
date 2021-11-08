@@ -71,11 +71,12 @@ namespace HordeServer.Collections.Impl
 
 			public bool IsEnabled(LogLevel logLevel) => true;
 
-			public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+			public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception? Exception, Func<TState, Exception?, string> Formatter)
 			{
 				DateTime Time = DateTime.UtcNow;
 
-				string Data = MessageTemplate.Serialize(LogLevel, EventId, State, Exception, Formatter);
+				LogEvent Event = LogEvent.FromState(LogLevel, EventId, State, Exception, Formatter);
+				string Data = Event.ToJson();
 				AuditLogMessage Message = new AuditLogMessage(Subject, Time, LogLevel, Data);
 				Outer.MessageChannel.Writer.TryWrite(Message);
 

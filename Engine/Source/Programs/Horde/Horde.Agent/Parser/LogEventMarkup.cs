@@ -5,7 +5,9 @@ using HordeAgent.Parser.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace HordeAgent.Parser
@@ -15,132 +17,66 @@ namespace HordeAgent.Parser
 	/// </summary>
 	static class LogEventMarkup
 	{
-		enum MarkupType
-		{
-			Asset,
-			SourceFile,
-			Channel,
-			Severity,
-			Line,
-			Column,
-			ErrorCode,
-			Message,
-			Symbol,
-			UnitTest,
-			ScreenshotTest,
-			ToolName,
-		}
+		public static LogValue Channel => new LogValue("Channel", "");
+		public static LogValue Severity => new LogValue("Severity", "");
+		public static LogValue Message => new LogValue("Message", "");
+		public static LogValue LineNumber => new LogValue("Line", "");
+		public static LogValue ColumnNumber => new LogValue("Column", "");
+		public static LogValue Symbol => new LogValue("Symbol", "");
+		public static LogValue ErrorCode => new LogValue("ErrorCode", "");
+		public static LogValue ToolName => new LogValue("ToolName", "");
+		public static LogValue ScreenshotTest => new LogValue("ScreenshotTest", "");
 
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		/// <param name="Context">The current log context</param>
-		/// <param name="BaseDir">The base directory for relative paths</param>
-		public static void MarkAsSourceFile(this LogEventSpan Span, ILogContext Context, string BaseDir)
+		public static void AnnotateSourceFile(this LogEventBuilder Builder, Group Group, ILogContext Context, string BaseDir)
 		{
+			LogValue? Value = null;
 			if (Context.WorkspaceDir != null && Context.PerforceStream != null && Context.PerforceChange != null)
 			{
-				FileReference Location = FileReference.Combine(Context.WorkspaceDir, BaseDir.Replace('\\', Path.DirectorySeparatorChar), Span.Text.Replace('\\', Path.DirectorySeparatorChar));
+				FileReference Location = FileReference.Combine(Context.WorkspaceDir, BaseDir.Replace('\\', Path.DirectorySeparatorChar), Group.Value.Replace('\\', Path.DirectorySeparatorChar));
 				if (Location.IsUnderDirectory(Context.WorkspaceDir) && !Location.ContainsName("Intermediate", Context.WorkspaceDir))
 				{
-					Span.Properties.Add("type", MarkupType.SourceFile);
-
 					string RelativePath = Location.MakeRelativeTo(Context.WorkspaceDir).Replace('\\', '/');
-					Span.Properties.Add("relativePath", RelativePath);
-
 					string DepotPath = $"{Context.PerforceStream.TrimEnd('/')}/{RelativePath.Replace(Path.DirectorySeparatorChar, '/')}@{Context.PerforceChange.Value}";
-					Span.Properties.Add("depotPath", DepotPath);
+
+					Dictionary<string, object> Properties = new Dictionary<string, object>();
+					Properties["relativePath"] = RelativePath;
+					Properties["depotPath"] = DepotPath;
+					Value = new LogValue("SourceFile", "", Properties);
 				}
 			}
+			Builder.Annotate(Group, Value);
 		}
 
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		/// <param name="Context">The current log context</param>
-		public static void MarkAsAsset(this LogEventSpan Span, ILogContext Context)
+		public static void AnnotateAsset(this LogEventBuilder Builder, Group Group, ILogContext Context)
 		{
 			if (Context.WorkspaceDir != null && Context.PerforceStream != null && Context.PerforceChange != null)
 			{
-				FileReference Location = FileReference.Combine(DirectoryReference.Combine(Context.WorkspaceDir, "Engine", "Binaries", "Win64"), Span.Text);
+				FileReference Location = FileReference.Combine(DirectoryReference.Combine(Context.WorkspaceDir, "Engine", "Binaries", "Win64"), Group.Value);
 				if (Location.IsUnderDirectory(Context.WorkspaceDir) && !Location.ContainsName("Intermediate", Context.WorkspaceDir))
 				{
-					Span.Properties.Add("type", MarkupType.Asset);
-
 					string RelativePath = Location.MakeRelativeTo(Context.WorkspaceDir);
-					Span.Properties.Add("relativePath", RelativePath);
-
 					string DepotPath = $"{Context.PerforceStream.TrimEnd('/')}/{RelativePath.Replace(Path.DirectorySeparatorChar, '/')}@{Context.PerforceChange.Value}";
-					Span.Properties.Add("depotPath", DepotPath);
+
+					Dictionary<string, object> Properties = new Dictionary<string, object>();
+					Properties["relativePath"] = RelativePath;
+					Properties["depotPath"] = DepotPath;
+					Builder.Annotate(Group, new LogValue("Asset", "", Properties));
 				}
 			}
-		}
-
-		/// <summary>
-		/// Marks a span of text as a channel name
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsChannel(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.Channel);
-		}
-
-		/// <summary>
-		/// Marks a span of text as a severity indicator
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsSeverity(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.Severity);
-		}
-
-		/// <summary>
-		/// Marks a span of text as a line number
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsLineNumber(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.Line);
-			Span.Properties.Add("line", int.Parse(Span.Text));
-		}
-
-		/// <summary>
-		/// Marks a span of text as a column number
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsColumnNumber(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.Column);
-			Span.Properties.Add("column", int.Parse(Span.Text));
-		}
-
-		/// <summary>
-		/// Marks a span of text as an error code
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsErrorCode(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.ErrorCode);
-		}
-
-		/// <summary>
-		/// Marks a span of text as an error code
-		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsErrorMessage(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.Message);
 		}
 
 		/// <summary>
 		/// Marks a span of text as a symbol
 		/// </summary>
-		/// <param name="Span">The span to mark</param>
-		public static void MarkAsSymbol(this LogEventSpan Span)
+		public static void AnnotateSymbol(this LogEventBuilder Builder, Group Group)
 		{
-			string Identifier = Span.Text;
+			string Identifier = Group.Value;
 
 			// Remove any __declspec qualifiers
 			Identifier = Regex.Replace(Identifier, "(?<![^a-zA-Z_])__declspec\\([^\\)]+\\)", "");
@@ -152,43 +88,9 @@ namespace HordeAgent.Parser
 			Identifier = Regex.Replace(Identifier, "^.* ", "");
 
 			// Add it to the list
-			Span.Properties.Add("type", MarkupType.Symbol);
-			Span.Properties.Add("identifier", Identifier);
-		}
-
-		/// <summary>
-		/// Marks a span of text as a unit test
-		/// </summary>
-		/// <param name="Span">The span of text</param>
-		/// <param name="Group">Name of the test group</param>
-		public static void MarkAsUnitTest(this LogEventSpan Span, string Group)
-		{
-			Match Match = Regex.Match(Span.Text, @"^\s*([^:]+):\s*([^\s]+)\s*$");
-			if (Match.Success)
-			{
-				Span.Properties.Add("type", MarkupType.UnitTest);
-				Span.Properties.Add("group", Group);
-				Span.Properties.Add("friendly_name", Match.Groups[1].Value);
-				Span.Properties.Add("name", Match.Groups[2].Value);
-			}
-		}
-
-		/// <summary>
-		/// Marks a span of text as a unit test
-		/// </summary>
-		/// <param name="Span">The span of text</param>
-		public static void MarkAsScreenshotTest(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.ScreenshotTest);
-		}
-
-		/// <summary>
-		/// Marks a span of text as a tool name
-		/// </summary>
-		/// <param name="Span">The span of text</param>
-		public static void MarkAsToolName(this LogEventSpan Span)
-		{
-			Span.Properties.Add("type", MarkupType.ToolName);
+			Dictionary<string, object> Properties = new Dictionary<string, object>();
+			Properties["identifier"] = Identifier;
+			Builder.Annotate(Group, new LogValue("symbol", "", Properties));
 		}
 	}
 }

@@ -51,7 +51,7 @@ namespace HordeServerTests
 		{
 			ILogFileService LogFileService;
 			LogId LogId;
-			List<(LogLevel, byte[][])> Events = new List<(LogLevel, byte[][])>();
+			List<(LogLevel, byte[])> Events = new List<(LogLevel, byte[])>();
 
 			public TestJsonLogger(ILogFileService LogFileService, LogId LogId)
 				: base(null, NullLogger.Instance)
@@ -62,35 +62,39 @@ namespace HordeServerTests
 
 			public async ValueTask DisposeAsync()
 			{
-				foreach ((LogLevel Level, byte[][] Lines) in Events)
+				foreach ((LogLevel Level, byte[] Lines) in Events)
 				{
 					await WriteAsync(Level, Lines);
 				}
 			}
 
-			protected override void WriteFormattedEvent(LogLevel Level, byte[][] Lines)
+			protected override void WriteFormattedEvent(LogLevel Level, byte[] Line)
 			{
-				Events.Add((Level, Lines));
+				Events.Add((Level, Line));
 			}
 
-			private async Task WriteAsync(LogLevel Level, byte[][] Lines)
+			private async Task WriteAsync(LogLevel Level, byte[] Line)
 			{
-				List<byte> Bytes = new List<byte>();
-				foreach (byte[] Line in Lines)
-				{
-					Bytes.AddRange(Line);
-					Bytes.Add((byte)'\n');
-				}
-
 				ILogFile LogFile = (await LogFileService.GetLogFileAsync(LogId))!;
 				LogMetadata Metadata = await LogFileService.GetMetadataAsync(LogFile);
-				await LogFileService.WriteLogDataAsync(LogFile, Metadata.Length, Metadata.MaxLineIndex, Bytes.ToArray(), false);
+				await LogFileService.WriteLogDataAsync(LogFile, Metadata.Length, Metadata.MaxLineIndex, Line, false);
 
 				if (Level >= LogLevel.Warning)
 				{
-					EventSeverity Severity = (Level == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
-					await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = LogId, LineIndex = Metadata.MaxLineIndex, LineCount = Lines.Length, Severity = Severity } });
+					LogEvent Event = ParseEvent(Line);
+					if (Event.LineIndex == 0)
+					{
+						EventSeverity Severity = (Level == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
+						await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = LogId, LineIndex = Metadata.MaxLineIndex, LineCount = Event.LineCount, Severity = Severity } });
+					}
 				}
+			}
+
+			static LogEvent ParseEvent(byte[] Line)
+			{
+				Utf8JsonReader Reader = new Utf8JsonReader(Line.AsSpan());
+				Reader.Read();
+				return LogEvent.Read(ref Reader);
 			}
 		}
 
@@ -1156,7 +1160,7 @@ namespace HordeServerTests
 
 				ILogFile? Log = await LogFileService.GetLogFileAsync(Job.Batches[0].Steps[0].LogId!.Value);
 				List<ILogEvent> Events = await LogFileService.FindLogEventsAsync(Log!);
-				Assert.AreEqual(3, Events.Count);
+				Assert.AreEqual(1, Events.Count);
 				ILogEventData EventData = await LogFileService.GetEventDataAsync(Log!, Events[0].LineIndex, Events[0].LineCount);
 
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();

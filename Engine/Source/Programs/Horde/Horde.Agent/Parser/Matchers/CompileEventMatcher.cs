@@ -63,8 +63,15 @@ namespace HordeAgent.Parser.Matchers
 
 		const string DefaultSourceFileBaseDir = "Engine/Source";
 
+		ILogContext Context;
+
+		public CompileEventMatcher(ILogContext Context)
+		{
+			this.Context = Context;
+		}
+
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Input, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Input)
 		{
 			// Match the prelude to any error
 			int MaxOffset = 0;
@@ -77,99 +84,96 @@ namespace HordeAgent.Parser.Matchers
 			// produce many false positives, making them very slow to execute.
 			if (Input.IsMatch(MaxOffset, "error|warning"))
 			{
+				LogEventBuilder Builder = new LogEventBuilder(Input, MaxOffset + 1);
+
 				// Try to match a Visual C++ diagnostic
-				LogEvent? NewEvent;
-				if(TryMatchVisualCppEvent(Input, MaxOffset, Context, out NewEvent))
+				LogEventMatch? EventMatch;
+				if(TryMatchVisualCppEvent(Builder, out EventMatch))
 				{
-					LogEventSpan? Code;
-					if(NewEvent.TryGetSpan("code", out Code) && Code.Text == "C2220")
+					LogEvent NewEvent = EventMatch!.Events[EventMatch.Events.Count - 1];
+
+					// If warnings as errors is enabled, upgrade any following warnings to errors.
+					object? CodeProp;
+					if(NewEvent.Properties != null && NewEvent.Properties.TryGetValue("code", out CodeProp) && CodeProp is LogValue Code && Code.Text == "C2220")
 					{
-						MaxOffset = NewEvent.MaxLineNumber + 1 - Input.CurrentLineNumber;
-
-						List<LogEvent> ChildEvents = new List<LogEvent>();
-
-						LogEvent? ChildEvent;
-						while (TryMatchVisualCppEvent(Input.Rebase(MaxOffset), 0, Context, out ChildEvent))
+						ILogCursor NextCursor = Builder.Next;
+						while (NextCursor.CurrentLine != null)
 						{
-							ChildEvent.Level = LogLevel.Error;
-							ChildEvents.Add(ChildEvent);
-							MaxOffset = ChildEvent.MaxLineNumber + 1 - Input.CurrentLineNumber;
+							LogEventBuilder NextBuilder = new LogEventBuilder(NextCursor);
+
+							LogEventMatch? NextMatch;
+							if (!TryMatchVisualCppEvent(NextBuilder, out NextMatch))
+							{
+								break;
+							}
+							foreach (LogEvent Event in NextMatch.Events)
+							{
+								Event.Level = LogLevel.Error;
+							}
+							EventMatch.Events.AddRange(NextMatch.Events);
+
+							NextCursor = NextBuilder.Next;
 						}
-
-						NewEvent.MaxLineNumber = Input.CurrentLineNumber + (MaxOffset - 1);
-						NewEvent.ChildEvents = ChildEvents;
 					}
-
-					return NewEvent;
+					return EventMatch;
 				}
 
 				// Try to match a Clang diagnostic
 				Match? Match;
-				if (Input.TryMatch($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:", out Match) && IsSourceFile(Match))
+				if (Builder.Current.TryMatch($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:", out Match) && IsSourceFile(Match))
 				{
 					LogLevel Level = GetLogLevelFromSeverity(Match);
 
-					LogEventBuilder Builder = new LogEventBuilder(Input);
-
-					LogEventLine FirstLine = Builder.Lines[0];
-					FirstLine.AddSpan(Match.Groups["file"]).MarkAsSourceFile(Context, "Engine/Source");
-					FirstLine.AddSpan(Match.Groups["severity"]).MarkAsSeverity();
-					FirstLine.TryAddSpan(Match.Groups["line"])?.MarkAsLineNumber();
-					FirstLine.TryAddSpan(Match.Groups["column"])?.MarkAsLineNumber();
+					Builder.AnnotateSourceFile(Match.Groups["file"], Context, "Engine/Source");
+					Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+					Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
+					Builder.TryAnnotate(Match.Groups["column"], LogEventMarkup.ColumnNumber);
 
 					string Indent = ExtractIndent(Input[0]!);
 
-					int NoteIdx = 1;
-					while (Builder.TryMatch($"^(?:{Indent} |{Indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)", out Match))
+					while (Builder.Current.TryMatch(1, $"^(?:{Indent} |{Indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)", out Match))
 					{
-						LogEventLine Line = Builder.AddLine();
+						Builder.MoveNext();
 
 						Group FileGroup = Match.Groups["file"];
 						if (FileGroup.Success)
 						{
-							Line.AddSpan(FileGroup, $"note{NoteIdx}").MarkAsSourceFile(Context, DefaultSourceFileBaseDir);
-							Line.TryAddSpan(Match.Groups["line"], $"line{NoteIdx}")?.MarkAsLineNumber();
-							NoteIdx++;
+							Builder.AnnotateSourceFile(FileGroup, Context, DefaultSourceFileBaseDir);
+							Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
 						}
 					}
 
-					return Builder.ToLogEvent(LogEventPriority.High, Level, KnownLogEvents.Compiler);
+					return Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.Compiler);
 				}
 			}
 			return null;
 		}
 
-		bool TryMatchVisualCppEvent(ILogCursor Input, int MaxOffset, ILogContext Context, [NotNullWhen(true)] out LogEvent? OutEvent)
+		bool TryMatchVisualCppEvent(LogEventBuilder Builder, [NotNullWhen(true)] out LogEventMatch? OutEvent)
 		{
 			Match? Match;
-			if (!Input.TryMatch(MaxOffset, $"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out Match) || !IsSourceFile(Match))
+			if(!Builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out Match) || !IsSourceFile(Match))
 			{
 				OutEvent = null;
 				return false;
 			}
 
 			LogLevel Level = GetLogLevelFromSeverity(Match);
-
-			LogEventBuilder Builder = new LogEventBuilder(Input);
-			Builder.MaxOffset = MaxOffset;
-
-			LogEventLine FirstLine = Builder.Lines[Builder.MaxOffset];
-
-			FirstLine.AddSpan(Match.Groups["severity"]).MarkAsSeverity();
+			Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
 
 			string SourceFileBaseDir = DefaultSourceFileBaseDir;
 
 			Group CodeGroup = Match.Groups["code"];
 			if (CodeGroup.Success)
 			{
-				FirstLine.AddSpan(CodeGroup).MarkAsErrorCode();
+				Builder.Annotate(CodeGroup, LogEventMarkup.ErrorCode);
 
 				if (CodeGroup.Value.StartsWith("CS", StringComparison.Ordinal))
 				{
 					Match? ProjectMatch;
-					if (Input.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out ProjectMatch))
+					if (Builder.Current.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out ProjectMatch))
 					{
-						FirstLine.AddSpan(ProjectMatch.Groups[1]).MarkAsSourceFile(Context, "");
+						Builder.AnnotateSourceFile(ProjectMatch.Groups[1], Context, "");
 						SourceFileBaseDir = GetPlatformAgnosticDirectoryName(ProjectMatch.Groups[1].Value) ?? SourceFileBaseDir;
 					}
 				}
@@ -177,47 +181,46 @@ namespace HordeAgent.Parser.Matchers
 				{
 					if (CodeGroup.Value.Equals("MSB3026", StringComparison.Ordinal))
 					{
-						OutEvent = Builder.ToLogEvent(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
+						OutEvent = Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
 						return true;
 					}
 
 					Match? ProjectMatch;
-					if (Input.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out ProjectMatch))
+					if (Builder.Current.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out ProjectMatch))
 					{
-						FirstLine.AddSpan(ProjectMatch.Groups[1]).MarkAsSourceFile(Context, "");
-						OutEvent = Builder.ToLogEvent(LogEventPriority.High, Level, KnownLogEvents.MSBuild);
+						Builder.AnnotateSourceFile(ProjectMatch.Groups[1], Context, "");
+						OutEvent = Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.MSBuild);
 						return true;
 					}
 				}
 			}
 
-			FirstLine.AddSpan(Match.Groups["file"]).MarkAsSourceFile(Context, SourceFileBaseDir);
-			FirstLine.TryAddSpan(Match.Groups["line"])?.MarkAsLineNumber();
-			FirstLine.TryAddSpan(Match.Groups["column"])?.MarkAsColumnNumber();
+			Builder.AnnotateSourceFile(Match.Groups["file"], Context, SourceFileBaseDir);
+			Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
+			Builder.TryAnnotate(Match.Groups["column"], LogEventMarkup.ColumnNumber);
 
-			string Indent = ExtractIndent(Input[0] ?? String.Empty);
+			string Indent = ExtractIndent(Builder.Current.CurrentLine ?? String.Empty);
 
-			int NoteIdx = 1;
-			while (Builder.TryMatch($"^(?:{Indent} |{Indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)", out Match))
+			while (Builder.Current.TryMatch(1, $"^(?:{Indent} |{Indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)", out Match))
 			{
-				LogEventLine Line = Builder.AddLine();
+				Builder.MoveNext();
 
 				Group Group = Match.Groups["file"];
 				if (Group.Success)
 				{
-					Line.AddSpan(Group, $"note{NoteIdx}").MarkAsSourceFile(Context, DefaultSourceFileBaseDir);
-					Line.TryAddSpan(Match.Groups["line"], $"line{NoteIdx}")?.MarkAsLineNumber();
-					NoteIdx++;
+					Builder.AnnotateSourceFile(Group, Context, DefaultSourceFileBaseDir);
+					Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
+					Builder.AddProperty("note", true);
 				}
 			}
 
 			string Pattern = $"^{Indent} |: note:";
-			while (Input.IsMatch(Builder.MaxOffset + 1, Pattern))
+			while (Builder.Current.IsMatch(1, Pattern))
 			{
-				Builder.AddLine();
+				Builder.MoveNext();
 			}
 
-			OutEvent = Builder.ToLogEvent(LogEventPriority.High, Level, KnownLogEvents.Compiler);
+			OutEvent = Builder.ToMatch(LogEventPriority.High, Level, KnownLogEvents.Compiler);
 			return true;
 		}
 

@@ -77,10 +77,10 @@ namespace HordeAgent.Commands.Parse
 						int Length = await InputStream.ReadAsync(Data);
 						if(Length == 0)
 						{
-							Parser.WriteData(ReadOnlyMemory<byte>.Empty, true);
+							Parser.Flush();
 							break;
 						}
-						Parser.WriteData(Data.AsMemory(0, Length), false);
+						Parser.WriteData(Data.AsMemory(0, Length));
 					}
 				}
 			}

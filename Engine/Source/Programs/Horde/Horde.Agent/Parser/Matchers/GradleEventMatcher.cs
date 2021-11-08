@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ namespace HordeAgent.Parser.Matchers
 	/// </summary>
 	class GradleEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			if (Cursor.IsMatch(@"^\s*FAILURE:"))
 			{
@@ -39,7 +40,7 @@ namespace HordeAgent.Parser.Matchers
 				}
 
 				LogEventBuilder Builder = new LogEventBuilder(Cursor, MaxOffset);
-				return Builder.ToLogEvent(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.AutomationTool);
+				return Builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.AutomationTool);
 			}
 
 			return null;

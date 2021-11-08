@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -19,7 +20,7 @@ namespace HordeAgent.Parser.Matchers
 	class LogChannelEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Input, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Input)
 		{
 			Match? Match;
 			if(Input.TryMatch(@"^(\s*)(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*(?<severity>Error|Warning|Display): ", out Match))
@@ -27,14 +28,12 @@ namespace HordeAgent.Parser.Matchers
 				string Indent = Match.Groups[1].Value;
 
 				LogEventBuilder Builder = new LogEventBuilder(Input);
+				Builder.Annotate(Match.Groups["channel"], LogEventMarkup.Channel);
+				Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
 
-				LogEventLine FirstLine = Builder.Lines[0];
-				FirstLine.AddSpan(Match.Groups["channel"]).MarkAsChannel();
-				FirstLine.AddSpan(Match.Groups["severity"]).MarkAsSeverity();
-
-				while (Input.IsMatch(Builder.MaxOffset + 1, $"^({Indent} | *$)"))
+				while (Builder.Next.IsMatch(1, $"^({Indent} | *$)"))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 				}
 
 				LogLevel Level;
@@ -51,7 +50,7 @@ namespace HordeAgent.Parser.Matchers
 						break;
 				}
 
-				return Builder.ToLogEvent(LogEventPriority.Low, Level, KnownLogEvents.Engine_LogChannel);
+				return Builder.ToMatch(LogEventPriority.Low, Level, KnownLogEvents.Engine_LogChannel);
 			}
 			return null;
 		}

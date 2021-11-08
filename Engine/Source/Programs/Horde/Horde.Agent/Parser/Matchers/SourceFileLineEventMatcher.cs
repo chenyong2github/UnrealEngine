@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -32,8 +33,15 @@ namespace HordeAgent.Parser.Matchers
 		const string LinePattern =
 			@"(?<line>\d+)";
 
+		ILogContext Context;
+
+		public SourceFileLineEventMatcher(ILogContext Context)
+		{
+			this.Context = Context;
+		}
+
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Input, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Input)
 		{
 			Match? Match;
 			if (Input.TryMatch($"^\\s*{SeverityPattern}: {FilePattern}(?:\\({LinePattern}\\))?: ", out Match))
@@ -42,10 +50,9 @@ namespace HordeAgent.Parser.Matchers
 
 				LogEventBuilder Builder = new LogEventBuilder(Input);
 
-				LogEventLine FirstLine = Builder.Lines[0];
-				FirstLine.AddSpan(Match.Groups["file"]).MarkAsSourceFile(Context, "");
-				FirstLine.AddSpan(Match.Groups["severity"]).MarkAsSeverity();
-				FirstLine.TryAddSpan(Match.Groups["line"])?.MarkAsLineNumber();
+				Builder.AnnotateSourceFile(Match.Groups["file"], Context, "");
+				Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+				Builder.TryAnnotate(Match.Groups["line"], LogEventMarkup.LineNumber);
 
 				EventId EventId;
 				if (Input.IsMatch("copyright"))
@@ -57,7 +64,7 @@ namespace HordeAgent.Parser.Matchers
 					EventId = KnownLogEvents.AutomationTool_SourceFileLine;
 				}
 
-				return Builder.ToLogEvent(LogEventPriority.AboveNormal, Level, EventId);
+				return Builder.ToMatch(LogEventPriority.AboveNormal, Level, EventId);
 			}
 			return null;
 		}

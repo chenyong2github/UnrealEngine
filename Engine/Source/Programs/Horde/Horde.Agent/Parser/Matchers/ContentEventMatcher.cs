@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,7 @@ namespace HordeAgent.Parser.Matchers
 			@"(?<message>.*)";
 
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Input, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Input)
 		{
 			// Do the match in two phases so we can early out if the strings "error" or "warning" are not present. The patterns before these strings can
 			// produce many false positives, making them very slow to execute.
@@ -35,14 +36,12 @@ namespace HordeAgent.Parser.Matchers
 				{
 					LogEventBuilder Builder = new LogEventBuilder(Input);
 
-					LogEventLine FirstLine = Builder.Lines[0];
-					FirstLine.AddSpan(Match.Groups["channel"]).MarkAsChannel();
-					FirstLine.AddSpan(Match.Groups["severity"]).MarkAsSeverity();
-					FirstLine.AddSpan(Match.Groups["asset"]).MarkAsAsset(Context);
-					FirstLine.AddSpan(Match.Groups["message"]).MarkAsErrorMessage();
+					Builder.Annotate(Match.Groups["channel"], LogEventMarkup.Channel);
+					Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
+					//					Builder.Annotate(Match.Groups["asset"]).MarkAsAsset(Context);
+					Builder.Annotate(Match.Groups["message"], LogEventMarkup.Message);
 
-					LogLevel Level = GetLogLevelFromSeverity(Match);
-					return Builder.ToLogEvent(LogEventPriority.AboveNormal, Level, KnownLogEvents.Engine_AssetLog);
+					return Builder.ToMatch(LogEventPriority.AboveNormal, GetLogLevelFromSeverity(Match), KnownLogEvents.Engine_AssetLog);
 				}
 			}
 			return null;
