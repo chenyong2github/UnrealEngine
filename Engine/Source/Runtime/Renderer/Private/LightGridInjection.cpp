@@ -790,7 +790,7 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 {
 	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading()
 		&& CVarVirtualShadowOnePassProjection.GetValueOnRenderThread()
-		&& VirtualShadowMapArray.IsAllocated();
+		&& VirtualShadowMapArray.IsEnabled();
 
 	GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
 	
