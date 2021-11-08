@@ -101,8 +101,7 @@ struct CONTROLRIG_API FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseM
 				{
 					if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 					{
-						// in UControlRig::AddTransientControl, the transient control will be added to the parent of this item
-						return ItemToModify[Index].Item;
+						return Hierarchy->GetFirstParent(ItemToModify[Index].Item);
 					}
 				}
 			}
@@ -126,20 +125,20 @@ struct CONTROLRIG_API FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseM
 
 			if (ItemToModify.IsValidIndex(Index))
 			{
-				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
+				if (ItemToModify[Index].Item.IsValid())
 				{
 					if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 					{
-						if (ItemToModify[Index].Item.IsValid())
+						if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
 						{
 							// in the case of AdditiveLocal, we want the transient control's global transform to match the item's global transform
-							// we know: transient control's global = transform value * offset transfom * parent transform
+							// we know: transient control's global = transform value * offset transform * parent transform
 							// we know: item's global transform = item's local transform from rig graph evaluation * its parent transform
 							// we ensure: the item and the transient control share the same parent
 							// so from our goal, transient control's global == item's global transform
-							// we get: transform value * offset transfom * parent transform == item's local transform from rig graph evaluation * its parent transform
-							// we get: transform value * offset transfom == item's local transform from rig graph evaluation
-							// we get: offset transfom == transform value.inverse * item's local transform from rig graph evaluation
+							// we get: transform value * offset transform * parent transform == item's local transform from rig graph evaluation * its parent transform
+							// we get: transform value * offset transform == item's local transform from rig graph evaluation
+							// we get: offset transform == transform value.inverse * item's local transform from rig graph evaluation
 							return ItemToModify[Index].Transform.Inverse() * Hierarchy->GetLocalTransform(ItemToModify[Index].Item);
 						}
 					}

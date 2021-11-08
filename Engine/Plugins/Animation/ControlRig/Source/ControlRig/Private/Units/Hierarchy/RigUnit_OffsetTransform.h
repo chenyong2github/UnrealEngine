@@ -23,7 +23,22 @@ struct CONTROLRIG_API FRigUnit_OffsetTransformForItem : public FRigUnitMutable
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
-		return Item;
+		if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
+		{
+			return Hierarchy->GetFirstParent(Item);
+		}
+		return FRigElementKey();
+	}
+
+	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
+		{
+			// this is similar to RigUnit_ModifyTransform
+			return OffsetTransform.Inverse() * Hierarchy->GetLocalTransform(Item);
+		}
+		
+		return FTransform::Identity;
 	}
 
 	RIGVM_METHOD()

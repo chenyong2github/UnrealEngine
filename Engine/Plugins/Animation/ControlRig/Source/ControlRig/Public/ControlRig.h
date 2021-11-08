@@ -796,8 +796,25 @@ public:
 	class FTransientControlPoseScope
 	{
 	public:
-		FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig);
-		~FTransientControlPoseScope();
+		FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig)
+		{
+			ControlRig = InControlRig;
+
+			TArray<FRigControlElement*> TransientControls = ControlRig->GetHierarchy()->GetTransientControls();
+			TArray<FRigElementKey> Keys;
+			for(FRigControlElement* TransientControl : TransientControls)
+			{
+				Keys.Add(TransientControl->GetKey());
+			}
+	
+			CachedPose = ControlRig->GetHierarchy()->GetPose(false, ERigElementType::Control, TArrayView<FRigElementKey>(Keys));
+		}
+		~FTransientControlPoseScope()
+		{
+			check(ControlRig);
+
+			ControlRig->GetHierarchy()->SetPose(CachedPose);
+		}
 	
 	private:
 		
