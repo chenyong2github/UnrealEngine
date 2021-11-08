@@ -13,7 +13,6 @@ struct FMassZoneGraphShortPathFragment;
 struct FMassZoneGraphCachedLaneFragment;
 class UZoneGraphSubsystem;
 class UMassSignalSubsystem;
-struct FMassSimulationLODFragment;
 struct FMassMovementConfigFragment;
 
 /**
@@ -35,7 +34,6 @@ protected:
 	TStateTreeItemHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
 	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-	TStateTreeItemHandle<FMassSimulationLODFragment> SimulationLODHandle;
 	TStateTreeItemHandle<FMassMovementConfigFragment> MovementConfigHandle;
 
 	UPROPERTY()
