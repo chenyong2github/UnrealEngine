@@ -3519,7 +3519,10 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)
 {
 	check(InControlRig);
-	Hierarchy->CopyPose(InControlRig->GetHierarchy(), true, true);
+	// current transforms in BP and CDO are meaningless, no need to copy them
+	// we use BP hierarchy to initialize CDO and instances' hierarchy, 
+	// so it should always be in the initial state.
+	Hierarchy->CopyPose(InControlRig->GetHierarchy(), false, true);
 }
 
 void UControlRigBlueprint::PropagatePoseFromBPToInstances()

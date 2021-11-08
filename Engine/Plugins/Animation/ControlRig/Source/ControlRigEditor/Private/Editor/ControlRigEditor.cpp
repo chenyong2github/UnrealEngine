@@ -2977,8 +2977,12 @@ void FControlRigEditor::Tick(float DeltaTime)
 			ControlRig != nullptr && 
 			bExecutionControlRig)
 		{
-			// reset transforms here to prevent additive transforms from accumulating to INF
-			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+			{
+				// prevent transient controls from getting reset
+				UControlRig::FTransientControlPoseScope	PoseScope(ControlRig);
+				// reset transforms here to prevent additive transforms from accumulating to INF
+				ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+			}
 			
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();
@@ -3641,9 +3645,14 @@ bool FControlRigEditor::IsPinControlNameListEnabled() const
 {
 	if (ControlRig)
 	{
-		if (ControlRig->GetHierarchy()->GetTransientControls().Num() > 0)
+		TArray<FRigControlElement*>	TransientControls = ControlRig->GetHierarchy()->GetTransientControls();
+		if (TransientControls.Num() > 0)
 		{
-			return true;
+			// if the transient control is not for a rig element, it is for a pin
+			if (UControlRig::GetElementKeyFromTransientControl(TransientControls[0]->GetKey()) == FRigElementKey())
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -3659,11 +3668,13 @@ FText FControlRigEditor::GetPinControlNameListText() const
 	if (ControlRig)
 	{
 		FText Result;
-		ControlRig->GetHierarchy()->ForEach<FRigControlElement>([&Result](FRigControlElement* ControlElement) -> bool
+		ControlRig->GetHierarchy()->ForEach<FRigControlElement>([this, &Result](FRigControlElement* ControlElement) -> bool
         {
 			if (ControlElement->Settings.bIsTransientControl)
 			{
-				Result = FText::FromName(ControlElement->GetName());
+				FRigElementKey Parent = ControlRig->GetHierarchy()->GetFirstParent(ControlElement->GetKey());
+				Result = FText::FromName(Parent.Name);
+				
 				return false;
 			}
 			return true;
@@ -3703,24 +3714,41 @@ void FControlRigEditor::SetPinControlNameListText(const FText& NewTypeInValue, E
 				if (NewParentIndex == INDEX_NONE)
 				{
 					NewParentName = NAME_None;
-					GetControlRigBlueprint()->GetHierarchyController()->RemoveAllParents(ControlElement->GetKey(), true, false);
+					ControlRig->GetHierarchy()->GetController()->RemoveAllParents(ControlElement->GetKey(), true, false);
 				}
 				else
 				{
-					GetControlRigBlueprint()->GetHierarchyController()->SetParent(ControlElement->GetKey(), FRigElementKey(NewParentName, ERigElementType::Bone), true, false);
+					ControlRig->GetHierarchy()->GetController()->SetParent(ControlElement->GetKey(), FRigElementKey(NewParentName, ERigElementType::Bone), true, false);
 				}
 
 				// find out if the controlled pin is part of a visual debug node
 				if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
 				{
-					if (URigVMPin* ControlledPin = GetFocusedModel()->FindPin(ControlElement->GetName().ToString()))
+					FString PinName = UControlRig::GetPinNameFromTransientControl(ControlElement->GetKey());
+					if (URigVMPin* ControlledPin = GetFocusedModel()->FindPin(PinName))
 					{
 						URigVMNode* ControlledNode = ControlledPin->GetPinForLink()->GetNode();
-						if (URigVMPin* BoneSpacePin = ControlledNode->FindPin(TEXT("BoneSpace")))
+						if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ControlledNode))
 						{
-							if (BoneSpacePin->GetCPPType() == TEXT("FName") && BoneSpacePin->GetCustomWidgetName() == TEXT("BoneName"))
+							if (const FString* Value = UnitNode->GetScriptStruct()->FindMetaData(TEXT("PrototypeName")))
 							{
-								GetFocusedController()->SetPinDefaultValue(BoneSpacePin->GetPinPath(), NewParentName.ToString(), false, false, false);
+								if (Value->Equals("VisualDebug"))
+								{
+									if (URigVMPin* SpacePin = ControlledNode->FindPin(TEXT("Space")))
+									{
+										FString DefaultValue;
+										const FRigElementKey NewSpaceKey(NewParentName, ERigElementType::Bone); 
+										FRigElementKey::StaticStruct()->ExportText(DefaultValue, &NewSpaceKey, nullptr, nullptr, PPF_None, nullptr);
+										ensure(GetFocusedController()->SetPinDefaultValue(SpacePin->GetPinPath(), DefaultValue, false, false, false));
+									}
+									else if (URigVMPin* BoneSpacePin = ControlledNode->FindPin(TEXT("BoneSpace")))
+									{
+										if (BoneSpacePin->GetCPPType() == TEXT("FName") && BoneSpacePin->GetCustomWidgetName() == TEXT("BoneName"))
+										{
+											GetFocusedController()->SetPinDefaultValue(BoneSpacePin->GetPinPath(), NewParentName.ToString(), false, false, false);
+										}
+									}
+								}
 							}
 						}
 					}
