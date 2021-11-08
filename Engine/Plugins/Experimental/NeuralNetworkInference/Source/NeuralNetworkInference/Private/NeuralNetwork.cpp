@@ -51,6 +51,7 @@ UNeuralNetwork::UNeuralNetwork()
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
 	, BackEnd(ENeuralBackEnd::Auto)
 	, bIsLoaded(false)
+	, bIsRunningNetwork(false)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
 {
 }
@@ -263,22 +264,18 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 	{
 		ImplBackEndUEAndORT->InputTensors[InTensorIndex].SetFromArrayCopy(InArray);
 	}
-
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
 		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
 		TensorManager.GetTensorsMutable()[TensorManager.GetInputIndexes()[InTensorIndex]].SetFromArrayCopy(InArray);
 	}
-
 	// Unknown
 	else
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-
 	InputMemoryTransferStatsModule.StoreSample(RunTimer.Toc());
-
 }
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
@@ -490,6 +487,8 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InTensorIndexes)
 
 void UNeuralNetwork::Run()
 {
+	bIsRunningNetwork = true;
+
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
 
 	// Sanity check
@@ -505,21 +504,32 @@ void UNeuralNetwork::Run()
 	{
 		ImplBackEndUEAndORT->Run(SynchronousMode, InputDeviceType, OutputDeviceType);
 	}
-
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
 		ImplBackEndUEOnly->Run(OnAsyncRunCompletedDelegate, SynchronousMode, DeviceType, InputDeviceType, OutputDeviceType);
 	}
-
 	// Unknown
 	else
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-
 	ComputeStatsModule.StoreSample(RunTimer.Toc());
+
+	bIsRunningNetwork = false;
 }
+
+float UNeuralNetwork::GetLastInferenceTime() {
+	return ComputeStatsModule.GetLastSample();
+};
+
+FNNIStatsData UNeuralNetwork::GetInferenceStats() {
+	return ComputeStatsModule.GetStats();
+};
+
+FNNIStatsData UNeuralNetwork::GetInputMemoryTransferStats() {
+	return InputMemoryTransferStatsModule.GetStats();
+};
 
 
 /* UNeuralNetwork private functions
@@ -657,14 +667,7 @@ void UNeuralNetwork::Serialize(FArchive& Archive)
 	Super::Serialize(Archive);
 }
 
-float UNeuralNetwork::GetLastInferenceTime() {
-	return ComputeStatsModule.GetLastSample();
-};
-
-FNNIStatsData UNeuralNetwork::GetInferenceStats() {
-	return ComputeStatsModule.GetStats();
-};
-
-FNNIStatsData UNeuralNetwork::GetInputMemoryTransferStats() {
-	return InputMemoryTransferStatsModule.GetStats();
-};
+bool UNeuralNetwork::IsReadyForFinishDestroy()
+{
+	return !bIsRunningNetwork;
+}
