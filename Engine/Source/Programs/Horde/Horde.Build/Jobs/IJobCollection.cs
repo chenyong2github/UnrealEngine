@@ -123,7 +123,7 @@ namespace HordeServer.Collections
 		/// <param name="Arguments">New arguments for the job</param>
 		/// <param name="LabelIdxToTriggerId">New trigger ID for a label in the job</param>
 		/// <param name="JobTrigger">New downstream job id</param>
-		Task<bool> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, int? AutoSubmitChange = null, string? AutoSubmitMessage = null, UserId? AbortedByUserId = null, ObjectId? NotificationTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? JobTrigger = null);
+		Task<IJob?> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, int? AutoSubmitChange = null, string? AutoSubmitMessage = null, UserId? AbortedByUserId = null, ObjectId? NotificationTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? JobTrigger = null);
 
 		/// <summary>
 		/// Updates the state of a batch
@@ -135,7 +135,7 @@ namespace HordeServer.Collections
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewError">Error code for the batch</param>
 		/// <returns>True if the job was updated, false if it was deleted</returns>
-		Task<bool> TryUpdateBatchAsync(IJob Job, IGraph Graph, SubResourceId BatchId, LogId? NewLogId, JobStepBatchState? NewState, JobStepBatchError? NewError);
+		Task<IJob?> TryUpdateBatchAsync(IJob Job, IGraph Graph, SubResourceId BatchId, LogId? NewLogId, JobStepBatchState? NewState, JobStepBatchError? NewError);
 
 		/// <summary>
 		/// Update a jobstep state
@@ -155,7 +155,7 @@ namespace HordeServer.Collections
 		/// <param name="NewReports">New report documents</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		Task<bool> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = default, JobStepOutcome NewOutcome = default, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null);
+		Task<IJob?> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = default, JobStepOutcome NewOutcome = default, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null);
 
 		/// <summary>
 		/// Attempts to update the node groups to be executed for a job. Fails if another write happens in the meantime.
@@ -163,14 +163,14 @@ namespace HordeServer.Collections
 		/// <param name="Job">The job to update</param>
 		/// <param name="NewGraph">New graph for this job</param>
 		/// <returns>True if the groups were updated to the given list. False if another write happened first.</returns>
-		Task<bool> TryUpdateGraphAsync(IJob Job, IGraph NewGraph);
+		Task<IJob?> TryUpdateGraphAsync(IJob Job, IGraph NewGraph);
 
 		/// <summary>
 		/// Removes a job from the dispatch queue. Ignores the state of any batches still remaining to execute. Should only be used to correct for inconsistent state.
 		/// </summary>
 		/// <param name="Job">Job</param>
 		/// <returns></returns>
-		Task<bool> TryRemoveFromDispatchQueueAsync(IJob Job);
+		Task<IJob?> TryRemoveFromDispatchQueueAsync(IJob Job);
 
 		/// <summary>
 		/// Adds an issue to a job
@@ -212,7 +212,7 @@ namespace HordeServer.Collections
 		/// <param name="BatchIdx">Index of the batch to cancel</param>
 		/// <param name="Graph">Graph for the job</param>
 		/// <returns>True if the job is updated</returns>
-		Task<bool> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph);
+		Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph);
 
 		/// <summary>
 		/// Attempt to assign a lease to execute a batch
@@ -225,7 +225,7 @@ namespace HordeServer.Collections
 		/// <param name="LeaseId">The lease unique id</param>
 		/// <param name="LogId">Unique id of the log for the batch</param>
 		/// <returns>True if the batch is updated</returns>
-		Task<bool> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, ObjectId SessionId, LeaseId LeaseId, LogId LogId);
+		Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, ObjectId SessionId, LeaseId LeaseId, LogId LogId);
 
 		/// <summary>
 		/// Cancel a lease reservation on a batch (before it has started)
@@ -233,7 +233,7 @@ namespace HordeServer.Collections
 		/// <param name="Job">The job containing the lease</param>
 		/// <param name="BatchIdx">Index of the batch to cancel</param>
 		/// <returns>True if the job is updated</returns>
-		Task<bool> TryCancelLeaseAsync(IJob Job, int BatchIdx);
+		Task<IJob?> TryCancelLeaseAsync(IJob Job, int BatchIdx);
 
 		/// <summary>
 		/// Upgrade all documents in the collection

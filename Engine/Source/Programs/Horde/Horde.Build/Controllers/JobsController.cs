@@ -250,7 +250,8 @@ namespace HordeServer.Controllers
 				AbortedByUserId = User.GetUserId();
 			}
 
-			if (!await JobService.UpdateJobAsync(Job, Name: Request.Name, Priority: Request.Priority, AutoSubmit: Request.AutoSubmit, AbortedByUserId: AbortedByUserId, Arguments: Request.Arguments))
+			IJob? NewJob = await JobService.UpdateJobAsync(Job, Name: Request.Name, Priority: Request.Priority, AutoSubmit: Request.AutoSubmit, AbortedByUserId: AbortedByUserId, Arguments: Request.Arguments);
+			if (NewJob == null)
 			{
 				return NotFound();
 			}
@@ -278,7 +279,9 @@ namespace HordeServer.Controllers
 			}
 
 			ObjectId TriggerId = Job.NotificationTriggerId ?? ObjectId.GenerateNewId();
-			if (!await JobService.UpdateJobAsync(Job, null, null, null, null, TriggerId, null, null))
+
+			Job = await JobService.UpdateJobAsync(Job, null, null, null, null, TriggerId, null, null);
+			if (Job == null)
 			{
 				return NotFound();
 			}
@@ -703,7 +706,8 @@ namespace HordeServer.Controllers
 				IGraph Graph = await JobService.GetGraphAsync(Job);
 				Graph = await Graphs.AppendAsync(Graph, Requests, null, null);
 
-				if (await JobService.TryUpdateGraphAsync(Job, Graph))
+				IJob? NewJob = await JobService.TryUpdateGraphAsync(Job, Graph);
+				if (NewJob != null)
 				{
 					return Ok();
 				}
@@ -887,7 +891,8 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			if (!await JobService.UpdateBatchAsync(Job, BatchIdValue, Request.LogId?.ToObjectId<ILogFile>(), Request.State))
+			IJob? NewJob = await JobService.UpdateBatchAsync(Job, BatchIdValue, Request.LogId?.ToObjectId<ILogFile>(), Request.State);
+			if (NewJob == null)
 			{
 				return NotFound();
 			}
@@ -1324,7 +1329,9 @@ namespace HordeServer.Controllers
 				}
 
 				NewTriggerId = ObjectId.GenerateNewId();
-				if (await JobService.UpdateJobAsync(Job, LabelIdxToTriggerId: new KeyValuePair<int, ObjectId>(LabelIndex, NewTriggerId)))
+
+				IJob? NewJob = await JobService.UpdateJobAsync(Job, LabelIdxToTriggerId: new KeyValuePair<int, ObjectId>(LabelIndex, NewTriggerId));
+				if (NewJob != null)
 				{
 					TriggerId = NewTriggerId;
 					break;

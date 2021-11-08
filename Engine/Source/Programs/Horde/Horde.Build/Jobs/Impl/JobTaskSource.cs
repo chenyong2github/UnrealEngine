@@ -754,8 +754,11 @@ namespace HordeServer.Tasks.Impl
 
 			// Try to update the job with this agent id
 			LogId LogId = (await LogFileService.CreateLogFileAsync(Job.Id, Agent.SessionId, LogType.Json)).Id;
-			if (await Jobs.TryAssignLeaseAsync(Item.Job, Item.BatchIdx, Item.PoolId, Agent.Id, Agent.SessionId!.Value, LeaseId, LogId))
+			IJob? NewJob = await Jobs.TryAssignLeaseAsync(Item.Job, Item.BatchIdx, Item.PoolId, Agent.Id, Agent.SessionId!.Value, LeaseId, LogId);
+			if (NewJob != null)
 			{
+				Job = NewJob;
+
 				// Get the lease name
 				StringBuilder LeaseName = new StringBuilder($"{Item.Stream.Name} - ");
 				if (Job.PreflightChange > 0)
@@ -796,7 +799,7 @@ namespace HordeServer.Tasks.Impl
 				Logger.LogTrace("Refreshing queue entries for job {JobId}", Job.Id);
 
 				// Get the new copy of the job
-				IJob? NewJob = await Jobs.GetAsync(Job.Id);
+				NewJob = await Jobs.GetAsync(Job.Id);
 				if (NewJob == null)
 				{
 					lock (LockObject)
@@ -1011,7 +1014,9 @@ namespace HordeServer.Tasks.Impl
 					int RunningStepIdx = Batch.Steps.FindIndex(x => x.State == JobStepState.Running);
 
 					IGraph Graph = await Graphs.GetAsync(Job.GraphHash);
-					if (await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph))
+					Job = await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph);
+
+					if (Job != null)
 					{
 						if (Batch.Error != JobStepBatchError.None)
 						{
@@ -1059,7 +1064,8 @@ namespace HordeServer.Tasks.Impl
 					break;
 				}
 
-				if (await Jobs.TryCancelLeaseAsync(Job, BatchIdx))
+				IJob? NewJob = await Jobs.TryCancelLeaseAsync(Job, BatchIdx);
+				if (NewJob != null)
 				{
 					break;
 				}
