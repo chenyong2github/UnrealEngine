@@ -26,4 +26,5 @@ private:
 	void UpdateWorldMiniMapDetails();
 	FBox2D          WorldMiniMapBounds;
 	FSlateBrush		WorldMiniMapBrush;
+	bool			WorldMinimapUsesVirtualTexture;
 };
