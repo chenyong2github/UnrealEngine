@@ -146,9 +146,24 @@ struct TConstrainedDelaunay2
 	bool GEOMETRYALGORITHMS_API Triangulate(TFunctionRef<bool(const TArray<TVector2<RealType>>&, const FIndex3i&)> KeepTriangle);
 };
 
-/** Convenience function; invokes TConstrainedDelaunay2::Triangulate with most-often-used options */
+/**
+ * Convenience function; invokes TConstrainedDelaunay2::Triangulate with most-often-used options
+ * 
+ * @param GeneralPolygon A general polygon, which may include holes.
+ * @return An array of triangle indices.  Indices refer to a flat array w/ the outer polygon vertices first, and the hole vertices appended after.
+ */
 template<typename RealType>
 TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon);
+
+/**
+ * Convenience function; invokes TConstrainedDelaunay2::Triangulate with most-often-used options.
+ *
+ * @param GeneralPolygon A general polygon, which may include holes.
+ * @param OutVertices Output array of vertices used in the triangulation.
+ * @return An array of triangle indices.
+ */
+template<typename RealType>
+TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulateWithVertices(const TGeneralPolygon2<RealType>& GeneralPolygon, TArray<TVector2<RealType>>& OutVertices);
 
 typedef TConstrainedDelaunay2<float> FConstrainedDelaunay2f;
 typedef TConstrainedDelaunay2<double> FConstrainedDelaunay2d;
