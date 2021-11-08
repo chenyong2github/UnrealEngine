@@ -19,6 +19,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Pole Solver Effector")
 	FName BoneName = NAME_None;
+
+	/** Blend the effector on/off. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Pole Solver Effector", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float Alpha = 1.0f;
 };
 
 UCLASS(EditInlineNew)
