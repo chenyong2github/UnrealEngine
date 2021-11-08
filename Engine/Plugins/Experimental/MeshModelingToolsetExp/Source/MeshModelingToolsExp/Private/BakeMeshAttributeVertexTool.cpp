@@ -244,7 +244,7 @@ public:
 
 void UBakeMeshAttributeVertexTool::Setup()
 {
-	UInteractiveTool::Setup();
+	Super::Setup();
 
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/MeshVertexColorMaterial"));
 	check(Material);
