@@ -8,6 +8,7 @@ using HordeServer.Services;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using StackExchange.Redis;
 
 namespace HordeServerTests
@@ -139,5 +140,11 @@ namespace HordeServerTests
 		        }    
 	        }
         }
-    }
+
+		public static T Deref<T>(T? Item)
+		{
+			Assert.IsNotNull(Item);
+			return Item!;
+		}
+	}
 }

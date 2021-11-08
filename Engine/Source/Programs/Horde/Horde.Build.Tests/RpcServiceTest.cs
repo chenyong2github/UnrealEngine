@@ -410,7 +410,7 @@ namespace HordeServerTests
 			};
 
 			// Set the session ID on the job batch to pass auth later
-			Assert.IsTrue(await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture.Job1, 0, new PoolId("foo"),
+			Deref(await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture.Job1, 0, new PoolId("foo"),
 				new AgentId("test"), SessionId,
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*

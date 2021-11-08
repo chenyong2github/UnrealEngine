@@ -528,7 +528,9 @@ namespace HordeServer.Services
 			}
 
 			IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
-			if (!await JobService.UpdateBatchAsync(Job, BatchId, null, Api.JobStepBatchState.Starting))
+			Job = await JobService.UpdateBatchAsync(Job, BatchId, null, Api.JobStepBatchState.Starting);
+
+			if (Job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Batch {JobId}:{BatchId} not found for updating", Request.JobId, Request.BatchId);
 			}
@@ -603,7 +605,7 @@ namespace HordeServer.Services
 				if (StepIdx == Batch.Steps.Count)
 				{
 					Logger.LogDebug("Job {JobId} batch {BatchId} is complete", Job.Id, Batch.Id);
-					if (!await JobService.TryUpdateBatchAsync(Job, Batch.Id, NewState: Api.JobStepBatchState.Stopping))
+					if (await JobService.TryUpdateBatchAsync(Job, Batch.Id, NewState: Api.JobStepBatchState.Stopping) == null)
 					{
 						return null;
 					}
@@ -646,7 +648,8 @@ namespace HordeServer.Services
 			//				}
 
 			// Update the step state
-			if (await JobService.TryUpdateStepAsync(Job, Batch.Id, Step.Id, JobStepState.Running, JobStepOutcome.Unspecified, null, null, Log.Value.Id, null, null, null, null))
+			IJob? NewJob = await JobService.TryUpdateStepAsync(Job, Batch.Id, Step.Id, JobStepState.Running, JobStepOutcome.Unspecified, null, null, Log.Value.Id, null, null, null, null);
+			if (NewJob != null)
 			{
 				BeginStepResponse Response = new BeginStepResponse();
 				Response.State = BeginStepResponse.Types.Result.Ready;
@@ -856,7 +859,8 @@ namespace HordeServer.Services
 				IGraph Graph = await JobService.GetGraphAsync(Job);
 				Graph = await Graphs.AppendAsync(Graph, NewGroups, NewAggregates, NewLabels);
 
-				if (await JobService.TryUpdateGraphAsync(Job, Graph))
+				IJob? NewJob = await JobService.TryUpdateGraphAsync(Job, Graph);
+				if (NewJob != null)
 				{
 					return new UpdateGraphResponse();
 				}

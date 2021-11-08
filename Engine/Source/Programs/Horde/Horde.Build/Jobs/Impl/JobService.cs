@@ -296,10 +296,16 @@ namespace HordeServer.Services
 				if (Job.StartedByUserId != NewJob.StartedByUserId) continue;
 				if (string.Join(",", Job.Arguments) != string.Join(",", NewJob.Arguments)) continue;
 
-				bool bUpdateSuccessful = await UpdateJobAsync(Job, null, null, null, KnownUsers.System, null, null, null);
-				if (!bUpdateSuccessful)
+				IJob? UpdatedJob = await UpdateJobAsync(Job, null, null, null, KnownUsers.System, null, null, null);
+				if (UpdatedJob == null)
 				{
 					Logger.LogError("Failed marking duplicate job as aborted! Job ID: {JobId}", Job.Id);
+				}
+
+				IJob? UpdatedJob2 = await GetJobAsync(Job.Id);
+				if (UpdatedJob2.AbortedByUserId != UpdatedJob.AbortedByUserId)
+				{
+					throw new NotImplementedException();
 				}
 			}
 		}
@@ -363,41 +369,35 @@ namespace HordeServer.Services
 		/// <param name="Reports">New reports to add</param>
 		/// <param name="Arguments">New arguments for the job</param>
 		/// <param name="LabelIdxToTriggerId">New trigger ID for a label in the job</param>
-		public async Task<bool> UpdateJobAsync(IJob Job, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, UserId? AbortedByUserId = null, ObjectId? OnCompleteTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null)
+		public async Task<IJob?> UpdateJobAsync(IJob Job, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, UserId? AbortedByUserId = null, ObjectId? OnCompleteTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateJobAsync({JobId})", Job.Id);
-			for (; ; )
+			for(IJob? NewJob = Job; NewJob != null; NewJob = await GetJobAsync(Job.Id))
 			{
-				IGraph Graph = await GetGraphAsync(Job);
+				IGraph Graph = await GetGraphAsync(NewJob);
 
 				// Capture the previous label states
-				IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = Job.GetLabelStates(Graph);
+				IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = NewJob.GetLabelStates(Graph);
 
 				// Update the new list of job steps
-				if (await Jobs.TryUpdateJobAsync(Job, Graph, Name, Priority, AutoSubmit, null, null, AbortedByUserId, OnCompleteTriggerId, Reports, Arguments, LabelIdxToTriggerId))
+				NewJob = await Jobs.TryUpdateJobAsync(NewJob, Graph, Name, Priority, AutoSubmit, null, null, AbortedByUserId, OnCompleteTriggerId, Reports, Arguments, LabelIdxToTriggerId);
+				if (NewJob != null)
 				{
 					// Update any badges that have been modified
-					await JobTaskSource.UpdateUgsBadges(Job, Graph, OldLabelStates);
+					await JobTaskSource.UpdateUgsBadges(NewJob, Graph, OldLabelStates);
 
 					// Cancel any leases which are no longer required
-					foreach (IJobStepBatch Batch in Job.Batches)
+					foreach (IJobStepBatch Batch in NewJob.Batches)
 					{
 						if (Batch.Error == JobStepBatchError.Cancelled && (Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running) && Batch.AgentId != null && Batch.LeaseId != null)
 						{
 							await CancelLeaseAsync(Batch.AgentId.Value, Batch.LeaseId.Value);
 						}
 					}
-					return true;
+					return NewJob;
 				}
-
-				// Get the new job state
-				IJob? NewJob = await GetJobAsync(Job.Id);
-				if (NewJob == null)
-				{
-					return false;
-				}
-				Job = NewJob;
 			}
+			return null;
 		}
 
 		/// <summary>
@@ -552,19 +552,19 @@ namespace HordeServer.Services
 		/// <param name="Job">The job to update</param>
 		/// <param name="NewGraph">New graph for this job</param>
 		/// <returns>True if the groups were updated to the given list. False if another write happened first.</returns>
-		public async Task<bool> TryUpdateGraphAsync(IJob Job, IGraph NewGraph)
+		public async Task<IJob?> TryUpdateGraphAsync(IJob Job, IGraph NewGraph)
 		{
 			using IDisposable Scope = Logger.BeginScope("TryUpdateGraphAsync({JobId})", Job.Id);
 
 			IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = Job.GetLabelStates(NewGraph);
-			if (await Jobs.TryUpdateGraphAsync(Job, NewGraph))
-			{
-				await JobTaskSource.UpdateUgsBadges(Job, NewGraph, OldLabelStates);
 
-				JobTaskSource.UpdateQueuedJob(Job, NewGraph);
-				return true;
+			IJob? NewJob = await Jobs.TryUpdateGraphAsync(Job, NewGraph);
+			if(NewJob != null)
+			{
+				await JobTaskSource.UpdateUgsBadges(NewJob, NewGraph, OldLabelStates);
+				JobTaskSource.UpdateQueuedJob(NewJob, NewGraph);
 			}
-			return false;
+			return NewJob;
 		}
 
 		/// <summary>
@@ -683,7 +683,7 @@ namespace HordeServer.Services
 		/// <param name="NewLogId">The new log file id</param>
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <returns>True if the job was updated, false if it was deleted</returns>
-		public async Task<bool> UpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null)
+		public async Task<IJob?> UpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateBatchAsync({JobId})", Job.Id);
 
@@ -694,7 +694,7 @@ namespace HordeServer.Services
 				int BatchIdx = Job.Batches.FindIndex(x => x.Id == BatchId);
 				if (BatchIdx == -1)
 				{
-					break;
+					return null;
 				}
 
 				IJobStepBatch Batch = Job.Batches[BatchIdx];
@@ -702,7 +702,7 @@ namespace HordeServer.Services
 				// If the batch has already been marked as complete, error out
 				if (Batch.State == JobStepBatchState.Complete)
 				{
-					break;
+					return null;
 				}
 
 				// If we're marking the batch as complete before the agent has run everything, mark it to conform
@@ -736,20 +736,21 @@ namespace HordeServer.Services
 				}
 
 				// Update the batch state
-				if (await TryUpdateBatchAsync(Job, BatchId, NewLogId, NewState, NewError))
+				IJob? NewJob = await TryUpdateBatchAsync(Job, BatchId, NewLogId, NewState, NewError);
+				if (NewJob != null)
 				{
-					return true;
+					return NewJob;
 				}
 
 				// Update the job
-				IJob? NewJob = await GetJobAsync(Job.Id);
+				NewJob = await GetJobAsync(Job.Id);
 				if (NewJob == null)
 				{
-					break;
+					return null;
 				}
+
 				Job = NewJob;
 			}
-			return false;
 		}
 
 		/// <summary>
@@ -761,14 +762,10 @@ namespace HordeServer.Services
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewError">New error state</param>
 		/// <returns>The updated job, otherwise null</returns>
-		public async Task<bool> TryUpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null, JobStepBatchError? NewError = null)
+		public async Task<IJob?> TryUpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null, JobStepBatchError? NewError = null)
 		{
 			IGraph Graph = await GetGraphAsync(Job);
-			if (!await Jobs.TryUpdateBatchAsync(Job, Graph, BatchId, NewLogId, NewState, NewError))
-			{
-				return false;
-			}
-			return true;
+			return await Jobs.TryUpdateBatchAsync(Job, Graph, BatchId, NewLogId, NewState, NewError);
 		}
 
 		/// <summary>
@@ -793,12 +790,13 @@ namespace HordeServer.Services
 			using IDisposable Scope = Logger.BeginScope("UpdateStepAsync({JobId})", Job.Id);
 			for (; ;)
 			{
-				if (await TryUpdateStepAsync(Job, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewNotificationTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties))
+				IJob? NewJob = await TryUpdateStepAsync(Job, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewNotificationTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties);
+				if (NewJob != null)
 				{
-					return Job;
+					return NewJob;
 				}
 
-				IJob? NewJob = await GetJobAsync(Job.Id);
+				NewJob = await GetJobAsync(Job.Id);
 				if(NewJob == null)
 				{
 					return null;
@@ -825,7 +823,7 @@ namespace HordeServer.Services
 		/// <param name="NewReports">New reports</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<bool> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<IJob?> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("TryUpdateStepAsync({JobId})", Job.Id);
 
@@ -852,8 +850,11 @@ namespace HordeServer.Services
 			}
 
 			// Update the step
-			if (await Jobs.TryUpdateStepAsync(Job, Graph, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties))
+			IJob? NewJob = await Jobs.TryUpdateStepAsync(Job, Graph, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties);
+			if (NewJob != null)
 			{
+				Job = NewJob;
+
 				using IScope DdScope = GlobalTracer.Instance.BuildSpan("TryUpdateStepAsync").StartActive();
 				DdScope.Span.SetTag("JobId", Job.Id.ToString());
 				DdScope.Span.SetTag("BatchId", BatchId.ToString());
@@ -912,7 +913,7 @@ namespace HordeServer.Services
 								JobStepOutcome JobTriggerOutcome = Job.GetTargetOutcome(Graph, JobTrigger.Target);
 								if (JobTriggerOutcome == JobStepOutcome.Success || JobTriggerOutcome == JobStepOutcome.Warnings)
 								{
-									Job = await FireJobTriggerAsync(Job, Graph, JobTrigger);
+									Job = await FireJobTriggerAsync(Job, Graph, JobTrigger) ?? Job;
 								}
 							}
 						}
@@ -952,10 +953,10 @@ namespace HordeServer.Services
 					JobTaskSource.UpdateQueuedJob(Job, Graph);
 				}
 
-				return true;
+				return Job;
 			}
 
-			return false;
+			return null;
 		}
 
 		/// <summary>
@@ -1025,12 +1026,13 @@ namespace HordeServer.Services
 
 			for (; ; )
 			{
-				if (await Jobs.TryUpdateJobAsync(Job, Graph, AutoSubmitChange: Change, AutoSubmitMessage: Message))
+				IJob? NewJob = await Jobs.TryUpdateJobAsync(Job, Graph, AutoSubmitChange: Change, AutoSubmitMessage: Message);
+				if (NewJob != null)
 				{
-					return Job;
+					return NewJob;
 				}
 
-				IJob? NewJob = await GetJobAsync(Job.Id);
+				NewJob = await GetJobAsync(Job.Id);
 				if (NewJob == null)
 				{
 					return Job;
@@ -1091,25 +1093,27 @@ namespace HordeServer.Services
 		/// <param name="Graph">Graph for the job containing the trigger</param>
 		/// <param name="JobTrigger">The trigger object to fire</param>
 		/// <returns>New job instance</returns>
-		private async Task<IJob> FireJobTriggerAsync(IJob Job, IGraph Graph, IChainedJob JobTrigger)
+		private async Task<IJob?> FireJobTriggerAsync(IJob Job, IGraph Graph, IChainedJob JobTrigger)
 		{
 			for (; ; )
 			{
 				// Update the job
 				JobId ChainedJobId = JobId.GenerateNewId();
-				if (await Jobs.TryUpdateJobAsync(Job, Graph, JobTrigger: new KeyValuePair<TemplateRefId, JobId>(JobTrigger.TemplateRefId, ChainedJobId)))
+
+				IJob? NewJob = await Jobs.TryUpdateJobAsync(Job, Graph, JobTrigger: new KeyValuePair<TemplateRefId, JobId>(JobTrigger.TemplateRefId, ChainedJobId));
+				if(NewJob != null)
 				{
-					IStream? Stream = await StreamService.GetStreamAsync(Job.StreamId);
+					IStream? Stream = await StreamService.GetStreamAsync(NewJob.StreamId);
 					if(Stream == null)
 					{
-						Logger.LogWarning("Cannot find stream {StreamId} for downstream job", Job.StreamId);
+						Logger.LogWarning("Cannot find stream {StreamId} for downstream job", NewJob.StreamId);
 						break;
 					}
 
 					TemplateRef? TemplateRef;
 					if (!Stream.Templates.TryGetValue(JobTrigger.TemplateRefId, out TemplateRef))
 					{
-						Logger.LogWarning("Cannot find template {TemplateRefId} in stream {StreamId}", JobTrigger.TemplateRefId, Job.StreamId);
+						Logger.LogWarning("Cannot find template {TemplateRefId} in stream {StreamId}", JobTrigger.TemplateRefId, NewJob.StreamId);
 						break;
 					}
 
@@ -1121,21 +1125,22 @@ namespace HordeServer.Services
 					}
 
 					IGraph TriggerGraph = await Graphs.AddAsync(Template);
-					Logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", ChainedJobId, Job.Id);
+					Logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", ChainedJobId, NewJob.Id);
 
-					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, Template.Arguments);
-					break;
+					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, NewJob.Change, NewJob.CodeChange, NewJob.PreflightChange, NewJob.ClonedPreflightChange, NewJob.StartedByUserId, Template.Priority, null, NewJob.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, Template.Arguments);
+					return NewJob;
 				}
 
 				// Fetch the job again
-				IJob? NewJob = await Jobs.GetAsync(Job.Id);
+				NewJob = await Jobs.GetAsync(Job.Id);
 				if(NewJob == null)
 				{
 					break;
 				}
+
 				Job = NewJob;
 			}
-			return Job;
+			return null;
 		}
 
 		/// <summary>
