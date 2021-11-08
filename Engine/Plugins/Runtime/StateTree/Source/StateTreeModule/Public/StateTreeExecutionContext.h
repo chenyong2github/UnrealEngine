@@ -141,7 +141,7 @@ public:
 	{
 		check(StateTree);
 		check(ItemHandle.IsValid());
-		checkSlow(StateTree->ExternalItems[ItemHandle.ItemIndex].Requirement != EStateTreeItemRequirement::Optional); // Optionals should query pointer instead.
+		checkSlow(StateTree->ExternalItems[ItemHandle.ItemIndex - StateTree->GetExternalItemBaseIndex()].Requirement != EStateTreeItemRequirement::Optional); // Optionals should query pointer instead.
 		return ItemViews[ItemHandle.ItemIndex].template GetMutable<typename T::ItemType>();
 	}
 

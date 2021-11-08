@@ -34,6 +34,9 @@ public:
 	/** @return Number of linked items (Evaluators, Tasks, external items). */
 	int32 GetLinkedItemCount() const { return NumLinkedItems; }
 
+	/** @return Base index for external items. */
+	int32 GetExternalItemBaseIndex() const { return ExternalItemBaseIndex; }
+
 	/** @return List of external items required by the state tree */
 	TConstArrayView<FStateTreeExternalItemDesc> GetExternalItems() const { return ExternalItems; }
 
@@ -103,6 +106,9 @@ private:
 
 	UPROPERTY(Transient)
 	int32 NumLinkedItems = 0;
+
+	UPROPERTY(Transient)
+	int32 ExternalItemBaseIndex = 0;
 
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;
