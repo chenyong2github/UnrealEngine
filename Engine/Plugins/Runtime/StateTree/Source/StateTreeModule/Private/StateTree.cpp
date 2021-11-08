@@ -33,6 +33,7 @@ void UStateTree::ResetBaked()
 	PropertyBindings.Reset();
 
 	NumLinkedItems = 0;
+	ExternalItemBaseIndex = 0;
 }
 
 void UStateTree::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -98,8 +99,8 @@ void UStateTree::Link()
 {
 	FStateTreeLinker Linker;
 
-	const int32 BaseIndex = PropertyBindings.GetSourceStructNum();
-	Linker.SetItemBaseIndex(BaseIndex);
+	ExternalItemBaseIndex = PropertyBindings.GetSourceStructNum();
+	Linker.SetItemBaseIndex(ExternalItemBaseIndex);
 	
 	for (FInstancedStruct& RuntimeItem : RuntimeStorageItems)
 	{
@@ -115,7 +116,7 @@ void UStateTree::Link()
 
 	ExternalItems = Linker.GetItemDescs();
 	
-	NumLinkedItems = BaseIndex + ExternalItems.Num();
+	NumLinkedItems = ExternalItemBaseIndex + ExternalItems.Num();
 }
 
 void UStateTree::InitRuntimeStorage()
