@@ -1,23 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkImplBackEndUEAndORT.h"
+
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
+#include "RedirectCoutAndCerrToUeLog.h"
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #endif //WITH_EDITOR
-#include "RedirectCoutAndCerrToUeLog.h"
-
-#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
-	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
-	#pragma push_macro("NOMINMAX")
-	#pragma push_macro("WIN32_LEAN_AND_MEAN")
-	#undef NOMINMAX
-	#undef WIN32_LEAN_AND_MEAN
-	#include "D3D12RHIPrivate.h"
-	#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-	#pragma pop_macro("NOMINMAX")
-#endif
 
 //#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
 
