@@ -41,7 +41,7 @@ bool UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(UWorld
 	return true;
 }
 
-bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
 	if (MainCollection == nullptr)
 	{
@@ -53,7 +53,7 @@ bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, con
 	NumSmartObjectsTotal = MainCollection->GetEntries().Num();
 
 	ensureMsgf(NumSmartObjectsTotal >= PreviousTotal, TEXT("Collection is built incrementally so count should be stable or increase while loading new areas."));
-	UE_CLOG(NumSmartObjectsTotal != PreviousTotal, LogSmartObject, Log, TEXT("Total = %d: added %d from area bounds [%s]"), NumSmartObjectsTotal, NumSmartObjectsTotal-PreviousTotal, *Bounds.ToString());
+	UE_CLOG(NumSmartObjectsTotal != PreviousTotal, LogSmartObject, Log, TEXT("Total = %d: added %d from area bounds [%s]"), NumSmartObjectsTotal, NumSmartObjectsTotal-PreviousTotal, *InCellInfo.Bounds.ToString());
 
 	return true;
 }
