@@ -20,7 +20,6 @@ bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalItem(CachedLaneHandle);
 	Linker.LinkExternalItem(ZoneGraphSubsystemHandle);
 	Linker.LinkExternalItem(MassSignalSubsystemHandle);
-	Linker.LinkExternalItem(SimulationLODHandle);
 	Linker.LinkExternalItem(MovementConfigHandle);
 
 	return true;
