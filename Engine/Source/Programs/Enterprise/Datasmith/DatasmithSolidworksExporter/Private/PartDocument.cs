@@ -4,8 +4,6 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 
 namespace DatasmithSolidworks
@@ -13,14 +11,19 @@ namespace DatasmithSolidworks
 	public class FPartDocument : FDocument
 	{
 		private PartDoc SwPartDoc = null;
+		private FAssemblyDocument AsmDoc = null;
+		private string ComponentName = null;
 
 		public FObjectMaterials ExportedPartMaterials { get; set; }
 
 		public string PathName { get; private set; }
 
-		public FPartDocument(int InDocId, PartDoc InPartDoc, FDatasmithExporter InExporter) : base(InDocId, InPartDoc as ModelDoc2, InExporter)
+		public FPartDocument(int InDocId, PartDoc InPartDoc, FDatasmithExporter InExporter, FAssemblyDocument InAsmDoc, string InComponentName) 
+			: base(InDocId, InPartDoc as ModelDoc2, InExporter)
 		{
 			SwPartDoc = InPartDoc;
+			AsmDoc = InAsmDoc;
+			ComponentName = InComponentName;
 
 			PathName = SwDoc?.GetPathName() ?? "";
 			if (string.IsNullOrEmpty(PathName))
@@ -62,6 +65,17 @@ namespace DatasmithSolidworks
 				catch { }
 			}
 			return Path;
+		}
+
+		protected override void SetDirty(bool bInDirty)
+		{
+			base.SetDirty(bInDirty);
+
+			if (bInDirty && AsmDoc != null && !string.IsNullOrEmpty(ComponentName))
+			{
+				// Notify owner assembly that a component needs re-export
+				AsmDoc.SetComponentDirty(ComponentName, FAssemblyDocument.EComponentDirtyState.Geometry);
+			}
 		}
 
 		public override void ExportToDatasmithScene()

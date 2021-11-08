@@ -85,7 +85,7 @@ namespace DatasmithSolidworks
 			return bDocumentIsDirty;
 		}
 
-		protected void SetDirty(bool bInDirty)
+		protected virtual void SetDirty(bool bInDirty)
 		{
 			bDocumentIsDirty = bInDirty;
 		}
