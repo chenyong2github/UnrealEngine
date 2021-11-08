@@ -44,12 +44,6 @@
 #if !defined(PLATFORM_ANDROID_X64)
 	#define PLATFORM_ANDROID_X64 0
 #endif
-#if !defined(PLATFORM_ANDROID_VULKAN)
-	#define PLATFORM_ANDROID_VULKAN 0
-#endif
-#if !defined(PLATFORM_ANDROIDGL4)
-	#define PLATFORM_ANDROIDGL4 0
-#endif
 #if !defined(PLATFORM_APPLE)
 	#define PLATFORM_APPLE 0
 #endif

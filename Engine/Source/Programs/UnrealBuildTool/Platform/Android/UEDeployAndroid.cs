@@ -1928,12 +1928,6 @@ namespace UnrealBuildTool
 				CurrentSettings.AppendFormat("Arch={0}{1}", Arch, Environment.NewLine);
 			}
 
-			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
-			foreach (string GPUArch in GPUArchitectures)
-			{
-				CurrentSettings.AppendFormat("GPUArch={0}{1}", GPUArch, Environment.NewLine);
-			}
-
 			// Modifying some settings in the GameMapsSettings could trigger the OBB regeneration
 			// and make the cached OBBData.java mismatch to the actually data. 
 			// So we insert the relevant keys into CurrentSettings to capture the change, to
@@ -1965,69 +1959,65 @@ namespace UnrealBuildTool
 			string CookFlavor, string OutputPath, bool bMakeSeparateApks, bool bPackageDataInsideApk)
 		{
 			List<string> Arches = ToolChain.GetAllArchitectures();
-			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
 			// check all input files (.so, java files, .ini files, etc)
 			bool bAllInputsCurrent = true;
 			foreach (string Arch in Arches)
 			{
-				foreach (string GPUArch in GPUArchitectures)
+				string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch);
+				// if the source binary was UnrealGame, replace it with the new project name, when re-packaging a binary only build
+				string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
+				string DestApkName = Path.Combine(ProjectDirectory, "Binaries/Android/") + ApkFilename + ".apk";
+
+				// if we making multiple Apks, we need to put the architecture into the name
+				if (bMakeSeparateApks)
 				{
-					string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch, GPUArch);
-					// if the source binary was UnrealGame, replace it with the new project name, when re-packaging a binary only build
-					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
-					string DestApkName = Path.Combine(ProjectDirectory, "Binaries/Android/") + ApkFilename + ".apk";
+					DestApkName = AndroidToolChain.InlineArchName(DestApkName, Arch);
+				}
 
-					// if we making multiple Apks, we need to put the architecture into the name
-					if (bMakeSeparateApks)
+				// check to see if it's out of date before trying the slow make apk process (look at .so and all Engine and Project build files to be safe)
+				List<String> InputFiles = new List<string>();
+				InputFiles.Add(SourceSOName);
+				InputFiles.AddRange(Directory.EnumerateFiles(UnrealBuildFilesPath, "*.*", SearchOption.AllDirectories));
+				if (Directory.Exists(GameBuildFilesPath))
+				{
+					InputFiles.AddRange(Directory.EnumerateFiles(GameBuildFilesPath, "*.*", SearchOption.AllDirectories));
+				}
+
+				// make sure changed java files will rebuild apk
+				InputFiles.AddRange(SettingsFiles);
+
+				// rebuild if .pak files exist for OBB in APK case
+				if (bPackageDataInsideApk)
+				{
+					string PAKFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + "/" + ProjectName + "/Content/Paks";
+					if (Directory.Exists(PAKFileLocation))
 					{
-						DestApkName = AndroidToolChain.InlineArchName(DestApkName, Arch, GPUArch);
-					}
-
-					// check to see if it's out of date before trying the slow make apk process (look at .so and all Engine and Project build files to be safe)
-					List<String> InputFiles = new List<string>();
-					InputFiles.Add(SourceSOName);
-					InputFiles.AddRange(Directory.EnumerateFiles(UnrealBuildFilesPath, "*.*", SearchOption.AllDirectories));
-					if (Directory.Exists(GameBuildFilesPath))
-					{
-						InputFiles.AddRange(Directory.EnumerateFiles(GameBuildFilesPath, "*.*", SearchOption.AllDirectories));
-					}
-
-					// make sure changed java files will rebuild apk
-					InputFiles.AddRange(SettingsFiles);
-
-					// rebuild if .pak files exist for OBB in APK case
-					if (bPackageDataInsideApk)
-					{
-						string PAKFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + "/" + ProjectName + "/Content/Paks";
-						if (Directory.Exists(PAKFileLocation))
+						IEnumerable<string> PakFiles = Directory.EnumerateFiles(PAKFileLocation, "*.pak", SearchOption.TopDirectoryOnly);
+						foreach (string Name in PakFiles)
 						{
-							IEnumerable<string> PakFiles = Directory.EnumerateFiles(PAKFileLocation, "*.pak", SearchOption.TopDirectoryOnly);
-							foreach (string Name in PakFiles)
-							{
-								InputFiles.Add(Name);
-							}
+							InputFiles.Add(Name);
 						}
 					}
+				}
 
-					// look for any newer input file
-					DateTime ApkTime = File.GetLastWriteTimeUtc(DestApkName);
-					foreach (string InputFileName in InputFiles)
+				// look for any newer input file
+				DateTime ApkTime = File.GetLastWriteTimeUtc(DestApkName);
+				foreach (string InputFileName in InputFiles)
+				{
+					if (File.Exists(InputFileName))
 					{
-						if (File.Exists(InputFileName))
+						// skip .log files
+						if (Path.GetExtension(InputFileName) == ".log")
 						{
-							// skip .log files
-							if (Path.GetExtension(InputFileName) == ".log")
-							{
-								continue;
-							}
-							DateTime InputFileTime = File.GetLastWriteTimeUtc(InputFileName);
-							if (InputFileTime.CompareTo(ApkTime) > 0)
-							{
-								bAllInputsCurrent = false;
-								Log.TraceInformation("{0} is out of date due to newer input file {1}", DestApkName, InputFileName);
-								break;
-							}
+							continue;
+						}
+						DateTime InputFileTime = File.GetLastWriteTimeUtc(InputFileName);
+						if (InputFileTime.CompareTo(ApkTime) > 0)
+						{
+							bAllInputsCurrent = false;
+							Log.TraceInformation("{0} is out of date due to newer input file {1}", DestApkName, InputFileName);
+							break;
 						}
 					}
 				}
@@ -2406,7 +2396,7 @@ namespace UnrealBuildTool
 		}
 
 
-		private string GenerateManifest(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string EngineDirectory, bool bIsForDistribution, bool bPackageDataInsideApk, string GameBuildFilesPath, bool bHasOBBFiles, bool bDisableVerifyOBBOnStartUp, string UnrealArch, string GPUArch, string CookFlavor, bool bUseExternalFilesDir, string Configuration, int SDKLevelInt, bool bIsEmbedded, bool bEnableBundle)
+		private string GenerateManifest(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string EngineDirectory, bool bIsForDistribution, bool bPackageDataInsideApk, string GameBuildFilesPath, bool bHasOBBFiles, bool bDisableVerifyOBBOnStartUp, string UnrealArch, string CookFlavor, bool bUseExternalFilesDir, string Configuration, int SDKLevelInt, bool bIsEmbedded, bool bEnableBundle)
 		{
 			// Read the engine version
 			string EngineVersion = ReadEngineVersion();
@@ -3585,7 +3575,6 @@ namespace UnrealBuildTool
 
 			// Get list of all architecture and GPU targets for build
 			List<string> Arches = ToolChain.GetAllArchitectures();
-			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
 			// we do not need to really build an engine UnrealGame.apk so short-circuit it
 			if (!ForceAPKGeneration && ProjectName == "UnrealGame" && OutputPath.Replace("\\", "/").Contains("/Engine/Binaries/Android/") && Path.GetFileNameWithoutExtension(OutputPath).StartsWith("UnrealGame"))
@@ -3935,25 +3924,23 @@ namespace UnrealBuildTool
 			// Initialize UPL contexts for each architecture enabled
 			UPL.Init(NDKArches, bForDistribution, EngineDirectory, IntermediateAndroidPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild, bPerArchBuildDir:true, ArchRemapping:ArchRemapping);
 
-			IEnumerable<Tuple<string, string, string>> BuildList = null;
+			IEnumerable<Tuple<string, string>> BuildList = null;
 
 			bool bRequiresOBB = RequiresOBB(bDisallowPackagingDataInApk, ObbFileLocation);
 			if (!bBuildSettingsMatch)
 			{
 				BuildList = from Arch in Arches
-							from GPUArch in GPUArchitectures
-							let manifest = GenerateManifest(ToolChain, ProjectName, InTargetType, EngineDirectory, bForDistribution, bPackageDataInsideApk, GameBuildFilesPath, bRequiresOBB, bDisableVerifyOBBOnStartUp, Arch, GPUArch, CookFlavor, bUseExternalFilesDir, Configuration.ToString(), SDKLevelInt, bSkipGradleBuild, bEnableBundle)
-							select Tuple.Create(Arch, GPUArch, manifest);
+							let manifest = GenerateManifest(ToolChain, ProjectName, InTargetType, EngineDirectory, bForDistribution, bPackageDataInsideApk, GameBuildFilesPath, bRequiresOBB, bDisableVerifyOBBOnStartUp, Arch, CookFlavor, bUseExternalFilesDir, Configuration.ToString(), SDKLevelInt, bSkipGradleBuild, bEnableBundle)
+							select Tuple.Create(Arch, manifest);
 			}
 			else
 			{
 				BuildList = from Arch in Arches
-							from GPUArch in GPUArchitectures
-							let manifestFile = Path.Combine(IntermediateAndroidPath, Arch + (GPUArch.Length > 0 ? ("_" + GPUArch.Substring(1)) : "") + "_AndroidManifest.xml")
-							let manifest = GenerateManifest(ToolChain, ProjectName, InTargetType, EngineDirectory, bForDistribution, bPackageDataInsideApk, GameBuildFilesPath, bRequiresOBB, bDisableVerifyOBBOnStartUp, Arch, GPUArch, CookFlavor, bUseExternalFilesDir, Configuration.ToString(), SDKLevelInt, bSkipGradleBuild, bEnableBundle)
+							let manifestFile = Path.Combine(IntermediateAndroidPath, Arch + "_AndroidManifest.xml")
+							let manifest = GenerateManifest(ToolChain, ProjectName, InTargetType, EngineDirectory, bForDistribution, bPackageDataInsideApk, GameBuildFilesPath, bRequiresOBB, bDisableVerifyOBBOnStartUp, Arch, CookFlavor, bUseExternalFilesDir, Configuration.ToString(), SDKLevelInt, bSkipGradleBuild, bEnableBundle)
 							let OldManifest = File.Exists(manifestFile) ? File.ReadAllText(manifestFile) : ""
 							where manifest != OldManifest
-							select Tuple.Create(Arch, GPUArch, manifest);
+							select Tuple.Create(Arch, manifest);
 			}
 
 			// Now we have to spin over all the arch/gpu combinations to make sure they all match
@@ -3973,11 +3960,10 @@ namespace UnrealBuildTool
 			Replacements.Add("${PY_VISUALIZER_PATH}", Path.GetFullPath(Path.Combine(EngineDirectory, "Extras", "LLDBDataFormatters", "UEDataFormatters_2ByteChars.py")));
 
 			// steps run for each build combination (note: there should only be one GPU in future)
-			foreach (Tuple<string, string, string> build in BuildList)
+			foreach (Tuple<string, string> build in BuildList)
 			{
 				string Arch = build.Item1;
-				string GPUArchitecture = build.Item2;
-				string Manifest = build.Item3;
+				string Manifest = build.Item2;
 				string NDKArch = GetNDKArch(Arch);
 
 				Log.TraceInformation("\n===={0}====PREPARING NATIVE CODE====={1}============================================================", DateTime.Now.ToString(), Arch);
@@ -4065,7 +4051,7 @@ namespace UnrealBuildTool
 				string CompileSDKVersion = SDKAPILevel.Replace("android-", "");
 
 				// Write the manifest to the correct locations (cache and real)
-				String ManifestFile = Path.Combine(IntermediateAndroidPath, Arch + (GPUArchitecture.Length > 0 ? ("_" + GPUArchitecture.Substring(1)) : "") + "_AndroidManifest.xml");
+				String ManifestFile = Path.Combine(IntermediateAndroidPath, Arch + "_AndroidManifest.xml");
 				File.WriteAllText(ManifestFile, Manifest);
 				ManifestFile = Path.Combine(UnrealBuildPath, "AndroidManifest.xml");
 				File.WriteAllText(ManifestFile, Manifest);
@@ -4098,13 +4084,13 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch, GPUArchitecture);
+					string SourceSOName = AndroidToolChain.InlineArchName(OutputPath, Arch);
 					// if the source binary was UnrealGame, replace it with the new project name, when re-packaging a binary only build
 					string ApkFilename = Path.GetFileNameWithoutExtension(OutputPath).Replace("UnrealGame", ProjectName);
 					DestApkName = Path.Combine(DestApkDirectory, ApkFilename + ".apk");
 
 					// As we are always making seperate APKs we need to put the architecture into the name
-					DestApkName = AndroidToolChain.InlineArchName(DestApkName, Arch, GPUArchitecture);
+					DestApkName = AndroidToolChain.InlineArchName(DestApkName, Arch);
 
 					if (!File.Exists(SourceSOName))
 					{
@@ -4319,7 +4305,7 @@ namespace UnrealBuildTool
 				{
 					// Copy .so with symbols to 
 					int StoreVersion = GetStoreVersion(Arch);
-					string SymbolSODirectory = Path.Combine(DestApkDirectory, ProjectName + "_Symbols_v" + StoreVersion + "/" + ProjectName + Arch + GPUArchitecture);
+					string SymbolSODirectory = Path.Combine(DestApkDirectory, ProjectName + "_Symbols_v" + StoreVersion + "/" + ProjectName + Arch);
 					string SymbolifiedSOPath = Path.Combine(SymbolSODirectory, Path.GetFileName(FinalSOName));
 					MakeDirectoryIfRequired(SymbolifiedSOPath);
 					Log.TraceInformation("Writing symbols to {0}", SymbolifiedSOPath);
@@ -4345,11 +4331,10 @@ namespace UnrealBuildTool
 				String ABIFilter = "";
 
 				// loop through and merge the different architecture gradle directories
-				foreach (Tuple<string, string, string> build in BuildList)
+				foreach (Tuple<string, string> build in BuildList)
 				{
 					string Arch = build.Item1;
-					string GPUArchitecture = build.Item2;
-					string Manifest = build.Item3;
+					string Manifest = build.Item2;
 					string NDKArch = GetNDKArch(Arch);
 
 					string UnrealBuildPath = Path.Combine(IntermediateAndroidPath, Arch.Substring(1).Replace("-", "_"));
@@ -4676,11 +4661,10 @@ namespace UnrealBuildTool
 				else
 				{
 					// generate an AAB for each architecture separately, was unable to merge
-					foreach (Tuple<string, string, string> build in BuildList)
+					foreach (Tuple<string, string> build in BuildList)
 					{
 						string Arch = build.Item1;
-						string GPUArchitecture = build.Item2;
-						string Manifest = build.Item3;
+						string Manifest = build.Item2;
 						string NDKArch = GetNDKArch(Arch);
 
 						Log.TraceInformation("\n===={0}====GENERATING BUNDLE====={1}================================================================", DateTime.Now.ToString(), Arch);

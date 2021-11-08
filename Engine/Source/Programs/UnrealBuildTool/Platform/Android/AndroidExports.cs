@@ -23,15 +23,9 @@ namespace UnrealBuildTool
 		List<string> GetAllArchitectures();
 
 		/// <summary>
-		/// Finds the list of supported GPU architectures
+		/// Returns the Android NDK Level
 		/// </summary>
-		/// <returns>The targeted GPU architectures</returns>
-		List<string> GetAllGPUArchitectures();
-
-		/// <summary>
-		/// Finds the list of supported GPU architectures
-		/// </summary>
-		/// <returns>The targeted GPU architectures</returns>
+		/// <returns>The NDK Level</returns>
 		int GetNdkApiLevelInt(int MinNDK);
 	}
 
