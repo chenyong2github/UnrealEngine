@@ -272,7 +272,7 @@ namespace HordeServer.Notifications.Impl
 
 		async Task SetMessageTimestampAsync(ObjectId MessageId, string Channel, string Ts)
 		{
-			FilterDefinition<MessageStateDocument> Filter = Builders<MessageStateDocument>.Filter.Eq(x => x.Id, MessageId) & Builders<MessageStateDocument>.Filter.Eq(x => x.Ts, String.Empty);
+			FilterDefinition<MessageStateDocument> Filter = Builders<MessageStateDocument>.Filter.Eq(x => x.Id, MessageId);
 			UpdateDefinition<MessageStateDocument> Update = Builders<MessageStateDocument>.Update.Set(x => x.Channel, Channel).Set(x => x.Ts, Ts);
 			await MessageStates.FindOneAndUpdateAsync(Filter, Update);
 		}
