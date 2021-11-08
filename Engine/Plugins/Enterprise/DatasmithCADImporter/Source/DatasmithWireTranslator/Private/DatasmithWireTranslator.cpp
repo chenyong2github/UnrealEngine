@@ -63,6 +63,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 using namespace OpenModelUtils;
 using namespace CADLibrary;
 
+const uint64 LibAlias2022_2_0_Version = 7881307937833405;
+const uint64 LibAlias2022_1_0_Version = 7881303642865885;
+const uint64 LibAlias2022_0_1_Version = 7881299347964005;
+const uint64 LibAlias2021_3_2_Version = 7599833027117059;
+const uint64 LibAlias2021_3_1_Version = 7599824433840131;
+const uint64 LibAlias2021_3_0_Version = 7599824424206339;
+
+
 class BodyData
 {
 public:
@@ -156,11 +164,42 @@ public:
 		, NumCRCErrors(0)
 	{
 		// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
+		uint64 AliasFileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
+
 		DatasmithScene->SetHost(TEXT("Alias"));
 		DatasmithScene->SetVendor(TEXT("Autodesk"));
-		DatasmithScene->SetExporterSDKVersion(TEXT("2022"));
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
-		DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
+
+		if (AliasFileVersion < LibAlias2021_3_1_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.0"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.0"));
+		}
+		else if (AliasFileVersion < LibAlias2021_3_2_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.1"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.1"));
+		}
+		else if (AliasFileVersion < LibAlias2022_0_1_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.2"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.2"));
+		}
+		else if (AliasFileVersion  < LibAlias2022_1_0_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
+		}
+		else if (AliasFileVersion < LibAlias2022_2_0_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022.1"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022.1"));
+		}
+		else
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022.2"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022.2"));
+		}
 
 		LocalSession = FAliasCoretechWrapper::GetSharedSession();
 	}
@@ -2043,10 +2082,9 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 		if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
 		{
 			// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with Alias 2022
-			const uint64 LibAlias2021_3Version = 7599833027117059;
 			uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
 
-			if (FileVersion < LibAlias2021_3Version)
+			if (FileVersion < LibAlias2021_3_0_Version)
 			{
 				OutCapabilities.bIsEnabled = false;
 				return;

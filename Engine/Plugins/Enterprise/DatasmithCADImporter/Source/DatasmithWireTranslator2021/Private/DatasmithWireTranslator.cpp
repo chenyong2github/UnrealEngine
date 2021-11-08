@@ -64,6 +64,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 using namespace OpenModelUtils;
 using namespace CADLibrary;
 
+const uint64 LibAlias2020_Version = 7318349414924288;
+const uint64 LibAlias2021_Version = 7599824377020416;
+const uint64 LibAlias2021_3_0_Version = 7599824424206339;
+
+
 class BodyData
 {
 public:
@@ -2044,18 +2049,15 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 		if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
 		{
 			// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with Alias 2022
-			const uint64 LibAlias2020Version = 7318349414924288;
-			const uint64 LibAlias2021Version = 7599824377020416;
-			const uint64 LibAlias2021_3Version = 7599833027117059;
 			uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
 
-			if (FileVersion > LibAlias2020Version && FileVersion < LibAlias2021Version)
+			if (FileVersion > LibAlias2020_Version && FileVersion < LibAlias2021_Version)
 			{
 				UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(WRONG_VERSION_TEXT));
 				OutCapabilities.bIsEnabled = false;
 				return;
 			}
-			else if(FileVersion >= LibAlias2021_3Version)
+			else if(FileVersion >= LibAlias2021_3_0_Version)
 			{
 				OutCapabilities.bIsEnabled = false;
 				return;
