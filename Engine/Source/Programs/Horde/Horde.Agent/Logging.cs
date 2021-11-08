@@ -15,6 +15,10 @@ using System.Collections.Generic;
 using System.Threading;
 using OpenTracing.Util;
 using OpenTracing;
+using Serilog.Formatting;
+using System.Text.Json;
+using System.Buffers;
+using MessageTemplate = EpicGames.Core.MessageTemplate;
 
 namespace HordeAgent
 {
@@ -33,7 +37,7 @@ namespace HordeAgent
 
 		private class DatadogLogEnricher : ILogEventEnricher
 		{
-			public void Enrich(LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
+			public void Enrich(Serilog.Events.LogEvent LogEvent, ILogEventPropertyFactory PropertyFactory)
 			{
 				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.env", Env));
 				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.service", "hordeagent"));

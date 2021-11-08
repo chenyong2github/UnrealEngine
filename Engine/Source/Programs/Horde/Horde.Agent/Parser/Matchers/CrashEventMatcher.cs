@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -18,7 +19,7 @@ namespace HordeAgent.Parser.Matchers
 	/// </summary>
 	class CrashEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			if (Cursor.IsMatch("begin: stack for UAT"))
 			{
@@ -26,28 +27,27 @@ namespace HordeAgent.Parser.Matchers
 				{
 					if (Cursor.IsMatch(MaxOffset, "end: stack for UAT"))
 					{
-						LogEventBuilder Builder = new LogEventBuilder(Cursor);
-						Builder.MaxOffset = MaxOffset;
-						return Builder.ToLogEvent(LogEventPriority.BelowNormal, GetLogLevel(Cursor), KnownLogEvents.Engine_Crash);
+						LogEventBuilder Builder = new LogEventBuilder(Cursor, LineCount: MaxOffset + 1);
+						return Builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(Cursor), KnownLogEvents.Engine_Crash);
 					}
 				}
 			}
 			if (Cursor.IsMatch("AutomationTool: Stack:"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Cursor.IsMatch(Builder.MaxOffset + 1, "AutomationTool: Stack:"))
+				while (Builder.Current.IsMatch(1, "AutomationTool: Stack:"))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 				}
-				return Builder.ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_Crash);
+				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_Crash);
 			}
 
 			Match? Match;
 			if (Cursor.TryMatch(@"ExitCode=(3|139|255)(?!\d)", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Lines[0].AddSpan(Match.Groups[1], "exitCode");
-				return Builder.ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_CrashExitCode);
+				Builder.Annotate("exitCode", Match.Groups[1]);
+				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.AutomationTool_CrashExitCode);
 			}
 			return null;
 		}

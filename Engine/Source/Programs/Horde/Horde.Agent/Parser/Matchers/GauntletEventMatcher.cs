@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ namespace HordeAgent.Parser.Matchers
 	/// </summary>
 	class GauntletEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			Match? Match;
 			if(Cursor.TryMatch(@"^(?<indent>\s*)Error: EngineTest.RunTests Group:(?<group>[^\s]+) \(", out Match))
@@ -23,71 +24,60 @@ namespace HordeAgent.Parser.Matchers
 				string Indent = Match.Groups["indent"].Value + " ";
 
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Lines[0].AddSpan(Match.Groups["group"]);
+				Builder.Annotate(Match.Groups["group"]);
 
 				string Group = Match.Groups["group"].Value;
 
 				List<string> TestNames = new List<string>();
 
 				bool bInErrorList = false;
-				List<LogEventBuilder> ChildEvents = new List<LogEventBuilder>();
+				//				List<LogEventBuilder> ChildEvents = new List<LogEventBuilder>();
 
-				int LineCount = 1;
-				while (Cursor.IsMatch(LineCount, $"^(?:{Indent}.*|\\s*)$"))
+				//				int LineCount = 1;
+				EventId EventId = KnownLogEvents.Gauntlet;
+				while (Builder.Next.IsMatch($"^(?:{Indent}.*|\\s*)$"))
 				{
+					Builder.MoveNext();
 					if (bInErrorList)
 					{
 						Match? TestNameMatch;
-						if (Cursor.IsMatch(LineCount, @"^\s*#{1,3} "))
+						if (Builder.Current.IsMatch(@"^\s*#{1,3} "))
 						{
 							bInErrorList = false;
 						}
-						else if (Cursor.TryMatch(LineCount, @"^\s*#####\s+(?<friendly_name>.*):\s*(?<name>\S+)\s*", out TestNameMatch))
+						else if (Builder.Current.TryMatch(@"^\s*#####\s+(?<friendly_name>.*):\s*(?<name>\S+)\s*", out TestNameMatch))
 						{
-							LogEventBuilder ChildEventBuilder = new LogEventBuilder(Cursor.Rebase(LineCount));
-							ChildEventBuilder.AddProperty("group", Group);
+							Builder.AddProperty("group", Group);//.Annotate().AddProperty("group", Group);
 
-							LogEventLine Line = ChildEventBuilder.Lines[0];
-							Line.AddSpan(TestNameMatch.Groups["name"]);
-							Line.AddSpan(TestNameMatch.Groups["friendly_name"]);
+							Builder.Annotate(TestNameMatch.Groups["name"]);
+							Builder.Annotate(TestNameMatch.Groups["friendly_name"]);
 
-							ChildEvents.Add(ChildEventBuilder);
-						}
-						else if(ChildEvents.Count > 0 && ChildEvents[ChildEvents.Count - 1].CurrentLineNumber == Cursor.CurrentLineNumber + LineCount)
-						{
-							ChildEvents[ChildEvents.Count - 1].LineCount++;
+							EventId = KnownLogEvents.Gauntlet_UnitTest;//							ChildEvents.Add(ChildEventBuilder);
 						}
 					}
 					else
 					{
-						if (Builder.Cursor.IsMatch(LineCount, @"^\s*### The following tests failed:"))
+						if (Builder.Current.IsMatch(@"^\s*### The following tests failed:"))
 						{
 							bInErrorList = true;
 						}
 					}
-					LineCount++;
 				}
-				Builder.LineCount = LineCount;
 
-				LogEvent Event = Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet);
-				if(ChildEvents.Count > 0)
-				{
-					Event.ChildEvents = ChildEvents.ConvertAll(x => x.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet_UnitTest));
-				}
-				return Event;
+				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, EventId);
 			}
 
 			if (Cursor.TryMatch(@"Error: Screenshot '(?<screenshot>[^']+)' test failed", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				Builder.Lines[0].AddSpan(Match.Groups["screenshot"]).MarkAsScreenshotTest();
-				return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
+				Builder.Annotate(Match.Groups["screenshot"], LogEventMarkup.ScreenshotTest);//.MarkAsScreenshotTest();
+				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
 			}
 
 			if (Cursor.TryMatch("\\[ERROR\\] (.*)$", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Generic);
+				return Builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Generic);
 			}
 
 			return null;

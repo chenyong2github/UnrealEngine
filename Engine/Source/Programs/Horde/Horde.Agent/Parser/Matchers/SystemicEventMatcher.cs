@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -15,20 +16,20 @@ namespace HordeAgent.Parser.Matchers
 {
 	class SystemicEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			if (Cursor.IsMatch(@"LogDerivedDataCache: .*queries/writes will be limited"))
 			{
-				return new LogEventBuilder(Cursor).ToLogEvent(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);
+				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);
 			}
 			if (Cursor.IsMatch(@"^\s*ERROR: Error: EC_OK"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Builder.IsMatch(Builder.MaxOffset + 1, @"^\s*ERROR:\s*$"))
+				while (Builder.Next.IsMatch(@"^\s*ERROR:\s*$"))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 				}
-				return new LogEventBuilder(Cursor).ToLogEvent(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
+				return new LogEventBuilder(Cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
 			return null;
 		}

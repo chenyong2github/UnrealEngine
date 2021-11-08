@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,14 @@ namespace HordeAgent.Parser.Matchers
 	/// </summary>
 	class MicrosoftEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		ILogContext Context;
+
+		public MicrosoftEventMatcher(ILogContext Context)
+		{
+			this.Context = Context;
+		}
+
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			// filename(line# [, column#]) | toolname} : [ any text ] {error | warning} code+number:localizable string [ any text ]
 
@@ -28,23 +36,23 @@ namespace HordeAgent.Parser.Matchers
 				if (FileOrToolMatch.Success)
 				{
 					LogEventBuilder Builder = new LogEventBuilder(Cursor);
-					LogEventLine Line = Builder.Lines[0];
 
 					Match FileMatch = Regex.Match(FileOrToolMatch.Value, @"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
 					if (FileMatch.Success)
 					{
-						Line.AddSpan(FileMatch.Groups["file"]).MarkAsSourceFile(Context, "");
-						Line.AddSpan(FileMatch.Groups["line"]).MarkAsLineNumber();
-						Line.TryAddSpan(FileMatch.Groups["column"]);
+						Builder.AnnotateSourceFile(FileMatch.Groups["file"], Context, "");
+						Builder.Annotate(FileMatch.Groups["line"], LogEventMarkup.LineNumber);
+						Builder.TryAnnotate(FileMatch.Groups["column"]);
 					}
 					else
 					{
-						Line.AddSpan(FileOrToolMatch.Groups[1], "tool").MarkAsToolName();
+						Builder.Annotate("tool", FileOrToolMatch.Groups[1], LogEventMarkup.ToolName);
 					}
 
-					LogEventSpan Severity = Line.AddSpan(Match.Groups["severity"]);
-					Line.AddSpan(Match.Groups["code"]);
-					return Builder.ToLogEvent(LogEventPriority.Normal, Severity.Text.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
+					Group Severity = Match.Groups["severity"];
+					Builder.Annotate(Severity);
+					Builder.Annotate(Match.Groups["code"]);
+					return Builder.ToMatch(LogEventPriority.Normal, Severity.Value.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
 				}
 			}
 			return null;

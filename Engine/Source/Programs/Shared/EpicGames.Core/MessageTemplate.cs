@@ -14,58 +14,6 @@ using System.Text.Json;
 namespace EpicGames.Core
 {
 	/// <summary>
-	/// Interface for argument formatters in message templates
-	/// </summary>
-	public interface IMessageTemplateFormatter
-	{
-		/// <summary>
-		/// The type name to serialize
-		/// </summary>
-		public string Name { get; }
-
-		/// <summary>
-		/// Serializes the given value. The state of the supplied JSON writer will be within a JSON object; named properties should typically be serialized directly here.
-		/// </summary>
-		public void Write(Utf8JsonWriter Writer, object Value);
-	}
-
-	/// <summary>
-	/// Implementation of <see cref="IMessageTemplateFormatter"/> that just serializes a type name
-	/// </summary>
-	public class MessageTemplateTypeNameFormatter : IMessageTemplateFormatter
-	{
-		/// <inheritdoc/>
-		public string Name { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Name">The type name</param>
-		public MessageTemplateTypeNameFormatter(string Name)
-		{
-			this.Name = Name;
-		}
-
-		/// <inheritdoc/>
-		public void Write(Utf8JsonWriter Writer, object Value)
-		{
-		}
-	}
-
-	/// <summary>
-	/// Attribute indicating the formatter to use for a message template argument
-	/// </summary>
-	public class MessageTemplateFormatterAttribute : Attribute
-	{
-		public Type Type { get; }
-
-		public MessageTemplateFormatterAttribute(Type Type)
-		{
-			this.Type = Type;
-		}
-	}
-
-	/// <summary>
 	/// Utility class for dealing with message templates
 	/// </summary>
 	public static class MessageTemplate
@@ -76,18 +24,30 @@ namespace EpicGames.Core
 		public const string FormatPropertyName = "{OriginalFormat}";
 
 		/// <summary>
-		/// Static cache of formatters for property values
+		/// Converts any positional properties to named properties
 		/// </summary>
-		static ConcurrentDictionary<Type, IMessageTemplateFormatter?> TypeToFormatter = new ConcurrentDictionary<Type, IMessageTemplateFormatter?>();
-
-		/// <summary>
-		/// Register a formatter for the given type
-		/// </summary>
-		/// <param name="Type"></param>
-		/// <param name="Formatter"></param>
-		public static void RegisterFormatter(Type Type, IMessageTemplateFormatter Formatter)
+		/// <returns></returns>
+		public static Dictionary<string, object>? CreatePositionalProperties(string Format, IEnumerable<KeyValuePair<string, object>> Properties)
 		{
-			TypeToFormatter.TryAdd(Type, Formatter);
+			Dictionary<string, object>? OutputProperties = null;
+			if (Properties != null)
+			{
+				OutputProperties = new Dictionary<string, object>(Properties);
+
+				List<(int, int)>? Offsets = ParsePropertyNames(Format);
+				if (Offsets != null)
+				{
+					foreach ((int Offset, int Length) in Offsets)
+					{
+						ReadOnlySpan<char> Name = Format.AsSpan(Offset, Length);
+						if (int.TryParse(Name, out int Number))
+						{
+							OutputProperties[Name.ToString()] = Properties.ElementAtOrDefault(Number);
+						}
+					}
+				}
+			}
+			return OutputProperties;
 		}
 
 		/// <summary>
@@ -96,7 +56,7 @@ namespace EpicGames.Core
 		/// <param name="Format">The format string</param>
 		/// <param name="Properties">Property values to embed</param>
 		/// <returns>The rendered string</returns>
-		public static string Render(string Format, IEnumerable<KeyValuePair<string, object>>? Properties)
+		public static string Render(string Format, IEnumerable<KeyValuePair<string, object?>>? Properties)
 		{
 			StringBuilder Result = new StringBuilder();
 			Render(Format, Properties, Result);
@@ -109,7 +69,7 @@ namespace EpicGames.Core
 		/// <param name="Format">The format string to render</param>
 		/// <param name="Properties">Sequence of key/value properties</param>
 		/// <param name="Result">Buffer to append the rendered string to</param>
-		public static void Render(string Format, IEnumerable<KeyValuePair<string, object>>? Properties, StringBuilder Result)
+		public static void Render(string Format, IEnumerable<KeyValuePair<string, object?>>? Properties, StringBuilder Result)
 		{
 			int NextOffset = 0;
 
@@ -135,238 +95,6 @@ namespace EpicGames.Core
 			}
 
 			Unescape(Format.AsSpan(NextOffset, Format.Length - NextOffset), Result);
-		}
-
-		/// <summary>
-		/// Serialize a message template to JOSN
-		/// </summary>
-		public static string Serialize<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
-		{
-			ArrayBufferWriter<byte> Buffer = new ArrayBufferWriter<byte>();
-			using (Utf8JsonWriter Writer = new Utf8JsonWriter(Buffer))
-			{
-				Serialize(Writer, LogLevel, EventId, State, Exception, Formatter);
-			}
-			return Encoding.UTF8.GetString(Buffer.WrittenSpan);
-		}
-
-		/// <summary>
-		/// Serialize a message template to JOSN
-		/// </summary>
-		public static void Serialize<TState>(Utf8JsonWriter Writer, LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
-		{
-			// Render the message
-			string Text = Formatter(State, Exception);
-
-			// Try to log the event
-			IEnumerable<KeyValuePair<string, object>>? Values = State as IEnumerable<KeyValuePair<string, object>>;
-			if (Values != null)
-			{
-				KeyValuePair<string, object>? Format = Values.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal));
-				if (Format != null)
-				{
-					// Format all the other values
-					Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, Format.Value.Value?.ToString() ?? String.Empty, Values.Where(x => !x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal)), Exception);
-				}
-				else
-				{
-					// Include all the data, but don't use the format string
-					Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, null, Values, Exception);
-				}
-			}
-			else
-			{
-				// Format as a string
-				Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, null, null, Exception);
-			}
-		}
-
-		/// <summary>
-		/// Serialize a message template to JSON
-		/// </summary>
-		public static void Serialize(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, EventId EventId, string Text, string? Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
-		{
-			Serialize(Writer, Time, LogLevel, EventId, Text, 0, 1, Format, Properties, Exception);
-		}
-
-		/// <summary>
-		/// Serialize a message template to JSON
-		/// </summary>
-		public static void Serialize(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, EventId EventId, string Text, int LineIndex, int LineCount, string? Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
-		{
-			Writer.WriteStartObject();
-			Writer.WriteString("time", Time.ToString("s", CultureInfo.InvariantCulture));
-			Writer.WriteString("level", LogLevel.ToString());
-			Writer.WriteString("message", Text);
-
-			if (EventId.Id != 0)
-			{
-				Writer.WriteNumber("id", EventId.Id);
-			}
-
-			if (Format != null)
-			{
-				Writer.WriteString("format", Format);
-			}
-
-			if (LineCount > 1)
-			{
-				Writer.WriteNumber("line", LineIndex);
-				Writer.WriteNumber("lineCount", LineCount);
-			}
-
-			if (Properties != null && Properties.Any())
-			{
-				Writer.WriteStartObject("properties");
-				foreach (KeyValuePair<string, object> Pair in Properties!)
-				{
-					Writer.WritePropertyName(Pair.Key);
-					WritePropertyValue(Pair.Value, Writer);
-				}
-				Writer.WriteEndObject();
-			}
-
-			if (Exception != null)
-			{
-				Writer.WriteStartObject("exception");
-				WriteException(Writer, Exception);
-				Writer.WriteEndObject();
-			}
-			Writer.WriteEndObject();
-		}
-
-		/// <summary>
-		/// Writes an exception to a json object
-		/// </summary>
-		/// <param name="Writer">Writer to receive the exception data</param>
-		/// <param name="Exception">The exception</param>
-		static void WriteException(Utf8JsonWriter Writer, Exception Exception)
-		{
-			Writer.WriteString("message", Exception.Message);
-			Writer.WriteString("trace", Exception.StackTrace);
-
-			if (Exception.InnerException != null)
-			{
-				Writer.WriteStartObject("innerException");
-				WriteException(Writer, Exception.InnerException);
-				Writer.WriteEndObject();
-			}
-
-			AggregateException? AggregateException = Exception as AggregateException;
-			if (AggregateException != null)
-			{
-				Writer.WriteStartArray("innerExceptions");
-				for (int Idx = 0; Idx < 16 && Idx < AggregateException.InnerExceptions.Count; Idx++) // Cap number of exceptions returned to avoid huge messages
-				{
-					Exception InnerException = AggregateException.InnerExceptions[Idx];
-					Writer.WriteStartObject();
-					WriteException(Writer, InnerException);
-					Writer.WriteEndObject();
-				}
-				Writer.WriteEndArray();
-			}
-		}
-
-		/// <summary>
-		/// Converts a property value to log markup
-		/// </summary>
-		/// <param name="Value">The value to write</param>
-		/// <param name="Writer">The json writer</param>
-		static void WritePropertyValue(object Value, Utf8JsonWriter Writer)
-		{
-			if (Value == null)
-			{
-				Writer.WriteNullValue();
-			}
-			else
-			{
-				Type ValueType = Value.GetType();
-				if (ValueType.IsEnum)
-				{
-					Writer.WriteStringValue(Enum.GetName(ValueType, Value));
-				}
-				else
-				{
-					switch (Type.GetTypeCode(ValueType))
-					{
-						case TypeCode.Boolean:
-							Writer.WriteBooleanValue((bool)Value);
-							break;
-						case TypeCode.Byte:
-							Writer.WriteNumberValue((Byte)Value);
-							break;
-						case TypeCode.SByte:
-							Writer.WriteNumberValue((SByte)Value);
-							break;
-						case TypeCode.UInt16:
-							Writer.WriteNumberValue((UInt16)Value);
-							break;
-						case TypeCode.UInt32:
-							Writer.WriteNumberValue((UInt32)Value);
-							break;
-						case TypeCode.UInt64:
-							Writer.WriteNumberValue((UInt64)Value);
-							break;
-						case TypeCode.Int16:
-							Writer.WriteNumberValue((Int16)Value);
-							break;
-						case TypeCode.Int32:
-							Writer.WriteNumberValue((Int32)Value);
-							break;
-						case TypeCode.Int64:
-							Writer.WriteNumberValue((Int64)Value);
-							break;
-						case TypeCode.Decimal:
-							Writer.WriteNumberValue((Decimal)Value);
-							break;
-						case TypeCode.Double:
-							Writer.WriteNumberValue((Double)Value);
-							break;
-						case TypeCode.Single:
-							Writer.WriteNumberValue((Single)Value);
-							break;
-						case TypeCode.String:
-							Writer.WriteStringValue((String)Value);
-							break;
-						default:
-							WriteComplexPropertyValue(Value, ValueType, Writer);
-							break;
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Writes a complex object to the given json writer
-		/// </summary>
-		/// <param name="Value">The value to write</param>
-		/// <param name="ValueType">Type of the value</param>
-		/// <param name="JsonWriter">The writer to output to</param>
-		static void WriteComplexPropertyValue(object Value, Type ValueType, Utf8JsonWriter JsonWriter)
-		{
-			IMessageTemplateFormatter? Formatter;
-			if (!TypeToFormatter.TryGetValue(ValueType, out Formatter))
-			{
-				MessageTemplateFormatterAttribute? Attribute = ValueType.GetCustomAttribute<MessageTemplateFormatterAttribute>();
-				if (Attribute != null)
-				{
-					Formatter = (IMessageTemplateFormatter)Activator.CreateInstance(Attribute.Type)!;
-				}
-				TypeToFormatter.TryAdd(ValueType, Formatter);
-			}
-
-			if (Formatter != null)
-			{
-				JsonWriter.WriteStartObject();
-				JsonWriter.WriteString("$type", Formatter.Name);
-				JsonWriter.WriteString("$text", Value.ToString());
-				Formatter.Write(JsonWriter, Value);
-				JsonWriter.WriteEndObject();
-			}
-			else
-			{
-				JsonWriter.WriteStringValue(Value.ToString());
-			}
 		}
 
 		/// <summary>
@@ -506,12 +234,12 @@ namespace EpicGames.Core
 		/// <param name="Properties">Sequence of property name/value pairs</param>
 		/// <param name="Value">On success, receives the property value</param>
 		/// <returns>True if the property was found, false otherwise</returns>
-		public static bool TryGetPropertyValue(ReadOnlySpan<char> Name, IEnumerable<KeyValuePair<string, object>> Properties, out object? Value)
+		public static bool TryGetPropertyValue(ReadOnlySpan<char> Name, IEnumerable<KeyValuePair<string, object?>> Properties, out object? Value)
 		{
 			int Number;
 			if (int.TryParse(Name, System.Globalization.NumberStyles.Integer, null, out Number))
 			{
-				foreach (KeyValuePair<string, object> Property in Properties)
+				foreach (KeyValuePair<string, object?> Property in Properties)
 				{
 					if (Number == 0)
 					{
@@ -523,7 +251,7 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				foreach (KeyValuePair<string, object> Property in Properties)
+				foreach (KeyValuePair<string, object?> Property in Properties)
 				{
 					ReadOnlySpan<char> ParameterName = Property.Key.AsSpan();
 					if (Name.Equals(ParameterName, StringComparison.Ordinal))

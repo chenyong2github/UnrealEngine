@@ -610,11 +610,11 @@ namespace HordeServer
 
 		public static void ConfigureFormatters()
 		{
-			MessageTemplate.RegisterFormatter(typeof(AgentId), new MessageTemplateTypeNameFormatter("AgentId"));
-			MessageTemplate.RegisterFormatter(typeof(JobId), new MessageTemplateTypeNameFormatter("JobId"));
-			MessageTemplate.RegisterFormatter(typeof(LeaseId), new MessageTemplateTypeNameFormatter("LeaseId"));
-			MessageTemplate.RegisterFormatter(typeof(LogId), new MessageTemplateTypeNameFormatter("LogId"));
-			MessageTemplate.RegisterFormatter(typeof(UserId), new MessageTemplateTypeNameFormatter("UserId"));
+			LogEventFormatter.RegisterFormatter(typeof(AgentId), new LogEventFormatter.AnnotateTypeFormatter("AgentId"));
+			LogEventFormatter.RegisterFormatter(typeof(JobId), new LogEventFormatter.AnnotateTypeFormatter("JobId"));
+			LogEventFormatter.RegisterFormatter(typeof(LeaseId), new LogEventFormatter.AnnotateTypeFormatter("LeaseId"));
+			LogEventFormatter.RegisterFormatter(typeof(LogId), new LogEventFormatter.AnnotateTypeFormatter("LogId"));
+			LogEventFormatter.RegisterFormatter(typeof(UserId), new LogEventFormatter.AnnotateTypeFormatter("UserId"));
 		}
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions Options)

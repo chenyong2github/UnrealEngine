@@ -6,12 +6,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace HordeAgent.Parser.Interfaces
+namespace EpicGames.Core
 {
 	/// <summary>
 	/// Allows querying the input text from the current cursor position
 	/// </summary>
-	interface ILogCursor
+	public interface ILogCursor
 	{
 		/// <summary>
 		/// Text for the current line
@@ -43,7 +43,7 @@ namespace HordeAgent.Parser.Interfaces
 	/// <summary>
 	/// Extension methods for log cursors
 	/// </summary>
-	static class LogCursorExtensions
+	public static partial class LogCursorExtensions
 	{
 		/// <summary>
 		/// Implementation of ILogCursor which positions the cursor at a fixed offset from the inner cursor

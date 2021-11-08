@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -15,20 +16,20 @@ namespace HordeAgent.Parser.Matchers
 {
 	class XoreaxEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			if (Cursor.IsMatch(@"\(BuildService.exe\) is not running"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
+				return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
 			}
 
 			if (Cursor.IsMatch(@"^\s*--------------------Build System Warning[- ]"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				if (Builder.TryMatch(@"^(\s*)([^ ].*):", out Match? Prefix))
+				if (Builder.Next.TryMatch(@"^(\s*)([^ ].*):", out Match? Prefix))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 
 					string Message = Prefix.Groups[2].Value;
 
@@ -39,12 +40,12 @@ namespace HordeAgent.Parser.Matchers
 					}
 
 					string PrefixPattern = $"^{Prefix.Groups[1].Value}\\s";
-					while (Builder.IsMatch(PrefixPattern))
+					while (Builder.Next.IsMatch(PrefixPattern))
 					{
-						Builder.MaxOffset++;
+						Builder.MoveNext();
 					}
 
-					return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Information, EventId);
+					return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, EventId);
 				}
 			}
 			return null;

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
@@ -18,16 +19,16 @@ namespace HordeAgent.Parser.Matchers
 	class ExceptionEventMatcher : ILogEventMatcher
 	{
 		/// <inheritdoc/>
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
 			if (Cursor.IsMatch(@"^\s*Unhandled Exception: "))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while(Cursor.IsMatch(Builder.MaxOffset + 1, @"^\s*at "))
+				while(Builder.Current.IsMatch(1, @"^\s*at "))
 				{
-					Builder.MaxOffset++;
+					Builder.MoveNext();
 				}
-				return Builder.ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Exception);
+				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Exception);
 			}
 			return null;
 		}

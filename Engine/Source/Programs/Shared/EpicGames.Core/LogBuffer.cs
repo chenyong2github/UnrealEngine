@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeAgent.Parser.Interfaces;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,9 +9,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace HordeAgent.Parser
+namespace EpicGames.Core
 {
-	class LineBuffer : ILogCursor
+	/// <summary>
+	/// Internal implementation of <see cref="ILogCursor"/> used to parse events
+	/// </summary>
+	class LogBuffer : ILogCursor
 	{
 		int LineNumber;
 
@@ -22,7 +24,7 @@ namespace HordeAgent.Parser
 
 		List<string?> NextLines;
 
-		public LineBuffer(int HistorySize)
+		public LogBuffer(int HistorySize)
 		{
 			LineNumber = 1;
 			History = new string?[HistorySize];
@@ -58,7 +60,7 @@ namespace HordeAgent.Parser
 
 		public void Advance(int Count)
 		{
-			for(int Idx = 0; Idx < Count; Idx++)
+			for (int Idx = 0; Idx < Count; Idx++)
 			{
 				MoveNext();
 			}
@@ -66,7 +68,7 @@ namespace HordeAgent.Parser
 
 		public void MoveNext()
 		{
-			if(NextLines.Count == 0)
+			if (NextLines.Count == 0)
 			{
 				throw new InvalidOperationException("Attempt to move past end of line buffer");
 			}

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeAgent.Parser.Interfaces;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -11,36 +12,34 @@ namespace HordeAgent.Parser.Matchers
 	/// </summary>
 	class ExitCodeEventMatcher : ILogEventMatcher
 	{
-		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
+		public LogEventMatch? Match(ILogCursor Cursor)
 		{
-			if (!Context.HasLoggedErrors)
+			int NumLines = 0;
+			for (; ; )
 			{
-				int NumLines = 0;
-				for (; ; )
+				if (Cursor.IsMatch(NumLines, "Editor terminated with exit code [1-9]"))
 				{
-					if (Cursor.IsMatch(NumLines, "Editor terminated with exit code [1-9]"))
-					{
-						NumLines++;
-					}
-					else if (Cursor.IsMatch(NumLines, "AutomationTool exiting with ExitCode=[1-9]"))
-					{
-						NumLines++;
-					}
-					else if (Cursor.IsMatch(NumLines, "BUILD FAILED"))
-					{
-						NumLines++;
-					}
-					else
-					{
-						break;
-					}
+					NumLines++;
 				}
+				else if (Cursor.IsMatch(NumLines, "AutomationTool exiting with ExitCode=[1-9]"))
+				{
+					NumLines++;
+				}
+				else if (Cursor.IsMatch(NumLines, "BUILD FAILED"))
+				{
+					NumLines++;
+				}
+				else
+				{
+					break;
+				}
+			}
 
-				if (NumLines > 0)
-				{
-					LogEventBuilder Builder = new LogEventBuilder(Cursor, NumLines);
-					return Builder.ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
-				}
+			if (NumLines > 0)
+			{
+				LogEventBuilder Builder = new LogEventBuilder(Cursor);
+				Builder.MoveNext(NumLines - 1);
+				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
 			}
 			return null;
 		}
