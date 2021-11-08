@@ -16,7 +16,7 @@
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PreviewMesh.h"
-#include "BakeMeshAttributeToolCommon.h"
+#include "BakeMeshAttributeTool.h"
 #include "BakeMeshAttributeMapsToolBase.generated.h"
 
 /**
@@ -117,7 +117,7 @@ enum class EBakeMultisampling
  * Base Bake Maps tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeMapsToolBase : public UMultiSelectionTool, public IInteractiveToolExclusiveToolAPI, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshMapBaker>
+class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeMapsToolBase : public UBakeMeshAttributeTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshMapBaker>
 {
 	GENERATED_BODY()
 
@@ -130,17 +130,11 @@ public:
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override { return true; }
-	virtual bool CanAccept() const override { return true; }
 	// End UInteractiveTool interface
 
 	// Begin IGenericDataOperatorFactory interface
 	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshMapBaker>> MakeNewOperator() override;
 	// End IGenericDataOperatorFactory interface
-
-	void SetWorld(UWorld* World);
 
 public:
 	/**
@@ -170,10 +164,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> BentNormalPreviewMaterial;
-
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
-	float SecondsBeforeWorkingMaterial = 0.75;
 
 protected:
 	/**
@@ -213,14 +203,9 @@ protected:
 	//
 	// Bake parameters
 	//
-	UPROPERTY()
-	TObjectPtr<UWorld> TargetWorld = nullptr;
-
 	UE::Geometry::FDynamicMesh3 BaseMesh;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
-
-	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 	struct FBakeCacheSettings
 	{
@@ -273,7 +258,7 @@ protected:
 	/**
 	 * Update the preview material parameters for a given Bake type
 	 * display name.
-	 * @param PreviewDisplayName the display name of a Bake type to preview.
+	 * @param Properties the properties containing the preview property.
 	 */
 	template <typename PropertySet>
 	void UpdatePreview(PropertySet& Properties);
@@ -376,22 +361,6 @@ protected:
 
 	/** @return the texture name given a base name and map type */
 	static void GetTextureName(EBakeMapType MapType, const FString& BaseName, FString& TexName);
-
-	/**
-	 * Given an array of textures associated with a material,
-	 * use heuristics to identify the color/albedo texture.
-	 * @param Textures array of textures associated with a material.
-	 * @return integer index into the Textures array representing the color/albedo texture
-	 */
-	static int SelectColorTextureToBake(const TArray<UTexture*>& Textures);
-
-	/**
-	 * Iterate through a primitive component's textures by material ID.
-	 * @param Component the component to query
-	 * @param ProcessFunc enumeration function with signature: void(int MaterialID, const TArray<UTexture*>& Textures)
-	 */
-	template <typename ProcessFn>
-	static void ProcessComponentTextures(const UPrimitiveComponent* Component, ProcessFn&& ProcessFunc);
 
 	/**
 	 * @param Properties the tool property set to validate the map type against.
@@ -525,31 +494,6 @@ void UBakeMeshAttributeMapsToolBase::UpdateUVLayerNames(PropertySet& Properties,
 	}
 }
 
-
-template <typename ProcessFn>
-void UBakeMeshAttributeMapsToolBase::ProcessComponentTextures(const UPrimitiveComponent* Component, ProcessFn&& ProcessFunc)
-{
-	if (!Component)
-	{
-		return;
-	}
-
-	TArray<UMaterialInterface*> Materials;
-	Component->GetUsedMaterials(Materials);
-	
-	for (int32 MaterialID = 0; MaterialID < Materials.Num(); ++MaterialID)	// TODO: This won't match MaterialIDs on the FDynamicMesh3 in general, will it?
-	{
-		UMaterialInterface* MaterialInterface = Materials[MaterialID];
-		if (MaterialInterface == nullptr)
-		{
-			continue;
-		}
-
-		TArray<UTexture*> Textures;
-		MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
-		ProcessFunc(MaterialID, Textures);
-	}
-}
 
 template <typename PropertySet>
 bool UBakeMeshAttributeMapsToolBase::IsRequestedMapType(PropertySet& Properties, EBakeMapType MapType)

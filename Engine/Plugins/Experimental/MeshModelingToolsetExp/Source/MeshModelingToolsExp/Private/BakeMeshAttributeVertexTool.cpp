@@ -260,13 +260,6 @@ void UBakeMeshAttributeVertexTool::Setup()
 		PreviewAlphaMaterial = UMaterialInstanceDynamic::Create(AlphaMaterial, GetToolManager());
 	}
 
-	UMaterial* WorkingMaterial = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/InProgressMaterial"));
-	check(WorkingMaterial);
-	if (WorkingMaterial != nullptr)
-	{
-		WorkingPreviewMaterial = UMaterialInstanceDynamic::Create(WorkingMaterial, GetToolManager());
-	}
-
 	bIsBakeToSelf = (Targets.Num() == 1);
 
 	UE::ToolTarget::HideSourceObject(Targets[0]);
@@ -347,6 +340,10 @@ void UBakeMeshAttributeVertexTool::Setup()
 	MultiTextureSettings->RestoreProperties(this);
 	AddToolPropertySource(MultiTextureSettings);
 	SetToolPropertySourceEnabled(MultiTextureSettings, false);
+	auto SetDirtyCallback = [this](decltype(MultiTextureSettings->MaterialIDSourceTextureMap)) { OpState |= EBakeOpState::Evaluate; };
+	auto NotEqualsCallback = [](const decltype(MultiTextureSettings->MaterialIDSourceTextureMap)& A, const decltype(MultiTextureSettings->MaterialIDSourceTextureMap)& B) -> bool { return !(A.OrderIndependentCompareEqual(B)); };
+	MultiTextureSettings->WatchProperty(MultiTextureSettings->MaterialIDSourceTextureMap, SetDirtyCallback, NotEqualsCallback);
+	MultiTextureSettings->WatchProperty(MultiTextureSettings->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
 
 	UpdateOnModeChange();
 
@@ -449,11 +446,6 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshVertexBaker>> UBakeMeshAttrib
 	return Op;
 }
 
-void UBakeMeshAttributeVertexTool::SetWorld(UWorld* World)
-{
-	TargetWorld = World;
-}
-
 void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 {
 	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
@@ -473,6 +465,36 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
+
+	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
+	ProcessComponentTextures(UE::ToolTarget::GetTargetComponent(DetailTarget), [this](const int MaterialID, const TArray<UTexture*>& Textures)
+	{
+		for (UTexture* Tex : Textures)
+		{
+			UTexture2D* Tex2D = Cast<UTexture2D>(Tex);
+			if (Tex2D)
+			{
+				MultiTextureSettings->AllSourceTextures.Add(Tex2D);
+			}
+		}
+
+		constexpr bool bGuessAtTextures = true;
+		if (bGuessAtTextures)
+		{
+			const int SelectedTextureIndex = SelectColorTextureToBake(Textures);
+			if (SelectedTextureIndex >= 0)
+			{
+				UTexture2D* Tex2D = Cast<UTexture2D>(Textures[SelectedTextureIndex]);
+
+				// if cast fails, this will set the value to nullptr, which is fine
+				MultiTextureSettings->MaterialIDSourceTextureMap.Add(MaterialID, Tex2D);	
+			}
+		}
+		else
+		{
+			MultiTextureSettings->MaterialIDSourceTextureMap.Add(MaterialID, nullptr);
+		}
+	});
 
 	OpState &= ~EBakeOpState::EvaluateDetailMesh;
 	OpState |= EBakeOpState::Evaluate;
