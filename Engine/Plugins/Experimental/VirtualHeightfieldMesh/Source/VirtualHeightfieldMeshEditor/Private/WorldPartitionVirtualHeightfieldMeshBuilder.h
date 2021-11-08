@@ -15,6 +15,6 @@ public:
 	virtual bool RequiresCommandletRendering() const override { return true; }
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::EntireWorld; }
 protected:
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

@@ -19,7 +19,7 @@ class SMARTOBJECTSEDITORMODULE_API UWorldPartitionSmartObjectCollectionBuilder :
 protected:
 	virtual bool RequiresCommandletRendering() const override { return false; }
 	virtual ELoadingMode GetLoadingMode() const override { return IterativeCells; }
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 
