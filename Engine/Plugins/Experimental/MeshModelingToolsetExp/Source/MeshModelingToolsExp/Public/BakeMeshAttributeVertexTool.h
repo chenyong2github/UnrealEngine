@@ -12,7 +12,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "PreviewMesh.h"
 #include "Sampling/MeshVertexBaker.h"
-#include "BakeMeshAttributeToolCommon.h"
+#include "BakeMeshAttributeTool.h"
 #include "BakeMeshAttributeVertexTool.generated.h"
 
 // predeclarations
@@ -166,7 +166,7 @@ public:
  * Vertex Baking Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexTool : public UMultiSelectionTool, public IInteractiveToolExclusiveToolAPI, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshVertexBaker>
+class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexTool : public UBakeMeshAttributeTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshVertexBaker>
 {
 	GENERATED_BODY()
 
@@ -188,8 +188,6 @@ public:
 	// Begin IGenericDataOperatorFactory interface
 	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshVertexBaker>> MakeNewOperator() override;
 	// End IGenericDataOperatorFactory interface
-
-	void SetWorld(UWorld* World);
 
 protected:
 	UPROPERTY()
@@ -225,13 +223,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PreviewAlphaMaterial;
 
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
-	float SecondsBeforeWorkingMaterial = 0.75;
-
-	UPROPERTY()
-	TObjectPtr<UWorld> TargetWorld = nullptr;
-
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshVertexBaker>> Compute = nullptr;
 	void OnResultUpdated(const TUniquePtr<UE::Geometry::FMeshVertexBaker>& NewResult);
 
@@ -252,8 +243,6 @@ protected:
 	void UpdateResult();
 
 	const bool bPreferPlatformData = false;
-
-	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 	struct FBakeSettings
 	{
