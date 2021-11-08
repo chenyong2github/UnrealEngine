@@ -91,14 +91,6 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
 
 	/**
-	* Populates OutPoints and returns the number of control points in the spline.
-	*
-	* @param OutPoints	The array to populate.
-	* @return			The number of control points.
-	*/
-	int32 GetControlPoints(TArray<FVector>& OutPoints) const;
-
-	/**
 	* Given an InParam float in [0, 1], will return the position of the spline at that point.
 	*
 	* @param InParam	The parameter between [0, 1] to query.
