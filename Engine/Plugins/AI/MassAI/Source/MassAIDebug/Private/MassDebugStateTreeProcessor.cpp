@@ -95,7 +95,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
 
 					// State
-					UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, 2.0f, TEXT("%s %s"),
+					UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, /*Thickness*/ 2, TEXT("%s %s"),
 						*Entity.DebugGetDescription(), *StateTreeContext.GetActiveStateName(Storage));
 				}
 			}

@@ -150,7 +150,7 @@ void UMassMovementTestingComponent::UpdateTests()
 			{
 				PathRequest.EndOfPathPosition = GoalWorldPosition;
 			}
-			PathRequest.AnticipationDistance = AnticipationDistance;
+			PathRequest.AnticipationDistance.Set(AnticipationDistance);
 
 			PathRequest.StartPosition = WorldPosition;
 			float StartDistanceAlongPath = LaneLocation.DistanceAlongLane;

@@ -50,7 +50,7 @@ struct MASSAIMOVEMENT_API FZoneGraphShortPathRequest
 
 	/** If start or end of path is off-lane, the distance along the lane is pushed forward/back along the lane to make smoother transition. */
 	UPROPERTY(Transient)
-	uint16 AnticipationDistance = 50;
+	FMassInt16Real AnticipationDistance = FMassInt16Real(50.f);
 
 	UPROPERTY(Transient)
 	FMassInt16Real EndOfPathOffset = FMassInt16Real(0.0f);

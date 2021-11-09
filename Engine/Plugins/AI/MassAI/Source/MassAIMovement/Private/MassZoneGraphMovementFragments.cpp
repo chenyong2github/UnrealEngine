@@ -212,7 +212,7 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 	if (bStartOffLane)
 	{
 		// The start point was off-lane, move the start location along the lane a bit further to have smoother connection.
-		const float StartForwardOffset = FMath::Clamp(Request.AnticipationDistance + StartLaneForwardOffset, 0.0f, Request.AnticipationDistance);
+		const float StartForwardOffset = FMath::Clamp(Request.AnticipationDistance.Get() + StartLaneForwardOffset, 0.0f, Request.AnticipationDistance.Get());
 		StartDistanceAlongPath += StartForwardOffset * TangentSign; // Not clamping this distance intentionally so that the halfway point and clamping later works correctly.
 	}
 
@@ -240,7 +240,7 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 		EndLaneOffset = FMath::Clamp(EndLaneOffset, -DeflatedLaneRight, DeflatedLaneLeft);
 
 		// Move the end location along the lane a bit back to have smoother connection.
-		const float EndForwardOffset = FMath::Clamp(Request.AnticipationDistance - EndLaneForwardOffset, 0.0f, Request.AnticipationDistance);
+		const float EndForwardOffset = FMath::Clamp(Request.AnticipationDistance.Get() - EndLaneForwardOffset, 0.0f, Request.AnticipationDistance.Get());
 		EndDistanceAlongPath -= EndForwardOffset * TangentSign; // Not clamping this distance intentionally so that the halfway point and clamping later works correctly.
 	}
 
