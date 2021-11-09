@@ -2850,6 +2850,9 @@ export type GetDevicePoolResponse = {
 	/**  Name of the device pool */
 	name: string;
 
+	/** Whether there is write access to the pool */
+	writeAccess: boolean;
+
 }
 
 
