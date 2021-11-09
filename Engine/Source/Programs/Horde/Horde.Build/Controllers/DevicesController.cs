@@ -21,6 +21,7 @@ namespace HordeServer.Controllers
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+	using ProjectId = StringId<IProject>;
 
 	/// <summary>
 	/// Controller for device service
@@ -71,7 +72,9 @@ namespace HordeServer.Controllers
 		public async Task<ActionResult<CreateDeviceResponse>> CreateDeviceAsync([FromBody] CreateDeviceRequest DeviceRequest)
 		{
 
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(DeviceRequest.PoolId!), User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
 			{
 				return Forbid();
 			}
@@ -132,10 +135,7 @@ namespace HordeServer.Controllers
 		public async Task<ActionResult<List<object>>> GetDevicesAsync()
 		{
 
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceRead, User))
-			{
-				return Forbid();
-			}
+			List<DevicePoolAuthorization> PoolAuth = await DeviceService.GetUserPoolAuthorizationsAsync(User);
 
 			List<IDevice> Devices = await DeviceService.GetDevicesAsync();
 
@@ -143,6 +143,13 @@ namespace HordeServer.Controllers
 
 			foreach (IDevice Device in Devices)
 			{
+				DevicePoolAuthorization? Auth = PoolAuth.Where(x => x.Pool.Id == Device.PoolId).FirstOrDefault();
+
+				if (Auth == null || !Auth.Read)
+				{
+					continue;
+				}
+
 				Responses.Add(new GetDeviceResponse(Device.Id.ToString(), Device.PlatformId.ToString(), Device.PoolId.ToString(), Device.Name, Device.Enabled, Device.Address, Device.ModelId?.ToString(), Device.ModifiedByUser, Device.Notes, Device.ProblemTimeUtc, Device.MaintenanceTimeUtc, Device.Utilization, Device.CheckedOutByUser, Device.CheckOutTime));
 			}
 
@@ -159,11 +166,6 @@ namespace HordeServer.Controllers
 		public async Task<ActionResult<object>> GetDeviceAsync(string DeviceId)
 		{
 
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceRead, User))
-			{
-				return Forbid();
-			}
-
 			DeviceId DeviceIdValue = new DeviceId(DeviceId);
 
 			IDevice? Device = await DeviceService.GetDeviceAsync(DeviceIdValue);
@@ -172,6 +174,14 @@ namespace HordeServer.Controllers
 			{
 				return BadRequest($"Unable to find device with id {DeviceId}");
 			}
+
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(Device.PoolId, User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
+			{
+				return Forbid();
+			}
+
 
 			return new GetDeviceResponse(Device.Id.ToString(), Device.PlatformId.ToString(), Device.PoolId.ToString(), Device.Name, Device.Enabled, Device.Address, Device.ModelId?.ToString(), Device.ModifiedByUser?.ToString(), Device.Notes, Device.ProblemTimeUtc, Device.MaintenanceTimeUtc, Device.Utilization, Device.CheckedOutByUser, Device.CheckOutTime);
 		}
@@ -185,11 +195,6 @@ namespace HordeServer.Controllers
 		[ProducesResponseType(typeof(List<GetDeviceResponse>), 200)]
 		public async Task<ActionResult> UpdateDeviceAsync(string DeviceId, [FromBody] UpdateDeviceRequest Update)
 		{
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
-			{
-				return Forbid();
-			}
-
 			IUser? InternalUser = await UserCollection.GetUserAsync(User);
 			if (InternalUser == null)
 			{
@@ -203,6 +208,13 @@ namespace HordeServer.Controllers
 			if (Device == null)
 			{
 				return BadRequest($"Device with id ${DeviceId} does not exist");
+			}
+
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(Device.PoolId, User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
+			{
+				return Forbid();
 			}
 
 			IDevicePlatform? Platform = await DeviceService.GetPlatformAsync(Device.PlatformId);
@@ -249,10 +261,6 @@ namespace HordeServer.Controllers
 		[ProducesResponseType(typeof(List<GetDeviceResponse>), 200)]
 		public async Task<ActionResult> CheckoutDeviceAsync(string DeviceId, [FromBody] CheckoutDeviceRequest Request)
 		{
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
-			{
-				return Forbid();
-			}
 
 			IUser? InternalUser = await UserCollection.GetUserAsync(User);
 			if (InternalUser == null)
@@ -267,6 +275,13 @@ namespace HordeServer.Controllers
 			if (Device == null)
 			{
 				return BadRequest($"Device with id ${DeviceId} does not exist");
+			}
+
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(Device.PoolId, User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
+			{
+				return Forbid();
 			}
 
 			if (Request.Checkout)
@@ -308,6 +323,14 @@ namespace HordeServer.Controllers
 			{
 				return NotFound();
 			}
+
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(Device.PoolId, User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
+			{
+				return Forbid();
+			}
+
 
 			await DeviceService.DeleteDeviceAsync(DeviceIdValue);
 			return Ok();
@@ -408,7 +431,7 @@ namespace HordeServer.Controllers
 
 			string Name = Request.Name.Trim();
 
-			IDevicePool? Pool = await DeviceService.TryCreatePoolAsync(DevicePoolId.Sanitize(Name), Name, Request.PoolType);
+			IDevicePool? Pool = await DeviceService.TryCreatePoolAsync(DevicePoolId.Sanitize(Name), Name, Request.PoolType, Request.ProjectIds?.Select(x => new ProjectId(x)).ToList());
 
 			if (Pool == null)
 			{
@@ -417,8 +440,36 @@ namespace HordeServer.Controllers
 
 			return new CreateDevicePoolResponse(Pool.Id.ToString());
 
-
 		}
+
+		/// <summary>
+		/// Update a device pool
+		/// </summary>
+		[HttpPut]
+		[Authorize]
+		[Route("/api/v2/devices/pools")]
+		public async Task<ActionResult> UpdatePoolAsync([FromBody] UpdateDevicePoolRequest Request)
+		{
+
+			DevicePoolAuthorization? PoolAuth = await DeviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(Request.Id), User);
+
+			if (PoolAuth == null || !PoolAuth.Write)
+			{
+				return Forbid();
+			}
+
+			List<ProjectId>? ProjectIds = null;
+
+			if (Request.ProjectIds != null)
+			{
+				ProjectIds = Request.ProjectIds.Select(x => new ProjectId(x)).ToList();
+			}
+
+			await DeviceService.UpdatePoolAsync(new DevicePoolId(Request.Id), ProjectIds);
+			
+			return Ok();
+		}
+
 
 		/// <summary>
 		/// Get a list of existing device pools
@@ -430,10 +481,7 @@ namespace HordeServer.Controllers
 		public async Task<ActionResult<List<object>>> GetDevicePoolsAsync()
 		{
 
-			if (!await DeviceService.AuthorizeAsync(AclAction.DeviceRead, User))
-			{
-				return Forbid();
-			}
+			List<DevicePoolAuthorization> PoolAuth = await DeviceService.GetUserPoolAuthorizationsAsync(User);
 
 			List<IDevicePool> Pools = await DeviceService.GetPoolsAsync();
 
@@ -441,8 +489,14 @@ namespace HordeServer.Controllers
 
 			foreach (IDevicePool Pool in Pools)
 			{
-				// @todo: ACL per platform
-				Responses.Add(new GetDevicePoolResponse(Pool.Id.ToString(), Pool.Name, Pool.PoolType));
+				DevicePoolAuthorization? Auth = PoolAuth.Where(x => x.Pool.Id == Pool.Id).FirstOrDefault();
+
+				if (Auth == null || !Auth.Read)
+				{
+					continue;
+				}
+				
+				Responses.Add(new GetDevicePoolResponse(Pool.Id.ToString(), Pool.Name, Pool.PoolType, Auth.Write));
 			}
 
 			return Responses;

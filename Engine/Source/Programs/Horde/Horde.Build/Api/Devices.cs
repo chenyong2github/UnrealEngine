@@ -103,6 +103,28 @@ namespace HordeServer.Api
 		[Required]
 		public DevicePoolType PoolType { get; set; }
 
+		/// <summary>
+		/// Projects associated with this device pool
+		/// </summary>
+		public List<string>? ProjectIds { get; set; }
+
+	}
+
+	/// <summary>
+	/// Device pool update request object
+	/// </summary>
+	public class UpdateDevicePoolRequest
+	{
+		/// <summary>
+		/// Id of the device pool to update
+		/// </summary>
+		public string Id { get; set; } = null!;
+
+		/// <summary>
+		/// Projects associated with this device pool
+		/// </summary>
+		public List<string>? ProjectIds { get; set; }
+
 	}
 
 	/// <summary>
@@ -145,13 +167,19 @@ namespace HordeServer.Api
 		public DevicePoolType PoolType { get; set; }
 
 		/// <summary>
+		/// Whether there is write access to the pool
+		/// </summary>
+		public bool WriteAccess { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetDevicePoolResponse(string Id, string Name, DevicePoolType PoolType)
+		public GetDevicePoolResponse(string Id, string Name, DevicePoolType PoolType, bool WriteAccess)
 		{
 			this.Id = Id;
 			this.Name = Name;
             this.PoolType = PoolType;
+			this.WriteAccess = WriteAccess;
         }
 	}
 

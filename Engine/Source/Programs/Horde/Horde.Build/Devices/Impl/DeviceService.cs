@@ -25,6 +25,41 @@ namespace HordeServer.Services
 	using DevicePoolId = StringId<IDevicePool>;
 	using JobId = ObjectId<IJob>;
 	using UserId = ObjectId<IUser>;
+	using ProjectId = StringId<IProject>;
+
+	/// <summary>
+	///  Device Pool Authorization (convenience class for pool ACL's)
+	/// </summary>
+	public class DevicePoolAuthorization
+	{
+		/// <summary>
+		/// The device pool
+		/// </summary>
+		public IDevicePool Pool { get; private set; }
+
+		/// <summary>
+		///  Read access to pool
+		/// </summary>
+		public bool Read { get; private set; }
+
+		/// <summary>
+		///  Write access to pool
+		/// </summary>
+		public bool Write { get; private set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Pool"></param>
+		/// <param name="Read"></param>
+		/// <param name="Write"></param>
+		public DevicePoolAuthorization(IDevicePool Pool, bool Read, bool Write)
+		{
+			this.Pool = Pool;
+			this.Read = Read;
+			this.Write = Write;				
+		}
+	}
 
 	/// <summary>
 	/// Platform map required by V1 API
@@ -77,6 +112,11 @@ namespace HordeServer.Services
 		StreamService StreamService;
 
 		/// <summary>
+		/// Singleton instance of the project service
+		/// </summary>
+		ProjectService ProjectService;
+
+		/// <summary>
 		/// Log output writer
 		/// </summary>
 		ILogger<DeviceService> Logger;
@@ -94,11 +134,12 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
+		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, ProjectService ProjectService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
 			: base(TimeSpan.FromMinutes(1.0), Logger)
 		{
 			this.Devices = Devices;
             this.JobService = JobService;
+			this.ProjectService = ProjectService;
             this.StreamService = StreamService;
             this.AclService = AclService;
             this.NotificationService = NotificationService;
@@ -164,10 +205,19 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Create a new device pool
 		/// </summary>
-		public Task<IDevicePool?> TryCreatePoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType)
+		public Task<IDevicePool?> TryCreatePoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType, List<ProjectId>? ProjectIds)
 		{
-			return Devices.TryAddPoolAsync(Id, Name, PoolType);
+			return Devices.TryAddPoolAsync(Id, Name, PoolType, ProjectIds);
 		}
+
+		/// <summary>
+		/// Update a device pool
+		/// </summary>
+		public Task UpdatePoolAsync(DevicePoolId Id, List<ProjectId>? ProjectIds)
+		{
+			return Devices.UpdatePoolAsync(Id, ProjectIds);
+		}
+
 
 		/// <summary>
 		/// Get a list of existing device pools
@@ -367,6 +417,86 @@ namespace HordeServer.Services
 			}
 			return Task.FromResult(User.IsInRole("Internal-Employees"));			
 		}
+
+		/// <summary>
+		/// Get list of pool authorizations for a user
+		/// </summary>
+		/// <param name="User"></param>
+		/// <returns></returns>
+		async public Task<List<DevicePoolAuthorization>> GetUserPoolAuthorizationsAsync(ClaimsPrincipal User)
+		{
+			
+			List<DevicePoolAuthorization> AuthPools = new List<DevicePoolAuthorization>();
+
+			List<IDevicePool> AllPools = await GetPoolsAsync();
+
+			// Set of projects associated with device pools
+			HashSet<ProjectId> ProjectIds = new HashSet<ProjectId>(AllPools.Where(x => x.ProjectIds != null).SelectMany(x => x.ProjectIds!));
+
+			Dictionary<ProjectId, bool> DeviceRead = new Dictionary<ProjectId, bool>();
+			Dictionary<ProjectId, bool> DeviceWrite = new Dictionary<ProjectId, bool>();
+			ProjectPermissionsCache PermissionsCache = new ProjectPermissionsCache();
+
+			foreach (ProjectId ProjectId in ProjectIds)
+			{
+				DeviceRead.Add(ProjectId,  await ProjectService.AuthorizeAsync(ProjectId, AclAction.DeviceRead, User, PermissionsCache));
+				DeviceWrite.Add(ProjectId, await ProjectService.AuthorizeAsync(ProjectId, AclAction.DeviceWrite, User, PermissionsCache));
+			}
+
+			bool InternalEmployee = User.IsInRole("Internal-Employees");
+
+			foreach (IDevicePool Pool in AllPools)
+			{
+				// for global pools which aren't associated with a project
+				if (Pool.ProjectIds == null || Pool.ProjectIds.Count == 0)
+				{
+					AuthPools.Add(new DevicePoolAuthorization(Pool, true, InternalEmployee));
+					continue;
+				}
+
+				bool Read = false;
+				bool Write = false;
+
+				foreach (ProjectId ProjectId in Pool.ProjectIds)
+				{
+					if (DeviceRead.ContainsKey(ProjectId))
+					{
+						Read = true;
+					}
+
+					if (DeviceWrite.ContainsKey(ProjectId))
+					{
+						Write = true;
+					}
+				}
+
+				AuthPools.Add(new DevicePoolAuthorization(Pool, Read, Write));
+
+			}
+
+			return AuthPools;
+		}
+
+		/// <summary>
+		/// Get list of pool authorizations for a user
+		/// </summary>
+		/// <param name="Id"></param>
+		/// <param name="User"></param>
+		/// <returns></returns>
+		async public Task<DevicePoolAuthorization?> GetUserPoolAuthorizationAsync(DevicePoolId Id, ClaimsPrincipal User)
+		{
+			List<DevicePoolAuthorization> Auth = await GetUserPoolAuthorizationsAsync(User);
+			return Auth.Where(x => x.Pool.Id == Id).FirstOrDefault();
+		}
+
+		/// <summary>
+		/// Update a device
+		/// </summary>
+		async public Task UpdateDevicePoolAsync(DevicePoolId PoolId, List<ProjectId>? ProjectIds)
+		{
+			await Devices.UpdatePoolAsync(PoolId, ProjectIds);
+		}
+
 
 		/// <summary>
 		/// Get Platform mappings for V1 API

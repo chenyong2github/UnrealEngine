@@ -12,6 +12,7 @@ namespace HordeServer.Collections
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
 	using UserId = ObjectId<IUser>;
+	using ProjectId = StringId<IProject>;
 
 	/// <summary>
 	/// Device reservation request data
@@ -83,8 +84,16 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">The id of the new pool</param>
 		/// <param name="Name">The friendly name of the new pool</param>
-        /// <param name="PoolType">The pool type</param>
-		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType);
+		/// <param name="PoolType">The pool type</param>
+		/// <param name="ProjectIds">Projects associated with this pool</param>
+		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType, List<ProjectId>? ProjectIds );
+
+		/// <summary>
+		/// Update a device pool
+		/// </summary>
+		/// <param name="Id">The id of the device pool to update</param>
+		/// <param name="ProjectIds">Associated project ids</param>
+		Task UpdatePoolAsync(DevicePoolId Id, List<ProjectId>? ProjectIds);
 
 		/// <summary>
 		/// Get a pool by id
