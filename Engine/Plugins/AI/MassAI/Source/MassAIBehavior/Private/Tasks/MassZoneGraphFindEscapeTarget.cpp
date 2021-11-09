@@ -68,7 +68,7 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 
 	const uint8 SpanIndex = EscapeAction->FindSpanIndex(LaneLocation.DistanceAlongLane);
 	const FZoneGraphEscapeLaneSpan& EscapeSpan = EscapeAction->Spans[SpanIndex];
-	const float MoveDir = EscapeSpan.bReverseLaneDirection ? -1 : 1;	
+	const float MoveDir = EscapeSpan.bReverseLaneDirection ? -1.f : 1.f;
 
 	constexpr float AdjacentMoveDistance = 50.0f;
 	constexpr float MoveDistanceRandomDeviation = 250.0f;
@@ -91,7 +91,7 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 		
 		// Small move, and goto adjacent lane
 		TargetLocation.LaneHandle = LaneLocation.LaneHandle;
-		TargetLocation.TargetDistance = FMath::Clamp(LaneLocation.DistanceAlongLane + AdjacentMoveDistance * MoveDir, 0, LaneLocation.LaneLength);
+		TargetLocation.TargetDistance = FMath::Clamp(LaneLocation.DistanceAlongLane + AdjacentMoveDistance * MoveDir, 0.f, LaneLocation.LaneLength);
 		TargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
 		TargetLocation.NextLaneHandle = FZoneGraphLaneHandle(EscapeSpan.ExitLaneIndex, ZoneGraphStorage->DataHandle);
 		TargetLocation.bMoveReverse = EscapeSpan.bReverseLaneDirection;

@@ -81,7 +81,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 						ISMC->SetMaterial(ElementIndex, MaterialOverride);
 					}
 				}
-				ISMC->SetCullDistances(0.0f, 1000000.0); // @todo: Need to figure out what to do here, either LOD or cull distances.
+				ISMC->SetCullDistances(0, 1000000); // @todo: Need to figure out what to do here, either LOD or cull distances.
 				ISMC->SetupAttachment(ActorOwner->GetRootComponent());
 				ISMC->SetCanEverAffectNavigation(false);
 				ISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);

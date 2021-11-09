@@ -343,7 +343,7 @@ void UMassLookAtProcessor::UpdateLookAtTrajectory(const FTransform& Transform, c
 		if (bDisplayDebug)
 		{
 			const FVector ZOffset(0.f,0.f,DebugZOffset);
-			UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor::White, /*Thickness*/3.0f, TEXT("LookAt Trajectory"));
+			UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor::White, /*Thickness*/3, TEXT("LookAt Trajectory"));
 		}
 #endif
 	}
@@ -364,7 +364,7 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem&
 			if (bDisplayDebug)
 			{
 				const FVector ZOffset(0.f,0.f,DebugZOffset);
-				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor::White, /*Thickness*/3.0f, TEXT("LookAt Track"));
+				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor::White, /*Thickness*/3, TEXT("LookAt Track"));
 			}
 #endif
 		}
@@ -390,7 +390,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 			if (bDisplayDebug)
 			{
 				const FVector ZOffset(0.f,0.f,DebugZOffset);
-				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor(160,160,160), /*Thickness*/3.0f, TEXT("Gaze Track"));
+				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, AgentPosition + ZOffset, AgentPosition + ZOffset + 100.f * NewGlobalDirection, FColor(160,160,160), /*Thickness*/3, TEXT("Gaze Track"));
 			}
 #endif
 		}
@@ -503,7 +503,7 @@ void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragm
 			{
 				const float T = (j + 1) * DeltaT;
 				const FVector Point = UE::CubicBezier::Eval(StartPoint, StartControlPoint, EndControlPoint, EndPoint, T);
-				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, PrevPoint + ZOffset, Point + ZOffset, FColor::White, /*Thickness*/3.0f, TEXT(""));
+				UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, PrevPoint + ZOffset, Point + ZOffset, FColor::White, /*Thickness*/3, TEXT(""));
 				PrevPoint = Point;
 			}
 		}
@@ -513,7 +513,7 @@ void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragm
 			const FMassLookAtTrajectoryPoint& CurrPoint = LookAtTrajectory.Points[PointIndex];
 			const FVector CurrBase = CurrPoint.Position + ZOffset * 1.1f;
 			// Tangents
-			UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, CurrBase, CurrBase + CurrPoint.Tangent.GetVector() * 100.0f, FColorList::Grey, /*Thickness*/1.0f,
+			UE_VLOG_SEGMENT_THICK(this, LogMassBehavior, Display, CurrBase, CurrBase + CurrPoint.Tangent.GetVector() * 100.0f, FColorList::Grey, /*Thickness*/1,
 				TEXT("D:%.1f"), CurrPoint.DistanceAlongLane.Get());
 		}
 	}

@@ -187,7 +187,7 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 					if (MoveTarget.IntentAtGoal == EMassMovementAction::Stand && MoveTarget.DistanceToGoal < OrientationEndOfPathHeadingAnticipation)
 					{
 						// Fade towards the movement target direction at the end of the path.
-						const float Strength = 1.0f - FMath::Square(FMath::Clamp(MoveTarget.DistanceToGoal / OrientationEndOfPathHeadingAnticipation, 0.0f, 1.0));
+						const float Strength = 1.0f - FMath::Square(FMath::Clamp(MoveTarget.DistanceToGoal / OrientationEndOfPathHeadingAnticipation, 0.0f, 1.0f));
 						Blend = FMath::Lerp(Blend, OrientationBlendWhileStanding, Strength);
 					}
 					else

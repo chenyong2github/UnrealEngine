@@ -72,7 +72,7 @@ void UMassEntityZoneGraphSpawnPointsGenerator::GeneratePointsForZoneGraphData(co
 				FZoneGraphLaneLocation LaneLocation;
 				UE::ZoneGraph::Query::CalculateLocationAlongLane(ZoneGraphStorage, LaneIndex, Distance, LaneLocation);
 				const FVector Perp = LaneLocation.Direction ^ LaneLocation.Up;
-				Locations.Add(LaneLocation.Position + Perp * RandomStream.RandRange(-LaneHalfWidth, LaneHalfWidth));
+				Locations.Add(LaneLocation.Position + Perp * RandomStream.FRandRange(-LaneHalfWidth, LaneHalfWidth));
 
 				// Advance ahead past the space we just consumed, plus a random gap.
 				Distance += RandomStream.FRandRange(MinGap, MaxGap);

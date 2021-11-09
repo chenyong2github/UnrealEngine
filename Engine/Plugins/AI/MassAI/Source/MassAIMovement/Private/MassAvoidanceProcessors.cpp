@@ -238,7 +238,7 @@ namespace UE::MassAvoidance
 			return;
 		}
 
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, (int16)Thickness, TEXT(""));
 
 		if (UseDrawDebugHelper() && Context.World)
 		{
@@ -259,9 +259,9 @@ namespace UE::MassAvoidance
 		const FVector Perp = FVector::CrossProduct(UnitV, FVector::UpVector);
 		const FVector Left = Perp - (Pointyness*UnitV);
 		const FVector Right = -Perp - (Pointyness*UnitV);
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, Thickness, TEXT(""));
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Left, Color, Thickness, TEXT(""));
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Right, Color, Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, (int16)Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Left, Color, (int16)Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Right, Color, (int16)Thickness, TEXT(""));
 
 		if (UseDrawDebugHelper() && Context.World)
 		{
@@ -337,10 +337,10 @@ namespace UE::MassAvoidance
 		const FVector Left = Perp - (Pointyness * UnitV);
 		const FVector Right = -Perp - (Pointyness * UnitV);
 		const float HeadSize = 0.08f * Line.Size();
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, Thickness, TEXT(""));
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Left, Color, Thickness, TEXT(""));
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Right, Color, Thickness, TEXT(""));
-		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End + HeadSize * Left, End + HeadSize * Right, Color, Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, (int16)Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Left, Color, (int16)Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Right, Color, (int16)Thickness, TEXT(""));
+		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End + HeadSize * Left, End + HeadSize * Right, Color, (int16)Thickness, TEXT(""));
 
 		if (UseDrawDebugHelper() && Context.World)
 		{
@@ -1761,7 +1761,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 						}
 
 						const FZoneLaneData& Lane = Storage.Lanes[LaneLocation.LaneHandle.Index];
-						const float HalfWidth = 0.5*Lane.Width;
+						const float HalfWidth = 0.5f*Lane.Width;
 						const int32 Segment = LaneLocation.LaneSegment;
 
 						static const int32 MaxPoints = 4;
@@ -1976,7 +1976,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			}
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-			const float HalfWidth = 0.5 * CachedLane.LaneWidth.Get();
+			const float HalfWidth = 0.5f * CachedLane.LaneWidth.Get();
 
 			static const int32 MaxPoints = 4;
 			FVector Points[MaxPoints];
