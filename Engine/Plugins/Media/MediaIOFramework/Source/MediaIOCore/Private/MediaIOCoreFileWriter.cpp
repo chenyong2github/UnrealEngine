@@ -11,10 +11,10 @@
 
 namespace MediaIOCoreFileWriter
 {
-	void WriteRawFile(const FString& InFilename, uint8* InBuffer, uint32 InSize)
+	void WriteRawFile(const FString& InFilename, uint8* InBuffer, uint32 InSize, bool bAppend)
 	{
 #if ALLOW_DEBUG_FILES
-		if (InFilename != "")
+		if (!InFilename.IsEmpty())
 		{
 			FString OutputDirectory = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Saved"), TEXT("Media"));
 			FPaths::NormalizeDirectoryName(OutputDirectory);
@@ -31,13 +31,20 @@ namespace MediaIOCoreFileWriter
 
 			// Append current date and time
 			FDateTime CurrentDateAndTime = FDateTime::Now();
-			OutputFilename += FString("_") + CurrentDateAndTime.ToString() + FString(".raw");
+			if (bAppend)
+			{
+				OutputFilename += FString(".raw");
+			}
+			else
+			{
+				OutputFilename += FString("_") + CurrentDateAndTime.ToString() + FString(".raw");
+			}
 
 			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-			if (!PlatformFile.FileExists(*OutputFilename))
+			if (bAppend || !PlatformFile.FileExists(*OutputFilename))
 			{
 				TUniquePtr<IFileHandle> FileHandle;
-				FileHandle.Reset(PlatformFile.OpenWrite(*OutputFilename));
+				FileHandle.Reset(PlatformFile.OpenWrite(*OutputFilename, bAppend));
 				if (FileHandle)
 				{
 					FileHandle->Write(InBuffer, InSize);

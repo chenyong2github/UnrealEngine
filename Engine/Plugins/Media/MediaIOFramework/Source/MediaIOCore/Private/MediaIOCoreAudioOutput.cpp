@@ -7,13 +7,15 @@
 #include "AudioMixerSubmix.h"
 #include "Sound/AudioSettings.h"
 
-FMediaIOAudioOutput::FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, uint32 InNumInputChannels, uint32 InNumOutputChannels, FFrameRate InTargetFrameRate, uint32 InMaxSampleLatency, uint32 InOutputSampleRate)
+DEFINE_LOG_CATEGORY_STATIC(LogMediaIOAudioOutput, Log, All);
+
+FMediaIOAudioOutput::FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, const FAudioOptions& InAudioOptions)
 	: PatchOutput(MoveTemp(InPatchOutput))
-    , NumInputChannels(InNumInputChannels)
-    , NumOutputChannels(InNumOutputChannels)
-    , TargetFrameRate(MoveTemp(InTargetFrameRate))
-    , MaxSampleLatency(InMaxSampleLatency)
-    , OutputSampleRate(InOutputSampleRate)
+    , NumInputChannels(InAudioOptions.InNumInputChannels)
+    , NumOutputChannels(InAudioOptions.InNumOutputChannels)
+    , TargetFrameRate(InAudioOptions.InTargetFrameRate)
+    , MaxSampleLatency(InAudioOptions.InMaxSampleLatency)
+    , OutputSampleRate(InAudioOptions.InOutputSampleRate)
 {
 }
 
@@ -38,7 +40,7 @@ Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer() const
 	const int32 NumSamplesToPop = Align(NumSamplesPerFrame, 4);
 
 	Audio::FAlignedFloatBuffer FloatBuffer;
-	FloatBuffer.SetNumUninitialized(NumSamplesToPop);
+	FloatBuffer.SetNumZeroed(NumSamplesToPop);
 
 	GetAudioBuffer(NumSamplesToPop, FloatBuffer.GetData());
 
@@ -81,7 +83,11 @@ void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix,
 	{
 		if (ensureMsgf(NumChannels == InNumChannels, TEXT("Expected %d channels from submix buffer but got %d instead."), NumChannels, InNumChannels))
 		{
-			AudioSplitter.PushAudio(InAudioData, InNumSamples);
+			int32 NumPushed = AudioSplitter.PushAudio(InAudioData, InNumSamples);
+			if (InNumSamples != NumPushed)
+			{
+				UE_LOG(LogMediaIOAudioOutput, Verbose, TEXT("Pushed samples mismatch, Incoming samples: %d, Pushed samples: %d"), InNumSamples, NumPushed);
+			}
 		}
 	}
 }
@@ -95,9 +101,16 @@ TSharedPtr<FMediaIOAudioOutput> FMediaIOAudioCapture::CreateAudioOutput(int32 In
 		checkf(NumChannels <= InNumOutputChannels, TEXT("At the moment MediaIOAudioCapture only supports up mixing."));
 		check(InNumOutputChannels != 0);
 		
-		// @todo: Don't pass strong ptr, to patch output
 		Audio::FPatchOutputStrongPtr PatchOutput = AudioSplitter.AddNewPatch(InMaxSampleLatency, Gain);
-		return MakeShared<FMediaIOAudioOutput>(MoveTemp(PatchOutput), NumChannels, InNumOutputChannels, InTargetFrameRate, InMaxSampleLatency, InOutputSampleRate);
+		FMediaIOAudioOutput::FAudioOptions Options;
+
+		Options.InNumInputChannels = NumChannels;
+		Options.InNumOutputChannels = InNumOutputChannels;
+		Options.InTargetFrameRate = InTargetFrameRate;
+		Options.InMaxSampleLatency = InMaxSampleLatency;
+		Options.InOutputSampleRate = InOutputSampleRate;
+
+		return MakeShared<FMediaIOAudioOutput>(MoveTemp(PatchOutput), Options);
 	}
 
 	return nullptr;
