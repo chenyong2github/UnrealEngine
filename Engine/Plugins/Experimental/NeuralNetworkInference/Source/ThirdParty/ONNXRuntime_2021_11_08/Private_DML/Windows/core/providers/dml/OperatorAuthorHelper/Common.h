@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <algorithm> // WITH_UE
+
 #define ML_CHECK_VALID_ARGUMENT(x, ...)\
   {\
     if ((x) == false) {\
