@@ -979,7 +979,9 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, ULevel* Level)
 
 	DepthMap.Reserve(Actors.Num());
 
-	TFunction<int32(AActor*)> CalcAttachDepth = [&DepthMap, &VisitedActors, &CalcAttachDepth, DefaultBrush = Level->GetDefaultBrush()](AActor* Actor)
+	// This imitates the internals of GetDefaultBrush() without the sometimes problematic checks
+	ABrush* DefaultBrush = (Actors.Num() >= 2 ? Cast<ABrush>(Actors[1]) : nullptr); 
+	TFunction<int32(AActor*)> CalcAttachDepth = [&DepthMap, &VisitedActors, &CalcAttachDepth, DefaultBrush](AActor* Actor)
 	{
 		int32 Depth = 0;
 		if (int32* FoundDepth = DepthMap.Find(Actor))
