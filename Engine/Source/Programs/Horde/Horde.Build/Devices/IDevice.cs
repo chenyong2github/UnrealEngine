@@ -13,6 +13,7 @@ namespace HordeServer.Models
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
 	using UserId = ObjectId<IUser>;
+	using ProjectId = StringId<IProject>;
 
 	/// <summary>
 	/// A reservation containing one or more devices
@@ -130,10 +131,15 @@ namespace HordeServer.Models
 		/// </summary>
 		public DevicePoolType PoolType { get; }
 
-        /// <summary>
-        /// Friendly name of the pool
-        /// </summary>
-        string Name { get; }
+		/// <summary>
+		/// Projects associated with this device pool
+		/// </summary>
+		public List<ProjectId>? ProjectIds { get; }
+
+		/// <summary>
+		/// Friendly name of the pool
+		/// </summary>
+		string Name { get; }
 
 		/// <summary>
 		/// Acl access to the pool
