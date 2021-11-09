@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifdef WITH_MODEL_PROTO_CONVERTER_SUPPORT
 
 //------------------------------------------------------------------------------
