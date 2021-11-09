@@ -12,13 +12,14 @@ namespace LowLevelTests
 	public class LowLevelTests : BaseTest
 	{
 		private LowLevelTestContext Context;
-		private LowLevelTestsSession LowLevelTestsApp;
 		
 		private IAppInstance TestInstance;
 
 		private DateTime SessionStartTime = DateTime.MinValue;
 
 		private TestResult LowLevelTestResult;
+
+		public LowLevelTestsSession LowLevelTestsApp { get; private set; }
 
 		public LowLevelTests(LowLevelTestContext InContext)
 		{

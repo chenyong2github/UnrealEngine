@@ -462,6 +462,11 @@ namespace Gauntlet
 	public class UnrealSession : IDisposable
 	{
 		/// <summary>
+		/// Device reservation instance of this session
+		/// </summary>
+		public UnrealDeviceReservation UnrealDeviceReservation { get; private set; }
+
+		/// <summary>
 		/// Source of the build that will be launched
 		/// </summary>
 		protected UnrealBuildSource BuildSource { get; set; }
@@ -503,6 +508,8 @@ namespace Gauntlet
 				ValidationIssues.ForEach(S => Log.Error("{0}", S));
 				throw new AutomationException("One or more issues occurred when validating build {0} against requested roles", InSource.BuildName);
 			}
+
+			UnrealDeviceReservation = new UnrealDeviceReservation();
 		}
 
 		/// <summary>
