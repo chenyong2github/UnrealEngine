@@ -8,7 +8,7 @@ PathTracingDenoiserFunction* GPathTracingDenoiserFunc = nullptr;
 
 TAutoConsoleVariable<int32> CVarPathTracing(
 	TEXT("r.PathTracing"),
-	0,
+	1,
 	TEXT("Enables the path tracing renderer (to guard the compilation of path tracer specific material permutations)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
