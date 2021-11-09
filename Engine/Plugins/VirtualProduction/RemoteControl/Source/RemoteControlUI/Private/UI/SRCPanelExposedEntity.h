@@ -87,8 +87,6 @@ public:
 			[
 				InWidget.ToSharedRef()
 			];
-
-		Construct();
 	}
 
 	/** Get the ID of the represented entity or group. */

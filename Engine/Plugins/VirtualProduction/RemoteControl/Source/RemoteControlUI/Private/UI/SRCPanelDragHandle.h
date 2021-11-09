@@ -66,7 +66,9 @@ public:
 	{
 		if (TSharedPtr<WidgetType> WidgetPtr = Widget.Pin())
 		{
-			return MakeShared<DragDropType>(Widget.Pin(), Id);
+			TSharedPtr<FDecoratedDragDropOp> DragDropOperation = MakeShared<DragDropType>(Widget.Pin(), Id);
+			DragDropOperation->Construct();
+			return DragDropOperation;
 		}
 		return nullptr;
 	}

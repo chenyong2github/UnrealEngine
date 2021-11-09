@@ -124,8 +124,6 @@ public:
 			[
 				InWidget.ToSharedRef()
 			];
-
-		Construct();
 	}
 
 	FGuid GetGroupId() const
