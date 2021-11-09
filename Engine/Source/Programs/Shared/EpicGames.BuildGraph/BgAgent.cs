@@ -8,13 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
 	/// <summary>
 	/// Stores a list of nodes which can be executed on a single agent
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
-	class Agent
+	public class BgAgent
 	{
 		/// <summary>
 		/// Name of this agent. Used for display purposes in a build system.
@@ -30,14 +30,14 @@ namespace AutomationTool
 		/// <summary>
 		/// List of nodes in this agent group.
 		/// </summary>
-		public List<Node> Nodes = new List<Node>();
+		public List<BgNode> Nodes = new List<BgNode>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InName">Name of this agent group</param>
 		/// <param name="InPossibleTypes">Array of valid agent types. See comment for AgentTypes member.</param>
-		public Agent(string InName, string[] InPossibleTypes)
+		public BgAgent(string InName, string[] InPossibleTypes)
 		{
 			Name = InName;
 			PossibleTypes = InPossibleTypes;
@@ -52,7 +52,7 @@ namespace AutomationTool
 			Writer.WriteStartElement("Agent");
 			Writer.WriteAttributeString("Name", Name);
 			Writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
-			foreach (Node Node in Nodes)
+			foreach (BgNode Node in Nodes)
 			{
 				Node.Write(Writer);
 			}

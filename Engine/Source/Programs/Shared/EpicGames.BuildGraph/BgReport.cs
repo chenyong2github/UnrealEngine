@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -7,12 +7,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
 	/// <summary>
 	/// Defines a report to be generated as part of the build.
 	/// </summary>
-	class Report
+	public class BgReport
 	{
 		/// <summary>
 		/// Name of this trigger
@@ -22,7 +22,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Set of nodes to include in the report
 		/// </summary>
-		public HashSet<Node> Nodes = new HashSet<Node>();
+		public HashSet<BgNode> Nodes = new HashSet<BgNode>();
 
 		/// <summary>
 		/// List of users to notify with this report
@@ -33,7 +33,7 @@ namespace AutomationTool
 		/// Constructor
 		/// </summary>
 		/// <param name="InName">Name of this report</param>
-		public Report(string InName)
+		public BgReport(string InName)
 		{
 			Name = InName;
 		}

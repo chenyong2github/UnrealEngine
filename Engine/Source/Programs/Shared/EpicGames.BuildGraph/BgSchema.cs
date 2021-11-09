@@ -12,55 +12,68 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 using EpicGames.Core;
-using UnrealBuildTool;
-using EpicGames.MCP.Automation;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
+	/// <summary>
+	/// Specifies validation that should be performed on a task parameter.
+	/// </summary>
+	public enum TaskParameterValidationType
+	{
+		/// <summary>
+		/// Allow any valid values for the field type.
+		/// </summary>
+		Default,
+
+		/// <summary>
+		/// A list of tag names separated by semicolons
+		/// </summary>
+		TagList,
+
+		/// <summary>
+		/// A file specification, which may contain tags and wildcards.
+		/// </summary>
+		FileSpec,
+	}
+
 	/// <summary>
 	/// Information about a parameter to a task
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
-	class ScriptTaskParameter
+	public class BgScriptTaskParameter
 	{
 		/// <summary>
 		/// Name of this parameter
 		/// </summary>
-		public string Name;
-
-		/// <summary>
-		/// Information about this field
-		/// </summary>
-		public FieldInfo FieldInfo;
+		public string Name { get; }
 
 		/// <summary>
 		/// The type for values assigned to this field
 		/// </summary>
-		public Type ValueType;
+		public Type ValueType { get; }
 
 		/// <summary>
 		/// The ICollection interface for this type
 		/// </summary>
-		public Type CollectionType;
+		public Type CollectionType { get; }
 
 		/// <summary>
 		/// Validation type for this field
 		/// </summary>
-		public TaskParameterValidationType ValidationType;
+		public TaskParameterValidationType ValidationType { get; }
 
 		/// <summary>
 		/// Whether this parameter is optional
 		/// </summary>
-		public bool bOptional;
+		public bool bOptional { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ScriptTaskParameter(string InName, FieldInfo InFieldInfo, TaskParameterValidationType InValidationType, bool bInOptional)
+		public BgScriptTaskParameter(string InName, Type InValueType, TaskParameterValidationType InValidationType, bool bInOptional)
 		{
 			Name = InName;
-			FieldInfo = InFieldInfo;
-			ValueType = FieldInfo.FieldType;
+			ValueType = InValueType;
 			ValidationType = InValidationType;
 			bOptional = bInOptional;
 
@@ -92,59 +105,34 @@ namespace AutomationTool
 	/// Helper class to serialize a task from an xml element
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
-	class ScriptTask
+	public class BgScriptTask
 	{
 		/// <summary>
 		/// Name of this task
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
-		/// Type of the task to construct with this info
+		/// Parameters for this task
 		/// </summary>
-		public Type TaskClass;
-
-		/// <summary>
-		/// Type to construct with the parsed parameters
-		/// </summary>
-		public Type ParametersClass;
-
-		/// <summary>
-		/// Mapping of attribute name to field
-		/// </summary>
-		public Dictionary<string, ScriptTaskParameter> NameToParameter = new Dictionary<string,ScriptTaskParameter>();
+		public List<BgScriptTaskParameter> Parameters { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InName">Name of the task</param>
-		/// <param name="InTaskClass">Task class to create</param>
-		/// <param name="InParametersClass">Class type of an object to be constructed and passed as an argument to the task class constructor</param>
-		public ScriptTask(string InName, Type InTaskClass, Type InParametersClass)
+		/// <param name="Name">Name of the task</param>
+		/// <param name="Parameters">Parameters for the task</param>
+		public BgScriptTask(string Name, List<BgScriptTaskParameter> Parameters)
 		{
-			Name = InName;
-			TaskClass = InTaskClass;
-			ParametersClass = InParametersClass;
-
-			// Find all the fields which are tagged as parameters in ParametersClass
-			foreach(FieldInfo Field in ParametersClass.GetFields())
-			{
-				if(Field.MemberType == MemberTypes.Field)
-				{
-					TaskParameterAttribute ParameterAttribute = Field.GetCustomAttribute<TaskParameterAttribute>();
-					if(ParameterAttribute != null)
-					{
-						NameToParameter.Add(Field.Name, new ScriptTaskParameter(Field.Name, Field, ParameterAttribute.ValidationType, ParameterAttribute.Optional));
-					}
-				}
-			}
+			this.Name = Name;
+			this.Parameters = new List<BgScriptTaskParameter>(Parameters);
 		}
 	}
 
 	/// <summary>
 	/// Enumeration of standard types used in the schema. Avoids hard-coding names.
 	/// </summary>
-	enum ScriptSchemaStandardType
+	public enum ScriptSchemaStandardType
 	{
 		Graph,
 		Agent,
@@ -183,7 +171,7 @@ namespace AutomationTool
 	/// <summary>
 	/// Schema for build graph definitions. Stores information about the supported tasks, and allows validating an XML document.
 	/// </summary>
-	class ScriptSchema
+	public class BgScriptSchema
 	{
 		/// <summary>
 		/// Name of the root element
@@ -194,11 +182,6 @@ namespace AutomationTool
 		/// Namespace for the schema
 		/// </summary>
 		public const string NamespaceURI = "http://www.epicgames.com/BuildGraph";
-
-		/// <summary>
-		/// List of all the loaded classes which derive from BuildGraph.Task
-		/// </summary>
-		Dictionary<string, ScriptTask> NameToTask = new Dictionary<string, ScriptTask>();
 
 		/// <summary>
 		/// Qualified name for the string type
@@ -265,67 +248,69 @@ namespace AutomationTool
 		/// </summary>
 		const string BalancedStringPattern = "[^\\$]*" + "(" + "(" + PropertyPattern + "|" + "\\$[^\\(]" + ")" + "[^\\$]*" + ")*" + "\\$?";
 
-		private ScriptSchema(XmlSchema Schema, Dictionary<string, ScriptTask> InNameToTask)
+		private BgScriptSchema(XmlSchema Schema)
 		{
 			CompiledSchema = Schema;
-			NameToTask = InNameToTask;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InNameToTask">Mapping of task name to information about how to construct it</param>
-		public ScriptSchema(Dictionary<string, ScriptTask> InNameToTask)
+		public BgScriptSchema(IEnumerable<BgScriptTask> Tasks, List<(Type, ScriptSchemaStandardType)> PrimitiveTypes)
 		{
-			NameToTask = InNameToTask;
-
 			// Create a lookup from standard types to their qualified names
 			Dictionary<Type, XmlQualifiedName> TypeToSchemaTypeName = new Dictionary<Type,XmlQualifiedName>();
 			TypeToSchemaTypeName.Add(typeof(String), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
 			TypeToSchemaTypeName.Add(typeof(Boolean), GetQualifiedTypeName(ScriptSchemaStandardType.Boolean));
 			TypeToSchemaTypeName.Add(typeof(Int32), GetQualifiedTypeName(ScriptSchemaStandardType.Integer));
-			TypeToSchemaTypeName.Add(typeof(FileReference), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-			TypeToSchemaTypeName.Add(typeof(DirectoryReference), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-			TypeToSchemaTypeName.Add(typeof(UnrealTargetPlatform), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-			TypeToSchemaTypeName.Add(typeof(MCPPlatform), GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-
-			// Create all the custom user types, and add them to the qualified name lookup
-			List<XmlSchemaType> UserTypes = new List<XmlSchemaType>();
-			foreach(Type Type in NameToTask.Values.SelectMany(x => x.NameToParameter.Values).Select(x => x.ValueType))
+			foreach ((Type Type, ScriptSchemaStandardType SchemaType) in PrimitiveTypes)
 			{
-				if(!TypeToSchemaTypeName.ContainsKey(Type))
-				{
-					if(Type.IsClass && Type.GetInterfaces().Any(x => x.GetGenericTypeDefinition() == typeof(ICollection<>)))
-					{
-						TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-					}
-					else
-					{
-						string Name = Type.Name + "UserType";
-						XmlSchemaType SchemaType = CreateUserType(Name, Type);
-						UserTypes.Add(SchemaType);
-						TypeToSchemaTypeName.Add(Type, new XmlQualifiedName(Name, NamespaceURI));
-					}
-				}
+				TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(SchemaType));
 			}
 
-			// Create all the task types
-			Dictionary<string, XmlSchemaComplexType> TaskNameToType = new Dictionary<string,XmlSchemaComplexType>();
-			foreach(ScriptTask Task in NameToTask.Values)
+			// If a dictionary of tasks was specified, add those to the schema. Otherwise we'll allow any syntactically valid invocation.
+			List<XmlSchemaType> UserTypes = new List<XmlSchemaType>();
+			Dictionary<string, XmlSchemaComplexType> TaskNameToType = null;
+			if (Tasks != null)
 			{
-				XmlSchemaComplexType TaskType = new XmlSchemaComplexType();
-				TaskType.Name = Task.Name + "TaskType";
-				foreach(ScriptTaskParameter Parameter in Task.NameToParameter.Values)
+				// Create all the custom user types, and add them to the qualified name lookup
+				foreach (Type Type in Tasks.SelectMany(x => x.Parameters).Select(x => x.ValueType))
 				{
-					XmlQualifiedName SchemaTypeName = GetQualifiedTypeName(Parameter.ValidationType);
-					if(SchemaTypeName == null)
+					if (!TypeToSchemaTypeName.ContainsKey(Type))
 					{
-						SchemaTypeName = TypeToSchemaTypeName[Parameter.ValueType];
+						if (Type.IsClass && Type.GetInterfaces().Any(x => x.GetGenericTypeDefinition() == typeof(ICollection<>)))
+						{
+							TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
+						}
+						else
+						{
+							string Name = Type.Name + "UserType";
+							XmlSchemaType SchemaType = CreateUserType(Name, Type);
+							UserTypes.Add(SchemaType);
+							TypeToSchemaTypeName.Add(Type, new XmlQualifiedName(Name, NamespaceURI));
+						}
 					}
-					TaskType.Attributes.Add(CreateSchemaAttribute(Parameter.Name, SchemaTypeName, Parameter.bOptional? XmlSchemaUse.Optional : XmlSchemaUse.Required));
 				}
-				TaskType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
-				TaskNameToType.Add(Task.Name, TaskType);
+
+				// Create all the task types
+				TaskNameToType = new Dictionary<string, XmlSchemaComplexType>();
+				foreach (BgScriptTask Task in Tasks)
+				{
+					XmlSchemaComplexType TaskType = new XmlSchemaComplexType();
+					TaskType.Name = Task.Name + "TaskType";
+					foreach (BgScriptTaskParameter Parameter in Task.Parameters)
+					{
+						XmlQualifiedName SchemaTypeName = GetQualifiedTypeName(Parameter.ValidationType);
+						if (SchemaTypeName == null)
+						{
+							SchemaTypeName = TypeToSchemaTypeName[Parameter.ValueType];
+						}
+						TaskType.Attributes.Add(CreateSchemaAttribute(Parameter.Name, SchemaTypeName, Parameter.bOptional ? XmlSchemaUse.Optional : XmlSchemaUse.Required));
+					}
+					TaskType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+					TaskNameToType.Add(Task.Name, TaskType);
+				}
 			}
 
 			// Create the schema object
@@ -342,7 +327,7 @@ namespace AutomationTool
 			NewSchema.Items.Add(CreateReportType());
 			NewSchema.Items.Add(CreateBadgeType());
 			NewSchema.Items.Add(CreateLabelType());
-			NewSchema.Items.Add(CreateEnumType(GetTypeName(ScriptSchemaStandardType.LabelChange), typeof(LabelChange)));
+			NewSchema.Items.Add(CreateEnumType(GetTypeName(ScriptSchemaStandardType.LabelChange), typeof(BgLabelChange)));
 			NewSchema.Items.Add(CreateNotifyType());
 			NewSchema.Items.Add(CreateIncludeType());
 			NewSchema.Items.Add(CreateOptionType());
@@ -365,9 +350,12 @@ namespace AutomationTool
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.BalancedString), BalancedStringPattern));
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.Boolean), "(true|True|false|False|" + StringWithPropertiesPattern + ")"));
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.Integer), "(" + "(-?[1-9][0-9]*|0)" + "|" + StringWithPropertiesPattern + ")"));
-			foreach(XmlSchemaComplexType Type in TaskNameToType.Values)
+			if (TaskNameToType != null)
 			{
-				NewSchema.Items.Add(Type);
+				foreach (XmlSchemaComplexType Type in TaskNameToType.Values)
+				{
+					NewSchema.Items.Add(Type);
+				}
 			}
 			foreach(XmlSchemaSimpleType Type in UserTypes)
 			{
@@ -382,17 +370,6 @@ namespace AutomationTool
 			{
 				CompiledSchema = NewCompiledSchema;
 			}
-		}
-
-		/// <summary>
-		/// Gets information about the task with the given name
-		/// </summary>
-		/// <param name="TaskName">Name of the task</param>
-		/// <param name="Task">Receives task info for the named task</param>
-		/// <returns>True if the task name was found and Task is set, false otherwise.</returns>
-		public bool TryGetTask(string TaskName, out ScriptTask Task)
-		{
-			return NameToTask.TryGetValue(TaskName, out Task);
 		}
 
 		/// <summary>
@@ -420,8 +397,8 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="File">The XML file to import</param>
 		/// <param name="NameToTask">Mapping of task name to information about how to construct it</param>
-		/// <returns>A <see cref="ScriptSchema"/> deserialized from the XML file, or null if file doesn't exist</returns>
-		public static ScriptSchema Import(FileReference File, Dictionary<string, ScriptTask> NameToTask)
+		/// <returns>A <see cref="BgScriptSchema"/> deserialized from the XML file, or null if file doesn't exist</returns>
+		public static BgScriptSchema Import(FileReference File)
 		{
 			if (!FileReference.Exists(File))
 			{
@@ -430,7 +407,7 @@ namespace AutomationTool
 			
 			using (XmlReader SchemaFile = XmlReader.Create(File.FullName))
 			{
-				ScriptSchema ImportedSchema = new ScriptSchema(XmlSchema.Read(SchemaFile, ValidationCallback), NameToTask);
+				BgScriptSchema ImportedSchema = new BgScriptSchema(XmlSchema.Read(SchemaFile, ValidationCallback));
 				return ImportedSchema;
 			}
 		}
@@ -610,9 +587,17 @@ namespace AutomationTool
 			NodeChoice.Items.Add(CreateDoElement(ScriptSchemaStandardType.NodeBody));
 			NodeChoice.Items.Add(CreateSwitchElement(ScriptSchemaStandardType.NodeBody));
 			NodeChoice.Items.Add(CreateForEachElement(ScriptSchemaStandardType.NodeBody));
-			foreach (KeyValuePair<string, XmlSchemaComplexType> Pair in TaskNameToType.OrderBy(x => x.Key))
+
+			if (TaskNameToType == null)
 			{
-				NodeChoice.Items.Add(CreateSchemaElement(Pair.Key, new XmlQualifiedName(Pair.Value.Name, NamespaceURI)));
+				NodeChoice.Items.Add(new XmlSchemaAny());
+			}
+			else
+			{
+				foreach (KeyValuePair<string, XmlSchemaComplexType> Pair in TaskNameToType.OrderBy(x => x.Key))
+				{
+					NodeChoice.Items.Add(CreateSchemaElement(Pair.Key, new XmlQualifiedName(Pair.Value.Name, NamespaceURI)));
+				}
 			}
 
 			XmlSchemaComplexType NodeType = new XmlSchemaComplexType();
@@ -1094,7 +1079,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				throw new AutomationException("Cannot create custom type in schema for '{0}'", Type.Name);
+				throw new Exception($"Cannot create custom type in schema for '{Type.Name}'");
 			}
 		}
 

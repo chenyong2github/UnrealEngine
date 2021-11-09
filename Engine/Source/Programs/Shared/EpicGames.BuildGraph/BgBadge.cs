@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -7,12 +7,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
 	/// <summary>
 	/// Defines a badge which gives an at-a-glance summary of part of the build, and can be displayed in UGS
 	/// </summary>
-	class Badge
+	public class BgBadge
 	{
 		/// <summary>
 		/// Name of this badge
@@ -32,7 +32,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Set of nodes that this badge reports the status of
 		/// </summary>
-		public HashSet<Node> Nodes = new HashSet<Node>();
+		public HashSet<BgNode> Nodes = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Constructor
@@ -40,7 +40,7 @@ namespace AutomationTool
 		/// <param name="InName">Name of this report</param>
 		/// <param name="InProject">Depot path to the project that this badge applies to</param>
 		/// <param name="InChange">The changelist to post the badge for</param>
-		public Badge(string InName, string InProject, int InChange)
+		public BgBadge(string InName, string InProject, int InChange)
 		{
 			Name = InName;
 			Project = InProject;
