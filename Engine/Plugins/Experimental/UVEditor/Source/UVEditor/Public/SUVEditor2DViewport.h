@@ -18,6 +18,7 @@ public:
 	virtual void RemoveOverlayWidget(TSharedRef<SWidget> OverlaidWidget);
 
 	// SEditorViewport
+	virtual void BindCommands() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 	bool IsWidgetModeActive(UE::Widget::EWidgetMode Mode) const override;
 };

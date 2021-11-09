@@ -306,10 +306,6 @@ void UUVSelectTool::Setup()
 	
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Select Tool"));
 
-	Settings = NewObject<UUVSelectToolProperties>(this);
-	Settings->RestoreProperties(this);
-	AddToolPropertySource(Settings);
-
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	EmitChangeAPI = ContextStore->FindContext<UUVToolEmitChangeAPI>();
 	ViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
@@ -317,6 +313,11 @@ void UUVSelectTool::Setup()
 	ViewportButtonsAPI->OnGizmoModeChange.AddWeakLambda(this, 
 		[this](UUVToolViewportButtonsAPI::EGizmoMode NewGizmoMode) {
 			UpdateGizmo();
+		});
+	ViewportButtonsAPI->SetSelectionButtonsEnabled(true);
+	ViewportButtonsAPI->OnSelectionModeChange.AddWeakLambda(this,
+		[this](UUVToolViewportButtonsAPI::ESelectionMode NewMode) {
+			UpdateSelectionMode();
 		});
 
 	ToolActions = NewObject<USelectToolActionPropertySet>(this);
@@ -359,7 +360,7 @@ void UUVSelectTool::Setup()
 			LOCTEXT("SelectionChangeMessage", "Selection Change"));
 	};
 
-	ConfigureSelectionModeFromControls();
+	UpdateSelectionMode();
 
 	// Retrieve cached AABB tree storage, or else set it up
 	UUVToolAABBTreeStorage* TreeStore = ContextStore->FindContext<UUVToolAABBTreeStorage>();
@@ -467,8 +468,6 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 		Target->OnCanonicalModified.RemoveAll(this);
 	}
 
-	Settings->SaveProperties(this);
-
 	SelectionMechanic->Shutdown();
 
 	if (LivePreviewGeometryActor)
@@ -491,7 +490,9 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 
 	ViewportButtonsAPI->OnGizmoModeChange.RemoveAll(this);
+	ViewportButtonsAPI->OnSelectionModeChange.RemoveAll(this);
 	ViewportButtonsAPI->SetGizmoButtonsEnabled(false);
+	ViewportButtonsAPI->SetSelectionButtonsEnabled(false);
 
 	ViewportButtonsAPI = nullptr;
 	EmitChangeAPI = nullptr;
@@ -511,7 +512,6 @@ void UUVSelectTool::SetGizmoTransform(const FTransform& NewTransform)
 
 void UUVSelectTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	ConfigureSelectionModeFromControls();
 }
 
 void UUVSelectTool::UpdateGizmo()
@@ -530,28 +530,30 @@ void UUVSelectTool::UpdateGizmo()
 		&& !SelectionMechanic->GetCurrentSelection().IsEmpty());
 }
 
-void UUVSelectTool::ConfigureSelectionModeFromControls()
+void UUVSelectTool::UpdateSelectionMode()
 {
 	EMeshSelectionMechanicMode TargetMode;
-	switch (Settings->SelectionMode)
+	switch (ViewportButtonsAPI->GetSelectionMode())
 	{
-	case EUVSelectToolSelectionMode::Island:
-		TargetMode = EMeshSelectionMechanicMode::Component;
-		break;
-	case EUVSelectToolSelectionMode::Edge:
+	case UUVToolViewportButtonsAPI::ESelectionMode::Vertex:
+		TargetMode = EMeshSelectionMechanicMode::Vertex;
+		break;	
+	case UUVToolViewportButtonsAPI::ESelectionMode::Edge:
 		TargetMode = EMeshSelectionMechanicMode::Edge;
 		break;
-	case EUVSelectToolSelectionMode::Vertex:
-		TargetMode = EMeshSelectionMechanicMode::Vertex;
-		break;
-	case EUVSelectToolSelectionMode::Triangle:
+	case UUVToolViewportButtonsAPI::ESelectionMode::Triangle:
 		TargetMode = EMeshSelectionMechanicMode::Triangle;
 		break;
-	case EUVSelectToolSelectionMode::Mesh:
+	case UUVToolViewportButtonsAPI::ESelectionMode::Island:
+		TargetMode = EMeshSelectionMechanicMode::Component;
+		break;
+	case UUVToolViewportButtonsAPI::ESelectionMode::Mesh:
 		TargetMode = EMeshSelectionMechanicMode::Mesh;
 		break;
 	default:
+		// We shouldn't ever get "none" as the selection mode...
 		ensure(false);
+		TargetMode = EMeshSelectionMechanicMode::Vertex;
 		break;
 	}
 	SelectionMechanic->ChangeSelectionMode(TargetMode);
@@ -767,17 +769,9 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	// One final attempt to apply transforms if OnTick hasn't happened yet
 	ApplyGizmoTransform();
 
-	if (Settings->bUpdatePreviewDuringDrag)
-	{
-		// Both previews must already be updated, so only need to update canonical
-		Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids, 
-			UUVEditorToolMeshInput::NONE_CHANGED_ARG);
-	}
-	else
-	{
-		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids, 
-			UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
-	}
+	// Both previews must already be updated, so only need to update canonical
+	Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids, 
+		UUVEditorToolMeshInput::NONE_CHANGED_ARG);
 
 	const FText TransactionName(LOCTEXT("DragCompleteTransactionName", "Move Items"));
 	EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FGizmoMeshChange>(
@@ -815,11 +809,8 @@ void UUVSelectTool::ApplyGizmoTransform()
 
 		SelectionMechanic->SetDrawnElementsTransform((FTransform)TransformToApply);
 
-		if (Settings->bUpdatePreviewDuringDrag)
-		{
-			Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids, 
-				UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
-		}
+		Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids, 
+			UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
 
 		bGizmoTransformNeedsApplication = false;
 		SewAction->UpdateVisualizations();

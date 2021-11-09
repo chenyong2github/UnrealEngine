@@ -6,6 +6,7 @@
 
 #include "EditorViewportCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "UVEditorCommands.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 
@@ -15,7 +16,6 @@ void SUVEditor2DViewportToolBar::Construct(const FArguments& InArgs)
 	CommandList = InArgs._CommandList;
 
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
-	TSharedPtr<SHorizontalBox> MainBoxPtr;
 
 	ChildSlot
 	[
@@ -23,22 +23,76 @@ void SUVEditor2DViewportToolBar::Construct(const FArguments& InArgs)
 		.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
 		.Cursor(EMouseCursor::Default)
 		[
-			SAssignNew( MainBoxPtr, SHorizontalBox )
+			SNew( SHorizontalBox )
+
+			// The first slot is just a spacer so that we get three evenly spaced columns 
+			// and the selection toolbar can go in the center of the center one.
+			+ SHorizontalBox::Slot()
+			.Padding(ToolbarSlotPadding)
+			.HAlign(HAlign_Right)
+
+			+ SHorizontalBox::Slot()
+			.Padding(ToolbarSlotPadding)
+			.HAlign(HAlign_Center)
+			[
+				MakeSelectionToolBar(InArgs._Extenders)
+			]
+
+			+ SHorizontalBox::Slot()
+			.Padding(ToolbarSlotPadding)
+			.HAlign(HAlign_Right)
+			[
+				MakeGizmoToolBar(InArgs._Extenders)
+			]
 		]
 	];
-
-	// Transform toolbar
-	MainBoxPtr->AddSlot()
-		.Padding(ToolbarSlotPadding)
-		.HAlign(HAlign_Right)
-		[
-			MakeToolBar(InArgs._Extenders)
-		];
 
 	SViewportToolBar::Construct(SViewportToolBar::FArguments());
 }
 
-TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeToolBar(const TSharedPtr<FExtender> InExtenders)
+TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeSelectionToolBar(const TSharedPtr<FExtender> InExtenders)
+{
+
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization::None, InExtenders);
+
+	// Use a custom style
+	FName ToolBarStyle = "EditorViewportToolBar";
+	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
+	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+
+	// Transform controls should not be focusable as it fights with the press space to change transform 
+	// mode feature, which we may someday have.
+	ToolbarBuilder.SetIsFocusable(false);
+
+	// Widget controls
+	ToolbarBuilder.BeginSection("SelectionModes");
+	{
+		ToolbarBuilder.BeginBlockGroup();
+
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().VertexSelection, NAME_None,
+			TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TEXT("VertexSelection"));
+
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().EdgeSelection, NAME_None,
+			TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TEXT("EdgeSelection"));
+
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().TriangleSelection, NAME_None,
+			TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TEXT("TriangleSelection"));
+
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().IslandSelection, NAME_None,
+			TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TEXT("IslandSelection"));
+
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().FullMeshSelection, NAME_None,
+			TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TEXT("FullMeshSelection"));
+
+		ToolbarBuilder.EndBlockGroup();
+	}
+
+	ToolbarBuilder.EndSection();
+
+	return ToolbarBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeGizmoToolBar(const TSharedPtr<FExtender> InExtenders)
 {
 	// The following is modeled after portions of STransformViewportToolBar, which gets 
 	// used in SCommonEditorViewportToolbarBase.

@@ -7,9 +7,7 @@
 #include "EditorViewportClient.h"
 #include "InputBehaviorSet.h"
 #include "UVEditor2DViewportBehaviorTargets.h" // FUVEditor2DScrollBehaviorTarget, FUVEditor2DMouseWheelZoomBehaviorTarget
-#include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::EGizmoMode
-
-class UUVToolViewportButtonsAPI;
+#include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
 /**
  * Client used to display a 2D view of the UV's, implemented by using a perspective viewport with a locked
@@ -22,6 +20,10 @@ public:
 		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
 
 	virtual ~FUVEditor2DViewportClient() {}
+
+	bool AreSelectionButtonsEnabled() const;
+	void SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode NewMode);
+	UUVToolViewportButtonsAPI::ESelectionMode GetSelectionMode() const;
 
 	bool AreWidgetButtonsEnabled() const;
 

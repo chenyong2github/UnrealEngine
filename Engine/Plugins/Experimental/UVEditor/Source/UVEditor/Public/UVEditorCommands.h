@@ -28,6 +28,12 @@ public:
 	TSharedPtr<FUICommandInfo> AcceptOrCompleteActiveTool;
 	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 
+	TSharedPtr<FUICommandInfo> VertexSelection;
+	TSharedPtr<FUICommandInfo> EdgeSelection;
+	TSharedPtr<FUICommandInfo> TriangleSelection;
+	TSharedPtr<FUICommandInfo> IslandSelection;
+	TSharedPtr<FUICommandInfo> FullMeshSelection;
+
 	TSharedPtr<FUICommandInfo> EnableOrbitCamera;
 	TSharedPtr<FUICommandInfo> EnableFlyCamera;
 };

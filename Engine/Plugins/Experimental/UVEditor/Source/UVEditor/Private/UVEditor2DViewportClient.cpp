@@ -201,3 +201,26 @@ UE::Widget::EWidgetMode FUVEditor2DViewportClient::GetWidgetMode() const
 		break;
 	}
 }
+
+bool FUVEditor2DViewportClient::AreSelectionButtonsEnabled() const
+{
+	return ViewportButtonsAPI && ViewportButtonsAPI->AreSelectionButtonsEnabled();
+}
+
+void FUVEditor2DViewportClient::SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode NewMode)
+{
+	if (ViewportButtonsAPI)
+	{
+		ViewportButtonsAPI->SetSelectionMode(NewMode);
+	}
+}
+
+UUVToolViewportButtonsAPI::ESelectionMode FUVEditor2DViewportClient::GetSelectionMode() const
+{
+	if (!AreSelectionButtonsEnabled())
+	{
+		return UUVToolViewportButtonsAPI::ESelectionMode::None;
+	}
+
+	return ViewportButtonsAPI->GetSelectionMode();
+}
