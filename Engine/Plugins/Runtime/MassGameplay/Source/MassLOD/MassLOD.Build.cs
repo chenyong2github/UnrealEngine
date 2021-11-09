@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"StructUtils",
 					"MassCommon",
 					"MassSimulation",
+					"MassSpawner"
 				}
 			);
 
