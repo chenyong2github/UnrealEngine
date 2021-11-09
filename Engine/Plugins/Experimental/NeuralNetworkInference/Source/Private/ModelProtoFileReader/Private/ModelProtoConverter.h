@@ -6,7 +6,7 @@
 #include "ModelProto.h"
 #include <istream>
 
-class MODELPROTOCONVERTER_API FModelProtoConverter
+class FModelProtoConverter
 {
 public:
 	/**

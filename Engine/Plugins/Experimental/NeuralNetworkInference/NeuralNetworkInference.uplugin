@@ -46,9 +46,7 @@
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
-				"Win64",
-				"Linux",
-				"Mac"
+				"Win64", "Linux", "Mac"
 			]
 		},
 		{
@@ -63,11 +61,6 @@
 		},
 		{
 			"Name": "ModelProtoFileReader",
-			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "ModelProtoConverter",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default"
 		},
