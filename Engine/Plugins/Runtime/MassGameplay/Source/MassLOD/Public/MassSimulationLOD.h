@@ -85,8 +85,8 @@ struct FMassSimulationVariableTickChunkFragment : public FMassVariableTickChunkF
 
 	static EMassLOD::Type GetChunkLOD(const FMassExecutionContext& Context)
 	{
-		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkFragment<FMassSimulationVariableTickChunkFragment>();
-		return ChunkFragment.GetLOD();
+		const FMassSimulationVariableTickChunkFragment* ChunkFragment = Context.GetChunkFragmentPtr<FMassSimulationVariableTickChunkFragment>();
+		return ChunkFragment ? ChunkFragment->GetLOD() : EMassLOD::High;
 	}
 
 };
