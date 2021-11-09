@@ -469,7 +469,7 @@ namespace HordeServer.Services
 				{
 					bool Value;
 
-					if (!Read && DeviceRead.TryGetValue(ProjectId, out Value)
+					if (!Read && DeviceRead.TryGetValue(ProjectId, out Value))
 					{
 						Read = Value;
 					}
