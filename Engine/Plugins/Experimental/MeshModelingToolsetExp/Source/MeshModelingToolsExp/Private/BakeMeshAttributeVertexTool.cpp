@@ -244,6 +244,7 @@ public:
 
 void UBakeMeshAttributeVertexTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeVertexTool::Setup);
 	Super::Setup();
 
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/MeshVertexColorMaterial"));
@@ -360,6 +361,8 @@ void UBakeMeshAttributeVertexTool::Setup()
 
 void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeVertexTool::Shutdown);
+	
 	Settings->SaveProperties(this);
 	ColorSettings->SaveProperties(this);
 	PerChannelSettings->SaveProperties(this);
