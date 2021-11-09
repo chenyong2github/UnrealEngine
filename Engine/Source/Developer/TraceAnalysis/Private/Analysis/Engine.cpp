@@ -2599,7 +2599,12 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 	}
 	bNotEnoughData |= (Ret == EStatus::NotEnoughData);
 
-	return bNotEnoughData ? EStatus::NotEnoughData : EStatus::EndOfStream;
+	if (bNotEnoughData)
+	{
+		return EStatus::NotEnoughData;
+	}
+
+	return (Reader.GetRemaining() != 0) ? EStatus::Continue : EStatus::EndOfStream;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
