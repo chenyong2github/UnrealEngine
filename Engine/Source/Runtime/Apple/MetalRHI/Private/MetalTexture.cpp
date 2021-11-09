@@ -266,6 +266,21 @@ mtlpp::PixelFormat ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
 		case mtlpp::PixelFormat::ASTC_12x12_LDR:
 			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB;
 			break;
+#if PLATFORM_MAC
+		// Fix for Apple silicon M1 macs that can support BC pixel formats even though they are Apple family GPUs.
+		case mtlpp::PixelFormat::BC1_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC2_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC3_RGBA:
+			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
+			break;
+		case mtlpp::PixelFormat::BC7_RGBAUnorm:
+			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
+			break;
+#endif
 		default:
 			break;
 	}
