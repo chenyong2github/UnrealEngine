@@ -5,7 +5,7 @@
 #include "MassEntityTraitBase.h"
 #include "MassAvoidanceTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Avoidance"))
+UCLASS(meta = (DisplayName = "Avoidance"))
 class MASSAIMOVEMENT_API UMassAvoidanceTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

@@ -5,7 +5,7 @@
 #include "MassEntityTraitBase.h"
 #include "MassAvoidanceObstacleTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Dynamic Obstacle"))
+UCLASS(meta = (DisplayName = "Dynamic Obstacle"))
 class MASSAIMOVEMENT_API UMassAvoidanceObstacleTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

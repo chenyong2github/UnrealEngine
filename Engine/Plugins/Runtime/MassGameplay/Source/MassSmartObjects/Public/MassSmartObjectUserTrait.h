@@ -8,7 +8,7 @@
 /**
  * Trait to allow an entity to interact with SmartObjects
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "SmartObject User"))
+UCLASS(meta = (DisplayName = "SmartObject User"))
 class MASSSMARTOBJECTS_API UMassSmartObjectUserTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

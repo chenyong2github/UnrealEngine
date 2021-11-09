@@ -14,7 +14,7 @@ struct FMassEntityTemplateBuildContext;
  * For example, a fragment can be added based on a referenced asset, or some memory hungry settings can be
  * cached and just and index stored on a fragment.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, BlueprintType, EditInlineNew, CollapseCategories)
 class MASSSPAWNER_API UMassEntityTraitBase : public UObject
 {
 	GENERATED_BODY()

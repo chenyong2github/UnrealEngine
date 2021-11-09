@@ -6,7 +6,7 @@
 #include "MassEntityTraitBase.h"
 #include "MassLookAtTargetTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Look At Target"))
+UCLASS(meta=(DisplayName="Look At Target"))
 class UMassLookAtTargetTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

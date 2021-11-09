@@ -8,7 +8,7 @@
 /**
  * Trait to mark an entity with the crowd tag and add required fragments to track current lane
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "CrowdMember"))
+UCLASS(meta = (DisplayName = "CrowdMember"))
 class MASSCROWD_API UMassCrowdMemberTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

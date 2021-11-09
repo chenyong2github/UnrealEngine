@@ -10,7 +10,7 @@
 /**
 * Mass Agent Feature which appends a list of specified fragments.  
 */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Assorted Fragments"))
+UCLASS(meta=(DisplayName="Assorted Fragments"))
 class MASSSPAWNER_API UMassAssortedFragmentsTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

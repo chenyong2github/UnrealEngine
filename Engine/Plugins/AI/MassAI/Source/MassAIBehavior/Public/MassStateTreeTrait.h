@@ -10,7 +10,7 @@ class UStateTree;
 /**
  * Feature that adds StateTree execution functionality to a mass agent.
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="StateTree"))
+UCLASS(meta=(DisplayName="StateTree"))
 class MASSAIBEHAVIOR_API UMassStateTreeTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

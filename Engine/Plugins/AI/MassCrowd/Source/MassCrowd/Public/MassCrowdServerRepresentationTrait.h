@@ -8,7 +8,7 @@
 #include "MassCrowdServerRepresentationTrait.generated.h"
 
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Crowd Server Representation"))
+UCLASS(meta=(DisplayName="Crowd Server Representation"))
 class MASSCROWD_API UMassCrowdServerRepresentationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
