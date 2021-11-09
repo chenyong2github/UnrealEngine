@@ -187,7 +187,7 @@ struct FGraphAStar
 		FORCEINLINE FSearchNode& Add(const FSearchNode& SearchNode)
 		{
 			FSearchNode& NewNode = Super::Emplace_GetRef(SearchNode);
-			NewNode.SearchNodeIndex = &NewNode - Super::GetData();
+			NewNode.SearchNodeIndex = UE_PTRDIFF_TO_INT32(&NewNode - Super::GetData());
 			NodeMap.Add(SearchNode.NodeRef, NewNode.SearchNodeIndex);
 			return NewNode;
 		}
@@ -204,7 +204,7 @@ struct FGraphAStar
 
 			// node not found, add it and setup index in node map
 			FSearchNode& NewNode = Super::Emplace_GetRef(NodeRef);
-			NewNode.SearchNodeIndex = &NewNode - Super::GetData();
+			NewNode.SearchNodeIndex = UE_PTRDIFF_TO_INT32(&NewNode - Super::GetData());
 			Index = NewNode.SearchNodeIndex;
 
 			return NewNode;
@@ -255,7 +255,7 @@ struct FGraphAStar
 			{
 				if (NodeIndex == SearchNode.SearchNodeIndex)
 				{
-					AlgoImpl::HeapSiftUp(Super::GetData(), 0, &NodeIndex - Super::GetData(), FIdentityFunctor(), NodeSorter);
+					AlgoImpl::HeapSiftUp(Super::GetData(), 0, UE_PTRDIFF_TO_INT32(&NodeIndex - Super::GetData()), FIdentityFunctor(), NodeSorter);
 					return;
 				}
 			}

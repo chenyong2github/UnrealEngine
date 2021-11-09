@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MassAIMovementTypes.h"
+#include "MassCommonTypes.h"
 #include "MassStateTreeTypes.h"
 #include "ZoneGraphTypes.h"
 #include "MassZoneGraphPathFollowTask.generated.h"
@@ -32,7 +33,7 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation : public FStateTreeResult
 		bMoveReverse = false;
 		TargetDistance = 0.0f;
 		EndOfPathPosition.Reset();
-		AnticipationDistance = 50.0f;
+		AnticipationDistance.Set(50.0f);
 		EndOfPathIntent = EMassMovementAction::Move;
 	}
 
@@ -52,7 +53,7 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation : public FStateTreeResult
 	TOptional<FVector> EndOfPathDirection;
 
 	/** If start or end of path is off-lane, the distance along the lane is pushed forward/back along the lane to make smoother transition. */
-	float AnticipationDistance = 50.0f;
+	FMassInt16Real AnticipationDistance = FMassInt16Real(50.0f);
 
 	/** True, if we're moving reverse along the lane. */
 	bool bMoveReverse = false;

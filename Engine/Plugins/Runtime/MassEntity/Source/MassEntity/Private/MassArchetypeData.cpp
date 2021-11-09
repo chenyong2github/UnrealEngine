@@ -634,7 +634,7 @@ void FMassArchetypeData::CompactEntities(const double TimeAllowed)
 		ChunkToFill->AddMultipleInstances(NumberOfEntitiesToMove);
 		ChunkToEmpty->RemoveMultipleInstances(NumberOfEntitiesToMove);
 
-		const int32 ChunkToFillIdx = ChunkToFill - &Chunks[0];
+		const int32 ChunkToFillIdx = UE_PTRDIFF_TO_INT32(ChunkToFill - &Chunks[0]);
 		check(ChunkToFillIdx >=0 && ChunkToFillIdx < Chunks.Num());
 		const int32 AbsoluteIndex = ChunkToFillIdx * NumEntitiesPerChunk + ToIndex;
 

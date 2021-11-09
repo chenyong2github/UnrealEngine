@@ -55,8 +55,7 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	TargetLocation.EndOfPathIntent = EMassMovementAction::Stand;
 	TargetLocation.EndOfPathPosition = SOUser.GetTargetLocation();
 	// Let's start moving toward the interaction a bit before the entry point.
-	constexpr float AnticipationDistance = 100.f;
-	TargetLocation.AnticipationDistance = AnticipationDistance;
+	TargetLocation.AnticipationDistance.Set(100.f);
 
 	if (SOAnnotations != nullptr)
 	{

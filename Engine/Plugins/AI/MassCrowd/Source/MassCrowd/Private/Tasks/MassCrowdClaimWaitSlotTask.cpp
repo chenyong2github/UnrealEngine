@@ -52,8 +52,7 @@ EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionC
 	TargetLocation.EndOfPathDirection = SlotDirection;
 	TargetLocation.TargetDistance = LaneLocation.LaneLength; // Go to end of lane
 	// Let's start moving toward the interaction a bit before the entry point.
-	constexpr float AnticipationDistance = 100.f;
-	TargetLocation.AnticipationDistance = AnticipationDistance;
+	TargetLocation.AnticipationDistance.Set(100.f);
 
 	WaitSlotLocation = &TargetLocation;
 	
