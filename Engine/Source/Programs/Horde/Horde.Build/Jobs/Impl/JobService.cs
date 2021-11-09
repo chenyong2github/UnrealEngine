@@ -330,7 +330,7 @@ namespace HordeServer.Services
 				}
 
 				IJob? UpdatedJob2 = await GetJobAsync(Job.Id);
-				if (UpdatedJob2.AbortedByUserId != UpdatedJob.AbortedByUserId)
+				if (UpdatedJob2?.AbortedByUserId != UpdatedJob?.AbortedByUserId)
 				{
 					throw new NotImplementedException();
 				}
