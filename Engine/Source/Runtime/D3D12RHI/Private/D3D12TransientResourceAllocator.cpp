@@ -143,7 +143,7 @@ FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHI
 	{
 		ERHIAccess InitialState = ERHIAccess::UAVMask;
 
-		if (EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_RenderTargetable))
+		if (EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable))
 		{
 			InitialState = ERHIAccess::RTV;
 		}
