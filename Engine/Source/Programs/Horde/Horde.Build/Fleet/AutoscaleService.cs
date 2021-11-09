@@ -22,6 +22,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using HordeCommon;
 using Microsoft.Extensions.Options;
+using OpenTracing;
+using OpenTracing.Util;
 using StatsdClient;
 
 namespace HordeServer.Services
@@ -120,58 +122,65 @@ namespace HordeServer.Services
 			Logger.LogInformation("Autoscaling pools...");
 			Stopwatch Stopwatch = Stopwatch.StartNew();
 
-			// Find all the current agents
-			List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
-
-			// Query leases in last interval
-			DateTime MaxTime = DateTime.UtcNow;
-			DateTime MinTime = MaxTime - (SampleTime * NumSamples);
-			List<ILease> Leases = await LeaseCollection.FindLeasesAsync(null, null, MinTime, MaxTime, null, null);
-
-			// Add all the leases to a data object for each agent
-			Dictionary<AgentId, AgentData> AgentIdToData = Agents.ToDictionary(x => x.Id, x => new AgentData(x));
-			foreach (ILease Lease in Leases)
+			Dictionary<PoolId, PoolData> PoolToData;
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Compute utilization").StartActive())
 			{
-				AgentData? AgentData;
-				if (AgentIdToData.TryGetValue(Lease.AgentId, out AgentData) && AgentData.Agent.SessionId == Lease.SessionId)
-				{
-					AgentData.Leases.Add(Lease);
-				}
-			}
+				// Find all the current agents
+				List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
 
-			// Compute utilization for each agent
-			foreach (AgentData AgentData in AgentIdToData.Values)
-			{
-				foreach (ILease Lease in AgentData.Leases.OrderBy(x => x.StartTime))
-				{
-					double MinT = (Lease.StartTime - MinTime).TotalSeconds / SampleTime.TotalSeconds;
-					double MaxT = (Lease.FinishTime == null) ? NumSamples : ((Lease.FinishTime.Value - MinTime).TotalSeconds / SampleTime.TotalSeconds);
+				// Query leases in last interval
+				DateTime MaxTime = DateTime.UtcNow;
+				DateTime MinTime = MaxTime - (SampleTime * NumSamples);
+				List<ILease> Leases = await LeaseCollection.FindLeasesAsync(null, null, MinTime, MaxTime, null, null);
 
-					Any Payload = Any.Parser.ParseFrom(Lease.Payload.ToArray());
-					if (Payload.Is(ExecuteJobTask.Descriptor))
+				// Add all the leases to a data object for each agent
+				Dictionary<AgentId, AgentData> AgentIdToData = Agents.ToDictionary(x => x.Id, x => new AgentData(x));
+				foreach (ILease Lease in Leases)
+				{
+					AgentData? AgentData;
+					if (AgentIdToData.TryGetValue(Lease.AgentId, out AgentData) &&
+					    AgentData.Agent.SessionId == Lease.SessionId)
 					{
-						AgentData.Add(MinT, MaxT, 1.0, 0.0);
-					}
-					else
-					{
-						AgentData.Add(MinT, MaxT, 0.0, 1.0);
+						AgentData.Leases.Add(Lease);
 					}
 				}
-			}
 
-			// Get all the pools
-			List<IPool> Pools = await PoolCollection.GetAsync();
-			Dictionary<PoolId, PoolData> PoolToData = Pools.ToDictionary(x => x.Id, x => new PoolData(x));
-
-			// Find pool utilization over the query period
-			foreach (AgentData AgentData in AgentIdToData.Values)
-			{
-				foreach (PoolId PoolId in AgentData.Agent.GetPools())
+				// Compute utilization for each agent
+				foreach (AgentData AgentData in AgentIdToData.Values)
 				{
-					PoolData? PoolData;
-					if (PoolToData.TryGetValue(PoolId, out PoolData))
+					foreach (ILease Lease in AgentData.Leases.OrderBy(x => x.StartTime))
 					{
-						PoolData.Add(AgentData);
+						double MinT = (Lease.StartTime - MinTime).TotalSeconds / SampleTime.TotalSeconds;
+						double MaxT = (Lease.FinishTime == null)
+							? NumSamples
+							: ((Lease.FinishTime.Value - MinTime).TotalSeconds / SampleTime.TotalSeconds);
+
+						Any Payload = Any.Parser.ParseFrom(Lease.Payload.ToArray());
+						if (Payload.Is(ExecuteJobTask.Descriptor))
+						{
+							AgentData.Add(MinT, MaxT, 1.0, 0.0);
+						}
+						else
+						{
+							AgentData.Add(MinT, MaxT, 0.0, 1.0);
+						}
+					}
+				}
+
+				// Get all the pools
+				List<IPool> Pools = await PoolCollection.GetAsync();
+				PoolToData = Pools.ToDictionary(x => x.Id, x => new PoolData(x));
+
+				// Find pool utilization over the query period
+				foreach (AgentData AgentData in AgentIdToData.Values)
+				{
+					foreach (PoolId PoolId in AgentData.Agent.GetPools())
+					{
+						PoolData? PoolData;
+						if (PoolToData.TryGetValue(PoolId, out PoolData))
+						{
+							PoolData.Add(AgentData);
+						}
 					}
 				}
 			}
@@ -203,22 +212,29 @@ namespace HordeServer.Services
 
 				if (Pool.EnableAutoscaling)
 				{
-					if (Delta > 0)
+					using (IScope Scope = GlobalTracer.Instance.BuildSpan("Scaling pool").StartActive())
 					{
-						await FleetManager.ExpandPool(Pool, PoolData.Agents, Delta);
-						await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
-					}
-					if (Delta < 0)
-					{
-						bool bShrinkIsOnCoolDown = Pool.LastScaleDownTime != null && Pool.LastScaleDownTime + ShrinkPoolCoolDown > DateTime.UtcNow;
-						if (!bShrinkIsOnCoolDown)
+						Scope.Span.SetTag("poolName", Pool.Name);
+						Scope.Span.SetTag("delta", Delta);
+
+						if (Delta > 0)
 						{
-							await FleetManager.ShrinkPool(Pool, PoolData.Agents, -Delta);
-							await PoolCollection.TryUpdateAsync(Pool, LastScaleDownTime: DateTime.UtcNow);
+							await FleetManager.ExpandPool(Pool, PoolData.Agents, Delta);
+							await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
 						}
-						else
+
+						if (Delta < 0)
 						{
-							Logger.LogDebug("Cannot shrink {PoolName} right now, it's on cool-down until {CoolDownTimeEnds}", Pool.Name, Pool.LastScaleDownTime + ShrinkPoolCoolDown);
+							bool bShrinkIsOnCoolDown = Pool.LastScaleDownTime != null && Pool.LastScaleDownTime + ShrinkPoolCoolDown > DateTime.UtcNow;
+							if (!bShrinkIsOnCoolDown)
+							{
+								await FleetManager.ShrinkPool(Pool, PoolData.Agents, -Delta);
+								await PoolCollection.TryUpdateAsync(Pool, LastScaleDownTime: DateTime.UtcNow);
+							}
+							else
+							{
+								Logger.LogDebug("Cannot shrink {PoolName} right now, it's on cool-down until {CoolDownTimeEnds}", Pool.Name, Pool.LastScaleDownTime + ShrinkPoolCoolDown);
+							}
 						}
 					}
 				}
