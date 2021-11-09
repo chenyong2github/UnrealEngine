@@ -8,6 +8,7 @@ using HordeServer.Collections;
 using HordeServer.Controllers;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -187,6 +188,10 @@ namespace HordeServer.Services
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
 		private async Task<DateTimeOffset?> UpdateScheduleAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, DateTimeOffset Now)
 		{
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService.UpdateScheduleAsync").StartActive();
+			Scope.Span.SetTag("Stream.Id", Stream.Id);
+			Scope.Span.SetTag("Stream.Name", Stream.Name);
+			
 			// Check if we can run the trigger
 			DateTimeOffset? NextTriggerTime = Schedule.GetNextTriggerTime(TimeZone);
 			if (!NextTriggerTime.HasValue)
@@ -243,6 +248,11 @@ namespace HordeServer.Services
 		/// <returns>Async task</returns>
 		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTimeOffset Now)
 		{
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService.TriggerAsync").StartActive();
+			Scope.Span.SetTag("Stream.Id", Stream.Id);
+			Scope.Span.SetTag("Stream.Name", Stream.Name);
+			Scope.Span.SetTag("TemplateRefId", TemplateRefId);
+			
 			// Check we're not already at the maximum number of allowed jobs
 			if (Schedule.MaxActive != 0 && NumActiveJobs >= Schedule.MaxActive)
 			{
