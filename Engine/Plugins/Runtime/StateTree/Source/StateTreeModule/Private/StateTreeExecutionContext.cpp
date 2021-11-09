@@ -625,7 +625,7 @@ FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FState
 	for (FStateTreeHandle Handle = CurrentStatus.State; Handle.IsValid(); Handle = StateTree->States[Handle.Index].Parent)
 	{
 		const FBakedStateTreeState& State = StateTree->States[Handle.Index];
-		for (uint32 i = 0; i < State.TransitionsNum; i++)
+		for (uint8 i = 0; i < State.TransitionsNum; i++)
 		{
 			// All transition conditions must pass
 			const int16 TransitionIndex = State.TransitionsBegin + i;

@@ -406,7 +406,7 @@ void AMassSpawner::SpawnAtLocations(const TArray<FVector>& Locations)
 	{
 		if (FVisualLogEntry* LogEntry = FVisualLogger::Get().GetLastEntryForObject(this))
 		{
-			FVisualLogShapeElement Element(TEXT(""), FColor::Orange, 20.f, LogMassSpawner.GetCategoryName());
+			FVisualLogShapeElement Element(TEXT(""), FColor::Orange, /*Thickness*/20, LogMassSpawner.GetCategoryName());
 			Element.Points += Locations;
 			Element.Type = EVisualLoggerShapeElement::SinglePoint;
 			Element.Verbosity = ELogVerbosity::Display;

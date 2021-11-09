@@ -188,7 +188,7 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 			[
 				SAssignNew(ComboButton, SComboButton)
 				.OnGetMenuContent(this, &FStateTreeBindableItemDetails::GenerateStructPicker)
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)
@@ -468,12 +468,12 @@ TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateStructPicker()
 	FOnStructPicked OnPicked(FOnStructPicked::CreateRaw(this, &FStateTreeBindableItemDetails::OnStructPicked));
 
 	return SNew(SBox)
-		.WidthOverride(280)
+		.WidthOverride(280.f)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.MaxHeight(500)
+			.MaxHeight(500.f)
 			[
 				FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer").CreateStructViewer(Options, OnPicked)
 			]

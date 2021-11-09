@@ -424,7 +424,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						const FMassZoneGraphPathPoint& NextPoint = ShortPath.Points[PointIndex + 1];
 
 						// Path
-						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrPoint.Position + ZOffset, NextPoint.Position + ZOffset, EntityColor, /*Thickness*/3.0f, TEXT(""));
+						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrPoint.Position + ZOffset, NextPoint.Position + ZOffset, EntityColor, /*Thickness*/3, TEXT(""));
 					}
 					
 					for (uint8 PointIndex = 0; PointIndex < ShortPath.NumPoints; PointIndex++)
@@ -432,14 +432,14 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						const FMassZoneGraphPathPoint& CurrPoint = ShortPath.Points[PointIndex];
 						const FVector CurrBase = CurrPoint.Position + ZOffset;
 						// Lane tangents
-						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrBase, CurrBase + CurrPoint.Tangent.GetVector() * 100.0f, LightEntityColor, /*Thickness*/1.0f, TEXT(""));
+						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrBase, CurrBase + CurrPoint.Tangent.GetVector() * 100.0f, LightEntityColor, /*Thickness*/1, TEXT(""));
 					}
 
 					if (ShortPath.NumPoints > 0 && ShortPath.NextLaneHandle.IsValid())
 					{
 						const FMassZoneGraphPathPoint& LastPoint = ShortPath.Points[ShortPath.NumPoints - 1];
 						const FVector CurrBase = LastPoint.Position + ZOffset;
-						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrBase, CurrBase + FVector(0,0,100), FColor::Red, /*Thickness*/3.0f, TEXT("Next: %s"), *ShortPath.NextLaneHandle.ToString());
+						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrBase, CurrBase + FVector(0,0,100), FColor::Red, /*Thickness*/3, TEXT("Next: %s"), *ShortPath.NextLaneHandle.ToString());
 					}
 				}
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -722,24 +722,24 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				const FVector MoveTargetCenter = MoveTarget.Center + ZOffset;
 
 				// MoveTarget slack boundary
-				UE_VLOG_CIRCLE_THICK(this, LogMassNavigation, Log, MoveTargetCenter, FVector::UpVector, CurrentMovementConfig->Steering.LookAheadDistance, EntityColor, 2,
+				UE_VLOG_CIRCLE_THICK(this, LogMassNavigation, Log, MoveTargetCenter, FVector::UpVector, CurrentMovementConfig->Steering.LookAheadDistance, EntityColor, /*Thickness*/2,
 					TEXT("%s MoveTgt %s"), *Entity.DebugGetDescription(), *UEnum::GetDisplayValueAsText(MoveTarget.IntentAtGoal).ToString());
 
 				// MoveTarget orientation
-				UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, MoveTargetCenter + MoveTarget.Forward * CurrentMovementConfig->Steering.LookAheadDistance, EntityColor, 2.0f, TEXT(""));
+				UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, MoveTargetCenter + MoveTarget.Forward * CurrentMovementConfig->Steering.LookAheadDistance, EntityColor, /*Thickness*/2, TEXT(""));
 
 				// MoveTarget - current location relation.
 				if (FVector::Dist2D(CurrentLocation, MoveTarget.Center) > CurrentMovementConfig->Steering.LookAheadDistance * 1.5f)
 				{
-					UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, CurrentLocation + ZOffset, FColor::Red, 1.0f, TEXT("LOST"));
+					UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, CurrentLocation + ZOffset, FColor::Red, /*Thickness*/1, TEXT("LOST"));
 				}
 				else
 				{
-					UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, CurrentLocation + ZOffset, DarkEntityColor, 1.0f, TEXT(""));
+					UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, MoveTargetCenter, CurrentLocation + ZOffset, DarkEntityColor, /*Thickness*/1, TEXT(""));
 				}
 
 				// Steering
-				UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, CurrentLocation + ZOffset, CurrentLocation + Steering.DesiredVelocity + ZOffset, LightEntityColor, 2.0f,
+				UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, CurrentLocation + ZOffset, CurrentLocation + Steering.DesiredVelocity + ZOffset, LightEntityColor, /*Thickness*/2,
 					TEXT("%s Steer %.1f"), *Entity.DebugGetDescription(), Steering.DesiredVelocity.Length());
 			}
 #endif // WITH_MASSGAMEPLAY_DEBUG

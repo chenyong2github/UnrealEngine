@@ -184,7 +184,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 		UE::ZoneGraph::Query::GetLaneLength(*ZoneStorage, LaneHandle, LaneLength);
 
 		// Split the lane up to FZoneGraphEscapeLaneAction::MaxSpans to have more fine grained Disturbance Annotation.
-		EscapeLane.SpanCount = FMath::Clamp((uint8)FMath::CeilToInt(LaneLength * InvIdealSpanLength), 2, FZoneGraphEscapeLaneAction::MaxSpans);
+		EscapeLane.SpanCount = FMath::Clamp((uint8)FMath::CeilToInt(LaneLength * InvIdealSpanLength), (uint8)2, FZoneGraphEscapeLaneAction::MaxSpans);
 		
 		FVector PrevPosition = ZoneStorage->LanePoints[Lane.PointsBegin];
 		float PrevDistance = 0.0f;

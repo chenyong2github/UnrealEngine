@@ -227,7 +227,7 @@ struct MASSAIMOVEMENT_API FMassDynamicObstacleFragment : public FMassFragment
 	TArray<FMassLaneObstacleID, TFixedAllocator<MaxLaneObstacles>> LaneObstacleIDs;
 
 	/** Time stamp when that obstacle stopped moving. */
-	FDateTime LastMovedTimeStamp = 0.f;
+	FDateTime LastMovedTimeStamp;
 
 	/** Position of the dynamic obstacle when it last moved. */
 	FVector LastPosition = FVector::ZeroVector;
