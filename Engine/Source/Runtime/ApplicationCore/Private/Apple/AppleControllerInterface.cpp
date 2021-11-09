@@ -178,78 +178,81 @@ void FAppleControllerInterface::HandleDisconnect(GCController* Controller)
 
 void FAppleControllerInterface::SendControllerEvents()
 {
-    for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
- 	{
-        GCController* Cont = Controllers[i].Controller;
-        
-        GCExtendedGamepad* ExtendedGamepad = nil;
-
-        if (@available(iOS 13, tvOS 13, *))
-        {
-            ExtendedGamepad = [Cont capture].extendedGamepad;
-        }
-        else
-        {
-            ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
-        }
-
-		GCMotion* Motion = Cont.motion;
-		
-		// make sure the connection handler has run on this guy
-		if (Controllers[i].PlayerIndex == PlayerIndex::PlayerUnset)
+    @autoreleasepool
+    {
+		for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
 		{
-            continue;
+			GCController* Cont = Controllers[i].Controller;
+			
+			GCExtendedGamepad* ExtendedGamepad = nil;
+
+			if (@available(iOS 13, tvOS 13, *))
+			{
+				ExtendedGamepad = [Cont capture].extendedGamepad;
+			}
+			else
+			{
+				ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
+			}
+
+			GCMotion* Motion = Cont.motion;
+			
+			// make sure the connection handler has run on this guy
+			if (Controllers[i].PlayerIndex == PlayerIndex::PlayerUnset)
+			{
+				continue;
+			}
+
+			FUserController& Controller = Controllers[i];
+			
+			if (Controller.bPauseWasPressed)
+			{
+				MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+				MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+
+				Controller.bPauseWasPressed = false;
+			}
+			
+			if (ExtendedGamepad != nil)
+			{
+				const GCExtendedGamepad* PreviousExtendedGamepad = Controller.PreviousExtendedGamepad;
+
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonRight, i);
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonTop, i);
+				HandleButtonGamepad(FGamepadKeyNames::LeftShoulder, i);
+				HandleButtonGamepad(FGamepadKeyNames::RightShoulder, i);
+				HandleButtonGamepad(FGamepadKeyNames::LeftTriggerThreshold, i);
+				HandleButtonGamepad(FGamepadKeyNames::RightTriggerThreshold, i);
+				HandleButtonGamepad(FGamepadKeyNames::DPadUp, i);
+				HandleButtonGamepad(FGamepadKeyNames::DPadDown, i);
+				HandleButtonGamepad(FGamepadKeyNames::DPadRight, i);
+				HandleButtonGamepad(FGamepadKeyNames::DPadLeft, i);
+				HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
+				HandleButtonGamepad(FGamepadKeyNames::SpecialLeft, i);
+				
+				HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
+				HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
+				HandleAnalogGamepad(FGamepadKeyNames::RightAnalogX, i);
+				HandleAnalogGamepad(FGamepadKeyNames::RightAnalogY, i);
+				HandleAnalogGamepad(FGamepadKeyNames::RightTriggerAnalog, i);
+				HandleAnalogGamepad(FGamepadKeyNames::LeftTriggerAnalog, i);
+
+
+				HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickRight, FGamepadKeyNames::LeftStickLeft, i);
+				HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickDown, FGamepadKeyNames::LeftStickUp, i);
+				HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickLeft, FGamepadKeyNames::RightStickRight, i);
+				HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickDown, FGamepadKeyNames::RightStickUp, i);
+				HandleButtonGamepad(FGamepadKeyNames::LeftThumb, i);
+				HandleButtonGamepad(FGamepadKeyNames::RightThumb, i);
+
+				[Controller.PreviousExtendedGamepad release];
+				Controller.PreviousExtendedGamepad = ExtendedGamepad;
+				[Controller.PreviousExtendedGamepad retain];
+			}
 		}
-
-		FUserController& Controller = Controllers[i];
-		
-        if (Controller.bPauseWasPressed)
-        {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
-
-            Controller.bPauseWasPressed = false;
-        }
-        
-		if (ExtendedGamepad != nil)
-		{
-            const GCExtendedGamepad* PreviousExtendedGamepad = Controller.PreviousExtendedGamepad;
-
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonRight, i);
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonTop, i);
-            HandleButtonGamepad(FGamepadKeyNames::LeftShoulder, i);
-            HandleButtonGamepad(FGamepadKeyNames::RightShoulder, i);
-            HandleButtonGamepad(FGamepadKeyNames::LeftTriggerThreshold, i);
-            HandleButtonGamepad(FGamepadKeyNames::RightTriggerThreshold, i);
-            HandleButtonGamepad(FGamepadKeyNames::DPadUp, i);
-            HandleButtonGamepad(FGamepadKeyNames::DPadDown, i);
-            HandleButtonGamepad(FGamepadKeyNames::DPadRight, i);
-            HandleButtonGamepad(FGamepadKeyNames::DPadLeft, i);
-            HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
-            HandleButtonGamepad(FGamepadKeyNames::SpecialLeft, i);
-            
-            HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
-            HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
-            HandleAnalogGamepad(FGamepadKeyNames::RightAnalogX, i);
-            HandleAnalogGamepad(FGamepadKeyNames::RightAnalogY, i);
-            HandleAnalogGamepad(FGamepadKeyNames::RightTriggerAnalog, i);
-            HandleAnalogGamepad(FGamepadKeyNames::LeftTriggerAnalog, i);
-
-
-            HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickRight, FGamepadKeyNames::LeftStickLeft, i);
-            HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickDown, FGamepadKeyNames::LeftStickUp, i);
-            HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickLeft, FGamepadKeyNames::RightStickRight, i);
-            HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickDown, FGamepadKeyNames::RightStickUp, i);
-            HandleButtonGamepad(FGamepadKeyNames::LeftThumb, i);
-            HandleButtonGamepad(FGamepadKeyNames::RightThumb, i);
-
-            [Controller.PreviousExtendedGamepad release];
-            Controller.PreviousExtendedGamepad = ExtendedGamepad;
-            [Controller.PreviousExtendedGamepad retain];
-		}
-	}
+    } // @autoreleasepool
 }
 
 bool FAppleControllerInterface::IsControllerAssignedToGamepad(int32 ControllerId) const
