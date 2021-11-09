@@ -23,6 +23,10 @@ public:
 	/** Fraction of the convex hulls for a transform that we can remove before instead using the hulls of the children */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = ".01", ClampMax = "1"))
 	double FractionAllowRemove = .5;
+
+	/** We simplify the convex shape to keep points spaced at least this far apart (except to keep the hull from collapsing to zero volume) */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "0"))
+	double SimplificationDistanceThreshold = 0;
 };
 
 

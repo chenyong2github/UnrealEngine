@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 // Adaptation/Port of GTEngine's ConvexHull3 algorithm;
-// ref: Engine\Plugins\Experimental\GeometryProcessing\Source\GeometryAlgorithms\Private\ThirdParty\GTEngine\Mathematics\GteConvexHull3.h
+// ref: Engine\Plugins\Runtime\GeometryProcessing\Source\GeometryAlgorithms\Private\ThirdParty\GTEngine\Mathematics\GteConvexHull3.h
+// ExtremePoints::Init adapted from GteVector3.h's IntrinsicsVector3
+// ref: Engine\Plugins\Runtime\GeometryProcessing\Source\GeometryAlgorithms\Private\ThirdParty\GTEngine\Mathematics\GteVector3.h
 
 #include "CompGeom/ConvexHull3.h"
 #include "CompGeom/ExactPredicates.h"
@@ -13,166 +15,148 @@ namespace UE
 namespace Geometry
 {
 
-/**
- * Helper class to find the dimensions spanned by a point cloud
- * and (if it spans 3 dimensions) the indices of four 'extreme' points
- * forming a (non-degenerate, volume > 0) tetrahedron
- *
- * The extreme points are chosen to be far apart, and are used as the starting point for
- * incremental convex hull construction.
- * Construction method is adapted from GteVector3.h's IntrinsicsVector3
- */
+
 template<typename RealType>
-struct TExtremePoints3
+void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon)
 {
-	int Dimension = 0;
-	int Extreme[4]{ 0, 0, 0, 0 };
-
-	// Coordinate frame spanned by input points
-	TVector<RealType> Origin{ 0,0,0 };
-	TVector<RealType> Basis[3]{ {0,0,0}, {0,0,0}, {0,0,0} };
-
-	TExtremePoints3(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0)
+	TVector<RealType> FirstPoint;
+	int FirstPtIdx = -1;
+	for (FirstPtIdx = 0; FirstPtIdx < NumPoints; FirstPtIdx++)
 	{
-		TVector<RealType> FirstPoint;
-		int FirstPtIdx = -1;
-		for (FirstPtIdx = 0; FirstPtIdx < NumPoints; FirstPtIdx++)
+		if (FilterFunc(FirstPtIdx))
 		{
-			if (FilterFunc(FirstPtIdx))
+			FirstPoint = GetPointFunc(FirstPtIdx);
+			break;
+		}
+	}
+	if (FirstPtIdx == -1)
+	{
+		// no points passed filter
+		Dimension = 0;
+		return;
+	}
+
+	TVector<RealType> Min = GetPointFunc(FirstPtIdx), Max = GetPointFunc(FirstPtIdx);
+	FIndex3i IndexMin(FirstPtIdx, FirstPtIdx, FirstPtIdx), IndexMax(FirstPtIdx, FirstPtIdx, FirstPtIdx);
+	for (int Idx = FirstPtIdx + 1; Idx < NumPoints; Idx++)
+	{
+		if (!FilterFunc(Idx))
+		{
+			continue;
+		}
+		for (int Dim = 0; Dim < 3; Dim++)
+		{
+			RealType Val = GetPointFunc(Idx)[Dim];
+			if (Val < Min[Dim])
 			{
-				FirstPoint = GetPointFunc(FirstPtIdx);
-				break;
+				Min[Dim] = Val;
+				IndexMin[Dim] = Idx;
+			}
+			else if (Val > Max[Dim])
+			{
+				Max[Dim] = Val;
+				IndexMax[Dim] = Idx;
 			}
 		}
-		if (FirstPtIdx == -1)
-		{
-			// no points passed filter
-			Dimension = 0;
-			return;
-		}
+	}
 
-		TVector<RealType> Min = GetPointFunc(FirstPtIdx), Max = GetPointFunc(FirstPtIdx);
-		FIndex3i IndexMin(FirstPtIdx, FirstPtIdx, FirstPtIdx), IndexMax(FirstPtIdx, FirstPtIdx, FirstPtIdx);
-		for (int Idx = FirstPtIdx + 1; Idx < NumPoints; Idx++)
+	RealType MaxRange = Max[0] - Min[0];
+	int MaxRangeDim = 0;
+	for (int Dim = 1; Dim < 3; Dim++)
+	{
+		RealType Range = Max[Dim] - Min[Dim];
+		if (Range > MaxRange)
+		{
+			MaxRange = Range;
+			MaxRangeDim = Dim;
+		}
+	}
+	Extreme[0] = IndexMin[MaxRangeDim];
+	Extreme[1] = IndexMax[MaxRangeDim];
+
+	// all points within box of Epsilon extent; Dimension must be 0
+	if (MaxRange <= Epsilon)
+	{
+		Dimension = 0;
+		Extreme[3] = Extreme[2] = Extreme[1] = Extreme[0];
+		return;
+	}
+
+	Origin = GetPointFunc(Extreme[0]);
+	Basis[0] = GetPointFunc(Extreme[1]) - Origin;
+	Normalize(Basis[0]);
+
+	// find point furthest from the line formed by the first two extreme points
+	{
+		TLine3<RealType> Basis0Line(Origin, Basis[0]);
+		RealType MaxDistSq = 0;
+		for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
 		{
 			if (!FilterFunc(Idx))
 			{
 				continue;
 			}
-			for (int Dim = 0; Dim < 3; Dim++)
+			RealType DistSq = Basis0Line.DistanceSquared(GetPointFunc(Idx));
+			if (DistSq > MaxDistSq)
 			{
-				RealType Val = GetPointFunc(Idx)[Dim];
-				if (Val < Min[Dim])
-				{
-					Min[Dim] = Val;
-					IndexMin[Dim] = Idx;
-				}
-				else if (Val > Max[Dim])
-				{
-					Max[Dim] = Val;
-					IndexMax[Dim] = Idx;
-				}
+				MaxDistSq = DistSq;
+				Extreme[2] = Idx;
 			}
 		}
 
-		RealType MaxRange = Max[0] - Min[0];
-		int MaxRangeDim = 0;
-		for (int Dim = 1; Dim < 3; Dim++)
+		// Nearly collinear points
+		if (TMathUtil<RealType>::Sqrt(MaxDistSq) <= Epsilon * MaxRange)
 		{
-			RealType Range = Max[Dim] - Min[Dim];
-			if (Range > MaxRange)
+			Dimension = 1;
+			Extreme[3] = Extreme[2] = Extreme[1];
+			return;
+		}
+	}
+
+
+	Basis[1] = GetPointFunc(Extreme[2]) - Origin;
+	// project Basis[1] to be orthogonal to Basis[0]
+	Basis[1] -= (Basis[0].Dot(Basis[1])) * Basis[0];
+	Normalize(Basis[1]);
+	Basis[2] = Basis[0].Cross(Basis[1]);
+
+	{
+		TPlane3<RealType> Plane(Basis[2], Origin);
+		RealType MaxDist = 0, MaxSign = 0;
+		for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
+		{
+			if (!FilterFunc(Idx))
 			{
-				MaxRange = Range;
-				MaxRangeDim = Dim;
+				continue;
+			}
+			RealType DistSigned = Plane.DistanceTo(GetPointFunc(Idx));
+			RealType Dist = TMathUtil<RealType>::Abs(DistSigned);
+			if (Dist > MaxDist)
+			{
+				MaxDist = Dist;
+				MaxSign = TMathUtil<RealType>::Sign(DistSigned);
+				Extreme[3] = Idx;
 			}
 		}
-		Extreme[0] = IndexMin[MaxRangeDim];
-		Extreme[1] = IndexMax[MaxRangeDim];
 
-		// all points within box of Epsilon extent; Dimension must be 0
-		if (MaxRange <= Epsilon)
+		// Nearly coplanar points
+		if (MaxDist <= Epsilon * MaxRange)
 		{
-			Dimension = 0;
-			Extreme[3] = Extreme[2] = Extreme[1] = Extreme[0];
+			Dimension = 2;
+			Extreme[3] = Extreme[2];
 			return;
 		}
 
-		Origin = GetPointFunc(Extreme[0]);
-		Basis[0] = GetPointFunc(Extreme[1]) - Origin;
-		Normalize(Basis[0]);
-
-		// find point furthest from the line formed by the first two extreme points
+		// make sure the tetrahedron is CW-oriented
+		if (MaxSign > 0)
 		{
-			TLine3<RealType> Basis0Line(Origin, Basis[0]);
-			RealType MaxDistSq = 0;
-			for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
-			{
-				if (!FilterFunc(Idx))
-				{
-					continue;
-				}
-				RealType DistSq = Basis0Line.DistanceSquared(GetPointFunc(Idx));
-				if (DistSq > MaxDistSq)
-				{
-					MaxDistSq = DistSq;
-					Extreme[2] = Idx;
-				}
-			}
-
-			// Nearly collinear points
-			if (TMathUtil<RealType>::Sqrt(MaxDistSq) <= Epsilon * MaxRange)
-			{
-				Dimension = 1;
-				Extreme[3] = Extreme[2] = Extreme[1];
-				return;
-			}
+			Swap(Extreme[3], Extreme[2]);
 		}
-
-
-		Basis[1] = GetPointFunc(Extreme[2]) - Origin;
-		// project Basis[1] to be orthogonal to Basis[0]
-		Basis[1] -= (Basis[0].Dot(Basis[1])) * Basis[0];
-		Normalize(Basis[1]);
-		Basis[2] = Basis[0].Cross(Basis[1]);
-
-		{
-			TPlane3<RealType> Plane(Basis[2], Origin);
-			RealType MaxDist = 0, MaxSign = 0;
-			for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
-			{
-				if (!FilterFunc(Idx))
-				{
-					continue;
-				}
-				RealType DistSigned = Plane.DistanceTo(GetPointFunc(Idx));
-				RealType Dist = TMathUtil<RealType>::Abs(DistSigned);
-				if (Dist > MaxDist)
-				{
-					MaxDist = Dist;
-					MaxSign = TMathUtil<RealType>::Sign(DistSigned);
-					Extreme[3] = Idx;
-				}
-			}
-
-			// Nearly coplanar points
-			if (MaxDist <= Epsilon * MaxRange)
-			{
-				Dimension = 2;
-				Extreme[3] = Extreme[2];
-				return;
-			}
-
-			// make sure the tetrahedron is CW-oriented
-			if (MaxSign > 0)
-			{
-				Swap(Extreme[3], Extreme[2]);
-			}
-		}
-
-		Dimension = 3;
 	}
 
-};
+	Dimension = 3;
+}
+
 
 template<typename RealType>
 struct FHullConnectivity

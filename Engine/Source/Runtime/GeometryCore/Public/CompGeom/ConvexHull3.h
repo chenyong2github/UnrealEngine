@@ -18,6 +18,41 @@ using namespace UE::Math;
 template <typename RealType> struct TConvexHull3Internal;
 
 /**
+ * Helper class to find the dimensions spanned by a point cloud
+ * and (if it spans 3 dimensions) the indices of four 'extreme' points
+ * forming a (non-degenerate, volume > 0) tetrahedron
+ *
+ * The extreme points are chosen to be far apart, and are used as the starting point for
+ * incremental convex hull construction.
+ */
+template<typename RealType>
+struct GEOMETRYCORE_API TExtremePoints3
+{
+	int Dimension = 0;
+	int Extreme[4]{ 0, 0, 0, 0 };
+
+	// Coordinate frame spanned by input points
+	TVector<RealType> Origin{ 0,0,0 };
+	TVector<RealType> Basis[3]{ {0,0,0}, {0,0,0}, {0,0,0} };
+
+	TExtremePoints3(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true; }, double Epsilon = 0)
+	{
+		Init(NumPoints, GetPointFunc, FilterFunc, Epsilon);
+	}
+
+	TExtremePoints3(TArrayView<TVector<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true; })
+	{
+		Init(Points.Num(), [&Points](int32 Idx)
+			{
+				return Points[Idx];
+			}, FilterFunc);
+	}
+
+private:
+	void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0);
+};
+
+/**
  * Calculate the Convex Hull of a 3D point set as a Triangle Mesh
  */
 template<typename RealType>
@@ -186,6 +221,8 @@ protected:
 	
 };
 
+typedef TExtremePoints3<float> FExtremePoints3f;
+typedef TExtremePoints3<double> FExtremePoints3d;
 typedef TConvexHull3<float> FConvexHull3f;
 typedef TConvexHull3<double> FConvexHull3d;
 
