@@ -64,6 +64,9 @@ private:
 	/** Finalize an ongoing change, triggering post edit change on the tracked object. */
 	void TestOrFinalizeOngoingChange(bool bForceEndChange = false);
 
+	// End ongoing change on map preload.
+	void HandleMapPreLoad(const FString& MapName);
+	
 	/** Callback to handle registering delegates once the engine has finished its startup. */
 	void HandleEnginePostInit();
 
