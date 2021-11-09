@@ -81,7 +81,7 @@ void UAbilityAsync_WaitGameplayEffectApplied::EndAction()
 	{
 		if (OnPeriodicGameplayEffectExecuteCallbackDelegateHandle.IsValid())
 		{
-			ASC->OnGameplayEffectAppliedDelegateToTarget.Remove(OnPeriodicGameplayEffectExecuteCallbackDelegateHandle);
+			ASC->OnPeriodicGameplayEffectExecuteDelegateOnSelf.Remove(OnPeriodicGameplayEffectExecuteCallbackDelegateHandle);
 		}
 		ASC->OnGameplayEffectAppliedDelegateToSelf.Remove(OnApplyGameplayEffectCallbackDelegateHandle);
 	}
