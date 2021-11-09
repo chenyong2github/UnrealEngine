@@ -10,6 +10,7 @@ using System.Linq;
 using System.Diagnostics;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.BuildGraph
 {
@@ -53,12 +54,23 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The node which this diagnostic is declared in. If the node is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public BgNode EnclosingNode;
+		public BgNode? EnclosingNode;
 
 		/// <summary>
 		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public BgAgent EnclosingAgent;
+		public BgAgent? EnclosingAgent;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgScriptDiagnostic(LogEventType EventType, string Message, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
+		{
+			this.EventType = EventType;
+			this.Message = Message;
+			this.EnclosingNode = EnclosingNode;
+			this.EnclosingAgent = EnclosingAgent;
+		}
 	}
 
 	/// <summary>
@@ -182,13 +194,13 @@ namespace EpicGames.BuildGraph
 		/// <param name="Name">The name to search for</param>
 		/// <param name="OutNodes">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveReference(string Name, out BgNode[] OutNodes)
+		public bool TryResolveReference(string Name, [NotNullWhen(true)] out BgNode[]? OutNodes)
 		{
 			// Check if it's a tag reference or node reference
 			if(Name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				BgNodeOutput Output;
+				BgNodeOutput? Output;
 				if(TagNameToNodeOutput.TryGetValue(Name, out Output))
 				{
 					OutNodes = new BgNode[]{ Output.ProducingNode };
@@ -198,7 +210,7 @@ namespace EpicGames.BuildGraph
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode Node;
+				BgNode? Node;
 				if(NameToNode.TryGetValue(Name, out Node))
 				{
 					OutNodes = new BgNode[]{ Node };
@@ -206,7 +218,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate Aggregate;
+				BgAggregate? Aggregate;
 				if(NameToAggregate.TryGetValue(Name, out Aggregate))
 				{
 					OutNodes = Aggregate.RequiredNodes.ToArray();
@@ -214,7 +226,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check if it's a group name
-				BgAgent Agent;
+				BgAgent? Agent;
 				if(NameToAgent.TryGetValue(Name, out Agent))
 				{
 					OutNodes = Agent.Nodes.ToArray();
@@ -233,13 +245,13 @@ namespace EpicGames.BuildGraph
 		/// <param name="Name">The name to search for</param>
 		/// <param name="OutOutputs">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveInputReference(string Name, out BgNodeOutput[] OutOutputs)
+		public bool TryResolveInputReference(string Name, [NotNullWhen(true)] out BgNodeOutput[]? OutOutputs)
 		{
 			// Check if it's a tag reference or node reference
 			if(Name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				BgNodeOutput Output;
+				BgNodeOutput? Output;
 				if(TagNameToNodeOutput.TryGetValue(Name, out Output))
 				{
 					OutOutputs = new BgNodeOutput[]{ Output };
@@ -249,7 +261,7 @@ namespace EpicGames.BuildGraph
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode Node;
+				BgNode? Node;
 				if(NameToNode.TryGetValue(Name, out Node))
 				{
 					OutOutputs = Node.Outputs.Union(Node.Inputs).ToArray();
@@ -257,7 +269,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate Aggregate;
+				BgAggregate? Aggregate;
 				if(NameToAggregate.TryGetValue(Name, out Aggregate))
 				{
 					OutOutputs = Aggregate.RequiredNodes.SelectMany(x => x.Outputs.Union(x.Inputs)).Distinct().ToArray();

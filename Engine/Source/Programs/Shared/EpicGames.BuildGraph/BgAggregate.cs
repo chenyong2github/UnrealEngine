@@ -16,12 +16,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
-		public readonly string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public HashSet<BgNode> RequiredNodes = new HashSet<BgNode>();
+		public HashSet<BgNode> RequiredNodes { get; } = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Constructor
