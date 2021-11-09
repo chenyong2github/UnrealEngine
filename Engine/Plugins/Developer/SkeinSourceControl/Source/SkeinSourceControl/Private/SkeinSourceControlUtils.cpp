@@ -367,10 +367,27 @@ bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinPro
 			}
 		};
 
-	TArray<FString> Paths;
-	Paths.Add(InSkeinProjectRoot);
+	TSet<FString> UniquePaths;
+	for (const auto& File : InFiles)
+	{
+		const FString Path = FPaths::GetPath(*File);
+		UniquePaths.Add(Path);
+	}
 
-	return RunCommandBatched(TEXT("projects status"), InSkeinBinaryPath, InSkeinProjectRoot, TArray<FString>(), Paths, Callback);
+	int NumErrors = 0;
+
+	for (const auto& UniquePath : UniquePaths)
+	{
+		TArray<FString> Paths;
+		Paths.Add(UniquePath);
+
+		if (!RunCommandBatched(TEXT("projects status"), InSkeinBinaryPath, InSkeinProjectRoot, TArray<FString>(), Paths, Callback))
+		{
+			NumErrors++;
+		}
+	}
+
+	return (NumErrors == 0);
 }
 	
 }
