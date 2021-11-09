@@ -51,33 +51,6 @@ protected:
 };
 
 UENUM()
-enum class EUVSelectToolSelectionMode : uint8
-{
-	Vertex,
-	Edge,
-	Triangle,
-	Island,
-	Mesh
-};
-
-UCLASS()
-class UVEDITORTOOLS_API UUVSelectToolProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = Options)
-	EUVSelectToolSelectionMode SelectionMode = EUVSelectToolSelectionMode::Island;
-
-	//~ TODO: Make this only visible in transform mode
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bUpdatePreviewDuringDrag = true;
-};
-
-
-
-UENUM()
 enum class ESelectToolAction
 {
 	NoAction,
@@ -166,17 +139,12 @@ protected:
 	virtual void UpdateGizmo();
 	virtual void UpdateLivePreviewLines();
 
-	void SetToolActionsVisiblity(bool isVisible);
-
-	void ConfigureSelectionModeFromControls();	
+	void UpdateSelectionMode();	
 
 	UWorld* TargetWorld;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
-
-	UPROPERTY()
-	TObjectPtr<UUVSelectToolProperties> Settings = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<USelectToolActionPropertySet> ToolActions = nullptr;

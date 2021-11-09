@@ -117,7 +117,7 @@ protected:
 };
 
 /**
- * Allows tools to interact with buttons in the viewport (currently just gizmo controls)
+ * Allows tools to interact with buttons in the viewport
  */
 UCLASS()
 class UVEDITORTOOLS_API UUVToolViewportButtonsAPI : public UUVToolContextObject
@@ -131,14 +131,25 @@ public:
 		Transform
 	};
 
+	enum class ESelectionMode
+	{
+		None,
+
+		Vertex,
+		Edge,
+		Triangle,
+		Island,
+		Mesh,
+	};
+
 	void SetGizmoButtonsEnabled(bool bOn)
 	{
-		bButtonsEnabled = bOn;
+		bGizmoButtonsEnabled = bOn;
 	}
 
 	bool AreGizmoButtonsEnabled()
 	{
-		return bButtonsEnabled;
+		return bGizmoButtonsEnabled;
 	}
 
 	void SetGizmoMode(EGizmoMode ModeIn, bool bBroadcast = true)
@@ -152,13 +163,40 @@ public:
 		return GizmoMode;
 	}
 
+
+	void SetSelectionButtonsEnabled(bool bOn)
+	{
+		bSelectionButtonsEnabled = bOn;
+	}
+
+	bool AreSelectionButtonsEnabled()
+	{
+		return bSelectionButtonsEnabled;
+	}
+
+	void SetSelectionMode(ESelectionMode ModeIn, bool bBroadcast = true)
+	{
+		SelectionMode = ModeIn;
+		OnSelectionModeChange.Broadcast(SelectionMode);
+	}
+
+	ESelectionMode GetSelectionMode()
+	{
+		return SelectionMode;
+	}
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoModeChange, EGizmoMode NewGizmoMode);
 	FOnGizmoModeChange OnGizmoModeChange;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionModeChange, ESelectionMode NewSelectionMode);
+	FOnSelectionModeChange OnSelectionModeChange;
+
 protected:
 
-	bool bButtonsEnabled = false;
+	bool bGizmoButtonsEnabled = false;
 	EGizmoMode GizmoMode = EGizmoMode::Select;
+	bool bSelectionButtonsEnabled = false;
+	ESelectionMode SelectionMode = ESelectionMode::Island;
 };
 
 

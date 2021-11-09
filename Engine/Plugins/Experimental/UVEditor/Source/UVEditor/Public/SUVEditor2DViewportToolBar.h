@@ -24,7 +24,8 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
+	TSharedRef<SWidget> MakeSelectionToolBar(const TSharedPtr<FExtender> InExtenders);
+	TSharedRef<SWidget> MakeGizmoToolBar(const TSharedPtr<FExtender> InExtenders);
 
 	/** Command list */
 	TSharedPtr<FUICommandList> CommandList;
