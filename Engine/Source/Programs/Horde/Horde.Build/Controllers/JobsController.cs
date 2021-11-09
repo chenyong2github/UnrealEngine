@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Horde.Build.Utilities;
 using HordeServer.Api;
 using HordeServer.Collections;
 using HordeCommon;
@@ -24,6 +25,7 @@ using HordeServer.Notifications;
 using OpenTracing.Util;
 using OpenTracing;
 using HordeServer.Jobs;
+using EpicGames.Perforce;
 
 namespace HordeServer.Controllers
 {
@@ -156,6 +158,16 @@ namespace HordeServer.Controllers
 
 			// New properties for the job
 			List<string> Arguments = Create.Arguments ?? Template.GetDefaultArguments();
+
+			// Special handling for internal graph evaluation
+			if (Arguments.Any(x => x.Equals("-InternalParser", StringComparison.OrdinalIgnoreCase)))
+			{
+				IPerforceConnection? PerforceConnection = await Perforce.GetServiceUserConnection(Stream.ClusterName);
+				if (PerforceConnection != null)
+				{
+					Graph = await Graphs.AddAsync(PerforceConnection, Stream, Change, CodeChange, Arguments);
+				}
+			}
 
 			// Create the job
 			IJob Job = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, Arguments);
