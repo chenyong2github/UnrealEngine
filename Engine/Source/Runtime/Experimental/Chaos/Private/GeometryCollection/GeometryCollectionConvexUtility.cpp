@@ -5,6 +5,9 @@
 #include "Chaos/GJK.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "CompGeom/ConvexHull3.h"
+#include "Templates/Sorting.h"
+#include "Spatial/PointHashGrid3.h"
 
 
 FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::GetValidConvexHullData(FGeometryCollection* GeometryCollection)
@@ -65,6 +68,107 @@ namespace
 {
 
 typedef Chaos::TPlaneConcrete<Chaos::FReal, 3> FChaosPlane;
+
+// filter points s.t. they are spaced at least more than SimplificationDistanceThreshold apart (after starting with the 4 'extreme' points to ensure we cover a volume)
+void FilterHullPoints(const TArray<Chaos::FVec3>& InPts, TArray<Chaos::FVec3>& OutPts, double SimplificationDistanceThreshold)
+{
+	if (SimplificationDistanceThreshold > 0)
+	{
+		OutPts.Reset();
+
+		int32 NumPts = InPts.Num();
+		TArray<Chaos::FReal> DistSq;
+		DistSq.SetNumUninitialized(NumPts);
+		TArray<int32> PointOrder;
+		PointOrder.SetNumUninitialized(NumPts);
+		UE::Geometry::TPointHashGrid3<int32, Chaos::FReal> Spatial((Chaos::FReal)SimplificationDistanceThreshold, INDEX_NONE);
+		Chaos::FAABB3 Bounds;
+		for (int32 VIdx = 0; VIdx < NumPts; VIdx++)
+		{
+			Bounds.GrowToInclude(InPts[VIdx]);
+			PointOrder[VIdx] = VIdx;
+		}
+
+		// Rank points by squared distance from center
+		Chaos::FVec3 Center = Bounds.Center();
+		for (int i = 0; i < NumPts; i++)
+		{
+			DistSq[i] = (InPts[i] - Center).SizeSquared();
+		}
+
+		// Start by picking the 'extreme' points to ensure we cover the volume reasonably (otherwise it's too easy to end up with a degenerate hull pieces)
+		UE::Geometry::TExtremePoints3<Chaos::FReal> ExtremePoints(NumPts,
+			[&InPts](int32 Idx)->UE::Math::TVector<Chaos::FReal> 
+			{ 
+				return (UE::Math::TVector<Chaos::FReal>)InPts[Idx];
+			});
+		for (int32 ExtremeIdx = 0; ExtremeIdx < ExtremePoints.Dimension + 1; ExtremeIdx++)
+		{
+			int32 ExtremePtIdx = ExtremePoints.Extreme[ExtremeIdx];
+			Chaos::FVec3 ExtremePt = InPts[ExtremePtIdx];
+			OutPts.Add(ExtremePt);
+			Spatial.InsertPointUnsafe(ExtremePtIdx, ExtremePt);
+			DistSq[ExtremePtIdx] = -1; // remove these points from the distance ranking
+		}
+
+		// Sort in descending order
+		Sort(&PointOrder[0], NumPts, [&DistSq](int32 i, int32 j)
+			{
+				return DistSq[i] > DistSq[j];
+			});
+
+		// Filter to include only w/ no other too-close points, prioritizing the farthest points
+		for (int32 OrdIdx = 0; OrdIdx < NumPts; OrdIdx++)
+		{
+			int32 PtIdx = PointOrder[OrdIdx];
+			if (DistSq[PtIdx] < 0)
+			{
+				break; // we've reached the extreme points that were already selected
+			}
+			Chaos::FVec3 Pt = InPts[PtIdx];
+			TPair<int32, Chaos::FReal> NearestIdx = Spatial.FindNearestInRadius(Pt, (Chaos::FReal)SimplificationDistanceThreshold,
+				[&InPts, &Pt](int32 Idx)
+				{
+					return (Pt - InPts[Idx]).SizeSquared();
+				});
+			if (NearestIdx.Key == INDEX_NONE)
+			{
+				Spatial.InsertPointUnsafe(PtIdx, Pt);
+				OutPts.Add(Pt);
+			}
+		}
+	}
+	else
+	{
+		// No filtering requested -- in practice, we don't call this function in these cases below
+		OutPts = InPts;
+	}
+}
+
+void FilterHullPoints(TArray<Chaos::FVec3>& InOutPts, double SimplificationDistanceThreshold)
+{
+	if (SimplificationDistanceThreshold > 0)
+	{
+		TArray<Chaos::FVec3> FilteredPts;
+		FilterHullPoints(InOutPts, FilteredPts, SimplificationDistanceThreshold);
+		InOutPts = MoveTemp(FilteredPts);
+	}
+}
+
+Chaos::FConvex MakeHull(const TArray<Chaos::FVec3>& Pts, double SimplificationDistanceThreshold)
+{
+	if (SimplificationDistanceThreshold > 0)
+	{
+		TArray<Chaos::FVec3> FilteredPts;
+		FilterHullPoints(Pts, FilteredPts, SimplificationDistanceThreshold);
+		
+		return Chaos::FConvex(FilteredPts, KINDA_SMALL_NUMBER);
+	}
+	else
+	{
+		return Chaos::FConvex(Pts, KINDA_SMALL_NUMBER);
+	}
+}
 
 /// Cut hull with plane, generating the point set of a new hull
 /// @return false if plane did not cut any points on the hull
@@ -179,7 +283,8 @@ void CreateNonoverlappingConvexHulls(
 	const TManagedArray<int32>& Parents,
 	const TManagedArray<TSet<int32>>* GeoProximity,
 	const TManagedArray<int32>& GeometryToTransformIndex,
-	double FracAllowRemove
+	double FracAllowRemove,
+	double SimplificationDistanceThreshold
 )
 {
 	int32 NumBones = TransformToConvexIndices.Num();
@@ -350,7 +455,7 @@ void CreateNonoverlappingConvexHulls(
 		return true;
 	};
 
-	auto FixCollisionWithCut = [&Convexes, &FindCutPlane](int32 ConvexA, int32 ConvexB)
+	auto FixCollisionWithCut = [&Convexes, &FindCutPlane, &SimplificationDistanceThreshold](int32 ConvexA, int32 ConvexB)
 	{
 		if (!ensure(Convexes[ConvexA]->NumVertices() > 0 && Convexes[ConvexB]->NumVertices() > 0))
 		{
@@ -374,12 +479,12 @@ void CreateNonoverlappingConvexHulls(
 			TArray<Chaos::FVec3> CutHullPts;
 			if (CutHull(*Convexes[ConvexA], CutPlane, true, CutHullPts))
 			{
-				*Convexes[ConvexA] = Chaos::FConvex(CutHullPts, KINDA_SMALL_NUMBER);
+				*Convexes[ConvexA] = MakeHull(CutHullPts, SimplificationDistanceThreshold);
 			}
 			CutHullPts.Reset();
 			if (CutHull(*Convexes[ConvexB], CutPlane, false, CutHullPts))
 			{
-				*Convexes[ConvexB] = Chaos::FConvex(CutHullPts, KINDA_SMALL_NUMBER);
+				*Convexes[ConvexB] = MakeHull(CutHullPts, SimplificationDistanceThreshold);
 			}
 		}
 		return bCollide;
@@ -489,6 +594,7 @@ void CreateNonoverlappingConvexHulls(
 					}
 					if (JoinedHullPts.Num() > 0)
 					{
+						FilterHullPoints(JoinedHullPts, SimplificationDistanceThreshold);
 						int32 ConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(JoinedHullPts, KINDA_SMALL_NUMBER));
 						TransformToConvexIndices[Bone].Add(ConvexIdx);
 						ToProcess.Add(Bone);
@@ -565,14 +671,14 @@ void CreateNonoverlappingConvexHulls(
 				int32 ConvexIdx = OnlyConvex(Bone);
 				if (ConvexIdx)
 				{
-					*Convexes[ConvexIdx] = Chaos::FConvex(JoinedHullPts, KINDA_SMALL_NUMBER);
+					*Convexes[ConvexIdx] = MakeHull(JoinedHullPts, SimplificationDistanceThreshold);
 					NonLeafVolumes[ConvexIdx] = Convexes[ConvexIdx]->GetVolume();
 				}
 			}
 		}
 	}
 
-	auto CutIfOk = [&Convexes, &OnlyConvex, &NonLeafVolumes, &FindCutPlane, &FracAllowRemove](bool bOneSidedCut, int32 ConvexA, int32 ConvexB) -> bool
+	auto CutIfOk = [&Convexes, &OnlyConvex, &NonLeafVolumes, &FindCutPlane, &FracAllowRemove, &SimplificationDistanceThreshold](bool bOneSidedCut, int32 ConvexA, int32 ConvexB) -> bool
 	{
 		Chaos::FReal Depth;
 		Chaos::FVec3 CloseA, CloseB, Normal;
@@ -595,7 +701,7 @@ void CreateNonoverlappingConvexHulls(
 				{
 					return false;
 				}
-				CutHullA = Chaos::FConvex(CutHullPts, KINDA_SMALL_NUMBER);
+				CutHullA = MakeHull(CutHullPts, SimplificationDistanceThreshold);
 				bCreatedA = true;
 			}
 			if (!bOneSidedCut)
@@ -603,7 +709,7 @@ void CreateNonoverlappingConvexHulls(
 				CutHullPts.Reset();
 				if (CutHull(*Convexes[ConvexB], CutPlane, false, CutHullPts))
 				{
-					CutHullB = Chaos::FConvex(CutHullPts, KINDA_SMALL_NUMBER);
+					CutHullB = MakeHull(CutHullPts, SimplificationDistanceThreshold);
 					bCreatedB = true;
 				}
 			}
@@ -718,7 +824,8 @@ void HullsFromGeometry(
 	TArray<TUniquePtr<Chaos::FConvex>>& Convexes,
 	TArray<TSet<int32>>& TransformToConvexIndices,
 	const TManagedArray<int32>& SimulationType,
-	int32 RigidType
+	int32 RigidType,
+	double SimplificationDistanceThreshold
 )
 {
 	TArray<FVector> GlobalVertices;
@@ -750,12 +857,13 @@ void HullsFromGeometry(
 				HullPts.Add(GlobalVertices[VIdx]);
 			}
 			ensure(HullPts.Num() > 0);
+			FilterHullPoints(HullPts, SimplificationDistanceThreshold);
 			int32 ConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
 			if (Convexes[ConvexIdx]->NumVertices() == 0 && HullPts.Num() > 0)
 			{
 				// if we've failed to make a convex hull, add a tiny bounding box just to ensure every geometry has a hull
 				Chaos::FAABB3 AABB = Convexes[ConvexIdx]->BoundingBox();
-				AABB.Thicken((Chaos::FReal).0001);
+				AABB.Thicken((Chaos::FReal).001);
 				Chaos::FVec3 Min = AABB.Min();
 				Chaos::FVec3 Max = AABB.Max();
 				HullPts.Add(Min);
@@ -766,6 +874,7 @@ void HullsFromGeometry(
 				HullPts.Add(Chaos::FVec3(Max.X, Max.Y, Min.Z));
 				HullPts.Add(Chaos::FVec3(Max.X, Min.Y, Min.Z));
 				HullPts.Add(Chaos::FVec3(Min.X, Max.Y, Min.Z));
+				// note: Do not use SimplificationDistanceThreshold for this fixed tiny hull
 				*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
 			}
 			ensure(Convexes[ConvexIdx]->NumVertices() > 0);
@@ -791,6 +900,7 @@ void TransformHullsToLocal(
 			{
 				HullPts.Add(Transform.InverseTransformPosition(P));
 			}
+			// Do not simplify hulls when we're just trying to transform them
 			*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
 		}
 	}
@@ -800,7 +910,7 @@ void TransformHullsToLocal(
 }
 
 
-FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FracAllowRemove)
+FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold)
 {
 	check(GeometryCollection);
 
@@ -810,9 +920,9 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	TArray<TSet<int32>> TransformToConvexIndexArr;
 	TArray<FTransform> GlobalTransformArray;
 	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
-	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid);
+	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold);
 
-	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None, GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, FracAllowRemove);
+	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None, GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, FracAllowRemove, SimplificationDistanceThreshold);
 
 	TransformHullsToLocal(GlobalTransformArray, Convexes, TransformToConvexIndexArr);
 

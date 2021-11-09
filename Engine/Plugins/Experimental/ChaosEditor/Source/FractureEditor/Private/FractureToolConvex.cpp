@@ -153,7 +153,7 @@ int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureC
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
 		FGeometryCollectionProximityUtility ProximityUtility(&Collection);
 		ProximityUtility.UpdateProximity();
-		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(&Collection, ConvexSettings->FractionAllowRemove);
+		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(&Collection, ConvexSettings->FractionAllowRemove, ConvexSettings->SimplificationDistanceThreshold);
 	}
 
 	return INDEX_NONE;
