@@ -156,8 +156,21 @@ URigVMNode* URigVMGraph::FindNode(const FString& InNodePath) const
 		return nullptr;
 	}
 
-	FString Left = InNodePath, Right;
-	URigVMNode::SplitNodePathAtStart(InNodePath, Left, Right);
+	FString Path = InNodePath;
+	if (Path.StartsWith(TEXT("FunctionLibrary::|")))
+	{
+		if (GetRootGraph()->IsA<URigVMFunctionLibrary>())
+		{
+			Path.RightChopInline(18);
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	FString Left = Path, Right;
+	URigVMNode::SplitNodePathAtStart(Path, Left, Right);
 
 	if (Right.IsEmpty())
 	{
