@@ -516,7 +516,7 @@ void UZoneGraphDisturbanceAnnotation::HandleEvents(TConstArrayView<const UScript
 	{
 		if (Obstacle.Action == EZoneGraphObstacleDisturbanceAreaAction::Add)
 		{
-			FZoneGraphObstacleDisturbanceArea* ExistingObstacle = Obstacles.FindByPredicate([Obstacle](const FZoneGraphObstacleDisturbanceArea& Area) { return Obstacle.ObstacleID == Area.ObstacleID; });
+			FZoneGraphObstacleDisturbanceArea* ExistingObstacle = Obstacles.FindByPredicate([Obstacle](const FZoneGraphObstacleDisturbanceArea& Area) { return Area.ObstacleID == Obstacle.ObstacleID; });
 			if (ExistingObstacle)
 			{
 				*ExistingObstacle = Obstacle;
