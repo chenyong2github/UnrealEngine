@@ -25,10 +25,13 @@ namespace EpicGames.Perforce
 		class NativeSettings
 		{
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? Port;
+			public string? ServerAndPort;
 
 			[MarshalAs(UnmanagedType.LPStr)]
 			public string? User;
+
+			[MarshalAs(UnmanagedType.LPStr)]
+			public string? Password;
 
 			[MarshalAs(UnmanagedType.LPStr)]
 			public string? Client;
@@ -374,8 +377,9 @@ namespace EpicGames.Perforce
 			if (Settings != null)
 			{
 				NativeSettings = new NativeSettings();
-				NativeSettings.Port = Settings.Port;
+				NativeSettings.ServerAndPort = Settings.ServerAndPort;
 				NativeSettings.User = Settings.User;
+				NativeSettings.Password = Settings.Password;
 				NativeSettings.Client = Settings.Client;
 				NativeSettings.AppName = Settings.AppName;
 				NativeSettings.AppVersion = Settings.AppVersion;

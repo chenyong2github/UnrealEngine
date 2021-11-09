@@ -14,12 +14,17 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Server and port to connect to
 		/// </summary>
-		public string? Port { get; set; }
+		public string? ServerAndPort { get; set; }
 
 		/// <summary>
 		/// Username to log in with
 		/// </summary>
 		public string? User { get; set; }
+
+		/// <summary>
+		/// Password to use
+		/// </summary>
+		public string? Password { get; set; }
 
 		/// <summary>
 		/// Name of the client to use
