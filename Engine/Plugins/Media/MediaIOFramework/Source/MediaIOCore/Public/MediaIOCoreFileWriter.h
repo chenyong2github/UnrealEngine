@@ -6,5 +6,5 @@
 
 namespace MediaIOCoreFileWriter
 {
-	MEDIAIOCORE_API void WriteRawFile(const FString& InFilename, uint8* InBuffer, uint32 InSize);
+	MEDIAIOCORE_API void WriteRawFile(const FString& InFilename, uint8* InBuffer, uint32 InSize, bool bAppend = true);
 };

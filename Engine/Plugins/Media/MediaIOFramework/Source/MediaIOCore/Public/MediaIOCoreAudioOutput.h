@@ -46,9 +46,18 @@ namespace UE::MediaIoCoreModule::Private
 }
 
 class MEDIAIOCORE_API FMediaIOAudioOutput
-{
+{ 
 public:
-	FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, uint32 InNumInputChannels, uint32 InNumOutputChannels, FFrameRate InTargetFrameRate, uint32 InMaxSampleLatency, uint32 InOutputSampleRate);
+	struct FAudioOptions
+	{
+		uint32 InNumInputChannels = 0;
+		uint32 InNumOutputChannels = 0;
+		FFrameRate InTargetFrameRate;
+		uint32 InMaxSampleLatency = 0;
+		uint32 InOutputSampleRate = 0;
+	};
+
+	FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, const FAudioOptions& InAudioOptions);
 
 	/**
 	 * Get the audio sample that were accumulated.
@@ -69,13 +78,18 @@ private:
 private:
 	/** The buffer accumulating audio samples. */
 	Audio::FPatchOutputStrongPtr PatchOutput;
+
 	/** Number of audio channels on the engine side. */
 	int32 NumInputChannels;
+
 	/** Number of audio channels to output. */
 	int32 NumOutputChannels;
+
 	FFrameRate TargetFrameRate;
+
 	/** Maximum number of samples to accumulate before they are discarded. */
 	uint32 MaxSampleLatency;
+
 	uint32 OutputSampleRate;
 };
 
@@ -97,10 +111,13 @@ public:
 private:
 	/** Sample rate on the engine side. */ 
 	uint32 SampleRate = 0;
+
 	// Used to make sure we only accumulate audio from the master submix. 
 	FName MasterSubmixName;
+
 	/** Number of channels on the engine side. */
 	int32 NumChannels = 0;
+
 	/** Utility that allows pushing audio samples to multiple outputs. */
 	Audio::FPatchSplitter AudioSplitter;
 };

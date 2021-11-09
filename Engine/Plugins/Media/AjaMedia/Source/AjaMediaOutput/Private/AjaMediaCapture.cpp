@@ -291,6 +291,8 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 			}
 		}
 
+		AudioOutput.Reset();
+
 		RestoreViewportTextureAlpha(GetCapturingSceneViewport());
 	}
 }
@@ -458,8 +460,8 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 		// so don't pop from the audio buffer since we would lose these samples in the SetAudioFrameData call.
 		if (bSetVideoResult && bOutputAudio)
 		{
-			TArray<uint32> AudioSamples = AudioOutput->GetAudioSamples<uint32>();
-			OutputChannel->SetAudioFrameData(FrameBuffer, reinterpret_cast<uint8*>(AudioSamples.GetData()), AudioSamples.Num() * sizeof(uint32));
+			TArray<int32> AudioSamples = AudioOutput->GetAudioSamples<int32>();
+			OutputChannel->SetAudioFrameData(FrameBuffer, reinterpret_cast<uint8*>(AudioSamples.GetData()), AudioSamples.Num() * sizeof(int32));
 		}
 
 		if (bAjaWriteInputRawDataCmdEnable)
