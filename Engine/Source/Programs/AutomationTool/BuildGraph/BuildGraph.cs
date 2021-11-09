@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.BuildGraph;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -9,6 +11,8 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using EpicGames.Core;
+using EpicGames.MCP.Automation;
+using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildBase;
@@ -16,6 +20,130 @@ using UnrealBuildTool;
 
 namespace AutomationTool
 {
+	/// <summary>
+	/// Implementation of ScriptTaskParameter corresponding to a field in a parameter class
+	/// </summary>
+	class ScriptTaskParameterBinding : BgScriptTaskParameter
+	{
+		/// <summary>
+		/// Field for this parameter
+		/// </summary>
+		public FieldInfo FieldInfo { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ScriptTaskParameterBinding(string Name, FieldInfo FieldInfo, TaskParameterValidationType ValidationType, bool bOptional)
+			: base(Name, FieldInfo.FieldType, ValidationType, bOptional)
+		{
+			this.FieldInfo = FieldInfo;
+		}
+	}
+
+	/// <summary>
+	/// Binding of a ScriptTask to a Script
+	/// </summary>
+	class ScriptTaskBinding : BgScriptTask
+	{
+		/// <summary>
+		/// Type of the task to construct with this info
+		/// </summary>
+		public Type TaskClass;
+
+		/// <summary>
+		/// Type to construct with the parsed parameters
+		/// </summary>
+		public Type ParametersClass;
+
+		/// <summary>
+		/// Map from name to parameter
+		/// </summary>
+		public IReadOnlyDictionary<string, ScriptTaskParameterBinding> NameToParameter { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">Name of the task</param>
+		/// <param name="TaskClass">Task class to create</param>
+		/// <param name="ParametersClass">Class type of an object to be constructed and passed as an argument to the task class constructor</param>
+		public ScriptTaskBinding(string Name, Type TaskClass, Type ParametersClass)
+			: this(Name, TaskClass, ParametersClass, CreateParameters(ParametersClass))
+		{
+		}
+
+		/// <summary>
+		/// Private constructor
+		/// </summary>
+		private ScriptTaskBinding(string Name, Type TaskClass, Type ParametersClass, List<ScriptTaskParameterBinding> Parameters)
+			: base(Name, Parameters.ConvertAll<BgScriptTaskParameter>(x => x))
+		{
+			this.TaskClass = TaskClass;
+			this.ParametersClass = ParametersClass;
+			this.NameToParameter = Parameters.ToDictionary(x => x.Name, x => x);
+		}
+
+		static List<ScriptTaskParameterBinding> CreateParameters(Type ParametersClass)
+		{
+			List<ScriptTaskParameterBinding> ScriptTaskParameters = new List<ScriptTaskParameterBinding>();
+			foreach (FieldInfo Field in ParametersClass.GetFields())
+			{
+				if (Field.MemberType == MemberTypes.Field)
+				{
+					TaskParameterAttribute ParameterAttribute = Field.GetCustomAttribute<TaskParameterAttribute>();
+					if (ParameterAttribute != null)
+					{
+						ScriptTaskParameters.Add(new ScriptTaskParameterBinding(Field.Name, Field, ParameterAttribute.ValidationType, ParameterAttribute.Optional));
+					}
+				}
+			}
+			return ScriptTaskParameters;
+		}
+	}
+
+	/// <summary>
+	/// Implementation of <see cref="IBgScriptReaderContext"/> which reads files from disk
+	/// </summary>
+	class ScriptReaderFileContext : IBgScriptReaderContext
+	{
+		/// <inheritdoc/>
+		public object GetNativePath(string Path)
+		{
+			return FileReference.Combine(Unreal.RootDirectory, Path).FullName;
+		}
+
+		/// <inheritdoc/>
+		public bool Exists(string Path)
+		{
+			try
+			{
+				return FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path));
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		/// <inheritdoc/>
+		public bool TryRead(string Path, out byte[] Data)
+		{
+			try
+			{
+				FileReference File = FileReference.Combine(Unreal.RootDirectory, Path);
+				if (FileReference.Exists(File))
+				{
+					Data = FileReference.ReadAllBytes(File);
+					return true;
+				}
+			}
+			catch
+			{
+			}
+			Data = null;
+			return false;
+		}
+	}
+
 	/// <summary>
 	/// Tool to execute build automation scripts for UE projects, which can be run locally or in parallel across a build farm (assuming synchronization and resource allocation implemented by a separate system).
 	///
@@ -76,6 +204,11 @@ namespace AutomationTool
 	public class BuildGraph : BuildCommand
 	{
 		/// <summary>
+		/// Context object for reading scripts and evaluating conditions
+		/// </summary>
+		ScriptReaderFileContext Context { get; } = new ScriptReaderFileContext();
+
+		/// <summary>
 		/// Main entry point for the BuildGraph command
 		/// </summary>
 		public override ExitCode Execute()
@@ -92,8 +225,6 @@ namespace AutomationTool
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
 			string SingleNodeName = ParseParamValue("SingleNode", null);
 			string TriggerName = ParseParamValue("Trigger", null);
-			string[] SkipTriggerNames = ParseParamValue("SkipTrigger", "").Split(new char[]{ '+', ';' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
-			bool bSkipTriggers = ParseParam("SkipTriggers");
 			string TokenSignature = ParseParamValue("TokenSignature", null);
 			bool bSkipTargetsWithoutTokens = ParseParam("SkipTargetsWithoutTokens");
 			bool bResume = SingleNodeName != null || ParseParam("Resume");
@@ -101,6 +232,7 @@ namespace AutomationTool
 			bool bShowDiagnostics = ParseParam("ShowDiagnostics");
 			bool bWriteToSharedStorage = ParseParam("WriteToSharedStorage") || CommandUtils.IsBuildMachine;
 			bool bPublicTasksOnly = ParseParam("PublicTasksOnly");
+			bool bSkipValidation = ParseParam("SkipValidation");
 			string ReportName = ParseParamValue("ReportName", null);
 			string BranchOverride = ParseParamValue("Branch", null);
 
@@ -214,7 +346,7 @@ namespace AutomationTool
 			}
 
 			// Find all the tasks from the loaded assemblies
-			Dictionary<string, ScriptTask> NameToTask = new Dictionary<string,ScriptTask>();
+			Dictionary<string, ScriptTaskBinding> NameToTask = new Dictionary<string, ScriptTaskBinding>();
 			if(!FindAvailableTasks(NameToTask, bPublicTasksOnly))
 			{
 				return ExitCode.Error_Unknown;
@@ -228,15 +360,22 @@ namespace AutomationTool
 			}
 
 			// Import schema if one is passed in
-			ScriptSchema Schema;
+			BgScriptSchema Schema;
 			if (ImportSchemaFileName != null)
 			{
-				Schema = ScriptSchema.Import(FileReference.FromString(ImportSchemaFileName), NameToTask);
+				Schema = BgScriptSchema.Import(FileReference.FromString(ImportSchemaFileName));
 			}
 			else
 			{
+				// Add any primitive types
+				List<(Type, ScriptSchemaStandardType)> PrimitiveTypes = new List<(Type, ScriptSchemaStandardType)>();
+				PrimitiveTypes.Add((typeof(FileReference), ScriptSchemaStandardType.BalancedString));
+				PrimitiveTypes.Add((typeof(DirectoryReference), ScriptSchemaStandardType.BalancedString));
+				PrimitiveTypes.Add((typeof(UnrealTargetPlatform), ScriptSchemaStandardType.BalancedString));
+				PrimitiveTypes.Add((typeof(MCPPlatform), ScriptSchemaStandardType.BalancedString));
+
 				// Create a schema for the given tasks
-				Schema = new ScriptSchema(NameToTask);
+				Schema = new BgScriptSchema(NameToTask.Values, PrimitiveTypes);
 				if (SchemaFileName != null)
 				{
 					FileReference FullSchemaFileName = new FileReference(SchemaFileName);
@@ -256,9 +395,18 @@ namespace AutomationTool
 				return ExitCode.Error_Unknown;
 			}
 
+			// Normalize the script filename
+			FileReference FullScriptFile = FileReference.Combine(Unreal.RootDirectory, ScriptFileName);
+			if (!FullScriptFile.IsUnderDirectory(Unreal.RootDirectory))
+			{
+				LogError("BuildGraph scripts must be under the UE root directory");
+				return ExitCode.Error_Unknown;
+			}
+			ScriptFileName = FullScriptFile.MakeRelativeTo(Unreal.RootDirectory).Replace('\\', '/');
+
 			// Read the script from disk
-			Graph Graph;
-			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph, SingleNodeName))
+			BgScript Graph;
+			if(!BgScriptReader.TryRead(Context, ScriptFileName, Arguments, DefaultProperties, PreprocessedFileName != null, Schema, Logger, out Graph, SingleNodeName))
 			{
 				return ExitCode.Error_Unknown;
 			}
@@ -282,7 +430,7 @@ namespace AutomationTool
 			}
 
 			// Convert the supplied target references into nodes 
-			HashSet<Node> TargetNodes = new HashSet<Node>();
+			HashSet<BgNode> TargetNodes = new HashSet<BgNode>();
 			if(TargetNames.Length == 0)
 			{
 				if (!bListOnly && SingleNodeName == null)
@@ -309,7 +457,7 @@ namespace AutomationTool
 
 				foreach (string TargetName in NodesToResolve)
 				{
-					Node[] Nodes;
+					BgNode[] Nodes;
 					if(!Graph.TryResolveReference(TargetName, out Nodes))
 					{
 						LogError("Target '{0}' is not in graph", TargetName);
@@ -326,10 +474,10 @@ namespace AutomationTool
 				HashSet<FileReference> RequiredTokens = new HashSet<FileReference>(TargetNodes.SelectMany(x => x.RequiredTokens));
 
 				// List out all the required tokens
-				if(SingleNodeName == null)
+				if (SingleNodeName == null)
 				{
 					CommandUtils.LogInformation("Required tokens:");
-					foreach(Node Node in TargetNodes)
+					foreach(BgNode Node in TargetNodes)
 					{
 						foreach(FileReference RequiredToken in Node.RequiredTokens)
 						{
@@ -362,13 +510,13 @@ namespace AutomationTool
 					if(bSkipTargetsWithoutTokens)
 					{
 						// Find all the nodes we're going to skip
-						HashSet<Node> SkipNodes = new HashSet<Node>();
+						HashSet<BgNode> SkipNodes = new HashSet<BgNode>();
 						foreach(IGrouping<string, FileReference> MissingTokensForBuild in MissingTokens.GroupBy(x => x.Value, x => x.Key))
 						{
 							LogInformation("Skipping the following nodes due to {0}:", MissingTokensForBuild.Key);
 							foreach(FileReference MissingToken in MissingTokensForBuild)
 							{
-								foreach(Node SkipNode in TargetNodes.Where(x => x.RequiredTokens.Contains(MissingToken) && SkipNodes.Add(x)))
+								foreach(BgNode SkipNode in TargetNodes.Where(x => x.RequiredTokens.Contains(MissingToken) && SkipNodes.Add(x)))
 								{
 									LogInformation("    {0}", SkipNode);
 								}
@@ -380,7 +528,7 @@ namespace AutomationTool
 						{
 							TargetNodes.ExceptWith(SkipNodes);
 							LogInformation("Remaining target nodes:");
-							foreach(Node TargetNode in TargetNodes)
+							foreach(BgNode TargetNode in TargetNodes)
 							{
 								LogInformation("    {0}", TargetNode);
 							}
@@ -394,7 +542,7 @@ namespace AutomationTool
 					{
 						foreach(KeyValuePair<FileReference, string> Pair in MissingTokens)
 						{
-							List<Node> SkipNodes = TargetNodes.Where(x => x.RequiredTokens.Contains(Pair.Key)).ToList();
+							List<BgNode> SkipNodes = TargetNodes.Where(x => x.RequiredTokens.Contains(Pair.Key)).ToList();
 							LogError("Cannot run {0} due to previous build: {1}", String.Join(", ", SkipNodes), Pair.Value);
 						}
 						foreach(FileReference CreatedToken in CreatedTokens)
@@ -409,31 +557,10 @@ namespace AutomationTool
 			// Cull the graph to include only those nodes
 			Graph.Select(TargetNodes);
 
-			// Collapse any triggers in the graph which are marked to be skipped
-			HashSet<ManualTrigger> SkipTriggers = new HashSet<ManualTrigger>();
-			if(bSkipTriggers)
-			{
-				SkipTriggers.UnionWith(Graph.NameToTrigger.Values);
-			}
-			else
-			{
-				foreach(string SkipTriggerName in SkipTriggerNames)
-				{
-					ManualTrigger SkipTrigger;
-					if(!Graph.NameToTrigger.TryGetValue(TriggerName, out SkipTrigger))
-					{
-						LogError("Couldn't find trigger '{0}'", TriggerName);
-						return ExitCode.Error_Unknown;
-					}
-					SkipTriggers.Add(SkipTrigger);
-				}
-			}
-			Graph.SkipTriggers(SkipTriggers);
-
 			// If a report for the whole build was requested, insert it into the graph
 			if (ReportName != null)
 			{
-				Report NewReport = new Report(ReportName);
+				BgReport NewReport = new BgReport(ReportName);
 				NewReport.Nodes.UnionWith(Graph.Agents.SelectMany(x => x.Nodes));
 				Graph.NameToReport.Add(ReportName, NewReport);
 			}
@@ -447,16 +574,8 @@ namespace AutomationTool
 				bListOnly = true;
 			}
 
-			// Find the triggers which we are explicitly running.
-			ManualTrigger Trigger = null;
-			if(TriggerName != null && !Graph.NameToTrigger.TryGetValue(TriggerName, out Trigger))
-			{
-				LogError("Couldn't find trigger '{0}'", TriggerName);
-				return ExitCode.Error_Unknown;
-			}
-
 			// If we're just building a single node, find it 
-			Node SingleNode = null;
+			BgNode SingleNode = null;
 			if(SingleNodeName != null && !Graph.NameToNode.TryGetValue(SingleNodeName, out SingleNode))
 			{
 				LogError("Node '{0}' is not in the trimmed graph", SingleNodeName);
@@ -466,15 +585,14 @@ namespace AutomationTool
 			// If we just want to show the contents of the graph, do so and exit.
 			if(bListOnly)
 			{ 
-				HashSet<Node> CompletedNodes = FindCompletedNodes(Graph, Storage);
-				Graph.Print(CompletedNodes, PrintOptions);
+				HashSet<BgNode> CompletedNodes = FindCompletedNodes(Graph, Storage);
+				Graph.Print(CompletedNodes, PrintOptions, Log.Logger);
 			}
 
 			// Print out all the diagnostic messages which still apply, unless we're running a step as part of a build system or just listing the contents of the file. 
 			if(SingleNode == null && (!bListOnly || bShowDiagnostics))
 			{
-				IEnumerable<GraphDiagnostic> Diagnostics = Graph.Diagnostics.Where(x => x.EnclosingTrigger == Trigger);
-				foreach(GraphDiagnostic Diagnostic in Diagnostics)
+				foreach(BgScriptDiagnostic Diagnostic in Graph.Diagnostics)
 				{
 					if(Diagnostic.EventType == LogEventType.Console)
 					{
@@ -489,7 +607,7 @@ namespace AutomationTool
 						CommandUtils.LogError(Diagnostic.Message);
 					}
 				}
-				if(Diagnostics.Any(x => x.EventType == LogEventType.Error))
+				if(Graph.Diagnostics.Any(x => x.EventType == LogEventType.Error))
 				{
 					return ExitCode.Error_Unknown;
 				}
@@ -498,25 +616,42 @@ namespace AutomationTool
 			// Export the graph to a file
 			if(ExportFileName != null)
 			{
-				HashSet<Node> CompletedNodes = FindCompletedNodes(Graph, Storage);
-				Graph.Print(CompletedNodes, PrintOptions);
-				Graph.Export(new FileReference(ExportFileName), Trigger, CompletedNodes);
+				HashSet<BgNode> CompletedNodes = FindCompletedNodes(Graph, Storage);
+				Graph.Print(CompletedNodes, PrintOptions, Log.Logger);
+				Graph.Export(new FileReference(ExportFileName), CompletedNodes);
 				return ExitCode.Success;
 			}
 
+			// Create tasks for the entire graph
+			Dictionary<BgTask, CustomTask> TaskInfoToTask = new Dictionary<BgTask, CustomTask>();
+			if (bSkipValidation && SingleNode != null)
+			{
+				if (!CreateTaskInstances(Graph, SingleNode, NameToTask, TaskInfoToTask))
+				{
+					return ExitCode.Error_Unknown;
+				}
+			}
+			else
+			{
+				if (!CreateTaskInstances(Graph, NameToTask, TaskInfoToTask))
+				{
+					return ExitCode.Error_Unknown;
+				}
+			}
+
 			// Execute the command
-			if(!bListOnly)
+			if (!bListOnly)
 			{
 				if(SingleNode != null)
 				{
-					if(!BuildNode(new JobContext(this), Graph, SingleNode, Storage, bWithBanner: true))
+					if(!BuildNode(new JobContext(this), Graph, SingleNode, TaskInfoToTask, Storage, bWithBanner: true))
 					{
 						return ExitCode.Error_Unknown;
 					}
 				}
 				else
 				{
-					if(!BuildAllNodes(new JobContext(this), Graph, Storage))
+					if(!BuildAllNodes(new JobContext(this), Graph, TaskInfoToTask, Storage))
 					{
 						return ExitCode.Error_Unknown;
 					}
@@ -525,12 +660,185 @@ namespace AutomationTool
 			return ExitCode.Success;
 		}
 
+		bool CreateTaskInstances(BgScript Graph, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgTask, CustomTask> TaskInfoToTask)
+		{
+			bool bResult = true;
+			foreach (BgAgent Agent in Graph.Agents)
+			{
+				foreach (BgNode Node in Agent.Nodes)
+				{
+					bResult &= CreateTaskInstances(Graph, Node, NameToTask, TaskInfoToTask);
+				}
+			}
+			return bResult;
+		}
+
+		bool CreateTaskInstances(BgScript Graph, BgNode Node, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgTask, CustomTask> TaskInfoToTask)
+		{
+			bool bResult = true;
+			foreach (BgTask TaskInfo in Node.TaskInfos)
+			{
+				CustomTask Task = BindTask(Node, TaskInfo, NameToTask, Graph.TagNameToNodeOutput);
+				if (Task == null)
+				{
+					bResult = false;
+				}
+				else
+				{
+					TaskInfoToTask.Add(TaskInfo, Task);
+				}
+			}
+			return bResult;
+		}
+
+		CustomTask BindTask(BgNode Node, BgTask TaskInfo, Dictionary<string, ScriptTaskBinding> NameToTask, IReadOnlyDictionary<string, BgNodeOutput> TagNameToNodeOutput)
+		{
+			// Get the reflection info for this element
+			ScriptTaskBinding Task;
+			if (!NameToTask.TryGetValue(TaskInfo.Name, out Task))
+			{
+				OutputBindingError(TaskInfo, "Unknown task '{TaskName}'", TaskInfo.Name);
+				return null;
+			}
+
+			// Check all the required parameters are present
+			bool bHasRequiredAttributes = true;
+			foreach (ScriptTaskParameterBinding Parameter in Task.NameToParameter.Values)
+			{
+				if (!Parameter.bOptional && !TaskInfo.Arguments.ContainsKey(Parameter.Name))
+				{
+					OutputBindingError(TaskInfo, "Missing required attribute - {AttrName}", Parameter.Name);
+					bHasRequiredAttributes = false;
+				}
+			}
+
+			// Read all the attributes into a parameters object for this task
+			object ParametersObject = Activator.CreateInstance(Task.ParametersClass);
+			foreach ((string Name, string Value) in TaskInfo.Arguments)
+			{
+				// Get the field that this attribute should be written to in the parameters object
+				ScriptTaskParameterBinding Parameter;
+				if (!Task.NameToParameter.TryGetValue(Name, out Parameter))
+				{
+					OutputBindingError(TaskInfo, "Unknown attribute '{AttrName}'", Name);
+					continue;
+				}
+
+				// If it's a collection type, split it into separate values
+				if (Parameter.CollectionType == null)
+				{
+					// Parse it and assign it to the parameters object
+					object FieldValue = ParseValue(Value, Parameter.ValueType);
+					Parameter.FieldInfo.SetValue(ParametersObject, FieldValue);
+				}
+				else
+				{
+					// Get the collection, or create one if necessary
+					object CollectionValue = Parameter.FieldInfo.GetValue(ParametersObject);
+					if (CollectionValue == null)
+					{
+						CollectionValue = Activator.CreateInstance(Parameter.FieldInfo.FieldType);
+						Parameter.FieldInfo.SetValue(ParametersObject, CollectionValue);
+					}
+
+					// Parse the values and add them to the collection
+					List<string> ValueStrings = CustomTask.SplitDelimitedList(Value);
+					foreach (string ValueString in ValueStrings)
+					{
+						object ElementValue = ParseValue(ValueString, Parameter.ValueType);
+						Parameter.CollectionType.InvokeMember("Add", BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Public, null, CollectionValue, new object[] { ElementValue });
+					}
+				}
+			}
+
+			// Construct the task
+			if (!bHasRequiredAttributes)
+			{
+				return null;
+			}
+
+			// Add it to the list
+			CustomTask NewTask = (CustomTask)Activator.CreateInstance(Task.TaskClass, ParametersObject);
+
+			// Set up the source location for diagnostics
+			NewTask.SourceLocation = TaskInfo.SourceLocation;
+
+			// Make sure all the read tags are local or listed as a dependency
+			foreach (string ReadTagName in NewTask.FindConsumedTagNames())
+			{
+				BgNodeOutput Output;
+				if (TagNameToNodeOutput.TryGetValue(ReadTagName, out Output))
+				{
+					if (Output != null && Output.ProducingNode != Node && !Node.Inputs.Contains(Output))
+					{
+						OutputBindingError(TaskInfo, "The tag '{TagName}' is not a dependency of node '{Node}'", ReadTagName, Node.Name);
+					}
+				}
+			}
+
+			// Make sure all the written tags are local or listed as an output
+			foreach (string ModifiedTagName in NewTask.FindProducedTagNames())
+			{
+				BgNodeOutput Output;
+				if (TagNameToNodeOutput.TryGetValue(ModifiedTagName, out Output))
+				{
+					if (Output != null && !Node.Outputs.Contains(Output))
+					{
+						OutputBindingError(TaskInfo, "The tag '{0}' is created by '{1}', and cannot be modified downstream", Output.TagName, Output.ProducingNode.Name);
+					}
+				}
+			}
+			return NewTask;
+		}
+
+		/// <summary>
+		/// Parse a value of the given type
+		/// </summary>
+		/// <param name="ValueText">The text to parse</param>
+		/// <param name="ValueType">Type of the value to parse</param>
+		/// <returns>Value that was parsed</returns>
+		object ParseValue(string ValueText, Type ValueType)
+		{
+			// Parse it and assign it to the parameters object
+			if (ValueType.IsEnum)
+			{
+				return Enum.Parse(ValueType, ValueText);
+			}
+			else if (ValueType == typeof(Boolean))
+			{
+				return BgCondition.Evaluate(ValueText, Context);
+			}
+			else if (ValueType == typeof(FileReference))
+			{
+				return CustomTask.ResolveFile(ValueText);
+			}
+			else if (ValueType == typeof(DirectoryReference))
+			{
+				return CustomTask.ResolveDirectory(ValueText);
+			}
+
+			TypeConverter Converter = TypeDescriptor.GetConverter(ValueType);
+			if (Converter.CanConvertFrom(typeof(string)))
+			{
+				return Converter.ConvertFromString(ValueText);
+			}
+			else
+			{
+				return Convert.ChangeType(ValueText, ValueType);
+			}
+		}
+
+		void OutputBindingError(BgTask Task, string Format, params object[] Args)
+		{
+			Logger.LogScriptError(Context.GetNativePath(Task.SourceLocation.Item1), Task.SourceLocation.Item2, Format, Args);
+		}
+
 		/// <summary>
 		/// Find all the tasks which are available from the loaded assemblies
 		/// </summary>
 		/// <param name="NameToTask">Mapping from task name to information about how to serialize it</param>
 		/// <param name="bPublicTasksOnly">Whether to include just public tasks, or all the tasks in any loaded assemblies</param>
-		static bool FindAvailableTasks(Dictionary<string, ScriptTask> NameToTask, bool bPublicTasksOnly)
+		static bool FindAvailableTasks(Dictionary<string, ScriptTaskBinding> NameToTask, bool bPublicTasksOnly)
 		{
 			IEnumerable<Assembly> LoadedScriptAssemblies = ScriptManager.AllScriptAssemblies;
 
@@ -565,7 +873,7 @@ namespace AutomationTool
 							CommandUtils.LogError("Found multiple handlers for task elements called '{0}'", ElementAttribute.Name);
 							return false;
 						}
-						NameToTask.Add(ElementAttribute.Name, new ScriptTask(ElementAttribute.Name, Type, ElementAttribute.ParametersType));
+						NameToTask.Add(ElementAttribute.Name, new ScriptTaskBinding(ElementAttribute.Name, Type, ElementAttribute.ParametersType));
 					}
 				}
 			}
@@ -666,10 +974,10 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Graph">The graph instance</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
-		HashSet<Node> FindCompletedNodes(Graph Graph, TempStorage Storage)
+		HashSet<BgNode> FindCompletedNodes(BgScript Graph, TempStorage Storage)
 		{
-			HashSet<Node> CompletedNodes = new HashSet<Node>();
-			foreach(Node Node in Graph.Agents.SelectMany(x => x.Nodes))
+			HashSet<BgNode> CompletedNodes = new HashSet<BgNode>();
+			foreach(BgNode Node in Graph.Agents.SelectMany(x => x.Nodes))
 			{
 				if(Storage.IsComplete(Node.Name))
 				{
@@ -686,15 +994,15 @@ namespace AutomationTool
 		/// <param name="Graph">The graph instance</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <returns>True if everything built successfully</returns>
-		bool BuildAllNodes(JobContext Job, Graph Graph, TempStorage Storage)
+		bool BuildAllNodes(JobContext Job, BgScript Graph, Dictionary<BgTask, CustomTask> TaskInfoToTask, TempStorage Storage)
 		{
 			// Build a flat list of nodes to execute, in order
-			Node[] NodesToExecute = Graph.Agents.SelectMany(x => x.Nodes).ToArray();
+			BgNode[] NodesToExecute = Graph.Agents.SelectMany(x => x.Nodes).ToArray();
 
 			// Check the integrity of any local nodes that have been completed. It's common to run formal builds locally between regular development builds, so we may have 
 			// stale local state. Rather than failing later, detect and clean them up now.
-			HashSet<Node> CleanedNodes = new HashSet<Node>();
-			foreach(Node NodeToExecute in NodesToExecute)
+			HashSet<BgNode> CleanedNodes = new HashSet<BgNode>();
+			foreach(BgNode NodeToExecute in NodesToExecute)
 			{
 				if(NodeToExecute.InputDependencies.Any(x => CleanedNodes.Contains(x)) || !Storage.CheckLocalIntegrity(NodeToExecute.Name, NodeToExecute.Outputs.Select(x => x.TagName)))
 				{
@@ -705,13 +1013,13 @@ namespace AutomationTool
 
 			// Execute them in order
 			int NodeIdx = 0;
-			foreach(Node NodeToExecute in NodesToExecute)
+			foreach(BgNode NodeToExecute in NodesToExecute)
 			{
 				LogInformation("****** [{0}/{1}] {2}", ++NodeIdx, NodesToExecute.Length, NodeToExecute.Name);
 				if(!Storage.IsComplete(NodeToExecute.Name))
 				{
 					LogInformation("");
-					if(!BuildNode(Job, Graph, NodeToExecute, Storage, bWithBanner: false))
+					if(!BuildNode(Job, Graph, NodeToExecute, TaskInfoToTask, Storage, bWithBanner: false))
 					{
 						return false;
 					} 
@@ -727,10 +1035,11 @@ namespace AutomationTool
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="Graph">The graph to which the node belongs. Used to determine which outputs need to be transferred to temp storage.</param>
 		/// <param name="Node">The node to build</param>
+		/// <param name="TaskInfoToTask">Map from task info instance to task instance</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <param name="bWithBanner">Whether to write a banner before and after this node's log output</param>
 		/// <returns>True if the node built successfully, false otherwise.</returns>
-		bool BuildNode(JobContext Job, Graph Graph, Node Node, TempStorage Storage, bool bWithBanner)
+		bool BuildNode(JobContext Job, BgScript Graph, BgNode Node, Dictionary<BgTask, CustomTask> TaskInfoToTask, TempStorage Storage, bool bWithBanner)
 		{
 			DirectoryReference RootDir = new DirectoryReference(CommandUtils.CmdEnv.LocalRoot);
 
@@ -739,7 +1048,7 @@ namespace AutomationTool
 
 			// Read all the input tags for this node, and build a list of referenced input storage blocks
 			HashSet<TempStorageBlock> InputStorageBlocks = new HashSet<TempStorageBlock>();
-			foreach(NodeOutput Input in Node.Inputs)
+			foreach(BgNodeOutput Input in Node.Inputs)
 			{
 				TempStorageFileList FileList = Storage.ReadFileList(Input.ProducingNode.Name, Input.TagName);
 				TagNameToFileSet[Input.TagName] = FileList.ToFileSet(RootDir);
@@ -776,7 +1085,7 @@ namespace AutomationTool
 			}
 
 			// Add placeholder outputs for the current node
-			foreach(NodeOutput Output in Node.Outputs)
+			foreach(BgNodeOutput Output in Node.Outputs)
 			{
 				TagNameToFileSet.Add(Output.TagName, new HashSet<FileReference>());
 			}
@@ -787,7 +1096,7 @@ namespace AutomationTool
 				Console.WriteLine();
 				CommandUtils.LogInformation("========== Starting: {0} ==========", Node.Name);
 			}
-			if(!Node.Build(Job, TagNameToFileSet))
+			if(!ExecuteTasks(Node, Job, TaskInfoToTask, TagNameToFileSet))
 			{
 				return false;
 			}
@@ -814,14 +1123,14 @@ namespace AutomationTool
 
 			// Determine all the output files which are required to be copied to temp storage (because they're referenced by nodes in another agent)
 			HashSet<FileReference> ReferencedOutputFiles = new HashSet<FileReference>();
-			foreach(Agent Agent in Graph.Agents)
+			foreach(BgAgent Agent in Graph.Agents)
 			{
 				bool bSameAgent = Agent.Nodes.Contains(Node);
-				foreach(Node OtherNode in Agent.Nodes)
+				foreach(BgNode OtherNode in Agent.Nodes)
 				{
-					if(!bSameAgent || Node.ControllingTrigger != OtherNode.ControllingTrigger)
+					if(!bSameAgent)
 					{
-						foreach(NodeOutput Input in OtherNode.Inputs.Where(x => x.ProducingNode == Node))
+						foreach(BgNodeOutput Input in OtherNode.Inputs.Where(x => x.ProducingNode == Node))
 						{
 							ReferencedOutputFiles.UnionWith(TagNameToFileSet[Input.TagName]);
 						}
@@ -831,7 +1140,7 @@ namespace AutomationTool
 
 			// Find a block name for all new outputs
 			Dictionary<FileReference, string> FileToOutputName = new Dictionary<FileReference, string>();
-			foreach(NodeOutput Output in Node.Outputs)
+			foreach(BgNodeOutput Output in Node.Outputs)
 			{
 				HashSet<FileReference> Files = TagNameToFileSet[Output.TagName]; 
 				foreach(FileReference File in Files)
@@ -888,7 +1197,7 @@ namespace AutomationTool
 				}
 
 				// Publish all the output tags
-				foreach (NodeOutput Output in Node.Outputs)
+				foreach (BgNodeOutput Output in Node.Outputs)
 				{
 					HashSet<FileReference> Files = TagNameToFileSet[Output.TagName];
 
@@ -912,11 +1221,83 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Build all the tasks for this node
+		/// </summary>
+		/// <param name="Job">Information about the current job</param>
+		/// <param name="TaskInfoToTask">Map from TaskInfo to Task object</param>
+		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include. Should be set to contain the node inputs on entry.</param>
+		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
+		bool ExecuteTasks(BgNode Node, JobContext Job, Dictionary<BgTask, CustomTask> TaskInfoToTask, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		{
+			List<CustomTask> Tasks = Node.TaskInfos.ConvertAll(x => TaskInfoToTask[x]);
+
+			// Run each of the tasks in order
+			HashSet<FileReference> BuildProducts = TagNameToFileSet[Node.DefaultOutput.TagName];
+			for (int Idx = 0; Idx < Tasks.Count; Idx++)
+			{
+				using (IScope Scope = GlobalTracer.Instance.BuildSpan("Task").WithTag("resource", Tasks[Idx].GetTraceName()).StartActive())
+				{
+					ITaskExecutor Executor = Tasks[Idx].GetExecutor();
+					if (Executor == null)
+					{
+						// Execute this task directly
+						try
+						{
+							Tasks[Idx].GetTraceMetadata(Scope.Span, "");
+							Tasks[Idx].Execute(Job, BuildProducts, TagNameToFileSet);
+						}
+						catch (Exception Ex)
+						{
+							ExceptionUtils.AddContext(Ex, "while executing task {0}", Tasks[Idx].GetTraceString());
+							if (Tasks[Idx].SourceLocation != null)
+							{
+								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[Idx].SourceLocation.Item1, Tasks[Idx].SourceLocation.Item2);
+							}
+							throw;
+						}
+					}
+					else
+					{
+						Tasks[Idx].GetTraceMetadata(Scope.Span, "1.");
+
+						// The task has a custom executor, which may be able to execute several tasks simultaneously. Try to add the following tasks.
+						int FirstIdx = Idx;
+						while (Idx + 1 < Tasks.Count && Executor.Add(Tasks[Idx + 1]))
+						{
+							Idx++;
+							Tasks[Idx].GetTraceMetadata(Scope.Span, string.Format("{0}.", 1 + Idx - FirstIdx));
+						}
+						try
+						{
+							Executor.Execute(Job, BuildProducts, TagNameToFileSet);
+						}
+						catch (Exception Ex)
+						{
+							for (int TaskIdx = FirstIdx; TaskIdx <= Idx; TaskIdx++)
+							{
+								ExceptionUtils.AddContext(Ex, "while executing {0}", Tasks[TaskIdx].GetTraceString());
+							}
+							if (Tasks[FirstIdx].SourceLocation != null)
+							{
+								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[FirstIdx].SourceLocation.Item1, Tasks[FirstIdx].SourceLocation.Item2);
+							}
+							throw;
+						}
+					}
+				}
+			}
+
+			// Remove anything that doesn't exist, since these files weren't explicitly tagged
+			BuildProducts.RemoveWhere(x => !FileReference.Exists(x));
+			return true;
+		}
+
+		/// <summary>
 		/// Generate HTML documentation for all the tasks
 		/// </summary>
 		/// <param name="NameToTask">Map of task name to implementation</param>
 		/// <param name="OutputFile">Output file</param>
-		static void WriteDocumentation(Dictionary<string, ScriptTask> NameToTask, FileReference OutputFile)
+		static void WriteDocumentation(Dictionary<string, ScriptTaskBinding> NameToTask, FileReference OutputFile)
 		{
 			// Find all the assemblies containing tasks
 			Assembly[] TaskAssemblies = NameToTask.Values.Select(x => x.ParametersClass.Assembly).Distinct().ToArray();
@@ -972,7 +1353,7 @@ namespace AutomationTool
 		/// <param name="NameToTask">Map of name to script task</param>
 		/// <param name="MemberNameToElement">Map of field name to XML documenation element</param>
 		/// <param name="OutputFile">The output file to write to</param>
-		static void WriteDocumentationUDN(Dictionary<string, ScriptTask> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
+		static void WriteDocumentationUDN(Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
 		{
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
@@ -986,7 +1367,7 @@ namespace AutomationTool
 				foreach (string TaskName in NameToTask.Keys.OrderBy(x => x))
 				{
 					// Get the task object
-					ScriptTask Task = NameToTask[TaskName];
+					ScriptTaskBinding Task = NameToTask[TaskName];
 
 					// Get the documentation for this task
 					XmlElement TaskElement;
@@ -1003,7 +1384,7 @@ namespace AutomationTool
 						foreach (string ParameterName in Task.NameToParameter.Keys)
 						{
 							// Get the parameter data
-							ScriptTaskParameter Parameter = Task.NameToParameter[ParameterName];
+							ScriptTaskParameterBinding Parameter = Task.NameToParameter[ParameterName];
 
 							// Get the documentation for this parameter
 							XmlElement ParameterElement;
@@ -1069,7 +1450,7 @@ namespace AutomationTool
 		/// <param name="NameToTask">Map of name to script task</param>
 		/// <param name="MemberNameToElement">Map of field name to XML documenation element</param>
 		/// <param name="OutputFile">The output file to write to</param>
-		static void WriteDocumentationHTML(Dictionary<string, ScriptTask> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
+		static void WriteDocumentationHTML(Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
 		{
 			LogInformation("Writing {0}...", OutputFile);
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
@@ -1086,7 +1467,7 @@ namespace AutomationTool
 				foreach(string TaskName in NameToTask.Keys.OrderBy(x => x))
 				{
 					// Get the task object
-					ScriptTask Task = NameToTask[TaskName];
+					ScriptTaskBinding Task = NameToTask[TaskName];
 
 					// Get the documentation for this task
 					XmlElement TaskElement;
@@ -1109,7 +1490,7 @@ namespace AutomationTool
 						foreach(string ParameterName in Task.NameToParameter.Keys)
 						{
 							// Get the parameter data
-							ScriptTaskParameter Parameter = Task.NameToParameter[ParameterName];
+							ScriptTaskParameterBinding Parameter = Task.NameToParameter[ParameterName];
 
 							// Get the documentation for this parameter
 							XmlElement ParameterElement;

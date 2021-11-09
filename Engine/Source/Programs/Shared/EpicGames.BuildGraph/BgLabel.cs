@@ -6,12 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
 	/// <summary>
 	/// Which changelist to show a UGS badge for
 	/// </summary>
-	enum LabelChange
+	public enum BgLabelChange
 	{
 		/// <summary>
 		/// The current changelist being built
@@ -28,7 +28,7 @@ namespace AutomationTool
 	/// Defines a label within a graph. Labels are similar to badges, and give the combined status of one or more job steps. Unlike badges, they
 	/// separate the requirements for its status and optional nodes to be included in its status, allowing this to be handled externally.
 	/// </summary>
-	class Label
+	public class BgLabel
 	{
 		/// <summary>
 		/// Name of this badge
@@ -53,17 +53,17 @@ namespace AutomationTool
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public readonly LabelChange Change;
+		public readonly BgLabelChange Change;
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public HashSet<Node> RequiredNodes = new HashSet<Node>();
+		public HashSet<BgNode> RequiredNodes = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Set of nodes that will be included in this label if present.
 		/// </summary>
-		public HashSet<Node> IncludedNodes = new HashSet<Node>();
+		public HashSet<BgNode> IncludedNodes = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Constructor
@@ -73,7 +73,7 @@ namespace AutomationTool
 		/// <param name="InUgsBadge">The UGS badge name</param>
 		/// <param name="InUgsProject">Project to display this badge for</param>
 		/// <param name="InChange">The change to show this badge on in UGS</param>
-		public Label(string InDashboardName, string InDashboardCategory, string InUgsBadge, string InUgsProject, LabelChange InChange)
+		public BgLabel(string InDashboardName, string InDashboardCategory, string InUgsBadge, string InUgsProject, BgLabelChange InChange)
 		{
 			DashboardName = InDashboardName;
 			DashboardCategory = InDashboardCategory;

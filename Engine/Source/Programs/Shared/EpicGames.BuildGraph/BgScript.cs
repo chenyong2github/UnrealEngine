@@ -4,20 +4,19 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using AutomationTool;
-using UnrealBuildTool;
 using System.Reflection;
 using System.Xml;
 using System.Linq;
 using System.Diagnostics;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
-namespace AutomationTool
+namespace EpicGames.BuildGraph
 {
 	/// <summary>
 	/// Options for how the graph should be printed
 	/// </summary>
-	enum GraphPrintOptions
+	public enum GraphPrintOptions
 	{
 		/// <summary>
 		/// Includes a list of the graph options
@@ -39,7 +38,7 @@ namespace AutomationTool
 	/// Diagnostic message from the graph script. These messages are parsed at startup, then culled along with the rest of the graph nodes before output. Doing so
 	/// allows errors and warnings which are only output if a node is part of the graph being executed.
 	/// </summary>
-	class GraphDiagnostic
+	public class BgScriptDiagnostic
 	{
 		/// <summary>
 		/// The diagnostic event type
@@ -54,23 +53,18 @@ namespace AutomationTool
 		/// <summary>
 		/// The node which this diagnostic is declared in. If the node is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public Node EnclosingNode;
+		public BgNode EnclosingNode;
 
 		/// <summary>
 		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
 		/// </summary>
-		public Agent EnclosingAgent;
-
-		/// <summary>
-		/// The trigger that this diagnostic is declared in. If this trigger is not being run, the message will not be displayed.
-		/// </summary>
-		public ManualTrigger EnclosingTrigger;
+		public BgAgent EnclosingAgent;
 	}
 
 	/// <summary>
 	/// Represents a graph option. These are expanded during preprocessing, but are retained in order to display help messages.
 	/// </summary>
-	class GraphOption
+	public class BgScriptOption
 	{
 		/// <summary>
 		/// Name of this option
@@ -93,7 +87,7 @@ namespace AutomationTool
 		/// <param name="Name">The name of this option</param>
 		/// <param name="Description">Description of the option, for display on help pages</param>
 		/// <param name="DefaultValue">Default value for the option</param>
-		public GraphOption(string Name, string Description, string DefaultValue)
+		public BgScriptOption(string Name, string Description, string DefaultValue)
 		{
 			this.Name = Name;
 			this.Description = Description;
@@ -113,72 +107,62 @@ namespace AutomationTool
 	/// <summary>
 	/// Definition of a graph.
 	/// </summary>
-	class Graph
+	public class BgScript
 	{
 		/// <summary>
 		/// List of options, in the order they were specified
 		/// </summary>
-		public List<GraphOption> Options = new List<GraphOption>();
+		public List<BgScriptOption> Options = new List<BgScriptOption>();
 
 		/// <summary>
 		/// List of agents containing nodes to execute
 		/// </summary>
-		public List<Agent> Agents = new List<Agent>();
-
-		/// <summary>
-		/// All manual triggers that are part of this graph
-		/// </summary>
-		public Dictionary<string, ManualTrigger> NameToTrigger = new Dictionary<string, ManualTrigger>(StringComparer.InvariantCultureIgnoreCase);
+		public List<BgAgent> Agents = new List<BgAgent>();
 
 		/// <summary>
 		/// Mapping from name to agent
 		/// </summary>
-		public Dictionary<string, Agent> NameToAgent = new Dictionary<string, Agent>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, BgAgent> NameToAgent = new Dictionary<string, BgAgent>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding node.
 		/// </summary>
-		public Dictionary<string, Node> NameToNode = new Dictionary<string,Node>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, BgNode> NameToNode = new Dictionary<string,BgNode>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding report.
 		/// </summary>
-		public Dictionary<string, Report> NameToReport = new Dictionary<string, Report>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, BgReport> NameToReport = new Dictionary<string, BgReport>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to their corresponding node output.
 		/// </summary>
-		public HashSet<string> LocalTagNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-
-		/// <summary>
-		/// Mapping of names to their corresponding node output.
-		/// </summary>
-		public Dictionary<string, NodeOutput> TagNameToNodeOutput = new Dictionary<string,NodeOutput>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, BgNodeOutput> TagNameToNodeOutput = new Dictionary<string,BgNodeOutput>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of aggregate names to their respective nodes
 		/// </summary>
-		public Dictionary<string, Aggregate> NameToAggregate = new Dictionary<string, Aggregate>(StringComparer.InvariantCultureIgnoreCase);
+		public Dictionary<string, BgAggregate> NameToAggregate = new Dictionary<string, BgAggregate>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// List of badges that can be displayed for this build
 		/// </summary>
-		public List<Badge> Badges = new List<Badge>();
+		public List<BgBadge> Badges = new List<BgBadge>();
 
 		/// <summary>
 		/// List of labels that can be displayed for this build
 		/// </summary>
-		public List<Label> Labels = new List<Label>();
+		public List<BgLabel> Labels = new List<BgLabel>();
 
 		/// <summary>
 		/// Diagnostic messages for this graph
 		/// </summary>
-		public List<GraphDiagnostic> Diagnostics = new List<GraphDiagnostic>();
+		public List<BgScriptDiagnostic> Diagnostics = new List<BgScriptDiagnostic>();
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public Graph()
+		public BgScript()
 		{
 		}
 
@@ -198,31 +182,31 @@ namespace AutomationTool
 		/// <param name="Name">The name to search for</param>
 		/// <param name="OutNodes">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveReference(string Name, out Node[] OutNodes)
+		public bool TryResolveReference(string Name, out BgNode[] OutNodes)
 		{
 			// Check if it's a tag reference or node reference
 			if(Name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				NodeOutput Output;
+				BgNodeOutput Output;
 				if(TagNameToNodeOutput.TryGetValue(Name, out Output))
 				{
-					OutNodes = new Node[]{ Output.ProducingNode };
+					OutNodes = new BgNode[]{ Output.ProducingNode };
 					return true;
 				}
 			}
 			else
 			{
 				// Check if it's a regular node or output name
-				Node Node;
+				BgNode Node;
 				if(NameToNode.TryGetValue(Name, out Node))
 				{
-					OutNodes = new Node[]{ Node };
+					OutNodes = new BgNode[]{ Node };
 					return true;
 				}
 
 				// Check if it's an aggregate name
-				Aggregate Aggregate;
+				BgAggregate Aggregate;
 				if(NameToAggregate.TryGetValue(Name, out Aggregate))
 				{
 					OutNodes = Aggregate.RequiredNodes.ToArray();
@@ -230,7 +214,7 @@ namespace AutomationTool
 				}
 
 				// Check if it's a group name
-				Agent Agent;
+				BgAgent Agent;
 				if(NameToAgent.TryGetValue(Name, out Agent))
 				{
 					OutNodes = Agent.Nodes.ToArray();
@@ -249,23 +233,23 @@ namespace AutomationTool
 		/// <param name="Name">The name to search for</param>
 		/// <param name="OutOutputs">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveInputReference(string Name, out NodeOutput[] OutOutputs)
+		public bool TryResolveInputReference(string Name, out BgNodeOutput[] OutOutputs)
 		{
 			// Check if it's a tag reference or node reference
 			if(Name.StartsWith("#"))
 			{
 				// Check if it's a regular node or output name
-				NodeOutput Output;
+				BgNodeOutput Output;
 				if(TagNameToNodeOutput.TryGetValue(Name, out Output))
 				{
-					OutOutputs = new NodeOutput[]{ Output };
+					OutOutputs = new BgNodeOutput[]{ Output };
 					return true;
 				}
 			}
 			else
 			{
 				// Check if it's a regular node or output name
-				Node Node;
+				BgNode Node;
 				if(NameToNode.TryGetValue(Name, out Node))
 				{
 					OutOutputs = Node.Outputs.Union(Node.Inputs).ToArray();
@@ -273,7 +257,7 @@ namespace AutomationTool
 				}
 
 				// Check if it's an aggregate name
-				Aggregate Aggregate;
+				BgAggregate Aggregate;
 				if(NameToAggregate.TryGetValue(Name, out Aggregate))
 				{
 					OutOutputs = Aggregate.RequiredNodes.SelectMany(x => x.Outputs.Union(x.Inputs)).Distinct().ToArray();
@@ -290,17 +274,17 @@ namespace AutomationTool
 		/// Cull the graph to only include the given nodes and their dependencies
 		/// </summary>
 		/// <param name="TargetNodes">A set of target nodes to build</param>
-		public void Select(IEnumerable<Node> TargetNodes)
+		public void Select(IEnumerable<BgNode> TargetNodes)
 		{
 			// Find this node and all its dependencies
-			HashSet<Node> RetainNodes = new HashSet<Node>(TargetNodes);
-			foreach(Node TargetNode in TargetNodes)
+			HashSet<BgNode> RetainNodes = new HashSet<BgNode>(TargetNodes);
+			foreach(BgNode TargetNode in TargetNodes)
 			{
 				RetainNodes.UnionWith(TargetNode.InputDependencies);
 			}
 
 			// Remove all the nodes which are not marked to be kept
-			foreach(Agent Agent in Agents)
+			foreach(BgAgent Agent in Agents)
 			{
 				Agent.Nodes = Agent.Nodes.Where(x => RetainNodes.Contains(x)).ToList();
 			}
@@ -309,7 +293,7 @@ namespace AutomationTool
 			Agents.RemoveAll(x => x.Nodes.Count == 0);
 
 			// Trim down the list of nodes for each report to the ones that are being built
-			foreach (Report Report in NameToReport.Values)
+			foreach (BgReport Report in NameToReport.Values)
 			{
 				Report.Nodes.RemoveWhere(x => !RetainNodes.Contains(x));
 			}
@@ -318,17 +302,14 @@ namespace AutomationTool
 			NameToReport = NameToReport.Where(x => x.Value.Nodes.Count > 0).ToDictionary(Pair => Pair.Key, Pair => Pair.Value, StringComparer.InvariantCultureIgnoreCase);
 
 			// Remove all the order dependencies which are no longer part of the graph. Since we don't need to build them, we don't need to wait for them
-			foreach(Node Node in RetainNodes)
+			foreach(BgNode Node in RetainNodes)
 			{
 				Node.OrderDependencies = Node.OrderDependencies.Where(x => RetainNodes.Contains(x)).ToArray();
 			}
 
-			// Create a new list of triggers from all the nodes which are left
-			NameToTrigger = RetainNodes.Where(x => x.ControllingTrigger != null).Select(x => x.ControllingTrigger).Distinct().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
-
 			// Create a new list of aggregates for everything that's left
-			Dictionary<string, Aggregate> NewNameToAggregate = new Dictionary<string, Aggregate>(NameToAggregate.Comparer);
-			foreach(Aggregate Aggregate in NameToAggregate.Values)
+			Dictionary<string, BgAggregate> NewNameToAggregate = new Dictionary<string, BgAggregate>(NameToAggregate.Comparer);
+			foreach(BgAggregate Aggregate in NameToAggregate.Values)
 			{
 				if (Aggregate.RequiredNodes.All(x => RetainNodes.Contains(x)))
 				{
@@ -338,7 +319,7 @@ namespace AutomationTool
 			NameToAggregate = NewNameToAggregate;
 
 			// Remove any labels that are no longer value
-			foreach (Label Label in Labels)
+			foreach (BgLabel Label in Labels)
 			{
 				Label.RequiredNodes.RemoveWhere(x => !RetainNodes.Contains(x));
 				Label.IncludedNodes.RemoveWhere(x => !RetainNodes.Contains(x));
@@ -350,32 +331,6 @@ namespace AutomationTool
 
 			// Remove any diagnostics which are no longer part of the graph
 			Diagnostics.RemoveAll(x => (x.EnclosingNode != null && !RetainNodes.Contains(x.EnclosingNode)) || (x.EnclosingAgent != null && !Agents.Contains(x.EnclosingAgent)));
-		}
-
-		/// <summary>
-		/// Skips the given triggers, collapsing everything inside them into their parent trigger.
-		/// </summary>
-		/// <param name="Triggers">Set of triggers to skip</param>
-		public void SkipTriggers(HashSet<ManualTrigger> Triggers)
-		{
-			foreach(ManualTrigger Trigger in Triggers)
-			{
-				NameToTrigger.Remove(Trigger.Name);
-			}
-			foreach(Node Node in NameToNode.Values)
-			{
-				while(Triggers.Contains(Node.ControllingTrigger))
-				{
-					Node.ControllingTrigger = Node.ControllingTrigger.Parent;
-				}
-			}
-			foreach(GraphDiagnostic Diagnostic in Diagnostics)
-			{
-				while(Triggers.Contains(Diagnostic.EnclosingTrigger))
-				{
-					Diagnostic.EnclosingTrigger = Diagnostic.EnclosingTrigger.Parent;
-				}
-			}
 		}
 
 		/// <summary>
@@ -398,23 +353,12 @@ namespace AutomationTool
 					Writer.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance", "http://www.epicgames.com/BuildGraph " + SchemaFile.MakeRelativeTo(File.Directory));
 				}
 
-				foreach (Agent Agent in Agents)
+				foreach (BgAgent Agent in Agents)
 				{
-					Agent.Write(Writer, null);
+					Agent.Write(Writer);
 				}
 
-				foreach (ManualTrigger ControllingTrigger in Agents.SelectMany(x => x.Nodes).Where(x => x.ControllingTrigger != null).Select(x => x.ControllingTrigger).Distinct())
-				{
-					Writer.WriteStartElement("Trigger");
-					Writer.WriteAttributeString("Name", ControllingTrigger.QualifiedName);
-					foreach (Agent Agent in Agents)
-					{
-						Agent.Write(Writer, ControllingTrigger);
-					}
-					Writer.WriteEndElement();
-				}
-
-				foreach (Aggregate Aggregate in NameToAggregate.Values)
+				foreach (BgAggregate Aggregate in NameToAggregate.Values)
 				{
 					// If the aggregate has no required elements, skip it.
 					if (Aggregate.RequiredNodes.Count == 0)
@@ -428,7 +372,7 @@ namespace AutomationTool
 					Writer.WriteEndElement();
 				}
 
-				foreach(Label Label in Labels)
+				foreach(BgLabel Label in Labels)
 				{
 					Writer.WriteStartElement("Label");
 					if (Label.DashboardCategory != null)
@@ -438,7 +382,7 @@ namespace AutomationTool
 					Writer.WriteAttributeString("Name", Label.DashboardName);
 					Writer.WriteAttributeString("Requires", String.Join(";", Label.RequiredNodes.Select(x => x.Name)));
 
-					HashSet<Node> IncludedNodes = new HashSet<Node>(Label.IncludedNodes);
+					HashSet<BgNode> IncludedNodes = new HashSet<BgNode>(Label.IncludedNodes);
 					IncludedNodes.ExceptWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
 					IncludedNodes.ExceptWith(Label.RequiredNodes);
 					if (IncludedNodes.Count > 0)
@@ -446,7 +390,7 @@ namespace AutomationTool
 						Writer.WriteAttributeString("Include", String.Join(";", IncludedNodes.Select(x => x.Name)));
 					}
 
-					HashSet<Node> ExcludedNodes = new HashSet<Node>(Label.IncludedNodes);
+					HashSet<BgNode> ExcludedNodes = new HashSet<BgNode>(Label.IncludedNodes);
 					ExcludedNodes.UnionWith(Label.IncludedNodes.SelectMany(x => x.InputDependencies));
 					ExcludedNodes.ExceptWith(Label.IncludedNodes);
 					ExcludedNodes.ExceptWith(ExcludedNodes.ToArray().SelectMany(x => x.InputDependencies));
@@ -457,7 +401,7 @@ namespace AutomationTool
 					Writer.WriteEndElement();
 				}
 
-				foreach (Report Report in NameToReport.Values)
+				foreach (BgReport Report in NameToReport.Values)
 				{
 					Writer.WriteStartElement("Report");
 					Writer.WriteAttributeString("Name", Report.Name);
@@ -465,7 +409,7 @@ namespace AutomationTool
 					Writer.WriteEndElement();
 				}
 
-				foreach (Badge Badge in Badges)
+				foreach (BgBadge Badge in Badges)
 				{
 					Writer.WriteStartElement("Badge");
 					Writer.WriteAttributeString("Name", Badge.Name);
@@ -489,15 +433,14 @@ namespace AutomationTool
 		/// Export the build graph to a Json file, for parallel execution by the build system
 		/// </summary>
 		/// <param name="File">Output file to write</param>
-		/// <param name="Trigger">The trigger whose nodes to run. Null for the default nodes.</param>
 		/// <param name="CompletedNodes">Set of nodes which have been completed</param>
-		public void Export(FileReference File, ManualTrigger Trigger, HashSet<Node> CompletedNodes)
+		public void Export(FileReference File, HashSet<BgNode> CompletedNodes)
 		{
 			// Find all the nodes which we're actually going to execute. We'll use this to filter the graph.
-			HashSet<Node> NodesToExecute = new HashSet<Node>();
-			foreach(Node Node in Agents.SelectMany(x => x.Nodes))
+			HashSet<BgNode> NodesToExecute = new HashSet<BgNode>();
+			foreach(BgNode Node in Agents.SelectMany(x => x.Nodes))
 			{
-				if(!CompletedNodes.Contains(Node) && Node.IsBehind(Trigger))
+				if(!CompletedNodes.Contains(Node))
 				{
 					NodesToExecute.Add(Node);
 				}
@@ -510,9 +453,9 @@ namespace AutomationTool
 
 				// Write all the agents
 				JsonWriter.WriteArrayStart("Groups");
-				foreach(Agent Agent in Agents)
+				foreach(BgAgent Agent in Agents)
 				{
-					Node[] Nodes = Agent.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					BgNode[] Nodes = Agent.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if(Nodes.Length > 0)
 					{
 						JsonWriter.WriteObjectStart();
@@ -524,11 +467,11 @@ namespace AutomationTool
 						}
 						JsonWriter.WriteArrayEnd();
 						JsonWriter.WriteArrayStart("Nodes");
-						foreach(Node Node in Nodes)
+						foreach(BgNode Node in Nodes)
 						{
 							JsonWriter.WriteObjectStart();
 							JsonWriter.WriteValue("Name", Node.Name);
-							JsonWriter.WriteValue("DependsOn", String.Join(";", Node.GetDirectOrderDependencies().Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger)));
+							JsonWriter.WriteValue("DependsOn", String.Join(";", Node.GetDirectOrderDependencies().Where(x => NodesToExecute.Contains(x))));
 							JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
 							JsonWriter.WriteObjectStart("Notify");
 							JsonWriter.WriteValue("Default", String.Join(";", Node.NotifyUsers));
@@ -545,14 +488,14 @@ namespace AutomationTool
 
 				// Write all the badges
 				JsonWriter.WriteArrayStart("Badges");
-				foreach (Badge Badge in Badges)
+				foreach (BgBadge Badge in Badges)
 				{
-					Node[] Dependencies = Badge.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					BgNode[] Dependencies = Badge.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if (Dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<Node> DirectDependencies = new HashSet<Node>(Dependencies);
-						foreach (Node Dependency in Dependencies)
+						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
+						foreach (BgNode Dependency in Dependencies)
 						{
 							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
 						}
@@ -576,14 +519,14 @@ namespace AutomationTool
 
 				// Write all the triggers and reports. 
 				JsonWriter.WriteArrayStart("Reports");
-				foreach (Report Report in NameToReport.Values)
+				foreach (BgReport Report in NameToReport.Values)
 				{
-					Node[] Dependencies = Report.Nodes.Where(x => NodesToExecute.Contains(x) && x.ControllingTrigger == Trigger).ToArray();
+					BgNode[] Dependencies = Report.Nodes.Where(x => NodesToExecute.Contains(x)).ToArray();
 					if (Dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<Node> DirectDependencies = new HashSet<Node>(Dependencies);
-						foreach (Node Dependency in Dependencies)
+						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
+						foreach (BgNode Dependency in Dependencies)
 						{
 							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
 						}
@@ -594,37 +537,6 @@ namespace AutomationTool
 						JsonWriter.WriteValue("DirectDependencies", String.Join(";", DirectDependencies.Select(x => x.Name)));
 						JsonWriter.WriteValue("Notify", String.Join(";", Report.NotifyUsers));
 						JsonWriter.WriteValue("IsTrigger", false);
-						JsonWriter.WriteObjectEnd();
-					}
-				}
-				foreach (ManualTrigger DownstreamTrigger in NameToTrigger.Values)
-				{
-					if(DownstreamTrigger.Parent == Trigger)
-					{
-						// Find all the nodes that this trigger is dependent on
-						HashSet<Node> Dependencies = new HashSet<Node>();
-						foreach(Node NodeToExecute in NodesToExecute)
-						{
-							if(NodeToExecute.IsBehind(DownstreamTrigger))
-							{
-								Dependencies.UnionWith(NodeToExecute.OrderDependencies.Where(x => x.ControllingTrigger == Trigger));
-							}
-						}
-
-						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<Node> DirectDependencies = new HashSet<Node>(Dependencies);
-						foreach(Node Dependency in Dependencies)
-						{
-							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
-						}
-
-						// Write out the object
-						JsonWriter.WriteObjectStart();
-						JsonWriter.WriteValue("Name", DownstreamTrigger.Name);
-						JsonWriter.WriteValue("AllDependencies", String.Join(";", Agents.SelectMany(x => x.Nodes).Where(x => Dependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("DirectDependencies", String.Join(";", Dependencies.Where(x => DirectDependencies.Contains(x)).Select(x => x.Name)));
-						JsonWriter.WriteValue("Notify", String.Join(";", DownstreamTrigger.NotifyUsers));
-						JsonWriter.WriteValue("IsTrigger", true);
 						JsonWriter.WriteObjectEnd();
 					}
 				}
@@ -645,7 +557,7 @@ namespace AutomationTool
 			{
 				JsonWriter.WriteObjectStart();
 				JsonWriter.WriteArrayStart("Groups");
-				foreach (Agent Agent in Agents)
+				foreach (BgAgent Agent in Agents)
 				{
 					JsonWriter.WriteObjectStart();
 					JsonWriter.WriteArrayStart("Types");
@@ -655,7 +567,7 @@ namespace AutomationTool
 					}
 					JsonWriter.WriteArrayEnd();
 					JsonWriter.WriteArrayStart("Nodes");
-					foreach (Node Node in Agent.Nodes)
+					foreach (BgNode Node in Agent.Nodes)
 					{
 						JsonWriter.WriteObjectStart();
 						JsonWriter.WriteValue("Name", Node.Name);
@@ -684,12 +596,12 @@ namespace AutomationTool
 				JsonWriter.WriteArrayEnd();
 
 				JsonWriter.WriteArrayStart("Aggregates");
-				foreach (Aggregate Aggregate in NameToAggregate.Values)
+				foreach (BgAggregate Aggregate in NameToAggregate.Values)
 				{
 					JsonWriter.WriteObjectStart();
 					JsonWriter.WriteValue("Name", Aggregate.Name);
 					JsonWriter.WriteArrayStart("Nodes");
-					foreach (Node RequiredNode in Aggregate.RequiredNodes.OrderBy(x => x.Name))
+					foreach (BgNode RequiredNode in Aggregate.RequiredNodes.OrderBy(x => x.Name))
 					{
 						JsonWriter.WriteValue(RequiredNode.Name);
 					}
@@ -699,7 +611,7 @@ namespace AutomationTool
 				JsonWriter.WriteArrayEnd();
 
 				JsonWriter.WriteArrayStart("Labels");
-				foreach (Label Label in Labels)
+				foreach (BgLabel Label in Labels)
 				{
 					JsonWriter.WriteObjectStart();
 					if (!String.IsNullOrEmpty(Label.DashboardName))
@@ -718,19 +630,19 @@ namespace AutomationTool
 					{
 						JsonWriter.WriteValue("UgsProject", Label.UgsProject);
 					}
-					if (Label.Change != LabelChange.Current)
+					if (Label.Change != BgLabelChange.Current)
 					{
 						JsonWriter.WriteValue("Change", Label.Change.ToString());
 					}
 
 					JsonWriter.WriteArrayStart("RequiredNodes");
-					foreach (Node RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
+					foreach (BgNode RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
 					{
 						JsonWriter.WriteValue(RequiredNode.Name);
 					}
 					JsonWriter.WriteArrayEnd();
 					JsonWriter.WriteArrayStart("IncludedNodes");
-					foreach (Node IncludedNode in Label.IncludedNodes.OrderBy(x => x.Name))
+					foreach (BgNode IncludedNode in Label.IncludedNodes.OrderBy(x => x.Name))
 					{
 						JsonWriter.WriteValue(IncludedNode.Name);
 					}
@@ -740,14 +652,14 @@ namespace AutomationTool
 				JsonWriter.WriteArrayEnd();
 
 				JsonWriter.WriteArrayStart("Badges");
-				foreach (Badge Badge in Badges)
+				foreach (BgBadge Badge in Badges)
 				{
-					HashSet<Node> Dependencies = Badge.Nodes;
+					HashSet<BgNode> Dependencies = Badge.Nodes;
 					if (Dependencies.Count > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<Node> DirectDependencies = new HashSet<Node>(Dependencies);
-						foreach (Node Dependency in Dependencies)
+						HashSet<BgNode> DirectDependencies = new HashSet<BgNode>(Dependencies);
+						foreach (BgNode Dependency in Dependencies)
 						{
 							DirectDependencies.ExceptWith(Dependency.OrderDependencies);
 						}
@@ -777,14 +689,15 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="CompletedNodes">Set of nodes which are already complete</param>
 		/// <param name="PrintOptions">Options for how to print the graph</param>
-		public void Print(HashSet<Node> CompletedNodes, GraphPrintOptions PrintOptions)
+		/// <param name="Logger"></param>
+		public void Print(HashSet<BgNode> CompletedNodes, GraphPrintOptions PrintOptions, ILogger Logger)
 		{
 			// Print the options
 			if((PrintOptions & GraphPrintOptions.ShowCommandLineOptions) != 0)
 			{
 				// Get the list of messages
 				List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
-				foreach(GraphOption Option in Options)
+				foreach(BgScriptOption Option in Options)
 				{
 					string Name = String.Format("-set:{0}=...", Option.Name);
 
@@ -800,101 +713,61 @@ namespace AutomationTool
 				// Format them to the log
 				if(Parameters.Count > 0)
 				{
-					CommandUtils.LogInformation("");
-					CommandUtils.LogInformation("Options:");
-					CommandUtils.LogInformation("");
-					HelpUtils.PrintTable(Parameters, 4, 24, Log.Logger);
+					Logger.LogInformation("");
+					Logger.LogInformation("Options:");
+					Logger.LogInformation("");
+					HelpUtils.PrintTable(Parameters, 4, 24, Logger);
 				}
 			}
 
-			// Get a list of all the triggers, including the null global one
-			List<ManualTrigger> AllTriggers = new List<ManualTrigger>();
-			AllTriggers.Add(null);
-			AllTriggers.AddRange(NameToTrigger.Values.OrderBy(x => x.QualifiedName));
-
 			// Output all the triggers in order
-			CommandUtils.LogInformation("");
-			CommandUtils.LogInformation("Graph:");
-			foreach(ManualTrigger Trigger in AllTriggers)
+			Logger.LogInformation("");
+			Logger.LogInformation("Graph:");
+			foreach(BgAgent Agent in Agents)
 			{
-				// Filter everything by this trigger
-				Dictionary<Agent, Node[]> FilteredAgentToNodes = new Dictionary<Agent,Node[]>();
-				foreach(Agent Agent in Agents)
+				Logger.LogInformation("        Agent: {0} ({1})", Agent.Name, String.Join(";", Agent.PossibleTypes));
+				foreach(BgNode Node in Agent.Nodes)
 				{
-					Node[] Nodes = Agent.Nodes.Where(x => x.ControllingTrigger == Trigger).ToArray();
-					if(Nodes.Length > 0)
+					Logger.LogInformation("            Node: {0}{1}", Node.Name, CompletedNodes.Contains(Node)? " (completed)" : Node.bRunEarly? " (early)" : "");
+					if(PrintOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
-						FilteredAgentToNodes[Agent] = Nodes;
-					}
-				}
-
-				// Skip this trigger if there's nothing to display
-				if(FilteredAgentToNodes.Count == 0)
-				{
-					continue;
-				}
-
-				// Print the trigger name
-				CommandUtils.LogInformation("    Trigger: {0}", (Trigger == null)? "None" : Trigger.QualifiedName);
-				if(Trigger != null && PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
-				{
-					foreach(string User in Trigger.NotifyUsers)
-					{
-						CommandUtils.LogInformation("            notify> {0}", User);
-					}
-				}
-
-				// Output all the agents for this trigger
-				foreach(Agent Agent in Agents)
-				{
-					Node[] Nodes;
-					if(FilteredAgentToNodes.TryGetValue(Agent, out Nodes))
-					{
-						CommandUtils.LogInformation("        Agent: {0} ({1})", Agent.Name, String.Join(";", Agent.PossibleTypes));
-						foreach(Node Node in Nodes)
+						HashSet<BgNode> InputDependencies = new HashSet<BgNode>(Node.GetDirectInputDependencies());
+						foreach(BgNode InputDependency in InputDependencies)
 						{
-							CommandUtils.LogInformation("            Node: {0}{1}", Node.Name, CompletedNodes.Contains(Node)? " (completed)" : Node.bRunEarly? " (early)" : "");
-							if(PrintOptions.HasFlag(GraphPrintOptions.ShowDependencies))
-							{
-								HashSet<Node> InputDependencies = new HashSet<Node>(Node.GetDirectInputDependencies());
-								foreach(Node InputDependency in InputDependencies)
-								{
-									CommandUtils.LogInformation("                input> {0}", InputDependency.Name);
-								}
-								HashSet<Node> OrderDependencies = new HashSet<Node>(Node.GetDirectOrderDependencies());
-								foreach(Node OrderDependency in OrderDependencies.Except(InputDependencies))
-								{
-									CommandUtils.LogInformation("                after> {0}", OrderDependency.Name);
-								}
-							}
-							if(PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
-							{
-								string Label = Node.bNotifyOnWarnings? "warnings" : "errors";
-								foreach(string User in Node.NotifyUsers)
-								{
-									CommandUtils.LogInformation("                {0}> {1}", Label, User);
-								}
-								foreach(string Submitter in Node.NotifySubmitters)
-								{
-									CommandUtils.LogInformation("                {0}> submitters to {1}", Label, Submitter);
-								}
-							}
+							Logger.LogInformation("                input> {0}", InputDependency.Name);
+						}
+						HashSet<BgNode> OrderDependencies = new HashSet<BgNode>(Node.GetDirectOrderDependencies());
+						foreach(BgNode OrderDependency in OrderDependencies.Except(InputDependencies))
+						{
+							Logger.LogInformation("                after> {0}", OrderDependency.Name);
+						}
+					}
+					if(PrintOptions.HasFlag(GraphPrintOptions.ShowNotifications))
+					{
+						string Label = Node.bNotifyOnWarnings? "warnings" : "errors";
+						foreach(string User in Node.NotifyUsers)
+						{
+							Logger.LogInformation("                {0}> {1}", Label, User);
+						}
+						foreach(string Submitter in Node.NotifySubmitters)
+						{
+							Logger.LogInformation("                {0}> submitters to {1}", Label, Submitter);
 						}
 					}
 				}
 			}
-			CommandUtils.LogInformation("");
+			Logger.LogInformation("");
 
 			// Print out all the non-empty aggregates
-			Aggregate[] Aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
+			BgAggregate[] Aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
 			if(Aggregates.Length > 0)
 			{
-				CommandUtils.LogInformation("Aggregates:");
+				Logger.LogInformation("Aggregates:");
 				foreach(string AggregateName in Aggregates.Select(x => x.Name))
 				{
-					CommandUtils.LogInformation("    {0}", AggregateName);
+					Logger.LogInformation("    {0}", AggregateName);
 				}
-				CommandUtils.LogInformation("");
+				Logger.LogInformation("");
 			}
 		}
 	}
