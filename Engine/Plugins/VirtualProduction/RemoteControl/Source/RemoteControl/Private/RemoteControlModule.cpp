@@ -345,8 +345,9 @@ void FRemoteControlModule::StartupModule()
 
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
+	FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
 #endif
-
+	
 	// Register Property Factories
 	RegisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName(), FRemoteControlInstanceMaterialFactory::MakeInstance());
 }
@@ -354,6 +355,7 @@ void FRemoteControlModule::StartupModule()
 void FRemoteControlModule::ShutdownModule()
 {
 #if WITH_EDITOR
+	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 	UnregisterEditorDelegates();
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 #endif
@@ -1292,6 +1294,12 @@ void FRemoteControlModule::HandleEnginePostInit()
 	RegisterEditorDelegates();
 }
 
+void FRemoteControlModule::HandleMapPreLoad(const FString& MapName)
+{
+	constexpr bool bForceFinalizeChange = true;
+	TestOrFinalizeOngoingChange(bForceFinalizeChange);
+}
+	
 void FRemoteControlModule::RegisterEditorDelegates()
 {
 	if (GEditor)
@@ -1307,9 +1315,7 @@ void FRemoteControlModule::UnregisterEditorDelegates()
 		GEditor->GetTimerManager()->ClearTimer(OngoingChangeTimer);
 	}
 }
-#endif
 
-#if WITH_EDITOR
 FRemoteControlModule::FOngoingChange::FOngoingChange(FRCObjectReference InReference)
 {
 	Reference.Set<FRCObjectReference>(MoveTemp(InReference));
