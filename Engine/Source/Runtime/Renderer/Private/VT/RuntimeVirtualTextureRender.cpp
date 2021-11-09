@@ -372,7 +372,7 @@ namespace RuntimeVirtualTexture
 	class FShader_VirtualTextureMaterialDraw_PS : public FShader_VirtualTextureMaterialDraw
 	{
 	public:
-		DECLARE_SHADER_TYPE(FShader_VirtualTextureMaterialDraw_VS< MaterialPolicy >, MeshMaterial);
+		DECLARE_SHADER_TYPE(FShader_VirtualTextureMaterialDraw_PS< MaterialPolicy >, MeshMaterial);
 
 		FShader_VirtualTextureMaterialDraw_PS()
 		{}
