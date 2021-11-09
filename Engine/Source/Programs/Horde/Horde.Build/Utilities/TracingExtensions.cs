@@ -82,7 +82,7 @@ namespace Horde.Build.Utilities
 		/// <returns>This span instance, for chaining</returns>
 		public static ISpan SetTag(this ISpan Span, string Key, int? Value)
 		{
-			if (Value != null) Span.SetTag(Key, Value);
+			if (Value != null) Span.SetTag(Key, Value.Value);
 			return Span;
 		}
 		
