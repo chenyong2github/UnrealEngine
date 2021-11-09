@@ -3165,7 +3165,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							}
 							else if (RigGraph->ModelNodePath.StartsWith(OldNodePathPrefix))
 							{
-								RigGraph->ModelNodePath = NewNodePathPrefix + RigGraph->ModelNodePath.LeftChop(OldNodePathPrefix.Len());
+								RigGraph->ModelNodePath = NewNodePathPrefix + RigGraph->ModelNodePath.RightChop(OldNodePathPrefix.Len());
 							}
 						}
 					}

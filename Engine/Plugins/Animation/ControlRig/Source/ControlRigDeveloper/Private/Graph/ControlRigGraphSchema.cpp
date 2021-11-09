@@ -1244,20 +1244,18 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
 		{
-			if (URigVMGraph* Model = RigBlueprint->GetModel())
+			if (URigVMGraph* Model = RigGraph->GetModel())
 			{
-				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath));
-				if (LibraryNode == nullptr && RigBlueprint->GetLocalFunctionLibrary())
+				if (URigVMGraph* RootModel = Model->GetRootGraph())
 				{
-					LibraryNode = Cast<URigVMLibraryNode>(RigBlueprint->GetLocalFunctionLibrary()->FindFunction(*RigGraph->ModelNodePath));
-				}
-
-				if (LibraryNode)
-				{
-					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
+					URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(RootModel->FindNode(RigGraph->ModelNodePath));
+					if (LibraryNode)
 					{
-						Controller->RenameNode(LibraryNode, InNewName, true, true);
-						return true;
+						if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
+						{
+							Controller->RenameNode(LibraryNode, InNewName, true, true);
+							return true;
+						}
 					}
 				}
 			}
