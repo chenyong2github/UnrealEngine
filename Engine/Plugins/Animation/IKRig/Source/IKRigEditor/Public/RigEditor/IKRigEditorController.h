@@ -5,6 +5,7 @@
 #include "IKRigSolver.h"
 #include "SIKRigRetargetChainList.h"
 #include "Templates/SubclassOf.h"
+#include "Animation/AnimationAsset.h"
 
 #include "IKRigEditorController.generated.h"
 
