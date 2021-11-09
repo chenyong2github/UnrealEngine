@@ -545,8 +545,6 @@ private:
 	/** Map of columns that are shown on this outliner. */
 	TMap<FName, TSharedPtr<ISceneOutlinerColumn>> Columns;
 
-	TArray<FName> HiddenColumnsList;
-
 	/** Set up the columns required for this outliner */
 	void SetupColumns(SHeaderRow& HeaderRow);
 
@@ -833,6 +831,9 @@ private:
 	/** Currently selected sorting mode */
 	EColumnSortMode::Type SortMode;
 
+	/** Identifier for this outliner (Set through FSceneOutlinerInitializationOptions)*/
+	FName OutlinerIdentifier;
+
 	/** Handles column sorting mode change */
 	void OnColumnSortModeChanged( const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode );
 
@@ -843,4 +844,20 @@ private:
 
 	/** Handler for recursively expanding/collapsing items */
 	void SetItemExpansionRecursive(FSceneOutlinerTreeItemPtr Model, bool bInExpansionState);
+
+	/**
+	 * Get a mutable version of the outliner config for setting values.
+	 * @returns		The outliner config for this outliner.
+	 * @note		If FSceneOutlinerInitializationOptions.ViewIdentifier is not set, it is not possible to store settings for this outliner.
+	 */
+	struct FSceneOutlinerConfig* GetMutableConfig();
+
+	/**
+	 * Get a const version of the outliner config for getting values.
+	 * @returns		The outliner config for this outliner.
+	 * @note		If FSceneOutlinerInitializationOptions.ViewIdentifier is not set, it is not possible to retrieve settings for this outliner.
+	 */
+	const FSceneOutlinerConfig* GetConstConfig() const;
+
+	void SaveConfig();
 };
