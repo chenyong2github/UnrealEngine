@@ -263,6 +263,8 @@ public:
 
 void UBakeMeshAttributeMapsTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeMapsTool::Setup);
+	
 	Super::Setup();
 
 	// Initialize preview mesh
@@ -448,6 +450,8 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 
 void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeMapsTool::Shutdown);
+	
 	Super::Shutdown(ShutdownType);
 	
 	Settings->SaveProperties(this);

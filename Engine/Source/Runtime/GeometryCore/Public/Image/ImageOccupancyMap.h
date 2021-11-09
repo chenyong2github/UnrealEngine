@@ -103,6 +103,8 @@ public:
 	bool ComputeFromUVSpaceMesh(const MeshType& UVSpaceMesh, 
 		GetTriangleIDFuncType GetTriangleIDFunc = [](int32 TriangleID) { return TriangleID; } )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FImageOccupancyMap::ComputeFromUVSpaceMesh);
+		
 		// make flat mesh
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
 

@@ -395,6 +395,8 @@ public:
 
 void UBakeMultiMeshAttributeMapsTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMultiMeshAttributeMapsTool::Setup);
+	
 	Super::Setup();
 
 	// Initialize base mesh
@@ -533,6 +535,8 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMultiMeshAttr
 
 void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMultiMeshAttributeMapsTool::Shutdown);
+	
 	Super::Shutdown(ShutdownType);
 	
 	Settings->SaveProperties(this);
