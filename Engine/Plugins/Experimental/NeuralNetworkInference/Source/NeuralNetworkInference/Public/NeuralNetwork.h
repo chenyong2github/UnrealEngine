@@ -234,7 +234,7 @@ private:
 	 * This variable is thread safe as long as only "Run" modifies it. Other functions can safely read it at any time.
 	 * If other functions outside of Run() have to modify it, consider using mutexes.
 	 */
-	std::atomic<bool> bIsRunningNetwork;
+	std::atomic<bool> bIsBackgroundThreadRunning;
 
 	UPROPERTY()
 	TArray<uint8> ModelReadFromFileInBytes;

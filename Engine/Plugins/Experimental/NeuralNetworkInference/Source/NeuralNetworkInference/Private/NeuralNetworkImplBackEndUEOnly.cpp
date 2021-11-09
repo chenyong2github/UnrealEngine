@@ -74,7 +74,7 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 //	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager.IsLoaded());
 //}
 
-void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bIsBackgroundThreadRunning, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 	// Run UNeuralNetwork::UEOnly
 	if (Operators.Num() > 0)
@@ -106,7 +106,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 
 			// On RHI thread
 			ENQUEUE_RENDER_COMMAND(UNeuralNetwork_UEOnly_Run_RenderThread)(
-				[this, &InOutOnAsyncRunCompletedDelegate, InSynchronousMode, InInputDeviceType, InOutputDeviceType](FRHICommandListImmediate& RHICmdList)
+				[this, &InOutOnAsyncRunCompletedDelegate, &bIsBackgroundThreadRunning, InSynchronousMode, InInputDeviceType, InOutputDeviceType](FRHICommandListImmediate& RHICmdList)
 				{
 					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("FImplBackEndUEOnly::Run()"));
 
@@ -196,12 +196,14 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 					// Broadcast delegates (from the render thread)
 					if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
 					{
+						bIsBackgroundThreadRunning = true; // This will be done right away
 						GraphBuilder.AddPass(
 							RDG_EVENT_NAME("Async delegate broadcast"),
 							ERDGPassFlags::None,
-							[&InOutOnAsyncRunCompletedDelegate](FRHICommandListImmediate& RHICmdList)
+							[&InOutOnAsyncRunCompletedDelegate, &bIsBackgroundThreadRunning](FRHICommandListImmediate& RHICmdList)
 						{
 							InOutOnAsyncRunCompletedDelegate.ExecuteIfBound();
+							bIsBackgroundThreadRunning = false; // This will be done in the render graph after all NNI operators have been run
 						});
 					}
 

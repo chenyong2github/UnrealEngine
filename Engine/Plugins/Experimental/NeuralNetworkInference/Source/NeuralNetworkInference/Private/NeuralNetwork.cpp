@@ -51,7 +51,7 @@ UNeuralNetwork::UNeuralNetwork()
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
 	, BackEnd(ENeuralBackEnd::Auto)
 	, bIsLoaded(false)
-	, bIsRunningNetwork(false)
+	, bIsBackgroundThreadRunning(false)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
 {
 }
@@ -487,8 +487,6 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InTensorIndexes)
 
 void UNeuralNetwork::Run()
 {
-	bIsRunningNetwork = true;
-
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
 
 	// Sanity check
@@ -507,7 +505,7 @@ void UNeuralNetwork::Run()
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		ImplBackEndUEOnly->Run(OnAsyncRunCompletedDelegate, SynchronousMode, DeviceType, InputDeviceType, OutputDeviceType);
+		ImplBackEndUEOnly->Run(OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, SynchronousMode, DeviceType, InputDeviceType, OutputDeviceType);
 	}
 	// Unknown
 	else
@@ -515,8 +513,6 @@ void UNeuralNetwork::Run()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 	ComputeStatsModule.StoreSample(RunTimer.Toc());
-
-	bIsRunningNetwork = false;
 }
 
 float UNeuralNetwork::GetLastInferenceTime() {
@@ -669,5 +665,5 @@ void UNeuralNetwork::Serialize(FArchive& Archive)
 
 bool UNeuralNetwork::IsReadyForFinishDestroy()
 {
-	return !bIsRunningNetwork;
+	return !bIsBackgroundThreadRunning;
 }
