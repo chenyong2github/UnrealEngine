@@ -55,9 +55,15 @@ void LinearClassifier::ComputeImpl(const gsl::span<const float> input,
   const float* input_data = input.data();
   auto scores_output_data = scores_output.MutableDataAsSpan<float>();
   size_t scores_output_size = num_batches * num_targets * (add_second_class ? 2 : 1);
+#ifndef WITH_UE 
   ORT_ENFORCE(scores_output_data.length() >= scores_output_size,
               "Scores output is incorrect size. Expected:", scores_output_size,
               " Found:", scores_output_data.length());
+#else
+  ORT_ENFORCE(scores_output_data.size() >= scores_output_size,
+	  "Scores output is incorrect size. Expected:", scores_output_size,
+	  " Found:", scores_output_data.size());
+#endif // WITH_UE
 
   TensorShape intercepts_shape({num_targets});
   onnxruntime::Gemm<float>::ComputeGemm(CBLAS_TRANSPOSE::CblasNoTrans, CBLAS_TRANSPOSE::CblasTrans,
@@ -122,8 +128,11 @@ void LinearClassifier::ComputeImpl(const gsl::span<const float> input,
 template <typename SrcType>
 static void CastInputToFloat(const Tensor& in, gsl::span<float>& out) {
   size_t shape_size = static_cast<size_t>(in.Shape().Size());
+#ifndef WITH_UE 
   ORT_ENFORCE(shape_size == out.length());
-
+#else
+  ORT_ENFORCE(shape_size == out.size());
+#endif // WITH_UE
   const SrcType* in_data = in.Data<SrcType>();
   float* out_data = out.data();
   for (size_t i = 0; i < shape_size; ++i) {
