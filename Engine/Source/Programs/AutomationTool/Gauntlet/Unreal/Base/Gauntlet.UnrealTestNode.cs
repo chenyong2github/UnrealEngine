@@ -946,7 +946,7 @@ namespace Gauntlet
 			try
 			{
 				// Artifacts have been saved, release devices back to pool for other tests to use
-				UnrealDeviceReservation.ReleaseDevices();
+				UnrealApp.UnrealDeviceReservation.ReleaseDevices();
 			}
 			catch (Exception Ex)
 			{

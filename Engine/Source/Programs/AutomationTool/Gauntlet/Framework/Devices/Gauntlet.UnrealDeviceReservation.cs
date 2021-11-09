@@ -11,10 +11,10 @@ namespace Gauntlet
 	/// </summary>
 	public class UnrealDeviceReservation
 	{
-		public static List<ProblemDevice> ProblemDevices { get; protected set; }
-		public static List<ITargetDevice> ReservedDevices { get; protected set; }
+		public List<ProblemDevice> ProblemDevices { get; protected set; }
+		public List<ITargetDevice> ReservedDevices { get; protected set; }
 
-		public static bool TryReserveDevices(Dictionary<UnrealDeviceTargetConstraint, int> RequiredDeviceTypes, int ExpectedNumberOfDevices)
+		public bool TryReserveDevices(Dictionary<UnrealDeviceTargetConstraint, int> RequiredDeviceTypes, int ExpectedNumberOfDevices)
 		{
 			List<ITargetDevice> AcquiredDevices = new List<ITargetDevice>();
 			List<ITargetDevice> SkippedDevices = new List<ITargetDevice>();
@@ -139,7 +139,7 @@ namespace Gauntlet
 			return ReservedDevices.Count() == ExpectedNumberOfDevices;
 		}
 
-		public static void ReleaseDevices()
+		public void ReleaseDevices()
 		{
 			if ((ReservedDevices != null) && (ReservedDevices.Count() > 0))
 			{
@@ -152,7 +152,7 @@ namespace Gauntlet
 			}
 		}
 
-		public static void MarkProblemDevice(ITargetDevice Device)
+		public void MarkProblemDevice(ITargetDevice Device)
 		{
 			if (ProblemDevices.Where(D => D.Name == Device.Name && D.Platform == Device.Platform).Count() > 0)
 			{

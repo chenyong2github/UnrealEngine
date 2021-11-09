@@ -62,6 +62,11 @@ namespace LowLevelTests
 
 			ITestNode NewTest = Gauntlet.Utils.TestConstructor.ConstructTest<ITestNode, LowLevelTestContext>(ContextOptions.TestApp, TestContext, new string[] { "LowLevelTests" });
 
+			if (!(NewTest is LowLevelTests))
+			{
+				throw new AutomationException("Expected ITestNode type of LowLevelTests");
+			}
+
 			bool TestPassed = ExecuteTest(ContextOptions, NewTest);
 
 			DevicePool.Instance.Dispose();
@@ -98,7 +103,10 @@ namespace LowLevelTests
 
 				if (!string.IsNullOrEmpty(Options.Device))
 				{
-					UnrealDeviceReservation.ReleaseDevices();
+					(LowLevelTestNode as LowLevelTests)
+						.LowLevelTestsApp
+						.UnrealDeviceReservation
+						.ReleaseDevices();
 				}
 
 				DevicePool.Instance.Dispose();
@@ -212,9 +220,12 @@ namespace LowLevelTests
 		public IAppInstance Instance { get; protected set; }
 		private LowLevelTestsBuildSource BuildSource { get; set; }
 
+		public UnrealDeviceReservation UnrealDeviceReservation { get; private set; }
+
 		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource)
 		{
 			BuildSource = InBuildSource;
+			UnrealDeviceReservation = new UnrealDeviceReservation();
 		}
 
 		public bool TryReserveDevices()
