@@ -7,7 +7,7 @@
 #include "MassAIMovementTypes.h"
 #include "MassZoneGraphMovementTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "ZoneGraph Movement"))
+UCLASS(meta = (DisplayName = "ZoneGraph Movement"))
 class MASSAIMOVEMENT_API UMassZoneGraphMovementTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

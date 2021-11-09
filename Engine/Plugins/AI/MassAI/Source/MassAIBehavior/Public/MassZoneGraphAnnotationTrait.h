@@ -5,7 +5,7 @@
 #include "MassEntityTraitBase.h"
 #include "MassZoneGraphAnnotationTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "ZoneGraph Annotation"))
+UCLASS(meta = (DisplayName = "ZoneGraph Annotation"))
 class MASSAIBEHAVIOR_API UMassZoneGraphAnnotationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

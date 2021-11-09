@@ -7,7 +7,7 @@
 #include "MassDebugVisualizationTrait.generated.h"
 
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Debug Visualization"))
+UCLASS(meta = (DisplayName = "Debug Visualization"))
 class MASSGAMEPLAYDEBUG_API UMassDebugVisualizationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

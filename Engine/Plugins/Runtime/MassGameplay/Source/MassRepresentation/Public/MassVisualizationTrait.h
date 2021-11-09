@@ -10,7 +10,7 @@
 class UMassRepresentationSubsystem;
 class UMassProcessor;
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Visualization"))
+UCLASS(meta=(DisplayName="Visualization"))
 class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

@@ -5,7 +5,7 @@
 #include "MassEntityTraitBase.h"
 #include "MassLODTrait.generated.h"
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "LOD"))
+UCLASS(meta = (DisplayName = "LOD"))
 class MASSLOD_API UMassLODTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()

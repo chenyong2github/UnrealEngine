@@ -6,7 +6,7 @@
 #include "MassReplicationTrait.generated.h"
 
 
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Replication"))
+UCLASS(meta=(DisplayName="Replication"))
 class MASSREPLICATION_API UMassReplicationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
