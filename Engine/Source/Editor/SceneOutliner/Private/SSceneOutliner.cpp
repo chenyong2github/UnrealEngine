@@ -36,6 +36,7 @@
 #include "ISceneOutlinerMode.h"
 #include "FolderTreeItem.h"
 #include "EditorFolderUtils.h"
+#include "SceneOutlinerConfig.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -75,9 +76,13 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	bSelectionDirty = true;
 	SortOutlinerTimer = 0.0f;
 	bPendingFocusNextFrame = InInitOptions.bFocusSearchBoxWhenOpened;
-
+	OutlinerIdentifier = InInitOptions.OutlinerIdentifier;
+	
 	SortByColumn = FSceneOutlinerBuiltInColumnTypes::Label();
 	SortMode = EColumnSortMode::Ascending;
+
+	UOutlinerConfig* OutlinerConfig = GetMutableDefault<UOutlinerConfig>();
+	OutlinerConfig->LoadEditorConfig();
 
 	// @todo outliner: Should probably save this in layout!
 	// @todo outliner: Should save spacing for list view in layout
@@ -269,7 +274,21 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 void SSceneOutliner::HandleHiddenColumnsChanged()
 {
-	//Todo: Save?
+	const TArray<FName> HiddenColumns = HeaderRowWidget->GetHiddenColumnIds();
+	FSceneOutlinerConfig* OutlinerConfig = GetMutableConfig();
+	TMap<FName, bool> ColumnVisibilities;
+
+	if (OutlinerConfig != nullptr)
+	{
+		for (const TPair<FName, bool> Pair : Columns)
+		{
+			ColumnVisibilities.Add(Pair.Key, HiddenColumns.Find(Pair.Key) == INDEX_NONE);
+		}
+
+		OutlinerConfig->ColumnVisibilities = ColumnVisibilities;
+
+		SaveConfig();
+	}
 }
 
 void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
@@ -293,11 +312,26 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		return SharedData->ColumnMap[A].PriorityIndex < SharedData->ColumnMap[B].PriorityIndex;
 	});
 
+	TMap<FName, bool> ColumnVisibilities;
+	const FSceneOutlinerConfig* OutlinerConfig = GetConstConfig();
+
+	// Try to load visibility of columns from the config file
+	if (OutlinerConfig)
+	{
+		ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
+	}
+
+
 	for (const FName& ID : SortedIDs)
 	{
 		bool bIsVisible = true;
 
-		if (SharedData->ColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
+		// If there is a config saved for this column, ignore the default visibility
+		if (bool *ColumnVisibility = ColumnVisibilities.Find(ID))
+		{
+			bIsVisible = *ColumnVisibility;
+		}
+		else if (SharedData->ColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
 		{
 			bIsVisible = false;
 		}
@@ -2065,6 +2099,35 @@ FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeIte
 		Parent = Mode->GetHierarchy()->FindParent(InItem, PendingTreeItemMap);
 	}
 	return Parent;
+}
+
+
+struct FSceneOutlinerConfig* SSceneOutliner::GetMutableConfig()
+{
+	if (OutlinerIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
+	UOutlinerConfig* OutlinerConfig = GetMutableDefault<UOutlinerConfig>();
+	return &OutlinerConfig->Outliners.FindOrAdd(OutlinerIdentifier);
+}
+
+
+const FSceneOutlinerConfig* SSceneOutliner::GetConstConfig() const
+{
+	if (OutlinerIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
+	const UOutlinerConfig* OutlinerConfig = GetDefault<UOutlinerConfig>();
+	return OutlinerConfig->Outliners.Find(OutlinerIdentifier);
+}
+
+void SSceneOutliner::SaveConfig()
+{
+	GetMutableDefault<UOutlinerConfig>()->SaveEditorConfig();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -182,6 +182,9 @@ struct FSceneOutlinerInitializationOptions : FSharedSceneOutlinerData
 
 	FCreateSceneOutlinerMode ModeFactory;
 
+	/** Identifier for this outliner; NAME_None if this view is anonymous (Needs to be specified to save visibility of columns in EditorConfig)*/
+	FName OutlinerIdentifier;
+
 public:
 
 	/** Constructor */
@@ -192,6 +195,7 @@ public:
 		, bShowCreateNewFolder( true )
 		, Filters( new FSceneOutlinerFilters )
 		, ModeFactory()
+		, OutlinerIdentifier(NAME_None)
 	{}
 };
 

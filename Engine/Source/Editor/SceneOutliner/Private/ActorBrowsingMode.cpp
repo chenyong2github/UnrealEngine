@@ -212,9 +212,6 @@ void FActorBrowsingMode::Rebuild()
 		UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition();
 		WorldPartition->OnActorDescRemovedEvent.AddRaw(this, &FActorBrowsingMode::OnActorDescRemoved);
 	}
-
-	// Enable the pinned column by default on WP worlds or Disable it by default on non-WP worlds
-	SceneOutliner->SetColumnVisibility(FSceneOutlinerBuiltInColumnTypes::Pinned(), bRepresentingWorldPartitionedWorld);
 }
 
 FText FActorBrowsingMode::GetStatusText() const 
