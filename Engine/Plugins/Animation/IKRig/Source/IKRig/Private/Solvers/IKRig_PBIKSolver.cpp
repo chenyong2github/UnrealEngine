@@ -66,11 +66,12 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		return;
 	}
 
+	TArray<FTransform>& InOutTransforms = IKRigSkeleton.CurrentPoseGlobal;
+	
 	// set bones to input pose
 	for(int32 BoneIndex = 0; BoneIndex < Solver.GetNumBones(); BoneIndex++)
 	{
-		const FTransform GlobalTransform = IKRigSkeleton.CurrentPoseGlobal[BoneIndex];
-		Solver.SetBoneTransform(BoneIndex, GlobalTransform);
+		Solver.SetBoneTransform(BoneIndex, InOutTransforms[BoneIndex]);
 	}
 
 	// update bone settings
@@ -124,9 +125,7 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	// copy transforms back
 	for(int32 BoneIndex = 0; BoneIndex < Solver.GetNumBones(); BoneIndex++)
 	{
-		FTransform OutTransform;
-		Solver.GetBoneGlobalTransform(BoneIndex, OutTransform);
-		IKRigSkeleton.CurrentPoseGlobal[BoneIndex] = OutTransform;
+		Solver.GetBoneGlobalTransform(BoneIndex, InOutTransforms[BoneIndex]);
 	}
 }
 
