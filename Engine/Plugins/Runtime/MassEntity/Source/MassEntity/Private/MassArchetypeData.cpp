@@ -43,10 +43,10 @@ bool FMassArchetypeData::IsEquivalent(TConstArrayView<const UScriptStruct*> Othe
 	return true;
 }
 
-void FMassArchetypeData::Initialize(const FMassFragmentBitSet& Fragments, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments)
+void FMassArchetypeData::Initialize(const FMassCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues)
 {
 	TArray<const UScriptStruct*, TInlineAllocator<16>> SortedFragmentList;
-	Fragments.ExportTypes(SortedFragmentList);
+	InCompositionDescriptor.Fragments.ExportTypes(SortedFragmentList);
 
 	SortedFragmentList.Sort(FMassSorterOperator<UScriptStruct>());
 
@@ -78,16 +78,24 @@ void FMassArchetypeData::Initialize(const FMassFragmentBitSet& Fragments, const 
 		checkSlow(Fragments.IsEquivalent(CompositionDescriptor.Fragments));
 	}
 
-	CompositionDescriptor.Tags = Tags;
-	CompositionDescriptor.ChunkFragments = ChunkFragments;
+	CompositionDescriptor.Tags = InCompositionDescriptor.Tags;
+	CompositionDescriptor.ChunkFragments = InCompositionDescriptor.ChunkFragments;
 	// create the chunk fragment instances
 	TArray<const UScriptStruct*, TInlineAllocator<16>> ChunkFragmentList;
-	ChunkFragments.ExportTypes(ChunkFragmentList);
+	CompositionDescriptor.ChunkFragments.ExportTypes(ChunkFragmentList);
 	ChunkFragmentList.Sort(FMassSorterOperator<UScriptStruct>());
 	for (const UScriptStruct* ChunkFragmentType : ChunkFragmentList)
 	{
 		check(ChunkFragmentType);
-		ChunkFragmentTemplates.Add(FInstancedStruct(ChunkFragmentType));
+		if (const FInstancedStruct* Struct = InInitialValues.ChunkFragments.FindByPredicate( 
+				[ChunkFragmentType](const FInstancedStruct& Struct) { return Struct.GetScriptStruct() == ChunkFragmentType; }))
+		{
+			InitialValues.ChunkFragments.Add(*Struct);
+		}
+		else
+		{
+			InitialValues.ChunkFragments.Add(FInstancedStruct(ChunkFragmentType));
+		}
 	}
 
 	TotalBytesPerEntity = FragmentSizeTallyBytes;
@@ -117,7 +125,7 @@ void FMassArchetypeData::InitializeWithSibling(const FMassArchetypeData& Sibling
 	CompositionDescriptor.Fragments = SiblingArchetype.CompositionDescriptor.Fragments;
 	CompositionDescriptor.Tags = OverrideTags;
 	CompositionDescriptor.ChunkFragments = SiblingArchetype.CompositionDescriptor.ChunkFragments;
-	ChunkFragmentTemplates = SiblingArchetype.ChunkFragmentTemplates;
+	InitialValues.ChunkFragments = SiblingArchetype.InitialValues.ChunkFragments;
 
 	TotalBytesPerEntity = SiblingArchetype.TotalBytesPerEntity;
 	NumEntitiesPerChunk = SiblingArchetype.NumEntitiesPerChunk;
@@ -173,12 +181,12 @@ int32 FMassArchetypeData::AddEntityInternal(FMassEntityHandle Entity, const bool
 		if (EmptyChunkIndex != INDEX_NONE)
 		{
 			DestinationChunk = &Chunks[EmptyChunkIndex];
-			DestinationChunk->Recycle(ChunkFragmentTemplates);
+			DestinationChunk->Recycle(InitialValues.ChunkFragments);
 			AbsoluteIndex = EmptyAbsoluteIndex;
 		}
 		else
 		{
-			DestinationChunk = &Chunks.Emplace_GetRef(GetChunkAllocSize(), ChunkFragmentTemplates);
+			DestinationChunk = &Chunks.Emplace_GetRef(GetChunkAllocSize(), InitialValues.ChunkFragments);
 		}
 
 		check(DestinationChunk);
@@ -432,17 +440,6 @@ void FMassArchetypeData::SetFragmentData(const FArchetypeChunkCollection& ChunkC
 	}
 }
 
-void FMassArchetypeData::SetDefaultChunkFragmentValue(FConstStructView InstancedStruct)
-{
-	if (ensure(InstancedStruct.GetScriptStruct()) && CompositionDescriptor.ChunkFragments.Contains(*InstancedStruct.GetScriptStruct()))
-	{
-		if (FInstancedStruct* Element = ChunkFragmentTemplates.FindByPredicate([&InstancedStruct](const FInstancedStruct& Element) { return Element.GetScriptStruct() == InstancedStruct.GetScriptStruct(); }))
-		{
-			*Element = InstancedStruct;
-		}
-	}
-}
-
 void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle Entity, FMassArchetypeData& NewArchetype)
 {
 	check(&NewArchetype != this);
@@ -668,9 +665,9 @@ void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMa
 		if (Requirement.RequiresBinding())
 		{
 			int32 FragmentIndex = INDEX_NONE;
-			for (int32 i = LastFoundFragmentIndex + 1; i < ChunkFragmentTemplates.Num(); ++i)
+			for (int32 i = LastFoundFragmentIndex + 1; i < InitialValues.ChunkFragments.Num(); ++i)
 			{
-				if (ChunkFragmentTemplates[i].GetScriptStruct()->IsChildOf(Requirement.StructType))
+				if (InitialValues.ChunkFragments[i].GetScriptStruct()->IsChildOf(Requirement.StructType))
 				{
 					FragmentIndex = i;
 					break;
@@ -770,7 +767,7 @@ SIZE_T FMassArchetypeData::GetAllocatedSize() const
 	}
 
 	return sizeof(FMassArchetypeData) +
-		ChunkFragmentTemplates.GetAllocatedSize() +
+		InitialValues.ChunkFragments.GetAllocatedSize() +
 		FragmentConfigs.GetAllocatedSize() +
 		Chunks.GetAllocatedSize() +
 		(NumAllocatedChunkBuffers * GetChunkAllocSize()) +

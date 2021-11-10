@@ -157,3 +157,18 @@ struct FMassCompositionDescriptor
 	FMassTagBitSet Tags;
 	FMassChunkFragmentBitSet ChunkFragments;
 };
+
+struct FMassArchetypeFragmentsInitialValues
+{
+	FMassArchetypeFragmentsInitialValues() = default;
+	FMassArchetypeFragmentsInitialValues(TConstArrayView<FInstancedStruct> InChunkFragments)
+	: ChunkFragments(InChunkFragments)
+	{
+		
+	}
+
+	// @todo add the regular fragments initial value here.
+	TArray<FInstancedStruct> ChunkFragments;
+
+	// @todo add the shared fragments values here
+};

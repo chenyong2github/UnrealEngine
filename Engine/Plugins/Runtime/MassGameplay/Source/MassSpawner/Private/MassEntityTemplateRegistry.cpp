@@ -255,13 +255,8 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	UMassEntitySubsystem* EntitySys = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	check(EntitySys);
 
-	FTemplateRegistryHelpers::FragmentInstancesToTypes(OutTemplate.GetFragments(), OutTemplate.GetMutableFragmentTypes());
-	const FArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetFragmentTypes(), OutTemplate.GetTags(), FMassChunkFragmentBitSet(OutTemplate.GetChunkFragments()));
+	const FArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetCompositionDescriptor(), OutTemplate.GetArchetypeFragmentsInitialValues());
 	OutTemplate.SetArchetype(ArchetypeHandle);
-	for (const FInstancedStruct& InstancedStruct : OutTemplate.GetChunkFragments())
-	{
-		EntitySys->SetDefaultChunkFragmentValue(ArchetypeHandle, InstancedStruct);
-	}
 }
 
 void UMassEntityTemplateRegistry::DebugReset()

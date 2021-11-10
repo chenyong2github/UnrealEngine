@@ -105,12 +105,7 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const USc
 		}
 	}
 
-	return CreateArchetype(FMassCompositionDescriptor(FMassFragmentBitSet(FragmentList), Tags, ChunkFragments));
-}
-
-FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments)
-{
-	return CreateArchetype(FMassCompositionDescriptor(FragmentList, Tags, ChunkFragments));
+	return CreateArchetype(FMassCompositionDescriptor(FMassFragmentBitSet(FragmentList), Tags, ChunkFragments), FMassArchetypeFragmentsInitialValues());
 }
 
 FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragments)
@@ -118,10 +113,10 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMassArc
 	check(SourceArchetype.IsValid());
 	checkf(NewFragments.IsEmpty() == false, TEXT("%s Adding an empty fragment list to an archetype is not supported."), ANSI_TO_TCHAR(__FUNCTION__));
 
-	return CreateArchetype(FMassCompositionDescriptor(NewFragments + SourceArchetype->GetFragmentBitSet(), SourceArchetype->GetTagBitSet(), SourceArchetype->GetChunkFragmentBitSet()));
+	return CreateArchetype(FMassCompositionDescriptor(NewFragments + SourceArchetype->GetFragmentBitSet(), SourceArchetype->GetTagBitSet(), SourceArchetype->GetChunkFragmentBitSet()), SourceArchetype->GetInitialValues());
 }
 
-FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassCompositionDescriptor& Composition)
+FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassCompositionDescriptor& Composition, const FMassArchetypeFragmentsInitialValues& InitialValues)
 {
 	const uint32 TypeHash = Composition.CalculateHash();
 
@@ -141,7 +136,7 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassCompositionDes
 	{
 		// Create a new archetype
 		TSharedPtr<FMassArchetypeData> NewArchetype = MakeShareable(new FMassArchetypeData);
-		NewArchetype->Initialize(Composition.Fragments, Composition.Tags, Composition.ChunkFragments);
+		NewArchetype->Initialize(Composition, InitialValues);
 		HashRow.Add(NewArchetype);
 
 		for (const FMassArchetypeFragmentConfig& FragmentConfig : NewArchetype->GetFragmentConfigs())
@@ -214,13 +209,6 @@ void UMassEntitySubsystem::ForEachArchetypeFragmentType(const FArchetypeHandle A
 	ArchetypeData.ForEachFragmentType(Function);
 }
 
-void UMassEntitySubsystem::SetDefaultChunkFragmentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct)
-{
-	check(Archetype.DataPtr.IsValid());
-	FMassArchetypeData& ArchetypeData = *Archetype.DataPtr.Get();
-	ArchetypeData.SetDefaultChunkFragmentValue(InstancedStruct);
-}
-
 void UMassEntitySubsystem::DoEntityCompaction(const double TimeAllowed)
 {
 	const double TimeAllowedEnd = FPlatformTime::Seconds() + TimeAllowed;
@@ -258,7 +246,7 @@ FMassEntityHandle UMassEntitySubsystem::CreateEntity(TConstArrayView<FInstancedS
 {
 	check(FragmentInstanceList.Num() > 0);
 
-	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
+	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()), FMassArchetypeFragmentsInitialValues());
 	check(Archetype.DataPtr.IsValid());
 
 	FMassEntityHandle Entity = ReserveEntity();
@@ -301,7 +289,7 @@ void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView
 	check(FragmentInstanceList.Num() > 0);
 	checkf(!IsEntityBuilt(Entity), TEXT("Expecting an entity that is not already built"));
 
-	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
+	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()), FMassArchetypeFragmentsInitialValues());
 	check(Archetype.DataPtr.IsValid());
 
 	InternalBuildEntity(Entity, Archetype);
@@ -428,7 +416,7 @@ void UMassEntitySubsystem::AddFragmentListToEntity(FMassEntityHandle Entity, TCo
 	InternalAddFragmentListToEntityChecked(Entity, FMassFragmentBitSet(FragmentList));
 }
 
-void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassCompositionDescriptor& Composition)
+void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassCompositionDescriptor& InDescriptor)
 {
 	CheckIfEntityIsActive(Entity);
 
@@ -436,16 +424,18 @@ void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Ent
 	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
 	check(OldArchetype);
 
-	Composition.Fragments -= OldArchetype->GetCompositionDescriptor().Fragments;
-	Composition.Tags -= OldArchetype->GetCompositionDescriptor().Tags;
+	InDescriptor.Fragments -= OldArchetype->GetCompositionDescriptor().Fragments;
+	InDescriptor.Tags -= OldArchetype->GetCompositionDescriptor().Tags;
 
-	if (Composition.IsEmpty() == false)
+	ensureMsgf(InDescriptor.ChunkFragments.IsEmpty(), TEXT("Adding new chunk fragments is not supported"));
+
+	if (InDescriptor.IsEmpty() == false)
 	{
 		FMassCompositionDescriptor NewDescriptor = OldArchetype->GetCompositionDescriptor();
-		NewDescriptor.Fragments += Composition.Fragments;
-		NewDescriptor.Tags+= Composition.Tags;
+		NewDescriptor.Fragments += InDescriptor.Fragments;
+		NewDescriptor.Tags+= InDescriptor.Tags;
 
-		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor);
+		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor, OldArchetype->GetInitialValues());
 
 		if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
 		{
@@ -462,25 +452,30 @@ void UMassEntitySubsystem::RemoveCompositionFromEntity(FMassEntityHandle Entity,
 {
 	CheckIfEntityIsActive(Entity);
 
-	FEntityData& EntityData = Entities[Entity.Index];
-	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
-	check(OldArchetype);
-
-	FMassCompositionDescriptor NewDescriptor = OldArchetype->GetCompositionDescriptor();
-	NewDescriptor.Fragments -= InDescriptor.Fragments;
-	NewDescriptor.Tags -= InDescriptor.Tags;
-
-	if (NewDescriptor.IsEmpty() == false)
+	if(InDescriptor.IsEmpty() == false)
 	{
-		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor);
+		FEntityData& EntityData = Entities[Entity.Index];
+		FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
+		check(OldArchetype);
 
-		if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
+		FMassCompositionDescriptor NewDescriptor = OldArchetype->GetCompositionDescriptor();
+		NewDescriptor.Fragments -= InDescriptor.Fragments;
+		NewDescriptor.Tags -= InDescriptor.Tags;
+
+		ensureMsgf(InDescriptor.ChunkFragments.IsEmpty(), TEXT("Removing chunk fragments is not supported"));
+
+		if (NewDescriptor.IsEquivalent(InDescriptor) == false)
 		{
-			// Move the entity over
-			FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
-			check(NewArchetype);
-			EntityData.CurrentArchetype->MoveEntityToAnotherArchetype(Entity, *NewArchetype);
-			EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+			const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor, OldArchetype->GetInitialValues());
+
+			if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
+			{
+				// Move the entity over
+				FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
+				check(NewArchetype);
+				EntityData.CurrentArchetype->MoveEntityToAnotherArchetype(Entity, *NewArchetype);
+				EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+			}
 		}
 	}
 }
@@ -567,7 +562,7 @@ void UMassEntitySubsystem::RemoveFragmentListFromEntity(FMassEntityHandle Entity
 	if (ensureMsgf(OldArchetype->GetFragmentBitSet().HasAny(FragmentsToRemove), TEXT("Trying to remove a list of fragments from an entity but none of the fragments given was found.")))
 	{
 		// If all the fragments got removed this will result in fetching of the empty archetype
-		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(FMassCompositionDescriptor(OldArchetype->GetFragmentBitSet() - FragmentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkFragmentBitSet()));
+		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(FMassCompositionDescriptor(OldArchetype->GetFragmentBitSet() - FragmentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkFragmentBitSet()), OldArchetype->GetInitialValues());
 
 		// Move the entity over
 		FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
