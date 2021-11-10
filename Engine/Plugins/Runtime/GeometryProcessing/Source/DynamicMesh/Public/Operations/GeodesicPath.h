@@ -111,6 +111,8 @@ public:
 	
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 	
+	typedef FIntrinsicEdgeFlipMesh  IntrinsicMeshType;
+
 	/**
 	* Constructor assumes the directed segments are ordered from tail (at index 0) to head
 	*/
@@ -153,12 +155,12 @@ public:
 	/**
 	* @return const reference to the intrinsic mesh on which the EdgePath is defined.
 	*/ 
-	inline const FIntrinsicTriangulation& GetIntrinsicMesh() const;
+	inline const FIntrinsicEdgeFlipMesh& GetIntrinsicMesh() const;
 
 	/**
 	* struct that references a point on a mesh, by vertex, by edge-crossing, or barycentric coords
 	*/ 
-	using FSurfacePoint =  FIntrinsicTriangulation::FSurfacePoint;
+	using FSurfacePoint =  IntrinsicCorrespondenceUtils::FSurfacePoint;
 	/**
 	* @return an array of surface points relative to the SurfaceMesh that define this path.
 	* Note the first and last surfacepoints correspond to the start and end vertex, but all 
@@ -259,7 +261,7 @@ protected:
 	
 protected:
      
-	FIntrinsicTriangulation        EdgeFlipMesh;        // Intrinsic mesh with the same vertices as the original surface mesh. The geodesic path is comprised of edges in this mesh.
+	IntrinsicMeshType              EdgeFlipMesh;        // Intrinsic mesh with the same vertices as the original surface mesh. The geodesic path is comprised of edges in this mesh.
 
 	double                         PathLength;          // Total length of the path
 	int32                          NumFlips;            // Count of the number of edge flips performed in shortening the path.
@@ -288,7 +290,7 @@ double  FDeformableEdgePath::GetPathLength() const
 	return PathLength;
 }
 
-const FIntrinsicTriangulation& FDeformableEdgePath::GetIntrinsicMesh() const
+const FIntrinsicEdgeFlipMesh& FDeformableEdgePath::GetIntrinsicMesh() const
 {
 	return EdgeFlipMesh;
 }
