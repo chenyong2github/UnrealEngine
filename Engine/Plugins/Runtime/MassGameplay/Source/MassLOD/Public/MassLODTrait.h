@@ -5,8 +5,8 @@
 #include "MassEntityTraitBase.h"
 #include "MassLODTrait.generated.h"
 
-UCLASS(meta = (DisplayName = "LOD"))
-class MASSLOD_API UMassLODTrait : public UMassEntityTraitBase
+UCLASS(meta = (DisplayName = "SimulationLOD"))
+class MASSLOD_API UMassSimulationLODTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
 
