@@ -28,12 +28,12 @@ namespace HordeServerTests
 	        TestSetup TestSetup = await GetTestSetup();
 
 	        ActionResult<List<object>> Res = await TestSetup.JobsController.FindJobsAsync();
-	        Assert.AreEqual(2, Res.Value.Count);
+	        Assert.AreEqual(2, Res.Value!.Count);
 	        Assert.AreEqual("hello2", (Res.Value[0] as GetJobResponse)!.Name);
 	        Assert.AreEqual("hello1", (Res.Value[1] as GetJobResponse)!.Name);
 	        
 	        Res = await TestSetup.JobsController.FindJobsAsync(IncludePreflight: false);
-	        Assert.AreEqual(1, Res.Value.Count);
+	        Assert.AreEqual(1, Res.Value!.Count);
 	        Assert.AreEqual("hello2", (Res.Value[0] as GetJobResponse)!.Name);
         }
         

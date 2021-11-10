@@ -12,6 +12,7 @@ using MongoDB.Driver;
 using Polly;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
@@ -115,12 +116,12 @@ namespace HordeServer.Collections.Impl
 			public override string ToString()
 			{
 				StringBuilder Result = new StringBuilder();
-				Result.Append($"stream={StreamId}, template={TemplateId}");
+				Result.Append(CultureInfo.InvariantCulture, $"stream={StreamId}, template={TemplateId}");
 				if(CategoryName != null)
 				{
-					Result.Append($", category={CategoryName}");
+					Result.Append(CultureInfo.InvariantCulture, $", category={CategoryName}");
 				}
-				Result.Append($", label={LabelName}, outcome={Outcome}");
+				Result.Append(CultureInfo.InvariantCulture, $", label={LabelName}, outcome={Outcome}");
 				return Result.ToString();
 			}
 		}

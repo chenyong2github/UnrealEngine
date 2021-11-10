@@ -58,6 +58,11 @@ namespace HordeServer.Collections.Impl
 
 		class AuditLogChannel : IAuditLogChannel<TSubject>
 		{
+			sealed class Scope : IDisposable
+			{
+				public void Dispose() { }
+			}
+
 			public readonly AuditLog<TSubject> Outer;
 			public TSubject Subject { get; }
 
@@ -67,7 +72,7 @@ namespace HordeServer.Collections.Impl
 				this.Subject = Subject;
 			}
 
-			public IDisposable? BeginScope<TState>(TState state) => null;
+			public IDisposable BeginScope<TState>(TState state) => new Scope();
 
 			public bool IsEnabled(LogLevel logLevel) => true;
 

@@ -209,15 +209,15 @@ namespace HordeServer.Utilities
 	public class PropertyFilterTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
 		{
-			return sourceType == typeof(string);
+			return SourceType == typeof(string);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
 		{
-			return PropertyFilter.Parse((string)value);
+			return PropertyFilter.Parse((string)Value);
 		}
 	}
 

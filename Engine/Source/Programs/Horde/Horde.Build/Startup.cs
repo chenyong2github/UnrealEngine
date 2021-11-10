@@ -619,7 +619,7 @@ namespace HordeServer
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions Options)
 		{
-			Options.IgnoreNullValues = true;
+			Options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 			Options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 			Options.PropertyNameCaseInsensitive = true;
 			Options.Converters.Add(new JsonObjectIdConverter());
@@ -849,8 +849,8 @@ namespace HordeServer
 
 		static void LaunchBrowser(IApplicationBuilder App)
 		{
-			IServerAddressesFeature Feature = App.ServerFeatures.Get<IServerAddressesFeature>();
-			if (Feature.Addresses.Count > 0)
+			IServerAddressesFeature? Feature = App.ServerFeatures.Get<IServerAddressesFeature>();
+			if (Feature != null && Feature.Addresses.Count > 0)
 			{
 				// with a development cert, host will be set by default to localhost, otherwise there will be no host in address
 				string Address = Feature.Addresses.First().Replace("[::]", System.Net.Dns.GetHostName(), StringComparison.OrdinalIgnoreCase);

@@ -1597,15 +1597,15 @@ namespace HordeServer.Services
 			StringBuilder Filter = new StringBuilder(BasePath);
 			if (MinChange != null && MaxChange != null)
 			{
-				Filter.Append($"@{MinChange},{MaxChange}");
+				Filter.Append(CultureInfo.InvariantCulture, $"@{MinChange},{MaxChange}");
 			}
 			else if (MinChange != null)
 			{
-				Filter.Append($"@>={MinChange}");
+				Filter.Append(CultureInfo.InvariantCulture, $"@>={MinChange}");
 			}
 			else if (MaxChange != null)
 			{
-				Filter.Append($"@<={MaxChange}");
+				Filter.Append(CultureInfo.InvariantCulture, $"@<={MaxChange}");
 			}
 			return Filter.ToString();
 		}

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29409.12
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31808.319
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Build", "Horde.Build\Horde.Build.csproj", "{199841BA-0C0D-4019-9795-08618F7CD0D3}"
 EndProject
@@ -42,7 +42,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Redis", "..\Share
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.LruCache", "..\Shared\EpicGames.LruCache\EpicGames.LruCache.csproj", "{02581B0E-61EF-4BAD-9FA5-67369E97CFBB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EpicGames.LruCache.Tests", "..\Shared\EpicGames.LruCache.Tests\EpicGames.LruCache.Tests.csproj", "{D3B9B871-88EB-418E-8706-B989E2667AEF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.LruCache.Tests", "..\Shared\EpicGames.LruCache.Tests\EpicGames.LruCache.Tests.csproj", "{D3B9B871-88EB-418E-8706-B989E2667AEF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.BuildGraph", "..\Shared\EpicGames.BuildGraph\EpicGames.BuildGraph.csproj", "{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -147,6 +149,12 @@ Global
 		{D3B9B871-88EB-418E-8706-B989E2667AEF}.Development|Any CPU.Build.0 = Debug|Any CPU
 		{D3B9B871-88EB-418E-8706-B989E2667AEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D3B9B871-88EB-418E-8706-B989E2667AEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Development|Any CPU.Build.0 = Development|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -164,6 +172,7 @@ Global
 		{7DD6EAA3-7523-48A7-B7E4-285BF6FEA2CD} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 		{02581B0E-61EF-4BAD-9FA5-67369E97CFBB} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 		{D3B9B871-88EB-418E-8706-B989E2667AEF} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
+		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F06D2583-1509-4254-BEE6-5921340022BF}

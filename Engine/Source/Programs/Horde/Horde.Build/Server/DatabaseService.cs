@@ -33,6 +33,7 @@ using System.Net.NetworkInformation;
 using OpenTracing.Util;
 using OpenTracing;
 using HordeServer.Utiltiies;
+using System.Globalization;
 
 namespace HordeServer.Services
 {
@@ -503,11 +504,11 @@ namespace HordeServer.Services
 			if (Sender != null)
 			{
 				string SenderInfo = StringUtils.Indent(Sender.ToString() ?? String.Empty, "    ");
-				Builder.Append($"\nSender:\n{SenderInfo}");
+				Builder.Append(CultureInfo.InvariantCulture, $"\nSender:\n{SenderInfo}");
 			}
 			if (Certificate != null)
 			{
-				Builder.Append($"\nCertificate: {Certificate.Subject}");
+				Builder.Append(CultureInfo.InvariantCulture, $"\nCertificate: {Certificate.Subject}");
 			}
 			if (Chain != null)
 			{
@@ -516,7 +517,7 @@ namespace HordeServer.Services
 					Builder.Append("\nChain status:");
 					foreach (X509ChainStatus Status in Chain.ChainStatus)
 					{
-						Builder.Append($"\n  {Status.StatusInformation}");
+						Builder.Append(CultureInfo.InvariantCulture, $"\n  {Status.StatusInformation}");
 					}
 				}
 				if (Chain.ChainElements != null)
@@ -525,17 +526,17 @@ namespace HordeServer.Services
 					for (int Idx = 0; Idx < Chain.ChainElements.Count; Idx++)
 					{
 						X509ChainElement Element = Chain.ChainElements[Idx];
-						Builder.Append($"\n  {Idx,4} - Certificate: {Element.Certificate.Subject}");
+						Builder.Append(CultureInfo.InvariantCulture, $"\n  {Idx,4} - Certificate: {Element.Certificate.Subject}");
 						if (Element.ChainElementStatus != null && Element.ChainElementStatus.Length > 0)
 						{
 							foreach (X509ChainStatus Status in Element.ChainElementStatus)
 							{
-								Builder.Append($"\n         Status: {Status.StatusInformation} ({Status.Status})");
+								Builder.Append(CultureInfo.InvariantCulture, $"\n         Status: {Status.StatusInformation} ({Status.Status})");
 							}
 						}
 						if (!String.IsNullOrEmpty(Element.Information))
 						{
-							Builder.Append($"\n         Info: {Element.Information}");
+							Builder.Append(CultureInfo.InvariantCulture, $"\n         Info: {Element.Information}");
 						}
 					}
 				}

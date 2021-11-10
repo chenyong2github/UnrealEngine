@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -106,7 +107,7 @@ namespace HordeServer.Tasks
 			/// <param name="Accessor">Accessor for the property</param>
 			public PropertyList Add(string Name, Func<TMessage, object> Accessor)
 			{
-				FormatString.Append($", {Name}={{{Name}}}");
+				FormatString.Append(CultureInfo.InvariantCulture, $", {Name}={{{Name}}}");
 				Accessors.Add(Accessor);
 				return this;
 			}

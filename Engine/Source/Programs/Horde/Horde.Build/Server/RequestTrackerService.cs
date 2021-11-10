@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -70,7 +71,7 @@ namespace HordeServer.Utilities
 			{
 				int AgeInMs = Pair.Value.GetTimeSinceStartInMs();
 				string Path = Pair.Value.Request.Path;
-				Content.AppendLine($"{AgeInMs,9}  {Path}");
+				Content.AppendLine(CultureInfo.InvariantCulture, $"{AgeInMs,9}  {Path}");
 			}
 
 			return Content.ToString();

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -62,7 +63,7 @@ namespace HordeServer.Controllers
 			Content.Append($"<html><style>{StyleSheet}</style><h1>Horde Server</h1>");
 			if (User.Identity?.IsAuthenticated ?? false)
 			{
-				Content.Append($"<p>User <b>{User.Identity?.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
+				Content.Append(CultureInfo.InvariantCulture, $"<p>User <b>{User.Identity?.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
 				if (await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 				{
 					Content.Append("<p>");
@@ -74,16 +75,16 @@ namespace HordeServer.Controllers
 					Content.Append("<a href=\"/api/v1/admin/chainedjobtoken\">Get chained job token</a><br/>");
 					Content.Append("</p>");
 				}
-				Content.Append($"<p>Claims for {User.Identity?.Name}:");
+				Content.Append(CultureInfo.InvariantCulture, $"<p>Claims for {User.Identity?.Name}:");
 				Content.Append("<table>");
 				foreach (System.Security.Claims.Claim Claim in User.Claims)
 				{
-					Content.Append($"<tr><td>{Claim.Type}</td><td>{Claim.Value}</td></tr>");
+					Content.Append(CultureInfo.InvariantCulture, $"<tr><td>{Claim.Type}</td><td>{Claim.Value}</td></tr>");
 				}
 				Content.Append("</table>");
 				Content.Append("</p>");
 
-				Content.Append($"<p>Built from Perforce</p>");
+				Content.Append(CultureInfo.InvariantCulture, $"<p>Built from Perforce</p>");
 			}
 			else
 			{
