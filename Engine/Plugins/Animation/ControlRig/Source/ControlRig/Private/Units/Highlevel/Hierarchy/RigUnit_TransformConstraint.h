@@ -239,7 +239,7 @@ struct FRigUnit_ParentConstraint_AdvancedSettings
 /**
 * Constrains an item's transform to multiple items' transforms
 */
-USTRUCT(meta=(DisplayName="Parent Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale"))
+USTRUCT(meta=(DisplayName="Parent Constraint", Category="Constraints", Keywords = "Parent,Orient,Scale"))
 struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -277,7 +277,7 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 /**
 * Constrains an item's position to multiple items' positions 
 */
-USTRUCT(meta=(DisplayName="Position Constraint", Category="Transforms", Keywords = "Parent,Translation"))
+USTRUCT(meta=(DisplayName="Position Constraint", Category="Constraints", Keywords = "Parent,Translation"))
 struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -335,7 +335,7 @@ struct FRigUnit_RotationConstraint_AdvancedSettings
 /**
 * Constrains an item's rotation to multiple items' rotations 
 */
-USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Transforms", Keywords = "Parent,Orientation,Orient,Rotate"))
+USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Constraints", Keywords = "Parent,Orientation,Orient,Rotate"))
 struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -373,7 +373,7 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 /**
 * Constrains an item's scale to multiple items' scales
 */
-USTRUCT(meta=(DisplayName="Scale Constraint", Category="Transforms", Keywords = "Parent, Size"))
+USTRUCT(meta=(DisplayName="Scale Constraint", Category="Constraints", Keywords = "Parent, Size"))
 struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

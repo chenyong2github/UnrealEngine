@@ -17,7 +17,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineBase : public FRigUnit
 /*
  * Creates a Spline curve from an array of positions
  */
-USTRUCT(meta = (DisplayName = "Spline From Points", Keywords="Spline From Positions", Category = "Spline", Varying, NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Spline From Points", Keywords="Spline From Positions", Category = "Splines", Varying, NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -56,7 +56,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 /*
  * Set the points of a spline, given a spline and an array of positions
  */
-USTRUCT(meta = (DisplayName = "Set Spline Points", Category = "Spline", Varying, NodeColor = "0.0 0.36470600962638855 1.0"))
+USTRUCT(meta = (DisplayName = "Set Spline Points", Category = "Splines", Varying, NodeColor = "0.0 0.36470600962638855 1.0"))
 struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -80,7 +80,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
 /*
  * Retrieves the position from a given Spline and U value
  */
-USTRUCT(meta = (DisplayName = "Position From Spline", Keywords="Point From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Position From Spline", Keywords="Point From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -108,7 +108,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigU
 /*
  * Retrieves the transform from a given Spline and U value based on the given Up Vector and Roll
  */
-USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -144,7 +144,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 /*
  * Retrieves the tangent from a given Spline and U value
  */
-USTRUCT(meta = (DisplayName = "Tangent From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Tangent From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -172,7 +172,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUn
 /*
  * Draws the given spline in the viewport
  */
-USTRUCT(meta = (DisplayName = "Draw Spline", Category = "Spline", NodeColor = "0.83077 0.846873 0.049707"))
+USTRUCT(meta = (DisplayName = "Draw Spline", Category = "Splines", NodeColor = "0.83077 0.846873 0.049707"))
 struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -204,7 +204,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_DrawControlRigSpline : public FRigUnitMutab
 /*
  * Retrieves the length from a given Splin
  */
-USTRUCT(meta = (DisplayName = "Get Length Of Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Get Length Of Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_GetLengthControlRigSpline : public FRigUnit
 {
 	GENERATED_BODY()
@@ -345,7 +345,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurve : public FRigUnit_Hig
  * Fits a given chain to a spline curve.
  * Additionally provides rotational control matching the features of the Distribute Rotation node.
  */
-USTRUCT(meta=(DisplayName="Fit Chain on Spline Curve", Category="Hierarchy", Keywords="Fit,Resample,Spline"))
+USTRUCT(meta=(DisplayName="Fit Chain on Spline Curve", Category="Splines", Keywords="Fit,Resample,Spline"))
 struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurveItemArray : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -489,7 +489,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChain : public FRigUnit_Hig
 /**
  * Fits a given spline curve to a chain.
  */
-USTRUCT(meta=(DisplayName="Fit Spline Curve on Chain", Category="Hierarchy", Keywords="Fit,Resample,Spline"))
+USTRUCT(meta=(DisplayName="Fit Spline Curve on Chain", Category="Splines", Keywords="Fit,Resample,Spline"))
 struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChainItemArray : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -518,7 +518,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChainItemArray : public FRi
 /*
  * Retrieves the closest U value from a given Spline and a position
  */
-USTRUCT(meta = (DisplayName = "Closest Parameter From Spline", Category = "Spline", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Closest Parameter From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
 struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
@@ -547,7 +547,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : publ
 /*
  * Returns the U parameter of a spline given a length percentage (0.0 - 1.0)
  */
-USTRUCT(meta = (DisplayName = "Parameter At Length Percentage", Category = "Spline"))
+USTRUCT(meta = (DisplayName = "Parameter At Length Percentage", Category = "Splines"))
 struct CONTROLRIGSPLINE_API FRigUnit_ParameterAtPercentage : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()

@@ -8,7 +8,7 @@
 /**
  * Offset Transform is used to add an offset to an existing transform in the hierarchy. The offset is post multiplied.
  */
-USTRUCT(meta=(DisplayName="Offset Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "Offset,Relative,AddBoneTransform", NodeColor="0, 0.364706, 1.0", Varying))
+USTRUCT(meta=(DisplayName="Offset Transform", Category="Transforms", DocumentationPolicy = "Strict", Keywords = "Offset,Relative,AddBoneTransform", NodeColor="0, 0.364706, 1.0", Varying))
 struct CONTROLRIG_API FRigUnit_OffsetTransformForItem : public FRigUnitMutable
 {
 	GENERATED_BODY()

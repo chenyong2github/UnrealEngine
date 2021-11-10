@@ -66,7 +66,7 @@ struct CONTROLRIG_API FRigUnit_ModifyTransforms_WorkData
 /**
  * Modify Transforms is used to perform a change in the hierarchy by setting one or more bones' transforms
  */
-USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
+USTRUCT(meta=(DisplayName="Modify Transforms", Category="Transforms", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
 struct CONTROLRIG_API FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

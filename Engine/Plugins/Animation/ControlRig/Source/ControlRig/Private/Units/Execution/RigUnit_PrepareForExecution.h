@@ -9,7 +9,7 @@
 /**
  * Event to setup elements before all solves
  */
-USTRUCT(meta=(DisplayName="Setup Event", Category="Setup", NodeColor="1, 0, 0", Keywords="Setup,Init,Fit"))
+USTRUCT(meta=(DisplayName="Setup Event", Category="Events", NodeColor="1, 0, 0", Keywords="Setup,Init,Fit"))
 struct CONTROLRIG_API FRigUnit_PrepareForExecution : public FRigUnit
 {
 	GENERATED_BODY()
