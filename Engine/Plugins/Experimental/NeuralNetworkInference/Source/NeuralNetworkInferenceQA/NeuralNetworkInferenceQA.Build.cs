@@ -6,7 +6,7 @@ public class NeuralNetworkInferenceQA : ModuleRules
 {
 	public NeuralNetworkInferenceQA( ReadOnlyTargetRules Target ) : base( Target )
 	{
-        ShortName = "NNIQA"; // Could be removed when plugin moves to Experimental, NFL path is too long
+        ShortName = "NNIQA"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
