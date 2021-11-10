@@ -89,7 +89,7 @@ public:
 	 * @param InitialValues like default chunk fragment values
 	 * @return a handle of a new archetype 
 	 */
-	FArchetypeHandle CreateArchetype(const FMassCompositionDescriptor& Composition, const FMassArchetypeFragmentsInitialValues& InitialValues);
+	FArchetypeHandle CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FMassArchetypeFragmentsInitialValues& InitialValues);
 
 	/** 
 	 *  Creates an archetype like SourceArchetype + NewFragmentList. 
@@ -189,8 +189,8 @@ public:
 	 * in InOutDescriptor are missing from the current composition of the given entity and then returns the resulting 
 	 * delta via InOutDescriptor.
 	 */
-	void AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassCompositionDescriptor& InOutDescriptor);
-	void RemoveCompositionFromEntity(FMassEntityHandle Entity, const FMassCompositionDescriptor& InDescriptor);
+	void AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassArchetypeCompositionDescriptor& InOutDescriptor);
+	void RemoveCompositionFromEntity(FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& InDescriptor);
 
 	/** 
 	 * Moves an entity over to a new archetype by copying over fragments common to both archetypes

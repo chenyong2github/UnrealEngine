@@ -336,7 +336,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 			continue;
 		}
 
-		const FMassCompositionDescriptor TemplateDescriptor = EntityTemplate->GetCompositionDescriptor();
+		const FMassArchetypeCompositionDescriptor TemplateDescriptor = EntityTemplate->GetCompositionDescriptor();
 
 		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
 
@@ -348,7 +348,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 				continue;
 			}
 
-			FMassCompositionDescriptor& PuppetDescriptor = AgentComp->GetMutablePuppetSpecificAddition();
+			FMassArchetypeCompositionDescriptor& PuppetDescriptor = AgentComp->GetMutablePuppetSpecificAddition();
 			PuppetDescriptor = TemplateDescriptor;
 			EntitySystem->AddCompositionToEntity_GetDelta(PuppetEntity, PuppetDescriptor);
 			
