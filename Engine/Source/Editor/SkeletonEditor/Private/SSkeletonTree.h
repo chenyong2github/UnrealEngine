@@ -313,6 +313,9 @@ private:
 	/** Handle focusing the camera on the current selection */
 	void HandleFocusCamera();
 
+	/** Handle framing the selected item in the tree */
+	void HandleFrameSelection();
+
 	/** Handle filtering the tree  */
 	ESkeletonTreeFilterResult HandleFilterSkeletonTreeItem(const FSkeletonTreeFilterArgs& InArgs, const TSharedPtr<class ISkeletonTreeItem>& InItem);
 
@@ -344,6 +347,8 @@ private:
 	void GetBlendProfileMenu(FMenuBuilder& MenuBuilder);
 
 	TSharedRef<SWidget> GetBlendProfileColumnMenuContent();
+
+	void ExpandTreeOnSelection(TSharedPtr<ISkeletonTreeItem> RowToExpand, bool bForce = false);
 
 private:
 	/** Pointer back to the skeleton tree that owns us */

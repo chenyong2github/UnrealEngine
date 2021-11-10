@@ -142,6 +142,8 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 	bTimelineDisplayCurveKeys = false;
 
 	TimelineEnabledSnaps = { "CompositeSegment", "MontageSection" };
+
+	bExpandTreeOnSelection = true;
 }
 
 void UPersonaOptions::SetShowGrid( bool bInShowGrid )
