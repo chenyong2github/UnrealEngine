@@ -29,6 +29,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HordeServer.Services;
 using EpicGames.Horde.Compute;
+using System.Globalization;
 
 namespace HordeServer.Tasks.Impl
 {
@@ -769,7 +770,7 @@ namespace HordeServer.Tasks.Impl
 				{
 					LeaseName.Append((Job.Change > 0) ? $"CL {Job.Change}" : "Latest CL");
 				}
-				LeaseName.Append($" - {Job.Name}");
+				LeaseName.Append(CultureInfo.InvariantCulture, $" - {Job.Name}");
 
 				// Get the global settings
 				Globals Globals = await DatabaseService.GetGlobalsAsync();
@@ -836,7 +837,7 @@ namespace HordeServer.Tasks.Impl
 			{
 				LeaseName.Append((Job.Change > 0) ? $"CL {Job.Change}" : "Latest CL");
 			}
-			LeaseName.Append($" - {Job.Name}");
+			LeaseName.Append(CultureInfo.InvariantCulture, $" - {Job.Name}");
 
 			// Get the global settings
 			Globals Globals = await DatabaseService.GetGlobalsAsync();

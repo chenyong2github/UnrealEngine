@@ -195,20 +195,24 @@ namespace HordeServer.Utilities
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType)
+		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
 		{
 			return SourceType == typeof(string) || base.CanConvertFrom(Context, SourceType);
 		}
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value)
+		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
 		{
 			return Activator.CreateInstance(Type, Value)!;
 		}
 
 		/// <inheritdoc/>
-		public override bool CanConvertTo(ITypeDescriptorContext Context, Type DestinationType)
+		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
 		{
+			if (DestinationType == null)
+			{
+				return false;
+			}
 			if (DestinationType == typeof(string))
 			{
 				return true;
@@ -229,11 +233,11 @@ namespace HordeServer.Utilities
 		}
 
 		/// <inheritdoc/>
-		public override object? ConvertTo(ITypeDescriptorContext Context, CultureInfo Culture, object Value, Type DestinationType)
+		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
 		{
 			if (DestinationType == typeof(string))
 			{
-				return Value.ToString();
+				return Value?.ToString();
 			}
 			else
 			{

@@ -649,7 +649,7 @@ namespace HordeServer.Notifications.Impl
 							{
 								SampleText.Append("\n\n");
 							}
-							SampleText.Append($"```{Data.Message}```");
+							SampleText.Append(CultureInfo.InvariantCulture, $"```{Data.Message}```");
 						}
 					}
 				}
@@ -1187,7 +1187,7 @@ namespace HordeServer.Notifications.Impl
 				Message.Attachments.AddRange(Attachments);
 			}
 
-			string RequestDigest = ContentHash.MD5(JsonSerializer.Serialize(Message, new JsonSerializerOptions { IgnoreNullValues = true })).ToString();
+			string RequestDigest = ContentHash.MD5(JsonSerializer.Serialize(Message, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull })).ToString();
 
 			(MessageStateDocument State, bool IsNew) = await AddOrUpdateMessageStateAsync(Recipient, EventId, UserId, RequestDigest);
 			if (IsNew)
@@ -1218,7 +1218,7 @@ namespace HordeServer.Notifications.Impl
 			{
 				using (HttpRequestMessage SendMessageRequest = new HttpRequestMessage(HttpMethod.Post, RequestUrl))
 				{
-					string RequestJson = JsonSerializer.Serialize(Request, new JsonSerializerOptions { IgnoreNullValues = true });
+					string RequestJson = JsonSerializer.Serialize(Request, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 					using (StringContent MessageContent = new StringContent(RequestJson, Encoding.UTF8, "application/json"))
 					{
 						SendMessageRequest.Content = MessageContent;

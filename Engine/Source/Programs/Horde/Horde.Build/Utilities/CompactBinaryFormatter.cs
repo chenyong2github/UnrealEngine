@@ -108,7 +108,7 @@ namespace HordeServer.Utilities
 		}
 
 		/// <inheritdoc/>
-		protected override bool CanWriteType(Type Type)
+		protected override bool CanWriteType(Type? Type)
 		{
 			return true;
 		}
@@ -136,7 +136,7 @@ namespace HordeServer.Utilities
 	public class CbPreferredOutputFormatter : CbOutputFormatter
 	{
 		/// <inheritdoc/>
-		protected override bool CanWriteType(Type Type)
+		protected override bool CanWriteType(Type? Type)
 		{
 			return Type == typeof(CbObject);
 		}

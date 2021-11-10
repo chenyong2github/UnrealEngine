@@ -363,11 +363,7 @@ namespace HordeServer.Models
 		/// </summary>
 		public void RotateSigningKey()
 		{
-			using (RNGCryptoServiceProvider Generator = new RNGCryptoServiceProvider())
-			{
-				JwtSigningKey = new byte[128];
-				Generator.GetBytes(JwtSigningKey);
-			}
+			JwtSigningKey = RandomNumberGenerator.GetBytes(128);
 		}
 
 		/// <summary>

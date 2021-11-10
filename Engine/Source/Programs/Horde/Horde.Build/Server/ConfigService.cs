@@ -27,6 +27,7 @@ using System.Reflection;
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using System.Globalization;
 using HordeServer.Storage;
+using System.Text.Json.Serialization;
 
 namespace HordeServer.Services
 {
@@ -378,7 +379,7 @@ namespace HordeServer.Services
 
 		static string GetMimeTypeFromPath(Uri Path)
 		{
-			string ContentType;
+			string? ContentType;
 			if (!ContentTypeProvider.TryGetContentType(Path.AbsolutePath, out ContentType))
 			{
 				ContentType = "application/octet-stream";
@@ -813,7 +814,7 @@ namespace HordeServer.Services
 				// This will trigger a setting update as the user config json is set to reload on change
 				try
 				{
-					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues  = true }));
+					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
 				}
 				catch (Exception Ex)
 				{
