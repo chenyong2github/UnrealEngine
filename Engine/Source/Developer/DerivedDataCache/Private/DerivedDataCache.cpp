@@ -12,17 +12,19 @@
 #include "DDCCleanup.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataCacheMaintainer.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
-#include "ZenServerInterface.h"
+#include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
+#include "ZenServerInterface.h"
 #include <atomic>
 
 DEFINE_STAT(STAT_DDC_NumGets);
@@ -268,7 +270,11 @@ namespace UE::DerivedData::Private
  * Implementation of the derived data cache
  * This API is fully threadsafe
 **/
-class FDerivedDataCache final : public FDerivedDataCacheInterface, public ICache
+class FDerivedDataCache final
+	: public FDerivedDataCacheInterface
+	, public ICache
+	, public ICacheStoreMaintainer
+	, public IDDCCleanup
 {
 
 	/** 
@@ -449,7 +455,9 @@ public:
 	FDerivedDataCache()
 		: CurrentHandle(19248) // we will skip some potential handles to catch errors
 	{
-		FDerivedDataBackend::Get(); // we need to make sure this starts before we all us to start
+		FDerivedDataBackend::Get(); // we need to make sure this starts before we allow us to start
+
+		CacheStoreMaintainers = IModularFeatures::Get().GetModularFeatureImplementations<ICacheStoreMaintainer>(FeatureName);
 
 		GVerifyDDC = FParse::Param(FCommandLine::Get(), TEXT("VerifyDDC"));
 
@@ -459,8 +467,6 @@ public:
 	/** Destructor, flushes all sync tasks **/
 	~FDerivedDataCache()
 	{
-		FDDCCleanup::Shutdown();
-
 		WaitForQuiescence(true);
 		FScopeLock ScopeLock(&SynchronizationObject);
 		for (TMap<uint32,FAsyncTask<FBuildAsyncWorker>*>::TIterator It(PendingTasks); It; ++It)
@@ -716,9 +722,24 @@ public:
 		FDerivedDataBackend::Get().GetDirectories(OutResults);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual IDDCCleanup* GetCleanup() const override
 	{
-		return FDDCCleanup::Get();
+		return const_cast<IDDCCleanup*>(static_cast<const IDDCCleanup*>(this));
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	virtual bool IsFinished() const override
+	{
+		return IsIdle();
+	}
+
+	virtual void WaitBetweenDeletes(bool bWait) override
+	{
+		if (!bWait)
+		{
+			BoostPriority();
+		}
 	}
 
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) override
@@ -798,7 +819,7 @@ public:
 		return FDerivedDataBackend::Get().GetRoot().Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	void  Get(
+	void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		FCacheRecordPolicy Policy,
@@ -820,6 +841,29 @@ public:
 	void CancelAll() final
 	{
 	}
+
+	ICacheStoreMaintainer& GetMaintainer() final
+	{
+		return *this;
+	}
+
+	// ICacheStoreMaintainer Interface
+
+	bool IsIdle() const final
+	{
+		return Algo::AllOf(CacheStoreMaintainers, &ICacheStoreMaintainer::IsIdle);
+	}
+
+	void BoostPriority() final
+	{
+		for (ICacheStoreMaintainer* Maintainer : CacheStoreMaintainers)
+		{
+			Maintainer->BoostPriority();
+		}
+	}
+
+private:
+	TArray<ICacheStoreMaintainer*> CacheStoreMaintainers;
 };
 
 ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache)

@@ -1,37 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-#include "CoreMinimal.h"
-#include "Algo/AllOf.h"
 #include "Algo/Accumulate.h"
-#include "Misc/MessageDialog.h"
+#include "Algo/AllOf.h"
+#include "Algo/StableSort.h"
+#include "Algo/Transform.h"
+#include "Async/Async.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/StaticBitArray.h"
+#include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheMaintainer.h"
+#include "DerivedDataCacheRecord.h"
+#include "DerivedDataCacheUsageStats.h"
+#include "DerivedDataChunk.h"
+#include "DerivedDataPayload.h"
+#include "Experimental/Async/LazyEvent.h"
+#include "Features/IModularFeatures.h"
+#include "HAL/Event.h"
 #include "HAL/FileManager.h"
-#include "Misc/CoreMisc.h"
+#include "HAL/Thread.h"
+#include "Hash/xxhash.h"
+#include "HashingArchiveProxy.h"
 #include "Misc/CommandLine.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Guid.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
-#include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Async/Async.h"
-
-#include "DerivedDataBackendInterface.h"
-#include "DerivedDataCacheInterface.h"
-#include "DerivedDataCacheRecord.h"
-#include "DerivedDataChunk.h"
-#include "DerivedDataPayload.h"
-#include "DDCCleanup.h"
-
-#include "ProfilingDebugging/CookStats.h"
-#include "DerivedDataCacheUsageStats.h"
+#include "Templates/Greater.h"
 
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH (9)
@@ -43,7 +50,7 @@
 #endif // PLATFORM_LINUX
 #define MAX_CACHE_EXTENTION_LEN (4)
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::FileSystem
 {
 
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Exist, TEXT("FileSystemDDC Exist"));
@@ -54,6 +61,13 @@ TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Put, TEXT("FileSystemDDC Put"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_PutHit, TEXT("FileSystemDDC Put Hit"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesRead, TEXT("FileSystemDDC Bytes Read"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesWritten, TEXT("FileSystemDDC Bytes Written"));
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static const TCHAR GBucketsDirectoryName[] = TEXT("Buckets");
+static const TCHAR GContentDirectoryName[] = TEXT("Content");
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FString BuildPathForCacheKey(const TCHAR* CacheKey)
 {
@@ -66,37 +80,543 @@ FString BuildPathForCacheKey(const TCHAR* CacheKey)
 	return HashPath / Key + TEXT(".udd");
 }
 
-void BuildPathForCacheObject(const FCacheKey& CacheKey, FStringBuilderBase& Path)
+void BuildPathForCacheRecord(const FCacheKey& CacheKey, FStringBuilderBase& Path)
 {
-	uint32 Hash;
-	FMemory::Memcpy(&Hash, &CacheKey.Hash, sizeof(uint32));
-	Path.Appendf(TEXT("%1u/%1u/%1u/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
-	Path << CacheKey.Bucket << TEXT('_') << CacheKey.Hash << TEXT(".udd"_SV);
+	const FIoHash::ByteArray& Bytes = CacheKey.Hash.GetBytes();
+	Path.Appendf(TEXT("%s/%hs/%02x/%02x/"), GBucketsDirectoryName, CacheKey.Bucket.ToCString(), Bytes[0], Bytes[1]);
+	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
+	Path << TEXT(".udd"_SV);
 }
 
-void BuildPathForCachePayload(const FCacheKey& CacheKey, const FIoHash& RawHash, FStringBuilderBase& Path)
+void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
 {
-	uint32 Hash;
-	FMemory::Memcpy(&Hash, &RawHash, sizeof(uint32));
-	Path.Appendf(TEXT("%1u/%1u/%1u/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
-	Path << CacheKey.Bucket << TEXT("_CAS_"_SV) << RawHash << TEXT(".udd"_SV);
+	const FIoHash::ByteArray& Bytes = RawHash.GetBytes();
+	Path.Appendf(TEXT("%s/%02x/%02x/"), GContentDirectoryName, Bytes[0], Bytes[1]);
+	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
+	Path << TEXT(".udd"_SV);
 }
 
-/**
- * Helper function to get the value of parsed bool as the return value
- **/
-bool GetParsedBool(const TCHAR* Stream, const TCHAR* Match) 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static uint64 RandFromGuid()
 {
-	bool bValue = 0;
-	FParse::Bool(Stream, Match, bValue);
-	return bValue;
+	const FGuid Guid = FGuid::NewGuid();
+	return FXxHash64::HashBuffer(&Guid, sizeof(FGuid)).Hash;
 }
 
-/** Delete the old files in a directory **/
-void DeleteOldFiles(const TCHAR* Directory, int Age)
+/** A LCG in which the modulus is a power of two where the exponent is the bit width of T. */
+template <typename T, T Modulus = 0>
+class TLinearCongruentialGenerator
 {
-	// @todo(agrant) the original implementation of this did nothing. Do we need this?
+	static_assert(!TIsSigned<T>::Value);
+	static_assert((Modulus & (Modulus - 1)) == 0, "Modulus must be a power of two.");
+
+public:
+	constexpr inline TLinearCongruentialGenerator(T InMultiplier, T InIncrement)
+		: Multiplier(InMultiplier)
+		, Increment(InIncrement)
+	{
+	}
+
+	constexpr inline T GetNext(T& Value)
+	{
+		Value = (Value * Multiplier + Increment) & (Modulus - 1);
+		return Value;
+	}
+
+private:
+	const T Multiplier;
+	const T Increment;
+};
+
+class FRandomStream
+{
+public:
+	inline explicit FRandomStream(uint32 Seed)
+		: Random(1103515245, 12345) // From ANSI C
+		, Value(Seed)
+	{
+	}
+
+	/** Returns a random value in [Min, Max). */
+	inline uint32 GetRandRange(uint32 Min, uint32 Max)
+	{
+		return Min + uint32((uint64(Max - Min) * Random.GetNext(Value)) >> 32);
+	}
+
+private:
+	TLinearCongruentialGenerator<uint32> Random;
+	uint32 Value;
+};
+
+template <uint32 Modulus, uint32 Count = Modulus>
+class TRandomOrder
+{
+	static_assert((Modulus & (Modulus - 1)) == 0 && Modulus > 16, "Modulus must be a power of two greater than 16.");
+	static_assert(Count > 0 && Count <= Modulus, "Count must be in the range (0, Modulus].");
+
+public:
+	inline explicit TRandomOrder(FRandomStream& Stream)
+		: Random(Stream.GetRandRange(0, Modulus / 16) * 8 + 5, 12345)
+		, First(Stream.GetRandRange(0, Count))
+		, Value(First)
+	{
+	}
+
+	inline uint32 GetFirst() const
+	{
+		return First;
+	}
+
+	inline uint32 GetNext()
+	{
+		if constexpr (Count < Modulus)
+		{
+			for (;;)
+			{
+				if (const uint32 Next = Random.GetNext(Value); Next < Count)
+				{
+					return Next;
+				}
+			}
+		}
+		return Random.GetNext(Value);
+	}
+
+private:
+	TLinearCongruentialGenerator<uint32, Modulus> Random;
+	uint32 First;
+	uint32 Value;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FFileSystemCacheStoreMaintainerParams
+{
+	/** Files older than this will be deleted. */
+	FTimespan MaxFileAge = FTimespan::FromDays(15.0);
+	/** Limits the number of files scanned in one second. */
+	uint32 MaxFileScanRate = MAX_uint32;
+	/** Limits the number of directories scanned in each cache bucket or content root. */
+	uint32 MaxDirectoryScanCount = MAX_uint32;
+	/** Minimum duration between the start of consecutive scans. */
+	FTimespan ScanFrequency = FTimespan::FromHours(1.0);
+	/** Time to wait after initialization before maintenance begins. */
+	FTimespan TimeToWaitAfterInit = FTimespan::FromMinutes(1.0);
+};
+
+class FFileSystemCacheStoreMaintainer final : public ICacheStoreMaintainer
+{
+public:
+	FFileSystemCacheStoreMaintainer(const FFileSystemCacheStoreMaintainerParams& Params, FStringView CachePath);
+	~FFileSystemCacheStoreMaintainer();
+
+	bool IsIdle() const final { return bIdle; }
+	void WaitForIdle() const { IdleEvent.Wait(); }
+	void BoostPriority() final;
+
+private:
+	void Loop();
+	void Scan();
+
+	void CreateContentRoot();
+	void CreateBucketRoots();
+	void ScanHashRoot(uint32 RootIndex);
+	TStaticBitArray<256> ScanHashDirectory(FStringBuilderBase& Path);
+
+	TStaticBitArray<10> ScanLegacyDirectory(FStringBuilderBase& Path);
+	void CreateLegacyRoot();
+	void ScanLegacyRoot();
+
+	void ResetRoots();
+
+	void ProcessFile(const TCHAR* Path, const FFileStatData& StatData);
+
+private:
+	struct FRoot;
+	struct FLegacyRoot;
+
+	FFileSystemCacheStoreMaintainerParams Params;
+	/** Path to the root of the cache store. */
+	FString CachePath;
+	/** True when maintenance is expected to exit. */
+	bool bExit = false;
+	/** True when there is no active maintenance scan. */
+	bool bIdle = false;
+	/** Ignore the file scan rate for one maintenance scan. */
+	bool bIgnoreFileScanRate = false;
+
+	uint32 ProcessCount = 0;
+	uint32 DeleteCount = 0;
+	uint64 DeleteSize = 0;
+
+	double BatchStartTime = 0.0;
+
+	IFileManager& FileManager = IFileManager::Get();
+
+	mutable FLazyEvent IdleEvent;
+	FEventRef WaitEvent;
+	FThread Thread;
+
+	TArray<TUniquePtr<FRoot>> Roots;
+	TUniquePtr<FLegacyRoot> LegacyRoot;
+	FRandomStream Random{uint32(RandFromGuid())};
+};
+
+struct FFileSystemCacheStoreMaintainer::FRoot
+{
+	inline FRoot(FStringView RootPath, FRandomStream& Stream)
+		: Order(Stream)
+	{
+		Path.Append(RootPath);
+	}
+
+	TStringBuilder<256> Path;
+	TRandomOrder<256 * 256> Order;
+	TStaticBitArray<256> ScannedLevel0;
+	TStaticBitArray<256> ExistsLevel0;
+	TStaticBitArray<256> ExistsLevel1[256];
+	uint32 DirectoryScanCount = 0;
+	bool bScannedRoot = false;
+};
+
+struct FFileSystemCacheStoreMaintainer::FLegacyRoot
+{
+	inline explicit FLegacyRoot(FRandomStream& Stream)
+		: Order(Stream)
+	{
+	}
+
+	TRandomOrder<1024, 1000> Order;
+	TStaticBitArray<10> ScannedLevel0;
+	TStaticBitArray<10> ScannedLevel1[10];
+	TStaticBitArray<10> ExistsLevel0;
+	TStaticBitArray<10> ExistsLevel1[10];
+	TStaticBitArray<10> ExistsLevel2[10][10];
+	uint32 DirectoryScanCount = 0;
+};
+
+FFileSystemCacheStoreMaintainer::FFileSystemCacheStoreMaintainer(
+	const FFileSystemCacheStoreMaintainerParams& InParams,
+	FStringView InCachePath)
+	: Params(InParams)
+	, CachePath(InCachePath)
+	, IdleEvent(EEventMode::ManualReset)
+	, WaitEvent(EEventMode::AutoReset)
+	, Thread(
+		TEXT("FileSystemCacheStoreMaintainer"),
+		[this] { Loop(); },
+		/*StackSize*/ 32 * 1024,
+		TPri_BelowNormal)
+{
+	IModularFeatures::Get().RegisterModularFeature(FeatureName, this);
 }
+
+FFileSystemCacheStoreMaintainer::~FFileSystemCacheStoreMaintainer()
+{
+	bExit = true;
+	IModularFeatures::Get().UnregisterModularFeature(FeatureName, this);
+	WaitEvent->Trigger();
+	Thread.Join();
+}
+
+void FFileSystemCacheStoreMaintainer::BoostPriority()
+{
+	bIgnoreFileScanRate = true;
+	WaitEvent->Trigger();
+}
+
+void FFileSystemCacheStoreMaintainer::Loop()
+{
+	WaitEvent->Wait(Params.TimeToWaitAfterInit, /*bIgnoreThreadIdleStats*/ true);
+
+	while (!bExit)
+	{
+		const FDateTime ScanStart = FDateTime::Now();
+		DeleteCount = 0;
+		DeleteSize = 0;
+		IdleEvent.Reset();
+		bIdle = false;
+		Scan();
+		bIdle = true;
+		IdleEvent.Trigger();
+		bIgnoreFileScanRate = false;
+		const FDateTime ScanEnd = FDateTime::Now();
+
+		UE_LOG(LogDerivedDataCache, Log,
+			TEXT("%s: Maintenance finished in %s and deleted %u file(s) with total size %" UINT64_FMT " MiB."),
+			*CachePath, *(ScanEnd - ScanStart).ToString(), DeleteCount, DeleteSize / 1024 / 1024);
+
+		if (bExit || Params.ScanFrequency.GetTotalDays() > 365.0)
+		{
+			break;
+		}
+
+		const FDateTime ScanTime = ScanStart + Params.ScanFrequency;
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Maintenance is paused until the next scan at %s."),
+			*CachePath, *ScanTime.ToString());
+		for (FDateTime Now = ScanEnd; !bExit && Now < ScanTime; Now = FDateTime::Now())
+		{
+			WaitEvent->Wait(ScanTime - Now, /*bIgnoreThreadIdleStats*/ true);
+		}
+	}
+}
+
+void FFileSystemCacheStoreMaintainer::Scan()
+{
+	CreateContentRoot();
+	CreateBucketRoots();
+	CreateLegacyRoot();
+
+	while (!bExit)
+	{
+		const uint32 RootCount = uint32(Roots.Num());
+		const uint32 TotalRootCount = uint32(RootCount + LegacyRoot.IsValid());
+		if (TotalRootCount == 0)
+		{
+			break;
+		}
+		if (const uint32 RootIndex = Random.GetRandRange(0, TotalRootCount); RootIndex < RootCount)
+		{
+			ScanHashRoot(RootIndex);
+		}
+		else
+		{
+			ScanLegacyRoot();
+		}
+	}
+
+	ResetRoots();
+}
+
+void FFileSystemCacheStoreMaintainer::CreateContentRoot()
+{
+	TStringBuilder<256> ContentPath;
+	FPathViews::Append(ContentPath, CachePath, GContentDirectoryName);
+	if (FileManager.DirectoryExists(*ContentPath))
+	{
+		Roots.Add(MakeUnique<FRoot>(ContentPath, Random));
+	}
+}
+
+void FFileSystemCacheStoreMaintainer::CreateBucketRoots()
+{
+	TStringBuilder<256> BucketsPath;
+	FPathViews::Append(BucketsPath, CachePath, GBucketsDirectoryName);
+	FileManager.IterateDirectoryStat(*BucketsPath, [this](const TCHAR* Path, const FFileStatData& StatData) -> bool
+	{
+		if (StatData.bIsDirectory)
+		{
+			Roots.Add(MakeUnique<FRoot>(Path, Random));
+		}
+		return !bExit;
+	});
+}
+
+void FFileSystemCacheStoreMaintainer::ScanHashRoot(uint32 RootIndex)
+{
+	FRoot& Root = *Roots[int32(RootIndex)];
+	const uint32 DirectoryIndex = Root.Order.GetNext();
+	const uint32 IndexLevel0 = DirectoryIndex / 256;
+	const uint32 IndexLevel1 = DirectoryIndex % 256;
+
+	bool bScanned = false;
+	ON_SCOPE_EXIT
+	{
+		if ((DirectoryIndex == Root.Order.GetFirst()) ||
+			(bScanned && ++Root.DirectoryScanCount >= Params.MaxDirectoryScanCount))
+		{
+			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Maintenance finished scanning %s."), *CachePath, *Root.Path);
+			Roots.RemoveAt(int32(RootIndex));
+		}
+	};
+
+	if (!Root.bScannedRoot)
+	{
+		Root.ExistsLevel0 = ScanHashDirectory(Root.Path);
+		Root.bScannedRoot = true;
+	}
+
+	if (!Root.ExistsLevel0[IndexLevel0])
+	{
+		return;
+	}
+	if (!Root.ScannedLevel0[IndexLevel0])
+	{
+		TStringBuilder<256> Path;
+		Path.Appendf(TEXT("%s/%02x"), *Root.Path, IndexLevel0);
+		Root.ExistsLevel1[IndexLevel0] = ScanHashDirectory(Path);
+		Root.ScannedLevel0[IndexLevel0] = true;
+	}
+
+	if (!Root.ExistsLevel1[IndexLevel0][IndexLevel1])
+	{
+		return;
+	}
+
+	TStringBuilder<256> Path;
+	Path.Appendf(TEXT("%s/%02x/%02x"), *Root.Path, IndexLevel0, IndexLevel1);
+	FileManager.IterateDirectoryStat(*Path, [this](const TCHAR* const Path, const FFileStatData& StatData) -> bool
+	{
+		ProcessFile(Path, StatData);
+		return !bExit;
+	});
+
+	bScanned = true;
+}
+
+TStaticBitArray<256> FFileSystemCacheStoreMaintainer::ScanHashDirectory(FStringBuilderBase& Path)
+{
+	TStaticBitArray<256> Exists;
+	FileManager.IterateDirectoryStat(*Path, [this, &Exists](const TCHAR* ChildPath, const FFileStatData& StatData) -> bool
+	{
+		FStringView ChildView = FPathViews::GetCleanFilename(ChildPath);
+		if (StatData.bIsDirectory && ChildView.Len() == 2 && Algo::AllOf(ChildView, FChar::IsHexDigit))
+		{
+			uint8 Byte;
+			if (String::HexToBytes(ChildView, &Byte) == 1)
+			{
+				Exists[Byte] = true;
+			}
+		}
+		return !bExit;
+	});
+	return Exists;
+}
+
+TStaticBitArray<10> FFileSystemCacheStoreMaintainer::ScanLegacyDirectory(FStringBuilderBase& Path)
+{
+	TStaticBitArray<10> Exists;
+	const bool bDeleteFiles = CachePath.Len() < Path.Len();
+	FileManager.IterateDirectoryStat(*Path, [this, &Exists, bDeleteFiles](const TCHAR* ChildPath, const FFileStatData& StatData) -> bool
+	{
+		FStringView ChildView = FPathViews::GetCleanFilename(ChildPath);
+		if (StatData.bIsDirectory && ChildView.Len() == 1 && Algo::AllOf(ChildView, FChar::IsDigit))
+		{
+			Exists[FChar::ConvertCharDigitToInt(ChildView[0])] = true;
+		}
+		return !bExit;
+	});
+	return Exists;
+}
+
+void FFileSystemCacheStoreMaintainer::CreateLegacyRoot()
+{
+	TStringBuilder<256> Path;
+	FPathViews::Append(Path, CachePath);
+	TStaticBitArray<10> Exists = ScanLegacyDirectory(Path);
+	if (Exists.FindFirstSetBit() != INDEX_NONE)
+	{
+		LegacyRoot = MakeUnique<FLegacyRoot>(Random);
+		LegacyRoot->ExistsLevel0 = Exists;
+	}
+}
+
+void FFileSystemCacheStoreMaintainer::ScanLegacyRoot()
+{
+	FLegacyRoot& Root = *LegacyRoot;
+	const uint32 DirectoryIndex = Root.Order.GetNext();
+	const int32 IndexLevel0 = int32(DirectoryIndex / 100) % 10;
+	const int32 IndexLevel1 = int32(DirectoryIndex / 10) % 10;
+	const int32 IndexLevel2 = int32(DirectoryIndex / 1) % 10;
+
+	bool bScanned = false;
+	ON_SCOPE_EXIT
+	{
+		if ((DirectoryIndex == Root.Order.GetFirst()) ||
+			(bScanned && ++Root.DirectoryScanCount >= Params.MaxDirectoryScanCount))
+		{
+			LegacyRoot.Reset();
+		}
+	};
+
+	if (!Root.ExistsLevel0[IndexLevel0])
+	{
+		return;
+	}
+	if (!Root.ScannedLevel0[IndexLevel0])
+	{
+		TStringBuilder<256> Path;
+		FPathViews::Append(Path, CachePath, IndexLevel0);
+		Root.ExistsLevel1[IndexLevel0] = ScanLegacyDirectory(Path);
+		Root.ScannedLevel0[IndexLevel0] = true;
+	}
+
+	if (!Root.ExistsLevel1[IndexLevel0][IndexLevel1])
+	{
+		return;
+	}
+	if (!Root.ScannedLevel1[IndexLevel0][IndexLevel1])
+	{
+		TStringBuilder<256> Path;
+		FPathViews::Append(Path, CachePath, IndexLevel0, IndexLevel1);
+		Root.ExistsLevel2[IndexLevel0][IndexLevel1] = ScanLegacyDirectory(Path);
+		Root.ScannedLevel1[IndexLevel0][IndexLevel1] = true;
+	}
+
+	if (!Root.ExistsLevel2[IndexLevel0][IndexLevel1][IndexLevel2])
+	{
+		return;
+	}
+
+	TStringBuilder<256> Path;
+	FPathViews::Append(Path, CachePath, IndexLevel0, IndexLevel1, IndexLevel2);
+	FileManager.IterateDirectoryStat(*Path, [this](const TCHAR* const Path, const FFileStatData& StatData) -> bool
+	{
+		ProcessFile(Path, StatData);
+		return !bExit;
+	});
+
+	bScanned = true;
+}
+
+void FFileSystemCacheStoreMaintainer::ResetRoots()
+{
+	Roots.Empty();
+	LegacyRoot.Reset();
+}
+
+void FFileSystemCacheStoreMaintainer::ProcessFile(const TCHAR* const Path, const FFileStatData& StatData)
+{
+	if (StatData.bIsDirectory)
+	{
+		return;
+	}
+
+	if (StatData.ModificationTime + Params.MaxFileAge < FDateTime::UtcNow())
+	{
+		++DeleteCount;
+		DeleteSize += StatData.FileSize > 0 ? uint64(StatData.FileSize) : 0;
+		if (FileManager.Delete(Path, /*bRequireExists*/ false, /*bEvenReadOnly*/ false, /*bQuiet*/ true))
+		{
+			UE_LOG(LogDerivedDataCache, VeryVerbose,
+				TEXT("%s: Maintenance deleted file %s that was last modified at %s."),
+				*CachePath, Path, *StatData.ModificationTime.ToIso8601());
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose,
+				TEXT("%s: Maintenance failed to delete file %s that was last modified at %s."),
+				*CachePath, Path, *StatData.ModificationTime.ToIso8601());
+		}
+	}
+
+	if (!bExit && !bIgnoreFileScanRate && Params.MaxFileScanRate && ++ProcessCount % Params.MaxFileScanRate == 0)
+	{
+		const double BatchEndTime = FPlatformTime::Seconds();
+		if (const double BatchWaitTime = 1.0 - (BatchEndTime - BatchStartTime); BatchWaitTime > 0.0)
+		{
+			WaitEvent->Wait(FTimespan::FromSeconds(BatchWaitTime), /*bIgnoreThreadIdleStats*/ true);
+			BatchStartTime = FPlatformTime::Seconds();
+		}
+		else
+		{
+			BatchStartTime = BatchEndTime;
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** 
  * Cache server that uses the OS filesystem
@@ -105,22 +625,17 @@ void DeleteOldFiles(const TCHAR* Directory, int Age)
 class FFileSystemDerivedDataBackend : public FDerivedDataBackendInterface
 {
 public:
-	/**
-	 * Constructor that should only be called once by the singleton, grabs the cache path from the ini
-	 * @param InCacheDirectory	directory to store the cache in
-	 * @param bForceReadOnly	if true, do not attempt to write to this cache
-	*/
-	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName)
-		: CachePath(InCacheDirectory)
+	FFileSystemDerivedDataBackend(const TCHAR* InCachePath, const TCHAR* InParams, const TCHAR* InAccessLogFileName)
+		: CachePath(InCachePath)
 		, SpeedClass(ESpeedClass::Unknown)
+		, bDisabled(false)
 		, bReadOnly(false)
 		, bTouch(false)
 		, bPurgeTransient(false)
-		, DaysToDeleteUnusedFiles(15)
-		, bDisabled(false)
+		, DaysToDeleteUnusedFiles(15.0)
 		, TotalEstimatedBuildTime(0)
 	{
-		// If we find a platform that has more stingent limits, this needs to be rethought.
+		// If we find a platform that has more stringent limits, this needs to be rethought.
 		checkf(MAX_BACKEND_KEY_LENGTH + MAX_CACHE_DIR_LEN + MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH + MAX_CACHE_EXTENTION_LEN < FPlatformMisc::GetMaxPathLength(),
 			TEXT("Not enough room left for cache keys in max path."));
 
@@ -128,36 +643,18 @@ public:
 		FPaths::NormalizeFilename(CachePath);
 
 		// Params that override our instance defaults
-		bReadOnly = GetParsedBool(InParams, TEXT("ReadOnly="));
-		bTouch = GetParsedBool(InParams, TEXT("Touch="));
-		bPurgeTransient = GetParsedBool(InParams, TEXT("PurgeTransient="));
+		FParse::Bool(InParams, TEXT("ReadOnly="), bReadOnly);
+		FParse::Bool(InParams, TEXT("Touch="), bTouch);
+		FParse::Bool(InParams, TEXT("PurgeTransient="), bPurgeTransient);
 		FParse::Value(InParams, TEXT("UnusedFileAge="), DaysToDeleteUnusedFiles);
+		FParse::Value(InParams, TEXT("MaxRecordSizeKB="), MaxRecordSizeKB);
+		FParse::Value(InParams, TEXT("MaxValueSizeKB="), MaxValueSizeKB);
 
-		// Params that are used when setting up our path
-		const bool bClean = GetParsedBool(InParams, TEXT("Clean="));
-		const bool bFlush = GetParsedBool(InParams, TEXT("Flush="));
-	
-
-		// These are used to determine if we kick off a worker to cleanup our cache
-		bool bDeleteUnused = true; // On by default
-		int32 MaxFoldersToClean = -1;
-		int32 MaxFileChecksPerSec = -1;
-
-		FParse::Bool(InParams, TEXT("DeleteUnused="), bDeleteUnused);
-
-		if (bDeleteUnused)
+		// Flush the cache if requested.
+		bool bFlush = false;
+		if (!bReadOnly && FParse::Bool(InParams, TEXT("Flush="), bFlush) && bFlush)
 		{
-			FParse::Value(InParams, TEXT("FoldersToClean="), MaxFoldersToClean);
-			FParse::Value(InParams, TEXT("MaxFileChecksPerSec="), MaxFileChecksPerSec);
-		}
-
-		if (bFlush)
-		{
-			IFileManager::Get().DeleteDirectory(*(CachePath / TEXT("")), false, true);
-		}
-		else if (bClean)
-		{
-			DeleteOldFiles(InCacheDirectory, DaysToDeleteUnusedFiles);
+			IFileManager::Get().DeleteDirectory(*(CachePath / TEXT("")), /*bRequireExists*/ false, /*bTree*/ true);
 		}
 
 		// check latency and speed. Read values should always be valid
@@ -244,9 +741,49 @@ public:
 					UE_LOG(LogDerivedDataCache, Display, TEXT("Files in %s will be touched."), *CachePath);
 				}
 
-				if (bDeleteUnused && !FParse::Param(FCommandLine::Get(), TEXT("NODDCCLEANUP")) && FDDCCleanup::Get())
+				bool bClean = false;
+				bool bDeleteUnused = true;
+				FParse::Bool(InParams, TEXT("Clean="), bClean);
+				FParse::Bool(InParams, TEXT("DeleteUnused="), bDeleteUnused);
+				bDeleteUnused = bDeleteUnused && !FParse::Param(FCommandLine::Get(), TEXT("NODDCCLEANUP"));
+
+				if (bClean || bDeleteUnused)
 				{
-					FDDCCleanup::Get()->AddFilesystem(CachePath, DaysToDeleteUnusedFiles, MaxFoldersToClean, MaxFileChecksPerSec);
+					FFileSystemCacheStoreMaintainerParams MaintainerParams;
+					MaintainerParams.MaxFileAge = FTimespan::FromDays(DaysToDeleteUnusedFiles);
+					if (bDeleteUnused)
+					{
+						if (!FParse::Value(InParams, TEXT("MaxFileChecksPerSec="), MaintainerParams.MaxFileScanRate))
+						{
+							int32 MaxFileScanRate;
+							if (GConfig->GetInt(TEXT("DDCCleanup"), TEXT("MaxFileChecksPerSec"), MaxFileScanRate, GEngineIni))
+							{
+								MaintainerParams.MaxFileScanRate = uint32(MaxFileScanRate);
+							}
+						}
+						FParse::Value(InParams, TEXT("FoldersToClean="), MaintainerParams.MaxDirectoryScanCount);
+					}
+					else
+					{
+						MaintainerParams.ScanFrequency = FTimespan::FromDays(500.0);
+					}
+					double TimeToWaitAfterInit;
+					if (bClean)
+					{
+						MaintainerParams.TimeToWaitAfterInit = FTimespan::Zero();
+					}
+					else if (GConfig->GetDouble(TEXT("DDCCleanup"), TEXT("TimeToWaitAfterInit"), TimeToWaitAfterInit, GEngineIni))
+					{
+						MaintainerParams.TimeToWaitAfterInit = FTimespan::FromSeconds(TimeToWaitAfterInit);
+					}
+
+					Maintainer = MakeUnique<FFileSystemCacheStoreMaintainer>(MaintainerParams, CachePath);
+
+					if (bClean)
+					{
+						Maintainer->BoostPriority();
+						Maintainer->WaitForIdle();
+					}
 				}
 			}
 			
@@ -309,8 +846,6 @@ public:
 
 		// measure latency by checking for the presence of all these files. We'll also track which don't exist..
 		const double StatStartTime = FPlatformTime::Seconds();
-		int TotalStatChecks = 0;
-		FDateTime CurrentTime = FDateTime::Now();
  		for (auto& KV : TestFileEntries)
 		{
 			FFileStatData StatData = IFileManager::Get().GetStatData(*KV.Key);
@@ -511,24 +1046,24 @@ public:
 			}
 		}
 
-		void Append(const FCacheKey& CacheKey, FStringView Path)
+		void Append(const FIoHash& RawHash, FStringView Path)
 		{
 			FScopeLock Lock(&CriticalSection);
 
 			bool bIsAlreadyInSet = false;
-			ObjectKeys.FindOrAdd(CacheKey, &bIsAlreadyInSet);
+			ContentKeys.FindOrAdd(RawHash, &bIsAlreadyInSet);
 			if (!bIsAlreadyInSet)
 			{
 				AppendPath(Path);
 			}
 		}
 
-		void Append(const FCacheKey& CacheKey, const FPayloadId& Id, FStringView Path)
+		void Append(const FCacheKey& CacheKey, FStringView Path)
 		{
 			FScopeLock Lock(&CriticalSection);
 
 			bool bIsAlreadyInSet = false;
-			PayloadKeys.FindOrAdd(MakeTuple(CacheKey, Id), &bIsAlreadyInSet);
+			RecordKeys.FindOrAdd(CacheKey, &bIsAlreadyInSet);
 			if (!bIsAlreadyInSet)
 			{
 				AppendPath(Path);
@@ -550,8 +1085,8 @@ public:
 		FString BasePath;
 		FCriticalSection CriticalSection;
 		TSet<FString> CacheKeys;
-		TSet<FCacheKey> ObjectKeys;
-		TSet<TTuple<FCacheKey, FPayloadId>> PayloadKeys;
+		TSet<FIoHash> ContentKeys;
+		TSet<FCacheKey> RecordKeys;
 	};
 	
 	
@@ -595,7 +1130,7 @@ public:
 
 			// Update file timestamp to prevent it from being deleted by DDC Cleanup.
 			if (bTouch || 
-				 (!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetDays() > (DaysToDeleteUnusedFiles / 4)))
+				 (!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetTotalDays() > (DaysToDeleteUnusedFiles / 4)))
 			{
 				IFileManager::Get().SetTimeStamp(*Filename, FDateTime::UtcNow());
 			}
@@ -656,7 +1191,7 @@ public:
 					FDateTime TimeStamp = FileStat.ModificationTime;
 					// Update file timestamp to prevent it from being deleted by DDC Cleanup.
 					if (bTouch ||
-						(!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetDays() > (DaysToDeleteUnusedFiles / 4)))
+						(!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetTotalDays() > (DaysToDeleteUnusedFiles / 4)))
 					{
 						IFileManager::Get().SetTimeStamp(*Filename, FDateTime::UtcNow());
 					}
@@ -932,9 +1467,8 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
-			const bool bAlwaysLoadInlineData = false;
-			EStatus Status = EStatus::Error;
-			if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy, bAlwaysLoadInlineData, Status))
+			EStatus Status = EStatus::Ok;
+			if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy, Status))
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -966,7 +1500,6 @@ public:
 		SortedChunks.StableSort(TChunkLess());
 
 		FOptionalCacheRecord Record;
-		EStatus RecordStatus = EStatus::Error;
 		for (const FCacheChunkRequest& Chunk : SortedChunks)
 		{
 			constexpr ECachePolicy SkipFlag = ECachePolicy::SkipValue;
@@ -976,17 +1509,17 @@ public:
 			COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 			if (!Record || Record.Get().GetKey() != Chunk.Key)
 			{
-				const bool bAlwaysLoadInlineData = true;
 				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::None);
 				const ECachePolicy RecordSkipFlags = bExistsOnly ? ECachePolicy::SkipData : ECachePolicy::None;
 				PolicyBuilder.AddPayloadPolicy(Chunk.Id, Chunk.Policy | RecordSkipFlags);
-				Record = GetCacheRecord(Chunk.Key, Context, PolicyBuilder.Build(), bAlwaysLoadInlineData, RecordStatus);
+				Record = GetCacheRecordOnly(Chunk.Key, Context, PolicyBuilder.Build());
 			}
-			if (Record && RecordStatus == EStatus::Ok)
+			if (Record)
 			{
-				EStatus PayloadStatus = EStatus::Error;
-				const FPayload& RecordPayload = Record.Get().GetPayload(Chunk.Id);
-				if (FPayload Payload = GetCachePayload(Chunk.Key, Context, Chunk.Policy, SkipFlag, RecordPayload, PayloadStatus))
+				EStatus PayloadStatus = EStatus::Ok;
+				FPayload Payload = Record.Get().GetPayload(Chunk.Id);
+				GetCachePayload(Chunk.Key, Context, Chunk.Policy, SkipFlag, Payload, PayloadStatus);
+				if (Payload)
 				{
 					const uint64 RawSize = FMath::Min(Payload.GetRawSize(), Chunk.RawSize);
 					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
@@ -1045,7 +1578,7 @@ private:
 
 		const FCacheKey& Key = Record.GetKey();
 
-		// Skip the request if querying the cache is disabled.
+		// Skip the request if storing to the cache is disabled.
 		if (!EnumHasAnyFlags(Policy, SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote))
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
@@ -1060,48 +1593,74 @@ private:
 			return false;
 		}
 
-		// Save the payloads and build the cache object.
-		const TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
-		TCbWriter<512> Writer;
-		Writer.BeginObject();
-		if (const FCbObject& Meta = Record.GetMeta())
+		// Check if there is an existing record package.
+		bool bRecordExists;
+		FCbPackage ExistingPackage;
+		TStringBuilder<256> Path;
+		BuildCacheRecordPath(Key, Path);
+		if (EnumHasAllFlags(Policy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
 		{
-			Writer.AddObject("Meta"_ASV, Meta);
-			Writer.AddHash("MetaHash"_ASV, Meta.GetHash());
+			bRecordExists = FileExists(Path);
 		}
-		if (const FPayload& Value = Record.GetValuePayload())
+		else
 		{
-			Writer.SetName("Value"_ASV);
-			if (!PutCachePayload(Key, Context, Value, Writer, /*bStoreInline*/ Attachments.IsEmpty()))
-			{
-				return false;
-			}
+			FSharedBuffer Buffer = LoadFile(Path, Context);
+			FCbFieldIterator It = FCbFieldIterator::MakeRange(Buffer);
+			bRecordExists = ExistingPackage.TryLoad(It);
 		}
-		if (!Attachments.IsEmpty())
+
+		// Save the record to a package and remove attachments that will be stored externally.
+		FCbPackage Package = Record.Save();
+		TArray<FCompressedBuffer, TInlineAllocator<8>> ExternalContent;
+		if (ExistingPackage)
 		{
-			Writer.BeginArray("Attachments"_ASV);
-			for (const FPayload& Attachment : Attachments)
+			// Mirror the existing internal/external attachment storage.
+			TArray<FCompressedBuffer, TInlineAllocator<8>> AllContent;
+			Algo::Transform(Package.GetAttachments(), AllContent, &FCbAttachment::AsCompressedBinary);
+			for (FCompressedBuffer& Content : AllContent)
 			{
-				if (!PutCachePayload(Key, Context, Attachment, Writer, /*bStoreInline*/ false))
+				const FIoHash RawHash = Content.GetRawHash();
+				if (!ExistingPackage.FindAttachment(RawHash))
 				{
-					return false;
+					Package.RemoveAttachment(RawHash);
+					ExternalContent.Add(MoveTemp(Content));
 				}
 			}
-			Writer.EndArray();
 		}
-		Writer.EndObject();
-
-		// Save the record to storage.
-		TStringBuilder<256> Path;
-		BuildCacheObjectPath(Key, Path);
-		if (!FileExists(Path))
+		else
 		{
-			FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Writer.GetSaveSize());
-			Writer.Save(Buffer);
-			if (!SaveFile(Path, FCompositeBuffer(Buffer.MoveToShared()), Context))
+			// Remove the largest attachments from the package until it fits within the size limits.
+			TArray<FCompressedBuffer, TInlineAllocator<8>> AllContent;
+			Algo::Transform(Package.GetAttachments(), AllContent, &FCbAttachment::AsCompressedBinary);
+			uint64 TotalSize = Algo::TransformAccumulate(AllContent, &FCompressedBuffer::GetCompressedSize, uint64(0));
+			const uint64 MaxSize = (AllContent.Num() == 1 ? MaxValueSizeKB : MaxRecordSizeKB) * 1024;
+			if (TotalSize > MaxSize)
 			{
-				return false;
+				Algo::StableSortBy(AllContent, &FCompressedBuffer::GetCompressedSize, TGreater<>());
+				for (FCompressedBuffer& Content : AllContent)
+				{
+					const uint64 CompressedSize = Content.GetCompressedSize();
+					Package.RemoveAttachment(Content.GetRawHash());
+					ExternalContent.Add(MoveTemp(Content));
+					TotalSize -= CompressedSize;
+					if (TotalSize <= MaxSize)
+					{
+						break;
+					}
+				}
 			}
+		}
+
+		// Save the external content to storage.
+		for (FCompressedBuffer& Content : ExternalContent)
+		{
+			PutCacheContent(Content, Context);
+		}
+
+		// Save the record package to storage.
+		if (!bRecordExists && !SaveFile(Path, Context, [&Package](FArchive& Ar) { Package.Save(Ar); }))
+		{
+			return false;
 		}
 
 		if (AccessLogWriter)
@@ -1112,15 +1671,11 @@ private:
 		return true;
 	}
 
-	FOptionalCacheRecord GetCacheRecord(
+	FOptionalCacheRecord GetCacheRecordOnly(
 		const FCacheKey& Key,
 		const FStringView Context,
-		const FCacheRecordPolicy& Policy,
-		const bool bAlwaysLoadInlineData,
-		EStatus& OutStatus)
+		const FCacheRecordPolicy& Policy)
 	{
-		OutStatus = EStatus::Error;
-
 		if (!IsUsable())
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose,
@@ -1129,10 +1684,8 @@ private:
 			return FOptionalCacheRecord();
 		}
 
-		const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
-
 		// Skip the request if querying the cache is disabled.
-		if (!EnumHasAnyFlags(RecordPolicy, SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote))
+		if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote))
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -1148,7 +1701,7 @@ private:
 
 		// Request the record from storage.
 		TStringBuilder<256> Path;
-		BuildCacheObjectPath(Key, Path);
+		BuildCacheRecordPath(Key, Path);
 		FSharedBuffer Buffer = LoadFile(Path, Context);
 		if (Buffer.IsNull())
 		{
@@ -1157,7 +1710,7 @@ private:
 			return FOptionalCacheRecord();
 		}
 
-		// Delete the record from storage if is corrupted.
+		// Delete the record from storage if it is invalid.
 		bool bDeleteCacheObject = true;
 		ON_SCOPE_EXIT
 		{
@@ -1167,71 +1720,34 @@ private:
 			}
 		};
 
-		// Validate that the record can be read as compact binary without crashing.
-		if (ValidateCompactBinaryRange(Buffer, ECbValidateMode::Default) != ECbValidateError::None)
+		// Validate that the record can be read as a compact binary package without crashing.
+		if (ValidateCompactBinaryPackage(Buffer, ECbValidateMode::Default | ECbValidateMode::Package) != ECbValidateError::None)
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with corrupted record for %s from '%.*s'"),
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			return FOptionalCacheRecord();
 		}
 
-		const FCbObject RecordObject(MoveTemp(Buffer));
-		FCacheRecordBuilder RecordBuilder(Key);
-
-		if (!EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipMeta))
+		// Load the record from the package.
+		FOptionalCacheRecord Record;
 		{
-			if (FCbFieldView MetaHash = RecordObject.FindView("MetaHash"_ASV))
+			FCbPackage Package;
+			if (FCbFieldIterator It = FCbFieldIterator::MakeRange(Buffer); !Package.TryLoad(It))
 			{
-				if (FCbObject Meta = RecordObject["Meta"_ASV].AsObject(); Meta.GetHash() == MetaHash.AsHash())
-				{
-					RecordBuilder.SetMeta(MoveTemp(Meta));
-				}
-				else
-				{
-					UE_LOG(LogDerivedDataCache, Display,
-						TEXT("%s: Cache miss with corrupted metadata for %s from '%.*s'"),
-						*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-					return FOptionalCacheRecord();
-				}
-			}
-		}
-
-		// Disable deletion now that the record is validated.
-		bDeleteCacheObject = false;
-		OutStatus = EStatus::Ok;
-
-		if (FCbObject ValueObject = RecordObject["Value"_ASV].AsObject())
-		{
-			EStatus PayloadStatus = EStatus::Error;
-			FPayload Payload = GetCachePayload(Key, Context, Policy,
-				ECachePolicy::SkipValue, ValueObject, bAlwaysLoadInlineData, PayloadStatus);
-			if (PayloadStatus == EStatus::Error)
-			{
-				OutStatus = EStatus::Error;
-			}
-			if (Payload.IsNull())
-			{
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with package load failure for %s from '%.*s'"),
+					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 				return FOptionalCacheRecord();
 			}
-			RecordBuilder.SetValue(MoveTemp(Payload));
-		}
-
-		for (FCbField AttachmentField : RecordObject["Attachments"_ASV])
-		{
-			EStatus PayloadStatus = EStatus::Error;
-			FPayload Payload = GetCachePayload(Key, Context, Policy,
-				ECachePolicy::SkipAttachments, AttachmentField.AsObject(), bAlwaysLoadInlineData, PayloadStatus);
-			if (PayloadStatus == EStatus::Error)
+			Record = FCacheRecord::Load(Package);
+			if (Record.IsNull())
 			{
-				OutStatus = EStatus::Error;
-			}
-			if (Payload.IsNull())
-			{
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with record load failure for %s from '%.*s'"),
+					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 				return FOptionalCacheRecord();
 			}
-			RecordBuilder.AddAttachment(MoveTemp(Payload));
 		}
 
+		// Disable deletion now that the record is loaded and validated.
 		bDeleteCacheObject = false;
 
 		if (AccessLogWriter)
@@ -1239,204 +1755,173 @@ private:
 			AccessLogWriter->Append(Key, Path);
 		}
 
-		return RecordBuilder.Build();
+		return Record.Get();
 	}
 
-	bool PutCachePayload(
-		const FCacheKey& Key,
-		const FStringView Context,
-		const FPayload& Payload,
-		FCbWriter& Writer,
-		const bool bStoreInline) const
-	{
-		const FIoHash& RawHash = Payload.GetRawHash();
-		const bool bHasData = Payload.HasData();
-
-		if (bHasData && !bStoreInline)
-		{
-			TStringBuilder<256> Path;
-			BuildCachePayloadPath(Key, RawHash, Path);
-			if (!FileExists(Path))
-			{
-				// Save the compressed buffer with its hash as a header.
-				const FCompressedBuffer& CompressedBuffer = Payload.GetData();
-				const FIoHash CompressedHash = FIoHash::HashBuffer(CompressedBuffer.GetCompressed());
-				const FCompositeBuffer BufferWithHash(
-					FSharedBuffer::Clone(MakeMemoryView(CompressedHash.GetBytes())),
-					CompressedBuffer.GetCompressed());
-				if (!SaveFile(Path, BufferWithHash, Context))
-				{
-					return false;
-				}
-			}
-
-			if (AccessLogWriter)
-			{
-				AccessLogWriter->Append(Key, Payload.GetId(), Path);
-			}
-		}
-
-		Writer.BeginObject();
-		Writer.AddObjectId("Id"_ASV, Payload.GetId());
-		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
-		if (bHasData && bStoreInline)
-		{
-			const FCompressedBuffer& CompressedBuffer = Payload.GetData();
-			Writer.AddHash("RawHash"_ASV, RawHash);
-			Writer.AddHash("CompressedHash"_ASV, FIoHash::HashBuffer(CompressedBuffer.GetCompressed()));
-			Writer.AddBinary("CompressedData"_ASV, CompressedBuffer.GetCompressed());
-		}
-		else
-		{
-			Writer.AddBinaryAttachment("RawHash"_ASV, RawHash);
-		}
-		Writer.EndObject();
-		return true;
-	}
-
-	FPayload GetCachePayload(
+	FOptionalCacheRecord GetCacheRecord(
 		const FCacheKey& Key,
 		const FStringView Context,
 		const FCacheRecordPolicy& Policy,
-		const ECachePolicy SkipFlag,
-		const FCbObject& Object,
-		const bool bAlwaysLoadInlineData,
-		EStatus& OutStatus) const
+		EStatus& OutStatus)
 	{
-		const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
-		const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
-		const FIoHash RawHash = Object.FindView("RawHash"_ASV).AsHash();
-		const FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();
-		FSharedBuffer CompressedData = Object["CompressedData"_ASV].AsBinary();
-
-		if (Id.IsNull() || RawSize == MAX_uint64 || RawHash.IsZero() || !(CompressedHash.IsZero() == CompressedData.IsNull()))
+		FOptionalCacheRecord Record = GetCacheRecordOnly(Key, Context, Policy);
+		if (Record.IsNull())
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid record format for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			OutStatus = EStatus::Error;
-			return FPayload();
+			return Record;
 		}
 
-		const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Id);
-		FPayload Payload(Id, RawHash, RawSize);
+		OutStatus = EStatus::Ok;
 
-		if (CompressedData)
+		FCacheRecordBuilder RecordBuilder(Key);
+
+		if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
 		{
-			if (EnumHasAllFlags(PayloadPolicy, SkipFlag) && !bAlwaysLoadInlineData)
-			{
-				OutStatus = EStatus::Ok;
-				return Payload;
-			}
-			return ValidateCachePayload(Key, Context, PayloadPolicy,
-				Payload, CompressedHash, MoveTemp(CompressedData), OutStatus);
+			RecordBuilder.SetMeta(FCbObject(Record.Get().GetMeta()));
 		}
 
-		return GetCachePayload(Key, Context, PayloadPolicy, SkipFlag, Payload, OutStatus);
+		if (FPayload Payload = Record.Get().GetValuePayload())
+		{
+			const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Payload.GetId());
+			GetCachePayload(Key, Context, PayloadPolicy, ECachePolicy::SkipValue, Payload, OutStatus);
+			if (Payload.IsNull())
+			{
+				return FOptionalCacheRecord();
+			}
+			RecordBuilder.SetValue(MoveTemp(Payload));
+		}
+
+		for (FPayload Payload : Record.Get().GetAttachmentPayloads())
+		{
+			const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Payload.GetId());
+			GetCachePayload(Key, Context, PayloadPolicy, ECachePolicy::SkipAttachments, Payload, OutStatus);
+			if (Payload.IsNull())
+			{
+				return FOptionalCacheRecord();
+			}
+			RecordBuilder.AddAttachment(MoveTemp(Payload));
+		}
+
+		return RecordBuilder.Build();
 	}
 
-	FPayload GetCachePayload(
+	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView Context) const
+	{
+		const FIoHash& RawHash = Content.GetRawHash();
+		TStringBuilder<256> Path;
+		BuildCacheContentPath(RawHash, Path);
+		if (!FileExists(Path))
+		{
+			if (!SaveFile(Path, Context, [&Content](FArchive& Ar) { Ar << const_cast<FCompressedBuffer&>(Content); }))
+			{
+				return false;
+			}
+		}
+		if (AccessLogWriter)
+		{
+			AccessLogWriter->Append(RawHash, Path);
+		}
+		return true;
+	}
+
+	void GetCachePayload(
 		const FCacheKey& Key,
 		const FStringView Context,
 		const ECachePolicy Policy,
 		const ECachePolicy SkipFlag,
-		const FPayload& Payload,
-		EStatus& OutStatus) const
+		FPayload& InOutPayload,
+		EStatus& InOutStatus) const
 	{
-		if (Payload.HasData() || !EnumHasAnyFlags(Policy, ECachePolicy::Query))
+		const FIoHash& RawHash = InOutPayload.GetRawHash();
+
+		if (!EnumHasAnyFlags(Policy, ECachePolicy::Query) || (EnumHasAnyFlags(Policy, SkipFlag) && InOutPayload.HasData()))
 		{
-			OutStatus = EStatus::Ok;
-			return Payload;
+			InOutPayload = FPayload(InOutPayload.GetId(), RawHash, InOutPayload.GetRawSize());
+			return;
+		}
+
+		if (InOutPayload.HasData())
+		{
+			return;
 		}
 
 		TStringBuilder<256> Path;
-		BuildCachePayloadPath(Key, Payload.GetRawHash(), Path);
+		BuildCacheContentPath(RawHash, Path);
 		if (EnumHasAllFlags(Policy, SkipFlag))
 		{
 			if (FileExists(Path))
 			{
 				if (AccessLogWriter)
 				{
-					AccessLogWriter->Append(Key, Payload.GetId(), Path);
+					AccessLogWriter->Append(RawHash, Path);
 				}
-				OutStatus = EStatus::Ok;
-				return Payload;
+				return;
 			}
 		}
 		else
 		{
-			if (FSharedBuffer CompressedData = LoadFile(Path, Context); CompressedData.GetSize() >= sizeof(FIoHash))
+			if (FSharedBuffer CompressedData = LoadFile(Path, Context))
 			{
-				const FMemoryView CompressedDataView = CompressedData;
-				const FIoHash CompressedHash(CompressedDataView.Left(sizeof(FIoHash)));
-				CompressedData = FSharedBuffer::MakeView(CompressedDataView + sizeof(FIoHash), MoveTemp(CompressedData));
-				const FPayload FullPayload = ValidateCachePayload(Key, Context, Policy,
-					Payload, CompressedHash, MoveTemp(CompressedData), OutStatus);
-				if (FullPayload && AccessLogWriter)
+				if (FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(MoveTemp(CompressedData));
+					CompressedBuffer && CompressedBuffer.GetRawHash() == RawHash)
 				{
-					AccessLogWriter->Append(Key, FullPayload.GetId(), Path);
+					if (AccessLogWriter)
+					{
+						AccessLogWriter->Append(RawHash, Path);
+					}
+					InOutPayload = FPayload(InOutPayload.GetId(), MoveTemp(CompressedBuffer));
+					return;
 				}
-				return FullPayload;
+				UE_LOG(LogDerivedDataCache, Display,
+					TEXT("%s: Cache miss with corrupted payload %s with hash %s for %s from '%.*s'"),
+					*CachePath, *WriteToString<16>(InOutPayload.GetId()), *WriteToString<48>(RawHash),
+					*WriteToString<96>(Key), Context.Len(), Context.GetData());
+				InOutStatus = EStatus::Error;
+				if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialOnError))
+				{
+					InOutPayload = FPayload::Null;
+				}
+				return;
 			}
 		}
 
 		UE_LOG(LogDerivedDataCache, Verbose,
 			TEXT("%s: Cache miss with missing payload %s with hash %s for %s from '%.*s'"),
-			*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(Payload.GetRawHash()), *WriteToString<96>(Key),
+			*CachePath, *WriteToString<16>(InOutPayload.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
 			Context.Len(), Context.GetData());
-		OutStatus = EStatus::Error;
-		return EnumHasAllFlags(Policy, ECachePolicy::PartialOnError) ? Payload : FPayload::Null;
-	}
-
-	FPayload ValidateCachePayload(
-		const FCacheKey& Key,
-		const FStringView Context,
-		const ECachePolicy Policy,
-		const FPayload& Payload,
-		const FIoHash& CompressedHash,
-		FSharedBuffer&& CompressedData,
-		EStatus& OutStatus) const
-	{
-		if (FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(MoveTemp(CompressedData));
-			CompressedBuffer &&
-			CompressedBuffer.GetRawHash() == Payload.GetRawHash() &&
-			FIoHash::HashBuffer(CompressedBuffer.GetCompressed()) == CompressedHash)
+		InOutStatus = EStatus::Error;
+		if (!EnumHasAnyFlags(Policy, ECachePolicy::PartialOnError))
 		{
-			OutStatus = EStatus::Ok;
-			return FPayload(Payload.GetId(), MoveTemp(CompressedBuffer));
+			InOutPayload = FPayload::Null;
 		}
-		UE_LOG(LogDerivedDataCache, Display,
-			TEXT("%s: Cache miss with corrupted payload %s with hash %s for %s from '%.*s'"),
-			*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(Payload.GetRawHash()),
-			*WriteToString<96>(Key), Context.Len(), Context.GetData());
-		OutStatus = EStatus::Error;
-		return EnumHasAllFlags(Policy, ECachePolicy::PartialOnError) ? Payload : FPayload::Null;
 	}
 
-	void BuildCacheObjectPath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const
+	void BuildCacheRecordPath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const
 	{
 		Path << CachePath << TEXT('/');
-		BuildPathForCacheObject(CacheKey, Path);
+		BuildPathForCacheRecord(CacheKey, Path);
 	}
 
-	void BuildCachePayloadPath(const FCacheKey& CacheKey, const FIoHash& RawHash, FStringBuilderBase& Path) const
+	void BuildCacheContentPath(const FIoHash& RawHash, FStringBuilderBase& Path) const
 	{
 		Path << CachePath << TEXT('/');
-		BuildPathForCachePayload(CacheKey, RawHash, Path);
+		BuildPathForCacheContent(RawHash, Path);
 	}
 
-	bool SaveFile(FStringBuilderBase& Path, const FCompositeBuffer& Buffer, FStringView Context) const
+	bool SaveFile(FStringBuilderBase& Path, FStringView Context, TFunctionRef<void (FArchive&)> WriteFunction) const
 	{
 		TStringBuilder<256> TempPath;
-		TempPath << FPathViews::GetPath(Path) << TEXT("/Temp.") << FGuid::NewGuid().ToString();
+		TempPath << FPathViews::GetPath(Path) << TEXT("/Temp.") << FGuid::NewGuid();
 
 		ON_SCOPE_EXIT
 		{
 			IFileManager::Get().Delete(*TempPath, /*bRequireExists*/ false, /*bEvenReadOnly*/ false, /*bQuiet*/ true);
 		};
 
-		if (SaveBufferToFile(TempPath, Buffer))
+		int64 ExpectedSize = 0;
+		if (SaveDataToFile(TempPath, MoveTemp(WriteFunction), ExpectedSize))
 		{
-			if (IFileManager::Get().FileSize(*TempPath) == int64(Buffer.GetSize()))
+			if (IFileManager::Get().FileSize(*TempPath) == ExpectedSize)
 			{
 				if (IFileManager::Get().Move(*Path, *TempPath, /*bReplace*/ false, /*bEvenIfReadOnly*/ false, /*bAttributes*/ false, /*bDoNotRetryOrError*/ true))
 				{
@@ -1454,31 +1939,36 @@ private:
 			{
 				UE_LOG(LogDerivedDataCache, Warning,
 					TEXT("%s: Failed to write to temp file %s when saving %s from '%.*s'. ")
-					TEXT("File is %" INT64_FMT " bytes when %" UINT64_FMT " bytes are expected."),
+					TEXT("File is %" INT64_FMT " bytes when %" INT64_FMT " bytes are expected."),
 					*CachePath, *TempPath, *Path, Context.Len(), Context.GetData(),
-					IFileManager::Get().FileSize(*TempPath), Buffer.GetSize());
+					IFileManager::Get().FileSize(*TempPath), ExpectedSize);
 				return false;
 			}
 		}
 		else
 		{
 			UE_LOG(LogDerivedDataCache, Warning,
-				TEXT("%s: Failed to write to temp file %s when saving %s from '%.*s' (error 0x%08x)"),
+				TEXT("%s: Failed to write to temp file %s when saving %s from '%.*s'. Error 0x%08x"),
 				*CachePath, *TempPath, *Path, Context.Len(), Context.GetData(), FPlatformMisc::GetLastError());
 			return false;
 		}
 	}
 
-	bool SaveBufferToFile(FStringBuilderBase& Path, const FCompositeBuffer& Buffer) const
+	bool SaveDataToFile(
+		FStringBuilderBase& Path,
+		TFunctionRef<void (FArchive&)> WriteFunction,
+		int64& OutWriteSize) const
 	{
 		if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*Path, FILEWRITE_Silent)})
 		{
-			for (const FSharedBuffer& Segment : Buffer.GetSegments())
-			{
-				Ar->Serialize(const_cast<void*>(Segment.GetData()), Segment.GetSize());
-			}
+			THashingArchiveProxy<FBlake3> HashAr(*Ar);
+			WriteFunction(HashAr);
+			FBlake3Hash Hash = HashAr.GetHash();
+			*Ar << Hash;
+			OutWriteSize = Ar->Tell();
 			return Ar->Close() && !Ar->IsError();
 		}
+		OutWriteSize = 0;
 		return false;
 	}
 
@@ -1498,12 +1988,42 @@ private:
 
 		if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*Path, FILEREAD_Silent)})
 		{
-			const int64 TotalSize = Ar->TotalSize();
-			FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(uint64(TotalSize));
-			Ar->Serialize(MutableBuffer.GetData(), TotalSize);
-			if (Ar->Close())
+			if (const int64 TotalSize = Ar->TotalSize(); TotalSize >= sizeof(FBlake3Hash))
 			{
-				Buffer = MutableBuffer.MoveToShared();
+				const int64 DataSize = TotalSize - sizeof(FBlake3Hash);
+				FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(uint64(DataSize));
+				Ar->Serialize(MutableBuffer.GetData(), DataSize);
+				FBlake3Hash SavedHash;
+				*Ar << SavedHash;
+				if (Ar->Close())
+				{
+					const FBlake3Hash Hash = FBlake3::HashBuffer(MutableBuffer);
+					if (Hash == SavedHash)
+					{
+						Buffer = MutableBuffer.MoveToShared();
+					}
+					else
+					{
+						UE_LOG(LogDerivedDataCache, Display,
+							TEXT("%s: File %s from '%.*s' is corrupted and has hash %s when %s is expected."),
+							*CachePath, *Path, Context.Len(), Context.GetData(),
+							*WriteToString<80>(Hash), *WriteToString<80>(SavedHash));
+						if (!bReadOnly)
+						{
+							IFileManager::Get().Delete(*Path, /*bRequireExists*/ false, /*bEvenReadOnly*/ false, /*bQuiet*/ true);
+						}
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Display,
+					TEXT("%s: File %s from '%.*s' is %" INT64_FMT " bytes when at least %" INT64_FMT " bytes are required."),
+					*CachePath, *Path, Context.Len(), Context.GetData(), TotalSize, int64(sizeof(FBlake3Hash)));
+				if (!bReadOnly)
+				{
+					IFileManager::Get().Delete(*Path, /*bRequireExists*/ false, /*bEvenReadOnly*/ false, /*bQuiet*/ true);
+				}
 			}
 		}
 
@@ -1533,9 +2053,9 @@ private:
 		{
 			return false;
 		}
-		if (bTouch || (!bReadOnly && (FDateTime::Now() - TimeStamp).GetDays() > (DaysToDeleteUnusedFiles / 4)))
+		if (bTouch || (!bReadOnly && (FDateTime::UtcNow() - TimeStamp).GetTotalDays() > (DaysToDeleteUnusedFiles / 4)))
 		{
-			IFileManager::Get().SetTimeStamp(*Path, FDateTime::Now());
+			IFileManager::Get().SetTimeStamp(*Path, FDateTime::UtcNow());
 		}
 		return true;
 	}
@@ -1558,18 +2078,21 @@ private:
 	FString	CachePath;
 	/** Class of this cache */
 	ESpeedClass SpeedClass;
-	/** If true, do not attempt to write to this cache **/
+	/** If true, we failed to write to this directory and it did not contain anything so we should not be used. */
+	bool		bDisabled;
+	/** If true, do not attempt to write to this cache. */
 	bool		bReadOnly;
-	
 	/** If true, CachedDataProbablyExists will update the file timestamps. */
 	bool		bTouch;
 	/** If true, allow transient data to be removed from the cache. */
 	bool		bPurgeTransient;
 	/** Age of file when it should be deleted from DDC cache. */
-	int32		DaysToDeleteUnusedFiles;
+	double		DaysToDeleteUnusedFiles;
 
-	/** If true, we failed to write to this directory and it did not contain anything so we should not be used **/
-	bool		bDisabled;
+	/** Maximum total size of compressed data stored within a record package with multiple attachments. */
+	uint64		MaxRecordSizeKB = 256;
+	/** Maximum total size of compressed data stored within a value package, or a record package with one attachment. */
+	uint64		MaxValueSizeKB = 1024;
 
 	/** Object used for synchronization via a scoped lock						*/
 	FCriticalSection SynchronizationObject;
@@ -1592,6 +2115,8 @@ private:
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
 	TSet<FCacheKey> DebugMissedCacheKeys;
+
+	TUniquePtr<FFileSystemCacheStoreMaintainer> Maintainer;
 
 	bool ShouldSimulateMiss(const TCHAR* InKey)
 	{
@@ -1658,4 +2183,4 @@ FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* Ca
 	return FileDDB;
 }
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::FileSystem

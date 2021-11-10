@@ -39,10 +39,15 @@ DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::FileSystem
 {
 
 FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName = nullptr);
+
+} // UE::DerivedData::CacheStore::FileSystem
+
+namespace UE::DerivedData::Backends
+{
 
 /**
   * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -632,7 +637,7 @@ public:
 
 				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
 				{
-					InnerFileSystem = CreateFileSystemDerivedDataBackend(*Path, Entry, *WriteAccessLog);
+					InnerFileSystem = CacheStore::FileSystem::CreateFileSystemDerivedDataBackend(*Path, Entry, *WriteAccessLog);
 				}
 
 				if (InnerFileSystem)

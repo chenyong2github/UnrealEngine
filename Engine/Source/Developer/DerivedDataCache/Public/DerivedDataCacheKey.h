@@ -54,6 +54,9 @@ public:
 	/** Get the name of the cache bucket as a string. */
 	inline FAnsiStringView ToString() const;
 
+	/** Get the name of the cache bucket as a null-terminated string. */
+	inline const ANSICHAR* ToCString() const { return Name; }
+
 protected:
 	static constexpr int32 LengthOffset = -1;
 
