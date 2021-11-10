@@ -179,7 +179,7 @@ ENeuralBackEnd UNeuralNetwork::GetBackEndForCurrentPlatform() const
 	return BackEndForCurrentPlatform;
 }
 
-void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
+bool UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 {
 	BackEnd = InBackEnd;
 	const ENeuralBackEnd NewBackEndForCurrentPlatform = FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd);
@@ -193,6 +193,7 @@ void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 			Load();
 		}
 	}
+	return IsLoaded();
 }
 
 void UNeuralNetwork::ResetStats()
@@ -558,7 +559,7 @@ bool UNeuralNetwork::Load()
 	// Reset Stats
 	ResetStats();
 
-	return bIsLoaded;
+	return IsLoaded();
 }
 
 FNeuralTensor& UNeuralNetwork::GetInputTensorMutable(const int32 InTensorIndex)
@@ -585,7 +586,7 @@ bool UNeuralNetwork::Load(TArray<FNeuralTensor>& InTensors, const TArray<FNeural
 	}
 	// Load network
 	bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, TensorManager, InOperators);
-	return bIsLoaded;
+	return IsLoaded();
 }
 
 #if WITH_EDITOR

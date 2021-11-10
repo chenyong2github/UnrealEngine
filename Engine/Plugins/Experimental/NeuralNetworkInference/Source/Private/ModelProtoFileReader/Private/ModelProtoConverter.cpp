@@ -538,8 +538,8 @@ bool FModelProtoConverter::ConvertFromONNXProto3(FModelProto& OutModelProto, std
 	#endif //WITH_PROTOBUF
 
 #else //WITH_MODEL_PROTO_CONVERTER_SUPPORT
-	UE_LOG(LogModelProtoFileReader, Warning,
-		TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Due to a known linking error when used together with the UEAndORT back end during game mode, this function is disabled."));
+	UE_LOG(LogModelProtoFileReader, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Due to a known linking error when used together with the"
+		" UEAndORT back end during game mode, this function is disabled."));
 	return false;
 #endif //WITH_MODEL_PROTO_CONVERTER_SUPPORT
 }
