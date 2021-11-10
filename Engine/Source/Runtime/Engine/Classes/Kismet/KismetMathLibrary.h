@@ -4071,8 +4071,27 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * @outparam	OutRectSideA - Vector oriented and sized to represent one edge of the enclosing rectangle, orthogonal to OutRectSideB
 	 * @outparam	OutRectSideB - Vector oriented and sized to represent one edge of the enclosing rectangle, orthogonal to OutRectSideA
 	*/
-	UFUNCTION(BlueprintCallable, Category="Math|Geometry", meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext))
+	UE_DEPRECATED(5.2, "Use MinAreaRectangle instead. This deprecated version incorrectly returns the average of all input points as the rectangle center.")
+	UFUNCTION(BlueprintCallable, Category="Math|Geometry", meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext,
+		DeprecatedFunction, DeprecationMessage = "Use 'Min Area Rectangle' instead; this deprecated version incorrectly returns the average of all input points as the rectangle center."))
 	static void MinimumAreaRectangle(UObject* WorldContextObject, const TArray<FVector>& InVerts, const FVector& SampleSurfaceNormal, FVector& OutRectCenter, FRotator& OutRectRotation, float& OutSideLengthX, float& OutSideLengthY, bool bDebugDraw = false);
+
+	/**
+	 * Finds the minimum area rectangle that encloses a set of coplanar points.
+	 * Uses the exhaustive search algorithm in http://www.geometrictools.com/Documentation/MinimumAreaRectangle.pdf
+	 *
+	 * @param	WorldContextObject - Pointer to world context; only used when debug draw is enabled
+	 * @param	InPoints - Points to enclose in the rectangle; need to be within the same plane for correct results
+	 * @param	SampleSurfaceNormal - Normal indicating the surface direction for the points
+	 * @param	OutRectCenter - Translation for the output rectangle from the origin
+	 * @param	OutRectRotation - Rotation for the output rectangle from the XY plane
+	 * @param	OutRectLengthX - Length of the output rectangle along the X axis before rotation
+	 * @param	OutRectLengthY - Length of the output rectangle along the Y axis before rotation
+	 * @param	bDebugDraw - Draws the output rectangle for debugging purposes provided the world context is set as well
+	*/
+	UFUNCTION(BlueprintCallable, Category="Math|Geometry", meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext))
+	static void MinAreaRectangle(UObject* WorldContextObject, const TArray<FVector>& InPoints, const FVector& SampleSurfaceNormal, FVector& OutRectCenter,
+	                             FRotator& OutRectRotation, float& OutRectLengthX, float& OutRectLengthY, bool bDebugDraw = false);
 
 	/**
 	 * Determines whether a given set of points are coplanar, with a tolerance. Any three points or less are always coplanar.
