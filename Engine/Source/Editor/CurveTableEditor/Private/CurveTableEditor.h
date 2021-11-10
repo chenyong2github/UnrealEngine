@@ -37,6 +37,7 @@ typedef TSharedPtr<FCurveTableEditorColumnHeaderData> FCurveTableEditorColumnHea
 class FCurveTableEditor :
 	public ICurveTableEditor
 	, public FCurveTableEditorUtils::INotifyOnCurveTableChanged
+	, public FEditorUndoClient
 {
 
 public:
@@ -64,9 +65,11 @@ public:
 	// INotifyOnDataTableChanged
 	virtual void PreChange(const UCurveTable* Changed, FCurveTableEditorUtils::ECurveTableChangeInfo Info) override;
 	virtual void PostChange(const UCurveTable* Changed, FCurveTableEditorUtils::ECurveTableChangeInfo Info) override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
 
 	/** Get the curve table being edited */
-	const UCurveTable* GetCurveTable() const;
+	UCurveTable* GetCurveTable() const;
 
 	void HandlePostChange();
 
@@ -166,5 +169,8 @@ protected:
 
 	/** An empty source list used to initialize or when rebuilding the TableView */
 	TArray<FCurveEditorTreeItemID> EmptyItems;
+
+	/** Associates the CurveEditor Ids with the FName Ids from the Curve Table */
+	TMap< FCurveEditorTreeItemID, FName > RowIDMap;
 
 };

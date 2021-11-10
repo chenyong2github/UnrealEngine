@@ -4,6 +4,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Modules/ModuleManager.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Framework/Layout/Overscroll.h"
@@ -144,8 +145,12 @@ class FCurveTableEditorItem : public ICurveEditorTreeItem,  public TSharedFromTh
 			return SNew(SNumericEntryBox<float>)
 				.EditableTextBoxStyle( &FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("CurveTableEditor.Cell.Text") )
 				.Value_Lambda([Curve, KeyHandle] () { return Curve->GetKeyValue(KeyHandle); })
-				// .Value_Lambda([this, InColumnId] () { return CellDataF[InColumnId]; })
-				.OnValueChanged_Lambda([Curve, KeyHandle] (float NewValue) {Curve->SetKeyValue(KeyHandle, NewValue);})
+				.OnValueChanged_Lambda([this, KeyHandle] (float NewValue) 
+				{
+					FScopedTransaction Transaction(LOCTEXT("SetKeyValues", "Set Key Values"));
+					RowHandle.ModifyOwner();
+					RowHandle.GetCurve()->SetKeyValue(KeyHandle, NewValue);
+				})
 				.Justification(ETextJustify::Right)
 			;
 		}
@@ -268,6 +273,8 @@ void FCurveTableEditor::InitCurveTableEditor( const EToolkitMode::Type Mode, con
 	RegenerateMenusAndToolbars();
 
 	FReimportManager::Instance()->OnPostReimport().AddSP(this, &FCurveTableEditor::OnPostReimport);
+
+	GEditor->RegisterForUndo(this);
 }
 
 TSharedRef< FTabManager::FLayout > FCurveTableEditor::InitCurveTableLayout()
@@ -288,6 +295,9 @@ TSharedRef< FTabManager::FLayout > FCurveTableEditor::InitCurveTableLayout()
 void FCurveTableEditor::BindCommands()
 {
 	FCurveTableEditorCommands::Register();
+
+	ToolkitCommands->MapAction(FGenericCommands::Get().Undo,   FExecuteAction::CreateLambda([]{ GEditor->UndoTransaction(); }));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Redo,   FExecuteAction::CreateLambda([]{ GEditor->RedoTransaction(); }));
 
 	ToolkitCommands->MapAction(FCurveTableEditorCommands::Get().CurveViewToggle,
 		FExecuteAction::CreateSP(this, &FCurveTableEditor::ToggleViewMode),
@@ -348,6 +358,16 @@ void FCurveTableEditor::PreChange(const UCurveTable* Changed, FCurveTableEditorU
 {
 }
 
+void FCurveTableEditor::PostUndo(bool bSuccess)
+{
+	RefreshCachedCurveTable();
+}
+
+void FCurveTableEditor::PostRedo(bool bSuccess)
+{
+	RefreshCachedCurveTable();
+}
+
 void FCurveTableEditor::PostChange(const UCurveTable* Changed, FCurveTableEditorUtils::ECurveTableChangeInfo Info)
 {
 	const UCurveTable* Table = GetCurveTable();
@@ -357,9 +377,9 @@ void FCurveTableEditor::PostChange(const UCurveTable* Changed, FCurveTableEditor
 	}
 }
 
-const UCurveTable* FCurveTableEditor::GetCurveTable() const
+UCurveTable* FCurveTableEditor::GetCurveTable() const
 {
-	return Cast<const UCurveTable>(GetEditingObject());
+	return Cast<UCurveTable>(GetEditingObject());
 }
 
 void FCurveTableEditor::HandlePostChange()
@@ -383,6 +403,12 @@ TSharedRef<SDockTab> FCurveTableEditor::SpawnTab_CurveTable( const FSpawnTabArgs
 
 	FCurveEditorInitParams CurveEditorInitParams;
 	CurveEditor->InitCurveEditor(CurveEditorInitParams);
+
+	// We want this editor to handle undo, not the CurveEditor because
+	// the PostUndo fixes up the selection and in the case of a CurveTable,
+	// the curves have been rebuilt on undo and thus need special handling to restore the selection
+	GEditor->UnregisterForUndo(CurveEditor.Get());
+
 
 	CurveEditorTree = SNew(SCurveEditorTree, CurveEditor.ToSharedRef())
 		.OnTreeViewScrolled(this, &FCurveTableEditor::OnCurveTreeViewScrolled);
@@ -507,7 +533,7 @@ void FCurveTableEditor::RefreshTableRowsSelection()
 {
 	if(bUpdatingTableViewSelection == false)
 	{
-		TGuardValue<bool> SelecitonGuard(bUpdatingTableViewSelection, true);
+		TGuardValue<bool> SelectionGuard(bUpdatingTableViewSelection, true);
 
 		TArray<FCurveEditorTreeItemID> CurrentTreeWidgetSelection;
 		TableView->GetSelectedItems(CurrentTreeWidgetSelection);
@@ -532,23 +558,51 @@ void FCurveTableEditor::OnTableViewSelectionChanged(FCurveEditorTreeItemID ItemI
 {
 	if (bUpdatingTableViewSelection == false)
 	{
-		TGuardValue<bool> SelecitonGuard(bUpdatingTableViewSelection, true);
+		TGuardValue<bool> SelectionGuard(bUpdatingTableViewSelection, true);
 		CurveEditor->GetTree()->SetDirectSelection(TableView->GetSelectedItems(), CurveEditor.Get());
 	}
 }
 
 void FCurveTableEditor::RefreshCachedCurveTable()
 {
-
 	// This will trigger to remove any cached widgets in the TableView while we rebuild the model from the source CurveTable
+
+	const TSet<FCurveModelID>& Pinned = CurveEditor->GetPinnedCurves();
+	TSet<FName> PinnedCurves;
+	for (auto PinnedCurveID : Pinned)
+	{
+		FCurveEditorTreeItemID TreeID = CurveEditor->GetTreeIDFromCurveID(PinnedCurveID);
+		if (RowIDMap.Contains(TreeID))
+		{
+			PinnedCurves.Add(RowIDMap[TreeID]);
+		}
+	}
+
+	TSet<FName> SelectedCurves;
+	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Selected = CurveEditor->GetTreeSelection();
+	for (const TPair<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& SelectionEntry: Selected)
+	{
+		if (SelectionEntry.Value != ECurveEditorTreeSelectionState::None)
+		{
+			if (RowIDMap.Contains(SelectionEntry.Key))
+			{
+				SelectedCurves.Add(RowIDMap[SelectionEntry.Key]);
+			}
+		}
+	}
+
+	// New Selection 
+	TArray<FCurveEditorTreeItemID> NewSelectedItems;
+
 	TableView->SetListItemsSource(EmptyItems);
 	
 	CurveEditor->RemoveAllTreeItems();
 
 	ColumnNamesHeaderRow->ClearColumns();
 	AvailableColumns.Empty();
+	RowIDMap.Empty();
 
-	const UCurveTable* Table = GetCurveTable();
+	UCurveTable* Table = GetCurveTable();
 	if (!Table || Table->GetRowMap().Num() == 0)
 	{
 		return;
@@ -566,6 +620,20 @@ void FCurveTableEditor::RefreshCachedCurveTable()
 			const FName& CurveName = CurveRow.Key;
 			FCurveEditorTreeItem* TreeItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID());
 			TreeItem->SetStrongItem(MakeShared<FCurveTableEditorItem>(CurveName, FCurveTableEditorHandle(Table, CurveName), AvailableColumns));
+			RowIDMap.Add(TreeItem->GetID(), CurveName);
+
+			if (SelectedCurves.Contains(CurveName))
+			{
+				NewSelectedItems.Add(TreeItem->GetID());
+			}
+
+			if (PinnedCurves.Contains(CurveName))
+			{
+				for (auto ModelID : TreeItem->GetCurves())
+				{
+					CurveEditor->PinCurve(ModelID);
+				}
+			}
 		}
 	}
 
@@ -609,10 +677,28 @@ void FCurveTableEditor::RefreshCachedCurveTable()
 			TSharedPtr<FCurveTableEditorItem> NewItem = MakeShared<FCurveTableEditorItem>(CurveName, FCurveTableEditorHandle(Table, CurveName), AvailableColumns);
 			OnColumnsChanged.AddSP(NewItem.ToSharedRef(), &FCurveTableEditorItem::CacheKeys);
 			TreeItem->SetStrongItem(NewItem);
+			RowIDMap.Add(TreeItem->GetID(), CurveName);
+
+			if (SelectedCurves.Contains(CurveName))
+			{
+				NewSelectedItems.Add(TreeItem->GetID());
+			}
+
+			if (PinnedCurves.Contains(CurveName))
+			{
+				for (auto ModelID : TreeItem->GetOrCreateCurves(CurveEditor.Get()))
+				{
+					CurveEditor->PinCurve(ModelID);
+				}
+			}
 		}
 	}
 
 	TableView->SetListItemsSource(CurveEditorTree->GetSourceItems());
+
+	TGuardValue<bool> SelectionGuard(bUpdatingTableViewSelection, true);
+	CurveEditor->SetTreeSelection(MoveTemp(NewSelectedItems));
+
 }
 
 void FCurveTableEditor::OnCurveTreeViewScrolled(double InScrollOffset)
@@ -720,15 +806,19 @@ TSharedRef<SWidget> FCurveTableEditor::MakeToolbar(TSharedRef<SCurveEditorPanel>
 
 FReply FCurveTableEditor::OnAddCurveClicked()
 {
+	FScopedTransaction Transaction(LOCTEXT("AddCurve", "Add Curve"));
+
 	UCurveTable* Table = Cast<UCurveTable>(GetEditingObject());
 	check(Table != nullptr);
 
+	Table->Modify();
 	if (Table->HasRichCurves())
 	{
 		FName NewCurveUnique = MakeUniqueCurveName(Table);
 		FRichCurve& NewCurve = Table->AddRichCurve(NewCurveUnique);
 		FCurveEditorTreeItem* TreeItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID());
 		TreeItem->SetStrongItem(MakeShared<FCurveTableEditorItem>(NewCurveUnique, FCurveTableEditorHandle(Table, NewCurveUnique), AvailableColumns));
+		RowIDMap.Add(TreeItem->GetID(), NewCurveUnique);
 	}
 	else
 	{
@@ -744,7 +834,7 @@ FReply FCurveTableEditor::OnAddCurveClicked()
 		TSharedPtr<FCurveTableEditorItem> NewItem = MakeShared<FCurveTableEditorItem>(NewCurveUnique, FCurveTableEditorHandle(Table, NewCurveUnique), AvailableColumns);
 		OnColumnsChanged.AddSP(NewItem.ToSharedRef(), &FCurveTableEditorItem::CacheKeys);
 		TreeItem->SetStrongItem(NewItem);
-
+		RowIDMap.Add(TreeItem->GetID(), NewCurveUnique);
 
 	}
 
@@ -785,6 +875,9 @@ void FCurveTableEditor::AddNewKeyColumn(float NewKeyTime)
 
 	if (!Table->HasRichCurves())
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddKeyColumn", "AddKeyColumn"));
+		Table->Modify();	
+
 		// Make sure we don't already have a key at this time
 
 		// 1. Add new keys to every curve

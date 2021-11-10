@@ -55,14 +55,32 @@ TArray<FRichCurveEditInfo> FCurveTableEditorHandle::GetCurves()
 	return Curves;
 }
 
+TArray<const UObject*> FCurveTableEditorHandle::GetOwners() const
+{ 
+	TArray<const UObject*> Owners;
+	if (CurveTable != nullptr)
+	{
+		Owners.Add(CurveTable.Get());
+	}
+
+	return Owners;
+}
+
 void FCurveTableEditorHandle::ModifyOwner()
 {
-	check(false);	// This handle is read only, so cannot be used to modify curves
+	if (CurveTable != nullptr && RowName != NAME_None)
+	{
+		CurveTable->Modify();
+	}
+
 }
 
 void FCurveTableEditorHandle::MakeTransactional()
 {
-	check(false);	// This handle is read only, so cannot be used to modify curves
+	if (CurveTable != nullptr)
+	{
+		CurveTable->SetFlags(CurveTable->GetFlags() | RF_Transactional);
+	}
 }
 
 void FCurveTableEditorHandle::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)

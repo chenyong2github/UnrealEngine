@@ -119,7 +119,11 @@ void UCurveTable::Serialize(FArchive& Ar)
 		}
 
 		bool bCouldConvertToSimpleCurves = bUpgradingCurveTable;
-		RowMap.Reserve(NumRows);
+
+		// copy any previous curves to free after replacing.
+		TMap<FName, FRealCurve*> TempMap(RowMap);
+
+		RowMap.Empty(NumRows);
 		for (int32 RowIdx = 0; RowIdx < NumRows; RowIdx++)
 		{
 			// Load row name
@@ -183,6 +187,11 @@ void UCurveTable::Serialize(FArchive& Ar)
 				delete OldCurve;
 				Curve.Value = NewCurve;
 			}
+		}
+
+		for (TPair<FName, FRealCurve*>& Curve : TempMap)
+		{
+			delete Curve.Value;
 		}
 	}
 	else if (Ar.IsSaving())
@@ -966,6 +975,7 @@ void UCurveTable::MakeTransactional()
 void UCurveTable::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
 {
 	CURVETABLE_CHANGE_SCOPE();
+	OnCurveTableChanged().Broadcast();
 }
 
 bool UCurveTable::IsValidCurve(FRichCurveEditInfo CurveInfo)

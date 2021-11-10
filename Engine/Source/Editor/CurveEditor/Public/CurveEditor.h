@@ -320,6 +320,12 @@ public:
 	 */
 	const TArray<FCurveEditorTreeItemID>& GetRootTreeItems() const;
 
+
+	/**
+	 * Find a tree ID id associated with a CurveModelID
+	 */
+	FCurveEditorTreeItemID GetTreeIDFromCurveID(FCurveModelID CurveID) const;
+
 	/**
 	 * Add a new tree item to this curve editor
 	 */

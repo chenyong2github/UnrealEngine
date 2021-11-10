@@ -269,6 +269,16 @@ const TArray<FCurveEditorTreeItemID>& FCurveEditor::GetRootTreeItems() const
 	return Tree.GetRootItems();
 }
 
+FCurveEditorTreeItemID FCurveEditor::GetTreeIDFromCurveID(FCurveModelID CurveID) const
+{
+	if (TreeIDByCurveID.Contains(CurveID))
+	{
+		return TreeIDByCurveID[CurveID];	
+	}
+
+	return FCurveEditorTreeItemID();
+}
+
 FCurveEditorTreeItem* FCurveEditor::AddTreeItem(FCurveEditorTreeItemID ParentID)
 {
 	return Tree.AddItem(ParentID);
