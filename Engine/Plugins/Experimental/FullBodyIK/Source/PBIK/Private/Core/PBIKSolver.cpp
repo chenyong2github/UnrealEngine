@@ -758,7 +758,7 @@ PBIK::FBoneSettings* FPBIKSolver::GetBoneSettings(const int32 Index)
 void FPBIKSolver::GetBoneGlobalTransform(const int32 Index, FTransform& OutTransform)
 {
 	check(Index >= 0 && Index < Bones.Num());
-	PBIK::FBone& Bone = Bones[Index];
+	const PBIK::FBone& Bone = Bones[Index];
 	OutTransform.SetLocation(Bone.Position);
 	OutTransform.SetRotation(Bone.Rotation);
 }
