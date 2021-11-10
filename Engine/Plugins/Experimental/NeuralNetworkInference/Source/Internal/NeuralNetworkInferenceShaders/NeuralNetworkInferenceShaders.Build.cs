@@ -6,7 +6,7 @@ public class NeuralNetworkInferenceShaders : ModuleRules
 {
 	public NeuralNetworkInferenceShaders( ReadOnlyTargetRules Target ) : base( Target )
 	{
-        ShortName = "NNIShaders"; // Could be removed when plugin moves to Experimental, NFL path is too long
+        ShortName = "NNIShaders"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(

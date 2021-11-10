@@ -6,7 +6,7 @@ public class NeuralNetworkInferenceEditor : ModuleRules
 {
 	public NeuralNetworkInferenceEditor( ReadOnlyTargetRules Target ) : base( Target )
 	{
-        ShortName = "NNIEditor"; // Could be removed when plugin moves to Experimental, NFL path is too long
+        ShortName = "NNIEditor"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
