@@ -910,6 +910,10 @@ namespace UnrealBuildTool
 					{
 						return WindowsCompiler.VisualStudio2019;
 					}
+					else if (Format == ProjectFileFormat.VisualStudio2022)
+					{
+						return WindowsCompiler.VisualStudio2022;
+					}
 					else if (Format == ProjectFileFormat.VisualStudio2017)
 					{
 						return WindowsCompiler.VisualStudio2017;
@@ -926,6 +930,10 @@ namespace UnrealBuildTool
 				{
 					return WindowsCompiler.VisualStudio2019;
 				}
+				else if (ProjectFormat == VCProjectFileFormat.VisualStudio2022)
+				{
+					return WindowsCompiler.VisualStudio2022;
+				}
 				else if (ProjectFormat == VCProjectFileFormat.VisualStudio2017)
 				{
 					return WindowsCompiler.VisualStudio2017;
@@ -940,6 +948,10 @@ namespace UnrealBuildTool
 			    {
 				    return WindowsCompiler.VisualStudio2019;
 			    }
+				else if (PreferredAccessor == ProjectFileFormat.VisualStudio2022)
+				{
+					return WindowsCompiler.VisualStudio2022;
+				}
 				else if(PreferredAccessor == ProjectFileFormat.VisualStudio2017)
 			    {
 				    return WindowsCompiler.VisualStudio2017;
@@ -951,6 +963,10 @@ namespace UnrealBuildTool
 			{
 				return WindowsCompiler.VisualStudio2019;
 			}
+			if (HasCompiler(WindowsCompiler.VisualStudio2022))
+			{
+				return WindowsCompiler.VisualStudio2022;
+			}
 			if (HasCompiler(WindowsCompiler.VisualStudio2017))
 			{
 				return WindowsCompiler.VisualStudio2017;
@@ -961,6 +977,10 @@ namespace UnrealBuildTool
 			if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
 			{
 				Log.TraceWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"VC++ 2019 toolset\" component is selected in the Visual Studio 2019 installation options.");
+			}
+			else if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2022, out VSInstallDir))
+			{
+				Log.TraceWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"VC++ 2022 toolset\" component is selected in the Visual Studio 2022 installation options.");
 			}
 			else if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
 			{
