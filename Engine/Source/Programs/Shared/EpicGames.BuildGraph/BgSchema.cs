@@ -55,7 +55,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The ICollection interface for this type
 		/// </summary>
-		public Type CollectionType { get; }
+		public Type? CollectionType { get; }
 
 		/// <summary>
 		/// Validation type for this field
@@ -269,48 +269,43 @@ namespace EpicGames.BuildGraph
 				TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(SchemaType));
 			}
 
-			// If a dictionary of tasks was specified, add those to the schema. Otherwise we'll allow any syntactically valid invocation.
+			// Create all the custom user types, and add them to the qualified name lookup
 			List<XmlSchemaType> UserTypes = new List<XmlSchemaType>();
-			Dictionary<string, XmlSchemaComplexType> TaskNameToType = null;
-			if (Tasks != null)
+			foreach (Type Type in Tasks.SelectMany(x => x.Parameters).Select(x => x.ValueType))
 			{
-				// Create all the custom user types, and add them to the qualified name lookup
-				foreach (Type Type in Tasks.SelectMany(x => x.Parameters).Select(x => x.ValueType))
+				if (!TypeToSchemaTypeName.ContainsKey(Type))
 				{
-					if (!TypeToSchemaTypeName.ContainsKey(Type))
+					if (Type.IsClass && Type.GetInterfaces().Any(x => x.GetGenericTypeDefinition() == typeof(ICollection<>)))
 					{
-						if (Type.IsClass && Type.GetInterfaces().Any(x => x.GetGenericTypeDefinition() == typeof(ICollection<>)))
-						{
-							TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
-						}
-						else
-						{
-							string Name = Type.Name + "UserType";
-							XmlSchemaType SchemaType = CreateUserType(Name, Type);
-							UserTypes.Add(SchemaType);
-							TypeToSchemaTypeName.Add(Type, new XmlQualifiedName(Name, NamespaceURI));
-						}
+						TypeToSchemaTypeName.Add(Type, GetQualifiedTypeName(ScriptSchemaStandardType.BalancedString));
+					}
+					else
+					{
+						string Name = Type.Name + "UserType";
+						XmlSchemaType SchemaType = CreateUserType(Name, Type);
+						UserTypes.Add(SchemaType);
+						TypeToSchemaTypeName.Add(Type, new XmlQualifiedName(Name, NamespaceURI));
 					}
 				}
+			}
 
-				// Create all the task types
-				TaskNameToType = new Dictionary<string, XmlSchemaComplexType>();
-				foreach (BgScriptTask Task in Tasks)
+			// Create all the task types
+			Dictionary<string, XmlSchemaComplexType>? TaskNameToType = new Dictionary<string, XmlSchemaComplexType>();
+			foreach (BgScriptTask Task in Tasks)
+			{
+				XmlSchemaComplexType TaskType = new XmlSchemaComplexType();
+				TaskType.Name = Task.Name + "TaskType";
+				foreach (BgScriptTaskParameter Parameter in Task.Parameters)
 				{
-					XmlSchemaComplexType TaskType = new XmlSchemaComplexType();
-					TaskType.Name = Task.Name + "TaskType";
-					foreach (BgScriptTaskParameter Parameter in Task.Parameters)
+					XmlQualifiedName? SchemaTypeName = GetQualifiedTypeName(Parameter.ValidationType);
+					if (SchemaTypeName == null)
 					{
-						XmlQualifiedName SchemaTypeName = GetQualifiedTypeName(Parameter.ValidationType);
-						if (SchemaTypeName == null)
-						{
-							SchemaTypeName = TypeToSchemaTypeName[Parameter.ValueType];
-						}
-						TaskType.Attributes.Add(CreateSchemaAttribute(Parameter.Name, SchemaTypeName, Parameter.bOptional ? XmlSchemaUse.Optional : XmlSchemaUse.Required));
+						SchemaTypeName = TypeToSchemaTypeName[Parameter.ValueType];
 					}
-					TaskType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
-					TaskNameToType.Add(Task.Name, TaskType);
+					TaskType.Attributes.Add(CreateSchemaAttribute(Parameter.Name, SchemaTypeName, Parameter.bOptional ? XmlSchemaUse.Optional : XmlSchemaUse.Required));
 				}
+				TaskType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+				TaskNameToType.Add(Task.Name, TaskType);
 			}
 
 			// Create the schema object
@@ -366,10 +361,13 @@ namespace EpicGames.BuildGraph
 			XmlSchemaSet NewSchemaSet = new XmlSchemaSet();
 			NewSchemaSet.Add(NewSchema);
 			NewSchemaSet.Compile();
-			foreach(XmlSchema NewCompiledSchema in NewSchemaSet.Schemas())
+
+			XmlSchema? Schema = null;
+			foreach(XmlSchema? NewCompiledSchema in NewSchemaSet.Schemas())
 			{
-				CompiledSchema = NewCompiledSchema;
+				Schema = NewCompiledSchema!;
 			}
+			CompiledSchema = Schema!;
 		}
 
 		/// <summary>
@@ -396,9 +394,8 @@ namespace EpicGames.BuildGraph
 		/// Imports a schema from a file
 		/// </summary>
 		/// <param name="File">The XML file to import</param>
-		/// <param name="NameToTask">Mapping of task name to information about how to construct it</param>
 		/// <returns>A <see cref="BgScriptSchema"/> deserialized from the XML file, or null if file doesn't exist</returns>
-		public static BgScriptSchema Import(FileReference File)
+		public static BgScriptSchema? Import(FileReference File)
 		{
 			if (!FileReference.Exists(File))
 			{
@@ -448,7 +445,7 @@ namespace EpicGames.BuildGraph
 		/// Gets the qualified name of the schema type for the given type of validation
 		/// </summary>
 		/// <returns>Qualified name for the corresponding schema type</returns>
-		static XmlQualifiedName GetQualifiedTypeName(TaskParameterValidationType Type)
+		static XmlQualifiedName? GetQualifiedTypeName(TaskParameterValidationType Type)
 		{
 			switch(Type)
 			{
@@ -1051,7 +1048,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Name">Name of the new type</param>
 		/// <param name="Pattern">Regex pattern to match</param>
 		/// <returns>A simple type which will match the given pattern</returns>
-		static XmlSchemaSimpleType CreateSimpleTypeFromRegex(string Name, string Pattern)
+		static XmlSchemaSimpleType CreateSimpleTypeFromRegex(string? Name, string Pattern)
 		{
 			XmlSchemaPatternFacet PatternFacet = new XmlSchemaPatternFacet();
 			PatternFacet.Value = Pattern;
@@ -1088,7 +1085,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="Name">Name for the new type</param>
 		/// <param name="Type">CLR type information to create a schema type for</param>
-		static XmlSchemaType CreateEnumType(string Name, Type Type)
+		static XmlSchemaType CreateEnumType(string? Name, Type Type)
 		{
 			XmlSchemaSimpleTypeRestriction Restriction = new XmlSchemaSimpleTypeRestriction();
 			Restriction.BaseTypeName = StringTypeName;

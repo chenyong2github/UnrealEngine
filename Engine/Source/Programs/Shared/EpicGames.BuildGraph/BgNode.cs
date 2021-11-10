@@ -23,12 +23,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The node which produces the given output
 		/// </summary>
-		public BgNode ProducingNode;
+		public BgNode ProducingNode { get; }
 
 		/// <summary>
 		/// Name of the tag
 		/// </summary>
-		public string TagName;
+		public string TagName { get; }
 
 		/// <summary>
 		/// Constructor
@@ -59,57 +59,57 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The node's name
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Array of inputs which this node requires to run
 		/// </summary>
-		public BgNodeOutput[] Inputs;
+		public BgNodeOutput[] Inputs { get; }
 
 		/// <summary>
 		/// Array of outputs produced by this node
 		/// </summary>
-		public BgNodeOutput[] Outputs;
+		public BgNodeOutput[] Outputs { get; }
 
 		/// <summary>
 		/// Nodes which this node has input dependencies on
 		/// </summary>
-		public BgNode[] InputDependencies;
+		public BgNode[] InputDependencies { get; set; }
 
 		/// <summary>
 		/// Nodes which this node needs to run after
 		/// </summary>
-		public BgNode[] OrderDependencies;
+		public BgNode[] OrderDependencies { get; set; }
 
 		/// <summary>
 		/// Tokens which must be acquired for this node to run
 		/// </summary>
-		public FileReference[] RequiredTokens;
+		public FileReference[] RequiredTokens { get; }
 
 		/// <summary>
 		/// List of tasks to execute
 		/// </summary>
-		public List<BgTask> TaskInfos = new List<BgTask>();
+		public List<BgTask> Tasks { get; } = new List<BgTask>();
 
 		/// <summary>
 		/// List of email addresses to notify if this node fails.
 		/// </summary>
-		public HashSet<string> NotifyUsers = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+		public HashSet<string> NotifyUsers { get; set; } = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 
 		/// <summary>
 		/// If set, anyone that has submitted to one of the given paths will be notified on failure of this node
 		/// </summary>
-		public HashSet<string> NotifySubmitters = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+		public HashSet<string> NotifySubmitters { get; set; } = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 
 		/// <summary>
 		/// Whether to start this node as soon as its dependencies are satisfied, rather than waiting for all of its agent's dependencies to be met.
 		/// </summary>
-		public bool bRunEarly = false;
+		public bool bRunEarly { get; set; } = false;
 
 		/// <summary>
 		/// Whether to ignore warnings produced by this node
 		/// </summary>
-		public bool bNotifyOnWarnings = true;
+		public bool bNotifyOnWarnings { get; set; } = true;
 
 		/// <summary>
 		/// Constructor
@@ -208,7 +208,7 @@ namespace EpicGames.BuildGraph
 				Writer.WriteAttributeString("RunEarly", bRunEarly.ToString());
 			}
 
-			foreach (BgTask Task in TaskInfos)
+			foreach (BgTask Task in Tasks)
 			{
 				Task.Write(Writer);
 			}

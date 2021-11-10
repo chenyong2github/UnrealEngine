@@ -33,22 +33,22 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
-		public readonly string DashboardName;
+		public string? DashboardName { get; }
 
 		/// <summary>
 		/// Category for this label
 		/// </summary>
-		public readonly string DashboardCategory;
+		public string? DashboardCategory { get; }
 
 		/// <summary>
 		/// Name of the badge in UGS
 		/// </summary>
-		public readonly string UgsBadge;
+		public string? UgsBadge { get; }
 
 		/// <summary>
 		/// Path to the project folder in UGS
 		/// </summary>
-		public readonly string UgsProject;
+		public string? UgsProject { get; }
 
 		/// <summary>
 		/// Which change to show the badge for
@@ -73,7 +73,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="InUgsBadge">The UGS badge name</param>
 		/// <param name="InUgsProject">Project to display this badge for</param>
 		/// <param name="InChange">The change to show this badge on in UGS</param>
-		public BgLabel(string InDashboardName, string InDashboardCategory, string InUgsBadge, string InUgsProject, BgLabelChange InChange)
+		public BgLabel(string? InDashboardName, string? InDashboardCategory, string? InUgsBadge, string? InUgsProject, BgLabelChange InChange)
 		{
 			DashboardName = InDashboardName;
 			DashboardCategory = InDashboardCategory;
@@ -94,7 +94,7 @@ namespace EpicGames.BuildGraph
 			}
 			else
 			{
-				return UgsBadge;
+				return UgsBadge ?? "Unknown";
 			}
 		}
 	}

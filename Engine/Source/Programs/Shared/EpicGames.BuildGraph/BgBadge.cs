@@ -17,22 +17,22 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
-		public readonly string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Depot path to the project that this badge applies to. Used for filtering in UGS.
 		/// </summary>
-		public readonly string Project;
+		public string Project { get; }
 
 		/// <summary>
 		/// The changelist to post the badge for
 		/// </summary>
-		public readonly int Change;
+		public int Change { get; }
 
 		/// <summary>
 		/// Set of nodes that this badge reports the status of
 		/// </summary>
-		public HashSet<BgNode> Nodes = new HashSet<BgNode>();
+		public HashSet<BgNode> Nodes { get; } = new HashSet<BgNode>();
 
 		/// <summary>
 		/// Constructor

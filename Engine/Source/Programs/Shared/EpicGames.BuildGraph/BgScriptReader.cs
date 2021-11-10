@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -33,7 +34,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Interface to the LineInfo on the active XmlReader
 		/// </summary>
-		IXmlLineInfo LineInfo;
+		IXmlLineInfo? LineInfo;
 
 		/// <summary>
 		/// Set to true if the reader encounters an error
@@ -60,7 +61,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		public override XmlElement CreateElement(string Prefix, string LocalName, string NamespaceUri)
 		{
-			return new BgScriptElement(File, NativeFile, LineInfo.LineNumber, Prefix, LocalName, NamespaceUri, this);
+			return new BgScriptElement(File, NativeFile, LineInfo!.LineNumber, Prefix, LocalName, NamespaceUri, this);
 		}
 
 		/// <summary>
@@ -73,7 +74,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Logger">Logger for output messages</param>
 		/// <param name="OutDocument">If successful, the document that was read</param>
 		/// <returns>True if the document could be read, false otherwise</returns>
-		public static bool TryRead(string File, object NativeFile, byte[] Data, BgScriptSchema Schema, ILogger Logger, out BgScriptDocument OutDocument)
+		public static bool TryRead(string File, object NativeFile, byte[] Data, BgScriptSchema Schema, ILogger Logger, [NotNullWhen(true)] out BgScriptDocument? OutDocument)
 		{
 			BgScriptDocument Document = new BgScriptDocument(File, NativeFile, Logger);
 
@@ -331,7 +332,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The name of the node if only a single node is going to be built, otherwise null.
 		/// </summary>
-		string SingleNodeName;
+		string? SingleNodeName;
 
 		/// <summary>
 		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
@@ -369,7 +370,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Graph">If successful, the graph constructed from the given script</param>
 		/// <param name="SingleNodeName">If a single node will be processed, the name of that node.</param>
 		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static bool TryRead(IBgScriptReaderContext Context, string File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, BgScriptSchema Schema, ILogger Logger, out BgScript Graph, string SingleNodeName = null)
+		public static bool TryRead(IBgScriptReaderContext Context, string File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, BgScriptSchema Schema, ILogger Logger, out BgScript? Graph, string? SingleNodeName = null)
 		{
 			// Read the file and build the graph
 			BgScriptReader Reader = new BgScriptReader(Context, DefaultProperties, bPreprocessOnly, Schema, Logger);
@@ -403,7 +404,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Arguments">Arguments passed in to the graph on the command line</param>
 		/// <param name="Logger">Logger for output messages</param>
 		/// <param name="SingleNodeName">The name of the node if only a single node is going to be built, otherwise null.</param>
-		bool TryRead(string File, Dictionary<string, string> Arguments, ILogger Logger, string SingleNodeName = null)
+		bool TryRead(string File, Dictionary<string, string> Arguments, ILogger Logger, string? SingleNodeName = null)
 		{
 			// Get the data for this file
 			byte[] Data;
@@ -415,7 +416,7 @@ namespace EpicGames.BuildGraph
 			}
 
 			// Read the document and validate it against the schema
-			BgScriptDocument Document;
+			BgScriptDocument? Document;
 			if (!BgScriptDocument.TryRead(File, Context.GetNativePath(File), Data, Schema, Logger, out Document))
 			{
 				NumErrors++;
@@ -576,7 +577,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Name">Name of the property</param>
 		/// <param name="Value">On success, contains the value of the property. Set to null otherwise.</param>
 		/// <returns>True if the property was found, false otherwise</returns>
-		bool TryGetPropertyValue(string Name, out string Value)
+		bool TryGetPropertyValue(string Name, out string? Value)
 		{
 			int ValueLength = 0;
 			if (Name.Contains(":"))
@@ -589,7 +590,7 @@ namespace EpicGames.BuildGraph
 			// Check each scope for the property
 			for (int ScopeIdx = ScopedProperties.Count - 1; ScopeIdx >= 0; ScopeIdx--)
 			{
-				string ScopeValue;
+				string? ScopeValue;
 				if (ScopedProperties[ScopeIdx].TryGetValue(Name, out ScopeValue))
 				{
 					Value = ScopeValue;
@@ -681,8 +682,8 @@ namespace EpicGames.BuildGraph
 					}
 
 					// Check if the property already exists. If it does, we don't need to register it as an option.
-					string ExistingValue;
-					if(TryGetPropertyValue(Name, out ExistingValue))
+					string? ExistingValue;
+					if(TryGetPropertyValue(Name, out ExistingValue) && ExistingValue != null)
 					{
 						// If there's a restriction on this definition, check it matches
 						string Restrict = ReadAttribute(Element, "Restrict");
@@ -700,7 +701,7 @@ namespace EpicGames.BuildGraph
 						Graph.Options.Add(Option);
 
 						// Get the value of this property
-						string Value;
+						string? Value;
 						if(!Arguments.TryGetValue(Name, out Value))
 						{
 							Value = Option.DefaultValue;
@@ -771,8 +772,9 @@ namespace EpicGames.BuildGraph
 			{
 				// Get the pattern
 				string RegexString = ReadAttribute(Element, "Pattern");
+
 				// Make sure its a valid regex.
-				Regex RegexValue = ParseRegex(Element, RegexString);
+				Regex? RegexValue = ParseRegex(Element, RegexString);
 				if (RegexValue != null)
 				{
 					// read the names in 
@@ -842,7 +844,7 @@ namespace EpicGames.BuildGraph
 				string Name = ReadAttribute(Element, "Name");
 				if (ValidateName(Element, Name))
 				{
-					BgScriptMacro OriginalDefinition;
+					BgScriptMacro? OriginalDefinition;
 					if(MacroNameToDefinition.TryGetValue(Name, out OriginalDefinition))
 					{
 						LogError(Element, "Function '{0}' has already been declared (see {1} line {2})", OriginalDefinition.Element.File, OriginalDefinition.Element.LineNumber);
@@ -893,14 +895,14 @@ namespace EpicGames.BuildGraph
 		/// <param name="Trigger">The controlling trigger for nodes in this agent</param>
 		void ReadAgent(BgScriptElement Element)
 		{
-			string Name;
+			string? Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name))
 			{
 				// Read the valid agent types. This may be omitted if we're continuing an existing agent.
 				string[] Types = ReadListAttribute(Element, "Type");
 
 				// Create the agent object, or continue an existing one
-				BgAgent Agent;
+				BgAgent? Agent;
 				if (Graph.NameToAgent.TryGetValue(Name, out Agent))
 				{
 					if (Types.Length > 0 && Agent.PossibleTypes.Length > 0)
@@ -989,7 +991,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">Xml element to read the definition from</param>
 		void ReadAggregate(BgScriptElement Element)
 		{
-			string Name;
+			string? Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name) && CheckNameIsUnique(Element, Name))
 			{
 				string[] RequiredNames = ReadListAttribute(Element, "Requires");
@@ -1050,7 +1052,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">Xml element to read the definition from</param>
 		void ReadReport(BgScriptElement Element)
 		{
-			string Name;
+			string? Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name) && CheckNameIsUnique(Element, Name))
 			{
 				string[] RequiredNames = ReadListAttribute(Element, "Requires");
@@ -1071,7 +1073,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">Xml element to read the definition from</param>
 		void ReadBadge(BgScriptElement Element)
 		{
-			string Name;
+			string? Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name))
 			{
 				string[] RequiredNames = ReadListAttribute(Element, "Requires");
@@ -1146,7 +1148,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="ParentAgent">Agent for the node to be added to</param>
 		void ReadNode(BgScriptElement Element, BgAgent ParentAgent)
 		{
-			string Name;
+			string? Name;
 			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name))
 			{
 				string[] RequiresNames = ReadListAttribute(Element, "Requires");
@@ -1180,7 +1182,7 @@ namespace EpicGames.BuildGraph
 				List<string> ValidOutputNames = new List<string>();
 				foreach (string ProducesName in ProducesNames)
 				{
-					BgNodeOutput ExistingOutput;
+					BgNodeOutput? ExistingOutput;
 					if(Graph.TagNameToNodeOutput.TryGetValue(ProducesName, out ExistingOutput))
 					{
 						LogError(Element, "Output tag '{0}' is already generated by node '{1}'", ProducesName, ExistingOutput.ProducingNode.Name);
@@ -1227,7 +1229,7 @@ namespace EpicGames.BuildGraph
 					// Register all the output tags in the global name table.
 					foreach(BgNodeOutput Output in NewNode.Outputs)
 					{
-						BgNodeOutput ExistingOutput;
+						BgNodeOutput? ExistingOutput;
 						if(Graph.TagNameToNodeOutput.TryGetValue(Output.TagName, out ExistingOutput))
 						{
 							LogError(Element, "Node '{0}' already has an output called '{1}'", ExistingOutput.ProducingNode.Name, Output.TagName);
@@ -1378,7 +1380,7 @@ namespace EpicGames.BuildGraph
 			{
 				string Name = ReadAttribute(Element, "Name");
 
-				BgScriptMacro Macro;
+				BgScriptMacro? Macro;
 				if(!MacroNameToDefinition.TryGetValue(Name, out Macro))
 				{
 					LogError(Element, "Macro '{0}' does not exist", Name);
@@ -1387,9 +1389,9 @@ namespace EpicGames.BuildGraph
 				{
 					// Parse the argument list
 					string[] Arguments = new string[Macro.ArgumentNameToIndex.Count];
-					foreach(XmlAttribute Attribute in Element.Attributes)
+					foreach(XmlAttribute? Attribute in Element.Attributes)
 					{
-						if(Attribute.Name != "Name" && Attribute.Name != "If")
+						if(Attribute != null && Attribute.Name != "Name" && Attribute.Name != "If")
 						{
 							int Index;
 							if(Macro.ArgumentNameToIndex.TryGetValue(Attribute.Name, out Index))
@@ -1445,15 +1447,15 @@ namespace EpicGames.BuildGraph
 			if (EvaluateCondition(Element))
 			{
 				BgTask Info = new BgTask(Tuple.Create(Element.File, Element.LineNumber), Element.Name);
-				foreach (XmlAttribute Attribute in Element.Attributes)
+				foreach (XmlAttribute? Attribute in Element.Attributes)
 				{
-					if (String.Compare(Attribute.Name, "If", StringComparison.InvariantCultureIgnoreCase) != 0)
+					if (String.Compare(Attribute!.Name, "If", StringComparison.InvariantCultureIgnoreCase) != 0)
 					{
 						string ExpandedValue = ExpandProperties(Element, Attribute.Value);
 						Info.Arguments.Add(Attribute.Name, ExpandedValue);
 					}
 				}
-				ParentNode.TaskInfos.Add(Info);
+				ParentNode.Tasks.Add(Info);
 			}
 		}
 
@@ -1536,7 +1538,7 @@ namespace EpicGames.BuildGraph
 				{
 					foreach (string ReportName in ReportNames)
 					{
-						BgReport Report;
+						BgReport? Report;
 						if (Graph.NameToReport.TryGetValue(ReportName, out Report))
 						{
 							Report.NotifyUsers.UnionWith(Users);
@@ -1557,17 +1559,13 @@ namespace EpicGames.BuildGraph
 		/// <param name="EventType">The diagnostic event type</param>
 		/// <param name="EnclosingNode">The node that this diagnostic is declared in, or null</param>
 		/// <param name="EnclosingAgent">The agent that this diagnostic is declared in, or null</param>
-		void ReadDiagnostic(BgScriptElement Element, LogEventType EventType, BgNode EnclosingNode, BgAgent EnclosingAgent)
+		void ReadDiagnostic(BgScriptElement Element, LogEventType EventType, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
 		{
 			if (EvaluateCondition(Element))
 			{
 				string Message = ReadAttribute(Element, "Message");
 
-				BgScriptDiagnostic Diagnostic = new BgScriptDiagnostic();
-				Diagnostic.EventType = EventType;
-				Diagnostic.Message = String.Format("{0}({1}): {2}", Element.File, Element.LineNumber, Message);
-				Diagnostic.EnclosingNode = EnclosingNode;
-				Diagnostic.EnclosingAgent = EnclosingAgent;
+				BgScriptDiagnostic Diagnostic = new BgScriptDiagnostic(EventType, $"{Element.File}({Element.LineNumber}): {Message}", EnclosingNode, EnclosingAgent);
 				Graph.Diagnostics.Add(Diagnostic);
 			}
 		}
@@ -1600,7 +1598,7 @@ namespace EpicGames.BuildGraph
 			HashSet<BgNode> Nodes = new HashSet<BgNode>();
 			foreach (string ReferenceName in ReferenceNames)
 			{
-				BgNode[] OtherNodes;
+				BgNode[]? OtherNodes;
 				if (Graph.TryResolveReference(ReferenceName, out OtherNodes))
 				{
 					Nodes.UnionWith(OtherNodes);
@@ -1628,7 +1626,7 @@ namespace EpicGames.BuildGraph
 			HashSet<BgNodeOutput> Inputs = new HashSet<BgNodeOutput>();
 			foreach (string ReferenceName in ReferenceNames)
 			{
-				BgNodeOutput[] ReferenceInputs;
+				BgNodeOutput[]? ReferenceInputs;
 				if (Graph.TryResolveInputReference(ReferenceName, out ReferenceInputs))
 				{
 					Inputs.UnionWith(ReferenceInputs);
@@ -1651,7 +1649,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">Element to read the name for</param>
 		/// <param name="Name">Output variable to receive the name of the object</param>
 		/// <returns>True if the object had a valid name (assigned to the Name variable), false if the name was invalid or missing.</returns>
-		bool TryReadObjectName(BgScriptElement Element, out string Name)
+		bool TryReadObjectName(BgScriptElement Element, [NotNullWhen(true)] out string? Name)
 		{
 			// Check the name attribute is present
 			if (!Element.HasAttribute("Name"))
@@ -1671,38 +1669,6 @@ namespace EpicGames.BuildGraph
 
 			// Return it
 			Name = Value;
-			return true;
-		}
-
-		/// <summary>
-		/// Reads an qualified object name from its defining element. Outputs an error if the name is missing.
-		/// </summary>
-		/// <param name="Element">Element to read the name for</param>
-		/// <param name="QualifiedName">Output variable to receive the name of the object</param>
-		/// <returns>True if the object had a valid name (assigned to the Name variable), false if the name was invalid or missing.</returns>
-		bool TryReadQualifiedObjectName(BgScriptElement Element, out string[] QualifiedName)
-		{
-			// Check the name attribute is present
-			if (!Element.HasAttribute("Name"))
-			{
-				LogError(Element, "Missing 'Name' attribute");
-				QualifiedName = null;
-				return false;
-			}
-
-			// Get the value of it, strip any leading or trailing whitespace, and make sure it's not empty
-			string[] Values = ReadAttribute(Element, "Name").Split('.');
-			foreach (string Value in Values)
-			{
-				if (!ValidateName(Element, Value))
-				{
-					QualifiedName = null;
-					return false;
-				}
-			}
-
-			// Return it
-			QualifiedName = Values;
 			return true;
 		}
 
@@ -1744,7 +1710,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">The element that contains the regex</param>
 		/// <param name="Regex">The pattern to construct</param>
 		/// <returns>The regex if is valid, otherwise null</returns>
-		Regex ParseRegex(BgScriptElement Element, string Regex)
+		Regex? ParseRegex(BgScriptElement Element, string Regex)
 		{
 			if(Regex.Length == 0)
 			{
@@ -1943,7 +1909,7 @@ namespace EpicGames.BuildGraph
 				string Name = Result.Substring(Idx + 2, EndIdx - (Idx + 2));
 
 				// Find the value for it, either from the dictionary or the environment block
-				string Value;
+				string? Value;
 				if (!TryGetPropertyValue(Name, out Value))
 				{
 					LogWarning(Element, "Property '{0}' is not defined", Name);
