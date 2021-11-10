@@ -7,7 +7,7 @@
 #include "MassSimulationLOD.h"
 
 
-void UMassLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
 	BuildContext.AddFragmentWithDefaultInitializer<FMassLODInfoFragment>();
