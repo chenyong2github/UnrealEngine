@@ -157,7 +157,7 @@ struct FGatherParameters
 		SubParams.SequenceID                = InSubSequenceID;
 		SubParams.RootToSequenceWarpCounter = WarpCounter;
 
-		SubParams.LocalClampRange			= SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
+		SubParams.LocalClampRange           = SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
 
 		return SubParams;
 	}

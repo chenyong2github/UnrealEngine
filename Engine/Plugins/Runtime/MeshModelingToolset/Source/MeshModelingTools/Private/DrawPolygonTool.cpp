@@ -236,6 +236,11 @@ void UDrawPolygonTool::ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, c
 
 void UDrawPolygonTool::OnTick(float DeltaTime)
 {
+	if (PlaneTransformGizmo)
+	{
+		// faster to do this as an override rather than destroying/recreating the gizmo via UpdateShowGizmoState
+		PlaneTransformGizmo->SetVisibility(AllowDrawPlaneUpdates());
+	}
 }
 
 
@@ -474,7 +479,41 @@ void UDrawPolygonTool::UpdatePreviewVertex(const FVector3d& PreviewVertexIn)
 	if (PolygonVertices.Num() > 0)
 	{
 		const FVector3d LastVertex = PolygonVertices[PolygonVertices.Num() - 1];
-		PolygonProperties->Distance = Distance(LastVertex, PreviewVertex);
+		if (bInFixedPolygonMode)
+		{
+			double FixedDistance = 0; // get a representative distance for the shape, to show to the user
+			if (FixedPolygonClickPoints.Num() > 0)
+			{
+				// Build standard polygon parameters
+				TArray<FVector3d> PreviewClickPoints = FixedPolygonClickPoints;
+				PreviewClickPoints.Add(PreviewVertex);
+				FVector2d FirstReferencePt, BoxSize;
+				double YSign, AngleRad;
+				GetPolygonParametersFromFixedPoints(PreviewClickPoints, FirstReferencePt, BoxSize, YSign, AngleRad);
+				double Width = BoxSize.X, Height = BoxSize.Y;
+				// For rectangles, interface uses width for earlier click, height for later
+				if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle)
+				{
+					if (PreviewClickPoints.Num() == 2)
+					{
+						FixedDistance = Width;
+					}
+					else
+					{
+						FixedDistance = Height;
+					}
+				}
+				else // For all else (circles, discs and squares), only width is used
+				{
+					FixedDistance = Width;
+				}
+			}
+			PolygonProperties->Distance = (float)FixedDistance;
+		}
+		else
+		{
+			PolygonProperties->Distance = Distance(LastVertex, PreviewVertex);
+		}
 	}
 }
 
@@ -498,7 +537,12 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	// if we found a scene snap point, add to snap set
 	if (bIgnoreSnappingToggle || SnapProperties->bEnableSnapping == false)
 	{
+		// if snapping is disabled, still snap to the first vertex (so the polygon can be closed)
 		SnapEngine.Reset();
+		if (bInFixedPolygonMode == false && PolygonVertices.Num() > 0)
+		{
+			SnapEngine.AddPointTarget(PolygonVertices[0], StartPointSnapID, 1);
+		}
 	}
 	else 
 	{
@@ -530,6 +574,18 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 			SnapEngine.RegenerateTargetLines(true, true);
 		}
 		SnapEngine.bEnableSnapToKnownLengths = SnapProperties->bSnapToLengths;
+	}
+	// ignore snapping to start point unless we have at least 3 vertices
+	if (bInFixedPolygonMode == false && PolygonVertices.Num() > 0)
+	{
+		if (PolygonVertices.Num() < 3)
+		{
+			SnapEngine.AddIgnoreTarget(StartPointSnapID);
+		}
+		else
+		{
+			SnapEngine.RemoveIgnoreTarget(StartPointSnapID);
+		}
 	}
 
 	SnapEngine.UpdateSnappedPoint(HitPos);
@@ -733,15 +789,11 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 
 	AppendVertex(HitPos);
 
-	// if we are starting a freehand poly, add start point as snap target, but then ignore it until we get 3 verts
+	// if we are starting a freehand poly, add start point as snap target.
+	// Note that logic in FindDrawPlaneHitPoint will ignore it until we get 3 verts
 	if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
 	{
 		SnapEngine.AddPointTarget(PolygonVertices[0], StartPointSnapID, 1);
-		SnapEngine.AddIgnoreTarget(StartPointSnapID);
-	}
-	if (PolygonVertices.Num() > 2)
-	{
-		SnapEngine.RemoveIgnoreTarget(StartPointSnapID);
 	}
 
 	UpdatePreviewVertex(HitPos);
@@ -944,9 +996,31 @@ void UDrawPolygonTool::EndInteractiveExtrude()
 }
 
 
+bool UDrawPolygonTool::AllowDrawPlaneUpdates()
+{
+	if (bInInteractiveExtrude)
+	{
+		return false;
+	}
+	if (bInFixedPolygonMode)
+	{
+		return FixedPolygonClickPoints.IsEmpty();
+	}
+	else
+	{
+		return PolygonVertices.IsEmpty();
+	}
+}
+
+
 
 void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal)
 {
+	if (!AllowDrawPlaneUpdates())
+	{
+		return;
+	}
+
 	DrawPlaneOrigin = Position;
 
 	FFrame3d DrawPlane(Position, DrawPlaneOrientation);

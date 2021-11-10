@@ -359,7 +359,7 @@ class IOnlineSession
 protected:
 
 	/** Hidden on purpose */
-	IOnlineSession() {};
+	ONLINESUBSYSTEM_API IOnlineSession() {};
 
 	/**
 	 * Adds a new named session to the list (new session)
@@ -382,7 +382,7 @@ protected:
 	virtual class FNamedOnlineSession* AddNamedSession(FName SessionName, const FOnlineSession& Session) = 0;
 
 public:
-	virtual ~IOnlineSession() {};
+	ONLINESUBSYSTEM_API virtual ~IOnlineSession() {};
 
 	/**
 	 * Create a session id from a string

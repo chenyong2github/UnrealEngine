@@ -10,6 +10,7 @@
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
 #include "DXCWrapper.h"
+#include "ShaderConductorContext.h"
 
 static FName NAME_VULKAN_ES3_1_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID"));
 static FName NAME_VULKAN_ES3_1(TEXT("SF_VULKAN_ES31"));
@@ -119,6 +120,11 @@ public:
 		}
 
 		return Singleton;
+	}
+
+	virtual void ShutdownModule() override
+	{
+		CrossCompiler::FShaderConductorContext::Shutdown();
 	}
 };
 

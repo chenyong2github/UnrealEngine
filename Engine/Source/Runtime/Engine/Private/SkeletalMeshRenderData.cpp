@@ -710,7 +710,7 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 	CurrentFirstLODIdx = LODRenderData.Num() - NumInlinedLODs;
 	PendingFirstLODIdx = CurrentFirstLODIdx;
 
-	bSupportRayTracing = Owner->bSupportRayTracing;
+	bSupportRayTracing = Owner->GetSupportRayTracing();
 }
 
 void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner)

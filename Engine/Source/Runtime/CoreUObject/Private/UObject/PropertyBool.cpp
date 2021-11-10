@@ -123,6 +123,7 @@ void FBoolProperty::LinkInternal(FArchive& Ar)
 		PropertyFlags &= ~(CPF_IsPlainOldData | CPF_ZeroConstructor);
 		PropertyFlags |= CPF_NoDestructor;
 	}
+	PropertyFlags |= CPF_HasGetValueTypeHash;
 }
 void FBoolProperty::Serialize( FArchive& Ar )
 {
@@ -398,7 +399,8 @@ void FBoolProperty::InitializeValueInternal( void* Data ) const
 
 uint32 FBoolProperty::GetValueTypeHashInternal(const void* Src) const
 {
-	return GetTypeHash(*(const bool*)Src);
+	uint8* SrcByteValue = (uint8*)Src + ByteOffset;
+	return GetTypeHash(*SrcByteValue & FieldMask);
 }
 
 #include "UObject/DefineUPropertyMacros.h"

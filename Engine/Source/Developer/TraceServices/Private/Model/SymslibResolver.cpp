@@ -587,7 +587,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 			SYMS_ArenaTemp Scratch = syms_get_scratch(0, 0);
 
-			SYMS_UnitID UnitID = static_cast<SYMS_UnitID>(Index + 1); // syms unit id's are 1-based
+			SYMS_UnitID UnitID = static_cast<SYMS_UnitID>(Index) + 1; // syms unit id's are 1-based
 			FSymsUnit* Unit = &Instance->Units[Index];
 
 			SYMS_SpatialMap1D* ProcSpatialMap = syms_group_proc_map_from_uid(Group, UnitID);

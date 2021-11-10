@@ -142,8 +142,8 @@ private:
 	TUniquePtr<FSQCapture> SQCapture;
 
 	TUniquePtr<Chaos::FPBDRigidsEvolution> ChaosEvolution;
-	Chaos::FPBDRigidsSOAs Particles;
 	Chaos::FParticleUniqueIndicesMultithreaded UniqueIndices;
+	Chaos::FPBDRigidsSOAs Particles;
 	Chaos::THandleArray<Chaos::FChaosPhysicsMaterial> PhysicalMaterials;
 	TArray <TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 

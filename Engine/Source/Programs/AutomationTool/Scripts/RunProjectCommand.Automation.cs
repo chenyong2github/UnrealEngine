@@ -635,7 +635,7 @@ namespace AutomationScripts
 					{
 						if (Params.CookOnTheFly)
 						{
-							TempCmdLine += "-cookonthefly";
+							TempCmdLine += "-cookonthefly ";
 						}
 						TempCmdLine += "-zenstorehost=";
 					}

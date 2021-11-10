@@ -26,6 +26,7 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettings.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettingsICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
+#include "Render/Viewport/Containers/ImplDisplayClusterViewport_CustomFrustum.h"
 
 #include "Containers/DisplayClusterProjectionCameraPolicySettings.h"
 #include "DisplayClusterProjectionStrings.h"
@@ -38,7 +39,7 @@
 static bool ImplUpdateCameraProjectionSettings(TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InOutCameraProjection, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings, UCameraComponent* const CameraComponent)
 {
 	FDisplayClusterProjectionCameraPolicySettings PolicyCameraSettings;
-	PolicyCameraSettings.FOVMultiplier = CameraSettings.FieldOfViewMultiplier;
+	PolicyCameraSettings.FOVMultiplier = CameraSettings.CustomFrustum.FieldOfViewMultiplier;
 
 	// Lens correction
 	PolicyCameraSettings.FrustumRotation = CameraSettings.FrustumRotation;
@@ -367,6 +368,9 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 
 		FDisplayClusterViewportConfigurationHelpers::UpdateViewportStereoMode(DstViewport, InAdvancedRS.StereoMode);
 	}
+
+	// Support inner camera custom frustum
+	FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(DstViewport, CameraSettings.CustomFrustum);
 }
 
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportSettings(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& InCameraViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
@@ -404,6 +408,8 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 
 	FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_OverlayRenderSettings(DstViewport, InRenderSettings.AdvancedRenderSettings);
 
+	// Support inner camera custom frustum
+	FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(DstViewport, CameraSettings.CustomFrustum);
 
 	// Attach to parent viewport
 	DstViewport.RenderSettings.AssignParentViewport(InCameraViewport.GetId(), InCameraViewport.RenderSettings);
@@ -594,3 +600,38 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 		}
 	}
 }
+
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraCustomFrustum& InCameraCustomFrustum)
+{
+	if (InCameraCustomFrustum.bEnable)
+	{
+		FImplDisplayClusterViewport_CustomFrustumSettings CustomFrustumSettings;
+
+		switch (InCameraCustomFrustum.Mode)
+		{
+		case EDisplayClusterConfigurationViewportCustomFrustumMode::Percent:
+			CustomFrustumSettings.Mode = EDisplayClusterViewport_CustomFrustumMode::Percent;
+
+			// Scale 0..100% to 0..1 range
+			CustomFrustumSettings.Left = .01f * InCameraCustomFrustum.Left;
+			CustomFrustumSettings.Right = .01f * InCameraCustomFrustum.Right;
+			CustomFrustumSettings.Top = .01f * InCameraCustomFrustum.Top;
+			CustomFrustumSettings.Bottom = .01f * InCameraCustomFrustum.Bottom;
+			break;
+
+		case EDisplayClusterConfigurationViewportCustomFrustumMode::Pixels:
+			CustomFrustumSettings.Mode = EDisplayClusterViewport_CustomFrustumMode::Pixels;
+
+			CustomFrustumSettings.Left = InCameraCustomFrustum.Left;
+			CustomFrustumSettings.Right = InCameraCustomFrustum.Right;
+			CustomFrustumSettings.Top = InCameraCustomFrustum.Top;
+			CustomFrustumSettings.Bottom = InCameraCustomFrustum.Bottom;
+			break;
+
+		default:
+			break;
+		}
+
+		DstViewport.CustomFrustumRendering.Set(CustomFrustumSettings);
+	}
+};

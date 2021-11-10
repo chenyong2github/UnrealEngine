@@ -25,13 +25,8 @@ namespace CADKernel
 		friend class FEntity;
 
 	protected:
-		ECriterion CriterionType;
-		
-		FCriterion(ECriterion InCriterionType)
-			: FEntity()
-			, CriterionType(InCriterionType)
-		{
-		}
+
+		FCriterion() = default;
 
 	public:
 
@@ -40,6 +35,7 @@ namespace CADKernel
 			// Criterion's type is serialize because it is used to instantiate the correct entity on deserialization (@see Deserialize(FArchive& Archive)) 
 			if (Ar.IsSaving())
 			{
+				ECriterion CriterionType = GetCriterionType();
 				Ar << CriterionType;
 			}
 			FEntity::Serialize(Ar);
@@ -67,14 +63,11 @@ namespace CADKernel
 		 */
 		virtual void ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const;
 
-		const ECriterion GetCriterionType() const
-		{
-			return CriterionType;
-		}
+		virtual ECriterion GetCriterionType() const = 0;
 
 		FString GetCriterionName()
 		{
-			return CriterionTypeNames[(int32) CriterionType];
+			return CriterionTypeNames[(int32)GetCriterionType()];
 		}
 
 		virtual double Value() const = 0;
@@ -94,7 +87,7 @@ namespace CADKernel
 				double NormSqrSag = VecSag * VecSag;
 				Sag = NormSqrSag / NormSqrVec;
 
-				if (Sag <SMALL_NUMBER_SQUARE)
+				if (Sag < SMALL_NUMBER_SQUARE)
 				{
 					Sag = 0.;
 				}
@@ -113,7 +106,7 @@ namespace CADKernel
 
 		static FString GetCriterionName(ECriterion CriterionType)
 		{
-			return CriterionTypeNames[(int32) CriterionType];
+			return CriterionTypeNames[(int32)CriterionType];
 		}
 
 
@@ -128,7 +121,7 @@ namespace CADKernel
 			if (InUSag > SMALL_NUMBER)
 			{
 				double DeltaUMax = ComputeDeltaU(ChordLength, InDeltaU, InUSag);
-				OutSagDeltaUMax = (OutSagDeltaUMax <DeltaUMax) ? OutSagDeltaUMax : DeltaUMax;
+				OutSagDeltaUMax = (OutSagDeltaUMax < DeltaUMax) ? OutSagDeltaUMax : DeltaUMax;
 			}
 		}
 
@@ -143,4 +136,3 @@ namespace CADKernel
 	};
 
 } // namespace CADKernel
-

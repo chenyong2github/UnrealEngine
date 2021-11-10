@@ -485,21 +485,21 @@ bool FStringViewTestStartsWith::RunTest(const FString& Parameters)
 		FStringView View;
 		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("")));
 		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT("Text")));
-		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('A'));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT('A')));
 	}
 
 	// Test a valid view with the correct text
 	{
 		FStringView View(TEXT("String to test"));
 		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("String")));
-		TestTrue(TEXT(" View.StartsWith"), View.StartsWith('S'));
+		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT('S')));
 	}
 
 	// Test a valid view with incorrect text
 	{
 		FStringView View(TEXT("String to test"));
 		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT("test")));
-		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('t'));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT('t')));
 	}
 
 	// Test a valid view with the correct text but with different case
@@ -508,7 +508,7 @@ bool FStringViewTestStartsWith::RunTest(const FString& Parameters)
 		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("sTrInG")));
 
 		// Searching by char is case sensitive to keep compatibility with FString
-		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('s'));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT('s')));
 	}
 
 	return true;
@@ -522,21 +522,21 @@ bool FStringViewTestEndsWith::RunTest(const FString& Parameters)
 		FStringView View;
 		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("")));
 		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT("Text")));
-		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('A'));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT('A')));
 	}
 
 	// Test a valid view with the correct text
 	{
 		FStringView View(TEXT("String to test"));
 		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("test")));
-		TestTrue(TEXT(" View.EndsWith"), View.EndsWith('t'));
+		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT('t')));
 	}
 
 	// Test a valid view with incorrect text
 	{
 		FStringView View(TEXT("String to test"));
 		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT("String")));
-		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('S'));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT('S')));
 	}
 
 	// Test a valid view with the correct text but with different case
@@ -545,7 +545,7 @@ bool FStringViewTestEndsWith::RunTest(const FString& Parameters)
 		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("TeST")));
 
 		// Searching by char is case sensitive to keep compatibility with FString
-		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('T')); 
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT('T'))); 
 	}
 
 	return true;
@@ -951,7 +951,7 @@ bool FStringViewTestSlice::RunTest(const FString& Parameters)
 
 	// Test an null-terminator-only empty string
 	FString TerminatorOnly;
-	TerminatorOnly.GetCharArray().Add('\0');
+	TerminatorOnly.GetCharArray().Add(TEXT('\0'));
 	TestSlicing(*this, TerminatorOnly);
 
 	return true; 

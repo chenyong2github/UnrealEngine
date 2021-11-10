@@ -4,7 +4,6 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SlateOptMacros.h"
-#include "EditorStyleSet.h"
 #include "Presentation/MessageLogViewModel.h"
 #include "UserInterface/SMessageLogListing.h"
 #include "Widgets/Views/SListView.h"

@@ -36,7 +36,7 @@ const FName Insights::FQueryTargetWindowSpec::NewWindow = TEXT("New Window");
 FMemorySharedState::FMemorySharedState()
 	: TimingView(nullptr)
 	, DefaultTracker(nullptr)
-	, CurrentTracker(nullptr)
+	, PlatformTracker(nullptr)
 	, MainGraphTrack(nullptr)
 	, LiveAllocsGraphTrack(nullptr)
 	, AllocFreeGraphTrack(nullptr)
@@ -70,7 +70,7 @@ void FMemorySharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 
 	Trackers.Reset();
 	DefaultTracker = nullptr;
-	CurrentTracker = nullptr;
+	PlatformTracker = nullptr;
 
 	MainGraphTrack = nullptr;
 	LiveAllocsGraphTrack = nullptr;
@@ -97,7 +97,7 @@ void FMemorySharedState::OnEndSession(Insights::ITimingViewSession& InSession)
 
 	Trackers.Reset();
 	DefaultTracker = nullptr;
-	CurrentTracker = nullptr;
+	PlatformTracker = nullptr;
 
 	MainGraphTrack = nullptr;
 	LiveAllocsGraphTrack = nullptr;
@@ -189,14 +189,9 @@ void FMemorySharedState::Tick(Insights::ITimingViewSession& InSession, const Tra
 
 	TagList.Update();
 
-	if (!CurrentTracker)
+	if (!DefaultTracker)
 	{
 		SyncTrackers();
-	}
-
-	if (CurrentTracker)
-	{
-		CurrentTracker->Update();
 	}
 
 	// Scan for mem tags to show as default, but only when new mem tags are added.
@@ -216,7 +211,7 @@ void FMemorySharedState::CreateDefaultTracks()
 		return;
 	}
 
-	const uint64 TrackerFilterMask = 1ULL << static_cast<int32>(DefaultTracker->GetId());
+	Insights::FMemoryTrackerId DefaultTrackerId = DefaultTracker->GetId();
 
 	static const TCHAR* DefaultTags[] =
 	{
@@ -249,11 +244,11 @@ void FMemorySharedState::CreateDefaultTracks()
 		{
 			for (const Insights::FMemoryTag* Tag : Tags)
 			{
-				if ((Tag->GetTrackers() & TrackerFilterMask) != 0 && // is it used by current tracker?
+				if (Tag->GetTrackerId() == DefaultTrackerId && // is it used by the default tracker?
 					Tag->GetGraphTracks().Num() == 0 && // a graph isn't already added for this llm tag?
-					FCString::Stricmp(*Tag->GetStatName(), DefaultTags[DefaultTagIndex]) == 0) // is it a llm tag to show as default?
+					FCString::Stricmp(*Tag->GetStatName(), DefaultTags[DefaultTagIndex]) == 0) // is it one of the llm tags to show as default?
 				{
-					CreateMemTagGraphTrack(Tag->GetId());
+					CreateMemTagGraphTrack(DefaultTrackerId, Tag->GetId());
 					CreatedDefaultTracks[DefaultTagIndex] = true;
 				}
 			}
@@ -270,7 +265,7 @@ FString FMemorySharedState::TrackersToString(uint64 Flags, const TCHAR* Conjunct
 	{
 		for (const TSharedPtr<Insights::FMemoryTracker>& Tracker : Trackers)
 		{
-			const uint64 TrackerFlag = 1ULL << Tracker->GetId();
+			const uint64 TrackerFlag = Insights::FMemoryTracker::AsFlag(Tracker->GetId());
 			if ((Flags & TrackerFlag) != 0)
 			{
 				if (!Str.IsEmpty())
@@ -291,10 +286,18 @@ FString FMemorySharedState::TrackersToString(uint64 Flags, const TCHAR* Conjunct
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const Insights::FMemoryTracker* FMemorySharedState::GetTrackerById(Insights::FMemoryTrackerId InMemTrackerId) const
+{
+	const TSharedPtr<Insights::FMemoryTracker>* TrackerPtr = Trackers.FindByPredicate([InMemTrackerId](TSharedPtr<Insights::FMemoryTracker>& Tracker) { return Tracker->GetId() == InMemTrackerId; });
+	return TrackerPtr ? TrackerPtr->Get() : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FMemorySharedState::SyncTrackers()
 {
 	DefaultTracker = nullptr;
-	CurrentTracker = nullptr;
+	PlatformTracker = nullptr;
 	Trackers.Reset();
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -320,38 +323,12 @@ void FMemorySharedState::SyncTrackers()
 			if (FCString::Stricmp(*Tracker->GetName(), TEXT("Default")) == 0)
 			{
 				DefaultTracker = Tracker;
-				break;
+			}
+			if (FCString::Stricmp(*Tracker->GetName(), TEXT("Platform")) == 0)
+			{
+				PlatformTracker = Tracker;
 			}
 		}
-
-		CurrentTracker = DefaultTracker ? DefaultTracker : Trackers.Last();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FMemorySharedState::OnTrackerChanged()
-{
-	if (CurrentTracker != nullptr)
-	{
-		for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : AllTracks)
-		{
-			SetTrackerIdToAllSeries(GraphTrack, CurrentTracker->GetId());
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FMemorySharedState::SetTrackerIdToAllSeries(TSharedPtr<FMemoryGraphTrack>& GraphTrack, Insights::FMemoryTrackerId TrackerId)
-{
-	for (TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
-	{
-		//TODO: if (Series->Is<FMemoryGraphSeries>())
-		TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
-		MemorySeries->SetTrackerId(TrackerId);
-		MemorySeries->SetValueRange(0.0, 0.0);
-		MemorySeries->SetDirtyFlag();
 	}
 }
 
@@ -491,7 +468,7 @@ void FMemorySharedState::RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& G
 	{
 		//TODO: if (Series->Is<FMemoryGraphSeries>())
 		TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
-		Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemorySeries->GetTagId());
+		Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemorySeries->GetTrackerId(), MemorySeries->GetTagId());
 		if (TagPtr)
 		{
 			TagPtr->RemoveTrack(GraphTrack);
@@ -501,14 +478,14 @@ void FMemorySharedState::RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& G
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphTrack> FMemorySharedState::GetMemTagGraphTrack(Insights::FMemoryTagId MemTagId)
+TSharedPtr<FMemoryGraphTrack> FMemorySharedState::GetMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
 	if (!TimingView.IsValid())
 	{
 		return nullptr;
 	}
 
-	Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemTagId);
+	Insights::FMemoryTag* TagPtr = TagList.GetTagById(InMemTrackerId, InMemTagId);
 	if (TagPtr)
 	{
 		for (TSharedPtr<FMemoryGraphTrack> MemoryGraph : TagPtr->GetGraphTracks())
@@ -525,18 +502,32 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::GetMemTagGraphTrack(Insights::
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insights::FMemoryTagId MemTagId)
+TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
-	if (!TimingView.IsValid() || !CurrentTracker)
+	if (!TimingView.IsValid())
 	{
 		return nullptr;
 	}
 
-	Insights::FMemoryTrackerId MemTrackerId = CurrentTracker->GetId();
+	Insights::FMemoryTag* TagPtr = TagList.GetTagById(InMemTrackerId, InMemTagId);
 
-	Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemTagId);
-
-	const FString SeriesName = TagPtr ? TagPtr->GetStatName() : FString::Printf(TEXT("Unknown LLM Tag (%d)"), MemTagId);
+	FString SeriesName;
+	if (TagPtr)
+	{
+		const Insights::FMemoryTracker* Tracker = GetTrackerById(InMemTrackerId);
+		if (Tracker && Tracker != DefaultTracker.Get())
+		{
+			SeriesName = FString::Printf(TEXT("LLM %s (%s)"), *TagPtr->GetStatName(), *Tracker->GetName());
+		}
+		else
+		{
+			SeriesName = FString::Printf(TEXT("LLM %s"), *TagPtr->GetStatName());
+		}
+	}
+	else
+	{
+		SeriesName = FString::Printf(TEXT("Unknown LLM Tag (tag id: 0x%X, tracker id: %i)"), InMemTagId, int32(InMemTrackerId));
+	}
 
 	const FLinearColor Color = TagPtr ? TagPtr->GetColor() : FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	const FLinearColor BorderColor(FMath::Min(Color.R + 0.4f, 1.0f), FMath::Min(Color.G + 0.4f, 1.0f), FMath::Min(Color.B + 0.4f, 1.0f), 1.0f);
@@ -544,7 +535,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 	// Also create a series in the MainGraphTrack.
 	if (MainGraphTrack.IsValid())
 	{
-		TSharedPtr<FMemoryGraphSeries> Series = MainGraphTrack->AddMemTagSeries(MemTrackerId, MemTagId);
+		TSharedPtr<FMemoryGraphSeries> Series = MainGraphTrack->AddMemTagSeries(InMemTrackerId, InMemTagId);
 		Series->SetName(SeriesName);
 		Series->SetColor(Color, BorderColor, Color.CopyWithNewOpacity(0.1f));
 		Series->DisableAutoZoom();
@@ -559,7 +550,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 		TimingView->OnTrackVisibilityChanged();
 	}
 
-	TSharedPtr<FMemoryGraphTrack> GraphTrack = GetMemTagGraphTrack(MemTagId);
+	TSharedPtr<FMemoryGraphTrack> GraphTrack = GetMemTagGraphTrack(InMemTrackerId, InMemTagId);
 
 	if (!GraphTrack.IsValid())
 	{
@@ -580,7 +571,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 		GraphTrack->EnableAutoZoom();
 
 		// Create series.
-		TSharedPtr<FMemoryGraphSeries> Series = GraphTrack->AddMemTagSeries(MemTrackerId, MemTagId);
+		TSharedPtr<FMemoryGraphSeries> Series = GraphTrack->AddMemTagSeries(InMemTrackerId, InMemTagId);
 		Series->SetName(SeriesName);
 		Series->SetColor(Color, BorderColor);
 		Series->SetBaselineY(GraphTrack->GetHeight() - 1.0f);
@@ -606,21 +597,21 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 FMemorySharedState::RemoveMemTagGraphTrack(Insights::FMemoryTagId MemTagId)
+int32 FMemorySharedState::RemoveMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
-	if (!TimingView.IsValid() || !CurrentTracker)
+	if (!TimingView.IsValid())
 	{
 		return -1;
 	}
 
 	int32 TrackCount = 0;
 
-	Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemTagId);
+	Insights::FMemoryTag* TagPtr = TagList.GetTagById(InMemTrackerId, InMemTagId);
 	if (TagPtr)
 	{
 		for (TSharedPtr<FMemoryGraphTrack> GraphTrack : TagPtr->GetGraphTracks())
 		{
-			GraphTrack->RemoveMemTagSeries(MemTagId);
+			GraphTrack->RemoveMemTagSeries(InMemTrackerId, InMemTagId);
 			if (GraphTrack->GetSeries().Num() == 0)
 			{
 				if (GraphTrack == MainGraphTrack)
@@ -644,65 +635,9 @@ int32 FMemorySharedState::RemoveMemTagGraphTrack(Insights::FMemoryTagId MemTagId
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 FMemorySharedState::RemoveUnusedMemTagGraphTracks()
-{
-	if (!TimingView.IsValid() || !CurrentTracker)
-	{
-		return -1;
-	}
-
-	TArray<TSharedPtr<FMemoryGraphTrack>> TracksToRemove;
-
-	for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : AllTracks)
-	{
-		TArray<Insights::FMemoryTagId> IdsToRemove;
-		for (TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
-		{
-			//TODO: if (Series->Is<FMemoryGraphSeries>())
-			TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
-			Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemorySeries->GetTagId());
-			if (TagPtr)
-			{
-				const uint64 TrackerFlag = 1ULL << MemorySeries->GetTrackerId();
-				if ((TagPtr->GetTrackers() & TrackerFlag) != TrackerFlag)
-				{
-					IdsToRemove.Add(MemorySeries->GetTagId());
-					TagPtr->RemoveTrack(GraphTrack);
-				}
-			}
-		}
-		for (Insights::FMemoryTagId MemTagId : IdsToRemove)
-		{
-			GraphTrack->RemoveMemTagSeries(MemTagId);
-		}
-		if (GraphTrack->GetSeries().Num() == 0)
-		{
-			if (GraphTrack == MainGraphTrack)
-			{
-				GraphTrack->Hide();
-				TimingView->OnTrackVisibilityChanged();
-			}
-			else
-			{
-				TracksToRemove.Add(GraphTrack);
-			}
-		}
-	}
-
-	for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : TracksToRemove)
-	{
-		AllTracks.Remove(GraphTrack);
-		TimingView->RemoveTrack(GraphTrack);
-	}
-
-	return TracksToRemove.Num();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 int32 FMemorySharedState::RemoveAllMemTagGraphTracks()
 {
-	if (!TimingView.IsValid() || !CurrentTracker)
+	if (!TimingView.IsValid())
 	{
 		return -1;
 	}
@@ -743,28 +678,26 @@ int32 FMemorySharedState::RemoveAllMemTagGraphTracks()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> GraphTrack, Insights::FMemoryTagId MemTagId)
+TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> InGraphTrack, Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId)
 {
-	if (!GraphTrack.IsValid() || !CurrentTracker)
+	if (!InGraphTrack.IsValid())
 	{
 		return nullptr;
 	}
 
-	Insights::FMemoryTrackerId MemTrackerId = CurrentTracker->GetId();
+	Insights::FMemoryTag* TagPtr = TagList.GetTagById(InMemTrackerId, InMemTagId);
 
-	Insights::FMemoryTag* TagPtr = TagList.GetTagById(MemTagId);
-
-	TSharedPtr<FMemoryGraphSeries> Series = GraphTrack->GetMemTagSeries(MemTagId);
+	TSharedPtr<FMemoryGraphSeries> Series = InGraphTrack->GetMemTagSeries(InMemTrackerId, InMemTagId);
 	if (Series.IsValid())
 	{
 		// Remove existing series.
-		GraphTrack->RemoveMemTagSeries(MemTagId);
-		GraphTrack->SetDirtyFlag();
+		InGraphTrack->RemoveMemTagSeries(InMemTrackerId, InMemTagId);
+		InGraphTrack->SetDirtyFlag();
 		TimingView->OnTrackVisibilityChanged();
 
 		if (TagPtr)
 		{
-			TagPtr->RemoveTrack(GraphTrack);
+			TagPtr->RemoveTrack(InGraphTrack);
 		}
 
 		return nullptr;
@@ -772,16 +705,16 @@ TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TShar
 	else
 	{
 		// Add new series.
-		Series = GraphTrack->AddMemTagSeries(MemTrackerId, MemTagId);
+		Series = InGraphTrack->AddMemTagSeries(InMemTrackerId, InMemTagId);
 		Series->DisableAutoZoom();
 
 		if (TagPtr)
 		{
-			TagPtr->AddTrack(GraphTrack);
+			TagPtr->AddTrack(InGraphTrack);
 		}
 
-		GraphTrack->SetDirtyFlag();
-		GraphTrack->Show();
+		InGraphTrack->SetDirtyFlag();
+		InGraphTrack->Show();
 		TimingView->OnTrackVisibilityChanged();
 
 		return Series;
@@ -790,13 +723,9 @@ TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TShar
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Create graphs from LLMReportTypes.xml file
 void FMemorySharedState::CreateTracksFromReport(const FString& Filename)
 {
-	if (!CurrentTracker)
-	{
-		return;
-	}
-
 	Insights::FReportConfig ReportConfig;
 
 	Insights::FReportXmlParser ReportXmlParser;
@@ -816,19 +745,9 @@ void FMemorySharedState::CreateTracksFromReport(const FString& Filename)
 
 void FMemorySharedState::CreateTracksFromReport(const Insights::FReportConfig& ReportConfig)
 {
-	if (!CurrentTracker)
+	for (const Insights::FReportTypeConfig& ReportTypeConfig : ReportConfig.ReportTypes)
 	{
-		return;
-	}
-
-	//for (const Insights::FReportTypeConfig& ReportTypeConfig : ReportConfig.ReportTypes)
-	//{
-	//	CreateTracksFromReport(ReportTypeConfig);
-	//}
-
-	if (ReportConfig.ReportTypes.Num() > 0)
-	{
-		CreateTracksFromReport(ReportConfig.ReportTypes[0]);
+		CreateTracksFromReport(ReportTypeConfig);
 	}
 }
 
@@ -836,17 +755,14 @@ void FMemorySharedState::CreateTracksFromReport(const Insights::FReportConfig& R
 
 void FMemorySharedState::CreateTracksFromReport(const Insights::FReportTypeConfig& ReportTypeConfig)
 {
-	if (!CurrentTracker)
-	{
-		return;
-	}
-
 	int32 Order = GetNextMemoryGraphTrackOrder();
 	int32 NumAddedTracks = 0;
 
+	const bool bIsPlatformTracker = ReportTypeConfig.Name.StartsWith(TEXT("LLMPlatform"));
+
 	for (const Insights::FReportTypeGraphConfig& ReportTypeGraphConfig : ReportTypeConfig.Graphs)
 	{
-		TSharedPtr<FMemoryGraphTrack> GraphTrack = CreateGraphTrack(ReportTypeGraphConfig);
+		TSharedPtr<FMemoryGraphTrack> GraphTrack = CreateGraphTrack(ReportTypeGraphConfig, bIsPlatformTracker);
 		if (GraphTrack)
 		{
 			GraphTrack->SetOrder(Order++);
@@ -865,7 +781,7 @@ void FMemorySharedState::CreateTracksFromReport(const Insights::FReportTypeConfi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateGraphTrack(const Insights::FReportTypeGraphConfig& ReportTypeGraphConfig)
+TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateGraphTrack(const Insights::FReportTypeGraphConfig& ReportTypeGraphConfig, bool bIsPlatformTracker)
 {
 	if (ReportTypeGraphConfig.GraphConfig == nullptr)
 	{
@@ -873,17 +789,30 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateGraphTrack(const Insight
 		return nullptr;
 	}
 
-	if (!TimingView.IsValid() || !CurrentTracker)
+	if (!TimingView.IsValid())
 	{
 		return nullptr;
 	}
 
-	Insights::FMemoryTrackerId MemTrackerId = CurrentTracker->GetId();
-
 	const Insights::FGraphConfig& GraphConfig = *ReportTypeGraphConfig.GraphConfig;
 
+	int32 CharIndex;
+	const TCHAR* DelimStr;
+
+	if (GraphConfig.StatString.FindChar(TEXT(','), CharIndex))
+	{
+		DelimStr = TEXT(",");
+	}
+	else if (GraphConfig.StatString.FindChar(TEXT(';'), CharIndex))
+	{
+		DelimStr = TEXT(";");
+	}
+	else
+	{
+		DelimStr = TEXT(" ");
+	}
 	TArray<FString> IncludeStats;
-	GraphConfig.StatString.ParseIntoArray(IncludeStats, TEXT(" ")); // TODO: names enclosed in quotes
+	GraphConfig.StatString.ParseIntoArray(IncludeStats, DelimStr);
 
 	if (IncludeStats.Num() == 0)
 	{
@@ -891,11 +820,27 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateGraphTrack(const Insight
 		return nullptr;
 	}
 
+	if (GraphConfig.IgnoreStats.FindChar(TEXT(';'), CharIndex))
+	{
+		DelimStr = TEXT(";");
+	}
+	else if (GraphConfig.IgnoreStats.FindChar(TEXT(','), CharIndex))
+	{
+		DelimStr = TEXT(",");
+	}
+	else
+	{
+		DelimStr = TEXT(" ");
+	}
 	TArray<FString> IgnoreStats;
-	GraphConfig.IgnoreStats.ParseIntoArray(IgnoreStats, TEXT(";"));
+	GraphConfig.IgnoreStats.ParseIntoArray(IgnoreStats, DelimStr);
 
 	TArray<Insights::FMemoryTag*> Tags;
 	TagList.FilterTags(IncludeStats, IgnoreStats, Tags);
+
+	Insights::FMemoryTrackerId MemTrackerId = bIsPlatformTracker ?
+		(PlatformTracker ? PlatformTracker->GetId() : Insights::FMemoryTracker::InvalidTrackerId) :
+		(DefaultTracker ? DefaultTracker->GetId() : Insights::FMemoryTracker::InvalidTrackerId);
 
 	TSharedPtr<FMemoryGraphTrack> GraphTrack = CreateMemoryGraphTrack();
 	if (GraphTrack)

@@ -96,7 +96,7 @@ namespace DatasmithImportFactoryImpl
 
 	static void SetupSceneViewport(FDatasmithImportContext& InContext)
 	{
-		if ( !InContext.ShouldImportActors() || !InContext.SceneAsset || InContext.ActorsContext.FinalSceneActors.Num() == 0)
+		if ( !InContext.ShouldImportActors() || !InContext.SceneAsset || InContext.ActorsContext.FinalSceneActors.Num() == 0 || InContext.bIsAReimport)
 		{
 			return;
 		}
@@ -462,9 +462,11 @@ void UDatasmithImportFactory::ValidateFilesForReimport(TArray<FString>& Filename
 
 UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, const FString& InFilename, const TCHAR* InParms, FFeedbackContext* InWarn, bool& bOutOperationCanceled)
 {
+	using namespace UE::DatasmithImporter;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UDatasmithImportFactory::FactoryCreateFile);
 
-	TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource(UE::DatasmithImporter::FSourceUri::FromFilePath(InFilename));
+	const FSourceUri SourceUri = FSourceUri::FromFilePath(InFilename);
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 	if ( !ExternalSource )
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: no suitable external source found for this file path. Abort import."));
@@ -657,7 +659,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 		return EReimportResult::Failed;
 	}
 
-	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*MeshImportData);
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(*MeshImportData);
 	if (!ExternalSource)
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportStaticMesh error: cannot resolve the external source from Source file or URI. Abort import"));
@@ -792,7 +794,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 
 	UDatasmithSceneImportData& AssetImportData = *SceneAsset->AssetImportData;
 	
-	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(AssetImportData);
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(AssetImportData);
 	if (!ExternalSource)
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportScene error: cannot resolve the external source from Source file or URI. Abort import"));
@@ -880,7 +882,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterf
 		return EReimportResult::Failed;
 	}
 
-	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*MaterialImportData);
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(*MaterialImportData);
 	if (!ExternalSource)
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportMaterial error: cannot resolve the external source from Source file or URI. Abort import"));

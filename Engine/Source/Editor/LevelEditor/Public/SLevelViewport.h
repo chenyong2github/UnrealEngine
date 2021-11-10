@@ -209,20 +209,6 @@ public:
 	bool IsLayerVisible( FName LayerName ) const;
 
 	/**
-	 * Toggles DataLayer visibility in this viewport
-	 *
-	 * @param DataLayerName		Name of the DataLayer
-	 */
-	void ToggleShowDataLayer(FName DataLayerName);
-
-	/**
-	 * Checks if a DataLayer is visible in this viewport
-	 *
-	 * @param DataLayerName		Name of the DataLayer
-	 */
-	bool IsDataLayerVisible(FName DataLayerName) const;
-
-	/**
 	 * Toggles foliage type visibility in this viewport
 	 *
 	 * @param FoliageType	Target foliage type
@@ -533,13 +519,6 @@ private:
 	 * @param Visible					true if layers should be visible, false otherwise
 	 */
 	void OnToggleAllLayers( bool bVisible );
-
-	/**
-	 * Toggles all DataLayers visibility
-	 *
-	 * @param Visible			true if DataLayers should be visible, false otherwise
-	 */
-	void OnToggleAllDataLayers( bool bVisible );
 
 	/**
 	 * Toggles all sprite categories visibility

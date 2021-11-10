@@ -776,6 +776,8 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 		AspectToUse = Viewport->GetDesiredAspectRatio();
 	}
 
+	CameraController->ResetVelocity();
+
 	const bool bEnable=false;
 	ToggleOrbitCamera(bEnable);
 

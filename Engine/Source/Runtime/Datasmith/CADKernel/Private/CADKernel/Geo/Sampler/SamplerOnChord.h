@@ -57,7 +57,7 @@ namespace CADKernel
 			double MaxChord = 0;
 			for (int32 Index = FirstIndex; Index < EndIndex; ++Index)
 			{
-				const PointType& Middle = this->CandidatePoints.GetPoints()[Index];
+				const PointType& Middle = this->CandidatePoints.GetPointAt(Index);
 				double Chord = DistanceOfPointToSegment(Middle, APoint, BPoint);
 				if (Chord > MaxChord)
 				{
@@ -183,7 +183,7 @@ namespace CADKernel
 	{
 	public:
 		FIsoCurve3DSamplerOnChord(const FSurface& InSurface, double InMaxAllowedError, FPolyline3D& OutPolyline)
-			: TSamplerBasedOnChordError<FPoint>(Boundary, InMaxAllowedError, OutPolyline)
+			: TSamplerBasedOnChordError<FPoint>(FLinearBoundary(), InMaxAllowedError, OutPolyline)
 			, Surface(InSurface)
 		{
 		};
@@ -199,7 +199,6 @@ namespace CADKernel
 	protected:
 
 		const FSurface& Surface;
-		FLinearBoundary Boundary;
 		FCoordinateGrid NotDerivableCoordinates;
 		bool bNotDerivableFound = false;
 

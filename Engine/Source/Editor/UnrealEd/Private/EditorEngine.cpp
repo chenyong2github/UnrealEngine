@@ -1044,6 +1044,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("StaticMeshEditor"),
 			TEXT("EditorFramework"),
 			TEXT("WorldPartitionEditor"),
+			TEXT("WorldPartitionHLODUtilities"),
 			TEXT("EditorConfig"),
 			TEXT("DerivedDataEditor"),
 			TEXT("CSVtoSVG"),
@@ -6534,18 +6535,27 @@ void UEditorEngine::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 		}
 	}
 	// UEngine::LoadMap broadcast this event with InLevel==NULL, before cleaning up the world during travel in Multiplayer
-	else if (Trans)
+	else 
 	{
-		if (InWorld->IsPlayInEditor())
+		// Clear the editor selection if it is the edited world.
+		if (InWorld->IsPlayInEditor() || InWorld->WorldType == EWorldType::Editor)
 		{
-			// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
-			// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
-			Trans->RemoveUndoBarrier();
+			SelectNone(true, true, false);
 		}
-		else
+
+		if (Trans)
 		{
-			// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
-			ResetTransaction(NSLOCTEXT("UnrealEd", "LevelRemovedFromWorldEditorCallback", "Level removed from world"));
+			if (InWorld->IsPlayInEditor())
+			{
+				// Each additional instance of PIE in a multiplayer game will add another barrier, so if the event is triggered then this is the case and we need to lift it
+				// Otherwise there will be an imbalance between barriers set and barriers removed and we won't be able to undo when we return.
+				Trans->RemoveUndoBarrier();
+			}
+			else
+			{
+				// If we're in editor mode, reset transactions buffer, to ensure that there are no references to a world which is about to be destroyed
+				ResetTransaction(NSLOCTEXT("UnrealEd", "LevelRemovedFromWorldEditorCallback", "Level removed from world"));
+			}
 		}
 	}
 }

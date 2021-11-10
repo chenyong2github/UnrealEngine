@@ -270,7 +270,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		{
 			FString Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir(), FilePath.FilePath);
 			FString OutPath;
-			if (FPackageName::DoesPackageExist(Path, nullptr, &OutPath))
+			if (FPackageName::DoesPackageExist(Path, &OutPath))
 			{				
 				PackageNames.AddUnique(*OutPath);
 				bExplicitPackages = true;
@@ -1712,7 +1712,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				if (MapBuildDataPackage != InLevel->GetOutermost())
 				{
 					FString MapBuildDataPackageName;
-					if (FPackageName::DoesPackageExist(MapBuildDataPackage->GetName(), NULL, &MapBuildDataPackageName))
+					if (FPackageName::DoesPackageExist(MapBuildDataPackage->GetName(), &MapBuildDataPackageName))
 					{
 						if (CheckoutFile(MapBuildDataPackageName))
 						{
@@ -1732,7 +1732,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		};
 
 		FString WorldPackageName;
-		if (FPackageName::DoesPackageExist(World->GetOutermost()->GetName(), NULL, &WorldPackageName))
+		if (FPackageName::DoesPackageExist(World->GetOutermost()->GetName(), &WorldPackageName))
 		{
 			if (!bShouldCheckoutDirtyPackageOnly)
 			{
@@ -1770,7 +1770,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				FString StreamingLevelPackageFilename;
 				const FString StreamingLevelWorldAssetPackageName = StreamingLevel->GetWorldAssetPackageName();
-				if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename))
+				if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, &StreamingLevelPackageFilename))
 				{
 					if (!bShouldCheckoutDirtyPackageOnly)
 					{
@@ -1993,7 +1993,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				{
 					FString StreamingLevelPackageFilename;
 					const FString StreamingLevelWorldAssetPackageName = NextStreamingLevel->GetWorldAssetPackageName();
-					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename) && CheckedOutPackagesFilenames.Contains(StreamingLevelPackageFilename))
+					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, &StreamingLevelPackageFilename) && CheckedOutPackagesFilenames.Contains(StreamingLevelPackageFilename))
 					{
 						UPackage* SubLevelPackage = NextStreamingLevel->GetLoadedLevel()->GetOutermost();
 						bool bSaveSubLevelPackage = true;
@@ -2867,7 +2867,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				//UE_LOG(LogContentCommandlet, Warning, TEXT( "*It.Key(): %s" ), *It.Key() );
 
 				// we need to be able to find the original package
-				if( FPackageName::DoesPackageExist(PackageName, NULL, &OriginalPackageFilename) == false )
+				if( FPackageName::DoesPackageExist(PackageName, &OriginalPackageFilename) == false )
 				{
 					UE_LOG(LogContentCommandlet, Fatal, TEXT( "Could not find file in file cache: %s"), *PackageName);
 				}

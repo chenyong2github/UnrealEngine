@@ -4,7 +4,7 @@
 
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -20,7 +20,7 @@ FLinearColor FTooltipDrawState::DefaultValueColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 FTooltipDrawState::FTooltipDrawState()
 	: WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f)
 	, Size(0.0f, 0.0f)
 	, DesiredSize(0.0f, 0.0f)

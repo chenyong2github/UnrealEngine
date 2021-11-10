@@ -213,6 +213,16 @@ protected:
 		ToolTip = "If false, DisregardForGC will be disabled for dedicated servers."))
 	uint32 UseDisregardForGCOnDedicatedServers : 1;
 
+	UPROPERTY(EditAnywhere, config, Category = Debug, meta = (
+		ConsoleVariable = "gc.VerifyGCObjectNames", DisplayName = "Verify FGCObject names",
+		ToolTip = "If true, the engine will verify if all FGCObject-derived classes define GetReferencerName() function overrides."))
+	uint32 VerifyGCObjectNames : 1;
+
+	UPROPERTY(EditAnywhere, config, Category = Debug, meta = (
+		ConsoleVariable = "gc.VerifyUObjectsAreNotFGCObjects", DisplayName = "Verify UObjects Are Not FGCObjects",
+		ToolTip = "If true, the engine will throw a warning when it detects a UObject-derived class which also derives from FGCObject or any of its members is derived from FGCObject."))
+	uint32 VerifyUObjectsAreNotFGCObjects : 1;
+
 	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
 		ConsoleVariable = "gc.MinGCClusterSize", DisplayName = "Minimum GC Cluster size",
 		ToolTip = "Minimum GC cluster size."))

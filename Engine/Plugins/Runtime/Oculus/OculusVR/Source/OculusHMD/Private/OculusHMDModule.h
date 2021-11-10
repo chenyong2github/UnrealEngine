@@ -88,6 +88,8 @@ public:
 #endif
 	}
 
+	FString GetDeviceProfileName();
+
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OCULUSHMD_API static void* GetOVRPluginHandle();
 	OCULUSHMD_API static inline OculusPluginWrapper& GetPluginWrapper() { return PluginWrapper; }

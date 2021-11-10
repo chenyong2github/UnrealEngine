@@ -368,7 +368,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	, bHasWorldOrigin(false)
 	, bReplicateSourceObject(false)
 	{
-		AddInstigator(InInstigator, InEffectCauser);
+		FGameplayEffectContext::AddInstigator(InInstigator, InEffectCauser);
 	}
 
 	virtual ~FGameplayEffectContext()

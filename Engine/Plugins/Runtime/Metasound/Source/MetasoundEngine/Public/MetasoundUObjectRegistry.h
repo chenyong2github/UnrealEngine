@@ -8,45 +8,10 @@
 #include "Subsystems/EngineSubsystem.h"
 #include "UObject/Object.h"
 
-#include "MetasoundUObjectRegistry.generated.h"
 
 // Forward Declarations
 class UAssetManager;
 
-
-/** The subsystem in charge of the MetaSound asset registry */
-UCLASS()
-class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem, public IMetaSoundAssetManager
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Initialize(FSubsystemCollectionBase& InCollection) override;
-
-	void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true);
-	void AddOrUpdateAsset(const FAssetData& InAssetData, bool bInRegisterWithFrontend = true);
-	void RemoveAsset(UObject& InObject, bool bInUnregisterWithFrontend = true);
-	void RemoveAsset(const FAssetData& InAssetData, bool bInUnregisterWithFrontend = true);
-	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
-	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
-
-	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const override;
-	virtual void RescanAutoUpdateDenyList() override;
-	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
-	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
-	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const override;
-
-protected:
-	void PostEngineInit();
-	void PostInitAssetScan();
-
-private:
-	void RebuildDenyListCache(const UAssetManager& InAssetManager);
-
-	int32 AutoUpdateDenyListChangeID = INDEX_NONE;
-	TSet<FName> AutoUpdateDenyListCache;
-	TMap<Metasound::Frontend::FNodeRegistryKey, FSoftObjectPath> PathMap;
-};
 
 namespace Metasound
 {

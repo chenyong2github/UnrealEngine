@@ -3,12 +3,12 @@
 #include "LoadingProfilerCommands.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ FLoadingProfilerCommands::FLoadingProfilerCommands()
 		TEXT("LoadingProfilerCommand"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "LoadingProfilerCommand", "Asset Loading Insights"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
 	)
 {
 }

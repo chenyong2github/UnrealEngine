@@ -65,6 +65,12 @@ class FTextureFormatUncompressed : public ITextureFormat
 		return true;
 	}
 
+	virtual FName GetEncoderName(FName Format) const override
+	{
+		static const FName UncomName("Uncompressed");
+		return UncomName;
+	}
+
 	virtual uint16 GetVersion(
 		FName Format,
 		const FTextureBuildSettings* BuildSettings

@@ -17,6 +17,8 @@ public class WebAuth : ModuleRules
 			}
 		);
 
+		PublicDefinitions.Add("WITH_WEBAUTH=1");
+
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			// << Add these lines to your project's build.cs when building for iOS 12+

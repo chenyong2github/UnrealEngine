@@ -129,7 +129,7 @@ static FBandPassFilter      GFinalBandPassFilter;
  * Custom XAudio2 Audio Processing Object (XAPO) that distorts 
  * audio samples into having a radio effect applied to them.
  */
-class RADIO_CLASS_ID FXAudio2RadioEffect : public CXAPOParametersBase
+class RADIO_CLASS_ID FXAudio2RadioEffect final : public CXAPOParametersBase
 {
 public:
 	/**

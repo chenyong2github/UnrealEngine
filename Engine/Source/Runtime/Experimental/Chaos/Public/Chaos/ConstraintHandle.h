@@ -5,6 +5,12 @@
 #include "Chaos/Declares.h"
 #include "Chaos/Vector.h"
 
+#if UE_BUILD_DEBUG
+#define CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED  1
+#else
+#define CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED  0
+#endif
+
 namespace Chaos
 {
 	class FPBDConstraintContainer;
@@ -126,9 +132,17 @@ namespace Chaos
 		template<typename T>  T* As();
 		template<typename T>  const T* As() const;
 
+		const FConstraintHandleTypeID& GetType() const;
+
 		static const FConstraintHandleTypeID& StaticType()
 		{
 			static FConstraintHandleTypeID STypeID(TEXT("FConstraintHandle"), nullptr);
+			return STypeID;
+		}
+
+		static const FConstraintHandleTypeID& InvalidType()
+		{
+			static FConstraintHandleTypeID STypeID(TEXT("InvalidConstraintHandle"), nullptr);
 			return STypeID;
 		}
 
@@ -325,5 +339,53 @@ namespace Chaos
 		FConstraintContainerHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintContainerHandle(ConstraintContainer, ConstraintIndex); }
 
 		void FreeHandle(FConstraintContainerHandle* Handle) { delete Handle; }
+	};
+
+
+	/**
+	 * @brief A debugging utility for tracking down dangling constraint issues
+	 * This acts as a FConstraintHandle*, but caches some extra debug data useful in tracking
+	 * down dangling pointer issues when they arise.
+	 * @todo(chaos): improve constraint lifetime management so that we don't get these problems!
+	*/
+	class CHAOS_API FConstraintHandleHolder
+	{
+	public:
+		FConstraintHandleHolder()
+			: Handle(nullptr)
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			, ConstraintType(nullptr)
+#endif
+		{
+		}
+
+		FConstraintHandleHolder(FConstraintHandle* InHandle)
+			: Handle(InHandle)
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			, ConstraintType(nullptr)
+#endif
+		{
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			if (Handle != nullptr)
+			{
+				ConstraintType = &InHandle->GetType();
+			}
+#endif
+		}
+
+		FConstraintHandle* operator->() const { return Handle; }
+		operator FConstraintHandle* () const { return Handle; }
+		FConstraintHandle* Get() const { return Handle; }
+
+		friend uint32 GetTypeHash(const FConstraintHandleHolder& V)
+		{
+			return ::GetTypeHash(V.Handle);
+		}
+
+	private:
+		FConstraintHandle* Handle;
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+		const FConstraintHandleTypeID* ConstraintType;
+#endif
 	};
 }

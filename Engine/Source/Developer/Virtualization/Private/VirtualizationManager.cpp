@@ -7,10 +7,14 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/PackageName.h"
+#include "Misc/PackagePath.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CookStats.h"
+
+#include "VirtualizationFilterSettings.h"
 
 namespace UE::Virtualization
 {
@@ -284,7 +288,7 @@ bool FVirtualizationManager::IsEnabled() const
 	return !AllBackends.IsEmpty();
 }
 
-bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType)
+bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
 
@@ -319,6 +323,13 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 				TEXT("Attempting to push a virtualized payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"), 
 				*Id.ToString(), Payload.GetCompressedSize(), MinPayloadLength);
 
+		return false;
+	}
+
+	if (!ShouldVirtualizePackage(PackageContext))
+	{
+		UE_LOG(	LogVirtualization, Verbose, TEXT("Payload '%s' for package '%s' will not be virtualized due to filtering"), 
+				*Id.ToString(), *PackageContext.GetDebugName());
 		return false;
 	}
 
@@ -485,6 +496,28 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].BackendGraph from config file!"));;
 	}
+
+	bool bFilterEngineContentFromIni = true;
+	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEngineContent"), bFilterEngineContentFromIni))
+	{
+		bFilterEngineContent = bFilterEngineContentFromIni;
+		UE_LOG(LogVirtualization, Log, TEXT("\tFilterEngineContent : %s"), bFilterEngineContent ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].FilterEngineContent from config file!"));
+	}
+	
+	bool bFilterEnginePluginContentFromIni = true;
+	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEnginePluginContent"), bFilterEnginePluginContentFromIni))
+	{
+		bFilterEnginePluginContent = bFilterEnginePluginContentFromIni;
+		UE_LOG(LogVirtualization, Log, TEXT("\tFilterEnginePluginContent : %s"), bFilterEnginePluginContent ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].FilterEnginePluginContent from config file!"));
+	}	
 }
 
 void FVirtualizationManager::ApplySettingsFromCmdline()
@@ -730,6 +763,75 @@ FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBac
 	}
 	
 	return Payload;
+}
+
+bool FVirtualizationManager::ShouldVirtualizePackage(const FPackagePath& PackagePath) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::ShouldVirtualizePackage);
+
+	// We require a valid mounted path for filtering
+	if (!PackagePath.IsMountedPath())
+	{
+		return true;
+	}
+
+	TStringBuilder<256> PackageName;
+	PackagePath.AppendPackageName(PackageName);
+
+	TStringBuilder<64> MountPointName;
+	TStringBuilder<256> MountPointPath;
+	TStringBuilder<256> RelativePath;
+
+	if (!FPackageName::TryGetMountPointForPath(PackageName, MountPointName, MountPointPath, RelativePath))
+	{
+		return true;
+	}
+
+	if (bFilterEngineContent)
+	{
+		// Do not virtualize engine content
+		if (MountPointName.ToView() == TEXT("/Engine/"))
+		{
+			return false;
+		}
+	}
+
+	if (bFilterEnginePluginContent)
+	{
+		// Do not virtualize engine plugin content
+		if (FPaths::IsUnderDirectory(MountPointPath.ToString(), FPaths::EnginePluginsDir()))
+		{
+			return false;
+		}
+	}
+
+	const UVirtualizationFilterSettings* Settings = GetDefault<UVirtualizationFilterSettings>();
+	if (Settings != nullptr)
+	{
+		const FStringView PackageNameView = PackageName.ToView();
+
+		for (const FString& Exclusion : Settings->ExcludePackagePaths)
+		{
+			if (Exclusion.EndsWith(TEXT("/")))
+			{
+				// Directory path, exclude everything under it
+				if (PackageNameView.StartsWith(Exclusion))
+				{
+					return false;
+				}
+			}
+			else
+			{
+				// Path to an asset, exclude if it matches exactly
+				if (PackageNameView == Exclusion)
+				{
+					return false;
+				}
+			}			
+		}
+	}
+	
+	return true;
 }
 
 } // namespace UE::Virtualization

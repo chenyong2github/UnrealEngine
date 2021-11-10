@@ -2,20 +2,19 @@
 
 #pragma once
 
-#include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableText.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SOverlay.h"
 
 // FVariablePrecisionNumericInterface
 // Taken from PropertyEditor/VariablePrecisionNumericInterface.h
@@ -54,9 +53,12 @@ class AUDIOWIDGETS_API SAudioTextBox
 		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
 		if (ensure(AudioWidgetsStyle))
 		{
-			_LabelBackgroundColor = AudioWidgetsStyle->GetColor("AudioTextBox.LabelBackgroundColor");
+			_Style = &AudioWidgetsStyle->GetWidgetStyle<FAudioTextBoxStyle>("AudioTextBox.Style");
 		}
 	}
+	/** The style used to draw the audio text box. */
+	SLATE_STYLE_ARGUMENT(FAudioTextBoxStyle, Style)
+
 	/** If true, show label only on hover; if false always show label. */
 	SLATE_ATTRIBUTE(bool, ShowLabelOnlyOnHover)
 
@@ -82,11 +84,11 @@ public:
 	void UpdateValueTextWidth(const FVector2D OutputRange);
 
 protected:
-	TSharedPtr<SOverlay> TextLabel;
+	const FAudioTextBoxStyle* Style;
 	TSharedPtr<SEditableText> ValueText;
 	TSharedPtr<SEditableText> UnitsText;
-	TSharedPtr<SImage> LabelBackgroundImage;
-	TSharedPtr<SWidgetSwitcher> TextWidgetSwitcher;
+	TSharedPtr<SBorder> LabelBorder;
+	SHorizontalBox::FSlot* ValueTextSlot = nullptr;
 
 	TAttribute<bool> ShowLabelOnlyOnHover;
 	TAttribute<bool> ShowUnitsText;
@@ -97,6 +99,4 @@ protected:
 
 	/** Used to convert and format value text strings **/
 	static const FVariablePrecisionNumericInterface NumericInterface;
-	
-	TSharedRef<SWidgetSwitcher> CreateTextWidgetSwitcher();
 };

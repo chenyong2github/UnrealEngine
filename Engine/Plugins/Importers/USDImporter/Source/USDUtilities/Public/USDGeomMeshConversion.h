@@ -185,6 +185,21 @@ namespace UsdUtils
 	 * WARNING: This will temporarily mutate the stage, and can invalidate references to children of ParentPrim!
 	 */
 	USDUTILITIES_API bool IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool(const pxr::UsdGeomMesh& LODMesh, int32 LODIndex)> Func);
+
+	/**
+	 * Traverses `Stage` and authors material binding attributes for all `unrealMaterials` that were baked into USD material assets.
+	 * @param Stage - Stage to replace the unrealMaterials attributes in. All of it's layers will be traversed.
+	 * @param LayerToAuthorIn - Where the material binding opinions are authored
+	 * @param BakedMaterials - Maps from material path names to file paths where they were baked
+	 *                         Example: { "/Game/MyMaterials/Red.Red": "C:/MyFolder/Red.usda" }
+	 * @param bIsAssetLayer - True when we're exporting a single mesh/animation asset. False when we're exporting a level. Dictates minor behaviors
+	 *                        when authoring the material binding relationships, e.g. whether we author them inside variants or not
+	 * @param bUsePayload - Should be True if the Stage was exported using payload files to store the actual Mesh prims. Also dictates minor
+	 *                      behaviors when authoring the material binding relationships.
+	 * @param bRemoveUnrealMaterials - Whether to remove the `unrealMaterial` attributes after replacing them with material bindings.
+	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments
+	 */
+	USDUTILITIES_API void ReplaceUnrealMaterialsWithBaked( const UE::FUsdStage& Stage, const UE::FSdfLayer& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials );
 }
 
 #endif // #if USE_USD_SDK

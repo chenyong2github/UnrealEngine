@@ -13,16 +13,11 @@ namespace CADKernel
 		TArray<FPoint> Poles;
 
 		FBezierCurve(const TArray<FPoint>& InPoles)
-			: FCurve(3)
-			, Poles{ InPoles }
+			: Poles{ InPoles }
 		{
 		}
 
-		FBezierCurve(FCADKernelArchive& Archive)
-			: FCurve(3)
-		{
-			Serialize(Archive);
-		}
+		FBezierCurve() = default;
 
 	public:
 

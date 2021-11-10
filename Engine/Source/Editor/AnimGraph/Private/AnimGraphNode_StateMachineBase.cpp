@@ -22,7 +22,7 @@
 #include "AnimationCustomTransitionGraph.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimStateConduitNode.h"
-#include "AnimGraphNode_LinkedAnimLayer.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.h"
 #include "AnimGraphNode_TransitionPoseEvaluator.h"
 #include "AnimGraphNode_CustomTransitionResult.h"
 #include "AnimBlueprintExtension_StateMachine.h"
@@ -558,12 +558,12 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			SubGraph->GetAllChildrenGraphs(GraphsToCheck);
 		}
 
-		TArray<UAnimGraphNode_LinkedAnimLayer*> LinkedAnimLayerNodes;
+		TArray<UAnimGraphNode_LinkedAnimGraphBase*> LinkedAnimGraphNodes;
 		TArray<UAnimGraphNode_AssetPlayerBase*> AssetPlayerNodes;
 		for (UEdGraph* ChildGraph : GraphsToCheck)
 		{
 			ChildGraph->GetNodesOfClass(AssetPlayerNodes);
-			ChildGraph->GetNodesOfClass(LinkedAnimLayerNodes);
+			ChildGraph->GetNodesOfClass(LinkedAnimGraphNodes);
 		}
 
 		for (UAnimGraphNode_AssetPlayerBase* Node : AssetPlayerNodes)
@@ -574,7 +574,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			}
 		}
 
-		for (UAnimGraphNode_LinkedAnimLayer* Node : LinkedAnimLayerNodes)
+		for (UAnimGraphNode_LinkedAnimGraphBase* Node : LinkedAnimGraphNodes)
 		{
 			if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(Node->NodeGuid))
 			{

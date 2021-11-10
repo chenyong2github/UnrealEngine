@@ -74,6 +74,13 @@ TAutoConsoleVariable<int32> CVarTAAR11G11B10History(
 	TEXT("Select the bitdepth of the history."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarTAAUseMobileConfig(
+	TEXT("r.TemporalAA.UseMobileConfig"),
+	0,
+	TEXT("1 to use mobile TAA config. This will disable groupshared caching of the color and depth buffers.\n")
+	TEXT(" 0: disabled (default);\n")
+	TEXT(" 1: enabled;\n"),
+	ECVF_ReadOnly);
 
 inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 {
@@ -231,10 +238,13 @@ class FTemporalAACS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GTemporalAATileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GTemporalAATileSizeY);
 
+		static FShaderPlatformCachedIniValue<bool> UseMobileConfig(TEXT("/Script/Engine.RendererSettings"), TEXT("r.TemporalAA.UseMobileConfig"));
+		bool bUseMobileConfig = (UseMobileConfig.Get((EShaderPlatform)Parameters.Platform) != 0);
+
 		bool bIsMobileTiledGPU = RHIHasTiledGPU(Parameters.Platform) || IsSimulatedPlatform(Parameters.Platform);
 
 		// There are some mobile specific shader optimizations need to be set in the shader, such as disable shared memory usage, disable stencil texture sampling.
-		OutEnvironment.SetDefine(TEXT("AA_MOBILE_CONFIG"), bIsMobileTiledGPU ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("AA_MOBILE_CONFIG"), (bIsMobileTiledGPU || bUseMobileConfig) ? 1 : 0);
 	}
 }; // class FTemporalAACS
 

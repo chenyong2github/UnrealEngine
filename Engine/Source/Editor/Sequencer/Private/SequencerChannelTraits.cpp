@@ -19,6 +19,11 @@ void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandle
 		Param = DefaultParams;
 	}
 }
+/* Most channels do nothing*/
+void DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* Owner, const FGeometry& KeyGeometry,FSequencerSectionPainter& Painter)
+{
+}
+
 
 bool SupportsCurveEditorModels(const FMovieSceneChannelHandle& ChannelHandle)
 {

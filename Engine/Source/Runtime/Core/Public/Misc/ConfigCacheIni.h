@@ -406,6 +406,7 @@ class FConfigFile : public TMap<FString,FConfigSection>
 public:
 	bool Dirty;
 	bool NoSave;
+	bool bHasPlatformName = false;
 
 	/** The name of this config file */	
 	FName Name;
@@ -422,6 +423,8 @@ public:
 
 	/** Key to the cache to speed up ini parsing */
 	FString CacheKey;
+
+	FString PlatformName;
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 	/** The collection of overrides which stemmed from the commandline */

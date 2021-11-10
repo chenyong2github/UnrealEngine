@@ -4,6 +4,7 @@
 
 #include "DMXConversions.h"
 #include "DMXProtocolSettings.h"
+#include "DMXRuntimeLog.h"
 #include "DMXRuntimeObjectVersion.h"
 #include "DMXRuntimeUtils.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -172,6 +173,21 @@ int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, FDMXFixtureFun
 
 FDMXOnFixtureTypeChangedDelegate UDMXEntityFixtureType::OnFixtureTypeChangedDelegate;
 
+UDMXEntityFixtureType* UDMXEntityFixtureType::CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName)
+{
+	if (ensureMsgf(ParentDMXLibrary, TEXT("Create New Fixture Type cannot create Fixture Type when Parent Library is null.")))
+	{
+		FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(ParentDMXLibrary, UDMXEntityFixtureType::StaticClass(), DesiredName);
+
+		UDMXEntityFixtureType* NewFixtureType = NewObject<UDMXEntityFixtureType>(ParentDMXLibrary, UDMXEntityFixtureType::StaticClass(), NAME_None, RF_Transactional);
+		NewFixtureType->SetName(EntityName);
+
+		return NewFixtureType;
+	}
+
+	return nullptr;
+}
+
 void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -186,17 +202,6 @@ void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 			{
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				Mode.bFixtureMatrixEnabled = bFixtureMatrixEnabled;
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			}
-		}
-
-		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::DMXFixtureTypeAllowInputModulatorsInEachFixtureMode)
-		{
-			// For assets that were created before each mode had its own Input Modulators, copy the deprecated InputModulator property to each mode
-			for (FDMXFixtureMode& Mode : Modes)
-			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Mode.InputModulators = InputModulators;
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
@@ -309,11 +314,13 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 				PotentialFunctionNamesAndCount.Add(FunctionName, 0);
 			}
 
+			int32 FunctionStartingChannel = 1;
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
 				Function.FunctionName = FDMXRuntimeUtils::GenerateUniqueNameForImportFunction(PotentialFunctionNamesAndCount, ModeChannel.LogicalChannel.Attribute.Name.ToString());
 				Function.DefaultValue = ModeChannel.Default.Value;
+				Function.Channel = FunctionStartingChannel;
 
 				// Try to auto-map the Function to an existing Attribute
 				// using the Function's name and the Attributes' keywords
@@ -360,6 +367,7 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 						AddressMax = FMath::Max(AddressMax, Address);
 					}
 					const int32 NumUsedAddresses = FMath::Clamp(AddressMax - AddressMin + 1, 1, DMX_MAX_FUNCTION_SIZE);
+					FunctionStartingChannel += NumUsedAddresses;
 
 					Function.DataType = static_cast<EDMXFixtureSignalFormat>(NumUsedAddresses - 1);
 
@@ -378,6 +386,8 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 				}
 				else
 				{
+					FunctionStartingChannel += 1;
+
 					Function.DataType = EDMXFixtureSignalFormat::E8Bit;
 				}
 			}

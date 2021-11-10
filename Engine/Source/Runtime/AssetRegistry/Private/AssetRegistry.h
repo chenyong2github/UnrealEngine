@@ -86,6 +86,8 @@ public:
 	virtual bool PathExists(const FString& PathToTest) const override;
 	virtual bool PathExists(const FName PathToTest) const override;
 	virtual void SearchAllAssets(bool bSynchronousSearch) override;
+	virtual bool IsSearchAllAssets() const override;
+	virtual bool IsSearchAsync() const override;
 	virtual void WaitForCompletion() override;
 	virtual void WaitForPackage(const FString& PackageName) override;
 	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false, bool bIgnoreDenyListScanFilters = false) override;
@@ -131,6 +133,7 @@ public:
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetUpdatedEvent, FAssetUpdatedEvent );
 	virtual FAssetUpdatedEvent& OnAssetUpdated() override;
+	virtual FAssetUpdatedEvent& OnAssetUpdatedOnDisk() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FInMemoryAssetCreatedEvent, FInMemoryAssetCreatedEvent );
 	virtual FInMemoryAssetCreatedEvent& OnInMemoryAssetCreated() override;
@@ -258,6 +261,9 @@ private:
 
 	/** The delegate to execute when an asset is updated in the registry */
 	FAssetUpdatedEvent AssetUpdatedEvent;
+
+	/** The delegate to execute when an asset is updated on disk and has been reloaded in assetregistry */
+	FAssetUpdatedEvent AssetUpdatedOnDiskEvent;
 
 	/** The delegate to execute when an in-memory asset was just created */
 	FInMemoryAssetCreatedEvent InMemoryAssetCreatedEvent;

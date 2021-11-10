@@ -141,6 +141,21 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	}
 
 	/**
+	 * Draw additional content in addition to keys for a particular channel
+	 *
+	 * @param InChannel          The channel to draw extra display information for
+	 * @param InOwner            The owning movie scene section for this channel
+	 * @param InKeyGeometry      Allocated geometry to draw in
+	 * @param Painter			 The painter to add the created geometry to
+	 */
+	virtual void DrawExtra_Raw(FMovieSceneChannel* InChannel,const UMovieSceneSection* InOwner, const FGeometry& InKeyGeometry,FSequencerSectionPainter& Painter) const
+	{
+		using namespace Sequencer;
+		DrawExtra(static_cast<ChannelType*>(InChannel), InOwner, InKeyGeometry, Painter);
+	}
+
+
+	/**
 	 * Whether this channel supports curve models
 	 */
 	virtual bool SupportsCurveEditorModels_Raw(const FMovieSceneChannelHandle& InChannel) const override

@@ -21,6 +21,8 @@
 
 DECLARE_CYCLE_STAT(TEXT("StateMachine SetState"), Stat_StateMachineSetState, STATGROUP_Anim);
 
+static const FName DefaultAnimGraphName("AnimGraph");
+
 //////////////////////////////////////////////////////////////////////////
 // FAnimationActiveTransitionEntry
 
@@ -564,12 +566,12 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 #endif
 }
 
-const FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo) const
+const FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const
 {
 	const FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;
 	float MaxWeight = 0.0f;
 
-	auto EvaluatePlayerWeight = [&MaxWeight, &ResultPlayer, &Context](const FAnimNode_AssetPlayerBase* Player)
+	auto EvaluatePlayerWeight = [&MaxWeight, &ResultPlayer](const FAnimNode_AssetPlayerBase* Player)
 	{
 		if (!Player->GetIgnoreForRelevancyTest() && Player->GetCachedBlendWeight() > MaxWeight)
 		{
@@ -580,23 +582,33 @@ const FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerF
 
 	for (const int32& PlayerIdx : StateInfo.PlayerNodeIndices)
 	{
-		if (const FAnimNode_AssetPlayerBase* Player = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
+		if (const FAnimNode_AssetPlayerBase* Player = InAnimInstanceProxy->GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
 		{
 			EvaluatePlayerWeight(Player);
 		}
 	}
 
 	// Get all layer node indices that are part of this state
-	for (const int32& LayerIdx : StateInfo.LayerNodeIndices)
+	for (const int32& LinkedAnimNodeIdx : StateInfo.LayerNodeIndices)
 	{
 		// Try and retrieve the actual node object
-		if (const FAnimNode_LinkedAnimLayer* Layer = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_LinkedAnimLayer>(LayerIdx))
+		if (const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = InAnimInstanceProxy->GetNodeFromIndex<FAnimNode_LinkedAnimGraph>(LinkedAnimNodeIdx))
 		{
-			// Retrieve the AnimInstance running for this layer
-			if (const UAnimInstance* CurrentTarget = Layer->GetTargetInstance<UAnimInstance>())
+			// Retrieve the AnimInstance running for this linked anim graph/layer
+			if (const UAnimInstance* CurrentTarget = LinkedAnimGraph->GetTargetInstance<UAnimInstance>())
 			{
+				FName GraphName;
+				if (const FAnimNode_LinkedAnimLayer* LinkedAnimLayer = InAnimInstanceProxy->GetNodeFromIndex<FAnimNode_LinkedAnimLayer>(LinkedAnimNodeIdx))
+				{
+					GraphName = LinkedAnimLayer->Layer;
+				}
+				else
+				{
+					GraphName = DefaultAnimGraphName;
+				}
+
 				// Retrieve all asset player nodes from the corresponding Anim blueprint class and apply same logic to find highest weighted asset player 
-				TArray<const FAnimNode_AssetPlayerBase*> PlayerNodesInLayer = CurrentTarget->GetInstanceAssetPlayers(Layer->Layer);
+				TArray<const FAnimNode_AssetPlayerBase*> PlayerNodesInLayer = CurrentTarget->GetInstanceAssetPlayers(GraphName);
 				for (const FAnimNode_AssetPlayerBase* Player : PlayerNodesInLayer)
 				{
 					EvaluatePlayerWeight(Player);
@@ -1007,16 +1019,26 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 		}
 
 		// Clear any currently cached blend weights for asset player nodes in layers.
-		for (const int32& LayerIdx : GetStateInfo(CurrentState).LayerNodeIndices)
+		for (const int32& LinkedAnimNodeIdx : GetStateInfo(CurrentState).LayerNodeIndices)
 		{
 			// Try and retrieve the actual node object
-			if (FAnimNode_LinkedAnimLayer* Layer = Context.AnimInstanceProxy->GetMutableNodeFromIndex<FAnimNode_LinkedAnimLayer>(LayerIdx))
+			if (FAnimNode_LinkedAnimGraph* LinkedAnimGraph = Context.AnimInstanceProxy->GetMutableNodeFromIndex<FAnimNode_LinkedAnimGraph>(LinkedAnimNodeIdx))
 			{
 				// Retrieve the AnimInstance running for this layer
-				if (UAnimInstance* CurrentTarget = Layer->GetTargetInstance<UAnimInstance>())
+				if (UAnimInstance* CurrentTarget = LinkedAnimGraph->GetTargetInstance<UAnimInstance>())
 				{
+					FName GraphName;
+					if (const FAnimNode_LinkedAnimLayer* LinkedAnimLayer = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_LinkedAnimLayer>(LinkedAnimNodeIdx))
+					{
+						GraphName = LinkedAnimLayer->Layer;
+					}
+					else
+					{
+						GraphName = DefaultAnimGraphName;
+					}
+
 					// Retrieve all asset player nodes from the corresponding Anim blueprint class and clear their cached blend weight
-					TArray<FAnimNode_AssetPlayerBase*> PlayerNodesInLayer = CurrentTarget->GetMutableInstanceAssetPlayers(Layer->Layer);
+					TArray<FAnimNode_AssetPlayerBase*> PlayerNodesInLayer = CurrentTarget->GetMutableInstanceAssetPlayers(GraphName);
 					for (FAnimNode_AssetPlayerBase* Player : PlayerNodesInLayer)
 					{
 						Player->ClearCachedBlendWeight();

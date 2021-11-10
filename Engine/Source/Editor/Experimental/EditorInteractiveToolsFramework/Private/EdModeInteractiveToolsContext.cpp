@@ -790,8 +790,14 @@ void UEditorInteractiveToolsContext::RestoreEditorState()
 		{
 			if (ViewportWindow.IsValid())
 			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-				Viewport.DisableOverrideEngineShowFlags();
+				FEditorViewportClient& ViewportClient = ViewportWindow->GetAssetViewportClient();
+				ViewportClient.DisableOverrideEngineShowFlags();
+
+				// Rebuild the cached hit proxy. The tool may have disabled some viewport items while active (e.g. transform gizmo) and
+				// so the hit proxy cache may be out of date. In the past this has led to, for example, the gizmo being visible but not
+				// clickable when returning from a tool (UE-116888).
+				// TODO: Figure out why the hit proxy is not being rebuilt elsewhere
+				ViewportClient.RequestInvalidateHitProxy(ViewportClient.Viewport);
 			}
 		}
 	}

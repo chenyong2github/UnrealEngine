@@ -125,6 +125,7 @@ struct COREUOBJECT_API FSoftObjectPath
 	/** Sets asset path of this reference based on a string path */
 	void SetPath(FWideStringView Path);
 	void SetPath(FAnsiStringView Path);
+	void SetPath(FUtf8StringView Path);
 	void SetPath(FName Path);
 	void SetPath(const WIDECHAR* Path)			{ SetPath(FWideStringView(Path)); }
 	void SetPath(const ANSICHAR* Path)			{ SetPath(FAnsiStringView(Path)); }

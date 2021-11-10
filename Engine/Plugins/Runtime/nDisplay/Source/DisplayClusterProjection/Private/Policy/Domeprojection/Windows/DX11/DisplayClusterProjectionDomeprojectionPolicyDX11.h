@@ -21,7 +21,7 @@ public:
 protected:
 	virtual TUniquePtr<FDisplayClusterProjectionDomeprojectionViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionDomeprojectionViewAdapterBase::FInitParams& InitParams) override
 	{
-		UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Instantiating Domeprojection DX11 viewport adapter..."));
+		UE_LOG(LogDisplayClusterProjectionDomeprojection, Verbose, TEXT("Instantiating Domeprojection DX11 viewport adapter..."));
 		return MakeUnique<FDisplayClusterProjectionDomeprojectionViewAdapterDX11>(InitParams);
 	}
 };

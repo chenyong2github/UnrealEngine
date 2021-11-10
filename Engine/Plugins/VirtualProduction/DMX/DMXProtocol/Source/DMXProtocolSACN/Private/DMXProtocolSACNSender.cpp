@@ -265,21 +265,55 @@ FSingleThreadRunnable* FDMXProtocolSACNSender::GetSingleThreadInterface()
 
 void FDMXProtocolSACNSender::Update()
 {
-	FScopeLock Lock(&LatestSignalLock);
+	// process delayed signals
+	const double Now = FPlatformTime::Seconds();
 
-	// Keep latest signal per universe
-	FDMXSignalSharedPtr DequeuedDMXSignal;
-	while (Buffer.Dequeue(DequeuedDMXSignal))
+	for (;;)
 	{
-		if (Protocol->IsValidUniverseID(DequeuedDMXSignal->ExternUniverseID))
+		// we can safely assumes that older messages are on tail of the queue
+		FDMXSignal OldestDMXSignal;
+		if (DelayedBuffer.Peek(OldestDMXSignal))
 		{
-			if(UniverseToLatestSignalMap.Contains(DequeuedDMXSignal->ExternUniverseID))
+			if ((OldestDMXSignal.Timestamp + static_cast<double>(OldestDMXSignal.Delay)) <= Now)
 			{
-				UniverseToLatestSignalMap[DequeuedDMXSignal->ExternUniverseID] = DequeuedDMXSignal.ToSharedRef();
+				if (UniverseToLatestSignalMap.Contains(OldestDMXSignal.ExternUniverseID))
+				{
+					UniverseToLatestSignalMap[OldestDMXSignal.ExternUniverseID] = MakeShared<FDMXSignal>(OldestDMXSignal);
+				}
+				else
+				{
+					UniverseToLatestSignalMap.Add(OldestDMXSignal.ExternUniverseID, MakeShared<FDMXSignal>(OldestDMXSignal));
+				}
+				DelayedBuffer.Pop();
+				continue;
 			}
-			else
+		}
+		break;
+	}
+
+	{
+		FScopeLock Lock(&LatestSignalLock);
+
+		// Keep latest signal per universe
+		FDMXSignalSharedPtr DequeuedDMXSignal;
+		while (Buffer.Dequeue(DequeuedDMXSignal))
+		{
+			if (Protocol->IsValidUniverseID(DequeuedDMXSignal->ExternUniverseID))
 			{
-				UniverseToLatestSignalMap.Add(DequeuedDMXSignal->ExternUniverseID, DequeuedDMXSignal.ToSharedRef());
+				if (DequeuedDMXSignal->Delay > 0)
+				{
+					// we make a copy here of the signal for not losing track
+					DelayedBuffer.Enqueue(*DequeuedDMXSignal);
+					continue;
+				}
+				if (UniverseToLatestSignalMap.Contains(DequeuedDMXSignal->ExternUniverseID))
+				{
+					UniverseToLatestSignalMap[DequeuedDMXSignal->ExternUniverseID] = DequeuedDMXSignal.ToSharedRef();
+				}
+				else
+				{
+					UniverseToLatestSignalMap.Add(DequeuedDMXSignal->ExternUniverseID, DequeuedDMXSignal.ToSharedRef());
+				}
 			}
 		}
 	}

@@ -691,7 +691,7 @@ static void getContourCenter(const dtTileCacheContour* cont, const dtReal* orig,
 		center[1] += (dtReal)v[1];
 		center[2] += (dtReal)v[2];
 	}
-	const dtReal s = 1.0f / cont->nverts;
+	const dtReal s = dtReal(1.) / cont->nverts;
 	center[0] *= s * cs;
 	center[1] *= s * ch;
 	center[2] *= s * cs;
@@ -2251,8 +2251,8 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const dtReal* orig, const d
 			if (layer.areas[x+z*w] == DT_TILECACHE_NULL_AREA)
 				continue;
 
-			const dtReal dx = (dtReal)(x+0.5f) - px;
-			const dtReal dz = (dtReal)(z+0.5f) - pz;
+			const dtReal dx = dtReal(x)+0.5f-px;
+			const dtReal dz = dtReal(z)+0.5f-pz;
 			if (dx*dx + dz*dz > r2)
 				continue;
 			const int y = layer.heights[x+z*w];
@@ -2378,9 +2378,9 @@ dtStatus dtMarkConvexArea(dtTileCacheLayer& layer, const dtReal* orig, const dtR
 				continue;
 
 			dtReal p[3];
-			p[0] = orig[0] + (dtReal)(x+0.5f)*cs;
+			p[0] = orig[0] + (dtReal(x)+0.5f)*cs;
 			p[1] = 0.0f;
-			p[2] = orig[2] + (dtReal)(z+0.5f)*cs;
+			p[2] = orig[2] + (dtReal(z)+0.5f)*cs;
 
 			if (TileCacheFunc::pointInPoly(nverts, verts, p))
 			{
@@ -2436,8 +2436,8 @@ dtStatus dtReplaceCylinderArea(dtTileCacheLayer& layer, const dtReal* orig, cons
 			if (layer.areas[x + z*w] != filterAreaId)
 				continue;
 
-			const dtReal dx = (dtReal)(x + 0.5f) - px;
-			const dtReal dz = (dtReal)(z + 0.5f) - pz;
+			const dtReal dx = dtReal(x)+0.5f-px;
+			const dtReal dz = dtReal(z)+0.5f-pz;
 			if (dx*dx + dz*dz > r2)
 				continue;
 			const int y = layer.heights[x + z*w];
@@ -2548,9 +2548,9 @@ dtStatus dtReplaceConvexArea(dtTileCacheLayer& layer, const dtReal* orig, const 
 				continue;
 
 			dtReal p[3];
-			p[0] = orig[0] + (dtReal)(x + 0.5f)*cs;
+			p[0] = orig[0] + (dtReal(x) + 0.5f)*cs;
 			p[1] = 0.0f;
-			p[2] = orig[2] + (dtReal)(z + 0.5f)*cs;
+			p[2] = orig[2] + (dtReal(z) + 0.5f)*cs;
 
 			if (TileCacheFunc::pointInPoly(nverts, verts, p))
 			{

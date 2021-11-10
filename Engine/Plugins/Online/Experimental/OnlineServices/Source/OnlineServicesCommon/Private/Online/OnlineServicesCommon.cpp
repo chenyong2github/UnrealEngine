@@ -5,11 +5,17 @@
 #include "Online/AuthCommon.h"
 #include "Online/FriendsCommon.h"
 
+DEFINE_LOG_CATEGORY(LogOnlineServices);
+
 namespace UE::Online {
 
-FOnlineServicesCommon::FOnlineServicesCommon()
-	: OpCache(TEXT("OnlineServicesCommon"), *this)
+uint32 FOnlineServicesCommon::NextInstanceIndex = 0;
+
+FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName)
+	: OpCache(InConfigName, *this)
+	, InstanceIndex(NextInstanceIndex++)
 	, ConfigProvider(MakeUnique<FOnlineConfigProviderGConfig>(GEngineIni))
+	, ConfigName(InConfigName)
 {
 }
 
@@ -86,6 +92,32 @@ void FOnlineServicesCommon::PreShutdown()
 void FOnlineServicesCommon::Shutdown()
 {
 	Components.Visit(&IOnlineComponent::Shutdown);
+}
+
+bool FOnlineServicesCommon::Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("OnlineServices")))
+	{
+		int Index = 0;
+		if (FParse::Value(Cmd, TEXT("Index="), Index) && Index == InstanceIndex)
+		{
+			FParse::Token(Cmd, false); // skip over Index=#
+
+			FString Command;
+			if (FParse::Token(Cmd, Command, false))
+			{
+				if (TUniquePtr<IOnlineExecHandler>* ExecHandler = ExecCommands.Find(Command))
+				{
+					return (*ExecHandler)->Exec(World, Cmd, Ar);
+				}
+			}
+		}
+		else if (FParse::Command(&Cmd, TEXT("List")))
+		{
+			Ar.Logf(TEXT("%u: %s"), InstanceIndex, *GetConfigName());
+		}
+	}
+	return false;
 }
 
 /* UE::Online */ }

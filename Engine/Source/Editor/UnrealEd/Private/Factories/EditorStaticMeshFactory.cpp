@@ -68,13 +68,22 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			}
 
 			constexpr bool bCreatePartitionActorIfMissing = true;
-			FActorPartitionGetParams PartitionActorFindParams(AInstancedPlacementPartitionActor::StaticClass(), bCreatePartitionActorIfMissing, InPlacementInfo.PreferredLevel.Get(), InPlacementInfo.FinalizedTransform.GetLocation());
+			FActorPartitionGetParams PartitionActorFindParams(
+				AInstancedPlacementPartitionActor::StaticClass(),
+				bCreatePartitionActorIfMissing, InPlacementInfo.PreferredLevel.Get(),
+				InPlacementInfo.FinalizedTransform.GetLocation(),
+				0,
+				InPlacementOptions.InstancedPlacementGridGuid,
+				true,
+				OnActorCreated
+			);
 			AInstancedPlacementPartitionActor* PlacedElementsActor = Cast<AInstancedPlacementPartitionActor>(PartitionSubsystem->GetActor(PartitionActorFindParams));
 
 			FISMClientHandle ClientHandle = PlacedElementsActor->RegisterClient(ItemGuidToUse);
 			TSortedMap<int32, TArray<FTransform>> InstanceMap;
 			InstanceMap.Emplace(PlacedElementsActor->RegisterISMComponentDescriptor(ComponentDescriptor), TArray({ FTransform() }));
 			ModifiedPartitionActors.Add(PlacedElementsActor);
+			PlacedElementsActor->BeginUpdate();
 
 			TArray<FSMInstanceId> PlacedInstances = PlacedElementsActor->AddISMInstance(ClientHandle, InPlacementInfo.FinalizedTransform, InstanceMap);
 			for (const FSMInstanceId PlacedInstanceID : PlacedInstances)
@@ -175,7 +184,7 @@ void UEditorStaticMeshFactory::EndPlacement(TArrayView<const FTypedElementHandle
 	{
 		if (ISMPartitionActor.IsValid())
 		{
-			ISMPartitionActor->UpdateHISMTrees(true, false);
+			ISMPartitionActor->EndUpdate();
 		}
 	}
 

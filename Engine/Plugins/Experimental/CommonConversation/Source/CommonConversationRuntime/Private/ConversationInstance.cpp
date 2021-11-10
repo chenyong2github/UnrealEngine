@@ -199,6 +199,19 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 			{
 				UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("User picked option %s, going to try that"), *BranchPoint->ClientChoice.ChoiceReference.ToString());
 				CandidateDestinations = { *BranchPoint };
+
+				FConversationContext Context = FConversationContext::CreateServerContext(this, nullptr);
+				if (const UConversationTaskNode* TaskNode = BranchPoint->ClientChoice.TryToResolveChoiceNode<UConversationTaskNode>(Context))
+				{
+					for (const UConversationNode* SubNode : TaskNode->SubNodes)
+					{
+						if (const UConversationChoiceNode* ChoiceNode = Cast<UConversationChoiceNode>(SubNode))
+						{
+							ChoiceNode->NotifyChoicePickedByUser(Context, BranchPoint->ClientChoice);
+							break;
+						}
+					}
+				}
 			}
 			else
 			{

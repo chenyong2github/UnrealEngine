@@ -69,8 +69,11 @@ namespace QualityLevelProperty
 		}
 		else
 		{
-			const FString PlatformNameStr = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FName(InPlatformName)).IniPlatformName.ToString();
-			InPlatformName = *PlatformNameStr;
+			FName PlatformFName = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FName(InPlatformName)).IniPlatformName;
+			if (!PlatformFName.IsNone())
+			{
+				InPlatformName = PlatformFName.ToString();
+			}
 
 			EnginePlatforms.AddUnique(FName(*InPlatformName));
 			}

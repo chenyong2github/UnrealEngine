@@ -37,7 +37,7 @@ public:
 	FPBDCollisionConstraintAccessor()
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(EmptyParticles.GetNonDisabledView())
-		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0, (FReal)0)
+		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0)
 		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, EmptyUniquePhysicsMaterials, 1, 1)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{
@@ -50,7 +50,7 @@ public:
 		const int32 PushOutIterations, const int32 PushOutPairIterations) 
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(InParticles.GetNonDisabledView())
-		, BroadPhase(InParticles, (FReal)1, (FReal)0, (FReal)0)
+		, BroadPhase(InParticles, (FReal)1, (FReal)0)
 		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, PerParticleUniqueMaterials, 1, 1)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{

@@ -204,9 +204,11 @@ private:
 };
 
 /**
-* Request an Image Comparison and wait for it to complete
+* Request an Image Comparison and queue the result to the test report
+* @param InImageName	Name used to identify the comparison
+* @param InContext		Optional context used to identify the comparison, by default the full name of the test is used
 **/
-ENGINE_API void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance = EAutomationComparisonToleranceLevel::Low, const FString& InNotes = TEXT(""));
+ENGINE_API void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance = EAutomationComparisonToleranceLevel::Low, const FString& InContext = TEXT(""), const FString& InNotes = TEXT(""));
 
 
 #endif

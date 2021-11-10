@@ -3607,6 +3607,19 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Math|Box2D", meta = (Keywords = "construct build", NativeMakeFunc))
 	static FBox2D MakeBox2D(FVector2D Min, FVector2D Max);
 
+	
+	//
+	// BoxSphereBounds functions
+	//
+	
+	/** Makes an FBoxSphereBounds given an origin, extent, and radius */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "construct build", NativeMakeFunc), Category = "Math|BoxSphereBounds")
+	static FBoxSphereBounds MakeBoxSphereBounds(FVector Origin, FVector BoxExtent, float SphereRadius);
+
+	/** Breaks an FBoxSphereBounds into origin, extent, and radius */
+	UFUNCTION(BlueprintPure, meta = (NativeBreakFunc), Category = "Math|BoxSphereBounds")
+	static void BreakBoxSphereBounds(const FBoxSphereBounds& InBoxSphereBounds, FVector& Origin, FVector& BoxExtent, float& SphereRadius);
+
 
 	//
 	// Misc functions

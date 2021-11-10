@@ -1619,16 +1619,9 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	Text += TEXT(" ");
 	Text += Input.DumpDebugInfoPath / Input.GetSourceFilename();
 
-	uint64 CFlags = 0;
-	for (int32 Index = 0; Index < Input.Environment.CompilerFlags.Num(); ++Index)
-	{
-		CFlags = CFlags | ((uint64)1 << (uint64)Input.Environment.CompilerFlags[Index]);
-	}
-	if (CFlags)
-	{
-		Text += TEXT(" -cflags=");
-		Text += FString::Printf(TEXT("%llu"), CFlags);
-	}
+	Text += TEXT(" -cflags=");
+	Text += FString::Printf(TEXT("%llu"), Input.Environment.CompilerFlags.GetData());
+
 	if (CCFlags)
 	{
 		Text += TEXT(" -hlslccflags=");

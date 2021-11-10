@@ -46,11 +46,13 @@
 	const DataType* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr = nullptr; \
 	const void* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr);
 
+#define METASOUND_DATA_TYPE_NAME_VARIABLE_TYPE_SPECIFIER ":Variable"
+#define METASOUND_DATA_TYPE_NAME_ARRAY_TYPE_SPECIFIER ":Array"
 
 // This only needs to be called if you don't plan on calling REGISTER_METASOUND_DATATYPE.
 #define DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName) \
 	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(DataType, DataTypeName, DataTypeName); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<DataType>, DataTypeName":Variable", DataTypeName"_Variable"); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(TArray<DataType>, DataTypeName":Array", DataTypeName"_Array"); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, DataTypeName":Array:Variable", DataTypeName"_Array_Variable"); 
+	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<DataType>, DataTypeName METASOUND_DATA_TYPE_NAME_VARIABLE_TYPE_SPECIFIER, DataTypeName"_Variable"); \
+	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(TArray<DataType>, DataTypeName METASOUND_DATA_TYPE_NAME_ARRAY_TYPE_SPECIFIER, DataTypeName"_Array"); \
+	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, DataTypeName METASOUND_DATA_TYPE_NAME_ARRAY_TYPE_SPECIFIER METASOUND_DATA_TYPE_NAME_VARIABLE_TYPE_SPECIFIER, DataTypeName"_Array_Variable"); 
 

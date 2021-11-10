@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemTagNodeHelper.h"
-#include "EditorStyleSet.h"
+
+// Insights
+#include "Insights/InsightsStyle.h"
 
 #define LOCTEXT_NAMESPACE "MemTagNode"
 
@@ -35,22 +37,9 @@ FText MemTagNodeTypeHelper::ToDescription(const EMemTagNodeType NodeType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName MemTagNodeTypeHelper::ToBrushName(const EMemTagNodeType NodeType)
-{
-	static_assert(static_cast<int>(EMemTagNodeType::InvalidOrMax) == 2, "Not all cases are handled in switch below!?");
-	switch (NodeType)
-	{
-		case EMemTagNodeType::MemTag:	return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO: "Icons.MemTag"
-		case EMemTagNodeType::Group:	return TEXT("Profiler.Misc.GenericGroup"); //TODO: "Icons.GenericGroup"
-		default:						return NAME_None;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const FSlateBrush* MemTagNodeTypeHelper::GetIconForGroup()
 {
-	return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GenericGroup"));
+	return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,8 +49,8 @@ const FSlateBrush* MemTagNodeTypeHelper::GetIconForMemTagNodeType(const EMemTagN
 	static_assert(static_cast<int>(EMemTagNodeType::InvalidOrMax) == 2, "Not all cases are handled in switch below!?");
 	switch (NodeType)
 	{
-		case EMemTagNodeType::MemTag:	return FEditorStyle::GetBrush(TEXT("Profiler.Type.NumberFloat")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.MemTag"));
-		case EMemTagNodeType::Group:	return FEditorStyle::GetBrush(TEXT("Profiler.Misc.GenericGroup")); //TODO: FInsightsStyle::GetBrush(TEXT("Icons.GenericGroup"));
+		case EMemTagNodeType::MemTag:	return FInsightsStyle::GetBrush("Icons.MemTag.TreeItem");
+		case EMemTagNodeType::Group:	return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 		default:						return nullptr;
 	}
 }
@@ -97,22 +86,6 @@ FText MemTagNodeGroupingHelper::ToDescription(const EMemTagNodeGroupingMode Grou
 		case EMemTagNodeGroupingMode::ByTracker:	return LOCTEXT("Grouping_Desc_ByTracker",	"Groups LLM tags by tracker.");
 		case EMemTagNodeGroupingMode::ByParent:		return LOCTEXT("Grouping_Desc_ByParent",	"Groups LLM tags by their hierarchy.");
 		default:									return LOCTEXT("InvalidOrMax", "InvalidOrMax");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FName MemTagNodeGroupingHelper::ToBrushName(const EMemTagNodeGroupingMode GroupingMode)
-{
-	static_assert(static_cast<int>(EMemTagNodeGroupingMode::InvalidOrMax) == 5, "Not all cases are handled in switch below!?");
-	switch (GroupingMode)
-	{
-		case EMemTagNodeGroupingMode::Flat:			return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.Flat"
-		case EMemTagNodeGroupingMode::ByName:		return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO: "Icons.Grouping.ByName"
-		case EMemTagNodeGroupingMode::ByType:		return TEXT("Profiler.FiltersAndPresets.StatTypeIcon"); //TODO
-		case EMemTagNodeGroupingMode::ByTracker:	return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO
-		case EMemTagNodeGroupingMode::ByParent:		return TEXT("Profiler.FiltersAndPresets.GroupNameIcon"); //TODO
-		default:									return NAME_None;
 	}
 }
 

@@ -577,6 +577,12 @@ void UTexture::Serialize(FArchive& Ar)
 		}
 	}
 
+	if (Ar.IsLoading())
+	{
+		// Could potentially guard this with a new custom version, but overhead of just checking on every load should be very small
+		Source.EnsureBlocksAreSorted();
+	}
+
 	if ( GetLinkerUEVersion() < VER_UE4_TEXTURE_LEGACY_GAMMA )
 	{
 		bUseLegacyGamma = true;
@@ -1334,6 +1340,8 @@ void FTextureSource::InitWithCompressedSourceData(
 
 	CompressionFormat = NewSourceFormat;
 
+	BlockDataOffsets.Add(0);
+
 	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
 
 	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()));
@@ -1907,6 +1915,7 @@ void FTextureSource::RemoveSourceData()
 	Format = TSF_Invalid;
 	LayerFormat.Empty();
 	Blocks.Empty();
+	BlockDataOffsets.Empty();
 	bPNGCompressed = false;
 	CompressionFormat = TSCF_None;
 	LockedMipData.Reset();
@@ -1920,25 +1929,36 @@ void FTextureSource::RemoveSourceData()
 
 int64 FTextureSource::CalcBlockSize(int32 BlockIndex) const
 {
-	int64 TotalSize = 0;
-	for (int32 LayerIndex = 0; LayerIndex < GetNumLayers(); ++LayerIndex)
-	{
-		TotalSize += CalcLayerSize(BlockIndex, LayerIndex);
-	}
-	return TotalSize;
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	return CalcBlockSize(Block);
 }
 
 int64 FTextureSource::CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const
 {
 	FTextureSourceBlock Block;
 	GetBlock(BlockIndex, Block);
+	return CalcLayerSize(Block, LayerIndex);
+}
 
+int64 FTextureSource::CalcBlockSize(const FTextureSourceBlock& Block) const
+{
+	int64 TotalSize = 0;
+	for (int32 LayerIndex = 0; LayerIndex < GetNumLayers(); ++LayerIndex)
+	{
+		TotalSize += CalcLayerSize(Block, LayerIndex);
+	}
+	return TotalSize;
+}
+
+int64 FTextureSource::CalcLayerSize(const FTextureSourceBlock& Block, int32 LayerIndex) const
+{
 	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
 	int64 MipSizeX = Block.SizeX;
 	int64 MipSizeY = Block.SizeY;
 
 	int64 TotalSize = 0;
-	for(int32 MipIndex = 0; MipIndex < Block.NumMips; ++MipIndex)
+	for (int32 MipIndex = 0; MipIndex < Block.NumMips; ++MipIndex)
 	{
 		TotalSize += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
 		MipSizeX = FMath::Max<int64>(MipSizeX >> 1, 1);
@@ -1949,24 +1969,18 @@ int64 FTextureSource::CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const
 
 int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
 {
-	int64 MipOffset = 0;
+	FTextureSourceBlock Block;
+	GetBlock(BlockIndex, Block);
+	check(MipIndex < Block.NumMips);
 
-	// Skip over the initial tiles
-	for (int i = 0; i < BlockIndex; ++i)
-	{
-		MipOffset += CalcBlockSize(i);
-	}
+	int64 MipOffset = BlockDataOffsets[BlockIndex];
 
 	// Skip over the initial layers within the tile
 	for (int i = 0; i < LayerIndex; ++i)
 	{
-		MipOffset += CalcLayerSize(BlockIndex, i);
+		MipOffset += CalcLayerSize(Block, i);
 	}
 
-	FTextureSourceBlock Block;
-	GetBlock(BlockIndex, Block);
-	check(MipIndex < Block.NumMips);
-	
 	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
 	int64 MipSizeX = Block.SizeX;
 	int64 MipSizeY = Block.SizeY;
@@ -2102,33 +2116,30 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 #if WITH_EDITOR
 
 	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
-	FString FormatPrefix;
-	bool bHasPrefix = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix, GEngineIni);
-	bHasPrefix = bHasPrefix && ! FormatPrefix.IsEmpty();
 
-	if ( bHasPrefix )
-	{
-		FString TextureCompressionFormat;
-		bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
-		bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
+	FString TextureCompressionFormat;
+	bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
+	bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
 	
-		if ( bHasFormat )
+	if ( bHasFormat )
+	{
+		ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
+
+		if ( TextureFormatModule )
 		{
-			ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
+			ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+					
+			FString FormatPrefix = TextureFormat->GetAlternateTextureFormatPrefix();
+			check( ! FormatPrefix.IsEmpty() );
+			
+			FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
 
-			if ( TextureFormatModule )
+			TArray<FName> SupportedFormats;
+			TextureFormat->GetSupportedFormats(SupportedFormats);
+
+			if (SupportedFormats.Contains(NewFormatName))
 			{
-				ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
-
-				TArray<FName> SupportedFormats;
-				TextureFormat->GetSupportedFormats(SupportedFormats);
-
-				FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
-
-				if (SupportedFormats.Contains(NewFormatName))
-				{
-					return NewFormatName;
-				}
+				return NewFormatName;
 			}
 		}
 	}
@@ -2561,6 +2572,8 @@ void FTextureSource::InitLayeredImpl(
 		LayerFormat[i] = NewLayerFormat[i];
 	}
 
+	BlockDataOffsets.Add(0);
+
 	checkf(LockState == ELockState::None, TEXT("InitLayered shouldn't be called in-between LockMip/UnlockMip"));
 }
 
@@ -2596,7 +2609,74 @@ void FTextureSource::InitBlockedImpl(const ETextureSourceFormat* InLayerFormats,
 		LayerFormat[i] = InLayerFormats[i];
 	}
 
+	EnsureBlocksAreSorted();
+
 	checkf(LockState == ELockState::None, TEXT("InitBlocked shouldn't be called in-between LockMip/UnlockMip"));
+}
+
+namespace
+{
+struct FSortedTextureSourceBlock
+{
+	FTextureSourceBlock Block;
+	int64 DataOffset;
+	int32 SourceBlockIndex;
+	int32 SortKey;
+};
+inline bool operator<(const FSortedTextureSourceBlock& Lhs, const FSortedTextureSourceBlock& Rhs)
+{
+	return Lhs.SortKey < Rhs.SortKey;
+}
+} // namespace
+
+bool FTextureSource::EnsureBlocksAreSorted()
+{
+	const int32 NumBlocks = GetNumBlocks();
+	if (BlockDataOffsets.Num() == NumBlocks)
+	{
+		return false;
+	}
+
+	BlockDataOffsets.Empty(NumBlocks);
+	if (NumBlocks > 1)
+	{
+		const FIntPoint SizeInBlocks = GetSizeInBlocks();
+
+		TArray<FSortedTextureSourceBlock> SortedBlocks;
+		SortedBlocks.Empty(NumBlocks);
+
+		int64 CurrentDataOffset = 0;
+		for (int32 BlockIndex = 0; BlockIndex < NumBlocks; ++BlockIndex)
+		{
+			FSortedTextureSourceBlock& SortedBlock = SortedBlocks.AddDefaulted_GetRef();
+			GetBlock(BlockIndex, SortedBlock.Block);
+			SortedBlock.SourceBlockIndex = BlockIndex;
+			SortedBlock.DataOffset = CurrentDataOffset;
+			SortedBlock.SortKey = SortedBlock.Block.BlockY * SizeInBlocks.X + SortedBlock.Block.BlockX;
+			CurrentDataOffset += CalcBlockSize(SortedBlock.Block);
+		}
+		SortedBlocks.Sort();
+
+		BlockDataOffsets.Add(SortedBlocks[0].DataOffset);
+		BaseBlockX = SortedBlocks[0].Block.BlockX;
+		BaseBlockY = SortedBlocks[0].Block.BlockY;
+		SizeX = SortedBlocks[0].Block.SizeX;
+		SizeY = SortedBlocks[0].Block.SizeY;
+		NumSlices = SortedBlocks[0].Block.NumSlices;
+		NumMips = SortedBlocks[0].Block.NumMips;
+		for (int32 BlockIndex = 1; BlockIndex < NumBlocks; ++BlockIndex)
+		{
+			const FSortedTextureSourceBlock& SortedBlock = SortedBlocks[BlockIndex];
+			BlockDataOffsets.Add(SortedBlock.DataOffset);
+			Blocks[BlockIndex - 1] = SortedBlock.Block;
+		}
+	}
+	else
+	{
+		BlockDataOffsets.Add(0);
+	}
+
+	return true;
 }
 
 #endif //WITH_EDITOR

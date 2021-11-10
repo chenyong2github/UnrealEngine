@@ -105,7 +105,7 @@ namespace Metasound
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 
-			AddDataTypeSelector(DetailLayout, MemberCustomizationPrivate::DataTypeNameText, GraphMember, !bIsRequired && bIsGraphEditable);
+			DataTypeSelector->AddDataTypeSelector(DetailLayout, MemberCustomizationPrivate::DataTypeNameText, GraphMember, !bIsRequired && bIsGraphEditable);
 
 			IDetailCategoryBuilder& DefaultCategoryBuilder = DetailLayout.EditCategory("DefaultValue");
 			TSharedPtr<IPropertyHandle> LiteralHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphVariable, Literal));

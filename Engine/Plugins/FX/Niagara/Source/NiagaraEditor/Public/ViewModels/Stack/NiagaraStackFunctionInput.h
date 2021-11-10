@@ -116,6 +116,8 @@ public:
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetCollapsedStateText() const;
 
+	void SetSummaryViewDisiplayName(TOptional<FText> InDisplayName);
+
 	/** Gets the path of parameter handles from the owning module to the function call which owns this input. */
 	const TArray<FNiagaraParameterHandle>& GetInputParameterHandlePath() const;
 
@@ -267,6 +269,8 @@ public:
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 	virtual bool HasFrontDivider() const override;
 
+	TOptional<FGuid> GetMetadataGuid() const;
+
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;
@@ -402,6 +406,7 @@ private:
 
 	/** Optional override for the display name*/
 	TOptional<FText> DisplayNameOverride;
+	TOptional<FText> SummaryViewDisplayNameOverride;
 
 	/** The default value for this input defined in the defining script. */
 	FInputValues DefaultInputValues;

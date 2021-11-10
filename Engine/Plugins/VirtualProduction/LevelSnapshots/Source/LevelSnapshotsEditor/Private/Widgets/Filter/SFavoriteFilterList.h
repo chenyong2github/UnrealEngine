@@ -23,9 +23,11 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UFavoriteFilterContainer* InModel, TWeakObjectPtr<ULevelSnapshotsEditorData> InEditorData);
+	void Construct(const FArguments& InArgs, UFavoriteFilterContainer* InModel, ULevelSnapshotsEditorData* InEditorData);
 
 private:
+
+	void UpdateFilterList(ULevelSnapshotsEditorData* InEditorData);
 
 	TSharedPtr<SWrapBox> FilterList;
 	TSharedPtr<SComboButton> ComboButton;

@@ -13754,7 +13754,7 @@ int32 FMaterialLayersFunctions::AppendBlendedLayer()
 	return LayerIndex;
 }
 
-int32 FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState)
+int32 FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, bool bVisible, EMaterialLayerLinkState LinkState)
 {
 	check(LinkState != EMaterialLayerLinkState::Uninitialized);
 	const int32 LayerIndex = Layers.Num();
@@ -13766,7 +13766,7 @@ int32 FMaterialLayersFunctions::AddLayerCopy(const FMaterialLayersFunctions& Sou
 	}
 	
 #if WITH_EDITOR
-	LayerStates.Add(Source.LayerStates[SourceLayerIndex]);
+	LayerStates.Add(bVisible);
 	LayerNames.Add(Source.LayerNames[SourceLayerIndex]);
 	RestrictToLayerRelatives.Add(Source.RestrictToLayerRelatives[SourceLayerIndex]);
 	if (LayerIndex > 0)
@@ -13898,6 +13898,45 @@ void FMaterialLayersFunctions::LinkAllLayersToParent()
 	}
 }
 
+bool FMaterialLayersFunctions::MatchesParent(const FMaterialLayersFunctions& Parent) const
+{
+	if (Layers.Num() != Parent.Layers.Num())
+	{
+		return false;
+	}
+
+	for (int32 LayerIndex = 0; LayerIndex < Layers.Num(); ++LayerIndex)
+	{
+		const EMaterialLayerLinkState LinkState = LayerLinkStates[LayerIndex];
+		if (LinkState != EMaterialLayerLinkState::LinkedToParent)
+		{
+			return false;
+		}
+
+		const FGuid& LayerGuid = LayerGuids[LayerIndex];
+		const int32 ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+		if (ParentLayerIndex != LayerIndex)
+		{
+			return false;
+		}
+
+		if (LayerStates[LayerIndex] != Parent.LayerStates[ParentLayerIndex])
+		{
+			return false;
+		}
+		if (Layers[LayerIndex] != Parent.Layers[ParentLayerIndex])
+		{
+			return false;
+		}
+		if (LayerIndex > 0 && Blends[LayerIndex - 1] != Parent.Blends[ParentLayerIndex - 1])
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Parent, TArray<int32>& OutRemapLayerIndices)
 {
 	check(LayerGuids.Num() == Layers.Num());
@@ -13913,6 +13952,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 	{
 		const FText& LayerName = LayerNames[LayerIndex];
 		const FGuid& LayerGuid = LayerGuids[LayerIndex];
+		const bool bLayerVisible = LayerStates[LayerIndex];
 		const EMaterialLayerLinkState LinkState = LayerLinkStates[LayerIndex];
 
 		int32 ParentLayerIndex = INDEX_NONE;
@@ -13945,7 +13985,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 			if (ParentLayerIndex == INDEX_NONE)
 			{
 				// Didn't find layer in the parent, assume it's local to this material
-				ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, EMaterialLayerLinkState::NotFromParent);
+				ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, bLayerVisible, EMaterialLayerLinkState::NotFromParent);
 				ParentLayerIndices.Add(INDEX_NONE);
 			}
 			else
@@ -13955,12 +13995,12 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 					(LayerIndex == 0 || Blends[LayerIndex - 1] == Parent.Blends[ParentLayerIndex - 1]))
 				{
 					// Parent layer matches, so link to parent
-					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, EMaterialLayerLinkState::LinkedToParent);
+					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, bLayerVisible, EMaterialLayerLinkState::LinkedToParent);
 				}
 				else
 				{
 					// Parent layer does NOT match, so make the child overriden
-					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, EMaterialLayerLinkState::UnlinkedFromParent);
+					ResolvedLayerIndex = ResolvedLayers.AddLayerCopy(*this, LayerIndex, bLayerVisible, EMaterialLayerLinkState::UnlinkedFromParent);
 					ResolvedLayers.LayerGuids[ResolvedLayerIndex] = Parent.LayerGuids[ParentLayerIndex]; // Still need to match guid to parent
 				}
 
@@ -13978,7 +14018,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 			if (ParentLayerIndex != INDEX_NONE)
 			{
 				// Layer comes from parent
-				ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, EMaterialLayerLinkState::LinkedToParent);
+				ResolvedLayers.AddLayerCopy(Parent, ParentLayerIndex, bLayerVisible, EMaterialLayerLinkState::LinkedToParent);
 				check(!ParentLayerIndices.Contains(ParentLayerIndex));
 				ParentLayerIndices.Add(ParentLayerIndex);
 			}
@@ -13998,7 +14038,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 			check(ParentLayerIndex == INDEX_NONE || !ParentLayerIndices.Contains(ParentLayerIndex));
 
 			// Update the link state, depending on if we can find this layer in the parent
-			ResolvedLayers.AddLayerCopy(*this, LayerIndex, (ParentLayerIndex == INDEX_NONE) ? EMaterialLayerLinkState::NotFromParent : EMaterialLayerLinkState::UnlinkedFromParent);
+			ResolvedLayers.AddLayerCopy(*this, LayerIndex, bLayerVisible, (ParentLayerIndex == INDEX_NONE) ? EMaterialLayerLinkState::NotFromParent : EMaterialLayerLinkState::UnlinkedFromParent);
 			ParentLayerIndices.Add(ParentLayerIndex);
 		}
 	}
@@ -16363,23 +16403,22 @@ void UMaterialExpressionNamedRerouteUsage::PostCopyNode(const TArray<UMaterialEx
 {
 	Super::PostCopyNode(CopiedExpressions);
 
-	ensure(!Declaration || Declaration->VariableGuid == DeclarationGuid);
-
+	// First try to find the declaration in the copied expressions
+	Declaration = FindDeclarationInArray(DeclarationGuid, CopiedExpressions);
 	if (!Declaration)
 	{
-		// First try to find the declaration in the copied expressions
-		Declaration = FindDeclarationInArray(DeclarationGuid, CopiedExpressions);
-		if (!Declaration)
-		{
-			// If unsuccessful, try to find it in the whole material
-			Declaration = FindDeclarationInMaterial(DeclarationGuid);
-		}
-		if (Declaration)
-		{
-			// Save that Declaration change
-			MarkPackageDirty();
-		}
+		// If unsuccessful, try to find it in the whole material
+		Declaration = FindDeclarationInMaterial(DeclarationGuid);
 	}
+
+	// Keep GUID in sync. In case this is pasted by itself into another graph, we don't want this node to connect up to a previously connected declaration. 
+	if (Declaration)
+	{
+		DeclarationGuid = Declaration->VariableGuid;
+	}
+
+	// Save that Declaration change
+	MarkPackageDirty();
 }
 #endif // WITH_EDITOR
 

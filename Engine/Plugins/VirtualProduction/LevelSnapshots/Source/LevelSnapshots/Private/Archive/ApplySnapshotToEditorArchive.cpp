@@ -147,13 +147,14 @@ void FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(FObjectSnap
 	{
 		return;
 	}
-	
+
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("Applying to existing object %s (class %s)"), *InOriginalObject->GetPathName(), *InOriginalObject->GetClass()->GetPathName());
 	const FApplySnapshotPropertiesScope NotifySnapshotListeners({ InOriginalObject, InSelectionMapForResolvingSubobjects, &InSelectionSet, true });
 #if WITH_EDITOR
 	InOriginalObject->PreEditChange(nullptr);
 	ON_SCOPE_EXIT
 	{
-		InOriginalObject->PostEditChange();	
+		InOriginalObject->PostEditChange();
 	};
 #endif
 	
@@ -170,6 +171,7 @@ void FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(FObjectSnap
 
 void FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects)
 {
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("Applying to recreated object %s (class %s)"), *InOriginalObject->GetPathName(), *InOriginalObject->GetClass()->GetPathName());
 	const FApplySnapshotPropertiesScope NotifySnapshotListeners({ InOriginalObject, InSelectionMapForResolvingSubobjects, {}, true });
 	
 	// Apply all properties that we saved into the target actor.

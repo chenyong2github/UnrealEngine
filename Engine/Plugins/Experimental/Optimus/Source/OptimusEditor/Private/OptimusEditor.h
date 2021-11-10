@@ -128,17 +128,23 @@ private:
 	/// Returns \c true if all the nodes can be selected.
 	bool CanDeleteSelectedNodes() const;
 
-	void CopySelectedNodes();
+	void CopySelectedNodes() const;
 	bool CanCopyNodes() const;
 
-	void CutSelectedNodes();
+	void CutSelectedNodes() const;
 	bool CanCutNodes() const;
 	
-	void PasteNodes();
+	void PasteNodes() const;
 	bool CanPasteNodes();
 	
-	void DuplicateNodes();
-	bool CanDuplicateNodes();
+	void DuplicateNodes() const;
+	bool CanDuplicateNodes() const;
+
+	void PackageNodes();
+	bool CanPackageNodes() const;
+
+	void UnpackageNodes();
+	bool CanUnpackageNodes() const;
 	
 	// ----------------------------------------------------------------------------------------
 	// Graph event listeners

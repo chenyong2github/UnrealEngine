@@ -70,15 +70,11 @@ public:
             .Image(this, &SPinnedWidget::GetBrush)
         );
 
-		static const FName NAME_PinnedHoveredBrush = TEXT("SceneOutliner.PinnedHighlighIcon");
-		static const FName NAME_PinnedNotHoveredBrush = TEXT("SceneOutliner.PinnedIcon");
-		static const FName NAME_UnpinnedHoveredBrush = TEXT("SceneOutliner.UnpinnedHighlighIcon");
-		static const FName NAME_UnpinnedNotHoveredBrush = TEXT("SceneOutliner.UnpinnedIcon");
+		static const FName NAME_PinnedBrush = TEXT("SceneOutliner.PinnedIcon");
+		static const FName NAME_UnpinnedBrush = TEXT("SceneOutliner.UnpinnedIcon");
 
-		PinnedHoveredBrush = FEditorStyle::GetBrush(NAME_PinnedHoveredBrush);
-		PinnedNotHoveredBrush = FEditorStyle::GetBrush(NAME_PinnedNotHoveredBrush);
-		UnpinnedHoveredBrush = FEditorStyle::GetBrush(NAME_UnpinnedHoveredBrush);
-		UnpinnedNotHoveredBrush = FEditorStyle::GetBrush(NAME_UnpinnedNotHoveredBrush);
+		PinnedBrush = FEditorStyle::GetBrush(NAME_PinnedBrush);
+		UnpinnedBrush = FEditorStyle::GetBrush(NAME_UnpinnedBrush);
 	}
 
 private:
@@ -142,14 +138,7 @@ private:
 
 	const FSlateBrush* GetBrush() const
 	{
-		if (IsPinned())
-		{
-			return IsHovered() ? PinnedHoveredBrush : PinnedNotHoveredBrush;
-		}
-		else
-		{
-			return IsHovered() ? UnpinnedHoveredBrush : UnpinnedNotHoveredBrush;
-		}
+		return IsPinned() ? PinnedBrush : UnpinnedBrush;
 	}
 
 	virtual FSlateColor GetForegroundColor() const override
@@ -180,10 +169,8 @@ private:
 	/** Weak pointer back to the row */
 	const STableRow<FSceneOutlinerTreeItemPtr>* Row = nullptr;
 
-	const FSlateBrush* PinnedHoveredBrush = nullptr;
-	const FSlateBrush* PinnedNotHoveredBrush = nullptr;
-	const FSlateBrush* UnpinnedHoveredBrush = nullptr;
-	const FSlateBrush* UnpinnedNotHoveredBrush = nullptr;
+	const FSlateBrush* PinnedBrush = nullptr;
+	const FSlateBrush* UnpinnedBrush = nullptr;
 };
 
 FName FSceneOutlinerPinnedColumn::GetColumnID()

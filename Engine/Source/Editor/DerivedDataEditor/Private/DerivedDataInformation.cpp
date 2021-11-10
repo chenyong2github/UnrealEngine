@@ -135,6 +135,54 @@ bool FDerivedDataInformation::GetHasRemoteCache()
 	return false;
 }
 
+bool FDerivedDataInformation::GetHasZenCache()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
+	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
+		if (Node->Children.Num() == 0)
+		{
+			LeafUsageStats.Add(Node);
+		}
+		});
+
+	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	{
+		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
+
+		if (Backend->GetDisplayName().Equals("Zen"))
+			return true;
+	}
+
+	return false;
+}
+
+bool FDerivedDataInformation::GetHasHordeStorageCache()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
+	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
+		if (Node->Children.Num() == 0)
+		{
+			LeafUsageStats.Add(Node);
+		}
+		});
+
+	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	{
+		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
+
+		if (Backend->GetDisplayName().Equals("Horde Storage"))
+			return true;
+	}
+
+	return false;
+}
+
 void FDerivedDataInformation::UpdateRemoteCacheState()
 {
 	RemoteCacheState = ERemoteCacheState::Unavailable;
@@ -171,15 +219,20 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 
 		if (EditorSettings)
 		{
-			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage)
+			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && GetHasHordeStorageCache()==false && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter"))!=0))
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "Make sure you are usign the Jupiter Baackend"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "It is recommended that you use a DDC graph that supports Horde Storage. Please check any -ddc commandline overrides."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path"));
+			}
+			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalSharedDDCPath && EditorSettings->GlobalSharedDDCPath.Path.IsEmpty())
+			{
+				RemoteCacheState = ERemoteCacheState::Warning;
+				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Shared DDC Path"));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bEnableS3DDC == false)
 			{

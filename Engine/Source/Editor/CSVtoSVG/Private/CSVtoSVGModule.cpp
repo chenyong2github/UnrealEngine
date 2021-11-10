@@ -74,7 +74,7 @@ FFilePath GenerateSVG(const UCSVtoSVGArugments& Arguments, const TArray<FString>
 		CmdLine += TEXT(" ") + Stat;
 	}
 
-	UE_LOG(LogCSVtoSVG, Display, TEXT("Generating SVG: %s"), *CmdLine);
+	UE_LOG(LogCSVtoSVG, Display, TEXT("Generating SVG: %s %s"), *CSVtoSVGExe, *CmdLine);
 
 	// Create a read and write pipe for the child process
 	void* PipeRead = nullptr;

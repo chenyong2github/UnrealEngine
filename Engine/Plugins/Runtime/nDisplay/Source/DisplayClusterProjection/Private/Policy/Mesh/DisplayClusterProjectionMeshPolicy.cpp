@@ -37,7 +37,11 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplay
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 		if (!ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface))
 		{
-			UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+			if (!IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
+			}
+
 			return false;
 		}
 	}
@@ -59,7 +63,10 @@ bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayCluster
 
 	if (!CreateWarpMeshInterface(InViewport))
 	{
-		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
+		}
 
 		return false;
 	}
@@ -94,7 +101,11 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 		}
 #endif
 
-		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
+		}
+
 		return false;
 	}
 
@@ -102,7 +113,11 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 	UStaticMeshComponent* MeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);
 	if (!MeshComponent)
 	{
-		UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+		}
+
 		return false;
 	}
 

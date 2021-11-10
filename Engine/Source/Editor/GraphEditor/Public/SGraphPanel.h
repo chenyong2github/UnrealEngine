@@ -23,6 +23,7 @@
 class FActiveTimerHandle;
 class FSlateWindowElementList;
 class IToolTip;
+class IMenu;
 class UEdGraph;
 
 DECLARE_DELEGATE( FOnUpdateGraphPanel )
@@ -126,6 +127,7 @@ public:
 	void ArrangeChildrenForContextMenuSummon(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 	TSharedPtr<SWidget> SummonContextMenu(const FVector2D& WhereToSummon, const FVector2D& WhereToAddNode, UEdGraphNode* ForNode, UEdGraphPin* ForPin, const TArray<UEdGraphPin*>& DragFromPins);
 	void SummonCreateNodeMenuFromUICommand(uint32 NumNodesAdded);
+	void DismissContextMenu();
 
 	void OnBeginMakingConnection(UEdGraphPin* InOriginatingPin);
 	void OnBeginMakingConnection(FGraphPinHandle PinHandle);
@@ -335,4 +337,7 @@ private:
 
 	/** The current node factory to create nodes, pins and connections. Uses the static FNodeFactory if not set. */
 	TSharedPtr<class FGraphNodeFactory> NodeFactory;
+
+	/** Weak pointer to the last summoned context menu, for dismissing it when requested. */
+	TWeakPtr<IMenu> ContextMenu;
 };

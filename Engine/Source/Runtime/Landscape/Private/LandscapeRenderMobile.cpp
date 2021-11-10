@@ -343,9 +343,9 @@ FLandscapeComponentSceneProxyMobile::FLandscapeComponentSceneProxyMobile(ULandsc
 	NormalmapTexture = InComponent->MobileWeightmapTextures[0];
 
 #if WITH_EDITOR
-	TArray<FWeightmapLayerAllocationInfo>& LayerAllocations = InComponent->MobileWeightmapLayerAllocations.Num() ? InComponent->MobileWeightmapLayerAllocations : InComponent->GetWeightmapLayerAllocations();
+	const TArray<FWeightmapLayerAllocationInfo>& LayerAllocations = InComponent->MobileWeightmapLayerAllocations.Num() ? InComponent->MobileWeightmapLayerAllocations : InComponent->GetWeightmapLayerAllocations();
 	LayerColors.Empty();
-	for (auto& Allocation : LayerAllocations)
+	for (const FWeightmapLayerAllocationInfo& Allocation : LayerAllocations)
 	{
 		if (Allocation.LayerInfo != nullptr)
 		{

@@ -123,6 +123,11 @@ public:
 		return GetBaseFormatObject(Format)->SupportsEncodeSpeed(Format);
 	}
 
+	virtual FName GetEncoderName(FName Format) const override
+	{
+		return GetBaseFormatObject(Format)->GetEncoderName(Format);
+	}
+
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* BuildSettings) const final
 	{
 		uint16 BaseVersion = GetBaseFormatObject(Format)->GetVersion(Format, BuildSettings);

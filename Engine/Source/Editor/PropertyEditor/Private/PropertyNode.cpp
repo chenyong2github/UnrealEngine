@@ -353,7 +353,7 @@ const FComplexPropertyNode* FPropertyNode::FindComplexParent() const
 
 class FObjectPropertyNode* FPropertyNode::FindObjectItemParent()
 {
-	auto ComplexParent = FindComplexParent();
+	FComplexPropertyNode* ComplexParent = FindComplexParent();
 	if (!ComplexParent)
 	{
 		return nullptr;
@@ -372,7 +372,7 @@ class FObjectPropertyNode* FPropertyNode::FindObjectItemParent()
 
 const class FObjectPropertyNode* FPropertyNode::FindObjectItemParent() const
 {
-	const auto ComplexParent = FindComplexParent();
+	const FComplexPropertyNode* ComplexParent = FindComplexParent();
 	if (!ComplexParent)
 	{
 		return nullptr;

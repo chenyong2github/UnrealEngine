@@ -5,6 +5,7 @@
 #include "AudioDecompress.h"
 #include "Interfaces/IAudioFormat.h"
 #include "AudioMixerSourceDecode.h"
+#include "AudioMixerTrace.h"
 #include "AudioStreaming.h"
 
 namespace Audio
@@ -151,15 +152,17 @@ namespace Audio
 			return false;
 		}
 
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerBuffer::ReadCompressedInfo);
+
 		FSoundQualityInfo QualityInfo;
 
-		if (!SoundWave->ResourceData || !SoundWave->ResourceSize)
+		if (!SoundWave->GetResourceData() || !SoundWave->GetResourceSize())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to read compressed info of '%s' because there was no resource data or invalid resource size."), *ResourceName);
 			return false;
 		}
 
-		if (DecompressionState->ReadCompressedInfo(SoundWave->ResourceData, SoundWave->ResourceSize, &QualityInfo))
+		if (DecompressionState->ReadCompressedInfo(SoundWave->GetResourceData(), SoundWave->GetResourceSize(), &QualityInfo))
 		{
 			NumFrames = QualityInfo.SampleDataSize / (QualityInfo.NumChannels * sizeof(int16));
 			return true;
@@ -173,6 +176,8 @@ namespace Audio
 
 	void FMixerBuffer::Seek(const float SeekTime)
 	{
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerBuffer::Seek);
+
 		if (ensure(DecompressionState))
 		{
 			DecompressionState->SeekToTime(SeekTime);
@@ -187,6 +192,8 @@ namespace Audio
 			return nullptr;
 		}
 
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerBuffer::Init);
+
 #if WITH_EDITOR
 		InWave->InvalidateSoundWaveIfNeccessary();
 #endif // WITH_EDITOR
@@ -197,7 +204,7 @@ namespace Audio
 
 		EDecompressionType DecompressionType = InWave->DecompressionType;
 
-		if (bForceRealtime  && DecompressionType != DTYPE_Setup && DecompressionType != DTYPE_Streaming)
+		if (bForceRealtime  && DecompressionType != DTYPE_Setup && DecompressionType != DTYPE_Streaming && DecompressionType != DTYPE_Procedural)
 		{
 			DecompressionType = DTYPE_RealTime;
 		}
@@ -324,6 +331,7 @@ namespace Audio
 			return nullptr;
 		}
 
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerBuffer::CreateStreamingBuffer);
 
 		FMixerBuffer* Buffer = new FMixerBuffer(AudioDevice, InWave, EBufferType::Streaming);
 
@@ -376,7 +384,7 @@ namespace Audio
 		// Create a new buffer for real-time sounds
 		FMixerBuffer* Buffer = new FMixerBuffer(AudioDevice, InWave, EBufferType::PCMRealTime);
 
-		if (InWave->ResourceData == nullptr)
+		if (InWave->GetResourceData() == nullptr)
 		{
 			InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
 		}

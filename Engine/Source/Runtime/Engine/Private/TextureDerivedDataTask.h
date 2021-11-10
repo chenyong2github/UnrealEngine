@@ -122,7 +122,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** The texture for which derived data is being cached. */
 	UTexture& Texture;
 
-	/** The name of the texture we are building. */
+	/** The name of the texture we are building. Here to avoid GetPathName calls off the main thread. */
 	FString TexturePathName;
 
 	/** Compression settings. We need two for when we are in the fallback case. We have
@@ -130,6 +130,9 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	TArray<FTextureBuildSettings> BuildSettingsPerLayerFetchFirst;
 	TArray<FTextureBuildSettings> BuildSettingsPerLayerFetchOrBuild;
 
+	// Metadata for the different fetches we could do. Stored to DerivedData once we know.
+	FTexturePlatformData::FTextureEncodeResultMetadata FetchFirstMetadata;
+	FTexturePlatformData::FTextureEncodeResultMetadata FetchOrBuildMetadata;
 
 	/** Derived data key suffix that we ended up using. */
 	FString KeySuffix;
@@ -148,9 +151,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** true if caching has succeeded. */
 	bool bSucceeded;
 	/** true if the derived data was pulled from DDC */
-	bool bLoadedFromDDC = false;	
-	/** what speed we ended up using, based on whether we used the fetchfirst or fetchorbuild settings */
-	ETextureEncodeSpeed UsedEncodeSpeed;
+	bool bLoadedFromDDC = false;
 
 	/** Build the texture. This function is safe to call from any thread. */
 	void BuildTexture(TArray<FTextureBuildSettings>& InBuildSettingsPerLayer, bool bReplaceExistingDDC = false);
@@ -163,6 +164,8 @@ public:
 		UTexture* InTexture,
 		const FTextureBuildSettings* InSettingsPerLayerFetchFirst, // can be nullptr
 		const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
+		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchFirstMetadata, // can be nullptr
+		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchOrBuildMetadata, // can be nullptr
 		ETextureCacheFlags InCacheFlags);
 
 	/** Does the work to cache derived data. Safe to call from any thread. */
@@ -189,11 +192,6 @@ public:
 		return bLoadedFromDDC;
 	}
 
-	ETextureEncodeSpeed GetUsedEncodeSpeed() const
-	{
-		return UsedEncodeSpeed;
-	}
-
 	FORCEINLINE TStatId GetStatId() const
 	{
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FTextureCacheDerivedDataWorker, STATGROUP_ThreadPoolAsyncTasks);
@@ -203,7 +201,7 @@ public:
 struct FTextureAsyncCacheDerivedDataTask
 {
 	virtual ~FTextureAsyncCacheDerivedDataTask() = default;
-	virtual void Finalize(bool& bOutFoundInCache, ETextureEncodeSpeed& OutUsedEncodeSpeed, uint64& OutProcessedByteCount) = 0;
+	virtual void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) = 0;
 	virtual EQueuedWorkPriority GetPriority() const = 0;
 	virtual bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) = 0;
 	virtual bool Cancel() = 0;
@@ -225,6 +223,8 @@ public:
 		UTexture* InTexture,
 		const FTextureBuildSettings* InSettingsPerLayerFetchFirst,
 		const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
+		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchFirstMetadata,
+		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchOrBuildMetadata,
 		ETextureCacheFlags InCacheFlags
 		)
 		: FAsyncTask<FTextureCacheDerivedDataWorker>(
@@ -233,16 +233,17 @@ public:
 			InTexture,
 			InSettingsPerLayerFetchFirst,
 			InSettingsPerLayerFetchOrBuild,
+			InFetchFirstMetadata,
+			InFetchOrBuildMetadata,
 			InCacheFlags
 			)
 		, QueuedPool(InQueuedPool)
 	{
 	}
 
-	void Finalize(bool& bOutFoundInCache, ETextureEncodeSpeed& OutUsedEncodeSpeed, uint64& OutProcessedByteCount) final
+	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
 	{
 		GetTask().Finalize();
-		OutUsedEncodeSpeed = GetTask().GetUsedEncodeSpeed();
 		bOutFoundInCache = GetTask().WasLoadedFromDDC();
 		OutProcessedByteCount = GetTask().GetBytesCached();
 	}
@@ -287,6 +288,8 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	FTexturePlatformData& DerivedData,
 	const FTextureBuildSettings* SettingsFetchFirst, // can be nullptr
 	const FTextureBuildSettings& SettingsFetchOrBuild,
+	const FTexturePlatformData::FTextureEncodeResultMetadata* FetchMetadata,
+	const FTexturePlatformData::FTextureEncodeResultMetadata* FetchOrBuildMetadata,
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags);
 

@@ -13,6 +13,8 @@
 
 #include "DMXLibrary.generated.h"
 
+class UDMXEntity;
+
 
 /** Custom struct of in put and output port references for custom details customization with an enabled state */
 USTRUCT(BlueprintType)
@@ -30,14 +32,20 @@ public:
 	TArray<FDMXOutputPortReference> OutputPortReferences;
 };
 
-/** Called when the list of entities is changed by either adding or removing entities */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitiesUpdated, class UDMXLibrary*);
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnEntityArrayChangedDelegate, class UDMXLibrary*, TArray<UDMXEntity*>);
+
+/** DEPRECATED 5.0 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitiesUpdated_DEPRECATED, class UDMXLibrary*);
 
 UCLASS(BlueprintType, Blueprintable, AutoExpandCategories = DMX)
 class DMXRUNTIME_API UDMXLibrary
 	: public UDMXObjectBase
 {
 	GENERATED_BODY()
+
+	/** Friend DMXEntity so they can register and unregister themselves with the Library */
+	friend class UDMXEntity;
 
 protected:
 	// ~Begin UObject Interface
@@ -50,8 +58,14 @@ protected:
 #endif // WITH_EDITOR
 	// ~End UObject Interface
 
+	/** Registers an Entity with this Library */
+	void RegisterEntity(UDMXEntity* Entity);
+
+	/** Unregisters an Entity from this Library */
+	void UnregisterEntity(UDMXEntity* Entity);
+
 public:
-	/** Creates a new Entity or return an existing one with the passed in name */
+	UE_DEPRECATED(5.0, "Deprecated in favor of new UDMXEntityFixtureType::CreateFixtureType and UDMXEntityFixturePatch::CreateFixturePatch that support creating patches in blueprints.")
 	UDMXEntity* GetOrCreateEntityObject(const FString& InName, TSubclassOf<UDMXEntity> DMXEntityClass);
 
 	/**
@@ -72,24 +86,23 @@ public:
 	 */
 	int32 FindEntityIndex(UDMXEntity* InEntity) const;
 
-	/** Adds an existing Entity, likely created from a copy/paste operation. */
+	/** Adds an Entity to the library */
+	UE_DEPRECATED(5.0, "Entites no longer can be added or removed explicitly.")
 	void AddEntity(UDMXEntity* InEntity);
 
-	/** Move an Entity to a specific index. */
+	/** Move an Entity to a specific index in the Entities Array. */
 	void SetEntityIndex(UDMXEntity* InEntity, const int32 NewIndex);
 
 	/** Removes an Entity from this DMX Library searching it by name. */
+	UE_DEPRECATED(5.0, "Entites no longer can be added or removed explicitly.")
 	void RemoveEntity(const FString& EntityName);
 	
 	/** Removes an Entity from this DMX Library. */
-	void FORCEINLINE RemoveEntity(UDMXEntity* InEntity)
-	{
-		InEntity->SetParentLibrary(nullptr);
-		Entities.Remove(InEntity);
-		OnEntitiesUpdated.Broadcast(this);
-	}
+	UE_DEPRECATED(5.0, "Entites no longer can be added or removed explicitly.")
+	void RemoveEntity(UDMXEntity* InEntity);
 
 	/** Empties this DMX Library array of Entities */
+	UE_DEPRECATED(5.0, "Entites no longer can be added or removed explicitly.")
 	void RemoveAllEntities();
 
 	/** Returns all Entities in this DMX Library */
@@ -162,8 +175,15 @@ public:
 	 */
 	void ForEachEntityOfTypeWithBreak(TSubclassOf<UDMXEntity> InEntityClass, TFunction<bool(UDMXEntity*)> Predicate) const;
 
-	/** Called when the list of entities is changed by either adding or removing entities */
-	FOnEntitiesUpdated& GetOnEntitiesUpdated();
+	/** Returns a delegate that is broadcast when entities were added to the library  */
+	static FDMXOnEntityArrayChangedDelegate& GetOnEntitiesAdded();
+
+	/** Returns a delegate that is broadcast when entities were removed from the library  */
+	static FDMXOnEntityArrayChangedDelegate& GetOnEntitiesRemoved();
+
+	/** */
+	UE_DEPRECATED(5.0, "Deprecated in favor of the more expressive UDMXLibrary::GetOnEntitiesAdded() and UDMXLibrary::GetOnEntitiesRemoved() that also forwards the added resp. removed entities")
+	FOnEntitiesUpdated_DEPRECATED& GetOnEntitiesUpdated();
 
 public:
 	/** Returns all local Universe IDs in Ports */
@@ -180,6 +200,9 @@ public:
 
 	/** Updates the ports from what's set in the Input and Output Port References arrays */
 	void UpdatePorts();
+
+	/** Returns the Entity that was last added to the Library */
+	FORCEINLINE TWeakObjectPtr<UDMXEntity> GetLastAddedEntity() const { return LastAddedEntity; }
 
 #if WITH_EDITOR
 	/** Returns the name of the Ports property. */
@@ -207,12 +230,21 @@ private:
 	UPROPERTY()
 	TArray<UDMXEntity*> Entities;
 
+	/** The entity that was added last to the Library */
+	TWeakObjectPtr<UDMXEntity> LastAddedEntity;
+
 	/** The input ports available to the library, according to the InputPortReferences array */
 	TSet<FDMXInputPortSharedRef> InputPorts;
 
 	/** The output ports available to the library, according to the OutputPortReferences array */
 	TSet<FDMXOutputPortSharedRef> OutputPorts;
 
-	/** Called when the list of entities is changed by either adding or removing entities */
-	FOnEntitiesUpdated OnEntitiesUpdated;
+	/** Delegate broadcast when Entities were added */
+	static FDMXOnEntityArrayChangedDelegate OnEntitiesAddedDelegate;
+
+	/** Delegate broadcast when Entities were removed */
+	static FDMXOnEntityArrayChangedDelegate OnEntitiesRemovedDelegate;
+
+	/** DEPRECATED 5.0 */
+	FOnEntitiesUpdated_DEPRECATED OnEntitiesUpdated_DEPRECATED;
 };

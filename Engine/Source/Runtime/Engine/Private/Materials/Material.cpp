@@ -1902,9 +1902,14 @@ bool UMaterial::GetParameterValue(EMaterialParameterType Type, const FMemoryImag
 	return false;
 }
 
-const FMaterialLayersFunctions* UMaterial::GetMaterialLayers(TMicRecursionGuard) const
+bool UMaterial::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard) const
 {
-	return CachedExpressionData && CachedExpressionData->bHasMaterialLayers ? &CachedExpressionData->MaterialLayers : nullptr;
+	if (CachedExpressionData && CachedExpressionData->bHasMaterialLayers)
+	{
+		OutLayers = CachedExpressionData->MaterialLayers;
+		return true;
+	}
+	return false;
 }
 
 bool UMaterial::GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid& OutExpressionGuid) const

@@ -5,7 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
@@ -38,7 +38,7 @@ FMarkersTimingTrack::FMarkersTimingTrack()
 	, NumDrawBoxes(0)
 	, NumDrawTexts(0)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 	SetValidLocations(ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 	SetOrder(FTimingTrackOrder::Markers);
@@ -391,7 +391,7 @@ FTimeMarkerTrackBuilder::FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, c
 	: Track(InTrack)
 	, Viewport(InViewport)
 	, FontMeasureService(FSlateApplication::Get().GetRenderer()->GetFontMeasureService())
-	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 {
 	Track.ResetCache();
 	Track.NumLogMessages = 0;

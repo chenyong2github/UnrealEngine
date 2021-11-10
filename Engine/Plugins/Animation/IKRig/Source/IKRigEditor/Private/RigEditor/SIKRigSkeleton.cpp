@@ -195,7 +195,8 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 		WeakRigTreeElement.Pin()->GoalName = NewName;
 	}
 
-	Controller->SkeletonView->RefreshTreeView();
+	Controller->ReplaceGoalInSelection(OldName, NewName);
+	Controller->RefreshAllViews();
 }
 
 FText SIKRigSkeletonItem::GetName() const
@@ -370,7 +371,6 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("AddRemoveGoals", LOCTEXT("AddRemoveGoalOperations", "Goals"));
 	MenuBuilder.AddMenuEntry(Actions.NewGoal);
-	MenuBuilder.AddMenuEntry(Actions.DeleteGoal);
 	MenuBuilder.EndSection();
 	
 	MenuBuilder.BeginSection("ConnectGoals", LOCTEXT("ConnectGoalOperations", "Connect Goals To Solvers"));
@@ -379,10 +379,10 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("BoneSettings", LOCTEXT("BoneSettingsOperations", "Bone Settings"));
-	MenuBuilder.AddMenuEntry(Actions.AddBoneSettings);
-	MenuBuilder.AddMenuEntry(Actions.RemoveBoneSettings);
 	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolvers);
 	MenuBuilder.AddMenuEntry(Actions.SetEndBoneOnSolvers);
+	MenuBuilder.AddMenuEntry(Actions.AddBoneSettings);
+	MenuBuilder.AddMenuEntry(Actions.RemoveBoneSettings);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("IncludeExclude", LOCTEXT("IncludeExcludeOperations", "Exclude Bones"));
@@ -391,8 +391,8 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("Retargeting", LOCTEXT("RetargetingOperations", "Retargeting"));
-	MenuBuilder.AddMenuEntry(Actions.NewRetargetChain);
 	MenuBuilder.AddMenuEntry(Actions.SetRetargetRoot);
+	MenuBuilder.AddMenuEntry(Actions.NewRetargetChain);
 	MenuBuilder.EndSection();
 }
 

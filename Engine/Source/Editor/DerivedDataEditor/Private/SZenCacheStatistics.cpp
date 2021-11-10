@@ -17,17 +17,39 @@ extern FString SingleDecimalFormat(double Value);
 
 void SZenCacheStatisticsDialog::Construct(const FArguments& InArgs)
 {
+	const float RowMargin = 0.0f;
+	const float TitleMargin = 10.0f;
+	const float ColumnMargin = 10.0f;
+	const FSlateColor TitleColour = FStyleColors::AccentWhite;
+	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-
+		+ SVerticalBox::Slot()
+		.Padding(0, 20, 0, 0)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)		
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+				.ColorAndOpacity(TitleColour)
+				.Font(TitleFont)
+				.Justification(ETextJustify::Left)
+				.Text(LOCTEXT("ZenStore", "ZenStore"))
+			]		
+		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 20, 0, 0)
+		.Padding(0, 5, 0, 0)
 		.Expose(GridSlot)
 		[
 			GetGridPanel()
 		]
+
 	];
 
 	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SZenCacheStatisticsDialog::UpdateGridPanels));
@@ -126,7 +148,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat(ZenStats.CacheStats.HitRatio) + TEXT(" %")); })
+		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat(ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
 	];
 
 	Panel->AddSlot(4, Row)
@@ -153,7 +175,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.HitRatio) + TEXT(" %")); })
+			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.HitRatio*100.0) + TEXT(" %")); })
 		];
 
 		Panel->AddSlot(2, Row)

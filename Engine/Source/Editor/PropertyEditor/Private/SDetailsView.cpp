@@ -3,6 +3,7 @@
 
 #include "SDetailsView.h"
 
+#include "CategoryPropertyNode.h"
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "DetailsViewGenericObjectFilter.h"
@@ -60,6 +61,8 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		{
 			DetailsViewArgs.bShowSectionSelector = ViewConfig->bShowSections;
 		}
+
+		CurrentFilter.bShowFavoritesCategory = ViewConfig->bShowFavoritesCategory;
 	}
 
 	ColumnSizeData.SetValueColumnWidth(DetailsViewArgs.ColumnWidth);
@@ -96,7 +99,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP( this, &SDetailsView::IsShowOnlyModifiedChecked )
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton 
+			EUserInterfaceActionType::Check 
 		);
 	}
 
@@ -114,7 +117,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP(this, &SDetailsView::IsCustomFilterChecked)
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::Check
 		);
 	}
 
@@ -130,7 +133,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowOnlyAllowedChecked)
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::Check
 		);
 	}
 
@@ -146,7 +149,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowKeyableChecked)
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton 
+			EUserInterfaceActionType::Check
 		);
 	}
 
@@ -162,7 +165,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowAnimatedChecked)
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::Check
 		);
 	}
 
@@ -176,7 +179,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllAdvancedChecked )
 			),
 		NAME_None,
-		EUserInterfaceActionType::ToggleButton 
+		EUserInterfaceActionType::Check
 	);
 
 	if (DetailsViewArgs.bShowHiddenPropertiesWhilePlayingOption)
@@ -191,7 +194,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowHiddenPropertiesWhilePlayingChecked)
 			),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+			EUserInterfaceActionType::Check
 		);
 	}
 
@@ -205,7 +208,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllChildrenIfCategoryMatchesChecked )
 		),
 		NAME_None,
-		EUserInterfaceActionType::ToggleButton 
+		EUserInterfaceActionType::Check
 	);
 
 	DetailViewOptions.AddMenuEntry(
@@ -218,7 +221,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			FIsActionChecked::CreateSP(this, &SDetailsView::IsShowSectionsChecked)
 		),
 		NAME_None,
-		EUserInterfaceActionType::ToggleButton 
+		EUserInterfaceActionType::Check
 	);		
 
 	DetailViewOptions.AddMenuEntry(
@@ -871,7 +874,6 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 	RootPropertyNodes.Empty(InNewNumObjects);
 	ExpandedDetailNodes.Empty();
 
-
 	for (int32 NewRootIndex = 0; NewRootIndex < InNewNumObjects; ++NewRootIndex)
 	{
 		RootPropertyNodes.Add(MakeShareable(new FObjectPropertyNode));
@@ -1069,27 +1071,30 @@ FReply SDetailsView::OnToggleFavoritesClicked()
 	return FReply::Handled();
 }
 
-bool SDetailsView::IsGroupFavorite(FStringView GroupPath) const
+static bool IsInEditorMetadataList(FName ListKey, FStringView Value, const TArray<TSharedPtr<FComplexPropertyNode>>& RootPropertyNodes)
 {
+	if (Value.IsEmpty())
+	{
+		return false;
+	}
+
 	UEditorMetadataOverrides* EditorMetadata = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
 	if (!EditorMetadata)
 	{
 		return false;
 	}
 
-	const FString GroupPathString(GroupPath);
+	const FString ValueString(Value);
 
 	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 	{
 		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
 		if (BaseStruct != nullptr)
 		{
-			static const FName FavoriteGroupsName("FavoriteGroups");
-
-			TArray<FString> FavoriteGroupsList;
-			if (EditorMetadata->GetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList))
+			TArray<FString> ValueList;
+			if (EditorMetadata->GetArrayMetadata(BaseStruct, ListKey, ValueList))
 			{
-				if (FavoriteGroupsList.Contains(GroupPathString))
+				if (ValueList.Contains(ValueString))
 				{
 					return true;
 				}
@@ -1100,132 +1105,107 @@ bool SDetailsView::IsGroupFavorite(FStringView GroupPath) const
 	return false;
 }
 
-void SDetailsView::SetGroupFavorite(FStringView GroupPath, bool IsFavorite)
+static void AddToEditorMetadataList(FName ListKey, FStringView Value, const TArray<TSharedPtr<FComplexPropertyNode>>& RootPropertyNodes)
 {
+	if (Value.IsEmpty())
+	{
+		return;
+	}
+
 	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
 	if (!MetadataOverrides)
 	{
 		return;
 	}
 
-	const FString GroupPathString(GroupPath);
+	const FString ValueString(Value);
 
 	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 	{
 		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
 		if (BaseStruct != nullptr)
 		{
-			static const FName FavoriteGroupsName("FavoriteGroups");
 
-			TArray<FString> FavoriteGroupsList;
-			if (MetadataOverrides->GetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList))
+			TArray<FString> ValueList;
+			if (MetadataOverrides->GetArrayMetadata(BaseStruct, ListKey, ValueList))
 			{
-				if (IsFavorite)
-				{
-					FavoriteGroupsList.AddUnique(GroupPathString);
-				}
-				else
-				{
-					FavoriteGroupsList.Remove(GroupPathString);
-				}
-
-				MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList);
+				ValueList.AddUnique(ValueString);
+				MetadataOverrides->SetArrayMetadata(BaseStruct, ListKey, ValueList);
 			}
 			else
 			{
-				// no favorite groups set yet
-				if (IsFavorite)
-				{
-					FavoriteGroupsList.Add(GroupPathString);
-					MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteGroupsName, FavoriteGroupsList);
-				}
+				ValueList.Add(ValueString);
+				MetadataOverrides->SetArrayMetadata(BaseStruct, ListKey, ValueList);
 			}
 		}
+	}
+}
+
+static void RemoveFromEditorMetadataList(FName ListKey, FStringView Value, const TArray<TSharedPtr<FComplexPropertyNode>>& RootPropertyNodes)
+{
+	if (Value.IsEmpty())
+	{
+		return;
+	}
+
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (!MetadataOverrides)
+	{
+		return;
+	}
+
+	const FString ValueString(Value);
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			TArray<FString> ValueList;
+			if (MetadataOverrides->GetArrayMetadata(BaseStruct, ListKey, ValueList))
+			{
+				ValueList.Remove(ValueString);
+				MetadataOverrides->SetArrayMetadata(BaseStruct, ListKey, ValueList);
+			}
+		}
+	}
+}
+
+bool SDetailsView::IsGroupFavorite(FStringView GroupPath) const
+{
+	static const FName FavoriteGroupsName("FavoriteGroups");
+	return IsInEditorMetadataList(FavoriteGroupsName, GroupPath, RootPropertyNodes);
+}
+
+void SDetailsView::SetGroupFavorite(FStringView GroupPath, bool IsFavorite)
+{
+	static const FName FavoriteGroupsName("FavoriteGroups");
+	if (IsFavorite)
+	{
+		AddToEditorMetadataList(FavoriteGroupsName, GroupPath, RootPropertyNodes);
+	}
+	else
+	{
+		RemoveFromEditorMetadataList(FavoriteGroupsName, GroupPath, RootPropertyNodes);
 	}
 }
 
 bool SDetailsView::IsCustomBuilderFavorite(FStringView Path) const
 {
-	if (Path.IsEmpty())
-	{
-		return false;
-	}
-
-	UEditorMetadataOverrides* EditorMetadata = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-	if (!EditorMetadata)
-	{
-		return false;
-	}
-
-	const FString PathString(Path);
-
-	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
-	{
-		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
-		if (BaseStruct != nullptr)
-		{
-			static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
-
-			TArray<FString> FavoriteBuildersList;
-			if (EditorMetadata->GetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList))
-			{
-				if (FavoriteBuildersList.Contains(PathString))
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
+	static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
+	return IsInEditorMetadataList(FavoriteCustomBuildersName, Path, RootPropertyNodes);
 }
 
 void SDetailsView::SetCustomBuilderFavorite(FStringView Path, bool IsFavorite)
 {
-	if (Path.IsEmpty())
+	static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
+	if (IsFavorite)
 	{
-		return;
+		AddToEditorMetadataList(FavoriteCustomBuildersName, Path, RootPropertyNodes);
 	}
-
-	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-	if (!MetadataOverrides)
+	else
 	{
-		return;
-	}
-
-	const FString PathString(Path);
-
-	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
-	{
-		const UStruct* BaseStruct = RootPropertyNode->GetBaseStructure();
-		if (BaseStruct != nullptr)
-		{
-			static const FName FavoriteCustomBuildersName("FavoriteCustomBuilders");
-
-			TArray<FString> FavoriteBuildersList;
-			if (MetadataOverrides->GetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList))
-			{
-				if (IsFavorite)
-				{
-					FavoriteBuildersList.AddUnique(PathString);
-				}
-				else
-				{
-					FavoriteBuildersList.Remove(PathString);
-				}
-
-				MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList);
-			}
-			else
-			{
-				// no favorite groups set yet
-				if (IsFavorite)
-				{
-					FavoriteBuildersList.Add(PathString);
-					MetadataOverrides->SetArrayMetadata(BaseStruct, FavoriteCustomBuildersName, FavoriteBuildersList);
-				}
-			}
-		}
+		RemoveFromEditorMetadataList(FavoriteCustomBuildersName, Path, RootPropertyNodes);
 	}
 }
 
@@ -1362,24 +1342,32 @@ TMap<FName, FText> SDetailsView::GetAllSections() const
 
 	// for every category, check every base struct and find the associated section
 	// if one exists, add it to the set of valid section names
-	TArray<FName> AllCategories;
-	AllCategories.Reserve(RootTreeNodes.Num());
-	for (const TSharedRef<FDetailTreeNode>& RootNode : RootTreeNodes)
+	// we fetch the list of categories from the layouts since AllTreeNodes gets filtered
+	TArray<FName> LayoutCategories;
+	for (const FDetailLayoutData& Layout : DetailLayouts)
 	{
-		if (RootNode->GetNodeType() == EDetailNodeType::Category)
+		for (const TSharedRef<FDetailTreeNode>& TreeNode : Layout.DetailLayout->GetAllRootTreeNodes())
 		{
-			const FName CategoryName = RootNode->GetNodeName();
-			AllCategories.Add(CategoryName);
+			if (TreeNode->GetNodeType() == EDetailNodeType::Category)
+			{
+				TArray<TSharedRef<FDetailTreeNode>> Children;
+				TreeNode->GetChildren(Children);
+
+				if (Children.Num() > 0)
+				{
+					LayoutCategories.Add(TreeNode->GetNodeName());
+				}
+			}
 		}
 	}
 
 	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 	{
 		const UStruct* RootBaseStruct = RootPropertyNode->GetBaseStructure();
-
-		for (const FName& CategoryName : AllCategories)
+		
+		for (const FName& Category : LayoutCategories)
 		{
-			TArray<TSharedPtr<FPropertySection>> SectionsForCategory = PropertyModule.FindSectionsForCategory(RootBaseStruct, CategoryName);
+			TArray<TSharedPtr<FPropertySection>> SectionsForCategory = PropertyModule.FindSectionsForCategory(RootBaseStruct, Category);
 			for (const TSharedPtr<FPropertySection>& Section : SectionsForCategory)
 			{
 				AllSections.Add(Section->GetName(), Section->GetDisplayName());

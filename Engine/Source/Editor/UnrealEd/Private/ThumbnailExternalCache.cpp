@@ -454,7 +454,7 @@ FObjectThumbnail FThumbnailExternalCache::LoadThumbnailFromPackage(const FAssetD
 {
 	// Determine filename
 	FString PackageFilename;
-	if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), NULL, &PackageFilename))
+	if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename))
 	{
 		// Thumbnails are identified in package with full object names
 		TSet<FName> ObjectFullNames;

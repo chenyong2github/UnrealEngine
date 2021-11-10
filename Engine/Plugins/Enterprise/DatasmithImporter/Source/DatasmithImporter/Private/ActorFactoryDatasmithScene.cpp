@@ -59,7 +59,7 @@ namespace UActorFactoryDatasmithSceneImpl
 		TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource;
 		if (TObjectPtr<UDatasmithSceneImportData> DatasmithImportData = Cast<UDatasmithSceneImportData>(DatasmithScene->AssetImportData))
 		{
-			ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
+			ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
 		}
 		
 		if (!ExternalSource)

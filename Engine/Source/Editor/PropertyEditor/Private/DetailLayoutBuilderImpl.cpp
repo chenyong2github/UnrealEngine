@@ -82,7 +82,7 @@ IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory(FName CategoryNam
 
 void FDetailLayoutBuilderImpl::GetCategoryNames(TArray<FName>& OutCategoryNames) const
 {
-	OutCategoryNames.Reserve(DefaultCategoryMap.Num() + CustomCategoryMap.Num());
+	OutCategoryNames.Reserve(OutCategoryNames.Num() + DefaultCategoryMap.Num() + CustomCategoryMap.Num());
 
 	TArray<FName> TempCategoryNames;
 	DefaultCategoryMap.GenerateKeyArray(TempCategoryNames);
@@ -747,16 +747,7 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 		}
 		else if (PropertyHandle->GetProperty() != nullptr)
 		{
-			TArray<UObject*> OuterObjects;
-			PropertyHandle->GetOuterObjects(OuterObjects);
-		
-			TArray<TWeakObjectPtr<UObject>> Objects;
-			for (UObject* OuterObject : OuterObjects)
-			{
-				Objects.Add(OuterObject);
-			}
-
-			FPropertyAndParent PropertyAndParent(PropertyHandle, Objects);
+			FPropertyAndParent PropertyAndParent(PropertyHandle);
 			return DetailsView->IsPropertyVisible(PropertyAndParent);
 		}
 	}

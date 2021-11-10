@@ -339,11 +339,8 @@ public:
 	protected:
 		inline void goto_next()
 		{
-			if (Index != LastIndex)
-			{
-				Index++;
-			}
-			while (Index != LastIndex && Vector->IsValidUnsafe(Index) == false)
+			Index++;
+			while (Index < LastIndex && Vector->IsValidUnsafe(Index) == false)
 			{
 				Index++;
 			}

@@ -4,7 +4,6 @@
 
 #include "Containers/ArrayBuilder.h"
 #include "Containers/MapBuilder.h"
-#include "EditorStyleSet.h"
 #include "Features/IModularFeatures.h"
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
@@ -15,10 +14,11 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/WidgetPath.h"
+#include "Logging/MessageLog.h"
 #include "Misc/Paths.h"
 #include "Rendering/DrawElements.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/StyleColors.h"
 #include "Styling/ToolBarStyle.h"
@@ -48,6 +48,7 @@
 #include "Insights/Tests/TimingProfilerTests.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/TimingProfiler/QuickFindFilterConverters.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FileActivityTimingTrack.h"
@@ -101,7 +102,7 @@ STimingView::STimingView()
 	, MarkersTrack(MakeShared<FMarkersTimingTrack>())
 	, GraphTrack(MakeShared<FTimingGraphTrack>())
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, MainFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, QuickFindTabId(TEXT("QuickFind"), TimingViewId++)
 {
 	DefaultTimeMarker->SetName(TEXT(""));
@@ -153,32 +154,32 @@ void STimingView::Construct(const FArguments& InArgs)
 		FUIAction(),
 		FOnGetContent::CreateSP(this, &STimingView::MakeAllTracksMenu),
 		LOCTEXT("AllTracksMenu", "All Tracks"),
-		LOCTEXT("AllTracksMenuToolTip", "Filter all tracks."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.AllTracksMenu"));
+		LOCTEXT("AllTracksMenuToolTip", "The list of all available tracks"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AllTracksMenu.ToolBar"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateSP(this, &STimingView::MakeCpuGpuTracksFilterMenu),
 		LOCTEXT("CpuGpuTracksMenu", "CPU/GPU"),
-		LOCTEXT("CpuGpuTracksMenuToolTip", "Filter CPU/GPU timing tracks."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.CpuGpuTracksMenu"));
+		LOCTEXT("CpuGpuTracksMenuToolTip", "The CPU/GPU timing tracks"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.CpuGpuTracksMenu.ToolBar"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateSP(this, &STimingView::MakeOtherTracksFilterMenu),
 		LOCTEXT("OtherTracksMenu", "Other"),
-		LOCTEXT("OtherTracksMenuToolTip", "Filter other tracks."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
+		LOCTEXT("OtherTracksMenuToolTip", "Other type of tracks"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.OtherTracksMenu.ToolBar"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateSP(this, &STimingView::MakePluginTracksFilterMenu),
 		LOCTEXT("PluginTracksMenu", "Plugins"),
-		LOCTEXT("PluginTracksMenuToolTip", "Filter tracks added by plugins."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
+		LOCTEXT("PluginTracksMenuToolTip", "Tracks added by plugins"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.PluginTracksMenu.ToolBar"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateSP(this, &STimingView::MakeViewModeMenu),
 		LOCTEXT("ViewModeMenu", "View Mode"),
-		LOCTEXT("ViewModeMenuToolTip", "Various options for the Timing view."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
+		LOCTEXT("ViewModeMenuToolTip", "Various options for the Timing view"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewModeMenu.ToolBar"));
 	LeftToolbar.EndSection();
 
 	//////////////////////////////////////////////////
@@ -203,7 +204,7 @@ void STimingView::Construct(const FArguments& InArgs)
 		NAME_None,
 		TAttribute<FText>(),
 		LOCTEXT("AutoScrollToolTip", "Auto-Scroll"),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(),"AutoScroll.Icon.Small"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(),"Icons.AutoScroll"),
 		EUserInterfaceActionType::ToggleButton);
 	RightToolbar.AddComboButton(
 		FUIAction(),
@@ -281,7 +282,7 @@ void STimingView::Construct(const FArguments& InArgs)
 		FOnSpawnTab::CreateSP(this, &STimingView::SpawnQuickFindTab))
 		.SetDisplayName(LOCTEXT("QuickFindTabTitle", "Quick Find"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden)
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "FolderExplore.Icon.Large"));
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Find"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2832,7 +2833,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 			FName("QuickFind"),
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Find"));
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Find"));
 		bHasAnyActions = true;
 	}
 	MenuBuilder.EndSection();
@@ -4528,7 +4529,7 @@ void AddMenuEntryRadioButton(
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.TextStyle(FCoreStyle::Get(), "Menu.Label")
+				.TextStyle(FAppStyle::Get(), "Menu.Label")
 				.Text(InLabel)
 			]
 			+ SHorizontalBox::Slot()
@@ -4537,7 +4538,7 @@ void AddMenuEntryRadioButton(
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.TextStyle(FCoreStyle::Get(), "Menu.Keybinding")
+				.TextStyle(FAppStyle::Get(), "Menu.Keybinding")
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				.Text(InKeybinding)
 			]
@@ -4750,15 +4751,14 @@ void STimingView::QuickFind_Execute()
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EventType), LOCTEXT("Type", "Type"), LOCTEXT("Type", "Type"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
 
-		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>>  TrackNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("Is"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
-		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Contains"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
-		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Is Not"), [](const FString& lhs, const FString& rhs) { return !lhs.Equals(rhs); })));
-		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Does Not Contain"), [](const FString& lhs, const FString& rhs) { return !lhs.Contains(rhs); })));
+		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> StringFilterWithSuggestionsOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		StringFilterWithSuggestionsOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("Is"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
+		StringFilterWithSuggestionsOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Contains"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
+		StringFilterWithSuggestionsOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Is Not"), [](const FString& lhs, const FString& rhs) { return !lhs.Equals(rhs); })));
+		StringFilterWithSuggestionsOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Does Not Contain"), [](const FString& lhs, const FString& rhs) { return !lhs.Contains(rhs); })));
 
-		TSharedPtr<FFilterWithSuggestions> TrackFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TrackName), LOCTEXT("Track", "Track"), LOCTEXT("Track", "Track"), EFilterDataType::String, TrackNameFilterOperators);
+		TSharedPtr<FFilterWithSuggestions> TrackFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TrackName), LOCTEXT("Track", "Track"), LOCTEXT("Track", "Track"), EFilterDataType::String, StringFilterWithSuggestionsOperators);
 		TrackFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
 		{
 			this->PopulateTrackSuggestionList(Text, OutSuggestions);
@@ -4766,9 +4766,26 @@ void STimingView::QuickFind_Execute()
 
 		AvailableFilters->Add(TrackFilter);
 
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::TimerId), LOCTEXT("TimerId", "Timer Id"), LOCTEXT("TimerId", "Timer Id"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+
+		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> EventNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		EventNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("Is"), [](int64 lhs, int64 rhs) { return lhs == rhs; })));
+
+		TSharedPtr<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TimerName), LOCTEXT("TimerName", "Timer Name"), LOCTEXT("TimerName", "Timer Name"), EFilterDataType::StringInt64Pair, EventNameFilterOperators);
+		TimerNameFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+		{
+			this->PopulateTimerNameSuggestionList(Text, OutSuggestions);
+		};
+
+		TimerNameFilter->Converter = MakeShared<FEventNameFilterValueConverter>();
+
+		AvailableFilters->Add(TimerNameFilter);
+
 		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
-		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
+		QuickFindVm->GetOnFindFirstEvent().AddSP(this, &STimingView::FindFirstEvent);
 		QuickFindVm->GetOnFindPreviousEvent().AddSP(this, &STimingView::FindPrevEvent);
+		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
+		QuickFindVm->GetOnFindLastEvent().AddSP(this, &STimingView::FindLastEvent);
 		QuickFindVm->GetOnFilterAllEvent().AddSP(this, &STimingView::FilterAllTracks);
 		QuickFindVm->GetOnClearFiltersEvent().AddSP(this, &STimingView::ClearFilters);
 	}
@@ -4887,49 +4904,10 @@ void STimingView::ClearRelations()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::FindNextEvent()
+void STimingView::FindFirstEvent()
 {
-	TSharedPtr<const ITimingEvent> BestMatchEvent;
-	double StartTime = SelectedEvent.IsValid() ? SelectedEvent->GetStartTime() : std::numeric_limits<double>::lowest();
-
-	auto EventFilter = [StartTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
-	{
-		return EventStartTime > StartTime;
-	};
-	FTimingEventSearchParameters Params(StartTime, std::numeric_limits<double>::max(), ETimingEventSearchFlags::StopAtFirstMatch, EventFilter);
-	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
-
-	EnumerateFilteredTracks(QuickFindVm->GetFilterConfigurator(), [&Params, &BestMatchEvent](TSharedPtr<FBaseTimingTrack>& Track)
-	{
-		if (!Track->IsVisible())
-		{
-			return;
-		}
-
-		Params.EndTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::max();
-
-		TSharedPtr<const ITimingEvent> FoundEvent = Track->SearchEvent(Params);
-		if (FoundEvent.IsValid())
-		{
-			if (BestMatchEvent.IsValid())
-			{
-				ensure(FoundEvent->GetStartTime() < BestMatchEvent->GetStartTime());
-			}
-			BestMatchEvent = FoundEvent;
-		}
-	});
-
-	if (BestMatchEvent)
-	{
-		SelectedEvent = BestMatchEvent;
-		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
-		if (SelectedEvent->GetTrack()->GetLocation() == ETimingTrackLocation::Scrollable)
-		{
-			BringScrollableTrackIntoView(*SelectedEvent->GetTrack());
-		}
-
-		OnSelectedTimingEventChanged();
-	}
+	SelectedEvent.Reset();
+	FindNextEvent();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4977,6 +4955,73 @@ void STimingView::FindPrevEvent()
 
 		OnSelectedTimingEventChanged();
 	}
+	else
+	{
+		FMessageLog ReportMessageLog(FTimingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::FindNextEvent()
+{
+	TSharedPtr<const ITimingEvent> BestMatchEvent;
+	double StartTime = SelectedEvent.IsValid() ? SelectedEvent->GetStartTime() : std::numeric_limits<double>::lowest();
+
+	auto EventFilter = [StartTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
+	{
+		return EventStartTime > StartTime;
+	};
+	FTimingEventSearchParameters Params(StartTime, std::numeric_limits<double>::max(), ETimingEventSearchFlags::StopAtFirstMatch, EventFilter);
+	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
+
+	EnumerateFilteredTracks(QuickFindVm->GetFilterConfigurator(), [&Params, &BestMatchEvent](TSharedPtr<FBaseTimingTrack>& Track)
+	{
+		if (!Track->IsVisible())
+		{
+			return;
+		}
+
+		Params.EndTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::max();
+
+		TSharedPtr<const ITimingEvent> FoundEvent = Track->SearchEvent(Params);
+		if (FoundEvent.IsValid())
+		{
+			if (BestMatchEvent.IsValid())
+			{
+				ensure(FoundEvent->GetStartTime() < BestMatchEvent->GetStartTime());
+			}
+			BestMatchEvent = FoundEvent;
+		}
+	});
+
+	if (BestMatchEvent)
+	{
+		SelectedEvent = BestMatchEvent;
+		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+		if (SelectedEvent->GetTrack()->GetLocation() == ETimingTrackLocation::Scrollable)
+		{
+			BringScrollableTrackIntoView(*SelectedEvent->GetTrack());
+		}
+
+		OnSelectedTimingEventChanged();
+	}
+	else
+	{
+		FMessageLog ReportMessageLog(FTimingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::FindLastEvent()
+{
+	SelectedEvent.Reset();
+	FindPrevEvent();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5008,6 +5053,36 @@ void STimingView::PopulateTrackSuggestionList(const FString& Text, TArray<FStrin
 		if (Entry.Value->GetName().Contains(Text))
 		{
 			OutSuggestions.Add(Entry.Value->GetName());
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::PopulateTimerNameSuggestionList(const FString& Text, TArray<FString>& OutSuggestions)
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+		uint32 TimerCount = TimerReader->GetTimerCount();
+		for (uint32 TimerIndex = 0; TimerIndex < TimerCount; ++TimerIndex)
+		{
+			const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(TimerIndex);
+			if (Timer && Timer->Name)
+			{
+				const TCHAR* FoundString = FCString::Stristr(Timer->Name, *Text);
+				if (FoundString)
+				{
+					OutSuggestions.Add(Timer->Name);
+				}
+			}
 		}
 	}
 }

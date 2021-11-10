@@ -317,7 +317,13 @@ void FComponentMaterialCategory::OnMaterialChanged( UMaterialInterface* NewMater
 					NavUpdateLock = MakeShareable( new FNavigationLockContext(World, ENavigationLockReason::MaterialUpdate) );
 				}
 
-				EditChangeObject->PreEditChange( MaterialProperty );
+				{
+					FEditPropertyChain EditPropertyChain;
+					EditPropertyChain.AddHead(MaterialProperty);
+					EditPropertyChain.SetActivePropertyNode(MaterialProperty);
+					// Use a property chain so that FCoreUObjectDelegates::OnPreObjectPropertyChanged is emitted
+					EditChangeObject->PreEditChange(EditPropertyChain);
+				}
 
 				if( NotifyHook && MaterialProperty )
 				{

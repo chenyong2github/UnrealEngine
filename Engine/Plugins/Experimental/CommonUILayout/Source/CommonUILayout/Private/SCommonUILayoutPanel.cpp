@@ -152,7 +152,7 @@ int32 SCommonUILayoutPanel::OnPaint(const FPaintArgs& Args, const FGeometry& All
 		CurrentReservedLayerID += LayerIDReservationRange;
 
 		// FIXME: This is costly but required to redo the layerids since we could have overlaps
-		//        with other widgets outside of DynamicHUD (ie: AthenaHUD) because the new
+		//        with other widgets outside of DynamicUI (ie: AthenaHUD) because the new
 		//        widget added will increase the layerid internally but siblings will not,
 		//        resulting in potential layerids overlap and sorting issues.
 		if (const TSharedPtr<SWidget>& PinnedRootLayout = RootPanel.Pin())

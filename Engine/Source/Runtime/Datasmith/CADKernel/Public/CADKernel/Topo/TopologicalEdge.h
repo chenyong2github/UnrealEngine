@@ -99,11 +99,7 @@ namespace CADKernel
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve);
 		FTopologicalEdge(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2);
 
-		FTopologicalEdge(FCADKernelArchive& Archive)
-			: TLinkable<FTopologicalEdge, FEdgeLink>()
-		{
-			Serialize(Archive);
-		}
+		FTopologicalEdge() = default;
 
 		void SetLoop(FTopologicalLoop& NewBoundary)
 		{

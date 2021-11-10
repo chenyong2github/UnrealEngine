@@ -613,7 +613,7 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 		FString Filename;
 		for (auto It = PackageNames.CreateIterator(); It; ++It)
 		{
-			if (FPackageName::DoesPackageExist(It->ToString(), nullptr, &Filename))
+			if (FPackageName::DoesPackageExist(It->ToString(), &Filename))
 			{
 				PackageFilenames.Add(FPaths::ConvertRelativePathToFull(MoveTemp(Filename)));
 			}

@@ -34,10 +34,8 @@ private:
 	void OnEditorMapChange(uint32 MapChangeFlags = 0) { DataLayerEditorSubsystem->EditorMapChange(); }
 	void OnPostUndoRedo() { DataLayerEditorSubsystem->PostUndoRedo(); }
 	void OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
-	void OnLevelViewportClientListChanged();
 	void OnLevelActorsAdded(AActor* InActor) { DataLayerEditorSubsystem->InitializeNewActorDataLayers(InActor); }
 
-	TSet<FLevelEditorViewportClient*> RegisteredViewportClients;
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem;
 	bool bIsInitialized;
 };
@@ -62,13 +60,7 @@ void FDataLayersBroadcast::Deinitialize()
 		FEditorDelegates::MapChange.RemoveAll(this);
 		FEditorDelegates::PostUndoRedo.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-		if (GEditor)
-		{
-			GEditor->OnLevelViewportClientListChanged().RemoveAll(this);
-			RegisteredViewportClients.Reset();
-		}
 		GEngine->OnLevelActorAdded().RemoveAll(this);
-		GEngine->OnLevelActorDeleted().RemoveAll(this);
 	}
 }
 
@@ -80,23 +72,13 @@ void FDataLayersBroadcast::Initialize()
 		FEditorDelegates::MapChange.AddRaw(this, &FDataLayersBroadcast::OnEditorMapChange);
 		FEditorDelegates::PostUndoRedo.AddRaw(this, &FDataLayersBroadcast::OnPostUndoRedo);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDataLayersBroadcast::OnObjectPostEditChange);
-		if (GEditor)
-		{
-			RegisteredViewportClients.Reset();
-			RegisteredViewportClients.Append(GEditor->GetLevelViewportClients());
-			for (FLevelEditorViewportClient* ViewportClient : RegisteredViewportClients)
-			{
-				DataLayerEditorSubsystem->UpdatePerViewVisibility(ViewportClient);
-			}
-			GEditor->OnLevelViewportClientListChanged().AddRaw(this, &FDataLayersBroadcast::OnLevelViewportClientListChanged);
-			GEngine->OnLevelActorAdded().AddRaw(this, &FDataLayersBroadcast::OnLevelActorsAdded);
-		}
+		GEngine->OnLevelActorAdded().AddRaw(this, &FDataLayersBroadcast::OnLevelActorsAdded);
 	}
 }
 
 void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (Object)
+	if (Object && (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive))
 	{
 		bool bRefresh = false;
 		if (UDataLayer* DataLayer = Cast<UDataLayer>(Object))
@@ -115,30 +97,11 @@ void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChan
 	}
 }
 
-void FDataLayersBroadcast::OnLevelViewportClientListChanged()
-{
-	if (GEditor)
-	{
-		TSet<FLevelEditorViewportClient*> NewViewportClients(GEditor->GetLevelViewportClients());
-		TSet<FLevelEditorViewportClient*> AddedViewportClients = NewViewportClients.Difference(RegisteredViewportClients);
-		TSet<FLevelEditorViewportClient*> RemovedViewportClients = RegisteredViewportClients.Difference(NewViewportClients);
-		for (FLevelEditorViewportClient* ViewportClient : AddedViewportClients)
-		{
-			DataLayerEditorSubsystem->UpdatePerViewVisibility(ViewportClient);
-		}
-		for (FLevelEditorViewportClient* ViewportClient : RemovedViewportClients)
-		{
-			DataLayerEditorSubsystem->RemoveViewFromActorViewVisibility(ViewportClient);
-		}
-		RegisteredViewportClients = NewViewportClients;
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////
 // UDataLayerEditorSubsystem
 //
 // Note: 
-//		- DataLayer visibility currently re-uses Actor's bHiddenEdLayer and HiddenEditorViews. It's viable since Layer & DataLayer ares mutually exclusive systems.
+//		- DataLayer visibility currently re-uses Actor's bHiddenEdLayer. It's viable since Layer & DataLayer are mutually exclusive systems.
 //		- UDataLayerEditorSubsystem is intended to replace ULayersSubsystem for worlds using the World Partition system.
 //		  Extra work is necessary to replace all references to GetEditorSubsystem<ULayersSubsystem> in the Editor.
 //		  Either a proxy that redirects calls to the proper EditorSubsystem will be used or user code will change to trigger delegate broadcast instead of directly accessing the subsystem (see calls to InitializeNewActorDataLayers everywhere as an example).
@@ -193,18 +156,18 @@ void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
 		TArray<FName> DataLayersLoadedInEditor;
 		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor, &DataLayersLoadedInEditor, &SettingsDataLayersNotLoadedInEditor, &SettingsDataLayersLoadedInEditor](UDataLayer* DataLayer)
 		{
-			if (DataLayer->IsDynamicallyLoadedInEditorChangedByUserOperation())
+			if (DataLayer->IsLoadedInEditorChangedByUserOperation())
 			{			
-				if (!DataLayer->IsDynamicallyLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
+				if (!DataLayer->IsLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
 				{
 					DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
 				}
-				else if (DataLayer->IsDynamicallyLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
+				else if (DataLayer->IsLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
 				{
 					DataLayersLoadedInEditor.Add(DataLayer->GetFName());
 				}
 
-				DataLayer->ClearDynamicallyLoadedInEditorChangedByUserOperation();
+				DataLayer->ClearLoadedInEditorChangedByUserOperation();
 			}
 			else
 			{
@@ -265,9 +228,6 @@ void UDataLayerEditorSubsystem::InitializeNewActorDataLayers(AActor* Actor)
 
 	Actor->FixupDataLayers();
 
-	// update per-view visibility info
-	UpdateActorAllViewsVisibility(Actor);
-
 	// update general actor visibility
 	bool bActorModified = false;
 	bool bActorSelectionChanged = false;
@@ -277,6 +237,23 @@ void UDataLayerEditorSubsystem::InitializeNewActorDataLayers(AActor* Actor)
 UWorld* UDataLayerEditorSubsystem::GetWorld() const
 {
 	return GWorld;
+}
+
+bool UDataLayerEditorSubsystem::SetParentDataLayer(UDataLayer* DataLayer, UDataLayer* ParentDataLayer)
+{
+	if (DataLayer->CanParent(ParentDataLayer))
+	{
+		const bool bIsLoaded = DataLayer->IsEffectiveLoadedInEditor();
+		DataLayer->SetParent(ParentDataLayer);
+		DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+		UpdateAllActorsVisibility(true, true);
+		if (bIsLoaded != DataLayer->IsEffectiveLoadedInEditor())
+		{
+			RefreshWorldPartitionEditorCells(true);
+		}
+		return true;
+	}
+	return false;
 }
 
 bool UDataLayerEditorSubsystem::AddActorToDataLayer(AActor* Actor, UDataLayer* DataLayer)
@@ -327,9 +304,6 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 
 			if (bActorWasModified)
 			{
-				// Update per-view visibility info
-				UpdateActorAllViewsVisibility(Actor);
-
 				// Update general actor visibility
 				bool bActorModified = false;
 				bool bActorSelectionChanged = false;
@@ -365,9 +339,6 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromAllDataLayers(const TArray<AActo
 				DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, NAME_None);
 			}
 			ActorDataLayersChanged.Broadcast(Actor);
-
-			// Update per-view visibility info
-			UpdateActorAllViewsVisibility(Actor);
 
 			// Update general actor visibility
 			bool bActorModified = false;
@@ -429,9 +400,6 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<AActor*>
 
 		if (bActorWasModified)
 		{
-			// Update per-view visibility info
-			UpdateActorAllViewsVisibility(Actor);
-
 			// Update general actor visibility
 			bool bActorModified = false;
 			bool bActorSelectionChanged = false;
@@ -586,160 +554,6 @@ bool UDataLayerEditorSubsystem::SelectActorsInDataLayers(const TArray<UDataLayer
 // Operations on actor viewport visibility regarding DataLayers
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void UDataLayerEditorSubsystem::UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged)
-{
-	if (!ViewportClient->GetWorld())
-	{
-		return;
-	}
-
-	// Iterate over all actors, looking for actors in the specified DataLayers.
-	const int32 ViewIndex = ViewportClient->ViewIndex;
-	for (AActor* Actor : FActorRange(ViewportClient->GetWorld()))
-	{
-		if (!IsActorValidForDataLayer(Actor))
-		{
-			continue;
-		}
-
-		// If the view has nothing hidden, just quickly mark the actor as visible in this view 
-		if (ViewportClient->ViewHiddenDataLayers.Num() == 0)
-		{
-			// If the actor had this view hidden, then unhide it
-			if (Actor->HiddenEditorViews & ((uint64)1 << ViewIndex))
-			{
-				// Make sure this actor doesn't have the view set
-				Actor->HiddenEditorViews &= ~((uint64)1 << ViewIndex);
-				Actor->MarkComponentsRenderStateDirty();
-			}
-		}
-		// Else if we were given a name that was changed, only update actors with that name in their DataLayers, otherwise update all actors
-		else if (DataLayerThatChanged == nullptr || Actor->ContainsDataLayer(DataLayerThatChanged))
-		{
-			UpdateActorViewVisibility(ViewportClient, Actor);
-		}
-	}
-
-	// Make sure we redraw the viewport
-	ViewportClient->Invalidate();
-}
-
-void UDataLayerEditorSubsystem::UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged)
-{
-	// Update all view's hidden DataLayers if they had this one
-	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
-	{
-		UpdatePerViewVisibility(ViewportClient, DataLayerThatChanged);
-	}
-}
-
-void UDataLayerEditorSubsystem::UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, bool bReregisterIfDirty)
-{
-	const int32 ViewIndex = ViewportClient->ViewIndex;
-	uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
-
-	// Update Actor's HiddenEditorViews to reflect ViewHiddenDataLayers
-	if (bool bIsHiddenByViewHiddenDataLayers = Actor->HasAnyOfDataLayers(ViewportClient->ViewHiddenDataLayers))
-	{
-		Actor->HiddenEditorViews |= ((uint64)1 << ViewIndex);
-	}
-	else
-	{
-		Actor->HiddenEditorViews &= ~((uint64)1 << ViewIndex);
-	}
-
-	// Re-register if we changed the visibility bits, as the rendering thread needs them
-	if (bReregisterIfDirty && OriginalHiddenViews != Actor->HiddenEditorViews)
-	{
-		Actor->MarkComponentsRenderStateDirty();
-
-		// Make sure we redraw the viewport
-		ViewportClient->Invalidate();
-	}
-}
-
-void UDataLayerEditorSubsystem::UpdateActorAllViewsVisibility(AActor* Actor)
-{
-	uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
-
-	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
-	{
-		// Don't have this reattach, as we can do it once for all views
-		UpdateActorViewVisibility(ViewportClient, Actor, false);
-	}
-
-	// Re-register if we changed the visibility bits, as the rendering thread needs them
-	if (OriginalHiddenViews != Actor->HiddenEditorViews)
-	{
-		return;
-	}
-
-	Actor->MarkComponentsRenderStateDirty();
-
-	// Redraw all viewports
-	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
-	{
-		ViewportClient->Invalidate();
-	}
-}
-
-void UDataLayerEditorSubsystem::RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient)
-{
-	if (!ViewportClient->GetWorld())
-	{
-		return;
-	}
-
-	// Get the bit for the view index
-	const int32 ViewIndex = ViewportClient->ViewIndex;
-	uint64 ViewBit = ((uint64)1 << ViewIndex);
-	// Get all bits under that that we want to keep
-	uint64 KeepBits = ViewBit - 1;
-
-	// Iterate over all actors, looking for actors in the specified DataLayers.
-	for (AActor* Actor : FActorRange(ViewportClient->GetWorld()))
-	{
-		if (!IsActorValidForDataLayer(Actor))
-		{
-			continue;
-		}
-
-		// Remember original bits
-		uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
-		uint64 Was = Actor->HiddenEditorViews;
-
-		// Slide all bits higher than ViewIndex down one since the view is being removed from Editor
-		uint64 LowBits = Actor->HiddenEditorViews & KeepBits;
-
-		// Now slide the top bits down by ViewIndex + 1 (chopping off ViewBit)
-		uint64 HighBits = Actor->HiddenEditorViews >> (ViewIndex + 1);
-		// Then slide back up by ViewIndex, which will now have erased ViewBit, as well as leaving 0 in the low bits
-		HighBits = HighBits << ViewIndex;
-
-		// Put it all back together
-		Actor->HiddenEditorViews = LowBits | HighBits;
-
-		// Re-register if we changed the visibility bits, as the rendering thread needs them
-		if (OriginalHiddenViews == Actor->HiddenEditorViews)
-		{
-			continue;
-		}
-
-		// Find all registered primitive components and update the scene proxy with the actors updated visibility map
-		TInlineComponentArray<UPrimitiveComponent*> Components;
-		Actor->GetComponents(Components);
-
-		for (UActorComponent* Component : Actor->GetComponents())
-		{
-			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
-			if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
-			{
-				// Push visibility to the render thread
-				PrimitiveComponent->PushEditorVisibilityToProxy(Actor->HiddenEditorViews);
-			}
-		}
-	}
-}
 
 bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
@@ -764,7 +578,7 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 	{
 		WorldDataLayers->ForEachDataLayer([&Actor, &bOutActorModified, &bActorBelongsToVisibleDataLayer](UDataLayer* DataLayer)
 		{
-			if (DataLayer->IsVisible() && Actor->ContainsDataLayer(DataLayer))
+			if (DataLayer->IsEffectiveVisible() && Actor->ContainsDataLayer(DataLayer))
 			{
 				if (Actor->SetIsHiddenEdLayer(false))
 				{
@@ -987,47 +801,47 @@ void UDataLayerEditorSubsystem::MakeAllDataLayersVisible()
 	UpdateAllActorsVisibility(true, true);
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
+bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange)
 {
 	check(DataLayer);
-	if (DataLayer->IsDynamicallyLoadedInEditor() != bIsDynamicallyLoadedInEditor)
+	if (DataLayer->IsLoadedInEditor() != bIsLoadedInEditor)
 	{
 		DataLayer->Modify(false);
-		DataLayer->SetIsDynamicallyLoadedInEditor(bIsDynamicallyLoadedInEditor, bIsFromUserChange);
-		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsDynamicallyLoadedInEditor");
+		DataLayer->SetIsLoadedInEditor(bIsLoadedInEditor, /*bFromUserChange*/bIsFromUserChange);
+		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsLoadedInEditor");
 		return true;
 	}
 	return false;
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
+bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditor(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange)
 {
-	bool bRefreshNeeded = SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
+	bool bRefreshNeeded = SetDataLayerIsLoadedInEditorInternal(DataLayer, bIsLoadedInEditor, bIsFromUserChange);
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
+bool UDataLayerEditorSubsystem::SetDataLayersIsLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsLoadedInEditor, const bool bIsFromUserChange)
 {
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
+		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, bIsLoadedInEditor, bIsFromUserChange);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
-bool UDataLayerEditorSubsystem::ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange)
+bool UDataLayerEditorSubsystem::ToggleDataLayerIsLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange)
 {
 	check(DataLayer);
-	return SetDataLayerIsDynamicallyLoadedInEditor(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor(), bIsFromUserChange);
+	return SetDataLayerIsLoadedInEditor(DataLayer, !DataLayer->IsLoadedInEditor(), bIsFromUserChange);
 }
 
-bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange)
+bool UDataLayerEditorSubsystem::ToggleDataLayersIsLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange)
 {
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor(), bIsFromUserChange);
+		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, !DataLayer->IsLoadedInEditor(), bIsFromUserChange);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
@@ -1037,7 +851,7 @@ bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& Dat
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
+		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(true) : true;
 }

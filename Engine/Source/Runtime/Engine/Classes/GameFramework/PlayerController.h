@@ -24,6 +24,7 @@
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "GenericPlatform/IInputInterface.h"
+#include "GameFramework/PlayerInput.h"
 #include "PlayerController.generated.h"
 
 class ACameraActor;
@@ -328,7 +329,7 @@ public:
 
 	/** Object that manages player input. */
 	UPROPERTY(Transient)
-	TObjectPtr<class UPlayerInput> PlayerInput;    
+	TObjectPtr<UPlayerInput> PlayerInput;    
 	
 	UPROPERTY(Transient)
 	TArray<FActiveForceFeedbackEffect> ActiveForceFeedbackEffects;
@@ -829,6 +830,20 @@ public:
 	 */
 	UFUNCTION(Reliable, Client)
 	virtual void ClientUnmutePlayer(FUniqueNetIdRepl PlayerId);
+
+	/**
+	 * Tell the client to block a player for this controller
+	 * @param PlayerId player id to block
+	 */
+	UFUNCTION(server, reliable, WithValidation)
+	virtual void ServerBlockPlayer(FUniqueNetIdRepl PlayerId);
+
+	/**
+	 * Tell the client to unblock a player for this controller
+	 * @param PlayerId player id to unblock
+	 */
+	UFUNCTION(server, reliable, WithValidation)
+	virtual void ServerUnblockPlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Mutes a remote player on the server and then tells the client to mute
@@ -1588,20 +1603,19 @@ public:
 	virtual void FlushPressedKeys();
 
 	/** Handles a key press */
+	UE_DEPRECATED(5.0, "This version of InputKey has been deprecated, please use the version that takes FInputKeyParams instead")
 	virtual bool InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad);
+
+	/** Handles a key press */
+	virtual bool InputKey(const FInputKeyParams& Params);
 
 	/** Handles a touch screen action */
 	virtual bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
 
-	UE_DEPRECATED(4.20, "InputTouch now takes a Force")
-	bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
-	{
-		return InputTouch(Handle, Type, TouchLocation, 1.0f, DeviceTimestamp, TouchpadIndex);
-	}
-
 	/** Handles a controller axis input */
+	UE_DEPRECATED(5.0, "InputAxis has been deprecated, please use InputKey instead.")
 	virtual bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
-
+	
 	/** Handles motion control */
 	virtual bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
 

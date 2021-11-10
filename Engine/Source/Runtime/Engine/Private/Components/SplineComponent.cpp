@@ -1830,6 +1830,11 @@ FBoxSphereBounds USplineComponent::CalcBounds(const FTransform& LocalToWorld) co
 	{
 		Min = Max = SplineCurves.Position.Points[0].OutVal;
 	}
+	else
+	{
+		Min = FVector::ZeroVector;
+		Max = FVector::ZeroVector;
+	}
 
 	return FBoxSphereBounds(FBox(Min, Max).TransformBy(LocalToWorld));
 #endif

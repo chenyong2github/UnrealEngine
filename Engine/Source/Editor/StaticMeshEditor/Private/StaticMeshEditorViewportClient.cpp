@@ -570,14 +570,11 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 
 	if (bShowComplexCollision && StaticMesh->ComplexCollisionMesh && StaticMesh->GetBodySetup()->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
 	{
-		const FColor SelectedColor(20, 20, 220);
 		const FColor UnselectedColor(0, 0, 125);
 
-		HSMECollisionProxy* HitProxy = new HSMECollisionProxy(EAggCollisionShape::Convex, 0);
-		PDI->SetHitProxy(HitProxy);
-		const FColor CollisionColor = StaticMeshEditor->IsSelectedPrim(HitProxy->PrimData) ? SelectedColor : UnselectedColor;
-		DrawCustomComplex(PDI, CollisionMeshData, CollisionColor);
-		PDI->SetHitProxy(nullptr);
+		// set the proxy to null to properly handle triangle meshes
+		PDI->SetHitProxy(nullptr); 
+		DrawCustomComplex(PDI, CollisionMeshData, UnselectedColor);
 	}
 
 	if( bShowSockets )

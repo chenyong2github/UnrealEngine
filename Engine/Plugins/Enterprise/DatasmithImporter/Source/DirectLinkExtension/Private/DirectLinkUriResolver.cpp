@@ -10,19 +10,13 @@ namespace UE::DatasmithImporter
 {
 	TSharedPtr<FExternalSource> FDirectLinkUriResolver::GetOrCreateExternalSource(const FSourceUri& Uri) const
 	{
-		if (IDirectLinkManager* DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager())
-		{
-			return DirectLinkManager->GetOrCreateExternalSource(Uri);
-		}
-
-		return nullptr;
+		IDirectLinkManager& DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager();
+		return DirectLinkManager.GetOrCreateExternalSource(Uri);
 	}
 
 	bool FDirectLinkUriResolver::CanResolveUri(const FSourceUri& Uri) const
 	{
-		const bool bHasDirectLinkManager = IDirectLinkExtensionModule::Get().GetManager() != nullptr;
-
-		return bHasDirectLinkManager && Uri.HasScheme(GetDirectLinkScheme());
+		return Uri.HasScheme(GetDirectLinkScheme());
 	}
 
 	TOptional<FDirectLinkSourceDescription> FDirectLinkUriResolver::TryParseDirectLinkUri(const FSourceUri& Uri)

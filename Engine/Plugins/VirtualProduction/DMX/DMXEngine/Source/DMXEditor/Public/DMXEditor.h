@@ -47,8 +47,10 @@ public:
 	bool InvokeEditorTabFromEntityType(TSubclassOf<UDMXEntity> InEntityClass);
 
 	FReply OnAddNewEntity_OnClick(TSubclassOf<UDMXEntity> InEntityClass) { OnAddNewEntity(InEntityClass); return FReply::Handled(); }
-	/** Checks if adding a new Entity is allowed in the current list */
+
+	UE_DEPRECATED(5.0, "Deprecated, this always yields true.")
 	bool CanAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass) const;
+
 	bool NewEntity_IsVisibleForType(TSubclassOf<UDMXEntity> InEntityClass) const;
 
 	/** Utility function to handle all steps required to rename a newly added Entity */
@@ -69,20 +71,10 @@ public:
 	TSharedRef<SDMXFixturePatchEditor> GetFixturePatchEditor() const { return FixturePatchEditor.ToSharedRef(); }
 	TSharedRef<SDMXFixtureTypeEditor> GetFixtureTypeEditor() const { return FixtureTypeEditor.ToSharedRef(); }
 
-	//~ Getters for event dispatchers
-	/**
-	 * Called before a new Entity creation to set its base name.
-	 * It's highly advisable to only bind to this event right before needing it
-	 * and unbinding right after it's called. To avoid getting calls for every new Entity creation
-	 * (unless that's the desired behavior).
-	 */
+	UE_DEPRECATED(5.0, "Deprecated since naming is now handled consistently when creating new entities via UDMXEntityFixtureType::CreateFixtureType or UDMXEntityFixturePatch::CreateFixturePatch.")
 	FOnGetBaseNameForNewEntity& GetOnGetBaseNameForNewEntity() { return OnGetBaseNameForNewEntity; }
-	/**
-	 * Called right after a new Entity is created, to set its values up before it gets selected and renamed.
-	 * It's highly advisable to only bind to this event right before needing it
-	 * and unbinding right after it's called. To avoid getting calls for every new Entity creation
-	 * (unless that's the desired behavior).
-	 */
+	
+	UE_DEPRECATED(5.0, "Deprecated in favor of UDMXLibrary::OnEntitiesAddedOrRemoved")
 	FOnSetupNewEntity& GetOnSetupNewEntity() { return OnSetupNewEntity; }
 
 	/** Edits the specified DMX library */

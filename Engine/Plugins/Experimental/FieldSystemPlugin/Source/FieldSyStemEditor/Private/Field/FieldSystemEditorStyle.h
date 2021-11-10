@@ -4,7 +4,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
-class FFieldSystemEditorStyle : public FSlateStyleSet
+class FFieldSystemEditorStyle final : public FSlateStyleSet
 {
 public:
 	FFieldSystemEditorStyle() : FSlateStyleSet("FieldSystemEditorStyle")

@@ -4,6 +4,7 @@
 
 #include "USDAssetImportData.h"
 #include "USDErrorUtils.h"
+#include "USDGeomMeshConversion.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDTypesConversion.h"
@@ -45,6 +46,7 @@
 #include "USDIncludesStart.h"
 	#include "pxr/base/tf/stringUtils.h"
 	#include "pxr/base/tf/token.h"
+	#include "pxr/usd/kind/registry.h"
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/modelAPI.h"
@@ -569,7 +571,7 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	return UsdUtils::GetUVSetPrimvars(UsdMesh, {});
 }
 
-TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames )
+TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext )
 {
 	if ( !UsdMesh )
 	{
@@ -605,16 +607,23 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 
 	// Collect all primvars that are in fact used by the materials assigned to this mesh
 	TMap<int32, TArray<pxr::UsdGeomPrimvar>> PrimvarsUsedByAssignedMaterialsPerUVIndex;
-	TTuple<TArray<FString>, TArray<int32>> Materials = IUsdPrim::GetGeometryMaterials( 0.0, UsdMesh.GetPrim() );
-	for ( const FString& MaterialPath : Materials.Key )
 	{
-		if ( const TMap< FString, int32 >* FoundMaterialPrimvars = MaterialToPrimvarsUVSetNames.Find( MaterialPath ) )
+		const bool bProvideMaterialIndices = false;
+		UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments( UsdMesh.GetPrim(), pxr::UsdTimeCode( 0.0 ), bProvideMaterialIndices, RenderContext );
+		for ( const FUsdPrimMaterialSlot& Slot : Info.Slots )
 		{
-			for ( const TPair<FString, int32>& PrimvarAndUVIndex : *FoundMaterialPrimvars )
+			if ( Slot.AssignmentType == EPrimAssignmentType::MaterialPrim )
 			{
-				if ( pxr::UsdGeomPrimvar* FoundPrimvar = PrimvarsByName.Find( PrimvarAndUVIndex.Key ) )
+				const FString& MaterialPath = Slot.MaterialSource;
+				if ( const TMap< FString, int32 >* FoundMaterialPrimvars = MaterialToPrimvarsUVSetNames.Find( MaterialPath ) )
 				{
-					PrimvarsUsedByAssignedMaterialsPerUVIndex.FindOrAdd( PrimvarAndUVIndex.Value ).AddUnique( *FoundPrimvar );
+					for ( const TPair<FString, int32>& PrimvarAndUVIndex : *FoundMaterialPrimvars )
+					{
+						if ( pxr::UsdGeomPrimvar* FoundPrimvar = PrimvarsByName.Find( PrimvarAndUVIndex.Key ) )
+						{
+							PrimvarsUsedByAssignedMaterialsPerUVIndex.FindOrAdd( PrimvarAndUVIndex.Value ).AddUnique( *FoundPrimvar );
+						}
+					}
 				}
 			}
 		}
@@ -738,6 +747,47 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 	}
 
 	return false;
+}
+
+EUsdDefaultKind UsdUtils::GetDefaultKind( const pxr::UsdPrim& Prim )
+{
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdModelAPI Model{ pxr::UsdTyped( Prim ) };
+
+	EUsdDefaultKind Result = EUsdDefaultKind::None;
+
+	if ( !Model )
+	{
+		return Result;
+	}
+
+	if ( Model.IsKind( pxr::KindTokens->model, pxr::UsdModelAPI::KindValidationNone ) )
+	{
+		Result |= EUsdDefaultKind::Model;
+	}
+
+	if ( Model.IsKind( pxr::KindTokens->component, pxr::UsdModelAPI::KindValidationNone ) )
+	{
+		Result |= EUsdDefaultKind::Component;
+	}
+
+	if ( Model.IsKind( pxr::KindTokens->group, pxr::UsdModelAPI::KindValidationNone ) )
+	{
+		Result |= EUsdDefaultKind::Group;
+	}
+
+	if ( Model.IsKind( pxr::KindTokens->assembly, pxr::UsdModelAPI::KindValidationNone ) )
+	{
+		Result |= EUsdDefaultKind::Assembly;
+	}
+
+	if ( Model.IsKind( pxr::KindTokens->subcomponent, pxr::UsdModelAPI::KindValidationNone ) )
+	{
+		Result |= EUsdDefaultKind::Subcomponent;
+	}
+
+	return Result;
 }
 
 TArray< TUsdStore< pxr::UsdPrim > > UsdUtils::GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes )

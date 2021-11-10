@@ -44,7 +44,7 @@ namespace UE::RemoteExecution
 		Failed = 1,
 		Cancelled = 2,
 		NoResult = 3,
-		Exipred = 4,
+		Expired = 4,
 		BlobNotFound = 5,
 		Exception = 6,
 	};
@@ -68,7 +68,7 @@ namespace UE::RemoteExecution
 		case EComputeTaskOutcome::Failed: return TEXT("Failed");
 		case EComputeTaskOutcome::Cancelled: return TEXT("Cancelled");
 		case EComputeTaskOutcome::NoResult: return TEXT("NoResult");
-		case EComputeTaskOutcome::Exipred: return TEXT("Exipred");
+		case EComputeTaskOutcome::Expired: return TEXT("Expired");
 		case EComputeTaskOutcome::BlobNotFound: return TEXT("BlobNotFound");
 		case EComputeTaskOutcome::Exception: return TEXT("Exception");
 		}

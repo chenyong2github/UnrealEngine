@@ -909,7 +909,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				{
 					if (const UBlueprint* OldBlueprint = Cast<UBlueprint>(OldObject))
 					{
-						if (NewObject && CastChecked<UBlueprint>(NewObject)->GeneratedClass)
+						if (NewObject && CastChecked<UBlueprint>(NewObject)->GeneratedClass && OldBlueprint->GeneratedClass)
 						{
 							// Don't change the class on instances that are being thrown away by the reload code. If we update
 							// the class and recompile the old class ::ReplaceInstancesOfClass will experience some crosstalk 
@@ -1200,7 +1200,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	bool UPackageTools::IsPackageExternal(const UPackage& Package)
 	{
 		FString FileString;
-		FPackageName::DoesPackageExist(Package.GetName(), NULL, &FileString);
+		FPackageName::DoesPackageExist(Package.GetName(), &FileString);
 
 		return IsPackagePathExternal( FileString );
 	}
@@ -1227,7 +1227,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	bool UPackageTools::IsSingleAssetPackage(const FString& PackageName)
 	{
 		FString PackageFileName;
-		if ( FPackageName::DoesPackageExist(PackageName, NULL, &PackageFileName) )
+		if ( FPackageName::DoesPackageExist(PackageName, &PackageFileName) )
 		{
 			return FPaths::GetExtension(PackageFileName, /*bIncludeDot=*/true) == FPackageName::GetAssetPackageExtension();
 		}

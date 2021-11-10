@@ -134,7 +134,7 @@ public:
 	 * @param Params for the GetPresence call
 	 * @return
 	 */
-	virtual TOnlineResult<FGetPresence::Result> GetPresence(FGetPresence::Params&& Params) = 0;
+	virtual TOnlineResult<FGetPresence> GetPresence(FGetPresence::Params&& Params) = 0;
 
 	/**
 	 * Update your presence

@@ -1213,23 +1213,41 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 	}
 	Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, FUniqueNetIdEOS::EmptyId(), nullptr));
 
-	FUpdateSessionCallback* CallbackObj = new FUpdateSessionCallback();
-	CallbackObj->CallbackLambda = [this, Session](const EOS_Sessions_UpdateSessionCallbackInfo* Data)
-	{
-		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_Sessions_OutOfSync;
-		if (bWasSuccessful)
-		{
-			Session->SessionState = EOnlineSessionState::Pending;
-			BeginSessionAnalytics(Session);
+	FName SessionName = Session->SessionName;
 
-			RegisterLocalPlayers(Session);
-		}
-		else
+	FUpdateSessionCallback* CallbackObj = new FUpdateSessionCallback();
+	CallbackObj->CallbackLambda = [this, SessionName](const EOS_Sessions_UpdateSessionCallbackInfo* Data)
+	{
+		bool bWasSuccessful = false;
+
+		FNamedOnlineSession* Session = GetNamedSession(SessionName);
+		if (Session)
 		{
-			Session->SessionState = EOnlineSessionState::NoSession;
-			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_UpdateSession() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_Sessions_OutOfSync;
+			if (bWasSuccessful)
+			{
+				TSharedPtr<FOnlineSessionInfoEOS> SessionInfo = StaticCastSharedPtr<FOnlineSessionInfoEOS>(Session->SessionInfo);
+				if (SessionInfo.IsValid())
+				{
+					SessionInfo->SessionId = FUniqueNetIdEOS::Create(Data->SessionId);
+				}
+
+				Session->SessionState = EOnlineSessionState::Pending;
+				BeginSessionAnalytics(Session);
+
+				RegisterLocalPlayers(Session);
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_UpdateSession() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+				Session->SessionState = EOnlineSessionState::NoSession;
+
+				RemoveNamedSession(SessionName);
+			}
 		}
-		TriggerOnCreateSessionCompleteDelegates(Session->SessionName, bWasSuccessful);
+
+		TriggerOnCreateSessionCompleteDelegates(SessionName, bWasSuccessful);
 	};
 
 	return SharedSessionUpdate(SessionModHandle, Session, CallbackObj);
@@ -1790,8 +1808,6 @@ bool FOnlineSessionEOS::FindSessionById(const FUniqueNetId& SearchingUserId, con
 {
 	bool bResult = false;
 
-	// So far there is only a lobby implementation for this
-
 	// We create the search handle
 	EOS_HLobbySearch LobbySearchHandle;
 	EOS_Lobby_CreateLobbySearchOptions CreateLobbySearchOptions = { 0 };
@@ -1813,7 +1829,17 @@ bool FOnlineSessionEOS::FindSessionById(const FUniqueNetId& SearchingUserId, con
 		CurrentSessionSearch = MakeShareable(new FOnlineSessionSearch());
 		CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
 
-		StartLobbySearch(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(SearchingUserId), LobbySearchHandle, CurrentSessionSearch.ToSharedRef(), CompletionDelegate);
+		StartLobbySearch(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(SearchingUserId), LobbySearchHandle, CurrentSessionSearch.ToSharedRef(),
+			FOnSingleSessionResultCompleteDelegate::CreateLambda([this, OrigCallback = FOnSingleSessionResultCompleteDelegate(CompletionDelegate), SessId = CreateSessionIdFromString(SessionId.ToString())](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& EOSResult)
+		{
+			if (bWasSuccessful)
+			{
+				OrigCallback.ExecuteIfBound(LocalUserNum, bWasSuccessful, EOSResult);
+				return;
+			}
+			// Didn't find a lobby so search sessions
+			FindEOSSessionById(LocalUserNum, *SessId, OrigCallback);
+		}));
 
 		bResult = true;
 	}
@@ -2021,7 +2047,7 @@ uint32 FOnlineSessionEOS::FindEOSSession(int32 SearchingPlayerNum, const TShared
 #if UE_BUILD_DEBUG
 		UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
 #endif
-		FString ParamName(TEXT("FOSS=") + Key.ToString());
+		FString ParamName(Key.ToString());
 		FAttributeOptions Attribute(TCHAR_TO_UTF8(*ParamName), SearchParam.Data);
 		AddSearchAttribute(SearchHandle, &Attribute, ToEOSSearchOp(SearchParam.ComparisonOp));
 	}
@@ -2067,6 +2093,78 @@ uint32 FOnlineSessionEOS::FindEOSSession(int32 SearchingPlayerNum, const TShared
 	EOS_SessionSearch_Find(SearchHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
 	return ONLINE_IO_PENDING;
+}
+
+void FOnlineSessionEOS::FindEOSSessionById(int32 LocalUserNum, const FUniqueNetId& SessionId, const FOnSingleSessionResultCompleteDelegate& CompletionDelegate)
+{
+	EOS_HSessionSearch SearchHandle = nullptr;
+	EOS_Sessions_CreateSessionSearchOptions HandleOptions = { };
+	HandleOptions.ApiVersion = EOS_SESSIONS_CREATESESSIONSEARCH_API_LATEST;
+	HandleOptions.MaxSearchResults = 1;
+
+	EOS_EResult ResultCode = EOS_Sessions_CreateSessionSearch(EOSSubsystem->SessionsHandle, &HandleOptions, &SearchHandle);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("EOS_Sessions_CreateSessionSearch() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(ResultCode)));
+		CompletionDelegate.ExecuteIfBound(LocalUserNum, false, FOnlineSessionSearchResult());
+		return;
+	}
+
+	const FTCHARToUTF8 Utf8SessionId(*SessionId.ToString());
+	EOS_SessionSearch_SetSessionIdOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST;
+	Options.SessionId = Utf8SessionId.Get();
+	ResultCode = EOS_SessionSearch_SetSessionId(SearchHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("EOS_SessionSearch_SetSessionId() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(ResultCode)));
+		CompletionDelegate.ExecuteIfBound(LocalUserNum, false, FOnlineSessionSearchResult());
+		return;
+	}
+
+	// Store our search handle for use/cleanup later
+	CurrentSearchHandle = MakeShareable(new FSessionSearchEOS(SearchHandle));
+
+	FFindSessionsCallback* CallbackObj = new FFindSessionsCallback();
+	CallbackObj->CallbackLambda = [this, LocalUserNum, OnComplete = FOnSingleSessionResultCompleteDelegate(CompletionDelegate)](const EOS_SessionSearch_FindCallbackInfo* Data)
+	{
+		TSharedRef<FOnlineSessionSearch> LocalSessionSearch = MakeShareable(new FOnlineSessionSearch());
+		LocalSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
+
+		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
+		if (bWasSuccessful)
+		{
+			EOS_SessionSearch_GetSearchResultCountOptions SearchResultOptions = { };
+			SearchResultOptions.ApiVersion = EOS_SESSIONSEARCH_GETSEARCHRESULTCOUNT_API_LATEST;
+			int32 NumSearchResults = EOS_SessionSearch_GetSearchResultCount(CurrentSearchHandle->SearchHandle, &SearchResultOptions);
+
+			EOS_SessionSearch_CopySearchResultByIndexOptions IndexOptions = { };
+			IndexOptions.ApiVersion = EOS_SESSIONSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST;
+			for (int32 Index = 0; Index < NumSearchResults; Index++)
+			{
+				EOS_HSessionDetails SessionHandle = nullptr;
+				IndexOptions.SessionIndex = Index;
+				EOS_EResult Result = EOS_SessionSearch_CopySearchResultByIndex(CurrentSearchHandle->SearchHandle, &IndexOptions, &SessionHandle);
+				if (Result == EOS_EResult::EOS_Success)
+				{
+					AddSearchResult(SessionHandle, LocalSessionSearch);
+				}
+			}
+			LocalSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
+		}
+		else
+		{
+			LocalSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
+			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_SessionSearch_Find() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+		}
+		OnComplete.ExecuteIfBound(LocalUserNum, LocalSessionSearch->SearchState == EOnlineAsyncTaskState::Done, LocalSessionSearch->SearchResults.Last());
+	};
+
+	EOS_SessionSearch_FindOptions FindOptions = { };
+	FindOptions.ApiVersion = EOS_SESSIONSEARCH_FIND_API_LATEST;
+	FindOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserNum);
+
+	EOS_SessionSearch_Find(SearchHandle, &FindOptions, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
 uint32 FOnlineSessionEOS::FindLANSession()
@@ -2259,19 +2357,32 @@ uint32 FOnlineSessionEOS::JoinEOSSession(int32 PlayerNum, FNamedOnlineSession* S
 
 	Session->SessionState = EOnlineSessionState::Pending;
 
+	FName SessionName = Session->SessionName;
+
 	FJoinSessionCallback* CallbackObj = new FJoinSessionCallback();
-	CallbackObj->CallbackLambda = [this, Session](const EOS_Sessions_JoinSessionCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, SessionName](const EOS_Sessions_JoinSessionCallbackInfo* Data)
 	{
-		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
-		if (bWasSuccessful)
+		bool bWasSuccessful = false;
+
+		FNamedOnlineSession* Session = GetNamedSession(SessionName);
+		if (Session)
 		{
-			BeginSessionAnalytics(Session);
+			bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
+			if (bWasSuccessful)
+			{
+				BeginSessionAnalytics(Session);
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_JoinSession() failed for session (%s) with EOS result code (%s)"), *SessionName.ToString(), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+				Session->SessionState = EOnlineSessionState::NoSession;
+
+				RemoveNamedSession(SessionName);
+			}
 		}
-		else
-		{
-			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_JoinSession() failed for session (%s) with EOS result code (%s)"), *Session->SessionName.ToString(), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-		}
-		TriggerOnJoinSessionCompleteDelegates(Session->SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+
+		TriggerOnJoinSessionCompleteDelegates(SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
 	};
 
 	FJoinSessionOptions Options(TCHAR_TO_UTF8(*Session->SessionName.ToString()));
@@ -3313,9 +3424,13 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
 					else
 					{
 						UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::JoinLobbySession] JoinLobby not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+						Session->SessionState = EOnlineSessionState::NoSession;
+
+						RemoveNamedSession(SessionName);
 					}
 
-					TriggerOnJoinSessionCompleteDelegates(Session->SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+					TriggerOnJoinSessionCompleteDelegates(SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
 
 					// Now that we have joined one of the sessions we found on the search, we can clear the results
 					for (TPair<FString, TSharedRef<EOS_HLobbyDetails>> LobbySearchResult : LobbySearchResultsCache)
@@ -3403,24 +3518,14 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	check(Session != nullptr);
 
 	// The first will let us find it on session searches
-	const FString SearchPresence(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
+	const FString SearchPresence(SEARCH_PRESENCE.ToString());
 	const FLobbyAttributeOptions SearchPresenceAttribute(TCHAR_TO_UTF8(*SearchPresence), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchPresenceAttribute);
 
 	// The second will let us find it on lobby searches
-	const FString SearchLobbies(TEXT("FOSS=") + SEARCH_LOBBIES.ToString());
+	const FString SearchLobbies(SEARCH_LOBBIES.ToString());
 	const FLobbyAttributeOptions SearchLobbiesAttribute(TCHAR_TO_UTF8(*SearchLobbies), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchLobbiesAttribute);
-
-	// The second will let us find it on lobby searches
-	FString Keyword;
-	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
-	if (!Keyword.IsEmpty())
-	{
-		const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-		const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
-		AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
-	}
 
 	// We set the session's owner id and name
 	const FLobbyAttributeOptions OwnerId("OwningUserId", TCHAR_TO_UTF8(*Session->OwningUserId->ToString()));
@@ -3707,7 +3812,7 @@ uint32 FOnlineSessionEOS::FindLobbySession(int32 SearchingPlayerNum, const TShar
 
 			UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::FindLobbySession] Adding lobby search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
 
-			FString ParamName(TEXT("FOSS=") + Key.ToString());
+			FString ParamName(Key.ToString());
 			FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*ParamName), SearchParam.Data);
 			AddLobbySearchAttribute(LobbySearchHandle, &Attribute, ToEOSSearchOp(SearchParam.ComparisonOp));
 		}

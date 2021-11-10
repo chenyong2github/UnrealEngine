@@ -381,7 +381,7 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 				"EditAsset",
 				LOCTEXT("EditAsset", "Edit..."),
 				LOCTEXT("EditAssetTooltip", "Opens the selected item(s) for edit."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteEditItems),
 					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteEditItems)
@@ -391,29 +391,27 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 			// Rename
 			Section.AddMenuEntry(FGenericCommands::Get().Rename,
 				LOCTEXT("Rename", "Rename"),
-				LOCTEXT("RenameTooltip", "Rename the selected item."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename")
+				LOCTEXT("RenameTooltip", "Rename the selected item.")
 			);
 
 			// Duplicate
 			Section.AddMenuEntry(FGenericCommands::Get().Duplicate,
 				LOCTEXT("Duplicate", "Duplicate"),
 				LOCTEXT("DuplicateTooltip", "Create a copy of the selected item(s)."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Duplicate")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate")
 			);
 
 			// Save
 			Section.AddMenuEntry(FContentBrowserCommands::Get().SaveSelectedAsset,
 				LOCTEXT("SaveAsset", "Save"),
 				LOCTEXT("SaveAssetTooltip", "Saves the item to file."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x")
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Save")
 			);
 
 			// Delete
 			Section.AddMenuEntry(FGenericCommands::Get().Delete,
 				LOCTEXT("Delete", "Delete"),
-				TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FAssetContextMenu::GetDeleteToolTip)),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete")
+				TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FAssetContextMenu::GetDeleteToolTip))
 			);
 		}
 	}
@@ -437,7 +435,7 @@ void FAssetContextMenu::AddExploreMenuOptions(UToolMenu* Menu)
 			"FindInExplorer",
 			ContentBrowserUtils::GetExploreFolderText(),
 			LOCTEXT("FindInExplorerTooltip", "Finds this asset on disk"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.ShowInExplorer"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteFindInExplorer),
 				FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteFindInExplorer)
@@ -457,7 +455,7 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 			"CopyReference",
 			LOCTEXT("CopyReference", "Copy Reference"),
 			LOCTEXT("CopyReferenceTooltip", "Copies reference paths for the selected assets to the clipboard."),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy"),
 			FUIAction( FExecuteAction::CreateSP( this, &FAssetContextMenu::ExecuteCopyReference ) )
 			);
 	
@@ -467,7 +465,7 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 				"CopyFilePath",
 				LOCTEXT("CopyFilePath", "Copy File Path"),
 				LOCTEXT("CopyFilePathTooltip", "Copies the file paths on disk for the selected assets to the clipboard."),
-				FSlateIcon(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy"),
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCopyFilePath))
 			);
 		}
@@ -562,7 +560,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 							), 
 						EUserInterfaceActionType::ToggleButton,
 						false,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(AvailableCollection.Type))
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(AvailableCollection.Type))
 						);
 				}
 				else
@@ -571,7 +569,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 						NAME_None,
 						FText::FromName(AvailableCollection.Name), 
 						FText::GetEmpty(), 
-						FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(AvailableCollection.Type)), 
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(AvailableCollection.Type)),
 						FUIAction(
 							FExecuteAction::CreateStatic(&FManageCollectionsContextMenu::OnCollectionClicked, QuickAssetManagement, AvailableCollection),
 							FCanExecuteAction::CreateStatic(&FManageCollectionsContextMenu::IsCollectionEnabled, QuickAssetManagement, AvailableCollection),
@@ -635,7 +633,9 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 			"ManageCollections",
 			LOCTEXT("ManageCollections", "Manage Collections"),
 			FText::Format(LOCTEXT("ManageCollections_ToolTip", "Manage the collections that the selected {0}|plural(one=item belongs, other=items belong) to."), SelectedFiles.Num()),
-			FNewToolMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement)
+			FNewToolMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement),
+			false, // default value
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.Collections")
 			);
 
 		bHasAddedItems = true;

@@ -471,14 +471,13 @@ DECLARE_DELEGATE_ThreeParams(FLoadPackageAsyncDelegate, const FName& /*PackageNa
  * @param	InPackagePath			PackagePath to load. Must be a mounted path. The package is created if it does not already exist.
  * @param	InPackageNameToCreate	If not none, this is the name of the package to load the bytes on disk into (and create if not yet existing). If none, the name is taken from PackagePath.
  * @param	InCompletionDelegate	Delegate to be invoked when the packages has finished streaming
- * @param	InGuid					GUID of the package to load, or nullptr for "don't care"
  * @param	InPackageFlags			Package flags used to construct loaded package in memory
  * @param	InPIEInstanceID			Play in Editor instance ID
  * @param	InPackagePriority		Loading priority
  * @param   InstancingContext		Additional context to map object names to their instanced counterpart when loading an instanced package
  * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
  */
-COREUOBJECT_API int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate = NAME_None, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), const FGuid* InGuid = nullptr, EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToCreate = NAME_None, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
  * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
@@ -503,7 +502,7 @@ COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGui
  */
 COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, FLoadPackageAsyncDelegate InCompletionDelegate, TAsyncLoadPriority InPackagePriority = 0, EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE);
 
-UE_DEPRECATED(5.0, "Use version that takes a PackagePath")
+UE_DEPRECATED(5.0, "Use version that takes a FPackagePath without a FGuid")
 COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
@@ -794,6 +793,17 @@ bool StaticAllocateObjectErrorTests( const UClass* Class, UObject* InOuter, FNam
  */
 COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr, UPackage* ExternalPackage = nullptr);
 
+/** FObjectInitializer options */
+enum class EObjectInitializerOptions
+{
+	None							= 0,
+	CopyTransientsFromClassDefaults = 1 << 0, // copy transient from the class defaults instead of the pass in archetype ptr
+	InitializeProperties			= 1 << 1, // initialize property values with the archetype values
+};
+ENUM_CLASS_FLAGS(EObjectInitializerOptions)
+
+class FGCObject;
+
 /**
  * Internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
@@ -809,11 +819,19 @@ public:
 	 * Constructor
 	 * @param	InObj object to initialize, from static allocate object, after construction
 	 * @param	InObjectArchetype object to initialize properties from
-	 * @param	bInCopyTransientsFromClassDefaults - if true, copy transient from the class defaults instead of the pass in archetype ptr (often these are the same)
-	 * @param	bInShouldInitializeProps false is a special case for changing base classes in UCCMake
+	 * @param	InOptions initialization options, see EObjectInitializerOptions
 	 * @param	InInstanceGraph passed instance graph
 	 */
-	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
+	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, EObjectInitializerOptions InOptions, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
+
+	UE_DEPRECATED(5.01, "Use version that takes EObjectInitializerOptions")
+	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph = nullptr)
+		: FObjectInitializer(InObj, InObjectArchetype, 
+			(bInCopyTransientsFromClassDefaults ? EObjectInitializerOptions::CopyTransientsFromClassDefaults : EObjectInitializerOptions::None) |
+			(bInShouldInitializeProps ? EObjectInitializerOptions::InitializeProperties : EObjectInitializerOptions::None),
+			InInstanceGraph)
+	{
+	}
 
 	/** Special constructor for static construct object internal that passes along the params block directly */
 	FObjectInitializer(UObject* InObj, const FStaticConstructObjectParameters& StaticConstructParams);
@@ -1219,7 +1237,20 @@ private:
 	/**  Previously constructed object in the callstack */
 	UObject* LastConstructedObject = nullptr;
 
+	/** Callback for custom property initialization before PostInitProperties gets called */
+	TFunction<void()> PropertyInitCallback;
+
 	friend struct FStaticConstructObjectParameters;
+
+#if WITH_EDITORONLY_DATA
+	/** Detects when a new GC object was created */
+	void OnGCObjectCreated(FGCObject* InObject);
+
+	/** Delegate handle for OnGCObjectCreated callback */
+	FDelegateHandle OnGCObjectCreatedHandle;
+	/** List of FGCObjects created during UObject construction */
+	TArray<FGCObject*> CreatedGCObjects;
+#endif // WITH_EDITORONLY_DATA
 };
 
 /**
@@ -1260,6 +1291,9 @@ struct FStaticConstructObjectParameters
 
 	/** Assign an external Package to the created object if non-null */
 	UPackage* ExternalPackage = nullptr;
+
+	/** Callback for custom code to initialize properties before PostInitProperties runs */
+	TFunction<void()> PropertyInitCallback;
 
 private:
 	FObjectInitializer::FOverrides* SubobjectOverrides = nullptr;
@@ -2176,6 +2210,10 @@ public:
 	 * The default behavior returns false as weak references must be explicitly supported
 	 */
 	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) { return false; }
+	/**
+	 * Sets whether this collector is currently processing native references or not.
+	 */
+	virtual void SetIsProcessingNativeReferences(bool bIsNative) {}
 
 	/**
 	* Returns the collector archive associated with this collector.

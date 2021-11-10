@@ -30,14 +30,10 @@ namespace CADKernel
 			, GuideCurve(InGuideCurve)
 			, DirectorVector(InDirectorVector)
 		{
-			SetMinToleranceIso();
+			ComputeDefaultMinToleranceIso();
 		}
 
-		FTabulatedCylinderSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FTabulatedCylinderSurface() = default;
 
 	public:
 

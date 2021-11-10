@@ -154,7 +154,7 @@ UWorld* UAudioModulationStatics::GetAudioWorld(const UObject* WorldContextObject
 		return nullptr;
 	}
 
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
 	if (!World || !World->bAllowAudioPlayback || World->IsNetMode(NM_DedicatedServer))
 	{
 		return nullptr;
@@ -191,7 +191,7 @@ AudioModulation::FAudioModulation* UAudioModulationStatics::GetModulation(UWorld
 
 USoundControlBus* UAudioModulationStatics::CreateBus(UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate)
 {
-	UWorld* World = UAudioModulationStatics::GetAudioWorld(WorldContextObject);
+	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
 	{
 		return nullptr;
@@ -203,7 +203,7 @@ USoundControlBus* UAudioModulationStatics::CreateBus(UObject* WorldContextObject
 
 	if (Activate)
 	{
-		if (AudioModulation::FAudioModulation* ModSystem = UAudioModulationStatics::GetModulation(World))
+		if (AudioModulation::FAudioModulation* ModSystem = GetModulation(World))
 		{
 			ModSystem->ActivateBus(*NewBus);
 		}

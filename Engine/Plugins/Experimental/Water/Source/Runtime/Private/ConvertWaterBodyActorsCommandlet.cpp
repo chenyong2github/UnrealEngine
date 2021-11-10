@@ -81,7 +81,7 @@ int32 UConvertWaterBodyActorsCommandlet::Main(const FString& Params)
 	// Need at least the level to convert
 	if (Tokens.Num() < 1)
 	{
-		UE_LOG(LogConvertWaterBodyActorsCommandlet, Error, TEXT("ConvertLevelToExternalActors bad parameters"));
+		UE_LOG(LogConvertWaterBodyActorsCommandlet, Error, TEXT("ConvertWaterBodyActors bad parameters"));
 		return 1;
 	}
 

@@ -2,9 +2,9 @@
 
 #include "SGraphSeriesList.h"
 
-#include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -13,6 +13,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 
@@ -77,10 +78,16 @@ public:
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-				.ColorAndOpacity_Lambda([this](){ return FSlateColor(GraphSeries.Pin()->GetColor()); })
-				.Text(FEditorFontGlyphs::Circle)
+				SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.WidthOverride(12.0f)
+				.HeightOverride(12.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity_Lambda([this]() { return FSlateColor(GraphSeries.Pin()->GetColor()); })
+					.Image(FAppStyle::Get().GetBrush("Icons.FilledCircle"))
+				]
 			]
 		];
 	}

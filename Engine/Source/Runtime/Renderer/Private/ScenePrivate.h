@@ -58,6 +58,7 @@
 #include "GPUScene.h"
 #include "DynamicBVH.h"
 #include "OIT/OIT.h"
+#include "ShadingEnergyConservation.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -1105,6 +1106,8 @@ public:
 	FHairStrandsViewStateData HairStrandsViewStateData;
 
 	FShaderDrawDebugStateData ShaderDrawDebugStateData;
+
+	FShadingEnergyConservationStateData ShadingEnergyConservationData;
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
@@ -2716,13 +2719,13 @@ public:
 	TArray<FTypeOffsetTableEntry> TypeOffsetTable;
 
 	/** The lights in the scene. */
-	TSparseArray<FLightSceneInfoCompact> Lights;
+	TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>> Lights;
 
 	/** 
 	 * Lights in the scene which are invisible, but still needed by the editor for previewing. 
 	 * Lights in this array cannot be in the Lights array.  They also are not fully set up, as AddLightSceneInfo_RenderThread is not called for them.
 	 */
-	TSparseArray<FLightSceneInfoCompact> InvisibleLights;
+	TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>> InvisibleLights;
 
 	/** Shadow casting lights that couldn't get a shadowmap channel assigned and therefore won't have valid dynamic shadows, forward renderer only. */
 	TArray<FName> OverflowingDynamicShadowedLights;
@@ -2986,6 +2989,7 @@ public:
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) override;
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override;
+	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override;
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override;
 	virtual void UpdatePrimitiveDistanceFieldSceneData_GameThread(UPrimitiveComponent* Primitive) override;
@@ -3334,6 +3338,8 @@ private:
 	/** Updates a primitive's transform, called on the rendering thread. */
 	void UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& OwnerPosition, const TOptional<FTransform>& PreviousTransform);
 
+	void UpdatePrimitiveOcclusionBoundsSlack_RenderThread(const FPrimitiveSceneProxy* PrimitiveSceneProxy, float NewSlack);
+
 	/** Updates a single primitive's lighting attachment root. */
 	void UpdatePrimitiveLightingAttachmentRoot(UPrimitiveComponent* Primitive);
 
@@ -3419,6 +3425,7 @@ private:
 	TMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
 	TMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
 	TMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
+	TMap<const FPrimitiveSceneProxy*, float> UpdatedOcclusionBoundsSlacks;
 	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
 	TSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
 	TSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;

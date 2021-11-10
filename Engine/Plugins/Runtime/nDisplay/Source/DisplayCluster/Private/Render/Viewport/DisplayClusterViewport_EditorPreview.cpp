@@ -267,7 +267,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	{
 		if (!bProjectionPolicyCalculateViewWarningOnce)
 		{
-			UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Couldn't compute view parameters for Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
+			UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Couldn't compute view parameters for Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
 			bProjectionPolicyCalculateViewWarningOnce = true;
 		}
 		return false;
@@ -290,7 +290,7 @@ FMatrix FDisplayClusterViewport::ImplPreview_GetStereoProjectionMatrix(const uin
 	{
 		if (GetProjectionMatrix(InContextNum, PrjMatrix) == false)
 		{
-			UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Got invalid projection matrix: Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
+			UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Got invalid projection matrix: Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
 		}
 	}
 

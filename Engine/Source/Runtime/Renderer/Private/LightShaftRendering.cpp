@@ -431,7 +431,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "LightShafts (Occlusion)");
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfo& LightSceneInfo = *LightIt->LightSceneInfo;
 			const FLightSceneProxy& LightSceneProxy = *LightSceneInfo.Proxy;
@@ -537,7 +537,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 
 		TBitArray<TInlineAllocator<1, SceneRenderingBitArrayAllocator>> ViewsToRender(false, Views.Num());
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfo& LightSceneInfo = *LightIt->LightSceneInfo;
 			const FLightSceneProxy& LightSceneProxy = *LightSceneInfo.Proxy;
@@ -634,7 +634,7 @@ void FSceneViewState::TrimHistoryRenderTargets(const FScene* Scene)
 	{
 		bool bLightIsUsed = false;
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfo* const LightSceneInfo = LightIt->LightSceneInfo;
 

@@ -342,20 +342,20 @@ namespace CADLibrary
 		CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
 		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 
-		switch(FileDescription.GetFileFormat())
+		switch (FileDescription.GetFileFormat())
 		{
 		case ECADFormat::JT:
 		{
-		// Parallelization of monolithic JT file,
-		// For JT file, first step the file is read with "Structure only option"
-		// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
+			// Parallelization of monolithic JT file,
+			// For JT file, first step the file is read with "Structure only option"
+			// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
 			if (!FileDescription.HasConfiguration())
-		{
+			{
 				FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.GetSourcePath());
 
 				if (FileStatData.FileSize > 2e6 /* 2 Mb */ && CADFileData.IsCacheDefined()) // First step 
 				{
-						Flags |= CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;
+					Flags |= CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;
 				}
 			}
 			else // Second step
@@ -376,8 +376,8 @@ namespace CADLibrary
 
 		case ECADFormat::IGES:
 		{
-		// All the BRep topology is not available in IGES import
-		// Ask Kernel IO to complete or create missing topology
+			// All the BRep topology is not available in IGES import
+			// Ask Kernel IO to complete or create missing topology
 			Flags |= CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
 			break;
@@ -981,7 +981,7 @@ namespace CADLibrary
 			case CT_ATTRIB_NAME:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("CTName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SDKName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 

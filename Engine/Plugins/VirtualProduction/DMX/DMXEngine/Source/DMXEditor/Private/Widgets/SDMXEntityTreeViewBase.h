@@ -35,18 +35,6 @@ public:
 		/** The DMX Editor that owns this widget */
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 
-		/** Exectued when the list changed its selection */
-		SLATE_EVENT(FDMXOnSelectionChanged, OnSelectionChanged)
-
-		/** Exectued when entites were added to the DMXEditor's library */
-		SLATE_EVENT(FSimpleDelegate, OnEntitiesAdded)
-
-		/** Exectued when entites were reorderd in the list, and potentially in the library */
-		SLATE_EVENT(FSimpleDelegate, OnEntityOrderChanged)
-
-		/** Exectued when entites were removed from the DMXEditor's library */
-		SLATE_EVENT(FSimpleDelegate, OnEntitiesRemoved)
-
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
@@ -55,7 +43,16 @@ public:
 	/** Destructor */
 	virtual ~SDMXEntityTreeViewBase();
 
-	/** Refresh the tree control to reflect changes in the editor */
+protected:
+	//~ Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~ End SWidget interface
+
+	/** Internally refreshes the the tree widget, actually carrying out the update */
+	void UpdateTreeInternal(bool bRegenerateTreeNodes = true);
+
+public:
+	/** Updates the Tree Widget */
 	void UpdateTree(bool bRegenerateTreeNodes = true);
 
 	/**
@@ -161,14 +158,11 @@ protected:
 	/** Called when the expansion of a Node changed */
 	virtual void OnExpansionChanged(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bInExpansionState);
 
-	/** Called when selection in the Tree changed */
-	virtual void OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> Node, ESelectInfo::Type SelectInfo);
-
 	/** Called to display a context menu when right clicking an Entity */
 	virtual TSharedPtr<SWidget> OnContextMenuOpen() = 0;
 
-	///** Called when a TreeNode is scrolled into view */
-	//virtual void OnItemScrolledIntoView(TSharedPtr<FDMXEntityTreeNodeBase> Node, const TSharedPtr<ITableRow>& InWidget);
+	/** Called when Entities were selected in the Tree View */
+	virtual void OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo) = 0;
 
 	/** Cut selected node(s) */
 	virtual void OnCutSelectedNodes() = 0;
@@ -208,13 +202,13 @@ protected:
 	FDMXOnSelectionChanged OnSelectionChangedDelegate;
 
 	/** Broadcast when the entity list added an entity to the library */
-	FSimpleDelegate OnEntitiesAdded;
+	FSimpleDelegate OnEntitiesAddedDelegate;
 
 	/** Broadcast when the entity list changed order of the library's entity array */
-	FSimpleDelegate OnEntityOrderChanged;
+	FSimpleDelegate OnEntityOrderChangedDelegate;
 
 	/** Broadcast when the entity list deleted an entity from the library */
-	FSimpleDelegate OnEntitiesRemoved;
+	FSimpleDelegate OnEntitiesRemovedDelegate;
 
 	/** Command list for handling actions such as copy and paste */
 	TSharedPtr<FUICommandList> CommandList;
@@ -223,9 +217,6 @@ protected:
 	TWeakPtr<FDMXEditor> DMXEditor;
 
 private:
-	/** Update any associated selection from the passed in nodes */
-	void UpdateSelectionFromNodes(const TArray<TSharedPtr<FDMXEntityTreeNodeBase>>& SelectedNodes);
-
 	/** Callback when the filter is changed, forces the action tree(s) to filter */
 	void OnFilterTextChanged(const FText& InFilterText);
 
@@ -261,6 +252,20 @@ private:
 
 	/** Gate to prevent changing the selection while selection change is being broadcast. */
 	bool bUpdatingSelection = false;
+
+	/** Enum for states of refreshing required */
+	enum class EDMXRefreshTreeViewState : uint8
+	{
+		RegenerateNodes,
+		UpdateNodes,
+		NoRefreshRequested
+	};
+
+	/** True when a tree refresh was requested */
+	EDMXRefreshTreeViewState RefreshTreeViewState = EDMXRefreshTreeViewState::NoRefreshRequested;
+
+	/** Object to select on the next tick */
+	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> PendingSelection;
 
 	/** Delegate handle bound to the FGlobalTabmanager::OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;

@@ -36,12 +36,16 @@ bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(class IDisplayClust
 {
 	check(IsInGameThread());
 
-	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
+	UE_LOG(LogDisplayClusterProjectionSimple, Verbose, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
 
 	// Get assigned screen ID
 	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::simple::Screen, ScreenId))
 	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *InViewport->GetId());
+		}
+
 		return false;
 	}
 
@@ -178,13 +182,17 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayCl
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClusterViewport* InViewport)
 {
-	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Initializing screen geometry for viewport policy  %s"), *GetId());
+	UE_LOG(LogDisplayClusterProjectionSimple, Verbose, TEXT("Initializing screen geometry for viewport policy  %s"), *GetId());
 
 	// Get our VR root
 	ADisplayClusterRootActor* const Root = InViewport->GetOwner().GetRootActor();
 	if (!Root)
 	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));
+		}
+
 		return false;
 	}
 
@@ -192,7 +200,11 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClu
 	UDisplayClusterScreenComponent* ScreenComp = Root->GetComponentByName<UDisplayClusterScreenComponent>(ScreenId);
 	if (!ScreenComp)
 	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't initialize screen component"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't initialize screen component"));
+		}
+
 		return false;
 	}
 

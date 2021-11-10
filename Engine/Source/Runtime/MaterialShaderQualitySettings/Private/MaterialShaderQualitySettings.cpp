@@ -41,7 +41,7 @@ const FName& UMaterialShaderQualitySettings::GetPreviewPlatform()
 void UMaterialShaderQualitySettings::SetPreviewPlatform(FName PlatformName)
 {
 	 TObjectPtr<UShaderPlatformQualitySettings>* FoundPlatform = ForwardSettingMap.Find(PlatformName);
-	 PreviewPlatformSettings = FoundPlatform == nullptr ? nullptr : *FoundPlatform;
+	 PreviewPlatformSettings = FoundPlatform == nullptr ? nullptr : FoundPlatform->Get();
 	 PreviewPlatformName = PlatformName;
 }
 #endif

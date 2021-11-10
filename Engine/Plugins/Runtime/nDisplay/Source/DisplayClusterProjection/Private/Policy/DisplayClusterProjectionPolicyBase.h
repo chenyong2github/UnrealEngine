@@ -46,6 +46,8 @@ public:
 
 	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const override;
 
+	static bool IsEditorOperationMode();
+
 protected:
 	void InitializeOriginComponent(class IDisplayClusterViewport* InViewport, const FString& OriginCopmId);
 	void ReleaseOriginComponent();

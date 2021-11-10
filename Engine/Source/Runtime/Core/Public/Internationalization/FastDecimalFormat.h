@@ -15,21 +15,21 @@
 struct FDecimalNumberFormattingRules
 {
 	FDecimalNumberFormattingRules()
-		: GroupingSeparatorCharacter(0)
-		, DecimalSeparatorCharacter(0)
-		, PrimaryGroupingSize(0)
-		, SecondaryGroupingSize(0)
+		: GroupingSeparatorCharacter(TEXT('\0'))
+		, DecimalSeparatorCharacter(TEXT('\0'))
+		, PrimaryGroupingSize(TEXT('\0'))
+		, SecondaryGroupingSize(TEXT('\0'))
 	{
-		DigitCharacters[0] = '0';
-		DigitCharacters[1] = '1';
-		DigitCharacters[2] = '2';
-		DigitCharacters[3] = '3';
-		DigitCharacters[4] = '4';
-		DigitCharacters[5] = '5';
-		DigitCharacters[6] = '6';
-		DigitCharacters[7] = '7';
-		DigitCharacters[8] = '8';
-		DigitCharacters[9] = '9';
+		DigitCharacters[0] = TEXT('0');
+		DigitCharacters[1] = TEXT('1');
+		DigitCharacters[2] = TEXT('2');
+		DigitCharacters[3] = TEXT('3');
+		DigitCharacters[4] = TEXT('4');
+		DigitCharacters[5] = TEXT('5');
+		DigitCharacters[6] = TEXT('6');
+		DigitCharacters[7] = TEXT('7');
+		DigitCharacters[8] = TEXT('8');
+		DigitCharacters[9] = TEXT('9');
 	}
 
 	/** Number formatting rules, typically extracted from the ICU decimal formatter for a given culture */

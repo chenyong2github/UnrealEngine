@@ -1,6 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundModulationParameter.h"
 
+#include "AudioDevice.h"
+#include "AudioDeviceManager.h"
+
+
+TUniquePtr<Audio::IProxyData> USoundModulationParameter::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	using namespace AudioModulation;
+	return MakeUnique<FSoundModulationPluginParameterAssetProxy>(this);
+}
 
 #if WITH_EDITOR
 void USoundModulationParameter::RefreshNormalizedValue()
@@ -175,7 +184,7 @@ Audio::FModulationNormalizedConversionFunction USoundModulationParameterVolume::
 {
 	return [InUnitMin = GetUnitMin()](float& InOutValue)
 	{
-		InOutValue = InOutValue < InUnitMin
+		InOutValue = InOutValue < InUnitMin || FMath::IsNearlyEqual(InOutValue, InUnitMin)
 			? 0.0f
 			: Audio::ConvertToLinear(InOutValue);
 	};
@@ -189,4 +198,48 @@ float USoundModulationParameterVolume::GetUnitMin() const
 float USoundModulationParameterVolume::GetUnitMax() const
 {
 	return 0.0f;
+}
+
+namespace AudioModulation
+{
+	FSoundModulationPluginParameterAssetProxy::FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter)
+	{
+		using namespace Audio;
+
+		if (!InParameter || !GEngine)
+		{
+			return;
+		}
+
+		FAudioDeviceHandle AudioDevice;
+		if (UWorld* World = GEngine->GetWorldFromContextObject(InParameter, EGetWorldErrorMode::ReturnNull))
+		{
+			if (!World->bAllowAudioPlayback || World->IsNetMode(NM_DedicatedServer))
+			{
+				return;
+			}
+
+			AudioDevice = World->GetAudioDevice();
+		}
+		else
+		{
+			AudioDevice = GEngine->GetMainAudioDevice();
+		}
+
+		if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+		{
+			const FName ParameterName = InParameter->GetFName();
+			Parameter = Modulation->GetParameter(ParameterName);
+		}
+	}
+
+	Audio::IProxyDataPtr FSoundModulationPluginParameterAssetProxy::Clone() const
+	{
+		return TUniquePtr<FSoundModulationPluginParameterAssetProxy>(new FSoundModulationPluginParameterAssetProxy(*this));
+	}
+
+	const Audio::FModulationParameter& FSoundModulationPluginParameterAssetProxy::GetParameter() const
+	{
+		return Parameter;
+	}
 }

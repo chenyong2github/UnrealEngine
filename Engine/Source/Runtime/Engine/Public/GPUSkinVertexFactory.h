@@ -229,13 +229,15 @@ public:
 
 		// @param bPrevious true:previous, false:current
 		// @return returns revision number 
-		uint32 GetRevisionNumber(bool bPrevious)
+		uint32 GetRevisionNumber(bool bPrevious) const
 		{
 			return (bPrevious) ? PreviousRevisionNumber : CurrentRevisionNumber;
 		}
 
 		int32 InputWeightIndexSize = 0;
 		FShaderResourceViewRHIRef InputWeightStream;
+		// Frame number of the bone data that is last updated
+		uint32 UpdatedFrameNumber = 0;
 
 	private:
 		// double buffered bone positions+orientations to support normal rendering and velocity (new-old position) rendering

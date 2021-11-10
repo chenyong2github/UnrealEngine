@@ -288,11 +288,11 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 		{
 			check(DestPackage);
 			const EPackageFlags PackageFlags = DestPackage->HasAnyPackageFlags(PKG_PlayInEditor) ? PKG_PlayInEditor : PKG_None;
-			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, nullptr, PackageFlags, DestPackage->PIEInstanceID, 0, InOutInstancingContext);
+			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, PackageFlags, DestPackage->PIEInstanceID, 0, InOutInstancingContext);
 		}
 		else
 		{
-			::LoadPackageAsync(PackagePath, NAME_None, CompletionCallback, nullptr, PKG_None, INDEX_NONE, 0, InOutInstancingContext);
+			::LoadPackageAsync(PackagePath, NAME_None, CompletionCallback, PKG_None, INDEX_NONE, 0, InOutInstancingContext);
 		}
 	}
 

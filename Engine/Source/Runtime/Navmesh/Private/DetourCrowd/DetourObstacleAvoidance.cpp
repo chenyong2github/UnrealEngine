@@ -545,7 +545,7 @@ int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const dtReal* pos, const dt
 	
 	const int nd = dtClamp(ndivs, 1, DT_MAX_PATTERN_DIVS);
 	const int nr = dtClamp(nrings, 1, DT_MAX_PATTERN_RINGS);
-	const dtReal da = (1.0f/nd) * DT_PI*2;
+	const dtReal da = (dtReal(1.)/nd) * DT_PI*2;
 	const dtReal dang = dtAtan2(dvel[2], dvel[0]);
 	
 	// Always add sample at zero
@@ -556,7 +556,7 @@ int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const dtReal* pos, const dt
 	for (int j = 0; j < nr; ++j)
 	{
 		const dtReal r = (dtReal)(nr-j)/(dtReal)nr;
-		dtReal a = dang + (j&1)*0.5f*da;
+		dtReal a = dang + dtReal(j&1)*0.5f*da;
 		for (int i = 0; i < nd; ++i)
 		{
 			pat[npat*2+0] = dtCos(a)*r;

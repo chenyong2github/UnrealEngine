@@ -71,10 +71,7 @@ using TBaseClass_T = typename TBaseClass<T>::Type;
  * Struct that needs to be specialized to provide the Fields in the struct. Defined using the ONLINE_STRUCT macros below
  */
 template <typename StructType>
-struct TStructDetails
-{
-	static_assert(!std::is_same_v<StructType, StructType>, "Specialization of TStructDetails unavailable. Type must have metadata specified via the ONLINE_STRUCT macros");
-};
+struct TStructDetails;
 
 /**
  * Struct field definitions, manually defined via the ONLINE_STRUCT macros below
@@ -126,6 +123,15 @@ inline void VisitFields(const StructType& Object, FuncType&& Func)
 			Func(Field.Name, Object.*Field.Pointer);
 		});
 }
+
+/**
+ * Concept that checks if we have metadata for a struct
+ */
+struct COnlineMetadataAvailable
+{
+	template <typename T>
+	auto Requires() -> decltype(TStructDetails<std::remove_cv_t<std::remove_reference_t<T>>>::Fields());
+};
 
 /* UE::Online::Meta*/ }
 

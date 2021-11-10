@@ -306,7 +306,6 @@ namespace Audio
 
 		FSoundSource::InitCommon();
 
-
 		if (!ensure(InWaveInstance))
 		{
 			return false;
@@ -567,9 +566,6 @@ namespace Audio
 			// Grab the source's reverb plugin settings
 			InitParams.ReverbPluginSettings = UseReverbPlugin() ? WaveInstance->ReverbPluginSettings : nullptr;
 
-			// We support reverb
-			SetReverbApplied(true);
-
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
 			MixerBuffer->InitSampleRate(WaveData->GetSampleRateForCurrentPlatform());
 
@@ -609,6 +605,13 @@ namespace Audio
 
 			if (MixerSourceVoice->Init(InitParams))
 			{
+				// Initialize the propagation interface as soon as we have a valid source id
+				if (AudioDevice->SourceDataOverridePluginInterface)
+				{
+					uint32 SourceId = MixerSourceVoice->GetSourceId();
+					AudioDevice->SourceDataOverridePluginInterface->OnInitSource(SourceId);
+				}
+
 				InitializationState = EMixerSourceInitializationState::Initialized;
 
 				Update();
@@ -739,6 +742,8 @@ namespace Audio
 			return;
 		}
 
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerSource::Update);
+
 		// if MarkPendingKill() was called, WaveInstance->WaveData is null
 		if (!WaveInstance->WaveData)
 		{
@@ -747,6 +752,18 @@ namespace Audio
 		}
 
 		++TickCount;
+
+		// Allow plugins to override any data in a waveinstance
+		if (AudioDevice->SourceDataOverridePluginInterface)
+		{
+			uint32 SourceId = MixerSourceVoice->GetSourceId();
+			int32 ListenerIndex = WaveInstance->ActiveSound->GetClosestListenerIndex();
+
+			FTransform ListenerTransform;
+			AudioDevice->GetListenerTransform(ListenerIndex, ListenerTransform);
+
+			AudioDevice->SourceDataOverridePluginInterface->GetSourceDataOverrides(SourceId, ListenerTransform, WaveInstance);
+		}
 
 		UpdatePitch();
 
@@ -876,6 +893,7 @@ namespace Audio
 	bool FMixerSource::IsPreparedToInit()
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(AudioMixerSource::IsPreparedToInit);
 
 		if (MixerBuffer && MixerBuffer->IsRealTimeSourceReady())
 		{
@@ -956,6 +974,8 @@ namespace Audio
 			UE_LOG(LogAudioMixer, Warning, TEXT("Restarting a source which was stopping. Stopping now."));
 			return;
 		}
+
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(AudioMixerSource::Play);
 
 		// It's possible if Pause and Play are called while a sound is async initializing. In this case
 		// we'll just not actually play the source here. Instead we'll call play when the sound finishes loading.
@@ -1179,6 +1199,13 @@ namespace Audio
 		// Make a new pending release data ptr to pass off release data
 		if (MixerSourceVoice)
 		{
+			// Release the source using the propagation interface
+			if (AudioDevice->SourceDataOverridePluginInterface && WaveInstance->GetUseSpatialization())
+			{
+				uint32 SourceId = MixerSourceVoice->GetSourceId();
+				AudioDevice->SourceDataOverridePluginInterface->OnReleaseSource(SourceId);
+			}
+
 			// We're now "releasing" so don't recycle this voice until we get notified that the source has finished
 			bIsReleasing = true;
 
@@ -1247,7 +1274,8 @@ namespace Audio
 
 	void FMixerSource::UpdateVolume()
 	{
-		MixerSourceVoice->SetDistanceAttenuation(WaveInstance->GetDistanceAttenuation());
+		// TODO: investigate if occlusion should be split from raw distance attenuation
+		MixerSourceVoice->SetDistanceAttenuation(WaveInstance->GetDistanceAndOcclusionAttenuation());
 
 		float CurrentVolume = 0.0f;
 		if (!AudioDevice->IsAudioDeviceMuted())
@@ -1279,6 +1307,7 @@ namespace Audio
 		FQuat LastEmitterWorldRotation = SpatializationParams.EmitterWorldRotation;
 		SpatializationParams = GetSpatializationParams();
 		SpatializationParams.LastEmitterWorldRotation = LastEmitterWorldRotation;
+
 		if (WaveInstance->GetUseSpatialization() || WaveInstance->bIsAmbisonics)
 		{
 			MixerSourceVoice->SetSpatializationParams(SpatializationParams);
@@ -1316,31 +1345,8 @@ namespace Audio
 		MixerSourceVoice->SetModLPFFrequency(LowpassSettings.Value);
 
 		// If reverb is applied, figure out how of the source to "send" to the reverb.
-		if (bReverbApplied)
+		if (WaveInstance->bReverb)
 		{
-			float ReverbSendLevel = 0.0f;
-
-			if (WaveInstance->ReverbSendMethod == EReverbSendMethod::Manual)
-			{
-				ReverbSendLevel = FMath::Clamp(WaveInstance->ManualReverbSendLevel, 0.0f, 1.0f);
-			}
-			else
-			{
-				// The alpha value is determined identically between manual and custom curve methods
-				const FVector2D& ReverbSendRadialRange = WaveInstance->ReverbSendLevelDistanceRange;
-				const float Denom = FMath::Max(ReverbSendRadialRange.Y - ReverbSendRadialRange.X, 1.0f);
-				const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - ReverbSendRadialRange.X) / Denom, 0.0f, 1.0f);
-
-				if (WaveInstance->ReverbSendMethod == EReverbSendMethod::Linear)
-				{
-					ReverbSendLevel = FMath::Clamp(FMath::Lerp(WaveInstance->ReverbSendLevelRange.X, WaveInstance->ReverbSendLevelRange.Y, Alpha), 0.0f, 1.0f);
-				}
-				else
-				{
-					ReverbSendLevel = FMath::Clamp(WaveInstance->CustomRevebSendCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
-				}
-			}
-
 			// Send the source audio to the reverb plugin if enabled
 			if (UseReverbPlugin() && AudioDevice->ReverbPluginInterface)
 			{
@@ -1348,12 +1354,12 @@ namespace Audio
 				FMixerSubmixPtr ReverbPluginSubmixPtr = MixerDevice->GetSubmixInstance(AudioDevice->ReverbPluginInterface->GetSubmix()).Pin();
 				if (ReverbPluginSubmixPtr.IsValid())
 				{
-					MixerSourceVoice->SetSubmixSendInfo(ReverbPluginSubmixPtr, ReverbSendLevel);
+					MixerSourceVoice->SetSubmixSendInfo(ReverbPluginSubmixPtr, WaveInstance->ReverbSendLevel);
 				}
 			}
 
 			// Send the source audio to the master reverb
-			MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
+			MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), WaveInstance->ReverbSendLevel);
 		}
 
 		//Check whether the base submix send has been enabled or disabled since the last update
@@ -1392,7 +1398,7 @@ namespace Audio
 						const float Denom = FMath::Max(SendSettings.SubmixSendDistanceMax - SendSettings.SubmixSendDistanceMin, 1.0f);
 						const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - SendSettings.SubmixSendDistanceMin) / Denom, 0.0f, 1.0f);
 
-						if (WaveInstance->ReverbSendMethod == EReverbSendMethod::Linear)
+						if (SendSettings.SubmixSendMethod == ESubmixSendMethod::Linear)
 						{
 							SubmixSendLevel = FMath::Clamp(FMath::Lerp(SendSettings.SubmixSendLevelMin, SendSettings.SubmixSendLevelMax, Alpha), 0.0f, 1.0f);
 						}

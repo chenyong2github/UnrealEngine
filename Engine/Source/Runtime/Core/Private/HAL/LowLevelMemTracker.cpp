@@ -65,6 +65,14 @@ TAutoConsoleVariable<int32> CVarLLMHeaderMaxSize(
 	TEXT("The maximum total number of characters allowed for all of the LLM titles")
 );
 
+FAutoConsoleCommand LLMSnapshot(
+	TEXT("LLMSnapshot"), 
+	TEXT("Takes a single LLM Snapshot of one frame. This command requires the commandline -llmdisableautopublish"), 
+	FConsoleCommandDelegate::CreateLambda([]() 
+	{
+		FLowLevelMemTracker::Get().PublishDataSingleFrame();
+	}));
+
 DECLARE_LLM_MEMORY_STAT(TEXT("LLM Overhead"), STAT_LLMOverheadTotal, STATGROUP_LLMOverhead);
 
 DEFINE_STAT(STAT_EngineSummaryLLM);
@@ -614,6 +622,8 @@ FLowLevelMemTracker::FLowLevelMemTracker()
 	, bFullyInitialised(false)
 	, bConfigurationComplete(false)
 	, bTagAdded(false)
+	, bAutoPublish(true)
+	, bPublishSingleFrame(false)
 {
 	using namespace UE::LLMPrivate;
 
@@ -731,7 +741,12 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 		bFirstTimeUpdating = false;
 	}
 	TickInternal();
-	PublishDataPerFrame(LogName);
+
+	if (bAutoPublish || bPublishSingleFrame)
+	{
+		PublishDataPerFrame(LogName);
+		bPublishSingleFrame = false;
+	}
 }
 
 void FLowLevelMemTracker::Tick()
@@ -994,6 +1009,8 @@ void FLowLevelMemTracker::ProcessCommandLine(const TCHAR* CmdLine)
 	{
 		bShouldDisable = false;
 	}
+	
+	bAutoPublish = FParse::Param(CmdLine, TEXT("LLMDISABLEAUTOPUBLISH")) == false;
 
 	if (!bCanEnable)
 	{
@@ -1800,6 +1817,18 @@ uint64 FLowLevelMemTracker::DumpTag( ELLMTracker Tracker, const char* FileName, 
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("LLM TAG: No Active Tag"));
 		return static_cast<uint64>(ELLMTag::Untagged);
 	}
+}
+
+void FLowLevelMemTracker::PublishDataSingleFrame()
+{
+	if (bAutoPublish)
+	{
+		UE_LOG(LogHAL, Error, TEXT("Command must be used with the -llmdisableautopublish command line parameter."));
+	}
+	else
+	{
+		bPublishSingleFrame = true;
+	}	
 }
 
 const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(ELLMTag EnumTag, UE::LLMPrivate::ETagReferenceSource ReferenceSource)
@@ -3657,7 +3686,8 @@ namespace LLMPrivate
 	void FLLMCsvWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes, const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal, bool bTrackPeaks)
 	{
 		double Now = FPlatformTime::Seconds();
-		if (Now - LastWriteTime < (double)CVarLLMWriteInterval.GetValueOnAnyThread())
+		if ((FLowLevelMemTracker::Get().bPublishSingleFrame == false) && 
+			(Now - LastWriteTime < (double)CVarLLMWriteInterval.GetValueOnAnyThread()))
 		{
 			return;
 		}

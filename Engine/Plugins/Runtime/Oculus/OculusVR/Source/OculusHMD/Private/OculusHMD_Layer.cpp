@@ -324,7 +324,7 @@ bool FLayer::CanReuseResources(const FLayer* InLayer) const
 		OvrpLayerDesc.MipLevels != InLayer->OvrpLayerDesc.MipLevels ||
 		OvrpLayerDesc.SampleCount != InLayer->OvrpLayerDesc.SampleCount ||
 		OvrpLayerDesc.Format != InLayer->OvrpLayerDesc.Format ||
-		((OvrpLayerDesc.LayerFlags ^ InLayer->OvrpLayerDesc.LayerFlags) & ovrpLayerFlag_Static) ||
+		OvrpLayerDesc.LayerFlags != InLayer->OvrpLayerDesc.LayerFlags ||
 		bNeedsTexSrgbCreate != InLayer->bNeedsTexSrgbCreate)
 	{
 		return false;
@@ -355,7 +355,6 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		bInvertY = (CustomPresent->GetLayerFlags() & ovrpLayerFlag_TextureOriginAtBottomLeft) != 0;
 
 		uint32 SizeX = 0, SizeY = 0;
-		check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 
 		if (Desc.Texture.IsValid())
 		{
@@ -417,11 +416,6 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		if (!(Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE))
 		{
 			LayerFlags |= ovrpLayerFlag_Static;
-		}
-
-		if (Settings->Flags.bChromaAbCorrectionEnabled)
-		{
-			LayerFlags |= ovrpLayerFlag_ChromaticAberrationCorrection;
 		}
 
 		// Calculate layer desc
@@ -568,7 +562,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 
 			const bool bNeedsSRGBFlag = bNeedsTexSrgbCreate || CustomPresent->IsSRGB(OvrpLayerDesc.Format);
 
-			ETextureCreateFlags ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (bNeedsSRGBFlag ? TexCreate_SRGB : TexCreate_None);
+			ETextureCreateFlags ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_ResolveTargetable | (bNeedsSRGBFlag ? TexCreate_SRGB : TexCreate_None);
 			ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_InputAttachmentRead;
 
 			if (Desc.Texture.IsValid())
@@ -608,7 +602,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		bUpdateTexture = true;
 	}
 
-	if (Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE && Desc.Texture.IsValid())
+	if ((Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE) && Desc.Texture.IsValid() && IsVisible())
 	{
 		bUpdateTexture = true;
 	}
@@ -617,7 +611,6 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHICommandListImmediate& RHICmdList)
 {
 	CheckInRenderThread();
-	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 
 	if (bUpdateTexture && SwapChain.IsValid())
 	{
@@ -666,7 +659,6 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 
 const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, const FGameFrame* Frame, const int LayerIndex)
 {
-	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 	OvrpLayerSubmit.LayerId = OvrpLayerId;
 	OvrpLayerSubmit.TextureStage = SwapChain.IsValid() ? SwapChain->GetSwapChainIndex_RHIThread() : 0;
 
@@ -794,6 +786,8 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 
 #if PLATFORM_WINDOWS
 		OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_IgnoreSourceAlpha;
+#else
+		OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_InverseAlpha;
 #endif
 	}
 
@@ -803,7 +797,6 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 
 void FLayer::IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent)
 {
-	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 	CheckInRHIThread();
 
 	if (SwapChain.IsValid())

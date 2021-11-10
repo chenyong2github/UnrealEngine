@@ -26,6 +26,8 @@ public:
 
 	virtual bool GenerateChoice(const FConversationContext& Context, FClientConversationOptionEntry& ChoiceEntry) const;
 
+	virtual void NotifyChoicePickedByUser(const FConversationContext& InContext, const FClientConversationOptionEntry& InClientChoice) const;
+
 protected:
 	UFUNCTION(BlueprintNativeEvent)
 	void FillChoice(const FConversationContext& Context, FClientConversationOptionEntry& ChoiceEntry) const;

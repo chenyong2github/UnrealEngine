@@ -207,27 +207,29 @@ FIntRect FDisplayClusterViewport::GetValidRect(const FIntRect& InRect, const TCH
 	static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
 	static const int32 MinTextureSize = 16;
 
-	int Width  = FMath::Max(MinTextureSize, InRect.Width());
-	int Height = FMath::Max(MinTextureSize, InRect.Height());
+	int32 Width  = FMath::Max(MinTextureSize, InRect.Width());
+	int32 Height = FMath::Max(MinTextureSize, InRect.Height());
 
 	FIntRect OutRect(InRect.Min, InRect.Min + FIntPoint(Width, Height));
 
 	float RectScale = 1;
 
 	// Make sure the rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
-	int RectMaxSize = OutRect.Max.GetMax();
+	int32 RectMaxSize = OutRect.Max.GetMax();
 	if (RectMaxSize > MaxTextureSize)
 	{
 		RectScale = float(MaxTextureSize) / RectMaxSize;
 		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' rect '%s' size %dx%d clamped: max texture dimensions is %d"), *GetId(), (DbgSourceName==nullptr) ? TEXT("none") : DbgSourceName, InRect.Max.X, InRect.Max.Y, MaxTextureSize);
 	}
 
-
 	OutRect.Min.X = FMath::Min(OutRect.Min.X, MaxTextureSize);
 	OutRect.Min.Y = FMath::Min(OutRect.Min.Y, MaxTextureSize);
 
-	OutRect.Max.X = FMath::Clamp(int(OutRect.Max.X * RectScale), OutRect.Min.X, MaxTextureSize);
-	OutRect.Max.Y = FMath::Clamp(int(OutRect.Max.Y * RectScale), OutRect.Min.Y, MaxTextureSize);
+	const int32 MaxX = FMath::RoundHalfToEven(OutRect.Max.X * RectScale);
+	const int32 MaxY = FMath::RoundHalfToEven(OutRect.Max.Y * RectScale);
+
+	OutRect.Max.X = FMath::Clamp(MaxX, OutRect.Min.X, MaxTextureSize);
+	OutRect.Max.Y = FMath::Clamp(MaxY, OutRect.Min.Y, MaxTextureSize);
 
 	return OutRect;
 }
@@ -344,6 +346,9 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' RenderTarget rect has zero size %dx%d: Disabled"), *GetId(), RenderTargetRect.Size().X, RenderTargetRect.Size().Y);
 		return false;
 	}
+
+	// Support custom frustum rendering feature
+	CustomFrustumRendering.Update(*this, RenderTargetRect);
 
 	FIntPoint ContextSize = RenderTargetRect.Size();
 

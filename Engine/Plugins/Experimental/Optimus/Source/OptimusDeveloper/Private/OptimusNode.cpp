@@ -91,8 +91,7 @@ bool UOptimusNode::SetGraphPosition(const FVector2D& InPosition)
 
 
 bool UOptimusNode::SetGraphPositionDirect(
-	const FVector2D& InPosition,
-	bool bInNotify
+	const FVector2D& InPosition
 	)
 {
 	if (InPosition.ContainsNaN() || InPosition.Equals(GraphPosition))
@@ -102,7 +101,7 @@ bool UOptimusNode::SetGraphPositionDirect(
 
 	GraphPosition = InPosition;
 
-	if (bInNotify)
+	if (bSendNotifications)
 	{
 		Notify(EOptimusGraphNotifyType::NodePositionChanged);
 	}

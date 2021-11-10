@@ -1044,47 +1044,80 @@ namespace AutomationTool
 				(ZipFile) =>
 				{
 					// unzip the files manually instead of caling ZipFile.ExtractToDirectory() because we need to overwrite readonly files. Because of this, creating the directories is up to us as well.
-					using (ZipArchive ZipArchive = System.IO.Compression.ZipFile.OpenRead(ZipFile.FullName))
+					List<string> ExtractedPaths = new List<string>();
+					int UnzipFileAttempts = 3;
+					while (UnzipFileAttempts-- > 0)
 					{
-						foreach (ZipArchiveEntry Entry in ZipArchive.Entries)
+						try
 						{
-							// Use CommandUtils.CombinePaths to ensure directory separators get converted correctly.
-							var ExtractedFilename = CommandUtils.CombinePaths(RootDir.FullName, Entry.FullName);
-							// Zips can contain empty dirs. Ours usually don't have them, but we should support it.
-							if (Path.GetFileName(ExtractedFilename).Length == 0)
+							using (ZipArchive ZipArchive = System.IO.Compression.ZipFile.OpenRead(ZipFile.FullName))
 							{
-								Directory.CreateDirectory(ExtractedFilename);
-							}
-							else
-							{
-								// We must delete any existing file, even if it's readonly. .Net does not do this by default.
-								if (File.Exists(ExtractedFilename))
+								foreach (ZipArchiveEntry Entry in ZipArchive.Entries)
 								{
-									InternalUtils.SafeDeleteFile(ExtractedFilename, true);
-								}
-								else
-								{
-									Directory.CreateDirectory(Path.GetDirectoryName(ExtractedFilename));
-								}
+									// Use CommandUtils.CombinePaths to ensure directory separators get converted correctly.
+									var ExtractedFilename = CommandUtils.CombinePaths(RootDir.FullName, Entry.FullName);
 
-								int UnzipAttempts = 3;
-								while (UnzipAttempts-- > 0)
-								{
-									try
+									// Skip this if it's already been extracted.
+									if (ExtractedPaths.Contains(ExtractedFilename))
 									{
-										Entry.ExtractToFile_CrossPlatform(ExtractedFilename, true);
-										break;
+										continue;
 									}
-									catch (IOException IOEx)
+
+									// Zips can contain empty dirs. Ours usually don't have them, but we should support it.
+									if (Path.GetFileName(ExtractedFilename).Length == 0)
 									{
-										if (UnzipAttempts == 0)
+										Directory.CreateDirectory(ExtractedFilename);
+										ExtractedPaths.Add(ExtractedFilename);
+									}
+									else
+									{
+										// We must delete any existing file, even if it's readonly. .Net does not do this by default.
+										if (File.Exists(ExtractedFilename))
 										{
-											throw;
+											InternalUtils.SafeDeleteFile(ExtractedFilename, true);
+										}
+										else
+										{
+											Directory.CreateDirectory(Path.GetDirectoryName(ExtractedFilename));
 										}
 
-										Log.TraceWarning("Failed to unzip '{0}' from '{1}' to '{2}', retrying.. (Error: {3})", Entry.FullName, ZipFile.FullName, ExtractedFilename, IOEx.Message);
+
+										int UnzipEntryAttempts = 3;
+										while (UnzipEntryAttempts-- > 0)
+										{
+											try
+											{
+												Entry.ExtractToFile_CrossPlatform(ExtractedFilename, true);
+												ExtractedPaths.Add(ExtractedFilename);
+												break;
+											}
+											catch (IOException IOEx)
+											{
+												if (UnzipEntryAttempts == 0)
+												{
+													throw;
+												}
+
+												Log.TraceWarning("Failed to unzip '{0}' from '{1}' to '{2}', retrying.. (Error: {3})", Entry.FullName, ZipFile.FullName, ExtractedFilename, IOEx.Message);
+											}
+										}
 									}
 								}
+							}
+
+							break;
+						}
+						catch (Exception Ex)
+						{
+							if (UnzipFileAttempts == 0)
+							{
+								throw;
+							}
+
+							// Some exceptions may be caused by networking hiccups. We want to retry in those cases.
+							if ((Ex is IOException || Ex is InvalidDataException))
+							{
+								Log.TraceWarning("Failed to unzip entries from '{0}' to '{1}', retrying.. (Error: {2})", ZipFile.FullName, RootDir.FullName, Ex.Message);
 							}
 						}
 					}

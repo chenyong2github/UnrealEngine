@@ -16,17 +16,7 @@ namespace CADKernel
 		mutable TSharedPtr<LinkType> TopologicalLink;
 
 	public:
-		TLinkable()
-			: FTopologicalEntity()
-			, TopologicalLink(TSharedPtr<LinkType>())
-		{
-		}
-
-		TLinkable(FCADKernelArchive& Archive)
-			: TLinkable()
-		{
-			Serialize(Archive);
-		}
+		TLinkable() = default;
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{

@@ -108,13 +108,12 @@ public:
 	TSharedPtr<FMemoryGraphSeries> GetMainSeries() const { return MainSeries; }
 	void SetMainSeries(TSharedPtr<FMemoryGraphSeries> InMainSeries) { MainSeries = InMainSeries; }
 
-	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void Update(const ITimingTrackUpdateContext& Context) override;
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
-	TSharedPtr<FMemoryGraphSeries> GetMemTagSeries(Insights::FMemoryTagId MemTagId);
-	TSharedPtr<FMemoryGraphSeries> AddMemTagSeries(Insights::FMemoryTrackerId MemTrackerId, Insights::FMemoryTagId MemTagId);
-	int32 RemoveMemTagSeries(Insights::FMemoryTagId MemTagId);
+	TSharedPtr<FMemoryGraphSeries> GetMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
+	TSharedPtr<FMemoryGraphSeries> AddMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
+	int32 RemoveMemTagSeries(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
 	int32 RemoveAllMemTagSeries();
 
 	TSharedPtr<FMemoryGraphSeries> GetTimelineSeries(FMemoryGraphSeries::ETimelineType InTimelineType);

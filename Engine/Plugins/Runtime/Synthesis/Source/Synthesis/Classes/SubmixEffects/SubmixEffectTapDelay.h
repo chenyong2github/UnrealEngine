@@ -65,7 +65,8 @@ struct SYNTHESIS_API FTapDelayInfo
 	int32 OutputChannel;
 
 	// When the Tap Line Mode is set to Panning, designates the angle at which the echo should be panned.
-	// -90 is left, 90 is right, and 180/-180 is directly behind the listener.
+	// On Surround systems, 0 is directly in front of the listener, -90 is left, 90 is right, and 180/-180 is directly behind the listener.
+	// On Stereo systems, <-90 is fully in the left ear, and >90 is fully in the right ear
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime, meta = (EditCondition = "TapLineMode == ETapLineMode::Panning", ClampMin = "-180.0", ClampMax = "180.0"))
 	float PanInDegrees;
 

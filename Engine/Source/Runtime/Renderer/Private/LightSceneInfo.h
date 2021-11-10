@@ -353,7 +353,7 @@ struct FLightOctreeSemantics
 	enum { MinInclusiveElementsPerNode = 7 };
 	enum { MaxNodeDepth = 12 };
 
-	typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
+	typedef TInlineAllocator<MaxElementsPerLeaf, TAlignedHeapAllocator<alignof(FLightSceneInfoCompact)>> ElementAllocator;
 
 	FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const FLightSceneInfoCompact& Element)
 	{

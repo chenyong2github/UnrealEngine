@@ -3,7 +3,6 @@
 #include "STableTreeView.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Application/SlateApplication.h"
@@ -25,6 +24,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
@@ -51,7 +51,11 @@ class FTableTreeViewCommands : public TCommands<FTableTreeViewCommands>
 {
 public:
 	FTableTreeViewCommands()
-	: TCommands<FTableTreeViewCommands>(TEXT("FTableTreeViewCommands"), NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	: TCommands<FTableTreeViewCommands>(
+		TEXT("FTableTreeViewCommands"),
+		NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -467,7 +471,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ExpandSelection")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ExpandSelection")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -476,7 +480,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ExpandSelection")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ExpandSelection")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -485,7 +489,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.CollapseSelection")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.CollapseSelection")
 		);
 	}
 
@@ -501,7 +505,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -510,7 +514,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -519,7 +523,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddSubMenu
@@ -528,7 +532,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildSortByMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
 		);
 
 		MenuBuilder.AddSubMenu
@@ -537,7 +541,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Export to file"),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildExportMenu),
 			false,
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -550,7 +554,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildViewColumnMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
 		);
 
 		FUIAction Action_ShowAllColumns
@@ -562,7 +566,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowAllColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -577,7 +581,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ResetColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -636,7 +640,7 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -652,7 +656,7 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -702,7 +706,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -711,7 +715,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -720,7 +724,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.EndSection();
@@ -809,7 +813,7 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -825,7 +829,7 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -2801,14 +2805,14 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 				case ETableCellDataType::Int64:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
-					AvailableFilters->Last()->Convertor = Column->GetValueConverter();
+					AvailableFilters->Last()->Converter = Column->GetValueConverter();
 					Context.AddFilterData<int64>(Column->GetIndex(), 0);
 					break;
 				}
 				case ETableCellDataType::Double:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-					AvailableFilters->Last()->Convertor = Column->GetValueConverter();
+					AvailableFilters->Last()->Converter = Column->GetValueConverter();
 					Context.AddFilterData<double>(Column->GetIndex(), 0.0);
 					break;
 				}
@@ -2819,7 +2823,7 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 					if (!Column->IsHierarchy())
 					{
 						AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
-						AvailableFilters->Last()->Convertor = Column->GetValueConverter();
+						AvailableFilters->Last()->Converter = Column->GetValueConverter();
 						Context.AddFilterData<FString>(Column->GetIndex(), FString());
 					}
 					break;

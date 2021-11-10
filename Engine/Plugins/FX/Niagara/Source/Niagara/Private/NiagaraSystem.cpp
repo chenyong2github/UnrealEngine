@@ -522,6 +522,10 @@ void UNiagaraSystem::BeginDestroy()
 	}
 #endif
 
+#if WITH_EDITOR
+	CleanupDefinitionsSubscriptions();
+#endif
+
 	FNiagaraWorldManager::DestroyAllSystemSimulations(this);
 }
 
@@ -2532,20 +2536,17 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 				}
 			}
 
-			if (Emitter->bSimulationStagesEnabled)
+			const TArray<UNiagaraSimulationStageBase*>& SimulationStages = Emitter->GetSimulationStages();
+			for (int32 i = 0; i < SimulationStages.Num(); i++)
 			{
-				const TArray<UNiagaraSimulationStageBase*>& SimulationStages = Emitter->GetSimulationStages();
-				for (int32 i = 0; i < SimulationStages.Num(); i++)
+				if (SimulationStages[i] && SimulationStages[i]->Script)
 				{
-					if (SimulationStages[i] && SimulationStages[i]->Script)
+					if (SimulationStages[i]->bEnabled == false)
 					{
-						if (SimulationStages[i]->bEnabled == false)
-						{
-							continue;
-						}
-
-						TempIdx = AddCompiledScriptForValidation(SimulationStages[i]->Script, TempIdx, Emitter);
+						continue;
 					}
+
+					TempIdx = AddCompiledScriptForValidation(SimulationStages[i]->Script, TempIdx, Emitter);
 				}
 			}
 

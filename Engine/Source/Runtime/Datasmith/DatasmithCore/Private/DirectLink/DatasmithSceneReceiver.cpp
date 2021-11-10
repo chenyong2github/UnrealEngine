@@ -50,89 +50,11 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 {
 	FSceneHashTable OldHashTable = MoveTemp(Current->HashTable);
 	DirectLink::FSceneIdentifier OldSceneId = Current->SceneId;
-
-	Current = MakeUnique<FSceneState>();
-	Current->HashTable = FSceneHashTable::FromSceneSnapshot(SceneSnapshot);
-	Current->SceneId = SceneSnapshot.SceneId;
-
-	TArray<FFinalizableNode> Nodes;
-	Nodes.Reserve(SceneSnapshot.Elements.Num());
-
-	TSharedPtr<FDatasmithSceneGraphSharedState> SceneSharedState = MakeShared<FDatasmithSceneGraphSharedState>(SceneSnapshot.SceneId);
-
-	for (const auto& KV : SceneSnapshot.Elements)
+	Current = ParseSnapshot(SceneSnapshot);
+	
+	if (!Current->Scene)
 	{
-		const DirectLink::FElementSnapshot& ElementSnapshot = KV.Value.Get();
-		DirectLink::FSceneGraphId NodeId = ElementSnapshot.GetNodeId();
-
-		FString Name;
-		if (!ElementSnapshot.GetValueAs("Name", Name))
-		{
-			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element name for node #%d"), NodeId);
-			return;
-		}
-
-		uint64 Type = 0;
-		if (!ElementSnapshot.GetValueAs("Type", Type))
-		{
-			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element type info for node '%s'"), *Name);
-			return;
-		}
-
-		uint64 Subtype = 0;
-		if (!ElementSnapshot.GetValueAs("Subtype", Subtype))
-		{
-			UE_LOG( LogDatasmith, Display, TEXT("OnAddElement failed: missing element subtype info for node '%s'"), *Name);
-			return;
-		}
-
-		// derived types have several bits sets.
-		// -> keep the leftmost bit, which is the value of the (most-derived) class understood by CreateElement
-		// eg. this transforms 'Actor|StaticMeshActor' into 'StaticMeshActor'
-		// Well, of course it's not exact...
-		// Type &= (uint64)~EDatasmithElementType::BaseMaterial; // remove that flag as it always has a child anyway, and its order is impractical.
-		EDatasmithElementType PureType = EDatasmithElementType(uint64(1) << FPlatformMath::FloorLog2_64(Type));
-
-		TSharedPtr<IDatasmithElement> Element = FDatasmithSceneFactory::CreateElement(PureType, Subtype, *Name);
-		check(Element);
-		Element->SetSharedState(SceneSharedState);
-		Element->SetNodeId(NodeId); // #ue_directlink_design nope, only the Scene SharedState has this right
-		Current->Elements.Add(NodeId, Element);
-
-		const TCHAR* ElementTypeName = GetElementTypeName(Element.Get());
-// 		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
-		check(Element);
-
-		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();
-		Node.Element = Element;
-		Node.Snapshot = &ElementSnapshot;
-	}
-
-	// all nodes are created, link refs
-	for (FFinalizableNode& Node : Nodes)
-	{
-		Node.Snapshot->UpdateNodeReferences(Current->Elements, *Node.Element);
-	}
-
-	// set data
-	for (FFinalizableNode& Node : Nodes)
-	{
-		Node.Snapshot->UpdateNodeData(*Node.Element);
-	}
-
-	// detect graph root
-	for (FFinalizableNode& Node : Nodes)
-	{
-		if (Node.Element->IsA(EDatasmithElementType::Scene))
-		{
-			Current->Scene = StaticCastSharedPtr<IDatasmithScene>(Node.Element);
-
-			if (ensure(Current->Scene))
-			{
-				DumpDatasmithScene(Current->Scene.ToSharedRef(), TEXT("received"));
-			}
-			break;
-		}
+		return;
 	}
 
 #if 1
@@ -224,6 +146,123 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 		ChangeListener->OnCloseDelta();
 	}
 #endif
+}
+
+TUniquePtr<FDatasmithSceneReceiver::FSceneState> FDatasmithSceneReceiver::ParseSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot)
+{
+	TUniquePtr<FSceneState> NewSceneState = MakeUnique<FSceneState>();
+	NewSceneState->HashTable = FSceneHashTable::FromSceneSnapshot(SceneSnapshot);
+	NewSceneState->SceneId = SceneSnapshot.SceneId;
+
+	TArray<FFinalizableNode> Nodes;
+	Nodes.Reserve(SceneSnapshot.Elements.Num());
+
+	TSharedPtr<FDatasmithSceneGraphSharedState> SceneSharedState = MakeShared<FDatasmithSceneGraphSharedState>(SceneSnapshot.SceneId);
+	
+	const EDatasmithElementType UnsupportedTypes = EDatasmithElementType::Material;
+	EDatasmithElementType FoundUnsupportedTypes =  EDatasmithElementType::None;
+
+	for (const auto& KV : SceneSnapshot.Elements)
+	{
+		const DirectLink::FElementSnapshot& ElementSnapshot = KV.Value.Get();
+		DirectLink::FSceneGraphId NodeId = ElementSnapshot.GetNodeId();
+
+		FString Name;
+		if (!ElementSnapshot.GetValueAs("Name", Name))
+		{
+			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element name for node #%d"), NodeId);
+			return NewSceneState;
+		}
+
+		uint64 Type = 0;
+		if (!ElementSnapshot.GetValueAs("Type", Type))
+		{
+			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element type info for node '%s'"), *Name);
+			return NewSceneState;
+		}
+
+		uint64 Subtype = 0;
+		if (!ElementSnapshot.GetValueAs("Subtype", Subtype))
+		{
+			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element subtype info for node '%s'"), *Name);
+			return NewSceneState;
+		}
+
+		// derived types have several bits sets.
+		// -> keep the leftmost bit, which is the value of the (most-derived) class understood by CreateElement
+		// eg. this transforms 'Actor|StaticMeshActor' into 'StaticMeshActor'
+		// Well, of course it's not exact...
+		// Type &= (uint64)~EDatasmithElementType::BaseMaterial; // remove that flag as it always has a child anyway, and its order is impractical.
+		EDatasmithElementType PureType = EDatasmithElementType(uint64(1) << FPlatformMath::FloorLog2_64(Type));
+
+		if (EnumHasAnyFlags(PureType, UnsupportedTypes))
+		{
+			// We can't skip any unsupported type, because DirectLink needs to validate that each exported node is also imported.
+			// So we must remove those types in a latter step.
+			FoundUnsupportedTypes |= PureType;
+		}
+
+		TSharedPtr<IDatasmithElement> Element = FDatasmithSceneFactory::CreateElement(PureType, Subtype, *Name);
+		check(Element);
+		Element->SetSharedState(SceneSharedState);
+		Element->SetNodeId(NodeId); // #ue_directlink_design nope, only the Scene SharedState has this right
+		NewSceneState->Elements.Add(NodeId, Element);
+
+		const TCHAR* ElementTypeName = GetElementTypeName(Element.Get());
+// 		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
+		check(Element);
+
+		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();
+		Node.Element = Element;
+		Node.Snapshot = &ElementSnapshot;
+	}
+
+	// all nodes are created, link refs
+	for (FFinalizableNode& Node : Nodes)
+	{
+		Node.Snapshot->UpdateNodeReferences(NewSceneState->Elements, *Node.Element);
+	}
+
+	// set data
+	for (FFinalizableNode& Node : Nodes)
+	{
+		Node.Snapshot->UpdateNodeData(*Node.Element);
+	}
+
+	// detect graph root
+	for (FFinalizableNode& Node : Nodes)
+	{
+		if (Node.Element->IsA(EDatasmithElementType::Scene))
+		{
+			NewSceneState->Scene = StaticCastSharedPtr<IDatasmithScene>(Node.Element);
+
+			if (ensure(NewSceneState->Scene))
+			{
+				DumpDatasmithScene(NewSceneState->Scene.ToSharedRef(), TEXT("received"));
+			}
+			break;
+		}
+	}
+
+	if (FoundUnsupportedTypes != EDatasmithElementType::None && NewSceneState->Scene)
+	{
+		IDatasmithScene& Scene = *NewSceneState->Scene;
+
+		if (EnumHasAllFlags(FoundUnsupportedTypes, EDatasmithElementType::Material))
+		{
+			UE_LOG(LogDatasmith, Warning, TEXT("Datasmith scene \"%s\" imported with DirectLink contains deprecated IDatasmithMaterialElement, they will be ignored."), *Scene.GetName());
+			for (int MaterialIndex = Scene.GetMaterialsCount() - 1; 0 <= MaterialIndex; --MaterialIndex)
+			{
+				TSharedPtr<IDatasmithBaseMaterialElement> CurrentMaterial = Scene.GetMaterial(MaterialIndex);
+				if (CurrentMaterial && CurrentMaterial->IsA(UnsupportedTypes))
+				{
+					Scene.RemoveMaterialAt(MaterialIndex);
+				}
+			}
+		}
+	}
+
+	return NewSceneState;
 }
 
 

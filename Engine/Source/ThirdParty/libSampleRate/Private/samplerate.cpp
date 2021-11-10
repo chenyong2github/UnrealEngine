@@ -332,34 +332,40 @@ src_reset (SRC_STATE *state)
 
 const char *
 src_get_name (int converter_type)
-{	const char *desc ;
+{	const char *desc = NULL;
 
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
 	if ((desc = sinc_get_name (converter_type)) != NULL)
 		return desc ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD
 	if ((desc = zoh_get_name (converter_type)) != NULL)
 		return desc ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_LINEAR
 	if ((desc = linear_get_name (converter_type)) != NULL)
 		return desc ;
-
-	return NULL ;
+#endif
+	return desc;
 } /* src_get_name */
 
 const char *
 src_get_description (int converter_type)
-{	const char *desc ;
+{	const char *desc = NULL;
 
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
 	if ((desc = sinc_get_description (converter_type)) != NULL)
 		return desc ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD
 	if ((desc = zoh_get_description (converter_type)) != NULL)
 		return desc ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_LINEAR
 	if ((desc = linear_get_description (converter_type)) != NULL)
 		return desc ;
-
-	return NULL ;
+#endif
+	return desc ;
 } /* src_get_description */
 
 const char *
@@ -543,15 +549,18 @@ src_float_to_int_array (const float *in, int *out, int len)
 static int
 psrc_set_converter (SRC_STATE	*state, int converter_type)
 {
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
 	if (sinc_set_converter (state, converter_type) == SRC_ERR_NO_ERROR)
 		return SRC_ERR_NO_ERROR ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_ZERO_ORDER_HOLD
 	if (zoh_set_converter (state, converter_type) == SRC_ERR_NO_ERROR)
 		return SRC_ERR_NO_ERROR ;
-
+#endif
+#ifndef LIBSAMPLERATE_WITHOUT_LINEAR
 	if (linear_set_converter (state, converter_type) == SRC_ERR_NO_ERROR)
 		return SRC_ERR_NO_ERROR ;
-
+#endif
 	return SRC_ERR_BAD_CONVERTER ;
 } /* psrc_set_converter */
 

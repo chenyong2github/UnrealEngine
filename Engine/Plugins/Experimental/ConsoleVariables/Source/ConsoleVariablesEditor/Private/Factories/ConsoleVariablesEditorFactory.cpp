@@ -32,7 +32,7 @@ bool UConsoleVariablesEditorFactory::ShouldShowInNewMenu() const
 uint32 UConsoleVariablesEditorFactory::GetMenuCategories() const
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	return AssetTools.RegisterAdvancedAssetCategory("Console Variables UI", LOCTEXT("AssetCategoryName", "Console Variables UI"));
+	return AssetTools.RegisterAdvancedAssetCategory("Console Variables Editor", LOCTEXT("AssetCategoryName", "Console Variables Editor"));
 }
 
 #undef LOCTEXT_NAMESPACE

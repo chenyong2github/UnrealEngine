@@ -1342,7 +1342,7 @@ public:
 	{
 		checkSlow(this != &Other);
 		Empty(0, Layout);
-		Data.MoveAssign(Other.Data, Layout.Size);
+		Data.MoveAssign(Other.Data, Layout.Size, Layout.Alignment);
 		AllocationFlags.MoveAssign(Other.AllocationFlags);
 		FirstFreeIndex = Other.FirstFreeIndex; Other.FirstFreeIndex = 0;
 		NumFreeIndices = Other.NumFreeIndices; Other.NumFreeIndices = 0;
@@ -1351,7 +1351,7 @@ public:
 	void Empty(int32 Slack, const FScriptSparseArrayLayout& Layout)
 	{
 		// Free the allocated elements.
-		Data.Empty(Slack, Layout.Size);
+		Data.Empty(Slack, Layout.Size, Layout.Alignment);
 		FirstFreeIndex = -1;
 		NumFreeIndices = 0;
 		AllocationFlags.Empty(Slack);
@@ -1379,7 +1379,7 @@ public:
 		else
 		{
 			// Add a new element.
-			Index = Data.Add(1, Layout.Size);
+			Index = Data.Add(1, Layout.Size, Layout.Alignment);
 			AllocationFlags.Add(false);
 		}
 

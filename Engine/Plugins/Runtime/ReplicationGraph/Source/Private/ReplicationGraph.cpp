@@ -738,7 +738,8 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 		AddNetworkActor(Actor);
 	}
 
-	GlobalInfo.Events.DormancyFlush.Broadcast(Actor, GlobalInfo);
+	FNotifyActorFlushDormancy DormancyFlushEvent = GlobalInfo.Events.DormancyFlush;
+	DormancyFlushEvent.Broadcast(Actor, GlobalInfo);
 
 	// Stinks to have to iterate through like this, especially when net driver is doing a similar thing.
 	// Dormancy should probably be rewritten.
@@ -4259,7 +4260,14 @@ void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedAct
 	CallFunctionOnValidConnectionNodes(AddActorFunction);
 
 	// Tell us if this guy flushes net dormancy so we force him back on connection lists
-	GlobalInfo.Events.DormancyFlush.AddUObject(this, &UReplicationGraphNode_DormancyNode::OnActorDormancyFlush);
+	if (!GlobalInfo.Events.DormancyFlush.IsBoundToObject(this))
+	{
+		GlobalInfo.Events.DormancyFlush.AddUObject(this, &UReplicationGraphNode_DormancyNode::OnActorDormancyFlush);
+	}
+	else
+	{
+		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraphNode_DormancyNode already bound to dormancyflush for Actor %s"), *GetPathNameSafe(ActorInfo.GetActor()));
+	}
 }
 
 void UReplicationGraphNode_DormancyNode::RemoveDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo)

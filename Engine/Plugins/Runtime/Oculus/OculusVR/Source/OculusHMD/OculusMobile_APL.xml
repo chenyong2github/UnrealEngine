@@ -15,6 +15,12 @@
 		<!-- remove Oculus Signature Files by default -->
 		<setBool result="bRemoveOSIG" value="true"/>
 
+		<!-- determine the XrApi libraries that need to be loaded -->
+		<setStringFromProperty result="XrApi" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="XrApi" default="LegacyOVRPlugin"/>
+		<setBoolIsEqual result="bLegacyOVRPlugin" arg1="$S(XrApi)" arg2="LegacyOVRPlugin"/>
+		<setBoolIsEqual result="bOVRPluginOpenXR" arg1="$S(XrApi)" arg2="OVRPluginOpenXR"/>
+		<setBoolIsEqual result="bNativeOpenXR" arg1="$S(XrApi)" arg2="NativeOpenXR"/>
+
 		<!-- get packaging for Oculus Mobile from ini and reset it if architecture not supported -->
 		<setBoolFromProperty 
 			result="bFocusAware" 
@@ -25,6 +31,7 @@
 		<setBoolFromPropertyContains result="bPackageForOculusQuest2" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest2"/>
 		<setBoolFromProperty result="bRequiresSystemKeyboard" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bRequiresSystemKeyboard" default="false"/>
 		<setStringFromProperty result="HandTrackingSupport" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="HandTrackingSupport" default="ControllersOnly"/>
+		<setStringFromProperty result="HandTrackingFrequency" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="HandTrackingFrequency" default="LOW"/>
 		<setBoolOr result="bPackageForOculusMobile" 
 			arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
 		<if condition="bPackageForOculusMobile">
@@ -112,7 +119,7 @@
 			</true>
 		</if>
 		<setBool result="bOculus6Dof" value="$B(bPackageForOculusMobile)" />
-		
+
 		<!-- Add Quest Specific Flags -->
 		<if condition="bOculus6Dof">
 			<true>
@@ -143,7 +150,6 @@
 							<setElement result="vrIntent" value="category"/>
 							<addAttribute tag="$vrIntent" name="android:name" value="com.oculus.intent.category.VR"/>
 							<addElement tag="intent-filter" name="vrIntent"/>
-
 							<addPermission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 							<addFeature android:name="android.hardware.usb.host"/>
 						</true>
@@ -196,46 +202,70 @@
 				</false>
 			</if>
 			<addElement tag="application" name="supportedDevices"/>
+
+			<!-- Add Hand Tracking Frequency -->
+			<if condition="bEnableHandTracking">
+				<true>
+					<setElement result="handTrackingFrequency" value="meta-data" />
+					<addAttribute tag="$handTrackingFrequency" name="android:name" value="com.oculus.handtracking.frequency" />
+					<addAttribute tag="$handTrackingFrequency" name="android:value" value="$S(HandTrackingFrequency)" />
+					<addElement tag="application" name="handTrackingFrequency"/>
+				</true>
+			</if>
 		</loopElements>
-		
+
 	</androidManifestUpdates>
 
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
 -keep class com.oculus.** {
-   *;
+*;
 }
 -keep class android.app.** {
-   *;
+*;
 }
 		</insert>
 	</proguardAdditions>
 
 	<!-- optional files or directories to copy to Intermediate/Android/APK -->
 	<resourceCopies>
-		<isArch arch="armeabi-v7a">
-    		<log text="Copying libvrapi.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/armeabi-v7a/libvrapi.so"
-						dst="$S(BuildDir)/libs/armeabi-v7a/libvrapi.so" />
-
-    		<log text="Copying libOVRPlugin.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/armeabi-v7a/libOVRPlugin.so"
-            			dst="$S(BuildDir)/libs/armeabi-v7a/libOVRPlugin.so" />
+		<isArch arch="arm64-v8a">
+			<if condition="bLegacyOVRPlugin">
+				<true>
+					<log text="Copying libvrapi.so"/>
+					<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/arm64-v8a/libvrapi.so"
+								dst="$S(BuildDir)/libs/arm64-v8a/libvrapi.so" />
+					<log text="Copying libOVRPlugin.so"/>
+					<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/libOVRPlugin.so"
+								dst="$S(BuildDir)/libs/arm64-v8a/libOVRPlugin.so" />
+				</true>
+			</if>
+			<if condition="bOVRPluginOpenXR">
+				<true>
+					<log text="Copying libopenxr_loader.so"/>
+					<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/arm64-v8a/libopenxr_loader.so"
+								dst="$S(BuildDir)/libs/arm64-v8a/libopenxr_loader.so" />
+					<log text="Copying OpenXR libOVRPlugin.so"/>
+					<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/OpenXR/libOVRPlugin.so"
+								dst="$S(BuildDir)/libs/arm64-v8a/libOVRPlugin.so" />
+				</true>
+			</if>
+			<if condition="bNativeOpenXR">
+				<true>
+					<log text="Copying libopenxr_loader.so"/>
+					<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/arm64-v8a/libopenxr_loader.so"
+								dst="$S(BuildDir)/libs/arm64-v8a/libopenxr_loader.so" />
+				</true>
+			</if>
 		</isArch>
-        
-        <isArch arch="arm64-v8a">
-    		<log text="Copying libvrapi.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/arm64-v8a/libvrapi.so"
-						dst="$S(BuildDir)/libs/arm64-v8a/libvrapi.so" />
 
-    		<log text="Copying libOVRPlugin.so"/>
-			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/libOVRPlugin.so"
-            			dst="$S(BuildDir)/libs/arm64-v8a/libOVRPlugin.so" />
-		</isArch>
-
-		<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/VrApi.jar"
+		<if condition="bLegacyOVRPlugin">
+			<true>
+				<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/VrApi.jar"
 					dst="$S(BuildDir)/libs/VrApi.jar" />
+			</true>
+		</if>
 
 		<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/SystemUtils.jar"
 					dst="$S(BuildDir)/libs/SystemUtils.jar" />
@@ -357,9 +387,24 @@
 		<!-- need this if plugin enabled and supported architecture, even if not packaged for Oculus mobile -->
 		<if condition="bSupported">
 			<true>
-				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and may be required for Oculus VR." />
-        		<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and may be required for Oculus VR." />
-      		</true>
+				<if condition="bLegacyOVRPlugin">
+					<true>
+						<loadLibrary name="vrapi" failmsg="vrapi library not loaded and may be required for Oculus VR." />
+						<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and may be required for Oculus VR." />
+					</true>
+				</if>
+				<if condition="bOVRPluginOpenXR">
+					<true>
+						<loadLibrary name="openxr_loader" failmsg="openxr_loader library not loaded and may be required for Oculus VR." />
+						<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and may be required for Oculus VR." />
+					</true>
+				</if>
+				<if condition="bNativeOpenXR">
+					<true>
+						<loadLibrary name="openxr_loader" failmsg="openxr_loader library not loaded and may be required for Oculus VR." />
+					</true>
+				</if>
+			</true>
 		</if>
 	</soLoadLibrary>
 </root>

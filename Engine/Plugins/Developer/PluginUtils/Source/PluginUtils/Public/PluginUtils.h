@@ -190,6 +190,7 @@ public:
 	 * Returns whether the specified plugin name is valid, regardless of whether it's already used
 	 * @param PluginName Plugin name
 	 * @param FailReason Optional output text specifying what is wrong with the plugin name
+	 * @param PluginTermReplacement If set, replaces the term "plugin" in the fail reason message
 	 */
-	static bool IsValidPluginName(const FString& PluginName, FText* FailReason = nullptr);
+	static bool IsValidPluginName(const FString& PluginName, FText* FailReason = nullptr, const FText* PluginTermReplacement = nullptr);
 };

@@ -54,11 +54,14 @@ namespace MoviePipeline
 	struct FImageSampleAccumulationArgs
 	{
 	public:
-		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
-		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		TWeakPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
+		TWeakPtr<IMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
 		bool bAccumulateAlpha;
 	};
+
+	void MOVIERENDERPIPELINERENDERPASSES_API AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
 }
+
 
 UCLASS(BlueprintType, Abstract)
 class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImagePassBase : public UMoviePipelineRenderPass
@@ -72,6 +75,8 @@ public:
 		PassIdentifier = FMoviePipelinePassIdentifier("ImagePassBase");
 	}
 
+	/* Dummy interface to allow classes with overriden functiosn to pass their own data around. */
+	struct IViewCalcPayload {};
 protected:
 
 	// UMoviePipelineRenderPass API
@@ -84,21 +89,24 @@ protected:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// ~FGCObject Interface
 
-	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState);
+	FVector4 CalculatePrinciplePointOffsetForTiling(const FMoviePipelineRenderPassMetrics& InSampleState) const;
+	void ModifyProjectionMatrixForTiling(const FMoviePipelineRenderPassMetrics& InSampleState, FMatrix& InOutProjectionMatrix, float& OutDoFSensorScale) const;
 
 
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
-	virtual TSharedPtr<FSceneViewFamilyContext> CalculateViewFamily(FMoviePipelineRenderPassMetrics& InOutSampleState);
+	virtual TSharedPtr<FSceneViewFamilyContext> CalculateViewFamily(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
 	virtual bool IsScreenPercentageSupported() const { return true; }	
 	virtual bool IsAntiAliasingSupported() const { return true; }
 	virtual int32 GetOutputFileSortingOrder() const { return -1; }
-	virtual FSceneViewStateInterface* GetSceneViewStateInterface() { return ViewState.GetReference(); }
-	virtual UTextureRenderTarget2D* GetViewRenderTarget() const { return TileRenderTarget.Get(); }
+	virtual FSceneViewStateInterface* GetSceneViewStateInterface(IViewCalcPayload* OptPayload = nullptr) { return ViewState.GetReference(); }
+	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const { return TileRenderTarget.Get(); }
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) { }
+	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const { return true; }
+	virtual FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
 public:
 	
 
@@ -117,6 +125,52 @@ protected:
 	/** Accessed by the Render Thread when starting up a new task. */
 	FGraphEventArray OutstandingTasks;
 };
+
+struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFromThis<FAccumulatorPool>
+{
+	struct FAccumulatorInstance
+	{
+		FAccumulatorInstance(TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> InAccumulator)
+		{
+			Accumulator = InAccumulator;
+			ActiveFrameNumber = INDEX_NONE;
+			bIsActive = false;
+		}
+
+
+		bool IsActive() const;
+		void SetIsActive(const bool bInIsActive);
+
+		TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
+		int32 ActiveFrameNumber;
+		FMoviePipelinePassIdentifier ActivePassIdentifier;
+		FThreadSafeBool bIsActive;
+		FGraphEventRef TaskPrereq;
+	};
+
+	TArray<TSharedPtr<FAccumulatorInstance, ESPMode::ThreadSafe>> Accumulators;
+	FCriticalSection CriticalSection;
+
+
+	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMoviePipelinePassIdentifier& InPassIdentifier);
+};
+
+template<typename AccumulatorType>
+struct TAccumulatorPool : FAccumulatorPool
+{
+	TAccumulatorPool(int32 InNumAccumulators)
+		: FAccumulatorPool()
+	{
+		for (int32 Index = 0; Index < InNumAccumulators; Index++)
+		{
+			// Create a new instance of the accumulator
+			TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator = MakeShared<AccumulatorType, ESPMode::ThreadSafe>();
+			Accumulators.Add(MakeShared<FAccumulatorInstance, ESPMode::ThreadSafe>(Accumulator));
+		}
+
+	}
+};
+
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);

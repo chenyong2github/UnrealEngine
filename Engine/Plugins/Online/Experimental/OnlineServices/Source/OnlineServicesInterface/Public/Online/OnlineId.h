@@ -36,4 +36,15 @@ inline uint32 GetTypeHash(const FOnlineId& AccountId)
 	return HashCombine(GetTypeHash(AccountId.Type), GetTypeHash(AccountId.Handle));
 }
 
+inline FString ToLogString(const FOnlineId& Id)
+{
+	// TODO: Redact in shipping once we have the id registry version of this
+	return FString::Printf(TEXT("%s:%x"), *Id.Type.ToString(), Id.Handle);
+}
+
+inline void LexFromString(FOnlineId& Id, const TCHAR* String)
+{
+	// TODO: should instead just implement ParseOnlineExecParams
+}
+
 /* UE::Online */ }

@@ -13,3 +13,8 @@ void UConversationChoiceNode::FillChoice_Implementation(const FConversationConte
 	ChoiceEntry.ChoiceText = DefaultChoiceDisplayText;
 	ChoiceEntry.ChoiceTags = ChoiceTags;
 }
+
+void UConversationChoiceNode::NotifyChoicePickedByUser(const FConversationContext& InContext, const FClientConversationOptionEntry& InClientChoice) const
+{
+
+}

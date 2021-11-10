@@ -1284,7 +1284,9 @@ static void AddSkyReflectionPass(
 	}
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+		RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d StrataMat=%s", 
+			View.ViewRect.Width(), View.ViewRect.Height(), 
+			Strata::IsStrataEnabled() ? ToString(EStrataTileMaterialType(StrataTileMaterialType)) : TEXT("Off")),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering, 

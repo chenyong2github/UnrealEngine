@@ -40,10 +40,10 @@ ENUM_CLASS_FLAGS(EDataLayerUpdateFlags)
 struct FPreAnimatedDataLayerStorageTraits
 {
 	using KeyType = TObjectKey<UDataLayer>;
-	using StorageType = EDataLayerState;
+	using StorageType = EDataLayerRuntimeState;
 
 	/** Called when a previously animated data layer needs to be restored */
-	static void RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerState PreviousState, const FRestoreStateParams& Params);
+	static void RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params);
 };
 
 /** Container class for all pre-animated data layer state */
@@ -79,9 +79,9 @@ struct FDataLayerState
 {
 	void Reset();
 	bool IsEmpty() const;
-	void AddRequest(int16 InBias, EDataLayerState RequestedState, bool bRequiresStreamingFlush);
-	TOptional<EDataLayerState> ComputeDesiredState() const;
-	bool ShouldFlushStreaming(EDataLayerState ComputedState) const;
+	void AddRequest(int16 InBias, EDataLayerRuntimeState RequestedState, bool bRequiresStreamingFlush);
+	TOptional<EDataLayerRuntimeState> ComputeDesiredState() const;
+	bool ShouldFlushStreaming(EDataLayerRuntimeState ComputedState) const;
 
 private:
 
@@ -102,14 +102,14 @@ struct FDesiredLayerStates
 #if WITH_EDITOR
 	void ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimatedStorage, UDataLayerEditorSubsystem* EditorSubSystem);
 #endif
-	void ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState, bool bRequiresStreamingFlush);
+	void ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerRuntimeState DesiredState, bool bRequiresStreamingFlush);
 
 	TMap<FName, FDataLayerState> StatesByLayer;
 };
 
 // ---------------------------------------------------------------------
 // FPreAnimatedDataLayerStorageTraits definitions
-void FPreAnimatedDataLayerStorageTraits::RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerState PreviousState, const FRestoreStateParams& Params)
+void FPreAnimatedDataLayerStorageTraits::RestorePreAnimatedValue(const TObjectKey<UDataLayer>& InKey, EDataLayerRuntimeState PreviousState, const FRestoreStateParams& Params)
 {
 	UDataLayer* DataLayer = InKey.ResolveObjectPtr();
 	if (!DataLayer)
@@ -124,13 +124,13 @@ void FPreAnimatedDataLayerStorageTraits::RestorePreAnimatedValue(const TObjectKe
 		if (World->WorldType == EWorldType::Editor)
 		{
 			UDataLayerEditorSubsystem* SubSystem = UDataLayerEditorSubsystem::Get();
-			SubSystem->SetDataLayerVisibility(DataLayer, PreviousState == EDataLayerState::Activated);
+			SubSystem->SetDataLayerVisibility(DataLayer, PreviousState == EDataLayerRuntimeState::Activated);
 		}
 		else
 #endif
 		if (UDataLayerSubsystem* SubSystem = World->GetSubsystem<UDataLayerSubsystem>())
 		{
-			SubSystem->SetDataLayerState(DataLayer, PreviousState);
+			SubSystem->SetDataLayerRuntimeState(DataLayer, PreviousState);
 		}
 	}
 }
@@ -168,7 +168,7 @@ void FPreAnimatedDataLayerStorage::SavePreAnimatedState(UDataLayer* DataLayer, U
 	{
 		// @todo: If a data layer is loading when Sequencer attempts to activate it,
 		// should it return to ::Loading when sequencer is done?
-		EDataLayerState ExistingState = SubSystem->GetDataLayerState(DataLayer);
+		EDataLayerRuntimeState ExistingState = SubSystem->GetDataLayerRuntimeState(DataLayer);
 
 		AssignPreAnimatedValue(Entry.ValueHandle.StorageIndex, StorageRequirement, CopyTemp(ExistingState));
 	}
@@ -183,7 +183,7 @@ void FPreAnimatedDataLayerStorage::SavePreAnimatedStateInEditor(UDataLayer* Data
 	if (!IsStorageRequirementSatisfied(Entry.ValueHandle.StorageIndex, StorageRequirement))
 	{
 		// We never unload data-layers in editor, so feign currently unloaded layers as loaded
-		EDataLayerState ExistingState = (DataLayer->IsVisible() && DataLayer->IsDynamicallyLoadedInEditor()) ? EDataLayerState::Activated : EDataLayerState::Loaded;
+		EDataLayerRuntimeState ExistingState = (DataLayer->IsVisible() && DataLayer->IsLoadedInEditor()) ? EDataLayerRuntimeState::Activated : EDataLayerRuntimeState::Loaded;
 
 		AssignPreAnimatedValue(Entry.ValueHandle.StorageIndex, StorageRequirement, CopyTemp(ExistingState));
 	}
@@ -202,7 +202,7 @@ void FDataLayerState::Reset()
 	bFlushActivated  = false;
 }
 
-void FDataLayerState::AddRequest(int16 InBias, EDataLayerState RequestedState, bool bRequiresStreamingFlush)
+void FDataLayerState::AddRequest(int16 InBias, EDataLayerRuntimeState RequestedState, bool bRequiresStreamingFlush)
 {
 	if (InBias > HierarchicalBias)
 	{
@@ -214,9 +214,9 @@ void FDataLayerState::AddRequest(int16 InBias, EDataLayerState RequestedState, b
 	{
 		switch (RequestedState)
 		{
-		case EDataLayerState::Unloaded:  ++UnloadedCount;  bFlushUnloaded |= bRequiresStreamingFlush; break;
-		case EDataLayerState::Loaded:    ++LoadedCount;    break;
-		case EDataLayerState::Activated: ++ActivatedCount; bFlushActivated |= bRequiresStreamingFlush; break;
+		case EDataLayerRuntimeState::Unloaded:  ++UnloadedCount;  bFlushUnloaded |= bRequiresStreamingFlush; break;
+		case EDataLayerRuntimeState::Loaded:    ++LoadedCount;    break;
+		case EDataLayerRuntimeState::Activated: ++ActivatedCount; bFlushActivated |= bRequiresStreamingFlush; break;
 		}
 	}
 }
@@ -226,35 +226,35 @@ bool FDataLayerState::IsEmpty() const
 	return (UnloadedCount + LoadedCount + ActivatedCount) == 0;
 }
 
-TOptional<EDataLayerState> FDataLayerState::ComputeDesiredState() const
+TOptional<EDataLayerRuntimeState> FDataLayerState::ComputeDesiredState() const
 {
 	// If we have any requests to keep a layer loaded, always keep it loaded (even if things ask for it to be hidden)
-	EDataLayerState FallbackState = LoadedCount != 0 ? EDataLayerState::Loaded : EDataLayerState::Unloaded;
+	EDataLayerRuntimeState FallbackState = LoadedCount != 0 ? EDataLayerRuntimeState::Loaded : EDataLayerRuntimeState::Unloaded;
 
 	if (ActivatedCount == UnloadedCount)
 	{
 		// Equal number of requests for active and unloaded - just leave the data layer alone
 		if (LoadedCount != 0)
 		{
-			return EDataLayerState::Loaded;
+			return EDataLayerRuntimeState::Loaded;
 		}
-		return TOptional<EDataLayerState>();
+		return TOptional<EDataLayerRuntimeState>();
 	}
 	
 	if (ActivatedCount > UnloadedCount)
 	{
-		return EDataLayerState::Activated;
+		return EDataLayerRuntimeState::Activated;
 	}
 
 	return FallbackState;
 }
 
-bool FDataLayerState::ShouldFlushStreaming(EDataLayerState ComputedState) const
+bool FDataLayerState::ShouldFlushStreaming(EDataLayerRuntimeState ComputedState) const
 {
 	switch (ComputedState)
 	{
-	case EDataLayerState::Unloaded:  return bFlushUnloaded;
-	case EDataLayerState::Activated: return bFlushActivated;
+	case EDataLayerRuntimeState::Unloaded:  return bFlushUnloaded;
+	case EDataLayerRuntimeState::Activated: return bFlushActivated;
 	}
 
 	return false;
@@ -279,18 +279,18 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 {
 	EDataLayerUpdateFlags Flags = EDataLayerUpdateFlags::None;
 
-	auto IsDataLayerReady = [WorldPartitionSubsystem](UDataLayer* DataLayer, EDataLayerState DesireState, bool bExactState)
+	auto IsDataLayerReady = [WorldPartitionSubsystem](UDataLayer* DataLayer, EDataLayerRuntimeState DesireState, bool bExactState)
 	{
 		EWorldPartitionRuntimeCellState QueryState;
 		switch (DesireState)
 		{
-		case EDataLayerState::Activated:
+		case EDataLayerRuntimeState::Activated:
 			QueryState = EWorldPartitionRuntimeCellState::Activated;
 			break;
-		case EDataLayerState::Loaded:
+		case EDataLayerRuntimeState::Loaded:
 			QueryState = EWorldPartitionRuntimeCellState::Loaded;
 			break;
-		case EDataLayerState::Unloaded:
+		case EDataLayerRuntimeState::Unloaded:
 			QueryState = EWorldPartitionRuntimeCellState::Unloaded;
 			break;
 		default:
@@ -314,7 +314,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 			continue;
 		}
 
-		if (TOptional<EDataLayerState> DesiredState = StateValue.ComputeDesiredState())
+		if (TOptional<EDataLayerRuntimeState> DesiredState = StateValue.ComputeDesiredState())
 		{
 			UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayerFromName(It.Key());
 			if (DataLayer)
@@ -324,13 +324,13 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 					PreAnimatedStorage->SavePreAnimatedState(DataLayer, DataLayerSubsystem);
 				}
 
-				const EDataLayerState DesiredStateValue = DesiredState.GetValue();
-				DataLayerSubsystem->SetDataLayerState(DataLayer, DesiredStateValue);
+				const EDataLayerRuntimeState DesiredStateValue = DesiredState.GetValue();
+				DataLayerSubsystem->SetDataLayerRuntimeState(DataLayer, DesiredStateValue);
 
 				if (StateValue.ShouldFlushStreaming(DesiredStateValue) && !IsDataLayerReady(DataLayer, DesiredStateValue, true))
 				{
 					// Exception for Full flush is if Desired State is Activated but we are not at least in Loaded state
-					if (DesiredStateValue == EDataLayerState::Activated && !IsDataLayerReady(DataLayer, EDataLayerState::Loaded, false))
+					if (DesiredStateValue == EDataLayerRuntimeState::Activated && !IsDataLayerReady(DataLayer, EDataLayerRuntimeState::Loaded, false))
 					{
 						Flags |= EDataLayerUpdateFlags::FlushStreamingFull;
 						UE_LOG(LogMovieScene, Warning, TEXT("Data layer with name '%s' is causing a full streaming flush"), *DataLayer->GetDataLayerLabel().ToString());
@@ -368,7 +368,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 			continue;
 		}
 
-		if (TOptional<EDataLayerState> DesiredState = StateValue.ComputeDesiredState())
+		if (TOptional<EDataLayerRuntimeState> DesiredState = StateValue.ComputeDesiredState())
 		{
 			UDataLayer* DataLayer = SubSystem->GetDataLayerFromName(It.Key());
 			if (DataLayer)
@@ -381,14 +381,14 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 				// In-editor we only ever hide data layers, we never unload them
 				switch (DesiredState.GetValue())
 				{
-				case EDataLayerState::Unloaded:
+				case EDataLayerRuntimeState::Unloaded:
 					DatalayersNeedingHide.Add(DataLayer);
 					break;
-				case EDataLayerState::Loaded:
+				case EDataLayerRuntimeState::Loaded:
 					DatalayersNeedingLoad.Add(DataLayer);
 					DatalayersNeedingHide.Add(DataLayer);
 					break;
-				case EDataLayerState::Activated:
+				case EDataLayerRuntimeState::Activated:
 					DatalayersNeedingLoad.Add(DataLayer);
 					DatalayersNeedingShow.Add(DataLayer);
 					break;
@@ -406,7 +406,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 	if (DatalayersNeedingLoad.Num() > 0)
 	{
 		// This blocks while we load data layers
-		SubSystem->SetDataLayersIsDynamicallyLoadedInEditor(DatalayersNeedingLoad, true, false);
+		SubSystem->SetDataLayersIsLoadedInEditor(DatalayersNeedingLoad, true, /*bIsFromUserChange*/false);
 	}
 	if (DatalayersNeedingShow.Num() > 0)
 	{
@@ -419,7 +419,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 }
 #endif
 
-void FDesiredLayerStates::ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState, bool bRequiresStreamingFlush)
+void FDesiredLayerStates::ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerRuntimeState DesiredState, bool bRequiresStreamingFlush)
 {
 	using namespace UE::MovieScene;
 
@@ -558,7 +558,7 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 			}
 
 			const bool bRequiresStreamingFlush = bPreroll == false;
-			EDataLayerState DesiredState = bPreroll ? Section->GetPrerollState() : Section->GetDesiredState();
+			EDataLayerRuntimeState DesiredState = bPreroll ? Section->GetPrerollState() : Section->GetDesiredState();
 
 			for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
 			{

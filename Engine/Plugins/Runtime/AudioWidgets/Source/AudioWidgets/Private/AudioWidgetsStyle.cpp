@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Brushes/SlateImageBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
 #include "Styling/SlateTypes.h"
 
+FName FAudioWidgetsStyle::StyleName("AudioWidgetsStyle");
+
 FAudioWidgetsStyle::FAudioWidgetsStyle()
-	: FSlateStyleSet("AudioWidgetsStyle")
+	: FSlateStyleSet(StyleName)
 {
 	SetParentStyleName("CoreStyle");
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Runtime/AudioWidgets/Content"));
@@ -20,10 +23,10 @@ FAudioWidgetsStyle::FAudioWidgetsStyle()
 	const FVector2D LabelBackgroundSize = FVector2D(LabelWidth, LabelHeight);
 	const FLinearColor LabelBackgroundColor = FStyleColors::Recessed.GetSpecifiedColor();
 	const float LabelCornerRadius = 4.0f;
-
-	Set("AudioTextBox.LabelBackgroundSize", LabelBackgroundSize);
-	Set("AudioTextBox.LabelBackgroundColor", LabelBackgroundColor);
-	Set("AudioTextBox.LabelBackground", new FSlateRoundedBoxBrush(FStyleColors::White, LabelCornerRadius, LabelBackgroundSize));
+	
+	Set("AudioTextBox.Style", FAudioTextBoxStyle()
+		.SetBackgroundColor(FStyleColors::Recessed)
+		.SetBackgroundImage(FSlateRoundedBoxBrush(FStyleColors::White, LabelCornerRadius, LabelBackgroundSize)));
 
 	/**
 	* AudioSlider Style
@@ -33,6 +36,7 @@ FAudioWidgetsStyle::FAudioWidgetsStyle()
 
 	const float SliderBarWidth = 10.0f;
 	const float SliderBarHeight = 432.0f;
+	const float SliderBackgroundOutlineWidth = 9.0f;
 	const FVector2D SliderBarCapSize = FVector2D(SliderBarWidth, SliderBarWidth / 2.0f);
 	const FVector2D SliderBarRectangleSize = FVector2D(SliderBarWidth, SliderBarHeight - SliderBarWidth);
 
@@ -42,50 +46,66 @@ FAudioWidgetsStyle::FAudioWidgetsStyle()
 	const FVector2D SliderBackgroundRectangleSize = FVector2D(SliderBackgroundWidth, SliderBackgroundHeight - SliderBackgroundWidth);
 	const FVector2D SliderBackgroundSize = FVector2D(SliderBackgroundWidth, SliderBackgroundHeight);
 	
-	const float LabelVerticalPadding = 3.0f;
-	const FVector2D DesiredWidgetSizeVertical = FVector2D(LabelBackgroundSize.X, LabelBackgroundSize.Y + LabelVerticalPadding + SliderBackgroundHeight);
-	const FVector2D DesiredWidgetSizeHorizontal = FVector2D(SliderBackgroundHeight + LabelBackgroundSize.X, SliderBackgroundWidth);
-	
-	Set("AudioSlider.LabelVerticalPadding", LabelVerticalPadding);
-	Set("AudioSlider.DesiredWidgetSizeVertical", DesiredWidgetSizeVertical);
-	Set("AudioSlider.DesiredWidgetSizeHorizontal", DesiredWidgetSizeHorizontal);
+	const float LabelPadding = 3.0f;
+	const FVector2D SliderDesiredWidgetSizeVertical = FVector2D(LabelBackgroundSize.X, LabelBackgroundSize.Y + LabelPadding + SliderBackgroundHeight);
+	const FVector2D SliderDesiredWidgetSizeHorizontal = FVector2D(SliderBackgroundHeight + LabelBackgroundSize.X + LabelPadding, SliderBackgroundWidth);
 
-	Set("AudioSlider.SliderBarCap", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderBarCap"), SliderBarCapSize));
-	Set("AudioSlider.SliderBarRectangle", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderBarRectangle"), SliderBarRectangleSize));
-	Set("AudioSlider.SliderBackgroundCap", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderBackgroundCap"), SliderBackgroundCapSize));
-	Set("AudioSlider.SliderBackgroundCapHorizontal", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderBackgroundCapHorizontal"), FVector2D(SliderBackgroundCapSize.Y, SliderBackgroundCapSize.X)));
-	Set("AudioSlider.SliderBackgroundRectangle", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderBackgroundRectangle"), SliderBackgroundRectangleSize));
-	Set("AudioSlider.WidgetBackground", new IMAGE_BRUSH_SVG(TEXT("AudioSlider/WidgetBackground"), DesiredWidgetSizeVertical));
-
-	Set("AudioSlider.DefaultBackgroundColor", FStyleColors::Recessed.GetSpecifiedColor());
-	Set("AudioSlider.DefaultBarColor", FStyleColors::Black.GetSpecifiedColor());
-	Set("AudioSlider.DefaultThumbColor", FStyleColors::AccentGray.GetSpecifiedColor());
-	Set("AudioSlider.DefaultWidgetBackgroundColor", FStyleColors::Transparent.GetSpecifiedColor());
-	Set("AudioSlider.DefaultLabelBackgroundColor", FStyleColors::Recessed.GetSpecifiedColor());
-
-	FSlateBrush NoImageThumb = FSlateBrush();
-	NoImageThumb.SetImageSize(ThumbImageSize);
-	NoImageThumb.DrawAs = ESlateBrushDrawType::NoDrawType;
-	FSlateBrush NoImageSlider = FSlateBrush();
-	NoImageSlider.SetImageSize(SliderBackgroundSize);
-	NoImageSlider.DrawAs = ESlateBrushDrawType::NoDrawType;
+	const FSlateColor ThumbColor = FStyleColors::White;
+	FSlateRoundedBoxBrush ThumbImage = FSlateRoundedBoxBrush(ThumbColor, ThumbImageSize.X / 2.0f, ThumbImageSize);
+	FSlateRoundedBoxBrush WidgetBackgroundImage = FSlateRoundedBoxBrush(FStyleColors::White, LabelCornerRadius, SliderDesiredWidgetSizeVertical);
 
 	Set("AudioSlider.Slider", FSliderStyle()
-		.SetNormalBarImage(NoImageSlider)
-		.SetHoveredBarImage(NoImageSlider)
-		.SetDisabledBarImage(NoImageSlider)
-		.SetNormalThumbImage(IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderThumb"), ThumbImageSize))
-		.SetHoveredThumbImage(IMAGE_BRUSH_SVG(TEXT("AudioSlider/SliderThumb"), ThumbImageSize))
-		.SetDisabledThumbImage(NoImageThumb)
+		.SetNormalBarImage(FSlateNoResource())
+		.SetHoveredBarImage(FSlateNoResource())
+		.SetDisabledBarImage(FSlateNoResource())
+		.SetNormalThumbImage(ThumbImage)
+		.SetHoveredThumbImage(ThumbImage)
+		.SetDisabledThumbImage(FSlateNoResource())
+	);
+
+	Set("AudioSlider.Style", FAudioSliderStyle()
+		.SetSliderStyle(FSliderStyle()
+			.SetNormalBarImage(FSlateNoResource())
+			.SetHoveredBarImage(FSlateNoResource())
+			.SetDisabledBarImage(FSlateNoResource())
+			.SetNormalThumbImage(ThumbImage)
+			.SetHoveredThumbImage(ThumbImage)
+			.SetDisabledThumbImage(FSlateNoResource()))
+		.SetTextBoxStyle(FAudioTextBoxStyle::GetDefault())
+		.SetWidgetBackgroundImage(WidgetBackgroundImage)
+		.SetSliderBackgroundColor(FStyleColors::Recessed)
+		.SetSliderBarColor(FStyleColors::Black)
+		.SetSliderThumbColor(ThumbColor)
+		.SetSliderBackgroundSize(SliderBackgroundSize)
+		.SetWidgetBackgroundColor(FStyleColors::Transparent)
+		.SetLabelPadding(LabelPadding)
 	);
 
 	/**
 	* AudioRadialSlider Style
 	*/
-	Set("AudioRadialSlider.CenterBackgroundColor", FStyleColors::Recessed.GetSpecifiedColor());
-	Set("AudioRadialSlider.LabelBackgroundColor", FStyleColors::Recessed.GetSpecifiedColor());
-	Set("AudioRadialSlider.SliderProgressColor", FStyleColors::White.GetSpecifiedColor());
-	Set("AudioRadialSlider.SliderBarColor", FStyleColors::AccentGray.GetSpecifiedColor());
+	const float RadialSliderDefaultRadius = 50.0f;
+	const FVector2D RadialSliderDesiredSize = FVector2D(RadialSliderDefaultRadius, RadialSliderDefaultRadius + LabelPadding + LabelHeight);
+	Set("AudioRadialSlider.DesiredWidgetSize", RadialSliderDesiredSize);
+
+	Set("AudioRadialSlider.Style", FAudioRadialSliderStyle()
+		.SetTextBoxStyle(FAudioTextBoxStyle::GetDefault())
+		.SetCenterBackgroundColor(FStyleColors::Recessed)
+		.SetSliderProgressColor(FStyleColors::White)
+		.SetSliderBarColor(FStyleColors::AccentGray)
+		.SetLabelPadding(3.0f)
+		.SetDefaultSliderRadius(50.0f));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
+}
+
+FAudioWidgetsStyle::~FAudioWidgetsStyle()
+{
+	FSlateStyleRegistry::UnRegisterSlateStyle(*this);
+}
+
+FAudioWidgetsStyle& FAudioWidgetsStyle::Get()
+{
+	static FAudioWidgetsStyle Inst;
+	return Inst;
 }

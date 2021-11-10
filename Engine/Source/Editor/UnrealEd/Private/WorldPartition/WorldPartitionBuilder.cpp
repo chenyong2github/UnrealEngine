@@ -141,13 +141,13 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		WorldDataLayers->ForEachDataLayer([&bUpdateEditorCells, this](UDataLayer* DataLayer)
 		{
 			// Load all Non DynamicallyLoaded Data Layers + Initially Active Data Layers + Data Layers provided by builder
-			const bool bLoadedInEditor = (bLoadNonDynamicDataLayers && !DataLayer->IsDynamicallyLoaded()) || 
-										 (bLoadInitiallyActiveDataLayers && DataLayer->GetInitialState() == EDataLayerState::Activated) ||
+			const bool bLoadedInEditor = (bLoadNonDynamicDataLayers && !DataLayer->IsRuntime()) ||
+										 (bLoadInitiallyActiveDataLayers && DataLayer->GetInitialRuntimeState() == EDataLayerRuntimeState::Activated) ||
 										 DataLayerLabels.Contains(DataLayer->GetDataLayerLabel());
-			if (DataLayer->IsDynamicallyLoadedInEditor() != bLoadedInEditor)
+			if (DataLayer->IsLoadedInEditor() != bLoadedInEditor)
 			{
 				bUpdateEditorCells = true;
-				DataLayer->SetIsDynamicallyLoadedInEditor(bLoadedInEditor, false);
+				DataLayer->SetIsLoadedInEditor(bLoadedInEditor, /*bFromUserChange*/false);
 				if (RequiresCommandletRendering() && bLoadedInEditor)
 				{
 					DataLayer->SetIsInitiallyVisible(true);

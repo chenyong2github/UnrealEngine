@@ -10,6 +10,7 @@
 
 struct FDataLayerTreeItem : ISceneOutlinerTreeItem
 {
+public:
 	FDataLayerTreeItem(UDataLayer* InDataLayer);
 	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
 
@@ -22,9 +23,23 @@ struct FDataLayerTreeItem : ISceneOutlinerTreeItem
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool GetVisibility() const override;
+	virtual bool ShouldShowVisibilityState() const { return true; }
 	/* End ISceneOutlinerTreeItem Implementation */
 
 	static const FSceneOutlinerTreeItemType Type;
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, const UDataLayer*);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FInteractivePredicate, const UDataLayer*);
+
+	bool Filter(FFilterPredicate Pred) const
+	{
+		return Pred.Execute(GetDataLayer());
+	}
+
+	bool GetInteractiveState(FInteractivePredicate Pred) const
+	{
+		return Pred.Execute(GetDataLayer());
+	}
 
 private:
 	TWeakObjectPtr<UDataLayer> DataLayer;

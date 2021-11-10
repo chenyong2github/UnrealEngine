@@ -22,6 +22,7 @@
 #include "PlatformInfo.h"
 #include "Framework/Docking/TabManager.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "ZenServerInterface.h"
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 
@@ -288,6 +289,12 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 
 	const bool bUseZenStore = GetDefault<UProjectPackagingSettings>()->bUseZenStore;
 	LauncherProfile->SetUseZenStore(bUseZenStore);
+#if UE_WITH_ZEN
+	if (bUseZenStore)
+	{
+		static UE::Zen::FScopeZenService EditorStaticZenService;
+	}
+#endif
 
 	if (bUseZenStore || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFlyInEditor || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFly)
 	{

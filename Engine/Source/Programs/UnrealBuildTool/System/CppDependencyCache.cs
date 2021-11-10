@@ -438,20 +438,20 @@ namespace UnrealBuildTool
 			else if (InputFile.HasExtension(".json"))
 			{
 				// https://docs.microsoft.com/en-us/cpp/build/reference/sourcedependencies?view=msvc-160&viewFallbackFrom=vs-2019
-				
+
 				JsonObject Object = JsonObject.Read(InputFile.Location);
 
-				const string ExpectedVersion = "1.1";
 				if (!Object.TryGetStringField("Version", out string Version))
 				{
 					throw new BuildException(
 						$"Dependency file \"{InputFile.Location}\" does not have have a \"Version\" field.");
 				}
 
-				if (!String.Equals(Version, ExpectedVersion))
+				if (!String.Equals(Version, "1.1") &&
+					!String.Equals(Version, "1.0"))
 				{
 					throw new BuildException(
-						$"Dependency file \"{InputFile.Location}\" version (\"{Version}\") is not supported. Expected version \"{ExpectedVersion}\"");
+						$"Dependency file \"{InputFile.Location}\" version (\"{Version}\") is not supported version");
 				}
 
 				JsonObject Data;
@@ -460,12 +460,30 @@ namespace UnrealBuildTool
 					throw new BuildException("Missing 'Data' field in {0}", InputFile);
 				}
 
-				string ProducedModule;
-				Data.TryGetStringField("ProvidedModule", out ProducedModule);
+				Data.TryGetStringField("ProvidedModule", out string ProducedModule);
 
 				List<(string Name, string BMI)>? ImportedModules = null;
-				if (InputFile.HasExtension(".md.json"))
+
+				if (String.Equals(Version, "1.1") && !InputFile.HasExtension(".md.json"))
 				{
+					if (Data.TryGetObjectArrayField("ImportedModules", out JsonObject[] ImportedModulesJson))
+					{
+						if (ImportedModulesJson.Count() > 0)
+						{
+							ImportedModules = new List<(string Name, string BMI)>();
+
+							foreach (JsonObject ImportedModule in ImportedModulesJson)
+							{
+								ImportedModule.TryGetStringField("Name", out string Name);
+								ImportedModule.TryGetStringField("BMI", out string BMI);
+
+								ImportedModules.Add((Name, BMI));
+							}
+						}
+					}
+				}
+				else
+				{ 
 					Data.TryGetStringArrayField("ImportedModules", out string[] ImportedModuleArray);
 					if (ImportedModuleArray.Length > 0)
 					{
@@ -473,34 +491,18 @@ namespace UnrealBuildTool
 							new List<(string Name, string BMI)>(ImportedModuleArray.ConvertAll(x => (x, "")));
 					}
 				}
-				else
-				{
-					if (Data.TryGetObjectArrayField("ImportedModules", out JsonObject[] ImportedModulesJson))
-					{
-						foreach (JsonObject ImportedModule in ImportedModulesJson)
-						{
-							ImportedModule.TryGetStringField("Name", out string Name);
-							ImportedModule.TryGetStringField("BMI", out string BMI);
-
-							if (ImportedModules == null)
-							{
-								ImportedModules = new List<(string Name, string BMI)>();
-							}
-
-							ImportedModules.Add((Name, BMI));
-						}
-					}
-				}
-
-				string[] Includes;
-				Data.TryGetStringArrayField("Includes", out Includes);
 
 				List<FileItem> Files = new List<FileItem>();
-				if (Includes != null)
 				{
-					foreach (string Include in Includes)
+					string[] Includes;
+					Data.TryGetStringArrayField("Includes", out Includes);
+
+					if (Includes != null)
 					{
-						Files.Add(FileItem.GetItemByPath(Include));
+						foreach (string Include in Includes)
+						{
+							Files.Add(FileItem.GetItemByPath(Include));
+						}
 					}
 				}
 

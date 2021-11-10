@@ -1894,10 +1894,8 @@ namespace Chaos
 			// strange hacked initilization that seems misplaced and ill thought
 			Parent->SetHasBounds(true);
 			Parent->SetLocalBounds(Implicit->BoundingBox());
-			const Chaos::FAABB3& LocalBounds = Parent->LocalBounds();
 			const Chaos::FRigidTransform3 Xf(Parent->X(), Parent->R());
-			const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
-			Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
+			Parent->UpdateWorldSpaceState(Xf, FVec3(0));
 		}
 
 		// Set the captured filter to our new shapes

@@ -2130,7 +2130,7 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 					MenuBuilder.AddMenuEntry(
 						FText::FromName(ChildCollection.Name),
 						FText::GetEmpty(),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ChildCollection.Type)),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName(ChildCollection.Type)),
 						FUIAction(FExecuteAction::CreateSP(const_cast<SContentBrowser*>(this), &SContentBrowser::OnPathMenuItemClicked, ChildCollectionCrumbData))
 						);
 				}
@@ -2225,7 +2225,7 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 				MenuBuilder.AddMenuEntry(
 					SubItem.GetDisplayName(),
 					FText::GetEmpty(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.BreadcrumbPathPickerFolder"),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.BreadcrumbPathPickerFolder"),
 					FUIAction(FExecuteAction::CreateSP(const_cast<SContentBrowser*>(this), &SContentBrowser::OnPathMenuItemClicked, SubItem.GetVirtualPath().ToString()))
 					);
 			}
@@ -2548,8 +2548,15 @@ void SContentBrowser::OnNewItemRequested(const FContentBrowserItem& NewItem)
 	// Make sure we are showing the location of the new file (we may have created it in a folder)
 	TArray<FString> SelectedPaths;
 	SelectedPaths.Add(FPaths::GetPath(NewItem.GetVirtualPath().ToString()));
-	PathViewPtr->SetSelectedPaths(SelectedPaths);
-	PathSelected(SelectedPaths[0]);
+
+	const TArray<FString> CurrentlySelectedPath = PathViewPtr->GetSelectedPaths();
+
+	// Only change the selected paths if needed. (To avoid adding an entry to navigation history when it is not needed)
+	if (SelectedPaths != CurrentlySelectedPath)
+	{
+		PathViewPtr->SetSelectedPaths(SelectedPaths);
+		PathSelected(SelectedPaths[0]);
+	}
 }
 
 void SContentBrowser::OnItemSelectionChanged(const FContentBrowserItem& SelectedItem, ESelectInfo::Type SelectInfo, EContentBrowserViewContext ViewContext)
@@ -3754,7 +3761,7 @@ void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
 				"NewFolder",
 				LOCTEXT("NewFolder", "New Folder"),
 				NewFolderToolTip,
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.NewFolderIcon"),
 				FUIAction(
 					FExecuteAction::CreateSP(this, &SContentBrowser::CreateNewFolder, SelectedFolders.Num() > 0 ? SelectedFolders[0].GetVirtualPath().ToString() : FString(), Context->OnCreateNewFolder),
 					FCanExecuteAction::CreateLambda([bCanCreateNewFolder] { return bCanCreateNewFolder; })
@@ -3766,7 +3773,7 @@ void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
 			"FolderContext",
 			LOCTEXT("ShowInNewContentBrowser", "Show in New Content Browser"),
 			LOCTEXT("ShowInNewContentBrowserTooltip", "Opens a new Content Browser at this folder location (at least 1 Content Browser window needs to be locked)"),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.TabIcon"),
 			FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OpenNewContentBrowser))
 		);
 	}

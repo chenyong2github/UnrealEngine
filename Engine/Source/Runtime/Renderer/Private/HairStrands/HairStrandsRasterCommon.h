@@ -21,7 +21,7 @@ enum class EHairStrandsRasterPassType : uint8
 // ////////////////////////////////////////////////////////////////
 // Deep shadow raster pass
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterUniformParameters, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterUniformParameters, RENDERER_API)
 	SHADER_PARAMETER(FMatrix44f, CPU_WorldToClipMatrix)
 	SHADER_PARAMETER(FVector4f, SliceValue)
 	SHADER_PARAMETER(FIntRect, AtlasRect)
@@ -32,7 +32,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterUniformParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairDeepShadowRasterUniformParameters, UniformBuffer)

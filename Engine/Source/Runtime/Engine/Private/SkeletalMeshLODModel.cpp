@@ -1322,7 +1322,7 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 			// Skeleton bone indexes translated from the render mesh compact indexes.
 			FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
 
-			for (int32 InfluenceIndex = 0; SourceVertices[VertexIndex].InfluenceWeights[InfluenceIndex] && InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
+			for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES && SourceVertices[VertexIndex].InfluenceWeights[InfluenceIndex]; InfluenceIndex++)
 			{
 				const int32 BoneId = SourceVertices[VertexIndex].InfluenceBones[InfluenceIndex];
 

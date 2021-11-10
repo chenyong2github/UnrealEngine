@@ -25,7 +25,7 @@ struct FEvaluationHookUpdater
 		: HookSystem(InHookSystem), InstanceRegistry(InInstanceRegistry)
 	{}
 
-	void ForEachAllocation(FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FMovieSceneEvaluationHookComponent> Hooks, TRead<FFrameTime> EvalTimes, TWrite<FEvaluationHookFlags> WriteFlags)
+	void ForEachAllocation(FEntityAllocationProxy Item, TRead<FInstanceHandle> InstanceHandles, TRead<FMovieSceneEvaluationHookComponent> Hooks, TRead<FFrameTime> EvalTimes, TWrite<FEvaluationHookFlags> WriteFlags)
 	{
 		const int32 Num = Item.GetAllocation()->Num();
 		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
@@ -159,7 +159,7 @@ void UMovieSceneEvaluationHookSystem::UpdateHooks()
 
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 
-	auto VisitNew = [this, InstanceRegistry](FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
+	auto VisitNew = [this, InstanceRegistry](FEntityAllocationProxy Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
 	{
 		const int32 Num = Item.GetAllocation()->Num();
 		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
@@ -179,7 +179,7 @@ void UMovieSceneEvaluationHookSystem::UpdateHooks()
 		}
 	};
 
-	auto VisitOld = [this, InstanceRegistry](FEntityAllocationIteratorItem Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
+	auto VisitOld = [this, InstanceRegistry](FEntityAllocationProxy Item, TRead<FInstanceHandle> InstanceHandles, TRead<FFrameTime> EvalTimes, TRead<FMovieSceneEvaluationHookComponent> Hooks)
 	{
 		const int32 Num = Item.GetAllocation()->Num();
 		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);

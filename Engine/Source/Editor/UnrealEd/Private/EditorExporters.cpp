@@ -867,12 +867,12 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 			int32 WeightMapSize = (SubsectionSizeQuads + 1) * Component->NumSubsections;
 			int32 ChannelOffsets[4] = {(int32)STRUCT_OFFSET(FColor,R),(int32)STRUCT_OFFSET(FColor,G),(int32)STRUCT_OFFSET(FColor,B),(int32)STRUCT_OFFSET(FColor,A)};
 
-			TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
-			TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 
 			for( int32 AllocIdx=0;AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++ )
 			{
-				FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+				const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
 				if( AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer )
 				{
 					TexIndex = AllocInfo.WeightmapTextureIndex;
@@ -1634,12 +1634,13 @@ bool ULevelExporterFBX::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 		UE_LOG(LogEditorExporters, Warning, TEXT("There is nothing to export to a fbx file."));
 		if (!GIsAutomationTesting && !FApp::IsUnattended())
 		{
-			FNotificationInfo NotificationInfo(FText::GetEmpty());
-			NotificationInfo.Text = bSelectedOnly
+			FNotificationInfo* NotificationInfo = new FNotificationInfo(FText::GetEmpty());
+			NotificationInfo->Text = bSelectedOnly
 				? FText(NSLOCTEXT("UnrealEd", "ExportingLevelToFBX_Selection", "The selection has nothing that can be exported to fbx!"))
 				: FText(NSLOCTEXT("UnrealEd", "ExportingLevelToFBX_World", "The world has nothing that can be exported to fbx!"));
-			NotificationInfo.ExpireDuration = 5.0f;
-			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+			NotificationInfo->ExpireDuration = 5.0f;
+			//QueueNotification will add the pointer to a list and the FSlateNotificationManager::Tick will delete the pointer when adding the notification to the active list.
+			FSlateNotificationManager::Get().QueueNotification(NotificationInfo);
 		}
 		return false;
 	}

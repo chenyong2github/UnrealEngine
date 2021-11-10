@@ -270,8 +270,23 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetCustomUniformBuffer(bool bHasVelocity,
 		return GetUniformBuffer();
 	}
 
+	bool bHasPrecomputedVolumetricLightmap;
+	FMatrix PreviousLocalToWorld;
+	int32 SingleCaptureIndex;
+	bool bOutputVelocity;
+	FPrimitiveSceneInfo* LocalPrimitiveSceneInfo = GetPrimitiveSceneInfo();
+	GetScene().GetPrimitiveUniformShaderParameters_RenderThread(LocalPrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+
 	// Custom UB we need to create
 	uint64 KeyHash = HashCombine(bHasVelocity, PreSkinnedBounds.IsValid);
+
+	// we need to incorporate the transform of the PreviousLocalToWorld because it stopping moving is relevant
+	// and we need to be able to generate a new UB for that case
+	const auto PreviousOrigin = PreviousLocalToWorld.GetOrigin();
+	KeyHash = HashCombine(KeyHash, PreviousOrigin.X);
+	KeyHash = HashCombine(KeyHash, PreviousOrigin.Y);
+	KeyHash = HashCombine(KeyHash, PreviousOrigin.Z);
+
 	if ( PreSkinnedBounds.IsValid )
 	{
 		KeyHash = HashCombine(KeyHash, PreSkinnedBounds.Min.X);
@@ -285,13 +300,6 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetCustomUniformBuffer(bool bHasVelocity,
 	TUniformBuffer<FPrimitiveUniformShaderParameters>& CustomUB = CustomUniformBuffers.FindOrAdd(KeyHash);
 	if (!CustomUB.IsInitialized())
 	{
-		bool bHasPrecomputedVolumetricLightmap;
-		FMatrix PreviousLocalToWorld;
-		int32 SingleCaptureIndex;
-		bool bOutputVelocity;
-		FPrimitiveSceneInfo* LocalPrimitiveSceneInfo = GetPrimitiveSceneInfo();
-		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(LocalPrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-
 		FPrimitiveUniformShaderParametersBuilder UBBuilder;
 		UBBuilder.Defaults();
 		UBBuilder.LocalToWorld(GetLocalToWorld());
@@ -646,6 +654,11 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		return;
 	}
 
+	if (Asset->HasFixedTickDelta() && Asset->GetFixedTickDeltaTime() <= 0)
+	{
+		return;
+	}
+
 	if (!IsActive() && bAutoActivate && SystemInstanceController->GetAreDataInterfacesInitialized())
 	{
 		Activate();
@@ -684,24 +697,25 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 					SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 					AgeDiff = DesiredAge - SystemInstanceController->GetAge();
 				}
-
+				
 				if (AgeDiff > 0.0f)
 				{
 					FNiagaraSystemSimulation* SystemSim = SystemInstanceController->GetSoloSystemSimulation().Get();
 					if (SystemSim)
 					{
-						if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > SeekDelta)
+						float TickDelta = Asset->HasFixedTickDelta() ? Asset->GetFixedTickDeltaTime() : SeekDelta;
+						if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > TickDelta)
 						{
 							// If we're locking the delta time to the seek delta, or we need to seek more than a frame, tick the simulation by the seek delta.
 							const bool bUseMaxSimTime = MaxSimTime > 0.0f;
 							const double EndMaxSimTime = bUseMaxSimTime ? FPlatformTime::Seconds() + MaxSimTime : 0.0f;
 
-							TicksToProcess = FMath::FloorToInt(AgeDiff / SeekDelta);
+							TicksToProcess = FMath::FloorToInt(AgeDiff / TickDelta);
 							while ( TicksToProcess > 0 )
 							{
 								// Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
 								// If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-								SystemInstanceController->ManualTick(SeekDelta, nullptr);
+								SystemInstanceController->ManualTick(TickDelta, nullptr);
 								--TicksToProcess;
 
 								// This limits the amount of time we will consume seeking forward
@@ -733,26 +747,27 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		{
 			int32 MaxForwardFrames = 5; // HACK - for some reason sequencer jumps forwards by multiple frames on pause, so this is being added to allow for FX to stay alive when being controlled by sequencer in the editor.  This should be lowered once that issue is fixed.
 			float AgeDiff = DesiredAge - LastHandledDesiredAge;
+			float TickDelta = Asset->HasFixedTickDelta() ? Asset->GetFixedTickDeltaTime() : SeekDelta;
 			if (AgeDiff < 0)
 			{
-				if (FMath::Abs(AgeDiff) >= SeekDelta)
+				if (FMath::Abs(AgeDiff) >= TickDelta)
 				{
 					// When going back in time for a frame or more, reset and simulate a single frame.  We ignore small negative changes to delta
 					// time which can happen when controlling time with the timeline and the time snaps to a previous time when paused.
 					SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-					SystemInstanceController->ManualTick(SeekDelta, nullptr);
+					SystemInstanceController->ManualTick(TickDelta, nullptr);
 				}
 			}
-			else if (AgeDiff < MaxForwardFrames * SeekDelta)
+			else if (AgeDiff < MaxForwardFrames * TickDelta)
 			{
 				// Allow ticks between 0 and MaxForwardFrames, but don't ever send more then 2 x the seek delta.
-				SystemInstanceController->ManualTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
+				SystemInstanceController->ManualTick(FMath::Min(AgeDiff, 2 * TickDelta), nullptr);
 			}
 			else
 			{
 				// When going forward in time for more than MaxForwardFrames, reset and simulate a single frame.
 				SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-				SystemInstanceController->ManualTick(SeekDelta, nullptr);
+				SystemInstanceController->ManualTick(TickDelta, nullptr);
 			}
 			LastHandledDesiredAge = DesiredAge;
 		}
@@ -2887,12 +2902,14 @@ void UNiagaraComponent::FixInvalidUserParameterOverrideData()
 
 void UNiagaraComponent::AssetExposedParametersChanged()
 {
-	// don't worry about doing anything based on the change broadcast if we haven't finished loading
-	if (!HasAnyFlags(RF_NeedPostLoad))
+	if (HasAnyFlags(RF_NeedPostLoad))
 	{
-		SynchronizeWithSourceSystem();
-		ReinitializeSystem();
+		// Since we register the change delegate in multiple places, it's possible that this is called before the component was able to go through PostLoad().
+		// In that case we skip the sync with the system, as that happens in PostLoad anyways.
+		return;
 	}
+	SynchronizeWithSourceSystem();
+	ReinitializeSystem();
 }
 
 #if WITH_EDITOR

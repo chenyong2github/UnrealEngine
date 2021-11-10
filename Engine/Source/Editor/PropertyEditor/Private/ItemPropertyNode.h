@@ -35,16 +35,6 @@ public:
 	virtual bool IsFavorite() const override;
 
 	/**
-	* Set the permission to display the favorite icon
-	*/
-	virtual void SetCanDisplayFavorite(bool CanDisplayFavoriteIcon) override;
-
-	/**
-	* Set the permission to display the favorite icon
-	*/
-	virtual bool CanDisplayFavorite() const override;
-
-	/**
 	 * @return The formatted display name for the property in this node                                                              
 	 */
 	virtual FText GetDisplayName() const override;

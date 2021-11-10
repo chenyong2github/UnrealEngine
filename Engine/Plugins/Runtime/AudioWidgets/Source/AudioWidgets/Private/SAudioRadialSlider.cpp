@@ -14,20 +14,30 @@ SAudioRadialSlider::SAudioRadialSlider()
 
 void SAudioRadialSlider::Construct(const SAudioRadialSlider::FArguments& InArgs)
 {
+	Style = InArgs._Style;
 	OnValueChanged = InArgs._OnValueChanged;
 	Value = InArgs._Value;
 	CenterBackgroundColor = InArgs._CenterBackgroundColor;
 	SliderProgressColor = InArgs._SliderProgressColor;
 	SliderBarColor = InArgs._SliderBarColor;
-	LabelBackgroundColor = InArgs._LabelBackgroundColor;
 	HandStartEndRatio = InArgs._HandStartEndRatio;
 	WidgetLayout = InArgs._WidgetLayout;
+	DesiredSizeOverride = InArgs._DesiredSizeOverride;
 	SliderCurve = InArgs._SliderCurve;
 	// default linear curve from 0.0 to 1.0
 	SliderCurve.GetRichCurve()->AddKey(0.0f, 0.0f);
 	SliderCurve.GetRichCurve()->AddKey(1.0f, 1.0f);
 	
+	// Get style 
+	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
+	if (AudioWidgetsStyle)
+	{
+		Style = &AudioWidgetsStyle->GetWidgetStyle<FAudioRadialSliderStyle>("AudioRadialSlider.Style");
+	}
+
+	// Create components
 	SAssignNew(Label, SAudioTextBox)
+		.Style(&Style->TextBoxStyle)
 		.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
 		{
 			const float OutputValue = FCString::Atof(*Text.ToString());
@@ -36,7 +46,6 @@ void SAudioRadialSlider::Construct(const SAudioRadialSlider::FArguments& InArgs)
 			RadialSlider->SetValue(LinValue);
 			OnValueChanged.ExecuteIfBound(LinValue);
 		});
-	Label->SetLabelBackgroundColor(LabelBackgroundColor.Get());
 
 	SAssignNew(RadialSlider, SRadialSlider)
 		.OnValueChanged_Lambda([this](float InLinValue)
@@ -92,16 +101,29 @@ void SAudioRadialSlider::SetWidgetLayout(EAudioRadialSliderLayout InLayout)
 	LayoutWidgetSwitcher->SetActiveWidgetIndex(InLayout);
 }
 
+FVector2D SAudioRadialSlider::ComputeDesiredSize(float) const
+{
+	static const FVector2D DefaultDesiredSize = FVector2D(50.0f, 81.0f);
+
+	if (DesiredSizeOverride.Get().IsSet())
+	{
+		return DesiredSizeOverride.Get().GetValue();
+	}
+	const float SliderRadius = Style->DefaultSliderRadius;
+	const FVector2D TextBoxImageSize = Style->TextBoxStyle.BackgroundImage.ImageSize;
+	return FVector2D(FMath::Max(SliderRadius, TextBoxImageSize.X), SliderRadius + TextBoxImageSize.Y + Style->LabelPadding);
+}
+
+void SAudioRadialSlider::SetDesiredSizeOverride(const FVector2D Size)
+{
+	SetAttribute(DesiredSizeOverride, TAttribute<TOptional<FVector2D>>(Size), EInvalidateWidgetReason::Layout);
+}
+
 TSharedRef<SWidgetSwitcher> SAudioRadialSlider::CreateLayoutWidgetSwitcher()
 {
 	SAssignNew(LayoutWidgetSwitcher, SWidgetSwitcher);
 
-	float LabelVerticalPadding = 0.0f;
-	const ISlateStyle* AudioRadialSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioRadialSliderStyle");
-	if (AudioRadialSliderStyle)
-	{
-		LabelVerticalPadding = AudioRadialSliderStyle->GetFloat("AudioRadialSlider.LabelVerticalPadding");
-	}
+	float LabelVerticalPadding = Style->LabelPadding;
 
 	LayoutWidgetSwitcher->AddSlot(EAudioRadialSliderLayout::Layout_LabelTop)
 	[
@@ -235,7 +257,7 @@ void SAudioVolumeRadialSlider::Construct(const SAudioRadialSlider::FArguments& I
 {
 	SAudioRadialSlider::Construct(InArgs);
 	
-	SetOutputRange(FVector2D(-100.0f, 12.0f));
+	SetOutputRange(FVector2D(-100.0f, 0.0f));
 	Label->SetUnitsText(FText::FromString("dB"));
 }
 

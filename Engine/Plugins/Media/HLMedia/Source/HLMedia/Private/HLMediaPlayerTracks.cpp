@@ -83,7 +83,7 @@ void FHLMediaPlayerTracks::AddVideoFrameSample(FTimespan Time)
     if (!VideoSample.IsValid() ||
         VideoSample->GetTexture() == nullptr)
     {
-        VideoSample = MakeShared<FHLMediaTextureSample, ESPMode::ThreadSafe>(SharedTexture->Texture2D(), SharedTexture->ShaderResourceView());
+        VideoSample = MakeShared<FHLMediaTextureSample, ESPMode::ThreadSafe>(SharedTexture->Texture2D(), SharedTexture->ShaderResourceView(), SharedTexture->SharedTextureHandle());
 
         auto Track = PlaybackItem->VideoTrack(PlaybackItem->SelectedVideoTrack());
 

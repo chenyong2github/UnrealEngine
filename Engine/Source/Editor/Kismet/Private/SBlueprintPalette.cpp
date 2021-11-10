@@ -60,6 +60,7 @@
 #include "BlendSpaceGraph.h"
 #include "AnimationBlendSpaceSampleGraph.h"
 #include "BlueprintNamespaceHelper.h"
+#include "BlueprintNamespaceUtilities.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -807,14 +808,19 @@ private:
 	{
 		if (FBlueprintEditorUtils::IsPinTypeValid(InNewPinType))
 		{
+			TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+
 			if (FProperty* VarProp = VariableProperty.Get())
 			{
 				FName VarName = VarProp->GetFName();
 
 				if (VarName != NAME_None)
 				{
-					// Set the MyBP tab's last pin type used as this, for adding lots of variables of the same type
-					BlueprintEditorPtr.Pin()->GetMyBlueprintWidget()->GetLastPinTypeUsed() = InNewPinType;
+					if (BlueprintEditor.IsValid())
+					{
+						// Set the MyBP tab's last pin type used as this, for adding lots of variables of the same type
+						BlueprintEditor->GetMyBlueprintWidget()->GetLastPinTypeUsed() = InNewPinType;
+					}
 
 					if (UFunction* LocalVariableScope = VarProp->GetOwner<UFunction>())
 					{
@@ -828,10 +834,27 @@ private:
 			}
 			else if(ActionPtr.IsValid())
 			{
-				// Set the MyBP tab's last pin type used as this, for adding lots of variables of the same type
-				BlueprintEditorPtr.Pin()->GetMyBlueprintWidget()->GetLastPinTypeUsed() = InNewPinType;
+				if (BlueprintEditor.IsValid())
+				{
+					// Set the MyBP tab's last pin type used as this, for adding lots of variables of the same type
+					BlueprintEditor->GetMyBlueprintWidget()->GetLastPinTypeUsed() = InNewPinType;
+				}
 				
 				ActionPtr.Pin()->ChangeVariableType(InNewPinType);
+			}
+
+			if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+			{
+				// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+				const UObject* PinSubCategoryObject = InNewPinType.PinSubCategoryObject.Get();
+				if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+				{
+					FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
+					if (!Namespace.IsEmpty())
+					{
+						BlueprintEditor->ImportNamespace(Namespace);
+					}
+				}
 			}
 		}
 

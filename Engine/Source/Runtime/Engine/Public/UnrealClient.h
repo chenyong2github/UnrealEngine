@@ -30,8 +30,15 @@ class FRenderTarget
 {
 public:
 
-	// Destructor
-	virtual ~FRenderTarget(){}
+	/**
+	 * Default constructor
+	 */
+	ENGINE_API FRenderTarget() {};
+
+	/**
+	 * Destructor
+	 */
+	ENGINE_API virtual ~FRenderTarget() {};
 
 	/**
 	* Accessor for the surface RHI when setting this render target

@@ -177,28 +177,6 @@ FTextureImageFile::~FTextureImageFile()
 {
 }
 
-void FMaterialCollection::UpdateTextureUsage()
-{
-	for (TPair<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> IdAndMaterial : MaterialDefinitionMap)
-	{
-		IdAndMaterial.Value->UpdateTexturesUsage(Context);
-	}
-}
-
-void FMaterialCollection::Update()
-{
-	for (TPair<FMaterialIDType, TSharedPtr<FMaterial>> IdAndMaterial : MaterialDefinitionMap)
-	{
-		FMaterial& Material = *IdAndMaterial.Value;
-		Material.Update(Context);
-	}
-}
-
-const TCHAR* FMaterialCollection::GetDefaultMaterialName()
-{
-	return DefaultMaterial->GetName();
-}
-
 void FTextureCollection::AcquireImage(FTexture& Texture)
 {
 	// Compute image md5

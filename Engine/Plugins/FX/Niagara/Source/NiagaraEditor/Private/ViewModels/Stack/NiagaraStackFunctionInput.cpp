@@ -444,6 +444,11 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 	return CollapsedTextCache.GetValue();
 }
 
+void UNiagaraStackFunctionInput::SetSummaryViewDisiplayName(TOptional<FText> InDisplayName)
+{
+	SummaryViewDisplayNameOverride = InDisplayName;
+}
+
 FText UNiagaraStackFunctionInput::GetValueToolTip() const
 {
 	if (IsFinalized())
@@ -1083,7 +1088,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIss
 
 FText UNiagaraStackFunctionInput::GetDisplayName() const
 {
-	return DisplayNameOverride.IsSet() ? DisplayNameOverride.GetValue() : DisplayName;
+	return SummaryViewDisplayNameOverride.IsSet()? SummaryViewDisplayNameOverride.GetValue() : DisplayNameOverride.IsSet() ? DisplayNameOverride.GetValue() : DisplayName;
 }
 
 const TArray<FNiagaraParameterHandle>& UNiagaraStackFunctionInput::GetInputParameterHandlePath() const
@@ -2395,6 +2400,11 @@ void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& Search
 bool UNiagaraStackFunctionInput::HasFrontDivider() const
 {
 	return IsSemanticChild() || Super::HasFrontDivider();
+}
+
+TOptional<FGuid> UNiagaraStackFunctionInput::GetMetadataGuid() const
+{
+	return InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : TOptional<FGuid>();
 }
 
 void UNiagaraStackFunctionInput::OnGraphChanged(const struct FEdGraphEditAction& InAction)

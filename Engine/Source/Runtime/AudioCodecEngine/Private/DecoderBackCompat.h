@@ -41,5 +41,9 @@ namespace Audio
 		}
 
 		FDecodeReturn Decode(bool bLoop = false) override;
+
+	private:
+		bool bPreviousIsStreaming = false;
+		bool bIsFirstDecode = true;
 	};
 }

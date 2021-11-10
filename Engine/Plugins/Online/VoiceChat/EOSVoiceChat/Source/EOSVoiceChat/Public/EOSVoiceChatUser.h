@@ -157,6 +157,7 @@ protected:
 	{
 		~FChannelSession();
 
+		bool IsLocalUser(const FChannelParticipant& Participant);
 		bool IsLobbySession() const;
 		
 		// The channel name

@@ -84,8 +84,8 @@ struct FDataLayerSection
 		{
 			switch (Section->GetDesiredState())
 			{
-			case EDataLayerState::Unloaded:  return LOCTEXT("VisibilityText_Unloaded", "Unload");
-			case EDataLayerState::Loaded:    return LOCTEXT("VisibilityText_Loaded", "Load");
+			case EDataLayerRuntimeState::Unloaded:  return LOCTEXT("VisibilityText_Unloaded", "Unload");
+			case EDataLayerRuntimeState::Loaded:    return LOCTEXT("VisibilityText_Loaded", "Load");
 			default: break;
 			}
 		}
@@ -100,8 +100,8 @@ struct FDataLayerSection
 		{
 			switch (Section->GetPrerollState())
 			{
-			case EDataLayerState::Unloaded:  return LOCTEXT("PrerollText_Unloaded", "(Unloaded over time in pre/post roll)");
-			case EDataLayerState::Loaded:    return LOCTEXT("PrerollText_Loaded", "(Loaded over time in preroll)");
+			case EDataLayerRuntimeState::Unloaded:  return LOCTEXT("PrerollText_Unloaded", "(Unloaded over time in pre/post roll)");
+			case EDataLayerRuntimeState::Loaded:    return LOCTEXT("PrerollText_Loaded", "(Loaded over time in preroll)");
 			default: break;
 			}
 		}
@@ -150,9 +150,9 @@ struct FDataLayerSection
 		{
 			switch (Section->GetDesiredState())
 			{
-			case EDataLayerState::Unloaded:  return FStyleColors::AccentRed;
-			case EDataLayerState::Loaded:    return FStyleColors::AccentBlue;
-			case EDataLayerState::Activated: return FStyleColors::AccentGreen;
+			case EDataLayerRuntimeState::Unloaded:  return FStyleColors::AccentRed;
+			case EDataLayerRuntimeState::Loaded:    return FStyleColors::AccentBlue;
+			case EDataLayerRuntimeState::Activated: return FStyleColors::AccentGreen;
 			}
 		}
 		return FStyleColors::Foreground;
@@ -212,7 +212,7 @@ TSharedPtr<SWidget> FDataLayerTrackEditor::BuildOutlinerEditWidget(const FGuid& 
 		Params.NodeIsHovered, GetSequencer());
 }
 
-UMovieSceneDataLayerSection* FDataLayerTrackEditor::AddNewSection(UMovieScene* MovieScene, UMovieSceneTrack* DataLayerTrack, EDataLayerState DesiredState)
+UMovieSceneDataLayerSection* FDataLayerTrackEditor::AddNewSection(UMovieScene* MovieScene, UMovieSceneTrack* DataLayerTrack, EDataLayerRuntimeState DesiredState)
 {
 	using namespace UE::MovieScene;
 
@@ -223,9 +223,9 @@ UMovieSceneDataLayerSection* FDataLayerTrackEditor::AddNewSection(UMovieScene* M
 	DataLayerSection->SetDesiredState(DesiredState);
 
 	// By default, activated states will preroll to loaded
-	if (DesiredState == EDataLayerState::Activated)
+	if (DesiredState == EDataLayerRuntimeState::Activated)
 	{
-		DataLayerSection->SetPrerollState(EDataLayerState::Loaded);
+		DataLayerSection->SetPrerollState(EDataLayerRuntimeState::Loaded);
 	}
 	else
 	{
@@ -237,7 +237,7 @@ UMovieSceneDataLayerSection* FDataLayerTrackEditor::AddNewSection(UMovieScene* M
 	DataLayerTrack->AddSection(*DataLayerSection);
 
 	// Set some default preroll for activated or loaded data layers
-	if (DesiredState != EDataLayerState::Unloaded)
+	if (DesiredState != EDataLayerRuntimeState::Unloaded)
 	{
 		DataLayerSection->SetPreRollFrames((2.f * MovieScene->GetTickResolution()).RoundToFrame().Value);
 	}
@@ -259,7 +259,7 @@ void FDataLayerTrackEditor::HandleAddTrack()
 	UMovieSceneDataLayerTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneDataLayerTrack>();
 	checkf(NewTrack, TEXT("Failed to create new data layer track."));
 
-	UMovieSceneDataLayerSection* NewSection = AddNewSection(FocusedMovieScene, NewTrack, EDataLayerState::Activated);
+	UMovieSceneDataLayerSection* NewSection = AddNewSection(FocusedMovieScene, NewTrack, EDataLayerRuntimeState::Activated);
 	if (GetSequencer().IsValid())
 	{
 		GetSequencer()->OnAddTrack(NewTrack, FGuid());
@@ -275,27 +275,27 @@ TSharedRef<SWidget> FDataLayerTrackEditor::BuildAddDataLayerMenu(UMovieSceneTrac
 		LOCTEXT("AddActivatedDataLayer_Tip", "Instruct a data layer to be loaded and active."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(
-			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerState::Activated)));
+			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerRuntimeState::Activated)));
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddLoadedDataLayer", "Loaded"),
 		LOCTEXT("AddLoadedDataLayer_Tip", "Instruct a data layer to be loaded (but not active)."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(
-			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerState::Loaded)));
+			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerRuntimeState::Loaded)));
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddUnloadedDataLayer", "Unloaded"),
 		LOCTEXT("AddUnloadedDataLayer_Tip", "Instruct a data layer to be unloaded for a duration."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(
-			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerState::Unloaded)));
+			this, &FDataLayerTrackEditor::HandleAddNewSection, DataLayerTrack, EDataLayerRuntimeState::Unloaded)));
 
 	return MenuBuilder.MakeWidget();
 }
 
 
-void FDataLayerTrackEditor::HandleAddNewSection(UMovieSceneTrack* DataLayerTrack, EDataLayerState DesiredState)
+void FDataLayerTrackEditor::HandleAddNewSection(UMovieSceneTrack* DataLayerTrack, EDataLayerRuntimeState DesiredState)
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
 	if (FocusedMovieScene)

@@ -42,6 +42,7 @@ public:
 	/** Construct a hash from a 40-character hex string. */
 	inline explicit FIoHash(FAnsiStringView HexHash);
 	inline explicit FIoHash(FWideStringView HexHash);
+	inline explicit FIoHash(FUtf8StringView HexHash);
 
 	/** Reset this to a zero hash. */
 	inline void Reset() { *this = FIoHash(); }
@@ -92,6 +93,12 @@ inline FIoHash::FIoHash(const FAnsiStringView HexHash)
 }
 
 inline FIoHash::FIoHash(const FWideStringView HexHash)
+{
+	check(HexHash.Len() == sizeof(ByteArray) * 2);
+	UE::String::HexToBytes(HexHash, Hash);
+}
+
+inline FIoHash::FIoHash(const FUtf8StringView HexHash)
 {
 	check(HexHash.Len() == sizeof(ByteArray) * 2);
 	UE::String::HexToBytes(HexHash, Hash);

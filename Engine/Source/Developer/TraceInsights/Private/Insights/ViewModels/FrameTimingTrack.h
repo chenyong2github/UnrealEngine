@@ -89,7 +89,7 @@ public:
 	//////////////////////////////////////////////////
 	// FBaseTimingTrack/FTimingEventsTrack overrides
 
-	virtual void Reset() override;
+	virtual void Reset() override final;
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;

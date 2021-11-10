@@ -60,10 +60,10 @@ namespace CADKernel
 
 		virtual int32 CheckSamplingError(int32 FirstIndex, int32 EndIndex) override
 		{
-			const FPoint& APoint = this->Sampling.GetPoints()[this->StartSamplingSegmentIndex];
+			const FPoint& APoint = this->Sampling.GetPointAt(this->StartSamplingSegmentIndex);
 			double ACoordinate = this->Sampling.Coordinates[this->StartSamplingSegmentIndex];
 
-			const FPoint& BPoint = this->EndStudySegment.Polyline->GetPoints()[this->EndStudySegment.Index];
+			const FPoint& BPoint = this->EndStudySegment.Polyline->GetPointAt(this->EndStudySegment.Index);
 			double BCoordinate = this->EndStudySegment.Polyline->Coordinates[this->EndStudySegment.Index];
 
 			double ABCoordinate = BCoordinate - ACoordinate;
@@ -74,7 +74,7 @@ namespace CADKernel
 
 			for (int32 Index = FirstIndex; Index < EndIndex; ++Index)
 			{
-				const FPoint& PointM = this->CandidatePoints.GetPoints()[Index];
+				const FPoint& PointM = this->CandidatePoints.GetPointAt(Index);
 
 				double CurvilinearAbscise;
 				FPoint ProjectedPoint = ProjectPointOnSegment(PointM, APoint, BPoint, CurvilinearAbscise, /*bRestrictCoodinateToInside*/ true);
@@ -242,8 +242,8 @@ namespace CADKernel
 	{
 
 	public:
-		FSurfaceSamplerOnParam(const FSurface& InSurface, const FSurfacicBoundary& InBoundary, double InMaxSagError, double InMaxParameterizationError, FCoordinateGrid& OutSampling)
-			: TSamplerBasedOnParametrizationAndChordError<FPolyline3D, FPoint>(Boundary, InMaxSagError, InMaxParameterizationError, OutPolyline)
+		FSurfaceSamplerOnParam(const FSurface& InSurface, const FSurfacicBoundary& InBoundary, double InMaxSagError, double InMaxParameterizationError, FPolyline3D& TemporaryPolyline, FCoordinateGrid& OutSampling)
+			: TSamplerBasedOnParametrizationAndChordError<FPolyline3D, FPoint>(FLinearBoundary(), InMaxSagError, InMaxParameterizationError, TemporaryPolyline)
 			, Surface(InSurface)
 			, SurfaceBoundary(InBoundary)
 			, SurfaceSampling(OutSampling)
@@ -379,10 +379,7 @@ namespace CADKernel
 
 		FCoordinateGrid NotDerivableCoordinates;
 
-		FLinearBoundary Boundary;
 		bool bNotDerivableFound = false;
-
-		FPolyline3D OutPolyline;
 
 		TArray<double> IsoCoordinate;
 		EIso IsoType;

@@ -17,6 +17,7 @@
 #include "MaterialOptions.h"
 #include "MaterialUtilities.h"
 #include "MeshDescription.h"
+#include "RHI.h"
 #include "StaticMeshAttributes.h"
 
 namespace UE
@@ -403,7 +404,7 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMaterial( ALandsc
 		}
 	}
 
-	bool bSuccess = UnrealToUsd::ConvertFlattenMaterial( Actor->GetName() + TEXT( "_BakedMaterial" ), LandscapeFlattenMaterial, PropertiesToBake, TexturesDir, Prim );
+	bool bSuccess = UnrealToUsd::ConvertFlattenMaterial( Actor->GetPathName() + TEXT( "_BakedMaterial" ), LandscapeFlattenMaterial, PropertiesToBake, TexturesDir, Prim );
 
 	// FMaterialUtilities::ExportLandscapeMaterial always bakes WorldNormals, so we need to write to this material that it's meant to be using
 	// world-space normals. On import, we check for this and set the proper scalar parameter on our UsdPreviewSurface material to compensate for it.
@@ -417,6 +418,24 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMaterial( ALandsc
 	return bSuccess;
 #else
 	return false;
+#endif // USE_USD_SDK
+}
+
+void UUsdConversionBlueprintContext::ReplaceUnrealMaterialsWithBaked( const FFilePath& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials )
+{
+#if USE_USD_SDK
+	if ( !Stage || LayerToAuthorIn.FilePath.IsEmpty() )
+	{
+		return;
+	}
+
+	UE::FSdfLayer Layer = UE::FSdfLayer::FindOrOpen( *LayerToAuthorIn.FilePath );
+	if ( !Layer )
+	{
+		return;
+	}
+
+	UsdUtils::ReplaceUnrealMaterialsWithBaked( Stage, Layer, BakedMaterials, bIsAssetLayer, bUsePayload, bRemoveUnrealMaterials );
 #endif // USE_USD_SDK
 }
 

@@ -309,8 +309,11 @@ namespace EpicGames.Core
 			for (int Idx = CommonDirectoryLength + 1; Idx < Directory.FullName.Length; Idx++)
 			{
 				// Move up a directory
+				if (Result.Length != 0)
+				{
+					Result.Append(Path.DirectorySeparatorChar);
+				}
 				Result.Append("..");
-				Result.Append(Path.DirectorySeparatorChar);
 
 				// Scan to the next directory separator
 				while (Idx < Directory.FullName.Length && Directory.FullName[Idx] != Path.DirectorySeparatorChar)
@@ -318,8 +321,13 @@ namespace EpicGames.Core
 					Idx++;
 				}
 			}
+
 			if (CommonDirectoryLength + 1 < FullName.Length)
 			{
+				if (Result.Length != 0)
+				{
+					Result.Append(Path.DirectorySeparatorChar);
+				}
 				Result.Append(FullName, CommonDirectoryLength + 1, FullName.Length - CommonDirectoryLength - 1);
 			}
 		}

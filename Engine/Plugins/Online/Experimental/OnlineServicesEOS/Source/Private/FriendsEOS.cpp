@@ -28,7 +28,13 @@ inline TOptional<EFriendInviteStatus> EOSFriendStatusToInviteStatus(EOS_EFriends
 FFriendsEOS::FFriendsEOS(FOnlineServicesEOS& InServices)
 	: FFriendsCommon(InServices)
 {
-	FriendsHandle = EOS_Platform_GetFriendsInterface(InServices.GetEOSPlatformHandle());
+}
+
+void FFriendsEOS::Initialize()
+{
+	FFriendsCommon::Initialize();
+
+	FriendsHandle = EOS_Platform_GetFriendsInterface(static_cast<FOnlineServicesEOS&>(GetServices()).GetEOSPlatformHandle());
 	check(FriendsHandle != nullptr);
 
 	// Register for friend updates
@@ -59,7 +65,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::UnknownError());
+			Op.SetError(Errors::Unknown());
 			return Op.GetHandle();
 		}
 
@@ -164,7 +170,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 				}
 				else
 				{
-					InAsyncOp.SetError(Errors::UnknownError()); // TODO: Error codes
+					InAsyncOp.SetError(Errors::Unknown()); // TODO: Error codes
 				}
 			})
 			.Enqueue();
@@ -172,15 +178,15 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 	return Op.GetHandle();
 }
 
-TOnlineResult<FGetFriends::Result> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
+TOnlineResult<FGetFriends> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
 {
 	if (TMap<FAccountId, TSharedRef<FFriend>>* FriendsList = FriendsLists.Find(Params.LocalUserId))
 	{
 		FGetFriends::Result Result;
 		FriendsList->GenerateValueArray(Result.Friends);
-		return TOnlineResult<FGetFriends::Result>(MoveTemp(Result));
+		return TOnlineResult<FGetFriends>(MoveTemp(Result));
 	}
-	return TOnlineResult<FGetFriends::Result>(Errors::UnknownError()); // TODO: error codes
+	return TOnlineResult<FGetFriends>(Errors::Unknown()); // TODO: error codes
 }
 
 TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InParams)
@@ -221,7 +227,7 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 				// TODO:  Handle response
 			}).Enqueue();
 #else
-		Op.SetError(Errors::UnknownError());
+		Op.SetError(Errors::Unknown());
 #endif
 	}
 	return Op.GetHandle();

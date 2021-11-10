@@ -53,14 +53,16 @@ namespace Metasound
 	} // namespace Editor
 } // namespace Metasound
 
+
 USTRUCT()
 struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction : public FEdGraphSchemaAction
 {
-	GENERATED_USTRUCT_BODY();
+	GENERATED_USTRUCT_BODY()
 
 	FMetasoundGraphSchemaAction()
 		: FEdGraphSchemaAction()
-	{}
+	{
+	}
 
 	FMetasoundGraphSchemaAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup, FText InKeywords = FText::GetEmpty())
 		: FEdGraphSchemaAction(
@@ -69,7 +71,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction : public FEdGraphSchemaAc
 			MoveTemp(InToolTip),
 			/*InNodeCategory.IsEmpty() ? */static_cast<int32>(InGroup)/* : 0*/,
 			MoveTemp(InKeywords))
-	{}
+	{
+	}
 
 	virtual const FSlateBrush* GetIconBrush() const
 	{

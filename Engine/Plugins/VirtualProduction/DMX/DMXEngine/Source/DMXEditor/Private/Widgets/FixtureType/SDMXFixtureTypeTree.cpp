@@ -4,10 +4,13 @@
 
 #include "DMXEditor.h"
 #include "DMXEditorUtils.h"
+#include "DMXFixturePatchSharedData.h"
 #include "DMXFixtureTypeSharedData.h"
+#include "DMXRuntimeUtils.h"
 #include "SDMXFixtureTypeTreeCategoryRow.h"
 #include "SDMXFixtureTypeTreeFixtureTypeRow.h"
 #include "Commands/DMXEditorCommands.h"
+#include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
 #include "Widgets/DMXEntityTreeNode.h"
@@ -29,13 +32,29 @@ void SDMXFixtureTypeTree::Construct(const FArguments& InArgs)
 {
 	SDMXEntityTreeViewBase::FArguments BaseArguments =
 		SDMXEntityTreeViewBase::FArguments()
-		.DMXEditor(InArgs._DMXEditor)
-		.OnSelectionChanged(this, &SDMXFixtureTypeTree::OnEntitySelected)
-		.OnEntitiesAdded(InArgs._OnEntitiesAdded)
-		.OnEntityOrderChanged(InArgs._OnEntityOrderChanged)
-		.OnEntitiesRemoved(InArgs._OnEntitiesRemoved);
+		.DMXEditor(InArgs._DMXEditor);
 
 	SDMXEntityTreeViewBase::Construct(BaseArguments);
+	
+	if (const TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
+	{
+		FixtureTypeSharedData = PinnedDMXEditor->GetFixtureTypeSharedData();
+		FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureTypeTree::OnFixtureTypesSelected);
+		PinnedDMXEditor->GetFixturePatchSharedData()->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixtureTypeTree::OnFixturePatchesSelected);
+
+		// Bind to external changes
+		PinnedDMXEditor->GetDMXLibrary()->GetOnEntitiesAdded().AddSP(this, &SDMXFixtureTypeTree::OnEntitiesAdded);
+		PinnedDMXEditor->GetDMXLibrary()->GetOnEntitiesRemoved().AddSP(this, &SDMXFixtureTypeTree::OnEntitiesRemoved);
+		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixtureTypeTree::OnFixtureTypeChanged);
+
+		// Make an initial selection
+		TArray<UDMXEntityFixtureType*> FixtureTypes = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityFixtureType>();
+		if (FixtureTypes.Num() > 0)
+		{
+			TArray<TWeakObjectPtr<UDMXEntityFixtureType>> InitialSelection = { FixtureTypes[0] };
+			FixtureTypeSharedData->SelectFixtureTypes(InitialSelection);
+		}
+	}
 }
 
 TSharedPtr<FDMXEntityTreeEntityNode> SDMXFixtureTypeTree::CreateEntityNode(UDMXEntity* Entity)
@@ -94,7 +113,7 @@ void SDMXFixtureTypeTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>&
 	EntityNodeToEntityRowMap.Reset();
 
 	UDMXLibrary* Library = GetDMXLibrary();
-	check(Library != nullptr);
+	check(Library);
 
 	Library->ForEachEntityOfType<UDMXEntityFixtureType>([this](UDMXEntityFixtureType* FixtureType)
 		{
@@ -114,6 +133,18 @@ void SDMXFixtureTypeTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>&
 	);
 
 	InRootNode->SortChildren();
+
+	// Restore Selection
+	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
+	TArray<UDMXEntity*> SelectedEntities;
+	for (TWeakObjectPtr<UDMXEntityFixtureType> WeakFixtureType : SelectedFixtureTypes)
+	{
+		if (WeakFixtureType.IsValid())
+		{
+			SelectedEntities.Add(WeakFixtureType.Get());
+		}
+	}
+	SelectItemsByEntities(SelectedEntities);
 }
 
 TSharedRef<ITableRow> SDMXFixtureTypeTree::OnGenerateRow(TSharedPtr<FDMXEntityTreeNodeBase> Node, const TSharedRef<STableViewBase>& OwnerTable)
@@ -126,7 +157,7 @@ TSharedRef<ITableRow> SDMXFixtureTypeTree::OnGenerateRow(TSharedPtr<FDMXEntityTr
 
 		return 
 			SNew(SDMXFixtureTypeTreeCategoryRow, OwnerTable, CategoryNode, bIsRootCategory, SharedThis(this))
-			.OnFixtureTypeOrderChanged(OnEntityOrderChanged)
+			.OnFixtureTypeOrderChanged(OnEntityOrderChangedDelegate)
 			[
 				SNew(STextBlock)
 				.Text(Node->GetDisplayNameText())
@@ -140,7 +171,7 @@ TSharedRef<ITableRow> SDMXFixtureTypeTree::OnGenerateRow(TSharedPtr<FDMXEntityTr
 		TSharedRef<SDMXFixtureTypeTreeFixtureTypeRow> FixtureTypeRow = SNew(SDMXFixtureTypeTreeFixtureTypeRow, EntityNode, OwnerTable, SharedThis(this))
 			.OnGetFilterText(this, &SDMXFixtureTypeTree::GetFilterText)
 			.OnEntityDragged(this, &SDMXFixtureTypeTree::OnEntitiesDragged)
-			.OnFixtureTypeOrderChanged(OnEntityOrderChanged);
+			.OnFixtureTypeOrderChanged(OnEntityOrderChangedDelegate);
 
 		EntityNodeToEntityRowMap.Add(EntityNode.ToSharedRef(), FixtureTypeRow);
 
@@ -177,6 +208,50 @@ TSharedPtr<SWidget> SDMXFixtureTypeTree::OnContextMenuOpen()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SDMXFixtureTypeTree::OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo)
+{
+	if (!bChangingSelection)
+	{
+		TGuardValue<bool> RecursionGuard(bChangingSelection, true);
+
+		const TArray<UDMXEntity*> NewSelection = GetSelectedEntities();
+
+		// Never clear the selection
+		if (GetSelectedEntities().Num() == 0)
+		{
+			TArray<TWeakObjectPtr<UDMXEntityFixtureType>> OldSelection = FixtureTypeSharedData->GetSelectedFixtureTypes();
+			TArray<UDMXEntity*> OldSelectionAsEntities;
+			for (TWeakObjectPtr<UDMXEntityFixtureType> SelectedFixtureType : OldSelection)
+			{
+				if (UDMXEntityFixtureType* SelectedEntity = SelectedFixtureType.Get())
+				{
+					OldSelectionAsEntities.Add(SelectedEntity);
+				}
+			}
+
+			if (OldSelectionAsEntities.Num() > 0)
+			{
+				SelectItemsByEntities(OldSelectionAsEntities);
+			}
+		}
+		else
+		{
+			// Select selected Fixture Types in Fixture Type Shared Data
+			TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
+
+			for (UDMXEntity* Entity : NewSelection)
+			{
+				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
+				{
+					SelectedFixtureTypes.Add(FixtureType);
+				}
+			}
+
+			FixtureTypeSharedData->SelectFixtureTypes(SelectedFixtureTypes);
+		}
+	}
 }
 
 void SDMXFixtureTypeTree::OnCutSelectedNodes()
@@ -224,6 +299,7 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 		Library->Modify();
 
 		// Add each pasted Entity to the Library
+		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> NewFixtureTypes;
 		for (UDMXEntity* NewEntity : NewObjects)
 		{
 			check(NewEntity);
@@ -232,15 +308,14 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 			NewEntity->Rename(*MakeUniqueObjectName(Library, NewEntity->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
 
 			// Make sure the Entity's name won't collide with existing ones
-			NewEntity->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
+			NewEntity->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
 
-			Library->AddEntity(NewEntity);
-
-			OnEntitiesAdded.ExecuteIfBound();
+			NewFixtureTypes.Add(CastChecked<UDMXEntityFixtureType>(NewEntity));
 		}
 
+		FixtureTypeSharedData->SelectFixtureTypes(NewFixtureTypes);
+
 		UpdateTree();
-		SelectItemsByEntities(NewObjects, ESelectInfo::OnMouseClick);
 	}
 }
 
@@ -256,16 +331,11 @@ void SDMXFixtureTypeTree::OnDuplicateNodes()
 
 	if (Library && SelectedEntities.Num() > 0)
 	{
-		// Force the text box being edited (if any) to commit its text. The duplicate operation may trigger a regeneration of the tree view,
-		// releasing all row widgets. If one row was in edit mode (rename/rename on create), it was released before losing the focus and
-		// this would prevent the completion of the 'rename' or 'create + give initial name' transaction (occurring on focus lost).
-		FSlateApplication::Get().ClearKeyboardFocus();
-
 		const FScopedTransaction Transaction(SelectedEntities.Num() > 1 ? LOCTEXT("DuplicateFixtureTypes", "Duplicate Fixture Types") : LOCTEXT("DuplicateFixtureType", "Duplicate Fixture Type"));
 		Library->Modify();
 
-		TArray<UDMXEntity*> NewEntities;
-		NewEntities.Reserve(SelectedEntities.Num());
+		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> NewFixtureTypes;
+		NewFixtureTypes.Reserve(SelectedEntities.Num());
 
 		// We'll have the duplicates be placed right after their original counterparts
 		int32 NewEntityIndex = Library->FindEntityIndex(SelectedEntities.Last(0));
@@ -273,20 +343,18 @@ void SDMXFixtureTypeTree::OnDuplicateNodes()
 		{
 			FObjectDuplicationParameters DuplicationParams(Entity, GetDMXLibrary());
 			
-			if (UDMXEntity* EntityCopy = CastChecked<UDMXEntity>(StaticDuplicateObjectEx(DuplicationParams)))
+			if (UDMXEntityFixtureType* EntityCopy = CastChecked<UDMXEntityFixtureType>(StaticDuplicateObjectEx(DuplicationParams)))
 			{
-				EntityCopy->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, EntityCopy->GetClass(), EntityCopy->GetDisplayName()));
-				NewEntities.Add(EntityCopy);
+				EntityCopy->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, EntityCopy->GetClass(), EntityCopy->GetDisplayName()));
+				NewFixtureTypes.Add(EntityCopy);
 				
-				Library->AddEntity(EntityCopy);
 				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
 			}
 		}
-		
-		OnEntitiesAdded.ExecuteIfBound();
-		
-		UpdateTree(); // Need to refresh tree so new entities have nodes created for them
-		SelectItemsByEntities(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
+
+		FixtureTypeSharedData->SelectFixtureTypes(NewFixtureTypes);
+
+		UpdateTree();
 	}
 }
 
@@ -312,7 +380,11 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 	// Clears references to the Entities and delete them
 	FDMXEditorUtils::RemoveEntities(GetDMXLibrary(), MoveTemp(EntitiesToDelete));
 
-	OnEntitiesRemoved.ExecuteIfBound();
+	// Clear selection if no fixture types remain
+	if (GetSelectedEntities().Num() == 0)
+	{
+		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>());
+	}
 
 	UpdateTree();
 }
@@ -358,44 +430,99 @@ TSharedPtr<SDMXFixtureTypeTreeFixtureTypeRow> SDMXFixtureTypeTree::FindEntityRow
 	}
 
 	return nullptr;
+}	
+
+void SDMXFixtureTypeTree::OnFixtureTypesSelected()
+{
+	if (!bChangingSelection)
+	{
+		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
+
+		TArray<UDMXEntity*> NewSelection;
+		for (TWeakObjectPtr<UDMXEntityFixtureType> WeakFixtureType : SelectedFixtureTypes)
+		{
+			if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
+			{
+				NewSelection.Add(FixtureType);
+			}
+		}
+
+		SelectItemsByEntities(NewSelection);
+	}
 }
 
-void SDMXFixtureTypeTree::OnEntitySelected(const TArray<UDMXEntity*>& NewSelection)
+void SDMXFixtureTypeTree::OnFixturePatchesSelected()
+{
+	if (!bChangingSelection)
+	{
+		if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
+		{
+			TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = PinnedDMXEditor->GetFixturePatchSharedData()->GetSelectedFixturePatches();
+
+			// Select the corresponding Fixture Type
+			if (SelectedFixturePatches.Num() == 1)
+			{
+				if (UDMXEntityFixturePatch* FixturePatch = SelectedFixturePatches[0].Get())
+				{
+					if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+					{
+						SelectItemsByEntities(TArray<UDMXEntity*>({ FixtureType }));
+					}
+				}
+			}
+		}
+	}
+}
+
+void SDMXFixtureTypeTree::OnEntitiesAdded(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
 {
 	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
 	{
-		if (TSharedPtr<FDMXFixtureTypeSharedData> SharedData = PinnedEditor->GetFixtureTypeSharedData())
+		Entities.RemoveAll([](UDMXEntity* Entity)
+			{
+				return 
+					!IsValid(Entity) ||
+					Entity->GetClass() != UDMXEntityFixtureType::StaticClass();
+			});
+
+		if (PinnedEditor->GetDMXLibrary() == Library && Entities.Num() > 0)
 		{
-			// Never clear the selection
-			if (GetSelectedEntities().Num() == 0)
+			FixtureTypeSharedData->SelectModes(TArray<int32>());
+			constexpr bool bMatrixSelected = false;
+			FixtureTypeSharedData->SetFunctionAndMatrixSelection(TArray<int32>(), bMatrixSelected);
+
+			UpdateTree();
+		}
+	}
+}
+
+void SDMXFixtureTypeTree::OnEntitiesRemoved(UDMXLibrary* Library, TArray<UDMXEntity*> Entities)
+{
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{
+		Entities.RemoveAll([](UDMXEntity* Entity)
 			{
-				TArray<TWeakObjectPtr<UDMXEntityFixtureType>> OldSelection = SharedData->GetSelectedFixtureTypes();
-				TArray<UDMXEntity*> OldSelectionAsEntities;
-				for (TWeakObjectPtr<UDMXEntityFixtureType> SelectedFixtureType : OldSelection)
-				{
-					if (UDMXEntityFixtureType* SelectedEntity = SelectedFixtureType.Get())
-					{
-						OldSelectionAsEntities.Add(SelectedEntity);
-					}
-				}
+				return
+					!IsValid(Entity) ||
+					Entity->GetClass() != UDMXEntityFixtureType::StaticClass();
+			});
 
-				SelectItemsByEntities(OldSelectionAsEntities);
-			}
-			else
-			{
-				// Select selected Fixture Types in Fixture Type Shared Data
-				TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
+		if (PinnedEditor->GetDMXLibrary() == Library && Entities.Num() > 0)
+		{
+			UpdateTree();
+		}
+	}
+}
 
-				for (UDMXEntity* Entity : NewSelection)
-				{
-					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-					{
-						SelectedFixtureTypes.Add(FixtureType);
-					}
-				}
-
-				SharedData->SelectFixtureTypes(SelectedFixtureTypes);
-			}
+void SDMXFixtureTypeTree::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
+{
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{
+		if (FixtureType && PinnedEditor->GetDMXLibrary() == FixtureType->GetParentLibrary())
+		{
+			TArray<UDMXEntity*> SelectedEntities = GetSelectedEntities();
+			UpdateTree();
+			SelectItemsByEntities(SelectedEntities);
 		}
 	}
 }
@@ -404,7 +531,12 @@ FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 {
 	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
 	{		
-		PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixtureType.ToSharedRef());
+		UDMXEntityFixtureType* NewFixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(PinnedEditor->GetDMXLibrary());
+
+		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>({ NewFixtureType }));
+
+		UpdateTree();
+
 		return FReply::Handled();
 	}
 

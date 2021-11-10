@@ -539,16 +539,6 @@ public:
 	virtual bool IsFavorite() const { return false; }
 
 	/**
-	* Set the permission to display the favorite icon
-	*/
-	virtual void SetCanDisplayFavorite(bool CanDisplayFavoriteIcon) {}
-
-	/**
-	* Set the permission to display the favorite icon
-	*/
-	virtual bool CanDisplayFavorite() const { return false; }
-
-	/**
 	 * @return The formatted display name for the property in this node
 	 */
 	virtual FText GetDisplayName() const { return FText::GetEmpty(); }

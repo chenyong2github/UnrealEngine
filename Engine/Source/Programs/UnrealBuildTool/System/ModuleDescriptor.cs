@@ -235,7 +235,7 @@ namespace UnrealBuildTool
 		/// <param name="InObject"></param>
 		/// <param name="JsonFilePath"></param>
 		/// <returns>The new module descriptor</returns>
-		public static ModuleDescriptor FromJsonObject(JsonObject InObject, FileReference? JsonFilePath)
+		public static ModuleDescriptor FromJsonObject(JsonObject InObject, FileReference JsonFilePath)
 		{
 			ModuleDescriptor Module = new ModuleDescriptor(InObject.GetStringField("Name"), InObject.GetEnumField<ModuleHostType>("Type"));
 

@@ -13,7 +13,7 @@
 #define VULKAN_USE_CREATE_WIN32_SURFACE				1
 #define VULKAN_DYNAMICALLYLOADED					1
 #define VULKAN_SHOULD_ENABLE_DESKTOP_HMD_SUPPORT	1
-#define VULKAN_SIGNAL_UNIMPLEMENTED()				checkf(false, TEXT("Unimplemented vulkan functionality: %s"), TEXT(__FUNCTION__))
+#define VULKAN_SIGNAL_UNIMPLEMENTED()				checkf(false, TEXT("Unimplemented vulkan functionality: %s"), StringCast<TCHAR>(__FUNCTION__).Get())
 #define VULKAN_SUPPORTS_COLOR_CONVERSIONS			1
 #define VULKAN_SUPPORTS_AMD_BUFFER_MARKER			1
 

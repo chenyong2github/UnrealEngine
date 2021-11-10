@@ -10,7 +10,7 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FMemoryFilterValueConverter :public IFilterValueConvertor
+class FMemoryFilterValueConverter :public IFilterValueConverter
 {
 public:
 	virtual bool Convert(const FString& Input, int64& Output, FText& OutError) const override;

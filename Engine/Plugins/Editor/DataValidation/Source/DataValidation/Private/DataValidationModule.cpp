@@ -292,7 +292,7 @@ void FDataValidationModule::CreateDataValidationContentBrowserPathMenu(FMenuBuil
 	(
 		LOCTEXT("ValidateAssetsPathTabTitle", "Validate Assets in Folder"),
 		LOCTEXT("ValidateAssetsPathTooltipText", "Runs data validation on the assets in the selected folder."),
-		FSlateIcon(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Validate"),
 		FUIAction(FExecuteAction::CreateLambda([this, SelectedPaths]
 		{
 			FString FormattedSelectedPaths;

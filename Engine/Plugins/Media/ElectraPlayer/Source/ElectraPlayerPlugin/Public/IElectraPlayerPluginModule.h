@@ -73,7 +73,7 @@ public:
 	{
 		ClearOwner();
 	}
-	virtual void ClearOwner()
+	void ClearOwner()
 	{
 		FScopeLock lock(&OwnerLock);
 		Owner = nullptr;

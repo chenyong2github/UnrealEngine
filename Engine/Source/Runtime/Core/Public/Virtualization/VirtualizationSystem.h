@@ -75,15 +75,17 @@ public:
 	/**
 	 * Push a payload to the virtualization backends.
 	 *
-	 * @param	Id			The identifier of the payload being pushed.
-	 * @param	Payload		The payload itself in FCompressedBuffer form, it is
-	 *						assumed that if the buffer is to be compressed that
-	 *						it will have been done by the caller.
-	 * @param	StorageType	The type of storage to push the payload to, see EStorageType
-	 *						for details.
+	 * @param	Id				The identifier of the payload being pushed.
+	 * @param	Payload			The payload itself in FCompressedBuffer form, it is
+	 *							assumed that if the buffer is to be compressed that
+	 *							it will have been done by the caller.
+	 * @param	StorageType		The type of storage to push the payload to, see EStorageType
+	 *							for details.
+	 * @param	PackageContext	Name of the owning package, which can be used to provide context
+	 *							about the payload.
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType) = 0;
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext) = 0;
 
 	/**
 	 * Pull a payload from the virtualization backends.

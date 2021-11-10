@@ -75,25 +75,25 @@ void UOSCServer::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UOSCServer::SetWhitelistClientsEnabled(bool bEnabled)
+void UOSCServer::SetAllowlistClientsEnabled(bool bEnabled)
 {
 	check(ServerProxy.IsValid());
 	ServerProxy->SetFilterClientsByAllowList(bEnabled);
 }
 
-void UOSCServer::AddWhitelistedClient(const FString& InIPAddress)
+void UOSCServer::AddAllowlistedClient(const FString& InIPAddress)
 {
 	check(ServerProxy.IsValid());
 	ServerProxy->AddClientToAllowList(InIPAddress);
 }
 
-void UOSCServer::RemoveWhitelistedClient(const FString& InIPAddress)
+void UOSCServer::RemoveAllowlistedClient(const FString& InIPAddress)
 {
 	check(ServerProxy.IsValid());
 	ServerProxy->RemoveClientFromAllowList(InIPAddress);
 }
 
-void UOSCServer::ClearWhitelistedClients()
+void UOSCServer::ClearAllowlistedClients()
 {
 	check(ServerProxy.IsValid());
 	ServerProxy->ClearClientAllowList();
@@ -119,7 +119,7 @@ int32 UOSCServer::GetPort() const
 	return ServerProxy->GetPort();
 }
 
-TSet<FString> UOSCServer::GetWhitelistedClients() const
+TSet<FString> UOSCServer::GetAllowlistedClients() const
 {
 	check(ServerProxy.IsValid());
 	return ServerProxy->GetClientAllowList();
@@ -227,14 +227,14 @@ void UOSCServer::DispatchMessage(const FString& InIPAddress, uint16 InPort, cons
 	}
 }
 
-void UOSCServer::PumpPacketQueue(const TSet<uint32>* WhitelistedClients)
+void UOSCServer::PumpPacketQueue(const TSet<uint32>* AllowlistedClients)
 {
 	TSharedPtr<IOSCPacket> Packet;
 	while (OSCPackets.Dequeue(Packet))
 	{
 		FIPv4Address IPAddr;
 		const FString& Address = Packet->GetIPAddress();
-		if (!WhitelistedClients || (FIPv4Address::Parse(Address, IPAddr) && WhitelistedClients->Contains(IPAddr.Value)))
+		if (!AllowlistedClients || (FIPv4Address::Parse(Address, IPAddr) && AllowlistedClients->Contains(IPAddr.Value)))
 		{
 			uint16 Port = Packet->GetPort();
 			if (Packet->IsMessage())

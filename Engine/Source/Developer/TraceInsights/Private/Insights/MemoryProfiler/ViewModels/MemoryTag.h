@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/MemoryProfiler/ViewModels/MemoryTracker.h"
+
 class FMemoryGraphTrack;
 
 namespace Insights
@@ -34,7 +36,7 @@ public:
 	bool MatchesWildcard(const FString& FullName) const;
 	bool MatchesWildcard(const TArray<FString>& FullNames) const;
 
-	uint64 GetTrackers() const { return Trackers; }
+	FMemoryTrackerId GetTrackerId() const { return TrackerId; }
 
 	const FLinearColor& GetColor() const { return Color; }
 	void SetColor(FLinearColor InColor) { Color = InColor; }
@@ -56,7 +58,7 @@ private:
 	FMemoryTagId ParentId = InvalidTagId;
 	FString StatName;
 	FString StatFullName; // includes the parent prefix
-	uint64 Trackers = 0; // bit flags for trackers
+	Insights::FMemoryTrackerId TrackerId = Insights::FMemoryTracker::InvalidTrackerId;
 	FLinearColor Color;
 	FMemoryTag* Parent = nullptr;
 	TSet<FMemoryTag*> Children;
@@ -74,9 +76,7 @@ public:
 	uint32 GetSerialNumber() const { return SerialNumber; }
 	const TArray<FMemoryTag*>& GetTags() const { return Tags; }
 
-	const FMemoryTag* GetTagById(FMemoryTagId InTagId) const { return TagIdMap.FindRef(InTagId); }
-
-	FMemoryTag* GetTagById(FMemoryTagId InTagId) { return TagIdMap.FindRef(InTagId); }
+	FMemoryTag* GetTagById(FMemoryTrackerId InTrackerId, FMemoryTagId InTagId) const;
 
 	void Reset();
 	void Update();
@@ -92,7 +92,7 @@ private:
 
 private:
 	TArray<FMemoryTag*> Tags; // the list of memory tags; owns the allocated memory
-	TMap<FMemoryTagId, FMemoryTag*> TagIdMap;
+	TMap<FMemoryTrackerId, TMap<FMemoryTagId, FMemoryTag*>> TrackersAndTagsMap;
 	uint32 LastTraceSerialNumber;
 	uint32 SerialNumber;
 	uint64 NextUpdateTimestamp;

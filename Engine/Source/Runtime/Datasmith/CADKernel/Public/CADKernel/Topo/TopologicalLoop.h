@@ -57,11 +57,7 @@ namespace CADKernel
 
 		FTopologicalLoop(const TArray<TSharedPtr<FTopologicalEdge>>& Edges, const TArray<EOrientation>& EdgeDirections);
 
-		FTopologicalLoop(FCADKernelArchive& Archive)
-			: FTopologicalEntity()
-		{
-			Serialize(Archive);
-		}
+		FTopologicalLoop() = default;
 
 	private:
 

@@ -175,9 +175,12 @@ void FTrackEditorThumbnail::ResizeRenderTarget(const FIntPoint& InSize)
 	ENQUEUE_RENDER_COMMAND(AssignRenderTarget)(
 		[InThumbnailRenderTarget, InThumbnailTexture](FRHICommandList& RHICmdList)
 		{
-			InThumbnailTexture->InitResource();
-			InThumbnailRenderTarget->InitResource();
-			InThumbnailTexture->SetRHIRef(InThumbnailRenderTarget->GetTextureRHI(), InThumbnailRenderTarget->GetSizeX(), InThumbnailRenderTarget->GetSizeY());
+			if (InThumbnailTexture && InThumbnailRenderTarget)
+			{
+				InThumbnailTexture->InitResource();
+				InThumbnailRenderTarget->InitResource();
+				InThumbnailTexture->SetRHIRef(InThumbnailRenderTarget->GetTextureRHI(), InThumbnailRenderTarget->GetSizeX(), InThumbnailRenderTarget->GetSizeY());
+			}
 		}
 	);
 }

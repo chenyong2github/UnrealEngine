@@ -2,7 +2,6 @@
 
 #include "TaskTimingTrack.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -10,6 +9,7 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTrackEvent.h"
@@ -35,7 +35,11 @@ class FTaskTimingStateCommands : public TCommands<FTaskTimingStateCommands>
 {
 public:
 	FTaskTimingStateCommands()
-		: TCommands<FTaskTimingStateCommands>(TEXT("FTaskTimingStateCommands"), NSLOCTEXT("FTaskTimingStateCommands", "Task Timing State Commands", "Task Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FTaskTimingStateCommands>(
+			TEXT("FTaskTimingStateCommands"),
+			NSLOCTEXT("FTaskTimingStateCommands", "Task Timing State Commands", "Task Table Tree View Commands"),
+			NAME_None,
+			FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -191,7 +195,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskCriticalPath")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -200,7 +204,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskDependencies")
 	);
 
 	MenuBuilder.AddSeparator();
@@ -211,7 +215,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskPrerequisites")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -220,7 +224,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowTaskSubsequents")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -229,7 +233,7 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ShowNestedTasks")
 	);
 }
 

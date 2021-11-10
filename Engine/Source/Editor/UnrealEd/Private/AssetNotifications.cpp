@@ -21,4 +21,19 @@ void FAssetNotifications::SkeletonNeedsToBeSaved(const USkeleton* Skeleton)
 	}
 }
 
+void FAssetNotifications::CannotEditCookedAsset(const class UObject* Asset)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("AssetName"), Asset ? FText::FromString(Asset->GetName()) : FText::GetEmpty());
+	FNotificationInfo Info(FText::Format(LOCTEXT("CannotEditCookedAsset", "Cannot edit cooked asset {AssetName}"), Args));
+	Info.ExpireDuration = 5.0f;
+	Info.bUseLargeFont = false;
+	Info.bUseSuccessFailIcons = true;
+	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+	if (Notification.IsValid())
+	{
+		Notification->SetCompletionState(SNotificationItem::CS_Fail);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

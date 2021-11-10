@@ -63,6 +63,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "BlueprintNamespaceHelper.h"
+#include "BlueprintNamespaceRegistry.h"
 #include "Widgets/Input/SSuggestionTextBox.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 
@@ -5583,57 +5584,6 @@ FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobal
 	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintImports", "No Imports");
 	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintImportsValue", "Imports Value");
 	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddImport", "Add Import");
-
-	// @todo_namespaces - Consider moving this into a namespace "registry" so that it can be cached and hooked into AssetRegistry events.
-
-	UBlueprint* Blueprint = GetBlueprintObjectChecked();
-
-	auto CheckAndAddToAvailableNamespaceList = [this, Blueprint](const FString& Namespace)
-	{
-		if (!Namespace.IsEmpty()
-			&& Namespace != Blueprint->BlueprintNamespace
-			&& !Blueprint->ImportedNamespaces.Contains(Namespace)
-			&& !GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude.Contains(Namespace))
-		{
-			AvailableNamespaces.Add(Namespace);
-		}
-	};
-
-	// Add namespaces for loaded class objects (including native).
-	for (TObjectIterator<UClass> LoadedClassIt; LoadedClassIt; ++LoadedClassIt)
-	{
-		const UClass* LoadedClass = *LoadedClassIt;
-
-		// Blueprint-based classes will be added below, so skip over them here.
-		if (!LoadedClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
-		{
-			if (const FString* Namespace = LoadedClass->FindMetaData(FBlueprintMetadata::MD_Namespace))
-			{
-				CheckAndAddToAvailableNamespaceList(*Namespace);
-			}
-		}
-	}
-
-	// Add namespaces for loaded Blueprint objects. This will include macro and function library assets.
-	for (TObjectIterator<UBlueprint> LoadedBlueprintIt; LoadedBlueprintIt; ++LoadedBlueprintIt)
-	{
-		const UBlueprint* LoadedBlueprint = *LoadedBlueprintIt;
-		CheckAndAddToAvailableNamespaceList(LoadedBlueprint->BlueprintNamespace);
-	}
-
-	// Add namespaces for unloaded Blueprint assets. This will include unloaded macro and function library assets.
-	TArray<FAssetData> AssetDataArray;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AssetDataArray, true);
-	for (const FAssetData& AssetData : AssetDataArray)
-	{
-		if (AssetData.IsValid() && !AssetData.IsAssetLoaded())
-		{
-			// Note: This property is assumed to be marked AssetRegistrySearchable. It's value will be automatically added as an asset tag.
-			FString Namespace = AssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_STRING_CHECKED(UBlueprint, BlueprintNamespace));
-			CheckAndAddToAvailableNamespaceList(Namespace);
-		}
-	}
 }
 
 TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
@@ -5700,7 +5650,7 @@ void FBlueprintImportsLayout::OnRemoveItem(const FManagedListItem& Item)
 bool FBlueprintImportsLayout::IsAddImportEntryButtonEnabled() const
 {
 	FString CurrentEntryAsString = ImportEntryTextBox->GetText().ToString();
-	return AvailableNamespaces.Contains(CurrentEntryAsString);
+	return FBlueprintNamespaceRegistry::Get().IsRegisteredPath(CurrentEntryAsString);
 }
 
 FReply FBlueprintImportsLayout::OnAddImportEntryButtonClicked()
@@ -5742,11 +5692,42 @@ void FBlueprintImportsLayout::HandleImportEntryTextCommitted(const FText& NewLab
 
 void FBlueprintImportsLayout::OnShowingImportSuggestions(const FString& InputText, TArray<FString>& OutSuggestions)
 {
-	for (const FString& Namespace : AvailableNamespaces)
+	int32 PathEnd;
+	FString CurrentPath;
+	FString CurrentName;
+	if (InputText.FindLastChar(TEXT('.'), PathEnd))
 	{
-		if (InputText.IsEmpty() || Namespace.StartsWith(InputText))
+		CurrentPath = InputText.LeftChop(InputText.Len() - PathEnd);
+		CurrentName = InputText.RightChop(PathEnd + 1);
+	}
+	else
+	{
+		CurrentName = InputText;
+	}
+
+	TArray<FName> SuggestedNames;
+	FBlueprintNamespaceRegistry::Get().GetNamesUnderPath(CurrentPath, SuggestedNames);
+
+	Algo::Sort(SuggestedNames, FNameLexicalLess());
+
+	TStringBuilder<128> PathBuilder;
+	UBlueprint* Blueprint = GetBlueprintObjectChecked();
+	for (FName SuggestedName : SuggestedNames)
+	{
+		FString SuggestedNameAsString = SuggestedName.ToString();
+		if (CurrentName.IsEmpty() || SuggestedNameAsString.StartsWith(CurrentName))
 		{
-			OutSuggestions.Add(Namespace);
+			PathBuilder += CurrentPath;
+			PathBuilder += TEXT(".");
+			PathBuilder += SuggestedNameAsString;
+			
+			FString SuggestedNamespace = PathBuilder.ToString();
+			if (!Blueprint->ImportedNamespaces.Contains(SuggestedNamespace))
+			{
+				OutSuggestions.Add(SuggestedNamespace);
+			}
+
+			PathBuilder.Reset();
 		}
 	}
 }

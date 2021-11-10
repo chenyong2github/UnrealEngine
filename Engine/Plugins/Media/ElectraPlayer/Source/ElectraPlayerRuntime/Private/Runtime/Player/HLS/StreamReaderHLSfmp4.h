@@ -59,7 +59,10 @@ public:
 	int64																		DiscontinuitySequence;				//!< The discontinuity index after which this segment is located in the media playlist.
 	int32																		LocalIndex;							//!< Local index of the segment in the media playlist at the time the request was generated.
 
-	FTimeValue																	FirstAUTimeOffset;					//!< A time offset into the segment to the first access unit to be sent to the decoder (audio).
+	int64																		TimestampSequenceIndex;
+	FTimeValue																	EarliestPTS;
+	FTimeValue																	LastPTS;
+	bool																		bFrameAccuracyRequired;
 
 	bool																		bIsPrefetch;
 	bool																		bIsEOSSegment;
@@ -81,13 +84,10 @@ public:
 	TArray<TSharedPtrTS<FStreamSegmentRequestHLSfmp4>>							DependentStreams;
 	bool																		bIsInitialStartRequest;
 
-	FPlayerLoopState															PlayerLoopState;
-
 	uint32																		CurrentPlaybackSequenceID;			//!< Set by the player before adding the request to the stream reader.
 
 	Metrics::FSegmentDownloadStats												DownloadStats;
 	HTTP::FConnectionInfo														ConnectionInfo;
-	FTimeValue																	NextLargestExpectedTimestamp;	//!< Largest timestamp of all samples (plus its duration) across all tracks.
 };
 
 

@@ -20,6 +20,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "AssetThumbnail.h"
+#include "NiagaraEmitterInstance.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
@@ -292,6 +293,54 @@ void SNiagaraOverviewStackNode::OnMaterialCompiled(class UMaterialInterface* Mat
 	}
 }
 
+void SNiagaraOverviewStackNode::CreateBottomSummaryExpander()
+{
+	UNiagaraEmitter* Emitter = EmitterHandleViewModelWeak.IsValid()? EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetEmitter() : nullptr;
+	if (BottomSummaryExpander.IsValid() || !Emitter)
+	{
+		return;
+	}	
+	
+	SAssignNew(BottomSummaryExpander, SBorder)
+	.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+	.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.NodeBackgroundColor"))
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Fill)
+	[
+		SNew(SButton)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+		.HAlign(HAlign_Fill)
+		.OnClicked(this, &SNiagaraOverviewStackNode::OnSummaryExpanderClicked)
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				// LEFT
+				SNullWidget::NullWidget
+			]
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				//.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.GroupHeaderText")
+				.Text(this, &SNiagaraOverviewStackNode::GetSummaryExpanderButtonText)
+				
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			[
+				// RIGHT
+				SNullWidget::NullWidget
+			]
+		]
+	];
+}
+
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 {
 	TSharedPtr<SWidget> ContentWidget;
@@ -310,6 +359,8 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 	FillTopContentBar();
 
+	TSharedPtr<SVerticalBox> NodeBox;
+	
 	// NODE CONTENT AREA
 	TSharedRef<SWidget> NodeWidget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
@@ -317,7 +368,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		.VAlign(VAlign_Fill)
 		.Padding(FMargin(2, 2, 2, 4))
 		[
-			SNew(SVerticalBox)
+			SAssignNew(NodeBox, SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Fill)
@@ -332,36 +383,49 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			.VAlign(VAlign_Center)
 			.Padding(0.0f)
 			[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			[
-				// LEFT
-				SAssignNew(LeftNodeBox, SVerticalBox)
-			]
-			+SHorizontalBox::Slot()
-			[
-				SNew(SBorder)
- 				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
- 				.BorderBackgroundColor(FStyleColors::Panel)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(FMargin(0, 0, 0, 4))
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
 				[
-					ContentWidget.ToSharedRef()
+					// LEFT
+					SAssignNew(LeftNodeBox, SVerticalBox)
 				]
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			[
-				// RIGHT
-				SAssignNew(RightNodeBox, SVerticalBox)
-			]
+				+SHorizontalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+					.BorderBackgroundColor(FStyleColors::Panel)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.Padding(FMargin(0, 0, 0, 4))
+					[
+						ContentWidget.ToSharedRef()
+					]
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				[
+					// RIGHT
+					SAssignNew(RightNodeBox, SVerticalBox)
+				]
 			]
 		];
 
+	CreateBottomSummaryExpander();
+
+	if (BottomSummaryExpander.IsValid())
+	{
+		NodeBox->AddSlot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 2.0f)
+		[
+			BottomSummaryExpander.ToSharedRef()
+		];
+	}
 
 	return NodeWidget;
 
@@ -560,6 +624,26 @@ EVisibility SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility() const
 		EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter() != nullptr
 		? EVisibility::Visible 
 		: EVisibility::Collapsed;
+}
+
+FText SNiagaraOverviewStackNode::GetSummaryExpanderButtonText() const
+{
+	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		return EditorData->ShouldShowSummaryView()? LOCTEXT("SummaryViewExpanderButton_Expand", "Show Emitter Avanced") : LOCTEXT("SummaryViewExpanderButton_Hide", "Show Emitter Summary");
+	}
+	return LOCTEXT("SummaryViewExpanderButton_Error", "Invalid Emitter");
+}
+
+FReply SNiagaraOverviewStackNode::OnSummaryExpanderClicked()
+{
+	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	if (EditorData)
+	{
+		EditorData->ToggleShowSummaryView();
+	}
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

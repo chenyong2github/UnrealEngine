@@ -30,7 +30,6 @@ class INPUTBLUEPRINTNODES_API UK2Node_EnhancedInputAction : public UK2Node, publ
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
-	//virtual FText GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual bool IsCompatibleWithGraph(UEdGraph const* Graph) const override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;

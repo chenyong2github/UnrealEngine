@@ -268,11 +268,11 @@ FMaterialParameterInfo UMaterialInterface::GetParameterInfo(EMaterialParameterAs
 	{
 		if (LayerFunction)
 		{
-			const FMaterialLayersFunctions* MaterialLayers = GetMaterialLayers();
-			if (MaterialLayers)
+			FMaterialLayersFunctions MaterialLayers;
+			if (GetMaterialLayers(MaterialLayers))
 			{
-				if (Association == BlendParameter) Index = MaterialLayers->Blends.Find(LayerFunction);
-				else if (Association == LayerParameter) Index = MaterialLayers->Layers.Find(LayerFunction);
+				if (Association == BlendParameter) Index = MaterialLayers.Blends.Find(LayerFunction);
+				else if (Association == LayerParameter) Index = MaterialLayers.Layers.Find(LayerFunction);
 			}
 		}
 		if (Index == INDEX_NONE)

@@ -10,7 +10,7 @@
 #include "IDetailGroup.h"
 #include "NiagaraComponent.h"
 #include "NiagaraStackEditorData.h"
-#include "NiagaraEditor/Private/NiagaraEmitterEditorData.h"
+#include "NiagaraEmitterEditorData.h"
 #include "NiagaraEditorModule.h"
 #include "ScopedTransaction.h"
 

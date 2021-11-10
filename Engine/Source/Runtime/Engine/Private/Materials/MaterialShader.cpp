@@ -1355,7 +1355,10 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 				}
 			}
 
-			if (CheckCache && GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
+			// Do not check the DD cache if the material isn't persistent, because
+			//   - this results in a lot of DDC requests when editing materials which are almost always going to return nothing.
+			//   - since the get call is synchronous, this can cause a hitch if there's network latency
+			if (CheckCache && Material->IsPersistent() && GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
 			{
 				COOK_STAT(Timer.AddHit(CachedData.Num()));
 				InOutShaderMap = new FMaterialShaderMap();
@@ -2751,6 +2754,19 @@ FMaterialShaderMap::~FMaterialShaderMap()
 		AllMaterialShaderMaps.RemoveSwap(this);
 	}
 #endif
+
+	// This is an unsavory hack to repair STAT_Shaders_NumShadersLoaded not being calculated right in the superclass because the Content class isn't allowed to have virtual functions atm.
+	// A better way is tracked in UE-127112
+#if STATS
+	if (GetContent())
+	{
+		// Account for the extra shaders we missed because Content's GetNumShaders() isn't virtual and add them here. Note: Niagara needs the same
+		uint32 BaseClassShaders = FShaderMapBase::GetContent()->GetNumShaders();
+		uint32 TotalShadersIncludingBaseClass = GetContent()->GetNumShaders();
+		uint32 OwnShaders = TotalShadersIncludingBaseClass - BaseClassShaders;
+		DEC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, OwnShaders);
+	}
+#endif
 }
 
 FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
@@ -2857,7 +2873,20 @@ bool FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bo
 	// Backwards compatibility therefore will not work based on the version of Ar
 	// Instead, just bump MATERIALSHADERMAP_DERIVEDDATA_VER
 	ShaderMapId.Serialize(Ar, bLoadedByCookedMaterial);
-	return Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial, bInlineShaderCode);
+	bool bSerialized = Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial, bInlineShaderCode);
+#if STATS
+	// This is an unsavory hack to repair STAT_Shaders_NumShadersLoaded not being calculated right in the superclass because the Content class isn't allowed to have virtual functions atm.
+	// A better way is tracked in UE-127112
+	if (bSerialized && Ar.IsLoading())
+	{
+		// Account for the extra shaders we missed because Content's GetNumShaders() isn't virtual and add them here. Note: Niagara needs the same
+		uint32 BaseClassShaders = FShaderMapBase::GetContent()->GetNumShaders();
+		uint32 TotalShadersIncludingBaseClass = GetContent()->GetNumShaders();
+		uint32 OwnShaders = TotalShadersIncludingBaseClass - BaseClassShaders;
+		INC_DWORD_STAT_BY(STAT_Shaders_NumShadersLoaded, OwnShaders);
+	}
+#endif // STATS
+	return bSerialized;
 }
 
 /*void FMaterialShaderMap::RegisterSerializedShaders(bool bLoadedByCookedMaterial)

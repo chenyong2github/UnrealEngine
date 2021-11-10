@@ -21,7 +21,7 @@ FMemAllocGroupingByHeap::FMemAllocGroupingByHeap(const TraceServices::IAllocatio
 		LOCTEXT("Grouping_ByHeap_ShortName", "Heap"),
 		LOCTEXT("Grouping_ByHeap_TitleName", "By Heap"),
 		LOCTEXT("Grouping_Heap_Desc", "Creates a tree based on heap."),
-		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"),
+		TEXT("Icons.Group.TreeItem"),
 		nullptr)
 	, AllocProvider(InAllocProvider)
 {

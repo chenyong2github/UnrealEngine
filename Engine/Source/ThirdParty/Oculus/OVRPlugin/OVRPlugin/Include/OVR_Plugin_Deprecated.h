@@ -279,6 +279,26 @@ OVRP_EXPORT ovrpResult ovrp_EnqueueSubmitLayer2(
   OVRP_CONSTREF(ovrpVector4f) colorScale,
   OVRP_CONSTREF(ovrpVector4f) colorOffset);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Previously deprecated
 OVRP_EXPORT ovrpBool ovrp_Initialize(ovrpRenderAPIType apiType, void* platformArgs);
 OVRP_EXPORT ovrpBoundaryGeometry ovrp_GetBoundaryGeometry(ovrpBoundaryType boundaryType);
@@ -376,10 +396,10 @@ OVRP_EXPORT ovrpResult ovrp_EndEye2(ovrpEye eye, int frameIndex);
 // Update depth projection info, this is a replacement of ovrp_SetDepthCompositingInfo for more generic purpose
 OVRP_EXPORT ovrpResult ovrp_SetDepthProjInfo(float zNear, float zFar, ovrpBool isReverseZ);
 
-// Enable / Disable ASW
+// Deprecated
 OVRP_EXPORT ovrpResult ovrp_SetASWEnable(ovrpBool enable);
 
-// Return current ASW status
+// Deprecated
 OVRP_EXPORT ovrpResult ovrp_GetASWEnable(ovrpBool* enable);
 
 OVRP_EXPORT ovrpResult ovrp_GetSkeleton(ovrpSkeletonType skeletonType, ovrpSkeleton* skeleton);

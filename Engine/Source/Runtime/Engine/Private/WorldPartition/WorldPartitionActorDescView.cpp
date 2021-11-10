@@ -100,9 +100,9 @@ uint32 FWorldPartitionActorDescView::GetTag() const
 	return ActorDesc->Tag;
 }
 
-bool FWorldPartitionActorDescView::GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
+bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
-	return ActorDesc->GetContainerInstance(InMainPartition, OutLevelContainer, OutLevelTransform, OutClusterMode);
+	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);
 }
 
 #endif

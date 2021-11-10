@@ -556,7 +556,7 @@ public:
 
 			Data.AddUninitialized(InsertCount);
 			Data[InsertIndex] = InChar;
-			Data[InsertIndex+1] = 0;
+			Data[InsertIndex+1] = TEXT('\0');
 		}
 		return *this;
 	}
@@ -742,7 +742,7 @@ private:
 		TCHAR* ResultData = Result.Data.GetData();
 		CopyAssignItems(ResultData, Lhs, LhsLen);
 		CopyAssignItems(ResultData + LhsLen, Rhs.Data.GetData(), RhsLen);
-		*(ResultData + LhsLen + RhsLen) = 0;
+		*(ResultData + LhsLen + RhsLen) = TEXT('\0');
 		
 		return Result;
 	}

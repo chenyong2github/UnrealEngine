@@ -567,6 +567,9 @@ public:
 		
 	bool IsItemExpanded(const FSceneOutlinerTreeItemPtr& Item) const;
 
+	void ExpandAll();
+	void CollapseAll();
+
 private:
 
 	/** Check whether we should be showing folders or not in this scene outliner */

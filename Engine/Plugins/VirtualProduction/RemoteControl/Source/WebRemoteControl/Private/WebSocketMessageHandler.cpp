@@ -78,8 +78,9 @@ namespace WebSocketMessageHandlerStructUtils
 		};
 
 		Args.ArrayProperties.Emplace(Prop_ChangedFields, PropertyValueStruct);
+		const FString StructName = FString::Format(TEXT("{0}_{1}"), { *Struct_PresetFieldsChanged.ToString(), *PropertyValueStruct->GetName() });
 
-		return GenerateStruct(Struct_PresetFieldsChanged, Args);
+		return GenerateStruct(*StructName, Args);
 	}
 
 	UScriptStruct* CreateActorPropertyValueContainer(FProperty* InValueProperty)
@@ -111,7 +112,8 @@ namespace WebSocketMessageHandlerStructUtils
 
 		Args.ArrayProperties.Emplace(Prop_ModifiedProperties, ModifiedPropertiesStruct);
 
-		return GenerateStruct(Struct_ModifiedActor, Args);
+		const FString StructName = FString::Format(TEXT("{0}_{1}"), { *Struct_ModifiedActor.ToString(), *ModifiedPropertiesStruct->GetName() });
+		return GenerateStruct(*StructName, Args);
 	}
 
 	UScriptStruct* CreateModifiedActorsStruct(UScriptStruct* ModifiedActorStruct)
@@ -126,7 +128,8 @@ namespace WebSocketMessageHandlerStructUtils
 
 		Args.ArrayProperties.Emplace(Prop_ModifiedActors, ModifiedActorStruct);
 
-		return GenerateStruct(Struct_ModifiedActors, Args);
+		const FString StructName = FString::Format(TEXT("{0}_{1}"), { *Struct_ModifiedActors.ToString(), *ModifiedActorStruct->GetName() });
+		return GenerateStruct(*StructName, Args);
 	}
 
 	FStructOnScope CreatePropertyValueOnScope(const TSharedPtr<FRemoteControlProperty>& RCProperty, const FRCObjectReference& ObjectReference)

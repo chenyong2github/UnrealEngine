@@ -36,6 +36,7 @@ FStreamSegmentRequestMP4::FStreamSegmentRequestMP4()
 	bIsFirstSegment		   = false;
 	bIsLastSegment		   = false;
 	bAllTracksAtEOS 	   = false;
+	TimestampSequenceIndex = 0;
 	CurrentIteratorBytePos = 0;
 	NumOverallRetries      = 0;
 }
@@ -110,7 +111,7 @@ void FStreamSegmentRequestMP4::GetEndedStreams(TArray<TSharedPtrTS<IStreamSegmen
 
 FTimeValue FStreamSegmentRequestMP4::GetFirstPTS() const
 {
-	return FirstPTS;
+	return EarliestPTS > FirstPTS ? EarliestPTS : FirstPTS;
 }
 
 int32 FStreamSegmentRequestMP4::GetQualityIndex() const
@@ -283,11 +284,6 @@ void FStreamReaderMP4::HandleRequest()
 	// Clear the active track map.
 	ActiveTrackMap.Reset();
 
-// FIXME: If looping to somewhere within the stream instead of the beginning at zero the offset here must be made relative to the DTS of the first sample we demux.
-//        Otherwise there would be a large jump ahead in time!
-	FTimeValue LoopTimestampOffset = Request->PlayerLoopState.LoopBasetime;
-	TSharedPtrTS<const FPlayerLoopState> PlayerLoopState = MakeSharedTS<const FPlayerLoopState>(Request->PlayerLoopState);
-
 	// Check if a remote stream contains a track that is not supported or decodable on this platform.
 	// Local files are not checked since they are supposed to be valid. This is to guard against streams
 	// of unknown origin.
@@ -374,7 +370,7 @@ void FStreamReaderMP4::HandleRequest()
 	ds.HTTPStatusCode      = 0;
 	ds.StreamType   	   = Request->GetType();
 	ds.SegmentType  	   = Metrics::ESegmentType::Media;
-	ds.PresentationTime    = (Request->FirstPTS + LoopTimestampOffset).GetAsSeconds();
+	ds.PresentationTime    = Request->FirstPTS.GetAsSeconds();
 	ds.Duration 		   = Request->SegmentDuration.GetAsSeconds();
 	ds.DurationDownloaded  = 0.0;
 	ds.DurationDelivered   = 0.0;
@@ -440,7 +436,6 @@ void FStreamReaderMP4::HandleRequest()
 
 	FTimeValue DurationSuccessfullyDelivered(FTimeValue::GetZero());
 	FTimeValue DurationSuccessfullyRead(FTimeValue::GetZero());
-	FTimeValue NextLargestExpectedTimestamp(FTimeValue::GetZero());
 	bool bDone = false;
 	TSharedPtrTS<IParserISO14496_12::IAllTrackIterator> AllTrackIterator;
 	{
@@ -476,6 +471,7 @@ void FStreamReaderMP4::HandleRequest()
 				{
 					st.bIsSelectedTrack = true;
 					st.StreamType = SelectedTrackMetadata->Type;
+					st.Bitrate = SelectedTrackMetadata->Bitrate;
 					meta->Kind = SelectedTrackMetadata->Kind;
 					meta->Language = SelectedTrackMetadata->Language;
 					meta->PeriodAdaptationSetID = SelectedTrackMetadata->PeriodID + TEXT(".") + SelectedTrackMetadata->AdaptationSetID;
@@ -489,6 +485,8 @@ void FStreamReaderMP4::HandleRequest()
 				CSD->CodecSpecificData = Track->GetCodecSpecificData();
 				CSD->RawCSD			   = Track->GetCodecSpecificDataRAW();
 				CSD->ParsedInfo		   = Track->GetCodecInformation();
+				// Set information not necessarily available on the CSD.
+				CSD->ParsedInfo.SetBitrate(st.Bitrate);
 				st.CSD = MoveTemp(CSD);
 			}
 			return st;
@@ -571,26 +569,32 @@ void FStreamReaderMP4::HandleRequest()
 					AccessUnit->PTS.SetFromND(PTS, Timescale);
 					AccessUnit->DTS.SetFromND(DTS, Timescale);
 					AccessUnit->Duration.SetFromND(Duration, Timescale);
+
+					AccessUnit->EarliestPTS = Request->EarliestPTS;
+					AccessUnit->LatestPTS = Request->LastPTS;
+
 					AccessUnit->AUSize = (uint32) SampleSize;
 					AccessUnit->AUCodecData = SelectedTrack.CSD;
 					AccessUnit->DropState = FAccessUnit::EDropState::None;
 					// If this is a continuation then we must not tag samples as being too early.
 					if (!Request->bIsContinuationSegment)
 					{
-						if (AccessUnit->DTS < Request->FirstPTS)
+						if (AccessUnit->PTS + AccessUnit->Duration < Request->FirstPTS)
 						{
-							AccessUnit->DropState |= FAccessUnit::EDropState::DtsTooEarly;
-						}
-						if (AccessUnit->PTS < Request->FirstPTS)
-						{
-							AccessUnit->DropState |= FAccessUnit::EDropState::PtsTooEarly;
+							AccessUnit->DropState |= FAccessUnit::EDropState::TooEarly;
 						}
 					}
-					// FIXME: if we only want to read a partial segment we could set drop state based on the sample being 'too late'.
+					if (AccessUnit->PTS >= AccessUnit->LatestPTS)
+					{
+						AccessUnit->DropState |= FAccessUnit::EDropState::TooLate;
+					}
 
-					// Apply timestamp offsets for looping after checking the timestamp limits.
-					AccessUnit->PTS += LoopTimestampOffset;
-					AccessUnit->DTS += LoopTimestampOffset;
+					// Set the sequence index member and update all timestamps with it as well.
+					AccessUnit->SequenceIndex = Request->TimestampSequenceIndex;
+					AccessUnit->DTS.SetSequenceIndex(Request->TimestampSequenceIndex);
+					AccessUnit->PTS.SetSequenceIndex(Request->TimestampSequenceIndex);
+					AccessUnit->EarliestPTS.SetSequenceIndex(Request->TimestampSequenceIndex);
+					AccessUnit->LatestPTS.SetSequenceIndex(Request->TimestampSequenceIndex);
 
 					AccessUnit->bIsFirstInSequence = SelectedTrack.bIsFirstInSequence;
 					AccessUnit->bIsSyncSample = bIsSyncSample;
@@ -599,7 +603,6 @@ void FStreamReaderMP4::HandleRequest()
 
 					// Set the associated stream metadata
 					AccessUnit->BufferSourceInfo = SelectedTrack.BufferSourceInfo;
-					AccessUnit->PlayerLoopState = PlayerLoopState;
 
 					SelectedTrack.bIsFirstInSequence = false;
 
@@ -610,14 +613,30 @@ void FStreamReaderMP4::HandleRequest()
 
 						//LogMessage(IInfoLog::ELevel::Info, FString::Printf("[%u] %4u: DTS=%lld PTS=%lld dur=%lld sync=%d; %lld bytes @ %lld", tkid, SampleNumber, (long long int)AccessUnit->mDTS.GetAsMicroseconds(), (long long int)AccessUnit->mPTS.GetAsMicroseconds(), (long long int)AccessUnit->mDuration.GetAsMicroseconds(), bIsSyncSample?1:0, (long long int)SampleSize, (long long int)SampleFileOffset));
 
-						// Keep track of the next expected sample PTS and remember the largest value of all tracks.
-						FTimeValue NextExpectedPTS = AccessUnit->PTS + AccessUnit->Duration;
-						if (NextExpectedPTS > NextLargestExpectedTimestamp)
+						bool bSentOff = false;
+
+
+						// Check if the AU is outside the time range we are allowed to read.
+						// The last one (the one that is already outside the range, actually) is tagged as such and sent into the buffer.
+						// The respective decoder has to handle this flag if necessary and/or drop the AU.
+						// We need to send at least one AU down so the FMultiTrackAccessUnitBuffer does not stay empty for this period!
+						// Already sent the last one?
+						if (SelectedTrack.bReadPastLastPTS)
 						{
-							NextLargestExpectedTimestamp = NextExpectedPTS;
+							// Yes. Release this AU and do not forward it. Continue reading however.
+							bSentOff = true;
+							// Since we have skipped this access unit, if we are detecting an error now we need to then
+							// retry on the _next_ AU and not this one again!
+							Request->CurrentIteratorBytePos = SampleFileOffset + SampleSize;
+						}
+						else if (AccessUnit->PTS >= AccessUnit->LatestPTS)
+						{
+							// Tag the last one and send it off, but stop doing so for the remainder of the segment.
+							// Note: we continue reading this segment all the way to the end on purpose in case there are further 'emsg' boxes.
+							AccessUnit->bIsLastInPeriod = true;
+							SelectedTrack.bReadPastLastPTS = true;
 						}
 
-						bool bSentOff = false;
 						while(!bSentOff && !HasBeenAborted() && !bTerminate)
 						{
 							if (Parameters.EventListener->OnFragmentAccessUnitReceived(AccessUnit))
@@ -674,9 +693,6 @@ void FStreamReaderMP4::HandleRequest()
 	PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP, false);
 	Request->ConnectionInfo = HTTP->ConnectionInfo;
 	HTTP.Reset();
-
-	// Remember the next largest timestamp from all tracks.
-	Request->NextLargestExpectedTimestamp = NextLargestExpectedTimestamp;
 
 	// Set downloaded and delivered duration from the primary track.
 	FSelectedTrackData& PrimaryTrack = ActiveTrackMap.FindOrAdd(PrimaryTrackID);

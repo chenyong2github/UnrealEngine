@@ -85,7 +85,7 @@ namespace ChaosTest {
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		Static->SetWorldSpaceInflatedBounds(Sphere->BoundingBox().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -120,7 +120,7 @@ namespace ChaosTest {
 		Dynamic->SetGeometry(MakeSerializable(DynamicBox));
 
 		Static->X() = FVec3(10, 10, 10);
-		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 		Dynamic->X() = FVec3(10, 10, 120);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
@@ -166,7 +166,7 @@ namespace ChaosTest {
 		Dynamic->SetGeometry(MakeSerializable(DynamicBox));
 
 		Static->X() = FVec3(10, 10, 10);
-		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 		Dynamic->X() = FVec3(10, 10, 300);
 		Dynamic->I() = FMatrix33(1, 1, 1);
 		Dynamic->InvI() = FMatrix33(1, 1, 1);
@@ -210,7 +210,7 @@ namespace ChaosTest {
 		Dynamic2->SetGeometry(MakeSerializable(DynamicBox));
 
 		Static->X() = FVec3(10, 10, 10);
-		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 		Dynamic1->X() = FVec3(10, 10, 120);
 		Dynamic2->X() = FVec3(10, 10, 400);
 

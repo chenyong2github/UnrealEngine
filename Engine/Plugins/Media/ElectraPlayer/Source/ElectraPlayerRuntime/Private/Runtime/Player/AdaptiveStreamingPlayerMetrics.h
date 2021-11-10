@@ -276,6 +276,11 @@ public:
 	virtual void ReportDataAvailabilityChange(const Metrics::FDataAvailabilityChange& DataAvailability) = 0;
 
 	/**
+	 * Called when the format of the stream being decoded changes in some way.
+	 */
+	virtual void ReportDecodingFormatChange(const FStreamCodecInformation& NewDecodingFormat) = 0;
+
+	/**
 	 * Called when decoders start to decode first data to pre-roll the pipeline.
 	 */
 	virtual void ReportPrerollStart() = 0;

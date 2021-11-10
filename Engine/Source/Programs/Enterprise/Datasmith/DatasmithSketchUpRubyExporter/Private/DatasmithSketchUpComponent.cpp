@@ -242,7 +242,7 @@ void FNodeOccurence::RemoveOccurrence(FExportContext& Context)
 
 	if (MaterialOverride)
 	{
-		MaterialOverride->UnregisterInstance(this);
+		MaterialOverride->UnregisterInstance(Context, this);
 	}
 
 	for (FNodeOccurence* Child : Children)
@@ -592,6 +592,11 @@ void FComponentDefinition::AddInstance(FExportContext& Context, TSharedPtr<FComp
 
 void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 {
+	if (Node.MaterialOverride)
+	{
+		Node.MaterialOverride->UnregisterInstance(Context, &Node);
+	}
+
 	FString EffectiveLayerName = SuGetString(SULayerGetName, Node.EffectiveLayerRef);
 
 	FDefinition* EntityDefinition = GetDefinition();
@@ -618,7 +623,7 @@ void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 				// SketchUp has 'material override' only for single('Default') material. 
 				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
 				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
-				MeshActor->AddMaterialOverride(Material->GetName(), FMaterial::INHERITED_MATERIAL_ID.EntityID);
+				MeshActor->AddMaterialOverride(Material->GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
 			}
 		}
 	}

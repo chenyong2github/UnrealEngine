@@ -191,7 +191,7 @@ bool FStreamingLevelModel::IsGoodToDrop(const TSharedPtr<FLevelDragDropOp>& Op) 
 //	if ( pPackage )
 //	{
 //		FString PackageFileName;
-//		if ( FPackageName::DoesPackageExist( pPackage->GetName(), NULL, &PackageFileName ) )
+//		if ( FPackageName::DoesPackageExist( pPackage->GetName(), &PackageFileName ) )
 //		{
 //			return IFileManager::Get().IsReadOnly( *PackageFileName );
 //		}

@@ -6,17 +6,18 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "Engine/World.h"
+#include "SoundModulatorAssetProxy.h"
 #include "Templates/Function.h"
 
 
 namespace AudioModulation
 {
-	void FGeneratorBase::AudioRenderThreadCommand(TUniqueFunction<void()>&& InCommand)
+	void IGenerator::AudioRenderThreadCommand(TUniqueFunction<void()>&& InCommand)
 	{
 		CommandQueue.Enqueue(MoveTemp(InCommand));
 	}
 
-	void FGeneratorBase::PumpCommands()
+	void IGenerator::PumpCommands()
 	{
 		TUniqueFunction<void()> Cmd;
 		while (!CommandQueue.IsEmpty())
@@ -43,27 +44,30 @@ void USoundModulationGenerator::PostEditChangeProperty(FPropertyChangedEvent& In
 }
 #endif // WITH_EDITOR
 
+TUniquePtr<Audio::IProxyData> USoundModulationGenerator::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	using namespace AudioModulation;
+	return MakeUnique<TSoundModulatorAssetProxy<USoundModulationGenerator>>(*this);
+}
+
 void USoundModulationGenerator::BeginDestroy()
 {
 	using namespace AudioModulation;
 
-	Super::BeginDestroy();
-
-	UWorld* World = GetWorld();
-	if (!World)
+	if (UWorld* World = GetWorld())
 	{
-		return;
-	}
-
-	FAudioDeviceHandle AudioDevice = World->GetAudioDevice();
-	if (AudioDevice.IsValid())
-	{
-		check(AudioDevice->IsModulationPluginEnabled());
-		if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+		FAudioDeviceHandle AudioDevice = World->GetAudioDevice();
+		if (AudioDevice.IsValid())
 		{
-			FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
-			check(Modulation);
-			Modulation->DeactivateGenerator(*this);
+			check(AudioDevice->IsModulationPluginEnabled());
+			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+			{
+				FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+				check(Modulation);
+				Modulation->DeactivateGenerator(*this);
+			}
 		}
 	}
+
+	Super::BeginDestroy();
 }

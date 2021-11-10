@@ -1981,6 +1981,13 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			InitialSimFilter = FilterData.SimFilter;
 			InitialQueryFilter = FilterData.QuerySimpleFilter;
 
+			// since InitBody has not been called on the bodyInstance, OwnerComponent is nullptr
+			// we then need to set the owner on the query filters to allow for actor filtering 
+			if (const AActor* Owner = GetOwner())
+			{
+				InitialQueryFilter.Word0 = Owner->GetUniqueID();
+			}
+
 			// Enable for complex and simple (no dual representation currently like other meshes)
 			InitialQueryFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
 			InitialSimFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
@@ -2055,7 +2062,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		GetInitializationCommands(SimulationParameters.InitializationCommands);
 	}
 
-	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialQueryFilter, InitialSimFilter);
+	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter);
 	FPhysScene_Chaos* Scene = GetInnerChaosScene();
 	Scene->AddObject(this, PhysicsProxy);
 
@@ -2949,7 +2956,7 @@ void UGeometryCollectionComponent::SelectEmbeddedGeometry()
 	const TManagedArray<int32>& ExemplarIndex = GetExemplarIndexArray();
 	for (int32 SelectedBone : SelectedBones)
 	{
-		if (ExemplarIndex[SelectedBone] > INDEX_NONE)
+		if (EmbeddedGeometryComponents.IsValidIndex(ExemplarIndex[SelectedBone]))
 		{
 			EmbeddedGeometryComponents[ExemplarIndex[SelectedBone]]->SelectInstance(true, EmbeddedInstanceIndex[SelectedBone], 1);
 		}

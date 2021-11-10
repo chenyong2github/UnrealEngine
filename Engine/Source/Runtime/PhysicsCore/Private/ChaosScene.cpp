@@ -367,7 +367,6 @@ void FChaosScene::StartFrame()
 	using namespace Chaos;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_StartFrame);
-	CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StartFrame);
 
 	if(CVar_ChaosSimulationEnable.GetValueOnGameThread() == 0)
 	{
@@ -465,7 +464,6 @@ void GetAABBTreeStats(Chaos::ISpatialAccelerationCollection<Chaos::FAcceleration
 void FChaosScene::EndFrame()
 {
 #if WITH_CHAOS
-	CSV_SCOPED_TIMING_STAT(PhysicsVerbose, EndFrame);
 	using namespace Chaos;
 	using SpatialAccelerationCollection = ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>;
 

@@ -12,6 +12,7 @@
 #include "Containers/SortedMap.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
+#include "Engine/ICookInfo.h"
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
 #include "PackageNameCache.h"
@@ -201,14 +202,14 @@ namespace UE::Cook
 		 * RequestData is set to the union of the previous and new values.
 		 */
 		void UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms, bool bInIsUrgent,
-			FCompletionCallback&& InCompletionCallback, bool bAllowUpdateUrgency=true);
+			FCompletionCallback&& InCompletionCallback, FInstigator&& Instigator, bool bAllowUpdateUrgency=true);
 		/*
 		 * Set the given data onto the existing request data.
 		 * It is invalid to call with empty InRequestedPlatforms.
 		 * It is invalid to call on a PackageData that is already InProgress. 
 		 */
 		void SetRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent,
-			FCompletionCallback&& InCompletionCallback);
+			FCompletionCallback&& InCompletionCallback, FInstigator&& Instigator);
 		/**
 		 * Clear all the inprogress variables from the current PackageData. It is invalid to call this except when
 		 * the PackageData is transitioning out of InProgress.
@@ -445,6 +446,12 @@ namespace UE::Cook
 		/** Return whether a GC is required by a generator package as soon as possible. */
 		bool GeneratorPackageRequiresGC() const;
 
+		/**
+		 * Return the instigator for this package. The Instigator is the first code location or
+		 * referencing package that causes the package to enter the requested state.
+		 */
+		const FInstigator& GetInstigator() const { return Instigator; }
+
 	private:
 		friend struct UE::Cook::FPackageDatas;
 
@@ -537,6 +544,7 @@ namespace UE::Cook
 		int32 NumPendingCookedPlatformData = 0;
 		int32 CookedPlatformDataNextIndex = 0;
 		std::atomic<EPackageFormat> PreloadableFileFormat;
+		FInstigator Instigator;
 
 		uint32 State : int32(EPackageState::BitCount);
 		uint32 bIsUrgent : 1;
@@ -995,6 +1003,7 @@ namespace UE::Cook
 		FPackageDataQueue LoadReadyQueue;
 		FPackageDataQueue SaveQueue;
 		UCookOnTheFlyServer& CookOnTheFlyServer;
+		double LastPollAsyncTime;
 		bool bLogDiscoveredPackages = false;
 	};
 

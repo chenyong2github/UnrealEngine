@@ -91,7 +91,7 @@ public:
 
 
 template<typename T, int32 StorageTypeIdentifier>
-class TImmutableNodeOutput : public INodeOutput
+class TImmutableNodeOutput final : public INodeOutput
 {
 public:
 	TImmutableNodeOutput()

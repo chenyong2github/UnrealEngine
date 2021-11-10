@@ -689,13 +689,14 @@ public:
 	}
 
 protected:
-	virtual TFuture<FMD5Hash> CommitPackageInternal(const FCommitPackageInfo& Info) override
+	virtual TFuture<FMD5Hash> CommitPackageInternal(FPackageWriterRecords::FPackage&& Record,
+		const FCommitPackageInfo& Info) override
 	{
 		// CommitPackage is called below with these options
 		check(Info.Attachments.Num() == 0);
 		check(Info.bSucceeded);
 		check(Info.WriteOptions == IPackageWriter::EWriteOptions::Write);
-		if (Records.AdditionalFiles.Num() > 0)
+		if (Record.AdditionalFiles.Num() > 0)
 		{
 			// WriteAdditionalFile is only used when saving cooked packages or for SidecarDataToAppend
 			// We don't handle cooked, and SidecarDataToAppend is not yet used by anything.
@@ -711,44 +712,52 @@ protected:
 
 		TArray<FSharedBuffer> AttachmentBuffers;
 
-		for (const FFileRegion& FileRegion : Records.Package->Regions)
+		for (const FFileRegion& FileRegion : Record.Package->Regions)
 		{
 			checkf(FileRegion.Type == EFileRegionType::None, TEXT("Does not support FileRegion types other than None."));
 		}
-		check(Records.Package->Buffer.GetSize() > 0); // Header+Exports segment is non-zero in length
-		AttachmentBuffers.Add(Records.Package->Buffer);
+		check(Record.Package->Buffer.GetSize() > 0); // Header+Exports segment is non-zero in length
+		AttachmentBuffers.Add(Record.Package->Buffer);
 
-		for (const FBulkDataRecord& Record : Records.BulkDatas)
+		for (const FBulkDataRecord& BulkRecord : Record.BulkDatas)
 		{
-			checkf(Record.Info.BulkDataType == IPackageWriter::FBulkDataInfo::AppendToExports, TEXT("Does not support BulkData types other than AppendToExports."));
+			checkf(BulkRecord.Info.BulkDataType == IPackageWriter::FBulkDataInfo::AppendToExports,
+				TEXT("Does not support BulkData types other than AppendToExports."));
 
-			const uint8* BufferStart = reinterpret_cast<const uint8*>(Record.Buffer.GetData());
+			const uint8* BufferStart = reinterpret_cast<const uint8*>(BulkRecord.Buffer.GetData());
 			uint64 SizeFromRegions = 0;
-			for (const FFileRegion& FileRegion : Record.Regions)
+			for (const FFileRegion& FileRegion : BulkRecord.Regions)
 			{
-				checkf(FileRegion.Type == EFileRegionType::None, TEXT("Does not support FileRegion types other than None."));
-				checkf(FileRegion.Offset + FileRegion.Length <= Record.Buffer.GetSize(), TEXT("FileRegions in WriteBulkData were outside of the range of the BulkData's size."));
-				check(FileRegion.Length > 0); // SavePackage is not allowed to call WriteBulkData with empty bulkdatas
+				checkf(FileRegion.Type == EFileRegionType::None,
+					TEXT("Does not support FileRegion types other than None."));
+				checkf(FileRegion.Offset + FileRegion.Length <= BulkRecord.Buffer.GetSize(),
+					TEXT("FileRegions in WriteBulkData were outside of the range of the BulkData's size."));
+				check(FileRegion.Length > 0); // SavePackage must not call WriteBulkData with empty bulkdatas
 
-				AttachmentBuffers.Add(FSharedBuffer::MakeView(BufferStart + FileRegion.Offset, FileRegion.Length, Record.Buffer));
+				AttachmentBuffers.Add(FSharedBuffer::MakeView(BufferStart + FileRegion.Offset,
+					FileRegion.Length, BulkRecord.Buffer));
 				SizeFromRegions += FileRegion.Length;
 			}
-			checkf(SizeFromRegions == Record.Buffer.GetSize(), TEXT("Expects all BulkData to be in a region."))
+			checkf(SizeFromRegions == BulkRecord.Buffer.GetSize(), TEXT("Expects all BulkData to be in a region."))
 		}
-		for (const FLinkerAdditionalDataRecord& Record : Records.LinkerAdditionalDatas)
+		for (const FLinkerAdditionalDataRecord& AdditionalRecord : Record.LinkerAdditionalDatas)
 		{
-			const uint8* BufferStart = reinterpret_cast<const uint8*>(Record.Buffer.GetData());
+			const uint8* BufferStart = reinterpret_cast<const uint8*>(AdditionalRecord.Buffer.GetData());
 			uint64 SizeFromRegions = 0;
-			for (const FFileRegion& FileRegion : Record.Regions)
+			for (const FFileRegion& FileRegion : AdditionalRecord.Regions)
 			{
-				checkf(FileRegion.Type == EFileRegionType::None, TEXT("Does not support FileRegion types other than None."));
-				checkf(FileRegion.Offset + FileRegion.Length <= Record.Buffer.GetSize(), TEXT("FileRegions in WriteLinkerAdditionalData were outside of the range of the Data's size."));
-				check(FileRegion.Length > 0); // SavePackage is not allowed to call WriteLinkerAdditionalData with empty regions
+				checkf(FileRegion.Type == EFileRegionType::None,
+					TEXT("Does not support FileRegion types other than None."));
+				checkf(FileRegion.Offset + FileRegion.Length <= AdditionalRecord.Buffer.GetSize(),
+					TEXT("FileRegions in WriteLinkerAdditionalData were outside of the range of the Data's size."));
+				check(FileRegion.Length > 0); // SavePackage must not call WriteLinkerAdditionalData with empty regions
 
-				AttachmentBuffers.Add(FSharedBuffer::MakeView(BufferStart + FileRegion.Offset, FileRegion.Length, Record.Buffer));
+				AttachmentBuffers.Add(FSharedBuffer::MakeView(BufferStart + FileRegion.Offset,
+					FileRegion.Length, AdditionalRecord.Buffer));
 				SizeFromRegions += FileRegion.Length;
 			}
-			checkf(SizeFromRegions == Record.Buffer.GetSize(), TEXT("Expects all LinkerAdditionalData to be in a region."))
+			checkf(SizeFromRegions == AdditionalRecord.Buffer.GetSize(),
+				TEXT("Expects all LinkerAdditionalData to be in a region."))
 		}
 
 		// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because

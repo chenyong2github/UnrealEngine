@@ -111,7 +111,7 @@ FPacketViewDrawHelper::FPacketViewDrawHelper(const FDrawContext& InDrawContext, 
 	//, EventBorderBrush(FInsightsStyle::Get().GetBrush("EventBorder"))
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
-	, SelectionFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, SelectionFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, NumPackets(0)
 	, NumDrawSamples(0)
 {

@@ -464,7 +464,9 @@ static void FinalizeBuildSettingsForLayer(
 	int32 LayerIndex, 
 	const ITargetPlatform* TargetPlatform, 
 	ETextureEncodeSpeed InEncodeSpeed, // must be Final or Fast.
-	FTextureBuildSettings& OutSettings)
+	FTextureBuildSettings& OutSettings,
+	FTexturePlatformData::FTextureEncodeResultMetadata* OutBuildResultMetadata // can be nullptr if not needed
+	)
 {
 	FTextureFormatSettings FormatSettings;
 	Texture.GetLayerFormatSettings(LayerIndex, FormatSettings);
@@ -501,6 +503,13 @@ static void FinalizeBuildSettingsForLayer(
 			if (TextureFormat)
 			{
 				bSupportsEncodeSpeed = TextureFormat->SupportsEncodeSpeed(OutSettings.TextureFormatName);
+
+				if (OutBuildResultMetadata)
+				{
+					OutBuildResultMetadata->Encoder = TextureFormat->GetEncoderName(OutSettings.TextureFormatName);
+					OutBuildResultMetadata->bIsValid = true;
+					OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
+				}
 			}
 		}
 	}
@@ -522,7 +531,15 @@ static void FinalizeBuildSettingsForLayer(
 			switch (OutSettings.LossyCompressionAmount)
 			{
 			default:
-			case TLCA_Default: OutSettings.OodleRDO = Options.RDOLambda; break; // Use global defaults.
+			case TLCA_Default: 
+				{
+					if (OutBuildResultMetadata)
+					{
+						OutBuildResultMetadata->RDOSource = FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Default;
+					}
+					OutSettings.OodleRDO = Options.RDOLambda; 
+					break; // Use global defaults.
+				}
 			case TLCA_None:    OutSettings.OodleRDO = 0; break;		// "No lossy compression"
 			case TLCA_Lowest:  OutSettings.OodleRDO = 1; break;		// "Lowest (Best Image quality, largest filesize)"
 			case TLCA_Low:     OutSettings.OodleRDO = 10; break;	// "Low"
@@ -534,6 +551,13 @@ static void FinalizeBuildSettingsForLayer(
 		else
 		{
 			OutSettings.OodleRDO = 0;
+		}
+
+		if (OutBuildResultMetadata)
+		{
+			OutBuildResultMetadata->OodleRDO = OutSettings.OodleRDO;
+			OutBuildResultMetadata->OodleEncodeEffort = OutSettings.OodleEncodeEffort;
+			OutBuildResultMetadata->OodleUniversalTiling = OutSettings.OodleUniversalTiling;
 		}
 	}
 }
@@ -642,12 +666,17 @@ static void GetTextureBuildSettings(
 	const UTextureLODSettings& TextureLODSettings,
 	const ITargetPlatform& CurrentPlatform,
 	ETextureEncodeSpeed InEncodeSpeed, // must be Final or Fast.
-	FTextureBuildSettings& OutBuildSettings
+	FTextureBuildSettings& OutBuildSettings,
+	FTexturePlatformData::FTextureEncodeResultMetadata* OutBuildResultMetadata // can be nullptr if not needed
 	)
 {
 	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 	const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-	
+
+	if (OutBuildResultMetadata)
+	{
+		OutBuildResultMetadata->EncodeSpeed = (uint8)InEncodeSpeed;
+	}
 	OutBuildSettings.RepresentsEncodeSpeedNoSend = (uint8)InEncodeSpeed;
 
 	OutBuildSettings.ColorAdjustment.AdjustBrightness = Texture.AdjustBrightness;
@@ -743,13 +772,23 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.ChromaKeyThreshold = Texture.ChromaKeyThreshold;
 	OutBuildSettings.CompressionQuality = Texture.CompressionQuality - 1; // translate from enum's 0 .. 5 to desired compression (-1 .. 4, where -1 is default while 0 .. 4 are actual quality setting override)
 	
-	OutBuildSettings.LossyCompressionAmount = Texture.LossyCompressionAmount.GetValue();
-
 	// if LossyCompressionAmount is Default, inherit from LODGroup :
 	const FTextureLODGroup& LODGroup = TextureLODSettings.GetTextureLODGroup(Texture.LODGroup);
 	if ( OutBuildSettings.LossyCompressionAmount == TLCA_Default )
 	{
 		OutBuildSettings.LossyCompressionAmount = LODGroup.LossyCompressionAmount;
+		if (OutBuildResultMetadata)
+		{
+			OutBuildResultMetadata->RDOSource = FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::LODGroup;
+		}
+	}
+	else
+	{
+		OutBuildSettings.LossyCompressionAmount = Texture.LossyCompressionAmount.GetValue();
+		if (OutBuildResultMetadata)
+		{
+			OutBuildResultMetadata->RDOSource = FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Texture;
+		}
 	}
 
 	OutBuildSettings.Downscale = 1.0f;
@@ -808,7 +847,7 @@ static void GetTextureBuildSettings(
 	}
 
 	// By default, initialize settings for layer0
-	FinalizeBuildSettingsForLayer(Texture, 0, &CurrentPlatform, InEncodeSpeed, OutBuildSettings);
+	FinalizeBuildSettingsForLayer(Texture, 0, &CurrentPlatform, InEncodeSpeed, OutBuildSettings, OutBuildResultMetadata);
 }
 
 /**
@@ -819,7 +858,8 @@ static void GetTextureBuildSettings(
 static void GetBuildSettingsForRunningPlatform(
 	const UTexture& Texture,
 	ETextureEncodeSpeed InEncodeSpeed, //  must be Fast or Final
-	TArray<FTextureBuildSettings>& OutSettingPerLayer
+	TArray<FTextureBuildSettings>& OutSettingPerLayer,
+	TArray<FTexturePlatformData::FTextureEncodeResultMetadata>* OutResultMetadataPerLayer // can be nullptr if not needed
 	)
 {
 	// Compress to whatever formats the active target platforms want
@@ -846,7 +886,8 @@ static void GetBuildSettingsForRunningPlatform(
 
 		const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(CurrentPlatform->PlatformName());
 		FTextureBuildSettings SourceBuildSettings;
-		GetTextureBuildSettings(Texture, *LODSettings, *CurrentPlatform, InEncodeSpeed, SourceBuildSettings);
+		FTexturePlatformData::FTextureEncodeResultMetadata SourceMetadata;
+		GetTextureBuildSettings(Texture, *LODSettings, *CurrentPlatform, InEncodeSpeed, SourceBuildSettings, &SourceMetadata);
 
 		TArray< TArray<FName> > PlatformFormats;
 		CurrentPlatform->GetTextureFormats(&Texture, PlatformFormats);
@@ -856,11 +897,22 @@ static void GetBuildSettingsForRunningPlatform(
 		check(PlatformFormats[0].Num() == NumLayers);
 
 		OutSettingPerLayer.Reserve(NumLayers);
+		if (OutResultMetadataPerLayer)
+		{
+			OutResultMetadataPerLayer->Reserve(NumLayers);
+		}
 		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 		{
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormats[0][LayerIndex];
-			FinalizeBuildSettingsForLayer(Texture, LayerIndex, CurrentPlatform, InEncodeSpeed, OutSettings);
+
+			FTexturePlatformData::FTextureEncodeResultMetadata* OutMetadata = nullptr;
+			if (OutResultMetadataPerLayer)
+			{
+				OutMetadata = &OutResultMetadataPerLayer->Add_GetRef(SourceMetadata);
+			}
+			
+			FinalizeBuildSettingsForLayer(Texture, LayerIndex, CurrentPlatform, InEncodeSpeed, OutSettings, OutMetadata);
 		}
 	}
 }
@@ -868,9 +920,12 @@ static void GetBuildSettingsForRunningPlatform(
 static void GetBuildSettingsPerFormat(
 	const UTexture& Texture, 
 	const FTextureBuildSettings& SourceBuildSettings, 
+	const FTexturePlatformData::FTextureEncodeResultMetadata* SourceResultMetadata, // can be nullptr if not capturing metadata
 	const ITargetPlatform* TargetPlatform, 
 	ETextureEncodeSpeed InEncodeSpeed, //  must be Fast or Final
-	TArray< TArray<FTextureBuildSettings> >& OutBuildSettingsPerFormat)
+	TArray< TArray<FTextureBuildSettings> >& OutBuildSettingsPerFormat,
+	TArray< TArray<FTexturePlatformData::FTextureEncodeResultMetadata> >* OutResultMetadataPerFormat // can be nullptr if not capturing metadata
+	)
 {
 	const int32 NumLayers = Texture.Source.GetNumLayers();
 
@@ -878,16 +933,34 @@ static void GetBuildSettingsPerFormat(
 	TargetPlatform->GetTextureFormats(&Texture, PlatformFormats);
 
 	OutBuildSettingsPerFormat.Reserve(PlatformFormats.Num());
+	if (OutResultMetadataPerFormat)
+	{
+		OutResultMetadataPerFormat->Reserve(PlatformFormats.Num());
+	}
 	for (TArray<FName>& PlatformFormatsPerLayer : PlatformFormats)
 	{
 		check(PlatformFormatsPerLayer.Num() == NumLayers);
 		TArray<FTextureBuildSettings>& OutSettingPerLayer = OutBuildSettingsPerFormat.AddDefaulted_GetRef();
 		OutSettingPerLayer.Reserve(NumLayers);
+
+		TArray<FTexturePlatformData::FTextureEncodeResultMetadata>* OutResultMetadataPerLayer = nullptr;
+		if (OutResultMetadataPerFormat)
+		{
+			OutResultMetadataPerLayer = &OutResultMetadataPerFormat->AddDefaulted_GetRef();
+			OutResultMetadataPerLayer->Reserve(NumLayers);
+		}
+
 		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 		{
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormatsPerLayer[LayerIndex];
-			FinalizeBuildSettingsForLayer(Texture, LayerIndex, TargetPlatform, InEncodeSpeed, OutSettings);
+
+			FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadata = nullptr;
+			if (OutResultMetadataPerLayer)
+			{
+				OutResultMetadata = &OutResultMetadataPerLayer->Add_GetRef(*SourceResultMetadata);			
+			}
+			FinalizeBuildSettingsForLayer(Texture, LayerIndex, TargetPlatform, InEncodeSpeed, OutSettings, OutResultMetadata);
 		}
 	}
 }
@@ -1002,6 +1075,8 @@ void FTexturePlatformData::Cache(
 	UTexture& InTexture,
 	const FTextureBuildSettings* InSettingsPerLayerFetchFirst, // can be null
 	const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild, // must be valid
+	const FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadataPerLayerFetchFirst, // can be nullptr
+	const FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadataPerLayerFetchOrBuild, // can be nullptr
 	uint32 InFlags,
 	ITextureCompressorModule* Compressor
 	)
@@ -1025,7 +1100,15 @@ void FTexturePlatformData::Cache(
 		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 		COOK_STAT(Timer.TrackCyclesOnly());
 		EQueuedWorkPriority Priority = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
-		AsyncTask = CreateTextureBuildTask(InTexture, *this, InSettingsPerLayerFetchFirst, *InSettingsPerLayerFetchOrBuild, Priority, Flags);
+		AsyncTask = CreateTextureBuildTask(
+			InTexture, 
+			*this, 
+			InSettingsPerLayerFetchFirst, 
+			*InSettingsPerLayerFetchOrBuild, 
+			OutResultMetadataPerLayerFetchFirst, 
+			OutResultMetadataPerLayerFetchOrBuild, 
+			Priority, 
+			Flags);
 		if (AsyncTask)
 		{
 			return;
@@ -1063,13 +1146,30 @@ void FTexturePlatformData::Cache(
 
 		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 		COOK_STAT(Timer.TrackCyclesOnly());
-		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(TextureThreadPool, Compressor, this, &InTexture, InSettingsPerLayerFetchFirst, InSettingsPerLayerFetchOrBuild, Flags);
+		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(
+			TextureThreadPool, 
+			Compressor, 
+			this, 
+			&InTexture, 
+			InSettingsPerLayerFetchFirst, 
+			InSettingsPerLayerFetchOrBuild,
+			OutResultMetadataPerLayerFetchFirst, 
+			OutResultMetadataPerLayerFetchOrBuild,
+			Flags);
 		AsyncTask = LocalTask;
 		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate());
 	}
 	else
 	{
-		FTextureCacheDerivedDataWorker Worker(Compressor, this, &InTexture, InSettingsPerLayerFetchFirst, InSettingsPerLayerFetchOrBuild, Flags);
+		FTextureCacheDerivedDataWorker Worker(
+			Compressor, 
+			this, 
+			&InTexture, 
+			InSettingsPerLayerFetchFirst, 
+			InSettingsPerLayerFetchOrBuild, 
+			OutResultMetadataPerLayerFetchFirst,
+			OutResultMetadataPerLayerFetchOrBuild,
+			Flags);
 		{
 			COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 			Worker.DoWork();
@@ -1134,7 +1234,7 @@ void FTexturePlatformData::FinishCache()
 			bool bFoundInCache = false;
 			uint64 ProcessedByteCount = 0;
 			AsyncTask->Wait();
-			AsyncTask->Finalize(bFoundInCache, (ETextureEncodeSpeed&)UsedEncodeSpeed, ProcessedByteCount);
+			AsyncTask->Finalize(bFoundInCache, ProcessedByteCount);
 			COOK_STAT(Timer.AddHitOrMiss(bFoundInCache ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, int64(ProcessedByteCount)));
 		}
 		delete AsyncTask;
@@ -2113,14 +2213,15 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 			// we know we're actually going to Cache()
 			//
 			TArray<FTextureBuildSettings> BuildSettingsFetchOrBuild;
+			TArray<FTexturePlatformData::FTextureEncodeResultMetadata> ResultMetadataFetchOrBuild;
 			if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable ||
 				EncodeSpeed == ETextureEncodeSpeed::Fast)
 			{
-				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
+				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild, &ResultMetadataFetchOrBuild);
 			}
 			else
 			{
-				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchOrBuild);
+				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchOrBuild, &ResultMetadataFetchOrBuild);
 			}
 
 			check(BuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
@@ -2176,12 +2277,20 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 				// We delayed generating our FetchFirst settings since we assume we'll usually be just testing
 				// keys above.
 				TArray<FTextureBuildSettings> BuildSettingsFetchFirst;
+				TArray<FTexturePlatformData::FTextureEncodeResultMetadata> ResultMetadataFetchFirst;
 				if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 				{
-					GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchFirst);
+					GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchFirst, &ResultMetadataFetchFirst);
 				}
 
-				PlatformDataLink->Cache(*this, BuildSettingsFetchFirst.Num() ? BuildSettingsFetchFirst.GetData() : 0, BuildSettingsFetchOrBuild.GetData(), uint32(CacheFlags), Compressor);
+				PlatformDataLink->Cache(
+					*this, 
+					BuildSettingsFetchFirst.Num() ? BuildSettingsFetchFirst.GetData() : nullptr, 
+					BuildSettingsFetchOrBuild.GetData(), 
+					ResultMetadataFetchFirst.Num() ? ResultMetadataFetchFirst.GetData() : nullptr,
+					ResultMetadataFetchOrBuild.GetData(),
+					uint32(CacheFlags), 
+					Compressor);
 			}
 		}
 		else if (PlatformDataLink == NULL)
@@ -2232,19 +2341,19 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 		{			
 			FTextureBuildSettings BuildSettingsFinal, BuildSettingsFast;
-			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsFinal);
-			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsFast);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsFinal, nullptr);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsFast, nullptr);
 
 			// Try and fetch Final, but build Fast.
-			GetBuildSettingsPerFormat(*this, BuildSettingsFinal, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch);
-			GetBuildSettingsPerFormat(*this, BuildSettingsFast, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild);
+			GetBuildSettingsPerFormat(*this, BuildSettingsFinal, nullptr, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch, nullptr);
+			GetBuildSettingsPerFormat(*this, BuildSettingsFast, nullptr, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild, nullptr);
 			HaveFetch = true;
 		}
 		else
 		{
 			FTextureBuildSettings BuildSettings;
-			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, EncodeSpeed, BuildSettings);
-			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, EncodeSpeed, BuildSettingsToCacheFetchOrBuild);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, EncodeSpeed, BuildSettings, nullptr);
+			GetBuildSettingsPerFormat(*this, BuildSettings, nullptr, TargetPlatform, EncodeSpeed, BuildSettingsToCacheFetchOrBuild, nullptr);
 		}
 		
 		// Cull redundant settings by comparing derived data keys.
@@ -2289,6 +2398,8 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 				*this,
 				HaveFetch ? BuildSettingsToCacheFetch[SettingsIndex].GetData() : nullptr,
 				BuildSettingsToCacheFetchOrBuild[SettingsIndex].GetData(),
+				nullptr,
+				nullptr,
 				uint32(ETextureCacheFlags::Async | ETextureCacheFlags::InlineMips | ETextureCacheFlags::AllowAsyncBuild | ETextureCacheFlags::AllowAsyncLoading),
 				nullptr
 				);
@@ -2321,14 +2432,14 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 			EncodeSpeed == ETextureEncodeSpeed::Fast)
 		{
 			FTextureBuildSettings BuildSettings;
-			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings);
-			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsForPlatform);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings, nullptr);
+			GetBuildSettingsPerFormat(*this, BuildSettings, nullptr, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsForPlatform, nullptr);
 		}
 		else
 		{
 			FTextureBuildSettings BuildSettings;
-			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings);
-			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsForPlatform);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings, nullptr);
+			GetBuildSettingsPerFormat(*this, BuildSettings, nullptr, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsForPlatform, nullptr);
 		}
 		
 		// If the cooked platform data contains our data, evict it
@@ -2386,14 +2497,14 @@ bool UTexture::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPla
 		EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 	{
 		FTextureBuildSettings BuildSettings;
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings);
-		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsAllFormats);
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings, nullptr);
+		GetBuildSettingsPerFormat(*this, BuildSettings, nullptr, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsAllFormats, nullptr);
 	}
 	else
 	{
 		FTextureBuildSettings BuildSettings;
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings);
-		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsAllFormats);
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings, nullptr);
+		GetBuildSettingsPerFormat(*this, BuildSettings, nullptr, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsAllFormats, nullptr);
 	}
 
 	
@@ -2543,15 +2654,17 @@ void UTexture::ForceRebuildPlatformData(uint8 InEncodeSpeedOverride /* =255 ETex
 
 		TArray<FTextureBuildSettings> BuildSettingsFetch;
 		TArray<FTextureBuildSettings> BuildSettingsFetchOrBuild;
+		TArray<FTexturePlatformData::FTextureEncodeResultMetadata> ResultMetadataFetch;
+		TArray<FTexturePlatformData::FTextureEncodeResultMetadata> ResultMetadataFetchOrBuild;
 
 		if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 		{
-			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetch);
-			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
+			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetch, &ResultMetadataFetch);
+			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild, &ResultMetadataFetchOrBuild);
 		}
 		else
 		{
-			GetBuildSettingsForRunningPlatform(*this, EncodeSpeed, BuildSettingsFetchOrBuild);
+			GetBuildSettingsForRunningPlatform(*this, EncodeSpeed, BuildSettingsFetchOrBuild, &ResultMetadataFetchOrBuild);
 		}
 		
 		check(BuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
@@ -2560,6 +2673,8 @@ void UTexture::ForceRebuildPlatformData(uint8 InEncodeSpeedOverride /* =255 ETex
 			*this,
 			BuildSettingsFetch.GetData(),
 			BuildSettingsFetchOrBuild.GetData(),
+			ResultMetadataFetch.GetData(),
+			ResultMetadataFetchOrBuild.GetData(),
 			uint32(ETextureCacheFlags::ForceRebuild),
 			nullptr
 			);
@@ -2688,18 +2803,18 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 				{
 					FTextureBuildSettings BuildSettingsFetch;
-					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsFetch);
-					GetBuildSettingsPerFormat(*this, BuildSettingsFetch, Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch);
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsFetch, nullptr);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetch, nullptr, Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch, nullptr);
 
 					FTextureBuildSettings BuildSettingsFetchOrBuild;
-					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
-					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild);
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild, nullptr);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, nullptr, Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild, nullptr);
 				}
 				else
 				{
 					FTextureBuildSettings BuildSettingsFetchOrBuild;
-					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), EncodeSpeed, BuildSettingsFetchOrBuild);
-					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, Ar.CookingTarget(), EncodeSpeed, BuildSettingsToCacheFetchOrBuild);
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), EncodeSpeed, BuildSettingsFetchOrBuild, nullptr);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, nullptr, Ar.CookingTarget(), EncodeSpeed, BuildSettingsToCacheFetchOrBuild, nullptr);
 				}
 
 				for (int32 SettingIndex = 0; SettingIndex < BuildSettingsToCacheFetchOrBuild.Num(); SettingIndex++)
@@ -2715,8 +2830,10 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 					{
 						PlatformDataPtr = new FTexturePlatformData();
 						PlatformDataPtr->Cache(*this, 
-							BuildSettingsToCacheFetch.Num() ? BuildSettingsToCacheFetch[SettingIndex].GetData() : 0,
+							BuildSettingsToCacheFetch.Num() ? BuildSettingsToCacheFetch[SettingIndex].GetData() : nullptr,
 							BuildSettingsToCacheFetchOrBuild[SettingIndex].GetData(), 
+							nullptr,
+							nullptr,
 							uint32(ETextureCacheFlags::InlineMips | ETextureCacheFlags::Async), 
 							nullptr);
 

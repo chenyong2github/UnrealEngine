@@ -974,7 +974,7 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 };
 
-class DATASMITHCORE_API FDatasmithLandscapeElementImpl : public FDatasmithActorElementImpl< IDatasmithLandscapeElement >
+class DATASMITHCORE_API FDatasmithLandscapeElementImpl final : public FDatasmithActorElementImpl< IDatasmithLandscapeElement >
 {
 public:
 	explicit FDatasmithLandscapeElementImpl(const TCHAR* InName)
@@ -1584,26 +1584,30 @@ public:
 	virtual TSharedPtr< IDatasmithMeshElement > GetMesh(int32 InIndex) override;
 	virtual const TSharedPtr< IDatasmithMeshElement >& GetMesh(int32 InIndex) const override;
 	virtual void RemoveMesh(const TSharedPtr< IDatasmithMeshElement >& InMesh) override { Meshes.Remove(InMesh); }
+	virtual void RemoveMeshAt(int32 InIndex) override;
 	virtual void EmptyMeshes() override { Meshes.Empty(); }
 
 	virtual void AddActor(const TSharedPtr< IDatasmithActorElement >& InActor) override { Actors.Add(InActor);  }
 	virtual int32 GetActorsCount() const override { return Actors.Num(); }
-	virtual TSharedPtr< IDatasmithActorElement > GetActor(int32 InIndex) override { return Actors[InIndex]; }
-	virtual const TSharedPtr< IDatasmithActorElement >& GetActor(int32 InIndex) const override { return Actors[InIndex]; }
+	virtual TSharedPtr< IDatasmithActorElement > GetActor(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithActorElement >& GetActor(int32 InIndex) const override;
 	virtual void RemoveActor(const TSharedPtr< IDatasmithActorElement >& InActor, EDatasmithActorRemovalRule RemoveRule) override;
+	virtual void RemoveActorAt(int32 InIndex, EDatasmithActorRemovalRule RemoveRule) override;
 
 	virtual void AddMaterial(const TSharedPtr< IDatasmithBaseMaterialElement >& InMaterial) override { Materials.Add(InMaterial); }
 	virtual int32 GetMaterialsCount() const override { return Materials.Num(); }
-	virtual TSharedPtr< IDatasmithBaseMaterialElement > GetMaterial(int32 InIndex) override { return Materials[InIndex]; }
-	virtual const TSharedPtr< IDatasmithBaseMaterialElement >& GetMaterial(int32 InIndex) const override { return Materials[InIndex]; }
+	virtual TSharedPtr< IDatasmithBaseMaterialElement > GetMaterial(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithBaseMaterialElement >& GetMaterial(int32 InIndex) const override;
 	virtual void RemoveMaterial(const TSharedPtr< IDatasmithBaseMaterialElement >& InMaterial) override { Materials.Remove(InMaterial); }
+	virtual void RemoveMaterialAt(int32 InIndex) override;
 	virtual void EmptyMaterials() override { Materials.Empty(); }
 
 	virtual void AddTexture(const TSharedPtr< IDatasmithTextureElement >& InTexture) override { Textures.Add(InTexture); }
 	virtual int32 GetTexturesCount() const override { return Textures.Num(); }
-	virtual TSharedPtr< IDatasmithTextureElement > GetTexture(int32 InIndex) override { return Textures[InIndex]; }
-	virtual const TSharedPtr< IDatasmithTextureElement >& GetTexture(int32 InIndex) const override { return Textures[InIndex]; }
+	virtual TSharedPtr< IDatasmithTextureElement > GetTexture(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithTextureElement >& GetTexture(int32 InIndex) const override;
 	virtual void RemoveTexture(const TSharedPtr< IDatasmithTextureElement >& InTexture) override { Textures.Remove(InTexture); }
+	virtual void RemoveTextureAt(int32 InIndex) override;
 	virtual void EmptyTextures() override { Textures.Empty(); }
 
 	virtual void SetPostProcess(const TSharedPtr< IDatasmithPostProcessElement >& InPostProcess) override { PostProcess.Inner = InPostProcess; }
@@ -1625,22 +1629,21 @@ public:
 	virtual TSharedPtr< IDatasmithMetaDataElement > GetMetaData(const TSharedPtr<IDatasmithElement>& Element) override;
 	virtual const TSharedPtr< IDatasmithMetaDataElement >& GetMetaData(const TSharedPtr<IDatasmithElement>& Element) const override;
 	virtual void RemoveMetaData( const TSharedPtr<IDatasmithMetaDataElement>& Element ) override;
+	virtual void RemoveMetaDataAt(int32 InIndex) override;
 
 	virtual void AddLevelSequence(const TSharedRef< IDatasmithLevelSequenceElement >& InSequence) override { LevelSequences.Add(InSequence);  }
 	virtual int32 GetLevelSequencesCount() const override { return LevelSequences.Num(); }
-	virtual TSharedPtr< IDatasmithLevelSequenceElement > GetLevelSequence(int32 InIndex) override
-	{
-		return LevelSequences.IsValidIndex(InIndex) ? LevelSequences[InIndex] : TSharedPtr< IDatasmithLevelSequenceElement >();
-	}
+	virtual TSharedPtr< IDatasmithLevelSequenceElement > GetLevelSequence(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithLevelSequenceElement >& GetLevelSequence(int32 InIndex) const override;
 	virtual void RemoveLevelSequence(const TSharedRef< IDatasmithLevelSequenceElement >& InSequence) override { LevelSequences.Remove(InSequence); }
+	virtual void RemoveLevelSequenceAt(int32 InIndex) override;
 
 	virtual void AddLevelVariantSets(const TSharedPtr< IDatasmithLevelVariantSetsElement >& InLevelVariantSets) override { LevelVariantSets.Add(InLevelVariantSets);  }
 	virtual int32 GetLevelVariantSetsCount() const override { return LevelVariantSets.Num(); }
-	virtual TSharedPtr< IDatasmithLevelVariantSetsElement > GetLevelVariantSets(int32 InIndex) override
-	{
-		return LevelVariantSets.IsValidIndex(InIndex) ? LevelVariantSets[InIndex] : TSharedPtr< IDatasmithLevelVariantSetsElement >();
-	}
+	virtual TSharedPtr< IDatasmithLevelVariantSetsElement > GetLevelVariantSets(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithLevelVariantSetsElement >& GetLevelVariantSets(int32 InIndex) const override;
 	virtual void RemoveLevelVariantSets(const TSharedPtr< IDatasmithLevelVariantSetsElement >& InLevelVariantSets) override { LevelVariantSets.Remove(InLevelVariantSets); }
+	virtual void RemoveLevelVariantSetsAt(int32 InIndex) override;
 
 	virtual void AttachActor(const TSharedPtr< IDatasmithActorElement >& NewParent, const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) override;
 	virtual void AttachActorToSceneRoot(const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) override;

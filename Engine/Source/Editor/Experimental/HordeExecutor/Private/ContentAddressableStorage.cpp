@@ -7,6 +7,7 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/CompactBinary.h"
 
 #include "RemoteMessages.h"
@@ -42,12 +43,20 @@ namespace UE::RemoteExecution
 
 	TFuture<EStatusCode> FContentAddressableStorage::DoesBlobExistAsync(const FString& NameSpaceId, const FIoHash& Hash)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<EStatusCode> UnloadedPromise;
+			UnloadedPromise.SetValue(EStatusCode::BadRequest);
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(NameSpaceId);
 		Args.Add(FString::FromHexBlob(Hash.GetBytes(), sizeof(FIoHash::ByteArray)));
 		const FString Route = FString::Format(TEXT("/api/v1/blobs/{0}/{1}"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb(TEXT("HEAD"));
 		Request->SetURL(BaseURL + Route);
 		for (const TPair<FString, FString>& Header : AdditionalHeaders)
@@ -65,6 +74,19 @@ namespace UE::RemoteExecution
 
 	TFuture<TMap<FIoHash, EStatusCode>> FContentAddressableStorage::DoBlobsExistAsync(const FString& NameSpaceId, const TSet<FIoHash>& Hashes)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<TMap<FIoHash, EStatusCode>> UnloadedPromise;
+			TMap<FIoHash, EStatusCode> UnloadedResults;
+			for (const FIoHash& Hash : Hashes)
+			{
+				UnloadedResults.Add(Hash, EStatusCode::BadRequest);
+			}
+			UnloadedPromise.EmplaceValue(UnloadedResults);
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(NameSpaceId);
 		const FString Route = FString::Format(TEXT("/api/v1/blobs/{0}/exists?"), Args);
@@ -84,7 +106,7 @@ namespace UE::RemoteExecution
 			}
 		}
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb(TEXT("POST"));
 		Request->SetURL(BaseURL + Route + Query);
 		Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
@@ -120,12 +142,20 @@ namespace UE::RemoteExecution
 
 	TFuture<EStatusCode> FContentAddressableStorage::PutBlobAsync(const FString& NameSpaceId, const FIoHash& Hash, const TArray<uint8>& Data)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<EStatusCode> UnloadedPromise;
+			UnloadedPromise.SetValue(EStatusCode::BadRequest);
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(NameSpaceId);
 		Args.Add(FString::FromHexBlob(Hash.GetBytes(), sizeof(FIoHash::ByteArray)));
 		const FString Route = FString::Format(TEXT("/api/v1/blobs/{0}/{1}"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb(TEXT("PUT"));
 		Request->SetURL(BaseURL + Route);
 		Request->SetHeader(TEXT("Content-Type"), TEXT("application/octet-stream"));
@@ -173,6 +203,12 @@ namespace UE::RemoteExecution
 				return;
 			}
 
+			if (!GIsRunning)
+			{
+				ReturnPromise->SetValue(EStatusCode::Denied);
+				return;
+			}
+
 			PutBlobAsync(NameSpaceId, Hash, Data).Next([ReturnPromise](EStatusCode&& PutResponse) {
 				ReturnPromise->EmplaceValue(PutResponse);
 				});
@@ -197,6 +233,17 @@ namespace UE::RemoteExecution
 				return;
 			}
 
+			if (!GIsRunning)
+			{
+				TMap<FIoHash, EStatusCode> PutResponse;
+				for (const TPair<FIoHash, TArray<uint8>>& Blob : Blobs)
+				{
+					PutResponse.Add(Blob.Key, EStatusCode::Denied);
+				}
+				ReturnPromise->EmplaceValue(PutResponse);
+				return;
+			}
+
 			PutBlobsAsync(NameSpaceId, Remaining).Next([ReturnPromise, ExistsResponse](TMap<FIoHash, EStatusCode>&& PutResponse) {
 				for (const TPair<FIoHash, EStatusCode>& Exists : ExistsResponse)
 				{
@@ -213,12 +260,20 @@ namespace UE::RemoteExecution
 
 	TFuture<TPair<EStatusCode, TArray<uint8>>> FContentAddressableStorage::GetBlobAsync(const FString& NameSpaceId, const FIoHash& Hash)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<TPair<EStatusCode, TArray<uint8>>> UnloadedPromise;
+			UnloadedPromise.EmplaceValue(TPair<EStatusCode, TArray<uint8>>(EStatusCode::BadRequest, TArray<uint8>()));
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(NameSpaceId);
 		Args.Add(FString::FromHexBlob(Hash.GetBytes(), sizeof(FIoHash::ByteArray)));
 		const FString Route = FString::Format(TEXT("/api/v1/blobs/{0}/{1}"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb("GET");
 		Request->SetURL(BaseURL + Route);
 		Request->SetHeader(TEXT("Accept"), TEXT("application/octet-stream"));
@@ -255,12 +310,20 @@ namespace UE::RemoteExecution
 
 	TFuture<TPair<EStatusCode, FGetObjectTreeResponse>> FContentAddressableStorage::GetObjectTreeAsync(const FString& NameSpaceId, const FIoHash& Hash, const TSet<FIoHash>& HaveHashes)
 	{
+		FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+		if (!HttpModule)
+		{
+			TPromise<TPair<EStatusCode, FGetObjectTreeResponse>> UnloadedPromise;
+			UnloadedPromise.EmplaceValue(TPair<EStatusCode, FGetObjectTreeResponse>(EStatusCode::BadRequest, FGetObjectTreeResponse()));
+			return UnloadedPromise.GetFuture();
+		}
+
 		FStringFormatOrderedArguments Args;
 		Args.Add(NameSpaceId);
 		Args.Add(FString::FromHexBlob(Hash.GetBytes(), sizeof(FIoHash::ByteArray)));
 		const FString Route = FString::Format(TEXT("/api/v1/objects/{0}/{1}/tree"), Args);
 
-		TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest> Request = HttpModule->CreateRequest();
 		Request->SetVerb("POST");
 		Request->SetURL(BaseURL + Route);
 		Request->SetHeader(TEXT("Accept"), TEXT("application/octet-stream"));

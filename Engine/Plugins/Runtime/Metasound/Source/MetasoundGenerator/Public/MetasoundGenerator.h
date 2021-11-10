@@ -72,6 +72,8 @@ namespace Metasound
 		using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
 		using FAudioBufferReadRef = Metasound::FAudioBufferReadRef;
 
+		FString MetasoundName;
+
 		/** Create the generator with a graph operator and an output audio reference.
 		 *
 		 * @param InGraphOperator - Unique pointer to the IOperator which executes the entire graph.

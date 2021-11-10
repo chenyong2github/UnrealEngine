@@ -23,7 +23,6 @@ public class MessageLog : ModuleRules
 				"Slate",
 				"SlateCore",
                 "InputCore",
-                "EditorStyle",
 			}
 		);
 

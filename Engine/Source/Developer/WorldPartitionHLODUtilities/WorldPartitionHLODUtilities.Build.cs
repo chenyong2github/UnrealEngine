@@ -18,13 +18,8 @@ public class WorldPartitionHLODUtilities : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
 			{
-				"EditorFramework",
 				"Engine",
-				"MaterialUtilities",
-				"MeshDescription",
-				"StaticMeshDescription",
-				"UnrealEd",
-                "Projects",
+				"MaterialUtilities"
 			}
         );
 

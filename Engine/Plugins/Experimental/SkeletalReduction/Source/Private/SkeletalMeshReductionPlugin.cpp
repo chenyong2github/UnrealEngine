@@ -1896,33 +1896,80 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	SrcModelBackup.UserSectionsData = SrcModel->UserSectionsData;
 
 	//Restore the source sections data
-	auto RestoreUserSectionsData = [](const FSkeletalMeshLODModel& SourceLODModel, FSkeletalMeshLODModel& DestinationLODModel)
+	auto RestoreUserSectionsData = [](const FSkeletalMeshLODModel& SourceLODModel, FSkeletalMeshLODModel& DestinationLODModel, bool bAddMissingUserSectionData)
 	{
 		//Now restore the reduce section user change and adjust the originalDataSectionIndex to point on the correct UserSectionData
-		TBitArray<> SourceSectionMatched;
-		SourceSectionMatched.Init(false, SourceLODModel.Sections.Num());
+		TArray<int32> SourceSectionMatched;
+		SourceSectionMatched.Reserve(SourceLODModel.Sections.Num());
+		for (int32 SourceSectionIndex = 0; SourceSectionIndex < SourceLODModel.Sections.Num(); ++SourceSectionIndex)
+		{
+			SourceSectionMatched.Add(INDEX_NONE);
+		}
+
 		for (int32 SectionIndex = 0; SectionIndex < DestinationLODModel.Sections.Num(); ++SectionIndex)
 		{
 			FSkelMeshSection& Section = DestinationLODModel.Sections[SectionIndex];
 			FSkelMeshSourceSectionUserData& DestinationUserData = FSkelMeshSourceSectionUserData::GetSourceSectionUserData(DestinationLODModel.UserSectionsData, Section);
 			for (int32 SourceSectionIndex = 0; SourceSectionIndex < SourceLODModel.Sections.Num(); ++SourceSectionIndex)
 			{
-				if (SourceSectionMatched[SourceSectionIndex])
+				if (SourceSectionMatched[SourceSectionIndex] != INDEX_NONE)
 				{
 					continue;
 				}
 				const FSkelMeshSection& SourceSection = SourceLODModel.Sections[SourceSectionIndex];
 				if (const FSkelMeshSourceSectionUserData* SourceUserData = SourceLODModel.UserSectionsData.Find(SourceSection.OriginalDataSectionIndex))
 				{
+					//Section material index reflect the imported material slot, if the user change this value it will go in 
+					//FSkeletalMeshLODInfo::LODMaterialMap of the skeletalmesh. So we can count on the material index to be unique per
+					//section that are not chunked.
 					if (Section.MaterialIndex == SourceSection.MaterialIndex)
 					{
 						DestinationUserData = *SourceUserData;
-						SourceSectionMatched[SourceSectionIndex] = true;
+						SourceSectionMatched[SourceSectionIndex] = SectionIndex;
 						break;
 					}
 				}
 			}
 		}
+		//If the reduction result have less "user section data" compare to the source, we have to make correction to the data
+		//and copy back the source "user section data" into the destination
+		const bool bHasSomeMissingData = DestinationLODModel.UserSectionsData.Num() < SourceLODModel.UserSectionsData.Num();
+		if (bAddMissingUserSectionData && bHasSomeMissingData)
+		{
+			//The goal is to reamp all destination LOD model sections FSkelMeshSection::OriginalDataSectionIndex to fit with the
+			//original SourceModel FSkeletalMeshLODModel::UserSectionData. to do this we will use an offset we increment for any unmatched
+			//source section.
+			int32 OriginalSectionIndexOffset = 0;
+			for (int32 SourceSectionIndex = 0; SourceSectionIndex < SourceLODModel.Sections.Num(); ++SourceSectionIndex)
+			{
+				const FSkelMeshSection& SourceSection = SourceLODModel.Sections[SourceSectionIndex];
+				//Skip chunked section, they do not affect the user section data
+				if (SourceSection.ChunkedParentSectionIndex != INDEX_NONE)
+				{
+					continue;
+				}
+				//Skip the sections that already have the correct value, no user data section was missing yet
+				if (OriginalSectionIndexOffset == 0 && SourceSectionMatched[SourceSectionIndex] == SourceSectionIndex)
+				{
+					//Nothing to change
+					continue;
+				}
+				if (SourceSectionMatched[SourceSectionIndex] == INDEX_NONE)
+				{
+					//We need to increment the offset for every unmatched source section
+					OriginalSectionIndexOffset++;
+				}
+				else
+				{
+					//Fix up the current section by adding the offset to the section OriginalDataSectionIndex.
+					FSkelMeshSection& Section = DestinationLODModel.Sections[SourceSectionMatched[SourceSectionIndex]];
+					Section.OriginalDataSectionIndex += OriginalSectionIndexOffset;
+				}
+			}
+			//We can now copy the user section data of the source since all destination sections has been converted to use the source UserSectionsData
+			DestinationLODModel.UserSectionsData = SourceLODModel.UserSectionsData;
+		}
+
 		DestinationLODModel.SyncronizeUserSectionsDataArray();
 	};
 
@@ -2132,14 +2179,20 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		//DDC key cannot be change during the build
 		{
 			FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
-			RestoreUserSectionsData(SrcModelBackup, ImportedModelLOD);
 
 			if (!bLODModelAdded)
 			{
-				RestoreUserSectionsData(DstModelBackup, ImportedModelLOD);
+				//We have to force the UserSectionData to be the one from the backup
+				constexpr bool bAddMissingUserSectionData = true;
+				RestoreUserSectionsData(DstModelBackup, ImportedModelLOD, bAddMissingUserSectionData);
 				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
 				ImportedModelLOD.RawSkeletalMeshBulkDataID = BackupRawSkeletalMeshBulkDataID;
+			}
+			else
+			{
+				constexpr bool bAddMissingUserSectionData = false;
+				RestoreUserSectionsData(SrcModelBackup, ImportedModelLOD, bAddMissingUserSectionData);
 			}
 		}
 	}

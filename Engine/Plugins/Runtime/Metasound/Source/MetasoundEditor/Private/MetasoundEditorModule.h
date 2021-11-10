@@ -30,7 +30,7 @@ namespace Metasound
 			FEdGraphPinType PinType;
 			FDataTypeRegistryInfo RegistryInfo;
 
-			FEditorDataType(FEdGraphPinType&& InPinType, const FDataTypeRegistryInfo& InRegistryInfo)
+			FEditorDataType(FEdGraphPinType&& InPinType, FDataTypeRegistryInfo&& InRegistryInfo)
 				: PinType(MoveTemp(InPinType))
 				, RegistryInfo(InRegistryInfo)
 			{
@@ -56,10 +56,21 @@ namespace Metasound
 		class METASOUNDEDITOR_API IMetasoundEditorModule : public IModuleInterface
 		{
 		public:
-			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) = 0;
+			// Whether or not the given proxy class has to be explicit (i.e.
+			// selectors do not support inherited types). By default, proxy
+			// classes support child classes & inheritance.
+			virtual bool IsExplicitProxyClass(const UClass& InClass) const = 0;
+
+			// Register proxy class as explicitly selectable.
+			// By default, proxy classes support child classes & inheritance.
+			virtual void RegisterExplicitProxyClass(const UClass& InClass) = 0;
+
 			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const = 0;
+
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const = 0;
+
 			virtual bool IsRegisteredDataType(FName InDataTypeName) const = 0;
+
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 
 			virtual TUniquePtr<IMetaSoundInputLiteralCustomization> CreateInputLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;

@@ -2224,7 +2224,7 @@ namespace WindowsMixedReality
 				APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController();
 				if (PlayerController)
 				{
-					PlayerController->InputKey(InKey, IE_Pressed, 1.0f, false);
+					PlayerController->InputKey(FInputKeyParams(InKey, IE_Pressed, 1.0, false));
 				}
 			}
 		});

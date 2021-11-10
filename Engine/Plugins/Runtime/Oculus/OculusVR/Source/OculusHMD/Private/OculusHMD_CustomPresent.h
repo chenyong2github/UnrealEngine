@@ -71,13 +71,15 @@ public:
 	void SubmitGPUCommands_RenderThread(FRHICommandListImmediate& RHICmdList);
 	virtual void SubmitGPUFrameTime(float GPUFrameTime) { }
 
-	bool supportsSRGB() { return bSupportsSRGB; }
+	bool SupportsSRGB() { return bSupportsSRGB; }
+	bool SupportsSubsampled() { return bSupportsSubsampled; }
 
 protected:
 	FOculusHMD* OculusHMD;
 	ovrpRenderAPIType RenderAPI;
 	EPixelFormat DefaultPixelFormat;
 	bool bSupportsSRGB;
+	bool bSupportsSubsampled;
 	ovrpTextureFormat DefaultOvrpTextureFormat;
 	ovrpTextureFormat DefaultDepthOvrpTextureFormat;
 	IRendererModule* RendererModule;

@@ -506,8 +506,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 	SetMinLod(FPerPlatformInt(0));
 	SetDisableBelowMinLodStripping(FPerPlatformBool(false));
-	bSupportRayTracing = true;
-	RayTracingMinLOD = 0;
+	SetSupportRayTracing(true);
+	SetRayTracingMinLOD(0);
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)
@@ -615,7 +615,7 @@ bool USkeletalMesh::IsInitialBuildDone() const
 {
 	//We are consider built if we have a valid lod model and a valid inline reduction cache
 	return GetImportedModel() != nullptr &&
-		GetImportedModel()->LODModels.Num() >= 0 &&
+		GetImportedModel()->LODModels.Num() > 0 &&
 		GetImportedModel()->LODModels[0].Sections.Num() > 0 &&
 		GetImportedModel()->InlineReductionCacheDatas.Num() > 0;
 }
@@ -3318,47 +3318,47 @@ void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
 				GetRefSkeleton().EnsureParentsExistAndSort(ThisLODModel.ActiveBoneIndices);
 			}
 		}
-	}
 
-	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
-	{
-		ReserveLODImportData(GetImportedModel()->LODModels.Num() - 1);
-		for (int32 LODIndex = 0; LODIndex < GetImportedModel()->LODModels.Num(); ++LODIndex)
+		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
 		{
-			FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LODIndex];
-			//We can have partial data if the asset was save after the split workflow implementation
-			//Use the deprecated member to retrieve this data
-			if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
+			ReserveLODImportData(GetImportedModel()->LODModels.Num() - 1);
+			for (int32 LODIndex = 0; LODIndex < GetImportedModel()->LODModels.Num(); ++LODIndex)
 			{
-				if (!ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.IsEmpty())
+				FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LODIndex];
+				//We can have partial data if the asset was save after the split workflow implementation
+				//Use the deprecated member to retrieve this data
+				if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
 				{
-					FSkeletalMeshImportData SerializeMeshData;
-					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.LoadRawMesh(SerializeMeshData);
-					SaveLODImportedData(LODIndex, SerializeMeshData);
+					if (!ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.IsEmpty())
+					{
+						FSkeletalMeshImportData SerializeMeshData;
+						ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.LoadRawMesh(SerializeMeshData);
+						SaveLODImportedData(LODIndex, SerializeMeshData);
+					}
+					//Get the FRawSkeletalMeshBulkData to set the geo and skinning version
+					FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+					RawSkeletalMeshBulkData.GeoImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.GeoImportVersion;
+					RawSkeletalMeshBulkData.SkinningImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SkinningImportVersion;
+					//Empty the DEPRECATED member
+					FSkeletalMeshImportData EmptyMeshData;
+					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SaveRawMesh(EmptyMeshData);
+					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
 				}
-				//Get the FRawSkeletalMeshBulkData to set the geo and skinning version
+				//Set the cache data into the LODModel
 				FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
-				RawSkeletalMeshBulkData.GeoImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.GeoImportVersion;
-				RawSkeletalMeshBulkData.SkinningImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SkinningImportVersion;
-				//Empty the DEPRECATED member
-				FSkeletalMeshImportData EmptyMeshData;
-				ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SaveRawMesh(EmptyMeshData);
-				ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
+				ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+				ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+				ThisLODModel.RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
 			}
-			//Set the cache data into the LODModel
-			FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
-			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
-			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
-			ThisLODModel.RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
 		}
-	}
 
-	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
-	{
-		CreateUserSectionsDataForLegacyAssets();
-	}
+		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
+		{
+			CreateUserSectionsDataForLegacyAssets();
+		}
 
-	PostLoadEnsureImportDataExist();
+		PostLoadEnsureImportDataExist();
+	}
 
 #endif // #if WITH_EDITOR
 }

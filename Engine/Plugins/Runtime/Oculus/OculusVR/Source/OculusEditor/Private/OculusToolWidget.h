@@ -98,6 +98,9 @@ protected:
 	FReply MobilePostProcessingDisable(bool text);
 	EVisibility MobilePostProcessingVisibility(FName tag) const;
 
+	FReply MobileVulkanEnable(bool text);
+	EVisibility MobileVulkanVisibility(FName tag) const;
+
 	FReply AndroidManifestGo(bool text);
 	FReply AndroidManifestQuest(bool text);
 	EVisibility AndroidManifestVisibility(FName tag) const;

@@ -72,6 +72,15 @@ namespace Chaos
 		return INDEX_NONE;
 	}
 
+	inline const FConstraintHandleTypeID& FConstraintHandle::GetType() const
+	{
+		if (ConstraintContainer != nullptr)
+		{
+			return ConstraintContainer->GetConstraintHandleType();
+		}
+		return FConstraintHandle::InvalidType();
+	}
+
 	template<typename T>
 	inline T* FConstraintHandle::As()
 	{

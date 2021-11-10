@@ -114,6 +114,7 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
 		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
 		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
+		NewContext.SetNodeId(INDEX_NONE);
 		NewContext.SetNodeId(CachedLinkedNodeIndex);
 		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}

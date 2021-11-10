@@ -23,7 +23,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 #if PLATFORM_WINDOWS
 	if (RHIName.Equals(DisplayClusterProjectionStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
 		return MakeShared<FDisplayClusterProjectionEasyBlendPolicyDX11, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 #endif

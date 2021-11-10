@@ -19,6 +19,7 @@
 #include "Serialization/FileRegions.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Async/Future.h"
 
 class FIoRequest;
 class FIoDispatcher;
@@ -1202,12 +1203,14 @@ public:
 struct FIoStoreTocChunkInfo
 {
 	FIoChunkId Id;
+	FString FileName;
 	FIoChunkHash Hash;
 	uint64 Offset;
 	uint64 Size;
 	uint64 CompressedSize;
 	int32 PartitionIndex;
 	EIoChunkType ChunkType;
+	bool bHasValidFileName;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
 	bool bIsCompressed;
@@ -1236,22 +1239,6 @@ struct FIoStoreCompressedReadResult
 	uint64 UncompressedSize;
 };
 
-class FIoStoreAsyncReadRequest
-{
-public:
-	using FCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
-
-	CORE_API FIoStoreAsyncReadRequest();
-	CORE_API ~FIoStoreAsyncReadRequest();
-
-private:
-	friend class FIoStoreReaderImpl;
-	class FImpl;
-	using FImplPtr = TSharedPtr<FImpl, ESPMode::ThreadSafe>;
-	
-	FImplPtr Impl;
-};
-
 class FIoStoreReader
 {
 public:
@@ -1260,6 +1247,7 @@ public:
 
 	UE_NODISCARD CORE_API FIoStatus Initialize(const TCHAR* ContainerPath, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys);
 	CORE_API FIoContainerId GetContainerId() const;
+	CORE_API uint32 GetVersion() const;
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;
 	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
@@ -1267,7 +1255,7 @@ public:
 	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
 	CORE_API TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
-	CORE_API FIoStoreAsyncReadRequest ReadAsync(const FIoChunkId& Chunk, const FIoReadOptions& Options, FIoStoreAsyncReadRequest::FCallback&& Callback) const;
+	CORE_API TFuture<TIoStatusOr<FIoBuffer>> ReadAsync(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
 
 	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
 
@@ -1275,6 +1263,7 @@ public:
 	CORE_API void GetFilenames(TArray<FString>& OutFileList) const;
 
 	CORE_API uint64 GetCompressionBlockSize() const;
+	CORE_API const TArray<FName>& GetCompressionMethods() const;
 	CORE_API void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const;
 
 private:

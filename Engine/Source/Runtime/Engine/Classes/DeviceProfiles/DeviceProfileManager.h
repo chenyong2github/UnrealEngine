@@ -120,6 +120,11 @@ public:
 	FOnActiveDeviceProfileChanged& OnActiveDeviceProfileChanged();
 
 	/**
+	 * Returns the config files for all loaded device profiles, this will include platform-specific ones 
+	 */
+	void GetProfileConfigFiles(OUT TArray<FString>& OutConfigFiles);
+
+	/**
 	 * Save the device profiles.
 	 */
 	void SaveProfiles(bool bSaveToDefaults = false);

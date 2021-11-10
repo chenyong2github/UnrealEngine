@@ -113,8 +113,11 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	
+	static FName BevelTypePropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType);
+	static FName BevelSegmentsPropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments);
+
 	const FName Name = PropertyChangedEvent.GetPropertyName();
-	if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType))
+	if (Name == BevelTypePropertyName)
 	{
 		switch (BevelType)
 		{
@@ -138,6 +141,11 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 			break;
 		}
 		}
+	}
+	else if (Name == BevelSegmentsPropertyName)
+	{
+		// Force minimum bevel segments based on the BevelType
+		SetBevelSegments(BevelSegments);
 	}
 }
 #endif
@@ -202,7 +210,13 @@ void UText3DComponent::SetBevelType(const EText3DBevelType Value)
 
 void UText3DComponent::SetBevelSegments(const int32 Value)
 {
-	const int32 NewValue = FMath::Clamp(Value, 1, 15);
+	int32 MinBevelSegments = 1;
+	if (BevelType == EText3DBevelType::HalfCircle)
+	{
+		MinBevelSegments = 2;
+	}
+
+	const int32 NewValue = FMath::Clamp(Value, MinBevelSegments, 15);
 	if (BevelSegments != NewValue)
 	{
 		BevelSegments = NewValue;

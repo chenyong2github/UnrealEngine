@@ -47,6 +47,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Menus/TextureEditorViewOptionsMenu.h"
 #include "MediaTexture.h"
+#include "TextureEncodingSettings.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -60,6 +61,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureEditor, Log, All);
 
 const FName FTextureEditorToolkit::ViewportTabId(TEXT("TextureEditor_Viewport"));
 const FName FTextureEditorToolkit::PropertiesTabId(TEXT("TextureEditor_Properties"));
+const FName FTextureEditorToolkit::OodleTabId(TEXT("TextureEditor_Oodle"));
 
 UNREALED_API void GetBestFitForNumberOfTiles(int32 InSize, int32& OutRatioX, int32& OutRatioY);
 
@@ -145,6 +147,11 @@ void FTextureEditorToolkit::RegisterTabSpawners( const TSharedRef<class FTabMana
 		.SetDisplayName(LOCTEXT("PropertiesTab", "Details") )
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(OodleTabId, FOnSpawnTab::CreateSP(this, &FTextureEditorToolkit::HandleTabSpawnerSpawnOodle))
+		.SetDisplayName(LOCTEXT("OodleTab", "Oodle"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 
@@ -154,6 +161,7 @@ void FTextureEditorToolkit::UnregisterTabSpawners( const TSharedRef<class FTabMa
 
 	InTabManager->UnregisterTabSpawner(ViewportTabId);
 	InTabManager->UnregisterTabSpawner(PropertiesTabId);
+	InTabManager->UnregisterTabSpawner(OodleTabId);
 }
 
 
@@ -217,7 +225,7 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	BindCommands();
 	CreateInternalWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_TextureEditor_Layout_v4")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_TextureEditor_Layout_v5")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -238,6 +246,8 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 				(
 					FTabManager::NewStack()
 						->AddTab(PropertiesTabId, ETabState::OpenedTab)
+						->AddTab(OodleTabId, ETabState::OpenedTab)
+						->SetForegroundTab(PropertiesTabId)
 						->SetSizeCoefficient(0.33f)
 				)
 		);
@@ -466,19 +476,137 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		FormatText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Format_NA", "Format: Computing..."));
 		NumMipsText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips_NA", "Number of Mips: Computing..."));
 		HasAlphaChannelText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel_NA", "Has Alpha Channel: Computing..."));
-		EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_NA", "Encode Speed: Computing..."));
+		EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Computing", "Encode Speed: Computing..."));
 		return;
 	}
 
 	FTexturePlatformData** PlatformDataPtr = Texture->GetRunningPlatformData();
 	if (PlatformDataPtr)
 	{
-		EncodeSpeedText->SetText(
-			FText::Format(
-				FText::AsCultureInvariant(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fmt", "Encode Speed: {0}")), PlatformDataPtr[0]->UsedEncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fast", "Fast") : NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Final", "Final")
-				)
-			);
-	}
+		FTexturePlatformData::FTextureEncodeResultMetadata const& ResultMetadata = PlatformDataPtr[0]->ResultMetadata;
+		if (ResultMetadata.bIsValid == false)
+		{
+			EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_NA", "Encode Speed: N/A"));
+
+			FText OodleInfoMissing = NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_Missing", "<Metadata Missing>");
+			OodleEncoderText->SetText(OodleInfoMissing);
+			OodleEncodeSpeedText->SetText(OodleInfoMissing);
+			OodleRDOText->SetText(OodleInfoMissing);
+			OodleEffortText->SetText(OodleInfoMissing);
+			OodleTilingText->SetText(OodleInfoMissing);
+			OodleRDOSourceText->SetText(OodleInfoMissing);
+
+			OodleRDOText->SetVisibility(EVisibility::Hidden);
+			OodleEffortText->SetVisibility(EVisibility::Hidden);
+			OodleTilingText->SetVisibility(EVisibility::Hidden);
+			OodleRDOSourceText->SetVisibility(EVisibility::Hidden);
+
+			OodleRDOEnabledLabel->SetVisibility(EVisibility::Hidden);
+			OodleRDOSourceLabel->SetVisibility(EVisibility::Hidden);
+			OodleEffortLabel->SetVisibility(EVisibility::Hidden);
+			OodleTilingLabel->SetVisibility(EVisibility::Hidden);
+		}
+		else
+		{
+			OodleEncoderText->SetText(FText::FromName(ResultMetadata.Encoder));
+
+			if (ResultMetadata.bSupportsEncodeSpeed == false)
+			{
+				EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Unsup", "Encode Speed: Unsupported"));
+				OodleEncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_SpeedUnsup", "Unsupported"));
+
+				FText OodleInfoNA = NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_NA", "N/A");
+				OodleRDOText->SetText(OodleInfoNA);
+				OodleEffortText->SetText(OodleInfoNA);
+				OodleTilingText->SetText(OodleInfoNA);
+				OodleRDOSourceText->SetText(OodleInfoNA);
+
+				OodleRDOText->SetVisibility(EVisibility::Hidden);
+				OodleEffortText->SetVisibility(EVisibility::Hidden);
+				OodleTilingText->SetVisibility(EVisibility::Hidden);
+				OodleRDOSourceText->SetVisibility(EVisibility::Hidden);
+
+				OodleRDOEnabledLabel->SetVisibility(EVisibility::Hidden);
+				OodleRDOSourceLabel->SetVisibility(EVisibility::Hidden);
+				OodleEffortLabel->SetVisibility(EVisibility::Hidden);
+				OodleTilingLabel->SetVisibility(EVisibility::Hidden);
+
+			}
+			else
+			{
+				OodleRDOText->SetVisibility(EVisibility::Visible);
+				OodleEffortText->SetVisibility(EVisibility::Visible);
+				OodleTilingText->SetVisibility(EVisibility::Visible);
+				OodleRDOSourceText->SetVisibility(EVisibility::Visible);
+
+				OodleRDOEnabledLabel->SetVisibility(EVisibility::Visible);
+				OodleRDOSourceLabel->SetVisibility(EVisibility::Visible);
+				OodleEffortLabel->SetVisibility(EVisibility::Visible);
+				OodleTilingLabel->SetVisibility(EVisibility::Visible);
+
+				EncodeSpeedText->SetText(
+					ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
+						NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fast", "Encode Speed: Fast") : 
+						NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Final", "Encode Speed: Final")
+				);
+				OodleEncodeSpeedText->SetText(
+					ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
+					FText::AsCultureInvariant("Fast") :
+					FText::AsCultureInvariant("Final")
+				);			
+
+				if (ResultMetadata.OodleRDO == 0)
+				{
+					const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
+					const bool bDisabledGlobally = ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? !Settings->bFastUsesRDO : !Settings->bFinalUsesRDO;
+
+					OodleRDOText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDODisable", "Disabled"));
+					if (bDisabledGlobally)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSourceDisableSettings", "Disabled By Project Settings"));
+					}
+					else
+					{
+						if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Default)
+						{
+							OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSourceDisableLCA_Default", "Disabled By Project (Lossy Compression Amount)"));
+						}
+						else if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Texture)
+						{
+							OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSourceDisableLCA_Texture", "Disabled By Texture (Lossy Compression Amount)"));
+						}
+						else if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::LODGroup)
+						{
+							OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSourceDisableLCA_LODGroup", "Disabled By LODGroup (Lossy Compression Amount)"));
+						}
+					}
+				}
+				else
+				{
+					OodleRDOText->SetText(FText::AsNumber(ResultMetadata.OodleRDO));
+
+					if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Default)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_Default", "Project (Lambda)"));
+					}
+					else if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Texture)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_Texture", "Texture (Lossy Compression Amount)"));
+					}
+					else if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::LODGroup)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_LODGroup", "LODGroup (Lossy Compression Amount)"));
+					}
+				}
+
+				UEnum* EncodeEffortEnum = StaticEnum<ETextureEncodeEffort>();
+				OodleEffortText->SetText(FText::AsCultureInvariant(EncodeEffortEnum->GetNameStringByValue(ResultMetadata.OodleEncodeEffort)));
+
+				UEnum* UniversalTilingEnum = StaticEnum<ETextureUniversalTiling>();
+				OodleTilingText->SetText(FText::AsCultureInvariant(UniversalTilingEnum->GetNameStringByValue(ResultMetadata.OodleUniversalTiling)));
+			} // end if encode speed supported
+		} // end if results metadata valid
+	} // end if valid platform data
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 
@@ -859,6 +987,133 @@ TSharedRef<SWidget> FTextureEditorToolkit::BuildTexturePropertiesWidget( )
 void FTextureEditorToolkit::CreateInternalWidgets( )
 {
 	TextureViewport = SNew(STextureEditorViewport, SharedThis(this));
+
+	OodleTabContainer = SNew(SVerticalBox)
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	.Padding(4.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(0.5f)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SNew(STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_Encoder", "Encoder:"))
+						.ToolTipText(LOCTEXT("OodleTab_Tooltip_Encoder", "Which texture encoder was used to encode the texture."))
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SNew(STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_EncodeSpeed", "Encode Speed:"))
+						.ToolTipText(LOCTEXT("OodleTab_Tooltip_EncodeSpeed", "Which of the encode speeds was used for this texture encode, if the encoder supports encode speed."))
+				]
+	
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleRDOEnabledLabel, STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_RDOEnabled", "RDO Lambda:"))
+						.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOEnabled", "Whether or not the texture was encoded with RDO enabled. If enabled, shows the lambda used to encode. Excludes any global ini specific adjustments (e.g. GlobalLambdaMultiplier)"))
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleRDOSourceLabel, STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_RDOSource", "RDO Lambda Source:"))
+						.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOSource", "This is where the build system found the lambda to use, due to defaults and fallbacks. (Lambda) means a direct lambda value (Lossy Compression Amount) means it was converted from that property."))
+				]
+	
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleEffortLabel, STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_Effort", "Effort:"))
+						.ToolTipText(LOCTEXT("OodleTab_ToolTip_Effort", "Which effort value was used when encoding this texture. Pulled from the encode speed options. Effort represents how much CPU time was spent finding better results."))
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleTilingLabel, STextBlock)
+						.Text(LOCTEXT("OodleTab_Label_UniversalTiling", "Universal Tiling:"))
+						.ToolTipText(LOCTEXT("OodleTab_ToolTip_UniversalTiling", "Which universal tiling setting was used when encoding this texture. Specified with encode speed. Universal Tiling is a technique to save on-disc space for platforms that expect tiled textures."))
+				]
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(0.5f)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleEncoderText, STextBlock)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleEncodeSpeedText, STextBlock)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleRDOText, STextBlock)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleRDOSourceText, STextBlock)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleEffortText, STextBlock)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f)
+				[
+					SAssignNew(OodleTilingText, STextBlock)
+				]
+		]
+	];
 
 	TextureProperties = SNew(SVerticalBox)
 
@@ -1536,6 +1791,18 @@ void FTextureEditorToolkit::HandleSettingsActionExecute( )
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "ContentEditors", "TextureEditor");
 }
 
+TSharedRef<SDockTab> FTextureEditorToolkit::HandleTabSpawnerSpawnOodle(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == OodleTabId);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("TextureOodleTitle", "Oodle"))
+		[
+			OodleTabContainer.ToSharedRef()
+		];
+
+	return SpawnedTab;
+}
 
 TSharedRef<SDockTab> FTextureEditorToolkit::HandleTabSpawnerSpawnProperties( const FSpawnTabArgs& Args )
 {

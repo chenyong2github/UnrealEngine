@@ -28,11 +28,6 @@ namespace CADKernel
 		bool bWithNormals;
 		bool bWithTangent;
 
-		FSurfacicPolyline(FCADKernelArchive& Archive)
-		{
-			Serialize(Archive);
-		}
-
 		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D);
 
 		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D, const double Tolerance);
@@ -262,6 +257,11 @@ namespace CADKernel
 		const TArray<FPoint2D>& Get2DPoints() const
 		{
 			return Points2D;
+		}
+
+		const FPoint& GetPointAt(int32 Index) const
+		{
+			return Points3D[Index];
 		}
 
 		const TArray<FPoint>& GetPoints() const

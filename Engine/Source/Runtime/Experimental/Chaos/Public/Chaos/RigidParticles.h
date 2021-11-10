@@ -258,7 +258,7 @@ public:
 		MSleepData.Add(SleepData);
 		SleepDataLock.WriteUnlock();
 	}
-	CHAOS_API void ClearSleepData()
+	void ClearSleepData()
 	{
 		SleepDataLock.WriteLock();
 		MSleepData.Empty();
@@ -378,15 +378,5 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 	Particles.Serialize(Ar);
 	return Ar;
 }
-
-#ifdef __clang__
-#if PLATFORM_WINDOWS
-extern template class TRigidParticles<FReal, 3>;
-#else
-extern template class CHAOS_API TRigidParticles<FReal, 3>;
-#endif
-#else
-extern template class TRigidParticles<FReal, 3>;
-#endif
 
 }

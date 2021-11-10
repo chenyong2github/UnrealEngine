@@ -421,7 +421,7 @@ FArchive& operator<<(FArchive& Ar, FFoliageInfo& Info)
 	{
 		if (Ar.IsTransacting())
 		{
-			// LWC_TODO: Foliage bulk serialization disabled
+			// LWC_TODO: Serializer. Foliage bulk serialization disabled (see FFoliageInstancePlacementInfo). Force using Ar.UEVer < LWC 
 			Info.Instances.BulkSerialize(Ar, true);
 		}
 		else

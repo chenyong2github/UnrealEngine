@@ -21,6 +21,17 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
 				}
 			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"Engine",
+						"UnrealEd",
+					}
+				);
+			}
 		}
 	}
 }

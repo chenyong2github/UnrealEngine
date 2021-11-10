@@ -306,10 +306,8 @@ void FMaterialPropertyHelpers::CopyMaterialToInstance(UMaterialInstanceConstant*
 						{
 							UpdateContext.SetParameterValueEditorOnly(Parameter->ParameterInfo, ParameterResult);
 						}
-						else if (UDEditorMaterialLayersParameterValue* LayersParameter = Cast<UDEditorMaterialLayersParameterValue>(Parameter))
-						{
-							UpdateContext.SetMaterialLayers(LayersParameter->ParameterValue);
-						}
+						// This is called to initialize newly created child MIs
+						// Don't need to copy layers from parent, since they will not initially be changed from parent values
 					}
 				}
 			}
@@ -649,16 +647,16 @@ void FMaterialPropertyHelpers::ResetLayerAssetToDefault(UDEditorParameterValue* 
 	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(InParameter);
 	if (LayersParam)
 	{
-		const FMaterialLayersFunctions* LayersValue = MaterialEditorInstance->Parent->GetMaterialLayers();
-		if (LayersValue)
+		FMaterialLayersFunctions LayersValue;
+		if (MaterialEditorInstance->Parent->GetMaterialLayers(LayersValue))
 		{
 			FMaterialLayersFunctions StoredValue = LayersParam->ParameterValue;
 
 			if (InAssociation == EMaterialParameterAssociation::BlendParameter)
 			{
-				if (Index < LayersValue->Blends.Num())
+				if (Index < LayersValue.Blends.Num())
 				{
-					StoredValue.Blends[Index] = LayersValue->Blends[Index];
+					StoredValue.Blends[Index] = LayersValue.Blends[Index];
 				}
 				else
 				{
@@ -668,9 +666,9 @@ void FMaterialPropertyHelpers::ResetLayerAssetToDefault(UDEditorParameterValue* 
 			}
 			else if (InAssociation == EMaterialParameterAssociation::LayerParameter)
 			{
-				if (Index < LayersValue->Layers.Num())
+				if (Index < LayersValue.Layers.Num())
 				{
-					StoredValue.Layers[Index] = LayersValue->Layers[Index];
+					StoredValue.Layers[Index] = LayersValue.Layers[Index];
 				}
 				else
 				{
@@ -703,21 +701,21 @@ bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSo
 	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(InParameterData->Parameter);
 	if (LayersParam)
 	{
-		const FMaterialLayersFunctions* LayersValue = InMaterial->GetMaterialLayers();
-		if (LayersValue)
+		FMaterialLayersFunctions LayersValue;
+		if (InMaterial->GetMaterialLayers(LayersValue))
 		{
 			FMaterialLayersFunctions StoredValue = LayersParam->ParameterValue;
 
 			if (InParameterData->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
 			{
 				StoredAssets = StoredValue.Blends;
-				ParentAssets = LayersValue->Blends;
+				ParentAssets = LayersValue.Blends;
 
 			}
 			else if (InParameterData->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
 			{
 				StoredAssets = StoredValue.Layers;
-				ParentAssets = LayersValue->Layers;
+				ParentAssets = LayersValue.Layers;
 			}
 
 			// Compare to the parent MaterialFunctionInterface array

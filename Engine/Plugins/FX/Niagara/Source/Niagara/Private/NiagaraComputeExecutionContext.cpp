@@ -246,27 +246,16 @@ void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuf
 
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
 {
-	if (bUsesSimStages)
-	{
-		return Context->IsOutputStage(DIProxy, SimulationStageIndex);
-	}
-	return false;
+	return Context->IsOutputStage(DIProxy, SimulationStageIndex);
 }
 
 bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
 {
-	if (bUsesSimStages)
-	{
-		return Context->IsIterationStage(DIProxy, SimulationStageIndex);
-	}
-	return false;
+	return Context->IsIterationStage(DIProxy, SimulationStageIndex);
 }
 
 FNiagaraDataInterfaceProxyRW* FNiagaraComputeInstanceData::FindIterationInterface(uint32 SimulationStageIndex) const
 {
-	if (bUsesSimStages)
-	{
-		return Context->FindIterationInterface(IterationDataInterfaceProxies, SimulationStageIndex);
-	}
-	return nullptr;
+	return Context->FindIterationInterface(IterationDataInterfaceProxies, SimulationStageIndex);
 }
+

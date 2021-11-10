@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/Char.h"
+#include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformStricmp.h"
 #include "GenericPlatform/GenericPlatformString.h"
 #include "HAL/PlatformCrt.h"
@@ -178,8 +179,25 @@ public:
 		return Last;
 	}
 
-	CORE_API static int32 Strtoi( const WIDECHAR* Start, WIDECHAR** End, int32 Base );
-	CORE_API static int64 Strtoi64( const WIDECHAR* Start, WIDECHAR** End, int32 Base );
+#if PLATFORM_TCHAR_IS_CHAR16
+	CORE_API static int32 Strtoi(const WIDECHAR* Start, WIDECHAR** End, int32 Base);
+#else
+	CORE_API static int32 Strtoi(const WIDECHAR* Start, WIDECHAR** End, int32 Base)
+	{
+		unimplemented();
+		return 0;
+	}
+#endif
+#if PLATFORM_TCHAR_IS_CHAR16
+	CORE_API static int64 Strtoi64(const WIDECHAR* Start, WIDECHAR** End, int32 Base);
+#else
+	CORE_API static int64 Strtoi64(const WIDECHAR* Start, WIDECHAR** End, int32 Base)
+	{
+		unimplemented();
+		return 0;
+	}
+#endif
+
 	CORE_API static uint64 Strtoui64( const WIDECHAR* Start, WIDECHAR** End, int32 Base );
 	CORE_API static float Atof(const WIDECHAR* String);
 	CORE_API static double Atod(const WIDECHAR* String);
@@ -196,9 +214,17 @@ public:
 
 	
 	
-	static CORE_API WIDECHAR* Strtok( WIDECHAR* StrToken, const WIDECHAR* Delim, WIDECHAR** Context );
+	CORE_API static WIDECHAR* Strtok( WIDECHAR* StrToken, const WIDECHAR* Delim, WIDECHAR** Context );
 
-	static CORE_API int32 GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr );
+#if PLATFORM_TCHAR_IS_CHAR16
+	CORE_API static int32 GetVarArgs(WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr);
+#else
+	CORE_API static int32 GetVarArgs(WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr)
+	{
+		unimplemented();
+		return 0;
+	}
+#endif
 
 	/**
 	 * Ansi implementation

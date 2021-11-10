@@ -657,7 +657,7 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackage(const FName PackageN
 
 				UWorld* World = UWorld::FindWorldInPackage(Package);
 				FString PackageFilename;
-				if (!FPackageName::DoesPackageExist(PackageNameStr, nullptr, &PackageFilename))
+				if (!FPackageName::DoesPackageExist(PackageNameStr, &PackageFilename))
 				{
 					PackageFilename = FPackageName::LongPackageNameToFilename(PackageNameStr, World ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
 				}

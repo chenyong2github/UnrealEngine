@@ -3,7 +3,6 @@
 #include "Compression/OodleDataCompression.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ICompressionFormat.h"
-#include "Templates/CheckValueCast.h"
 
 #include "oodle2.h"
 
@@ -87,8 +86,8 @@ struct OodleDataCompressionDecoders
 	
 	int64 OodleDecode(const void * InCompBuf, int64 InCompBufSize64, void * OutRawBuf, int64 InRawLen64) 
 	{
-		OO_SINTa InCompBufSize = CheckValueCast<OO_SINTa>(InCompBufSize64);
-		OO_SINTa InRawLen = CheckValueCast<OO_SINTa>(InRawLen64);
+		OO_SINTa InCompBufSize = IntCastChecked<OO_SINTa>(InCompBufSize64);
+		OO_SINTa InRawLen = IntCastChecked<OO_SINTa>(InRawLen64);
 
 		// find the minimum size needed for this decode, OodleDecoderMemorySize may be larger
 		OodleLZ_Compressor CurCompressor = OodleLZ_GetChunkCompressor(InCompBuf, InCompBufSize, NULL);
@@ -244,7 +243,7 @@ int64 CORE_API CompressedBufferSizeNeeded(int64 InUncompressedSize)
 {
 	// size needed is the same for all newlz's
 	//	so don't bother with a compressor arg here
-	return OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, CheckValueCast<OO_SINTa>(InUncompressedSize));
+	return OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, IntCastChecked<OO_SINTa>(InUncompressedSize));
 }
 
 int64 CORE_API GetMaximumCompressedSize(int64 InUncompressedSize)
@@ -263,7 +262,7 @@ int64 CORE_API Compress(
 	OodleLZ_Compressor LZCompressor = CompressorToOodleLZ_Compressor(Compressor);
 	OodleLZ_CompressionLevel LZLevel = CompressionLevelToOodleLZ_CompressionLevel(Level);
 
-	if ( InCompressedBufferSize < (int64) OodleLZ_GetCompressedBufferSizeNeeded(LZCompressor,CheckValueCast<OO_SINTa>(InUncompressedSize)) )
+	if ( InCompressedBufferSize < (int64) OodleLZ_GetCompressedBufferSizeNeeded(LZCompressor,IntCastChecked<OO_SINTa>(InUncompressedSize)) )
 	{
 		UE_LOG(OodleDataCompression,Error,TEXT("OutCompressedSize too small\n"));		
 		return OODLELZ_FAILED;

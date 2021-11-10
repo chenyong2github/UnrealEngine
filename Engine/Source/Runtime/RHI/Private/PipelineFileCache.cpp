@@ -1463,7 +1463,7 @@ bool FPipelineCacheFileFormatPSO::operator==(const FPipelineCacheFileFormatPSO& 
 						GraphicsDesc.FragmentShader == Other.GraphicsDesc.FragmentShader &&
 						GraphicsDesc.GeometryShader == Other.GraphicsDesc.GeometryShader &&
 						GraphicsDesc.MeshShader == Other.GraphicsDesc.MeshShader &&
-						GraphicsDesc.AmplificationShader == Other.GraphicsDesc.MeshShader &&
+						GraphicsDesc.AmplificationShader == Other.GraphicsDesc.AmplificationShader &&
 						GraphicsDesc.RenderTargetsActive == Other.GraphicsDesc.RenderTargetsActive &&
 						GraphicsDesc.MSAASamples == Other.GraphicsDesc.MSAASamples && GraphicsDesc.DepthStencilFormat == Other.GraphicsDesc.DepthStencilFormat &&
 						GraphicsDesc.DepthStencilFlags == Other.GraphicsDesc.DepthStencilFlags && GraphicsDesc.DepthLoad == Other.GraphicsDesc.DepthLoad &&

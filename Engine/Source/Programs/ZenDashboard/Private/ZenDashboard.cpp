@@ -20,6 +20,7 @@
 #include "Misc/CompilationResult.h"
 #include "Misc/MessageDialog.h"
 #include "SZenCacheStatistics.h"
+#include "ZenServerInterface.h"
 
 #if PLATFORM_WINDOWS
 #include "Runtime/Launch/Resources/Windows/Resource.h"

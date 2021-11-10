@@ -1291,6 +1291,26 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* Primiti
 	}
 }
 
+void FScene::UpdatePrimitiveOcclusionBoundsSlack_RenderThread(const FPrimitiveSceneProxy* PrimitiveSceneProxy, float NewSlack)
+{
+	check(IsInRenderingThread());
+
+#if VALIDATE_PRIMITIVE_PACKED_INDEX
+	if (AddedPrimitiveSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()))
+	{
+		check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex == INDEX_NONE);
+	}
+	else
+	{
+		check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex != INDEX_NONE);
+	}
+
+	check(!RemovedPrimitiveSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()));
+#endif
+
+	UpdatedOcclusionBoundsSlacks.Add(PrimitiveSceneProxy, NewSlack);
+}
+
 void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveTransformGT);
@@ -1414,6 +1434,19 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 	{
 		// If the primitive doesn't have a scene info object yet, it must be added from scratch.
 		AddPrimitive(Primitive);
+	}
+}
+
+void FScene::UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack)
+{
+	if (Primitive->SceneProxy)
+	{
+		const FPrimitiveSceneProxy* SceneProxy = Primitive->SceneProxy;
+		ENQUEUE_RENDER_COMMAND(UpdateOcclusionBoundsSlackCmd)(
+			[this, SceneProxy, NewSlack](FRHICommandListImmediate&)
+			{
+				UpdatePrimitiveOcclusionBoundsSlack_RenderThread(SceneProxy, NewSlack);
+			});
 	}
 }
 
@@ -1549,6 +1582,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		UpdatedTransforms.Remove(PrimitiveSceneInfo->Proxy);
 		UpdatedCustomPrimitiveParams.Remove(PrimitiveSceneInfo->Proxy);
 		OverridenPreviousTransforms.Remove(PrimitiveSceneInfo);
+		UpdatedOcclusionBoundsSlacks.Remove(PrimitiveSceneInfo->Proxy);
 		DistanceFieldSceneDataUpdates.Remove(PrimitiveSceneInfo);
 		UpdatedAttachmentRoots.Remove(PrimitiveSceneInfo);
 
@@ -3609,7 +3643,7 @@ void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 	TSet<FString> PrimitivesWithUnbuiltInteractions;
 
 	// if want to print out all of the lights
-	for( TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It )
+	for( auto It = Lights.CreateConstIterator(); It; ++It )
 	{
 		const FLightSceneInfoCompact& LightCompactInfo = *It;
 		FLightSceneInfo* LightSceneInfo = LightCompactInfo.LightSceneInfo;
@@ -3885,7 +3919,7 @@ void FScene::ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSc
 		AtmosphereLights[Index] = nullptr;
 		float SelectedLightLuminance = 0.0f;
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
+		for (auto It = Lights.CreateConstIterator(); It; ++It)
 		{
 			const FLightSceneInfoCompact& LightInfo = *It;
 			float LightLuminance = LightInfo.LightSceneInfo->Proxy->GetColor().GetLuminance();
@@ -4600,6 +4634,29 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
 	}
 
+	for (const auto& OccSlackDelta : UpdatedOcclusionBoundsSlacks)
+	{
+		const FPrimitiveSceneProxy* SceneProxy = OccSlackDelta.Key;
+		const FPrimitiveSceneInfo* SceneInfo = SceneProxy->GetPrimitiveSceneInfo();
+
+		if (DeletedSceneInfos.Contains(SceneInfo))
+		{
+			continue;
+		}
+
+		FBoxSphereBounds NewOccBounds;
+		if (SceneProxy->HasCustomOcclusionBounds())
+		{
+			NewOccBounds = SceneProxy->GetCustomOcclusionBounds();
+		}
+		else
+		{
+			NewOccBounds = SceneProxy->GetBounds();
+		}
+
+		PrimitiveOcclusionBounds[SceneInfo->PackedIndex] = NewOccBounds.ExpandBy(OCCLUSION_SLOP + OccSlackDelta.Value);
+	}
+
 	{
 		SCOPED_NAMED_EVENT(FScene_DeletePrimitiveSceneInfo, FColor::Red);
 		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DeletedSceneInfos)
@@ -4627,6 +4684,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 	UpdatedTransforms.Reset();
 	UpdatedCustomPrimitiveParams.Reset();
 	OverridenPreviousTransforms.Reset();
+	UpdatedOcclusionBoundsSlacks.Reset();
 	DistanceFieldSceneDataUpdates.Reset();
 	AddedPrimitiveSceneInfos.Reset();
 }
@@ -4689,6 +4747,7 @@ public:
 
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
+	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override {}
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override {}
 

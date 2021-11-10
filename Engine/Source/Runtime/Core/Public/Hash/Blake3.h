@@ -33,6 +33,7 @@ public:
 	/** Construct a hash from a 64-character hex string. */
 	inline explicit FBlake3Hash(FAnsiStringView HexHash);
 	inline explicit FBlake3Hash(FWideStringView HexHash);
+	inline explicit FBlake3Hash(FUtf8StringView HexHash);
 
 	/** Reset this to a zero hash. */
 	inline void Reset() { *this = FBlake3Hash(); }
@@ -109,6 +110,12 @@ inline FBlake3Hash::FBlake3Hash(const FAnsiStringView HexHash)
 }
 
 inline FBlake3Hash::FBlake3Hash(const FWideStringView HexHash)
+{
+	check(HexHash.Len() == sizeof(ByteArray) * 2);
+	UE::String::HexToBytes(HexHash, Hash);
+}
+
+inline FBlake3Hash::FBlake3Hash(const FUtf8StringView HexHash)
 {
 	check(HexHash.Len() == sizeof(ByteArray) * 2);
 	UE::String::HexToBytes(HexHash, Hash);

@@ -14,12 +14,12 @@ template<typename DataType> struct TBlendableTokenStack;
 template<typename DataType> struct TMovieSceneBlendingActuator;
 
 /** Pre animated token producer that reverts the object's initial value from the actuator when its state is restored */
-struct FMovieSceneRemoveInitialValueTokenProducer : IMovieScenePreAnimatedTokenProducer
+struct MOVIESCENE_API FMovieSceneRemoveInitialValueTokenProducer : IMovieScenePreAnimatedTokenProducer
 {
 	/** Construction from the object whose initial value to remove, and the actuator to remove it from */
-	MOVIESCENE_API FMovieSceneRemoveInitialValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);
+	FMovieSceneRemoveInitialValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);
 
-	MOVIESCENE_API virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& InObject) const override;
+	virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& InObject) const override;
 
 private:
 	/** The actuator to remove the initial value from */
@@ -27,12 +27,12 @@ private:
 };
 
 /** Pre animated token producer that reverts a global initial value from the actuator when its state is restored */
-struct FMovieSceneRemoveInitialGlobalValueTokenProducer : IMovieScenePreAnimatedGlobalTokenProducer
+struct MOVIESCENE_API FMovieSceneRemoveInitialGlobalValueTokenProducer : IMovieScenePreAnimatedGlobalTokenProducer
 {
 	/** Construction from the object whose initial value to remove, and the actuator to remove it from */
-	MOVIESCENE_API FMovieSceneRemoveInitialGlobalValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);
+	FMovieSceneRemoveInitialGlobalValueTokenProducer(TWeakPtr<IMovieSceneBlendingActuator> InWeakActuator);
 
-	MOVIESCENE_API virtual IMovieScenePreAnimatedGlobalTokenPtr CacheExistingState() const override;
+	virtual IMovieScenePreAnimatedGlobalTokenPtr CacheExistingState() const override;
 
 private:
 	/** The actuator to remove the initial value from */

@@ -68,6 +68,7 @@ protect /Binaries/TVOS/
 + /Binaries/ThirdParty/Intel/TBB/
 + /Binaries/ThirdParty/Intel/TBB/Mac/
 + /Binaries/ThirdParty/Intel/TBB/Mac/libtbb.dylib
++ /Binaries/ThirdParty/Intel/TBB/Mac/libtbbmalloc.dylib
 
 # Build
 + /Build/

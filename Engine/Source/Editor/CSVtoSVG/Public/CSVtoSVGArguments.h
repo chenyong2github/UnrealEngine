@@ -9,6 +9,13 @@
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FCSVtoSVGArugmentsPropertySetModifiedSignature, UObject*, FProperty*);
 
+UENUM()
+enum class ESVGTheme
+{
+	Dark,
+	Light,
+};
+
 UCLASS(EditorConfig = "CSVtoSVG")
 class UCSVtoSVGArugments : public UEditorConfigBase
 {
@@ -69,14 +76,29 @@ class UCSVtoSVGArugments : public UEditorConfigBase
 	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Thickness", Tooltip = "Sets the line thickness of the graph."))
 	float thickness = 1.0f;
 
+	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Theme", Tooltip = ""))
+	ESVGTheme theme = ESVGTheme::Dark;
+
+	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Threshold", Tooltip = "Ignores stats which are entirely under this threshold."))
+	float threshold = -FLT_MAX;
+
 	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Stacked", Tooltip = "Makes a stacked graph for cumulative stats."))
 	bool stacked = false;
+
+	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Stacked Total Stat", Tooltip = "Specifies the total stat. Valid for stacked graphs only."))
+	FString stacktotalstack;
 
 	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Interactive", Tooltip = "Adds an interactive frame marker."))
 	bool interactive = false;
 
 	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Show Averages", Tooltip = "Shows stat averages next to the legend and sorts the stats in the legend high to low by average value."))
 	bool showaverages = false;
+
+	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Colour Offset", Tooltip = "Rotates the colours."))
+	int colourOffset = 0;
+
+	UPROPERTY(EditAnywhere, Category = OptionalArguments, meta = (EditorConfig, DisplayName = "Average Threshold", Tooltip = "Ignores stats whose average is under this threshold."))
+	float averageThreshold = -FLT_MAX;
 
 	FString GetCommandLine() const;
 

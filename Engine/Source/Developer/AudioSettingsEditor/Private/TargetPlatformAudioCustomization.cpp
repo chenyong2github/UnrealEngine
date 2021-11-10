@@ -33,6 +33,7 @@ FAudioPluginWidgetManager::FAudioPluginWidgetManager()
 	ManualReverbEntry = TSharedPtr<FText>(new FText(FText::FromString(TEXT("Built-in Reverb"))));
 	ManualSpatializationEntry = TSharedPtr<FText>(new FText(FText::FromString(TEXT("Built-in Spatialization"))));
 	ManualOcclusionEntry = TSharedPtr<FText>(new FText(FText::FromString(TEXT("Built-in Occlusion"))));
+	ManualSourceDataOverrideEntry = TSharedPtr<FText>(new FText(FText::FromString(TEXT("None"))));
 }
 
 FAudioPluginWidgetManager::~FAudioPluginWidgetManager()
@@ -69,6 +70,14 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 			DefaultEffectName = TSharedPtr<FText>(new FText(FText::FromString(TEXT("Built-in Occlusion"))));
 			SelectedOcclusion = TSharedPtr<FText>(new FText(*DefaultEffectName));
 			PropertyHandle->GetValueAsDisplayText(*SelectedOcclusion);
+			break;
+
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+			ValidPluginNames = &SourceDataOverridePlugins;
+			TooltipText = LOCTEXT("SourceDataOverride", "Choose which audio plugin should be used for source data override. If your desired source data override plugin isn't found in the drop down menu, ensure that it is enabled on the Plugins panel.");
+			DefaultEffectName = TSharedPtr<FText>(new FText(FText::FromString(TEXT("None"))));
+			SelectedSourceDataOverride = TSharedPtr<FText>(new FText(*DefaultEffectName));
+			PropertyHandle->GetValueAsDisplayText(*SelectedSourceDataOverride);
 			break;
 
 		default:
@@ -114,6 +123,19 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 		{
 			TArray<IAudioOcclusionFactory*> AvailableOcclusionPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioOcclusionFactory>(IAudioOcclusionFactory::GetModularFeatureName());
 			for (IAudioOcclusionFactory* Plugin : AvailableOcclusionPlugins)
+			{
+				if (Plugin->SupportsPlatform(PlatformName))
+				{
+					ValidPluginNames->Add(TSharedPtr<FText>(new FText(FText::FromString(Plugin->GetDisplayName()))));
+				}
+			}
+		}
+		break;
+
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+		{
+			TArray<IAudioSourceDataOverrideFactory*> AvailableSourceDataOverridePlugins = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSourceDataOverrideFactory>(IAudioSourceDataOverrideFactory::GetModularFeatureName());
+			for (IAudioSourceDataOverrideFactory* Plugin : AvailableSourceDataOverridePlugins)
 			{
 				if (Plugin->SupportsPlatform(PlatformName))
 				{
@@ -195,6 +217,19 @@ TSharedRef<SWidget> FAudioPluginWidgetManager::MakeAudioPluginSelectorWidget(con
 					OnPluginSelected((bSelectedManualEntry ? ManualOcclusionEntry->ToString() : InText->ToString()), PropertyHandle);
 					break;
 
+				case EAudioPlugin::SOURCEDATAOVERRIDE:
+					if (bSelectedManualEntry)
+					{
+						SelectedSourceDataOverride = ManualSourceDataOverrideEntry;
+					}
+					else
+					{
+						SelectedSourceDataOverride = InText;
+					}
+
+					OnPluginSelected((bSelectedManualEntry ? ManualSourceDataOverrideEntry->ToString() : InText->ToString()), PropertyHandle);
+					break;
+
 				default:
 					break;
 			}
@@ -271,7 +306,21 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 			MakeAudioPluginSelectorWidget(AudioOcclusionPropertyHandle, EAudioPlugin::OCCLUSION, PlatformName)
 		];
 		
-	
+		TSharedPtr<IPropertyHandle> AudioPropagationPropertyHandle = DetailLayout.GetProperty("PropagationPlugin", ClassOuterMost);
+		IDetailPropertyRow& AudioPropagationPropertyRow = AudioCategory.AddProperty(AudioPropagationPropertyHandle);
+
+		AudioPropagationPropertyRow.CustomWidget()
+			.NameContent()
+			[
+				AudioPropagationPropertyHandle->CreatePropertyNameWidget()
+			]
+		.ValueContent()
+			.MaxDesiredWidth(500.0f)
+			.MinDesiredWidth(100.0f)
+			[
+				MakeAudioPluginSelectorWidget(AudioPropagationPropertyHandle, EAudioPlugin::SOURCEDATAOVERRIDE, PlatformName)
+			];
+
 	// Not really a plugin, but this is common to all TargetPlatforms
 	TSharedPtr<IPropertyHandle> SoundQualityNamePropHandle = DetailLayout.GetProperty("SoundCueCookQualityIndex", ClassOuterMost);
 	ensure(SoundQualityNamePropHandle.IsValid());
@@ -337,6 +386,11 @@ void FAudioPluginWidgetManager::OnPluginTextCommitted(const FText& InText, EText
 			SelectedOcclusion = ManualOcclusionEntry;
 			break;
 
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+			*ManualSourceDataOverrideEntry = InText;
+			SelectedSourceDataOverride = ManualSourceDataOverrideEntry;
+			break;
+
 		default:
 			break;
 	}
@@ -359,7 +413,11 @@ FText FAudioPluginWidgetManager::OnGetPluginText(EAudioPlugin AudioPluginType)
 		case EAudioPlugin::OCCLUSION:
 			return *SelectedOcclusion;
 			break;
-	
+
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+			return *SelectedSourceDataOverride;
+			break;
+
 		default:
 			return FText::FromString(FString(TEXT("ERROR")));
 			break;

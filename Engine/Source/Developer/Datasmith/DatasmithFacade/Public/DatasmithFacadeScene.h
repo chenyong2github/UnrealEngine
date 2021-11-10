@@ -55,6 +55,14 @@ public:
 		EActorRemovalRule RemovalRule = EActorRemovalRule::RemoveChildren
 	);
 
+	void RemoveActorAt(
+		int32 ActorIndex,
+		EActorRemovalRule RemovalRule = EActorRemovalRule::RemoveChildren
+	)
+	{
+		SceneRef->RemoveActorAt(ActorIndex, static_cast<EDatasmithActorRemovalRule>(RemovalRule));
+	}
+
 	void AddMaterial(
 		FDatasmithFacadeBaseMaterial* InMaterialPtr
 	);
@@ -82,6 +90,13 @@ public:
 	void RemoveMaterial(
 		FDatasmithFacadeBaseMaterial* InMaterialPtr
 	);
+
+	void RemoveMaterialAt(
+		int32 MaterialIndex
+	)
+	{
+		SceneRef->RemoveMaterialAt(MaterialIndex);
+	}
 
 	FDatasmithFacadeMeshElement* ExportDatasmithMesh(
 		FDatasmithFacadeMesh* Mesh,
@@ -111,6 +126,13 @@ public:
 		FDatasmithFacadeMeshElement* MeshElement
 	);
 
+	void RemoveMeshAt(
+		int32 MeshIndex
+	)
+	{
+		SceneRef->RemoveMeshAt(MeshIndex);
+	}
+
 	void AddTexture(
 		FDatasmithFacadeTexture* InTexturePtr
 	);
@@ -129,6 +151,13 @@ public:
 		FDatasmithFacadeTexture* InTexturePtr
 	);
 
+	void RemoveTextureAt(
+		int32 TextureIndex
+	)
+	{
+		SceneRef->RemoveTextureAt(TextureIndex);
+	}
+
 	void AddLevelVariantSets(
 		FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
 	);
@@ -143,6 +172,13 @@ public:
 		FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
 	);
 
+	void RemoveLevelVariantSetsAt(
+		int32 LevelVariantSetsIndex
+	)
+	{
+		SceneRef->RemoveLevelVariantSetsAt(LevelVariantSetsIndex);
+	}
+
 	void AddLevelSequence(
 		FDatasmithFacadeLevelSequence* InLevelSequence
 	);
@@ -156,6 +192,13 @@ public:
 	void RemoveLevelSequence(
 		FDatasmithFacadeLevelSequence* InLevelSequence
 	);
+
+	void RemoveLevelSequenceAt(
+		int32 LevelSequenceIndex
+	)
+	{
+		SceneRef->RemoveLevelSequenceAt(LevelSequenceIndex);
+	}
 
 	void AddMetaData(
 		FDatasmithFacadeMetaData* InMetaDataPtr
@@ -182,6 +225,13 @@ public:
 	void RemoveMetaData(
 		FDatasmithFacadeMetaData* InMetaDataPtr
 	);
+
+	void RemoveMetaDataAt(
+		int32 MetaDataIndex
+	)
+	{
+		SceneRef->RemoveMetaDataAt(MetaDataIndex);
+	}
 	
 	/** Set the Datasmith scene name */
 	void SetName(const TCHAR* InName);

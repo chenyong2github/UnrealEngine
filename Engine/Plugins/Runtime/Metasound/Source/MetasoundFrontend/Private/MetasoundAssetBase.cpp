@@ -10,6 +10,7 @@
 #include "IStructSerializerBackend.h"
 #include "Logging/LogMacros.h"
 #include "MetasoundArchetype.h"
+#include "MetasoundAssetManager.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -30,20 +31,6 @@
 
 namespace Metasound
 {
-	namespace AssetTags
-	{
-		const FString ArrayDelim = TEXT(",");
-
-		const FName AssetClassID = "AssetClassID";
-		const FName RegistryVersionMajor = "RegistryVersionMajor";
-		const FName RegistryVersionMinor = "RegistryVersionMinor";
-
-#if WITH_EDITORONLY_DATA
-		const FName RegistryInputTypes = "RegistryInputTypes";
-		const FName RegistryOutputTypes = "RegistryOutputTypes";
-#endif // WITH_EDITORONLY_DATA
-	} // namespace AssetTags
-
 	namespace AssetBasePrivate
 	{
 		void DepthFirstTraversal(const FMetasoundAssetBase& InInitAsset, TFunctionRef<TSet<const FMetasoundAssetBase*>(const FMetasoundAssetBase&)> InVisitFunction)
@@ -69,9 +56,7 @@ namespace Metasound
 
 const FString FMetasoundAssetBase::FileExtension(TEXT(".metasound"));
 
-IMetaSoundAssetManager* IMetaSoundAssetManager::Instance = nullptr;
-
-void FMetasoundAssetBase::RegisterGraphWithFrontend(FMetaSoundAssetRegistrationOptions InRegistrationOptions)
+void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSoundAssetRegistrationOptions InRegistrationOptions)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -85,18 +70,27 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(FMetaSoundAssetRegistrationO
 		}
 	}
 
-	GetReferencedAssetClassCache().Reset();
 	// Triggers the existing runtime data to be out-of-date.
 	CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
 
+	if (InRegistrationOptions.bRegisterDependencies)
+	{
+		// Must be called in case register is called prior to asset scan being completed
+		IMetaSoundAssetManager::GetChecked().AddAssetReferences(*this);
+	}
+
 	if (InRegistrationOptions.bRebuildReferencedAssetClassKeys)
 	{
-		RebuildReferencedAssetClassKeys();
+		TSet<FNodeRegistryKey> ReferencedKeys = IMetaSoundAssetManager::GetChecked().GetReferencedKeys(*this);
+		SetReferencedAssetClassKeys(MoveTemp(ReferencedKeys));
 	}
 
 	if (InRegistrationOptions.bRegisterDependencies)
 	{
-		const TArray<FMetasoundAssetBase*> References = FindOrLoadReferencedAssets();
+		TArray<FMetasoundAssetBase*> References;
+		ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
+
+		GetReferencedAssetClassCache().Reset();
 		for (FMetasoundAssetBase* Reference : References)
 		{
 			if (InRegistrationOptions.bForceReregister || !Reference->IsRegistered())
@@ -320,26 +314,6 @@ FMetasoundFrontendVersion FMetasoundAssetBase::GetPreferredArchetypeVersion(cons
 	return GetDefaultArchetypeVersion();
 }
 
-TArray<FMetasoundAssetBase*> FMetasoundAssetBase::FindOrLoadReferencedAssets() const
-{
-	using namespace Metasound::Frontend;
-
-	TArray<FMetasoundAssetBase*> ReferencedAssets;
-	for (const FNodeRegistryKey& Key : GetReferencedAssetClassKeys())
-	{
-		if (FMetasoundAssetBase* MetaSound = IMetaSoundAssetManager::GetChecked().FindAssetFromKey(Key))
-		{
-			ReferencedAssets.Add(MetaSound);
-		}
-		else
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to find referenced MetaSound asset with key '%s'"), *Key);
-		}
-	}
-
-	return ReferencedAssets;
-}
-
 bool FMetasoundAssetBase::GetArchetype(FMetasoundFrontendArchetype& OutArchetype) const
 {
 	using namespace Metasound;
@@ -463,30 +437,6 @@ TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMet
 	return SharedGraph;
 }
 
-void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
-{
-	using namespace Metasound::Frontend;
-
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::RebuildReferencedAssetClassKeys);
-
-	TSet<FNodeRegistryKey> AssetKeys;
-
-
-	GetRootGraphHandle()->IterateConstNodes([RefAssetKeys = &AssetKeys](FConstNodeHandle NodeHandle)
-	{
-		using namespace Metasound::Frontend;
-
-		const FMetasoundFrontendClassMetadata& RefMetadata = NodeHandle->GetClassMetadata();
-		const FNodeRegistryKey RefRegistryKey = NodeRegistryKey::CreateKey(RefMetadata);
-		if (const FMetasoundAssetBase* RefAsset = IMetaSoundAssetManager::GetChecked().FindAssetFromKey(RefRegistryKey))
-		{
-			RefAssetKeys->Add(RefRegistryKey);
-		}
-	}, EMetasoundFrontendClassType::External);
-
-	SetReferencedAssetClassKeys(MoveTemp(AssetKeys));
-}
-
 bool FMetasoundAssetBase::IsRegistered() const
 {
 	using namespace Metasound::Frontend;
@@ -501,6 +451,8 @@ bool FMetasoundAssetBase::IsRegistered() const
 
 bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const
 {
+	using namespace Metasound::Frontend;
+
 	const FMetasoundAssetBase* ReferenceAsset = IMetaSoundAssetManager::GetChecked().TryLoadAsset(InReferencePath);
 	if (!ensureAlways(ReferenceAsset))
 	{
@@ -519,7 +471,8 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 			return Children;
 		}
 
-		TArray<FMetasoundAssetBase*> ChildRefs = ChildAsset.FindOrLoadReferencedAssets();
+		TArray<FMetasoundAssetBase*> ChildRefs;
+		ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, ChildRefs));
 		for (const FMetasoundAssetBase* ChildRef : ChildRefs)
 		{
 			if (ChildRef)

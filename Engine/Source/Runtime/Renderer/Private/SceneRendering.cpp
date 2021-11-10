@@ -1417,9 +1417,9 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 
 		// Regular view sampling of the SkyViewLUT. This is only changed when sampled from a sky material for the real time reflection capture around sky light position)
-		FVector SkyWorldCameraOrigin;
-		FMatrix SkyViewLutReferential;
-		FVector4 TempSkyPlanetData;
+		FVector3f SkyWorldCameraOrigin;
+		FMatrix44f SkyViewLutReferential;
+		FVector4f TempSkyPlanetData;
 		AtmosphereSetup.ComputeViewData(InViewMatrices.GetViewOrigin(), ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
 			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
 		// LWC_TODO: Precision loss
@@ -1876,6 +1876,25 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
 	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	// Shading energy conservation
+	ViewUniformShaderParameters.bShadingEnergyConservation = 0u;
+	ViewUniformShaderParameters.bShadingEnergyPreservation = 0u;
+	ViewUniformShaderParameters.ShadingEnergySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	if (ViewState)
+	{
+		ViewUniformShaderParameters.bShadingEnergyConservation		= ViewState->ShadingEnergyConservationData.bEnergyConservation ? 1u : 0u;
+		ViewUniformShaderParameters.bShadingEnergyPreservation		= ViewState->ShadingEnergyConservationData.bEnergyPreservation ? 1u : 0u;
+		ViewUniformShaderParameters.ShadingEnergyGGXSpecTexture		= ViewState->ShadingEnergyConservationData.GGXSpecEnergyTexture ? ViewState->ShadingEnergyConservationData.GGXSpecEnergyTexture->GetRHI(ERenderTargetTexture::ShaderResource) : nullptr;
+		ViewUniformShaderParameters.ShadingEnergyGGXGlassTexture	= ViewState->ShadingEnergyConservationData.GGXGlassEnergyTexture ? ViewState->ShadingEnergyConservationData.GGXGlassEnergyTexture->GetRHI(ERenderTargetTexture::ShaderResource) : nullptr;
+		ViewUniformShaderParameters.ShadingEnergyClothSpecTexture	= ViewState->ShadingEnergyConservationData.ClothEnergyTexture ? ViewState->ShadingEnergyConservationData.ClothEnergyTexture->GetRHI(ERenderTargetTexture::ShaderResource) : nullptr;
+		ViewUniformShaderParameters.ShadingEnergyDiffuseTexture		= ViewState->ShadingEnergyConservationData.DiffuseEnergyTexture ? ViewState->ShadingEnergyConservationData.DiffuseEnergyTexture->GetRHI(ERenderTargetTexture::ShaderResource) : nullptr;
+	}
+	ViewUniformShaderParameters.ShadingEnergyGGXSpecTexture		 = OrBlack2DIfNull(ViewUniformShaderParameters.ShadingEnergyGGXSpecTexture);
+	ViewUniformShaderParameters.ShadingEnergyGGXGlassTexture	 = OrBlack3DIfNull(ViewUniformShaderParameters.ShadingEnergyGGXGlassTexture);
+	ViewUniformShaderParameters.ShadingEnergyClothSpecTexture	 = OrBlack2DIfNull(ViewUniformShaderParameters.ShadingEnergyClothSpecTexture);
+	ViewUniformShaderParameters.ShadingEnergyDiffuseTexture		 = OrBlack2DIfNull(ViewUniformShaderParameters.ShadingEnergyDiffuseTexture);
+
+	// Water
 	if (WaterDataBuffer.IsValid() && WaterIndirectionBuffer.IsValid())
 	{
 		ViewUniformShaderParameters.WaterIndirection = WaterIndirectionBuffer.GetReference();

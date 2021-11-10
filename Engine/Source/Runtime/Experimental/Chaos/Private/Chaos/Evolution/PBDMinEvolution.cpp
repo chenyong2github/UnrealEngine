@@ -54,13 +54,6 @@ namespace Chaos
 	bool bChaos_MinEvolution_RewindLerp = true;
 	FAutoConsoleVariableRef CVarChaosMinEvolutionRewindLerp(TEXT("p.Chaos.MinEvolution.RewindLerp"), bChaos_MinEvolution_RewindLerp, TEXT("If rewinding (fixed dt mode) use Backwards-Lerp as opposed to Backwards Velocity"));
 
-#if INTEL_ISPC
-	int Chaos_MinEvolution_IntegrateMode = 0;
-	FAutoConsoleVariableRef CVarChaosMinEvolutionIntegrateMode(TEXT("p.Chaos.MinEvolution.IntegrateMode"), Chaos_MinEvolution_IntegrateMode, TEXT(""));
-#else
-	const int Chaos_MinEvolution_IntegrateMode = 0;
-#endif
-
 	// Forced iteration count to evaluate worst-case behaviour for a given simulation
 	bool Chaos_MinEvolution_ForceMaxConstraintIterations = false;
 	FAutoConsoleVariableRef CVarChaosMinEvolutionForceMaxConstraintIterations(TEXT("p.Chaos.MinEvolution.ForceMaxConstraintIterations"), Chaos_MinEvolution_ForceMaxConstraintIterations, TEXT("Whether to force constraints to always use the worst-case maximum number of iterations"));
@@ -148,17 +141,6 @@ namespace Chaos
 		, Gravity(FVec3(0))
 		, SimulationSpaceSettings()
 	{
-#if INTEL_ISPC
-		if (Chaos_MinEvolution_IntegrateMode == 2)
-		{
-			check((int32)EObjectStateType::Dynamic == (int32)ispc::ValueOfEObjectStateTypeDynamic())
-			check(sizeof(FRigidTransform3) == ispc::SizeofFTransform());
-			check(sizeof(FAABB3) == ispc::SizeofFAABB());
-			check(sizeof(FPBDRigidArrays) == ispc::SizeofFPBDRigidArrays());
-			check(sizeof(FSimulationSpace) == ispc::SizeofFSimulationSpace());
-			check(sizeof(FSimulationSpaceSettings) == ispc::SizeofFSimulationSpaceSettings());
-		}
-#endif
 	}
 
 	void FPBDMinEvolution::AddConstraintRule(FSimpleConstraintRule* Rule)
@@ -318,22 +300,7 @@ namespace Chaos
 	void FPBDMinEvolution::Integrate(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
-		if (Chaos_MinEvolution_IntegrateMode == 0)
-		{
-			IntegrateImpl(Dt);
-		}
-		else if (Chaos_MinEvolution_IntegrateMode == 1)
-		{
-			IntegrateImpl2(Dt);
-		}
-		else if (Chaos_MinEvolution_IntegrateMode == 2)
-		{
-			IntegrateImplISPC(Dt);
-		}
-	}
 
-	void FPBDMinEvolution::IntegrateImpl(FReal Dt)
-	{
 		// Simulation space velocity and acceleration
 		FVec3 SpaceV = FVec3(0);	// Velocity
 		FVec3 SpaceW = FVec3(0);	// Angular Velocity
@@ -403,156 +370,10 @@ namespace Chaos
 				Particle.LinearImpulse() = FVec3(0);
 				Particle.AngularImpulse() = FVec3(0);
 
-				// Update world-space bounds
-				if (Particle.HasBounds())
-				{
-					const FAABB3& LocalBounds = Particle.LocalBounds();
-					
-					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
-					WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
-
-					// Dynamic bodies may get pulled back into their old positions by joints - make sure we find collisions that may prevent this
-					// We could add the AABB at X/R here, but I'm avoiding another call to TransformedAABB. Hopefully this is good enough.
-					WorldSpaceBounds.GrowByVector(Particle.X() - Particle.P());
-
-					WorldSpaceBounds.ThickenSymmetrically(FVec3(CollisionDetector.GetBroadPhase().GetCullDistance()));
-
-					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
-				}
+				// @todo(chaos): this used to create a bounding box that included X,R and P,Q plus some expansion. We may still need that...
+				Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(CollisionDetector.GetBroadPhase().GetCullDistance()));
 			}
 		}
-	}
-
-	void FPBDMinEvolution::IntegrateImpl2(FReal Dt)
-	{
-		FPBDRigidArrays Rigids = FPBDRigidArrays(Particles.GetDynamicParticles());
-
-		// Simulation space velocity and acceleration
-		FVec3 SpaceV = FVec3(0);	// Velocity
-		FVec3 SpaceW = FVec3(0);	// Angular Velocity
-		FVec3 SpaceA = FVec3(0);	// Acceleration
-		FVec3 SpaceB = FVec3(0);	// Angular Acceleration
-		if (SimulationSpaceSettings.MasterAlpha > 0.0f)
-		{
-			SpaceV = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.LinearVelocity);
-			SpaceW = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.AngularVelocity);
-			SpaceA = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.LinearAcceleration);
-			SpaceB = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.AngularAcceleration);
-		}
-
-		for (int32 ParticleIndex = 0; ParticleIndex < Rigids.NumParticles; ++ParticleIndex)
-		{
-			if (!Rigids.Disabled[ParticleIndex] && (Rigids.ObjectState[ParticleIndex] == EObjectStateType::Dynamic))
-			{
-				Rigids.PreV[ParticleIndex] = Rigids.V[ParticleIndex];
-				Rigids.PreW[ParticleIndex] = Rigids.W[ParticleIndex];
-
-				const FVec3 XCoM = Rigids.X[ParticleIndex] + Rigids.R[ParticleIndex].RotateVector(Rigids.CenterOfMass[ParticleIndex]);
-				const FRotation3 RCoM = Rigids.R[ParticleIndex] * Rigids.RotationOfMass[ParticleIndex];
-
-				// Forces and torques
-				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Rigids.InvI[ParticleIndex]);
-				FVec3 DV = Rigids.InvM[ParticleIndex] * (Rigids.F[ParticleIndex] * Dt + Rigids.LinearImpulse[ParticleIndex]);
-				FVec3 DW = WorldInvI * (Rigids.T[ParticleIndex] * Dt + Rigids.AngularImpulse[ParticleIndex]);
-				FVec3 TargetV = FVec3(0);
-				FVec3 TargetW = FVec3(0);
-
-				// Gravity
-				if (Rigids.GravityEnabled[ParticleIndex])
-				{
-					DV += Gravity * Dt;
-				}
-
-				// Moving and accelerating simulation frame
-				// https://en.wikipedia.org/wiki/Rotating_reference_frame
-				if (SimulationSpaceSettings.MasterAlpha > 0.0f)
-				{
-					const FVec3 CoriolisAcc = SimulationSpaceSettings.CoriolisAlpha * 2.0f * FVec3::CrossProduct(SpaceW, Rigids.V[ParticleIndex]);
-					const FVec3 CentrifugalAcc = SimulationSpaceSettings.CentrifugalAlpha * FVec3::CrossProduct(SpaceW, FVec3::CrossProduct(SpaceW, XCoM));
-					const FVec3 EulerAcc = SimulationSpaceSettings.EulerAlpha * FVec3::CrossProduct(SpaceB, XCoM);
-					const FVec3 LinearAcc = SimulationSpaceSettings.LinearAccelerationAlpha * SpaceA;
-					const FVec3 AngularAcc = SimulationSpaceSettings.AngularAccelerationAlpha * SpaceB;
-					const FVec3 LinearDragAcc = SimulationSpaceSettings.ExternalLinearEtherDrag * SpaceV;
-					DV -= SimulationSpaceSettings.MasterAlpha * (LinearAcc + LinearDragAcc + CoriolisAcc + CentrifugalAcc + EulerAcc) * Dt;
-					DW -= SimulationSpaceSettings.MasterAlpha * AngularAcc * Dt;
-					TargetV = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.LinearVelocityAlpha * SpaceV;
-					TargetW = -SimulationSpaceSettings.MasterAlpha * SimulationSpaceSettings.AngularVelocityAlpha * SpaceW;
-				}
-
-				// New velocity
-				const FReal LinearDrag = FMath::Min(FReal(1), Rigids.LinearEtherDrag[ParticleIndex] * Dt);
-				const FReal AngularDrag = FMath::Min(FReal(1), Rigids.AngularEtherDrag[ParticleIndex] * Dt);
-				const FVec3 VCoM = FMath::Lerp(Rigids.V[ParticleIndex] + DV, TargetV, LinearDrag);
-				const FVec3 WCoM = FMath::Lerp(Rigids.W[ParticleIndex] + DW, TargetW, AngularDrag);
-
-				// New position
-				const FVec3 PCoM = XCoM + VCoM * Dt;
-				const FRotation3 QCoM = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, WCoM, Dt);
-
-				// Update particle state (forces are not zeroed until the end of the frame)
-				const FRotation3 QActor = QCoM * Rigids.RotationOfMass[ParticleIndex].Inverse();
-				const FVec3 PActor = PCoM - QActor.RotateVector(Rigids.CenterOfMass[ParticleIndex]);
-				Rigids.P[ParticleIndex] = PActor;
-				Rigids.Q[ParticleIndex] = QActor;
-
-				Rigids.V[ParticleIndex] = VCoM;
-				Rigids.W[ParticleIndex] = WCoM;
-				Rigids.LinearImpulse[ParticleIndex] = FVec3(0);
-				Rigids.AngularImpulse[ParticleIndex] = FVec3(0);
-
-				// Update world-space bounds
-				if (Rigids.HasBounds[ParticleIndex])
-				{
-					FAABB3 WorldSpaceBounds = Rigids.LocalBounds[ParticleIndex].TransformedAABB(FRigidTransform3(Rigids.P[ParticleIndex], Rigids.Q[ParticleIndex]));
-					WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
-
-					// Dynamic bodies may get pulled back into their old positions by joints - make sure we find collisions that may prevent this
-					// We could add the AABB at X/R here, but I'm avoiding another call to TransformedAABB. Hopefully this is good enough.
-					WorldSpaceBounds.GrowByVector(Rigids.X[ParticleIndex] - Rigids.P[ParticleIndex]);
-
-					WorldSpaceBounds.ThickenSymmetrically(FVec3(CollisionDetector.GetBroadPhase().GetCullDistance()));
-
-					Rigids.WorldBounds[ParticleIndex] = WorldSpaceBounds;
-				}
-			}
-		}
-
-		// @todo(ccaulfield): See SetWorldSpaceInflatedBounds - it does some extra stuff that seems suspect
-		for (int32 ParticleIndex = 0; ParticleIndex < Rigids.NumParticles; ++ParticleIndex)
-		{
-			if (!Rigids.Disabled[ParticleIndex] && (Rigids.ObjectState[ParticleIndex] == EObjectStateType::Dynamic))
-			{
-				if (Rigids.HasBounds[ParticleIndex])
-				{
-					Particles.GetDynamicParticles().Handle(ParticleIndex)->SetWorldSpaceInflatedBounds(Rigids.WorldBounds[ParticleIndex]);
-				}
-			}
-		}
-	}
-
-
-	void FPBDMinEvolution::IntegrateImplISPC(FReal Dt)
-	{
-		check(bRealTypeCompatibleWithISPC);
-#if INTEL_ISPC
-		FPBDRigidArrays Rigids = FPBDRigidArrays(Particles.GetDynamicParticles());
-		ispc::MinEvolutionIntegrate(Dt, (ispc::FPBDRigidArrays&)Rigids, (ispc::FSimulationSpace&)SimulationSpace, (ispc::FSimulationSpaceSettings&)SimulationSpaceSettings, (ispc::FVector&)Gravity, BoundsExtension, CollisionDetector.GetBroadPhase().GetCullDistance());
-
-		// @todo(ccaulfield): move to ispc
-		for (int32 ParticleIndex = 0; ParticleIndex < Rigids.NumParticles; ++ParticleIndex)
-		{
-			if (!Rigids.Disabled[ParticleIndex] && (Rigids.ObjectState[ParticleIndex] == EObjectStateType::Dynamic))
-			{
-				if (Rigids.HasBounds[ParticleIndex])
-				{
-					// @todo(ccaulfield): See SetWorldSpaceInflatedBounds - it does some extra stuff that seems suspect
-					Particles.GetDynamicParticles().Handle(ParticleIndex)->SetWorldSpaceInflatedBounds(Rigids.WorldBounds[ParticleIndex]);
-				}
-			}
-		}
-#else
-		IntegrateImpl(Dt);
-#endif
 	}
 
 	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)
@@ -625,19 +446,7 @@ namespace Chaos
 			}
 			}
 
-			// Update world space bouunds
-			if (Particle.HasBounds())
-			{
-				const FAABB3& LocalBounds = Particle.LocalBounds();
-				
-				FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
-				WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
-
-				//FAABB3 PrevWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
-				//WorldSpaceBounds.GrowToInclude(PrevWorldSpaceBounds);
-
-				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
-			}
+			Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.X(), Particle.R()), FVec3(BoundsExtension));
 		}
 	}
 

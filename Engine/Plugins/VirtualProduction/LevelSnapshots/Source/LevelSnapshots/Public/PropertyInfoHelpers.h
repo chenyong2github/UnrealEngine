@@ -32,10 +32,7 @@ public:
 	static bool IsPropertyInMap(const FProperty* Property);
 
 	/* A quick property flag check. Assumes the property flags are properly set/deserialized */
-	static bool IsPropertyComponentFast(const FProperty* Property);
-
-	/* A quick property flag check. Assumes the property flags are properly set/deserialized */
-	static bool IsPropertySubObject(const FProperty* Property);
+	static bool IsPropertyComponentOrSubobject(const FProperty* Property);
 
 	static void UpdateDecimalComparisionPrecision(float FloatPrecision, double DoublePrecision);
 	static bool AreNumericPropertiesNearlyEqual(const FNumericProperty* Property, const void* ValuePtrA, const void* ValuePtrB);

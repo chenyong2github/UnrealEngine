@@ -12,7 +12,7 @@ template<class T, int d, EGeometryParticlesSimType SimType>
 class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimType>
 {
   public:
-	CHAOS_API TKinematicGeometryParticlesImp()
+	TKinematicGeometryParticlesImp()
 	    : TGeometryParticlesImp<T, d, SimType>()
 	{
 		this->MParticleType = EParticleType::Kinematic;
@@ -21,7 +21,7 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&KinematicTargets);
 	}
 	TKinematicGeometryParticlesImp(const TKinematicGeometryParticlesImp<T, d, SimType>& Other) = delete;
-	CHAOS_API TKinematicGeometryParticlesImp(TKinematicGeometryParticlesImp<T, d, SimType>&& Other)
+	TKinematicGeometryParticlesImp(TKinematicGeometryParticlesImp<T, d, SimType>&& Other)
 	    : TGeometryParticlesImp<T, d, SimType>(MoveTemp(Other)), MV(MoveTemp(Other.MV)), MW(MoveTemp(Other.MW))
 	{
 		this->MParticleType = EParticleType::Kinematic;
@@ -29,7 +29,7 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&MW);
 		TArrayCollection::AddArray(&KinematicTargets);
 	}
-	CHAOS_API virtual ~TKinematicGeometryParticlesImp();
+	virtual ~TKinematicGeometryParticlesImp() {};
 
 	const TVector<T, d>& V(const int32 Index) const { return MV[Index]; }
 	TVector<T, d>& V(const int32 Index) { return MV[Index]; }
@@ -47,12 +47,12 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 	}
 
 	typedef TKinematicGeometryParticleHandle<T, d> THandleType;
-	CHAOS_API const THandleType* Handle(int32 Index) const;
+	const THandleType* Handle(int32 Index) const;
 
 	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
-	CHAOS_API THandleType* Handle(int32 Index);
+	THandleType* Handle(int32 Index);
 
-	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
+	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TGeometryParticlesImp<T, d, SimType>::Serialize(Ar);
 		Ar << MV << MW;
@@ -81,13 +81,7 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TKinematicGeometryParticlesImp<T, d
 	return Ar;
 }
 
-#if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::RigidBodySim>;
-extern template class CHAOS_API Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::Other>;
-#else
-extern template class Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::RigidBodySim>;
-extern template class Chaos::TKinematicGeometryParticlesImp<Chaos::FReal, 3, Chaos::EGeometryParticlesSimType::Other>;
-#endif
+
 
 template <typename T, int d>
 using TKinematicGeometryParticles = TKinematicGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>;

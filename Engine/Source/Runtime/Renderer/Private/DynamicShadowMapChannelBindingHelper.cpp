@@ -26,13 +26,13 @@ void FDynamicShadowMapChannelBindingHelper::DisableAllOtherChannels(int32 Enable
 }
 
 // Update channel usage based on the current enabled channels. Channels with light of MaxPriority or more will be disabled.
-void FDynamicShadowMapChannelBindingHelper::UpdateAvailableChannels(const TSparseArray<FLightSceneInfoCompact>& Lights, FLightSceneInfo* LightInfo)
+void FDynamicShadowMapChannelBindingHelper::UpdateAvailableChannels(const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights, FLightSceneInfo* LightInfo)
 {
 	const int32 LightPriority = LightInfo ? GetPriority(LightInfo) : INDEX_NONE;
 	if (LightPriority != INDEX_NONE)
 	{
 		const FSphere LightBounds = LightInfo->Proxy->GetBoundingSphere();
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
+		for (auto It = Lights.CreateConstIterator(); It; ++It)
 		{
 			FLightSceneInfo* OtherLightInfo = It->LightSceneInfo;
 			if (OtherLightInfo && OtherLightInfo != LightInfo)

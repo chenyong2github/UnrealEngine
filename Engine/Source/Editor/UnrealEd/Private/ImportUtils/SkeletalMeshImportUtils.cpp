@@ -406,6 +406,9 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	ExistingMeshDataPtr->PositiveBoundsExtension = SourceSkeletalMesh->GetPositiveBoundsExtension();
 	ExistingMeshDataPtr->NegativeBoundsExtension = SourceSkeletalMesh->GetNegativeBoundsExtension();
 
+	ExistingMeshDataPtr->bExistingSupportRayTracing = SourceSkeletalMesh->GetSupportRayTracing();
+	ExistingMeshDataPtr->ExistingRayTracingMinLOD = SourceSkeletalMesh->GetRayTracingMinLOD();
+
 	return ExistingMeshDataPtr;
 }
 
@@ -933,6 +936,9 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 	//Copy mesh bounds extensions
 	SkeletalMesh->SetPositiveBoundsExtension(MeshData->PositiveBoundsExtension);
 	SkeletalMesh->SetNegativeBoundsExtension(MeshData->NegativeBoundsExtension);
+
+	SkeletalMesh->SetSupportRayTracing(MeshData->bExistingSupportRayTracing);
+	SkeletalMesh->SetRayTracingMinLOD(MeshData->ExistingRayTracingMinLOD);
 }
 
 void SkeletalMesUtilsImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex, TArray<int32>& RemapMaterial, bool bMaterialReset)

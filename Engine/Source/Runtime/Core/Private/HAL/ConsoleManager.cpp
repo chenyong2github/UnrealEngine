@@ -88,7 +88,7 @@ public:
 	{
 		return *Help;
 	}
-	virtual void SetHelp(const TCHAR* Value)
+	virtual void SetHelp(const TCHAR* Value) override final
 	{
 		check(Value);
 

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
-#include "Fonts/FontMeasure.h"
+#include "SAudioInputWidget.h"
 #include "SAudioTextBox.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -37,7 +37,7 @@ enum EAudioRadialSliderLayout
  * This is a nativized version of the previous Audio Knob Small/Large widgets. 
  */
 class AUDIOWIDGETS_API SAudioRadialSlider
-	: public SCompoundWidget
+	: public SAudioInputWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SAudioRadialSlider)
@@ -49,12 +49,15 @@ public:
 		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
 		if (ensure(AudioWidgetsStyle))
 		{
-			_CenterBackgroundColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.CenterBackgroundColor");
-			_SliderProgressColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.SliderProgressColor");
-			_SliderBarColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.SliderBarColor");
-			_LabelBackgroundColor = AudioWidgetsStyle->GetColor("AudioRadialSlider.LabelBackgroundColor");
+			_Style = &AudioWidgetsStyle->GetWidgetStyle<FAudioRadialSliderStyle>("AudioRadialSlider.Style");
+			_CenterBackgroundColor = _Style->CenterBackgroundColor;
+			_SliderProgressColor = _Style->SliderProgressColor;
+			_SliderBarColor = _Style->SliderBarColor;
 		}
 	}
+
+	/** The style used to draw the audio radial slider. */
+	SLATE_STYLE_ARGUMENT(FAudioRadialSliderStyle, Style)
 
 	/** A value representing the audio slider value. */
 	SLATE_ATTRIBUTE(float, Value)
@@ -70,9 +73,6 @@ public:
 
 	/** The color to draw the center background in. */
 	SLATE_ATTRIBUTE(FSlateColor, CenterBackgroundColor)
-
-	/** The color to draw the text label background in. */
-	SLATE_ATTRIBUTE(FSlateColor, LabelBackgroundColor)
 
 	/** Start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
 	SLATE_ATTRIBUTE(FVector2D, HandStartEndRatio)
@@ -100,6 +100,8 @@ public:
 	void SetHandStartEndRatio(const FVector2D InHandStartEndRatio);
 	void SetSliderThickness(const float Thickness);
 	void SetWidgetLayout(EAudioRadialSliderLayout InLayout);
+	FVector2D ComputeDesiredSize(float) const;
+	void SetDesiredSizeOverride(const FVector2D DesiredSize);
 
 	virtual void Construct(const SAudioRadialSlider::FArguments& InArgs);
 	void SetValue(float LinValue);
@@ -116,6 +118,7 @@ public:
 	void SetShowUnitsText(const bool bShowUnitsText);
 
 protected:
+	const FAudioRadialSliderStyle* Style;
 	TAttribute<float> Value;
 	FRuntimeFloatCurve SliderCurve;
 	
@@ -125,6 +128,7 @@ protected:
 	TAttribute<FSlateColor> LabelBackgroundColor;
 	TAttribute<FVector2D> HandStartEndRatio;
 	TAttribute<EAudioRadialSliderLayout> WidgetLayout;
+	TAttribute<TOptional<FVector2D>> DesiredSizeOverride;
 
 	TSharedPtr<SRadialSlider> RadialSlider;
 	TSharedPtr<SImage> CenterBackgroundImage;
@@ -141,7 +145,7 @@ protected:
 };
 
 /*
-* An Audio Radial Slider widget with default customizable curves for volume (dB).
+* An Audio Radial Slider widget with default conversion for volume (dB).
 */
 class AUDIOWIDGETS_API SAudioVolumeRadialSlider
 	: public SAudioRadialSlider
@@ -154,7 +158,7 @@ public:
 };
 
 /*
-* An Audio Slider widget intended to be used for frequency output, with output frequency range but no customizable curves.
+* An Audio Radial Slider widget with default logarithmic conversion intended to be used for frequency (Hz).
 */
 class AUDIOWIDGETS_API SAudioFrequencyRadialSlider
 	: public SAudioRadialSlider

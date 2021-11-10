@@ -42,7 +42,57 @@ enum class ENavDataGatheringMode : uint8;
 
 #if WITH_EDITOR
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
-#endif
+
+
+// ----------------------------------------------------------------------------------
+// Acceleration structure for when calling GetLayersFromMaterial repeatedly on potentially identical materials
+struct FGetLayersFromMaterialCache
+{
+	friend struct FScopedGetLayersFromMaterialCache;
+
+	// Use that function to retrieve the list of layers from a given material. 
+	// If a FScopedGetLayersFromMaterialCache object is currently in use, it will 
+	//  only compute that list for materials that are not yet in the cache 
+	static TArray<FName> GetLayersFromMaterial(const UMaterialInterface* InMaterialInterface);
+
+private:
+	TArray<FName> GetLayersFromMaterialInternal(const UMaterialInterface* InMaterialInterface);
+	static TArray<FName> ComputeLayersFromMaterial(const UMaterialInterface* InMaterialInterface);
+
+private:
+	TMap<const UMaterialInterface*, TArray<FName>> PerMaterialLayersCache;
+
+	static FGetLayersFromMaterialCache* ActiveCache;
+};
+
+
+// Scope object to use when repeatedly calling GetLayersFromMaterial on potentially identical materials
+struct FScopedGetLayersFromMaterialCache
+{
+	FScopedGetLayersFromMaterialCache()
+	{
+		check(FGetLayersFromMaterialCache::ActiveCache == nullptr); // Only one scoped cache allowed at a time for now 
+		FGetLayersFromMaterialCache::ActiveCache = &Cache;
+	}
+
+	~FScopedGetLayersFromMaterialCache()
+	{
+		check(FGetLayersFromMaterialCache::ActiveCache == &Cache);
+		FGetLayersFromMaterialCache::ActiveCache = nullptr;
+	}
+
+	// Non-copyable idiom:
+	FScopedGetLayersFromMaterialCache(const FScopedGetLayersFromMaterialCache&) = delete;
+	FScopedGetLayersFromMaterialCache& operator=(const FScopedGetLayersFromMaterialCache&) = delete;
+
+private:
+	FGetLayersFromMaterialCache Cache;
+};
+
+#endif // WITH_EDITOR
+
+
+// ----------------------------------------------------------------------------------
 
 USTRUCT()
 struct FLandscapeEditorLayerSettings

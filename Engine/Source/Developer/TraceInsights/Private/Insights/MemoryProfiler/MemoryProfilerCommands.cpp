@@ -3,12 +3,12 @@
 #include "MemoryProfilerCommands.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ FMemoryProfilerCommands::FMemoryProfilerCommands()
 		TEXT("MemoryProfilerCommand"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "MemoryProfilerCommand", "Memory Insights"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
 	)
 {
 }

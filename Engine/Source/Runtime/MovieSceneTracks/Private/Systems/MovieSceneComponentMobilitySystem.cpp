@@ -145,6 +145,11 @@ void UMovieSceneComponentMobilitySystem::OnUnlink()
 {
 	using namespace UE::MovieScene;
 
+	if (!ensure(PendingMobilitiesToRestore.Num() == 0))
+	{
+		PendingMobilitiesToRestore.Reset();
+	}
+
 	// Destroy everything
 	MobilityTracker.Destroy(FMobilityCacheHandler(this));
 }

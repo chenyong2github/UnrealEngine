@@ -460,6 +460,54 @@ void ICompressedAnimData::SerializeCompressedData(class FArchive& Ar)
 #endif
 }
 
+#if WITH_EDITOR
+struct FAnimDDCDebugData
+{
+public:
+	FAnimDDCDebugData(FName InOwnerName, const TArray<FRawAnimSequenceTrack>& RawData)
+	{
+		CompressedRawData = RawData;
+
+		OwnerName = InOwnerName;
+
+		MachineName = FPlatformProcess::ComputerName();
+		BuildTime = FPlatformTime::StrTimestamp();
+		ExeName = FPlatformProcess::ExecutablePath();
+		CmdLine = FCommandLine::Get();
+	}
+
+	void Display()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n ANIM DDC DEBUG DATA\nOwner Name:%s\n"), *OwnerName.ToString());
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Build Machine:%s\n"), *MachineName);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Build At:%s\n"), *BuildTime);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Executable:%s\n"), *ExeName);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Cmd Line:%s\n"), *CmdLine);
+
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Source Raw Tracks:%i\n"), CompressedRawData.Num());
+	}
+
+	FName OwnerName;
+	FString MachineName;
+	FString BuildTime;
+	FString ExeName;
+	FString CmdLine;
+	TArray<FRawAnimSequenceTrack> CompressedRawData;
+};
+
+FArchive& operator<<(FArchive& Ar, FAnimDDCDebugData& DebugData)
+{
+	Ar << DebugData.OwnerName;
+	Ar << DebugData.MachineName;
+	Ar << DebugData.BuildTime;
+	Ar << DebugData.ExeName;
+	Ar << DebugData.CmdLine;
+	Ar << DebugData.CompressedRawData;
+
+	return Ar;
+}
+#endif
+
 void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, UAnimBoneCompressionSettings* BoneCompressionSettings, UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData)
 {
 	Ar << CompressedRawDataSize;
@@ -676,8 +724,13 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 #if WITH_EDITOR
 	if (bDDCData)
 	{
+		FAnimDDCDebugData DebugData(OwnerName, CompressedRawData);
+		Ar << DebugData;
+
 		if (Ar.IsLoading() && Skeleton)
 		{
+			//Temp DDC debug
+			//DebugData.Display();
 			// Refresh the compressed curve names since the IDs might have changed since
 			for (FSmartName& CurveName : CompressedCurveNames)
 			{

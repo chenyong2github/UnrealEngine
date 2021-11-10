@@ -1085,14 +1085,18 @@ bool FLevelCollectionModel::AreActorsSelected() const
 
 bool FLevelCollectionModel::CanConvertAnyLevelToExternalActors(bool bExternal) const
 {
-	for (const TSharedPtr<FLevelModel>& LevelModel : SelectedLevelsList)
+	if (SelectedLevelsList.Num())
 	{
-		if (!LevelModel->CanConvertLevelToExternalActors(bExternal))
+		for (const TSharedPtr<FLevelModel>& LevelModel : SelectedLevelsList)
 		{
-			return false;
+			if (!LevelModel->CanConvertLevelToExternalActors(bExternal))
+			{
+				return false;
+			}
 		}
+		return true;
 	}
-	return true;
+	return false;
 }
 
 bool FLevelCollectionModel::GetDisplayPathsState() const
@@ -1306,7 +1310,7 @@ void FLevelCollectionModel::SCCDiffAgainstDepot(const FLevelModelList& InList, U
 		{
 			// Get the file name of package
 			FString RelativeFileName;
-			if(FPackageName::DoesPackageExist(PackageName, NULL, &RelativeFileName))
+			if(FPackageName::DoesPackageExist(PackageName, &RelativeFileName))
 			{
 				if (SourceControlState->GetHistorySize() > 0)
 				{

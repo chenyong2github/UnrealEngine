@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"DatasmithExporter",
-					"UEOpenExr",
+					"Imath",
 				}
 			);
 		}

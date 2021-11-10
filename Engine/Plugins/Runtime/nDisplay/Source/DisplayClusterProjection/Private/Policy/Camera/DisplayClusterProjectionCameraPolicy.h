@@ -6,6 +6,7 @@
 #include "Containers/DisplayClusterProjectionCameraPolicySettings.h"
 #include "Misc/DisplayClusterObjectRef.h"
 
+class IDisplayClusterViewport;
 class UCameraComponent;
 class UWorld;
 
@@ -26,11 +27,11 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
-	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) override;
+	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
+	virtual void HandleEndScene(IDisplayClusterViewport* InViewport) override;
 
-	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
-	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
+	virtual bool CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
+	virtual bool GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override
 	{ return false; }
@@ -41,6 +42,9 @@ public:
 public:
 	void SetCamera(UCameraComponent* const NewCamera, const FDisplayClusterProjectionCameraPolicySettings& InCameraSettings);
 
+private:
+	bool ImplGetProjectionMatrix(const float CameraFOV, const float CameraAspectRatio, IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix);
+
 protected:
 	UCameraComponent* GetCameraComponent();
 
@@ -48,4 +52,6 @@ private:
 	// Camera to use for rendering
 	FDisplayClusterSceneComponentRef CameraRef;
 	FDisplayClusterProjectionCameraPolicySettings CameraSettings;
+	float ZNear = 1;
+	float ZFar = 1;
 };

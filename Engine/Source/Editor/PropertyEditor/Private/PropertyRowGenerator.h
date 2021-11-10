@@ -67,8 +67,6 @@ struct FDetailLayoutData
 	TArray<TSharedPtr<IDetailCustomization>> CustomizationClassInstances;
 };
 
-typedef TArray<FDetailLayoutData> FDetailLayoutList;
-
 class FPropertyRowGenerator : public IPropertyRowGenerator, public FTickableEditorObject, public TSharedFromThis<FPropertyRowGenerator>
 {
 public:
@@ -134,7 +132,7 @@ private:
 	/** Root tree nodes visible in the tree */
 	TArray<TSharedRef<IDetailTreeNode>> RootTreeNodes;
 	/** The current detail layout based on objects in this details panel.  There is one layout for each top level object node.*/
-	FDetailLayoutList DetailLayouts;
+	TArray<FDetailLayoutData> DetailLayouts;
 	/** Customization instances that need to be destroyed when safe to do so */
 	TArray<TSharedPtr<IDetailCustomization>> CustomizationClassInstancesPendingDelete;
 	/** Actions that should be executed next tick */

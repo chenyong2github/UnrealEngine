@@ -389,19 +389,16 @@ namespace DatasmithRuntime
 
 		if (!Translator->LoadScene( SceneElement ))
 		{
+
+			RuntimeActor->OnImportEnd();
+
+			RuntimeActor->SceneElement = nullptr;
 			RuntimeActor->LoadedScene = TEXT("Loading failed");
+
 			return false;
 		}
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());
-
-#ifdef ASSET_DEBUG
-		{
-			TUniquePtr<FArchive> DumpFile(IFileManager::Get().CreateFileWriter(TEXT("D:\\Temp\\gltf.scene")));
-			FDatasmithSceneXmlWriter DatasmithSceneXmlWriter;
-			DatasmithSceneXmlWriter.Serialize(SceneElement, *DumpFile);
-		}
-#endif
 
 		RuntimeActor->SceneElement = SceneElement;
 		RuntimeActor->Translator = Translator;

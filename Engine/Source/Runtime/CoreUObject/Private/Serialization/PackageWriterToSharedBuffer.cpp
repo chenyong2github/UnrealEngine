@@ -2,6 +2,7 @@
 
 #include "Serialization/PackageWriterToSharedBuffer.h"
 
+#include "Misc/ScopeRWLock.h"
 #include "Serialization/LargeMemoryWriter.h"
 
 TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset)
@@ -20,75 +21,85 @@ static FSharedBuffer IoBufferToSharedBuffer(const FIoBuffer& InBuffer)
 	return FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free);
 };
 
-void FPackageWriterRecords::BeginPackage(const IPackageWriter::FBeginPackageInfo& Info)
+void FPackageWriterRecords::BeginPackage(FPackage* Record, const IPackageWriter::FBeginPackageInfo& Info)
 {
-	checkf(!Begin.IsSet(),
-		TEXT("IPackageWriter->BeginPackage must not be called twice without calling CommitPackage."));
-	Begin.Emplace(Info);
+	checkf(Record, TEXT("TPackageWriterToSharedBuffer ConstructRecord must return non-null"));
+	{
+		FWriteScopeLock MapScopeLock(MapLock);
+		TUniquePtr<FPackage>& Existing = Map.FindOrAdd(Info.PackageName);
+		checkf(!Existing, TEXT("IPackageWriter->BeginPackage must not be called twice without calling CommitPackage."));
+		Existing.Reset(Record);
+	}
+	Record->Begin = Info;
 }
 
 void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo& Info,
 	FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions)
 {
-	ValidatePackageName(Info.PackageName);
+	FPackage& Record = FindRecordChecked(Info.PackageName);
 	int64 DataSize= ExportsArchive.TotalSize();
 	checkf(DataSize > 0, TEXT("IPackageWriter->WritePackageData must not be called with an empty ExportsArchive"));
 	checkf(static_cast<uint64>(DataSize) >= Info.HeaderSize,
 		TEXT("IPackageWriter->WritePackageData must not be called with HeaderSize > ExportsArchive.TotalSize"));
 	FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(ExportsArchive.ReleaseOwnership(), DataSize,
 		FMemory::Free);
-	Package = FPackage{ Info, MoveTemp(Buffer), FileRegions };
+	Record.Package = FWritePackage{ Info, MoveTemp(Buffer), FileRegions };
 }
 
 void FPackageWriterRecords::WriteBulkData(const IPackageWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData,
 	const TArray<FFileRegion>& FileRegions)
 {
-	ValidatePackageName(Info.PackageName);
-	BulkDatas.Add(FBulkData{ Info, IoBufferToSharedBuffer(BulkData), FileRegions });
+	FPackage& Record = FindRecordChecked(Info.PackageName);
+	Record.BulkDatas.Add(FBulkData{ Info, IoBufferToSharedBuffer(BulkData), FileRegions });
 }
 
 void FPackageWriterRecords::WriteAdditionalFile(const IPackageWriter::FAdditionalFileInfo& Info,
 	const FIoBuffer& FileData)
 {
-	ValidatePackageName(Info.PackageName);
-	AdditionalFiles.Add(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
+	FPackage& Record = FindRecordChecked(Info.PackageName);
+	Record.AdditionalFiles.Add(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
 }
 
 void FPackageWriterRecords::WriteLinkerAdditionalData(const IPackageWriter::FLinkerAdditionalDataInfo& Info,
 	const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	ValidatePackageName(Info.PackageName);
-	LinkerAdditionalDatas.Add(
+	FPackage& Record = FindRecordChecked(Info.PackageName);
+	Record.LinkerAdditionalDatas.Add(
 		FLinkerAdditionalData{ Info, IoBufferToSharedBuffer(Data), FileRegions });
 }
 
-void FPackageWriterRecords::ResetPackage()
+FPackageWriterRecords::FPackage& FPackageWriterRecords::FindRecordChecked(FName InPackageName) const
 {
-	Begin.Reset();
-	Package.Reset();
-	BulkDatas.Reset();
-	AdditionalFiles.Reset();
-	LinkerAdditionalDatas.Reset();
-}
-
-void FPackageWriterRecords::ValidatePackageName(FName InPackageName)
-{
-	checkf(Begin.IsSet(),
+	const TUniquePtr<FPackage>* Record;
+	{
+		FReadScopeLock MapScopeLock(MapLock);
+		Record = Map.Find(InPackageName);
+	}
+	checkf(Record && *Record,
 		TEXT("IPackageWriter->BeginPackage must be called before any other functions on IPackageWriter"));
-	checkf(Begin->PackageName == InPackageName, 
-		TEXT("IPackageWriter must receive the same PackageName in all calls between Begin and Commit."));
+	return **Record;
 }
 
-void FPackageWriterRecords::ValidateCommit(const IPackageWriter::FCommitPackageInfo& Info)
+TUniquePtr<FPackageWriterRecords::FPackage> FPackageWriterRecords::FindAndRemoveRecordChecked(FName InPackageName)
 {
-	ValidatePackageName(Info.PackageName);
-	checkf(Info.bSucceeded == false || Package.IsSet(),
+	TUniquePtr<FPackage> Record;
+	{
+		FWriteScopeLock MapScopeLock(MapLock);
+		Map.RemoveAndCopyValue(InPackageName, Record);
+	}
+	checkf(Record, TEXT("IPackageWriter->BeginPackage must be called before any other functions on IPackageWriter"));
+	return Record;
+}
+
+void FPackageWriterRecords::ValidateCommit(FPackage& Record, const IPackageWriter::FCommitPackageInfo& Info) const
+{
+	checkf(Info.bSucceeded == false || Record.Package.IsSet(),
 		TEXT("IPackageWriter->WritePackageData must be called before Commit if the Package save was successful."));
 	bool HasBulkDataType[IPackageWriter::FBulkDataInfo::NumTypes]{};
-	for (FBulkData& Record : BulkDatas)
+	for (FBulkData& BulkRecord : Record.BulkDatas)
 	{
-		checkf(!HasBulkDataType[(int32)Record.Info.BulkDataType],
+		checkf(!HasBulkDataType[(int32)BulkRecord.Info.BulkDataType],
 			TEXT("IPackageWriter->WriteBulkData must not be called with more than one BulkData of the same type."));
-		HasBulkDataType[(int32)Record.Info.BulkDataType] = true;
+		HasBulkDataType[(int32)BulkRecord.Info.BulkDataType] = true;
 	}
 }

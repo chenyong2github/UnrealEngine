@@ -81,7 +81,18 @@ void SObjectWidget::ResetWidget()
 
 FString SObjectWidget::GetReferencerName() const
 {
-	return FString("SObjectWidget( ") + WidgetObject->GetName() + FString(" )");
+	TStringBuilder<512> Builder;
+	Builder << TEXT("SObjectWidget(");
+	if (WidgetObject)
+	{
+		Builder << WidgetObject->GetFName();
+	}
+	else
+	{
+		Builder << TEXT("nullptr");
+	}		
+	Builder << TEXT(")");
+	return Builder.ToString();
 }
 
 void SObjectWidget::AddReferencedObjects(FReferenceCollector& Collector)

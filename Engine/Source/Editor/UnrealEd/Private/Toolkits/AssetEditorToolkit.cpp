@@ -679,7 +679,7 @@ const FSlateBrush* FAssetEditorToolkit::GetDefaultTabIcon() const
 
 FLinearColor FAssetEditorToolkit::GetDefaultTabColor() const
 {
-	FLinearColor TabColor = FLinearColor::Transparent;
+	FLinearColor TabColor = FLinearColor::White;
 	if (EditingObjects.Num() == 0 || !GetDefault<UEditorStyleSettings>()->bEnableColorizedEditorTabs)
 	{
 		return TabColor;

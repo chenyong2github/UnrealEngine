@@ -25,13 +25,18 @@ TSharedRef<FNiagaraPlaceholderDataInterfaceHandle> FNiagaraPlaceholderDataInterf
 		PlaceholderDataInterfaceInfo->OwningEmitterHandleId = OwningEmitterHandleId;
 		PlaceholderDataInterfaceInfo->OwningFunctionCall = &OwningFunctionCall;
 		PlaceholderDataInterfaceInfo->InputHandle = InputHandle;
-		PlaceholderDataInterfaceInfo->PlaceholderDataInterface = NewObject<UNiagaraDataInterface>(GetTransientPackage(), DataInterfaceClass, NAME_None, RF_Transactional | RF_Transient);
+	}
+
+	if (PlaceholderDataInterfaceInfo->PlaceholderDataInterface.IsValid() == false)
+	{
+		// @todo add a transient uproperty to keep the placeholder data interfaces in their correct owner objects
+		PlaceholderDataInterfaceInfo->PlaceholderDataInterface = NewObject<UNiagaraDataInterface>(&OwningFunctionCall, DataInterfaceClass, NAME_None, RF_Transactional | RF_Transient);
 		PlaceholderDataInterfaceInfo->PlaceholderDataInterface->OnChanged().AddSP(
 			this, &FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged, PlaceholderDataInterfaceInfo->PlaceholderDataInterface);
 	}
 
 	TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> PlaceholderDataInterfaceHandle = PlaceholderDataInterfaceInfo->PlaceholderDataInterfaceHandleWeak.Pin();
-	if (PlaceholderDataInterfaceHandle.IsValid() == false)
+	if (PlaceholderDataInterfaceHandle.IsValid() == false || PlaceholderDataInterfaceHandle->DataInterface.HasSameIndexAndSerialNumber(PlaceholderDataInterfaceInfo->PlaceholderDataInterface) == false)
 	{
 		PlaceholderDataInterfaceHandle = MakeShareable<FNiagaraPlaceholderDataInterfaceHandle>(new FNiagaraPlaceholderDataInterfaceHandle(*this, *PlaceholderDataInterfaceInfo->PlaceholderDataInterface, 
 			FSimpleDelegate::CreateSP(this->AsShared(), &FNiagaraPlaceholderDataInterfaceManager::PlaceholderHandleDeleted, PlaceholderDataInterfaceInfo->PlaceholderDataInterface)));
@@ -47,7 +52,12 @@ TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> FNiagaraPlaceholderDataInterf
 	const FNiagaraParameterHandle& InputHandle)
 {
 	FPlaceholderDataInterfaceInfo* PlaceholderDataInterfaceInfo = GetPlaceholderDataInterfaceInfo(OwningEmitterHandleId, OwningFunctionCall, InputHandle);
-	return PlaceholderDataInterfaceInfo != nullptr
+	bool bHasValidPlaceholderAndHandle = 
+		PlaceholderDataInterfaceInfo != nullptr &&
+		PlaceholderDataInterfaceInfo->PlaceholderDataInterface.IsValid() &&
+		PlaceholderDataInterfaceInfo->PlaceholderDataInterfaceHandleWeak.IsValid() &&
+		PlaceholderDataInterfaceInfo->PlaceholderDataInterfaceHandleWeak.Pin()->DataInterface.HasSameIndexAndSerialNumber(PlaceholderDataInterfaceInfo->PlaceholderDataInterface);
+	return bHasValidPlaceholderAndHandle
 		? PlaceholderDataInterfaceInfo->PlaceholderDataInterfaceHandleWeak.Pin()
 		: TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle>();
 }
@@ -70,7 +80,8 @@ void FNiagaraPlaceholderDataInterfaceManager::AddReferencedObjects(FReferenceCol
 {
 	for (FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo : PlaceholderDataInterfaceInfos)
 	{
-		Collector.AddReferencedObject(PlaceholderDataInterfaceInfo.PlaceholderDataInterface);
+		UNiagaraDataInterface* PlaceholderDataInterface = PlaceholderDataInterfaceInfo.PlaceholderDataInterface.Get();
+		Collector.AddReferencedObject(PlaceholderDataInterface);
 	}
 }
 
@@ -88,8 +99,14 @@ FNiagaraPlaceholderDataInterfaceManager::FPlaceholderDataInterfaceInfo* FNiagara
 		});
 }
 
-void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(UNiagaraDataInterface* PlaceholderDataInterface)
+void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(TWeakObjectPtr<UNiagaraDataInterface> PlaceholderDataInterfaceWeak)
 {
+	UNiagaraDataInterface* PlaceholderDataInterface = PlaceholderDataInterfaceWeak.Get();
+	if (PlaceholderDataInterface == nullptr)
+	{
+		return;
+	}
+
 	FPlaceholderDataInterfaceInfo* PlaceholderDataInterfaceInfo = PlaceholderDataInterfaceInfos.FindByPredicate([PlaceholderDataInterface](const FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo) {
 		return PlaceholderDataInterfaceInfo.PlaceholderDataInterface == PlaceholderDataInterface; });
 
@@ -141,14 +158,17 @@ void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(UN
 	}
 }
 
-void FNiagaraPlaceholderDataInterfaceManager::PlaceholderHandleDeleted(UNiagaraDataInterface* PlaceholderDataInterface)
+void FNiagaraPlaceholderDataInterfaceManager::PlaceholderHandleDeleted(TWeakObjectPtr<UNiagaraDataInterface> PlaceholderDataInterfaceWeak)
 {
-	int32 PlaceholderDataInterfaceInfoIndex = PlaceholderDataInterfaceInfos.IndexOfByPredicate([PlaceholderDataInterface](const FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo) {
-		return PlaceholderDataInterfaceInfo.PlaceholderDataInterface == PlaceholderDataInterface; });
+	int32 PlaceholderDataInterfaceInfoIndex = PlaceholderDataInterfaceInfos.IndexOfByPredicate([PlaceholderDataInterfaceWeak](const FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo) {
+		return PlaceholderDataInterfaceInfo.PlaceholderDataInterface.HasSameIndexAndSerialNumber(PlaceholderDataInterfaceWeak); });
 
 	if (PlaceholderDataInterfaceInfoIndex != INDEX_NONE)
 	{
-		PlaceholderDataInterface->OnChanged().RemoveAll(this);
+		if(PlaceholderDataInterfaceWeak.IsValid())
+		{
+			PlaceholderDataInterfaceWeak->OnChanged().RemoveAll(this);
+		}
 		PlaceholderDataInterfaceInfos.RemoveAtSwap(PlaceholderDataInterfaceInfoIndex);
 	}
 }
@@ -160,7 +180,7 @@ FNiagaraPlaceholderDataInterfaceHandle::~FNiagaraPlaceholderDataInterfaceHandle(
 
 UNiagaraDataInterface* FNiagaraPlaceholderDataInterfaceHandle::GetDataInterface() const
 {
-	return DataInterface;
+	return DataInterface.Get();
 }
 
 FNiagaraPlaceholderDataInterfaceHandle::FNiagaraPlaceholderDataInterfaceHandle(FNiagaraPlaceholderDataInterfaceManager& InOwningManager, UNiagaraDataInterface& InDataInterface, FSimpleDelegate InOnDeleted)

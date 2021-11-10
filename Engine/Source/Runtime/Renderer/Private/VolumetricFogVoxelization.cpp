@@ -123,7 +123,7 @@ TGlobalResource<FQuadMeshVertexBuffer> GQuadMeshVertexBuffer;
 
 TGlobalResource<FSpriteIndexBuffer<1>> GQuadMeshIndexBuffer;
 
-class FQuadMeshVertexFactory : public FLocalVertexFactory
+class FQuadMeshVertexFactory final : public FLocalVertexFactory
 {
 public:
 	FQuadMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)

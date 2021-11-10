@@ -70,7 +70,6 @@ enum class EUsdSubdivisionScheme
 	CatmullClark,
 	Loop,
 	Bilinear,
-
 };
 
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -83,9 +82,22 @@ enum class EUsdPurpose : int32
 };
 ENUM_CLASS_FLAGS(EUsdPurpose);
 
+UENUM( meta = ( Bitflags, UseEnumValuesAsMaskValuesInEditor = "true" ) )
+enum class EUsdDefaultKind : int32
+{
+	None = 0 UMETA( Hidden ),
+	Model = 1,
+	Component = 2,
+	Group = 4,
+	Assembly = 8,
+	Subcomponent = 16
+};
+ENUM_CLASS_FLAGS( EUsdDefaultKind );
+
 
 struct FUsdVector2Data
 {
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	FUsdVector2Data(float InX = 0, float InY = 0)
 		: X(InX)
 		, Y(InY)
@@ -95,9 +107,9 @@ struct FUsdVector2Data
 	float Y;
 };
 
-
 struct FUsdVectorData
 {
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	FUsdVectorData(float InX = 0, float InY = 0, float InZ = 0)
 		: X(InX)
 		, Y(InY)
@@ -111,6 +123,7 @@ struct FUsdVectorData
 
 struct FUsdVector4Data
 {
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	FUsdVector4Data(float InX = 0, float InY = 0, float InZ = 0, float InW = 0)
 		: X(InX)
 		, Y(InY)
@@ -124,9 +137,9 @@ struct FUsdVector4Data
 	float W;
 };
 
-
 struct FUsdUVData
 {
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	FUsdUVData()
 	{}
 
@@ -139,6 +152,7 @@ struct FUsdUVData
 
 struct FUsdQuatData
 {
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	FUsdQuatData(float InX=0, float InY = 0, float InZ = 0, float InW = 0)
 		: X(InX)
 		, Y(InY)
@@ -168,9 +182,6 @@ class UnrealUSDWrapper
 public:
 #if USE_USD_SDK
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
-
-	/** DEPRECATED: Prefer OpenStage */
-	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 #endif  // #if USE_USD_SDK
 
 	/** Returns the file extensions the USD SDK supports reading from (e.g. ["usd", "usda", "usdc", etc.]) */
@@ -213,24 +224,45 @@ class FUsdAttribute
 {
 public:
 #if USE_USD_SDK
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static std::string GetUnrealPropertyPath(const pxr::UsdAttribute& Attribute);
 
 	// Get the number of elements in the array if it is an array.  Otherwise -1
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static int GetArraySize(const pxr::UsdAttribute& Attribute);
 
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsInt(int64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsUnsignedInt(uint64_t& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsDouble(double& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsString(const char*& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsBool(bool& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsVector2(FUsdVector2Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsVector3(FUsdVectorData& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsVector4(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
+
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool AsColor(FUsdVector4Data& OutVal, const pxr::UsdAttribute& Attribute, int ArrayIndex = -1, double Time = UnrealUSDWrapper::GetDefaultTimeCode());
 
+	UE_DEPRECATED( 5.0, "Prefer using the utilities in USDConversionUtils.h or the actual pxr::UsdAttribute wrapper with the same name at UsdWrappers/UsdAttribute.h" )
 	UNREALUSDWRAPPER_API static bool IsUnsigned(const pxr::UsdAttribute& Attribute);
-#endif // #if USE_USD_SDK
 
+#endif // #if USE_USD_SDK
 };
 
 
@@ -256,17 +288,21 @@ public:
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim );
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time );
 	static UNREALUSDWRAPPER_API pxr::GfMatrix4d GetLocalToWorldTransform(const pxr::UsdPrim& Prim, double Time, const pxr::SdfPath& AbsoluteRootPath);
-
-	/** DEPRECATED: Use UsdUtils::GetPrimMaterialAssignments from USDGeomMeshConversion.h */
-	static UNREALUSDWRAPPER_API TTuple< TArray< FString >, TArray< int32 > > GetGeometryMaterials(double Time, const pxr::UsdPrim& Prim);
-
-	static UNREALUSDWRAPPER_API bool IsUnrealProperty(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasTransform(const pxr::UsdPrim& Prim);
+
+	UE_DEPRECATED( 5.0, "Not used anymore" )
+	static UNREALUSDWRAPPER_API bool IsUnrealProperty(const pxr::UsdPrim& Prim);
+
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	static UNREALUSDWRAPPER_API std::string GetUnrealPropertyPath(const pxr::UsdPrim& Prim);
 
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	static UNREALUSDWRAPPER_API TArray< UE::FUsdAttribute > GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
 
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	static UNREALUSDWRAPPER_API std::string GetUnrealAssetPath(const pxr::UsdPrim& Prim);
+
+	UE_DEPRECATED( 5.0, "Not used anymore" )
 	static UNREALUSDWRAPPER_API std::string GetUnrealActorClass(const pxr::UsdPrim& Prim);
 
 	static UNREALUSDWRAPPER_API bool SetActiveLODIndex(const pxr::UsdPrim& Prim, int LODIndex);

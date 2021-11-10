@@ -76,7 +76,7 @@ public:
 
 protected:
 
-	virtual void AddConstraints_Internal(kiwi::Solver& Solver, const TMap<FCommonUILayoutPanelInfo, FCommonUILayoutPanelSlot*>& Children, const FVector2D& AllottedGeometrySize) const PURE_VIRTUAL(UDynamicHUDConstraintBase::AddConstraints_Internal, );
+	virtual void AddConstraints_Internal(kiwi::Solver& Solver, const TMap<FCommonUILayoutPanelInfo, FCommonUILayoutPanelSlot*>& Children, const FVector2D& AllottedGeometrySize) const PURE_VIRTUAL(UDynamicUIConstraintBase::AddConstraints_Internal, );
 
 	/** Children info. */
 	FCommonUILayoutPanelInfo Info;

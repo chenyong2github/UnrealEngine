@@ -107,8 +107,8 @@ public:
 	/** Return the pin type selector filter associated with the current set of imported namespaces within this editor context. Default is NULL (no filter). */
 	virtual TSharedPtr<class IPinTypeSelectorFilter> GetImportedPinTypeSelectorFilter() const { return nullptr; }
 
-	/** Return whether the given field falls outside the scope the current set of imported namespaces within this editor context. Default is FALSE (imported). */
-	virtual bool IsNonImportedField(FFieldVariant Field) const { return false; }
+	/** Return whether the given object falls outside the scope of the current set of imported namespaces within this editor context. Default is FALSE (imported). */
+	virtual bool IsNonImportedObject(const UObject* InObject) const { return false; }
 
 	UE_DEPRECATED(5.0, "GetSelectedSCSEditorTreeNodes has been deprecated. Use GetSelectedSubobjectEditorTreeNodes instead.")
 	virtual TArray<TSharedPtr<class FSCSEditorTreeNode> >  GetSelectedSCSEditorTreeNodes() const = 0;

@@ -78,7 +78,7 @@ void FFilterService::RegisterTabSpawner()
 		FOnSpawnTab::CreateRaw(this, &FFilterService::SpawnTab))
 		.SetDisplayName(LOCTEXT("FilterConfiguratorTabTitle", "Filter Configurator"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden)
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "FolderExplore.Icon.Large"));
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Find"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

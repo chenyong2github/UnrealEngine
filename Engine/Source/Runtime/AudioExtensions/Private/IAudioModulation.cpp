@@ -118,7 +118,7 @@ namespace Audio
 	FModulatorHandle::FModulatorHandle(IAudioModulation& InModulation, const USoundModulatorBase* InModulatorBase, FName InParameterName)
 	{
 		HandleId = CreateModulatorHandleId();
-		Modulation = &InModulation;
+		Modulation = InModulation.AsShared();
 		Parameter.ParameterName = InParameterName;
 		ModulatorTypeId = InModulation.RegisterModulator(HandleId, InModulatorBase, Parameter);
 
@@ -132,9 +132,9 @@ namespace Audio
 	{
 		HandleId = CreateModulatorHandleId();
 
-		if (InOther.Modulation)
+		if (TSharedPtr<IAudioModulation> ModPtr = InOther.Modulation.Pin())
 		{
-			InOther.Modulation->RegisterModulator(HandleId, InOther.ModulatorId);
+			ModPtr->RegisterModulator(HandleId, InOther.ModulatorId);
 			Parameter = InOther.Parameter;
 			ModulatorId = InOther.ModulatorId;
 			ModulatorTypeId = InOther.ModulatorTypeId;
@@ -157,14 +157,14 @@ namespace Audio
 		InOther.HandleId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
 		InOther.ModulatorId = INDEX_NONE;
-		InOther.Modulation = nullptr;
+		InOther.Modulation.Reset();
 	}
 
 	FModulatorHandle::~FModulatorHandle()
 	{
-		if (Modulation)
+		if (TSharedPtr<IAudioModulation> ModPtr = Modulation.Pin())
 		{
-			Modulation->UnregisterModulator(*this);
+			ModPtr->UnregisterModulator(*this);
 		}
 	}
 
@@ -172,7 +172,7 @@ namespace Audio
 	{
 		Parameter = InOther.Parameter;
 
-		if (InOther.Modulation)
+		if (TSharedPtr<IAudioModulation> ModPtr = InOther.Modulation.Pin())
 		{
 			HandleId = CreateModulatorHandleId();
 			ModulatorId = InOther.ModulatorId;
@@ -181,7 +181,7 @@ namespace Audio
 
 			if (ModulatorId != INDEX_NONE)
 			{
-				Modulation->RegisterModulator(HandleId, ModulatorId);
+				ModPtr->RegisterModulator(HandleId, ModulatorId);
 			}
 		}
 		else
@@ -189,7 +189,7 @@ namespace Audio
 			HandleId = INDEX_NONE;
 			ModulatorId = INDEX_NONE;
 			ModulatorTypeId = INDEX_NONE;
-			Modulation = nullptr;
+			Modulation.Reset();
 		}
 
 		return *this;
@@ -199,9 +199,9 @@ namespace Audio
 	{
 		if (HandleId != INDEX_NONE)
 		{
-			if (ensureAlways(Modulation))
+			if (TSharedPtr<IAudioModulation> ModPtr = Modulation.Pin())
 			{
-				Modulation->UnregisterModulator(*this);
+				ModPtr->UnregisterModulator(*this);
 			}
 		}
 
@@ -219,7 +219,7 @@ namespace Audio
 		InOther.HandleId = INDEX_NONE;
 		InOther.ModulatorId = INDEX_NONE;
 		InOther.ModulatorTypeId = INDEX_NONE;
-		InOther.Modulation = nullptr;
+		InOther.Modulation.Reset();
 
 		return *this;
 	}
@@ -249,7 +249,26 @@ namespace Audio
 		check(IsValid());
 
 		OutValue = 1.0f;
-		return Modulation->GetModulatorValue(*this, OutValue);
+
+		if (TSharedPtr<IAudioModulation> ModPtr = Modulation.Pin())
+		{
+			return ModPtr->GetModulatorValue(*this, OutValue);
+		}
+
+		return false;
+	}
+
+	bool FModulatorHandle::GetValueThreadSafe(float& OutValue) const
+	{
+		check(IsValid());
+
+		OutValue = 1.0f;
+		if (TSharedPtr<IAudioModulation> ModPtr = Modulation.Pin())
+		{
+			return ModPtr->GetModulatorValueThreadSafe(*this, OutValue);
+		}
+
+		return false;
 	}
 
 	bool FModulatorHandle::IsValid() const
@@ -257,3 +276,10 @@ namespace Audio
 		return ModulatorId != INDEX_NONE;
 	}
 } // namespace Audio
+
+TUniquePtr<Audio::IProxyData> USoundModulatorBase::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	// This should never be hit as all instances of modulators should implement their own version of the proxy data interface.
+	checkNoEntry();
+	return TUniquePtr<Audio::IProxyData>();
+}

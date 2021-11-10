@@ -3,18 +3,19 @@
 #include "Views/MainPanel/SConsoleVariablesEditorMainPanel.h"
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorStyle.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
 #include "ContentBrowserModule.h"
-#include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "OutputLog/Public/OutputLogModule.h"
+#include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
@@ -33,47 +34,27 @@ void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const
 
 	const FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked< FOutputLogModule >(TEXT("OutputLog"));
 
-	ConsoleInput = OutputLogModule.MakeConsoleInputBox(ConsoleInputEditableTextBox, FSimpleDelegate::CreateLambda([](){}), FSimpleDelegate::CreateLambda([](){}));
+	ConsoleInput = OutputLogModule.MakeConsoleInputBox(
+		ConsoleInputEditableTextBox, FSimpleDelegate::CreateLambda([](){}), FSimpleDelegate::CreateLambda([](){}));
 
 	check(ConsoleInput.IsValid());
-	ConsoleInput->SetVisibility(EVisibility::Collapsed);
 
 	ConsoleInputEditableTextBox->SetOnKeyDownHandler(FOnKeyDown::CreateRaw(this, &SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted));
 
 	ChildSlot
 	[
-		SNew(SOverlay)
-
-		+SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
+		SNew(SSplitter)
+		.Orientation(Orient_Vertical)
+		.ResizeMode(ESplitterResizeMode::FixedSize)
+		
+		+SSplitter::Slot().SizeRule(SSplitter::ESizeRule::SizeToContent)
 		[
-			SNew(SSplitter)
-			.Orientation(Orient_Vertical)
-			.ResizeMode(ESplitterResizeMode::FixedSize)
-			
-			+SSplitter::Slot().SizeRule(SSplitter::ESizeRule::SizeToContent)
-			[
-		        GeneratePanelToolbar()
-			]
-
-			+SSplitter::Slot()
-			[
-				MainPanel.Pin()->GetEditorList().Pin()->GetOrCreateWidget()
-			]
+	        GeneratePanelToolbar(ConsoleInput.ToSharedRef())
 		]
 
-		+SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(0.f, 0.f, 0.f, 25.f))
+		+SSplitter::Slot()
 		[
-			SNew(SBox)
-			.MinDesiredWidth(200.f)
-			[
-				// CMD Input
-				ConsoleInput.ToSharedRef()
-			]
+			MainPanel.Pin()->GetEditorList().Pin()->GetOrCreateWidget()
 		]
 	];
 }
@@ -81,13 +62,6 @@ void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const
 SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 {
 
-}
-
-FReply SConsoleVariablesEditorMainPanel::OnClickAddConsoleVariableButton() const
-{
-	ConsoleInput->SetVisibility(EVisibility::Visible);
-	FSlateApplication::Get().SetUserFocus(FSlateApplication::Get().GetUserIndexForKeyboard(), ConsoleInputEditableTextBox);
-	return FReply::Handled();
 }
 
 FReply SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed)
@@ -102,86 +76,41 @@ FReply SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted(const F
 			CommandString.Split(TEXT(" "), &CommandString, &ValueString);
 		}
 
-		if (IConsoleManager::Get().IsNameRegistered(*CommandString))
+		if (IConsoleVariable* AsVariable = IConsoleManager::Get().FindConsoleVariable(*CommandString))
 		{
-			MainPanel.Pin()->AddConsoleVariable(CommandString, ValueString);
+			MainPanel.Pin()->AddConsoleVariable(CommandString, ValueString.IsEmpty() ? AsVariable->GetString() : ValueString, true);
 		}
 		else if (CommandString.IsEmpty())
 		{
-			UE_LOG(LogTemp, Log, TEXT("Input is blank."), *CommandString);
+			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input is blank."), __FUNCTION__);
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("Input %s is not a recognized console command."), *CommandString);
+			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input %s is not a recognized console command."), __FUNCTION__, *CommandString);
 		}
 
 		ConsoleInputEditableTextBox->SetText(FText::GetEmpty());
-		ConsoleInput->SetVisibility(EVisibility::Collapsed);
 	}
 
 	return FReply::Handled();
 }
 
-void SConsoleVariablesEditorMainPanel::RefreshList(UConsoleVariablesAsset* InAsset) const
+TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget)
 {
-	if (MainPanel.Pin()->GetEditorList().IsValid())
-	{
-		MainPanel.Pin()->GetEditorList().Pin()->RefreshList(InAsset);
-	}
-}
-
-TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
-{
-	struct Local
-	{
-		static TSharedRef<SWidget> CreatePlusText(const FText& Text)
-		{
-			return SNew(SHorizontalBox)
-                    + SHorizontalBox::Slot()
-                    .HAlign(HAlign_Center)
-                    .AutoWidth()
-                    .Padding(FMargin(1.f, 1.f))
-                    [
-	                    SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-	                    .TextStyle(FEditorStyle::Get(), "NormalText.Important")
-	                    .Text(FEditorFontGlyphs::Plus)
-                    ]
-
-                    + SHorizontalBox::Slot()
-                    .HAlign(HAlign_Left)
-                    .AutoWidth()
-                    .Padding(2.f, 1.f)
-                    [
-                        SNew(STextBlock)
-                        .Justification(ETextJustify::Center)
-                        .TextStyle(FEditorStyle::Get(), "NormalText.Important")
-                        .Text(Text)
-                    ];
-		}
-	};
-
 	return SNew(SBorder)
 	        .Padding(0)
-	        .BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	        .BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 	        [
 				SNew(SHorizontalBox)
 				
-				// Add Console Variable button
+				// Add Console Variable input
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.HAlign(HAlign_Left)
 				.Padding(2.f, 2.f)
 				[
-					SNew(SButton)
-					.VAlign(VAlign_Center)
-	                .ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-	                .ForegroundColor(FSlateColor::UseForeground())
-	                .OnClicked(this, &SConsoleVariablesEditorMainPanel::OnClickAddConsoleVariableButton)
-	                [
-						Local::CreatePlusText(LOCTEXT("AddConsoleVariable", "Add Console Variable"))
-	                ]
+					InConsoleInputWidget
 				]
 
 				// Presets Management Button
@@ -194,9 +123,9 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 					SNew(SComboButton)
 					.ToolTipText(LOCTEXT("PresetManagementButton_Tooltip", "Export the current CVar list to a preset, or import a copy of an existing preset."))
 					.ContentPadding(4.f)
-					.ComboButtonStyle(FConsoleVariablesEditorStyle::Get(), "ComboButton")
+					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 					.OnGetMenuContent(this, &SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu)
-					.ForegroundColor(FSlateColor::UseForeground())
+					.ForegroundColor(FStyleColors::Foreground)
 					.ButtonContent()
 					[
 						SNew(SHorizontalBox)
@@ -206,7 +135,8 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 						.AutoWidth()
 						[
 							SNew(SImage)
-							.Image(FEditorStyle::Get().GetBrush("AssetEditor.SaveAsset"))
+							.Image(FAppStyle::Get().GetBrush("AssetEditor.SaveAsset"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 
 						+ SHorizontalBox::Slot()
@@ -236,8 +166,8 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 						SAssignNew(SettingsButtonPtr, SCheckBox)
 						.Padding(FMargin(4.f))
 						.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show the general user/project settings for Console Variables"))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-						.ForegroundColor(FSlateColor::UseForeground())
+						.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+						.ForegroundColor(FStyleColors::Foreground)
 						.IsChecked(false)
 						.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckState)
 						{
@@ -245,9 +175,9 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 							SettingsButtonPtr->SetIsChecked(false);
 						})
 		                [
-							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-							.Text(FEditorFontGlyphs::Cogs)
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
 		                ]
 					]
                 ]
@@ -263,14 +193,14 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SavePreset_Text", "Save Preset"),
 		LOCTEXT("SavePreset_Tooltip", "Save the current preset if one has been loaded. Otherwise, the Save As dialog will be opened."),
-		FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset"),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset"),
 		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SavePreset))
 	);
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SavePresetAs_Text", "Save Preset As"),
 		LOCTEXT("SavePresetAs_Tooltip", "Save the current configuration as a new preset that can be shared between multiple jobs, or imported later as the base of a new configuration."),
-		FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "AssetEditor.SaveAssetAs"),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAssetAs"),
 		FUIAction(FExecuteAction::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::SavePresetAs))
 	);
 

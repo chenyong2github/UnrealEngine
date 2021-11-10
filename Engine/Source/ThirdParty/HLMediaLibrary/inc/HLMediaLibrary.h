@@ -143,6 +143,7 @@ namespace HLMediaLibrary
         STDMETHOD_(ID3D11ShaderResourceView*, ShaderResourceView)() PURE;
         STDMETHOD_(ID3D11ShaderResourceView*, ShaderResourceViewUV)() PURE;
         STDMETHOD_(winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DSurface, MediaSurface)() PURE;
+		STDMETHOD_(HANDLE, SharedTextureHandle)() PURE;
     };
 
     struct __declspec(uuid("ff43f65c-7d34-4dc1-8501-117431b65f34")) IPlaybackEngineItem : ::IUnknown

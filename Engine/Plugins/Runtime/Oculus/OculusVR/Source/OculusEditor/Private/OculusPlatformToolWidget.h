@@ -16,11 +16,13 @@
 #include "Engine/PostProcessVolume.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
 #include "HttpModule.h"
+#include "HttpManager.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Async/AsyncWork.h"
 #include "HAL/Event.h"
 #include "HAL/ThreadSafeBool.h"
 #include "OculusPluginWrapper.h"
+#include "Brushes/SlateDynamicImageBrush.h"
 
 class SOculusPlatformToolWidget;
 
@@ -55,6 +57,7 @@ private:
 	TSharedPtr<SHorizontalBox> ButtonToolbar;
 	TSharedPtr<SVerticalBox> OptionalSettings;
 	TSharedPtr<SVerticalBox> ExpansionFilesSettings;
+	TSharedPtr<FSlateDynamicImageBrush> ODHIconDynamicImageBrush;
 
 	UEnum* PlatformEnum;
 	UEnum* GamepadEmulationEnum;

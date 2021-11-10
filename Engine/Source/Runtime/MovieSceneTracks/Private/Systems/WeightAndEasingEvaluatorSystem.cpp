@@ -286,6 +286,14 @@ bool UWeightAndEasingEvaluatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLink
 	return InLinker->EntityManager.ContainsAnyComponent({ Components->Easing, Components->WeightResult });
 }
 
+void UWeightAndEasingEvaluatorSystem::OnUnlink()
+{
+	if (!ensure(EasingChannels.Num() == 0))
+	{
+		EasingChannels.Reset();
+	}
+}
+
 uint16 UWeightAndEasingEvaluatorSystem::AllocateEasingChannel(UE::MovieScene::FInstanceHandle SubSequenceHandle)
 {
 	using namespace UE::MovieScene;

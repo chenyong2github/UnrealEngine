@@ -12,6 +12,7 @@ struct FGeometry;
 struct FNodalPointOffset;
 struct FPointerEvent;
 
+class UMaterialInterface;
 class UNodalOffsetTool;
 class SWidget;
 
@@ -46,6 +47,12 @@ public:
 
 	/** Returns a descriptive name/title of this nodal offset algorithm */
 	virtual FName FriendlyName() const { return TEXT("Invalid Name"); };
+
+	/** Returns the overlay material used by this algo (if any) */
+	virtual UMaterialInterface* GetOverlayMaterial() const { return nullptr; };
+
+	/** Returns true is this algo has enabled an overlay */
+	virtual bool IsOverlayEnabled() const { return false; };
 
 	/** Called when the current offset was saved */
 	virtual void OnSavedNodalOffset() { };

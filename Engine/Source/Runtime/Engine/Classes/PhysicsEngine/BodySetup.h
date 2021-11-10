@@ -336,8 +336,8 @@ private:
 	/** Finish creating the physics meshes and update the body setup data with cooked data */
 	ENGINE_API void FinishCreatingPhysicsMeshes_PhysX(const TArray<physx::PxConvexMesh*>& ConvexMeshes, const TArray<physx::PxConvexMesh*>& ConvexMeshesNegX, const TArray<physx::PxTriangleMesh*>& TriMeshes);
 	// TODO: ProcessFormatData_Chaos is calling ProcessFormatData_Chaos directly - it's better if CreatePhysicsMeshes can be used but that code path requires WITH_EDITOR
-	friend class UMRMeshComponent;
 #elif WITH_CHAOS
+	friend class UMRMeshComponent;
 	bool ProcessFormatData_Chaos(FByteBulkData* FormatData);
 	bool ProcessFormatData_Chaos(FChaosDerivedDataReader<float, 3>& Reader);
 	bool RuntimeCookPhysics_Chaos();

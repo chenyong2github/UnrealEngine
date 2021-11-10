@@ -6,6 +6,8 @@
 ** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
 */
 
+#ifndef LIBSAMPLERATE_WITHOUT_LINEAR
+
 #include "CoreMinimal.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -227,3 +229,5 @@ linear_copy (SRC_STATE *from, SRC_STATE *to)
 
 	return SRC_ERR_NO_ERROR ;
 } /* linear_copy */
+
+#endif // LIBSAMPLERATE_WITHOUT_LINEAR

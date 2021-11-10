@@ -2,6 +2,7 @@
 
 #include "Policy/EasyBlend/Windows/DX11/DisplayClusterProjectionEasyBlendViewAdapterDX11.h"
 #include "Policy/EasyBlend/Windows/DX11/DisplayClusterProjectionEasyBlendLibraryDX11.h"
+#include "Policy/DisplayClusterProjectionPolicyBase.h"
 
 #include "DisplayClusterProjectionLog.h"
 #include "Misc/DisplayClusterHelpers.h"
@@ -68,7 +69,19 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 	// Initialize EasyBlend DLL API
 	if (!DisplayClusterProjectionEasyBlendLibraryDX11::Initialize())
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't link to the EasyBlend DLL"));
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't link to the EasyBlend DLL"));
+		}
+		return false;
+	}
+
+	if(File.IsEmpty())
+	{
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("File is empty"));
+		}
 		return false;
 	}
 

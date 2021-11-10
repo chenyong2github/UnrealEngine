@@ -5,6 +5,7 @@
 #include "DMXConversions.h"
 #include "DMXProtocolConstants.h"
 #include "DMXRuntimeLog.h"
+#include "DMXRuntimeUtils.h"
 #include "DMXStats.h"
 #include "DMXTypes.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -23,6 +24,8 @@ DECLARE_CYCLE_STAT(TEXT("FixturePatch cache values"), STAT_DMXFixturePatchCacheV
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixturePatch"
 
+FDMXOnFixturePatchChangedDelegate UDMXEntityFixturePatch::OnFixturePatchChangedDelegate;
+
 UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 	: UniverseID(1)
 	, bAutoAssignAddress(true)
@@ -34,6 +37,28 @@ UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 	, bReceiveDMXInEditor(false)
 #endif // WITH_EDITORONLY_DATA
 {}
+
+UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName)
+{
+	UDMXEntityFixtureType* FixtureType = FixtureTypeRef.GetFixtureType();
+
+	if (ensureMsgf(FixtureType, TEXT("Cannot create Fixture Patch when Fixture Type is null.")))
+	{
+		UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary();
+		if (ensureMsgf(DMXLibrary, TEXT("Cannot create Fixture Patch when DMX Library is null.")))
+		{
+			FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), DesiredName);
+
+			UDMXEntityFixturePatch* NewFixturePatch = NewObject<UDMXEntityFixturePatch>(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), NAME_None, RF_Transactional);
+			NewFixturePatch->SetName(EntityName);
+			NewFixturePatch->SetFixtureType(FixtureType);
+
+			return NewFixturePatch;
+		}
+	}
+
+	return nullptr;
+}
 
 #if WITH_EDITOR
 bool UDMXEntityFixturePatch::Modify(bool bAlwaysMarkDirty)
@@ -70,11 +95,23 @@ void UDMXEntityFixturePatch::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FName PropertyName = PropertyChangedEvent.GetPropertyName();
-
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		RebuildCache();
+		OnFixturePatchChangedDelegate.Broadcast(this);
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXEntityFixturePatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
+
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		RebuildCache();
+		OnFixturePatchChangedDelegate.Broadcast(this);
 	}
 }
 #endif // WITH_EDITOR
@@ -116,6 +153,11 @@ ETickableTickType UDMXEntityFixturePatch::GetTickableTickType() const
 TStatId UDMXEntityFixturePatch::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FDMXInputPort, STATGROUP_Tickables);
+}
+
+FDMXOnFixturePatchChangedDelegate& UDMXEntityFixturePatch::GetOnFixturePatchChanged()
+{
+	return OnFixturePatchChangedDelegate;
 }
 
 void UDMXEntityFixturePatch::SendDMX(TMap<FDMXAttributeName, int32> AttributeMap)
@@ -271,7 +313,9 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName())
 		);
 	}
-	else if (ParentFixtureTypeTemplate->Modes[ActiveMode].Functions.Num() == 0)
+	else if (
+		ParentFixtureTypeTemplate->Modes[ActiveMode].Functions.Num() == 0 && 
+		ParentFixtureTypeTemplate->Modes[ActiveMode].FixtureMatrixConfig.CellAttributes.Num() == 0)
 	{
 		OutReason = FText::Format(
 			LOCTEXT("InvalidReason_NoFunctionsDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does not define any Functions in the Active Mode."),

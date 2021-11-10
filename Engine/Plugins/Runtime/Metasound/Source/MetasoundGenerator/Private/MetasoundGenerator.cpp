@@ -48,7 +48,8 @@ namespace Metasound
 
 	void FAsyncMetaSoundBuilder::DoWork()
 	{
-		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(AsyncMetaSoundBuilder::DoWork);
+		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("AsyncMetaSoundBuilder::DoWork %s"), *InitParams.MetaSoundName));
+
 		// Create an instance of the new graph
 		FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
 		FDataReferenceCollection DataReferenceCollection{};
@@ -109,7 +110,8 @@ namespace Metasound
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
-		: bIsFinishTriggered(false)
+		: MetasoundName(InParams.MetaSoundName)
+		, bIsFinishTriggered(false)
 		, bIsFinished(false)
 		, NumChannels(0)
 		, NumFramesPerExecute(0)
@@ -250,7 +252,7 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
 	{
-		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetasoundGenerator::OnGenerateAudio);
+		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MetasoundGenerator::OnGenerateAudio %s"), *MetasoundName));
 
 		// Defer finishing the metasound generator one block
 		if (bIsFinishTriggered)

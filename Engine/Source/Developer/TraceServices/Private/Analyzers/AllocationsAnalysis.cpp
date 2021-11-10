@@ -37,6 +37,8 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_AllocSystem,  "Memory", "AllocSystem");
 	Builder.RouteEvent(RouteId_AllocVideo,   "Memory", "AllocVideo");
 	Builder.RouteEvent(RouteId_Free,         "Memory", "Free");
+	Builder.RouteEvent(RouteId_FreeSystem,   "Memory", "FreeSystem");
+	Builder.RouteEvent(RouteId_FreeVideo,    "Memory", "FreeVideo");
 	Builder.RouteEvent(RouteId_ReallocAlloc, "Memory", "ReallocAlloc");
 	Builder.RouteEvent(RouteId_ReallocFree,  "Memory", "ReallocFree");
 	Builder.RouteEvent(RouteId_Marker,       "Memory", "Marker");

@@ -145,6 +145,32 @@ public:
 		UOptimusNodePin* InNodePin
 	);
 
+	// Node Packaging
+	/** Takes a custom kernel and converts to a packaged function. If the given node is not a
+	 *  custom kernel or cannot be converted, a nullptr is returned.
+	 */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* ConvertCustomKernelToFunction(UOptimusNode *InCustomKernel);
+	
+	/** Takes a kernel function and unpackages to a custom kernel. If the given node is not a 
+	 *  kernel function or cannot be converted, a nullptr is returned.
+	 */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* ConvertFunctionToCustomKernel(UOptimusNode *InKernelFunction);
+
+	/** Returns true if the node in question is a custom kernel node that can be converted to
+	  * a kernel function.
+	  */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsCustomKernel(UOptimusNode *InNode) const;
+	
+	/** Returns true if the node in question is a kernel function node that can be converted to
+	  * a custom kernel.
+	  */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsKernelFunction(UOptimusNode *InNode) const;
+
+	
 #endif
 
 	TArray<UOptimusNodePin *> GetConnectedPins(const UOptimusNodePin* InNodePin) const;
@@ -172,6 +198,8 @@ protected:
 	friend struct FOptimusNodeGraphAction_DuplicateNode;
 	friend struct FOptimusNodeGraphAction_RemoveNode;
 	friend struct FOptimusNodeGraphAction_AddRemoveLink;
+	friend struct FOptimusNodeGraphAction_PackageKernelFunction;
+	friend struct FOptimusNodeGraphAction_UnpackageKernelFunction;
 
 	// Direct edit functions. Used by the actions.
 	UOptimusNode* CreateNodeDirect(

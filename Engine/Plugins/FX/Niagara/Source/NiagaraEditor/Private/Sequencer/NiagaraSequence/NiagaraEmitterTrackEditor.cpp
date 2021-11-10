@@ -86,7 +86,13 @@ public:
 				SAssignNew(RenderersBox, SHorizontalBox)
 			];
 		ConstructRendererWidgets();
-		EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().AddSP(this, &SEmitterTrackWidget::ConstructRendererWidgets);
+		// We refresh the renderer widgets when renderers changed.
+		// The OnRenderersChanged delegate will cause the renderer items to be created that are used for widget creation,
+		// Due to delegate bind order, the item creation happens after the refresh. To solve this, we just wait a frame. 
+		EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().AddLambda([this]()
+		{			
+			bShouldRefreshRenderers = true;
+		});
 
 		// Enabled checkbox.
 		TrackBox->AddSlot()
@@ -120,6 +126,15 @@ public:
 	}
 
 private:
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	{
+		if(bShouldRefreshRenderers)
+		{
+			ConstructRendererWidgets();
+			bShouldRefreshRenderers = false;
+		}
+	}
+	
 	void ConstructRendererWidgets()
 	{
 		RenderersBox->ClearChildren();
@@ -245,6 +260,7 @@ private:
 	TWeakObjectPtr<UMovieSceneNiagaraEmitterTrack> EmitterTrack;
 	mutable TOptional<FText> TrackErrorIconToolTip;
 	TSharedPtr<SHorizontalBox> RenderersBox;
+	bool bShouldRefreshRenderers = false;
 };
 
 FNiagaraEmitterTrackEditor::FNiagaraEmitterTrackEditor(TSharedPtr<ISequencer> Sequencer) 

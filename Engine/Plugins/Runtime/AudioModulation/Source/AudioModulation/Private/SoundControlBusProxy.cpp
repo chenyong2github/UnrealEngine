@@ -22,15 +22,15 @@ namespace AudioModulation
 	{
 	}
 
-	FControlBusProxy::FControlBusProxy(const FControlBusSettings& InSettings, FAudioModulationSystem& InModSystem)
+	FControlBusProxy::FControlBusProxy(FControlBusSettings&& InSettings, FAudioModulationSystem& InModSystem)
 		: TModulatorProxyRefType(InSettings.GetName(), InSettings.GetId(), InModSystem)
 	{
-		Init(InSettings);
+		Init(MoveTemp(InSettings));
 	}
 
-	FControlBusProxy& FControlBusProxy::operator =(const FControlBusSettings& InSettings)
+	FControlBusProxy& FControlBusProxy::operator =(FControlBusSettings&& InSettings)
 	{
-		Init(InSettings);
+		Init(MoveTemp(InSettings));
 		return *this;
 	}
 
@@ -60,21 +60,21 @@ namespace AudioModulation
 		return FMath::Clamp(DefaultMixed * GeneratorValue, 0.0f, 1.0f);
 	}
 
-	void FControlBusProxy::Init(const FControlBusSettings& InSettings)
+	void FControlBusProxy::Init(FControlBusSettings&& InSettings)
 	{
 		check(ModSystem);
 
 		GeneratorValue = 1.0f;
 		MixValue = NAN;
-		MixFunction = InSettings.MixFunction;
+		MixFunction = MoveTemp(InSettings.MixFunction);
 
 		DefaultValue = FMath::Clamp(InSettings.DefaultValue, 0.0f, 1.0f);
 		bBypass = InSettings.bBypass;
 
 		TArray<FGeneratorHandle> NewHandles;
-		for (const FModulationGeneratorSettings& GeneratorSettings : InSettings.GeneratorSettings)
+		for (FModulationGeneratorSettings& GeneratorSettings : InSettings.GeneratorSettings)
 		{
-			NewHandles.Add(FGeneratorHandle::Create(GeneratorSettings, ModSystem->RefProxies.Generators, *ModSystem));
+			NewHandles.Add(FGeneratorHandle::Create(MoveTemp(GeneratorSettings), ModSystem->RefProxies.Generators, *ModSystem));
 		}
 
 		// Move vs. reset and adding to original array to avoid potentially clearing handles (and thus current Generator state)

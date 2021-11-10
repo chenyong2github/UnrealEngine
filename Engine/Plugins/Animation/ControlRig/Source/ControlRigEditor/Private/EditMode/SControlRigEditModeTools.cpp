@@ -828,7 +828,8 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 					FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
 					for (const FRigElementKey& ControlKey : InControls)
 					{
-						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, false /*bCreateIfNeeded*/);
+						//when baking we will now create a channel if one doesn't exist, was causing confusion
+						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, true /*bCreateIfNeeded*/);
 						if (SpaceChannelAndSection.SpaceChannel)
 						{
 							FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
@@ -934,7 +935,7 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		NAME_None,
 		LOCTEXT("MotionTrails", "Trails"),
 		LOCTEXT("MotionTrailsTooltip", "Display motion trails for animated objects"),
-		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.EditableMotionTrails")),
 		EUserInterfaceActionType::Button
 	);
 	//Pivot
@@ -963,7 +964,7 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		NAME_None,
 		LOCTEXT("TempPivot", "Pivot"),
 		LOCTEXT("TempPivotTooltip", "Create a temporary pivot to rotate the selected Control"),
-		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.TemporaryPivot")),
 		EUserInterfaceActionType::ToggleButton
 		);
 	

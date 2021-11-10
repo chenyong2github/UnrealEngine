@@ -348,7 +348,7 @@ private:
 
 	bool SerializeData(FArchive& Ar, FCompressedBuffer& Payload, const EFlags PayloadFlags) const;
 
-	void PushData();
+	void PushData(const FPackagePath& InPackagePath);
 	FCompressedBuffer PullData() const;
 
 	FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const;

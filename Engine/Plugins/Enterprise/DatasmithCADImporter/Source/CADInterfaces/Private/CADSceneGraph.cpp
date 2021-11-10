@@ -87,8 +87,11 @@ FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 void FArchiveSceneGraph::SerializeMockUp(const TCHAR* Filename)
 {
 	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(Filename));
-	*Archive << *this;
-	Archive->Close();
+	if (Archive)
+	{
+		*Archive << *this;
+		Archive->Close();
+	}
 }
 
 void FArchiveSceneGraph::DeserializeMockUpFile(const TCHAR* Filename)

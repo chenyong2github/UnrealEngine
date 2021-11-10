@@ -39,7 +39,7 @@ struct NETWORKPREDICTIONEXTRAS_API FCharacterMotionInputCmd
 };
 
 /** Movement mode */
-enum class NETWORKPREDICTIONEXTRAS_API ECharacterMovementMode : uint8
+enum class ECharacterMovementMode : uint8
 {
 	None,
 	Walking,

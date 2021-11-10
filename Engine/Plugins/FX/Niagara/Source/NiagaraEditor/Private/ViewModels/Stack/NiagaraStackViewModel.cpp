@@ -90,6 +90,12 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		if (EmitterViewModel.IsValid())
 		{
 			EmitterViewModel->OnParentRemoved().AddUObject(this, &UNiagaraStackViewModel::EmitterParentRemoved);
+
+			if (UNiagaraEmitter* Emitter = EmitterViewModel->GetEmitter())
+			{
+				EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
+			}
+
 		}
 		
 		UNiagaraStackRoot* StackRoot = NewObject<UNiagaraStackRoot>(this);

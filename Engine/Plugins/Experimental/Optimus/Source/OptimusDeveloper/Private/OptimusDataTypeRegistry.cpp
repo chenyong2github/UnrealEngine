@@ -109,6 +109,10 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    [](UStruct* InScope, FName InName) {
 		    auto Prop = new FFloatProperty(InScope, InName, RF_Public);
 		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+	    	Prop->SetMetaData(TEXT("UIMin"), TEXT("0.0"));
+	    	Prop->SetMetaData(TEXT("UIMax"), TEXT("1.0"));
+	    	Prop->SetMetaData(TEXT("SupportDynamicSliderMinValue"), TEXT("true"));
+	    	Prop->SetMetaData(TEXT("SupportDynamicSliderMaxValue"), TEXT("true"));
 		    return Prop;
 	    },
 		ConvertPropertyValuePOD<float, float>,
@@ -123,7 +127,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    [](UStruct* InScope, FName InName) {
 		    auto Prop = new FDoubleProperty(InScope, InName, RF_Public);
 		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
-		    return Prop;
+	    	Prop->SetMetaData(TEXT("UIMin"), TEXT("0.0"));
+			Prop->SetMetaData(TEXT("UIMax"), TEXT("1.0"));
+			Prop->SetMetaData(TEXT("SupportDynamicSliderMinValue"), TEXT("true"));
+			Prop->SetMetaData(TEXT("SupportDynamicSliderMaxValue"), TEXT("true"));
+			return Prop;
 	    },
 		ConvertPropertyValuePOD<double, float>,
 		FName(TEXT("float")), {}, 

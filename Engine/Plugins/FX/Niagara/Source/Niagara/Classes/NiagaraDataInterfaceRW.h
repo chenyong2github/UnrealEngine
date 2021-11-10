@@ -66,15 +66,6 @@ public:
 
 	static const FName ExecutionIndexToGridIndexFunctionName;
 	static const FName ExecutionIndexToUnitFunctionName;
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
-	TSet<int> OutputShaderStages;
-
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
-	TSet<int> IterationShaderStages;
-
-public:
 	//~ UObject interface
 
 	virtual void PostLoad() override
@@ -101,8 +92,6 @@ public:
 #endif
 //~ UObject interface END
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override
 	{
 		return true;
@@ -118,9 +107,6 @@ public:
 		return Errors;
 	}
 #endif
-
-protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;	
 };
 
 

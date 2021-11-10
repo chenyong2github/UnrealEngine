@@ -18,7 +18,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdMedia.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdMedia.dylib", 
             "Name": "usdMedia", 
             "ResourcePath": "resources", 
             "Root": "..", 

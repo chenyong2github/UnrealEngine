@@ -404,17 +404,21 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformNonRealtime::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
-		if (!(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		if (!InSoundWave.IsValid())
 		{
 			return nullptr;
 		}
 
-		// TODO: Currently this is a copy paste of the XAudio2 platform interface. Ultimately, this function needs to propagate to the current platform's correct CrateCompressedAudioInfo call.
+		// TODO: Currently this is a copy paste of the XAudio2 platform interface. Ultimately, this function needs to propogate to the current platform's correct CrateCompressedAudioInfo call.
 #if PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 		if (InSoundWave->IsStreaming() && InSoundWave->GetNumChannels() <= 2)
 		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
 			return XMA2_INFO_NEW();
 		}
 #endif
@@ -433,6 +437,19 @@ namespace Audio
 #endif
 		}
 
+		static const FName NAME_OGG(TEXT("OGG"));
+		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
+		{
+			return new FVorbisAudioInfo();
+		}
+
+#if WITH_XMA2
+		static const FName NAME_XMA(TEXT("XMA"));
+		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_XMA) : (InSoundWave->GetCompressedData(NAME_XMA) != nullptr))
+		{
+			return XMA2_INFO_NEW();
+		}
+#endif // WITH_XMA2
 #endif // PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
 
 		return nullptr;

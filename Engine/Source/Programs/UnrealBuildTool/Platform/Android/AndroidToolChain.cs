@@ -900,6 +900,8 @@ namespace UnrealBuildTool
 				{
 					Result += " -Wl,--icf-iterations=3";
 				}
+
+				Result += " -Wl,-O3";
 			}
 
 			if (bUseLLD)
@@ -926,9 +928,8 @@ namespace UnrealBuildTool
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
 			Result += " -Wl,-soname,libUnreal.so";
 
-			// exclude defaults, add at end
-			Result += "	-Wl,--exclude-libs,libgcc_real.a";
-			Result += " -Wl,--exclude-libs,libatomic.a";
+			// hide all symbols by default
+			Result += " -Wl,--exclude-libs,ALL";
 
 			Result += " -Wl,--build-id=sha1";               // add build-id to make debugging easier
 

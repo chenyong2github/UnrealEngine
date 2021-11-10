@@ -495,7 +495,10 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			const bool bCanAttemptVirtualization = LinkerSave != nullptr;
 			if (bCanAttemptVirtualization)
 			{
-				PushData(); // Note this can change various members if we are going from non-virtualized to virtualized
+				FPackagePath LinkerPackagePath;
+				FPackagePath::TryFromPackageName(LinkerSave->LinkerRoot->GetName(), LinkerPackagePath);
+
+				PushData(LinkerPackagePath); // Note this can change various members if we are going from non-virtualized to virtualized
 			}
 		}
 		else
@@ -638,7 +641,8 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 					{
 						SerializePayload(&ExportsArchive, ExportsArchive, DataArchive, DataStartOffset);
 					};
-					LinkerSave->AdditionalDataToAppend.Add(MoveTemp(AdditionalDataCallback));
+					LinkerSave->AdditionalDataToAppend.Add(MoveTemp(AdditionalDataCallback));	// -V595 PVS believes that LinkerSave can potentially be nullptr at 
+																								// this point however we test LinkerSave != nullptr to enter this branch.
 				}
 				else
 				{
@@ -997,7 +1001,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FCompressedBuffer&
 	}
 }
 
-void FVirtualizedUntypedBulkData::PushData()
+void FVirtualizedUntypedBulkData::PushData(const FPackagePath& InPackagePath)
 {
 	checkf(IsDataVirtualized() == false || Payload.IsNull(), TEXT("Cannot have a valid payload in memory if the payload is virtualized!")); // Sanity check
 
@@ -1022,7 +1026,7 @@ void FVirtualizedUntypedBulkData::PushData()
 		RecompressForSerialization(PayloadToPush, Flags);
 
 		// TODO: We could make this a config option?
-		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, EStorageType::Local))
+		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, EStorageType::Local, InPackagePath))
 		{
 			EnumAddFlags(Flags, EFlags::IsVirtualized);
 			EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::LegacyFileIsCompressed);

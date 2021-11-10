@@ -100,16 +100,11 @@ void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs, const TSharedRef
 		]
 	];	
 
-	// Set the initially selected fixture type
-	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
-	if (SelectedFixtureTypes.Num() == 1 && SelectedFixtureTypes[0].IsValid())
-	{
-		FixtureTypeDetailsView->SetObjects(TArray<UObject*>({ SelectedFixtureTypes[0].Get() }));
-	}
+	// Adopt the selection
+	OnFixtureTypesSelected();
 
-	// Initially set keyboard focus to the Fixture Type Tree
-	FSlateApplication::Get().SetKeyboardFocus(FixtureTypeTree.ToSharedRef());
-
+	// Bind to selection changes
+	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureTypeEditor::OnFixtureTypesSelected);
 }
 
 void SDMXFixtureTypeEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)

@@ -312,4 +312,3 @@ protected:
 	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemovePin(InRoot); }
 	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddPin(InRoot); }
 };
-

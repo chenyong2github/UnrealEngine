@@ -269,11 +269,7 @@ private:
 	}
 
 public:
-	static struct FCollisionQueryFlag & Get()
-	{
-		static FCollisionQueryFlag CollisionQueryFlag;
-		return CollisionQueryFlag;
-	}
+	static FCollisionQueryFlag& Get();
 
 	int32 GetAllObjectsQueryFlag()
 	{

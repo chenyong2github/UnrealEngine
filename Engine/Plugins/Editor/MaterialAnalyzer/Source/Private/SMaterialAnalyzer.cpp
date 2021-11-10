@@ -794,19 +794,20 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		}
 	}
 
-	const FMaterialLayersFunctions* MaterialLayers = CurrentMaterialInterface->GetMaterialLayers();
-	if (MaterialLayers)
+	FMaterialLayersFunctions MaterialLayers;
+	if (CurrentMaterialInterface->GetMaterialLayers(MaterialLayers))
 	{
 		bool bIsOverridden = false;
 		if (CurrentMaterialInstance)
 		{
-			const FMaterialLayersFunctions* ParentMaterialLayers = CurrentMaterialInstance->Parent->GetMaterialLayers();
-			bIsOverridden = !ParentMaterialLayers || *MaterialLayers != *ParentMaterialLayers;
+			FMaterialLayersFunctions ParentMaterialLayers;
+			const bool bParentHasLayers = CurrentMaterialInstance->Parent->GetMaterialLayers(ParentMaterialLayers);
+			bIsOverridden = !bParentHasLayers || MaterialLayers != ParentMaterialLayers;
 		}
 
 		CurrentMaterialNode->MaterialLayerParameters.Add(FStaticMaterialLayerParameterNodeRef(
 			new FStaticMaterialLayerParameterNode(FName(),
-				MaterialLayers->GetStaticPermutationString(),
+				MaterialLayers.GetStaticPermutationString(),
 				bIsOverridden)));
 	}
 	

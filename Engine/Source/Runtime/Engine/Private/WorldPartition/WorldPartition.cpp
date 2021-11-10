@@ -38,6 +38,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
 #endif //WITH_EDITOR
@@ -189,14 +190,27 @@ struct FWorldPartionCellUpdateContext
 {
 	FWorldPartionCellUpdateContext(UWorldPartition* InWorldPartition)
 		: WorldPartition(InWorldPartition)
+		, bCancelled(false)
 	{
+		WorldPartition->OnCancelWorldPartitionUpdateEditorCells.AddRaw(this, &FWorldPartionCellUpdateContext::OnCancelUpdateEditorCells);
+
 		UpdatesInProgress++;
+	}
+
+	void OnCancelUpdateEditorCells(UWorldPartition* InWorldPartition)
+	{
+		if (WorldPartition == InWorldPartition)
+		{
+			bCancelled = true;
+		}
 	}
 
 	~FWorldPartionCellUpdateContext()
 	{
+		WorldPartition->OnCancelWorldPartitionUpdateEditorCells.RemoveAll(this);
+
 		UpdatesInProgress--;
-		if (UpdatesInProgress == 0)
+		if (UpdatesInProgress == 0 && !bCancelled)
 		{
 			// @todo_ow: Once Metadata is removed from external actor's package, testing WorldPartition->IsInitialized() won't be necessary anymore.
 			if (WorldPartition->IsInitialized())
@@ -219,6 +233,7 @@ struct FWorldPartionCellUpdateContext
 
 	static int32 UpdatesInProgress;
 	UWorldPartition* WorldPartition;
+	bool bCancelled;
 };
 
 int32 FWorldPartionCellUpdateContext::UpdatesInProgress = 0;
@@ -235,7 +250,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bIsPIE(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
-	, InstanceTransform(FTransform::Identity)
 	, StreamingPolicy(nullptr)
 #if !UE_BUILD_SHIPPING
 	, Replay(nullptr)
@@ -299,7 +313,7 @@ void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 
 	check(IsMainWorldPartition());
 
-	OnBeginPlay(EWorldPartitionStreamingMode::PIE);
+	OnBeginPlay();
 }
 
 void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
@@ -308,10 +322,10 @@ void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
 	bIsPIE = false;
 }
 
-void UWorldPartition::OnBeginPlay(EWorldPartitionStreamingMode Mode)
+void UWorldPartition::OnBeginPlay()
 {
-	GenerateStreaming(Mode);
-	RuntimeHash->OnBeginPlay(Mode);
+	GenerateStreaming();
+	RuntimeHash->OnBeginPlay();
 }
 
 void UWorldPartition::OnCancelPIE()
@@ -356,7 +370,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	check(InWorld);
 	World = InWorld;
-	InstanceTransform = InTransform;
 
 	check(InitState == EWorldPartitionInitState::Uninitialized);
 	InitState = EWorldPartitionInitState::Initializing;
@@ -374,24 +387,15 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	bool bEditorOnly = !World->IsGameWorld();
 	if (bEditorOnly)
 	{
-		check(!StreamingPolicy);
+		CreateOrRepairWorldPartition(World->GetWorldSettings());
 
-		if (!EditorHash)
-		{
-			UClass* EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
-			EditorHash = NewObject<UWorldPartitionEditorHash>(this, EditorHashClass);
-			EditorHash->SetDefaultValues();
-		}
+		check(!StreamingPolicy);
+		check(EditorHash);
 
 		EditorHash->Initialize();
 	}
 
-	if (!RuntimeHash)
-	{
-		UClass* RuntimeHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionRuntimeSpatialHash"));
-		RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(this, RuntimeHashClass);
-		RuntimeHash->SetDefaultValues();
-	}
+	check(RuntimeHash);
 
 	// Did we travel into a WP map in PIE (null StreamingPolicy means GenerateStreaming wasn't called)
 	const bool bPIEWorldTravel = World->WorldType == EWorldType::PIE && !StreamingPolicy;
@@ -439,7 +443,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
+					ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo);
 				}
 
 				if (bEditorOnly)
@@ -453,17 +457,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bEditorOnly)
 	{
-		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
-		FWorldPartitionReference WorldDataLayersActor;
-		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle : EditorHash->GetAlwaysLoadedCell()->Actors)
-		{
-			if (ActorHandle->GetActorClass()->IsChildOf<AWorldDataLayers>())
-			{
-				WorldDataLayersActor = ActorHandle.Handle;
-				break;
-			}
-		}
-
 		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
 
@@ -515,19 +508,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		if (IsRunningGame() || bPIEWorldTravel)
 		{
-			OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
+			OnBeginPlay();
 		}
 
 		// Apply remapping of Persistent Level's SoftObjectPaths
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 	}
 #endif
-
-	if (!IsRunningCookCommandlet())
-	{
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-		WorldPartitionSubsystem->RegisterWorldPartition(this);
-	}
 }
 
 void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
@@ -573,15 +560,6 @@ void UWorldPartition::Uninitialize()
 			GEditor->OnEditorClose().RemoveAll(this);
 		}
 
-		for (auto& Pair : ActorDescContainers)
-		{
-			if (UActorDescContainer* Container = Pair.Value.Get())
-			{
-				Container->Uninitialize();
-			}
-		}
-		ActorDescContainers.Empty();
-
 		if (World->IsGameWorld())
 		{
 			OnEndPlay();
@@ -602,21 +580,10 @@ void UWorldPartition::Uninitialize()
 		EditorHash = nullptr;
 #endif		
 
-		if (!IsRunningCookCommandlet())
-		{
-			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-			WorldPartitionSubsystem->UnregisterWorldPartition(this);
-		}
-
 		InitState = EWorldPartitionInitState::Uninitialized;
 	}
 
 	Super::Uninitialize();
-}
-
-void UWorldPartition::CleanupWorldPartition()
-{
-	Uninitialize();
 }
 
 bool UWorldPartition::IsInitialized() const
@@ -703,33 +670,44 @@ void UWorldPartition::OnWorldMatchStarting()
 }
 
 #if WITH_EDITOR
-UWorldPartition* UWorldPartition::CreateWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass)
+UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass)
 {
-	if (!EditorHashClass)
+	UWorldPartition* WorldPartition = WorldSettings->GetWorldPartition();
+
+	if (!WorldPartition)
 	{
-		EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
+		WorldPartition = NewObject<UWorldPartition>(WorldSettings);
+		WorldSettings->SetWorldPartition(WorldPartition);
+
+		// New maps should include GridSize in name
+		WorldSettings->bIncludeGridSizeInNameForFoliageActors = true;
+		WorldSettings->bIncludeGridSizeInNameForPartitionedActors = true;
+		WorldSettings->MarkPackageDirty();
+
+		WorldPartition->DefaultHLODLayer = nullptr;
 	}
 
-	if (!RuntimeHashClass)
+	if (!WorldPartition->EditorHash)
 	{
-		RuntimeHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionRuntimeSpatialHash"));
+		if (!EditorHashClass)
+		{
+			EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
+		}
+
+		WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
+		WorldPartition->EditorHash->SetDefaultValues();
 	}
 
-	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(WorldSettings);
-	WorldSettings->SetWorldPartition(WorldPartition);
-	
-	// New maps should include GridSize in name
-	WorldSettings->bIncludeGridSizeInNameForFoliageActors = true;
-	WorldSettings->bIncludeGridSizeInNameForPartitionedActors = true;
+	if (!WorldPartition->RuntimeHash)
+	{
+		if (!RuntimeHashClass)
+		{
+			RuntimeHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionRuntimeSpatialHash"));
+		}
 
-	WorldSettings->MarkPackageDirty();
-
-	WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
-	WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
-
-	WorldPartition->EditorHash->SetDefaultValues();
-	WorldPartition->RuntimeHash->SetDefaultValues();
-	WorldPartition->DefaultHLODLayer = nullptr;
+		WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
+		WorldPartition->RuntimeHash->SetDefaultValues();
+	}
 
 	WorldPartition->GetWorld()->PersistentLevel->bIsPartitioned = true;
 
@@ -892,6 +870,7 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 		RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), bCheckDirty, bPromptToSave, Title, Message, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
 		if (RetCode == FEditorFileUtils::PR_Cancelled)
 		{
+			OnCancelWorldPartitionUpdateEditorCells.Broadcast(this);
 			return false;
 		}
 
@@ -926,13 +905,16 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 {
 	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
+		// Use DataLayers of loaded/dirty Actor if available to handle dirtied actors
+		FWorldPartitionActorViewProxy ActorDescProxy(ActorDesc);
+
 		if (IsRunningCookCommandlet())
 		{
 			// When running cook commandlet, dont allow loading of actors with dynamically loaded data layers
-			for (const FName& DataLayerName : ActorDesc->GetDataLayers())
+			for (const FName& DataLayerName : ActorDescProxy.GetDataLayers())
 			{
 				const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName);
-				if (DataLayer && DataLayer->IsDynamicallyLoaded())
+				if (DataLayer && DataLayer->IsRuntime())
 				{
 					return false;
 				}
@@ -941,11 +923,11 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 		else
 		{
 			uint32 NumValidLayers = 0;
-			for (const FName& DataLayerName : ActorDesc->GetDataLayers())
+			for (const FName& DataLayerName : ActorDescProxy.GetDataLayers())
 			{
 				if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
 				{
-					if (DataLayer->IsDynamicallyLoadedInEditor())
+					if (DataLayer->IsEffectiveLoadedInEditor())
 					{
 						return true;
 					}
@@ -1082,7 +1064,6 @@ void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& Acto
 {
 	AActor* Actor = ActorDesc.GetActor();
 	check(Actor);
-	ApplyActorTransform(Actor, InstanceTransform);
 	Actor->GetLevel()->AddLoadedActor(Actor);
 }
 
@@ -1092,7 +1073,6 @@ void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& Ac
 	if (IsValidChecked(Actor))
 	{
 		Actor->GetLevel()->RemoveLoadedActor(Actor);
-		ApplyActorTransform(Actor, InstanceTransform.Inverse());
 	}
 }
 
@@ -1219,12 +1199,6 @@ bool UWorldPartition::CanDrawRuntimeHash() const
 	return GetWorld()->IsGameWorld() || UWorldPartition::IsSimulating();
 }
 
-FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
-{
-	check(CanDrawRuntimeHash());
-	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
-}
-
 void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset)
 {
 	check(CanDrawRuntimeHash());
@@ -1258,13 +1232,13 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 {
 	check(!StreamingPolicy);
 	StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), WorldPartitionStreamingPolicyClass.Get());
 
 	check(RuntimeHash);
-	bool Result = RuntimeHash->GenerateRuntimeStreaming(Mode, StreamingPolicy, OutPackagesToGenerate);
+	bool Result = RuntimeHash->GenerateStreaming(StreamingPolicy, OutPackagesToGenerate);
 
 	// Prepare actor to cell remapping
 	StreamingPolicy->PrepareActorToCellRemapping();
@@ -1327,24 +1301,6 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 void UWorldPartition::GenerateNavigationData(const FBox& LoadedBounds)
 {
 	RuntimeHash->GenerateNavigationData(LoadedBounds);
-}
-
-const UActorDescContainer* UWorldPartition::RegisterActorDescContainer(FName PackageName)
-{
-	TWeakObjectPtr<UActorDescContainer>* ExistingContainerPtr = ActorDescContainers.Find(PackageName);
-	if (ExistingContainerPtr)
-	{
-		if (UActorDescContainer* LevelContainer = ExistingContainerPtr->Get())
-		{
-			return LevelContainer;
-		}
-	}
-		
-	UActorDescContainer* NewContainer = NewObject<UActorDescContainer>(GetTransientPackage());
-	NewContainer->Initialize(GetWorld(), PackageName);
-	ActorDescContainers.Add(PackageName, TWeakObjectPtr<UActorDescContainer>(NewContainer));
-
-	return NewContainer;
 }
 
 void UWorldPartition::DumpActorDescs(const FString& Path)

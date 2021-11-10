@@ -78,6 +78,7 @@ public:\
 DECLARE_TOOL_ACTION_COMMANDS(FSculptToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FVertexSculptToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FMeshGroupPaintToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FMeshAttributePaintToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FTransformToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FDrawPolygonToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FMeshSelectionToolActionCommands);

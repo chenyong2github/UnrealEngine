@@ -252,11 +252,10 @@ private:
 	// Callback for determining whether the Settings action can execute.
 	void HandleSettingsActionExecute( );
 
-	// Callback for spawning the Properties tab.
-	TSharedRef<SDockTab> HandleTabSpawnerSpawnProperties( const FSpawnTabArgs& Args );
-
-	// Callback for spawning the Viewport tab.
+	// Tab spawner callbacks
+	TSharedRef<SDockTab> HandleTabSpawnerSpawnProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> HandleTabSpawnerSpawnViewport( const FSpawnTabArgs& Args );
+	TSharedRef<SDockTab> HandleTabSpawnerSpawnOodle(const FSpawnTabArgs& Args);
 
 	// Callback for toggling the Texture Border action.
 	void HandleTextureBorderActionExecute( );
@@ -320,6 +319,9 @@ private:
 	/** Viewport */
 	TSharedPtr<STextureEditorViewport> TextureViewport;
 
+	/** Oodle tab */
+	TSharedPtr<SVerticalBox> OodleTabContainer;
+
 	/** Properties tab */
 	TSharedPtr<SVerticalBox> TextureProperties;
 
@@ -338,6 +340,20 @@ private:
 	TSharedPtr<STextBlock> NumMipsText;
 	TSharedPtr<STextBlock> MipLevelTextBlock;
 	TSharedPtr<STextBlock> EncodeSpeedText;
+
+	// oodle details text blocks.
+	TSharedPtr<STextBlock> OodleRDOText;
+	TSharedPtr<STextBlock> OodleEffortText;
+	TSharedPtr<STextBlock> OodleTilingText;
+	TSharedPtr<STextBlock> OodleRDOSourceText;
+	TSharedPtr<STextBlock> OodleEncoderText;
+	TSharedPtr<STextBlock> OodleEncodeSpeedText;
+
+	// oodle details labels
+	TSharedPtr<STextBlock> OodleRDOEnabledLabel;
+	TSharedPtr<STextBlock> OodleRDOSourceLabel;
+	TSharedPtr<STextBlock> OodleEffortLabel;
+	TSharedPtr<STextBlock> OodleTilingLabel;
 
 	// Holds the anchor for the view options menu.
 	TSharedPtr<SMenuAnchor> ViewOptionsMenuAnchor;
@@ -389,9 +405,8 @@ private:
 	bool bIsVolumeTexture;
 private:
 
-	// The name of the Viewport tab.
+	// Tab names
 	static const FName ViewportTabId;
-
-	// The name of the Properties tab.
 	static const FName PropertiesTabId;
+	static const FName OodleTabId;
 };

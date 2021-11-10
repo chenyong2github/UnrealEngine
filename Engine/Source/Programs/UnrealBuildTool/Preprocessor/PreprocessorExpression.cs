@@ -238,6 +238,15 @@ namespace UnrealBuildTool
 					{
 						throw new NotImplementedException();
 					}
+					else if (Text == Identifiers.__has_builtin)
+					{
+						if (Tokens[Idx + 1].Type != TokenType.LeftParen || Tokens[Idx + 3].Type != TokenType.RightParen)
+						{
+							throw new NotImplementedException();
+						}
+						Idx += 4;
+						return 0;
+					}
 					else if(Text == Identifiers.__has_feature)
 					{
 						if(Tokens[Idx + 1].Type != TokenType.LeftParen || Tokens[Idx + 3].Type != TokenType.RightParen)

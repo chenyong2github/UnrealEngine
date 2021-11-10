@@ -959,7 +959,7 @@ struct FBoxSphereBounds3d
  * A bounding box and bounding sphere with the same origin.
  * @note The full C++ class is located here : Engine\Source\Runtime\Core\Public\Math\BoxSphereBounds.h
  */
-USTRUCT(noexport, BlueprintType)
+USTRUCT(noexport, BlueprintType, meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeBoxSphereBounds", HasNativeBreak = "Engine.KismetMathLibrary.BreakBoxSphereBounds"))
 struct FBoxSphereBounds
 {
 	/** Holds the origin of the bounding box and sphere. */

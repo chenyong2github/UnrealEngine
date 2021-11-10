@@ -14,13 +14,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogCookedEditorTargetPlatform, Log, All)
 
 
 
-TUniquePtr<ICookedEditorPackageManager> ICookedEditorPackageManager::FactoryForTargetPlatform(ITargetPlatform* TP)
+TUniquePtr<ICookedEditorPackageManager> ICookedEditorPackageManager::FactoryForTargetPlatform(ITargetPlatform* TP, bool bIsCookedCooker)
 {
 	if (FGameDelegates::Get().GetCookedEditorPackageManagerFactoryDelegate().IsBound())
 	{
 		return FGameDelegates::Get().GetCookedEditorPackageManagerFactoryDelegate().Execute();
 	}
-	return TUniquePtr<ICookedEditorPackageManager>(new FIniCookedEditorPackageManager);
+	return TUniquePtr<ICookedEditorPackageManager>(new FIniCookedEditorPackageManager(bIsCookedCooker));
 }
 
 
@@ -35,7 +35,7 @@ void ICookedEditorPackageManager::AddPackagesFromPath(TArray<FName>& Packages, c
 	AssetRegistry.GetAssetsByPath(Path, AssetDatas, SearchMode == EPackageSearchMode::Recurse, true);
 	for (const FAssetData& AssetData : AssetDatas)
 	{
-		if (AssetData.IsUAsset() && AssetManager.VerifyCanCookPackage(AssetData.PackageName, false))
+		if (AssetData.IsUAsset() && AssetManager.VerifyCanCookPackage(nullptr, AssetData.PackageName, false))
 		{
 			if (AllowAssetToBeGathered(AssetData))
 			{
@@ -50,17 +50,14 @@ void ICookedEditorPackageManager::AddPackagesFromPath(TArray<FName>& Packages, c
 	}
 }
 
-void ICookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const
+void ICookedEditorPackageManager::GatherAllPackagesExceptDisabled(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform, const TArray<FString>& DisabledPlugins) const
 {
 	GetEnginePackagesToCook(PackageNames);
 	GetProjectPackagesToCook(PackageNames);
 
-	TArray<FString> CookedEditorDisabledPluginsArray;
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisabledPlugins"), CookedEditorDisabledPluginsArray, GGameIni);
-
-	// copy to set for faster contains calls
+	// copy array to set for faster contains calls
 	TSet<FString> CookedEditorDisabledPlugins;
-	CookedEditorDisabledPlugins.Append(CookedEditorDisabledPluginsArray);
+	CookedEditorDisabledPlugins.Append(DisabledPlugins);
 
 	// walk over plugins and cook their content
 	for (TSharedRef<IPlugin> Plugin : IPluginManager::Get().GetEnabledPluginsWithContent())
@@ -90,14 +87,15 @@ void ICookedEditorPackageManager::FilterGatheredPackages(TArray<FName>& PackageN
 
 
 
-FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
+FIniCookedEditorPackageManager::FIniCookedEditorPackageManager(bool bInIsCookedCooker)
+	: bIsCookedCooker(bInIsCookedCooker)
 {
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("EngineAssetPaths"), EngineAssetPaths, GGameIni);
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("ProjectAssetPaths"), ProjectAssetPaths, GGameIni);
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedPathsToGather"), DisallowedPathsToGather, GGameIni);
+	EngineAssetPaths = GetConfigArray(TEXT("EngineAssetPaths"));
+	ProjectAssetPaths = GetConfigArray(TEXT("ProjectAssetPaths"));
+	DisallowedPathsToGather = GetConfigArray(TEXT("DisallowedPathsToGather"));
+	DisabledPlugins = GetConfigArray(TEXT("DisabledPlugins"));
 
-	TArray<FString> DisallowedObjectClassNamesToLoad;
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedObjectClassesToLoad"), DisallowedObjectClassNamesToLoad, GGameIni);
+	TArray<FString> DisallowedObjectClassNamesToLoad = GetConfigArray(TEXT("DisallowedObjectClassesToLoad"));;
 	for (const FString& ClassName : DisallowedObjectClassNamesToLoad)
 	{
 		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
@@ -106,8 +104,7 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
 		DisallowedObjectClassesToLoad.Add(Class);
 	}
 
-	TArray<FString> DisallowedAssetClassNamesToGather;
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedAssetClassesToGather"), DisallowedAssetClassNamesToGather, GGameIni);
+	TArray<FString> DisallowedAssetClassNamesToGather = GetConfigArray(TEXT("DisallowedAssetClassesToGather"));;
 	for (const FString& ClassName : DisallowedAssetClassNamesToGather)
 	{
 		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
@@ -115,6 +112,26 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
 
 		DisallowedAssetClassesToGather.Add(Class);
 	}
+}
+
+TArray<FString> FIniCookedEditorPackageManager::GetConfigArray(const TCHAR* Key) const
+{
+	const TCHAR* SharedIniSection = TEXT("CookedEditorSettings");
+	const TCHAR* SpecificiIniSection = bIsCookedCooker ? TEXT("CookedEditorSettings_CookedCooker") : TEXT("CookedEditorSettings_CookedEditor");
+
+	TArray<FString> TempArray;
+	TArray<FString> ResultArray;
+
+	GConfig->GetArray(SpecificiIniSection, Key, ResultArray, GGameIni);
+	GConfig->GetArray(SharedIniSection, Key, TempArray, GGameIni);
+	ResultArray.Append(TempArray);
+
+	return ResultArray;
+}
+
+void FIniCookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const
+{
+	GatherAllPackagesExceptDisabled(PackageNames, TargetPlatform, DisabledPlugins);
 }
 
 void FIniCookedEditorPackageManager::FilterGatheredPackages(TArray<FName>& PackageNames) const
@@ -140,10 +157,8 @@ void FIniCookedEditorPackageManager::GetEnginePackagesToCook(TArray<FName>& Pack
 		AddPackagesFromPath(PackagesToCook, *Path, EPackageSearchMode::Recurse);
 	}
 
-
-	TArray<FString> SpecificAssets;
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("EngineSpecificAssetsToCook"), SpecificAssets, GGameIni);
-	PackagesToCook.Append(SpecificAssets);
+	// specific assets to cook
+	PackagesToCook.Append(GetConfigArray(TEXT("EngineSpecificAssetsToCook")));
 }
 
 void FIniCookedEditorPackageManager::GetProjectPackagesToCook(TArray<FName>& PackagesToCook) const
@@ -160,11 +175,8 @@ void FIniCookedEditorPackageManager::GetProjectPackagesToCook(TArray<FName>& Pac
 		PackagesToCook.Add(*EditorStartupMap);
 	}
 
-
 	// specific assets to cook
-	TArray<FString> SpecificAssets;
-	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("ProjectSpecificAssetsToCook"), SpecificAssets, GGameIni);
-	PackagesToCook.Append(SpecificAssets);
+	PackagesToCook.Append(GetConfigArray(TEXT("ProjectSpecificAssetsToCook")));
 }
 
 bool FIniCookedEditorPackageManager::AllowObjectToBeCooked(const class UObject* Obj) const

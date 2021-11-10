@@ -62,7 +62,7 @@ public:
 
 		// Get the Target RHIs for this platform, we do not always want all those that are supported.
 		TArray<FName> TargetedShaderFormats;
-		GetAllTargetedShaderFormats(TargetedShaderFormats);
+		TLinuxTargetPlatform::GetAllTargetedShaderFormats(TargetedShaderFormats);
 
 		// If we are targeting ES 2.0/3.1, we also must cook encoded HDR reflection captures
 		static FName NAME_SF_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));

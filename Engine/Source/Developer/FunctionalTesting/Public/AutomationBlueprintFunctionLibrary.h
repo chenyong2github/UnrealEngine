@@ -139,6 +139,15 @@ public:
 	static UAutomationEditorTask* TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera = nullptr, bool bMaskEnabled = false, bool bCaptureHDR = false, EComparisonTolerance ComparisonTolerance = EComparisonTolerance::Low, FString ComparisonNotes = TEXT(""), float Delay = 0.0);
 
 	/**
+	* request image comparison.
+	* @param ImageFilePath	Absolute path to the image location. All 8bit RGBA channels supported formats by the engine are accepted.
+	* @param ComparisonName	Optional name for the comparison, by default the basename of ImageFilePath is used
+	* @return				True if comparison was successfully enqueued
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (AdvancedDisplay = "ComparisonName, ComparisonTolerance, ComparisonNotes", HidePin = "WorldContextObject", DefaultToSelf = "WorldContextObject"))
+	static bool CompareImageAgainstReference(FString ImageFilePath, FString ComparisonName = TEXT(""), EComparisonTolerance ComparisonTolerance = EComparisonTolerance::Low, FString ComparisonNotes = TEXT(""), UObject* WorldContextObject = nullptr);
+
+	/**
 	* Add Telemetry data to currently running automated test.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (AdvancedDisplay = "Context"))

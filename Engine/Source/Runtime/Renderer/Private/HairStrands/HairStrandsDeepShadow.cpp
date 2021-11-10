@@ -150,7 +150,7 @@ static FLightSceneInfos GetVisibleDeepShadowLights(const FScene* Scene, const FV
 {
 	// Collect all visible lights for the current view
 	FLightSceneInfos Out;
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

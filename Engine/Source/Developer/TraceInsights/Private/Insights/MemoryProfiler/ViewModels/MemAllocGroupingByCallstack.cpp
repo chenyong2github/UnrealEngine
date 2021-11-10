@@ -27,7 +27,7 @@ FMemAllocGroupingByCallstack::FMemAllocGroupingByCallstack(bool bInIsInverted, b
 		bInIsInverted ? LOCTEXT("Grouping_ByCallstack2_TitleName", "By Inverted Callstack")
 					  : LOCTEXT("Grouping_ByCallstack1_TitleName", "By Callstack"),
 		LOCTEXT("Grouping_Callstack_Desc", "Creates a tree based on callstack of each allocation."),
-		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"),
+		TEXT("Icons.Group.TreeItem"),
 		nullptr)
 	, bIsInverted(bInIsInverted)
 	, bIsGroupingByFunction(bInIsGroupingByFunction)

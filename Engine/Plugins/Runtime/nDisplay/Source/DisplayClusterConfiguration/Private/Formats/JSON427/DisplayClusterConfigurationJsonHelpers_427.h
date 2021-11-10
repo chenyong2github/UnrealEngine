@@ -96,9 +96,6 @@ namespace JSON427
 	{
 		switch (InOverscanMode)
 		{
-		case EDisplayClusterConfigurationViewportOverscanMode::None:
-			return JSON427::config::node::viewport::overscan::OverscanNone;
-
 		case EDisplayClusterConfigurationViewportOverscanMode::Pixels:
 			return JSON427::config::node::viewport::overscan::OverscanPixels;
 
@@ -116,13 +113,9 @@ namespace JSON427
 	template <>
 	inline EDisplayClusterConfigurationViewportOverscanMode DisplayClusterConfigurationJsonHelpers::FromString<>(const FString& InOverscanModeString)
 	{
-		EDisplayClusterConfigurationViewportOverscanMode Result = EDisplayClusterConfigurationViewportOverscanMode::None;
+		EDisplayClusterConfigurationViewportOverscanMode Result = EDisplayClusterConfigurationViewportOverscanMode::Percent;
 
-		if (InOverscanModeString.Equals(JSON427::config::node::viewport::overscan::OverscanNone, ESearchCase::IgnoreCase))
-		{
-			Result = EDisplayClusterConfigurationViewportOverscanMode::None;
-		}
-		else if (InOverscanModeString.Equals(JSON427::config::node::viewport::overscan::OverscanPixels, ESearchCase::IgnoreCase))
+		if (InOverscanModeString.Equals(JSON427::config::node::viewport::overscan::OverscanPixels, ESearchCase::IgnoreCase))
 		{
 			Result = EDisplayClusterConfigurationViewportOverscanMode::Pixels;
 		}

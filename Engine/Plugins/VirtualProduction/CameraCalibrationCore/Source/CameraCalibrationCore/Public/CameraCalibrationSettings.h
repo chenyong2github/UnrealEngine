@@ -36,11 +36,11 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
-	/** Get the list of default overlay names */
-	TArray<FName> GetDefaultCalibrationOverlayNames() const;
+	/** Get the list of calibration overlay override names */
+	TArray<FName> GetCalibrationOverlayMaterialOverrideNames() const;
 
-	/** Get the default MaterialInterface associated with the input overlay name */
-	UMaterialInterface* GetDefaultCalibrationOverlayMaterial(const FName OverlayName) const;
+	/** Get the override MaterialInterface associated with the input overlay name */
+	UMaterialInterface* GetCalibrationOverlayMaterialOverride(const FName OverlayName) const;
 
 	/** Gets a multicast delegate which is called whenever the displacement map resolution project setting changes */
 	FOnDisplacementMapResolutionChanged& OnDisplacementMapResolutionChanged();
@@ -111,10 +111,14 @@ private:
 	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultDistortionMaterials;
 
 #if WITH_EDITORONLY_DATA
-	/** Map of overlay names to default overlay materials */
+	/** Map of overlay names to override overlay materials */
 	UPROPERTY(config, EditAnywhere, Category = "Overlays")
-	TMap<FName, TSoftObjectPtr<UMaterialInterface>> DefaultCalibrationOverlayMaterials;
+	TMap<FName, TSoftObjectPtr<UMaterialInterface>> CalibrationOverlayMaterialOverrides;
 #endif
+
+private:
+	/** Delegate handle to run after the engine is initialized */
+	FDelegateHandle PostEngineInitHandle;
 };
 
 /**

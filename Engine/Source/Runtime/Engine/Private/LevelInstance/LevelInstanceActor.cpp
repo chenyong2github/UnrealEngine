@@ -427,7 +427,7 @@ bool ALevelInstance::CanSetValue(TSoftObjectPtr<UWorld> InLevelInstance, FString
 	}
 
 	FString PackageName;
-	if (!FPackageName::DoesPackageExist(InLevelInstance.GetLongPackageName(), nullptr, nullptr))
+	if (!FPackageName::DoesPackageExist(InLevelInstance.GetLongPackageName()))
 	{
 		if (Reason)
 		{

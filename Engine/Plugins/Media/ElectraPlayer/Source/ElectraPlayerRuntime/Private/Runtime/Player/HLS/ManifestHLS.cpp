@@ -8,6 +8,7 @@
 #include "InitSegmentCacheHLS.h"
 #include "StreamReaderHLSfmp4.h"
 #include "Player/PlayerSessionServices.h"
+#include "Player/AdaptivePlayerOptionKeynames.h"
 #include "SynchronizedClock.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/URLParser.h"
@@ -42,11 +43,11 @@ public:
 
 	// TODO: need to provide metadata (duration, streams, languages, etc.)
 
-	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
-	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 
 	// Obtains information on the stream segmentation of a particular stream starting at a given current reference segment (optional, if not given returns suitable default values).
@@ -64,15 +65,19 @@ private:
 			, DiscontinuitySequence(-1)
 			, LocalIndex(-1)
 			, StreamUniqueID(0)
+			, bFrameAccurateSearch(false)
+			, TimestampSequenceIndex(0)
 		{
 		}
 		FTimeValue	Time;						//!< Time to search for.
-		FTimeValue	Duration;					//!< If set this we search for a start time of Time + Duration (aka the next segment)
+		FTimeValue	Duration;					//!< If set we search for a start time of Time + Duration (aka the next segment)
 		int64		MediaSequence;				//!< If >= 0 we are searching for a specific segment based on media sequence number
 		int64		DiscontinuitySequence;		//!< If >= 0 we are searching for a segment after the this discontinuity sequence number
 		int32		LocalIndex;
 		uint32		StreamUniqueID;				//!< If != 0 the search is for the same stream as was the previous segment. We can use the media sequence index.
-		//FTimeValue	PTS;
+		FTimeValue	LastPTS;
+		bool		bFrameAccurateSearch;
+		int64		TimestampSequenceIndex;
 	};
 
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
@@ -142,6 +147,10 @@ FTimeRange FManifestHLS::GetSeekableTimeRange() const
 		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
 		return InternalManifest->CurrentMediaAsset->SeekableTimeRange;
 	}
+	return FTimeRange();
+}
+FTimeRange FManifestHLS::GetPlaybackRange() const
+{
 	return FTimeRange();
 }
 void FManifestHLS::GetSeekablePositions(TArray<FTimespan>& OutPositions) const
@@ -571,6 +580,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 	else if (StreamType == EStreamType::Audio)
 	{
 		Req->SourceBufferInfo = CurrentSourceBufferInfoAudio;
+		Req->Bitrate = InPlaylist->GetBitrate();
 	}
 
 	const TArray<FManifestHLSInternal::FMediaStream::FMediaSegment>& SegmentList = InStream->SegmentList;
@@ -725,6 +735,14 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 		// Did we find the segment?
 		if (SelectedSegmentIndex >= 0 && SelectedSegmentIndex < SegmentList.Num())
 		{
+			// If there is a playback range and we have reached it we are at EOS, regardless of whether this is a Live stream or not.
+			if (SearchParam.LastPTS.IsValid() && SegmentList[SelectedSegmentIndex].AbsoluteDateTime >= SearchParam.LastPTS)
+			{
+				Req->bIsEOSSegment = true;
+				OutRequest = Req;
+				return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+			}
+
 			//Req->PlaylistRelativeStartTime = SegmentList[SelectedSegmentIndex].RelativeStartTime;
 			Req->AbsoluteDateTime   	   = SegmentList[SelectedSegmentIndex].AbsoluteDateTime;
 			Req->SegmentDuration		   = SegmentList[SelectedSegmentIndex].Duration;
@@ -734,17 +752,14 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 			Req->bIsPrefetch			   = SegmentList[SelectedSegmentIndex].bIsPrefetch;
 			Req->bIsEOSSegment  		   = false;
 			Req->URL					   = FURL_RFC3986(UrlBuilder).ResolveWith(SegmentList[SelectedSegmentIndex].URI).Get();
-			Req->FirstAUTimeOffset  	   = searchTime - SegmentList[SelectedSegmentIndex].AbsoluteDateTime;
+
+			Req->EarliestPTS = searchTime;
+			Req->LastPTS = SearchParam.LastPTS;
+			Req->bFrameAccuracyRequired = SearchParam.bFrameAccurateSearch;
+			Req->TimestampSequenceIndex = SearchParam.TimestampSequenceIndex;
+
 			Req->InitSegmentInfo		   = SegmentList[SelectedSegmentIndex].InitSegmentInfo;
 			Req->LicenseKeyInfo 		   = SegmentList[SelectedSegmentIndex].DRMKeyInfo;
-
-			// This can be negative when we're picking the segment after the search time!
-			// But we don't want this since it is a useless case. We will be receiving AUs from behind the search time and
-			// that's simply where we are starting at. Set to zero in this case.
-			if (Req->FirstAUTimeOffset < FTimeValue::GetZero())
-			{
-				Req->FirstAUTimeOffset.SetToZero();
-			}
 
 			if (SegmentList[SelectedSegmentIndex].ByteRange.IsSet())
 			{
@@ -782,7 +797,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 }
 
 
-IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
+IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
 	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
 
@@ -800,9 +815,25 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 	{
 		TSharedPtrTS<FStreamSegmentRequestHLSfmp4> 	VideoSegmentRequest;
 		TSharedPtrTS<FStreamSegmentRequestHLSfmp4> 	AudioSegmentRequest;
-		FSegSearchParam									SearchParam;
+		FSegSearchParam								SearchParam;
+
+		// Frame accurate seek required?
+		bool bFrameAccurateSearch = SessionServices->GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
+		if (bFrameAccurateSearch)
+		{
+			// Get the segment that starts on or before the search time.
+			SearchType = IManifest::ESearchType::Before;
+		}
+
+		// Get the end of the playback end, if any.
+		FTimeValue PlayRangeEnd = SessionServices->GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue::GetPositiveInfinity());
+
 
 		SearchParam.Time = StartPosition.Time;
+		SearchParam.LastPTS = PlayRangeEnd;
+		SearchParam.bFrameAccurateSearch = bFrameAccurateSearch;
+		SearchParam.TimestampSequenceIndex = InSequenceState.SequenceIndex;
+
 
 		// Do we have both video and audio?
 		if (ActiveVideoUniqueID && ActiveAudioUniqueID)
@@ -817,14 +848,17 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 			if (vidResult.IsSuccess())
 			{
 				VideoSegmentRequest->bIsInitialStartRequest = true;
-				VideoSegmentRequest->FirstAUTimeOffset.SetToZero();
 
-				// With the video segment found let's find the corresponding audio segment.
-				SearchParam.Time = VideoSegmentRequest->AbsoluteDateTime;
-				SearchParam.DiscontinuitySequence = VideoSegmentRequest->DiscontinuitySequence;
-				// For audio we start with the segment before the video segment if there is no precise match.
-				// The stream reader will skip over all audio access units before the intended start time.
-				SearchType = IManifest::ESearchType::Before;
+				if (!bFrameAccurateSearch)
+				{
+					VideoSegmentRequest->EarliestPTS.SetToZero();
+					// With the video segment found let's find the corresponding audio segment.
+					SearchParam.Time = VideoSegmentRequest->AbsoluteDateTime;
+					SearchParam.DiscontinuitySequence = VideoSegmentRequest->DiscontinuitySequence;
+					// For audio we start with the segment before the video segment if there is no precise match.
+					// The stream reader will skip over all audio access units before the intended start time.
+					SearchType = IManifest::ESearchType::Before;
+				}
 			}
 			// Search for audio.
 			audResult = FindSegment(AudioSegmentRequest, AudioPlaylist, AudioStream, ActiveAudioUniqueID, EStreamType::Audio, SearchParam, SearchType);
@@ -866,7 +900,6 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 			if (vidResult.IsSuccess())
 			{
 				VideoSegmentRequest->bIsInitialStartRequest = true;
-				VideoSegmentRequest->FirstAUTimeOffset.SetToZero();
 				OutSegment = VideoSegmentRequest;
 				return IManifest::FResult(IManifest::FResult::EType::Found);
 			}
@@ -956,7 +989,7 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
  * Same as GetStartingSegment() except this is for a specific stream (video, audio, ...) only.
  * To be used when a track (language) change is made and a new segment is needed at the current playback position.
  */
-IManifest::FResult FPlayPeriodHLS::GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
+IManifest::FResult FPlayPeriodHLS::GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
 	// Not currently supported.
 	// We could call GetStartingSegment() and return the segment request of the stream type that was found there
@@ -972,34 +1005,13 @@ void FPlayPeriodHLS::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
 }
 
 
-IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
+IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
 	if (InFinishedSegments.Num())
 	{
-		// Go over all finished segments and get the largest next expected timestamp from all of them.
-		FTimeValue LargestNextExpectedTimestamp(FTimeValue::GetZero());
-		for(auto It = InFinishedSegments.CreateConstIterator(); It; ++It)
-		{
-			const FStreamSegmentRequestHLSfmp4* FinishedRequest = static_cast<const FStreamSegmentRequestHLSfmp4*>(It->Value.Get());
-			if (FinishedRequest && FinishedRequest->NextLargestExpectedTimestamp > LargestNextExpectedTimestamp)
-			{
-				LargestNextExpectedTimestamp = FinishedRequest->NextLargestExpectedTimestamp;
-			}
-		}
-		IManifest::FResult res = GetStartingSegment(OutSegment, StartPosition, SearchType);
+		IManifest::FResult res = GetStartingSegment(OutSegment, SequenceState, StartPosition, SearchType);
 		if (res.GetType() == IManifest::FResult::EType::Found)
 		{
-			FStreamSegmentRequestHLSfmp4* LoopRequest = static_cast<FStreamSegmentRequestHLSfmp4*>(OutSegment.Get());
-			InOutLoopState.bLoopEnabled = true;
-			InOutLoopState.LoopBasetime = LargestNextExpectedTimestamp;	// This is the absolute playback time at which the loop will occur
-			++InOutLoopState.LoopCount;
-			LoopRequest->PlayerLoopState = InOutLoopState;
-			LoopRequest->PlayerLoopState.LoopBasetime -= LoopRequest->AbsoluteDateTime;	// This is the _offset_ to add internally to the PTS to make it loop.
-			// Set the loop state in the dependent streams as well.
-			for(int32 nDep=0, nDepMax=LoopRequest->DependentStreams.Num(); nDep<nDepMax; ++nDep)
-			{
-				LoopRequest->DependentStreams[nDep]->PlayerLoopState = LoopRequest->PlayerLoopState;
-			}
 			return res;
 		}
 	}
@@ -1059,7 +1071,14 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 	if (Result.IsSuccess())
 	{
 		TSharedPtrTS<FStreamSegmentRequestHLSfmp4> 	NextSegmentRequest;
-		FSegSearchParam									SearchParam;
+		FSegSearchParam								SearchParam;
+
+		// Frame accurate seek required?
+		bool bFrameAccurateSearch = SessionServices->GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
+		// Get the end of the playback end, if any.
+		FTimeValue PlayRangeEnd = SessionServices->GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue::GetPositiveInfinity());
+		SearchParam.LastPTS = PlayRangeEnd;
+		SearchParam.bFrameAccurateSearch = bFrameAccurateSearch;
 
 		SearchParam.Time				  = CurrentRequest->AbsoluteDateTime;
 		SearchParam.Duration			  = CurrentRequest->SegmentDuration;
@@ -1067,20 +1086,19 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 		SearchParam.DiscontinuitySequence = CurrentRequest->DiscontinuitySequence;
 		SearchParam.LocalIndex  		  = CurrentRequest->LocalIndex;
 		SearchParam.StreamUniqueID  	  = CurrentRequest->StreamUniqueID == ForStreamID ? ForStreamID : 0;
+		SearchParam.TimestampSequenceIndex = CurrentRequest->TimestampSequenceIndex;
 		Result = FindSegment(NextSegmentRequest, Playlist, Stream, ForStreamID, CurrentRequest->GetType(), SearchParam, bRetry ? IManifest::ESearchType::Same : IManifest::ESearchType::StrictlyAfter);
 		if (Result.IsSuccess())
 		{
 			// Continuing with the next segment implicitly means there is no AU time offset.
 			if (!bRetry)
 			{
-				NextSegmentRequest->FirstAUTimeOffset.SetToZero();
+				NextSegmentRequest->EarliestPTS.SetToZero();
 			}
 			else
 			{
 				NextSegmentRequest->NumOverallRetries = CurrentRequest->NumOverallRetries + 1;
 			}
-			// Copy over the player loop state.
-			NextSegmentRequest->PlayerLoopState = CurrentRequest->PlayerLoopState;
 			OutSegment = NextSegmentRequest;
 			return IManifest::FResult(IManifest::FResult::EType::Found);
 		}

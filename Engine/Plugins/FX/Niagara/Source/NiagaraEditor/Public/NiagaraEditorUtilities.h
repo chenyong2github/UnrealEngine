@@ -318,6 +318,8 @@ namespace FNiagaraEditorUtilities
 
 	const FGuid& GetNamespaceIdForUsage(ENiagaraScriptUsage Usage);
 
+	// Convenience wrapper to get all discovered parameter definitions assets from asset registry.
+	// NOTE: You are not guaranteed to get all parameter definitions in mounted directories if the asset registry has not finished discovering assets.
 	TArray<UNiagaraParameterDefinitions*> GetAllParameterDefinitions();
 
 	bool GetAvailableParameterDefinitions(const TArray<FString>& ExternalPackagePaths, TArray<FAssetData>& OutParameterDefinitionsAssetData);

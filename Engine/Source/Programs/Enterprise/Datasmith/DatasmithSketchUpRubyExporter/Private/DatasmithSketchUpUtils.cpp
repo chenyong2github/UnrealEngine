@@ -30,8 +30,8 @@
 
 #include "DatasmithSketchUpSDKCeases.h"
 
-// OpenEXR third party library.
-#include "ImathMatrixAlgo.h"
+// Imath third party library.
+#include "Imath/ImathMatrixAlgo.h"
 
 
 

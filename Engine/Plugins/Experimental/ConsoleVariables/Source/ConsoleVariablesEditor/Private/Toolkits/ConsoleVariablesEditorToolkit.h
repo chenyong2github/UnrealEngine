@@ -34,7 +34,7 @@ public:
 	}
 	virtual FName GetToolkitFName() const override
 	{
-		return FName("Console Variables UI");
+		return FName("Console Variables Editor");
 	}
 	virtual FString GetWorldCentricTabPrefix() const override
 	{

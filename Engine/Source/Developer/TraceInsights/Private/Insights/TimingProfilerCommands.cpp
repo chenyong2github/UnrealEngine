@@ -3,7 +3,6 @@
 #include "Insights/TimingProfilerCommands.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -42,7 +41,7 @@ FTimingProfilerCommands::FTimingProfilerCommands()
 		TEXT("TimingProfilerCommand"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "TimingProfilerCommand", "Timing Insights"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
 	)
 {
 }

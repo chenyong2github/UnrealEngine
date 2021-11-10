@@ -124,8 +124,9 @@ public:
 	virtual FDecodedSubtitleReceivedDelegate& GetDecodedSubtitleReceiveDelegate() override;
 	virtual FDecodedSubtitleFlushDelegate& GetDecodedSubtitleFlushDelegate() override;
 
-	virtual EAUpushResult AUdataPushAU(FAccessUnit* AccessUnit) override;
+	virtual void AUdataPushAU(FAccessUnit* AccessUnit) override;
 	virtual void AUdataPushEOD() override;
+	virtual void AUdataClearEOD() override;
 	virtual void AUdataFlushEverything() override;
 
 	void SetCSD(const TArray<uint8> InRawCSD)
@@ -330,7 +331,7 @@ bool FSubtitleDecoder::ResetForTrackChange(FAccessUnit* AccessUnit)
 }
 
 
-IAccessUnitBufferInterface::EAUpushResult FSubtitleDecoder::AUdataPushAU(FAccessUnit* AccessUnit)
+void FSubtitleDecoder::AUdataPushAU(FAccessUnit* AccessUnit)
 {
 	if (PluginDecoder.IsValid())
 	{
@@ -340,7 +341,7 @@ IAccessUnitBufferInterface::EAUpushResult FSubtitleDecoder::AUdataPushAU(FAccess
 			{
 				if (!ResetForTrackChange(AccessUnit))
 				{
-					return IAccessUnitBufferInterface::EAUpushResult::Error;
+					return;
 				}
 			}
 			FParamDict Addtl;
@@ -353,9 +354,7 @@ IAccessUnitBufferInterface::EAUpushResult FSubtitleDecoder::AUdataPushAU(FAccess
 			Addtl.Set(FString(TEXT("PTO")), FVariantValue(AccessUnit->PTO));
 			PluginDecoder->AddStreamedSubtitleData(TArray<uint8>((const uint8*)AccessUnit->AUData, (int32)AccessUnit->AUSize), AccessUnit->PTS, AccessUnit->Duration, Addtl);
 		}
-		return IAccessUnitBufferInterface::EAUpushResult::Ok;
 	}
-	return IAccessUnitBufferInterface::EAUpushResult::Error;
 }
 
 void FSubtitleDecoder::AUdataPushEOD()
@@ -363,6 +362,15 @@ void FSubtitleDecoder::AUdataPushEOD()
 	if (PluginDecoder.IsValid())
 	{
 		PluginDecoder->SignalStreamedSubtitleEOD();
+	}
+}
+
+void FSubtitleDecoder::AUdataClearEOD()
+{
+	if (PluginDecoder.IsValid())
+	{
+// FIXME: Add this method if required. Right now it is not.
+//		PluginDecoder->ClearStreamedSubtitleEOD();
 	}
 }
 

@@ -512,23 +512,31 @@ namespace Metasound
 						{
 							FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
-							const FString ClassName = Class->GetName();
-
 							// Remove class prefix if included in default value path
 							FString ObjectPath = InInputPin.DefaultValue;
-							ObjectPath.RemoveFromStart(ClassName + TEXT(" "));
+							ObjectPath.RemoveFromStart(Class->GetName() + TEXT(" "));
 
 							FARFilter Filter;
 							Filter.bRecursiveClasses = false;
 							Filter.ObjectPaths.Add(*ObjectPath);
-							Filter.ClassNames.Add(Class->GetFName());
 
 							TArray<FAssetData> AssetData;
 							AssetRegistryModule.Get().GetAssets(Filter, AssetData);
 							if (!AssetData.IsEmpty())
 							{
-								OutDefaultLiteral.Set(AssetData[0].GetAsset());
-								bObjectFound = true;
+								if (UObject* AssetObject = AssetData.GetData()->GetAsset())
+								{
+									const UClass* AssetClass = AssetObject->GetClass();
+									if (ensureAlways(AssetClass))
+									{
+										if (AssetClass->IsChildOf(Class))
+										{
+											Filter.ClassNames.Add(Class->GetFName());
+											OutDefaultLiteral.Set(AssetObject);
+											bObjectFound = true;
+										}
+									}
+								}
 							}
 						}
 					}
@@ -1058,6 +1066,8 @@ namespace Metasound
 
 		void FGraphBuilder::RegisterGraphWithFrontend(UObject& InMetaSound)
 		{
+			using namespace Frontend;
+
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
 

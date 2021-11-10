@@ -50,7 +50,7 @@ enum EBasePassDrawListType
 class FSceneInterface
 {
 public:
-	FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
+	ENGINE_API FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
 		: FeatureLevel(InFeatureLevel)
 	{}
 
@@ -82,6 +82,7 @@ public:
 	 * @param Primitive - primitive component to update
 	 */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) = 0;
+	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) = 0;
 	/** Updates primitive attachment state. */
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) = 0;
 	/** 

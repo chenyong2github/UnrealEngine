@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -106,6 +107,7 @@ void STextPropertyEditableStringTableReference::Construct(const FArguments& InAr
 			.ContentPadding(FMargin(4.0, 2.0))
 			.OnGetMenuContent(this, &STextPropertyEditableStringTableReference::OnGetStringTableComboOptions)
 			.OnComboBoxOpened(this, &STextPropertyEditableStringTableReference::UpdateStringTableComboOptions)
+			.CollapseMenuOnParentFocus(true)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -124,6 +126,7 @@ void STextPropertyEditableStringTableReference::Construct(const FArguments& InAr
 			.IsEnabled(this, &STextPropertyEditableStringTableReference::IsUnlinkEnabled)
 			.OnGetMenuContent(this, &STextPropertyEditableStringTableReference::OnGetStringTableKeyOptions)
 			.OnComboBoxOpened(this, &STextPropertyEditableStringTableReference::UpdateStringTableKeyOptions)
+			.CollapseMenuOnParentFocus(true)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -189,27 +192,39 @@ TSharedRef<SWidget> STextPropertyEditableStringTableReference::OnGetStringTableC
 		.BorderImage(&ComboButtonStyle.MenuBorderBrush)
 		.Padding(ComboButtonStyle.MenuBorderPadding)
 		[
-			SNew(SBox)
-			.Padding(4)
-			.WidthOverride(280)
-			.MaxDesiredHeight(600)
+			SNew(SWidgetSwitcher)
+			.WidgetIndex_Lambda([this]() { return StringTableComboOptions.IsEmpty() ? 0 : 1; })
+
+			+ SWidgetSwitcher::Slot() // Appears when there are no string tables with keys
+			.Padding(12)
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
+				SNew(STextBlock).Text(LOCTEXT("EmptyStringTableList", "No string tables available"))
+			]
+
+			+ SWidgetSwitcher::Slot() // Appears when there's a string table with at least a key
+			[
+				SNew(SBox)
+				.Padding(4)
+				.WidthOverride(280)
+				.MaxDesiredHeight(600)
 				[
-					SAssignNew(OptionsSearchBox, SSearchBox)
-					.OnTextChanged(this, &STextPropertyEditableStringTableReference::OnOptionsFilterTextChanged)
-				]
-				+SVerticalBox::Slot()
-				.FillHeight(1.f)
-				.Padding(0, 5, 0, 0)
-				[
-					SAssignNew(StringTableOptionsList, SListView<TSharedPtr<FAvailableStringTable>>)
-					.ListItemsSource(&StringTableComboOptions)
-					.SelectionMode(ESelectionMode::Single)
-					.OnGenerateRow(this, &STextPropertyEditableStringTableReference::OnGenerateStringTableComboOption)
-					.OnSelectionChanged(this, &STextPropertyEditableStringTableReference::OnStringTableComboChanged)
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(OptionsSearchBox, SSearchBox)
+						.OnTextChanged(this, &STextPropertyEditableStringTableReference::OnOptionsFilterTextChanged)
+					]
+					+SVerticalBox::Slot()
+					.FillHeight(1.f)
+					.Padding(0, 5, 0, 0)
+					[
+						SAssignNew(StringTableOptionsList, SListView<TSharedPtr<FAvailableStringTable>>)
+						.ListItemsSource(&StringTableComboOptions)
+						.SelectionMode(ESelectionMode::Single)
+						.OnGenerateRow(this, &STextPropertyEditableStringTableReference::OnGenerateStringTableComboOption)
+						.OnSelectionChanged(this, &STextPropertyEditableStringTableReference::OnStringTableComboChanged)
+					]
 				]
 			]
 		];

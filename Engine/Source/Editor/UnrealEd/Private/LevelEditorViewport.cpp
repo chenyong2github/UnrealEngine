@@ -1688,7 +1688,6 @@ void FTrackingTransaction::OnEditorSelectionChanged(const UTypedElementSelection
 FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelViewport>& InLevelViewport)
 	: FEditorViewportClient(&GLevelEditorModeTools(), nullptr, StaticCastSharedPtr<SEditorViewport>(InLevelViewport))
 	, ViewHiddenLayers()
-	, ViewHiddenDataLayers()
 	, VolumeActorVisibility()
 	, LastEditorViewLocation( FVector::ZeroVector )
 	, LastEditorViewRotation( FRotator::ZeroRotator )

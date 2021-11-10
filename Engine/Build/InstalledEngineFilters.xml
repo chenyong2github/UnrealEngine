@@ -91,6 +91,7 @@
 		Engine/Content/...
 
 		<!-- Plugins -->
+		Engine/Extras/ThirdPartyNotUE/SwitchboardThirdParty/...
 		Engine/Plugins/VirtualProduction/RemoteControlWebInterface/WebApp/...
 
 		<!-- Source code -->
@@ -183,6 +184,15 @@
 		<!-- Shaders -->
 		Shaders/...
 	</Property>
+	
+	<!-- Projects to be compiled for UAT -->
+	<Property Name="AutomationToolPaths" Value="Engine/Source/Programs/AutomationTool/..."/>
+	
+	<!-- Platform extensions filter overrides -->
+	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
+		<Expand Name="$(Platform)FilterOverrides"/>
+	</ForEach>
+	
 	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
 		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter);Engine/Platforms/*/$(Filter)"/>
 	</ForEach>
@@ -241,9 +251,6 @@
 	<Property Name="InstalledDDCEngineShadersExcept" Value=""/>
 
 
-	<!-- Projects to be compiled for UAT -->
-	<Property Name="AutomationToolPaths" Value="Engine/Source/Programs/AutomationTool/..."/>
-	
 	<!-- Win64 editor specific dependencies -->
 	
 	<Property Name="CopyEditorFilterWin64" Value="$(CopyEditorFilter)">
@@ -257,7 +264,6 @@
 
 		<!-- Build utilities -->
 		Engine/Build/Windows/cl-filter/cl-filter.exe
-		Engine/Build/Windows/link-filter/link-filter.exe
 		Engine/Source/ThirdParty/Intel/ISPC/bin/Windows/ispc.exe
 
 		<!-- Default resource files -->
@@ -288,6 +294,12 @@
 
 		<!-- Binaries required to make Bink2 videos -->
 		Engine/Binaries/ThirdParty/Bink/...
+		
+		<!-- UnrealTraceServer is the tool that records Unreal Insights trace files -->
+		Engine/Binaries/Win64/UnrealTraceServer.exe
+
+		<!-- Used by Switchboard application, and by iOS/tvOS build automation -->
+		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">
@@ -474,7 +486,6 @@
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
 		Engine/Build/Rsync/...
-		Engine/Extras/ThirdPartyNotUE/DeltaCopy/...
 		Engine/Extras/ThirdPartyNotUE/libimobiledevice/x64/...	
 	</Property>
 
@@ -496,7 +507,6 @@
 		Engine/Binaries/DotNET/IOS/openssl.exe
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
-		Engine/Extras/ThirdPartyNotUE/DeltaCopy/...
 		Engine/Extras/ThirdPartyNotUE/libimobiledevice/x64/...
 	</Property>
 
@@ -527,11 +537,6 @@
 
 	<!-- Win64 specific -->
 
-	<!-- Platform extensions filter overrides -->
-	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
-		<Expand Name="$(Platform)FilterOverrides"/>
-		</ForEach>
-	
 	<!-- Lumin -->
 	<Property Name="CopyLuminFilter">
 		<!-- Build Files -->

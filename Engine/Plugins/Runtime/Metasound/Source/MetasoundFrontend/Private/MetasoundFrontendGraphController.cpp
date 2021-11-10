@@ -392,8 +392,14 @@ namespace Metasound
 						// Connect new node.
 						FInputHandle NewInput = NewNode->GetInputWithVertexName(VariableNames::GetInputVariableName());
 						FNodeHandle TailNode = FindTailNodeInVariableStack(InVariableID);
+						
+						if (!TailNode->IsValid())
+						{
+							// variable stack is empty. Use connect to varialbe init node.
+							TailNode = GetNodeWithID(Variable->VariableNodeID);
+						}
 
-						if (TailNode->IsValid())
+						if (ensure(TailNode->IsValid()))
 						{
 							// connect new node to the last "get" node.
 							FOutputHandle TailNodeOutput = TailNode->GetOutputWithVertexName(VariableNames::GetOutputVariableName());
@@ -1630,6 +1636,18 @@ namespace Metasound
 					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::VariableAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
+						{
+							FVariableNodeController::FInitParams InitParams
+							{
+								InNodeAndClass.Node,
+								InNodeAndClass.Class,
+								GraphPtr,
+								OwningGraph
+							};
+							return FVariableNodeController::CreateNodeHandle(InitParams);
+						}
+						break;
+
 					case EMetasoundFrontendClassType::External:
 						{
 							FNodeController::FInitParams InitParams
@@ -1712,8 +1730,22 @@ namespace Metasound
 						}
 						break;
 
+					case EMetasoundFrontendClassType::Variable:
+					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableMutator:
+						{
+							FVariableNodeController::FInitParams InitParams
+							{
+								ConstCastAccessPtr<FNodeAccessPtr>(InNodeAndClass.Node),
+								InNodeAndClass.Class,
+								ConstCastAccessPtr<FGraphAccessPtr>(GraphPtr),
+								ConstCastSharedRef<IGraphController>(OwningGraph)
+							};
+							return FVariableNodeController::CreateConstNodeHandle(InitParams);
+						}
+						break;
+
 					case EMetasoundFrontendClassType::External:
-					case EMetasoundFrontendClassType::Graph:
 						{
 							FNodeController::FInitParams InitParams
 							{
@@ -1723,6 +1755,19 @@ namespace Metasound
 								ConstCastSharedRef<IGraphController>(OwningGraph)
 							};
 							return FNodeController::CreateConstNodeHandle(InitParams);
+						}
+						break;
+
+					case EMetasoundFrontendClassType::Graph:
+						{
+							FSubgraphNodeController::FInitParams InitParams
+							{
+								ConstCastAccessPtr<FNodeAccessPtr>(InNodeAndClass.Node),
+								InNodeAndClass.Class,
+								ConstCastAccessPtr<FGraphAccessPtr>(GraphPtr),
+								ConstCastSharedRef<IGraphController>(OwningGraph)
+							};
+							return FSubgraphNodeController::CreateConstNodeHandle(InitParams);
 						}
 						break;
 

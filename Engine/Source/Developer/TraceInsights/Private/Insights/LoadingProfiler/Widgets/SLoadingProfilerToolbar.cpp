@@ -39,22 +39,22 @@ void SLoadingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleTimingViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleEventAggregationTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleObjectTypeAggregationTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().TogglePackageDetailsTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleExportDetailsTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleRequestsTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -65,7 +65,7 @@ void SLoadingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo,
 					NAME_None, FText(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}

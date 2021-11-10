@@ -124,7 +124,7 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, const FString* Package
 		void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 		const int32 PixelStride = Mat.channels();
-		FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
+		FMemory::Memcpy(TextureData, Mat.data, Mat.cols * Mat.rows * SIZE_T(PixelStride));
 
 		Mip0.BulkData.Unlock();
 
@@ -180,7 +180,7 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture)
 	void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 	const int32 PixelStride = Mat.channels();
-	FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
+	FMemory::Memcpy(TextureData, Mat.data, Mat.cols * Mat.rows * SIZE_T(PixelStride));
 
 	Mip0.BulkData.Unlock();
 

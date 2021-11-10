@@ -11,6 +11,7 @@ void SPrimaryButton::Construct(const FArguments& InArgs)
 		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>(InArgs._Icon.IsSet() ? "PrimaryButtonLabelAndIcon" : "PrimaryButton"))
 		.OnClicked(InArgs._OnClicked)
 		.ForegroundColor(FSlateColor::UseStyle())
+		.HAlign(HAlign_Center)
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()

@@ -89,9 +89,11 @@ struct FSoundParseParameters
 	// The attenuation of the sound due to distance attenuation
 	float DistanceAttenuation;
 
+	// The attenuation of the sound due to occlusion attenuation
+	float OcclusionAttenuation;
+
 	// A volume scale on the sound specified by user
 	float VolumeMultiplier;
-
 
 	// Attack time of the source envelope follower
 	int32 EnvelopeFollowerAttackTime;
@@ -213,6 +215,7 @@ struct FSoundParseParameters
 		, Velocity(ForceInit)
 		, Volume(1.f)
 		, DistanceAttenuation(1.f)
+		, OcclusionAttenuation(1.f)
 		, VolumeMultiplier(1.f)
 		, EnvelopeFollowerAttackTime(10)
 		, EnvelopeFollowerReleaseTime(100)

@@ -32,6 +32,8 @@ public:
 	virtual void Activate() override;
 	virtual void Deactivate() override;
 	virtual bool IsActive() const override;
+	virtual UMaterialInstanceDynamic* GetOverlayMID() const override;
+	virtual bool IsOverlayEnabled() const override;
 	virtual FCameraCalibrationStepsController* GetCameraCalibrationStepsController() const override;
 	//~ End UCameraCalibrationStep interface
 
@@ -54,6 +56,10 @@ private:
 	/** The currently selected algorithm */
 	UPROPERTY(Transient)
 	TObjectPtr<UCameraImageCenterAlgo> CurrentAlgo;
+
+	/** Map of algo names to overlay MIDs used by those algos */
+	UPROPERTY(Transient)
+	TMap<FName, TWeakObjectPtr<UMaterialInstanceDynamic>> AlgoOverlayMIDs;
 
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;

@@ -909,7 +909,6 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 							CollectionPipsWrapBox->AddSlot()
 							.Padding(0, 4, 4, 0)
 							[
-								// TODO: Honor or remove GetDefault<UContentBrowserSettings>()->bShowFullCollectionNameInToolTip
 								SNew(SAssetTagItem)
 								.ViewMode(EAssetTagItemViewMode::Compact)
 								.BaseColor(CollectionViewUtils::ResolveColor(CollectionContainingObject.Name, CollectionContainingObject.Type))

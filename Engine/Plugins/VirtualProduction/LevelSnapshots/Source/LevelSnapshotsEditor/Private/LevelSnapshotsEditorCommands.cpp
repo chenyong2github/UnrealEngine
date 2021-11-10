@@ -24,17 +24,6 @@ void FLevelSnapshotsEditorCommands::RegisterCommands()
 
 	FUICommandInfo::MakeCommandInfo(
 		this->AsShared(),
-		OpenLevelSnapshotsEditorMenuItem,
-		FName("OpenLevelSnapshotsEditorMenuItem"),
-		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorMenuItem", "Level Snapshots"),
-		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorTooltip", "Open Level Snapshots Editor"),
-		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton", "LevelSnapshots.ToolbarButton.Small"),
-		EUserInterfaceActionType::Button,
-		FInputChord()
-	);
-
-	FUICommandInfo::MakeCommandInfo(
-		this->AsShared(),
 		OpenLevelSnapshotsEditorToolbarButton,
 		FName("OpenLevelSnapshotsEditorToolbarButton"),
 		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorToolbarButton", "Open Level Snapshots Editor"),

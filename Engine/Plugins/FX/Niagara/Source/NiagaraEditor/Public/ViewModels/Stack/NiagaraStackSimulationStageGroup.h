@@ -27,6 +27,8 @@ public:
 	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
 	virtual void ResetToBase() override;
 
+	void SetSimulationStageEnabled(bool bIsEnabled);
+
 protected:
 	virtual void FinalizeInternal() override;
 

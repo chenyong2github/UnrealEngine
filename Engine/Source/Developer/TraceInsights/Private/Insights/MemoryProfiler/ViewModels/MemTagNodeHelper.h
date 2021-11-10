@@ -28,13 +28,6 @@ struct MemTagNodeTypeHelper
 	 */
 	static FText ToDescription(const EMemTagNodeType Type);
 
-	/**
-	 * @param Type - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified EMemTagNodeType value.
-	 */
-	static FName ToBrushName(const EMemTagNodeType Type);
-
 	static const FSlateBrush* GetIconForGroup();
 	static const FSlateBrush* GetIconForMemTagNodeType(const EMemTagNodeType Type);
 };
@@ -57,13 +50,6 @@ struct MemTagNodeGroupingHelper
 	 * @return text representation with more detailed explanation of the specified EMemTagNodeGroupingMode value.
 	 */
 	static FText ToDescription(const EMemTagNodeGroupingMode EMemTagNodeGroupingMode);
-
-	/**
-	 * @param EMemTagNodeGroupingMode - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified EMemTagNodeGroupingMode value.
-	 */
-	static FName ToBrushName(const EMemTagNodeGroupingMode EMemTagNodeGroupingMode);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

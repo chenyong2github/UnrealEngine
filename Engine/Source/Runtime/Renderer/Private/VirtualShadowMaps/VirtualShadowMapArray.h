@@ -166,7 +166,7 @@ public:
 	FVirtualShadowMap *Allocate()
 	{
 		check(IsEnabled());
-		FVirtualShadowMap *SM = new(FMemStack::Get(), 1, 16) FVirtualShadowMap(ShadowMaps.Num());
+		FVirtualShadowMap *SM = new(FMemStack::Get()) FVirtualShadowMap(ShadowMaps.Num());
 		ShadowMaps.Add(SM);
 		return SM;
 	}

@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Real.h"
-#include "Chaos/Vector.h"
-#include "Chaos/Matrix.h"
-#include "Chaos/Plane.h"
-#include "Chaos/Rotation.h"
+#include "Chaos/Core.h"
 #include "ChaosArchive.h"
 
 namespace Chaos
@@ -252,78 +248,9 @@ namespace Chaos
 			return true;
 		}
 
+		CHAOS_API TVector<T, d> FindClosestPoint(const TVector<T, d>& StartPoint, const T Thickness = (T)0) const;
 
-		FORCEINLINE TVector<T, d> FindClosestPoint(const TVector<T, d>& StartPoint, const T Thickness = (T)0) const
-		{
-			TVector<T, d> Result(0);
-
-			// clamp exterior to surface
-			bool bIsExterior = false;
-			for (int i = 0; i < 3; i++)
-			{
-				T v = StartPoint[i];
-				if (v < MMin[i])
-				{
-					v = MMin[i];
-					bIsExterior = true;
-				}
-				if (v > MMax[i])
-				{
-					v = MMax[i];
-					bIsExterior = true;
-				}
-				Result[i] = v;
-			}
-
-			if (!bIsExterior)
-			{
-				TArray<Pair<T, TVector<T, d>>> Intersections;
-
-				// sum interior direction to surface
-				for (int32 i = 0; i < d; ++i)
-				{
-					auto PlaneIntersection = TPlane<T, d>(MMin - Thickness, -TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((T)(PlaneIntersection - Result).Size(), -TVector<T, d>::AxisVector(i)));
-					PlaneIntersection = TPlane<T, d>(MMax + Thickness, TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((T)(PlaneIntersection - Result).Size(), TVector<T, d>::AxisVector(i)));
-				}
-				Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
-
-				if (!FMath::IsNearlyEqual(Intersections[0].First, (T)0.))
-				{
-					T SmallestDistance = Intersections[0].First;
-					Result += Intersections[0].Second * Intersections[0].First;
-					for (int32 i = 1; i < 3 && FMath::IsNearlyEqual(SmallestDistance, Intersections[i].First); ++i)
-					{
-						Result += Intersections[i].Second * Intersections[i].First;
-					}
-				}
-			}
-			return Result;
-		}
-
-		FORCEINLINE Pair<TVector<FReal, d>, bool> FindClosestIntersectionImp(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& EndPoint, const FReal Thickness) const
-		{
-			TArray<Pair<FReal, TVector<FReal, d>>> Intersections;
-			for (int32 i = 0; i < d; ++i)
-			{
-				auto PlaneIntersection = TPlane<FReal, d>(TVector<FReal, d>(MMin) - Thickness, -TVector<FReal, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
-				if (PlaneIntersection.Second)
-					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
-				PlaneIntersection = TPlane<FReal, d>(TVector<FReal, d>(MMax) + Thickness, TVector<FReal, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
-				if (PlaneIntersection.Second)
-					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
-			}
-			Intersections.Sort([](const Pair<FReal, TVector<FReal, d>>& Elem1, const Pair<FReal, TVector<FReal, d>>& Elem2) { return Elem1.First < Elem2.First; });
-			for (const auto& Elem : Intersections)
-			{
-				if (SignedDistance(Elem.Second) < (Thickness + 1e-4))
-				{
-					return MakePair(Elem.Second, true);
-				}
-			}
-			return MakePair(TVector<FReal, d>(0), false);
-		}
+		CHAOS_API Pair<TVector<FReal, d>, bool> FindClosestIntersectionImp(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& EndPoint, const FReal Thickness) const;
 
 		FORCEINLINE TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const 
 		{
@@ -476,6 +403,11 @@ namespace Chaos
 		{
 			const TVector<T, d> MaxAbs = TVector<T, d>::Max(MMin.GetAbs(), MMax.GetAbs());
 			return MaxAbs.Size();
+		}
+
+		FORCEINLINE T CenterRadius() const
+		{
+			return (T(0.5) * Extents()).Size();
 		}
 
 		FORCEINLINE T GetArea() const { return GetArea(Extents()); }

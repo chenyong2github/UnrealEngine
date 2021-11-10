@@ -370,7 +370,7 @@ void AGameModeBase::ReturnToMainMenuHost()
 	}
 }
 
-APlayerController* AGameModeBase::ProcessClientTravel(FString& FURL, FGuid NextMapGuid, bool bSeamless, bool bAbsolute)
+APlayerController* AGameModeBase::ProcessClientTravel(FString& FURL, bool bSeamless, bool bAbsolute)
 {
 	// We call PreClientTravel directly on any local PlayerPawns (ie listen server)
 	APlayerController* LocalPlayerController = nullptr;
@@ -381,9 +381,7 @@ APlayerController* AGameModeBase::ProcessClientTravel(FString& FURL, FGuid NextM
 			if (Cast<UNetConnection>(PlayerController->Player) != nullptr)
 			{
 				// Remote player
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				PlayerController->ClientTravel(FURL, TRAVEL_Relative, bSeamless, NextMapGuid);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				PlayerController->ClientTravel(FURL, TRAVEL_Relative, bSeamless);
 			}
 			else
 			{

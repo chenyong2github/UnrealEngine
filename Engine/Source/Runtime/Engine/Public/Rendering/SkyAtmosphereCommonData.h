@@ -19,7 +19,7 @@ struct FAtmosphereSetup
 	ENGINE_API static const float CmToSkyUnit;
 	ENGINE_API static const float SkyUnitToCm;
 
-	FVector PlanetCenterKm;			// In sky unit (kilometers)
+	FVector3f PlanetCenterKm;		// In sky unit (kilometers)
 	float BottomRadiusKm;			// idem
 	float TopRadiusKm;				// idem
 
@@ -50,10 +50,10 @@ struct FAtmosphereSetup
 	ENGINE_API FLinearColor GetTransmittanceAtGroundLevel(const FVector& SunDirection) const;
 
 	ENGINE_API void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode);
-	ENGINE_API void ApplyWorldOffset(const FVector& InOffset);
+	ENGINE_API void ApplyWorldOffset(const FVector3f& InOffset);
 
-	ENGINE_API void ComputeViewData(const FVector& WorldCameraOrigin, const FVector& ViewForward, const FVector& ViewRight, 
-		FVector& SkyWorldCameraOrigin, FVector4& SkyPlanetCenterAndViewHeight, FMatrix& SkyViewLutReferential) const;
+	ENGINE_API void ComputeViewData(const FVector3f& WorldCameraOrigin, const FVector3f& ViewForward, const FVector3f& ViewRight,
+		FVector3f& SkyWorldCameraOrigin, FVector4f& SkyPlanetCenterAndViewHeight, FMatrix44f& SkyViewLutReferential) const;
 };
 
 

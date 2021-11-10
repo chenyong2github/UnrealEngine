@@ -47,6 +47,6 @@ public:
 	void SetAdjustedSize(const FVector2D& Size) { AdjustedSize = Size; }
 
 private:
-	/** Size adjusted for alignment settings from DynamicHUDLayout. */
+	/** Size adjusted for alignment settings from DynamicUILayout. */
 	TOptional<FVector2D> AdjustedSize;
 };

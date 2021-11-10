@@ -254,7 +254,7 @@ bool UDatasmithFileProducer::InitTranslator()
 	using namespace UE::DatasmithImporter;
 
 	const FSourceUri SourceUri = FSourceUri::FromFilePath( FilePath );
-	ExternalSourcePtr = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource( SourceUri );
+	ExternalSourcePtr = IExternalSourceModule::GetOrCreateExternalSource( SourceUri );
 
 	if ( !ExternalSourcePtr || !ExternalSourcePtr->GetAssetTranslator() )
 	{

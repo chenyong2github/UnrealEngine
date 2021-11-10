@@ -35,8 +35,9 @@ namespace Electra {
 
 		virtual void SetResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) override;
 
-		virtual IAccessUnitBufferInterface::EAUpushResult AUdataPushAU(FAccessUnit* InAccessUnit) override;
+		virtual void AUdataPushAU(FAccessUnit* InAccessUnit) override;
 		virtual void AUdataPushEOD() override;
+		virtual void AUdataClearEOD() override;
 		virtual void AUdataFlushEverything() override;
 
 	protected:
@@ -84,6 +85,28 @@ namespace Electra {
 			MFT_OUTPUT_DATA_BUFFER	mOutputBuffer;
 		};
 
+		struct FDecoderInput
+		{
+			~FDecoderInput()
+			{
+				ReleasePayload();
+			}
+			void ReleasePayload()
+			{
+				FAccessUnit::Release(AccessUnit);
+				AccessUnit = nullptr;
+			}
+
+			FAccessUnit*	AccessUnit = nullptr;
+			bool			bHasBeenPrepared = false;
+			bool			bIsIDR = false;
+			bool			bIsDiscardable = false;
+			int64			PTS = 0;
+			int64			EndPTS = 0;
+			FTimeValue		AdjustedPTS;
+			FTimeValue		AdjustedDuration;
+		};
+
 		void InternalDecoderDestroy();
 		void DecoderCreate();
 		bool DecoderSetInputType();
@@ -100,13 +123,14 @@ namespace Electra {
 
 		void SetupBufferAcquisitionProperties();
 
-		bool AcquireOutputBuffer();
+		bool AcquireOutputBuffer(bool bForNonDisplay);
 		bool ConvertDecodedImage(const TRefCountPtr<IMFSample>& DecodedSample);
+		bool FindAndUpdateDecoderInput(TSharedPtrTS<FDecoderInput>& OutMatchingInput, int64 InPTSFromDecoder);
 
-		void PrepareAU(FAccessUnit* InAccessUnit);
+		void PrepareAU(TSharedPtrTS<FDecoderInput> InAccessUnit);
 
-		bool Decode(FAccessUnit* InAccessUnit);
-		bool DecodeDummy(FAccessUnit* InAccessUnit);
+		bool Decode(TSharedPtrTS<FDecoderInput> InAccessUnit);
+		bool DecodeDummy(TSharedPtrTS<FDecoderInput> InAccessUnit);
 
 		void ReturnUnusedFrame();
 
@@ -143,10 +167,10 @@ namespace Electra {
 
 		TWeakPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe> ResourceDelegate;
 
-		FAccessUnitBuffer									AccessUnits;
+		TAccessUnitQueue<TSharedPtrTS<FDecoderInput>>		NextAccessUnits;
 		FStreamCodecInformation								NewSampleInfo;
 		FStreamCodecInformation								CurrentSampleInfo;
-		FAccessUnit*										CurrentAccessUnit;
+		TSharedPtrTS<FDecoderInput>							CurrentAccessUnit;
 
 		FMediaCriticalSection								ListenerMutex;
 		IAccessUnitBufferListener*							InputBufferListener;
@@ -158,6 +182,7 @@ namespace Electra {
 		bool												bIsHardwareAccelerated;
 		int32												NumFramesInDecoder;
 		bool												bError;
+		TArray<TSharedPtrTS<FDecoderInput>>					InDecoderInput;
 
 		TUniquePtr<FDecoderOutputBuffer>					CurrentDecoderOutputBuffer;
 		IMediaRenderer::IBuffer*							CurrentRenderOutputBuffer;
@@ -168,4 +193,4 @@ namespace Electra {
 		FIntPoint											MaxDecodeDim;
 	};
 
-} // namespace
+}

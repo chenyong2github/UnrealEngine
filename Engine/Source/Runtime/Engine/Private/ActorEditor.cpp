@@ -47,6 +47,13 @@ void AActor::PreEditChange(FProperty* PropertyThatWillChange)
 	{
 		UnregisterAllComponents();
 	}
+
+	PreEditChangeDataLayers.Reset();
+	if (PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, DataLayers) ||
+		PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(FActorDataLayer, Name))
+	{
+		PreEditChangeDataLayers = DataLayers;
+	}
 }
 
 bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
@@ -100,7 +107,7 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 
 	if (IsPropertyChangedAffectingDataLayers(PropertyChangedEvent))
 	{
-		FixupDataLayers();
+		FixupDataLayers(/*bRevertChangesOnLockedDataLayer*/true);
 	}
 
 	const bool bTransformationChanged = (MemberPropertyName == Name_RelativeLocation || MemberPropertyName == Name_RelativeRotation || MemberPropertyName == Name_RelativeScale3D);
@@ -1205,19 +1212,47 @@ bool AActor::HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const
 	return false;
 }
 
-void AActor::FixupDataLayers()
+void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 {
 	if (!GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
 	{
 		if (!SupportsDataLayer())
 		{
 			DataLayers.Empty();
+			return;
 		}
 
 		if (GetWorld())
 		{
 			if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 			{
+				if (bRevertChangesOnLockedDataLayer)
+				{
+					// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
+					TSet<FActorDataLayer> PreEdit(PreEditChangeDataLayers);
+					TSet<FActorDataLayer> PostEdit(DataLayers);
+
+					auto DifferenceContainsLockedDataLayers = [WorldDataLayers](const TSet<FActorDataLayer>& A, const TSet<FActorDataLayer>& B)
+					{
+						TSet<FActorDataLayer> Diff = A.Difference(B);
+						for (const FActorDataLayer& ActorDataLayer : Diff)
+						{
+							const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(ActorDataLayer);
+							if (DataLayer && DataLayer->IsLocked())
+							{
+								return true;
+							}
+						}
+						return false;
+					};
+					
+					if (DifferenceContainsLockedDataLayers(PreEdit, PostEdit) || 
+						DifferenceContainsLockedDataLayers(PostEdit, PreEdit))
+					{
+						DataLayers = PreEditChangeDataLayers;
+					}
+				}
+
 				TSet<FName> ExistingDataLayers;
 				for (int32 Index = 0; Index < DataLayers.Num();)
 				{
@@ -1256,7 +1291,10 @@ bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& Propert
 		else
 		{
 			const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-			if (PropertyName == NAME_DataLayers && (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet))
+			if (PropertyName == NAME_DataLayers && 
+				((PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet) || 
+				 (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear) ||
+				 (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)))
 			{
 				return true;
 			}

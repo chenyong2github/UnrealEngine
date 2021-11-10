@@ -10,10 +10,12 @@
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 #include "Stats/Stats.h"
+#include "Algo/ForEach.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "MeshMergeHelpers.h"
+#include "ObjectCacheEventSink.h"
 #endif // WITH_EDITOR
 
 FProxyGenerationProcessor::FProxyGenerationProcessor(const FMeshMergeUtilities* InOwner)
@@ -184,7 +186,9 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		MeshPackage->Modify();
 	}
 
-	FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(FindObject<UStaticMesh>(MeshPackage, *MeshAssetName));
+	UStaticMesh* OldStaticMesh = FindObject<UStaticMesh>(MeshPackage, *MeshAssetName);
+
+	FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(OldStaticMesh);
 
 	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(MeshPackage, FName(*MeshAssetName), RF_Public | RF_Standalone);
 	StaticMesh->InitResources();
@@ -347,6 +351,14 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	StaticMesh->PostEditChange();	
 
 	OutAssetsToSync.Add(StaticMesh);
+
+	if (OldStaticMesh != nullptr)
+	{
+		Algo::ForEach(RecreateRenderStateContext.GetComponentsUsingMesh(OldStaticMesh), [](UStaticMeshComponent* Component)
+		{
+			FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(Component);
+		});
+	}
 
 	// Execute the delegate received from the user
 	Data->MergeData->CallbackDelegate.ExecuteIfBound(JobGuid, OutAssetsToSync);

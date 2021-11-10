@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
+class UConsoleVariablesAsset;
 class SBox;
 class SSearchBox;
 
@@ -17,6 +18,12 @@ struct FConsoleVariablesEditorListSplitterManager
 {
 	float NestedColumnWidth = 0.5f; // The right side of the first splitter which contains the nested splitter for the property widgets
 	float SnapshotPropertyColumnWidth = 0.5f;
+};
+
+enum class EConsoleVariablesEditorSortType
+{
+	SortByVariableName,
+	UserManualSort
 };
 
 class SConsoleVariablesEditorList final : public SCompoundWidget
@@ -39,16 +46,13 @@ public:
 
 	void RefreshScroll() const;
 
-	void RefreshList(UConsoleVariablesAsset* InAsset);
+	void RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo = "");
 
-	/** Iterates through existing list and updates all values to current ones without executing the commands themselves. */
-	void UpdateExistingValuesFromConsoleManager();
-
-	/** Iterates through existing list and sets corresponding values on the asset being edited so changed can be saved. */
-	void PropagateRowValueChangesBackToEditingAsset();
+	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
+	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	FString GetSearchStringFromSearchInputField() const;
-	void ExecuteListViewSearchOnAllActors(const FString& SearchString) const;
+	void ExecuteListViewSearchOnAllRows(const FString& SearchString) const;
 
 	bool DoesTreeViewHaveVisibleChildren() const;
 
@@ -73,7 +77,10 @@ public:
 private:
 
 	FText DefaultNameText;
-		
+	
+	EConsoleVariablesEditorSortType SelectedSortType = EConsoleVariablesEditorSortType::SortByVariableName;
+
+	void SortTreeViewObjects(EConsoleVariablesEditorSortType InSortType);
 	FReply SetAllGroupsCollapsed();
 
 	// Search
@@ -98,6 +105,7 @@ private:
 	void SetChildExpansionRecursively(const FConsoleVariablesEditorListRowPtr& InRow, const bool bNewIsExpanded) const;
 
 	TSharedPtr<SBox> HeaderBoxPtr;
+	TSharedPtr<FConsoleVariablesEditorCommandInfo> HeaderDummyInfo;
 	FConsoleVariablesEditorListRowPtr HeaderRow;
 	TSharedPtr<STreeView<FConsoleVariablesEditorListRowPtr>> TreeViewPtr;
 	

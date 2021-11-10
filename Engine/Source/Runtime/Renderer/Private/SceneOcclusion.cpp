@@ -1148,7 +1148,7 @@ static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, 
 
 			if (FeatureLevel > ERHIFeatureLevel::ES3_1)
 			{
-				for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+				for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 				{
 					const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightIt.GetIndex()];
 

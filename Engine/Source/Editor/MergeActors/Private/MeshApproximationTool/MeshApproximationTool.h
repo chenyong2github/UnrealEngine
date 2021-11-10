@@ -69,7 +69,7 @@ public:
 
 	// IMergeActorsTool interface
 	virtual TSharedRef<SWidget> GetWidget() override;
-	virtual FName GetIconName() const override { return "MergeActors.MeshApproximationTool"; }
+	virtual FName GetIconName() const override { return "MergeActors.Approximate"; }
 	virtual FText GetTooltipText() const override;
 	virtual FString GetDefaultPackageName() const override;
 

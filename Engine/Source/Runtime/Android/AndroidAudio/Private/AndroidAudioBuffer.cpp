@@ -51,12 +51,12 @@ FSLESSoundBuffer* FSLESSoundBuffer::CreateQueuedBuffer( FSLESAudioDevice* AudioD
 	Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
 
 	// If the buffer was precached as native, the resource data will have been lost and we need to re-initialize it
-	if (InWave->ResourceData == nullptr)
+	if (InWave->SoundWaveDataPtr->ResourceData.GetView().GetData() == nullptr)
 	{
 		InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
 	}
 
-	if (Buffer->DecompressionState && Buffer->DecompressionState->ReadCompressedInfo(InWave->ResourceData, InWave->ResourceSize, &QualityInfo))
+	if (Buffer->DecompressionState && Buffer->DecompressionState->ReadCompressedInfo(InWave->SoundWaveDataPtr->ResourceData.GetView().GetData(), InWave->SoundWaveDataPtr->ResourceSize, &QualityInfo))
 	{	
 		// Clear out any dangling pointers
 		Buffer->AudioData = NULL;

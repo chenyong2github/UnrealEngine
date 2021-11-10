@@ -1789,7 +1789,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 
 			const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 			const TArray<FWeightmapLayerAllocationInfo>& ComponentLayerAllocations = Component->GetWeightmapLayerAllocations();
-			TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
+			const TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
 
 			LayerData->WeightmapData.Textures.AddDefaulted(ComponentWeightmapTextures.Num());
 			LayerData->WeightmapData.TextureUsages.AddDefaulted(ComponentWeightmapTexturesUsage.Num());
@@ -1911,7 +1911,7 @@ void ALandscapeProxy::InitializeProxyLayersWeightmapUsage()
 					// regenerate the weightmap usage
 					for (int32 LayerIdx = 0; LayerIdx < LayerData->WeightmapData.LayerAllocations.Num(); LayerIdx++)
 					{
-						FWeightmapLayerAllocationInfo& Allocation = LayerData->WeightmapData.LayerAllocations[LayerIdx];
+						const FWeightmapLayerAllocationInfo& Allocation = LayerData->WeightmapData.LayerAllocations[LayerIdx];
 						UTexture2D* WeightmapTexture = LayerData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
 						TObjectPtr<ULandscapeWeightmapUsage>* TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
 
@@ -3354,8 +3354,8 @@ void ALandscape::OnDirtyWeightmap(FTextureToComponentHelper const& MapHelper, UT
 	{
 		for (ULandscapeComponent* Component : *Components)
 		{
-			TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
-			TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations();
+			const TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
+			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations();
 
 			for (FWeightmapLayerAllocationInfo const& AllocInfo : AllocInfos)
 			{
@@ -3752,14 +3752,12 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 	for (ULandscapeComponent* Component : InLandscapeComponents)
 	{
 		TArray<FWeightmapLayerAllocationInfo>& BaseLayerAllocations = Component->GetWeightmapLayerAllocations();
-
 		for (FWeightmapLayerAllocationInfo& BaseWeightmapAllocation : BaseLayerAllocations)
 		{
 			BaseWeightmapAllocation.Free();
 		}
 
 		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
-
 		for (int32 i = 0; i < WeightmapTexturesUsage.Num(); ++i)
 		{
 			ULandscapeWeightmapUsage* Usage = WeightmapTexturesUsage[i];
@@ -3815,7 +3813,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 		// Deal with the one that need removal
 		for (int32 i = ComponentBaseLayerAlloc.Num() - 1; i >= 0; --i)
 		{
-			FWeightmapLayerAllocationInfo& Alloc = ComponentBaseLayerAlloc[i];
+			const FWeightmapLayerAllocationInfo& Alloc = ComponentBaseLayerAlloc[i];
 
 			if (!ComponentLayerAlloc.Contains(Alloc.LayerInfo))
 			{
@@ -3826,7 +3824,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 		// Then add the new one
 		for (ULandscapeLayerInfoObject* LayerAlloc : ComponentLayerAlloc)
 		{
-			const bool AllocExist = ComponentBaseLayerAlloc.ContainsByPredicate([&LayerAlloc](FWeightmapLayerAllocationInfo& BaseLayerAlloc) { return (LayerAlloc == BaseLayerAlloc.LayerInfo); });
+			const bool AllocExist = ComponentBaseLayerAlloc.ContainsByPredicate([&LayerAlloc](const FWeightmapLayerAllocationInfo& BaseLayerAlloc) { return (LayerAlloc == BaseLayerAlloc.LayerInfo); });
 
 			if (!AllocExist)
 			{
@@ -4456,14 +4454,14 @@ void ALandscape::UpdateForChangedWeightmaps(ULandscapeComponent* InComponent, co
 uint32 ULandscapeComponent::ComputeWeightmapsHash()
 {
 	uint32 Hash = 0;
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
 	for (const FWeightmapLayerAllocationInfo& AllocationInfo : ComponentWeightmapAllocations)
 	{
 		Hash = HashCombine(AllocationInfo.GetHash(), Hash);
 	}
 
-	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures();
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = GetWeightmapTexturesUsage();
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures();
+	const TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = GetWeightmapTexturesUsage();
 	for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
 	{
 		Hash = PointerHash(ComponentWeightmapTextures[i], Hash);
@@ -4554,9 +4552,9 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 		int8 TessellatedMaterialCount = 0;
 		int8 MaterialIndex = 0;
 
-		TArray<FWeightmapLayerAllocationInfo> WeightmapBaseLayerAllocation = Component->GetWeightmapLayerAllocations(); // We copy the array here
+		const TArray<FWeightmapLayerAllocationInfo>& WeightmapBaseLayerAllocation = Component->GetWeightmapLayerAllocations();
 
-		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+		const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 		UTexture2D* Heightmap = Component->GetHeightmap();
 
 		for (auto& ItPair : Component->MaterialPerLOD)
@@ -4587,7 +4585,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 				// Set the layer mask
 				for (int32 AllocIdx = 0; AllocIdx < WeightmapBaseLayerAllocation.Num(); AllocIdx++)
 				{
-					FWeightmapLayerAllocationInfo& Allocation = WeightmapBaseLayerAllocation[AllocIdx];
+					const FWeightmapLayerAllocationInfo& Allocation = WeightmapBaseLayerAllocation[AllocIdx];
 
 					FName LayerName = Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo ? Allocation.LayerInfo->LayerName : NAME_None;
 					MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Masks[Allocation.WeightmapTextureChannel]);
@@ -5153,7 +5151,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 			Heightmaps.Add(Component->GetHeightmap(false));
 
 			// Gather Weightmaps
-			TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
+			const TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
 			for (FWeightmapLayerAllocationInfo const& AllocInfo : Component->GetWeightmapLayerAllocations())
 			{
 				if (AllocInfo.IsAllocated() && AllocInfo.WeightmapTextureIndex < WeightmapTextures.Num())

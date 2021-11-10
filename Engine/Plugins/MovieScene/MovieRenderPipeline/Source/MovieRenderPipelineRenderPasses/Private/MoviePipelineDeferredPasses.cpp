@@ -30,16 +30,6 @@
 #include "Components/PrimitiveComponent.h"
 #include "EngineUtils.h"
 #include "Engine/RendererSettings.h"
-#include "ImageUtils.h"
-
-
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
-
-// Forward Declare
-namespace MoviePipeline
-{
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
-}
 
 FString UMoviePipelineDeferredPassBase::StencilLayerMaterialAsset = TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout");
 FString UMoviePipelineDeferredPassBase::DefaultDepthAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth");
@@ -80,6 +70,7 @@ void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngine
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
+	LLM_SCOPE_BYNAME(TEXT("MoviePipeline/DeferredPassSetup"));
 
 	// [0] is FinalImage, [1] is Default Layer, [1+] is Stencil Layers. Not used by post processing materials
 	// Render Target that the GBuffer is copied to
@@ -275,7 +266,7 @@ void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FRefe
 	}
 }
 
-FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInterface()
+FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInterface(IViewCalcPayload* OptPayload)
 {
 	if (CurrentLayerIndex == INDEX_NONE)
 	{
@@ -287,7 +278,7 @@ FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInter
 	}
 }
 
-UTextureRenderTarget2D* UMoviePipelineDeferredPassBase::GetViewRenderTarget() const
+UTextureRenderTarget2D* UMoviePipelineDeferredPassBase::GetViewRenderTarget(IViewCalcPayload* OptPayload) const
 {
 	if (CurrentLayerIndex == INDEX_NONE)
 	{
@@ -743,6 +734,12 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 
 }
 
+bool UMoviePipelineDeferredPassBase::IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const
+{
+	// High-res tiling doesn't support auto-exposure.
+	return !(InSampleState.GetTileCount() > 1);
+}
+
 #if WITH_EDITOR
 FText UMoviePipelineDeferredPass_PathTracer::GetFooterText(UMoviePipelineExecutorJob* InJob) const {
 	return NSLOCTEXT(
@@ -752,253 +749,3 @@ FText UMoviePipelineDeferredPass_PathTracer::GetFooterText(UMoviePipelineExecuto
 		"All other Path Tracer settings are taken from the Post Process settings as usual.");
 }
 #endif
-
-namespace MoviePipeline
-{
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_TaskThread);
-
-		TUniquePtr<FImagePixelData> SamplePixelData = MoveTemp(InPixelData);
-		const bool bIsWellFormed = SamplePixelData->IsDataWellFormed();
-
-		if (!bIsWellFormed)
-		{
-			// figure out why it is not well formed, and print a warning.
-			int64 RawSize = SamplePixelData->GetRawDataSizeInBytes();
-
-			int64 SizeX = SamplePixelData->GetSize().X;
-			int64 SizeY = SamplePixelData->GetSize().Y;
-			int64 ByteDepth = int64(SamplePixelData->GetBitDepth() / 8);
-			int64 NumChannels = int64(SamplePixelData->GetNumChannels());
-			int64 ExpectedTotalSize = SizeX * SizeY * ByteDepth * NumChannels;
-			int64 ActualTotalSize = SamplePixelData->GetRawDataSizeInBytes();
-
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("AccumulateSample_RenderThread: Data is not well formed."));
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Image dimension: %lldx%lld, %lld, %lld"), SizeX, SizeY, ByteDepth, NumChannels);
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expected size: %lld"), ExpectedTotalSize);
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Actual size:   %lld"), ActualTotalSize);
-		}
-
-		check(bIsWellFormed);
-
-		FImagePixelDataPayload* OriginalFramePayload = SamplePixelData->GetPayload<FImagePixelDataPayload>();
-		check(OriginalFramePayload);
-
-		// We duplicate the payload for now because there are multiple cases where we need to create a new 
-		// image payload and we can't transfer the existing payload over.
-		TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> NewPayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-		NewPayload->PassIdentifier = OriginalFramePayload->PassIdentifier;
-		NewPayload->SampleState = OriginalFramePayload->SampleState;
-		NewPayload->SortingOrder = OriginalFramePayload->SortingOrder;
-
-		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
-		if (NewPayload->SampleState.bWriteSampleToDisk)
-		{
-			// Send the data to the Output Builder. This has to be a copy of the pixel data from the GPU, since
-			// it enqueues it onto the game thread and won't be read/sent to write to disk for another frame. 
-			// The extra copy is unfortunate, but is only the size of a single sample (ie: 1920x1080 -> 17mb)
-			TUniquePtr<FImagePixelData> SampleData = SamplePixelData->CopyImageData();
-			InParams.OutputMerger->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
-		}
-
-		// Optimization! If we don't need the accumulator (no tiling, no supersampling) then we'll skip it and just send it straight to the output stage.
-		// This significantly improves performance in the baseline case.
-		const bool bOneTile = NewPayload->IsFirstTile() && NewPayload->IsLastTile();
-		const bool bOneTS = NewPayload->IsFirstTemporalSample() && NewPayload->IsLastTemporalSample();
-		const bool bOneSS = NewPayload->SampleState.SpatialSampleCount == 1;
-
-		if (bOneTile && bOneTS && bOneSS)
-		{
-			// Send the data directly to the Output Builder and skip the accumulator.
-			InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(SamplePixelData));
-			return;
-		}
-
-		// Allocate memory if the ImageAccumulator has not been initialized yet for this output
-		// This usually happens on the first sample (regular case), or on the last spatial sample of the first temporal sample (path tracer)
-		if (InParams.ImageAccumulator->NumChannels == 0)
-		{
-			int32 ChannelCount = InParams.bAccumulateAlpha ? 4 : 3;
-			InParams.ImageAccumulator->InitMemory(FIntPoint(NewPayload->SampleState.TileSize.X * NewPayload->SampleState.TileCounts.X, NewPayload->SampleState.TileSize.Y * NewPayload->SampleState.TileCounts.Y), ChannelCount);
-			InParams.ImageAccumulator->ZeroPlanes();
-			InParams.ImageAccumulator->AccumulationGamma = NewPayload->SampleState.AccumulationGamma;
-		}
-
-		// Accumulate the new sample to our target
-		{
-			// Some samples can come back at a different size than expected (post process materials) which
-			// creates numerous issues with the accumulators. To work around this issue for now, we will resize
-			// the image to the expected resolution. 
-			FIntPoint RawSize = SamplePixelData->GetSize();
-			const bool bCorrectSize = (NewPayload->SampleState.TileSize.X + 2 * NewPayload->SampleState.OverlappedPad.X == RawSize.X)
-								   && (NewPayload->SampleState.TileSize.Y + 2 * NewPayload->SampleState.OverlappedPad.Y == RawSize.Y);
-
-
-			if (!bCorrectSize)
-			{
-				const double ResizeConvertBeginTime = FPlatformTime::Seconds();
-				
-				// Convert the incoming data to full floats (the accumulator would do this later normally anyways)
-				TArray64<FLinearColor> FullSizeData;
-				FullSizeData.AddUninitialized(RawSize.X * RawSize.Y);
-
-				if (SamplePixelData->GetType() == EImagePixelType::Float32)
-				{
-					const void* RawDataPtr;
-					int64 RawDataSize;
-					SamplePixelData->GetRawData(RawDataPtr, RawDataSize);
-
-					FMemory::Memcpy(FullSizeData.GetData(), RawDataPtr, RawDataSize);
-				}
-				else if (SamplePixelData->GetType() == EImagePixelType::Float16)
-				{
-					const void* RawDataPtr;
-					int64 RawDataSize;
-					SamplePixelData->GetRawData(RawDataPtr, RawDataSize);
-
-					const FFloat16Color* DataAsColor = reinterpret_cast<const FFloat16Color*>(RawDataPtr);
-					for (int64 Index = 0; Index < RawSize.X * RawSize.Y; Index++)
-					{
-						FullSizeData[Index] = FLinearColor(DataAsColor[Index]);
-					}
-				}
-				else
-				{
-					check(0);
-				}
-				const double ResizeConvertEndTime = FPlatformTime::Seconds();
-
-				// Now we can resize to our target size.
-				const int32 TargetSizeX = NewPayload->SampleState.TileSize.X + 2 * NewPayload->SampleState.OverlappedPad.X;
-				const int32 TargetSizeY = NewPayload->SampleState.TileSize.Y + 2 * NewPayload->SampleState.OverlappedPad.Y;
-
-				TArray64<FLinearColor> NewPixelData;
-				NewPixelData.SetNumUninitialized(TargetSizeX * TargetSizeY);
-
-				FImageUtils::ImageResize(RawSize.X, RawSize.Y, MakeArrayView<FLinearColor>(FullSizeData.GetData(), FullSizeData.Num()), TargetSizeX, TargetSizeY, MakeArrayView<FLinearColor>(NewPixelData.GetData(), NewPixelData.Num()));
-
-				const float ElapsedConvertMs = float((ResizeConvertEndTime - ResizeConvertBeginTime) * 1000.0f);
-				const float ElapsedResizeMs = float((FPlatformTime::Seconds() - ResizeConvertEndTime) * 1000.0f);
-				
-				UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Resize Convert Time: %8.2fms Resize Time: %8.2fms"), ElapsedConvertMs, ElapsedResizeMs);
-			
-				SamplePixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(TargetSizeX, TargetSizeY), MoveTemp(NewPixelData), NewPayload);
-
-				// Update the raw size to match our new size.
-				RawSize = SamplePixelData->GetSize();
-			}
-
-			const double AccumulateBeginTime = FPlatformTime::Seconds();
-
-			check(NewPayload->SampleState.TileSize.X + 2 * NewPayload->SampleState.OverlappedPad.X == RawSize.X);
-			check(NewPayload->SampleState.TileSize.Y + 2 * NewPayload->SampleState.OverlappedPad.Y == RawSize.Y);
-
-			// bool bSkip = NewPayload->SampleState.TileIndexes.X != 0 || NewPayload->SampleState.TileIndexes.Y != 1;
-			// if (!bSkip)
-			{
-				InParams.ImageAccumulator->AccumulatePixelData(*SamplePixelData, NewPayload->SampleState.OverlappedOffset, NewPayload->SampleState.OverlappedSubpixelShift,
-					NewPayload->SampleState.WeightFunctionX, NewPayload->SampleState.WeightFunctionY);
-			}
-
-			const double AccumulateEndTime = FPlatformTime::Seconds();
-			const float ElapsedMs = float((AccumulateEndTime - AccumulateBeginTime) * 1000.0f);
-
-			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Accumulation time: %8.2fms"), ElapsedMs);
-
-		}
-
-		if (NewPayload->IsLastTile() && NewPayload->IsLastTemporalSample())
-		{
-			int32 FullSizeX = InParams.ImageAccumulator->PlaneSize.X;
-			int32 FullSizeY = InParams.ImageAccumulator->PlaneSize.Y;
-
-			// Now that a tile is fully built and accumulated we can notify the output builder that the
-			// data is ready so it can pass that onto the output containers (if needed).
-			if (SamplePixelData->GetType() == EImagePixelType::Float32)
-			{
-				// 32 bit FLinearColor
-				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), NewPayload);
-				InParams.ImageAccumulator->FetchFinalPixelDataLinearColor(FinalPixelData->Pixels);
-
-				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
-			}
-			else if (SamplePixelData->GetType() == EImagePixelType::Float16)
-			{
-				// 32 bit FLinearColor
-				TUniquePtr<TImagePixelData<FFloat16Color> > FinalPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(FullSizeX, FullSizeY), NewPayload);
-				InParams.ImageAccumulator->FetchFinalPixelDataHalfFloat(FinalPixelData->Pixels);
-
-				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
-			}
-			else if (SamplePixelData->GetType() == EImagePixelType::Color)
-			{
-				// 8bit FColors
-				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY), NewPayload);
-				InParams.ImageAccumulator->FetchFinalPixelDataByte(FinalPixelData->Pixels);
-
-				// Send the data to the Output Builder
-				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
-			}
-			else
-			{
-				check(0);
-			}
-
-			// Free the memory in the accumulator.
-			InParams.ImageAccumulator->Reset();
-		}
-	}
-}
-
-
-TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumulatorPool::BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMoviePipelinePassIdentifier& InPassIdentifier)
-{
-	FScopeLock ScopeLock(&CriticalSection);
-
-	int32 AvailableIndex = INDEX_NONE;
-	while (AvailableIndex == INDEX_NONE)
-	{
-		for (int32 Index = 0; Index < Accumulators.Num(); Index++)
-		{
-			if (InFrameNumber == Accumulators[Index]->ActiveFrameNumber && InPassIdentifier == Accumulators[Index]->ActivePassIdentifier)
-			{
-				AvailableIndex = Index;
-				break;
-			}
-		}
-
-		if (AvailableIndex == INDEX_NONE)
-		{
-			// If we don't have an accumulator already working on it let's look for a free one.
-			for (int32 Index = 0; Index < Accumulators.Num(); Index++)
-			{
-				if (!Accumulators[Index]->IsActive())
-				{
-					// Found a free one, tie it to this output frame.
-					Accumulators[Index]->ActiveFrameNumber = InFrameNumber;
-					Accumulators[Index]->ActivePassIdentifier = InPassIdentifier;
-					Accumulators[Index]->bIsActive = true;
-					Accumulators[Index]->TaskPrereq = nullptr;
-					AvailableIndex = Index;
-					break;
-				}
-			}
-		}
-	}
-
-	return Accumulators[AvailableIndex];
-}
-
-bool FAccumulatorPool::FAccumulatorInstance::IsActive() const
-{
-	return bIsActive;
-}
-
-void FAccumulatorPool::FAccumulatorInstance::SetIsActive(const bool bInIsActive)
-{
-	bIsActive = bInIsActive;
-}
-

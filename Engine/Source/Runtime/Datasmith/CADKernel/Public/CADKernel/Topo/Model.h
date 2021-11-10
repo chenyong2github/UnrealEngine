@@ -23,31 +23,28 @@ namespace CADKernel
 		TArray<TSharedPtr<FTopologicalFace>> Faces;
 
 		FModel()
-			: FTopologicalEntity()
 		{
 			Bodies.Reserve(100);
 			Faces.Reserve(100);
-		}
-
-		FModel(FCADKernelArchive& Archive)
-			: FTopologicalEntity()
-		{
-			Serialize(Archive);
-			//ensureCADKernel(Archive.ArchiveModel == nullptr);
-			if(Archive.ArchiveModel == nullptr)
-			{
-				Archive.ArchiveModel = this;
-			}
 		}
 
 	public:
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
-			FEntityGeom::Serialize(Ar);
+			FTopologicalEntity::Serialize(Ar);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Bodies);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Faces);
-			SerializeMetadata(Ar);
+			FMetadataDictionary::Serialize(Ar);
+
+			if(Ar.IsLoading())
+			{
+				//ensureCADKernel(Archive.ArchiveModel == nullptr);
+				if (Ar.ArchiveModel == nullptr)
+				{
+					Ar.ArchiveModel = this;
+				}
+			}
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override

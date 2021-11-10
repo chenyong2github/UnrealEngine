@@ -6,6 +6,8 @@
 ** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
 */
 
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
+
 #include "CoreMinimal.h"
 #include <assert.h>
 #include <stdio.h>
@@ -1148,4 +1150,4 @@ prepare_data (SINC_FILTER *filter, int channels, SRC_DATA *data, int half_filter
 	return 0 ;
 } /* prepare_data */
 
-
+#endif // LIBSAMPLERATE_WITHOUT_SINC

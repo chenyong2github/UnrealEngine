@@ -196,7 +196,7 @@ namespace ChaosTest {
 
 		// Set up the particle graph
 		FPBDConstraintGraph Graph;
-		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
 		Graph.ReserveConstraints(ConstraintsOfType0.NumConstraints());
 		for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintsOfType0.NumConstraints(); ++ConstraintIndex)
@@ -502,7 +502,7 @@ namespace ChaosTest {
 			const int32 ContainerId = 0;
 
 			// Set up the particle graph
-			Graph.InitializeGraph(SOAs.GetNonDisabledView());
+			Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
 			// add constraints
 			TMockGraphConstraints<0> ConstraintsOfType0;
@@ -560,7 +560,7 @@ namespace ChaosTest {
 			int Index = 0;
 			for (int32 Island : CalculatedIslandIndices)
 			{
-				const TArray<FConstraintHandle*>& IslandConstraints = Graph.GetIslandConstraints(Island);
+				const TArray<FConstraintHandleHolder>& IslandConstraints = Graph.GetIslandConstraints(Island);
 				EXPECT_EQ(IslandConstraints.Num(), IterData.ExpectedIslandEdges[Index++]);
 			}
 
@@ -593,7 +593,7 @@ namespace ChaosTest {
 		}
 
 		SOAs.ClearTransientDirty();
-		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
 		Graph.ReserveConstraints(Constraints.NumConstraints());
 		for(int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
@@ -1036,7 +1036,7 @@ namespace ChaosTest {
 		FPBDConstraintColor GraphColor;
 		const int32 ContainerId = 0;
 		
-		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 		Graph.ReserveConstraints(Constraints.NumConstraints());
 		for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 		{
@@ -1182,7 +1182,7 @@ namespace ChaosTest {
 
 		// Set up the particle graph
 		FPBDConstraintGraph Graph;
-		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 		
 		const int32 NumParticles = AllParticles.Num();
 

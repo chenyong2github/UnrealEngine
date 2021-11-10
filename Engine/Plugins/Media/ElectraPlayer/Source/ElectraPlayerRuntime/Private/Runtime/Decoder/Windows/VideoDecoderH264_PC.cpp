@@ -345,14 +345,6 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 		return false;
 	}
 
-	LONGLONG SampleTime = 0;
-	CHECK_HR(Sample->GetSampleTime(&SampleTime));
-	LONGLONG SampleDuration = 0;
-	CHECK_HR(Sample->GetSampleDuration(&SampleDuration));
-
-	TRefCountPtr<IMFMediaBuffer> Buffer;
-	CHECK_HR(Sample->GetBufferByIndex(0, Buffer.GetInitReference()));
-
 	if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version11Win8)
 	{
 		check(FDXDeviceInfo::s_DXDeviceInfo->DxDevice);
@@ -372,6 +364,9 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 	}
 	else if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version12Win10)
 	{
+		TRefCountPtr<IMFMediaBuffer> Buffer;
+		CHECK_HR(Sample->GetBufferByIndex(0, Buffer.GetInitReference()));
+
 		// Gather some info from the DX11 texture in the buffer...
 		TRefCountPtr<IMFDXGIBuffer> DXGIBuffer;
 		CHECK_HR(Buffer->QueryInterface(__uuidof(IMFDXGIBuffer), (void**)DXGIBuffer.GetInitReference()));
@@ -439,6 +434,9 @@ bool FVideoDecoderH264_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 #ifdef ELECTRA_HAVE_DX9
 	else if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version9Win7)
 	{
+		TRefCountPtr<IMFMediaBuffer> Buffer;
+		CHECK_HR(Sample->GetBufferByIndex(0, Buffer.GetInitReference()));
+
 		TRefCountPtr<IDirect3DSurface9> Dx9DecoderSurface;
 		TRefCountPtr<IMFGetService> BufferService;
 		CHECK_HR(Buffer->QueryInterface(IID_PPV_ARGS(BufferService.GetInitReference())));

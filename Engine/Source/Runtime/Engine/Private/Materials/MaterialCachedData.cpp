@@ -712,7 +712,7 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 }
 
 #if WITH_EDITOR
-void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InCachedExpressionData, const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers)
+void FMaterialInstanceCachedData::InitializeForConstant(FMaterialCachedExpressionData&& InCachedExpressionData, const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers)
 {
 	LayerParameters = MoveTemp(InCachedExpressionData.Parameters);
 	ReferencedTextures = MoveTemp(InCachedExpressionData.ReferencedTextures);
@@ -722,12 +722,7 @@ void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InC
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		int32 ParentLayerIndex = INDEX_NONE;
-		if (Layers == ParentLayers)
-		{
-			// No overriden layers for this instance, just pass-thru
-			ParentLayerIndex = LayerIndex;
-		}
-		else if (ParentLayers && Layers->LayerLinkStates[LayerIndex] == EMaterialLayerLinkState::LinkedToParent)
+		if (ParentLayers && Layers->LayerLinkStates[LayerIndex] == EMaterialLayerLinkState::LinkedToParent)
 		{
 			const FGuid& LayerGuid = Layers->LayerGuids[LayerIndex];
 			ParentLayerIndex = ParentLayers->LayerGuids.Find(LayerGuid);
@@ -738,3 +733,18 @@ void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InC
 	NumParentLayers = ParentLayers ? ParentLayers->Layers.Num() : 0;
 }
 #endif // WITH_EDITOR
+
+void FMaterialInstanceCachedData::InitializeForDynamic(const FMaterialLayersFunctions* ParentLayers)
+{
+	LayerParameters.Reset();
+	ReferencedTextures.Reset();
+
+	const int32 NumLayers = ParentLayers ? ParentLayers->Layers.Num() : 0;
+	ParentLayerIndexRemap.Empty(NumLayers);
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		ParentLayerIndexRemap.Add(LayerIndex);
+	}
+
+	NumParentLayers = NumLayers;
+}

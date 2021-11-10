@@ -2,11 +2,12 @@
 
 #include "LibraryEditorTab/SDMXLibraryEditorTab.h"
 
+#include "Customizations/DMXLibraryPortDetails.h"
 #include "Library/DMXLibrary.h"
 
 #include "IDetailsView.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "Modules/ModuleManager.h"
 
 
 void SDMXLibraryEditorTab::Construct(const FArguments& InArgs)
@@ -14,14 +15,15 @@ void SDMXLibraryEditorTab::Construct(const FArguments& InArgs)
 	DMXEditor = InArgs._DMXEditor;
 
 	// Initialize property view widget
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.bCustomNameAreaLocation = false;
 
-	DMXLibraryDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	const TSharedRef<IDetailsView> DMXLibraryDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	DMXLibraryDetailsView->RegisterInstancedCustomPropertyLayout(UDMXLibrary::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(FDMXLibraryPortDetails::MakeInstance));
 
 	if (IsValid(InArgs._DMXLibrary))
 	{
@@ -29,7 +31,7 @@ void SDMXLibraryEditorTab::Construct(const FArguments& InArgs)
 
 		ChildSlot
 			[
-				DMXLibraryDetailsView.ToSharedRef()
+				DMXLibraryDetailsView
 			];
 	}
 }

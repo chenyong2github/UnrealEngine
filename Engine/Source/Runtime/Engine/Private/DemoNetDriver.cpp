@@ -633,11 +633,9 @@ UDemoNetDriver::UDemoNetDriver(FVTableHelper& Helper)
 	InitDefaults();
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDemoNetDriver::~UDemoNetDriver()
 {
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UDemoNetDriver::AddReplayTask(FQueuedReplayTask* NewTask)
 {
@@ -729,10 +727,7 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 {
 	if (Super::InitBase(bInitAsClient, InNotify, URL, bReuseAddressAndPort, Error))
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Time							= 0;
 		bChannelsArePaused = false;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ResetElapsedTime();
 		bIsFastForwarding				= false;
 		bIsFastForwardingForCheckpoint	= false;
@@ -755,9 +750,7 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 
 		ResetDemoState();
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ReplayStreamer = ReplayHelper.Init(URL);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		ReplayHelper.SetAnalyticsProvider(AnalyticsProvider);
 		ReplayHelper.CheckpointSaveMaxMSPerFrame = CheckpointSaveMaxMSPerFrame;
@@ -1021,7 +1014,6 @@ void UDemoNetDriver::NotifyStreamingLevelUnload( ULevel* InLevel )
 {
 	if (InLevel && !InLevel->bClientOnlyVisible && HasLevelStreamingFixes() && IsPlaying())
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// We can't just iterate over the levels actors, because the ones in the queue will already have been destroyed.
 		for (TMap<FString, FRollbackNetStartupActorInfo>::TIterator It = RollbackNetStartupActors.CreateIterator(); It; ++It)
 		{
@@ -1030,7 +1022,6 @@ void UDemoNetDriver::NotifyStreamingLevelUnload( ULevel* InLevel )
 				It.RemoveCurrent();
 			}
 		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	Super::NotifyStreamingLevelUnload(InLevel);
@@ -1059,7 +1050,6 @@ bool UDemoNetDriver::ContinueListen(FURL& ListenURL)
 
 		PauseRecording(false);
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Delete the old player controller, we're going to create a new one (and we can't leave this one hanging around)
 		if (SpectatorController != nullptr)
 		{
@@ -1068,7 +1058,6 @@ bool UDemoNetDriver::ContinueListen(FURL& ListenURL)
 			SpectatorControllers.Empty();
 			SpectatorController = nullptr;
 		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		SpawnDemoRecSpectator(ClientConnections[0], ListenURL);
 
@@ -1824,9 +1813,6 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					if (bIsRelevant)
 					{
 						ActorInfo->LastNetUpdateTimestamp = GetElapsedTime();
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						ActorInfo->LastNetUpdateTime = ActorInfo->LastNetUpdateTimestamp;
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 
@@ -2169,10 +2155,8 @@ void UDemoNetDriver::ProcessSeamlessTravel(int32 LevelIndex)
 
 	SpectatorControllers.Empty();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Set this to nullptr since we just destroyed it.
 	SpectatorController = nullptr;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (ReplayHelper.PlaybackDemoHeader.LevelNamesAndTimes.IsValidIndex(LevelIndex))
 	{
@@ -2792,13 +2776,11 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 
 void UDemoNetDriver::SpawnDemoRecSpectator(UNetConnection* Connection, const FURL& ListenURL)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SpectatorController = ReplayHelper.CreateSpectatorController(Connection);
 	if (SpectatorController)
 	{
 		SpectatorControllers.Add(SpectatorController);
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UDemoNetDriver::SpawnSplitscreenViewer(ULocalPlayer* NewPlayer, UWorld* InWorld)
@@ -2855,7 +2837,6 @@ bool UDemoNetDriver::RemoveSplitscreenViewer(APlayerController* RemovePlayer, bo
 {
 	UE_LOG(LogDemo, Log, TEXT("Attempting to remove splitscreen viewer!"));
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (RemovePlayer && SpectatorControllers.Contains(RemovePlayer) && RemovePlayer != SpectatorController)
 	{
 		SpectatorControllers.Remove(RemovePlayer);
@@ -2869,7 +2850,6 @@ bool UDemoNetDriver::RemoveSplitscreenViewer(APlayerController* RemovePlayer, bo
 		RemovePlayer->NetConnection = nullptr;
 		return true;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return false;
 }
@@ -3025,7 +3005,6 @@ bool UDemoNetDriver::SetExternalDataForObject(UObject* OwningObject, const uint8
 	return false;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level /* = nullptr */)
 {
 	TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
@@ -3182,7 +3161,6 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 	RollbackNetStartupActors.Compact();
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UDemoNetDriver::PrepFastForwardLevels()
 {
@@ -3507,7 +3485,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			}
 			else
 			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (RollbackNetStartupActors.Contains(Actor->GetFullName()))
 				{
 					World->DestroyActor(Actor, true);
@@ -3516,7 +3493,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 				{
 					StartupActors.Add(Actor);
 				}
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 
@@ -3702,10 +3678,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		// Since we only count the number of sub-spectators, add one more slot for main spectator
 		// Very small optimization. We do want to clear this so that we don't end up doing during ProcessSeamlessTravel
 		SpectatorControllers.Empty(CleanUpSplitscreenConnections(true) + 1);
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SpectatorController = nullptr;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		ServerConnection->Close();
 		ServerConnection->CleanUp();
@@ -3731,7 +3704,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		return false;
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Save off the current spectator position
 	// Check for nullptr, which can be the case if we haven't played any of the demo yet but want to fast forward (joining live game for example)
 	if (SpectatorController != nullptr)
@@ -3752,7 +3724,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			AddNonQueuedActorForScrubbing(SpectatorController->GetViewTarget());
 		}
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	PauseChannels(false);
 
@@ -3866,12 +3837,10 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		}
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (ServerConnection->OwningActor == SpectatorController)
 	{
 		ServerConnection->OwningActor = nullptr;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #else
 	for (int32 i = ServerConnection->OpenChannels.Num() - 1; i >= 0; i--)
@@ -3893,7 +3862,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	PlaybackPackets.Empty();
 	ReplayHelper.PlaybackFrames.Empty();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Destroy startup actors that need to rollback via being destroyed and re-created
 	for (FActorIterator It(World); It; ++It)
 	{
@@ -3902,7 +3870,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			World->DestroyActor(*It, true);
 		}
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Going to be recreating the splitscreen connections, but keep around the player controller.
 	CleanUpSplitscreenConnections(false);
@@ -3927,7 +3894,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	// Create fake control channel
 	CreateInitialClientChannels();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Respawn child connections as the parent connection has been recreated.
 	for (APlayerController* CurController : SpectatorControllers)
 	{
@@ -3945,7 +3911,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		UE_LOG(LogDemo, Log, TEXT("LoadCheckpoint: SpectatorController is null and a valid GUID for null was found in the GuidCache. SpectatorController = %s"),
 			*GetFullNameSafe(SpectatorController));
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Clean package map to prepare to restore it to the checkpoint state
 	FlushAsyncLoading();
@@ -4027,7 +3992,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		}
 
 		// Load net startup actors that need to be destroyed
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PlaybackVersion >= HISTORY_DELETED_STARTUP_ACTORS)
 		{
 			if (bDeltaCheckpoint)
@@ -4052,7 +4016,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.DeletedNetStartupActors);
 			}
 		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		int32 NumValues = 0;
 		*GotoCheckpointArchive << NumValues;
@@ -4255,7 +4218,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		}
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (SpectatorController && ViewTargetGUID.IsValid())
 	{
 		AActor* ViewTarget = Cast<AActor>(GuidCache->GetObjectFromNetGUID(ViewTargetGUID, false));
@@ -4265,7 +4227,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			SpectatorController->SetViewTarget(ViewTarget);
 		}
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return true;
 }
@@ -4474,9 +4435,7 @@ void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConne
 
 void UDemoNetDriver::SetSpectatorController(APlayerController* PC)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SpectatorController = PC;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (PC != nullptr)
 	{
 		SpectatorControllers.AddUnique(PC);
@@ -4592,7 +4551,6 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 {
 	UDemoNetDriver* DemoDriver = GetDriver();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// If the spectator is the same, assume this is for scrubbing, and we are keeping the old one
 	// (so don't set the position, since we want to persist all that)
 	if (DemoDriver->SpectatorController == PC)
@@ -4601,7 +4559,6 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 		DemoDriver->SetSpectatorController(PC);
 		return;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	ULocalPlayer* LocalPlayer = nullptr;
 	uint8 PlayerIndex = 0;
@@ -4984,14 +4941,12 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 	}
 
 	FString ActorFullName = Actor->GetFullName();
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (RollbackNetStartupActors.Contains(ActorFullName))
 	{
 		return;		// This actor is already queued up
 	}
 
 	FRollbackNetStartupActorInfo& RollbackActor = RollbackNetStartupActors.Add(MoveTemp(ActorFullName));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	RollbackActor.Name		= Actor->GetFName();
 	RollbackActor.Archetype	= Actor->GetArchetype();

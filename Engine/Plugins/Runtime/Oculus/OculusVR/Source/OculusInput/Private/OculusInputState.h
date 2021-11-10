@@ -69,6 +69,7 @@ enum class EOculusTouchCapacitiveAxes
 	YB,
 	IndexPointing,
 	ThumbUp,
+	ThumbRest,
 	
 	/** Total number of capacitive axes */
 	TotalAxisCount
@@ -108,6 +109,7 @@ struct FOculusKey
 	static const FKey OculusTouch_Left_FaceButton2; // Y or B
 	static const FKey OculusTouch_Left_IndexPointing;
 	static const FKey OculusTouch_Left_ThumbUp;
+	static const FKey OculusTouch_Left_ThumbRest;
 
 	static const FKey OculusTouch_Right_Thumbstick;
 	static const FKey OculusTouch_Right_Trigger;
@@ -115,6 +117,7 @@ struct FOculusKey
 	static const FKey OculusTouch_Right_FaceButton2; // Y or B
 	static const FKey OculusTouch_Right_IndexPointing;
 	static const FKey OculusTouch_Right_ThumbUp;
+	static const FKey OculusTouch_Right_ThumbRest;
 
 	static const FKey OculusRemote_DPad_Up;
 	static const FKey OculusRemote_DPad_Down;
@@ -171,6 +174,7 @@ struct FOculusKeyNames
 	static const FName OculusTouch_Left_FaceButton2; // Y or B
 	static const FName OculusTouch_Left_IndexPointing;
 	static const FName OculusTouch_Left_ThumbUp;
+	static const FName OculusTouch_Left_ThumbRest;
 
 	static const FName OculusTouch_Right_Thumbstick;
 	static const FName OculusTouch_Right_Trigger;
@@ -178,6 +182,7 @@ struct FOculusKeyNames
 	static const FName OculusTouch_Right_FaceButton2; // Y or B
 	static const FName OculusTouch_Right_IndexPointing;
 	static const FName OculusTouch_Right_ThumbUp;
+	static const FName OculusTouch_Right_ThumbRest;
 
 	static const FName OculusRemote_DPad_Up;
 	static const FName OculusRemote_DPad_Down;
@@ -380,6 +385,7 @@ struct FOculusTouchControllerState : FOculusControllerState
 		CapacitiveAxes[(int32)EOculusTouchCapacitiveAxes::YB].Axis = (Hand == EControllerHand::Left) ? FOculusKeyNames::OculusTouch_Left_FaceButton2 : FOculusKeyNames::OculusTouch_Right_FaceButton2;
 		CapacitiveAxes[(int32)EOculusTouchCapacitiveAxes::IndexPointing].Axis = (Hand == EControllerHand::Left) ? FOculusKeyNames::OculusTouch_Left_IndexPointing : FOculusKeyNames::OculusTouch_Right_IndexPointing;
 		CapacitiveAxes[(int32)EOculusTouchCapacitiveAxes::ThumbUp].Axis = (Hand == EControllerHand::Left) ? FOculusKeyNames::OculusTouch_Left_ThumbUp : FOculusKeyNames::OculusTouch_Right_ThumbUp;
+		CapacitiveAxes[(int32)EOculusTouchCapacitiveAxes::ThumbRest].Axis = (Hand == EControllerHand::Left) ? FOculusKeyNames::OculusTouch_Left_ThumbRest : FOculusKeyNames::OculusTouch_Right_ThumbRest;
 	}
 
 	/** Default constructor does nothing.  Don't use it.  This only exists because we cannot initialize an array of objects with no default constructor on non-C++ 11 compliant compilers (VS 2013) */
@@ -414,6 +420,9 @@ struct FOculusHandControllerState : FOculusControllerState
 
 	/** Finger Pinch Strength States **/
 	FOculusAxisState HandAxes[(int32)EOculusHandAxes::TotalAxisCount];
+
+	/** Finger Confidences **/
+	ETrackingConfidence FingerConfidences[(int32)EOculusHandAxes::TotalAxisCount] = {};
 
 	FQuat BoneRotations[(int32)EBone::Bone_Max];
 

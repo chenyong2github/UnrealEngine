@@ -47,6 +47,9 @@ void UPackage::PostInitProperties()
 
 #if WITH_EDITORONLY_DATA
 	MetaData = nullptr;
+	// Always generate a new unique PersistentGuid, required for new disk packages.
+	// For existing disk packages it will be replaced with the existing PersistentGuid when loading the package summary.
+	// For existing script packages it will be replaced in ConstructUPackage with the CRC of the generated code files.
 	PersistentGuid = FGuid::NewGuid();
 #endif
 	LinkerPackageVersion = GPackageFileUEVersion;

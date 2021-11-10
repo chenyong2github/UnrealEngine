@@ -710,6 +710,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 	FObjectCacheContextScope ObjectCacheScope;
 	const double MaxProcessingTime = 0.016f;
 	double StartTime = FPlatformTime::Seconds();
+	bool bMadeProgress = false;
 	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
 	{
 		FAsyncDistanceFieldTask* Task = nullptr;
@@ -730,6 +731,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		{
 			break;
 		}
+		bMadeProgress = true;
 
 		// We want to count each resource built from a DDC miss, so count each iteration of the loop separately.
 		COOK_STAT(auto Timer = DistanceFieldCookStats::UsageStats.TimeSyncWork());
@@ -797,7 +799,10 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		delete Task;
 	}
 
-	Notification.Update(GetNumRemainingAssets());
+	if (bMadeProgress)
+	{
+		Notification.Update(GetNumRemainingAssets());
+	}
 #endif
 }
 

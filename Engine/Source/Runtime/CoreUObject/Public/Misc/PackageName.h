@@ -6,12 +6,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
 #include "Misc/PackagePath.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
 
+class FPackagePath;
+class UPackage;
 struct FFileStatData;
+struct FGuid;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPackageName, Log, All);
 
@@ -32,7 +43,7 @@ public:
 		PackageNameEmptyPath,
 		PackageNamePathNotMounted,
 		PackageNamePathIsMemoryOnly,
-		PackageNameFullObjectPathNotAllowed,
+		PackageNameSpacesNotAllowed,
 		PackageNameContainsInvalidCharacters,
 		LongPackageNames_PathTooShort,
 		LongPackageNames_PathWithNoStartingSlash,
@@ -62,6 +73,10 @@ public:
 	 * @return Long package name.
 	 */
 	static FString ConvertToLongScriptPackageName(const TCHAR* InShortName);
+
+	/** Return the LongPackageName of module's native script package. Does not check whether module is native. */
+	static FName GetModuleScriptPackageName(FName ModuleName);
+	static FString GetModuleScriptPackageName(FStringView ModuleName);
 
 	/**
 	 * Registers all short package names found in ini files.
@@ -161,14 +176,20 @@ public:
 	/**
 	 * Split a full object path (Class /Path/To/A/Package.Object:SubObject) into its constituent pieces
 	 *  
-	 * @param InFullObjectPath			Full object path we want to split
-	 * @param OutClassName				The extracted class name (Class)
-	 * @param OutPackageName			The extracted package name (/Path/To/A/Package)
-	 * @param OutObjectName				The extracted object name (Object)
-	 * @param OutSubObjectName			The extracted subobject name (SubObject)
+	 * @param InFullObjectPath  Full object path we want to split
+	 * @param OutClassName      The extracted class name (Class)
+	 * @param OutPackageName    The extracted package name (/Path/To/A/Package)
+	 * @param OutObjectName     The extracted object name (Object)
+	 * @param OutSubObjectName  The extracted subobject name (SubObject)
+	 * @param bDetectClassName  If true, the optional Class will be detected and separated based on a space.
+	 *                          If false, and there is a space, the space and text before it will be included in the
+	 *                          other names. Spaces in those names is invalid, but some code ignores the
+	 *                          invalidity in ObjectName if it only cares about packageName.
 	 */
-	static void SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName, FString& OutPackageName, FString& OutObjectName, FString& OutSubObjectName);
-	static void SplitFullObjectPath(FStringView InFullObjectPath, FStringView& OutClassName, FStringView& OutPackageName, FStringView& OutObjectName, FStringView& OutSubObjectName);
+	static void SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName,
+		FString& OutPackageName, FString& OutObjectName, FString& OutSubObjectName, bool bDetectClassName = true);
+	static void SplitFullObjectPath(FStringView InFullObjectPath, FStringView& OutClassName,
+		FStringView& OutPackageName, FStringView& OutObjectName, FStringView& OutSubObjectName, bool bDetectClassName=true);
 
 	/** 
 	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc) and contains no illegal characters.
@@ -300,7 +321,22 @@ public:
 	 * @param InAllowTextFormats Detect text format packages as well as binary (priority to text)
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool DoesPackageExist(const FString& LongPackageName, const FGuid* Guid = nullptr, FString* OutFilename = nullptr, bool InAllowTextFormats = true);
+	UE_DEPRECATED(5.0, "Deprecated. UPackage::Guid has not been used by the engine for a long time. Call DoesPackageExist without a Guid.")
+	static bool DoesPackageExist(const FString& LongPackageName, const FGuid* Guid, FString* OutFilename, bool InAllowTextFormats = true)
+	{
+		return DoesPackageExist(LongPackageName, OutFilename, InAllowTextFormats);
+	}
+
+
+	/**
+	 * Checks if the package exists on disk.
+	 * 
+	 * @param LongPackageName Package name.
+	 * @param OutFilename Package filename on disk.
+	 * @param InAllowTextFormats Detect text format packages as well as binary (priority to text)
+	 * @return true if the specified package name points to an existing package, false otherwise.
+	 **/
+	static bool DoesPackageExist(const FString& LongPackageName, FString* OutFilename = nullptr, bool InAllowTextFormats = true);
 
 	/**
 	 * Checks if the package exists on disk. PackagePath must be a mounted path, otherwise returns false
@@ -311,7 +347,7 @@ public:
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool DoesPackageExist(const FPackagePath& PackagePath, const FGuid* Guid = nullptr, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
+	static bool DoesPackageExist(const FPackagePath& PackagePath, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 
 	/**
 	 * Checks if the package exists on disk. PackagePath must be a mounted path, otherwise returns false
@@ -340,7 +376,7 @@ public:
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
 	 * @return the set of locations where the package exists (cooked or uncooked, both or neither)
 	 **/
-	static EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, const FGuid* Guid = nullptr, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
+	static EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 
 	/**
 	 * Attempts to find a package given its short name on disk (very slow).

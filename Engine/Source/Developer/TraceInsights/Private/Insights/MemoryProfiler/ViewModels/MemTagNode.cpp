@@ -13,16 +13,15 @@ const FName FMemTagNode::TypeName(TEXT("FMemTagNode"));
 
 FText FMemTagNode::GetTrackerText() const
 {
-	uint64 Trackers = GetTrackers();
-	if (Trackers == 0)
-	{
-		return FText::GetEmpty();
-	}
-
 	FMemorySharedState* SharedState = FMemoryProfilerManager::Get()->GetSharedState();
 	if (SharedState)
 	{
-		return FText::FromString(SharedState->TrackersToString(Trackers, TEXT(", ")));
+		Insights::FMemoryTrackerId TrackerId = GetMemTrackerId();
+		const Insights::FMemoryTracker* Tracker = SharedState->GetTrackerById(TrackerId);
+		if (Tracker)
+		{
+			return FText::FromString(Tracker->GetName());
+		}
 	}
 
 	return FText::GetEmpty();

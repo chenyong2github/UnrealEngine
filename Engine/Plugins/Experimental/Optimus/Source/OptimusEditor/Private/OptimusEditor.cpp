@@ -31,6 +31,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Materials/Material.h"
 #include "MessageLogModule.h"
+#include "OptimusEditorGraphCommands.h"
 #include "Misc/UObjectToken.h"
 #include "Modules/ModuleManager.h"
 #include "OptimusEditorMode.h"
@@ -59,6 +60,12 @@ FOptimusEditor::~FOptimusEditor()
 		DeformerObject->GetCompileEndDelegate().RemoveAll(this);
 		DeformerObject->GetCompileMessageDelegate().RemoveAll(this);
 		DeformerObject->GetNotifyDelegate().RemoveAll(this);
+	}
+
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
 	}
 }
 
@@ -391,7 +398,7 @@ bool FOptimusEditor::CanDeleteSelectedNodes() const
 }
 
 
-void FOptimusEditor::CopySelectedNodes()
+void FOptimusEditor::CopySelectedNodes() const
 {
 	FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
 
@@ -407,7 +414,7 @@ bool FOptimusEditor::CanCopyNodes() const
 }
 
 
-void FOptimusEditor::CutSelectedNodes()
+void FOptimusEditor::CutSelectedNodes() const
 {
 	FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
 
@@ -426,7 +433,7 @@ bool FOptimusEditor::CanCutNodes() const
 }
 
 
-void FOptimusEditor::PasteNodes()
+void FOptimusEditor::PasteNodes() const
 {
 	const FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
 	const UOptimusClipboardContent* Content = Clipboard.GetClipboardContent();
@@ -435,7 +442,7 @@ void FOptimusEditor::PasteNodes()
 		return;
 	}
 
-	UOptimusNodeGraph* TransientGraph = Content->GetGraphFromClipboardContent();
+	const UOptimusNodeGraph* TransientGraph = Content->GetGraphFromClipboardContent();
 
 	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
 	ModelGraph->DuplicateNodes(
@@ -449,7 +456,7 @@ bool FOptimusEditor::CanPasteNodes()
 }
 
 
-void FOptimusEditor::DuplicateNodes()
+void FOptimusEditor::DuplicateNodes() const
 {
 	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
 	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();
@@ -458,9 +465,75 @@ void FOptimusEditor::DuplicateNodes()
 }
 
 
-bool FOptimusEditor::CanDuplicateNodes()
+bool FOptimusEditor::CanDuplicateNodes() const
 {
 	return !GetSelectedModelNodes().IsEmpty();
+}
+
+
+void FOptimusEditor::PackageNodes()
+{
+	FOptimusActionScope ActionScope(*GetActionStack(), TEXT("Package Nodes"));
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	TArray<UObject*> NewNodes;
+	for (UOptimusNode* ModelNode: GetSelectedModelNodes())
+	{
+		UOptimusNode* NewNode = ModelGraph->ConvertCustomKernelToFunction(ModelNode);
+		if (NewNode)
+		{
+			NewNodes.Add(NewNode);
+		}
+	}
+	InspectObjects(NewNodes);
+}
+
+
+bool FOptimusEditor::CanPackageNodes() const
+{
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();
+	const UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();	
+	for (UOptimusNode* ModelNode: ModelNodes)
+	{
+		if (!ModelGraph->IsCustomKernel(ModelNode))
+		{
+			return false;
+		}
+	}
+
+	return !ModelNodes.IsEmpty();
+}
+
+
+void FOptimusEditor::UnpackageNodes()
+{
+	FOptimusActionScope ActionScope(*GetActionStack(), TEXT("Unpackage Nodes"));
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	TArray<UObject*> NewNodes;
+	for (UOptimusNode* ModelNode: GetSelectedModelNodes())
+	{
+		UOptimusNode* NewNode = ModelGraph->ConvertFunctionToCustomKernel(ModelNode);
+		if (NewNode)
+		{
+			NewNodes.Add(NewNode);
+		}
+	}
+	InspectObjects(NewNodes);
+}
+
+
+bool FOptimusEditor::CanUnpackageNodes() const
+{
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();	
+	const UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();	
+	for (UOptimusNode* ModelNode: ModelNodes)
+	{
+		if (!ModelGraph->IsKernelFunction(ModelNode))
+		{
+			return false;
+		}
+	}
+
+	return !ModelNodes.IsEmpty();
 }
 
 
@@ -814,6 +887,17 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::DuplicateNodes),
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanDuplicateNodes)
+		);
+
+		// Packaging commands
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().PackageNodes,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::PackageNodes),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanPackageNodes)
+		);
+
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().UnpackageNodes,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::UnpackageNodes),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanUnpackageNodes)
 		);
 #if 0
 

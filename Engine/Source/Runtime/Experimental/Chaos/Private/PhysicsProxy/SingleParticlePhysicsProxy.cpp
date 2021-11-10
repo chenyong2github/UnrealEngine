@@ -84,26 +84,11 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 		if(NewXR || NewNonFrequentData || NewVelocities || NewKinematicTargetGT)
 		{
-			const auto& Geometry = Handle->Geometry();
-			if(Geometry && Geometry->HasBoundingBox())
-			{
-				const FAABB3 BoundingBox = Geometry->BoundingBox();
-
-				Handle->SetHasBounds(true);
-				Handle->SetLocalBounds(BoundingBox);
-				FAABB3 WorldSpaceBounds = BoundingBox.TransformedAABB(FRigidTransform3(Handle->X(), Handle->R()));
-				if (NewKinematicTargetGT && NewKinematicTargetGT->GetMode() == EKinematicTargetMode::Position)
-				{
-					// for kinematic we actually extend the bouns back to the target as XR represent the previous position for now
-					FAABB3 TargetWorldSpaceBounds = BoundingBox.TransformedAABB(NewKinematicTargetGT->GetTarget());
-					WorldSpaceBounds.GrowToInclude(TargetWorldSpaceBounds);
-				}
-				if (bHasKinematicData)
-				{
-					WorldSpaceBounds.ThickenSymmetrically(KinematicHandle->V() * ExternalDt);
-				}
-				Handle->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
-			}
+			// Update world-space cached state like the bounds
+			// @todo(chaos): do we need to do this here? It should be done in Integrate and ApplyKinematicTarget so only really Statics need this...
+			const bool bHasKinematicTarget = (NewKinematicTargetGT != nullptr) && (NewKinematicTargetGT->GetMode() == EKinematicTargetMode::Position);
+			const FRigidTransform3 WorldTransform = !bHasKinematicTarget ? FRigidTransform3(Handle->X(), Handle->R()) : NewKinematicTargetGT->GetTarget();
+			Handle->UpdateWorldSpaceState(WorldTransform, FVec3(0));
 
 			Evolution.DirtyParticle(*Handle);
 		}

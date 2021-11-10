@@ -443,10 +443,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Create actor clusters - ignore HLOD actors
-	FActorClusterContext ClusterContext(WorldPartition, this, TOptional<FActorClusterContext::FFilterPredicate>([](const FWorldPartitionActorDescView& ActorDescView)
+	FActorClusterContext ClusterContext(WorldPartition, this, [](const FWorldPartitionActorDescView& ActorDescView)
 	{
 		return !ActorDescView.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
-	}), /* bInIncludeChildContainers=*/ false);
+	}, /* bInIncludeChildContainers=*/ false);
 
 	FActorContainerInstance& MainContainerInstance = *ClusterContext.GetClusterInstance(WorldPartition);
 

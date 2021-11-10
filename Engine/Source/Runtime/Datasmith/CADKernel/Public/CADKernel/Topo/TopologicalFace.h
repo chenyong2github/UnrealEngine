@@ -80,12 +80,7 @@ namespace CADKernel
 			ResetElementStatus();
 		}
 
-		FTopologicalFace(FCADKernelArchive& Archive)
-			: FTopologicalEntity()
-			, Mesh(TSharedPtr<FFaceMesh>())
-		{
-			Serialize(Archive);
-		}
+		FTopologicalFace() = default;
 
 		/**
 		 * Compute the bounds of the topological surface according to the Loops
@@ -100,7 +95,7 @@ namespace CADKernel
 			SerializeIdent(Ar, CarrierSurface);
 			SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Loops);
 			SerializeIdent(Ar, HostedBy);
-			SerializeMetadata(Ar);
+			FMetadataDictionary::Serialize(Ar);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override;

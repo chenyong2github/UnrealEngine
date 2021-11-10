@@ -103,7 +103,7 @@ TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGra
 
 TSharedPtr<class SGraphPin> FAnimationGraphPinFactory::CreatePin(class UEdGraphPin* InPin) const
 {
-	if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	if (InPin->GetSchema()->IsA<UAnimationGraphSchema>() && InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 	{
 		if ((InPin->PinType.PinSubCategoryObject == FPoseLink::StaticStruct()) || (InPin->PinType.PinSubCategoryObject == FComponentSpacePoseLink::StaticStruct()))
 		{
@@ -111,7 +111,7 @@ TSharedPtr<class SGraphPin> FAnimationGraphPinFactory::CreatePin(class UEdGraphP
 		}
 	}
 
-	if (InPin->PinType.PinCategory == UAnimationStateMachineSchema::PC_Exec)
+	if (InPin->GetSchema()->IsA<UAnimationStateMachineSchema>() && InPin->PinType.PinCategory == UAnimationStateMachineSchema::PC_Exec)
 	{
 		return SNew(SGraphPinExec, InPin);
 	}

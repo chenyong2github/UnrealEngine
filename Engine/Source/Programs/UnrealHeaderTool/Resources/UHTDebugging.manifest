@@ -18,6 +18,8 @@
 			],
 			"PrivateHeaders": [
 			],
+			"InternalHeaders": [
+			],
 			"PCH": "",
 			"GeneratedCPPFilenameBase": "..\\..\\..\\..\\Intermediate/Build/Inc\\CoreUObject\\CoreUObject.generated",
 			"SaveExportedHeaders": true,
@@ -43,6 +45,8 @@
 			"PublicHeaders": [
 			],
 			"PrivateHeaders": [
+			],
+			"InternalHeaders": [
 			],
 			"PCH": "",
 			"GeneratedCPPFilenameBase": "..\\..\\..\\..\\Intermediate/Build/Inc\\UHTDebugging\\UHTDebugging.generated",

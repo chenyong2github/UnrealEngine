@@ -17,40 +17,57 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bSupportsDash = DefaultSettings.Flags.bSupportsDash;
 	bCompositesDepth = DefaultSettings.Flags.bCompositeDepth;
 	bHQDistortion = DefaultSettings.Flags.bHQDistortion;
-	bChromaCorrection = DefaultSettings.Flags.bChromaAbCorrectionEnabled;
 	CPULevel = DefaultSettings.CPULevel;
 	GPULevel = DefaultSettings.GPULevel;
 	PixelDensityMin = DefaultSettings.PixelDensityMin;
 	PixelDensityMax = DefaultSettings.PixelDensityMax;
-	bRecenterHMDWithController = DefaultSettings.Flags.bRecenterHMDWithController;
 	bFocusAware = DefaultSettings.Flags.bFocusAware;
-	bPhaseSync = DefaultSettings.bPhaseSync;
-	bEnableSpecificColorGamut = DefaultSettings.bEnableSpecificColorGamut;
+	XrApi = DefaultSettings.XrApi;
 	ColorSpace = DefaultSettings.ColorSpace;
 	bRequiresSystemKeyboard = DefaultSettings.Flags.bRequiresSystemKeyboard;
 	HandTrackingSupport = DefaultSettings.HandTrackingSupport;
+	HandTrackingFrequency = DefaultSettings.HandTrackingFrequency;
+	bPhaseSync = DefaultSettings.bPhaseSync;
 
 #else
 	// Some set of reasonable defaults, since blueprints are still available on non-Oculus platforms.
 	bSupportsDash = false;
 	bCompositesDepth = false;
 	bHQDistortion = false;
-	bChromaCorrection = false;
 	CPULevel = 2;
 	GPULevel = 3;
 	PixelDensityMin = 0.5f;
 	PixelDensityMax = 1.0f;
-	bRecenterHMDWithController = true;
 	bFocusAware = true;
+    XrApi = EOculusXrApi::LegacyOVRPlugin;
+	bLateLatching = false;
 	bPhaseSync = false;
-	bEnableSpecificColorGamut = false;
-	ColorSpace = EOculusColorSpace::Unknown;
+	ColorSpace = EOculusColorSpace::Rift_CV1;
 	bRequiresSystemKeyboard = false;
 	HandTrackingSupport = EHandTrackingSupport::ControllersOnly;
+	HandTrackingFrequency = EHandTrackingFrequency::Low;
 #endif
 
 	LoadFromIni();
 }
+
+#if WITH_EDITOR
+bool UOculusHMDRuntimeSettings::CanEditChange(const FProperty* InProperty) const
+{
+	bool bIsEditable = Super::CanEditChange(InProperty);
+	if (bIsEditable && InProperty)
+	{
+		const FName PropertyName = InProperty->GetFName();
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UOculusHMDRuntimeSettings, bFocusAware))
+		{
+			bIsEditable = false;
+		}
+	}
+
+	return bIsEditable;
+}
+#endif // WITH_EDITOR
 
 void UOculusHMDRuntimeSettings::LoadFromIni()
 {

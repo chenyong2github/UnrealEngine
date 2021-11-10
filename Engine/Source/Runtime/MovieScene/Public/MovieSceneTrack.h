@@ -153,6 +153,7 @@ class UMovieSceneTrack
 public:
 
 	MOVIESCENE_API UMovieSceneTrack(const FObjectInitializer& InInitializer);
+	MOVIESCENE_API ~UMovieSceneTrack() {};
 
 public:
 

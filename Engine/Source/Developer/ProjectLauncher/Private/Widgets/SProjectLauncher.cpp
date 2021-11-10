@@ -210,7 +210,6 @@ void SProjectLauncher::Construct(const FArguments& InArgs, const TSharedRef<SDoc
 								.Text(LOCTEXT("AddButtonLabel", "Add"))
 								.ToolTipText(LOCTEXT("AddFilterToolTip", "Add a new custom launch profile using wizard"))
 								.OnGetMenuContent(this, &SProjectLauncher::MakeProfileWizardsMenu)
-								.Visibility(this, &SProjectLauncher::GetProfileWizardsMenuVisibility)
 							]
 						]
 					]
@@ -328,12 +327,6 @@ void SProjectLauncher::OnAddCustomLaunchProfileClicked()
 	OnProfileEdit(Profile);
 
 	ProfileSettingsPanel->EnterEditMode();
-}
-
-
-EVisibility SProjectLauncher::GetProfileWizardsMenuVisibility() const
-{
-	return (Model->GetProfileManager()->GetProfileWizards().Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 

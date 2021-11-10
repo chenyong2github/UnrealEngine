@@ -35,6 +35,7 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	friend class UMaterialEditorInstanceConstant;
 
 	virtual ENGINE_API void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual ENGINE_API void UpdateCachedData() override final;
 #endif
 
 	/** Physical material mask to use for this graphics material. Used for sounds, effects etc.*/

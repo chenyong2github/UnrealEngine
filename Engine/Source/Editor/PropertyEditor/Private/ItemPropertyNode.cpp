@@ -365,49 +365,85 @@ void FItemPropertyNode::InitChildNodes()
 	}
 }
 
-void FItemPropertyNode::SetFavorite(bool FavoriteValue)
+void FItemPropertyNode::SetFavorite(bool IsFavorite)
 {
-	if (GEditor != nullptr)
+	if (GEditor == nullptr)
 	{
-		UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-		if (MetadataOverrides != nullptr)
+		return;
+	}
+
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (MetadataOverrides == nullptr)
+	{
+		return;
+	}
+
+	const FObjectPropertyNode* ObjectParent = FindObjectItemParent();
+	if (ObjectParent == nullptr)
+	{
+		return;
+	}
+				
+	FString Path;
+	GetQualifiedName(Path, /*bWithArrayIndex=*/true, ObjectParent, /*bIgnoreCategories=*/true);
+
+	static const FName FavoritePropertiesName("FavoriteProperties");
+
+	TArray<FString> FavoritePropertiesList;
+	if (MetadataOverrides->GetArrayMetadata(ObjectParent->GetObjectBaseClass(), FavoritePropertiesName, FavoritePropertiesList))
+	{
+		if (IsFavorite)
 		{
-			MetadataOverrides->SetBoolMetadata(GetProperty(), "IsFavorite", FavoriteValue);
+			FavoritePropertiesList.AddUnique(Path);
+		}
+		else
+		{
+			FavoritePropertiesList.Remove(Path);
+		}
+
+		MetadataOverrides->SetArrayMetadata(ObjectParent->GetObjectBaseClass(), FavoritePropertiesName, FavoritePropertiesList);
+	}
+	else
+	{
+		if (IsFavorite)
+		{
+			FavoritePropertiesList.Add(Path);
+			MetadataOverrides->SetArrayMetadata(ObjectParent->GetObjectBaseClass(), FavoritePropertiesName, FavoritePropertiesList);
 		}
 	}
 }
 
 bool FItemPropertyNode::IsFavorite() const
 {
-	if (GEditor != nullptr)
+	if (GEditor == nullptr)
 	{
-		UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-		if (MetadataOverrides != nullptr)
-		{
-			bool IsFavorite = false;
-			if (MetadataOverrides->GetBoolMetadata(GetProperty(), "IsFavorite", IsFavorite))
-			{
-				return IsFavorite;
-			}
-		}
+		return false;
 	}
+
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (MetadataOverrides == nullptr)
+	{
+		return false;
+	}
+
+	const FObjectPropertyNode* ObjectParent = FindObjectItemParent();
+	if (ObjectParent == nullptr)
+	{
+		return false;
+	}
+
+	FString Path;
+	GetQualifiedName(Path, /*bWithArrayIndex=*/true, ObjectParent, /*bIgnoreCategories=*/true);
+
+	static const FName FavoritePropertiesName("FavoriteProperties");
+
+	TArray<FString> FavoritePropertiesList;
+	if (MetadataOverrides->GetArrayMetadata(ObjectParent->GetObjectBaseClass(), FavoritePropertiesName, FavoritePropertiesList))
+	{
+		return FavoritePropertiesList.Contains(Path);
+	}
+
 	return false;
-}
-
-/**
-* Set the permission to display the favorite icon
-*/
-void FItemPropertyNode::SetCanDisplayFavorite(bool CanDisplayFavoriteIcon)
-{
-	bCanDisplayFavorite = CanDisplayFavoriteIcon;
-}
-
-/**
-* Set the permission to display the favorite icon
-*/
-bool FItemPropertyNode::CanDisplayFavorite() const
-{
-	return bCanDisplayFavorite;
 }
 
 void FItemPropertyNode::SetDisplayNameOverride( const FText& InDisplayNameOverride )

@@ -12,6 +12,8 @@ class UNiagaraStackScriptItemGroup;
 class UNiagaraStackEventHandlerGroup;
 class UNiagaraStackSimulationStagesGroup;
 class UNiagaraStackRenderItemGroup;
+class UNiagaraStackEmitterSummaryGroup;
+class UNiagaraStackSummaryViewCollapseButton;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackRoot : public UNiagaraStackEntry
@@ -34,6 +36,7 @@ protected:
 
 private:
 	void EmitterArraysChanged();
+	void OnSummaryViewStateChanged();
 
 private:
 	UPROPERTY()
@@ -47,6 +50,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackEmitterSettingsGroup> EmitterSettingsGroup;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackEmitterSummaryGroup> EmitterSummaryGroup;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackScriptItemGroup> EmitterSpawnGroup;
@@ -68,6 +74,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackRenderItemGroup> RenderGroup;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackSummaryViewCollapseButton> SummaryCollapseButton;
 
 	bool bIncludeSystemInformation;
 	bool bIncludeEmitterInformation;

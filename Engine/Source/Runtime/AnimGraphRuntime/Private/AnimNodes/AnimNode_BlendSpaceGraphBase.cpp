@@ -38,7 +38,7 @@ void FAnimNode_BlendSpaceGraphBase::UpdateInternal(const FAnimationUpdateContext
 	check(BlendSpace != nullptr);
 
 	// Filter input and update blend samples
-	FVector BlendParams(X, Y, Z);
+	FVector BlendParams = GetPosition();
 #if WITH_EDITORONLY_DATA
 	if(bUsePreviewPosition)
 	{

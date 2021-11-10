@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("UnrealBuildTool")]
-[assembly: AssemblyDescription("A tool to build UE4")]
+[assembly: AssemblyDescription("A tool to build Unreal Engine")]
 [assembly: AssemblyConfiguration("")]
 
 [assembly: InternalsVisibleTo("UnrealBuildToolTests")]

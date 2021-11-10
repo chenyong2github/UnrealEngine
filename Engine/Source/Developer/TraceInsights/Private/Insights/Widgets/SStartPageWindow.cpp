@@ -9,7 +9,7 @@
 #include "IPAddress.h"
 #include "SlateOptMacros.h"
 #include "SocketSubsystem.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Trace/ControlClient.h"
 #include "Trace/StoreClient.h"
@@ -488,6 +488,7 @@ public:
 						[
 							SNew(STextBlock)
 							.Text(this, &STraceListRow::GetTraceName)
+							//.Font(FAppStyle::Get().GetFontStyle("Font.Large")) // 14
 							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
 							.ColorAndOpacity(FSlateColor(EStyleColor::Foreground))
 						]
@@ -497,6 +498,7 @@ public:
 						.AutoWidth()
 						[
 							SNew(STextBlock)
+							//.Font(FAppStyle::Get().GetFontStyle("Font.Large")) // 14
 							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
 							.Text(this, &STraceListRow::GetTraceIndexAndId)
 							.ColorAndOpacity(FSlateColor(EStyleColor::White25))
@@ -515,7 +517,8 @@ public:
 					[
 						SNew(STextBlock)
 						.Text(this, &STraceListRow::GetTraceUri)
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+						//.Font(FAppStyle::Get().GetFontStyle("SmallFont")) // 8
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
 						.ColorAndOpacity(FSlateColor(EStyleColor::Foreground))
 					]
 				]
@@ -682,7 +685,7 @@ void STraceStoreWindow::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				.Padding(0.0f)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
 			]
 		]
@@ -731,7 +734,7 @@ void STraceStoreWindow::Construct(const FArguments& InArgs)
 			.Visibility(this, &STraceStoreWindow::SplashScreenOverlay_Visibility)
 			[
 				SNew(SBorder)
-				.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+				.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
 				.BorderBackgroundColor(this, &STraceStoreWindow::SplashScreenOverlay_ColorAndOpacity)
 				.Padding(0.0f)
 				.HAlign(HAlign_Fill)
@@ -743,7 +746,7 @@ void STraceStoreWindow::Construct(const FArguments& InArgs)
 					[
 						SNew(STextBlock)
 						.Text(this, &STraceStoreWindow::GetSplashScreenOverlayText)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+						.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 						.ColorAndOpacity(this, &STraceStoreWindow::SplashScreenOverlay_TextColorAndOpacity)
 					]
 				]
@@ -916,7 +919,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 			.OnClicked(this, &STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked)
 			[
 				SNew(SImage)
-				.Image(FInsightsStyle::Get().GetBrush("FolderExplore.Icon.Small"))
+				.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
@@ -1525,7 +1528,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenFileButtonLabel", "Open File..."),
 			LOCTEXT("OpenFileButtonTooltip", "Start analysis for a specified trace file."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.FolderOpen"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
 			FUIAction(FExecuteAction::CreateSP(this, &STraceStoreWindow::OpenFileDialog)),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -1585,7 +1588,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableAutomatedTesting", "Enable Automation Testing"),
 			LOCTEXT("EnableAutomatedTestingDesc", "Activates the automatic test system for new sessions opened from this window."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.TestAutomation"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TestAutomation"),
 			ToogleAutomationTestsAction,
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -1607,7 +1610,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableDebugTools", "Enable Debug Tools"),
 			LOCTEXT("EnableDebugToolsDesc", "Enables debug tools for new sessions opened from this window."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug"),
 			ToogleDebugToolsAction,
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -1626,7 +1629,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
 			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Test"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Test"),
 			OpenStarshipSuiteAction,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -1663,7 +1666,7 @@ void STraceStoreWindow::OpenSettings()
 	(*OverlaySettingsSlot)
 	[
 		SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
 		.Padding(8.0f)
 		[
 			SNew(SInsightsSettings)
@@ -1765,7 +1768,7 @@ void SConnectionWindow::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				.Padding(0.0f)
-				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
 				.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
 			]
 		]

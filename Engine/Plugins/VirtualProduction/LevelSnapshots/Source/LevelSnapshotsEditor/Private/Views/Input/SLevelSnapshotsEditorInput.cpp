@@ -3,8 +3,6 @@
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
 #include "Data/LevelSnapshotsEditorData.h"
-#include "Views/Input/LevelSnapshotsEditorInput.h"
-#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
 #include "Editor.h"
@@ -20,16 +18,14 @@ SLevelSnapshotsEditorInput::~SLevelSnapshotsEditorInput()
 	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 }
 
-void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const FSnapshotEditorViewData& InViewBuildData)
+void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* InEditorData)
 {
-	ViewBuildData = InViewBuildData;
-	check(ViewBuildData.EditorDataPtr.IsValid());
-
+	EditorData = InEditorData;
 
 	OnMapOpenedDelegateHandle = FEditorDelegates::OnMapOpened.AddLambda([this] (const FString& InFileName, const bool bAsTemplate)
 	{
-		check(ViewBuildData.EditorDataPtr.IsValid());
-		OverrideWorld(ViewBuildData.EditorDataPtr->GetEditorWorld());
+		check(EditorData.IsValid());
+		OverrideWorld(EditorData->GetEditorWorld());
 	});
 
 	ChildSlot
@@ -38,8 +34,8 @@ void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TShar
 
 		+ SVerticalBox::Slot()
 		[
-			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InViewBuildData)
-			.OwningWorldPath(ViewBuildData.EditorDataPtr->GetEditorWorld())
+			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InEditorData)
+				.OwningWorldPath(EditorData->GetEditorWorld())
 		]
 	];
 }
@@ -59,14 +55,14 @@ void SLevelSnapshotsEditorInput::OverrideWorld(FSoftObjectPath InNewContextPath)
 		return;
 	}
 	
-	if (ensure(EditorInputOuterVerticalBox))
+	if (ensure(EditorInputOuterVerticalBox && EditorData.IsValid()))
 	{
 		// Remove the Browser widget then add a new one into the same slot
 		EditorInputOuterVerticalBox->RemoveSlot(EditorBrowserWidgetPtr.ToSharedRef());
 		
 		EditorInputOuterVerticalBox->AddSlot()
 		[
-			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, ViewBuildData)
+			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, EditorData.Get())
 			.OwningWorldPath(InNewContextPath)
 		];
 	}

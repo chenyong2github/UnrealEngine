@@ -158,4 +158,7 @@ private:
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;
+
+	/** Delay to apply on packets being sent */
+	float Delay;
 };

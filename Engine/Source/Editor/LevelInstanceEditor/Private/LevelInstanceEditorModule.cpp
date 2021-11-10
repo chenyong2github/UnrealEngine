@@ -830,7 +830,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 					LevelInstanceMenuUtils::CreateCreateMenu(ToolMenu);
 				}
 			}
-		}));
+		}), false, FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.LevelInstance"));
 	}
 
 	if (UToolMenu* WorldAssetMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.World"))

@@ -888,7 +888,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		TArray<const FLightSceneInfo*, TInlineAllocator<64>> GatheredLights;
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 			const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

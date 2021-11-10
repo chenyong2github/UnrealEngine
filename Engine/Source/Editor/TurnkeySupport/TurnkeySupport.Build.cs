@@ -38,7 +38,8 @@ public class TurnkeySupport : ModuleRules
 				new string[] {
 				"UnrealEd",
 				"UATHelper",
- 				"SettingsEditor"
+ 				"SettingsEditor",
+				"Zen",
 				}
 			);
 			PrivateIncludePathModuleNames.AddRange(

@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "CADInterfacesModule"
 
-DEFINE_LOG_CATEGORY(CADInterfaces);
+DEFINE_LOG_CATEGORY(LogCADInterfaces);
 
 class FCADInterfacesModule : public ICADInterfacesModule
 {
@@ -52,7 +52,7 @@ ECADInterfaceAvailability ICADInterfacesModule::GetAvailability()
 		}
 	}
 
-	UE_LOG(CADInterfaces, Warning, TEXT("Failed to load CADInterfaces module. Plug-in may not be functional."));
+	UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load CADInterfaces module. Plug-in may not be functional."));
 	return ECADInterfaceAvailability::Unavailable;
 }
 
@@ -70,14 +70,14 @@ void FCADInterfacesModule::StartupModule()
 
 	if (!FPaths::FileExists(KernelIODll))
 	{
-		UE_LOG(CADInterfaces, Warning, TEXT("CoreTech module is missing. Plug-in will not be functional."));
+		UE_LOG(LogCADInterfaces, Warning, TEXT("CoreTech module is missing. Plug-in will not be functional."));
 	}
 	else
 	{
 		KernelIOLibHandle = FPlatformProcess::GetDllHandle(*KernelIODll);
 		if (KernelIOLibHandle == nullptr)
 		{
-			UE_LOG(CADInterfaces, Warning, TEXT("Failed to load required library %s. Plug-in will not be functional."), *KernelIODll);
+			UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load required library %s. Plug-in will not be functional."), *KernelIODll);
 		}
 		else
 		{
@@ -99,18 +99,14 @@ void FCADInterfacesModule::StartupModule()
 
 	if (!FPaths::FileExists(TechSoftDll))
 	{
-		UE_LOG(CADInterfaces, Warning, TEXT("TechSoft module is missing. Plug-in will not be functional."));
+		UE_LOG(LogCADInterfaces, Warning, TEXT("TechSoft module is missing. Plug-in will not be functional."));
 	}
 	else
 	{
 		TechSoftLibHandle = FPlatformProcess::GetDllHandle(*TechSoftDll);
 		if (TechSoftLibHandle == nullptr)
 		{
-			UE_LOG(CADInterfaces, Warning, TEXT("Failed to load required library %s. Plug-in will not be functional."), *TechSoftDll);
-		}
-		else
-		{
-			CADLibrary::InitializeTechSoftInterface();
+			UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load required library %s. Plug-in will not be functional."), *TechSoftDll);
 		}
 
 		FPlatformProcess::PopDllDirectory(*TechSoftDllPath);

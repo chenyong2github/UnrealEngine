@@ -73,11 +73,10 @@ namespace CADKernel
 		}
 
 		template<typename OtherEntity>
-		static TSharedRef<OtherEntity> MakeShared(FCADKernelArchive& Archiver)
+		static TSharedRef<OtherEntity> MakeShared(FCADKernelArchive& Archive)
 		{
-			OtherEntity* Entity = new OtherEntity(Archiver);
+			OtherEntity* Entity = new OtherEntity();
 			TSharedRef<OtherEntity> NewShared = MakeShareable<OtherEntity>(Entity);
-			Archiver.AddEntityFromArchive(NewShared);
 			return NewShared;
 		}
 

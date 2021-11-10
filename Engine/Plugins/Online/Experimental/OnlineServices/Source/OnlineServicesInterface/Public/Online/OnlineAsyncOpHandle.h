@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Online/OnlineError.h"
 #include "Online/OnlineResult.h"
+#include "Online/OnlineErrorDefinitions.h"
 #include "Templates/Models.h"
 
 #include "Templates/SharedPointer.h"
@@ -407,7 +408,7 @@ namespace Private
 		virtual EAsyncOpState GetState() const = 0;
 		virtual void SetOnProgress(TDelegate<void(const FAsyncProgress&)>&& Delegate) = 0;
 		virtual void SetOnWillRetry(TDelegate<void(TOnlineAsyncOpHandle<OpType>&, const FWillRetry&)>&& Delegate) = 0;
-		virtual void SetOnComplete(TDelegate<void(const TOnlineResult<typename OpType::Result>&)>&& Delegate) = 0;
+		virtual void SetOnComplete(TDelegate<void(const TOnlineResult<OpType>&)>&& Delegate) = 0;
 	};
 }
 
@@ -469,7 +470,7 @@ public:
 	template <typename... ArgTypes>
 	TOnlineAsyncOpHandle& OnComplete(ArgTypes&&... Args)
 	{
-		State->SetOnComplete(Private::ConstructDelegate<void(const TOnlineResult<typename OpType::Result>&)>(Forward<ArgTypes>(Args)...));
+		State->SetOnComplete(Private::ConstructDelegate<void(const TOnlineResult<OpType>&)>(Forward<ArgTypes>(Args)...));
 
 		return *this;
 	}

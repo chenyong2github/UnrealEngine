@@ -86,7 +86,10 @@ struct FTokenString
 {
 	TCHAR String[MAX_STRING_CONST_SIZE];
 
-	FTokenString() { String[0] = 0; }
+	FTokenString()
+	{
+		String[0] = TEXT('\0');
+	}
 
 	const TCHAR* operator *() const
 	{
@@ -99,7 +102,10 @@ struct FTokenValue
 {
 	TCHAR Value[NAME_SIZE];
 
-	FTokenValue() { Value[0] = 0; }
+	FTokenValue()
+	{
+		Value[0] = TEXT('\0');
+	}
 
 	const TCHAR* operator *() const
 	{
@@ -273,7 +279,7 @@ public:
 	void GetTokenValue(FTokenValue& TokenValue) const
 	{
 		Value.CopyString(TokenValue.Value, Value.Len(), 0);
-		TokenValue.Value[Value.Len()] = 0;
+		TokenValue.Value[Value.Len()] = TEXT('\0');
 	}
 
 	// Return the token value as a null terminated string.
@@ -294,21 +300,21 @@ public:
 			TCHAR* Out = TokenString.String;;
 			const TCHAR* Pos = &Value[1];
 			TCHAR c = *Pos++;
-			while (c != '"')
+			while (c != TEXT('"'))
 			{
-				if (c == '\\')
+				if (c == TEXT('\\'))
 				{
 					c = *Pos++;
-					if (c == 'n')
+					if (c == TEXT('n'))
 					{
 						// Newline escape sequence.
-						c = '\n';
+						c = TEXT('\n');
 					}
 				}
 				*Out++ = c;
 				c = *Pos++;
 			}
-			*Out++ = 0;
+			*Out++ = TEXT('\0');
 			// If this fails, GetToken has a bug/mismatch
 			check(Out - TokenString.String < MAX_STRING_CONST_SIZE);
 			break;
@@ -318,24 +324,24 @@ public:
 		{
 			TCHAR ActualCharLiteral = Value[1];
 
-			if (ActualCharLiteral == '\\')
+			if (ActualCharLiteral == TEXT('\\'))
 			{
 				ActualCharLiteral = Value[2];
 				switch (ActualCharLiteral)
 				{
 				case TCHAR('t'):
-					ActualCharLiteral = '\t';
+					ActualCharLiteral = TEXT('\t');
 					break;
 				case TCHAR('n'):
-					ActualCharLiteral = '\n';
+					ActualCharLiteral = TEXT('\n');
 					break;
 				case TCHAR('r'):
-					ActualCharLiteral = '\r';
+					ActualCharLiteral = TEXT('\r');
 					break;
 				}
 			}
 			TokenString.String[0] = ActualCharLiteral;
-			TokenString.String[1] = 0;
+			TokenString.String[1] = TEXT('\0');
 			break;
 		}
 
@@ -358,7 +364,7 @@ private:
 		int32 Length = Value.Len();
 		TCHAR* Temp = reinterpret_cast<TCHAR*>(alloca((Length + 1) * sizeof(TCHAR)));
 		Value.CopyString(Temp, Length, 0);
-		Temp[Length] = 0;
+		Temp[Length] = TEXT('\0');
 		return FCString::Atof(Temp);
 	}
 

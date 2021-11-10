@@ -101,7 +101,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 		NumOutputPasses++;
 	}
 
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Passes."), NumOutputPasses);
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Passes. Total resolution: (%dx%d) Individual tile resolution: (%dx%d). Tile count: (%dx%d)"), NumOutputPasses, OutputResolution.X, OutputResolution.Y, BackbufferResolution.X, BackbufferResolution.Y, BackbufferTileCount.X, BackbufferTileCount.Y);
 }
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
@@ -389,9 +389,6 @@ void UMoviePipeline::RenderFrame()
 					SampleState.OverlappedSubpixelShift = FVector2D(0.5f - SpatialShiftX, 0.5f - SpatialShiftY);
 				}
 				SampleState.OverscanPercentage = FMath::Clamp(CameraSettings->OverscanPercentage, 0.0f, 1.0f);
-				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
-				SampleState.WeightFunctionY.InitHelper(SampleState.OverlappedPad.Y, SampleState.TileSize.Y, SampleState.OverlappedPad.Y);
-
 				// Render each output pass
 				for (UMoviePipelineRenderPass* RenderPass : InputBuffers)
 				{
@@ -468,9 +465,11 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	TileImageTask->Format = EImageFormat::EXR;
 	TileImageTask->CompressionQuality = (int32)EImageCompressionQuality::Default;
 
-	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.exr"),
-		*InFrameData->PassIdentifier.Name, InFrameData->SampleState.SpatialSampleIndex, InFrameData->SampleState.TemporalSampleIndex,
-		InFrameData->SampleState.TileIndexes.X, InFrameData->SampleState.TileIndexes.Y, InFrameData->SampleState.OutputState.OutputFrameNumber);
+	FString OutputName = InFrameData->Debug_OverrideFilename.IsEmpty() ?
+		FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.exr"),
+			*InFrameData->PassIdentifier.Name, InFrameData->SampleState.SpatialSampleIndex, InFrameData->SampleState.TemporalSampleIndex,
+			InFrameData->SampleState.TileIndexes.X, InFrameData->SampleState.TileIndexes.Y, InFrameData->SampleState.OutputState.OutputFrameNumber)
+		: InFrameData->Debug_OverrideFilename;
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 	FString OutputPath = OutputDirectory + OutputName;
@@ -485,6 +484,8 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 
 void UMoviePipeline::FlushAsyncEngineSystems()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_MoviePipelineFlushAsyncEngineSystems);
+
 	// Flush Block until Level Streaming completes. This solves the problem where levels that are not controlled
 	// by the Sequencer Level Visibility track are marked for Async Load by a gameplay system.
 	// This will register any new actors/components that were spawned during this frame. This needs 

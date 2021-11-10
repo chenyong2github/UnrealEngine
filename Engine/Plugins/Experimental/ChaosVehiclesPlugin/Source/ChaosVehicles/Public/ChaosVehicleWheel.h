@@ -169,11 +169,11 @@ class UChaosWheeledVehicleMovementComponent;
 		float SpringPreload;
 
 		/** Smooth suspension [0-off, 10-max] - Warning might cause momentary visual inter-penetration of the wheel against objects/terrain */
-		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "10"))
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (ClampMin = "0.0", UIMin = "0", ClampMax = "10.0", UIMax = "10"))
 		int SuspensionSmoothing;
 
 		/** Anti-roll effect */
-		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "1"))
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (ClampMin = "0.0", UIMin = "0", ClampMax = "1.0", UIMax = "1"))
 		float RollbarScaling;
 
 		/** Whether wheel suspension considers simple, complex, or both */

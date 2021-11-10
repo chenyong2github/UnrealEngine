@@ -47,6 +47,7 @@ public:
 	void SetEncryptionKey(const FAES::FAESKey& Key) { ContainerFile.EncryptionKey = Key; }
 	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
 	TIoStatusOr<FIoContainerHeader> ReadContainerHeader() const;
+	void ReopenAllFileHandles();
 
 private:
 	const FIoOffsetAndLength* FindChunkInternal(const FIoChunkId& ChunkId) const;
@@ -86,6 +87,7 @@ public:
 	bool CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest);
+	int64 GetLiveReadRequestsCount() const;
 
 private:
 	FFileIoStoreRequestAllocator& RequestAllocator;
@@ -111,6 +113,7 @@ public:
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	FIoRequestImpl* GetCompletedRequests() override;
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) override;
+	void ReopenAllFileHandles() override;
 
 	virtual bool Init() override;
 	virtual uint32 Run() override;

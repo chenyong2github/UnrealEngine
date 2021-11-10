@@ -4,4 +4,32 @@
 
 #include "CoreMinimal.h"
 
+struct FKeyChain;
+
 IOSTOREUTILITIES_API int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine);
+
+IOSTOREUTILITIES_API bool DumpIoStoreContainerInfo(const TCHAR* InContainerFilename, const FKeyChain& InKeyChain);
+
+IOSTOREUTILITIES_API bool LegacyListIoStoreContainer(
+	const TCHAR* InContainerFilename,
+	int64 InSizeFilter,
+	const FString& InCSVFilename,
+	bool bInUseMountPoint,
+	const FKeyChain& InKeyChain);
+
+IOSTOREUTILITIES_API bool LegacyDiffIoStoreContainers(
+	const TCHAR* InContainerFilename1,
+	const TCHAR* InContainerFilename2,
+	bool bInLogUniques1,
+	bool bInLogUniques2,
+	const FKeyChain& InKeyChain);
+
+IOSTOREUTILITIES_API bool ExtractFilesFromIoStoreContainer(
+	const TCHAR* InContainerFilename,
+	const TCHAR* InDestPath,
+	bool bInExtractToMountPoint,
+	const FKeyChain& InKeyChain,
+	const FString* InFilter,
+	TMap<FString, uint64>* OutOrderMap,
+	TArray<FGuid>* OutUsedEncryptionKeys,
+	bool* bOutIsSigned);

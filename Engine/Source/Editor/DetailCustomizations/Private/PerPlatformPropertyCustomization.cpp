@@ -32,7 +32,11 @@ void FPerPlatformPropertyCustomization<PerPlatformType>::CustomizeChildren(TShar
 	TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetPlatformOverrideNames, StructPropertyHandle));
 
 	FPerPlatformPropertyCustomNodeBuilderArgs Args;
-	Args.NameWidget = StructPropertyHandle->CreatePropertyNameWidget();
+	Args.FilterText = StructPropertyHandle->GetPropertyDisplayName();
+	Args.OnGenerateNameWidget = FOnGetContent::CreateLambda([StructPropertyHandle]()
+	{
+		return StructPropertyHandle->CreatePropertyNameWidget();
+	});
 	Args.PlatformOverrideNames = PlatformOverrideNames;
 	Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride, StructPropertyHandle);
 	Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride, StructPropertyHandle);
@@ -289,16 +293,17 @@ void FPerPlatformPropertyCustomNodeBuilder::GenerateHeaderRowContent(FDetailWidg
 		AddPlatformMenuBuilder.EndSection();
 	}
 
-
-	HeaderRow.NameContent()
+	HeaderRow
+	.FilterString(Args.FilterText)
+	.IsEnabled(Args.IsEnabled)
+	.NameContent()
 	[
-		Args.NameWidget.ToSharedRef()
+		Args.OnGenerateNameWidget.Execute()
 	]
 	.ValueContent()
 	.MinDesiredWidth(125+28.0f)
 	[
 		SNew(SHorizontalBox)
-		.IsEnabled(Args.IsEnabled)
 		.ToolTipText(NSLOCTEXT("SPerPlatformPropertiesWidget", "DefaultPlatformDesc", "This property can have per-platform or platform group overrides.\nThis is the default value used when no override has been set for a platform or platform group."))
 		+SHorizontalBox::Slot()
 		[

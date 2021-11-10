@@ -342,7 +342,7 @@ protected:
 
 	void SetActivePrimaryBrushType(int32 Identifier);
 	void SetActiveSecondaryBrushType(int32 Identifier);
-	TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
+	virtual TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
 	void SetBrushOpPropsVisibility(bool bVisible);
 
 	//

@@ -40,7 +40,7 @@ namespace DatasmithRevitExporter
 			}
 			else
 			{
-				Name = $"{Path.GetFileNameWithoutExtension(InMaterial.Document.PathName)}:{InMaterial.UniqueId}";
+				Name = $"{InMaterial.UniqueId}";
 			}
 
 			return FDatasmithFacadeElement.GetStringHash(Name);

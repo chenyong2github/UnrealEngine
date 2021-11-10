@@ -20,6 +20,17 @@ enum class ELoginStatus
 	LoggedIn
 };
 
+inline const TCHAR* LexToString(ELoginStatus LoginStatus)
+{
+	switch (LoginStatus)
+	{
+		case ELoginStatus::NotLoggedIn:			return TEXT("NoLoggedIn"); break;
+		case ELoginStatus::UsingLocalProfile:	return TEXT("UsingLocalProfile"); break;
+		case ELoginStatus::LoggedIn:			return TEXT("LoggedIn"); break;
+		default:								return TEXT("Unknown"); break;
+	}
+}
+
 class FAccountInfo
 {
 public:
@@ -144,12 +155,12 @@ public:
 	/**
 	 * Get logged in user by local user num
 	 */ 
-	virtual TOnlineResult<FAuthGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) = 0;
+	virtual TOnlineResult<FAuthGetAccountByLocalUserNum> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) = 0;
 
 	/**
 	 * Get logged in user by account id
 	 */
-	virtual TOnlineResult<FAuthGetAccountByAccountId::Result> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) = 0;
+	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) = 0;
 
 	/**
 	 * Event triggered when a local user's login status changes
@@ -193,6 +204,22 @@ BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByLocalUserNum::Params)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByLocalUserNum::Params, LocalUserNum)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByLocalUserNum::Result)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByLocalUserNum::Result, AccountInfo)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByAccountId::Params)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByAccountId::Params, LocalUserId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByAccountId::Result)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByAccountId::Result, AccountInfo)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLoginStatusChanged)

@@ -192,12 +192,15 @@ namespace Metasound
 
 			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const
 			{
-				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
-
-				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
+				if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 				{
 					return Entry->CreateNode(InInitData);
 				}
+
+				// Because creation of external nodes can rely on assets being unavailable due to errors in loading order, asset(s)
+				// missing, etc. only log error and don't throw ensure to avoid blocking start-up if assets are missing. All other
+				// CreateNode calls are natively managed and thus better suited to throw ensures.
+				UE_LOG(LogMetaSound, Error, TEXT("Could not find node [RegistryKey:%s]"), *InKey);
 				return nullptr;
 			}
 

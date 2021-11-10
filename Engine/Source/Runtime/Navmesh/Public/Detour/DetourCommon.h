@@ -25,8 +25,6 @@
 #include "CoreMinimal.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
 
-// LWC_TODO_AI: Go through recast and detour and evaluate all floating point literals wrt to making them dtReal compliant. e.g. 1.0f -> dtReal(1.). Must be done prior to 5.0!
-
 // DT_STATS is set from the UE Stats settings
 #define DT_STATS STATS
 
@@ -363,7 +361,7 @@ inline void dtVnormalize(dtReal* v)
 /// close enough to eachother to be considered colocated.
 inline bool dtVequal(const dtReal* p0, const dtReal* p1)
 {
-	static const dtReal thr = dtSqr(1.0f/16384.0f);
+	static const dtReal thr = dtSqr(dtReal(1.)/16384.0f);
 	const dtReal d = dtVdistSqr(p0, p1);
 	return d < thr;
 }

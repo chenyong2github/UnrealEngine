@@ -86,43 +86,54 @@ public:
 
 public:
 
+	/** Returns linker contexts for which this system should not exist */
 	UE::MovieScene::EEntitySystemContext GetExclusionContext() const
 	{
 		return SystemExclusionContext;
 	}
 
+	/** Returns the phase(s) during which this system should be run */
 	UE::MovieScene::ESystemPhase GetPhase() const
 	{
 		return Phase;
 	}
 
+	/** Returns the linker that owns this system */
 	UMovieSceneEntitySystemLinker* GetLinker() const
 	{
 		return Linker;
 	}
 
+	/** Returns the ID of this system in the system graphs */
 	uint16 GetGraphID() const
 	{
 		return GraphID;
 	}
+	/** Sets the ID of this system in the system graphs */
 	void SetGraphID(uint16 InGraphID)
 	{
 		GraphID = InGraphID;
 	}
 
+	/** Gets the ID of this system's type in the global dependency graph */
 	uint16 GetGlobalDependencyGraphID() const
 	{
 		return GlobalDependencyGraphID;
 	}
 
+	/** Called when the system is removed from the linker */
 	void Unlink();
 
+	/** Called when the linker is being destroyed */
 	void Abandon();
 
+	/** Called when the system is added to a linker */
 	void Link(UMovieSceneEntitySystemLinker* InLinker);
 
+	/** Called when the system should run its logic */
 	void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
+	/** Called to know if the system is still relevant and should be kept around */
 	bool IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const;
 
 	void ConditionalLinkSystem(UMovieSceneEntitySystemLinker* InLinker) const;

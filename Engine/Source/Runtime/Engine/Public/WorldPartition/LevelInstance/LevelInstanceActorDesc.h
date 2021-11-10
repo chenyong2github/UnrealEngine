@@ -24,7 +24,8 @@ class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc, publ
 public:
 	inline FName GetLevelPackage() const { return LevelPackage; }
 
-	virtual bool GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
+	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
+
 protected:
 	FLevelInstanceActorDesc();
 	virtual void Init(const AActor* InActor) override;
@@ -35,12 +36,18 @@ protected:
 	{
 		return TEXT("FLevelInstanceActorDesc");
 	}
-	virtual void OnUnregister();
+	virtual void OnRegister(UWorld* InWorld) override;
+	virtual void OnUnregister() override;
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 
-	mutable TObjectPtr<const UActorDescContainer> LevelInstanceContainer;
+	TObjectPtr<UActorDescContainer> LevelInstanceContainer;
+
+private:
+	static UActorDescContainer* RegisterActorDescContainer(FName PackageName, UWorld* InWorld);
+	static bool UnregisterActorDescContainer(UActorDescContainer* Container);
+	static TMap<FName, TWeakObjectPtr<UActorDescContainer>> ActorDescContainers;
 #endif
 };

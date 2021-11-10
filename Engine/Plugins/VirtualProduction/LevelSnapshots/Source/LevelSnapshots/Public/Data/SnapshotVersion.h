@@ -18,6 +18,8 @@ struct LEVELSNAPSHOTS_API FSnapshotFileVersionInfo
 	/** Initialize this version info from the compiled in data */
 	void Initialize();
 
+	FString ToString() const;
+
 	/* UE4 File version */
 	UPROPERTY()
 	int32 FileVersionUE4 = 0;
@@ -28,7 +30,7 @@ struct LEVELSNAPSHOTS_API FSnapshotFileVersionInfo
 	
 	/* Licensee file version */
 	UPROPERTY()
-	int32 FileVersionLicensee;
+	int32 FileVersionLicensee = 0;
 };
 
 /** Holds engine version information */
@@ -39,6 +41,8 @@ struct LEVELSNAPSHOTS_API FSnapshotEngineVersionInfo
 
 	/** Initialize this version info from the given version */
 	void Initialize(const FEngineVersion& InVersion);
+
+	FString ToString() const;
 
 	/** Major version number */
 	UPROPERTY()
@@ -66,6 +70,12 @@ struct LEVELSNAPSHOTS_API FSnapshotCustomVersionInfo
 	/** Initialize this version info from the given version */
 	void Initialize(const FCustomVersion& InVersion);
 
+	friend FArchive& operator<<(FArchive& Archive, FSnapshotCustomVersionInfo& VersionInfo)
+	{
+		Archive << VersionInfo.FriendlyName;
+		return Archive;
+	}
+	
 	/** Friendly name of the version */
 	UPROPERTY()
 	FName FriendlyName;
@@ -90,6 +100,8 @@ struct LEVELSNAPSHOTS_API FSnapshotVersionInfo
 	bool IsInitialized() const;
 
 	void ApplyToArchive(FArchive& Archive) const;
+
+	FString ToString() const;
 	
 	/** @return The saved version for this plugin or -1 if none is available. */
 	int32 GetSnapshotCustomVersion() const;

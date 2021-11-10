@@ -27,6 +27,7 @@ public class OculusEditor : ModuleRules
 				"DesktopPlatform",
                 "LauncherServices",
                 "GameProjectGeneration",
+				"SharedSettingsWidgets",
             }
 			);
 

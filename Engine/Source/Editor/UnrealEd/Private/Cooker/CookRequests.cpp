@@ -19,24 +19,31 @@ namespace Cook
 	//////////////////////////////////////////////////////////////////////////
 	// FFilePlatformRequest
 
-	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename)
-		:FFilePlatformRequest(InFilename, TArray<const ITargetPlatform*>(), FCompletionCallback())
+	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator)
+		:FFilePlatformRequest(InFilename, MoveTemp(InInstigator),
+			TArray<const ITargetPlatform*>(), FCompletionCallback())
 	{
 	}
 
-	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, const ITargetPlatform* InPlatform, FCompletionCallback&& InCompletionCallback)
-		:FFilePlatformRequest(InFilename, TArrayView<const ITargetPlatform* const>({ InPlatform }), MoveTemp(InCompletionCallback))
+	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator, 
+		const ITargetPlatform* InPlatform, FCompletionCallback&& InCompletionCallback)
+		:FFilePlatformRequest(InFilename, MoveTemp(InInstigator),
+			TArrayView<const ITargetPlatform* const>({ InPlatform }), MoveTemp(InCompletionCallback))
 	{
 	}
 
-	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, const TArrayView<const ITargetPlatform* const>& InPlatforms, FCompletionCallback&& InCompletionCallback)
-		:FFilePlatformRequest(InFilename, TArray<const ITargetPlatform*>(InPlatforms.GetData(), InPlatforms.Num()), MoveTemp(InCompletionCallback))
+	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator,
+		const TArrayView<const ITargetPlatform* const>& InPlatforms, FCompletionCallback&& InCompletionCallback)
+		:FFilePlatformRequest(InFilename, MoveTemp(InInstigator),
+			TArray<const ITargetPlatform*>(InPlatforms.GetData(), InPlatforms.Num()), MoveTemp(InCompletionCallback))
 	{
 	}
 
-	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, TArray<const ITargetPlatform*>&& InPlatforms, FCompletionCallback&& InCompletionCallback)
+	FFilePlatformRequest::FFilePlatformRequest(const FName& InFilename, FInstigator&& InInstigator,
+		TArray<const ITargetPlatform*>&& InPlatforms, FCompletionCallback&& InCompletionCallback)
 		: Platforms(MoveTemp(InPlatforms))
 		, CompletionCallback(MoveTemp(InCompletionCallback))
+		, Instigator(MoveTemp(InInstigator))
 	{
 		SetFilename(InFilename.ToString());
 	}
@@ -44,6 +51,7 @@ namespace Cook
 	FFilePlatformRequest::FFilePlatformRequest(const FFilePlatformRequest& InFilePlatformRequest)
 		: Filename(InFilePlatformRequest.Filename)
 		, Platforms(InFilePlatformRequest.Platforms)
+		, Instigator(InFilePlatformRequest.Instigator)
 	{
 		check(!InFilePlatformRequest.CompletionCallback); // CompletionCallbacks can not be copied, so the caller's intent is not clear in this constructor if the input has one
 	}
@@ -52,6 +60,7 @@ namespace Cook
 		: Filename(MoveTemp(InFilePlatformRequest.Filename))
 		, Platforms(MoveTemp(InFilePlatformRequest.Platforms))
 		, CompletionCallback(MoveTemp(InFilePlatformRequest.CompletionCallback))
+		, Instigator(MoveTemp(InFilePlatformRequest.Instigator))
 	{
 	}
 
@@ -61,6 +70,7 @@ namespace Cook
 		Platforms = MoveTemp(InFileRequest.Platforms);
 		check(!CompletionCallback); // We don't support holding multiple completion callbacks
 		CompletionCallback = MoveTemp(InFileRequest.CompletionCallback);
+		Instigator = MoveTemp(InFileRequest.Instigator);
 		return *this;
 	}
 
@@ -72,6 +82,11 @@ namespace Cook
 	const FName& FFilePlatformRequest::GetFilename() const
 	{
 		return Filename;
+	}
+
+	FInstigator& FFilePlatformRequest::GetInstigator()
+	{
+		return Instigator;
 	}
 
 	const TArray<const ITargetPlatform*>& FFilePlatformRequest::GetPlatforms() const

@@ -51,7 +51,7 @@ namespace RemoteControlUIModule
 		Toolkit->InitRemoteControlPresetEditor(Mode, EditWithinLevelEditor, Preset);
 	}
 
-	bool IsWhitelistedTransientObject(UObject* Object)
+	bool IsTransientObjectAllowListed(UObject* Object)
 	{
 		return Object && Object->IsA<UDEditorParameterValue>();
 	}
@@ -342,7 +342,7 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyH
 				}
 
 				// Don't display an expose icon for transient objects such as material editor parameters.
-				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient) && !RemoteControlUIModule::IsWhitelistedTransientObject(OuterObjects[0]))
+				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient) && !RemoteControlUIModule::IsTransientObjectAllowListed(OuterObjects[0]))
 				{
 					return false;
 				}

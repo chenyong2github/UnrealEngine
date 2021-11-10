@@ -156,6 +156,7 @@ public:
 		int64 MediaLocalFirstAUTime = 0;			//!< Time of the first AU to use in this segment in media local time
 		int64 MediaLocalLastAUTime = 0;				//!< Time at which the last AU to use in thie segment ends in media local time
 		uint32 Timescale = 0;						//!< Local media timescale
+		bool bFrameAccuracyRequired = false;		//!< true if the segment was located for frame accurate seeking.
 		bool bIsSideload = false;					//!< true if this is a side-loaded resource to be fetched and cached.
 		bool bIsLastInPeriod = false;				//!< true if known to be the last segment in the period.
 		bool bMayBeMissing = false;					//!< true if the last segment in <SegmentTemplate> that might not exist.
@@ -206,9 +207,11 @@ public:
 	{
 		FTimeValue PeriodLocalTime;					//!< Time local in the period to search a segment for.
 		FTimeValue PeriodDuration;					//!< Duration of the period. Needed to determine the number of segments in the period.
+		FTimeValue PeriodPresentationEnd;			//!< End time of the presetation in period local time, if not set to invalid or infinity.
 		IManifest::ESearchType SearchType = IManifest::ESearchType::Closest;
 		int64 RequestID = 0;						//!< Sequential request ID across all segments during playback, needed to re-resolve potential UrlQueryInfo xlinks.
 		bool bHasFollowingPeriod = false;			//!< true if we know for sure there is another period following.
+		bool bFrameAccurateSearch = false;			//!< true to prepare segments for frame-accurate decoding and rendering
 	};
 
 	class FRepresentation : public IPlaybackAssetRepresentation, public TSharedFromThis<FRepresentation, ESPMode::ThreadSafe>
@@ -796,8 +799,10 @@ public:
 	FTimeRange GetSeekableTimeRange() const;
 	void GetSeekablePositions(TArray<FTimespan>& OutPositions) const;
 	FTimeValue GetDuration() const;
+	void PrepareDefaultStartTime();
 	FTimeValue GetDefaultStartTime() const;
 	void ClearDefaultStartTime();
+	FTimeRange GetPlayTimesFromURI() const;
 
 	FTimeValue GetMPDValidityEndTime() const;
 	FTimeValue GetLastPeriodEndTime() const;
@@ -816,7 +821,6 @@ private:
 	int32 ReplaceElementWithRemoteEntities(TSharedPtrTS<IDashMPDElement> Element, const FDashMPD_RootEntities& NewRootEntities, int64 OldResolveID, int64 NewResolveID);
 
 	FTimeValue CalculateDistanceToLiveEdge() const;
-	FTimeRange GetPlayTimesFromURI() const;
 
 	bool CanUseEncryptedAdaptation(const TSharedPtrTS<FAdaptationSet>& InAdaptationSet);
 
@@ -839,6 +843,7 @@ private:
 
 	mutable FTimeRange TotalTimeRange;
 	mutable FTimeRange SeekableTimeRange;
+	FTimeValue DefaultStartTime;
 };
 
 

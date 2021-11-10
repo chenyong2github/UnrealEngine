@@ -7,6 +7,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/RingBuffer.h"
 #include "CookOnTheSide/CookLog.h"
+#include "Engine/ICookInfo.h"
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
@@ -133,7 +134,7 @@ namespace UE::Cook::Private
 }
 
 UCLASS()
-class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorObject, public FExec
+class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorObject, public FExec, public UE::Cook::ICookInfo
 {
 	GENERATED_BODY()
 
@@ -340,14 +341,16 @@ private:
 	 * @param bOutWasInProgress		Report whether the package was already in progress.
 	 * @return						Returns the PackageData for this queued package.
 	 */
-	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, bool* bOutWasInProgress = nullptr);
+	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, UE::Cook::FInstigator&& Instigator,
+		bool* bOutWasInProgress = nullptr);
 	/**
 	 * Inspect the given package and queue it for saving if necessary.
 	 *
 	 * @param PackageData			The PackageData to be considered for saving.
 	 * @param bLoadReady			If true send on to LoadReady, otherwise add it at the Request stage.
 	 */
-	void QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, bool bLoadReady = false);
+	void QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator,
+		bool bLoadReady = false);
 
 	/** Check whether the package filter has change, and if so call QueueDiscoveredPackage again on each existing package. */
 	void UpdatePackageFilter();
@@ -388,6 +391,11 @@ public:
 	* FExec interface used in the editor
 	*/
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+	/**
+	* ICookInfo interface
+	*/
+	virtual UE::Cook::FInstigator GetInstigator(FName PackageName) override;
 
 	/**
 	 * Dumps cooking stats to the log
@@ -465,7 +473,8 @@ public:
 	TArray<UPackage*> GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const;
 
 	/** Execute class-specific special case cook postloads and reference discovery on a given package. */
-	void PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames = nullptr);
+	void PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames,
+		TMap<FName, UE::Cook::FInstigator>* OutInstigators);
 
 	/**
 	* Handles cook package requests until there are no more requests, then returns
@@ -669,7 +678,7 @@ private:
 	/**
 	* Collect all the files which need to be cooked for a cook by the book session
 	*/
-	void CollectFilesToCook(TArray<FName>& FilesInPath, 
+	void CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FName, UE::Cook::FInstigator>& Instigators,
 		const TArray<FString>& CookMaps, const TArray<FString>& CookDirectories, 
 		const TArray<FString>& IniMapSections, ECookByTheBookOptions FilesToCookFlags,
 		const TArrayView<const ITargetPlatform* const>& TargetPlatforms,
@@ -687,7 +696,8 @@ private:
 	/**
 	* AddFileToCook add file to cook list 
 	*/
-	void AddFileToCook( TArray<FName>& InOutFilesToCook, const FString &InFilename ) const;
+	void AddFileToCook( TArray<FName>& InOutFilesToCook, TMap<FName, UE::Cook::FInstigator>& InOutInstigators,
+		const FString &InFilename, const UE::Cook::FInstigator& Instigator) const;
 
 	/**
 	* Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library.
@@ -768,7 +778,7 @@ private:
 
 	/** Perform any special processing for freshly loaded packages 
 	 */
-	void ProcessUnsolicitedPackages(TArray<FName>* OutDiscoveredPackageNames = nullptr);
+	void ProcessUnsolicitedPackages(TArray<FName>* OutDiscoveredPackageNames = nullptr, TMap<FName, UE::Cook::FInstigator>* OutInstigators = nullptr);
 
 	/**
 	 * Loads a package and prepares it for cooking
@@ -1030,7 +1040,7 @@ private:
 	void RefreshPlatformAssetRegistries(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
 
 	/** Generates long package names for all files to be cooked */
-	void GenerateLongPackageNames(TArray<FName>& FilesInPath);
+	void GenerateLongPackageNames(TArray<FName>& FilesInPath, TMap<FName, UE::Cook::FInstigator>& Instigators);
 
 	/** Return the PackageNameCache that is caching FileNames on disk for this CookOnTheFlyServer. */
 	const FPackageNameCache& GetPackageNameCache() const;

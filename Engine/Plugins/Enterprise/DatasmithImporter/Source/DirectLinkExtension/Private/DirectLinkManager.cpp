@@ -2,8 +2,9 @@
 
 #include "DirectLinkManager.h"
 
-#include "DirectLinkUriResolver.h"
+#include "DirectLinkAssetObserver.h"
 #include "DirectLinkExternalSource.h"
+#include "DirectLinkUriResolver.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -32,6 +33,7 @@ namespace UE::DatasmithImporter
 
 	FDirectLinkManager::FDirectLinkManager()
 		: Endpoint(MakeUnique<DirectLink::FEndpoint>(TEXT("UE5-Editor")))
+		, AssetObserver(MakeUnique<FDirectLinkAssetObserver>(*this))
 	{
 		Endpoint->AddEndpointObserver(this);
 	}
@@ -39,6 +41,12 @@ namespace UE::DatasmithImporter
 	FDirectLinkManager::~FDirectLinkManager()
 	{
 		Endpoint->RemoveEndpointObserver(this);
+
+		// Make sure all DirectLink external source become stales and their delegates stripped.
+		for (const TPair<FSourceUri, TSharedRef<FDirectLinkExternalSource>>& UriExternalSourcePair : UriToExternalSourceMap)
+		{
+			UriExternalSourcePair.Value->Invalidate();
+		}
 	}
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkManager::GetOrCreateExternalSource(const DirectLink::FSourceHandle& SourceHandle)
@@ -208,53 +216,90 @@ namespace UE::DatasmithImporter
 		DirectLinkExternalSource->Invalidate();
 	}
 
-
-	bool FDirectLinkManager::SetAssetAutoReimport(UObject* InAsset, bool bEnableAutoReimport)
+	bool FDirectLinkManager::IsAssetAutoReimportEnabled(UObject* InAsset) const
 	{
-		if (!bEnableAutoReimport)
-		{
-			// Disable auto-reimport for InAsset.
-			if (const TSharedRef<FAutoReimportInfo>* AutoReimportInfoPtr = RegisteredAutoReimportObjectMap.Find(InAsset))
-			{
-				// Holding a local reference to the FAutoReimportInfo to ensure its lifetime while we are cleaning up.
-				const TSharedRef<FAutoReimportInfo> AutoReimportInfo(*AutoReimportInfoPtr);
+		return RegisteredAutoReimportObjectMap.Find(InAsset) != nullptr;
+	}
 
-				AutoReimportInfo->ExternalSource->OnExternalSourceLoaded.Remove(AutoReimportInfo->ImportDelegateHandle);
-				RegisteredAutoReimportObjectMap.Remove(InAsset);
-				RegisteredAutoReimportExternalSourceMap.RemoveSingle(AutoReimportInfo->ExternalSource, AutoReimportInfo);
+	bool FDirectLinkManager::SetAssetAutoReimport(UObject* InAsset, bool bEnabled)
+	{
+		return bEnabled ? EnableAssetAutoReimport(InAsset) : DisableAssetAutoReimport(InAsset);
+	}
+
+	bool FDirectLinkManager::EnableAssetAutoReimport(UObject* InAsset)
+	{	
+		// Enable auto-reimport for InAsset.
+		FAssetData AssetData(InAsset);
+		const FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
+		const bool bIsValidDirectLinkUri = Uri.IsValid() && Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
+
+		if (bIsValidDirectLinkUri && !RegisteredAutoReimportObjectMap.Contains(InAsset))
+		{
+			if (TSharedRef<FDirectLinkExternalSource>* ExternalSource = UriToExternalSourceMap.Find(Uri))
+			{
+				// Register a delegate triggering a reimport task on the external source snapshotupdate event.
+				// That way the asset will be auto-reimported and kept up-to-date.
+				FDelegateHandle DelegateHandle = (*ExternalSource)->OnExternalSourceChanged.AddLambda([this, AssetData = MoveTemp(AssetData)](const TSharedRef<FExternalSource>& ExternalSource) {
+					TriggerAutoReimportOnAsset(AssetData);
+				});
+
+				TSharedRef<FAutoReimportInfo> AutoReimportInfo = MakeShared<FAutoReimportInfo>(InAsset, *ExternalSource, DelegateHandle);
+
+				RegisteredAutoReimportObjectMap.Add(InAsset, AutoReimportInfo);
+				RegisteredAutoReimportExternalSourceMap.Add(*ExternalSource, AutoReimportInfo);
+				(*ExternalSource)->OpenStream();
+
 				return true;
-			}
-		}
-		else
-		{
-			// Enable auto-reimport for InAsset.
-			FSourceUri Uri;
-			const FAssetData AssetData(InAsset);
-			const bool bIsValidDirectLinkUri = GetAssetSourceUri(AssetData, Uri)
-				&& Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
-
-			if (bIsValidDirectLinkUri && !RegisteredAutoReimportObjectMap.Contains(InAsset))
-			{
-				if (TSharedRef<FDirectLinkExternalSource>* ExternalSource = UriToExternalSourceMap.Find(Uri))
-				{
-					// Register a delegate triggering a reimport task on the external source snapshotupdate event.
-					// That way the asset will be auto-reimported and kept up-to-date.
-					FDelegateHandle DelegateHandle = (*ExternalSource)->OnExternalSourceLoaded.AddLambda([AssetData](const TSharedRef<FExternalSource>& ExternalSource) {				
-						UObject* AssetToReimport = AssetData.GetAsset();
-						FReimportManager::Instance()->Reimport(AssetToReimport, /*bAskForNewFileIfMissing*/ false, /*bShowNotification*/ true, /*PreferredReimportFile*/ TEXT(""), /*SpecifiedReimportHandler */ nullptr, /*SourceFileIndex*/ INDEX_NONE, /*bForceNewFile*/ false, /*bAutomated*/ true);
-					});
-
-					TSharedRef<FAutoReimportInfo> AutoReimportInfo = MakeShared<FAutoReimportInfo>(InAsset, *ExternalSource, DelegateHandle);
-
-					RegisteredAutoReimportObjectMap.Add(InAsset, AutoReimportInfo);
-					RegisteredAutoReimportExternalSourceMap.Add(*ExternalSource, AutoReimportInfo);
-
-					return true;
-				}
 			}
 		}
 
 		return false;
+	}
+
+	bool FDirectLinkManager::DisableAssetAutoReimport(UObject* InAsset)
+	{
+		// Disable auto-reimport for InAsset.
+		if (const TSharedRef<FAutoReimportInfo>* AutoReimportInfoPtr = RegisteredAutoReimportObjectMap.Find(InAsset))
+		{
+			// Holding a local reference to the FAutoReimportInfo to ensure its lifetime while we are cleaning up.
+			const TSharedRef<FAutoReimportInfo> AutoReimportInfo(*AutoReimportInfoPtr);
+
+			AutoReimportInfo->ExternalSource->OnExternalSourceChanged.Remove(AutoReimportInfo->ImportDelegateHandle);
+			RegisteredAutoReimportObjectMap.Remove(InAsset);
+			RegisteredAutoReimportExternalSourceMap.RemoveSingle(AutoReimportInfo->ExternalSource, AutoReimportInfo);
+			return true;
+		}
+
+		return false;
+	}
+
+	void FDirectLinkManager::UpdateModifiedRegisteredAsset(UObject* InAsset)
+	{
+		if (!IsAssetAutoReimportEnabled(InAsset))
+		{
+			// Asset is not registered, nothing to update.
+			return;
+		}
+
+		const FAssetData AssetData(InAsset);
+		const FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
+		const bool bIsDirectLinkUri = Uri.IsValid() && Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
+		const TSharedPtr<FExternalSource> UpdatedExternalSource = bIsDirectLinkUri ? GetOrCreateExternalSource(Uri) : nullptr;
+		if (!UpdatedExternalSource)
+		{
+			// Asset was registered for auto reimport but no longer has a DirectLink source, disable auto reimport.
+			DisableAssetAutoReimport(InAsset);
+			return;
+		}
+
+		const bool bHasDirectLinkSourceChanged = RegisteredAutoReimportObjectMap.FindChecked(InAsset)->ExternalSource != UpdatedExternalSource;
+		if (bHasDirectLinkSourceChanged)
+		{
+			// The source changed but is still a DirectLink source.
+			// Since the auto-reimport is asset-driven and not source-driven, keep the auto reimport active with the new source.	
+			DisableAssetAutoReimport(InAsset);
+			EnableAssetAutoReimport(InAsset);
+		}
 	}
 
 	TArray<TSharedRef<FDirectLinkExternalSource>> FDirectLinkManager::GetExternalSourceList() const
@@ -283,18 +328,23 @@ namespace UE::DatasmithImporter
 		return FSourceUri();
 	}
 
-	bool FDirectLinkManager::GetAssetSourceUri(const FAssetData& AssetData, FSourceUri& OutUri) const
+	void FDirectLinkManager::TriggerAutoReimportOnAsset(const FAssetData& AssetData)
 	{
-		const FName SourceUriTagName("SourceUri");
-		const FAssetTagValueRef ValueRef = AssetData.TagsAndValues.FindTag(SourceUriTagName);
+		FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
+		const bool bIsStillValidDirectLinkUri = Uri.IsValid() && Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
 
-		if (ValueRef.IsSet())
+		if (UObject* AssetToReimport = AssetData.GetAsset())
 		{
-			OutUri = FSourceUri(ValueRef.GetValue());
-			return OutUri.IsValid();
+			// Make sure we are not triggering a reimport on an asset that doesn't have a DirectLink source.
+			if (bIsStillValidDirectLinkUri)
+			{
+				FReimportManager::Instance()->Reimport(AssetToReimport, /*bAskForNewFileIfMissing*/ false, /*bShowNotification*/ true, /*PreferredReimportFile*/ TEXT(""), /*SpecifiedReimportHandler */ nullptr, /*SourceFileIndex*/ INDEX_NONE, /*bForceNewFile*/ false, /*bAutomated*/ true);
+			}
+			else
+			{
+				DisableAssetAutoReimport(AssetToReimport);
+			}
 		}
-
-		return false;
 	}
 }
 

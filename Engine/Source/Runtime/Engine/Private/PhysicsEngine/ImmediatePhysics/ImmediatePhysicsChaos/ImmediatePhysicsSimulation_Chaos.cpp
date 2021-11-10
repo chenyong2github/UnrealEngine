@@ -297,8 +297,8 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TArrayCollectionArray<Chaos::FVec3> ParticlePrevXs;
 		Chaos::TArrayCollectionArray<Chaos::FRotation3> ParticlePrevRs;
 
-		FRigidParticleSOAs Particles;
 		FSimpleParticleUniqueIndices UniqueIndices;
+		FRigidParticleSOAs Particles;
 		Chaos::FPBDJointConstraints Joints;
 		FCollisionConstraints Collisions;
 		Chaos::FParticlePairBroadPhase BroadPhase;

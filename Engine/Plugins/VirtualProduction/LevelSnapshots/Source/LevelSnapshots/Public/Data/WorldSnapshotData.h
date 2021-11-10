@@ -36,6 +36,9 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	int32 GetNumSavedActors() const;
 	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath, const FActorSnapshotData& SavedData)> HandleOriginalActorPath) const;
 	bool HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const;
+
+	/** Gets the actor's display label */
+	FString GetActorLabel(const FSoftObjectPath& OriginalObjectPath) const;
 	
 	/** Same as GetPreallocatedActor, only that all data will be serialized into it. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, UPackage* LocalisationSnapshotPackage);
@@ -43,15 +46,6 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	TOptional<FObjectSnapshotData*> GetSerializedClassDefaults(UClass* Class);  
 	
 public: /* Serialisation functions */
-	
-	/**
-	 * Adds a subobject to SerializedObjectReferences and CustomSubobjectSerializationData.
-	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
-	 */
-	int32 AddCustomSubobjectDependency(UObject* ReferenceFromOriginalObject);
-	FCustomSerializationData* GetCustomSubobjectData_ForSubobject(const FSoftObjectPath& ReferenceFromOriginalObject);
-	const FCustomSerializationData* GetCustomSubobjectData_ForActorOrSubobject(UObject* OriginalObject) const;
-
 	
 	void AddClassDefault(UClass* Class);
 	UObject* GetClassDefault(UClass* Class);
@@ -65,11 +59,17 @@ public: /* Serialisation functions */
 	const FSnapshotVersionInfo& GetSnapshotVersionInfo() const;
 	
 	//~ Begin TStructOpsTypeTraits Interface
+	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
 	//~ End TStructOpsTypeTraits Interface
+
+	void CollectReferencesAndNames(FArchive& Ar);
+	void CollectActorReferences(FArchive& Ar);
+	void CollectClassDefaultReferences(FArchive& Ar);
 	
 public:
-	
+
+	void PreloadClassesForRestore(const FPropertySelectionMap& SelectionMap);
 	void ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
@@ -77,6 +77,7 @@ public:
 	
 	
 	/* The world we will be adding temporary actors to */
+	UPROPERTY(Transient)
 	TWeakObjectPtr<UWorld> TempActorWorld;
 
 	/**
@@ -102,6 +103,7 @@ public:
 	UPROPERTY()
 	TMap<FSoftObjectPath, FActorSnapshotData> ActorData;
 
+	
 
 	
 	/** Whenever an object needs to serialize a name, we add it to this array and serialize an index to this array. */
@@ -136,13 +138,23 @@ public:
 	 */
 	UPROPERTY()
 	TMap<int32, FCustomSerializationData> CustomSubobjectSerializationData;
+
+
+	/** Binds every entry in SerializedNames to its index. Speeds up adding unique names. */
+	UPROPERTY(Transient)
+	TMap<FName, int32> NameToIndex;
+	
+	/** Binds every entry in SerializedObjectReferences to its index. Speeds up adding unique references. */
+    UPROPERTY(Transient)
+    TMap<FSoftObjectPath, int32> ReferenceToIndex;
 };
 
 template<>
 struct TStructOpsTypeTraits<FWorldSnapshotData> : public TStructOpsTypeTraitsBase2<FWorldSnapshotData>
 {
 	enum 
-	{ 
+	{
+		WithSerializer = true,
 		WithPostSerialize = true
 	};
 };

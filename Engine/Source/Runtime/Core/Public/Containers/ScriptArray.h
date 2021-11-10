@@ -42,12 +42,22 @@ public:
 		checkSlow(ArrayMax>=ArrayNum);
 		return ArrayNum;
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::InsertZeroed without an alignment parameter is deprecated.")
 	void InsertZeroed( int32 Index, int32 Count, int32 NumBytesPerElement )
 	{
-		Insert( Index, Count, NumBytesPerElement );
+		InsertZeroed( Index, Count, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__ );
+	}
+	void InsertZeroed( int32 Index, int32 Count, int32 NumBytesPerElement, uint32 AlignmentOfElement )
+	{
+		Insert( Index, Count, NumBytesPerElement, AlignmentOfElement );
 		FMemory::Memzero( (uint8*)this->GetAllocation()+Index*NumBytesPerElement, Count*NumBytesPerElement );
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::Insert without an alignment parameter is deprecated.")
 	void Insert( int32 Index, int32 Count, int32 NumBytesPerElement )
+	{
+		Insert(Index, Count, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void Insert( int32 Index, int32 Count, int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	{
 		check(Count>=0);
 		check(ArrayNum>=0);
@@ -58,7 +68,7 @@ public:
 		const int32 OldNum = ArrayNum;
 		if( (ArrayNum+=Count)>ArrayMax )
 		{
-			ResizeGrow(OldNum, NumBytesPerElement);
+			ResizeGrow(OldNum, NumBytesPerElement, AlignmentOfElement);
 		}
 		FMemory::Memmove
 		(
@@ -67,7 +77,12 @@ public:
 			                                               (OldNum-Index)*NumBytesPerElement
 		);
 	}
-	int32 Add( int32 Count, int32 NumBytesPerElement )
+	UE_DEPRECATED(5.0, "TScriptArray::Add without an alignment parameter is deprecated.")
+	int32 Add(int32 Count, int32 NumBytesPerElement)
+	{
+		return Add(Count, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	int32 Add( int32 Count, int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	{
 		check(Count>=0);
 		checkSlow(ArrayNum>=0);
@@ -76,41 +91,61 @@ public:
 		const int32 OldNum = ArrayNum;
 		if( (ArrayNum+=Count)>ArrayMax )
 		{
-			ResizeGrow(OldNum, NumBytesPerElement);
+			ResizeGrow(OldNum, NumBytesPerElement, AlignmentOfElement);
 		}
 
 		return OldNum;
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::AddZeroed without an alignment parameter is deprecated.")
 	int32 AddZeroed( int32 Count, int32 NumBytesPerElement )
 	{
-		const int32 Index = Add( Count, NumBytesPerElement );
+		return AddZeroed(Count, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	int32 AddZeroed( int32 Count, int32 NumBytesPerElement, uint32 AlignmentOfElement )
+	{
+		const int32 Index = Add( Count, NumBytesPerElement, AlignmentOfElement );
 		FMemory::Memzero( (uint8*)this->GetAllocation()+Index*NumBytesPerElement, Count*NumBytesPerElement );
 		return Index;
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::Shrink without an alignment parameter is deprecated.")
 	void Shrink( int32 NumBytesPerElement )
+	{
+		Shrink(NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void Shrink( int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	{
 		checkSlow(ArrayNum>=0);
 		checkSlow(ArrayMax>=ArrayNum);
 		if (ArrayNum != ArrayMax)
 		{
-			ResizeTo(ArrayNum, NumBytesPerElement);
+			ResizeTo(ArrayNum, NumBytesPerElement, AlignmentOfElement);
 		}
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::MoveAssign without an alignment parameter is deprecated.")
 	void MoveAssign(TScriptArray& Other, int32 NumBytesPerElement)
 	{
+		MoveAssign(Other, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void MoveAssign(TScriptArray& Other, int32 NumBytesPerElement, uint32 AlignmentOfElement)
+	{
 		checkSlow(this != &Other);
-		Empty(0, NumBytesPerElement);
+		Empty(0, NumBytesPerElement, AlignmentOfElement);
 		this->MoveToEmpty(Other);
 		ArrayNum = Other.ArrayNum; Other.ArrayNum = 0;
 		ArrayMax = Other.ArrayMax; Other.ArrayMax = 0;
 	}
+	UE_DEPRECATED(5.0, "TScriptArray::Empty without an alignment parameter is deprecated.")
 	void Empty( int32 Slack, int32 NumBytesPerElement )
+	{
+		Empty(Slack, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void Empty( int32 Slack, int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	{
 		checkSlow(Slack>=0);
 		ArrayNum = 0;
 		if (Slack != ArrayMax)
 		{
-			ResizeTo(Slack, NumBytesPerElement);
+			ResizeTo(Slack, NumBytesPerElement, AlignmentOfElement);
 		}
 	}
 	void SwapMemory(int32 A, int32 B, int32 NumBytesPerElement )
@@ -137,8 +172,13 @@ public:
 	{
 		return ArrayMax - ArrayNum;
 	}
-		
+
+	UE_DEPRECATED(5.0, "TScriptArray::Remove without an alignment parameter is deprecated.")
 	void Remove( int32 Index, int32 Count, int32 NumBytesPerElement  )
+	{
+		Remove(Index, Count, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void Remove( int32 Index, int32 Count, int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	{
 		if (Count)
 		{
@@ -160,7 +200,7 @@ public:
 			}
 			ArrayNum -= Count;
 
-			ResizeShrink(NumBytesPerElement);
+			ResizeShrink(NumBytesPerElement, AlignmentOfElement);
 			checkSlow(ArrayNum >= 0);
 			checkSlow(ArrayMax >= ArrayNum);
 		}
@@ -168,40 +208,45 @@ public:
 
 protected:
 
-	TScriptArray( int32 InNum, int32 NumBytesPerElement  )
+	UE_DEPRECATED(5.0, "FScriptArray::TScriptArray without an alignment parameter is deprecated.")
+	TScriptArray(int32 InNum, int32 NumBytesPerElement)
+		: TScriptArray(InNum, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__)
+	{
+	}
+	TScriptArray( int32 InNum, int32 NumBytesPerElement, uint32 AlignmentOfElement )
 	:   ArrayNum( 0 )
 	,	ArrayMax( InNum )
 
 	{
 		if (ArrayMax)
 		{
-			ResizeInit(NumBytesPerElement);
+			ResizeInit(NumBytesPerElement, AlignmentOfElement);
 		}
 		ArrayNum = InNum;
 	}
 	int32	  ArrayNum;
 	int32	  ArrayMax;
 
-	FORCENOINLINE void ResizeInit(int32 NumBytesPerElement)
+	FORCENOINLINE void ResizeInit(int32 NumBytesPerElement, uint32 AlignmentOfElement)
 	{
-		ArrayMax = this->CalculateSlackReserve(ArrayMax, NumBytesPerElement);
-		this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement);
+		ArrayMax = this->CalculateSlackReserve(ArrayMax, NumBytesPerElement, AlignmentOfElement);
+		this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
 	}
-	FORCENOINLINE void ResizeGrow(int32 OldNum, int32 NumBytesPerElement)
+	FORCENOINLINE void ResizeGrow(int32 OldNum, int32 NumBytesPerElement, uint32 AlignmentOfElement)
 	{
-		ArrayMax = this->CalculateSlackGrow(ArrayNum, ArrayMax, NumBytesPerElement);
-		this->ResizeAllocation(OldNum, ArrayMax, NumBytesPerElement);
+		ArrayMax = this->CalculateSlackGrow(ArrayNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
+		this->ResizeAllocation(OldNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
 	}
-	FORCENOINLINE void ResizeShrink(int32 NumBytesPerElement)
+	FORCENOINLINE void ResizeShrink(int32 NumBytesPerElement, uint32 AlignmentOfElement)
 	{
-		const int32 NewArrayMax = this->CalculateSlackShrink(ArrayNum, ArrayMax, NumBytesPerElement);
+		const int32 NewArrayMax = this->CalculateSlackShrink(ArrayNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
 		if (NewArrayMax != ArrayMax)
 		{
 			ArrayMax = NewArrayMax;
-			this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement);
+			this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
 		}
 	}
-	FORCENOINLINE void ResizeTo(int32 NewMax, int32 NumBytesPerElement)
+	FORCENOINLINE void ResizeTo(int32 NewMax, int32 NumBytesPerElement, uint32 AlignmentOfElement)
 	{
 		if (NewMax)
 		{
@@ -210,7 +255,7 @@ protected:
 		if (NewMax != ArrayMax)
 		{
 			ArrayMax = NewMax;
-			this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement);
+			this->ResizeAllocation(ArrayNum, ArrayMax, NumBytesPerElement, AlignmentOfElement);
 		}
 	}
 public:
@@ -229,14 +274,24 @@ class FScriptArray : public TScriptArray<FHeapAllocator>
 public:
 	FScriptArray() = default;
 
+	UE_DEPRECATED(5.0, "FScriptArray::MoveAssign without an alignment parameter is deprecated.")
 	void MoveAssign(FScriptArray& Other, int32 NumBytesPerElement)
 	{
-		Super::MoveAssign(Other, NumBytesPerElement);
+		MoveAssign(Other, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+	}
+	void MoveAssign(FScriptArray& Other, int32 NumBytesPerElement, uint32 AlignmentOfElement)
+	{
+		Super::MoveAssign(Other, NumBytesPerElement, AlignmentOfElement);
 	}
 
 protected:
+	UE_DEPRECATED(5.0, "FScriptArray::FScriptArray without an alignment parameter is deprecated.")
 	FScriptArray(int32 InNum, int32 NumBytesPerElement)
-		: TScriptArray<FHeapAllocator>(InNum, NumBytesPerElement)
+		: TScriptArray<FHeapAllocator>(InNum, NumBytesPerElement, __STDCPP_DEFAULT_NEW_ALIGNMENT__)
+	{
+	}
+	FScriptArray(int32 InNum, int32 NumBytesPerElement, uint32 AlignmentOfElement)
+		: TScriptArray<FHeapAllocator>(InNum, NumBytesPerElement, AlignmentOfElement)
 	{
 	}
 

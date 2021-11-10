@@ -4089,8 +4089,11 @@ bool FEngineLoop::LoadStartupCoreModules()
 	{
 #if WITH_UNREAL_DEVELOPER_TOOLS
 		FModuleManager::Get().LoadModule("MessageLog");
-		// Message Logs Developer implementation depends on the Editor style, it should be converted to core styles.
-		FModuleManager::Get().LoadModule("EditorStyle");
+		if (!FPlatformProperties::RequiresCookedData())
+		{
+			// Message Logs Developer implementation depends on the Editor style, it should be converted to core styles.
+			FModuleManager::Get().LoadModule("EditorStyle");
+		}
 #endif	// WITH_UNREAL_DEVELOPER_TOOLS
 #if WITH_EDITOR
 		FModuleManager::Get().LoadModule("CollisionAnalyzer");

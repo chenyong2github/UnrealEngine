@@ -10,7 +10,7 @@ class FDragDropEvent;
 class FDataLayerDragDropOp : public FDecoratedDragDropOp
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FDataLayerDragDropOp, FDragDropOperation)
+	DRAG_DROP_OPERATOR_TYPE(FDataLayerDragDropOp, FDecoratedDragDropOp)
 
 	/** The labels of the layers being dragged */
 	TArray<FName> DataLayerLabels;

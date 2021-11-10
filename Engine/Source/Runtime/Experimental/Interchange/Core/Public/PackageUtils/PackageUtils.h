@@ -26,7 +26,7 @@ namespace UE
 				if (PackageName.Len() > 0)
 				{
 					FString PackagePath;
-					if (FPackageName::DoesPackageExist(PackageName, nullptr, &PackagePath))
+					if (FPackageName::DoesPackageExist(PackageName, &PackagePath))
 					{
 						const FString FileExtension = FPaths::GetExtension(PackagePath, true);
 						if (FileExtension == FPackageName::GetMapPackageExtension())

@@ -22,27 +22,12 @@ TSharedPtr<FConsoleVariablesEditorToolkit> FConsoleVariablesEditorToolkit::Creat
 	return Result;
 }
 
-UConsoleVariablesAsset* FConsoleVariablesEditorToolkit::AllocateTransientPreset() const
-{
-	static const TCHAR* PackageName = TEXT("/Temp/ConsoleVariablesUI/PendingConsoleVariablesCollections");
-
-	static FName DesiredName = "PendingConsoleVariablesCollection";
-
-	UPackage* NewPackage = CreatePackage(PackageName);
-	NewPackage->SetFlags(RF_Transient);
-	NewPackage->AddToRoot();
-
-	UConsoleVariablesAsset* NewPreset = NewObject<UConsoleVariablesAsset>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
-
-	return NewPreset;
-}
-
 void FConsoleVariablesEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	Super::RegisterTabSpawners(InTabManager);
 	
 	InTabManager->RegisterTabSpawner(ConsoleVariablesToolkitPanelTabId, FOnSpawnTab::CreateSP(this, &FConsoleVariablesEditorToolkit::SpawnTab_MainPanel))
-        .SetDisplayName(LOCTEXT("MainPanelTabTitle", "Console Variables UI"))
+        .SetDisplayName(LOCTEXT("MainPanelTabTitle", "Console Variables Editor"))
         .SetGroup(AssetEditorTabsCategory.ToSharedRef());
 }
 
@@ -55,12 +40,12 @@ void FConsoleVariablesEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTab
 
 FText FConsoleVariablesEditorToolkit::GetToolkitName() const
 {
-	return LOCTEXT("EditorNameKey", "Console Variables UI");
+	return LOCTEXT("EditorNameKey", "Console Variables Editor");
 }
 
 FText FConsoleVariablesEditorToolkit::GetToolkitToolTipText() const
 {
-	return LOCTEXT("ConsoleVariablesTooltipKey", "Console Variables UI");
+	return LOCTEXT("ConsoleVariablesTooltipKey", "Console Variables Editor");
 }
 
 FConsoleVariablesEditorToolkit::~FConsoleVariablesEditorToolkit()
@@ -77,11 +62,11 @@ FConsoleVariablesEditorToolkit::~FConsoleVariablesEditorToolkit()
 			}
 		}
 	}
-}
+} // SOverlay, 
 
 void FConsoleVariablesEditorToolkit::Initialize(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost)
 {
-	UConsoleVariablesAsset* EditingAsset = AllocateTransientPreset();
+	TObjectPtr<UConsoleVariablesAsset> EditingAsset = FConsoleVariablesEditorModule::Get().GetEditingAsset();
 
 	// Create our content
 	const TSharedRef<FTabManager::FLayout> Layout = []()
@@ -126,9 +111,11 @@ void FConsoleVariablesEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 			EditingAsset
 			);
 
-	MainPanel = MakeShared<FConsoleVariablesEditorMainPanel>(EditingAsset);
+	MainPanel = MakeShared<FConsoleVariablesEditorMainPanel>();
 
 	InvokePanelTab();
+
+	MainPanel->RefreshList(EditingAsset);
 }
 
 TSharedRef<SDockTab> FConsoleVariablesEditorToolkit::SpawnTab_MainPanel(const FSpawnTabArgs& Args) const
@@ -136,7 +123,7 @@ TSharedRef<SDockTab> FConsoleVariablesEditorToolkit::SpawnTab_MainPanel(const FS
 	// Spawn null widget tab that is immediately closed in favor if an automatically invoked nomad tab
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
-        .Label(LOCTEXT("MainPanelTabTitle", "Console Variables UI"))
+        .Label(LOCTEXT("MainPanelTabTitle", "Console Variables Editor"))
         [
 			SNullWidget::NullWidget
         ];

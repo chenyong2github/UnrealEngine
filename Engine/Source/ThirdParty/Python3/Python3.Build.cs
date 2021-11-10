@@ -126,9 +126,9 @@ public class Python3 : ModuleRules
 
 			PotentialSDKs.AddRange(
 				new PythonSDKPaths[] {
-					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python37.lib") }),
-					//DiscoverPythonSDK("C:/Program Files/Python37"),
-					DiscoverPythonSDK("C:/Python37"),
+					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python39.lib") }),
+					//DiscoverPythonSDK("C:/Program Files/Python39"),
+					DiscoverPythonSDK("C:/Python39"),
 				}
 			);
 		}
@@ -142,7 +142,7 @@ public class Python3 : ModuleRules
 							Path.Combine(PythonSourceTPSDir, "Mac", "include")
 						},
 						new List<string>() {
-							Path.Combine(PythonBinaryTPSDir, "Mac", "lib", "libpython3.7.dylib")
+							Path.Combine(PythonBinaryTPSDir, "Mac", "lib", "libpython3.9.dylib")
 						}),
 				}
 			);
@@ -158,9 +158,9 @@ public class Python3 : ModuleRules
 						new PythonSDKPaths(
 							Path.Combine(PythonBinaryTPSDir, PlatformDir),
 							new List<string>() {
-								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python3.7m")
+								Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python3.9")
 							},
-							new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython3.7m.a") }),
+							new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython3.9.a") }),
 				});
 				PublicSystemLibraries.Add("util");	// part of libc
 			}
@@ -173,7 +173,7 @@ public class Python3 : ModuleRules
 	{
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python3/Linux/lib/libpython3.7m.so.1.0");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python3/Linux/lib/libpython3.9.so.1.0");
 		}
 
 		// Copy python dll alongside the target in monolithic builds. We statically link a python stub that triggers the dll
@@ -181,7 +181,7 @@ public class Python3 : ModuleRules
 		// the executable we can guarantee it will be found and loaded
 		if (Target.Platform == UnrealTargetPlatform.Win64 && Target.LinkType == TargetLinkType.Monolithic && IsEnginePython)
 		{
-			RuntimeDependencies.Add("$(ProjectDir)/Binaries/Win64/python37.dll", "$(EngineDir)/Binaries/ThirdParty/Python3/Win64/python37.dll", StagedFileType.NonUFS);
+			RuntimeDependencies.Add("$(ProjectDir)/Binaries/Win64/python39.dll", "$(EngineDir)/Binaries/ThirdParty/Python3/Win64/python39.dll", StagedFileType.NonUFS);
 		}
 	}
 

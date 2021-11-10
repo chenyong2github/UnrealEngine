@@ -36,8 +36,8 @@ public:
 	bool IsFixedAspectRatio() const;
 	bool IsMaster() const;
 
-	virtual FDelegateHandle RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate);
-	virtual void UnregisterOnPreviewImageChanged(FDelegateHandle DelegateHandle);
+	FDelegateHandle RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate);
+	void UnregisterOnPreviewImageChanged(FDelegateHandle DelegateHandle);
 
 	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
 	virtual bool IsNodeVisible() const override;

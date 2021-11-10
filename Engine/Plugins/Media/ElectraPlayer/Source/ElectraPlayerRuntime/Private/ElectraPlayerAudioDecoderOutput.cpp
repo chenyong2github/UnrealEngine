@@ -18,7 +18,7 @@ public:
 		Reserve(0);
 	}
 
-	void Reserve(uint32 InBufferSizeBytes) override
+	void Reserve(uint32 InBufferSizeBytes) override final
 	{
 		if (InBufferSizeBytes != BufferMaxSizeBytes)
 		{

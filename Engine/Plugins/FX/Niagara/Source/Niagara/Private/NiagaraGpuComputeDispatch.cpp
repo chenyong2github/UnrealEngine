@@ -315,7 +315,7 @@ void FNiagaraGpuComputeDispatch::BuildConstantBuffers(FNiagaraGPUSystemTick& Tic
 	for (const FNiagaraComputeInstanceData& Instance : InstanceData)
 	{
 		HasInterpolationParameters = HasInterpolationParameters || Instance.Context->HasInterpolationParameters;
-		HasMultipleStages = HasMultipleStages || Instance.bUsesSimStages;
+		HasMultipleStages = HasMultipleStages || Instance.bHasMultipleStages;
 	}
 
 	int32 BoundParameterCounts[FNiagaraGPUSystemTick::UBT_NumTypes][2];
@@ -470,7 +470,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
 
-			FViewInfo* DummyView = new(FMemStack::Get().Alloc(sizeof(FViewInfo), alignof(FViewInfo))) FViewInfo(ViewInitOptions);
+			FViewInfo* DummyView = new(FMemStack::Get()) FViewInfo(ViewInitOptions);
 
 			DummyView->ViewRect = DummyView->UnscaledViewRect;
 			DummyView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
@@ -2095,7 +2095,7 @@ void FNiagaraGpuComputeDispatch::UnsetDataInterfaceParameters(FRHICommandList& R
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
 	{
 		const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
-		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
+		const FNiagaraDataInterfaceParamRef& DIParam = DIParameters[InterfaceIndex];
 		if (DIParam.Parameters.IsValid())
 		{
 			FNiagaraDataInterfaceSetArgs Context(Interface, Tick.SystemInstanceID, this, ComputeShader, &InstanceData, &SimStageData, InstanceData.IsOutputStage(Interface, SimStageData.StageIndex), InstanceData.IsIterationStage(Interface, SimStageData.StageIndex));

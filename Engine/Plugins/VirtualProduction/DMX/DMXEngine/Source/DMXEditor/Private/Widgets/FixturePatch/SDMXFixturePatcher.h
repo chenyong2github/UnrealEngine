@@ -37,8 +37,6 @@ public:
 
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 
-		SLATE_EVENT(FSimpleDelegate, OnPatched)
-
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
@@ -59,9 +57,6 @@ public:
 protected:
 	/** Called when the active tab changed */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
-
-	/** Called when entities in the library got updated */
-	void OnEntitiesUpdated(UDMXLibrary* DMXLibrary);
 
 	// Begin SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -85,25 +80,26 @@ protected:
 	virtual void PostRedo(bool bSuccess) override;
 	// End of FEditorUndoClient
 
-protected:
 	/** Finds specified fixture patch in all universes */
 	TSharedPtr<FDMXFixturePatchNode> FindPatchNode(TWeakObjectPtr<UDMXEntityFixturePatch> Patch) const;
 
 	/** Returns first node with same fixture type */
 	TSharedPtr<FDMXFixturePatchNode> FindPatchNodeOfType(UDMXEntityFixtureType* Type, const TSharedPtr<FDMXFixturePatchNode>& IgoredNode) const;
 
-protected:
-	/** Selects a universe */
-	void SelectUniverse(int32 NewUniverseID);
-
-	/** Returns the selected universe */
-	int32 GetSelectedUniverse() const;
+	/** Called when a fixture patch changed */
+	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
 
 	/** Called when a fixture patch was selected */
 	void OnFixturePatchSelectionChanged();
 
 	/** Called when a universe was selected */
 	void OnUniverseSelectionChanged();
+
+	/** Selects a universe */
+	void SelectUniverse(int32 NewUniverseID);
+
+	/** Returns the selected universe */
+	int32 GetSelectedUniverse() const;
 
 	/** Shows the selected universe only */
 	void ShowSelectedUniverse(bool bForceReconstructWidget = false);
@@ -123,6 +119,17 @@ protected:
 	/** Returns true if the library has any ports */
 	bool HasAnyPorts() const;
 
+	/** Enum for states of refreshing required */
+	enum class EDMXRefreshFixturePatcherState : uint8
+	{
+		RefreshFromProperties,
+		RefreshFromLibrary,
+		NoRefreshRequested
+	};
+
+	/** True when a refresh was requested */
+	EDMXRefreshFixturePatcherState RefreshFixturePatchState = EDMXRefreshFixturePatcherState::NoRefreshRequested;
+
 	/** If true updates selection once during tick and resets */
 	int32 UniverseToSetNextTick = INDEX_NONE;
 
@@ -139,9 +146,6 @@ protected:
 
 	/** Returns the DMXLibrary or nullptr if not available */
 	UDMXLibrary* GetDMXLibrary() const;
-
-	/** Broadcast when a fixture patch was patched */
-	FSimpleDelegate OnPatched;
 
 	/** Checkbox to determine if all check boxes shoudl be displayed */
 	TSharedPtr<SCheckBox> ShowAllUniversesCheckBox;

@@ -281,7 +281,7 @@ struct ENGINE_API FMaterialLayersFunctions
 
 	int32 AppendBlendedLayer();
 
-	int32 AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState);
+	int32 AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, bool bVisible, EMaterialLayerLinkState LinkState);
 
 	void InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState, int32 LayerIndex);
 
@@ -327,6 +327,8 @@ struct ENGINE_API FMaterialLayersFunctions
 		}
 		return LayerName;
 	}
+
+	bool MatchesParent(const FMaterialLayersFunctions& Parent) const;
 
 	void LinkAllLayersToParent();
 

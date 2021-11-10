@@ -50,6 +50,8 @@ public:
 	typedef TMap<int32, int32> FUVChannelsMap;
 	const FUVChannelsMap& GetUVChannelsMapForMesh(const TCHAR* MeshName) const;
 
+	static INode* GetCollisionNode(INode* OriginalNode, const FDatasmithMaxStaticMeshAttributes* DatasmithAttributes, bool& bOutFromDatasmithAttribute);
+
 private:
 	/**
 	 * Export a scene node to a datasmith mesh
@@ -95,7 +97,6 @@ private:
 	MeshNormalSpec* GetSpecifiedNormalsFromMesh(Mesh* MaxMesh) const;
 	INode* GetTemporalNode() const;
 	bool DeleteTemporalNode() const;
-	INode* GetCollisionNode(INode* OriginalNode, const FDatasmithMaxStaticMeshAttributes* DatasmithAttributes, bool& bOutFromDatasmithAttribute) const;
 
 	TMap<FString, FUVChannelsMap> MeshNamesToUVChannels;
 

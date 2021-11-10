@@ -559,6 +559,14 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.Commit();
 
 	// --------------------------------------------------------------------------------------------
+	// Set up double properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Double)
+	.AddSoleChannel(BuiltInComponents->DoubleResult[0])
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
+	.SetCustomAccessors(&Accessors.Double)
+	.Commit();
+
+	// --------------------------------------------------------------------------------------------
 	// Set up color properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Color)
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateColor::R)

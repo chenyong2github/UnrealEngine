@@ -36,16 +36,9 @@ namespace CADKernel
 		{
 		}
 
-		TPolyline(FCADKernelArchive& Archive)
-			: Approximator(Coordinates, Points)
-		{
-			Serialize(Archive);
-		}
-
 		TPolyline()
 			: Approximator(Coordinates, Points)
 		{
-
 		}
 
 		void Serialize(FCADKernelArchive& Ar)
@@ -82,6 +75,11 @@ namespace CADKernel
 		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<PointType>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<PointType>& ProjectedPoints) const
 		{
 			Approximator.ProjectPointsToPolyline(InBoundary, InPointsToProject, ProjectedPointCoordinates, ProjectedPoints);
+		}
+
+		const PointType& GetPointAt(int32 Index) const
+		{
+			return Points[Index];
 		}
 
 		const TArray<PointType>& GetPoints() const

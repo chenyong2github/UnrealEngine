@@ -117,7 +117,7 @@ enum ECompilerFlags
 
 	CFLAG_Max,
 };
-static_assert(CFLAG_Max < 32, "Out of bitfields!");
+static_assert(CFLAG_Max < 64, "Out of bitfield space! Modify FShaderCompilerFlags");
 
 struct FShaderCompilerResourceTable
 {

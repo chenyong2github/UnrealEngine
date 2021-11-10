@@ -5,10 +5,12 @@
 #include "AudioDeviceManager.h"
 #include "AudioModulation.h"
 #include "AudioModulationLogging.h"
+#include "AudioModulationStatics.h"
 #include "AudioModulationSystem.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
+#include "SoundModulatorAssetProxy.h"
 
 
 USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
@@ -125,4 +127,10 @@ const Audio::FModulationMixFunction USoundControlBus::GetMixFunction() const
 	}
 
 	return Audio::FModulationParameter::GetDefaultMixFunction();
+}
+
+TUniquePtr<Audio::IProxyData> USoundControlBus::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	using namespace AudioModulation;
+	return MakeUnique<TSoundModulatorAssetProxy<USoundControlBus>>(*this);
 }

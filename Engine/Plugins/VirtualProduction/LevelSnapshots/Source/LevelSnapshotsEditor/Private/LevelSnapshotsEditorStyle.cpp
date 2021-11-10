@@ -51,6 +51,7 @@ const FSlateBrush* FLevelSnapshotsEditorStyle::GetBrush(FName PropertyName, cons
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush(Style->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
 const FVector2D Icon64x64(64.f, 64.f);
 const FVector2D Icon40x40(40.0f, 40.0f);
@@ -70,8 +71,9 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	}
 
 	// Toolbar
-	Style->Set("LevelSnapshots.ToolbarButton", new IMAGE_BRUSH("Icons/Icon40", Icon40x40));
-	Style->Set("LevelSnapshots.ToolbarButton.Small", new IMAGE_BRUSH("Icons/Icon20", Icon20x20));
+	Style->Set("LevelSnapshots.ToolbarButton", new IMAGE_BRUSH_SVG("Icons/Icon", Icon20x20));
+	Style->Set("LevelSnapshots.ToolbarButton.Small", new IMAGE_BRUSH_SVG("Icons/Icon", Icon16x16));
+	Style->Set("ClassIcon.LevelSnapshotsEditorData", new IMAGE_BRUSH_SVG("Icons/Icon", Icon16x16));
 
 	// Brush
 	Style->Set("LevelSnapshotsEditor.GroupBorder", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
@@ -111,6 +113,7 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
+#undef IMAGE_BRUSH_SVG
 
 void FLevelSnapshotsEditorStyle::ReloadTextures()
 {

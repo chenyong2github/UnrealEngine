@@ -22,4 +22,15 @@ void FDebugDrawQueue::SetConsumerActive(void* Consumer, bool bConsumerActive)
 	NumConsumers = Consumers.Num();
 }
 
+FDebugDrawQueue& FDebugDrawQueue::GetInstance()
+{
+	static FDebugDrawQueue* PSingleton = nullptr;
+	if (PSingleton == nullptr)
+	{
+		static FDebugDrawQueue Singleton;
+		PSingleton = &Singleton;
+	}
+	return *PSingleton;
+}
+
 #endif

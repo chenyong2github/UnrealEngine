@@ -19,11 +19,7 @@ namespace CADKernel
 
 		FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurve1, TSharedPtr<FCurve> InCurve2, TSharedPtr<FCurve> InCurve3, TSharedPtr<FCurve> InCurve4);
 		FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurves[4]);
-		FCoonsSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FCoonsSurface() = default;
 
 	public:
 

@@ -55,6 +55,11 @@ public:
 		return LevelEditorVirtualProductionCategory.ToSharedRef();
 	}
 
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorWorldPartitionCategory() const override
+	{
+		return LevelEditorWorldPartitionCategory.ToSharedRef();
+	}
+
 	virtual TSharedRef<FWorkspaceItem> GetToolsCategory() const override
 	{
 		return ToolsCategory.ToSharedRef();
@@ -108,7 +113,7 @@ public:
 		LevelEditorCinematicsCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategory", "Cinematics"), LOCTEXT("WorkspaceMenu_LevelEditorCinematicsCategoryTooltip", "Open a Cinematics tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Cinematics"), true);
 		LevelEditorVirtualProductionCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorVirtualProductionCategory", "Virtual Production"), LOCTEXT("WorkspaceMenu_LevelEditorVirtualProductionCategoryTooltip", "Open a Virtual Production tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.VirtualProduction"), true);
 		LevelEditorModesCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorToolsCategory", "Editor Modes" ), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.EditorModes"), true );
-
+		LevelEditorWorldPartitionCategory = LevelEditorCategory->AddGroup(LOCTEXT("WorkspaceMenu_LevelEditorWorldPartitionCategory", "World Partition"), LOCTEXT("WorkspaceMenu_LevelEditorWorldPartitionCategoryTooltip", "Open a World Partition tab."), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.WorldPartition"), true);
 	}
 
 	void ResetToolsCategory()
@@ -154,6 +159,7 @@ private:
 	TSharedPtr<FWorkspaceItem> LevelEditorCinematicsCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorVirtualProductionCategory;
 	TSharedPtr<FWorkspaceItem> LevelEditorModesCategory;
+	TSharedPtr<FWorkspaceItem> LevelEditorWorldPartitionCategory;
 
 	TSharedPtr<FWorkspaceItem> ToolsCategory;
 	TSharedPtr<FWorkspaceItem> DeveloperToolsCategory;

@@ -20,6 +20,7 @@ public class LevelSnapshotsEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ApplicationCore",
 				"AssetRegistry",
 				"AssetTools",
 				"CoreUObject",
@@ -38,7 +39,9 @@ public class LevelSnapshotsEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"ToolMenus",
+				"ToolWidgets",
 				"UnrealEd",
+				"WorkspaceMenuStructure"
 			}
 			);
 	}

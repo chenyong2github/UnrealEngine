@@ -61,7 +61,7 @@ public:
 		return Item;
 	}
 
-	const typename ItemType::PacketType& GetPacket() const
+	const typename ItemType::PacketType& GetPacket() const final
 	{
 		return Item.GetPacket();
 	}

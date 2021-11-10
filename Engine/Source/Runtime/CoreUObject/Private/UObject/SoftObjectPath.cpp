@@ -116,6 +116,13 @@ void FSoftObjectPath::SetPath(FAnsiStringView Path)
 	SetPath(Wide);
 }
 
+void FSoftObjectPath::SetPath(FUtf8StringView Path)
+{
+	TStringBuilder<256> Wide;
+	Wide << Path;
+	SetPath(Wide);
+}
+
 void FSoftObjectPath::SetPath(FName PathName)
 {
 	if (PathName.IsNone())

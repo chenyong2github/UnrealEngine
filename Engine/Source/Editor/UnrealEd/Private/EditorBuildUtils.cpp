@@ -604,7 +604,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 			UPackage* CurWorldPackage = CurWorld->GetOutermost();
 			check( CurWorldPackage );
 
-			if ( FPackageName::DoesPackageExist( CurWorldPackage->GetName(), NULL, &CurWorldPkgFileName ) )
+			if ( FPackageName::DoesPackageExist( CurWorldPackage->GetName(), &CurWorldPkgFileName ) )
 			{
 				PreviouslySavedWorldPackages.AddUnique( CurWorldPackage );
 
@@ -650,7 +650,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 				 !SourceControlState->IsIgnored()))
 			{
 				FString CurFilename;
-				if ( FPackageName::DoesPackageExist( CurPkgName, NULL, &CurFilename ) )
+				if ( FPackageName::DoesPackageExist( CurPkgName, &CurFilename ) )
 				{
 					if ( IFileManager::Get().IsReadOnly( *CurFilename ) )
 					{

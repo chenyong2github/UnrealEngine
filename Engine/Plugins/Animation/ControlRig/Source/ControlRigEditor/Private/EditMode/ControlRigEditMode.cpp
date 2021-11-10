@@ -644,9 +644,9 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		}
 
 		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-		if (Settings->bDisplayHierarchy)
+		const bool bHasFKRig = (ControlRig->IsA<UAdditiveControlRig>() || ControlRig->IsA<UFKControlRig>());
+		if (Settings->bDisplayHierarchy || bHasFKRig)
 		{
-			const bool bHasFKRig = (ControlRig->IsA<UAdditiveControlRig>() || ControlRig->IsA<UFKControlRig>());
 			const bool bBoolSetHitProxies = PDI && PDI->IsHitTesting() && bHasFKRig;
 			TSet<FName> ActiveControlName;
 			if (bHasFKRig)

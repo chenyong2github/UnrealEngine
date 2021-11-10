@@ -1931,10 +1931,13 @@ namespace CADKernel
 			nodalVector->Empty();
 			nodalVector->Reserve(2 * (degre + 1) + nbPoles - degre + 1);
 
-			for (int32 k = 0; k <degre + 1; k++) nodalVector->Add(UMin);
+			for (int32 k = 0; k <degre + 1; k++) 
+			{
+				nodalVector->Add(UMin);
+			}
 
-			int32 nbInter = nbPoles + degre + 1 - degre - degre;
-			for (int32 k = 1; k <nbInter - 1; k++)
+			int32 nbInter = nbPoles + 1 - degre;
+			for (int32 k = 1; k < nbInter - 1; k++)
 			{
 				double val = UMin + ((double)k) / (nbInter - 1) * (UMax - UMin);
 				nodalVector->Add(val);

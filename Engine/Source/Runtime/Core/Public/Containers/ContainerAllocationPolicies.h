@@ -144,9 +144,10 @@ struct FScriptContainerElement
 template <typename AllocatorType>
 struct TAllocatorTraitsBase
 {
-	enum { SupportsMove    = false };
-	enum { IsZeroConstruct = false };
+	enum { SupportsMove              = false };
+	enum { IsZeroConstruct           = false };
 	enum { SupportsFreezeMemoryImage = false };
+	enum { SupportsElementAlignment  = false };
 };
 
 template <typename AllocatorType>
@@ -211,19 +212,47 @@ public:
 			SizeType PreviousNumElements,
 			SizeType NumElements,
 			SIZE_T NumBytesPerElement
-			);
+		);
+
+		/**
+		 * Resizes the container's allocation.
+		 * @param PreviousNumElements - The number of elements that were stored in the previous allocation.
+		 * @param NumElements - The number of elements to allocate space for.
+		 * @param NumBytesPerElement - The number of bytes/element.
+		 * @param AlignmentOfElement - The alignment of the element type.
+		 *
+		 * @note  This overload only exists if TAllocatorTraits<Allocator>::SupportsElementAlignment == true.
+		 */
+		void ResizeAllocation(
+			SizeType PreviousNumElements,
+			SizeType NumElements,
+			SIZE_T NumBytesPerElement,
+			uint32 AlignmentOfElement
+		);
 
 		/**
 		 * Calculates the amount of slack to allocate for an array that has just grown or shrunk to a given number of elements.
 		 * @param NumElements - The number of elements to allocate space for.
-		 * @param CurrentNumSlackElements - The current number of elements allocated.
 		 * @param NumBytesPerElement - The number of bytes/element.
 		 */
 		SizeType CalculateSlackReserve(
 			SizeType NumElements,
-			SizeType CurrentNumSlackElements,
 			SIZE_T NumBytesPerElement
-			) const;
+		) const;
+
+		/**
+		 * Calculates the amount of slack to allocate for an array that has just grown or shrunk to a given number of elements.
+		 * @param NumElements - The number of elements to allocate space for.
+		 * @param NumBytesPerElement - The number of bytes/element.
+		 * @param AlignmentOfElement - The alignment of the element type.
+		 *
+		 * @note  This overload only exists if TAllocatorTraits<Allocator>::SupportsElementAlignment == true.
+		 */
+		SizeType CalculateSlackReserve(
+			SizeType NumElements,
+			SIZE_T NumBytesPerElement,
+			uint32 AlignmentOfElement
+		) const;
 
 		/**
 		 * Calculates the amount of slack to allocate for an array that has just shrunk to a given number of elements.
@@ -238,6 +267,22 @@ public:
 			) const;
 
 		/**
+		 * Calculates the amount of slack to allocate for an array that has just shrunk to a given number of elements.
+		 * @param NumElements - The number of elements to allocate space for.
+		 * @param CurrentNumSlackElements - The current number of elements allocated.
+		 * @param NumBytesPerElement - The number of bytes/element.
+		 * @param AlignmentOfElement - The alignment of the element type.
+		 *
+		 * @note  This overload only exists if TAllocatorTraits<Allocator>::SupportsElementAlignment == true.
+		 */
+		SizeType CalculateSlackShrink(
+			SizeType NumElements,
+			SizeType CurrentNumSlackElements,
+			SIZE_T NumBytesPerElement,
+			uint32 AlignmentOfElement
+		) const;
+
+		/**
 		 * Calculates the amount of slack to allocate for an array that has just grown to a given number of elements.
 		 * @param NumElements - The number of elements to allocate space for.
 		 * @param CurrentNumSlackElements - The current number of elements allocated.
@@ -247,7 +292,23 @@ public:
 			SizeType NumElements,
 			SizeType CurrentNumSlackElements,
 			SIZE_T NumBytesPerElement
-			) const;
+		) const;
+
+		/**
+		 * Calculates the amount of slack to allocate for an array that has just grown to a given number of elements.
+		 * @param NumElements - The number of elements to allocate space for.
+		 * @param CurrentNumSlackElements - The current number of elements allocated.
+		 * @param NumBytesPerElement - The number of bytes/element.
+		 * @param AlignmentOfElement - The alignment of the element type.
+		 *
+		 * @note  This overload only exists if TAllocatorTraits<Allocator>::SupportsElementAlignment == true.
+		 */
+		SizeType CalculateSlackGrow(
+			SizeType NumElements,
+			SizeType CurrentNumSlackElements,
+			SIZE_T NumBytesPerElement,
+			uint32 AlignmentOfElement
+		) const;
 
 		/**
 		 * Returns the size of any requested heap allocation currently owned by the allocator.
@@ -379,7 +440,7 @@ public:
 		/** Default constructor. */
 		ForElementType()
 		{
-			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > MinimumAlignment, "Using TAlignedHeapAllocator with an alignment lower than the element type's alignment - please update the alignment parameter");
+			UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > MinimumAlignment, "Using TAlignedHeapAllocator with an alignment lower than the element type's alignment - please update the alignment parameter");
 		}
 
 		FORCEINLINE ElementType* GetAllocation() const
@@ -483,17 +544,38 @@ public:
 				Data = (FScriptContainerElement*)FMemory::Realloc( Data, NumElements*NumBytesPerElement );
 			}
 		}
+		FORCEINLINE void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement)
+		{
+			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
+			if (Data || NumElements)
+			{
+				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				Data = (FScriptContainerElement*)FMemory::Realloc( Data, NumElements*NumBytesPerElement, AlignmentOfElement );
+			}
+		}
 		FORCEINLINE SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true);
+		}
+		FORCEINLINE SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true, (uint32)AlignmentOfElement);
 		}
 		FORCEINLINE SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true);
 		}
+		FORCEINLINE SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true, (uint32)AlignmentOfElement);
+		}
 		FORCEINLINE SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true);
+		}
+		FORCEINLINE SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement) const
+		{
+			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true, (uint32)AlignmentOfElement);
 		}
 
 		SIZE_T GetAllocatedSize(SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
@@ -526,7 +608,6 @@ public:
 		/** Default constructor. */
 		ForElementType()
 		{
-			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__, "TSizedHeapAllocator uses GMalloc's default alignment, which is lower than the element type's alignment - please use TAlignedHeapAllocator with an appropriate alignment");
 		}
 
 		FORCEINLINE ElementType* GetAllocation() const
@@ -539,8 +620,9 @@ public:
 template <uint8 IndexSize>
 struct TAllocatorTraits<TSizedHeapAllocator<IndexSize>> : TAllocatorTraitsBase<TSizedHeapAllocator<IndexSize>>
 {
-	enum { SupportsMove    = true };
-	enum { IsZeroConstruct = true };
+	enum { SupportsMove             = true };
+	enum { IsZeroConstruct          = true };
+	enum { SupportsElementAlignment = true };
 };
 
 using FHeapAllocator = TSizedHeapAllocator<32>;
@@ -723,7 +805,7 @@ public:
 		ForElementType()
 			: Data(GetInlineElements())
 		{
-			//UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__, "TNonRelocatableInlineAllocator uses GMalloc's default alignment, which is lower than the element type's alignment - please consider a different approach");
+			UE_STATIC_DEPRECATE(5.0, alignof(ElementType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__, "TNonRelocatableInlineAllocator uses GMalloc's default alignment, which is lower than the element type's alignment - please consider a different approach");
 		}
 
 		/**
@@ -967,6 +1049,14 @@ class TSparseArrayAllocator
 {
 public:
 
+	typedef InElementAllocator ElementAllocator;
+	typedef InBitArrayAllocator BitArrayAllocator;
+};
+
+template <uint32 Alignment = DEFAULT_ALIGNMENT, typename InElementAllocator = TAlignedHeapAllocator<Alignment>,typename InBitArrayAllocator = FDefaultBitArrayAllocator>
+class TAlignedSparseArrayAllocator
+{
+public:
 	typedef InElementAllocator ElementAllocator;
 	typedef InBitArrayAllocator BitArrayAllocator;
 };

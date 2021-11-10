@@ -51,7 +51,7 @@ namespace Chaos
 		{
 			BroadphaseType = 3;
 			BVNumCells = 35;
-			MaxChildrenInLeaf = 5;
+			MaxChildrenInLeaf = 80;
 			MaxTreeDepth = 200;
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;

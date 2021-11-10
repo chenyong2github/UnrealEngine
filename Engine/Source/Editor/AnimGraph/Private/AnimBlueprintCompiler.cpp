@@ -712,8 +712,16 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 
 	if (bIsDerivedAnimBlueprint && DefaultAnimInstance)
 	{
-		// Ensure we have constant properties & anim node data rebuilt
-		NewAnimBlueprintClass->BuildConstantProperties();
+		//Need To have a sparse class data struct for BuildConstantProperties below 
+		if (NewAnimBlueprintClass->GetSparseClassDataStruct() == nullptr)
+		{
+			RecreateSparseClassData();
+		}
+		else
+		{
+			// Ensure we have constant properties & anim node data rebuilt
+			NewAnimBlueprintClass->BuildConstantProperties();
+		}
 		CopyAnimNodeDataFromRoot();
 		
 		// If we are a derived animation graph; apply any stored overrides.

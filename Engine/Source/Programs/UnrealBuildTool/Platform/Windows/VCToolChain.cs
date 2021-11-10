@@ -294,9 +294,6 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("/analyze");
 
-				// Don't cause analyze warnings to be errors
-				Arguments.Add("/analyze:WX-");
-
 				// Report functions that use a LOT of stack space. You can lower this value if you
 				// want more aggressive checking for functions that use a lot of stack memory.
 				Arguments.Add("/analyze:stacksize" + CompileEnvironment.AnalyzeStackSizeWarning);
@@ -1965,13 +1962,12 @@ namespace UnrealBuildTool
 			if(bIsBuildingLibraryOrImportLibrary)
 			{
 				LinkAction.CommandPath = EnvVars.LibraryManagerPath;
-				LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
 			}
 			else
 			{
-				LinkAction.CommandPath = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "link-filter", "link-filter.exe");
-				LinkAction.CommandArguments = String.Format("-- \"{0}\" @\"{1}\"", EnvVars.LinkerPath, ResponseFileName);
+				LinkAction.CommandPath = EnvVars.LinkerPath;
 			}
+			LinkAction.CommandArguments = String.Format("@\"{0}\"", ResponseFileName);
 			LinkAction.CommandVersion = EnvVars.ToolChainVersion.ToString();
 			LinkAction.ProducedItems.AddRange(ProducedItems);
 			LinkAction.PrerequisiteItems.AddRange(PrerequisiteItems);
@@ -1993,7 +1989,7 @@ namespace UnrealBuildTool
 			// ignored as a prerequisite for other actions
 			LinkAction.bProducesImportLibrary = bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL;
 
-			// Allow remote linking.  Especially in modular builds with many small DLL files, this is almost always very efficient
+			// Allow remote linking. Note that this may be overriden by the executor (eg. XGE.bAllowRemoteLinking)
 			LinkAction.bCanExecuteRemotely = true;
 
 			Log.TraceVerbose("     Linking: " + LinkAction.StatusDescription);

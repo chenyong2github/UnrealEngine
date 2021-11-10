@@ -6,7 +6,6 @@
 
  // RobC mod- whole file
 namespace UE::Online::Errors {
-
-inline FOnlineError InvalidCredentials() { return FOnlineError(TEXT("invalid_credentials")); }
+	// see WindowsOnlineErrorDefinitions.h for an example of this when it comes time to develop
 
 /* UE::Online::Errors */ }

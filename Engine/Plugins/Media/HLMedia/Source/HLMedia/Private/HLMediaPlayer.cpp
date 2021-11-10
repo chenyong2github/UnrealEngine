@@ -375,6 +375,27 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
 
         ID3D11Device* Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 
+		FString RHIString = FApp::GetGraphicsRHI();
+		if (RHIString == TEXT("DirectX 12"))
+		{
+			ID3D12Device* m_d3d12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+			void* m_commandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+
+			ID3D11DeviceContext* m_d3d11DeviceContext;
+			D3D11On12CreateDevice(
+				m_d3d12Device,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+				nullptr,
+				0,
+				reinterpret_cast<IUnknown**>(&m_commandQueue),
+				1,
+				0,
+				&Device,
+				&m_d3d11DeviceContext,
+				nullptr
+			);
+		}
+
         TComPtr<IPlaybackEngine> PlaybackEngineIn = nullptr;
         if (SUCCEEDED(CreatePlaybackEngine(Device, &PlaybackEngineIn)))
         {

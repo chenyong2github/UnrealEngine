@@ -34,6 +34,9 @@ FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 		case EAudioPlugin::MODULATION:
 			return TEXT("ModulationPlugin");
 
+		case EAudioPlugin::SOURCEDATAOVERRIDE:
+			return TEXT("PropagationPlugin");
+			
 		default:
 			checkf(false, TEXT("Undefined audio plugin type."));
 			return TEXT("");
@@ -61,6 +64,25 @@ IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugi
 
 	return nullptr;
 }
+
+IAudioSourceDataOverrideFactory* AudioPluginUtilities::GetDesiredSourceDataOverridePlugin()
+{
+	FString DesiredSourceDataOverridePlugin = GetDesiredPluginName(EAudioPlugin::SOURCEDATAOVERRIDE);
+	TArray<IAudioSourceDataOverrideFactory*> SourceDataOverridePluginFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioSourceDataOverrideFactory>(IAudioSourceDataOverrideFactory::GetModularFeatureName());
+
+	//Iterate through all of the plugins we've discovered:
+	for (IAudioSourceDataOverrideFactory* PluginFactory : SourceDataOverridePluginFactories)
+	{
+		//if this plugin's name matches the name found in the platform settings, use it:
+		if (PluginFactory->GetDisplayName().Equals(DesiredSourceDataOverridePlugin))
+		{
+			return PluginFactory;
+		}
+	}
+
+	return nullptr;
+}
+
 
 IAudioReverbFactory* AudioPluginUtilities::GetDesiredReverbPlugin()
 {

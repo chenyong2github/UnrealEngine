@@ -26,8 +26,7 @@ namespace Electra
 
 			struct FThreadConfig
 			{
-				FMediaRunnable::Param		Decoder;				//!< Decoder thread settings.
-				FMediaRunnable::Param		PassOn;					//!< Settings for thread passing decoded samples to the renderer.
+				FMediaRunnable::Param		Decoder;						//!< Decoder thread settings.
 			};
 			FThreadConfig	ThreadConfig;
 		};
@@ -36,7 +35,7 @@ namespace Electra
 		{
 			FInstanceConfiguration();
 
-			FSystemConfiguration::FThreadConfig	ThreadConfig;					//!< Thread configuration (defaults to values set in SystemConfiguration)
+			FSystemConfiguration::FThreadConfig	ThreadConfig;				//!< Thread configuration (defaults to values set in SystemConfiguration)
 		};
 
 		static bool Startup(const FSystemConfiguration& Config);
@@ -62,10 +61,12 @@ namespace Electra
 		//-------------------------------------------------------------------------
 		// Methods from IAccessUnitBufferInterface
 		//
-		//! Attempts to push an access unit to the decoder. Ownership of the access unit is transferred if the push is successful.
-		virtual EAUpushResult AUdataPushAU(FAccessUnit* AccessUnit) = 0;
+		//! Pushes an access unit to the decoder. Ownership of the access unit is transferred to the decoder.
+		virtual void AUdataPushAU(FAccessUnit* AccessUnit) = 0;
 		//! Notifies the decoder that there will be no further access units.
 		virtual void AUdataPushEOD() = 0;
+		//! Notifies the decoder that there may be further access units.
+		virtual void AUdataClearEOD() = 0;
 		//! Instructs the decoder to flush all pending input and all already decoded output.
 		virtual void AUdataFlushEverything() = 0;
 

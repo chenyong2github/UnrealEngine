@@ -169,6 +169,11 @@ namespace Metasound
 			return IOutputController::GetInvalidHandle();
 		}
 
+		bool FBaseInputController::IsConnectionUserModifiable() const
+		{
+			return true;
+		}
+
 		FConnectability FBaseInputController::CanConnectTo(const IOutputController& InController) const
 		{
 			FConnectability OutConnectability;
@@ -500,6 +505,13 @@ namespace Metasound
 			}
 		}
 
+		bool FInputNodeInputController::IsConnectionUserModifiable() const
+		{
+			// Inputs to input nodes on a graph cannot be connected by the user
+			// because they must be exposed externally from the graph.
+			return false;
+		}
+
 		FConnectability FInputNodeInputController::CanConnectTo(const IOutputController& InController) const 
 		{
 			static const FConnectability Connectability = {FConnectability::EConnectable::No};
@@ -513,6 +525,19 @@ namespace Metasound
 
 		bool FInputNodeInputController::ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName)
 		{
+			return false;
+		}
+
+
+		FVariableInputController::FVariableInputController(const FInitParams& InParams)
+		: FBaseInputController(InParams)
+		{
+		}
+
+		bool FVariableInputController::IsConnectionUserModifiable() const
+		{
+			// Variable connections are managed by the graph and cannot be modified
+			// by the user.
 			return false;
 		}
 	}

@@ -691,10 +691,11 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 
 	if (SelectedTargetReferenceItem.IsValid())
 	{
+		UClass* SourcePropertyClass = SourceProperty ? SourceProperty->GetOwnerClass() : nullptr;
 		FMemberReference SourceVariableReference;
-		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
+		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourcePropertyClass);
 		FMemberReference TargetVariableReference;
-		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourceProperty->GetOwnerClass()))
+		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourcePropertyClass))
 		{
 			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
 			if (PinnedEditor.IsValid())

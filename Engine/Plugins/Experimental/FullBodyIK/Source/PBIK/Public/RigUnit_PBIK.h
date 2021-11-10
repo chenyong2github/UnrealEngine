@@ -20,11 +20,11 @@ struct FPBIKDebug
 	GENERATED_BODY()
 
 	/** The scale of the debug drawing. */
-	UPROPERTY(EditAnywhere, Category="Debug")
+	UPROPERTY(EditAnywhere, Category = Debug)
 	float DrawScale = 1.0f;
 
 	/** If true, turns on debug drawing for the node. */
-	UPROPERTY(EditAnywhere, Category="Debug")
+	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bDrawDebug = false;
 
 	void Draw(FControlRigDrawInterface* DrawInterface, FPBIKSolver* Solver) const

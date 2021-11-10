@@ -136,7 +136,7 @@ public:
 		bHasDisconnectSessionHappened = false;
 	}
 	
-	virtual ~FWindowsMMNotificationClient()
+	~FWindowsMMNotificationClient()
 	{
 		UnregisterForSessionNotifications();
 

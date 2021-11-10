@@ -242,7 +242,7 @@ private:
 		~FValueBuffer() { ReleaseRHI(); }
 
 		/** Release the render resources. */
-		void ReleaseRHI() override;
+		void ReleaseRHI() override final;
 
 		/** Used for sorting */
 		FShaderResourceViewRHIRef UInt32SRV;

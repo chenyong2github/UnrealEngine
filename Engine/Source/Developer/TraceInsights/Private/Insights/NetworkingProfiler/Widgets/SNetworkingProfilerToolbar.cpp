@@ -42,13 +42,13 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<
 			{
 				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "PacketView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.PacketView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().TogglePacketContentViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "PacketContentView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.PacketContentView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FNetworkingProfilerCommands::Get().ToggleNetStatsViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetStatsView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.NetStatsView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("Connection");
@@ -78,7 +78,7 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo,
 					NAME_None, FText(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}

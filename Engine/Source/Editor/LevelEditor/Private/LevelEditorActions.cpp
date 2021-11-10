@@ -165,7 +165,7 @@ namespace LevelEditorActionsHelpers
 		if (Pkg && FPackageName::IsValidLongPackageName(Pkg->GetName()))
 		{
 			FString FileName;
-			return FPackageName::DoesPackageExist(Pkg->GetName(), nullptr, &FileName);
+			return FPackageName::DoesPackageExist(Pkg->GetName(), &FileName);
 		}
 		return false;
 	}

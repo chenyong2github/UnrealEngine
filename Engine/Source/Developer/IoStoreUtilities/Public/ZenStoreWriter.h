@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Async/Async.h"
+#include "Async/Future.h"
+#include "Compression/CompressedBuffer.h"
 #include "Compression/OodleDataCompression.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
 #include "IO/PackageStore.h"
+#include "Misc/ScopeRWLock.h"
 #include "PackageStoreManifest.h"
 #include "PackageStoreWriter.h"
 #include "Serialization/AsyncLoading2.h"
@@ -75,7 +79,7 @@ public:
 private:
 	struct FBulkDataEntry
 	{
-		FIoBuffer Payload;
+		TFuture<FCompressedBuffer> CompressedPayload;
 		FBulkDataInfo Info;
 		FCbObjectId ChunkId;
 		bool IsValid = false;
@@ -83,7 +87,7 @@ private:
 
 	struct FPackageDataEntry
 	{
-		FIoBuffer Payload;
+		TFuture<FCompressedBuffer> CompressedPayload;
 		FPackageInfo Info;
 		FCbObjectId ChunkId;
 		FPackageStoreEntryResource PackageStoreEntry;
@@ -92,7 +96,7 @@ private:
 
 	struct FFileDataEntry
 	{
-		FIoBuffer Payload;
+		TFuture<FCompressedBuffer> CompressedPayload;
 		FAdditionalFileInfo Info;
 		FString ZenManifestServerPath;
 		FString ZenManifestClientPath;
@@ -104,23 +108,41 @@ private:
 		FPackageDataEntry PackageData;
 		TArray<FBulkDataEntry> BulkData;
 		TArray<FFileDataEntry> FileData;
+		TPromise<FMD5Hash> HashPromise;
 	};
 
-	struct FZenStats
+	FPendingPackageState& GetPendingPackage(const FName& PackageName)
 	{
-		uint64 TotalBytes = 0;
-		double TotalRequestTime = 0.0;
-	};
+		FScopeLock _(&PackagesCriticalSection);
+		TUniquePtr<FPendingPackageState>& Package = PendingPackages.FindChecked(PackageName);
+		checkf(Package.IsValid(), TEXT("Trying to retrieve non-pending package '%s'"), *PackageName.ToString());
+		return *Package;
+	}
+	
+	FPendingPackageState& AddPendingPackage(const FName& PackageName)
+	{
+		FScopeLock _(&PackagesCriticalSection);
+		checkf(!PendingPackages.Contains(PackageName), TEXT("Trying to add package that is already pending"));
+		TUniquePtr<FPendingPackageState>& Package = PendingPackages.Add(PackageName, MakeUnique<FPendingPackageState>());
+		check(Package.IsValid());
+		return *Package;
+	}
+	
+	TUniquePtr<FPendingPackageState> RemovePendingPackage(const FName& PackageName)
+	{
+		FScopeLock _(&PackagesCriticalSection);
+		return PendingPackages.FindAndRemoveChecked(PackageName);
+	}
 
 	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
 	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
 	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
-	TFuture<FMD5Hash> AsyncComputeCookedHash(const FPendingPackageState& PackageState);
+	void CommitPackageInternal(FCommitPackageInfo&& CommitInfo);
 	FCbAttachment CreateAttachment(FSharedBuffer Buffer);
 	FCbAttachment CreateAttachment(FIoBuffer Buffer);
 
-	FRWLock								PackagesLock;
-	TMap<FName,FPendingPackageState>	PendingPackages;
+	FCriticalSection								PackagesCriticalSection;
+	TMap<FName, TUniquePtr<FPendingPackageState>>	PendingPackages;
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
 
 	const ITargetPlatform&				TargetPlatform;
@@ -130,6 +152,8 @@ private:
 
 	FPackageStoreManifest				PackageStoreManifest;
 	TUniquePtr<FPackageStoreOptimizer>	PackageStoreOptimizer;
+	
+	FRWLock								EntriesLock;
 	TArray<FPackageStoreEntryResource>	PackageStoreEntries;
 	TArray<FOplogCookInfo>				CookedPackagesInfo;
 	TMap<FName, int32>					PackageNameToIndex;
@@ -140,15 +164,14 @@ private:
 	FCommitEvent						CommitEvent;
 	FMarkUpToDateEvent					MarkUpToDateEvent;
 
-	class FZenStoreHttpQueue;
-	TUniquePtr<FZenStoreHttpQueue>		HttpQueue;
-	
 	ICookedPackageWriter::FCookInfo::ECookMode CookMode;
 
 	FOodleDataCompression::ECompressor			Compressor;				
 	FOodleDataCompression::ECompressionLevel	CompressionLevel;	
-
-	FZenStats							ZenStats;
+	
+	class FCommitQueue;
+	TUniquePtr<FCommitQueue>			CommitQueue;
+	TFuture<void>						CommitThread;
 
 	bool								bInitialized;
 

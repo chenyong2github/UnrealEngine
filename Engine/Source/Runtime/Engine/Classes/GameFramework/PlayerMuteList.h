@@ -5,9 +5,23 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Online/CoreOnline.h"
+#include "Misc/EnumRange.h"
 #include "PlayerMuteList.generated.h"
 
 struct FUniqueNetIdRepl;
+
+UENUM(meta = (Bitflags))
+enum class EVoiceBlockReasons : uint8
+{
+	None		= 0,		// Communication with this client has no filter reasons
+	Muted		= 1 << 0,	// The owning player controller has explicitly muted the player
+	MutedBy		= 1 << 1,	// The owning player controller was explicitly muted by the player
+	Gameplay	= 1 << 2,	// The player was muted for gameplay reasons
+	Blocked		= 1 << 3,	// The owning player controller has blocked the player
+	BlockedBy	= 1 << 4,	// The owning player controller was blocked by the player
+};
+ENUM_CLASS_FLAGS(EVoiceBlockReasons);
+ENUM_RANGE_BY_VALUES(EVoiceBlockReasons, EVoiceBlockReasons::Muted, EVoiceBlockReasons::MutedBy, EVoiceBlockReasons::Gameplay, EVoiceBlockReasons::Blocked, EVoiceBlockReasons::BlockedBy);
 
 /**
  * Container responsible for managing the mute state of a player controller
@@ -26,12 +40,9 @@ public:
 	{
 	}
 
-	/** List of player id's muted explicitly by the player */
-	TArray< FUniqueNetIdRef > VoiceMuteList;
-	/** List of player id's muted for gameplay reasons (teams, spectators, etc) */
-	TArray< FUniqueNetIdRef > GameplayVoiceMuteList;
-	/** Combined list of the above for efficient processing of voice packets */
-	TArray< FUniqueNetIdRef > VoicePacketFilter;
+	/** Map of player ids and a bitfield containing filter reasons. Non-zero entries imply communication is blocked for that player*/
+	TUniqueNetIdMap<EVoiceBlockReasons> VoicePacketFilterMap;
+
 	/** Has server and client handshake completed */
 	UPROPERTY()
 	bool bHasVoiceHandshakeCompleted;
@@ -39,6 +50,26 @@ public:
 	int32 VoiceChannelIdx;
 
 public:
+
+	/**
+	 * Add a filter reason for an id to this player's mutelist
+	 *
+	 * @param OwningPC player id to add a filter reason
+	 * @param VoiceBlockReason reason to add
+	 * 
+	 * @return true if it's the first reason to block voice from user
+	 */
+	bool AddVoiceBlockReason(const FUniqueNetIdPtr& PlayerId, EVoiceBlockReasons VoiceBlockReason);
+
+	/**
+	 * Remove a filter reason for an id from this player's mutelist
+	 *
+	 * @param UniqueIdToRemove player id to remove a filter reason
+	 * @param VoiceBlockReason reason to remove
+	 *
+	 * @return true if it's the last reason blocking voice from user
+	 */
+	bool RemoveVoiceBlockReason(const FUniqueNetIdPtr& PlayerId, EVoiceBlockReasons VoiceBlockReason);
 
 	/**
 	 * Tell the server to mute a given player
@@ -57,22 +88,6 @@ public:
 	void ServerUnmutePlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& UnmuteId);
 
 	/**
-	 * Tell the client to mute a given player
-	 *
-	 * @param OwningPC player controller that would like to mute another player
-	 * @param MuteId player id that should be muted
-	 */
-	void ClientMutePlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& MuteId);
-
-	/**
-	 * Tell the client to unmute a given player
-	 *
-	 * @param OwningPC player controller that would like to unmute another player
-	 * @param UnmuteId player id that should be unmuted
-	 */
-	void ClientUnmutePlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& UnmuteId);
-
-	/**
 	 * Server muting based on gameplay rules
 	 *
 	 * @param OwningPC player controller that would like to mute another player
@@ -87,6 +102,21 @@ public:
 	 * @param UnmuteId player id that should be unmuted
 	 */
 	void GameplayUnmutePlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& UnmuteId);
+
+	/**
+	 * Tell the server to block a given player
+	 *
+	 * @param OwningPC player controller that would like to block another player
+	 * @param BlockerId player id that should be blocked
+	 */
+	void ServerBlockPlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& BlockId);
+
+	/**
+	 * Tell the server to unblock a given player
+	 * @param UnblockedPC player controller that would like to unblock another player
+	 * @param BlockerId player id that should be unblocked
+	 */
+	void ServerUnblockPlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& UnblockId);
 
 	/**
 	 * Is a given player currently muted

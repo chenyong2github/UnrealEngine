@@ -1943,9 +1943,8 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 					bool bAllowLoadBP = true;
 
 					// See if this passes the namespace check
-					const FString AssetBPNamespace = AssetEntry.GetTagValueRef<FString>(BPNamespaceName);
-					bAllowLoadBP = bAllowLoadBP && NamespaceHelper->IsIncludedInNamespaceList(AssetBPNamespace);
-
+					bAllowLoadBP = bAllowLoadBP && NamespaceHelper->IsImportedAsset(AssetEntry);
+					
 					// For blueprints inside developers folder, only allow the ones inside current user's developers folder.
 					if (bAllowLoadBP)
 					{
@@ -2004,15 +2003,28 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 
 void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 {
+	// No need to import the global namespace.
+	if (InNamespace.IsEmpty())
+	{
+		return;
+	}
+
 	bool bShouldReloadLibraries = false;
-	TTuple<TWeakObjectPtr<const UBlueprint, FWeakObjectPtr>, TUniquePtr<FBlueprintNamespaceHelper, TDefaultDelete<FBlueprintNamespaceHelper>>> TestTuple;
 
 	// Add the namespace to any cached helper objects.
 	const TArray<UObject*>& EditingObjs = GetEditingObjects();
-	for (const UObject* EditingObj : EditingObjs)
+	for (UObject* EditingObj : EditingObjs)
 	{
-		if (const UBlueprint* BlueprintObj = Cast<const UBlueprint>(EditingObj))
+		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
 		{
+			// Add it into the Blueprint's user-facing import set.
+			if (!BlueprintObj->ImportedNamespaces.Contains(InNamespace))
+			{
+				BlueprintObj->Modify();
+				BlueprintObj->ImportedNamespaces.Add(InNamespace);
+			}
+
+			// Add it to the current scope of the Blueprint's editor context.
 			TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = GetOrCreateNamespaceHelperForBlueprint(BlueprintObj);
 			if (!NamespaceHelper->IsIncludedInNamespaceList(InNamespace))
 			{
@@ -10184,40 +10196,20 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 	LocalSettings->SaveConfig();
 }
 
-bool FBlueprintEditor::IsNonImportedField(FFieldVariant Field) const
+bool FBlueprintEditor::IsNonImportedObject(const UObject* InObject) const
 {
 	bool bNotImported = false;
 
-	const UStruct* FieldType = nullptr;
-	if (Field.IsUObject())
+	for (const UObject* EditingObj : GetEditingObjects())
 	{
-		if (const UField* FieldAsUObject = Cast<UField>(Field.ToUObject()))
+		if (const UBlueprint* BP = Cast<UBlueprint>(EditingObj))
 		{
-			FieldType = Cast<UStruct>(FieldAsUObject);
-			if (!FieldType)
+			// Casting away the 'const' here currently because this is a non-const method that can modify the internally-cached set.
+			TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = const_cast<FBlueprintEditor*>(this)->GetOrCreateNamespaceHelperForBlueprint(BP);
+			if (!NamespaceHelper->IsImportedObject(InObject))
 			{
-				FieldType = FieldAsUObject->GetOwnerStruct();
-			}
-		}
-	}
-	else
-	{
-		FieldType = Field.ToField()->GetOwnerStruct();
-	}
-
-	if (FieldType)
-	{
-		for (const UObject* EditingObj : GetEditingObjects())
-		{
-			if (const UBlueprint* BP = Cast<UBlueprint>(EditingObj))
-			{
-				// Casting away the 'const' here currently because this is a non-const method that can modify the internally-cached set.
-				TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = const_cast<FBlueprintEditor*>(this)->GetOrCreateNamespaceHelperForBlueprint(BP);
-				if (!NamespaceHelper->IsImportedType(FieldType))
-				{
-					bNotImported = true;
-					break;
-				}
+				bNotImported = true;
+				break;
 			}
 		}
 	}

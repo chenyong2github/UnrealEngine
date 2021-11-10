@@ -188,7 +188,7 @@ namespace ChaosTest {
 
 		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
 		Particle->SetLocalBounds(FAABB3(FVec3(-MaxScale), FVec3(MaxScale)));
-		Particle->SetWorldSpaceInflatedBounds(FAABB3(FVec3(-MaxScale), FVec3(MaxScale)));
+		Particle->UpdateWorldSpaceState(FRigidTransform3::Identity, FVec3(0));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
@@ -417,7 +417,7 @@ namespace ChaosTest {
 
 		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
 		Particle->SetLocalBounds(FAABB3(FVec3(-Scale[0]), FVec3(Scale[0])));
-		Particle->SetWorldSpaceInflatedBounds(FAABB3(FVec3(-Scale[0]), FVec3(Scale[0])));
+		Particle->UpdateWorldSpaceState(FRigidTransform3::Identity, FVec3(0));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
@@ -580,7 +580,7 @@ namespace ChaosTest {
 
 		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
 		InParticles.SetLocalBounds(FAABB3(Cube[0], Cube[7]));
-		InParticles.SetWorldSpaceInflatedBounds(FAABB3(Cube[0], Cube[7]));
+		InParticles.UpdateWorldSpaceState(FRigidTransform3::Identity, FVec3(0));
 		InParticles.SetHasBounds(true);
 
 		InParticles.M() = 1.0;

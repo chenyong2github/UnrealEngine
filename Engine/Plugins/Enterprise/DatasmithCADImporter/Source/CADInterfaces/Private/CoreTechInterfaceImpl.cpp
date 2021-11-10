@@ -63,12 +63,12 @@ namespace CADLibrary
 		switch (Status)
 		{
 			case IO_ERROR_LICENSE:
-				UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll license is missing. Plug-in will not be functional."));
+				UE_LOG(LogCADInterfaces, Error, TEXT("CoreTech dll license is missing. Plug-in will not be functional."));
 				break;
 
 			case IO_ERROR_NOT_INITIALIZED:
 			default:
-				UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll is not initialize. Plug - in will not be functional."));
+				UE_LOG(LogCADInterfaces, Error, TEXT("CoreTech dll is not initialize. Plug - in will not be functional."));
 				break;
 		}
 

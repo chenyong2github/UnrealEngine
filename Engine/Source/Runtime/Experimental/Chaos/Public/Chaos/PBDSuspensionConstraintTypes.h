@@ -68,6 +68,24 @@ namespace Chaos
 		FVec3 Target;
 	};
 
+	class CHAOS_API FPBDSuspensionResults
+	{
+	public:
+		FPBDSuspensionResults()
+			: NetPushOut(FVec3(0))
+			, Length(0)
+		{
+		}
+
+		void Reset()
+		{
+			*this = FPBDSuspensionResults();
+		}
+
+		FVec3 NetPushOut;
+		FReal Length;
+	};
+
 	class CHAOS_API FPBDSuspensionSolverSettings
 	{
 	public:

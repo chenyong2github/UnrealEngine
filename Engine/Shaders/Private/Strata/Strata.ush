@@ -2,6 +2,9 @@
 
 #pragma once
 
+#define USE_ENERGY_CONSERVATION 1
+#include "../ShadingEnergyConservation.ush"
+
 #include "../BRDF.ush"
 #include "../ColorSpace.ush"
 #include "../Common.ush"
@@ -1263,6 +1266,7 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 ///////////////////////////////////////////////////////////////////////////////
 // Functions used to sanitize BSDF before they are used for lighting (when forward) or stored to memory (base pass).
 // We do not normalize normals, this is done before the lighting step.
+// This step is obligatory so we apply View.MinRoughness here for forward and deferred.
 
 void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 {
@@ -1271,8 +1275,8 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 	SLAB_F0(BSDF) = saturate(SLAB_F0(BSDF));
 	SLAB_F90(BSDF) = saturate(SLAB_F90(BSDF));
 	SLAB_METALLIC(BSDF) = saturate(SLAB_METALLIC(BSDF));
-	SLAB_ROUGHNESSX(BSDF) = saturate(SLAB_ROUGHNESSX(BSDF));
-	SLAB_ROUGHNESSY(BSDF) = saturate(SLAB_ROUGHNESSY(BSDF));
+	SLAB_ROUGHNESSX(BSDF) = saturate(max(View.MinRoughness, SLAB_ROUGHNESSX(BSDF)));
+	SLAB_ROUGHNESSY(BSDF) = saturate(max(View.MinRoughness, SLAB_ROUGHNESSY(BSDF)));
 	SLAB_HAZINESS(BSDF) = saturate(SLAB_HAZINESS(BSDF));
 	SLAB_THINFILM_THICKNESS(BSDF) = saturate(SLAB_THINFILM_THICKNESS(BSDF));
 #if STRATA_INLINE_SHADING
@@ -1301,7 +1305,7 @@ void SanitizeStrataHair(inout FStrataBSDF BSDF)
 	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
 	HAIR_BASECOLOR(BSDF) = saturate(HAIR_BASECOLOR(BSDF));
 	HAIR_SCATTER(BSDF) = saturate(HAIR_SCATTER(BSDF));
-	HAIR_ROUGHNESS(BSDF) = saturate(HAIR_ROUGHNESS(BSDF));
+	HAIR_ROUGHNESS(BSDF) = saturate(max(View.MinRoughness, HAIR_ROUGHNESS(BSDF)));
 	HAIR_SPECULAR(BSDF) = saturate(HAIR_SPECULAR(BSDF));
 	HAIR_BACKLIT(BSDF) = saturate(HAIR_BACKLIT(BSDF));
 }
@@ -1312,7 +1316,7 @@ void SanitizeStrataSingleLayerWater(inout FStrataBSDF BSDF)
 	SLW_BASECOLOR(BSDF) = saturate(SLW_BASECOLOR(BSDF));
 	SLW_METALLIC(BSDF) = saturate(SLW_METALLIC(BSDF));
 	SLW_SPECULAR(BSDF) = saturate(SLW_SPECULAR(BSDF));
-	SLW_ROUGHNESS(BSDF) = saturate(SLW_ROUGHNESS(BSDF));
+	SLW_ROUGHNESS(BSDF) = saturate(max(View.MinRoughness, SLW_ROUGHNESS(BSDF)));
 	SLW_TOPMATERIALOPACITY(BSDF) = saturate(SLW_TOPMATERIALOPACITY(BSDF));
 #if STRATA_INLINE_SINGLELAYERWATER
 	SLW_WATERALBEDO(BSDF) = saturate(SLW_WATERALBEDO(BSDF));
@@ -1345,6 +1349,16 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 	}
 }
 
+// This is used to respect artistic desire, e.g. shutdown diffuse or specular.
+float3 DitherIfNonBlack(float3 Input, float3 Dither)
+{
+	return float3(
+		Input.x == 0.0 ? Input.x : Input.x + Dither.x,
+		Input.y == 0.0 ? Input.y : Input.y + Dither.y,
+		Input.z == 0.0 ? Input.z : Input.z + Dither.z
+	);
+}
+
 void StrataDitherBSDF(inout FStrataBSDF BSDF, in float Dither)
 {
 	if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
@@ -1356,8 +1370,8 @@ void StrataDitherBSDF(inout FStrataBSDF BSDF, in float Dither)
 		const float Dither6bits = CenteredDither * 1.0f / 63.0f;
 		const float3 Dither776 = float3(Dither7bits, Dither7bits, Dither6bits);
 
-		SLAB_DIFFUSEALBEDO(BSDF) += Dither776;
-		SLAB_F0(BSDF) += Dither776;
+		SLAB_DIFFUSEALBEDO(BSDF) = DitherIfNonBlack(SLAB_DIFFUSEALBEDO(BSDF), Dither776);
+		SLAB_F0(BSDF) = DitherIfNonBlack(SLAB_F0(BSDF), Dither776);
 		SLAB_THINFILM_THICKNESS(BSDF) += BSDF_GETHASTHINFILM(BSDF) ? Dither8bits : 0.0f;
 	}
 }

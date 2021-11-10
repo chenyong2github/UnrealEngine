@@ -1238,11 +1238,6 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 bool FUsdGeomMeshTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
 {
-	if ( !Context->bAllowCollapsing )
-	{
-		return false;
-	}
-
 	UE::FUsdPrim Prim = GetPrim();
 
 	// Don't collapse if our final UStaticMesh would have multiple LODs

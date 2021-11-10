@@ -31,14 +31,14 @@ private:
 	FOnDestroyedEvent OnDestroyedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// OnFindNextEvent
+	// OnFindFirstEvent
 public:
-	/** The event to execute when the user selects the "Find Next" option. */
-	DECLARE_MULTICAST_DELEGATE(FOnFindNextEvent);
-	FOnFindNextEvent& GetOnFindNextEvent() { return OnFindNextEvent; }
+	/** The event to execute when the user selects the "Find First" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnFindFirstEvent);
+	FOnFindFirstEvent& GetOnFindFirstEvent() { return OnFindFirstEvent; }
 
 private:
-	FOnFindNextEvent OnFindNextEvent;
+	FOnFindFirstEvent OnFindFirstEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnFindPreviousEvent
@@ -49,6 +49,26 @@ public:
 
 private:
 	FOnFindPreviousEvent OnFindPreviousEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnFindNextEvent
+public:
+	/** The event to execute when the user selects the "Find Next" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnFindNextEvent);
+	FOnFindNextEvent& GetOnFindNextEvent() { return OnFindNextEvent; }
+
+private:
+	FOnFindNextEvent OnFindNextEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnFindLastEvent
+public:
+	/** The event to execute when the user selects the "Find Last" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnFindLastEvent);
+	FOnFindLastEvent& GetOnFindLastEvent() { return OnFindLastEvent; }
+
+private:
+	FOnFindLastEvent OnFindLastEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnFilterAllEvent

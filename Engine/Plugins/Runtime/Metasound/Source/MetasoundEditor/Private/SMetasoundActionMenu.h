@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Margin.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/SExpanderArrow.h"
-#include "Widgets/Layout/SBorder.h"
+#include "GraphEditor.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "GraphEditor.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "SGraphActionMenu.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/SExpanderArrow.h"
 
 class SEditableTextBox;
 class SGraphActionMenu;
@@ -66,5 +66,4 @@ private:
 	FClosedReason OnCloseReasonCallback;
 
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
-
 };

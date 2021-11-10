@@ -256,6 +256,12 @@ FControlRigEditor::~FControlRigEditor()
 		PreviewWorld->MarkObjectsPendingKill();
 		PreviewWorld->MarkPendingKill();
 	}
+
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
+	}
 }
 
 UControlRigBlueprint* FControlRigEditor::GetControlRigBlueprint() const

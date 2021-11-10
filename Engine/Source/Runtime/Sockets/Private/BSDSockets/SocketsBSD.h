@@ -80,7 +80,7 @@ public:
 	 */
 	virtual ~FSocketBSD()
 	{
-		Close();
+		FSocketBSD::Close();
 	}
 
 public:

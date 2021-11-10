@@ -139,16 +139,20 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 				if (!Sum.FileVersionUE.FileVersionUE4 && !Sum.FileVersionUE.FileVersionUE5 && !Sum.FileVersionLicenseeUE)
 				{
+					// Record that the summary was unversioned when it was loaded off disk
+					Sum.bUnversioned = true; 
+
 #if WITH_EDITOR
 					if (!GAllowUnversionedContentInEditor)
 					{
-						// the editor cannot safely load unversioned content
+						// The editor cannot safely load unversioned content so exit before we apply the current version
+						// to the summary. This will cause calls to ::IsFileVersionTooOld to return false
 						UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" is unversioned and we cannot safely load unversioned files in the editor."), *BaseArchive.GetArchiveName());
 						return;
 					}
 #endif
-					// this file is unversioned, remember that, then use current versions
-					Sum.bUnversioned = true;
+
+					// Use the latest supported versions
 					Sum.FileVersionUE = GPackageFileUEVersion;
 					Sum.FileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
 					Sum.CustomVersionContainer = FCurrentCustomVersions::GetAll();
@@ -440,6 +444,18 @@ void FPackageFileSummary::SetFileVersions(const int32 EpicUE4, const int32 EpicU
 	FileVersionLicenseeUE = LicenseeUE;
 
 	bUnversioned = bInSaveUnversioned;
+}
+
+bool FPackageFileSummary::IsFileVersionValid() const
+{
+#if WITH_EDITOR
+	if (!GAllowUnversionedContentInEditor)
+	{
+		return !bUnversioned;
+	}
+#endif
+
+	return true;
 }
 
 void FPackageFileSummary::SetPackageFlags(uint32 InPackageFlags)

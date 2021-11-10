@@ -154,7 +154,16 @@ public:
 
 void SKismetDebuggingView::OnBlueprintClassPicked(UClass* PickedClass)
 {
-	BlueprintToWatchPtr = Cast<UBlueprint>(PickedClass->ClassGeneratedBy);
+	if (PickedClass)
+	{
+		BlueprintToWatchPtr = Cast<UBlueprint>(PickedClass->ClassGeneratedBy);
+	}
+	else
+	{
+		// User selected None Option
+		BlueprintToWatchPtr.Reset();
+	}
+
 	FDebugLineItem::SetBreakpointParentItemBlueprint(BreakpointParentItem, BlueprintToWatchPtr);
 	DebugClassComboButton->SetIsOpen(false);
 }
@@ -167,6 +176,7 @@ TSharedRef<SWidget> SKismetDebuggingView::ConstructBlueprintClassPicker()
 	Options.ClassFilters.Add(MakeShared<FBlueprintFilter>());
 	Options.bIsBlueprintBaseOnly = true;
 	Options.bShowUnloadedBlueprints = false;
+	Options.bShowNoneOption = true;
 	
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 
@@ -277,6 +287,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 					+SSplitter::Slot()
 					[
 						SAssignNew( DebugTreeView, SKismetDebugTreeView )
+							.InDebuggerTab(true)
 							.HeaderRow
 							(
 								SNew(SHeaderRow)
@@ -289,6 +300,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 					+SSplitter::Slot()
 					[
 						SAssignNew( OtherTreeView, SKismetDebugTreeView )
+							.InDebuggerTab(true)
 							.HeaderRow
 							(
 								SNew(SHeaderRow)
@@ -330,22 +342,22 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 	BreakpointParentItem = SKismetDebugTreeView::MakeBreakpointParentItem(BlueprintToWatchPtr);
 }
 
-void SKismetDebuggingView::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+void SKismetDebuggingView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	// don't update during scroll. this will help make the scroll smoother
-	if(DebugTreeView->IsScrolling() || OtherTreeView->IsScrolling())
+	if (DebugTreeView->IsScrolling() || OtherTreeView->IsScrolling())
 	{
 		return;
 	}
-	
+
 	// update less often to avoid lag
 	TreeUpdateTimer += InDeltaTime;
-	if(TreeUpdateTimer < UpdateInterval)
+	if (TreeUpdateTimer < UpdateInterval)
 	{
 		return;
 	}
 	TreeUpdateTimer = 0.f;
-	
+
 	// Gather the old root set
 	TSet<UObject*> OldRootSet;
 	for (const FDebugTreeItemPtr& Item : DebugTreeView->GetRootTreeItems())
@@ -360,29 +372,49 @@ void SKismetDebuggingView::Tick( const FGeometry& AllottedGeometry, const double
 	const bool bIsDebugging = GEditor->PlayWorld != nullptr;
 
 	TSet<UObject*> NewRootSet;
-	
-	if(bIsDebugging && BlueprintToWatchPtr.IsValid())
+
+	const auto TryAddBlueprintToNewRootSet = [&NewRootSet](UBlueprint* InBlueprint)
 	{
-		UClass* GeneratedClass = Cast<UClass>(BlueprintToWatchPtr->GeneratedClass);
-		for(FThreadSafeObjectIterator Iter(GeneratedClass, /*bOnlyGCedObjects =*/ false, /*AdditionalExclusionFlags =*/ RF_ArchetypeObject | RF_ClassDefaultObject); Iter; ++Iter)
-        {
-            UObject* Instance = *Iter;
-			if(!Instance)
+		for (FThreadSafeObjectIterator Iter(InBlueprint->GeneratedClass, /*bOnlyGCedObjects =*/ false, /*AdditionalExclusionFlags =*/ RF_ArchetypeObject | RF_ClassDefaultObject); Iter; ++Iter)
+		{
+			UObject* Instance = *Iter;
+			if (!Instance)
 			{
 				continue;
 			}
 
 			// only include actors in current world
-            if(AActor* Actor = Cast<AActor>(Instance))
-            {
-                if(!GEditor->PlayWorld->ContainsActor(Actor))
-                {
-                    continue;
-                }
-            }
-            
-            NewRootSet.Add(Instance);
-        }
+			if (AActor* Actor = Cast<AActor>(Instance))
+			{
+				if (!GEditor->PlayWorld->ContainsActor(Actor))
+				{
+					continue;
+				}
+			}
+
+			NewRootSet.Add(Instance);
+		}
+	};
+
+	if(bIsDebugging)
+	{
+		if (BlueprintToWatchPtr.IsValid())
+		{
+			// Show blueprint objects of the selected class
+			TryAddBlueprintToNewRootSet(BlueprintToWatchPtr.Get());
+		}
+		else
+		{
+			// Show all blueprint objects with watches
+			for (FThreadSafeObjectIterator BlueprintIter(UBlueprint::StaticClass(), /*bOnlyGCedObjects =*/ false, /*AdditionalExclusionFlags =*/ RF_ArchetypeObject | RF_ClassDefaultObject); BlueprintIter; ++BlueprintIter)
+			{
+				UBlueprint* Blueprint = Cast<UBlueprint>(*BlueprintIter);
+				if (Blueprint && FKismetDebugUtilities::BlueprintHasPinWatches(Blueprint))
+				{
+					TryAddBlueprintToNewRootSet(Blueprint);
+				}
+			}
+		}
 	}
 
 	// This will pull anything out of Old that is also New (sticking around), so afterwards Old is a list of things to remove

@@ -703,6 +703,32 @@ OVRP_EXPORT ovrpResult ovrp_SetKeyboardOverlayPose(ovrpPosef pose);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -1718,7 +1718,7 @@ public: \
 	DECLARE_CLASS(TClass,TSuperClass,TStaticFlags|CLASS_Intrinsic,TStaticCastFlags,TPackage,TRequiredAPI ) \
 	RELAY_CONSTRUCTOR(TClass, TSuperClass) \
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */ \
-	TClass(FVTableHelper& Helper) : Super(Helper) {}; \
+	TRequiredAPI TClass(FVTableHelper& Helper) : Super(Helper) {}; \
 	static void StaticRegisterNatives##TClass() {} \
 	DECLARE_SERIALIZER(TClass) \
 	DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass) \
@@ -1740,7 +1740,7 @@ public: \
 #define DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR( TClass, TSuperClass, TStaticFlags, TPackage, TStaticCastFlags, TRequiredAPI ) \
 	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR_NO_VTABLE_CTOR( TClass, TSuperClass, TStaticFlags, TPackage, TStaticCastFlags, TRequiredAPI ) \
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */ \
-	TClass(FVTableHelper& Helper) : Super(Helper) {}; \
+	TRequiredAPI TClass(FVTableHelper& Helper) : Super(Helper) {}; \
 
 
 #define DECLARE_CASTED_CLASS_INTRINSIC( TClass, TSuperClass, TStaticFlags, TPackage, TStaticCastFlags ) \

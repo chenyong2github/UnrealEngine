@@ -2,6 +2,9 @@
 
 #include "ConsoleVariablesEditorListRow.h"
 
+#include "ConsoleVariablesAsset.h"
+
+#include "Algo/AnyOf.h"
 #include "Views/List/SConsoleVariablesEditorList.h"
 
 FConsoleVariablesEditorListRow::~FConsoleVariablesEditorListRow()
@@ -17,7 +20,7 @@ void FConsoleVariablesEditorListRow::FlushReferences()
 	}
 }
 
-FConsoleVariablesUiCommandInfo& FConsoleVariablesEditorListRow::GetCommandInfo()
+TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorListRow::GetCommandInfo() const
 {
 	return CommandInfo;
 }
@@ -94,30 +97,67 @@ void FConsoleVariablesEditorListRow::SetShouldExpandAllChildren(const bool bNewS
 	bShouldExpandAllChildren = bNewShouldExpandAllChildren;
 }
 
-FText FConsoleVariablesEditorListRow::GetSource() const
-{
-	return Source;
-}
-
-void FConsoleVariablesEditorListRow::SetSource(const FString& InSource)
-{
-	Source = FText::FromString(InSource);
-}
-
 bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray<FString> InTokens,
 	const bool bMatchAnyTokens)
 {
-	return true;
+	// If the search is cleared we'll consider the row to pass search
+	bool bMatchFound = InTokens.Num() == 0;
+
+	if (!bMatchFound)
+	{
+		TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedInfo = CommandInfo.Pin();
+		
+		const FString SearchTerms = PinnedInfo->Command + PinnedInfo->GetSource().ToString() +
+			(PinnedInfo->ConsoleVariablePtr ? PinnedInfo->ConsoleVariablePtr->GetString() + PinnedInfo->ConsoleVariablePtr->GetHelp() : "");
+
+		bMatchFound = Algo::AnyOf(InTokens,
+			[&SearchTerms](const FString& Token)
+			{
+				return SearchTerms.Contains(Token);
+			});
+	}
+
+	bDoesRowMatchSeachTerms = bMatchFound;
+
+	return bMatchFound;
 }
 
 void FConsoleVariablesEditorListRow::ExecuteSearchOnChildNodes(const FString& SearchString) const
 {
-	return;
+	TArray<FString> Tokens;
+
+	SearchString.ParseIntoArray(Tokens, TEXT(" "), true);
+
+	ExecuteSearchOnChildNodes(Tokens);
 }
 
 void FConsoleVariablesEditorListRow::ExecuteSearchOnChildNodes(const TArray<FString>& Tokens) const
 {
-	return;
+	for (const FConsoleVariablesEditorListRowPtr& ChildRow : GetChildRows())
+	{
+		if (!ensure(ChildRow.IsValid()))
+		{
+			continue;
+		}
+
+		if (ChildRow->GetRowType() == EConsoleVariablesEditorListRowType::CommandGroup)
+		{
+			if (ChildRow->MatchSearchTokensToSearchTerms(Tokens))
+			{
+				// If the group name matches then we pass an empty string to search child nodes since we want them all to be visible
+				ChildRow->ExecuteSearchOnChildNodes("");
+			}
+			else
+			{
+				// Otherwise we iterate over all child nodes to determine which should and should not be visible
+				ChildRow->ExecuteSearchOnChildNodes(Tokens);
+			}
+		}
+		else
+		{
+			ChildRow->MatchSearchTokensToSearchTerms(Tokens);
+		}
+	}
 }
 
 ECheckBoxState FConsoleVariablesEditorListRow::GetWidgetCheckedState() const
@@ -156,9 +196,14 @@ void FConsoleVariablesEditorListRow::SetWidgetCheckedState(const ECheckBoxState 
 	}
 }
 
+bool FConsoleVariablesEditorListRow::IsRowChecked() const
+{
+	return GetWidgetCheckedState() == ECheckBoxState::Checked;
+}
+
 EVisibility FConsoleVariablesEditorListRow::GetDesiredVisibility() const
 {
-	return EVisibility::Visible;
+	return bDoesRowMatchSeachTerms || HasVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
@@ -168,14 +213,36 @@ FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
 		return FReply::Handled();
 	}
 
+	GetCommandInfo().Pin()->ExecuteCommand(GetCommandInfo().Pin()->StartupValueAsString);
+
 	TWeakObjectPtr<UConsoleVariablesAsset> Asset = ListViewPtr.Pin()->GetEditedAsset();
 
 	if (ensure(Asset.IsValid()))
 	{
-		Asset->RemoveConsoleVariable(CommandInfo);
+		Asset->RemoveConsoleVariable(CommandInfo.Pin()->Command);
 
 		ListViewPtr.Pin()->RefreshList(Asset.Get());
 	}
 
 	return FReply::Handled();
+}
+
+void FConsoleVariablesEditorListRow::ResetToPresetValue() const
+{
+	GetCommandInfo().Pin()->ExecuteCommand(GetPresetValue());
+}
+
+bool FConsoleVariablesEditorListRow::GetShouldFlashOnScrollIntoView() const
+{
+	return bShouldFlashOnScrollIntoView;
+}
+
+void FConsoleVariablesEditorListRow::SetShouldFlashOnScrollIntoView(const bool bNewShouldFlashOnScrollIntoView)
+{
+	bShouldFlashOnScrollIntoView = bNewShouldFlashOnScrollIntoView;
+}
+
+const FString& FConsoleVariablesEditorListRow::GetPresetValue() const
+{
+	return PresetValue;
 }

@@ -32,7 +32,7 @@ public:
 	// Connects to a server
 	bool Connect(const FString& Address, const int32 Port, const int32 TriesAmount, const float TryDelay);
 	// Terminates current connection
-	void Disconnect();
+	void Disconnect() override final;
 
 	// Provides with net unit name
 	virtual FString GetName() const override

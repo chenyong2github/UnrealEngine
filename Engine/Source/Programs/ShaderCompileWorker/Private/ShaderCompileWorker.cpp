@@ -1031,16 +1031,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 		++ResourceIndex;
 	};
 
-	uint32 CFlag = 0;
-	while (CFlags != 0)
-	{
-		if ((CFlags & 1) != 0)
-		{
-			Input.Environment.CompilerFlags.Add(CFlag);
-		}
-		CFlags = (CFlags >> (uint64)1);
-		++CFlag;
-	}
+	Input.Environment.CompilerFlags = FShaderCompilerFlags(CFlags);
 
 	Input.bCompilingForShaderPipeline = bPipeline;
 	Input.bIncludeUsedOutputs = bIncludeUsedOutputs;

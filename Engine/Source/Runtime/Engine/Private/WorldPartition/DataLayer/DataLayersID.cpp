@@ -13,7 +13,7 @@ FDataLayersID::FDataLayersID(const TArray<const UDataLayer*>& InDataLayers)
 	: Hash(0)
 {
 	TArray<FName> DataLayers;
-	Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* Item) { return Item->IsDynamicallyLoaded(); }, [](const UDataLayer* Item) { return Item->GetFName(); });
+	Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* Item) { return Item->IsRuntime(); }, [](const UDataLayer* Item) { return Item->GetFName(); });
 
 	if (DataLayers.Num())
 	{

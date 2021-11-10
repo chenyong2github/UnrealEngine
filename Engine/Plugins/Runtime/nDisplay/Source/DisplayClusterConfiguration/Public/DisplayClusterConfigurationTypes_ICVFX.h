@@ -402,6 +402,40 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraB
 	FLinearColor Color = FLinearColor::Blue;
 };
 
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraCustomFrustum
+{
+	GENERATED_BODY()
+
+	/** Multiply the field of view for the ICVFX camera by this value.  This can increase the overall size of the inner frustum to help provide a buffer against latency when moving the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "5.0", UIMax = "5.0"))
+	float FieldOfViewMultiplier = 1.0f;
+
+	/** Enable Custom Frustum Frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Custom Frustum"))
+	bool bEnable = false;
+
+	/** Enable/disable inner camera custom frustum and specify units as percent or pixel values. */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mode"), EditCondition = "bEnable")
+	EDisplayClusterConfigurationViewportCustomFrustumMode Mode = EDisplayClusterConfigurationViewportCustomFrustumMode::Percent;
+
+	/** Pixel/Percent value to alter the frustum to the left side */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Left", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	float Left = 0;
+
+	/** Pixel/Percent value to alter the frustum to the right side */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Right", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	float Right = 0;
+
+	/** Pixel/Percent value to alter the frustum to the top*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Top", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	float Top = 0;
+
+	/** Pixel/Percent value to alter the frustum to the bottom */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Bottom", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	float Bottom = 0;
+};
+
 USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraSettings
 {
@@ -422,9 +456,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Inner Frustum Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "1.0", EditCondition = "bEnable"))
 	float BufferRatio = 1;
 
-	/** Multiply the field of view for the ICVFX camera by this value.  This can increase the overall size of the inner frustum to help provide a buffer against latency when moving the camera. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "5.0", UIMax = "5.0", EditCondition = "bEnable"))
-	float FieldOfViewMultiplier = 1.0f;
+	/** Render a larger or smaller inner frame */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (EditCondition = "bEnable"))
+	FDisplayClusterConfigurationICVFX_CameraCustomFrustum CustomFrustum;
 
 	/** Soften the edges of the inner frustum to help avoid hard lines in reflections seen by the live-action camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (EditCondition = "bEnable"))

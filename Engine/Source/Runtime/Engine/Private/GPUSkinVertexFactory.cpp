@@ -695,8 +695,12 @@ public:
 				// todo: Maybe a check for PreviousData!=CurrentData would save some performance (when objects don't have velocty yet) but removing the bool also might save performance
 				bLocalPerBoneMotionBlur = true;
 
+				// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
+				// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
+				bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == ShaderData.UpdatedFrameNumber);
 				// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
-				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(!View->Family->bWorldIsPaused_IncludingSimulatingInEditor).VertexBufferSRV;
+				bool bPrevious = !View->Family->bWorldIsPaused_IncludingSimulatingInEditor && bBoneDataUpdatedThisFrame;
+				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(bPrevious).VertexBufferSRV;
 				ShaderBindings.Add(PreviousBoneMatrices, PreviousData);
 			}
 		}
@@ -782,7 +786,7 @@ public:
 
 		// #dxr_todo do we need this call to the base?
 		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
-		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams, View->Family->bWorldIsPaused_IncludingSimulatingInEditor);
+		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams, View);
 	}
 
 private:

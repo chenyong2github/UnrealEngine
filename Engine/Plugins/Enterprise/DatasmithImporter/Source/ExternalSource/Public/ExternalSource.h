@@ -11,7 +11,12 @@
 #include "Delegates/DelegateCombinations.h"
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
+#include "Misc/SecureHash.h"
 #include "Templates/SharedPointer.h"
+
+#if WITH_EDITOR
+#include "Delegates/IDelegateInstance.h"
+#endif //WITH_EDITOR
 
 class FAsyncTaskNotification;
 class IDatasmithScene;
@@ -46,11 +51,9 @@ namespace UE::DatasmithImporter
 	class EXTERNALSOURCE_API FExternalSource : public TSharedFromThis<FExternalSource>
 	{
 	public:
-		explicit FExternalSource(const FSourceUri& InSourceUri)
-			: SourceUri(InSourceUri)
-		{}
+		explicit FExternalSource(const FSourceUri& InSourceUri);
 
-		virtual ~FExternalSource() = default;
+		virtual ~FExternalSource();
 
 		virtual FString GetSourceName() const = 0;
 
@@ -118,7 +121,7 @@ namespace UE::DatasmithImporter
 		 * Delegate called on main thread every time the loaded data is updated.
 		 * Used for registering auto-reimport on assets.
 		 */
-		OnExternalSourceChangedDelegate OnExternalSourceLoaded;
+		OnExternalSourceChangedDelegate OnExternalSourceChanged;
 
 	protected:
 
@@ -152,6 +155,9 @@ namespace UE::DatasmithImporter
 
 		void ValidateDatasmithVersion() const;
 
+#if WITH_EDITOR
+		void OnEndPIE(bool bIsSimulating);
+#endif
 		/**
 		 * Queue containing the unfulfilled promises added by AsyncLoad()
 		 * We can't directly make a TQueue of TPromise, as the queue internally creates nodes for tracking the head/tail,
@@ -172,5 +178,10 @@ namespace UE::DatasmithImporter
 		FString SceneName;
 
 		TSharedPtr<IDatasmithTranslator> AssetTranslator;
+
+#if WITH_EDITOR
+		bool bChangedDuringPIE = false;
+		FDelegateHandle OnPIEEndHandle;
+#endif
 	};
 }

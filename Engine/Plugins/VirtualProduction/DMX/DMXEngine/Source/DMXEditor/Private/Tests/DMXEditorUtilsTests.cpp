@@ -21,11 +21,13 @@ namespace
 		FFixtureTestSetup(const int32 FixtureChannelLength)
 		{
 			Library							= NewObject<UDMXLibrary>();
-			DummyFixtureType				= NewObject<UDMXEntityFixtureType>();
-			FirstManualFixture				= NewObject<UDMXEntityFixturePatch>();
-			SecondManualFixture				= NewObject<UDMXEntityFixturePatch>();
-			FirstAutoFixture				= NewObject<UDMXEntityFixturePatch>();
-			SecondAutoFixture				= NewObject<UDMXEntityFixturePatch>();
+			DummyFixtureType				= UDMXEntityFixtureType::CreateFixtureTypeInLibrary(Library);
+			FDMXEntityFixtureTypeRef FixtureTypeRef(DummyFixtureType);
+
+			FirstManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+			SecondManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+			FirstAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+			SecondAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
 
 			DummyFixtureType->Modes.Add([FixtureChannelLength]()
 				{
@@ -45,13 +47,6 @@ namespace
 			FirstAutoFixture->SetUniverseID(1);
 			SecondAutoFixture->SetAutoAssignAddressUnsafe(true);
 			SecondAutoFixture->SetUniverseID(1);
-
-			Library->AddEntity(DummyFixtureType);
-			for(UDMXEntityFixturePatch* Patch : PatchesAsArray())
-			{
-				Patch->SetFixtureType(DummyFixtureType);
-				Library->AddEntity(Patch);
-			}
 		}
 
 		TArray<UDMXEntityFixturePatch*> PatchesAsArray() const

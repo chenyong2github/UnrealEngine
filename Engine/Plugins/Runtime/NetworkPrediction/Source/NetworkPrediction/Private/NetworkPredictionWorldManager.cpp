@@ -5,6 +5,7 @@
 #include "Debug/DebugDrawService.h"
 #include "GameFramework/PlayerController.h"
 #include "NetworkPredictionTrace.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PBDRigidsSolver.h"

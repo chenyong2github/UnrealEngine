@@ -17,8 +17,12 @@ public:
 
 	/* Is this actor captured by the snapshot system? */
 	static bool IsActorDesirableForCapture(const AActor* Actor);
+	/** Can this actor be restored? Stronger requirement than IsActorDesirableForCapture: we may capture the data but not support restoring it at the moment. */
+	static bool IsActorRestorable(const AActor* Actor);
+	
 	/* Is this component captured by the snapshot system? */
 	static bool IsComponentDesirableForCapture(const UActorComponent* Component);
+	
 	/* Is this subobject class captured by the snapshot system?*/
 	static bool IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass);
 	/** Is this subobject captured by the snapshot system? */

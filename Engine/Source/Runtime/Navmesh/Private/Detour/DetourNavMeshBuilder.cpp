@@ -809,7 +809,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 				dtVadd(c, c, &navVerts[poly->verts[iv] * 3]);
 			}
 			
-			dtVmad(cluster.center, cluster.center, c, 1.0f / poly->vertCount);
+			dtVmad(cluster.center, cluster.center, c, dtReal(1.) / poly->vertCount);
 			break;
 		}
 	}

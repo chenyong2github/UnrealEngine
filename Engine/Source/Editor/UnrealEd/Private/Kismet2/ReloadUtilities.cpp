@@ -349,9 +349,7 @@ void FReloadClassReinstancer::ReconstructClassDefaultObject(UClass* InClass, UOb
 	// Re-create
 	InClass->ClassDefaultObject = StaticAllocateObject(InClass, InOuter, InName, InFlags, EInternalObjectFlags::None, false);
 	check(InClass->ClassDefaultObject);
-	const bool bShouldInitializeProperties = false;
-	const bool bCopyTransientsFromClassDefaults = false;
-	(*InClass->ClassConstructor)(FObjectInitializer(InClass->ClassDefaultObject, ParentDefaultObject, bCopyTransientsFromClassDefaults, bShouldInitializeProperties));
+	(*InClass->ClassConstructor)(FObjectInitializer(InClass->ClassDefaultObject, ParentDefaultObject, EObjectInitializerOptions::None));
 }
 
 void FReloadClassReinstancer::RecreateCDOAndSetupOldClassReinstancing(UClass* InOldClass)

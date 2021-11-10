@@ -37,6 +37,8 @@ public:
 	virtual void Deactivate() override;
 	virtual FCameraCalibrationStepsController* GetCameraCalibrationStepsController() const override;
 	virtual bool IsActive() const override;
+	virtual UMaterialInstanceDynamic* GetOverlayMID() const override;
+	virtual bool IsOverlayEnabled() const override;
 	//~ End UCameraCalibrationStep interface
 
 public:
@@ -67,6 +69,10 @@ private:
 	/** Holds the registered camera lens distortion algos */
 	UPROPERTY(Transient)
 	TMap<FName, TSubclassOf<UCameraLensDistortionAlgo>> AlgosMap;
+
+	/** Map of algo names to overlay MIDs used by those algos */
+	UPROPERTY(Transient)
+	TMap<FName, TWeakObjectPtr<UMaterialInstanceDynamic>> AlgoOverlayMIDs;
 
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;

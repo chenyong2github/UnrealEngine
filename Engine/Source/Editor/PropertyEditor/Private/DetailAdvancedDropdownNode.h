@@ -15,11 +15,11 @@
 class FAdvancedDropdownNode : public FDetailTreeNode, public TSharedFromThis<FAdvancedDropdownNode>
 {
 public:
-	FAdvancedDropdownNode(TSharedRef<FDetailCategoryImpl> InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, bool bIsVisible)
+	FAdvancedDropdownNode(TSharedRef<FDetailCategoryImpl> InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, TAttribute<bool> InVisible)
 		: ParentCategory(InParentCategory.Get())
 		, IsEnabled(InEnabled)
 		, IsExpanded(InExpanded)
-		, IsVisible(bIsVisible)
+		, IsVisible(InVisible)
 	{
 		SetParentNode(InParentCategory);
 	}
@@ -49,5 +49,5 @@ private:
 	FDetailCategoryImpl& ParentCategory;
 	TAttribute<bool> IsEnabled;
 	TAttribute<bool> IsExpanded;
-	bool IsVisible;
+	TAttribute<bool> IsVisible;
 };

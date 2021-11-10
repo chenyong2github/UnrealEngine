@@ -26,6 +26,7 @@ namespace AutomationTool
 	/// <summary>
 	/// Wrapper class around fastJSON methods. These are deprecated. Prefer the native System.Text.Json framework instead.
 	/// </summary>
+	[Obsolete("deprecated, to be removed in 5.1")]
 	public static class Json_DEPRECATED
 	{
 		/// <summary>

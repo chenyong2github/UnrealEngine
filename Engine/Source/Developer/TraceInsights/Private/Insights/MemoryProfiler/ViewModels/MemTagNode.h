@@ -8,6 +8,7 @@
 // Insights
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
 #include "Insights/MemoryProfiler/ViewModels/MemoryTag.h"
+#include "Insights/MemoryProfiler/ViewModels/MemoryTracker.h"
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 
 namespace TraceServices
@@ -93,7 +94,7 @@ public:
 
 	Insights::FMemoryTagId GetMemTagId() const { return MemTag ? MemTag->GetId() : Insights::FMemoryTag::InvalidTagId; }
 
-	uint64 GetTrackers() const { return MemTag ? MemTag->GetTrackers() : 0; }
+	Insights::FMemoryTrackerId GetMemTrackerId() const { return MemTag ? MemTag->GetTrackerId() : Insights::FMemoryTracker::InvalidTrackerId; }
 	FText GetTrackerText() const;
 
 	FLinearColor GetColor() const { return MemTag ? MemTag->GetColor() : FLinearColor(0.5f, 0.5f, 0.5f, 1.0f); }

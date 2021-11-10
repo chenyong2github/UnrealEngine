@@ -14,10 +14,9 @@ namespace Chaos
 	{
 		if(Geometry)
 		{
+			const int32 OldShapeNum = ShapesArray.Num();
 			if(const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
-				const int32 OldShapeNum = ShapesArray.Num();
-
 				ShapesArray.SetNum(Union->GetObjects().Num());
 
 				for (int32 ShapeIndex = 0; ShapeIndex < ShapesArray.Num(); ++ShapeIndex)
@@ -34,7 +33,10 @@ namespace Chaos
 			else
 			{
 				ShapesArray.SetNum(1);
-				ShapesArray[0] = FPerShapeData::CreatePerShapeData(0);
+				if (OldShapeNum == 0)
+				{
+					ShapesArray[0] = FPerShapeData::CreatePerShapeData(0);
+				}
 				ShapesArray[0]->SetGeometry(Geometry);
 			}
 
@@ -42,7 +44,7 @@ namespace Chaos
 			{
 				for (auto& Shape : ShapesArray)
 				{
-					Shape->UpdateShapeBounds(ActorTM);
+					Shape->UpdateShapeBounds(ActorTM, FVec3(0));
 				}
 			}
 		}
@@ -59,6 +61,50 @@ namespace Chaos
 			}
 		}
 	}
+
+	// Unwrap transformed shapes
+	// @todo(chaos): also unwrap Instanced and Scaled but that requires a lot of knock work because Convexes are usually Instanced or
+	// Scaled so the Scale and Margin is stored on the wrapper (the convex itself is shared).
+	// - support for Margin as per-shape data passed through the collision functions
+	// - support for Scale as per-shape data passed through the collision functions (or ideally in the Transforms)
+	const FImplicitObject* GetInnerGeometryInstanceData(const FImplicitObject* Implicit, FRigidTransform3& OutTransform, FReal& OutMargin)
+	{
+		if (Implicit != nullptr)
+		{
+			const EImplicitObjectType ImplicitOuterType = Implicit->GetType();
+			if (ImplicitOuterType == TImplicitObjectTransformed<FReal, 3>::StaticType())
+			{
+				// Transformed Implicit
+				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit = Implicit->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
+				OutTransform = TransformedImplicit->GetTransform() * OutTransform;
+				//OutMargin += TransformedImplicit->GetMargin();
+				return GetInnerGeometryInstanceData(TransformedImplicit->GetTransformedObject(), OutTransform, OutMargin);
+			}
+			else if ((uint32)ImplicitOuterType & ImplicitObjectType::IsInstanced)
+			{
+				// Instanced Implicit
+				// Currently we only unwrap instanced TriMesh and Heightfields. They don't have a margin, so they don't need the instance wrapper in collision detection.
+				// The only other type we wrap in instances right now are Convex, so we just check for that here...
+				const FImplicitObjectInstanced* Instanced = static_cast<const FImplicitObjectInstanced*>(Implicit);
+				EImplicitObjectType InnerType = Instanced->GetInnerObject()->GetType();
+				if (InnerType != FImplicitConvex3::StaticType())
+				{
+					OutMargin += Instanced->GetMargin();
+					return GetInnerGeometryInstanceData(Instanced->GetInnerObject().Get(), OutTransform, OutMargin);
+				}
+			}
+			else if ((uint32)ImplicitOuterType & ImplicitObjectType::IsScaled)
+			{
+				// Scaled Implicit
+				//const FImplicitObjectScaled* Scaled = static_cast<const FImplicitObjectScaled*>(Implicit);
+				//OutTransform.Scale *= Scaled->GetScale();
+				//OutMargin += Scaled->GetMargin();
+				//return GetInnerGeometryInstanceData(Scaled->GetInnerObject().Get(), OutTransform, OutMargin);
+			}
+		}
+		return Implicit;
+	}
+
 
 	FPerShapeData::FPerShapeData(int32 InShapeIdx)
 		: Proxy(nullptr)
@@ -77,12 +123,19 @@ namespace Chaos
 		return TUniquePtr<FPerShapeData>(new FPerShapeData(ShapeIdx));
 	}
 
-	void FPerShapeData::UpdateShapeBounds(const FRigidTransform3& WorldTM)
+	void FPerShapeData::UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion)
 	{
 		if (Geometry && Geometry->HasBoundingBox())
 		{
-			SetWorldSpaceInflatedShapeBounds(Geometry->BoundingBox().TransformedAABB(WorldTM));
+			WorldSpaceInflatedShapeBounds = Geometry->CalculateTransformedBounds(WorldTM).ThickenSymmetrically(BoundsExpansion);
 		}
+	}
+
+	void FPerShapeData::UpdateLeafGeometry()
+	{
+		LeafRelativeTransform = FRigidTransform3::Identity;
+		LeafMargin = 0.0f;
+		LeafGeometry = GetInnerGeometryInstanceData(Geometry.Get(), LeafRelativeTransform, LeafMargin);
 	}
 
 	FPerShapeData* FPerShapeData::SerializationFactory(FChaosArchive& Ar, FPerShapeData*)
@@ -107,7 +160,7 @@ namespace Chaos
 		else
 		{
 			// This should be set by particle serializing this FPerShapeData.
-			SetWorldSpaceInflatedShapeBounds(FAABB3(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
+			WorldSpaceInflatedShapeBounds = FAABB3(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
 		}
 
 	}

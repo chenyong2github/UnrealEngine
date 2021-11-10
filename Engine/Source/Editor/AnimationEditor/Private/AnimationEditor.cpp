@@ -80,7 +80,11 @@ FAnimationEditor::~FAnimationEditor()
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 	FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
 	//Make sure all delegate for preview mesh change are removed, by setting it to nullptr
-	PersonaToolkit->SetPreviewMesh(nullptr);
+	if (PersonaToolkit.IsValid())
+	{
+		constexpr bool bSetPreviewMeshInAsset = false;
+		PersonaToolkit->SetPreviewMesh(nullptr, bSetPreviewMeshInAsset);
+	}
 }
 
 void FAnimationEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

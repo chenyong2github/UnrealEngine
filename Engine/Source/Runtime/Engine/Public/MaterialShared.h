@@ -2316,7 +2316,7 @@ class USubsurfaceProfile;
 /**
  * A material render proxy used by the renderer.
  */
-class FMaterialRenderProxy : public FRenderResource, public FNoncopyable
+class ENGINE_API FMaterialRenderProxy : public FRenderResource, public FNoncopyable
 {
 public:
 
@@ -2327,22 +2327,22 @@ public:
 	mutable FImmutableSamplerState ImmutableSamplerState;
 
 	/** Default constructor. */
-	ENGINE_API FMaterialRenderProxy(FString InMaterialName);
+	FMaterialRenderProxy(FString InMaterialName);
 
 	/** Destructor. */
-	ENGINE_API virtual ~FMaterialRenderProxy();
+	virtual ~FMaterialRenderProxy();
 
 	/**
 	 * Evaluates uniform expressions and stores them in OutUniformExpressionCache.
 	 * @param OutUniformExpressionCache - The uniform expression cache to build.
 	 * @param MaterialRenderContext - The context for which to cache expressions.
 	 */
-	void ENGINE_API EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, class FRHICommandList* CommandListIfLocalMode = nullptr) const;
+	void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, class FRHICommandList* CommandListIfLocalMode = nullptr) const;
 
 	/**
 	 * Caches uniform expressions for efficient runtime evaluation.
 	 */
-	void ENGINE_API CacheUniformExpressions(bool bRecreateUniformBuffer);
+	void CacheUniformExpressions(bool bRecreateUniformBuffer);
 
 	/**
 	 * Enqueues a rendering command to cache uniform expressions for efficient runtime evaluation.
@@ -2350,14 +2350,14 @@ public:
 	 *		This is required if the FMaterial is being recompiled (the uniform buffer layout will change).
 	 *		This should only be done if the calling code is using FMaterialUpdateContext to recreate the rendering state of primitives using this material, since cached mesh commands also cache uniform buffer pointers.
 	 */
-	void ENGINE_API CacheUniformExpressions_GameThread(bool bRecreateUniformBuffer);
+	void CacheUniformExpressions_GameThread(bool bRecreateUniformBuffer);
 
 	/**
 	 * Invalidates the uniform expression cache.
 	 */
-	void ENGINE_API InvalidateUniformExpressionCache(bool bRecreateUniformBuffer);
+	void InvalidateUniformExpressionCache(bool bRecreateUniformBuffer);
 
-	void ENGINE_API UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel::Type InFeatureLevel) const;
+	void UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	
 	/** Returns the FMaterial, without using a fallback if the FMaterial doesn't have a valid shader map. Can return NULL. */
@@ -2371,13 +2371,13 @@ public:
 	 * The returned FMaterial is guaranteed to have a complete shader map, so all relevant shaders should be availiable
 	 * OutFallbackMaterialRenderProxy - The proxy that coorisponds to the returned FMaterial, should be used for further rendering.  May be a fallback material, or 'this' if no fallback was needed
 	 */
-	ENGINE_API const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
+	const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
 
 	/**
 	 * Finds the FMaterial to use for rendering this FMaterialRenderProxy.  Will fall back to a default material if needed due to a content error, or async compilation.
 	 * Will always return a valid FMaterial, but unlike GetMaterialWithFallback, FMaterial's shader map may be incomplete
 	 */
-	ENGINE_API const FMaterial& GetIncompleteMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel) const;
+	const FMaterial& GetIncompleteMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	UE_DEPRECATED(4.26, "This function is deprecated. Use GetIncompleteMaterialWithFallback() instead.")
 	inline const FMaterial* GetMaterial(ERHIFeatureLevel::Type InFeatureLevel) const
@@ -2387,10 +2387,10 @@ public:
 
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
 
-	ENGINE_API bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const;
-	ENGINE_API bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
-	ENGINE_API bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
-	ENGINE_API bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const;
+	bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const;
+	bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
+	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
+	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const;
 	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const = 0;
 
 	bool IsDeleted() const
@@ -2409,18 +2409,18 @@ public:
 	}
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitDynamicRHI() override;
-	ENGINE_API virtual void ReleaseDynamicRHI() override;
-	ENGINE_API virtual void ReleaseResource() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseResource() override;
 
 #if WITH_EDITOR
-	ENGINE_API static const TSet<FMaterialRenderProxy*>& GetMaterialRenderProxyMap() 
+	static const TSet<FMaterialRenderProxy*>& GetMaterialRenderProxyMap() 
 	{
 		check(!FPlatformProperties::RequiresCookedData());
 		return MaterialRenderProxyMap;
 	}
 
-	ENGINE_API static FCriticalSection& GetMaterialRenderProxyMapLock()
+	static FCriticalSection& GetMaterialRenderProxyMapLock()
 	{
 		return MaterialRenderProxyMapLock;
 	}
@@ -2429,7 +2429,7 @@ public:
 	void SetSubsurfaceProfileRT(const USubsurfaceProfile* Ptr) { SubsurfaceProfileRT = Ptr; }
 	const USubsurfaceProfile* GetSubsurfaceProfileRT() const { return SubsurfaceProfileRT; }
 
-	ENGINE_API static void UpdateDeferredCachedUniformExpressions();
+	static void UpdateDeferredCachedUniformExpressions();
 
 	static inline bool HasDeferredUniformExpressionCacheRequests() 
 	{
@@ -2463,15 +2463,15 @@ private:
 	 * Tracks all material render proxies in all scenes.
 	 * This is used to propagate new shader maps to materials being used for rendering.
 	 */
-	ENGINE_API static TSet<FMaterialRenderProxy*> MaterialRenderProxyMap;
+	static TSet<FMaterialRenderProxy*> MaterialRenderProxyMap;
 
 	/**
 	 * Lock that guards the access to the render proxy map
 	 */
-	ENGINE_API static FCriticalSection MaterialRenderProxyMapLock;
+	static FCriticalSection MaterialRenderProxyMapLock;
 #endif
 
-	ENGINE_API static TSet<FMaterialRenderProxy*> DeferredUniformExpressionCacheRequests;
+	static TSet<FMaterialRenderProxy*> DeferredUniformExpressionCacheRequests;
 };
 
 /**
@@ -3303,6 +3303,7 @@ struct FMaterialShaderParameters
 			uint64 bIsUsedWithNanite : 1;
 			uint64 bIsStencilTestEnabled : 1;
 			uint64 bIsTranslucencySurface : 1;
+			uint64 bShouldDisableDepthTest : 1;
 		};
 	};
 
@@ -3367,6 +3368,7 @@ struct FMaterialShaderParameters
 		bIsUsedWithNanite = InMaterial->IsUsedWithNanite();
 		bIsStencilTestEnabled = InMaterial->IsStencilTestEnabled();
 		bIsTranslucencySurface = InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_Surface || InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_SurfacePerPixelLighting;
+		bShouldDisableDepthTest = InMaterial->ShouldDisableDepthTest();
 	}
 };
 

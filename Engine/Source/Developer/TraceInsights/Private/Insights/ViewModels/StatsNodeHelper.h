@@ -28,13 +28,6 @@ struct StatsNodeTypeHelper
 	 */
 	static FText ToDescription(const EStatsNodeType Type);
 
-	/**
-	 * @param Type - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified EStatsNodeType value.
-	 */
-	static FName ToBrushName(const EStatsNodeType Type);
-
 	static const FSlateBrush* GetIconForGroup();
 	static const FSlateBrush* GetIcon(const EStatsNodeType Type);
 };
@@ -58,13 +51,6 @@ struct StatsNodeDataTypeHelper
 	 */
 	static FText ToDescription(const EStatsNodeDataType Type);
 
-	/**
-	 * @param Type - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified EStatsNodeDataType value.
-	 */
-	static FName ToBrushName(const EStatsNodeDataType Type);
-
 	static const FSlateBrush* GetIcon(const EStatsNodeDataType Type);
 };
 
@@ -86,13 +72,6 @@ struct StatsNodeGroupingHelper
 	 * @return text representation with more detailed explanation of the specified EStatsGroupingMode value.
 	 */
 	static FText ToDescription(const EStatsGroupingMode StatsGroupingMode);
-
-	/**
-	 * @param StatsGroupingMode - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified EStatsGroupingMode value.
-	 */
-	static FName ToBrushName(const EStatsGroupingMode StatsGroupingMode);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

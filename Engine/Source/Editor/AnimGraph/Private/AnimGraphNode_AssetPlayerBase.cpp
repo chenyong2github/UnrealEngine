@@ -114,21 +114,16 @@ void UAnimGraphNode_AssetPlayerBase::OnProcessDuringCompilation(IAnimBlueprintCo
 	// Process Asset Player nodes to, if necessary cache off their node index for retrieval at runtime (used for evaluating Automatic Rule Transitions when using Layer nodes)
 	auto ProcessGraph = [this, &OutCompiledData](UEdGraph* Graph)
 	{
-		// Make sure we do not process the default AnimGraph
-		static const FName DefaultAnimGraphName("AnimGraph");
-		if (Graph->GetFName() != DefaultAnimGraphName)
+		FString GraphName = Graph->GetName();
+		// Also make sure we do not process any empty stub graphs
+		if (!GraphName.Contains(ANIM_FUNC_DECORATOR))
 		{
-			FString GraphName = Graph->GetName();
-			// Also make sure we do not process any empty stub graphs
-			if (!GraphName.Contains(ANIM_FUNC_DECORATOR))
+			if (Graph->Nodes.ContainsByPredicate([this, &OutCompiledData](UEdGraphNode* Node) { return Node && Node->NodeGuid == NodeGuid; }))
 			{
-				if (Graph->Nodes.ContainsByPredicate([this, &OutCompiledData](UEdGraphNode* Node) { return Node && Node->NodeGuid == NodeGuid; }))
+				if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(NodeGuid))
 				{
-					if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(NodeGuid))
-					{
-						FGraphAssetPlayerInformation& Info = OutCompiledData.GetGraphAssetPlayerInformation().FindOrAdd(FName(*GraphName));
-						Info.PlayerNodeIndices.AddUnique(*IndexPtr);
-					}
+					FGraphAssetPlayerInformation& Info = OutCompiledData.GetGraphAssetPlayerInformation().FindOrAdd(FName(*GraphName));
+					Info.PlayerNodeIndices.AddUnique(*IndexPtr);
 				}
 			}
 		}

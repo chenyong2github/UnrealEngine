@@ -2,16 +2,22 @@
 
 #pragma once
 
+#define NON_DIRECTIONAL_DIRECT_LIGHTING (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
 
+#define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
+// This code should map to GetForwardDirectLightingSplit
 float3 StrataForwardLighting(
-	float3 MaterialParametersWorldNormal,
+	uint2 PixelPos,
+	float3 AbsoluteWorldPosition,
+	float SceneDepth,
+	float2 ScreenUV,
 	float3 V,
 	float3 L,
 	float3 LColor,
 	float3 LShadow,
 	float3 IndirectOcclusion,
-	FStrataPixelHeader Header,
+	FStrataPixelHeader StrataPixelHeader,
 	FStrataData StrataData,
 	inout float3 OutThroughput
 	)
@@ -23,6 +29,84 @@ float3 StrataForwardLighting(
 
 	float3 Color = 0;
 	OutThroughput = 1.0f;
+
+	float4 DynamicShadowFactors = 1;
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	DynamicShadowFactors = GetForwardDynamicShadowFactors(ScreenUV);
+#endif
+
+	float SpecularScale = 1;
+//#if TRANSLUCENCY_ANY_VOLUMETRIC
+//	// No specular on volumetric translucency lighting modes
+//	SpecularScale = 0;
+//#endif
+
+	uint LightingChannelMask = 0xFFFFFFFF; // STRATA_TODO GetPrimitive_LightingChannelMask(PrimitiveId);
+
+#if FORWARD_PER_PIXEL_SHADING
+
+	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(0); // STRATA_TODO EyeIndex);
+	FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
+	
+	FDeferredLightData LightData = (FDeferredLightData)0;
+	LightData.Color = DirectionalLightData.DirectionalLightColor;
+	LightData.FalloffExponent = 0;
+	LightData.Direction = DirectionalLightData.DirectionalLightDirection;
+	LightData.DistanceFadeMAD = DirectionalLightData.DirectionalLightDistanceFadeMAD;
+	LightData.bRadialLight = false;
+	LightData.SpecularScale = SpecularScale;
+
+	LightData.ShadowedBits = (DirectionalLightData.DirectionalLightShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
+	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
+	LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
+	LightData.HairTransmittance = InitHairTransmittanceData();
+	#if USE_HAIR_COMPLEX_TRANSMITTANCE
+	if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+	{
+		LightData.HairTransmittance = 0.0;// EvaluateDualScattering(GBufferData, -CameraVector, LightData.Direction);	// STRATA_TODO
+	}
+	#endif
+	// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
+	#if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
+		float4 LightAttenuation = float4(1, 1, 1, 1);
+	#elif ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
+		float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
+		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
+
+		// In the forward shading path we can't separate per-object shadows from CSM, since we only spend one light attenuation channel per light
+		// If CSM is enabled (distance fading to precomputed shadowing is active), treat all of our dynamic shadowing as whole scene shadows that will be faded out at the max CSM distance
+		// If CSM is not enabled, allow our dynamic shadowing to coexist with precomputed shadowing
+		float PerObjectShadowing = LightData.DistanceFadeMAD.y < 0.0f ? 1.0f : DynamicShadowing;
+		float WholeSceneShadowing = LightData.DistanceFadeMAD.y < 0.0f ? DynamicShadowing : 1.0f;
+		
+		float4 LightAttenuation = float4(WholeSceneShadowing.xx, PerObjectShadowing.xx);
+	#else
+		LightData.ShadowedBits = 1;
+		LightData.ShadowMapChannelMask.x = 1;
+		// STRATA_TODO forward shading PrecomputedShadowFactors
+//		#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
+//			GBufferData.PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(WorldPosition).x;
+//		#else
+//			GBufferData.PrecomputedShadowFactors.x = 1;
+//		#endif
+		bool bUnused = false;
+		float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(AbsoluteWorldPosition, SceneDepth, bUnused);
+			
+	#if VIRTUAL_SHADOW_MAP
+		BRANCH
+		if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
+		{
+			FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, AbsoluteWorldPosition);
+			DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+		}
+	#endif
+
+		float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
+	#endif
+
+#else
+	// STRATA_TODO handle non directional and directional translucnecy lighting volume 
+#endif 
 
 	UNROLL
 	for (int l = 0; l < StrataData.LayerCount; ++l)
@@ -55,34 +139,91 @@ float3 StrataForwardLighting(
 			const float3 BSDFCoverage = BSDF.Coverage;
 
 			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header, BSDF, NullStrataAddressing, V, L);
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, NullStrataAddressing, V, L);
 
-			// Compute some common factors
-			const float3 DirLightBaseFactor = OutThroughput * BSDFCoverage * LColor * LShadow;
-			const float3 DirLightGeometryFactor = DirLightBaseFactor * StrataBSDFProjectedSolidAngleFactor(StrataBSDFContext);
-			const float3 SkyLightCommonFactor = OutThroughput * BSDFCoverage * ResolvedView.SkyLightColor.rgb * IndirectOcclusion;
+#if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 
-			// Evaluate environment lighting
-			const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
-			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
-			if (any(StrataEnvLight.DiffuseWeight > 0.0f))
+#elif FORWARD_PER_PIXEL_SHADING
+
+			if (DirectionalLightData.HasDirectionalLight)
 			{
-				Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseWeight * SkyLightCommonFactor;
-			}
-			if (any(StrataEnvLight.SpecularWeight > 0.0f))
-			{
-				float SkyAverageBrightness = 1.0f;
-				Color += GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness) * StrataEnvLight.SpecularWeight * SkyLightCommonFactor;
+				// Compute some common factors
+				const float3 ColoredVisibility = OutThroughput * BSDFCoverage;
+				const float3 SkyLightCommonFactor = ColoredVisibility * ResolvedView.SkyLightColor.rgb * IndirectOcclusion;
+
+				// Evaluate environment lighting
+				const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
+				if (any(StrataEnvLight.DiffuseWeight > 0.0f))
+				{
+					Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseWeight * SkyLightCommonFactor;
+				}
+				if (any(StrataEnvLight.SpecularWeight > 0.0f))
+				{
+					float SkyAverageBrightness = 1.0f;
+					Color += GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness) * StrataEnvLight.SpecularWeight * SkyLightCommonFactor;
+				}
+
+			#if 0
+				FShadowTerms ShadowTerms = { DynamicShadowFactor, 1.0, 1.0, InitHairTransmittanceData() };
+				float Dither = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8);
+				float4 PrecomputedShadowFactors = StrataPixelHeader.ZeroPrecShadowMask ? 0.0f : 1.0f;// STRATA_TODO StrataReadPrecomputedShadowFactors(StrataPixelHeader, PixelPos);
+				const uint FakeShadingModelID = 0;
+				const float FakeContactShadowOpacity = 1.0f;
+				const float3 FakeTranslatedWorldPosition = 0.0f; // DerivedParams.TranslatedWorldPosition
+				GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
+					LightData, FakeTranslatedWorldPosition, LightData.Direction, LightAttenuation, Dither, ShadowTerms);
+			#else
+				FShadowTerms ShadowTerms = { 1.0, 1.0, 1.0, InitHairTransmittanceData() };
+			#endif
+
+			#if NON_DIRECTIONAL_DIRECT_LIGHTING
+				// TODO
+			#else
+
+				float Roughness = 0;
+				StrataGetBSDFRoughness(StrataBSDFContext.BSDF, Roughness);
+				FAreaLightIntegrateContext AreaLightContext = InitAreaLightIntegrateContext();
+				FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
+				if (LightData.bRectLight)
+				{
+					FRect Rect = GetRect(LightData.Direction, LightData);
+					if (!IsRectVisible(Rect))
+					{
+						return 0.0f; // Rect light can be non visible due to barn door occlusion
+					}
+					AreaLightContext = CreateRectIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Rect, RectTexture);
+
+					// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
+					// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
+					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext);
+				}
+				else
+				{
+					FCapsuleLight Capsule = GetCapsule(LightData.Direction, LightData);
+					AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
+
+					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext);
+				}
+
+				float LightMask = 1.0;	// for a directional light
+				float3 DiffuseLuminance = BSDFEvaluate.IntegratedDiffuseValue;
+				float3 SpecularLuminance = BSDFEvaluate.IntegratedSpecularValue;
+				const float3 LightCommonMultiplier = LightData.Color * LightMask;
+				Color += ( (DiffuseLuminance + SpecularLuminance) * LightCommonMultiplier + BSDFEvaluate.EmissivePathValue ) * ColoredVisibility;
+
+			#endif
+
+			LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
+
 			}
 
-			// Evaluate the lighting coming from L (it will also contain the BSDF throughput to the next layer)
-			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
-			Color += (StrataEvaluate.DiffusePathValue + StrataEvaluate.SpecularPathValue) * DirLightGeometryFactor 
-					+ StrataEvaluate.EmissivePathValue * OutThroughput;
+#endif
 
 			LayerCoverage	+= BSDFCoverage;
-			LayerThroughput += BSDFCoverage * StrataEvaluate.Throughput;
 		}
+
+		// STRATA_TODO  !DISABLE_FORWARD_LOCAL_LIGHTS
 
 		// Take into account the non covered part for this layer and update throughput accordingly
 		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;

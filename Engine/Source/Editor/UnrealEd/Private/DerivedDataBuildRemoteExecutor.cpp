@@ -475,7 +475,13 @@ private:
 		}
 		virtual void TickCook(float DeltaTime, bool bTickComplete) override
 		{
-			FHttpModule::Get().GetHttpManager().Tick(DeltaTime);
+			FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
+			if (!HttpModule)
+			{
+				bIsTickable = false;
+				return;
+			}
+			HttpModule->GetHttpManager().Tick(DeltaTime);
 		}
 		virtual bool IsTickable() const { return bIsTickable; }
 		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }

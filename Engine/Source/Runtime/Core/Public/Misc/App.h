@@ -174,7 +174,7 @@ public:
 		// At the moment Strcpy is not safe as we don't check the buffer size on all platforms, so we use strncpy here.
 		FCString::Strncpy(GInternalProjectName, InProjectName, UE_ARRAY_COUNT(GInternalProjectName));
 		// And make sure the ProjectName string is null terminated.
-		GInternalProjectName[UE_ARRAY_COUNT(GInternalProjectName) - 1] = 0;
+		GInternalProjectName[UE_ARRAY_COUNT(GInternalProjectName) - 1] = TEXT('\0');
 	}
 
 public:

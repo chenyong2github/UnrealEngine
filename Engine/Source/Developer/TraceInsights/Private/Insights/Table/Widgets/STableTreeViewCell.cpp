@@ -2,7 +2,6 @@
 
 #include "STableTreeViewCell.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -12,6 +11,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
@@ -81,7 +81,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 		[
 			SNew(SImage)
 			.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
-			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+			.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
 			.ToolTip(GetRowToolTip(TableRow))
 		]
 
@@ -95,7 +95,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(STextBlock)
 			.Text(this, &STableTreeViewCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &STableTreeViewCell::GetColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
 		]
@@ -110,7 +110,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(STextBlock)
 			.Visibility(this, &STableTreeViewCell::HasExtraDisplayName)
 			.Text(this, &STableTreeViewCell::GetExtraDisplayName)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			.ColorAndOpacity(this, &STableTreeViewCell::GetExtraColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
 		]
@@ -137,7 +137,7 @@ FText STableTreeViewCell::GetValueAsText() const
 TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	TSharedRef<STextBlock> TextBox = SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+		.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
 		.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity);
 

@@ -17,9 +17,10 @@ public:
 		UriManager.Reset();
 	}
 
-	virtual UE::DatasmithImporter::IUriManager* GetManager() const override
+	virtual UE::DatasmithImporter::IUriManager& GetManager() const override
 	{
-		return UriManager.Get();
+		check(UriManager.IsValid());
+		return *UriManager;
 	}
 
 	TUniquePtr<UE::DatasmithImporter::FUriManager> UriManager;

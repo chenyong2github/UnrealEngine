@@ -240,11 +240,14 @@ double ToolSceneQueriesUtil::SnapDistanceToWorldGridSize(const UInteractiveTool*
 	IToolsContextQueriesAPI* QueryAPI = Tool->GetToolManager()->GetContextQueriesAPI();
 	FToolContextSnappingConfiguration SnapConfig = QueryAPI->GetCurrentSnappingSettings();
 
-	double DX = SnapConfig.PositionGridDimensions.GetMax();
-	if (DX > 0.0)
+	if (QueryAPI->GetCurrentSnappingSettings().bEnablePositionGridSnapping)
 	{
-		int N = FMath::RoundToInt(Distance / DX);
-		return N * DX;
+		double DX = SnapConfig.PositionGridDimensions.GetMax();
+		if (DX > 0.0)
+		{
+			int N = FMath::RoundToInt(Distance / DX);
+			return N * DX;
+		}
 	}
 
 	return Distance;

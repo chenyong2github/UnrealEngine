@@ -563,11 +563,13 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 	return false;
 }
 
-bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL) const
+bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL, bool bCheckForActivating /*= false*/) const
 {
 	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		return StateMachine->GetCurrentState() == EGameFeaturePluginState::Active;
+		const EGameFeaturePluginState CurrentState = StateMachine->GetCurrentState();
+
+		return CurrentState == EGameFeaturePluginState::Active || (bCheckForActivating && CurrentState == EGameFeaturePluginState::Activating);
 	}
 
 	return false;

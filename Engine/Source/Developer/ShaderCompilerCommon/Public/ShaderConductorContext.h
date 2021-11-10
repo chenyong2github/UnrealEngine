@@ -207,6 +207,9 @@ namespace CrossCompiler
 		/** Returns a filename extension for the specified shading language and shader stage, e.g. "frag" for a GLSL pixel shader. */
 		static const TCHAR* GetShaderFileExt(EShaderConductorLanguage Language, EShaderFrequency ShaderStage = SF_NumFrequencies);
 
+		/** Explicitly shut down ShaderConductor and DXC shared libraries. Only used for Linux to prevent dangling mutex on exit. */
+		static void Shutdown();
+
 	public:
 		struct FShaderConductorIntermediates; // Pimpl idiom
 

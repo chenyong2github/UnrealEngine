@@ -2,15 +2,14 @@
 
 #include "STaskTableTreeView.h"
 
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TasksProfiler.h"
 #include "Widgets/Input/SComboBox.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskEntry.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskNode.h"
@@ -39,7 +38,11 @@ class FTaskTableTreeViewCommands : public TCommands<FTaskTableTreeViewCommands>
 {
 public:
 	FTaskTableTreeViewCommands()
-		: TCommands<FTaskTableTreeViewCommands>(TEXT("FTaskTableTreeViewCommands"), NSLOCTEXT("FTaskTableTreeViewCommands", "Task Table Tree View Commands", "Task Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FTaskTableTreeViewCommands>(
+			TEXT("FTaskTableTreeViewCommands"),
+			NSLOCTEXT("FTaskTableTreeViewCommands", "Task Table Tree View Commands", "Task Table Tree View Commands"),
+			NAME_None,
+			FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -96,7 +99,7 @@ void STaskTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.GoToTask")
 		);
 	}
 

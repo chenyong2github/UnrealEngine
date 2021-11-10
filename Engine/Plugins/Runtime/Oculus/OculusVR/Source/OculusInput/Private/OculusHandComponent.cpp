@@ -18,11 +18,8 @@ UOculusHandComponent::UOculusHandComponent(const FObjectInitializer& ObjectIniti
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 
 	bHasAuthority = false;
-
-	RuntimeSkeletalMesh = nullptr;
-	CachedBaseMaterial = nullptr;
-
 	bAutoActivate = true;
+
 	bWantsInitializeComponent = true;
 
 	for (uint8 BoneIndex = 0; BoneIndex < (uint8)EBone::Bone_Max; BoneIndex++)

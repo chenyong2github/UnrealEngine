@@ -70,7 +70,7 @@ private:
 	TSharedPtr<SInlineEditableTextBlock> NameTextBox;
 };
 
-class FExposedEntityDragDrop : public FDecoratedDragDropOp
+class FExposedEntityDragDrop final : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FExposedFieldDragDropOp, FDecoratedDragDropOp)

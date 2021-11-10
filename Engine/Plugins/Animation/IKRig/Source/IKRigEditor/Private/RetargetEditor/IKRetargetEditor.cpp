@@ -309,28 +309,6 @@ void FIKRetargetEditor::SetupAnimInstance()
 	EditorController->TargetAnimInstance->InitializeAnimation();
 }
 
-void FIKRetargetEditor::HandleSourceOrTargetIKRigAssetChanged()
-{
-	// set the source and target skeletal meshes on the component
-	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* SourceMesh = EditorController->GetSourceSkeletalMesh();
-	USkeletalMesh* TargetMesh = EditorController->GetTargetSkeletalMesh();
-	EditorController->SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
-	EditorController->TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
-	
-	// apply mesh to the preview scene
-	TSharedRef<IPersonaPreviewScene> PreviewScene = GetPersonaToolkit()->GetPreviewScene();
-	if (PreviewScene->GetPreviewMesh() != SourceMesh)
-	{
-		PreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
-		PreviewScene->SetPreviewMesh(SourceMesh);
-	}
-	
-	SetupAnimInstance();
-
-	EditorController->RefreshAllViews();
-}
-
 void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView)
 {
 	EditorController->DetailsView = InDetailsView;
@@ -338,22 +316,38 @@ void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView
 	EditorController->DetailsView->SetObject(EditorController->AssetController->GetAsset());
 }
 
-void FIKRetargetEditor::OnFinishedChangingDetails(
-    const FPropertyChangedEvent& PropertyChangedEvent)
+void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const bool bSourceChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourceIKRigPropertyName();
 	const bool bTargetChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetIKRigPropertyName();
 	const bool bPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetPreviewMeshPropertyName();
 
 	if (bTargetChanged)
 	{
+		EditorController->BindToIKRigAsset(EditorController->AssetController->GetAsset()->GetTargetIKRigWriteable());
 		EditorController->AssetController->CleanChainMapping();
 		EditorController->AssetController->AutoMapChains();
 	}
 	
-	if (bSourceChanged || bTargetChanged || bPreviewChanged)
+	if (bTargetChanged || bPreviewChanged)
 	{
-		HandleSourceOrTargetIKRigAssetChanged();
+		// set the source and target skeletal meshes on the component
+		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
+		USkeletalMesh* SourceMesh = EditorController->GetSourceSkeletalMesh();
+		USkeletalMesh* TargetMesh = EditorController->GetTargetSkeletalMesh();
+		EditorController->SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
+		EditorController->TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
+	
+		// apply mesh to the preview scene
+		TSharedRef<IPersonaPreviewScene> PreviewScene = GetPersonaToolkit()->GetPreviewScene();
+		if (PreviewScene->GetPreviewMesh() != SourceMesh)
+		{
+			PreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
+			PreviewScene->SetPreviewMesh(SourceMesh);
+		}
+	
+		SetupAnimInstance();
+
+		EditorController->RefreshAllViews();
 	}
 }
 

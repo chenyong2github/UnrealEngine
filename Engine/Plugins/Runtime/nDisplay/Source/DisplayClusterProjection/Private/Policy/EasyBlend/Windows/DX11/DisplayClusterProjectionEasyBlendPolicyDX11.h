@@ -26,7 +26,7 @@ public:
 protected:
 	virtual TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) override
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Instantiating EasyBlend DX11 viewport adapter..."));
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Instantiating EasyBlend DX11 viewport adapter..."));
 		return MakeUnique<FDisplayClusterProjectionEasyBlendViewAdapterDX11>(InitParams);
 	}
 };

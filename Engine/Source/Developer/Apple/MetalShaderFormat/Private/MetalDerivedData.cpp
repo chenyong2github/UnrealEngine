@@ -220,11 +220,7 @@ FString FMetalShaderOutputCooker::GetPluginSpecificCacheKeySuffix() const
 
 		uint32 FormatVers = GetMetalFormatVersion(Input.ShaderFormat);
 
-		uint64 Flags = 0;
-		for (uint32 Flag : Input.Environment.CompilerFlags)
-		{
-			Flags |= (1ull << uint64(Flag));
-		}
+		uint64 Flags = Input.Environment.CompilerFlags.GetData();
 
 		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%u_%llu_%hu_%d_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, IABTier, *GUIDHash.ToString(), *Standard);
 	}

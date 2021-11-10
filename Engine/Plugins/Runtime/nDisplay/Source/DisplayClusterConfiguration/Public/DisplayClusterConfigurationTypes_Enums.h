@@ -152,7 +152,6 @@ enum class EDisplayClusterConfigurationCameraMotionBlurMode : uint8
 	Override     UMETA(DisplayName = "ICVFX Camera Blur Off"),
 };
 
-
 UENUM()
 enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
 {
@@ -172,9 +171,8 @@ enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
 UENUM()
 enum class EDisplayClusterConfigurationViewportOverscanMode : uint8
 {
-	None     UMETA(DisplayName = "Disabled"),
-	Pixels   UMETA(DisplayName = "Enabled: Pixels values"),
-	Percent  UMETA(DisplayName = "Enabled: Percent values")
+	Pixels   UMETA(DisplayName = "Pixels values"),
+	Percent  UMETA(DisplayName = "Percent values")
 };
 
 UENUM()
@@ -185,3 +183,9 @@ enum class EDisplayClusterConfigurationRenderMode : uint8
 	TopBottom   UMETA(DisplayName = "Stereo: Top Bottom")
 };
 
+UENUM()
+enum class EDisplayClusterConfigurationViewportCustomFrustumMode : uint8
+{
+	Percent  UMETA(DisplayName = "Percent values"),
+	Pixels   UMETA(DisplayName = "Pixels values")
+};

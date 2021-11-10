@@ -5,7 +5,7 @@
 #define RANDSEQ_UNROLL_SOBOL PATH_TRACER_USE_COMPACTION // unrolling sobol sampler is best when we can guarantee high occupancy
 
 #define USE_PATH_TRACING_LIGHT_GRID	1
-#define USE_PATH_TRACING_ENERGY_CONSERVATION 1
+#define USE_ENERGY_CONSERVATION 1
 
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"

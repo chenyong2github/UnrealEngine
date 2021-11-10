@@ -196,11 +196,7 @@ public:
 	 * Soundfied Endpoint submixes with this type will send their audio to the default output
 	 * with no encoding.
 	 */
-	static FName DefaultSoundfieldEndpointName()
-	{
-		static FName DefaultEndpointName = FName(TEXT("Default Soundfield Endpoint"));
-		return DefaultEndpointName;
-	}
+	static FName DefaultSoundfieldEndpointName();
 
 	/** This function is not necessary to override, since audio sent to an endpoint does not need to be decoded to interleaved audio buffers. */
 	TUniquePtr<ISoundfieldDecoderStream> CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings) override;

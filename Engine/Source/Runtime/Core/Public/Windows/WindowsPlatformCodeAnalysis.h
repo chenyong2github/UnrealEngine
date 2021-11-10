@@ -252,6 +252,9 @@
 	// warning V1043: A global object variable 'GSmallNumber' is declared in the header. Multiple copies of it will be created in all translation units that include this header file.
 	//-V::1043
 
+	// warning V1051: Consider checking for misprints. It's possible that the 'LayerInfo' should be checked here.
+	//-V::1051
+
 #else // defined(__clang_analyzer__)
 
 // A fake function marked with noreturn that acts as a marker for CA_ASSUME to ensure the

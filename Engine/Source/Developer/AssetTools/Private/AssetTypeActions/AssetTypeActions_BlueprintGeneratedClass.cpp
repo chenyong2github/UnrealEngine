@@ -32,7 +32,7 @@ void FAssetTypeActions_BlueprintGeneratedClass::GetActions(const TArray<UObject*
 			"BlueprintGeneratedClass_NewDerivedBlueprint",
 			LOCTEXT("BlueprintGeneratedClass_NewDerivedBlueprint", "Create Child Blueprint Class"),
 			DynamicTooltipAttribute,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_BlueprintGeneratedClass::ExecuteNewDerivedBlueprint, BPGCs[0]),
 				FCanExecuteAction::CreateSP(this, &FAssetTypeActions_BlueprintGeneratedClass::CanExecuteNewDerivedBlueprint, BPGCs[0])

@@ -122,7 +122,7 @@ bool NormalizePackageNames( TArray<FString> PackageNames, TArray<FString>& Packa
 		{
 			// Check if long package name is provided and if it exists on disk.
 			FString Filename;
-			if ( FPackageName::IsValidLongPackageName(PackageWildcard, true) && FPackageName::DoesPackageExist(PackageWildcard, NULL, &Filename) )
+			if ( FPackageName::IsValidLongPackageName(PackageWildcard, true) && FPackageName::DoesPackageExist(PackageWildcard, &Filename) )
 			{
 				PackagePathNames.Add(Filename);
 			}
@@ -1520,7 +1520,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 				{
 					// Check if long package name is provided and if it exists on disk.
 					FString Filename;
-					if ( FPackageName::IsValidLongPackageName(PackageWildcard, true) && FPackageName::DoesPackageExist(PackageWildcard, NULL, &Filename) )
+					if ( FPackageName::IsValidLongPackageName(PackageWildcard, true) && FPackageName::DoesPackageExist(PackageWildcard, &Filename) )
 					{
 						PerTokenFilesInPath.Add(Filename);
 					}
@@ -1761,7 +1761,7 @@ struct CompressAnimationsFunctor
 		bool bDirtyPackage = false;
 		const FName& PackageName = Package->GetFName(); 
 		FString PackageFileName;
-		FPackageName::DoesPackageExist( PackageName.ToString(), NULL, &PackageFileName );
+		FPackageName::DoesPackageExist( PackageName.ToString(), &PackageFileName );
 
 		// Ensure source control is initialized and shut down properly
 		FScopedSourceControl SourceControl;

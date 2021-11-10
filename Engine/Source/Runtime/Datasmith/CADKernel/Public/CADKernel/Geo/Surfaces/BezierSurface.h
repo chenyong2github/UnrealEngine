@@ -30,14 +30,10 @@ namespace CADKernel
 			, Poles(InPoles)
 		{
 			ensureCADKernel((UDegre + 1) * (VDegre + 1) == Poles.Num());
-			SetMinToleranceIso();
+			ComputeDefaultMinToleranceIso();
 		}
 
-		FBezierSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FBezierSurface() = default;
 
 	public:
 

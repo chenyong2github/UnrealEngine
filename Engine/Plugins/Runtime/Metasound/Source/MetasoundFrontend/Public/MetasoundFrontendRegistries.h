@@ -79,10 +79,10 @@ namespace Metasound
 			FMetasoundFrontendVersionNumber Version;
 
 			// Types of class inputs
-			TArray<FName> InputTypes;
+			TSet<FName> InputTypes;
 
 			// Types of class outputs
-			TArray<FName> OutputTypes;
+			TSet<FName> OutputTypes;
 
 			FNodeClassInfo() = default;
 

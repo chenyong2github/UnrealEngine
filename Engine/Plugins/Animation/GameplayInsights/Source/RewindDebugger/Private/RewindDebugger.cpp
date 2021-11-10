@@ -666,188 +666,205 @@ void FRewindDebugger::Tick(float DeltaTime)
 					}
 
 					double CurrentTraceTime = TraceTime.Get();
-					uint64 TargetActorId = GetTargetActorId();
-
-					// update pose on all SkeletalMeshComponents (todo: move pose updating into an extension)
 					const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session);
 					TraceServices::FFrame Frame;
 					if(FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTraceTime, Frame))
 					{
-						ULevel* CurLevel = World->GetCurrentLevel();
-						for (AActor* LevelActor : CurLevel->Actors)
+						
+						// until we have actor transforms traced out, the first skeletal mesh component transform on the target actor be used as as the actor position 
+						uint64 TargetActorId = GetTargetActorId();
+						if(UObject* ObjectInstance = FObjectTrace::GetObjectFromId(TargetActorId))
 						{
-							if (LevelActor)
+							if (AActor* TargetActor = Cast<AActor>(ObjectInstance))
 							{
-								bool bIsTargetActor = TargetActorId == FObjectTrace::GetObjectId(LevelActor);
-
-								if (bIsTargetActor)
-								{
-									bTargetActorPositionValid = false;
-								}
-
 								TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-								LevelActor->GetComponents(SkeletalMeshComponents);
+								TargetActor->GetComponents(SkeletalMeshComponents);
 
-								for (USkeletalMeshComponent* MeshComponent : SkeletalMeshComponents)
+								if (SkeletalMeshComponents.Num() > 0)
 								{
-									int64 ObjectId = FObjectTrace::GetObjectId(MeshComponent);
+									int64 ObjectId = FObjectTrace::GetObjectId(SkeletalMeshComponents[0]);
 
-									AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, Frame, bIsTargetActor, ObjectId, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
-										{
-											TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
-												[this, bIsTargetActor, ObjectId, MeshComponent, AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+									AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, Frame, ObjectId, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
+									{
+										TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+											[this](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+											{
+												bTargetActorPositionValid = true;
+												TargetActorPosition = PoseMessage.ComponentToWorld.GetTranslation();
+										
+												return TraceServices::EEventEnumerate::Stop;
+											});
+									});
+								}
+							}
+						}
+						
+						// update pose on all SkeletalMeshComponents:
+						// - enumerate all skeletal mesh pose timelines
+						// - check if the corresponding mesh component still exists
+						// - apply the recorded pose for the current Frame
+						AnimationProvider->EnumerateSkeletalMeshPoseTimelines([this, &Frame, AnimationProvider, GameplayProvider](uint64 ObjectId, const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData)
+						{
+							if(UObject* ObjectInstance = FObjectTrace::GetObjectFromId(ObjectId))
+							{
+								if(USkeletalMeshComponent* MeshComponent = Cast<USkeletalMeshComponent>(ObjectInstance))
+								{
+									AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, &Frame, ObjectId, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
+									{
+										TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+											[this, ObjectId, MeshComponent, AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+											{
+												FTransform ComponentWorldTransform;
+												const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(PoseMessage.MeshId);
+												AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, MeshComponent->GetEditableComponentSpaceTransforms());
+												MeshComponent->ApplyEditedComponentSpaceTransforms();
+
+												if (MeshComponentsToReset.Find(ObjectId) == nullptr)
 												{
-													FTransform ComponentWorldTransform;
-													const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(PoseMessage.MeshId);
-													AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, MeshComponent->GetEditableComponentSpaceTransforms());
+													FMeshComponentResetData ResetData;
+													ResetData.Component = MeshComponent;
+													ResetData.RelativeTransform = MeshComponent->GetRelativeTransform();
+													MeshComponentsToReset.Add(ObjectId, ResetData);
+												}
 
-													if (MeshComponentsToReset.Find(ObjectId) == nullptr)
-													{
-														FMeshComponentResetData ResetData;
-														ResetData.Component = MeshComponent;
-														ResetData.RelativeTransform = MeshComponent->GetRelativeTransform();
-														MeshComponentsToReset.Add(ObjectId, ResetData);
-													}
+												// todo: we need to take into account tick order requirements for attached objects here
+												MeshComponent->SetWorldTransform(ComponentWorldTransform);
+												MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
+												return TraceServices::EEventEnumerate::Stop;
+											});
+									});
+								}
+							}
+						});
 
-													// todo: we probably need to take into account tick order requirements for attached objects here
-													MeshComponent->SetWorldTransform(ComponentWorldTransform);
-													MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
-
-													if (bIsTargetActor && !bTargetActorPositionValid)
-													{
-														// until we have actor transforms traced out, the first skeletal mesh component transform will be used as as the actor position 
-														bTargetActorPositionValid = true;
-														TargetActorPosition = ComponentWorldTransform.GetTranslation();
-													}
-													return TraceServices::EEventEnumerate::Stop;
-												});
-										});
-
-									// calling this here, even on meshes which have no recorded data makes meshes with a MasterPoseComponent attach properly during replay
-									// longer term solution: we should be recording those meshes
-									MeshComponent->ApplyEditedComponentSpaceTransforms();
-
-									// update debug info for attached Animation Blueprint editors
-									if (UAnimBlueprintGeneratedClass* InstanceClass = Cast<UAnimBlueprintGeneratedClass>(MeshComponent->GetAnimClass()))
+						// Apply Animation Blueprint Debugging Data:
+						// - enumerate over all anim graph timelines
+						// - check if their instance class still exists and is the debugging target for the Animation Blueprint Editor
+						// - if it is copy that debug data into the class debug data for the blueprint debugger
+						AnimationProvider->EnumerateAnimGraphTimelines([&Frame, AnimationProvider, GameplayProvider](uint64 ObjectId, const IAnimationProvider::AnimGraphTimeline& AnimGraphTimeline)
+						{
+							if(UObject* ObjectInstance = FObjectTrace::GetObjectFromId(ObjectId))
+							{
+								if(UAnimInstance* AnimInstance = Cast<UAnimInstance>(ObjectInstance))
+								{
+									if(UAnimBlueprintGeneratedClass* InstanceClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass()))
 									{
 										if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
 										{
-											UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
-											if(AnimInstance && AnimBlueprint->IsObjectBeingDebugged(AnimInstance))
+											if(AnimBlueprint->IsObjectBeingDebugged(AnimInstance))
 											{
+												// update debug info for attached Animation Blueprint editors
 												uint64 Id = FObjectTrace::GetObjectId(AnimInstance);
 												const int32 NodeCount = InstanceClass->GetAnimNodeProperties().Num();
-							
-												AnimationProvider->ReadAnimGraphTimeline(Id, [this, Id, InstanceClass, AnimationProvider, GameplayProvider, Frame, NodeCount](const IAnimationProvider::AnimGraphTimeline& InGraphTimeline)
+						
+												FAnimBlueprintDebugData& DebugData = InstanceClass->GetAnimBlueprintDebugData();
+												DebugData.ResetNodeVisitSites();
+					
+												AnimGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [Id, AnimationProvider, GameplayProvider, &DebugData, NodeCount](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 												{
-													FAnimBlueprintDebugData& DebugData = InstanceClass->GetAnimBlueprintDebugData();
-													DebugData.ResetNodeVisitSites();
-							
-													InGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [this, Id, AnimationProvider, GameplayProvider, &DebugData, NodeCount](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
+													// Basic verification - check node count is the same
+													// @TODO: could add some form of node hash/CRC to the class to improve this
+													if(InMessage.NodeCount == NodeCount)
 													{
-														// Basic verification - check node count is the same
-														// @TODO: could add some form of node hash/CRC to the class to improve this
-														if(InMessage.NodeCount == NodeCount)
+														// Check for an update phase (which contains weights)
+														if(InMessage.Phase == EAnimGraphPhase::Update)
 														{
-															// Check for an update phase (which contains weights)
-															if(InMessage.Phase == EAnimGraphPhase::Update)
+															AnimationProvider->ReadAnimNodesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::AnimNodesTimeline& InNodesTimeline)
 															{
-																AnimationProvider->ReadAnimNodesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::AnimNodesTimeline& InNodesTimeline)
+																InNodesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeMessage& InMessage)
 																{
-																	InNodesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeMessage& InMessage)
-																	{
-																		DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
+																	DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
+																	return TraceServices::EEventEnumerate::Continue;
 																});
-							
-																AnimationProvider->ReadStateMachinesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::StateMachinesTimeline& InStateMachinesTimeline)
-																{
-																	InStateMachinesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimStateMachineMessage& InMessage)
-																	{
-																		DebugData.RecordStateData(InMessage.StateMachineIndex, InMessage.StateIndex, InMessage.StateWeight, InMessage.ElapsedTime);
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
-																});
-							
-																AnimationProvider->ReadAnimSequencePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::AnimSequencePlayersTimeline& InSequencePlayersTimeline)
-																{
-																	InSequencePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSequencePlayerMessage& InMessage)
-																	{
-																		DebugData.RecordSequencePlayer(InMessage.NodeId, InMessage.Position, InMessage.Length, InMessage.FrameCounter);
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
-																});
-							
-																AnimationProvider->ReadAnimBlendSpacePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::BlendSpacePlayersTimeline& InBlendSpacePlayersTimeline)
-																{
-																	InBlendSpacePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FBlendSpacePlayerMessage& InMessage)
-																	{
-																		UBlendSpace* BlendSpace = nullptr;
-																		const FObjectInfo* BlendSpaceInfo = GameplayProvider->FindObjectInfo(InMessage.BlendSpaceId);
-																		if(BlendSpaceInfo)
-																		{
-																			BlendSpace = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
-																		}
-							
-																		DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpace, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
-																});
-							
-																AnimationProvider->ReadAnimSyncTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimSyncTimeline& InAnimSyncTimeline)
-																{
-																	InAnimSyncTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSyncMessage& InMessage)
-																	{
-																		const TCHAR* GroupName = AnimationProvider->GetName(InMessage.GroupNameId);
-																		if(GroupName)
-																		{
-																			DebugData.RecordNodeSync(InMessage.SourceNodeId, FName(GroupName));
-																		}
-																
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
-																});
-															}
-							
-															// Some traces come from both update and evaluate phases
-															if(InMessage.Phase == EAnimGraphPhase::Update || InMessage.Phase == EAnimGraphPhase::Evaluate)
+															});
+					
+															AnimationProvider->ReadStateMachinesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::StateMachinesTimeline& InStateMachinesTimeline)
 															{
-																AnimationProvider->ReadAnimAttributesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimAttributeTimeline& InAnimAttributeTimeline)
+																InStateMachinesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimStateMachineMessage& InMessage)
 																{
-																	InAnimAttributeTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimAttributeMessage& InMessage)
-																	{
-																		const TCHAR* AttributeName = AnimationProvider->GetName(InMessage.AttributeNameId);
-																		if(AttributeName)
-																		{
-																			DebugData.RecordNodeAttribute(InMessage.TargetNodeId, InMessage.SourceNodeId, FName(AttributeName));
-																		}
-																
-																		return TraceServices::EEventEnumerate::Continue;
-																	});
+																	DebugData.RecordStateData(InMessage.StateMachineIndex, InMessage.StateIndex, InMessage.StateWeight, InMessage.ElapsedTime);
+																	return TraceServices::EEventEnumerate::Continue;
 																});
-															}
-							
-															// Anim node values can come from all phases
-															AnimationProvider->ReadAnimNodeValuesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimNodeValuesTimeline& InNodeValuesTimeline)
+															});
+					
+															AnimationProvider->ReadAnimSequencePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::AnimSequencePlayersTimeline& InSequencePlayersTimeline)
 															{
-																InNodeValuesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeValueMessage& InMessage)
+																InSequencePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSequencePlayerMessage& InMessage)
 																{
-																	FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
-																	DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
+																	DebugData.RecordSequencePlayer(InMessage.NodeId, InMessage.Position, InMessage.Length, InMessage.FrameCounter);
+																	return TraceServices::EEventEnumerate::Continue;
+																});
+															});
+					
+															AnimationProvider->ReadAnimBlendSpacePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::BlendSpacePlayersTimeline& InBlendSpacePlayersTimeline)
+															{
+																InBlendSpacePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FBlendSpacePlayerMessage& InMessage)
+																{
+																	UBlendSpace* BlendSpace = nullptr;
+																	const FObjectInfo* BlendSpaceInfo = GameplayProvider->FindObjectInfo(InMessage.BlendSpaceId);
+																	if(BlendSpaceInfo)
+																	{
+																		BlendSpace = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
+																	}
+					
+																	DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpace, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
+																	return TraceServices::EEventEnumerate::Continue;
+																});
+															});
+					
+															AnimationProvider->ReadAnimSyncTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimSyncTimeline& InAnimSyncTimeline)
+															{
+																InAnimSyncTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSyncMessage& InMessage)
+																{
+																	const TCHAR* GroupName = AnimationProvider->GetName(InMessage.GroupNameId);
+																	if(GroupName)
+																	{
+																		DebugData.RecordNodeSync(InMessage.SourceNodeId, FName(GroupName));
+																	}
+														
 																	return TraceServices::EEventEnumerate::Continue;
 																});
 															});
 														}
-														return TraceServices::EEventEnumerate::Continue;
-													});
+					
+														// Some traces come from both update and evaluate phases
+														if(InMessage.Phase == EAnimGraphPhase::Update || InMessage.Phase == EAnimGraphPhase::Evaluate)
+														{
+															AnimationProvider->ReadAnimAttributesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimAttributeTimeline& InAnimAttributeTimeline)
+															{
+																InAnimAttributeTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimAttributeMessage& InMessage)
+																{
+																	const TCHAR* AttributeName = AnimationProvider->GetName(InMessage.AttributeNameId);
+																	if(AttributeName)
+																	{
+																		DebugData.RecordNodeAttribute(InMessage.TargetNodeId, InMessage.SourceNodeId, FName(AttributeName));
+																	}
+														
+																	return TraceServices::EEventEnumerate::Continue;
+																});
+															});
+														}
+					
+														// Anim node values can come from all phases
+														AnimationProvider->ReadAnimNodeValuesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimNodeValuesTimeline& InNodeValuesTimeline)
+														{
+															InNodeValuesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeValueMessage& InMessage)
+															{
+																FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
+																DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
+																return TraceServices::EEventEnumerate::Continue;
+															});
+														});
+													}
+													return TraceServices::EEventEnumerate::Continue;
 												});
 											}
-										}	
+										}
 									}
 								}
 							}
-						}
+							return TraceServices::EEventEnumerate::Continue;
+						});
 					}
 				}
 			}

@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 		public CADInterfaces(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bLegalToDistributeObjectCode = true;
+			bUseUnity = false;
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -23,6 +24,7 @@ namespace UnrealBuildTool.Rules
 
 			// CAD library is only available if CoreTech is available too
 			bool bHasCoretech = System.Type.GetType("CoreTech") != null;
+			bool bHasTechSoft = System.Type.GetType("TechSoft") != null;
 
 			// Support for Windows only
 			bool bIsPlateformSupported = Target.Platform == UnrealTargetPlatform.Win64;
@@ -30,6 +32,11 @@ namespace UnrealBuildTool.Rules
 			if (bIsPlateformSupported && bHasCoretech)
 			{
 				PublicDependencyModuleNames.Add("CoreTech");
+			}
+
+			if (bIsPlateformSupported && bHasTechSoft)
+			{
+				PublicDependencyModuleNames.Add("TechSoft");
 			}
 		}
 	}

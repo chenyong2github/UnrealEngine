@@ -459,7 +459,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	{
 		FText Title = LOCTEXT("PlaneCutDestroyTitle", "Delete mesh components?");
 		EAppReturnType::Type Ret = FMessageDialog::Open(EAppMsgType::YesNo, 
-			LOCTEXT("PlaneCutDestroyQuestion", "Plane cuts have entirely cut away some meshes.  Actually destroy these mesh components?"), &Title);
+			LOCTEXT("PlaneCutDestroyQuestion", "Plane cuts have entirely cut away at least one mesh. Do you actually want to delete these mesh components? Note that either way all actors will remain, and meshes that are not fully cut away will still be cut as normal."), &Title);
 		if (Ret == EAppReturnType::No)
 		{
 			bWantDestroy = false; // quell destructive urge

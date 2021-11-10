@@ -121,8 +121,7 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		FString PackageName = !InPackageName.IsEmpty() ? InPackageName : UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), OuterWorld);
 		TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *PackageName, *OuterWorld->GetName())));
 		NewLevelStreaming->SetWorldAsset(WorldAsset);
-		// Transfer WorldPartition's transform to Level
-		NewLevelStreaming->LevelTransform = WorldPartition->GetInstanceTransform();
+		NewLevelStreaming->LevelTransform = FTransform::Identity;
 		NewLevelStreaming->bClientOnlyVisible = GetClientOnlyVisible();
 		NewLevelStreaming->Initialize(*this);
 
@@ -252,8 +251,7 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 			LevelStreaming->Rename(nullptr, OwningWorld);
 		}
 
-		// Transfer WorldPartition's transform to LevelStreaming
-		LevelStreaming->LevelTransform = WorldPartition->GetInstanceTransform();
+		LevelStreaming->LevelTransform = FTransform::Identity;
 
 		// When Partition outer level is an instance, make sure to also generate unique cell level instance name
 		ULevel* PartitionLevel = WorldPartition->GetTypedOuter<ULevel>();

@@ -94,7 +94,7 @@ TSharedPtr<SWidget> FDerivedDataEditorModule::CreateResourceUsageDialog()
 TSharedPtr<SWidget> FDerivedDataEditorModule::CreateCacheStatisticsDialog()
 {
 #if UE_WITH_ZEN
-	if (UE::Zen::GetDefaultServiceInstance().IsServiceRunning())
+	if (FDerivedDataInformation::GetHasZenCache())
 	{
 		return SNew(SZenCacheStatisticsDialog);
 	}

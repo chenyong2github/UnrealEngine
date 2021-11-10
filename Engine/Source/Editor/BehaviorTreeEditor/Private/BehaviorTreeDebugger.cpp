@@ -765,7 +765,7 @@ void FBehaviorTreeDebugger::FindMatchingTreeInstance()
 {
 	KnownInstances.Reset();
 
-    // Find the world for the dedicated server if any, otherwise fallback to the PIE world
+	// Find the world for the dedicated server if any, otherwise fallback to the PIE world
 	UWorld* PlayWorld = nullptr;
 	for (const FWorldContext& PieContext : GEditor->GetWorldContexts())
 	{
@@ -1066,25 +1066,16 @@ void FBehaviorTreeDebugger::StopPlaySession()
  
 		// @TODO: we need a unified flow to leave debugging mode from the different debuggers to prevent strong coupling between modules.
 		// Each debugger (Blueprint & BehaviorTree for now) could then take the appropriate actions to resume the session.
-  		if (FSlateApplication::Get().InKismetDebuggingMode())
-  		{
-  			FSlateApplication::Get().LeaveDebuggingMode();
-  		}
+		if (FSlateApplication::Get().InKismetDebuggingMode())
+		{
+			FSlateApplication::Get().LeaveDebuggingMode();
+		}
 	}
 }
 
 void FBehaviorTreeDebugger::PausePlaySession()
 {
-	bool bPaused = false;
-	ForEachGameWorld([&](UWorld* World)
-	{
-		if (!World->bDebugPauseExecution)
-		{
-			World->bDebugPauseExecution = true;
-			bPaused = true;
-		}
-	});
-	if (bPaused)
+	if (GUnrealEd->SetPIEWorldsPaused(true))
 	{
 		GUnrealEd->PlaySessionPaused();
 	}
@@ -1092,16 +1083,7 @@ void FBehaviorTreeDebugger::PausePlaySession()
 
 void FBehaviorTreeDebugger::ResumePlaySession()
 {
-	bool bResumed = false;
-	ForEachGameWorld([&](UWorld* World)
-	{
-		if (World->bDebugPauseExecution)
-		{
-			World->bDebugPauseExecution = false;
-			bResumed = true;
-		}
-	});
-	if(bResumed)
+	if (GUnrealEd->SetPIEWorldsPaused(false))
 	{
 		// @TODO: we need a unified flow to leave debugging mode from the different debuggers to prevent strong coupling between modules.
 		// Each debugger (Blueprint & BehaviorTree for now) could then take the appropriate actions to resume the session.

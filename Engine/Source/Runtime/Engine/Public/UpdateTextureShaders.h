@@ -10,7 +10,7 @@
 
 class FUpdateTexture2DSubresouceCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FUpdateTexture2DSubresouceCS,Global);
+	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture2DSubresouceCS, Global, ENGINE_API);
 public:
 	FUpdateTexture2DSubresouceCS() {}
 	FUpdateTexture2DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -21,6 +21,10 @@ public:
 		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
 		DestTexture.Bind(Initializer.ParameterMap, TEXT("DestTexture"), SPF_Mandatory);
 	}
+
+	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
+	
+	static const TCHAR* GetFunctionName() { return TEXT("UpdateTexture2DSubresourceCS"); }
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -36,7 +40,7 @@ public:
 template<uint32 NumComponents>
 class TUpdateTexture2DSubresouceCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TUpdateTexture2DSubresouceCS, Global);
+	DECLARE_EXPORTED_SHADER_TYPE(TUpdateTexture2DSubresouceCS, Global, ENGINE_API);
 public:
 	TUpdateTexture2DSubresouceCS() {}
 	TUpdateTexture2DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -47,6 +51,10 @@ public:
 		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
 		DestTexture.Bind(Initializer.ParameterMap, TEXT("TDestTexture"), SPF_Mandatory);
 	}
+
+	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
+	
+	static const TCHAR* GetFunctionName() { return TEXT("TUpdateTexture2DSubresourceCS"); }
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -76,7 +84,7 @@ public:
 
 class FUpdateTexture3DSubresouceCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FUpdateTexture3DSubresouceCS, Global);
+	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture3DSubresouceCS, Global, ENGINE_API);
 public:
 	FUpdateTexture3DSubresouceCS() {}
 	FUpdateTexture3DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -92,6 +100,10 @@ public:
 
 		DestTexture3D.Bind(Initializer.ParameterMap, TEXT("DestTexture3D"), SPF_Mandatory);
 	}
+
+	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
+	
+	static const TCHAR* GetFunctionName() { return TEXT("UpdateTexture3DSubresourceCS"); };
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -190,7 +202,7 @@ public:
 template<uint32 ElementsPerThread>
 class TCopyDataCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TCopyDataCS, Global);
+	DECLARE_EXPORTED_SHADER_TYPE(TCopyDataCS, Global, ENGINE_API);
 public:
 	TCopyDataCS() {}
 	TCopyDataCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -198,6 +210,18 @@ public:
 	{
 		SrcBuffer.Bind(Initializer.ParameterMap, TEXT("SrcCopyBuffer"), SPF_Mandatory);
 		DestBuffer.Bind(Initializer.ParameterMap, TEXT("DestBuffer"), SPF_Mandatory);		
+	}
+
+	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
+
+	static const TCHAR* GetFunctionName() 
+	{
+		switch (ElementsPerThread)
+		{
+			case 1u: return TEXT("CopyData1CS"); break;
+			case 2u: return TEXT("CopyData2CS"); break;
+		}
+		return nullptr;
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

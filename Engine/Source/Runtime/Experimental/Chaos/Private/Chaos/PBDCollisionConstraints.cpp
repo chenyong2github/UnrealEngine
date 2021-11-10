@@ -372,6 +372,20 @@ namespace Chaos
 		ConstraintAllocator.DestroyConstraint(&Handle->GetContact());
 	}
 
+	void FPBDCollisionConstraints::SetConstraintIsSleeping(FPBDCollisionConstraint& Constraint, const bool bInIsSleeping)
+	{
+		if (Constraint.IsSleeping() != bInIsSleeping)
+		{
+			Constraint.GetContainerCookie().SetIsSleeping(bInIsSleeping);
+
+			if (!bInIsSleeping)
+			{
+				// If we were just awakened, we need to reactivate the collision
+				ConstraintAllocator.AddConstraint(&Constraint);
+			}
+		}
+	}
+
 	Collisions::FContactParticleParameters FPBDCollisionConstraints::GetContactParticleParameters(const FReal Dt)
 	{
 		return { 
@@ -478,15 +492,6 @@ namespace Chaos
 		else
 		{
 			LegacyScatterOutput(Dt, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
-	}
-
-	void FPBDCollisionConstraints::ApplySwept(const FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.SolveSwept(Dt);
 		}
 	}
 

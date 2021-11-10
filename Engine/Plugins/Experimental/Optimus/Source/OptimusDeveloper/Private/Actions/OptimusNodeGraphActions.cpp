@@ -3,17 +3,18 @@
 #include "OptimusNodeGraphActions.h"
 
 #include "IOptimusNodeGraphCollectionOwner.h"
+#include "Nodes/OptimusNode_ComputeKernelFunction.h"
+#include "Nodes/OptimusNode_CustomComputeKernel.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
 
-#include "Serialization/ObjectReader.h"
-#include "Serialization/ObjectWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "Serialization/ObjectWriter.h"
 #include "UObject/UObjectGlobals.h"
 
 
@@ -544,4 +545,189 @@ FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPin, InNodeInputPin)
 {
 	SetTitlef(TEXT("Remove Link"));
+}
+
+
+FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKernelFunction(
+	UOptimusNode_CustomComputeKernel* InKernelNode,
+	FName InNodeName
+	)
+{
+	if (ensure(InKernelNode))
+	{
+		GraphPath = InKernelNode->GetOwningGraph()->GetGraphPath();
+
+		NodeName = InNodeName;
+		NodePosition = InKernelNode->GetGraphPosition();
+		Category = InKernelNode->Category;
+		KernelName = InKernelNode->KernelName;
+		ThreadCount = InKernelNode->ThreadCount;
+		ExecutionDomain = InKernelNode->ExecutionDomain;
+		for (const FOptimus_ShaderBinding& Parameter: InKernelNode->Parameters)
+		{
+			FOptimus_ShaderValuedBinding ValueParameter;
+			ValueParameter.Name = Parameter.Name;
+			ValueParameter.DataType = Parameter.DataType;
+			
+			// FIXME: Get value.
+			
+			Parameters.Add(ValueParameter);
+		}
+		InputBindings = InKernelNode->InputBindings;
+		OutputBindings = InKernelNode->OutputBindings;
+		ShaderSource = InKernelNode->ShaderSource.ShaderText;
+	}
+}
+
+
+UOptimusNode* FOptimusNodeGraphAction_PackageKernelFunction::GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const
+{
+	return InRoot->ResolveNodePath(NodePath);
+}
+
+
+bool FOptimusNodeGraphAction_PackageKernelFunction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+	
+	UClass *PackagedNodeClass = UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
+		Graph->GetPackage(), Category, KernelName, ThreadCount, ExecutionDomain,
+		Parameters, InputBindings, OutputBindings, ShaderSource);
+	if (!PackagedNodeClass)
+	{
+		return false;
+	}
+
+	//  FIXME: This packaging action should only create the class. We need action piping.
+	NodeClassName = PackagedNodeClass->GetName();
+
+	UOptimusNode *Node = Graph->CreateNodeDirect(PackagedNodeClass, NodeName, 
+		[NodePosition=NodePosition](UOptimusNode *InNode) {
+			return InNode->SetGraphPositionDirect(NodePosition);
+		});
+	if (!Node)
+	{
+		return false;
+	}
+		
+	NodePath = Node->GetNodePath();
+	
+	return true;
+}
+
+
+bool FOptimusNodeGraphAction_PackageKernelFunction::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+	
+	UOptimusNode *Node =  InRoot->ResolveNodePath(NodePath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	UClass* NodeClass = FindObject<UClass>(Graph->GetPackage(), *NodeClassName);
+	if (!NodeClass)
+	{
+		return false;
+	}
+	
+	if (!Graph->RemoveNodeDirect(Node))
+	{
+		return false;
+	}
+
+	return NodeClass->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+}
+
+
+FOptimusNodeGraphAction_UnpackageKernelFunction::FOptimusNodeGraphAction_UnpackageKernelFunction(
+	UOptimusNode_ComputeKernelFunction* InKernelFunction,
+	FName InNodeName
+	)
+{
+	if (ensure(InKernelFunction))
+	{
+		GraphPath = InKernelFunction->GetOwningGraph()->GetGraphPath();
+		ClassPath = InKernelFunction->GetClass()->GetPathName();
+		NodeName = InNodeName;
+		NodePosition = InKernelFunction->GetGraphPosition();
+	}
+}
+
+
+UOptimusNode* FOptimusNodeGraphAction_UnpackageKernelFunction::GetNode(
+	IOptimusNodeGraphCollectionOwner* InRoot
+	) const
+{
+	return InRoot->ResolveNodePath(NodePath);
+}
+
+
+bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	UOptimusNode_ComputeKernelFunctionGeneratorClass* Class = Optimus::FindObjectInPackageOrGlobal<UOptimusNode_ComputeKernelFunctionGeneratorClass>(ClassPath);
+	if (!Class)
+	{
+		return false;
+	}
+
+	UOptimusNode *Node = Graph->CreateNodeDirect(UOptimusNode_CustomComputeKernel::StaticClass(), NodeName, 
+		[Class, NodePosition=NodePosition](UOptimusNode *InNode) {
+			UOptimusNode_CustomComputeKernel* KernelNode = Cast<UOptimusNode_CustomComputeKernel>(InNode);
+			KernelNode->Category = Class->Category;
+			KernelNode->KernelName = Class->KernelName;
+			KernelNode->ThreadCount = Class->ThreadCount;
+			KernelNode->ExecutionDomain = Class->ExecutionDomain;
+			for (const FOptimus_ShaderValuedBinding& ParamBinding: Class->Parameters)
+			{
+				FOptimus_ShaderBinding Parameter;
+				Parameter.Name = ParamBinding.Name;
+				Parameter.DataType = ParamBinding.DataType;
+				KernelNode->Parameters.Add(Parameter);
+			}
+			KernelNode->InputBindings = Class->InputBindings;
+			KernelNode->OutputBindings = Class->OutputBindings;
+			KernelNode->ShaderSource.ShaderText = Class->ShaderSource;
+			return InNode->SetGraphPositionDirect(NodePosition);
+		});
+	if (!Node)
+	{
+		return false;
+	}
+
+	NodePath = Node->GetNodePath();
+	return true;
+}
+
+
+bool FOptimusNodeGraphAction_UnpackageKernelFunction::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+	
+	UOptimusNode *Node =  InRoot->ResolveNodePath(NodePath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	return Graph->RemoveNodeDirect(Node);
 }

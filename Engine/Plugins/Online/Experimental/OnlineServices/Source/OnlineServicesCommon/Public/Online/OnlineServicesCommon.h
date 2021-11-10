@@ -7,9 +7,12 @@
 #include "Online/OnlineComponentRegistry.h"
 #include "Online/OnlineAsyncOpCache.h"
 #include "Online/OnlineConfig.h"
+#include "Online/OnlineExecHandler.h"
+#include "Online/OnlineServicesLog.h"
 
 #include "Containers/Ticker.h"
 #include "Templates/SharedPointer.h"
+#include "Misc/CoreMisc.h"
 
 #include "Async/Async.h"
 
@@ -19,11 +22,12 @@ class ONLINESERVICESCOMMON_API FOnlineServicesCommon
 	: public IOnlineServices
 	, public TSharedFromThis<FOnlineServicesCommon>
 	, public FTSTickerObjectBase
+	, public FSelfRegisteringExec
 {
 public:
 	using Super = IOnlineServices;
 
-	FOnlineServicesCommon();
+	FOnlineServicesCommon(const FString& InConfigName);
 	FOnlineServicesCommon(const FOnlineServicesCommon&) = delete;
 	FOnlineServicesCommon(FOnlineServicesCommon&&) = delete;
 	virtual ~FOnlineServicesCommon() {}
@@ -219,6 +223,7 @@ public:
 		TArray<FString> SectionHeiarchyWithOverrides;
 		for (const FString& Section : SectionHeiarchy)
 		{
+			SectionHeiarchyWithOverrides.Add(Section);
 			for (const FString& Override : ConfigSectionOverrides)
 			{
 				FString OverrideSection = Section + TEXT(" ") + Override;
@@ -287,9 +292,21 @@ public:
 		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
+	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler)
+	{
+		ExecCommands.Emplace(Name, MoveTemp(Handler));
+	}
+
+	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
 	FOnlineAsyncOpCache OpCache;
 
 protected:
+	TMap<FString, TUniquePtr<IOnlineExecHandler>> ExecCommands;
+
+	static uint32 NextInstanceIndex;
+	uint32 InstanceIndex;
+
 	FOnlineComponentRegistry Components;
 	TUniquePtr<IOnlineConfigProvider> ConfigProvider;
 

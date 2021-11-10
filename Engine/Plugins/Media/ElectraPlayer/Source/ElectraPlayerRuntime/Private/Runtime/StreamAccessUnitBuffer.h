@@ -5,6 +5,7 @@
 #include "PlayerCore.h"
 #include "PlayerTime.h"
 #include "StreamTypes.h"
+#include "Containers/Queue.h"
 
 
 
@@ -58,18 +59,18 @@ namespace Electra
 		enum EDropState
 		{
 			None = 0,
-			DtsTooEarly = 1,
-			PtsTooEarly = 2,
-			DtsTooLate = 4,
-			PtsTooLate = 8
+			TooEarly = 1,
+			TooLate = 2,
 		};
 
 		EStreamType					ESType;							//!< Type of elementary stream this is an access unit of.
 		FTimeValue					PTS;							//!< PTS
 		FTimeValue					DTS;							//!< DTS
 		FTimeValue					Duration;						//!< Duration
-		FTimeValue					OverlapAdjust;					//!< If set this indicates by how much the AU overlaps the desired time. Negative values indicate the AU is too early. Only set when DropState is zero.
 		FTimeValue					PTO;							//!< Media local presentation time offset.
+		FTimeValue					EarliestPTS;					//!< Earliest PTS at which to present samples. If this is larger than PTS the sample is not to be presented.
+		FTimeValue					LatestPTS;						//!< Latest PTS at which to present samples. If this is less than PTS the sample is not to be presented.
+		int64						SequenceIndex;
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
 		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to sideband data for this access unit.
@@ -77,17 +78,11 @@ namespace Electra
 		bool						bIsFirstInSequence;				//!< true for the first AU in a segment
 		bool						bIsLastInPeriod;				//!< true if this is the last AU in the playing period.
 		bool						bIsSyncSample;					//!< true if this is a sync sample (keyframe)
-		bool						bIsDummyData;					//!< True if the decoder must be reset before decoding this AU.
+		bool						bIsDummyData;					//!< True if this is not actual data but empty filler data due to some segment problem.
 		bool						bTrackChangeDiscontinuity;		//!< True if this is the first AU after a track change.
 		bool						bIsSideloaded;					//!< True if the payload is not streamed but loaded from a sidecar file.
 
 		TSharedPtrTS<const FBufferSourceInfo>	BufferSourceInfo;
-		TSharedPtrTS<const FPlayerLoopState>	PlayerLoopState;
-
-		// Reserved for decoders.
-		// FIXME: move this out of here and have the decoders track what they're doing with the AU.
-		bool						bHasBeenPrepared;
-
 
 		static FAccessUnit* Create(IAccessUnitMemoryProvider* MemProvider)
 		{
@@ -158,8 +153,10 @@ namespace Electra
 			PTS.SetToInvalid();
 			DTS.SetToInvalid();
 			Duration.SetToInvalid();
-			OverlapAdjust.SetToZero();
 			PTO.SetToZero();
+			EarliestPTS.SetToInvalid();
+			LatestPTS.SetToInvalid();
+			SequenceIndex = 0;
 			ESType = EStreamType::Unsupported;
 			AUSize = 0;
 			AUData = nullptr;
@@ -171,7 +168,6 @@ namespace Electra
 			bIsDummyData = false;
 			bTrackChangeDiscontinuity = false;
 			bIsSideloaded = false;
-			bHasBeenPrepared = false;
 		}
 
 		~FAccessUnit()
@@ -399,7 +395,7 @@ namespace Electra
 		}
 
 		//!
-		bool Peek(FAccessUnit*& OutAU)
+		bool PeekAndAddRef(FAccessUnit*& OutAU)
 		{
 			FMediaCriticalSection::ScopedLock Lock(AccessLock);
 			if (Num())
@@ -444,7 +440,7 @@ namespace Electra
 			{
 				FAccessUnit* NextAU = nullptr;
 				FAccessUnit* PeekedAU = nullptr;
-				if (Peek(PeekedAU))
+				if (PeekAndAddRef(PeekedAU))
 				{
 					if (PeekedAU)
 					{
@@ -592,7 +588,7 @@ namespace Electra
 	 * one of which is selected to return AUs to the decoder from. The other unselected tracks will
 	 * discard their AUs as the play position progresses.
 	 */
-	class FMultiTrackAccessUnitBuffer
+	class FMultiTrackAccessUnitBuffer : public TSharedFromThis<FMultiTrackAccessUnitBuffer, ESPMode::ThreadSafe>
 	{
 	public:
 		FMultiTrackAccessUnitBuffer();
@@ -601,14 +597,11 @@ namespace Electra
 		void CapacitySet(const FAccessUnitBuffer::FConfiguration& Config);
 		void SelectTrackWhenAvailable(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
 		void AddUpcomingBuffer(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
-		void Activate();
-		void Deselect();
-		bool Push(FAccessUnit*& AU);
+		bool Push(FAccessUnit*& AU, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization);
 		void PushEndOfDataFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
 		void PushEndOfDataAll();
 		void Flush();
 		void GetStats(FAccessUnitBufferInfo& OutStats);
-		bool IsDeselected();
 		FTimeValue GetLastPoppedDTS();
 		FTimeValue GetLastPoppedPTS();
 		TSharedPtrTS<FBufferSourceInfo> GetActiveOutputBufferInfo() const
@@ -618,18 +611,21 @@ namespace Electra
 		class FScopedLock : private TMediaNoncopyable<FScopedLock>
 		{
 		public:
-			explicit FScopedLock(const FMultiTrackAccessUnitBuffer& Self)
-				: LockedSelf(Self)
+			explicit FScopedLock(TSharedPtrTS<FMultiTrackAccessUnitBuffer> Self)
+				: LockedSelf(MoveTemp(Self))
 			{
-				LockedSelf.AccessLock.Lock();
+				LockedSelf->AccessLock.Lock();
 			}
 			~FScopedLock()
 			{
-				LockedSelf.AccessLock.Unlock();
+				LockedSelf->AccessLock.Unlock();
 			}
 		private:
 			FScopedLock();
-			const FMultiTrackAccessUnitBuffer& LockedSelf;
+			FScopedLock(const FScopedLock&) = delete;
+			FScopedLock& operator= (const FScopedLock&) = delete;
+
+			TSharedPtrTS<FMultiTrackAccessUnitBuffer> LockedSelf;
 		};
 
 		bool PeekAndAddRef(FAccessUnit*& OutAU);
@@ -667,7 +663,6 @@ namespace Electra
 		TSharedPtrTS<FBufferSourceInfo>					LastPoppedBufferInfo;
 		FTimeValue										LastPoppedDTS;
 		FTimeValue										LastPoppedPTS;
-		bool											bIsDeselected;
 		bool											bEndOfData;
 		bool											bLastPushWasBlocked;
 		bool											bIsParallelTrackMode;
@@ -686,16 +681,12 @@ namespace Electra
 	public:
 		virtual ~IAccessUnitBufferInterface() = default;
 
-		enum class EAUpushResult
-		{
-			Ok,
-			Full,
-			Error,
-		};
-		//! Attempts to push an access unit to the decoder. Ownership of the access unit is transferred if the push is successful.
-		virtual EAUpushResult AUdataPushAU(FAccessUnit* AccessUnit) = 0;
+		//! Pushes an access unit to the decoder. Ownership of the access unit is transferred to the decoder.
+		virtual void AUdataPushAU(FAccessUnit* AccessUnit) = 0;
 		//! Notifies the decoder that there will be no further access units.
 		virtual void AUdataPushEOD() = 0;
+		//! Notifies the decoder that there may be further access units.
+		virtual void AUdataClearEOD() = 0;
 		//! Instructs the decoder to flush all pending input and all already decoded output.
 		virtual void AUdataFlushEverything() = 0;
 	};
@@ -722,15 +713,9 @@ namespace Electra
 			}
 			void Clear()
 			{
-				NumAUsAvailable = 0;
-				NumBytesInBuffer = 0;
-				MaxBytesOfBuffer = 0;
 				bEODSignaled = false;
 				bEODReached = false;
 			}
-			int64	NumAUsAvailable;		//!< Number of AUs currently in the buffer.
-			int64	NumBytesInBuffer;		//!< Number of bytes currently in the buffer.
-			int64	MaxBytesOfBuffer;		//!< Maximum byte capacity this buffer is allowed to store.
 			bool	bEODSignaled;			//!< Set after PushEndOfData() has been called
 			bool	bEODReached;			//!< Set after PushEndOfData() has been called AND the last AU was taken from the buffer.
 		};
@@ -779,6 +764,125 @@ namespace Electra
 		virtual void DecoderOutputReady(const FDecodeReadyStats& CurrentReadyStats) = 0;
 	};
 
+
+
+
+
+template <typename T>
+class TAccessUnitQueue
+{
+public:
+	TAccessUnitQueue() = default;
+
+	~TAccessUnitQueue()
+	{
+		Empty();
+	}
+
+	void Enqueue(const T& InElement)
+	{
+		Elements.Enqueue(InElement);
+		AvailSema.Release();
+	}
+
+	void Enqueue(T&& InElement)
+	{
+		Elements.Enqueue(MoveTemp(InElement));
+		AvailSema.Release();
+	}
+
+	int32 Num()
+	{
+		return AvailSema.CurrentCount();
+	}
+
+	bool IsEmpty()
+	{
+		return Num() == 0;
+	}
+
+	void Empty()
+	{
+		while(AvailSema.TryToObtain())
+		{
+		}
+		Elements.Empty();
+		bIsEOD = false;
+	}
+
+	bool Wait(int64 InWaitForMicroseconds)
+	{
+		if (AvailSema.Obtain(InWaitForMicroseconds))
+		{
+			AvailSema.Release();
+			return true;
+		}
+		if (GetEOD())
+		{
+			bReachedEOD = true;
+		}
+		return false;
+	}
+
+	bool Dequeue(T& OutElement)
+	{
+		if (AvailSema.Obtain())
+		{
+			bool bGot = Elements.Dequeue(OutElement);
+			check(bGot);
+			return bGot;
+		}
+		if (GetEOD())
+		{
+			bReachedEOD = true;
+		}
+		return false;
+	}
+
+	bool Dequeue(T& OutElement, int64 InWaitForMicroseconds)
+	{
+		if (AvailSema.Obtain(InWaitForMicroseconds))
+		{
+			bool bGot = Elements.Dequeue(OutElement);
+			check(bGot);
+			return bGot;
+		}
+		if (GetEOD())
+		{
+			bReachedEOD = true;
+		}
+		return false;
+	}
+
+	void SetEOD()
+	{
+		bIsEOD = true;
+	}
+
+	void ClearEOD()
+	{
+		bIsEOD = false;
+		bReachedEOD = false;
+	}
+
+	bool GetEOD() const
+	{
+		return bIsEOD;
+	}
+	
+	bool ReachedEOD() const
+	{
+		return bReachedEOD;
+	}
+private:
+	TAccessUnitQueue(const TAccessUnitQueue&) = delete;
+	TAccessUnitQueue& operator = (const TAccessUnitQueue&) = delete;
+
+	FMediaSemaphore AvailSema;
+	TQueue<T> Elements;
+	bool bIsEOD = false;
+	bool bReachedEOD = false;
+};
 
 
 } // namespace Electra

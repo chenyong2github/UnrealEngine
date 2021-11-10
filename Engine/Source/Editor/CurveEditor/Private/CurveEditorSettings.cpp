@@ -10,6 +10,9 @@ UCurveEditorSettings::UCurveEditorSettings()
 	bShowCurveEditorCurveToolTips = true;
 	TangentVisibility = ECurveEditorTangentVisibility::SelectedKeys;
 	ZoomPosition = ECurveEditorZoomPosition::CurrentTime;
+
+	ParentSpaceCustomColor = FLinearColor(.93, .31, .19); //pastel orange
+	WorldSpaceCustomColor = FLinearColor(.198, .610, .558); //pastel teal
 }
 
 bool UCurveEditorSettings::GetAutoFrameCurveEditor() const
@@ -147,24 +150,96 @@ void UCurveEditorSettings::DeleteCustomColor(UClass* InClass, const FString& InP
 	}
 }
 
+TOptional<FLinearColor> UCurveEditorSettings::GetSpaceSwitchColor(const FString& InControlName) const
+{
+	TOptional<FLinearColor> Color;
+
+	if (InControlName == FString(TEXT("Parent")))
+	{
+		Color =  ParentSpaceCustomColor;
+	}
+	else if(InControlName == FString(TEXT("World")))
+	{
+		Color = WorldSpaceCustomColor;
+	}
+	else
+	{
+		for (const FCustomColorForSpaceSwitch& CustomColor : ControlSpaceCustomColors)
+		{
+			if (CustomColor.ControlName == InControlName)
+			{
+				Color = CustomColor.Color;
+				break;
+			}
+		}
+	}
+	return Color;
+}
+
+void UCurveEditorSettings::SetSpaceSwitchColor(const FString& InControlName, FLinearColor InColor)
+{
+	if (InControlName == FString(TEXT("Parent")))
+	{
+		ParentSpaceCustomColor = InColor;
+		SaveConfig();
+	}
+	else if (InControlName == FString(TEXT("World")))
+	{
+		WorldSpaceCustomColor = InColor;
+		SaveConfig();
+	}
+	else
+	{
+		TOptional<FLinearColor> Color;
+		for (FCustomColorForSpaceSwitch& CustomColor : ControlSpaceCustomColors)
+		{
+			if (CustomColor.ControlName == InControlName)
+			{
+				CustomColor.Color = InColor;
+				SaveConfig();
+				return;
+			}
+		}
+		FCustomColorForSpaceSwitch NewColor;
+		NewColor.ControlName = InControlName;
+		NewColor.Color = InColor;
+		ControlSpaceCustomColors.Add(NewColor);
+		SaveConfig();
+	}
+}
+
+void UCurveEditorSettings::DeleteSpaceSwitchColor(const FString& InControlName)
+{
+	TOptional<FLinearColor> Color;
+	for (int32 Index = 0; Index < ControlSpaceCustomColors.Num(); ++Index)
+	{
+		FCustomColorForSpaceSwitch& CustomColor = ControlSpaceCustomColors[Index];
+		if (CustomColor.ControlName == InControlName)
+		{
+			ControlSpaceCustomColors.RemoveAt(Index);
+			SaveConfig();
+			return;
+		}
+	}
+}
+
 FLinearColor UCurveEditorSettings::GetNextRandomColor()
 {
 	static TArray<FLinearColor> IndexedColor;
 	static int32 NextIndex = 0;
 	if (IndexedColor.Num() == 0)
 	{
-		IndexedColor.Add(FLinearColor(FColor::Magenta));
-		IndexedColor.Add(FLinearColor(FColor::Cyan));
-		IndexedColor.Add(FLinearColor(FColor::Turquoise));
-		IndexedColor.Add(FLinearColor(FColor::Orange));
-		IndexedColor.Add(FLinearColor(FColor::Yellow));
-		IndexedColor.Add(FLinearColor(FColor::Purple));
-		IndexedColor.Add(FLinearColor(FColor::Silver));
-		IndexedColor.Add(FLinearColor(FColor::Emerald));
-		IndexedColor.Add(FLinearColor(FColor::White));
-		IndexedColor.Add(FLinearColor(FColor::Red));
-		IndexedColor.Add(FLinearColor(FColor::Green));
-		IndexedColor.Add(FLinearColor(FColor::Blue));
+		IndexedColor.Add(FLinearColor(.904, .323, .539)); //pastel red
+		IndexedColor.Add(FLinearColor(552, .737, .328)); //pastel green
+		IndexedColor.Add(FLinearColor(.947, .418, .219)); //pastel orange
+		IndexedColor.Add(FLinearColor(.156, .624, .921)); //pastel blue
+		IndexedColor.Add(FLinearColor(.921, .314, .337));//pastel red 2
+		IndexedColor.Add(FLinearColor(.361, .651, .332)); //pastel green 2
+		IndexedColor.Add(FLinearColor(.982, .565, .254)); //pastel orange 2
+		IndexedColor.Add(FLinearColor(.246, .223, .514)); //pastel purple
+		IndexedColor.Add(FLinearColor(.208, .386, .687)); //pastel blue2
+		IndexedColor.Add(FLinearColor(.223, .59, .337)); //pastel green 3
+		IndexedColor.Add(FLinearColor(.230, .291, .591));  //pastel blue 3
 	}
 	FLinearColor Color = IndexedColor[NextIndex];
 	++NextIndex;

@@ -3368,7 +3368,7 @@ public:
 	 *	@param	InArray: pointer to raw memory that corresponds to this array. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	**/
 	FORCEINLINE FScriptArrayHelper(const FArrayProperty* InProperty, const void* InArray)
-		: FScriptArrayHelper(Internal, InProperty->Inner, InArray, InProperty->Inner->ElementSize, InProperty->ArrayFlags)
+		: FScriptArrayHelper(Internal, InProperty->Inner, InArray, InProperty->Inner->ElementSize, InProperty->Inner->GetMinAlignment(), InProperty->ArrayFlags)
 	{
 	}
 
@@ -3501,7 +3501,7 @@ public:
 	{
 		check(Count>=0);
 		checkSlow(Num() >= 0);
-		const int32 OldNum = WithScriptArray([this, Count](auto* Array) { return Array->Add(Count, ElementSize); });
+		const int32 OldNum = WithScriptArray([this, Count](auto* Array) { return Array->Add(Count, ElementSize, ElementAlignment); });
 		return OldNum;
 	}
 	/**
@@ -3521,7 +3521,7 @@ public:
 	{
 		check(Count>=0);
 		check(Index>=0 && Index <= Num());
-		WithScriptArray([this, Index, Count](auto* Array) { Array->Insert(Index, Count, ElementSize); });
+		WithScriptArray([this, Index, Count](auto* Array) { Array->Insert(Index, Count, ElementSize, ElementAlignment); });
 		ConstructItems(Index, Count);
 	}
 	/**
@@ -3538,7 +3538,7 @@ public:
 		}
 		if (OldNum || Slack)
 		{
-			WithScriptArray([this, Slack](auto* Array) { Array->Empty(Slack, ElementSize); });
+			WithScriptArray([this, Slack](auto* Array) { Array->Empty(Slack, ElementSize, ElementAlignment); });
 		}
 	}
 	/**
@@ -3551,7 +3551,7 @@ public:
 		check(Count>=0);
 		check(Index>=0 && Index + Count <= Num());
 		DestructItems(Index, Count);
-		WithScriptArray([this, Index, Count](auto* Array) { Array->Remove(Index, Count, ElementSize); });
+		WithScriptArray([this, Index, Count](auto* Array) { Array->Remove(Index, Count, ElementSize, ElementAlignment); });
 	}
 
 	/**
@@ -3584,7 +3584,7 @@ public:
 	void MoveAssign(void* InOtherArray)
 	{
 		checkSlow(InOtherArray);
-		WithScriptArray([this, InOtherArray](auto* Array) { Array->MoveAssign(*static_cast<decltype(Array)>(InOtherArray), ElementSize); });
+		WithScriptArray([this, InOtherArray](auto* Array) { Array->MoveAssign(*static_cast<decltype(Array)>(InOtherArray), ElementSize, ElementAlignment); });
 	}
 
 	/**
@@ -3606,13 +3606,14 @@ public:
 
 	static FScriptArrayHelper CreateHelperFormInnerProperty(const FProperty* InInnerProperty, const void *InArray, EArrayPropertyFlags InArrayFlags = EArrayPropertyFlags::None)
 	{
-		return FScriptArrayHelper(Internal, InInnerProperty, InArray, InInnerProperty->ElementSize, InArrayFlags);
+		return FScriptArrayHelper(Internal, InInnerProperty, InArray, InInnerProperty->ElementSize, InInnerProperty->GetMinAlignment(), InArrayFlags);
 	}
 
 private:
-	FScriptArrayHelper(EInternal, const FProperty* InInnerProperty, const void* InArray, int32 InElementSize, EArrayPropertyFlags InArrayFlags)
+	FScriptArrayHelper(EInternal, const FProperty* InInnerProperty, const void* InArray, int32 InElementSize, uint32 InElementAlignment, EArrayPropertyFlags InArrayFlags)
 		: InnerProperty(InInnerProperty)
 		, ElementSize(InElementSize)
+		, ElementAlignment(InElementAlignment)
 		, ArrayFlags(InArrayFlags)
 	{
 		//@todo, we are casting away the const here
@@ -3714,6 +3715,7 @@ private:
 		FFreezableScriptArray* FreezableArray;
 	};
 	int32 ElementSize;
+	uint32 ElementAlignment;
 	EArrayPropertyFlags ArrayFlags;
 };
 

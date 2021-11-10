@@ -6,7 +6,7 @@
 #include "Data/SnapshotCustomVersion.h"
 #include "Data/Util/ActorHashUtil.h"
 #include "Data/Util/EquivalenceUtil.h"
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "LevelSnapshotsSettings.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "Restorability/SnapshotRestorability.h"
@@ -24,9 +24,6 @@
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Logging/MessageLog.h"
 #endif
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
 
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
@@ -36,7 +33,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 		return;
 	}
 	
-	UE_LOG(LogLevelSnapshots, Log, TEXT("Applying snapshot %s to world %s"), *GetPathName(), *TargetWorld->GetPathName());
+	UE_LOG(LogLevelSnapshots, Log, TEXT("Applying snapshot %s to world %s. %s"), *GetPathName(), *TargetWorld->GetPathName(), *GenerateDebugLogInfo());
 	UE_CLOG(MapPath != FSoftObjectPath(TargetWorld), LogLevelSnapshots, Log, TEXT("Snapshot was taken for different world called '%s'"), *MapPath.ToString());
 	ON_SCOPE_EXIT
 	{
@@ -44,10 +41,6 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	};
 	
 	EnsureWorldInitialised();
-	
-#if WITH_EDITOR
-	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
-#endif
 	SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
 }
 
@@ -139,6 +132,11 @@ bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* S
 	return SnapshotUtil::HasOriginalChangedPropertiesSinceSnapshotWasTaken(SerializedData, SnapshotActor, WorldActor);
 }
 
+FString ULevelSnapshot::GetActorLabel(const FSoftObjectPath& OriginalActorPath) const
+{
+	return SerializedData.GetActorLabel(OriginalActorPath);
+}
+
 TOptional<AActor*> ULevelSnapshot::GetDeserializedActor(const FSoftObjectPath& OriginalActorPath)
 {
 	EnsureWorldInitialised();
@@ -177,7 +175,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	{
 		return;
 	}
-	UE_LOG(LogLevelSnapshots, Log, TEXT("Diffing snapshot %s in world %s"), *GetPathName(), *World->GetPathName());
+	UE_LOG(LogLevelSnapshots, Log, TEXT("Diffing snapshot %s in world %s. %s"), *GetPathName(), *World->GetPathName(), *GenerateDebugLogInfo());
 	ON_SCOPE_EXIT
 	{
 		UE_LOG(LogLevelSnapshots, Log, TEXT("Finished diffing snapshot"));
@@ -214,7 +212,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	// Try to find world actors and call appropriate callback
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_IteratorAllActors);
-		ULevelSnapshotsEditorProjectSettings* Settings = GetMutableDefault<ULevelSnapshotsEditorProjectSettings>();
+		ULevelSnapshotsSettings* Settings = GetMutableDefault<ULevelSnapshotsSettings>();
 		
 		const bool bShouldLogDiffWorldTimes = SnapshotCVars::CVarLogTimeDiffingMatchedActors.GetValueOnAnyThread();
 		const FString DebugActorName = SnapshotCVars::CVarBreakOnDiffMatchedActor.GetValueOnAnyThread();
@@ -245,7 +243,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 				UE_LOG(LogLevel, Warning, TEXT("Cannot find class %s. Saved actor %s will not be restored."), *SavedData.GetActorClass().ToString(), *OriginalActorPath.ToString());
 				return;
 			}
-			if (Settings->SkippedClasses.ActorClasses.Contains(ActorClass))
+			if (Settings->SkippedClasses.SkippedClasses.Contains(ActorClass))
 			{
 				return;
 			}
@@ -286,6 +284,14 @@ void ULevelSnapshot::BeginDestroy()
 	}
 	
 	Super::BeginDestroy();
+}
+
+FString ULevelSnapshot::GenerateDebugLogInfo() const
+{
+	FSnapshotVersionInfo Current;
+	Current.Initialize();
+	
+	return FString::Printf(TEXT("CaptureTime: %s. SnapshotVersionInfo: %s. Current engine version: %s."), *CaptureTime.ToString(), *GetSerializedData().SnapshotVersionInfo.ToString(), *Current.ToString());
 }
 
 void ULevelSnapshot::EnsureWorldInitialised()

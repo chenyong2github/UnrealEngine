@@ -44,6 +44,7 @@ public:
 	virtual int32 Flush() override;
 	virtual int32 DequeueInputBuffer(int32 InTimeoutUsec) override;
 	virtual int32 QueueInputBuffer(int32 InBufferIndex, const void* InAccessUnitData, int32 InAccessUnitSize, int64 InTimestampUSec) override;
+	virtual int32 QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec) override;
 	virtual int32 GetOutputFormatInfo(FOutputFormatInfo& OutFormatInfo, int32 InOutputBufferIndex) override;
 	virtual int32 DequeueOutputBuffer(FOutputBufferInfo& OutBufferInfo, int32 InTimeoutUsec) override;
 	virtual int32 GetOutputBufferAndRelease(void*& OutBufferDataPtr, int32 OutBufferDataSize, const FOutputBufferInfo& InOutBufferInfo) override;
@@ -78,6 +79,7 @@ private:
 	FJavaClassMethod	FlushFN;
 	FJavaClassMethod	DequeueInputBufferFN;
 	FJavaClassMethod	QueueInputBufferFN;
+	FJavaClassMethod	QueueEOSInputBufferFN;
 	FJavaClassMethod	GetOutputFormatInfoFN;
 	FJavaClassMethod	DequeueOutputBufferFN;
 	FJavaClassMethod	GetOutputBufferAndReleaseFN;
@@ -128,6 +130,7 @@ FAndroidJavaAACAudioDecoder::FAndroidJavaAACAudioDecoder()
 	, FlushFN(GetClassMethod("Flush", "()I"))
 	, DequeueInputBufferFN(GetClassMethod("DequeueInputBuffer", "(I)I"))
 	, QueueInputBufferFN(GetClassMethod("QueueInputBuffer", "(IJ[B)I"))
+	, QueueEOSInputBufferFN(GetClassMethod("QueueEOSInputBuffer", "(IJ)I"))
 	, GetOutputFormatInfoFN(GetClassMethod("GetOutputFormatInfo", "(I)Lcom/epicgames/unreal/ElectraAudioDecoderAAC$FOutputFormatInfo;"))
 	, DequeueOutputBufferFN(GetClassMethod("DequeueOutputBuffer", "(I)Lcom/epicgames/unreal/ElectraAudioDecoderAAC$FOutputBufferInfo;"))
 	, GetOutputBufferAndReleaseFN(GetClassMethod("GetOutputBufferAndRelease", "(I)[B"))
@@ -375,6 +378,32 @@ int32 FAndroidJavaAACAudioDecoder::QueueInputBuffer(int32 InBufferIndex, const v
 
 //-----------------------------------------------------------------------------
 /**
+ * Queues end of stream for the buffer with a previously dequeued (calling DequeueInputBuffer()) index.
+ *
+ * @param InBufferIndex Index of the buffer to put the EOS flag into and enqueue for decoding (see DequeueInputBuffer()).
+ * @param InTimestampUSec Timestamp the previous data had. Can be 0.
+ *
+ * @return 0 if successful, 1 on error.
+ */
+int32 FAndroidJavaAACAudioDecoder::QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec)
+{
+	if (bHaveDecoder)
+	{
+		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
+		int32 result = CallMethod<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
+		if (JEnv->ExceptionCheck())
+		{
+			JEnv->ExceptionDescribe();
+			JEnv->ExceptionClear();
+		}
+		return result ? 1 : 0;
+	}
+	return 1;
+}
+
+
+//-----------------------------------------------------------------------------
+/**
  * Returns format information of the decoded samples.
  *
  * @param OutFormatInfo
@@ -526,6 +555,9 @@ public:
 	{ return -1; }
 
 	virtual int32 QueueInputBuffer(int32 InBufferIndex, const void* InAccessUnitData, int32 InAccessUnitSize, int64 InTimestampUSec) override
+	{ return 1; }
+
+	virtual int32 QueueEOSInputBuffer(int32 InBufferIndex, int64 InTimestampUSec) override
 	{ return 1; }
 
 	virtual int32 GetOutputFormatInfo(FOutputFormatInfo& OutFormatInfo, int32 InOutputBufferIndex) override

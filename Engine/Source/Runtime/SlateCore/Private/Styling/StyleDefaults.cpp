@@ -3,6 +3,12 @@
 #include "Styling/StyleDefaults.h"
 #include "Fonts/LegacySlateFontInfoCache.h"
 
+const FSlateBrush* FStyleDefaults::GetNoBrush()
+{
+	static const FSlateNoResource NoBrush;
+	return &NoBrush;
+}
+
 const FSlateFontInfo FStyleDefaults::GetFontInfo(uint16 Size)
 {
 	return FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), Size, TEXT("Regular"));

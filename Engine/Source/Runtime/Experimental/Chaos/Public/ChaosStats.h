@@ -113,3 +113,20 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionAnimated"), STAT_ParamUpd
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] DynamicConstraint"), STAT_ParamUpdateField_DynamicConstraint, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] LinearForce"), STAT_ForceUpdateField_LinearForce, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] AngularTorque"), STAT_ForceUpdateField_AngularTorque, STATGROUP_Chaos, CHAOS_API);
+
+
+#if 0
+#define PHYSICS_CSV_SCOPED_EXPENSIVE(Category, Name) CSV_SCOPED_TIMING_STAT(Category, Name)
+#define PHYSICS_CSV_CUSTOM_EXPENSIVE(Category, Name, Value, Op) CSV_CUSTOM_STAT(Category, Name, Value, Op)
+#else
+#define PHYSICS_CSV_SCOPED_EXPENSIVE(Category, Name) 
+#define PHYSICS_CSV_CUSTOM_EXPENSIVE(Category, Name, Value, Op) 
+#endif
+
+#if 0
+#define PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(Category, Name) CSV_SCOPED_TIMING_STAT(Category, Name)
+#define PHYSICS_CSV_CUSTOM_VERY_EXPENSIVE(Category, Name, Value, Op) CSV_CUSTOM_STAT(Category, Name, Value, Op)
+#else
+#define PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(Category, Name) 
+#define PHYSICS_CSV_CUSTOM_VERY_EXPENSIVE(Category, Name, Value, Op) 
+#endif

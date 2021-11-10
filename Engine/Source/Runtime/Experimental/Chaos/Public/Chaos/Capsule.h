@@ -450,6 +450,78 @@ namespace Chaos
 			return HashCombine(UE::Math::GetTypeHash(GetX1()), UE::Math::GetTypeHash(GetAxis()));
 		}
 
+		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const
+		{
+			FVec3 P0 = GetX1();
+			FVec3 P1 = GetX2();
+			const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+			return EdgePosition;
+		}
+		
+
+		// The number of vertices that make up the corners of the specified face
+		// In the case of a capsule the segment will act as a degenerate face
+		// Used for manifold generation
+		int32 NumPlaneVertices(int32 PlaneIndex) const
+		{
+			return 2;
+		}
+
+		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
+		// Not used for capsules
+		// Used for manifold generation
+		FORCEINLINE FReal GetWindingOrder() const
+		{
+			ensure(false);
+			return 1.0f;
+		}
+
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
+		// Used for manifold generation
+		const FVec3 GetVertex(int32 VertexIndex) const
+		{
+			FVec3 Result;
+
+			switch (VertexIndex)
+			{
+			case 0:
+				Result = GetX1(); break;
+			case 1:
+				Result = GetX2(); break;
+			}
+
+			return Result;
+		}
+
+		// Get the index of the plane that most opposes the normal
+		// not applicable for capsules
+		int32 GetMostOpposingPlane(const FVec3& Normal) const
+		{
+			return 0;
+		}
+
+		int32 GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const
+		{
+			return 0;
+		}
+
+		// Get the vertex index of one of the vertices making up the corners of the specified face
+		// Used for manifold generation
+		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		{
+			return PlaneVertexIndex;
+		}
+
+		// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
+		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		{
+			return TPlaneConcrete<FReal, 3>(FVec3(0), FVec3(0));
+		}
+
+		// Capsules have no planes
+		// Used for manifold generation
+		int32 NumPlanes() const { return 0; }
+
 	private:
 		void SetRadius(FReal InRadius) { SetMargin(InRadius); }
 

@@ -23,7 +23,7 @@ namespace CADKernel
 
 		FMetadataDictionary() = default;
 
-		void SerializeMetadata(FCADKernelArchive& Ar)
+		void Serialize(FCADKernelArchive& Ar)
 		{
 			Ar.Archive << Name;
 			Ar.Archive << HostId;

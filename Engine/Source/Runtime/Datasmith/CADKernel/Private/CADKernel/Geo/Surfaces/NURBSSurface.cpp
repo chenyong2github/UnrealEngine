@@ -89,7 +89,7 @@ void CADKernel::FNURBSSurface::Finalize()
 	double VMax = VNodalVector[VNodalVector.Num() - 1 - VDegree];
 
 	Boundary.Set(UMin, UMax, VMin, VMax);
-	SetMinToleranceIso();
+	ComputeMinToleranceIso();
 }
 
 void CADKernel::FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData)
@@ -136,7 +136,7 @@ void CADKernel::FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData
 	Finalize();
 }
 
-void CADKernel::FNURBSSurface::SetMinToleranceIso()
+void CADKernel::FNURBSSurface::ComputeMinToleranceIso()
 {
 	double LengthU = 0;
 	double LengthV = 0;

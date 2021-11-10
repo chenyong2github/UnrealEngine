@@ -183,7 +183,7 @@ int32 UGenerateAssetManifestCommandlet::Main(const FString& InParams)
 		for (FAssetData& RemovedAsset : FinalAssetList)
 		{
 			FString ActualFile;
-			if (FPackageName::DoesPackageExist(RemovedAsset.PackageName.ToString(), NULL, &ActualFile))
+			if (FPackageName::DoesPackageExist(RemovedAsset.PackageName.ToString(), &ActualFile))
 			{
 				ActualFile = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ActualFile);
 				FinalFileList += FString::Printf(TEXT("%s") LINE_TERMINATOR, *ActualFile);

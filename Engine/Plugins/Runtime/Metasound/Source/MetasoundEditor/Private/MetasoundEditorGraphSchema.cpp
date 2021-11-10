@@ -15,6 +15,7 @@
 #include "Layout/SlateRect.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundAssetManager.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorCommands.h"
@@ -1180,7 +1181,7 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 		FMetasoundFrontendClassMetadata AssetMetadata = InGraphHandle->GetGraphMetadata();
 		AssetMetadata.SetType(EMetasoundFrontendClassType::External);
 		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(AssetMetadata);
-		ParentAsset = AssetManager.FindAssetFromKey(RegistryKey);
+		ParentAsset = AssetManager.TryLoadAssetFromKey(RegistryKey);
 	}
 
 	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);

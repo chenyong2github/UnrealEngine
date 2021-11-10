@@ -529,13 +529,16 @@ namespace Metasound
 					FMetasoundFrontendRegistryContainer* NodeRegistry = FMetasoundFrontendRegistryContainer::Get();
 					if (ensure(nullptr != NodeRegistry))
 					{
-						NodeRegistry->RegisterNode(MakeUnique<FInputNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FOutputNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FLiteralNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FVariableMutatorNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FVariableAccessorNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FVariableDeferredAccessorNodeRegistryEntry>(InEntry->Clone()));
+						if (InEntry->GetDataTypeInfo().bIsParsable)
+						{
+							NodeRegistry->RegisterNode(MakeUnique<FInputNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FOutputNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FLiteralNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FVariableMutatorNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FVariableAccessorNodeRegistryEntry>(InEntry->Clone()));
+							NodeRegistry->RegisterNode(MakeUnique<FVariableDeferredAccessorNodeRegistryEntry>(InEntry->Clone()));
+						}
 					}
 
 					const FDataTypeRegistryInfo& RegistryInfo = InEntry->GetDataTypeInfo();
@@ -730,7 +733,18 @@ namespace Metasound
 					return false;
 				}
 
-				return RegisteredObjectClasses.Contains(InObject->GetClass());
+				UClass* ObjectClass = InObject->GetClass();
+				while (ObjectClass != UObject::StaticClass())
+				{
+					if (RegisteredObjectClasses.Contains(ObjectClass))
+					{
+						return true;
+					}
+
+					ObjectClass = ObjectClass->GetSuperClass();
+				}
+
+				return false;
 			}
 
 			Audio::IProxyDataPtr FDataTypeRegistry::CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const

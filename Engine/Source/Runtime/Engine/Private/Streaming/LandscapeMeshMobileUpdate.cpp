@@ -216,22 +216,6 @@ bool FLandscapeMeshMobileStreamIn_IO::HasPendingIORequests() const
 	return false;
 }
 
-void FLandscapeMeshMobileStreamIn_IO::GetIOPackagePath(const FContext& Context, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment)
-{
-	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
-
-	if (!IsCancelled() && LandscapeProxy)
-	{
-		verify(LandscapeProxy->GetMipDataPackagePath(PendingFirstLODIdx, OutPackagePath, OutPackageSegment));
-	}
-	else
-	{
-		MarkAsCancelled();
-		OutPackagePath = FPackagePath();
-		OutPackageSegment = EPackageSegment::Header;
-	}
-}
-
 void FLandscapeMeshMobileStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
 	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest* Req)
@@ -254,7 +238,7 @@ void FLandscapeMeshMobileStreamIn_IO::SetAsyncFileCallback(const FContext& Conte
 	};
 }
 
-void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, const FPackagePath& PackagePath, EPackageSegment PackageSegment)
+void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context)
 {
 	if (IsCancelled())
 	{
@@ -264,8 +248,15 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, cons
 	check(PendingFirstLODIdx < CurrentFirstLODIdx);
 
 	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
-	if (LandscapeProxy != nullptr)
+	FLandscapeMobileRenderData* RenderData = Context.RenderData;
+	if (LandscapeProxy && RenderData)
 	{
+#if USE_BULKDATA_STREAMING_TOKEN
+		FPackagePath PackagePath;
+		EPackageSegment PackageSegment;
+		verify(LandscapeProxy->GetMipDataPackagePath(PendingFirstLODIdx, PackagePath, PackageSegment));
+#endif
+
 		SetAsyncFileCallback(Context);
 
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
@@ -279,7 +270,6 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, cons
 #endif
 			if (BulkDataArray[0]->GetBulkDataSize() > 0)
 			{
-				check(!PackagePath.IsEmpty());
 				TaskSynchronization.Increment();
 				IORequests[Index] = FBulkDataInterface::CreateStreamingRequestForRange(
 					STREAMINGTOKEN_PARAM(PackagePath)
@@ -372,10 +362,7 @@ void FLandscapeMeshMobileStreamIn_IO_AsyncReallocate::DoInitiateIO(const FContex
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LSMMStreamInIOAsyncRealloc_DoInitiateIO"), STAT_LSMMStreamInIOAsyncRealloc_DoInitiateIO, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-	GetIOPackagePath(Context, PackagePath, PackageSegment);
-	SetIORequest(Context, PackagePath, PackageSegment);
+	SetIORequest(Context);
 	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(DoGetIORequestResults), TT_Async, SRA_UPDATE_CALLBACK(DoCancelIO));
 }
 

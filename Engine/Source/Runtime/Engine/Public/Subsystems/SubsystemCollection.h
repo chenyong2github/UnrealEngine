@@ -38,6 +38,16 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override;
 
+	/** Registers and adds instances of the specified Subsystem class to all existing SubsystemCollections of the correct type.
+	 *  Should be used by specific subsystems in plug ins when plugin is activated.
+	 */
+	static void ActivateExternalSubsystem(UClass* SubsystemClass);
+
+	/** Unregisters and removed instances of the specified Subsystem class from all existing SubsystemCollections of the correct type.
+	 *  Should be used by specific subsystems in plug ins when plugin is deactivated.
+	 */
+	static void DeactivateExternalSubsystem(UClass* SubsystemClass);
+
 protected:
 	/** protected constructor - for use by the template only(FSubsystemCollection<TBaseType>) */
 	FSubsystemCollectionBase(UClass* InBaseType);

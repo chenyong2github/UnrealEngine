@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ConsoleVariablesEditorModule.h"
 #include "Widgets/SWidget.h"
 
 class FConsoleVariablesEditorList;
@@ -11,15 +12,17 @@ class UConsoleVariablesAsset;
 class FConsoleVariablesEditorMainPanel : public TSharedFromThis<FConsoleVariablesEditorMainPanel>
 {
 public:
-	FConsoleVariablesEditorMainPanel(UConsoleVariablesAsset* InEditingAsset);
+	FConsoleVariablesEditorMainPanel();
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	void AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue);
+	static FConsoleVariablesEditorModule& GetConsoleVariablesModule();
+	static TWeakObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
 
-	void RefreshList(UConsoleVariablesAsset* InAsset) const;
+	void AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow = false) const;
 
-	void UpdateExistingValuesFromConsoleManager() const;
+	void RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo = "") const;
+	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	// Save / Load
 
@@ -39,17 +42,12 @@ public:
 
 private:
 
-	bool ImportPreset_Impl(const FAssetData& InPresetAsset);
+	bool ImportPreset_Impl(const FAssetData& InPresetAsset, const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset);
 
 	TSharedPtr<SConsoleVariablesEditorMainPanel> MainPanelWidget;
-	
-	//TSharedPtr<FConsoleVariablesEditorList> EditorList;
 
 	// The non-transient loaded asset from which we will copy to the transient asset for editing
 	TWeakObjectPtr<UConsoleVariablesAsset> ReferenceAssetOnDisk;
-
-	// Transient preset that's being edited so we don't affect the reference asset unless we save it
-	TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset;
 
 	TSharedPtr<FConsoleVariablesEditorList> EditorList;
 };

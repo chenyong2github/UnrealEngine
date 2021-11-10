@@ -214,9 +214,19 @@ ECheckBoxState FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBox
 	return v ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
+// Disable telemetry for NativeOpenXR, since it doesn't go through OVRPlugin
+bool FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBoxEnabled() const
+{
+	FString XrApi;
+	GConfig->GetString(TEXT("/Script/OculusHMD.OculusHMDRuntimeSettings"), TEXT("XrApi"), XrApi, GEngineIni);
+	return !XrApi.Equals(FString("NativeOpenXR"));
+}
+
 EVisibility FOculusHMDSettingsDetailsCustomization::GetOculusHMDAvailableWarningVisibility() const
 {
-	return FOculusBuildAnalytics::IsOculusHMDAvailable() ? EVisibility::Collapsed : EVisibility::Visible;
+	FString XrApi;
+	GConfig->GetString(TEXT("/Script/OculusHMD.OculusHMDRuntimeSettings"), TEXT("XrApi"), XrApi, GEngineIni);
+	return FOculusBuildAnalytics::IsOculusHMDAvailable() || XrApi.Equals(FString("NativeOpenXR")) ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -258,6 +268,7 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 							[
 								SNew(STextBlock)
 								.Text(LOCTEXT("EnableBuildTelemetry", "Enable Oculus Build Telemetry"))
+								.ToolTipText(LOCTEXT("EnableBuildTelemetryToolTip", "Enables detailed timing for the major build steps. This measures time spent in each build stageand transmits the time spent per stage to Oculus. This information is used by Oculus to guide work related to optimizing the build process."))
 							]
 						]
 					+ SHorizontalBox::Slot().AutoWidth()
@@ -269,6 +280,7 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 							SNew(SCheckBox)
 							.OnCheckStateChanged(this, &FOculusHMDSettingsDetailsCustomization::OnEnableBuildTelemetry)
 							.IsChecked(this, &FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBoxState)
+							.IsEnabled(this, &FOculusHMDSettingsDetailsCustomization::GetBuildTelemetryCheckBoxEnabled)
 						]
 					+ SHorizontalBox::Slot().FillWidth(8)
 				]

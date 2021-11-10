@@ -851,9 +851,9 @@ void rcMarkConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nverts,
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
 					rcReal p[3];
-					p[0] = chf.bmin[0] + (x+0.5f)*chf.cs; 
+					p[0] = chf.bmin[0] + (rcReal(x)+0.5f)*chf.cs; 
 					p[1] = 0;
-					p[2] = chf.bmin[2] + (z+0.5f)*chf.cs; 
+					p[2] = chf.bmin[2] + (rcReal(z)+0.5f)*chf.cs; 
 
 					if (pointInPoly(nverts, verts, p))
 					{
@@ -999,8 +999,8 @@ void rcMarkCylinderArea(rcContext* ctx, const rcReal* pos,
 				
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					const rcReal sx = chf.bmin[0] + (x+0.5f)*chf.cs;
-					const rcReal sz = chf.bmin[2] + (z+0.5f)*chf.cs;
+					const rcReal sx = chf.bmin[0] + (rcReal(x)+0.5f)*chf.cs;
+					const rcReal sz = chf.bmin[2] + (rcReal(z)+0.5f)*chf.cs;
 					const rcReal dx = sx - pos[0];
 					const rcReal dz = sz - pos[2];
 					
@@ -1126,9 +1126,9 @@ void rcReplaceConvexPolyArea(rcContext* ctx, const rcReal* verts, const int nver
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
 					rcReal p[3];
-					p[0] = chf.bmin[0] + (x + 0.5f)*chf.cs;
+					p[0] = chf.bmin[0] + (rcReal(x) + 0.5f)*chf.cs;
 					p[1] = 0;
-					p[2] = chf.bmin[2] + (z + 0.5f)*chf.cs;
+					p[2] = chf.bmin[2] + (rcReal(z) + 0.5f)*chf.cs;
 
 					if (pointInPoly(nverts, verts, p))
 					{
@@ -1196,8 +1196,8 @@ void rcReplaceCylinderArea(rcContext* ctx, const rcReal* pos,
 
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
-					const rcReal sx = chf.bmin[0] + (x + 0.5f)*chf.cs;
-					const rcReal sz = chf.bmin[2] + (z + 0.5f)*chf.cs;
+					const rcReal sx = chf.bmin[0] + (rcReal(x) + 0.5f)*chf.cs;
+					const rcReal sz = chf.bmin[2] + (rcReal(z) + 0.5f)*chf.cs;
 					const rcReal dx = sx - pos[0];
 					const rcReal dz = sz - pos[2];
 

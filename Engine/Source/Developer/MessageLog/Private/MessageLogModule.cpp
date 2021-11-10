@@ -9,7 +9,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "UserInterface/SMessageLog.h"
 #include "Model/MessageLogListingModel.h"
@@ -135,5 +134,5 @@ void FMessageLogModule::RegisterMessageLogSpawner(const TSharedRef<FWorkspaceIte
 		.SetDisplayName(NSLOCTEXT("UnrealEditor", "MessageLogTab", "Message Log"))
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "MessageLogTooltipText", "Open the Message Log tab."))
 		.SetGroup(InGroup)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "MessageLog.TabIcon"));
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "MessageLog.TabIcon"));
 }

@@ -535,11 +535,11 @@ FSlateIcon STransformViewportToolBar::GetLocalToWorldIcon() const
 	if( Viewport.IsValid() && Viewport.Pin()->IsCoordSystemActive(COORD_World) )
 	{
 		static FName WorldIcon("EditorViewport.RelativeCoordinateSystem_World");
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), WorldIcon);
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), WorldIcon);
 	}
 
-	static FName LocalIcon("EditorViewport.RelativeCoordinateSystem_Local");
-	return FSlateIcon(FEditorStyle::GetStyleSetName(), LocalIcon);
+	static FName LocalIcon("Icons.Transform");
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), LocalIcon);
 }
 
 FText STransformViewportToolBar::GetLocationGridLabel() const

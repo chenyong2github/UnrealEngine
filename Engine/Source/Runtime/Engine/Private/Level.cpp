@@ -396,11 +396,6 @@ void ULevel::CleanupLevel(bool bCleanupResources)
 				}
 			}, false);
 	}
-
-	if (UWorldPartition* WorldPartition = GetWorldPartition())
-	{
-		WorldPartition->CleanupWorldPartition();
-	}
 }
 
 void ULevel::PostInitProperties()
@@ -466,8 +461,13 @@ void ULevel::Serialize( FArchive& Ar )
 #if WITH_EDITOR
 			if (IsUsingExternalActors() && Actor->IsPackageExternal())
 			{
+				// Some actors needs to be referenced by the level (world settings, default brush, etc...)
+				if (Actor->ShouldLevelKeepRefIfExternal())
+				{
+					return true;
+				}
 				// Don't filter out external actors if duplicating the world to get the actors properly duplicated.
-				if (!(Ar.GetPortFlags() & PPF_Duplicate))
+				else if (!(Ar.GetPortFlags() & PPF_Duplicate))
 				{
 					return false;
 				}
@@ -1284,6 +1284,7 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 bool ULevel::IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context)
 {
 	// Find next valid actor to process components registration
+
 	if (OwningWorld)
 	{
 		OwningWorld->SetAllowDeferredPhysicsStateCreation(true);
@@ -1370,6 +1371,10 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 		{
 			break;
 		}
+	}
+
+	if (OwningWorld)
+	{
 	}
 
 	if (OwningWorld)
@@ -2181,15 +2186,21 @@ void ULevel::SetWorldSettings(AWorldSettings* NewWorldSettings)
 			}
 		}
 
-		// Assign the new world settings before destroying the old one
-		// since level will prevent destruction of the world settings if it matches the cached value;
-		AWorldSettings* OldWorldSettings = WorldSettings;
+		// Assign the new world settings before destroying the old ones
+		// since level will prevent destruction of the world settings if it matches the cached value
 		WorldSettings = NewWorldSettings;
 
-		if (OldWorldSettings)
+		// Makes no sense to have several WorldSettings so destroy existing ones
+		for (int32 ActorIndex=1; ActorIndex<Actors.Num(); ActorIndex++)
 		{
-			// Makes no sense to have two WorldSettings so destroy existing one
-			OldWorldSettings->Destroy();
+			if (AActor* Actor = Actors[ActorIndex])
+			{
+				if (AWorldSettings* ExistingWorldSettings = Cast<AWorldSettings>(Actor))
+				{
+					check(ExistingWorldSettings != WorldSettings);
+					ExistingWorldSettings->Destroy();
+				}
+			}
 		}
 	}
 }

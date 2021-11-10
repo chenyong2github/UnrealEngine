@@ -181,8 +181,6 @@ void UMetasoundEditorGraphNode::ReconstructNode()
 	// and subsequent steps clean-up unused pins.  This can be called mid-copy, which means the node
 	// handle may be invalid.  Setting to remove unused causes premature removal and then default values
 	// are lost.
-	// TODO: User will want to see dead pins as well for node definition changes. Label and color-code dead
-	// pins (ex. red), and leave dead connections for reference like BP.
 	FConstNodeHandle NodeHandle = GetNodeHandle();
 	if (NodeHandle->IsValid())
 	{
@@ -292,6 +290,8 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
+	const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+
 	const FDataTypeRegistryInfo DataTypeInfo = GetPinDataTypeInfo(InPin);
 	if (DataTypeInfo.PreferredLiteralType != Metasound::ELiteralType::UObjectProxy)
 	{
@@ -324,7 +324,7 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 			continue;
 		}
 
-		if (Class->IsChildOf(ProxyGenClass))
+		if (EditorModule.IsExplicitProxyClass(*Class) && Class->IsChildOf(ProxyGenClass))
 		{
 			DisallowedClasses.Add(ClassIt->GetName());
 		}

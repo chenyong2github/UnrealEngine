@@ -478,14 +478,7 @@ void FOculusMRModule::OnInitialWorldCreated(UWorld* NewWorld)
 							FOculusHMDModule::GetPluginWrapper().Media_SetAvailableQueueIndexVulkan(queueIndex);
 						}
 
-						// We use the upside down scenecapture in GLES for performance (one less copy)
-						if (IsOpenGLPlatform(GMaxRHIShaderPlatform))
-						{
-							FOculusHMDModule::GetPluginWrapper().Media_SetMrcFrameImageFlipped(ovrpBool_True);
-						}
-
 						FOculusHMDModule::GetPluginWrapper().Media_SetMrcInputVideoBufferType(ovrpMediaInputVideoBufferType_TextureHandle);
-						FOculusHMDModule::GetPluginWrapper().Media_SetMrcFrameInverseAlpha(ovrpBool_True);
 
 						FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 						float SampleRate = AudioDevice->GetSampleRate();

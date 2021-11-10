@@ -820,6 +820,8 @@ private:
 	/** Same as LastRenderTime but only updated if the component is on screen. Used by the texture streamer. */
 	mutable float LastRenderTimeOnScreen;
 
+	float OcclusionBoundsSlack;
+
 	friend class FPrimitiveSceneInfo;
 
 public:
@@ -2192,6 +2194,8 @@ public:
 	virtual const int32 GetNumUncachedStaticLightingInteractions() const override;
 #endif
 	//~ End USceneComponentInterface
+
+	void UpdateOcclusionBoundsSlack(float NewSlack);
 
 	/**
 	 * Dispatch notifications for the given HitResult.

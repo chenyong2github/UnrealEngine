@@ -557,7 +557,7 @@ void FMovieSceneEventUtils::RemoveUnusedCustomEvents(const TArray<TWeakObjectPtr
 				Info.ExpireDuration = 3.f;
 				FSlateNotificationManager::Get().AddNotification(Info);
 				
-				UE_LOG(LogMovieScene, Warning, TEXT("Remove unused custom event %s from %s"), *GetNameSafe(ExistingNode), *GetNameSafe(DirectorBP));
+				UE_LOG(LogMovieScene, Display, TEXT("Remove unused custom event %s from %s"), *GetNameSafe(ExistingNode), *GetNameSafe(DirectorBP));
 
 				DirectorBP->Modify();
 

@@ -17,6 +17,16 @@ struct FBoneContainer;
 struct FSkeletonRemapping;
 struct FBlendedCurve;
 
+
+/** Struct used to store per-component ref pose override */
+struct FSkelMeshRefPoseOverride
+{
+	/** Inverse of (component space) ref pose matrices  */
+	TArray<FMatrix44f> RefBasesInvMatrix;
+	/** Per bone transforms (local space) for new ref pose */
+	TArray<FTransform> RefBonePoses;
+};
+
 /** in the future if we need more bools, please convert to bitfield 
  * These are not saved in asset but per skeleton. 
  */
@@ -195,9 +205,6 @@ private:
 	// Compact pose format of Parent Bones (to save us converting to mesh space and back)
 	TArray<FCompactPoseBoneIndex> CompactPoseParentBones;
 
-	// Compact pose format of Ref Pose Bones (to save us converting to mesh space and back)
-	TArray<FTransform>    CompactPoseRefPoseBones;
-
 	// Array of cached virtual bone data so that animations running from raw data can generate them.
 	TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;
 
@@ -207,12 +214,14 @@ private:
 	/** Number of valid entries in UIDToArrayIndexLUT. I.e. a count of entries whose value does not equal to  MAX_uint16. */
 	int32 UIDToArrayIndexLUTValidCount;
 
-	/** Look up table of UID to Name UIDToNameLUT[InUID] = Name of curve. If NAME_None, it is invalid.*/
+	/** Look up table of UID to Name UIDToNameLUT[InUID] = Name of curve. If NAME_None, it is invalid.*/	
 	TArray<FName> UIDToNameLUT;
 
-	/** Look up table of UID to FAnimCurveType UIDToNameLUT[InUID] = FAnimCurveType of curve. */
+	/** Look up table of UID to FAnimCurveType UIDToNameLUT[InUID] = FAnimCurveType of curve. */	
 	TArray<FAnimCurveType> UIDToCurveTypeLUT;
-
+	
+	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
+	
 	// The serial number of this bone container. This is incremented each time the container is regenerated and can
 	// be used to track whether to cache bone data. If this value is zero then the bone container is considered invalid
 	// as it has never been regenerated.
@@ -333,18 +342,23 @@ public:
 
 	const FTransform& GetRefPoseTransform(const FCompactPoseBoneIndex& BoneIndex) const
 	{
-		return CompactPoseRefPoseBones[BoneIndex.GetInt()];
+		if (RefPoseOverride.IsValid())
+		{
+			return RefPoseOverride->RefBonePoses[BoneIndex.GetInt()];
+		}
+		else
+		{
+			return RefSkeleton->GetRefBonePose()[BoneIndicesArray[BoneIndex.GetInt()]];
+		}
 	}
-
-	const TArray<FTransform>& GetRefPoseCompactArray() const
+	
+	/** Override skeleton ref pose. */
+	void SetRefPoseOverride(const TSharedPtr<FSkelMeshRefPoseOverride>& InRefPoseOverride)
 	{
-		return CompactPoseRefPoseBones;
-	}
-
-	void SetRefPoseCompactArray(const TArray<FTransform>& InRefPoseCompactArray)
-	{
-		check(InRefPoseCompactArray.Num() == CompactPoseRefPoseBones.Num());
-		CompactPoseRefPoseBones = InRefPoseCompactArray;
+		if (InRefPoseOverride.Get() != RefPoseOverride.Get())
+		{
+			RefPoseOverride = InRefPoseOverride;
+		}
 	}
 
 	/** Access to Asset's RefSkeleton. */

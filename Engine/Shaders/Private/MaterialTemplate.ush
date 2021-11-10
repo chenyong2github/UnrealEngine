@@ -142,7 +142,16 @@
 #define TEMPLATE_USES_STRATA			(PROJECT_STRATA && MATERIAL_IS_STRATA)
 #define STRATA_OPAQUE_ENABLED			(TEMPLATE_USES_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
 #define STRATA_TRANSLUCENT_ENABLED		(TEMPLATE_USES_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT>0)
+
+#if PROJECT_STRATA
 #include "/Engine/Private/Strata/Strata.ush"
+#else
+struct FStrataData
+{
+	uint Dummy;
+};
+FStrataData GetInitialisedStrataData() { return (FStrataData)0; }
+#endif
 
 /**
  * Parameters used by vertex and pixel shaders to access particle properties.
@@ -383,7 +392,7 @@ struct FMaterialPixelParameters
 #endif
 
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
-	float4x4 InstanceLocalToWorld;
+	FLWCMatrix InstanceLocalToWorld;
 #endif
 #if HAS_INSTANCE_WORLD_TO_LOCAL_PS
 	FLWCInverseMatrix InstanceWorldToLocal;

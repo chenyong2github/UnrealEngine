@@ -47,8 +47,8 @@ protected:
 	UPROPERTY()
 	TSet<FString> ReferencedAssetClassKeys;
 
-	UPROPERTY(Transient)
-	TSet<UObject*> ReferenceAssetClassCache;
+	UPROPERTY()
+	TSet<FSoftObjectPath> ReferenceAssetClassCache;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -139,7 +139,8 @@ public:
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void Serialize(FArchive& Ar) override;
 
-	virtual TSet<UObject*>& GetReferencedAssetClassCache() override;
+	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() override;
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const override;
 
 	// Returns Asset Metadata associated with this MetaSoundSource
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;

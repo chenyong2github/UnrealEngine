@@ -46,7 +46,7 @@ void FAssetTypeActions_Blueprint::GetActions(const TArray<UObject*>& InObjects, 
 				"Blueprint_EditDefaults",
 				LOCTEXT("Blueprint_EditDefaults", "Edit Shared Defaults"),
 				LOCTEXT("Blueprint_EditDefaultsTooltip", "Edit the shared default properties of the selected blueprints."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
 				FUIAction(
 					FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteEditDefaults, Blueprints ),
 					FCanExecuteAction()
@@ -65,7 +65,7 @@ void FAssetTypeActions_Blueprint::GetActions(const TArray<UObject*>& InObjects, 
 			"Blueprint_NewDerivedBlueprint",
 			LOCTEXT("Blueprint_NewDerivedBlueprint", "Create Child Blueprint Class"),
 			DynamicTooltipAttribute,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteNewDerivedBlueprint, Blueprints[0] ),
 				FCanExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::CanExecuteNewDerivedBlueprint, Blueprints[0] )

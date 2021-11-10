@@ -10,12 +10,14 @@
 #include "IDetailPropertyRow.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 TArray<TFieldPath<FProperty>> FLevelSnapshotsEditorResultsHelpers::LoopOverProperties(
 	const TWeakPtr<FRowGeneratorInfo>& InSnapshotRowGeneratorInfo, const TWeakPtr<FRowGeneratorInfo>& InWorldRowGeneratorInfo,
-	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
+	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, FPropertySelectionMap& PropertySelectionMap, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
 	const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView)
 {
 	TSharedPtr<FPropertyHandleHierarchy> SnapshotHandleHierarchy = nullptr;
@@ -42,7 +44,9 @@ TArray<TFieldPath<FProperty>> FLevelSnapshotsEditorResultsHelpers::LoopOverPrope
 			const TSharedRef<FPropertyHandleHierarchy>& ChildHierarchy = WorldHandleHierarchy->DirectChildren[ChildIndex];
 
 			LoopOverHandleHierarchiesAndCreateRowHierarchy(
-					ObjectType_World, ChildHierarchy, InDirectParentRow, PropertiesThatPassFilter, PropertyRowsGenerated, InResultsView, SnapshotHandleHierarchy);
+					ObjectType_World, ChildHierarchy, InDirectParentRow,
+					PropertySelectionMap, PropertiesThatPassFilter, PropertyRowsGenerated,
+					InResultsView, SnapshotHandleHierarchy);
 		}
 	}
 
@@ -50,7 +54,7 @@ TArray<TFieldPath<FProperty>> FLevelSnapshotsEditorResultsHelpers::LoopOverPrope
 }
 
 void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowHierarchy(ELevelSnapshotsObjectType InputType, const TWeakPtr<FPropertyHandleHierarchy>& InputHierarchy,
-	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
+	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, FPropertySelectionMap& PropertySelectionMap, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
 	TArray<TFieldPath<FProperty>>& PropertyRowsGenerated, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView, 
 	const TWeakPtr<FPropertyHandleHierarchy>& InHierarchyToSearchForCounterparts)
 {
@@ -87,9 +91,11 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 
 	const TFieldPath<FProperty> PropertyField(Property);
 
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("PropertyField is %s"), *PropertyField.ToString());
+
 	const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType ParentRowType = InDirectParentRow.Pin()->GetRowType();
 	const bool bIsParentRowContainer =
-		(ParentRowType == FLevelSnapshotsEditorResultsRow::CollectionGroup || 
+		(ParentRowType == FLevelSnapshotsEditorResultsRow::CollectionGroup ||
 			ParentRowType == FLevelSnapshotsEditorResultsRow::StructGroup || 
 			ParentRowType == FLevelSnapshotsEditorResultsRow::StructInSetOrArray ||
 			ParentRowType == FLevelSnapshotsEditorResultsRow::StructInMap);
@@ -108,7 +114,8 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 	if (InHierarchyToSearchForCounterparts.IsValid())
 	{
 		const TWeakPtr<FPropertyHandleHierarchy> OutCounterpartHierarchy = FindCorrespondingHandle(
-			PinnedInputHierarchy->TempIdentifierChain, PinnedInputHierarchy->DisplayName, InHierarchyToSearchForCounterparts, bFoundCounterpart);
+			PinnedInputHierarchy->PropertyChain.Get(FLevelSnapshotPropertyChain()), PinnedInputHierarchy->DisplayName,
+			InHierarchyToSearchForCounterparts, bFoundCounterpart);
 
 		if (bFoundCounterpart)
 		{
@@ -122,10 +129,9 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 			}
 		}
 	}
-	
-	uint32 InputChildHandleCount = 0;
-	uint32 CounterpartChildHandleCount = 0;
-	InputHandle->GetNumChildren(InputChildHandleCount);
+	uint32 UnsignedInputChildHandleCount = 0;
+	uint32 UnsignedCounterpartChildHandleCount = 0;
+	InputHandle->GetNumChildren(UnsignedInputChildHandleCount);
 
 	const int32 InputHierarchyChildCount = PinnedInputHierarchy->DirectChildren.Num();
 	int32 CounterpartHierarchyChildCount = 0;
@@ -134,19 +140,23 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 	{
 		if (CounterpartHandle.IsValid())
 		{
-			CounterpartHandle->GetNumChildren(CounterpartChildHandleCount);
+			CounterpartHandle->GetNumChildren(UnsignedCounterpartChildHandleCount);
 		}
 		
 		CounterpartHierarchyChildCount = PinnedCounterpartHierarchy->DirectChildren.Num();
 	}
+	
+	int32 InputChildHandleCount = UnsignedInputChildHandleCount;
+	int32 CounterpartChildHandleCount = UnsignedCounterpartChildHandleCount;
 
-	const int32 MaxHandleChildCount = FMath::Max((int32)InputChildHandleCount, (int32)CounterpartChildHandleCount);
+	const int32 MaxHandleChildCount = FMath::Max(InputChildHandleCount, CounterpartChildHandleCount);
 	int32 MaxHierarchyChildCount = FMath::Max(InputHierarchyChildCount, CounterpartHierarchyChildCount);
 	
 	const int32 MaxChildCount = FMath::Max(MaxHandleChildCount, MaxHierarchyChildCount);
-	
+
 	const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType InRowType = 
 		FLevelSnapshotsEditorResultsRow::DetermineRowTypeFromProperty(Property, InputHandle->IsCustomized(), MaxChildCount > 0);
+	
 	if (!ensure(InRowType != FLevelSnapshotsEditorResultsRow::None))
 	{
 		return;
@@ -180,124 +190,183 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 
 	if (!bIsCounterpartValueSame)
 	{
-		// When creating the child rows, we must consider that some nodes do not list children even if the handle has children.
-		// In this case we'll create special handle hierarchies based on the handle's child handles
-		if (MaxHierarchyChildCount == 0 && MaxHandleChildCount > 0)
-		{					
-			for (int32 ChildIndex = 0; ChildIndex < MaxHandleChildCount; ChildIndex++)
+		FLevelSnapshotsEditorResultsRowPtr NewRow;
+
+		const FText DisplayName = InputHandle->GetPropertyDisplayName();
+		
+		if (InRowType == FLevelSnapshotsEditorResultsRow::SubObjectGroup)
+		{
+			FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+					
+			UObject* WorldSubobject = nullptr;
+			UObject* SnapshotSubobject = nullptr;
+			InputHandle->GetValue(bInputIsWorld ? WorldSubobject : SnapshotSubobject);
+			CounterpartHandle->GetValue(bInputIsWorld ? SnapshotSubobject : WorldSubobject);
+
+			if (!ensure(WorldSubobject || SnapshotSubobject))
 			{
-				TSharedPtr<IPropertyHandle> NewInputChildHandle = InputHandle->GetChildHandle(ChildIndex);
-				TSharedPtr<IPropertyHandle> NewCounterpartChildHandle;
+				return;
+			}
 
-				if (CounterpartHandle.IsValid())
+			FText ObjectName = FText::FromString((WorldSubobject ? WorldSubobject : SnapshotSubobject)->GetName());
+
+			TWeakPtr<FLevelSnapshotsEditorResultsRow> NewObjectRow =
+				BuildModifiedObjectRow(
+					WorldSubobject, SnapshotSubobject, PropertyEditorModule,
+					PropertySelectionMap,
+					PropertySelectionMap.GetSelectedProperties(WorldSubobject)->GetSelectedLeafProperties(),
+					InDirectParentRow, InResultsView,
+					FText::Format(INVTEXT("{PropertyName} ({ObjectName})"), DisplayName, ObjectName));
+
+			if (NewObjectRow.IsValid())
+			{
+				NewRow = NewObjectRow.Pin();
+
+				PropertyRowsGenerated.Add(PropertyField);
+			}
+		}
+		else
+		{
+			// When creating the child rows, we must consider that some nodes do not list children even if the handle has children.
+			// In this case we'll create special handle hierarchies based on the handle's child handles
+			if (MaxHierarchyChildCount == 0 && MaxHandleChildCount > 0)
+			{					
+				for (int32 ChildIndex = 0; ChildIndex < MaxHandleChildCount; ChildIndex++)
 				{
-					NewCounterpartChildHandle = CounterpartHandle->GetChildHandle(ChildIndex);
-				}
+					TSharedPtr<IPropertyHandle> NewInputChildHandle;
+					TSharedPtr<IPropertyHandle> NewCounterpartChildHandle;
 
-				if (NewInputChildHandle.IsValid() || NewCounterpartChildHandle.IsValid())
-				{
-					const bool bAreChildValuesTheSame = AreHandleValuesEqual(NewInputChildHandle, NewCounterpartChildHandle);
-
-					if (!bAreChildValuesTheSame)
+					if (InputChildHandleCount > ChildIndex)
 					{
-						const TSharedRef<FPropertyHandleHierarchy> NewHierarchy = MakeShared<FPropertyHandleHierarchy>(nullptr, NewInputChildHandle, PinnedInputHierarchy);
+						NewInputChildHandle = InputHandle->GetChildHandle(ChildIndex);
+					}
+			
+					if (CounterpartHandle.IsValid() && CounterpartChildHandleCount > ChildIndex)
+					{
+						NewCounterpartChildHandle = CounterpartHandle->GetChildHandle(ChildIndex);
+					}
 
-						PinnedInputHierarchy->DirectChildren.Add(NewHierarchy);
+					if (NewInputChildHandle.IsValid() || NewCounterpartChildHandle.IsValid())
+					{
+						const bool bAreChildValuesTheSame = AreHandleValuesEqual(NewInputChildHandle, NewCounterpartChildHandle);
 
-						if (PinnedCounterpartHierarchy.IsValid())
+						if (!bAreChildValuesTheSame)
 						{
-							const TSharedRef<FPropertyHandleHierarchy> NewCounterpartHierarchy = 
-								MakeShared<FPropertyHandleHierarchy>(nullptr, NewCounterpartChildHandle, PinnedCounterpartHierarchy);
+							const TSharedRef<FPropertyHandleHierarchy> NewHierarchy =
+								MakeShared<FPropertyHandleHierarchy>(nullptr, NewInputChildHandle, PinnedInputHierarchy->ContainingObject);
 
-							PinnedCounterpartHierarchy->DirectChildren.Add(NewCounterpartHierarchy);
+							if (NewHierarchy->IsValidHierarchy())
+							{
+								PinnedInputHierarchy->DirectChildren.Add(NewHierarchy);
+							}
+
+							if (PinnedCounterpartHierarchy.IsValid())
+							{
+								const TSharedRef<FPropertyHandleHierarchy> NewCounterpartHierarchy = 
+									MakeShared<FPropertyHandleHierarchy>(nullptr, NewCounterpartChildHandle, PinnedCounterpartHierarchy->ContainingObject);
+
+								if (NewCounterpartHierarchy->IsValidHierarchy())
+								{
+									PinnedCounterpartHierarchy->DirectChildren.Add(NewCounterpartHierarchy);
+								}
+							}
 						}
 					}
 				}
 			}
-		}
 
-		const ECheckBoxState StartingCheckedState = (bIsPropertyFilteredOut || bIsCounterpartValueSame) ? 
-			ECheckBoxState::Unchecked : InDirectParentRow.IsValid() ? InDirectParentRow.Pin()->GetWidgetCheckedState() : ECheckBoxState::Checked;
+			const ECheckBoxState StartingCheckedState = (bIsPropertyFilteredOut || bIsCounterpartValueSame) ? 
+				ECheckBoxState::Unchecked : InDirectParentRow.IsValid() ?
+					InDirectParentRow.Pin()->GenerateChildWidgetCheckedStateBasedOnParent() : ECheckBoxState::Checked;
 
-		const FText DisplayName = InputHandle->GetPropertyDisplayName();
-
-		// Create property
-		FLevelSnapshotsEditorResultsRowPtr NewProperty = MakeShared<FLevelSnapshotsEditorResultsRow>(DisplayName, InRowType, StartingCheckedState, 
-			InResultsView, InDirectParentRow);
-
-		const TWeakPtr<FLevelSnapshotsEditorResultsRow>& ContainingObjectGroup = InDirectParentRow;
-
-		TSharedPtr<FPropertyHandleHierarchy> SnapshotHierarchy = 
-			bInputIsWorld ? (PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy : nullptr) : (PinnedInputHierarchy.IsValid() ? PinnedInputHierarchy : nullptr);
-
-		TSharedPtr<FPropertyHandleHierarchy> WorldHierarchy = 
-			bInputIsWorld ? (PinnedInputHierarchy.IsValid() ? PinnedInputHierarchy : nullptr) : (PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy : nullptr);
-		 
-
-		NewProperty->InitPropertyRow(ContainingObjectGroup, SnapshotHierarchy, WorldHierarchy, bIsCounterpartValueSame);
-
-		// If either hierarchy has children, then makes rows for them
-		MaxHierarchyChildCount = FMath::Max(PinnedInputHierarchy->DirectChildren.Num(), PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy->DirectChildren.Num() : 0);
-		
-		for (int32 ChildIndex = 0; ChildIndex < MaxHierarchyChildCount; ChildIndex++)
-		{
-			TSharedPtr<FPropertyHandleHierarchy> ChildHierarchy;
+			// Create property
+			NewRow = MakeShared<FLevelSnapshotsEditorResultsRow>(DisplayName, InRowType, StartingCheckedState, 
+				InResultsView, InDirectParentRow);
 			
-			// Get the input Child first. If it doesn't exist at this index, check for the counterpart child.
-			const bool bIsChildFromInputHierarchy = ChildIndex < PinnedInputHierarchy->DirectChildren.Num();
+			TSharedPtr<FPropertyHandleHierarchy> SnapshotHierarchy = 
+				bInputIsWorld ? (PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy : nullptr) : (PinnedInputHierarchy.IsValid() ? PinnedInputHierarchy : nullptr);
 
-			if (bIsChildFromInputHierarchy)
-			{
-				ChildHierarchy = PinnedInputHierarchy->DirectChildren[ChildIndex];
-			}
-			else if (PinnedCounterpartHierarchy.IsValid() && ChildIndex < PinnedCounterpartHierarchy->DirectChildren.Num())
-			{
-				ChildHierarchy = PinnedCounterpartHierarchy->DirectChildren[ChildIndex];
-			}
+			TSharedPtr<FPropertyHandleHierarchy> WorldHierarchy = 
+				bInputIsWorld ? (PinnedInputHierarchy.IsValid() ? PinnedInputHierarchy : nullptr) : (PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy : nullptr);
+		
+			const TWeakPtr<FLevelSnapshotsEditorResultsRow>& ContainingObjectGroup = InDirectParentRow;
 
-			if (ChildHierarchy.IsValid())
-			{
-				// There may be instances of collection property members that exist on the snapshot object but not the world object
-				// For example, removing actor tags after taking a snapshot
-				ELevelSnapshotsObjectType ChildObjectInputType = ObjectType_World;
+			NewRow->InitPropertyRow(ContainingObjectGroup, SnapshotHierarchy, WorldHierarchy, bIsCounterpartValueSame);
 
-				if (bInputIsWorld)
+			// If either hierarchy has children, then makes rows for them
+			MaxHierarchyChildCount = FMath::Max(PinnedInputHierarchy->DirectChildren.Num(), PinnedCounterpartHierarchy.IsValid() ? PinnedCounterpartHierarchy->DirectChildren.Num() : 0);
+
+			for (int32 ChildIndex = 0; ChildIndex < MaxHierarchyChildCount; ChildIndex++)
+			{
+				TSharedPtr<FPropertyHandleHierarchy> ChildHierarchy;
+	
+				// Get the input Child first. If it doesn't exist at this index, check for the counterpart child.
+				const bool bIsChildFromInputHierarchy = ChildIndex < PinnedInputHierarchy->DirectChildren.Num();
+
+				if (bIsChildFromInputHierarchy)
 				{
-					if (!bIsChildFromInputHierarchy)
-					{
-						ChildObjectInputType = ObjectType_Snapshot;
-					}
+					ChildHierarchy = PinnedInputHierarchy->DirectChildren[ChildIndex];
 				}
-				else
+				else if (PinnedCounterpartHierarchy.IsValid() && ChildIndex < PinnedCounterpartHierarchy->DirectChildren.Num())
 				{
-					if (bIsChildFromInputHierarchy)
-					{
-						ChildObjectInputType = ObjectType_Snapshot;
-					}
+					ChildHierarchy = PinnedCounterpartHierarchy->DirectChildren[ChildIndex];
 				}
 
-				const bool bShouldSearchCounterparts = SnapshotHierarchy.IsValid() && WorldHierarchy.IsValid();
-				
-				LoopOverHandleHierarchiesAndCreateRowHierarchy(
-					ChildObjectInputType, ChildHierarchy, NewProperty, PropertiesThatPassFilter, PropertyRowsGenerated, InResultsView, bShouldSearchCounterparts ? (bIsChildFromInputHierarchy ? InHierarchyToSearchForCounterparts : InputHierarchy) : nullptr);
+				if (ChildHierarchy.IsValid())
+				{
+					// There may be instances of collection property members that exist on the snapshot object but not the world object
+					// For example, removing actor tags after taking a snapshot
+					ELevelSnapshotsObjectType ChildObjectInputType = ObjectType_World;
+
+					if (bInputIsWorld)
+					{
+						if (!bIsChildFromInputHierarchy)
+						{
+							ChildObjectInputType = ObjectType_Snapshot;
+						}
+					}
+					else
+					{
+						if (bIsChildFromInputHierarchy)
+						{
+							ChildObjectInputType = ObjectType_Snapshot;
+						}
+					}
+
+					const bool bShouldSearchCounterparts = SnapshotHierarchy.IsValid() && WorldHierarchy.IsValid();
+		
+					LoopOverHandleHierarchiesAndCreateRowHierarchy(
+						ChildObjectInputType, ChildHierarchy, NewRow, PropertySelectionMap,
+						PropertiesThatPassFilter, PropertyRowsGenerated, InResultsView,
+						bShouldSearchCounterparts ? (bIsChildFromInputHierarchy ? InHierarchyToSearchForCounterparts : InputHierarchy) : nullptr);
+				}
 			}
-		}
 
-		if (NewProperty->DoesRowRepresentGroup() && NewProperty->GetChildRows().Num() == 0 && !PropertiesThatPassFilter.Contains(PropertyField))
-		{
-			// No valid children, destroy group
-			NewProperty.Reset();
-		}
-		else
-		{
-			InDirectParentRow.Pin()->AddToChildRows(NewProperty);
+			if (!ensure(NewRow.IsValid()))
+			{
+				return;
+			}
+		
+			if (NewRow->DoesRowRepresentGroup() && NewRow->GetChildRows().Num() == 0)
+			{
+				if (!PropertiesThatPassFilter.Contains(PropertyField))
+				{
+					// No valid children, destroy group
+					NewRow.Reset();
+				}
+			}
+			else
+			{
+				InDirectParentRow.Pin()->AddToChildRows(NewRow);
 
-			PropertyRowsGenerated.Add(PropertyField);
+				PropertyRowsGenerated.Add(PropertyField);
+			}
 		}
 	}
 }
 
-TWeakPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::FindCorrespondingHandle(const FLevelSnapshotPropertyChain& InPropertyChain, const FText& InDisplayName, const TWeakPtr<FPropertyHandleHierarchy>& HierarchyToSearch, bool& bFoundMatch)
+TWeakPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::FindCorrespondingHandle(
+	const FLevelSnapshotPropertyChain& InPropertyChain, const FText& InDisplayName, const TWeakPtr<FPropertyHandleHierarchy>& HierarchyToSearch, bool& bFoundMatch)
 {
 	if (!ensureMsgf(HierarchyToSearch.IsValid(), TEXT("FindCorrespondingHandle: HierarchyToSearch was not valid")))
 	{
@@ -308,7 +377,7 @@ TWeakPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::FindCorr
 
 	for (TSharedRef<FPropertyHandleHierarchy> ChildHierarchy : HierarchyToSearch.Pin()->DirectChildren)
 	{
-		const bool bIsChainSame = ChildHierarchy->TempIdentifierChain == InPropertyChain;
+		const bool bIsChainSame = ChildHierarchy->PropertyChain == InPropertyChain;
 		const bool bIsNameSame = ChildHierarchy->DisplayName.EqualTo(InDisplayName);
 
 		if (bIsChainSame && bIsNameSame)
@@ -317,7 +386,6 @@ TWeakPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::FindCorr
 			bFoundMatch = true;
 			break;
 		}
-
 
 		if (bFoundMatch)
 		{
@@ -336,9 +404,10 @@ TWeakPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::FindCorr
 }
 
 void FLevelSnapshotsEditorResultsHelpers::CreatePropertyHandleHierarchyChildrenRecursively(
-	const TSharedRef<IDetailTreeNode>& InNode, const TWeakPtr<FPropertyHandleHierarchy>& InParentHierarchy)
+	const TSharedRef<IDetailTreeNode>& InNode, const TWeakPtr<FPropertyHandleHierarchy>& InParentHierarchy, const TWeakObjectPtr<UObject> InContainingObject)
 {
-	if (!ensureMsgf(InParentHierarchy.IsValid(), TEXT("CreatePropertyHandleHierarchyChildrenRecursively: InParentHierarchy was not valid. Check to see that InParentHierarchy is valid before calling this method.")))
+	if (!ensureMsgf(InParentHierarchy.IsValid(),
+		TEXT("%hs: InParentHierarchy was not valid. Check to see that InParentHierarchy is valid before calling this method."), __FUNCTION__))
 	{
 		return;
 	}
@@ -363,11 +432,14 @@ void FLevelSnapshotsEditorResultsHelpers::CreatePropertyHandleHierarchyChildrenR
 
 		if (Handle.IsValid())
 		{
-			const TSharedRef<FPropertyHandleHierarchy> NewHierarchy = MakeShared<FPropertyHandleHierarchy>(InNode, Handle, InParentHierarchy);
+			const TSharedRef<FPropertyHandleHierarchy> NewHierarchy = MakeShared<FPropertyHandleHierarchy>(InNode, Handle, InContainingObject);
 
-			HierarchyToPass = NewHierarchy;
+			if (NewHierarchy->IsValidHierarchy())
+			{
+				HierarchyToPass = NewHierarchy;
 
-			InParentHierarchy.Pin()->DirectChildren.Add(NewHierarchy);
+				InParentHierarchy.Pin()->DirectChildren.Add(NewHierarchy);
+			}
 		}
 	}
 
@@ -376,7 +448,7 @@ void FLevelSnapshotsEditorResultsHelpers::CreatePropertyHandleHierarchyChildrenR
 
 	for (const TSharedRef<IDetailTreeNode>& ChildNode : NodeChildren)
 	{
-		CreatePropertyHandleHierarchyChildrenRecursively(ChildNode, HierarchyToPass);
+		CreatePropertyHandleHierarchyChildrenRecursively(ChildNode, HierarchyToPass, InContainingObject);
 	}
 }
 
@@ -387,11 +459,19 @@ TSharedPtr<FPropertyHandleHierarchy> FLevelSnapshotsEditorResultsHelpers::BuildP
 	// Create a base hierarchy with dummy info and no handle
 	TSharedRef<FPropertyHandleHierarchy> ReturnHierarchy = MakeShared<FPropertyHandleHierarchy>(nullptr, nullptr, nullptr);
 
-	if (InRowGenerator.Pin()->GetGeneratorObject().IsValid())
+	TWeakPtr<IPropertyRowGenerator> RowPtr = InRowGenerator.Pin()->GetGeneratorObject();
+
+	if (RowPtr.IsValid())
 	{
-		for (const TSharedRef<IDetailTreeNode>& Node : InRowGenerator.Pin()->GetGeneratorObject().Pin()->GetRootTreeNodes())
+		TArray<TSharedRef<IDetailTreeNode>> Nodes = RowPtr.Pin()->GetRootTreeNodes();
+		TArray<TWeakObjectPtr<UObject>> SelectedObjects = RowPtr.Pin()->GetSelectedObjects();
+
+		if (SelectedObjects.Num())
 		{
-			CreatePropertyHandleHierarchyChildrenRecursively(Node, ReturnHierarchy);
+			for (const TSharedRef<IDetailTreeNode>& Node : Nodes)
+			{
+				CreatePropertyHandleHierarchyChildrenRecursively(Node, ReturnHierarchy, SelectedObjects[0]);
+			}
 		}
 	}
 
@@ -406,10 +486,10 @@ UObject* FLevelSnapshotsEditorResultsHelpers::FindCounterpartComponent(const UAc
 	}
 
 	const TArray<UActorComponent*>::ElementType* FoundComponent = Algo::FindByPredicate(InCounterpartSubObjects, 
-		[&SubObjectToMatch](UObject* ComponentInLoop)
+		[&SubObjectToMatch](UObject* ObjectInLoop)
 		{
-			const bool bIsSameClass = ComponentInLoop->IsA(SubObjectToMatch->GetClass());
-			const bool bIsSameName = ComponentInLoop->GetName().Equals(SubObjectToMatch->GetName());
+			const bool bIsSameClass = ObjectInLoop->IsA(SubObjectToMatch->GetClass());
+			const bool bIsSameName = ObjectInLoop->GetName().Equals(SubObjectToMatch->GetName());
 			return bIsSameClass && bIsSameName;
 		});
 
@@ -491,7 +571,7 @@ TSharedRef<FComponentHierarchy> FLevelSnapshotsEditorResultsHelpers::BuildCompon
 
 void FLevelSnapshotsEditorResultsHelpers::BuildNestedSceneComponentRowsRecursively(
 	const TWeakPtr<FComponentHierarchy>& InHierarchy, const TSet<UActorComponent*>& InCounterpartComponents,
-	FPropertyEditorModule& PropertyEditorModule, const FPropertySelectionMap& PropertySelectionMap, 
+	FPropertyEditorModule& PropertyEditorModule, FPropertySelectionMap& PropertySelectionMap, 
 	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView)
 {
 	struct Local
@@ -542,7 +622,7 @@ void FLevelSnapshotsEditorResultsHelpers::BuildNestedSceneComponentRowsRecursive
 
 			const TWeakPtr<FLevelSnapshotsEditorResultsRow>& ComponentPropertyAsRow =
 				FindComponentCounterpartAndBuildRow(
-					CurrentComponent, InCounterpartComponents, PropertyEditorModule, PropertiesThatPassFilter, InDirectParentRow, InResultsView);
+					CurrentComponent, InCounterpartComponents, PropertyEditorModule, PropertySelectionMap, PropertiesThatPassFilter, InDirectParentRow, InResultsView);
 
 			// Build rows for nested components after creating property rows for component
 			if (ensureAlwaysMsgf(ComponentPropertyAsRow.IsValid(),
@@ -562,40 +642,80 @@ void FLevelSnapshotsEditorResultsHelpers::BuildNestedSceneComponentRowsRecursive
 }
 
 TWeakPtr<FLevelSnapshotsEditorResultsRow> FLevelSnapshotsEditorResultsHelpers::BuildModifiedObjectRow(UObject* InWorldObject, UObject* InSnapshotObject,
-	FPropertyEditorModule& PropertyEditorModule, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, 
-	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView)
+	FPropertyEditorModule& PropertyEditorModule, FPropertySelectionMap& PropertySelectionMap, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, 
+	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView, const FText& InDisplayNameOverride,
+	TWeakPtr<FRowGeneratorInfo> WorldRowGeneratorInfoOverride, TWeakPtr<FRowGeneratorInfo> SnapshotRowGeneratorInfoOverride)
 {
 	check(InWorldObject);
 
 	// Create group
 	FLevelSnapshotsEditorResultsRowPtr NewObjectGroup = MakeShared<FLevelSnapshotsEditorResultsRow>(
-		FText::FromString(InWorldObject->GetName()), InWorldObject->IsA(UActorComponent::StaticClass()) ? FLevelSnapshotsEditorResultsRow::ModifiedComponentGroup : FLevelSnapshotsEditorResultsRow::SubObjectGroup,
-		InDirectParentRow.IsValid() ? InDirectParentRow.Pin()->GetWidgetCheckedState() : ECheckBoxState::Checked, InResultsView, InDirectParentRow);
+		InDisplayNameOverride.IsEmpty() ? FText::FromString(InWorldObject->GetName()) : InDisplayNameOverride,
+		InWorldObject->IsA(UActorComponent::StaticClass()) ? FLevelSnapshotsEditorResultsRow::ModifiedComponentGroup : FLevelSnapshotsEditorResultsRow::SubObjectGroup,
+		InDirectParentRow.IsValid() ? InDirectParentRow.Pin()->GenerateChildWidgetCheckedStateBasedOnParent() : ECheckBoxState::Checked, InResultsView, InDirectParentRow);
 
-	// Create Row Generators for object and counterpart
-	const TWeakPtr<FRowGeneratorInfo>& RowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_World, PropertyEditorModule);
 	
-	TWeakPtr<FRowGeneratorInfo> CounterpartRowGeneratorInfo = nullptr;
+	// Copy or create Row Generators for object and counterpart
+	TWeakPtr<FRowGeneratorInfo> WorldRowGeneratorInfo = WorldRowGeneratorInfoOverride;
 
-	RowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InWorldObject });
+	if (!WorldRowGeneratorInfo.IsValid())
+	{
+		WorldRowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_World, PropertyEditorModule);
 
+		WorldRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InWorldObject });
+	}
+
+	TWeakPtr<FRowGeneratorInfo> SnapshotRowGeneratorInfo;
+	
 	if (InSnapshotObject)
 	{
-		CounterpartRowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_Snapshot, PropertyEditorModule);
-		
-		CounterpartRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InSnapshotObject });
+		SnapshotRowGeneratorInfo = SnapshotRowGeneratorInfoOverride;
+
+		if (!SnapshotRowGeneratorInfo.IsValid())
+		{
+			SnapshotRowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_Snapshot, PropertyEditorModule);
+				
+			SnapshotRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InSnapshotObject });
+		}
 	}
 	
-	NewObjectGroup->InitObjectRow(InSnapshotObject, InWorldObject,CounterpartRowGeneratorInfo, RowGeneratorInfo);
+	NewObjectGroup->InitObjectRow(InSnapshotObject, InWorldObject,SnapshotRowGeneratorInfo, WorldRowGeneratorInfo);
 
-	const TArray<TFieldPath<FProperty>> PropertyRowsGenerated = LoopOverProperties(CounterpartRowGeneratorInfo, RowGeneratorInfo, NewObjectGroup, PropertiesThatPassFilter, InResultsView);
+	UE_LOG(LogLevelSnapshots, Log, TEXT("About to loop over properties for object named %s"), *InWorldObject->GetName());
+	
+	TArray<TFieldPath<FProperty>> PropertyRowsGenerated =
+		LoopOverProperties(SnapshotRowGeneratorInfo, WorldRowGeneratorInfo,
+			NewObjectGroup, PropertySelectionMap, PropertiesThatPassFilter, InResultsView);
+
+	if (PropertyRowsGenerated.Num() == 0)
+	{
+		// In this case check the row generators to see if they were overridden. If so, create new ones and try again.
+		if (WorldRowGeneratorInfoOverride.IsValid() || SnapshotRowGeneratorInfoOverride.IsValid())
+		{
+			WorldRowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_World, PropertyEditorModule);
+
+			WorldRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InWorldObject });
+
+			if (InSnapshotObject)
+			{
+				SnapshotRowGeneratorInfo = InResultsView.Pin()->RegisterRowGenerator(NewObjectGroup, ObjectType_Snapshot, PropertyEditorModule);
+				
+				SnapshotRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ InSnapshotObject });
+			}
+
+			PropertyRowsGenerated =
+				LoopOverProperties(SnapshotRowGeneratorInfo, WorldRowGeneratorInfo,
+					NewObjectGroup, PropertySelectionMap, PropertiesThatPassFilter, InResultsView);
+		}
+	}
 
 	// Generate fallback rows for properties not supported by PropertyRowGenerator
 	for (TFieldPath<FProperty> FieldPath : PropertiesThatPassFilter)
 	{
 		if (!PropertyRowsGenerated.Contains(FieldPath))
 		{
-			LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandledByPropertyRowGenerator(FieldPath, InSnapshotObject, InWorldObject, InResultsView, NewObjectGroup);
+			LevelSnapshotsEditorCustomWidgetGenerator::CreateRowsForPropertiesNotHandledByPropertyRowGenerator(
+				FieldPath, InSnapshotObject, InWorldObject, InResultsView, NewObjectGroup);
 		}
 	}
 
@@ -641,7 +761,7 @@ TWeakPtr<FLevelSnapshotsEditorResultsRow> FLevelSnapshotsEditorResultsHelpers::B
 
 TWeakPtr<FLevelSnapshotsEditorResultsRow> FLevelSnapshotsEditorResultsHelpers::FindComponentCounterpartAndBuildRow(
 	UActorComponent* InWorldObject, const TSet<UActorComponent*>& InCounterpartObjects, 
-	FPropertyEditorModule& PropertyEditorModule, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, 
+	FPropertyEditorModule& PropertyEditorModule, FPropertySelectionMap& PropertySelectionMap, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter, 
     const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView)
 {
 	check(InWorldObject);
@@ -651,7 +771,9 @@ TWeakPtr<FLevelSnapshotsEditorResultsRow> FLevelSnapshotsEditorResultsHelpers::F
 	// We only want to build a row with properties if properties are modified. Added/Removed Components are generated separately as they display no properties.
 	if (CounterpartObject)
 	{
-		return BuildModifiedObjectRow(InWorldObject, CounterpartObject, PropertyEditorModule, PropertiesThatPassFilter, InDirectParentRow, InResultsView);
+		return BuildModifiedObjectRow(
+			InWorldObject, CounterpartObject, PropertyEditorModule, PropertySelectionMap,
+			PropertiesThatPassFilter, InDirectParentRow, InResultsView);
 	}
 
 	return nullptr;

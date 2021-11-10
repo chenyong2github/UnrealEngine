@@ -5,8 +5,6 @@
 #include "Algo/BinarySearch.h"
 #include "Async/AsyncWork.h"
 #include "DesktopPlatformModule.h"
-#include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
@@ -18,6 +16,7 @@
 #include "Logging/MessageLog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -47,7 +46,11 @@ class FLogViewCommands : public TCommands<FLogViewCommands>
 {
 public:
 	FLogViewCommands()
-	: TCommands<FLogViewCommands>(TEXT("FLogViewCommands"), NSLOCTEXT("FLogViewCommands", "Log View Commands", "Log View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	: TCommands<FLogViewCommands>(
+		TEXT("FLogViewCommands"),
+		NSLOCTEXT("FLogViewCommands", "Log View Commands", "Log View Commands"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -542,7 +545,7 @@ void SLogView::Construct(const FArguments& InArgs)
 			FOnGetContent::CreateSP(this, &SLogView::MakeVerbosityThresholdMenu),
 			LOCTEXT("VerbosityThresholdText", "Verbosity Threshold"),
 			LOCTEXT("VerbosityThresholdToolTip", "Filter log messages by verbosity threshold."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Filter.ToolBar"),
 			false
 		);
 
@@ -552,7 +555,7 @@ void SLogView::Construct(const FArguments& InArgs)
 			FOnGetContent::CreateSP(this, &SLogView::MakeCategoryFilterMenu),
 			LOCTEXT("CategoryFilterText", "Category Filter"),
 			LOCTEXT("CategoryFilterToolTip", "Filter log messages by category."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Filter.ToolBar"),
 			false
 		);
 
@@ -1055,7 +1058,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 				NAME_None,
 				FText::Format(LOCTEXT("HideCategory", "Hide \"{0}\" Category"), Record.GetCategoryAsText()),
 				FText::Format(LOCTEXT("HideCategory_Tooltip", "Hide the \"{0}\" log category."), Record.GetCategoryAsText()),
-				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Hidden")
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Hidden")
 			);
 
 			MenuBuilder.AddMenuEntry(
@@ -1063,7 +1066,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 				NAME_None,
 				FText::Format(LOCTEXT("ShowOnlyCategory", "Show Only \"{0}\" Category"), Record.GetCategoryAsText()),
 				FText::Format(LOCTEXT("ShowOnlyCategory_Tooltip", "Show only the \"{0}\" log category (hide all other log categories)."), Record.GetCategoryAsText()),
-				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Visible")
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visible")
 			);
 		}
 
@@ -1072,7 +1075,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Visible")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visible")
 		);
 
 		MenuBuilder.AddSeparator();
@@ -1082,7 +1085,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -1090,7 +1093,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -1098,7 +1101,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -1106,7 +1109,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddSeparator();
@@ -1116,7 +1119,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddMenuEntry(
@@ -1124,7 +1127,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddSeparator();
@@ -1244,13 +1247,20 @@ void SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
 			]
 #endif
 			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f)
+			.AutoWidth()
+			.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 			.VAlign(VAlign_Center)
 			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-				.Text(this, &SLogView::VerbosityThreshold_GetSuffixGlyph, Threshold.Verbosity)
-				.ColorAndOpacity(this, &SLogView::VerbosityThreshold_GetSuffixColor, Threshold.Verbosity)
+				SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.WidthOverride(12.0f)
+				.HeightOverride(12.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(this, &SLogView::VerbosityThreshold_GetSuffixColor, Threshold.Verbosity)
+					.Image(this, &SLogView::VerbosityThreshold_GetSuffixGlyph, Threshold.Verbosity)
+				]
 			];
 
 		MenuBuilder.AddMenuEntry(
@@ -1338,9 +1348,11 @@ void SLogView::VerbosityThreshold_Execute(ELogVerbosity::Type Verbosity)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SLogView::VerbosityThreshold_GetSuffixGlyph(ELogVerbosity::Type Verbosity) const
+const FSlateBrush* SLogView::VerbosityThreshold_GetSuffixGlyph(ELogVerbosity::Type Verbosity) const
 {
-	return Verbosity <= Filter.GetVerbosityThreshold() ? FEditorFontGlyphs::Check : FEditorFontGlyphs::Times;
+	return Verbosity <= Filter.GetVerbosityThreshold() ?
+		FAppStyle::Get().GetBrush("Icons.Check") :
+		FAppStyle::Get().GetBrush("Icons.X");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

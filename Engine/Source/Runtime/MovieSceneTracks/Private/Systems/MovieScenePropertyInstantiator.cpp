@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Systems/MovieScenePropertyInstantiator.h"
+#include "Algo/AllOf.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
@@ -8,7 +9,13 @@
 #include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 
+#include "Algo/AllOf.h"
 #include "Algo/IndexOf.h"
+#include "ProfilingDebugging/CountersTrace.h"
+
+DECLARE_CYCLE_STAT(TEXT("DiscoverInvalidatedProperties"), MovieSceneEval_DiscoverInvalidatedProperties, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("ProcessInvalidatedProperties"), MovieSceneEval_ProcessInvalidatedProperties, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("InitializePropertyMetaData"), MovieSceneEval_InitializePropertyMetaData, STATGROUP_MovieSceneECS);
 
 UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -28,8 +35,6 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 		DefineComponentProducer(GetClass(), BuiltInComponents->BlendChannelInput);
 		DefineComponentProducer(GetClass(), BuiltInComponents->SymbolicTags.CreatesEntities);
 	}
-
-	CleanFastPathMask.SetAll({ BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty, BuiltInComponents->CustomPropertyIndex });
 }
 
 UE::MovieScene::FPropertyStats UMovieScenePropertyInstantiatorSystem::GetStatsForProperty(UE::MovieScene::FCompositePropertyTypeID PropertyID) const
@@ -47,12 +52,51 @@ void UMovieScenePropertyInstantiatorSystem::OnLink()
 {
 	Linker->Events.CleanTaggedGarbage.AddUObject(this, &UMovieScenePropertyInstantiatorSystem::CleanTaggedGarbage);
 
+	CleanFastPathMask.Reset();
+	CleanFastPathMask.SetAll({ BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty, BuiltInComponents->CustomPropertyIndex });
 	CleanFastPathMask.CombineWithBitwiseOR(Linker->EntityManager.GetComponents()->GetMigrationMask(), EBitwiseOperatorFlags::MaxSize);
 }
 
 void UMovieScenePropertyInstantiatorSystem::OnUnlink()
 {
+	using namespace UE::MovieScene;
+
 	Linker->Events.CleanTaggedGarbage.RemoveAll(this);
+
+	const bool bAllPropertiesClean = (
+				ResolvedProperties.Num() == 0 &&
+				Contributors.Num() == 0 &&
+				NewContributors.Num() == 0 &&
+				EntityToProperty.Num() == 0 &&
+				ObjectPropertyToResolvedIndex.Num() == 0);
+	if (!ensure(bAllPropertiesClean))
+	{
+		ResolvedProperties.Reset();
+		Contributors.Reset();
+		NewContributors.Reset();
+		EntityToProperty.Reset();
+		ObjectPropertyToResolvedIndex.Reset();
+		PropertyStats.Reset();
+	}
+
+	const bool bAllPropertiesGone = Algo::AllOf(
+			PropertyStats, [](const FPropertyStats& Item) 
+			{
+				return Item.NumProperties == 0 && Item.NumPartialProperties == 0;
+			});
+	if (!ensure(bAllPropertiesGone))
+	{
+		PropertyStats.Reset();
+	}
+
+	const bool bAllTasksDone = (
+			InitializePropertyMetaDataTasks.Num() == 0 &&
+			SaveGlobalStateTasks.Num() == 0);
+	if (!ensure(bAllTasksDone))
+	{
+		InitializePropertyMetaDataTasks.Reset();
+		SaveGlobalStateTasks.Reset();
+	}
 }
 
 void UMovieScenePropertyInstantiatorSystem::CleanTaggedGarbage(UMovieSceneEntitySystemLinker*)
@@ -92,6 +136,8 @@ void UMovieScenePropertyInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPr
 void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties)
 {
 	using namespace UE::MovieScene;
+
+	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_DiscoverInvalidatedProperties);
 
 	TBitArray<> InvalidatedProperties;
 
@@ -169,6 +215,8 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties)
 {
 	using namespace UE::MovieScene;
+
+	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ProcessInvalidatedProperties);
 
 	TBitArray<> StaleProperties;
 
@@ -595,6 +643,8 @@ UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieScenePropertyInstantiatorS
 void UMovieScenePropertyInstantiatorSystem::InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
+
+	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_InitializePropertyMetaData);
 
 	for (TConstSetBitIterator<> TypesToCache(InitializePropertyMetaDataTasks); TypesToCache; ++TypesToCache)
 	{

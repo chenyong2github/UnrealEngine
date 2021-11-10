@@ -106,6 +106,7 @@ private:
 
 	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MasterPlaylistURL;
+	FString													URLFragment;
 	FMediaEvent												WorkerThreadQuitSignal;
 	bool													bIsWorkerThreadStarted = false;
 
@@ -252,7 +253,11 @@ void FPlaylistReaderMP4::LogMessage(IInfoLog::ELevel Level, const FString& Messa
 
 void FPlaylistReaderMP4::LoadAndParse(const FString& URL)
 {
-	MasterPlaylistURL = URL;
+	FURL_RFC3986 UrlParser;
+	UrlParser.Parse(URL);
+	MasterPlaylistURL = UrlParser.Get(true, false);
+	URLFragment = UrlParser.GetFragment();
+
 	StartWorkerThread();
 }
 
@@ -371,6 +376,11 @@ void FPlaylistReaderMP4::WorkerThread()
 				if (parseError == UEMEDIA_ERROR_OK)
 				{
 					Manifest = MakeSharedTS<FManifestMP4Internal>(PlayerSessionServices);
+
+					TArray<FURL_RFC3986::FQueryParam> URLFragmentComponents;
+					FURL_RFC3986::GetQueryParams(URLFragmentComponents, URLFragment, false);	// The fragment is already URL escaped, so no need to do it again.
+					Manifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
+
 					FErrorDetail err = Manifest->Build(MP4Parser, MasterPlaylistURL, ConnectionInfo);
 
 					// Notify that the "variant playlists" are ready. There are no variants in an mp4, but this is the trigger that the playlists are all set up and are good to go now.

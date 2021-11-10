@@ -263,12 +263,6 @@ class SettingsDialog(QtCore.QObject):
     def set_mu_auto_launch(self, value):
         self.ui.mu_auto_launch_check_box.setChecked(value)
 
-    def mu_auto_join(self):
-        return self.ui.mu_auto_join_check_box.isChecked()
-
-    def set_mu_auto_join(self, value):
-        self.ui.mu_auto_join_check_box.setChecked(value)
-
     def mu_clean_history(self):
         return self.ui.mu_clean_history_check_box.isChecked()
 

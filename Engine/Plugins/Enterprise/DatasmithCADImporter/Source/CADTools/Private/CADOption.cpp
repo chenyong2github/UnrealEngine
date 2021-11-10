@@ -18,9 +18,9 @@ FAutoConsoleVariableRef GCADTranslatorMaxImportThreads(
 	TEXT("\
 CAD file parallel processing\n\
 Default is MaxImportThreads = 0\n\
-0: multi - processing, n : multi - processing limited to n process.CADCache is mandatory.\n\
-1: -if CADCache is enable, the scene is read in a sequential mode with cache i.e.cache is used for sub - file already read,\n\
-   -if CADCache is disable, the scene is read all at once\n"),
+0: multi-processing, n : multi-processing limited to n process. EnableCADCache is mandatory.\n\
+1: -if EnableCADCache is true, the scene is read in a sequential mode with cache i.e. cache is used for sub-files already read,\n\
+   -if EnableCADCache is false, the scene is read all at once\n"),
 	ECVF_Default);
 
 bool FImportParameters::bGDisableCADKernelTessellation = true;
@@ -38,7 +38,7 @@ FAutoConsoleVariableRef GCADTranslatorEnableCADCache(
 Enable/disable temporary CAD processing file cache. These file will be use in a next import to avoid CAD file processing.\n\
 If MaxImportThreads != 1, EnableCADCache value is ignored\n\
 Default is enable\n"),
-ECVF_Default);
+	ECVF_Default);
 
 bool FImportParameters::bGOverwriteCache = false;
 FAutoConsoleVariableRef GCADTranslatorOverwriteCache(

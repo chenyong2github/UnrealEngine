@@ -125,7 +125,7 @@ void FMeshDescriptionArrayAdapter::Construct(int32 MeshCount, TFunctionRef<const
 				IndexBuffer.push_back(RawMesh->GetTriangleVertexInstance(TriangleID, 2));
 			}
 
-			PointCount += size_t(RawMesh->Vertices().Num() * InstanceCount);
+			PointCount += size_t(RawMesh->Vertices().Num()) * InstanceCount;
 			PolyCount += MeshPolyCount * InstanceCount;
 
 			PolyOffsetArray.push_back(PolyCount);

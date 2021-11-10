@@ -178,6 +178,14 @@ UPrimitiveComponent* FOverlapResult::GetComponent() const
 	return Component.Get();
 }
 
+//////////////////////////////////////////////////////////////////////////
+// FCollisionQueryFlag
+
+FCollisionQueryFlag& FCollisionQueryFlag::Get()
+{
+	static FCollisionQueryFlag CollisionQueryFlag;
+	return CollisionQueryFlag;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FCollisionQueryParams

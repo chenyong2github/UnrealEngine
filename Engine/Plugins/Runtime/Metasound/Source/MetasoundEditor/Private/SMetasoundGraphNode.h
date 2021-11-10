@@ -4,7 +4,6 @@
 
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
-#include "SAudioSlider.h"
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SOverlay.h"
@@ -15,6 +14,7 @@ class SGraphPin;
 class SVerticalBox;
 class UMetasoundEditorGraphInputLiteral;
 class UMetasoundEditorGraphNode;
+class SAudioInputWidget;
 
 
 class SMetasoundGraphNode : public SGraphNode
@@ -32,6 +32,7 @@ public:
 protected:
 
 	// SGraphNode Interface
+	virtual void CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox) override;
 	virtual void CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox) override;
 	virtual TSharedPtr<SGraphPin> CreatePinWidget(UEdGraphPin* InPin) const override;
 	virtual void CreateStandardPinWidget(UEdGraphPin* InPin) override;
@@ -58,7 +59,7 @@ private:
 	FText GetPinTooltip(UEdGraphPin* InPin) const;
 
 	// Slider widget for float input 
-	TSharedPtr<SAudioSliderBase> InputSlider;
+	TSharedPtr<SAudioInputWidget> InputWidget;
 	// Handle for on value changed delegate for input slider 
 	FDelegateHandle InputSliderOnValueChangedDelegateHandle;
 	// Handle for on input slider range changed  

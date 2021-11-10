@@ -370,10 +370,14 @@ private:
 					if (FilterClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 					{
 						PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixtureType.ToSharedRef());
+						PinnedEditor->InvokeEditorTabFromEntityType(UDMXEntityFixtureType::StaticClass());
+
+
 					}
 					else if (FilterClass->IsChildOf(UDMXEntityFixturePatch::StaticClass()))
 					{
 						PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixturePatch.ToSharedRef());
+						PinnedEditor->InvokeEditorTabFromEntityType(UDMXEntityFixturePatch::StaticClass());
 					}
 				}
 			}

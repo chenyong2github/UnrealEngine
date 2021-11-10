@@ -9,49 +9,65 @@ void SAudioTextBox::Construct(const SAudioTextBox::FArguments& InArgs)
 	ShowLabelOnlyOnHover = InArgs._ShowLabelOnlyOnHover;
 	ShowUnitsText = InArgs._ShowUnitsText;
 	OnValueTextCommitted = InArgs._OnValueTextCommitted;
+	Style = InArgs._Style;
 	LabelBackgroundColor = InArgs._LabelBackgroundColor;
 
 	const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
 	if (AudioWidgetsStyle)
 	{
-		SAssignNew(LabelBackgroundImage, SImage)
-			.Image(AudioWidgetsStyle->GetBrush("AudioTextBox.LabelBackground"))
-			.ColorAndOpacity(LabelBackgroundColor);
+		Style = &AudioWidgetsStyle->GetWidgetStyle<FAudioTextBoxStyle>("AudioTextBox.Style");
+		LabelBackgroundColor = Style->BackgroundColor;
+
 		SAssignNew(ValueText, SEditableText)
 			.Text(FText::AsNumber(0.0f))
 			.Justification(ETextJustify::Right)
 			.OnTextCommitted(OnValueTextCommitted)
 			.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		SAssignNew(UnitsText, SEditableText)
+			.Visibility_Lambda([this]() 
+			{
+				return ShowUnitsText.Get() ? EVisibility::Visible : EVisibility::Collapsed;
+			})
 			.Text(FText::FromString("units"))
 			.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
 
-		TextWidgetSwitcher = CreateTextWidgetSwitcher();
-		SAssignNew(TextLabel, SOverlay)
+		SAssignNew(LabelBorder, SBorder)
+			.BorderImage(&Style->BackgroundImage)
+			.BorderBackgroundColor(Style->BackgroundColor)
 			.Visibility_Lambda([this]()
 			{
 				return (!ShowLabelOnlyOnHover.Get() || this->IsHovered()) ? EVisibility::Visible : EVisibility::Hidden;
 			})
-			+ SOverlay::Slot()
 			[
-				LabelBackgroundImage.ToSharedRef()
-			]
-			+ SOverlay::Slot()
-			[
-				TextWidgetSwitcher.ToSharedRef()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Expose(ValueTextSlot)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				[
+					ValueText.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 0.0f, 4.0f, 0.0f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					UnitsText.ToSharedRef()
+				]
 			];
 	}
 
 	ChildSlot
 	[
-		TextLabel.ToSharedRef()
+		LabelBorder.ToSharedRef()
 	];
 }
 
 void SAudioTextBox::SetLabelBackgroundColor(FSlateColor InColor)
 {
 	SetAttribute(LabelBackgroundColor, TAttribute<FSlateColor>(InColor), EInvalidateWidgetReason::Paint);
-	LabelBackgroundImage->SetColorAndOpacity(InColor);
+	LabelBorder->SetBorderBackgroundColor(InColor.GetSpecifiedColor());
 }
 
 void SAudioTextBox::SetValueText(const float OutputValue)
@@ -85,53 +101,13 @@ void SAudioTextBox::SetShowUnitsText(const bool bShowUnitsText)
 
 	if (bShowUnitsText)
 	{
-		TextWidgetSwitcher->SetActiveWidgetIndex(0);
 		ValueText->SetJustification(ETextJustify::Right);
 	}
 	else
 	{
-		TextWidgetSwitcher->SetActiveWidgetIndex(1);
 		ValueText->SetJustification(ETextJustify::Center);
 	}
 	UpdateValueTextWidth(OutputRange);
-}
-
-TSharedRef<SWidgetSwitcher> SAudioTextBox::CreateTextWidgetSwitcher()
-{
-	SAssignNew(TextWidgetSwitcher, SWidgetSwitcher);
-	// Slot 0 is show both value and units text
-	TextWidgetSwitcher->AddSlot(0)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		[
-			ValueText.ToSharedRef()
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2.0f, 0.0f, 4.0f, 0.0f)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		[
-			UnitsText.ToSharedRef()
-		]
-	];
-	// Slot 1 is show only value, not units text
-	TextWidgetSwitcher->AddSlot(1)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()	
-		.AutoWidth()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		[
-			ValueText.ToSharedRef()
-		]
-	];
-	return TextWidgetSwitcher.ToSharedRef();
 }
 
 // Update value text size to accommodate the largest numbers possible within the output range
@@ -152,14 +128,11 @@ void SAudioTextBox::UpdateValueTextWidth(const FVector2D InOutputRange)
 	if (!ShowUnitsText.Get())
 	{
 		// set to max of label background width and calculated max width
-		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
-		if (AudioWidgetsStyle)
-		{
-			MaxValueLabelWidth = FMath::Max(MaxValueLabelWidth, AudioWidgetsStyle->GetVector("AudioTextBox.LabelBackgroundSize").X);
-		}
+		MaxValueLabelWidth = FMath::Max(MaxValueLabelWidth, Style->BackgroundImage.ImageSize.X);
 	}
 	ValueText->SetMinDesiredWidth(MaxValueLabelWidth);
-	// slot index 0 is value text
-	TSharedPtr<SHorizontalBox> HorizontalTextBox = StaticCastSharedPtr<SHorizontalBox>(TextWidgetSwitcher->GetActiveWidget());
-	HorizontalTextBox->GetSlot(0).SetMaxWidth(MaxValueLabelWidth);
+	if (ValueTextSlot)
+	{	
+		ValueTextSlot->SetMaxWidth(MaxValueLabelWidth);
+	}
 }

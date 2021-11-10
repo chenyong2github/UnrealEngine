@@ -248,7 +248,7 @@ TArray<FName> UCameraCalibrationSubsystem::GetCameraImageCenterAlgos() const
 UMaterialInterface* UCameraCalibrationSubsystem::GetOverlayMaterial(const FName& OverlayName) const
 {
 #if WITH_EDITOR
-	if (UMaterialInterface* DefaultMaterial = GetDefault<UCameraCalibrationSettings>()->GetDefaultCalibrationOverlayMaterial(OverlayName))
+	if (UMaterialInterface* DefaultMaterial = GetDefault<UCameraCalibrationSettings>()->GetCalibrationOverlayMaterialOverride(OverlayName))
 	{
 		return DefaultMaterial;
 	}
@@ -261,13 +261,19 @@ UMaterialInterface* UCameraCalibrationSubsystem::GetOverlayMaterial(const FName&
 
 TArray<FName> UCameraCalibrationSubsystem::GetOverlayMaterialNames() const
 {
+	// Use a set to avoid duplicates when combining the registered overlays with the set of overrides
+	TSet<FName> OverlayNames;
+
 	TArray<FName> OutKeys;
 	RegisteredOverlayMaterials.GetKeys(OutKeys);
 
+	OverlayNames.Append(OutKeys);
+
 #if WITH_EDITOR
-	OutKeys.Append(GetDefault<UCameraCalibrationSettings>()->GetDefaultCalibrationOverlayNames());
+	OverlayNames.Append(GetDefault<UCameraCalibrationSettings>()->GetCalibrationOverlayMaterialOverrideNames());
 #endif
-	return OutKeys;
+
+	return OverlayNames.Array();
 }
 
 TSubclassOf<UCameraCalibrationStep> UCameraCalibrationSubsystem::GetCameraCalibrationStep(FName Name) const

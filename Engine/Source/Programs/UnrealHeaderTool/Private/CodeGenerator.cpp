@@ -7213,12 +7213,15 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	// Force the creation of type data for them.  Once these are added to NoExport, then
 	// the HasSource can be looked at to be removed.  However, it might change output slightly.  
 	// Use -WRITEREF and -VERIFYREF to detect these changes.
-	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	FResults::Try([]()
 	{
-		TSharedRef<FUnrealClassDefinitionInfo> ClassDefRef = MakeShared<FUnrealClassDefinitionInfo>(*ClassIt);
-		GTypeDefinitionInfoMap.AddNameLookup(*ClassDefRef);
-		GEngineClasses.Add(ClassDefRef);
-	}
+		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+		{
+			TSharedRef<FUnrealClassDefinitionInfo> ClassDefRef = MakeShared<FUnrealClassDefinitionInfo>(*ClassIt);
+			GTypeDefinitionInfoMap.AddNameLookup(*ClassDefRef);
+			GEngineClasses.Add(ClassDefRef);
+		}
+	});
 
 	FString ExternalDependencies;
 	TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;

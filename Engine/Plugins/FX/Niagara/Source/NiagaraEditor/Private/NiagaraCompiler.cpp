@@ -464,7 +464,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 
 			FName SimStageName;
 			bool bStageEnabled = true;
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && bSimulationStagesEnabled && SimStages)
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
 			{
 				// Find the simulation stage for this output node.
 				const FGuid& UsageId = FoundOutputNode->GetUsageId();
@@ -567,7 +567,7 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 	{
 		FName SimStageName;
 		bool bStageEnabled = true;
-		if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && bSimulationStagesEnabled && SimStages)
+		if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && /*bSimulationStagesEnabled &&*/ SimStages)
 		{
 			// Find the simulation stage for this output node.
 			const FGuid& UsageId = FoundOutputNode->GetUsageId();
@@ -729,7 +729,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			EmitterPtr->SourceName = BasePtr->SourceName;
 			EmitterPtr->Source = Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource);
 			EmitterPtr->bUseRapidIterationParams = BasePtr->bUseRapidIterationParams || (!Handle.GetInstance()->bBakeOutRapidIteration);
-			EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
+			//EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
 			BasePtr->EmitterData.Add(EmitterPtr);
 		}
 
@@ -1002,7 +1002,7 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 			EmitterPtr->SharedSourceGraphToDuplicatedGraphsMap = BasePtr->SharedSourceGraphToDuplicatedGraphsMap;
 			EmitterPtr->SharedNameToDuplicatedDataInterfaceMap = BasePtr->SharedNameToDuplicatedDataInterfaceMap;
 			EmitterPtr->SharedDataInterfaceClassToDuplicatedCDOMap = BasePtr->SharedDataInterfaceClassToDuplicatedCDOMap;
-			EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
+			//EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
 			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance())) // Don't need to copy the graph if we aren't going to use it.
 			{
 				EmitterPtr->DeepCopyGraphs(Handle.GetInstance());
@@ -1035,7 +1035,7 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		}
 	}
 
-	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' PrecompileDuplicate took %f sec."), *LogPackage->GetName(),
+	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' PrecompileDuplicate took %f sec."), *GetNameSafe(LogPackage),
 		(float)(FPlatformTime::Seconds() - StartTime));
 
 	return BasePtr;

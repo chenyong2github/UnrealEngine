@@ -2,7 +2,6 @@
 
 #include "SQuickFind.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -15,6 +14,7 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Widgets/SFilterConfigurator.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/ViewModels/QuickFind.h"
@@ -77,9 +77,31 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			.Padding(1.0f)
 			[
 				SNew(SButton)
+				.Text(LOCTEXT("FindFirst", "Find First"))
+				.ToolTipText(LOCTEXT("FindFirstDesc", "Find the first occurence that matches the search criteria."))
+				.OnClicked(this, &SQuickFind::FindFirst_OnClicked)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FindFirst.ToolBar"))
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(1.0f)
+			[
+				SNew(SButton)
 				.Text(LOCTEXT("FindPrev", "Find Previous"))
-				.ToolTipText(LOCTEXT("FindNextDesc", "Find the previous occurence that matches the search criteria."))
+				.ToolTipText(LOCTEXT("FindPrevDesc", "Find the previous occurence that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindPrevious_OnClicked)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FindPrevious.ToolBar"))
+				]
 			]
 
 			+ SHorizontalBox::Slot()
@@ -92,31 +114,63 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 				.Text(LOCTEXT("FindNext", "Find Next"))
 				.ToolTipText(LOCTEXT("FindNextDesc", "Find the next occurence that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindNext_OnClicked)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FindNext.ToolBar"))
+				]
 			]
 
 			+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(1.0f)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(1.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("FindLast", "Find Last"))
+				.ToolTipText(LOCTEXT("FindLastDesc", "Find the last occurence that matches the search criteria."))
+				.OnClicked(this, &SQuickFind::FindLast_OnClicked)
+				.Content()
 				[
-					SNew(SButton)
-					.Text(LOCTEXT("FilterAll", "Filter All"))
-					.ToolTipText(LOCTEXT("FilterAllDesc", "Filter all the tracks using the the search criteria."))
-					.OnClicked(this, &SQuickFind::FilterAll_OnClicked)
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FindLast.ToolBar"))
 				]
+			]
 
-			+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(1.0f)
+		+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(1.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("FilterAll", "Filter All"))
+				.ToolTipText(LOCTEXT("FilterAllDesc", "Filter all the tracks using the the search criteria."))
+				.OnClicked(this, &SQuickFind::FilterAll_OnClicked)
+				.Content()
 				[
-					SNew(SButton)
-					.Text(LOCTEXT("ClearFilters", "Clear Filters"))
-					.ToolTipText(LOCTEXT("ClearFiltersDesc", "Clear all filters applied to the tracks."))
-					.OnClicked(this, &SQuickFind::ClearFilters_OnClicked)
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.HighlightEvents.ToolBar"))
 				]
+			]
+
+		+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(1.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("ClearFilters", "Clear Filters"))
+				.ToolTipText(LOCTEXT("ClearFiltersDesc", "Clear all filters applied to the tracks."))
+				.OnClicked(this, &SQuickFind::ClearFilters_OnClicked)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.ResetHighlight.ToolBar"))
+				]
+			]
 		]
 	];
 
@@ -147,13 +201,15 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SQuickFind::FindNext_OnClicked()
+FReply SQuickFind::FindFirst_OnClicked()
 {
 	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
-	QuickFindViewModel->GetOnFindNextEvent().Broadcast();
+	QuickFindViewModel->GetOnFindFirstEvent().Broadcast();
 
 	return FReply::Handled();
-}////////////////////////////////////////////////////////////////////////////////////////////////////
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SQuickFind::FindPrevious_OnClicked()
 {
@@ -163,6 +219,25 @@ FReply SQuickFind::FindPrevious_OnClicked()
 	return FReply::Handled();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SQuickFind::FindNext_OnClicked()
+{
+	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
+	QuickFindViewModel->GetOnFindNextEvent().Broadcast();
+
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SQuickFind::FindLast_OnClicked()
+{
+	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
+	QuickFindViewModel->GetOnFindLastEvent().Broadcast();
+
+	return FReply::Handled();
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SQuickFind::FilterAll_OnClicked()

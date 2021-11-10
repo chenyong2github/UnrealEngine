@@ -13,6 +13,41 @@ class USDEXPORTER_API UUsdConversionBlueprintLibrary : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Fully streams in and displays all levels whose names are not in LevelsToIgnore */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static void StreamInRequiredLevels( UWorld* World, const TSet<FString>& LevelsToIgnore );
+
+	/**
+	 * If we have the Sequencer open with a level sequence animating the level before export, this function can revert
+	 * any actor or component to its unanimated state
+	 */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static void RevertSequencerAnimations();
+
+	/**
+	 * If we used `ReverseSequencerAnimations` to undo the effect of an opened sequencer before export, this function
+	 * can be used to re-apply the sequencer state back to the level after the export is complete
+	 */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static void ReapplySequencerAnimations();
+
+	/**
+	 * Returns the path name (e.g. "/Game/Maps/MyLevel") of levels that are loaded on `World`.
+	 * We use these to revert the `World` to its initial state after we force-stream levels in for exporting
+	 */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static TArray<FString> GetLoadedLevelNames( UWorld* World );
+
+	/**
+	 * Returns the path name (e.g. "/Game/Maps/MyLevel") of levels that checked to be visible in the editor within `World`.
+	 * We use these to revert the `World` to its initial state after we force-stream levels in for exporting
+	 */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static TArray<FString> GetVisibleInEditorLevelNames( UWorld* World );
+
+	/** Streams out/hides sublevels that were streamed in before export */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static void StreamOutLevels( UWorld* OwningWorld, const TArray<FString>& LevelNamesToStreamOut, const TArray<FString>& LevelNamesToHide );
 
 	UFUNCTION( BlueprintCallable, Category = "World utils" )
 	static TSet<AActor*> GetActorsToConvert( UWorld* World );

@@ -326,7 +326,7 @@ bool FXAudio2SoundBuffer::ReadCompressedInfo(USoundWave* SoundWave)
 		UE_LOG(LogXAudio2, Warning, TEXT("Attempting to read compressed info without a compression state instance for resource '%s'"), *ResourceName);
 		return false;
 	}
-	return DecompressionState->ReadCompressedInfo(SoundWave->ResourceData, SoundWave->ResourceSize, nullptr);
+	return DecompressionState->ReadCompressedInfo(SoundWave->GetResourceData(), SoundWave->GetResourceSize(), nullptr);
 }
 
 bool FXAudio2SoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFramesToDecode, bool bLooping )
@@ -367,7 +367,7 @@ FXAudio2SoundBuffer* FXAudio2SoundBuffer::CreateQueuedBuffer( FXAudio2Device* XA
 	FXAudio2SoundBuffer* Buffer = new FXAudio2SoundBuffer( XAudio2Device, SoundFormat_PCMRT );
 
 	// If the buffer was precached as native, the resource data will have been lost and we need to re-initialize it
-	if (Wave->ResourceData == nullptr)
+	if (Wave->GetResourceData() == nullptr)
 	{
 		Wave->InitAudioResource(XAudio2Device->GetRuntimeFormat(Wave));
 	}

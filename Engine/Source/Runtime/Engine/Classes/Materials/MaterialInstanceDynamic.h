@@ -13,6 +13,10 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITOR
+	virtual void UpdateCachedData() override;
+#endif
+
 	/** Set a MID scalar (float) parameter value */
 	UFUNCTION(BlueprintCallable, meta=(Keywords = "SetFloatParameterValue"), Category="Rendering|Material")
 	void SetScalarParameterValue(FName ParameterName, float Value);
@@ -183,5 +187,8 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	// This overrides does the remapping before looking at the parent data.
 	virtual float GetTextureDensity(FName TextureName, const struct FMeshUVChannelInfo& UVChannelData) const override;
 
+private:
+	void InitializeMID(class UMaterialInterface* ParentMaterial);
+	void UpdateCachedDataDynamic();
 };
 

@@ -238,8 +238,6 @@ class FSeamlessTravelHandler
 private:
 	/** URL we're traveling to */
 	FURL PendingTravelURL;
-	/** Guid of the destination map (for finding it in the package cache if autodownloaded) */
-	FGuid PendingTravelGuid;
 	/** set to the loaded package once loading is complete. Transition to it is performed in the next tick where it's safe to perform the required operations */
 	UObject* LoadedPackage;
 	/** the world we are travelling from */
@@ -273,7 +271,6 @@ private:
 public:
 	FSeamlessTravelHandler()
 		: PendingTravelURL(NoInit)
-		, PendingTravelGuid(0, 0, 0, 0)
 		, LoadedPackage(NULL)
 		, CurrentWorld(NULL)
 		, LoadedWorld(NULL)
@@ -285,16 +282,14 @@ public:
 
 	/** starts traveling to the given URL. The required packages will be loaded async and Tick() will perform the transition once we are ready
 	 * @param InURL the URL to travel to
-	 * @param InGuid the GUID of the destination map package
 	 * @return whether or not we succeeded in starting the travel
 	 */
+	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL);
+
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use StartTravel without a InGuid.")
-	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid);
-	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL)
+	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return StartTravel(InCurrentWorld, InURL, FGuid());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return StartTravel(InCurrentWorld, InURL);
 	}
 
 	/** @return whether a transition is already in progress */
@@ -3690,16 +3685,13 @@ public:
 	 * is reset/reloaded when transitioning. (like UT)
 	 * @param URL - the URL to travel to; must be on the same server as the current URL
 	 * @param bAbsolute (opt) - if true, URL is absolute, otherwise relative
-	 * @param MapPackageGuid (opt) - the GUID of the map package to travel to - this is used to find the file when it has been auto-downloaded,
-	 * 				so it is only needed for clients
 	 */
+	void SeamlessTravel(const FString& InURL, bool bAbsolute = false);
+
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use SeamlessTravel without a NextMapGuid.")
-	void SeamlessTravel(const FString& InURL, bool bAbsolute, FGuid MapPackageGuid);
-	void SeamlessTravel(const FString& InURL, bool bAbsolute = false)
+	void SeamlessTravel(const FString& InURL, bool bAbsolute, FGuid MapPackageGuid)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SeamlessTravel(InURL, bAbsolute, FGuid());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		SeamlessTravel(InURL, bAbsolute);
 	}
 
 	/** @return whether we're currently in a seamless transition */

@@ -74,7 +74,7 @@ TFuture<FMD5Hash> FDiffPackageWriter::CommitPackage(FCommitPackageInfo&& Info)
 void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive,
 	const TArray<FFileRegion>& FileRegions)
 {
-	Inner->CompleteExportsArchiveForDiff(ExportsArchive);
+	Inner->CompleteExportsArchiveForDiff(Info.PackageName, ExportsArchive);
 
 	FArchiveStackTrace& Writer = static_cast<FArchiveStackTrace&>(ExportsArchive);
 	ICookedPackageWriter::FPreviousCookedBytesData PreviousInnerData;

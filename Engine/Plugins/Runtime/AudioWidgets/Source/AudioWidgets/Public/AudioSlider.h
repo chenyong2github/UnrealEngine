@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AudioWidgetsStyle.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Components/Widget.h"
 #include "Curves/CurveFloat.h"
 #include "Styling/StyleColors.h"
@@ -162,6 +162,8 @@ public:
 #endif
 
 protected:
+	FAudioSliderStyle WidgetStyle;
+	
 	/** Native Slate Widget */
 	TSharedPtr<SAudioSliderBase> MyAudioSlider;
 

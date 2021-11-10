@@ -1339,6 +1339,8 @@ class Config(object):
             value=p4_settings['p4_engine_path']
         )
 
+        self.init_unreal_insights()
+
         self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
         self.OSC_SERVER_PORT = IntSetting(
@@ -1348,14 +1350,8 @@ class Config(object):
 
         # MU Settings
         self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer'
-        self.MUSERVER_COMMAND_LINE_ARGUMENTS = ""
-        self.MUSERVER_SERVER_NAME = f'{self.PROJECT_NAME}_MU_Server'
-        self.MUSERVER_ENDPOINT = ':9030'
-        self.MUSERVER_AUTO_LAUNCH = True
-        self.MUSERVER_AUTO_JOIN = False
-        self.MUSERVER_CLEAN_HISTORY = True
-        self.MUSERVER_AUTO_BUILD = True
-        self.MUSERVER_AUTO_ENDPOINT = True
+
+        self.init_muserver()
 
         self.LISTENER_EXE = 'SwitchboardListener'
 
@@ -1369,6 +1365,58 @@ class Config(object):
 
         SETTINGS.CONFIG = self.file_path
         SETTINGS.save()
+
+    def init_muserver(self, data={}):
+        # MU Settings
+        self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get(
+            'muserver_command_line_arguments', '')
+        self.MUSERVER_SERVER_NAME = data.get(
+            'muserver_server_name', f'{self.PROJECT_NAME}_MU_Server')
+        self.MUSERVER_ENDPOINT = data.get('muserver_endpoint', ':9030')
+        self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
+        self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', False)
+        self.MUSERVER_AUTO_BUILD = data.get('muserver_auto_build', True)
+        self.MUSERVER_AUTO_ENDPOINT = data.get('muserver_auto_endpoint', True)
+
+        self.MUSERVER_AUTO_JOIN = BoolSetting(
+            "muserver_auto_join",
+            "Unreal Multi-user Server Auto-join",
+            data.get('muserver_auto_join', True)
+        )
+
+    def init_unreal_insights(self, data={}):
+        self.INSIGHTS_TRACE_ENABLE = BoolSetting(
+            "tracing_enabled",
+            "Unreal Insights Tracing State",
+            data.get("tracing_enabled", False),
+        )
+        self.INSIGHTS_TRACE_ARGS = StringSetting(
+            "tracing_args",
+            "Unreal Insights Tracing Args",
+            data.get('tracing_arg', 'log,cpu,gpu,frame,concert,messaging')
+        )
+        self.INSIGHTS_STAT_EVENTS = BoolSetting(
+            "tracing_stat_events",
+            "Unreal Insights Tracing with Stat Events",
+            data.get('tracing_stat_events', True)
+        )
+
+    def save_muserver(self, data):
+        data["muserver_command_line_arguments"] = (
+            self.MUSERVER_COMMAND_LINE_ARGUMENTS)
+        data["muserver_server_name"] = self.MUSERVER_SERVER_NAME
+        data["muserver_endpoint"] = self.MUSERVER_ENDPOINT
+        data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH
+        data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
+        data["muserver_auto_build"] = self.MUSERVER_AUTO_BUILD
+        data["muserver_auto_endpoint"] = self.MUSERVER_AUTO_ENDPOINT
+
+        data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN.get_value()
+
+    def save_unreal_insights(self, data):
+        data['tracing_enabled'] = self.INSIGHTS_TRACE_ENABLE.get_value()
+        data['tracing_args'] = self.INSIGHTS_TRACE_ARGS.get_value()
+        data['tracing_stat_events'] = self.INSIGHTS_STAT_EVENTS.get_value()
 
     def init_with_file_path(self, file_path: typing.Union[str, pathlib.Path]):
         if file_path:
@@ -1457,25 +1505,25 @@ class Config(object):
             [self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE,
              self.P4_PROJECT_PATH, self.P4_ENGINE_PATH])
 
+        self.init_unreal_insights(data)
+
+        project_settings.extend([
+            self.INSIGHTS_TRACE_ENABLE,
+            self.INSIGHTS_STAT_EVENTS,
+            self.INSIGHTS_TRACE_ARGS])
+
         # EXE names
         self.MULTIUSER_SERVER_EXE = data.get(
             'multiuser_exe', 'UnrealMultiUserServer')
         self.LISTENER_EXE = data.get('listener_exe', 'SwitchboardListener')
 
-        # MU Settings
-        self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get(
-            'muserver_command_line_arguments', '')
-        self.MUSERVER_SERVER_NAME = data.get(
-            'muserver_server_name', f'{self.PROJECT_NAME}_MU_Server')
-        self.MUSERVER_ENDPOINT = data.get('muserver_endpoint', ':9030')
-        self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
-        self.MUSERVER_AUTO_JOIN = data.get('muserver_auto_join', False)
-        self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', True)
-        self.MUSERVER_AUTO_BUILD = data.get('muserver_auto_build', True)
-        self.MUSERVER_AUTO_ENDPOINT = data.get('muserver_auto_endpoint', True)
+        self.init_muserver(data)
 
         # MISC SETTINGS
         self.CURRENT_LEVEL = data.get('current_level', DEFAULT_MAP_TEXT)
+
+        project_settings.extend([
+            self.MUSERVER_AUTO_JOIN])
 
         # Automatically save whenever a project setting is changed or
         # overridden by a device.
@@ -1575,6 +1623,8 @@ class Config(object):
         data["maps_filter"] = self.MAPS_FILTER.get_value()
         data["listener_exe"] = self.LISTENER_EXE
 
+        self.save_unreal_insights(data)
+
         # OSC settings
         data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
         data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
@@ -1588,15 +1638,8 @@ class Config(object):
 
         # MU Settings
         data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
-        data["muserver_command_line_arguments"] = (
-            self.MUSERVER_COMMAND_LINE_ARGUMENTS)
-        data["muserver_server_name"] = self.MUSERVER_SERVER_NAME
-        data["muserver_endpoint"] = self.MUSERVER_ENDPOINT
-        data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH
-        data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN
-        data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
-        data["muserver_auto_build"] = self.MUSERVER_AUTO_BUILD
-        data["muserver_auto_endpoint"] = self.MUSERVER_AUTO_ENDPOINT
+
+        self.save_muserver(data)
 
         # Current Level
         data["current_level"] = self.CURRENT_LEVEL

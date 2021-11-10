@@ -117,7 +117,7 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, bool bAl
 		bool bPackage = true;
 
 		// Try to get filename by finding it on disk
-		if (!FPackageName::DoesPackageExist(SCFile, nullptr, &SCFile))
+		if (!FPackageName::DoesPackageExist(SCFile, &SCFile))
 		{
 			// First do the conversion without any extension set, as this will allow us to test whether the path represents an existing directory rather than an asset
 			if (FPackageName::TryConvertLongPackageNameToFilename(SCFile, SCFile))
@@ -1186,7 +1186,7 @@ static FString PackageFilename_Internal( const FString& InPackageName )
 	FString Filename = InPackageName;
 
 	// Get the filename by finding it on disk first
-	if ( !FPackageName::DoesPackageExist(InPackageName, nullptr, &Filename) )
+	if ( !FPackageName::DoesPackageExist(InPackageName, &Filename) )
 	{
 		// The package does not exist on disk, see if we can find it in memory and predict the file extension
 		// Only do this if the supplied package name is valid

@@ -192,7 +192,7 @@ void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDCo
 void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Constraint_ComputeContactGraph);
-	const TArray<FConstraintHandle*>& IslandConstraints = ConstraintGraph.GetIslandConstraints(Island);
+	const TArray<FConstraintHandleHolder>& IslandConstraints = ConstraintGraph.GetIslandConstraints(Island);
 
 	IslandData[Island].MaxLevel = IslandConstraints.Num() ? 0 : -1;
 	
@@ -728,7 +728,13 @@ void FPBDConstraintColor::UpdateParticleToLevel(const int32 Island, const FPBDCo
 
 int32 FPBDConstraintColor::GetParticleLevel(const FGeometryParticleHandle* ParticleHandle) const
 {
-	return ParticleToLevel[ParticleHandle->UniqueIdx().Idx];
+	// todo(chaos) the index check should nopt be necessarybut right ParticleToLevel is not as larghe as the largest uniqueIdx in the graph( because of MaxParticleIndex not reflecting this )
+	const int32 UniqueIdx = ParticleHandle->UniqueIdx().Idx;
+	if (ParticleToLevel.IsValidIndex(UniqueIdx))
+	{
+		return ParticleToLevel[ParticleHandle->UniqueIdx().Idx];
+	}
+	return 0;
 }
 
 void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintGraph)

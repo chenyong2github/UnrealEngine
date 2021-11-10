@@ -923,13 +923,19 @@ namespace AugmentedDynamicMesh
 				int32 EID01 = AllBoundaryEdges[LastIdx];
 				FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EID01);
 				int32 Component01 = (int32)VertComponents.Find((uint32)Edge.Vert.A);
-				if (Component01 == HoleComponents[CurBdry])
+				if (Edge.Tri.B == -1 && Component01 == HoleComponents[CurBdry]) // matching edge must still be a boundary edge
 				{
 					check(Edge.Vert.A != INDEX_NONE);
 					HoleMaterial = MaterialIDs->GetValue(Edge.Tri.A);
 					HoleEdgeV = Mesh.GetOrientedBoundaryEdgeV(EID01);
 					break;
 				}
+			}
+
+			// no boundary edge found with the target component ID
+			if (HoleEdgeV.A == INDEX_NONE)
+			{
+				continue;
 			}
 
 			// find a basis for UV projection (per UV channel)

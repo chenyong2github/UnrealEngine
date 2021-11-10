@@ -2,7 +2,7 @@
 
 #include "SAsyncOperationStatus.h"
 
-#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -28,8 +28,9 @@ void SAsyncOperationStatus::Construct(const FArguments& InArgs, TSharedRef<IAsyn
 		.Visibility(this, &SAsyncOperationStatus::GetContentVisibility)
 		[
 			SNew(SBorder)
-			.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
 			.BorderBackgroundColor(this, &SAsyncOperationStatus::GetBackgroundColorAndOpacity)
+			.ToolTipText(this, &SAsyncOperationStatus::GetTooltipText)
 			.Padding(FMargin(16.0f, 8.0f, 16.0f, 8.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
@@ -42,9 +43,8 @@ void SAsyncOperationStatus::Construct(const FArguments& InArgs, TSharedRef<IAsyn
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+					.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 					.Text(this, &SAsyncOperationStatus::GetText)
-					.ToolTipText(this, &SAsyncOperationStatus::GetTooltipText)
 					.ColorAndOpacity(this, &SAsyncOperationStatus::GetTextColorAndOpacity)
 				]
 
@@ -55,9 +55,8 @@ void SAsyncOperationStatus::Construct(const FArguments& InArgs, TSharedRef<IAsyn
 				[
 					SNew(STextBlock)
 					.MinDesiredWidth(16.0f)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+					.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 					.Text(this, &SAsyncOperationStatus::GetAnimatedText)
-					.ToolTipText(this, &SAsyncOperationStatus::GetTooltipText)
 					.ColorAndOpacity(this, &SAsyncOperationStatus::GetTextColorAndOpacity)
 				]
 			]

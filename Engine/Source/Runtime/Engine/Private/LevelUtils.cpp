@@ -123,7 +123,7 @@ bool FLevelUtils::IsLevelLocked(ULevel* Level)
 				if (pPackage)
 				{
 					FString PackageFileName;
-					if (FPackageName::DoesPackageExist(pPackage->GetName(), NULL, &PackageFileName))
+					if (FPackageName::DoesPackageExist(pPackage->GetName(), &PackageFileName))
 					{
 						LevelData.IsReadOnly = IFileManager::Get().IsReadOnly(*PackageFileName);
 					}

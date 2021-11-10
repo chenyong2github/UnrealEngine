@@ -381,7 +381,7 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 	UnFbx::FFbxLoggerSetter Logger(FbxImporter);
-	GWarn->BeginSlowTask(NSLOCTEXT("FbxSceneReImportFactory", "BeginReImportingFbxSceneTask", "ReImporting FBX scene"), true);
+	GWarn->BeginSlowTask(NSLOCTEXT("FbxSceneReImportFactory", "BeginReImportingFbxSceneTask_ReadingFbxFile", "Re-importing FBX scene (reading fbx file)"), true);
 
 	GlobalImportSettings = FbxImporter->GetImportOptions();
 	UnFbx::FBXImportOptions::ResetOptions(GlobalImportSettings);
@@ -478,6 +478,11 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 	bool bCanReimportHierarchy = ReimportData->HierarchyType == (int32)EFBXSceneOptionsCreateHierarchyType::FBXSOCHT_CreateBlueprint && !ReimportData->BluePrintFullName.IsEmpty();
 
 	SceneImportOptions->bForceFrontXAxis = GlobalImportSettings->bForceFrontXAxis;
+	
+	//We stop The slow task before showing the import option dialog
+	//This prevent fight between slow task dialog and import option dialog (both are modal)
+	GWarn->EndSlowTask();
+
 	if (!GetFbxSceneReImportOptions(FbxImporter
 		, SceneInfoPtr
 		, ReimportData->SceneInfoSourceData
@@ -495,10 +500,11 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 		FbxImporter->ReleaseScene();
 		FbxImporter = nullptr;
 		GlobalImportSettings = nullptr;
-		GWarn->EndSlowTask();
 		return EReimportResult::Cancelled;
 	}
-	
+
+	//Restart the slow task after the reimport dialog
+	GWarn->BeginSlowTask(NSLOCTEXT("FbxSceneReImportFactory", "BeginReImportingFbxSceneTask_ReimportingScene", "Re-importing FBX scene (importing scene and assets)"), true);
 	GlobalImportSettingsReference = new UnFbx::FBXImportOptions();
 	SFbxSceneOptionWindow::CopyFbxOptionsToFbxOptions(GlobalImportSettings, GlobalImportSettingsReference);
 

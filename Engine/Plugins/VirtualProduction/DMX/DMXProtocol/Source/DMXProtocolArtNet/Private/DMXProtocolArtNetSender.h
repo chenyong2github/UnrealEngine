@@ -144,4 +144,7 @@ private:
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
+
+	/** Buffer of delayed dmx signals */
+	TQueue<FDMXSignal> DelayedBuffer;
 };

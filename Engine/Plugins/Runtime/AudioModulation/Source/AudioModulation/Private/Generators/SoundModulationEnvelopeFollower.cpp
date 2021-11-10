@@ -23,13 +23,12 @@ namespace AudioModulation
 		static const FString DebugName = TEXT("EnvelopeFollower");
 	}
 
-	class AUDIOMODULATION_API FEnvelopeFollowerGenerator : public FGeneratorBase
+	class AUDIOMODULATION_API FEnvelopeFollowerGenerator : public IGenerator
 	{
 	public:
 		FEnvelopeFollowerGenerator() = default;
-
 		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InGeneratorParams, Audio::FDeviceId InDeviceId)
-			: FGeneratorBase(InDeviceId)
+			: IGenerator(InDeviceId)
 			, Gain(InGeneratorParams.Gain)
 			, bBypass(InGeneratorParams.bBypass ? 1 : 0)
 			, bInvert(InGeneratorParams.bInvert ? 1 : 0)
@@ -91,29 +90,38 @@ namespace AudioModulation
 
 	#endif // !UE_BUILD_SHIPPING
 
-		virtual bool UpdateGenerator(const IGenerator& InGenerator) override
+		virtual FGeneratorPtr Clone() const override
 		{
-			const FEnvelopeFollowerGenerator& NewGenerator = static_cast<const FEnvelopeFollowerGenerator&>(InGenerator);
-			AudioRenderThreadCommand([this, bNewInvert = NewGenerator.bInvert, bNewBypass = NewGenerator.bBypass, NewGain = NewGenerator.Gain, NewInitParams = NewGenerator.InitParams, NewBusId = NewGenerator.BusId]()
+			return FGeneratorPtr(new FEnvelopeFollowerGenerator(*this));
+		}
+
+		virtual void UpdateGenerator(FGeneratorPtr&& InGenerator) override
+		{
+			if (!ensure(InGenerator.IsValid()))
 			{
-				bBypass = bNewBypass;
-				bInvert = bNewInvert;
+				return;
+			}
 
-				EnvelopeFollower.SetAnalog(NewInitParams.bIsAnalog);
-				EnvelopeFollower.SetAttackTime(NewInitParams.AttackTimeMsec);
-				EnvelopeFollower.SetMode(NewInitParams.Mode);
-				EnvelopeFollower.SetNumChannels(NewInitParams.NumChannels);
-				EnvelopeFollower.SetReleaseTime(NewInitParams.ReleaseTimeMsec);
+			AudioRenderThreadCommand([this, NewGenerator = MoveTemp(InGenerator)]()
+			{
+				const FEnvelopeFollowerGenerator* Generator = static_cast<const FEnvelopeFollowerGenerator*>(NewGenerator.Get());
 
-				if (NewBusId != BusId || !FMath::IsNearlyEqual(Gain, NewGain))
+				bBypass = Generator->bBypass;
+				bInvert = Generator->bInvert;
+
+				EnvelopeFollower.SetAnalog(Generator->InitParams.bIsAnalog);
+				EnvelopeFollower.SetAttackTime(Generator->InitParams.AttackTimeMsec);
+				EnvelopeFollower.SetMode(Generator->InitParams.Mode);
+				EnvelopeFollower.SetNumChannels(Generator->InitParams.NumChannels);
+				EnvelopeFollower.SetReleaseTime(Generator->InitParams.ReleaseTimeMsec);
+
+				if (Generator->BusId != BusId || !FMath::IsNearlyEqual(Gain, Generator->Gain))
 				{
-					BusId = NewBusId;
-					Gain = NewGain;
+					BusId = Generator->BusId;
+					Gain = Generator->Gain;
 					bInitialized = false;
 				}
 			});
-
-			return true;
 		}
 
 		virtual float GetValue() const override
@@ -207,6 +215,5 @@ AudioModulation::FGeneratorPtr USoundModulationGeneratorEnvelopeFollower::Create
 {
 	using namespace AudioModulation;
 
-	auto NewGenerator = MakeShared<FEnvelopeFollowerGenerator, ESPMode::ThreadSafe>(Params, InDeviceId);
-	return StaticCastSharedRef<IGenerator>(NewGenerator);
+	return FGeneratorPtr(new FEnvelopeFollowerGenerator(Params, InDeviceId));
 }

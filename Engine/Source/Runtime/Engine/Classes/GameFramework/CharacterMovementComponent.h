@@ -343,7 +343,8 @@ public:
 	float FallingLateralFriction;
 
 	/** Collision half-height when crouching (component scale is applied separately) */
-	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0", UIMin="0"))
+	UE_DEPRECATED_FORGAME(5.0, "Public access to this property is deprecated, and it will become private in a future release. Please use SetCrouchedHalfHeight and GetCrouchedHalfHeight instead.")
+	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetCrouchedHalfHeight, BlueprintGetter=GetCrouchedHalfHeight, meta=(ClampMin="0", UIMin="0"))
 	float CrouchedHalfHeight;
 
 	/** Water buoyancy. A ratio (1.0 = neutral buoyancy, 0.0 = no buoyancy) */
@@ -864,6 +865,9 @@ private:
 	UPROPERTY(Transient)
 	TEnumAsByte<enum EMovementMode> GroundMovementMode;
 
+	/** Remember last server movement base so we can detect mounts/dismounts and respond accordingly. */
+	TWeakObjectPtr<UPrimitiveComponent> LastServerMovementBase = nullptr;
+
 public:
 	/**
 	 * If true, walking movement always maintains horizontal velocity when moving up ramps, which causes movement up ramps to be faster parallel to the ramp surface.
@@ -1111,9 +1115,6 @@ public:
 
 	/** Last valid projected hit result from raycast to geometry from navmesh */
 	FHitResult CachedProjectedNavMeshHitResult;
-
-	/** Remember last server movement base so we can detect mounts/dismounts and respond accordingly. */
-	UPrimitiveComponent* LastServerMovementBase = nullptr;
 
 	/** Remember last server movement base bone so we can detect mounts/dismounts and respond accordingly. */
 	FName LastServerMovementBaseBoneName = NAME_None;
@@ -1645,7 +1646,15 @@ public:
 
 	/** Returns true if the character is allowed to crouch in the current state. By default it is allowed when walking or falling, if CanEverCrouch() is true. */
 	virtual bool CanCrouchInCurrentState() const;
-	
+
+	/** Sets collision half-height when crouching and updates dependent computations */
+	UFUNCTION(BlueprintSetter)
+	void SetCrouchedHalfHeight(const float NewValue);
+
+	/** Returns the collision half-height when crouching (component scale is applied separately) */
+	UFUNCTION(BlueprintGetter)
+	float GetCrouchedHalfHeight() const;
+
 	/** Returns true if there is a suitable floor SideStep from current position. */
 	virtual bool CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir) const;
 

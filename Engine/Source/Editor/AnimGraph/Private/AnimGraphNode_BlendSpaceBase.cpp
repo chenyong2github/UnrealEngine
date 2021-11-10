@@ -8,6 +8,8 @@
 #include "Animation/BlendSpace1D.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_BlendSpaceBase"
 
@@ -94,6 +96,26 @@ void UAnimGraphNode_BlendSpaceBase::GetOutputLinkAttributes(FNodeAttributeArray&
 		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
+
+void UAnimGraphNode_BlendSpaceBase::CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder)
+{
+	const UBlendSpace* BlendSpace = GetBlendSpace();
+	if (BlendSpace)
+	{
+		TSharedRef<IPropertyHandle> XHandle = InDetailBuilder.GetProperty(TEXT("Node.X"), GetClass());
+		XHandle->SetPropertyDisplayName(FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName));
+		TSharedRef<IPropertyHandle> YHandle = InDetailBuilder.GetProperty(TEXT("Node.Y"), GetClass());
+		if (BlendSpace->IsA<UBlendSpace1D>())
+		{
+			InDetailBuilder.HideProperty(YHandle);
+		}
+		else
+		{
+			YHandle->SetPropertyDisplayName(FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName));
+		}
+	}
+}
+
 
 FText UAnimGraphNode_BlendSpaceBase::GetMenuCategory() const
 {

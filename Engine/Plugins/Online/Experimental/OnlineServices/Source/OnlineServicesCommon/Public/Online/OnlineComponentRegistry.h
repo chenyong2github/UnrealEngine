@@ -15,18 +15,22 @@ class FOnlineComponentRegistry
 {
 public:
 	/**
-	 *
+	 * Create and register a component of type ComponentType if one has not already been registered
 	 */
-	template <typename T, typename... ParamTypes>
+	template <typename ComponentType, typename... ParamTypes>
 	void Register(ParamTypes&&... Params)
 	{
-		TUniquePtr<IComponentWrapper> Component = MakeUnique<TComponentWrapper<T>>(Forward<ParamTypes>(Params)...);
+		if (Get<ComponentType>() == nullptr)
+		{
+			TUniquePtr<IComponentWrapper> Component = MakeUnique<TComponentWrapper<ComponentType>>(Forward<ParamTypes>(Params)...);
 
-		Components.Add(MoveTemp(Component));
+			Components.Add(MoveTemp(Component));
+		}
 	}
 
 	/**
-	 *
+	 * Get the component of type ComponentType
+	 * @return The component or null if one of ComponentType has not been registered
 	 */
 	template <typename ComponentType>
 	ComponentType* Get() const
@@ -42,12 +46,12 @@ public:
 	}
 
 	/**
-	 *
+	 * Call a callable for each of the components
 	 */
 	template <typename CallableType, typename... ParamTypes>
 	void Visit(CallableType&& Callable, ParamTypes&&... Params)
 	{
-		for (auto&& Component : Components)
+		for (TUniquePtr<IComponentWrapper>& Component : Components)
 		{
 			Invoke(Callable, *Component, Forward<ParamTypes>(Params)...);
 		}

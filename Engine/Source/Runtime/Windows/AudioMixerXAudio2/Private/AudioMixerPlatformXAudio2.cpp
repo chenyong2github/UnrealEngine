@@ -2013,49 +2013,58 @@ namespace Audio
 		return nullptr;
 	}
 
+
 	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
-		if (!InSoundWave.IsValid())
-		{
-			return nullptr;
-		}
-
 #if WITH_ENGINE
+		check(InSoundWave);
 
 #if WITH_BINK_AUDIO
 		if (InSoundWave->UseBinkAudio())
 		{
 			return new FBinkAudioInfo();
 		}
-#endif // WITH_BINK_AUDIO		
+#endif // WITH_BINK_AUDIO
 
-		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
-		if (false == InSoundWave->IsStreaming())
+		// STREAMING:
+		if (InSoundWave->IsStreaming())
 		{
-			return nullptr;
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
+	#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+			else if (InSoundWave->GetNumChannels() <= 2)
+			{
+				return XMA2_INFO_NEW();
+			}
+	#endif
+			else
+			{
+#if USE_VORBIS_FOR_STREAMING
+				return new FVorbisAudioInfo();
+#else
+				return new FOpusAudioInfo();
+#endif // USE_VORBIS_FOR_STREAMING
+			}
 		}
 
-		if (InSoundWave->IsSeekableStreaming())
+		// NOT STREAMING:
+		static const FName NAME_OGG(TEXT("OGG"));
+		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
 		{
-			return new FADPCMAudioInfo();
+			return new FVorbisAudioInfo();
 		}
 
-#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (InSoundWave->GetNumChannels() <= 2)
+#if WITH_XMA2
+		static const FName NAME_XMA(TEXT("XMA"));
+		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_XMA) : (InSoundWave->GetCompressedData(NAME_XMA) != nullptr))
 		{
 			return XMA2_INFO_NEW();
 		}
-#endif
-
-#if USE_VORBIS_FOR_STREAMING
-		return new FVorbisAudioInfo();
-#else
-		return new FOpusAudioInfo();
-#endif // USE_VORBIS_FOR_STREAMING
-
+#endif // WITH_XMA2
 #endif // WITH_ENGINE
 
-		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
 		return nullptr;
 	}
 

@@ -256,13 +256,6 @@ private:
 	static void FillShowLayersMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewport> Viewport );
 
 	/**
-	 * Generates the toolbar show DataLayers menu content
-	 *
-	 * @param Menu	The tool menu
-	 */
-	static void FillShowDataLayersMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewport> Viewport);
-
-	/**
 	 * Generates 'show foliage types' menu content for a viewport
 	 *
 	 * @param Menu	The tool menu

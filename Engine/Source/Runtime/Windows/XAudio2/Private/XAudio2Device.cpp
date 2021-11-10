@@ -637,7 +637,7 @@ void FXAudio2Device::TestDecompressOggVorbis( USoundWave* Wave )
 	FSoundQualityInfo	QualityInfo = { 0 };
 
 	// Parse the ogg vorbis header for the relevant information
-	if( OggInfo.ReadCompressedInfo( Wave->ResourceData, Wave->ResourceSize, &QualityInfo ) )
+	if( OggInfo.ReadCompressedInfo( Wave->GetResourceData(), Wave->GetResourceSize(), &QualityInfo ) )
 	{
 		// Extract the data
 		Wave->SetSampleRate(QualityInfo.SampleRate);

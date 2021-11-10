@@ -11,39 +11,70 @@
 #include "D3D11RHIPrivate.h"
 #include "D3D11Resources.h"
 
+#define GetRenderTargetFormat GetRenderTargetFormat_D3D12
+#define FindShaderResourceDXGIFormat FindShaderResourceDXGIFormat_D3D12
+#define FindUnorderedAccessDXGIFormat FindUnorderedAccessDXGIFormat_D3D12
+#define FindDepthStencilDXGIFormat FindDepthStencilDXGIFormat_D3D12
+#define HasStencilBits HasStencilBits_D3D12
+#define FD3DGPUProfiler FD3D12GPUProfiler
+
+#include "D3D12RHIPrivate.h"
+
+#undef GetRenderTargetFormat
+#undef FindShaderResourceDXGIFormat
+#undef FindUnorderedAccessDXGIFormat
+#undef FindDepthStencilDXGIFormat
+#undef HasStencilBits
+#undef FD3DGPUProfiler
 
 class FHLMediaTextureSample
     : public IMediaTextureSample
     , public IMediaPoolable
 {
 public:
-	FHLMediaTextureSample(ID3D11Texture2D* InTexture, ID3D11ShaderResourceView* InShaderResourceView)
+	FHLMediaTextureSample(ID3D11Texture2D* InTexture, ID3D11ShaderResourceView* InShaderResourceView, HANDLE InSharedTextureHandle)
         : Duration(FTimespan::Zero())
         , Time(FTimespan::Zero())
     {
-        TArray<TRefCountPtr<ID3D11RenderTargetView>> RenderTargetViews;
-
         D3D11_TEXTURE2D_DESC Desc;
         InTexture->GetDesc(&Desc);
 
-        Texture = new FD3D11Texture2D(
-            GD3D11RHI,
-            InTexture,
-            InShaderResourceView,
-            false,
-            RenderTargetViews.Num(),
-            RenderTargetViews,
-            nullptr,
-            Desc.Width,
-            Desc.Height,
-            0,
-            1,
-            1,
-            PF_B8G8R8A8,
-            false,
-			TexCreate_None,
-            false,
-            FClearValueBinding::Transparent);
+		FString RHIString = FApp::GetGraphicsRHI();
+		if (RHIString == TEXT("DirectX 12"))
+		{
+			// MediaFoundation creates a DX11 texture.  To use this texture with DX12, open the shared handle with the DX12 RHI.
+			FD3D12DynamicRHI* DX12RHI = StaticCast<FD3D12DynamicRHI*>(GDynamicRHI);
+			TComPtr<ID3D12Resource> sharedMediaTexture;
+			if (FAILED(DX12RHI->GetAdapter().GetD3DDevice()->OpenSharedHandle(InSharedTextureHandle, IID_PPV_ARGS(&sharedMediaTexture))))
+			{
+				UE_LOG(LogHLMediaPlayer, Log, TEXT("ID3D12Device::OpenSharedHandle failed in FHLMediaTextureSample"));
+				return;
+			}
+
+			Texture = DX12RHI->RHICreateTexture2DFromResource(PF_B8G8R8A8, TexCreate_Dynamic, FClearValueBinding::None, sharedMediaTexture.Get());
+		}
+		else
+		{
+			TArray<TRefCountPtr<ID3D11RenderTargetView>> RenderTargetViews;
+			Texture = new FD3D11Texture2D(
+				GD3D11RHI,
+				InTexture,
+				InShaderResourceView,
+				false,
+				RenderTargetViews.Num(),
+				RenderTargetViews,
+				nullptr,
+				Desc.Width,
+				Desc.Height,
+				0,
+				1,
+				1,
+				PF_B8G8R8A8,
+				false,
+				TexCreate_None,
+				false,
+				FClearValueBinding::Transparent);
+		}
     }
 
     virtual ~FHLMediaTextureSample()

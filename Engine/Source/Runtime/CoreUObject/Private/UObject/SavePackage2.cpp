@@ -1773,7 +1773,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 			FileInfo.PackageName = SaveContext.GetPackage()->GetFName();
 			FileInfo.Filename = *Writer.GetArchiveName();
 
-			FIoBuffer FileData(FIoBuffer::Wrap, Writer.GetData(), Size);
+			FIoBuffer FileData(FIoBuffer::AssumeOwnership, Writer.ReleaseOwnership(), Size);
 
 			PackageWriter->WriteAdditionalFile(FileInfo, FileData);
 		}

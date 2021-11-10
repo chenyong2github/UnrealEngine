@@ -2,6 +2,7 @@
 
 #include "LiveCodingServerModule.h"
 #include "LiveCodingServer.h"
+#include "Misc/ScopeLock.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 #include "External/LC_Logging.h"
@@ -10,30 +11,68 @@ IMPLEMENT_MODULE(FLiveCodingServerModule, LiveCodingServer)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLiveCodingServer, Display, All);
 
-static void ServerOutputHandler(Logging::Channel::Enum Channel, Logging::Type::Enum Type, const wchar_t* const Text)
+static void ServerLogOutput(Logging::Channel::Enum Channel, Logging::Type::Enum Type, const wchar_t* const Text, int Count)
 {
-	FString TrimText = FString(Text).TrimEnd();
+	ELogVerbosity::Type Verbosity = ELogVerbosity::Error;
+
 	switch (Type)
 	{
 	case Logging::Type::LOG_ERROR:
-		UE_LOG(LogLiveCodingServer, Error, TEXT("%s"), *TrimText);
+		Verbosity = ELogVerbosity::Error;
 		break;
 	case Logging::Type::LOG_WARNING:
 		// There are some warnings generated in the dev channel that aren't really actionable by the users.
 		// For example, warnings about symbols being eliminated by the linker.  It would be nice to just 
 		// filter that specific warning, but we can't.
-		if (Channel == Logging::Channel::DEV)
+		Verbosity = Channel == Logging::Channel::DEV ? ELogVerbosity::Verbose : ELogVerbosity::Warning;
+		break;
+	default:
+		Verbosity = ELogVerbosity::Display;
+		break;
+	}
+
+	if (LogLiveCodingServer.GetVerbosity() < Verbosity)
+	{
+		return;
+	}
+
+	if (Count == 1)
+	{
+		FMsg::Logf(__FILE__, __LINE__, LogLiveCodingServer.GetCategoryName(), Verbosity, TEXT("%s"), Text);
+	}
+	else
+	{
+		FMsg::Logf(__FILE__, __LINE__, LogLiveCodingServer.GetCategoryName(), Verbosity, TEXT("%s (repeated %d more times)"), Text, Count);
+	}
+}
+
+static void ServerOutputHandler(Logging::Channel::Enum Channel, Logging::Type::Enum Type, const wchar_t* const Text)
+{
+	static FCriticalSection CriticalSection;
+	static Logging::Channel::Enum LastChannel = Logging::Channel::DEV;
+	static Logging::Type::Enum LastType = Logging::Type::LOG_ERROR;
+	static int LastCount = 0;
+	static FString LastText;
+
+	FString TrimText = FString(Text).TrimEnd();
+	{
+		FScopeLock Lock(&CriticalSection);
+		if (LastCount != 0 && LastType == Type && LastText.Equals(TrimText, ESearchCase::CaseSensitive))
 		{
-			UE_LOG(LogLiveCodingServer, Verbose, TEXT("%s"), *TrimText);
+			++LastCount;
 		}
 		else
 		{
-			UE_LOG(LogLiveCodingServer, Warning, TEXT("%s"), *TrimText);
+			if (LastCount > 1)
+			{
+				ServerLogOutput(LastChannel, LastType, *LastText, LastCount);
+			}
+			LastCount = 1;
+			LastChannel = Channel;
+			LastType = Type;
+			LastText = TrimText;
+			ServerLogOutput(LastChannel, LastType, *LastText, LastCount);
 		}
-		break;
-	default:
-		UE_LOG(LogLiveCodingServer, Display, TEXT("%s"), *TrimText);
-		break;
 	}
 
 	if (Channel == Logging::Channel::USER)

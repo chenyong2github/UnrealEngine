@@ -177,7 +177,6 @@ void FDragTool_ActorBoxSelect::EndDrag()
 		bool bSelectionChanged = false;
 		UWorld* IteratorWorld = GWorld;
 		const TArray<FName>& HiddenLayers = LevelViewportClient->ViewHiddenLayers;
-		const TArray<FName>& HiddenDataLayers = LevelViewportClient->ViewHiddenDataLayers;
 		for( FActorIterator It(IteratorWorld); It; ++It )
 		{
 			AActor* Actor = *It;
@@ -191,10 +190,6 @@ void FDragTool_ActorBoxSelect::EndDrag()
 					bActorIsVisible = false;
 					break;
 				}
-			}
-			if (bActorIsVisible)
-			{
-				bActorIsVisible = !Actor->HasAnyOfDataLayers(HiddenDataLayers);
 			}
 
 			// Select the actor if we need to

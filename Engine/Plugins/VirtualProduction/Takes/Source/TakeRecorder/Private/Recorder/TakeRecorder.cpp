@@ -1092,6 +1092,7 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 			}
 		}
 
+		OnRecordingStoppedEvent.Broadcast(this);
 		UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped();
 
 		if (MovieScene)
@@ -1242,6 +1243,11 @@ FOnTakeRecordingPreInitialize& UTakeRecorder::OnRecordingPreInitialize()
 FOnTakeRecordingStarted& UTakeRecorder::OnRecordingStarted()
 {
 	return OnRecordingStartedEvent;
+}
+
+FOnTakeRecordingStopped& UTakeRecorder::OnRecordingStopped()
+{
+	return OnRecordingStoppedEvent;
 }
 
 FOnTakeRecordingFinished& UTakeRecorder::OnRecordingFinished()

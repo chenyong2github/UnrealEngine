@@ -3,6 +3,7 @@
 #include "PackageSubmissionChecks.h"
 
 #include "Containers/UnrealString.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/PackageName.h"
 #include "Serialization/VirtualizedBulkData.h"
 #include "Virtualization/VirtualizationSystem.h"
@@ -30,7 +31,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 	for (const FString& AbsoluteFilePath : FilesToSubmit)
 	{
-		FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
+		const FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
 
 		if (FPackageName::IsPackageExtension(PackagePath.GetHeaderExtension()) || FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
 		{
@@ -43,7 +44,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 					if (Payload)
 					{
-						if (!System.PushData(PayloadId, Payload, EStorageType::Persistent))
+						if (!System.PushData(PayloadId, Payload, EStorageType::Persistent, PackagePath))
 						{
 							FText Message = FText::Format(LOCTEXT("Virtualization_PushFailure", "Failed to push payload '{0}' from the package '{1}'"),
 								FText::FromString(PayloadId.ToString()),

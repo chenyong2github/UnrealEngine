@@ -30,8 +30,6 @@ public:
 		ImportInternal(GetTypedDefaultObject<TFactory>(), ExternalSource);
 	}
 
-	static TSharedPtr<UE::DatasmithImporter::FExternalSource> TryGetExternalSourceFromFilepath(const FString& Filepath);
-
 	template <class TFactory>
 	static FString GetFilter()
 	{

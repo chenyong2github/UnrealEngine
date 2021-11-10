@@ -23,6 +23,7 @@ void SDMXFixtureModeEditor::Construct(const FArguments& InArgs, const TSharedRef
 	FixtureTypeSharedData = InDMXEditor->GetFixtureTypeSharedData();
 
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixtureModeEditor::OnFixtureTypePropertiesChanged);
+	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
 	FixtureTypeSharedData->OnModesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
 
 	ChildSlot

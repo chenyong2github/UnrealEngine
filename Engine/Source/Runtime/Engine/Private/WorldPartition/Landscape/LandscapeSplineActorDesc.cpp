@@ -31,9 +31,9 @@ void FLandscapeSplineActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
-void FLandscapeSplineActorDesc::OnRegister()
+void FLandscapeSplineActorDesc::OnRegister(UWorld* InWorld)
 {
-	FWorldPartitionActorDesc::OnRegister();
+	FWorldPartitionActorDesc::OnRegister(InWorld);
 
 	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), LandscapeGuid))
 	{

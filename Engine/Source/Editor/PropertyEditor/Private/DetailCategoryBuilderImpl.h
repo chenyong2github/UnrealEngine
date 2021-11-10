@@ -364,7 +364,7 @@ private:
 	/**
 	 * @return True of we should show the advanced button
 	 */
-	bool ShouldShowAdvanced() const;
+	bool ShouldAdvancedBeExpanded() const;
 
 	/**
 	 * @return true if the advaned dropdown button is enabled
@@ -374,7 +374,7 @@ private:
 	/**
 	 * @return the visibility of the advanced help text drop down (it is visible in a category if there are no simple properties)
 	 */
-	EVisibility GetAdvancedHelpTextVisibility() const;
+	bool ShouldAdvancedBeVisible() const;
 
 	/**
 	 * @return true if the parent that hosts us is enabled
@@ -423,4 +423,5 @@ private:
 	/*true if this category is the special favorite category, all property in the layout will be display when we generate the root tree */
 	bool bFavoriteCategory : 1;
 	bool bShowOnlyChildren : 1;
+	bool bHasVisibleAdvanced : 1;
 };

@@ -46,12 +46,19 @@ public:
 	virtual void RemoveCookedPackages() override;
 	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
 	virtual bool GetPreviousCookedBytes(FName PackageName, FPreviousCookedBytesData& OutData) override;
-	virtual void CompleteExportsArchiveForDiff(FLargeMemoryWriter& ExportsArchive) override;
-	virtual TFuture<FMD5Hash> CommitPackageInternal(const FCommitPackageInfo& Info) override;
-	virtual void ResetPackage() override;
+	virtual void CompleteExportsArchiveForDiff(FName PackageName, FLargeMemoryWriter& ExportsArchive) override;
+	virtual TFuture<FMD5Hash> CommitPackageInternal(FPackageWriterRecords::FPackage&& BaseRecord,
+		const FCommitPackageInfo& Info) override;
+	virtual FPackageWriterRecords::FPackage* ConstructRecord() override;
 
 	static EPackageExtension BulkDataTypeToExtension(FBulkDataInfo::EType BulkDataType);
 private:
+
+	/** Version of the superclass's per-package record that includes our class-specific data. */
+	struct FRecord : public FPackageWriterRecords::FPackage
+	{
+		bool bCompletedExportsArchiveForDiff = false;
+	};
 
 	/** Buffers that are combined into the HeaderAndExports file (which is then split into .uasset + .uexp). */
 	struct FExportBuffer
@@ -98,16 +105,16 @@ private:
 		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
 		const FString& CookedPath, FString& OutUncookedPath) const;
 	void RemoveCookedPackagesByUncookedFilename(const TArray<FName>& UncookedFileNamesToRemove);
-	TFuture<FMD5Hash> AsyncSave(const FCommitPackageInfo& Info);
+	TFuture<FMD5Hash> AsyncSave(FRecord& Record, const FCommitPackageInfo& Info);
 
-	void CollectForSavePackageData(FCommitContext& Context);
-	void CollectForSaveBulkData(FCommitContext& Context);
-	void CollectForSaveLinkerAdditionalDataRecords(FCommitContext& Context);
-	void CollectForSaveAdditionalFileRecords(FCommitContext& Context);
-	void CollectForSaveExportsFooter(FCommitContext& Context);
-	void CollectForSaveExportsBuffers(FCommitContext& Context);
-	TFuture<FMD5Hash> AsyncSaveOutputFiles(FCommitContext& Context);
-	void UpdateManifest();
+	void CollectForSavePackageData(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveBulkData(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveLinkerAdditionalDataRecords(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveAdditionalFileRecords(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveExportsFooter(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveExportsBuffers(FRecord& Record, FCommitContext& Context);
+	TFuture<FMD5Hash> AsyncSaveOutputFiles(FRecord& Record, FCommitContext& Context);
+	void UpdateManifest(FRecord& Record);
 
 	TMap<FName, FName> UncookedPathToCookedPath;
 	FString OutputPath;
@@ -118,5 +125,4 @@ private:
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;
 	bool bIterateSharedBuild;
-	bool bCompletedExportsArchiveForDiff;
 };

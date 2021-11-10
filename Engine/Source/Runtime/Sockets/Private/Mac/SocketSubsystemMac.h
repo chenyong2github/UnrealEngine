@@ -90,6 +90,7 @@ public:
 
 	~FSocketMac()
 	{
+		FSocketMac::Close();
 	}
 
 	virtual bool Close() override

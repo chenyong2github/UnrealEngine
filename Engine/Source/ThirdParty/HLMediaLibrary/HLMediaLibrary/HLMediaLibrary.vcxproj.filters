@@ -28,7 +28,6 @@
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="dll.def" />
-    <None Include="PropertySheet.props" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

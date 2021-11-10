@@ -326,6 +326,8 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			// Request data for the frame we would like... (in case it's not in, yet)
 			RequestFrame(FrameNumberToTime(MaxIdx), PlayRate, bIsLoopingEnabled);
 
+			FScopeLock Lock(&CriticalSection);
+
 			// If playback is not blocking, we expect less expectancy of precision on the users side, but more need for speedy return of "some ok frame"
 			// So: if we detect non-blocking playback we return a "as good sample as we can", but not always the "perfect" one we calculated
 			// (still we adhere to a rough emulation of a classic output pipeline as other players have)

@@ -165,6 +165,9 @@ public:
 	/** Initialization constructor. */
 	ENGINE_API FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName ResourceName = NAME_None);
 
+	/** Copy constructor. */
+	ENGINE_API FPrimitiveSceneProxy(FPrimitiveSceneProxy const&) = default;
+
 	/** Virtual destructor. */
 	ENGINE_API virtual ~FPrimitiveSceneProxy();
 

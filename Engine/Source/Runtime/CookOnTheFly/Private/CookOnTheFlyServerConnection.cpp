@@ -214,7 +214,10 @@ private:
 
 		FCookOnTheFlyMessage HandshakeRequest(ECookOnTheFlyMessage::Handshake | ECookOnTheFlyMessage::Request);
 		{
-			FString PlatformName(ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
+			TArray<FString> TargetPlatformNames;
+			FPlatformMisc::GetValidTargetPlatforms(TargetPlatformNames);
+			check(TargetPlatformNames.Num() > 0);
+			FString PlatformName(MoveTemp(TargetPlatformNames[0]));
 			FString ProjectName(FApp::GetProjectName());
 
 			TUniquePtr<FArchive> Ar = HandshakeRequest.WriteBody();

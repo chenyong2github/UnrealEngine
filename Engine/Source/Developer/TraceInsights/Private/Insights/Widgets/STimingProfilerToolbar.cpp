@@ -39,25 +39,25 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleFramesTrackVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "FramesTrack.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.FramesTrack.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleTimingViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleTimersViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimersView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleCallersTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.CallersView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleCalleesTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.CalleesView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleStatsCountersViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "StatsCountersView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.CountersView.ToolBar"));
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleLogViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "LogView.Icon.Large"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.LogView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -68,7 +68,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo,
 					NAME_None, FText(), TAttribute<FText>(),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"));
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}

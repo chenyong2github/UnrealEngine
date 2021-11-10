@@ -128,6 +128,11 @@ namespace Turnkey
 			bool bResult = false;
 
 			DirectoryInfo DirInfo = new DirectoryInfo(PathString);
+			if (!DirInfo.Exists)
+			{
+				return true;
+			}
+
 			while (DirInfo != null)
 			{
 				try

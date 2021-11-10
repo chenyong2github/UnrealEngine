@@ -22,11 +22,7 @@ namespace CADKernel
 		{
 		}
 
-		FSegmentCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FSegmentCurve() = default;
 
 	public:
 

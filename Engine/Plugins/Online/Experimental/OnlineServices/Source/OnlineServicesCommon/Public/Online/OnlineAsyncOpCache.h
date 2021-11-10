@@ -249,7 +249,7 @@ public:
 	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		TSharedRef<TOnlineAsyncOp<OpType>> Op = CreateOp<OpType, TJoinableOpParamsFuncs<OpType>>(MoveTemp(Params));
-		FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<typename OpType::Result>&)
+		FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
 			{
 				
 			});
@@ -292,7 +292,7 @@ public:
 			LoadConfigFn(Config, ConfigSectionHeiarchy);
 			
 			Op = CreateOp<OpType, ParamsFuncsType>(MoveTemp(Params));
-			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<typename OpType::Result>&)
+			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
 				{
 
 				});
@@ -340,7 +340,7 @@ public:
 			LoadConfigFn(Config, ConfigSectionHeiarchy);
 
 			Op = CreateOp<OpType, ParamsFuncsType>(MoveTemp(Params));
-			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<typename OpType::Result>&)
+			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
 				{
 
 				});

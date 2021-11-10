@@ -462,7 +462,7 @@ public:
 	/** Return a type for this interface */
 	virtual FString GetDisplayName() const override
 	{
-		return FString(TEXT("FileSystem"));
+		return FString(TEXT("File System"));
 	}
 
 
@@ -643,9 +643,6 @@ public:
 
 		if (ShouldSimulateMiss(CacheKey))
 		{
-			FScopeLock Lock(&MissedKeysCS);
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), CacheKey);
-			DebugMissedKeys.Add(FName(CacheKey));
 			return false;
 		}
 

@@ -45,14 +45,6 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
-// Temporary console variable to toggle pin value inspection in PIE.
-// @todo - Migrate this to a user-facing editor setting at some point.
-static TAutoConsoleVariable<bool> CVarBPEnablePinValueInspectionDuringPIE(
-	TEXT("BP.EnablePinValueInspectionDuringPIE"),
-	false,
-	TEXT("Enables pin value inspection tooltips during PIE (experimental).")
-);
-
 /** Per-thread data for use by FKismetDebugUtilities functions */
 class FKismetDebugUtilitiesData : public TThreadSingleton<FKismetDebugUtilitiesData>
 {
@@ -1599,7 +1591,8 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetWatchText(FStr
 
 bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 {
-	if (!CVarBPEnablePinValueInspectionDuringPIE.GetValueOnGameThread())
+	const UBlueprintEditorSettings* BlueprintEditorSettings = GetDefault<UBlueprintEditorSettings>();
+	if (!BlueprintEditorSettings->bEnablePinValueInspectionTooltips)
 	{
 		return false;
 	}
@@ -1624,8 +1617,9 @@ bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 	}
 
 	// Can't inspect exec pins or delegate pins; their values are not defined.
+	// Disallow non-K2 Schemas (like ControlRig)
 	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(OwningNode->GetSchema());
-	if (!ensureMsgf(K2Schema, TEXT("Invalid or missing schema.")) || K2Schema->IsExecPin(*Pin) || K2Schema->IsDelegateCategory(Pin->PinType.PinCategory))
+	if (!K2Schema || K2Schema->IsExecPin(*Pin) || K2Schema->IsDelegateCategory(Pin->PinType.PinCategory))
 	{
 		return false;
 	}

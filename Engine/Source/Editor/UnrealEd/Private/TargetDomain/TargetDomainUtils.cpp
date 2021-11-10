@@ -74,7 +74,7 @@ private:
 };
 TUniquePtr<FEditorDomainOplog> GEditorDomainOplog;
 
-bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, FIoHash* OutHash, FString* OutErrorMessage)
+bool TryCreateKey(FName PackageName, TConstArrayView<FName> SortedBuildDependencies, FIoHash* OutHash, FString* OutErrorMessage)
 {
 	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 	if (!AssetRegistry)
@@ -267,93 +267,96 @@ FCbObject BuildDefinitionListToObject(TConstArrayView<UE::DerivedData::FBuildDef
 	return Writer.Save().AsObject();
 }
 
-bool TryFetchCookAttachments(ICookedPackageWriter* PackageWriter, FName PackageName, const ITargetPlatform* TargetPlatform,
-	FCookAttachments& OutOplogData, FString* OutErrorMessage)
+void FetchCookAttachments(TArrayView<FName> PackageNames, const ITargetPlatform* TargetPlatform, ICookedPackageWriter* PackageWriter,
+	TUniqueFunction<void(FName PackageName, FCookAttachments&& Results)>&& Callback)
 {
-	OutOplogData.Reset();
-
-	const ANSICHAR* DependenciesKey = "Dependencies";
-	FCbObject DependenciesObj;
-	if (TargetPlatform)
+	for (FName PackageName : PackageNames)
 	{
-		check(PackageWriter);
-		DependenciesObj = PackageWriter->GetOplogAttachment(PackageName, DependenciesKey);
-	}
-	else
-	{
-		if (!GEditorDomainOplog)
+		FCookAttachments Result;
+		const ANSICHAR* DependenciesKey = "Dependencies";
+		FCbObject DependenciesObj;
+		if (TargetPlatform)
 		{
-			if (OutErrorMessage)
+			check(PackageWriter);
+			DependenciesObj = PackageWriter->GetOplogAttachment(PackageName, DependenciesKey);
+		}
+		else
+		{
+			if (!GEditorDomainOplog)
 			{
-				*OutErrorMessage = TEXT("EditorDomain oplog is not available.");
+				Callback(PackageName, MoveTemp(Result));
+				continue;
 			}
-			return false;
+			DependenciesObj = GEditorDomainOplog->GetOplogAttachment(PackageName, DependenciesKey);
 		}
-		DependenciesObj = GEditorDomainOplog->GetOplogAttachment(PackageName, DependenciesKey);
-	}
-	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
-	if (StoredKey.IsZero())
-	{
-		if (OutErrorMessage)
-		{
-			*OutErrorMessage = TEXT("Dependencies not in oplog.");
-		}
-		return false;
-	}
 
-	for (FCbFieldView DepObj : DependenciesObj["builddependencies"])
-	{
-		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
+		Result.StoredKey = DependenciesObj["targetdomainkey"].AsHash();
+		if (Result.StoredKey.IsZero())
 		{
-			OutOplogData.BuildDependencies.Add(FName(*DependencyName));
+			Callback(PackageName, MoveTemp(Result));
+			continue;
 		}
+
+		for (FCbFieldView DepObj : DependenciesObj["builddependencies"])
+		{
+			if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
+			{
+				Result.BuildDependencies.Add(FName(*DependencyName));
+			}
+		}
+
+		for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
+		{
+			if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
+			{
+				Result.RuntimeOnlyDependencies.Add(FName(*DependencyName));
+			}
+		}
+
+		const ANSICHAR* BuildDefinitionListKey = "BuildDefinitionList";
+		FCbObject BuildDefinitionListObj;
+		if (TargetPlatform)
+		{
+			BuildDefinitionListObj = PackageWriter->GetOplogAttachment(PackageName, BuildDefinitionListKey);
+		}
+		else
+		{
+			BuildDefinitionListObj = GEditorDomainOplog->GetOplogAttachment(PackageName, BuildDefinitionListKey);
+		}
+
+		for (FCbField BuildDefinitionObj : BuildDefinitionListObj)
+		{
+			UE::DerivedData::FOptionalBuildDefinition BuildDefinition =
+				UE::DerivedData::FBuildDefinition::Load(TEXT("TargetDomainBuildDefinitionList"),
+					BuildDefinitionObj.AsObject());
+			if (!BuildDefinition)
+			{
+				Result.BuildDefinitionList.Empty();
+				break;
+			}
+			Result.BuildDefinitionList.Add(MoveTemp(BuildDefinition).Get());
+		}
+		Result.bValid = true;
+		Callback(PackageName, MoveTemp(Result));
+	}
+}
+
+bool IsCookAttachmentsValid(FName PackageName, const FCookAttachments& CookAttachments)
+{
+	if (!CookAttachments.bValid)
+	{
+		return false;
 	}
 
 	FIoHash CurrentKey;
-	if (!TryCreateKey(PackageName, OutOplogData.BuildDependencies, &CurrentKey, OutErrorMessage))
+	if (!TryCreateKey(PackageName, CookAttachments.BuildDependencies, &CurrentKey, nullptr /* OutErrorMessage */))
 	{
 		return false;
 	}
 
-	if (StoredKey != CurrentKey)
+	if (CookAttachments.StoredKey != CurrentKey)
 	{
-		if (OutErrorMessage)
-		{
-			*OutErrorMessage = TEXT("Stored key does not match current key.");
-		}
 		return false;
-	}
-
-	for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
-	{
-		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
-		{
-			OutOplogData.RuntimeOnlyDependencies.Add(FName(*DependencyName));
-		}
-	}
-
-	const ANSICHAR* BuildDefinitionListKey = "BuildDefinitionList";
-	FCbObject BuildDefinitionListObj;
-	if (TargetPlatform)
-	{
-		BuildDefinitionListObj = PackageWriter->GetOplogAttachment(PackageName, BuildDefinitionListKey);
-	}
-	else
-	{
-		BuildDefinitionListObj = GEditorDomainOplog->GetOplogAttachment(PackageName, BuildDefinitionListKey);
-	}
-
-	for (FCbField BuildDefinitionObj : BuildDefinitionListObj)
-	{
-		UE::DerivedData::FOptionalBuildDefinition BuildDefinition =
-			UE::DerivedData::FBuildDefinition::Load(TEXT("TargetDomainBuildDefinitionList"),
-				BuildDefinitionObj.AsObject());
-		if (!BuildDefinition)
-		{
-			OutOplogData.BuildDefinitionList.Reset();
-			break;
-		}
-		OutOplogData.BuildDefinitionList.Add(MoveTemp(BuildDefinition).Get());
 	}
 
 	return true;

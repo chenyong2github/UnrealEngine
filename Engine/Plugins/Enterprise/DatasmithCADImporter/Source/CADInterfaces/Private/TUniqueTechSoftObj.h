@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#ifdef USE_TECHSOFT_SDK
+
 #include "CADData.h"
 
-#include "A3DSDKErrorCodes.h"
-#include "A3DSDKInitializeFunctions.h"
+#include "TechSoftInterface.h"
 
-namespace TechSoft
+namespace CADLibrary
 {
 
 	// Single-ownership smart TeshSoft object
@@ -30,85 +31,57 @@ namespace TechSoft
 	// A3D_INITIALIZE_DATA, and all A3DXXXXXXGet methods are TechSoft macro
 	//
 
-	template< class ObjectType, class PtrType>
-	class TUniqueTSObj
+	template<class ObjectType, class IndexerType>
+	class TUniqueTSObjBase
 	{
 	public:
 
 		/**
 		 * Constructor of an initialized ObjectType object
-		 * @param InGetter: Function Pointer of the A3DXXXXXXGet function.
 		 */
-		explicit TUniqueTSObj(A3DStatus (*InGetter)(const PtrType*, ObjectType*))
+		explicit TUniqueTSObjBase()
 		{
-			Getter = InGetter;
-			memset(&Data, 0, sizeof(Data)); 
-			Data.m_usStructSize = sizeof(Data);
+			InitializeData();
 		}
 
 		/**
 		 * Constructor of an filled ObjectType object with the data of DataPtr
 		 * @param DataPtr: the pointer of the data to copy
-		 * @param InGetter: Function pointer of the A3DXXXXXXGet function.
 		 */
-		explicit TUniqueTSObj(const PtrType* DataPtr, A3DStatus (*InGetter)(const PtrType*, ObjectType*))
-			:TUniqueTSObj(InGetter)
+		explicit TUniqueTSObjBase(IndexerType DataPtr)
 		{
-			Get(DataPtr);
+			//TechSoftInterfaceImpl::InitializeData(Data);
+			InitializeData();
+
+			Status = GetData(DataPtr);
 		}
 
-		/**
-		 * Constructor of an filled ObjectType object with the data of DataPtr
-		 * This type of structure need a specific initialization method
-		 * @param DataPtr: the pointer of the data to copy
-		 * @param InGetter: Function pointer of the A3DXXXXXXGet function.
-		 * @param Initializer: Initialization function pointer for ObjectType.
-		 */
-		explicit TUniqueTSObj(A3DStatus(*InGetter)(const PtrType*, ObjectType*), void(*Initializer)(ObjectType&))
+		~TUniqueTSObjBase()
 		{
-			Getter = InGetter;
-			Initializer(Data);
-		}
-
-		/**
-		 * Constructor of an initialized ObjectType object
-		 * This type of structure need a specific initialization method
-		 * @param DataPtr: the pointer of the data to copy
-		 * @param InGetter: Function pointer of the A3DXXXXXXGet function.
-		 * @param Initializer: Initialization function pointer for ObjectType.
-		 */
-		explicit TUniqueTSObj(const PtrType* DataPtr, A3DStatus(*InGetter)(const PtrType*, ObjectType*), void(*Initializer)(ObjectType&))
-			:TUniqueTSObj(InGetter, Initializer)
-		{
-			Get(DataPtr);
-		}
-
-		~TUniqueTSObj()
-		{
-			Getter(NULL, &Data);
+			ResetData();
 		}
 
 		/**
 		 * Fill the structure with the data of a new DataPtr
 		 */
-		A3DStatus Get(const PtrType* DataPtr)
+		A3DStatus FillFrom(IndexerType DataPtr)
 		{
 			if (IsValid())
 			{
-				Status = Getter(NULL, &Data);
+				Status = ResetData();
 			}
 			else
 			{
 				Status = A3DStatus::A3D_SUCCESS;
 			}
 
-			if (!IsValid() || (DataPtr == NULL))
+			if (!IsValid() || (DataPtr == DefaultValue))
 			{
 				Status = A3DStatus::A3D_ERROR;
 				return Status;
 			}
 
-			Status = Getter(DataPtr, &Data);
+			Status = GetData(DataPtr);
 			return Status;
 		}
 
@@ -117,11 +90,11 @@ namespace TechSoft
 		 */
 		void Reset()
 		{
-			Get(NULL);
+			ResetData();
 		}
 
 		/**
-		 * Return 
+		 * Return
 		 *  - A3DStatus::A3D_SUCCESS if the data is filled
 		 *  - A3DStatus::A3D_ERROR if the data is empty
 		 */
@@ -139,8 +112,8 @@ namespace TechSoft
 		}
 
 		// Non-copyable
-		TUniqueTSObj(const TUniqueTSObj&) = delete;
-		TUniqueTSObj& operator=(const TUniqueTSObj&) = delete;
+		TUniqueTSObjBase(const TUniqueTSObjBase&) = delete;
+		TUniqueTSObjBase& operator=(const TUniqueTSObjBase&) = delete;
 
 		// Conversion methods
 
@@ -172,16 +145,55 @@ namespace TechSoft
 		 */
 		ObjectType* GetEmptyDataPtr()
 		{
-			Get(NULL);
+			FillFrom(DefaultValue);
 			Status = A3DStatus::A3D_SUCCESS;
 			return &Data;
 		}
 
-
 	private:
 		ObjectType Data;
 		A3DStatus Status = A3DStatus::A3D_ERROR;
-		A3DStatus (*Getter)(const PtrType*, ObjectType*);
+
+		/**
+		 * DefaultValue is used to initialize "Data" with GetData method
+		 * According to IndexerType, the value is either nullptr for const A3DEntity* either something like "A3D_DEFAULT_MATERIAL_INDEX" ((A3DUns16)-1) for uint32
+		 * @see ResetData
+		 */
+		static IndexerType DefaultValue;
+
+		void InitializeData()
+#ifdef USE_TECHSOFT_SDK
+			;
+#else
+		{
+			return A3DStatus::A3D_ERROR;
+		}
+#endif
+
+		A3DStatus GetData(IndexerType AsmModelFilePtr);
+#ifdef USE_TECHSOFT_SDK
+		;
+#else
+		{
+			return A3DStatus::A3D_ERROR;
+		}
+#endif
+
+		A3DStatus ResetData()
+		{
+			return GetData(DefaultValue);
+		}
 	};
 
+	template<class ObjectType>
+	using TUniqueTSObj = TUniqueTSObjBase<ObjectType, const A3DEntity*>;
+
+	template<class ObjectType>
+	using TUniqueTSObjFromIndex = TUniqueTSObjBase<ObjectType, uint32>;
+
+	template<class ObjectType, class IndexerType>
+	IndexerType TUniqueTSObjBase<ObjectType, IndexerType>::DefaultValue = (IndexerType) nullptr;
+
 }
+
+#endif

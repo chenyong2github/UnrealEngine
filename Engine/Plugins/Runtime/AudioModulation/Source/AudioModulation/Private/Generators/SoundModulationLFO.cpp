@@ -24,9 +24,16 @@ namespace AudioModulation
 		static const FString DebugName = TEXT("LFO");
 	}
 
-	class FLFOGenerator : public FGeneratorBase
+	class FLFOGenerator : public IGenerator
 	{
 		public:
+			FLFOGenerator() = default;
+
+			FLFOGenerator(const FLFOGenerator& InGenerator)
+				: IGenerator(InGenerator.AudioDeviceId)
+			{
+			}
+
 			FLFOGenerator(const FSoundModulationLFOParams& InParams)
 				: Params(InParams)
 			{
@@ -60,6 +67,42 @@ namespace AudioModulation
 					LFO.Update();
 					Value = LFO.Generate() + Params.Offset;
 				}
+			}
+
+			virtual FGeneratorPtr Clone() const override
+			{
+				return FGeneratorPtr(new FLFOGenerator(*this));
+			}
+
+			virtual void UpdateGenerator(FGeneratorPtr&& InGenerator) override
+			{
+				if (!ensure(InGenerator.IsValid()))
+				{
+					return;
+				}
+
+				AudioRenderThreadCommand([this, NewGenerator = MoveTemp(InGenerator)]()
+				{
+					const FLFOGenerator* Generator = static_cast<const FLFOGenerator*>(NewGenerator.Get());
+
+					LFO.SetGain(Generator->Params.Amplitude);
+					LFO.SetFrequency(Generator->Params.Frequency);
+
+					static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
+					LFO.SetType(static_cast<Audio::ELFO::Type>(Generator->Params.Shape));
+
+					Audio::ELFOMode::Type NewMode = Generator->Params.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot;
+					const bool bModeUpdated = NewMode != LFO.GetMode();
+					if (bModeUpdated)
+					{
+						LFO.SetMode(NewMode);
+					}
+
+					if (bModeUpdated)
+					{
+						LFO.Start();
+					}
+				});
 			}
 
 #if !UE_BUILD_SHIPPING
@@ -127,6 +170,6 @@ namespace AudioModulation
 AudioModulation::FGeneratorPtr USoundModulationGeneratorLFO::CreateInstance(Audio::FDeviceId InDeviceId) const
 {
 	using namespace AudioModulation;
-	auto NewGenerator = MakeShared<FLFOGenerator, ESPMode::ThreadSafe>(Params);
-	return StaticCastSharedRef<IGenerator>(NewGenerator);
+
+	return FGeneratorPtr(new FLFOGenerator(Params));
 }

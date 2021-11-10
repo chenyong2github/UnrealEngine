@@ -24,7 +24,7 @@ public:
 		return false;
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType) override
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& Package) override
 	{
 		return false;
 	}

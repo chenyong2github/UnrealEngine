@@ -15,6 +15,16 @@
 
 struct FNDILandscapeContext
 {
+	Texture2D BaseColorVirtualTexture;
+	Texture2D<uint4> BaseColorVirtualTexturePageTable;
+	SamplerState BaseColorVirtualTextureSampler;
+	float4x4 BaseColorVirtualTextureWorldToUvTransform;
+	uint4 BaseColorVirtualTexturePackedUniform0;
+	uint4 BaseColorVirtualTexturePackedUniform1;
+	uint4 BaseColorVirtualTextureUniforms;
+	bool BaseColorVirtualTextureSRGB;
+	bool BaseColorVirtualTextureEnabled;
+
 	Texture2D HeightVirtualTexture;
 	Texture2D<uint4> HeightVirtualTexturePageTable;
 	SamplerState HeightVirtualTextureSampler;
@@ -48,6 +58,41 @@ struct FNDILandscapeContext
 	Texture2D<int> CachedPhysMatTexture;
 	int2 CachedPhysMatTextureDimension;
 };
+
+void NDILandscape_GetBaseColor(in FNDILandscapeContext DIContext, float3 InWorldPos, out float3 OutBaseColor, out bool OutIsValid)
+{
+	if (DIContext.BaseColorVirtualTextureEnabled)
+	{
+		float3 UnpackBaseColorOrigin = DIContext.BaseColorVirtualTextureWorldToUvTransform[0].xyz;
+		float3 UnpackBaseColorU = DIContext.BaseColorVirtualTextureWorldToUvTransform[1].xyz;
+		float3 UnpackBaseColorV = DIContext.BaseColorVirtualTextureWorldToUvTransform[2].xyz;
+
+		float2 SampleUv = VirtualTextureWorldToUV(InWorldPos, UnpackBaseColorOrigin, UnpackBaseColorU, UnpackBaseColorV);
+
+		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
+			DIContext.BaseColorVirtualTexturePageTable,
+			VTPageTableUniform_Unpack(DIContext.BaseColorVirtualTexturePackedUniform0, DIContext.BaseColorVirtualTexturePackedUniform1),
+			SampleUv,
+			VTADDRESSMODE_CLAMP,
+			VTADDRESSMODE_CLAMP,
+			0.0f);
+
+		float4 PackedValue = TextureVirtualSample(
+			DIContext.BaseColorVirtualTexture,
+			DIContext.BaseColorVirtualTextureSampler,
+			PageTable,
+			0,
+			VTUniform_Unpack(DIContext.BaseColorVirtualTextureUniforms));
+
+		OutBaseColor = DIContext.BaseColorVirtualTextureSRGB ? VirtualTextureUnpackBaseColorSRGB(PackedValue) : VirtualTextureUnpackBaseColorYCoCg(PackedValue);
+		OutIsValid = true;
+	}
+	else
+	{
+		OutBaseColor = 0.0f;
+		OutIsValid = false;
+	}
+}
 
 void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos, out float OutHeight, out bool OutIsValid)
 {
@@ -192,6 +237,15 @@ void NDILandscape_GetPhysicalMaterialIndex(in FNDILandscapeContext DIContext, fl
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define NDILANDSCAPE_DECLARE_CONSTANTS(NAME) \
+	Texture2D			BaseColorVirtualTexture_ ## NAME; \
+	Texture2D<uint4>	BaseColorVirtualTexturePageTable_ ## NAME; \
+	SamplerState		BaseColorVirtualTextureSampler_ ## NAME; \
+	float4x4			BaseColorVirtualTextureWorldToUvTransform_ ## NAME; \
+	bool				BaseColorVirtualTextureSRGB_ ## NAME; \
+	bool				BaseColorVirtualTextureEnabled_ ## NAME; \
+	uint4				BaseColorVirtualTexturePackedUniform0_ ## NAME; \
+	uint4				BaseColorVirtualTexturePackedUniform1_ ## NAME; \
+	uint4				BaseColorVirtualTextureUniforms_ ## NAME; \
 	Texture2D			HeightVirtualTexture_ ## NAME; \
 	Texture2D<uint4>	HeightVirtualTexturePageTable_ ## NAME; \
 	SamplerState		HeightVirtualTextureSampler_ ## NAME; \
@@ -224,6 +278,15 @@ void NDILandscape_GetPhysicalMaterialIndex(in FNDILandscapeContext DIContext, fl
 
 #define NDILANDSCAPE_MAKE_CONTEXT(NAME) \
 	FNDILandscapeContext DIContext; \
+	DIContext.BaseColorVirtualTexture = BaseColorVirtualTexture_ ## NAME; \
+	DIContext.BaseColorVirtualTexturePageTable = BaseColorVirtualTexturePageTable_ ## NAME; \
+	DIContext.BaseColorVirtualTextureSampler = BaseColorVirtualTextureSampler_ ## NAME; \
+	DIContext.BaseColorVirtualTextureWorldToUvTransform = BaseColorVirtualTextureWorldToUvTransform_ ## NAME; \
+	DIContext.BaseColorVirtualTexturePackedUniform0 = BaseColorVirtualTexturePackedUniform0_ ## NAME; \
+	DIContext.BaseColorVirtualTexturePackedUniform1 = BaseColorVirtualTexturePackedUniform1_ ## NAME; \
+	DIContext.BaseColorVirtualTextureUniforms = BaseColorVirtualTextureUniforms_ ## NAME; \
+	DIContext.BaseColorVirtualTextureSRGB = BaseColorVirtualTextureSRGB_ ## NAME; \
+	DIContext.BaseColorVirtualTextureEnabled = BaseColorVirtualTextureEnabled_ ## NAME; \
 	DIContext.HeightVirtualTexture = HeightVirtualTexture_ ## NAME; \
 	DIContext.HeightVirtualTexturePageTable = HeightVirtualTexturePageTable_ ## NAME; \
 	DIContext.HeightVirtualTextureSampler = HeightVirtualTextureSampler_ ## NAME; \

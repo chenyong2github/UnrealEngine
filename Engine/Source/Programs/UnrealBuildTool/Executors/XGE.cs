@@ -53,6 +53,18 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "XGE")]
 		static string[] VpnSubnets = null;
 
+		/// <summary>
+		/// Whether to allow remote linking
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static bool bAllowRemoteLinking = false;
+
+		/// <summary>
+		/// Whether to enable the VCCompiler=true setting. This requires an additional license for VC tools. 
+		/// </summary>
+		[XmlConfigFile(Category = "XGE")]
+		static bool bUseVCCompilerMode = false;
+
 		private const string ProgressMarkupPrefix = "@action";
 
 		public XGE()
@@ -424,7 +436,14 @@ namespace UnrealBuildTool
 				LinkedAction Action = Actions[ActionIndex];
 
 				// Don't allow remote linking if on VPN.
-				bool CanExecuteRemotely = Action.bCanExecuteRemotely && !(Action.ActionType == ActionType.Link && HostOnVpn);
+				bool CanExecuteRemotely = Action.bCanExecuteRemotely;
+				if(CanExecuteRemotely && Action.ActionType == ActionType.Link)
+				{
+					if (HostOnVpn || !bAllowRemoteLinking)
+					{
+						CanExecuteRemotely = false;
+					}
+				}
 
 				// <Tool ... />
 				XmlElement ToolElement = XGETaskDocument.CreateElement("Tool");
@@ -456,6 +475,14 @@ namespace UnrealBuildTool
 				ToolElement.SetAttribute("Params", Action.CommandArguments);
 				ToolElement.SetAttribute("Path", Action.CommandPath.FullName);
 				ToolElement.SetAttribute("SkipIfProjectFailed", "true");
+				if (Action.ActionType == ActionType.Compile && bUseVCCompilerMode)
+				{
+					string FileName = Action.CommandPath.GetFileName();
+					if (FileName.Equals("cl.exe", StringComparison.OrdinalIgnoreCase) || FileName.Equals("cl-filter.exe", StringComparison.OrdinalIgnoreCase))
+					{
+						ToolElement.SetAttribute("VCCompiler", "true");
+					}
+				}
 				if (Action.bIsGCCCompiler)
 				{
 					ToolElement.SetAttribute("AutoReserveMemory", "*.gch");

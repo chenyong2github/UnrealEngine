@@ -21,16 +21,16 @@ public:
 	UMovieSceneDataLayerSection(const FObjectInitializer& ObjInit);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	MOVIESCENETRACKS_API EDataLayerState GetDesiredState() const;
+	MOVIESCENETRACKS_API EDataLayerRuntimeState GetDesiredState() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	MOVIESCENETRACKS_API void SetDesiredState(EDataLayerState InDesiredState);
+	MOVIESCENETRACKS_API void SetDesiredState(EDataLayerRuntimeState InDesiredState);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	MOVIESCENETRACKS_API EDataLayerState GetPrerollState() const;
+	MOVIESCENETRACKS_API EDataLayerRuntimeState GetPrerollState() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	MOVIESCENETRACKS_API void SetPrerollState(EDataLayerState InPrerollState);
+	MOVIESCENETRACKS_API void SetPrerollState(EDataLayerRuntimeState InPrerollState);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const TArray<FActorDataLayer>& GetDataLayers() const { return DataLayers; }
@@ -50,9 +50,9 @@ private:
 
 	/** The desired state for the data layers on this section when the section is actively evaluating. */
 	UPROPERTY(EditAnywhere, Category=DataLayer)
-	EDataLayerState DesiredState;
+	EDataLayerRuntimeState DesiredState;
 
 	/** The desired state for the data layers on this section when the section is pre or post-rolling. */
 	UPROPERTY(EditAnywhere, Category=DataLayer)
-	EDataLayerState PrerollState;
+	EDataLayerRuntimeState PrerollState;
 };

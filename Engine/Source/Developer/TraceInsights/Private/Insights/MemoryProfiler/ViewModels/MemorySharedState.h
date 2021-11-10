@@ -86,9 +86,8 @@ public:
 	const Insights::FMemoryTagList& GetTagList() { return TagList; }
 
 	const TArray<TSharedPtr<Insights::FMemoryTracker>>& GetTrackers()  const { return Trackers; }
-	TSharedPtr<Insights::FMemoryTracker> GetCurrentTracker() const { return CurrentTracker; }
-	void SetCurrentTracker(TSharedPtr<Insights::FMemoryTracker> Tracker) { CurrentTracker = Tracker; OnTrackerChanged(); }
 	FString TrackersToString(uint64 Flags, const TCHAR* Conjunction) const;
+	const Insights::FMemoryTracker* GetTrackerById(Insights::FMemoryTrackerId InMemTrackerId) const;
 
 	TSharedPtr<FMemoryGraphTrack> GetMainGraphTrack() const { return MainGraphTrack; }
 
@@ -112,14 +111,13 @@ public:
 	TSharedPtr<FMemoryGraphTrack> CreateMemoryGraphTrack();
 	int32 RemoveMemoryGraphTrack(TSharedPtr<FMemoryGraphTrack> GraphTrack);
 
-	TSharedPtr<FMemoryGraphTrack> GetMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
-	TSharedPtr<FMemoryGraphTrack> CreateMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
+	TSharedPtr<FMemoryGraphTrack> GetMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
+	TSharedPtr<FMemoryGraphTrack> CreateMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
 	void RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& GraphTrack);
-	int32 RemoveMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
-	int32 RemoveUnusedMemTagGraphTracks();
+	int32 RemoveMemTagGraphTrack(Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
 	int32 RemoveAllMemTagGraphTracks();
 
-	TSharedPtr<FMemoryGraphSeries> ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> GraphTrack, Insights::FMemoryTagId MemTagId);
+	TSharedPtr<FMemoryGraphSeries> ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> InGraphTrack, Insights::FMemoryTrackerId InMemTrackerId, Insights::FMemoryTagId InMemTagId);
 
 	void CreateTracksFromReport(const FString& Filename);
 	void CreateTracksFromReport(const Insights::FReportConfig& ReportConfig);
@@ -139,10 +137,8 @@ public:
 
 private:
 	void SyncTrackers();
-	void OnTrackerChanged();
-	void SetTrackerIdToAllSeries(TSharedPtr<FMemoryGraphTrack>& GraphTrack, Insights::FMemoryTrackerId TrackerId);
 	int32 GetNextMemoryGraphTrackOrder();
-	TSharedPtr<FMemoryGraphTrack> CreateGraphTrack(const Insights::FReportTypeGraphConfig& ReportTypeGraphConfig);
+	TSharedPtr<FMemoryGraphTrack> CreateGraphTrack(const Insights::FReportTypeGraphConfig& ReportTypeGraphConfig, bool bIsPlatformTracker);
 	void InitMemoryRules();
 	void OnMemoryRuleChanged();
 
@@ -153,7 +149,7 @@ private:
 
 	TArray<TSharedPtr<Insights::FMemoryTracker>> Trackers;
 	TSharedPtr<Insights::FMemoryTracker> DefaultTracker;
-	TSharedPtr<Insights::FMemoryTracker> CurrentTracker;
+	TSharedPtr<Insights::FMemoryTracker> PlatformTracker;
 
 	TSharedPtr<FMemoryGraphTrack> MainGraphTrack; // the Main Memory Graph track; also hosts the Total Allocated Memory series
 	TSharedPtr<FMemoryGraphTrack> LiveAllocsGraphTrack; // the graph track for the Live Allocation Count series

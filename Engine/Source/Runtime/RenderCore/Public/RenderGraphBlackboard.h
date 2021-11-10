@@ -78,7 +78,10 @@ public:
 		const int32 StructIndex = GetStructIndex<StructType>();
 		if (StructIndex < Blackboard.Num())
 		{
-			return &static_cast<const HelperStructType*>(Blackboard[StructIndex])->Struct;
+			if (const HelperStructType* Element = static_cast<const HelperStructType*>(Blackboard[StructIndex]))
+			{
+				return &Element->Struct;
+			}
 		}
 		return nullptr;
 	}

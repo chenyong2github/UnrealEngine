@@ -33,17 +33,7 @@ FSplash::FSplash(FOculusHMD* InOculusHMD) :
 	bShouldShowSplash(false),
 	SystemDisplayInterval(1 / 90.0f)
 {
-	// Create empty quad layer for black frame
-	{
-		IStereoLayers::FLayerDesc LayerDesc;
-		LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
-		LayerDesc.Priority = 0;
-		LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-		LayerDesc.Texture = GBlackTexture->TextureRHI;
-		BlackLayer = MakeShareable(new FLayer(NextLayerId++, LayerDesc));
-	}
-
-	// Create empty quad layer for black frame
+	// Create empty quad layer for UE layer
 	{
 		IStereoLayers::FLayerDesc LayerDesc;
 		LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
@@ -53,7 +43,6 @@ FSplash::FSplash(FOculusHMD* InOculusHMD) :
 		UELayer = MakeShareable(new FLayer(NextLayerId++, LayerDesc));
 	}
 }
-
 
 FSplash::~FSplash()
 {
@@ -238,10 +227,7 @@ void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	XFrame->ShowFlags.Rendering = true;
 	TArray<FLayerPtr> XLayers = Layers_RenderThread_Input;
 
-	if (XLayers.Num()==0)
-	{
-		XLayers.Add(BlackLayer->Clone());
-	}
+	ensure(XLayers.Num() != 0);
 
 	ovrpResult Result;
 	if ( FOculusHMDModule::GetPluginWrapper().GetInitialized() && OculusHMD->WaitFrameNumber != XFrame->FrameNumber)
@@ -585,13 +571,18 @@ void FSplash::DoShow()
 		Layers_RenderThread_Input.Sort(FLayerPtr_CompareId());
 	}
 
+	if (Layers_RenderThread_Input.Num() > 0)
+	{
 	// If no textures are loaded, this will push black frame
 	StartTicker();
 	bIsShown = true;
-
 	UE_LOG(LogHMD, Log, TEXT("FSplash::DoShow"));
+	} 
+	else
+	{
+		UE_LOG(LogHMD, Log, TEXT("No splash layers in FSplash::DoShow"));
+	}
 }
-
 
 void FSplash::DoHide()
 {

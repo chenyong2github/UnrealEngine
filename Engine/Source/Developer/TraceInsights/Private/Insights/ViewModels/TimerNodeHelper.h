@@ -28,13 +28,6 @@ struct TimerNodeTypeHelper
 	 */
 	static FText ToDescription(const ETimerNodeType Type);
 
-	/**
-	 * @param Type - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified ETimerNodeType value.
-	 */
-	static FName ToBrushName(const ETimerNodeType Type);
-
 	static const FSlateBrush* GetIconForGroup();
 	static const FSlateBrush* GetIconForTimerNodeType(const ETimerNodeType Type);
 };
@@ -57,13 +50,6 @@ struct TimerNodeGroupingHelper
 	 * @return text representation with more detailed explanation of the specified ETimerGroupingMode value.
 	 */
 	static FText ToDescription(const ETimerGroupingMode TimerGroupingMode);
-
-	/**
-	 * @param TimerGroupingMode - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified ETimerGroupingMode value.
-	 */
-	static FName ToBrushName(const ETimerGroupingMode TimerGroupingMode);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

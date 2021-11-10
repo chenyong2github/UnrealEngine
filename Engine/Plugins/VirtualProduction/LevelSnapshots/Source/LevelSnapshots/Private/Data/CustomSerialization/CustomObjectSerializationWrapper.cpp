@@ -13,6 +13,8 @@
 
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
+#include "Util/SnapshotObjectUtil.h"
+#include "Util/SnapshotUtil.h"
 
 namespace
 {
@@ -50,7 +52,8 @@ namespace
 				}
 
 				// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-				const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, ProcessObjectDependency, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);});
+				const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, ProcessObjectDependency, LocalisationSnapshotPackage,
+					[&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return SnapshotUtil::Object::FindCustomSubobjectData(WorldData, OriginalPath);});
 				FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializationDataGetter()->Subobjects[i], WorldData, SnapshotSubobject, ProcessObjectDependency, LocalisationSnapshotPackage);
 				CustomSerializer->OnPostSerializeSnapshotSubobject(SnapshotSubobject, *MetaData, SerializationDataReader);
 			}
@@ -106,7 +109,8 @@ namespace
 				if (const FPropertySelection* SelectedProperties = SelectionMap.GetObjectSelection(EditorSubobject).GetPropertySelection())
 				{
 					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
+					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage,
+						[&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return SnapshotUtil::Object::FindCustomSubobjectData(WorldData, OriginalPath);} );
 				
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
 					FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap, *SelectedProperties);
@@ -118,7 +122,8 @@ namespace
 				if (RestorationInfo && RestorationInfo->CustomSnapshotSubobjectsToRestore.Contains(SnapshotSubobject))
 				{
 					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
+					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage,
+						[&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return SnapshotUtil::Object::FindCustomSubobjectData(WorldData, OriginalPath);} );
 
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
 					FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap);
@@ -169,7 +174,7 @@ void FCustomObjectSerializationWrapper::TakeSnapshotForSubobject(
 		return;
 	}
 
-	const int32 SubobjectIndex = WorldData.AddCustomSubobjectDependency(Subobject); 
+	const int32 SubobjectIndex = SnapshotUtil::Object::AddCustomSubobjectDependency(WorldData, Subobject); 
 	FCustomSerializationDataWriter SerializationDataWriter = FCustomSerializationDataWriter(
 		FCustomSerializationDataGetter_ReadWrite::CreateLambda([&WorldData, SubobjectIndex]() { return WorldData.CustomSubobjectSerializationData.Find(SubobjectIndex); }),
 		WorldData,
@@ -206,7 +211,10 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreActorRestore_EditorWor
 	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreEditorRestore);
 	
 	const TOptional<AActor*> SnapshotActor = WorldData.GetDeserializedActor(EditorActor, LocalisationSnapshotPackage);
-	check(SnapshotActor);
+	if (!ensure(SnapshotActor))
+	{
+		return FRestoreObjectScope([](){});
+	}
 	
 	return PreObjectRestore_EditorWorld(
 		*SnapshotActor,
@@ -233,7 +241,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Snaps
 		WorldData,
 		ProcessObjectDependency,
 		LocalisationSnapshotPackage,
-		[&WorldData, OriginalSubobjectPath](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalSubobjectPath); }
+		[&WorldData, OriginalSubobjectPath](){ return SnapshotUtil::Object::FindCustomSubobjectData(WorldData, OriginalSubobjectPath); }
 		);
 }
 
@@ -248,7 +256,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Edito
 	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreEditorRestore);
 	
 	const FSoftObjectPath SubobjectPath(EditorObject);
-	if (!WorldData.GetCustomSubobjectData_ForSubobject(SubobjectPath))
+	if (!SnapshotUtil::Object::FindCustomSubobjectData(WorldData, SubobjectPath))
 	{
 		return FRestoreObjectScope(nullptr);	
 	}
@@ -259,7 +267,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Edito
 		WorldData,
 		SelectionMap,
 		LocalisationSnapshotPackage,
-		[&WorldData, SubobjectPath](){ return WorldData.GetCustomSubobjectData_ForSubobject(SubobjectPath); }
+		[&WorldData, SubobjectPath](){ return SnapshotUtil::Object::FindCustomSubobjectData(WorldData, SubobjectPath); }
 		);
 }
 
@@ -272,7 +280,7 @@ void FCustomObjectSerializationWrapper::ForEachMatchingCustomSubobjectPair(const
     	return;
     }
 
-    const FCustomSerializationData* SubobjectData = WorldData.GetCustomSubobjectData_ForActorOrSubobject(WorldObject);
+    const FCustomSerializationData* SubobjectData = SnapshotUtil::Object::FindCustomActorOrSubobjectData(WorldData, WorldObject);
     if (!SubobjectData)
     {
     	return;

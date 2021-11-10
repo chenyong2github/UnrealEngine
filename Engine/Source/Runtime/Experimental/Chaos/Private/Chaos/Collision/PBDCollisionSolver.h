@@ -67,7 +67,6 @@ namespace Chaos
 			*/
 			void UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1);
 
-
 			/**
 			 * @brief Calculate the relative velocity at the contact point
 			 * @note InitContact must be called before calling this function
@@ -162,6 +161,16 @@ namespace Chaos
 			return State.ManifoldPoints[ManifoldPointIndex];
 		}
 
+		int32 NumPositionSolves() const
+		{
+			return State.NumPositionSolves;
+		}
+
+		int32 NumVelocitySolves() const
+		{
+			return State.NumVelocitySolves;
+		}
+
 		void InitContact(
 			const int32 ManifoldPoiontIndex,
 			const FVec3& InCoMAnchorPoint0,
@@ -239,6 +248,8 @@ namespace Chaos
 			FReal DynamicFriction;
 			FReal Stiffness;
 			int32 BodyEpochs[MaxConstrainedBodies];
+			int32 NumPositionSolves;
+			int32 NumVelocitySolves;
 			bool bIsSolved;
 		};
 

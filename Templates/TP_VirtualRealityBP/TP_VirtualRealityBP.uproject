@@ -39,14 +39,6 @@
 				"Win64",
 				"Linux"
 			]
-		},
-		{
-			"Name": "OculusOpenXR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Android"
-			]
 		}
 	],
 	"TargetPlatforms": [

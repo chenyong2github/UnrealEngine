@@ -117,6 +117,8 @@ enum class ESkeletalMeshAsyncProperties : uint64
 	PreviewAttachedAssetContainer = 1llu << 50,
 	DefaultEditorCameraOrthoZoom = 1llu << 51,
 	RequiresLODHysteresisConversion = 1llu << 52,
+	bSupportRayTracing = 1llu << 53,
+	RayTracingMinLOD = 1llu << 54,
 	All = MAX_uint64
 };
 
@@ -864,7 +866,7 @@ public:
 
 	/** Skeleton of this skeletal mesh **/
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkeleton() or USkeletalMesh::SetSkeleton().")
-	UPROPERTY(Category=Mesh, AssetRegistrySearchable, VisibleAnywhere, BlueprintGetter = GetSkeleton)
+	UPROPERTY(Category=Mesh, AssetRegistrySearchable, VisibleAnywhere, BlueprintGetter = GetSkeleton, BlueprintSetter = SetSkeleton)
 	TObjectPtr<USkeleton> Skeleton;
 
 	static FName GetSkeletonMemberName()
@@ -891,6 +893,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UFUNCTION(BlueprintSetter)
 	void SetSkeleton(USkeleton* InSkeleton)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Skeleton);
@@ -1990,14 +1993,48 @@ public:
 	/**
 	 * If true, a ray tracing acceleration structure will be built for this mesh and it may be used in ray tracing effects
 	 */
+	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	uint8 bSupportRayTracing : 1;
+
+	bool GetSupportRayTracing() const
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::bSupportRayTracing, EAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bSupportRayTracing;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetSupportRayTracing(bool InSupportRayTracing)
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::bSupportRayTracing);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bSupportRayTracing = InSupportRayTracing;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * LOD bias for ray tracing. When non-zero, a different LOD level other than the predicted LOD level will be used for ray tracing. Advanced features like morph targets and cloth simulation may not work properly.
 	 */
+	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	int32 RayTracingMinLOD;
+
+	int32 GetRayTracingMinLOD() const
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RayTracingMinLOD, EAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RayTracingMinLOD;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetRayTracingMinLOD(int32 InRayTracingMinLOD)
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RayTracingMinLOD);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RayTracingMinLOD = InRayTracingMinLOD;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargets() or USkeletalMesh::SetMorphTargets().")
 	UPROPERTY(BlueprintGetter = GetMorphTargets, BlueprintSetter = SetMorphTargets, Category = Mesh)

@@ -402,6 +402,10 @@ namespace UE
 
 			if (GetConfiguration() is AutomationTestConfig Config)
 			{
+				if (Config.ResumeOnCriticalFailure && string.IsNullOrEmpty(Config.ReportExportPath))
+				{
+					Config.ReportExportPath = Path.Combine(Globals.TempDir, "TestReport");
+				}
 				string ReportExportPath = Config.ReportExportPath;
 				if (!string.IsNullOrEmpty(ReportExportPath))
 				{

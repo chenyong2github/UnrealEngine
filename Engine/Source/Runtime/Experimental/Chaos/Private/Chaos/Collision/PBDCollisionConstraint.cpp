@@ -145,6 +145,12 @@ namespace Chaos
 		return Constraint;
 	}
 
+	void FPBDCollisionConstraint::Destroy(
+		FPBDCollisionConstraint* Constraint,
+		FCollisionConstraintAllocator& Allocator)
+	{
+		Allocator.DestroyConstraint(Constraint);
+	}
 
 	FPBDCollisionConstraint::FPBDCollisionConstraint()
 		: ImplicitTransform{ FRigidTransform3(), FRigidTransform3() }
@@ -161,6 +167,7 @@ namespace Chaos
 		, GJKWarmStartData()
 		, PrevManifoldPoints()
 		, bWasManifoldRestored(false)
+		, NumActivePositionIterations(0)
 	{
 		Manifold.Implicit[0] = nullptr;
 		Manifold.Implicit[1] = nullptr;
@@ -217,9 +224,11 @@ namespace Chaos
 
 		bUseManifold = bInUseManifold && CanUseManifold(Particle[0], Particle[1]);
 		bUseIncrementalManifold = true;	// This will get changed later if we call AddOneShotManifoldContact
+	}
 
-		SetIsSleeping(false);
-		SetWasAwakened(false);
+	void FPBDCollisionConstraint::SetIsSleeping(const bool bInIsSleeping)
+	{
+		ConcreteContainer()->SetConstraintIsSleeping(*this, bInIsSleeping);
 	}
 
 	// Are the two manifold points the same point?

@@ -25,12 +25,16 @@ struct FSinglePropertyParams
 
 	/** Whether or not to show the name */
 	EPropertyNamePlacement::Type NamePlacement;
+
+	/** Whether to hide an asset thumbnail, if available */
+	bool bHideAssetThumbnail;
 		
 	FSinglePropertyParams()
 		: NameOverride(FText::GetEmpty())
 		, Font()
 		, NotifyHook( NULL )
 		, NamePlacement( EPropertyNamePlacement::Left )
+		, bHideAssetThumbnail( false )
 	{
 	}
 };

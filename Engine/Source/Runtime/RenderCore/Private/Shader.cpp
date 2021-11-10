@@ -1789,6 +1789,14 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Material.RoughDiffuse"));
+		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		{
+			KeyString += FString::Printf(TEXT("_MATRDIFF"));
+		}
+	}
+
+	{
 		if (MaskedInEarlyPass(Platform))
 		{
 			KeyString += TEXT("_EZPMM");

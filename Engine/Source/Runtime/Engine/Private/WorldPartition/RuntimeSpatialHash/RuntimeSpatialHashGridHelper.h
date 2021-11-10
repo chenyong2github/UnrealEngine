@@ -260,7 +260,7 @@ struct FSquare2DGridHelper
 		{
 			FGridCellDataChunk(const TArray<const UDataLayer*>& InDataLayers)
 			{
-				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->IsDynamicallyLoaded(); }, [](const UDataLayer* DataLayer) { return DataLayer; });
+				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->IsRuntime(); }, [](const UDataLayer* DataLayer) { return DataLayer; });
 				DataLayersID = FDataLayersID(DataLayers);
 			}
 

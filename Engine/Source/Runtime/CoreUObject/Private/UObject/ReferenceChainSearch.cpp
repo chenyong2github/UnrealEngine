@@ -455,7 +455,7 @@ public:
 		, ReferencedObjects(InReferencedObjects)		
 	{
 	}
-	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 		FReferenceChainSearch::FObjectReferenceInfo RefInfo(Object);
 		if (Object && !ReferencedObjects.Contains(RefInfo))

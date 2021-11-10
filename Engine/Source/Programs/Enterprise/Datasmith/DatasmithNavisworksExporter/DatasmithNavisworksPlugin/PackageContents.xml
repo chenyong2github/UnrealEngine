@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="Naviswork" Name="Datasmith Navisworks Exporter" Description="Unreal Datasmith exporter for Navisworks" AppVersion="Unreal Engine 4.27.1" ProductCode="" upgradeCode="" OnlineDocumentation="https://www.unrealengine.com/en-US/datasmith/plugins" HelpFile="./Help.htm" Icon="./DatasmithIcon32.png">    
+<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="Naviswork" Name="Datasmith Navisworks Exporter" Description="Unreal Datasmith exporter for Navisworks" AppVersion="Unreal Engine 4.27.2" ProductCode="" upgradeCode="" OnlineDocumentation="https://www.unrealengine.com/en-US/datasmith/plugins" HelpFile="./Help.htm" Icon="./DatasmithIcon32.png">    
 	<CompanyDetails Name="Epic Games,  https://www.unrealengine.com/"/>
     <Components Description="2019">
 	    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw16" SeriesMax="Nw16" />

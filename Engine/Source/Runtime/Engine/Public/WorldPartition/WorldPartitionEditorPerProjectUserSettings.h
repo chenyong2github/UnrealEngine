@@ -32,6 +32,9 @@ struct FWorldPartitionPerWorldSettings
 
 	UPROPERTY()
 	TArray<FName> LoadedDataLayers;
+
+	UPROPERTY()
+	uint32 EditorGridConfigHash = 0;
 #endif
 };
 
@@ -41,23 +44,30 @@ class UWorldPartitionEditorPerProjectUserSettings : public UObject
 	GENERATED_BODY()
 
 public:
+	UWorldPartitionEditorPerProjectUserSettings(const FObjectInitializer& ObjectInitializer)
+		: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+		, bHideEditorDataLayers(false)
+		, bHideRuntimeDataLayers(false)
+		, bHideDataLayerActors(true)
+		, bHideUnloadedActors(false)
+		, bAllowRuntimeDataLayerEditing(false)
+		, bDisableLoadingOfLastLoadedCells(false)
+#endif
+	{}
+
 #if WITH_EDITOR
-	uint32 GetEditorGridConfigHash() const
+	void SetEditorGridConfigHash(UWorld* InWorld, uint32 InEditorGridConfigHash)
 	{ 
-		return EditorGridConfigHash;
-	}
-
-	void SetEditorGridConfigHash(uint32 InEditorGridConfigHash)
-	{ 
-		if (EditorGridConfigHash != InEditorGridConfigHash)
+		if (ShouldSaveSettings(InWorld))
 		{
-			EditorGridConfigHash = InEditorGridConfigHash;
-
-			for (auto& PerWorldEditorSetting : PerWorldEditorSettings)
+			FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
+			if (PerWorldSettings.EditorGridConfigHash != InEditorGridConfigHash)
 			{
-				PerWorldEditorSetting.Value.LoadedEditorGridCells.Empty();
+				PerWorldSettings.EditorGridConfigHash = InEditorGridConfigHash;
+				PerWorldSettings.LoadedEditorGridCells.Empty();
+				SaveConfig();
 			}
-			SaveConfig();
 		}
 	}
 
@@ -72,20 +82,6 @@ public:
 		{
 			TArray<FName>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
 			GridLoadedCells = InEditorGridLoadedCells;
-			SaveConfig();
-		}
-	}
-
-	bool GetShowDataLayerContent() const
-	{
-		return bShowDataLayerContent;
-	}
-
-	void SetShowDataLayerContent(bool bInShowDataLayerContent)
-	{
-		if (bShowDataLayerContent != bInShowDataLayerContent)
-		{
-			bShowDataLayerContent = bInShowDataLayerContent;
 			SaveConfig();
 		}
 	}
@@ -118,18 +114,33 @@ public:
 	}
 #endif
 
-private:
 #if WITH_EDITORONLY_DATA
+public:
+	/** True when the Data Layer Outliner is displaying Editor Data Layers */
+	UPROPERTY(config)
+	uint32 bHideEditorDataLayers : 1;
+
+	/** True when the Data Layer Outliner is displaying Runtime Data Layers */
+	UPROPERTY(config)
+	uint32 bHideRuntimeDataLayers : 1;
+
+	/** True when the DataLayer Outliner is not displaying actors */
+	UPROPERTY(config)
+	uint32 bHideDataLayerActors : 1;
+
+	/** True when the DataLayer Outliner is not displaying unloaded actors */
+	UPROPERTY(config)
+	uint32 bHideUnloadedActors : 1;
+
+	/** True when Runtime DataLayer editing is allowed. */
+	UPROPERTY(config)
+	uint32 bAllowRuntimeDataLayerEditing : 1;
+
+private:
 	bool ShouldSaveSettings(const UWorld* InWorld) const
 	{
-		return InWorld && !InWorld->IsGameWorld();
+		return InWorld && !InWorld->IsGameWorld() && FPackageName::DoesPackageExist(InWorld->GetPackage()->GetName());
 	}
-
-	UPROPERTY(config)
-	uint32 EditorGridConfigHash;
-
-	UPROPERTY(config)
-	uint32 bShowDataLayerContent : 1;
 
 	UPROPERTY(config)
 	uint32 bDisableLoadingOfLastLoadedCells : 1;

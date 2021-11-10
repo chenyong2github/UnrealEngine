@@ -3,11 +3,15 @@
 #pragma once
 
 #include "OptimusAction.h"
+#include "OptimusDataDomain.h"
+#include "Nodes/OptimusNode_ComputeKernelBase.h"
 
 #include "UObject/UnrealNames.h"
 
 #include "OptimusNodeGraphActions.generated.h"
 
+class UOptimusNode_ComputeKernelFunction;
+class UOptimusNode_CustomComputeKernel;
 enum class EOptimusNodeGraphType;
 class IOptimusNodeGraphCollectionOwner;
 class UOptimusNode;
@@ -325,4 +329,83 @@ struct FOptimusNodeGraphAction_RemoveLink :
 protected:
 	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveLink(InRoot); }
 	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddLink(InRoot); }
+};
+
+
+USTRUCT()
+struct FOptimusNodeGraphAction_PackageKernelFunction :
+	public FOptimusAction
+{
+	GENERATED_BODY();
+
+	FOptimusNodeGraphAction_PackageKernelFunction() = default;
+
+	FOptimusNodeGraphAction_PackageKernelFunction(
+		UOptimusNode_CustomComputeKernel* InKernelNode,
+		FName InNodeName);
+
+	UOptimusNode *GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;	
+	
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph we're creating the packaged node in.
+	FString GraphPath;
+
+	// Node Data to both create packaged node and reconstruct the un-packaged node on undo.
+	FName NodeName;
+	FVector2D NodePosition;
+	FName Category;
+	FString KernelName;
+	int32 ThreadCount;
+	FOptimusDataDomain ExecutionDomain;
+	TArray<FOptimus_ShaderValuedBinding> Parameters;
+	TArray<FOptimus_ShaderDataBinding> InputBindings;
+	TArray<FOptimus_ShaderDataBinding> OutputBindings;
+	FString ShaderSource;
+
+	// Once we've created the node class, we store it here, in case we need to remove it on
+	// undo.
+	FString NodeClassName;
+	
+	// The path of the node we just created
+	FString NodePath;
+};
+
+
+USTRUCT()
+struct FOptimusNodeGraphAction_UnpackageKernelFunction :
+	public FOptimusAction
+{
+	GENERATED_BODY();
+
+	FOptimusNodeGraphAction_UnpackageKernelFunction() = default;
+
+	FOptimusNodeGraphAction_UnpackageKernelFunction(
+		UOptimusNode_ComputeKernelFunction* InKernelFunction,
+		FName InNodeName);
+
+	UOptimusNode *GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;	
+	
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph we're creating the packaged node in.
+	FString GraphPath;
+
+	// The path to the node class for the function
+	FString ClassPath;
+
+	// The name of the custom kernel node to create.
+	FName NodeName;
+
+	// The position to place it at. Everything else is copied from the class. 
+	FVector2D NodePosition;
+	
+	// The path of the node we just created
+	FString NodePath;
 };

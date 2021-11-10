@@ -70,5 +70,6 @@ public:
 
 	void OnEnableBuildTelemetry(ECheckBoxState NewState);
 	ECheckBoxState GetBuildTelemetryCheckBoxState() const;
+	bool GetBuildTelemetryCheckBoxEnabled() const;
 	EVisibility GetOculusHMDAvailableWarningVisibility() const;
 };

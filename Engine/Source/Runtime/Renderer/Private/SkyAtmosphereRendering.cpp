@@ -1231,7 +1231,7 @@ static void SetupSkyAtmosphereInternalCommonParameters(
 	InternalCommonParameters.MultiScatteringSampleCount = CVarSkyAtmosphereMultiScatteringLUTSampleCount.GetValueOnRenderThread();
 
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
-	InternalCommonParameters.SkyLuminanceFactor = FVector(SkyAtmosphereSceneProxy.GetSkyLuminanceFactor());
+	InternalCommonParameters.SkyLuminanceFactor = FVector3f(SkyAtmosphereSceneProxy.GetSkyLuminanceFactor());
 	InternalCommonParameters.AerialPespectiveViewDistanceScale = SkyAtmosphereSceneProxy.GetAerialPespectiveViewDistanceScale();
 	InternalCommonParameters.FogShowFlagFactor = ViewFamily.EngineShowFlags.Fog > 0 ? 1.0f : 0.0f;
 
@@ -1413,11 +1413,11 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 
 		// Setup a constant referential for each of the faces of the dynamic reflection capture.
 		const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
-		const FVector SkyViewLutReferentialForward = FVector(1.0f, 0.0f, 0.0f);
-		const FVector SkyViewLutReferentialRight = FVector(0.0f, 1.0f, 0.0f);
-		FVector SkyWorldCameraOrigin;
-		FMatrix SkyViewLutReferential;
-		FVector4 TempSkyPlanetData;
+		const FVector3f SkyViewLutReferentialForward = FVector3f(1.0f, 0.0f, 0.0f);
+		const FVector3f SkyViewLutReferentialRight = FVector3f(0.0f, 1.0f, 0.0f);
+		FVector3f SkyWorldCameraOrigin;
+		FMatrix44f SkyViewLutReferential;
+		FVector4f TempSkyPlanetData;
 		AtmosphereSetup.ComputeViewData(Scene->SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
 			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
 		// LWC_TODO: Precision loss
@@ -1685,11 +1685,11 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 	FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
 	const float AerialPerspectiveStartDepthInCm = SkyRC.AerialPerspectiveStartDepthInCm;
 
-	const FVector ViewOrigin = ViewMatrices.GetViewOrigin();
-	const FVector PlanetCenter = Atmosphere.PlanetCenterKm * KM_TO_CM;
+	const FVector3f ViewOrigin = ViewMatrices.GetViewOrigin();
+	const FVector3f PlanetCenter = Atmosphere.PlanetCenterKm * KM_TO_CM;
 	const float TopOfAtmosphere = Atmosphere.TopRadiusKm * KM_TO_CM;
 	const float PlanetRadiusTraceSafeEdgeCm = 1000.0f;	// 10 meters, must match PLANET_RADIUS_SAFE_TRACE_EDGE
-	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector::Distance(ViewOrigin, PlanetCenter) - TopOfAtmosphere - PlanetRadiusTraceSafeEdgeCm) > 0.0f;
+	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector3f::Distance(ViewOrigin, PlanetCenter) - TopOfAtmosphere - PlanetRadiusTraceSafeEdgeCm) > 0.0f;
 	const bool bDisableBlending = SkyRC.bDisableBlending;
 
 	// We only support MSAA up to 8 sample and in forward

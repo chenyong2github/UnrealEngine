@@ -1117,7 +1117,7 @@ namespace Audio
 			{
 				for (FWaveInstance* WaveInstance : ThisSoundsWaveInstances)
 				{
-					DisplayValue = FMath::Max(DisplayValue, WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume());
+					DisplayValue = FMath::Max(DisplayValue, WaveInstance->GetVolumeWithDistanceAndOcclusionAttenuation() * WaveInstance->GetDynamicVolume());
 				}
 			}
 			else if (ActiveSoundVisualizeModeCVar == 3)
@@ -1400,7 +1400,7 @@ namespace Audio
 					UE_LOG(LogAudio, Display, TEXT("   %s (%.3g) (%d) - %.3g"),
 						*WaveInstance->GetName(), WaveInstance->WaveData->GetDuration(),
 						WaveInstance->WaveData->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal),
-						WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume());
+						WaveInstance->GetVolumeWithDistanceAndOcclusionAttenuation() * WaveInstance->GetDynamicVolume());
 				}
 			}
 		}
@@ -2475,7 +2475,7 @@ namespace Audio
 						StatSoundInfo.Volume = 0.0f;
 						for (const TPair<UPTRINT, FWaveInstance*>& Pair : ActiveSound->GetWaveInstances())
 						{
-							StatSoundInfo.Volume = FMath::Max(StatSoundInfo.Volume, Pair.Value->GetVolumeWithDistanceAttenuation() * Pair.Value->GetDynamicVolume());
+							StatSoundInfo.Volume = FMath::Max(StatSoundInfo.Volume, Pair.Value->GetVolumeWithDistanceAndOcclusionAttenuation() * Pair.Value->GetDynamicVolume());
 						}
 
 						if (USoundClass* SoundClass = ActiveSound->GetSoundClass())
@@ -2519,7 +2519,7 @@ namespace Audio
 					FAudioStats::FStatWaveInstanceInfo WaveInstanceInfo;
 					FSoundSource* Source = WaveInstanceSourceMap.FindRef(WaveInstance);
 					WaveInstanceInfo.Description = Source ? Source->Describe((RequestedStats & FAudioStats::LongSoundNames) != 0) : FString(TEXT("No source"));
-					WaveInstanceInfo.Volume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
+					WaveInstanceInfo.Volume = WaveInstance->GetVolumeWithDistanceAndOcclusionAttenuation() * WaveInstance->GetDynamicVolume();
 					WaveInstanceInfo.InstanceIndex = InstanceIndex;
 					WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
 					WaveInstanceInfo.bPlayWhenSilent = ActiveSound->IsPlayWhenSilent() ? 1 : 0;
@@ -2574,7 +2574,7 @@ namespace Audio
 		for (uint32 InstanceIndex = 0; InstanceIndex < FirstActiveIndex; ++InstanceIndex)
 		{
 			const FWaveInstance* WaveInstance = WaveInstances[InstanceIndex];
-			const float WaveInstanceVol = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
+			const float WaveInstanceVol = WaveInstance->GetVolumeWithDistanceAndOcclusionAttenuation() * WaveInstance->GetDynamicVolume();
 			if (WaveInstanceVol > MinDisplayVolume)
 			{
 				AudibleInactiveSounds++;

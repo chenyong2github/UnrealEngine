@@ -445,6 +445,7 @@ TSharedRef<SDockTab> FUserDefinedEnumEditor::SpawnEnumeratorsTab(const FSpawnTab
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.bShowOptions = false;
+	DetailsViewArgs.ColumnWidth = 0.85f;
 
 	PropertyView = EditModule.CreateDetailView( DetailsViewArgs );
 
@@ -560,6 +561,7 @@ void FEnumDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 			.Text(LOCTEXT("BitmaskFlagsAttributeLabel", "Bitmask Flags"))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.ToolTip(BitmaskFlagsTooltip)
+			.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 		]
 		.ValueContent()
 		[
@@ -661,19 +663,17 @@ void FUserDefinedEnumIndexLayout::GenerateHeaderRowContent( FDetailWidgetRow& No
 	ClearButton->SetEnabled(bIsEditable);
 
 	NodeRow
-		.WholeRowWidget
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("EnumDisplayNameLabel", "Display Name"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+		]
+		.ValueContent()
+		.HAlign(HAlign_Fill)
 		[
 			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(0, 0, 12, 0)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("EnumDisplayNameLabel", "Display Name"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
 
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -686,7 +686,7 @@ void FUserDefinedEnumIndexLayout::GenerateHeaderRowContent( FDetailWidgetRow& No
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(24, 0, 12, 0)
+			.Padding(36, 0, 12, 0)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("EnumTooltipLabel", "Description"))

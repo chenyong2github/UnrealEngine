@@ -2,7 +2,6 @@
 
 #include "SMemTagTreeViewTooltip.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -12,6 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/MemoryProfiler/ViewModels/MemTagNode.h"
@@ -38,7 +38,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetTableTooltip(const Insights::FTa
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDisplayName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -47,7 +47,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetTableTooltip(const Insights::FTa
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -69,7 +69,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetColumnTooltip(const Insights::FT
 			[
 				SNew(STextBlock)
 				.Text(Column.GetTitleName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -78,7 +78,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetColumnTooltip(const Insights::FT
 			[
 				SNew(STextBlock)
 				.Text(Column.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -130,14 +130,14 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Id:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(FText::AsNumber(MemTagNodePtr->GetMemTagId()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.Text(FText::FromString(FString::Printf(TEXT("0x%X"), MemTagNodePtr->GetMemTagId())))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					// Name: [Name]
@@ -146,7 +146,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
@@ -155,7 +155,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 						.WrapTextAt(512.0f)
 						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(MemTagNodePtr->GetName()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					//// Group: [MetaGroupName]
@@ -164,7 +164,7 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 					//[
 					//	SNew(STextBlock)
 					//	.Text(LOCTEXT("TT_Group", "Group:"))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+					//	.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					//]
 					//+ SGridPanel::Slot(1, 2)
 					//.Padding(2.0f)
@@ -173,39 +173,39 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 					//	.WrapTextAt(512.0f)
 					//	.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 					//	.Text(FText::FromName(MemTagNodePtr->GetMetaGroupName()))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+					//	.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					//]
 
-					// Net Event Type: [Type]
+					// Type: [Type]
 					+ SGridPanel::Slot(0, 3)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 3)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(MemTagNodeTypeHelper::ToText(MemTagNodePtr->GetType()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
-					// Trackers: [Trackers]
+					// Tracker: [Tracker]
 					+ SGridPanel::Slot(0, 4)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("TT_Trackers", "Trackers:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.Text(LOCTEXT("TT_Tracker", "Tracker:"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 4)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(MemTagNodePtr->GetTrackerText())
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 				]
 
@@ -228,14 +228,14 @@ TSharedPtr<SToolTip> SMemTagTreeViewTooltip::GetRowTooltip(const TSharedPtr<FMem
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_NumInstances", "Num Instances:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(InstanceCountText)
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 				]
 
@@ -283,7 +283,7 @@ void SMemTagTreeViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row
 		[
 			SNew(STextBlock)
 			.Text(Name)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 		];
 
 	Grid->AddSlot(1, Row)
@@ -292,7 +292,7 @@ void SMemTagTreeViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row
 		[
 			SNew(STextBlock)
 			.Text(Value)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		];
 
 	Row++;

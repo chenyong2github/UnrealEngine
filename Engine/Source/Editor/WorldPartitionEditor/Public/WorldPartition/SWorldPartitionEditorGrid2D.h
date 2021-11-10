@@ -70,7 +70,7 @@ protected:
 
 	void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
 	{
-		ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ChildSlot.GetWidget(), FVector2D(0, 0), AllottedGeometry.GetAbsoluteSize())); 
+		ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ChildSlot.GetWidget(), FVector2D::ZeroVector, AllottedGeometry.GetLocalSize()));
 	}
 
 	void FocusBox(const FBox& Box) const;

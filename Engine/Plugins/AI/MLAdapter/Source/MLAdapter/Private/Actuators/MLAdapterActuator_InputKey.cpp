@@ -107,7 +107,7 @@ void UMLAdapterActuator_InputKey::Act(const float DeltaTime)
 			{
 				// press only if not pressed previously
 				// @todo this should probably be optional
-				PC->InputKey(RegisteredKeys[KeyID].Get<0>(), IE_Pressed, 1.0f, false);
+				PC->InputKey(FInputKeyParams(RegisteredKeys[KeyID].Get<0>(), IE_Pressed, 1.0, false));
 			}
 		}
 	}
@@ -117,7 +117,7 @@ void UMLAdapterActuator_InputKey::Act(const float DeltaTime)
 	{
 		if (OldPressedKeys[Index] && !PressedKeys[Index])
 		{
-			PC->InputKey(RegisteredKeys[Index].Get<0>(), IE_Released, 1.0f, false);
+			PC->InputKey(FInputKeyParams(RegisteredKeys[Index].Get<0>(), IE_Released, 1.0, false));
 		}
 	}
 }

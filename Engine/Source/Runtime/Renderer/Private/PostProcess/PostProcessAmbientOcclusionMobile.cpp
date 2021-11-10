@@ -677,7 +677,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMobileSSAOShaderParameters, )
 END_SHADER_PARAMETER_STRUCT();
 
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMobileAmbientOcclusionParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileAmbientOcclusionParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, SceneTextures)
 

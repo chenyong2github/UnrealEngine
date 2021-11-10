@@ -230,8 +230,8 @@ static unsigned short getHeight(const rcReal fx, const rcReal fy, const rcReal f
 				dmin = d;
 			}
 			
-/*			const rcReal dx = (nx+0.5f)*cs - fx; 
-			const rcReal dz = (nz+0.5f)*cs - fz;
+/*			const rcReal dx = (rcReal(nx)+0.5f)*cs - fx; 
+			const rcReal dz = (rcReal(nz)+0.5f)*cs - fz;
 			const rcReal d = dx*dx+dz*dz;
 			if (d < dmin)
 			{
@@ -498,12 +498,12 @@ static void delaunayHull(rcContext* ctx, const int npts, const rcReal* pts,
 
 inline rcReal getJitterX(const int i)
 {
-	return (((i * 0x8da6b343) & 0xffff) / (rcReal)65535.0f * 2.0f) - 1.0f;
+	return (((i * 0x8da6b343) & 0xffff) / rcReal(65535.) * 2.0f) - 1.0f;
 }
 
 inline rcReal getJitterY(const int i)
 {
-	return (((i * 0xd8163841) & 0xffff) / (rcReal)65535.0f * 2.0f) - 1.0f;
+	return (((i * 0xd8163841) & 0xffff) / rcReal(65535.) * 2.0f) - 1.0f;
 }
 
 static bool buildPolyDetail(rcContext* ctx, const rcReal* in, const int nin,

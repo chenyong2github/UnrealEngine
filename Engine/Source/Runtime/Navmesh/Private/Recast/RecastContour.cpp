@@ -864,7 +864,7 @@ static void getContourCenter(const rcContour* cont, const rcReal* orig, rcReal c
 		center[1] += (rcReal)v[1];
 		center[2] += (rcReal)v[2];
 	}
-	const rcReal s = 1.0f / cont->nverts;
+	const rcReal s = rcReal(1.) / cont->nverts;
 	center[0] *= s * cs;
 	center[1] *= s * ch;
 	center[2] *= s * cs;

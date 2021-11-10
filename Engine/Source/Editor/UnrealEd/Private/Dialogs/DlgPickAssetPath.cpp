@@ -90,7 +90,7 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 				SNew(SUniformGridPanel)
 				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
 				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-				.SlotPadding(FMargin(8.f, 0.f))
+				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
 
 				+SUniformGridPanel::Slot(0,0)
 				[

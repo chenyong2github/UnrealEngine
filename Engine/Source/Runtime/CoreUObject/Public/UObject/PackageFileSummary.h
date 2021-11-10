@@ -295,6 +295,12 @@ public:
 		return FileVersionUE.FileVersionUE4 > GPackageFileUEVersion.FileVersionUE4 || FileVersionUE.FileVersionUE5 > GPackageFileUEVersion.FileVersionUE5;
 	}
 
+	/** 
+	 * Returns false if the summary is unversioned and the current process does not support that. 
+	 * If this returns false and the summary was loaded from disk then the serialization of the summary was aborted early!
+	 */
+	COREUOBJECT_API bool IsFileVersionValid() const;
+
 	/** Get the summary package flags. */
 	uint32 GetPackageFlags() const
 	{

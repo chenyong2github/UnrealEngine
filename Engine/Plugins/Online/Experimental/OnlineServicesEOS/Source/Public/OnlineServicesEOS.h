@@ -16,8 +16,11 @@ namespace UE::Online {
 class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesCommon
 {
 public:
+	using Super = FOnlineServicesCommon;
+
 	FOnlineServicesEOS();
 	virtual void RegisterComponents() override;
+	virtual void Initialize() override;
 
 	virtual FAccountId CreateAccountId(FString&& InAccountIdString) override;
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }

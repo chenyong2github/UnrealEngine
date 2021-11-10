@@ -2968,7 +2968,7 @@ bool UE::ShaderLibrary::Private::FNamedShaderLibrary::OpenShaderCode(const FStri
 	if (LibraryInstance == nullptr)
 	{
 		UE_LOG(LogShaderLibrary, Verbose, TEXT("Cooked Context: No Shared Shader Library for: %s and native library not supported."), *Library);
-		return false;
+		return false; //-V773
 	}
 
 	if (LibraryInstance->Library->IsNativeLibrary())

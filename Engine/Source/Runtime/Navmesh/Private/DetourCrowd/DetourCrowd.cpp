@@ -1756,7 +1756,7 @@ void dtCrowd::updateStepOffMeshVelocity(const dtReal dt, dtCrowdAgentDebugInfo*)
 		dtVsub(DirToEnd, anim->endPos, ag->npos);
 		const dtReal dirDot = dtVdot2D(DirLink, DirToEnd);
 		const dtReal dist = dtVdist2DSqr(ag->npos, anim->endPos);
-		const dtReal distThres = dtSqr(5.0f);
+		const dtReal distThres = dtSqr(dtReal(5.));
 		const dtReal heightDiff = dtAbs(ag->npos[1] - anim->endPos[1]);
 		const dtReal heightThres = ag->params.height * 0.5f;
 

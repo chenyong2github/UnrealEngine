@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "EngineUtils.h"
+#include "EditorWorldUtils.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CommandLine.h"
 #include "HAL/PlatformFileManager.h"
@@ -63,16 +64,16 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Load the map package
-	UPackage* MapPackage = LoadPackage(NULL, *Tokens[0], LOAD_None);
-	if (!MapPackage)
+	// Load the world package
+	UPackage* WorldPackage = LoadWorldPackageForEditor(Tokens[0]);
+	if (!WorldPackage)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Couldn't load package %s."), *Tokens[0]);
 		return 1;
 	}
 
 	// Find the world in the given package
-	UWorld* World = UWorld::FindWorldInPackage(MapPackage);
+	UWorld* World = UWorld::FindWorldInPackage(WorldPackage);
 	if (!World)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("No world in specified package %s."), *Tokens[0]);

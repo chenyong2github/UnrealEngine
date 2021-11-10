@@ -374,6 +374,17 @@ public:
 #endif
 		return true;
 	}
+	virtual FName GetEncoderName(FName Format) const override
+	{
+#if SUPPORTS_ISPC_ASTC
+		if (GASTCCompressor == 0)
+		{
+			return IntelISPCTexCompFormat.GetEncoderName(Format);
+		}
+#endif
+		static const FName ASTCName("ArmASTC");
+		return ASTCName;
+	}
 
 	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
 	{

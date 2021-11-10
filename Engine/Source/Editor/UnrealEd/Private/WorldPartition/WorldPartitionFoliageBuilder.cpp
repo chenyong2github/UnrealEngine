@@ -92,8 +92,6 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 		
         IFA->ForEachFoliageInfo([IFA, &FoliageToAdd, &InstanceBounds, &NumInstances](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
         {
-            TMap<AInstancedFoliageActor*, TArray<const FFoliageInstance*>> InstancesToAdd;
-
             check(FoliageType->GetTypedOuter<AInstancedFoliageActor>() == nullptr);
             FoliageToAdd.FindOrAdd(FoliageType).Append(FoliageInfo.Instances);
             for (const FFoliageInstance& Instance : FoliageInfo.Instances)

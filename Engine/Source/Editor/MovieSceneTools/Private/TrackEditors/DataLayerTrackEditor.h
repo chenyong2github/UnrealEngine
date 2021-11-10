@@ -35,7 +35,7 @@ public:
 
 private:
 	/** Adds a new section which spans the length of the owning movie scene with the specified desired state. */
-	UMovieSceneDataLayerSection* AddNewSection(UMovieScene* MovieScene, UMovieSceneTrack* DataLayerTrack, EDataLayerState DesiredState);
+	UMovieSceneDataLayerSection* AddNewSection(UMovieScene* MovieScene, UMovieSceneTrack* DataLayerTrack, EDataLayerRuntimeState DesiredState);
 
 	/** Handles when the add track menu item is activated. */
 	void HandleAddTrack();
@@ -44,5 +44,5 @@ private:
 	TSharedRef<SWidget> BuildAddDataLayerMenu(UMovieSceneTrack* DataLayerTrack);
 
 	/** Called to add a new section with a desired state. */
-	void HandleAddNewSection(UMovieSceneTrack* DataLayerTrack, EDataLayerState DesiredState);
+	void HandleAddNewSection(UMovieSceneTrack* DataLayerTrack, EDataLayerRuntimeState DesiredState);
 };

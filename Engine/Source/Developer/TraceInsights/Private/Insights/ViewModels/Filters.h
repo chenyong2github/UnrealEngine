@@ -25,6 +25,7 @@ enum class EFilterDataType : uint32
 	Int64,
 	Double,
 	String,
+	StringInt64Pair, // Displayed as a string but translates to a Int64 key.
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +100,7 @@ struct FFilterGroupOperator
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class IFilterValueConvertor
+class IFilterValueConverter
 {
 public:
 	virtual bool Convert(const FString& Input, int64& Output, FText& OutError) const { unimplemented(); return false; }
@@ -132,7 +133,7 @@ public:
 	FText Name;
 	FText Desc;
 	EFilterDataType DataType;
-	TSharedPtr<IFilterValueConvertor> Convertor;
+	TSharedPtr<IFilterValueConverter> Converter;
 	SupportedOperatorsArrayPtr SupportedOperators;
 };
 

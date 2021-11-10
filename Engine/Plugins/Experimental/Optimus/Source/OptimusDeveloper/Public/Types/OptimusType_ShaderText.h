@@ -37,7 +37,7 @@ struct FOptimusType_CompilerDiagnostic
 	{ }
 
 	// The severity of the issue.
-	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::Ignore;
+	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::None;
 
 	// The actual diagnostic message
 	FString Diagnostic;

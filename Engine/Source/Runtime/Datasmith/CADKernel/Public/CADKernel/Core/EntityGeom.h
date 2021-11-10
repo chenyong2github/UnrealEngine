@@ -18,11 +18,7 @@ namespace CADKernel
 		FIdent CtKioId = 0;
 
 	public:
-		FEntityGeom()
-			: FEntity()
-		{
-		}
-
+		FEntityGeom() = default;
 
 		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const
 		{
@@ -39,7 +35,7 @@ namespace CADKernel
 			Ar << CtKioId;
 		}
 
-		FIdent GetKioId()
+		FIdent GetKioId() const
 		{
 			return CtKioId;
 		}

@@ -204,7 +204,8 @@ public:
 		const bool InbEarlyZPassMovable,
 		/** Whether this mesh processor is being reused for rendering a pass that marks all fading out pixels on the screen */
 		const bool bDitheredLODFadingOutMaskPass,
-		FMeshPassDrawListContext* InDrawListContext);
+		FMeshPassDrawListContext* InDrawListContext,
+		const bool bShadowProjection = false);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
@@ -230,6 +231,7 @@ private:
 	const EDepthDrawingMode EarlyZPassMode;
 	const bool bEarlyZPassMovable;
 	const bool bDitheredLODFadingOutMaskPass;
+	const bool bShadowProjection;
 };
 
 extern void SetupDepthPassState(FMeshPassProcessorRenderState& DrawRenderState);

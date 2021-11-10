@@ -49,4 +49,17 @@ struct OPTIMUSCORE_API FOptimusMultiLevelDataDomain
 	// The name of the context that this resource/kernel applies to.
 	UPROPERTY(EditAnywhere, Category = Domain)
 	TArray<FName> LevelNames{Optimus::DomainName::Vertex};
+
+	/** Returns true if this multi-level data domain is valid */
+	bool IsValid() const
+	{
+		for (FName Name: LevelNames)
+		{
+			if (Name.IsNone())
+			{
+				return false;
+			}
+		}
+		return !LevelNames.IsEmpty();
+	}
 };

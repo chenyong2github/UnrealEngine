@@ -4,7 +4,6 @@
 
 #include "LevelSnapshot.h"
 #include "Data/LevelSnapshotsEditorData.h"
-#include "Views/SnapshotEditorViewData.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetThumbnail.h"
@@ -24,10 +23,10 @@
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
-void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const FSnapshotEditorViewData& InViewBuildData)
+void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* InEditorData)
 {
 	OwningWorldPathAttribute = InArgs._OwningWorldPath;
-	ViewBuildData = InViewBuildData;
+	EditorData = InEditorData;
 
 	check(OwningWorldPathAttribute.IsSet());
 
@@ -76,25 +75,23 @@ void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) co
 	ULevelSnapshot* Snapshot = Cast<ULevelSnapshot>(InAssetData.GetAsset());
 
 	SelectSnapshot.EnterProgressFrame(40.f);
-	if (ensure(Snapshot))
+	if (ensure(Snapshot && EditorData.IsValid()))
 	{
-		ViewBuildData.EditorDataPtr->SetActiveSnapshot(Snapshot);
+		EditorData->SetActiveSnapshot(Snapshot);
 	}
 }
 
 TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetData& AssetData)
 {
-	const uint32 ThumbnailSize = 256;
-			
-	const TSharedRef<FAssetThumbnail> AssetThumbnail =
-		MakeShareable(new FAssetThumbnail(
-			AssetData.GetAsset(), ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool()));
+	constexpr uint32 ThumbnailSize = 256;
+	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(AssetData, ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool());
+	
 	FAssetThumbnailConfig AssetThumbnailConfig;
 	AssetThumbnailConfig.bAllowFadeIn = false;
 	AssetThumbnailConfig.bAllowRealTimeOnHovered = false;
 	AssetThumbnailConfig.bForceGenericThumbnail = false;
 			
-	TSharedRef<SToolTip> NewTooltip = SNew(SToolTip)
+	return SNew(SToolTip)
 	[
 		SNew(SBox)
 		.WidthOverride(ThumbnailSize)
@@ -104,8 +101,6 @@ TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetDat
 			AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
 		]
 	];
-			
-	return NewTooltip;
 }
 
 TArray<FAssetViewCustomColumn> SLevelSnapshotsEditorBrowser::GetCustomColumns() const

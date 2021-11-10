@@ -201,7 +201,7 @@ struct FManifestHLSInternal
 	struct FRendition : public FPlaylistBase
 	{
 		FRendition()
-			: FPlaylistBase(), bDefault(false), bAutoSelect(false), bForced(false)
+			: FPlaylistBase(), Bitrate(0), bDefault(false), bAutoSelect(false), bForced(false)
 		{
 		}
 		virtual bool IsVariantStream() const override
@@ -214,7 +214,7 @@ struct FManifestHLSInternal
 		}
 		virtual int32 GetBitrate() const override
 		{
-			return 0;
+			return Bitrate;
 		}
 
 		FString		Type;
@@ -226,6 +226,7 @@ struct FManifestHLSInternal
 		FString		InStreamID;
 		FString		Characteristics;
 		FString		Channels;
+		int32		Bitrate;
 		bool		bDefault;
 		bool		bAutoSelect;
 		bool		bForced;

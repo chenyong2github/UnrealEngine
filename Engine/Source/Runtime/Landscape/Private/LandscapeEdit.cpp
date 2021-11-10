@@ -377,8 +377,8 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 	MaterialInstances.SetNumZeroed(MaterialPerLOD.Num() * 2); // over allocate in case we are using tessellation
 	int8 MaterialIndex = 0;
 
-	TArray<FWeightmapLayerAllocationInfo>& WeightmapBaseLayerAllocation = GetWeightmapLayerAllocations();
-	TArray<UTexture2D*>& WeightmapBaseTexture = GetWeightmapTextures();
+	const TArray<FWeightmapLayerAllocationInfo>& WeightmapBaseLayerAllocation = GetWeightmapLayerAllocations();
+	const TArray<UTexture2D*>& WeightmapBaseTexture = GetWeightmapTextures();
 	UTexture2D* BaseHeightmap = GetHeightmap();
 
 	for (auto It = MaterialPerLOD.CreateConstIterator(); It; ++It)
@@ -408,7 +408,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 			// Set the layer mask
 			for (int32 AllocIdx = 0; AllocIdx < WeightmapBaseLayerAllocation.Num(); AllocIdx++)
 			{
-				FWeightmapLayerAllocationInfo& Allocation = WeightmapBaseLayerAllocation[AllocIdx];
+				const FWeightmapLayerAllocationInfo& Allocation = WeightmapBaseLayerAllocation[AllocIdx];
 
 				FName LayerName = Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo ? Allocation.LayerInfo->LayerName : NAME_None;
 				MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Masks[Allocation.WeightmapTextureChannel]);
@@ -847,7 +847,7 @@ void ULandscapeComponent::FixupWeightmaps()
 
 void ULandscapeComponent::UpdateLayerAllowListFromPaintedLayers()
 {
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
 
 	for (const auto& Allocation : ComponentWeightmapLayerAllocations)
 	{
@@ -1431,13 +1431,13 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 		bool bExistingLayerMismatch = false;
 		int32 DataLayerIdx = INDEX_NONE;
 
-		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(false);
-		TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures(false);
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(false);
+		const TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures(false);
 
 		// Find the layers we're interested in
 		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
 		{
-			FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+			const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
 			ULandscapeLayerInfoObject* LayerInfo = AllocInfo.LayerInfo;
 			if (LayerInfo == ALandscapeProxy::VisibilityLayer || LayerInfo != nullptr)
 			{
@@ -1525,7 +1525,7 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 
 void ULandscapeComponent::UpdateCollisionLayerData()
 {
-	TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures();
+	const TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures();
 
 	// Generate the dominant layer data
 	TArray<TArray64<uint8>> WeightmapTextureMipData;
@@ -2401,34 +2401,7 @@ struct FHeightmapInfo
 
 TArray<FName> ALandscapeProxy::GetLayersFromMaterial(UMaterialInterface* MaterialInterface)
 {
-	TArray<FName> Result;
-
-	if (MaterialInterface)
-	{
-		TArray<FMaterialParameterInfo> OutParameterInfo;
-		TArray<FGuid> Guids;
-		if (UMaterialInstance* Instance = Cast<UMaterialInstance>(MaterialInterface))
-		{
-			Instance->GetAllParameterInfo<UMaterialExpressionLandscapeLayerBlend>(OutParameterInfo, Guids);
-			Instance->GetAllParameterInfo<UMaterialExpressionLandscapeLayerWeight>(OutParameterInfo, Guids);
-			Instance->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSwitch>(OutParameterInfo, Guids);
-			Instance->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSample>(OutParameterInfo, Guids);
-		}
-		else if (UMaterial* Material = MaterialInterface->GetMaterial())
-		{
-			Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerBlend>(OutParameterInfo, Guids);
-			Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerWeight>(OutParameterInfo, Guids);
-			Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSwitch>(OutParameterInfo, Guids);
-			Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSample>(OutParameterInfo, Guids);
-		}
-
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			Result.AddUnique(ParameterInfo.Name);
-		}
-	}
-
-	return Result;
+	return FGetLayersFromMaterialCache::GetLayersFromMaterial(MaterialInterface);
 }
 
 TArray<FName> ALandscapeProxy::GetLayersFromMaterial() const
@@ -2447,7 +2420,7 @@ ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerNa
 	FString PackageName = Path + LayerObjectName.ToString();
 	FString PackageFilename;
 	int32 Suffix = 1;
-	while (FPackageName::DoesPackageExist(PackageName, nullptr, &PackageFilename))
+	while (FPackageName::DoesPackageExist(PackageName, &PackageFilename))
 	{
 		LayerObjectName = FName(*FString::Printf(TEXT("LayerInfoObject_%s_%d"), LayerName, Suffix));
 		PackageName = Path + LayerObjectName.ToString();
@@ -3319,11 +3292,11 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 		// Check if there are any holes
 		const int32 VisThreshold = 170;
 		TArray<uint8> VisDataMap;
-		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
 
 		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
 		{
-			FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+			const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
 			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
 			{
 				CDI.GetWeightmapTextureData(AllocInfo.LayerInfo, VisDataMap);
@@ -4952,7 +4925,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	bool bRemovedAnyLayers = false;
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(false);
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(false);
 
 		int32 NumNullLayers = Algo::CountIf(ComponentWeightmapLayerAllocations, [](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == nullptr; });
 		if (NumNullLayers > 0)
@@ -6925,10 +6898,10 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	TArray< uint8 > VisibilityData;
 	if (ComponentHasVisibilityPainted() && GetLandscapeProxy()->bMeshHoles)
 	{
-		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
 		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
 		{
-			FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+			const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
 			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
 			{
 				NumHoleLods = FMath::Clamp<int32>(GetLandscapeProxy()->MeshHolesMaxLod, 1, NumMips);

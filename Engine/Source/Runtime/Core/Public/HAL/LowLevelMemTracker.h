@@ -483,7 +483,7 @@ public:
 	// we always start up running, but if the commandline disables us, we will do it later after main
 	// (can't get the commandline early enough in a cross-platform way)
 	void ProcessCommandLine(const TCHAR* CmdLine);
-	
+
 	// Return the total amount of memory being tracked
 	uint64 GetTotalTrackedMemory(ELLMTracker Tracker);
 
@@ -539,6 +539,9 @@ public:
 
 	// Dump the display name of the current TagData for the given tracker to the output
 	uint64 DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber );
+
+	// Publishes the active LLM stats in the active frame, useful for single targeted LLM snapshots
+	void PublishDataSingleFrame();
 
 private:
 	FLowLevelMemTracker();
@@ -623,6 +626,8 @@ private:
 	bool bFullyInitialised;
 	bool bConfigurationComplete;
 	bool bTagAdded;
+	bool bAutoPublish;
+	bool bPublishSingleFrame;
 
 	static FLowLevelMemTracker* TrackerInstance;
 public: // really internal but needs to be visible for LLM_IF_ENABLED macro

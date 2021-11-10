@@ -196,39 +196,39 @@ namespace AutomationCommon
 	class FAutomationImageComparisonRequest : public IAutomationLatentCommand
 	{
 	public:
-		FAutomationImageComparisonRequest(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, const FAutomationComparisonToleranceAmount& InTolerance, const FString& InNotes)
-			: ImageName(InImageName), TaskCompleted(false)
+		FAutomationImageComparisonRequest(const FString& InImageName, const FString& InContext, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, const FAutomationComparisonToleranceAmount& InTolerance, const FString& InNotes)
+			: ImageName(InImageName), ImageData(InImageData), Initiate(false), TaskCompleted(false)
 		{
-			FString Context;
-			if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+			FString Context = InContext;
+			if (Context.IsEmpty())
 			{
-				Context = CurrentTest->GetTestContext();
-				if (Context.IsEmpty()) { Context = CurrentTest->GetTestFullName(); }
+				if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+				{
+					Context = CurrentTest->GetTestContext();
+					if (Context.IsEmpty())
+					{
+						Context = CurrentTest->GetTestFullName();
+					}
+				}
 			}
 
-			FAutomationScreenshotData Data = BuildScreenshotData(Context, TEXT(""), ImageName, InWidth, InHeight);
+			ComparisonParameters = BuildScreenshotData(Context, TEXT(""), ImageName, InWidth, InHeight);
 
 			// Copy the relevant data into the metadata for the screenshot.
-			Data.bHasComparisonRules = true;
-			Data.ToleranceRed = InTolerance.Red;
-			Data.ToleranceGreen = InTolerance.Green;
-			Data.ToleranceBlue = InTolerance.Blue;
-			Data.ToleranceAlpha = InTolerance.Alpha;
-			Data.ToleranceMinBrightness = InTolerance.MinBrightness;
-			Data.ToleranceMaxBrightness = InTolerance.MaxBrightness;
-			Data.bIgnoreAntiAliasing = true;
-			Data.bIgnoreColors = false;
-			Data.MaximumLocalError = 0.10f;
-			Data.MaximumGlobalError = 0.02f;
+			ComparisonParameters.bHasComparisonRules = true;
+			ComparisonParameters.ToleranceRed = InTolerance.Red;
+			ComparisonParameters.ToleranceGreen = InTolerance.Green;
+			ComparisonParameters.ToleranceBlue = InTolerance.Blue;
+			ComparisonParameters.ToleranceAlpha = InTolerance.Alpha;
+			ComparisonParameters.ToleranceMinBrightness = InTolerance.MinBrightness;
+			ComparisonParameters.ToleranceMaxBrightness = InTolerance.MaxBrightness;
+			ComparisonParameters.bIgnoreAntiAliasing = true;
+			ComparisonParameters.bIgnoreColors = false;
+			ComparisonParameters.MaximumLocalError = 0.10f;
+			ComparisonParameters.MaximumGlobalError = 0.02f;
 
 			// Record any user notes that were made to accompany this shot.
-			Data.Notes = InNotes;
-
-			FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(InImageData, Data);
-
-			UE_LOG(LogEditorAutomationTests, Log, TEXT("Requesting image %s to be compared."), *Data.ScreenshotName);
-
-			FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationImageComparisonRequest::OnComparisonComplete);
+			ComparisonParameters.Notes = InNotes;
 		}
 
 		virtual ~FAutomationImageComparisonRequest()
@@ -255,11 +255,23 @@ namespace AutomationCommon
 
 		bool Update() override
 		{
+			if (!Initiate)
+			{
+				FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(ImageData, ComparisonParameters);
+
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Requesting image %s to be compared."), *ComparisonParameters.ScreenshotName);
+
+				FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationImageComparisonRequest::OnComparisonComplete);
+				Initiate = true;
+			}
 			return IsTaskCompleted();
 		}
 
 	private:
 		FString	ImageName;
+		FAutomationScreenshotData ComparisonParameters;
+		const TArray<FColor> ImageData;
+		bool Initiate;
 		bool TaskCompleted;
 	};
 
@@ -663,11 +675,11 @@ bool FWaitForShadersToFinishCompilingInGame::Update()
 	return true;
 }
 
-void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance, const FString& InNotes)
+void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance, const FString& InContext, const FString& InNotes)
 {
 #if WITH_AUTOMATION_TESTS
 	FAutomationComparisonToleranceAmount ToleranceAmount = FAutomationComparisonToleranceAmount::FromToleranceLevel(InTolerance);
-	ADD_LATENT_AUTOMATION_COMMAND(AutomationCommon::FAutomationImageComparisonRequest(InImageName, InWidth, InHeight, InImageData, ToleranceAmount, InNotes));
+	ADD_LATENT_AUTOMATION_COMMAND(AutomationCommon::FAutomationImageComparisonRequest(InImageName, InContext, InWidth, InHeight, InImageData, ToleranceAmount, InNotes));
 #endif
 }
 

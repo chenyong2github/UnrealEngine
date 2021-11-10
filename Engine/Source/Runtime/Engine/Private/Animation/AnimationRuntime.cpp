@@ -2554,8 +2554,6 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, c
 				if (!bIsBakedAdditive)
 				{
 					const TArray<FTransform>& AuthoredOnRefSkeleton = RetargetTransforms;
-					const TArray<FTransform>& PlayingOnRefSkeleton = RequiredBones.GetRefPoseCompactArray();
-
 					const FTransform& RefPoseTransform = RequiredBones.GetRefPoseTransform(BoneIndex);
 
 					// Remap the base pose onto the target skeleton so that we are working entirely in target space

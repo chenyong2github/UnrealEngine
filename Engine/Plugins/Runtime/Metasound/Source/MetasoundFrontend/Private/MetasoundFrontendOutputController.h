@@ -38,39 +38,39 @@ namespace Metasound
 
 			virtual ~FBaseOutputController() = default;
 
-			bool IsValid() const override;
+			virtual bool IsValid() const override;
 
-			FGuid GetID() const override;
-			const FName& GetDataType() const override;
-			const FVertexName& GetName() const override;
+			virtual FGuid GetID() const override;
+			virtual const FName& GetDataType() const override;
+			virtual const FVertexName& GetName() const override;
 
 			// Output metadata
-			FText GetDisplayName() const override;
-			const FText& GetTooltip() const override;
-			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+			virtual FText GetDisplayName() const override;
+			virtual const FText& GetTooltip() const override;
+			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
 			// Return info on containing node.
-			FGuid GetOwningNodeID() const override;
-			FNodeHandle GetOwningNode() override;
-			FConstNodeHandle GetOwningNode() const override;
+			virtual FGuid GetOwningNodeID() const override;
+			virtual FNodeHandle GetOwningNode() override;
+			virtual FConstNodeHandle GetOwningNode() const override;
 
-			void SetName(const FVertexName& InName) override { }
+			virtual void SetName(const FVertexName& InName) override { }
 
-			bool IsConnected() const override;
-			TArray<FInputHandle> GetConnectedInputs() override;
-			TArray<FConstInputHandle> GetConstConnectedInputs() const override;
-			bool Disconnect() override;
+			virtual bool IsConnected() const override;
+			virtual TArray<FInputHandle> GetConnectedInputs() override;
+			virtual TArray<FConstInputHandle> GetConstConnectedInputs() const override;
+			virtual bool Disconnect() override;
 
 			// Connection logic.
-			FConnectability CanConnectTo(const IInputController& InController) const override;
-			bool Connect(IInputController& InController) override;
-			bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override;
-			bool Disconnect(IInputController& InController) override;
+			virtual bool IsConnectionUserModifiable() const override;
+			virtual FConnectability CanConnectTo(const IInputController& InController) const override;
+			virtual bool Connect(IInputController& InController) override;
+			virtual bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override;
+			virtual bool Disconnect(IInputController& InController) override;
 
 		protected:
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
-
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
 			FGuid ID;
 			FConstVertexAccessPtr NodeVertexPtr;	
@@ -112,18 +112,18 @@ namespace Metasound
 
 			virtual ~FInputNodeOutputController() = default;
 
-			bool IsValid() const override;
+			virtual bool IsValid() const override;
 
 			// Input metadata
-			FText GetDisplayName() const override;
-			const FText& GetTooltip() const override;
-			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+			virtual FText GetDisplayName() const override;
+			virtual const FText& GetTooltip() const override;
+			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
-			void SetName(const FVertexName& InName) override;
+			virtual void SetName(const FVertexName& InName) override;
 
 		protected:
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
 		private:
 			mutable FText CachedDisplayName;
@@ -159,22 +159,37 @@ namespace Metasound
 
 			virtual ~FOutputNodeOutputController() = default;
 
-			bool IsValid() const override;
+			virtual bool IsValid() const override;
 
 			// Output metadata
-			FText GetDisplayName() const override;
-			const FText& GetTooltip() const override;
-			const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+			virtual FText GetDisplayName() const override;
+			virtual const FText& GetTooltip() const override;
+			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
 
-			void SetName(const FVertexName& InName) override;
+			virtual void SetName(const FVertexName& InName) override;
 
-			FConnectability CanConnectTo(const IInputController& InController) const override;
-			bool Connect(IInputController& InController) override;
-			bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override;
+			virtual bool IsConnectionUserModifiable() const override;
+			virtual FConnectability CanConnectTo(const IInputController& InController) const override;
+			virtual bool Connect(IInputController& InController) override;
+			virtual bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override;
 
 		private:
 			FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
 		};
+
+		/** Output controller for variable data type. */
+		class FVariableOutputController : public FBaseOutputController
+		{
+		public:
+			using FInitParams = FBaseOutputController::FInitParams;
+
+			FVariableOutputController(const FInitParams& InParams);
+			virtual ~FVariableOutputController() = default;
+
+			/** Variable data type connections are not modifiable by users */
+			virtual bool IsConnectionUserModifiable() const override;
+		};
+
 	} // namespace frontend
 } // namespace metasound
 

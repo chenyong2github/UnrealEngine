@@ -12,12 +12,12 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+TMap<FName, TWeakObjectPtr<UActorDescContainer>> FLevelInstanceActorDesc::ActorDescContainers;
+
 FLevelInstanceActorDesc::FLevelInstanceActorDesc()
 	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Partitioned)
 	, LevelInstanceContainer(nullptr)
-{
-
-}
+{}
 
 void FLevelInstanceActorDesc::Init(const AActor* InActor)
 {
@@ -37,26 +37,35 @@ void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorl
 	FWorldPartitionActorDesc::Init(InContainer, DescData);
 }
 
+void FLevelInstanceActorDesc::OnRegister(UWorld* InWorld)
+{
+	FWorldPartitionActorDesc::OnRegister(InWorld);
+
+	check(!LevelInstanceContainer);
+
+	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned)
+	{
+		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+		{
+			LevelInstanceContainer = RegisterActorDescContainer(LevelPackage, InWorld);
+			check(LevelInstanceContainer);
+		}
+	}
+}
+
 void FLevelInstanceActorDesc::OnUnregister()
 {
 	FWorldPartitionActorDesc::OnUnregister();
-	LevelInstanceContainer = nullptr;
+
+	if (LevelInstanceContainer)
+	{
+		UnregisterActorDescContainer(LevelInstanceContainer);
+		LevelInstanceContainer = nullptr;
+	}
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(UWorldPartition* InMainPartition, const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
+bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
-	// Lazy register
-	if (!LevelInstanceContainer)
-	{
-		if (InMainPartition && DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned)
-		{
-			if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
-			{
-				LevelInstanceContainer = InMainPartition->RegisterActorDescContainer(LevelPackage);
-			}
-		}
-	}
-
 	if (LevelInstanceContainer)
 	{
 		OutLevelContainer = LevelInstanceContainer;
@@ -107,4 +116,36 @@ void FLevelInstanceActorDesc::AddReferencedObjects(FReferenceCollector& Collecto
 	Collector.AddReferencedObject(LevelInstanceContainer);
 }
 
+UActorDescContainer* FLevelInstanceActorDesc::RegisterActorDescContainer(FName PackageName, UWorld* InWorld)
+{
+	TWeakObjectPtr<UActorDescContainer>* ExistingContainerPtr = ActorDescContainers.Find(PackageName);
+	if (ExistingContainerPtr)
+	{
+		if (UActorDescContainer* LevelContainer = ExistingContainerPtr->Get())
+		{
+			return LevelContainer;
+		}
+	}
+		
+	UActorDescContainer* NewContainer = NewObject<UActorDescContainer>(GetTransientPackage());
+	NewContainer->Initialize(InWorld, PackageName);
+	ActorDescContainers.Add(PackageName, TWeakObjectPtr<UActorDescContainer>(NewContainer));
+
+	return NewContainer;
+}
+
+bool FLevelInstanceActorDesc::UnregisterActorDescContainer(UActorDescContainer* Container)
+{
+	TWeakObjectPtr<UActorDescContainer> ExistingContainerPtr;
+	if (ActorDescContainers.RemoveAndCopyValue(Container->GetContainerPackage(), ExistingContainerPtr))
+	{
+		if (UActorDescContainer* LevelContainer = ExistingContainerPtr.Get())
+		{
+			LevelContainer->Uninitialize();
+			return true;
+		}
+	}
+
+	return false;
+}
 #endif

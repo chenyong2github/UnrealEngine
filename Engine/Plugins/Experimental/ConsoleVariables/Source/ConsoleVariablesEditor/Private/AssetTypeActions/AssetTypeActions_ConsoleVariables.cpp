@@ -27,8 +27,8 @@ void FAssetTypeActions_ConsoleVariables::GetActions(const TArray<UObject*>& InOb
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AssetTypeActions_ConsoleVariable_OpenVariableCollection", "Open Variable Collection in Editor"),
-		LOCTEXT("AssetTypeActions_ConsoleVariable_OpenVariableCollectionToolTip", "Open this console variable collection in the Console Variables UI Editor. Select only one asset at a time."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
+		LOCTEXT("AssetTypeActions_ConsoleVariable_OpenVariableCollectionToolTip", "Open this console variable collection in the Console Variables Editor. Select only one asset at a time."),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=] {
 					OpenAssetEditor(InObjects, TSharedPtr<IToolkitHost>());

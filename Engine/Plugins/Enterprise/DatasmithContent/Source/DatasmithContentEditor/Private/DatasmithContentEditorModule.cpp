@@ -40,6 +40,8 @@ public:
 		AssetTypeActionsArray.Add(DatasmithSceneAssetTypeAction);
 
 		FDatasmithContentEditorStyle::Initialize();
+
+		OnMapChangeHandle = FEditorDelegates::MapChange.AddRaw(this, &FDatasmithContentEditorModule::OnMapChange);
 	}
 
 	virtual void ShutdownModule() override
@@ -65,6 +67,9 @@ public:
 
 		// Shutdown style set associated with datasmith content
 		FDatasmithContentEditorStyle::Shutdown();
+
+		ClearAutoReimportAssets();
+		FEditorDelegates::MapChange.Remove(OnMapChangeHandle);
 	}
 
 	virtual void RegisterSpawnDatasmithSceneActorsHandler( FOnSpawnDatasmithSceneActors InSpawnActorsDelegate ) override
@@ -122,10 +127,111 @@ public:
 		return Result;
 	}
 
+	virtual void RegisterSetAssetAutoReimportHandler(FOnSetAssetAutoReimport&& SetAssetAutoReimportDelegate) override
+	{
+		SetAssetAutoReimportHandler = SetAssetAutoReimportDelegate;
+	}
+	
+	virtual void UnregisterSetAssetAutoReimportHandler(FDelegateHandle InHandle) override
+	{
+		if (SetAssetAutoReimportHandler.GetHandle() == InHandle)
+		{
+			SetAssetAutoReimportHandler.Unbind();
+		}
+	}
+		
+	virtual TOptional<bool> SetAssetAutoReimport(UObject* Asset, bool bEnabled) override
+	{
+		if (bEnabled)
+		{
+			AutoReimportingAssets.Add(Asset);
+		}
+		else
+		{
+			AutoReimportingAssets.Remove(Asset);
+		}
+
+		if (SetAssetAutoReimportHandler.IsBound())
+		{
+			return SetAssetAutoReimportHandler.Execute(Asset, bEnabled);
+		}
+
+		return TOptional<bool>();
+	}
+
+	virtual void RegisterIsAssetAutoReimportAvailableHandler(FOnIsAssetAutoReimportAvailable&& IsAssetAutoReimportAvailableDelegate)
+	{
+		IsAssetAutoReimportAvailableHandler = IsAssetAutoReimportAvailableDelegate;
+	}
+	
+	virtual void UnregisterIsAssetAutoReimportAvailableHandler(FDelegateHandle InHandle)
+	{
+		if (IsAssetAutoReimportAvailableHandler.GetHandle() == InHandle)
+		{
+			IsAssetAutoReimportAvailableHandler.Unbind();
+		}
+	}
+	
+	virtual TOptional<bool> IsAssetAutoReimportAvailable(UObject* Asset) const
+	{
+		if (IsAssetAutoReimportAvailableHandler.IsBound())
+		{
+			return IsAssetAutoReimportAvailableHandler.Execute(Asset);
+		}
+
+		return TOptional<bool>();
+	}
+
+	virtual void RegisterIsAssetAutoReimportEnabledHandler(FOnIsAssetAutoReimportEnabled&& IsAssetAutoReimportEnabledDelegate) override
+	{
+		IsAssetAutoReimportEnabledHandler = IsAssetAutoReimportEnabledDelegate;
+	}
+	
+	virtual void UnregisterIsAssetAutoReimportEnabledHandler(FDelegateHandle InHandle) override
+	{
+		if (IsAssetAutoReimportEnabledHandler.GetHandle() == InHandle)
+		{
+			IsAssetAutoReimportEnabledHandler.Unbind();
+		}
+	}
+	
+	virtual TOptional<bool> IsAssetAutoReimportEnabled(UObject* Asset) const override
+	{
+		if (IsAssetAutoReimportEnabledHandler.IsBound())
+		{
+			return IsAssetAutoReimportEnabledHandler.Execute(Asset);
+		}
+
+		return TOptional<bool>();
+	}
+
+
 private:
 	static TSharedPtr<IDataprepImporterInterface> CreateEmptyDatasmithImportHandler()
 	{
 		return TSharedPtr<IDataprepImporterInterface>();
+	}
+
+	void OnMapChange(uint32 MapEventFlags)
+	{
+		// We must clear all auto-reimport registered assets before changing map.
+		ClearAutoReimportAssets();
+	}
+
+	void ClearAutoReimportAssets()
+	{
+		if (SetAssetAutoReimportHandler.IsBound())
+		{
+			for (const TSoftObjectPtr<UObject>& Asset : AutoReimportingAssets)
+			{
+				if (Asset.IsValid())
+				{
+					SetAssetAutoReimportHandler.Execute(Asset.Get(), false);
+				}
+			}
+		}
+
+		AutoReimportingAssets.Empty();
 	}
 
 private:
@@ -134,6 +240,12 @@ private:
 	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetTypeActionsArray;
 	TMap<const void*, FImporterDescription> DatasmithImporterMap;
 
+	FOnSetAssetAutoReimport SetAssetAutoReimportHandler;
+	FOnIsAssetAutoReimportAvailable IsAssetAutoReimportAvailableHandler;
+	FOnIsAssetAutoReimportEnabled IsAssetAutoReimportEnabledHandler;
+
+	FDelegateHandle OnMapChangeHandle;
+	TSet<TSoftObjectPtr<UObject>> AutoReimportingAssets;
 };
 
 #undef LOCTEXT_NAMESPACE

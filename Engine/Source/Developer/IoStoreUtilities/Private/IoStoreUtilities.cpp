@@ -2755,6 +2755,40 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	return 0;
 }
 
+bool DumpIoStoreContainerInfo(const TCHAR* InContainerFilename, const FKeyChain& InKeyChain)
+{
+	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(InContainerFilename, InKeyChain);
+	if (!Reader.IsValid())
+	{
+		return false;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("IoStore Container File: %s"), InContainerFilename);
+	UE_LOG(LogIoStore, Display, TEXT("    Id: 0x%llX"), Reader->GetContainerId().Value());
+	UE_LOG(LogIoStore, Display, TEXT("    Version: %d"), Reader->GetVersion());
+	UE_LOG(LogIoStore, Display, TEXT("    Indexed: %d"), EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed));
+	UE_LOG(LogIoStore, Display, TEXT("    Signed: %d"), EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Signed));
+	bool bIsEncrypted = EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Encrypted);
+	UE_LOG(LogIoStore, Display, TEXT("    Encrypted: %d"), bIsEncrypted);
+	if (bIsEncrypted)
+	{
+		UE_LOG(LogIoStore, Display, TEXT("    EncryptionKeyGuid: %s"), *Reader->GetEncryptionKeyGuid().ToString());
+	}
+	bool bIsCompressed = EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Compressed);
+	UE_LOG(LogIoStore, Display, TEXT("    Compressed: %d"), bIsCompressed);
+	if (bIsCompressed)
+	{
+		UE_LOG(LogIoStore, Display, TEXT("    CompressionBlockSize: %llu"), Reader->GetCompressionBlockSize());
+		UE_LOG(LogIoStore, Display, TEXT("    CompressionMethods:"));
+		for (FName Method : Reader->GetCompressionMethods())
+		{
+			UE_LOG(LogPakFile, Display, TEXT("        %s"), *Method.ToString());
+		}
+	}
+
+	return true;
+}
+
 int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
 	UE_LOG(LogIoStore, Display, TEXT("Building patch..."));
@@ -2865,42 +2899,6 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 	return 0;
 }
 
-using DirectoryIndexVisitorFunction = TFunctionRef<bool(FString, const uint32)>;
-
-bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, const FIoDirectoryIndexReader& Reader, DirectoryIndexVisitorFunction Visit)
-{
-	FIoDirectoryIndexHandle File = Reader.GetFile(Directory);
-	while (File.IsValid())
-	{
-		const uint32 TocEntryIndex = Reader.GetFileData(File);
-		FStringView FileName = Reader.GetFileName(File);
-		FString FilePath = Reader.GetMountPoint() / Path / FString(FileName);
-
-		if (!Visit(MoveTemp(FilePath), TocEntryIndex))
-		{
-			return false;
-		}
-
-		File = Reader.GetNextFile(File);
-	}
-
-	FIoDirectoryIndexHandle ChildDirectory = Reader.GetChildDirectory(Directory);
-	while (ChildDirectory.IsValid())
-	{
-		FStringView DirectoryName = Reader.GetDirectoryName(ChildDirectory);
-		FString ChildDirectoryPath = Path / FString(DirectoryName);
-
-		if (!IterateDirectoryIndex(ChildDirectory, ChildDirectoryPath, Reader, Visit))
-		{
-			return false;
-		}
-
-		ChildDirectory = Reader.GetNextDirectory(ChildDirectory);
-	}
-
-	return true;
-}
-
 int32 ListContainer(
 	const FKeyChain& KeyChain,
 	const FString& ContainerPathOrWildcard,
@@ -2909,6 +2907,7 @@ int32 ListContainer(
 	struct FComputedChunkInfo
 	{
 		FIoChunkId Id;
+		FString FileName;
 		FIoChunkHash Hash;
 		EIoChunkType ChunkType;
 		uint64 Size;
@@ -2917,6 +2916,7 @@ int32 ListContainer(
 		uint64 OffsetOnDisk;
 		int32 NumCompressedBlocks;
 		bool bIsCompressed;
+		bool bHasValidFileName;
 	};
 
 	TArray<FString> ContainerFilePaths;
@@ -2982,22 +2982,6 @@ int32 ListContainer(
 		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
 
 		FString ContainerName = FPaths::GetBaseFilename(ContainerFilePath);
-		const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
-		TMap<FIoChunkId, FString> ChunkFileNamesMap;
-		IterateDirectoryIndex(
-			FIoDirectoryIndexHandle::RootDirectory(),
-			TEXT(""),
-			IndexReader,
-			[&ChunkFileNamesMap, &Reader](FString Filename, uint32 TocEntryIndex) -> bool
-		{
-			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(TocEntryIndex);
-			if (ChunkInfo.IsOk())
-			{
-				ChunkFileNamesMap.Add(ChunkInfo.ValueOrDie().Id, Filename);
-			}
-			return true;
-		});
-
 		uint64 CompressionBlockSize = Reader->GetCompressionBlockSize();
 		TArray<FIoStoreTocCompressedBlockInfo> CompressedBlocks;
 		Reader->EnumerateCompressedBlocks([&CompressedBlocks](const FIoStoreTocCompressedBlockInfo& Block) {
@@ -3016,6 +3000,7 @@ int32 ListContainer(
 
 			FComputedChunkInfo ComputedInfo{
 				ChunkInfo.Id,
+				ChunkInfo.FileName,
 				ChunkInfo.Hash,
 				ChunkInfo.ChunkType,
 				ChunkInfo.Size,
@@ -3023,7 +3008,8 @@ int32 ListContainer(
 				ChunkInfo.Offset,
 				OffsetOnDisk,
 				NumCompressedBlocks,
-				ChunkInfo.bIsCompressed
+				ChunkInfo.bIsCompressed,
+				ChunkInfo.bHasValidFileName
 			};
 
 			Chunks.Add(ComputedInfo);
@@ -3038,8 +3024,7 @@ int32 ListContainer(
 			const FComputedChunkInfo& ChunkInfo = Chunks[Index];
 			FString PackageName;
 			FPackageId PackageId;
-			FString* FindFileName = ChunkFileNamesMap.Find(ChunkInfo.Id);
-			if (FindFileName && FPackageName::TryConvertFilenameToLongPackageName(*FindFileName, PackageName, nullptr))
+			if (ChunkInfo.bHasValidFileName && FPackageName::TryConvertFilenameToLongPackageName(ChunkInfo.FileName, PackageName, nullptr))
 			{
 				PackageId = FPackageId::FromName(FName(*PackageName));
 			}
@@ -3054,7 +3039,7 @@ int32 ListContainer(
 					*ChunkIdString,
 					PackageId.ValueForDebugging(),
 					*PackageName,
-					FindFileName ? **FindFileName : TEXT(""),
+					*ChunkInfo.FileName,
 					*ContainerName,
 					ChunkInfo.Offset,
 					ChunkInfo.OffsetOnDisk,
@@ -3067,6 +3052,136 @@ int32 ListContainer(
 	}
 
 	return 0;
+}
+
+bool LegacyListIoStoreContainer(
+	const TCHAR* InContainerFilename,
+	int64 InSizeFilter,
+	const FString& InCSVFilename,
+	bool bInUseMountPoint,
+	const FKeyChain& InKeyChain)
+{
+	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(InContainerFilename, InKeyChain);
+	if (!Reader.IsValid())
+	{
+		return false;
+	}
+
+	if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
+	{
+		UE_LOG(LogIoStore, Fatal, TEXT("Missing directory index for container '%s'"), InContainerFilename);
+	}
+
+	int32 FileCount = 0;
+	int64 FileSize = 0;
+
+	TArray<FString> CompressionMethodNames;
+	for (const FName& CompressionMethodName : Reader->GetCompressionMethods())
+	{
+		CompressionMethodNames.Add(CompressionMethodName.ToString());
+	}
+
+	TArray<FIoStoreCompressedBlockInfo> CompressionBlocks;
+	TArray<FIoStoreTocCompressedBlockInfo> CompressedBlocks;
+	Reader->EnumerateCompressedBlocks([&CompressedBlocks](const FIoStoreTocCompressedBlockInfo& Block)
+		{
+			CompressedBlocks.Add(Block);
+			return true;
+		});
+
+	const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
+	UE_LOG(LogIoStore, Display, TEXT("Mount point %s"), *IndexReader.GetMountPoint());
+
+	struct FEntry
+	{
+		FIoChunkId ChunkId;
+		FIoChunkHash Hash;
+		FString FileName;
+		int64 Offset;
+		int64 Size;
+		int32 CompressionMethodIndex;
+	};
+	TArray<FEntry> Entries;
+
+	const uint64 CompressionBlockSize = Reader->GetCompressionBlockSize();
+	int32 StripPrefixLength = !bInUseMountPoint ? IndexReader.GetMountPoint().Len() : 0;
+	Reader->EnumerateChunks([&Entries, CompressionBlockSize, &CompressedBlocks, StripPrefixLength](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			const int32 FirstBlockIndex = int32(ChunkInfo.Offset / CompressionBlockSize);
+			
+			FEntry& Entry = Entries.AddDefaulted_GetRef();
+			Entry.ChunkId = ChunkInfo.Id;
+			Entry.Hash = ChunkInfo.Hash;
+			if (ChunkInfo.bHasValidFileName)
+			{
+				Entry.FileName = ChunkInfo.FileName.RightChop(StripPrefixLength);
+			}
+			else
+			{
+				Entry.FileName = ChunkInfo.FileName;
+			}
+			Entry.Offset = CompressedBlocks[FirstBlockIndex].Offset;
+			Entry.Size = ChunkInfo.CompressedSize;
+			Entry.CompressionMethodIndex = CompressedBlocks[FirstBlockIndex].CompressionMethodIndex;
+			return true;
+		});
+
+	struct FOffsetSort
+	{
+		bool operator()(const FEntry& A, const FEntry& B) const
+		{
+			return A.Offset < B.Offset;
+		}
+	};
+	Entries.Sort(FOffsetSort());
+
+	FileCount = Entries.Num();
+
+	if (InCSVFilename.Len() > 0)
+	{
+		TArray<FString> Lines;
+		Lines.Empty(Entries.Num() + 2);
+		Lines.Add(TEXT("Filename, Offset, Size, Hash, Deleted, Compressed, CompressionMethod"));
+		for (const FEntry& Entry : Entries)
+		{
+			bool bWasCompressed = Entry.CompressionMethodIndex != 0;
+			Lines.Add(FString::Printf(
+				TEXT("%s, %lld, %lld, %s, %s, %s, %d"),
+				*Entry.FileName,
+				Entry.Offset,
+				Entry.Size,
+				*Entry.Hash.ToString(),
+				TEXT("false"),
+				bWasCompressed ? TEXT("true") : TEXT("false"),
+				Entry.CompressionMethodIndex));
+		}
+
+		if (FFileHelper::SaveStringArrayToFile(Lines, *InCSVFilename) == false)
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Failed to save CSV file %s"), *InCSVFilename);
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Saved CSV file to %s"), *InCSVFilename);
+		}
+	}
+
+	for (const FEntry& Entry : Entries)
+	{
+		if (Entry.Size >= InSizeFilter)
+		{
+			UE_LOG(LogIoStore, Display, TEXT("\"%s\" offset: %lld, size: %d bytes, hash: %s, compression: %s."),
+				*Entry.FileName,
+				Entry.Offset,
+				Entry.Size,
+				*Entry.Hash.ToString(),
+				*CompressionMethodNames[Entry.CompressionMethodIndex]);
+		}
+		FileSize += Entry.Size;
+	}
+	UE_LOG(LogIoStore, Display, TEXT("%d files (%lld bytes)."), FileCount, FileSize);
+
+	return true;
 }
 
 int32 Describe(
@@ -4114,6 +4229,101 @@ static int32 Diff(
 	return 0;
 }
 
+bool LegacyDiffIoStoreContainers(const TCHAR* InContainerFilename1, const TCHAR* InContainerFilename2, bool bInLogUniques1, bool bInLogUniques2, const FKeyChain& InKeyChain)
+{
+	TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+	UE_LOG(LogIoStore, Log, TEXT("FileEventType, FileName, Size1, Size2"));
+
+	TUniquePtr<FIoStoreReader> Reader1 = CreateIoStoreReader(InContainerFilename1, InKeyChain);
+	if (!Reader1.IsValid())
+	{
+		return false;
+	}
+
+	if (!EnumHasAnyFlags(Reader1->GetContainerFlags(), EIoContainerFlags::Indexed))
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Missing directory index for container '%s'"), InContainerFilename1);
+	}
+
+	TUniquePtr<FIoStoreReader> Reader2 = CreateIoStoreReader(InContainerFilename2, InKeyChain);
+	if (!Reader2.IsValid())
+	{
+		return false;
+	}
+
+	if (!EnumHasAnyFlags(Reader2->GetContainerFlags(), EIoContainerFlags::Indexed))
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("Missing directory index for container '%s'"), InContainerFilename2);
+	}
+
+	struct FEntry
+	{
+		FString FileName;
+		FIoChunkHash Hash;
+		uint64 Size;
+	};
+
+	TMap<FIoChunkId, FEntry> Container1Entries;
+	Reader1->EnumerateChunks([&Container1Entries](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			FEntry& Entry = Container1Entries.Add(ChunkInfo.Id);
+			Entry.FileName = ChunkInfo.FileName;
+			Entry.Hash = ChunkInfo.Hash;
+			Entry.Size = ChunkInfo.Size;
+			return true;
+		});
+
+	int32 NumDifferentContents = 0;
+	int32 NumEqualContents = 0;
+	int32 NumUniqueContainer1 = 0;
+	int32 NumUniqueContainer2 = 0;
+	Reader2->EnumerateChunks([&Container1Entries, &NumDifferentContents, &NumEqualContents, bInLogUniques2, &NumUniqueContainer2](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			const FEntry* FindContainer1Entry = Container1Entries.Find(ChunkInfo.Id);
+			if (FindContainer1Entry)
+			{
+				if (FindContainer1Entry->Size != ChunkInfo.Size)
+				{
+					UE_LOG(LogIoStore, Log, TEXT("FilesizeDifferent, %s, %llu, %llu"), *ChunkInfo.FileName, FindContainer1Entry->Size, ChunkInfo.Size);
+					++NumDifferentContents;
+				}
+				else if (FindContainer1Entry->Hash != ChunkInfo.Hash)
+				{
+					UE_LOG(LogIoStore, Log, TEXT("ContentsDifferent, %s, %llu, %llu"), *ChunkInfo.FileName, FindContainer1Entry->Size, ChunkInfo.Size);
+					++NumDifferentContents;
+				}
+				else
+				{
+					++NumEqualContents;
+				}
+				Container1Entries.Remove(ChunkInfo.Id);
+			}
+			else
+			{
+				++NumUniqueContainer2;
+				if (bInLogUniques2)
+				{
+					UE_LOG(LogIoStore, Log, TEXT("UniqueToSecondContainer, %s, 0, %llu"), *ChunkInfo.FileName, ChunkInfo.Size);
+				}
+			}
+			return true;
+		});
+
+	for (const auto& KV : Container1Entries)
+	{
+		const FEntry& Entry = KV.Value;
+		++NumUniqueContainer1;
+		if (bInLogUniques1)
+		{
+			UE_LOG(LogIoStore, Log, TEXT("UniqueToFirstContainer, %s, %llu, 0"), *Entry.FileName, Entry.Size);
+		}
+	}
+
+	UE_LOG(LogIoStore, Log, TEXT("Comparison complete"));
+	UE_LOG(LogIoStore, Log, TEXT("Unique to first container: %d, Unique to second container: %d, Num Different: %d, NumEqual: %d"), NumUniqueContainer1, NumUniqueContainer2, NumDifferentContents, NumEqualContents);
+	return true;
+}
+
 int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FString& ProjectName, const ITargetPlatform* TargetPlatform)
 {
 	FString PlatformName = TargetPlatform->PlatformName();
@@ -4234,25 +4444,8 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 			continue;
 		}
 
-		TMap<FIoChunkId, FString> ChunkFileNamesMap;
-		if (EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
-		{
-			const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
-			IterateDirectoryIndex(
-				FIoDirectoryIndexHandle::RootDirectory(),
-				TEXT(""),
-				IndexReader,
-				[&ChunkFileNamesMap, &Reader](FString Filename, uint32 TocEntryIndex) -> bool
-				{
-					TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(TocEntryIndex);
-					if (ChunkInfo.IsOk())
-					{
-						ChunkFileNamesMap.Add(ChunkInfo.ValueOrDie().Id, Filename);
-					}
-					return true;
-				});
-		}
-		Reader->EnumerateChunks([&ChunkFileNamesMap, &Reader, &CollectedData](const FIoStoreTocChunkInfo& ChunkInfo)
+		
+		Reader->EnumerateChunks([&Reader, &CollectedData](const FIoStoreTocChunkInfo& ChunkInfo)
 			{
 				if (CollectedData.SeenChunks.Contains(ChunkInfo.Id))
 				{
@@ -4266,23 +4459,22 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 					ChunkType == EIoChunkType::MemoryMappedBulkData)
 				{
 					FString PackageNameStr;
-					FString* FindFileName = ChunkFileNamesMap.Find(ChunkInfo.Id);
-					UE_CLOG(!FindFileName, LogIoStore, Fatal, TEXT("Missing file name for package chunk"));
-					if (FPackageName::TryConvertFilenameToLongPackageName(*FindFileName, PackageNameStr, nullptr))
+					UE_CLOG(!ChunkInfo.bHasValidFileName, LogIoStore, Fatal, TEXT("Missing file name for package chunk"));
+					if (FPackageName::TryConvertFilenameToLongPackageName(ChunkInfo.FileName, PackageNameStr, nullptr))
 					{
 						FName PackageName(PackageNameStr);
 						CollectedData.PackageIdToName.Add(FPackageId::FromName(PackageName), PackageName);
 						FPackageInfo& PackageInfo = CollectedData.Packages.FindOrAdd(PackageName);
 						if (ChunkType == EIoChunkType::ExportBundleData)
 						{
-							PackageInfo.FileName = *FindFileName;
+							PackageInfo.FileName = ChunkInfo.FileName;
 							PackageInfo.PackageName = PackageName;
 							PackageInfo.Chunk = MakeTuple(Reader.Get(), ChunkInfo.Id);
 						}
 						else
 						{
 							FBulkDataInfo& BulkDataInfo = PackageInfo.BulkData.AddDefaulted_GetRef();
-							BulkDataInfo.FileName = *FindFileName;
+							BulkDataInfo.FileName = ChunkInfo.FileName;
 							BulkDataInfo.Chunk = MakeTuple(Reader.Get(), ChunkInfo.Id);
 							if (ChunkType == EIoChunkType::OptionalBulkData)
 							{
@@ -4300,7 +4492,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 					}
 					else
 					{
-						UE_LOG(LogIoStore, Warning, TEXT("Failed to convert file name '%s' to package name"), **FindFileName);
+						UE_LOG(LogIoStore, Warning, TEXT("Failed to convert file name '%s' to package name"), *ChunkInfo.FileName);
 					}
 				}
 				else if (ChunkType == EIoChunkType::ContainerHeader)
@@ -4335,7 +4527,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 				PackageStoreEntryResource.ExportInfo.ExportBundleCount = StoreEntry->ExportBundleCount;
 				PackageStoreEntryResource.ExportInfo.ExportCount = StoreEntry->ExportCount;
 				PackageStoreEntryResource.ImportedPackageIds.SetNum(StoreEntry->ImportedPackages.Num());
-				FMemory::Memcpy(PackageStoreEntryResource.ImportedPackageIds.GetData(), StoreEntry->ImportedPackages.Data(), sizeof(FPackageId) * StoreEntry->ImportedPackages.Num());
+				FMemory::Memcpy(PackageStoreEntryResource.ImportedPackageIds.GetData(), StoreEntry->ImportedPackages.Data(), sizeof(FPackageId) * StoreEntry->ImportedPackages.Num()); //-V575
 			}
 			++StoreEntry;
 		}
@@ -4392,6 +4584,162 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 	UE_LOG(LogIoStore, Display, TEXT("Waiting for uploads to finish..."));
 	ZenStoreWriter->EndCook();
 	return 0;
+}
+
+bool ExtractFilesFromIoStoreContainer(
+	const TCHAR* InContainerFilename,
+	const TCHAR* InDestPath,
+	bool bInExtractToMountPoint,
+	const FKeyChain& InKeyChain,
+	const FString* InFilter,
+	TMap<FString, uint64>* OutOrderMap,
+	TArray<FGuid>* OutUsedEncryptionKeys,
+	bool* bOutIsSigned)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ExtractFilesFromIoStoreContainer);
+
+	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(InContainerFilename, InKeyChain);
+	if (!Reader.IsValid())
+	{
+		return false;
+	}
+
+	if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Missing directory index for container '%s'"), InContainerFilename);
+		return false;
+	}
+	
+	if (OutUsedEncryptionKeys)
+	{
+		OutUsedEncryptionKeys->Add(Reader->GetEncryptionKeyGuid());
+	}
+
+	if (bOutIsSigned)
+	{
+		*bOutIsSigned = EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Signed);
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Extracting files from IoStore container '%s'..."), InContainerFilename);
+
+	struct FEntry
+	{
+		FIoChunkId ChunkId;
+		FString SourceFileName;
+		FString DestFileName;
+		uint64 Offset;
+		bool bIsCompressed;
+
+		FIoChunkHash Hash;
+	};
+	TArray<FEntry> Entries;
+	const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
+	FString MountPoint = bInExtractToMountPoint ? IndexReader.GetMountPoint().Replace(TEXT("../../../"), TEXT("")) : TEXT("");
+	FString DestPath(InDestPath);
+	Reader->EnumerateChunks([&Entries, InFilter, &MountPoint, &DestPath](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
+			if (!ChunkInfo.bHasValidFileName)
+			{
+				return true;
+			}
+
+			if (InFilter && (!ChunkInfo.FileName.MatchesWildcard(*InFilter)))
+			{
+				return true;
+			}
+
+			FEntry& Entry = Entries.AddDefaulted_GetRef();
+			Entry.ChunkId = ChunkInfo.Id;
+			Entry.SourceFileName = ChunkInfo.FileName;
+			Entry.DestFileName = DestPath / MountPoint / Entry.SourceFileName;
+			Entry.Offset = ChunkInfo.Offset;
+			Entry.bIsCompressed = ChunkInfo.bIsCompressed;
+
+			Entry.Hash = ChunkInfo.Hash;
+
+			return true;
+		});
+
+	
+	const bool bContainerIsEncrypted = EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Encrypted);
+
+	auto WriteFile = [](const FString& FileName, const uint8* Data, uint64 DataSize)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WriteFile);
+		TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*FileName));
+		if (FileHandle)
+		{
+			FileHandle->Serialize(const_cast<uint8*>(Data), DataSize);
+			UE_CLOG(FileHandle->IsError(), LogIoStore, Error, TEXT("Failed writing to file \"%s\"."), *FileName);
+			return !FileHandle->IsError();
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Unable to create file \"%s\"."), *FileName);
+			return false;
+		}
+	};
+
+	TArray<TFuture<bool>> ExtractTasks;
+	ExtractTasks.SetNum(Entries.Num());
+	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
+	for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
+	{
+		const FEntry& Entry = Entries[EntryIndex];
+		ExtractTasks[EntryIndex] = Reader->ReadAsync(Entry.ChunkId, FIoReadOptions())
+			.Next([&Entry, &WriteFile](TIoStatusOr<FIoBuffer> ReadChunkResult)
+			{
+				if (!ReadChunkResult.IsOk())
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Failed reading chunk for file \"%s\" (%s)."), *Entry.SourceFileName, *ReadChunkResult.Status().ToString());
+					return false;
+				}
+				
+				const uint8* Data = ReadChunkResult.ValueOrDie().Data();
+				uint64 DataSize = ReadChunkResult.ValueOrDie().DataSize();
+				if (Entry.ChunkId.GetChunkType() == EIoChunkType::ExportBundleData)
+				{
+					const FZenPackageSummary* PackageSummary = reinterpret_cast<const FZenPackageSummary*>(Data);
+					uint64 HeaderDataSize = PackageSummary->HeaderSize;
+					check(HeaderDataSize <= DataSize);
+					FString DestFileName = FPaths::ChangeExtension(Entry.DestFileName, TEXT(".uheader"));
+					if (!WriteFile(DestFileName, Data, HeaderDataSize))
+					{
+						return false;
+					}
+					DestFileName = FPaths::ChangeExtension(Entry.DestFileName, TEXT(".uexp"));
+					if (!WriteFile(DestFileName, Data + HeaderDataSize, DataSize - HeaderDataSize))
+					{
+						return false;
+					}
+				}
+				else if (!WriteFile(Entry.DestFileName, Data, DataSize))
+				{
+					return false;
+				}
+				return true;
+			});
+	}
+
+	int32 ErrorCount = 0;
+	for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
+	{
+		if (ExtractTasks[EntryIndex].Get())
+		{
+			const FEntry& Entry = Entries[EntryIndex];
+			if (OutOrderMap != nullptr)
+			{
+				OutOrderMap->Add(IndexReader.GetMountPoint() / Entry.SourceFileName, Entry.Offset);
+			}
+		}
+		else
+		{
+			++ErrorCount;
+		}
+	}
+
+	UE_LOG(LogIoStore, Log, TEXT("Finished extracting %d chunks (including %d errors)."), Entries.Num(), ErrorCount);
+	return true;
 }
 
 static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceFile>& OutFiles)

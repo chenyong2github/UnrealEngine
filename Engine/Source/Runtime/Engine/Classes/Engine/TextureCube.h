@@ -35,6 +35,9 @@ public:
 	TMap<FString, FTexturePlatformData*> CookedPlatformData;
 #endif
 
+	/** Destructor */
+	ENGINE_API virtual ~UTextureCube() {};
+
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	ENGINE_API virtual void PostLoad() override;

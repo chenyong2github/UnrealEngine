@@ -3,8 +3,6 @@
 
 #if WITH_HTTP_DDC_BACKEND
 
-#include <memory>
-
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -732,9 +730,9 @@ private:
 //----------------------------------------------------------------------------------------------------------
 // Forward declarations
 //----------------------------------------------------------------------------------------------------------
-bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload);
-bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload);
-bool VerifyRequest(const class FHttpRequest* Request, const TArray<uint8>& Payload);
+bool VerifyPayload(const FSHAHash& Hash, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload);
+bool VerifyPayload(const FIoHash& Hash, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload);
+bool VerifyRequest(const class FHttpRequest* Request, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload);
 bool HashPayload(class FHttpRequest* Request, const TArrayView<const uint8> Payload);
 bool ShouldAbortForShutdown();
 
@@ -995,7 +993,7 @@ struct FDataRequestHelper
 			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*Uri, OutData);
 			if (FHttpRequest::IsSuccessResponse(Request->GetResponseCode()))
 			{
-				if (VerifyRequest(Request, *OutData))
+				if (VerifyRequest(Request, InNamespace, InBucket, InCacheKey, *OutData))
 				{
 					TRACE_COUNTER_ADD(HttpDDC_GetHit, int64(1));
 					TRACE_COUNTER_ADD(HttpDDC_BytesReceived, int64(Request->GetBytesReceived()));
@@ -1118,15 +1116,23 @@ struct FDataRequestHelper
 
 	static void StaticInitialize()
 	{
-		static bool Initialized = false;
-		check(!Initialized);
-		for (int32 i = 0; i < UE_HTTPDDC_BATCH_NUM; i++)
+		static bool bInitialized = false;
+		check(!bInitialized);
+		for (FBatch& Batch : Batches)
 		{
-			Batches[i].Reserved = 0;
-			Batches[i].Ready = 0;
-			Batches[i].Complete = std::unique_ptr<FEvent, FBatch::EventDeleter>(FPlatformProcess::GetSynchEventFromPool(true));
+			Batch.Reserved = 0;
+			Batch.Ready = 0;
+			Batch.Complete = TUniquePtr<FEvent, FBatch::FEventDeleter>(FPlatformProcess::GetSynchEventFromPool(true));
 		}
-		Initialized = true;
+		bInitialized = true;
+	}
+
+	static void StaticShutdown()
+	{
+		for (FBatch& Batch : Batches)
+		{
+			Batch.Complete.Reset();
+		}
 	}
 
 	bool IsSuccess() const
@@ -1158,7 +1164,7 @@ private:
 
 	struct FBatch
 	{
-		struct EventDeleter
+		struct FEventDeleter
 		{
 			void operator()(FEvent* Event)
 			{
@@ -1171,7 +1177,7 @@ private:
 		std::atomic<uint32> Ready;
 		std::atomic<uint32> WeightHint;
 		FHttpRequest* Request;
-		std::unique_ptr<FEvent, EventDeleter> Complete;
+		TUniquePtr<FEvent, FEventDeleter> Complete;
 	};
 
 	FHttpRequest* Request;
@@ -1529,7 +1535,7 @@ private:
 								OutData->Append(Response, PayloadSize);
 								Response += PayloadSize;
 								// Verify the received and parsed payload
-								if (VerifyPayload(PayloadHash, *OutData))
+								if (VerifyPayload(PayloadHash, RequestOp.Namespace, RequestOp.Bucket, RequestOp.CacheKeys[KeyIdx], *OutData))
 								{
 									TRACE_COUNTER_ADD(HttpDDC_GetHit, int64(1));
 									TRACE_COUNTER_ADD(HttpDDC_BytesReceived, int64(PayloadSize));
@@ -1790,10 +1796,13 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 /**
  * Verifies the integrity of the received data using supplied checksum.
  * @param Hash received hash value.
+ * @param Namespace The namespace string used when originally fetching the request.
+ * @param Bucket The bucket string used when originally fetching the request.
+ * @param CacheKey The cache key string used when originally fetching the request.
  * @param Payload Payload received.
  * @return True if the data is correct, false if checksums doesn't match.
  */
-bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload)
+bool VerifyPayload(const FSHAHash& Hash, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload)
 {
 	FSHAHash PayloadHash;
 	FSHA1::HashBuffer(Payload.GetData(), Payload.Num(), PayloadHash.Hash);
@@ -1801,10 +1810,13 @@ bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload)
 	if (Hash != PayloadHash)
 	{
 		UE_LOG(LogDerivedDataCache,
-			Warning,
-			TEXT("Checksum from server did not match received data (%s vs %s). Discarding cached result."),
+			Display,
+			TEXT("Checksum from server did not match received data (%s vs %s). Discarding cached result. Namespace: %s, Bucket: %s, Key: %s."),
 			*WriteToString<48>(Hash),
-			*WriteToString<48>(PayloadHash)
+			*WriteToString<48>(PayloadHash),
+			Namespace,
+			Bucket,
+			CacheKey
 		);
 		return false;
 	}
@@ -1815,20 +1827,26 @@ bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload)
 /**
  * Verifies the integrity of the received data using supplied checksum.
  * @param Hash received hash value.
+ * @param Namespace The namespace string used when originally fetching the request.
+ * @param Bucket The bucket string used when originally fetching the request.
+ * @param CacheKey The cache key string used when originally fetching the request.
  * @param Payload Payload received.
  * @return True if the data is correct, false if checksums doesn't match.
  */
-bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload)
+bool VerifyPayload(const FIoHash& Hash, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload)
 {
 	FIoHash PayloadHash = FIoHash::HashBuffer(Payload.GetData(), Payload.Num());
 
 	if (Hash != PayloadHash)
 	{
 		UE_LOG(LogDerivedDataCache,
-			Warning,
-			TEXT("Checksum from server did not match received data (%s vs %s). Discarding cached result."),
+			Display,
+			TEXT("Checksum from server did not match received data (%s vs %s). Discarding cached result. Namespace: %s, Bucket: %s, Key: %s."),
 			*WriteToString<48>(Hash),
-			*WriteToString<48>(PayloadHash)
+			*WriteToString<48>(PayloadHash),
+			Namespace,
+			Bucket,
+			CacheKey
 		);
 		return false;
 	}
@@ -1840,22 +1858,25 @@ bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload)
 /**
  * Verifies the integrity of the received data using supplied checksum.
  * @param Request Request that the data was be received with.
+ * @param Namespace The namespace string used when originally fetching the request.
+ * @param Bucket The bucket string used when originally fetching the request.
+ * @param CacheKey The cache key string used when originally fetching the request.
  * @param Payload Payload received.
  * @return True if the data is correct, false if checksums doesn't match.
  */
-bool VerifyRequest(const FHttpRequest* Request, const TArray<uint8>& Payload)
+bool VerifyRequest(const FHttpRequest* Request, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArray<uint8>& Payload)
 {
 	FString ReceivedHashStr;
 	if (Request->GetHeader("X-Jupiter-Sha1", ReceivedHashStr))
 	{
 		FSHAHash ReceivedHash;
 		ReceivedHash.FromString(ReceivedHashStr);
-		return VerifyPayload(ReceivedHash, Payload);
+		return VerifyPayload(ReceivedHash, Namespace, Bucket, CacheKey, Payload);
 	}
 	if (Request->GetHeader("X-Jupiter-IoHash", ReceivedHashStr))
 	{
 		FIoHash ReceivedHash(ReceivedHashStr);
-		return VerifyPayload(ReceivedHash, Payload);
+		return VerifyPayload(ReceivedHash, Namespace, Bucket, CacheKey, Payload);
 	}
 	UE_LOG(LogDerivedDataCache, Warning, TEXT("HTTP server did not send a content hash. Wrong server version?"));
 	return true;
@@ -1949,16 +1970,19 @@ FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
 	{
 		AnyInstance = nullptr;
 	}
-}
-
-FString FHttpDerivedDataBackend::GetDisplayName() const
-{
-	return FString(TEXT("Http"));
+#if WITH_DATAREQUEST_HELPER
+	FDataRequestHelper::StaticShutdown();
+#endif
 }
 
 FString FHttpDerivedDataBackend::GetName() const
 {
 	return Domain;
+}
+
+FString FHttpDerivedDataBackend::GetDisplayName() const
+{
+	return TEXT("Horde Storage");
 }
 
 bool FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
@@ -1978,7 +2002,8 @@ FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass() co
 
 bool FHttpDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 {
-	return false;
+	DebugOptions = InOptions;
+	return true;
 }
 
 
@@ -2125,11 +2150,42 @@ bool FHttpDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
+bool FHttpDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+{
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	const FName Key(InKey);
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(InKey))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
+		DebugMissedKeys.AddByHash(Hash, Key);
+		return true;
+	}
+
+	return false;
+}
+
 bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Exist);
 	TRACE_COUNTER_ADD(HttpDDC_Exist, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
 
 #if WITH_DATAREQUEST_HELPER
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
@@ -2194,12 +2250,34 @@ TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayVi
 		if (FHttpRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
 		{
 			COOK_STAT(Timer.AddHit(0));
-			return RequestHelper.IsBatchSuccess();
+			TBitArray<> Results = RequestHelper.IsBatchSuccess();
+			int32 ResultIndex = 0;
+			for (const FString& CacheKey : CacheKeys)
+			{
+				if (ShouldSimulateMiss(*CacheKey))
+				{
+					Results[ResultIndex] = false;
+				}
+				ResultIndex++;
+			}
+
+			return Results;
 		}
 
 		if (!ShouldRetryOnError(ResponseCode))
 		{
-			return RequestHelper.IsBatchSuccess();
+			TBitArray<> Results = RequestHelper.IsBatchSuccess();
+			int32 ResultIndex = 0;
+			for (const FString& CacheKey : CacheKeys)
+			{
+				if (ShouldSimulateMiss(*CacheKey))
+				{
+					Results[ResultIndex] = false;
+				}
+				ResultIndex++;
+			}
+
+			return Results;
 		}
 	}
 #else
@@ -2234,13 +2312,20 @@ TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayVi
 			Exists.Reserve(CacheKeys.Num());
 			for (const FString& CacheKey : CacheKeys)
 			{
-				const TSharedPtr<FJsonValue>* FoundResponse = Algo::FindByPredicate(ResponseArray, [&CacheKey](const TSharedPtr<FJsonValue>& Response) {
-					FString Key;
-					Response->TryGetString(Key);
-					return Key == CacheKey;
-				});
+				if (ShouldSimulateMiss(*CacheKey))
+				{
+					Exists.Add(false);
+				}
+				else
+				{
+					const TSharedPtr<FJsonValue>* FoundResponse = Algo::FindByPredicate(ResponseArray, [&CacheKey](const TSharedPtr<FJsonValue>& Response) {
+						FString Key;
+						Response->TryGetString(Key);
+						return Key == CacheKey;
+					});
 
-				Exists.Add(FoundResponse != nullptr);
+					Exists.Add(FoundResponse != nullptr);
+				}
 			}
 
 			if (Exists.CountSetBits() == CacheKeys.Num())
@@ -2266,6 +2351,11 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Get);
 	TRACE_COUNTER_ADD(HttpDDC_Get, int64(1));
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
+
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return false;
+	}
 
 #if WITH_DATAREQUEST_HELPER
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
@@ -2299,7 +2389,7 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 			const uint64 ResponseCode = Request->GetResponseCode();
 
 			// Request was successful, make sure we got all the expected data.
-			if (FHttpRequest::IsSuccessResponse(ResponseCode) && VerifyRequest(Request.Get(), OutData))
+			if (FHttpRequest::IsSuccessResponse(ResponseCode) && VerifyRequest(Request.Get(), *Namespace, *DefaultBucket, CacheKey, OutData))
 			{
 				TRACE_COUNTER_ADD(HttpDDC_GetHit, int64(1));
 				TRACE_COUNTER_ADD(HttpDDC_BytesReceived, int64(Request->GetBytesReceived()));
@@ -2328,7 +2418,13 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 		return EPutStatus::NotCached;
 	}
 
-#if WITH_DATAREQUEST_HELPER
+	// don't put anything we pretended didn't exist
+	if (ShouldSimulateMiss(CacheKey))
+	{
+		return EPutStatus::Skipped;
+	}
+
+#if 0 // No longer WITH_DATAREQUEST_HELPER as async puts are unsupported except through the AsyncPutWrapper which expects the inner backend to perform the put synchronously
 	for (int32 Attempts = 0; Attempts < UE_HTTPDDC_MAX_ATTEMPTS; ++Attempts)
 	{
 		FDataUploadHelper Request(PutRequestPools[IsInGameThread()].Get(), *Namespace, *DefaultBucket,	CacheKey, InData, UsageStats);
@@ -2370,10 +2466,10 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 			// Append the content hash to the header
 			HashPayload(Request.Get(), InData);
 
-			FHttpRequest::Result Result = Request->PerformBlockingUpload<FHttpRequest::Put>(*Uri, InData);
+			Request->PerformBlockingUpload<FHttpRequest::Put>(*Uri, InData);
 			ResponseCode = Request->GetResponseCode();
 
-			if (ResponseCode == 200)
+			if (FHttpRequest::IsSuccessResponse(ResponseCode))
 			{
 				TRACE_COUNTER_ADD(HttpDDC_BytesSent, int64(Request->GetBytesSent()));
 				COOK_STAT(Timer.AddHit(Request->GetBytesSent()));

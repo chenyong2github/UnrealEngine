@@ -8,7 +8,66 @@ using UnrealBuildTool;
 using AutomationScripts;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Text.Json;
 
+public class ConfigHelper
+{
+	private string SpecificConfigSection;
+	private string SharedConfigSection;
+	private ConfigHierarchy GameConfig;
+
+
+	public ConfigHelper(UnrealTargetPlatform Platform, FileReference ProjectFile, bool bIsCookedCooker)
+	{
+		SharedConfigSection = "CookedEditorSettings";
+		SpecificConfigSection = SharedConfigSection + (bIsCookedCooker ? "_CookedCooker" : "_CookedEditor");
+
+		GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, Platform);
+	}
+
+	public bool GetBool(string Key)
+	{
+		bool Value;
+		// GetBool will set Value to false if it's not found, which is what we want
+		if (!GameConfig.GetBool(SpecificConfigSection, Key, out Value))
+		{
+			GameConfig.GetBool(SharedConfigSection, Key, out Value);
+		}
+		return Value;
+	}
+
+	public string GetString(string Key)
+	{
+		string Value;
+		// GetBool will set Value to "" if it's not found, so, set it to null if not found
+		if (!GameConfig.GetString(SpecificConfigSection, Key, out Value))
+		{
+			if (!GameConfig.GetString(SharedConfigSection, Key, out Value))
+			{
+				Value = null;
+			}
+		}
+		return Value;
+	}
+
+	public List<string> GetArray(string Key)
+	{
+		List<string> Value = new List<string>();
+		List<string> Temp;
+
+		// merge both sections into one array (probably don't depend on order)
+		if (GameConfig.GetArray(SpecificConfigSection, Key, out Temp))
+		{
+			Value.AddRange(Temp);
+		}
+		if (GameConfig.GetArray(SharedConfigSection, Key, out Temp))
+		{
+			Value.AddRange(Temp);
+		}
+
+		return Value;
+	}
+}
 
 public class ModifyStageContext
 {
@@ -19,50 +78,66 @@ public class ModifyStageContext
 	// these files will just be staged
 	public List<FileReference> NonUFSFilesToStage = new List<FileReference>();
 
-	[ConfigFile(ConfigHierarchyType.Game, "CookedEditorSettings")]
 	public bool bStageShaderDirs = true;
-	[ConfigFile(ConfigHierarchyType.Game, "CookedEditorSettings")]
 	public bool bStageBuildDirs = true;
-	[ConfigFile(ConfigHierarchyType.Game, "CookedEditorSettings")]
 	public bool bStageExtrasDirs = false;
-	[ConfigFile(ConfigHierarchyType.Game, "CookedEditorSettings")]
 	public bool bStagePlatformDirs = true;
-	[ConfigFile(ConfigHierarchyType.Game, "CookedEditorSettings")]
-	public bool bStageRestrictedDirs = false;
+	public bool bStageUAT = false;
+	public bool bIsForExternalDistribution = false;
+
+	public ConfigHelper ConfigHelper;
 
 	public DirectoryReference EngineDirectory;
 	public DirectoryReference ProjectDirectory;
 	public string ProjectName;
 	public string IniPlatformName;
+	public bool bIsDLC;
 
 	// when creating a cooked editor against a premade client, this is the sub-directory in the Releases directory to compare against
 	public DirectoryReference ReleaseMetadataLocation = null;
 
+	// where to find files like CachedEditorThumbnails.bin or EditorClientAssetRegistry.bin
+	public DirectoryReference CachedEditorDataLocation = null;
+
 	// commandline etc helper
 	private BuildCommand Command;
 
-	public ModifyStageContext(DirectoryReference EngineDirectory, ProjectParams Params, BuildCommand Command)
+	public ModifyStageContext(ConfigHelper ConfigHelper, DirectoryReference EngineDirectory, ProjectParams Params, DeploymentContext SC, BuildCommand Command)
 	{
 		this.EngineDirectory = EngineDirectory;
 		this.Command = Command;
+		this.ConfigHelper = ConfigHelper;
+
+		bStageShaderDirs = ConfigHelper.GetBool("bStageShaderDirs");
+		bStageBuildDirs = ConfigHelper.GetBool("bStageBuildDirs");
+		bStageExtrasDirs = ConfigHelper.GetBool("bStageExtrasDirs");
+		bStagePlatformDirs = ConfigHelper.GetBool("bStagePlatformDirs");
+		bStageUAT = ConfigHelper.GetBool("bStageUAT");
+		bIsForExternalDistribution = ConfigHelper.GetBool("bIsForExternalDistribution");
 
 		// cache some useful properties
 		ProjectDirectory = Params.RawProjectPath.Directory;
 		ProjectName = Params.RawProjectPath.GetFileNameWithoutAnyExtensions();
-		IniPlatformName = ConfigHierarchy.GetIniPlatformName(Params.ClientTargetPlatforms[0].Type);
-
-		ConfigCache.ReadSettings(ProjectDirectory, BuildHostPlatform.Current.Platform, this);
+		IniPlatformName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.PlatformType);
+		bIsDLC = Params.DLCFile != null;
 
 		// cache info for DLC against a release
 		if (Params.BasedOnReleaseVersionPathOverride != null)
 		{
 			ReleaseMetadataLocation = DirectoryReference.Combine(new DirectoryReference(Params.BasedOnReleaseVersionPathOverride), "Metadata");
 		}
+		else
+		{
+			ReleaseMetadataLocation = SC.MetadataDir;
+		}
+
+		// by default, the files are in the cooked data location (which is SC.Metadatadir)
+		CachedEditorDataLocation = SC.MetadataDir;
 	}
 
 	public void Apply(DeploymentContext SC)
 	{
-		if (ReleaseMetadataLocation != null)
+		if (bIsDLC)
 		{
 			// remove files that we are about to stage that were already in the shipped client
 			RemoveReleasedFiles(SC);
@@ -70,6 +145,9 @@ public class ModifyStageContext
 
 		// maps can't be cooked and loaded by the editor, so make sure no cooked ones exist
 		UncookMaps(SC);
+
+		// anything we want to be NonUFS make sure is not alreay UFS
+		UFSFilesToStage.RemoveAll(x => NonUFSFilesToStage.Contains(x));
 
 		Dictionary<StagedFileReference, FileReference> StagedUFSFiles = MimicStageFiles(SC, UFSFilesToStage);
 		Dictionary<StagedFileReference, FileReference> StagedNonUFSFiles = MimicStageFiles(SC, NonUFSFilesToStage);
@@ -194,28 +272,6 @@ public class ModifyStageContext
 			DirectoryReference RootDir;
 			StagedFileReference StagedFile = MakeRelativeStagedReference(SC, FileRef, out RootDir);
 
-			// check if the remapped file is restricted
-			FileReference StagedFileRef = FileReference.Combine(RootDir, StagedFile.Name);
-			if (StagedFileRef.ContainsAnyNames(SC.RestrictedFolderNames, RootDir))
-			{
-//				Console.WriteLine("{0} is restricted", FileRef.FullName);
-				if (bStageRestrictedDirs)
-				{
-					// if we want to stage restricted files, then we need to add the folder to the allow list
-					if (!SC.DirectoriesAllowList.Contains(StagedFile.Directory))
-					{
-						Console.WriteLine("Allowing dir {0}", StagedFile.Directory.Name);
-						SC.DirectoriesAllowList.Add(StagedFile.Directory);
-					}
-				}
-				else
-				{
-//					Console.WriteLine(" .. skipping");
-					// otherwise, don't return this file in the output
-					continue;
-				}
-			}
-
 			// add the mapping
 			Mapping.Add(StagedFile, FileRef);
 		}
@@ -225,44 +281,15 @@ public class ModifyStageContext
 
 	private void HandleRestrictedFiles(DeploymentContext SC, ref Dictionary<StagedFileReference, FileReference> Files)
 	{
-		if (bStageRestrictedDirs)
-		{
-			foreach (var Pair in Files)
-			{
-				if (SC.RestrictedFolderNames.Any(x => Pair.Key.ContainsName(x)))
-				{
-					Console.WriteLine("Allowing dir {0}", Pair.Value.Directory.FullName);
-					SC.DirectoriesAllowList.Add(Pair.Key.Directory);
-				}
-			}
-		}
-		else
+		if (bIsForExternalDistribution)
 		{
 			// remove entries where any restricted folder names are in the name
 			Files = Files.Where(x => !SC.RestrictedFolderNames.Any(y => x.Key.ContainsName(y))).ToDictionary(x => x.Key, x => x.Value);
 		}
-		//foreach (var Pair in Files)
-		//{
-		//	if (SC.RestrictedFolderNames.Any(x => Pair.Key.ContainsName(x))
-		//	{
-		//		//				Console.WriteLine("{0} is restricted", FileRef.FullName);
-		//		if (bStageRestrictedDirs)
-		//		{
-		//			// if we want to stage restricted files, then we need to explicitly allow the folder
-		//			if (!SC.DirectoriesAllowList.Contains(StagedFile.Directory))
-		//			{
-		//				Console.WriteLine("Allowing dir {0}", StagedFile.Directory.Name);
-		//				SC.DirectoriesAllowList.Add(StagedFile.Directory);
-		//			}
-		//		}
-		//		else
-		//		{
-		//			//					Console.WriteLine(" .. skipping");
-		//			// otherwise, don't return this file in the output
-		//			continue;
-		//		}
-		//	}
-		//}
+		else
+		{
+			Log.TraceInformationOnce("Allowing restricted directories to be staged...");
+		}
 	}
 
 	private void UncookMaps(DeploymentContext SC)
@@ -278,9 +305,21 @@ public class ModifyStageContext
 
 public class MakeCookedEditor : BuildCommand
 {
+	protected bool bIsCookedCooker;
+	protected FileReference ProjectFile;
+
+	protected ConfigHelper ConfigHelper;
+
 	public override void ExecuteBuild()
 	{
 		LogInformation("************************* MakeCookedEditor");
+
+		bIsCookedCooker = ParseParam("cookedcooker");
+		ProjectFile = ParseProjectParam();
+
+		// set up config sections and the like
+		ConfigHelper = new ConfigHelper(BuildHostPlatform.Current.Platform, ProjectFile, bIsCookedCooker);
+
 
 		ProjectParams BuildParams = GetParams();
 
@@ -311,6 +350,10 @@ public class MakeCookedEditor : BuildCommand
 			Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(DirectoryReference.Combine(Unreal.EngineDirectory, "Shaders"), "*", SearchOption.AllDirectories));
 			GatherTargetDependencies(Params, SC, Context, "ShaderCompileWorker");
 		}
+		if (bIsCookedCooker)
+		{
+			GatherTargetDependencies(Params, SC, Context, "UnrealPak");
+		}
 
 		StageIniPathArray(Params, SC, "EngineExtraStageFiles", Unreal.EngineDirectory, Context);
 
@@ -320,7 +363,11 @@ public class MakeCookedEditor : BuildCommand
 	protected virtual void StageProjectEditorFiles(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context)
 	{
 		// always stage the main exe, in case DLC mode is on, then it won't by default
-		GatherTargetDependencies(Params, SC, Context, SC.StageExecutables[0]);
+		if (SC.StageExecutables.Count > 0)
+		{
+			GatherTargetDependencies(Params, SC, Context, SC.StageExecutables[0]);
+		}
+
 
 		StagePlatformExtensionFiles(Params, SC, Context, Context.ProjectDirectory);
 		StagePluginFiles(Params, SC, Context, false);
@@ -330,10 +377,79 @@ public class MakeCookedEditor : BuildCommand
 
 		StageIniPathArray(Params, SC, "ProjectExtraStageFiles", Context.ProjectDirectory, Context);
 
-		if (Context.ReleaseMetadataLocation != null)
+		if (!bIsCookedCooker)
 		{
-			// we need to remap this file, so stage it directly
-			SC.StageFile(StagedFileType.UFS, FileReference.Combine(Context.ReleaseMetadataLocation, "DevelopmentAssetRegistry.bin"), new StagedFileReference($"{Context.ProjectName}/EditorClientAssetRegistry.bin"));
+			// the editor AR may be named EditorClientAssetRegistry.bin already, but probably is DevelopmentAssetRegistry.bin, so look for both, and name it EditorClientAssetRegistry
+			FileReference EditorAR = FileReference.Combine(Context.CachedEditorDataLocation, "EditorClientAssetRegistry.bin");
+			if (!FileReference.Exists(EditorAR))
+			{
+				EditorAR = FileReference.Combine(Context.CachedEditorDataLocation, "DevelopmentAssetRegistry.bin");
+			}
+			SC.StageFile(StagedFileType.UFS, EditorAR, new StagedFileReference($"{Context.ProjectName}/EditorClientAssetRegistry.bin"));
+
+			// this file is optional
+			FileReference EditorThumbnails = FileReference.Combine(Context.CachedEditorDataLocation, "CachedEditorThumbnails.bin");
+			if (FileReference.Exists(EditorThumbnails))
+			{
+				SC.StageFile(StagedFileType.UFS, EditorThumbnails, new StagedFileReference($"{Context.ProjectName}/CachedEditorThumbnails.bin"));
+			}
+		}
+	}
+
+	static void ReadProjectsRecursively(FileReference File, Dictionary<string, string> InitialProperties, Dictionary<FileReference, CsProjectInfo> FileToProjectInfo)
+	{
+		// Early out if we've already read this project
+		if (!FileToProjectInfo.ContainsKey(File))
+		{
+			// Try to read this project
+			CsProjectInfo ProjectInfo;
+			if (!CsProjectInfo.TryRead(File, InitialProperties, out ProjectInfo))
+			{
+				throw new AutomationException("Couldn't read project '{0}'", File.FullName);
+			}
+
+			// Add it to the project lookup, and try to read all the projects it references
+			FileToProjectInfo.Add(File, ProjectInfo);
+			foreach (FileReference ProjectReference in ProjectInfo.ProjectReferences.Keys)
+			{
+				if (!FileReference.Exists(ProjectReference))
+				{
+					throw new AutomationException("Unable to find project '{0}' referenced by '{1}'", ProjectReference, File);
+				}
+				ReadProjectsRecursively(ProjectReference, InitialProperties, FileToProjectInfo);
+			}
+		}
+	}
+
+	protected virtual void StageUAT(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context)
+	{
+		// now look in the .json file that UAT made that lists its script files
+		DirectoryReference AutomationToolBinaryDir = DirectoryReference.Combine(Context.EngineDirectory, "Binaries", "DotNET", "AutomationTool");
+		DirectoryReference UnrealBuildToolBinaryDir = DirectoryReference.Combine(Context.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool");
+		FileReference ScriptModuleManifestPath = FileReference.Combine(AutomationToolBinaryDir, "ScriptModuleManifest.json");
+		DirectoryReference ProjectAutomationToolBinaryDir = DirectoryReference.Combine(Context.ProjectDirectory, "Binaries", "DotNET", "AutomationTool");
+
+		// some netcore dependencies in the tool directories can't be discovered with CsProjectInfo, so just stage the enture UBT and UAT directories
+		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(UnrealBuildToolBinaryDir, "*", SearchOption.AllDirectories));
+		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(AutomationToolBinaryDir, "*", SearchOption.AllDirectories));
+		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(ProjectAutomationToolBinaryDir, "*", SearchOption.AllDirectories));
+
+		// read in the list of modules that UAT needs to run from a json file
+		HashSet<string> ScriptModuleAssemblyPaths = JsonSerializer.Deserialize<HashSet<string>>(FileReference.ReadAllText(ScriptModuleManifestPath));
+
+		// some of the references may be for other projects, so remove them
+		HashSet<FileReference> ScriptModuleAssemblyFiles = ScriptModuleAssemblyPaths.Select(x => FileReference.Combine(AutomationToolBinaryDir, x)).ToHashSet();
+		ScriptModuleAssemblyFiles.RemoveWhere(x => !x.IsUnderDirectory(Context.EngineDirectory) && !x.IsUnderDirectory(Context.ProjectDirectory));
+
+		// stage the remaining files
+		Context.NonUFSFilesToStage.AddRange(ScriptModuleAssemblyFiles);
+
+		// ask each platform if they need extra files
+		foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+		{
+			List<FileReference> Files = new List<FileReference>();
+			AutomationTool.Platform.GetPlatform(Platform).GetPlatformUATDependencies(Context.ProjectDirectory, Files);
+			Context.NonUFSFilesToStage.AddRange(Files.Where(x => FileReference.Exists(x)));
 		}
 	}
 
@@ -370,9 +486,9 @@ public class MakeCookedEditor : BuildCommand
 		}
 	}
 
-	protected virtual ModifyStageContext CreateContext(ProjectParams Params)
+	protected virtual ModifyStageContext CreateContext(ProjectParams Params, DeploymentContext SC)
 	{
-		return new ModifyStageContext(Unreal.EngineDirectory, Params, this);
+		return new ModifyStageContext(ConfigHelper, Unreal.EngineDirectory, Params, SC, this);
 	}
 
 	protected virtual void ModifyParams(ProjectParams BuildParams)
@@ -381,7 +497,7 @@ public class MakeCookedEditor : BuildCommand
 
 	protected virtual void PreModifyDeploymentContext(ProjectParams Params, DeploymentContext SC)
 	{
-		ModifyStageContext Context = CreateContext(Params);
+		ModifyStageContext Context = CreateContext(Params, SC);
 
 		DefaultPreModifyDeploymentContext(Params, SC, Context);
 
@@ -390,21 +506,33 @@ public class MakeCookedEditor : BuildCommand
 
 	protected virtual void ModifyDeploymentContext(ProjectParams Params, DeploymentContext SC)
 	{
-		ModifyStageContext Context = CreateContext(Params);
+		ModifyStageContext Context = CreateContext(Params, SC);
 
 		DefaultModifyDeploymentContext(Params, SC, Context);
 
 		Context.Apply(SC);
+
+		// we do this after the apply to make sure we get any SC and Context based staging
+		if (bIsCookedCooker)
+		{
+			// cooker can run with just the -Cmd, so we reduce the size byt removing the non-Cmd executable and debug info (this is sizeable for monolithic editors)
+			string MainCookedTarget = Params.ServerCookedTargets[0];
+			// @todo mac
+			SC.FilesToStage.NonUFSFiles.Remove(new StagedFileReference(Path.Combine(Context.ProjectName, "Binaries", "Win64", MainCookedTarget + ".exe")));
+			SC.FilesToStage.NonUFSFiles.Remove(new StagedFileReference(Path.Combine(Context.ProjectName, "Binaries", "Linux", MainCookedTarget)));
+			SC.FilesToStage.NonUFSDebugFiles.Remove(new StagedFileReference(Path.Combine(Context.ProjectName, "Binaries", "Win64", MainCookedTarget + ".pdb")));
+			SC.FilesToStage.NonUFSDebugFiles.Remove(new StagedFileReference(Path.Combine(Context.ProjectName, "Binaries", "Linux", MainCookedTarget + ".sym")));
+		}
+
 	}
 
 	protected virtual void SetupDLCMode(FileReference ProjectFile, out string DLCName, out string ReleaseVersion, out TargetType Type)
 	{
-		bool bBuildAgainstRelease;
-		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, BuildHostPlatform.Current.Platform);
-		if (GameConfig.GetBool("CookedEditorSettings", "bBuildAgainstRelease", out bBuildAgainstRelease) && bBuildAgainstRelease)
+		bool bBuildAgainstRelease = ConfigHelper.GetBool("bBuildAgainstRelease");
+		if (bBuildAgainstRelease)
 		{
-			GameConfig.GetString("CookedEditorSettings", "DLCPluginName", out DLCName);
-			GameConfig.GetString("CookedEditorSettings", "ReleaseName", out ReleaseVersion);
+			DLCName = ConfigHelper.GetString("DLCPluginName");
+			ReleaseVersion = ConfigHelper.GetString("ReleaseName");
 
 			// if not set, default to gamename
 			if (string.IsNullOrEmpty(ReleaseVersion))
@@ -413,7 +541,7 @@ public class MakeCookedEditor : BuildCommand
 			}
 
 			string TargetTypeString;
-			GameConfig.GetString("CookedEditorSettings", "ReleaseTargetType", out TargetTypeString);
+			TargetTypeString = ConfigHelper.GetString("ReleaseTargetType");
 			Type = (TargetType)Enum.Parse(typeof(TargetType), TargetTypeString);
 		}
 		else
@@ -437,13 +565,8 @@ public class MakeCookedEditor : BuildCommand
 			return;
 		}
 
-		DirectoryReference[] RootPlatformsFolders = 
-		{
-			DirectoryReference.Combine(RootDir, "Platforms"),
-			DirectoryReference.Combine(RootDir, "Restricted", "NotForLicensees", "Platforms"),
-		};
 
-		List<string> RootFoldersToStrip = new List<string> { "Source", "Binaries" };
+		List<string> RootFoldersToStrip = new List<string> { "Source" };//, "Binaries" };
 		List<string> SubFoldersToStrip = new List<string> { "Source", "Intermediate", "Tests", "Binaries" + Path.DirectorySeparatorChar + HostPlatform.Current.HostEditorPlatform.ToString() };
 		if (!Context.bStageShaderDirs)
 		{
@@ -458,12 +581,9 @@ public class MakeCookedEditor : BuildCommand
 			RootFoldersToStrip.Add("Extras");
 		}
 
-		foreach (DirectoryReference PlatformsDir in RootPlatformsFolders)
+		foreach (DirectoryReference PlatformsDir in Unreal.GetExtensionDirs(RootDir, true, false, false))
 		{
-			if (!DirectoryReference.Exists(PlatformsDir))
-			{
-				continue;
-			}
+
 			foreach (DirectoryReference PlatformDir in DirectoryReference.EnumerateDirectories(PlatformsDir, "*", SearchOption.TopDirectoryOnly))
 			{
 				foreach (DirectoryReference Subdir in DirectoryReference.EnumerateDirectories(PlatformDir, "*", SearchOption.TopDirectoryOnly))
@@ -471,7 +591,7 @@ public class MakeCookedEditor : BuildCommand
 					// Remvoe some unnecessary folders that can be large
 					List<FileReference> ContextFileList = Context.UFSFilesToStage;
 
-					if (Subdir.GetDirectoryName() == "Shaders")
+					if (Subdir.GetDirectoryName() == "Shaders" || Subdir.GetDirectoryName() == "Binaries")
 					{
 						ContextFileList = Context.NonUFSFilesToStage;
 					}
@@ -521,38 +641,41 @@ public class MakeCookedEditor : BuildCommand
 
 	protected void StageIniPathArray(ProjectParams Params, DeploymentContext SC, string IniKey, DirectoryReference BaseDirectory, ModifyStageContext Context)
 	{
-		List<string> Entries;
-		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, Context.ProjectDirectory, BuildHostPlatform.Current.Platform);
+		HashSet<string> Entries = new HashSet<string>();
 
-		if (GameConfig.GetArray("CookedEditorSettings", IniKey, out Entries))
+		// read the ini for all platforms, and merge together to remove duplicates
+		foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
 		{
-			foreach (string Entry in Entries)
+			ConfigHelper PlatformHelper = new ConfigHelper(Platform, ProjectFile, bIsCookedCooker);
+			Entries.UnionWith(ConfigHelper.GetArray(IniKey));
+		}
+
+		foreach (string Entry in Entries)
+		{
+			Dictionary<string, string> Props = ParseStructProperties(Entry);
+
+			string SubPath = Props["Path"];
+			string FileWildcard = "*";
+			List<FileReference> FileList = Context.UFSFilesToStage;
+			SearchOption SearchMode = SearchOption.AllDirectories;
+			if (Props.ContainsKey("Files"))
 			{
-				Dictionary<string, string> Props = ParseStructProperties(Entry);
+				FileWildcard = Props["Files"];
+			}
+			if (Props.ContainsKey("NonUFS") && bool.Parse(Props["NonUFS"]) == true)
+			{
+				FileList = Context.NonUFSFilesToStage;
+			}
+			if (Props.ContainsKey("Recursive") && bool.Parse(Props["Recursive"]) == false)
+			{
+				SearchMode = SearchOption.TopDirectoryOnly;
+			}
 
-				string SubPath = Props["Path"];
-				string FileWildcard = "*";
-				List<FileReference> FileList = Context.UFSFilesToStage;
-				SearchOption SearchMode = SearchOption.AllDirectories;
-				if (Props.ContainsKey("Files"))
-				{
-					FileWildcard = Props["Files"];
-				}
-				if (Props.ContainsKey("NonUFS") && bool.Parse(Props["NonUFS"]) == true)
-				{
-					FileList = Context.NonUFSFilesToStage;
-				}
-				if (Props.ContainsKey("Recursive") && bool.Parse(Props["Recursive"]) == false)
-				{
-					SearchMode = SearchOption.TopDirectoryOnly;
-				}
-
-				// now enumerate files based on the settings
-				DirectoryReference Dir = DirectoryReference.Combine(BaseDirectory, SubPath);
-				if (DirectoryReference.Exists(Dir))
-				{
-					FileList.AddRange(DirectoryReference.EnumerateFiles(Dir, FileWildcard, SearchMode));
-				}
+			// now enumerate files based on the settings
+			DirectoryReference Dir = DirectoryReference.Combine(BaseDirectory, SubPath);
+			if (DirectoryReference.Exists(Dir))
+			{
+				FileList.AddRange(DirectoryReference.EnumerateFiles(Dir, FileWildcard, SearchMode));
 			}
 		}
 	}
@@ -564,8 +687,32 @@ public class MakeCookedEditor : BuildCommand
 	}
 	protected void DefaultModifyDeploymentContext(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context)
 	{
+		// this will make sure that uncooked packages (maps, etc) go into the .pak, NOT the IOStore, which will fail to package them from a different location
+		SC.OnlyAllowPackagesFromStdCookPathInIoStore = true;
+
+		// if this is for internal use, then we allow all restricted  directories and ini settings
+		if (!Context.bIsForExternalDistribution)
+		{
+			SC.RestrictedFolderNames.Clear();
+
+			if (SC.IniKeyDenyList != null)
+			{
+				SC.IniKeyDenyList.Clear();
+			}
+			if (SC.IniSectionDenyList != null)
+			{
+				SC.IniSectionDenyList.Clear();
+			}
+		}
+
 		StageEngineEditorFiles(Params, SC, Context);
 		StageProjectEditorFiles(Params, SC, Context);
+
+		// we need a better decision for this
+		if (Context.bStageUAT)
+		{
+			StageUAT(Params, SC, Context);
+		}
 
 
 		// final filtering
@@ -591,18 +738,16 @@ public class MakeCookedEditor : BuildCommand
 
 	private ProjectParams GetParams()
 	{
-		FileReference ProjectPath = ParseProjectParam();
-
 		// setup DLC defaults, then ask project if it should 
 		string DLCName;
 		string BasedOnReleaseVersion;
 		TargetType ReleaseType;
-		SetupDLCMode(ProjectPath, out DLCName, out BasedOnReleaseVersion, out ReleaseType);
+		SetupDLCMode(ProjectFile, out DLCName, out BasedOnReleaseVersion, out ReleaseType);
 
 		var Params = new ProjectParams
 		(
 			Command: this,
-			RawProjectPath: ProjectPath
+			RawProjectPath: ProjectFile
 
 			// standard cookededitor settings
 			//			, Client:false
@@ -612,26 +757,42 @@ public class MakeCookedEditor : BuildCommand
 			// , Client: true
 			, DLCName: DLCName
 			, BasedOnReleaseVersion: BasedOnReleaseVersion
+			, DedicatedServer: bIsCookedCooker
+			, NoClient: bIsCookedCooker
 		);
 
-		string TargetPlatformType = "CookedEditor";
-		string TargetName;
+		string TargetPlatformType = bIsCookedCooker ? "CookedCooker" : "CookedEditor";
+		string TargetName = ConfigHelper.GetString(bIsCookedCooker ? "CookedCookerTargetName" : "CookedEditorTargetName");
+		UnrealTargetPlatform Platform;
 
-		// look to see if ini overrides tgarget name
-		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectPath.Directory, BuildHostPlatform.Current.Platform);
-		if (!GameConfig.GetString("CookedEditorSettings", "CookedEditorTargetName", out TargetName))
+		// look to see if ini didn't override target name
+		if (string.IsNullOrEmpty(TargetName))
 		{
 			// if not, then use ProjectCookedEditor
-			TargetName = ProjectPath.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
+			TargetName = ProjectFile.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
 		}
 
 		// cook the cooked editor targetplatorm as the "client"
-		Params.ClientCookedTargets.Clear();
-		Params.ClientCookedTargets.Add(TargetName);
 		//Params.ClientCookedTargets.Add("CrashReportClientEditor");
-		Params.ClientTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Params.ClientTargetPlatforms[0].Type, TargetPlatformType) };
 
+		// control the server/client taregts
+		Params.EditorTargets.Clear();
 		Params.ServerCookedTargets.Clear();
+		Params.ClientCookedTargets.Clear();
+		if (bIsCookedCooker)
+		{
+			Platform = Params.ServerTargetPlatforms[0].Type;
+			Params.EditorTargets.Add(TargetName);
+			Params.ServerCookedTargets.Add(TargetName);
+			Params.ServerTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Platform, TargetPlatformType) };
+		}
+		else
+		{
+			Platform = Params.ClientTargetPlatforms[0].Type;
+			Params.ClientCookedTargets.Add(TargetName);
+			Params.ClientTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Platform, TargetPlatformType) };
+		}
+
 
 		// when making cooked editors, we some special commandline options to override some assumptions about editor data
 		Params.AdditionalCookerOptions += " -ini:Engine:[Core.System]:CanStripEditorOnlyExportsAndImports=False";
@@ -641,11 +802,13 @@ public class MakeCookedEditor : BuildCommand
 		Params.AdditionalCookerOptions += " -AllowUnsafeBlueprintCalls";
 		Params.AdditionalCookerOptions += " -dpcvars=cook.displaymode=2,r.ForceDebugViewModes=1";
 
+		// Params.AdditionalCookerOptions += " -NoFilterAssetRegistry";
+
 		// set up cooking against a client, as DLC
 		if (BasedOnReleaseVersion != null)
 		{
 			// make the platform name, like "WindowsClient", or "LinuxGame", of the premade build we are cooking/staging against
-			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Params.ClientTargetPlatforms[0].Type);
+			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
 			string ReleaseTargetName = IniPlatformName + (ReleaseType == TargetType.Game ? "NoEditor" : ReleaseType.ToString());
 
 			Params.AdditionalCookerOptions += " -CookAgainstFixedBase";
@@ -653,7 +816,7 @@ public class MakeCookedEditor : BuildCommand
 			Params.AdditionalIoStoreOptions += $" -DevelopmentAssetRegistryPlatformOverride={ReleaseTargetName}";
 
 			// point to where the premade asset registry can be found
-			Params.BasedOnReleaseVersionPathOverride = CommandUtils.CombinePaths(ProjectPath.Directory.FullName, "Releases", BasedOnReleaseVersion, ReleaseTargetName);
+			Params.BasedOnReleaseVersionPathOverride = CommandUtils.CombinePaths(ProjectFile.Directory.FullName, "Releases", BasedOnReleaseVersion, ReleaseTargetName);
 
 			Params.DLCOverrideStagedSubDir = "";
 			Params.DLCIncludeEngineContent = true;

@@ -17,7 +17,7 @@ class FBaseActorPartition;
  */
 struct ENGINE_API FActorPartitionGetParams
 {
-	FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint, uint32 InGridSize = 0, const FGuid& InGuidHint = FGuid());
+	FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint, uint32 InGridSize = 0, const FGuid& InGuidHint = FGuid(), bool bInBoundsSearch = true, TFunctionRef<void(APartitionActor*)> InActorCreated = [](APartitionActor*) {});
 
 	/* Class of Actor we are getting from the subsystem. */
 	TSubclassOf<APartitionActor> ActorClass;
@@ -36,6 +36,12 @@ struct ENGINE_API FActorPartitionGetParams
 
 	/* If greater than 0, use this instead of the Actor CDO Grid size*/
 	int32 GridSize;
+
+	/* If true existing actors will be searched in the cell bounds only */
+	bool bBoundsSearch;
+
+	/* If set, a callback to use if an actor is created. */
+	TFunctionRef<void(APartitionActor*)> ActorCreatedCallback;
 };
 
 /**

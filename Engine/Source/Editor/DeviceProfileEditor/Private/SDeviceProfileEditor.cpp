@@ -27,6 +27,7 @@
 #include "SDeviceProfileEditorSingleProfileView.h"
 #include "SDeviceProfileCreateProfilePanel.h"
 #include "SDeviceProfileSelectionPanel.h"
+#include "SSettingsEditorCheckoutNotice.h"
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -100,8 +101,11 @@ private:
 	/** Holds a flag indicating whether the section's configuration file needs to be checked out. */
 	bool bIsDefaultConfigCheckOutNeeded;
 
-	/** The direct path to the default device profile config file. */
-	FString AbsoluteConfigFilePath;
+	/** The direct path to all of the default device profile config file. */
+	TArray<FString> AbsoluteConfigFilePaths;
+
+	/** True if we've requested a full update for this file */
+	TSet<FString> SourceControlUpdated;
 };
 
 
@@ -121,24 +125,21 @@ FReply SDeviceProfileSourceControl::HandleSaveDefaultsButtonPressed()
 
 FReply SDeviceProfileSourceControl::HandleCheckoutButtonPressed()
 {
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(AbsoluteConfigFilePath, EStateCacheUsage::ForceUpdate);
-
 	FText ErrorMessage;
-	if(bIsDefaultConfigCheckOutNeeded && SourceControlState.IsValid() && (SourceControlState->CanCheckout() || SourceControlState->IsCheckedOutOther()))
+	for (const FString& AbsoluteConfigFilePath : AbsoluteConfigFilePaths)
 	{
-		TArray<FString> FilesToBeCheckedOut;
-		FilesToBeCheckedOut.Add(AbsoluteConfigFilePath);
-		if(SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), FilesToBeCheckedOut) == ECommandResult::Failed)
+		if (SettingsHelpers::IsCheckedOut(AbsoluteConfigFilePath, true))
 		{
-			ErrorMessage = LOCTEXT("FailedToCheckOutConfigFileError", "Error: Failed to check out the configuration file.");
+			continue;
 		}
-	}
-	
-	// show errors, if any
-	if (!ErrorMessage.IsEmpty())
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+
+		if (!SettingsHelpers::CheckOutOrAddFile(AbsoluteConfigFilePath, false, true, &ErrorMessage))
+		{
+			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("SaveAsDefaultsSourceControlOperationFailed", "The source control operation failed. Would you like to make it writable?")) == EAppReturnType::Yes)
+			{
+				SettingsHelpers::MakeWritable(AbsoluteConfigFilePath, true);
+			}
+		}
 	}
 
 	return FReply::Handled();
@@ -156,8 +157,13 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 	LastDefaultConfigCheckOutTime = 0.0;
 	bIsDefaultConfigCheckOutNeeded = true;
 
-	const FString RelativeConfigFilePath = FString::Printf(TEXT("%sDefault%ss.ini"), *FPaths::SourceConfigDir(), *UDeviceProfile::StaticClass()->GetName());
-	AbsoluteConfigFilePath = FPaths::ConvertRelativePathToFull(RelativeConfigFilePath);
+	TArray<FString> AllConfigFiles;
+	UDeviceProfileManager::Get().GetProfileConfigFiles(AllConfigFiles);
+
+	for (const FString& Path : AllConfigFiles)
+	{
+		AbsoluteConfigFilePaths.Add(FPaths::ConvertRelativePathToFull(Path));
+	}
 
 	ChildSlot
 	[
@@ -237,8 +243,28 @@ void SDeviceProfileSourceControl::Tick( const FGeometry& AllottedGeometry, const
 	// cache selected settings object's configuration file state
 	if(InCurrentTime - LastDefaultConfigCheckOutTime >= 1.0f)
 	{
-		bIsDefaultConfigCheckOutNeeded = (FPaths::FileExists(AbsoluteConfigFilePath) && IFileManager::Get().IsReadOnly(*AbsoluteConfigFilePath));
+		bIsDefaultConfigCheckOutNeeded = false;
 
+		for (const FString& AbsoluteConfigFilePath : AbsoluteConfigFilePaths)
+		{
+			if (FPaths::FileExists(AbsoluteConfigFilePath))
+			{
+				bool bForceUpdate = !SourceControlUpdated.Contains(AbsoluteConfigFilePath);
+				bool bCheckedOut = SettingsHelpers::IsCheckedOut(AbsoluteConfigFilePath, bForceUpdate);
+				if (bForceUpdate)
+				{
+					SourceControlUpdated.Add(AbsoluteConfigFilePath);
+				}
+
+				// Handle read only as well as writable files that aren't in source control yet
+				if ((ISourceControlModule::Get().IsEnabled() && !bCheckedOut) || IFileManager::Get().IsReadOnly(*AbsoluteConfigFilePath))
+				{
+					bIsDefaultConfigCheckOutNeeded = true;
+					break;
+				}
+			}
+		}
+		
 		LastDefaultConfigCheckOutTime = InCurrentTime;
 	}
 }

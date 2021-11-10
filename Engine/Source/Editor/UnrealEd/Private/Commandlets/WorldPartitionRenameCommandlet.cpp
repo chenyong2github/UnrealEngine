@@ -153,23 +153,7 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Load the map package
-	UPackage* MapPackage = LoadPackage(NULL, *OldMapFullPath, LOAD_None);
-	if (!MapPackage)
-	{
-		UE_LOG(LogWorldPartitionRenameCommandlet, Error, TEXT("Couldn't load package %s."), *OldMapFullPath);
-		return 1;
-	}
-
-	// Find the world in the given package
-	UWorld* World = UWorld::FindWorldInPackage(MapPackage);
-	if (!World)
-	{
-		UE_LOG(LogWorldPartitionRenameCommandlet, Error, TEXT("No world in specified package %s."), *OldMapFullPath);
-		return 1;
-	}
-
-	// Setup the world
+	// Load and initialize the old world
 	UWorld::InitializationValues IVS;
 	IVS.RequiresHitProxies(false);
 	IVS.ShouldSimulatePhysics(false);
@@ -178,7 +162,14 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 	IVS.CreateAISystem(false);
 	IVS.AllowAudioPlayback(false);
 	IVS.CreatePhysicsScene(true);
-	FScopedEditorWorld EditorWorld(World, IVS);
+	FScopedEditorWorld EditorWorld(OldMapFullPath, IVS);
+
+	UWorld* World = EditorWorld.GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogWorldPartitionRenameCommandlet, Error, TEXT("No world in specified package or package not found: %s."), *OldMapFullPath);
+		return 1;
+	}
 
 	// Make sure the world is partitioned
 	UWorldPartition* WorldPartition = World->GetWorldPartition();

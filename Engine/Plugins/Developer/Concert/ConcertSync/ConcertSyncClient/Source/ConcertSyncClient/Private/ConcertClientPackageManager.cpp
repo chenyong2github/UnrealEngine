@@ -298,7 +298,7 @@ bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName>
 		FString Filename;
 		for (const FName& PackageName : InPackagesToPersist)
 		{
-			if (FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename))
+			if (FPackageName::DoesPackageExist(PackageName.ToString(), &Filename))
 			{
 				FilesToPersist.Add(MoveTemp(Filename));
 			}

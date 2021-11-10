@@ -22,24 +22,17 @@ namespace CADKernel
 		TArray<EntityType*> TwinsEntities;
 
 		TTopologicalLink()
+			: ActiveEntity(nullptr)
 		{
-			ActiveEntity = nullptr;
 		}
 
 		TTopologicalLink(EntityType& Entity)
-			: FEntity()
+			: ActiveEntity(&Entity)
 		{
 			TwinsEntities.Add(&Entity);
-			ActiveEntity = &Entity;
 		}
 
 	public:
-
-		TTopologicalLink(FCADKernelArchive& Ar)
-			: FEntity()
-		{
-			Serialize(Ar);
-		}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
@@ -184,8 +177,7 @@ namespace CADKernel
 
 	public:
 		FVertexLink()
-			: TTopologicalLink<FTopologicalVertex>()
-			, Barycenter(FPoint::ZeroPoint)
+			: Barycenter(FPoint::ZeroPoint)
 		{
 		}
 
@@ -193,12 +185,6 @@ namespace CADKernel
 			: TTopologicalLink<FTopologicalVertex>(Entity)
 			, Barycenter(FPoint::ZeroPoint)
 		{
-		}
-
-		FVertexLink(FCADKernelArchive& Ar)
-			: TTopologicalLink<FTopologicalVertex>()
-		{
-			Serialize(Ar);
 		}
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
@@ -216,7 +202,7 @@ namespace CADKernel
 			return Barycenter;
 		}
 
-		bool CleanLink() override
+		virtual bool CleanLink() override
 		{
 			if(TTopologicalLink::CleanLink())
 			{

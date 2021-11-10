@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 
 class FConsoleVariablesEditorCommands
@@ -13,7 +13,7 @@ class FConsoleVariablesEditorCommands
 public:
 	FConsoleVariablesEditorCommands()
 		: TCommands<FConsoleVariablesEditorCommands>(TEXT("ConsoleVariablesEditor"),
-			NSLOCTEXT("Contexts", "ConsoleVariablesEditor", "Console Variables Editor"), NAME_None, FEditorStyle::GetStyleSetName())
+			NSLOCTEXT("Contexts", "ConsoleVariablesEditor", "Console Variables Editor"), NAME_None, FAppStyle::Get().GetStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;

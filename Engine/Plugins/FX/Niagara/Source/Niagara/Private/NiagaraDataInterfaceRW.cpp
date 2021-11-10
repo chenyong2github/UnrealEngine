@@ -41,33 +41,6 @@ UNiagaraDataInterfaceRWBase::UNiagaraDataInterfaceRWBase(FObjectInitializer cons
 
 }
 
-bool UNiagaraDataInterfaceRWBase::Equals(const UNiagaraDataInterface* Other) const
-{
-	const UNiagaraDataInterfaceRWBase* OtherTyped = CastChecked<const UNiagaraDataInterfaceRWBase>(Other);
-
-	if (OtherTyped)
-	{
-		return OutputShaderStages.Difference(OtherTyped->OutputShaderStages).Num() == 0 && IterationShaderStages.Difference(OtherTyped->IterationShaderStages).Num() == 0;
-	}
-
-	return false;
-}
-
-bool UNiagaraDataInterfaceRWBase::CopyToInternal(UNiagaraDataInterface* Destination) const
-{
-	if (!Super::CopyToInternal(Destination))
-	{
-		return false;
-	}
-
-	UNiagaraDataInterfaceRWBase* OtherTyped = CastChecked<UNiagaraDataInterfaceRWBase>(Destination);
-
-	OtherTyped->OutputShaderStages = OutputShaderStages;
-	OtherTyped->IterationShaderStages = IterationShaderStages;
-
-	return true;
-}
-
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
 UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer const& ObjectInitializer)

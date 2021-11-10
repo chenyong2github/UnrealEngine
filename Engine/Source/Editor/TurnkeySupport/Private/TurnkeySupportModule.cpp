@@ -44,6 +44,9 @@
 #include "ToolMenus.h"
 #include "TurnkeyEditorSupport.h"
 #include "ITurnkeyIOModule.h"
+#if WITH_EDITOR
+#include "ZenServerInterface.h"
+#endif
 
 #include "Misc/App.h"
 #include "Framework/Application/SlateApplication.h"
@@ -352,6 +355,9 @@ public:
 
 		if (PackagingSettings->bUseZenStore)
 		{
+#if WITH_EDITOR && UE_WITH_ZEN
+			static UE::Zen::FScopeZenService TurnkeyStaticZenService;
+#endif
 			BuildCookRunParams += TEXT(" -zenstore");
 		}
 
@@ -1339,7 +1345,7 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 	OutAction = FUIAction(
 		FExecuteAction::CreateLambda([DeviceProxy, PlatformName, ExternalOnClickDelegate]()
 			{
-				// only game and client devices are supported for launch on but devices only signal if they target client builds by their name e.g. "PS4Client"
+				// only game and client devices are supported for launch on but devices only signal if they target client builds by their name e.g. "WindowsClient"
 				// if the user has a EBuildTargetType::Client target selected we will launch on a client device, otherwise we fall back to the default game device
 
 				// We need to use flavors to launch on correctly on Android_ASTC / Android_ETC2, etc
@@ -1509,7 +1515,7 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 				NAME_None,
 				LOCTEXT("CookOnTheFlyOnLaunch", "Enable cooking on the fly"),
 				LOCTEXT("CookOnTheFlyOnLaunchDescription", "Cook on the fly instead of cooking upfront when launching"),
-				FSlateIcon(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.CookContent"),
 				FUIAction(
 					FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetCookOnTheFly),
 					FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanSetCookOnTheFly),

@@ -30,10 +30,11 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 
 	if (!IsEasyBlendRenderingEnabled())
 	{
+		static bool bEasyBlendInitializeOnce = false;
 		if (!bEasyBlendInitializeOnce)
 		{
-			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend initialization : current UE render device not supported"));
 			bEasyBlendInitializeOnce = true;
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend initialization : current UE render device not supported"));
 		}
 
 		return false;
@@ -53,7 +54,20 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 	FString FilePath;
 	if (!ReadConfigData(InViewport->GetId(), FilePath, OriginCompId, EasyBlendScale))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't read EasyBlend configuration from the config file"));
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't read EasyBlend configuration from the config file"));
+		}
+		return false;
+	}
+
+	if (FilePath.IsEmpty())
+	{
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("EasyBlend file '' not found (Empty)"));
+		}
+
 		return false;
 	}
 
@@ -77,7 +91,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("An EasyBlend viewport adapter has been initialized"));
+	UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("An EasyBlend viewport adapter has been initialized"));
 	return true;
 }
 
@@ -130,7 +144,10 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::CalculateView(IDisplayCluster
 	FRotator OriginSpaceViewRotation = FRotator::ZeroRotator;
 	if (!ViewAdapter->CalculateView(InViewport, InContextNum, OriginSpaceViewLocation, OriginSpaceViewRotation, ViewOffset, WorldScale, NCP, FCP))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *InViewport->GetId());
+		}
 		return false;
 	}
 
@@ -161,32 +178,41 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(const FString&
 	// EasyBlend file (mandatory)
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::easyblend::File, OutFile))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File, *OutFile);
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File, *OutFile);
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::File);
+		}
 		return false;
 	}
 	
 	// Origin node (optional)
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::easyblend::Origin, OutOrigin))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin, *OutOrigin);
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%s'"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin, *OutOrigin);
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Origin);
+		}
 	}
 
 	// Geometry scale (optional)
 	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::easyblend::Scale, OutGeometryScale))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' - %f"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale, OutGeometryScale);
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - %f"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale, OutGeometryScale);
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale);
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::easyblend::Scale);
+		}
 	}
 
 	return true;

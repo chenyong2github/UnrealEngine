@@ -22,6 +22,7 @@ public:
 		, _PropertyFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) ) 
 		, _NamePlacement( EPropertyNamePlacement::Left )
 		, _NameOverride()
+		, _bShouldHideAssetThumbnail(false)
 	{}
 
 		SLATE_ARGUMENT( UObject*, Object )
@@ -30,6 +31,7 @@ public:
 		SLATE_ARGUMENT( FSlateFontInfo, PropertyFont )
 		SLATE_ARGUMENT( EPropertyNamePlacement::Type, NamePlacement )
 		SLATE_ARGUMENT( FText, NameOverride )
+		SLATE_ARGUMENT( bool, bShouldHideAssetThumbnail )
 	SLATE_END_ARGS()	
 
 	void Construct( const FArguments& InArgs );

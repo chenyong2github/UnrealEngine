@@ -18,6 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogAssetManager, Log, All);
 struct FPrimaryAssetTypeData;
 struct FPrimaryAssetData;
 struct FPrimaryAssetRulesCustomOverride;
+namespace UE::Cook { class ICookInfo; }
 
 /** Delegate called when acquiring resources/chunks for assets, first parameter will be true if all resources were acquired, false if any failed.
 	Second parameter will contain a list of chunks not yet downloaded */
@@ -504,8 +505,11 @@ public:
 	/** Returns cook rule for a package name using Management rules, games should override this to take into account their individual workflows */
 	virtual EPrimaryAssetCookRule GetPackageCookRule(FName PackageName) const;
 
-	/** Returns true if the specified asset package can be cooked, will error and return false if it is disallowed */
+	UE_DEPRECATED(5.0, "Use version that takes ICookInfo instead")
 	virtual bool VerifyCanCookPackage(FName PackageName, bool bLogError = true) const;
+
+	/** Returns true if the specified asset package can be cooked, will error and return false if it is disallowed */
+	virtual bool VerifyCanCookPackage(UE::Cook::ICookInfo* CookInfo, FName PackageName, bool bLogError = true) const;
 
 	/** 
 	 * For a given package and platform, return what Chunks it should be assigned to, games can override this as needed. Returns false if no information found 
@@ -811,5 +815,8 @@ private:
 
 	mutable class IAssetRegistry* CachedAssetRegistry;
 	mutable const class UAssetManagerSettings* CachedSettings;
+	UE_DEPRECATED(5.0, "Only used for deprecation support, do not use directly.")
+	mutable UE::Cook::ICookInfo* DeprecationSupportCookInfo = nullptr;
+
 	friend struct FCompiledAssetManagerSearchRules;
 };

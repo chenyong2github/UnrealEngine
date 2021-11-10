@@ -107,7 +107,7 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		"NewDerivedCppClass",
 		NewDerivedCppClassLabel,
 		NewDerivedCppClassToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.C++"),
 		FUIAction(
 			FExecuteAction::CreateLambda(CreateCreateDerivedCppClass),
 			FCanExecuteAction::CreateLambda(CanCreateDerivedCppClass)
@@ -118,7 +118,7 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		"NewDerivedBlueprintClass",
 		NewDerivedBlueprintClassLabel,
 		NewDerivedBlueprintClassToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Blueprint"),
 		FUIAction(
 			FExecuteAction::CreateLambda(CreateCreateDerivedBlueprintClass),
 			FCanExecuteAction::CreateLambda(CanCreateDerivedBlueprintClass)

@@ -3,7 +3,7 @@
 #include "LevelSnapshotsModule.h"
 
 #include "ClassRestorationSkipper.h"
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "LevelSnapshotsSettings.h"
 #include "LevelSnapshotsLog.h"
 #include "Params/PropertyComparisonParams.h"
 #include "Restorability/CollisionRestoration.h"
@@ -17,6 +17,9 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstance.h"
 #include "Modules/ModuleManager.h"
+#if WITH_EDITOR
+#include "ISettingsModule.h"
+#endif
 
 namespace
 {
@@ -107,7 +110,7 @@ void FLevelSnapshotsModule::StartupModule()
 	const TSharedRef<FClassRestorationSkipper> ClassSkipper = MakeShared<FClassRestorationSkipper>(
 		FClassRestorationSkipper::FGetSkippedClassList::CreateLambda([]() -> const FSkippedClassList&
 		{
-			ULevelSnapshotsEditorProjectSettings* Settings = GetMutableDefault<ULevelSnapshotsEditorProjectSettings>();
+			ULevelSnapshotsSettings* Settings = GetMutableDefault<ULevelSnapshotsSettings>();
 			return Settings->SkippedClasses;
 		})
 	);
@@ -124,6 +127,17 @@ void FLevelSnapshotsModule::StartupModule()
 	// Interact with special engine features
 	FCollisionRestoration::Register(*this);
 	GridPlacementRestoration::Register(*this);
+
+#if WITH_EDITOR
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	{
+		// User Project Settings
+		SettingsModule.RegisterSettings("Project", "Plugins", "Level Snapshots",
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsCategoryDisplayName", "Level Snapshots"),
+			NSLOCTEXT("LevelSnapshots", "LevelSnapshotsSettingsDescription", "Configure the Level Snapshots user settings"),
+			GetMutableDefault<ULevelSnapshotsSettings>());
+	}
+#endif
 }
 
 void FLevelSnapshotsModule::ShutdownModule()
@@ -132,6 +146,13 @@ void FLevelSnapshotsModule::ShutdownModule()
 	PropertyComparers.Reset();
 	CustomSerializers.Reset();
 	RestorationListeners.Reset();
+	
+#if WITH_EDITOR
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	{
+		SettingsModule.UnregisterSettings("Project", "Plugins", "Level Snapshots");
+	}
+#endif
 }
 
 void FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)

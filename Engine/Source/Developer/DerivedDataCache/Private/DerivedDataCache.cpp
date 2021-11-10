@@ -15,6 +15,7 @@
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
+#include "ZenServerInterface.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
@@ -77,7 +78,9 @@ namespace DerivedDataCacheCookStats
 			// look for a UNC path
 			FString* SharedDDCKey = Keys.FindByPredicate([](const FString& Key) {return Key.Contains(TEXT(": FileSystem.//")); });
 			// look for a Cloud path
-			FString* CloudDDCKey = Keys.FindByPredicate([](const FString& Key) {return Key.Contains(TEXT("0: HTTP")); });
+			FString* CloudDDCKey = Keys.FindByPredicate([](const FString& Key) {return Key.Contains(TEXT(": HTTP")); });
+			// look for a Zen Path
+			FString* ZenDDCKey = Keys.FindByPredicate([](const FString& Key) {return Key.Contains(TEXT(": Zen")); });
 
 			if (RootKey)
 			{
@@ -124,11 +127,32 @@ namespace DerivedDataCacheCookStats
 					RootStats.PutStats.GetAccumulatedValue(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter, false);
 				int64 TotalPuts = TotalPutHits + TotalPutMisses;
 
+#if UE_WITH_ZEN
+				if (ZenDDCKey)
+				{
+					LocalDDCKey = ZenDDCKey;
+					
+					UE::Zen::FZenStats ZenStats;
+					
+					if (UE::Zen::GetDefaultServiceInstance().GetStats(ZenStats))
+					{				
+						TotalGetHits = ZenStats.CacheStats.Hits;
+						TotalGetMisses = ZenStats.CacheStats.Misses;
+						TotalGets = TotalGetHits+ TotalGetMisses;
+						LocalHits = ZenStats.CacheStats.Hits - ZenStats.CacheStats.UpstreamHits;
+						
+						SharedDDCKey = ZenStats.UpstreamStats.EndPointStats.IsEmpty() ? nullptr : ZenDDCKey;	
+						SharedHits = ZenStats.CacheStats.UpstreamHits;
+					}
+				}
+#endif // UE_WITH_ZEN
+
 				AddStat(TEXT("DDC.Summary"), FCookStatsManager::CreateKeyValueArray(
 					TEXT("BackEnd"), FDerivedDataBackend::Get().GetGraphName(),
 					TEXT("HasLocalCache"), LocalDDCKey != nullptr,
 					TEXT("HasSharedCache"), SharedDDCKey!=nullptr,
 					TEXT("HasCloudCache"), CloudDDCKey !=nullptr,
+					TEXT("HasZenCache"), ZenDDCKey != nullptr,
 					TEXT("TotalGetHits"), TotalGetHits,
 					TEXT("TotalGets"), TotalGets,
 					TEXT("TotalGetHitPct"), SafeDivide(TotalGetHits, TotalGets),

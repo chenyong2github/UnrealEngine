@@ -22,16 +22,13 @@ namespace AutomationToolDriver
 {
     public partial class Program
     {
-		private static DirectoryReference AutomationToolBinaryDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "AutomationTool");
-		private static FileReference ScriptModuleManifestPath = FileReference.Combine(AutomationToolBinaryDir, "ScriptModuleManifest.json");
-
 		// Cache records of last-modified times for files
 		class WriteTimeCache
 	    {
 		    private Dictionary<string, DateTime> WriteTimes = new Dictionary<string, DateTime>();
-			public DateTime GetLastWriteTime(string BasePath, string RelativeFilePath)
+			public DateTime GetLastWriteTime(DirectoryReference BasePath, string RelativeFilePath)
 			{
-				string NormalizedPath = Path.GetFullPath(RelativeFilePath, BasePath);
+				string NormalizedPath = Path.GetFullPath(RelativeFilePath, BasePath.FullName);
 				if (!WriteTimes.TryGetValue(NormalizedPath, out DateTime WriteTime))
 				{
 					WriteTimes.Add(NormalizedPath, WriteTime = File.GetLastWriteTime(NormalizedPath));
@@ -40,6 +37,31 @@ namespace AutomationToolDriver
 			}
 	    }
 	    
+		static FileReference ConstructBuildRecordPath(FileReference ProjectPath, List<DirectoryReference> BaseDirectories)
+		{
+			DirectoryReference BasePath = null;
+
+			foreach (DirectoryReference ScriptFolder in BaseDirectories)
+			{
+				if (ProjectPath.IsUnderDirectory(ScriptFolder))
+				{
+					BasePath = ScriptFolder;
+					break;
+				}
+			}
+
+			if (BasePath == null)
+			{
+				throw new Exception($"Unable to map csproj {ProjectPath} to Engine, game, or an additional script folder. Candidates were:{Environment.NewLine} {String.Join(Environment.NewLine, BaseDirectories)}");
+			}
+
+			DirectoryReference BuildRecordDirectory = DirectoryReference.Combine(BasePath!, "Intermediate", "ScriptModules");
+			DirectoryReference.CreateDirectory(BuildRecordDirectory);
+
+			return FileReference.Combine(BuildRecordDirectory, ProjectPath.GetFileName()).ChangeExtension(".json");
+		}
+
+
 		/// <summary>
 	    /// Locates script modules, builds them if necessary, returns set of .dll files
 		/// </summary>
@@ -52,26 +74,83 @@ namespace AutomationToolDriver
 		public static HashSet<FileReference> InitializeScriptModules(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders, bool bForceCompile, bool bNoCompile, bool bUseBuildRecords, out bool bBuildSuccess)
 		{
 			WriteTimeCache WriteTimeCache = new WriteTimeCache();
-			
-			HashSet<FileReference> FoundAutomationProjects = FindAutomationProjects(ScriptsForProjectFileName, AdditionalScriptsFolders);
 
-			bool bInitializeFromScriptMdodulesManifest = Unreal.IsEngineInstalled() || (bNoCompile && !bUseBuildRecords) || (FoundAutomationProjects.Count == 0);
-			if (bInitializeFromScriptMdodulesManifest)
-			{
-				Log.TraceLog($"Loading script module manifest from {ScriptModuleManifestPath}");
-				HashSet<string> ScriptModuleAssemblyPaths = JsonSerializer.Deserialize<HashSet<string>>(FileReference.ReadAllText(ScriptModuleManifestPath));
+			List<DirectoryReference> GameDirectories = GetGameDirectories(ScriptsForProjectFileName);
+			List<DirectoryReference> AdditionalDirectories = GetAdditionalDirectories(AdditionalScriptsFolders);
+			List<DirectoryReference> GameBuildDirectories = GetAdditionalBuildDirectories(GameDirectories);
+
+			// List of directories used to locate Intermediate/ScriptModules dirs for writing build records
+			List<DirectoryReference> BaseDirectories = new List<DirectoryReference>(1 + GameDirectories.Count + AdditionalDirectories.Count);
+			BaseDirectories.Add(Unreal.EngineDirectory);
+			BaseDirectories.AddRange(GameDirectories);
+			BaseDirectories.AddRange(AdditionalDirectories);
+
+			HashSet<FileReference> FoundAutomationProjects = new HashSet<FileReference>(
+				Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule,
+				// Project automation scripts require source engine builds
+				GameFolders: Unreal.IsEngineInstalled() ? GameDirectories : new List<DirectoryReference>(), 
+				ForeignPlugins: null, AdditionalSearchPaths: AdditionalDirectories.Concat(GameBuildDirectories).ToList()));
+
+			bool bUseBuildRecordsOnlyForProjectDiscovery = bNoCompile || Unreal.IsEngineInstalled() || FoundAutomationProjects.Count() == 0;
+
+			// Load existing build records, validating them only if (re)compiling script projects is an option
+			Dictionary<UATBuildRecord, FileReference> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories, !bUseBuildRecordsOnlyForProjectDiscovery, ref WriteTimeCache);
+
+			if (bUseBuildRecordsOnlyForProjectDiscovery)
+            {
+				// when the engine is installed, we expect to find at least one script module (AutomationUtils is a necessity)
+				if (ExistingBuildRecords.Count == 0)
+                {
+					throw new Exception("Found no script module records.");
+                }
+
+				HashSet<FileReference> BuiltTargets = new HashSet<FileReference>(ExistingBuildRecords.Count);
+				foreach ((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+                {
+					FileReference ProjectPath = FileReference.Combine(BuildRecordPath.Directory, BuildRecord.ProjectPath);
+					FileReference TargetPath = FileReference.Combine(ProjectPath.Directory, BuildRecord.TargetPath);
+
+					if (FileReference.Exists(TargetPath))
+                    {
+						BuiltTargets.Add(TargetPath);
+                    }
+                    else
+                    {
+						if (bNoCompile)
+						{
+							// when -NoCompile is on the command line, try to run with whatever is available
+							Log.TraceWarning($"Script module \"{TargetPath}\" not found for record \"{BuildRecordPath}\"");
+						}
+						else
+						{
+							// when the engine is installed, expect to find a built target assembly for every record that was found
+							throw new Exception($"Script module \"{TargetPath}\" not found for record \"{BuildRecordPath}\"");
+						}
+						
+                    }
+                }
 				bBuildSuccess = true;
-				return new HashSet<FileReference>(ScriptModuleAssemblyPaths
-					.Select(x => FileReference.Combine(AutomationToolBinaryDir, x))
-					// where AutomationTool has run with a set of script module plugins, it may not be bundled with all of them
-					// this is intended as a temporary workaround pending relocation of uatbuildrecord files and (likely) removal of the manifest.
-					.Where(FileReference.Exists));
-			}
+				return BuiltTargets;
+            }
+			else
+            {
+				// when the engine is not installed, delete any .json file that does not have a corresponding .csproj file
+				foreach ((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+				{
+					FileReference ProjectPath = FileReference.Combine(BuildRecordPath.Directory, BuildRecord.ProjectPath);
+
+					if (!FileReference.Exists(ProjectPath))
+                    {
+						Log.TraceInformation($"Deleting \"{BuildRecordPath}\" because referenced project file \"{ProjectPath}\" was not found");
+						FileReference.Delete(BuildRecordPath);
+                    }
+                }
+            }
 
 			if (!bForceCompile && bUseBuildRecords)
 			{
 				// fastest path: if we have an up-to-date record of a previous build, we should be able to start faster
-				HashSet<FileReference> ScriptModules = TryGetAllUpToDateScriptModules(FoundAutomationProjects, ref WriteTimeCache);
+				HashSet<FileReference> ScriptModules = TryGetAllUpToDateScriptModules(ExistingBuildRecords, FoundAutomationProjects, ref WriteTimeCache);
 
 				if (ScriptModules != null)
 				{
@@ -82,22 +161,77 @@ namespace AutomationToolDriver
 
 			// Fall back to the slower approach: use msbuild to load csproj files & build as necessary
 			RegisterMsBuildPath();
-			return BuildAllScriptPlugins(FoundAutomationProjects, bForceCompile, bNoCompile, out bBuildSuccess, ref WriteTimeCache);
+			return BuildAllScriptPlugins(FoundAutomationProjects, bForceCompile, bNoCompile, out bBuildSuccess, ref WriteTimeCache, BaseDirectories);
 		}
 
+		/// <summary>
+		/// Find and load existing build record .json files from any Intermediate/ScriptModules found in the provided lists
+		/// </summary>
+		/// <param name="BaseDirectories"></param>
+		/// <returns></returns>
+		static Dictionary<UATBuildRecord, FileReference> LoadExistingBuildRecords(List<DirectoryReference> BaseDirectories, bool bValidateBuildRecordsAreUpToDate, ref WriteTimeCache Cache)
+        {
+			Dictionary<UATBuildRecord, FileReference> LoadedBuildRecords = new Dictionary<UATBuildRecord, FileReference>();
+
+			foreach (DirectoryReference Directory in BaseDirectories)
+			{
+				DirectoryReference IntermediateDirectory = DirectoryReference.Combine(Directory, "Intermediate", "ScriptModules");
+				if (!DirectoryReference.Exists(IntermediateDirectory))
+				{
+					continue;
+				}
+
+				foreach (FileReference JsonFile in DirectoryReference.EnumerateFiles(IntermediateDirectory, "*.json"))
+                {
+					// filesystem errors or json parsing might result in an exception. If that happens, we fall back to the
+					// slower path - buildrecord files will be re-generated, other filesystem errors may persist
+					try
+					{
+						UATBuildRecord BuildRecord =
+							JsonSerializer.Deserialize<UATBuildRecord>(FileReference.ReadAllText(JsonFile));
+
+						if (bValidateBuildRecordsAreUpToDate)
+						{
+							DirectoryReference ProjectDirectory = FileReference.Combine(IntermediateDirectory, BuildRecord.ProjectPath).Directory;
+
+							if (!ValidateBuildRecord(BuildRecord, ProjectDirectory, out string ValidationFailureMessage, ref Cache))
+							{
+								Log.TraceLog($"[{JsonFile}] {ValidationFailureMessage}");
+								continue;
+							}
+						}
+
+						Log.TraceLog($"Loaded script module build record {JsonFile}");
+						LoadedBuildRecords.Add(BuildRecord, JsonFile);
+					}
+					catch(Exception Ex)
+					{
+						Log.TraceWarning($"[{JsonFile}] Failed to load build record: {Ex.Message}");
+					}
+
+                }
+			}
+
+			return LoadedBuildRecords;
+        }
+
 		// Acceleration structure:
-		// used to encapsulate a full set of dependencies for an msbuild project - explicit and (not yet) glob
-		// .uatbuildrecord files are written to disk beside .csproj files (for ease of discovery)
+		// used to encapsulate a full set of dependencies for an msbuild project - explicit and globbed
+		// These files are written to Intermediate/ScriptModules
 		class UATBuildRecord
 		{
 			// Version number making it possible to quickly invalidate written records.
-			public static readonly int CurrentVersion = 3;
+			public static readonly int CurrentVersion = 4;
 			public int Version { get; set; } // what value does this get if deserialized from a file with no value for this field? 
 			
+			// Path to the .csproj project file, relative to the location of the build record .json file
+			public string ProjectPath { get; set; }
+
 			// The time that the target assembly was built (read from the file after the build)
 			public DateTime TargetBuildTime { get; set; }
 			
-			// all paths are relative to the project directory
+
+			// all following paths are relative to the project directory, the directory containing ProjectPath 
 			
 			// assembly (dll) location
 			public string TargetPath { get; set; }
@@ -122,7 +256,7 @@ namespace AutomationToolDriver
 			public List<Glob> Globs { get; set; } = new List<Glob>();
 		}
 
-		private static bool ValidateGlobbedFiles(string ProjectDirectory, 
+		private static bool ValidateGlobbedFiles(DirectoryReference ProjectDirectory, 
 			List<UATBuildRecord.Glob> Globs, HashSet<string> GlobbedDependencies, out string ValidationFailureMessage)
 		{
 			// First, evaluate globs
@@ -141,7 +275,7 @@ namespace AutomationToolDriver
 				
 				foreach (string IncludePath in Glob.Include)
 				{
-					TypedFiles.UnionWith(FileMatcher.Default.GetFiles(ProjectDirectory, IncludePath, Glob.Exclude));
+					TypedFiles.UnionWith(FileMatcher.Default.GetFiles(ProjectDirectory.FullName, IncludePath, Glob.Exclude));
 				}
 
 				foreach (string Remove in Glob.Remove)
@@ -194,7 +328,7 @@ namespace AutomationToolDriver
 			return bValid;
 		}
 
-		private static bool ValidateBuildRecord(UATBuildRecord BuildRecord, string ProjectDirectory, out string ValidationFailureMessage, 
+		private static bool ValidateBuildRecord(UATBuildRecord BuildRecord, DirectoryReference ProjectDirectory, out string ValidationFailureMessage, 
 			ref WriteTimeCache Cache)
 		{
 			string TargetRelativePath =
@@ -243,73 +377,51 @@ namespace AutomationToolDriver
 			return true;
 		}
 
-		private static UATBuildRecord LoadUpToDateBuildRecord(FileReference ProjectPath, ref WriteTimeCache Cache)
-		{
-			// .uatbuildrecord files are created adjacent to .csproj files
-			FileReference BuildRecordPath = ProjectPath.ChangeExtension(".uatbuildrecord");
-			
-			string AutomationProjectRelativePath =
-				Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
-			
-			// If there is a missing build record, we stop checking here and fall back to the slower path
-			if (!FileReference.Exists(BuildRecordPath))
-			{
-				Log.TraceLog($"[{AutomationProjectRelativePath}] has no build record");
-				return null;
-			}
-
-			// filesystem errors or json parsing might result in an exception. If that happens, we fall back to the
-			// slower path - .uatbuildrecord files will be re-generated, other filesystem errors may persist
-			try
-			{
-				UATBuildRecord BuildRecord =
-					JsonSerializer.Deserialize<UATBuildRecord>(FileReference.ReadAllText(BuildRecordPath));
-
-				if (!Unreal.IsEngineInstalled())
-				{
-					if (!ValidateBuildRecord(BuildRecord, ProjectPath.Directory.FullName,
-						out string ValidationFailureMessage, ref Cache))
-					{
-						Log.TraceLog($"[{AutomationProjectRelativePath}] {ValidationFailureMessage}");
-						return null;
-					}
-				}
-				
-				return BuildRecord;
-			}
-			catch(Exception Ex)
-			{
-				// Any problems accessing files or parsing json, stop checking & fall back to build path
-				Log.TraceLog($"[{AutomationProjectRelativePath}] Script modules are not up to date: {Ex.Message}"); // {Ex.StackTrace}");
-				return null;
-			}
-		}
-		
 		// Loads build records for each project, if they exist, and then checks all recorded build dependencies to ensure
 		// that nothing has changed since the last build.
 		// This function is (currently?) all-or-nothing: either all projects are up-to-date, or none are.
-		private static HashSet<FileReference> TryGetAllUpToDateScriptModules(HashSet<FileReference> FoundAutomationProjects, ref WriteTimeCache Cache)
+		private static HashSet<FileReference> TryGetAllUpToDateScriptModules(Dictionary<UATBuildRecord, FileReference> ExistingBuildRecords, HashSet<FileReference> FoundAutomationProjects, ref WriteTimeCache Cache)
 		{
-			Dictionary<FileReference, UATBuildRecord> BuildRecords = new Dictionary<FileReference, UATBuildRecord>();
+			Dictionary<FileReference, UATBuildRecord> ExistingBuildRecordLookup = new Dictionary<FileReference, UATBuildRecord>(ExistingBuildRecords.Count);
 
-			bool LoadProjects(FileReference ProjectPath, ref WriteTimeCache Cache)
+			Dictionary<FileReference, UATBuildRecord> ValidatedBuildRecords = new Dictionary<FileReference, UATBuildRecord>(ExistingBuildRecords.Count);
+
+			foreach((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+            {
+				FileReference ProjectPath = FileReference.FromString(
+					Path.GetFullPath(BuildRecord.ProjectPath, BuildRecordPath.Directory.FullName));
+				ExistingBuildRecordLookup.Add(ProjectPath, BuildRecord);
+            }
+
+			bool ValidateProjectBuildRecords(FileReference ProjectPath, ref WriteTimeCache Cache)
 			{
-				if (BuildRecords.ContainsKey(ProjectPath))
+				if (ValidatedBuildRecords.ContainsKey(ProjectPath))
 				{
 					return true;
 				}
-				UATBuildRecord BuildRecord = LoadUpToDateBuildRecord(ProjectPath, ref Cache);
-				if (BuildRecord == null)
+
+				if (!ExistingBuildRecordLookup.TryGetValue(ProjectPath, out UATBuildRecord BuildRecord)) // LoadUpToDateBuildRecord(ProjectPath, ref Cache, AllScriptFolders);
 				{
+					Log.TraceLog($"Found project {ProjectPath} with no existing build record");
 					return false;
 				}
 
-				BuildRecords.Add(ProjectPath, BuildRecord);
+				if (!ValidateBuildRecord(BuildRecord, ProjectPath.Directory,
+					out string ValidationFailureMessage, ref Cache))
+				{
+					string AutomationProjectRelativePath =
+						Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
+				
+					Log.TraceLog($"[{AutomationProjectRelativePath}] {ValidationFailureMessage}");
+					return false;
+				}
+
+				ValidatedBuildRecords.Add(ProjectPath, BuildRecord);
 
 				foreach (string ReferencedProjectPath in BuildRecord.ProjectReferences)
 				{
 					FileReference FullProjectPath = FileReference.FromString(Path.GetFullPath(ReferencedProjectPath, ProjectPath.Directory.FullName));
-					if (!LoadProjects(FullProjectPath, ref Cache))
+					if (!ValidateProjectBuildRecords(FullProjectPath, ref Cache))
 					{
 						return false;
 					}
@@ -321,23 +433,23 @@ namespace AutomationToolDriver
 			HashSet<FileReference> FoundAssemblies = new HashSet<FileReference>();
 			foreach (FileReference AutomationProject in FoundAutomationProjects)
 			{
-				if (!LoadProjects(AutomationProject, ref Cache))
+				if (!ValidateProjectBuildRecords(AutomationProject, ref Cache))
                 {
 					return null;
                 }
-				FoundAssemblies.Add(FileReference.Combine(AutomationProject.Directory, BuildRecords[AutomationProject].TargetPath));
+				FoundAssemblies.Add(FileReference.Combine(AutomationProject.Directory, ValidatedBuildRecords[AutomationProject].TargetPath));
 			}
 
 			// it is possible that a referenced project has been rebuilt separately, that it is up to date, but that
 			// its build time is newer than a project that references it. Check for that.
-			foreach (KeyValuePair<FileReference, UATBuildRecord> Entry in BuildRecords)
+			foreach (KeyValuePair<FileReference, UATBuildRecord> Entry in ValidatedBuildRecords)
             {
 				foreach(string ReferencedProjectPath in Entry.Value.ProjectReferences)
                 {
 					FileReference FullReferencedProjectPath = FileReference.FromString(Path.GetFullPath(ReferencedProjectPath, Entry.Key.Directory.FullName));
-					if (BuildRecords[FullReferencedProjectPath].TargetBuildTime > Entry.Value.TargetBuildTime)
+					if (ValidatedBuildRecords[FullReferencedProjectPath].TargetBuildTime > Entry.Value.TargetBuildTime)
                     {
-						Log.TraceLog($"[{Entry.Key.MakeRelativeTo(Unreal.EngineDirectory)}] referenced project target {BuildRecords[FullReferencedProjectPath].TargetPath} build time ({BuildRecords[FullReferencedProjectPath].TargetBuildTime}) is more recent than this project's build time ({Entry.Value.TargetBuildTime})");
+						Log.TraceLog($"[{Entry.Key.MakeRelativeTo(Unreal.EngineDirectory)}] referenced project target {ValidatedBuildRecords[FullReferencedProjectPath].TargetPath} build time ({ValidatedBuildRecords[FullReferencedProjectPath].TargetBuildTime}) is more recent than this project's build time ({Entry.Value.TargetBuildTime})");
 						return null;
                     }
                 }
@@ -391,47 +503,38 @@ namespace AutomationToolDriver
 			MSBuildLocator.RegisterMSBuildPath(DotnetSdkDirectory.FullName);
 		}
 
-		static HashSet<FileReference> FindAutomationProjects(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders)
+		static HashSet<FileReference> FindAutomationProjects(List<DirectoryReference> GameFolders, List<DirectoryReference> AdditionalScriptFolders)
 		{
-			// Configure the rules compiler
-			// Get all game folders and convert them to build subfolders.
-			List<DirectoryReference> AllGameFolders = new List<DirectoryReference>();
+			
+			return new HashSet<FileReference>(
+				Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule,
+				GameFolders: GameFolders, ForeignPlugins: null, AdditionalSearchPaths: AdditionalScriptFolders));
+		}
+
+		static List<DirectoryReference> GetGameDirectories(string ScriptsForProjectFileName)
+        {
+			List<DirectoryReference> GameDirectories = new List<DirectoryReference>();
 
 			if (ScriptsForProjectFileName == null)
 			{
-				AllGameFolders = NativeProjectsBase.EnumerateProjectFiles().Select(x => x.Directory).ToList();
+				GameDirectories = NativeProjectsBase.EnumerateProjectFiles().Select(x => x.Directory).ToList();
 			}
 			else
 			{
-				// Project automation scripts currently require source engine builds
-				if (!Unreal.IsEngineInstalled())
-				{
-					DirectoryReference ScriptsDir = new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName));
-					ScriptsDir = DirectoryReference.FindCorrectCase(ScriptsDir);
-					AllGameFolders = new List<DirectoryReference> { ScriptsDir };
-				}
+				DirectoryReference ScriptsDir = new DirectoryReference(Path.GetDirectoryName(ScriptsForProjectFileName));
+				ScriptsDir = DirectoryReference.FindCorrectCase(ScriptsDir);
+				GameDirectories.Add(ScriptsDir);
 			}
+			return GameDirectories;
+        }
 
-			AdditionalScriptsFolders = AdditionalScriptsFolders ?? new List<string>();
-			List<DirectoryReference> AllAdditionalScriptFolders = AdditionalScriptsFolders.Select(
-				x => DirectoryReference.FindCorrectCase(new DirectoryReference(x))).ToList();
+		static List<DirectoryReference> GetAdditionalDirectories(List<string> AdditionalScriptsFolders) =>
+			AdditionalScriptsFolders == null ? new List<DirectoryReference>() :
+				AdditionalScriptsFolders.Select(x => DirectoryReference.FindCorrectCase(new DirectoryReference(x))).ToList();
 
-			foreach (DirectoryReference Folder in AllGameFolders)
-			{
-				DirectoryReference GameBuildFolder = DirectoryReference.Combine(Folder, "Build");
-				if (DirectoryReference.Exists(GameBuildFolder))
-				{
-					AllAdditionalScriptFolders.Add(GameBuildFolder);
-				}
-			}
+		static List<DirectoryReference> GetAdditionalBuildDirectories(List<DirectoryReference> GameDirectories) =>
+			GameDirectories.Select(x => DirectoryReference.Combine(x, "Build")).Where(x => DirectoryReference.Exists(x)).ToList();
 
-			Log.TraceVerbose("Discovering game folders.");
-			
-			List<FileReference> DiscoveredModules = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule,
-				GameFolders: AllGameFolders, ForeignPlugins: null, AdditionalSearchPaths: AllAdditionalScriptFolders);
-
-			return new HashSet<FileReference>(DiscoveredModules);
-		}
 
 		class MLogger : ILogger
 		{
@@ -529,9 +632,10 @@ namespace AutomationToolDriver
 #endif
             };
 
-		private static HashSet<FileReference> BuildAllScriptPlugins(HashSet<FileReference> FoundAutomationProjects, bool bForceCompile, bool bNoCompile, out bool bBuildSuccess, ref WriteTimeCache Cache)
+		private static HashSet<FileReference> BuildAllScriptPlugins(HashSet<FileReference> FoundAutomationProjects, bool bForceCompile, bool bNoCompile, out bool bBuildSuccess, 
+			ref WriteTimeCache Cache, List<DirectoryReference> BaseDirectories)
 		{
-			// The -IgnoreBuildRecords prevents the loading & parsing of .uatbuildrecord files - but UATBuildRecord objects will be used in this function regardless
+			// The -IgnoreBuildRecords prevents the loading & parsing of build record .json files from Intermediate/ScriptModules - but UATBuildRecord objects will be used in this function regardless
 			Dictionary<FileReference, UATBuildRecord> BuildRecords = new Dictionary<FileReference, UATBuildRecord>();
 			
 			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
@@ -590,17 +694,20 @@ namespace AutomationToolDriver
 			}
 			
 			// generate a BuildRecord for each loaded project - the gathered information will be used to determine if the project is
-			// out of date, and if building this project can be skipped. It is also used to populate the .uatbuildrecord after the
+			// out of date, and if building this project can be skipped. It is also used to populate Intermediate/ScriptModules after the
 			// build completes
 			foreach (Project Project in Projects.Values)
 			{
 				string TargetPath = Path.GetRelativePath(Project.DirectoryPath, Project.GetPropertyValue("TargetPath"));
-				
+
 				UATBuildRecord BuildRecord = new UATBuildRecord()
 				{
 					Version = UATBuildRecord.CurrentVersion,
 					TargetPath = TargetPath,
-					TargetBuildTime = Cache.GetLastWriteTime(Project.DirectoryPath, TargetPath),
+					TargetBuildTime = Cache.GetLastWriteTime(DirectoryReference.FromString(Project.DirectoryPath), TargetPath),
+					ProjectPath = Path.GetRelativePath(
+						ConstructBuildRecordPath(FileReference.FromString(Project.FullPath), BaseDirectories).Directory.FullName, 
+						Project.FullPath)
 				};
 
 				// the .csproj
@@ -717,9 +824,9 @@ namespace AutomationToolDriver
 						continue;
 					}
 
-					List<string> Include = new List<string>(Glob.IncludeGlobs.Select(F => CleanGlobString(F)));
-					List<string> Exclude = new List<string>(Glob.Excludes.Select(F => CleanGlobString(F)));
-					List<string> Remove = new List<string>(Glob.Removes.Select(F => CleanGlobString(F)));
+					List<string> Include = new List<string>(Glob.IncludeGlobs.Select(F => CleanGlobString(F))).OrderBy(x => x).ToList();
+					List<string> Exclude = new List<string>(Glob.Excludes.Select(F => CleanGlobString(F))).OrderBy(x => x).ToList();
+					List<string> Remove = new List<string>(Glob.Removes.Select(F => CleanGlobString(F))).OrderBy(x => x).ToList();
 					
 					BuildRecord.Globs.Add(new UATBuildRecord.Glob() { ItemType = Glob.ItemElement.ItemType, 
 						Include = Include, Exclude = Exclude, Remove = Remove });
@@ -750,7 +857,7 @@ namespace AutomationToolDriver
 					UATBuildRecord BuildRecord = BuildRecords[FileReference.FromString(Project.ProjectInstance.FullPath)];
 
 					string ValidationFailureMessage;
-					if (!ValidateBuildRecord(BuildRecord, Project.ProjectInstance.Directory,
+					if (!ValidateBuildRecord(BuildRecord, DirectoryReference.FromString(Project.ProjectInstance.Directory),
 						out ValidationFailureMessage, ref Cache))
 					{
 						Log.TraceLog($"[{Path.GetFileName(Project.ProjectInstance.FullPath)}] is out of date:\n{ValidationFailureMessage}");
@@ -804,15 +911,6 @@ namespace AutomationToolDriver
 			if (BuildProjectGraph != null)
 			{
 				bBuildSuccess = BuildProjects(BuildProjectGraph);
-				if (bBuildSuccess)
-                {
-					// write a list of built script module assemblies, so that source files are not required for installed builds
-
-					HashSet<string> ScriptModuleAssemblies = new HashSet<string>(Projects.Values.Select(
-						x => Path.GetRelativePath(AutomationToolBinaryDir.ToString(), x.GetPropertyValue("TargetPath"))));
-
-					FileReference.WriteAllText(ScriptModuleManifestPath, JsonSerializer.Serialize(ScriptModuleAssemblies, new JsonSerializerOptions { WriteIndented = true }));
-                }
 			}
 			else
 			{ 
@@ -823,14 +921,20 @@ namespace AutomationToolDriver
 			foreach (ProjectGraphNode ProjectNode in InputProjectGraph.ProjectNodes)
 			{
 				FileReference ProjectPath = FileReference.FromString(ProjectNode.ProjectInstance.FullPath);
+
+				FileReference BuildRecordPath = ConstructBuildRecordPath(ProjectPath, BaseDirectories);
+
 				UATBuildRecord BuildRecord = BuildRecords[ProjectPath];
-				
+
 				// update target build times into build records to ensure everything is up-to-date
 				FileReference FullPath = FileReference.Combine(ProjectPath.Directory, BuildRecord.TargetPath);
 				BuildRecord.TargetBuildTime = FileReference.GetLastWriteTime(FullPath);
 
-				File.WriteAllText( ProjectPath.ChangeExtension(".uatbuildrecord").FullName,
-					JsonSerializer.Serialize(BuildRecords[ProjectPath], new JsonSerializerOptions {WriteIndented = true}));
+				if (FileReference.WriteAllTextIfDifferent(BuildRecordPath, 
+					JsonSerializer.Serialize(BuildRecords[ProjectPath], new JsonSerializerOptions { WriteIndented = true })))
+                {
+					Log.TraceLog($"Wrote script module build record to {BuildRecordPath}");
+                }
 			}
 
 			// todo: re-verify build records after a build to verify that everything is actually up to date

@@ -191,7 +191,7 @@ class IStreamedCompressedInfo : public ICompressedAudioInfo
 {
 public:
 	ENGINE_API IStreamedCompressedInfo();
-	virtual ~IStreamedCompressedInfo() {}
+	ENGINE_API virtual ~IStreamedCompressedInfo() {}
 
 	//~ Begin ICompressedInfo Interface
 	ENGINE_API virtual bool ReadCompressedInfo(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, FSoundQualityInfo* QualityInfo) override;

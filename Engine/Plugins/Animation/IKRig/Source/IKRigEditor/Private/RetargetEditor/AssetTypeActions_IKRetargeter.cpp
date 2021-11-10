@@ -76,7 +76,7 @@ void FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu()
 			}));
 		}),
 		false,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager")
 		);
 	}
 }
@@ -106,7 +106,7 @@ void FAssetTypeActions_IKRetargeter::CreateRetargetSubMenu(FToolMenuSection& InS
 		"IKRetargetToDifferentSkeleton",
 		MenuLabel,
 		LOCTEXT("RetargetAnimation_ToolTip", "Duplicate an animation asset and retarget to a different skeleton."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.TabIcon"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon"),
 		FUIAction(FExecuteAction::CreateLambda([SelectedObjects]()
 		{
 			SRetargetAnimAssetsWindow::ShowWindow(SelectedObjects);

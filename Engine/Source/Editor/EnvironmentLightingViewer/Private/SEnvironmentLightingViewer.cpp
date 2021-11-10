@@ -577,7 +577,8 @@ bool SEnvironmentLightingViewer::GetIsPropertyVisible(const FPropertyAndParent& 
 				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("DirectionalInscatteringExponent"))
 				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("DirectionalInscatteringLuminance"))
 				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("StartDistance"))
-				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("FogCutoffDistance"));
+				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("FogCutoffDistance"))
+				|| PropertyAndParent.Property.GetNameCPP().Equals(TEXT("bEnableVolumetricFog"));
 		}
 		return true;
 	}

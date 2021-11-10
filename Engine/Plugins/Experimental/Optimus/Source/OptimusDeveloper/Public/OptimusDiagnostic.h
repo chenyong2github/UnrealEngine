@@ -8,7 +8,7 @@
 UENUM()
 enum class EOptimusDiagnosticLevel : uint8
 {
-	Ignore,
+	None,
 	Info,
 	Warning,
 	Error

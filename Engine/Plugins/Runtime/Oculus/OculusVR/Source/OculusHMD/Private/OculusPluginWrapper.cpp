@@ -100,6 +100,7 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(Update3),
 		OCULUS_BIND_ENTRY_POINT(WaitToBeginFrame),
 		OCULUS_BIND_ENTRY_POINT(BeginFrame4),
+		OCULUS_BIND_ENTRY_POINT(UpdateFoveation),
 		OCULUS_BIND_ENTRY_POINT(EndFrame4),
 		OCULUS_BIND_ENTRY_POINT(GetTrackingOrientationSupported2),
 		OCULUS_BIND_ENTRY_POINT(GetTrackingOrientationEnabled2),
@@ -222,6 +223,8 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(GetSystemHmd3DofModeEnabled),
 		OCULUS_BIND_ENTRY_POINT(SetClientColorDesc),
 		OCULUS_BIND_ENTRY_POINT(GetHmdColorDesc),
+		OCULUS_BIND_ENTRY_POINT(PollEvent),
+		OCULUS_BIND_ENTRY_POINT(GetNativeXrApiType),
 #ifndef OVRPLUGIN_JNI_LIB_EXCLUDED
 		OCULUS_BIND_ENTRY_POINT(GetSystemVolume2),
 		OCULUS_BIND_ENTRY_POINT(GetSystemHeadphonesPresent2),

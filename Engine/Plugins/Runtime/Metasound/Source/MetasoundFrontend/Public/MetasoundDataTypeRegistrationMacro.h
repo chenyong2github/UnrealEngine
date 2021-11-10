@@ -225,14 +225,15 @@ namespace Metasound
 			RegistryInfo.DataTypeDisplayText = GetMetasoundDataTypeDisplayText<TDataType>();
 			RegistryInfo.PreferredLiteralType = PreferredArgType;
 
-			RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType, FLiteral::FNone>::Value;		
+			RegistryInfo.bIsParsable = TLiteralTraits<TDataType>::bIsParsableFromAnyLiteralType;
+			RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType, FLiteral::FNone>::Value;
 			RegistryInfo.bIsBoolParsable = TIsParsable<TDataType, bool>::Value;
 			RegistryInfo.bIsIntParsable = TIsParsable<TDataType, int32>::Value;
 			RegistryInfo.bIsFloatParsable = TIsParsable<TDataType, float>::Value;
 			RegistryInfo.bIsStringParsable = TIsParsable<TDataType, FString>::Value;
 			RegistryInfo.bIsProxyParsable = TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
 
-			RegistryInfo.bIsDefaultArrayParsable = TIsParsable<TDataType, TArray<FLiteral::FNone>>::Value;		
+			RegistryInfo.bIsDefaultArrayParsable = TIsParsable<TDataType, TArray<FLiteral::FNone>>::Value;
 			RegistryInfo.bIsBoolArrayParsable = TIsParsable<TDataType, TArray<bool>>::Value;
 			RegistryInfo.bIsIntArrayParsable = TIsParsable<TDataType, TArray<int32>>::Value;
 			RegistryInfo.bIsFloatArrayParsable = TIsParsable<TDataType, TArray<float>>::Value;
@@ -240,7 +241,7 @@ namespace Metasound
 			RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
 
 			RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
-
+			RegistryInfo.bIsVariable = TIsVariable<TDataType>::Value;
 			RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
 			
 			if constexpr (std::is_base_of<UObject, UClassToUse>::value)
@@ -328,11 +329,12 @@ namespace Metasound
 		template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = void>
 		bool RegisterDataTypeWithFrontendInternal()
 		{
-			// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
-			// we catch it here.
+			static constexpr bool bIsParsable = TLiteralTraits<TDataType>::bIsParsableFromAnyLiteralType;
 			static bool bAlreadyRegisteredThisDataType = false;
 			if (bAlreadyRegisteredThisDataType)
 			{
+				// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
+				// we catch it here.
 				UE_LOG(LogMetaSound, Display, TEXT("Tried to call REGISTER_METASOUND_DATATYPE twice with the same class %s. ignoring the second call. Likely because REGISTER_METASOUND_DATATYPE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."), TDataReferenceTypeInfo<TDataType>::TypeName)
 				return false;
 			}
@@ -343,6 +345,7 @@ namespace Metasound
 			class FDataTypeRegistryEntry : public Frontend::IDataTypeRegistryEntry
 			{
 			public:
+
 				FDataTypeRegistryEntry()
 				: Info(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>())
 				, EnumInterface(GetEnumDataTypeInterface<TDataType>())
@@ -350,26 +353,29 @@ namespace Metasound
 					// Create class info using prototype node
 					// TODO: register nodes with static class info instead of prototype instance.
 
-					TInputNode<TDataType> InputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
-					InputClass = Metasound::Frontend::GenerateClassDescription(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
+					if constexpr (bIsParsable)
+					{
+						TInputNode<TDataType> InputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+						InputClass = Metasound::Frontend::GenerateClassDescription(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 
-					TOutputNode<TDataType> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
-					OutputClass = Metasound::Frontend::GenerateClassDescription(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
+						TOutputNode<TDataType> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
+						OutputClass = Metasound::Frontend::GenerateClassDescription(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 
-					TLiteralNode<TDataType> LiteralPrototype(TEXT(""), FGuid(), FLiteral());
-					LiteralClass = Metasound::Frontend::GenerateClassDescription(LiteralPrototype.GetMetadata(), EMetasoundFrontendClassType::Literal);
+						TLiteralNode<TDataType> LiteralPrototype(TEXT(""), FGuid(), FLiteral());
+						LiteralClass = Metasound::Frontend::GenerateClassDescription(LiteralPrototype.GetMetadata(), EMetasoundFrontendClassType::Literal);
 
-					TVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), FLiteral());
-					VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+						TVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), FLiteral());
+						VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
 
-					TVariableMutatorNode<TDataType> SetVariablePrototype(TEXT(""), FGuid());
-					SetVariableClass = Metasound::Frontend::GenerateClassDescription(SetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
+						TVariableMutatorNode<TDataType> SetVariablePrototype(TEXT(""), FGuid());
+						SetVariableClass = Metasound::Frontend::GenerateClassDescription(SetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
 
-					TVariableAccessorNode<TDataType> GetVariablePrototype(TEXT(""), FGuid());
-					GetVariableClass = Metasound::Frontend::GenerateClassDescription(GetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+						TVariableAccessorNode<TDataType> GetVariablePrototype(TEXT(""), FGuid());
+						GetVariableClass = Metasound::Frontend::GenerateClassDescription(GetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
 
-					TVariableDeferredAccessorNode<TDataType> GetDelayedVariablePrototype(TEXT(""), FGuid());
-					GetDelayedVariableClass = Metasound::Frontend::GenerateClassDescription(GetDelayedVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+						TVariableDeferredAccessorNode<TDataType> GetDelayedVariablePrototype(TEXT(""), FGuid());
+						GetDelayedVariableClass = Metasound::Frontend::GenerateClassDescription(GetDelayedVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+					}
 				}
 				virtual ~FDataTypeRegistryEntry() {}
 
@@ -420,42 +426,98 @@ namespace Metasound
 
 				virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&& InParams) const override
 				{
-					return MakeUnique<TInputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TInputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateOutputNode(FOutputNodeConstructorParams&& InParams) const override
 				{
-					return MakeUnique<TOutputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName);
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TOutputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName);
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateLiteralNode(FLiteralNodeConstructorParams&& InParams) const override
 				{
-					return MakeUnique<TLiteralNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TLiteralNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateReceiveNode(const FNodeInitData& InParams) const override
 				{
-					return MakeUnique<TReceiveNode<TDataType>>(InParams);
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TReceiveNode<TDataType>>(InParams);
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&& InParams) const override
 				{
-					return MakeUnique<TVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateVariableMutatorNode(const FNodeInitData& InParams) const override
 				{
-					return MakeUnique<TVariableMutatorNode<TDataType>>(InParams);
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TVariableMutatorNode<TDataType>>(InParams);
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateVariableAccessorNode(const FNodeInitData& InParams) const override
 				{
-					return MakeUnique<TVariableAccessorNode<TDataType>>(InParams);
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TVariableAccessorNode<TDataType>>(InParams);
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<INode> CreateVariableDeferredAccessorNode(const FNodeInitData& InParams) const override
 				{
-					return MakeUnique<TVariableDeferredAccessorNode<TDataType>>(InParams);
+					if constexpr (bIsParsable)
+					{
+						return MakeUnique<TVariableDeferredAccessorNode<TDataType>>(InParams);
+					}
+					else
+					{
+						return TUniquePtr<INode>(nullptr);
+					}
 				}
 
 				virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const override
@@ -482,7 +544,14 @@ namespace Metasound
 
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FOperatorSettings& InOperatorSettings) const override
 				{
-					return FTransmissionDataChannelFactory::CreateDataChannel<TDataType>(InOperatorSettings);
+					if constexpr (bIsParsable)
+					{
+						return FTransmissionDataChannelFactory::CreateDataChannel<TDataType>(InOperatorSettings);
+					}
+					else
+					{
+						return TSharedPtr<IDataChannel, ESPMode::ThreadSafe>(nullptr);
+					}
 				}
 
 				virtual TUniquePtr<IDataTypeRegistryEntry> Clone() const override
@@ -535,6 +604,7 @@ namespace Metasound
 			{
 				bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
 				bSuccess = bSuccess && RegisterArrayNodes<TArrayType>();
+				bSuccess = bSuccess && RegisterDataTypeWithFrontendInternal<TVariable<TArrayType>>();
 				return bSuccess;
 			}
 
@@ -560,6 +630,8 @@ namespace Metasound
 
 		// Register TDataType as a metasound data type.
 		bool bSuccess = RegisterDataTypeWithFrontendInternal<TDataType, PreferredArgType, UClassToUse>();
+		ensure(bSuccess);
+		bSuccess = bSuccess && RegisterDataTypeWithFrontendInternal<TVariable<TDataType>>();
 		ensure(bSuccess);
 
 		// Register TArray<TDataType> as a metasound data type.

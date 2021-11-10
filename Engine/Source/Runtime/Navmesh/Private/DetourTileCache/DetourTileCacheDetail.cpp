@@ -670,12 +670,12 @@ namespace TileCacheFunc
 
 inline dtReal getJitterValueX(const int i)
 {
-	return (((i * 0x8da6b343) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
+	return (((i * 0x8da6b343) & 0xffff) / dtReal(65535.) * 2.0f) - 1.0f;
 }
 
 inline dtReal getJitterValueY(const int i)
 {
-	return (((i * 0xd8163841) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
+	return (((i * 0xd8163841) & 0xffff) / dtReal(65535.) * 2.0f) - 1.0f;
 }
 
 static bool buildLayerPolyDetail(const dtReal* in, const int nin, const dtReal cs, const dtReal ch,

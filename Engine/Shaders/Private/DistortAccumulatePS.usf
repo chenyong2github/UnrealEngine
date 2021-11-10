@@ -20,7 +20,8 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "DistortionCommon.ush"
 
-#define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
+// STRATA_TODO enable distortion on mobile.
+#define STRATA_ENABLED (PROJECT_STRATA && MATERIAL_IS_STRATA && !SHADING_PATH_MOBILE)
 
 #if STRATA_ENABLED
 #define STRATA_USE_ENV_BRDF_APPROX 1
@@ -66,7 +67,7 @@ void Main(
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
 
-#if SHADING_PATH_MOBILE
+#if SHADING_PATH_MOBILE && MATERIAL_SHOULD_DISABLE_DEPTH_TEST==0
 	// Mobile specific: 
 	// distortion primtitives rendered without depth testing
 	// discard pixels that are hidden by manually comparing them to a scene depth

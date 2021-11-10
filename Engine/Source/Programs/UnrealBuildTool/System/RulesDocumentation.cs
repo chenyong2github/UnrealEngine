@@ -186,9 +186,18 @@ namespace UnrealBuildTool
 		{
 			HashSet<string> VisitedProperties = new HashSet<string>(StringComparer.Ordinal);
 
+			bool bExclude = false;
+
 			XmlNode? Node = null;
 			for (; ; )
 			{
+				Node = Documentation.SelectSingleNode($"//member[@name='{MemberName}']/exclude");
+				if (Node != null)
+				{
+					bExclude = true;
+					break;
+				}
+
 				Node = Documentation.SelectSingleNode($"//member[@name='{MemberName}']/summary");
 				if (Node != null)
 				{
@@ -204,7 +213,7 @@ namespace UnrealBuildTool
 				MemberName = InheritNode.InnerText;
 			}
 
-			if (Node != null)
+			if (Node != null && !bExclude)
 			{
 				// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
 				List<string> NewLines = new List<string>(Node.InnerText.Trim().Split('\n').Select(x => x.Trim()));
@@ -224,7 +233,10 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Log.TraceWarning("Missing XML comment for {0}", Regex.Replace(MemberName, @"^[A-Z]:", ""));
+			if (!bExclude)
+			{
+				Log.TraceWarning("Missing XML comment for {0}", Regex.Replace(MemberName, @"^[A-Z]:", ""));
+			}
 			Lines = null;
 			return false;
 		}

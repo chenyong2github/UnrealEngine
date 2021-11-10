@@ -16,6 +16,21 @@
 void UImageCenterTool::Initialize(TWeakPtr<FCameraCalibrationStepsController> InCameraCalibrationStepController)
 {
 	CameraCalibrationStepsController = InCameraCalibrationStepController;
+
+	UCameraCalibrationSubsystem* Subsystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+	check(Subsystem);
+
+	for (const FName& AlgoName : Subsystem->GetCameraImageCenterAlgos())
+	{
+		TSubclassOf<UCameraImageCenterAlgo> AlgoClass = Subsystem->GetCameraImageCenterAlgo(AlgoName);
+		const UCameraImageCenterAlgo* Algo = CastChecked<UCameraImageCenterAlgo>(AlgoClass->GetDefaultObject());
+
+		// If the algo uses an overlay material, create a new MID to use with that algo
+		if (UMaterialInterface* OverlayMaterial = Algo->GetOverlayMaterial())
+		{
+			AlgoOverlayMIDs.Add(Algo->FriendlyName(), UMaterialInstanceDynamic::Create(OverlayMaterial, GetTransientPackage()));
+		}
+	}
 }
 
 void UImageCenterTool::Shutdown()
@@ -153,5 +168,24 @@ void UImageCenterTool::OnSaveCurrentImageCenter()
 	}
 }
 
+UMaterialInstanceDynamic* UImageCenterTool::GetOverlayMID() const
+{
+	if (CurrentAlgo)
+	{
+		return AlgoOverlayMIDs.FindRef(CurrentAlgo->FriendlyName()).Get();
+	}
+
+	return nullptr;
+}
+
+bool UImageCenterTool::IsOverlayEnabled() const
+{
+	if (CurrentAlgo)
+	{
+		return CurrentAlgo->IsOverlayEnabled();
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

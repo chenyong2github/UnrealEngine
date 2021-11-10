@@ -1886,6 +1886,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		ShaderPrint::BeginView(GraphBuilder, View);
 		ShaderDrawDebug::BeginView(GraphBuilder, View);
+		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
@@ -3011,6 +3012,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	for (FViewInfo& View : Views)
+	{
+		ShadingEnergyConservation::Debug(GraphBuilder, View, SceneTextures);
+	}
+
 	if (!bHasRayTracedOverlay && ViewFamily.EngineShowFlags.LightShafts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftBloom);
@@ -3170,10 +3176,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	for (FViewInfo& View : Views)
 	{
-		ShaderPrint::EndView(Views[ViewIndex]);
-		ShaderDrawDebug::EndView(Views[ViewIndex]);
+		ShaderPrint::EndView(View);
+		ShaderDrawDebug::EndView(View);
 	}
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);

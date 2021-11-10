@@ -59,12 +59,13 @@ TOptional<FLevelSnapshotPropertyChain> FLevelSnapshotPropertyChain::FindPathToPr
 				{
 					if (bIncludeLeafPropertyInChain)
 					{
-						OutPropertyChain.AppendInline(Property);
+						OutPropertyChain.AppendInline(InLeafProperty);
 					}
 
 					return true;
 				}
-				else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				
+				if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 				{
 					FLevelSnapshotPropertyChain LocalChain = OutPropertyChain;
 					LocalChain.AppendInline(StructProperty);
@@ -82,8 +83,26 @@ TOptional<FLevelSnapshotPropertyChain> FLevelSnapshotPropertyChain::FindPathToPr
 		}
 	};
 
+	bool bSuccess = false;
+	
 	FLevelSnapshotPropertyChain Result;
-	const bool bSuccess = Local::MakePropertyChainFromLeafProperty(InLeafProperty, InStructToSearch, Result, bIncludeLeafPropertyInChain);
+	
+	if (FPropertyInfoHelpers::IsPropertyInCollection(InLeafProperty))
+	{
+		if (const FProperty* ParentProperty = FPropertyInfoHelpers::GetParentProperty(InLeafProperty))
+		{
+			bSuccess = Local::MakePropertyChainFromLeafProperty(ParentProperty, InStructToSearch, Result, true);
+			if (bIncludeLeafPropertyInChain)
+			{
+				Result.AppendInline(InLeafProperty);
+			}
+		}
+	}
+	else
+	{
+		bSuccess = Local::MakePropertyChainFromLeafProperty(InLeafProperty, InStructToSearch, Result, bIncludeLeafPropertyInChain);
+	}
+	
 	return bSuccess ? Result : TOptional<FLevelSnapshotPropertyChain>();
 }
 

@@ -59,7 +59,7 @@ namespace Electra
 	}
 
 
-	FTimeValue& FTimeValue::SetFromTimeFraction(const FTimeFraction& TimeFraction)
+	FTimeValue& FTimeValue::SetFromTimeFraction(const FTimeFraction& TimeFraction, int64 InSequenceIndex)
 	{
 		if (TimeFraction.IsValid())
 		{
@@ -72,6 +72,7 @@ namespace Electra
 				HNS = TimeFraction.GetAsTimebase(10000000);
 				bIsInfinity = false;
 				bIsValid = true;
+				SequenceIndex = InSequenceIndex;
 			}
 		}
 		else
@@ -81,7 +82,7 @@ namespace Electra
 		return *this;
 	}
 
-	FTimeValue& FTimeValue::SetFromND(int64 Numerator, uint32 Denominator)
+	FTimeValue& FTimeValue::SetFromND(int64 Numerator, uint32 Denominator, int64 InSequenceIndex)
 	{
 		if (Denominator != 0)
 		{
@@ -108,6 +109,7 @@ namespace Electra
 			bIsValid	= true;
 			bIsInfinity = true;
 		}
+		SequenceIndex = InSequenceIndex;
 		return *this;
 	}
 

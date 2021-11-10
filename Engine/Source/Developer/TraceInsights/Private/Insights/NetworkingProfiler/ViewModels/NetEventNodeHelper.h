@@ -28,13 +28,6 @@ struct NetEventNodeTypeHelper
 	 */
 	static FText ToDescription(const ENetEventNodeType Type);
 
-	/**
-	 * @param Type - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified ENetEventNodeType value.
-	 */
-	static FName ToBrushName(const ENetEventNodeType Type);
-
 	static const FSlateBrush* GetIconForGroup();
 	static const FSlateBrush* GetIconForNetEventNodeType(const ENetEventNodeType Type);
 };
@@ -57,13 +50,6 @@ struct NetEventNodeGroupingHelper
 	 * @return text representation with more detailed explanation of the specified ENetEventGroupingMode value.
 	 */
 	static FText ToDescription(const ENetEventGroupingMode NetEventGroupingMode);
-
-	/**
-	 * @param NetEventGroupingMode - The value to get the brush name for.
-	 *
-	 * @return brush name of the specified ENetEventGroupingMode value.
-	 */
-	static FName ToBrushName(const ENetEventGroupingMode NetEventGroupingMode);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

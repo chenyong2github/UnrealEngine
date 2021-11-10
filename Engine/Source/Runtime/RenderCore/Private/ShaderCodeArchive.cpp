@@ -833,11 +833,20 @@ bool FShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray
 	{
 		const int32 ShaderIndex = SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
 		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
+
+#if RHI_RAYTRACING
+		if (!IsRayTracingEnabled() && IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(ShaderEntry.Frequency)))
+		{
+			ShaderPreloadEntry.bNeverToBePreloaded = 1;
+			continue;
+		}
+#endif
+
 		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
 		if (ShaderNumRefs == 0u)
 		{
 			check(!ShaderPreloadEntry.PreloadEvent);
-			const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
 			ShaderPreloadEntry.Code = FMemory::Malloc(ShaderEntry.Size);
 			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
 			PreloadMemory += ShaderEntry.Size;
@@ -887,22 +896,24 @@ bool FShaderCodeArchive::WaitForPreload(FShaderPreloadEntry& ShaderPreloadEntry)
 void FShaderCodeArchive::ReleasePreloadedShader(int32 ShaderIndex)
 {
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
-
-	WaitForPreload(ShaderPreloadEntry);
-
-	FWriteScopeLock Lock(ShaderPreloadLock);
-
-	ShaderPreloadEntry.PreloadEvent.SafeRelease();
-
-	const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
-	check(ShaderPreloadEntry.Code);
-	check(ShaderNumRefs > 0u);
-	if (ShaderNumRefs == 1u)
+	if (!ShaderPreloadEntry.bNeverToBePreloaded)
 	{
-		FMemory::Free(ShaderPreloadEntry.Code);
-		ShaderPreloadEntry.Code = nullptr;
-		const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
-		DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.Size);
+		WaitForPreload(ShaderPreloadEntry);
+
+		FWriteScopeLock Lock(ShaderPreloadLock);
+
+		ShaderPreloadEntry.PreloadEvent.SafeRelease();
+
+		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
+		check(ShaderPreloadEntry.Code);
+		check(ShaderNumRefs > 0u);
+		if (ShaderNumRefs == 1u)
+		{
+			FMemory::Free(ShaderPreloadEntry.Code);
+			ShaderPreloadEntry.Code = nullptr;
+			const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
+			DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.Size);
+		}
 	}
 }
 
@@ -1153,7 +1164,7 @@ bool FIoStoreShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArra
 
 		ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
 		FIoBatch IoBatch = IoDispatcher.NewBatch();
-		IoBatch.Read(GetShaderCodeChunkId(ShaderHashes[ShaderIndex]), FIoReadOptions(), IoDispatcherPriority_Medium);
+		ShaderPreloadEntry.IoRequest = IoBatch.Read(GetShaderCodeChunkId(ShaderHashes[ShaderIndex]), FIoReadOptions(), IoDispatcherPriority_Medium);
 		IoBatch.IssueAndDispatchSubsequents(ShaderPreloadEntry.PreloadEvent);
 		INC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.CompressedSize);
 	}
@@ -1180,11 +1191,20 @@ bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEve
 	{
 		const int32 ShaderIndex = ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
 		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+
+#if RHI_RAYTRACING
+		if (!IsRayTracingEnabled() && IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(ShaderEntry.Frequency)))
+		{
+			ShaderPreloadEntry.bNeverToBePreloaded = 1;
+			continue;
+		}
+#endif
+
 		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
 		if (ShaderNumRefs == 0u)
 		{
 			check(!ShaderPreloadEntry.PreloadEvent);
-			const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
 			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
 			PreloadMemory += ShaderEntry.CompressedSize;
 			++PreloadCount;
@@ -1218,11 +1238,20 @@ bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FCoreDele
 	{
 		const int32 ShaderIndex = ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
 		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+
+#if RHI_RAYTRACING
+		if (!IsRayTracingEnabled() && IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(ShaderEntry.Frequency)))
+		{
+			ShaderPreloadEntry.bNeverToBePreloaded = 1;
+			continue;
+		}
+#endif
+
 		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
 		if (ShaderNumRefs == 0u)
 		{
 			check(!ShaderPreloadEntry.PreloadEvent);
-			const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
 			ShaderPreloadEntry.FramePreloadStarted = FrameNumber;
 			PreloadMemory += ShaderEntry.CompressedSize;
 			ShaderPreloadEntry.PreloadEvent = FGraphEvent::CreateGraphEvent();
@@ -1236,17 +1265,21 @@ bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FCoreDele
 bool FIoStoreShaderCodeArchive::ReleaseRef(int32 ShaderIndex)
 {
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
-	const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
-	check(ShaderNumRefs > 0u);
-	if (ShaderNumRefs == 1u)
+	if (!ShaderPreloadEntry.bNeverToBePreloaded)
 	{
-		ShaderPreloadEntry.IoRequest = FIoRequest();
-		ShaderPreloadEntry.PreloadEvent.SafeRelease();
-		const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
-		DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.CompressedSize);
-		return true;
+		const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs--;
+		check(ShaderNumRefs > 0u);
+		if (ShaderNumRefs == 1u)
+		{
+			ShaderPreloadEntry.IoRequest = FIoRequest();
+			ShaderPreloadEntry.PreloadEvent.SafeRelease();
+			const FIoStoreShaderCodeEntry& ShaderEntry = ShaderEntries[ShaderIndex];
+			DEC_DWORD_STAT_BY(STAT_Shaders_ShaderPreloadMemory, ShaderEntry.CompressedSize);
+			return true;
+		}
+		return false;
 	}
-	return false;
+	return true;
 }
 
 void FIoStoreShaderCodeArchive::ReleasePreloadedShader(int32 ShaderIndex)

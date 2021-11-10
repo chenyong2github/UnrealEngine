@@ -3,14 +3,13 @@
 #include "Insights/InsightsCommands.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
-//#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/Paths.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -25,7 +24,7 @@ FInsightsCommands::FInsightsCommands()
 		TEXT("InsightsCommands"), // Context name for fast lookup
 		NSLOCTEXT("Contexts", "InsightsCommand", "Insights Command"), // Localized context name for displaying
 		NAME_None, // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
 	)
 {
 }

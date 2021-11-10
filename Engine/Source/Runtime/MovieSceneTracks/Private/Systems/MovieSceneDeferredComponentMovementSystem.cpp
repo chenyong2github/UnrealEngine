@@ -63,6 +63,17 @@ UMovieSceneDeferredComponentMovementSystem::UMovieSceneDeferredComponentMovement
 
 void UMovieSceneDeferredComponentMovementSystem::BeginDestroy()
 {
+	EnsureMovementsFlushed();
+	Super::BeginDestroy();
+}
+
+void UMovieSceneDeferredComponentMovementSystem::OnUnlink()
+{
+	EnsureMovementsFlushed();
+}
+
+void UMovieSceneDeferredComponentMovementSystem::EnsureMovementsFlushed()
+{
 	if (!ensureMsgf(ScopedUpdates.Num() == 0, TEXT("System being destroyed while scoped updates still exist - ApplyMovementUpdates should always have been called at the end of the frame")))
 	{
 		// Ensure that destruction happens in reverse order
@@ -73,8 +84,6 @@ void UMovieSceneDeferredComponentMovementSystem::BeginDestroy()
 
 		ScopedUpdates.Empty();
 	}
-
-	Super::BeginDestroy();
 }
 
 void UMovieSceneDeferredComponentMovementSystem::DeferMovementUpdates(USceneComponent* InComponent)

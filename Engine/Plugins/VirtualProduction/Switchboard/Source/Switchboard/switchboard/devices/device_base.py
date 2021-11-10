@@ -43,7 +43,7 @@ class PluginHeaderWidgets(IntFlag):
     OPEN_BUTTON = 1,
     CONNECT_BUTTON = 2,
     CHANGELIST_LABEL = 4,
-
+    AUTOJOIN_MU = 8
 
 class DeviceQtHandler(QtCore.QObject):
     signal_device_status_changed = QtCore.Signal(object, int)

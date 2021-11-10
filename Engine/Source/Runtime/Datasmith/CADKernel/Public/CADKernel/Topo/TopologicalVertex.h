@@ -28,10 +28,7 @@ namespace CADKernel
 		{
 		}
 
-		FTopologicalVertex(FCADKernelArchive& Archive)
-		{
-			Serialize(Archive);
-		}
+		FTopologicalVertex() = default;
 
 	public:
 

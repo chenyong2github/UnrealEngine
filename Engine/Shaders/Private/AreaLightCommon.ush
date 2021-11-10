@@ -14,7 +14,8 @@ struct FAreaLight
 
 	FRect		Rect;
 	FRectTexture Texture;
-	bool		bIsRect;
+
+	uint		IsRectAndDiffuseMicroReflWeight;
 };
 
 struct FAreaLightIntegrateContext
@@ -25,14 +26,30 @@ struct FAreaLightIntegrateContext
 	float Falloff;
 };
 
+void SetIsRectLight(inout FAreaLight AreaLight, bool bIsRectLight)
+{
+	AreaLight.IsRectAndDiffuseMicroReflWeight = (AreaLight.IsRectAndDiffuseMicroReflWeight & 0xFFFFFFFE) | (bIsRectLight ? 0x1 : 0x0);
+}
+
+bool IsRectLight(FAreaLight AreaLight)
+{
+	return (AreaLight.IsRectAndDiffuseMicroReflWeight & 0x00000001) == 0x1;
+}
+
+void SetAreaLightDiffuseMicroReflWeight(inout FAreaLight AreaLight, float Weight)
+{
+	// We store the 32 bits float as 31 bits by droping the sign bit.
+	AreaLight.IsRectAndDiffuseMicroReflWeight = (AreaLight.IsRectAndDiffuseMicroReflWeight & 0x00000001) | (asuint(Weight) << 1);
+}
+
+float GetAreaLightDiffuseMicroReflWeight(FAreaLight AreaLight)
+{
+	return asfloat(AreaLight.IsRectAndDiffuseMicroReflWeight >> 1);
+}
+
 bool IsAreaLight(FAreaLight AreaLight)
 {
-	return (
-		AreaLight.bIsRect ||
-		AreaLight.SphereSinAlpha > 0.0f ||
-		AreaLight.SphereSinAlphaSoft > 0.0f ||
-		AreaLight.LineCosSubtended < 1.0f
-		) ? true : false;
+	return IsRectLight(AreaLight) || GetAreaLightDiffuseMicroReflWeight(AreaLight) < 1.0f;
 }
 
 FAreaLightIntegrateContext InitAreaLightIntegrateContext()
@@ -44,7 +61,7 @@ FAreaLightIntegrateContext InitAreaLightIntegrateContext()
 	Out.AreaLight.LineCosSubtended = 0;
 	Out.AreaLight.FalloffColor = 0;
 	Out.AreaLight.Rect = (FRect)0;
-	Out.AreaLight.bIsRect = false;
+	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
 //	Out.AreaLight.Texture;
 	Out.L = 0;
 	Out.NoL = 0;

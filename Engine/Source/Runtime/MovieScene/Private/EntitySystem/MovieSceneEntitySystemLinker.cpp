@@ -20,6 +20,8 @@
 #include "HAL/PlatformProcess.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+DECLARE_CYCLE_STAT(TEXT("Link Relevant Systems"),		MovieSceneEval_LinkRelevantSystems,		STATGROUP_MovieSceneECS);
+
 namespace UE
 {
 namespace MovieScene
@@ -144,6 +146,10 @@ void UMovieSceneEntitySystemLinker::SystemUnlinked(UMovieSceneEntitySystem* InSy
 	Events.AddReferencedObjects.RemoveAll(InSystem);
 	Events.AbandonLinker.RemoveAll(InSystem);
 	Events.CleanUpWorld.RemoveAll(InSystem);
+
+	// Add the system to the recycling pool.
+	ensure(EntitySystemsRecyclingPool.Contains(InSystem->GetClass()) == false);
+	EntitySystemsRecyclingPool.Add(InSystem->GetClass(), InSystem);
 }
 
 bool UMovieSceneEntitySystemLinker::HasLinkedSystem(const uint16 GlobalDependencyGraphID)
@@ -326,6 +332,7 @@ void UMovieSceneEntitySystemLinker::AddReferencedObjects(UObject* Object, FRefer
 
 	This->EntityManager.AddReferencedObjects(Collector);
 	This->Events.AddReferencedObjects.Broadcast(This, Collector);
+	Collector.AddReferencedObjects(This->EntitySystemsRecyclingPool);
 }
 
 UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType)
@@ -337,11 +344,26 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<U
 	}
 
 	// We always create systems with a fixed name (since there should only ever be one of that name)
-	// This means we will recycle systems if they previously existed but are no longer used to avoid thrashing the GC
-	// Recycling will destruct + memzero + construct the object so we can be sure that previous state doesn't roll over
-	UClass* SystemClass = InClassType.Get();
-	FName   SystemName  = SystemClass->GetFName();
-	UMovieSceneEntitySystem* NewSystem = NewObject<UMovieSceneEntitySystem>(this, SystemClass, SystemName);
+	// This means we can do our own recycling within the scope of this linker, to save on the cost of re-creating
+	// systems when the first instantiation phase kicks in after a period without any sequence playing.
+	UMovieSceneEntitySystem* NewSystem = nullptr;
+	UMovieSceneEntitySystem** Recycled = EntitySystemsRecyclingPool.Find(InClassType);
+	if (Recycled)
+	{
+		// Revive a recycled system.
+		NewSystem = *Recycled;
+		check(NewSystem);
+		EntitySystemsRecyclingPool.Remove(InClassType);
+		UE_LOG(LogMovieSceneECS, Verbose, TEXT("Recycling system: "), *InClassType->GetName());
+	}
+	else
+	{
+		// Unique names also mean we will recycle systems if they previously existed but are no longer used to avoid thrashing the GC
+		// Recycling will destruct + memzero + construct the object so we can be sure that previous state doesn't roll over
+		UClass* SystemClass = InClassType.Get();
+		FName   SystemName  = SystemClass->GetFName();
+		NewSystem = NewObject<UMovieSceneEntitySystem>(this, SystemClass, SystemName);
+	}
 
 	// If a system implements a hard depdency on another (through direct use of LinkSystem<>), we can't break the client code by returning null, but we can still warn that it should have checked whether it can call LinkSystem first
 	ensureMsgf(!EnumHasAnyFlags(NewSystem->GetExclusionContext(), SystemContext), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
@@ -369,6 +391,8 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::FindSystem(TSubclassOf<U
 
 void UMovieSceneEntitySystemLinker::LinkRelevantSystems()
 {
+	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_LinkRelevantSystems);
+
 	// If the structure has not changed there's no way that there are any other relevant systems still
 	if (EntityManager.HasStructureChangedSince(LastSystemLinkVersion))
 	{

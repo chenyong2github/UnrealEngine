@@ -86,13 +86,13 @@ namespace AVEncoder
 			uint32 CurrentWidth;
 			uint32 CurrentHeight;
 			uint32 CurrentFrameRate;
-		};
 
-		void ProcessFrameThreadFunc();
-		TUniquePtr<FThread> ProcessFrameThread;
-		FThreadSafeBool bShouldRunProcessingThread = true;
-		FThreadSafeBool bWaitingForFrames = true;
-		FEventRef FramesPending;
+			void ProcessFrameThreadFunc();
+			TUniquePtr<FThread> ProcessFrameThread;
+			FThreadSafeBool bShouldRunProcessingThread = true;
+			FThreadSafeBool bWaitingForFrames = true;
+			FEventRef FramesPending;
+		};
 
 		FAmfCommon& Amf;
 		EVideoFrameFormat FrameFormat = EVideoFrameFormat::Undefined;

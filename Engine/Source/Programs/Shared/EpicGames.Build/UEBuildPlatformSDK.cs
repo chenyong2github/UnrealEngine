@@ -592,7 +592,7 @@ namespace EpicGames.Core
 		/// <param name="PlatformSDKRoot">absolute path to platform SDK root</param>
 		/// <param name="OutInstalledSDKVersionString">version string as currently installed</param>
 		/// <returns>true if was able to read it</returns>
-		protected bool GetCurrentlyInstalledSDKString(string PlatformSDKRoot, out string OutInstalledSDKVersionString)
+		protected bool GetCurrentlyInstalledSDKString(string PlatformSDKRoot, out string OutInstalledSDKVersionString, out string OutInstalledSDKLevel)
 		{
 			if (Directory.Exists(PlatformSDKRoot))
 			{
@@ -603,6 +603,11 @@ namespace EpicGames.Core
 					{
 						string Version = Reader.ReadLine();
 						string Type = Reader.ReadLine();
+						string Level = Reader.ReadLine();
+						if (string.IsNullOrEmpty(Level))
+						{
+							Level = "FULL";
+						}
 
 						// don't allow ManualSDK installs to count as an AutoSDK install version.
 						if (Type != null && Type == "AutoSDK")
@@ -610,6 +615,7 @@ namespace EpicGames.Core
 							if (Version != null)
 							{
 								OutInstalledSDKVersionString = Version;
+								OutInstalledSDKLevel = Level;
 								return true;
 							}
 						}
@@ -618,6 +624,7 @@ namespace EpicGames.Core
 			}
 
 			OutInstalledSDKVersionString = "";
+			OutInstalledSDKLevel = "";
 			return false;
 		}
 
@@ -655,7 +662,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="InstalledSDKVersionString">SDK version string to set</param>
 		/// <returns>true if was able to set it</returns>
-		protected bool SetCurrentlyInstalledAutoSDKString(String InstalledSDKVersionString)
+		protected bool SetCurrentlyInstalledAutoSDKString(String InstalledSDKVersionString, String InstalledSDKLevelString)
 		{
 			String PlatformSDKRoot = GetPathToPlatformAutoSDKs();
 			if (Directory.Exists(PlatformSDKRoot))
@@ -670,6 +677,7 @@ namespace EpicGames.Core
 				{
 					Writer.WriteLine(InstalledSDKVersionString);
 					Writer.WriteLine("AutoSDK");
+					Writer.WriteLine(InstalledSDKLevelString);
 					return true;
 				}
 			}
@@ -705,6 +713,7 @@ namespace EpicGames.Core
 					{
 						Writer.WriteLine(InstalledSDKVersionString);
 						Writer.WriteLine("ManualSDK");
+						Writer.WriteLine("FULL");
 					}
 				}
 			}
@@ -780,6 +789,63 @@ namespace EpicGames.Core
 			}
 		}
 
+		static private string[] AutoSDKLevels = new string[]
+		{
+			"BUILD",
+			"PACKAGE",
+			"RUN",
+			"FULL",
+		};
+
+		private bool IsSDKLevelAtLeast(string Value, string ComparedTo)
+		{
+			int ValueIndex = AutoSDKLevels.FindIndex(x => x == Value.ToUpper());
+			int ComparedIndex = AutoSDKLevels.FindIndex(x => x == ComparedTo.ToUpper());
+			if (ValueIndex < 0 || ComparedIndex < 0)
+			{
+				throw new Exception($"Passed in a bad value to IsSDKLevelAtLeast: {Value}, {ComparedTo}");
+			}
+			return ValueIndex >= ComparedIndex;
+		}
+
+		private string GetAutoSDKLevelForPlatform(string PlatformSDKRoot)
+		{
+			// the last component is the platform name
+			string PlatformName = Path.GetFileName(PlatformSDKRoot).ToUpper();
+
+			// parse the envvar
+			Dictionary<string, string> PlatformSpecificLevels = new Dictionary<string, string>();
+			string DetailedSettings = Environment.GetEnvironmentVariable("UE_AUTOSDK_SPECIFIC_LEVELS"); // "Android=PACKAGE;GDk=RuN;PS5=BUILD";
+			if (!string.IsNullOrEmpty(DetailedSettings) && DetailedSettings.Contains(PlatformName, StringComparison.InvariantCultureIgnoreCase))
+			{
+				foreach (string Detail in DetailedSettings.ToUpper().Split(';'))
+				{
+					string[] Tokens = Detail.Split('=');
+					// validate the level string
+					if (AutoSDKLevels.Contains(Tokens[1]))
+					{
+						PlatformSpecificLevels.Add(Tokens[0], Tokens[1]);
+					}
+				}
+			}
+
+			string FinalAutoSDKLevel = "FULL";
+			if (PlatformSpecificLevels.ContainsKey(PlatformName))
+			{
+				FinalAutoSDKLevel = PlatformSpecificLevels[PlatformName];
+			}
+			else
+			{
+				string DefaultLevel = Environment.GetEnvironmentVariable("UE_AUTOSDK_DEFAULT_LEVEL");
+				if (!string.IsNullOrEmpty(DefaultLevel) && AutoSDKLevels.Contains(DefaultLevel, StringComparer.InvariantCultureIgnoreCase))
+				{
+					FinalAutoSDKLevel = DefaultLevel.ToUpper();
+				}
+			}
+
+			return FinalAutoSDKLevel;
+		}
+
 		/// <summary>
 		/// Runs install/uninstall hooks for SDK
 		/// </summary>
@@ -788,7 +854,7 @@ namespace EpicGames.Core
 		/// <param name="Hook">which one of hooks to run</param>
 		/// <param name="bHookCanBeNonExistent">whether a non-existing hook means failure</param>
 		/// <returns>true if succeeded</returns>
-		protected virtual bool RunAutoSDKHooks(string PlatformSDKRoot, string SDKVersionString, SDKHookType Hook, bool bHookCanBeNonExistent = true)
+		protected virtual bool RunAutoSDKHooks(string PlatformSDKRoot, string SDKVersionString, string AutoSDKLevel, SDKHookType Hook, bool bHookCanBeNonExistent = true)
 		{
 			if (!IsAutoSDKSafe())
 			{
@@ -808,7 +874,7 @@ namespace EpicGames.Core
 					Process HookProcess = new Process();
 					HookProcess.StartInfo.WorkingDirectory = SDKDirectory;
 					HookProcess.StartInfo.FileName = HookExe;
-					HookProcess.StartInfo.Arguments = "";
+					HookProcess.StartInfo.Arguments = AutoSDKLevel;
 					HookProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
 					bool bHookRequiresAdmin = DoesHookRequireAdmin(Hook);
@@ -1054,23 +1120,27 @@ namespace EpicGames.Core
 				if (AutoSDKRoot != "")
 				{
 					// check script version so script fixes can be propagated without touching every build machine's CurrentlyInstalled file manually.
-					bool bScriptVersionMatches = false;
 					string CurrentScriptVersionString;
 					if (GetLastRunScriptVersionString(AutoSDKRoot, out CurrentScriptVersionString) && CurrentScriptVersionString == GetRequiredScriptVersionString())
 					{
-						bScriptVersionMatches = true;
-					}
+						// check to make sure OutputEnvVars doesn't need regenerating
+						string EnvVarFile = Path.Combine(AutoSDKRoot, SDKEnvironmentVarsFile);
+						bool bEnvVarFileExists = File.Exists(EnvVarFile);
 
-					// check to make sure OutputEnvVars doesn't need regenerating
-					string EnvVarFile = Path.Combine(AutoSDKRoot, SDKEnvironmentVarsFile);
-					bool bEnvVarFileExists = File.Exists(EnvVarFile);
-
-					string CurrentSDKString;
-					if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString) && CurrentSDKString == GetAutoSDKDirectoryForMainVersion() && bScriptVersionMatches)
-					{
-						return SDKStatus.Valid;
+						string CurrentSDKString;
+						string CurrentSDKLevel;
+						if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString, out CurrentSDKLevel))
+						{
+							// match version
+							if (CurrentSDKString == GetAutoSDKDirectoryForMainVersion())
+							{
+								if (IsSDKLevelAtLeast(CurrentSDKLevel, GetAutoSDKLevelForPlatform(AutoSDKRoot)))
+								{
+									return SDKStatus.Valid;
+								}
+							}
+						}
 					}
-					return SDKStatus.Invalid;
 				}
 			}
 			return SDKStatus.Invalid;
@@ -1162,10 +1232,11 @@ namespace EpicGames.Core
 
 					string AutoSDKRoot = GetPathToPlatformAutoSDKs();
 					string CurrentSDKString;
-					GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString);
+					string CurrentSDKLevel;
+					GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString, out CurrentSDKLevel);
 
 					// switch over (note that version string can be empty)
-					if (!RunAutoSDKHooks(AutoSDKRoot, CurrentSDKString, SDKHookType.Uninstall))
+					if (!RunAutoSDKHooks(AutoSDKRoot, CurrentSDKString, CurrentSDKLevel, SDKHookType.Uninstall))
 					{
 						Log.TraceLog("Failed to uninstall currently installed SDK {0}", CurrentSDKString);
 						InvalidateCurrentlyInstalledAutoSDK();
@@ -1174,10 +1245,11 @@ namespace EpicGames.Core
 					// delete Manifest file to avoid multiple uninstalls
 					InvalidateCurrentlyInstalledAutoSDK();
 
-					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Install, false))
+					string DesiredSDKLevel = GetAutoSDKLevelForPlatform(AutoSDKRoot);
+					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Install, false))
 					{
 						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetAutoSDKDirectoryForMainVersion());
-						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Uninstall, false);
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Uninstall, false);
 						return;
 					}
 
@@ -1185,11 +1257,11 @@ namespace EpicGames.Core
 					if (!File.Exists(EnvVarFile))
 					{
 						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetAutoSDKDirectoryForMainVersion(), EnvVarFile);
-						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Uninstall, false);
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Uninstall, false);
 						return;
 					}
 
-					SetCurrentlyInstalledAutoSDKString(GetAutoSDKDirectoryForMainVersion());
+					SetCurrentlyInstalledAutoSDKString(GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel);
 					SetLastRunAutoSDKScriptVersion(GetRequiredScriptVersionString());
 				}
 

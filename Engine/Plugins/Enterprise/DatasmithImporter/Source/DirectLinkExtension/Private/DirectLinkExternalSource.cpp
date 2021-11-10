@@ -64,13 +64,10 @@ namespace UE::DatasmithImporter
 	{
 		if (SourceHandle.IsValid() && DestinationHandle.IsValid() && !bIsStreamOpen)
 		{
-			if (IDirectLinkManager* Manager = IDirectLinkExtensionModule::Get().GetManager())
-			{
-				const DirectLink::FEndpoint::EOpenStreamResult Result = Manager->GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
+			const DirectLink::FEndpoint::EOpenStreamResult Result = IDirectLinkExtensionModule::GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
 
-				bIsStreamOpen = Result == DirectLink::FEndpoint::EOpenStreamResult::Opened;
-				return bIsStreamOpen;
-			}
+			bIsStreamOpen = Result == DirectLink::FEndpoint::EOpenStreamResult::Opened;
+			return bIsStreamOpen;			
 		}
 
 		return false;
@@ -80,25 +77,21 @@ namespace UE::DatasmithImporter
 	{
 		if (SourceHandle.IsValid() && DestinationHandle.IsValid() && bIsStreamOpen)
 		{
-			if (IDirectLinkManager* Manager = IDirectLinkExtensionModule::Get().GetManager())
-			{
-				Manager->GetEndpoint().CloseStream(SourceHandle, DestinationHandle);
-				bIsStreamOpen = false;
-			}
+			IDirectLinkExtensionModule::GetEndpoint().CloseStream(SourceHandle, DestinationHandle);
+			bIsStreamOpen = false;
 		}
 	}
 
 	void FDirectLinkExternalSource::Invalidate()
 	{
-		CloseStream();
-		ClearOnExternalSourceLoadedDelegates();
-
-		SourceHandle.Invalidate();
-		if (IDirectLinkManager* DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager())
+		if (IDirectLinkExtensionModule::IsAvailable())
 		{
-			DirectLinkManager->GetEndpoint().RemoveDestination(DestinationHandle);
-			DestinationHandle.Invalidate();
+			IDirectLinkExtensionModule::GetEndpoint().RemoveDestination(DestinationHandle);
+			CloseStream();
 		}
+
+		ClearOnExternalSourceLoadedDelegates();
+		DestinationHandle.Invalidate();
 	}
 
 	TSharedPtr<DirectLink::ISceneReceiver> FDirectLinkExternalSource::GetSceneReceiver(const DirectLink::IConnectionRequestHandler::FSourceInformation& Source)

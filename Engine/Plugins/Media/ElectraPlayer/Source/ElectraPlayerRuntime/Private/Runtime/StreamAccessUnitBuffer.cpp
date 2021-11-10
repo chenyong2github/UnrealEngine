@@ -9,7 +9,6 @@ namespace Electra
 		EmptyBuffer = CreateNewBuffer();
 		LastPoppedDTS.SetToInvalid();
 		LastPoppedPTS.SetToInvalid();
-		bIsDeselected = false;
 		bEndOfData = false;
 		bLastPushWasBlocked = false;
 		bIsParallelTrackMode = false;
@@ -40,7 +39,7 @@ namespace Electra
 		BufferConfiguration = Config;
 	}
 
-	bool FMultiTrackAccessUnitBuffer::Push(FAccessUnit*& AU)
+	bool FMultiTrackAccessUnitBuffer::Push(FAccessUnit*& AU, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization)
 	{
 		check(AU->BufferSourceInfo.IsValid());
 
@@ -72,7 +71,14 @@ namespace Electra
 
 		// Get the combined buffer utilization of enqueued buffers.
 		FAccessUnitBuffer::FExternalBufferInfo EnqueuedBufferInfo;
-		GetEnqueuedBufferInfo(EnqueuedBufferInfo, bIsSwitchOverAU);
+		if (InCurrentTotalBufferUtilization)
+		{
+			EnqueuedBufferInfo = *InCurrentTotalBufferUtilization;
+		}
+		else
+		{
+			GetEnqueuedBufferInfo(EnqueuedBufferInfo, bIsSwitchOverAU);
+		}
 
 		AccessLock.Unlock();
 
@@ -239,25 +245,6 @@ namespace Electra
 				}
 			}
 		}
-	}
-
-
-	void FMultiTrackAccessUnitBuffer::Activate()
-	{
-		bIsDeselected = false;
-	}
-
-	void FMultiTrackAccessUnitBuffer::Deselect()
-	{
-		// The buffer remains selected in order to track its fullness etc.
-		// Deselected only means that the access unit may not get sent to the decoder
-		// or be replaced by one that produces no output.
-		bIsDeselected = true;
-	}
-
-	bool FMultiTrackAccessUnitBuffer::IsDeselected()
-	{
-		return bIsDeselected;
 	}
 
 	FTimeValue FMultiTrackAccessUnitBuffer::GetLastPoppedPTS()
@@ -476,12 +463,12 @@ namespace Electra
 
 	bool FMultiTrackAccessUnitBuffer::PeekAndAddRef(FAccessUnit*& OutAU)
 	{
-		FScopedLock lock(*this);
+		FScopedLock lock(AsShared());
 		ActivateBuffer(false);
 		TSharedPtrTS<FAccessUnitBuffer> Buf = FMultiTrackAccessUnitBuffer::GetSelectedTrackBuffer();
 		if (Buf->Num())
 		{
-			return Buf->Peek(OutAU);
+			return Buf->PeekAndAddRef(OutAU);
 		}
 		else
 		{

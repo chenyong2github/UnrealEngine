@@ -43,8 +43,6 @@
 #include "CustomStaticScreenPercentage.h"
 #include "CustomEditorStaticScreenPercentage.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 
@@ -1212,13 +1210,6 @@ void SLevelViewportToolBar::FillShowMenu(UToolMenu* Menu) const
 				Section.AddSubMenu("ShowLayers", LOCTEXT("ShowLayersMenu", "Layers"), LOCTEXT("ShowLayersMenu_ToolTip", "Show layers flags"),
 					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowLayersMenu, Viewport), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.Layers"));
 			}
-			else
-			{
-				const FSlateIcon DataLayersIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.DataLayers");
-				// Show DataLayers sub-menu is dynamically generated when the user enters 'show' menu
-				Section.AddSubMenu("ShowDataLayers", LOCTEXT("ShowDataLayersMenu", "Data Layers"), LOCTEXT("ShowDataLayersMenu_ToolTip", "Show Data Layers flags"),
-					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowDataLayersMenu, Viewport), false, DataLayersIcon);
-			}
 
 			// Show Sprites sub-menu
 			{
@@ -1444,36 +1435,6 @@ void SLevelViewportToolBar::FillShowLayersMenu(UToolMenu* Menu, TWeakPtr<class S
 
 				Section.AddMenuEntry(NAME_None, FText::FromName( LayerName ), FText::GetEmpty(), FSlateIcon(), Action, EUserInterfaceActionType::ToggleButton);
 			}
-		}
-	}
-}
-
-void SLevelViewportToolBar::FillShowDataLayersMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewport> Viewport)
-{
-	{
-		FToolMenuSection& Section = Menu->AddSection("LevelViewportDataLayers");
-		Section.AddMenuEntry(FLevelViewportCommands::Get().ShowAllDataLayers, LOCTEXT("ShowAllLabel", "Show All"));
-		Section.AddMenuEntry(FLevelViewportCommands::Get().HideAllDataLayers, LOCTEXT("HideAllLabel", "Hide All"));
-	}
-
-	if (Viewport.IsValid())
-	{
-		const FSlateIcon DataLayerIcon(FEditorStyle::GetStyleSetName(), "DataLayer.Icon16x");
-		TSharedRef<SLevelViewport> ViewportRef = Viewport.Pin().ToSharedRef();
-		FToolMenuSection& Section = Menu->AddSection("LevelViewportDataLayers2");
-		// Get all the DataLayers and create an entry for each of them
-		if (const AWorldDataLayers* WorldDataLayers = ViewportRef->GetWorld()->GetWorldDataLayers())
-		{
-			WorldDataLayers->ForEachDataLayer([&Section, &ViewportRef, &DataLayerIcon](UDataLayer* DataLayer)
-			{
-				const FName DataLayerName = DataLayer->GetFName();
-				const FName DataLayerLabel = DataLayer->GetDataLayerLabel();
-				FUIAction Action(FExecuteAction::CreateSP(ViewportRef, &SLevelViewport::ToggleShowDataLayer, DataLayerName),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(ViewportRef, &SLevelViewport::IsDataLayerVisible, DataLayerName));
-				Section.AddMenuEntry(NAME_None, FText::FromName(DataLayerLabel), FText::GetEmpty(), DataLayerIcon, Action, EUserInterfaceActionType::ToggleButton);
-				return true;
-			});
 		}
 	}
 }

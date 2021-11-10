@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "LevelSequence.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
 #include "Channels/MovieSceneEvent.h"
@@ -116,21 +117,22 @@ public:
 public:
 
 	/*
-	 * Export Passed in Bindings to FBX
+	 * Export Passed in Bindings and Master Tracks to FBX
 	 *
 	 * @InWorld World to export
 	 * @InSequence Sequence to export
 	 * @InBindings Bindings to export
+	 * @InMasterTracks Master tracks to export
 	 * @InFBXFileName File to create
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
-	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
+	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
 	static bool ExportTemplateSequenceFBX(UWorld* InWorld, UTemplateSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
 
 	UE_DEPRECATED(4.27, "Please use ExportLevelSequenceFBX instead")
-	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName) { return ExportLevelSequenceFBX(InWorld, InSequence, InBindings, OverrideOptions, InFBXFileName); }
+	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName) { return ExportLevelSequenceFBX(InWorld, InSequence, InBindings, InSequence->GetMovieScene()->GetMasterTracks(), OverrideOptions, InFBXFileName); }
 
 	/*
 	 * Export Passed in Binding as an Anim Seqquence.

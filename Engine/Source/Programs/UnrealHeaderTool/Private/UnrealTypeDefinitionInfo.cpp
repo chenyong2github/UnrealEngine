@@ -2351,8 +2351,12 @@ void FUnrealClassDefinitionInfo::InitializeFromExistingUObject(UClass* Class)
 	SetInternalFlags(Class->GetInternalFlags());
 
 	UPackage* Package = Class->GetOutermost();
-	FUnrealPackageDefinitionInfo& PackageDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealPackageDefinitionInfo>(*Package->GetName());
-	SetOuter(&PackageDef);
+	FUnrealPackageDefinitionInfo* PackageDef = GTypeDefinitionInfoMap.FindByName<FUnrealPackageDefinitionInfo>(*Package->GetName());
+	if (PackageDef == nullptr)
+	{
+		Throwf(TEXT("Unable to find package %s"), *Package->GetName());
+	}
+	SetOuter(PackageDef);
 }
 
 void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent)

@@ -30,29 +30,10 @@ FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieScene
 
 TArray<FKeyBarCurveModel::FBarRange> FControlRigSpaceChannelCurveModel::FindRanges()
 {
-	TArray<FKeyBarCurveModel::FBarRange> Range;
 	FMovieSceneControlRigSpaceChannel* Channel = ChannelHandle.Get();
 	UMovieSceneSection* Section = WeakSection.Get();
-	if (Channel && Section)
-	{
-		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-		TArray<FSpaceRange> SpaceRanges = Channel->FindSpaceIntervals();
-		for (const FSpaceRange& SpaceRange : SpaceRanges)
-		{
-			FKeyBarCurveModel::FBarRange BarRange;
-			double LowerValue = SpaceRange.Range.GetLowerBoundValue() / TickResolution;
-			double UpperValue = SpaceRange.Range.GetUpperBoundValue() / TickResolution;
-
-			BarRange.Range.SetLowerBound(TRangeBound<double>(LowerValue));
-			BarRange.Range.SetUpperBound(TRangeBound<double>(UpperValue));
-
-			BarRange.Name = SpaceRange.Key.GetName();
-			BarRange.Color = FControlRigSpaceChannelHelpers::GetColor(SpaceRange.Key);
-
-			Range.Add(BarRange);
-		}
-	}
-	return  Range;
+	TArray<FKeyBarCurveModel::FBarRange> Range =  FControlRigSpaceChannelHelpers::FindRanges(Channel, Section);
+	return Range;
 }
 
 const void* FControlRigSpaceChannelCurveModel::GetCurve() const

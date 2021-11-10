@@ -22,11 +22,7 @@ namespace CADKernel
 		{
 		}
 
-		FParabolaCurve(FCADKernelArchive& Archive)
-			: FCurve()
-		{
-			Serialize(Archive);
-		}
+		FParabolaCurve() = default;
 
 	public:
 

@@ -23,14 +23,8 @@ public:
 
 	virtual ~SConsoleVariablesEditorMainPanel() override;
 
-	/** A handler for when the "Add Console Variable" button is clicked */
-	FReply OnClickAddConsoleVariableButton() const;
-
 	/** A handler for when text is committed to the Console Input Box that appears when clicking the "Add Console Variable" button */
 	FReply HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
-
-	/** Causes the list of variables to be rebuilt to reflect changes made to the editable asset */
-	void RefreshList(UConsoleVariablesAsset* InAsset) const;
 
 private:
 
@@ -46,7 +40,7 @@ private:
 	TSharedPtr<SMultiLineEditableTextBox> ConsoleInputEditableTextBox;
 
 	/** Creates the toolbar at the top of the MainPanel widget */
-	TSharedRef<SWidget> GeneratePanelToolbar();
+	TSharedRef<SWidget> GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget);
 
 	// Save / Load
 

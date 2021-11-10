@@ -12,7 +12,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"ElectraBase",
-					"ElectraSamples",
 					"Expat"
 				});
 			// Expat is a static library, not a DLL.

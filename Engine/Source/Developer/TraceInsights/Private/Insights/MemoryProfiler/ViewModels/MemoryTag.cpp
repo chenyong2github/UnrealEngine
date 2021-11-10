@@ -85,6 +85,18 @@ FMemoryTagList::~FMemoryTagList()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FMemoryTag* FMemoryTagList::GetTagById(FMemoryTrackerId InTrackerId, FMemoryTagId InTagId) const
+{
+	const TMap<FMemoryTagId, FMemoryTag*>* TagsMapPtr = TrackersAndTagsMap.Find(InTrackerId);
+	if (TagsMapPtr)
+	{
+		return TagsMapPtr->FindRef(InTagId);
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FMemoryTagList::Reset()
 {
 	for (FMemoryTag* TagPtr : Tags)
@@ -92,7 +104,7 @@ void FMemoryTagList::Reset()
 		delete TagPtr;
 	}
 	Tags.Reset();
-	TagIdMap.Reset();
+	TrackersAndTagsMap.Reset();
 
 	LastTraceSerialNumber = 0;
 	SerialNumber = 0;
@@ -144,30 +156,35 @@ void FMemoryTagList::UpdateInternal()
 					static_assert(FMemoryTag::InvalidTagId == static_cast<FMemoryTagId>(TraceServices::FMemoryTagInfo::InvalidTagId), "Memory TagId type mismatch!");
 					FMemoryTagId TagId = static_cast<FMemoryTagId>(TraceTag.Id);
 
-					FMemoryTag* TagPtr = TagIdMap.FindRef(TagId);
-					if (!TagPtr)
+					uint64 TrackerFlags = TraceTag.Trackers;
+					int32 TrackerId = 0;
+					while (TrackerFlags != 0)
 					{
-						TagPtr = new FMemoryTag();
+						if (TrackerFlags & 1)
+						{
+							TMap<FMemoryTagId, FMemoryTag*>& TagsMap = TrackersAndTagsMap.FindOrAdd(Insights::FMemoryTrackerId(TrackerId));
+							FMemoryTag* TagPtr = TagsMap.FindRef(TagId);
+							if (!TagPtr)
+							{
+								TagPtr = new FMemoryTag();
 
-						FMemoryTag& Tag = *TagPtr;
-						Tag.Index = Tags.Num();
-						Tag.Id = TagId;
-						Tag.ParentId = static_cast<FMemoryTagId>(TraceTag.ParentId);
-						Tag.StatName = TraceTag.Name;
-						Tag.StatFullName = Tag.StatName;
-						Tag.Trackers = TraceTag.Trackers;
-						Tag.SetColorAuto();
+								FMemoryTag& Tag = *TagPtr;
+								Tag.Index = Tags.Num();
+								Tag.Id = TagId;
+								Tag.ParentId = static_cast<FMemoryTagId>(TraceTag.ParentId);
+								Tag.StatName = TraceTag.Name;
+								Tag.StatFullName = Tag.StatName;
+								Tag.TrackerId = Insights::FMemoryTrackerId(TrackerId);
+								Tag.SetColorAuto();
 
-						Tags.Add(TagPtr);
-						TagIdMap.Add(TagId, TagPtr);
-					}
-					else
-					{
-						TagPtr->Trackers = TraceTag.Trackers;
+								Tags.Add(TagPtr);
+								TagsMap.Add(TagId, TagPtr);
+							}
+						}
+						TrackerFlags >>= 1;
+						++TrackerId;
 					}
 				});
-
-				ensure(Tags.Num() == MemoryProvider->GetTagCount());
 			}
 		}
 	}

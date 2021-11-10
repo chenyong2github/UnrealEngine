@@ -97,8 +97,8 @@ void FInsightsTestRunner::RegisterMajorTabs(IUnrealInsightsModule& InsightsModul
 			FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::AutomationWindowTabId,
 				FOnSpawnTab::CreateRaw(this, &FInsightsTestRunner::SpawnAutomationWindowTab))
 				.SetDisplayName(AutomationInfoConfig.TabLabel.IsSet() ? AutomationInfoConfig.TabLabel.GetValue() : LOCTEXT("AutomationTab", "Automation"))
-				.SetTooltipText(AutomationInfoConfig.TabTooltip.IsSet() ? AutomationInfoConfig.TabTooltip.GetValue() : LOCTEXT("AutomationTooltipText", "Open the automation tab."))
-				.SetIcon(AutomationInfoConfig.TabIcon.IsSet() ? AutomationInfoConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"));
+				.SetTooltipText(AutomationInfoConfig.TabTooltip.IsSet() ? AutomationInfoConfig.TabTooltip.GetValue() : LOCTEXT("AutomationTooltipText", "Opens the automation tab."))
+				.SetIcon(AutomationInfoConfig.TabIcon.IsSet() ? AutomationInfoConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SessionInfo"));
 
 			TSharedRef<FWorkspaceItem> Group = AutomationInfoConfig.WorkspaceGroup.IsValid() ? AutomationInfoConfig.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetWindowsGroup();
 			TabSpawnerEntry.SetGroup(Group);

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "IDirectLinkManager.h"
+
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"		// For inline LoadModuleChecked()
 
@@ -9,12 +11,12 @@
 
 namespace UE::DatasmithImporter
 {
-	class IDirectLinkManager;
+	class FDirectLinkExternalSource;
 }
 
-namespace UE::DatasmithImporter
+namespace DirectLink
 {
-	class FDirectLinkExternalSource;
+	class FEndpoint;
 }
 
 class IDirectLinkExtensionModule : public IModuleInterface
@@ -43,7 +45,7 @@ public:
 	/**
 	 * Return the DirectLinkManager singleton.
 	 */
-	virtual UE::DatasmithImporter::IDirectLinkManager* GetManager() const = 0;
+	virtual UE::DatasmithImporter::IDirectLinkManager& GetManager() const = 0;
 
 	/**
 	 * Spawn a dialog window prompting the user to select one available FDirectLinkExternalSource.
@@ -51,5 +53,10 @@ public:
 	 * @return The selected DirectLinkExternalSource, nullptr is returned if the dialog was canceled. 
 	 */
 	virtual TSharedPtr<UE::DatasmithImporter::FDirectLinkExternalSource> DisplayDirectLinkSourcesDialog() = 0;
+
+	static DirectLink::FEndpoint& GetEndpoint()
+	{
+		return Get().GetManager().GetEndpoint();
+	}
 };
 

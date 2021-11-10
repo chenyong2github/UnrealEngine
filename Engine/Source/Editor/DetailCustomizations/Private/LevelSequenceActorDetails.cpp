@@ -141,7 +141,7 @@ bool FLevelSequenceActorDetails::CanOpenLevelSequenceForActor() const
 {
 	if( LevelSequenceActor.IsValid() )
 	{
-		return LevelSequenceActor.Get()->LevelSequence.IsValid();
+		return LevelSequenceActor.Get()->GetSequence() != nullptr;
 	}
 	return false;
 }
@@ -150,7 +150,7 @@ FReply FLevelSequenceActorDetails::OnOpenLevelSequenceForActor()
 {
 	if( LevelSequenceActor.IsValid() )
 	{
-		UObject* LoadedObject = LevelSequenceActor.Get()->LoadSequence();
+		UObject* LoadedObject = LevelSequenceActor.Get()->GetSequence();
 		if (LoadedObject != nullptr)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LoadedObject);

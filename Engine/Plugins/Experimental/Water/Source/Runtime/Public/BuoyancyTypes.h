@@ -176,6 +176,7 @@ struct FBuoyancyData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Buoyancy)
 	TArray<FSphericalPontoon> Pontoons;
 
+
 	/** Increases buoyant force applied on each pontoon. */
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
 	float BuoyancyCoefficient;
@@ -204,17 +205,8 @@ struct FBuoyancyData
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
 	float MaxBuoyantForce;
 
-	/** Coefficient for nudging objects to shore (for perf reasons). */
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float WaterShorePushFactor;
-
-	/** Coefficient for applying push force in rivers. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float WaterVelocityStrength;
-
-	/** Maximum push force that can be applied by rivers. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float MaxWaterForce;
+	bool bApplyDragForcesInWater = false;
 
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
 	float DragCoefficient = 20.f;
@@ -228,8 +220,60 @@ struct FBuoyancyData
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
 	float MaxDragSpeed = 15.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	bool bApplyDragForcesInWater = false;
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior")
+	bool bApplyRiverForces = true;
+
+	/** Pontoon to calculate water forces from. Used to calculate lateral push/pull, to grab water velocity for main force calculations from for downstream calculation if possible.*/
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces", ClampMin = 0))
+	int RiverPontoonIndex = 0;
+
+	/** Coefficient for nudging objects to shore in Rivers (for perf reasons). Or, set negative to push towards center of river. */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	float WaterShorePushFactor;
+
+	/** Path width along the inside of the river which the object should traverse */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces", ClampMin = 1.0f))
+	float RiverTraversalPathWidth = 300.0f;
+
+	/** Maximum push force that can be applied by riverths towards the center or edge. */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	float MaxShorePushForce;
+
+	/** Coefficient for applying push force in rivers. */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	float WaterVelocityStrength;
+
+	/** Maximum push force that can be applied by rivers. */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	float MaxWaterForce;
+
+	/** Allow an object to be pushed laterally regardless of the forward movement speed through the river */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	bool bAlwaysAllowLateralPush = false;
+	
+	/** Apply the current when moving at high speeds upstream. Disable for vehicles to have more control*/
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	bool bAllowCurrentWhenMovingFastUpstream = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces"))
+	bool bApplyDownstreamAngularRotation = false;
+
+	/** The axis with respect to the object that the downstream angular rotation should be aligned */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces && bApplyDownstreamAngularRotation"))
+	FVector DownstreamAxisOfRotation;
+
+	/** Strength of the angular rotation application */
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces && bApplyDownstreamAngularRotation", ClampMin = 0.0f, ClampMax = 1.0f))
+	float DownstreamRotationStrength = 0.05f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces && bApplyDownstreamAngularRotation"))
+	float DownstreamRotationStiffness = 20.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces && bApplyDownstreamAngularRotation"))
+	float DownstreamRotationAngularDamping = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Buoyancy | River Behavior", Meta = (EditCondition = "bApplyRiverForces && bApplyDownstreamAngularRotation"))
+	float DownstreamMaxAcceleration = 10.0f;
 
 	FBuoyancyData()
 		: BuoyancyCoefficient(0.1f)
@@ -240,8 +284,11 @@ struct FBuoyancyData
 		, BuoyancyRampMax(1.f)
 		, MaxBuoyantForce(5000000.f)
 		, WaterShorePushFactor(0.3f)
+		, RiverTraversalPathWidth(300.0f)
+		, MaxShorePushForce(300.0f)
 		, WaterVelocityStrength(0.01f)
 		, MaxWaterForce(10000.f)
+		, DownstreamAxisOfRotation(FVector::ZeroVector)
 	{
 	}
 
@@ -257,6 +304,7 @@ struct FBuoyancyData
 		{
 			Pontoons[Index].Serialize(Ar);
 		}
+		Ar << RiverPontoonIndex;
 		Ar << BuoyancyCoefficient;
 		Ar << BuoyancyDamp;
 		Ar << BuoyancyDamp2;
@@ -264,14 +312,24 @@ struct FBuoyancyData
 		Ar << BuoyancyRampMaxVelocity;
 		Ar << BuoyancyRampMax;
 		Ar << MaxBuoyantForce;
-		Ar << WaterShorePushFactor;
-		Ar << WaterVelocityStrength;
-		Ar << MaxWaterForce;
+		Ar << bApplyDragForcesInWater;
 		Ar << DragCoefficient;
 		Ar << DragCoefficient2;
 		Ar << AngularDragCoefficient;
 		Ar << MaxDragSpeed;
-		Ar << bApplyDragForcesInWater;
+		Ar << bApplyRiverForces;
+		Ar << WaterShorePushFactor;
+		Ar << WaterVelocityStrength;
+		Ar << MaxWaterForce;
+		Ar << bAlwaysAllowLateralPush;
+		Ar << bAllowCurrentWhenMovingFastUpstream;
+		Ar << RiverTraversalPathWidth;
+		Ar << bApplyDownstreamAngularRotation;
+		Ar << DownstreamAxisOfRotation;
+		Ar << DownstreamRotationStrength;
+		Ar << DownstreamRotationStiffness;
+		Ar << DownstreamRotationAngularDamping;
+		Ar << DownstreamMaxAcceleration;
 	}
 };
 

@@ -656,7 +656,7 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 		ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, EventArgs.ControllerId);
 		if (TargetPlayer && TargetPlayer->PlayerController)
 		{
-			bResult = TargetPlayer->PlayerController->InputKey(EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad());
+			bResult = TargetPlayer->PlayerController->InputKey(FInputKeyParams(EventArgs.Key, EventArgs.Event, static_cast<double>(EventArgs.AmountDepressed), EventArgs.IsGamepad()));
 		}
 
 		// A gameviewport is always considered to have responded to a mouse buttons to avoid throttling
@@ -723,7 +723,7 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 			ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, EventArgs.ControllerId);
 			if (TargetPlayer && TargetPlayer->PlayerController)
 			{
-				bResult = TargetPlayer->PlayerController->InputAxis(EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
+				bResult = TargetPlayer->PlayerController->InputKey(FInputKeyParams(EventArgs.Key, (double)Delta, DeltaTime, NumSamples, EventArgs.IsGamepad()));
 			}
 		}
 

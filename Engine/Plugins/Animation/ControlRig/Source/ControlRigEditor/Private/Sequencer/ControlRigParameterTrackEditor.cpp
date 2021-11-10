@@ -2083,15 +2083,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		});
 	}
 
-	//if fk rig show hierarchy.
-	if (Subject->IsA<UFKControlRig>())
-	{
-		if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
-		{
-			Settings->bDisplayHierarchy = true;
-		}
-	}
-
 	if (bIsDoingSelection)
 	{
 		return;
@@ -2183,16 +2174,6 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 					}
 					AddControlKeys(Component, ControlRig, Name, ControlElement->GetName(), (EControlRigContextChannelToKey)Context.KeyMask, 
 						KeyMode, Context.LocalTime);
-				}
-				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Track->GetSectionToKey());
-				if (ParamSection)  
-				{
-					
-					FFrameNumber KeyTime = (Context.LocalTime == FLT_MAX) ? GetTimeForKey() : GetSequencer()->GetFocusedTickResolution().AsFrameTime((double)Context.LocalTime).RoundToFrame();
-
-					TOptional<FFrameNumber> OptionalKeyTime = KeyTime;
-					FControlRigSpaceChannelHelpers::CompensateIfNeeded(ControlRig, GetSequencer().Get(), ParamSection,
-						ControlElement->GetName(), OptionalKeyTime);
 				}
 			}
 		}
@@ -2477,9 +2458,21 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRigHandle(US
 				KeyPropertyResult |= AddKeysToSection(SectionToKey, KeyTime, GeneratedKeys, KeyMode);
 			}
 		}
-	}
 
-	KeyPropertyResult.bTrackCreated |= bTrackCreated || bSectionCreated;
+
+		KeyPropertyResult.bTrackCreated |= bTrackCreated || bSectionCreated;
+		//if we create a key then compensate
+		if (KeyPropertyResult.bKeyCreated)
+		{
+			UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Track->GetSectionToKey());
+			if (ParamSection && ParamSection->GetControlRig())
+			{
+				TOptional<FFrameNumber> OptionalKeyTime = KeyTime;
+				FControlRigSpaceChannelHelpers::CompensateIfNeeded(ParamSection->GetControlRig(), GetSequencer().Get(), ParamSection,
+					RigControlName, OptionalKeyTime);
+			}
+		}
+	}
 	return KeyPropertyResult;
 }
 

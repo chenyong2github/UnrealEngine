@@ -1,14 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioRadialSlider.h"
+#include "AudioWidgets.h"
 #include "SAudioRadialSlider.h"
 
 #define LOCTEXT_NAMESPACE "AUDIO_UMG"
+
+static FAudioRadialSliderStyle* DefaultAudioRadialSliderStyle = nullptr;
+#if WITH_EDITOR 
+static FAudioRadialSliderStyle* EditorAudioRadialSliderStyle = nullptr;
+#endif 
 
 // UAudioRadialSlider
 UAudioRadialSlider::UAudioRadialSlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if (DefaultAudioRadialSliderStyle == nullptr)
+	{
+		DefaultAudioRadialSliderStyle = new FAudioRadialSliderStyle(FAudioRadialSliderStyle::GetDefault());
+	}
+
+	WidgetStyle = *DefaultAudioRadialSliderStyle;
+
+#if WITH_EDITOR 
+	if (EditorAudioRadialSliderStyle == nullptr)
+	{
+		FModuleManager::LoadModuleChecked<FAudioWidgetsModule>("AudioWidgets");
+		EditorAudioRadialSliderStyle = new FAudioRadialSliderStyle(FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle")->GetWidgetStyle<FAudioRadialSliderStyle>("AudioRadialSlider.Style"));
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorAudioRadialSliderStyle;
+
+		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
+		PostEditChange();
+	}
+#endif // WITH_EDITOR
+
 	Value = 0.0f;
 	WidgetLayout = EAudioRadialSliderLayout::Layout_LabelBottom;
 	CenterBackgroundColor = FStyleColors::Recessed.GetSpecifiedColor();
@@ -188,6 +217,7 @@ void UAudioRadialSlider::ReleaseSlateResources(bool bReleaseChildren)
 TSharedRef<SWidget> UAudioRadialSlider::RebuildWidget()
 {
 	MyAudioRadialSlider = SNew(SAudioRadialSlider)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 
 	return MyAudioRadialSlider.ToSharedRef();
@@ -204,6 +234,7 @@ UAudioVolumeRadialSlider::UAudioVolumeRadialSlider(const FObjectInitializer& Obj
 TSharedRef<SWidget> UAudioVolumeRadialSlider::RebuildWidget()
 {
 	MyAudioRadialSlider = SNew(SAudioVolumeRadialSlider)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 
 	return MyAudioRadialSlider.ToSharedRef();
@@ -220,6 +251,7 @@ UAudioFrequencyRadialSlider::UAudioFrequencyRadialSlider(const FObjectInitialize
 TSharedRef<SWidget> UAudioFrequencyRadialSlider::RebuildWidget()
 {
 	MyAudioRadialSlider = SNew(SAudioFrequencyRadialSlider)
+		.Style(&WidgetStyle)
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
 
 	return MyAudioRadialSlider.ToSharedRef();

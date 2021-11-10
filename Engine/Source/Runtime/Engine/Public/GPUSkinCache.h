@@ -189,7 +189,7 @@ public:
 		FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams,
-		bool bWorldIsPaused);
+		const FSceneView* View);
 
 	static void Release(FGPUSkinCacheEntry*& SkinCacheEntry);
 

@@ -170,7 +170,11 @@ bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayCluste
 	// Read VIOSO config data from nDisplay config file
 	if (!ViosoConfigData.Initialize(GetParameters(), InViewport->GetId()))
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't read VIOSO configuration from the config file for viewport -'%s'"), *InViewport->GetId());
+		if (!IsEditorOperationMode())
+		{
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't read VIOSO configuration from the config file for viewport -'%s'"), *InViewport->GetId());
+		}
+
 		return false;
 	}
 
@@ -191,7 +195,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayCluste
 		}
 	}
 
-	UE_LOG(LogDisplayClusterProjectionVIOSO, Log, TEXT("VIOSO policy has been initialized: %s"), *ViosoConfigData.ToString());
+	UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("VIOSO policy has been initialized: %s"), *ViosoConfigData.ToString());
 
 	return true;
 }
@@ -232,7 +236,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport
 	FScopeLock lock(&DllAccessCS);
 	if (!Views[InContextNum].UpdateVIOSO(InViewport, InContextNum, LocalEyeOrigin, LocalRotator, WorldToMeters, NCP, FCP))
 	{
-		if (Views[InContextNum].IsValid())
+		if (Views[InContextNum].IsValid() && !FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
 		{
 			// Vioso api used, but failed inside math. The config base matrix or vioso geometry is invalid
 			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Couldn't Calculate View for VIOSO viewport '%s'"), *InViewport->GetId());

@@ -185,7 +185,7 @@ namespace DatasmithSceneElementUtil
 			return false;
 		}
 
-		TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource(FSourceUri::FromFilePath(PlmXmlFileName));
+		TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(FSourceUri::FromFilePath(PlmXmlFileName));
 		if (!ExternalSource)
 		{
 			UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: cannot resolve the external source from Source file or URI. Abort import"));
@@ -286,7 +286,7 @@ namespace DatasmithSceneElementUtil
 		}
 		else
 		{
-			TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource(FSourceUri::FromFilePath(PlmXmlFileName));
+			TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(FSourceUri::FromFilePath(PlmXmlFileName));
 			if (!ExternalSource.IsValid() || !ExternalSource->GetAssetTranslator().IsValid())
 			{
 				// Process all files separately if PlmXml if not translatable
@@ -358,7 +358,8 @@ namespace DatasmithSceneElementUtil
 						}
 
 						// Make sure filename set to context is the same that would be used if scene was imported separately
-						TSharedPtr<UE::DatasmithImporter::FExternalSource> ActorExternalSource = FDatasmithImporterHelper::TryGetExternalSourceFromFilepath(FilePaths[FileIndex]);
+						const FSourceUri SourceUri = FSourceUri::FromFilePath(FilePaths[FileIndex]);
+						TSharedPtr<UE::DatasmithImporter::FExternalSource> ActorExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 						if (!ActorExternalSource)
 						{
 							continue;
@@ -486,7 +487,7 @@ namespace DatasmithSceneElementUtil
 			}
 
 			const FString& FileName = FilePaths[FileIndex];
-			TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource(FSourceUri::FromFilePath(FileName));
+			TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(FSourceUri::FromFilePath(FileName));
 
 			if (!ExternalSource)
 			{
@@ -543,8 +544,10 @@ namespace DatasmithSceneElementUtil
 UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromFile(const FString& InFilename)
 {
 	using namespace DatasmithBlueprintLibraryImpl;
+	using namespace UE::DatasmithImporter;
 
-	TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource = FDatasmithImporterHelper::TryGetExternalSourceFromFilepath(InFilename);
+	const FSourceUri SourceUri = FSourceUri::FromFilePath(InFilename);
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 	if (!ExternalSource)
 	{
 		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: file name could not be resolved to an external source. Abort import."));
@@ -583,6 +586,8 @@ UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromCADFi
 UDatasmithSceneElement* UDatasmithSceneElement::GetExistingDatasmithScene(const FString& AssetPath)
 {
 	using namespace DatasmithBlueprintLibraryImpl;
+	using namespace UE::DatasmithImporter;
+
 	if (UDatasmithScene* SceneAsset = Cast<UDatasmithScene>(UEditorAssetLibrary::LoadAsset(AssetPath)))
 	{
 		if (!SceneAsset->AssetImportData)
@@ -593,7 +598,8 @@ UDatasmithSceneElement* UDatasmithSceneElement::GetExistingDatasmithScene(const 
 
 		UDatasmithSceneImportData& ReimportData = *SceneAsset->AssetImportData;
 
-		TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource = FDatasmithImporterHelper::TryGetExternalSourceFromFilepath(ReimportData.GetFirstFilename());
+		const FSourceUri SourceUri = FSourceUri::FromFilePath(ReimportData.GetFirstFilename());
+		TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 		if (!ExternalSource)
 		{
 			UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: file name could not be resolved to an external source. Abort import."));

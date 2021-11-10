@@ -2,7 +2,6 @@
 
 #include "STimersViewTooltip.h"
 
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -13,6 +12,7 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/ViewModels/TimerNode.h"
@@ -39,7 +39,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableTooltip(const Insights::FTable&
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDisplayName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -48,7 +48,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableTooltip(const Insights::FTable&
 			[
 				SNew(STextBlock)
 				.Text(Table.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -70,7 +70,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTable
 			[
 				SNew(STextBlock)
 				.Text(Column.GetTitleName())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 			]
 
 			+ SVerticalBox::Slot()
@@ -79,7 +79,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTable
 			[
 				SNew(STextBlock)
 				.Text(Column.GetDescription())
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
 
@@ -126,7 +126,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 			[
 				SNew(STextBlock)
 				.Text(SourcePrefix)
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 			];
 	}
@@ -137,7 +137,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 			[
 				SNew(STextBlock)
 				.Text(SourceSuffix)
-				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 	}
@@ -172,14 +172,14 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Id", "Id:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(FText::AsNumber(TimerNodePtr->GetTimerId()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					// Name: [Name]
@@ -188,7 +188,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Name", "Name:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 1)
 					.Padding(2.0f)
@@ -197,7 +197,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 						.WrapTextAt(1024.0f)
 						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(TimerNodePtr->GetName()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					// Timer Type: [Type]
@@ -206,14 +206,14 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 2)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(TimerNodeTypeHelper::ToText(TimerNodePtr->GetType()))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 
 					// Source: [Source]
@@ -222,7 +222,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Source", "Source:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 3)
 					.Padding(2.0f)
@@ -250,14 +250,14 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_NumInstances", "Num Instances:"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(InstanceCountText)
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 					]
 				]
 
@@ -281,7 +281,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_InclusiveTime", "Inclusive"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 					+ SGridPanel::Slot(2, 0)
 					.Padding(FMargin(8.0f, 2.0f, 2.0f, 2.0f))
@@ -289,7 +289,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_ExclusiveTime", "Exclusive"))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 					]
 
 					// Stats are added here.
@@ -324,7 +324,7 @@ void STimersViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, co
 		[
 			SNew(STextBlock)
 			.Text(Name)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
 		];
 
 	Grid->AddSlot(1, Row)
@@ -333,7 +333,7 @@ void STimersViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, co
 		[
 			SNew(STextBlock)
 			.Text(Value1)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		];
 
 	Grid->AddSlot(2, Row)
@@ -342,7 +342,7 @@ void STimersViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, co
 		[
 			SNew(STextBlock)
 			.Text(Value2)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 		];
 
 	Row++;

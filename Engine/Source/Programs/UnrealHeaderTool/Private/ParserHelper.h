@@ -528,7 +528,7 @@ struct FRigVMParameter
 	{
 		const FString& String = TypeOriginal(bCastType);
 		int32 LesserPos = 0;
-		if (String.FindChar('<', LesserPos))
+		if (String.FindChar(TEXT('<'), LesserPos))
 		{
 			return String.Mid(0, LesserPos);
 		}
@@ -539,7 +539,7 @@ struct FRigVMParameter
 	{
 		const FString& String = TypeOriginal(bCastType);
 		int32 LesserPos = 0;
-		if (String.FindChar('<', LesserPos))
+		if (String.FindChar(TEXT('<'), LesserPos))
 		{
 			return String.Mid(LesserPos);
 		}

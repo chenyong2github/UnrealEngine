@@ -366,7 +366,7 @@ namespace CADKernel
 
 protected:
 
-		const FLinearBoundary& Boundary;
+		FLinearBoundary Boundary;
 
 		// Final sampling of the curve. This polyline will be completed at each iteration
 		PolylineType& Sampling;

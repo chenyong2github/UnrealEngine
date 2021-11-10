@@ -36,6 +36,7 @@ public class DeviceProfileEditor : ModuleRules
 				"SourceControl",
                 "TargetPlatform",
 				"DesktopPlatform",
+				"SharedSettingsWidgets",
 			}
 		);
 

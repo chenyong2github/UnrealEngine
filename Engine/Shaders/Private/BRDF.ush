@@ -311,7 +311,8 @@ float3 Diffuse_Gotanda( float3 DiffuseColor, float Roughness, float NoV, float N
 }
 
 // [ Chan 2018, "Material Advances in Call of Duty: WWII" ]
-float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float VoH, float NoH )
+// It has been extended here to fade out retro reflectivity contribution from area light in order to avoid visual artefacts.
+float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float VoH, float NoH, float RetroReflectivityWeight)
 {
 	// a2 = 2 / ( 1 + exp2( 18 * g )
 	float g = saturate( (1.0 / 18.0) * log2( 2 / a2 - 1 ) );
@@ -320,8 +321,13 @@ float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float 
 	float FdV = 1 - 0.75 * Pow5( 1 - NoV );
 	float FdL = 1 - 0.75 * Pow5( 1 - NoL );
 
+	// Rough (F0) to smooth (FdV * FdL) response interpolation
 	float Fd = lerp( F0, FdV * FdL, saturate( 2.2 * g - 0.5 ) );
+
+	// Retro reflectivity contribution.
 	float Fb = ( (34.5 * g - 59 ) * g + 24.5 ) * VoH * exp2( -max( 73.2 * g - 21.2, 8.9 ) * sqrt( NoH ) );
+	// It fades out when lights become area lights in order to avoid visual artefacts.
+	Fb *= RetroReflectivityWeight;
 	
 	return DiffuseColor * ( (1 / PI) * ( Fd + Fb ) );
 }

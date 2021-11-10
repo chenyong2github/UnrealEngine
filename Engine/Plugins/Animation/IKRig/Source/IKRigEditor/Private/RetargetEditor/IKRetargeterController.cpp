@@ -47,14 +47,8 @@ void UIKRetargeterController::SetSourceIKRig(UIKRigDefinition* SourceIKRig)
 
 void UIKRetargeterController::SetTargetIKRig(UIKRigDefinition* TargetIKRig)
 {
-	const bool bTargetWasNull = Asset->TargetIKRigAsset == nullptr;
-	Asset->TargetIKRigAsset = TargetIKRig;
-
-	if (bTargetWasNull)
-	{
-		CleanChainMapping();
-		AutoMapChains();
-	}
+	CleanChainMapping();
+	AutoMapChains();
 }
 
 USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh()

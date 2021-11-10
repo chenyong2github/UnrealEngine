@@ -17,6 +17,7 @@ enum class EDisplayClusterViewport_OverscanMode: uint8
 
 struct FImplDisplayClusterViewport_OverscanSettings
 {
+	bool bEnabled = false;
 	bool bOversize = false;
 
 	EDisplayClusterViewport_OverscanMode Mode = EDisplayClusterViewport_OverscanMode::None;

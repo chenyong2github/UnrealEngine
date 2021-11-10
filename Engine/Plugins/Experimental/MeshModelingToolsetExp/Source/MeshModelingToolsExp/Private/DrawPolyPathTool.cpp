@@ -212,6 +212,16 @@ void UDrawPolyPathTool::Setup()
 		}
 	});
 
+	TransformProps->WatchProperty(TransformProps->ExtrudeMode, [this](EDrawPolyPathExtrudeMode)
+	{
+		if(ExtrudeHeightMechanic != nullptr)
+		{
+			// regenerate the base path mesh
+			BeginInteractiveExtrudeHeight();
+		}
+	});
+
+
 	ExtrudeProperties = NewObject<UDrawPolyPathExtrudeProperties>();
 	ExtrudeProperties->RestoreProperties(this);
 	AddToolPropertySource(ExtrudeProperties);
@@ -364,8 +374,18 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	else if (CurveDistMechanic != nullptr)
 	{
 		CurveDistMechanic->UpdateCurrentDistance(DevicePos.WorldRay);
-		TransformProps->Width = CurveDistMechanic->CurrentDistance * 2.0;
-		CurOffsetDistance = CurveDistMechanic->CurrentDistance;
+
+		if (TransformProps->bSnapToWorldGrid)
+		{
+			double QuantizedDistance = ToolSceneQueriesUtil::SnapDistanceToWorldGridSize(this, CurveDistMechanic->CurrentDistance);
+			TransformProps->Width = QuantizedDistance * 2.0;
+			CurOffsetDistance = QuantizedDistance;
+		}
+		else
+		{
+			TransformProps->Width = CurveDistMechanic->CurrentDistance * 2.0;
+			CurOffsetDistance = CurveDistMechanic->CurrentDistance;
+		}
 		UpdatePathPreview();
 	}
 	else if (ExtrudeHeightMechanic != nullptr)
@@ -506,7 +526,10 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 		int NextJ = (j + 1) % NumPoints;
 		int PrevJ = (j - 1 + NumPoints) % NumPoints;
 		FVector3d Prev(CurPathPoints[PrevJ].Origin), Next(CurPathPoints[NextJ].Origin), Cur(CurPathPoints[j].Origin);
-		ArcLengths[j] = ArcLengths[PrevJ] + Distance(Cur, Prev);
+		if (j != 0)
+		{
+			ArcLengths[j] = ArcLengths[PrevJ] + Distance(Cur, Prev);
+		}
 		FLine3d Line1(FLine3d::FromPoints(Prev, Cur)), Line2(FLine3d::FromPoints(Cur, Next));
 		Line1.Origin += DistOffsetDelta * PlaneNormal.Cross(Line1.Direction);
 		Line2.Origin += DistOffsetDelta * PlaneNormal.Cross(Line2.Direction);
@@ -624,20 +647,51 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 	int32 NumPoints = CurPathPoints.Num();
 	if (NumPoints > 1)
 	{
+		CurPathLength = 0;
+		for (int32 k = 1; k < NumPoints; ++k)
+		{
+			CurPathLength += Distance(CurPathPoints[k].Origin, CurPathPoints[k - 1].Origin);
+		}
+
 		if (bPathIsClosed)
 		{
-			FPolygonEdgeMeshGenerator MeshGen(CurPathPoints, OffsetScaleFactors, CurOffsetDistance, FVector3d::UnitZ());
+			TArray<FFrame3d> UsePathPoints = CurPathPoints;
+			TArray<double> UseOffsetScaleFactors = OffsetScaleFactors;
+			TArray<double> UseArcLengths = ArcLengths;
+
+			const bool bRampMode = TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed || TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive;
+
+			if (bRampMode)
+			{
+				// Duplicate vertices at the beginning/end of the path when generating a ramp
+				// TODO: This creates sliver quads along the bottom path and along the extrusion sides. Ideally we should do something smarter.
+				FFrame3d FirstPoint = UsePathPoints[0];
+				UsePathPoints.Add(FirstPoint);
+				
+				const double FirstScaleFactor = UseOffsetScaleFactors[0];
+				UseOffsetScaleFactors.Add(FirstScaleFactor);				
+
+				const double ArcLen = FVector3d::Distance(CurPathPoints.Last().Origin, FirstPoint.Origin);
+				UseArcLengths.Add(ArcLengths.Last() + ArcLen);
+				CurPathLength += ArcLen;
+
+				++NumPoints;
+			}
+
+			FPolygonEdgeMeshGenerator MeshGen(UsePathPoints, UseOffsetScaleFactors, CurOffsetDistance, FVector3d::UnitZ());
 			MeshGen.Generate();
 			Mesh.Copy(&MeshGen);
+
+			Mesh.EnableVertexUVs(FVector2f::Zero());
+			for (int k = 0; k < NumPoints; ++k)
+			{
+				// Temporarily set vertex UVs to arclengths, for use in interpolating height in ramp mode
+				Mesh.SetVertexUV(2 * k, FVector2f((float)UseArcLengths[k], (float)k));
+				Mesh.SetVertexUV(2 * k + 1, FVector2f((float)UseArcLengths[k], (float)k));
+			}
 		}
 		else
 		{
-			CurPathLength = 0;
-			for (int32 k = 1; k < NumPoints; ++k)
-			{
-				CurPathLength += Distance(CurPathPoints[k].Origin, CurPathPoints[k - 1].Origin);
-			}
-
 			FRectangleMeshGenerator MeshGen;
 			MeshGen.Width = CurPathLength;
 			MeshGen.Height = 2 * CurOffsetDistance;
@@ -784,6 +838,15 @@ void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
 {
 	FAxisAlignedBox3d Bounds = PathMesh.GetBounds();
 
+	// two tris forming last quad on the path mesh
+	int LastQuad[2] = { FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID };
+	if (bPathIsClosed)
+	{
+		int NT = PathMesh.MaxTriangleID();
+		LastQuad[0] = NT - 2;
+		LastQuad[1] = NT - 1;
+	}
+
 	FExtrudeMesh Extruder(&PathMesh);
 	FVector3d ExtrudeDir = DrawPlaneWorld.Z();
 
@@ -801,6 +864,45 @@ void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
 	Extruder.Apply();
 
 	FMeshNormals::QuickRecomputeOverlayNormals(PathMesh);
+
+	if (bPathIsClosed)
+	{
+		// Last quad on a closed loop ramp will be vertical -- compute some UVs for the quad
+		const FExtrudeMesh::FExtrusionInfo& Info = Extruder.Extrusions[0];
+
+		if (!ensure(PathMesh.IsTriangle(LastQuad[0])))
+		{
+			return;
+		}
+		if (!ensure(PathMesh.IsTriangle(LastQuad[1])))
+		{
+			return;
+		}
+
+		int Index0 = Info.InitialTriangles.Find(LastQuad[0]);
+		if (!ensure(Index0 != INDEX_NONE))
+		{
+			return;
+		}
+		int NewTri0 = Info.OffsetTriangles[Index0];
+
+		int Index1 = Info.InitialTriangles.Find(LastQuad[1]);
+		if (!ensure(Index1 != INDEX_NONE))
+		{
+			return;
+		}
+		int NewTri1 = Info.OffsetTriangles[Index1];
+
+		FVector3d Normal = PathMesh.GetTriNormal(NewTri0);
+		FVector3d Up = ExtrudeDir;
+		ensure(FMath::Abs(Normal.Dot(Up)) < KINDA_SMALL_NUMBER);
+		FVector3d Right = -Normal.Cross(Up);
+		FFrame3d ProjectFrame(FVector3d::Zero(), Right, Up, Normal);
+
+		FDynamicMeshEditor Editor(&PathMesh);
+		Editor.SetQuadUVsFromProjection({ NewTri0, NewTri1 }, ProjectFrame, Extruder.UVScaleFactor);
+	}
+
 }
 
 

@@ -39,6 +39,7 @@ public:
 		uint32			DiscardSmallBandwidthSamplesLess;
 		uint32			FudgeSmallBandwidthSamplesLess;
 		uint32			FudgeSmallBandwidthSamplesFactor;
+		bool			bRebufferingJustResumesLoading;
 	};
 
 	//! Create an instance of this class

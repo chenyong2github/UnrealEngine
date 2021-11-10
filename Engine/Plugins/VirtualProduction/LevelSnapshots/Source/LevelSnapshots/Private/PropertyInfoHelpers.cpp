@@ -71,16 +71,10 @@ bool FPropertyInfoHelpers::IsPropertyInMap(const FProperty* Property)
 	return ParentProperty && ParentProperty->IsA(FMapProperty::StaticClass());
 }
 
-bool FPropertyInfoHelpers::IsPropertyComponentFast(const FProperty* Property)
+bool FPropertyInfoHelpers::IsPropertyComponentOrSubobject(const FProperty* Property)
 {
 	const bool bIsComponentProp = !!(Property->PropertyFlags & (CPF_InstancedReference | CPF_ContainsInstancedReference));
 	return bIsComponentProp;
-}
-
-bool FPropertyInfoHelpers::IsPropertySubObject(const FProperty* Property)
-{
-	const bool bIsComponentSubObject = !!(Property->PropertyFlags & (CPF_UObjectWrapper));
-	return bIsComponentSubObject;
 }
 
 void FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(float FloatPrecision, double DoublePrecision)

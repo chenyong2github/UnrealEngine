@@ -4,6 +4,7 @@
 
 #include "AnimSequenceExporterUSDOptions.h"
 #include "EngineAnalytics.h"
+#include "MaterialExporterUSD.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDErrorUtils.h"
@@ -99,6 +100,8 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		Options = GetMutableDefault<UAnimSequenceExporterUSDOptions>();
 		if ( Options )
 		{
+			Options->PreviewMeshOptions.MaterialBakingOptions.TexturesDir.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Textures" ) );
+
 			const bool bIsImport = false;
 			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
 			if ( !bContinue )
@@ -144,10 +147,11 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 	FString PrimPath;
 	UE::FUsdPrim SkelRootPrim;
+	USkeletalMesh* SkeletalMesh = nullptr;
 
 	if ( Options && Options->bExportPreviewMesh )
 	{
-		USkeletalMesh* SkeletalMesh = AnimSequence->GetPreviewMesh();
+		SkeletalMesh = AnimSequence->GetPreviewMesh();
 		USkeleton* AnimSkeleton = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
 
 		if ( !AnimSkeleton && !SkeletalMesh )
@@ -166,14 +170,19 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 			PrimPath = TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() );
 			SkelRootPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) );
 
+			if ( SkelRootPrim )
+			{
+				AssetStage.SetDefaultPrim( SkelRootPrim );
+			}
+
 			// Using payload: Convert mesh data through the asset stage (that references the payload) so that we can
 			// author mesh data on the payload layer and material data on the asset layer
 			if ( Options->PreviewMeshOptions.bUsePayload )
 			{
 				if ( UE::FUsdStage PayloadStage = UnrealUSDWrapper::NewStage( *PayloadFilename ) )
 				{
-					UsdUtils::SetUsdStageMetersPerUnit( PayloadStage, Options->PreviewMeshOptions.StageOptions.MetersPerUnit );
-					UsdUtils::SetUsdStageUpAxis( PayloadStage, Options->PreviewMeshOptions.StageOptions.UpAxis );
+					UsdUtils::SetUsdStageMetersPerUnit( PayloadStage, Options->StageOptions.MetersPerUnit );
+					UsdUtils::SetUsdStageUpAxis( PayloadStage, Options->StageOptions.UpAxis );
 
 					if ( UE::FUsdPrim PayloadSkelRootPrim = PayloadStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) ) )
 					{
@@ -185,7 +194,6 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 					if ( SkelRootPrim )
 					{
-						AssetStage.SetDefaultPrim( SkelRootPrim );
 						UsdUtils::AddPayload( SkelRootPrim, *PayloadFilename );
 					}
 				}
@@ -227,6 +235,27 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 	if ( SkelRootPrim )
 	{
 		UsdUtils::BindAnimationSource( SkelRootPrim, SkelAnimPrim );
+	}
+
+	// Bake materials and replace unrealMaterials with references to the baked files.
+	// Do this last because we will need to check the default prim of the stage during the traversal for replacing baked materials
+	if ( Options && Options->bExportPreviewMesh && SkeletalMesh && Options->PreviewMeshOptions.bBakeMaterials )
+	{
+		TSet<UMaterialInterface*> MaterialsToBake;
+		for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
+		{
+			MaterialsToBake.Add( SkeletalMaterial.MaterialInterface );
+		}
+
+		const bool bIsAssetLayer = true;
+		UMaterialExporterUsd::ExportMaterialsForStage(
+			MaterialsToBake.Array(),
+			Options->PreviewMeshOptions.MaterialBakingOptions,
+			AssetStage,
+			bIsAssetLayer,
+			Options->PreviewMeshOptions.bUsePayload,
+			Options->PreviewMeshOptions.bRemoveUnrealMaterials
+		);
 	}
 
 	AssetStage.GetRootLayer().Save();

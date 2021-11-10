@@ -105,7 +105,7 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		}
 	}
 
-	void CachePreAnimatedValues(const FCachePreAnimatedValueParams& Params, FEntityAllocationIteratorItem Item, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings, FThreeWayAccessor Properties) override
+	void CachePreAnimatedValues(const FCachePreAnimatedValueParams& Params, FEntityAllocationProxy Item, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings, FThreeWayAccessor Properties) override
 	{
 		const FEntityAllocation* Allocation = Item.GetAllocation();
 

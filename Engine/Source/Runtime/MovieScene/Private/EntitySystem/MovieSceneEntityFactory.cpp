@@ -13,7 +13,6 @@ namespace UE
 namespace MovieScene
 {
 
-
 int32 FChildEntityFactory::Num() const
 {
 	return ParentEntityOffsets.Num();
@@ -28,18 +27,17 @@ int32 FChildEntityFactory::GetCurrentIndex() const
 	return INDEX_NONE;
 }
 
-void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, const FEntityAllocation* ParentAllocation)
+void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAllocationProxy ParentAllocationProxy)
 {
-	FComponentMask DerivedEntityType;
-	GenerateDerivedType(DerivedEntityType);
+	const FComponentMask ParentType = ParentAllocationProxy.GetAllocationType();
 
-	FComponentMask ParentType;
-	for (const FComponentHeader& Header : ParentAllocation->GetComponentHeaders())
+	FComponentMask DerivedEntityType;
 	{
-		ParentType.Set(Header.ComponentType);
+		GenerateDerivedType(DerivedEntityType);
+
+		Linker->EntityManager.GetComponents()->Factories.ComputeChildComponents(ParentType, DerivedEntityType);
+		Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(DerivedEntityType);
 	}
-	Linker->EntityManager.GetComponents()->Factories.ComputeChildComponents(ParentType, DerivedEntityType);
-	Linker->EntityManager.GetComponents()->Factories.ComputeMutuallyInclusiveComponents(DerivedEntityType);
 
 	const bool bHasAnyType = DerivedEntityType.Find(true) != INDEX_NONE;
 	if (!bHasAnyType)
@@ -50,6 +48,7 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, const FEn
 	const int32 NumToAdd = Num();
 
 	int32 CurrentParentOffset = 0;
+	const FEntityAllocation* ParentAllocation = ParentAllocationProxy.GetAllocation();
 
 	// We attempt to allocate all the linker entities contiguously in memory for efficient initialization,
 	// but we may reach capacity constraints within allocations so we may have to run the factories more than once
@@ -128,14 +127,15 @@ FBoundObjectTask::FBoundObjectTask(UMovieSceneEntitySystemLinker* InLinker)
 	: Linker(InLinker)
 {}
 
-void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings)
+void FBoundObjectTask::ForEachAllocation(FEntityAllocationProxy AllocationProxy, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings)
 {
-	FComponentTypeID TagHasUnresolvedBinding = FBuiltInComponentTypes::Get()->Tags.HasUnresolvedBinding;
+	const FEntityAllocation* Allocation = AllocationProxy.GetAllocation();
+	const FComponentTypeID TagHasUnresolvedBinding = FBuiltInComponentTypes::Get()->Tags.HasUnresolvedBinding;
 
 	// Check whether every binding in this allocation is currently unresolved
 	const bool bWasUnresolvedBinding = Allocation->FindComponentHeader(TagHasUnresolvedBinding) != nullptr;
 
-	FObjectFactoryBatch& Batch = AddBatch(Allocation);
+	FObjectFactoryBatch& Batch = AddBatch(AllocationProxy);
 	Batch.StaleEntitiesToPreserve = &StaleEntitiesToPreserve;
 
 	const int32 Num = Allocation->Num();

@@ -141,7 +141,7 @@ bool FMallocDoubleFreeFinder::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 		void * test;
 		test = FMemory::Malloc(128);
 		FMemory::Free(test);
-		FMemory::Free(test);
+		FMemory::Free(test); //-V586
 		return true;
 	}
 

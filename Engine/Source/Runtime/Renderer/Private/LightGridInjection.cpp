@@ -834,7 +834,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 	FRDGTextureRef SceneDepthTexture = SceneTextures.Depth.Target;
 
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
@@ -872,7 +872,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 		const bool bProjectingForForwardShading = true;
 
-		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 			const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;

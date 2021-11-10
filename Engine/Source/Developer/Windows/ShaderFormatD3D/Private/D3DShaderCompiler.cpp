@@ -1209,11 +1209,10 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 	}
 
-	for (int32 FlagIndex = 0; FlagIndex < Input.Environment.CompilerFlags.Num(); FlagIndex++)
-	{
-		//accumulate flags set by the shader
-		CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Input.Environment.CompilerFlags[FlagIndex]);
-	}
+	Input.Environment.CompilerFlags.Iterate([&CompileFlags](uint32 Flag)
+		{
+			CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Flag);
+		});
 
 	TArray<FString> FilteredErrors;
 	if (bUseDXC)

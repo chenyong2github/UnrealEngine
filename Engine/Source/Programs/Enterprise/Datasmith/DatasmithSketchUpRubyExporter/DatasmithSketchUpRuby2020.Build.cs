@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithExporterUI",
 
 					"UdpMessaging", // required for DirectLink networking
-					"UEOpenExr",
+					"Imath",
 				}
 			);
 

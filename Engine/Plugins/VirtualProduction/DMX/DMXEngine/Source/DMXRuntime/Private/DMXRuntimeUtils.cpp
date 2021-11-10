@@ -2,10 +2,11 @@
 
 #include "DMXRuntimeUtils.h"
 
+#include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#define LOCTEXT_NAMESPACE "FDMXRuntimeUtils"
 
+#define LOCTEXT_NAMESPACE "FDMXRuntimeUtils"
 
 FString FDMXRuntimeUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
@@ -47,6 +48,28 @@ FString FDMXRuntimeUtils::GenerateUniqueNameFromExisting(const TSet<FString>& In
 	} while (InExistingNames.Contains(FinalName));
 
 	return FinalName;
+}
+
+FString FDMXRuntimeUtils::FindUniqueEntityName(const UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> InEntityClass, const FString& InBaseName /*= TEXT("")*/)
+{
+	check(InLibrary);
+
+	// Get existing names for the current entity type
+	TSet<FString> EntityNames;
+	InLibrary->ForEachEntityOfType(InEntityClass, [&EntityNames](UDMXEntity* Entity)
+		{
+			EntityNames.Add(Entity->GetDisplayName());
+		});
+
+	FString BaseName = InBaseName;
+
+	// If no base name was set, use the entity class name as base
+	if (BaseName.IsEmpty())
+	{
+		BaseName = *InEntityClass->GetName();
+	}
+
+	return FDMXRuntimeUtils::GenerateUniqueNameFromExisting(EntityNames, BaseName);
 }
 
 bool FDMXRuntimeUtils::GetNameAndIndexFromString(const FString& InString, FString& OutName, int32& OutIndex)

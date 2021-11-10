@@ -3,7 +3,6 @@
 #include "STimersView.h"
 
 #include "DesktopPlatformModule.h"
-#include "EditorStyleSet.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -14,6 +13,7 @@
 #include "Logging/MessageLog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TimingProfiler.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -242,7 +242,7 @@ void STimersView::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
-					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 					.HAlign(HAlign_Center)
 					.Padding(3.0f)
 					.OnCheckStateChanged(this, &STimersView::FilterOutZeroCountTimers_OnCheckStateChanged)
@@ -250,7 +250,7 @@ void STimersView::Construct(const FArguments& InArgs)
 					.ToolTipText(LOCTEXT("FilterOutZeroCountTimers_Tooltip", "Filter out the timers having zero total instance count (aggregated stats)."))
 					[
 						SNew(SImage)
-						.Image(FInsightsStyle::Get().GetBrush("ZeroCountFilter.Icon.Small"))
+						.Image(FInsightsStyle::Get().GetBrush("Icons.ZeroCountFilter"))
 					]
 				]
 			]
@@ -474,7 +474,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent", "Stop Highlighting Event"),
 					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent_Desc", "Stops highlighting timing event instances for the selected timer."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visible"),
 					Action_ToggleHighlight,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -486,7 +486,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent", "Highlight Event"),
 					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent_Desc", "Highlights all timing event instances for the selected timer."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visible"),
 					Action_ToggleHighlight,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -508,7 +508,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack", "Remove series from graph track"),
 					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of the selected timer from the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleTimerInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -520,7 +520,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 				(
 					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack", "Add series to graph track"),
 					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack_Desc", "Add a series containing event instances of the selected timer to the timing graph track."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleTimerInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -578,7 +578,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -587,7 +587,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -596,7 +596,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddSubMenu
@@ -605,7 +605,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Export_Desc", "Exports threads, timers and timing events to text files."),
 			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildExportMenu),
 			false,
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -618,7 +618,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column."),
 			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildSortByMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -631,7 +631,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns."),
 			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildViewColumnMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
 		);
 
 		FUIAction Action_ShowAllColumns
@@ -643,7 +643,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowAllColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -658,7 +658,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ShowMinMaxMedColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -673,7 +673,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
 			Action_ResetColumns,
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -732,7 +732,7 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -748,7 +748,7 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -799,7 +799,7 @@ void STimersView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -808,7 +808,7 @@ void STimersView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -817,7 +817,7 @@ void STimersView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -896,7 +896,7 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortAscending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -912,7 +912,7 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const Insi
 			(
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
 				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortDescending"),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -1137,7 +1137,7 @@ void STimersView::HandleItemToStringArray(const FTimerNodePtr& FTimerNodePtr, TA
 TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeType NodeType)
 {
 	return SNew(SCheckBox)
-		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 		.HAlign(HAlign_Center)
 		.OnCheckStateChanged(this, &STimersView::FilterByTimerType_OnCheckStateChanged, NodeType)

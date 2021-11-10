@@ -146,19 +146,22 @@ private:
 	friend FRDGBarrierValidation;
 };
 
-class FRDGUniformBuffer
+class RENDERCORE_API FRDGUniformBuffer
 	: public FRDGResource
 {
 public:
+
+	virtual ~FRDGUniformBuffer() {};
+
 	FORCEINLINE const FRDGParameterStruct& GetParameters() const
 	{
 		return ParameterStruct;
 	}
 
 #if RDG_ENABLE_DEBUG
-	RENDERCORE_API void MarkResourceAsUsed() override;
+	void MarkResourceAsUsed() override;
 #else
-	inline         void MarkResourceAsUsed() {}
+	inline void MarkResourceAsUsed() {}
 #endif
 
 	//////////////////////////////////////////////////////////////////////////
@@ -200,6 +203,8 @@ template <typename ParameterStructType>
 class TRDGUniformBuffer : public FRDGUniformBuffer
 {
 public:
+	virtual ~TRDGUniformBuffer() {};
+
 	FORCEINLINE const TRDGParameterStruct<ParameterStructType>& GetParameters() const
 	{
 		return static_cast<const TRDGParameterStruct<ParameterStructType>&>(FRDGUniformBuffer::GetParameters());

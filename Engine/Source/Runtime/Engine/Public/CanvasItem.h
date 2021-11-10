@@ -249,6 +249,9 @@ public:
 	 */
 	virtual void Draw( FCanvas* InCanvas ) override;
 
+	virtual void SetColor(const FLinearColor& InColor) override final { FCanvasItem::SetColor(InColor); }
+
+
 	/* Expose the functions defined in the base class. */
 	using FCanvasItem::Draw;
 
@@ -349,6 +352,8 @@ public:
 	 * @param	InCanvas		Canvas on which to draw
 	 */
 	virtual void Draw( FCanvas* InCanvas ) override;
+
+	virtual void SetColor(const FLinearColor& InColor) override final { FCanvasItem::SetColor(InColor); }
 
 	/* Expose the functions defined in the base class. */
 	using FCanvasItem::Draw;

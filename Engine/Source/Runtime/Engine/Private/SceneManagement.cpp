@@ -789,6 +789,15 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	HairScatteringLUTTexture = BlackVolume;
 	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
+	// Shading energy conservation
+	bShadingEnergyConservation = 0u;
+	bShadingEnergyPreservation = 0u;
+	ShadingEnergySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ShadingEnergyGGXSpecTexture = GBlackTextureWithSRV->TextureRHI;
+	ShadingEnergyGGXGlassTexture = BlackVolume;
+	ShadingEnergyClothSpecTexture = GBlackTextureWithSRV->TextureRHI;
+	ShadingEnergyDiffuseTexture = GBlackTextureWithSRV->TextureRHI;
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{

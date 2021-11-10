@@ -61,11 +61,11 @@ public:
 	// Create the widget for the value column
 	virtual TSharedRef<SWidget> GenerateValueWidget(TSharedPtr<FString> InSearchString);
 
-	// Add any context menu items that can act on this node
-	void MakeMenu(class FMenuBuilder& MenuBuilder);
+	// Add standard context menu items that can act on any node of the tree
+	void MakeMenu(class FMenuBuilder& MenuBuilder, bool bInDebuggerTab);
 
-	// Add any context menu items that can act on this node
-	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder);
+	// Add context menu items that can act on this node of the tree
+	virtual void ExtendContextMenu(class FMenuBuilder& MenuBuilder, bool bInDebuggerTab);
 
 	// Gather all of the children
 	virtual void GatherChildrenBase(TArray<FDebugTreeItemPtr>& OutChildren, const FString& InSearchString, bool bRespectSearch = true) {}
@@ -111,6 +111,9 @@ public:
 
 	bool IsVisible();
 	bool DoParentsMatchSearch();
+
+	// @return The text to display in the value column, unless GenerateValueWidget is overridden
+	virtual FText GetDescription() const;
 protected:
 
 	// Cannot create an instance of this class, it's just for use as a base class
@@ -138,9 +141,6 @@ protected:
 	// @return The text to display in the name column, unless GenerateNameWidget is overridden
 	virtual FText GetDisplayName() const;
 
-	// @return The text to display in the value column, unless GenerateValueWidget is overridden
-	virtual FText GetDescription() const;
-
 	bool HasName() const;
 	bool HasValue() const;
 	void CopyNameToClipboard() const;
@@ -167,10 +167,12 @@ public:
 	SLATE_BEGIN_ARGS(SKismetDebugTreeView)
 		: _SelectionMode(ESelectionMode::Single)
 		, _OnExpansionChanged()
+		, _InDebuggerTab(false)
 	{}
 
 	SLATE_ATTRIBUTE(ESelectionMode::Type, SelectionMode)
 	SLATE_EVENT(STreeView<FDebugTreeItemPtr>::FOnExpansionChanged, OnExpansionChanged)
+	SLATE_ARGUMENT(bool, InDebuggerTab)
 	SLATE_ARGUMENT(TSharedPtr<SHeaderRow>, HeaderRow)
 
 		SLATE_END_ARGS()
@@ -220,6 +222,8 @@ private:
 
 	bool bFilteredItemsDirty;
 
+	/** whether this tree is held within the blueprint debugger tab, used to hide context menu options */
+	bool bInDebuggerTab;
 public:
 	/** Accessible functions for creating tree items */
 	static FDebugTreeItemPtr MakeTraceStackParentItem();

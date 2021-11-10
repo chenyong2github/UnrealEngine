@@ -42,6 +42,7 @@ namespace Chaos
 		ConstrainedParticles.Add(Particle);
 		SuspensionLocalOffset.Add(InSuspensionLocalOffset);
 		ConstraintSettings.Add(InConstraintSettings);
+		ConstraintResults.AddDefaulted();
 		ConstraintEnabledStates.Add(true); // Note: assumes always enabled on creation
 		ConstraintSolverBodies.Add(nullptr);
 		Handles.Add(HandleAllocator.AllocHandle(this, NewIndex));
@@ -68,6 +69,7 @@ namespace Chaos
 		ConstrainedParticles.RemoveAtSwap(ConstraintIndex);
 		SuspensionLocalOffset.RemoveAtSwap(ConstraintIndex);
 		ConstraintSettings.RemoveAtSwap(ConstraintIndex);
+		ConstraintResults.RemoveAtSwap(ConstraintIndex);
 		ConstraintEnabledStates.RemoveAtSwap(ConstraintIndex);
 		ConstraintSolverBodies.RemoveAtSwap(ConstraintIndex);
 		Handles.RemoveAtSwap(ConstraintIndex);
@@ -89,6 +91,8 @@ namespace Chaos
 		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
 
 		ConstraintSolverBodies[ConstraintIndex] = SolverData.GetBodyContainer().FindOrAdd(ConstrainedParticles[ConstraintIndex]);
+
+		ConstraintResults[ConstraintIndex].Reset();
 	}
 
 	void FPBDSuspensionConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)
@@ -110,11 +114,12 @@ namespace Chaos
 		return true;
 	}
 
-	void FPBDSuspensionConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
+	void FPBDSuspensionConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex)
 	{
 		check(ConstraintSolverBodies[ConstraintIndex] != nullptr);
 		FSolverBody& Body = *ConstraintSolverBodies[ConstraintIndex];
 		const FPBDSuspensionSettings& Setting = ConstraintSettings[ConstraintIndex];
+		FPBDSuspensionResults& Results = ConstraintResults[ConstraintIndex];
 
 		if (Body.IsDynamic() && Setting.Enabled)
 		{
@@ -122,11 +127,14 @@ namespace Chaos
 
 			// \todo(chaos): we can cache the CoM-relative connector once per frame rather than recalculate per iteration
 			// (we should not be accessing particle state in the solver methods, although this one actually is ok because it only uses frame constrants)
-			const FVec3 SuspensionCoMOffset = FParticleUtilities::ParticleLocalToCoMLocal(FGenericParticleHandle(ConstrainedParticles[ConstraintIndex]), SuspensionLocalOffset[ConstraintIndex]);
+			const FGenericParticleHandle Particle = ConstrainedParticles[ConstraintIndex];
+			const FVec3& SuspensionActorOffset = SuspensionLocalOffset[ConstraintIndex];
+			const FVec3 SuspensionCoMOffset = Particle->RotationOfMass().UnrotateVector(SuspensionActorOffset - Particle->CenterOfMass());
+			const FVec3 SuspensionCoMAxis = Particle->RotationOfMass().UnrotateVector(Setting.Axis);
 
 			const FVec3 WorldSpaceX = Body.Q().RotateVector(SuspensionCoMOffset) + Body.P();
 
-			FVec3 AxisWorld = Body.Q() * Setting.Axis;
+			FVec3 AxisWorld = Body.Q().RotateVector(SuspensionCoMAxis);
 
 			const float MPHToCmS = 100000.f / 2236.94185f;
 			const float SpeedThreshold = 10.0f * MPHToCmS;
@@ -144,7 +152,6 @@ namespace Chaos
 					if (Speed < SpeedThreshold)
 					{
 						AxisWorld = FMath::Lerp(FVec3(0.f, 0.f, 1.f), AxisWorld, Speed / SpeedThreshold);
-
 					}
 				}
 			}
@@ -153,6 +160,7 @@ namespace Chaos
 			if (Distance >= Setting.MaxLength)
 			{
 				// do nothing since the target point is further than the longest extension of the suspension spring
+				Results.Length = Setting.MaxLength;
 				return;
 			}
 
@@ -208,6 +216,9 @@ namespace Chaos
 			const FVec3 DR = Body.InvI() * FVec3::CrossProduct(Arm, DX);
 			Body.ApplyTransformDelta(DP, DR);
 			Body.UpdateRotationDependentState();
+
+			Results.NetPushOut += DX;
+			Results.Length = Distance;
 		}
 	}
 	

@@ -25,8 +25,12 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Over
 
 public:
 	/** Enable/disable Viewport Overscan and specify units as percent or pixel values. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (DisplayName = "Enable"))
+	bool bEnabled = false;
+
+	/** Enable/disable Viewport Overscan and specify units as percent or pixel values. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
-	EDisplayClusterConfigurationViewportOverscanMode Mode = EDisplayClusterConfigurationViewportOverscanMode::None;
+	EDisplayClusterConfigurationViewportOverscanMode Mode = EDisplayClusterConfigurationViewportOverscanMode::Percent;
 
 	/** Left */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")

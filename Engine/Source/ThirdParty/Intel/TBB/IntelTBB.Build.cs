@@ -62,10 +62,10 @@ public class IntelTBB : ModuleRules
 			string LibDir = Path.Combine(IntelTBBLibPath, "Mac");
 			string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", "Mac");
 			
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbb.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbbmalloc.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
+			PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.dylib"));
 
-			PublicDelayLoadDLLs.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
+			RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
 			RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.dylib"));
 		}
 	}

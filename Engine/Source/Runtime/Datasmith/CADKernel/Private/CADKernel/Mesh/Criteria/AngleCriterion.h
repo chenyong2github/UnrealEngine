@@ -22,12 +22,22 @@ namespace CADKernel
 		/**
 		 * @param DegreeAngle the max allowed angle between tow elements in degree
 		 */
-		FAngleCriterion(double DegreeAngle);
-		FAngleCriterion(FCADKernelArchive& Archive, ECriterion InCriterionType);
+		FAngleCriterion(double DegreeAngle)
+		{
+			AngleCriterionValue = FMath::DegreesToRadians(DegreeAngle);
+			SinMaxAngle = sin(AngleCriterionValue * 0.5);
+		}
+
+		FAngleCriterion()  = default;
 
 	public:
 
-		virtual void Serialize(FCADKernelArchive& Ar) override;
+		virtual void Serialize(FCADKernelArchive& Ar) override
+		{
+			FCriterion::Serialize(Ar);
+			Ar << AngleCriterionValue;
+			Ar << SinMaxAngle;
+		}
 
 		virtual double Value() const override
 		{
@@ -43,6 +53,12 @@ namespace CADKernel
 		{
 			return true;
 		}
+
+		virtual ECriterion GetCriterionType() const override
+		{
+			return ECriterion::Angle;
+		}
+
 
 	protected:
 

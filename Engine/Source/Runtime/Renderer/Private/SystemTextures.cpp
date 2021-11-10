@@ -1326,11 +1326,12 @@ static FDefaultBufferKey GetDefaultBufferKey(uint32 NumBytePerElement, bool bIsS
 	FDefaultBufferKey Out;
 	if (In)
 	{
+		const uint32 ClearValueNumBytes = sizeof(T);
 		const uint32* InAsUInt = (const uint32*)In;
 		Out.ValueAsUInt[0] = InAsUInt[0];
-		Out.ValueAsUInt[1] = NumBytePerElement > 4  ? InAsUInt[1] : 0u;
-		Out.ValueAsUInt[2] = NumBytePerElement > 8  ? InAsUInt[2] : 0u;
-		Out.ValueAsUInt[3] = NumBytePerElement > 12 ? InAsUInt[3] : 0u;
+		Out.ValueAsUInt[1] = ClearValueNumBytes > 4  ? InAsUInt[1] : 0u;
+		Out.ValueAsUInt[2] = ClearValueNumBytes > 8  ? InAsUInt[2] : 0u;
+		Out.ValueAsUInt[3] = ClearValueNumBytes > 12 ? InAsUInt[3] : 0u;
 	}
 
 	Out.NumBytePerElement	= NumBytePerElement;

@@ -3,16 +3,16 @@
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorLog.h"
+#include "ConsoleVariablesEditorCommandInfo.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/SConsoleVariablesEditorMainPanel.h"
 
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 
-FConsoleVariablesEditorMainPanel::FConsoleVariablesEditorMainPanel(UConsoleVariablesAsset* InEditingAsset)
+FConsoleVariablesEditorMainPanel::FConsoleVariablesEditorMainPanel()
 {
-	EditingAsset = InEditingAsset;
-
 	EditorList = MakeShared<FConsoleVariablesEditorList>();
 }
 
@@ -26,71 +26,55 @@ TSharedRef<SWidget> FConsoleVariablesEditorMainPanel::GetOrCreateWidget()
 	return MainPanelWidget.ToSharedRef();
 }
 
-void FConsoleVariablesEditorMainPanel::AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue)
+FConsoleVariablesEditorModule& FConsoleVariablesEditorMainPanel::GetConsoleVariablesModule()
 {
+	return FConsoleVariablesEditorModule::Get();
+}
+
+TWeakObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingAsset()
+{
+	return GetConsoleVariablesModule().GetEditingAsset();
+}
+
+void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
+	const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow) const
+{
+	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+	
 	if (EditingAsset.IsValid())
 	{
-		IConsoleVariable* AsVariable = IConsoleManager::Get().FindConsoleVariable(*InConsoleCommand); 
-
-		if (!ensureAlwaysMsgf(AsVariable, TEXT("%hs: InConsoleCommand '%s' was not found in ConsoleManager. Make sure this command is valid."), __FUNCTION__, *InConsoleCommand))
-		{
-			return;
-		}
-
-		EConsoleVariablesUiVariableType CommandType = EConsoleVariablesUiVariableType::ConsoleVariablesType_Bool;
-
-		FString NewValue = InValue;
-
-		FString TypeAsString = "bool";
-
-		if (AsVariable->IsVariableFloat())
-		{
-			CommandType = EConsoleVariablesUiVariableType::ConsoleVariablesType_Float;
-			TypeAsString = "float";
-		}
-		else if (AsVariable->IsVariableInt())
-		{
-			CommandType = EConsoleVariablesUiVariableType::ConsoleVariablesType_Integer;
-			TypeAsString = "int";
-		}
-		else if (AsVariable->IsVariableString())
-		{
-			CommandType = EConsoleVariablesUiVariableType::ConsoleVariablesType_String;
-			TypeAsString = "string";
-		}
-
-		if (NewValue.IsEmpty())
-		{
-			NewValue = AsVariable->GetString();
-		}
-
 		UConsoleVariablesAsset* Asset = EditingAsset.Get();
 
-		Asset->AddOrSetConsoleVariableSavedValue(FConsoleVariablesUiCommandInfo(InConsoleCommand, NewValue, CommandType, AsVariable->GetHelp()));
+		Asset->AddOrSetConsoleVariableSavedValue(InConsoleCommand, InValue);
 
-		RefreshList(Asset);
-
-		UE_LOG(LogTemp, Log, TEXT("%hs: Added new console command '%s' with value '%s' of type '%s'."), __FUNCTION__, *InConsoleCommand, *NewValue, *TypeAsString);
+		RefreshList(Asset, bScrollToNewRow ? InConsoleCommand : "");
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::RefreshList(UConsoleVariablesAsset* InAsset) const
+void FConsoleVariablesEditorMainPanel::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo) const
 {
-	if (MainPanelWidget.IsValid())
+	if (EditorList.IsValid())
 	{
-		MainPanelWidget->RefreshList(InAsset);
+		EditorList->RefreshList(InAsset, InConsoleCommandToScrollTo);
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::UpdateExistingValuesFromConsoleManager() const
+void FConsoleVariablesEditorMainPanel::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const
 {
-	EditorList->UpdateExistingValuesFromConsoleManager();
+	if (EditorList.IsValid())
+	{
+		EditorList->UpdatePresetValuesForSave(InAsset);
+	}
 }
 
 void FConsoleVariablesEditorMainPanel::SavePreset()
 {
+	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+	
 	if (ReferenceAssetOnDisk.IsValid() && EditingAsset.IsValid())
 	{
+		UpdatePresetValuesForSave(EditingAsset.Get());
+		
 		if (UPackage* ReferencePackage = ReferenceAssetOnDisk.Get()->GetPackage())
 		{
 			ReferenceAssetOnDisk->CopyFrom(EditingAsset.Get());
@@ -107,16 +91,23 @@ void FConsoleVariablesEditorMainPanel::SavePreset()
 
 void FConsoleVariablesEditorMainPanel::SavePresetAs()
 {
-	TArray<UObject*> SavedAssets;
-	FEditorFileUtils::SaveAssetsAs({ EditingAsset.Get() }, SavedAssets);
-
-	if (SavedAssets.Num())
+	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+	
+	if (EditingAsset.IsValid())
 	{
-		UConsoleVariablesAsset* SavedAsset = Cast<UConsoleVariablesAsset>(SavedAssets[0]);
+		UpdatePresetValuesForSave(EditingAsset.Get());
+			
+		TArray<UObject*> SavedAssets;
+		FEditorFileUtils::SaveAssetsAs({ EditingAsset.Get() }, SavedAssets);
 
-		if (ensure(SavedAsset))
+		if (SavedAssets.Num())
 		{
-			ReferenceAssetOnDisk = SavedAsset;
+			UConsoleVariablesAsset* SavedAsset = Cast<UConsoleVariablesAsset>(SavedAssets[0]);
+
+			if (ensure(SavedAsset))
+			{
+				ReferenceAssetOnDisk = SavedAsset;
+			}
 		}
 	}
 }
@@ -124,23 +115,27 @@ void FConsoleVariablesEditorMainPanel::SavePresetAs()
 void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAsset)
 {
 	FSlateApplication::Get().DismissAllMenus();
+	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
 
-	if (ImportPreset_Impl(InPresetAsset) && EditingAsset.IsValid())
+	if (EditingAsset.IsValid() && ImportPreset_Impl(InPresetAsset, EditingAsset))
 	{
 		EditorList->RefreshList(EditingAsset.Get());
 	}
 }
 
-bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPresetAsset)
+bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPresetAsset, const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset)
 {
 	if (UConsoleVariablesAsset* Preset = CastChecked<UConsoleVariablesAsset>(InPresetAsset.GetAsset()))
 	{
-		ReferenceAssetOnDisk = Preset;
+		if (EditingAsset.IsValid())
+		{
+			ReferenceAssetOnDisk = Preset;
 
-		EditingAsset->Modify();
-		EditingAsset->CopyFrom(Preset);
+			EditingAsset->Modify();
+			EditingAsset->CopyFrom(Preset);
 
-		return Preset ? true : false;
+			return true;
+		}
 	}
 
 	return false;

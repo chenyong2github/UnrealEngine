@@ -51,16 +51,12 @@ namespace CADKernel
 			, StartRadius(InStartRadius)
 			, ConeAngle(InConeAngle)
 		{
-			SetMinToleranceIso();
+			ComputeMinToleranceIso();
 		}
 
-		FConeSurface(FCADKernelArchive& Archive)
-			: FSurface()
-		{
-			Serialize(Archive);
-		}
+		FConeSurface() = default;
 
-		virtual void SetMinToleranceIso() override
+		void ComputeMinToleranceIso()
 		{
 			FPoint Origin = Matrix.Multiply(FPoint::ZeroPoint);
 

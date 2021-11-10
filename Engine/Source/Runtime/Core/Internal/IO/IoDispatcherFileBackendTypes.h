@@ -741,6 +741,12 @@ struct FFileIoStoreReadRequestLink
 class FFileIoStoreRequestAllocator
 {
 public:
+	int64 GetLiveReadRequestsCount() const
+	{
+		return LiveReadRequestsCount;
+	}
+
+
 	FFileIoStoreResolvedRequest* AllocResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
 		const FFileIoStoreContainerFile& InContainerFile,
@@ -762,6 +768,7 @@ public:
 	FFileIoStoreReadRequest* AllocReadRequest()
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocReadRequest);
+		++LiveReadRequestsCount;
 		return ReadRequestAllocator.Construct();
 	}
 
@@ -769,6 +776,7 @@ public:
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(FreeReadRequest);
 		ReadRequestAllocator.Destroy(ReadRequest);
+		--LiveReadRequestsCount;
 	}
 
 	FFileIoStoreCompressedBlock* AllocCompressedBlock()
@@ -799,6 +807,7 @@ private:
 	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreReadRequest> ReadRequestAllocator;
 	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreCompressedBlock> CompressedBlockAllocator;
 	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreReadRequestLink> RequestLinkAllocator;
+	int64 LiveReadRequestsCount = 0;
 };
 
 struct FFileIoStoreResolvedRequest

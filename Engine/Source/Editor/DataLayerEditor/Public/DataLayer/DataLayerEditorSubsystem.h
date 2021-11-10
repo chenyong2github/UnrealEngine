@@ -6,13 +6,13 @@
 #include "EditorSubsystem.h"
 #include "DataLayerAction.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "DataLayerEditorSubsystem.generated.h"
 
 class AActor;
 class FDataLayersBroadcast;
 class FLevelEditorViewportClient;
 class UEditorEngine;
-class UDataLayer;
 class ULevel;
 class UWorld;
 template<typename TItemType> class IFilter;
@@ -266,45 +266,7 @@ public:
 	/////////////////////////////////////////////////
 	// Operations on actor viewport visibility regarding DataLayers
 
-	/**
-	 * Updates the visibility for all actors for all views.
-	 *
-	 * @param DataLayerThatChanged  If one DataLayer was changed (toggled in view pop-up, etc), then we only need to modify actors that use that DataLayer.
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	void UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged);
 
-	/**
-	 * Updates the per-view visibility for all actors for the given view
-	 *
-	 * @param ViewportClient				The viewport client to update visibility on
-	 * @param DataLayerThatChanged [optional]	If one DataLayer was changed (toggled in view pop-up, etc), then we only need to modify actors that use that DataLayer
-	 */
-	void UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged = nullptr);
-
-	/**
-	 * Updates per-view visibility for the given actor in the given view
-	 *
-	 * @param ViewportClient				The viewport client to update visibility on
-	 * @param Actor								Actor to update
-	 * @param bReregisterIfDirty [optional]		If true, the actor will reregister itself to give the rendering thread updated information
-	 */
-	void UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, const bool bReregisterIfDirty = true);
-
-	/**
-	 * Updates per-view visibility for the given actor for all views
-	 *
-	 * @param Actor		Actor to update
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	void UpdateActorAllViewsVisibility(AActor* Actor);
-
-	/**
-	 * Removes the corresponding visibility bit from all actors (slides the later bits down 1)
-	 *
-	 * @param ViewportClient	The viewport client to update visibility on
-	 */
-	void RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient);
 
 	/**
 	 * Updates the provided actors visibility in the viewports
@@ -438,46 +400,46 @@ public:
 	void ToggleDataLayersVisibility(const TArray<UDataLayer*>& DataLayers);
 
 	/**
-	 * Changes the DataLayer's IsDynamicallyLoadedInEditor flag to the provided state
+	 * Changes the DataLayer's IsLoadedInEditor flag to the provided state
 	 *
 	 * @param	DataLayer						The DataLayer to affect.
-	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
-	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
-	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 * @param	bIsLoadedInEditor				The new value of the flag IsLoadedInEditor.
+	 *											If True, the Editor loading will consider this DataLayer to load or not an Actor part of this DataLayer.
+	 *											An Actor will not be loaded in the Editor if all its DataLayers are not LoadedInEditor.
 	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
+	bool SetDataLayerIsLoadedInEditor(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
 
 	/**
-	 * Changes the IsDynamicallyLoadedInEditor flag of the DataLayers to the provided state
+	 * Changes the IsLoadedInEditor flag of the DataLayers to the provided state
 	 *
 	 * @param	DataLayers						The DataLayers to affect
-	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
-	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
-	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 * @param	bIsLoadedInEditor				The new value of the flag IsLoadedInEditor.
+	 *											If True, the Editor loading will consider this DataLayer to load or not an Actor part of this DataLayer.
+	 *											An Actor will not be loaded in the Editor if all its DataLayers are not LoadedInEditor.
 	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
+	bool SetDataLayersIsLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
 
 	/**
-	 * Toggles the DataLayer's IsDynamicallyLoadedInEditor flag
+	 * Toggles the DataLayer's IsLoadedInEditor flag
 	 *
 	 * @param	DataLayer						The DataLayer to affect
 	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange);
+	bool ToggleDataLayerIsLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange);
 
 	/**
-	 * Toggles the IsDynamicallyLoadedInEditor flag of all of the DataLayers
+	 * Toggles the IsLoadedInEditor flag of all of the DataLayers
 	 *
 	 * @param	DataLayers						The DataLayers to affect
 	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange);
+	bool ToggleDataLayersIsLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange);
 
 	/**
 	 * Set the visibility of all DataLayers to true
@@ -536,6 +498,17 @@ public:
 	UDataLayer* CreateDataLayer();
 
 	/**
+	 * Sets a Parent DataLayer for a specified DataLayer
+	 * 
+	 *  @param DataLayer		The child DataLayer.
+	 *  @param ParentDataLayer	The parent DataLayer.
+	 * 
+	 *  @return	true if succeeded, false if failed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	bool SetParentDataLayer(UDataLayer* DataLayer, UDataLayer* ParentDataLayer);
+
+	/**
 	 * Deletes all of the provided DataLayers
 	 *
 	 * @param DataLayersToDelete	A valid list of DataLayer.
@@ -566,6 +539,43 @@ public:
 	* @param DataLayers A valid list of DataLayer.
 	*/
 	bool ResetUserSettings(const TArray<UDataLayer*>& DataLayers);
+
+	//~ Begin Deprecated
+
+	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Per-view Data Layer visibility was removed."))
+	void UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged) {}
+
+	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
+	void UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged = nullptr) {}
+
+	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
+	void UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, const bool bReregisterIfDirty = true) {}
+
+	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Per-view Data Layer visibility was removed."))
+	void UpdateActorAllViewsVisibility(AActor* Actor) {}
+
+	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
+	void RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient);
+
+	UE_DEPRECATED(5.0, "Use SetDataLayerIsLoadedInEditor() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use SetDataLayerIsLoadedInEditor instead"))
+	bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange) { return SetDataLayerIsLoadedInEditor(DataLayer, bIsLoadedInEditor, bIsFromUserChange); }
+
+	UE_DEPRECATED(5.0, "Use SetDataLayersIsLoadedInEditor() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use SetDataLayersIsLoadedInEditor instead"))
+	bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsLoadedInEditor, const bool bIsFromUserChange) { return SetDataLayersIsLoadedInEditor(DataLayers, bIsLoadedInEditor, bIsFromUserChange);  }
+
+	UE_DEPRECATED(5.0, "Use ToggleDataLayerIsLoadedInEditor() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use ToggleDataLayerIsLoadedInEditor instead"))
+	bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange) { return ToggleDataLayerIsLoadedInEditor(DataLayer, bIsFromUserChange); }
+
+	UE_DEPRECATED(5.0, "Use ToggleDataLayersIsLoadedInEditor() instead.")
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use ToggleDataLayersIsLoadedInEditor instead"))
+	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange) { return ToggleDataLayersIsLoadedInEditor(DataLayers, bIsFromUserChange); }
+
+	//~ End Deprecated
 
 private:
 
@@ -614,7 +624,7 @@ private:
 	/** Delegate handler for FEditorDelegates::PostUndoRedo. It internally calls DataLayerChanged.Broadcast and UpdateAllActorsVisibility to refresh the actors of each DataLayer. */
 	void PostUndoRedo();
 
-	bool SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
+	bool SetDataLayerIsLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
 	bool RefreshWorldPartitionEditorCells(bool bIsFromUserChange);
 	void UpdateDataLayerEditorPerProjectUserSettings();
 

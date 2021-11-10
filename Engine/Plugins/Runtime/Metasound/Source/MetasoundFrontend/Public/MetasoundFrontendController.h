@@ -11,7 +11,6 @@
 #include "MetasoundGraph.h"
 #include "MetasoundVertex.h"
 
-class IMetaSoundAssetManager;
 
 /* Metasound Controllers and Handles provide a object oriented interface for  manipulating Metasound Documents. 
  *
@@ -40,12 +39,13 @@ namespace Metasound
 	namespace Frontend
 	{
 		// Forward declare 
+		class IDocumentController;
+		class IGraphController;
 		class IInputController;
+		class IMetaSoundAssetManager;
+		class INodeController;
 		class IOutputController;
 		class IVariableController;
-		class INodeController;
-		class IGraphController;
-		class IDocumentController;
 
 		// Metasound Frontend Handles are all TSharedRefs of various Metasound Frontend Controllers.
 		using FInputHandle = TSharedRef<IInputController>;
@@ -197,6 +197,10 @@ namespace Metasound
 
 			/** This should only be used as a means of fixing up vertex names for document model versioning transform(s). */
 			virtual void SetName(const FVertexName& InName) = 0;
+
+			/** Returns true if the output connections can be directly modified by 
+			 * a user.  Returns false otherwise. */
+			virtual bool IsConnectionUserModifiable() const = 0;
 
 			/** Return true if the input is connect to an output. */
 			virtual bool IsConnected() const = 0;
@@ -357,6 +361,10 @@ namespace Metasound
 
 			/** This should only be used as a means of fixing up vertex names for document model versioning transform(s). */
 			virtual void SetName(const FVertexName& InName) = 0;
+			
+			/** Returns true if the input connections can be directly modified by 
+			 * a user.  Returns false otherwise. */
+			virtual bool IsConnectionUserModifiable() const = 0;
 
 			/** Returns information describing connectability between this input and the supplied output. */
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const = 0;
@@ -380,6 +388,7 @@ namespace Metasound
 			 * @return True on success, false on failure. 
 			 */
 			virtual bool Disconnect() = 0;
+
 		};
 
 		/* An INodeController provides methods for querying and manipulating a Metasound node. */

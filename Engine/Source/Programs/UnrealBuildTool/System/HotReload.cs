@@ -1303,20 +1303,7 @@ namespace UnrealBuildTool
 				IExternalAction LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
 				if(LinkAction != null)
 				{
-					FileReference LinkerPath = LinkAction.CommandPath;
-					if(String.Compare(LinkerPath.GetFileName(), "link-filter.exe", StringComparison.OrdinalIgnoreCase) == 0)
-					{
-						string[] Arguments = CommandLineArguments.Split(LinkAction.CommandArguments);
-						for(int Idx = 0; Idx + 1 < Arguments.Length; Idx++)
-						{
-							if(Arguments[Idx] == "--")
-							{
-								LinkerPath = new FileReference(Arguments[Idx + 1]);
-								break;
-							}
-						}
-					}
-					Writer.WriteValue("LinkerPath", LinkerPath.FullName);
+					Writer.WriteValue("LinkerPath", LinkAction.CommandPath.FullName);
 				}
 
 				Writer.WriteObjectStart("LinkerEnvironment");

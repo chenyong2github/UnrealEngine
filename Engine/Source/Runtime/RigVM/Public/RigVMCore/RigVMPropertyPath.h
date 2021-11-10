@@ -54,7 +54,7 @@ struct RIGVM_API FRigVMPropertyPathDescription
  * The RigVMPropertyPathSegmentType is used to differentiate
  * segments under a property path.
  */
-enum RIGVM_API ERigVMPropertyPathSegmentType
+enum ERigVMPropertyPathSegmentType
 {
 	StructMember, // The segment represents a member of a struct
 	ArrayElement, // The segment represents an element of an array

@@ -199,6 +199,14 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 			TargetSequence->GetMovieScene()->SetPlaybackRange(CustomPlaybackRange);
 #endif
 		}
+
+		// Warn about zero length playback ranges, often happens because they set the Start/End frame to the same frame.
+		if (TargetSequence->GetMovieScene()->GetPlaybackRange().IsEmpty())
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Playback Range was zero. End Frames are exclusive, did you mean [n, n+1]?"));
+			Shutdown(true);
+			return;
+		}
 	}
 	
 	// Initialize all of our master config settings. Shot specific ones will be called for their appropriate shot.
@@ -584,6 +592,8 @@ void UMoviePipeline::OnSequenceEvaluated(const UMovieSceneSequencePlayer& Player
 
 void UMoviePipeline::OnEngineTickEndFrame()
 {
+	LLM_SCOPE_BYNAME(TEXT("MoviePipeline"));
+
 	// Unfortunately, since we can't control when our Initialization function is called
 	// we can end up in a situation where this callback is registered but the matching
 	// OnEngineTickBeginFrame() hasn't been called for that given engine tick. Instead of
@@ -782,7 +792,7 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 	for (auto It = TActorIterator<ALevelSequenceActor>(GetWorld()); It; ++It)
 	{
 		// Iterate through all of them in the event someone has multiple copies in the world on accident.
-		if (It->LevelSequence == TargetSequence)
+		if (It->GetSequence() == TargetSequence)
 		{
 			// Found it!
 			ExistingActor = *It;

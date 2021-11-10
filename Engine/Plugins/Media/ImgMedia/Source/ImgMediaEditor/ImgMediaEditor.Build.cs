@@ -8,6 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"AssetTools",
 					"Core",
 					"CoreUObject",
 					"DesktopWidgets",
@@ -18,11 +19,6 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
-				});
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"AssetTools",
 				});
 
 			PrivateIncludePaths.AddRange(

@@ -19,6 +19,7 @@
 #include "Modules/ModuleManager.h"
 #include "Stats/StatsMisc.h"
 #include "Util/EquivalenceUtil.h"
+#include "Util/SnapshotObjectUtil.h"
 
 namespace
 {
@@ -65,7 +66,7 @@ void FApplySnapshotFilter::ApplyFilterToFindSelectedProperties(FPropertySelectio
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(ApplyFilters);
 	
-	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor) && EFilterResult::CanInclude(Filter->IsActorValid({ DeserializedSnapshotActor, WorldActor })))
+	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorRestorable(WorldActor) && EFilterResult::CanInclude(Filter->IsActorValid({ DeserializedSnapshotActor, WorldActor })))
 	{
 		const FConditionalHeaderAndFooterLog ConditionalHeader(WorldActor);
 		const FConditionalScopeLogTime LogTime(SnapshotCVars::CVarLogSelectionMap.GetValueOnAnyThread(), TEXT("Total Time"));
@@ -267,7 +268,7 @@ FApplySnapshotFilter::EFilterObjectPropertiesResult FApplySnapshotFilter::FindAn
 		return EFilterObjectPropertiesResult::HasOnlyNormalProperties;
 	}
 
-	const FCustomSerializationData* SerializationData = Snapshot->GetSerializedData().GetCustomSubobjectData_ForActorOrSubobject(WorldOwner);
+	const FCustomSerializationData* SerializationData = SnapshotUtil::Object::FindCustomActorOrSubobjectData(Snapshot->GetSerializedData(), WorldOwner);
 	if (!SerializationData)
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Custom ICustomObjectSnapshotSerializer is registered for class %s but no data was saved for it."), *WorldOwner->GetClass()->GetName());

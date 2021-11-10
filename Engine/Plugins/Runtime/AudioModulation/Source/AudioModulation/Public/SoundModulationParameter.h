@@ -2,6 +2,7 @@
 #pragma once
 
 #include "IAudioModulation.h"
+#include "IAudioProxyInitializer.h"
 #include "Math/Interval.h"
 #include "Sound/SoundModulationDestination.h"
 #include "UObject/ObjectMacros.h"
@@ -36,7 +37,7 @@ struct AUDIOMODULATION_API FSoundModulationParameterSettings
 };
 
 UCLASS(BlueprintType)
-class AUDIOMODULATION_API USoundModulationParameter : public UObject
+class AUDIOMODULATION_API USoundModulationParameter : public UObject, public IAudioProxyDataFactory
 {
 	GENERATED_BODY()
 
@@ -100,6 +101,10 @@ public:
 	{
 		return 1.0f;
 	}
+
+	//~Begin IAudioProxyDataFactory Interface.
+	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	//~ End IAudioProxyDataFactory Interface.
 
 #if WITH_EDITOR
 	void RefreshNormalizedValue();
@@ -242,3 +247,20 @@ public:
 	virtual float GetUnitMin() const override;
 	virtual float GetUnitMax() const override;
 };
+
+namespace AudioModulation
+{
+	class FSoundModulationPluginParameterAssetProxy : public FSoundModulationParameterAssetProxy
+	{
+	public:
+		explicit FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter);
+
+		virtual Audio::IProxyDataPtr Clone() const override;
+
+		virtual const Audio::FModulationParameter& GetParameter() const override;
+
+	private:
+		Audio::FModulatorHandle ModHandle;
+		Audio::FModulationParameter Parameter;
+	};
+} // namespace AudioModulation

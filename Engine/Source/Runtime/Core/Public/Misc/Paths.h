@@ -591,7 +591,7 @@ public:
 	*	Returns a string that is safe to use as a filename because all items in
 	*	GetInvalidFileSystemChars() are removed
 	*/
-	static FString MakeValidFileName(const FString& InString, const TCHAR InReplacementChar=0);
+	static FString MakeValidFileName(const FString& InString, const TCHAR InReplacementChar = TEXT('\0'));
 
 	/** 
 	 * Validates that the parts that make up the path contain no invalid characters as dictated by the operating system

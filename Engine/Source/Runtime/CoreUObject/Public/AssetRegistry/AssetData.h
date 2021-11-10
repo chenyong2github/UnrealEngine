@@ -432,7 +432,7 @@ public:
 	static T* GetFirstAsset(const TArray<FAssetData>& Assets)
 	{
 		UClass* DesiredClass = T::StaticClass();
-		UObject* Asset = FAssetData::GetFirstAssetDataOfClass(Assets, DesiredClass).GetAsset();
+		UObject* Asset = FAssetData::GetFirstAssetDataOfClass(Assets, DesiredClass).GetAsset(); //-V758
 		check(Asset == NULL || Asset->IsA(DesiredClass));
 		return (T*)Asset;
 	}

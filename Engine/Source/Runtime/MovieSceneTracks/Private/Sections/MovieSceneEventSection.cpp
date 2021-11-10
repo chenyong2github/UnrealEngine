@@ -67,7 +67,7 @@ public:
 };
 
 /** Custom archive used for writing event parameter struct payloads */
-class FEventParameterWriter : public FEventParameterArchive
+class FEventParameterWriter final : public FEventParameterArchive
 {
 public:
 	/** Constructor from a destination byte array */
@@ -140,7 +140,7 @@ private:
 	TArray<uint8>& Bytes;
 };
 
-class FEventParameterReader : public FEventParameterArchive
+class FEventParameterReader final : public FEventParameterArchive
 {
 public:
 	FEventParameterReader(const TArray<uint8>& InBytes)

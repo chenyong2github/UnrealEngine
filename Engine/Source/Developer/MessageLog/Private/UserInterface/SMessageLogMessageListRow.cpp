@@ -7,7 +7,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
 #include "Misc/UObjectToken.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Internationalization/Regex.h"

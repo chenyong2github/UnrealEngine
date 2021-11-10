@@ -139,11 +139,6 @@ void UOculusFunctionLibrary::SetCPUAndGPULevels(int CPULevel, int GPULevel)
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::SetReorientHMDOnControllerRecenter(bool recenterMode)
-{
-	// funtion deprecated
-}
-
 bool UOculusFunctionLibrary::GetUserProfile(FHmdUserProfile& Profile)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS

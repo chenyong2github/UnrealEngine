@@ -159,7 +159,8 @@ UENUM()
 enum class EMetasoundInputWidget : uint8
 {
 	None,
-	Slider
+	Slider, 
+	RadialSlider UMETA(DisplayName = "Knob"),
 };
 
 UENUM()
@@ -185,16 +186,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition = "InputWidgetType == EMetasoundInputWidget::None", EditConditionHides))
 	bool ClampDefault = false;
 
-	UPROPERTY(EditAnywhere, Category = DefaultValue, meta = (EditCondition = "ClampDefault || InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = DefaultValue, meta = (EditCondition = "ClampDefault || InputWidgetType != EMetasoundInputWidget::None", EditConditionHides))
 	FVector2D Range = FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default));
 
-	UPROPERTY(EditAnywhere, Category = DefaultValue)
+	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName="Widget Type"))
 	EMetasoundInputWidget InputWidgetType = EMetasoundInputWidget::None;
 	
-	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition="InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName="Orientation", EditCondition = "InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
 	TEnumAsByte<EOrientation> InputWidgetOrientation = EOrientation::Orient_Horizontal;
 
-	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition="InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName="Value Type", EditCondition="InputWidgetType != EMetasoundInputWidget::None", EditConditionHides))
 	EMetasoundInputWidgetValueType InputWidgetValueType = EMetasoundInputWidgetValueType::Linear;
 
 	FOnMetasoundInputValueChangedEvent OnDefaultValueChanged;

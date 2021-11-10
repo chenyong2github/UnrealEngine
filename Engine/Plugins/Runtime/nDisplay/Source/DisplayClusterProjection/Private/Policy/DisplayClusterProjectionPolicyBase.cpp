@@ -12,7 +12,9 @@
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
-
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterProjectionPolicyBase
+//////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: ProjectionPolicyId(InProjectionPolicyId)
 {
@@ -21,6 +23,14 @@ FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const F
 
 FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
 {
+}
+
+bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode()
+{
+	// Hide spam in logs when configuring VP in editor [UE-114493]
+	static const bool bIsEditorOperationMode = IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Editor;
+
+	return bIsEditorOperationMode;
 }
 
 bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
@@ -59,12 +69,16 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 			// Try to get a node specified in the config file
 			if (!OriginCompId.IsEmpty())
 			{
-				UE_LOG(LogDisplayClusterProjection, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
+				UE_LOG(LogDisplayClusterProjection, Verbose, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
 				PolicyOriginComp = RootActor->GetComponentByName<USceneComponent>(OriginCompId);
 
 				if (PolicyOriginComp == nullptr)
 				{
-					UE_LOG(LogDisplayClusterProjection, Error, TEXT("No custom origin set or component '%s' not found for policy '%s'. VR root will be used."), *OriginCompId, *GetId());
+					if (!IsEditorOperationMode())
+					{
+						UE_LOG(LogDisplayClusterProjection, Error, TEXT("No custom origin set or component '%s' not found for policy '%s'. VR root will be used."), *OriginCompId, *GetId());
+					}
+
 					PolicyOriginComp = RootActor->GetRootComponent();
 				}
 			}
@@ -72,7 +86,10 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 
 		if (!PolicyOriginComp)
 		{
-			UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
+			if (!IsEditorOperationMode())
+			{
+				UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
+			}
 			return;
 		}
 
@@ -84,4 +101,3 @@ void FDisplayClusterProjectionPolicyBase::ReleaseOriginComponent()
 {
 	PolicyOriginComponentRef.ResetSceneComponent();
 }
-

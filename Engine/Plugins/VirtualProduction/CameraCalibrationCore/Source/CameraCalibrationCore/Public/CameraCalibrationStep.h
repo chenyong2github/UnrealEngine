@@ -14,6 +14,7 @@ struct FKey;
 struct FPointerEvent;
 
 class FCameraCalibrationStepsController;
+class UMaterialInstanceDynamic;
 
 /**
  * Interface of a camera calibration step. These will appear in a Camera Calibration Toolkit tab.
@@ -48,6 +49,12 @@ public:
 
 	/** Returns true if the given calibration step is a known prerequisite for this step */
 	virtual bool DependsOnStep(UCameraCalibrationStep* Step) const { return false; };
+
+	/** Returns the overlay MID used by this step */
+	virtual UMaterialInstanceDynamic* GetOverlayMID() const { return nullptr; };
+
+	/** Returns true if this step has enabled its overlay */
+	virtual bool IsOverlayEnabled() const { return false; };
 
 	/** Called when this step is the active step in the UI */
 	virtual void Activate() {};

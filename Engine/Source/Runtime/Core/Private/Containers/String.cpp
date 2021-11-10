@@ -334,7 +334,7 @@ void FString::RemoveSpacesInline()
 	// Copy null-terminating character.
 	if (CopyToIndex <= StringLength)
 	{
-		RawData[CopyToIndex] = '\0';
+		RawData[CopyToIndex] = TEXT('\0');
 		Data.SetNum(CopyToIndex + 1, false);
 	}
 }
@@ -903,7 +903,7 @@ FString FString::SanitizeFloat( double InFloat, const int32 InMinFractionalDigit
 
 FString FString::Chr( TCHAR Ch )
 {
-	TCHAR Temp[2]={Ch,0};
+	TCHAR Temp[2]= { Ch, TEXT('\0') };
 	return FString(Temp);
 }
 
@@ -918,7 +918,7 @@ FString FString::ChrN( int32 NumCharacters, TCHAR Char )
 	{
 		Temp[Cx] = Char;
 	}
-	Temp.Data[NumCharacters]=0;
+	Temp.Data[NumCharacters] = TEXT('\0');
 	return Temp;
 }
 
@@ -928,7 +928,7 @@ FString FString::LeftPad( int32 ChCount ) const
 
 	if (Pad > 0)
 	{
-		return ChrN(Pad, ' ') + *this;
+		return ChrN(Pad, TEXT(' ')) + *this;
 	}
 	else
 	{
@@ -941,7 +941,7 @@ FString FString::RightPad( int32 ChCount ) const
 
 	if (Pad > 0)
 	{
-		return *this + ChrN(Pad, ' ');
+		return *this + ChrN(Pad, TEXT(' '));
 	}
 	else
 	{
@@ -1209,7 +1209,7 @@ int32 FString::ReplaceInline(const TCHAR* SearchText, const TCHAR* ReplacementTe
 				ReplacementCount++;
 
 				// replace the first letter of the From with 0 so we can do a strcpy (FString +=)
-				*SearchPosition = 0;
+				*SearchPosition = TEXT('\0');
 
 				// copy everything up to the SearchPosition
 				(*this) += WritePosition;
@@ -1337,7 +1337,7 @@ void FString::ConvertTabsToSpacesInline(const int32 InSpacesPerTab)
 		int32 NumSpacesForTab = InSpacesPerTab - (CharactersOnLine % InSpacesPerTab);
 		for (int32 i = 0; i < NumSpacesForTab; ++i)
 		{
-			AppendChar(' ');
+			AppendChar(TEXT(' '));
 		}
 		Append(RightSide);
 	}
@@ -1368,7 +1368,7 @@ FString FString::PrintfImpl(const TCHAR* Fmt, ...)
 		};
 	}
 
-	Buffer[Result] = 0;
+	Buffer[Result] = TEXT('\0');
 
 	FString ResultString(Buffer);
 
@@ -1402,7 +1402,7 @@ void FString::AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...)
 		};
 	}
 
-	Buffer[Result] = 0;
+	Buffer[Result] = TEXT('\0');
 
 	AppendToMe += Buffer;
 
@@ -1478,7 +1478,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 				int Index = 0;
 				if(A.FindChar(0xffff, Index))
 				{
-					A[Index] = '\0';
+					A[Index] = TEXT('\0');
 					A.TrimToNullTerminator();
 				}
 			}
@@ -1601,7 +1601,7 @@ FString SlugStringForValidName(const FString& DisplayString, const TCHAR* Replac
 	{
 		for ( int32 BadCharacterIndex = 0; BadCharacterIndex < UE_ARRAY_COUNT(INVALID_OBJECTNAME_CHARACTERS) - 1; ++BadCharacterIndex )
 		{
-			const TCHAR TestChar[2] = { INVALID_OBJECTNAME_CHARACTERS[BadCharacterIndex], 0 };
+			const TCHAR TestChar[2] = { INVALID_OBJECTNAME_CHARACTERS[BadCharacterIndex], TEXT('\0') };
 			const int32 NumReplacedChars = GeneratedName.ReplaceInline(TestChar, ReplaceWith);
 		}
 	}
