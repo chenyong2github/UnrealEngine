@@ -10,7 +10,7 @@
 /**
  * The public interface to this module
  */
-class IChaosFluids : public IModuleInterface
+class INiagaraSimulationStages : public IModuleInterface
 {
 
 public:
@@ -21,9 +21,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IChaosFluids& Get()
+	static inline INiagaraSimulationStages& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IChaosFluids >( "ChaosFluids" );
+		return FModuleManager::LoadModuleChecked< INiagaraSimulationStages >( "NiagaraSimulationStages" );
 	}
 
 	/**
@@ -33,7 +33,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "ChaosFluids" );
+		return FModuleManager::Get().IsModuleLoaded( "NiagaraSimulationStages" );
 	}
 };
 

@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class ChaosFluids : ModuleRules
+	public class NiagaraSimulationStages : ModuleRules
 	{
-		public ChaosFluids(ReadOnlyTargetRules Target) : base(Target)
+		public NiagaraSimulationStages(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicIncludePaths.AddRange(
 				new string[] {
