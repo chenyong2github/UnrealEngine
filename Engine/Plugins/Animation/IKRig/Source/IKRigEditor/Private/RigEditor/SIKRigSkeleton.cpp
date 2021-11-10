@@ -16,6 +16,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Preferences/PersonaOptions.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigSkeleton"
 
@@ -274,6 +275,18 @@ void SIKRigSkeleton::SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames
 		if (GoalNames.Contains(Item->GoalName))
 		{
 			TreeView->SetSelection(Item, ESelectInfo::Direct);
+
+			if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection)
+			{
+				TSharedPtr<FIKRigTreeElement> ItemToExpand = Item->Parent;
+				while(ItemToExpand.IsValid())
+				{
+					TreeView->SetItemExpansion(ItemToExpand, true);
+					ItemToExpand = ItemToExpand->Parent;
+				}
+			}
+
+			TreeView->RequestScrollIntoView(Item);
 		}
 	}
 }

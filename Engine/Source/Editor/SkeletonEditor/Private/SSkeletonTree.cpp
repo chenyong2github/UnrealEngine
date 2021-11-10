@@ -1599,6 +1599,19 @@ TSharedRef<SWidget> SSkeletonTree::GetBlendProfileColumnMenuContent()
 	return MenuBuilder.MakeWidget();
 }
 
+void SSkeletonTree::ExpandTreeOnSelection(TSharedPtr<ISkeletonTreeItem> RowToExpand, bool bForce)
+{
+	if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection || bForce)
+	{
+		RowToExpand = RowToExpand->GetParent();
+		while(RowToExpand.IsValid())
+		{
+			SkeletonTreeView->SetItemExpansion(RowToExpand, true);
+			RowToExpand = RowToExpand->GetParent();
+		}
+	}
+}
+
 void SSkeletonTree::GetBlendProfileMenu(FMenuBuilder& MenuBuilder)
 {
 	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
@@ -1701,6 +1714,7 @@ void SSkeletonTree::SetSelectedSocket( const FSelectedSocketInfo& SocketInfo )
 			if (SkeletonRow->GetFilterResult() != ESkeletonTreeFilterResult::Hidden && SkeletonRow->IsOfType<FSkeletonTreeSocketItem>() && StaticCastSharedPtr<FSkeletonTreeSocketItem>(SkeletonRow)->GetSocket() == SocketInfo.Socket)
 			{
 				SkeletonTreeView->SetItemSelection(SkeletonRow, true);
+				ExpandTreeOnSelection(SkeletonRow);
 				SkeletonTreeView->RequestScrollIntoView(SkeletonRow);
 			}
 		}
@@ -1725,6 +1739,7 @@ void SSkeletonTree::SetSelectedBone( const FName& BoneName, ESelectInfo::Type In
 			if (SkeletonRow->GetFilterResult() != ESkeletonTreeFilterResult::Hidden && SkeletonRow->IsOfType<FSkeletonTreeBoneItem>() && SkeletonRow->GetRowItemName() == BoneName)
 			{
 				SkeletonTreeView->SetItemSelection(SkeletonRow, true, InSelectInfo);
+				ExpandTreeOnSelection(SkeletonRow);
 				SkeletonTreeView->RequestScrollIntoView(SkeletonRow);
 			}
 		}
@@ -2258,6 +2273,13 @@ void SSkeletonTree::HandleFocusCamera()
 	if (GetPreviewScene().IsValid())
 	{
 		GetPreviewScene()->FocusViews();
+	}
+
+	if(!SkeletonTreeView->GetSelectedItems().IsEmpty())
+	{
+		TSharedPtr<class ISkeletonTreeItem> SelectedRow = SkeletonTreeView->GetSelectedItems()[0]; 
+		ExpandTreeOnSelection(SelectedRow);
+		SkeletonTreeView->RequestScrollIntoView(SelectedRow);
 	}
 }
 

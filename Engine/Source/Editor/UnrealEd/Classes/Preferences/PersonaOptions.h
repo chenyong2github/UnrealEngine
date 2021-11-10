@@ -163,6 +163,10 @@ class UNREALED_API UPersonaOptions : public UObject
 	UPROPERTY(EditAnywhere, config, Category = "Skeleton Tree")
 	bool bHideParentsWhenFiltering;
 
+	/** Whether to focus and expand an item's tree recursively based on selection */
+	UPROPERTY(EditAnywhere, config, Category = "Skeleton Tree")
+	bool bExpandTreeOnSelection;
+
 	UPROPERTY(EditAnywhere, config, Category = "Preview Scene|AdditionalMesh")
 	bool bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons;
 

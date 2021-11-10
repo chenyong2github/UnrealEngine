@@ -713,7 +713,11 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 					if (Found.IsValid())
 					{
 						TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
-						HandleFrameSelection();
+
+						if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection && bSelected)
+						{
+							HandleFrameSelection();
+						}
 
 						if (ControlRigEditor.IsValid() && !GIsTransacting)
 						{
