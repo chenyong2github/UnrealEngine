@@ -51,6 +51,17 @@ enum class ESkeletalMeshSkinningImportVersions : uint8
 
 namespace SkeletalMeshImportData
 {
+	/**
+	* Some information per individual mesh, as appearing in the source asset.
+	* This could store the data for say meshes "UpperBody", "Legs", "Hat", etc.
+	*/
+	struct FMeshInfo
+	{
+		FName Name;	// The name of the mesh.
+		int32 NumVertices;	// The number of imported (dcc) vertices that are part of this mesh. This is a value of 8 for a cube. So NOT the number of render vertices.
+		int32 StartImportedVertex;	// The first index of imported (dcc) vertices in the mesh. So this NOT an index into the render vertex buffer. In range of 0..7 for a cube.
+	};
+
 	struct FMeshWedge
 	{
 		uint32			iVertex;			// Vertex index.
@@ -335,6 +346,7 @@ public:
 	TArray <SkeletalMeshImportData::FTriangle> Faces;
 	TArray <SkeletalMeshImportData::FBone> RefBonesBinary;
 	TArray <SkeletalMeshImportData::FRawBoneInfluence> Influences;
+	TArray <SkeletalMeshImportData::FMeshInfo> MeshInfos;
 	TArray <int32> PointToRawMap;	// Mapping from current point index to the original import point index
 	uint32 NumTexCoords; // The number of texture coordinate sets
 	uint32 MaxMaterialIndex; // The max material index found on a triangle
@@ -407,6 +419,7 @@ public:
 		RefBonesBinary.Empty();
 		Influences.Empty();
 		PointToRawMap.Empty();
+		MeshInfos.Empty();
 	}
 
 	static bool ReplaceSkeletalMeshGeometryImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex);

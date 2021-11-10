@@ -18,11 +18,23 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "GPUSkinVertexFactory.h"
 #include "UObject/AnimObjectVersion.h"
 #include "Misc/ScopeLock.h"
 #include "MeshDescription.h"
 #include "SkeletalMeshAttributes.h"
+
+/*-----------------------------------------------------------------------------
+FSkelMeshImportedMeshInfo
+-----------------------------------------------------------------------------*/
+FArchive& operator<<(FArchive& Ar, FSkelMeshImportedMeshInfo& MeshInfo)
+{
+	Ar << MeshInfo.Name;
+	Ar << MeshInfo.NumVertices;
+	Ar << MeshInfo.StartImportedVertex;
+	return Ar;
+}
 
 /*-----------------------------------------------------------------------------
 FSoftSkinVertex
@@ -694,6 +706,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (StripFlags.IsDataStrippedForServer())
 	{
@@ -720,6 +733,12 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 
 		TArray<FBoneIndexType> TempActiveBoneIndices;
 		Ar << TempActiveBoneIndices;
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkeletalMeshLODModelMeshInfo)
+		{
+			TArray<FSkelMeshImportedMeshInfo> TempMeshInfos;
+			Ar << TempMeshInfos;
+		}
 	}
 	else
 	{
@@ -750,6 +769,12 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 		}
 
 		Ar << ActiveBoneIndices;
+
+		// Editor only data.
+		if (!StripFlags.IsEditorDataStripped() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkeletalMeshLODModelMeshInfo)
+		{
+			Ar << ImportedMeshInfos;
+		}
 	}
 
 	// Array of Sections for backwards compat
@@ -910,6 +935,17 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	}
 }
 
+int32 FSkeletalMeshLODModel::FindMeshInfoIndex(FName Name) const
+{
+	for (int32 Index = 0; Index < ImportedMeshInfos.Num(); ++Index)
+	{
+		if (ImportedMeshInfos[Index].Name == Name)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
 
 void FSkeletalMeshLODModel::GetSectionFromVertexIndex(int32 InVertIndex, int32& OutSectionIndex, int32& OutVertIndex) const
 {
