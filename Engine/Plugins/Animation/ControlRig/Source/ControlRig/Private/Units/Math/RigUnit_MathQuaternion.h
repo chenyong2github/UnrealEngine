@@ -523,7 +523,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQu
 /**
  * Enum of possible rotation orders
  */
-USTRUCT(meta = (DisplayName = "Rotation Order", Category = "Math|Rotation", Constant))
+USTRUCT(meta = (DisplayName = "Rotation Order", Category = "Math|Quaternion", Constant))
 struct CONTROLRIG_API FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
 {
 	GENERATED_BODY()

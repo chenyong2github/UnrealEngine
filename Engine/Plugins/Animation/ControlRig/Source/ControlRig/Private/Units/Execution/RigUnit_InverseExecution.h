@@ -9,7 +9,7 @@
 /**
  * Event for driving elements based off the skeleton hierarchy
  */
-USTRUCT(meta=(DisplayName="Backwards Solve", Category="Inverse", NodeColor="1, 0, 0", Keywords="Inverse,Reverse,Backwards,Event"))
+USTRUCT(meta=(DisplayName="Backwards Solve", Category="Events", NodeColor="1, 0, 0", Keywords="Inverse,Reverse,Backwards,Event"))
 struct CONTROLRIG_API FRigUnit_InverseExecution : public FRigUnit
 {
 	GENERATED_BODY()

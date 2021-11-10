@@ -9,7 +9,7 @@
 /**
  * Event for driving the skeleton hierarchy with variables and rig elements
  */
-USTRUCT(meta=(DisplayName="Forwards Solve", Category="Execution", NodeColor="1, 0, 0", Keywords="Begin,Update,Tick,Forward,Event"))
+USTRUCT(meta=(DisplayName="Forwards Solve", Category="Events", NodeColor="1, 0, 0", Keywords="Begin,Update,Tick,Forward,Event"))
 struct CONTROLRIG_API FRigUnit_BeginExecution : public FRigUnit
 {
 	GENERATED_BODY()

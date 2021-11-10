@@ -145,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMuta
 /**
  * Drives an array of items through a harmonics spectrum
  */
-USTRUCT(meta=(DisplayName="Harmonics", Keywords="Sin,Wave"))
+USTRUCT(meta=(DisplayName="Harmonics", Keywords="Sin,Wave", Category = "Simulation"))
 struct CONTROLRIG_API FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
