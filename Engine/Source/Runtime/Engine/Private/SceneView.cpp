@@ -1613,6 +1613,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingMaxPathExposure = Src.PathTracingMaxPathExposure;
 		}
 
+		if (Src.bOverride_PathTracingEnableReferenceDOF)
+		{
+			Dest.PathTracingEnableReferenceDOF = Src.PathTracingEnableReferenceDOF;
+		}
+
 		if (Src.bOverride_PathTracingEnableDenoiser)
 		{
 			Dest.PathTracingEnableDenoiser = Src.PathTracingEnableDenoiser;
