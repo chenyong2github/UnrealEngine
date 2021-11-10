@@ -75,7 +75,6 @@ void FMassArchetypeData::Initialize(const FMassCompositionDescriptor& InComposit
 			FragmentIndexMap.Add(FragmentType, FragmentIndex);
 			CompositionDescriptor.Fragments.Add(*FragmentType);
 		}
-		checkSlow(Fragments.IsEquivalent(CompositionDescriptor.Fragments));
 	}
 
 	CompositionDescriptor.Tags = InCompositionDescriptor.Tags;
