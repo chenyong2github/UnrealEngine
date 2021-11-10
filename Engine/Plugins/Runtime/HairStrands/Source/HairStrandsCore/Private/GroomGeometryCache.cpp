@@ -156,7 +156,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 				{
 					CachedSection.IndexBuffer = RHICreateShaderResourceView(TrackProxy->IndexBuffer.IndexBufferRHI);
 				}
-				CachedSection.TotalIndexCount = TrackProxy->IndexBuffer.NumIndices;
+				CachedSection.TotalIndexCount = TrackProxy->IndexBuffer.NumValidIndices;
 				CachedSection.UVsChannelCount = 1;
 				CachedSection.NumPrimitives = BatchInfo.NumTriangles;
 				CachedSection.NumVertices = TrackProxy->MeshData->Positions.Num();
