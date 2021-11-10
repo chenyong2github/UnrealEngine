@@ -1821,6 +1821,7 @@ void SSceneOutliner::OnFilterTextCommitted( const FText& InFilterText, ETextComm
 			// Gather all of the items that match the filter text
 			for (auto& Pair : TreeItemMap)
 			{
+				Pair.Value->Flags.bIsFilteredOut = !SearchBoxFilter->PassesFilter(*Pair.Value);
 				if (!Pair.Value->Flags.bIsFilteredOut)
 				{
 					Selection.Add(Pair.Value);
