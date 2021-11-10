@@ -706,7 +706,7 @@ void UE::MeshDeformation::ConstructIDTCotangentLaplacian(const FDynamicMesh3& Dy
 	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
 
 	// create intrinsic mesh with delaunay triangulation
-	UE::Geometry::FIntrinsicEdgeFlipMesh IntrinsicMesh(DynamicMesh);
+	UE::Geometry::FSimpleIntrinsicEdgeFlipMesh IntrinsicMesh(DynamicMesh);
 
 	TSet<int32> Uncorrected; // some edges can't be flipped.
 	const int32 NumFlips = UE::Geometry::FlipToDelaunay(IntrinsicMesh, Uncorrected);
@@ -925,7 +925,7 @@ void UE::MeshDeformation::ConstructFullIDTCotangentLaplacian(const FDynamicMesh3
 	const int32 NumVerts = VertexMap.NumVerts();
 
 	// create intrinsic mesh with delaunay triangulation
-	UE::Geometry::FIntrinsicTriangulation IntrinsicMesh(Mesh);
+	UE::Geometry::FSimpleIntrinsicEdgeFlipMesh IntrinsicMesh(Mesh);
 	TSet<int32> Uncorrected;
 	const int32 NumFlips = UE::Geometry::FlipToDelaunay(IntrinsicMesh, Uncorrected);
 

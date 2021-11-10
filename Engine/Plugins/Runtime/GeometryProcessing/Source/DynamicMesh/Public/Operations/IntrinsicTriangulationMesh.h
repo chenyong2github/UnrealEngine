@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/InfoTypes.h"
 #include "Util/DynamicVector.h"
+#include "IntrinsicCorrespondenceUtils.h"
 #include "VectorTypes.h"
 #include "MathUtil.h"
 
@@ -15,28 +16,31 @@ namespace UE
 namespace Geometry
 {
 /**
-* FIntrinsicEdgeFlipMesh supports edge flips, but no other operations that change
+* FSimpleIntrinsicEdgeFlipMesh supports edge flips, but no other operations that change
 * the mesh connectivity, and no operations that affect the vertices.
 *
 * An Intrinsic Mesh can be thought of as a mesh that overlays another mesh, sharing
 * the original surface (and in this case vertex locations), but the edges of the intrinsic mesh
-* (while constrained to be on the mesh surface) need not align with the edges of the original mesh and the
+* (while constrained to be on the original mesh surface) need not align with the edges of the original mesh and the
 * lengths of these edges are measured on the surface of the original mesh (not the R3 distance).
 *
-* The FIntrinsicEdgeFlipMesh is designed to work with the function FlipToDelaunay() to make an
+* The FSimpleIntrinsicEdgeFlipMesh is designed to work with the function FlipToDelaunay() to make an
 * Intrinsic Delaunay Triangulation (IDT) of the same surface as a given FDynamicMesh,
-* allowing for more robust cotan-laplacians (see LaplacianMatrixAssembly.h)
+* allowing for more robust cotangent-Laplacians (see LaplacianMatrixAssembly.h)
 *
-* Note: the implementation is a simple triangle-based mesh but there is no restriction that 
-* edge(a, b) is unique (e.g. multiple intrinsic edges may connect the same two vertices with different paths). 
-* In fact this mesh allows triangles and edges with repeated vertices. Such structures arise naturally 
+* This simple mesh alone does not support computing surface positions from intrinsic mesh positions,
+* to do such computations FIntrinsicEdgeFlipMesh or FIntrinsicTriangulation should be used.
+*
+* Note: the implementation is a simple triangle-based mesh but there is no restriction that
+* edge(a, b) is unique (e.g. multiple intrinsic edges may connect the same two vertices with different paths).
+* In fact this mesh allows triangles and edges with repeated vertices. Such structures arise naturally
 * with intrinsic triangulation, for example an edge that starts and ends at the
 * same vertex may encircle a mesh.
 *
 * The API of FIntrinsicEdgeFlipMesh is similar to FDynamicMesh3, but only has a minimal subset of methods and some
 * such as ::FlipEdge() and ::GetEdgeOpposingV() have very different implementations
 */
-class DYNAMICMESH_API FIntrinsicEdgeFlipMesh
+class DYNAMICMESH_API FSimpleIntrinsicEdgeFlipMesh
 {
 public:
 	
@@ -46,10 +50,10 @@ public:
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 
 	/** Constructor does ID-matching deep copy the basic mesh topology (but no attributes or groups) */
-	FIntrinsicEdgeFlipMesh(const FDynamicMesh3& SrcMesh);
+	FSimpleIntrinsicEdgeFlipMesh(const FDynamicMesh3& SrcMesh);
 
-	FIntrinsicEdgeFlipMesh() = delete;
-	FIntrinsicEdgeFlipMesh(const FIntrinsicEdgeFlipMesh&) = delete;
+	FSimpleIntrinsicEdgeFlipMesh() = delete;
+	FSimpleIntrinsicEdgeFlipMesh(const FSimpleIntrinsicEdgeFlipMesh&) = delete;
 
 	/**
 	* Flip a single edge in the Intrinsic Mesh.
@@ -328,13 +332,143 @@ protected:
 	// intrinsic quantities 
 	
 	TDynamicVector<double>            EdgeLengths;           // Length of each intrinsic edge in the Mesh: note these may differ from (Vert0 - Vert1).Lenght().
-	TDynamicVector<FVector3d>         InternalAngles;        // Interior Angles for each triangle: note may differ from FDynamicMesh::GetTriInternalAnglesR(TID) as they are computed from intrinsic edge lenghts
+	TDynamicVector<FVector3d>         InternalAngles;        // Interior Angles for each triangle: note may differ from FDynamicMesh::GetTriInternalAnglesR(TID) as they are computed from intrinsic edge lengths
 
 };
 
 
 /**
+* FIntrinsicEdgeFlipMesh supports edge flips, but no other operations that change
+* the mesh connectivity, and no operations that affect the vertices.
+*
+* Unlike, FSimpleIntrinsicEdgeFlipMesh from which it is derived, a correspondence can be 
+* formed between the two meshes: the surface mesh edges can be traced across this intrinsic mesh, 
+* and this in-turn can be used to trace the intrinsic mesh edges across the surface mesh.  
+*
+* The implementation uses integer coordinates to robustly construct these paths.
+* 
+* Note, because only edge flips are supported (and not edge split or triangle pokes), the
+* vertex set of the intrinsic mesh and the surface (i.e. extrinsic) mesh will be the same.
+* 
+* The expected use
+*		
+*		// generate the implicit mesh from a surface mesh
+*		FIntrinsicEdgeFlipMesh  ImplicitMesh( DynamicMesh );
+*		
+*			.. do some edge flips .. perhaps FlipToDelaunay( ImplicitMesh, ..)
+* 
+*      // create a correspondence that allows the edges of the implicit mesh to be traced on the surface mesh
+*      FIntrinsicEdgeFlipMesh::FEdgeCorrespondence  Correspondence = ImplicitMesh.ComputeEdgeCorrespondence();
+*
+*      // trace desired edge across the surface mesh
+*	   int32 IntrinsicEdgeID =  
+*      auto TracedIntrinsicEdge  =  Correspondence.TraceEdge(IntrinsicEdgeID);
+*
+* Note: this isn't currently expected to work with surface meshes that have bow-ties.
+*/
+class DYNAMICMESH_API FIntrinsicEdgeFlipMesh : public  FSimpleIntrinsicEdgeFlipMesh
+{
+public:
+	typedef FSimpleIntrinsicEdgeFlipMesh MyBase;
+	using FEdge               = FSimpleIntrinsicEdgeFlipMesh::FEdge;
+	using FEdgeFlipInfo       = FSimpleIntrinsicEdgeFlipMesh::FEdgeFlipInfo;
+	using FSurfacePoint       = IntrinsicCorrespondenceUtils::FSurfacePoint;
+	using FEdgeAndCrossingIdx = IntrinsicCorrespondenceUtils::FNormalCoordinates::FEdgeAndCrossingIdx;
+
+	FIntrinsicEdgeFlipMesh(const FDynamicMesh3& SurfaceMesh);
+
+	FIntrinsicEdgeFlipMesh() = delete;
+	FIntrinsicEdgeFlipMesh(const FIntrinsicEdgeFlipMesh&) = delete;
+
+	/** @return pointer the reference mesh, note the FIntrinsicTriangulation does not manage the lifetime of this mesh */
+	const FDynamicMesh3* GetExtrinsicMesh()  const
+	{
+		return NormalCoordinates.SurfaceMesh;
+	}
+
+	/**
+	* Flip a single edge in the Intrinsic Mesh.
+	* @param EdgeFlipInfo [out] populated on return.
+	*
+	* @return a success or failure info.
+	*/
+	EMeshResult FlipEdge(int32 EID, FEdgeFlipInfo& EdgeFlipInfo);
+
+
+	/**
+	* FEdgeCorrespondence allows intrinsic edges to be traced across the surface mesh.
+	* During construction a list of surface mesh edges crossed by each intrinsic edge is stored.
+	* The Trace operation for an intrinsic edge uses this information to unfold the crossed surface triangles
+	* into a 2d triangle strip upon which the actual trace takes place.
+	*/ 
+	struct DYNAMICMESH_API FEdgeCorrespondence
+	{
+
+		using FEdgeAndCrossingIdx = IntrinsicCorrespondenceUtils::FNormalCoordinates::FEdgeAndCrossingIdx;
+
+		FEdgeCorrespondence(const FIntrinsicEdgeFlipMesh& IntrinsicEdgeFlipTriangulation);
+
+		/**
+		* @return Array of FSurfacePoints relative to the ExtrinsicMesh that represent the specified intrinsic mesh edge.
+		* This is directed from vertex EdgeV.A to vertex EdgeV.B unless bReverse is true
+		*
+		* @param IntrinsicEID      - ID of the intrinsic mesh edge to be traced.
+		* @param CoalesceThreshold - in barycentric units [0,1], edge crossings within this threshold are snapped to the nearest vertex.
+		*                            and any resulting repetitions of vertex surface points are replaced with a single vertex surface point.
+		* @param bReverse          - if true, trace edge from EdgeV.B to EdgeV.A
+		*/
+		TArray<FSurfacePoint> TraceEdge(int32 IntrinsicEID, double CoalesceThreshold = 0., bool bReverse = false) const;
+
+
+		const FIntrinsicEdgeFlipMesh*          IntrinsicMesh;         // the intrinsic mesh
+		const FDynamicMesh3*                   SurfaceMesh;           // the surface mesh 
+		TArray<TArray<int32>>                  SurfaceEdgesCrossed;   // array of surface edge crossings per intrinsic edge.
+	};
+
+	FEdgeCorrespondence ComputeEdgeCorrespondence() const 
+	{
+		return FEdgeCorrespondence(*this);
+	};
+
+	/**
+	* @return NormalCoordinate data structure that counts regular surface (extrinsic) mesh edge-crossing for each intrinsic mesh edge. 
+	*/
+	const IntrinsicCorrespondenceUtils::FNormalCoordinates& GetNormalCoordinates() const
+	{
+		return NormalCoordinates;
+	}
+
+	/**
+	* Trace the specified surface (extrinsic) mesh edge across the intrinsic mesh.  By default this traces from vertex EdgeV.A to vertex EdgeV.B
+	* where EdgeV = SurfaceMesh.GetEdgeV(SurfaceEID).
+	* @param SurfaceEID   - the surface edge to be traced
+	* @param bReverse     - reverses the direction of the trace giving EdgeV.B -> EdgeV.A
+	* 
+	* @return array of intrinsic edges crossed between the specified vertices.  This can be used to compute the actual MeshPoints on the surface if desired.
+	*/ 
+	TArray<FEdgeAndCrossingIdx> GetImplicitEdgeCrossings(const int32 SurfaceEID, const bool bReverse = false) const;
+
+	/**
+	* Trace the specified surface (extrinsic) mesh edge across the intrinsic mesh.  By default this traces from vertex EdgeV.A to vertex EdgeV.B
+	* where EdgeV = SurfaceMesh.GetEdgeV(SurfaceEID).
+	* @param SurfaceEID   - the surface edge to be traced
+	* @param bReverse     - reverses the direction of the trace giving EdgeV.B -> EdgeV.A
+	* 
+	* @return array of surface points defined relative to the intrinsic mesh.  In particular, the array will be a vertex followed by a sequence of (intrinsic) edge crossings.
+	*/ 
+	TArray<FSurfacePoint> TraceSurfaceEdge(int32 SurfaceEID, double CoalesceThreshold, bool bReverse = false) const;
+
+protected:
+
+	using FNormalCoordinates = IntrinsicCorrespondenceUtils::FNormalCoordinates;
+	FNormalCoordinates  NormalCoordinates;      // connection and integer-based coordinates used in reconstructing {intrinsic, surface} edges on the {surface, intrinsic} mesh
+};
+
+
+/**
 * Class that manages the intrinsic triangulation of a given FDynamicMesh.
+*
+* This supports mesh operations that: SplitEdge, PokeTriangle, FlipEdge.
 *
 * An Intrinsic triangulation can be thought of as a mesh that overlays another mesh, sharing
 * the original surface, but the intrinsic triangles can fold over the edges of the original mesh
@@ -342,7 +476,6 @@ protected:
 * but need not align with the edges of the original mesh and the lengths of these edges are measured
 * on the surface of the original mesh (not the R3 distance).
 *
-* This supports mesh operations that: SplitEdge, PokeTriangle, FlipEdge.
 *
 * Both SplitEdge and PokeTriangle will generate new vertices and triangles in the
 * intrinsic triangulation.  These vertices will live on the surface of the original mesh
@@ -351,18 +484,19 @@ protected:
 *
 * NB: The lifetime of this structure should not exceed that of the original
 * FDynamicMesh as this class holds a pointer to that mesh to reference locations on its surface.
-*/
-class DYNAMICMESH_API FIntrinsicTriangulation : public FIntrinsicEdgeFlipMesh
+* Also, this class isn't currently expected to work with surface meshes that have bow-ties.
+*/ 
+class DYNAMICMESH_API FIntrinsicTriangulation : public FSimpleIntrinsicEdgeFlipMesh
 {
 
 public:
 
-	typedef FIntrinsicEdgeFlipMesh MyBase;
+	typedef FSimpleIntrinsicEdgeFlipMesh MyBase;
 
 	using FEdgeFlipInfo = DynamicMeshInfo::FEdgeFlipInfo;
 	using FEdgeSplitInfo = DynamicMeshInfo::FEdgeSplitInfo;
 	using FPokeTriangleInfo = DynamicMeshInfo::FPokeTriangleInfo;
-
+	using FSurfacePoint  = IntrinsicCorrespondenceUtils::FSurfacePoint;
 
 	FIntrinsicTriangulation(const FDynamicMesh3& SrcMesh);
 
@@ -373,11 +507,9 @@ public:
 	/** @return pointer the reference mesh, note the FIntrinsicTriangulation does not manage the lifetime of this mesh */
 	const FDynamicMesh3* GetExtrinsicMesh()  const
 	{
-		return ExtrinsicMesh;
+		return SignpostData.SurfaceMesh;
 	}
 	
-	/** Location relative to the surface mesh : a surface mesh vertex, surface mesh edge - crossing or barycentric coords */
-	struct FSurfacePoint;
 
 	/**
 	* @return Array of FSurfacePoints relative to the ExtrinsicMesh that represent the specified intrinsic mesh edge.
@@ -395,11 +527,11 @@ public:
 	const FIntrinsicTriangulation::FSurfacePoint& GetVertexSurfacePoint(int32 VID) const
 	{
 		checkSlow(IsVertex(VID));
-		return IntrinsicVertexPositions[VID];
+		return SignpostData.IntrinsicVertexPositions[VID];
 	}
 
 	/**
-	* return position in r3 of an intrinsic vertex.
+	* @return position in r3 of an intrinsic vertex.
 	*/
 	FVector3d GetVertexPosition(int32 VID) const
 	{
@@ -441,63 +573,6 @@ public:
 	EMeshResult SplitEdge(int32 EdgeAB, FEdgeSplitInfo& SplitInfo, double SplitParameterT = 0.5);
 
 	
-
-public:
-
-
-	struct FGeometricInfo
-	{
-		double ToRadians = 1.;    // 2pi / sum of angles at this vertex.  Will be 1 if the Gaussian curvature is 0
-		bool bIsInterior = false; // false if on boundary or at a bow-tie.
-	};
-
-	// Location on (extrinsic) mesh stored as a union.
-	struct FSurfacePoint
-	{
-		enum class EPositionType
-		{
-			Vertex,
-			Edge,
-			Triangle
-		};
-
-		// constructors respect the correct position type
-		FSurfacePoint(); // defaults to invalid vertex position
-		FSurfacePoint(const int32 VID);
-		FSurfacePoint(const int32 EdgeID, const double Alpha);
-		FSurfacePoint(const int32 TriID, const FVector3d& BaryCentrics);
-
-		struct FVertexPosition
-		{
-			int32 VID;                      // Reference (extrinsic) vertex
-		};
-		struct FEdgePosition
-		{
-			int32 EdgeID;                  // Reference (extrinsic) edge
-			double Alpha;                  // Lerp coordinate along referenced edge as Pos(Edge.A) (Alpha) + (1-Alpha) Pos(Edge.B)
-		};
-		struct FTrianglePosition
-		{
-			int32 TriID;                    // Reference (extrinsic) triangle
-			double BarycentricCoords[3];    // Barycentric coordinates within referenced triangle
-		};
-		union FSurfacePositionUnion
-		{
-			FVertexPosition   VertexPosition;
-			FEdgePosition     EdgePosition;
-			FTrianglePosition TriPosition;
-		};
-
-		EPositionType PositionType;      // Position type, needed to correctly interpret the Position union
-		FSurfacePositionUnion Position;  // Position relative to vertex, edge, or triangle. 
-
-		/**
-		* @return the R3 postition of this surface point as applied to the input Mesh
-		* on return bValidPoint will be false if the edge / vertex / triangle ID referenced by this surface
-		* point is not an element of the mesh in question
-		*/
-		FVector3d AsR3Position(const FDynamicMesh3& Mesh, bool& bValidPoint) const;
-	};
 
 protected:
 
@@ -573,15 +648,8 @@ protected:
 		return tid;
 	}
 protected:
-
-
-	const FDynamicMesh3* ExtrinsicMesh;                                   // Original mesh. The triangles of this mesh define the surface.  We don't manage the lifetime of this mesh
-	TArray<int32> VIDToReferenceEID;                                      // Reference (original mesh) Edge per (original mesh) Vertex, defines local zero angle on tangent plane
-	TArray<int32> TIDToReferenceEID;                                      // Reference (original mesh) Edge per (original mesh) Triangle, defines local zero angle on tangent plane
-	
-	TDynamicVector<FVector3d>            IntrinsicEdgeAngles;             // Per-intrinsic Triangle - polar angles of each edge relative to the vertex it exits (i.e. edge 0 relative to vertex 0)
-	TDynamicVector<FSurfacePoint>        IntrinsicVertexPositions;        // Per-intrinsic Vertex - Locates intrinsic mesh vertices relative to the surface defined by extrinsic mesh.
-	TDynamicVector<FGeometricInfo>       GeometricVertexInfo;             // Per-intrinsic Vertex - Simple geometric information about the extrinsic surface in the neighborhood of intrinsic vert 	
+	using FSignpost = IntrinsicCorrespondenceUtils::FSignpost;
+	FSignpost SignpostData;     // connection and directional-based coordinates used in reconstructing {intrinsic, surface} edges on the {surface, intrinsic} mesh vert 		
 
 };
 
@@ -594,6 +662,7 @@ protected:
 * 
 * @return  the number of flips.
 */
+int32 DYNAMICMESH_API FlipToDelaunay(FSimpleIntrinsicEdgeFlipMesh& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
 int32 DYNAMICMESH_API FlipToDelaunay(FIntrinsicEdgeFlipMesh& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
 int32 DYNAMICMESH_API FlipToDelaunay(FIntrinsicTriangulation& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
 
