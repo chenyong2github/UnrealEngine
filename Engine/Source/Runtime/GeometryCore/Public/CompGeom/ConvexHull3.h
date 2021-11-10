@@ -40,14 +40,6 @@ struct GEOMETRYCORE_API TExtremePoints3
 		Init(NumPoints, GetPointFunc, FilterFunc, Epsilon);
 	}
 
-	TExtremePoints3(TArrayView<TVector<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true; })
-	{
-		Init(Points.Num(), [&Points](int32 Idx)
-			{
-				return Points[Idx];
-			}, FilterFunc);
-	}
-
 private:
 	void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0);
 };

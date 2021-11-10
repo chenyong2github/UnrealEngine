@@ -644,7 +644,8 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealTyp
 	return true;
 }
 
-
+template struct TExtremePoints3<float>;
+template struct TExtremePoints3<double>;
 template class TConvexHull3<float>;
 template class TConvexHull3<double>;
 
