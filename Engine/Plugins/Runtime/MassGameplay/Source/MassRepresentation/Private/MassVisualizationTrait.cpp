@@ -36,6 +36,7 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 
 		BuildContext.AddDeinitializer(*(RepresentationFragmentDeinitializerClass->GetDefaultObject<UMassProcessor>()));
 
+		BuildContext.AddFragment<FMassLODInfoFragment>();
 		BuildContext.AddFragment<FMassRepresentationLODFragment>();
 		BuildContext.AddTag<FMassVisibilityCulledByDistanceTag>();
 
