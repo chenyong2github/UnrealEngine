@@ -106,12 +106,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 
 	int32 GetFragmentsNum() const { return FragmentCollection.GetFragmentsNum(); }
 	TArrayView<const FInstancedStruct> GetFragments() const { return FragmentCollection.GetFragments(); }
-	TArray<const UScriptStruct*>& GetMutableFragmentTypes() { return FragmentTypes; }
-	TConstArrayView<const UScriptStruct*> GetFragmentTypes() const { return FragmentTypes; }
 	FMassUniqueFragmentCollection& GetMutableFragmentCollection() { return FragmentCollection; }
 	TConstArrayView<FInstancedStruct> GetChunkFragments() const { return ChunkFragments; }
 
 	FMassCompositionDescriptor GetCompositionDescriptor() const { return FMassCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
+	FMassArchetypeFragmentsInitialValues GetArchetypeFragmentsInitialValues() const { return FMassArchetypeFragmentsInitialValues(ChunkFragments); }
 
 	template<typename T>
 	void AddTag()
@@ -177,10 +176,6 @@ private:
 	
 	UPROPERTY()
 	FMassRuntimePipeline DeinitializationPipeline;
-
-	/** An mirror of FMassUniqueFragmentCollection.Fragments' types, used for adding fragment types instead of fragment instances */
-	UPROPERTY()
-	TArray<const UScriptStruct*> FragmentTypes;
 
 	UPROPERTY()
 	TArray<FInstancedStruct> ChunkFragments;

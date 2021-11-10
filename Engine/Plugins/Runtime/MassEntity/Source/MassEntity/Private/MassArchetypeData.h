@@ -137,8 +137,7 @@ struct FMassArchetypeData
 private:
 	// One-stop-shop variable describing the archetype's fragment and tag composition 
 	FMassCompositionDescriptor CompositionDescriptor;
-
-	TArray<FInstancedStruct> ChunkFragmentTemplates;
+	FMassArchetypeFragmentsInitialValues InitialValues;
 
 	TArray<FMassArchetypeFragmentConfig, TInlineAllocator<16>> FragmentConfigs;
 	
@@ -165,6 +164,8 @@ public:
 	const FMassChunkFragmentBitSet& GetChunkFragmentBitSet() const { return CompositionDescriptor.ChunkFragments; }
 	const FMassCompositionDescriptor& GetCompositionDescriptor() const { return CompositionDescriptor; }
 
+	const FMassArchetypeFragmentsInitialValues& GetInitialValues() const { return InitialValues; }
+
 	/** Method to iterate on all the fragment types */
 	void ForEachFragmentType(TFunction< void(const UScriptStruct* /*FragmentType*/)> Function) const;
 	bool HasFragmentType(const UScriptStruct* FragmentType) const;
@@ -179,7 +180,7 @@ public:
 		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor);
 	}
 
-	void Initialize(const FMassFragmentBitSet& Fragments, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments);
+	void Initialize(const FMassCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues);
 
 	/** 
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags
@@ -231,8 +232,6 @@ public:
 	/** For all entities indicated by ChunkCollection the function sets the value of fragment of type
 	 *  FragmentSource.GetScriptStruct to the value represented by FragmentSource.GetMemory */
 	void SetFragmentData(const FArchetypeChunkCollection& ChunkCollection, const FInstancedStruct& FragmentSource);
-
-	void SetDefaultChunkFragmentValue(FConstStructView InstancedStruct);
 
 	/** Returns conversion from given Requirements to archetype's fragment indices */
 	void GetRequirementsFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices);

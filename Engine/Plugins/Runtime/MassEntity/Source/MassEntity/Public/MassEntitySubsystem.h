@@ -82,7 +82,14 @@ public:
 	 */
 	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAngTagsList);
 
-	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments);
+	/**
+	 * CreateArchetype from a composition descriptor and initial values
+	 *
+	 * @param Composition of fragment, tag and chunk fragment types
+	 * @param InitialValues like default chunk fragment values
+	 * @return a handle of a new archetype 
+	 */
+	FArchetypeHandle CreateArchetype(const FMassCompositionDescriptor& Composition, const FMassArchetypeFragmentsInitialValues& InitialValues);
 
 	/** 
 	 *  Creates an archetype like SourceArchetype + NewFragmentList. 
@@ -96,14 +103,9 @@ public:
 	 */
 	FArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragmentList);
 
-	FArchetypeHandle CreateArchetype(const FMassCompositionDescriptor& Descriptor);
-
-
 	FArchetypeHandle GetArchetypeForEntity(FMassEntityHandle Entity) const;
 	/** Method to iterate on all the fragment types of an archetype */
 	static void ForEachArchetypeFragmentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function);
-
-	void SetDefaultChunkFragmentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct);
 
 	/**
 	 * Go through all archetypes and compact entities

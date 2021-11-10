@@ -121,29 +121,23 @@ FColor GetEntityDebugColor(FMassEntityHandle Entity)
 //----------------------------------------------------------------------//
 void FMassUniqueFragmentCollection::Add(const FInstancedStruct& InFragment)
 {
-	if (InFragment.GetScriptStruct() && FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(InFragment)) == nullptr)
+	const UScriptStruct* InFragmentType = InFragment.GetScriptStruct();
+	if (InFragmentType && !FragmentBitSet.Contains(*InFragmentType))
 	{
+		ensureMsgf(InFragmentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct is not of a fragment type. Make sure your struct extends FMassFragment or its derivatives"));
 		FragmentInstances.Add(InFragment);
+		FragmentBitSet.Add(*InFragmentType);
 	}
 }
 
 void FMassUniqueFragmentCollection::Add(const UScriptStruct* InFragmentType)
 {
-	if (InFragmentType && FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(InFragmentType)) == nullptr)
+	if (InFragmentType && !FragmentBitSet.Contains(*InFragmentType))
 	{
+		ensureMsgf(InFragmentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct is not of a fragment type. Make sure your struct extends FMassFragment or its derivatives"));
 		FragmentInstances.Add(FInstancedStruct(InFragmentType));
 		FragmentBitSet.Add(*InFragmentType);
 	}
-}
-
-void FMassUniqueFragmentCollection::Append(const FMassUniqueFragmentCollection& Other)
-{
-	FragmentInstances.Reserve(FragmentInstances.Num() + Other.FragmentInstances.Num());
-	for (const FInstancedStruct& NewFragment : Other.FragmentInstances)
-	{
-		Add(NewFragment);
-	}
-	// not shrinking on purpose, we can take the hit
 }
 
 void FMassUniqueFragmentCollection::DebugOutputDescription(FOutputDevice& Ar) const

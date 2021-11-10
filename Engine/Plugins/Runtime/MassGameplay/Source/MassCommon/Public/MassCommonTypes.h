@@ -88,8 +88,6 @@ struct MASSCOMMON_API FMassUniqueFragmentCollection
 		return FragmentInstances.Add_GetRef(FInstancedStruct(T::StaticStruct())).GetMutable<T>();
 	}
 
-	void Append(const FMassUniqueFragmentCollection& Other);
-
 	template<typename T>
 	T& GetRefChecked()
 	{
