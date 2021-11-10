@@ -280,7 +280,7 @@ void SSceneOutliner::HandleHiddenColumnsChanged()
 
 	if (OutlinerConfig != nullptr)
 	{
-		for (const TPair<FName, bool> Pair : Columns)
+		for (const TPair<FName, TSharedPtr<ISceneOutlinerColumn>>& Pair : Columns)
 		{
 			ColumnVisibilities.Add(Pair.Key, HiddenColumns.Find(Pair.Key) == INDEX_NONE);
 		}
