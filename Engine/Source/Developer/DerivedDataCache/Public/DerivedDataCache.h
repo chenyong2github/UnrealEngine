@@ -16,6 +16,7 @@
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordPolicy; }
+namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheChunkRequest; }
 namespace UE::DerivedData { struct FCacheGetChunkCompleteParams; }
@@ -316,6 +317,10 @@ public:
 	 * owner of the cache if future requests are meant to be avoided.
 	 */
 	virtual void CancelAll() = 0;
+
+	/** Returns the interface to the background cache store maintenance. */
+	virtual ICacheStoreMaintainer& GetMaintainer() = 0;
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

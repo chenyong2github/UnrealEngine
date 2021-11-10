@@ -274,6 +274,7 @@ public:
 	/**
 	 * Retrieve the interface to the background cache cleanup.
 	 */
+	UE_DEPRECATED(5.0, "This has been replaced by UE::DerivedData::GetCache().GetMaintainer().")
 	virtual IDDCCleanup* GetCleanup() const = 0;
 
 	//--------------------

@@ -16,6 +16,7 @@
 #include <openssl/ssl.h>
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
+#include "Algo/AllOf.h"
 #include "Misc/Base64.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
@@ -59,7 +60,16 @@ TRACE_DECLARE_INT_COUNTER(S3DDC_Get, TEXT("S3DDC Get"));
 TRACE_DECLARE_INT_COUNTER(S3DDC_GetHit, TEXT("S3DDC Get Hit"));
 TRACE_DECLARE_INT_COUNTER(S3DDC_BytesRecieved, TEXT("S3DDC Bytes Recieved"));
 
-FString BuildPathForCacheKey(const TCHAR* CacheKey);
+FString BuildPathForCacheKey(const TCHAR* CacheKey)
+{
+	FString Key = FString(CacheKey).ToUpper();
+	checkf(Algo::AllOf(Key, [](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
+		TEXT("Invalid characters in cache key %s"), CacheKey);
+	uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
+	// this creates a tree of 1000 directories
+	FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
+	return HashPath / Key + TEXT(".udd");
+}
 
 class FStringAnsi
 {
@@ -95,7 +105,7 @@ public:
 	void Append(const ANSICHAR* Start, const ANSICHAR* End)
 	{
 		Inner.RemoveAt(Inner.Num() - 1);
-		Inner.Append(Start, End - Start);
+		Inner.Append(Start, UE_PTRDIFF_TO_INT32(End - Start));
 		Inner.Add(0);
 	}
 
@@ -338,7 +348,7 @@ private:
 			{
 				for (const ANSICHAR* Char = Header->data; Char != Colon; Char++)
 				{
-					CanonicalHeaders.Append(tolower(*Char));
+					CanonicalHeaders.Append(FCharAnsi::ToLower(*Char));
 				}
 				CanonicalHeaders.Append(':');
 
@@ -368,7 +378,7 @@ private:
 				}
 				for (const ANSICHAR* Char = Header->data; Char != Colon; Char++)
 				{
-					SignedHeaders.Append(tolower(*Char));
+					SignedHeaders.Append(FCharAnsi::ToLower(*Char));
 				}
 			}
 		}
@@ -427,7 +437,7 @@ private:
 		IRequestCallback* Callback = (IRequestCallback*)Ptr;
 		if (Callback != nullptr)
 		{
-			return Callback->Update(CurrentDownloadSize, TotalDownloadSize)? 0 : 1;
+			return Callback->Update(IntCastChecked<int>(CurrentDownloadSize), IntCastChecked<int>(TotalDownloadSize)) ? 0 : 1;
 		}
 		return 0;
 	}

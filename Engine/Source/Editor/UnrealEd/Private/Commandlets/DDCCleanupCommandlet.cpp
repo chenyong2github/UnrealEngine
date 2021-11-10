@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/DDCCleanupCommandlet.h"
-#include "DDCCleanup.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheMaintainer.h"
 #include "HAL/PlatformProcess.h"
 
 int32 UDDCCleanupCommandlet::Main(const FString& Params)
 {
-	if (IDDCCleanup* Cleanup = GetDerivedDataCacheRef().GetCleanup())
+	using namespace UE::DerivedData;
+	ICacheStoreMaintainer& Maintainer = GetCache().GetMaintainer();
+	Maintainer.BoostPriority();
+	while (!Maintainer.IsIdle())
 	{
-		Cleanup->WaitBetweenDeletes(false);
-		do
-		{
-			// Cleanup works from its own thread so just wait until it's done and flush logs once in a while
-			FPlatformProcess::SleepNoStats(1.0f);
-			GLog->Flush();
-		} while (!Cleanup->IsFinished());
+		// Maintenance works from dedicated threads. Wait for it to finish and flush logs occasionally.
+		FPlatformProcess::SleepNoStats(0.05f);
+		GLog->Flush();
 	}
-
 	return 0;
 }

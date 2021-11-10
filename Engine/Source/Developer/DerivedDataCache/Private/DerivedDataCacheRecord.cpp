@@ -296,11 +296,13 @@ FCbPackage FCacheRecord::Save() const
 	}
 	auto SavePayload = [&Package, &Writer](const FPayload& Payload)
 	{
-		FCbAttachment Attachment(Payload.GetData());
-		Package.AddAttachment(Attachment);
+		if (Payload.HasData())
+		{
+			Package.AddAttachment(FCbAttachment(Payload.GetData()));
+		}
 		Writer.BeginObject();
 		Writer.AddObjectId("Id"_ASV, Payload.GetId());
-		Writer.AddAttachment("RawHash"_ASV, Attachment);
+		Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		Writer.EndObject();
 	};
