@@ -13,6 +13,7 @@
 
 FSessionService::FSessionService(const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus)
 	: MessageBusPtr(InMessageBus)
+	, IsInSendLog(false)
 { }
 
 
