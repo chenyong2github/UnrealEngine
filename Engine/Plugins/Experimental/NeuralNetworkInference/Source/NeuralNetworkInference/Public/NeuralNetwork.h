@@ -122,12 +122,12 @@ public:
 	 * GetBackEnd()/GetBackEndForCurrentPlatform():
 	 * - If BackEnd == Auto, GetBackEnd() will return Auto and GetBackEndForCurrentPlatform() will return the actual BackEnd being used for the current platform (UEAndORT or UEOnly).
 	 * - If BackEnd != Auto, GetBackEnd() and GetBackEndForCurrentPlatform() will both return the same value (UEAndORT or UEOnly).
-	 * SetBackEnd() will modify both BackEnd and BackEndForCurrentPlatform.
+	 * SetBackEnd() will modify both BackEnd and BackEndForCurrentPlatform and return IsLoaded().
 	 * @see ENeuralBackEnd for more details.
 	 */
 	ENeuralBackEnd GetBackEnd() const;
 	ENeuralBackEnd GetBackEndForCurrentPlatform() const;
-	void SetBackEnd(const ENeuralBackEnd InBackEnd);
+	bool SetBackEnd(const ENeuralBackEnd InBackEnd);
 	
 	/**
 	 * IsGPUConfigCompatible will always return true for ENeuralBackEnd::UEOnly. For ENeuralBackEnd::UEAndORT, IsGPUConfigCompatible() and IsGPUConfigCompatibleForUEAndORTBackEnd() will return the same value:
