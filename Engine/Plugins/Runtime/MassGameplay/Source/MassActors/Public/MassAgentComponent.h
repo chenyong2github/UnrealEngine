@@ -100,8 +100,8 @@ public:
 	const FMassEntityConfig& GetEntityConfig() const { return EntityConfig; }
 	void SetEntityConfig(const FMassEntityConfig& InEntityConfig);
 
-	const FMassCompositionDescriptor& GetPuppetSpecificAddition() const { return PuppetSpecificAddition; }
-	FMassCompositionDescriptor& GetMutablePuppetSpecificAddition() { return PuppetSpecificAddition; }
+	const FMassArchetypeCompositionDescriptor& GetPuppetSpecificAddition() const { return PuppetSpecificAddition; }
+	FMassArchetypeCompositionDescriptor& GetMutablePuppetSpecificAddition() { return PuppetSpecificAddition; }
 
 	/** Registers the component with the owner effectively turning it on. Calling it multiple times won't break anything  */
 	UFUNCTION(BlueprintCallable, Category = Mass)
@@ -137,7 +137,7 @@ protected:
 	 *  Contains all the fragments added to the entity during puppet's initialization. Required for clean up when
 	 *  despawning puppet while the entity remains alive.
 	 */
-	FMassCompositionDescriptor PuppetSpecificAddition;
+	FMassArchetypeCompositionDescriptor PuppetSpecificAddition;
 
 	UPROPERTY(EditAnywhere, Category = "Mass")
 	FMassEntityConfig EntityConfig;

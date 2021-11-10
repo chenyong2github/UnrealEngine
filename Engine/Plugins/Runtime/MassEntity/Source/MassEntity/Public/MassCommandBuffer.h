@@ -270,7 +270,7 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandRemoveComposition() = default;
-	FCommandRemoveComposition(FMassEntityHandle InEntity, const FMassCompositionDescriptor& InDescriptor)
+	FCommandRemoveComposition(FMassEntityHandle InEntity, const FMassArchetypeCompositionDescriptor& InDescriptor)
 		: FCommandBufferEntryBase(InEntity)
 		, Descriptor(InDescriptor)
 	{}
@@ -278,7 +278,7 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
-	FMassCompositionDescriptor Descriptor;
+	FMassArchetypeCompositionDescriptor Descriptor;
 };
 
 struct MASSENTITY_API FMassCommandBuffer

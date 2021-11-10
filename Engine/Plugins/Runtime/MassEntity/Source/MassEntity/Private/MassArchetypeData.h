@@ -136,7 +136,7 @@ struct FMassArchetypeData
 {
 private:
 	// One-stop-shop variable describing the archetype's fragment and tag composition 
-	FMassCompositionDescriptor CompositionDescriptor;
+	FMassArchetypeCompositionDescriptor CompositionDescriptor;
 	FMassArchetypeFragmentsInitialValues InitialValues;
 
 	TArray<FMassArchetypeFragmentConfig, TInlineAllocator<16>> FragmentConfigs;
@@ -162,8 +162,8 @@ public:
 	const FMassFragmentBitSet& GetFragmentBitSet() const { return CompositionDescriptor.Fragments; }
 	const FMassTagBitSet& GetTagBitSet() const { return CompositionDescriptor.Tags; }
 	const FMassChunkFragmentBitSet& GetChunkFragmentBitSet() const { return CompositionDescriptor.ChunkFragments; }
-	const FMassCompositionDescriptor& GetCompositionDescriptor() const { return CompositionDescriptor; }
 
+	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return CompositionDescriptor; }
 	const FMassArchetypeFragmentsInitialValues& GetInitialValues() const { return InitialValues; }
 
 	/** Method to iterate on all the fragment types */
@@ -175,12 +175,12 @@ public:
 	{ 
 		return CompositionDescriptor.IsEquivalent(InFragmentBitSet, InTagBitSet, InChunkFragmentsBitSet);
 	}
-	bool IsEquivalent(const FMassCompositionDescriptor& OtherCompositionDescriptor) const
+	bool IsEquivalent(const FMassArchetypeCompositionDescriptor& OtherCompositionDescriptor) const
 	{
 		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor);
 	}
 
-	void Initialize(const FMassCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues);
+	void Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues);
 
 	/** 
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags

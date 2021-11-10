@@ -100,7 +100,7 @@ bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& Ar
 	const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
 	CA_ASSUME(Archetype);
 	
-	const FMassCompositionDescriptor& ArchetypeComposition = Archetype->GetCompositionDescriptor();
+	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = Archetype->GetCompositionDescriptor();
 
 	return ArchetypeComposition.Fragments.HasAll(RequiredAllFragments)
 		&& (RequiredAnyFragments.IsEmpty() || ArchetypeComposition.Fragments.HasAny(RequiredAnyFragments))
@@ -301,7 +301,7 @@ FString FMassEntityQuery::DebugGetArchetypeCompatibilityDescription(const FArche
 	const FMassArchetypeData& Archetype = *ArchetypeHandle.DataPtr;
 	FStringOutputDevice OutDescription;
 #if WITH_MASSENTITY_DEBUG	
-	const FMassCompositionDescriptor& ArchetypeComposition = Archetype.GetCompositionDescriptor();
+	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = Archetype.GetCompositionDescriptor();
 
 	if (ArchetypeComposition.Fragments.HasAll(RequiredAllFragments) == false)
 	{

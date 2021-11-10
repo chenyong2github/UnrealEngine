@@ -109,7 +109,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	FMassUniqueFragmentCollection& GetMutableFragmentCollection() { return FragmentCollection; }
 	TConstArrayView<FInstancedStruct> GetChunkFragments() const { return ChunkFragments; }
 
-	FMassCompositionDescriptor GetCompositionDescriptor() const { return FMassCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
+	FMassArchetypeCompositionDescriptor GetCompositionDescriptor() const { return FMassArchetypeCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
 	FMassArchetypeFragmentsInitialValues GetArchetypeFragmentsInitialValues() const { return FMassArchetypeFragmentsInitialValues(ChunkFragments); }
 
 	template<typename T>
