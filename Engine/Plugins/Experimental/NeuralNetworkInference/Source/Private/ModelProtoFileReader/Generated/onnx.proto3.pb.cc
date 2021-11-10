@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-#if WITH_EDITOR
+#ifdef WITH_MODEL_PROTO_CONVERTER_SUPPORT
 
 //-V::568,590
 #ifdef WITH_PROTOBUF
@@ -6628,4 +6628,4 @@ PROTOBUF_NAMESPACE_CLOSE
 NNI_THIRD_PARTY_INCLUDES_END
 #endif //WITH_PROTOBUF
 
-#endif //WITH_EDITOR
+#endif //WITH_MODEL_PROTO_CONVERTER_SUPPORT

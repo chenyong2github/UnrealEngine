@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelProtoConverter.h"
-#include "ModelProtoConverterUtils.h"
+#include "ModelProtoFileReaderUtils.h"
 
-#if WITH_EDITOR // @todo: Workaround to avoid linking error when compiled in-game with UEAndORT back end, Build.cs file also modified
+#ifdef WITH_MODEL_PROTO_CONVERTER_SUPPORT // Workaround to avoid linking error when compiled in-game with UEAndORT back end, Schema*.txt/Build.cs files also modified
 
 // Protobuf includes
 #ifdef WITH_PROTOBUF
@@ -76,7 +76,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FModelProto& OutModelPro
 	// OperatorSetIds
 	if (!ConvertProto3ToUAssetProtoArrays(OutModelProto.OpsetImport, InONNXModelProto.opset_import()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(OperatorSetId) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(OperatorSetId) failed."));
 		return false;
 	}
 	OutModelProto.ProducerName = UTF8_TO_TCHAR(InONNXModelProto.producer_name().c_str());
@@ -87,19 +87,19 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FModelProto& OutModelPro
 	// Graph
 	if (!ConvertProto3ToUAsset(OutModelProto.Graph, InONNXModelProto.graph()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3GraphToUAsset(Graph) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3GraphToUAsset(Graph) failed."));
 		return false;
 	}
 	// StringStringEntrys
 	if (!ConvertProto3ToUAssetProtoArrays(OutModelProto.MetadataProps, InONNXModelProto.metadata_props()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
 		return false;
 	}
 	// TrainingInfos
 	if (!ConvertProto3ToUAssetProtoArrays(OutModelProto.TrainingInfo, InONNXModelProto.training_info()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TrainingInfo) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TrainingInfo) failed."));
 		return false;
 	}
 
@@ -126,13 +126,13 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTrainingInfoProto& OutT
 	// Graph
 	if (!ConvertProto3ToUAsset(OutTrainingInfoProto.Initialization, InONNXTrainingInfoProto.initialization()) || !ConvertProto3ToUAsset(OutTrainingInfoProto.Algorithm, InONNXTrainingInfoProto.algorithm()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3GraphToUAsset(Graph) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3GraphToUAsset(Graph) failed."));
 		return false;
 	}
 	// StringStringEntrys
 	if (!ConvertProto3ToUAssetProtoArrays(OutTrainingInfoProto.InitializationBinding, InONNXTrainingInfoProto.initialization_binding()) || !ConvertProto3ToUAssetProtoArrays(OutTrainingInfoProto.UpdateBinding, InONNXTrainingInfoProto.update_binding()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
 		return false;
 	}
 
@@ -147,33 +147,33 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FGraphProto& OutGraphPro
 	// Nodes
 	if (!ConvertProto3ToUAssetProtoArrays(OutGraphProto.Node, InONNXGraphProto.node()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Node) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Node) failed."));
 		return false;
 	}
 	OutGraphProto.Name = UTF8_TO_TCHAR(InONNXGraphProto.name().c_str());
 	// TensorProtos
 	if (!ConvertProto3ToUAssetProtoArrays(OutGraphProto.Initializer, InONNXGraphProto.initializer()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
 		return false;
 	}
 	// SparseTensors
 	if (!ConvertProto3ToUAssetProtoArrays(OutGraphProto.SparseInitializer, InONNXGraphProto.sparse_initializer()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(SparseTensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(SparseTensor) failed."));
 		return false;
 	}
 	OutGraphProto.DocString = UTF8_TO_TCHAR(InONNXGraphProto.doc_string().c_str());
 	// ValueInfos
 	if (!ConvertProto3ToUAssetProtoArrays(OutGraphProto.Input, InONNXGraphProto.input()) || !ConvertProto3ToUAssetProtoArrays(OutGraphProto.Output, InONNXGraphProto.output()) || !ConvertProto3ToUAssetProtoArrays(OutGraphProto.ValueInfo, InONNXGraphProto.value_info()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(ValueInfo) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(ValueInfo) failed."));
 		return false;
 	}
 	// TensorAnnotations
 	if (!ConvertProto3ToUAssetProtoArrays(OutGraphProto.QuantizationAnnotation, InONNXGraphProto.quantization_annotation()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorAnnotation) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorAnnotation) failed."));
 		return false;
 	}
 	// No warnings occurred, conversion successful
@@ -187,7 +187,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FNodeProto& OutNodeProto
 	//FString
 	if (!ConvertProto3ToUAssetFString(OutNodeProto.Input, InONNXNodeProto.input()) || !ConvertProto3ToUAssetFString(OutNodeProto.Output, InONNXNodeProto.output()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
 		return false;
 	}
 	OutNodeProto.Name = UTF8_TO_TCHAR(InONNXNodeProto.name().c_str());
@@ -196,7 +196,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FNodeProto& OutNodeProto
 	// Attributes
 	if (!ConvertProto3ToUAssetProtoArrays(OutNodeProto.Attribute, InONNXNodeProto.attribute()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Attribute) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Attribute) failed."));
 		return false;
 	}
 	OutNodeProto.DocString = UTF8_TO_TCHAR(InONNXNodeProto.doc_string().c_str());
@@ -213,7 +213,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTensorAnnotation& OutTe
 	// StringStringEntrys
 	if (!ConvertProto3ToUAssetProtoArrays(OutTensorAnnotation.QuantParameterTensorNames, InONNXTensorAnnotation.quant_parameter_tensor_names()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
 		return false;
 	}
 
@@ -229,7 +229,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FValueInfoProto& OutValu
 	// Type
 	if (!ConvertProto3ToUAsset(OutValueInfoProto.Type, InONNXValueInfoProto.type()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Type) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Type) failed."));
 		return false;
 	}
 	OutValueInfoProto.DocString = UTF8_TO_TCHAR(InONNXValueInfoProto.doc_string().c_str());
@@ -251,26 +251,26 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FAttributeProto& OutAttr
 	// TensorProtos
 	if (!ConvertProto3ToUAsset(OutAttributeProto.T, InONNXAttributeProto.t()) || !ConvertProto3ToUAssetProtoArrays(OutAttributeProto.Tensors, InONNXAttributeProto.tensors()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
 		return false;
 	}
 	//TSharedPtr<FGraphProto> G; /** Used TSharedPtr<> to break the circular dependency */
 	// SparseTensors
 	if (!ConvertProto3ToUAsset(OutAttributeProto.SparseTensor, InONNXAttributeProto.sparse_tensor()) || !ConvertProto3ToUAssetProtoArrays(OutAttributeProto.SparseTensors, InONNXAttributeProto.sparse_tensors()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(SparseTensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(SparseTensor) failed."));
 		return false;
 	}
 	// floats and int64s
 	if (!ConvertProto3ToUAssetBasicType(OutAttributeProto.Floats, InONNXAttributeProto.floats()) || !ConvertProto3ToUAssetBasicType(OutAttributeProto.Integers, InONNXAttributeProto.ints()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
 		return false;
 	}
 	//TArray<FString>
 	if (!ConvertProto3ToUAssetFString(OutAttributeProto.Strings, InONNXAttributeProto.strings()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
 		return false;
 	}
 	//TArray<TSharedPtr<FGraphProto>> Graphs; /** Used TSharedPtr<> to break the circular dependency */
@@ -285,7 +285,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTypeProto& OutTypeProto
 	//TypeProto
 	if (!ConvertProto3ToUAsset(OutTypeProto.TensorType, InONNXTypeProto.tensor_type()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TypeTensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TypeTensor) failed."));
 		return false;
 	}
 	OutTypeProto.Denotation = UTF8_TO_TCHAR(InONNXTypeProto.denotation().c_str());
@@ -300,13 +300,13 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FSparseTensorProto& OutS
 	//Tensor
 	if (!ConvertProto3ToUAsset(OutSparseTensorProto.Values, InONNXSparseTensorProto.values()) || !ConvertProto3ToUAsset(OutSparseTensorProto.Indices, InONNXSparseTensorProto.indices()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(Tensor) failed."));
 		return false;
 	}
 	//TArray<int64> Dimensions
 	if (!ConvertProto3ToUAssetBasicType(OutSparseTensorProto.Dimensions, InONNXSparseTensorProto.dims()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
 		return false;
 	}
 
@@ -322,7 +322,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTypeProtoTensor& OutTyp
 	// TensorShape
 	if (!ConvertProto3ToUAsset(OutTypeProtoTensor.Shape, InONNXTypeProtoTensor.shape()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorShape) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorShape) failed."));
 		return false;
 	}
 
@@ -337,7 +337,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTensorProto& OutTensorP
 	// TArray<uint8>
 	if (!ConvertProto3ToUAssetUInt8(OutTensorProto.RawData, InONNXTensorProto.raw_data()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetUInt8() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetUInt8() failed."));
 		return false;
 	}
 	//TArray<int64, float, int32, double, uint64>
@@ -345,20 +345,20 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTensorProto& OutTensorP
 		!ConvertProto3ToUAssetBasicType(OutTensorProto.Int32Data, InONNXTensorProto.int32_data()) || !ConvertProto3ToUAssetBasicType(OutTensorProto.Int64Data, InONNXTensorProto.int64_data()) ||
 		!ConvertProto3ToUAssetBasicType(OutTensorProto.DoubleData, InONNXTensorProto.double_data()) || !ConvertProto3ToUAssetBasicType(OutTensorProto.UInt64Data, InONNXTensorProto.uint64_data()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetBasicType() failed."));
 		return false;
 	}
 	OutTensorProto.DataType = (ETensorProtoDataType)InONNXTensorProto.data_type();
 	//FTensorProtoSegment
 	if (!ConvertProto3ToUAsset(OutTensorProto.Segment, InONNXTensorProto.segment()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorProtoSegment) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorProtoSegment) failed."));
 		return false;
 	}
 	//TArray<FString>
 	if (!ConvertProto3ToUAssetFString(OutTensorProto.StringData, InONNXTensorProto.string_data()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAssetFString() failed."));
 		return false;
 	}
 	OutTensorProto.Name = UTF8_TO_TCHAR(InONNXTensorProto.name().c_str());
@@ -366,7 +366,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTensorProto& OutTensorP
 	// StringStringEntryProtos
 	if (!ConvertProto3ToUAssetProtoArrays(OutTensorProto.ExternalData, InONNXTensorProto.external_data()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(StringStringEntry) failed."));
 		return false;
 	}
 	OutTensorProto.DataLocation = (ETensorProtoDataLocation)InONNXTensorProto.data_location();
@@ -381,7 +381,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FTensorShapeProto& OutTe
 	// TensorShapeDimensions
 	if (!ConvertProto3ToUAssetProtoArrays(OutTensorShapeProto.Dim, InONNXTensorShapeProto.dim()))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorShapeProtoDimension) failed."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorShapeProtoDimension) failed."));
 		return false;
 	}
 
@@ -450,7 +450,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetBasicType(TArray<T1>& Out
 {
 	if (sizeof(T1) != sizeof(T2))
 	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAssetBasicType(): sizeof(T1) == sizeof(T2) failed (%d != %d)."),
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAssetBasicType(): sizeof(T1) == sizeof(T2) failed (%d != %d)."),
 			sizeof(T1), sizeof(T2));
 		return false;
 	}
@@ -474,7 +474,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetProtoArrays(TArray<T1>& O
 	{
 		if (!ConvertProto3ToUAsset(OutProtoArray[ArrayIndex], InONNXArray[ArrayIndex]))
 		{
-			UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertFromONNXProto3Ifstream(): ConvertProto3ToUAsset() failed."));
+			UE_LOG(LogModelProtoFileReader, Warning, TEXT("FPrivateModelProtoConverter::ConvertFromONNXProto3Ifstream(): ConvertProto3ToUAsset() failed."));
 			return false;
 		}
 	}
@@ -482,7 +482,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetProtoArrays(TArray<T1>& O
 }
 
 #endif //WITH_PROTOBUF
-#endif //WITH_EDITOR
+#endif //WITH_MODEL_PROTO_CONVERTER_SUPPORT
 
 
 
@@ -506,12 +506,12 @@ bool FModelProtoConverter::ConvertFromONNXProto3Array(FModelProto& OutModelProto
 
 bool FModelProtoConverter::ConvertFromONNXProto3(FModelProto& OutModelProto, std::istream* InIfstream, const TArray<uint8>* InModelReadFromFileInBytes)
 {
-#if WITH_EDITOR // @todo: Workaround to avoid linking error when compiled in-game with UEAndORT back end, Schema*.txt files also modified
+#ifdef WITH_MODEL_PROTO_CONVERTER_SUPPORT // Workaround to avoid linking error when compiled in-game with UEAndORT back end, Schema*.txt/Build.cs files also modified
 	#ifdef WITH_PROTOBUF
 		// Sanity checks
 		if ((InIfstream == nullptr) == (InModelReadFromFileInBytes == nullptr))
 		{
-			UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Both InIfstream & InModelReadFromFileInBytes were nullptr or both were not nullptr. However, only 1 of them should not be a nullptr."));
+			UE_LOG(LogModelProtoFileReader, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Both InIfstream & InModelReadFromFileInBytes were nullptr or both were not nullptr. However, only 1 of them should not be a nullptr."));
 			return false;
 		}
 		// Protobuf onnx::ModelProto from Ifstream/InModelReadFromFileInBytes
@@ -524,7 +524,7 @@ bool FModelProtoConverter::ConvertFromONNXProto3(FModelProto& OutModelProto, std
 		{
 			if (InModelReadFromFileInBytes->IsEmpty())
 			{
-				UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Input InModelReadFromFileInBytes was empty."));
+				UE_LOG(LogModelProtoFileReader, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Input InModelReadFromFileInBytes was empty."));
 				return false;
 			}
 			ModelProto.ParseFromArray(InModelReadFromFileInBytes->GetData(), InModelReadFromFileInBytes->Num());
@@ -533,13 +533,13 @@ bool FModelProtoConverter::ConvertFromONNXProto3(FModelProto& OutModelProto, std
 		return FPrivateModelProtoConverter::ConvertProto3ToUAsset(OutModelProto, ModelProto);
 
 	#else //WITH_PROTOBUF
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Platform not compatible (WITH_PROTOBUF was not defined)."));
+		UE_LOG(LogModelProtoFileReader, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Platform not compatible (WITH_PROTOBUF was not defined)."));
 		return false;
 	#endif //WITH_PROTOBUF
 
-#else //WITH_EDITOR
-	UE_LOG(LogModelProtoConverter, Warning,
-		TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Due to a known linking error when used together with the UEAndORT back end during game mode, this function is only available on Editor mode (WITH_EDITOR) for now."));
+#else //WITH_MODEL_PROTO_CONVERTER_SUPPORT
+	UE_LOG(LogModelProtoFileReader, Warning,
+		TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Due to a known linking error when used together with the UEAndORT back end during game mode, this function is disabled."));
 	return false;
-#endif //WITH_EDITOR
+#endif //WITH_MODEL_PROTO_CONVERTER_SUPPORT
 }
