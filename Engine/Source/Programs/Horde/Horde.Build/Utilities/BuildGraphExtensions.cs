@@ -31,9 +31,9 @@ namespace Horde.Build.Utilities
 				this.ChangeNumber = ChangeNumber;
 			}
 
-			public bool Exists(string Path)
+			public async Task<bool> ExistsAsync(string Path)
 			{
-				List<FStatRecord> Records = PerforceConnection.FStatAsync($"{Stream}/{Path}@{ChangeNumber}").Result;
+				List<FStatRecord> Records = await PerforceConnection.FStatAsync($"{Stream}/{Path}@{ChangeNumber}");
 				return Records.Count > 0;
 			}
 
@@ -42,19 +42,17 @@ namespace Horde.Build.Utilities
 				return $"{Stream}/{Path}";
 			}
 
-			public bool TryRead(string Path, out byte[]? Data)
+			public async Task<byte[]?> ReadAsync(string Path)
 			{
 				string TempFileName = System.IO.Path.GetTempFileName();
 				try
 				{
-					PerforceConnection.PrintAsync(TempFileName, $"{Stream}/{Path}").Wait();
-					Data = File.ReadAllBytes(TempFileName);
-					return true;
+					await PerforceConnection.PrintAsync(TempFileName, $"{Stream}/{Path}");
+					return await File.ReadAllBytesAsync(TempFileName);
 				}
 				catch
 				{
-					Data = null;
-					return false;
+					return null;
 				}
 				finally
 				{
@@ -128,8 +126,13 @@ namespace Horde.Build.Utilities
 				}
 			}
 
-			BgScript Script;
-			if (!BgScriptReader.TryRead(Context, ScriptFile, Options, Properties, false, Schema, EpicGames.Core.Log.Logger, out Script))
+			if(ScriptFile == null)
+			{
+				throw new NotImplementedException();
+			}
+
+			BgScript? Script = await BgScriptReader.ReadAsync(Context, ScriptFile, Options, Properties, false, Schema, EpicGames.Core.Log.Logger);
+			if (Script == null)
 			{
 				throw new NotImplementedException();
 			}

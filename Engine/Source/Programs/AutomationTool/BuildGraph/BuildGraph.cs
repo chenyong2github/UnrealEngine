@@ -17,6 +17,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using System.Threading.Tasks;
 
 namespace AutomationTool
 {
@@ -112,35 +113,33 @@ namespace AutomationTool
 		}
 
 		/// <inheritdoc/>
-		public bool Exists(string Path)
+		public Task<bool> ExistsAsync(string Path)
 		{
 			try
 			{
-				return FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path));
+				return Task.FromResult(FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path)));
 			}
 			catch
 			{
-				return false;
+				return Task.FromResult(false);
 			}
 		}
 
 		/// <inheritdoc/>
-		public bool TryRead(string Path, out byte[] Data)
+		public async Task<byte[]> ReadAsync(string Path)
 		{
 			try
 			{
 				FileReference File = FileReference.Combine(Unreal.RootDirectory, Path);
 				if (FileReference.Exists(File))
 				{
-					Data = FileReference.ReadAllBytes(File);
-					return true;
+					return await FileReference.ReadAllBytesAsync(File);
 				}
 			}
 			catch
 			{
 			}
-			Data = null;
-			return false;
+			return null;
 		}
 	}
 
@@ -405,8 +404,8 @@ namespace AutomationTool
 			ScriptFileName = FullScriptFile.MakeRelativeTo(Unreal.RootDirectory).Replace('\\', '/');
 
 			// Read the script from disk
-			BgScript Graph;
-			if(!BgScriptReader.TryRead(Context, ScriptFileName, Arguments, DefaultProperties, PreprocessedFileName != null, Schema, Logger, out Graph, SingleNodeName))
+			BgScript Graph = BgScriptReader.ReadAsync(Context, ScriptFileName, Arguments, DefaultProperties, PreprocessedFileName != null, Schema, Logger, SingleNodeName).Result;
+			if(Graph == null)
 			{
 				return ExitCode.Error_Unknown;
 			}
@@ -806,7 +805,7 @@ namespace AutomationTool
 			}
 			else if (ValueType == typeof(Boolean))
 			{
-				return BgCondition.Evaluate(ValueText, Context);
+				return BgCondition.EvaluateAsync(ValueText, Context).Result;
 			}
 			else if (ValueType == typeof(FileReference))
 			{
