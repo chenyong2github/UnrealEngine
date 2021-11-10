@@ -399,7 +399,7 @@ void UMassAvoidanceProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
@@ -504,6 +504,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 		const TConstArrayView<FMassVelocityFragment> VelocityList = Ctx.GetFragmentView<FMassVelocityFragment>();
 		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Ctx.GetFragmentView<FDataFragment_AgentRadius>();
 		const TConstArrayView<FMassSimulationLODFragment> SimLODList = Ctx.GetFragmentView<FMassSimulationLODFragment>();
+		const bool bHasLOD = (SimLODList.Num() > 0);
 		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Ctx.GetFragmentView<FMassMoveTargetFragment>();
 		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Ctx.GetFragmentView<FMassMovementConfigFragment>();
 
@@ -578,7 +579,6 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 			const FDataFragment_Transform& Location = LocationList[EntityIndex];
 			const FMassVelocityFragment& Velocity = VelocityList[EntityIndex];
 			const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
-			const FMassSimulationLODFragment& SimLOD = SimLODList[EntityIndex];
 
 			// Smaller steering max accel makes the steering more "calm" but less opportunistic, may not find solution, or gets stuck.
 			// Max contact accel should be quite a big bigger than steering so that collision response is firm. 
@@ -607,7 +607,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 				const FString Text = FString::Printf(TEXT("%i"), Entity.Index);
 				DebugDrawCylinder(BaseDebugContext, AgentLocation, AgentLocation + DebugAgentHeightOffset, AgentRadius+1.f, CurrentAgentColor, Text);
 
-				const FColor AgentColor = (SimLOD.LOD == EMassLOD::High) ? CurrentAgentColor : FColor::Red;
+				const FColor AgentColor = (!bHasLOD || SimLODList[EntityIndex].LOD == EMassLOD::High) ? CurrentAgentColor : FColor::Red;
 				DebugDrawSphere(BaseDebugContext, AgentLocation, 10.f, AgentColor);
 
 				// Draw current velocity (black)
@@ -1611,7 +1611,6 @@ UMassLaneBoundaryProcessor::UMassLaneBoundaryProcessor()
 void UMassLaneBoundaryProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);							// need agent position to get closest point on lane
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);						// LOD level
 	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadWrite);					// output edges
 	EntityQuery.AddRequirement<FMassLastUpdatePositionFragment>(EMassFragmentAccess::ReadWrite);					// to keep position when boundaries where last updated
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);				// current lane location
@@ -1891,7 +1890,6 @@ void UMassLaneCacheBoundaryProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassZoneGraphCachedLaneFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassLaneCacheBoundaryFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadWrite);	// output edges
 	EntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
