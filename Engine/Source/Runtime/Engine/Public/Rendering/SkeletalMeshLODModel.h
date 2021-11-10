@@ -312,6 +312,23 @@ struct FSkelMeshSourceSectionUserData
 };
 
 /**
+ * The information for a given mesh as it was imported and appears in the dcc.
+ * This gives us some extra information about the mesh as it appeared inside the source asset.
+ * There can be multiple of those per skeletal mesh. The skeletal mesh is some merged big mesh separated in sections.
+ * However sometimes we want to know some information about the actual individual meshes as they appeared in the dcc.
+ * This class provides some of that information.
+ */
+struct FSkelMeshImportedMeshInfo
+{
+	FName Name;	// The name of the mesh.
+	int32 NumVertices;	// The number of imported (dcc) vertices that are part of this mesh. This is a value of 8 for a cube. So NOT the number of render vertices.
+	int32 StartImportedVertex;	// The first index of imported (dcc) vertices in the mesh. So this NOT an index into the render vertex buffer. In range of 0..7 for a cube.
+
+	// Serialization.
+	friend FArchive& operator<<(FArchive& Ar, FSkelMeshImportedMeshInfo& MeshInfo);
+};
+
+/**
 * All data to define a certain LOD model for a skeletal mesh.
 */
 class FSkeletalMeshLODModel
@@ -319,6 +336,9 @@ class FSkeletalMeshLODModel
 public:
 	/** Sections. */
 	TArray<FSkelMeshSection> Sections;
+
+	/** The information about individual meshes. This can be empty if we did choose not to store this information. */
+	TArray<FSkelMeshImportedMeshInfo> ImportedMeshInfos;
 
 	/*
 	 * When user change section data in the UI, we store it here to be able to regenerate the changes
@@ -400,6 +420,9 @@ public:
 		*this = FSkeletalMeshLODModel();
 		BulkDataReadMutex = BackupBulkDataReadMutex;
 	}
+
+	/** Find a mesh info by a mesh name. Returns INDEX_NONE when not found. */
+	int32 FindMeshInfoIndex(FName Name) const;
 
 private:
 	//Mutex use by the CopyStructure function. It's a pointer because FCriticalSection privatize the operator= function, which will prevent this class operator= to use the default.

@@ -183,6 +183,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Remove the inline reduction bulkdata and replace it by a simple vertex and triangle count cache
 		ConvertReductionBaseSkeletalMeshBulkDataToInlineReductionCacheData,
+
+		// Added some new MeshInfo to the FSkeletalMeshLODModel class.
+		SkeletalMeshLODModelMeshInfo,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

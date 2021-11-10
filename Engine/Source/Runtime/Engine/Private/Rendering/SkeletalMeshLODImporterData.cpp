@@ -161,6 +161,7 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	ImportData->MorphTargetNames.Reset();
 	ImportData->MorphTargets.Reset();
 	ImportData->MorphTargetModifiedPoints.Reset();
+	ImportData->MeshInfos.Reset();
 
 	//Material is a special case since we cannot serialize the UMaterialInstance when saving the RawSkeletalMeshBulkData
 	//So it has to be reconstructed.
@@ -184,6 +185,7 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	ImportData->MorphTargetNames += OriginalSkeletalMeshImportData.MorphTargetNames;
 	ImportData->MorphTargets += OriginalSkeletalMeshImportData.MorphTargets;
 	ImportData->MorphTargetModifiedPoints += OriginalSkeletalMeshImportData.MorphTargetModifiedPoints;
+	ImportData->MeshInfos += OriginalSkeletalMeshImportData.MeshInfos;
 
 	return ImportData->ApplyRigToGeo(NewGeometryAndRigData);
 }

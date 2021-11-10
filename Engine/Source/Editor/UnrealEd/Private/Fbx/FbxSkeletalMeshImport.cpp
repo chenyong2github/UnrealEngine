@@ -1422,9 +1422,24 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportPoints(FSkeletalMeshImportData* 
 {
 	FbxMesh* FbxMesh = Node->GetMesh();
 
+	// Extract the name.
+	FString MeshName = MakeName(FbxMesh->GetName());
+	if (MeshName.IsEmpty())
+	{
+		MeshName = MakeName(Node->GetName());
+	}
+
+	// Add the mesh info
+	OutData->MeshInfos.AddDefaulted();
+	SkeletalMeshImportData::FMeshInfo& MeshInfo = OutData->MeshInfos.Last();
+	MeshInfo.Name = *MeshName;
+
 	const int32 ControlPointsCount = FbxMesh->GetControlPointsCount();
 	const int32 ExistPointNum = OutData->Points.Num();
 	OutData->Points.AddUninitialized(ControlPointsCount);
+	
+	MeshInfo.StartImportedVertex = ExistPointNum;
+	MeshInfo.NumVertices = ControlPointsCount;
 
 	// Construct the matrices for the conversion from right handed to left handed system
 	FbxAMatrix TotalMatrix = ComputeSkeletalMeshTotalMatrix(Node, RootNode);
@@ -1858,6 +1873,18 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 	// Pass the number of texture coordinate sets to the LODModel.  Ensure there is at least one UV coord
 	LODModel.NumTexCoords = FMath::Max<uint32>(1, SkelMeshImportDataPtr->NumTexCoords);
+
+	// Copy mesh infos into the LOD model.
+	LODModel.ImportedMeshInfos.Empty();
+	LODModel.ImportedMeshInfos.Reserve(SkelMeshImportDataPtr->MeshInfos.Num());
+	for (const SkeletalMeshImportData::FMeshInfo& MeshInfo : SkelMeshImportDataPtr->MeshInfos)
+	{
+		LODModel.ImportedMeshInfos.AddDefaulted();
+		FSkelMeshImportedMeshInfo& LODMeshInfo = LODModel.ImportedMeshInfos.Last();
+		LODMeshInfo.Name = MeshInfo.Name;
+		LODMeshInfo.NumVertices = MeshInfo.NumVertices;
+		LODMeshInfo.StartImportedVertex = MeshInfo.StartImportedVertex;
+	}
 
 	if(ImportSkeletalMeshArgs.bCreateRenderData )
 	{
