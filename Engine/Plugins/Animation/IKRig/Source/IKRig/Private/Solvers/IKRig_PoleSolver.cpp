@@ -175,6 +175,12 @@ bool UIKRig_PoleSolver::GetWarningMessage(FText& OutWarningMessage) const
 		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
 		return true;
 	}
+	
+	if (Chain.Num() < 3)
+	{
+		OutWarningMessage = LOCTEXT("Requires3BonesChain", "Requires at least 3 bones between root and end bones.");
+		return true;
+	}
 
 	return false;
 }

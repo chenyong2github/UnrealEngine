@@ -23,6 +23,9 @@ void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit,
 	if (!AssetController->OnIKRigNeedsInitialized().IsBoundToObject(this))
 	{
 		AssetController->OnIKRigNeedsInitialized().AddSP(this, &FIKRigEditorController::OnIKRigNeedsInitialized);
+
+		// Initialize editor's instances at first initialization
+		InitializeSolvers();
 	}
 }
 
@@ -34,6 +37,9 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 	}
 
 	AnimInstance->SetProcessorNeedsInitialized();
+
+	// Initialize editor's instances on request
+	InitializeSolvers();
 }
 
 void FIKRigEditorController::Reset() const
@@ -341,6 +347,19 @@ void FIKRigEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 	if (AssetToPlay && AnimInstance)
 	{
 		AnimInstance->SetAnimationAsset(AssetToPlay);
+	}
+}
+
+void FIKRigEditorController::InitializeSolvers() const
+{
+	if (AssetController)
+	{
+		const FIKRigSkeleton& IKRigSkeleton = AssetController->GetIKRigSkeleton();
+		const TArray<UIKRigSolver*>& Solvers = AssetController->GetSolverArray(); 
+		for (UIKRigSolver* Solver: Solvers)
+		{
+			Solver->Initialize(IKRigSkeleton);
+		}
 	}
 }
 

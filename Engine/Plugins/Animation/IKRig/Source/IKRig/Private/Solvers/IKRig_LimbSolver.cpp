@@ -165,17 +165,19 @@ bool UIKRig_LimbSolver::GetWarningMessage(FText& OutWarningMessage) const
 		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root.");
 		return true;
 	}
+
+	if (Solver.NumLinks() < 3)
+	{
+		OutWarningMessage = LOCTEXT("Requires3BonesChain", "Requires at least 3 bones between root and goal.");
+		return true;
+	}
 	
 	return false;
 }
 
 bool UIKRig_LimbSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
 {
-	if (Effector->BoneName != NAME_None)
-	{
-		return IKRigSkeleton.IsBoneInDirectLineage(Effector->BoneName, RootName);
-	}
-	return false;
+	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, RootName);
 }
 
 void UIKRig_LimbSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
