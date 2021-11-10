@@ -110,7 +110,8 @@ public:
 class GEOMETRYCACHE_API FGeomCacheIndexBuffer : public FIndexBuffer
 {
 public:
-	int32 NumIndices;
+	int32 NumAllocatedIndices = 0; // Total allocated GPU index buffer size in elements
+	int32 NumValidIndices = 0; // Current valid data region of the index buffer (may be smaller than allocated buffer)
 
 	/* Create on rhi thread. Uninitialized with NumIndices space.*/
 	virtual void InitRHI() override;
@@ -124,7 +125,7 @@ public:
 
 	void UpdateSizeOnly(int32 NewNumIndices);
 
-	unsigned SizeInBytes() { return NumIndices * sizeof(uint32); }
+	unsigned SizeInBytes() { return NumAllocatedIndices * sizeof(uint32); }
 
 	FRHIShaderResourceView* GetBufferSRV() const { return BufferSRV; }
 
