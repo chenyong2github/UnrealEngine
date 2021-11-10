@@ -248,4 +248,10 @@ FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
 	return Ar;
 }
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
+extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
+extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
+#endif
+
 }
