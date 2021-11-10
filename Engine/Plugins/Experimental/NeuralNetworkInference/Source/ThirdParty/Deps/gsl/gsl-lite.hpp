@@ -947,13 +947,14 @@
 # define gsl_NORETURN
 #endif
 
-#if gsl_HAVE( DEPRECATED ) && ! defined( gsl_TESTING_ )
-# define gsl_DEPRECATED             [[deprecated]]
-# define gsl_DEPRECATED_MSG( msg )  [[deprecated( msg )]]
-#else
+// WITH_UE: Disabled deprecation warnings
+// #if gsl_HAVE( DEPRECATED ) && ! defined( gsl_TESTING_ )
+// # define gsl_DEPRECATED             [[deprecated]]
+// # define gsl_DEPRECATED_MSG( msg )  [[deprecated( msg )]]
+// #else
 # define gsl_DEPRECATED
 # define gsl_DEPRECATED_MSG( msg )
-#endif
+// #endif
 
 #if gsl_HAVE( C99_PREPROCESSOR )
 # if gsl_CPP20_OR_GREATER
