@@ -235,6 +235,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, MaxNormalBias)
 	SHADER_PARAMETER(float, FilterWidth)
 	SHADER_PARAMETER(float, AbsorptionScale)
+	SHADER_PARAMETER(float, CameraFocusDistance)
+	SHADER_PARAMETER(float, CameraLensRadius)
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -268,6 +270,8 @@ struct FPathTracingConfig
 			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
 			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
 			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
+			PathTracingData.CameraFocusDistance != Other.PathTracingData.CameraFocusDistance ||
+			PathTracingData.CameraLensRadius != Other.PathTracingData.CameraLensRadius ||
 			ViewRect != Other.ViewRect ||
 			LightShowFlags != Other.LightShowFlags ||
 			LightGridResolution != Other.LightGridResolution ||
@@ -348,6 +352,17 @@ static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 	PathTracingData.FilterWidth = FilterWidth;
 	PathTracingData.AbsorptionScale = CVarPathTracingAbsorptionScale.GetValueOnRenderThread();
+	PathTracingData.CameraFocusDistance = 0;
+	PathTracingData.CameraLensRadius = 0;
+	if (View.Family->EngineShowFlags.DepthOfField &&
+		View.FinalPostProcessSettings.PathTracingEnableReferenceDOF &&
+		View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0 &&
+		View.FinalPostProcessSettings.DepthOfFieldFstop > 0)
+	{
+		const float FocalLengthInCM = 0.05f * View.FinalPostProcessSettings.DepthOfFieldSensorWidth * View.ViewMatrices.GetProjectionMatrix().M[0][0];
+		PathTracingData.CameraFocusDistance = View.FinalPostProcessSettings.DepthOfFieldFocalDistance;
+		PathTracingData.CameraLensRadius = 0.5f * FocalLengthInCM / View.FinalPostProcessSettings.DepthOfFieldFstop;
+	}
 }
 
 static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)
