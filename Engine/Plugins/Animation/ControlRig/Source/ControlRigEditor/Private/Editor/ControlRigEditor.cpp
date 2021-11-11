@@ -95,6 +95,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/WatchedPin.h"
 #include "ToolMenus.h"
+#include "Editor/EditorStyle/Private/SlateEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -604,6 +605,11 @@ void FControlRigEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
 
 	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().ShowCurrentStatement,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleShowCurrentStatement),
+		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
+
+	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().StepOver,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepOver),
 		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
@@ -789,19 +795,25 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
 			true);
 
-
+		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateLeftPlay"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ResumeExecution,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ResumeExecution"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.ResumePlaySession"));
 
+		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateLeft"));
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ShowCurrentStatement,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.ShowCurrentStatement"));
+
+		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateCenter"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOver,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepOver"));
-
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepOver"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepInto,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepInto"));
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepInto"));
 
+		ToolbarBuilder.BeginStyleOverride(FName("Toolbar.BackplateRight"));
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOut,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepOut"));
-		
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FSlateEditorStyle::Get().GetStyleSetName(), "PlayWorld.StepOut"));
+
+		ToolbarBuilder.EndStyleOverride();
 
 	}
 	ToolbarBuilder.EndSection();
@@ -6080,6 +6092,23 @@ bool FControlRigEditor::OnActionMatchesName(FEdGraphSchemaAction* InAction, cons
 		return true;
 	}
 	return false;
+}
+
+void FControlRigEditor::HandleShowCurrentStatement()
+{
+	if(HaltedAtNode)
+	{
+		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+		{
+			if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(HaltedAtNode->GetGraph())))
+			{
+				if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(HaltedAtNode->GetFName()))
+				{
+					JumpToHyperlink(EdNode, false);
+				}
+			}
+		}
+	}
 }
 
 void FControlRigEditor::HandleBreakpointActionRequested(const ERigVMBreakpointAction BreakpointAction)
