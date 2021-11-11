@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/FloorOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FFloorOperator::FFloorOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Floor"), 13, EElementWiseOperator::Floor, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Floor"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Floor), bIsInlinedTensor)
 {
 }
 

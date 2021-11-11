@@ -19,8 +19,7 @@ public class ModelProto : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"NeuralNetworkInferenceCore"
+				"Engine"
 			}
 		);
 	}

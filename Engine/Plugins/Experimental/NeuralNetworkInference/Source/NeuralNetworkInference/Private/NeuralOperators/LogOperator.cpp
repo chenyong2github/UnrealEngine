@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/LogOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FLogOperator::FLogOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Log"), 13, EElementWiseOperator::Log, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Log"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Log), bIsInlinedTensor)
 {
 }
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/AsinOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FAsinOperator::FAsinOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Asin"), 7, EElementWiseOperator::Asin, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Asin"), 7, MakeShared<EElementWiseOperator>(EElementWiseOperator::Asin), bIsInlinedTensor)
 {
 }
 

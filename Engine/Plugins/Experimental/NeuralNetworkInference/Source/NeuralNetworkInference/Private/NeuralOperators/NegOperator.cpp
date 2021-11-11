@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/NegOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FNegOperator::FNegOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Neg"), 13, EElementWiseOperator::Neg, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Neg"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Neg), bIsInlinedTensor)
 {
 }
 

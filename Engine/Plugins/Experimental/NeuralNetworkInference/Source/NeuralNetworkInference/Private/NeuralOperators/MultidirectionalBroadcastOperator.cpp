@@ -4,9 +4,9 @@
 #include "NeuralNetworkInferenceShaders/MultidirectionalBroadcastCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
+#include "NeuralOperatorEnumClasses.h"
 #include "RHI.h"
 #include "Shader.h" // TShaderRef
-
 
 
 
@@ -173,10 +173,10 @@ EMultidirectionalBroadcastShapeMode FPrivateMultidirectionalBroadcastOperator::G
  *****************************************************************************/
 
 IMultidirectionalBroadcastOperator::IMultidirectionalBroadcastOperator(const FString& InName, const int32 InVersion,
-	const EMultidirectionalBroadcastOperator InMultidirectionalBroadcastOperator, const TSet<uint32>& InPotentialInlinedTensors)
+	const TSharedPtr<EMultidirectionalBroadcastOperator>& InMultidirectionalBroadcastOperator, const TSet<uint32>& InPotentialInlinedTensors)
 	: FNeuralOperator(InName, InVersion, InPotentialInlinedTensors)
 	, MultidirectionalBroadcastOperator(InMultidirectionalBroadcastOperator)
-	, MultidirectionalBroadcastShapeMode(EMultidirectionalBroadcastShapeMode::MAX)
+	, MultidirectionalBroadcastShapeMode(MakeShared<EMultidirectionalBroadcastShapeMode>(EMultidirectionalBroadcastShapeMode::MAX))
 {
 }
 
@@ -245,9 +245,9 @@ void IMultidirectionalBroadcastOperator::ToGPU_RenderThread()
 	}
 	// Set MultidirectionalBroadcastShapeMode
 	const TArray<FNeuralTensor*>& InputTensors = GetInputTensorsConst();
-	MultidirectionalBroadcastShapeMode = FPrivateMultidirectionalBroadcastOperator::GetMultidirectionalBroadcastShapeMode(*InputTensors[0], *InputTensors[1]);
+	*MultidirectionalBroadcastShapeMode = FPrivateMultidirectionalBroadcastOperator::GetMultidirectionalBroadcastShapeMode(*InputTensors[0], *InputTensors[1]);
 	// Memory to GPU
-	if (MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
+	if (*MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
 	{
 		ShapesX.CreateAndLoadSRVBuffer(TEXT("MultidirectionalBroadcast_ShapesX"));
 		ShapesY.CreateAndLoadSRVBuffer(TEXT("MultidirectionalBroadcast_ShapesY"));
@@ -280,7 +280,7 @@ void IMultidirectionalBroadcastOperator::ForwardGPU_RenderThread(FRDGBuilder* In
 		Parameters->ASRV = X.GetBufferSRVRef();
 		Parameters->BSRV = Y.GetBufferSRVRef();
 		Parameters->OutputUAV = GetOutputTensorNoConst().GetBufferUAVRef();
-		if (MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
+		if (*MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
 		{
 			Parameters->ShapeDimensions = ShapesOutput.Num();
 			Parameters->ShapeOutput = ShapesOutput.GetUInt32SRV();
@@ -298,7 +298,7 @@ void IMultidirectionalBroadcastOperator::ForwardGPU_RenderThread(FRDGBuilder* In
 			MultidirectionalBroadcastInlinedMode = EMultidirectionalBroadcastInlinedMode::A;
 			Parameters->BSRV = Y.GetBufferSRVRef();
 			Parameters->OutputUAV = InputTensorsNotConst[0]->GetBufferUAVRef();
-			if (MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
+			if (*MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
 			{
 				Parameters->ShapeDimensions = ShapesOutput.Num();
 				Parameters->ShapeOutput = ShapesOutput.GetUInt32SRV();
@@ -311,7 +311,7 @@ void IMultidirectionalBroadcastOperator::ForwardGPU_RenderThread(FRDGBuilder* In
 			MultidirectionalBroadcastInlinedMode = EMultidirectionalBroadcastInlinedMode::B;
 			Parameters->ASRV = X.GetBufferSRVRef();
 			Parameters->OutputUAV = InputTensorsNotConst[1]->GetBufferUAVRef();
-			if (MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
+			if (*MultidirectionalBroadcastShapeMode == EMultidirectionalBroadcastShapeMode::MultidirectionalBroadcast)
 			{
 				Parameters->ShapeDimensions = ShapesOutput.Num();
 				Parameters->ShapeOutput = ShapesOutput.GetUInt32SRV();
@@ -328,9 +328,9 @@ void IMultidirectionalBroadcastOperator::ForwardGPU_RenderThread(FRDGBuilder* In
 	}
 	// Set shader
 	FMultidirectionalBroadcastCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FMultidirectionalBroadcastCS::FShaderType>(MultidirectionalBroadcastOperator);
+	PermutationVector.Set<FMultidirectionalBroadcastCS::FShaderType>(*MultidirectionalBroadcastOperator);
 	PermutationVector.Set<FMultidirectionalBroadcastCS::FInlinedMode>(MultidirectionalBroadcastInlinedMode);
-	PermutationVector.Set<FMultidirectionalBroadcastCS::FShapeMode>(MultidirectionalBroadcastShapeMode);
+	PermutationVector.Set<FMultidirectionalBroadcastCS::FShapeMode>(*MultidirectionalBroadcastShapeMode);
 	TShaderMapRef<FMultidirectionalBroadcastCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 	// Run shader
 	const uint32 ThreadGroupCountValueX = FMath::DivideAndRoundUp(Volume, FMultidirectionalBroadcastCS::THREADGROUP_SIZE_X);

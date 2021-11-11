@@ -4,13 +4,14 @@
 #include "NeuralNetworkInferenceShaders/ElementWiseCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
 /* IElementWiseOperator structors
  *****************************************************************************/
 
-IElementWiseOperator::IElementWiseOperator(const FString& InName, const int32 InVersion, const EElementWiseOperator InElementWiseOperator,
+IElementWiseOperator::IElementWiseOperator(const FString& InName, const int32 InVersion, const TSharedPtr<EElementWiseOperator>& InElementWiseOperator,
 	const bool bIsInlinedTensor, const TArray<float>& InAttributes)
 	: FNeuralOperator(InName, InVersion, (bIsInlinedTensor ? 0 : -1))
 	, Attributes(InAttributes)
@@ -84,7 +85,7 @@ void IElementWiseOperator::ForwardGPU_RenderThread(FRDGBuilder* InOutGraphBuilde
 	Parameters->OutputUAV = (InlinedTensor < 0 ? GetOutputTensorNoConst() : GetInputTensorNoConst()).GetBufferUAVRef(); // Not inlined vs. inlined
 	// Set shader
 	FElementWiseCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FElementWiseCS::FShaderType>(ElementWiseOperator);
+	PermutationVector.Set<FElementWiseCS::FShaderType>(*ElementWiseOperator);
 	PermutationVector.Set<FElementWiseCS::FIsInlined>((InlinedTensor > -1));
 	TShaderMapRef<FElementWiseCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 	// Run shader

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/CeilOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FCeilOperator::FCeilOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Ceil"), 13, EElementWiseOperator::Ceil, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Ceil"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Ceil), bIsInlinedTensor)
 {
 }
 

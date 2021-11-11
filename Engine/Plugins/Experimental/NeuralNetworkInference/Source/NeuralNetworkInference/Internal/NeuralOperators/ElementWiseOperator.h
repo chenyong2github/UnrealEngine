@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "NeuralOperator.h"
-#include "NeuralOperatorEnumClasses.h"
 #include "NeuralTensor.h"
+
+enum class EElementWiseOperator : uint8;
 
 class NEURALNETWORKINFERENCE_API IElementWiseOperator : public FNeuralOperator
 {
 public:
-	IElementWiseOperator(const FString& InName, const int32 InVersion, const EElementWiseOperator InElementWiseOperator, const bool bIsInlinedTensor,
+	IElementWiseOperator(const FString& InName, const int32 InVersion, const TSharedPtr<EElementWiseOperator>& InElementWiseOperator, const bool bIsInlinedTensor,
 		const TArray<float>& InAttributes = TArray<float>());
 
 	virtual ~IElementWiseOperator();
@@ -33,5 +34,5 @@ protected:
 	virtual void ForwardCPUWithFunction(float InOperatorFunction(const float, const float)) final;
 
 private:
-	const EElementWiseOperator ElementWiseOperator;
+	const TSharedPtr<EElementWiseOperator> ElementWiseOperator;
 };

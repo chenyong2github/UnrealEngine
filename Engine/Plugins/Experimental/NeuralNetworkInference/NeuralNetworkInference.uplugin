@@ -22,11 +22,6 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "NeuralNetworkInferenceCore",
-			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "NeuralNetworkInferenceShaders",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "PostConfigInit"

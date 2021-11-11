@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/SigmoidOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FSigmoidOperator::FSigmoidOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Sigmoid"), 13, EElementWiseOperator::Sigmoid, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Sigmoid"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Sigmoid), bIsInlinedTensor)
 {
 }
 
