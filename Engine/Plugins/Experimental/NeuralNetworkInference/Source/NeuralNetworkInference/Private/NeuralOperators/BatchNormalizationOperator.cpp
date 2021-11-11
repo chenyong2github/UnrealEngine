@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/BatchNormalizationOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceShaders/BatchNormalizationCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
@@ -37,14 +38,20 @@ void FPrivateBatchNormalizationOperator::ChannelBatchNormalization(FNeuralTensor
 /* FBatchNormalizationOperator structors
  *****************************************************************************/
 
-FBatchNormalizationOperator::FBatchNormalizationOperator(const bool bIsInlinedTensor, const FNodeProto& InNodeProto)
+FBatchNormalizationOperator::FBatchNormalizationOperator(const bool bIsInlinedTensor, const FNodeProto* const InNodeProto)
 	: FBatchNormalizationOperator(bIsInlinedTensor)
 {
-	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("Epsilon"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FBatchNormalizationOperator(): InNodeProto was a nullptr."));
+		return;
+	}
+	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("Epsilon"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Epsilon = EpsilonAttribute->F;
 	}
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Momentum"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Momentum"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Momentum = MomentumAttribute->F;
 	}

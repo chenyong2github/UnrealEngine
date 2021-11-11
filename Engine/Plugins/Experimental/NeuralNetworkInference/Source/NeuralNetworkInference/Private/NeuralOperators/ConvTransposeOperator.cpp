@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ConvTransposeOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceShaders/ConvTransposeCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
@@ -13,15 +14,21 @@
 class FPrivateConvTransposeOperator
 {
 public:
-	static FConvTransposeOperator NodeProtoToConvTransposeOperator(const FNodeProto& InNodeProto);
+	static FConvTransposeOperator NodeProtoToConvTransposeOperator(const FNodeProto* const InNodeProto);
 
 	static bool ZerosFromConvStrides(FNeuralInt64ArrayUInt32Buffer& OutZeros, const FNeuralInt64ArrayUInt32Buffer& InStrides, const int32 InNumberConvolutionalDimensions);
 };
 
-FConvTransposeOperator FPrivateConvTransposeOperator::NodeProtoToConvTransposeOperator(const FNodeProto& InNodeProto)
+FConvTransposeOperator FPrivateConvTransposeOperator::NodeProtoToConvTransposeOperator(const FNodeProto* const InNodeProto)
 {
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConvTransposeOperator(): InNodeProto was a nullptr."));
+		return FConvTransposeOperator(FConvBaseOperator::EAutoPad::NotSet, {}, -1, {}, {}, {}, {}, {});
+	}
 	FConvBaseOperator::EAutoPad AutoPad = FConvBaseOperator::EAutoPad::NotSet;
-	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("AutoPad"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("AutoPad"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		if (EpsilonAttribute->S == TEXT("NOTSET"))
 		{
@@ -45,12 +52,12 @@ FConvTransposeOperator FPrivateConvTransposeOperator::NodeProtoToConvTransposeOp
 		}
 	}
 	TArray<int64> Dilations;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Dilations"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Dilations"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Dilations = MomentumAttribute->Integers;
 	}
 	int64 Group;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Group"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Group"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Group = MomentumAttribute->I;
 	}
@@ -59,32 +66,32 @@ FConvTransposeOperator FPrivateConvTransposeOperator::NodeProtoToConvTransposeOp
 		Group = 1;
 	}
 	TArray<int64> KernelShape;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("KernelShape"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("KernelShape"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		KernelShape = MomentumAttribute->Integers;
 	}
 	TArray<int64> Pads;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Pads"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Pads"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Pads = MomentumAttribute->Integers;
 	}
 	TArray<int64> Strides;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Strides"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Strides"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Strides = MomentumAttribute->Integers;
 	}
 	TArray<int64> Zeros;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Zeros"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Zeros"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Zeros = MomentumAttribute->Integers;
 	}
 	TArray<int64> OutputPadding;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("OutputPadding"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("OutputPadding"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		OutputPadding = MomentumAttribute->Integers;
 	}
 	TArray<int64> OutputShape;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("OutputShape"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("OutputShape"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		OutputShape = MomentumAttribute->Integers;
 	}
@@ -117,7 +124,7 @@ bool FPrivateConvTransposeOperator::ZerosFromConvStrides(FNeuralInt64ArrayUInt32
 /* FConvTransposeOperator structors
  *****************************************************************************/
 
-FConvTransposeOperator::FConvTransposeOperator(const FNodeProto& InNodeProto)
+FConvTransposeOperator::FConvTransposeOperator(const FNodeProto* const InNodeProto)
 	: FConvTransposeOperator(FPrivateConvTransposeOperator::NodeProtoToConvTransposeOperator(InNodeProto))
 {
 }

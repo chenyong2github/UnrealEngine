@@ -227,7 +227,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				InOutTensors.Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), OutputTensorName, ENeuralTensorTypeGPU::Weight));
 
 				// Create constant operator layer and get final tensor value
-				FConstantOperator ConstantOperator(NodeProto);
+				FConstantOperator ConstantOperator(&NodeProto);
 				ConstantOperator.SetOutputTensors({&InOutTensors.Last()});
 				// Sanity check
 				if (!ConstantOperator.ConfigureOutputAndInternalVariablesAndSanityChecks())
@@ -539,14 +539,14 @@ TSet<uint32> FGraphProtoToNeuralNetworkConverter::GetPotentiallyInlinedTensors(c
 	if (InNodeProto.OperatorType == TEXT(#OperatorTypeSuffix)) /* Eg TEXT("BatchNormalization") */ \
 	{ \
 		const bool bCanTensorBeInlined = CanTensorBeInlined(InInputTensorNamesForOperator[0], InInputNameDummyIndexMap, InOutputNameDummyIndexMap, InNodeProto, InGraphProto, bCanOutputPropertiesChangeWithPostForward); \
-		Operator = MakeShared<F##OperatorTypeSuffix##Operator>(bCanTensorBeInlined, InNodeProto); /* Eg FBatchNormalizationOperator */ \
+		Operator = MakeShared<F##OperatorTypeSuffix##Operator>(bCanTensorBeInlined, &InNodeProto); /* Eg FBatchNormalizationOperator */ \
 	}
 
 // Eg Conv(Transpose) and Gemm
 #define IF_MATCHED_OPERATOR_WITH_PROTO_INITIALIZATION(OperatorTypeSuffix) \
 	if (InNodeProto.OperatorType == TEXT(#OperatorTypeSuffix)) /* Eg TEXT("Conv") */ \
 	{ \
-		Operator = MakeShared<F##OperatorTypeSuffix##Operator>(InNodeProto); /* Eg FConvOperator */ \
+		Operator = MakeShared<F##OperatorTypeSuffix##Operator>(&InNodeProto); /* Eg FConvOperator */ \
 	}
 
 #define IF_MATCHED_MULTIDIRECTIONAL_BROADCASTING_OPERATOR_INITIALIZATION(OperatorTypeSuffix) \
@@ -572,7 +572,7 @@ TSharedPtr<FNeuralOperator> FGraphProtoToNeuralNetworkConverter::CreateOperator(
 	if (InNodeProto.OperatorType == TEXT("ConvTranspose"))
 	{
 		TSharedPtr<FConvTransposeOperator> ConvTransposeOperator;
-		ConvTransposeOperator = MakeShared<FConvTransposeOperator>(InNodeProto);
+		ConvTransposeOperator = MakeShared<FConvTransposeOperator>(&InNodeProto);
 		ConvTransposeOperator->SetWhetherWeightTensorWasFlipped(true);
 		Operator = MoveTemp(ConvTransposeOperator);
 	}

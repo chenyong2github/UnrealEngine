@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ConvOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 
@@ -12,13 +13,19 @@
 class FPrivateConvOperator
 {
 public:
-	static FConvOperator NodeProtoToConvOperator(const FNodeProto& InNodeProto);
+	static FConvOperator NodeProtoToConvOperator(const FNodeProto* const InNodeProto);
 };
 
-FConvOperator FPrivateConvOperator::NodeProtoToConvOperator(const FNodeProto& InNodeProto)
+FConvOperator FPrivateConvOperator::NodeProtoToConvOperator(const FNodeProto* const InNodeProto)
 {
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConvOperator(): InNodeProto was a nullptr."));
+		return FConvOperator(FConvBaseOperator::EAutoPad::NotSet, {}, -1, {}, {}, {});
+	}
 	FConvBaseOperator::EAutoPad AutoPad = FConvBaseOperator::EAutoPad::NotSet;
-	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("AutoPad"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* EpsilonAttribute = FModelProto::FindElementInArray(TEXT("AutoPad"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		if (EpsilonAttribute->S == TEXT("NOTSET"))
 		{
@@ -42,12 +49,12 @@ FConvOperator FPrivateConvOperator::NodeProtoToConvOperator(const FNodeProto& In
 		}
 	}
 	TArray<int64> Dilations;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Dilations"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Dilations"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Dilations = MomentumAttribute->Integers;
 	}
 	int64 Group;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Group"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Group"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Group = MomentumAttribute->I;
 	}
@@ -56,17 +63,17 @@ FConvOperator FPrivateConvOperator::NodeProtoToConvOperator(const FNodeProto& In
 		Group = 1;
 	}
 	TArray<int64> KernelShape;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("KernelShape"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("KernelShape"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		KernelShape = MomentumAttribute->Integers;
 	}
 	TArray<int64> Pads;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Pads"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Pads"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Pads = MomentumAttribute->Integers;
 	}
 	TArray<int64> Strides;
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Strides"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("Strides"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Strides = MomentumAttribute->Integers;
 	}
@@ -78,7 +85,7 @@ FConvOperator FPrivateConvOperator::NodeProtoToConvOperator(const FNodeProto& In
 /* FConvOperator structors
  *****************************************************************************/
 
-FConvOperator::FConvOperator(const FNodeProto& InNodeProto)
+FConvOperator::FConvOperator(const FNodeProto* const InNodeProto)
 	: FConvOperator(FPrivateConvOperator::NodeProtoToConvOperator(InNodeProto))
 {
 }

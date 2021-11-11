@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ConstantOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceUtils.h"
 
 
@@ -8,15 +9,21 @@
 /* FConstantOperator structors
  *****************************************************************************/
 
-FConstantOperator::FConstantOperator(const FNodeProto& InNodeProto)
+FConstantOperator::FConstantOperator(const FNodeProto* const InNodeProto)
 	: FConstantOperator(FNeuralTensor())
 {
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator(): InNodeProto was a nullptr."));
+		return;
+	}
 	// Fill tensor from one of the attributes
-	if (const FAttributeProto* SparseValueAttribute = FModelProto::FindElementInArray(TEXT("sparse_value"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* SparseValueAttribute = FModelProto::FindElementInArray(TEXT("sparse_value"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"sparse_value\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueAttribute = FModelProto::FindElementInArray(TEXT("value"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueAttribute = FModelProto::FindElementInArray(TEXT("value"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		if (ValueAttribute->Type == EAttributeProtoAttributeType::TENSOR)
 		{
@@ -32,27 +39,27 @@ FConstantOperator::FConstantOperator(const FNodeProto& InNodeProto)
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): Not implemented type used, ValueAttribute->Type = %d."), (int32)ValueAttribute->Type);
 		}
 	}
-	else if (const FAttributeProto* ValueFloatAttribute = FModelProto::FindElementInArray(TEXT("value_float"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueFloatAttribute = FModelProto::FindElementInArray(TEXT("value_float"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueFloatsAttribute = FModelProto::FindElementInArray(TEXT("value_floats"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueFloatsAttribute = FModelProto::FindElementInArray(TEXT("value_floats"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value_floats\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueIntAttribute = FModelProto::FindElementInArray(TEXT("value_int"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueIntAttribute = FModelProto::FindElementInArray(TEXT("value_int"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value_int\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueIntsAttribute = FModelProto::FindElementInArray(TEXT("value_ints"), InNodeProto.Attribute,/*bMustValueBeFound*/ false))
+	else if (const FAttributeProto* ValueIntsAttribute = FModelProto::FindElementInArray(TEXT("value_ints"), InNodeProto->Attribute,/*bMustValueBeFound*/ false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value_ints\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueStringAttribute = FModelProto::FindElementInArray(TEXT("value_string"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueStringAttribute = FModelProto::FindElementInArray(TEXT("value_string"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value_string\" not implemented yet."));
 	}
-	else if (const FAttributeProto* ValueStringsAttribute = FModelProto::FindElementInArray(TEXT("value_strings"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	else if (const FAttributeProto* ValueStringsAttribute = FModelProto::FindElementInArray(TEXT("value_strings"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): \"value_strings\" not implemented yet."));
 	}

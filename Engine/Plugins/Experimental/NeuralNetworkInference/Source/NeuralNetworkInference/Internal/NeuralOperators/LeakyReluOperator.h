@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ModelProto.h"
 #include "NeuralOperators/ElementWiseOperator.h"
 
 class NEURALNETWORKINFERENCE_API FLeakyReluOperator : public IElementWiseOperator
 {
 public:
-	FLeakyReluOperator(const bool bIsInlinedTensor, const FNodeProto& InNodeProto);
+	FLeakyReluOperator(const bool bIsInlinedTensor, const struct FNodeProto* const InNodeProto);
 
 	FLeakyReluOperator(const bool bIsInlinedTensor, const float InAlpha = 0.01f);
 

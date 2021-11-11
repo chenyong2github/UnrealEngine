@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ModelProto.h"
 #include "NeuralOperator.h"
 
 
