@@ -120,13 +120,12 @@ protected:
 	void OnTransformChanged(FEditPropertyChain* InPropertyChain);
 };
 
-class FRigBaseElementDetails : public IPropertyTypeCustomization
+class FRigBaseElementDetails : public IDetailCustomization
 {
 public:
 
-	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 	URigHierarchy* GetHierarchy() const { return HierarchyBeingCustomized; }
 	FRigElementKey GetElementKey() const;
@@ -140,14 +139,14 @@ public:
 	TArray<FRigElementKey> GetElementKeys() const;
 
 	template<typename T>
-	TArray<T*> GetElementsInDetailsView() const
+	TArray<T> GetElementsInDetailsView() const
 	{
-		TArray<T*> Elements;
+		TArray<T> Elements;
 		for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 		{
 			if(ObjectBeingCustomized.IsValid())
 			{
-				Elements.Add(Cast<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()));
+				Elements.Add(ObjectBeingCustomized->GetContent<T>());
 			}
 		}
 		return Elements;
@@ -163,7 +162,7 @@ public:
 			{
 				if(ObjectBeingCustomized.IsValid())
 				{
-					Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey()));
+					Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey()));
 				}
 			}
 		}
@@ -174,6 +173,9 @@ public:
 	bool IsAnyElementNotOfType(ERigElementType InType) const;
 	bool IsAnyControlOfType(ERigControlType InType) const;
 	bool IsAnyControlNotOfType(ERigControlType InType) const;
+
+	static void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule);
+	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass);
 
 protected:
 
@@ -186,8 +188,13 @@ class FRigTransformElementDetails : public FRigBaseElementDetails
 {
 public:
 
-	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+	/** FRigBaseElementDetails interface */
+	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass) override;
+
+	virtual void CustomizeTransform(IDetailLayoutBuilder& DetailBuilder);
 
 protected:
 
@@ -204,10 +211,13 @@ class FRigBoneElementDetails : public FRigTransformElementDetails
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigBoneElementDetails);
 	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 };
 
 class FRigControlElementDetails : public FRigTransformElementDetails
@@ -215,13 +225,16 @@ class FRigControlElementDetails : public FRigTransformElementDetails
 public:
 
 	// Makes a new instance of this detail layout class for a specific detail view requesting it
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigControlElementDetails);
 	}
 
-	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+	/** FRigBaseElementDetails interface */
+	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass) override;
 
 	bool IsShapeEnabled() const;
 	bool IsEnabled(ERigControlValueType InValueType) const;
@@ -244,8 +257,11 @@ class FRigNullElementDetails : public FRigTransformElementDetails
 public:
 
 	// Makes a new instance of this detail layout class for a specific detail view requesting it
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigNullElementDetails);
 	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 };

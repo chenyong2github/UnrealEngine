@@ -1179,6 +1179,11 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	TArray<FName> Categories;
 	DetailLayout.GetCategoryNames(Categories);
+
+	if(Categories.IsEmpty())
+	{
+		return;
+	}
 	
 	IDetailCategoryBuilder& DefaultsCategory = DetailLayout.EditCategory(Categories[0]);
 
@@ -1188,7 +1193,6 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		return;
 	}
 
-	TSharedPtr<IPropertyHandle> StoredStructHandle = DetailLayout.GetProperty(TEXT("StoredStruct"));
 	for(URigVMPin* Pin : FirstNode->GetPins())
 	{
 		bool bHasAnyInputLink = false;
@@ -1204,7 +1208,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			}
 		}
 
-		TSharedPtr<IPropertyHandle> PinHandle = StoredStructHandle->GetChildHandle(Pin->GetFName());
+		TSharedPtr<IPropertyHandle> PinHandle = DetailLayout.GetProperty(Pin->GetFName());
 		if(PinHandle.IsValid())
 		{
 			static const TCHAR DisabledFormat[] = TEXT("%s\n\nNote: Editing disabled since pin has an input link.");
@@ -1232,8 +1236,6 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			}
 		}
 	}
-
-	DetailLayout.HideProperty(StoredStructHandle);
 
 	if(Objects.Num() > 1)
 	{
@@ -1433,7 +1435,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 		if(!bAddedProperty)
 		{
-			TSharedPtr<IPropertyHandle> PinHandle = StoredStructHandle->GetChildHandle(Pin->GetFName());
+			TSharedPtr<IPropertyHandle> PinHandle = DetailLayout.GetProperty(Pin->GetFName());
 			if(PinHandle.IsValid())
 			{
 				DebugCategory.AddProperty(PinHandle)

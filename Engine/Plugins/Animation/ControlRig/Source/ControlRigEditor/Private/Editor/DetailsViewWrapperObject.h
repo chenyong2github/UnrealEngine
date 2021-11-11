@@ -18,22 +18,37 @@ public:
 	static UClass* GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded = true);
 	static UDetailsViewWrapperObject* MakeInstance(UScriptStruct* InStruct, uint8* InStructMemory, UObject* InOuter = nullptr);
 	UScriptStruct* GetWrappedStruct() const;
-	FStructProperty* GetStructProperty() const;
 
-	void SetContent(const uint8* InStructMemory, int32 InStructSize);
-	const uint8* GetContent();
-	void GetContent(uint8* OutStructMemory, int32 InStructSize);
-
-	template<typename T>
-	T* GetContent()
+	bool IsChildOf(const UStruct* InStruct) const
 	{
-		return (T*)GetStoredStructPtr();
+		return GetWrappedStruct()->IsChildOf(InStruct);
 	}
 
 	template<typename T>
-	void SetContent(const T* InStructMemory)
+	bool IsChildOf() const
 	{
-		SetContent((const uint8*)InStructMemory, T::StaticStruct()->GetStructureSize());
+		return IsChildOf(T::StaticStruct());
+	}
+
+	void SetContent(const uint8* InStructMemory, const UStruct* InStruct);
+	void GetContent(uint8* OutStructMemory, const UStruct* InStruct) const;
+
+	template<typename T>
+	T GetContent() const
+	{
+		check(IsChildOf<T>());
+		
+		T Result;
+		GetContent((uint8*)&Result, T::StaticStruct());
+		return Result;
+	}
+
+	template<typename T>
+	void SetContent(const T& InValue)
+	{
+		check(IsChildOf<T>());
+
+		SetContent((const uint8*)&InValue, T::StaticStruct());
 	}
 
 	FWrappedPropertyChangedChainEvent& GetWrappedPropertyChangedChainEvent() { return WrappedPropertyChangedChainEvent; }
@@ -41,7 +56,7 @@ public:
 
 private:
 
-	uint8* GetStoredStructPtr();
+	static void CopyPropertiesForUnrelatedStructs(uint8* InTargetMemory, const UStruct* InTargetStruct, const uint8* InSourceMemory, const UStruct* InSourceStruct);
 	
 	static TMap<UScriptStruct*, UClass*> StructToClass;
 	static TMap<UClass*, UScriptStruct*> ClassToStruct;

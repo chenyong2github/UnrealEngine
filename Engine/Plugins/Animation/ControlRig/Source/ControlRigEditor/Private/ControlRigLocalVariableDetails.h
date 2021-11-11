@@ -17,7 +17,7 @@
 
 class IPropertyHandle;
 
-class FRigVMLocalVariableDetails : public IPropertyTypeCustomization
+class FRigVMLocalVariableDetails : public IDetailCustomization
 {
 	FRigVMLocalVariableDetails()
 	: GraphBeingCustomized(nullptr)
@@ -29,15 +29,13 @@ class FRigVMLocalVariableDetails : public IPropertyTypeCustomization
 public:
 
 	// Makes a new instance of this detail layout class for a specific detail view requesting it
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigVMLocalVariableDetails);
 	}
 
-	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
 

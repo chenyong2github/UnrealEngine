@@ -16,37 +16,34 @@
 
 #define LOCTEXT_NAMESPACE "LocalVariableDetails"
 
-void FRigVMLocalVariableDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	ObjectsBeingCustomized.Reset();
-	
-	TArray<UObject*> Objects;
-	InStructPropertyHandle->GetOuterObjects(Objects);
-	for (UObject* Object : Objects)
+
+	TArray<TWeakObjectPtr<UObject>> DetailObjects;
+	DetailBuilder.GetObjectsBeingCustomized(DetailObjects);
+	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
 	{
-		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(Object);
+		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
 		ObjectsBeingCustomized.Add(WrapperObject);
 	}
 
 	if(ObjectsBeingCustomized[0].IsValid())
 	{
-		VariableDescription = *ObjectsBeingCustomized[0]->GetContent<FRigVMGraphVariableDescription>();
+		VariableDescription = ObjectsBeingCustomized[0]->GetContent<FRigVMGraphVariableDescription>();
 		GraphBeingCustomized = ObjectsBeingCustomized[0]->GetTypedOuter<URigVMGraph>();
 		BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
 
 		NameValidator = FControlRigLocalVariableNameValidator(BlueprintBeingCustomized, GraphBeingCustomized, VariableDescription.Name);
 	}
-}
 
-void FRigVMLocalVariableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	StructBuilder.GetParentCategory().GetParentLayout().HideCategory("RigVMGraphVariableDescription");
-	IDetailCategoryBuilder& Category = StructBuilder.GetParentCategory().GetParentLayout().EditCategory("Local Variable");
+	DetailBuilder.HideCategory(TEXT("RigVMGraphVariableDescription"));
+	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Local Variable"));
 		
-	NameHandle = InStructPropertyHandle->GetChildHandle(TEXT("Name"));
-	TypeHandle = InStructPropertyHandle->GetChildHandle(TEXT("CPPType"));
-	TypeObjectHandle = InStructPropertyHandle->GetChildHandle(TEXT("CPPTypeObject"));
-	DefaultValueHandle = InStructPropertyHandle->GetChildHandle(TEXT("DefaultValue"));
+	NameHandle = DetailBuilder.GetProperty(TEXT("Name"));
+	TypeHandle = DetailBuilder.GetProperty(TEXT("CPPType"));
+	TypeObjectHandle = DetailBuilder.GetProperty(TEXT("CPPTypeObject"));
+	DefaultValueHandle = DetailBuilder.GetProperty(TEXT("DefaultValue"));
 	
 	const UEdGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 
@@ -103,7 +100,7 @@ void FRigVMLocalVariableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 			FProperty* Property = LiteralMemory->FindPropertyByName(*SourcePath);
 			if (Property)
 			{
-				IDetailCategoryBuilder& DefaultValueCategory = StructBuilder.GetParentCategory().GetParentLayout().EditCategory(TEXT("DefaultValueCategory"), LOCTEXT("DefaultValueCategoryHeading", "Default Value"));
+				IDetailCategoryBuilder& DefaultValueCategory = DetailBuilder.EditCategory(TEXT("DefaultValueCategory"), LOCTEXT("DefaultValueCategoryHeading", "Default Value"));
 				Property->ClearPropertyFlags(CPF_EditConst);
 			
 				const FName SanitizedName = FRigVMPropertyDescription::SanitizeName(*SourcePath);

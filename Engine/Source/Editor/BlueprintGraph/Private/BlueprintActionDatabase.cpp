@@ -1396,10 +1396,11 @@ void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 	check(Class != nullptr);
 
 	bool const bOutOfDateClass   = Class->HasAnyClassFlags(CLASS_NewerVersionExists);
+	bool const bHiddenClass		 = Class->HasAnyClassFlags(CLASS_Hidden);
 	bool const bIsBlueprintClass = (Cast<UBlueprintGeneratedClass>(Class) != nullptr);
 	bool const bIsLevelScript	 = Class->ClassGeneratedBy && Cast<UBlueprint>(Class->ClassGeneratedBy)->BlueprintType == EBlueprintType::BPTYPE_LevelScript;
 
-	if (bOutOfDateClass || bIsLevelScript)
+	if (bOutOfDateClass || bIsLevelScript || bHiddenClass)
 	{
 		ActionRegistry.Remove(Class);
 		return;
