@@ -2237,6 +2237,13 @@ private:
 		FMaterialCompilationOutput& OutCompilationOutput,
 		TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
 
+	bool Translate(const FMaterialShaderMapId& InShaderMapId,
+		const FStaticParameterSet& InStaticParameters,
+		EShaderPlatform InPlatform,
+		const ITargetPlatform* InTargetPlatform,
+		FMaterialCompilationOutput& OutCompilationOutput,
+		TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+
 	/** Populates OutEnvironment with defines needed to compile shaders for this material. */
 	void SetupMaterialEnvironment(
 		EShaderPlatform Platform,
