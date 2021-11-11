@@ -173,4 +173,7 @@ protected:
 	/** Associates the CurveEditor Ids with the FName Ids from the Curve Table */
 	TMap< FCurveEditorTreeItemID, FName > RowIDMap;
 
+	/** The default interpolation type of the curves within the table */
+	ERichCurveInterpMode InterpMode;
+
 };
