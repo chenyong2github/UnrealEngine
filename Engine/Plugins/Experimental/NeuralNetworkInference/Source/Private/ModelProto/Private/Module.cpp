@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ModelProtoModule.h"
+#include "Module.h"
 
 void FModelProtoModule::StartupModule()
 {

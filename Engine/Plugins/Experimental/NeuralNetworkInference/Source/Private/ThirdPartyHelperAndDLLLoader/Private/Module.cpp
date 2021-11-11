@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ThirdPartyHelperAndDLLLoaderModule.h"
+#include "Module.h"
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/IPluginManager.h"
 

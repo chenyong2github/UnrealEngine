@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ModelProtoFileReaderModule.h"
+#include "Module.h"
 
 void FModelProtoFileReaderModule::StartupModule()
 {
