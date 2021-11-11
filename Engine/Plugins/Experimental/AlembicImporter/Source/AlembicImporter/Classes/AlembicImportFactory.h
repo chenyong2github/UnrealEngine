@@ -17,8 +17,8 @@ class SAlembicTrackSelectionWindow;
 
 class FAbcImporter;
 
-UCLASS(hidecategories=Object)
-class UAlembicImportFactory : public UFactory, public FReimportHandler
+UCLASS(hidecategories = Object)
+class ALEMBICIMPORTER_API UAlembicImportFactory : public UFactory, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 

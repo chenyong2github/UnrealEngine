@@ -728,7 +728,8 @@ void UAssetToolsImpl::GenerateAdvancedCopyDestinations(FAdvancedCopyParams& InPa
 				FString Parent = FString();
 				if (bGenerateRelativePaths)
 				{
-					FString RootFolder = UAdvancedCopyCustomization::StaticClass()->GetDefaultObject<UAdvancedCopyCustomization>()->GetPackageThatInitiatedCopy();
+
+					FString RootFolder = CopyCustomization->GetPackageThatInitiatedCopy();
 					if (RootFolder != PackageNameString)
 					{
 						FString BaseParent = FString();
@@ -3199,7 +3200,8 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 		// We found a folder containing assets
 		if (AssetRegistry.HasAssets(PackageName) && AssetRegistry.GetAssetsByPath(PackageName, PathAssetData))
 		{
-			FARFilter ExclusionFilter = UAdvancedCopyCustomization::StaticClass()->GetDefaultObject<UAdvancedCopyCustomization>()->GetARFilter();
+
+			FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
 			AssetRegistry.UseFilterToExcludeAssets(PathAssetData, ExclusionFilter);
 			for(const FAssetData& Asset : PathAssetData)
 			{
