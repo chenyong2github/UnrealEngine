@@ -59,8 +59,6 @@ class FMaterialHLSLGenerator
 public:
 	FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompilerTarget,
 		UE::HLSLTree::FTree& InOutTree);
-	FMaterialHLSLGenerator(UMaterialFunctionInterface* InTargetMaterialFunction, const FMaterialCompileTargetParameters& InCompilerTarget,
-		UE::HLSLTree::FTree& InOutTree);
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
 
@@ -90,15 +88,11 @@ public:
 	UE::HLSLTree::FExpressionSwizzle* NewSwizzle(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
 	UE::HLSLTree::FExpression* NewCast(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, UE::HLSLTree::FExpression* Input, UE::HLSLTree::ECastFlags Flags = UE::HLSLTree::ECastFlags::None);
 
-	UE::HLSLTree::FExpression* NewFunctionInput(UE::HLSLTree::FScope& Scope, int32 InputIndex, UMaterialExpressionFunctionInput* MaterialFunctionInput);
-
 	/** Returns a declaration to access the given texture, with no parameter */
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(const UE::HLSLTree::FTextureDescription& Value);
 
 	/** Returns a declaration to access the given texture parameter */
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureParameterDeclaration(const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue);
-
-	UE::HLSLTree::FFunctionCall* AcquireFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<UE::HLSLTree::FExpression*> Inputs);
 
 	bool GenerateAssignLocal(UE::HLSLTree::FScope& Scope, const FName& LocalName, UE::HLSLTree::FExpression* Value);
 	UE::HLSLTree::FExpression* AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName);
@@ -111,6 +105,8 @@ public:
 	UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
+
+	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<const FFunctionExpressionInput> Inputs, int32 OutputIndex);
 
 	template<typename T, typename... ArgTypes>
 	T* NewExpressionData(const UMaterialExpression* MaterialExpression, ArgTypes... Args)
@@ -158,22 +154,6 @@ private:
 		}
 	};
 
-	struct FFunctionCallKey
-	{
-		UMaterialFunctionInterface* Function;
-		FSHAHash InputHash;
-
-		friend inline uint32 GetTypeHash(const FFunctionCallKey& Value)
-		{
-			return HashCombine(GetTypeHash(Value.Function), GetTypeHash(Value.InputHash));
-		}
-
-		friend inline bool operator==(const FFunctionCallKey& Lhs, const FFunctionCallKey& Rhs)
-		{
-			return Lhs.Function == Rhs.Function && Lhs.InputHash == Rhs.InputHash;
-		}
-	};
-
 	struct FLocalKey
 	{
 		FLocalKey(UE::HLSLTree::FScope* InScope, const FName& InName) : Scope(InScope), Name(InName) {}
@@ -210,6 +190,12 @@ private:
 		}
 	};
 
+	struct FFunctionCallEntry
+	{
+		UMaterialFunctionInterface* Function = nullptr;
+		TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
+	};
+
 	struct FStatementEntry
 	{
 		UE::HLSLTree::FScope* PreviousScope[MaxNumPreviousScopes];
@@ -223,19 +209,18 @@ private:
 
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
-	UMaterialFunctionInterface* TargetMaterialFunction;
 
 	UE::HLSLTree::FTree* HLSLTree;
 	TArray<FExpressionKey> ExpressionStack;
+	TArray<FFunctionCallEntry*> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
 	TArray<UE::HLSLTree::FExpressionLocalPHI*> PHIExpressions;
 	TArray<FString> CompileErrors;
 	TArray<UMaterialExpression*> ErrorExpressions;
 	TMap<UE::HLSLTree::FTextureDescription, UE::HLSLTree::FTextureParameterDeclaration*> TextureDeclarationMap;
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
-	TMap<FFunctionCallKey, UE::HLSLTree::FFunctionCall*> FunctionCallMap;
+	TMap<FSHAHash, FFunctionCallEntry*> FunctionCallMap;
 	TMap<FLocalKey, UE::HLSLTree::FExpression*> LocalMap;
-	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
 	bool bGeneratedResult;
