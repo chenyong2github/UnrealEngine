@@ -1671,3 +1671,29 @@ public:
 	UPROPERTY()
 	FString NodePath;
 };
+
+/**
+ * An action to promote a function to collapse node or vice versa
+ */
+USTRUCT()
+struct FRigVMPromoteNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMPromoteNodeAction();
+	FRigVMPromoteNodeAction(const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath);
+	virtual ~FRigVMPromoteNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString LibraryNodePath;
+
+	UPROPERTY()
+	FString FunctionDefinitionPath;
+
+	UPROPERTY()
+	bool bFromFunctionToCollapseNode;
+};
