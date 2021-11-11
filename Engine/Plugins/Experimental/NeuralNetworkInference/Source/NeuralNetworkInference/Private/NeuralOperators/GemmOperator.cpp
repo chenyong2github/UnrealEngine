@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/GemmOperator.h"
+#include "GemmCS.h"
 #include "ModelProto.h"
-#include "NeuralNetworkInferenceShaders/GemmCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 

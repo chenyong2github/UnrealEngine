@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/MultidirectionalBroadcastOperator.h"
-#include "NeuralNetworkInferenceShaders/MultidirectionalBroadcastCS.h"
+#include "MultidirectionalBroadcastCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "NeuralOperatorEnumClasses.h"

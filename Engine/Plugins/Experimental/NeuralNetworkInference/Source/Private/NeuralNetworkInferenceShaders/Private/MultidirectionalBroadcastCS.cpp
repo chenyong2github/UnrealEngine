@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceShaders/MultidirectionalBroadcastCS.h"
-#include "NeuralNetworkInferenceShaders/Utils.h"
+#include "MultidirectionalBroadcastCS.h"
+#include "Utils.h"
 
 
 

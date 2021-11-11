@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceShaders/ElementWiseCS.h"
-#include "NeuralNetworkInferenceShaders/Utils.h"
+#include "ElementWiseCS.h"
+#include "Utils.h"
 
 
 
