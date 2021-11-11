@@ -548,29 +548,6 @@ bool UE::HLSLTree::FExpressionReflectionVector::EmitCode(FEmitContext& Context, 
 	return true;
 }
 
-bool UE::HLSLTree::FExpressionFunctionInput::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
-{
-	const FEmitContext::FFunctionStackEntry& StackEntry = Context.FunctionStack.Last();
-
-	check(InputIndex >= 0 && InputIndex < StackEntry.FunctionCall->NumInputs);
-	FExpression* InputExpression = StackEntry.FunctionCall->Inputs[InputIndex];
-	const FEmitValue* Value = Context.AcquireValue(InputExpression);
-	OutResult.ForwardValue(Context, Value);
-	return true;
-}
-
-bool UE::HLSLTree::FExpressionFunctionOutput::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
-{
-	const FEmitValue* Value = Context.AcquireValue(FunctionCall, OutputIndex);
-	if (!Value)
-	{
-		return false;
-	}
-
-	OutResult.ForwardValue(Context, Value);
-	return true;
-}
-
 bool UE::HLSLTree::FStatementBreak::EmitHLSL(FEmitContext& Context) const
 {
 	Context.WriteScopeTerminatorf(TEXT("break;"));

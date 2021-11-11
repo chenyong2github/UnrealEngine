@@ -163,9 +163,6 @@ public:
 	/** Returns a value that references the given expression */
 	const FEmitValue* AcquireValue(FExpression* Expression);
 
-	/** Returns value that references the given local function output */
-	const FEmitValue* AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex);
-
 	/** Get a unique local variable name */
 	const TCHAR* AcquireLocalDeclarationCode();
 
@@ -253,18 +250,10 @@ public:
 		int32 NumOutputs;
 	};
 
-	struct FFunctionStackEntry
-	{
-		FFunctionCall* FunctionCall = nullptr;
-
-		TMap<FNode*, FDeclarationEntry*> DeclarationMap;
-		TMap<FFunctionCall*, FFunctionCallEntry*> FunctionCallMap;
-	};
-
 	TArray<FEmitScope*> ScopeStack;
 	TMap<const FScope*, FEmitScope*> ScopeMap;
 
-	TArray<FFunctionStackEntry> FunctionStack;
+	TMap<FNode*, FDeclarationEntry*> DeclarationMap;
 	TArray<Shader::FPreshaderData*> TempPreshaders;
 	TSet<const FExpression*> PendingEmitValueExpressions;
 	FMemStackBase* Allocator = nullptr;
@@ -315,7 +304,6 @@ public:
 	virtual ENodeVisitResult OnStatement(FStatement& Statement) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnExpression(FExpression& Expression) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnTextureParameterDeclaration(FTextureParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& FunctionCall) { return ENodeVisitResult::VisitDependentNodes; }
 };
 
 /** Root class of the HLSL AST */
@@ -396,29 +384,6 @@ public:
 };
 
 /**
- * Represents a call to an HLSL function from a separate tree
- */
-class FFunctionCall final : public FNode
-{
-public:
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
-	FScope* ParentScope = nullptr;
-
-	/** Root scope of the function to call. Note that this scope will be from a separate (external) tree */
-	const FScope* FunctionScope;
-
-	/** Outputs are expressions from the function's scope */
-	FExpression* const* Outputs;
-
-	/** Inputs are connected to the calling scope */
-	FExpression* const* Inputs;
-	
-	int32 NumInputs;
-	int32 NumOutputs;
-};
-
-/**
  * Represents an HLSL scope.  A scope contains a single statement, along with any expressions required by that statement
  */
 class FScope final : public FNode
@@ -441,7 +406,6 @@ public:
 
 	void AddPreviousScope(FScope& Scope);
 
-	void UseFunctionCall(FFunctionCall* FunctionCall);
 	void UseExpression(FExpression* Expression);
 
 private:
@@ -488,13 +452,6 @@ public:
 
 	FScope* NewScope(FScope& Scope);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
-
-	FFunctionCall* NewFunctionCall(FScope& Scope,
-		const FScope& FunctionScope,
-		FExpression* const* Inputs,
-		FExpression* const* Outputs,
-		int32 NumInputs,
-		int32 NumOutputs);
 
 private:
 	template<typename T, typename... ArgTypes>
