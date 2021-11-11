@@ -357,12 +357,20 @@ protected:
 *		
 *			.. do some edge flips .. perhaps FlipToDelaunay( ImplicitMesh, ..)
 * 
+*      // if only a small percentage of the intrinsic edges are to be traced, this can be done directly as
+*	   auto TracedIntrinsicEdge  =  ImplicitMesh.TraceEdge(IntrinsicEdgeID);
+* 
+*	   // alternately if a large number of edges will be traced, a correspondence will be more efficient. 
 *      // create a correspondence that allows the edges of the implicit mesh to be traced on the surface mesh
+*     
 *      FIntrinsicEdgeFlipMesh::FEdgeCorrespondence  Correspondence = ImplicitMesh.ComputeEdgeCorrespondence();
-*
-*      // trace desired edge across the surface mesh
-*	   int32 IntrinsicEdgeID =  
-*      auto TracedIntrinsicEdge  =  Correspondence.TraceEdge(IntrinsicEdgeID);
+*    
+*	   for (.. doing multiple traces..  ) 
+*      {
+*          // trace desired edge across the surface mesh
+*	       int32 IntrinsicEdgeID =  
+*          auto TracedIntrinsicEdge  =  Correspondence.TraceEdge(IntrinsicEdgeID);
+*      } 
 *
 * Note: this isn't currently expected to work with surface meshes that have bow-ties.
 */
@@ -385,6 +393,20 @@ public:
 	{
 		return NormalCoordinates.SurfaceMesh;
 	}
+
+	/**
+	* @return Array of FSurfacePoints relative to the surface mesh that represent the specified intrinsic mesh edge.
+	* This is directed relative to traversal of the first adjacent triangle (GetEdgeT().[0]), unless bReverse is true
+	*
+	* @param CoalesceThreshold - in barycentric units [0,1], edge crossings with in this threshold are snapped to the nearest vertex.
+	*                            and any resulting repetitions of vertex surface points are replaced with a single vertex surface point.
+	* @param bReverse          - if true, trace edge direction is reversed
+	* 
+	* Note: when tracing few edges, this method is preferred to using the FEdgeCorrespondence based tracing (see FEdgeCorrespondence below).  
+	* But when tracing a large percentage of the mesh edges the FEdgeCorrespondence will be faster as it reuses intermediate results.
+	*/
+	TArray<FSurfacePoint> TraceEdge(int32 IntrinsicEID, double CoalesceThreshold = 0., bool bReverse = false) const;
+
 
 	/**
 	* Flip a single edge in the Intrinsic Mesh.
@@ -410,12 +432,12 @@ public:
 
 		/**
 		* @return Array of FSurfacePoints relative to the ExtrinsicMesh that represent the specified intrinsic mesh edge.
-		* This is directed from vertex EdgeV.A to vertex EdgeV.B unless bReverse is true
+		* This is directed relative to traversal of the first adjacent triangle (GetEdgeT().[0]), unless bReverse is true
 		*
 		* @param IntrinsicEID      - ID of the intrinsic mesh edge to be traced.
 		* @param CoalesceThreshold - in barycentric units [0,1], edge crossings within this threshold are snapped to the nearest vertex.
 		*                            and any resulting repetitions of vertex surface points are replaced with a single vertex surface point.
-		* @param bReverse          - if true, trace edge from EdgeV.B to EdgeV.A
+		* @param bReverse          - if true, trace edge direction is reversed
 		*/
 		TArray<FSurfacePoint> TraceEdge(int32 IntrinsicEID, double CoalesceThreshold = 0., bool bReverse = false) const;
 
