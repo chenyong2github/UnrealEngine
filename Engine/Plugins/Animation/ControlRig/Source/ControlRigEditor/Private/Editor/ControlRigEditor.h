@@ -377,6 +377,8 @@ private:
 
 	 virtual bool OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const override;
 
+	void HandleShowCurrentStatement();
+	
 	void HandleBreakpointActionRequested(const ERigVMBreakpointAction BreakpointAction);
 
 	bool IsHaltedAtBreakpoint() const;

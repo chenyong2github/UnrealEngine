@@ -54,6 +54,9 @@ public:
 	/** Resume the execution of the graph when halted at a breakpoint */
 	TSharedPtr< FUICommandInfo > ResumeExecution;
 
+	/** Focuses on the node currently being debugged */
+	TSharedPtr< FUICommandInfo > ShowCurrentStatement;
+
 	/** Steps to the next node in the execution graph (at the same graph level) when halted at a breakpoint */
 	TSharedPtr< FUICommandInfo > StepOver;
 
