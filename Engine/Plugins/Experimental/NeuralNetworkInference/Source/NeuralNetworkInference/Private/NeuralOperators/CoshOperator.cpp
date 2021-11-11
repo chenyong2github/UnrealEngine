@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/CoshOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 #include <cmath>
 
 
@@ -9,7 +10,7 @@
  *****************************************************************************/
 
 FCoshOperator::FCoshOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Cosh"), 9, EElementWiseOperator::Cosh, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Cosh"), 9, MakeShared<EElementWiseOperator>(EElementWiseOperator::Cosh), bIsInlinedTensor)
 {
 }
 

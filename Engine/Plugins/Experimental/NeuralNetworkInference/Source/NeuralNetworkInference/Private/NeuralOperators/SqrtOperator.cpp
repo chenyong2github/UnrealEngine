@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/SqrtOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FSqrtOperator::FSqrtOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Sqrt"), 13, EElementWiseOperator::Sqrt, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Sqrt"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Sqrt), bIsInlinedTensor)
 {
 }
 

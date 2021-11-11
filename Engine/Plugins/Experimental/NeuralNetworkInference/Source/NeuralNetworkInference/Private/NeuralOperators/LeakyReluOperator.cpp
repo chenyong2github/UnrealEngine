@@ -3,6 +3,7 @@
 #include "NeuralOperators/LeakyReluOperator.h"
 #include "ModelProto.h"
 #include "NeuralNetworkInferenceUtils.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -26,7 +27,7 @@ FLeakyReluOperator::FLeakyReluOperator(const bool bIsInlinedTensor, const FNodeP
 }
 
 FLeakyReluOperator::FLeakyReluOperator(const bool bIsInlinedTensor, const float InAlpha)
-	: IElementWiseOperator(TEXT("LeakyRelu"), 6, EElementWiseOperator::LeakyRelu, bIsInlinedTensor, { InAlpha })
+	: IElementWiseOperator(TEXT("LeakyRelu"), 6, MakeShared<EElementWiseOperator>(EElementWiseOperator::LeakyRelu), bIsInlinedTensor, { InAlpha })
 {
 }
 

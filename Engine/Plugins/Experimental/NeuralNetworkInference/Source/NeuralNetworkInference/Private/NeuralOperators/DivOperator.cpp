@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/DivOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FDivOperator::FDivOperator(const TSet<uint32>& InPotentialInlinedTensors)
-	: IMultidirectionalBroadcastOperator(TEXT("Div"), 13, EMultidirectionalBroadcastOperator::Div, InPotentialInlinedTensors)
+	: IMultidirectionalBroadcastOperator(TEXT("Div"), 13, MakeShared<EMultidirectionalBroadcastOperator>(EMultidirectionalBroadcastOperator::Div), InPotentialInlinedTensors)
 {
 }
 

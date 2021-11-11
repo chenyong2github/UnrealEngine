@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "NeuralInt64ArrayUInt32Buffer.h"
 #include "NeuralOperator.h"
-#include "NeuralOperatorEnumClasses.h"
 
+enum class EMultidirectionalBroadcastOperator : uint8;
+enum class EMultidirectionalBroadcastShapeMode : uint8;
 struct FReadBuffer;
 
 class NEURALNETWORKINFERENCE_API IMultidirectionalBroadcastOperator : public FNeuralOperator
@@ -16,7 +17,7 @@ public:
 	 * Not inlined layer if an empty InPotentialInlinedTensors is given.
 	 * It will try to inline the input tensors otherwise, where only the input tensors with the given indexes (InPotentialInlinedTensors) can be potentially inlined layers.
 	 */
-	IMultidirectionalBroadcastOperator(const FString& InName, const int32 InVersion, const EMultidirectionalBroadcastOperator InMultidirectionalBroadcastOperator,
+	IMultidirectionalBroadcastOperator(const FString& InName, const int32 InVersion, const TSharedPtr<EMultidirectionalBroadcastOperator>& InMultidirectionalBroadcastOperator,
 		const TSet<uint32>& InPotentialInlinedTensors);
 
 	virtual ~IMultidirectionalBroadcastOperator();
@@ -38,8 +39,8 @@ protected:
 	virtual void ForwardCPUWithFunction(float InOperatorFunction(const float, const float)) final;
 
 private:
-	const EMultidirectionalBroadcastOperator MultidirectionalBroadcastOperator;
-	EMultidirectionalBroadcastShapeMode MultidirectionalBroadcastShapeMode;
+	const TSharedPtr<EMultidirectionalBroadcastOperator> MultidirectionalBroadcastOperator;
+	const TSharedPtr<EMultidirectionalBroadcastShapeMode> MultidirectionalBroadcastShapeMode;
 	FNeuralInt64ArrayUInt32Buffer ShapesX;
 	FNeuralInt64ArrayUInt32Buffer ShapesY;
 	FNeuralInt64ArrayUInt32Buffer ShapesOutput;

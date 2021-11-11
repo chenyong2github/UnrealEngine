@@ -20,8 +20,7 @@ public class NeuralNetworkInferenceShaders : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"NeuralNetworkInferenceCore"
+				"Engine"
 			}
 		);
 

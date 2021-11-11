@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ReciprocalOperator.h"
+#include "NeuralOperatorEnumClasses.h"
 
 
 
@@ -8,7 +9,7 @@
  *****************************************************************************/
 
 FReciprocalOperator::FReciprocalOperator(const bool bIsInlinedTensor)
-	: IElementWiseOperator(TEXT("Reciprocal"), 13, EElementWiseOperator::Reciprocal, bIsInlinedTensor)
+	: IElementWiseOperator(TEXT("Reciprocal"), 13, MakeShared<EElementWiseOperator>(EElementWiseOperator::Reciprocal), bIsInlinedTensor)
 {
 }
 

@@ -39,7 +39,7 @@ FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOut
 	} 
 
 	/* Forward() speed */ 
-	if (InRepetitions > 1) 
+	if (InRepetitions > 1)
 	{ 
 		for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) 
 		{ 
