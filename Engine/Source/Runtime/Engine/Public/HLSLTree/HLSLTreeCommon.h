@@ -299,46 +299,6 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
-class FExpressionFunctionInput : public FExpression
-{
-public:
-	FExpressionFunctionInput(const FName& InName, Shader::EValueType InType, int32 InIndex)
-		: Name(InName), Type(InType), InputIndex(InIndex)
-	{}
-
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
-
-	FName Name;
-	Shader::EValueType Type;
-	int32 InputIndex;
-};
-
-class FExpressionFunctionOutput : public FExpression
-{
-public:
-	FExpressionFunctionOutput(FFunctionCall* InFunctionCall, int32 InIndex)
-		: FunctionCall(InFunctionCall)
-		, OutputIndex(InIndex)
-	{
-		check(InIndex >= 0 && InIndex < InFunctionCall->NumOutputs);
-	}
-
-	FFunctionCall* FunctionCall;
-	int32 OutputIndex;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(FunctionCall);
-		}
-		return Result;
-	}
-
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
-};
-
 class FStatementReturn : public FStatement
 {
 public:

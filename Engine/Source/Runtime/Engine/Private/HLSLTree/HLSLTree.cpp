@@ -151,14 +151,10 @@ void UE::HLSLTree::FCodeWriter::WriteConstant(const Shader::FValue& Value)
 
 UE::HLSLTree::FEmitContext::FEmitContext()
 {
-	FunctionStack.AddDefaulted();
 }
 
 UE::HLSLTree::FEmitContext::~FEmitContext()
 {
-	// Make sure we have only the root stack entry
-	check(FunctionStack.Num() == 1);
-
 	for (Shader::FPreshaderData* Preshader : TempPreshaders)
 	{
 		delete Preshader;
@@ -220,8 +216,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 		return nullptr;
 	}
 
-	FFunctionStackEntry& FunctionStackEntry = FunctionStack.Last();
-	FDeclarationEntry** FoundEntry = FunctionStackEntry.DeclarationMap.Find(Expression);
+	FDeclarationEntry** FoundEntry = DeclarationMap.Find(Expression);
 	FDeclarationEntry* Entry = FoundEntry ? *FoundEntry : nullptr;
 	if (!Entry)
 	{
@@ -246,7 +241,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 			check(EmitResult.Type != Shader::EValueType::Void);
 
 			Entry = new(*Allocator) FDeclarationEntry();
-			FunctionStackEntry.DeclarationMap.Add(Expression, Entry);
+			DeclarationMap.Add(Expression, Entry);
 			Entry->Value.ExpressionType = EmitResult.Type;
 			Entry->Value.EvaluationType = EmitResult.EvaluationType;
 			if (EmitResult.EvaluationType == EExpressionEvaluationType::Constant)
@@ -308,62 +303,6 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 	}
 
 	return Entry ? &Entry->Value : nullptr;
-}
-
-const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex)
-{
-	check(FunctionCall);
-
-	FFunctionCallEntry*& Entry = FunctionStack.Last().FunctionCallMap.FindOrAdd(FunctionCall);
-	if (!Entry)
-	{
-		FEmitScope* EmitScope = FindScope(*FunctionCall->ParentScope);
-		check(EmitScope);
-
-		{
-			FFunctionStackEntry& StackEntry = FunctionStack.AddDefaulted_GetRef();
-			StackEntry.FunctionCall = FunctionCall;
-		}
-
-		// Link the function scope to our parent scope
-		ScopeMap.Add(FunctionCall->FunctionScope, EmitScope);
-		FunctionCall->FunctionScope->EmitHLSL(*this, *EmitScope);
-
-		// Assign function outputs
-		FEmitValue* OutputValues = new(*Allocator) FEmitValue[FunctionCall->NumOutputs];
-		for (int32 i = 0; i < FunctionCall->NumOutputs; ++i)
-		{
-			FExpression* OutputExpression = FunctionCall->Outputs[i];
-
-			const FEmitValue* OutputValue = AcquireValue(OutputExpression);
-			FEmitValue& Output = OutputValues[i];
-			if (OutputValue)
-			{
-				Output = *OutputValue;
-			}
-			else
-			{
-				Output.EvaluationType = EExpressionEvaluationType::Constant;
-				Output.ExpressionType = Shader::EValueType::Float1;
-				Output.ConstantValue = 0.0f;
-			}
-		}
-
-		verify(ScopeMap.Remove(FunctionCall->FunctionScope) == 1);
-
-		{
-			const FFunctionStackEntry PoppedStackEntry = FunctionStack.Pop(false);
-			check(PoppedStackEntry.FunctionCall == FunctionCall);
-		}
-
-		Entry = new(*Allocator) FFunctionCallEntry();
-		Entry->OutputValues = OutputValues;
-		Entry->NumOutputs = FunctionCall->NumOutputs;
-	}
-
-	check(Entry->NumOutputs == FunctionCall->NumOutputs);
-	check(OutputIndex >= 0 && OutputIndex < Entry->NumOutputs);
-	return &Entry->OutputValues[OutputIndex];
 }
 
 const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
@@ -709,20 +648,6 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit
 	return Visitor.OnTextureParameterDeclaration(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FFunctionCall::Visit(FNodeVisitor& Visitor)
-{
-	const ENodeVisitResult Result = Visitor.OnFunctionCall(*this);
-	if (ShouldVisitDependentNodes(Result))
-	{
-		// Don't visit the function scope, as that is from a different tree
-		for (int32 i = 0; i < NumInputs; ++i)
-		{
-			Visitor.VisitNode(Inputs[i]);
-		}
-	}
-	return Result;
-}
-
 UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor)
 {
 	const ENodeVisitResult Result = Visitor.OnScope(*this);
@@ -787,12 +712,6 @@ public:
 		return ENodeVisitResult::VisitDependentNodes;
 	}
 
-	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& InFunctionCall) override
-	{
-		InFunctionCall.ParentScope = FScope::FindSharedParent(Scope, InFunctionCall.ParentScope);
-		return ENodeVisitResult::VisitDependentNodes;
-	}
-
 	FScope* Scope;
 };
 } // namespace HLSLTree
@@ -803,12 +722,6 @@ void UE::HLSLTree::FScope::UseExpression(FExpression* Expression)
 	// Need to move all dependent expressions/declarations into this scope
 	FNodeVisitor_MoveToScope Visitor(this);
 	Visitor.VisitNode(Expression);
-}
-
-void UE::HLSLTree::FScope::UseFunctionCall(FFunctionCall* FunctionCall)
-{
-	FNodeVisitor_MoveToScope Visitor(this);
-	Visitor.VisitNode(FunctionCall);
 }
 
 UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
@@ -953,24 +866,3 @@ UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParam
 	return Declaration;
 }
 
-UE::HLSLTree::FFunctionCall* UE::HLSLTree::FTree::NewFunctionCall(FScope& Scope,
-	const FScope& InFunctionScope,
-	FExpression* const* InInputs,
-	FExpression* const* InOutputs,
-	int32 InNumInputs,
-	int32 InNumOutputs)
-{
-	FExpression** Inputs = New<FExpression*>(*Allocator, InNumInputs);
-	FExpression** Outputs = New<FExpression*>(*Allocator, InNumOutputs);
-	FMemory::Memcpy(Inputs, InInputs, InNumInputs * sizeof(FExpression*));
-	FMemory::Memcpy(Outputs, InOutputs, InNumOutputs * sizeof(FExpression*));
-
-	FFunctionCall* FunctionCall = NewNode<FFunctionCall>();
-	FunctionCall->ParentScope = &Scope;
-	FunctionCall->FunctionScope = &InFunctionScope;
-	FunctionCall->Inputs = Inputs;
-	FunctionCall->Outputs = Outputs;
-	FunctionCall->NumInputs = InNumInputs;
-	FunctionCall->NumOutputs = InNumOutputs;
-	return FunctionCall;
-}
