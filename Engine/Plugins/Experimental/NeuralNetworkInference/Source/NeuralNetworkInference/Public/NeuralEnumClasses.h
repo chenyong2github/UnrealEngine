@@ -42,7 +42,13 @@ enum class ENeuralDeviceType : uint8
 	None
 };
 
-class NEURALNETWORKINFERENCECORE_API FDataType
+
+
+/**
+ * Auxiliary utils class for ENeuralDataType
+ */
+
+class NEURALNETWORKINFERENCE_API FNeuralDataTypeUtils
 {
 public:
 	static FString ToString(const ENeuralDataType InDataType);
@@ -62,7 +68,7 @@ public:
 	/**
 	 * It gets the data type from the type T. E.g.,
 	 * checkf(InDataType == GetDataType<float>(), TEXT("InDataType == GetDataType<float>() failed!"))
-	 * FNeuralTensor(FDataType::GetDataType<T>(), InArray.GetData(), ...)
+	 * FNeuralTensor(FNeuralDataTypeUtils::GetDataType<T>(), InArray.GetData(), ...)
 	 */
 	template <typename T>
 	static ENeuralDataType GetDataType();
@@ -70,11 +76,11 @@ public:
 
 
 
-/* FDataType inline functions
+/* FNeuralDataTypeUtils templated functions
  *****************************************************************************/
 
 template <typename T>
-ENeuralDataType FDataType::GetDataType()
+ENeuralDataType FNeuralDataTypeUtils::GetDataType()
 {
 	if (std::is_same<T, float>::value)
 	{
