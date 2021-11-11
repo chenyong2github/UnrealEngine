@@ -13,6 +13,7 @@
 #include "Tree/ICurveEditorTreeItem.h"
 #include "CurveTableEditorHandle.h"
 #include "CurveTableEditorUtils.h"
+#include "EditorUndoClient.h"
 
 #include "CurveEditorTypes.h"
 class FCurveEditor;
