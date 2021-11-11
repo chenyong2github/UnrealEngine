@@ -34,11 +34,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNeuralNetworkInferenceTest, "System.Engine.Mac
 
 bool FNeuralNetworkInferenceTest::RunTest(const FString& Parameters)
 {
-	// if (!UNeuralNetworkInferenceQA::UnitTesting())
-	// {
-	// 	AddError(TEXT("FNeuralNetworkInferenceTest::RunTest(): UNeuralNetworkInferenceQA::UnitTesting() returned false. See log above.")); // AddWarning/AddError would both work here
-	// }
-	UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("Test disabled for Fortnite."));
+	if (!UNeuralNetworkInferenceQA::UnitTesting())
+	{
+		AddError(TEXT("FNeuralNetworkInferenceTest::RunTest(): UNeuralNetworkInferenceQA::UnitTesting() returned false. See log above.")); // Both AddWarning/AddError would work
+	}
 	return true;
 }
 
