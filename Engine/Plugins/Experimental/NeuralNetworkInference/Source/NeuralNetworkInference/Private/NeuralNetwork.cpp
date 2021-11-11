@@ -5,7 +5,7 @@
 #include "NeuralNetworkImplBackEndUEOnly.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "EditorFramework/AssetImportData.h"
-#include "NeuralNetworkInferenceTimer.h"
+#include "NeuralTimer.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -258,7 +258,7 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Call UNeuralNetwork::Load() to load a model first."));
 	}
 	
-	FNeuralNetworkInferenceTimer RunTimer;
+	FNeuralTimer RunTimer;
 	RunTimer.Tic();
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
@@ -381,7 +381,7 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<FNeuralTensor>& InInputT
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): GetInputTensorNumber() == InInputTensorArray.Num() failed, %d != %d."), GetInputTensorNumber(), InInputTensorArray.Num());
 		return;
 	}
-	FNeuralNetworkInferenceTimer RunTimer;
+	FNeuralTimer RunTimer;
 	RunTimer.Tic();
 	for (uint32 InputTensorIndex = 0; InputTensorIndex < GetInputTensorNumber(); ++InputTensorIndex)
 	{
@@ -496,7 +496,7 @@ void UNeuralNetwork::Run()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Call UNeuralNetwork::Load() to load a model first."));
 		return;
 	}
-	FNeuralNetworkInferenceTimer RunTimer;
+	FNeuralTimer RunTimer;
 	RunTimer.Tic();
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)

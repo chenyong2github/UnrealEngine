@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceProfilingModule.h"
+#include "Module.h"
 
 // This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 void FNeuralNetworkInferenceProfilingModule::StartupModule()

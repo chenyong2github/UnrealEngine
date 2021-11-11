@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelUnitTester.h"
-#include "NeuralNetworkInferenceTimer.h"
+#include "NeuralTimer.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "Misc/Paths.h"
 
@@ -27,7 +27,7 @@ FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOut
 {
 	/* Input/output copy speed */ 
 	FNeuralStats OutCopyingStats;
-	FNeuralNetworkInferenceTimer Timer;
+	FNeuralTimer Timer;
 	for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
 	{ 
 		InOutNetwork->SetInputFromArrayCopy(InInputArray); 
