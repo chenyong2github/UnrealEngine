@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ModelProto.h"
 #include "NeuralOperator.h"
 
 /**
@@ -13,7 +12,7 @@
 class NEURALNETWORKINFERENCE_API FReshapeOperator : public FNeuralOperator
 {
 public:
-	FReshapeOperator(const bool bIsInlinedTensor, const FNodeProto& InNodeProto);
+	FReshapeOperator(const bool bIsInlinedTensor, const struct FNodeProto* const InNodeProto);
 
 	FReshapeOperator(const bool bIsInlinedTensor, const int64 InAllowZero = 0);
 

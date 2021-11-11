@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "ModelProto.h"
 #include "NeuralOperators/ConvBaseOperator.h"
 
 class NEURALNETWORKINFERENCE_API FConvOperator : public FConvBaseOperator
 {
 public:
-	FConvOperator(const FNodeProto& InNodeProto);
+	FConvOperator(const struct FNodeProto* const InNodeProto);
 
 	FConvOperator(const EAutoPad InAutoPad, const TArray<int64>& InDilations, const int64 InGroup, const TArray<int64>& InKernelShape, const TArray<int64>& InPads, const TArray<int64>& InStrides);
 

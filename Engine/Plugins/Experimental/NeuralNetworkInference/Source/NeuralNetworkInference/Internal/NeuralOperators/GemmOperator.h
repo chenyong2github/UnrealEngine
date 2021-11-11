@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ModelProto.h"
 #include "NeuralOperator.h"
 
 class NEURALNETWORKINFERENCE_API FGemmOperator : public FNeuralOperator
 {
 public:
-	FGemmOperator(const FNodeProto& InNodeProto);
+	FGemmOperator(const struct FNodeProto* const InNodeProto);
 
 	FGemmOperator(const float InAlpha = 1.f, const float InBeta = 1.f, const bool bInTransA = false, const bool bInTransB = false);
 

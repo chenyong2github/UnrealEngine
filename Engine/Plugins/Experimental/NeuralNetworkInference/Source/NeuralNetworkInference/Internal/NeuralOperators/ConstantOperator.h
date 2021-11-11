@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ModelProto.h"
 #include "NeuralOperator.h"
 
 class NEURALNETWORKINFERENCE_API FConstantOperator : public FNeuralOperator
 {
 public:
-	FConstantOperator(const FNodeProto& InNodeProto);
+	FConstantOperator(const struct FNodeProto* const InNodeProto);
 
 	FConstantOperator(const FNeuralTensor& InTensor);
 

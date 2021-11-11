@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/GemmOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceShaders/GemmCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
@@ -10,22 +11,28 @@
 /* FGemmOperator structors
  *****************************************************************************/
 
-FGemmOperator::FGemmOperator(const FNodeProto& InNodeProto)
+FGemmOperator::FGemmOperator(const FNodeProto* const InNodeProto)
 	: FGemmOperator()
 {
-	if (const FAttributeProto* AlphaAttribute = FModelProto::FindElementInArray(TEXT("Alpha"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGemmOperator(): InNodeProto was a nullptr."));
+		return;
+	}
+	if (const FAttributeProto* AlphaAttribute = FModelProto::FindElementInArray(TEXT("Alpha"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Alpha = AlphaAttribute->F;
 	}
-	if (const FAttributeProto* BetaAttribute = FModelProto::FindElementInArray(TEXT("Beta"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* BetaAttribute = FModelProto::FindElementInArray(TEXT("Beta"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		Beta = BetaAttribute->F;
 	}
-	if (const FAttributeProto* TransAAttribute = FModelProto::FindElementInArray(TEXT("TransA"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* TransAAttribute = FModelProto::FindElementInArray(TEXT("TransA"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		bTransA = (TransAAttribute->I != 0);
 	}
-	if (const FAttributeProto* TransBAttribute = FModelProto::FindElementInArray(TEXT("TransB"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	if (const FAttributeProto* TransBAttribute = FModelProto::FindElementInArray(TEXT("TransB"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		bTransB = (TransBAttribute->I != 0);
 	}

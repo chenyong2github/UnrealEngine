@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ReshapeOperator.h"
+#include "ModelProto.h"
 #include "NeuralNetworkInferenceShaders/CopyCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
@@ -10,10 +11,16 @@
 /* FReshapeOperator structors
  *****************************************************************************/
 
-FReshapeOperator::FReshapeOperator(const bool bIsInlinedTensor, const FNodeProto& InNodeProto)
+FReshapeOperator::FReshapeOperator(const bool bIsInlinedTensor, const FNodeProto* const InNodeProto)
 	: FReshapeOperator(bIsInlinedTensor)
 {
-	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("AllowZero"), InNodeProto.Attribute, /*bMustValueBeFound*/false))
+	// Sanity check
+	if (!InNodeProto)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FReshapeOperator(): InNodeProto was a nullptr."));
+		return;
+	}
+	if (const FAttributeProto* MomentumAttribute = FModelProto::FindElementInArray(TEXT("AllowZero"), InNodeProto->Attribute, /*bMustValueBeFound*/false))
 	{
 		AllowZero = MomentumAttribute->I;
 	}
