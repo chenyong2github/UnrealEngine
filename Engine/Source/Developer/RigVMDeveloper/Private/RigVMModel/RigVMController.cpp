@@ -4432,7 +4432,7 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 		{
 			FRigVMControllerGraphGuard GraphGuard(this, FunctionLibrary, false);
 			const FString FunctionName = GetValidNodeName(InCollapseNode->GetName());
-			FunctionDefinition = AddFunctionToLibrary(*FunctionName, InCollapseNode->IsMutable(), FVector2D::Zero(), false);		
+			FunctionDefinition = AddFunctionToLibrary(*FunctionName, InCollapseNode->IsMutable(), FVector2D::ZeroVector, false);		
 		}
 	
 		// Add interface pins in function
