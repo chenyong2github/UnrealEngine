@@ -453,3 +453,14 @@ public:
 		return FStructView(T::StaticStruct(), reinterpret_cast<uint8*>(&InStruct));
 	}
 };
+
+///////////////////////////////////////////////////////////////// FSameTypeScriptStructPredicate /////////////////////////////////////////////////////////////////
+
+/* Predicate useful to find a struct of a specific type in an container */
+struct FSameTypeScriptStructPredicate
+{
+	const UScriptStruct* TypePtr;
+	FSameTypeScriptStructPredicate(const UScriptStruct* InTypePtr) : TypePtr(InTypePtr) {}
+	FSameTypeScriptStructPredicate(const FConstBaseStruct& InRef) : TypePtr(InRef.GetScriptStruct()) {}
+	bool operator()(const FConstBaseStruct& Other) const { return Other.GetScriptStruct() == TypePtr; }
+};
