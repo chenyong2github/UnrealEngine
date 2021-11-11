@@ -217,6 +217,28 @@ public:
 	{
 		// see IntrLine2Line2 and IntrSegment2Segment2 for details on this code
 
+		// Special handling of degenerate segments; by convention if Direction was too small to normalize, Extent and Direction will be zero
+		bool bIsPoint = Extent == 0;
+		bool bIsPointOther = OtherSegment.Extent == 0;
+		int IsPointCount = (int)bIsPoint + (int)bIsPointOther;
+		if (IsPointCount == 2)
+		{
+			return UE::Geometry::DistanceSquared(Center, OtherSegment.Center) <= IntervalThresh * IntervalThresh;
+		}
+		else if (IsPointCount == 1)
+		{
+			T DistSq;
+			if (bIsPoint)
+			{
+				DistSq = OtherSegment.DistanceSquared(Center);
+			}
+			else
+			{
+				DistSq = DistanceSquared(OtherSegment.Center);
+			}
+			return DistSq <= IntervalThresh * IntervalThresh;
+		}
+
 		TVector2<T> diff = OtherSegment.Center - Center;
 		T D0DotPerpD1 = DotPerp(Direction, OtherSegment.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > DotThresh)      // Lines intersect in a single point.
@@ -238,6 +260,8 @@ public:
 			// Compute the location of OtherSegment endpoints relative to our Segment
 			diff = OtherSegment.Center - Center;
 			T t1 = Direction.Dot(diff);
+			// Note: IntervalThresh not used here; this is a bit inconsistent but simplifies the code
+			// If you add it, make sure that segments that intersect without it don't end up with too-wide intersection intervals
 			T tmin = t1 - OtherSegment.Extent;
 			T tmax = t1 + OtherSegment.Extent;
 			TInterval1<T> extents(-Extent, Extent);
