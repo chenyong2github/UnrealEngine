@@ -182,9 +182,9 @@ public:
 	 * - GetInferenceStats, returns Inference time statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in milliseconds)
 	 * - GetInputMemoryTransferStats, returns Input Memory Transfer statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in milliseconds)
 	 */
-	float GetLastInferenceTime();
-	FNNIStatsData GetInferenceStats();
-	FNNIStatsData GetInputMemoryTransferStats();
+	float GetLastInferenceTime() const;
+	FNeuralStatsData GetInferenceStats() const;
+	FNeuralStatsData GetInputMemoryTransferStats() const;
 	void ResetStats();
 
 protected:
