@@ -4,14 +4,6 @@
 #include "Misc/MemStack.h"
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 
-class FLocalHLSLCodeWriter : public UE::HLSLTree::FCodeWriter
-{
-public:
-	FLocalHLSLCodeWriter() : UE::HLSLTree::FCodeWriter(&LocalStringBuilder) {}
-
-	TStringBuilder<2048> LocalStringBuilder;
-};
-
 UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(EExpressionEvaluationType Lhs, EExpressionEvaluationType Rhs)
 {
 	if (Lhs == EExpressionEvaluationType::Constant && Rhs == EExpressionEvaluationType::Constant)
@@ -49,104 +41,11 @@ const TCHAR* AllocateString(FMemStackBase& Allocator, const FStringBuilderBase& 
 	return Result;
 }
 
-UE::HLSLTree::FCodeWriter* UE::HLSLTree::FCodeWriter::Create(FMemStackBase& Allocator)
-{
-	static const int32 InitialBufferSize = 4 * 1024;
-	TCHAR* Buffer = New<TCHAR>(Allocator, InitialBufferSize);
-	FStringBuilderBase* LocalStringBuilder = new(Allocator) TStringBuilderBase<TCHAR>(Buffer, InitialBufferSize);
-	return new(Allocator) FCodeWriter(LocalStringBuilder);
-}
-
-FSHAHash UE::HLSLTree::FCodeWriter::GetCodeHash() const
+FSHAHash HashString(const FStringBuilderBase& StringBuilder)
 {
 	FSHAHash Hash;
-	FSHA1::HashBuffer(StringBuilder->GetData(), StringBuilder->Len() * sizeof(TCHAR), Hash.Hash);
+	FSHA1::HashBuffer(StringBuilder.GetData(), StringBuilder.Len() * sizeof(TCHAR), Hash.Hash);
 	return Hash;
-}
-
-void UE::HLSLTree::FCodeWriter::IncreaseIndent()
-{
-	++IndentLevel;
-}
-
-void UE::HLSLTree::FCodeWriter::DecreaseIndent()
-{
-	check(IndentLevel > 0);
-	--IndentLevel;
-}
-
-void UE::HLSLTree::FCodeWriter::WriteIndent()
-{
-	for (int32 i = 0; i < IndentLevel; ++i)
-	{
-		StringBuilder->Append(TCHAR('\t'));
-	}
-}
-
-void UE::HLSLTree::FCodeWriter::Reset()
-{
-	StringBuilder->Reset();
-}
-
-void UE::HLSLTree::FCodeWriter::Append(const FCodeWriter& InWriter)
-{
-	const int32 Length = InWriter.StringBuilder->Len();
-	if (Length > 0)
-	{
-		StringBuilder->Append(InWriter.StringBuilder->GetData(), Length);
-	}
-}
-
-
-void UE::HLSLTree::FCodeWriter::WriteConstant(const Shader::FValue& Value)
-{
-	auto ToString = [](uint8 v)
-	{
-		return v ? TEXT("true") : TEXT("false");
-	};
-
-	switch (Value.GetType())
-	{
-	case Shader::EValueType::Float1:
-		Writef(TEXT("%0.8f"), Value.Component[0].Float);
-		break;
-	case Shader::EValueType::Float2:
-		Writef(TEXT("float2(%0.8f, %0.8f)"), Value.Component[0].Float, Value.Component[1].Float);
-		break;
-	case Shader::EValueType::Float3:
-		Writef(TEXT("float3(%0.8f, %0.8f, %0.8f)"), Value.Component[0].Float, Value.Component[1].Float, Value.Component[2].Float);
-		break;
-	case Shader::EValueType::Float4:
-		Writef(TEXT("float4(%0.8f, %0.8f, %0.8f, %0.8f)"), Value.Component[0].Float, Value.Component[1].Float, Value.Component[2].Float, Value.Component[3].Float);
-		break;
-	case Shader::EValueType::Int1:
-		Writef(TEXT("%d"), Value.Component[0].Int);
-		break;
-	case Shader::EValueType::Int2:
-		Writef(TEXT("int2(%d, %d)"), Value.Component[0].Int, Value.Component[1].Int);
-		break;
-	case Shader::EValueType::Int3:
-		Writef(TEXT("int3(%d, %d, %d)"), Value.Component[0].Int, Value.Component[1].Int, Value.Component[2].Int);
-		break;
-	case Shader::EValueType::Int4:
-		Writef(TEXT("int4(%d, %d, %d, %d)"), Value.Component[0].Int, Value.Component[1].Int, Value.Component[2].Int, Value.Component[3].Int);
-		break;
-	case Shader::EValueType::Bool1:
-		Writef(TEXT("%s"), ToString(Value.Component[0].Bool));
-		break;
-	case Shader::EValueType::Bool2:
-		Writef(TEXT("bool2(%s, %s)"), ToString(Value.Component[0].Bool), ToString(Value.Component[1].Bool));
-		break;
-	case Shader::EValueType::Bool3:
-		Writef(TEXT("bool3(%s, %s, %s)"), ToString(Value.Component[0].Bool), ToString(Value.Component[1].Bool), ToString(Value.Component[2].Bool));
-		break;
-	case Shader::EValueType::Bool4:
-		Writef(TEXT("bool4(%s, %s, %s, %s)"), ToString(Value.Component[0].Bool), ToString(Value.Component[1].Bool), ToString(Value.Component[2].Bool), ToString(Value.Component[3].Bool));
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
 }
 
 UE::HLSLTree::FEmitContext::FEmitContext()
@@ -201,7 +100,7 @@ void UE::HLSLTree::FExpressionEmitResult::ForwardValue(FEmitContext& Context, co
 	if (EvaluationType == EExpressionEvaluationType::Shader)
 	{
 		bInline = true;
-		Writer.Writef(TEXT("%s"), Context.GetCode(InValue));
+		Code.Appendf(TEXT("%s"), Context.GetCode(InValue));
 	}
 	else
 	{
@@ -220,9 +119,9 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 	FDeclarationEntry* Entry = FoundEntry ? *FoundEntry : nullptr;
 	if (!Entry)
 	{
-		FLocalHLSLCodeWriter LocalWriter;
+		TStringBuilder<2048> LocalCodeString;
 		Shader::FPreshaderData LocalPreshader;
-		FExpressionEmitResult EmitResult(LocalWriter, LocalPreshader);
+		FExpressionEmitResult EmitResult(LocalCodeString, LocalPreshader);
 
 		bool bEmitResult = false;
 		{
@@ -262,7 +161,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 				check(EmitResult.EvaluationType == EExpressionEvaluationType::Shader);
 				if (EmitResult.bInline)
 				{
-					Entry->Value.Code = AllocateString(*Allocator, LocalWriter.GetStringBuilder());
+					Entry->Value.Code = AllocateString(*Allocator, LocalCodeString);
 				}
 				else
 				{
@@ -270,7 +169,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 					check(EmitScope);
 
 					// Check to see if we've already generated code for an equivalent expression in either this scope, or any outer visible scope
-					const FSHAHash Hash = LocalWriter.GetCodeHash();
+					const FSHAHash Hash = HashString(LocalCodeString);
 					const TCHAR* Declaration = nullptr;
 
 					FEmitScope* CheckScope = EmitScope;
@@ -293,7 +192,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 						WriteStatementToScopef(*EmitScope, TEXT("const %s %s = %s;"),
 							TypeDesc.Name,
 							Declaration,
-							LocalWriter.GetStringBuilder().ToString());
+							LocalCodeString.ToString());
 						EmitScope->ExpressionMap.Add(Hash, Declaration);
 					}
 					Entry->Value.Code = Declaration;
@@ -621,7 +520,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::EmitCode(FEmitContext& Context, FExpress
 	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
 	OutResult.Type = CombinedValueType;
 	OutResult.bInline = true;
-	OutResult.Writer.Writef(TEXT("%s"), Declaration);
+	OutResult.Code.Appendf(TEXT("%s"), Declaration);
 	return true;
 }
 
@@ -816,7 +715,7 @@ static void WriteScope(const UE::HLSLTree::FEmitScope& EmitScope, int32 IndentLe
 	}
 }
 
-bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWriter& Writer) const
+bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FStringBuilderBase& Writer) const
 {
 	FEmitScope* EmitRootScope = Context.AcquireScope(*RootScope);
 	if (RootScope->EmitHLSL(Context, *EmitRootScope))
@@ -830,7 +729,7 @@ bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWri
 
 		Context.Finalize();
 
-		WriteScope(*EmitRootScope, 0, *Writer.StringBuilder);
+		WriteScope(*EmitRootScope, 0, Writer);
 
 		return true;
 	}
