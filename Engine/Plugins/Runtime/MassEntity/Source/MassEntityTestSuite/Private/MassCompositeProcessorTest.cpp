@@ -50,7 +50,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 				UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
 				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 						check(Processor);
-						Result += FMath::Pow(10.f, float(i));
+						Result += (int)FMath::Pow(10.f, float(i));
 					};
 				Processors.Add(Processor);
 			}

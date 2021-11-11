@@ -28,14 +28,14 @@ void FMassSignalNameLookup::GetSignalsForEntity(const FMassEntityHandle Entity, 
 	OutSignals.Reset();
 	if (const uint64* Signals = EntitySignals.Find(Entity))
 	{
-		int Start = FMath::CountTrailingZeros64(*Signals);
-		int End = FMath::CountLeadingZeros64(*Signals);
-		for (int64 i = Start; i < 64 - End; i++)
+		const uint64 Start = FMath::CountTrailingZeros64(*Signals);
+		const uint64 End = FMath::CountLeadingZeros64(*Signals);
+		for (uint64 i = Start; i < 64 - End; i++)
 		{
 			const uint64 SignalFlag = 1ULL << i;
 			if ((*Signals) & SignalFlag)
 			{
-				OutSignals.Add(SignalNames[i]);
+				OutSignals.Add(SignalNames[(uint32)i]);
 			}
 		}
 	}

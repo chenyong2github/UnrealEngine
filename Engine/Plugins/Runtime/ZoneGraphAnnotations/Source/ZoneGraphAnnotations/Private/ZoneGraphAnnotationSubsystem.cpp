@@ -57,11 +57,12 @@ void UZoneGraphAnnotationSubsystem::Deinitialize()
 
 void UZoneGraphAnnotationSubsystem::AddToAnnotationLookup(UZoneGraphAnnotationComponent& Annotation, const FZoneGraphTagMask AnnotationTags)
 {
-	const int32 Start = FMath::CountTrailingZeros(AnnotationTags.GetValue());
-	const int32 End = 32 - FMath::CountLeadingZeros(AnnotationTags.GetValue());
-	for (int32 Index = Start; Index < End; Index++)
+	const uint32 Start = FMath::CountTrailingZeros(AnnotationTags.GetValue());
+	const uint32 End = 32 - FMath::CountLeadingZeros(AnnotationTags.GetValue());
+	for (uint32 Index = Start; Index < End; Index++)
 	{
-		const FZoneGraphTag BitTag(Index);
+		check(Index <= (uint32)MAX_uint8);
+		const FZoneGraphTag BitTag((uint8)Index);
 		if (AnnotationTags.Contains(BitTag))
 		{
 			if (ensureMsgf(TagToAnnotationLookup[Index] == nullptr, TEXT("Annotation at index %d is already set to %s."), Index, *GetNameSafe(TagToAnnotationLookup[Index])) &&

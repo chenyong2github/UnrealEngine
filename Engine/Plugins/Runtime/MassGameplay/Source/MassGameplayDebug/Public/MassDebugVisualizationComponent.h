@@ -21,7 +21,7 @@ public:
 	void DirtyVisuals();
 	int32 AddDebugVisInstance(const uint16 VisualType);
 	/** returns index to the newly created VisualDataTable entry */
-	int32 AddDebugVisType(const FAgentDebugVisualization& Data);
+	uint16 AddDebugVisType(const FAgentDebugVisualization& Data);
 	TArrayView<UHierarchicalInstancedStaticMeshComponent*> GetVisualDataISMCs() { return MakeArrayView(VisualDataISMCs); }
 
 	void Clear();

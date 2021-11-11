@@ -846,7 +846,7 @@ FPrimitiveSceneProxy* UZoneShapeComponent::CreateSceneProxy()
 		}
 
 		virtual uint32 GetMemoryFootprint(void) const override { return sizeof * this + GetAllocatedSize(); }
-		uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+		uint32 GetAllocatedSize(void) const { return (uint32)FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 	private:
 		TArray<FZoneShapeConnector> Connectors;

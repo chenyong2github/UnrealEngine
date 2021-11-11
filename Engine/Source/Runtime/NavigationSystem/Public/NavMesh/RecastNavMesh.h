@@ -143,7 +143,7 @@ struct FRecastDebugPathfindingNode
 
 namespace ERecastDebugPathfindingFlags
 {
-	enum Type
+	enum Type : uint8
 	{
 		Basic = 0x0,
 		BestNode = 0x1,
@@ -999,7 +999,7 @@ public:
 	FVector GetModifiedQueryExtent(const FVector& QueryExtent) const
 	{
 		// Using HALF_WORLD_MAX instead of BIG_NUMBER, else using the extent for a box will result in NaN.
-		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z >= HALF_WORLD_MAX ? HALF_WORLD_MAX : (QueryExtent.Z + FMath::Max(0.0f, VerticalDeviationFromGroundCompensation)));
+		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z >= (float)HALF_WORLD_MAX ? (float)HALF_WORLD_MAX : (QueryExtent.Z + FMath::Max(0.0f, VerticalDeviationFromGroundCompensation)));
 	}
 
 	//----------------------------------------------------------------------//

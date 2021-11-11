@@ -1781,7 +1781,8 @@ void TessellatePolygonShape(TConstArrayView<FZoneShapePoint> Points, const EZone
 	Zone.LanesBegin = OutZoneStorage.Lanes.Num();
 
 	TArray<FConnectionEntry> Destinations;
-	for (int32 SourceIdx = 0; SourceIdx < Points.Num(); SourceIdx++)
+	check(Points.Num() <= (int32)MAX_uint16);
+	for (uint16 SourceIdx = 0; SourceIdx < Points.Num(); SourceIdx++)
 	{
 		const FZoneShapePoint& SourcePoint = Points[SourceIdx];
 		const FZoneLaneProfile& SourceLaneProfile = LaneProfiles[SourceIdx];
@@ -1791,7 +1792,7 @@ void TessellatePolygonShape(TConstArrayView<FZoneShapePoint> Points, const EZone
 		}
 		// Collect all potential destinations
 		Destinations.Reset();
-		for (int32 j = 1; j < Points.Num(); j++)
+		for (uint16 j = 1; j < Points.Num(); j++)
 		{
 			const int DestIdx = (SourceIdx + j) % Points.Num();
 			const FZoneShapePoint& DestPoint = Points[DestIdx];
@@ -1801,7 +1802,7 @@ void TessellatePolygonShape(TConstArrayView<FZoneShapePoint> Points, const EZone
 				continue;
 			}
 
-			Destinations.Emplace(DestPoint, DestLaneProfile, DestIdx, OutgoingConnections[DestIdx], IncomingConnections[DestIdx]);
+			Destinations.Emplace(DestPoint, DestLaneProfile, (uint16)DestIdx, OutgoingConnections[DestIdx], IncomingConnections[DestIdx]);
 		}
 		// Connect source to destinations.
 		BuildLanesBetweenPoints(FConnectionEntry(SourcePoint, SourceLaneProfile, SourceIdx, OutgoingConnections[SourceIdx], IncomingConnections[SourceIdx]),

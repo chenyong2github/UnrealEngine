@@ -68,7 +68,7 @@ public:
 
 	FORCEINLINE int32 GetAllocatedSize() const
 	{
-		return Data->GetAllocatedSize();
+		return (int32)Data->GetAllocatedSize();
 	}
 
 	FORCEINLINE void Shrink()

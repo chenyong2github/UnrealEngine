@@ -148,7 +148,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					AActor* NewActor = nullptr;
 					if (!Actor || ActorInfo.IsOwnedByMass())
 					{
-						const int32 WantedTemplateActorIndex = bHighResActor ? Representation.HighResTemplateActorIndex : Representation.LowResTemplateActorIndex;
+						const int16 WantedTemplateActorIndex = bHighResActor ? Representation.HighResTemplateActorIndex : Representation.LowResTemplateActorIndex;
 
 						// If the low res is different than the high res, cancel any pending spawn request that is the opposite of what is needed.
 						if (Representation.LowResTemplateActorIndex != Representation.HighResTemplateActorIndex)

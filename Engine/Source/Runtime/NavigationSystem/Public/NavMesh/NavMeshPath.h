@@ -22,7 +22,7 @@ struct NAVIGATIONSYSTEM_API FNavMeshNodeFlags
 	uint16 AreaFlags;
 
 	FNavMeshNodeFlags() : PathFlags(0), Area(0), AreaFlags(0) {}
-	FNavMeshNodeFlags(uint32 Flags) : PathFlags(Flags), Area(Flags >> 8), AreaFlags(Flags >> 16) {}
+	FNavMeshNodeFlags(const uint32 Flags) : PathFlags((uint8)Flags), Area((uint8)(Flags >> 8)), AreaFlags((uint16)(Flags >> 16)) {}
 	uint32 Pack() const { return PathFlags | ((uint32)Area << 8) | ((uint32)AreaFlags << 16); }
 	bool IsNavLink() const { return (PathFlags & RECAST_STRAIGHTPATH_OFFMESH_CONNECTION) != 0; }
 

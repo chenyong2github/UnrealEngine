@@ -116,7 +116,7 @@ public:
 	FName GetDebugActorName() const { return DebugActor.ActorName; }
 
 	/** get sync counter, increased with every change of DebugActor */
-	int16 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
+	int32 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
 
 	const FGameplayDebuggerVisLogSync& GetVisLogSyncData() const { return VisLogSync; }
 

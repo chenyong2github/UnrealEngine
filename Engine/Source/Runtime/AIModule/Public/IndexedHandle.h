@@ -120,8 +120,13 @@ struct AIMODULE_API FCompactIndexedHandleBase
 	FCompactIndexedHandleBase() = default;
 
 	/** @note passing INDEX_NONE as index will make this handle Invalid */
-	FCompactIndexedHandleBase(int16 InIndex, uint16 InSerialNumber) : Index(InIndex), SerialNumber(InSerialNumber)
+	FCompactIndexedHandleBase(const int32 InIndex, const uint32 InSerialNumber)
 	{
+		check(InIndex <= (int32)MAX_int16);
+		Index = (int16)InIndex;
+		
+		check(InSerialNumber <= (uint32)MAX_uint16);
+		SerialNumber = (uint16)InSerialNumber;
 	};
 
 	bool operator==(const FCompactIndexedHandleBase& Other) const
