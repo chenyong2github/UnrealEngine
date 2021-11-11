@@ -17,6 +17,10 @@ struct FBoneIndexBase
 
 	FORCEINLINE bool IsValid() const { return BoneIndex != INDEX_NONE; }
 
+	FORCEINLINE explicit operator int32() const { return BoneIndex; }
+
+	FORCEINLINE explicit operator bool() const { return IsValid(); }
+
 protected:
 	int32 BoneIndex;
 };
