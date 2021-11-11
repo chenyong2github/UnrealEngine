@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceTimer.h"
+#include "NeuralTimer.h"
 #include "HAL/PlatformTime.h"
 
 /* FNeuralNetworkInferenceQATimer public functions
  *****************************************************************************/
 
-void FNeuralNetworkInferenceTimer::Tic()
+void FNeuralTimer::Tic()
 {
-	TimeStart = FPlatformTime::Seconds();
+	TimeStart = {FPlatformTime::Seconds()};
 }
 
-float FNeuralNetworkInferenceTimer::Toc() const
+double FNeuralTimer::Toc() const
 {
 	return (FPlatformTime::Seconds() - TimeStart) * 1e3;
 }

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-class NEURALNETWORKINFERENCEPROFILING_API FNeuralNetworkInferenceTimer
+class NEURALNETWORKINFERENCEPROFILING_API FNeuralTimer
 {
 public:
 	void Tic();
@@ -12,7 +12,7 @@ public:
 	/**
 	 * Time in milliseconds, but with nanosecond accuracy (e.g., 1.234567 msec).
 	 */
-	float Toc() const;
+	double Toc() const;
 
 private:
 	double TimeStart;
