@@ -56,16 +56,6 @@ EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLTexture(FMaterialHL
 	return Generator.Error(TEXT("Node does not support textures"));
 }
 
-FMaterialHLSLTree& UMaterialFunctionInterface::AcquireHLSLTree(FMaterialHLSLGenerator& Generator)
-{
-	if (!CachedHLSLTree)
-	{
-		CachedHLSLTree = new FMaterialHLSLTree();
-		CachedHLSLTree->InitializeForFunction(Generator.GetCompileTarget(), this);
-	}
-	return *CachedHLSLTree;
-}
-
 EMaterialGenerateHLSLStatus UMaterialExpressionGenericConstant::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.NewConstant(GetConstantValue());
@@ -311,29 +301,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionFunctionInput::GenerateHLSLExpres
 
 EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	if (!MaterialFunction)
+	OutExpression = Generator.GenerateFunctionCall(Scope, MaterialFunction, FunctionInputs, OutputIndex);
+	if (OutExpression)
 	{
-		return Generator.Error(TEXT("Missing function"));
+		return EMaterialGenerateHLSLStatus::Success;
 	}
-
-	TArray<UE::HLSLTree::FExpression*> InputExpressions;
-	InputExpressions.Empty(FunctionInputs.Num());
-
-	for (int32 InputIndex = 0; InputIndex < FunctionInputs.Num(); ++InputIndex)
-	{
-		const FFunctionExpressionInput& Input = FunctionInputs[InputIndex];
-		UE::HLSLTree::FExpression* InputExpression = Input.Input.AcquireHLSLExpression(Generator, Scope);
-		if (!InputExpression)
-		{
-			InputExpression = Generator.AcquireExpression(Scope, Input.ExpressionInput, 0);
-		}
-		check(InputExpression);
-		InputExpressions.Add(InputExpression);
-	}
-
-	UE::HLSLTree::FFunctionCall* FunctionCall = Generator.AcquireFunctionCall(Scope, MaterialFunction, InputExpressions);
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionFunctionOutput>(Scope, FunctionCall, OutputIndex);
-	return EMaterialGenerateHLSLStatus::Success;
+	return EMaterialGenerateHLSLStatus::Error;
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionExecBegin::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)

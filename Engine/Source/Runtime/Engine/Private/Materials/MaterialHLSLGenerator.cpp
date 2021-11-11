@@ -19,19 +19,12 @@
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
 	: CompileTarget(InCompileTarget)
 	, TargetMaterial(InTargetMaterial)
-	, TargetMaterialFunction(nullptr)
 	, HLSLTree(&InOutTree)
 	, bGeneratedResult(false)
 {
-}
+	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
+	FunctionCallStack.Add(RootFunctionEntry);
 
-FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterialFunctionInterface* InTargetMaterialFunction, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
-	: CompileTarget(InCompileTarget)
-	, TargetMaterial(nullptr)
-	, TargetMaterialFunction(InTargetMaterialFunction)
-	, HLSLTree(&InOutTree)
-	, bGeneratedResult(false)
-{
 }
 
 void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions)
@@ -42,6 +35,8 @@ void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TA
 
 bool FMaterialHLSLGenerator::Finalize()
 {
+	check(FunctionCallStack.Num() == 1);
+
 	if (!bGeneratedResult)
 	{
 		Error(TEXT("Missing connection to material output"));
@@ -263,34 +258,6 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewCast(UE::HLSLTree::FScope&
 	return Expression;
 }
 
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewFunctionInput(UE::HLSLTree::FScope& Scope, int32 InputIndex, UMaterialExpressionFunctionInput* MaterialFunctionInput)
-{
-	UE::Shader::EValueType ExpressionType = UE::Shader::EValueType::Void;
-	switch (MaterialFunctionInput->InputType)
-	{
-	case FunctionInput_Scalar: ExpressionType = UE::Shader::EValueType::Float1; break;
-	case FunctionInput_Vector2: ExpressionType = UE::Shader::EValueType::Float2; break;
-	case FunctionInput_Vector3: ExpressionType = UE::Shader::EValueType::Float3; break;
-	case FunctionInput_Vector4: ExpressionType = UE::Shader::EValueType::Float4; break;
-	case FunctionInput_Texture2D:
-	case FunctionInput_TextureCube:
-	case FunctionInput_Texture2DArray:
-	case FunctionInput_VolumeTexture:
-	case FunctionInput_StaticBool:
-	case FunctionInput_MaterialAttributes:
-	case FunctionInput_TextureExternal:
-		// TODO
-		break;
-	}
-	check(ExpressionType != UE::Shader::EValueType::Void);
-
-	UE::HLSLTree::FExpressionFunctionInput* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionFunctionInput>(Scope, MaterialFunctionInput->InputName, ExpressionType, InputIndex);
-	const FExpressionKey Key(MaterialFunctionInput, 0);
-	ExpressionMap.Add(Key, Expression);
-
-	return Expression;
-}
-
 UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureDeclaration(const UE::HLSLTree::FTextureDescription& Value)
 {
 	FString SamplerTypeError;
@@ -323,35 +290,6 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 		Declaration = HLSLTree->NewTextureParameterDeclaration(Name, DefaultValue);
 	}
 	return Declaration;
-}
-
-UE::HLSLTree::FFunctionCall* FMaterialHLSLGenerator::AcquireFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<UE::HLSLTree::FExpression*> Inputs)
-{
-	FSHA1 Hasher;
-	for (UE::HLSLTree::FExpression* Input : Inputs)
-	{
-		Hasher.Update((uint8*)&Input, sizeof(UE::HLSLTree::FExpression*));
-	}
-	Hasher.Final();
-
-	FFunctionCallKey Key;
-	Key.Function = Function;
-	Hasher.GetHash(Key.InputHash.Hash);
-
-	UE::HLSLTree::FFunctionCall** PrevFunctionCall = FunctionCallMap.Find(Key);
-	UE::HLSLTree::FFunctionCall* FunctionCall = nullptr;
-	if (!PrevFunctionCall)
-	{
-		const FMaterialHLSLTree& FunctionTree = Function->AcquireHLSLTree(*this);
-		FunctionCall = FunctionTree.GenerateFunctionCall(*this, Scope, Inputs);
-		FunctionCallMap.Add(Key, FunctionCall);
-	}
-	else
-	{
-		FunctionCall = *PrevFunctionCall;
-		Scope.UseFunctionCall(FunctionCall);
-	}
-	return FunctionCall;
 }
 
 bool FMaterialHLSLGenerator::GenerateAssignLocal(UE::HLSLTree::FScope& Scope, const FName& LocalName, UE::HLSLTree::FExpression* Value)
@@ -400,15 +338,17 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTre
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
 {
+	FFunctionCallEntry* FunctionEntry = FunctionCallStack.Last();
+
 	const FExpressionKey Key(MaterialExpression, OutputIndex);
-	UE::HLSLTree::FExpression** PrevExpression = ExpressionMap.Find(Key);
+	UE::HLSLTree::FExpression** PrevExpression = FunctionEntry->ExpressionMap.Find(Key);
 	UE::HLSLTree::FExpression* Expression = nullptr;
 	if (!PrevExpression)
 	{
 		ExpressionStack.Add(Key);
 		const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression);
 		verify(ExpressionStack.Pop() == Key);
-		ExpressionMap.Add(Key, Expression);
+		FunctionEntry->ExpressionMap.Add(Key, Expression);
 	}
 	else
 	{
@@ -460,6 +400,88 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	}
 
 	return bResult;
+}
+
+template<typename T>
+TArrayView<T> CopyArrayView(FMemStackBase& Allocator, TArrayView<T> InView)
+{
+	const int32 Num = InView.Num();
+	T* Result = new(Allocator) T[Num];
+	for (int32 i = 0; i < Num; ++i)
+	{
+		Result[i] = InView[i];
+	}
+	return MakeArrayView(Result, Num);
+}
+
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<const FFunctionExpressionInput> Inputs, int32 OutputIndex)
+{
+	if (!Function)
+	{
+		Error(TEXT("Missing material function"));
+		return nullptr;
+	}
+
+	TArray<FFunctionExpressionInput> FunctionInputs;
+	TArray<FFunctionExpressionOutput> FunctionOutputs;
+	Function->GetInputsAndOutputs(FunctionInputs, FunctionOutputs);
+
+	if (FunctionInputs.Num() != Inputs.Num())
+	{
+		Error(TEXT("Mismatched function inputs"));
+		return nullptr;
+	}
+
+	const UMaterialExpressionFunctionOutput* ExpressionOutput = FunctionOutputs.IsValidIndex(OutputIndex) ? FunctionOutputs[OutputIndex].ExpressionOutput : nullptr;
+	if (!ExpressionOutput)
+	{
+		Error(TEXT("Invalid function output"));
+		return nullptr;
+	}
+
+	FSHA1 Hasher;
+	Hasher.Update((uint8*)&Function, sizeof(UMaterialFunctionInterface*));
+
+	TArray<UE::HLSLTree::FExpression*> InputExpressions;
+	InputExpressions.Reserve(Inputs.Num());
+	for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
+	{
+		const FFunctionExpressionInput& Input = Inputs[InputIndex];
+		UE::HLSLTree::FExpression* InputExpression = Input.Input.AcquireHLSLExpression(*this, Scope);
+
+		check(InputExpression);
+		InputExpressions.Add(InputExpression);
+		Hasher.Update((uint8*)&InputExpression, sizeof(UE::HLSLTree::FExpression*));
+	}
+
+	Hasher.Final();
+
+	FSHAHash Hash;
+	Hasher.GetHash(Hash.Hash);
+
+	FFunctionCallEntry** ExistingFunctionCall = FunctionCallMap.Find(Hash);
+	FFunctionCallEntry* FunctionCall = ExistingFunctionCall ? *ExistingFunctionCall : nullptr;
+	if (!FunctionCall)
+	{
+		FunctionCall = new(HLSLTree->GetAllocator()) FFunctionCallEntry();
+		FunctionCall->Function = Function;
+		// Inject the function inputs into the function scope
+		for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
+		{
+			const FFunctionExpressionInput& Input = FunctionInputs[InputIndex];
+			UE::HLSLTree::FExpression* InputExpression = InputExpressions[InputIndex];
+			const FExpressionKey ExpressionKey(Input.ExpressionInput, 0);
+			FunctionCall->ExpressionMap.Add(ExpressionKey, InputExpression);
+		}
+
+		FunctionCallMap.Add(Hash, FunctionCall);
+	}
+
+	FunctionCallStack.Add(FunctionCall);
+	UE::HLSLTree::FExpression* Result = ExpressionOutput->A.AcquireHLSLExpression(*this, Scope);
+	verify(FunctionCallStack.Pop() == FunctionCall);
+
+	return Result;
 }
 
 void FMaterialHLSLGenerator::InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data)

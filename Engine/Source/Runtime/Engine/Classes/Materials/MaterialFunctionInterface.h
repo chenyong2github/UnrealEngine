@@ -18,7 +18,6 @@ class UMaterial;
 class UTexture;
 struct FPropertyChangedEvent;
 class FMaterialHLSLGenerator;
-class FMaterialHLSLTree;
 
 /** Usage set on a material function determines feature compatibility and validation. */
 UENUM()
@@ -49,15 +48,6 @@ class UMaterialFunctionInterface : public UObject
 	/** Used by materials using this function to know when to recompile. */
 	UPROPERTY(duplicatetransient)
 	FGuid StateId;
-
-#if WITH_EDITOR
-public:
-	FMaterialHLSLTree& AcquireHLSLTree(FMaterialHLSLGenerator& Generator);
-#endif
-#if WITH_EDITORONLY_DATA
-private:
-	FMaterialHLSLTree* CachedHLSLTree = nullptr;
-#endif
 
 protected:
 	/** The intended usage of this function, required for material layers. */

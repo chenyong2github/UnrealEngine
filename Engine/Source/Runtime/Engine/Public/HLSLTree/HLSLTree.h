@@ -464,6 +464,8 @@ public:
 	static FTree* Create(FMemStackBase& Allocator);
 	static void Destroy(FTree* Tree);
 
+	FMemStackBase& GetAllocator() { return *Allocator; }
+
 	bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
