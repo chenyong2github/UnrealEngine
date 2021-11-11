@@ -68,11 +68,6 @@
 			"Name": "NeuralNetworkInferenceEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "NeuralNetworkInferenceQAEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
 		}
 	]
 }
