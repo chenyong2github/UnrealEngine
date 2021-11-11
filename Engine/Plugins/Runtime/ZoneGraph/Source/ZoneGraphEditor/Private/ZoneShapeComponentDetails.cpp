@@ -994,7 +994,7 @@ FText FZoneShapePointDetails::GetLaneConnectionRestrictions() const
 			{
 				continue;
 			}
-			const int32 Value = Enum->GetValueByIndex(Index);
+			const int32 Value = (int32)Enum->GetValueByIndex(Index);
 			if ((Flags & Value) != 0)
 			{
 				Names.Add(Enum->GetDisplayNameTextByValue((int64)Value));

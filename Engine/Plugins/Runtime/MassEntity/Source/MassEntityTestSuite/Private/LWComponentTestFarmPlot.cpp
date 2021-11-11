@@ -64,7 +64,7 @@ ALWFragmentTestFarmPlot::ALWFragmentTestFarmPlot()
 	HarvestIconISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
-void ALWFragmentTestFarmPlot::AddItemToGrid(UMassEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex)
+void ALWFragmentTestFarmPlot::AddItemToGrid(UMassEntitySubsystem* EntitySystem, uint16 X, uint16 Y, FArchetypeHandle Archetype, uint16 VisualIndex)
 {
 	FMassEntityHandle NewItem = EntitySystem->CreateEntity(Archetype);
 	PlantedSquares[X + Y * GridWidth] = NewItem;
@@ -132,12 +132,12 @@ void ALWFragmentTestFarmPlot::BeginPlay()
 	const int32 NumGridCells = GridWidth * GridHeight;
 	PlantedSquares.AddDefaulted(NumGridCells);
 
-	for (int32 Y = 0; Y < GridHeight; ++Y)
+	for (uint16 Y = 0; Y < GridHeight; ++Y)
 	{
-		for (int32 X = 0; X < GridWidth; ++X)
+		for (uint16 X = 0; X < GridWidth; ++X)
 		{
 			const bool bIsOdd = ((X + Y) & 1) != 0;
-			const int32 VisualIndex = bIsOdd ? TestDataCropIndicies[FMath::RandRange(0, TestDataCropIndicies.Num() - 1)] : TestDataFlowerIndicies[FMath::RandRange(0, TestDataFlowerIndicies.Num() - 1)];
+			const uint16 VisualIndex = bIsOdd ? TestDataCropIndicies[FMath::RandRange(0, TestDataCropIndicies.Num() - 1)] : TestDataFlowerIndicies[FMath::RandRange(0, TestDataFlowerIndicies.Num() - 1)];
 
 			AddItemToGrid(EntitySystem, X, Y, bIsOdd ? CropArchetype : FlowerArchetype, VisualIndex);
 		}

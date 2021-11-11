@@ -82,11 +82,11 @@ struct FAgentDebugVisualization : public FTableRowBase
 
 	/** Near cull distance to override default value for that agent type */
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")
-	float VisualNearCullDistance = 5000.f;
+	uint32 VisualNearCullDistance = 5000;
 
 	/** Far cull distance to override default value for that agent type */
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")
-	float VisualFarCullDistance = 7500.f;
+	uint32 VisualFarCullDistance = 7500;
 
 	/** If Mesh is not set this WireShape will be used for debug drawing via GameplayDebugger */
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")

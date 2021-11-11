@@ -49,7 +49,7 @@ public:
 protected:
 
 	/** Tick rate for each LOD */
-	TStaticArray<int32, EMassLOD::Max> TickRates;
+	TStaticArray<float, EMassLOD::Max> TickRates;
 
 	/* Whether or not to spread the first update over the period specified in tick rate member for its LOD */
 	bool bShouldSpreadFirstUpdate = false;

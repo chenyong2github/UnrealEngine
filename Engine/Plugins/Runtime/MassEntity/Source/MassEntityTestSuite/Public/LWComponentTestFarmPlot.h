@@ -281,8 +281,8 @@ class ALWFragmentTestFarmPlot : public AActor
 	GENERATED_BODY()
 
 public:
-	int32 GridWidth = 40*7;
-	int32 GridHeight = 20*7;
+	uint16 GridWidth = 40*7;
+	uint16 GridHeight = 20*7;
 
 	UPROPERTY(EditAnywhere, Category=Farm)
 	float GridCellWidth = 150.0f;
@@ -312,23 +312,23 @@ public:
 
 	// Indicies into VisualDataTable for flowers
 	UPROPERTY(EditAnywhere, Category=Farm)
-	TArray<int32> TestDataFlowerIndicies;
+	TArray<uint16> TestDataFlowerIndicies;
 
 	// Indicies into VisualDataTable for crops
 	UPROPERTY(EditAnywhere, Category=Farm)
-	TArray<int32> TestDataCropIndicies;
+	TArray<uint16> TestDataCropIndicies;
 
 	UPROPERTY(EditAnywhere, Category = Farm)
-	float VisualNearCullDistance = 1000.0f;
+	uint32 VisualNearCullDistance = 1000;
 
 	UPROPERTY(EditAnywhere, Category = Farm)
-	float VisualFarCullDistance = 1200.0f;
+	uint32 VisualFarCullDistance = 1200;
 
 	UPROPERTY(EditAnywhere, Category = Farm)
-	float IconNearCullDistance = 400.0f;
+	uint32 IconNearCullDistance = 400;
 
 	UPROPERTY(EditAnywhere, Category = Farm)
-	float IconFarCullDistance = 800.0f;
+	uint32 IconFarCullDistance = 800;
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"), Category=Farm)
@@ -337,7 +337,7 @@ private:
 	TArray<int32> FreeHarvestIconIndicies;
 
 private:
-	void AddItemToGrid(UMassEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex);
+	void AddItemToGrid(UMassEntitySubsystem* EntitySystem, uint16 X, uint16 Y, FArchetypeHandle Archetype, uint16 VisualIndex);
 
 public:
 	ALWFragmentTestFarmPlot();

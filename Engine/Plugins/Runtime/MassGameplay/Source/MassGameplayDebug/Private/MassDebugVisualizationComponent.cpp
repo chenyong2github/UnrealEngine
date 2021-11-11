@@ -67,9 +67,11 @@ void UMassDebugVisualizationComponent::ConstructVisualComponent()
 	}
 }
 
-int32 UMassDebugVisualizationComponent::AddDebugVisType(const FAgentDebugVisualization& Data)
+uint16 UMassDebugVisualizationComponent::AddDebugVisType(const FAgentDebugVisualization& Data)
 {
-	return VisualDataTable.Add(Data);
+	const int32 Index = VisualDataTable.Add(Data);
+	check(VisualDataTable.Num() <= (int32)MAX_uint16);
+	return (uint16)Index;
 }
 
 void UMassDebugVisualizationComponent::Clear()
