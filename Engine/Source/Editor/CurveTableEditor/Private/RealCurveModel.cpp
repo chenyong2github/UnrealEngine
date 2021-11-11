@@ -5,6 +5,7 @@
 
 #include "Curves/RealCurve.h"
 #include "Styling/AppStyle.h"
+#include "CurveEditorScreenSpace.h"
 
 FRealCurveModel::FRealCurveModel(FRealCurve* InRealCurve, UObject* InOwner)
 	: WeakOwner(InOwner)
@@ -35,10 +36,37 @@ void FRealCurveModel::DrawCurve(const FCurveEditor& CurveEditor, const FCurveEdi
 
 	if (IsValid())
 	{
+
+		FKeyHandle LastKeyHandle = RealCurve->GetFirstKeyHandle();
+		double LastKeyTime =  double(ScreenSpace.GetInputMin());
+		double LastKeyValue =  double(RealCurve->GetKeyValue(LastKeyHandle));
+		double LastInterpMode = RealCurve->GetKeyInterpMode(LastKeyHandle);
+
+		if (LastInterpMode == RCIM_Constant)
+		{
+			InterpolatingPoints.Add(MakeTuple( LastKeyTime, LastKeyValue));
+		}
+
 		for (auto It = RealCurve->GetKeyHandleIterator(); It; ++It)
 		{
 			auto KeyPair = RealCurve->GetKeyTimeValuePair(*It);
+
+			// if  constant , add another point to mark the end of the previous' key reign
+			if (LastInterpMode == RCIM_Constant)
+			{
+				InterpolatingPoints.Add(MakeTuple( double(KeyPair.Key), LastKeyValue));
+			}
+
 			InterpolatingPoints.Add(MakeTuple( double(KeyPair.Key), double(KeyPair.Value)));
+
+			LastKeyHandle = RealCurve->GetNextKey(LastKeyHandle);
+			LastKeyValue = KeyPair.Value;
+			LastInterpMode = RealCurve->GetKeyInterpMode(LastKeyHandle);
+		}
+
+		if (LastInterpMode == RCIM_Constant)
+		{
+			InterpolatingPoints.Add(MakeTuple( double(ScreenSpace.GetInputMax()), LastKeyValue));
 		}
 	}
 }

@@ -670,8 +670,16 @@ void FCurveTableEditor::RefreshCachedCurveTable()
 		}
 
 		// Setup the CurveEditorTree 
-		for (const TPair<FName, FRealCurve*>& CurveRow : Table->GetRowMap())
+
+		// Store the default Interpolation Mode
+		InterpMode = RCIM_None;
+		for (const TPair<FName, FSimpleCurve*>& CurveRow : Table->GetSimpleCurveRowMap())
 		{
+			if (InterpMode == RCIM_None) 
+			{
+				InterpMode = CurveRow.Value->GetKeyInterpMode();
+			}
+
 			const FName& CurveName = CurveRow.Key;
 			FCurveEditorTreeItem* TreeItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID());
 			TSharedPtr<FCurveTableEditorItem> NewItem = MakeShared<FCurveTableEditorItem>(CurveName, FCurveTableEditorHandle(Table, CurveName), AvailableColumns);
@@ -823,7 +831,9 @@ FReply FCurveTableEditor::OnAddCurveClicked()
 	else
 	{
 		FName NewCurveUnique = MakeUniqueCurveName(Table);
-		FRealCurve& RealCurve = Table->AddSimpleCurve(NewCurveUnique);
+		FSimpleCurve& RealCurve = Table->AddSimpleCurve(NewCurveUnique);
+		RealCurve.SetKeyInterpMode(InterpMode);
+
 		// Also add a default key for each column 
 		for (auto Column : AvailableColumns)
 		{
