@@ -674,19 +674,19 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FMemStackBase Allocator;
 	FMemMark MemMark(Allocator);
 
-	UE::HLSLTree::FCodeWriter* CodeWriter = UE::HLSLTree::FCodeWriter::Create(Allocator);
+	TStringBuilder<32 * 1024> Code;
 
 	UE::HLSLTree::FEmitContext EmitContext;
 	EmitContext.Allocator = &Allocator;
 	EmitContext.Material = &InMaterial;
 	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
-	InTree.EmitHLSL(EmitContext, *CodeWriter);
+	InTree.EmitHLSL(EmitContext, Code);
 
 	//InOutMaterial.CompileErrors = MoveTemp(CompileErrors);
 	//InOutMaterial.ErrorExpressions = MoveTemp(ErrorExpressions);
 
-	const FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform, InMaterial, EmitContext, CodeWriter->StringBuilder->ToString());
+	const FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform, InMaterial, EmitContext, Code.ToString());
 
 	OutMaterialEnvironment = new FSharedShaderCompilerEnvironment();
 	OutMaterialEnvironment->TargetPlatform = InCompilerTarget.TargetPlatform;

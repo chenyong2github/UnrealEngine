@@ -34,64 +34,6 @@ class FExpressionLocalPHI;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
-/** Allows building a string incrementally, with some additional features to support code generation, such as indent handling */
-class FCodeWriter
-{
-public:
-	static FCodeWriter* Create(FMemStackBase& Allocator);
-
-	const FStringBuilderBase& GetStringBuilder() const { return *StringBuilder; }
-
-	FSHAHash GetCodeHash() const;
-
-	void IncreaseIndent();
-	void DecreaseIndent();
-
-	template <typename TextType>
-	inline void Write(const TextType& Text)
-	{
-		StringBuilder->Append(Text);
-	}
-
-	template <typename FormatType, typename... ArgTypes>
-	inline void Writef(const FormatType& Format, ArgTypes... Args)
-	{
-		StringBuilder->Appendf(Format, Args...);
-	}
-
-	template <typename TextType>
-	inline void WriteLine(const TextType& Text)
-	{
-		WriteIndent();
-		StringBuilder->Append(Text);
-		StringBuilder->Append('\n');
-	}
-
-	template <typename FormatType, typename... ArgTypes>
-	inline void WriteLinef(const FormatType& Format, ArgTypes... Args)
-	{
-		WriteIndent();
-		StringBuilder->Appendf(Format, Args...);
-		StringBuilder->Append('\n');
-	}
-
-	void WriteConstant(const Shader::FValue& Value);
-
-	explicit FCodeWriter(FStringBuilderBase* InStringBuilder)
-		: StringBuilder(InStringBuilder)
-		, IndentLevel(0)
-	{}
-
-	void WriteIndent();
-
-	void Reset();
-
-	void Append(const FCodeWriter& InWriter);
-
-	FStringBuilderBase* StringBuilder;
-	int32 IndentLevel;
-};
-
 class FScope;
 class FEmitScope;
 
@@ -269,8 +211,8 @@ public:
 
 struct FExpressionEmitResult
 {
-	FExpressionEmitResult(FCodeWriter& InWriter, Shader::FPreshaderData& InPreshader)
-		: Writer(InWriter)
+	FExpressionEmitResult(FStringBuilderBase& InCode, Shader::FPreshaderData& InPreshader)
+		: Code(InCode)
 		, Preshader(InPreshader)
 		, EvaluationType(EExpressionEvaluationType::None)
 		, Type(Shader::EValueType::Void)
@@ -279,7 +221,7 @@ struct FExpressionEmitResult
 
 	void ForwardValue(FEmitContext& Context, const FEmitValue* InValue);
 
-	FCodeWriter& Writer;
+	FStringBuilderBase& Code;
 	Shader::FPreshaderData& Preshader;
 	EExpressionEvaluationType EvaluationType;
 	Shader::EValueType Type;
@@ -430,7 +372,7 @@ public:
 
 	FMemStackBase& GetAllocator() { return *Allocator; }
 
-	bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
+	bool EmitHLSL(FEmitContext& Context, FStringBuilderBase& Writer) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
 
