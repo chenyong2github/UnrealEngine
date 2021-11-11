@@ -86,8 +86,7 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	for (const UScriptStruct* ChunkFragmentType : ChunkFragmentList)
 	{
 		check(ChunkFragmentType);
-		if (const FInstancedStruct* Struct = InInitialValues.ChunkFragments.FindByPredicate( 
-				[ChunkFragmentType](const FInstancedStruct& Struct) { return Struct.GetScriptStruct() == ChunkFragmentType; }))
+		if (const FInstancedStruct* Struct = InInitialValues.ChunkFragments.FindByPredicate(FSameTypeScriptStructPredicate(ChunkFragmentType)))
 		{
 			InitialValues.ChunkFragments.Add(*Struct);
 		}

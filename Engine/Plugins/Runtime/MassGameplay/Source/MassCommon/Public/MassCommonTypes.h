@@ -51,14 +51,6 @@ struct MASSCOMMON_API FMassUniqueFragmentCollection
 {
 	GENERATED_BODY()
 
-	struct FSameTypeScriptStructPredicate
-	{
-		const UScriptStruct* TypePtr;
-		explicit FSameTypeScriptStructPredicate(const FInstancedStruct& InRef) : TypePtr(InRef.GetScriptStruct()) {}
-		explicit FSameTypeScriptStructPredicate(const UScriptStruct* InTypePtr) : TypePtr(InTypePtr) {}
-		bool operator()(const FInstancedStruct& Other) const { return Other.GetScriptStruct() == TypePtr; }
-	};
-
 	FMassUniqueFragmentCollection() = default;
 
 	/** Adds a unique fragment instance. If a fragment of this type has already been added then its values won't be 
