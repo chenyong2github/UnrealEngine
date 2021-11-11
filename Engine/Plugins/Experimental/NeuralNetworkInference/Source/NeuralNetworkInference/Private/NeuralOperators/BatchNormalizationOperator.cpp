@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/BatchNormalizationOperator.h"
+#include "BatchNormalizationCS.h"
 #include "ModelProto.h"
-#include "NeuralNetworkInferenceShaders/BatchNormalizationCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 

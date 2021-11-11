@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceShaders/BatchNormalizationCS.h"
+#include "BatchNormalizationCS.h"
 
 
 

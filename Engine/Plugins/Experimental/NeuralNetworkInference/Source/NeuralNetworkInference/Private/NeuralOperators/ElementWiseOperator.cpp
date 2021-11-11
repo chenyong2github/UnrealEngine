@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ElementWiseOperator.h"
-#include "NeuralNetworkInferenceShaders/ElementWiseCS.h"
+#include "ElementWiseCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "NeuralOperatorEnumClasses.h"

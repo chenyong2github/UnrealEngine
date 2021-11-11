@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkInferenceShaders/Module.h"
-#include "NeuralNetworkInferenceShaders/Utils.h"
+#include "Module.h"
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
+#include "Utils.h"
 
 #define LOCTEXT_NAMESPACE "NeuralNetworkInferenceShaders"
 

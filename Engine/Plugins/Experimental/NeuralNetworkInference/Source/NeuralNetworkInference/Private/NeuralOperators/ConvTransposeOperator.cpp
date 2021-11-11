@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ConvTransposeOperator.h"
+#include "ConvTransposeCS.h"
 #include "ModelProto.h"
-#include "NeuralNetworkInferenceShaders/ConvTransposeCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 

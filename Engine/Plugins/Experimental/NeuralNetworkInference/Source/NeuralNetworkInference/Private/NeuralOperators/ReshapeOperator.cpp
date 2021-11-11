@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ReshapeOperator.h"
+#include "CopyCS.h"
 #include "ModelProto.h"
-#include "NeuralNetworkInferenceShaders/CopyCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 

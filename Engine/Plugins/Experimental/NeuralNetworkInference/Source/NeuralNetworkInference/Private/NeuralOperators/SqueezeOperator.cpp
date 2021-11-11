@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/SqueezeOperator.h"
-#include "NeuralNetworkInferenceShaders/CopyCS.h"
+#include "CopyCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 

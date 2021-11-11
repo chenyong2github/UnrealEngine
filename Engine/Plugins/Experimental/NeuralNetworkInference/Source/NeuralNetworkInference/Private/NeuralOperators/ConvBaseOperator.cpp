@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralOperators/ConvBaseOperator.h"
-#include "NeuralNetworkInferenceShaders/ConvBaseCS.h"
+#include "ConvBaseCS.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 
