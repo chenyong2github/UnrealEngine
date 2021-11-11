@@ -6,12 +6,60 @@
 #include "Misc/Paths.h"
 
 
+
+/* FModelUnitTester axuiliary functions
+ *****************************************************************************/
+
 struct FNNIUnitTesterTimeData 
 {
-	FNNIStatsData ComputeTimeData;
-	FNNIStatsData InputCopyTimeData;
-	FNNIStatsData OutputCopyTimeData;
+	FNeuralStatsData ComputeTimeData;
+	FNeuralStatsData InputCopyTimeData;
+	FNeuralStatsData OutputCopyTimeData;
+
+	FNNIUnitTesterTimeData(const FNeuralStatsData& InComputeTimeData, const FNeuralStatsData& InInputCopyTimeData, const FNeuralStatsData& InOutputCopyTimeData)
+		: ComputeTimeData(InComputeTimeData)
+		, InputCopyTimeData(InInputCopyTimeData)
+		, OutputCopyTimeData(InOutputCopyTimeData)
+	{}
 };
+
+FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOutNetwork, TArray<float>& OutCPUGPUCPUOutput, const TArray<float>& InInputArray, const int32 InRepetitions) 
+{
+	/* Input/output copy speed */ 
+	FNeuralStats OutCopyingStats;
+	FNeuralNetworkInferenceTimer Timer;
+	for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
+	{ 
+		InOutNetwork->SetInputFromArrayCopy(InInputArray); 
+		Timer.Tic();
+		OutCPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>();
+		const float CurrentCopyingTime = Timer.Toc();
+		OutCopyingStats.StoreSample(CurrentCopyingTime);
+
+	} 
+
+	/* Forward() speed */ 
+	if (InRepetitions > 1) 
+	{ 
+		for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) 
+		{ 
+			InOutNetwork->Run(); 
+		} 
+	} 
+
+	if (InRepetitions > 0) 
+	{ 
+		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
+		{ 
+			InOutNetwork->SetInputFromArrayCopy(InInputArray);
+			InOutNetwork->Run();
+			OutCPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); 
+		} 
+	}
+	// Return NetworkTimeData
+	return FNNIUnitTesterTimeData(InOutNetwork->GetInferenceStats(), InOutNetwork->GetInputMemoryTransferStats(), OutCopyingStats.GetStats());
+}
+
 
 
 /* FModelUnitTester static public functions
@@ -364,54 +412,6 @@ else
 	return bDidGlobalTestPassed;
 }
 
-FNNIUnitTesterTimeData GetTimeInformation(
-		const int32 InRepetitions,
-		FNeuralNetworkInferenceTimer& Timer,
-		UNeuralNetwork* InOutNetwork,
-		TArray<float>* InputArray,
-		TArray<float>* CPUGPUCPUOutput) 
-	{
-
-		FNeuralStats OutCopyingStats;
-
-		/* Input/output copy speed */ 
-		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
-		{ 
-			InOutNetwork->SetInputFromArrayCopy(*InputArray); 
-			Timer.Tic();
-			*CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>();
-			const float CurrentCopyingTime = Timer.Toc();
-			OutCopyingStats.StoreSample(CurrentCopyingTime);
-
-		} 
-
-		/* Forward() speed */ 
-		if (InRepetitions > 1) 
-		{ 
-			for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) 
-			{ 
-				InOutNetwork->Run(); 
-			} 
-		} 
-
-		FNeuralStats CurrentComputingStats;
-		if (InRepetitions > 0) 
-		{ 
-			for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
-			{ 
-				InOutNetwork->SetInputFromArrayCopy(*InputArray); 
-				InOutNetwork->Run();
-				*CPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); 
-			} 
-		} 
-		FNNIUnitTesterTimeData NetworkTimeData;
-		NetworkTimeData.ComputeTimeData = InOutNetwork->GetInferenceStats();
-		NetworkTimeData.InputCopyTimeData = InOutNetwork->GetInputMemoryTransferStats();
-		NetworkTimeData.OutputCopyTimeData = OutCopyingStats.GetStats();
-
-		return NetworkTimeData;
-	}
-
 
 bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeuralDeviceType InDeviceType, const ENeuralBackEnd InBackEnd, const int32 InRepetitions)
 {
@@ -446,17 +446,15 @@ bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeural
 	TArray<float> InputArray;
 	InputArray.Init(1.f, NetworkSize);
 	TArray<float> CPUGPUCPUOutput;
-	// Speed profiling
-	FNeuralNetworkInferenceTimer Timer;
 	// Run profiling 1 time
 	InOutNetwork->SetDeviceType(InDeviceType);
 	InOutNetwork->ResetStats();
-	FNNIUnitTesterTimeData TimeData1 = GetTimeInformation(1, Timer, InOutNetwork, &InputArray, &CPUGPUCPUOutput);
+	const FNNIUnitTesterTimeData TimeData1 = FModelUnitTester_GetTimeInformation(InOutNetwork, CPUGPUCPUOutput, InputArray, 1);
 
 	// Run profiling n times
 	InOutNetwork->SetDeviceType(InDeviceType);
 	InOutNetwork->ResetStats();
-	FNNIUnitTesterTimeData TimeDataN = GetTimeInformation(InRepetitions, Timer, InOutNetwork, &InputArray, &CPUGPUCPUOutput);
+	const FNNIUnitTesterTimeData TimeDataN = FModelUnitTester_GetTimeInformation(InOutNetwork, CPUGPUCPUOutput, InputArray, InRepetitions);
 
 	// Display speed times
 	UE_LOG(LogNeuralNetworkInferenceQA, Display,

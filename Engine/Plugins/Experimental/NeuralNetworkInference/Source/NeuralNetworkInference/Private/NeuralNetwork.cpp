@@ -516,15 +516,18 @@ void UNeuralNetwork::Run()
 	ComputeStatsModule.StoreSample(RunTimer.Toc());
 }
 
-float UNeuralNetwork::GetLastInferenceTime() {
+float UNeuralNetwork::GetLastInferenceTime() const
+{
 	return ComputeStatsModule.GetLastSample();
 };
 
-FNNIStatsData UNeuralNetwork::GetInferenceStats() {
+FNeuralStatsData UNeuralNetwork::GetInferenceStats() const
+{
 	return ComputeStatsModule.GetStats();
 };
 
-FNNIStatsData UNeuralNetwork::GetInputMemoryTransferStats() {
+FNeuralStatsData UNeuralNetwork::GetInputMemoryTransferStats() const
+{
 	return InputMemoryTransferStatsModule.GetStats();
 };
 
