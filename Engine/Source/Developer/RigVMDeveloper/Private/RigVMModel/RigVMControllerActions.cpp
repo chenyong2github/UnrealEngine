@@ -1999,3 +1999,40 @@ bool FRigVMAddArrayNodeAction::Redo(URigVMController* InController)
 #endif
 	return false;
 }
+
+FRigVMPromoteNodeAction::FRigVMPromoteNodeAction()
+	: LibraryNodePath()
+	, FunctionDefinitionPath()
+	, bFromFunctionToCollapseNode(false)
+{
+}
+
+FRigVMPromoteNodeAction::FRigVMPromoteNodeAction(const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath)
+	: LibraryNodePath(InNodePath)
+	, FunctionDefinitionPath(InFunctionDefinitionPath)
+	, bFromFunctionToCollapseNode(InNodeToPromote->IsA<URigVMFunctionReferenceNode>())
+{
+}
+
+bool FRigVMPromoteNodeAction::Undo(URigVMController* InController)
+{
+	if(bFromFunctionToCollapseNode)
+	{
+		const FName FunctionRefNodeName = InController->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false, FunctionDefinitionPath);
+		return FunctionRefNodeName.ToString() == LibraryNodePath;
+	}
+
+	const FName CollapseNodeName = InController->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, true);
+	return CollapseNodeName.ToString() == LibraryNodePath;
+}
+
+bool FRigVMPromoteNodeAction::Redo(URigVMController* InController)
+{
+	if(bFromFunctionToCollapseNode)
+	{
+		const FName CollapseNodeName = InController->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, false);
+		return CollapseNodeName.ToString() == LibraryNodePath;
+	}
+	const FName FunctionRefNodeName = InController->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false);
+	return FunctionRefNodeName.ToString() == LibraryNodePath;
+}
