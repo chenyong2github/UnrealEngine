@@ -134,7 +134,7 @@ bool FIOSAudioSoundBuffer::ReadCompressedInfo(USoundWave* InWave)
 		return false;
 	}
 
-	return DecompressionState->ReadCompressedInfo(InWave->GetResourceData(), InWave->SoundWaveDataPtr->GetResourceSize(), &QualityInfo);
+	return DecompressionState->ReadCompressedInfo(InWave->GetResourceData(), InWave->GetResourceSize(), &QualityInfo);
 }
 
 bool FIOSAudioSoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFramesToDecode, bool bLooping )
