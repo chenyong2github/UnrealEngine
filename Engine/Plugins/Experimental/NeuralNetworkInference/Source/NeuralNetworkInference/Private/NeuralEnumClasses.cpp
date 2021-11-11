@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralEnumClasses.h"
-#include "NeuralNetworkInferenceCoreUtils.h"
+#include "NeuralNetworkInferenceUtils.h"
 
 
 
 /* FNeuralNetworkInferenceUtils public functions
  *****************************************************************************/
 
-FString FDataType::ToString(const ENeuralDataType InDataType)
+FString FNeuralDataTypeUtils::ToString(const ENeuralDataType InDataType)
 {
 	if (InDataType == ENeuralDataType::Float)
 	{
@@ -34,11 +34,11 @@ FString FDataType::ToString(const ENeuralDataType InDataType)
 	{
 		return TEXT("None");
 	}
-	UE_LOG(LogNeuralNetworkInferenceCore, Warning, TEXT("FDataType::ToString(): Unknown InDataType = %d used."), (int32)InDataType);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralDataTypeUtils::ToString(): Unknown InDataType = %d used."), (int32)InDataType);
 	return TEXT("");
 }
 
-int64 FDataType::GetSize(const ENeuralDataType InDataType)
+int64 FNeuralDataTypeUtils::GetSize(const ENeuralDataType InDataType)
 {
 	if (InDataType == ENeuralDataType::Float)
 	{
@@ -60,11 +60,11 @@ int64 FDataType::GetSize(const ENeuralDataType InDataType)
 	{
 		return sizeof(uint64);
 	}
-	UE_LOG(LogNeuralNetworkInferenceCore, Warning, TEXT("FDataType::GetSize(): Unknown InDataType = %d used."), (int32)InDataType);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralDataTypeUtils::GetSize(): Unknown InDataType = %d used."), (int32)InDataType);
 	return 1;
 }
 
-EPixelFormat FDataType::GetPixelFormat(const ENeuralDataType InDataType)
+EPixelFormat FNeuralDataTypeUtils::GetPixelFormat(const ENeuralDataType InDataType)
 {
 	if (InDataType == ENeuralDataType::Float)
 	{
@@ -78,6 +78,6 @@ EPixelFormat FDataType::GetPixelFormat(const ENeuralDataType InDataType)
 	{
 		return EPixelFormat::PF_R32_UINT;
 	}
-	UE_LOG(LogNeuralNetworkInferenceCore, Warning, TEXT("FDataType::GetPixelFormat(): Unknown InDataType = %d used."), (int32)InDataType);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralDataTypeUtils::GetPixelFormat(): Unknown InDataType = %d used."), (int32)InDataType);
 	return EPixelFormat::PF_Unknown;
 }

@@ -230,36 +230,6 @@ FString FTensorProto::ToString(const FString& InLineStarted) const
 	return String;
 }
 
-ENeuralDataType FTensorProto::GetDataTypeFromTensorProtoDataType() const
-{
-	if (DataType == ETensorProtoDataType::FLOAT)
-	{
-		return ENeuralDataType::Float;
-	}
-	else if (DataType == ETensorProtoDataType::INT32)
-	{
-		return ENeuralDataType::Int32;
-	}
-	else if (DataType == ETensorProtoDataType::INT64)
-	{
-		return ENeuralDataType::Int64;
-	}
-	else if (DataType == ETensorProtoDataType::UINT32)
-	{
-		return ENeuralDataType::UInt32;
-	}
-	else if (DataType == ETensorProtoDataType::UINT64)
-	{
-		return ENeuralDataType::UInt64;
-	}
-	else if (DataType == ETensorProtoDataType::UNDEFINED)
-	{
-		return ENeuralDataType::None;
-	}
-	UE_LOG(LogModelProto, Warning, TEXT("FModelProto::GetDataTypeFromTensorProtoDataType(): Unknown DataType = %d used."), (int32)DataType);
-	return ENeuralDataType::None;
-}
-
 /* FTensorProto private functions
  *****************************************************************************/
 

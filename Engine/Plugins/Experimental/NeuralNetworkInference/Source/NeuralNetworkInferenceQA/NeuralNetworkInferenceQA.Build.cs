@@ -30,7 +30,6 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			new string[] {
 				"ModelProto",
 				"ModelProtoFileReader",
-				"NeuralNetworkInferenceCore",
 				"NeuralNetworkInferenceProfiling"
 			}
 		);

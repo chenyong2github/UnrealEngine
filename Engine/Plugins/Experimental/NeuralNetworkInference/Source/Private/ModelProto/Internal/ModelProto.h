@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NeuralEnumClasses.h"
 #include "ModelProto.generated.h"
 
 
@@ -249,12 +248,6 @@ public:
 	bool LoadFromString(const FString& InProtoString, const int32 InLevel);
 
 	FString ToString(const FString& InLineStarted = TEXT("")) const;
-
-	/**
-	 * It gets the data type from its ETensorProtoDataType analog. E.g.,
-	 * const ENeuralDataType NeuralDataType = FModelProto::GetDataTypeFromTensorProtoDataType(TensorProto.DataType);
-	 */
-	ENeuralDataType GetDataTypeFromTensorProtoDataType() const;
 
 private:
 	static ETensorProtoDataType StringToDataType(const FString& InString);

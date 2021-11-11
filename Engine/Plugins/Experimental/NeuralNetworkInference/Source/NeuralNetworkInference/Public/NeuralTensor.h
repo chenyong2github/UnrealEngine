@@ -330,7 +330,7 @@ private:
 
 template <typename T>
 FNeuralTensor::FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
-	: FNeuralTensor(FDataType::GetDataType<T>(), InArray.GetData(), sizeof(T), InArray.Num(), (InSizes.Num() > 0 ? InSizes : TArray<int64>({ (int64)InArray.Num() })), InName, InTensorTypeGPU)
+	: FNeuralTensor(FNeuralDataTypeUtils::GetDataType<T>(), InArray.GetData(), sizeof(T), InArray.Num(), (InSizes.Num() > 0 ? InSizes : TArray<int64>({ (int64)InArray.Num() })), InName, InTensorTypeGPU)
 {}
 
 bool FNeuralTensor::operator!=(const FNeuralTensor& InTensorToCopy) const
@@ -464,5 +464,5 @@ void FNeuralTensor::SetTo(const TInput InValue)
 template<typename T>
 bool FNeuralTensor::CheckTAndDataType() const
 {
-	return CheckTAndDataTypeResult(FDataType::CheckTAndDataType<T>(DataType), sizeof(T));
+	return CheckTAndDataTypeResult(FNeuralDataTypeUtils::CheckTAndDataType<T>(DataType), sizeof(T));
 }
