@@ -19,6 +19,8 @@ public class LowLevelTests : ModuleRules
 
 	public virtual bool UsesCatch2 => true;
 
+	public virtual bool Disabled => false;
+
 	public LowLevelTests(ReadOnlyTargetRules Target) : base(Target)
 	{
 		if (UsesCatch2)
@@ -147,6 +149,7 @@ public class LowLevelTests : ModuleRules
 		TestNames.Attribute("Value").SetValue(AllTestNames);
 
 		XElement lastUpdatedNode = TestNames;
+		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "Disabled", Disabled.ToString());
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "Short", TestShortName);
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "Target", TestTargetName);
 		InsertOrUpdateTestFlag(ref lastUpdatedNode, TestName, "BinariesRelative", TestBinariesPath);
