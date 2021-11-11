@@ -722,17 +722,17 @@ void FRigComputedTransformDetails::OnTransformChanged(FEditPropertyChain* InProp
 	}
 }
 
-void FRigBaseElementDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	BlueprintBeingCustomized = nullptr;
 	HierarchyBeingCustomized = nullptr;
 	ObjectsBeingCustomized.Reset();
-	
-	TArray<UObject*> Objects;
-	InStructPropertyHandle->GetOuterObjects(Objects);
-	for (UObject* Object : Objects)
+
+	TArray<TWeakObjectPtr<UObject>> DetailObjects;
+	DetailBuilder.GetObjectsBeingCustomized(DetailObjects);
+	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
 	{
-		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(Object);
+		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
 
 		if(HierarchyBeingCustomized == nullptr)
 		{
@@ -756,13 +756,12 @@ void FRigBaseElementDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruc
 
 	if(BlueprintBeingCustomized == nullptr)
 	{	
-		RigElementDetails_GetCustomizedInfo(InStructPropertyHandle, BlueprintBeingCustomized);
+		RigElementDetails_GetCustomizedInfo(DetailBuilder.GetProperty(TEXT("Key")), BlueprintBeingCustomized);
 	}
-}
 
-void FRigBaseElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	StructBuilder.AddCustomRow(FText::FromString(TEXT("Name")))
+	IDetailCategoryBuilder& GeneralCategory = DetailBuilder.EditCategory(TEXT("General"), LOCTEXT("General", "General"));
+
+	GeneralCategory.AddCustomRow(FText::FromString(TEXT("Name")))
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -778,6 +777,8 @@ void FRigBaseElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle>
 		.OnVerifyTextChanged(this, &FRigBaseElementDetails::OnVerifyNameChanged)
 		.IsEnabled(ObjectsBeingCustomized.Num() == 1)
 	];
+
+	DetailBuilder.HideCategory(TEXT("RigElement"));
 }
 
 FRigElementKey FRigBaseElementDetails::GetElementKey() const
@@ -785,7 +786,7 @@ FRigElementKey FRigBaseElementDetails::GetElementKey() const
 	check(ObjectsBeingCustomized.Num() == 1);
 	if(ObjectsBeingCustomized[0].IsValid())
 	{
-		return ObjectsBeingCustomized[0]->GetContent<FRigBaseElement>()->GetKey(); 
+		return ObjectsBeingCustomized[0]->GetContent<FRigBaseElement>().GetKey(); 
 	}
 	return FRigElementKey();
 }
@@ -891,7 +892,7 @@ TArray<FRigElementKey> FRigBaseElementDetails::GetElementKeys() const
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			Keys.Add(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey());
+			Keys.Add(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey());
 		}
 	}
 	return Keys;
@@ -903,9 +904,10 @@ bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				if(ControlElement->Settings.ControlType == InType)
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ControlElement.Settings.ControlType == InType)
 				{
 					return true;
 				}
@@ -921,9 +923,10 @@ bool FRigBaseElementDetails::IsAnyControlNotOfType(ERigControlType InType) const
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				if(ControlElement->Settings.ControlType != InType)
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ControlElement.Settings.ControlType != InType)
 				{
 					return true;
 				}
@@ -933,15 +936,36 @@ bool FRigBaseElementDetails::IsAnyControlNotOfType(ERigControlType InType) const
 	return false;
 }
 
-void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule)
 {
-	FRigBaseElementDetails::CustomizeChildren(InStructPropertyHandle, StructBuilder, StructCustomizationUtils);
+	FRigBoneElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigBoneElement::StaticStruct()));
+	FRigNullElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigNullElement::StaticStruct()));
+	FRigControlElementDetails().RegisterSectionMappings(PropertyEditorModule, UDetailsViewWrapperObject::GetClassForStruct(FRigControlElement::StaticStruct()));
+}
 
-	IDetailGroup& PoseGroupDefault = StructBuilder.AddGroup(TEXT("Pose"), LOCTEXT("Pose", "Pose")); 
-	IDetailGroup& PoseGroupAdvanced = StructBuilder.GetParentCategory().AddGroup(TEXT("Pose"), LOCTEXT("Pose", "Pose"), true, false); 
+void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
+{
+}
+
+void FRigTransformElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	FRigBaseElementDetails::CustomizeDetails(DetailBuilder);
+}
+
+void FRigTransformElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
+{
+	FRigBaseElementDetails::RegisterSectionMappings(PropertyEditorModule, InClass);
 	
+	TSharedRef<FPropertySection> TransformSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Transform", LOCTEXT("Transform", "Transform"));
+	TransformSection->AddCategory("General");
+	TransformSection->AddCategory("Transform");
+}
+
+void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& DetailBuilder)
+{
+	IDetailCategoryBuilder& TransformCategory = DetailBuilder.EditCategory(TEXT("Transform"), LOCTEXT("Transform", "Transform"));
 	{
-		const TSharedPtr<IPropertyHandle> PoseHandle = InStructPropertyHandle->GetChildHandle(TEXT("Pose"));
+		const TSharedPtr<IPropertyHandle> PoseHandle = DetailBuilder.GetProperty(TEXT("Pose"));
 		const TSharedPtr<IPropertyHandle> InitialHandle = PoseHandle->GetChildHandle(TEXT("Initial"));
 		const TSharedPtr<IPropertyHandle> CurrentHandle = PoseHandle->GetChildHandle(TEXT("Current"));
 
@@ -950,8 +974,9 @@ void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 			const TSharedPtr<IPropertyHandle> GlobalHandle = InitialHandle->GetChildHandle(TEXT("Global"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = GlobalHandle->GetChildHandle(TEXT("Transform"));
 
-			PoseGroupAdvanced.AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Initial Global")))
-			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
+				.DisplayName(FText::FromString(TEXT("Initial Global")))
+				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
 		}
 
 		// setup initial local
@@ -959,8 +984,9 @@ void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
 
-			PoseGroupAdvanced.AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Initial Local")))
-			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
+				.DisplayName(FText::FromString(TEXT("Initial Local")))
+				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
 		}
 
 		// setup current global
@@ -968,8 +994,9 @@ void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 			const TSharedPtr<IPropertyHandle> GlobalHandle = CurrentHandle->GetChildHandle(TEXT("Global"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = GlobalHandle->GetChildHandle(TEXT("Transform"));
 
-			PoseGroupAdvanced.AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Current Global")))
-			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
+				.DisplayName(FText::FromString(TEXT("Current Global")))
+				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
 		}
 
 		// setup current local
@@ -977,8 +1004,9 @@ void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 			const TSharedPtr<IPropertyHandle> LocalHandle = CurrentHandle->GetChildHandle(TEXT("Local"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
 
-			PoseGroupDefault.AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Current Local")))
-			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigTransformElementDetails::IsCurrentLocalEnabled)));
+			TransformCategory.AddProperty(TransformHandle.ToSharedRef())
+				.DisplayName(FText::FromString(TEXT("Current Local")))
+				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigTransformElementDetails::IsCurrentLocalEnabled)));
 		}
 	}
 }
@@ -989,7 +1017,7 @@ bool FRigTransformElementDetails::IsCurrentLocalEnabled() const
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetType() == ERigElementType::Control)
+			if(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetType() == ERigElementType::Control)
 			{
 				return false;
 			}
@@ -998,7 +1026,7 @@ bool FRigTransformElementDetails::IsCurrentLocalEnabled() const
 	return true;
 }
 
-void FRigControlElementDetails_SetupBoolValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1008,7 +1036,7 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailGroup& InGroup, IDeta
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
 	const FRigElementKey Key = InControlElement->GetKey();
 
-	InStructBuilder.AddCustomRow(PropertyLabel)
+	InCategory.AddCustomRow(PropertyLabel)
 	.NameContent()
 	[
 	    SNew(STextBlock)
@@ -1066,7 +1094,7 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailGroup& InGroup, IDeta
     })));
 }
 
-void FRigControlElementDetails_SetupIntegerValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1095,7 +1123,7 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailGroup& InGroup, ID
 
 	if (InControlElement->Settings.ControlEnum)
 	{
-		InStructBuilder.AddCustomRow(PropertyLabel)
+		InCategory.AddCustomRow(PropertyLabel)
 		.Visibility(VisibilityAttribute)
         .NameContent()
         [
@@ -1147,7 +1175,7 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailGroup& InGroup, ID
 	}
 	else
 	{
-		InStructBuilder.AddCustomRow(PropertyLabel)
+		InCategory.AddCustomRow(PropertyLabel)
 		.Visibility(VisibilityAttribute)
         .NameContent()
         [
@@ -1231,7 +1259,7 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailGroup& InGroup, ID
 	}
 }
 
-void FRigControlElementDetails_SetupFloatValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1258,7 +1286,7 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailGroup& InGroup, IDet
         return EnabledAttribute.Get() ? EVisibility::Visible : EVisibility::Hidden;
     }));
 
-	InStructBuilder.AddCustomRow(PropertyLabel)
+	InCategory.AddCustomRow(PropertyLabel)
 	.Visibility(VisibilityAttribute)
     .NameContent()
     [
@@ -1428,7 +1456,7 @@ FRigControlValue FRigControlElementDetails_PackageValue(const FEulerTransform& I
 }
 
 template<typename T>
-void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1463,7 +1491,7 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDe
 		return EVisibility::Hidden;
     }));
 
-	IDetailPropertyRow* Row = InStructBuilder.AddExternalStructure(StructToDisplay.ToSharedRef());
+	IDetailPropertyRow* Row = InCategory.AddExternalStructure(StructToDisplay.ToSharedRef());
 	Row->DisplayName(PropertyLabel);
 	Row->ShouldAutoExpand(true);
 	Row->Visibility(VisibilityAttribute);
@@ -1492,7 +1520,7 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDe
 	Handle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
 }
 
-void FRigControlElementDetails_SetupValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	switch(InControlElement->Settings.ControlType)
 	{
@@ -1502,48 +1530,48 @@ void FRigControlElementDetails_SetupValueWidget(IDetailGroup& InGroup, IDetailCh
 			{
 				return;
 			}
-			FRigControlElementDetails_SetupBoolValueWidget(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupBoolValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Integer:
 		{
-			FRigControlElementDetails_SetupIntegerValueWidget(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupIntegerValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Float:
 		{
-			FRigControlElementDetails_SetupFloatValueWidget(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupFloatValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Vector2D:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector2D>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FVector2D>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Position:
 		case ERigControlType::Scale:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FVector>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Rotator:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FRotator>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FRotator>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::TransformNoScale:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransformNoScale>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FTransformNoScale>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::EulerTransform:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FEulerTransform>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FEulerTransform>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		case ERigControlType::Transform:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransform>(InGroup, InStructBuilder, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FTransform>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
 			break;
 		}
 		default:
@@ -1554,11 +1582,17 @@ void FRigControlElementDetails_SetupValueWidget(IDetailGroup& InGroup, IDetailCh
 	}
 }
 
+void FRigBoneElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
+	CustomizeTransform(DetailBuilder);
+}
+
 TArray<TSharedPtr<FString>> FRigControlElementDetails::ControlTypeList;
 
-void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	FRigTransformElementDetails::CustomizeChildren(InStructPropertyHandle, StructBuilder, StructCustomizationUtils);
+	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
 
 	ShapeNameList.Reset();
 	if (BlueprintBeingCustomized)
@@ -1587,14 +1621,19 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		return;
 	}
 
-	IDetailGroup* ControlGroup = &StructBuilder.AddGroup(TEXT("Control"), LOCTEXT("Control", "Control"));
-	IDetailGroup* ShapeGroup = nullptr;
-	IDetailGroup* LimitsGroup = nullptr;
+	IDetailCategoryBuilder& ControlCategory = DetailBuilder.EditCategory(TEXT("Control"), LOCTEXT("Control", "Control"));
+	IDetailCategoryBuilder& ShapeCategory = DetailBuilder.EditCategory(TEXT("Shape"), LOCTEXT("Shape", "Shape"));
+	IDetailCategoryBuilder& LimitsCategory = DetailBuilder.EditCategory(TEXT("Limits"), LOCTEXT("Limits", "Limits"));
 
-	const TSharedPtr<IPropertyHandle> SettingsHandle = InStructPropertyHandle->GetChildHandle(TEXT("Settings"));
+	// the transform category should show up after the control, shape and limits categories
+	CustomizeTransform(DetailBuilder);
+
+	const TSharedPtr<IPropertyHandle> SettingsHandle = DetailBuilder.GetProperty(TEXT("Settings"));
 	const TSharedPtr<IPropertyHandle> DisplayNameHandle = SettingsHandle->GetChildHandle(TEXT("DisplayName"));
 
-	ControlGroup->AddWidgetRow()
+	DetailBuilder.HideProperty(SettingsHandle);
+
+	ControlCategory.AddCustomRow(LOCTEXT("DisplayName", "Display Name"))
 	.NameContent()
 	[
 		DisplayNameHandle->CreatePropertyNameWidget()
@@ -1617,12 +1656,14 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		}
 	}
 
+	const TSharedRef<IPropertyUtilities> PropertyUtilities = DetailBuilder.GetPropertyUtilities();
+
 	// when control type changes, we have to refresh detail panel
 	const TSharedPtr<IPropertyHandle> ControlTypeHandle = SettingsHandle->GetChildHandle(TEXT("ControlType"));
 	ControlTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
-		[this, &StructCustomizationUtils]()
+		[this, &PropertyUtilities]()
 		{
-			TArray<FRigControlElement*> ControlElementsInView = GetElementsInDetailsView<FRigControlElement>();
+			TArray<FRigControlElement> ControlElementsInView = GetElementsInDetailsView<FRigControlElement>();
 			TArray<FRigControlElement*> ControlElementsInHierarchy = GetElementsInHierarchy<FRigControlElement>();
 			check(ControlElementsInView.Num() == ControlElementsInHierarchy.Num());
 
@@ -1630,12 +1671,12 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 			{
 				for(int32 ControlIndex = 0; ControlIndex< ControlElementsInView.Num(); ControlIndex++)
 				{
-					FRigControlElement* ViewElement = ControlElementsInView[ControlIndex];
+					const FRigControlElement& ViewElement = ControlElementsInView[ControlIndex];
 					FRigControlElement* ControlElement = ControlElementsInHierarchy[ControlIndex];
 					
 					FRigControlValue ValueToSet;
 
-					ControlElement->Settings.ControlType = ViewElement->Settings.ControlType;
+					ControlElement->Settings.ControlType = ViewElement.Settings.ControlType;
 					ControlElement->Settings.bLimitTranslation = false;
 					ControlElement->Settings.bLimitRotation = false;
 					ControlElement->Settings.bLimitScale = false;
@@ -1726,7 +1767,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true, false, true);
 					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true, false, true);
 
-					FRigControlElement::StaticStruct()->CopyScriptStruct(ViewElement, ControlElement);
+					ObjectsBeingCustomized[ControlIndex]->SetContent<FRigControlElement>(*ControlElement);
 
 					if (this->HierarchyBeingCustomized != this->BlueprintBeingCustomized->Hierarchy)
 					{
@@ -1740,13 +1781,13 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 					}
 				}
 				
-				StructCustomizationUtils.GetPropertyUtilities()->ForceRefresh();
+				PropertyUtilities->ForceRefresh();
 			}
 		}
 	));
 
-	ControlGroup->AddPropertyRow(ControlTypeHandle.ToSharedRef());
-	ControlGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
+	ControlCategory.AddProperty(ControlTypeHandle.ToSharedRef());
+	ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
 
 	// any but bool controls show the offset + shape + limits
 	const bool bNeedsShapeProperties = IsAnyControlNotOfType(ERigControlType::Bool);
@@ -1754,15 +1795,12 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	{
 		// setup offset
 		{
-			const TSharedPtr<IPropertyHandle> OffsetHandle = InStructPropertyHandle->GetChildHandle(TEXT("Offset"));
+			const TSharedPtr<IPropertyHandle> OffsetHandle = DetailBuilder.GetProperty(TEXT("Offset"));
 			const TSharedPtr<IPropertyHandle> InitialHandle = OffsetHandle->GetChildHandle(TEXT("Initial"));
 			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
-			ControlGroup->AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Offset Transform")));
+			ControlCategory.AddProperty(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Offset Transform")));
 		}
-
-		ShapeGroup = &StructBuilder.AddGroup(TEXT("Control Shape"), LOCTEXT("ControlShape", "Control Shape"));
-		LimitsGroup = &StructBuilder.AddGroup(TEXT("Limits"), LOCTEXT("Limits", "Limits"));
 	}
 
 	if(IsAnyControlOfType(ERigControlType::Float) ||
@@ -1774,7 +1812,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		IsAnyControlOfType(ERigControlType::EulerTransform))
 	{
 		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitTranslation"));
-		LimitsGroup->AddPropertyRow(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Translation")));
+		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Translation")));
 	}
 
 	if(IsAnyControlOfType(ERigControlType::Rotator) ||
@@ -1783,7 +1821,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		IsAnyControlOfType(ERigControlType::EulerTransform))
 	{
 		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitRotation"));
-		LimitsGroup->AddPropertyRow(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Rotation")));
+		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Rotation")));
 	}
 
 	if(IsAnyControlOfType(ERigControlType::Scale) ||
@@ -1791,7 +1829,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		IsAnyControlOfType(ERigControlType::EulerTransform))
 	{
 		const TSharedPtr<IPropertyHandle> LimitHandle = SettingsHandle->GetChildHandle(TEXT("bLimitScale"));
-		LimitsGroup->AddPropertyRow(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Scale")));
+		LimitsCategory.AddProperty(LimitHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Limit Scale")));
 	}
 
 	if(!(IsAnyControlNotOfType(ERigControlType::Integer) &&
@@ -1799,17 +1837,19 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		IsAnyControlNotOfType(ERigControlType::Vector2D)))
 	{
 		const TSharedPtr<IPropertyHandle> PrimaryAxisHandle = SettingsHandle->GetChildHandle(TEXT("PrimaryAxis"));
-		ControlGroup->AddPropertyRow(PrimaryAxisHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Primary Axis")));
+		ControlCategory.AddProperty(PrimaryAxisHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Primary Axis")));
 	}
 
-	TArray<FRigControlElement*> ControlElements;
+	TArray<FRigControlElement> ControlElements;
+	TArray<UDetailsViewWrapperObject*> ObjectPerControl;
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				ControlElements.Add(ControlElement);
+				ControlElements.Add(ObjectBeingCustomized->GetContent<FRigControlElement>());
+				ObjectPerControl.Add(ObjectBeingCustomized.Get());
 			}
 		}
 	}
@@ -1817,16 +1857,16 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	// only setup value widgets if there is only ony control selected
 	if(ControlElements.Num() == 1)
 	{
-		FRigControlElementDetails_SetupValueWidget(*ControlGroup, StructBuilder, ERigControlValueType::Current, ControlElements[0], HierarchyBeingCustomized);
+		FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Current, &ControlElements[0], HierarchyBeingCustomized);
 
-		switch (ControlElements[0]->Settings.ControlType)
+		switch (ControlElements[0].Settings.ControlType)
 		{
 			case ERigControlType::Bool:
 			case ERigControlType::Float:
 			case ERigControlType::Integer:
 			case ERigControlType::Vector2D:
 			{
-				FRigControlElementDetails_SetupValueWidget(*ControlGroup, StructBuilder, ERigControlValueType::Initial, ControlElements[0], HierarchyBeingCustomized);
+				FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Initial,&ControlElements[0], HierarchyBeingCustomized);
 				break;
 			}
 			default:
@@ -1836,29 +1876,29 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		}
 		
 		
-		FRigControlElementDetails_SetupValueWidget(*ControlGroup, StructBuilder, ERigControlValueType::Minimum, ControlElements[0], HierarchyBeingCustomized);
-		FRigControlElementDetails_SetupValueWidget(*ControlGroup, StructBuilder, ERigControlValueType::Maximum, ControlElements[0], HierarchyBeingCustomized);
+		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Minimum, &ControlElements[0], HierarchyBeingCustomized);
+		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Maximum, &ControlElements[0], HierarchyBeingCustomized);
 	}
 
 	if (bNeedsShapeProperties)
 	{
-		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
+		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Enabled")));
-		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
+		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Visible")));
 
 		// setup shape transform
 		{
-			const TSharedPtr<IPropertyHandle> ShapeHandle = InStructPropertyHandle->GetChildHandle(TEXT("Shape"));
+			const TSharedPtr<IPropertyHandle> ShapeHandle = DetailBuilder.GetProperty(TEXT("Shape"));
 			const TSharedPtr<IPropertyHandle> InitialHandle = ShapeHandle->GetChildHandle(TEXT("Initial"));
 			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
-			ShapeGroup->AddPropertyRow(TransformHandle.ToSharedRef())
+			ShapeCategory.AddProperty(TransformHandle.ToSharedRef())
 			.IsEnabled(TAttribute<bool>::CreateSP(this, &FRigControlElementDetails::IsShapeEnabled));
 		}
 
 		const TSharedPtr<IPropertyHandle> ShapeShapeHandle = SettingsHandle->GetChildHandle(TEXT("ShapeName"));
-		ShapeGroup->AddPropertyRow(ShapeShapeHandle.ToSharedRef()).CustomWidget()
+		ShapeCategory.AddProperty(ShapeShapeHandle.ToSharedRef()).CustomWidget()
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -1873,24 +1913,27 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 			.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
 		];
 
-		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("ShapeColor")).ToSharedRef())
+		ShapeCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("ShapeColor")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Color")));
 	}
 
 	if(IsAnyControlOfType(ERigControlType::Integer))
 	{
 		const TSharedPtr<IPropertyHandle> ControlEnumHandle = SettingsHandle->GetChildHandle(TEXT("ControlEnum"));
-		ControlGroup->AddPropertyRow(ControlEnumHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Control Enum")));
+		ControlCategory.AddProperty(ControlEnumHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Control Enum")));
 
 		ControlEnumHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
-			[this, &StructCustomizationUtils, ControlElements]()
+			[this, &PropertyUtilities, ControlElements, ObjectPerControl]()
 			{
-				StructCustomizationUtils.GetPropertyUtilities()->ForceRefresh();
+				PropertyUtilities->ForceRefresh();
 
 				if (this->HierarchyBeingCustomized != nullptr)
 				{
-					for(FRigControlElement* ControlBeingCustomized : ControlElements)
+					for(int32 ControlIndex = 0; ControlIndex < ControlElements.Num(); ControlIndex++)
 					{
+						const FRigControlElement ControlInView = ControlElements[ControlIndex];
+						FRigControlElement* ControlBeingCustomized = HierarchyBeingCustomized->Find<FRigControlElement>(ControlInView.GetKey());
+						
 						const UEnum* ControlEnum = ControlBeingCustomized->Settings.ControlEnum;
 						if (ControlEnum != nullptr)
 						{
@@ -1921,15 +1964,35 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 								}
 							}
 						}
+
+						ObjectPerControl[ControlIndex]->SetContent<FRigControlElement>(*ControlBeingCustomized);
 					}
 				}
 			}
 		));
 		
 	}
+	
+	IDetailCategoryBuilder& AnimationCategory = DetailBuilder.EditCategory(TEXT("Animation"), LOCTEXT("Animation", "Animation"));
+	AnimationCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("Customization"))->GetChildHandle(TEXT("AvailableSpaces")).ToSharedRef());
+}
 
-	IDetailGroup* AnimationGroup = &StructBuilder.AddGroup(TEXT("Animation"), LOCTEXT("Animation", "Animation"));
-	AnimationGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("Customization"))->GetChildHandle(TEXT("AvailableSpaces")).ToSharedRef());
+void FRigControlElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
+{
+	FRigTransformElementDetails::RegisterSectionMappings(PropertyEditorModule, InClass);
+
+	TSharedRef<FPropertySection> ControlSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Control", LOCTEXT("Control", "Control"));
+	ControlSection->AddCategory("General");
+	ControlSection->AddCategory("Control");
+	ControlSection->AddCategory("Animation");
+
+	TSharedRef<FPropertySection> ShapeSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Shape", LOCTEXT("Shape", "Shape"));
+	ShapeSection->AddCategory("General");
+	ShapeSection->AddCategory("Shape");
+
+	TSharedRef<FPropertySection> LimitsSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Limits", LOCTEXT("Limits", "Limits"));
+	LimitsSection->AddCategory("General");
+	LimitsSection->AddCategory("Limits");
 }
 
 bool FRigControlElementDetails::IsShapeEnabled() const
@@ -1938,9 +2001,10 @@ bool FRigControlElementDetails::IsShapeEnabled() const
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				if(ControlElement->Settings.bShapeEnabled)
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ControlElement.Settings.bShapeEnabled)
 				{
 					return true;
 				}
@@ -1956,14 +2020,16 @@ bool FRigControlElementDetails::IsEnabled(ERigControlValueType InValueType) cons
 	{
 		if(ObjectBeingCustomized.IsValid())
 		{
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				
 				switch (InValueType)
 				{
 					case ERigControlValueType::Minimum:
 					case ERigControlValueType::Maximum:
 					{
-						if(ControlElement->Settings.bLimitTranslation || ControlElement->Settings.bLimitRotation || ControlElement->Settings.bLimitScale)
+						if(ControlElement.Settings.bLimitTranslation || ControlElement.Settings.bLimitRotation || ControlElement.Settings.bLimitScale)
 						{
 							return true;
 						}
@@ -1998,14 +2064,17 @@ FText FRigControlElementDetails::GetDisplayName() const
 		TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
 		if(ObjectBeingCustomized.IsValid())
 		{
-			const FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-			if(ObjectIndex == 0)
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				DisplayName = ControlElement->Settings.DisplayName;
-			}
-			else if(DisplayName != ControlElement->Settings.DisplayName)
-			{
-				return ControlRigDetailsMultipleValues;
+				const FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				if(ObjectIndex == 0)
+				{
+					DisplayName = ControlElement.Settings.DisplayName;
+				}
+				else if(DisplayName != ControlElement.Settings.DisplayName)
+				{
+					return ControlRigDetailsMultipleValues;
+				}
 			}
 		}
 	}
@@ -2031,17 +2100,25 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 		TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
 		if(ObjectBeingCustomized.IsValid())
 		{
-			FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-
-			FRigControlSettings Settings = ControlElement->Settings;
-			Settings.DisplayName = DisplayName;
-
-			if(GetHierarchy())
+			if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
 			{
-				GetHierarchy()->SetControlSettings(ControlElement->GetKey(), Settings, false, false, true);
+				FRigControlElement ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+				ControlElement.Settings.DisplayName = DisplayName;
+				ObjectBeingCustomized->SetContent<FRigControlElement>(ControlElement);
+
+				if(GetHierarchy())
+				{
+					GetHierarchy()->SetControlSettings(ControlElement.GetKey(), ControlElement.Settings, false, false, true);
+				}
 			}
 		}
 	}
+}
+
+void FRigNullElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
+	CustomizeTransform(DetailBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE

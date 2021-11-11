@@ -24,8 +24,11 @@ public:
 
 	void Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint);
 	void Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint);
+	void Construct(const FArguments& InArgs, TArray<FRigControlElement> ControlElements, UControlRigBlueprint* InBlueprint);
 
 protected:
+
+	void ConstructCommon();
 
 	const TArray<TSharedPtr<FString>>& GetNameList() const;
 	FText GetNameListText() const;

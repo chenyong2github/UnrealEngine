@@ -28,6 +28,25 @@ void SControlRigShapeNameList::Construct(const FArguments& InArgs, TArray<FRigCo
 	}
 	this->Blueprint = InBlueprint;
 
+	ConstructCommon();
+}
+
+void SControlRigShapeNameList::Construct(const FArguments& InArgs, TArray<FRigControlElement> ControlElements, UControlRigBlueprint* InBlueprint)
+{
+	this->OnGetNameListContent = InArgs._OnGetNameListContent;
+	this->ControlKeys.Reset();
+
+	for(const FRigControlElement& ControlElement : ControlElements)
+	{
+		this->ControlKeys.Add(ControlElement.GetKey());
+	}
+	this->Blueprint = InBlueprint;
+
+	ConstructCommon();
+}
+
+void SControlRigShapeNameList::ConstructCommon()
+{
 	SBox::Construct(SBox::FArguments());
 
 	TSharedPtr<FString> InitialSelected;

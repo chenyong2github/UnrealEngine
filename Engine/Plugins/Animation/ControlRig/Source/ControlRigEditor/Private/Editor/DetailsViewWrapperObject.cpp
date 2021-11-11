@@ -3,6 +3,7 @@
 #include "DetailsViewWrapperObject.h"
 #include "Units/RigUnit.h"
 #include "ControlRigElementDetails.h"
+#include "ControlRigLocalVariableDetails.h"
 #include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
@@ -27,7 +28,7 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 		return nullptr;
 	}
 
-	UClass *SuperClass = UDetailsViewWrapperObject::StaticClass();
+	UClass* SuperClass = UDetailsViewWrapperObject::StaticClass();
 	const FName WrapperClassName(FString::Printf(TEXT("%s_WrapperObject"), *InStruct->GetStructCPPName()));
 
 	UClass* WrapperClass = NewObject<UClass>(
@@ -75,62 +76,76 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 		}
 	};
 
-	FStructProperty* Property = new FStructProperty(WrapperClass, TEXT("StoredStruct"), RF_Public);
-	Property->Struct = InStruct;
-	if (Local::IsStructHashable(InStruct))
-	{
-		Property->SetPropertyFlags(CPF_HasGetValueTypeHash);
-	}
-	
-	// Make sure the variables show up in the details panel
-	Property->SetPropertyFlags(CPF_Edit);
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	Property->SetMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("true"));
-#else
-	// for non-nodes - show the properties directly under the details panel main category 
-	if(!InStruct->IsChildOf(FRigUnit::StaticStruct()))
-	{
-		Property->SetMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("true"));
-	}
-#endif
+	// duplicate all properties from the struct to the wrapper object
+	FField** LinkToProperty = &WrapperClass->ChildProperties;
 
-	// For rig units
-	if(InStruct->IsChildOf(FRigUnit::StaticStruct()))
+	for (TFieldIterator<FProperty> PropertyIt(InStruct); PropertyIt; ++PropertyIt)
 	{
-		// mark all input properties with editanywhere
-		for (TFieldIterator<FProperty> PropertyIt(InStruct); PropertyIt; ++PropertyIt)
+		const FProperty* InProperty = *PropertyIt;
+		FProperty* NewProperty = CastFieldChecked<FProperty>(FField::Duplicate(InProperty, WrapperClass, InProperty->GetFName()));
+		check(NewProperty);
+		FField::CopyMetaData(InProperty, NewProperty);
+
+		if (NewProperty->HasMetaData(TEXT("Input")) || NewProperty->HasMetaData(TEXT("Visible")))
 		{
-			FProperty* ChildProperty = *PropertyIt;
-			if (!ChildProperty->HasMetaData(TEXT("Input")) && !ChildProperty->HasMetaData(TEXT("Visible")))
-			{
-				continue;
-			}
-
 			// filter out execute pins
-			if (FStructProperty* StructProperty = CastField<FStructProperty>(ChildProperty))
+			bool bIsEditable = true;
+			if (FStructProperty* StructProperty = CastField<FStructProperty>(NewProperty))
 			{
 				if (StructProperty->Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 				{
-					continue;
+					bIsEditable = false;
 				}
 			}
-			
-			ChildProperty->SetPropertyFlags(ChildProperty->GetPropertyFlags() | CPF_Edit);
+
+			if(bIsEditable)
+			{
+				NewProperty->SetPropertyFlags(NewProperty->GetPropertyFlags() | CPF_Edit);
+			}
 		}
 
-#if WITH_EDITOR
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(InStruct->GetFName()))
-		{
-			PropertyEditorModule.RegisterCustomClassLayout(InStruct->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigUnitDetails::MakeInstance));
-		}
-#endif
+		*LinkToProperty = NewProperty;
+		LinkToProperty = &(*LinkToProperty)->Next;
 	}
 
-	// Given it's only one property we are adding
-	// we can set the head of the linked list directly
-	WrapperClass->ChildProperties = Property;
-
+#if WITH_EDITOR
+	if(InStruct->IsChildOf(FRigUnit::StaticStruct()))
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
+		{
+			PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigUnitDetails::MakeInstance));
+		}
+	}
+	else if(InStruct->IsChildOf(FRigBaseElement::StaticStruct()))
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
+		{
+			if(InStruct == FRigBoneElement::StaticStruct())
+			{
+				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneElementDetails::MakeInstance));
+			}
+			else if(InStruct == FRigNullElement::StaticStruct())
+			{
+				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigNullElementDetails::MakeInstance));
+			}
+			else if(InStruct == FRigControlElement::StaticStruct())
+			{
+				PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlElementDetails::MakeInstance));
+			}
+		}
+	}
+	else if(InStruct->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(WrapperClassName))
+		{
+			PropertyEditorModule.RegisterCustomClassLayout(WrapperClassName, FOnGetDetailCustomizationInstance::CreateStatic(&FRigVMLocalVariableDetails::MakeInstance));
+		}
+	}
+#endif
+	
 	// Update the class
 	WrapperClass->Bind();
 	WrapperClass->StaticLink(true);
@@ -143,6 +158,10 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 
 	UObject* CDO = WrapperClass->GetDefaultObject(true);
 	CDO->AddToRoot();
+
+	// import the defaults from the struct onto the class
+	TSharedPtr<FStructOnScope> DefaultStruct = MakeShareable(new FStructOnScope(InStruct));
+	CopyPropertiesForUnrelatedStructs((uint8*)CDO, WrapperClass, DefaultStruct->GetStructMemory(), DefaultStruct->GetStruct());
 
 	return WrapperClass;
 }
@@ -160,43 +179,23 @@ UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UScriptStruct
 	}
 
 	UDetailsViewWrapperObject* Instance = NewObject<UDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
-	Instance->SetContent(InStructMemory, InStruct->GetStructureSize());
+	Instance->SetContent(InStructMemory, InStruct);
 	return Instance;
 }
 
 UScriptStruct* UDetailsViewWrapperObject::GetWrappedStruct() const
 {
-	return GetStructProperty()->Struct;
+	return ClassToStruct.FindChecked(GetClass());
 }
 
-FStructProperty* UDetailsViewWrapperObject::GetStructProperty() const
+void UDetailsViewWrapperObject::SetContent(const uint8* InStructMemory, const UStruct* InStruct)
 {
-	return CastFieldChecked<FStructProperty>(GetClass()->ChildProperties);
+	CopyPropertiesForUnrelatedStructs((uint8*)this, GetClass(), InStructMemory, InStruct);
 }
 
-void UDetailsViewWrapperObject::SetContent(const uint8* InStructMemory, int32 InStructSize)
+void UDetailsViewWrapperObject::GetContent(uint8* OutStructMemory, const UStruct* InStruct) const
 {
-	UScriptStruct* Struct = GetWrappedStruct();
-	check(Struct);
-	check(InStructSize == Struct->GetStructureSize());
-
-	uint8* Content = GetStoredStructPtr();
-	Struct->CopyScriptStruct(Content, InStructMemory);
-}
-
-const uint8* UDetailsViewWrapperObject::GetContent()
-{
-	return GetStoredStructPtr();
-}
-
-void UDetailsViewWrapperObject::GetContent(uint8* OutStructMemory, int32 InStructSize)
-{
-	UScriptStruct* Struct = GetWrappedStruct();
-	check(Struct);
-	check(InStructSize == Struct->GetStructureSize());
-
-	const uint8* Content = GetContent();
-	Struct->CopyScriptStruct(OutStructMemory, Content);
+	CopyPropertiesForUnrelatedStructs(OutStructMemory, InStruct, (const uint8*)this, GetClass());
 }
 
 void UDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -224,12 +223,26 @@ void UDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChai
 	WrappedPropertyChangedChainEvent.Broadcast(this, PropertyPath, PropertyChangedEvent);
 }
 
-uint8* UDetailsViewWrapperObject::GetStoredStructPtr()
+void UDetailsViewWrapperObject::CopyPropertiesForUnrelatedStructs(uint8* InTargetMemory,
+	const UStruct* InTargetStruct, const uint8* InSourceMemory, const UStruct* InSourceStruct)
 {
-	if(FStructProperty* StructProperty = CastField<FStructProperty>(GetClass()->ChildProperties))
+	check(InTargetMemory);
+	check(InTargetStruct);
+	check(InSourceMemory);
+	check(InSourceStruct);
+	
+	for (TFieldIterator<FProperty> PropertyIt(InTargetStruct); PropertyIt; ++PropertyIt)
 	{
-		return StructProperty->ContainerPtrToValuePtr<uint8>(this);
+		const FProperty* TargetProperty = *PropertyIt;
+		const FProperty* SourceProperty = InSourceStruct->FindPropertyByName(TargetProperty->GetFName());
+		if(SourceProperty == nullptr)
+		{
+			continue;
+		}
+		check(TargetProperty->SameType(SourceProperty));
+
+		uint8* TargetPropertyMemory = TargetProperty->ContainerPtrToValuePtr<uint8>(InTargetMemory);
+		const uint8* SourcePropertyMemory = SourceProperty->ContainerPtrToValuePtr<uint8>(InSourceMemory);
+		TargetProperty->CopyCompleteValue(TargetPropertyMemory, SourcePropertyMemory);
 	}
-	checkNoEntry();
-	return nullptr;
 }

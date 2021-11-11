@@ -1599,7 +1599,7 @@ void FControlRigEditor::SetDetailViewForLocalVariable()
 		{
 			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
 			{
-				VariableName = WrapperObject->GetContent<FRigVMGraphVariableDescription>()->Name;
+				VariableName = WrapperObject->GetContent<FRigVMGraphVariableDescription>().Name;
 				break;
 			}
 		}
@@ -1669,7 +1669,7 @@ bool FControlRigEditor::DetailViewShowsRigElement(FRigElementKey InKey) const
 			{
 				if(WrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
 				{
-					if(WrapperObject->GetContent<FRigBaseElement>()->GetKey() == InKey)
+					if(WrapperObject->GetContent<FRigBaseElement>().GetKey() == InKey)
 					{
 						return true;
 					}
@@ -2436,7 +2436,7 @@ void FControlRigEditor::EnsureValidRigElementsInDetailPanel()
 			{
 				if(WrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
 				{
-					FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>()->GetKey();
+					FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>().GetKey();
 					if(!Hierarchy->Contains(Key))
 					{
 						ClearDetailObject();
@@ -2671,10 +2671,8 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 							{
 								if(WrapperObject->GetOuter() == Pin->GetNode())
 								{
-									uint8* PropertyStorage = WrapperObject->GetStructProperty()->ContainerPtrToValuePtr<uint8>(WrapperObject);
-									UScriptStruct* UnitStruct = WrapperObject->GetWrappedStruct();
-									FProperty* TargetProperty = UnitStruct->FindPropertyByName(RootPin->GetFName());
-									PropertyStorage += TargetProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
+									const FProperty* TargetProperty = WrapperObject->GetClass()->FindPropertyByName(RootPin->GetFName());
+									uint8* PropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObject);
 									TargetProperty->ImportText(*DefaultValue, PropertyStorage, PPF_None, nullptr);
 								}
 							}
@@ -2789,7 +2787,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 					UScriptStruct* Struct = WrapperObject->GetWrappedStruct(); 
 					if(Struct->IsChildOf(FRigBaseElement::StaticStruct()))
 					{
-						FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>()->GetKey();
+						const FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>().GetKey();
 
 						FRigBaseElement* Element = Hierarchy->Find(Key);
 						if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Element))
@@ -2814,7 +2812,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 							Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
 						}
 
-						Struct->CopyScriptStruct(WrapperObject->GetContent<FRigBaseElement>(), Element);
+						WrapperObject->SetContent<FRigBaseElement>(*Element);
 					}
 				}
 			}
@@ -4389,8 +4387,6 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 
 	TGuardValue<bool> SuspendDetailsPanelRefresh(bSuspendDetailsPanelRefresh, true);
 
-	const FString StoredStructString = TEXT("StoredStruct->");
-
 	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
 
 	FString PropertyPath = InPropertyPath;
@@ -4399,15 +4395,13 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
 
 		URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetOuter());
-		FRigBaseElement* WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
-		FRigBaseElement* FirstWrappedElement = WrapperObjects[0]->GetContent<FRigBaseElement>();
-		FRigElementKey Key = WrappedElement->GetKey();
+		const FRigBaseElement WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
+		const FRigBaseElement FirstWrappedElement = WrapperObjects[0]->GetContent<FRigBaseElement>();
+		const FRigElementKey& Key = WrappedElement.GetKey();
 		if(!Hierarchy->Contains(Key))
 		{
 			return;
 		}
-		
-		check(PropertyPath.RemoveFromStart(StoredStructString));
 
 		const FString PoseString = TEXT("Pose->");
 		const FString OffsetString = TEXT("Offset->");
@@ -4460,13 +4454,13 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				Hierarchy = ControlRigBP->Hierarchy;
 			}
 
-			FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(WrappedElement->GetKey());
+			FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(WrappedElement.GetKey());
 			if(TransformElement == nullptr)
 			{
 				return;
 			}
-			
-			const FTransform Transform = CastChecked<FRigTransformElement>(FirstWrappedElement)->Pose.Get(TransformType);
+
+			const FTransform Transform = InWrapperObject->GetContent<FRigTransformElement>().Pose.Get(TransformType);
 
 			if(ERigTransformType::IsLocal(TransformType) && TransformElement->IsA<FRigControlElement>())
 			{
@@ -4488,7 +4482,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		}
 		else if(PropertyPath.RemoveFromStart(OffsetString))
 		{
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
 			if(ControlElement == nullptr)
 			{
 				return;
@@ -4496,13 +4490,14 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			
 			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
 			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Offset.Get(TransformType);
+
+			const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Offset.Get(TransformType);
 			
 			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false, true);
 		}
 		else if(PropertyPath.RemoveFromStart(ShapeString))
 		{
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
 			if(ControlElement == nullptr)
 			{
 				return;
@@ -4510,15 +4505,16 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 
 			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
 			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Shape.Get(TransformType);
+
+			const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Shape.Get(TransformType);
 			
 			ControlRigBP->Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
 		}
 		else if(PropertyPath.RemoveFromStart(SettingsString))
 		{
-			const FRigControlSettings Settings = CastChecked<FRigControlElement>(WrappedElement)->Settings;
+			const FRigControlSettings Settings  = InWrapperObject->GetContent<FRigControlElement>().Settings;
 
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
 			if(ControlElement == nullptr)
 			{
 				return;
@@ -4538,14 +4534,12 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 	{
 		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
 		
-		uint8* FirstPropertyStorage = WrapperObjects[0]->GetStructProperty()->ContainerPtrToValuePtr<uint8>(WrapperObjects[0].Get());
-		UScriptStruct* UnitStruct = InWrapperObject->GetWrappedStruct();
-		FName RootPinName = InPropertyChangedChainEvent.PropertyChain.GetHead()->GetNextNode()->GetValue()->GetFName();
-		FProperty* TargetProperty = UnitStruct->FindPropertyByName(RootPinName);
+		FName RootPinName = InPropertyChangedChainEvent.PropertyChain.GetHead()->GetValue()->GetFName();
+		FProperty* TargetProperty = WrapperObjects[0]->GetClass()->FindPropertyByName(RootPinName);
+		uint8* FirstPropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObjects[0].Get());
 
 		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetOuter());
 
-		FirstPropertyStorage += TargetProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
 		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(TargetProperty, FirstPropertyStorage);
 
 		if (!DefaultValue.IsEmpty())
@@ -4557,9 +4551,8 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 	else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
 	{
 		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
-		check(PropertyPath.RemoveFromStart(StoredStructString));
 		
-		FRigVMGraphVariableDescription* VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
+		const FRigVMGraphVariableDescription VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
 		URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetOuter());
 		URigVMController* Controller = ControlRigBP->GetController(Graph);
 		if (PropertyPath == TEXT("Name") && MyBlueprintWidget.IsValid())
@@ -4573,7 +4566,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 					{
 						if (Variable.Name == OldVariableName)
 						{
-							Controller->RenameLocalVariable(OldVariableName, VariableDescription->Name);
+							Controller->RenameLocalVariable(OldVariableName, VariableDescription.Name);
 							break;
 						}
 					}
@@ -4586,9 +4579,9 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		{			
 			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
 			{
-				if (Variable.Name == VariableDescription->Name)
+				if (Variable.Name == VariableDescription.Name)
 				{
-					Controller->SetLocalVariableType(Variable.Name, VariableDescription->CPPType, VariableDescription->CPPTypeObject);
+					Controller->SetLocalVariableType(Variable.Name, VariableDescription.CPPType, VariableDescription.CPPTypeObject);
 					break;
 				}
 			}
@@ -4598,9 +4591,9 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		{			
 			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
 			{
-				if (Variable.Name == VariableDescription->Name)
+				if (Variable.Name == VariableDescription.Name)
 				{
-					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription->DefaultValue, true, true, false);
+					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription.DefaultValue, true, true, false);
 					break;
 				}
 			}
