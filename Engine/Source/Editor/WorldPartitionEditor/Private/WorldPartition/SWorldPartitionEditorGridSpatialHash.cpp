@@ -94,7 +94,11 @@ FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 	WorldMiniMap->Modify();
 
 	// Updating VT is not supported for now
-	WorldMiniMap->MiniMapTexture->VirtualTextureStreaming = false;
+	if (WorldMiniMap->MiniMapTexture != nullptr)
+	{
+		WorldMiniMap->MiniMapTexture->VirtualTextureStreaming = false;
+	}
+
 	WorldMiniMap->UVOffset.bIsValid = false;
 
 	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, static_cast<UTexture2D*&>(WorldMiniMap->MiniMapTexture), TEXT("MinimapTexture"), WorldMiniMap->MiniMapWorldBounds);
