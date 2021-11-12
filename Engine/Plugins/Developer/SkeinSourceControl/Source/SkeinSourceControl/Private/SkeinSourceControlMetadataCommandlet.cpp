@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SkeinSourceControlThumbnailCommandlet.h"
-#include "SkeinSourceControlThumbnail.h"
+#include "SkeinSourceControlMetadataCommandlet.h"
+#include "SkeinSourceControlMetadata.h"
+#include "SkeinSourceControlUtils.h"
 #include "Misc/Paths.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogSkeinThumbnailCommandlet, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogSkeinMetadataCommandlet, Log, All);
 
-int32 USkeinSourceControlThumbnailCommandlet::Main(FString const& Params)
+int32 USkeinSourceControlMetadataCommandlet::Main(FString const& Params)
 {
 	TArray<FString> Tokens;
 	TArray<FString> Switches;
@@ -35,7 +36,7 @@ int32 USkeinSourceControlThumbnailCommandlet::Main(FString const& Params)
 
 	if (Files.IsEmpty())
 	{
-		UE_LOG(LogSkeinThumbnailCommandlet, Warning, TEXT("You must specify one or more asset files using -Files=path/to/file1.uasset,path/to/file2.uasset"));
+		UE_LOG(LogSkeinMetadataCommandlet, Warning, TEXT("You must specify one or more asset files using -Files=path/to/file1.uasset,path/to/file2.uasset"));
 		return -1;
 	}
 
@@ -53,34 +54,33 @@ int32 USkeinSourceControlThumbnailCommandlet::Main(FString const& Params)
 			}
 			if (OutputFolder.IsEmpty())
 			{
+				OutputFolder = SkeinSourceControlUtils::FindSkeinIntermediateRoot(FileName);
+			}
+			if (OutputFolder.IsEmpty())
+			{
 				OutputFolder = FPaths::GetPath(FileName);
 			}
 			FPaths::ConvertRelativePathToFull(OutputFolder);
 			FPaths::NormalizeDirectoryName(OutputFolder);
 
-			TStringBuilder<512> OutputFilenameBuilder;
-			OutputFilenameBuilder << OutputFolder;
-			OutputFilenameBuilder << FPlatformMisc::GetDefaultPathSeparator();
-			OutputFilenameBuilder << FPaths::GetBaseFilename(FileName);
-			OutputFilenameBuilder << TEXT(".png");
+			FString MetadataFilename = SkeinSourceControlUtils::GetIntermediateMetadataPath(FileName, OutputFolder);
+			FString ThumbnailFilename = SkeinSourceControlUtils::GetIntermediateThumbnailPath(FileName, OutputFolder);
 
-			FString OutputFilename = OutputFilenameBuilder.ToString();
-			FPaths::NormalizeFilename(OutputFilename);
-
-			if (SkeinSourceControlThumbnail::WriteThumbnailToDisk(FileName, OutputFilename, Size))
+			bool bExtractedMetadata = SkeinSourceControlMetadata::ExtractMetadata(FileName, MetadataFilename, ThumbnailFilename, Size);
+			if (bExtractedMetadata)
 			{
-				UE_LOG(LogSkeinThumbnailCommandlet, Display, TEXT("Written %dx%d output: %s"), Size, Size, *OutputFilename);
+				UE_LOG(LogSkeinMetadataCommandlet, Error, TEXT("Written thumbnail and metadata for %s"), *FileName);
 				++Succeeded;
 			}
 			else
 			{
-				UE_LOG(LogSkeinThumbnailCommandlet, Error, TEXT("Could not write %dx%d output file: %s"), Size, Size, *OutputFilename);
+				UE_LOG(LogSkeinMetadataCommandlet, Error, TEXT("Could not write thumbnail or metadata for %s"), *FileName);
 				++Failed;
 			}
 		}
 		else
 		{
-			UE_LOG(LogSkeinThumbnailCommandlet, Error, TEXT("Could not find input file: %s"), *FileName);
+			UE_LOG(LogSkeinMetadataCommandlet, Error, TEXT("Could not find input file: %s"), *FileName);
 			++Failed;
 		}
 	}

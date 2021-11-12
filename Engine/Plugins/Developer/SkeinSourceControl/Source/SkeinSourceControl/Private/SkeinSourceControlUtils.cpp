@@ -6,10 +6,10 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/FileHelper.h"
 #include "ISourceControlModule.h"
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonValue.h"
-#include "Misc/FileHelper.h"
 
 namespace SkeinSourceControlConstants
 {
@@ -44,41 +44,73 @@ static void ParseStatusOutput(const FString& InSkeinProjectRoot, const TArray<FS
 		}
 	}
 
-	// Iterate on all files explicitly listed in the command
+	// Separate InFiles between Files and Directories
+	// Files require an exact match, Directories only a StartsWith match
+	TSet<FString> Files;
+	TArray<FString> Directories;
 	for (const auto& File : InFiles)
 	{
+		const bool bIsDirectory = IFileManager::Get().DirectoryExists(*File);
+		if (bIsDirectory)
+		{
+			Directories.Add(File);
+		}
+		else
+		{
+			Files.Add(File);
+		}
+	}
+
+	// Inspect the Results and return what's needed
+	for (const auto& Result : FileStates)
+	{
+		const FString& File = Result.Key;
+
 		FSkeinSourceControlState FileState(File);
 		FileState.TimeStamp = Now;
 		FileState.State = ESkeinState::Unknown;
 
-		FString* State = FileStates.Find(File);
-		if (State != nullptr)
+		bool bReturnResult = (Files.Find(File) != nullptr);
+		if (!bReturnResult)
 		{
-			if (*State == "unknown")
+			for (const FString& Directory : Directories)
+			{
+				if (File.StartsWith(Directory))
+				{
+					bReturnResult = true;
+					break;
+				}
+			}
+		}
+
+		if (bReturnResult)
+		{
+			FString State = Result.Value;
+			if (State == "unknown")
 			{
 				FileState.State = ESkeinState::Unknown;
 			}
-			else if (*State == "add")
+			else if (State == "add")
 			{
 				FileState.State = ESkeinState::Added;
 			}
-			else if (*State == "remove")
+			else if (State == "remove")
 			{
 				FileState.State = ESkeinState::Deleted;
 			}
-			else if (*State == "missing")
+			else if (State == "missing")
 			{
 				FileState.State = ESkeinState::Missing;
 			}
-			else if (*State == "modified")
+			else if (State == "modified")
 			{
 				FileState.State = ESkeinState::Modified;
 			}
-			else if (*State == "untracked")
+			else if (State == "untracked")
 			{
 				FileState.State = ESkeinState::NotControlled;
 			}
-			else if (*State == "unchanged")
+			else if (State == "unchanged")
 			{
 				FileState.State = ESkeinState::Unchanged;
 			}
@@ -86,9 +118,9 @@ static void ParseStatusOutput(const FString& InSkeinProjectRoot, const TArray<FS
 			{
 				checkNoEntry();
 			}
-		}
 
-		OutStates.Add(FileState);
+			OutStates.Add(FileState);
+		}
 	}
 }
 
@@ -112,6 +144,10 @@ static bool RunCommandInternalRaw(const FString& InCommand, const FString& InSke
 	// Append the "--json" param to indicate we want Json output
 	LoggableCommand += TEXT(" ");
 	LoggableCommand += TEXT("--json");
+
+	// Append the "--quiet" param to indicate we don't want any Yes/No prompts
+	LoggableCommand += TEXT(" ");
+	LoggableCommand += TEXT("--quiet");
 
 	// Append to the command all parameters, and then finally the files
 	for(const auto& Parameter : InParameters)
@@ -248,6 +284,64 @@ FString FindSkeinProjectRoot(const FString& InPath)
 	return PathToSkeinProjectRoot;
 }
 
+/// <notes>
+/// This returns the intermediate root folder where SkeinCLI expects to find temporary metadata.
+/// </notes>
+FString FindSkeinIntermediateRoot(const FString& InPath)
+{
+	FString PathToSkeinProjectRoot = FindSkeinProjectRoot(InPath);
+	if (!PathToSkeinProjectRoot.IsEmpty())
+	{
+		FTCHARToUTF8 SkeinProjectRootLowerCase(*PathToSkeinProjectRoot.ToLower());
+		FString ProjectRootHash = FMD5::HashBytes((const uint8*)SkeinProjectRootLowerCase.Get(), SkeinProjectRootLowerCase.Length());
+		FString PlatformTempDir = FPlatformProcess::UserTempDir();
+
+		return FPaths::Combine(PlatformTempDir, ProjectRootHash);
+	}
+	return FString();
+}
+
+FString GetIntermediatePath(const FString& InPath, const FString& InIntermediateRoot)
+{
+	FString PathToSkeinProjectRoot = FindSkeinProjectRoot(InPath);
+	FString PathToSkeinIntermediateRoot = InIntermediateRoot.IsEmpty() ? FindSkeinIntermediateRoot(InPath) : InIntermediateRoot;
+	if (!PathToSkeinProjectRoot.IsEmpty() && !PathToSkeinIntermediateRoot.IsEmpty())
+	{
+		PathToSkeinProjectRoot += FPlatformMisc::GetDefaultPathSeparator();
+
+		FString PathRelative = *InPath;
+		if (FPaths::MakePathRelativeTo(PathRelative, *PathToSkeinProjectRoot))
+		{
+			FString Result = FPaths::Combine(PathToSkeinIntermediateRoot, PathRelative);
+			FPaths::NormalizeFilename(Result);
+
+			return Result;
+		}
+	}
+
+	return FString();
+}
+
+FString GetIntermediateMetadataPath(const FString& InPath, const FString& InIntermediateRoot)
+{
+	FString IntermediatePath = GetIntermediatePath(InPath, InIntermediateRoot);
+	if (!IntermediatePath.IsEmpty())
+	{
+		return FPaths::GetBaseFilename(IntermediatePath, false) + ".metadata.json";
+	}
+	return FString();
+}
+
+FString GetIntermediateThumbnailPath(const FString& InPath, const FString& InIntermediateRoot)
+{
+	FString IntermediatePath = GetIntermediatePath(InPath, InIntermediateRoot);
+	if (!IntermediatePath.IsEmpty())
+	{
+		return FPaths::GetBaseFilename(IntermediatePath, false) + ".thumbnail.png";
+	}
+	return FString();
+}
+
 bool IsSkeinAvailable()
 {
 	FString SkeinBinaryPath = FindSkeinBinaryPath();
@@ -370,8 +464,15 @@ bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinPro
 	TSet<FString> UniquePaths;
 	for (const auto& File : InFiles)
 	{
-		const FString Path = FPaths::GetPath(*File);
-		UniquePaths.Add(Path);
+		const bool bIsDirectory = IFileManager::Get().DirectoryExists(*File);
+		if (bIsDirectory)
+		{
+			UniquePaths.Add(*File);
+		}
+		else
+		{
+			UniquePaths.Add(FPaths::GetPath(*File));
+		}
 	}
 
 	int NumErrors = 0;

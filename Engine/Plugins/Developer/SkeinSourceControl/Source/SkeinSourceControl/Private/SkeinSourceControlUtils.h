@@ -21,6 +21,26 @@ FString FindSkeinBinaryPath();
 FString FindSkeinProjectRoot(const FString& InPath);
 
 /**
+ * Determines the path to the Skein intermediate root (if any)
+ * @returns an empty string if the directory is not part of a Skein project
+ */
+FString FindSkeinIntermediateRoot(const FString& InPath);
+
+/**
+  * Returns the path to store the extracted metadata of the given file.
+  * This should be in sync with what the CLI expects.
+  * @returns an empty string if the directory is not part of a Skein project
+  */
+FString GetIntermediateMetadataPath(const FString& InPath, const FString& InIntermediateRoot = FString());
+
+/**
+  * Returns the path to store the extracted thumbnail of the given file.
+  * This should be in sync with what the CLI expects.
+  * @returns an empty string if the directory is not part of a Skein project
+  */
+FString GetIntermediateThumbnailPath(const FString& InPath, const FString& InIntermediateRoot = FString());
+
+/**
  * Finds out if the Skein environment is available.
  * In practice this checks if the Skein CLI application is installed at the expected location.
  * @returns true if the Skein environment can be used for source control operations.

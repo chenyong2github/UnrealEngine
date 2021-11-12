@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeinSourceControlOperations.h"
-#include "SkeinSourceControlThumbnail.h"
+#include "SkeinSourceControlMetadata.h"
 #include "SkeinSourceControlProvider.h"
 #include "SkeinSourceControlCommand.h"
 #include "SkeinSourceControlModule.h"
@@ -82,9 +82,40 @@ bool FSkeinCheckInWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects commit"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+	TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	// Gather all files under our control - they will all end up in the snapshot
+	TArray<FString> ProjectRoots;
+	ProjectRoots.Add(InCommand.SkeinProjectRoot);
+
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, ProjectRoots, InCommand.ErrorMessages, States);
+
+	// Export properties for each of them (metadata + thumbnail)
+	ParallelFor(States.Num(),
+		[&] (int32 ElemIdx)
+		{
+			FSkeinSourceControlState& FileState = States[ElemIdx];
+			if (FileState.IsSourceControlled())
+			{
+				FString& File = FileState.Filename;
+
+				const FString FileMetadata = SkeinSourceControlUtils::GetIntermediateMetadataPath(File);
+				const FString FileThumbnail = SkeinSourceControlUtils::GetIntermediateThumbnailPath(File);
+
+				SkeinSourceControlMetadata::ExtractMetadata(File, FileMetadata, FileThumbnail);
+			}
+		}
+	);
+
+	// Grab the message for this snapshot
+	TArray<FString> Parameters;
+	Parameters.Add("--message=\"" + Operation->GetDescription().ToString() + "\"");
+
+	// Create the snapshot
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects snapshots create"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, Parameters, TArray<FString>() /* InCommand.Files */, InCommand.InfoMessages, InCommand.ErrorMessages);
+
+	// Cache the new file states
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, ProjectRoots, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -180,7 +211,7 @@ bool FSkeinSyncWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects pull"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects snapshots get"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
 
