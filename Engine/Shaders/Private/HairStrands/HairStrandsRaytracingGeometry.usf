@@ -19,7 +19,9 @@ Buffer<float4>	 PositionOffsetBuffer;
 Buffer<uint4> 	 PositionBuffer;
 Buffer<float4> 	 TangentBuffer;
 RWBuffer<float4> OutputPositionBuffer;
-#if !PERMUTATION_PROCEDURAL_PRIMITIVE 
+#if PERMUTATION_PROCEDURAL_PRIMITIVE 
+uint             RaytracingProceduralSplits;
+#else
 RWBuffer<uint>   OutputIndexBuffer;
 #endif
 
@@ -77,7 +79,8 @@ void SetInvalidSegment(uint InVertexIndex)
 {
 #if PERMUTATION_PROCEDURAL_PRIMITIVE
 	const float NaN = asfloat(0x7FC00000);
-	SetAABB(InVertexIndex, NaN, NaN);
+	for (int i = 0; i < RaytracingProceduralSplits; i++)
+		SetAABB(RaytracingProceduralSplits * InVertexIndex + i, NaN, NaN);
 #else
 	const uint BasePoint = InVertexIndex * 4;
 	const uint TrisPerSegment = 8;
@@ -193,9 +196,15 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		FHairControlPoint P1 = GetControlPoint(SourceIndex1);
 		float4 A = float4(P0.Position, P0.WorldRadius * LodRadiusScale0);
 		float4 B = float4(P1.Position, P1.WorldRadius * LodRadiusScale1);
-		float3 Lo = min(A.xyz - A.w, B.xyz - B.w);
-		float3 Hi = max(A.xyz + A.w, B.xyz + B.w);
-		SetAABB(VertexIndex0, Lo, Hi);
+		float4 SplitA = A;
+		for (int i = 0; i < RaytracingProceduralSplits; i++)
+		{
+			float4 SplitB = lerp(A, B, float(i + 1) / float(RaytracingProceduralSplits));
+			float3 Lo = min(SplitA.xyz - SplitA.w, SplitB.xyz - SplitB.w);
+			float3 Hi = max(SplitA.xyz + SplitA.w, SplitB.xyz + SplitB.w);
+			SetAABB(RaytracingProceduralSplits * VertexIndex0 + i, Lo, Hi);
+			SplitA = SplitB;
+		}
 	}
 #else
 	// expand current vertex into 4 points around the curve
@@ -215,7 +224,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutputPositionBuffer[BaseOutIndex + 2] = float4(Px1, 1);
 		OutputPositionBuffer[BaseOutIndex + 3] = float4(Py1, 1);
 	}
-
 	if (P0.Type == HAIR_CONTROLPOINT_END)
 	{
 		// last vertex of a curve, we could create a cap, but this would complicate the logic in the vertex factory

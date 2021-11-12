@@ -1503,13 +1503,13 @@ void FHairCardsInterpolationResource::InternalRelease()
 // TODO: use a plain float vertex buffer with 3x the entries instead to save memory? (float3 UAVs are not allowed)
 bool GetSupportHairStrandsProceduralPrimitive(EShaderPlatform InShaderPlatform);
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsBulkData& InData, const FHairResourceName& ResourceName) :
-	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName)
+	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName), bOwnBuffers(true)
 {
-	bOwnBuffers = true;
 	bProceduralPrimitive = GetSupportHairStrandsProceduralPrimitive(GMaxRHIShaderPlatform);
 	if (bProceduralPrimitive)
 	{
-		VertexCount = InData.GetNumPoints() * 2; // only allocate space for primitive AABBs
+		// only allocate space for primitive AABBs
+		VertexCount = InData.GetNumPoints() * 2 * STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS;
 	}
 	else
 	{

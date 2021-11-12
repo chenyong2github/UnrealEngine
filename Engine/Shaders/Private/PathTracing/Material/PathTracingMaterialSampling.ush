@@ -21,6 +21,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingCloth.ush"
 #include "PathTracingSubsurfaceProfile.ush"
 #include "PathTracingEye.ush"
+#include "PathTracingHair.ush"
 #include "../../BurleyNormalizedSSSCommon.ush"
 
 // Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
@@ -154,6 +155,8 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 		case SHADINGMODELID_CLOTH:
 			Albedo = BrdfWeight * (Payload.DiffuseColor + lerp(Payload.SpecularColor, Payload.CustomData.xyz, Payload.CustomData.w));
 			break;
+		case SHADINGMODELID_HAIR:
+			Albedo = BrdfWeight * Payload.BaseColor;
 #endif
 		default:
 			Albedo = BrdfWeight * Payload.BaseColor;
@@ -276,6 +279,7 @@ void AdjustMaterialRoughness(inout FPathTracingPayload Payload, float PathRoughn
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		case SHADINGMODELID_EYE:
+		case SHADINGMODELID_HAIR:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
@@ -533,6 +537,9 @@ FMaterialSample SampleMaterial(
 		case SHADINGMODELID_EYE:
 			Result = Eye_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
+		case SHADINGMODELID_HAIR:
+			Result = Hair_SampleMaterial(RayDirection, Payload, RandSample);
+			break;
 		default:
 			Result = Lambert_SampleMaterial(Payload, RandSample);
 			break;
@@ -628,6 +635,9 @@ FMaterialEval EvalMaterial(
 			break;
 		case SHADINGMODELID_EYE:
 			Result = Eye_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
+			break;
+		case SHADINGMODELID_HAIR:
+			Result = Hair_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		default:
 			Result = Lambert_EvalMaterial(OutgoingDirection, Payload);
