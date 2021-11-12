@@ -335,11 +335,14 @@ void UFractureToolBrick::FractureContextChanged()
 
 void UFractureToolBrick::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	EnumerateVisualizationMapping(BricksMappings, BrickTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
+	if (CutterSettings->bDrawSites)
 	{
-		const FTransform& Transform = BrickTransforms[Idx];
-		PDI->DrawPoint(Transform.GetLocation() + ExplodedVector, FLinearColor::Green, 4.f, SDPG_Foreground);
-	});
+		EnumerateVisualizationMapping(BricksMappings, BrickTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
+		{
+			const FTransform& Transform = BrickTransforms[Idx];
+			PDI->DrawPoint(Transform.GetLocation() + ExplodedVector, FLinearColor::Green, 4.f, SDPG_Foreground);
+		});
+	}
 
 	if (CutterSettings->bDrawDiagram)
 	{

@@ -21,6 +21,8 @@ UFractureToolSlice::UFractureToolSlice(const FObjectInitializer& ObjInit)
 {
 	SliceSettings = NewObject<UFractureSliceSettings>(GetTransientPackage(), UFractureSliceSettings::StaticClass());
 	SliceSettings->OwnerTool = this;
+
+	CutterSettings->bDrawSitesToggleEnabled = false;
 }
 
 FText UFractureToolSlice::GetDisplayText() const
