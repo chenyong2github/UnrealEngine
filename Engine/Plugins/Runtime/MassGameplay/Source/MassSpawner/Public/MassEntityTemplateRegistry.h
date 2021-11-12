@@ -33,7 +33,7 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	T& AddFragment_GetRef()
 	{
-		return Template.GetMutableFragmentCollection().Add_GetRef<T>();
+		return Template.AddFragment_GetRef<T>();
 	}
 
 	template<typename T>
@@ -53,14 +53,12 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	void AddFragment()
 	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
-		Template.GetMutableFragmentCollection().Add(T::StaticStruct());
+		Template.AddFragment<T>();
 	}
 
 	template<typename T>
 	void AddFragmentWithDefaultInitializer()
 	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		AddFragment<T>();
 		AddDefaultInitializer<T>();
 	}
@@ -68,17 +66,16 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	void AddFragmentWithInitializer(const UMassProcessor& Initializer)
 	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		AddFragment<T>();
 		AddInitializer(Initializer);
 	}
 
-	void AddFragment(const FStructView InFragment)
+	void AddFragment(FConstStructView InFragment)
 	{ 
-		Template.GetMutableFragmentCollection().Add(InFragment);
+		Template.AddFragment(InFragment);
 	}
 
-	void AddFragmentWithDefaultInitializer(FStructView InFragment)
+	void AddFragmentWithDefaultInitializer(FConstStructView InFragment)
 	{
 		AddFragment(InFragment);
 		if (InFragment.GetScriptStruct())
@@ -87,7 +84,7 @@ struct FMassEntityTemplateBuildContext
 		}
 	}
 
-	void AddFragmentWithInitializer(FStructView InFragment, const UMassProcessor& Initializer)
+	void AddFragmentWithInitializer(FConstStructView InFragment, const UMassProcessor& Initializer)
 	{
 		AddFragment(InFragment);
 		AddInitializer(Initializer);
@@ -122,6 +119,11 @@ struct FMassEntityTemplateBuildContext
 		return Template.HasFragment<T>();
 	}
 	
+	bool HasFragment(const UScriptStruct& ScriptStruct) const
+	{
+		return Template.HasFragment(ScriptStruct);
+	}
+
 	template<typename T>
 	bool HasTag() const
 	{
@@ -196,7 +198,6 @@ struct FMassEntityTemplateBuildContext
 	// Template access
 	//----------------------------------------------------------------------//
 	FMassEntityTemplateID GetTemplateID() const { return Template.GetTemplateID(); }
-	FMassUniqueFragmentCollection& GetMutableFragments() { return Template.GetMutableFragmentCollection(); }
 	TArray<FMassEntityTemplate::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return Template.GetMutableObjectFragmentInitializers(); }
 
 	FMassObjectHandlers Handlers;

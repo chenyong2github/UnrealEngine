@@ -73,7 +73,7 @@ const FMassEntityTemplate* FMassEntityConfig::GetOrCreateEntityTemplate(AActor& 
 		Trait->ValidateTemplate(BuildContext, *World);
 	}
 
-	if (ensureMsgf(Template.GetFragmentsNum(), TEXT("Need at least one fragment to create an Archetype")))
+	if (ensureMsgf(!Template.IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
 	{
 		Template.SetUpProcessors(BuildContext.Handlers, OwnerActor);
 		TemplateRegistry.InitializeEntityTemplate(Template);
