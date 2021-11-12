@@ -1023,20 +1023,34 @@ void FAssetEditorToolkit::RegisterDefaultToolBar()
 	if (!ToolMenus->IsMenuRegistered(DefaultAssetEditorToolBarName))
 	{
 		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultAssetEditorToolBarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
-#if 0
-		ToolbarBuilder->StyleName = "AssetEditorToolbar";
-#endif
-		{
-			FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FGlobalEditorCommonCommands::Get().FindInContentBrowser, LOCTEXT("FindInContentBrowserButton", "Browse")));
-		}
+		FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
 	}
 }
 
 void FAssetEditorToolkit::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
 
+}
+
+UToolMenu* FAssetEditorToolkit::GenerateCommonActionsToolbar(FToolMenuContext& MenuContext)
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	FName ToolBarName = "AssetEditorToolbar.CommonActions";
+
+	UToolMenu* FoundMenu = ToolMenus->FindMenu(ToolBarName);
+
+	if (!FoundMenu || !FoundMenu->IsRegistered())
+	{
+		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+		FoundMenu->StyleName = "AssetEditorToolbar";
+
+		FToolMenuSection& Section = FoundMenu->AddSection("CommonActions");
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FGlobalEditorCommonCommands::Get().FindInContentBrowser, LOCTEXT("FindInContentBrowserButton", "Browse")));
+		Section.AddSeparator(NAME_None);
+	}
+
+	return ToolMenus->GenerateMenu(ToolBarName, MenuContext);;
 }
 
 void FAssetEditorToolkit::GenerateToolbar()
@@ -1067,6 +1081,9 @@ void FAssetEditorToolkit::GenerateToolbar()
 	GeneratedToolbar->bToolBarForceSmallIcons = bIsToolbarUsingSmallIcons;
 	TSharedRef< class SWidget > ToolBarWidget = ToolMenus->GenerateWidget(GeneratedToolbar);
 
+	UToolMenu* CommonActionsToolbar = GenerateCommonActionsToolbar(MenuContext);
+	TSharedRef< class SWidget > CommonActionsToolbarWidget = ToolMenus->GenerateWidget(CommonActionsToolbar);
+
 	TSharedRef<SWidget> MiscWidgets = SNullWidget::NullWidget;
 
 	if(ToolbarWidgets.Num() > 0)
@@ -1088,6 +1105,11 @@ void FAssetEditorToolkit::GenerateToolbar()
 	
 	Toolbar = 
 		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			CommonActionsToolbarWidget
+		]
 		+SHorizontalBox::Slot()
 		[
 			ToolBarWidget
