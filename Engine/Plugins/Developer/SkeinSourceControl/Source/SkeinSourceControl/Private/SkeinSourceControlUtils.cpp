@@ -15,7 +15,7 @@
 namespace SkeinSourceControlConstants
 {
 	/** The maximum number of files we submit in a single Skein command */
-	const int32 MaxFilesPerBatch = 1;
+	const int32 MaxFilesPerBatch = 32;
 }
 
 namespace SkeinSourceControlUtils
