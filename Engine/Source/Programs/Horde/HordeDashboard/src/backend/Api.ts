@@ -896,11 +896,17 @@ export type GetJobResponse = {
 	/** Hash of the graph for this job */
 	graphHash?: string;
 
-	/** The user that started this job */
+	/** @deprecated The user that started this job */
 	startedByUser?: string;
 
-	/** The user that aborted this job */
+	/** The user that started this job */
+	startedByUserInfo?: GetThinUserInfoResponse;
+
+	/** @deprecated The user that aborted this job */
 	abortedByUser?: string;
+
+	/** The user that started this job */
+	abortedByUserInfo?: GetThinUserInfoResponse;
 
 	/** The roles to impersonate when executing this job */
 	roles: string[];
@@ -989,11 +995,17 @@ export type GetStepResponse = {
 	/** If the step has been requested to abort	*/
 	abortRequested?: boolean;
 
-	/** Name of the user that requested the abort of this step */
+	/** @deprecated Name of the user that requested the abort of this step */
 	abortByUser?: string;
 
-	/** Name of the user that requested this step be run again */
+	/* The user that requested the abort of this step */
+	abortedByUserInfo?: GetThinUserInfoResponse;
+
+	/** @deprecated Name of the user that requested this step be run again */
 	retryByUser?: string;
+
+	/* The user that retried this step */
+	retriedByUserInfo?: GetThinUserInfoResponse;
 
 	/**The log id for this step */
 	logId?: string;
@@ -1963,11 +1975,15 @@ export type GetChangeSummaryResponse = {
 	/**  The source changelist number */
 	number: number;
 
-	/**  Name of the user that authored this change */
+	/**  @deprecated Name of the user that authored this change */
 	author: string;
 
 	/**  The description text */
 	description: string;
+
+	/**  Information about the change author */
+	authorInfo: GetThinUserInfoResponse;
+
 
 }
 
@@ -2595,18 +2611,24 @@ export type GetIssueResponse = {
 
 	/** Severity of this issue	*/
 	severity: IssueSeverity;
-	
+
 	/**Whether the issue is promoted */
 	promoted: boolean;
 
-	/**Owner of the issue */
+	/** @deprecated Owner of the issue */
 	owner?: string;
 
-	/**Owner id of the issue */
+	/** @deprecated Owner id of the issue */
 	ownerId?: string;
 
-	/**User that nominated the current owner */
+	/** Owner of the issue */
+	ownerInfo: GetThinUserInfoResponse;
+
+	/** @deprecated User that nominated the current owner */
 	nominatedBy?: string;
+
+	/** Use that nominated the current owner */
+	nominatedByInfo: GetThinUserInfoResponse;
 
 	/**Time that the issue was acknowledged */
 	acknowledgedAt?: Date | string;
@@ -2617,11 +2639,14 @@ export type GetIssueResponse = {
 	/**Time at which the issue was resolved */
 	resolvedAt?: Date | string;
 
-	/** Name of the user that resolved the issue */
+	/** @deprecated Name of the user that resolved the issue */
 	resolvedBy?: string;
 
-	/** User id of the person that resolved the issue */
+	/** @deprecated User id of the person that resolved the issue */
 	resolvedById?: string;
+
+	/** Use info for the person that resolved the issue */
+	resolvedByInfo: GetThinUserInfoResponse;
 
 	/**  List of stream paths affected by this issue */
 	streams: string[];
@@ -2634,8 +2659,12 @@ export type GetIssueResponse = {
 
 	affectedStreams: GetIssueAffectedStreamResponse[];
 
-	/** User id's of the Most likely suspects for causing this issue */
+	/** @deprecated User id's of the Most likely suspects for causing this issue */
 	primarySuspectIds: string[];
+
+	/** Use info for the person that resolved the issue */
+	primarySuspectsInfo: GetThinUserInfoResponse[];
+
 
 	/** Whether to show alerts for this issue */
 	showDesktopAlerts: boolean;
@@ -2783,6 +2812,21 @@ export type GetUserResponse = {
 	pinnedJobIds?: string[];
 
 }
+
+/** Basic information about a user. May be embedded in other responses.*/
+export type GetThinUserInfoResponse = {
+
+	/**  Id of the user */
+	id: string;
+
+	/** Name of the user */
+	name: string;
+
+	/**  The user's email address */
+	email: string;
+
+}
+
 
 /// <summary>
 /// Request to update settings for a user

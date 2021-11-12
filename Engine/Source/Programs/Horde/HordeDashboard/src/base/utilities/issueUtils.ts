@@ -9,6 +9,8 @@ export type IssueJira = {
 	link: string;
 }
 
+// This regex could be optimized, though it works
+// eslint-disable-next-line
 const urlRegex = /([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#\.]?[\w-]+)*\/?/gm
 
 export function getIssueJiras(issue: GetIssueResponse): IssueJira[] {
