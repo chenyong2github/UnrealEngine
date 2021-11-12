@@ -762,7 +762,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults)
+		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int? MaxChange, int MaxResults)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
 			Scope.Span.SetTag("ClusterName", ClusterName);
@@ -774,15 +774,7 @@ namespace HordeServer.Services
 			{
 				P4.ChangesCmdOptions Options = new P4.ChangesCmdOptions(P4.ChangesCmdFlags.IncludeTime | P4.ChangesCmdFlags.FullDescription, null, MaxResults, P4.ChangeListStatus.Submitted, null);
 
-				IList<P4.Changelist> Changelists;
-				if (MinChange == null)
-				{
-					Changelists = Repository.GetChangelists(Options);
-				}
-				else
-				{
-					Changelists = Repository.GetChangelists(Options, new P4.FileSpec(new P4.DepotPath($"//...@>={MinChange.Value}"), null, null, null));
-				}
+				IList<P4.Changelist> Changelists = Repository.GetChangelists(Options, new P4.FileSpec(new P4.DepotPath(GetFilter("//...", MinChange, MaxChange)), null, null, null));
 
 				List<ChangeSummary> Changes = new List<ChangeSummary>();
 				if (Changelists != null)
