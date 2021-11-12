@@ -12,7 +12,7 @@ int8 FManagedArrayCollection::Invalid = INDEX_NONE;
 
 FManagedArrayCollection::FManagedArrayCollection()
 {
-	Version = 8;
+	Version = 9;
 }
 
 void FManagedArrayCollection::AddGroup(FName Group)
@@ -374,7 +374,7 @@ static const FName GuidName("GUID");
 
 void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
-	if (Ar.IsSaving()) Version = 6;
+	if (Ar.IsSaving()) Version = 9;
 	Ar << Version;
 
 	if (Ar.IsLoading())
