@@ -55,11 +55,15 @@ public:
 	UPROPERTY()
 	bool bGroupFractureToggleEnabled = true;
 
-	/** Generate a fracture pattern across all selected meshes.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Sites"))
+	/** Draw points marking the centers of pieces to be cut out by the fracture pattern.  */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (EditCondition = "bDrawSitesToggleEnabled", HideEditConditionToggle, EditConditionHides, DisplayName = "Draw Sites"))
 	bool bDrawSites;
 
-	/** Generate a fracture pattern across all selected meshes.  */
+	// This flag allows tools to disable the above bDrawSites option if/when it is not applicable
+	UPROPERTY()
+	bool bDrawSitesToggleEnabled = true;
+
+	/** Draw the edges of the fracture pattern.  */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Diagram"))
 	bool bDrawDiagram;
 
