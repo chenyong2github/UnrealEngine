@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeinSourceControlProvider.h"
-#include "SkeinSourceControlThumbnail.h"
 #include "SkeinSourceControlCommand.h"
 #include "SkeinSourceControlState.h"
 #include "SkeinSourceControlUtils.h"

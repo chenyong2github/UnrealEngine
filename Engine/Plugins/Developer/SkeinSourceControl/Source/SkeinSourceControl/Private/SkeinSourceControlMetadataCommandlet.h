@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
-#include "SkeinSourceControlThumbnailCommandlet.generated.h"
+#include "SkeinSourceControlMetadataCommandlet.generated.h"
 
 UCLASS()
-class USkeinSourceControlThumbnailCommandlet : public UCommandlet
+class USkeinSourceControlMetadataCommandlet : public UCommandlet
 {
 	GENERATED_BODY()
 
