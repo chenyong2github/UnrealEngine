@@ -48,13 +48,13 @@ TRDGUniformBufferRef<FMobileDistortionPassUniformParameters> CreateMobileDistort
 		SetupMode |= EMobileSceneTextureSetupMode::CustomDepth;
 	}
 
-	if (IsMobileDeferredShadingEnabled(View.GetShaderPlatform()))
+	if (MobileRequiresSceneDepthAux(View.GetShaderPlatform()))
 	{
-		SetupMode |= EMobileSceneTextureSetupMode::SceneDepth;
+		SetupMode |= EMobileSceneTextureSetupMode::SceneDepthAux;
 	}
 	else
 	{
-		SetupMode |= EMobileSceneTextureSetupMode::SceneDepthAux;
+		SetupMode |= EMobileSceneTextureSetupMode::SceneDepth;
 	}
 
 	SetupMobileSceneTextureUniformParameters(GraphBuilder, SetupMode, Parameters->SceneTextures);
