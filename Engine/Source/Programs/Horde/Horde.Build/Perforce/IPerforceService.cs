@@ -126,9 +126,10 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ClusterName">Name of the Perforce cluster</param>
 		/// <param name="MinChange">The minimum changelist number</param>
+		/// <param name="MaxChange">The maximum changelist number</param>
 		/// <param name="MaxResults"></param>
 		/// <returns>Changelist information</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults);
+		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int? MaxChange, int MaxResults);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
