@@ -126,11 +126,11 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 	{
 		for (FSourceControlStateRef FileState : FileStates)
 		{
-			const bool bIsSourceControlled = FileState->IsSourceControlled();
+			const bool bIsSourceControlled = (!FileState->IsUnknown()) && FileState->IsSourceControlled();
 			const bool bFileExists = IFileManager::Get().FileExists(*FileState->GetFilename());
 
 			const bool bIsUncontrolled = (!bIsSourceControlled) && bFileExists;
-			const bool bIsDeleted = FileState->IsSourceControlled() && (!bFileExists);
+			const bool bIsDeleted = bIsSourceControlled && (!bFileExists);
 
 			const bool bIsCheckoutCompliant = (!bCheckCheckout) || (!FileState->IsCheckedOut());
 			const bool bIsStatusCompliant = (!bCheckStatus) || FileState->IsModified() || bIsUncontrolled || bIsDeleted;

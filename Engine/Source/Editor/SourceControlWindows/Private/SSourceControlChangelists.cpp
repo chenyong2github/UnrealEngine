@@ -1235,7 +1235,12 @@ void SSourceControlChangelistsWidget::OnLocateFile()
 	{
 		if (SelectedItem->GetTreeItemType() == IChangelistTreeItem::File)
 		{
-			AssetsToSync.Append(StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData());
+			const FAssetDataArrayPtr& Assets = StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData();
+
+			if (Assets.IsValid())
+			{
+				AssetsToSync.Append(*Assets);
+			}
 		}
 	}
 
@@ -1252,7 +1257,14 @@ bool SSourceControlChangelistsWidget::CanLocateFile()
 
 	auto HasAssetData = [](const FChangelistTreeItemPtr& SelectedItem)
 	{
-		return (SelectedItem->GetTreeItemType() == IChangelistTreeItem::File) && (StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData().Num() > 0);
+		if (SelectedItem->GetTreeItemType() != IChangelistTreeItem::File)
+		{
+			return false;
+		}
+
+		const FAssetDataArrayPtr& Assets = StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData();
+
+		return (Assets.IsValid() && Assets->Num() > 0);
 	};
 
 	// Checks if at least one selected item has asset data (ie: accessible from ContentBrowser)
