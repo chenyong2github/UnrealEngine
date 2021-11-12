@@ -47,8 +47,8 @@ FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySub
 	}
 	else
 	{
-		Ar += TEXT("Fragments:\n");
-		FragmentCollection.DebugOutputDescription(Ar);
+		Ar += TEXT("Composition:\n");
+		Composition.DebugOutputDescription(Ar);
 	}
 
 	Ar += TEXT("\nInitialization Processors:\n");

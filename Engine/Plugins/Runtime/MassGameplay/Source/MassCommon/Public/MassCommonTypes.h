@@ -43,67 +43,6 @@ struct FMassNetworkID : public FSequentialIDBase
 	explicit FMassNetworkID(uint32 InID) : FSequentialIDBase(InID) {}
 };
 
-/**
- *  No Remove* functions on purpose. Collections are to be built once and stored, never manipulated
- */
-USTRUCT()
-struct MASSCOMMON_API FMassUniqueFragmentCollection
-{
-	GENERATED_BODY()
-
-	FMassUniqueFragmentCollection() = default;
-
-	/** Adds a unique fragment instance. If a fragment of this type has already been added then its values won't be 
-	 *  overridden and this call will have no effect */
-	void Add(const FInstancedStruct& InFragment);
-
-	/** Adds a unique fragment type. If a fragment of this type has already been added then no action is performed */
-	void Add(const UScriptStruct* InFragmentType);
-
-	template<typename T>
-	FORCEINLINE void Add()
-	{
-		Add(T::StaticStruct());
-	}
-
-	/** Fetches a fragment instance of a given type. If it hasn't been added before it will be created first. */
-	template<typename T>
-	T& Add_GetRef()
-	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct is not of a fragment type. If you use this FMassUniqueFragmentCollection with the EntitySubsystem you'll hit some checks");
-		if (const FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
-		{
-			return ElementPtr->GetMutable<T>();
-		}
-
-		FragmentBitSet.Add<T>();
-		return FragmentInstances.Add_GetRef(FInstancedStruct(T::StaticStruct())).GetMutable<T>();
-	}
-
-	template<typename T>
-	T& GetRefChecked()
-	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct is not of a fragment type. Make sure your struct extends FMassFragment or its derivatives");
-		FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct()));
-		check(ElementPtr);
-		return ElementPtr->GetMutable<T>();
-	}
-
-	int32 GetFragmentsNum() const { return FragmentInstances.Num(); }
-	TArrayView<const FInstancedStruct> GetFragments() const { return MakeArrayView(FragmentInstances); }
-	const FMassFragmentBitSet& GetFragmentBitSet() const { return FragmentBitSet; }
-
-	bool IsEmpty() const { return FragmentInstances.IsEmpty(); }
-
-	void DebugOutputDescription(FOutputDevice& Ar) const;
-
-private:
-	UPROPERTY()
-	TArray<FInstancedStruct> FragmentInstances;
-
-	FMassFragmentBitSet FragmentBitSet;
-};
-
 /** Float encoded in int16, 1cm accuracy. */
 USTRUCT()
 struct MASSCOMMON_API FMassInt16Real

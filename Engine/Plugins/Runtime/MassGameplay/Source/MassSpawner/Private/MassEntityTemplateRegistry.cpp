@@ -132,7 +132,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 	UWorld* World = GetWorld();
 	FMassEntityTemplateBuildContext Context(OutTemplate);
 	Builder.Execute(World, StructInstance, Context);
-	if (ensure(OutTemplate.GetFragmentsNum())) // need at least one fragment to create an Archetype
+	if (ensure(!OutTemplate.IsEmpty())) // need at least one fragment to create an Archetype
 	{
 		OutTemplate.SetUpProcessors(Context.Handlers, *this);
 		InitializeEntityTemplate(OutTemplate);
@@ -221,7 +221,7 @@ const FMassEntityTemplate* UMassEntityTemplateRegistry::BuildClassTemplate(const
 		FMassEntityTemplateBuildContext BuildContext(*EntityTemplate);
 		Builder->Execute(GetWorld(), Class, Instance, BuildContext);
 
-		if (ensureMsgf(EntityTemplate->GetFragmentsNum(), TEXT("Need at least one fragment to create an Archetype")))
+		if (ensureMsgf(!EntityTemplate->IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
 		{
 			EntityTemplate->SetUpProcessors(BuildContext.Handlers, *this);
 			InitializeEntityTemplate(*EntityTemplate);
@@ -248,7 +248,7 @@ UMassEntityTemplateRegistry::FClassToTemplateBuilderDelegate* UMassEntityTemplat
 void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const
 {
 	// expected to be ensured by the caller
-	check(OutTemplate.GetFragmentsNum());
+	check(!OutTemplate.IsEmpty());
 
 	UWorld* World = GetWorld();
 	// find or create template

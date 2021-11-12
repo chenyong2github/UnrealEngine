@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ScriptStructTypeBitSet.h"
+#include "MassProcessingTypes.h"
 #include "MassEntityTypes.generated.h"
 
 
@@ -126,6 +127,7 @@ struct FMassArchetypeCompositionDescriptor
 	{
 		Fragments.Reset();
 		Tags.Reset();
+		ChunkFragments.Reset();
 	}
 
 	bool IsEquivalent(const FMassFragmentBitSet& InFragmentBitSet, const FMassTagBitSet& InTagBitSet, const FMassChunkFragmentBitSet& InChunkFragmentsBitSet) const
@@ -153,6 +155,24 @@ struct FMassArchetypeCompositionDescriptor
 		return CalculateHash(Fragments, Tags, ChunkFragments);
 	}
 
+	void DebugOutputDescription(FOutputDevice& Ar) const
+	{
+#if WITH_MASSENTITY_DEBUG
+		const bool bAutoLineEnd = Ar.GetAutoEmitLineTerminator();
+		Ar.SetAutoEmitLineTerminator(false);
+
+		Ar.Logf(TEXT("Fragments:\n"));
+		Fragments.DebugGetStringDesc(Ar);
+		Ar.Logf(TEXT("Tags:\n"));
+		Tags.DebugGetStringDesc(Ar);
+		Ar.Logf(TEXT("ChunkFragments:\n"));
+		ChunkFragments.DebugGetStringDesc(Ar);
+
+		Ar.SetAutoEmitLineTerminator(bAutoLineEnd);
+#endif // WITH_MASSENTITY_DEBUG
+
+	}
+
 	FMassFragmentBitSet Fragments;
 	FMassTagBitSet Tags;
 	FMassChunkFragmentBitSet ChunkFragments;
@@ -161,13 +181,8 @@ struct FMassArchetypeCompositionDescriptor
 struct FMassArchetypeFragmentsInitialValues
 {
 	FMassArchetypeFragmentsInitialValues() = default;
-	FMassArchetypeFragmentsInitialValues(TConstArrayView<FInstancedStruct> InChunkFragments)
-	: ChunkFragments(InChunkFragments)
-	{
-		
-	}
 
-	// @todo add the regular fragments initial value here.
+	TArray<FInstancedStruct> Fragments;
 	TArray<FInstancedStruct> ChunkFragments;
 
 	// @todo add the shared fragments values here

@@ -99,48 +99,98 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
 
-	bool IsValid() const { return Archetype.IsValid() && (FragmentCollection.IsEmpty() == false); }
+	bool IsValid() const { return Archetype.IsValid() && (Composition.IsEmpty() == false); }
+	bool IsEmpty() const { return Composition.IsEmpty(); }
 
 	void SetTemplateID(FMassEntityTemplateID InTemplateID) { TemplateID = InTemplateID; }
 	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
 
-	int32 GetFragmentsNum() const { return FragmentCollection.GetFragmentsNum(); }
-	TArrayView<const FInstancedStruct> GetFragments() const { return FragmentCollection.GetFragments(); }
-	FMassUniqueFragmentCollection& GetMutableFragmentCollection() { return FragmentCollection; }
-	TConstArrayView<FInstancedStruct> GetChunkFragments() const { return ChunkFragments; }
+	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return Composition; }
+	const FMassArchetypeFragmentsInitialValues& GetArchetypeFragmentsInitialValues() const { return InitialValues; }
 
-	FMassArchetypeCompositionDescriptor GetCompositionDescriptor() const { return FMassArchetypeCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
-	FMassArchetypeFragmentsInitialValues GetArchetypeFragmentsInitialValues() const { return FMassArchetypeFragmentsInitialValues(ChunkFragments); }
+	template<typename T>
+	void AddFragment()
+	{
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
+		Composition.Fragments.Add<T>();
+	}
+
+	void AddFragment(const UScriptStruct& FragmentType)
+	{
+		checkf(FragmentType.IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types."));
+		Composition.Fragments.Add(FragmentType);
+	}
+
+	void AddFragment(FConstStructView Fragment)
+	{
+		const UScriptStruct* FragmentType = Fragment.GetScriptStruct();
+		checkf(FragmentType && FragmentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types."));
+		if (!Composition.Fragments.Contains(*FragmentType))
+		{
+			Composition.Fragments.Add(*FragmentType);
+			InitialValues.Fragments.Add(Fragment);
+		}
+		else if (!InitialValues.Fragments.ContainsByPredicate(FSameTypeScriptStructPredicate(FragmentType)))
+		{
+			InitialValues.Fragments.Add(Fragment);
+		}
+	}
+
+	template<typename T>
+	T& AddFragment_GetRef()
+	{
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
+		if (!Composition.Fragments.Contains<T>())
+		{
+			Composition.Fragments.Add<T>();
+		}
+		else if (FInstancedStruct* Fragment = InitialValues.Fragments.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		{
+			return Fragment->template GetMutable<T>();
+		}
+
+		// Add a default initial fragment value
+		const int32 Index = InitialValues.Fragments.Add(FInstancedStruct(T::StaticStruct()));
+		return InitialValues.Fragments[Index].template GetMutable<T>();
+	}
 
 	template<typename T>
 	void AddTag()
 	{
-		TagBitSet.Add<T>();
+		Composition.Tags.Add<T>();
 	}
 	
 	void AddTag(const UScriptStruct& TagType)
 	{
-		TagBitSet.Add(TagType);
+		Composition.Tags.Add(TagType);
 	}
 
-	const FMassTagBitSet& GetTags() const { return TagBitSet; }	
-	FMassTagBitSet& GetMutableTags() { return TagBitSet; }
+	const FMassTagBitSet& GetTags() const { return Composition.Tags; }
+	FMassTagBitSet& GetMutableTags() { return Composition.Tags; }
 
 	template<typename T>
 	void AddChunkFragment()
 	{
-		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
-		ChunkFragments.AddUnique(FInstancedStruct(T::StaticStruct()));
-		ChunkFragmentBitSet.Add<T>();
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
+		Composition.ChunkFragments.Add<T>();
 	}
 
 	template<typename T>
 	T& AddChunkFragment_GetRef()
 	{
-		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
-		ChunkFragmentBitSet.Add<T>();
-		const int32 Index = ChunkFragments.AddUnique(FInstancedStruct(T::StaticStruct()));
-		return ChunkFragments[Index].template GetMutable<T>();
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
+		if( !Composition.ChunkFragments.Contains<T>() )
+		{
+			Composition.ChunkFragments.Add<T>();
+		}
+		else if (FInstancedStruct* ChunkFragment = InitialValues.ChunkFragments.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		{
+			return ChunkFragment->template GetMutable<T>();
+		}
+
+		// Add a default initial chunk fragment value
+		const int32 Index = InitialValues.ChunkFragments.Add(FInstancedStruct(T::StaticStruct()));
+		return InitialValues.ChunkFragments[Index].template GetMutable<T>();
 	}
 
 	FString DebugGetDescription(UMassEntitySubsystem* EntitySubsystem = nullptr) const;
@@ -149,36 +199,37 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	template<typename T>
 	bool HasFragment() const
 	{
-		return FragmentCollection.GetFragmentBitSet().Contains(*T::StaticStruct());
+		return Composition.Fragments.Contains<T>();
 	}
 	
+	bool HasFragment(const UScriptStruct& ScriptStruct) const
+	{
+		return Composition.Fragments.Contains(ScriptStruct);
+	}
+
 	template<typename T>
 	bool HasTag() const
 	{
-		return TagBitSet.Contains(*T::StaticStruct());
+		return Composition.Tags.Contains<T>();
 	}
 
 	template<typename T>
 	bool HasChunkFragment() const
 	{
-		return ChunkFragmentBitSet.Contains(*T::StaticStruct());
+		return Composition.ChunkFragments.Contains<T>();
 	}
 
 private:
 	FArchetypeHandle Archetype;
 
-	FMassUniqueFragmentCollection FragmentCollection;
-	FMassTagBitSet TagBitSet;
-	FMassChunkFragmentBitSet ChunkFragmentBitSet;
+	FMassArchetypeCompositionDescriptor Composition;
+	FMassArchetypeFragmentsInitialValues InitialValues;
 	
 	UPROPERTY()
 	FMassRuntimePipeline InitializationPipeline;
 	
 	UPROPERTY()
 	FMassRuntimePipeline DeinitializationPipeline;
-
-	UPROPERTY()
-	TArray<FInstancedStruct> ChunkFragments;
 
 	// These functions will be called to initialize entity's UObject-based fragments
 	TArray<FObjectFragmentInitializerFunction> ObjectInitializers;

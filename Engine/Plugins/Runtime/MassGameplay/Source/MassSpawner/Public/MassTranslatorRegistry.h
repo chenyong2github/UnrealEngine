@@ -16,7 +16,6 @@ class UMassTranslator;
 class UMassObjectFragmentCreator;
 class UMassFragmentInitializer;
 class UMassFragmentDestructor;
-struct FMassUniqueFragmentCollection;
 
 /** @todo rename the class, no longer hosting Translators, just Initializers and Deinitializers/Destructors
  *  @todo brief description of the class
