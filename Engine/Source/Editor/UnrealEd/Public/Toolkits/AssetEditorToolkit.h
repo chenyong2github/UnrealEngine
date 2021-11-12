@@ -288,6 +288,9 @@ protected:
 	/**	Returns an array of all the objects currently being edited. Asserts if editing no objects */
 	const TArray< UObject* >& GetEditingObjects() const;
 
+	/** Generate the toolbar for common asset actions like Save*/
+	UToolMenu* GenerateCommonActionsToolbar(FToolMenuContext& MenuContext);
+
 	/** Get the collection of edited objects that can be saved. */
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const;
 
