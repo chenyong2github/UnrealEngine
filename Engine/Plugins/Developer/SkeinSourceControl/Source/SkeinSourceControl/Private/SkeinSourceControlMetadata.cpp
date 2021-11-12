@@ -6,6 +6,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/FileHelper.h"
+#include "Algo/Transform.h"
 #include "ISourceControlModule.h"
 #include "ObjectTools.h"
 #include "ImageUtils.h"
@@ -37,6 +38,7 @@ static bool ExtractTags(IAssetRegistry& InAssetRegistry, FAssetData& InAssetData
 	}
 	else
 	{
+
 		auto IsValid = [](const TTuple<FName, FString>& InTuple)
 		{
 			static FName NAME_FiBData("FiBData");
@@ -48,7 +50,7 @@ static bool ExtractTags(IAssetRegistry& InAssetRegistry, FAssetData& InAssetData
 				&& InTuple.Key != NAME_AssetImportData;
 		};
 
-		Algo::TransformIf(InAssetData.TagsAndValues, OutTags, IsValid, [](const TTuple<FName, FString>& InTuple) { return InTuple; });
+		Algo::TransformIf(InAssetData.TagsAndValues.CopyMap(), OutTags, IsValid, [](const TTuple<FName, FString>& InTuple) { return InTuple; });
 	}
 
 	return true;
