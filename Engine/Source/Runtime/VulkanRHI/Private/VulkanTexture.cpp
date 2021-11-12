@@ -1435,9 +1435,10 @@ static void DoAsyncReallocateTexture2D(FVulkanCommandListContext& Context, FVulk
 		Barrier.Execute(CmdBuffer->GetHandle());
 
 		// Add tracking for the appropriate subresources (intentionally leave added mips in VK_IMAGE_LAYOUT_UNDEFINED)
-		FVulkanImageLayout& NewTextureLayout = Context.GetLayoutManager().GetOrAddFullLayout(NewTexture->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
-		ensure(NewTextureLayout.AreAllSubresourcesSameLayout() && (NewTextureLayout.MainLayout == VK_IMAGE_LAYOUT_UNDEFINED));
+		// NOTE: Overwriting whatever is contained in the layout manager for the new texture (circumvents issue with stale layouts and pointer reuse)
+		FVulkanImageLayout NewTextureLayout(VK_IMAGE_LAYOUT_UNDEFINED, NewTexture->Surface.GetNumMips(), NewTexture->Surface.GetNumberOfArrayLevels());
 		NewTextureLayout.Set(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, DestSubResourceRange);
+		Context.GetLayoutManager().GetOrAddFullLayout(NewTexture->Surface, VK_IMAGE_LAYOUT_UNDEFINED) = NewTextureLayout;
 	}
 
 	// request is now complete
