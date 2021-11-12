@@ -84,7 +84,7 @@ FAutoConsoleVariableRef CVarRecycleThreads(
 	TEXT("0 off, 1 on"),
 	ECVF_Default);
 
-static int32 OverrunTimeoutCVar = 1000;
+static int32 OverrunTimeoutCVar = 5000;
 FAutoConsoleVariableRef CVarOverrunTimeout(
 	TEXT("au.OverrunTimeoutMSec"),
 	OverrunTimeoutCVar,

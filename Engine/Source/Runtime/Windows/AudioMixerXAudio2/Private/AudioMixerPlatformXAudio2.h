@@ -114,6 +114,7 @@ namespace Audio
 			IXAudio2SourceVoice* OutputAudioStreamSourceVoice = nullptr;
 			FAudioPlatformDeviceInfo DeviceInfo;
 			FString SwapReason;
+			float SuccessfullDurationMs = 0.f;
 		};
 		TFuture<FXAudio2AsyncCreateResult> ActiveDeviceSwap;
 		bool CheckThreadedDeviceSwap();
