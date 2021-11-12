@@ -10,6 +10,7 @@
 
 
 class ILiveLinkClient;
+class IModularFeature;
 class UNDisplaySlaveVirtualSubject;
 
 
@@ -49,7 +50,14 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ End FGCObject interface
 
+	/** Initializes all required callbacks and LiveLink source */
+	void Initialize();
+	
+	/** Registers ourself as sync object in nDisplay */
 	void Activate();
+	
+	/** Unregisters ourself as sync object from nDisplay */
+	void Deactivate();
 
 protected:
 
@@ -82,6 +90,9 @@ protected:
 
 	/** If our source is removed (could happen if a new preset is applied), reinitialize ourself to stay awake */
 	void OnLiveLinkSourceRemoved(FGuid SourceGuid);
+
+	/** Listen for modular feature removed in case LiveLink gets unloaded */
+	void OnModularFeatureRemoved(const FName& Type , IModularFeature* ModularFeature);
 
 private:
 

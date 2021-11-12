@@ -67,13 +67,34 @@ FNDisplayLiveLinkSubjectReplicator& FLiveLinkOverNDisplayModule::GetSubjectRepli
 
 void FLiveLinkOverNDisplayModule::OnEngineLoopInitComplete()
 {
+	//Register to display cluster scene event delegates to know when to activate/deactivate replicator. 
+	//i.e. When loading a map, scene will be ended and all SyncObjects will be destroyed.
+	IDisplayCluster::Get().OnDisplayClusterStartScene().AddRaw(this, &FLiveLinkOverNDisplayModule::OnDisplayClusterStartSceneCallback);
+	IDisplayCluster::Get().OnDisplayClusterEndScene().AddRaw(this, &FLiveLinkOverNDisplayModule::OnDisplayClusterEndSceneCallback);
+
+	//Initialize replicator so it's ready to operate
+	LiveLinkReplicator->Initialize();
+
+	//Start scene event has already been done when engine has finished initializing so fake it
+	OnDisplayClusterStartSceneCallback();
+}
+
+void FLiveLinkOverNDisplayModule::OnDisplayClusterStartSceneCallback() const
+{
 	if (IDisplayCluster::IsAvailable() && IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster) 
 	{
 		if (GetDefault<ULiveLinkOverNDisplaySettings>()->IsLiveLinkOverNDisplayEnabled())
 		{
+			//When Scene is started, activate our replicator sync object ( registers itself )
 			LiveLinkReplicator->Activate();
 		}
 	}
+}
+
+void FLiveLinkOverNDisplayModule::OnDisplayClusterEndSceneCallback() const
+{
+	//When scene is ended, deactivate replicator sync object ( unregisters itself )
+	LiveLinkReplicator->Deactivate();
 }
 
 #undef LOCTEXT_NAMESPACE
