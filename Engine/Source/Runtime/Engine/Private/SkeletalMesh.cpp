@@ -5422,6 +5422,7 @@ static void SerializeReductionSettingsForDDC(FArchive& Ar, FSkeletalMeshOptimiza
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bRemapMorphTargets);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bRecalcNormals);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bEnforceBoneBoundaries);
+	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bMergeCoincidentVertBones);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockEdges);
 	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockColorBounaries);
 	Ar << ReductionSettings.TerminationCriterion;

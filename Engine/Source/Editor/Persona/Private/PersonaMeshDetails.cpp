@@ -742,6 +742,13 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 			FGetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetEnforceBoneBoundaries),
 			FSetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetEnforceBoneBoundaries));
 
+		AddBoolRow(ChildrenBuilder,
+			LOCTEXT("MergeCoincidentVertBones_Row", "MergeCoincidentVertBones"),
+			LOCTEXT("MergeCoincidentVertBones_RowNameContent", "Merge Coincident Vertices Bones"),
+			LOCTEXT("MergeCoincidentVertBones_RowNameContentTooltip", "If enabled this option make sure vertices that share the same location (e.g. UV boundaries) have the same bone weights. This can fix cracks when the characters animate."),
+			FGetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::GetMergeCoincidentVertBones),
+			FSetCheckBoxStateDelegate::CreateRaw(this, &FSkeletalMeshReductionSettingsLayout::SetMergeCoincidentVertBones));
+
 		AddFloatRow(ChildrenBuilder,
 			LOCTEXT("VolumeImportance_Row", "Volume Importance"),
 			LOCTEXT("VolumeImportance", "Volumetric Correction"),
@@ -1381,6 +1388,20 @@ void FSkeletalMeshReductionSettingsLayout::SetEnforceBoneBoundaries(ECheckBoxSta
 	ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
 	ReductionSettings.bEnforceBoneBoundaries = (NewState == ECheckBoxState::Checked) ? true : false;
+}
+
+ECheckBoxState FSkeletalMeshReductionSettingsLayout::GetMergeCoincidentVertBones() const
+{
+	return ReductionSettings.bMergeCoincidentVertBones ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FSkeletalMeshReductionSettingsLayout::SetMergeCoincidentVertBones(ECheckBoxState NewState)
+{
+	FText TransactionText = FText::Format(LOCTEXT("PersonaReductionChangedSetMergeCoincidentVertBones", "LOD{0} reduction settings: Merge Coincident Vertices Bones changed"), LODIndex);
+	FScopedTransaction Transaction(TransactionText);
+	ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+	ReductionSettings.bMergeCoincidentVertBones = (NewState == ECheckBoxState::Checked) ? true : false;
 }
 
 float FSkeletalMeshReductionSettingsLayout::GetVolumeImportance() const
