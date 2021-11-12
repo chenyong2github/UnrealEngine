@@ -325,22 +325,22 @@ namespace HordeServer.Compute.Impl
 			// Check if the set of active keys already contains the key we're adding. In order to optimize the 
 			// common case under heavy load where the key is in the set, updating it creates a full copy of it. Any
 			// readers can thus access it without the need for any locking.
-			ReadOnlyHashSet<TQueueId> LocalActiveKeysCopy = LocalActiveQueues;
-			if (!LocalActiveKeysCopy.Contains(QueueId))
+			for(; ;)
 			{
-				for (; ; )
+				ReadOnlyHashSet<TQueueId> LocalActiveQueuesCopy = LocalActiveQueues;
+				if (LocalActiveQueuesCopy.Contains(QueueId))
 				{
-					HashSet<TQueueId> NewLocalActiveKeys = new HashSet<TQueueId>(LocalActiveKeysCopy);
-					if (!NewLocalActiveKeys.Add(QueueId))
-					{
-						break;
-					}
-					if (Interlocked.CompareExchange(ref LocalActiveQueues, NewLocalActiveKeys, LocalActiveKeysCopy) == LocalActiveKeysCopy)
-					{
-						Logger.LogInformation("Refreshing active queue {QueueId}", QueueId);
-						await ActiveQueues.SetAsync(QueueId, DateTime.UtcNow);
-						break;
-					}
+					break;
+				}
+
+				HashSet<TQueueId> NewLocalActiveQueues = new HashSet<TQueueId>(LocalActiveQueuesCopy);
+				NewLocalActiveQueues.Add(QueueId);
+
+				if (Interlocked.CompareExchange(ref LocalActiveQueues, NewLocalActiveQueues, LocalActiveQueuesCopy) == LocalActiveQueuesCopy)
+				{
+					Logger.LogInformation("Refreshing active queue {QueueId}", QueueId);
+					await ActiveQueues.SetAsync(QueueId, DateTime.UtcNow);
+					break;
 				}
 			}
 		}

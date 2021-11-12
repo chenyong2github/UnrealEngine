@@ -175,6 +175,7 @@ namespace HordeServer.Compute.Impl
 			List<IoHash> RequirementsHashes = await TaskScheduler.GetInactiveQueuesAsync();
 			foreach (IoHash RequirementsHash in RequirementsHashes)
 			{
+				Logger.LogInformation("Inactive queue: {RequirementsHash}", RequirementsHash);
 				for (; ; )
 				{
 					ComputeTaskInfo? ComputeTask = await TaskScheduler.DequeueAsync(RequirementsHash);
@@ -185,7 +186,7 @@ namespace HordeServer.Compute.Impl
 
 					ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Complete, null, null);
 					Status.Outcome = ComputeTaskOutcome.Expired;
-					Logger.LogInformation("Compute task expired (task: {TaskHash}, channel: {ChannelId})", ComputeTask.TaskHash, ComputeTask.ChannelId);
+					Logger.LogInformation("Compute task expired (queue: {RequirementsHash}, task: {TaskHash}, channel: {ChannelId})", RequirementsHash, ComputeTask.TaskHash, ComputeTask.ChannelId);
 					await MessageQueue.PostAsync(ComputeTask.ChannelId.ToString(), Status);
 				}
 			}
@@ -206,7 +207,7 @@ namespace HordeServer.Compute.Impl
 			foreach (CbObjectAttachment TaskHash in TaskHashes)
 			{
 				ComputeTaskInfo TaskInfo = new ComputeTaskInfo(TaskHash, ChannelId);
-				Logger.LogDebug("Adding task {TaskHash} to queue {RequirementsHash}", TaskInfo.TaskHash.Hash, RequirementsHash);
+				Logger.LogDebug("Adding task {TaskHash} from channel {ChannelId} to queue {RequirementsHash}", TaskInfo.TaskHash.Hash, ChannelId, RequirementsHash);
 				Tasks.Add(TaskScheduler.EnqueueAsync(RequirementsHash, TaskInfo, false));
 			}
 			await Task.WhenAll(Tasks);
