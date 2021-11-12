@@ -12,28 +12,28 @@ class FProperty;
 
 /**
  * Short lived pointer to an UOBJECT() or USTRUCT().
- * The item view expects a type (UStruct) when you pass in a valid memory. In case of null, the type can be empty too.
+ * The data view expects a type (UStruct) when you pass in a valid memory. In case of null, the type can be empty too.
  */
-struct STATETREEMODULE_API FStateTreeItemView
+struct STATETREEMODULE_API FStateTreeDataView
 {
-	FStateTreeItemView() = default;
+	FStateTreeDataView() = default;
 
 	// USTRUCT() constructor.
-	FStateTreeItemView(const UScriptStruct* InScriptStruct, uint8* InMemory) : Struct(InScriptStruct), Memory(InMemory)
+	FStateTreeDataView(const UScriptStruct* InScriptStruct, uint8* InMemory) : Struct(InScriptStruct), Memory(InMemory)
 	{
 		// Must have type with valid pointer.
 		check(!Memory || (Memory && Struct));
 	}
 
 	// UOBJECT() constructor.
-	FStateTreeItemView(UObject* Object) : Struct(Object ? Object->GetClass() : nullptr), Memory(reinterpret_cast<uint8*>(Object))
+	FStateTreeDataView(UObject* Object) : Struct(Object ? Object->GetClass() : nullptr), Memory(reinterpret_cast<uint8*>(Object))
 	{
 		// Must have type with valid pointer.
 		check(!Memory || (Memory && Struct));
 	}
 
 	// USTRUCT() from a StructView.
-	FStateTreeItemView(FStructView StructView) : Struct(StructView.GetScriptStruct()), Memory(StructView.GetMutableMemory())
+	FStateTreeDataView(FStructView StructView) : Struct(StructView.GetScriptStruct()), Memory(StructView.GetMutableMemory())
 	{
 		// Must have type with valid pointer.
 		check(!Memory || (Memory && Struct));
@@ -126,17 +126,17 @@ struct STATETREEMODULE_API FStateTreeItemView
 		return ((T*)Memory);
 	}
 
-	/** @return Struct describing the item type. */
+	/** @return Struct describing the data type. */
 	const UStruct* GetStruct() const { return Struct; }
 
-	/** @return Raw const pointer to the item. */
+	/** @return Raw const pointer to the data. */
 	const uint8* GetMemory() const { return Memory; }
 
-	/** @return Raw mutable pointer to the item. */
+	/** @return Raw mutable pointer to the data. */
 	uint8* GetMutableMemory() const { return Memory; }
 	
 protected:
-	/** Class or struct of the external item. */
+	/** UClass or UScriptStruct of the data. */
 	const UStruct* Struct = nullptr;
 
 	/** Memory pointing at the class or struct */
@@ -434,7 +434,7 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	 * @param TargetBatchIndex Batch index to copy (see FStateTreePropertyBindingCompiler).
 	 * @param TargetStructView View to struct where properties are copied to.
 	 */
-	void CopyTo(TConstArrayView<FStateTreeItemView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeItemView TargetStructView) const;
+	void CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const;
 
 	void DebugPrintInternalLayout(FString& OutString) const;
 
@@ -442,7 +442,7 @@ protected:
 	bool ResolvePath(const UStruct* Struct, const FStateTreePropertyPath& Path, FStateTreePropertyAccess& OutAccess);
 	bool ValidateCopy(FStateTreePropCopy& Copy) const;
 	void PerformCopy(const FStateTreePropCopy& Copy, const FProperty* SourceProperty, const uint8* SourceAddress, const FProperty* TargetProperty, uint8* TargetAddress) const;
-	uint8* GetAddress(FStateTreeItemView InStructView, const FStateTreePropertyAccess& InAccess) const;
+	uint8* GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyAccess& InAccess) const;
 	FString GetPathAsString(const FStateTreePropertyPath& Path, const int32 HighlightedSegment = INDEX_NONE, const TCHAR* HighlightPrefix = nullptr, const TCHAR* HighlightPostfix = nullptr);
 
 	/** Array of expected source structs. */

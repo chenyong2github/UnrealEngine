@@ -11,6 +11,15 @@ struct FMassZoneGraphAnnotationTagsFragment;
 /**
  * Evaluator to expose ZoneGraph Annotation Tags for decision making.
  */
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationEvaluatorInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FZoneGraphTagMask AnnotationTags = FZoneGraphTagMask::None;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Annotation Tags"))
 struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationEvaluator : public FMassStateTreeEvaluatorBase
 {
@@ -20,10 +29,10 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationEvaluator : public FMassStateT
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphAnnotationEvaluatorInstanceData::StaticStruct(); }
+	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
 
-	TStateTreeItemHandle<FMassZoneGraphAnnotationTagsFragment> BehaviorTagsHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphAnnotationTagsFragment> AnnotationTagsFragmentHandle;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	FZoneGraphTagMask BehaviorTags = FZoneGraphTagMask::None;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> AnnotationTagsHandle;
 };

@@ -23,7 +23,7 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 		UE_VLOG(MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree asset is not set or unavailable."));
 		return;
 	}
-	if (!StateTree->GetRuntimeStorageDefaultValue().IsValid())
+	if (!StateTree->GetInstanceStorageDefaultValue().IsValid())
 	{
 		UE_VLOG(MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree asset is valid but missing runtime storage type."));
 		return;
@@ -36,7 +36,7 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 	StateTreeFragment.StateTreeHandle = Handle;
 
 	// Add runtime storage as a fragment
-	BuildContext.AddFragment(StateTree->GetRuntimeStorageDefaultValue());
+	BuildContext.AddFragment(StateTree->GetInstanceStorageDefaultValue());
 }
 
 void UMassStateTreeTrait::ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -55,9 +55,9 @@ void UMassStateTreeTrait::ValidateTemplate(FMassEntityTemplateBuildContext& Buil
 	}
 
 	// Make sure all the required subsystems can be found.
-	for (const FStateTreeExternalItemDesc& ItemDesc : StateTree->GetExternalItems())
+	for (const FStateTreeExternalDataDesc& ItemDesc : StateTree->GetExternalDataDescs())
 	{
-		if (ensure(ItemDesc.Struct) && ItemDesc.Requirement == EStateTreeItemRequirement::Required)
+		if (ensure(ItemDesc.Struct) && ItemDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 		{
 			if (ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 			{

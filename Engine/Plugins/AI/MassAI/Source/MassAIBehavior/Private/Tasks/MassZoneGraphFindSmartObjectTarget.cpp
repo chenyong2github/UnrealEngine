@@ -11,21 +11,24 @@
 
 bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(SmartObjectUserHandle);
-	Linker.LinkExternalItem(LocationHandle);
-	Linker.LinkExternalItem(AnnotationSubsystemHandle);
+	Linker.LinkExternalData(SmartObjectUserHandle);
+	Linker.LinkExternalData(LocationHandle);
+	Linker.LinkExternalData(AnnotationSubsystemHandle);
 
+	Linker.LinkInstanceDataProperty(SmartObjectLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindSmartObjectTargetInstanceData, SmartObjectLocation));
+	
 	return true;
 }
 
-EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	const UZoneGraphAnnotationSubsystem& AnnotationSubsystem = Context.GetExternalItem(AnnotationSubsystemHandle);
-	const FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
+	const UZoneGraphAnnotationSubsystem& AnnotationSubsystem = Context.GetExternalData(AnnotationSubsystemHandle);
+	const FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const FZoneGraphLaneHandle LaneHandle(LaneLocation.LaneHandle);
 
-	TargetLocationRef = nullptr;
+	FMassZoneGraphTargetLocation& SmartObjectLocation = Context.GetInstanceData(SmartObjectLocationHandle);
+	SmartObjectLocation.Reset();
 
 	if (Context.GetEnterStateStatus() == EStateTreeRunStatus::Failed)
 	{
@@ -48,14 +51,15 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	const FZoneGraphTag SmartObjectTag = GetDefault<UMassSmartObjectSettings>()->SmartObjectTag;
 	const USmartObjectZoneAnnotations* SOAnnotations = Cast<USmartObjectZoneAnnotations>(AnnotationSubsystem.GetFirstAnnotationForTag(SmartObjectTag));
 
-	TargetLocation.LaneHandle = LaneHandle;
-	TargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
-	TargetLocation.NextLaneHandle.Reset();
-	TargetLocation.bMoveReverse = false;
-	TargetLocation.EndOfPathIntent = EMassMovementAction::Stand;
-	TargetLocation.EndOfPathPosition = SOUser.GetTargetLocation();
+	
+	SmartObjectLocation.LaneHandle = LaneHandle;
+	SmartObjectLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	SmartObjectLocation.NextLaneHandle.Reset();
+	SmartObjectLocation.bMoveReverse = false;
+	SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
+	SmartObjectLocation.EndOfPathPosition = SOUser.GetTargetLocation();
 	// Let's start moving toward the interaction a bit before the entry point.
-	TargetLocation.AnticipationDistance.Set(100.f);
+	SmartObjectLocation.AnticipationDistance.Set(100.f);
 
 	if (SOAnnotations != nullptr)
 	{
@@ -66,30 +70,14 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 
 		// Request path along current lane to reach entry point on lane
 		MASSBEHAVIOR_LOG(Log, TEXT("Claim successful: create path along lane to reach interaction location."));
-		TargetLocation.TargetDistance = EntryPoint.DistanceAlongLane;
+		SmartObjectLocation.TargetDistance = EntryPoint.DistanceAlongLane;
 	}
 	else
 	{
 		// Request path from current lane location directly to interaction location
 		MASSBEHAVIOR_LOG(Warning, TEXT("Claim successful: create path from current lane location directly to interaction location since SmartObject zone annotations weren't found."));
-		TargetLocation.TargetDistance = LaneLocation.DistanceAlongLane;
+		SmartObjectLocation.TargetDistance = LaneLocation.DistanceAlongLane;
 	}
-
-	TargetLocationRef = &TargetLocation;
-	
-	return EStateTreeRunStatus::Running;
-}
-
-void FMassZoneGraphFindSmartObjectTarget::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
-{
-	// Temp solution to make sure the target location is always up to date (will be replaced with automatic update).
-	TargetLocationRef = &TargetLocation;
-}
-
-EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
-{
-	// Temp solution to make sure the target location is always up to date (will be replaced with automatic update).
-	TargetLocationRef = &TargetLocation;
 	
 	return EStateTreeRunStatus::Running;
 }

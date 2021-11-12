@@ -3,6 +3,7 @@
 #include "MassStateTreeSchema.h"
 #include "MassEntityTypes.h"
 #include "MassStateTreeTypes.h"
+#include "StateTreeConditionBase.h"
 #include "Subsystems/WorldSubsystem.h"
 
 UScriptStruct* UMassStateTreeSchema::GetStorageSuperStruct() const
@@ -14,7 +15,9 @@ UScriptStruct* UMassStateTreeSchema::GetStorageSuperStruct() const
 bool UMassStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
 	// Only allow Mass evals and tasks.
-	return InScriptStruct->IsChildOf(FMassStateTreeEvaluatorBase::StaticStruct()) || InScriptStruct->IsChildOf(FMassStateTreeTaskBase::StaticStruct());
+	return InScriptStruct->IsChildOf(FMassStateTreeEvaluatorBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FMassStateTreeTaskBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct());
 }
 
 bool UMassStateTreeSchema::IsExternalItemAllowed(const UStruct& InStruct) const

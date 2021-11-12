@@ -289,7 +289,7 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_StateTreeStatistics(const FSpawn
 		.Label(LOCTEXT("StatisticsTitle", "StateTree Statistics"))
 		[
 			SNew(SMultiLineEditableTextBox)
-			.Padding(10)
+			.Padding(10.0f)
 			.Style(FEditorStyle::Get(), "Log.TextBox")
 			.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
 			.ForegroundColor(FLinearColor::Gray)
@@ -320,10 +320,10 @@ FText FStateTreeEditor::GetStatisticsText() const
 		return FText::GetEmpty();
 	}
 
-	if (const UScriptStruct* RuntimeStruct = StateTree->GetRuntimeStorageStruct())
+	if (const UScriptStruct* StorageStruct = StateTree->GetInstanceStorageStruct())
 	{
-		const FText SizeText = FText::AsMemory((uint64)RuntimeStruct->GetStructureSize());
-		const FText NumItemsText = FText::AsNumber(StateTree->GetRuntimeStorageItemCount());
+		const FText SizeText = FText::AsMemory((uint64)StorageStruct->GetStructureSize());
+		const FText NumItemsText = FText::AsNumber(StateTree->GetNumInstances());
 
 		return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} items"), SizeText, NumItemsText);
 	}
@@ -541,7 +541,7 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
-		TMap<FGuid, const UScriptStruct*> AllStructIDs;
+		TMap<FGuid, const UStruct*> AllStructIDs;
 		TreeData->GetAllStructIDs(AllStructIDs);
 		TreeData->GetPropertyEditorBindings()->RemoveUnusedBindings(AllStructIDs);
 	}

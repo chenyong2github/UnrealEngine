@@ -17,18 +17,24 @@
 
 bool FMassClaimSmartObjectTask::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(SmartObjectUserHandle);
-	Linker.LinkExternalItem(SmartObjectSubsystemHandle);
+	Linker.LinkExternalData(SmartObjectUserHandle);
+	Linker.LinkExternalData(SmartObjectSubsystemHandle);
+
+	Linker.LinkInstanceDataProperty(SearchRequestResultHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassClaimSmartObjectTaskInstanceData, SearchRequestResult));
+	Linker.LinkInstanceDataProperty(ClaimResultHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassClaimSmartObjectTaskInstanceData, ClaimResult));
 
 	return true;
 }
 
-EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return EStateTreeRunStatus::Running;
 	}
+
+	const FMassSmartObjectRequestResult& SearchRequestResult = Context.GetInstanceData(SearchRequestResultHandle);
+	EMassSmartObjectClaimResult& ClaimResult = Context.GetInstanceData(ClaimResultHandle);
 
 	if (!SearchRequestResult.bProcessed)
 	{
@@ -45,8 +51,8 @@ EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionCon
 	EStateTreeRunStatus Status = EStateTreeRunStatus::Failed;
 
 	// Retrieve fragments and subsystems
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
-	FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
 	// Setup MassSmartObject handler and claim
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
@@ -74,16 +80,17 @@ EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionCon
 	return Status;
 }
 
-void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return;
 	}
 
+	EMassSmartObjectClaimResult& ClaimResult = Context.GetInstanceData(ClaimResultHandle);
 	ClaimResult = EMassSmartObjectClaimResult::Unset;
 
-	FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
 	if (SOUser.ClaimHandle.IsValid())
 	{
@@ -91,7 +98,7 @@ void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, c
 		{
 			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with a valid claim handle but interaction was not started: release claim on the smart object."));
 			const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-			USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
+			USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 			const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 			MassSmartObjectHandler.ReleaseSmartObject(MassContext.GetEntity(), SOUser);
 		}
@@ -106,26 +113,21 @@ void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, c
 	}
 }
 
-EStateTreeRunStatus FMassClaimSmartObjectTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
-{
-	return EStateTreeRunStatus::Running;
-}
-
 //----------------------------------------------------------------------//
 // FMassUseSmartObjectTask
 //----------------------------------------------------------------------//
 
 bool FMassUseSmartObjectTask::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(SmartObjectSubsystemHandle);
-	Linker.LinkExternalItem(EntityTransformHandle);
-	Linker.LinkExternalItem(SmartObjectUserHandle);
-	Linker.LinkExternalItem(MoveTargetHandle);
+	Linker.LinkExternalData(SmartObjectSubsystemHandle);
+	Linker.LinkExternalData(EntityTransformHandle);
+	Linker.LinkExternalData(SmartObjectUserHandle);
+	Linker.LinkExternalData(MoveTargetHandle);
 
 	return true;
 }
 
-EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
@@ -133,10 +135,10 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	}
 
 	// Retrieve fragments and subsystems
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
-	FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
-	const FDataFragment_Transform& TransformFragment = Context.GetExternalItem(EntityTransformHandle);
-	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
+	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+	const FDataFragment_Transform& TransformFragment = Context.GetExternalData(EntityTransformHandle);
+	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
 
 	// Setup MassSmartObject handler and start interaction
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
@@ -157,18 +159,18 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	return bSuccess ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
 }
 
-void FMassUseSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FMassUseSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType == EStateTreeStateChangeType::Changed)
 	{
-		FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+		FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
 		if (SOUser.ClaimHandle.IsValid())
 		{
 			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with a valid ClaimHandle: stop using the smart object."));
 
 			const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-			USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
+			USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 			const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 			MassSmartObjectHandler.ReleaseSmartObject(MassContext.GetEntity(), SOUser, EMassSmartObjectInteractionStatus::Aborted);
 		}
@@ -179,27 +181,27 @@ void FMassUseSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, con
 	}
 }
 
-void FMassUseSmartObjectTask::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState)
+void FMassUseSmartObjectTask::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const
 {
-	FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
 	if (SOUser.ClaimHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Completing state with a valid ClaimHandle: stop using the smart object."));
 
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
+		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 		const EMassSmartObjectInteractionStatus NewStatus = CompletionStatus == EStateTreeRunStatus::Succeeded ? EMassSmartObjectInteractionStatus::Completed : EMassSmartObjectInteractionStatus::Aborted;
 		MassSmartObjectHandler.ReleaseSmartObject(MassContext.GetEntity(), SOUser, NewStatus);
 	}
 }
 
-EStateTreeRunStatus FMassUseSmartObjectTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
+EStateTreeRunStatus FMassUseSmartObjectTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	EStateTreeRunStatus Status = EStateTreeRunStatus::Failed;
 
-	FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 	switch (SOUser.InteractionStatus)
 	{
 	case EMassSmartObjectInteractionStatus::InProgress:

@@ -8,6 +8,9 @@
 #include "StateTreePropertyBindings.h"
 #include "StateTreeExecutionContext.generated.h"
 
+struct FStateTreeEvaluatorBase;
+struct FStateTreeTaskBase;
+struct FStateTreeConditionBase;
 
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeExecutionState
@@ -63,12 +66,12 @@ public:
 	void SetWorld(UWorld* InWorld) { World = InWorld; };
 
 	/** Start executing. */
-	void Start(FStateTreeItemView ExternalStorage = FStateTreeItemView());
+	void Start(FStateTreeDataView ExternalStorage = FStateTreeDataView());
 	/** Stop executing. */
-	void Stop(FStateTreeItemView ExternalStorage = FStateTreeItemView());
+	void Stop(FStateTreeDataView ExternalStorage = FStateTreeDataView());
 
 	/** Tick the state tree logic. */
-	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeItemView ExternalStorage = FStateTreeItemView());
+	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeDataView ExternalStorage = FStateTreeDataView());
 
 	/** @return Pointer to a State or null if state not found */ 
 	const FBakedStateTreeState* GetStateFromHandle(const FStateTreeHandle StateHandle) const
@@ -76,26 +79,26 @@ public:
 		return (StateTree && StateTree->States.IsValidIndex(StateHandle.Index)) ? &StateTree->States[StateHandle.Index] : nullptr;
 	}
 
-	/** @return Array view to external item descriptors associated with this context. Note: Init() must be called before calling this method. */
-	TConstArrayView<FStateTreeExternalItemDesc> GetExternalItems() const
+	/** @return Array view to external data descriptors associated with this context. Note: Init() must be called before calling this method. */
+	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const
 	{
 		check(StateTree);
-		return StateTree->ExternalItems;
+		return StateTree->ExternalDataDescs;
 	}
 
-	/** @return True if all required external item pointers are set. */ 
-	bool AreExternalItemsValid() const
+	/** @return True if all required external data pointers are set. */ 
+	bool AreExternalDataViewsValid() const
 	{
 		check(StateTree);
 		bool bResult = true;
-		for (const FStateTreeExternalItemDesc& ItemDesc : StateTree->ExternalItems)
+		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->ExternalDataDescs)
 		{
-			const FStateTreeItemView& ItemView = ItemViews[ItemDesc.Handle.ItemIndex];
+			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex];
 			
-			if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
+			if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 			{
 				// Required items must have valid pointer and expected type.  
-				if (ItemView.GetMemory() == nullptr || ItemView.GetStruct() != ItemDesc.Struct)
+				if (DataView.GetMemory() == nullptr || DataView.GetStruct() != DataDesc.Struct)
 				{
 					bResult = false;
 					break;
@@ -104,7 +107,7 @@ public:
 			else
 			{
 				// Optional items must have same type if they are set.
-				if (ItemView.IsValid() && ItemView.GetStruct() != ItemDesc.Struct)
+				if (DataView.IsValid() && DataView.GetStruct() != DataDesc.Struct)
 				{
 					bResult = false;
 					break;
@@ -115,61 +118,86 @@ public:
 		return bResult;
 	}
 
-	/** @return Handle to external item of type InStruct, or invalid handle if struct not found. */ 
-	FStateTreeItemHandle GetExternalItemHandleByStruct(const UStruct* InStruct) const
+	/** @return Handle to external data of type InStruct, or invalid handle if struct not found. */ 
+	FStateTreeExternalDataHandle GetExternalDataHandleByStruct(const UStruct* InStruct) const
 	{
 		check(StateTree);
-		const FStateTreeExternalItemDesc* Item = StateTree->ExternalItems.FindByPredicate([InStruct](const FStateTreeExternalItemDesc& Item) { return Item.Struct == InStruct; });
-		return Item != nullptr ? Item->Handle : FStateTreeItemHandle::Invalid;
+		const FStateTreeExternalDataDesc* DataDesc = StateTree->ExternalDataDescs.FindByPredicate([InStruct](const FStateTreeExternalDataDesc& Item) { return Item.Struct == InStruct; });
+		return DataDesc != nullptr ? DataDesc->Handle : FStateTreeExternalDataHandle::Invalid;
 	}
 
-	/** Sets external item view value for specific item. */ 
-	void SetExternalItem(const FStateTreeItemHandle ItemHandle, FStateTreeItemView Item)
+	/** Sets external data view value for specific item. */ 
+	void SetExternalData(const FStateTreeExternalDataHandle Handle, FStateTreeDataView DataView)
 	{
 		check(StateTree);
-		check(ItemHandle.IsValid());
-		ItemViews[ItemHandle.ItemIndex] = Item;
-	}
-
-	/**
-	 * Returns reference to external item based on provided item handle. The return type is deducted from the handle's template type.
-     * @param ItemHandle Valid TStateTreeItemHandle<> item handle. 
-	 * @return reference to external item based on handle or null if item is not set.
-	 */ 
-	template <typename T>
-	typename T::ItemType& GetExternalItem(const T ItemHandle) const
-	{
-		check(StateTree);
-		check(ItemHandle.IsValid());
-		checkSlow(StateTree->ExternalItems[ItemHandle.ItemIndex - StateTree->GetExternalItemBaseIndex()].Requirement != EStateTreeItemRequirement::Optional); // Optionals should query pointer instead.
-		return ItemViews[ItemHandle.ItemIndex].template GetMutable<typename T::ItemType>();
+		check(Handle.IsValid());
+		DataViews[Handle.DataViewIndex] = DataView;
 	}
 
 	/**
-	 * Returns pointer to external item based on provided item handle. The return type is deducted from the handle's template type.
-     * @param ItemHandle Valid TStateTreeItemHandle<> item handle.
-	 * @return pointer to external item based on handle or null if item is not set.
+	 * Returns reference to external data based on provided handle. The return type is deduced from the handle's template type.
+     * @param Handle Valid TStateTreeExternalDataHandle<> handle. 
+	 * @return reference to external data based on handle or null if data is not set.
 	 */ 
 	template <typename T>
-	typename T::ItemType* GetExternalItemPtr(const T ItemHandle) const
+	typename T::DataType& GetExternalData(const T Handle) const
 	{
 		check(StateTree);
-		check(ItemHandle.IsValid());
-		return ItemViews[ItemHandle.ItemIndex].template GetMutablePtr<typename T::ItemType>();
+		check(Handle.IsValid());
+		checkSlow(StateTree->ExternalDataDescs[Handle.DataViewIndex - StateTree->ExternalDataBaseIndex].Requirement != EStateTreeExternalDataRequirement::Optional); // Optionals should query pointer instead.
+		return DataViews[Handle.DataViewIndex].template GetMutable<typename T::DataType>();
 	}
+
+	/**
+	 * Returns pointer to external data based on provided item handle. The return type is deduced from the handle's template type.
+     * @param Handle Valid TStateTreeExternalDataHandle<> handle.
+	 * @return pointer to external data based on handle or null if item is not set or handle is invalid.
+	 */ 
+	template <typename T>
+	typename T::DataType* GetExternalDataPtr(const T Handle) const
+	{
+		check(StateTree);
+		return Handle.IsValid() ? DataViews[Handle.DataViewIndex].template GetMutablePtr<typename T::DataType>() : nullptr;
+	}
+
+	/**
+	* Returns reference to instance data property based on provided handle. The return type is deduced from the handle's template type.
+	* @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
+	* @return reference to instance data property based on handle.
+	*/ 
+	template <typename T>
+	typename T::DataType& GetInstanceData(const T Handle) const
+	{
+		check(StateTree);
+		check(Handle.IsValid());
+		return *(typename T::DataType*)(DataViews[Handle.DataViewIndex].GetMemory() + Handle.PropertyOffset);
+	}
+
+	/**
+	* Returns pointer to instance data property based on provided handle. The return type is deduced from the handle's template type.
+	* @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
+	* @return pointer to instance data property based on handle or null if item is not set or handle is invalid.
+	*/ 
+	template <typename T>
+	typename T::DataType* GetInstanceDataPtr(const T Handle) const
+	{
+		check(StateTree);
+		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex].GetMemory() + Handle.PropertyOffset) : nullptr;
+	}
+
 	
-	EStateTreeRunStatus GetLastTickStatus(FStateTreeItemView ExternalStorage = FStateTreeItemView()) const;
+	EStateTreeRunStatus GetLastTickStatus(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
 	EStateTreeRunStatus GetEnterStateStatus() const { return EnterStateStatus; }
 
 #if WITH_GAMEPLAY_DEBUGGER
 	/** @return Debug string describing the current state of the execution */
-	FString GetDebugInfoString(FStateTreeItemView ExternalStorage = FStateTreeItemView()) const;
+	FString GetDebugInfoString(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 #if WITH_STATETREE_DEBUG
-	FString GetActiveStateName(FStateTreeItemView ExternalStorage = FStateTreeItemView()) const;
+	FString GetActiveStateName(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
 	
-	void DebugPrintInternalLayout(FStateTreeItemView ExternalStorage);
+	void DebugPrintInternalLayout(FStateTreeDataView ExternalStorage);
 #endif
 	
 protected:
@@ -191,37 +219,37 @@ protected:
 	 * and still active after the transition will remain intact.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus EnterState(FStateTreeItemView Storage, const FStateTreeTransitionResult& Transition);
+	EStateTreeRunStatus EnterState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition);
 
 	/**
 	 * Handles logic for exiting State. ExitState is called on current active Evaluators and Tasks that are part of the re-planned tree.
 	 * Re-planned tree is from the transition target up to the leaf state. States that are parent to the transition target state
 	 * and still active after the transition will remain intact.
 	 */
-	void ExitState(FStateTreeItemView Storage, const FStateTreeTransitionResult& Transition);
+	void ExitState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition);
 
 	/**
 	 * Handles logic for exiting State. ExitState is called on current active Evaluators and Tasks in reverse order (from leaf to root).
 	 */
-	void StateCompleted(FStateTreeItemView Storage, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus);
+	void StateCompleted(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus);
 
 	/**
 	 * Ticks evaluators of all active states starting from current state by delta time.
 	 * If TickEvaluators() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
 	 */
-	void TickEvaluators(FStateTreeItemView Storage, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
+	void TickEvaluators(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus TickTasks(FStateTreeItemView Storage, const FStateTreeHandle CurrentState, const float DeltaTime);
+	EStateTreeRunStatus TickTasks(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const float DeltaTime);
 
 	/**
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(const uint32 ConditionsOffset, const uint32 ConditionsNum);
+	bool TestAllConditions(FStateTreeDataView Storage, const uint32 ConditionsOffset, const uint32 ConditionsNum);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -230,52 +258,59 @@ protected:
 	 * the actual next state returned by the selector.
 	 * @return Transition result describing the source state, state transitioned to, and next selected state.
 	 */
-	FStateTreeTransitionResult TriggerTransitions(FStateTreeItemView Storage, const FStateTreeStateStatus CurrentStatus, const int Depth);
+	FStateTreeTransitionResult TriggerTransitions(FStateTreeDataView Storage, const FStateTreeStateStatus CurrentStatus, const int Depth);
 
 	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
 	 * If the preconditions of NextState are not met, "Invalid" is returned. 
 	 * If NextState is a selector state, SelectState is called recursively (depth-first) to all child states (where NextState will be one of child states).
 	 * If NextState is a leaf state, the NextState is returned.
-	 * @param Storage View representing all runtime data used by tasks and evaluators
+	 * @param Storage View representing all instance data used by tasks and evaluators
 	 * @param InitialStateStatus Describes the current state and running status (will be passed intact to next selector)
 	 * @param InitialTargetState The state the initial transition target state (will be passed intact to next selector) 
 	 * @param NextState The state which we try to select next.
 	 * @param Depth Depth of recursion.
 	 * @return Transition result describing the source state, transition target state, and next selected state.
 	 */
-	FStateTreeTransitionResult SelectState(FStateTreeItemView Storage, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth);
+	FStateTreeTransitionResult SelectState(FStateTreeDataView Storage, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth);
 
 	/** @return State handles from specified state handle back to the root, specified handle included. */
 	int32 GetActiveStates(const FStateTreeHandle StateHandle, TStaticArray<FStateTreeHandle, 32>& OutStateHandles) const;
 
 	/** @return Mutable storage based on storage settings. */
-	FStateTreeItemView SelectMutableStorage(FStateTreeItemView ExternalStorage)
+	FStateTreeDataView SelectMutableStorage(FStateTreeDataView ExternalStorage)
 	{
-		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeItemView(StorageInstance);
+		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeDataView(StorageInstance);
 	}
 
 	/** @return Const storage based on storage settings. */
-	const FStateTreeItemView SelectStorage(FStateTreeItemView ExternalStorage) const
+	const FStateTreeDataView SelectStorage(FStateTreeDataView ExternalStorage) const
 	{
-		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeItemView(StorageInstance);
+		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeDataView(StorageInstance);
 	}
 
-	/** @return View to an Evaluator or a Task. */
-	FStateTreeItemView GetItem(FStateTreeItemView Storage, const int32 Index) const
+	/** @return View to an Evaluator, a Task, or a Condition instance data. */
+	FStateTreeDataView GetInstanceData(FStateTreeDataView Storage, const int32 Index) const
 	{
-		const FStateTreeRuntimeStorageItemOffset& ItemOffset = StateTree->RuntimeStorageOffsets[Index];
-		return FStateTreeItemView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);
+		const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[Index];
+		return FStateTreeDataView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);
 	}
 
-	/** @return StateTree execution state from the runtime storage. */
-	FStateTreeExecutionState& GetExecState(FStateTreeItemView Storage) const
+	/** @return StateTree execution state from the instance storage. */
+	FStateTreeExecutionState& GetExecState(FStateTreeDataView Storage) const
 	{
-		const FStateTreeRuntimeStorageItemOffset& ItemOffset = StateTree->RuntimeStorageOffsets[0];
+		const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[0];
 		check(ItemOffset.Struct == FStateTreeExecutionState::StaticStruct());
 		return *reinterpret_cast<FStateTreeExecutionState*>(Storage.GetMutableMemory() + ItemOffset.Offset);
 	}
 
+	/** @return Item at specified index. */
+	template <typename T>
+	T& GetItem(const int32 Index) const
+	{
+		return StateTree->Items[Index].template GetMutable<T>();
+	}
+	
 	/** @return String describing state status for logging and debug. */
 	FString GetStateStatusString(const FStateTreeStateStatus StateStatus) const;
 
@@ -298,8 +333,8 @@ protected:
 	/** States visited during a tick while updating evaluators. Initialized to match the number of states in the asset. */ 
 	TArray<bool> VisitedStates;
 
-	/** Array of item pointers (external items, tasks, evaluators), used during evaluation. Initialized to match the number of items in the asset. */
-	TArray<FStateTreeItemView> ItemViews;
+	/** Array of data pointers (external data, tasks, evaluators, conditions), used during evaluation. Initialized to match the number of items in the asset. */
+	TArray<FStateTreeDataView> DataViews;
 
 	/** Optional Instance of the storage */
 	FInstancedStruct StorageInstance;

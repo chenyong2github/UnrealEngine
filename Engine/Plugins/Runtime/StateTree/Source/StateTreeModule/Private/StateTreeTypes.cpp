@@ -8,4 +8,4 @@ const FStateTreeHandle FStateTreeHandle::Invalid = FStateTreeHandle();
 const FStateTreeHandle FStateTreeHandle::Succeeded = FStateTreeHandle(FStateTreeHandle::SucceededIndex);
 const FStateTreeHandle FStateTreeHandle::Failed = FStateTreeHandle(FStateTreeHandle::FailedIndex);
 
-const FStateTreeItemHandle FStateTreeItemHandle::Invalid = FStateTreeItemHandle();
+const FStateTreeExternalDataHandle FStateTreeExternalDataHandle::Invalid = FStateTreeExternalDataHandle();

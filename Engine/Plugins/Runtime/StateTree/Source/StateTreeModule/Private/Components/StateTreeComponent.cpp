@@ -8,6 +8,7 @@
 #include "StateTree.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
+#include "StateTreeConditionBase.h"
 #include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -21,7 +22,9 @@
 bool UBrainComponentStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
 	// @todo: Proper base class for actor nodes.
-	return InScriptStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()) || InScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct());
+	return InScriptStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct());
 }
 
 

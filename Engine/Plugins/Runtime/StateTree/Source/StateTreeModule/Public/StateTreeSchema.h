@@ -27,6 +27,6 @@ public:
 	/** @return True if specified struct is supported */
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const PURE_VIRTUAL(UStateTreeSchema::IsStructAllowed, return false; );
 
-	/** @return True if specified struct/class is supported as external item */
+	/** @return True if specified struct/class is supported as external data */
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const { return false; };
 };

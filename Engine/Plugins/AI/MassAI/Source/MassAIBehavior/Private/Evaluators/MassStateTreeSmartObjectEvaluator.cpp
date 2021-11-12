@@ -20,53 +20,70 @@
 
 bool FMassStateTreeSmartObjectEvaluator::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(SmartObjectSubsystemHandle);
-	Linker.LinkExternalItem(MassSignalSubsystemHandle);
-	Linker.LinkExternalItem(EntityTransformHandle);
-	Linker.LinkExternalItem(SmartObjectUserHandle);
-	Linker.LinkExternalItem(LocationHandle);
+	Linker.LinkExternalData(SmartObjectSubsystemHandle);
+	Linker.LinkExternalData(MassSignalSubsystemHandle);
+	Linker.LinkExternalData(EntityTransformHandle);
+	Linker.LinkExternalData(SmartObjectUserHandle);
+	Linker.LinkExternalData(LocationHandle);
+
+	Linker.LinkInstanceDataProperty(SearchRequestResultHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, SearchRequestResult));
+	Linker.LinkInstanceDataProperty(SearchRequestIDHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, SearchRequestID));
+	Linker.LinkInstanceDataProperty(CandidatesFoundHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, bCandidatesFound));
+	Linker.LinkInstanceDataProperty(ClaimedHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, bClaimed));
+	Linker.LinkInstanceDataProperty(NextUpdateHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, NextUpdate));
+	Linker.LinkInstanceDataProperty(UsingZoneGraphAnnotationsHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassStateTreeSmartObjectEvaluatorInstanceData, bUsingZoneGraphAnnotations));
 
 	return true;
 }
 
-void FMassStateTreeSmartObjectEvaluator::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FMassStateTreeSmartObjectEvaluator::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return;
 	}
 
-	Reset();
+	Reset(Context);
 }
 
-void FMassStateTreeSmartObjectEvaluator::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FMassStateTreeSmartObjectEvaluator::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return;
 	}
+
+	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
 
 	if (SearchRequestID.IsSet())
 	{
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
+		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
 		SearchRequestID.Reset();
 	}
-	Reset();
+	Reset(Context);
 }
 
-void FMassStateTreeSmartObjectEvaluator::Reset()
+void FMassStateTreeSmartObjectEvaluator::Reset(FStateTreeExecutionContext& Context) const
 {
+	bool& bCandidatesFound = Context.GetInstanceData(CandidatesFoundHandle);
+	bool& bClaimed = Context.GetInstanceData(ClaimedHandle);
+	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
+
 	bCandidatesFound = false;
 	bClaimed = false;
 	SearchRequestID.Reset();
 }
 
-void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType,  const float DeltaTime)
+void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType,  const float DeltaTime) const
 {
-	const FMassSmartObjectUserFragment& SOUser = Context.GetExternalItem(SmartObjectUserHandle);
+	const FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+
+	bool& bCandidatesFound = Context.GetInstanceData(CandidatesFoundHandle);
+	bool& bClaimed = Context.GetInstanceData(ClaimedHandle);
+	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
 
 	bCandidatesFound = false;
 	bClaimed = SOUser.GetClaimHandle().IsValid();
@@ -84,22 +101,24 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	}
 
 	// We need to track our next update cooldown since we can get ticked from any signals waking up the StateTree
+	float& NextUpdate = Context.GetInstanceData(NextUpdateHandle);
 	if (NextUpdate > World->GetTimeSeconds())
 	{
 		return;
 	}
 	NextUpdate = 0.f;
 
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalItem(SmartObjectSubsystemHandle);
+	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntitySubsystem(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem);
 
 	// Nothing claimed -> search for candidates
+	bool& bUsingZoneGraphAnnotations = Context.GetInstanceData(UsingZoneGraphAnnotationsHandle);
 	if (!SearchRequestID.IsSet())
 	{
 		// Use lanes if possible for faster queries using zone graph annotations
 		const FMassEntityHandle RequestingEntity = MassContext.GetEntity();
-		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalItemPtr(LocationHandle);
+		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalDataPtr(LocationHandle);
 		bUsingZoneGraphAnnotations = LaneLocation != nullptr;
 		if (bUsingZoneGraphAnnotations)
 		{
@@ -111,13 +130,14 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 		}
 		else
 		{
-			const FDataFragment_Transform& TransformFragment = Context.GetExternalItem(EntityTransformHandle);
+			const FDataFragment_Transform& TransformFragment = Context.GetExternalData(EntityTransformHandle);
 			SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, TransformFragment.GetTransform().GetLocation());
 		}
 	}
 	else
 	{
 		// Fetch request results
+		FMassSmartObjectRequestResult& SearchRequestResult = Context.GetInstanceData(SearchRequestResultHandle);
 		SearchRequestResult = MassSmartObjectHandler.GetRequestResult(SearchRequestID);
 
 		// Check if results are ready
@@ -139,7 +159,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 			{
 				const float DelayInSeconds = bCandidatesFound ? TickInterval : RetryCooldown;
 				NextUpdate = World->GetTimeSeconds() + DelayInSeconds;
-				UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalItem(MassSignalSubsystemHandle);
+				UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 				MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::SmartObjectRequestCandidates, RequestingEntity, DelayInSeconds);
 			}
 		}

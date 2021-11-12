@@ -115,112 +115,6 @@ struct STATETREEMODULE_API FStateTreeHandle
 	uint16 Index = InvalidIndex;
 };
 
-UENUM()
-enum class EStateTreeResultStatus : uint8
-{
-	Unset,
-	Available,
-    InUse,
-	Succeeded,
-    Failed,
-};
-
-USTRUCT()
-struct STATETREEMODULE_API FStateTreeResult
-{
-	GENERATED_BODY()
-	virtual ~FStateTreeResult() {}
-	virtual const UScriptStruct& GetStruct() const PURE_VIRTUAL(FStateTreeResult::GetStruct, return *FStateTreeResult::StaticStruct(); );
-};
-template<> struct TStructOpsTypeTraits<FStateTreeResult> : public TStructOpsTypeTraitsBase2<FStateTreeResult> { enum { WithPureVirtual = true, }; };
-
-USTRUCT()
-struct STATETREEMODULE_API FStateTreeResultRef
-{
-	GENERATED_BODY()
-
-	FStateTreeResultRef() = default;
-	explicit FStateTreeResultRef(FStateTreeResult* InResult) : Result(InResult) {}
-	FStateTreeResultRef(const FStateTreeResultRef& InOther) : FStateTreeResultRef(InOther.Result) {}
-	~FStateTreeResultRef()
-	{
-		Result = nullptr;
-	}
-
-	FStateTreeResultRef& operator=(FStateTreeResult* InResult)
-	{
-		Result = InResult;
-		return *this;
-	}
-
-	FStateTreeResultRef& operator=(const FStateTreeResultRef& InOther)
-	{
-		Result = InOther.Result;
-		return *this;
-	}
-
-	bool IsValid() const { return Result != nullptr; }
-
-	void Reset()
-	{
-		Result = nullptr;
-	}
-
-	template<typename T>
-	bool IsA() const
-	{
-		const UScriptStruct* ScriptStruct = Result != nullptr ? &Result->GetStruct() : nullptr;
-		return ScriptStruct != nullptr && ScriptStruct->IsChildOf(T::StaticStruct());
-	}
-	
-	// Returns mutable reference to the struct, this getter assumes that all data is valid
-	template<typename T>
-    T& GetMutable()
-	{
-		check(Result != nullptr);
-		const UScriptStruct& ScriptStruct = Result->GetStruct();
-		check(ScriptStruct.IsChildOf(T::StaticStruct()));
-		return *static_cast<T*>(Result);
-	}
-
-	// Returns const reference to the struct, this getter assumes that all data is valid
-	template<typename T>
-    const T& Get() const
-	{
-		check(Result != nullptr);
-		const UScriptStruct& ScriptStruct = Result->GetStruct();
-		check(ScriptStruct.IsChildOf(T::StaticStruct()));
-		return *static_cast<T*>(Result);
-	}
-
-	// Returns mutable pointer to the struct, or nullptr if cast is not valid.
-	template<typename T>
-    T* GetMutablePtr()
-	{
-		const UScriptStruct* ScriptStruct = Result != nullptr ? &Result->GetStruct() : nullptr;
-		if (ScriptStruct != nullptr && ScriptStruct->IsChildOf(T::StaticStruct()))
-		{
-			return static_cast<T*>(Result);
-		}
-		return nullptr;
-	}
-
-	// Returns const pointer to the struct, or nullptr if cast is not valid.
-	template<typename T>
-    const T* GetPtr() const
-	{
-		const UScriptStruct* ScriptStruct = Result != nullptr ? &Result->GetStruct() : nullptr;
-		if (ScriptStruct != nullptr && ScriptStruct->IsChildOf(T::StaticStruct()))
-		{
-			return static_cast<T*>(Result);
-		}
-		return nullptr;
-	}
-	
-private:
-	FStateTreeResult* Result = nullptr;
-};
-
 
 /**
  * Describes current status of a running state or desired state.
@@ -351,23 +245,23 @@ struct STATETREEMODULE_API FBakedStateTreeState
 	EStateTreeTransitionType StateFailedTransitionType = EStateTreeTransitionType::NotSet;		// Type of the State Failed transition. See also StateFailedTransitionState.
 };
 
-/** An offset into the StateTree runtime storage type to get a struct view to a specific Task or Evaluator. */
-struct FStateTreeRuntimeStorageItemOffset
+/** An offset into the StateTree runtime storage type to get a struct view to a specific Task, Evaluator, or Condition. */
+struct FStateTreeInstanceStorageOffset
 {
-	FStateTreeRuntimeStorageItemOffset() = default;
-	FStateTreeRuntimeStorageItemOffset(const UScriptStruct* InStruct, const int32 InOffset) : Struct(InStruct), Offset(InOffset) {}
+	FStateTreeInstanceStorageOffset() = default;
+	FStateTreeInstanceStorageOffset(const UScriptStruct* InStruct, const int32 InOffset) : Struct(InStruct), Offset(InOffset) {}
 
-	/** Struct of the item */
+	/** Struct of the data the offset points at */
 	const UScriptStruct* Struct = nullptr;
 	/** Offset within the storage struct */
 	int32 Offset = 0;
 };
 
 UENUM()
-enum class EStateTreeItemRequirement : uint8
+enum class EStateTreeExternalDataRequirement : uint8
 {
-	Required,	// StateTree cannot be executed if the item is not present.
-	Optional,	// Item is optional for StateTree execution.
+	Required,	// StateTree cannot be executed if the data is not present.
+	Optional,	// Data is optional for StateTree execution.
 };
 
 /**
@@ -375,23 +269,23 @@ enum class EStateTreeItemRequirement : uint8
  * Note: Use the templated version below. 
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeItemHandle
+struct STATETREEMODULE_API FStateTreeExternalDataHandle
 {
 	GENERATED_BODY()
 
-	static const FStateTreeItemHandle Invalid;
+	static const FStateTreeExternalDataHandle Invalid;
 	static constexpr uint8 IndexNone = MAX_uint8;
 
 	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
 
-	bool IsValid() const { return ItemIndex != IndexNone; }
+	bool IsValid() const { return DataViewIndex != IndexNone; }
 	
-	uint8 ItemIndex = IndexNone;
+	uint8 DataViewIndex = IndexNone;
 };
 
 /**
  * Handle to access an external struct or object.
- * This reference handle can be used in StateTree tasks and evaluators to have quick access to external items.
+ * This reference handle can be used in StateTree tasks and evaluators to have quick access to external data.
  * The type provided to the template is used by the linker and context to pass along the type.
  *
  * USTRUCT()
@@ -401,102 +295,204 @@ struct STATETREEMODULE_API FStateTreeItemHandle
  *
  *    bool Link(FStateTreeLinker& Linker)
  *    {
- *      Linker.LinkExternalItem(ExampleSubsystemHandle);
+ *      Linker.LinkExternalData(ExampleSubsystemHandle);
  *      return true;
  *    }
  * 
  *    EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
  *    {
- *      const UExampleSubsystem& ExampleSubsystem = Context.GetExternalItem(ExampleSubsystemHandle);
+ *      const UExampleSubsystem& ExampleSubsystem = Context.GetExternalData(ExampleSubsystemHandle);
  *      ...
  *    }
  *
- *    TStateTreeItemHandle<UExampleSubsystem> ExampleSubsystemHandle;
+ *    TStateTreeExternalDataHandle<UExampleSubsystem> ExampleSubsystemHandle;
  * }
  */
-template<typename T, EStateTreeItemRequirement Req = EStateTreeItemRequirement::Required>
-struct TStateTreeItemHandle : FStateTreeItemHandle
+template<typename T, EStateTreeExternalDataRequirement Req = EStateTreeExternalDataRequirement::Required>
+struct TStateTreeExternalDataHandle : FStateTreeExternalDataHandle
 {
-	typedef T ItemType;
-	static constexpr EStateTreeItemRequirement ItemRequirement = Req;
+	typedef T DataType;
+	static constexpr EStateTreeExternalDataRequirement DataRequirement = Req;
 };
 
-/**
- * Describes an external item. The item can point to a struct or object.
- * The code that handles StateTree ticking is responsible for passing in the actually data, see FStateTreeExecutionContext.
- */
+UENUM()
+enum class EStateTreePropertyIndirection : uint8
+{
+	Offset,
+	Indirect,
+};
+
+UENUM()
+enum class EStateTreePropertyUsage : uint8
+{
+	Invalid,
+	Input,
+	Parameter,
+	Output,
+	Internal,
+};
+
+
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeExternalItemDesc
+struct STATETREEMODULE_API FStateTreeInstanceDataPropertyHandle
 {
 	GENERATED_BODY()
 
-	FStateTreeExternalItemDesc() = default;
-	FStateTreeExternalItemDesc(const UStruct* InStruct, const EStateTreeItemRequirement InRequirement) : Struct(InStruct), Requirement(InRequirement) {}
+	static constexpr uint8 IndexNone = MAX_uint8;
 
-	bool operator==(const FStateTreeExternalItemDesc& Other) const
+	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
+
+	bool IsValid() const { return DataViewIndex != IndexNone; }
+
+	uint16 PropertyOffset = 0;
+	uint8 DataViewIndex = IndexNone;
+	EStateTreePropertyIndirection Type = EStateTreePropertyIndirection::Offset;
+};
+
+template<typename T>
+struct TStateTreeInstanceDataPropertyHandle : FStateTreeInstanceDataPropertyHandle
+{
+	typedef T DataType;
+};
+
+
+/**
+ * Describes an external data. The data can point to a struct or object.
+ * The code that handles StateTree ticking is responsible for passing in the actually data, see FStateTreeExecutionContext.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeExternalDataDesc
+{
+	GENERATED_BODY()
+
+	FStateTreeExternalDataDesc() = default;
+	FStateTreeExternalDataDesc(const UStruct* InStruct, const EStateTreeExternalDataRequirement InRequirement) : Struct(InStruct), Requirement(InRequirement) {}
+
+	bool operator==(const FStateTreeExternalDataDesc& Other) const
 	{
 		return Struct == Other.Struct && Requirement == Other.Requirement;
 	}
 	
-	/** Class or struct of the external item. */
+	/** Class or struct of the external data. */
 	UPROPERTY();
 	const UStruct* Struct = nullptr;
 
-	/** Handle/Index to the StateTreeExecutionContext item views array */
+	/** Handle/Index to the StateTreeExecutionContext data views array */
 	UPROPERTY();
-	FStateTreeItemHandle Handle;
+	FStateTreeExternalDataHandle Handle;
 
-	/** Describes if the item is required or not. */
+	/** Describes if the data is required or not. */
 	UPROPERTY();
-	EStateTreeItemRequirement Requirement = EStateTreeItemRequirement::Required;
+	EStateTreeExternalDataRequirement Requirement = EStateTreeExternalDataRequirement::Required;
 };
 
+
+#define STATETREE_INSTANCEDATA_PROPERTY(Struct, Member) \
+		decltype(Struct::Member){}, Struct::StaticStruct(), TEXT(#Member)
+
+UENUM()
+enum class EStateTreeLinkerStatus : uint8
+{
+	Succeeded,
+	Failed,
+};
 /**
  * The StateTree linker is used to resolved references to various StateTree data at load time.
- * @see TStateTreeItemHandle<> for example usage.
+ * @see TStateTreeExternalDataHandle<> for example usage.
  */
 struct FStateTreeLinker
 {
-	/** Sets base index for all external item handles. */
-	void SetItemBaseIndex(const int32 InItemBaseIndex) { ItemBaseIndex = InItemBaseIndex; }
+	/** Sets base index for all external data handles. */
+	void SetExternalDataBaseIndex(const int32 InExternalDataBaseIndex) { ExternalDataBaseIndex = InExternalDataBaseIndex; }
+
+	/** Sets currently linked item's instance data type and index. */ 
+	void SetCurrentInstanceDataType(const UStruct* Struct, const int32 Index)
+	{
+		CurrentInstanceStruct = Struct;
+		CurrentInstanceIndex = Index;
+	}
+
+	EStateTreeLinkerStatus GetStatus() const { return Status; }
 	
 	/**
 	 * Links reference to an external UObject.
-	 * @param Handle Reference to TStateTreeItemHandle<> with UOBJECT type to link to.
+	 * @param Handle Reference to TStateTreeExternalDataHandle<> with UOBJECT type to link to.
 	 */
 	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<typename T::ItemType, UObject>::IsDerived, void>::Type LinkExternalItem(T& Handle)
+	typename TEnableIf<TIsDerivedFrom<typename T::DataType, UObject>::IsDerived, void>::Type LinkExternalData(T& Handle)
 	{
-		LinkExternalItem(Handle, T::ItemType::StaticClass(), T::ItemRequirement);
+		LinkExternalDataInternal(Handle, T::DataType::StaticClass(), T::DataRequirement);
 	}
 
 	/**
 	 * Links reference to an external UObject.
-	 * @param Handle Reference to TStateTreeItemHandle<> with USTRUCT type to link to.
+	 * @param Handle Reference to TStateTreeExternalDataHandle<> with USTRUCT type to link to.
 	 */
 	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<typename T::ItemType, UObject>::IsDerived, void>::Type LinkExternalItem(T& Handle)
+	typename TEnableIf<!TIsDerivedFrom<typename T::DataType, UObject>::IsDerived, void>::Type LinkExternalData(T& Handle)
 	{
-		LinkExternalItem(Handle, T::ItemType::StaticStruct(), T::ItemRequirement);
+		LinkExternalDataInternal(Handle, T::DataType::StaticStruct(), T::DataRequirement);
 	}
 
-	/** @return linked external item descriptors. */
-	TConstArrayView<FStateTreeExternalItemDesc> GetItemDescs() const { return ItemDescs; }
+	/**
+	 * Links reference to a property in instance data.
+	 * Usage:
+	 * 	  Linker.LinkRuntimeDataProperty(HitPointsHandle, STATETREE_INSTANCEDATA_PROPERTY(FHitPointLayout, HitPoints));
+	 *
+	 * @param Handle Reference to TStateTreeExternalDataHandle<> with USTRUCT type to link to.
+	 * @param DummyProperty Do not use directly.
+	 * @param ScriptStruct Do not use directly.
+	 * @param PropertyName Do not use directly.
+	 */
+	template <typename T, typename S>
+	void LinkInstanceDataProperty(T& Handle, const S& DummyProperty, const UScriptStruct* ScriptStruct, const TCHAR* PropertyName)
+	{
+		static_assert(TIsSame<typename T::DataType, S>::Value, "Expecting linked handle to have same type as the instance data struct member.");
+		LinkInstanceDataPropertyInternal(Handle, ScriptStruct, PropertyName);
+	}
+
+	/** @return linked external data descriptors. */
+	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
 protected:
-	void LinkExternalItem(FStateTreeItemHandle& Handle, const UStruct* Struct, const EStateTreeItemRequirement Requirement)
+
+	void LinkExternalDataInternal(FStateTreeExternalDataHandle& Handle, const UStruct* Struct, const EStateTreeExternalDataRequirement Requirement)
 	{
-		const FStateTreeExternalItemDesc Desc(Struct, Requirement);
-		int32 Index = ItemDescs.Find(Desc);
+		const FStateTreeExternalDataDesc Desc(Struct, Requirement);
+		int32 Index = ExternalDataDescs.Find(Desc);
 		if (Index == INDEX_NONE)
 		{
-			Index = ItemDescs.Add(Desc);
-			check(FStateTreeItemHandle::IsValidIndex(Index + ItemBaseIndex));
-			ItemDescs[Index].Handle.ItemIndex = (uint8)(Index + ItemBaseIndex);
+			Index = ExternalDataDescs.Add(Desc);
+			check(FStateTreeExternalDataHandle::IsValidIndex(Index + ExternalDataBaseIndex));
+			ExternalDataDescs[Index].Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
 		}
-		Handle.ItemIndex = (uint8)(Index + ItemBaseIndex);
+		Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
 	}
 
-	int32 ItemBaseIndex = 0;
-	TArray<FStateTreeExternalItemDesc> ItemDescs;
+	void LinkInstanceDataPropertyInternal(FStateTreeInstanceDataPropertyHandle& Handle, const UScriptStruct* ScriptStruct, const TCHAR* PropertyName)
+	{
+		check(CurrentInstanceStruct != nullptr);
+		check(CurrentInstanceIndex != INDEX_NONE);
+
+		FProperty* Property = ScriptStruct->FindPropertyByName(FName(PropertyName));
+		if (Property == nullptr)
+		{
+			Handle = FStateTreeInstanceDataPropertyHandle();
+			Status = EStateTreeLinkerStatus::Failed;
+			return;
+		}
+
+		check(CurrentInstanceIndex < MAX_uint8);
+		check(Property->GetOffset_ForInternal() < MAX_uint16);
+		
+		Handle.DataViewIndex = (uint8)CurrentInstanceIndex;
+		Handle.Type = EStateTreePropertyIndirection::Offset;
+		Handle.PropertyOffset = (uint16)Property->GetOffset_ForInternal();
+	}
+
+	EStateTreeLinkerStatus Status = EStateTreeLinkerStatus::Succeeded;
+	const UStruct* CurrentInstanceStruct = nullptr;
+	int32 CurrentInstanceIndex = INDEX_NONE;
+	int32 ExternalDataBaseIndex = 0;
+	TArray<FStateTreeExternalDataDesc> ExternalDataDescs;
 };

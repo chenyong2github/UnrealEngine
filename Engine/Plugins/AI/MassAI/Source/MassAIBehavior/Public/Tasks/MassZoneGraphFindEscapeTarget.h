@@ -14,6 +14,15 @@ class UZoneGraphAnnotationSubsystem;
 /**
  * Updates TargetLocation to a escape target based on the agents current location on ZoneGraph, and disturbance annotation.
  */
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTargetInstangeData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation EscapeTargetLocation;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Find Escape Target"))
 struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTarget : public FMassStateTreeTaskBase
 {
@@ -23,19 +32,15 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTarget : public FMassStateTree
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindEscapeTargetInstangeData::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
-	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> EscapeTargetLocationHandle;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
 	FZoneGraphTag DisturbanceAnnotationTag = FZoneGraphTag::None;
-
-	FMassZoneGraphTargetLocation TargetLocation;
-
-	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation"))
-	FStateTreeResultRef EscapeTargetLocation;
 };

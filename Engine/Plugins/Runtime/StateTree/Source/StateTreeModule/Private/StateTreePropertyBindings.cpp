@@ -292,7 +292,7 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	return bResult;
 }
 
-uint8* FStateTreePropertyBindings::GetAddress(FStateTreeItemView InStructView, const FStateTreePropertyAccess& InAccess) const
+uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyAccess& InAccess) const
 {
 	check(InStructView.IsValid());
 
@@ -453,7 +453,7 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 	}
 }
 
-void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeItemView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeItemView TargetStructView) const
+void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const
 {
 	// This is made ensure so that the programmers have the change to catch it (it's usually programming error not to call ResolvePaths(), and it wont spam log for others.
 	if (!ensureMsgf(bBindingsResolved, TEXT("Bindings must be resolved successfully before copying. See ResolvePaths()")))

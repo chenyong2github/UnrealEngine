@@ -14,11 +14,12 @@
 #include "StateTreePropertyHelpers.h"
 #include "StateTreeAnyEnum.h"
 #include "StateTreePropertyBindingCompiler.h"
+#include "PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
-
-namespace UE { namespace StateTree { namespace PropertyBinding {
+namespace UE::StateTree::PropertyBinding
+{
 
 UObject* FindEditorBindingsOwner(UObject* InObject)
 {
@@ -36,57 +37,74 @@ UObject* FindEditorBindingsOwner(UObject* InObject)
 	return Result;
 }
 
-void GetOuterStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateTreeEditorPropertyPath& OutPath)
+void GetStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateTreeEditorPropertyPath& OutPath)
 {
 	FGuid StructID;
 	TArray<FBindingChainElement> BindingChain;
-	TSharedPtr<IPropertyHandle> CurrentPropertyHandle = InPropertyHandle;
 
-	while (CurrentPropertyHandle.IsValid())
+	if (FProperty* CurrentProperty = InPropertyHandle->GetProperty())
 	{
-		if (FProperty* CurrentProperty = CurrentPropertyHandle->GetProperty())
+		// Keep track of the path.
+		BindingChain.Insert(FBindingChainElement(CurrentProperty, InPropertyHandle->GetIndexInArray()), 0);
+		
+		if (const FString* IDString = InPropertyHandle->GetInstanceMetaData(FName(TEXT("StateTreeItemID"))))
 		{
-			// Keep track of the path.
-			BindingChain.Insert(FBindingChainElement(CurrentProperty, CurrentPropertyHandle->GetIndexInArray()), 0);
-
-			// If the owner struct of this property has a property called ID and it's FGuid, we'll use that as struct ID.
-			TSharedPtr<IPropertyHandle> OwnerHandle = CurrentPropertyHandle->GetParentHandle();
-			if (OwnerHandle.IsValid())
-			{
-				TSharedPtr<IPropertyHandle> IdHandle = OwnerHandle->GetChildHandle(TEXT("ID"), /*bRecurse*/false); // Omitting recursive, since we expect that the ID belongs to owner.
-				FGuid ID;
-				if (UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IdHandle, ID) == FPropertyAccess::Success)
-				{
-					StructID = ID;
-					break;
-				}
-			}
-
-			CurrentPropertyHandle = CurrentPropertyHandle->GetParentHandle();
-		}
-		else
-		{
-			BindingChain.Reset();
-			CurrentPropertyHandle.Reset();
-			break;
+			LexFromString(StructID, **IDString);
 		}
 	}
-
-	OutPath.StructID = StructID;
-
-	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-	PropertyAccessEditor.MakeStringPath(BindingChain, OutPath.Path);
+	
+	if (StructID.IsValid())
+	{
+		OutPath.StructID = StructID;
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+		PropertyAccessEditor.MakeStringPath(BindingChain, OutPath.Path);
+	}
+	else
+	{
+		OutPath = FStateTreeEditorPropertyPath();
+	}
 }
+
+	
+EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InPropertyHandle)
+{
+	static const FName CategoryName(TEXT("Category"));
+	
+	const FString Category = InPropertyHandle->GetMetaData(CategoryName);
+
+	if (Category == TEXT("Input"))
+	{
+		return EStateTreePropertyUsage::Input;
+	}
+	if (Category == TEXT("Output"))
+	{
+		return EStateTreePropertyUsage::Output;
+	}
+	if (Category == TEXT("Parameter"))
+	{
+		return EStateTreePropertyUsage::Parameter;
+	}
+	
+	return EStateTreePropertyUsage::Invalid;
+}
+
 
 FOnStateTreeBindingChanged STATETREEEDITORMODULE_API OnStateTreeBindingChanged;
 
-}}} // UE::StateTree::PropertyBinding
+} // UE::StateTree::PropertyBinding
 
 bool FStateTreeBindingExtension::IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const
 {
-	static const FName BindableMetaName(TEXT("Bindable"));
+	// Bindable property must have item ID
+	static const FName StateTreeItemIDName(TEXT("StateTreeItemID"));
+	if (PropertyHandle.GetInstanceMetaData(StateTreeItemIDName) == nullptr)
+	{
+		return false;
+	}
 
-	return PropertyHandle.HasMetaData(BindableMetaName);
+	// Only inputs and parameters are bindable.
+	const EStateTreePropertyUsage Usage = UE::StateTree::PropertyBinding::ParsePropertyUsage(PropertyHandle.AsShared());
+	return Usage == EStateTreePropertyUsage::Input || Usage == EStateTreePropertyUsage::Parameter;
 }
 
 
@@ -117,7 +135,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 		OwnerObject = UE::StateTree::PropertyBinding::FindEditorBindingsOwner(OuterObjects[0]);
 
 		// Figure out the structs we're editing, and property path relative to current property.
-		UE::StateTree::PropertyBinding::GetOuterStructPropertyPath(InPropertyHandle, TargetPath);
+		UE::StateTree::PropertyBinding::GetStructPropertyPath(InPropertyHandle, TargetPath);
 
 		if (IStateTreeEditorPropertyBindingsOwner* BindingOwner = Cast<IStateTreeEditorPropertyBindingsOwner>(OwnerObject))
 		{

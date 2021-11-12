@@ -27,6 +27,8 @@ struct FMassHitResult
 	{
 	}
 
+	bool IsValid() const { return OtherEntity.IsValid(); }
+	
 	FMassEntityHandle OtherEntity;
 
 	/** Time when first hit was received. */
@@ -34,20 +36,4 @@ struct FMassHitResult
 
 	/** Time used for filtering frequent hits. */
 	float LastFilteredHitTime = 0.f;
-};
-
-USTRUCT()
-struct FComponentHitStateTreeResult : public FStateTreeResult
-{
-	GENERATED_BODY()
-
-protected:
-	virtual const UScriptStruct& GetStruct() const override { return *StaticStruct(); }
-
-public:
-	UPROPERTY()
-	FMassHitResult MassHitResult;
-
-	UPROPERTY()
-	EStateTreeResultStatus Status = EStateTreeResultStatus::Unset;
 };

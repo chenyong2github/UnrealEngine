@@ -72,9 +72,9 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBindings
 	
 	/**
 	 * Removes bindings which do not point to valid structs IDs.
-	 * @param ValidStructsIDs Set of struct IDs that are currently valid.
+	 * @param ValidStructs Set of struct IDs that are currently valid.
 	 */
-	void RemoveUnusedBindings(const TMap<FGuid, const UScriptStruct*>& ValidStructs);
+	void RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs);
 
 	/** @return array view to all bindings. */
 	TConstArrayView<FStateTreeEditorPropertyBinding> GetBindings() const { return PropertyBindings; }

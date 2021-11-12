@@ -23,8 +23,14 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	virtual ~FStateTreeTaskBase() {}
 
 	/**
+	* @return Struct that represents the runtime data of the evaluator.
+	*/
+	virtual const UStruct* GetInstanceDataType() const PURE_VIRTUAL(FStateTreeTaskBase::GetInstanceDataType(), return nullptr;);
+
+	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
-	 * @see TStateTreeItemHandle.
+	 * @see TStateTreeExternalDataHandle
+	 * @see TStateTreeInstanceDataPropertyHandle
 	 * @param Linker Reference to the linker
 	 * @return true if linking succeeded. 
 	 */
@@ -38,7 +44,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	 * @param Transition Describes the states involved in the transition
 	 * @return Succeed/Failed will end the state immediately and trigger to select new state, Running will carry on to tick the state.
 	 */
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) { return EStateTreeRunStatus::Running; }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const { return EStateTreeRunStatus::Running; }
 
 	/**
 	* Called when a current state is exited and task is part of active states. The change type parameter describes if the task's state
@@ -47,7 +53,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	* @param ChangeType Describes the change type (Changed/Sustained).
 	* @param Transition Describes the states involved in the transition
 	*/
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) {}
+	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const {}
 
 	/**
 	 * Called Right after a state has been completed. StateCompleted is called in reverse order to allow to propagate state to Evaluators and Tasks that
@@ -56,7 +62,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	 * @param CompletionStatus Describes the running status of the completed state (Succeeded/Failed).
 	 * @param CompletedState Handle of the state that was completed.
 	 */
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) {}
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const {}
 
 	/**
 	* Called during state tree tick when the task is on active state.
@@ -64,7 +70,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	* @param DeltaTime Time since last StateTree tick.
 	* @return Running status of the state: Running if still in progress, Succeeded if execution is done and succeeded, Failed if execution is done and failed.
 	*/
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) { return EStateTreeRunStatus::Failed; };
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const { return EStateTreeRunStatus::Running; };
 
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const;
@@ -73,16 +79,13 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	UPROPERTY(EditAnywhere, Category = Task, meta = (EditCondition = "false", EditConditionHides))
 	FName Name;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = Task, meta = (IgnoreForMemberInitializationTest, EditCondition = "false", EditConditionHides))	// Hack, we want the ID to be found as IPropertyHandle, but do not want to display it.
-	FGuid ID;
-#endif
-
+	/** Property binding copy batch handle. */
 	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;	// Property binding copy batch handle.
+	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
 
+	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
 	UPROPERTY()
-	uint16 SourceStructIndex = 0;								// Property binding Source Struct index of the task.
+	uint16 DataViewIndex = 0;
 };
 
 template<> struct TStructOpsTypeTraits<FStateTreeTaskBase> : public TStructOpsTypeTraitsBase2<FStateTreeTaskBase> { enum { WithPureVirtual = true, }; };

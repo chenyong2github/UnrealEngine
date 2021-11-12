@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SNullWidget.h"
+#include "StateTreeTypes.h"
 #include "IDetailPropertyExtensionHandler.h"
 
 class IPropertyHandle;
@@ -12,7 +12,8 @@ struct FStateTreeEditorPropertyPath;
 class IPropertyAccessEditor;
 struct FStateTreeEditorPropertyPath;
 
-namespace UE { namespace StateTree { namespace PropertyBinding {
+namespace UE::StateTree::PropertyBinding
+{
 
 	/**
 	 * Get nearest Outer that implements IStateTreeEditorPropertyBindingsOwner.
@@ -21,17 +22,23 @@ namespace UE { namespace StateTree { namespace PropertyBinding {
 	UObject* FindEditorBindingsOwner(UObject* InObject);
 
 	/**
-	 * Returns property path for a specific property. It will look for nearest outer struct that contains property named "ID",
-	 * and build property path using that struct as root.
+	 * Returns property path for a specific property. The property's metadata "StateTreeItemID" is expected to specify the containing struct ID.
 	 * @param InPropertyHandle Handle to the property to find path for.
 	 * @param OutPath Resulting property path.
 	 */
-	void GetOuterStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateTreeEditorPropertyPath& OutPath);
-			
+	void GetStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateTreeEditorPropertyPath& OutPath);
+
+	/**
+	 * Parses property usage from a property handle.
+	 * @param InPropertyHandle Handle to the property to find path for.
+	 * @return Parsed property usage.
+	 */
+	EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InPropertyHandle);
+	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStateTreeBindingChanged, const FStateTreeEditorPropertyPath& /*SourcePath*/, const FStateTreeEditorPropertyPath& /*TargetPath*/);
 	extern STATETREEEDITORMODULE_API FOnStateTreeBindingChanged OnStateTreeBindingChanged;
 
-} } } // UE::StateTree::PropertyBinding
+} // UE::StateTree::PropertyBinding
 
 class FStateTreeBindingExtension : public IDetailPropertyExtensionHandler
 {

@@ -10,24 +10,32 @@
 /**
 * ZoneGraph Tag condition.
 */
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FZoneGraphTagFilterConditionInstanceData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = Input)
+	FZoneGraphTagMask Tags = FZoneGraphTagMask::None;
+};
+
 USTRUCT(DisplayName="ZoneGraphTagFilter Compare")
 struct MASSAIBEHAVIOR_API FZoneGraphTagFilterCondition : public FStateTreeConditionBase
 {
 	GENERATED_BODY()
 
-	FZoneGraphTagFilterCondition() : FStateTreeConditionBase() { }
+	FZoneGraphTagFilterCondition() = default;
+	
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagFilterConditionInstanceData::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 #if WITH_EDITOR
-	virtual FText GetDescription(const IStateTreeBindingLookup& BindingLookup) const override;
+	virtual FText GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
 #endif
 
-	virtual bool TestCondition() const override
-	{
-		return Filter.Pass(Tags) ^ bInvert;
-	}
-
-	UPROPERTY(EditAnywhere, Category = Condition, meta = (Bindable))
-	FZoneGraphTagMask Tags = FZoneGraphTagMask::None;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> TagsHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	FZoneGraphTagFilter Filter;
@@ -39,30 +47,39 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagFilterCondition : public FStateTreeCondit
 /**
 * ZoneGraph Tag condition.
 */
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FZoneGraphTagMaskConditionInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	FZoneGraphTagMask Left = FZoneGraphTagMask::None;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FZoneGraphTagMask Right = FZoneGraphTagMask::None;
+};
+
 USTRUCT(DisplayName="ZoneGraphTagMask Compare")
 struct MASSAIBEHAVIOR_API FZoneGraphTagMaskCondition : public FStateTreeConditionBase
 {
 	GENERATED_BODY()
 
-	FZoneGraphTagMaskCondition() : FStateTreeConditionBase() { }
+	FZoneGraphTagMaskCondition() = default;
+
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagMaskConditionInstanceData::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 #if WITH_EDITOR
-	virtual FText GetDescription(const IStateTreeBindingLookup& BindingLookup) const override;
+	virtual FText GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
 #endif
 
-	virtual bool TestCondition() const override
-	{
-		return Left.CompareMasks(Right, Operator) ^ bInvert;
-	}
-
-	UPROPERTY(EditAnywhere, Category = Condition, meta = (Bindable))
-	FZoneGraphTagMask Left = FZoneGraphTagMask::None;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> LeftHandle;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> RightHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	EZoneLaneTagMaskComparison Operator = EZoneLaneTagMaskComparison::Any;
-	
-	UPROPERTY(EditAnywhere, Category = Condition, meta = (Bindable))
-	FZoneGraphTagMask Right = FZoneGraphTagMask::None;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	bool bInvert = false;
@@ -71,27 +88,36 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagMaskCondition : public FStateTreeConditio
 /**
 * ZoneGraph Tag condition.
 */
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FZoneGraphTagConditionInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	FZoneGraphTag Left = FZoneGraphTag::None;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FZoneGraphTag Right = FZoneGraphTag::None;
+};
+
 USTRUCT(DisplayName="ZoneGraphTag Compare")
 struct MASSAIBEHAVIOR_API FZoneGraphTagCondition : public FStateTreeConditionBase
 {
 	GENERATED_BODY()
 
-	FZoneGraphTagCondition() : FStateTreeConditionBase() { }
+	FZoneGraphTagCondition() = default;
+
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagConditionInstanceData::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 #if WITH_EDITOR
-	virtual FText GetDescription(const IStateTreeBindingLookup& BindingLookup) const override;
+	virtual FText GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const override;
 #endif
 
-	virtual bool TestCondition() const override
-	{
-		return (Left == Right) ^ bInvert;
-	}
-
-	UPROPERTY(EditAnywhere, Category = Condition, meta = (Bindable))
-	FZoneGraphTag Left = FZoneGraphTag::None;
-
-	UPROPERTY(EditAnywhere, Category = Condition, meta = (Bindable))
-	FZoneGraphTag Right = FZoneGraphTag::None;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> LeftHandle;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> RightHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	bool bInvert = false;

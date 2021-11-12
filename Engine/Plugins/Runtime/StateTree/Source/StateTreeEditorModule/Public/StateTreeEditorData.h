@@ -24,13 +24,13 @@ public:
 	const UStateTreeState* GetStateByStructID(const FGuid TargetStructID) const;
 
 	/** Gets the IDs of all bindable structs in the StateTree. */
-	void GetAllStructIDs(TMap<FGuid, const UScriptStruct*>& AllStructs) const;
+	void GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const;
 
 	/**
 	 * Iterates over all structs that are related to binding
 	 * @param InFunc function called at each item, should return true if visiting is continued or false to stop.
 	 */
-	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct)> InFunc) const;
+	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	// StateTree Builder API
 
