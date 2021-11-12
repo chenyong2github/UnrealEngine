@@ -131,9 +131,6 @@ namespace Scalability
 		void SetDefaults();
 	};
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalabilitySettingsChanged, const Scalability::FQualityLevels&);
-	static FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
-
 	/** This is the only suggested way to set the current state - don't set CVars directly **/
 	ENGINE_API void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce = false);
 
@@ -199,3 +196,10 @@ namespace Scalability
 
 	ENGINE_API FString GetScalabilitySectionString(const TCHAR* InGroupName, int32 InQualityLevel, int32 InNumLevels);
 }
+
+class ENGINE_API FScalabilityDelegates
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalabilitySettingsChanged, const Scalability::FQualityLevels&);
+	static FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
+};

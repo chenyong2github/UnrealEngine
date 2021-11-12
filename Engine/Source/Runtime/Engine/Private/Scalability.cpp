@@ -129,10 +129,13 @@ static TAutoConsoleVariable<int32> CVarShadingQuality_NumLevels(
 	TEXT(" default: 5 (0..4)"),
 	ECVF_ReadOnly);
 
+FScalabilityDelegates::FOnScalabilitySettingsChanged FScalabilityDelegates::OnScalabilitySettingsChanged;
+
 namespace Scalability
 {
 static FQualityLevels GScalabilityBackupQualityLevels;
 static bool GScalabilityUsingTemporaryQualityLevels = false;
+
 
 // Select a the correct quality level for the given benchmark value and thresholds
 int32 ComputeOptionFromPerfIndex(const FString& GroupName, float CPUPerfIndex, float GPUPerfIndex)
@@ -731,7 +734,7 @@ void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce/* = false
 		CVarShadingQuality.AsVariable()->Set(ClampedLevels.ShadingQuality, ECVF_SetByScalability);
 	}
 
-	OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
+	FScalabilityDelegates::OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
 }
 
 FQualityLevels GetQualityLevels()
