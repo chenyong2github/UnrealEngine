@@ -29,6 +29,10 @@
 static float GHairRaytracingRadiusScale = 0;
 static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
 
+static int GHairRaytracingProceduralSplits = 4;
+static FAutoConsoleVariableRef CVarHairRaytracingProceduralScale(TEXT("r.HairStrands.RaytracingProceduralSplits"), GHairRaytracingProceduralSplits, TEXT("Change how many AABBs are used per hair segment to balance between BVH build cost and ray tracing performance. (default: 4)"));
+
+
 static float GStrandHairWidth = 0.0f;
 static FAutoConsoleVariableRef CVarStrandHairWidth(TEXT("r.HairStrands.StrandWidth"), GStrandHairWidth, TEXT("Width of hair strand"));
 
@@ -94,6 +98,11 @@ EHairCardsSimulationType GetHairCardsSimulationType()
 bool NeedsUpdateCardsMeshTriangles()
 {
 	return GetHairCardsSimulationType() == EHairCardsSimulationType::Guide;
+}
+
+int GetHairRaytracingProceduralSplits()
+{
+	return FMath::Clamp(GHairRaytracingProceduralSplits, 1, STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS);
 }
 
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
@@ -1249,6 +1258,7 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TangentBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputIndexBuffer)
+		SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -1271,6 +1281,7 @@ static void AddGenerateRaytracingGeometryPass(
 	const FShaderDrawDebugData* ShaderDrawData,
 	uint32 VertexCount,
 	bool bProceduralPrimitive,
+	int ProceduralSplits,
 	float HairRadius,
 	float RootScale,
 	float TipScale,
@@ -1294,6 +1305,7 @@ static void AddGenerateRaytracingGeometryPass(
 	Parameters->PositionBuffer = PositionBuffer;
 	Parameters->TangentBuffer = TangentBuffer;
 	Parameters->OutputPositionBuffer = OutPositionBuffer;
+	Parameters->RaytracingProceduralSplits = GetHairRaytracingProceduralSplits();
 	if (ShaderPrintData)
 	{
 		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
@@ -1303,6 +1315,7 @@ static void AddGenerateRaytracingGeometryPass(
 		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
 	}
 	Parameters->OutputIndexBuffer = OutIndexBuffer;
+	Parameters->RaytracingProceduralSplits = ProceduralSplits;
 
 	const bool bCullingEnable = CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
@@ -1410,7 +1423,8 @@ static void BuildHairAccelerationStructure_Strands(
 	FRayTracingGeometry* OutRayTracingGeometry,
 	const FString& AssetDebugName,
 	uint32 LODIndex,
-	bool bProceduralPrimitive)
+	bool bProceduralPrimitive,
+	int ProceduralSplits)
 {
 	FRayTracingGeometryInitializer Initializer;
 #if HAIR_RESOURCE_DEBUG_NAME
@@ -1425,7 +1439,7 @@ static void BuildHairAccelerationStructure_Strands(
 	if (bProceduralPrimitive)
 	{
 		Initializer.GeometryType = RTGT_Procedural;
-		Initializer.TotalPrimitiveCount = RaytracingVertexCount / 2;
+		Initializer.TotalPrimitiveCount = (RaytracingVertexCount / (2 * STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS)) * ProceduralSplits;
 	}
 	else
 	{
@@ -1440,16 +1454,17 @@ static void BuildHairAccelerationStructure_Strands(
 	FRayTracingGeometrySegment Segment;
 	Segment.VertexBuffer = PositionBuffer;
 	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
-	Segment.MaxVertices = RaytracingVertexCount / 2;
 	if (bProceduralPrimitive)
 	{
 		// stride covers one AABB (which is made up of two vertices)
 		Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte * 2;
-		Segment.NumPrimitives = RaytracingVertexCount / 2;
+		Segment.MaxVertices = RaytracingVertexCount;
+		Segment.NumPrimitives = Initializer.TotalPrimitiveCount;
 	}
 	else
 	{
 		Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
+		Segment.MaxVertices = RaytracingVertexCount;
 		Segment.NumPrimitives = RayTracingIndexCount / 3;
 	}
 	Initializer.Segments.Add(Segment);
@@ -1975,8 +1990,13 @@ void ComputeHairStrandsInterpolation(
 				const float HairRadiusRT	= Instance->HairGroupPublicData->VFInput.Strands.HairRaytracingRadiusScale * Instance->HairGroupPublicData->VFInput.Strands.HairRadius;
 				const float HairRootScaleRT = Instance->HairGroupPublicData->VFInput.Strands.HairRootScale;
 				const float HairTipScaleRT	= Instance->HairGroupPublicData->VFInput.Strands.HairTipScale;
+				const int ProceduralSplits = GetHairRaytracingProceduralSplits();
 
-				const bool bNeedUpdate = Instance->Strands.DeformedResource != nullptr ||  Instance->Strands.CachedHairScaledRadius != HairRadiusRT || Instance->Strands.CachedHairRootScale != HairRootScaleRT || Instance->Strands.CachedHairTipScale != HairTipScaleRT;
+				const bool bNeedUpdate = Instance->Strands.DeformedResource != nullptr ||
+					Instance->Strands.CachedHairScaledRadius != HairRadiusRT ||
+					Instance->Strands.CachedHairRootScale != HairRootScaleRT ||
+					Instance->Strands.CachedHairTipScale != HairTipScaleRT ||
+					Instance->Strands.CachedProceduralSplits != ProceduralSplits;
 				const bool bNeedBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
 				if (bNeedBuild || bNeedUpdate)
 				{
@@ -1992,6 +2012,7 @@ void ComputeHairStrandsInterpolation(
 						ShaderDrawData,
 						Instance->Strands.RestResource->GetVertexCount(),
 						bProceduralPrimitive,
+						ProceduralSplits,
 						HairRadiusRT,
 						HairRootScaleRT,
 						HairTipScaleRT,
@@ -2009,18 +2030,18 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Strands)"),
 						ERDGPassFlags::NeverCull,
-					[Instance, HairLODIndex, bNeedUpdate, bProceduralPrimitive](FRHICommandListImmediate& RHICmdList)
+					[Instance, HairLODIndex, bNeedUpdate, bProceduralPrimitive, ProceduralSplits](FRHICommandListImmediate& RHICmdList)
 					{
 						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-						const bool bLocalNeedBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
+						const bool bLocalNeedBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized || Instance->Strands.CachedProceduralSplits != ProceduralSplits;
 						if (bLocalNeedBuild)
 						{
 							FBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetRHI());
 
 							// no index buffer needed for procedural primitive
 							FBufferRHIRef IndexBuffer(bProceduralPrimitive ? nullptr : Instance->Strands.RenRaytracingResource->IndexBuffer.Buffer->GetRHI());
-
+							Instance->Strands.CachedProceduralSplits = ProceduralSplits;
 							BuildHairAccelerationStructure_Strands(RHICmdList,
 								Instance->Strands.RenRaytracingResource->VertexCount,
 								Instance->Strands.RenRaytracingResource->IndexCount,
@@ -2029,7 +2050,8 @@ void ComputeHairStrandsInterpolation(
 								&Instance->Strands.RenRaytracingResource->RayTracingGeometry,
 								Instance->Debug.GroomAssetName,
 								HairLODIndex,
-								bProceduralPrimitive
+								bProceduralPrimitive,
+								ProceduralSplits
 							);
 						}
 						else if (bNeedUpdate)

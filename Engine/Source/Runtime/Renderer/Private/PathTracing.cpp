@@ -1431,7 +1431,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	// If the scene has changed in some way (camera move, object movement, etc ...)
 	// we must invalidate the ViewState to start over from scratch
-	if (FirstTime || Config.IsDifferent(PathTracingState->LastConfig) || HairStrands::HasPositionsChanged(GraphBuilder, View))
+	// NOTE: only check things like hair position changes for interactive viewports, for offline renders we don't want any chance of mid-render invalidation
+	if (FirstTime || Config.IsDifferent(PathTracingState->LastConfig) || (!View.bIsOfflineRender && HairStrands::HasPositionsChanged(GraphBuilder, View)))
 	{
 		// remember the options we used for next time
 		PathTracingState->LastConfig = Config;

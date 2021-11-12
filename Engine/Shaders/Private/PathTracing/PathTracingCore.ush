@@ -235,7 +235,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness)
 {
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
 	const uint MissShaderIndex = 0;
@@ -710,7 +710,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
 
 #if 0
-	PathState.Radiance = 0.5 * Payload.WorldNormal + 0.5;
+	PathState.Radiance = 0.5 * Payload.WorldGeoNormal + 0.5;
 	return false;
 #endif
 
@@ -800,13 +800,13 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				{
 					// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
 					const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
-
+					const bool bEnableShadowTermFix = Payload.ShadingModelID != SHADINGMODELID_HAIR;
 					RayDesc LightRay;
 					LightRay.Origin = WorldPos;
 					LightRay.TMin = 0;
 					LightRay.Direction = LightSample.Direction;
 					LightRay.TMax = LightSample.Distance;
-					ApplyRayBias(LightRay, Payload.HitT, SignedPositionBias * Payload.WorldGeoNormal, true);
+					ApplyRayBias(LightRay, Payload.HitT, SignedPositionBias * Payload.WorldGeoNormal, bEnableShadowTermFix);
 
 					float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 

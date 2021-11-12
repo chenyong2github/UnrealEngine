@@ -381,114 +381,16 @@ float3 GetTangent(FVertexFactoryIntermediates Intermediates)
 
 #if USE_MATERIAL_INTERSECTION_SHADER
 
-#define STRAND_INTERSECTOR   1 // 0: cylinders 1: ribbons 
 
-float3 isectStrand(float3 ro, float3 rd, float3  pa, float3  pb, float ra, float rb)
-{
-#if STRAND_INTERSECTOR == 0
-	// trick to improve numerical stability - move origin closer to one of the vertices
-	float dd = dot(rd, rd);
-	float idd = rcp(dd);
-	float offset = dot(rd, pa - ro) * idd;
-	ro += offset * rd;
-
-	float3  ba = pb - pa;
-	float3  oa = ro - pa;
-	float3  ob = ro - pb;
-	float rr = ra - rb;
-	float m0 = dot(ba, ba);
-	float m1 = dot(ba, oa);
-	float m2 = dot(ba, rd);
-	float m3 = dot(rd, oa);
-	float m5 = dot(oa, oa);
-	float m6 = dot(ob, rd);
-	float m7 = dot(ob, ob);
-
-	float d2 = m0 - rr * rr;
-
-	float k2 = dd * d2 - m2 * m2;
-	float k1 = d2 * m3 - m1 * m2 + m2 * rr * ra;
-	float k0 = d2 * m5 - m1 * m1 + m1 * rr * ra * 2.0 - m0 * ra * ra;
-
-	float h = k1 * k1 - k0 * k2;
-	if (h > 0.0)
-	{
-		float t = (-sqrt(h) - k1) / k2;
-
-		float y = m1 - ra * rr + t * m2;
-		if (y > 0.0 && y < d2)
-		{
-			return float3(t + offset, y / d2, 0.5);
-		}
-	}
-
-  #if 0
-	// ignore caps: produces cracks between segments
-	return -1.0;
-  #elif 1
-	// end-point cap (only test one since hair strands share vertices (root is less important than the tip)
-	// this keeps a visually continuous curve
-	float h2 = m6 * m6 - dd * (m7 - rb * rb);
-	if (h2 > 0.0)
-	{
-		float t = (-m6 - sqrt(h2)) * idd + offset;
-		return float3(t, 1, 0.5);
-	}
-	return -1.0;
-  #else
-	// caps
-	float h1 = m3 * m3 - dd * (m5 - ra * ra);
-	float h2 = m6 * m6 - dd * (m7 - rb * rb);
-	if (max(h1, h2) < 0.0) return -1.0;
-
-	float3 r = 1e20;
-	if (h1 > 0.0)
-	{
-		float t = (-m3 - sqrt(h1)) * idd + offset;
-		r = float3(t + offset, 0, 0.5);
-	}
-	if (h2 > 0.0)
-	{
-		float t = (-m6 - sqrt(h2)) * idd + offset;
-		if (t > 0.0 && t < r.x)
-			r = float3(t, 1, 0.5);
-	}
-
-	return r;
-  #endif
-#elif STRAND_INTERSECTOR == 1
-	float3 u = pb - pa;
-	float3 w0 = pa - ro;
-	float3 w1 = pb - ro;
-	float3 n = cross(rd, u);
-	float3 n1 = cross(rd, n);
-	float sc = saturate(-dot(w0, n1) / dot(u, n1));
-	float3 cp = lerp(w0, w1, sc);
-	float rc = lerp(ra, rb, sc);
-	float t = dot(cp, rd) / dot(rd, rd);
-	float3 dp = t * rd - cp;
-	float d2 = length2(dp);
-	float r2 = rc * rc;
-	if (d2 < r2 && t > 4. * rc)
-	{
-		float h = sign(dot(dp, n)) * sqrt(d2 / r2);
-		return float3(t, sc, saturate(0.5 * h + 0.5));
-	}
-	return -1.0;
-#else
-	return -1.0;
-#endif
-}
-
-// Entry point
 RAY_TRACING_ENTRY_INTERSECTION(MaterialIS)
 {
+
 	float3 RayOrg = ObjectRayOrigin();
 	float3 RayDir = ObjectRayDirection();
 	float TMin = RayTMin();
 	float TMax = RayTCurrent();
 
-	uint VertexIndex0 = PrimitiveIndex();
+	uint VertexIndex0 = PrimitiveIndex() / HairStrandsVF.RaytracingProceduralSplits;
 	uint VertexIndex1 = VertexIndex0 + 1;
 	float ScaleR0 = 1, ScaleR1 = 1;
 	if (HairStrandsVF.CullingEnable)
@@ -503,29 +405,55 @@ RAY_TRACING_ENTRY_INTERSECTION(MaterialIS)
 	FHairControlPoint P0 = UnpackHairControlPoint(
 		HairStrandsVF.PositionBuffer[VertexIndex0],
 		PositionOffset,
-		HairStrandsVF.Radius * ScaleR0 * HairStrandsVF.RaytracingRadiusScale,
+		HairStrandsVF.Radius * ScaleR0,
 		HairStrandsVF.RootScale,
 		HairStrandsVF.TipScale);
 	FHairControlPoint P1 = UnpackHairControlPoint(
 		HairStrandsVF.PositionBuffer[VertexIndex1],
 		PositionOffset,
-		HairStrandsVF.Radius * ScaleR1 * HairStrandsVF.RaytracingRadiusScale,
+		HairStrandsVF.Radius * ScaleR1,
 		HairStrandsVF.RootScale,
 		HairStrandsVF.TipScale);
 
-	float3 Result = isectStrand(RayOrg, RayDir, P0.Position, P1.Position, P0.WorldRadius, P1.WorldRadius);
+	// ray/ribbon intersection - this is very approximate compared to a real oriented cone, but sufficient for thin strands
+	float3 pa = P0.Position;
+	float3 pb = P1.Position;
+	float ra = P0.WorldRadius;
+	float rb = P1.WorldRadius;
+	float3 ro = RayOrg;
+	float3 rd = RayDir;
+	float3 u = pb - pa;
+	float3 w0 = pa - ro;
+	float3 w1 = pb - ro;
+	float3 n = cross(rd, u);
+	float3 n1 = cross(rd, n);
+	float sc = saturate(-dot(w0, n1) / dot(u, n1));
+	float3 cp = lerp(w0, w1, sc);
+	float rc = lerp(ra, rb, sc);
+	float t = dot(cp, rd) / dot(rd, rd);
+	float3 dp = t * rd - cp;
+	float d2 = length2(dp);
+	float r2 = rc * rc;
+	if (d2 < r2 && t > 4. * rc)
+	{
+		// NOTE: the tangents are not exactly equal to 'u' at the extremeties due to quantization, could be avoided with better compression
+		float3 ta = P0.Type == HAIR_CONTROLPOINT_START ? u : HairStrandsVF.TangentBuffer[VertexIndex0 * 2 + 1].xyz;
+		float3 tb = P1.Type == HAIR_CONTROLPOINT_END   ? u : HairStrandsVF.TangentBuffer[VertexIndex1 * 2 + 1].xyz;
+		// clip the rounded portion from the end each segment
+		if ((dot(t * rd - w0, ta) * dot(ta, u) < 0)) return;
+		if ((dot(t * rd - w1, tb) * dot(tb, u) > 0)) return;
 
-	FDefaultAttributes Attributes = (FDefaultAttributes)0;
-	Attributes.Barycentrics = float2(Result.y, Result.z);
-	ReportHit(Result.x, HIT_KIND_TRIANGLE_FRONT_FACE, Attributes);
+		float h = sign(dot(dp, n)) * sqrt(saturate(d2 / r2));
+		FDefaultAttributes Attributes = (FDefaultAttributes)0;
+		Attributes.Barycentrics = float2(sc, 0.5 * h + 0.5);
+		ReportHit(t, HIT_KIND_TRIANGLE_FRONT_FACE, Attributes);
+	}
 }
-#endif // USE_MATERIAL_INTERSECTION_SHADER
 
-#endif // RAYHITGROUPSHADER
+#endif // USE_MATERIAL_INTERSECTION_SHADER
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Material evaluation for raytracing
-#if RAYHITGROUPSHADER
 
 // define this to let shaders know this alternative method is available
 #define VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS 1 
@@ -543,7 +471,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 
 	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input); // NOTE: Input is not used when VF_USE_PRIMITIVE_SCENE_DATA == 0
 
-	uint VertexIndex0 = HitPrimitiveIndex;
+#if ENABLE_PROCEDURAL_INTERSECTOR
+	uint VertexIndex0 = HitPrimitiveIndex / HairStrandsVF.RaytracingProceduralSplits;
 	uint VertexIndex1 = VertexIndex0 + 1;
 
 	if (HairStrandsVF.CullingEnable)
@@ -552,7 +481,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 		VertexIndex1 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex1];
 	}
 
-#if ENABLE_CUSTOM_INTERSECTOR
 	float UCoord = HitAttributes.Barycentrics.x;
 	float VCoord = HitAttributes.Barycentrics.y;
 	const float3 PositionOffset = HairStrandsVF.PositionOffsetBuffer[0].xyz;
@@ -569,28 +497,19 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 		HairStrandsVF.RootScale,
 		HairStrandsVF.TipScale);
 
-  #if STRAND_INTERSECTOR == 0
-	float3 WorldPosition = RayOrigin + HitT * RayDirection;
-	float4 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(SceneData.Primitive.WorldToLocal));
-	float3 LocalNormal = normalize(LocalPosition.xyz - lerp(P0.Position, P1.Position, UCoord));
-	// TODO: does this support non-uniform scales correctly?
-	WorldGeoNormal = normalize(RotateLocalToWorld(LocalNormal, SceneData.Primitive.LocalToWorld, SceneData.Primitive.InvNonUniformScale));
-  #endif
-
-	Result.HairPrimitiveId = VertexIndex0;
-#else // ENABLE_CUSTOM_INTERSECTOR
+#else
 	const float3 Weights = float3(
 		1 - HitAttributes.Barycentrics.x - HitAttributes.Barycentrics.y,
 		HitAttributes.Barycentrics.x,
 		HitAttributes.Barycentrics.y);
 
 	// fetch triangle
-	FTriangleBaseAttributes TriangleBase = LoadTriangleBaseAttributes(HitPrimitiveIndex);
+	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(HitPrimitiveIndex);
 	// Transform vertices into world space
 	const float3 WorldPositions[3] = {
-		CalcWorldPosition(TriangleBase.LocalPositions[0], SceneData.Primitive.LocalToWorld).xyz,
-		CalcWorldPosition(TriangleBase.LocalPositions[1], SceneData.Primitive.LocalToWorld).xyz,
-		CalcWorldPosition(TriangleBase.LocalPositions[2], SceneData.Primitive.LocalToWorld).xyz
+		CalcWorldPosition(Triangle.LocalPositions[0], SceneData.Primitive.LocalToWorld).xyz,
+		CalcWorldPosition(Triangle.LocalPositions[1], SceneData.Primitive.LocalToWorld).xyz,
+		CalcWorldPosition(Triangle.LocalPositions[2], SceneData.Primitive.LocalToWorld).xyz
 	};
 	// Compute triangle normal
 	{
@@ -603,13 +522,54 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 
 	// NOTE: This must match the tesselation pattern produced by SetBodySegment() in HairStrandsRaytracingGeometry.usf
 	// TODO: is there a way we could handle end-caps elegantly?
-	Result.HairPrimitiveId = TriangleBase.Indices.z / 4; // last index always belongs to the "bottom" vertex of the hair segment
+	uint VertexIndex0 = Triangle.Indices.z / 4; // last index always belongs to the "bottom" vertex of the hair segment
+	uint VertexIndex1 = VertexIndex0 + 1;
+
+	if (HairStrandsVF.CullingEnable)
+	{
+		VertexIndex0 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex0];
+		VertexIndex1 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex1];
+	}
 
 	float UCoord = dot(float3(1, float((HitPrimitiveIndex % 2) == 0), 0), Weights);
-	float VCoord = 0.5;// can't measure position across the width easily
-#endif // ENABLE_CUSTOM_INTERSECTOR
+	float VCoord = 0;
+	{
+		// find central point of the hair strand
+		const float3 PositionOffset = HairStrandsVF.PositionOffsetBuffer[0].xyz;
+		FHairControlPoint P0 = UnpackHairControlPoint(
+			HairStrandsVF.PositionBuffer[VertexIndex0],
+			PositionOffset,
+			HairStrandsVF.Radius,
+			HairStrandsVF.RootScale,
+			HairStrandsVF.TipScale);
+		FHairControlPoint P1 = UnpackHairControlPoint(
+			HairStrandsVF.PositionBuffer[VertexIndex1],
+			PositionOffset,
+			HairStrandsVF.Radius,
+			HairStrandsVF.RootScale,
+			HairStrandsVF.TipScale);
+		float4 A = float4(P0.Position, P0.WorldRadius);
+		float4 B = float4(P1.Position, P1.WorldRadius);
+		float4 C = lerp(A, B, UCoord);
+		// approximate position along the width of the ribbon
+		float3 WorldC = LWCToFloat(TransformLocalToWorld(C.xyz, SceneData.Primitive.LocalToWorld));
+		float3 rd = RayDirection;
+		float3 cp = WorldC - RayOrigin;
+		float t = dot(cp, rd) / dot(rd, rd);
+		float3 dp = t * RayDirection - cp;
+		float d2 = length2(dp);
+		float v = saturate(sqrt(d2 / Pow2(C.w))); // TODO: account for scale of radius
+		// figure out sign of v
+		float3 WorldU = LWCToFloat(TransformLocalToWorld(B.xyz - A.xyz, SceneData.Primitive.LocalToWorld));
+		VCoord = v * sign(dot(dp, cross(RayDirection, WorldU)));
+		VCoord = 0.5 * VCoord + 0.5;
+	}
 
-	Result.HairPrimitiveUV = float2(UCoord, 0.5); // NOTE: don't bother defining a v coordinate since we use a cylinder for RT
+
+
+#endif // ENABLE_PROCEDURAL_INTERSECTOR
+	Result.HairPrimitiveId = VertexIndex0;
+	Result.HairPrimitiveUV = float2(UCoord, VCoord);
 
 	// Required for previewing materials that use ParticleColor
 	Result.Particle.Color = half4(1, 1, 1, 1);
@@ -624,15 +584,12 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 
 	Result.TangentToWorld = AssembleTangentToWorld(TangentToWorld0, float4(TangentToWorld2, TangentSign));
 
-#if STRAND_INTERSECTOR == 1
 	// compute a smooth ribbon normal based on the tangent vector
 	float3 T = Result.TangentToWorld[2];
 	float3 D = RayDirection;
 	WorldGeoNormal = normalize(cross(T, normalize(cross(D, T))));
-	WorldGeoNormal *= dot(RayDirection, WorldGeoNormal) > 0 ? -1.0 : 1.0;
-#endif
 
-	Result.TwoSidedSign = 1;
+	Result.TwoSidedSign = sign(dot(RayDirection, WorldGeoNormal));
 
 	Result.PrimitiveId = SceneData.PrimitiveId;
 

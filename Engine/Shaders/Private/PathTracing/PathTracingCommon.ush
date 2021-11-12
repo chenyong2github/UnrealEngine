@@ -172,6 +172,7 @@ struct FPathTracingPayload : FMinimalPayload
 	{
 		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
 			   ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT || 
+			   ShadingModelID == SHADINGMODELID_HAIR ||
 			   IsMaterialSolidGlass();
 	}
 
