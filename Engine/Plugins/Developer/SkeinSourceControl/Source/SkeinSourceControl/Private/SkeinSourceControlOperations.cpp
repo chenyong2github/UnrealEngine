@@ -8,6 +8,7 @@
 #include "SkeinSourceControlUtils.h"
 #include "SkeinSourceControlState.h"
 #include "Modules/ModuleManager.h"
+#include "Async/ParallelFor.h"
 #include "SourceControlOperations.h"
 
 #define LOCTEXT_NAMESPACE "SkeinSourceControl"
