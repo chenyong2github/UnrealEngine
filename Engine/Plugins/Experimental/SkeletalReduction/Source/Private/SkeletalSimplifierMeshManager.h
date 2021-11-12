@@ -69,7 +69,7 @@ namespace SkeletalSimplifier
 		typedef TSharedPtr<FSimplifierMeshManager>                                   Ptr;
 
 		FSimplifierMeshManager(const MeshVertType* InSrcVerts, const uint32 InNumSrcVerts,
-			const uint32* InSrcIndexes, const uint32 InNumSrcIndexes);
+			const uint32* InSrcIndexes, const uint32 InNumSrcIndexes, const bool bMergeBonesIfSamePos);
 
 		~FSimplifierMeshManager()
 		{
@@ -135,6 +135,13 @@ namespace SkeletalSimplifier
 		bool IsInvalid(const SimpEdgeType* EdgePtr) const
 		{
 			 return (EdgePtr->v0->adjTris.Num() == 0 || EdgePtr->v1->adjTris.Num() == 0);
+		}
+
+		// Return true if the AVert and BVert have the same vertex locations.  Optionally require the same bones.
+		bool IsCoincident(const SimpVertType* AVertPtr, const SimpVertType* BVertPtr, bool bCompairBones = true) const
+		{
+			bool bCoincident = ( AVertPtr->GetPos() == BVertPtr->GetPos()  && (!bCompairBones || AVertPtr->vert.GetSparseBones().IsApproxEquals(BVertPtr->vert.GetSparseBones())) );
+			return bCoincident;
 		}
 
 		bool IsRemoved(const SimpEdgeType* EdgePtr) const
@@ -437,6 +444,9 @@ namespace SkeletalSimplifier
 			return (idx < UINT32_MAX ) ? &EdgeArray[idx] : NULL;
 
 		}
+
+		// Weld Bones if the vertices have the same location
+		bool bWeldBonesIfSamePos = true;
 
 		// The number of verts and tris in the initial mesh.
 		const int32					NumSrcVerts = 0;

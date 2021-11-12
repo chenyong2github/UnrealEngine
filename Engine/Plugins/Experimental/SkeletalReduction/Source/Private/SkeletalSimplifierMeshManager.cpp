@@ -13,8 +13,9 @@
 #define INVALID_EDGE_ID UINT32_MAX
  
 SkeletalSimplifier::FSimplifierMeshManager::FSimplifierMeshManager(const MeshVertType* InSrcVerts, const uint32 InNumSrcVerts,
-	const uint32* InSrcIndexes, const uint32 InNumSrcIndexes)
+	const uint32* InSrcIndexes, const uint32 InNumSrcIndexes, const bool bMergeBonesIfSamePos)
 	:
+	bWeldBonesIfSamePos(bMergeBonesIfSamePos),
 	NumSrcVerts(InNumSrcVerts),
 	NumSrcTris(InNumSrcIndexes / 3),
 	ReducedNumVerts(InNumSrcVerts),
@@ -129,6 +130,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupVerts(TArray<SimpVertType>
 			HashTable.Add(HashValues[i], i);
 		}
 	}
+	const bool bTestCoincidentBones = !bWeldBonesIfSamePos;
 
 	for (int i = 0; i < NumVerts; i++)
 	{
@@ -152,8 +154,8 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupVerts(TArray<SimpVertType>
 			if (v1 == v2)
 				continue;
 
-			// link
-			if (v1->GetPos() == v2->GetPos())
+			// link if the verts have the same pos (and optionally same bones)
+			if (IsCoincident(v1, v2, bTestCoincidentBones))
 			{
 				checkSlow(v2->next == v2);
 				checkSlow(v2->prev == v2);
@@ -397,6 +399,8 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupEdges(TArray< SimpEdgeType
 		HashTable.Add(HashValues[i], i);
 	}
 
+	const bool bTestCoincidentBones = !bWeldBonesIfSamePos;
+
 	for (int32 i = 0, IMax = Edges.Num(); i < IMax; ++i)
 	{
 		// already grouped
@@ -415,13 +419,14 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupEdges(TArray< SimpEdgeType
 			if (e1 == e2)
 				continue;
 
-			bool m1 =
-				(e1->v0 == e2->v0 || e1->v0->GetPos() == e2->v0->GetPos()) &&
-				(e1->v1 == e2->v1 || e1->v1->GetPos() == e2->v1->GetPos());
-
+			bool m1 = 
+			    (e1->v0 == e2->v0  || IsCoincident(e1->v0, e2->v0, bTestCoincidentBones) ) &&
+				(e1->v1 == e2->v1  || IsCoincident(e1->v1, e2->v1, bTestCoincidentBones) );
+			// same edge but with reversed orientation
 			bool m2 =
-				(e1->v0 == e2->v1 || e1->v0->GetPos() == e2->v1->GetPos()) &&
-				(e1->v1 == e2->v0 || e1->v1->GetPos() == e2->v0->GetPos());
+				(e1->v0 == e2->v1 || IsCoincident(e1->v0, e2->v1, bTestCoincidentBones)) &&
+				(e1->v1 == e2->v0 || IsCoincident(e1->v1, e2->v0, bTestCoincidentBones));
+
 
 
 			// backwards
@@ -678,6 +683,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::RebuildEdgeLinkLists(EdgePtrArr
 			HashTable.Add(HashEdgePosition(edge), i);
 		}
 
+		const bool bTestCoincidentBones = !bWeldBonesIfSamePos;
 
 		// regroup edges
 		for (uint32 i = 0; i < NumEdges; ++i)
@@ -702,19 +708,19 @@ void SkeletalSimplifier::FSimplifierMeshManager::RebuildEdgeLinkLists(EdgePtrArr
 				if (e1 == e2)
 					continue;
 
-				bool m1 =
-					(e1->v0 == e2->v0 &&
-						e1->v1 == e2->v1)
-					||
-					(e1->v0->GetPos() == e2->v0->GetPos() &&
-						e1->v1->GetPos() == e2->v1->GetPos());
-
+				bool m1 = 
+					 (e1->v0 == e2->v0 && 
+					  e1->v1 == e2->v1)
+					  ||
+					  ( IsCoincident(e1->v0, e2->v0, bTestCoincidentBones) &&
+					    IsCoincident(e1->v1, e2->v1, bTestCoincidentBones) );
+				// same edge but with reversed orientation
 				bool m2 =
 					(e1->v0 == e2->v1 &&
-						e1->v1 == e2->v0)
+					 e1->v1 == e2->v0)
 					||
-                    (e1->v0->GetPos() == e2->v1->GetPos() &&
-	                e1->v1->GetPos() == e2->v0->GetPos());
+				    ( IsCoincident(e1->v0, e2->v1, bTestCoincidentBones) &&
+					  IsCoincident(e1->v1, e2->v0, bTestCoincidentBones));
 
 				// backwards
 				if (m2)

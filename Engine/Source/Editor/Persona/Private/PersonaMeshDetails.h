@@ -193,6 +193,9 @@ private:
 	ECheckBoxState GetEnforceBoneBoundaries() const;
 	void SetEnforceBoneBoundaries(ECheckBoxState NewState);
 
+	ECheckBoxState GetMergeCoincidentVertBones() const;
+	void SetMergeCoincidentVertBones(ECheckBoxState NewState);
+
 	float GetVolumeImportance() const;
 	void SetVolumeImportance(float Value);
 	

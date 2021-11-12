@@ -349,7 +349,7 @@ namespace SkeletalSimplifier
 			/**
 			* Compare two sparse arrays.  A small bone weight will be equivalent to no bone weight.
 			*/
-			bool IsApproxEquals(const BoneSparseVertexAttrs& Other, double Tolerance = (double)KINDA_SMALL_NUMBER)
+			bool IsApproxEquals(const BoneSparseVertexAttrs& Other, double Tolerance = (double)KINDA_SMALL_NUMBER) const
 			{
 
 				SparseVecD::SparseContainer Tmp = SparseData;

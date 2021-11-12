@@ -14,13 +14,15 @@ const int32 SkeletalSimplifier::LinearAlgebra::SymmetricMatrix::Mapping[9] = { 0
 //=============
 SkeletalSimplifier::FMeshSimplifier::FMeshSimplifier(const MeshVertType* InSrcVerts, const uint32 InNumSrcVerts,
 	const uint32* InSrcIndexes, const uint32 InNumSrcIndexes,
-	const float CoAlignmentLimit, const float VolumeImportanceValue, const bool VolumeConservation, const bool bEnforceBoundaries)
+	const float CoAlignmentLimit, const float VolumeImportanceValue, const bool VolumeConservation, const bool bEnforceBoundaries, 
+	const bool bMergeCoincidentVertBones)
 	:
 	coAlignmentLimit(CoAlignmentLimit),
 	VolumeImportance(VolumeImportanceValue),
 	bPreserveVolume(VolumeConservation),
 	bCheckBoneBoundaries(bEnforceBoundaries),
-	MeshManager(InSrcVerts, InNumSrcVerts, InSrcIndexes, InNumSrcIndexes)
+	bMergeBonesOnCoincidentVerts(bMergeCoincidentVertBones),
+	MeshManager(InSrcVerts, InNumSrcVerts, InSrcIndexes, InNumSrcIndexes, bMergeCoincidentVertBones)
 {
 
 	// initialize the weights to be unit
@@ -624,10 +626,10 @@ int32 SkeletalSimplifier::FMeshSimplifier::CountDegenerates() const
 }
 
 
-void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, bool bMergeCoincidentVertBones, bool bWeldVtxColorAttrs, TArray<int32>* LockedVerts)
+void SkeletalSimplifier::FMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* indexes, bool bWeldVtxColorAttrs, TArray<int32>* LockedVerts)
 {
 
-	if (bMergeCoincidentVertBones)
+	if(bMergeBonesOnCoincidentVerts)
 	{
 		// Fix-up to make sure that verts that share the same location (e.g. UV boundaries) have the same bone weights
 		// (otherwise we will get cracks when the characters animate)

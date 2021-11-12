@@ -138,7 +138,8 @@ namespace SkeletalSimplifier
 			const float CoAlignmentLimit,
 			const float VolumeImportance,
 			const bool bVolumePreservation,
-			const bool bEnforceBoundaries);
+			const bool bEnforceBoundaries,
+			const bool  bMergeCoincidentVertBones);
 
 		~FMeshSimplifier();
 
@@ -207,12 +208,11 @@ namespace SkeletalSimplifier
 		*
 		* @param Verts                 - pointer to an array to populate.  Should be least GetNumVerts() in size
 		* @param Indexes               - pointer to index buffer to populate.  Should be at least 3 * GetNumTris() in size
-		* @param bMergeCoincidentBones - if multiple verts have the same position, force them to have the same bones.
 		* @param  bWeldVtxColorAttrs   - Weld verts attributes (colors) that may have been artificially split by the reduction algorithm.
 		*                                note: this could be extended to the other attributes (e.g. normals, uvs )  
 		* @param LockedVerts           - optional pointer to array.  On return the array will hold the indices of any locked verts.
 		*/
-		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, bool bMergeCoincidentVertBones = true, bool bWeldVtxColorAttrs = true, TArray<int32>* LockedVerts = NULL);
+		void				OutputMesh(MeshVertType* Verts, uint32* Indexes, bool bWeldVtxColorAttrs = true, TArray<int32>* LockedVerts = NULL);
 
 
 	protected:
@@ -286,7 +286,7 @@ namespace SkeletalSimplifier
 
 		bool                 bPreserveVolume;
 		bool                 bCheckBoneBoundaries;
-
+		bool                 bMergeBonesOnCoincidentVerts;
 		double               BoundaryConstraintWeight = 256.;
 
 

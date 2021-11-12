@@ -140,6 +140,10 @@ struct FSkeletalMeshOptimizationSettings
 	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings, meta = (DisplayName = "Enforce Bone Boundaries"))
 	uint8 bEnforceBoneBoundaries : 1;
 
+	/** If enabled this option make sure vertices that share the same location (e.g. UV boundaries) have the same bone weights. This can fix cracks when the characters animate. */
+	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings, meta = (DisplayName = "Merge Coincident Vertices Bones"))
+	uint8 bMergeCoincidentVertBones : 1;
+
 	/** Default value of 1 attempts to preserve volume.  Smaller values will loose volume by flattening curved surfaces, and larger values will accentuate curved surfaces.  */
 	UPROPERTY(EditAnywhere, Category = FSkeletalMeshOptimizationSettings, meta = (DisplayName = "Volumetric Correction", ClampMin = 0, ClampMax = 2))
 	float VolumeImportance;
@@ -189,6 +193,7 @@ struct FSkeletalMeshOptimizationSettings
 		, NormalsThreshold(60.0f)
 		, MaxBonesPerVertex(4)
 		, bEnforceBoneBoundaries(false)
+		, bMergeCoincidentVertBones(true)
 		, VolumeImportance(1.f)
 		, bLockEdges(false)
 		, bLockColorBounaries(false)
