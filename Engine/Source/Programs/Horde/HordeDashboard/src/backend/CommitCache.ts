@@ -76,7 +76,7 @@ export class CommitCache {
             }
 
             map!.set(c, {
-                number: 0, author: "", description: ""
+                number: 0, author: "", description: "", authorInfo : { id : "0", email:"unknown", name: "unknown"}
             })
 
         })
