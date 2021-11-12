@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using MongoDB.Bson;
 
+#if false
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using Microsoft.Extensions.Options;
 
@@ -31,7 +32,7 @@ namespace HordeServerTests
     {
         private async Task<TestSetup> GetTestSetupExternal()
         {
-	        TestSetup TestSetup = new TestSetup(GetDatabaseServiceExternal());
+	        TestSetup TestSetup = ebugnew TestSetup(GetDatabaseServiceExternal());
 	        await TestSetup.CreateFixture(true);
 	        return TestSetup;
         }
@@ -95,3 +96,4 @@ namespace HordeServerTests
         }
     }
 }
+#endif

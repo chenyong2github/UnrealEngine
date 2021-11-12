@@ -193,11 +193,8 @@ namespace HordeServerTests
 
 	public class MongoDbRunnerLocal : DatabaseRunner
 	{
-		private readonly string DatabaseName;
-		
-		public MongoDbRunnerLocal(string DatabaseName) : base("mongodb", "ThirdParty/Mongo/mongod.exe", 27017, true)
+		public MongoDbRunnerLocal() : base("mongodb", "ThirdParty/Mongo/mongod.exe", 27017, true)
 		{
-			this.DatabaseName = DatabaseName;
 		}
 
 		protected override string GetArguments()
@@ -208,7 +205,7 @@ namespace HordeServerTests
 		public string GetConnectionString()
 		{
 			(var Host, int ListenPort) = GetListenAddress();
-			return $"mongodb://{Host}:{ListenPort}/{DatabaseName}";
+			return $"mongodb://{Host}:{ListenPort}";
 		}
 	}
 	

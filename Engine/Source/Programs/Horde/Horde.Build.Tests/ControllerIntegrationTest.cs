@@ -23,12 +23,19 @@ namespace HordeServerTests
 {
 	public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
     {
+		MongoDbInstance MongoDbInstance;
+
+		public TestWebApplicationFactory(MongoDbInstance MongoDbInstance)
+		{
+			this.MongoDbInstance = MongoDbInstance;
+		}
+
 		protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             var Dict = new Dictionary<string, string?>
             {
-                {"Horde:DatabaseConnectionString", DatabaseIntegrationTest.GetMongoDbRunner().GetConnectionString()},
-                {"Horde:DatabaseName", DatabaseIntegrationTest.MongoDbDatabaseName},
+                {"Horde:DatabaseConnectionString", MongoDbInstance.ConnectionString},
+                {"Horde:DatabaseName", MongoDbInstance.DatabaseName},
                 {"Horde:LogServiceWriteCacheType", "inmemory"},
                 {"Horde:DisableAuth", "true"},
                 {"Horde:OidcAuthority", null},
@@ -39,53 +46,45 @@ namespace HordeServerTests
         }
     }
 
-    public class ControllerIntegrationTest
+    public class ControllerIntegrationTest : IDisposable
     {
-        private HttpClient? _client;
-        private TestWebApplicationFactory<Startup>? _factory;
-        protected readonly HttpClient client;
-        private Fixture? _fixture;
+		protected MongoDbInstance MongoDbInstance { get; }
+		TestWebApplicationFactory<Startup> _factory { get; }
+		protected HttpClient client { get; }
+		private Lazy<Task<Fixture>> _fixture;
 
-        public ControllerIntegrationTest()
-        {
-            client = GetClientForTestServer();
-        }
+		public ControllerIntegrationTest()
+		{
+			MongoDbInstance = new MongoDbInstance();
+			_factory = new TestWebApplicationFactory<Startup>(MongoDbInstance);
+			client = _factory.CreateClient();
 
-        public async Task<Fixture> GetFixture()
-        {
-            if (_fixture != null) return _fixture;
+			_fixture = new Lazy<Task<Fixture>>(Task.Run(() => CreateFixture()));
+		}
 
-            IServiceProvider Services = GetFactory().Services;
-            DatabaseService DatabaseService = Services.GetRequiredService<DatabaseService>();
-            ITemplateCollection TemplateService = Services.GetRequiredService<ITemplateCollection>();
-            JobService JobService = Services.GetRequiredService<JobService>();
-            IArtifactCollection ArtifactCollection = Services.GetRequiredService<IArtifactCollection>();
-            StreamService StreamService = Services.GetRequiredService<StreamService>();
-            AgentService AgentService = Services.GetRequiredService<AgentService>();
-            IPerforceService PerforceService = Services.GetRequiredService<IPerforceService>();
-            GraphCollection GraphCollection = new GraphCollection(DatabaseService);
+		public void Dispose()
+		{
+			MongoDbInstance.Dispose();
+		}
 
-            _fixture = new Fixture();
-            _fixture = await Fixture.Create(false, GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
-            return _fixture;
-        }
+		public Task<Fixture> GetFixture()
+		{
+			return _fixture.Value;
+		}
 
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        public HttpClient GetClientForTestServer()
-        {
-            if (_client != null) return _client;
+		async Task<Fixture> CreateFixture()
+		{
+			IServiceProvider Services = _factory.Services;
+			DatabaseService DatabaseService = Services.GetRequiredService<DatabaseService>();
+			ITemplateCollection TemplateService = Services.GetRequiredService<ITemplateCollection>();
+			JobService JobService = Services.GetRequiredService<JobService>();
+			IArtifactCollection ArtifactCollection = Services.GetRequiredService<IArtifactCollection>();
+			StreamService StreamService = Services.GetRequiredService<StreamService>();
+			AgentService AgentService = Services.GetRequiredService<AgentService>();
+			IPerforceService PerforceService = Services.GetRequiredService<IPerforceService>();
+			GraphCollection GraphCollection = new GraphCollection(DatabaseService);
 
-            _factory = GetFactory();
-            _client = _factory.CreateClient();
-            return _client;
-        }
-
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        TestWebApplicationFactory<Startup> GetFactory()
-        {
-            if (_factory != null) return _factory;
-            _factory = new TestWebApplicationFactory<Startup>();
-            return _factory;
+			return await Fixture.Create(GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
         }
     }
 }

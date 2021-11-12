@@ -31,20 +31,8 @@ namespace HordeServerTests
 	using LogId = ObjectId<ILogFile>;
 
 	[TestClass]
-	public class JobCollectionTests : DatabaseIntegrationTest
+	public class JobCollectionTests : TestSetup
 	{
-		IGraphCollection GraphCollection;
-		IUserCollection UserCollection;
-		IJobCollection JobCollection;
-
-		public JobCollectionTests()
-		{
-			DatabaseService DatabaseService = GetDatabaseService();
-			this.GraphCollection = new GraphCollection(DatabaseService);
-			this.UserCollection = new UserCollectionV2(DatabaseService, NullLogger<UserCollectionV2>.Instance);
-			this.JobCollection = new JobCollection(DatabaseService, UserCollection, NullLogger<JobCollection>.Instance);
-		}
-
 		NewGroup AddGroup(List<NewGroup> Groups)
 		{
 			NewGroup Group = new NewGroup("win64", new List<NewNode>());
@@ -132,12 +120,13 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task TryAssignLeaseTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
-			await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture!.Job1, 0, new PoolId("foo"), TestSetup.Fixture.Agent1.Id,
+			Fixture Fixture = await CreateFixtureAsync();
+
+			await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"), Fixture.Agent1.Id,
 				ObjectId.GenerateNewId(), LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
-			IJob Job = (await TestSetup.JobCollection.GetAsync(TestSetup.Fixture!.Job1.Id))!;
-			await TestSetup.JobCollection.TryAssignLeaseAsync(Job, 0, new PoolId("foo"), TestSetup.Fixture.Agent1.Id,
+			IJob Job = (await JobCollection.GetAsync(Fixture.Job1.Id))!;
+			await JobCollection.TryAssignLeaseAsync(Job, 0, new PoolId("foo"), Fixture.Agent1.Id,
 				ObjectId.GenerateNewId(), LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
 			// Manually verify the log output

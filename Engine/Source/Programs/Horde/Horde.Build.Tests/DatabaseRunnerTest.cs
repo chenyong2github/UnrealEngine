@@ -11,7 +11,7 @@ namespace HordeServerTests
         [TestMethod]
         public void RunMongoDbTest()
         {
-	        MongoDbRunnerLocal Runner = new MongoDbRunnerLocal(DatabaseIntegrationTest.MongoDbDatabaseName);
+	        MongoDbRunnerLocal Runner = new MongoDbRunnerLocal();
 	        Runner.Start();
             Thread.Sleep(100);
             Runner.Stop();

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using HordeServer;
@@ -9,6 +10,7 @@ using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MongoDB.Driver;
 using StackExchange.Redis;
 
 namespace HordeServerTests
@@ -39,73 +41,116 @@ namespace HordeServerTests
 	        // Dummy stub to satisfy return value of OnChange 
         }
     }
-    
-    public class DatabaseIntegrationTest
+
+	public class MongoDbInstance : IDisposable
+	{
+		public string DatabaseName { get; }
+		public string ConnectionString { get; }
+		MongoClient Client { get; }
+
+		private static object LockObject = new object();
+		private static MongoDbRunnerLocal? _mongoDbRunner;
+		private static int NextDatabaseIndex = 1;
+		public const string MongoDbDatabaseNamePrefix = "HordeServerTest_";
+
+		public MongoDbInstance()
+		{
+			int DatabaseIndex;
+			lock (LockObject)
+			{
+				if (_mongoDbRunner == null)
+				{
+					// One-time setup per test run to avoid overhead of starting the external MongoDB process
+					Startup.ConfigureMongoDbClient();
+					_mongoDbRunner = new MongoDbRunnerLocal();
+					_mongoDbRunner.Start();
+
+					// Drop all the previous databases
+					MongoClientSettings MongoSettings = MongoClientSettings.FromConnectionString(_mongoDbRunner.GetConnectionString());
+					MongoClient Client = new MongoClient(MongoSettings);
+
+					List<string> DropDatabaseNames = Client.ListDatabaseNames().ToList();
+					foreach (string DropDatabaseName in DropDatabaseNames)
+					{
+						if (DropDatabaseName.StartsWith(MongoDbDatabaseNamePrefix, StringComparison.Ordinal))
+						{
+							Client.DropDatabase(DropDatabaseName);
+						}
+					}
+				}
+				DatabaseIndex = NextDatabaseIndex++;
+			}
+
+			DatabaseName = $"{MongoDbDatabaseNamePrefix}{DatabaseIndex}";
+			ConnectionString = $"{_mongoDbRunner.GetConnectionString()}/{DatabaseName}";
+			Client = new MongoClient(MongoClientSettings.FromConnectionString(ConnectionString));
+		}
+
+		public void Dispose()
+		{
+			Client.DropDatabase(DatabaseName);
+		}
+	}
+
+	public class DatabaseIntegrationTest : IDisposable
     {
-        private static MongoDbRunnerLocal? _mongoDbRunner;
+		private static object LockObject = new object();
+		private MongoDbInstance? MongoDbInstance;
+		private DatabaseService? DatabaseService;
+		
         private static RedisRunner? _redisRunner;
-        private static DatabaseService? _databaseService;
         private static IDatabase? _redisDb;
         private static RedisConnectionPool? _redisConnectionPool;
         private static ConnectionMultiplexer? _conMux;
-        public const string MongoDbDatabaseName = "HordeServerTest";
         public const int RedisDbNum = 15;
-        
-        protected async Task<TestSetup> GetTestSetup()
+
+		public DatabaseIntegrationTest()
+		{
+		}
+
+		public void Dispose()
+		{
+			MongoDbInstance?.Dispose();
+			DatabaseService?.Dispose();
+		}
+
+		public DatabaseService GetDatabaseService()
         {
-	        TestSetup TestSetup = new TestSetup(GetDatabaseService(true));
-	        await TestSetup.CreateFixture(true);
-	        return TestSetup;
-        }
+			lock(LockObject)
+			{
+				if (DatabaseService == null)
+				{
+					MongoDbInstance = new MongoDbInstance();
 
-        public static DatabaseService GetDatabaseService(bool ForceDropDatabase = true)
-        {
-            if (_mongoDbRunner == null)
-            {
-                // One-time setup per test run to avoid overhead of starting the external MongoDB process
-                
-                Startup.ConfigureMongoDbClient();
-                _mongoDbRunner = new MongoDbRunnerLocal(MongoDbDatabaseName);
-                _mongoDbRunner.Start();
-                
-                ServerSettings Ss = new ServerSettings();
-                Ss.DatabaseName = MongoDbDatabaseName;
-                Ss.DatabaseConnectionString = _mongoDbRunner.GetConnectionString();
-            
-                ILoggerFactory LoggerFactory = new LoggerFactory();
+					ServerSettings Ss = new ServerSettings();
+					Ss.DatabaseName = MongoDbInstance.DatabaseName;
+					Ss.DatabaseConnectionString = MongoDbInstance.ConnectionString;
 
-                _databaseService = new DatabaseService(Options.Create(Ss), LoggerFactory);
-                _databaseService.Database.Client.DropDatabase(Ss.DatabaseName);
-            }
+					ILoggerFactory LoggerFactory = new LoggerFactory();
 
-            if (ForceDropDatabase)
-            {
-	            _databaseService!.Database.Client.DropDatabase(MongoDbDatabaseName);
-            }
-
-            return _databaseService!;
-        }
-
-        public static MongoDbRunnerLocal GetMongoDbRunner()
-        {
-            GetDatabaseService();
-            return _mongoDbRunner!;
+					DatabaseService = new DatabaseService(Options.Create(Ss), LoggerFactory);
+				}
+			}
+			return DatabaseService;
         }
 
         public static IDatabase GetRedisDatabase()
         {
-	        if (_redisDb == null)
-	        {
-		        // One-time setup per test run to avoid overhead of starting the external Redis process
-		        _redisRunner = new RedisRunner();
-		        _redisRunner.Start();
-		        
-		        (string Host, int Port) = _redisRunner.GetListenAddress();
-		        _conMux = ConnectionMultiplexer.Connect($"{Host}:{Port},allowAdmin=true");
-		        ClearRedisDatabase();
+			lock (LockObject)
+			{
+				if (_redisDb == null)
+				{
+					// One-time setup per test run to avoid overhead of starting the external Redis process
+					_redisRunner = new RedisRunner();
+					_redisRunner.Start();
 
-		        _redisDb = _conMux.GetDatabase(RedisDbNum);
-	        }
+					(string Host, int Port) = _redisRunner.GetListenAddress();
+					_conMux = ConnectionMultiplexer.Connect($"{Host}:{Port},allowAdmin=true");
+					ClearRedisDatabase();
+
+					_redisDb = _conMux.GetDatabase(RedisDbNum);
+				}
+			}
 
 	        return _redisDb;
         }

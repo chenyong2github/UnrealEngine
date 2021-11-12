@@ -56,7 +56,7 @@ namespace HordeServerTests
 	}
 
 	[TestClass]
-	public class RpcServiceTest : DatabaseIntegrationTest
+	public class RpcServiceTest : TestSetup
 	{
 		private readonly ServerCallContext AdminContext = new ServerCallContextStub("app-horde-admins");
 
@@ -298,15 +298,14 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task CreateSessionTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
 			CreateSessionRequest Req = new CreateSessionRequest();
-			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => TestSetup.RpcService.CreateSession(Req, AdminContext));
+			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(Req, AdminContext));
 
 			Req.Name = "MyName";
-			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => TestSetup.RpcService.CreateSession(Req, AdminContext));
+			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(Req, AdminContext));
 
 			Req.Capabilities = new AgentCapabilities();
-			CreateSessionResponse Res = await TestSetup.RpcService.CreateSession(Req, AdminContext);
+			CreateSessionResponse Res = await RpcService.CreateSession(Req, AdminContext);
 
 			Assert.AreEqual("MYNAME", Res.AgentId);
 			// TODO: Check Token, ExpiryTime, SessionId 
@@ -315,12 +314,11 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task UpdateSessionTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
 			CreateSessionRequest CreateReq = new CreateSessionRequest
 			{
 				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
 			};
-			CreateSessionResponse CreateRes = await TestSetup.RpcService.CreateSession(CreateReq, AdminContext);
+			CreateSessionResponse CreateRes = await RpcService.CreateSession(CreateReq, AdminContext);
 			string AgentId = CreateRes.AgentId;
 			string SessionId = CreateRes.SessionId;
 
@@ -328,7 +326,7 @@ namespace HordeServerTests
 				new TestAsyncStreamReader<UpdateSessionRequest>(AdminContext);
 			TestServerStreamWriter<UpdateSessionResponse> ResponseStream =
 				new TestServerStreamWriter<UpdateSessionResponse>(AdminContext);
-			Task Call = TestSetup.RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
+			Task Call = RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
 
 			RequestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = SessionId});
 			StructuredRpcException Re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => Call);
@@ -339,14 +337,13 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task QueryServerSessionTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
-			TestSetup.RpcService.LongPollTimeout = TimeSpan.FromMilliseconds(200);
+			RpcService.LongPollTimeout = TimeSpan.FromMilliseconds(200);
 
 			TestAsyncStreamReader<QueryServerStateRequest> RequestStream =
 				new TestAsyncStreamReader<QueryServerStateRequest>(AdminContext);
 			TestServerStreamWriter<QueryServerStateResponse> ResponseStream =
 				new TestServerStreamWriter<QueryServerStateResponse>(AdminContext);
-			Task Call = TestSetup.RpcService.QueryServerState(RequestStream, ResponseStream, AdminContext);
+			Task Call = RpcService.QueryServerState(RequestStream, ResponseStream, AdminContext);
 
 			RequestStream.AddMessage(new QueryServerStateRequest {Name = "bogusAgentName"});
 			QueryServerStateResponse? Res = await ResponseStream.ReadNextAsync();
@@ -362,13 +359,11 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task FinishBatchTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
-			
 			CreateSessionRequest CreateReq = new CreateSessionRequest
 			{
 				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
 			};
-			CreateSessionResponse CreateRes = await TestSetup.RpcService.CreateSession(CreateReq, AdminContext);
+			CreateSessionResponse CreateRes = await RpcService.CreateSession(CreateReq, AdminContext);
 			string AgentId = CreateRes.AgentId;
 			string SessionId = CreateRes.SessionId;
 
@@ -376,7 +371,7 @@ namespace HordeServerTests
 				new TestAsyncStreamReader<UpdateSessionRequest>(AdminContext);
 			TestServerStreamWriter<UpdateSessionResponse> ResponseStream =
 				new TestServerStreamWriter<UpdateSessionResponse>(AdminContext);
-			Task Call = TestSetup.RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
+			Task Call = RpcService.UpdateSession(RequestStream, ResponseStream, AdminContext);
 
 			RequestStream.AddMessage(new UpdateSessionRequest {AgentId = "does-not-exist", SessionId = SessionId});
 			StructuredRpcException Re = await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => Call);
@@ -387,7 +382,8 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task UploadArtifactTest()
 		{
-			TestSetup TestSetup = await GetTestSetup();
+			Fixture Fixture = await CreateFixtureAsync();
+
 			ObjectId SessionId = ObjectId.GenerateNewId();
 			ServerCallContext Context = new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 			{
@@ -401,16 +397,16 @@ namespace HordeServerTests
 			
 			UploadArtifactMetadata Metadata = new UploadArtifactMetadata
 			{
-				JobId = TestSetup.Fixture!.Job1.Id.ToString(),
-				BatchId = TestSetup.Fixture!.Job1.Batches[0].Id.ToString(),
-				StepId = TestSetup.Fixture!.Job1.Batches[0].Steps[0].Id.ToString(),
+				JobId = Fixture.Job1.Id.ToString(),
+				BatchId = Fixture.Job1.Batches[0].Id.ToString(),
+				StepId = Fixture.Job1.Batches[0].Steps[0].Id.ToString(),
 				Name = "testfile.txt",
 				MimeType = "text/plain",
 				Length = DataStr.Length
 			};
 
 			// Set the session ID on the job batch to pass auth later
-			Deref(await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture.Job1, 0, new PoolId("foo"),
+			Deref(await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"),
 				new AgentId("test"), SessionId,
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
@@ -426,7 +422,7 @@ namespace HordeServerTests
 			await Task.Delay(500);
 */			
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
-			Task<UploadArtifactResponse> Call = TestSetup.RpcService.UploadArtifact(RequestStream,  Context);
+			Task<UploadArtifactResponse> Call = RpcService.UploadArtifact(RequestStream,  Context);
 			RequestStream.AddMessage(new UploadArtifactRequest { Metadata = Metadata });
 			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[0]) });
 			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[1]) });
@@ -435,9 +431,9 @@ namespace HordeServerTests
 			UploadArtifactResponse Res = await Call;
 
 
-			IArtifact? Artifact = await TestSetup.ArtifactCollection.GetArtifactAsync(ObjectId.Parse(Res.Id));
+			IArtifact? Artifact = await ArtifactCollection.GetArtifactAsync(ObjectId.Parse(Res.Id));
 			Assert.IsNotNull(Artifact);
-			Stream Stream = await TestSetup.ArtifactCollection.OpenArtifactReadStreamAsync(Artifact!);
+			Stream Stream = await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact!);
 			StreamReader Reader = new StreamReader(Stream);
 			string text = Reader.ReadToEnd();
 			Assert.AreEqual(DataStr, text);

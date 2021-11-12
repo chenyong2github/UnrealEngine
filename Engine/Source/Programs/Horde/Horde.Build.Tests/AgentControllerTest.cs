@@ -10,18 +10,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace HordeServerTests
 {
 	[TestClass]
-    public class AgentControllerDbTest : DatabaseIntegrationTest
+    public class AgentControllerDbTest : TestSetup
     {
         [TestMethod]
         public async Task UpdateAgent()
         {
-	        TestSetup TestSetup = await GetTestSetup();
-	        AgentsController AgentsController = TestSetup.AgentsController;
-	        IAgent FixtureAgent = TestSetup.Fixture!.Agent1;
+			Fixture Fixture = await CreateFixtureAsync();
+	        IAgent FixtureAgent = Fixture.Agent1;
 
 	        ActionResult<object> Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id.ToString());
 	        GetAgentResponse GetRes = (Obj.Value as GetAgentResponse)!;
-	        Assert.AreEqual(TestSetup.Fixture!.Agent1Name.ToUpper(), GetRes.Name);
+	        Assert.AreEqual(Fixture!.Agent1Name.ToUpper(), GetRes.Name);
 	        Assert.IsNull(GetRes.Comment);
 	        
 	        UpdateAgentRequest UpdateReq = new UpdateAgentRequest();
