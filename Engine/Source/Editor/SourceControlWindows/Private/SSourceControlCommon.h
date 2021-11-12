@@ -159,9 +159,9 @@ struct FFileTreeItem : public IChangelistTreeItem
 	/** true if the item is source controlled and not marked for add nor for delete */
 	bool CanDiff() const { return FileState->IsSourceControlled() && !FileState->IsAdded() && !FileState->IsDeleted(); }
 
-	const TArray<FAssetData>& GetAssetData() const
+	const FAssetDataArrayPtr& GetAssetData() const
 	{
-		return *Assets;
+		return Assets;
 	}
 
 	bool IsShelved() const { return GetTreeItemType() == IChangelistTreeItem::ShelvedFile; }
