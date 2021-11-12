@@ -13,28 +13,32 @@
 
 bool FMassZoneGraphPathFollowTask::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(LocationHandle);
-	Linker.LinkExternalItem(MoveTargetHandle);
-	Linker.LinkExternalItem(MovementConfigHandle);
-	Linker.LinkExternalItem(PathRequestHandle);
-	Linker.LinkExternalItem(ShortPathHandle);
-	Linker.LinkExternalItem(CachedLaneHandle);
-	Linker.LinkExternalItem(AgentRadiusHandle);
-	Linker.LinkExternalItem(ZoneGraphSubsystemHandle);
+	Linker.LinkExternalData(LocationHandle);
+	Linker.LinkExternalData(MoveTargetHandle);
+	Linker.LinkExternalData(MovementConfigHandle);
+	Linker.LinkExternalData(PathRequestHandle);
+	Linker.LinkExternalData(ShortPathHandle);
+	Linker.LinkExternalData(CachedLaneHandle);
+	Linker.LinkExternalData(AgentRadiusHandle);
+	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
+
+	Linker.LinkInstanceDataProperty(TargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphPathFollowTaskInstanceData, TargetLocation));
+	Linker.LinkInstanceDataProperty(MovementStyleHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphPathFollowTaskInstanceData, MovementStyle));
+	Linker.LinkInstanceDataProperty(SpeedScaleHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphPathFollowTaskInstanceData, SpeedScale));
 
 	return true;
 }
 
 bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& Context, const FMassZoneGraphTargetLocation& RequestedTargetLocation) const
 {
-	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalItem(ZoneGraphSubsystemHandle);
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
-	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalItem(MovementConfigHandle);
-	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalItem(AgentRadiusHandle);
-	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle);
-	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalItem(CachedLaneHandle);
-	FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
-	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalItem(PathRequestHandle);
+	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const FMassMovementConfigFragment& MovementConfig = Context.GetExternalData(MovementConfigHandle);
+	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalData(AgentRadiusHandle);
+	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalData(ShortPathHandle);
+	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalData(CachedLaneHandle);
+	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
+	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalData(PathRequestHandle);
 
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);
@@ -82,6 +86,9 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 	PathRequest.AnticipationDistance = RequestedTargetLocation.AnticipationDistance;
 	PathRequest.EndOfPathOffset.Set(FMath::RandRange(-AgentRadius.Radius, AgentRadius.Radius));
 
+	const FMassMovementStyleRef& MovementStyle = Context.GetInstanceData(MovementStyleHandle);
+	const float SpeedScale = Context.GetInstanceData(SpeedScaleHandle);
+
 	const float DesiredSpeed = FMath::Min(Config->GenerateDesiredSpeed(MovementStyle, Context.GetEntity().Index) * SpeedScale, Config->MaximumSpeed);
 	const UWorld* World = Context.GetWorld();
 	checkf(World != nullptr, TEXT("A valid world is expected from the execution context"));
@@ -90,7 +97,7 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 	return UE::MassMovement::ActivateActionMove(*World, Context.GetOwner(), Context.GetEntity(), ZoneGraphSubsystem, LaneLocation, PathRequest, AgentRadius.Radius, DesiredSpeed, MoveTarget, ShortPath, CachedLane);
 }
 
-EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	// Do not reset of the state if current state is still active after transition, unless transitioned specifically to this state.
 	if (ChangeType == EStateTreeStateChangeType::Sustained && Transition.Current != Transition.Next)
@@ -115,22 +122,16 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 		return EStateTreeRunStatus::Failed;
 	}
 
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
-
-	const FMassZoneGraphTargetLocation* TargetLocationPtr = TargetLocation.GetPtr<FMassZoneGraphTargetLocation>();
-	if (!TargetLocationPtr)
-	{
-		MASSBEHAVIOR_LOG(Error, TEXT("Target location not set."));
-		return EStateTreeRunStatus::Failed;
-	}
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const FMassZoneGraphTargetLocation& TargetLocation = Context.GetInstanceData(TargetLocationHandle);
 	
-	if (TargetLocationPtr->LaneHandle != LaneLocation.LaneHandle)
+	if (TargetLocation.LaneHandle != LaneLocation.LaneHandle)
 	{
-		MASSBEHAVIOR_LOG(Error, TEXT("Target is not on current lane, target lane is %s expected %s."), *TargetLocationPtr->LaneHandle.ToString(), *LaneLocation.LaneHandle.ToString());
+		MASSBEHAVIOR_LOG(Error, TEXT("Target is not on current lane, target lane is %s expected %s."), *TargetLocation.LaneHandle.ToString(), *LaneLocation.LaneHandle.ToString());
 		return EStateTreeRunStatus::Failed;
 	}
 
-	if (!RequestPath(MassContext, *TargetLocationPtr))
+	if (!RequestPath(MassContext, TargetLocation))
 	{
 		return EStateTreeRunStatus::Failed;
 	}
@@ -138,7 +139,7 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 	return EStateTreeRunStatus::Running;
 }
 
-EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
+EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
@@ -151,26 +152,20 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContex
 		MASSBEHAVIOR_LOG(Verbose, TEXT("tick"));
 	}
 
-	const FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalItem(ShortPathHandle);
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
-
-	const FMassZoneGraphTargetLocation* TargetLocationPtr = TargetLocation.GetPtr<FMassZoneGraphTargetLocation>();
-	if (!TargetLocationPtr)
-	{
-		MASSBEHAVIOR_LOG(Error, TEXT("Target location not set."));
-		return EStateTreeRunStatus::Failed;
-	}
+	const FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalData(ShortPathHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const FMassZoneGraphTargetLocation& TargetLocation = Context.GetInstanceData(TargetLocationHandle);
 
 	// Current path follow is done, but it was partial (i.e. many points on a curve), try again until we get there.
 	if (ShortPath.IsDone() && ShortPath.bPartialResult)
 	{
-		if (TargetLocationPtr->LaneHandle != LaneLocation.LaneHandle)
+		if (TargetLocation.LaneHandle != LaneLocation.LaneHandle)
 		{
-			MASSBEHAVIOR_LOG(Error, TEXT("Target is not on current lane, target lane is %s expected %s."), *TargetLocationPtr->LaneHandle.ToString(), *LaneLocation.LaneHandle.ToString());
+			MASSBEHAVIOR_LOG(Error, TEXT("Target is not on current lane, target lane is %s expected %s."), *TargetLocation.LaneHandle.ToString(), *LaneLocation.LaneHandle.ToString());
 			return EStateTreeRunStatus::Failed;
 		}
 		
-		if (!RequestPath(MassContext, *TargetLocationPtr))
+		if (!RequestPath(MassContext, TargetLocation))
 		{
 			MASSBEHAVIOR_LOG(Error, TEXT("Failed to request path."));
 			return EStateTreeRunStatus::Failed;

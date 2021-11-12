@@ -47,7 +47,7 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 
 	StateTree->Link();
 	
-	StateTree->InitRuntimeStorage();
+	StateTree->InitInstanceStorage();
 
 	return true;
 }
@@ -66,8 +66,16 @@ FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
 bool FStateTreeBaker::CreateStates()
 {
 	// Create item for the runtime execution state
-	StateTree->RuntimeStorageItems.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
+	StateTree->Instances.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
 
+	// The struct index is currently shared between runtime item index, make sure the state has a dummy struct too. 
+	FStateTreeBindableStructDesc StructDesc;
+	StructDesc.Struct = FStateTreeExecutionState::StaticStruct();
+	StructDesc.Name = FName(TEXT("ExecutionState"));
+	StructDesc.ID = FGuid();
+	BindingsCompiler.AddSourceStruct(StructDesc);
+
+	
 	for (UStateTreeState* Routine : TreeData->Routines)
 	{
 		if (Routine)
@@ -78,6 +86,7 @@ bool FStateTreeBaker::CreateStates()
 			}
 		}
 	}
+	
 	return true;
 }
 
@@ -92,7 +101,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
 		
 		// Enter conditions.
-		BakedState.EnterConditionsBegin = uint16(StateTree->Conditions.Num());
+		BakedState.EnterConditionsBegin = uint16(StateTree->Items.Num());
 		for (FStateTreeConditionItem& ConditionItem : SourceState->EnterConditions)
 		{
 			if (!CreateCondition(ConditionItem))
@@ -102,7 +111,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 				return false;
 			}
 		}
-		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedState.EnterConditionsBegin);
+		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Items.Num()) - BakedState.EnterConditionsBegin);
 
 		// Transitions
 		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
@@ -119,7 +128,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 			}
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
-			BakedTransition.ConditionsBegin = uint16(StateTree->Conditions.Num());
+			BakedTransition.ConditionsBegin = uint16(StateTree->Items.Num());
 			for (FStateTreeConditionItem& ConditionItem : Transition.Conditions)
 			{
 				if (!CreateCondition(ConditionItem))
@@ -130,7 +139,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 					return false;
 				}
 			}
-			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedTransition.ConditionsBegin);
+			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Items.Num()) - BakedTransition.ConditionsBegin);
 		}
 		BakedState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - BakedState.TransitionsBegin);
 	}
@@ -178,24 +187,35 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 
 bool FStateTreeBaker::CreateCondition(const FStateTreeConditionItem& CondItem)
 {
-	if (!CondItem.Type.IsValid())
+	if (!CondItem.Item.IsValid())
 	{
 		// Empty line in conditions array, just silently ignore.
 		return true;
 	}
 
-	// Copy the condition
-	FInstancedStruct& CondPtr = StateTree->Conditions.AddDefaulted_GetRef();
-	CondPtr = CondItem.Type;
-	check(CondPtr.IsValid());
+	// Assume valid items have valid instance initialized.
+	check(CondItem.Instance.IsValid());
 
-	FStateTreeConditionBase& Cond = CondPtr.GetMutable<FStateTreeConditionBase>();
+	// Copy the condition
+	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	Item = CondItem.Item;
+
+	FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
+	Instance = CondItem.Instance;
+			
+	check(Item.IsValid() && Instance.IsValid());
+	FStateTreeConditionBase& Cond = Item.GetMutable<FStateTreeConditionBase>();
 
 	// Create binding source struct descriptor. Note: not exposing the struct for reading.
 	FStateTreeBindableStructDesc StructDesc;
-	StructDesc.Struct = CondPtr.GetScriptStruct();
-	StructDesc.Name = CondPtr.GetScriptStruct()->GetFName();
-	StructDesc.ID = Cond.ID;
+	StructDesc.Struct = Instance.GetScriptStruct();
+	StructDesc.Name = Instance.GetScriptStruct()->GetFName();
+	StructDesc.ID = CondItem.ID;
+
+	// Mark the struct as binding source.
+	const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
+
+	check((StateTree->Instances.Num() - 1) == SourceStructIndex);
 
 	// Check that the bindings for this struct are still all valid.
 	TArray<FStateTreeEditorPropertyBinding> Bindings;
@@ -213,6 +233,9 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeConditionItem& CondItem)
 	check(BatchIndex < int32(MAX_uint16));
 	Cond.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
 
+	check(SourceStructIndex <= int32(MAX_uint16));
+	Cond.DataViewIndex = uint16(SourceStructIndex);
+	
 	return true;
 }
 
@@ -313,29 +336,38 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 	SourceStates.Add(&State);
 	IDToState.Add(State.ID, StateIdx);
 
+
+	check(StateTree->Instances.Num() <= int32(MAX_uint16));
+
 	// Collect evaluators
-	check(StateTree->RuntimeStorageItems.Num() <= int32(MAX_uint16));
-	BakedState.EvaluatorsBegin = uint16(StateTree->RuntimeStorageItems.Num());
+	check(StateTree->Items.Num() <= int32(MAX_uint16));
+	BakedState.EvaluatorsBegin = uint16(StateTree->Items.Num());
 
 	for (FStateTreeEvaluatorItem& EvaluatorItem : State.Evaluators)
 	{
-		if (EvaluatorItem.Type.IsValid())
+		if (EvaluatorItem.Item.IsValid() && EvaluatorItem.Instance.IsValid())
 		{
 			// Copy the evaluator
-			FInstancedStruct& EvalPtr = StateTree->RuntimeStorageItems.AddDefaulted_GetRef();
-			EvalPtr = EvaluatorItem.Type;
-			check(EvalPtr.IsValid());
-			FStateTreeEvaluatorBase& Eval = EvalPtr.GetMutable<FStateTreeEvaluatorBase>();
+			FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+			Item = EvaluatorItem.Item;
+
+			FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
+			Instance = EvaluatorItem.Instance;
+			
+			check(Item.IsValid() && Instance.IsValid());
+			FStateTreeEvaluatorBase& Eval = Item.GetMutable<FStateTreeEvaluatorBase>();
 
 			// Create binding source struct descriptor.
 			FStateTreeBindableStructDesc StructDesc;
-			StructDesc.Struct = EvalPtr.GetScriptStruct();
+			StructDesc.Struct = Instance.GetScriptStruct();
 			StructDesc.Name = Eval.Name;
-			StructDesc.ID = Eval.ID;
+			StructDesc.ID = EvaluatorItem.ID;
 
 			// Mark the struct as binding source.
 			const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
 
+			check((StateTree->Instances.Num() - 1) == SourceStructIndex);
+			
 			// Check that the bindings for this struct are still all valid.
 			TArray<FStateTreeEditorPropertyBinding> Bindings;
 			if (!GetAndValidateBindings(StructDesc, Bindings))
@@ -349,38 +381,47 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			{
 				return false;
 			}
+			
 			check(BatchIndex < int32(MAX_uint16));
 			Eval.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
+			
 			check(SourceStructIndex <= int32(MAX_uint16));
-			Eval.SourceStructIndex = uint16(SourceStructIndex);
+			Eval.DataViewIndex = uint16(SourceStructIndex);
 		}
 	}
-	const int32 EvaluatorsNum = StateTree->RuntimeStorageItems.Num() - int32(BakedState.EvaluatorsBegin);
+	const int32 EvaluatorsNum = StateTree->Items.Num() - int32(BakedState.EvaluatorsBegin);
 	check(EvaluatorsNum <= int32(MAX_uint8));
 	BakedState.EvaluatorsNum = uint8(EvaluatorsNum);
 
 	// Collect tasks
-	check(StateTree->RuntimeStorageItems.Num() <= int32(MAX_uint16));
-	BakedState.TasksBegin = uint16(StateTree->RuntimeStorageItems.Num());
+	check(StateTree->Items.Num() <= int32(MAX_uint16));
+	BakedState.TasksBegin = uint16(StateTree->Items.Num());
 
 	for (FStateTreeTaskItem& TaskItem : State.Tasks)
 	{
-		if (TaskItem.Type.IsValid())
+		if (TaskItem.Item.IsValid() && TaskItem.Instance.IsValid())
 		{
 			// Copy the task
-			FInstancedStruct& TaskPtr = StateTree->RuntimeStorageItems.AddDefaulted_GetRef();
-			TaskPtr = TaskItem.Type;
-			check(TaskPtr.IsValid());
-			FStateTreeTaskBase& Task = TaskPtr.GetMutable<FStateTreeTaskBase>();
+			FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+			Item = TaskItem.Item;
+
+			FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
+			Instance = TaskItem.Instance;
+
+			check(Item.IsValid() && Instance.IsValid());
+			
+			FStateTreeTaskBase& Task = Item.GetMutable<FStateTreeTaskBase>();
 
 			// Create binding source struct descriptor.
 			FStateTreeBindableStructDesc StructDesc;
-			StructDesc.Struct = TaskPtr.GetScriptStruct();
+			StructDesc.Struct = Instance.GetScriptStruct();
 			StructDesc.Name = Task.Name;
-			StructDesc.ID = Task.ID;
+			StructDesc.ID = TaskItem.ID;
 
 			// Mark the struct as binding source.
 			const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
+
+			check((StateTree->Instances.Num() - 1) == SourceStructIndex);
 
 			// Check that the bindings for this struct are still all valid.
 			TArray<FStateTreeEditorPropertyBinding> Bindings;
@@ -395,13 +436,15 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			{
 				return false;
 			}
+			
 			check(BatchIndex < int32(MAX_uint16));
 			Task.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
+			
 			check(SourceStructIndex <= int32(MAX_uint16));
-			Task.SourceStructIndex = uint16(SourceStructIndex);
+			Task.DataViewIndex = uint16(SourceStructIndex);
 		}
 	}
-	const int32 TasksNum = StateTree->RuntimeStorageItems.Num() - int32(BakedState.TasksBegin);
+	const int32 TasksNum = StateTree->Items.Num() - int32(BakedState.TasksBegin);
 	check(TasksNum <= int32(MAX_uint8));
 	BakedState.TasksNum = uint8(TasksNum);
 

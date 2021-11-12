@@ -23,22 +23,22 @@ public:
 	UStateTree(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** @return Script Struct that can be used to instantiate the runtime storage */
-	const UScriptStruct* GetRuntimeStorageStruct() const { return RuntimeStorageStruct; }
+	const UScriptStruct* GetInstanceStorageStruct() const { return InstanceStorageStruct; }
 
 	/** @return Instance of the runtime storage that contains the default values */
-	const FInstancedStruct& GetRuntimeStorageDefaultValue() const { return RuntimeStorageDefaultValue; }
+	const FInstancedStruct& GetInstanceStorageDefaultValue() const { return InstanceStorageDefaultValue; }
 
-	/** @return Number of items (Evaluators & Tasks) in the runtime storage. */
-	int32 GetRuntimeStorageItemCount() const { return RuntimeStorageOffsets.Num(); }
+	/** @return Number of runtime data (Evaluators, Tasks, Conditions) in the runtime storage. */
+	int32 GetNumInstances() const { return Instances.Num(); }
 
-	/** @return Number of linked items (Evaluators, Tasks, external items). */
-	int32 GetLinkedItemCount() const { return NumLinkedItems; }
+	/** @return Number of data views required for StateTree execution (Evaluators, Tasks, Conditions, External data). */
+	int32 GetNumDataViews() const { return NumDataViews; }
 
-	/** @return Base index for external items. */
-	int32 GetExternalItemBaseIndex() const { return ExternalItemBaseIndex; }
+	/** @return Base index in data views for external data. */
+	int32 GetExternalDataBaseIndex() const { return ExternalDataBaseIndex; }
 
-	/** @return List of external items required by the state tree */
-	TConstArrayView<FStateTreeExternalItemDesc> GetExternalItems() const { return ExternalItems; }
+	/** @return List of external data required by the state tree */
+	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
 	/** @return Schema describing which inputs, evaluators, and tasks a StateTree can contain */
 	const UStateTreeSchema* GetSchema() const { return Schema; }
@@ -70,7 +70,7 @@ protected:
 #endif
 
 	/** Initializes the types and default values related to StateTree runtime storage */
-	void InitRuntimeStorage();
+	void InitInstanceStorage();
 
 	/** Resolved references between data in the StateTree. */
 	void Link();
@@ -82,33 +82,34 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
 	UStateTreeSchema* Schema = nullptr;
 
-	/** Evaluators and Tasks that require runtime state */
+	/** Evaluators, Tasks, and Condition items */
 	UPROPERTY()
-	TArray<FInstancedStruct> RuntimeStorageItems;
+	TArray<FInstancedStruct> Items;
+
+	/** Evaluators, Tasks, and Conditions runtime data. */
+	UPROPERTY()
+	TArray<FInstancedStruct> Instances;
 
 	/** Script Struct that can be used to instantiate the runtime storage */
 	UPROPERTY()
-	UScriptStruct* RuntimeStorageStruct;
+	UScriptStruct* InstanceStorageStruct;
 
 	/** Offsets into the runtime type to quickly get a struct view to a specific Task or Evaluator */
-	TArray<FStateTreeRuntimeStorageItemOffset> RuntimeStorageOffsets;
+	TArray<FStateTreeInstanceStorageOffset> InstanceStorageOffsets;
 
 	/** Instance of the runtime storage that contains the default values. */
 	UPROPERTY()
-	FInstancedStruct RuntimeStorageDefaultValue;
+	FInstancedStruct InstanceStorageDefaultValue;
 
-	UPROPERTY(meta = (BaseStruct = "StateTreeConditionBase", ExcludeBaseStruct))
-	TArray<FInstancedStruct> Conditions;
-
-	/** List of external items required by the state tree, creating during linking. */
+	/** List of external data required by the state tree, creating during linking. */
 	UPROPERTY(Transient)
-	TArray<FStateTreeExternalItemDesc> ExternalItems;
+	TArray<FStateTreeExternalDataDesc> ExternalDataDescs;
 
 	UPROPERTY(Transient)
-	int32 NumLinkedItems = 0;
+	int32 NumDataViews = 0;
 
 	UPROPERTY(Transient)
-	int32 ExternalItemBaseIndex = 0;
+	int32 ExternalDataBaseIndex = 0;
 
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;

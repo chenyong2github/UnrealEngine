@@ -11,6 +11,19 @@ class UMassComponentHitSubsystem;
 /**
  * Evaluator to extract last hit from the MassComponentHitSubsystem and expose it for tasks and transitions
  */
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassComponentHitEvaluatorInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = Output)
+	bool bGotHit = false;
+
+	UPROPERTY(VisibleAnywhere, Category = Output)
+	FMassEntityHandle LastHitEntity;
+};
+
 USTRUCT(meta = (DisplayName = "Mass ComponentHit Eval"))
 struct MASSAIBEHAVIOR_API FMassComponentHitEvaluator : public FMassStateTreeEvaluatorBase
 {
@@ -18,13 +31,11 @@ struct MASSAIBEHAVIOR_API FMassComponentHitEvaluator : public FMassStateTreeEval
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassComponentHitEvaluatorInstanceData::StaticStruct(); }
+	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
 
-	TStateTreeItemHandle<UMassComponentHitSubsystem> ComponentHitSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassComponentHitSubsystem> ComponentHitSubsystemHandle;
 
-	UPROPERTY(VisibleAnywhere, Category = Output)
-	bool bGotHit = false;
-
-	UPROPERTY(VisibleAnywhere, Category = Output)
-	FMassEntityHandle LastHitEntity;
+	TStateTreeInstanceDataPropertyHandle<bool> GotHitHandle;
+	TStateTreeInstanceDataPropertyHandle<FMassEntityHandle> LastHitEntityHandle;
 };

@@ -74,7 +74,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					StateTreeContext.SetEntity(Entity);
 					
 #if WITH_GAMEPLAY_DEBUGGER
-					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetInstanceStorageStruct());
 					Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString(Storage));
 #endif // WITH_GAMEPLAY_DEBUGGER
 				}
@@ -92,7 +92,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 					StateTreeContext.SetEntity(Entity);
 
-					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetInstanceStorageStruct());
 
 					// State
 					UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, /*Thickness*/ 2, TEXT("%s %s"),

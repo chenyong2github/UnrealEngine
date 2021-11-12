@@ -10,6 +10,7 @@ class IPropertyHandle;
 class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
+struct FStateTreeEditorPropertyPath;
 
 /**
  * Semi-generic type customization for bindable items (Evaluators and Tasks) in StateTreeState.
@@ -20,6 +21,8 @@ public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
+	virtual ~FStateTreeBindableItemDetails();
+	
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
@@ -29,17 +32,22 @@ private:
 	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 	void ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle);
 
+	FText GetDescription() const;
+	EVisibility IsDescriptionVisible() const;
+	
 	FText GetName() const;
+	EVisibility IsNameVisible() const;
 	void OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	bool IsNameEnabled() const;
 
-	const UScriptStruct* GetCommonScriptStruct() const;
+	const UScriptStruct* GetCommonItemScriptStruct() const;
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 	TSharedRef<SWidget> GenerateStructPicker();
 	void OnStructPicked(const UScriptStruct* InStruct);
 
 	void OnIdentifierChanged(const UStateTree& StateTree);
+	void OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
 	void FindOuterObjects();
 
 	UScriptStruct* BaseScriptStruct = nullptr;
@@ -50,5 +58,9 @@ private:
 
 	class IPropertyUtilities* PropUtils = nullptr;
 	TSharedPtr<IPropertyHandle> StructProperty;
-	TSharedPtr<IPropertyHandle> TypeProperty;
+	TSharedPtr<IPropertyHandle> ItemProperty;
+	TSharedPtr<IPropertyHandle> InstanceProperty;
+	TSharedPtr<IPropertyHandle> IDProperty;
+
+	FDelegateHandle OnBindingChangedHandle;
 };

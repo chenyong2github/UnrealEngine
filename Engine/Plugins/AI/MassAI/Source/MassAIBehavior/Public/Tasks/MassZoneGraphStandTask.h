@@ -18,6 +18,20 @@ struct FMassMovementConfigFragment;
 /**
  * Stop, and stand on current ZoneGraph location
  */
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassZoneGraphStandTaskInstanceData
+{
+	GENERATED_BODY()
+
+	/** Delay before the task ends. Default (0 or any negative) will run indefinitely so it requires a transition in the state tree to stop it. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	float Duration = 0.0f;
+
+	UPROPERTY()
+	float Time = 0.0f;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Stand"))
 struct MASSAIBEHAVIOR_API FMassZoneGraphStandTask : public FMassStateTreeTaskBase
 {
@@ -25,21 +39,18 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphStandTask : public FMassStateTreeTaskBas
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphStandTaskInstanceData::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
-	TStateTreeItemHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
-	TStateTreeItemHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
-	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
-	TStateTreeItemHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-	TStateTreeItemHandle<FMassMovementConfigFragment> MovementConfigHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
+	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassMovementConfigFragment> MovementConfigHandle;
 
-	UPROPERTY()
-	float Time = 0.0f;
-
-	/** Delay before the task ends. Default (0 or any negative) will run indefinitely so it requires a transition in the state tree to stop it. */
-	UPROPERTY(EditAnywhere, Category = Parameters, meta = (Bindable))
-	float Duration = 0.0f;
+	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
+	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;
 };

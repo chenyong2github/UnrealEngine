@@ -12,6 +12,15 @@ class UZoneGraphAnnotationSubsystem;
 /**
 * Computes move target to a smart object based on current location on ZoneGraph.
 */
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTargetInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation SmartObjectLocation;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Find Smart Object Target"))
 struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTarget : public FMassStateTreeTaskBase
 {
@@ -19,16 +28,12 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindSmartObjectTarget : public FMassStat
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindSmartObjectTargetInstanceData::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeItemHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
 
-	FMassZoneGraphTargetLocation TargetLocation;
-
-	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation"))
-	FStateTreeResultRef TargetLocationRef;
+	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> SmartObjectLocationHandle;
 };

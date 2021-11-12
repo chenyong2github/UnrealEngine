@@ -76,11 +76,11 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Evaluators.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Type.GetMutablePtr<FStateTreeEvaluatorBase>())
+						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Item.GetMutablePtr<FStateTreeEvaluatorBase>())
 						{
-							Eval->ID = FGuid::NewGuid();
 							Eval->Name = FName(Eval->Name.ToString() + TEXT(" Duplicate"));
 						}
+						Evaluators[ArrayIndex].ID = FGuid::NewGuid();
 					}
 				}
 				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks))
@@ -88,11 +88,11 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Tasks.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeTaskBase* Task = Tasks[ArrayIndex].Type.GetMutablePtr<FStateTreeTaskBase>())
+						if (FStateTreeTaskBase* Task = Tasks[ArrayIndex].Item.GetMutablePtr<FStateTreeTaskBase>())
 						{
-							Task->ID = FGuid::NewGuid();
 							Task->Name = FName(Task->Name.ToString() + TEXT(" Duplicate"));
 						}
+						Tasks[ArrayIndex].ID = FGuid::NewGuid();
 					}
 				}
 				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, EnterConditions))
@@ -100,10 +100,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (EnterConditions.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeConditionBase* Cond = EnterConditions[ArrayIndex].Type.GetMutablePtr<FStateTreeConditionBase>())
-						{
-							Cond->ID = FGuid::NewGuid();
-						}
+						EnterConditions[ArrayIndex].ID = FGuid::NewGuid();
 					}
 				}
 				// TODO: Transition conditions.
@@ -113,36 +110,6 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 }
 
 #endif
-
-const FStateTreeTaskBase* UStateTreeState::GetTaskByID(FGuid InID) const
-{
-	for (const FStateTreeTaskItem& TaskItem : Tasks)
-	{
-		if (const FStateTreeTaskBase* Task = TaskItem.Type.GetPtr<FStateTreeTaskBase>())
-		{
-			if (Task->ID == InID)
-			{
-				return Task;
-			}
-		}
-	}
-	return nullptr;
-}
-
-FStateTreeTaskBase* UStateTreeState::GetTaskByID(FGuid InID)
-{
-	for (FStateTreeTaskItem& TaskItem : Tasks)
-	{
-		if (FStateTreeTaskBase* Task = TaskItem.Type.GetMutablePtr<FStateTreeTaskBase>())
-		{
-			if (Task->ID == InID)
-			{
-				return Task;
-			}
-		}
-	}
-	return nullptr;
-}
 
 UStateTreeState* UStateTreeState::GetNextSiblingState() const
 {

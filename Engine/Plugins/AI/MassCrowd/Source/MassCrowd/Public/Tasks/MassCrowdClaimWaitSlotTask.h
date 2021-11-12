@@ -13,6 +13,21 @@ class UMassCrowdSubsystem;
 /**
 * Claim wait slot and expose slot position for path follow.
 */
+USTRUCT()
+struct MASSCROWD_API FMassCrowdClaimWaitSlotTaskInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation WaitSlotLocation;
+
+	UPROPERTY()
+	int32 WaitingSlotIndex = INDEX_NONE;
+	
+	UPROPERTY()
+	FZoneGraphLaneHandle AcquiredLane;
+};
+
 USTRUCT(meta = (DisplayName = "Crowd Claim Wait Slot"))
 struct MASSCROWD_API FMassCrowdClaimWaitSlotTask : public FMassStateTreeTaskBase
 {
@@ -20,20 +35,15 @@ struct MASSCROWD_API FMassCrowdClaimWaitSlotTask : public FMassStateTreeTaskBase
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassCrowdClaimWaitSlotTaskInstanceData::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
-	TStateTreeItemHandle<UMassCrowdSubsystem> CrowdSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeExternalDataHandle<UMassCrowdSubsystem> CrowdSubsystemHandle;
 
-	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation"))
-	FStateTreeResultRef WaitSlotLocation;
-
-	FMassZoneGraphTargetLocation TargetLocation;
-
-	int32 WaitingSlotIndex = INDEX_NONE;
-	
-	FZoneGraphLaneHandle AcquiredLaneHandle;
+	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> WaitSlotLocationHandle;
+	TStateTreeInstanceDataPropertyHandle<int32> WaitingSlotIndexHandle;
+	TStateTreeInstanceDataPropertyHandle<FZoneGraphLaneHandle> AcquiredLaneHandle;
 };

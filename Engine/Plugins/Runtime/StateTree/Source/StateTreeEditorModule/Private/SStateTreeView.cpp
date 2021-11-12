@@ -62,16 +62,23 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 
 	bUpdatingSelection = false;
 
+	TSharedRef<SScrollBar> HorizontalScrollBar = SNew(SScrollBar)
+		.Orientation(Orient_Horizontal)
+		.Thickness(FVector2D(12.0f, 12.0f));
+
+	TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
+		.Orientation(Orient_Vertical)
+		.Thickness(FVector2D(12.0f, 12.0f));
+
 	TreeView = SNew(STreeView<UStateTreeState*>)
 		.OnGenerateRow(this, &SStateTreeView::HandleGenerateRow)
 		.OnGetChildren(this, &SStateTreeView::HandleGetChildren)
 		.TreeItemsSource(StateTreeViewModel->GetRoutines())
 		.ItemHeight(32)
 		.OnSelectionChanged(this, &SStateTreeView::HandleTreeSelectionChanged)
-		.OnContextMenuOpening(this, &SStateTreeView::HandleContextMenuOpening);
-
-	ExternalScrollbar = SNew(SScrollBar)
-		.AlwaysShowScrollbar(true);
+		.OnContextMenuOpening(this, &SStateTreeView::HandleContextMenuOpening)
+		.AllowOverscroll(EAllowOverscroll::No)
+		.ExternalScrollbar(VerticalScrollBar);
 
 	ChildSlot
 	[
@@ -123,7 +130,6 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 		]
 
 		+SVerticalBox::Slot()
-		.FillHeight(1.0f)
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
@@ -133,29 +139,23 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 			[
 				SNew(SScrollBox)
 				.Orientation(Orient_Horizontal)
-				+ SScrollBox::Slot()
-				.HAlign(HAlign_Fill)
+				.ExternalScrollbar(HorizontalScrollBar)
+				+SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.HAlign(HAlign_Fill)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
-					[
-						TreeView.ToSharedRef()
-					]
+					TreeView.ToSharedRef()
 				]
 			]
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(0.0f)
 			[
-				SNew(SBox)
-				.WidthOverride(FOptionalSize(13.0f))
-				[
-					ExternalScrollbar.ToSharedRef()
-				]
+				VerticalScrollBar
 			]
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			HorizontalScrollBar
 		]
 	];
 

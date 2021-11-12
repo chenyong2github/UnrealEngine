@@ -9,28 +9,34 @@
 
 bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(LocationHandle);
-	Linker.LinkExternalItem(MoveTargetHandle);
-	Linker.LinkExternalItem(CrowdSubsystemHandle);
+	Linker.LinkExternalData(LocationHandle);
+	Linker.LinkExternalData(MoveTargetHandle);
+	Linker.LinkExternalData(CrowdSubsystemHandle);
+
+	Linker.LinkInstanceDataProperty(WaitSlotLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassCrowdClaimWaitSlotTaskInstanceData, WaitSlotLocation));
+	Linker.LinkInstanceDataProperty(WaitingSlotIndexHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassCrowdClaimWaitSlotTaskInstanceData, WaitingSlotIndex));
+	Linker.LinkInstanceDataProperty(AcquiredLaneHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassCrowdClaimWaitSlotTaskInstanceData, AcquiredLane));
 
 	return true;
 }
 
-EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return EStateTreeRunStatus::Running;
 	}
 
-	WaitSlotLocation = nullptr;
+	FMassZoneGraphTargetLocation& WaitSlotLocation = Context.GetInstanceData(WaitSlotLocationHandle);
+	int32& WaitingSlotIndex = Context.GetInstanceData(WaitingSlotIndexHandle);
+	FZoneGraphLaneHandle& AcquiredLane = Context.GetInstanceData(AcquiredLaneHandle);
 
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassEntityHandle Entity = MassContext.GetEntity();
 	
-	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle);
-	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle);
-	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle);
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalData(CrowdSubsystemHandle);
 
 	FVector SlotPosition = FVector::ZeroVector;
 	FVector SlotDirection = FVector::ForwardVector;
@@ -41,28 +47,24 @@ EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionC
 		return EStateTreeRunStatus::Failed;
 	}
 	
-	AcquiredLaneHandle = LaneLocation.LaneHandle;
+	AcquiredLane = LaneLocation.LaneHandle;
 
-	TargetLocation.LaneHandle = LaneLocation.LaneHandle;
-	TargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
-	TargetLocation.NextLaneHandle.Reset();
-	TargetLocation.bMoveReverse = false;
-	TargetLocation.EndOfPathIntent = EMassMovementAction::Stand;
-	TargetLocation.EndOfPathPosition = SlotPosition;
-	TargetLocation.EndOfPathDirection = SlotDirection;
-	TargetLocation.TargetDistance = LaneLocation.LaneLength; // Go to end of lane
+	WaitSlotLocation.LaneHandle = LaneLocation.LaneHandle;
+	WaitSlotLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	WaitSlotLocation.NextLaneHandle.Reset();
+	WaitSlotLocation.bMoveReverse = false;
+	WaitSlotLocation.EndOfPathIntent = EMassMovementAction::Stand;
+	WaitSlotLocation.EndOfPathPosition = SlotPosition;
+	WaitSlotLocation.EndOfPathDirection = SlotDirection;
+	WaitSlotLocation.TargetDistance = LaneLocation.LaneLength; // Go to end of lane
 	// Let's start moving toward the interaction a bit before the entry point.
-	TargetLocation.AnticipationDistance.Set(100.f);
-
-	WaitSlotLocation = &TargetLocation;
+	WaitSlotLocation.AnticipationDistance.Set(100.f);
 	
 	return EStateTreeRunStatus::Running;
 }
 
-void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	WaitSlotLocation = &TargetLocation;
-	
 	if (ChangeType != EStateTreeStateChangeType::Changed)
 	{
 		return;
@@ -70,20 +72,19 @@ void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context,
 
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassEntityHandle Entity = MassContext.GetEntity();
-	
-	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle);
 
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalData(CrowdSubsystemHandle);
+
+	FMassZoneGraphTargetLocation& WaitSlotLocation = Context.GetInstanceData(WaitSlotLocationHandle);
+	int32& WaitingSlotIndex = Context.GetInstanceData(WaitingSlotIndexHandle);
+	FZoneGraphLaneHandle& AcquiredLane = Context.GetInstanceData(AcquiredLaneHandle);
+	
 	if (WaitingSlotIndex != INDEX_NONE)
 	{
-		CrowdSubsystem.ReleaseWaitingSlot(Entity, AcquiredLaneHandle, WaitingSlotIndex);
+		CrowdSubsystem.ReleaseWaitingSlot(Entity, AcquiredLane, WaitingSlotIndex);
 	}
 	
-	TargetLocation.Reset();
-}
-
-EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
-{
-	WaitSlotLocation = &TargetLocation;
-
-	return EStateTreeRunStatus::Running;
+	WaitingSlotIndex = INDEX_NONE;
+	AcquiredLane.Reset();
+	WaitSlotLocation.Reset();
 }

@@ -11,13 +11,16 @@ FMassZoneGraphAnnotationEvaluator::FMassZoneGraphAnnotationEvaluator()
 
 bool FMassZoneGraphAnnotationEvaluator::Link(FStateTreeLinker& Linker)
 {
-	Linker.LinkExternalItem(BehaviorTagsHandle);
+	Linker.LinkExternalData(AnnotationTagsFragmentHandle);
+
+	Linker.LinkInstanceDataProperty(AnnotationTagsHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphAnnotationEvaluatorInstanceData, AnnotationTags));
 
 	return true;
 }
 
-void FMassZoneGraphAnnotationEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime)
+void FMassZoneGraphAnnotationEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const
 {
-	const FMassZoneGraphAnnotationTagsFragment& BehaviorTagsFragment = Context.GetExternalItem(BehaviorTagsHandle);
-	BehaviorTags = BehaviorTagsFragment.Tags;
+	const FMassZoneGraphAnnotationTagsFragment& AnnotationTagsFragment = Context.GetExternalData(AnnotationTagsFragmentHandle);
+	FZoneGraphTagMask& AnnotationTags = Context.GetInstanceData(AnnotationTagsHandle);
+	AnnotationTags = AnnotationTagsFragment.Tags;
 }

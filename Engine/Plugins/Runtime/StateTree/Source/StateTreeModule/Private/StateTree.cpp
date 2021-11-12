@@ -4,6 +4,7 @@
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "CoreMinimal.h"
+#include "StateTreeConditionBase.h"
 #include "StateTreeDelegates.h"
 
 UStateTree::UStateTree(const FObjectInitializer& ObjectInitializer)
@@ -22,18 +23,18 @@ bool UStateTree::IsValidStateTree() const
 void UStateTree::ResetBaked()
 {
 	States.Reset();
-	Conditions.Reset();
 	Transitions.Reset();
 
-	RuntimeStorageItems.Reset();
-	RuntimeStorageStruct = nullptr;
-	RuntimeStorageOffsets.Reset();
-	RuntimeStorageDefaultValue.Reset();
-	ExternalItems.Reset();
+	Items.Reset();
+	Instances.Reset();
+	InstanceStorageStruct = nullptr;
+	InstanceStorageOffsets.Reset();
+	InstanceStorageDefaultValue.Reset();
+	ExternalDataDescs.Reset();
 	PropertyBindings.Reset();
 
-	NumLinkedItems = 0;
-	ExternalItemBaseIndex = 0;
+	NumDataViews = 0;
+	ExternalDataBaseIndex = 0;
 }
 
 void UStateTree::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -67,16 +68,16 @@ void UStateTree::PostLoad()
 	Link();
 	
 #if WITH_EDITOR
-	InitRuntimeStorage();
+	InitInstanceStorage();
 #else
 	// Item offsets still need to be calculated in non editor target since the struct sizes might be different.
-	checkf(RuntimeStorageOffsets.Num() == 0, TEXT("RuntimeStorageOffsets is transient and should only be computed once."));
+	checkf(InstanceStorageOffsets.Num() == 0, TEXT("RuntimeStorageOffsets is transient and should only be computed once."));
 
-	for (TFieldIterator<FProperty> PropertyIt(RuntimeStorageStruct); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(InstanceStorageStruct); PropertyIt; ++PropertyIt)
 	{
 		FStructProperty* StructProperty = CastField<FStructProperty>(*PropertyIt);
-		checkf(StructProperty, TEXT("RuntimeStorageStruct is expected to only contain Struct properties"));
-		RuntimeStorageOffsets.Emplace(StructProperty->Struct, StructProperty->GetOffset_ForInternal());
+		checkf(StructProperty, TEXT("InstanceStorageStruct is expected to only contain Struct properties"));
+		InstanceStorageOffsets.Emplace(StructProperty->Struct, StructProperty->GetOffset_ForInternal());
 	}
 #endif // WITH_EDITOR
 }
@@ -86,7 +87,7 @@ void UStateTree::BeginDestroy()
 	Super::BeginDestroy();
 	
 	// Destroy the runtime storage before the UScriptStruct it uses gets removed.
-	RuntimeStorageDefaultValue.Reset();
+	InstanceStorageDefaultValue.Reset();
 }
 
 void UStateTree::ResolvePropertyPaths()
@@ -99,36 +100,43 @@ void UStateTree::Link()
 {
 	FStateTreeLinker Linker;
 
-	ExternalItemBaseIndex = PropertyBindings.GetSourceStructNum();
-	Linker.SetItemBaseIndex(ExternalItemBaseIndex);
+	ExternalDataBaseIndex = PropertyBindings.GetSourceStructNum();
+	Linker.SetExternalDataBaseIndex(ExternalDataBaseIndex);
 	
-	for (FInstancedStruct& RuntimeItem : RuntimeStorageItems)
+	for (FInstancedStruct& Item : Items)
 	{
-		if (FStateTreeEvaluatorBase* Eval = RuntimeItem.GetMutablePtr<FStateTreeEvaluatorBase>())
+		if (FStateTreeEvaluatorBase* Eval = Item.GetMutablePtr<FStateTreeEvaluatorBase>())
 		{
+			Linker.SetCurrentInstanceDataType(Eval->GetInstanceDataType(), Eval->DataViewIndex);
 			Eval->Link(Linker);
 		}
-		else if (FStateTreeTaskBase* Task = RuntimeItem.GetMutablePtr<FStateTreeTaskBase>())
+		else if (FStateTreeTaskBase* Task = Item.GetMutablePtr<FStateTreeTaskBase>())
 		{
+			Linker.SetCurrentInstanceDataType(Task->GetInstanceDataType(), Task->DataViewIndex);
 			Task->Link(Linker);
+		}
+		else if (FStateTreeConditionBase* Cond = Item.GetMutablePtr<FStateTreeConditionBase>())
+		{
+			Linker.SetCurrentInstanceDataType(Cond->GetInstanceDataType(), Cond->DataViewIndex);
+			Cond->Link(Linker);
 		}
 	}
 
-	ExternalItems = Linker.GetItemDescs();
+	ExternalDataDescs = Linker.GetExternalDataDescs();
 	
-	NumLinkedItems = ExternalItemBaseIndex + ExternalItems.Num();
+	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
 }
 
-void UStateTree::InitRuntimeStorage()
+void UStateTree::InitInstanceStorage()
 {
-	RuntimeStorageStruct = nullptr;
-	RuntimeStorageOffsets.Reset();
-	RuntimeStorageDefaultValue.Reset();
+	InstanceStorageStruct = nullptr;
+	InstanceStorageOffsets.Reset();
+	InstanceStorageDefaultValue.Reset();
 
 	// Check that the items are valid before trying to create the type.
 	// The structs can become invalid i.e. because of missing type.
 	bool bValid = true;
-	for (const FInstancedStruct& Item : RuntimeStorageItems)
+	for (const FInstancedStruct& Item : Instances)
 	{
 		if (!Item.IsValid())
 		{
@@ -141,7 +149,7 @@ void UStateTree::InitRuntimeStorage()
 		return;
 	}
 
-	const FString StructName = GetName() + TEXT("_RuntimeStorage");
+	const FString StructName = GetName() + TEXT("_InstanceStorage");
 
 	// Remove existing struct of same name.
 	UScriptStruct* OldStruct = FindObject<UScriptStruct>(this, *StructName);
@@ -164,10 +172,10 @@ void UStateTree::InitRuntimeStorage()
 	// Append all evaluators and tasks.
 	// Since properties are stored in linked list, add in reverse order so that we retain the correct order in output.
 	TArray<FStructProperty*> NewProperties;
-	NewProperties.SetNumZeroed(RuntimeStorageItems.Num());
-	for (int32 ItemIndex = RuntimeStorageItems.Num() - 1; ItemIndex >= 0; ItemIndex--)
+	NewProperties.SetNumZeroed(Instances.Num());
+	for (int32 ItemIndex = Instances.Num() - 1; ItemIndex >= 0; ItemIndex--)
 	{
-		const FInstancedStruct& ItemPtr = RuntimeStorageItems[ItemIndex];
+		const FInstancedStruct& ItemPtr = Instances[ItemIndex];
 		UScriptStruct* ItemStruct = const_cast<UScriptStruct*>(ItemPtr.GetScriptStruct());
 		FName PropName(FString::Printf(TEXT("%s%d"), *ItemStruct->GetName(), NewProperties.Num()));
 		FStructProperty* NewStructProperty = new FStructProperty(NewStruct, PropName, RF_Public);
@@ -183,22 +191,22 @@ void UStateTree::InitRuntimeStorage()
 	NewStruct->StaticLink(/*bRelinkExistingProperties*/true);
 
 	// Store item offsets for fast struct view creation at runtime.
-	TArray<FStateTreeRuntimeStorageItemOffset> NewItemOffsets;
+	TArray<FStateTreeInstanceStorageOffset> NewOffsets;
 	for (FStructProperty* StructProperty : NewProperties)
 	{
-		NewItemOffsets.Emplace(StructProperty->Struct, StructProperty->GetOffset_ForInternal());
+		NewOffsets.Emplace(StructProperty->Struct, StructProperty->GetOffset_ForInternal());
 	}
-	check(RuntimeStorageItems.Num() == NewItemOffsets.Num());
+	check(Instances.Num() == NewOffsets.Num());
 
 	// Instantiate default value
-	RuntimeStorageDefaultValue.InitializeAs(NewStruct);
-	for (int i = 0; i < NewItemOffsets.Num(); i++)
+	InstanceStorageDefaultValue.InitializeAs(NewStruct);
+	for (int i = 0; i < NewOffsets.Num(); i++)
 	{
-		const FStateTreeRuntimeStorageItemOffset& Item = NewItemOffsets[i];
-		uint8* Dest = RuntimeStorageDefaultValue.GetMutableMemory() + Item.Offset;
-		Item.Struct->CopyScriptStruct(Dest, RuntimeStorageItems[i].GetMemory());
+		const FStateTreeInstanceStorageOffset& Item = NewOffsets[i];
+		uint8* Dest = InstanceStorageDefaultValue.GetMutableMemory() + Item.Offset;
+		Item.Struct->CopyScriptStruct(Dest, Instances[i].GetMemory());
 	}
 
-	RuntimeStorageOffsets = NewItemOffsets;
-	RuntimeStorageStruct = NewStruct;
+	InstanceStorageOffsets = NewOffsets;
+	InstanceStorageStruct = NewStruct;
 }

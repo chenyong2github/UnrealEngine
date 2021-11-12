@@ -24,13 +24,19 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	virtual ~FStateTreeEvaluatorBase() {}
 
 	/**
+	* @return Struct that represents the runtime data of the evaluator.
+	*/
+	virtual const UStruct* GetInstanceDataType() const PURE_VIRTUAL(FStateTreeEvaluatorBase::GetInstanceDataType(), return nullptr;);
+
+	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
-	 * @see TStateTreeItemHandle.
+	 * @see TStateTreeExternalDataHandle
+	 * @see TStateTreeInstanceDataPropertyHandle
 	 * @param Linker Reference to the linker
 	 * @return true if linking succeeded. 
 	 */
 	virtual bool Link(FStateTreeLinker& Linker) { return true; }
-	
+
 	/**
 	 * Called when a new state is entered and evaluator is part of active states. The change type parameter describes if the evaluator's state
 	 * was previously part of the list of active states (Sustained), or if it just became active (Changed).
@@ -38,7 +44,7 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	 * @param ChangeType Describes the change type (Changed/Sustained).
 	 * @param Transition Describes the states involved in the transition
 	 */
-	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) {}
+	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const {}
 
 	/**
 	 * Called when a current state is exited and evaluator is part of active states. The change type parameter describes if the evaluator's state
@@ -47,7 +53,7 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	 * @param ChangeType Describes the change type (Changed/Sustained).
 	 * @param Transition Describes the states involved in the transition
 	 */
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) {}
+	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const {}
 
 	/**
 	 * Called Right after a state has been completed. StateCompleted is called in reverse order to allow to propagate state to Evaluators and Tasks that
@@ -56,7 +62,7 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	 * @param CompletionStatus Describes the running status of the completed state (Succeeded/Failed).
 	 * @param CompletedState Handle of the state that was completed.
 	 */
-	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) {}
+	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const {}
 	
 	/**
 	 * Called when evaluator needs to be updated. EvalType describes if the tick happens during state tree tick when the evaluator is on active state (Tick),
@@ -66,7 +72,7 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	 * @param EvalType Describes tick type.
 	 * @param DeltaTime Time since last StateTree tick, or 0 if called during preselection.
 	 */
-	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) {}
+	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const {}
 
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const;
@@ -75,16 +81,13 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	UPROPERTY(EditDefaultsOnly, Category = Evaluator, meta=(EditCondition = "false", EditConditionHides))
 	FName Name;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = Evaluator, meta=(IgnoreForMemberInitializationTest, EditCondition="false", EditConditionHides))	// Hack, we want the ID to be found as IPropertyHandle, but do not want to display it.
-	FGuid ID;
-#endif
-
+	/** Property binding copy batch handle. */
 	UPROPERTY()
 	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;		// Property binding copy batch handle.
 
+	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
 	UPROPERTY()
-	uint16 SourceStructIndex = 0;									// Property binding Source Struct index of the evaluator.
+	uint16 DataViewIndex = 0;
 };
 
 template<> struct TStructOpsTypeTraits<FStateTreeEvaluatorBase> : public TStructOpsTypeTraitsBase2<FStateTreeEvaluatorBase> { enum { WithPureVirtual = true, }; };

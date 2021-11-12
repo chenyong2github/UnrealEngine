@@ -51,7 +51,7 @@ void FStateTreeEditorPropertyBindings::GetPropertyBindingsFor(const FGuid Struct
 		});
 }
 
-void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, const UScriptStruct*>& ValidStructs)
+void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, const UStruct*>& ValidStructs)
 {
 	PropertyBindings.RemoveAll([ValidStructs](const FStateTreeEditorPropertyBinding& Binding)
 		{
@@ -63,7 +63,7 @@ void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, co
 
 			// Remove binding if the target property cannot be resolved, likely renamed property.
 			// TODO: Try to use core redirect to find new name.
-			const UScriptStruct* Struct = ValidStructs.FindChecked(Binding.TargetPath.StructID);
+			const UStruct* Struct = ValidStructs.FindChecked(Binding.TargetPath.StructID);
 
 			FStateTreeBindableStructDesc StructDesc;
 			StructDesc.Struct = Struct;

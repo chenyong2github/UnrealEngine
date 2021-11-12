@@ -19,7 +19,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 
 	if (ValidStates.Num() > 0)
 	{
-		VisitHierarchy([&ValidStates, &OutStructDescs, &EvalDescs, &TaskDescs, TargetStructID, CurrentState](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct) -> bool
+		VisitHierarchy([&ValidStates, &OutStructDescs, &EvalDescs, &TaskDescs, TargetStructID, CurrentState](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct) -> bool
 			{
 				if (ValidStates.Contains(&State))
 				{
@@ -28,7 +28,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 						OutStructDescs.Append(EvalDescs);
 
 						// Only tasks can see other tasks too.
-						if (Struct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
+						if (ItemStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 						{
 							OutStructDescs.Append(TaskDescs);
 						}
@@ -36,19 +36,19 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 						return false; // Stop visit
 					}
 
-					if (Struct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
+					if (ItemStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
 					{
 						// All evaluators up to the target struct are accessible.
 						FStateTreeBindableStructDesc& Desc = EvalDescs.AddDefaulted_GetRef();
-						Desc.Struct = Struct;
+						Desc.Struct = InstanceStruct;
 						Desc.Name = Name;
 						Desc.ID = ID;
 					}
-					else if (Struct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
+					else if (ItemStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 					{
 						// All tasks up to the target struct are accessible (for other tasks).
 						FStateTreeBindableStructDesc& Desc = TaskDescs.AddDefaulted_GetRef();
-						Desc.Struct = Struct;
+						Desc.Struct = InstanceStruct;
 						Desc.Name = Name;
 						Desc.ID = ID;
 					}
@@ -62,11 +62,11 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 {
 	bool bResult = false;
 
-	VisitHierarchy([&bResult, &OutStructDesc, StructID](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct) -> bool
+	VisitHierarchy([&bResult, &OutStructDesc, StructID](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct) -> bool
 		{
 			if (ID == StructID)
 			{
-				OutStructDesc.Struct = Struct;
+				OutStructDesc.Struct = InstanceStruct;
 				OutStructDesc.Name = Name;
 				OutStructDesc.ID = ID;
 				bResult = true;
@@ -82,7 +82,7 @@ const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid Targ
 {
 	const UStateTreeState* Result = nullptr;
 
-	VisitHierarchy([&Result, TargetStructID](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct) -> bool
+	VisitHierarchy([&Result, TargetStructID](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct) -> bool
 		{
 			if (ID == TargetStructID)
 			{
@@ -95,18 +95,18 @@ const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid Targ
 	return Result;
 }
 
-void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UScriptStruct*>& AllStructs) const
+void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const
 {
 	AllStructs.Reset();
 
-	VisitHierarchy([&AllStructs](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct) -> bool
+	VisitHierarchy([&AllStructs](const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct) -> bool
 		{
-			AllStructs.Add(ID, Struct);
+			AllStructs.Add(ID, InstanceStruct);
 			return true; // Continue
 		});
 }
 
-void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* Struct)> InFunc) const
+void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct)> InFunc) const
 {
 	TArray<const UStateTreeState*> Stack;
 	bool bContinue = true;
@@ -130,9 +130,9 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			// Evaluators
 			for (const FStateTreeEvaluatorItem& Item : State->Evaluators)
 			{
-				if (const FStateTreeEvaluatorBase* Evaluator = Item.Type.GetPtr<FStateTreeEvaluatorBase>())
+				if (const FStateTreeEvaluatorBase* Evaluator = Item.Item.GetPtr<FStateTreeEvaluatorBase>())
 				{
-					if (!InFunc(*State, Evaluator->ID, Evaluator->Name, Item.Type.GetScriptStruct()))
+					if (!InFunc(*State, Item.ID, Evaluator->Name, Item.Item.GetScriptStruct(), Evaluator->GetInstanceDataType()))
 					{
 						bContinue = false;
 						break;
@@ -144,9 +144,9 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 				// Enter conditions
 				for (const FStateTreeConditionItem& Item : State->EnterConditions)
 				{
-					if (const FStateTreeConditionBase* Cond = Item.Type.GetPtr<FStateTreeConditionBase>())
+					if (const FStateTreeConditionBase* Cond = Item.Item.GetPtr<FStateTreeConditionBase>())
 					{
-						if (!InFunc(*State, Cond->ID, Item.Type.GetScriptStruct()->GetFName(), Item.Type.GetScriptStruct()))
+						if (!InFunc(*State, Item.ID, Item.Item.GetScriptStruct()->GetFName(), Item.Item.GetScriptStruct(), Cond->GetInstanceDataType()))
 						{
 							bContinue = false;
 							break;
@@ -159,9 +159,9 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 				// Tasks
 				for (const FStateTreeTaskItem& Item : State->Tasks)
 				{
-					if (const FStateTreeTaskBase* Task = Item.Type.GetPtr<FStateTreeTaskBase>())
+					if (const FStateTreeTaskBase* Task = Item.Item.GetPtr<FStateTreeTaskBase>())
 					{
-						if (!InFunc(*State, Task->ID, Task->Name, Item.Type.GetScriptStruct()))
+						if (!InFunc(*State, Item.ID, Task->Name, Item.Item.GetScriptStruct(), Task->GetInstanceDataType()))
 						{
 							bContinue = false;
 							break;
@@ -176,9 +176,9 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 				{
 					for (const FStateTreeConditionItem& Item : Transition.Conditions)
 					{
-						if (const FStateTreeConditionBase* Cond = Item.Type.GetPtr<FStateTreeConditionBase>())
+						if (const FStateTreeConditionBase* Cond = Item.Item.GetPtr<FStateTreeConditionBase>())
 						{
-							if (!InFunc(*State, Cond->ID, Item.Type.GetScriptStruct()->GetFName(), Item.Type.GetScriptStruct()))
+							if (!InFunc(*State, Item.ID, Item.Item.GetScriptStruct()->GetFName(), Item.Item.GetScriptStruct(), Cond->GetInstanceDataType()))
 							{
 								bContinue = false;
 								break;

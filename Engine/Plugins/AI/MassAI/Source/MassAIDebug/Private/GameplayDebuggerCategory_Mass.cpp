@@ -491,7 +491,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							StateTreeContext.Init(*OwnerPC, *StateTree, EStateTreeStorage::External);
 							StateTreeContext.SetEntity(Entity);
 							
-							FStructView Storage = EntitySystem->GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+							FStructView Storage = EntitySystem->GetFragmentDataStruct(Entity, StateTree->GetInstanceStorageStruct());
 							
 							Status += StateTreeContext.GetActiveStateName(Storage);
 							Status += TEXT("\n");

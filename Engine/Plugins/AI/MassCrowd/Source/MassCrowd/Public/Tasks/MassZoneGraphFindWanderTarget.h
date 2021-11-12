@@ -15,6 +15,15 @@ class UMassCrowdSubsystem;
 /**
  * Updates TargetLocation to a wander target based on the agents current location on ZoneGraph.
  */
+USTRUCT()
+struct MASSCROWD_API FMassZoneGraphFindWanderTargetInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation WanderTargetLocation;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Find Wander Target"))
 struct MASSCROWD_API FMassZoneGraphFindWanderTarget : public FMassStateTreeTaskBase
 {
@@ -24,20 +33,16 @@ struct MASSCROWD_API FMassZoneGraphFindWanderTarget : public FMassStateTreeTaskB
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindWanderTargetInstanceData::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
-	TStateTreeItemHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
-	TStateTreeItemHandle<UMassCrowdSubsystem> MassCrowdSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassCrowdSubsystem> MassCrowdSubsystemHandle;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	FZoneGraphTagFilter AllowedBehaviorTags;
+	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> WanderTargetLocationHandle;
 
-	FMassZoneGraphTargetLocation TargetLocation;
-
-	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation"))
-	FStateTreeResultRef WanderTargetLocation;
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FZoneGraphTagFilter AllowedAnnotationTags;
 };

@@ -23,21 +23,21 @@ bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEn
 {
 	bool bFoundAllFragments = true;
 	const FMassEntityView EntityView(EntitySubsystem, Context.GetEntity());
-	for (const FStateTreeExternalItemDesc& ItemDesc : Context.GetExternalItems())
+	for (const FStateTreeExternalDataDesc& DataDesc : Context.GetExternalDataDescs())
 	{
-		if (ItemDesc.Struct && ItemDesc.Struct->IsChildOf(FMassFragment::StaticStruct()))
+		if (DataDesc.Struct && DataDesc.Struct->IsChildOf(FMassFragment::StaticStruct()))
 		{
-			const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(ItemDesc.Struct);
+			const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(DataDesc.Struct);
 			FStructView Fragment = EntityView.GetFragmentDataStruct(ScriptStruct);
 			if (Fragment.IsValid())
 			{
-				Context.SetExternalItem(ItemDesc.Handle, FStateTreeItemView(Fragment));
+				Context.SetExternalData(DataDesc.Handle, FStateTreeDataView(Fragment));
 			}
 			else
 			{
-				if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
+				if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 				{
-					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalItemsValid().
+					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalDataViewsValid().
 					bFoundAllFragments = false;
 				}
 			}
@@ -55,21 +55,21 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 	}
 
 	bool bFoundAllSubsystems = true;
-	for (const FStateTreeExternalItemDesc& ItemDesc : Context.GetExternalItems())
+	for (const FStateTreeExternalDataDesc& DataDesc : Context.GetExternalDataDescs())
 	{
-		if (ItemDesc.Struct && ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
+		if (DataDesc.Struct && DataDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 		{
-			const TSubclassOf<UWorldSubsystem> SubClass = Cast<UClass>(const_cast<UStruct*>(ItemDesc.Struct));
+			const TSubclassOf<UWorldSubsystem> SubClass = Cast<UClass>(const_cast<UStruct*>(DataDesc.Struct));
 			UWorldSubsystem* Subsystem = World->GetSubsystemBase(SubClass);
 			if (Subsystem)
 			{
-				Context.SetExternalItem(ItemDesc.Handle, FStateTreeItemView(Subsystem));
+				Context.SetExternalData(DataDesc.Handle, FStateTreeDataView(Subsystem));
 			}
 			else
 			{
-				if (ItemDesc.Requirement == EStateTreeItemRequirement::Required)
+				if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 				{
-					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalItemsValid().
+					// Note: Not breaking here, so that we can validate all missing ones in one go with FMassStateTreeExecutionContext::AreExternalDataViews Valid().
 					bFoundAllSubsystems = false;
 				}
 			}
@@ -81,7 +81,7 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 void ForEachEntityInChunk(
 	FMassStateTreeExecutionContext& StateTreeContext,
 	UMassStateTreeSubsystem& MassStateTreeSubsystem,
-	const TFunctionRef<void(FMassStateTreeExecutionContext&, FStateTreeItemView)> ForEachEntityCallback)
+	const TFunctionRef<void(FMassStateTreeExecutionContext&, FStateTreeDataView)> ForEachEntityCallback)
 {
 	const FMassExecutionContext& Context = StateTreeContext.GetEntitySubsystemExecutionContext();
 	const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
@@ -106,7 +106,7 @@ void ForEachEntityInChunk(
 		}
 	}
 
-	const UScriptStruct* StorageScriptStruct = StateTree->GetRuntimeStorageStruct();
+	const UScriptStruct* StorageScriptStruct = StateTree->GetInstanceStorageStruct();
 	for (int32 i = 0; i < NumEntities; ++i)
 	{
 		const FMassEntityHandle Entity = Context.GetEntity(i);
@@ -122,11 +122,11 @@ void ForEachEntityInChunk(
 			}
 		}
 
-		// Make sure all required external items are set.
+		// Make sure all required external data are set.
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalItemsValidation);
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalDataValidation);
 			// TODO: disable this when not in debug.
-			if (!ensureMsgf(StateTreeContext.AreExternalItemsValid(), TEXT("StateTree will not execute due to missing external items.")))
+			if (!ensureMsgf(StateTreeContext.AreExternalDataViewsValid(), TEXT("StateTree will not execute due to missing external data.")))
 			{
 				break;
 			}
@@ -166,7 +166,7 @@ void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 			UE::MassBehavior::ForEachEntityInChunk(
 				StateTreeContext,
 				*MassStateTreeSubsystem,
-				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeItemView Storage)
+				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeDataView Storage)
 				{
 					// Start the tree instance
 					StateTreeExecutionContext.Start(Storage);
@@ -201,7 +201,7 @@ void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsy
 			UE::MassBehavior::ForEachEntityInChunk(
 				StateTreeContext,
 				*MassStateTreeSubsystem,
-				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeItemView Storage)
+				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeDataView Storage)
 				{
 					// Stop the tree instance
 					StateTreeExecutionContext.Stop(Storage);
@@ -341,7 +341,7 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 			UE::MassBehavior::ForEachEntityInChunk(
 				StateTreeContext,
 				*MassStateTreeSubsystem,
-				[&StateTreeList, TimeDelta, TimeInSeconds, &EntitiesToSignal](FMassStateTreeExecutionContext& StateTreeExecutionContext, const FStateTreeItemView Storage)
+				[&StateTreeList, TimeDelta, TimeInSeconds, &EntitiesToSignal](FMassStateTreeExecutionContext& StateTreeExecutionContext, const FStateTreeDataView Storage)
 				{
 					// Compute adjusted delta time
 					TOptional<float>& LastUpdate = StateTreeList[StateTreeExecutionContext.GetEntityIndex()].LastUpdateTimeInSeconds;

@@ -19,11 +19,9 @@ struct FDataFragment_AgentRadius;
 class UZoneGraphSubsystem;
 
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation : public FStateTreeResult
+struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation
 {
 	GENERATED_BODY()
-
-	virtual const UScriptStruct& GetStruct() const override { return *StaticStruct(); }
 
 	void Reset()
 	{
@@ -68,6 +66,21 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphTargetLocation : public FStateTreeResult
 /**
  * Follows a path long the current lane to a specified point.
  */
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTaskInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	FMassZoneGraphTargetLocation TargetLocation;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FMassMovementStyleRef MovementStyle;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	float SpeedScale = 1.0f;
+};
+
 USTRUCT(meta = (DisplayName = "ZG Path Follow"))
 struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTask : public FMassStateTreeTaskBase
 {
@@ -75,26 +88,22 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTask : public FMassStateTreeTa
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphPathFollowTaskInstanceData::StaticStruct(); };
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 	bool RequestPath(FMassStateTreeExecutionContext& Context, const FMassZoneGraphTargetLocation& TargetLocation) const;
 
-	TStateTreeItemHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
-	TStateTreeItemHandle<FMassMoveTargetFragment> MoveTargetHandle;
-	TStateTreeItemHandle<FMassMovementConfigFragment> MovementConfigHandle;
-	TStateTreeItemHandle<FMassZoneGraphPathRequestFragment> PathRequestHandle;
-	TStateTreeItemHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
-	TStateTreeItemHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
-	TStateTreeItemHandle<FDataFragment_AgentRadius> AgentRadiusHandle;
-	TStateTreeItemHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeExternalDataHandle<FMassMovementConfigFragment> MovementConfigHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphPathRequestFragment> PathRequestHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
+	TStateTreeExternalDataHandle<FDataFragment_AgentRadius> AgentRadiusHandle;
+	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 
-	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation", Bindable))
-	FStateTreeResultRef TargetLocation;
-
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	FMassMovementStyleRef MovementStyle;
-
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	float SpeedScale = 1.0f;
+	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> TargetLocationHandle;
+	TStateTreeInstanceDataPropertyHandle<FMassMovementStyleRef> MovementStyleHandle;
+	TStateTreeInstanceDataPropertyHandle<float> SpeedScaleHandle;
 };
