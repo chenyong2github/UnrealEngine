@@ -45,7 +45,7 @@ namespace HordeServerTests
 	using UserId = ObjectId<IUser>;
 
 	[TestClass]
-	public class IssueServiceTests : DatabaseIntegrationTest
+	public class IssueServiceTests : TestSetup
 	{
 		class TestJsonLogger : JsonLogger, IAsyncDisposable
 		{
@@ -108,10 +108,7 @@ namespace HordeServerTests
 		StreamId DevStreamId = StreamId.Sanitize(DevStreamName);
 
 		IGraph Graph;
-		TestSetup TestSetup;
 		PerforceServiceStub Perforce;
-		ILogFileService LogFileService => TestSetup.LogFileService;
-		IIssueService IssueService => TestSetup.IssueService;
 
 		UserId TimId;
 		UserId JerryId;
@@ -121,8 +118,6 @@ namespace HordeServerTests
 
 		public IssueServiceTests()
 		{
-			this.TestSetup = GetTestSetup().Result;
-
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				WorkspaceDir = new DirectoryReference("C:\\Horde");
@@ -132,23 +127,23 @@ namespace HordeServerTests
 				WorkspaceDir = new DirectoryReference("/Horde");
 			}
 
-			IProject Project = TestSetup.ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
+			IProject Project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
 
-			IStream MainStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(MainStreamId, null, "", "", Project.Id, new StreamConfig { Name = MainStreamName }).Result!;
-			IStream ReleaseStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(ReleaseStreamId, null, "", "", Project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
-			IStream DevStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(DevStreamId, null, "", "", Project.Id, new StreamConfig { Name = DevStreamName }).Result!;
+			IStream MainStream = StreamCollection.TryCreateOrReplaceAsync(MainStreamId, null, "", "", Project.Id, new StreamConfig { Name = MainStreamName }).Result!;
+			IStream ReleaseStream = StreamCollection.TryCreateOrReplaceAsync(ReleaseStreamId, null, "", "", Project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
+			IStream DevStream = StreamCollection.TryCreateOrReplaceAsync(DevStreamId, null, "", "", Project.Id, new StreamConfig { Name = DevStreamName }).Result!;
 
-			IUser Bill = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
-			IUser Anne = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
-			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
-			IUser Jerry = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
-			IUser Chris = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
+			IUser Bill = UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
+			IUser Anne = UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
+			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			IUser Jerry = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
+			IUser Chris = UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
 
-			TimId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
-			JerryId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
-			BobId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
+			TimId = UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
+			JerryId = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
+			BobId = UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
 
-			Perforce = TestSetup.PerforceService;
+			Perforce = PerforceService;
 			Perforce.AddChange(MainStreamName, 100, Bill, "Description", new string[] { "a/b.cpp" });
 			Perforce.AddChange(MainStreamName, 105, Anne, "Description", new string[] { "a/c.cpp" });
 			Perforce.AddChange(MainStreamName, 110, Bob, "Description", new string[] { "a/d.cpp" });
@@ -232,7 +227,7 @@ namespace HordeServerTests
 
 			JobStepRefId JobStepRefId = new JobStepRefId(Job.Id, Batch.Id, Step.Id);
 			string NodeName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;
-			await TestSetup.JobStepRefCollection.InsertOrReplaceAsync(JobStepRefId, "TestJob", NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, null, null, Outcome, 0.0f, 0.0f, Step.StartTimeUtc!.Value, Step.StartTimeUtc);
+			await JobStepRefCollection.InsertOrReplaceAsync(JobStepRefId, "TestJob", NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, null, null, Outcome, 0.0f, 0.0f, Step.StartTimeUtc!.Value, Step.StartTimeUtc);
 		}
 
 		async Task AddEvent(IJob Job, int BatchIdx, int StepIdx, object Data, EventSeverity Severity = EventSeverity.Error)

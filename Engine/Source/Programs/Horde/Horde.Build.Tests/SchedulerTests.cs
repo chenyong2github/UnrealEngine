@@ -26,36 +26,26 @@ namespace HordeServerTests
 	using LogId = ObjectId<ILogFile>;
 
 	[TestClass]
-    public class SchedulerTests : DatabaseIntegrationTest
+    public class SchedulerTests : TestSetup
 	{
 		ProjectId ProjectId { get; } = new ProjectId("ue5");
 		StreamId StreamId { get; } = new StreamId("ue5-main");
 		TemplateRefId TemplateRefId { get; } = new TemplateRefId("template1");
 
-		IServiceProvider ServiceProvider;
-		TestSetup TestSetup;
 		ITemplate Template;
 		HashSet<JobId> InitialJobIds;
-		ScheduleService ScheduleService;
-		PerforceServiceStub PerforceService;
 
 		public SchedulerTests()
 		{
-			TestSetup = GetTestSetup().Result;
+			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
 
-			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
-
-			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
+			IProject ? Project = ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
-			Template = TestSetup.TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>()).Result;
+			Template = TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>()).Result;
 
-			InitialJobIds = new HashSet<JobId>(TestSetup.JobCollection.FindAsync().Result.Select(x => x.Id));
+			InitialJobIds = new HashSet<JobId>(JobCollection.FindAsync().Result.Select(x => x.Id));
 
-			ServiceProvider = TestSetup.ServiceProvider;
-			ScheduleService = ServiceProvider.GetRequiredService<ScheduleService>();
-
-			PerforceService = (PerforceServiceStub)TestSetup.PerforceService;
 			PerforceService.Changes.Clear();
 			PerforceService.AddChange("//UE5/Main", 100, Bob, "", new[] { "code.cpp" });
 			PerforceService.AddChange("//UE5/Main", 101, Bob, "", new[] { "content.uasset" });
@@ -64,20 +54,19 @@ namespace HordeServerTests
 
 		async Task<IStream> SetScheduleAsync(CreateScheduleRequest Schedule)
 		{
-			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
 
 			StreamConfig Config = new StreamConfig();
 			Config.Name = "//UE5/Main";
 			Config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId.ToString() } });
 			Config.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId.ToString(), Name = "Test", Schedule = Schedule });
 
-			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
 			return (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", ProjectId, Config))!; 
 		}
 
 		public async Task<List<IJob>> FileTestHelperAsync(params string[] Files)
 		{
-			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob", "Bob").Result;
+			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob", "Bob").Result;
 
 			PerforceService.Changes.Clear();
 			PerforceService.AddChange("//UE5/Main", 100, Bob, "", new[] { "code.cpp" });
@@ -89,7 +78,7 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new[] { "bar/foo/content.uasset" });
 
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -98,7 +87,7 @@ namespace HordeServerTests
 			Schedule.Files = Files.ToList();
 			await SetScheduleAsync(Schedule);
 
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			return await GetNewJobs();
@@ -137,7 +126,7 @@ namespace HordeServerTests
 		public void DayScheduleTest()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
 			Schedule.Patterns.Add(new SchedulePattern(new List<DayOfWeek> { DayOfWeek.Friday, DayOfWeek.Sunday }, 13 * 60, null, null));
@@ -159,7 +148,7 @@ namespace HordeServerTests
 		public void MulticheduleTest()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
 			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
@@ -187,7 +176,7 @@ namespace HordeServerTests
 		public async Task NoSubmittedChangeTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -202,7 +191,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -215,7 +204,7 @@ namespace HordeServerTests
 		public async Task RequireSubmittedChangeTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -229,7 +218,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -237,13 +226,13 @@ namespace HordeServerTests
 			Assert.AreEqual(102, Jobs2[0].Change);
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
-			IStream Stream2 = (await TestSetup.StreamCollection.GetAsync(Stream.Id))!;
+			IStream Stream2 = (await StreamCollection.GetAsync(Stream.Id))!;
 			Schedule Schedule2 = Stream2.Templates.First().Value.Schedule!;
 			Assert.AreEqual(102, Schedule2.LastTriggerChange);
-			Assert.AreEqual(TestSetup.Clock.UtcNow, Schedule2.LastTriggerTime);
+			Assert.AreEqual(Clock.UtcNow, Schedule2.LastTriggerTime);
 
 			// Trigger another job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(0.5));
+			Clock.Advance(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -254,7 +243,7 @@ namespace HordeServerTests
 		public async Task MultipleJobsTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -270,13 +259,13 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger some jobs
-			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
 			PerforceService.AddChange("//UE5/Main", 103, Bob, "", new string[] { "foo.cpp" });
 			PerforceService.AddChange("//UE5/Main", 104, Bob, "", new string[] { "foo.cpp" });
 			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new string[] { "foo.uasset" });
 			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
 
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -291,7 +280,7 @@ namespace HordeServerTests
 		public async Task MaxActiveTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -301,7 +290,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			// Trigger a job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -310,17 +299,17 @@ namespace HordeServerTests
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
 			// Test that another job does not trigger
-			TestSetup.Clock.Advance(TimeSpan.FromHours(0.5));
+			Clock.Advance(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
 
 			// Mark the original job as complete
-			await TestSetup.JobService.UpdateJobAsync(Jobs2[0], AbortedByUserId: KnownUsers.System);
+			await JobService.UpdateJobAsync(Jobs2[0], AbortedByUserId: KnownUsers.System);
 
 			// Test that another job does not trigger
-			TestSetup.Clock.Advance(TimeSpan.FromHours(0.5));
+			Clock.Advance(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs4 = await GetNewJobs();
@@ -333,7 +322,7 @@ namespace HordeServerTests
 		public async Task CreateNewChangeTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -341,7 +330,7 @@ namespace HordeServerTests
 			IStream Stream = await SetScheduleAsync(Schedule);
 
 			// Trigger a job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -350,7 +339,7 @@ namespace HordeServerTests
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
 			// Check another job does not trigger due to the change above
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -361,14 +350,14 @@ namespace HordeServerTests
 		public async Task GateTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			// Create two templates, the second dependent on the first
-			ITemplate? NewTemplate1 = await TestSetup.TemplateCollection.AddAsync("Test template 1");
+			ITemplate? NewTemplate1 = await TemplateCollection.AddAsync("Test template 1");
 			TemplateRef NewTemplateRef1 = new TemplateRef(NewTemplate1);
 			TemplateRefId NewTemplateRefId1 = new TemplateRefId("new-template-1");
 
-			ITemplate? NewTemplate2 = await TestSetup.TemplateCollection.AddAsync("Test template 2");
+			ITemplate? NewTemplate2 = await TemplateCollection.AddAsync("Test template 2");
 			TemplateRef NewTemplateRef2 = new TemplateRef(NewTemplate2);
 			NewTemplateRef2.Schedule = new Schedule();
 			NewTemplateRef2.Schedule.Gate = new ScheduleGate(NewTemplateRefId1, "TriggerNext");
@@ -376,19 +365,18 @@ namespace HordeServerTests
 			NewTemplateRef2.Schedule.LastTriggerTime = StartTime;
 			TemplateRefId NewTemplateRefId2 = new TemplateRefId("new-template-2");
 
-			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
 
 			StreamConfig Config = new StreamConfig();
 			Config.Name = "//UE5/Main";
 			Config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { NewTemplateRefId1.ToString(), NewTemplateRefId2.ToString() } });
 
-			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
 			Stream = (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", ProjectId, Config))!;
 
 			// Create the TriggerNext step and mark it as complete
-			IGraph GraphA = await TestSetup.GraphCollection.AddAsync(NewTemplate1);
+			IGraph GraphA = await GraphCollection.AddAsync(NewTemplate1);
 			NewGroup GroupA = new NewGroup("win", new List<NewNode> { new NewNode("TriggerNext") });
-			GraphA = await TestSetup.GraphCollection.AppendAsync(GraphA, new List<NewGroup> { GroupA });
+			GraphA = await GraphCollection.AppendAsync(GraphA, new List<NewGroup> { GroupA });
 
 			// Tick the schedule and make sure it doesn't trigger
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -396,22 +384,22 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs2.Count);
 
 			// Create a job and fail it
-			IJob Job1 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
-			Job1 = Deref(await TestSetup.JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Assert.IsNotNull(await TestSetup.JobService.UpdateStepAsync(Job1, Job1.Batches[0].Id, Job1.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Failure));
-			Job1 = Deref(await TestSetup.JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Complete));
+			IJob Job1 = await JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
+			Job1 = Deref(await JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			Assert.IsNotNull(await JobService.UpdateStepAsync(Job1, Job1.Batches[0].Id, Job1.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Failure));
+			Job1 = Deref(await JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Complete));
 			await GetNewJobs();
 
 			// Tick the schedule and make sure it doesn't trigger
-			TestSetup.Clock.Advance(TimeSpan.FromMinutes(30.0));
+			Clock.Advance(TimeSpan.FromMinutes(30.0));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
 
 			// Create a job and make it succeed
-			IJob Job2 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
-			Job2 = Deref(await TestSetup.JobService.UpdateBatchAsync(Job2, Job2.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			Assert.IsNotNull(await TestSetup.JobService.UpdateStepAsync(Job2, Job2.Batches[0].Id, Job2.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			IJob Job2 = await JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
+			Job2 = Deref(await JobService.UpdateBatchAsync(Job2, Job2.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
+			Assert.IsNotNull(await JobService.UpdateStepAsync(Job2, Job2.Batches[0].Id, Job2.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 
 			// Tick the schedule and make sure it does trigger
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -425,7 +413,7 @@ namespace HordeServerTests
 		public async Task UpdateConfigAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -434,7 +422,7 @@ namespace HordeServerTests
 			Schedule.MaxActive = 2;
 			await SetScheduleAsync(Schedule);
 
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
@@ -443,7 +431,7 @@ namespace HordeServerTests
 			Assert.AreEqual(100, Jobs1[0].CodeChange);
 
 			// Make sure the job is registered
-			IStream? Stream1 = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			IStream? Stream1 = await StreamService.GetStreamAsync(StreamId);
 			TemplateRef TemplateRef1 = Stream1!.Templates.First().Value;
 			Assert.AreEqual(1, TemplateRef1.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(Jobs1[0].Id, TemplateRef1.Schedule!.ActiveJobs[0]);
@@ -452,7 +440,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			// Make sure the job is still registered
-			IStream? Stream2 = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			IStream? Stream2 = await StreamService.GetStreamAsync(StreamId);
 			TemplateRef TemplateRef2 = Stream2!.Templates.First().Value;
 			Assert.AreEqual(1, TemplateRef2.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(Jobs1[0].Id, TemplateRef2.Schedule!.ActiveJobs[0]);
@@ -462,7 +450,7 @@ namespace HordeServerTests
 		public async Task StreamPausing()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
-			TestSetup.Clock.UtcNow = StartTime;
+			Clock.UtcNow = StartTime;
 
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
@@ -473,13 +461,13 @@ namespace HordeServerTests
 			await StreamCollection.TryUpdatePauseStateAsync(Stream, NewPausedUntil: StartTime.AddHours(5), NewPauseComment: "testing");
 			
 			// Try trigger a job. No job should be scheduled as the stream is paused
-			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs2.Count);
 
 			// Advance time beyond the pause period. A build should now trigger
-			TestSetup.Clock.Advance(TimeSpan.FromHours(5.25));
+			Clock.Advance(TimeSpan.FromHours(5.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -490,7 +478,7 @@ namespace HordeServerTests
 
 		async Task<List<IJob>> GetNewJobs()
 		{
-			List<IJob> Jobs = await TestSetup.JobCollection.FindAsync();
+			List<IJob> Jobs = await JobCollection.FindAsync();
 			Jobs.RemoveAll(x => InitialJobIds.Contains(x.Id));
 			InitialJobIds.UnionWith(Jobs.Select(x => x.Id));
 			return Jobs.OrderBy(x => x.Change).ToList();

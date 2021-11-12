@@ -49,7 +49,7 @@ namespace HordeServerTests
 	///
 	/// Easier to pass all these things around in a single object.
 	/// </summary>
-	public class TestSetup
+	public class TestSetup : DatabaseIntegrationTest
 	{
 		public IServiceProvider ServiceProvider { get; }
 		public FakeClock Clock { get; set; } = null!;
@@ -91,24 +91,24 @@ namespace HordeServerTests
 		public CredentialService CredentialService => ServiceProvider.GetRequiredService<CredentialService>();
 		public PoolService PoolService => ServiceProvider.GetRequiredService<PoolService>();
 		public LifetimeService LifetimeService => ServiceProvider.GetRequiredService<LifetimeService>();
+		public ScheduleService ScheduleService => ServiceProvider.GetRequiredService<ScheduleService>();
 
 		public ServerSettings ServerSettings => ServiceProvider.GetRequiredService<IOptions<ServerSettings>>().Value;
 		public IOptionsMonitor<ServerSettings> ServerSettingsMon => ServiceProvider.GetRequiredService<IOptionsMonitor<ServerSettings>>();
-		public Fixture? Fixture;
 
 		public JobsController JobsController => GetJobsController();
 		public AgentsController AgentsController => GetAgentsController();
 
 		private static bool IsDatadogWriterPatched;
 
-		public TestSetup(DatabaseService DbService)
+		public TestSetup()
 		{
 			PatchDatadogWriter();
 
 			IConfiguration Config = new ConfigurationBuilder().Build();
 
 			IServiceCollection Services = new ServiceCollection();
-			Services.AddSingleton(DbService);
+			Services.AddSingleton(GetDatabaseService());
 			Services.Configure<ServerSettings>(ConfigureSettings);
 			Services.AddSingleton<IConfiguration>(Config);
 
@@ -217,12 +217,9 @@ namespace HordeServerTests
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 		}
 
-		public async Task CreateFixture(bool ForceNewFixture = false)
+		public Task<Fixture> CreateFixtureAsync()
 		{
-			if (!DatabaseService.ReadOnlyMode)
-			{
-				Fixture = await Fixture.Create(ForceNewFixture, GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
-			}
+			return Fixture.Create(GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
 		}
 
 		private JobsController GetJobsController()

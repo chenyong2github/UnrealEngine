@@ -13,9 +13,8 @@ using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 namespace HordeServerTests
 {
     [TestClass]
-    public class PoolServiceTests : DatabaseIntegrationTest
+    public class PoolServiceTests : TestSetup
     {
-        private readonly PoolService PoolService;
         private readonly Dictionary<string, string> FixtureProps = new Dictionary<string, string>
         {
             {"foo", "bar"},
@@ -24,8 +23,6 @@ namespace HordeServerTests
 
         public PoolServiceTests()
         {
-            var PoolCollection = new PoolCollection(GetDatabaseService());
-            PoolService = new PoolService(GetDatabaseService(), PoolCollection, new FakeClock());
         }
 
         private async Task<IPool> CreatePoolFixture(String Name)
@@ -96,10 +93,8 @@ namespace HordeServerTests
         [TestMethod]
         public async Task UpdatePoolCollectionTest()
         {
-	        TestSetup TestSetup = await GetTestSetup();
-	        
 	        IPool Pool = await CreatePoolFixture("update-pool-2");
-	        await TestSetup.PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
+	        await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
         }
     }
 }

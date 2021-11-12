@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
+using HordeServer.Services;
 using HordeServer.Storage;
 using HordeServer.Utilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,11 +21,6 @@ namespace HordeServerTests
 	[TestClass]
 	public class StorageTests : TestSetup
 	{
-		public StorageTests()
-			: base(DatabaseIntegrationTest.GetDatabaseService())
-		{
-		}
-
 		[TestMethod]
 		public async Task BlobCollectionTest()
 		{
