@@ -114,6 +114,7 @@ public:
 	static UComputeGraph* LoadDefaultDeformerGraph();
 	void SetAnimFrame(int32 FrameNumber);
 	void CreateMaterials();
+	void ClampFrameIndex();
 
 	bool IsReadyForTraining() const;
 	FText GetOverlayText();

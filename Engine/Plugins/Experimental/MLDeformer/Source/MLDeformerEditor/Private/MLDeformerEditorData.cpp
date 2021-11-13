@@ -314,6 +314,8 @@ void FMLDeformerEditorData::InitAssets()
 	MLDeformerAsset->UpdateCachedNumVertices();
 	UpdateDeformerGraph();
 
+	ClampFrameIndex();
+
 	// Reinit the single frame cache.
 	FMLDeformerFrameCache::FInitSettings InitSettings;
 	InitSettings.CacheSizeInBytes = 0;	// This makes it just just use one frame, which is the minimum.
@@ -329,6 +331,8 @@ void FMLDeformerEditorData::SetAnimFrame(int32 FrameNumber)
 	{
 		return;
 	}
+
+	ClampFrameIndex();
 
 	// Calculate the time in the animation data to visualize.
 	const float TimeOffset = GetTimeAtFrame(FrameNumber);
@@ -740,6 +744,19 @@ UWorld* FMLDeformerEditorData::GetWorld() const
 void FMLDeformerEditorData::SetWorld(UWorld* InWorld)
 {
 	World = InWorld;
+}
+
+void FMLDeformerEditorData::ClampFrameIndex()
+{
+	UMLDeformerVizSettings* VizSettings = GetDeformerAsset()->GetVizSettings();
+	if (MLDeformerAsset->GetNumFrames() > 0)
+	{
+		VizSettings->FrameNumber = FMath::Min(VizSettings->FrameNumber, static_cast<uint32>(GetDeformerAsset()->GetNumFrames() - 1));
+	}
+	else
+	{
+		VizSettings->FrameNumber = 0;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
