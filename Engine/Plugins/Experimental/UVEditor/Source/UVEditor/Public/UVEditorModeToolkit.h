@@ -31,12 +31,26 @@ public:
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 
+	/** Returns the Mode specific tabs in the mode toolbar **/
+	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const;
+
+    /** Returns human readable name for the specific palette tool category **/
+	virtual FText GetToolPaletteDisplayName(FName PaletteName) const;
+
+    /** For a specific tool palette category, construct and fill ToolbarBuilder with the category's tools **/
+	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
+
+	/** Informs the built in FModeToolkit palette building routines about how we want the toolbars to be setup **/
+	virtual bool HasIntegratedToolPalettes() const { return true; }
+	virtual bool HasExclusiveToolPalettes() const { return false; }
+
 	// IToolkit
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
 protected:
+	const static TArray<FName> PaletteNames_Standard;
+
 	// FModeToolkit
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;

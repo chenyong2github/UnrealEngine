@@ -17,6 +17,12 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	DECLARE_EVENT_OneParam(FUVEditorModule, FOnRegisterLayoutExtensions, FLayoutExtender&);
+	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() { return RegisterLayoutExtensions; }
+
+private:
+	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
+
 protected:
 	void RegisterMenus();
 };

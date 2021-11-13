@@ -22,8 +22,10 @@
 #include "UVEditorMode.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
+#include "UVEditorModule.h"
 #include "UVEditorStyle.h"
 #include "UVToolContextObjects.h"
+#include "UVEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #include "SLevelViewport.h"
@@ -61,25 +63,29 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	// We will replace the StandaloneDefaultLayout that our parent class gave us with 
 	// one where the properties detail panel is a vertical column on the left, and there
 	// are two viewports on the right.
+	// We define explicit ExtensionIds on the stacks to reference them later when the
+    // UILayer provides layout extensions. 
+
 	StandaloneDefaultLayout = FTabManager::NewLayout(FName("UVEditorLayout1"))
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
+				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)				
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.2f)
-					->AddTab(InteractiveToolsPanelTabID, ETabState::OpenedTab)
-					->SetHideTabWell(false)
-				)
+					->SetSizeCoefficient(0.2f)					
+					->SetExtensionId("ToolbarArea")
+					->SetHideTabWell(true)
+				)				
 				->Split
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.4f)
 					->AddTab(ViewportTabID, ETabState::OpenedTab)
+					->SetExtensionId("Viewport2DArea")
 					->SetHideTabWell(true)
 				)
 				->Split
@@ -87,10 +93,19 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.4f)
 					->AddTab(LivePreviewTabID, ETabState::OpenedTab)
+					->SetExtensionId("Viewport3DArea")
 					->SetHideTabWell(true)
 				)
 			)
 		);
+		
+	// Add any extenders specified by the UStaticMeshEditorUISubsystem
+    // The extenders provide defined locations for FModeTookit to attach
+    // tool palette tabs and detail panel tabs
+	LayoutExtender = MakeShared<FLayoutExtender>();
+	FUVEditorModule* UVEditorModule = &FModuleManager::LoadModuleChecked<FUVEditorModule>("UVEditor");
+	UVEditorModule->OnRegisterLayoutExtensions().Broadcast(*LayoutExtender);
+	StandaloneDefaultLayout->ProcessExtensions(*LayoutExtender);
 
 	// We could create the preview scenes in CreateEditorViewportClient() the way that FBaseAssetToolkit
 	// does, but it seems more intuitive to create them right off the bat and pass it in later. 
@@ -182,13 +197,9 @@ void FUVEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabM
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
 	// Here we set up the tabs we referenced in StandaloneDefaultLayout (in the constructor).
-
-	InTabManager->RegisterTabSpawner(InteractiveToolsPanelTabID, FOnSpawnTab::CreateSP(this, 
-		&FUVEditorToolkit::SpawnTab_InteractiveToolsPanel))
-		.SetDisplayName(LOCTEXT("UVToolsPanelLabel", "UV Tools Panel"))
-		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
-
+	// We don't deal with the toolbar palette here, since this is handled by existing
+    // infrastructure in FModeToolkit. We only setup spawners for our custom tabs, namely
+    // the 2D and 3D viewports.
 	InTabManager->RegisterTabSpawner(ViewportTabID, FOnSpawnTab::CreateSP(this, &FUVEditorToolkit::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("2DViewportTabLabel", "2D Viewport"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
@@ -211,6 +222,7 @@ bool FUVEditorToolkit::OnRequestClose()
 	UUVEditorMode* UVMode = Cast<UUVEditorMode>(EditorModeManager->GetActiveScriptableMode(UUVEditorMode::EM_UVEditorModeId));
 	check(UVMode);
 
+	bool bAllowClose = true;
 	// Warn the user of any unapplied changes.
 	if (UVMode->HaveUnappliedChanges())
 	{
@@ -224,16 +236,28 @@ bool FUVEditorToolkit::OnRequestClose()
 		{
 		case EAppReturnType::Yes:
 			UVMode->ApplyChanges();
+			bAllowClose = true;
 			break;
 
 		case EAppReturnType::No:
 			// exit
+			bAllowClose = true;
 			break;
 
 		case EAppReturnType::Cancel:
 			// don't exit
+			bAllowClose = false;
 			return false;
 		}
+	}
+
+	// Give any active modes a chance to shutdown while the toolkit host is still alive
+    // This is super important to do, otherwise currently opened tabs won't be marked as "closed".
+    // This results in tabs not being properly recycled upon reopening the editor and tab
+    // duplication for each opening event.
+	if (bAllowClose)
+	{
+		GetEditorModeManager().ActivateDefaultMode();
 	}
 
 	return FAssetEditorToolkit::OnRequestClose();
@@ -351,6 +375,13 @@ void FUVEditorToolkit::CreateEditorModeManager()
 
 void FUVEditorToolkit::PostInitAssetEditor()
 {
+
+    // We setup the ModeUILayer connection here, since the InitAssetEditor is closed off to us. 
+    // Other editors perform this step elsewhere, but this is our best location.
+	TSharedPtr<class IToolkitHost> PinnedToolkitHost = ToolkitHost.Pin();
+	check(PinnedToolkitHost.IsValid());
+	ModeUILayer = MakeShareable(new FUVEditorModeUILayer(PinnedToolkitHost.Get()));
+
 	// Currently, aside from setting up all the UI elements, the toolkit also kicks off the UV
 	// editor mode, which is the mode that the editor always works in (things are packaged into
 	// a mode so that they can be moved to another asset editor if necessary).
@@ -389,23 +420,15 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	UVMode->InitializeTargets(ObjectsToEdit, ObjectTransforms);
 
 	// Regardless of how the user has modified the layout, we're going to make sure that we have
-	// a tool panel to show the tools, and a 2d viewport that will allow our mode to receive ticks.
-	TSharedPtr<SDockTab> ToolsPanel = TabManager->FindExistingLiveTab(InteractiveToolsPanelTabID);
-	if (!ToolsPanel)
-	{
-		ToolsPanel = TabManager->TryInvokeTab(InteractiveToolsPanelTabID);
-	}
+	// a 2d viewport that will allow our mode to receive ticks.
+    // We don't need to invoke the tool palette tab anymore, since this is handled by
+    // underlying infrastructure.
 	if (!TabManager->FindExistingLiveTab(ViewportTabID))
 	{
 		TabManager->TryInvokeTab(ViewportTabID);
 	}
 
-	// Plug in the mode tool panel
 	TSharedPtr<FUVEditorModeToolkit> UVModeToolkit = StaticCastSharedPtr<FUVEditorModeToolkit>(UVMode->GetToolkit().Pin());
-	if (ensure(ToolsPanel && UVModeToolkit.IsValid()))
-	{
-		ToolsPanel->SetContent(UVModeToolkit->GetInlineContent().ToSharedRef());
-	}
 
 	// Add the "Apply Changes" button. It should actually be safe to do this almost
 	// any time, even before that toolbar's registration, but it's easier to put most
@@ -500,6 +523,16 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	// TODO: This should not be hardcoded
 	LivePreviewViewportClient->SetViewLocation(FVector(-200, 100, 100));
 	LivePreviewViewportClient->SetLookAtLocation(FVector(0, 0, 0));
+}
+
+void FUVEditorToolkit::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingStarted(Toolkit);
+}
+
+void FUVEditorToolkit::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingFinished(Toolkit);
 }
 
 #undef LOCTEXT_NAMESPACE
