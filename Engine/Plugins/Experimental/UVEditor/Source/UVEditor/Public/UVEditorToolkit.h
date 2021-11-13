@@ -14,6 +14,7 @@ class SBorder;
 class SWidget;
 class UInteractiveToolsContext;
 class UInputRouter;
+class FUVEditorModeUILayer;
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -48,6 +49,8 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 	virtual bool OnRequestClose() override;
 	virtual void SaveAsset_Execute() override;
+	void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
+	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 
 	// IAssetEditorInstance
 	// This is important because if this returns true, attempting to edit a static mesh that is
@@ -80,4 +83,6 @@ protected:
 	
 	TSharedPtr<FAssetEditorModeManager> LivePreviewEditorModeManager;
 	TObjectPtr<UInputRouter> LivePreviewInputRouter = nullptr;
+
+	TSharedPtr<FUVEditorModeUILayer> ModeUILayer;
 };

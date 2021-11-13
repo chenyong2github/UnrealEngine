@@ -59,7 +59,9 @@ public class UVEditor : ModuleRules
 				"ToolMenus",
 				"UVEditorTools",
 				"UVEditorToolsEditorOnly",
-				"ToolWidgets",				
+				"ToolWidgets",
+
+				"WorkspaceMenuStructure",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

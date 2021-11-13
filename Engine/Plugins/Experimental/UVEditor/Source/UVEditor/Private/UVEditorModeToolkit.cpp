@@ -17,6 +17,9 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "EditorModeManager.h"
+#include "UVEditorModeUILayer.h"
+#include "AssetEditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 
@@ -129,22 +132,6 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 	// of tool start transactions. See FUVEditorModeToolkit::OnToolStarted for how we issue the transactions.
 	InteractiveToolsContext->ToolManager->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 
-	// Build the tool palette
-	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
-	TSharedRef<FUICommandList> CommandList = GetToolkitCommands();
-	FUniformToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization(UVEditorMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
-	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
-
-	// TODO: Add more tools here
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginSelectTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginLayoutTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginParameterizeMeshTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginChannelEditTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginSeamTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginRecomputeUVsTool);
-
-	// Hook in the tool palette
-	ToolButtonsContainer->SetContent(ToolbarBuilder.MakeWidget());
 
 	// Hook up the tool detail panel
 	ToolDetailsContainer->SetContent(DetailsView.ToSharedRef());
@@ -391,6 +378,37 @@ void FUVEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UIntera
 	{
 		CurTool->OnPropertySetsModified.RemoveAll(this);
 		CurTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
+	}
+}
+
+
+// Place tool category names here, for creating the tool palette below
+static const FName ToolsTabName(TEXT("Tools"));
+
+const TArray<FName> FUVEditorModeToolkit::PaletteNames_Standard = { ToolsTabName };
+
+void FUVEditorModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
+{
+	PaletteNames = PaletteNames_Standard;
+}
+
+FText FUVEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
+{
+	return FText::FromName(Palette);
+}
+
+void FUVEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder)
+{
+	const FUVEditorCommands& Commands = FUVEditorCommands::Get();
+
+	if (PaletteIndex == ToolsTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginLayoutTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginChannelEditTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSeamTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginParameterizeMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRecomputeUVsTool);
 	}
 }
 
