@@ -138,7 +138,7 @@ protected:
 	TMap<uint32, FSequencerPlayerBase*> SequencerToPlayerMap;
 
 	/** mapping from sequencer index to internal mirror node index */
-	TMap<uint32, FAnimNode_Mirror*> SequencerToMirrorMap;
+	TMap<uint32, FAnimNode_Mirror_Standalone*> SequencerToMirrorMap;
 
 	/** custom root motion override sent in from sequencer */
 	TOptional<FRootMotionOverride> RootMotionOverride;
