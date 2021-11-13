@@ -87,7 +87,7 @@ void FAnimSequencerInstanceProxy::ClearSequencePlayerAndMirrorMaps()
 
 	SequencerToPlayerMap.Empty();
 
-	for (TPair<uint32, FAnimNode_Mirror*>& Iter : SequencerToMirrorMap)
+	for (TPair<uint32, FAnimNode_Mirror_Standalone*>& Iter : SequencerToMirrorMap)
 	{
 		delete Iter.Value;
 	}
@@ -139,9 +139,9 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 			SequencerToPlayerMap.Add(SequenceId, NewPlayerState);
 
 			// link player to mirror node,
-			FAnimNode_Mirror* NewMirrorNode = new FAnimNode_Mirror();
-			NewMirrorNode->bMirror = false;
-			NewMirrorNode->Source.SetLinkNode(&NewPlayerState->PlayerNode);
+			FAnimNode_Mirror_Standalone* NewMirrorNode = new FAnimNode_Mirror_Standalone();
+			NewMirrorNode->SetMirror(false);
+			NewMirrorNode->SetSourceLinkNode(&NewPlayerState->PlayerNode);
 			SequencerToMirrorMap.Add(SequenceId, NewMirrorNode); 
 
 			// link mirror to blendnode, this will let you trigger notifies and so on
@@ -159,7 +159,7 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 		// initialize player
 		PlayerState->PlayerNode.Initialize_AnyThread(FAnimationInitializeContext(this));
 
-		FAnimNode_Mirror* Mirror = SequencerToMirrorMap.FindRef(SequenceId);
+		FAnimNode_Mirror_Standalone* Mirror = SequencerToMirrorMap.FindRef(SequenceId);
 		if (Mirror)
 		{
 			Mirror->Initialize_AnyThread(FAnimationInitializeContext(this));
@@ -227,10 +227,10 @@ void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSeque
 		PlayerState->PlayerNode.SetReinitializationBehavior(ESequenceEvalReinit::NoReset);
 	}
 
-	FAnimNode_Mirror* MirrorNode = SequencerToMirrorMap.FindRef(SequenceId);
+	FAnimNode_Mirror_Standalone* MirrorNode = SequencerToMirrorMap.FindRef(SequenceId);
 	if (MirrorNode)
 	{
-		MirrorNode->bMirror = InMirrorDataTable != nullptr;
+		MirrorNode->SetMirror(InMirrorDataTable != nullptr);
 		UMirrorDataTable* OldMirrorDataTable = MirrorNode->GetMirrorDataTable();
 		MirrorNode->SetMirrorDataTable(InMirrorDataTable);
 
