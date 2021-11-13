@@ -122,7 +122,8 @@ public:
 	 * GetBackEnd()/GetBackEndForCurrentPlatform():
 	 * - If BackEnd == Auto, GetBackEnd() will return Auto and GetBackEndForCurrentPlatform() will return the actual BackEnd being used for the current platform (UEAndORT or UEOnly).
 	 * - If BackEnd != Auto, GetBackEnd() and GetBackEndForCurrentPlatform() will both return the same value (UEAndORT or UEOnly).
-	 * SetBackEnd() will modify both BackEnd and BackEndForCurrentPlatform and return IsLoaded().
+	 * SetBackEnd() will modify both BackEnd and BackEndForCurrentPlatform and return IsLoaded(). 
+	 * Important! SetBackEnd is NOT THREAD SAFE, please ensure that no other Neural Network function such as Run() is running when SetBackEnd is called. 
 	 * @see ENeuralBackEnd for more details.
 	 */
 	ENeuralBackEnd GetBackEnd() const;
@@ -235,6 +236,11 @@ private:
 	 * If other functions outside of Run() have to modify it, consider using mutexes.
 	 */
 	std::atomic<bool> bIsBackgroundThreadRunning;
+
+	/**
+	* Critical Section used to protect resources
+	*/
+	FCriticalSection ResoucesCriticalSection;
 
 	UPROPERTY()
 	TArray<uint8> ModelReadFromFileInBytes;
