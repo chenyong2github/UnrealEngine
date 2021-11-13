@@ -243,13 +243,14 @@ void FMLDeformerEditorMode::Tick(FEditorViewportClient* ViewportClient, float De
 {
 	FMLDeformerEditorData* Data = EditorData.Pin().Get();
 
-	UMLDeformerAsset* DeformerAsset = Data->GetDeformerAsset();
-	const UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
+	Data->ClampFrameIndex();
 
 	UpdateActors();
 	UpdateLabels();
 
 	// Calculate the training deltas when needed.
+	UMLDeformerAsset* DeformerAsset = Data->GetDeformerAsset();
+	const UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
 	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && 
 		(VizSettings->GetDrawVertex() || VizSettings->GetDrawVertexDeltas()))
 	{

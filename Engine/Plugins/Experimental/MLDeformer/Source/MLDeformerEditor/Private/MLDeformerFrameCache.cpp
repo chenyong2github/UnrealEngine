@@ -467,7 +467,7 @@ int32 FMLDeformerFrameCache::GetNumCurves() const
 
 int32 FMLDeformerFrameCache::GetCachedTrainingFrameIndex(int32 AnimFrameIndex) const
 {
-	return FrameMap[AnimFrameIndex];
+	return FrameMap.IsValidIndex(AnimFrameIndex) ? FrameMap[AnimFrameIndex] : -1;
 }
 
 void FMLDeformerFrameCache::Prefetch(int32 StartFrameIndex, int32 EndFrameIndex)
