@@ -4,6 +4,7 @@
 #include "NeuralNetworkImplBackEndUEAndORT.h"
 #include "NeuralNetworkImplBackEndUEOnly.h"
 #include "NeuralNetworkInferenceUtils.h"
+#include "NeuralNetworkAsyncTask.h"
 #include "EditorFramework/AssetImportData.h"
 #include "NeuralTimer.h"
 #include "HAL/FileManager.h"
@@ -68,6 +69,8 @@ UNeuralNetwork::~UNeuralNetwork()
 bool UNeuralNetwork::Load(const FString& InModelFilePath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromFString"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+	
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 
 	// Clean previous networks
 	bIsLoaded = false;
@@ -104,6 +107,8 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 bool UNeuralNetwork::Load(TArray<uint8>& InModelReadFromFileInBytes)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromTArrayUInt8"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 
 	// Clean previous networks
 	bIsLoaded = false;
@@ -142,6 +147,7 @@ ENeuralDeviceType UNeuralNetwork::GetOutputDeviceType() const
 
 void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	if (DeviceType != InDeviceType || InputDeviceType != InInputDeviceType || OutputDeviceType != InOutputDeviceType)
 	{
 		DeviceType = InDeviceType;
@@ -161,11 +167,13 @@ ENeuralNetworkSynchronousMode UNeuralNetwork::GetSynchronousMode() const
 
 void UNeuralNetwork::SetSynchronousMode(const ENeuralNetworkSynchronousMode InSynchronousMode)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	SynchronousMode = InSynchronousMode;
 }
 
 UNeuralNetwork::FOnAsyncRunCompleted& UNeuralNetwork::GetOnAsyncRunCompletedDelegate()
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	return OnAsyncRunCompletedDelegate;
 }
 
@@ -184,7 +192,7 @@ bool UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 	BackEnd = InBackEnd;
 	const ENeuralBackEnd NewBackEndForCurrentPlatform = FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd);
 	// Reload only required if BackEndForCurrentPlatform changes (regardless of whether BackEnd changed).
-	// BackEndForCurrentPlatform does not necesarily change if BackEnd changes. E.g., changing from UEAndORT into Auto in Windows will result in BackEndForCurrentPlatform = UEAndORT in both cases.
+	// BackEndForCurrentPlatform does not necessarily change if BackEnd changes. E.g., changing from UEAndORT into Auto in Windows will result in BackEndForCurrentPlatform = UEAndORT in both cases.
 	if (BackEndForCurrentPlatform != NewBackEndForCurrentPlatform)
 	{
 		BackEndForCurrentPlatform = NewBackEndForCurrentPlatform;
@@ -252,6 +260,7 @@ const FNeuralTensor& UNeuralNetwork::GetInputTensor(const int32 InTensorIndex) c
 
 void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	// Sanity check
 	if (!bIsLoaded)
 	{
@@ -281,6 +290,8 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
+
 	// Sanity check
 	if (!bIsLoaded)
 	{
@@ -376,6 +387,7 @@ TArray<FNeuralTensor> UNeuralNetwork::CreateInputArrayCopy() const
 
 void UNeuralNetwork::SetInputFromArrayCopy(const TArray<FNeuralTensor>& InInputTensorArray)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	if (GetInputTensorNumber() != InInputTensorArray.Num())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): GetInputTensorNumber() == InInputTensorArray.Num() failed, %d != %d."), GetInputTensorNumber(), InInputTensorArray.Num());
@@ -404,6 +416,7 @@ TArray<FNeuralTensor> UNeuralNetwork::CreateOutputArrayCopy() const
 
 void UNeuralNetwork::InputTensorsToGPU(const TArray<int32>& InTensorIndexes)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	// Sanity check
 	if (!bIsLoaded)
 	{
@@ -445,6 +458,7 @@ void UNeuralNetwork::InputTensorsToGPU(const TArray<int32>& InTensorIndexes)
 
 void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InTensorIndexes)
 {
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	// Sanity check
 	if (!bIsLoaded)
 	{
@@ -501,7 +515,7 @@ void UNeuralNetwork::Run()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		ImplBackEndUEAndORT->Run(SynchronousMode, InputDeviceType, OutputDeviceType);
+		ImplBackEndUEAndORT->Run(OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, ResoucesCriticalSection, SynchronousMode, DeviceType, InputDeviceType, OutputDeviceType);
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
@@ -526,6 +540,7 @@ FNeuralStatsData UNeuralNetwork::GetInferenceStats() const
 	return ComputeStatsModule.GetStats();
 };
 
+
 FNeuralStatsData UNeuralNetwork::GetInputMemoryTransferStats() const
 {
 	return InputMemoryTransferStatsModule.GetStats();
@@ -539,6 +554,8 @@ bool UNeuralNetwork::Load()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
 
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
+
 	// Clean previous networks
 	bIsLoaded = false;
 
@@ -546,7 +563,8 @@ bool UNeuralNetwork::Load()
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
 		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType);
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
+		FNeuralNetworkAsyncSyncData SyncData(OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, ResoucesCriticalSection);
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, SyncData, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
@@ -578,6 +596,9 @@ FNeuralTensor& UNeuralNetwork::GetOutputTensorMutable(const int32 InTensorIndex)
 bool UNeuralNetwork::Load(TArray<FNeuralTensor>& InTensors, const TArray<FNeuralTensor*>& InInputTensors, const TArray<FNeuralTensor*>& InOutputTensors, const TArray<TSharedPtr<class FNeuralOperator>>& InOperators)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromTensorManagerAndOperators"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
+
 	BackEnd = ENeuralBackEnd::UEOnly;
 	BackEndForCurrentPlatform = ENeuralBackEnd::UEOnly;
 	// Create and load TensorManager

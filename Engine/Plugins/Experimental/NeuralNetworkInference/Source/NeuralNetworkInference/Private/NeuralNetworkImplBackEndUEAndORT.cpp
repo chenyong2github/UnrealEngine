@@ -227,7 +227,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUConfigCompatible()
 //	return false;
 //}
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType,
+bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FNeuralNetworkAsyncSyncData& InSyncData, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType,
 	const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
@@ -249,7 +249,6 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 		{
 			// Read model from ModelReadFromFileInBytesVector
 			InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromFileInBytes.GetData(), InModelReadFromFileInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
-
 
 #ifdef PLATFORM_WIN64
 			// Check if resource allocator is properly initialized
@@ -290,6 +289,16 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 			return false;
 		}
 
+		// Initializing AsyncTask 
+		InOutImplBackEndUEAndORT->SyncData = InSyncData;
+		TSharedPtr<Ort::RunOptions> RunOptions = MakeShared<Ort::RunOptions>(nullptr);
+		InOutImplBackEndUEAndORT->OrtData = FNeuralNetworkAsyncOrtVariables(InOutImplBackEndUEAndORT->Session.Get(), RunOptions, InOutImplBackEndUEAndORT->InputOrtTensors, 
+			InOutImplBackEndUEAndORT->InputTensorNames, InOutImplBackEndUEAndORT->OutputOrtTensors, InOutImplBackEndUEAndORT->OutputTensorNames);
+		
+		InOutImplBackEndUEAndORT->IsAsyncTaskDone();
+		
+		InOutImplBackEndUEAndORT->NeuralNetworkAsyncTask = MakeUnique<FAsyncTask<FNeuralNetworkAsyncTask>>(InOutImplBackEndUEAndORT->SyncData, InOutImplBackEndUEAndORT->OrtData);
+		
 		return true;
 	}
 #if WITH_EDITOR
@@ -307,6 +316,16 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 }
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
+void UNeuralNetwork::FImplBackEndUEAndORT::IsAsyncTaskDone() const 
+{
+	if (NeuralNetworkAsyncTask && !NeuralNetworkAsyncTask->IsDone())
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning,
+			TEXT("FImplBackEndUEAndORT::Run(): Previous async run had not been completed. Blocking thread until it is completed."));
+		NeuralNetworkAsyncTask->EnsureCompletion(/*bDoWorkOnThisThreadIfNotStarted*/true);
+	}
+}
+
 void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 {
 #ifdef PLATFORM_WIN64
@@ -325,7 +344,8 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 }
 #endif //WITH_UE_AND_ORT_SUPPORT
 
-void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning, FCriticalSection& InResoucesCriticalSection, 
+	const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
@@ -340,17 +360,19 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMo
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Run(): InputDeviceType must be set to CPU for now."));
 			return;
 		}
+		
+		IsAsyncTaskDone();
+		NeuralNetworkAsyncTask->GetTask().SetSynchronousMode(InSynchronousMode);
 
 		// Run UNeuralNetwork
 		if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
 		{
-			Session->Run(Ort::RunOptions{ nullptr },
-				InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
-				OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+			NeuralNetworkAsyncTask->StartSynchronousTask();
 		}
 		else if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Run(): SynchronousMode = %d not implemented yet. Use SynchronousMode = Synchronous."), (int32)InSynchronousMode);
+			bInIsBackgroundThreadRunning = true;
+			NeuralNetworkAsyncTask->StartBackgroundTask();
 		}
 		else
 		{
