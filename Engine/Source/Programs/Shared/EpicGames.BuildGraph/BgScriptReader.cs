@@ -291,7 +291,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The current graph
 		/// </summary>
-		BgScript Graph = new BgScript();
+		BgGraph Graph = new BgGraph();
 
 		/// <summary>
 		/// List of property name to value lookups. Modifications to properties are scoped to nodes and agents. EnterScope() pushes an empty dictionary onto the end of this list, and LeaveScope() removes one. 
@@ -370,7 +370,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Logger">Logger for output messages</param>
 		/// <param name="SingleNodeName">If a single node will be processed, the name of that node.</param>
 		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static async Task<BgScript?> ReadAsync(IBgScriptReaderContext Context, string File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, BgScriptSchema Schema, ILogger Logger, string? SingleNodeName = null)
+		public static async Task<BgGraph?> ReadAsync(IBgScriptReaderContext Context, string File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, BgScriptSchema Schema, ILogger Logger, string? SingleNodeName = null)
 		{
 			// Read the file and build the graph
 			BgScriptReader Reader = new BgScriptReader(Context, DefaultProperties, bPreprocessOnly, Schema, Logger);
@@ -1561,7 +1561,7 @@ namespace EpicGames.BuildGraph
 			{
 				string Message = ReadAttribute(Element, "Message");
 
-				BgScriptDiagnostic Diagnostic = new BgScriptDiagnostic(EventType, $"{Element.File}({Element.LineNumber}): {Message}", EnclosingNode, EnclosingAgent);
+				BgGraphDiagnostic Diagnostic = new BgGraphDiagnostic(EventType, $"{Element.File}({Element.LineNumber}): {Message}", EnclosingNode, EnclosingAgent);
 				Graph.Diagnostics.Add(Diagnostic);
 			}
 		}
