@@ -82,10 +82,6 @@
 			</Do>
 			<Log Message="The property changed inside the conditional block is now set to $(LocalPropertyOutsideConditional)"/>
 
-			<Do If="Exists('Engine/Build/Graph/Examples/Properties.xml')">
-				<Log Message="This file does exist!"/>
-			</Do>
-
 			<Property Name="HaystackString" Value="One Two Three" />
 			<Property Name="HaystackItems" Value="One;Two;Three" />
 			<Property Name="Needle" Value="One" />

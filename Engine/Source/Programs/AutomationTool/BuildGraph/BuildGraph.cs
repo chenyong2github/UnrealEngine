@@ -141,6 +141,17 @@ namespace AutomationTool
 			}
 			return null;
 		}
+
+		/// <inheritdoc/>
+		public Task<string[]> FindAsync(string Pattern)
+		{
+			FileFilter Filter = new FileFilter();
+			Filter.AddRule(Pattern, FileFilterType.Include);
+
+			List<string> Files = Filter.ApplyToDirectory(Unreal.RootDirectory, true).ConvertAll(x => x.MakeRelativeTo(Unreal.RootDirectory).Replace('\\', '/'));
+			Files.Sort(StringComparer.OrdinalIgnoreCase);
+			return Task.FromResult(Files.ToArray());
+		}
 	}
 
 	/// <summary>

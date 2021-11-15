@@ -117,19 +117,10 @@
 		</Do>
 	</Macro>
 
-	<Property Name="ExtensionIncludes" Value=""/>
+	<!-- Include any scripts from platform extensions -->
 	<Property Name="ExtensionPlatforms" Value=""/>
-	<ForEach Name="Platform" Values="$(DataDrivenPlatforms)">
-		<Property Name="PlatformBuildScript" Value="Platforms/$(Platform)/Build/InstalledEngineBuild.xml"/>
-		<Do If="Exists('Engine/$(PlatformBuildScript)')">
-			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes);" If="'$(ExtensionIncludes)' != ''"/>
-			<Property Name="ExtensionIncludes" Value="$(ExtensionIncludes)../$(PlatformBuildScript)"/>
-			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms);" If="'$(ExtensionPlatforms)' != ''"/>
-			<Property Name="ExtensionPlatforms" Value="$(ExtensionPlatforms)$(Platform)"/>
-		</Do>
-	</ForEach>
-	<Include Script="$(ExtensionIncludes)"/>
-
+	<Include Script="../Platforms/*/Build/InstalledEngineBuild.xml"/>
+	
 	<!-- Include the script that lists files and patterns used when creating an installed build -->
 	<Include Script="InstalledEngineFilters.xml"/>
 
@@ -1218,7 +1209,7 @@
 
 			<!-- Copy the toolchain if it exists -->
 			<Property Name="LinuxToolchainDir" Value="$(ToolchainDir)/HostLinux"/>
-			<Copy Files="$(LinuxToolchainDir)/..." From="$(LinuxToolchainDir)" To="$(LocalInstalledDirLinux)/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux" If="Exists('$(LinuxToolchainDir)')" Tag="#Installed Build Linux Files"/>
+			<Copy Files="$(LinuxToolchainDir)/..." From="$(LinuxToolchainDir)" To="$(LocalInstalledDirLinux)/Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux" Tag="#Installed Build Linux Files"/>
 
 			<!-- List all of the platforms that we only allow for content projects -->
 			<Property Name="ContentOnlyPlatforms" Value=""/>
