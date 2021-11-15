@@ -340,7 +340,7 @@ void UUVEditorMode::Exit()
 	Super::Exit();
 }
 
-void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, 
+void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn,
 	const TArray<FTransform>& TransformsIn)
 {
 	using namespace UVEditorModeLocals;
@@ -377,7 +377,7 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		AppliedPreview->PreviewMesh->UpdatePreview(AppliedCanonical.Get());
 
 		FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
-		AppliedPreview->ConfigureMaterials(MaterialSet.Materials, 
+		AppliedPreview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		AppliedPreviews.Add(AppliedPreview);
 	}
@@ -447,7 +447,7 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		// The wireframe will track the unwrap preview mesh
 		WireframeDisplay->SetMeshAccessFunction([ToolInputObject](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
 			ToolInputObject->UnwrapPreview->ProcessCurrentMesh(ProcessFunc);
-		});
+			});
 
 		// The settings object and wireframe are not part of a tool, so they won't get ticked like they
 		// are supposed to (to enable property watching), unless we add this here.
@@ -460,15 +460,15 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		// Bind to delegate so that we can detect changes
 		ToolInputObject->OnCanonicalModified.AddWeakLambda(this, [this]
 		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo&) {
-			ModifiedAssetIDs.Add(InputObject->AssetID);
-		});
+				ModifiedAssetIDs.Add(InputObject->AssetID);
+			});
 
 		ToolInputObjects.Add(ToolInputObject);
 	}
 
 	// Prep things for layer/channel selection
 	InitializeAssetNames(ToolTargets, AssetNames);
-	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());		
+	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());
 
 	// Prep channel/layer change API
 	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = ContextStore->FindContext<UUVToolAssetAndChannelAPI>();
@@ -491,6 +491,15 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 				VisibleLayers[AssetID] = GetDisplayedChannel(AssetID);
 			}
 			return VisibleLayers;
+		};
+	}
+
+	// Prep VisualStyle API
+	UUVVisualStyleAPI* VisualStyleAPI = ContextStore->FindContext<UUVVisualStyleAPI>();
+	if (VisualStyleAPI)
+	{
+		VisualStyleAPI->GetSelectionColorForAssetFunc = [this](int32 AssetID) {
+			return GetSelectionColorByTargetIndex(AssetID);
 		};
 	}
 }
@@ -524,6 +533,11 @@ FLinearColor UUVEditorMode::GetBoundaryColorByTargetIndex(int32 TargetIndex) con
 	BoundaryColorHSV.G = UnwrapBoundarySaturation;
 	BoundaryColorHSV.B = UnwrapBoundaryValue;
 	return BoundaryColorHSV.HSVToLinearRGB();
+}
+
+FLinearColor UUVEditorMode::GetSelectionColorByTargetIndex(int32 TargetIndex) const
+{
+	return FColor::FromHex("EBA30DFF");	
 }
 
 void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)

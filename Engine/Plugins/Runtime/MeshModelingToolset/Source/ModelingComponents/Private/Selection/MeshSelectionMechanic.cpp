@@ -4,6 +4,7 @@
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
+#include "Drawing/TriangleSetComponent.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -294,6 +295,9 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	ClearCurrentSelection();
 
+	TriangleSet = NewObject<UTriangleSetComponent>();
+	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(), TriangleColor, TriangleDepthBias, TriangleOpacity);
+	
 	LineSet = NewObject<ULineSetComponent>();
 	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
@@ -327,9 +331,21 @@ void UMeshSelectionMechanic::SetWorld(UWorld* World)
 	FActorSpawnParameters SpawnInfo;
 	PreviewGeometryActor = World->SpawnActor<APreviewGeometryActor>(FVector::ZeroVector, Rotation, SpawnInfo);
 
-	// Attach the rendering component to the actor
+
+	// Attach the rendering component to the actor		
+	TriangleSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
+	PreviewGeometryActor->SetRootComponent(TriangleSet);
+	if (TriangleSet->IsRegistered())
+	{
+		TriangleSet->ReregisterComponent();
+	}
+	else
+	{
+		TriangleSet->RegisterComponent();
+	}
+
 	LineSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
-	PreviewGeometryActor->SetRootComponent(LineSet);
+	LineSet->AttachToComponent(TriangleSet, FAttachmentTransformRules::KeepWorldTransform);
 	if (LineSet->IsRegistered())
 	{
 		LineSet->ReregisterComponent();
@@ -340,7 +356,7 @@ void UMeshSelectionMechanic::SetWorld(UWorld* World)
 	}
 
 	PointSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
-	PointSet->AttachToComponent(LineSet, FAttachmentTransformRules::KeepWorldTransform);
+	PointSet->AttachToComponent(TriangleSet, FAttachmentTransformRules::KeepWorldTransform);
 	if (PointSet->IsRegistered())
 	{
 		PointSet->ReregisterComponent();
@@ -369,6 +385,19 @@ void UMeshSelectionMechanic::AddSpatial(TSharedPtr<FDynamicMeshAABBTree3> Spatia
 const FDynamicMeshSelection& UMeshSelectionMechanic::GetCurrentSelection() const
 {
 	return CurrentSelection;
+}
+
+void UMeshSelectionMechanic::ChangeSelectionColor(const FColor& TriangleColorIn, float TriangleOpacityIn, const FColor& LineColorIn, const FColor& PointColorIn)
+{
+	TriangleColor = TriangleColorIn;
+	TriangleOpacity = TriangleOpacityIn;
+	LineColor = LineColorIn;
+	PointColor = PointColorIn;
+
+	if (TriangleSetMaterial) {
+		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), TriangleColorIn);
+		TriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), TriangleOpacityIn);
+	}
 }
 
 void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast, bool bEmitChange)
@@ -402,7 +431,6 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 	}
 
 	UpdateCentroid();
-	RebuildDrawnElements(FTransform(CurrentSelectionCentroid));
 
 	if (bEmitChange && OriginalSelection != CurrentSelection)
 	{
@@ -412,12 +440,16 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 	{
 		OnSelectionChanged.Broadcast();
 	}
+
+	// Rebuild after broadcast in case the outside world wants to adjust things like color...
+	RebuildDrawnElements(FTransform(CurrentSelectionCentroid));
 }
 
 void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransform)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements);
 
+	TriangleSet->Clear();
 	LineSet->Clear();
 	PointSet->Clear();
 	PreviewGeometryActor->SetActorTransform(StartTransform);
@@ -439,6 +471,7 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements_Triangle);
 		
+		TriangleSet->ReserveTriangles(CurrentSelection.SelectedIDs.Num());
 		LineSet->ReserveLines(CurrentSelection.SelectedIDs.Num() * 3);
 		for (int32 Tid : CurrentSelection.SelectedIDs)
 		{
@@ -448,6 +481,7 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			{
 				Points[i] = TransformToApply(CurrentSelection.Mesh->GetVertex(Vids[i]));
 			}
+			TriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), TriangleColor, TriangleSetMaterial);
 			for (int i = 0; i < 3; ++i)
 			{
 				int NextIndex = (i + 1) % 3;
@@ -958,9 +992,11 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	if (OriginalSelection != CurrentSelection)
 	{
 		UpdateCentroid();
-		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 		EmitSelectionChange(OriginalSelection, CurrentSelection, true);
 		OnSelectionChanged.Broadcast();
+
+		// Rebuild after broadcast in case the outside world wants to adjust things like color...
+		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 	}
 }
 
@@ -1123,10 +1159,12 @@ void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Cur
 
 	if (!bCancelled && (PreDragSelection != CurrentSelection))
 	{
-		UpdateCentroid();
-		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
+		UpdateCentroid();		
 		EmitSelectionChange(PreDragSelection, CurrentSelection, true);
 		OnSelectionChanged.Broadcast();
+
+		// Rebuild after broadcast in case the outside world wants to adjust things like color...
+		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 	}
 }
 
