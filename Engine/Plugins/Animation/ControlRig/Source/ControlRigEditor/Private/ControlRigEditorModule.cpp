@@ -1415,7 +1415,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					}
 
 					if (Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr || 
-						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr)
+						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr ||
+						Cast<URigVMArrayNode>(ModelPin->GetNode()) != nullptr)
 					{
 						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
 							!ModelPin->IsExecuteContext())
