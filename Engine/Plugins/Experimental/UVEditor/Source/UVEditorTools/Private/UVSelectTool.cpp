@@ -329,6 +329,7 @@ void UUVSelectTool::Setup()
 	SelectionMechanic->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
 
+
 	// Make it so that our selection mechanic creates undo/redo transactions that go to a selection
 	// change router, which we use to route to the current selection mechanic on each tool invocation.
 	ChangeRouter = ContextStore->FindContext<UUVSelectToolChangeRouter>();
@@ -587,6 +588,14 @@ void UUVSelectTool::OnSelectionChanged()
 		}
 		check(SelectionTargetIndex >= 0);
 
+		UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
+		UUVVisualStyleAPI* VisualStyleAPI = ContextStore->FindContext<UUVVisualStyleAPI>();
+		if (VisualStyleAPI)
+		{
+			FColor SelectionColor = VisualStyleAPI->GetSelectionColorForAsset(SelectionTargetIndex).ToFColor(true);
+			SelectionMechanic->ChangeSelectionColor(SelectionColor, 0.3f, SelectionColor, SelectionColor);
+		}
+
 		// Note the selected vids
 		TSet<int32> VidSet;
 		TSet<int32> TidSet;
@@ -706,6 +715,14 @@ void UUVSelectTool::UpdateLivePreviewLines()
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
 		const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
 
+		UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
+		UUVVisualStyleAPI* VisualStyleAPI = ContextStore->FindContext<UUVVisualStyleAPI>();
+		FColor SelectionColor = FColor::Yellow;
+		if (VisualStyleAPI)
+		{
+			SelectionColor = VisualStyleAPI->GetSelectionColorForAsset(SelectionTargetIndex).ToFColor(true);
+		}
+
 		for (int32 Eid : LivePreviewBoundaryEids)
 		{
 			FVector3d Vert1, Vert2;
@@ -714,7 +731,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 			LivePreviewLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1), 
 				MeshTransform.TransformPosition(Vert2), 
-				FColor::Yellow, LivePreviewHighlightThickness, LivePreviewHighlightDepthOffset);
+				SelectionColor, LivePreviewHighlightThickness, LivePreviewHighlightDepthOffset);
 		}	
 	}
 }

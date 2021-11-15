@@ -15,6 +15,7 @@
 
 #include "MeshSelectionMechanic.generated.h"
 
+class UTriangleSetComponent;
 class ULineSetComponent;
 class UPointSetComponent;
 class APreviewGeometryActor;
@@ -78,6 +79,7 @@ public:
 
 	virtual const FDynamicMeshSelection& GetCurrentSelection() const;
 	void ChangeSelectionMode(const EMeshSelectionMechanicMode& TargetMode);
+	void ChangeSelectionColor(const FColor& TriangleColorIn, float TriangleOpacityIn, const FColor& LineColorIn, const FColor& PointColorIn);
 	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -122,6 +124,13 @@ protected:
 	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor = nullptr;
 
+	/** The material being displayed for selected triangles */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> TriangleSetMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UTriangleSetComponent> TriangleSet = nullptr;
+
 	UPROPERTY()
 	TObjectPtr<ULineSetComponent> LineSet = nullptr;
 
@@ -136,8 +145,10 @@ protected:
 	int32 CurrentSelectionIndex = IndexConstants::InvalidID;
 	FViewCameraState CameraState;
 
+	FColor TriangleColor = FColor::Yellow;
 	FColor LineColor = FColor::Yellow;
 	FColor PointColor = FColor::Yellow;
+	float TriangleOpacity = 0.3;
 
 	bool bShiftToggle = false;
 	bool bCtrlToggle = false;
@@ -147,6 +158,7 @@ protected:
 	float LineThickness = 3;
 	float PointThickness = 6;
 	float DepthBias = 0.7;
+	float TriangleDepthBias = -0.1;
 
 	FVector3d CurrentSelectionCentroid;
 	int32 CentroidTimestamp = -1;

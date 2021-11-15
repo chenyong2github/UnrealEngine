@@ -194,7 +194,7 @@ protected:
 	const float WireframeDepthOffset = 0.6;
 	float UnwrapBaseColorHueStart = 200;
 	float UnwrapBaseColorSaturation = 0.25;
-	float UnwrapBaseColorValue = 0.75;
+	float UnwrapBaseColorValue = 0.60;
 	float UnwrapWireframeHueShift = 15;
 	float UnwrapWireframeSaturation = 0.40;
 	float UnwrapWireframeValue = 0.40;
@@ -205,6 +205,7 @@ protected:
 	FLinearColor GetTriangleColorByTargetIndex(int32 TargetIndex) const;
 	FLinearColor GetWireframeColorByTargetIndex(int32 TargetIndex) const;
 	FLinearColor GetBoundaryColorByTargetIndex(int32 TargetIndex) const;
+	FLinearColor GetSelectionColorByTargetIndex(int32 TargetIndex) const;
 
 	// Here largely for convenience to avoid having to pass it around functions.
 	UPROPERTY()

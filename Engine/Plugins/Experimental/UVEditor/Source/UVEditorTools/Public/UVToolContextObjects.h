@@ -241,6 +241,28 @@ public:
 
 };
 
+
+/**
+  Allows tools and mode to access color and styling information per asset
+*/
+UCLASS()
+class UVEDITORTOOLS_API UUVVisualStyleAPI : public UUVToolContextObject
+{
+	GENERATED_BODY()
+public:
+	FLinearColor GetSelectionColorForAsset(int32 AssetID)
+	{
+		if (GetSelectionColorForAssetFunc)
+		{
+			return GetSelectionColorForAssetFunc(AssetID);
+		}
+		return FLinearColor();
+	}
+
+	TUniqueFunction<FLinearColor(int32)> GetSelectionColorForAssetFunc;
+};
+
+
 /** 
  * Stores AABB trees for UV input object unwrap canonical or applied canonical meshes.
  * Binds to the input objects' OnCanonicalModified delegate to automatically update 
