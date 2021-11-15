@@ -94,19 +94,19 @@ private:
 private:
 
 	/** Is Skein service available */
-	bool bSkeinBinaryFound;
+	mutable bool bSkeinBinaryFound;
 
 	/** Is Skein project found */
-	bool bSkeinProjectFound;
+	mutable bool bSkeinProjectFound;
+
+	/** Skein project root */
+	mutable FString ProjectRoot;
+
+	/** Skein project name */
+	mutable FString ProjectName;
 
 	/** Skein binary path */
 	FString BinaryPath;
-
-	/** Skein project root */
-	FString ProjectRoot;
-
-	/** Skein project name */
-	FString ProjectName;
 
 	/** State cache */
 	TMap<FString, TSharedRef<FSkeinSourceControlState, ESPMode::ThreadSafe>> StateCache;

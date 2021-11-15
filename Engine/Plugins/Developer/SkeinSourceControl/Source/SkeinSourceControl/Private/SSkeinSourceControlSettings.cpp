@@ -26,6 +26,7 @@ void SSkeinSourceControlSettings::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("SkeinCLINotFound", "The Skein Command Line application could not be found."))
+				.ColorAndOpacity(FLinearColor::Red)
 				.WrapTextAt(450.0f)
 				.ToolTipText(LOCTEXT("SkeinCLINotFound_Tooltip", "Without the Skein Command Line application the Unreal Editor cannot communicate to the Skein cloud server. Please make sure it's installed at the correct location."))
 			]
@@ -43,6 +44,7 @@ void SSkeinSourceControlSettings::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("SkeinProjectNotFound", "There is no Skein project initialized for this location."))
+				.ColorAndOpacity(FLinearColor::Red)
 				.WrapTextAt(450.0f)
 				.ToolTipText(LOCTEXT("SkeinProjectNotFound_Tooltip", "Skein projects are created in the Skein Web UI and then cloned to your local machine using the Skein Command Line application. Once complete, you can use the Skein Source Control plugin to manage the project assets from within Unreal Editor."))
 			]

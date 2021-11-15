@@ -45,11 +45,26 @@ FText FSkeinSourceControlProvider::GetStatusText() const
 
 bool FSkeinSourceControlProvider::IsAvailable() const
 {
+	if (!bSkeinBinaryFound)
+	{
+		bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinAvailable();
+	}
+
 	return bSkeinBinaryFound;
 }
 
 bool FSkeinSourceControlProvider::IsEnabled() const
 {
+	if (!bSkeinBinaryFound)
+	{
+		bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinAvailable();
+	}
+
+	if (!bSkeinProjectFound)
+	{
+		bSkeinProjectFound = SkeinSourceControlUtils::IsSkeinProjectFound(FPaths::ProjectDir(), ProjectRoot, ProjectName);
+	}
+
 	return bSkeinBinaryFound && bSkeinProjectFound;
 }
 
