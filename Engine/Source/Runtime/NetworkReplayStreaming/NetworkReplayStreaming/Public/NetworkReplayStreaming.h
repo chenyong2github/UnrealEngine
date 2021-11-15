@@ -15,7 +15,7 @@ class IAnalyticsProvider;
 class FReplayEventListItem : public FJsonSerializable
 {
 public:
-	FReplayEventListItem() {}
+	FReplayEventListItem() : Time1(0), Time2(0) {}
 	virtual ~FReplayEventListItem() {}
 
 	FString		ID;
