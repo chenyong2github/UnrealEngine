@@ -38,9 +38,9 @@ namespace FMLAdapter
 	}
 
 	template<typename StructType>
-	void JsonStringToStruct(const FString& JsonString, StructType& OutStruct)
+	bool JsonStringToStruct(const FString& JsonString, StructType& OutStruct)
 	{
-		FJsonObjectConverter::JsonObjectStringToUStruct(JsonString, &OutStruct, 0, 0);
+		return FJsonObjectConverter::JsonObjectStringToUStruct(JsonString, &OutStruct, 0, 0);
 	}
 
 	struct IJsonable

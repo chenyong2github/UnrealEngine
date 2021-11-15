@@ -170,6 +170,11 @@ void UMLAdapterAgent::Sense(const float DeltaTime)
 	}
 }
 
+void UMLAdapterAgent::Think(const float DeltaTime)
+{
+	// Can be implemented in child class
+}
+
 void UMLAdapterAgent::Act(const float DeltaTime)
 {
 	for (UMLAdapterActuator* Actuator : Actuators)

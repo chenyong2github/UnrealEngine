@@ -42,7 +42,7 @@ protected:
 	FSoftClassPath SessionClass;
 	
 	UPROPERTY(EditAnywhere, config, Category = MLAdapter, meta = (MetaClass = "MLAdapterAgent"))
-	FSoftClassPath DefautAgentClass;
+	FSoftClassPath DefaultAgentClass;
 
 	UPROPERTY(EditAnywhere, config, Category = MLAdapter)
 	uint16 DefaultRPCServerPort = 15151;

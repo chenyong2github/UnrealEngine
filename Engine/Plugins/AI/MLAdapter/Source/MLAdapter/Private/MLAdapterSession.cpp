@@ -225,7 +225,7 @@ void UMLAdapterSession::Close()
 {
 	bActive = false;
 
-	// 'destroy' agents by clearing the asyc flag and letting the GC clean them
+	// 'destroy' agents by clearing the async flag and letting the GC clean them
 	for (UMLAdapterAgent* Agent : Agents)
 	{
 		Agent->ClearInternalFlags(EInternalObjectFlags::Async);
@@ -251,7 +251,7 @@ void UMLAdapterSession::Tick(float DeltaTime)
 
 	for (UMLAdapterAgent* Agent : Agents)
 	{
-		//Agent->Think(DeltaTime);
+		Agent->Think(DeltaTime);
 	}
 
 	for (UMLAdapterAgent* Agent : Agents)

@@ -92,7 +92,7 @@ public:
 	virtual void SetSession(UMLAdapterSession* NewSession);
 	virtual void CloseSession(UMLAdapterSession& InSession);
 
-	/** Returns current sesison. If one doesn't exist, it gets created. */
+	/** Returns current session. If one doesn't exist, it gets created. */
 	virtual UMLAdapterSession& GetSession();
 	bool HasSession() const { return Session && (Session->IsPendingKillOrUnreachable() == false); }
 

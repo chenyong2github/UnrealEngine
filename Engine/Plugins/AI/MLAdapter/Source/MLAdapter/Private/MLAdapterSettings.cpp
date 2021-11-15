@@ -7,7 +7,7 @@
 UMLAdapterSettings::UMLAdapterSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	DefautAgentClass = UMLAdapterAgent::StaticClass();
+	DefaultAgentClass = UMLAdapterAgent::StaticClass();
 	ManagerClass = UMLAdapterManager::StaticClass();
 	SessionClass = UMLAdapterSession::StaticClass();
 }
@@ -28,7 +28,7 @@ TSubclassOf<UMLAdapterSession> UMLAdapterSettings::GetSessionClass()
 
 TSubclassOf<UMLAdapterAgent> UMLAdapterSettings::GetAgentClass()
 {
-	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(DefautAgentClass);
+	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(DefaultAgentClass);
 	TSubclassOf<UMLAdapterAgent> LocalClass = LocalClassName.ResolveClass();
 	return LocalClass;
 }

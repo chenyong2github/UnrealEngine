@@ -13,7 +13,6 @@ class UMLAdapterAction;
 class UMLAdapterSensor;
 class AController;
 class APawn;
-class UMLAdapterBrain;
 class UMLAdapterSession;
 class UMLAdapterActuator;
 struct FMLAdapterSpaceDescription;
@@ -73,9 +72,13 @@ public:
 	virtual void BeginDestroy() override;
 
 	virtual bool RegisterSensor(UMLAdapterSensor& Sensor);
+	
 	/** Updates all the senses that are configured as 'IsPolling'*/
 	virtual void Sense(const float DeltaTime);
 	
+	// Decide what action to take based on the current observations
+	virtual void Think(const float DeltaTime);
+
 	// trigger all of the agent's 
 	virtual void Act(const float DeltaTime);
 	

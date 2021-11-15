@@ -326,7 +326,7 @@ void UMLAdapterManager::BindToDelegates()
 	// Commented out possible other useful delegates
 	//	FCoreDelegates::GameStateClassChanged;
 	//	FCoreDelegates::ConfigReadyForUse;
-	//	FWorldDelegates::OnPostWorldCreation;
+	//  FWorldDelegates::OnPostWorldCreation;
 	//	FWorldDelegates::OnPreWorldInitialization; 
 
 	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UMLAdapterManager::OnPostWorldInit);
@@ -381,11 +381,11 @@ void UMLAdapterManager::OnPostWorldInit(UWorld* World, const UWorld::Initializat
 #endif // WITH_EDITOR
 
 		LastActiveWorld = World;
-		if ((RequestedFunctionMode == EMLAdapterServerMode::Invalid || RequestedFunctionMode == EMLAdapterServerMode::AutoDetect) 
+		if ((RequestedFunctionMode == EMLAdapterServerMode::Invalid || RequestedFunctionMode == EMLAdapterServerMode::AutoDetect)
 			&& GetServerModeForWorld(*World) != CurrentFunctionMode)
 		{
 			// restart the RPC server. Note that this will kick all the currently connected agents
-			uint16 Port = UMLAdapterSettings::GetDefaultRPCServerPort();			
+			uint16 Port = UMLAdapterSettings::GetDefaultRPCServerPort();
 			FParse::Value(FCommandLine::Get(), TEXT("MLAdapterPort="), Port);
 			StartServer(Port, GetServerModeForWorld(*World), CurrentServerThreads);
 		}
@@ -394,7 +394,7 @@ void UMLAdapterManager::OnPostWorldInit(UWorld* World, const UWorld::Initializat
 		{
 			GetSession().OnPostWorldInit(*World);
 		}
-	}	
+	}
 }
 
 void UMLAdapterManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
@@ -409,7 +409,7 @@ void UMLAdapterManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool b
 
 		if (HasSession())
 		{
-			GetSession().OnWorldCleanup(*World, bSessionEnded, bCleanupResources);
+			CloseSession(GetSession());
 		}
 	}
 }
