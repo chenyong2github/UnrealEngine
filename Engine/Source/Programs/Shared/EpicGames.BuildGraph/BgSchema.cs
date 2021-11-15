@@ -199,7 +199,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Characters which are not permitted in names.
 		/// </summary>
-		public const string IllegalNameCharacters = "^<>:\"/\\|?*$";
+		public const string IllegalNameCharacters = "^<>:\"/\\|?*";
 
 		/// <summary>
 		/// Characters which are not permitted in paths.
