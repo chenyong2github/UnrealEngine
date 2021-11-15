@@ -6104,7 +6104,7 @@ bool UEditorEngine::AreAllWindowsHidden() const
 	return bAllHidden;
 }
 
-AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform& Transform, bool bSilent, EObjectFlags InObjectFlags)
+AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform& Transform, bool bSilent, EObjectFlags InObjectFlags, bool bSelectActor)
 {
 	check( Class );
 
@@ -6152,12 +6152,16 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 	AActor* Actor = NULL;
 	{
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "AddActor", "Add Actor") );
-		if ( !(InObjectFlags & RF_Transactional) )
+		if (!(InObjectFlags & RF_Transactional))
 		{
 			// Don't attempt a transaction if the actor we are spawning isn't transactional
 			Transaction.Cancel();
 		}
-		SelectNone( false, true );
+
+		if (bSelectActor)
+		{
+			SelectNone(false, true);
+		}
 
 		AActor* Default = Class->GetDefaultObject<AActor>();
 
@@ -6169,9 +6173,13 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 		const auto Rotation = Transform.GetRotation().Rotator();
 		Actor = World->SpawnActor( Class, &Location, &Rotation, SpawnInfo );
 
-		if( Actor )
+		if (Actor)
 		{
-			SelectActor( Actor, 1, 0 );
+			if (bSelectActor)
+			{
+				SelectActor(Actor, 1, 0);
+			}
+
 			Actor->InvalidateLightingCache();
 			Actor->PostEditMove( true );
 		}
@@ -6191,7 +6199,10 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 		ULevel::LevelDirtiedEvent.Broadcast();
 	}
 
-	NoteSelectionChange();
+	if( bSelectActor )
+	{
+		NoteSelectionChange();
+	}
 
 	return Actor;
 }

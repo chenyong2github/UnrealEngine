@@ -1098,9 +1098,10 @@ public:
 	 * @param	Transform		The world-space transform to spawn the actor with.
 	 * @param	bSilent			If true, suppress logging (optional, defaults to false).
 	 * @param	ObjectFlags		The object flags to place on the spawned actor.
+	 * @param	bSelectActor	Whether or not to select the spawned actor.
 	 * @return					A pointer to the newly added actor, or NULL if add failed.
 	 */
-	virtual AActor* AddActor(ULevel* InLevel, UClass* Class, const FTransform& Transform, bool bSilent = false, EObjectFlags ObjectFlags = RF_Transactional);
+	virtual AActor* AddActor(ULevel* InLevel, UClass* Class, const FTransform& Transform, bool bSilent = false, EObjectFlags ObjectFlags = RF_Transactional, bool bSelectActor = true);
 
 	/**
 	 * Adds actors to the world at the specified location using export text.
