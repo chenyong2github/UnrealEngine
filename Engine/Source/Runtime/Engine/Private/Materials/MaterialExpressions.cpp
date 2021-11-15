@@ -47,6 +47,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 #include "Materials/MaterialExpressionAbs.h"
+#include "Materials/MaterialExpressionAbsorptionMediumMaterialOutput.h"
 #include "Materials/MaterialExpressionActorPositionWS.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionAppendVector.h"
@@ -20004,6 +20005,69 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 {
 	return TEXT("Thin Translucent Material");
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionAbsorptionMediumMaterialOutput
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionAbsorptionMediumMaterialOutput::UMaterialExpressionAbsorptionMediumMaterialOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_MediumAbsorption;
+		FConstructorStatics()
+			: NAME_MediumAbsorption(LOCTEXT("Shading", "Shading"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_MediumAbsorption);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionAbsorptionMediumMaterialOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CodeInput = INDEX_NONE;
+
+	if (OutputIndex == 0)
+	{
+		CodeInput = TransmittanceColor.IsConnected() ? TransmittanceColor.Compile(Compiler) : Compiler->Constant3(1.0f, 1.0f, 1.0f);
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionAbsorptionMediumMaterialOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Absorption Medium (Path Tracer Only)")));
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionAbsorptionMediumMaterialOutput::GetNumOutputs() const
+{
+	return 1;
+}
+
+FString UMaterialExpressionAbsorptionMediumMaterialOutput::GetFunctionName() const
+{
+	return TEXT("GetAbsorptionMediumMaterialOutput");
+}
+
+FString UMaterialExpressionAbsorptionMediumMaterialOutput::GetDisplayName() const
+{
+	return TEXT("Absorption Medium");
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
