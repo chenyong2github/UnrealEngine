@@ -25,6 +25,10 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSeamTool;
 	TSharedPtr<FUICommandInfo> BeginRecomputeUVsTool;
 
+	TSharedPtr<FUICommandInfo> SewAction;
+	TSharedPtr<FUICommandInfo> SplitAction;
+	TSharedPtr<FUICommandInfo> IslandConformalUnwrapAction;
+
 	TSharedPtr<FUICommandInfo> AcceptOrCompleteActiveTool;
 	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 

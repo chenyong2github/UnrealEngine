@@ -3,14 +3,17 @@
 #include "UVEditorModule.h"
 
 #include "ContentBrowserMenuContexts.h"
+#include "DetailsCustomizations/UVSelectToolCustomizations.h"
+#include "EditorModeRegistry.h"
 #include "LevelEditorMenuContext.h"
+#include "PropertyEditorModule.h"
 #include "Selection.h"
 #include "UVEditor.h"
 #include "UVEditorCommands.h"
 #include "UVEditorMode.h"
 #include "UVEditorStyle.h"
 #include "UVEditorSubsystem.h"
-#include "EditorModeRegistry.h"
+#include "UVSelectTool.h"
 
 #include "ToolMenus.h"
 
@@ -24,6 +27,11 @@ void FUVEditorModule::StartupModule()
 	// Menus need to be registered in a callback to make sure the system is ready for them.
 	UToolMenus::RegisterStartupCallback(
 		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FUVEditorModule::RegisterMenus));
+
+	// Register details view customizations
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FUVSelectToolActionPropertySetDetails::MakeInstance));
 }
 
 void FUVEditorModule::ShutdownModule()
@@ -35,6 +43,10 @@ void FUVEditorModule::ShutdownModule()
 	FUVEditorCommands::Unregister();
 
 	FEditorModeRegistry::Get().UnregisterMode(UUVEditorMode::EM_UVEditorModeId);
+
+	// Unregister customizations
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule->UnregisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName());
 }
 
 void FUVEditorModule::RegisterMenus()
