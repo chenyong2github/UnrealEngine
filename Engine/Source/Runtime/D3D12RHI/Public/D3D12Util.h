@@ -71,8 +71,10 @@ enum EShaderVisibility
 	SV_Vertex,
 	SV_Pixel,
 	SV_Geometry,
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 	SV_Mesh,
 	SV_Amplification,
+#endif
 	SV_All,
 	SV_ShaderVisibilityCount
 };
