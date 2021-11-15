@@ -6,6 +6,7 @@
 #include "MLDeformerInputInfo.h"
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
+#include "GeometryCacheTrack.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "NeuralNetwork.h"
@@ -87,6 +88,110 @@ void UMLDeformerAsset::PostLoad()
 }
 
 #if WITH_EDITOR
+// A fuzzy name match.
+// There is a match when the track name starts with the mesh name.
+bool IsPotentialMatch(const FString& TrackName, const FString& MeshName)
+{
+	return (TrackName.Find(MeshName) == 0);
+}
+
+void UMLDeformerAsset::GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames)
+{
+	OutMeshMappings.Empty();
+	OutFailedImportedMeshNames.Empty();
+
+	USkeletalMesh* SkelMesh = DeformerAsset->GetSkeletalMesh();
+	UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
+	if (SkelMesh == nullptr || GeomCache == nullptr)
+	{
+		return;
+	}
+
+	// If we haven't got any imported mesh infos then the asset needs to be reimported first.
+	// We show an error for this in the editor UI already.
+	FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+	check(ImportedModel);
+	const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
+	if (SkelMeshInfos.IsEmpty())
+	{
+		return;
+	}
+
+	// For all meshes in the skeletal mesh.
+	const float SampleTime = 0.0f;
+	FString SkelMeshName;
+	for (int32 SkelMeshIndex = 0; SkelMeshIndex < SkelMeshInfos.Num(); ++SkelMeshIndex)
+	{
+		const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[SkelMeshIndex];
+		SkelMeshName = MeshInfo.Name.ToString();
+
+		// Find the matching one in the geom cache.
+		bool bFoundMatch = false;
+		for (int32 TrackIndex = 0; TrackIndex < GeomCache->Tracks.Num(); ++TrackIndex)
+		{
+			// Check if this is a candidate based on the mesh and track name.
+			UGeometryCacheTrack* Track = GeomCache->Tracks[TrackIndex];
+			if (Track && IsPotentialMatch(Track->GetName(), SkelMeshName))
+			{	
+				// Extract the geom cache mesh data.
+				FGeometryCacheMeshData GeomCacheMeshData;
+				if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
+				{
+					continue;
+				}
+
+				// Verify that we have imported vertex numbers.
+				if (GeomCacheMeshData.ImportedVertexNumbers.IsEmpty())
+				{
+					continue;
+				}
+
+				// Get the number of geometry cache mesh imported verts.
+				int32 NumGeomMeshVerts = 0;
+				for (int32 GeomVertIndex = 0; GeomVertIndex < GeomCacheMeshData.ImportedVertexNumbers.Num(); ++GeomVertIndex)
+				{
+					NumGeomMeshVerts = FMath::Max(NumGeomMeshVerts, (int32)GeomCacheMeshData.ImportedVertexNumbers[GeomVertIndex]);
+				}
+				NumGeomMeshVerts += 1;	// +1 Because we use indices, so a cube's max index is 7, while there are 8 vertices.
+
+				// Make sure the vertex counts match.
+				const int32 NumSkelMeshVerts = MeshInfo.NumVertices;
+				if (NumSkelMeshVerts != NumGeomMeshVerts)
+				{
+					continue;
+				}
+
+				// Create a new mesh mapping entry.
+				OutMeshMappings.AddDefaulted();
+				FMLDeformerMeshMapping& Mapping = OutMeshMappings.Last();
+				Mapping.MeshIndex = SkelMeshIndex;
+				Mapping.TrackIndex = TrackIndex;
+				Mapping.SkelMeshToTrackVertexMap.AddUninitialized(NumSkelMeshVerts);
+
+				// For all vertices (both skel mesh and geom cache mesh have the same number of verts here).
+				for (int32 VertexIndex = 0; VertexIndex < NumSkelMeshVerts; ++VertexIndex)
+				{
+					// Find the first vertex with the same dcc vertex in the geom cache mesh.
+					// When there are multiple vertices with the same vertex number here, they are duplicates with different normals or uvs etc.
+					// However they all share the same vertex position, so we can just find the first hit, as we only need the position later on.
+					const int32 GeomCacheVertexIndex = GeomCacheMeshData.ImportedVertexNumbers.Find(VertexIndex);
+					Mapping.SkelMeshToTrackVertexMap[VertexIndex] = GeomCacheVertexIndex;
+				}
+
+				// We found a match, no need to iterate over more Tracks.
+				bFoundMatch = true;
+				break;
+			} // If the track name matches the skeletal meshes internal mesh name.
+		} // For all tracks.
+
+		if (!bFoundMatch)
+		{
+			OutFailedImportedMeshNames.Add(SkelMeshName);
+			UE_LOG(LogMLDeformer, Warning, TEXT("Imported mesh '%s' cannot be matched with a geometry cache track."), *SkelMeshName);
+		}
+	} // For all meshes inside the skeletal mesh.
+}
+
 FText UMLDeformerAsset::GetBaseAssetChangedErrorText() const
 {
 	FText Result;
@@ -125,6 +230,25 @@ FText UMLDeformerAsset::GetTargetAssetChangedErrorText() const
 	return Result;
 }
 
+FText UMLDeformerAsset::GetSkeletalMeshNeedsReimportErrorText() const
+{
+	FText Result;
+
+	if (SkeletalMesh)
+	{
+		FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		check(ImportedModel);
+
+		const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
+		if (SkelMeshInfos.IsEmpty())
+		{
+			Result = LOCTEXT("SkelMeshNeedsReimport", "Skeletal Mesh asset needs to be reimported.");
+		}
+	}
+
+	return Result;
+}
+
 void UMLDeformerAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static const FName SkeletalMeshName = GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, SkeletalMesh);
@@ -140,7 +264,11 @@ void UMLDeformerAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 int32 UMLDeformerAsset::GetNumFrames() const
 {
-	check(GeometryCache != nullptr)
+	if (GeometryCache == nullptr)
+	{
+		return 0;
+	}
+
 	const int32 StartFrame = GeometryCache->GetStartFrame();
 	const int32 EndFrame = GeometryCache->GetEndFrame();
 	check(EndFrame >= StartFrame);
@@ -179,22 +307,63 @@ FText UMLDeformerAsset::GetGeomCacheErrorText(UGeometryCache* InGeomCache) const
 	FText Result;
 	if (InGeomCache)
 	{
+		FString ErrorString;
+
 		// Verify that we have imported vertex numbers enabled.
 		TArray<FGeometryCacheMeshData> MeshData;
 		InGeomCache->GetMeshDataAtTime(0.0f, MeshData);
 		if (MeshData.Num() == 0)
 		{
-			Result = LOCTEXT("TargetMeshNoMeshData", "No geometry data is present.");
+			ErrorString = FText(LOCTEXT("TargetMeshNoMeshData", "No geometry data is present.")).ToString();
 		}
 		else
 		{
 			if (MeshData[0].ImportedVertexNumbers.Num() == 0)
 			{
-				Result = LOCTEXT("TargetMeshNoImportedVertexNumbers", "Please import Geometry Cache with option 'Store Imported Vertex Numbers' enabled!");
+				ErrorString = FText(LOCTEXT("TargetMeshNoImportedVertexNumbers", "Please import Geometry Cache with option 'Store Imported Vertex Numbers' enabled!")).ToString();
 			}
 		}
+
+		// Check if we flattened the tracks.
+		if (InGeomCache->Tracks.Num() == 1 && InGeomCache->Tracks[0]->GetName() == TEXT("Flattened_Track"))
+		{
+			if (!ErrorString.IsEmpty())
+			{
+				ErrorString += TEXT("\n\n");
+			}
+			ErrorString += FText(LOCTEXT("TargetMeshFlattened", "Please import Geometry Cache with option 'Flatten Tracks' disabled!")).ToString();
+		}
+
+		Result = FText::FromString(ErrorString);
 	}
 
+	return Result;
+}
+
+FText UMLDeformerAsset::GetMeshMappingErrorText() const
+{
+	FText Result;
+	if (GeometryCache && SkeletalMesh)
+	{
+		// Check for failed mesh mappings.
+		UMLDeformerAsset* Asset = const_cast<UMLDeformerAsset*>(this);
+		TArray<FMLDeformerMeshMapping> MeshMappings;
+		TArray<FString> FailedNames;
+		UMLDeformerAsset::GenerateMeshMappings(Asset, MeshMappings, FailedNames);
+
+		// List all mesh names that have issues.
+		FString ErrorString;
+		for (int32 Index = 0; Index < FailedNames.Num(); ++Index)
+		{
+			ErrorString += FailedNames[Index];
+			if (Index < FailedNames.Num() - 1)
+			{
+				ErrorString += TEXT("\n");
+			}
+		}
+
+		Result = FText::FromString(ErrorString);
+	}
 	return Result;
 }
 
@@ -204,35 +373,19 @@ FText UMLDeformerAsset::GetVertexErrorText(USkeletalMesh* InSkelMesh, UGeometryC
 
 	if (InSkelMesh && InGeomCache)
 	{
-		FSkeletalMeshModel* SkeletalMeshModel = InSkelMesh->GetImportedModel();	
-		TArray<FGeometryCacheMeshData> MeshData;
-		InGeomCache->GetMeshDataAtTime(0.0f, MeshData);
-		if (SkeletalMeshModel && MeshData.Num() > 0)
+		const int32 SkelVertCount = UMLDeformerAsset::ExtractNumImportedSkinnedVertices(InSkelMesh);
+		const int32 GeomCacheVertCount = UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(InGeomCache);
+		const bool bHasGeomCacheError = !UMLDeformerAsset::GetGeomCacheErrorText(InGeomCache).IsEmpty();
+		if (SkelVertCount != GeomCacheVertCount && !bHasGeomCacheError)
 		{
-			const TArray<int32>& SkeletalVertexMap = SkeletalMeshModel->LODModels[0].MeshToImportVertexMap;
-			const TArray<uint32>& GeomCacheVertexMap = MeshData[0].ImportedVertexNumbers;
-			if (!GeomCacheVertexMap.IsEmpty() && !SkeletalVertexMap.IsEmpty())
-			{
-				// Find the max vertex index.
-				int32 MaxGeomCacheVertex = 0;
-				for (int32 Index = 0; Index < GeomCacheVertexMap.Num(); ++Index)
-				{
-					MaxGeomCacheVertex = FMath::Max<int32>(static_cast<int32>(GeomCacheVertexMap[Index]), MaxGeomCacheVertex);
-				}
-
-				const int32 MaxSkelMeshVertex = SkeletalMeshModel->LODModels[0].MaxImportVertex;
-				if (MaxSkelMeshVertex != MaxGeomCacheVertex)
-				{
-					Result = FText::Format(
-						LOCTEXT("MeshVertexNumVertsMismatch", "Vertex count of {0} doesn't match with {1}!\n\n{2} has {3} verts, while {4} has {5} verts."),
-						SkelName,
-						GeomCacheName,
-						SkelName,
-						MaxSkelMeshVertex + 1,
-						GeomCacheName,
-						MaxGeomCacheVertex + 1);
-				}
-			}
+			Result = FText::Format(
+				LOCTEXT("MeshVertexNumVertsMismatch", "Vertex count of {0} doesn't match with {1}!\n\n{2} has {3} verts, while {4} has {5} verts."),
+				SkelName,
+				GeomCacheName,
+				SkelName,
+				SkelVertCount,
+				GeomCacheName,
+				GeomCacheVertCount);
 		}
 	}
 
@@ -301,40 +454,8 @@ bool UMLDeformerAsset::IsCompatibleWithNeuralNet() const
 
 void UMLDeformerAsset::UpdateCachedNumVertices()
 {
-	NumSkeletalMeshVerts = 0;
-	NumGeomCacheVerts = 0;
-
-	// Extract max num vertices from the geometry cache.
-	if (GeometryCache)
-	{
-		TArray<FGeometryCacheMeshData> MeshData;
-		GeometryCache->GetMeshDataAtTime(0.0f, MeshData);
-		if (MeshData.Num() > 0)
-		{
-			const TArray<uint32>& VertexNumbers = MeshData[0].ImportedVertexNumbers;
-			for (int32 Index = 0; Index < VertexNumbers.Num(); ++Index)
-			{
-				NumGeomCacheVerts = FMath::Max<int32>(static_cast<int32>(VertexNumbers[Index]), NumGeomCacheVerts);
-			}
-
-			// Add one as they are indices starting from 0.
-			if (VertexNumbers.Num() > 0)
-			{
-				NumGeomCacheVerts += 1;
-			}
-		}
-	}
-
-	// Extract max num vertices from the skeletal mesh.
-	if (SkeletalMesh)
-	{
-		FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
-		if (SkeletalMeshModel)
-		{
-			const int32 MaxIndex = SkeletalMeshModel->LODModels[0].MaxImportVertex;
-			NumSkeletalMeshVerts = (MaxIndex > 0) ? (MaxIndex + 1) : 0;
-		}
-	}
+	NumSkeletalMeshVerts = UMLDeformerAsset::ExtractNumImportedSkinnedVertices(SkeletalMesh);
+	NumGeomCacheVerts = UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(GeometryCache);
 }
 
 FMLDeformerInputInfo UMLDeformerAsset::CreateInputInfo() const
@@ -351,6 +472,44 @@ FMLDeformerInputInfo UMLDeformerAsset::CreateInputInfo() const
 
 	return Result;
 }
+
+int32 UMLDeformerAsset::ExtractNumImportedSkinnedVertices(USkeletalMesh* SkeletalMesh)
+{
+	return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
+}
+
+int32 UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(UGeometryCache* GeomCache)
+{
+	if (GeomCache == nullptr)
+	{
+		return 0;
+	}
+
+	int32 NumGeomCacheImportedVerts = 0;
+
+	// Extract the geom cache number of imported vertices.
+	TArray<FGeometryCacheMeshData> MeshDatas;
+	GeomCache->GetMeshDataAtTime(0.0f, MeshDatas);
+	for (const FGeometryCacheMeshData& MeshData : MeshDatas)
+	{
+		const TArray<uint32>& ImportedVertexNumbers = MeshData.ImportedVertexNumbers;
+		if (ImportedVertexNumbers.Num() > 0)
+		{
+			// Find the maximum value.
+			int32 MaxIndex = -1;
+			for (int32 Index = 0; Index < ImportedVertexNumbers.Num(); ++Index)
+			{
+				MaxIndex = FMath::Max(static_cast<int32>(ImportedVertexNumbers[Index]), MaxIndex);
+			}
+			check(MaxIndex > -1);
+
+			NumGeomCacheImportedVerts += MaxIndex + 1;
+		}
+	}
+
+	return NumGeomCacheImportedVerts;
+}
+
 #endif
 
 void UMLDeformerAsset::InitGPUData()

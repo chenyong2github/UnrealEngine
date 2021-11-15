@@ -186,7 +186,7 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 						const int32 NumFrames = (DeformerAsset->GetGeometryCache()->GetEndFrame() - DeformerAsset->GetGeometryCache()->GetStartFrame()) + 1;
 						FMLDeformerFrameCache::FInitSettings FrameCacheInitSettings;
 						FrameCacheInitSettings.DeformerAsset = DeformerAsset;
-						FrameCacheInitSettings.CacheSizeInBytes = 1024 * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
+						FrameCacheInitSettings.CacheSizeInBytes = 1024ull * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
 						FrameCacheInitSettings.World = EditorData->GetWorld();
 						TSharedPtr<FMLDeformerFrameCache> FrameCache = MakeShared<FMLDeformerFrameCache>();
 						FrameCache->Init(FrameCacheInitSettings);

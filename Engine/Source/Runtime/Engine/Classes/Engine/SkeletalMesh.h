@@ -828,6 +828,10 @@ public:
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
 
+	/** Get the number of imported vertices. This returns 0 if GetImportedModel() returns a nullptr.
+	  * This is the number of vertices as they appear in the source asset, for example 8 for a cube. */
+	int32 GetNumImportedVertices() const;
+
 	/** Get the imported data for this skeletal mesh. */
 	FORCEINLINE FSkeletalMeshModel* GetImportedModel() const 
 	{

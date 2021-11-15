@@ -59,8 +59,7 @@ int32 UMLPytorchDataSetInterface::GetNumberSampleCurves() const
 int32 UMLPytorchDataSetInterface::GetNumberSampleDeltas() const
 {
 	check(IsValid());
-	const FMLDeformerEditorData* Data = EditorData.Get();
-	return Data->GetNumImportedVertices();
+	return UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(EditorData->GetDeformerAsset()->GetGeometryCache());
 }
 
 int32 UMLPytorchDataSetInterface::NumSamples() const

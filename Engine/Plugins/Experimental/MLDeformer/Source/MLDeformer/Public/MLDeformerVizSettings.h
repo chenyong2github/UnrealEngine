@@ -41,8 +41,6 @@ public:
 	float GetAnimPlaySpeed() const { return AnimPlaySpeed; }
 	float GetVertexDeltaMultiplier() const { return VertexDeltaMultiplier; }
 	int32 GetFrameNumber() const { return FrameNumber; }
-	int32 GetVertexNumber() const { return VertexNumber; }
-	bool GetDrawVertex() const { return bDrawVertex; }
 	bool GetDrawLabels() const { return bDrawLabels; }
 	float GetLabelScale() const { return LabelScale; }
 	bool GetShowHeatMap() const { return bShowHeatMap; }
@@ -105,14 +103,6 @@ public:
 	/** The frame number of the training data to visualize. */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (ClampMin = "0"))
 	uint32 FrameNumber = 0;
-
-	/** The vertex number to visualize. */
-	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (ClampMin = "0"))
-	int32 VertexNumber = 0;
-
-	/** Draw the specified vertex? */
-	UPROPERTY(EditAnywhere, Category = "Training Meshes")
-	bool bDrawVertex = false;
 
 	/** Draw the vertex deltas? */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes")

@@ -1012,6 +1012,20 @@ void USkeletalMesh::ReleaseResources()
 }
 
 #if WITH_EDITORONLY_DATA
+int32 USkeletalMesh::GetNumImportedVertices() const
+{
+	const FSkeletalMeshModel* SkeletalMeshModel = GetImportedModel();
+	if (SkeletalMeshModel)
+	{
+		const int32 MaxIndex = SkeletalMeshModel->LODModels[0].MaxImportVertex;
+		return (MaxIndex > 0) ? (MaxIndex + 1) : 0;
+	}
+
+	return 0;
+}
+#endif
+
+#if WITH_EDITORONLY_DATA
 static void AccumulateUVDensities(float* OutWeightedUVDensities, float* OutWeights, const FSkeletalMeshLODRenderData& LODData, const FSkelMeshRenderSection& Section)
 {
 	const int32 NumTotalTriangles = LODData.GetTotalFaces();

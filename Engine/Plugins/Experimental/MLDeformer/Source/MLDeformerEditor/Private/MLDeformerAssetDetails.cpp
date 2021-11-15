@@ -5,6 +5,8 @@
 #include "MLDeformerAsset.h"
 #include "NeuralNetwork.h"
 
+#include "GeometryCache.h"
+#include "GeometryCacheTrack.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 #include "PropertyCustomizationHelpers.h"
@@ -47,6 +49,7 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 	BaseMeshCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, SkeletalMesh));
 	if (DeformerAsset)
 	{
+		// Check if the base mesh matches the target mesh vertex count.
 		const FText ErrorText = DeformerAsset->GetVertexErrorText(DeformerAsset->SkeletalMesh, DeformerAsset->GeometryCache, FText::FromString("Base Mesh"), FText::FromString("Target Mesh"));
 		FDetailWidgetRow& ErrorRow = BaseMeshCategoryBuilder.AddCustomRow(FText::FromString("BaseMeshError"))
 			.Visibility(!ErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
@@ -61,6 +64,7 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 				]
 			];
 
+		// Check if the vertex counts of our asset have changed.
 		const FText ChangedErrorText = DeformerAsset->GetBaseAssetChangedErrorText();
 		FDetailWidgetRow& ChangedErrorRow = BaseMeshCategoryBuilder.AddCustomRow(FText::FromString("BaseMeshChangedError"))
 			.Visibility(!ChangedErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
@@ -72,6 +76,53 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 					SNew(SWarningOrErrorBox)
 					.MessageStyle(EMessageStyle::Error)
 					.Message(ChangedErrorText)
+				]
+			];
+
+		// Check if our skeletal mesh's imported model contains a list of mesh infos. If not, we need to reimport it as it is an older asset.
+		const FText NeedsReimportErrorText = DeformerAsset->GetSkeletalMeshNeedsReimportErrorText();
+		FDetailWidgetRow& NeedsReimportErrorRow = BaseMeshCategoryBuilder.AddCustomRow(FText::FromString("BaseMeshNeedsReimportError"))
+			.Visibility(!NeedsReimportErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Error)
+					.Message(NeedsReimportErrorText)
+				]
+			];
+		
+		// Show meshes that have no matching geometry track list.
+		const FText MeshMappingErrorList = DeformerAsset->GetMeshMappingErrorText();
+		FString GeomTrackNameList;
+		if (!MeshMappingErrorList.IsEmpty())
+		{
+			UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
+			for (int32 Index = 0; Index < GeomCache->Tracks.Num(); ++Index)
+			{
+				GeomTrackNameList += GeomCache->Tracks[Index]->GetName();
+				if (Index < GeomCache->Tracks.Num() - 1)
+				{
+					GeomTrackNameList += TEXT("\n");
+				}
+			}
+		}
+		FText MeshMappingErrorFull = FText::Format(
+			LOCTEXT("MeshMappingError", "No matching GeomCache Tracks names found for meshes:\n{0}\n\nGeomCache Track List:\n{1}"), 
+			MeshMappingErrorList,
+			FText::FromString(GeomTrackNameList));
+		FDetailWidgetRow& MeshMappingErrorRow = BaseMeshCategoryBuilder.AddCustomRow(FText::FromString("MeshMappingError"))
+			.Visibility(!MeshMappingErrorList.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Error)
+					.Message(MeshMappingErrorFull)
 				]
 			];
 	}

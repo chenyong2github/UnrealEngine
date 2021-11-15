@@ -19,6 +19,7 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 {
 	DeformerAsset = InDeformerAsset;
 	SkelMeshComponent = InSkelMeshComponent;
+	AddTickPrerequisiteComponent(SkelMeshComponent);
 	DeformerInstance.Init(InDeformerAsset, InSkelMeshComponent);
 }
 

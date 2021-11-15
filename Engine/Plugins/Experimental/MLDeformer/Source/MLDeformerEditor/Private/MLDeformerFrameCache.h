@@ -44,7 +44,6 @@ public:
 	UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeometryCacheComponent; }
 
 	const TArray<FVector3f>& GetSkinnedVertexPositions() const { return SkinnedVertexPositions; }
-	const TArray<FVector3f>& GetGeometryCachePositions() const { return GeomCacheVertexPositions; }
 
 	const TArray<float>& GetVertexDeltas() const { return VertexDeltas; }
 	const TArray<float>& GetBoneRotations() const { return BoneRotations; }
@@ -57,8 +56,7 @@ public:
 
 protected:
 	void ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
-	void ExtractGeomCachePositions(int32 LODIndex, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
-	void CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, const TArray<FVector3f>& GeomCachePositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas);
+	void CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas) const;
 
 protected:
 	FMLDeformerSampler* Sampler = nullptr;
@@ -66,7 +64,6 @@ protected:
 	TObjectPtr<UGeometryCacheComponent> GeometryCacheComponent = nullptr;
 	TArray<FVector3f> SkinnedVertexPositions;
 	TArray<FVector3f> TempVertexPositions;
-	TArray<FVector3f> GeomCacheVertexPositions;
 	TArray<FMatrix44f> BoneMatrices;
 	TArray<float> VertexDeltas;	// (NumImportedVerts * 3) -> xyz
 	TArray<float> BoneRotations; // (NumBones * 4) -> quat xyzw
@@ -83,7 +80,7 @@ class FMLDeformerSampler
 public:
 	struct FInitSettings
 	{
-		UWorld* World = nullptr;
+		TObjectPtr<UWorld> World = nullptr;
 		TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 	};
 
@@ -104,6 +101,10 @@ public:
 	int32 GetNumBones() const;
 	int32 GetNumCurves() const;
 	int32 GetNumFrames() const;
+	int32 GetNumMeshMappings() const { return MeshMappings.Num(); }
+
+	const FMLDeformerMeshMapping& GetMeshMapping(int32 Index) const { return MeshMappings[Index]; }
+	const TArray<FString>& GetFailedImportedMeshNames() const { return FailedImportedMeshNames; }
 
 	const FInitSettings& GetInitSettings() const { return InitSettings; }
 	const UMLDeformerAsset& GetDeformerAsset() const { return *InitSettings.DeformerAsset.Get(); }
@@ -113,12 +114,12 @@ public:
 
 protected:
 	AActor* CreateActor(UWorld* InWorld, const FName& Name) const;
-	int32 ExtractNumImportedSkinnedVertices(USkeletalMesh* SkeletalMesh) const;
-	int32 ExtractNumImportedGeomCacheVertices(UGeometryCache* GeomCache) const;
 
 protected:
 	TObjectPtr<AActor> SkelMeshActor = nullptr;
 	TObjectPtr<AActor> GeomCacheActor = nullptr;
+	TArray<FMLDeformerMeshMapping> MeshMappings; // Maps skeletal meshes imported meshes to geometry tracks. 
+	TArray<FString> FailedImportedMeshNames; // Imported mesh names in the skeletal mesh for which no geom cache track could be found.
 	FMLDeformerSamplerData SamplerData;
 	FInitSettings InitSettings;
 };

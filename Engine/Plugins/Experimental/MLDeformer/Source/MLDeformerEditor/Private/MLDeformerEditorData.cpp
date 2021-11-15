@@ -188,38 +188,6 @@ float FMLDeformerEditorData::GetSnappedFrameTime(float InTime) const
 	return InTime;
 }
 
-int32 FMLDeformerEditorData::GetNumImportedVertices() const
-{
-	UGeometryCacheComponent* GeomCacheComponent = GetEditorActor(EMLDeformerEditorActorIndex::Target).GeomCacheComponent;
-	check(GeomCacheComponent);
-
-	UGeometryCache* GeomCache = GeomCacheComponent->GetGeometryCache();
-	if (GeomCache == nullptr)
-	{
-		return 0;
-	}
-
-	TArray<FGeometryCacheMeshData> MeshData;
-	GeomCache->GetMeshDataAtTime(GeomCacheComponent->GetAnimationTime(), MeshData);
-
-	if (MeshData.Num() > 0)
-	{
-		const TArray<uint32>& ImportedVertexNumbers = MeshData[0].ImportedVertexNumbers;
-		if (ImportedVertexNumbers.Num() > 0)
-		{
-			// Find the maximum value.
-			int32 MaxIndex = -1;
-			for (int32 i = 0; i < ImportedVertexNumbers.Num(); ++i)
-			{
-				MaxIndex = FMath::Max(static_cast<int32>(ImportedVertexNumbers[i]), MaxIndex);
-			}
-			return (MaxIndex + 1);
-		}
-		return 0;
-	}
-	return 0;
-}
-
 void FMLDeformerEditorData::UpdateTestAnimPlaySpeed()
 {
 	UMLDeformerVizSettings* VizSettings = GetDeformerAsset()->GetVizSettings();
@@ -368,6 +336,12 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 		return false;
 	}
 
+	// There are no training frames.
+	if (GetDeformerAsset()->GetNumFrames() == 0)
+	{
+		return false;
+	}
+
 	// Now make sure the assets are compatible.
 	if (!Asset->GetVertexErrorText(Asset->GetSkeletalMesh(), Asset->GetGeometryCache(), FText(), FText()).IsEmpty() ||
 		!Asset->GetGeomCacheErrorText(Asset->GetGeometryCache()).IsEmpty())
@@ -377,6 +351,12 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 
 	// Make sure we have inputs.
 	if (Asset->CreateInputInfo().IsEmpty())
+	{
+		return false;
+	}
+
+	// Make sure every skeletal imported mesh has some geometry track.
+	if (!GetSingleFrameCache().GetSampler().GetFailedImportedMeshNames().IsEmpty())
 	{
 		return false;
 	}
@@ -399,7 +379,6 @@ bool FMLDeformerEditorData::GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, 
 	// Let's also directly extract the positions of the vertices, since we already calculated them.
 	const FMLDeformerSamplerData& SamplerData = SingleFrameCache.GetSampler().GetSamplerData();
 	LinearSkinnedPositions = SamplerData.GetSkinnedVertexPositions();
-	GeomCachePositions = SamplerData.GetGeometryCachePositions();
 
 	return true;
 }

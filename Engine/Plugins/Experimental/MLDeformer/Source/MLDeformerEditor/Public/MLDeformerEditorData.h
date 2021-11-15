@@ -96,15 +96,14 @@ public:
 	float GetDuration() const;
 	float GetSnappedFrameTime(float InTime) const;
 	float GetTimeAtFrame(int32 FrameNumber) const;
-	int32 GetNumImportedVertices() const;
 
 	/**
 	 *Update mean and scale of vertex deltas.
 	 *
 	 * @param TrainingFrame The training frame that contains the vertex deltas.
-	 * @param InOutMeanVertexDelta Mean vertex delta
-	 * @param InOutVertexDeltaScale Vertex delta scale
-	 * @param InOutCount Count
+	 * @param InOutMeanVertexDelta Mean vertex delta.
+	 * @param InOutVertexDeltaScale Vertex delta scale.
+	 * @param InOutCount Count.
 	 */
 	static void UpdateVertexDeltaMeanAndScale(const FMLDeformerTrainingFrame& TrainingFrame, FVector3f& InOutMeanVertexDelta, FVector3f& InOutVertexDeltaScale, float& InOutCount);
 
@@ -129,10 +128,8 @@ public:
 	
 public:
 	TArray<FVector3f> LinearSkinnedPositions;
-	TArray<FVector3f> GeomCachePositions;
 	TArray<float> VertexDeltas;
 	bool bIsVertexDeltaNormalized = false;
-
 	int32 CurrentFrame = -1;
 
 private:

@@ -11,6 +11,7 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
+#include "GeometryCacheTrack.h"
 
 #include "Math/NumericLimits.h"
 
@@ -61,9 +62,6 @@ void FMLDeformerSamplerData::Init(const FInitSettings& InitSettings)
 	SkinnedVertexPositions.Empty();
 	SkinnedVertexPositions.AddUninitialized(NumImportedVertices);
 
-	GeomCacheVertexPositions.Empty();
-	GeomCacheVertexPositions.AddUninitialized(NumImportedVertices);
-
 	VertexDeltas.Empty(); // Multiply by 3 as we store this as an array of floats instead of an FVector3f.
 
 	BoneMatrices.Empty();
@@ -102,37 +100,70 @@ void FMLDeformerSamplerData::Update(int32 InAnimFrameIndex)
 		// Tick the component.
 		GeometryCacheComponent->SetManualTick(true);
 		GeometryCacheComponent->TickAtThisTime(SampleTime, false, false, false);
-
-		// Grab the vertex positions.
-		ExtractGeomCachePositions(LODIndex, TempVertexPositions, GeomCacheVertexPositions);
 	}
 
 	// Calculate the vertex deltas.
 	const float DeltaCutoffLength = DeformerAsset.GetDeltaCutoffLength();
-	CalculateVertexDeltas(SkinnedVertexPositions, GeomCacheVertexPositions, DeltaCutoffLength, VertexDeltas);
+	CalculateVertexDeltas(SkinnedVertexPositions, DeltaCutoffLength, VertexDeltas);
 }
 
-void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, const TArray<FVector3f>& GeomCachePositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas)
+void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas) const
 {
-	check(SkinnedPositions.Num() == GeomCachePositions.Num());
 	const int32 NumVerts = SkinnedPositions.Num();
 	OutVertexDeltas.Reset(NumVerts * 3);
 	OutVertexDeltas.AddUninitialized(NumVerts * 3);
-	for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
+
+	UMLDeformerAsset* DeformerAsset = Sampler->GetInitSettings().DeformerAsset;
+	USkeletalMesh* SkelMesh = DeformerAsset->GetSkeletalMesh();
+	UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
+
+	const FTransform AlignmentTransform = DeformerAsset->GetAlignmentTransform();
+
+	FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+	check(SkelMesh);
+	check(GeomCache);
+	check(ImportedModel);
+
+	// Reset all deltas to zero.
+	for (int32 Index = 0; Index < OutVertexDeltas.Num(); ++Index)
 	{
-		const FVector Delta = GeomCachePositions[VertexIndex] - SkinnedPositions[VertexIndex];
-		const int32 ArrayIndex = 3 * VertexIndex;
-		if (Delta.Length() < DeltaCutoffLength)
+		OutVertexDeltas[Index] = 0.0f;
+	}
+
+	// For all mesh mappings we found.
+	const float SampleTime = GeometryCacheComponent->GetTimeAtFrame(AnimFrameIndex);
+	const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
+	for (int32 MeshMappingIndex = 0; MeshMappingIndex < Sampler->GetNumMeshMappings(); ++MeshMappingIndex)
+	{
+		const FMLDeformerMeshMapping& MeshMapping = Sampler->GetMeshMapping(MeshMappingIndex);
+		const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[MeshMapping.MeshIndex];
+		UGeometryCacheTrack* Track = GeomCache->Tracks[MeshMapping.TrackIndex];
+
+		// Sample the mesh data of the geom cache.
+		FGeometryCacheMeshData GeomCacheMeshData;
+		if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
 		{
-			OutVertexDeltas[ArrayIndex] = Delta.X;
-			OutVertexDeltas[ArrayIndex + 1] = Delta.Y;
-			OutVertexDeltas[ArrayIndex + 2] = Delta.Z;
+			continue;
 		}
-		else
+
+		// Calculate the vertex deltas.
+		for (int32 VertexIndex = 0; VertexIndex < MeshInfo.NumVertices; ++VertexIndex)
 		{
-			OutVertexDeltas[ArrayIndex] = 0.0f;
-			OutVertexDeltas[ArrayIndex + 1] = 0.0f;
-			OutVertexDeltas[ArrayIndex + 2] = 0.0f;
+			const int32 SkinnedVertexIndex = MeshInfo.StartImportedVertex + VertexIndex;
+			const int32 GeomCacheVertexIndex = MeshMapping.SkelMeshToTrackVertexMap[VertexIndex];
+			if (GeomCacheVertexIndex != INDEX_NONE)
+			{
+				const FVector3f SkinnedVertexPos = SkinnedPositions[SkinnedVertexIndex];
+				const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+				const FVector3f Delta = GeomCacheVertexPos - SkinnedVertexPos;
+				if (Delta.Length() < DeltaCutoffLength)
+				{
+					const int32 ArrayIndex = 3 * SkinnedVertexIndex;
+					OutVertexDeltas[ArrayIndex] = Delta.X;
+					OutVertexDeltas[ArrayIndex + 1] = Delta.Y;
+					OutVertexDeltas[ArrayIndex + 2] = Delta.Z;
+				}
+			}
 		}
 	}
 }
@@ -172,41 +203,6 @@ void FMLDeformerSamplerData::ExtractSkinnedPositions(int32 LODIndex, TArray<FMat
 	}
 }
 
-void FMLDeformerSamplerData::ExtractGeomCachePositions(int32 LODIndex, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const
-{
-	OutPositions.Reset();
-	TempPositions.Reset();
-
-	UGeometryCache* GeomCache = GeometryCacheComponent->GetGeometryCache();
-	if (GeomCache == nullptr)
-	{
-		return;
-	}
-
-	const float Time = GeometryCacheComponent->GetAnimationTime();
-	TArray<FGeometryCacheMeshData> MeshData;
-	GeomCache->GetMeshDataAtTime(Time, MeshData);
-
-	if (MeshData.Num() > 0)
-	{
-		const TArray<uint32>& ImportedVertexNumbers = MeshData[0].ImportedVertexNumbers;
-		if (ImportedVertexNumbers.Num() > 0)
-		{
-			TempPositions = MeshData[0].Positions;
-			const FTransform& AlignmentTransform = Sampler->GetDeformerAsset().GetAlignmentTransform();
-
-			// Transform the positions with the alignment transform.
-			OutPositions.AddZeroed(NumImportedVertices);
-			for (int32 Index = 0; Index < TempPositions.Num(); ++Index)
-			{
-				const int32 ImportedVertex = static_cast<int32>(ImportedVertexNumbers[Index]);
-				const FVector Pos = TempPositions[Index];
-				OutPositions[ImportedVertex] = AlignmentTransform.TransformPosition(Pos);
-			}
-		}
-	}
-}
-
 int32 FMLDeformerSamplerData::GetNumBones() const
 {
 	const UMLDeformerAsset& DeformerAsset = Sampler->GetDeformerAsset();
@@ -219,7 +215,6 @@ SIZE_T FMLDeformerSamplerData::CalcMemUsageInBytes() const
 	SIZE_T NumBytes = 0;
 	NumBytes += SkinnedVertexPositions.GetAllocatedSize();
 	NumBytes += TempVertexPositions.GetAllocatedSize();
-	NumBytes += GeomCacheVertexPositions.GetAllocatedSize();
 	NumBytes += BoneMatrices.GetAllocatedSize();
 	NumBytes += VertexDeltas.GetAllocatedSize();
 	NumBytes += BoneRotations.GetAllocatedSize();
@@ -274,11 +269,8 @@ void FMLDeformerSampler::Init(const FInitSettings& InInitSettings)
 	UMLDeformerAsset* DeformerAsset = InitSettings.DeformerAsset;
 	UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
 	USkeletalMesh* SkeletalMesh = DeformerAsset->GetSkeletalMesh();
-	const int32 NumSkeletalMeshImportedVerts = ExtractNumImportedSkinnedVertices(DeformerAsset->GetSkeletalMesh());
-	const int32 NumGeomCacheImportedVerts = ExtractNumImportedGeomCacheVertices(GeomCache);
-	check(NumSkeletalMeshImportedVerts > 0);
-	check(NumGeomCacheImportedVerts > 0);
-	check(NumSkeletalMeshImportedVerts == NumGeomCacheImportedVerts);
+	const int32 NumSkeletalMeshImportedVerts = UMLDeformerAsset::ExtractNumImportedSkinnedVertices(DeformerAsset->GetSkeletalMesh());
+	const int32 NumGeomCacheImportedVerts = UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(GeomCache);
 
 	// Create and init the items.
 	FMLDeformerSamplerData::FInitSettings DataInitSettings;
@@ -312,6 +304,8 @@ void FMLDeformerSampler::Init(const FInitSettings& InInitSettings)
 	// Set the actor root components.
 	SkelMeshActor->SetRootComponent(SkelMeshComponent);
 	GeomCacheActor->SetRootComponent(GeomCacheComponent);
+
+	UMLDeformerAsset::GenerateMeshMappings(InitSettings.DeformerAsset, MeshMappings, FailedImportedMeshNames);
 }
 
 // Spawn an actor.
@@ -322,49 +316,6 @@ AActor* FMLDeformerSampler::CreateActor(UWorld* InWorld, const FName& Name) cons
 	AActor* Actor = InWorld->SpawnActor<AActor>(SpawnParams);
 	Actor->SetFlags(RF_Transient);
 	return Actor;
-}
-
-int32 FMLDeformerSampler::ExtractNumImportedSkinnedVertices(USkeletalMesh* SkeletalMesh) const
-{
-	check(SkeletalMesh);
-
-	// Extract the number of skinned mesh vertices.
-	int32 NumSkeletalMeshImportedVerts = 0;
-	const FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
-	if (SkeletalMeshModel)
-	{
-		const int32 MaxIndex = SkeletalMeshModel->LODModels[0].MaxImportVertex;
-		NumSkeletalMeshImportedVerts = (MaxIndex > 0) ? (MaxIndex + 1) : 0;
-	}
-	return NumSkeletalMeshImportedVerts;
-}
-
-int32 FMLDeformerSampler::ExtractNumImportedGeomCacheVertices(UGeometryCache* GeomCache) const
-{
-	check(GeomCache);
-	int32 NumGeomCacheImportedVerts = 0;
-
-	// Extract the geom cache number of imported vertices.
-	TArray<FGeometryCacheMeshData> MeshData;
-	GeomCache->GetMeshDataAtTime(0.0f, MeshData);
-	if (MeshData.Num() > 0)
-	{
-		const TArray<uint32>& ImportedVertexNumbers = MeshData[0].ImportedVertexNumbers;
-		if (ImportedVertexNumbers.Num() > 0)
-		{
-			// Find the maximum value.
-			int32 MaxIndex = -1;
-			for (int32 Index = 0; Index < ImportedVertexNumbers.Num(); ++Index)
-			{
-				MaxIndex = FMath::Max(static_cast<int32>(ImportedVertexNumbers[Index]), MaxIndex);
-			}
-			check(MaxIndex > -1);
-
-			NumGeomCacheImportedVerts = MaxIndex + 1;
-		}
-	}
-
-	return NumGeomCacheImportedVerts;
 }
 
 int32 FMLDeformerSampler::GetNumVertices() const
@@ -384,14 +335,15 @@ int32 FMLDeformerSampler::GetNumCurves() const
 
 int32 FMLDeformerSampler::GetNumFrames() const
 {
-	UMLDeformerAsset* DeformerAsset = InitSettings.DeformerAsset;
-	UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
-	return (GeomCache->GetEndFrame() - GeomCache->GetStartFrame()) + 1;
+	return InitSettings.DeformerAsset->GetNumFrames();
 }
 
 SIZE_T FMLDeformerSampler::CalcMemUsageInBytes() const
 {
-	return SamplerData.CalcMemUsageInBytes();
+	SIZE_T Result = 0;
+	Result += SamplerData.CalcMemUsageInBytes();
+	Result += MeshMappings.GetAllocatedSize();
+	return Result;
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -543,6 +495,10 @@ void FMLDeformerFrameCache::UpdateFrameMap()
 int32 FMLDeformerFrameCache::GenerateFrame(int32 AnimFrameIndex)
 {
 	check(AnimFrameIndex >= 0);
+	check(!FrameMap.IsEmpty());
+
+	// Make sure we're in a valid range.
+	AnimFrameIndex = FMath::Clamp(AnimFrameIndex, 0, FrameMap.Num() - 1);
 
 	// Let the sampler item generate the deltas.
 	FMLDeformerSamplerData& SamplerData = Sampler.GetSamplerData();
