@@ -4,12 +4,11 @@
 	<!-- List of patterns that should always be excluded when making an installed build. Filter the default list of exclusions to include confidential platforms if they're enabled. -->
 	<Property Name="ConfidentialExceptions" Value=""/>
 	<ForEach Name="RestrictedFolderName" Values="$(RestrictedFolderNames)">
-		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
-			<Expand Name="FilterRestrictedFolders$(Platform)"/>
-		</ForEach>
+		<Expand Name="Platform_FilterRestrictedFolders"/>
+
 		<Do If="'$(RestrictedFolderName)' != ''">
-				<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions);" If="'$(ConfidentialExceptions)' != ''"/>
-				<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions).../$(RestrictedFolderName)/..."/>
+			<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions);" If="'$(ConfidentialExceptions)' != ''"/>
+			<Property Name="ConfidentialExceptions" Value="$(ConfidentialExceptions).../$(RestrictedFolderName)/..."/>
 		</Do>
 	</ForEach>
 
@@ -189,9 +188,7 @@
 	<Property Name="AutomationToolPaths" Value="Engine/Source/Programs/AutomationTool/..."/>
 	
 	<!-- Platform extensions filter overrides -->
-	<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
-		<Expand Name="$(Platform)FilterOverrides"/>
-	</ForEach>
+	<Expand Name="Platform_FilterOverrides"/>
 	
 	<ForEach Name="Filter" Values="$(CopyEditorEngineOrPlatformFilter)">
 		<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/$(Filter);Engine/Platforms/*/$(Filter)"/>
