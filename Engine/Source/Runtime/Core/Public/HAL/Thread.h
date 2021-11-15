@@ -48,6 +48,18 @@ public:
 		bool bIsForkable = false
 	);
 
+	// with SingleThreadTickFunction that will be executed every frame if running with `-nothreading
+	// (FPlatformProcess::SupportsMultithreading() == false)
+	FThread(
+		TCHAR const* ThreadName,
+		TUniqueFunction<void()>&& ThreadFunction,
+		TUniqueFunction<void()>&& SingleThreadTickFunction,
+		uint32 StackSize = 0,
+		EThreadPriority ThreadPriority = TPri_Normal,
+		FThreadAffinity ThreadAffinity = FThreadAffinity(),
+		bool bIsForkable = false
+	);
+
 	// non-copyable
 	FThread(const FThread&) = delete;
 	FThread& operator=(const FThread&) = delete;
