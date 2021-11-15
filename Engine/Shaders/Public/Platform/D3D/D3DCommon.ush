@@ -28,7 +28,7 @@ SamplerState D3DStaticTrilinearClampedSampler   : register(s5, space1000);
 #endif // PLATFORM_SUPPORTS_STATIC_SAMPLERS
 
 // TODO: Add support for the UEDiagnosticBuffer to other shader types
-#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER && (PIXELSHADER || COMPUTESHADER)
+#if PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER && (PIXELSHADER || COMPUTESHADER || RAYGENSHADER)
 
 // Diagnostic buffer which will be automatically bound by the RHI as a root parameter
 // Counterpart to FD3D12DiagnosticBufferData in D3D12DirectCommandListManager.h
