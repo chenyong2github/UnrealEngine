@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ShowFlags.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/MTAccessDetector.h"
+#include "HAL/CriticalSection.h"
 #include "DebugDrawService.generated.h"
 
 class FCanvas;
@@ -20,8 +20,6 @@ class ENGINE_API UDebugDrawService : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
-	//void Register
-
 	static FDelegateHandle Register(const TCHAR* Name, const FDebugDrawDelegate& NewDelegate);
 	static void Unregister(FDelegateHandle HandleToRemove);
 
@@ -32,6 +30,23 @@ class ENGINE_API UDebugDrawService : public UBlueprintFunctionLibrary
 	static void Draw(const FEngineShowFlags Flags, class FViewport* Viewport, FSceneView* View, FCanvas* Canvas, class UCanvas* CanvasObject = nullptr);
 
 private:
+
+	/**
+	 * Synchronization object for delegate registration since it can happen from multiple threads from
+	 * primitives added in batch through
+	 *		ParallelFor(AddPrimitiveBatches.Num(), [&](int32 Index)
+	 *			{
+	 *				FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
+	 *				Scene->AddPrimitive(...);
+	 *			}
+	 *
+	 * Critical section used only for registration since it should not be required for the other accesses (i.e. Unregister &Draw).
+	 * In those cases we use the AccessDetector.
+	 */
+	static FCriticalSection DelegatesLock;
+#if ENABLE_MT_DETECTOR
+	static FRWAccessDetector DelegatesDetector;
+#endif
 	static TArray<TArray<FDebugDrawDelegate> > Delegates;
 	static FEngineShowFlags ObservedFlags;
 };
