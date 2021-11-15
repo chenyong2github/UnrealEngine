@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-struct FHttpServerResponse;
+#include "HttpServerResponse.h"
 
 /**
 * FHttpResultCallback
