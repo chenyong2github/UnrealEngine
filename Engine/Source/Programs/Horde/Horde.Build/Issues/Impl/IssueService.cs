@@ -567,15 +567,19 @@ namespace HordeServer.Services.Impl
 			bool bPromoteByDefault = Job.ShowUgsAlerts;
 			if (bPromoteByDefault)
 			{
-				if (EventGroups.FirstOrDefault(Group => Group.Fingerprint.Type == "Compile" || Group.Fingerprint.Type == "Symbol" || Group.Fingerprint.Type == "Copyright") == null)
+				if (!Job.TemplateId.ToString().Contains("incremental", StringComparison.Ordinal))
 				{
-					bPromoteByDefault = false;
-				}
-				
-				string? StreamId = Job.StreamId.ToString();
-				if (StreamId != null && StreamId.StartsWith("fortnite-", StringComparison.Ordinal))
-				{
-					bPromoteByDefault = false;
+					if (EventGroups.FirstOrDefault(Group => Group.Fingerprint.Type == "Compile" || Group.Fingerprint.Type == "Symbol" || Group.Fingerprint.Type == "Copyright") == null)
+					{
+						bPromoteByDefault = false;
+					}
+
+					string? StreamId = Job.StreamId.ToString();
+					if (StreamId != null && StreamId.StartsWith("fortnite-", StringComparison.Ordinal))
+					{
+						bPromoteByDefault = false;
+					}
+
 				}
 			}
 
