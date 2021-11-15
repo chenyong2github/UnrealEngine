@@ -676,8 +676,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 	TStringBuilder<32 * 1024> Code;
 
-	UE::HLSLTree::FEmitContext EmitContext;
-	EmitContext.Allocator = &Allocator;
+	UE::HLSLTree::FEmitContext EmitContext(Allocator);
 	EmitContext.Material = &InMaterial;
 	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;

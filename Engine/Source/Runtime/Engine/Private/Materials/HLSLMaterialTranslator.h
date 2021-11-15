@@ -69,8 +69,6 @@ public:
 	virtual EMaterialExpressionVisitResult Visit(UMaterialExpression* InExpression) = 0;
 };
 
-uint32 GetNumComponents(EMaterialValueType Type);
-
 struct FShaderCodeChunk
 {
 	/**

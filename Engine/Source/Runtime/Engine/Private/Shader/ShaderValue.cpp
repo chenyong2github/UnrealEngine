@@ -398,6 +398,12 @@ UE::Shader::EValueType UE::Shader::MakeValueType(EValueType BaseType, int32 NumC
 	return MakeValueType(GetValueTypeDescription(BaseType).ComponentType, NumComponents);
 }
 
+UE::Shader::EValueType UE::Shader::MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(BaseType);
+	return MakeValueType(TypeDesc.ComponentType, FMath::Min(TypeDesc.NumComponents, RequestedNumComponents));
+}
+
 UE::Shader::EValueType UE::Shader::MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
 {
 	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);

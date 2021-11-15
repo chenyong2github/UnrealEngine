@@ -173,6 +173,24 @@ enum EMaterialValueType
 	MCT_VoidStatement         = 1 << 22,
 };
 
+/** @return the number of components in a vector type. */
+inline uint32 GetNumComponents(EMaterialValueType Type)
+{
+	switch (Type)
+	{
+	case MCT_Float:
+	case MCT_Float1: return 1;
+	case MCT_Float2: return 2;
+	case MCT_Float3: return 3;
+	case MCT_Float4: return 4;
+	case MCT_LWCScalar: return 1;
+	case MCT_LWCVector2: return 2;
+	case MCT_LWCVector3: return 3;
+	case MCT_LWCVector4: return 4;
+	default: return 0;
+	}
+}
+
 inline bool IsLWCType(EMaterialValueType InType)
 {
 	return (InType & MCT_LWCType);
