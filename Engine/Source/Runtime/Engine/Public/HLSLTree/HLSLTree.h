@@ -30,202 +30,65 @@ class FPreshaderData;
 namespace HLSLTree
 {
 
-class FExpressionLocalPHI;
+class FScope;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
-class FScope;
-class FEmitScope;
-
-class FEmitDeclaration : public TIntrusiveLinkedList<FEmitDeclaration>
+struct FError
 {
-public:
-	const TCHAR* Declaration;
-	const TCHAR* Value;
-	Shader::EValueType Type;
+	const FError* Next;
+	const FNode* Node;
+	int32 MessageLength;
+	const TCHAR Message[1];
 };
 
-class FEmitAssignment : public TIntrusiveLinkedList<FEmitAssignment>
+class FErrors
 {
 public:
-	const TCHAR* Declaration;
-	FExpression* Expression;
-};
+	explicit FErrors(FMemStackBase& InAllocator);
 
-class FEmitStatement : public TIntrusiveLinkedList<FEmitStatement>
-{
-public:
-	FStringView Code;
-};
-
-class FEmitScopeLink : public TIntrusiveLinkedList<FEmitScopeLink>
-{
-public:
-	FEmitScope* NextScope;
-	FStringView Code;
-};
-
-class FEmitScope
-{
-public:
-	FEmitScope* ParentScope = nullptr;
-	FEmitDeclaration* FirstDeclaration = nullptr;
-	FEmitAssignment* FirstAssignment = nullptr;
-	FEmitStatement* FirstStatement = nullptr;
-	FEmitStatement* LastStatement = nullptr;
-	FEmitScopeLink* FirstLink = nullptr;
-	FEmitScopeLink* LastLink = nullptr;
-	TMap<FSHAHash, const TCHAR*> ExpressionMap;
-};
-
-class FEmitValue
-{
-public:
-	EExpressionEvaluationType GetEvaluationType() const { return EvaluationType; }
-	Shader::EValueType GetExpressionType() const { return ExpressionType; }
-	const Shader::FValue& GetConstantValue() const { return ConstantValue; }
+	bool AddError(const FNode* InNode, FStringView InError);
 
 private:
-	mutable const TCHAR* Code = nullptr;
-	const Shader::FPreshaderData* Preshader = nullptr;
-	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
-	Shader::EValueType ExpressionType = Shader::EValueType::Void;
-	Shader::FValue ConstantValue;
+	FMemStackBase* Allocator = nullptr;
+	const FError* FirstError = nullptr;
+};
 
-	friend class FEmitContext;
+class FUpdateTypeContext
+{
+public:
+	explicit FUpdateTypeContext(FErrors& InErrors) : Errors(InErrors) {}
+
+	FErrors& Errors;
 };
 
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
 {
 public:
-	FEmitContext();
+	explicit FEmitContext(FMemStackBase& InAllocator);
 	~FEmitContext();
 
-	/** Returns a value that references the given expression */
-	const FEmitValue* AcquireValue(FExpression* Expression);
+	void Finalize();
 
 	/** Get a unique local variable name */
 	const TCHAR* AcquireLocalDeclarationCode();
 
-	FStringView InternalAcquireInternedString(const TCHAR* String, int32 Length);
+	void AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode);
 
-	FStringView AcquireInternedString(const TCHAR* Format, ...);
-
-	template<int32 ArrayLength>
-	FStringView AcquireInternedString(TCHAR (&String)[ArrayLength])
-	{
-		return InternalAcquireInternedString(String, ArrayLength);
-	}
-
-	/** Gets HLSL code that references the given value */
-	const TCHAR* GetCode(const FEmitValue* Value);
-
-	/** Append preshader bytecode that represents the given value */
-	void AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader);
-
-	FEmitScope* FindScope(const FScope& Scope);
-	FEmitScope* AcquireScope(const FScope& Scope);
-
-	FEmitScope& GetCurrentScope();
-
-	void InternalWriteStatementToScope(FEmitScope& EmitScope, FStringView InternedCode);
-	bool InternalWriteScope(const FScope& Scope, FStringView InternedCode);
-	FEmitScopeLink* InternalWriteScopeLink(FStringView InternedCode);
-
-	template<typename StringType>
-	void WriteStatementToScope(FEmitScope& EmitScope, const StringType& String)
-	{
-		InternalWriteStatementToScope(EmitScope, AcquireInternedString(String));
-	}
-
-	template<typename FormatType, typename... Types>
-	void WriteStatementToScopef(FEmitScope& EmitScope, const FormatType& Format, Types... Args)
-	{
-		InternalWriteStatementToScope(EmitScope, AcquireInternedString(Format, Forward<Types>(Args)...));
-	}
-
-	template<typename StringType>
-	void WriteStatement(const StringType& String)
-	{
-		InternalWriteStatementToScope(GetCurrentScope(), AcquireInternedString(String));
-	}
-
-	template<typename FormatType, typename... Types>
-	void WriteStatementf(const FormatType& Format, Types... Args)
-	{
-		InternalWriteStatementToScope(GetCurrentScope(), AcquireInternedString(Format, Forward<Types>(Args)...));
-	}
-
-	bool WriteScope(const FScope& Scope)
-	{
-		return InternalWriteScope(Scope, FStringView());
-	}
-
-	template<typename FormatType, typename... Types>
-	bool WriteScopef(const FScope& Scope, const FormatType& Format, Types... Args)
-	{
-		return InternalWriteScope(Scope, AcquireInternedString(Format, Forward<Types>(Args)...));
-	}
-
-	template<typename FormatType, typename... Types>
-	void WriteScopeTerminatorf(const FormatType& Format, Types... Args)
-	{
-		InternalWriteScopeLink(AcquireInternedString(Format, Forward<Types>(Args)...));
-	}
-
-	void WriteDeclaration(FEmitScope& EmitScope, Shader::EValueType Type, const TCHAR* Declaration, const TCHAR* Value = nullptr);
-
-	bool WriteAssignment(FEmitScope& EmitScope, const TCHAR* Declaration, FExpression* Expression, Shader::EValueType& InOutType);
-
-	bool FinalizeScope(FEmitScope& EmitScope);
-	void Finalize();
-
-	struct FDeclarationEntry
-	{
-		FEmitValue Value;
-	};
-
-	struct FFunctionCallEntry
-	{
-		const FEmitValue* OutputValues;
-		int32 NumOutputs;
-	};
-
-	TArray<FEmitScope*> ScopeStack;
-	TMap<const FScope*, FEmitScope*> ScopeMap;
-
-	TMap<FNode*, FDeclarationEntry*> DeclarationMap;
-	TArray<Shader::FPreshaderData*> TempPreshaders;
-	TSet<const FExpression*> PendingEmitValueExpressions;
 	FMemStackBase* Allocator = nullptr;
-	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
+	FErrors Errors;
+
+	// TODO - remove preshader material dependency
+	const FMaterial* Material = nullptr;
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	uint32 UniformPreshaderOffset = 0u;
-	int32 TotalCodeLength = 0;
+
 	int32 NumExpressionLocals = 0;
+	int32 NumLocalPHIs = 0;
 	int32 NumTexCoords = 0;
-};
-
-struct FExpressionEmitResult
-{
-	FExpressionEmitResult(FStringBuilderBase& InCode, Shader::FPreshaderData& InPreshader)
-		: Code(InCode)
-		, Preshader(InPreshader)
-		, EvaluationType(EExpressionEvaluationType::None)
-		, Type(Shader::EValueType::Void)
-		, bInline(false)
-	{}
-
-	void ForwardValue(FEmitContext& Context, const FEmitValue* InValue);
-
-	FStringBuilderBase& Code;
-	Shader::FPreshaderData& Preshader;
-	EExpressionEvaluationType EvaluationType;
-	Shader::EValueType Type;
-	bool bInline;
 };
 
 enum class ENodeVisitResult
@@ -271,8 +134,8 @@ class FStatement : public FNode
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	/** Emits HLSL code for the statement. The generated code should include any required semi-colons and newlines */
-	virtual bool EmitHLSL(FEmitContext& Context) const = 0;
+	virtual void RequestTypes(FUpdateTypeContext& Context) const = 0;
+	virtual void EmitHLSL(FEmitContext& Context) const = 0;
 
 	FScope* ParentScope = nullptr;
 };
@@ -287,13 +150,63 @@ public:
 class FExpression : public FNode
 {
 public:
+	Shader::EValueType GetValueType() const { return ValueType; }
+
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	/** Emits code for the given expression, either HLSL code or preshader bytecode */
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
+	friend Shader::EValueType RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, int8 InRequestedNumComponents);
+	friend EExpressionEvaluationType PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression);
+
+	const TCHAR* GetValueShader(FEmitContext& Context);
+	void GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader);
+	Shader::FValue GetValueConstant(FEmitContext& Context);
 
 	FScope* ParentScope = nullptr;
+
+protected:
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) = 0;
+	virtual bool PrepareValue(FEmitContext& Context) = 0;
+
+	bool SetType(FUpdateTypeContext& Context, Shader::EValueType InType) { ValueType = InType; return true; }
+
+	bool InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline);
+
+	bool SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader);
+	bool SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue);
+	bool SetValueForward(FEmitContext& Context, FExpression* Source);
+
+	bool SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader);
+
+	template<typename FormatType, typename... Types>
+	bool SetValueShaderf(FEmitContext& Context, const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<2048> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return InternalSetValueShader(Context, String.GetData(), String.Len(), false);
+	}
+
+	template<typename FormatType, typename... Types>
+	bool SetValueInlineShaderf(FEmitContext& Context, const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<2048> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return InternalSetValueShader(Context, String.GetData(), String.Len(), true);
+	}
+
+	inline bool SetValueShader(FEmitContext& Context, const FStringBuilderBase& String) { return InternalSetValueShader(Context, String.GetData(), String.Len(), false); }
+	inline bool SetValueInlineShader(FEmitContext& Context, const FStringBuilderBase& String) { return InternalSetValueShader(Context, String.GetData(), String.Len(), true); }
+
+private:
+	const TCHAR* LocalVariableName = nullptr;
+	const TCHAR* Code = nullptr;
+	const Shader::FPreshaderData* Preshader = nullptr;
+	Shader::FValue ConstantValue;
+	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
+	Shader::EValueType ValueType = Shader::EValueType::Void;
+	int8 RequestedNumComponents = 0;
+	bool bReentryFlag = false;
 };
+
 
 /**
  * Represents a phi node (see various topics on single static assignment)
@@ -303,7 +216,8 @@ public:
 class FExpressionLocalPHI final : public FExpression
 {
 public:
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];
@@ -344,19 +258,74 @@ public:
 	bool HasParentScope(const FScope& ParentScope) const;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-	bool EmitHLSL(FEmitContext& Context, FEmitScope& Scope) const;
 
 	void AddPreviousScope(FScope& Scope);
 
 	void UseExpression(FExpression* Expression);
 
+	friend void RequestScopeTypes(FUpdateTypeContext& Context, const FScope* InScope);
+
+	template<typename FormatType, typename... Types>
+	void EmitDeclarationf(FEmitContext& Context, const FormatType& Format, Types... Args)
+	{
+		InternalEmitCodef(Context, Declarations, nullptr, Format, Forward<Types>(Args)...);
+	}
+
+	template<typename FormatType, typename... Types>
+	void EmitStatementf(FEmitContext& Context, const FormatType& Format, Types... Args)
+	{
+		InternalEmitCodef(Context, Statements, nullptr, Format, Forward<Types>(Args)...);
+	}
+
+	void EmitNestedScope(FEmitContext& Context, FScope* NestedScope)
+	{
+		InternalEmitCode(Context, Statements, NestedScope, nullptr, 0);
+	}
+
+	template<typename FormatType, typename... Types>
+	void EmitNestedScopef(FEmitContext& Context, FScope* NestedScope, const FormatType& Format, Types... Args)
+	{
+		InternalEmitCodef(Context, Statements, NestedScope, Format, Forward<Types>(Args)...);
+	}
+
+	void WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const;
+
 private:
 	friend class FTree;
+	friend class FExpression;
 	friend class FNodeVisitor_MoveToScope;
+
+	struct FCodeEntry
+	{
+		FCodeEntry* Next;
+		FScope* NestedScope;
+		int32 Length;
+		TCHAR String[1];
+	};
+
+	struct FCodeList
+	{
+		FCodeEntry* First = nullptr;
+		FCodeEntry* Last = nullptr;
+		int32 Num = 0;
+	};
+
+	void InternalEmitCode(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const TCHAR* String, int32 Length);
+
+	template<typename FormatType, typename... Types>
+	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<2048> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		InternalEmitCode(Context, List, NestedScope, String.GetData(), String.Len());
+	}
 
 	FScope* ParentScope = nullptr;
 	FStatement* Statement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
+	TMap<FSHAHash, const TCHAR*> ExpressionCodeMap;
+	FCodeList Declarations;
+	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
 };

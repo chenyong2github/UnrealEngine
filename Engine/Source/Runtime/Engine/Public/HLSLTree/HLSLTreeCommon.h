@@ -45,7 +45,8 @@ public:
 
 	Shader::FValue Value;
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::MakeValueTypeWithRequestedNumComponents(Value.GetType(), InRequestedNumComponents)); }
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionMaterialParameter : public FExpression
@@ -59,7 +60,8 @@ public:
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 enum class EExternalInputType
@@ -90,7 +92,8 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, GetInputExpressionType(InputType)); }
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -119,7 +122,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionDefaultMaterialAttributes : public FExpression
@@ -127,7 +131,8 @@ class FExpressionDefaultMaterialAttributes : public FExpression
 public:
 	FExpressionDefaultMaterialAttributes() {}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::EValueType::MaterialAttributes); }
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionSetMaterialAttribute : public FExpression
@@ -150,7 +155,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionSelect : public FExpression
@@ -178,7 +184,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionBinaryOp : public FExpression
@@ -205,7 +212,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 struct FSwizzleParameters
@@ -239,7 +247,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionAppend : public FExpression
@@ -264,7 +273,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionCast : public FExpression
@@ -290,13 +300,15 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionReflectionVector : public FExpression
 {
 public:
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::EValueType::Float3); }
+	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
 class FStatementReturn : public FStatement
@@ -314,13 +326,15 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
+	virtual void RequestTypes(FUpdateTypeContext& Context) const override;
+	virtual void EmitHLSL(FEmitContext& Context) const override;
 };
 
 class FStatementBreak : public FStatement
 {
 public:
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
+	virtual void RequestTypes(FUpdateTypeContext& Context) const override {}
+	virtual void EmitHLSL(FEmitContext& Context) const override;
 };
 
 class FStatementIf : public FStatement
@@ -344,7 +358,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
+	virtual void RequestTypes(FUpdateTypeContext& Context) const override;
+	virtual void EmitHLSL(FEmitContext& Context) const override;
 };
 
 class FStatementLoop : public FStatement
@@ -364,7 +379,8 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context) const override;
+	virtual void RequestTypes(FUpdateTypeContext& Context) const override;
+	virtual void EmitHLSL(FEmitContext& Context) const override;
 };
 
 }
