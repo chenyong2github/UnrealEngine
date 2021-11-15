@@ -222,8 +222,6 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 	IDetailCategoryBuilder& TrainingMeshesCategoryBuilder = DetailBuilder.EditCategory("Training Meshes", FText::GetEmpty(), ECategoryPriority::Important);
 	TrainingMeshesCategoryBuilder.SetCategoryVisibility(bShowTrainingData);
 	TrainingMeshesCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, FrameNumber));
-	TrainingMeshesCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VertexNumber));
-	TrainingMeshesCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawVertex));
 	TrainingMeshesCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawDeltas));
 	TrainingMeshesCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bXRayDeltas));
 }

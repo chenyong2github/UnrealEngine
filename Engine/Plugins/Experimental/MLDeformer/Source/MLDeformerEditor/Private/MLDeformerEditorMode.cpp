@@ -93,28 +93,6 @@ void FMLDeformerEditorMode::Render(const FSceneView* View, FViewport* Viewport, 
 	const UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
 	if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 	{
-		// Draw a single vertex.
-		if (VizSettings->GetDrawVertex())
-		{
-			const FLinearColor VertexColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.Vertex.Color");
-			const float VertexSize = FMLDeformerEditorStyle::Get().GetFloat("MLDeformer.Vertex.Size");
-			const TArray<FVector3f>& SkinnedPositions = Data->LinearSkinnedPositions;
-			const FVector Offset = VizSettings->GetMeshSpacingOffsetVector();
-			const TArray<FVector3f>& GeomCachePositions = Data->GeomCachePositions;
-			const int32 VertexIndex = VizSettings->GetVertexNumber();
-			if (VertexIndex < SkinnedPositions.Num())
-			{
-				const FVector BasePos = SkinnedPositions[VertexIndex];
-				PDI->DrawPoint(BasePos, VertexColor, VertexSize, 10);
-			}
-
-			if (VertexIndex < GeomCachePositions.Num())
-			{
-				const FVector TargetPos = GeomCachePositions[VertexIndex] + Offset;
-				PDI->DrawPoint(TargetPos, VertexColor, VertexSize, 10);
-			}
-		}
-
 		// Draw deltas.
 		if (VizSettings->GetDrawVertexDeltas() && (Data->VertexDeltas.Num() / 3) == Data->LinearSkinnedPositions.Num())
 		{
@@ -242,7 +220,6 @@ void FMLDeformerEditorMode::UpdateActors()
 void FMLDeformerEditorMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	FMLDeformerEditorData* Data = EditorData.Pin().Get();
-
 	Data->ClampFrameIndex();
 
 	UpdateActors();
@@ -250,9 +227,8 @@ void FMLDeformerEditorMode::Tick(FEditorViewportClient* ViewportClient, float De
 
 	// Calculate the training deltas when needed.
 	UMLDeformerAsset* DeformerAsset = Data->GetDeformerAsset();
-	const UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
-	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && 
-		(VizSettings->GetDrawVertex() || VizSettings->GetDrawVertexDeltas()))
+	UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
+	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && VizSettings->GetDrawVertexDeltas())
 	{
 		Data->GenerateDeltas(0, VizSettings->FrameNumber, Data->VertexDeltas);
 	}

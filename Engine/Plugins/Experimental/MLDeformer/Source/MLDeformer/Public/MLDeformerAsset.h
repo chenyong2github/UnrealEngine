@@ -75,6 +75,15 @@ private:
 	TArray<int32> VertexMap;
 };
 
+#if WITH_EDITORONLY_DATA
+struct MLDEFORMER_API FMLDeformerMeshMapping
+{
+	int32 MeshIndex = INDEX_NONE;	// The imported model's mesh info index.
+	int32 TrackIndex = INDEX_NONE;	// The geom cache track that this mesh is mapped to.
+	TArray<int32> SkelMeshToTrackVertexMap;	// This maps imported model individual meshes to the geomcache track's mesh data.
+};
+#endif
+
 /**
  * The machine learning deformer asset.
  * At runtime this contains only the data needed to run the neural network inference.
@@ -106,6 +115,12 @@ public:
 	FText GetTargetAssetChangedErrorText() const;
 	FText GetInputsErrorText() const;
 	FText GetIncompatibleSkeletonErrorText(USkeletalMesh* InSkelMesh, UAnimSequence* InAnimSeq) const;
+	FText GetSkeletalMeshNeedsReimportErrorText() const;
+	FText GetMeshMappingErrorText() const;
+
+	static int32 ExtractNumImportedGeomCacheVertices(UGeometryCache* GeomCache);
+	static int32 ExtractNumImportedSkinnedVertices(USkeletalMesh* SkeletalMesh);
+	static void GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames);
 
 	void UpdateCachedNumVertices();
 	bool IsCompatibleWithNeuralNet() const;
@@ -255,11 +270,11 @@ public:
 	ELossFunction LossFunction = ELossFunction::L1;
 
 	/** Shrinkage speed. Only if the shrinkage loss is used. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "1.0", ClampMax = "1000.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (EditCondition = "LossFunction == ELossFunction::Shrinkage", ClampMin = "1.0", ClampMax = "1000.0"))
 	float ShrinkageSpeed = 10.0f;
 
 	/** Shrinkage threshold. Only if the shrinkage loss is used. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (EditCondition = "LossFunction == ELossFunction::Shrinkage", ClampMin = "0.0"))
 	float ShrinkageThreshold = 0.1f;
 
 	/** The percentage of noise to add. */

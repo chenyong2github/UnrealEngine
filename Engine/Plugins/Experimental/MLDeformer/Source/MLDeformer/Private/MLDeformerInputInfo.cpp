@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerInputInfo.h"
+#include "MLDeformerAsset.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/Skeleton.h"
@@ -26,38 +27,8 @@ void FMLDeformerInputInfo::Init(const FMLDeformerInputInfoInitSettings& Settings
 	UGeometryCache* GeomCache = Settings.TargetMesh;
 
 #if WITH_EDITOR
-	if (SkeletalMesh)
-	{
-		// Get the number of imported vertices of the skeletal mesh.
-		FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();	
-		if (SkeletalMeshModel)
-		{
-			if (!SkeletalMeshModel->LODModels[0].MeshToImportVertexMap.IsEmpty())
-			{
-				NumBaseMeshVertices = SkeletalMeshModel->LODModels[0].MaxImportVertex + 1;
-			}
-		}
-	}
-
-	if (GeomCache)
-	{
-		// Get the number of imported vertices of the geometry cache.
-		TArray<FGeometryCacheMeshData> MeshData;
-		GeomCache->GetMeshDataAtTime(0.0f, MeshData);
-		if (MeshData.Num() > 0)
-		{
-			int32 MaxGeomCacheVertex = 0;
-			const TArray<uint32>& GeomCacheVertexMap = MeshData[0].ImportedVertexNumbers;
-			if (!GeomCacheVertexMap.IsEmpty())
-			{
-				for (int32 Index = 0; Index < GeomCacheVertexMap.Num(); ++Index)
-				{
-					MaxGeomCacheVertex = FMath::Max<int32>(static_cast<int32>(GeomCacheVertexMap[Index]), MaxGeomCacheVertex);
-				}
-				NumTargetMeshVertices = MaxGeomCacheVertex + 1;
-			}
-		}
-	}
+	NumBaseMeshVertices = UMLDeformerAsset::ExtractNumImportedSkinnedVertices(SkeletalMesh);
+	NumTargetMeshVertices = UMLDeformerAsset::ExtractNumImportedGeomCacheVertices(GeomCache);
 #endif
 
 	// Handle bones.
@@ -229,6 +200,20 @@ FString FMLDeformerInputInfo::GenerateCompatibilityErrorString(USkeletalMesh* Sk
 			}
 		}
 	}
+
+	// Check vertex count.
+#if WITH_EDITORONLY_DATA
+	if ((NumBaseMeshVertices > 0 && NumTargetMeshVertices > 0) &&
+		NumBaseMeshVertices != SkeletalMesh->GetNumImportedVertices())
+	{
+		ErrorString += FString::Format(TEXT("The number of vertices that the network was trained on ({0} verts) doesn't match the skeletal mesh '{1}' ({2} verts)..\n"), 
+			{
+				NumBaseMeshVertices, 
+				SkeletalMesh->GetName(),
+				SkeletalMesh->GetNumImportedVertices(),
+			} );
+	}
+#endif
 
 	return ErrorString;
 }
