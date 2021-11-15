@@ -242,9 +242,15 @@ namespace EpicGames.BuildGraph
 		/// Tries to read a file from the given path
 		/// </summary>
 		/// <param name="Path">Path of the file to read</param>
-		/// <param name="Data">On success, contains the read data</param>
 		/// <returns></returns>
 		Task<byte[]?> ReadAsync(string Path);
+
+		/// <summary>
+		/// Finds files matching the given pattern
+		/// </summary>
+		/// <param name="Pattern"></param>
+		/// <returns></returns>
+		Task<string[]> FindAsync(string Pattern);
 
 		/// <summary>
 		/// Converts a path to its native form, for display to the user
@@ -654,9 +660,24 @@ namespace EpicGames.BuildGraph
 		{
 			if (await EvaluateConditionAsync(Element))
 			{
+				HashSet<string> Files = new HashSet<string>();
 				foreach (string Script in ReadListAttribute(Element, "Script"))
 				{
-					await TryReadAsync(CombinePaths(Element.File, Script), Arguments, Logger);
+					string IncludePath = CombinePaths(Element.File, Script);
+					if (Regex.IsMatch(IncludePath, @"\*|\?|\.\.\."))
+					{
+						Files.UnionWith(await Context.FindAsync(IncludePath));
+					}
+					else
+					{
+						Files.Add(IncludePath);
+					}
+				}
+
+				foreach(string File in Files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+				{
+					Logger.LogDebug("Including file {File}", File);
+					await TryReadAsync(File, Arguments, Logger);
 				}
 			}
 		}
