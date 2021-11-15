@@ -842,6 +842,9 @@ private:
 
 	/** Handles a package reloaded, used to detect a multi-user session being joined in order to update entities. */
 	void OnPackageReloaded(EPackageReloadPhase Phase, FPackageReloadedEvent* Event);
+
+	/** Remove deleted actors from bindings */
+	void CleanUpBindings();
 #endif
 
 	//~ Frame events handlers.
@@ -997,6 +1000,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR
 	/** List of blueprints for which we have registered events. */
 	TSet<TWeakObjectPtr<UBlueprint>> BlueprintsWithRegisteredDelegates;
+
+	/** List of bindings for which we need to remove stale object pointers. */
+	TSet<URemoteControlBinding*> PerFrameBindingsToClean;
 #endif
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

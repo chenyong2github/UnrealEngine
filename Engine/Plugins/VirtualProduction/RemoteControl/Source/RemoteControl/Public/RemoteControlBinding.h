@@ -44,6 +44,12 @@ public:
 	 */
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const PURE_VIRTUAL(URemoteControlBinding::IsBound, return false;);
 
+	/**
+	 * Remove objects that were deleted from the binding.
+	 * @return true if at least one object was removed from this binding's objects.
+	 */
+	virtual bool PruneDeletedObjects() PURE_VIRTUAL(URemoteControlBinding::PruneDeletedObjects, return false;);
+
 public:
 	/**
 	 * The name of this binding. Defaults to the bound object's name.
@@ -63,6 +69,7 @@ public:
 	virtual UObject* Resolve() const override;
 	virtual bool IsValid() const override;
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const override;
+	virtual bool PruneDeletedObjects() override;
 
 private:
 	/**
@@ -84,6 +91,7 @@ public:
 	virtual UObject* Resolve() const override;
 	virtual bool IsValid() const override;
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const override;
+	virtual bool PruneDeletedObjects() override;
 	//~ Begin URemoteControlBinding Interface
 
 	/**
@@ -99,7 +107,7 @@ public:
 	void InitializeForNewLevel();
 
 private:
-	TSoftObjectPtr<UObject> FindObjectFromCurrentWorld() const;
+	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
 
 private:
 	/**
@@ -107,6 +115,14 @@ private:
 	 */
 	UPROPERTY()
 	TMap<TSoftObjectPtr<ULevel>, TSoftObjectPtr<UObject>> BoundObjectMap;
+
+	/**
+	 * Keeps track of which sublevel was last used when binding in a particular world.
+	 * Used in the case where a binding points to objects that end up in the same world but in different sublevels, 
+	 * this ensures that we know which object was last 
+	 */
+	UPROPERTY()
+	mutable TMap<TSoftObjectPtr<UWorld>, TSoftObjectPtr<ULevel>> SubLevelSelectionMap;
 
 	/**
 	 * Caches the last level that had a successful resolve.

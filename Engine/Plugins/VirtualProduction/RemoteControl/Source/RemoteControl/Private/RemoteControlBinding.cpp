@@ -83,12 +83,26 @@ bool URemoteControlLevelIndependantBinding::IsBound(const TSoftObjectPtr<UObject
 	return BoundObject == Object;
 }
 
+bool URemoteControlLevelIndependantBinding::PruneDeletedObjects()
+{
+	if (!BoundObject.IsValid())
+	{
+		Modify();
+		BoundObject.Reset();
+		return true;
+	}
+
+	return false;
+}
+
 void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UObject>& InObject)
 {
 	if (ensure(InObject))
 	{
 		UObject* EditorObject = FindObjectInCounterpartWorld(InObject.Get(), ECounterpartWorldTarget::Editor);
-		BoundObjectMap.FindOrAdd(EditorObject->GetTypedOuter<ULevel>()) = EditorObject;
+		ULevel* OuterLevel = EditorObject->GetTypedOuter<ULevel>();
+		BoundObjectMap.FindOrAdd(OuterLevel) = EditorObject;
+		SubLevelSelectionMap.FindOrAdd(OuterLevel->GetWorld()) = OuterLevel;
 		
 		Name = EditorObject->GetName();
 	}
@@ -128,6 +142,11 @@ void URemoteControlLevelDependantBinding::UnbindObject(const TSoftObjectPtr<UObj
 	{
 		if (It.Value() == InBoundObject)
 		{
+			if (InBoundObject)
+			{
+				SubLevelSelectionMap.Remove(InBoundObject->GetWorld());
+			}
+
 			It.RemoveCurrent();
 		}
 	}
@@ -136,7 +155,13 @@ void URemoteControlLevelDependantBinding::UnbindObject(const TSoftObjectPtr<UObj
 UObject* URemoteControlLevelDependantBinding::Resolve() const
 {
 	// Find the object in PIE if possible
-	UObject* Object = FindObjectFromCurrentWorld().Get();
+	UObject* Object = ResolveForCurrentWorld().Get();
+
+	if (Object)
+	{
+		LevelWithLastSuccessfulResolve = Object->GetTypedOuter<ULevel>();
+	}
+
 	return FindObjectInCounterpartWorld(Object, ECounterpartWorldTarget::PIE);
 }
 
@@ -158,21 +183,46 @@ bool URemoteControlLevelDependantBinding::IsBound(const TSoftObjectPtr<UObject>&
 	return false;
 }
 
-TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::FindObjectFromCurrentWorld() const
+bool URemoteControlLevelDependantBinding::PruneDeletedObjects()
 {
-	constexpr bool bForResolving = true;
+	if (!ResolveForCurrentWorld())
+	{
+		if (UWorld* World = GetCurrentWorld())
+		{
+			if (TSoftObjectPtr<ULevel> LastLevelForBinding = SubLevelSelectionMap.FindRef(World))
+			{
+				if (!BoundObjectMap.FindRef(LastLevelForBinding))
+				{
+					Modify();
+					BoundObjectMap.Remove(LastLevelForBinding);
+					SubLevelSelectionMap.Remove(World);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::ResolveForCurrentWorld() const
+{
 	if (UWorld* World = GetCurrentWorld())
 	{
+		// Try finding the object using the sub level selection map first.
+		if (TSoftObjectPtr<ULevel> LastBindingLevel = SubLevelSelectionMap.FindRef(World))
+		{
+			return BoundObjectMap.FindRef(LastBindingLevel);
+		}
+		// Resort to old method where we use the first level we find in the bound object map,
+		// and add an entry in the sub level selection map.
 		for (auto LevelIt = World->GetLevelIterator(); LevelIt; ++LevelIt)
 		{
 			TSoftObjectPtr<ULevel> WeakLevel = *LevelIt;
-			if (const TSoftObjectPtr<UObject>* ObjectPtr = BoundObjectMap.Find(WeakLevel))
+			if (TSoftObjectPtr<UObject> ObjectPtr = BoundObjectMap.FindRef(WeakLevel))
 			{
-				if (ObjectPtr->IsValid())
-				{
-					LevelWithLastSuccessfulResolve = WeakLevel;
-				}
-				return *ObjectPtr;
+				SubLevelSelectionMap.FindOrAdd(World) = WeakLevel;
+				return ObjectPtr;
 			}
 		}
 	}
