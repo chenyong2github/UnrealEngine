@@ -105,6 +105,9 @@ public:
 	/** Get number of Focus points for this data table */
 	virtual int32 GetFocusPointNum() const PURE_VIRTUAL(FBaseLensTable::GetFocusPointNum, return INDEX_NONE; );
 
+	/** Get total number of Zoom points for all Focus points of this data table */
+	virtual int32 GetTotalPointNum() const PURE_VIRTUAL(FBaseLensTable::GetTotalPointNum, return INDEX_NONE; );
+
 	/** Get the base focus point by given index */
 	virtual const FBaseFocusPoint* GetBaseFocusPoint(int32 InIndex) const PURE_VIRTUAL(FBaseLensTable::GetBaseFocusPoint, return nullptr; );
 

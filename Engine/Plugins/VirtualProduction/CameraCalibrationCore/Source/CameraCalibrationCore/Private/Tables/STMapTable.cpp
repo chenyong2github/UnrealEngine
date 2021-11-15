@@ -149,6 +149,11 @@ const FBaseFocusPoint* FSTMapTable::GetBaseFocusPoint(int32 InIndex) const
 	return nullptr;
 }
 
+int32 FSTMapTable::GetTotalPointNum() const
+{
+	return LensDataTableUtils::GetTotalPointNum(FocusPoints);
+}
+
 UScriptStruct* FSTMapTable::GetScriptStruct() const
 {
 	return StaticStruct();

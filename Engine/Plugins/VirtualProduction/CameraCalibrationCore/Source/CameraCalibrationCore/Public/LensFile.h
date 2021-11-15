@@ -204,6 +204,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lens Table")
 	bool HasSamples(ELensDataCategory InDataCategory) const;
 
+	/** Returns total number of the points for given category */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	int32 GetTotalPointNum(ELensDataCategory InDataCategory) const;
+
 	/** Get data table reference based on given category */
 	const FBaseLensTable* GetDataTable(ELensDataCategory InDataCategory) const;
 	

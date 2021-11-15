@@ -234,4 +234,18 @@ namespace LensDataTableUtils
 
 		return Container[FocusNeighbors.PreviousIndex].GetValue(ZoomNeighbors.PreviousIndex, OutData);
 	}
+
+	/** Get total number of Zoom points for all Focus points of this data table */
+	template<typename FocusPointType>
+	int32 GetTotalPointNum(const TArray<FocusPointType>& Container)
+	{
+		int32 PointNum = 0;
+	
+		for (const FocusPointType& Point : Container)
+		{
+			PointNum += Point.GetNumPoints();
+		}
+
+		return PointNum;
+	}
 }

@@ -2,7 +2,7 @@
 
 
 #include "Tables/EncodersTable.h"
-
+#include "CameraCalibrationCoreLog.h"
 
 int32 FEncodersTable::GetNumFocusPoints() const
 {
@@ -11,11 +11,23 @@ int32 FEncodersTable::GetNumFocusPoints() const
 
 float FEncodersTable::GetFocusInput(int32 Index) const
 {
+	if (!ensure(Focus.Keys.IsValidIndex(Index)))
+	{
+		UE_LOG(LogCameraCalibrationCore, Error, TEXT("Invalid focus keys index: %d"), Index);
+		return 0.f;
+	}
+	
 	return Focus.Keys[Index].Time;
 }
 
 float FEncodersTable::GetFocusValue(int32 Index) const
 {
+	if (!ensure(Focus.Keys.IsValidIndex(Index)))
+	{
+		UE_LOG(LogCameraCalibrationCore, Error, TEXT("Invalid focus keys index: %d"), Index);
+		return 0.f;
+	}
+	
 	return Focus.Keys[Index].Value;
 }
 
@@ -38,11 +50,23 @@ int32 FEncodersTable::GetNumIrisPoints() const
 
 float FEncodersTable::GetIrisInput(int32 Index) const
 {
+	if (!ensure(Iris.Keys.IsValidIndex(Index)))
+	{
+		UE_LOG(LogCameraCalibrationCore, Error, TEXT("Invalid iris keys index: %d"), Index);
+		return 0.f;
+	}
+
 	return Iris.Keys[Index].Time;
 }
 
 float FEncodersTable::GetIrisValue(int32 Index) const
 {
+	if (!ensure(Iris.Keys.IsValidIndex(Index)))
+	{
+		UE_LOG(LogCameraCalibrationCore, Error, TEXT("Invalid iris keys index: %d"), Index);
+		return 0.f;
+	}
+
 	return Iris.Keys[Index].Value;
 }
 
