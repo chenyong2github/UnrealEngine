@@ -175,6 +175,11 @@ TMap<ELensDataCategory, FLinkPointMetadata> FNodalOffsetTable::GetLinkedCategori
 	return LinkedToCategories;
 }
 
+int32 FNodalOffsetTable::GetTotalPointNum() const
+{
+	return LensDataTableUtils::GetTotalPointNum(FocusPoints);
+}
+
 UScriptStruct* FNodalOffsetTable::GetScriptStruct() const
 {
 	return StaticStruct();

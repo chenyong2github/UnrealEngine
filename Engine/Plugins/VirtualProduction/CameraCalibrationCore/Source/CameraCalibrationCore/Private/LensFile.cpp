@@ -1225,39 +1225,44 @@ void ULensFile::ClearData(ELensDataCategory InDataCategory)
 
 bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 {
+	return GetTotalPointNum(InDataCategory) > 0 ? true : false;
+}
+
+int32 ULensFile::GetTotalPointNum(ELensDataCategory InDataCategory) const
+{
 	switch(InDataCategory)
 	{
 		case ELensDataCategory::Distortion:
 		{
-			return DistortionTable.GetFocusPoints().Num() > 0;
+			return DistortionTable.GetTotalPointNum();
 		}
 		case ELensDataCategory::ImageCenter:
 		{
-			return ImageCenterTable.GetFocusPoints().Num() > 0;
+			return ImageCenterTable.GetTotalPointNum();
 		}
 		case ELensDataCategory::Zoom:
 		{
-			return FocalLengthTable.GetFocusPoints().Num() > 0;
+			return FocalLengthTable.GetTotalPointNum();
 		}
 		case ELensDataCategory::STMap:
 		{
-			return STMapTable.GetFocusPoints().Num() > 0;
+			return STMapTable.GetTotalPointNum();
 		}
 		case ELensDataCategory::NodalOffset:
 		{
-			return NodalOffsetTable.GetFocusPoints().Num() > 0;
+			return NodalOffsetTable.GetTotalPointNum();
 		}
 		case ELensDataCategory::Focus:
 		{
-			return EncodersTable.GetNumFocusPoints() > 0;
+			return EncodersTable.GetNumFocusPoints();
 		}
 		case ELensDataCategory::Iris:
 		{
-			return EncodersTable.GetNumIrisPoints() > 0;
+			return EncodersTable.GetNumIrisPoints();
 		}
 		default:
 		{
-			return false;
+			return -1;
 		}
 	}
 }

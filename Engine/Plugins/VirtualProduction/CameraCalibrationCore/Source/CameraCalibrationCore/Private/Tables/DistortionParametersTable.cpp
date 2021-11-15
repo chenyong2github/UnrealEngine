@@ -103,6 +103,11 @@ void FDistortionFocusPoint::SetParameterValue(int32 InZoomIndex, float InZoomVal
 	}
 }
 
+int32 FDistortionTable::GetTotalPointNum() const
+{
+	return LensDataTableUtils::GetTotalPointNum(FocusPoints);
+}
+
 UScriptStruct* FDistortionTable::GetScriptStruct() const
 {
 	return StaticStruct();

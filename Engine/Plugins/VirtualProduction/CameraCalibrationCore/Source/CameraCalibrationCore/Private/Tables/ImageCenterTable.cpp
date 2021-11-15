@@ -108,6 +108,11 @@ bool FImageCenterTable::DoesFocusPointExists(float InFocus) const
 	return false;
 }
 
+int32 FImageCenterTable::GetTotalPointNum() const
+{
+	return LensDataTableUtils::GetTotalPointNum(FocusPoints);
+}
+
 UScriptStruct* FImageCenterTable::GetScriptStruct() const
 {
 	return StaticStruct();

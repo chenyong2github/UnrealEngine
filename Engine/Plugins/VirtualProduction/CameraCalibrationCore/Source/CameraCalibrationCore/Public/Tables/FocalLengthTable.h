@@ -106,6 +106,7 @@ public:
 	//~ Begin FBaseDataTable Interface
 	virtual void ForEachPoint(FFocusPointCallback InCallback) const override;
 	virtual int32 GetFocusPointNum() const override { return FocusPoints.Num(); }
+	virtual int32 GetTotalPointNum() const override;
 	virtual UScriptStruct* GetScriptStruct() const override;
 	//~ End FBaseDataTable Interface
 

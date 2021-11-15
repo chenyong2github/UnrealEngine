@@ -305,6 +305,120 @@ namespace CameraCalibrationTestUtil
 		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[0]")), FocusPoints[2].ZoomPoints[0].Zoom, 0.0f);
 		Test.TestEqual(FString::Printf(TEXT("FocusPoints[0], ZoomPoints[1]")), FocusPoints[2].ZoomPoints[1].Zoom, 0.5f);
 	}
+
+	template <bool Const, typename Class, typename FuncType>
+    struct TClassFunPtrType;
+    
+    template <typename Class, typename RetType, typename... ArgTypes>
+    struct TClassFunPtrType<false, Class, RetType(ArgTypes...)>
+    {
+    	typedef RetType (Class::* Type)(ArgTypes...);
+    };
+    
+    template <typename Class, typename RetType, typename... ArgTypes>
+    struct TClassFunPtrType<true, Class, RetType(ArgTypes...)>
+    {
+    	typedef RetType (Class::* Type)(ArgTypes...) const;
+    };
+
+	template <typename FPointType>
+	void TestRemoveSinglePoint(FAutomationTestBase& Test, ULensFile* InLensFile, ELensDataCategory InDataCategory,
+	                       typename TClassFunPtrType<false, ULensFile, void(float, float, const FPointType&)>::Type
+	                       InFunc)
+	{
+		UEnum* Enum = StaticEnum<ELensDataCategory>();
+		const FString EnumString = Enum ? Enum->GetNameByIndex(static_cast<uint8>(InDataCategory)).ToString() : "";
+		
+		Test.AddInfo(FString::Printf(TEXT("Remove %s"), *EnumString));
+		const FPointType PointInfo;
+		const float FocusValue = 0.12f;
+		const float ZoomValue = 0.91f;
+		(InLensFile->*InFunc)(FocusValue, ZoomValue, PointInfo);
+		InLensFile->RemoveZoomPoint(InDataCategory, FocusValue, ZoomValue);
+		const int32 PointsNum = InLensFile->GetTotalPointNum(InDataCategory);
+		Test.TestEqual(TEXT("Num Zoom Points"), PointsNum, 0);
+	}
+
+	void TestLensFileRemovePoints(FAutomationTestBase& Test)
+	{
+		constexpr auto LensFileName = TEXT("RemovePointsTestLensFile");
+		ULensFile* LensFile = NewObject<ULensFile>(GetTransientPackage(), LensFileName);
+
+		Test.AddInfo(TEXT("Remove ELensDataCategory::Focus"));
+		{
+			constexpr float FocusKeyTimeValue = 0.12f;
+			constexpr float FocusKeyMappingValue = 0.91f;
+			LensFile->EncodersTable.Focus.AddKey(FocusKeyTimeValue, FocusKeyMappingValue);
+			Test.TestEqual(TEXT("Time Value Should be the same"), LensFile->EncodersTable.GetFocusInput(0), FocusKeyTimeValue);
+			LensFile->EncodersTable.RemoveFocusPoint(FocusKeyTimeValue);
+			Test.TestEqual(TEXT("Num Focus Points"), LensFile->EncodersTable.GetNumFocusPoints(), 0);
+		}
+
+		Test.AddInfo(TEXT("Remove ELensDataCategory::Iris"));
+		{
+			constexpr float IrisKeyTimeValue = 0.12f;
+			constexpr float IrisKeyMappingValue = 0.91f;
+			LensFile->EncodersTable.Iris.AddKey(IrisKeyTimeValue, IrisKeyMappingValue);
+			Test.TestEqual(TEXT("Time Value should be the same"), LensFile->EncodersTable.GetIrisInput(0), IrisKeyTimeValue);
+			LensFile->EncodersTable.RemoveIrisPoint(IrisKeyTimeValue);
+			Test.TestEqual(TEXT("Num Iris Points"), LensFile->EncodersTable.GetNumIrisPoints(), 0);
+		}
+		
+		Test.AddInfo(TEXT("Remove all point ELensDataCategory::Zoom"));
+		{
+			const FFocalLengthInfo FocalLengthInfo;
+			const float FocusValue = 0.12f;
+			const float ZoomValue1 = 0.191f;
+			const float ZoomValue2 = 0.91f;
+			LensFile->AddFocalLengthPoint(FocusValue, ZoomValue1, FocalLengthInfo);
+			LensFile->AddFocalLengthPoint(FocusValue, ZoomValue2, FocalLengthInfo);
+			LensFile->RemoveFocusPoint(ELensDataCategory::Zoom, FocusValue);
+			const int32 PointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num Zoom Points"), PointsNum, 0);
+		}
+
+		Test.AddInfo(TEXT("Remove ELensDataCategory::Distortion"));
+		{
+			const FFocalLengthInfo FocalLengthInfo;
+			const FDistortionInfo DistortionPoint;
+			const float FocusValue = 0.12f;
+			const float ZoomValue = 0.191f;
+			LensFile->AddDistortionPoint(FocusValue, ZoomValue, DistortionPoint, FocalLengthInfo);
+			LensFile->RemoveZoomPoint(ELensDataCategory::Distortion, FocusValue, ZoomValue);
+			const int32 DistortionPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Distortion);
+			int32 FocalLengthPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num Distortion Points"), DistortionPointsNum, 0);
+			Test.TestEqual(TEXT("Num FocalLength Points"), FocalLengthPointsNum, 1);
+			LensFile->RemoveZoomPoint(ELensDataCategory::Zoom, FocusValue, ZoomValue);
+			FocalLengthPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num FocalLength Points"), FocalLengthPointsNum, 0);
+		}
+
+		Test.AddInfo(TEXT("Remove ELensDataCategory::Distortion, add focal length before add distortion point"));
+		{
+			const FFocalLengthInfo FocalLengthInfo;
+			const FDistortionInfo DistortionPoint;
+			const float FocusValue = 0.12f;
+			const float ZoomValue = 0.191f;
+			LensFile->AddFocalLengthPoint(FocusValue, ZoomValue, FocalLengthInfo);
+			LensFile->AddDistortionPoint(FocusValue, ZoomValue, DistortionPoint, FocalLengthInfo);
+			int32 FocalLengthPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num FocalLength Points"), FocalLengthPointsNum, 1);
+			LensFile->RemoveZoomPoint(ELensDataCategory::Distortion, FocusValue, ZoomValue);
+			const int32 DistortionPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Distortion);
+			FocalLengthPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num Distortion Points"), DistortionPointsNum, 0);
+			Test.TestEqual(TEXT("Num FocalLength Points"), FocalLengthPointsNum, 1);
+			LensFile->RemoveZoomPoint(ELensDataCategory::Zoom, FocusValue, ZoomValue);
+			FocalLengthPointsNum = LensFile->GetTotalPointNum(ELensDataCategory::Zoom);
+			Test.TestEqual(TEXT("Num FocalLength Points"), FocalLengthPointsNum, 0);
+		}
+
+		TestRemoveSinglePoint<FFocalLengthInfo>(Test, LensFile, ELensDataCategory::Zoom, &ULensFile::AddFocalLengthPoint);
+		TestRemoveSinglePoint<FImageCenterInfo>(Test, LensFile, ELensDataCategory::ImageCenter, &ULensFile::AddImageCenterPoint);
+		TestRemoveSinglePoint<FNodalPointOffset>(Test, LensFile, ELensDataCategory::NodalOffset, &ULensFile::AddNodalOffsetPoint);
+		TestRemoveSinglePoint<FSTMapInfo>(Test, LensFile, ELensDataCategory::STMap, &ULensFile::AddSTMapPoint);
+	}
 }
 
 
@@ -312,8 +426,10 @@ bool FTestCameraCalibrationCore::RunTest(const FString& Parameters)
 {
 	CameraCalibrationTestUtil::TestDistortionParameterCurveBlending(*this);
 	CameraCalibrationTestUtil::TestLensFileAddPoints(*this);
+	CameraCalibrationTestUtil::TestLensFileRemovePoints(*this);
 	return true;
 }
+
 #endif // WITH_DEV_AUTOMATION_TESTS
 
 

@@ -152,6 +152,11 @@ TMap<ELensDataCategory, FLinkPointMetadata> FFocalLengthTable::GetLinkedCategori
 	return LinkedToCategories;
 }
 
+int32 FFocalLengthTable::GetTotalPointNum() const
+{
+	return LensDataTableUtils::GetTotalPointNum(FocusPoints);
+}
+
 UScriptStruct* FFocalLengthTable::GetScriptStruct() const
 {
 	return StaticStruct();
