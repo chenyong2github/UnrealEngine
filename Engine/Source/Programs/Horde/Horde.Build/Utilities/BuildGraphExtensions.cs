@@ -64,8 +64,13 @@ namespace Horde.Build.Utilities
 					catch { }
 				}
 			}
+
+			public Task<string[]> FindAsync(string Path)
+			{
+				throw new NotImplementedException();
+			}
 		}
-		
+
 		/// <summary>
 		/// Create a graph from a script in Perforce
 		/// </summary>
