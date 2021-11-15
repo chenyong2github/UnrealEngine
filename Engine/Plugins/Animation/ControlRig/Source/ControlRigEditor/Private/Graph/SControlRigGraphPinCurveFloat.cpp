@@ -25,8 +25,9 @@ TSharedRef<SWidget>	SControlRigGraphPinCurveFloat::GetDefaultValueWidget()
 {
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GraphPinObj->GetOwningNode()->GetGraph());
 
+	// 360 is the minimum width required to display keys' values 
 	TSharedRef<SWidget> Widget = SNew(SBox)
-		.MinDesiredWidth(200)
+		.MinDesiredWidth(360)
 		.MaxDesiredWidth(400)
 		.MinDesiredHeight(175)
 		.MaxDesiredHeight(300)
@@ -38,7 +39,7 @@ TSharedRef<SWidget>	SControlRigGraphPinCurveFloat::GetDefaultValueWidget()
 			.ViewMinOutput(0.f)
 			.ViewMaxOutput(1.f)
 			.TimelineLength(1.f)
-			.DesiredSize(FVector2D(300, 200))
+			.DesiredSize(FVector2D(360, 200))
 			.HideUI(true)
 		];
 
