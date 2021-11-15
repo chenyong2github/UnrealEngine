@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 #include "Logging/LogMacros.h"
-#include "Templates/SubclassOf.h"
 #include "Engine/DataTable.h"
 #include "MassEntityTypes.h"
 #include "MassSpawnerTypes.h"
@@ -21,6 +19,17 @@ class UBillboardComponent;
 class UStaticMesh;
 class UMaterialInterface;
 
+#if WITH_MASSGAMEPLAY_DEBUG
+namespace UE::Mass::Debug
+{
+	/**
+	 * Fetches entity handles and their locations for entities indicated by index range as set by
+	 * ai.debug.mass.SetDebugEntityRange or ai.debug.mass.DebugEntity console commands.
+	 */
+	MASSGAMEPLAYDEBUG_API extern void GetDebugEntitiesAndLocations(const UMassEntitySubsystem& EntitySystem, TArray<FMassEntityHandle>& OutEntities, TArray<FVector>& OutLocations);
+	MASSGAMEPLAYDEBUG_API extern FMassEntityHandle ConvertEntityIndexToHandle(const UMassEntitySubsystem& EntitySystem, const int32 EntityIndex);
+} // namespace UE::Mass::Debug
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 USTRUCT()
 struct FSimDebugDataRow : public FTableRowBase
