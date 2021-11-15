@@ -1877,31 +1877,8 @@ void URemoteControlPreset::OnActorDeleted(AActor* Actor)
 			UObject* ResolvedObject = (*It)->Resolve();
 			if (ResolvedObject && (Actor == ResolvedObject || Actor == ResolvedObject->GetTypedOuter<AActor>()))
 			{
-				Modify();
-				(*It)->Modify();
-				(*It)->UnbindObject(ResolvedObject);
-				ModifiedBindings.Add(*It);
-
-				if (!(*It)->IsValid())
-				{
-					It.RemoveCurrent();
-				}
-			}
-		}
-	}
-
-	for (TSharedPtr<FRemoteControlEntity> Entity : Registry->GetExposedEntities<FRemoteControlEntity>())
-	{
-		if (Entity)
-		{
-			for (auto It = Entity->Bindings.CreateIterator(); It; ++It)
-			{
-				if (ModifiedBindings.Contains(It->Get()))
-				{
-					PerFrameUpdatedEntities.Add(Entity->GetId());
-					It.RemoveCurrent();
-					break;
-				}
+				// Defer binding clean up to next frame in case the actor deletion is actually an actor being moved to a different sub level.
+				PerFrameBindingsToClean.Add(*It);
 			}
 		}
 	}
@@ -2020,6 +1997,47 @@ void URemoteControlPreset::OnPackageReloaded(EPackageReloadPhase Phase, FPackage
 		}
 	}
 }
+
+void URemoteControlPreset::CleanUpBindings()
+{
+	TSet<URemoteControlBinding*> BindingsToDelete;
+
+
+	for (URemoteControlBinding* Binding : PerFrameBindingsToClean)
+	{
+		if (Binding)
+		{
+			if (Binding->PruneDeletedObjects())
+			{
+				BindingsToDelete.Add(Binding);
+			}
+		}
+	}
+
+	for (TSharedPtr<FRemoteControlEntity> Entity : Registry->GetExposedEntities<FRemoteControlEntity>())
+	{
+		if (Entity)
+		{
+			for (auto It = Entity->Bindings.CreateIterator(); It; ++It)
+			{
+				// Update bindings that were "touched" regardless of if they were pruned, so that the UI can re-resolve the binding
+				// if one of the object was moved to a sublevel.
+				if (PerFrameBindingsToClean.Contains(It->Get()))
+				{
+					PerFrameUpdatedEntities.Add(Entity->GetId());
+				}
+
+				if (BindingsToDelete.Contains(It->Get()))
+				{
+					It.RemoveCurrent();
+					break;
+				}
+			}
+		}
+	}
+
+	PerFrameBindingsToClean.Reset();
+}
 #endif
 
 void URemoteControlPreset::OnBeginFrame()
@@ -2035,6 +2053,10 @@ void URemoteControlPreset::OnBeginFrame()
 			Entry.Value.CheckForChange();
 		}
 	}
+
+#if WITH_EDITOR
+	CleanUpBindings();
+#endif
 }
 
 void URemoteControlPreset::OnEndFrame()

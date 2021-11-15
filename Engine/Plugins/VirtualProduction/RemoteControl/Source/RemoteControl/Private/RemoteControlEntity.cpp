@@ -55,7 +55,7 @@ void FRemoteControlEntity::BindObject(UObject* InObjectToBind)
 	}
 
 	Binding = Bindings[0].Get();
-
+	
 	if (Binding)
 	{
 		Binding->Modify();
