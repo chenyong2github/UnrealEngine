@@ -305,12 +305,11 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface.
 
-
-private:
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ Begin USceneComponent Interface.
 
+private:
 
 	/** Update LocalBounds member from the local box of each section */
 	void UpdateLocalBounds();
