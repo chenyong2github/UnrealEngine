@@ -114,6 +114,7 @@ private:
 		TSharedPtr<SGraphPin> InputPinWidget;
 		TSharedPtr<SGraphPin> OutputPinWidget;
 		bool bExpanded;
+		bool bAutoHeight;
 	};
 	
 	TArray<FPinInfo> PinInfos;

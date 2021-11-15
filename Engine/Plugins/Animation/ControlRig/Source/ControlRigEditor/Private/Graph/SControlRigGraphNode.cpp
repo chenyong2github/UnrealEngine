@@ -164,6 +164,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		.Size(FVector2D(1.f, 2.f))
 	];
 
+	const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(EdGraphNode->GetSchema());
+	
 	TMap<URigVMPin*, int32> ModelPinToInfoIndex;
 	for(URigVMPin* ModelPin : ModelPins)
 	{
@@ -175,16 +177,17 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		PinInfo.Depth = 0;
 		PinInfo.bExpanded = ModelPin->IsExpanded();
 		PinInfo.ModelPinPath = ModelPin->GetPinPath();
-
-		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && (ModelPin->IsStruct() || PinInfo.bIsContainer);
+		PinInfo.bAutoHeight = false;
+		
+		const bool bAskSchemaForEdition = RigSchema && ModelPin->IsStruct();
+		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && PinInfo.bIsContainer;
 		if (!PinInfo.bHideInputWidget)
 		{
-			if (ModelPin->GetSubPins().Num() == 0)
+			if (bAskSchemaForEdition && !PinInfo.bHasChildren)
 			{
-				if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(EdGraphNode->GetSchema()))
-				{
-					PinInfo.bHideInputWidget = RigSchema->IsStructEditable(ModelPin->GetScriptStruct());
-				}
+				const bool bIsStructEditable = RigSchema->IsStructEditable(ModelPin->GetScriptStruct()); 
+				PinInfo.bHideInputWidget = !bIsStructEditable;
+				PinInfo.bAutoHeight = bIsStructEditable;
 			}
 		}
 		
@@ -347,7 +350,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
                 .HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
 				.AutoHeight()
-				.MaxHeight(MaxHeight)
+				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
                 [
                     SAssignNew(SlotLayout, SHorizontalBox)
                     .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
@@ -385,7 +388,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
                 .HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
                 .AutoHeight()
-				.MaxHeight(MaxHeight)
+				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
                 [
                     SAssignNew(SlotLayout, SHorizontalBox)
                     .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
@@ -429,7 +432,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
             .HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
             .AutoHeight()
-			.MaxHeight(MaxHeight)
+			.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
             [
             	SNew(SHorizontalBox)
 	            .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
