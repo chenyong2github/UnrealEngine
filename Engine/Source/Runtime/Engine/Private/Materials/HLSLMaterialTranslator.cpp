@@ -1107,6 +1107,19 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
+		if (Material->GetMaterialInterface() && Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionAbsorptionMediumMaterialOutput>())
+		{
+			// User placed an AbsorptionMedium node, make sure default lit is being used
+			if (!MaterialShadingModels.HasShadingModel(MSM_DefaultLit))
+			{
+				Errorf(TEXT("AbsorptionMedium custom output requires Default Lit shading model."));
+			}
+			if (Material->GetRefractionMode() != RM_IndexOfRefraction)
+			{
+				Errorf(TEXT("AbsorptionMedium custom output requires \"Index of Refraction\" as the \"Refraction Mode\"."));
+			}
+		}
+
 		if (Material->IsStrataMaterial())
 		{
 			if (Domain!= MD_Volume && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked))
@@ -10106,7 +10119,10 @@ int32 FHLSLMaterialTranslator::CustomOutput(class UMaterialExpressionCustomOutpu
 	const FString FunctionNameBase = FString::Printf(TEXT("%s%d"), *Custom->GetFunctionName(), OutputIndex);
 
 	// Primary function will have _LWC suffix if it returns an LWC type
-	FString ImplementationCodeFinite = FString::Printf(TEXT("%s %s%s(%s FMaterial%sParameters Parameters)\r\n{\r\n%s return %s;\r\n}\r\n"),
+	// We also define a pre-processor symbol to indicate the custom output function is available so that
+	// shaders can implement some fallback behavior for cases where the custom output has not been added
+	FString ImplementationCodeFinite = FString::Printf(TEXT("#define HAVE_%s 1\r\n%s %s%s(%s FMaterial%sParameters Parameters)\r\n{\r\n%s return %s;\r\n}\r\n"),
+		*FunctionNameBase,
 		*OutputTypeString,
 		*FunctionNameBase,
 		IsLWCType(OutputType) ? TEXT("_LWC") : TEXT(""),

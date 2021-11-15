@@ -895,7 +895,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// long term we will probably want a stack with priorities
 	if (MaterialSample.PositionBiasSign < 0 && Payload.IsMaterialSolidGlass())
 	{
-		float3 LocalSigmaT = -log(max(Payload.BaseColor, 1e-8f)) * AbsorptionScale;
+		float3 LocalSigmaT = -log(max(Payload.CustomData.xyz, 1e-8f)) * AbsorptionScale;
 		if (Payload.IsFrontFace())
 		{
 			// entering

@@ -116,9 +116,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 #if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	half Refraction = GetMaterialRefraction(PixelMaterialInputs).x;
+	Payload.Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	Payload.Ior = (Payload.Ior == 0.0) ? 1.0 : Payload.Ior;
 #else
-	half Refraction = 1;
+	Payload.Ior = 1;
 #endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
@@ -162,8 +163,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.WorldSmoothNormal = Payload.WorldNormal = Payload.WorldGeoNormal;
 	Payload.WorldTangent = MaterialParameters.TangentToWorld[2];
 #endif
-
-	Payload.Ior = Refraction == 0 ? 1.0 : Refraction;
 
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT
 	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
@@ -270,8 +269,21 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 	else
 #endif
+
+#if MATERIAL_SHADINGMODEL_DEFAULT_LIT
+	if (Payload.ShadingModelID == SHADINGMODELID_DEFAULT_LIT)
 	{
-		// terminal case for when none of the above worked
+		// only allow refraction for default lit materials since we need space for the absorption amount
+#if HAVE_GetAbsorptionMediumMaterialOutput0
+		Payload.CustomData.xyz = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
+#else
+		Payload.CustomData.xyz = 1.0;
+#endif
+	}
+	else
+#endif
+	{
+		// terminal case for the conditionals above
 	}
 
 
@@ -451,16 +463,15 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 #elif MATERIALBLENDING_TRANSLUCENT
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
-#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
-#else
-	float Ior = 1.0;
-#endif
 
-#if !SIMPLIFIED_MATERIAL_SHADER
 	// Is refraction enabled?
-	if (Transparency > 0 && Ior != 1.0)
+#if !SIMPLIFIED_MATERIAL_SHADER && MATERIAL_SHADINGMODEL_DEFAULT_LIT && REFRACTION_USE_INDEX_OF_REFRACTION
+	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	Ior = Ior == 0.0 ? 1.0 : Ior;
+	int ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
+	if (Transparency > 0 && ShadingModelID == SHADINGMODELID_DEFAULT_LIT && Ior != 1.0)
 	{
+		// current hit has some refraction
 		float PathRoughness = PackedPayload.GetPathRoughness();
 		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 		if (PathRoughness <= Roughness)
@@ -480,10 +491,13 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 		float VoN = abs(dot(WorldRayDirection(), N));
 		float Fr = FresnelReflectance(VoN, Eta);
 		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+
+#if HAVE_GetAbsorptionMediumMaterialOutput0
 		// Now track the optical thickness so that we can account for Beer's law along the shadow ray
 		// TODO: to support lights inside glass we would need to track an extra offset, but this is hopefully an uncommon scenario
 		float Distance = RayTCurrent();
-		float3 LocalSigmaT = -log(max(GetMaterialBaseColor(PixelMaterialInputs), 1e-8f));
+		float3 TransmittanceColor = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
+		float3 LocalSigmaT = -log(max(TransmittanceColor, 1e-8f));
 		if (bIsFrontFace)
 		{
 			// remove contribution from the ray origin to the current hit (assuming the backside will be hit)
@@ -494,8 +508,9 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 			// add contribution from ray origin to current hit (backside) - excess portion not covered by the ray will be removed by the front face hit
 			PackedPayload.SetTau(PackedPayload.GetTau() + LocalSigmaT * Distance);
 		}
+#endif // HAVE_GetAbsorptionMediumMaterialOutput0
 	}
-#endif
+#endif // refraction enabled?
 #else
 #error "Control flow does not account for all blending modes!"
 #endif

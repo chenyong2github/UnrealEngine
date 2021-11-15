@@ -165,7 +165,7 @@ struct FPathTracingPayload : FMinimalPayload
 
 	bool IsMaterialSolidGlass()
 	{
-		return ShadingModelID != SHADINGMODELID_THIN_TRANSLUCENT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Ior != 1.0 && Opacity < 1;
+		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Ior != 1.0 && Opacity < 1;
 	}
 
 	bool IsMaterialTransmissive()
