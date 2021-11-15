@@ -212,33 +212,6 @@ FComparisonReport::FComparisonReport(const FString& InReportRootDirectory, const
 	ReportPath = FPaths::GetPath(InReportFile);
 }
 
-void FComparableImage::Process()
-{
-	ParallelFor(Width,
-		[&] (int32 ColumnIndex)
-	{
-		for ( int Y = 0; Y < Height; Y++ )
-		{
-			FColor Pixel = GetPixel(ColumnIndex, Y);
-			double Luminance = FPixelOperations::GetLuminance(Pixel);
-
-			RedTotal += ( Pixel.R / 255.0 );
-			GreenTotal += ( Pixel.G / 255.0 );
-			BlueTotal += ( Pixel.B / 255.0 );
-			AlphaTotal += ( Pixel.A / 255.0 );
-			LuminanceTotal += ( Luminance / 255.0 );
-		}
-	});
-
-	const double PixelCount = Width * Height;
-
-	RedAverage = RedTotal / PixelCount;
-	GreenAverage = GreenTotal / PixelCount;
-	BlueAverage = BlueTotal / PixelCount;
-	AlphaAverage = AlphaTotal / PixelCount;
-	LuminanceAverage = LuminanceTotal / PixelCount;
-}
-
 TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FText& OutError)
 {
 	const FString ImageExtension = FPaths::GetExtension(ImagePath);
@@ -307,9 +280,6 @@ FImageComparisonResult FImageComparer::Compare(const FString& ImagePathA, const 
 		Results.ErrorMessage = ErrorB;
 		return Results;
 	}
-
-	ImageA->Process();
-	ImageB->Process();
 
 	FImageComparisonResult Results = Compare(ImageA.Get(), ImageB.Get(), Tolerance, OutDeltaPath);
 	Results.ApprovedFilePath = ImagePathA;

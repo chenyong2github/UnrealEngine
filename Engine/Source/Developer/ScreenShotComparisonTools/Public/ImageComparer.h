@@ -143,21 +143,11 @@ public:
 class FComparableImage
 {
 public:
-	int32 Width;
-	int32 Height;
+	int32 Width = 0;
+	int32 Height = 0;
 	TArray64<uint8> Bytes;
 
 	FComparableImage()
-		: RedTotal(0)
-		, GreenTotal(0)
-		, BlueTotal(0)
-		, AlphaTotal(0)
-		, LuminanceTotal(0)
-		, RedAverage(0)
-		, GreenAverage(0)
-		, BlueAverage(0)
-		, AlphaAverage(0)
-		, LuminanceAverage(0)
 	{
 	}
 
@@ -177,22 +167,6 @@ public:
 			Bytes[Offset + 2],
 			Bytes[Offset + 3]);
 	}
-
-	void Process();
-
-public:
-	// Processed Data
-	double RedTotal;
-	double GreenTotal;
-	double BlueTotal;
-	double AlphaTotal;
-	double LuminanceTotal;
-
-	double RedAverage;
-	double GreenAverage;
-	double BlueAverage;
-	double AlphaAverage;
-	double LuminanceAverage;
 };
 
 /**
