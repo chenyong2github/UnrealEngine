@@ -4969,6 +4969,23 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	CommandContext.CommandListHandle.GraphicsCommandList()->SetComputeRootSignature(Pipeline->GlobalRootSignature);
 
+	// Bind diagnostic buffer to allow asserts in ray generation shaders
+	{
+#if USE_STATIC_ROOT_SIGNATURE
+		FD3D12RootSignature* RootSignature = Adapter->GetStaticRayTracingGlobalRootSignature();
+#else // USE_STATIC_ROOT_SIGNATURE
+		FD3D12QuantizedBoundShaderState RSDesc = GetRayTracingGlobalRootSignatureDesc();
+		FD3D12RootSignature* RootSignature = Adapter->GetRootSignature(RSDesc);
+#endif // USE_STATIC_ROOT_SIGNATURE
+
+		const int8 DiagnosticBufferSlot = RootSignature->GetDiagnosticBufferSlot();
+		D3D12_GPU_VIRTUAL_ADDRESS DiagnosticBufferAddress = CommandContext.GetParentDevice()->GetCommandListManager().GetDiagnosticBufferGPUAddress();
+		if (DiagnosticBufferSlot >= 0 && DiagnosticBufferAddress)
+		{
+			CommandContext.CommandListHandle.GraphicsCommandList()->SetComputeRootUnorderedAccessView(DiagnosticBufferSlot, DiagnosticBufferAddress);
+		}
+	}
+
 	FD3D12RayTracingShader* RayGenShader = Pipeline->RayGenShaders.Shaders[RayGenShaderIndex];
 
 	bool bResourcesBound = false;

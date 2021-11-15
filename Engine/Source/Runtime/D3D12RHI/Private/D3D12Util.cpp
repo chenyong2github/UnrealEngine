@@ -246,7 +246,7 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 	const FD3D12DiagnosticBufferData* DiagnosticData = CommandListManager.GetDiagnosticBufferData();
 	if (DiagnosticData && DiagnosticData->Counter)
 	{
-		UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb]\t\tShader assertion failed! ID: 0x%08X"), DiagnosticData->MessageID);
+		UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb]\t\tShader assertion failed! ID: 0x%08X (%d)"), DiagnosticData->MessageID, DiagnosticData->MessageID);
 
 		{
 			const int32* Payload = DiagnosticData->Payload.AsInt;
@@ -1023,6 +1023,7 @@ FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc()
 	FShaderRegisterCounts& QBSSRegisterCounts = OutQBSS.RegisterCounts[SV_All];
 
 	OutQBSS.RootSignatureType = RS_RayTracingGlobal;
+	OutQBSS.bUseDiagnosticBuffer = true;
 
 	QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
 	QBSSRegisterCounts.ShaderResourceCount = MAX_SRVS;
