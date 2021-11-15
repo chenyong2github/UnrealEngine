@@ -35,7 +35,7 @@ protected:
 	void OnToggleNearEntityAvoidance() { bShowNearEntityAvoidance = !bShowNearEntityAvoidance; }
 	void OnToggleNearEntityPath() { bShowNearEntityPath = !bShowNearEntityPath; }
 	
-	void PickEntity(const APlayerController& OwnerPC, UWorld& World, UMassDebuggerSubsystem& Debugger);
+	void PickEntity(const APlayerController& OwnerPC, UWorld& World, UMassDebuggerSubsystem& Debugger, const bool bLimitAngle = true);
 
 protected:
 	AActor* CachedDebugActor;
@@ -48,6 +48,7 @@ protected:
 	bool bShowNearEntityOverview;
 	bool bShowNearEntityAvoidance;
 	bool bShowNearEntityPath;
+	bool bMarkEntityBeingDebugged;
 
 	struct FEntityDescription
 	{

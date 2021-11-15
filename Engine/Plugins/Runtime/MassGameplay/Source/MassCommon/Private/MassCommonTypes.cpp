@@ -83,15 +83,11 @@ bool HasDebugEntities()
 	return DebugEntityBegin != INDEX_NONE && DebugEntityEnd != INDEX_NONE;
 }
 
-void GetDebugEntitiesRange(int32& OutBegin, int32& OutEnd)
+bool GetDebugEntitiesRange(int32& OutBegin, int32& OutEnd)
 {
 	OutBegin = DebugEntityBegin;
 	OutEnd = DebugEntityEnd;
-}
-	
-FMassEntityHandle ConvertEntityIndexToHandle(const UMassEntitySubsystem& EntitySystem, const int32 EntityIndex)
-{
-	return EntitySystem.DebugGetEntityIndexHandle(EntityIndex);
+	return DebugEntityBegin != INDEX_NONE && DebugEntityEnd != INDEX_NONE;  
 }
 	
 bool IsDebuggingEntity(FMassEntityHandle Entity, FColor* OutEntityColor)
