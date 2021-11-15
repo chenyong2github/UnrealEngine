@@ -1056,8 +1056,16 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 		Links.Num() == 0 &&
 		SubPinsBoundToVariables.Num() == 0)
 	{
-		if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
-			Cast<URigVMVariableNode>(Pin->GetNode()))
+		if (Pin->IsBoundToExternalVariable(PinOverride))
+		{
+			PinExpr = MakeExpr<FRigVMExternalVarExprAST>(InPinProxy);
+		}
+		else if (Pin->IsBoundToLocalVariable(PinOverride))
+		{
+			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
+		}
+		else if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
+				 Cast<URigVMVariableNode>(Pin->GetNode()))
 		{
 			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
 			FRigVMExprAST* PinLiteralExpr = MakeExpr<FRigVMLiteralExprAST>(InPinProxy);
@@ -1065,10 +1073,6 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 			FRigVMExprAST* PinCopyExpr = MakeExpr<FRigVMCopyExprAST>(InPinProxy, InPinProxy);
 			PinCopyExpr->AddParent(PinExpr);
 			PinLiteralExpr->AddParent(PinCopyExpr);
-		}
-		else if (Pin->IsBoundToVariable(PinOverride))
-		{
-			PinExpr = MakeExpr<FRigVMExternalVarExprAST>(InPinProxy);
 		}
 		else
 		{
@@ -3013,9 +3017,24 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 				}
 
 				TArray<URigVMLink*> SourceLinks = ChildPin->GetSourceLinks(false /* recursive */);
-				if (SourceLinks.Num() > 0)
+				if (SourceLinks.Num() > 0 || ChildPin->IsBoundToInputArgument())
 				{
-					URigVMPin* SourcePin = SourceLinks[0]->GetSourcePin();
+					URigVMPin* SourcePin = nullptr;
+					if (SourceLinks.Num() > 0)
+					{
+						SourcePin = SourceLinks[0]->GetSourcePin();
+					}
+					else
+					{
+						if (URigVMGraph* Graph = ChildPin->GetGraph())
+						{
+							if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
+							{
+								SourcePin = EntryNode->FindPin(ChildPin->GetBoundVariableName());
+							}
+						}
+					}
+					check(SourcePin);
 					SourcePinProxy = InPinProxy.GetSibling(SourcePin);
 
 					// only continue the recursion on reroutes
