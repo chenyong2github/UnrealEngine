@@ -57,34 +57,74 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	return true;
 }
 
-void FStateTreeExecutionContext::Start(FStateTreeDataView ExternalStorage)
+EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView ExternalStorage)
 {
 	if (!Owner || !StateTree)
 	{
-		return;
+		return EStateTreeRunStatus::Failed;
 	}
+	
 	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
 	FStateTreeExecutionState& Exec = GetExecState(Storage);
 
-	// Stop if still running 
+	// Stop if still running previous state.
 	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running)
 	{
 		const FStateTreeTransitionResult Transition(FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), FStateTreeHandle::Succeeded);
 		ExitState(Storage, Transition);
 	}
-
-	// Initialize to unset running state, tick will choose the first state.
+	
+	// Initialize to unset running state.
 	Exec.TreeRunStatus = EStateTreeRunStatus::Running;
 	Exec.CurrentState = FStateTreeHandle::Invalid;
 	Exec.LastTickStatus = EStateTreeRunStatus::Unset;
+
+	// Select new Starting from root.
+	VisitedStates.Init(false, StateTree->States.Num());
+	static const FStateTreeHandle RootState = FStateTreeHandle(0);
+	const FStateTreeTransitionResult Transition = SelectState(Storage, FStateTreeStateStatus(FStateTreeHandle::Invalid), RootState, RootState, 0);
+
+	// Handle potential transition.
+	if (Transition.Next.IsValid())
+	{
+		if (Transition.Next == FStateTreeHandle::Succeeded || Transition.Next == FStateTreeHandle::Failed)
+		{
+			// Transition to a terminal state (succeeded/failed), or default transition failed.
+			STATETREE_LOG(Warning, TEXT("%s: Tree %s at StateTree start on '%s' using StateTree '%s'."),
+				ANSI_TO_TCHAR(__FUNCTION__), Transition.Next == FStateTreeHandle::Succeeded ? TEXT("succeeded") : TEXT("failed"), *GetNameSafe(Owner), *GetNameSafe(StateTree));
+			Exec.TreeRunStatus = Transition.Next == FStateTreeHandle::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+		}
+		else
+		{
+			// Enter state tasks can fail/succeed, treat it same as tick.
+			Exec.LastTickStatus = EnterState(Storage, Transition);
+			Exec.CurrentState = Transition.Next;
+			// Report state completed immediately.
+			if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
+			{
+				StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
+			}
+		}
+	}
+
+	if (!Exec.CurrentState.IsValid())
+	{
+		// Should not happen. This may happen if initial state could not be selected.
+		STATETREE_LOG(Error, TEXT("%s: Failed to select initial state on '%s' using StateTree '%s'. This should not happen, check that the StateTree logic can always select a state at start."),
+			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), *GetNameSafe(StateTree));
+		Exec.TreeRunStatus = EStateTreeRunStatus::Failed;
+	}
+
+	return Exec.TreeRunStatus;
 }
 
-void FStateTreeExecutionContext::Stop(FStateTreeDataView ExternalStorage)
+EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeDataView ExternalStorage)
 {
 	if (!Owner || !StateTree)
 	{
-		return;
+		return EStateTreeRunStatus::Failed;
 	}
+	
 	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
 	FStateTreeExecutionState& Exec = GetExecState(Storage);
 
@@ -98,6 +138,8 @@ void FStateTreeExecutionContext::Stop(FStateTreeDataView ExternalStorage)
 	Exec.TreeRunStatus = EStateTreeRunStatus::Succeeded;
 	Exec.CurrentState = FStateTreeHandle::Succeeded;
 	Exec.LastTickStatus = EStateTreeRunStatus::Unset;
+
+	return Exec.TreeRunStatus;
 }
 
 EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FStateTreeDataView ExternalStorage)
@@ -123,35 +165,32 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		Exec.GatedTransitionTime -= DeltaTime;
 	}
 	
+	// Reset visited state, used to keep track which state's evaluators have been ticked.
+	VisitedStates.Init(false, StateTree->States.Num());
+
+	if (Exec.LastTickStatus == EStateTreeRunStatus::Running)
+	{
+		// Tick evaluators on active states. Further evaluator may be ticked during selection as non-active states are visited.
+		// Ticked states are kept track of and evaluators are ticked just once per frame.
+		TickEvaluators(Storage, Exec.CurrentState, EStateTreeEvaluationType::Tick, DeltaTime);
+
+		// Tick tasks on active states.
+		Exec.LastTickStatus = TickTasks(Storage, Exec.CurrentState, DeltaTime);
+		
+		// Report state completed immediately.
+		if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
+		{
+			StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
+		}
+	}
+
 	// The state selection is repeated up to MaxIteration time. This allows failed EnterState() to potentially find a new state immediately.
 	// This helps event driven StateTrees to not require another event/tick to find a suitable state.
 	static const int32 MaxIterations = 5;
 	for (int32 Iter = 0; Iter < MaxIterations; Iter++)
 	{
-		// Reset visited state, used to keep track which state's evaluators have been ticked.
-		VisitedStates.Init(false, StateTree->States.Num());
-
-		// Tick evaluators on active states. Further evaluator may be ticked during selection as non-active states are visited.
-		// Ticked states are kept track of and evaluators are ticked just once per frame.
-		if (Exec.LastTickStatus == EStateTreeRunStatus::Running)
-		{
-			TickEvaluators(Storage, Exec.CurrentState, EStateTreeEvaluationType::Tick, DeltaTime);
-		}
-
-		// Select initial state or trigger transitions.
-		FStateTreeTransitionResult Transition;
-		if (Exec.LastTickStatus == EStateTreeRunStatus::Unset && Exec.CurrentState == FStateTreeHandle::Invalid)
-		{
-			// No state has been selected yet, select starting from root.
-			static const FStateTreeHandle RootState = FStateTreeHandle(0);
-			Transition = SelectState(Storage, FStateTreeStateStatus(FStateTreeHandle::Invalid), RootState, RootState, 0);
-		}
-		else
-		{
-			// Trigger running transitions or state succeed/failed transitions.
-			// Transitions are triggered early in the frame, to prevent one frame lag in games which require quick state changes (i.e. combat).
-			Transition = TriggerTransitions(Storage, FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), 0);
-		}
+		// Trigger conditional transitions or state succeed/failed transitions. First tick transition is handled here too.
+		FStateTreeTransitionResult Transition = TriggerTransitions(Storage, FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), 0);
 
 		// Handle potential transition.
 		if (Transition.Next.IsValid())
@@ -184,24 +223,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 	
 	if (!Exec.CurrentState.IsValid())
 	{
-		// Should not happen. This may happen if initial state or default transition could not be selected. 
-		STATETREE_LOG(Error, TEXT("%s: Failed to select state on '%s' using StateTree '%s'."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), *GetNameSafe(StateTree));
+		// Should not happen. This may happen if a state completion transition could not be selected. 
+		STATETREE_LOG(Error, TEXT("%s: Failed to select state on '%s' using StateTree '%s'. This should not happen, state completion transition is likely missing."),
+			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), *GetNameSafe(StateTree));
 		Exec.TreeRunStatus = EStateTreeRunStatus::Failed;
 		return Exec.TreeRunStatus;
 	}
 
-	// Tick tasks on active states.
-	if (Exec.LastTickStatus == EStateTreeRunStatus::Running)
-	{
-		Exec.LastTickStatus = TickTasks(Storage, Exec.CurrentState, DeltaTime);
-		// Report state completed immediately.
-		if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
-		{
-			StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
-		}
-	}
-	
-	
 	return Exec.TreeRunStatus;
 }
 

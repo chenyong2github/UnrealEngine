@@ -66,9 +66,9 @@ public:
 	void SetWorld(UWorld* InWorld) { World = InWorld; };
 
 	/** Start executing. */
-	void Start(FStateTreeDataView ExternalStorage = FStateTreeDataView());
+	EStateTreeRunStatus Start(FStateTreeDataView ExternalStorage = FStateTreeDataView());
 	/** Stop executing. */
-	void Stop(FStateTreeDataView ExternalStorage = FStateTreeDataView());
+	EStateTreeRunStatus Stop(FStateTreeDataView ExternalStorage = FStateTreeDataView());
 
 	/** Tick the state tree logic. */
 	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeDataView ExternalStorage = FStateTreeDataView());
