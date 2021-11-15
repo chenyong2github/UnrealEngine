@@ -956,6 +956,80 @@ bool URigVMPin::IsBoundToVariable(const URigVMPin::FPinOverride& InOverride) con
 	return !GetBoundVariablePath(InOverride).IsEmpty();
 }
 
+bool URigVMPin::IsBoundToExternalVariable() const
+{
+	return IsBoundToExternalVariable(EmptyPinOverride);
+}
+
+bool URigVMPin::IsBoundToExternalVariable(const FPinOverride& InOverride) const
+{
+	FString VariableName = GetBoundVariableName(InOverride);
+	if (VariableName.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FRigVMGraphVariableDescription> LocalVariables = GetGraph()->GetLocalVariables(true);
+	for (FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+	{
+		if (LocalVariable.Name == *VariableName)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool URigVMPin::IsBoundToLocalVariable() const
+{
+	return IsBoundToLocalVariable(EmptyPinOverride);
+}
+
+bool URigVMPin::IsBoundToLocalVariable(const FPinOverride& InOverride) const
+{
+	FString VariableName = GetBoundVariableName(InOverride);
+	if (VariableName.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FRigVMGraphVariableDescription> LocalVariables = GetGraph()->GetLocalVariables(false);
+	for (FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+	{
+		if (LocalVariable.Name == *VariableName)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool URigVMPin::IsBoundToInputArgument() const
+{
+	return IsBoundToInputArgument(EmptyPinOverride);
+}
+
+bool URigVMPin::IsBoundToInputArgument(const FPinOverride& InOverride) const
+{
+	FString VariableName = GetBoundVariableName(InOverride);
+	if (VariableName.IsEmpty())
+	{
+		return false;
+	}
+
+	if (URigVMFunctionEntryNode* EntryNode = GetGraph()->GetEntryNode())
+	{
+		if (EntryNode->FindPin(VariableName))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset) const
 #else

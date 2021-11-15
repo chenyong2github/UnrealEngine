@@ -340,7 +340,22 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	{
 		for (const FRigVMGraphVariableDescription& LocalVariable : VisitedGraph->LocalVariables)
 		{
-			// To create the default value in the literal memory, we need to find a pin in a variable node that
+			auto AddDefaultValueOperand = [&](URigVMPin* Pin)
+			{
+				FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
+				FRigVMVarExprAST* TempVarExpr = AST->MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Literal, PinProxy);
+				FRigVMOperand Operand = FindOrAddRegister(TempVarExpr, WorkData, false);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				WorkData.VM->GetLiteralMemory().SetRegisterValueFromString(Operand, LocalVariable.CPPType, LocalVariable.CPPTypeObject, {LocalVariable.DefaultValue});
+#else
+				check(Operand.GetMemoryType() == ERigVMMemoryType::Literal);
+				TArray<FRigVMPropertyDescription>& LiteralProperties = WorkData.PropertyDescriptions.FindChecked(Operand.GetMemoryType());
+				LiteralProperties[Operand.GetRegisterIndex()].DefaultValue = LocalVariable.DefaultValue;
+#endif
+			};
+			
+			// To create the default value in the literal memory, we need to find a pin in a variable node (or bounded to a local variable) that
 			// uses this local variable
 			for (URigVMNode* Node : VisitedGraph->GetNodes())
 			{
@@ -351,19 +366,29 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 						if (Pin->GetDefaultValue() == LocalVariable.Name.ToString())
 						{
 							URigVMPin* ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName);
-							FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(ValuePin);
-							FRigVMVarExprAST* TempVarExpr = AST->MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Literal, PinProxy);
-							FRigVMOperand Operand = FindOrAddRegister(TempVarExpr, WorkData, false);
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-							WorkData.VM->GetLiteralMemory().SetRegisterValueFromString(Operand, LocalVariable.CPPType, LocalVariable.CPPTypeObject, {LocalVariable.DefaultValue});
-#else
-							check(Operand.GetMemoryType() == ERigVMMemoryType::Literal);
-							TArray<FRigVMPropertyDescription>& LiteralProperties = WorkData.PropertyDescriptions.FindChecked(Operand.GetMemoryType());
-							LiteralProperties[Operand.GetRegisterIndex()].DefaultValue = LocalVariable.DefaultValue;
-#endif
+							AddDefaultValueOperand(ValuePin);
 							break;
 						}
+					}
+				}
+				else
+				{
+					bool bAdded = false;
+					for (URigVMPin* Pin : Node->GetPins())
+					{
+						if (Pin->IsBoundToLocalVariable())
+						{
+							if (Pin->GetBoundVariableName() == LocalVariable.Name.ToString())
+							{
+								AddDefaultValueOperand(Pin);
+								bAdded = true;
+								break;
+							}
+						}
+					}
+					if (bAdded)
+					{
+						break;
 					}
 				}
 			}
@@ -1908,6 +1933,24 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 			URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), InVarExpr->GetParser()->GetPinOverrides());
 			FString VariablePath = InPin->GetBoundVariablePath(PinOverride);
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariablePath, *Suffix);
+		}
+
+		if (InPin->IsBoundToLocalVariable())
+		{
+			URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), InVarExpr->GetParser()->GetPinOverrides());
+			FString VariablePath = InPin->GetBoundVariablePath(PinOverride);
+
+			FRigVMASTProxy ParentProxy = InVarExpr->GetProxy();
+			while(ParentProxy.GetCallstack().Num() > 1)
+			{
+				ParentProxy = ParentProxy.GetParent();
+
+				if(URigVMLibraryNode* LibraryNode = ParentProxy.GetSubject<URigVMLibraryNode>())
+				{
+					// Local variables are in the format "LocalVariable::PathToGraph|VariableName"
+					return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *LibraryNode->GetNodePath(true), *VariablePath, *Suffix);
+				}
+			}
 		}
 
 		// for IO array pins we'll walk left and use that pin hash instead

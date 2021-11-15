@@ -354,6 +354,24 @@ public:
 	// Returns true if this pin is bound to a variable
 	bool IsBoundToVariable(const FPinOverride& InOverride) const;
 
+	// Returns true if this pin is bound to an external variable
+	bool IsBoundToExternalVariable() const;
+
+	// Returns true if this pin is bound to an external variable
+	bool IsBoundToExternalVariable(const FPinOverride& InOverride) const;
+
+	// Returns true if this pin is bound to a local variable
+	bool IsBoundToLocalVariable() const;
+
+	// Returns true if this pin is bound to a local variable
+	bool IsBoundToLocalVariable(const FPinOverride& InOverride) const;
+
+	// Returns true if this pin is bound to an input argument
+	bool IsBoundToInputArgument() const;
+
+	// Returns true if this pin is bound to an input argument
+	bool IsBoundToInputArgument(const FPinOverride& InOverride) const;
+
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	// Returns true if the pin can be bound to a given variable
 	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset = FRigVMRegisterOffset()) const;
