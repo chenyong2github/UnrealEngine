@@ -40,6 +40,7 @@ public:
 
 	virtual UWorld* GetWorld() const override { return CachedWorld; }
 	virtual void PostInitProperties() override;
+
 	virtual void BeginDestroy() override;
 
 	// @todo this needs further consideration.
@@ -63,6 +64,7 @@ public:
 	/** This is where Session can add Authority-side-specific functions by calling 
 	 *	UMLAdapterManager::Get().AddServerFunctionBind */
 	virtual void ConfigureAsServer();
+
 	/** This is where Session can add Client-side-specific functions by calling 
 	 *	UMLAdapterManager::Get().AddClientFunctionBind. "Client" in this context means 
 	 *	UnrealEngine game client, not RPC client */
@@ -89,7 +91,7 @@ public:
 
 	/** @return next valid agent ID. Note that the return value might be equal to 
 	 *	ReferenceAgentID if there's only one agent. Will be FMLAdapter::InvalidAgentId 
-	 *	if no agents registerd */
+	 *	if no agents registered */
 	FMLAdapter::FAgentID GetNextAgentID(FMLAdapter::FAgentID ReferenceAgentID) const;
 	UMLAdapterAgent* GetAgent(FMLAdapter::FAgentID AgentID);
 

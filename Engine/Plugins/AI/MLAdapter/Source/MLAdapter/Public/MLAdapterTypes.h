@@ -92,7 +92,7 @@ struct FMLAdapterMemoryWriter : FMemoryWriter
 
 struct FMLAdapterMemoryReader : FMemoryReader
 {
-	FMLAdapterMemoryReader(TArray<uint8>& InBytes, bool bIsPersistent = false)
+	FMLAdapterMemoryReader(const TArray<uint8>& InBytes, bool bIsPersistent = false)
 		: FMemoryReader(InBytes, bIsPersistent)
 	{}
 };
