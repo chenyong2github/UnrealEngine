@@ -4,6 +4,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheMaintainer.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/ThreadManager.h"
 
 int32 UDDCCleanupCommandlet::Main(const FString& Params)
 {
@@ -12,7 +13,7 @@ int32 UDDCCleanupCommandlet::Main(const FString& Params)
 	Maintainer.BoostPriority();
 	while (!Maintainer.IsIdle())
 	{
-		// Maintenance works from dedicated threads. Wait for it to finish and flush logs occasionally.
+		FThreadManager::Get().Tick();
 		FPlatformProcess::SleepNoStats(0.05f);
 		GLog->Flush();
 	}
