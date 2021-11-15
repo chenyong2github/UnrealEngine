@@ -135,6 +135,7 @@ namespace EpicGames.BuildGraph
 	public enum ScriptSchemaStandardType
 	{
 		Graph,
+		NestedGraph,
 		Agent,
 		AgentBody,
 		Node,
@@ -151,10 +152,12 @@ namespace EpicGames.BuildGraph
 		Regex,
 		Macro,
 		MacroBody,
+		Extend,
 		Expand,
 		Trace,
 		Warning,
 		Error,
+		Path,
 		Name,
 		NameList,
 		Tag,
@@ -196,7 +199,17 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Characters which are not permitted in names.
 		/// </summary>
-		public const string IllegalNameCharacters = "^<>:\"/\\|?*";
+		public const string IllegalNameCharacters = "^<>:\"/\\|?*$";
+
+		/// <summary>
+		/// Characters which are not permitted in paths.
+		/// </summary>
+		public const string IllegalPathCharacters = ":$";
+
+		/// <summary>
+		/// Pattern which matches any name; alphanumeric characters, with single embedded spaces.
+		/// </summary>
+		const string PathPattern = "[^ " + IllegalPathCharacters + "]+";
 
 		/// <summary>
 		/// Pattern which matches any name; alphanumeric characters, with single embedded spaces.
@@ -313,7 +326,8 @@ namespace EpicGames.BuildGraph
 			NewSchema.TargetNamespace = NamespaceURI;
 			NewSchema.ElementFormDefault = XmlSchemaForm.Qualified;
 			NewSchema.Items.Add(CreateSchemaElement(RootElementName, ScriptSchemaStandardType.Graph));
-			NewSchema.Items.Add(CreateGraphType());
+			NewSchema.Items.Add(CreateGraphType(ScriptSchemaStandardType.Graph));
+			NewSchema.Items.Add(CreateGraphType(ScriptSchemaStandardType.NestedGraph));
 			NewSchema.Items.Add(CreateAgentType());
 			NewSchema.Items.Add(CreateAgentBodyType());
 			NewSchema.Items.Add(CreateNodeType());
@@ -331,10 +345,12 @@ namespace EpicGames.BuildGraph
 			NewSchema.Items.Add(CreateRegexType());
 			NewSchema.Items.Add(CreateMacroType());
 			NewSchema.Items.Add(CreateMacroBodyType(TaskNameToType));
+			NewSchema.Items.Add(CreateExtendType());
 			NewSchema.Items.Add(CreateExpandType());
 			NewSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Trace));
 			NewSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Warning));
 			NewSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Error));
+			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.Path), PathPattern));
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.Name), "(" + NamePattern + "|" + StringWithPropertiesPattern + ")"));
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.NameList), "(" + NameListPattern + "|" + StringWithPropertiesPattern + ")"));
 			NewSchema.Items.Add(CreateSimpleTypeFromRegex(GetTypeName(ScriptSchemaStandardType.Tag), "(" + TagPattern + "|" + StringWithPropertiesPattern + ")"));
@@ -470,6 +486,7 @@ namespace EpicGames.BuildGraph
 			GraphChoice.Items.Add(CreateSchemaElement("Property", ScriptSchemaStandardType.Property));
 			GraphChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
 			GraphChoice.Items.Add(CreateSchemaElement("Macro", ScriptSchemaStandardType.Macro));
+			GraphChoice.Items.Add(CreateSchemaElement("Extend", ScriptSchemaStandardType.Extend));
 			GraphChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
 			GraphChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
 			GraphChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
@@ -486,6 +503,45 @@ namespace EpicGames.BuildGraph
 
 			XmlSchemaComplexType GraphType = new XmlSchemaComplexType();
 			GraphType.Name = GetTypeName(ScriptSchemaStandardType.Graph);
+			GraphType.Particle = GraphChoice;
+			return GraphType;
+		}
+
+		/// <summary>
+		/// Creates the schema type representing the graph type
+		/// </summary>
+		/// <returns>Type definition for a graph</returns>
+		static XmlSchemaType CreateGraphType(ScriptSchemaStandardType Type)
+		{
+			XmlSchemaChoice GraphChoice = new XmlSchemaChoice();
+			GraphChoice.MinOccurs = 0;
+			GraphChoice.MaxOccursString = "unbounded";
+			if (Type == ScriptSchemaStandardType.Graph)
+			{
+				GraphChoice.Items.Add(CreateSchemaElement("Include", ScriptSchemaStandardType.Include));
+				GraphChoice.Items.Add(CreateSchemaElement("Option", ScriptSchemaStandardType.Option));
+				GraphChoice.Items.Add(CreateSchemaElement("Macro", ScriptSchemaStandardType.Macro));
+				GraphChoice.Items.Add(CreateSchemaElement("Extend", ScriptSchemaStandardType.Extend));
+			}
+			GraphChoice.Items.Add(CreateSchemaElement("Property", ScriptSchemaStandardType.Property));
+			GraphChoice.Items.Add(CreateSchemaElement("Regex", ScriptSchemaStandardType.Regex));
+			GraphChoice.Items.Add(CreateSchemaElement("EnvVar", ScriptSchemaStandardType.EnvVar));
+			GraphChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
+			GraphChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
+			GraphChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
+			GraphChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));
+			GraphChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
+			GraphChoice.Items.Add(CreateSchemaElement("Notify", ScriptSchemaStandardType.Notify));
+			GraphChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
+			GraphChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
+			GraphChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
+			GraphChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));
+			GraphChoice.Items.Add(CreateDoElement(ScriptSchemaStandardType.NestedGraph));
+			GraphChoice.Items.Add(CreateSwitchElement(ScriptSchemaStandardType.NestedGraph));
+			GraphChoice.Items.Add(CreateForEachElement(ScriptSchemaStandardType.NestedGraph));
+
+			XmlSchemaComplexType GraphType = new XmlSchemaComplexType();
+			GraphType.Name = GetTypeName(Type);
 			GraphType.Particle = GraphChoice;
 			return GraphType;
 		}
@@ -699,8 +755,7 @@ namespace EpicGames.BuildGraph
 		{
 			XmlSchemaComplexType PropertyType = new XmlSchemaComplexType();
 			PropertyType.Name = GetTypeName(ScriptSchemaStandardType.Include);
-			PropertyType.Attributes.Add(CreateSchemaAttribute("Script", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Required));
-			PropertyType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			PropertyType.Attributes.Add(CreateSchemaAttribute("Script", ScriptSchemaStandardType.Path, XmlSchemaUse.Required));
 			return PropertyType;
 		}
 
@@ -789,7 +844,7 @@ namespace EpicGames.BuildGraph
 			Extension.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
 			Extension.Attributes.Add(CreateSchemaAttribute("Arguments", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			Extension.Attributes.Add(CreateSchemaAttribute("OptionalArguments", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
-			Extension.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			Extension.Attributes.Add(CreateSchemaAttribute("Append", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 
 			XmlSchemaComplexContent ContentModel = new XmlSchemaComplexContent();
 			ContentModel.Content = Extension;
@@ -843,6 +898,25 @@ namespace EpicGames.BuildGraph
 			NodeType.Name = GetTypeName(ScriptSchemaStandardType.MacroBody);
 			NodeType.Particle = MacroChoice;
 			return NodeType;
+		}
+
+		/// <summary>
+		/// Creates the schema type representing the macro type
+		/// </summary>
+		/// <returns>Type definition for a node</returns>
+		static XmlSchemaType CreateExtendType()
+		{
+			XmlSchemaComplexContentExtension Extension = new XmlSchemaComplexContentExtension();
+			Extension.BaseTypeName = GetQualifiedTypeName(ScriptSchemaStandardType.MacroBody);
+			Extension.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
+
+			XmlSchemaComplexContent ContentModel = new XmlSchemaComplexContent();
+			ContentModel.Content = Extension;
+
+			XmlSchemaComplexType ComplexType = new XmlSchemaComplexType();
+			ComplexType.Name = GetTypeName(ScriptSchemaStandardType.Extend);
+			ComplexType.ContentModel = ContentModel;
+			return ComplexType;
 		}
 
 		/// <summary>

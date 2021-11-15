@@ -195,7 +195,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Element where the function was declared
 		/// </summary>
-		public readonly BgScriptElement Element;
+		public List<BgScriptElement> Elements = new List<BgScriptElement>();
 
 		/// <summary>
 		/// The total number of arguments
@@ -222,7 +222,7 @@ namespace EpicGames.BuildGraph
 		public BgScriptMacro(string Name, BgScriptElement Element, Dictionary<string, int> ArgumentNameToIndex, int NumRequiredArguments)
 		{
 			this.Name = Name;
-			this.Element = Element;
+			this.Elements.Add(Element);
 			this.NumArguments = ArgumentNameToIndex.Count;
 			this.NumRequiredArguments = NumRequiredArguments;
 			this.ArgumentNameToIndex = ArgumentNameToIndex;
@@ -461,6 +461,9 @@ namespace EpicGames.BuildGraph
 						break;
 					case "Macro":
 						await ReadMacroAsync(ChildElement);
+						break;
+					case "Extend":
+						await ReadExtendAsync(ChildElement);
 						break;
 					case "Agent":
 						await ReadAgentAsync(ChildElement);
@@ -858,26 +861,23 @@ namespace EpicGames.BuildGraph
 		/// <param name="Element">Xml element to read the definition from</param>
 		async Task ReadMacroAsync(BgScriptElement Element)
 		{
-			if(await EvaluateConditionAsync(Element))
+			string Name = Element.GetAttribute("Name");
+			if (ValidateName(Element, Name))
 			{
-				string Name = ReadAttribute(Element, "Name");
-				if (ValidateName(Element, Name))
+				BgScriptMacro? OriginalDefinition;
+				if(MacroNameToDefinition.TryGetValue(Name, out OriginalDefinition))
 				{
-					BgScriptMacro? OriginalDefinition;
-					if(MacroNameToDefinition.TryGetValue(Name, out OriginalDefinition))
-					{
-						LogError(Element, "Function '{0}' has already been declared (see {1} line {2})", OriginalDefinition.Element.File, OriginalDefinition.Element.LineNumber);
-					}
-					else
-					{
-						Dictionary<string, int> ArgumentNameToIndex = new Dictionary<string, int>();
-						ReadMacroArguments(Element, "Arguments", ArgumentNameToIndex);
+					LogError(Element, "Macro '{0}' has already been declared (see {1} line {2})", Name, OriginalDefinition.Elements[0].File, OriginalDefinition.Elements[0].LineNumber);
+				}
+				else
+				{
+					Dictionary<string, int> ArgumentNameToIndex = new Dictionary<string, int>();
+					ReadMacroArguments(Element, "Arguments", ArgumentNameToIndex);
 
-						int NumRequiredArguments = ArgumentNameToIndex.Count;
-						ReadMacroArguments(Element, "OptionalArguments", ArgumentNameToIndex);
+					int NumRequiredArguments = ArgumentNameToIndex.Count;
+					ReadMacroArguments(Element, "OptionalArguments", ArgumentNameToIndex);
 
-						MacroNameToDefinition.Add(Name, new BgScriptMacro(Name, Element, ArgumentNameToIndex, NumRequiredArguments));
-					}
+					MacroNameToDefinition.Add(Name, new BgScriptMacro(Name, Element, ArgumentNameToIndex, NumRequiredArguments));
 				}
 			}
 		}
@@ -903,6 +903,28 @@ namespace EpicGames.BuildGraph
 					{
 						ArgumentNameToIndex.Add(ArgumentName, ArgumentNameToIndex.Count);
 					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Reads a macro definition
+		/// </summary>
+		/// <param name="Element">Xml element to read the definition from</param>
+		async Task ReadExtendAsync(BgScriptElement Element)
+		{
+			if (await EvaluateConditionAsync(Element))
+			{
+				string Name = ReadAttribute(Element, "Name");
+
+				BgScriptMacro? OriginalDefinition;
+				if (MacroNameToDefinition.TryGetValue(Name, out OriginalDefinition))
+				{
+					OriginalDefinition.Elements.Add(Element);
+				}
+				else
+				{
+					LogError(Element, "Macro '{0}' has not been declared", Name);
 				}
 			}
 		}
@@ -1395,54 +1417,59 @@ namespace EpicGames.BuildGraph
 		{
 			if(await EvaluateConditionAsync(Element))
 			{
-				string Name = ReadAttribute(Element, "Name");
-
-				BgScriptMacro? Macro;
-				if(!MacroNameToDefinition.TryGetValue(Name, out Macro))
+				string Name = Element.GetAttribute("Name");
+				if (ValidateName(Element, Name))
 				{
-					LogError(Element, "Macro '{0}' does not exist", Name);
-				}
-				else
-				{
-					// Parse the argument list
-					string[] Arguments = new string[Macro.ArgumentNameToIndex.Count];
-					foreach(XmlAttribute? Attribute in Element.Attributes)
+					BgScriptMacro? Macro;
+					if (!MacroNameToDefinition.TryGetValue(Name, out Macro))
 					{
-						if(Attribute != null && Attribute.Name != "Name" && Attribute.Name != "If")
-						{
-							int Index;
-							if(Macro.ArgumentNameToIndex.TryGetValue(Attribute.Name, out Index))
-							{
-								Arguments[Index] = ExpandProperties(Element, Attribute.Value);
-							}
-							else
-							{
-								LogWarning(Element, "Macro '{0}' does not take an argument '{1}'", Name, Attribute.Name);
-							}
-						}
+						LogError(Element, "Macro '{0}' does not exist", Name);
 					}
-
-					// Make sure none of the required arguments are missing
-					bool bHasMissingArguments = false;
-					for(int Idx = 0; Idx < Macro.NumRequiredArguments; Idx++)
+					else
 					{
-						if(Arguments[Idx] == null)
+						// Parse the argument list
+						string[] Arguments = new string[Macro.ArgumentNameToIndex.Count];
+						foreach (XmlAttribute? Attribute in Element.Attributes)
 						{
-							LogWarning(Element, "Macro '{0}' is missing argument '{1}'", Macro.Name, Macro.ArgumentNameToIndex.First(x => x.Value == Idx).Key);
-							bHasMissingArguments = true;
+							if (Attribute != null && Attribute.Name != "Name" && Attribute.Name != "If")
+							{
+								int Index;
+								if (Macro.ArgumentNameToIndex.TryGetValue(Attribute.Name, out Index))
+								{
+									Arguments[Index] = ExpandProperties(Element, Attribute.Value);
+								}
+								else
+								{
+									LogWarning(Element, "Macro '{0}' does not take an argument '{1}'", Name, Attribute.Name);
+								}
+							}
 						}
-					}
 
-					// Expand the function
-					if(!bHasMissingArguments)
-					{
-						EnterScope();
-						foreach(KeyValuePair<string, int> Pair in Macro.ArgumentNameToIndex)
+						// Make sure none of the required arguments are missing
+						bool bHasMissingArguments = false;
+						for (int Idx = 0; Idx < Macro.NumRequiredArguments; Idx++)
 						{
-							ScopedProperties[ScopedProperties.Count - 1][Pair.Key] = Arguments[Pair.Value] ?? "";
+							if (Arguments[Idx] == null)
+							{
+								LogWarning(Element, "Macro '{0}' is missing argument '{1}'", Macro.Name, Macro.ArgumentNameToIndex.First(x => x.Value == Idx).Key);
+								bHasMissingArguments = true;
+							}
 						}
-						await ReadContentsAsync(Macro.Element);
-						LeaveScope();
+
+						// Expand the function
+						if (!bHasMissingArguments)
+						{
+							EnterScope();
+							foreach (KeyValuePair<string, int> Pair in Macro.ArgumentNameToIndex)
+							{
+								ScopedProperties[ScopedProperties.Count - 1][Pair.Key] = Arguments[Pair.Value] ?? "";
+							}
+							foreach (BgScriptElement MacroElement in Macro.Elements)
+							{
+								await ReadContentsAsync(MacroElement);
+							}
+							LeaveScope();
+						}
 					}
 				}
 			}
