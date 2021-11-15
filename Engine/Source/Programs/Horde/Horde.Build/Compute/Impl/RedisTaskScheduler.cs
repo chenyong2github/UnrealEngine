@@ -317,7 +317,7 @@ namespace HordeServer.Compute.Impl
 					if (ResetActiveQueuesTimer.Elapsed > ResetTime)
 					{
 						LocalActiveQueues = new HashSet<TQueueId>();
-						ResetActiveQueuesTimer.Reset();
+						ResetActiveQueuesTimer.Restart();
 					}
 				}
 			}
