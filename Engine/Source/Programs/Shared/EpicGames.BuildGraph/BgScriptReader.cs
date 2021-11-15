@@ -460,7 +460,7 @@ namespace EpicGames.BuildGraph
 						await ReadEnvVarAsync(ChildElement);
 						break;
 					case "Macro":
-						await ReadMacroAsync(ChildElement);
+						ReadMacro(ChildElement);
 						break;
 					case "Extend":
 						await ReadExtendAsync(ChildElement);
@@ -859,7 +859,7 @@ namespace EpicGames.BuildGraph
 		/// Reads a macro definition
 		/// </summary>
 		/// <param name="Element">Xml element to read the definition from</param>
-		async Task ReadMacroAsync(BgScriptElement Element)
+		void ReadMacro(BgScriptElement Element)
 		{
 			string Name = Element.GetAttribute("Name");
 			if (ValidateName(Element, Name))
