@@ -9,15 +9,13 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshIndexUtil.h"
+#include "MeshRegionBoundaryLoops.h"
 #include "Operations/PolyEditingEdgeUtil.h"
 #include "Operations/PolyEditingUVUtil.h"
 #include "Algo/Count.h"
 #include "Distance/DistLine3Line3.h"
 
 using namespace UE::Geometry;
-
-
-
 
 namespace UELocal
 {
@@ -76,7 +74,7 @@ void FMeshBevel::InitializeFromGroupTopology(const FDynamicMesh3& Mesh, const FG
 }
 
 
-void FMeshBevel::InitializeFromGroupTopology(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupEdges)
+void FMeshBevel::InitializeFromGroupTopologyEdges(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupEdges)
 {
 	ResultInfo = FGeometryResult(EGeometryResultType::InProgress);
 
@@ -103,6 +101,53 @@ void FMeshBevel::InitializeFromGroupTopology(const FDynamicMesh3& Mesh, const FG
 	// precompute topological information necessary to apply bevel to vertices/edges/loops
 	BuildVertexSets(Mesh);
 }
+
+
+bool FMeshBevel::InitializeFromGroupTopologyFaces(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupFaces)
+{
+	FGroupTopologySelection Selection;
+	Selection.SelectedGroupIDs.Append(GroupFaces);
+	TArray<int32> Triangles;
+	Topology.GetSelectedTriangles(Selection, Triangles);
+	return InitializeFromTriangleSet(Mesh, Triangles);
+}
+
+bool FMeshBevel::InitializeFromTriangleSet(const FDynamicMesh3& Mesh, const TArray<int32>& Triangles)
+{
+	ResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+
+	FMeshRegionBoundaryLoops RegionLoops(&Mesh, Triangles, true);
+	if (RegionLoops.bFailed)
+	{
+		ResultInfo.SetFailed();
+		return false;
+	}
+
+	// cannot bevel a selection-bowtie vertex, so we have to check for those and fail here
+	TSet<int32> AllVertices;
+	for (const FEdgeLoop& Loop : RegionLoops.Loops)
+	{
+		for (int32 vid : Loop.Vertices)
+		{
+			if (AllVertices.Contains(vid))
+			{
+				return false;
+			}
+			AllVertices.Add(vid);
+		}
+	}
+
+	for (const FEdgeLoop& Loop : RegionLoops.Loops)
+	{
+		AddBevelEdgeLoop(Mesh, Loop);
+	}
+
+	// precompute topological information necessary to apply bevel to vertices/edges/loops
+	BuildVertexSets(Mesh);
+
+	return true;
+}
+
 
 
 bool FMeshBevel::Apply(FDynamicMesh3& Mesh, FDynamicMeshChangeTracker* ChangeTracker)
@@ -473,7 +518,7 @@ void FMeshBevel::BuildTerminatorVertex(FBevelVertex& Vertex, const FDynamicMesh3
 			if (Mesh.GetTriangleGroup(OtherGroupTris[k-1]) != Mesh.GetTriangleGroup(OtherGroupTris[k]))
 			{
 				RingSplitEdgeID = FindSharedEdgeInTriangles(Mesh, OtherGroupTris[k-1], OtherGroupTris[k]);
-				Vertex.NewGroupID = Mesh.GetTriangleGroup(OtherGroupTris[k-1]);		// this seems very arbitrary
+				Vertex.NewGroupID = -1;		// allocate a new group for this triangle, this is usually what one would want
 				break;
 			}
 		}
@@ -1160,7 +1205,24 @@ void FMeshBevel::AppendLoopQuads(FDynamicMesh3& Mesh, FBevelLoop& Loop)
 		return;
 	}
 
-	Loop.NewGroupID = Mesh.AllocateTriangleGroup();
+	auto GetGroupKey = [&Mesh, &Loop](int32 k)
+	{
+		FIndex2i EdgeTris = Loop.MeshEdgeTris[k];
+		int32 Group0 = Mesh.GetTriangleGroup(EdgeTris.A);
+		int32 Group1 = Mesh.IsTriangle(EdgeTris.B) ? Mesh.GetTriangleGroup(EdgeTris.B) : -1;
+		return FIndex2i(FMath::Max(Group0, Group1), FMath::Min(Group0, Group1));
+	};
+
+	TMap<FIndex2i, int> NewGroupIDs;
+	for (int32 k = 0; k < NumEdges; ++k)
+	{
+		FIndex2i GroupKey = GetGroupKey(k);
+		if (NewGroupIDs.Contains(GroupKey) == false)
+		{
+			NewGroupIDs.Add(GroupKey, Mesh.AllocateTriangleGroup());
+			Loop.NewGroupIDs.Add(NewGroupIDs[GroupKey]);
+		}
+	}
 
 	// At this point each edge-span should be fully disconnected into a set of paired edges, 
 	// so we can trivially join each edge pair with a quad.
@@ -1174,10 +1236,13 @@ void FMeshBevel::AppendLoopQuads(FDynamicMesh3& Mesh, FBevelLoop& Loop)
 		FIndex2i QuadTris(IndexConstants::InvalidID, IndexConstants::InvalidID);
 		if (EdgeID0 != EdgeID1 && Mesh.IsEdge(EdgeID1))
 		{
+			FIndex2i GroupKey = GetGroupKey(k);
+			int32 NewGroupID = NewGroupIDs[GroupKey];
+
 			FIndex2i EdgeV0 = Mesh.GetOrientedBoundaryEdgeV(EdgeID0);
 			FIndex2i EdgeV1 = Mesh.GetOrientedBoundaryEdgeV(EdgeID1);
-			QuadTris.A = Mesh.AppendTriangle(EdgeV0.B, EdgeV0.A, EdgeV1.B, Loop.NewGroupID);
-			QuadTris.B = Mesh.AppendTriangle(EdgeV1.B, EdgeV1.A, EdgeV0.B, Loop.NewGroupID);
+			QuadTris.A = Mesh.AppendTriangle(EdgeV0.B, EdgeV0.A, EdgeV1.B, NewGroupID);
+			QuadTris.B = Mesh.AppendTriangle(EdgeV1.B, EdgeV1.A, EdgeV0.B, NewGroupID);
 		}
 		Loop.StripQuads.Add(QuadTris);
 	}

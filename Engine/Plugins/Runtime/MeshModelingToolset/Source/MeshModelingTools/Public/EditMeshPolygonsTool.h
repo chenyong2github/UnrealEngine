@@ -32,6 +32,7 @@ class UPolyEditExtrudeActivity;
 class UPolyEditInsetOutsetActivity;
 class UPolyEditCutFacesActivity;
 class UPolyEditPlanarProjectionUVActivity;
+class UPolyEditBevelEdgeActivity;
 class UPolygonSelectionMechanic;
 class UTransformProxy;
 
@@ -93,12 +94,14 @@ UENUM()
 enum class EEditMeshPolygonsToolActions
 {
 	NoAction,
+	AcceptCurrent,
 	CancelCurrent,
 	Extrude,
 	PushPull,
 	Offset,
 	Inset,
 	Outset,
+	BevelFaces,
 	InsertEdge,
 	InsertEdgeLoop,
 	Complete,
@@ -118,6 +121,7 @@ enum class EEditMeshPolygonsToolActions
 	WeldEdges,
 	StraightenEdge,
 	FillHole,
+	BevelEdges,
 
 	PlanarProjectionUV,
 
@@ -205,6 +209,10 @@ public:
 
 	//~ TODO: Make the Merge, Delete, and Flip comments visible as tooltips. Currently we can't due to a bug that
 	//~ limits our total tooltip text allotment: UE-124608
+
+	//~ Bevel the edge loops around the selected faces 
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Bevel", DisplayPriority = 4))
+	void Bevel() { PostAction(EEditMeshPolygonsToolActions::BevelFaces); }
 
 	//~ Merge the current set of selected faces into a single face.
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Merge", DisplayPriority = 4))
@@ -340,7 +348,9 @@ public:
 	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Fill Hole", DisplayPriority = 5))
 	void FillHole()	{ PostAction(EEditMeshPolygonsToolActions::FillHole); }
 
-	
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Bevel", DisplayPriority = 6))
+	void Bevel() { PostAction(EEditMeshPolygonsToolActions::BevelEdges); }
+
 };
 
 
@@ -380,6 +390,24 @@ public:
 	UFUNCTION(CallInEditor, Category = CurrentOperation, meta = (DisplayName = "Cancel", DisplayPriority = 1))
 	void Done() { PostAction(EEditMeshPolygonsToolActions::CancelCurrent); }
 };
+
+
+/**
+ * TODO: This is currently a separate action set so that we can show/hide it depending on whether
+ * we have an activity running. We should have a cleaner alternative.
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolAcceptCancelAction : public UEditMeshPolygonsToolActionPropertySet
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION(CallInEditor, Category = CurrentOperation, meta = (DisplayName = "Apply", DisplayPriority = 1))
+	void Apply() { PostAction(EEditMeshPolygonsToolActions::AcceptCurrent); }
+
+	UFUNCTION(CallInEditor, Category = CurrentOperation, meta = (DisplayName = "Cancel", DisplayPriority = 2))
+	void Cancel() { PostAction(EEditMeshPolygonsToolActions::CancelCurrent); }
+};
+
 
 
 
@@ -467,6 +495,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UEditMeshPolygonsToolCancelAction> CancelAction = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UEditMeshPolygonsToolAcceptCancelAction> AcceptCancelAction = nullptr;
+
+
 	/**
 	 * Activity objects that handle multi-interaction operations
 	 */
@@ -482,6 +514,8 @@ protected:
 	TObjectPtr<UPolyEditInsertEdgeActivity> InsertEdgeActivity = nullptr;
 	UPROPERTY()
 	TObjectPtr<UPolyEditInsertEdgeLoopActivity> InsertEdgeLoopActivity = nullptr;
+	UPROPERTY()
+	TObjectPtr<UPolyEditBevelEdgeActivity> BevelEdgeActivity = nullptr;
 
 	/**
 	 * Points to one of the activities when it is active

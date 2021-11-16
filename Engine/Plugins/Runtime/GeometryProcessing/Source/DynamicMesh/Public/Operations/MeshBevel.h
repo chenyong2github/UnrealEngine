@@ -88,7 +88,19 @@ public:
 	/**
 	 * Initialize the bevel with the specified edges of a GroupTopology
 	 */
-	void InitializeFromGroupTopology(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupEdges);
+	void InitializeFromGroupTopologyEdges(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupEdges);
+
+	/**
+	* Initialize the bevel with the specified faces of a GroupTopology
+	* @return false if any selection-bowtie vertices were found, in this case we cannot compute the bevel
+	*/
+	bool InitializeFromGroupTopologyFaces(const FDynamicMesh3& Mesh, const FGroupTopology& Topology, const TArray<int32>& GroupFaces);
+
+	/**
+	* Initialize the bevel with border loops of the selected triangles. 
+	* @return false if any selection-bowtie vertices were found, in this case we cannot compute the bevel
+	*/
+	bool InitializeFromTriangleSet(const FDynamicMesh3& Mesh, const TArray<int32>& Triangles);
 
 	/**
 	 * Apply the bevel operation to the mesh, and optionally track changes
@@ -132,7 +144,7 @@ public:
 		TArray<FVector3d> NewPositions1;	// new positions for NewMeshVertices list
 
 		// new geometry computed during mesh step
-		int32 NewGroupID;
+		TArray<int32> NewGroupIDs;
 		TArray<FIndex2i> StripQuads;		// triangle-ID-pairs for each new quad added along edge, 1-1 with MeshEdges
 	};
 
