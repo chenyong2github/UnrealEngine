@@ -18,6 +18,40 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.BuildGraph
 {
 	/// <summary>
+	/// Location of an element within a file
+	/// </summary>
+	public class BgScriptLocation
+	{
+		/// <summary>
+		/// The file containing this element
+		/// </summary>
+		public string File { get; }
+
+		/// <summary>
+		/// Native file object
+		/// </summary>
+		public object NativeFile { get; }
+
+		/// <summary>
+		/// The line number containing this element
+		/// </summary>
+		public int LineNumber { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="File"></param>
+		/// <param name="NativeFile"></param>
+		/// <param name="LineNumber"></param>
+		public BgScriptLocation(string File, object NativeFile, int LineNumber)
+		{
+			this.File = File;
+			this.NativeFile = NativeFile;
+			this.LineNumber = LineNumber;
+		}
+	}
+
+	/// <summary>
 	/// Implementation of XmlDocument which preserves line numbers for its elements
 	/// </summary>
 	class BgScriptDocument : XmlDocument
@@ -62,7 +96,8 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		public override XmlElement CreateElement(string Prefix, string LocalName, string NamespaceUri)
 		{
-			return new BgScriptElement(File, NativeFile, LineInfo!.LineNumber, Prefix, LocalName, NamespaceUri, this);
+			BgScriptLocation Location = new BgScriptLocation(File, NativeFile, LineInfo!.LineNumber);
+			return new BgScriptElement(Location, Prefix, LocalName, NamespaceUri, this);
 		}
 
 		/// <summary>
@@ -100,7 +135,8 @@ namespace EpicGames.BuildGraph
 				{
 					if (!Document.bHasErrors)
 					{
-						Logger.LogScriptError(NativeFile, Ex.LineNumber, "{Message}", Ex.Message);
+						BgScriptLocation Location = new BgScriptLocation(File, NativeFile, Ex.LineNumber);
+						Logger.LogScriptError(Location, "{Message}", Ex.Message);
 						Document.bHasErrors = true;
 					}
 				}
@@ -115,13 +151,15 @@ namespace EpicGames.BuildGraph
 				// Check that the root element is valid. If not, we didn't actually validate against the schema.
 				if (Document.DocumentElement.Name != BgScriptSchema.RootElementName)
 				{
-					Logger.LogScriptError(NativeFile, 1, "Script does not have a root element called '{ElementName}'", BgScriptSchema.RootElementName);
+					BgScriptLocation Location = new BgScriptLocation(File, NativeFile, 1);
+					Logger.LogScriptError(Location, "Script does not have a root element called '{ElementName}'", BgScriptSchema.RootElementName);
 					OutDocument = null;
 					return false;
 				}
 				if (Document.DocumentElement.NamespaceURI != BgScriptSchema.NamespaceURI)
 				{
-					Logger.LogScriptError(NativeFile, 1, "Script root element is not in the '{Namespace}' namespace (add the xmlns=\"{NewNamespace}\" attribute)", BgScriptSchema.NamespaceURI, BgScriptSchema.NamespaceURI);
+					BgScriptLocation Location = new BgScriptLocation(File, NativeFile, 1);
+					Logger.LogScriptError(Location, "Script root element is not in the '{Namespace}' namespace (add the xmlns=\"{NewNamespace}\" attribute)", BgScriptSchema.NamespaceURI, BgScriptSchema.NamespaceURI);
 					OutDocument = null;
 					return false;
 				}
@@ -138,13 +176,14 @@ namespace EpicGames.BuildGraph
 		/// <param name="Args">Standard argument for ValidationEventHandler</param>
 		void ValidationEvent(object Sender, ValidationEventArgs Args)
 		{
+			BgScriptLocation Location = new BgScriptLocation(File, NativeFile, Args.Exception.LineNumber);
 			if (Args.Severity == XmlSeverityType.Warning)
 			{
-				Logger.LogScriptWarning(NativeFile, Args.Exception.LineNumber, "{Message}", Args.Message);
+				Logger.LogScriptWarning(Location, "{Message}", Args.Message);
 			}
 			else
 			{
-				Logger.LogScriptError(NativeFile, Args.Exception.LineNumber, "{Message}", Args.Message);
+				Logger.LogScriptError(Location, "{Message}", Args.Message);
 				bHasErrors = true;
 			}
 		}
@@ -156,29 +195,17 @@ namespace EpicGames.BuildGraph
 	class BgScriptElement : XmlElement
 	{
 		/// <summary>
-		/// The file containing this element
+		/// Location of the element within the file
 		/// </summary>
-		public string File { get; }
-
-		/// <summary>
-		/// Native file object
-		/// </summary>
-		public object NativeFile { get; }
-
-		/// <summary>
-		/// The line number containing this element
-		/// </summary>
-		public int LineNumber { get; }
+		public BgScriptLocation Location { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgScriptElement(string File, object NativeFile, int LineNumber, string Prefix, string LocalName, string NamespaceUri, BgScriptDocument Document)
+		public BgScriptElement(BgScriptLocation Location, string Prefix, string LocalName, string NamespaceUri, BgScriptDocument Document)
 			: base(Prefix, LocalName, NamespaceUri, Document)
 		{
-			this.File = File;
-			this.NativeFile = NativeFile;
-			this.LineNumber = LineNumber;
+			this.Location = Location;
 		}
 	}
 
@@ -265,20 +292,20 @@ namespace EpicGames.BuildGraph
 	/// </summary>
 	public static class BgScriptExtensions
 	{
-		public static void LogScriptError(this ILogger Logger, object File, int LineNumber, string Format, params object[] Args)
+		public static void LogScriptError(this ILogger Logger, BgScriptLocation Location, string Format, params object[] Args)
 		{
 			object[] AllArgs = new object[Args.Length + 2];
-			AllArgs[0] = File;
-			AllArgs[1] = LineNumber;
+			AllArgs[0] = Location.NativeFile;
+			AllArgs[1] = Location.LineNumber;
 			Args.CopyTo(AllArgs, 2);
 			Logger.LogError($"{{Script}}({{Line}}): error: {Format}", AllArgs);
 		}
 
-		public static void LogScriptWarning(this ILogger Logger, object File, int LineNumber, string Format, params object[] Args)
+		public static void LogScriptWarning(this ILogger Logger, BgScriptLocation Location, string Format, params object[] Args)
 		{
 			object[] AllArgs = new object[Args.Length + 2];
-			AllArgs[0] = File;
-			AllArgs[1] = LineNumber;
+			AllArgs[0] = Location.NativeFile;
+			AllArgs[1] = Location.LineNumber;
 			Args.CopyTo(AllArgs, 2);
 			Logger.LogWarning($"{{Script}}({{Line}}): warning: {Format}", AllArgs);
 		}
@@ -666,7 +693,7 @@ namespace EpicGames.BuildGraph
 				HashSet<string> Files = new HashSet<string>();
 				foreach (string Script in ReadListAttribute(Element, "Script"))
 				{
-					string IncludePath = CombinePaths(Element.File, Script);
+					string IncludePath = CombinePaths(Element.Location.File, Script);
 					if (Regex.IsMatch(IncludePath, @"\*|\?|\.\.\."))
 					{
 						Files.UnionWith(await Context.FindAsync(IncludePath));
@@ -867,7 +894,8 @@ namespace EpicGames.BuildGraph
 				BgScriptMacro? OriginalDefinition;
 				if(MacroNameToDefinition.TryGetValue(Name, out OriginalDefinition))
 				{
-					LogError(Element, "Macro '{0}' has already been declared (see {1} line {2})", Name, OriginalDefinition.Elements[0].File, OriginalDefinition.Elements[0].LineNumber);
+					BgScriptLocation Location = OriginalDefinition.Elements[0].Location;
+					LogError(Element, "Macro '{0}' has already been declared (see {1} line {2})", Name, Location.File, Location.LineNumber);
 				}
 				else
 				{
@@ -1490,7 +1518,7 @@ namespace EpicGames.BuildGraph
 
 			if (await EvaluateConditionAsync(Element))
 			{
-				BgTask Info = new BgTask(Tuple.Create(Element.File, Element.LineNumber), Element.Name);
+				BgTask Info = new BgTask(Element.Location, Element.Name);
 				foreach (XmlAttribute? Attribute in Element.Attributes)
 				{
 					if (String.Compare(Attribute!.Name, "If", StringComparison.InvariantCultureIgnoreCase) != 0)
@@ -1609,7 +1637,7 @@ namespace EpicGames.BuildGraph
 			{
 				string Message = ReadAttribute(Element, "Message");
 
-				BgGraphDiagnostic Diagnostic = new BgGraphDiagnostic(EventType, $"{Element.File}({Element.LineNumber}): {Message}", EnclosingNode, EnclosingAgent);
+				BgGraphDiagnostic Diagnostic = new BgGraphDiagnostic(Element.Location, EventType, Message, EnclosingNode, EnclosingAgent);
 				Graph.Diagnostics.Add(Diagnostic);
 			}
 		}
@@ -1888,7 +1916,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Args">Optional arguments</param>
 		void LogError(BgScriptElement Element, string Format, params object[] Args)
 		{
-			Logger.LogScriptError(Element.NativeFile, Element.LineNumber, Format, Args);
+			Logger.LogScriptError(Element.Location, Format, Args);
 			NumErrors++;
 		}
 
@@ -1900,7 +1928,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="Args">Optional arguments</param>
 		void LogWarning(BgScriptElement Element, string Format, params object[] Args)
 		{
-			Logger.LogScriptWarning(Element.NativeFile, Element.LineNumber, Format, Args);
+			Logger.LogScriptWarning(Element.Location, Format, Args);
 		}
 
 		/// <summary>

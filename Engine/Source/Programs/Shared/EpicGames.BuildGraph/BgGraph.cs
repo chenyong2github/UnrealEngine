@@ -42,6 +42,11 @@ namespace EpicGames.BuildGraph
 	public class BgGraphDiagnostic
 	{
 		/// <summary>
+		/// Location of the diagnostic
+		/// </summary>
+		public BgScriptLocation Location;
+
+		/// <summary>
 		/// The diagnostic event type
 		/// </summary>
 		public LogEventType EventType;
@@ -64,8 +69,9 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgGraphDiagnostic(LogEventType EventType, string Message, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
+		public BgGraphDiagnostic(BgScriptLocation Location, LogEventType EventType, string Message, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
 		{
+			this.Location = Location;
 			this.EventType = EventType;
 			this.Message = Message;
 			this.EnclosingNode = EnclosingNode;

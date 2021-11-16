@@ -606,15 +606,15 @@ namespace AutomationTool
 				{
 					if(Diagnostic.EventType == LogEventType.Console)
 					{
-						CommandUtils.LogInformation(Diagnostic.Message);
+						CommandUtils.LogWarning("{0}({1}): {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
 					}
 					else if(Diagnostic.EventType == LogEventType.Warning)
 					{
-						CommandUtils.LogWarning(Diagnostic.Message);
+						CommandUtils.LogWarning("{0}({1}): warning: {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
 					}
 					else
 					{
-						CommandUtils.LogError(Diagnostic.Message);
+						CommandUtils.LogError("{0}({1}): error: {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
 					}
 				}
 				if(Graph.Diagnostics.Any(x => x.EventType == LogEventType.Error))
@@ -771,7 +771,7 @@ namespace AutomationTool
 			CustomTask NewTask = (CustomTask)Activator.CreateInstance(Task.TaskClass, ParametersObject);
 
 			// Set up the source location for diagnostics
-			NewTask.SourceLocation = TaskInfo.SourceLocation;
+			NewTask.SourceLocation = TaskInfo.Location;
 
 			// Make sure all the read tags are local or listed as a dependency
 			foreach (string ReadTagName in NewTask.FindConsumedTagNames())
@@ -840,7 +840,7 @@ namespace AutomationTool
 
 		void OutputBindingError(BgTask Task, string Format, params object[] Args)
 		{
-			Logger.LogScriptError(Context.GetNativePath(Task.SourceLocation.Item1), Task.SourceLocation.Item2, Format, Args);
+			Logger.LogScriptError(Task.Location, Format, Args);
 		}
 
 		/// <summary>
@@ -1261,7 +1261,7 @@ namespace AutomationTool
 							ExceptionUtils.AddContext(Ex, "while executing task {0}", Tasks[Idx].GetTraceString());
 							if (Tasks[Idx].SourceLocation != null)
 							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[Idx].SourceLocation.Item1, Tasks[Idx].SourceLocation.Item2);
+								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[Idx].SourceLocation.File, Tasks[Idx].SourceLocation.LineNumber);
 							}
 							throw;
 						}
@@ -1289,7 +1289,7 @@ namespace AutomationTool
 							}
 							if (Tasks[FirstIdx].SourceLocation != null)
 							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[FirstIdx].SourceLocation.Item1, Tasks[FirstIdx].SourceLocation.Item2);
+								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[FirstIdx].SourceLocation.File, Tasks[FirstIdx].SourceLocation.LineNumber);
 							}
 							throw;
 						}

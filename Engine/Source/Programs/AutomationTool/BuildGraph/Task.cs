@@ -100,11 +100,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Line number in a source file that this task was declared. Optional; used for log messages.
 		/// </summary>
-		public Tuple<string, int> SourceLocation
-		{
-			get;
-			set;
-		}
+		public BgScriptLocation SourceLocation { get; set; }
 
 		/// <summary>
 		/// Execute this node.
@@ -188,8 +184,8 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ITraceSpan Span, string Prefix)
 		{
-			Span.AddMetadata(Prefix + "source.file", SourceLocation.Item1);
-			Span.AddMetadata(Prefix + "source.line", SourceLocation.Item2.ToString());
+			Span.AddMetadata(Prefix + "source.file", SourceLocation.File);
+			Span.AddMetadata(Prefix + "source.line", SourceLocation.LineNumber.ToString());
 		}
 		
 		/// <summary>
@@ -199,8 +195,8 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ISpan Span, string Prefix)
 		{
-			Span.SetTag(Prefix + "source.file", SourceLocation.Item1);
-			Span.SetTag(Prefix + "source.line", SourceLocation.Item2);
+			Span.SetTag(Prefix + "source.file", SourceLocation.File);
+			Span.SetTag(Prefix + "source.line", SourceLocation.LineNumber);
 		}
 
 		/// <summary>
