@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailsCustomizations/UVSelectToolCustomizations.h"
+#include <Framework/MultiBox/MultiBoxBuilder.h>
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
