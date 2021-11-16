@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "RenderGraphBuilder.h"
-#include "RHI.h"
 
 #ifdef PLATFORM_WIN64
-struct ID3D12Resource;
+	#include "RHI.h"
+
+	struct ID3D12Resource;
 #endif
 
 class FNeuralNetworkInferenceUtilsGPU

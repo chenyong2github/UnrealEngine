@@ -67,14 +67,45 @@ FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOut
 
 bool FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory)
 {
+	// NOTE: models are separated into multiple lines to enable/disable particular network for faster testing
+
 	// Model names, input values, and number of repetitions for profiling
-	const TArray<FString> ModelNames({ TEXT("MLRigDeformer"), TEXT("cloth_network"), TEXT("HS"), TEXT("RL") });
-	const TArray<float> InputArrayValues({ 1.f, 0.f, -1.f, 100.f, -100.f, 0.5f, -0.5f }); // This one can be shorter than CPU/GPUGroundTruths
+	const TArray<FString> ModelNames(
+	{ 
+		TEXT("MLRigDeformer"), 
+		TEXT("cloth_network"), 
+		TEXT("HS"), 
+		TEXT("RL") 
+	});
+
 	// Ground truths
-	const TArray<TArray<double>> CPUGroundTruths({ {3.728547, 0.008774, 4.595651, 212.193216, 742.434561, 4.250668, 4.717748}, {0.042571, 0.023693, 0.015783, 13.100505, 8.050994, 0.028807, 0.016387},
-		{138.372906, 126.753839, 127.287254, 130.316062, 127.303424, 124.800896, 126.546051}, {0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} });
-	const TArray<TArray<double>> GPUGroundTruths({ {3.728547, 0.008774, 4.595651, 212.193208, 742.434578, 4.250668, 4.717748}, {0.042571, 0.023693, 0.015783, 13.100504, 8.050994, 0.028807, 0.016387},
-		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530}, {0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} });
+	const TArray<TArray<double>> CPUGroundTruths(
+	{ 
+		{3.728547, 0.008774, 4.595651, 212.193216, 742.434561, 4.250668, 4.717748}, 
+		{0.042571, 0.023693, 0.015783, 13.100505, 8.050994, 0.028807, 0.016387},
+		{138.372906, 126.753839, 127.287254, 130.316062, 127.303424, 124.800896, 126.546051}, 
+		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} 
+	});
+	
+	const TArray<TArray<double>> GPUGroundTruths(
+	{ 
+		{3.728547, 0.008774, 4.595651, 212.193208, 742.434578, 4.250668, 4.717748}, 
+		{0.042571, 0.023693, 0.015783, 13.100504, 8.050994, 0.028807, 0.016387},
+		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530}, 
+		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} 
+	});
+
+	const TArray<float> InputArrayValues( // This one can be shorter than CPU/GPUGroundTruths
+	{ 
+		1.f, 
+		0.f, 
+		-1.f, 
+		100.f, 
+		-100.f, 
+		0.5f, 
+		-0.5f 
+	}); 
+	
 	// Speed profiling test - 0 repetitions means that test will not be run
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	const TArray<int32> CPURepetitionsForUEAndORTBackEnd({ 1000, 1000,  50, 1000 });
@@ -287,11 +318,13 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 			return false;
 		}
 	}
+	
 	// Save original network state
 	const ENeuralDeviceType OriginalDeviceType = InOutNetwork->GetDeviceType();
 	const ENeuralDeviceType OriginalInputDeviceType = InOutNetwork->GetInputDeviceType();
 	const ENeuralDeviceType OriginalOutputDeviceType = InOutNetwork->GetOutputDeviceType();
 	const ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
+	
 	// Set back end
 	if (!InOutNetwork->SetBackEnd(InBackEnd))
 	{
@@ -299,61 +332,58 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 		return false;
 	}
 	const FString BackEndString = GetBackEndString(InBackEnd);
+	
 	// Run each input with CPU/GPU and compare with each other and with the ground truth
 	// Multiple for loops to make sure that running on the CPU does not affect GPU results or vice versa
 	bool bDidGlobalTestPassed = true;
 	TArray<TArray<float>> CPUOutputs, CPUGPUCPUOutputs, CPUGPUGPUOutputs, GPUGPUCPUOutputs;
+	
 	// Input CPU + Network CPU + Output CPU
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
-		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 		// CPU
 		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::CPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
+		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 		InOutNetwork->Run();
 		CPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
+	
 	if (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd())
 	{
 		// Input CPU + Network GPU + Output CPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 		{
-			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
+			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->Run();
 			CPUGPUCPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 		}
+		
 		// Input CPU + Network GPU + Output GPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 		{
-			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
+			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->Run();
 			InOutNetwork->OutputTensorsToCPU();
 			CPUGPUGPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 		}
+
 		// Input GPU + Network GPU + Output CPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 		{
-// @todo: Remove if/else (and else contents) once DX12 version of NNI (UEAndORT) is ready
-if (InBackEnd == ENeuralBackEnd::UEOnly /*|| true*/)
-{
+			InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::GPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
 			InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 			InOutNetwork->InputTensorsToGPU();
-			InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::GPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
 			InOutNetwork->Run();
 			GPUGPUCPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
-}
-else
-{
-		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("FModelUnitTester::ModelAccuracyTest(): GPU output for UEAndORT back end not working yet. Uncomment this line to test it."));
-		GPUGPUCPUOutputs.Push(CPUGPUCPUOutputs[Index]);
-}
 		}
 	}
 	else
 	{
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- ModelAccuracyTest-UEAndORT-GPU skipped (DX12 not enabled)."));
 	}
+	
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
 		const TArray<float>& GPUGPUCPUOutput = (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd() ? GPUGPUCPUOutputs[Index] : CPUOutputs[Index]);

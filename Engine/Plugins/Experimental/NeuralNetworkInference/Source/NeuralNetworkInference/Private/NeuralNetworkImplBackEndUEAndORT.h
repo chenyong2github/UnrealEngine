@@ -21,8 +21,6 @@
 #pragma pop_macro("NOMINMAX")
 #endif
 
-#include "NeuralNetworkAsyncTask.h"
-
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
@@ -40,10 +38,64 @@ namespace Ort
 NNI_THIRD_PARTY_INCLUDES_END
 
 
-
-
 struct UNeuralNetwork::FImplBackEndUEAndORT
 {
+	/// Helper class to run session as an async task
+	class FNeuralNetworkAsyncTask : public FNonAbandonableTask
+	{
+		friend class FAsyncTask<FNeuralNetworkAsyncTask>;
+
+	public:
+
+		FNeuralNetworkAsyncTask(UNeuralNetwork::FImplBackEndUEAndORT* InBackEnd)
+			: BackEnd(InBackEnd)
+		{ 
+		}
+
+		void SetRunSessionArgs(const ENeuralNetworkSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+		{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+			const FScopeLock ResourcesLock(&BackEnd->ResoucesCriticalSection);
+
+			SyncMode = InSyncMode;
+			DeviceType = InDeviceType;
+			InputDeviceType = InInputDeviceType;
+			OutputDeviceType = InOutputDeviceType;
+#endif
+		}
+
+	protected:
+		void DoWork()
+		{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+			if (SyncMode == ENeuralNetworkSynchronousMode::Asynchronous)
+			{
+				BackEnd->RunSessionAsync(DeviceType, InputDeviceType, OutputDeviceType);
+			}
+			else
+			{
+				BackEnd->RunSessionSync(DeviceType, InputDeviceType, OutputDeviceType);
+			}
+#endif
+		}
+
+		// This next section of code needs to be here. Not important as to why.
+		FORCEINLINE TStatId GetStatId() const
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FNeuralNetworkAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
+		}
+
+	private:
+		UNeuralNetwork::FImplBackEndUEAndORT* BackEnd;
+
+		/// Variables that could change on each inference run
+		ENeuralNetworkSynchronousMode SyncMode;
+		ENeuralDeviceType DeviceType;
+		ENeuralDeviceType InputDeviceType;
+		ENeuralDeviceType OutputDeviceType;
+	};
+
+
 public:
 	/**
 	 * InputTensors and OutputTensors represent the input and output TArray<FNeuralTensor> of the network, respectively.
@@ -59,11 +111,18 @@ public:
 		FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath,
 		const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 	
-	void Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning , FCriticalSection& InResoucesCriticalSection,
-		const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning, FCriticalSection& InResoucesCriticalSection);
+#endif
+
+	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
 private:
+	/** Async support */
+	FOnAsyncRunCompleted& OnAsyncRunCompletedDelegate;
+	std::atomic<bool>& bIsBackgroundThreadRunning;
+	FCriticalSection& ResoucesCriticalSection;
 	/** Network-related variables */
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
@@ -85,11 +144,17 @@ private:
 
 	void IsAsyncTaskDone() const;
 
-	static bool InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
+	static bool InitializedAndConfigureMembers(
+					TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, 
+					FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, 
+					std::atomic<bool>& bInOutIsBackgroundThreadRunning,
+					FCriticalSection& InOutResoucesCriticalSection, 
+					const FString& InModelFullFilePath, 
+					const ENeuralDeviceType InDeviceType);
 
 	bool ConfigureMembers(const ENeuralDeviceType InDeviceType);
 
-	bool ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+	bool ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 	bool SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes, TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorTypeGPU>& InTensorGPUTypes, const bool bIsInput);
 
@@ -98,6 +163,10 @@ private:
 #ifdef PLATFORM_WIN64
 	bool LinkTensorResourceToONNXRuntime(FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* D3DResource);
 #endif
+
+	void RunSessionAsync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+	void RunSessionSync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+	void RunSessionImpl(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 	void ClearResources();
 
