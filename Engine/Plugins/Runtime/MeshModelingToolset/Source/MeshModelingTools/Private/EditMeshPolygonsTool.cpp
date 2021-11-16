@@ -42,6 +42,7 @@
 #include "ToolActivities/PolyEditInsetOutsetActivity.h"
 #include "ToolActivities/PolyEditCutFacesActivity.h"
 #include "ToolActivities/PolyEditPlanarProjectionUVActivity.h"
+#include "ToolActivities/PolyEditBevelEdgeActivity.h"
 #include "ToolContextInterfaces.h" // FToolBuilderState
 #include "ToolSetupUtil.h"
 #include "ToolTargetManager.h"
@@ -223,6 +224,12 @@ void UEditMeshPolygonsTool::Setup()
 	AddToolPropertySource(CancelAction);
 	SetToolPropertySourceEnabled(CancelAction, false);
 
+	AcceptCancelAction = NewObject<UEditMeshPolygonsToolAcceptCancelAction>();
+	AcceptCancelAction->Initialize(this);
+	AddToolPropertySource(AcceptCancelAction);
+	SetToolPropertySourceEnabled(AcceptCancelAction, false);
+
+
 	// Initialize the common properties but don't add them yet, because we want them to be under the activity-specific ones.
 	CommonProps = NewObject<UPolyEditCommonProperties>(this);
 	CommonProps->RestoreProperties(this);
@@ -359,6 +366,9 @@ void UEditMeshPolygonsTool::Setup()
 	InsertEdgeActivity = NewObject<UPolyEditInsertEdgeActivity>();
 	InsertEdgeActivity->Setup(this);
 
+	BevelEdgeActivity = NewObject<UPolyEditBevelEdgeActivity>();
+	BevelEdgeActivity->Setup(this);
+
 	// Now that we've initialized the activities, add in the selection settings and 
 	// CommonProps so that they are at the bottom.
 	AddToolPropertySource(SelectionMechanic->Properties);
@@ -449,6 +459,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	PlanarProjectionUVActivity->Shutdown(ShutdownType);
 	InsertEdgeActivity->Shutdown(ShutdownType);
 	InsertEdgeLoopActivity->Shutdown(ShutdownType);
+	BevelEdgeActivity->Shutdown(ShutdownType);
 
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 
@@ -521,6 +532,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	EditEdgeActions_Triangles = nullptr;
 	EditUVActions = nullptr;
 	CancelAction = nullptr;
+	AcceptCancelAction = nullptr;
 
 	ExtrudeActivity = nullptr;
 	InsetOutsetActivity = nullptr;
@@ -528,6 +540,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	PlanarProjectionUVActivity = nullptr;
 	InsertEdgeActivity = nullptr;
 	InsertEdgeLoopActivity = nullptr;
+	BevelEdgeActivity = nullptr;
 
 	SelectionMechanic = nullptr;
 	DragAlignmentMechanic = nullptr;
@@ -893,9 +906,21 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 			break;
 		}
 
+		case EEditMeshPolygonsToolActions::BevelFaces:
+		case EEditMeshPolygonsToolActions::BevelEdges:
+		{
+			StartActivity(BevelEdgeActivity);
+			break;
+		}
+
 		case EEditMeshPolygonsToolActions::CancelCurrent:
 		{
-			EndCurrentActivity();
+			EndCurrentActivity(EToolShutdownType::Cancel);
+			break;
+		}
+		case EEditMeshPolygonsToolActions::AcceptCurrent:
+		{
+			EndCurrentActivity(EToolShutdownType::Accept);
 			break;
 		}
 
@@ -969,7 +994,14 @@ void UEditMeshPolygonsTool::StartActivity(TObjectPtr<UInteractiveToolActivity> A
 		TransformGizmo->SetVisibility(false);
 		SelectionMechanic->SetIsEnabled(false);
 		CurrentActivity = Activity;
-		SetToolPropertySourceEnabled(CancelAction, true);
+		if (CurrentActivity == BevelEdgeActivity)
+		{
+			SetToolPropertySourceEnabled(AcceptCancelAction, true);
+		}
+		else
+		{
+			SetToolPropertySourceEnabled(CancelAction, true);
+		}
 		SetActionButtonPanelsVisible(false);
 	}
 }
@@ -991,6 +1023,7 @@ void UEditMeshPolygonsTool::EndCurrentActivity(EToolShutdownType ShutdownType)
 		++ActivityTimestamp;
 
 		SetToolPropertySourceEnabled(CancelAction, false);
+		SetToolPropertySourceEnabled(AcceptCancelAction, false);
 		SetActionButtonPanelsVisible(true);
 		SelectionMechanic->SetIsEnabled(true);
 		UpdateGizmoVisibility();
