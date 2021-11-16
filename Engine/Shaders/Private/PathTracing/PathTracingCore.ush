@@ -936,7 +936,11 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			float3 LightContrib = PathState.PathThroughput * LightResult.Radiance;
 			if (bUseMIS)
 			{
-				float PreviousCdfValue = Index > 0 ? LightPickingCdf[Index - 1] : 0.0;
+				float PreviousCdfValue = 0.0;
+				BRANCH if (Index > 0)
+				{
+					PreviousCdfValue = LightPickingCdf[Index - 1];
+				}
 				float LightPickPdf = (LightPickingCdf[Index] - PreviousCdfValue) / LightPickingCdfSum;
 
 				LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);

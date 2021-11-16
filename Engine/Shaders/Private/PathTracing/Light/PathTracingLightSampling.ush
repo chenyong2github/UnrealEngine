@@ -139,8 +139,11 @@ void SelectLight(float RandSample, int NumLights, inout float LightPickingCdf[RA
 			Count -= Step + 1;
 		}
 	}
-
-	LightPickPdf = LightPickingCdf[LightId] - ((LightId > 0) ? LightPickingCdf[LightId - 1] : 0.0);
+	LightPickPdf = LightPickingCdf[LightId];
+	BRANCH if (LightId > 0)
+	{
+		LightPickPdf -= LightPickingCdf[LightId - 1];
+	}
 #endif
 #endif
 }
