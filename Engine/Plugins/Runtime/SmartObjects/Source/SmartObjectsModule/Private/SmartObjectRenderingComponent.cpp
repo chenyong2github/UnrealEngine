@@ -34,8 +34,13 @@ public:
 			return;
 		}
 
-		const float DebugCylinderRadius = 40.f;
-		const float DebugCylinderHalfHeight = 100.f;
+		// For loaded instances, we draw slots only when selected but 
+		// for other cases (e.g. instances newly added to world, preview actors, etc.) we
+		// want to draw all the time to improve authoring.
+		bDrawEvenIfNotSelected = !Owner->HasAnyFlags(RF_WasLoaded);
+
+		constexpr float DebugCylinderRadius = 40.f;
+		constexpr float DebugCylinderHalfHeight = 100.f;
 		FColor DebugColor = FColor::Yellow;
 
 		const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
@@ -59,12 +64,14 @@ public:
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;
-		Result.bDrawRelevance = IsShown(View) && IsSelected();
+		Result.bDrawRelevance = IsShown(View) && (IsSelected() || bDrawEvenIfNotSelected);
 		Result.bDynamicRelevance = true;
 		// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
 		Result.bSeparateTranslucency = Result.bNormalTranslucency = IsShown(View);
 		return Result;
 	}
+
+	bool bDrawEvenIfNotSelected = true;
 };
 
 //----------------------------------------------------------------------//

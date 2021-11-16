@@ -8,7 +8,7 @@
 /**
  * Concrete configuration class for testing purposes
  */
-UCLASS()
+UCLASS(HideDropdown)
 class SMARTOBJECTSTESTSUITE_API USmartObjectTestConfig : public USmartObjectBehaviorConfigBase
 {
 	GENERATED_BODY()
